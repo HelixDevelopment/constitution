@@ -381,6 +381,24 @@ install_action_plugins() {
         warn "Installer reported problems — see its WARN lines above."
         WARNINGS+=("install_cli_agent_plugins.sh reported problems")
     fi
+
+    # --- §11.4.272 dynamic skill activation: bring the declared CORE up ------
+    # ADDITIVE. Never removes anything the installer linked; it only ensures
+    # the manifest's core set is active and reports the resulting surface.
+    # A missing engine is an honest WARNING, never a silent success (§11.4.6).
+    local sa="${CONST_DIR}/scripts/skill_activation/skill_activate.sh"
+    if [ -x "$sa" ]; then
+        info "Running: skill_activate.sh session-init $PROJECT_ROOT"
+        if bash "$sa" session-init "$PROJECT_ROOT"; then
+            info "  -> Skill activation baseline applied (§11.4.272)."
+        else
+            warn "skill_activate.sh session-init reported problems — a CORE skill may NOT be available."
+            WARNINGS+=("skill activation: a core skill failed to activate")
+        fi
+    else
+        warn "skill_activate.sh not executable/missing at $sa — dynamic skill activation NOT applied."
+        WARNINGS+=("skill_activate.sh missing — dynamic skill activation inactive")
+    fi
     return 0
 }
 
