@@ -109,19 +109,41 @@ _is_mounted() {
     awk -v mp="$_im_mp" '$2==mp { f=1; exit } END { exit(f?0:1) }' "$_im_f"
 }
 
+# --- track readiness, serial-aware (§11.4.187 / §11.4.201) --------------------
+# A DRIVE-backed track (one with a drive_serial) is ready IFF a filesystem is
+# mounted at its mountpoint — unchanged. A track with NO drive_serial is a plain
+# DIRECTORY (default single-track mode, or any directory track an operator
+# configures): it is ready IFF that directory EXISTS. Probing /proc/mounts for a
+# directory track reports "unmounted" for a perfectly usable track and drags in
+# the LUKS operator-blocked hand-off that does not apply to it — the §11.4.201
+# false-refusal class. Args: <track-index> <mountpoint>.
+_track_ready() {
+    _tr_i=$1; _tr_mp=$2
+    eval "_tr_serial=\${MT_TRACK_${_tr_i}_SERIAL:-}"
+    if [ -n "${_tr_serial:-}" ]; then
+        _is_mounted "$_tr_mp"
+        return $?
+    fi
+    [ -n "$_tr_mp" ] && [ -d "$_tr_mp" ]
+}
+
 # --- host/config resolution (delegated to multitrack_config.sh) ---------------
+# §11.4.187: delegates to mt_resolve_and_load — a real per-host config is loaded
+# exactly as before; a host with NO config falls back to the universal DEFAULT
+# single-track mode (track-1 = the invocation project root) with a loud notice;
+# a config that EXISTS but is malformed stays FATAL (rc 3, never defaulted past).
 _resolve_config() {
     _rc_host=${MT_HOST:-$(mt_resolve_host)}
-    if [ -n "${MT_CONFIG:-}" ]; then
-        MT_CFG=$MT_CONFIG
-    else
-        MT_CFG=$(mt_config_file "$_rc_host") || {
-            echo "FATAL: no per-host multitrack config for host='$_rc_host' (looked under $(mt_config_dir))" >&2
-            exit 1
-        }
-    fi
-    mt_load_config "$MT_CFG" || { echo "FATAL: could not parse $MT_CFG" >&2; exit 1; }
-    [ "${MT_TRACK_COUNT:-0}" -ge 1 ] || { echo "FATAL: no tracks defined in $MT_CFG" >&2; exit 1; }
+    mt_resolve_and_load
+    _rc_rc=$?
+    case "$_rc_rc" in
+        0) : ;;
+        3) echo "FATAL: per-host multitrack config for host='$_rc_host' is present but unusable" >&2
+           exit 1 ;;
+        *) echo "FATAL: could not resolve a multitrack config for host='$_rc_host' (looked under $(mt_config_dir)) and no default could be established" >&2
+           exit 1 ;;
+    esac
+    MT_CFG=${MT_CFG_FILE:-}
 }
 
 # --- the §11.4.21 OPERATOR-BLOCKED hand-off note ------------------------------
@@ -158,8 +180,14 @@ cmd_status() {
         eval "_st_branch=\${MT_TRACK_${_st_i}_BRANCH:-}"
         _st_reg=$(_reg get "$_st_id" mount_state 2>/dev/null || printf '?')
         _st_ws=$(_reg get "$_st_id" ws_state 2>/dev/null || printf '?')
-        if _is_mounted "$_st_mount"; then
-            _st_live=mounted; _st_overall=ACTIVE; _st_active=$((_st_active + 1))
+        eval "_st_serial=\${MT_TRACK_${_st_i}_SERIAL:-}"
+        if _track_ready "$_st_i" "$_st_mount"; then
+            if [ -n "${_st_serial:-}" ]; then _st_live=mounted; else _st_live=directory; fi
+            _st_overall=ACTIVE; _st_active=$((_st_active + 1))
+        elif [ -z "${_st_serial:-}" ]; then
+            # directory track whose directory is absent — a real problem, but
+            # NOT a LUKS/mount operator hand-off (never counted as blocked).
+            _st_live=missing-dir; _st_overall=MISSING-DIR
         else
             _st_live=unmounted; _st_blocked=$((_st_blocked + 1))
             case "$_st_reg" in
@@ -189,8 +217,10 @@ cmd_up() {
         eval "_up_id=\${MT_TRACK_${_up_i}_ID:-}"
         eval "_up_mount=\${MT_TRACK_${_up_i}_MOUNT:-}"
         _up_reg=$(_reg get "$_up_id" mount_state 2>/dev/null || printf '?')
-        if _is_mounted "$_up_mount"; then
+        eval "_up_serial=\${MT_TRACK_${_up_i}_SERIAL:-}"
+        if _track_ready "$_up_i" "$_up_mount"; then
             _up_note=""
+            [ -n "${_up_serial:-}" ] || _up_note="(directory track — no drive)"
             if [ "$_up_reg" != "mounted" ]; then
                 if _reg set "$_up_id" mount_state mounted >/dev/null 2>&1; then
                     _up_reconciled=$((_up_reconciled + 1))
@@ -199,8 +229,15 @@ cmd_up() {
                     _up_note="(reconcile FAILED — inspect registry)"
                 fi
             fi
-            printf '  %-9s MOUNTED at %-12s %s\n' "$_up_id" "$_up_mount" "$_up_note"
+            printf '  %-9s %-12s at %-12s %s\n' "$_up_id" \
+                "$( [ -n "${_up_serial:-}" ] && printf MOUNTED || printf READY-DIR )" \
+                "$_up_mount" "$_up_note"
             _up_ok=$((_up_ok + 1))
+        elif [ -z "${_up_serial:-}" ]; then
+            # directory track with a missing directory: a real problem, but NOT
+            # a LUKS/mount operator hand-off (§11.4.201 — never a false refusal).
+            printf '  %-9s MISSING-DIR %s (create it, or fix the track mount)\n' "$_up_id" "$_up_mount"
+            _up_blocked=$((_up_blocked + 1))
         else
             # not mounted: reconcile ONLY if the registry wrongly claims "mounted"
             if [ "$_up_reg" = "mounted" ]; then

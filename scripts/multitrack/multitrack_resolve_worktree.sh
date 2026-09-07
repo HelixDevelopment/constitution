@@ -138,11 +138,25 @@ _mrw_load_cfg() {
     fi
     # Pin the resolved root so config.sh's config-dir lookup is deterministic.
     MT_REPO_ROOT="$MRW_REPO_ROOT"; export MT_REPO_ROOT
-    local host cfg
+    local host rc
     host="$(mt_resolve_host)"
-    cfg="$(mt_config_file "$host" 2>/dev/null)" || return 1
-    mt_load_config "$cfg" >/dev/null 2>&1 || return 1
-    MRW_CFG="$cfg"
+    # §11.4.187: a real per-host config loads exactly as before; a host with NO
+    # config falls back to the universal DEFAULT single-track mode (track-1 =
+    # the invocation project root) with a loud stderr notice; a config that
+    # EXISTS but is malformed still fails (never silently defaulted past).
+    mt_resolve_and_load
+    rc=$?
+    [ "$rc" -eq 0 ] || return 1
+    MRW_CFG="${MT_CFG_FILE:-}"
+    if [ "${MT_DEFAULT_MODE:-0}" = "1" ]; then
+        # Default mode has no config FILE, so the file-reading accessors cannot
+        # supply the worktree subdir — take it from the loaded default, and pin
+        # the repo root to the resolved project root so downstream composition
+        # ("<mount>/<subdir>") yields the project root itself.
+        MRW_REPO_ROOT="${MT_DEFAULT_TRACK1_ROOT:-$MRW_REPO_ROOT}"
+        MT_REPO_ROOT="$MRW_REPO_ROOT"; export MT_REPO_ROOT
+        [ -n "$MRW_WT_SUBDIR" ] || MRW_WT_SUBDIR="${MT_WORKTREE_SUBDIR:-}"
+    fi
     return 0
 }
 
@@ -271,8 +285,17 @@ $(_mrw_eligible_native_aliases)
 EOF
     [ "$want" -ge 0 ] || return 1
     # the want-th feature track
+    #
+    # §11.4.6 / §11.4.201: an EMPTY line is NOT a track. A here-doc built from an
+    # empty command substitution still yields one blank line, so a host with
+    # FEWER feature tracks than aliases (canonically: a single main-only track,
+    # e.g. §11.4.187 default single-track mode) used to "match" that blank at
+    # index 0 and return an EMPTY track+mount — which downstream composed into a
+    # bogus worktree path ("/<subdir>"). Skipping blanks makes the no-such-track
+    # case return 1 (correctly rendered as "-"/fallback) instead of a wrong path.
     local i=0 line
     while IFS= read -r line; do
+        [ -n "$line" ] || continue
         if [ "$i" -eq "$want" ]; then printf '%s' "$line"; return 0; fi
         i=$((i + 1))
     done <<EOF

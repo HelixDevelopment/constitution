@@ -114,19 +114,37 @@ _event() {
 }
 
 # --- config (device pool + lease policy) -------------------------------------
+# §11.4.187 / §11.4.201: "this host declares no physical device pool" is a
+# legitimate, extremely common state (default single-track mode; any project
+# that is pure software and leases no hardware — note even a fully-configured
+# host may carry `device_pool: []`). Treating it as FATAL made every read-only
+# device-lock query fail on such a host — a false refusal. An ABSENT config or
+# an EMPTY pool now yields an honest EMPTY pool (MT_DEVICE_COUNT=0); only the
+# commands that genuinely NEED a device refuse, via _require_pool below.
 _load_pool() {
     local host cfg
     host=${MT_HOST:-$(mt_resolve_host)}
     if [ -n "${MT_CONFIG:-}" ]; then
         cfg=$MT_CONFIG
     else
-        cfg=$(mt_config_file "$host") || {
-            echo "FATAL: no per-host config for host=$host under $(mt_config_dir)" >&2
-            exit 1
-        }
+        cfg=$(mt_config_file "$host" 2>/dev/null) || cfg=""
+    fi
+    if [ -z "$cfg" ]; then
+        MT_DEVICE_COUNT=0; export MT_DEVICE_COUNT
+        MT_POOL_SOURCE="none (no per-host config for host=$host — default single-track mode)"
+        return 0
     fi
     mt_load_pool "$cfg" || { echo "FATAL: device_pool parse failed for $cfg" >&2; exit 1; }
-    [ "${MT_DEVICE_COUNT:-0}" -ge 1 ] || { echo "FATAL: config $cfg has an empty device_pool" >&2; exit 1; }
+    MT_POOL_SOURCE="$cfg"
+}
+
+# Commands that cannot do their job without at least one declared device.
+_require_pool() {
+    [ "${MT_DEVICE_COUNT:-0}" -ge 1 ] && return 0
+    echo "REFUSED: this host declares no device_pool (source: ${MT_POOL_SOURCE:-unknown})." >&2
+    echo "  '$1' needs at least one device. Declare a device_pool in the per-host" >&2
+    echo "  config, or use a command that does not require a device (pool/status)." >&2
+    exit 1
 }
 
 # device index -> field lookups
@@ -286,6 +304,7 @@ cmd_status() {
 cmd_acquire() {
     [ -n "${TRACK:-}" ] || { echo "usage: acquire --track <id> ..." >&2; exit 2; }
     _load_pool
+    _require_pool acquire
     _ensure_dirs
     local ttl=${OPT_TTL:-$MT_DEFAULT_TTL}
     (
@@ -326,6 +345,7 @@ cmd_acquire() {
 cmd_heartbeat() {
     [ -n "${TRACK:-}" ] || { echo "usage: heartbeat --track <id> [--ttl SEC]" >&2; exit 2; }
     _load_pool; _ensure_dirs
+    _require_pool heartbeat
     local ttl=${OPT_TTL:-$MT_DEFAULT_TTL}
     (
         flock -w "$MT_LOCK_WAIT" 9 || { echo "FATAL: registry busy" >&2; exit 1; }
@@ -344,6 +364,7 @@ cmd_heartbeat() {
 cmd_release() {
     [ -n "${TRACK:-}" ] || { echo "usage: release --track <id> [--device <id>]" >&2; exit 2; }
     _load_pool; _ensure_dirs
+    _require_pool release
     (
         flock -w "$MT_LOCK_WAIT" 9 || { echo "FATAL: registry busy" >&2; exit 1; }
         _reap
@@ -358,6 +379,8 @@ cmd_release() {
 
 cmd_reap() {
     _load_pool; _ensure_dirs
+
+    _require_pool reap
     ( flock -w "$MT_LOCK_WAIT" 9 || exit 1; _reap; echo "REAP: stale leases expired (see events.jsonl)"; ) 9<"$LOCKF"
 }
 
@@ -366,6 +389,7 @@ cmd_reconcile() {
     # replay events in order, keeping the last ACQUIRE/HEARTBEAT per device and
     # dropping RELEASE/REAP'd devices; then reap expired.
     _load_pool; _ensure_dirs
+    _require_pool reconcile
     ( flock -w "$MT_LOCK_WAIT" 9 || exit 1
       awk -F'"' '
         # crude JSONL field pluck by key (values are simple, no nested quotes)
