@@ -226,6 +226,29 @@ run_case_env "arith-injection MAX_DEPTH blocked"        "${MD}=x[0]"  2 "a \$(b 
 run_case_env "valid MAX_DEPTH=0 still blocks force"     "${MD}=0"     2 "a \$(b \$(${GIT_PUSH_LIT} ${FORCE_FLAG} o m))"
 run_case_env "valid MAX_BYTES=1 still blocks force"     "${MB}=1"     2 "${GIT_PUSH_LIT} ${FORCE_FLAG} origin main"
 
+# Q1 (round-3 review): the two fail-closed layers MASKED each other -- reverting
+# either alone still scored 66/0, so only a DOUBLE mutation could fail. The
+# reviewer supplied the input that isolates the CAPTURE layer with a VALID
+# depth: FUNCNEST caps bash function nesting, so the recursive expander dies
+# while _fp_numeric_or_default, the scrubber and block() -- all at depth 1 --
+# survive. Reverting only the capture makes this exit 0 (a silent force-push
+# ALLOW); with the capture in place the guard blocks via its self-check.
+run_case_env "expander fault: capture still blocks"    "FUNCNEST=2"  2 "a \$(b \$(${GIT_PUSH_LIT} ${FORCE_FLAG} o m))"
+# Documented cost of that fail-closed direction: under FUNCNEST=2 even a
+# harmless substitution is refused, because the guard cannot certify what it
+# could not parse. Refusing is the correct direction; pinned so it stays
+# deliberate rather than becoming a surprise.
+run_case_env "expander fault: harmless subst refused"  "FUNCNEST=2"  2 "echo \$(date +%s)"
+
+# Q3 (round-3 review): the depth bound had NO discriminating fixture --
+# MAX_DEPTH=0 still blocked a force-push, so the mutation passed 66/0. These
+# two pin BOTH sides. Bodies of a call at depth d expand while d < MAX, so one
+# wrap is enough to cross a zero bound. Past the bound the body is emitted RAW,
+# which re-merges the date `+%s` into the push clause -- the documented
+# false-positive side of a merge-safe bound.
+run_case    "1-wrap date subst allowed"                0 "a \$(${GIT_PUSH_LIT} o m > log_\$(date +%s).txt)"
+run_case_env "MAX_DEPTH=0 merges body: refuses"        "${MD}=0"     2 "a \$(${GIT_PUSH_LIT} o m > log_\$(date +%s).txt)"
+
 echo
 echo "-- ATM-GUARD-TERMINATOR: negative class covers & and < too (W1) --"
 # Enumerating `)` and `>` missed `&` and `<`. The terminator is now a
