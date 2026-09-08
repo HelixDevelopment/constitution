@@ -233,12 +233,24 @@ run_case_env "valid MAX_BYTES=1 still blocks force"     "${MB}=1"     2 "${GIT_P
 # while _fp_numeric_or_default, the scrubber and block() -- all at depth 1 --
 # survive. Reverting only the capture makes this exit 0 (a silent force-push
 # ALLOW); with the capture in place the guard blocks via its self-check.
+# PRECONDITION (round-4 review gap). The two fixtures below use FUNCNEST to
+# make the recursive expander fail while the depth-1 helpers survive. That
+# mechanism is bash-version-dependent: on a bash that IGNORED FUNCNEST the
+# expander would not fail, the guard would block by the ORDINARY path, and the
+# fixtures would still print PASS -- passing for the wrong reason, which is the
+# precise false-null this suite exists to catch. So the mechanism is verified
+# FIRST, and reports an honest SKIP rather than a green tick when unavailable.
+if ( set +e; FUNCNEST=2 bash -c 'f3(){ :; }; f2(){ f3; }; f1(){ f2; }; f1' ) 2>/dev/null; then
+  printf '  SKIP  %-62s (FUNCNEST not enforced by this bash; §11.4.3)\n' "expander-fault fixtures"
+  printf '        Mechanism unavailable -- these two cases certify NOTHING here.\n'
+else
 run_case_env "expander fault: capture still blocks"    "FUNCNEST=2"  2 "a \$(b \$(${GIT_PUSH_LIT} ${FORCE_FLAG} o m))"
 # Documented cost of that fail-closed direction: under FUNCNEST=2 even a
 # harmless substitution is refused, because the guard cannot certify what it
 # could not parse. Refusing is the correct direction; pinned so it stays
 # deliberate rather than becoming a surprise.
 run_case_env "expander fault: harmless subst refused"  "FUNCNEST=2"  2 "echo \$(date +%s)"
+fi
 
 # Q3 (round-3 review): the depth bound had NO discriminating fixture --
 # MAX_DEPTH=0 still blocked a force-push, so the mutation passed 66/0. These
