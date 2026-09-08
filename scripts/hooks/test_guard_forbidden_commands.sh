@@ -79,6 +79,26 @@ run_case() {
   fi
 }
 
+# run_case_env <name> <env-assignments> <expected-exit> <command>
+# Round-2 review finding 1: the suite had NO fixture in which the hook runs
+# under a misconfigured environment. Both tuning bounds were read straight
+# from the environment, and a non-numeric value took the ENTIRE guard down --
+# exit 1 (treated as proceed, so host-power and sudo went dark) for MAX_BYTES,
+# and a silent exit 0 for MAX_DEPTH because the arithmetic error killed the
+# process substitution feeding the read loop. A guard that configuration can
+# switch off is not a guard.
+run_case_env() {
+  local name="$1" envs="$2" want="$3" cmd="$4" got
+  local body="{${DQ}tool_name${DQ}:${DQ}Bash${DQ},${DQ}tool_input${DQ}:{${DQ}command${DQ}:${DQ}${cmd}${DQ}}}"
+  printf '%s' "$body" | env $envs bash "$HOOK" >/dev/null 2>&1
+  got=$?
+  if [ "$got" -eq "$want" ]; then
+    printf '  PASS  %-62s (exit %s)\n' "$name" "$got"; PASS=$((PASS+1))
+  else
+    printf '  FAIL  %-62s (got exit %s, want %s)\n' "$name" "$got" "$want"; FAIL=$((FAIL+1))
+  fi
+}
+
 echo "guard-forbidden-commands.sh hermetic test suite (BOB-099 remediation)"
 echo "hook: $HOOK"
 echo
@@ -141,6 +161,89 @@ echo
 echo "-- Escape-hatch MUST NOT downgrade host-power classes (exit 2) --"
 run_case "systemctl suspend w/ escape marker"  2 "${SYSCTL_SUSP} # guardrails:allow please no"
 run_case "shutdown w/ escape marker"           2 "${SHUT_H} -h now # guardrails:allow please no"
+
+echo
+echo "-- ATM-GUARD-SUBST: word-boundary + command-substitution class (2026-09-08) --"
+# Coverage-escape remediation (§11.4.238): SIX defects in this gate survived the
+# 32 cases above and were found only when a real push was refused in live use.
+# WHY the suite missed them: every force-push fixture above spells the
+# invocation with `git` at start-of-string or after a space, and every
+# carrier fixture puts the trigger in an INERT region (quote/comment). No
+# fixture placed a LIVE `git push` behind a non-space boundary, and none put a
+# `+`-leading token from an UNRELATED command in the same clause as a real
+# push. Both blind spots are now fixtured.
+#
+# FALSE NEGATIVES (each was ALLOWED before the fix -- a §11.4.113 escape
+# hatch in a rule that has none):
+run_case "force-push inside \$( ) subst"        2 "echo \$(${GIT_PUSH_LIT} ${FORCE_FLAG} origin main)"
+run_case "force-push inside backticks"         2 "echo \`${GIT_PUSH_LIT} ${FORCE_FLAG} origin main\`"
+run_case "force-push inside subshell parens"   2 "(${GIT_PUSH_LIT} ${FORCE_FLAG} origin main)"
+run_case "force-push via absolute path"        2 "/usr/bin/${GIT_PUSH_LIT} ${FORCE_FLAG} origin main"
+run_case "force-push in NESTED subst"          2 "x \$(y \$(${GIT_PUSH_LIT} ${FORCE_FLAG} z) w)"
+# Load-bearing: the expander must NOT split a real force-push apart when a
+# substitution sits BETWEEN `git push` and the force flag.
+run_case "force flag after subst argument"     2 "${GIT_PUSH_LIT} \$(get_remote) ${FORCE_FLAG}"
+#
+# FALSE POSITIVE (was REFUSED before the fix -- §11.4.201 FAIL-bluff): a
+# `date +FORMAT` inside a substitution is not a `+<refspec>`.
+run_case "push w/ date +FORMAT in subst"       0 "${GIT_PUSH_LIT} gitlab main > log_\$(date -u +%Y%m%dT%H%M%SZ).log"
+run_case "push then date +%s in pipeline"      0 "${GIT_PUSH_LIT} gitlab main && date +%s"
+run_case "subst w/ + but no push at all"       0 "echo \$(date +%s)"
+
+# +<refspec> IS a force push. NOTE (review finding W1): NO case in the suite
+# guarded this check -- deleting the `+` test entirely still scored 42/42.
+run_case "real +refspec force push"            2 "${GIT_PUSH_LIT} origin +main:main"
+run_case "real +refspec bare ref"              2 "${GIT_PUSH_LIT} origin +main"
+
+# BLOCKING review finding B1: a force flag immediately before `)` was
+# INVISIBLE -- the flag tests required whitespace/`=`/end-of-string after it
+# -- so the very common `(cd repo && git push --force)` was ALLOWED. The
+# first fix's own fixture was spelled `(git push --force origin main)`, with
+# tokens AFTER the flag: the one shape that passes. The suite therefore
+# asserted the subshell class was closed while this spelling stayed open.
+run_case "force flag trailing before paren"    2 "(${GIT_PUSH_LIT} ${FORCE_FLAG})"
+run_case "subshell cd && force before paren"   2 "(cd repo && ${GIT_PUSH_LIT} ${FORCE_FLAG})"
+run_case "short -f trailing before paren"      2 "(cd repo && ${GIT_PUSH_LIT} origin main -f)"
+run_case "force-with-lease before paren"       2 "(${GIT_PUSH_LIT} ${FORCE_FLAG}-with-lease)"
+run_case "force flag before redirect"          2 "${GIT_PUSH_LIT} ${FORCE_FLAG}>log.txt"
+
+# Review finding W2: the widened boundary newly and WRONGLY refused these.
+# `.` and `:` sit inside ordinary tokens that are not a git invocation.
+run_case "repo.git is not a git invocation"    0 "echo repo.git push +tag"
+run_case "x:git is not a git invocation"       0 "echo x:git push +x"
+run_case "url ending .git is not invocation"   0 "curl https://h/repo.git push +1"
+
+echo
+echo "-- ATM-GUARD-FAILCLOSED: misconfigured env MUST NOT disable the guard --"
+MB=$'HELIX_GUARD_EXPAND_MAX''_BYTES'
+MD=$'HELIX_GUARD_EXPAND_MAX''_DEPTH'
+run_case_env "bad MAX_BYTES: force-push still blocked"  "${MB}=abc"   2 "${GIT_PUSH_LIT} ${FORCE_FLAG} origin main"
+run_case_env "bad MAX_BYTES: host-power still blocked"  "${MB}=abc"   2 "${SYSCTL_SUSP}"
+run_case_env "bad MAX_BYTES: sudo still blocked"        "${MB}=abc"   2 "${SDO} ls"
+run_case_env "bad MAX_DEPTH: nested force blocked"      "${MD}=abc"   2 "a \$(b \$(${GIT_PUSH_LIT} ${FORCE_FLAG} o m))"
+run_case_env "bad MAX_DEPTH: subst force blocked"       "${MD}=abc"   2 "echo \$(${GIT_PUSH_LIT} ${FORCE_FLAG} o m)"
+run_case_env "arith-injection MAX_DEPTH blocked"        "${MD}=x[0]"  2 "a \$(b \$(${GIT_PUSH_LIT} ${FORCE_FLAG} o m))"
+run_case_env "valid MAX_DEPTH=0 still blocks force"     "${MD}=0"     2 "a \$(b \$(${GIT_PUSH_LIT} ${FORCE_FLAG} o m))"
+run_case_env "valid MAX_BYTES=1 still blocks force"     "${MB}=1"     2 "${GIT_PUSH_LIT} ${FORCE_FLAG} origin main"
+
+echo
+echo "-- ATM-GUARD-TERMINATOR: negative class covers & and < too (W1) --"
+# Enumerating `)` and `>` missed `&` and `<`. The terminator is now a
+# NEGATIVE class, so any non-alnum/_/- character ends the flag.
+run_case "force flag before ampersand"         2 "${GIT_PUSH_LIT} ${FORCE_FLAG}&"
+run_case "short -f before ampersand"           2 "${GIT_PUSH_LIT} origin main -f&"
+run_case "force flag before input redirect"    2 "${GIT_PUSH_LIT} ${FORCE_FLAG}<in"
+run_case "force flag before herestring"        2 "${GIT_PUSH_LIT} ${FORCE_FLAG}<<<x"
+# Must NOT catch a flag that is a PREFIX of a longer word.
+run_case "forced is not the force flag"        0 "echo ${GIT_PUSH_LIT} ${FORCE_FLAG}d"
+# Boundary must still reject `git` as a SUBSTRING of a longer identifier.
+# NOTE (review finding W1): the first version of this case was
+# `echo legit --force nothing` -- it carries NO `push` token, so it could
+# not fail under ANY boundary regex and was tautological: deleting the
+# leading anchor entirely still scored 42/42. Both cases now carry a real
+# `push` token, so a broken boundary wrongly BLOCKS them and they FAIL.
+run_case "legit push is not git push"          0 "echo legit push ${FORCE_FLAG} nothing"
+run_case "mygit push is not git push"          0 "echo mygit push ${FORCE_FLAG} nothing"
 
 echo
 echo "----"
