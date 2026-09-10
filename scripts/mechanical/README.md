@@ -1,14 +1,22 @@
 # Mechanical-work tools (§11.4.274)
 
-**Revision:** 1 · **Created:** 2026-09-08 · **Status:** in use
+**Revision:** 2 · **Created:** 2026-09-08 · **Status:** in use
 
-Five tools that execute the deterministic, decision-free loops an agent would
+**Rev 2 (2026-09-08)** — added `census_query.sh`, the general control-needled
+census. The library already carried needle discipline in two *specific* tools
+(`residue_scan.sh`, `anchor_census.sh`), but neither is a general census and
+**neither takes a negative needle**, so the too-broad half of §11.4.273 — a
+pattern matching things it should not — had no mechanical guard anywhere. See
+that tool's section below, and the task-oriented guide at
+`constitution/docs/scripts/mechanical_tools.md` (§11.4.18).
+
+Six tools that execute the deterministic, decision-free loops an agent would
 otherwise perform one tool call at a time. They are inherited **by reference**
 (§11.4.177 / §11.4.28): invoke them from wherever the constitution submodule is
 checked out; never copy them into a project, and never hardcode a project path
 into them. Every tool takes its target from an argument.
 
-## Why these five exist
+## Why these six exist
 
 Each was extracted from a sequence observed being executed **by hand, more than
 twice, in a single session** (§11.4.274(a)):
@@ -16,6 +24,7 @@ twice, in a single session** (§11.4.274(a)):
 | Tool | The loop it replaces | Times done by hand |
 |---|---|---|
 | `mutation_harness.sh` | copy tree → mutate → run suite → read summary → restore → verify | ~35 |
+| `census_query.sh` | count/grep → hand-check a positive needle → hand-check a negative → decide | every census; 15 instrument errors when skipped |
 | `suite_fanout.sh` | run N suites → tabulate → compare to last round | repeatedly, per review |
 | `residue_scan.sh` | grep for mutation markers, minus the self-reference noise | every pre-commit |
 | `anchor_census.sh` | count anchors per carrier, compare the sets | 3 (2 of them with errors) |
@@ -56,6 +65,11 @@ Every tool that **measures** can prove it is able to measure:
 * `mutation_harness.sh` — a mutation whose `--from` text is absent exits 2 rather
   than reporting the suite result, because a result from an unapplied mutation
   describes nothing.
+* `census_query.sh --positive N --negative N` — **both mandatory**, both
+  repeatable. A missing positive needle, or a *found* negative needle, exits 2
+  and the count is never printed. This is the only tool here carrying the
+  negative half; the other two prove they can see, not that they are not
+  over-matching.
 
 Two real instrument defects were found this way while building the library, both
 recorded in `lib/mech_common.sh`: GNU sed 4.9 did not interpret `\x1b`, and under
@@ -120,6 +134,54 @@ genuinely cannot be run from a copy, and expect to restore afterwards.
 `--from` absent · suite output unparseable · suite timed out · source tree
 changed during the run · restore not byte-identical. All exit 2. None is reported
 as a suite result.
+
+---
+
+## `census_query.sh`
+
+Run a counting query that proves, in the same command and through the same
+path, that it can tell PRESENT from ABSENT (§11.4.273).
+
+```bash
+census_query.sh --tree DIR --pattern ERE \
+                --positive NEEDLE [--positive NEEDLE]... \
+                --negative NEEDLE [--negative NEEDLE]... \
+                [--include GLOB]... [--label NAME] [--expect-count N] [--list-files]
+```
+
+```
+CENSUS harness_in_docs: matches=0 files=0 positive=1/1 negative=0/1 [OK]
+```
+
+The two control counts are published on the verdict line, so a reader can see
+the discipline ran rather than take it on trust. That zero is trustworthy
+*because* `positive=1/1` says a known-present value was found through this exact
+query path; without it, an honest zero and a broken grep are the same output.
+
+**Needles are ERE, not literal — deliberately.** They run through the same
+matcher as the query, because a control taking a different code path would not
+prove the query's path can see. Escape metacharacters yourself.
+
+### Three refusals, and why each is its own message
+
+| Situation | Exit | Message |
+|---|---|---|
+| positive needle absent from the tree | 2 | `POSITIVE CONTROL FAILED … the instrument cannot see` |
+| positive needle present but outside `--include` | 2 | `POSITIVE CONTROL OUT OF SCOPE … the CONTROL is misplaced` |
+| negative needle found | 2 | `NEGATIVE CONTROL FAILED … matches things it must not` |
+
+The middle row exists because the two look identical from a bare exit code and
+have opposite fixes — move the control, or fix the query. Measured during the
+Phase 0 research that produced this tool: an out-of-scope control reported a
+working instrument as broken.
+
+Controls are repeatable and **every** member must hold (§11.4.273(f)): searching
+a two-literal denylist with one literal passes both controls while the answer is
+wrong, and did — reporting a live credential eliminated while it was still
+present in four copy-pasteable lines per file.
+
+`--expect-count N` mismatch exits `1` (a finding) and still prints the measured
+count, which is a different fact from the instrument failing to measure (`2`).
 
 ---
 
@@ -238,11 +300,20 @@ as a timeout.
 constitution/scripts/mechanical/tests/run_all.sh
 ```
 
-181 assertions across six suites, hermetic (each builds its own fixture tree and
-its own suites), with no dependency on any consuming project's harness. Every
-tool's failure paths, exit-code semantics and control needles are covered.
-Measured 2026-09-08: `ALL SUITES: 181 passed, 0 failed`, identical across three
-consecutive runs (§11.4.50).
+212 assertions across seven suites, hermetic (each builds its own fixture tree
+and its own suites), with no dependency on any consuming project's harness.
+Every tool's failure paths, exit-code semantics and control needles are covered.
+Measured 2026-09-08: `ALL SUITES: 212 passed, 0 failed` (181 before
+`census_query.sh` landed), identical across consecutive runs (§11.4.50).
+
+**A consuming project verifies these tools from its own side.** These suites are
+deliberately project-agnostic, so an acceptance test reproducing a *measured
+outcome of a specific repository* belongs to that repository — reaching out to
+the constitution, never the reverse. Reference example:
+`claude_toolkit/scripts/tests/test_mechanical_tools_acceptance.sh`, which asserts
+each tool's refusal paths, degrades honestly to a named SKIP when no constitution
+checkout is reachable, and — opt-in via `CMA_MECH_ACCEPTANCE=1` — reproduces that
+repo's own measured baseline and a named mutation against it.
 
 ## Re-scan cadence (§11.4.274(c))
 
