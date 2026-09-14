@@ -19,3 +19,51 @@
 [submodule "submodules/docs_chain"]
 	path = submodules/docs_chain
 	url = git@github.com:vasic-digital/docs_chain.git
+[submodule "submodules/verification"]
+	path = submodules/verification
+	url = git@github.com:ArcBlock/agent-skills.git
+[submodule "submodules/verify"]
+	path = submodules/verify
+	url = git@github.com:KeyValueSoftwareSystems/maestro.git
+[submodule "submodules/repo-qa"]
+	path = submodules/repo-qa
+	url = git@github.com:okwinds/skills-runtime-sdk.git
+[submodule "submodules/repo-proof"]
+	path = submodules/repo-proof
+	url = git@github.com:Gary06868/repo-proof.git
+[submodule "submodules/donespec"]
+	path = submodules/donespec
+	url = git@github.com:xryv/DoneSpec.git
+[submodule "submodules/kedge"]
+	path = submodules/kedge
+	url = git@github.com:SturdyRobot/kedge.git
+[submodule "submodules/agentic-validation"]
+	path = submodules/agentic-validation
+	url = git@github.com:Tyler-R-Kendrick/agentic_validation.git
+[submodule "submodules/skill-doctor"]
+	path = submodules/skill-doctor
+	url = git@github.com:KalarisLabs/Skill-Doctor.git
+[submodule "submodules/verfix"]
+	path = submodules/verfix
+	url = git@github.com:verfix-dev/verfix.git
+[submodule "submodules/MVT"]
+	path = submodules/MVT
+	url = git@github.com:rdkcentral/MVT.git
+[submodule "submodules/wave-dpctf"]
+	path = submodules/wave-dpctf
+	url = git@github.com:cta-wave/device-observation-framework.git
+[submodule "submodules/mcp-audio-tweaker"]
+	path = submodules/mcp-audio-tweaker
+	url = git@github.com:DeveloperZo/mcp-audio-tweaker.git
+[submodule "submodules/polyscreen-mcp"]
+	path = submodules/polyscreen-mcp
+	url = git@github.com:Zyzto/polyscreen-mcp.git
+[submodule "submodules/video-quality-mcp"]
+	path = submodules/video-quality-mcp
+	url = git@github.com:hlpsxc/video-quality-mcp.git
+[submodule "submodules/claude-video"]
+	path = submodules/claude-video
+	url = git@github.com:bradautomates/claude-video.git
+[submodule "submodules/watch-skill"]
+	path = submodules/watch-skill
+	url = git@github.com:oxbshw/watch-skill.git
