@@ -30,7 +30,13 @@
 #      generic test fixtures legitimately reference it; only the mount path
 #      COMBINED with the project basename is treated as real coupling.
 #   3. PARSEABILITY (§11.4.67) — every discovered script parses clean under
-#      BOTH `bash -n` and `sh -n` (target-shell-parseability).
+#      the interpreter its OWN shebang DECLARES (target-shell-parseability:
+#      the "target shell" is the declared one). A script declaring a POSIX
+#      shell is checked with `sh -n`; a script declaring bash is checked with
+#      `bash -n`. Demanding `sh -n` of a declared-bash script would be a
+#      §11.4.201(1) false-positive refusal — §11.4.67 clause 4 ("Honest
+#      shebangs") expressly sanctions bash-shebang + `bash script.sh` callers
+#      for scripts using the clause-3 bash-only constructs.
 #
 # Known false-positive this gate's exemption clause specifically closes
 # (verified 2026-07-09 against the real constitution/scripts/multitrack/
@@ -190,25 +196,42 @@ else
     fail=1
 fi
 
-# ── Invariant 3: PARSEABILITY (bash -n + sh -n, §11.4.67) ───────────────────
+# ── Invariant 3: PARSEABILITY (§11.4.67 target-shell-parseability) ──────────
+# §11.4.67's mandate is scoped by its own opening sentence: "Every shell script
+# that MAY BE INVOKED UNDER A TARGET SHELL OTHER THAN THE ONE IN ITS SHEBANG
+# MUST parse cleanly under that target shell." The TARGET shell is the one the
+# script DECLARES. Clause 4 ("Honest shebangs") states the sanctioned path for
+# a script carrying bash-only constructs: declare a bash shebang AND have its
+# callers invoke it as `bash script.sh`. Clause 3 names the very constructs
+# involved (process substitution, `<<<` here-strings, indexed arrays `arr=()`)
+# as bash-only syntax whose remedy is EITHER eval-deferral OR clause 4.
+#
+# Checking a `#!/usr/bin/env bash` script with `sh -n` therefore asserts a
+# condition §11.4.67 never imposed on it, and is a §11.4.201(1) FALSE-POSITIVE
+# REFUSAL — a FAIL-bluff exactly as forbidden as a false-negative pass — plus a
+# §11.4.201(11) proxy check (probing a shell the artifact is never invoked
+# under, instead of its real invocation path). So: parse each script under the
+# interpreter it DECLARES, and additionally demand POSIX-cleanliness only from
+# scripts that DECLARE a POSIX shell — where the mksh forensic anchor bites.
 parse_fail=0
 for f in "${scripts[@]}"; do
     rel="${f#"$engine_dir"/}"
-    if ! bash -n "$f" 2>/tmp/cm_mtec_bashn.$$; then
-        echo "❌ PARSEABILITY: ${rel} fails bash -n: $(tr '\n' ' ' < /tmp/cm_mtec_bashn.$$)"
+    shebang="$(head -n 1 "$f")"
+    case "$shebang" in
+        *bash*) declared_sh="bash" ;;
+        *)      declared_sh="sh"   ;;
+    esac
+
+    if ! "$declared_sh" -n "$f" 2>/tmp/cm_mtec_parse.$$; then
+        echo "❌ PARSEABILITY: ${rel} fails ${declared_sh} -n (its DECLARED interpreter): $(tr '\n' ' ' < /tmp/cm_mtec_parse.$$)"
         parse_fail=$((parse_fail + 1))
     fi
-    rm -f /tmp/cm_mtec_bashn.$$
-    if ! sh -n "$f" 2>/tmp/cm_mtec_shn.$$; then
-        echo "❌ PARSEABILITY: ${rel} fails sh -n: $(tr '\n' ' ' < /tmp/cm_mtec_shn.$$)"
-        parse_fail=$((parse_fail + 1))
-    fi
-    rm -f /tmp/cm_mtec_shn.$$
-    [ -n "$quiet" ] || echo "✅ PARSEABILITY: ${rel} clean (bash -n + sh -n)"
+    rm -f /tmp/cm_mtec_parse.$$
+    [ -n "$quiet" ] || echo "✅ PARSEABILITY: ${rel} clean under its declared interpreter (${declared_sh} -n)"
 done
 
 if [ "$parse_fail" -eq 0 ]; then
-    echo "✅ PARSEABILITY: all ${script_count} script(s) parse clean under bash -n + sh -n"
+    echo "✅ PARSEABILITY: all ${script_count} script(s) parse clean under their declared interpreter"
 else
     echo "❌ PARSEABILITY: ${parse_fail} parse failure(s) across the engine"
     fail=1

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.11" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Dynamic skill activation (§11.4.272)</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Dynamic skill activation (§11.4.272)</h1>
+</header>
+<h1 id="dynamic-skill-activation-114272">Dynamic skill activation
+(§11.4.272)</h1>
+<p>Keep the ACTIVE skill surface at the minimum needed right now.
+Everything else stays discoverable and one command away.</p>
+<p><strong>Pruning is the DEFAULT</strong> (operator decision,
+2026-09-07): <code>session-init</code> demotes every non-core skill so a
+session pays only for <code>core</code>. It <strong>deletes
+nothing</strong> — see <a href="#pruning-the-default">Pruning</a> below
+for why that is not a §11.4.122 silent removal, and for the opt-out.</p>
+<h2 id="why">Why</h2>
+<p>Measured 2026-09-07, Claude Code 2.1.263, on a 955-skill pool:</p>
+<table>
+<thead>
+<tr>
+<th>render mode</th>
+<th>bytes</th>
+<th>~tokens <strong>per turn</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name-only (observed)</td>
+<td>29,153</td>
+<td>~7,288</td>
+</tr>
+<tr>
+<td>name + <code>description:</code> (observed for hot-loaded
+entries)</td>
+<td>101,279</td>
+<td>~25,319</td>
+</tr>
+</tbody>
+</table>
+<p>Byte counts are exact. Token figures are <strong>bytes/4
+estimates</strong> — there is no tokenizer on the measuring host, and
+they are labelled as estimates per §11.4.6.</p>
+<h2 id="platform-behaviour-this-is-built-on-proven-not-assumed">Platform
+behaviour this is built on (PROVEN, not assumed)</h2>
+<table>
+<thead>
+<tr>
+<th>behaviour</th>
+<th>result</th>
+<th>how it was established</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>activation hot-loads mid-session</td>
+<td><strong>YES</strong></td>
+<td>created a skill dir; it appeared in the running session with no
+restart</td>
+</tr>
+<tr>
+<td>deactivation hot-unloads</td>
+<td><strong>NO</strong></td>
+<td>deleted the dir; the same session still invoked it from cache</td>
+</tr>
+<tr>
+<td><code>permissions.deny: ["Skill(x)"]</code> removes x from the
+rendered list</td>
+<td><strong>NO</strong></td>
+<td>a fresh headless session with the rule active still listed
+<code>x</code> — it blocks invocation, saves zero tokens</td>
+</tr>
+</tbody>
+</table>
+<p>Consequence: the saving is a <strong>minimal session-start baseline
+plus on-demand growth</strong>. Deactivation takes effect at the NEXT
+session start. Any claim that deactivating frees tokens in the live
+session would be a bluff.</p>
+<h2 id="use">Use</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># from anywhere, in either mode (with or without the constitution submodule):</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">~/.claude-shared/bin/skill-activate</span> list          <span class="co"># full catalogue, [*]=active</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">~/.claude-shared/bin/skill-activate</span> activate NAME <span class="co"># hot-loads NOW</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">~/.claude-shared/bin/skill-activate</span> deactivate NAME</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">~/.claude-shared/bin/skill-activate</span> status        <span class="co"># active set + byte budget</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">~/.claude-shared/bin/skill-activate</span> prune         <span class="co"># demote non-core to the attic</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ex">~/.claude-shared/bin/skill-activate</span> session-init  <span class="co"># prune + raise the core set</span></span></code></pre></div>
+<p>Agents reach the same thing through the always-core
+<code>skill-catalog</code> skill, so a deactivated skill is never
+unfindable (§11.4.102(B) keeps binding).</p>
+<h2 id="pruning-the-default">Pruning (the default)</h2>
+<p><code>session-init</code> prunes first, then raises
+<code>core</code>. Measured on this project 2026-09-07:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>active skills</th>
+<th>name-only render</th>
+<th>name+description render</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>before</td>
+<td>19</td>
+<td>422 B (~105 tok/turn)</td>
+<td>3,622 B (~905 tok/turn)</td>
+</tr>
+<tr>
+<td>after</td>
+<td>3</td>
+<td>65 B (~16 tok/turn)</td>
+<td>1,336 B (~334 tok/turn)</td>
+</tr>
+</tbody>
+</table>
+<p>Byte counts are exact; token figures are <strong>bytes/4
+estimates</strong> — there is still no tokenizer on the measuring host
+(§11.4.6).</p>
+<h3 id="why-this-is-not-a-114122-silent-removal">Why this is not a
+§11.4.122 silent removal</h3>
+<p>§11.4.122 forbids removing an end-user <strong>capability</strong>
+without asking. Pruning removes no capability, because all three
+properties that make it reversible and visible hold by construction:</p>
+<ol type="1">
+<li><strong>Listed</strong> — <code>skill-catalog</code> is always-core,
+so every pruned skill still appears in <code>skill-activate list</code>.
+Nothing becomes unfindable.</li>
+<li><strong>Activatable</strong> —
+<code>skill-activate activate NAME</code> brings it straight back,
+hot-loading into the running session.</li>
+<li><strong>Not deleted</strong> — a symlink loses only the
+<em>link</em> (its target is untouched); a real directory is
+<strong>moved</strong> to the attic
+(<code>.claude/.skill-activation/pool/</code>), never removed. Zero
+bytes destroyed.</li>
+</ol>
+<p>A pruned skill is <strong>dormant and one command away</strong>, not
+gone. That is materially different from dropping a component from a
+build, which is what §11.4.122 exists to prevent. Do not "fix" pruning
+back out on §11.4.122 grounds without re-reading this.</p>
+<p>The attic sits inside <code>.claude/</code>, which is already
+gitignored, so demotion changes nothing about a file's version-control
+status (§11.4.30 hygiene, no git-status noise).</p>
+<h3 id="refusals-are-loud-never-silent-114201">Refusals are loud, never
+silent (§11.4.201)</h3>
+<p>Prune refuses and leaves the skill <strong>active</strong> rather
+than risk it when: another live session holds a claim
+(§11.4.119/§11.4.176 refcounting); an attic entry of that name already
+exists (never clobber preserved content, §9.2); the move fails or lands
+unreadable (the move is reverted); or a symlink's name resolves in no
+pool source and cannot be made re-activatable.</p>
+<h3 id="opt-out">Opt-out</h3>
+<table>
+<thead>
+<tr>
+<th>mechanism</th>
+<th>scope</th>
+<th>effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HELIX_SKILL_PRUNE=0</code></td>
+<td>one session</td>
+<td>pruning off (env wins over manifest)</td>
+</tr>
+<tr>
+<td><code>HELIX_SKILL_PRUNE=1</code></td>
+<td>one session</td>
+<td>pruning on, overriding the manifest</td>
+</tr>
+<tr>
+<td><code>prune: false</code> in the manifest</td>
+<td>one project</td>
+<td>pruning off</td>
+</tr>
+</tbody>
+</table>
+<p>The escape hatch is deliberate: a mechanism with no way out gets
+worked around destructively — someone stops running
+<code>session-init</code> at all, and the surface grows back with no
+gate watching it.</p>
+<h2 id="manifest-consumer-data--11435">Manifest (consumer DATA —
+§11.4.35)</h2>
+<p><code>&lt;project&gt;/.helix/skill-manifest.yaml</code>, else the
+shipped <code>skill-manifest.default.yaml</code>:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">schema_version</span><span class="kw">:</span><span class="at"> </span><span class="dv">1</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">core</span><span class="kw">:</span><span class="co">                    # always active — every entry is paid for EVERY turn</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> skill-catalog</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> action-prefix-system</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sources</span><span class="kw">:</span><span class="co">                 # searched for &lt;name&gt;/SKILL.md; never modified</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> constitution/skills</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> .helix/skills</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ~/.agents/skills</span></span></code></pre></div>
+<h2 id="both-modes-req-note-0001">Both modes (REQ-NOTE-0001)</h2>
+<p>Resolution order, first hit wins: <code>$HELIX_SKILL_ENGINE</code> →
+in-project <code>constitution/</code> → any ancestor's →
+<code>$HELIX_CONSTITUTION_DIR</code> →
+<code>~/.claude-shared/constitution-path</code> → documented host
+fallback → <strong>honest degradation</strong>. Mode C exits
+<strong>3</strong> (distinct from 1 = operation failed) and names what
+is unavailable, why, where it looked, and that the existing static skill
+set is untouched — never a silent no-op.</p>
+<h2 id="guards">Guards</h2>
+<ul>
+<li><code>skill_budget_gate.sh</code> —
+<code>CM-SKILL-SURFACE-BUDGET</code>. Budgets BOTH render modes, so an
+upstream switch to description-eager rendering fails LOUDLY. Limits:
+<code>HELIX_SKILL_BUDGET_NAME_BYTES</code> (4096),
+<code>HELIX_SKILL_BUDGET_DESC_BYTES</code> (24576).</li>
+<li><code>test_skill_activation.sh</code> — 42 integration checks, 7 of
+them paired §1.1 mutations that must FAIL when the invariant is broken.
+The prune mutations run against a <strong>copy</strong> of the engine,
+never the live tree (§11.4.84 quiescence — this checkout is shared with
+other agents).</li>
+</ul>
+<h2 id="known-limitations-1146">Known limitations (§11.4.6)</h2>
+<ul>
+<li>Sessions sharing ONE config dir share one claim identity; override
+with <code>HELIX_SKILL_SESSION</code> to separate them.</li>
+<li>Liveness is proven by reading
+<code>/proc/&lt;pid&gt;/environ</code>. Where <code>/proc</code> is
+absent (macOS) liveness is reported as <em>cannot determine</em>, never
+guessed.</li>
+<li>A skill directory must contain <code>SKILL.md</code> (uppercase).
+Four constitution skills currently use lowercase <code>skill.md</code>
+or have none, so the platform cannot discover them:
+<code>media-validator</code>, <code>scheduled-work-queue</code>,
+<code>session-sync</code>, <code>multitrack</code>. Reported, not
+silently renamed (§11.4.124).</li>
+<li>Demotion makes a directory relocation-safe for
+<strong>symlinks</strong> by re-pointing relative links at their current
+absolute target (same file, new link text). A directory whose content
+depends on its own path some <em>other</em> way (a relative path baked
+into a file's text) is not repaired by that; the post-move readability
+check is the backstop and refuses + reverts rather than leaving a broken
+skill behind. Found live 2026-09-07: 5 <code>speckit-superspec-*</code>
+skills whose <code>SKILL.md</code> is a <code>../../../</code> symlink
+were refused on the first run, then demoted cleanly after the fix.</li>
+<li>Pruning's saving lands at the next session start for entries the
+platform has already cached — deactivation does not hot-unload (proven
+above). Run <code>session-init</code> at session start to get the
+reduced surface for that session.</li>
+</ul>
+</body>
+</html>

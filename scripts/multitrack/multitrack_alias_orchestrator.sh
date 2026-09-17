@@ -197,14 +197,28 @@ _event() {
 }
 
 # --- config: tracks + alias roster -------------------------------------------
+# §11.4.187: a per-host config loads exactly as before; a host with NO config
+# falls back to the universal DEFAULT single-track mode (ONE track = the
+# invocation project root) instead of fataling — otherwise the orchestrator
+# stays the one component that makes multi-track non-universal. A config that
+# EXISTS but is malformed is STILL fatal (never defaulted past, §11.4.6).
+# ORCH_CFG is the empty string in default mode; the file-reading accessors
+# (conductor / excluded-aliases / alias roster) correctly yield nothing, which
+# is the honest answer when no alias policy has been declared for this host.
 _load_tracks() {
-    local host cfg
+    local host rc
     host=${MT_HOST:-$(mt_resolve_host)}
-    if [ -n "${MT_CONFIG:-}" ]; then cfg=$MT_CONFIG
-    else cfg=$(mt_config_file "$host") || { echo "FATAL: no per-host config for host=$host" >&2; exit 1; }
+    mt_resolve_and_load
+    rc=$?
+    if [ "$rc" -eq 3 ]; then
+        echo "FATAL: the per-host config for host=$host exists but is unusable (unparsable, or zero tracks)" >&2
+        exit 1
     fi
-    ORCH_CFG=$cfg
-    mt_load_config "$cfg" || { echo "FATAL: track parse failed for $cfg" >&2; exit 1; }
+    if [ "$rc" -ne 0 ]; then
+        echo "FATAL: no per-host config for host=$host and no default single-track fallback could be established" >&2
+        exit 1
+    fi
+    ORCH_CFG=${MT_CFG_FILE:-}
 }
 
 _track_exists() {  # $1 track-id

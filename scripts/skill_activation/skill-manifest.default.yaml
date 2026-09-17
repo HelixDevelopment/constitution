@@ -1,0 +1,35 @@
+# ============================================================================
+# skill-manifest.default.yaml — SHIPPED DEFAULT. Consumers override by placing
+# their own at <project>/.helix/skill-manifest.yaml (§11.4.35: the engine is
+# project-agnostic; the manifest is the consumer's DATA).
+# ============================================================================
+# core      : always active. Kept minimal — every entry is paid for in EVERY
+#             turn of EVERY session. Add one only if it is genuinely needed
+#             every session.
+# on_demand : NOT listed here — anything found in `sources` that is not `core`
+#             is on-demand by definition. Activate with:
+#               constitution/scripts/skill_activation/skill_activate.sh activate NAME
+# sources   : directories searched for <name>/SKILL.md. Read-only; never
+#             modified by the engine.
+# prune     : OPTIONAL, default TRUE. When true, `session-init` demotes every
+#             non-core active skill so the session pays only for `core`.
+#             Pruning DELETES NOTHING — a symlink loses only its link, a real
+#             directory is MOVED to the host-local attic
+#             (.claude/.skill-activation/pool/), which is itself a pool source.
+#             So a pruned skill stays LISTED by `list` and returns with
+#             `activate <name>`. Set `prune: false` to disable per project;
+#             HELIX_SKILL_PRUNE=0 disables it for one session (env wins).
+# ============================================================================
+schema_version: 1
+
+prune: true
+
+core:
+  - skill-catalog
+  - action-prefix-system
+  - workable-item-lifecycle
+
+sources:
+  - constitution/skills
+  - .helix/skills
+  - ~/.agents/skills

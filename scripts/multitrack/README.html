@@ -4,8 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc 3.10" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>constitution/scripts/multitrack — generic multi-track
-development engine</title>
+  <title>scripts/multitrack/README</title>
   <style>
 
 span.smallcaps{font-variant: small-caps;}
@@ -440,7 +439,11 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 </style>
 </head>
 <body>
-<h1 id="constitutionscriptsmultitrack--generic-multi-track-development-engine">constitution/scripts/multitrack
+<header id="title-block-header">
+<h1 class="title">scripts/multitrack/README</h1>
+</header>
+<h1
+id="constitutionscriptsmultitrack--generic-multi-track-development-engine">constitution/scripts/multitrack
 — generic multi-track development engine</h1>
 <p><strong>Revision:</strong> 2 <strong>Last modified:</strong>
 2026-07-03T23:20:00Z <strong>Status:</strong> active
@@ -455,7 +458,8 @@ lease, the cwd-hook contract, the single-builder rebuild queue, and the
 tmux launch entrypoint. Every consuming project inherits this directory
 verbatim (§11.4.28(B) decoupling, §11.4.35 canonical-root) and supplies
 ONLY its own per-host config data.</p>
-<h2 id="what-lives-here-generic-vs-what-the-consumer-supplies-project-data">What
+<h2
+id="what-lives-here-generic-vs-what-the-consumer-supplies-project-data">What
 lives here (GENERIC) vs what the consumer supplies (PROJECT DATA)</h2>
 <table>
 <thead>
@@ -503,7 +507,7 @@ else positional map.</td>
 <tr>
 <td><code>multitrack_cwd_hook.sh</code></td>
 <td>Thin toolkit adapter: resolves WHICH consumer project this
-invocation is for (§11.4.177, see below), prints the alias&#39;s bound
+invocation is for (§11.4.177, see below), prints the alias's bound
 worktree AND fires a best-effort, non-fatal, fully-detached
 <code>orchestrator bind</code> (bind-on-start, §11.4.177), fallback
 monitor, AND constitution auto-sync for the resolved track (never for
@@ -514,10 +518,10 @@ resolved consumer + why.</td>
 <td><code>multitrack_constitution_sync.sh</code></td>
 <td>§11.4.35 constitution auto-sync: on every track activation,
 ancestor-guarded <strong>fast-forward-only</strong> advance of the
-activated worktree&#39;s <code>constitution/</code> submodule to latest
+activated worktree's <code>constitution/</code> submodule to latest
 <code>&lt;remote&gt;/main</code> (WIP-preserving, never
 force/reset/rewind; never <code>git submodule update</code>). Keeps the
-constitution &quot;always up to date with main, Everywhere!&quot;</td>
+constitution "always up to date with main, Everywhere!"</td>
 </tr>
 <tr>
 <td><code>multitrack_alias_orchestrator.sh</code></td>
@@ -534,8 +538,9 @@ project strings live): track→mount paths, project directory name, device
 serials + capabilities, the alias↔︎account map, priority/feature list. In
 the reference consumer that file is
 <code>config/multitrack/&lt;hostname&gt;.yaml</code>.</p>
-<h2 id="which-consumer-project--the-cwd-hooks-consumer-root-resolution-114177">Which
-consumer project? — the cwd-hook&#39;s consumer-root resolution
+<h2
+id="which-consumer-project--the-cwd-hooks-consumer-root-resolution-114177">Which
+consumer project? — the cwd-hook's consumer-root resolution
 (§11.4.177)</h2>
 <p>Every engine entry point EXCEPT the cwd-hook runs from INSIDE a
 consumer checkout, so self-location (below) is the right answer for
@@ -547,7 +552,7 @@ the engine, shadowing every sibling consumer on the host that ships its
 own <code>config/multitrack/</code>.</p>
 <p><code>multitrack_cwd_hook.sh</code> therefore resolves the consumer
 root itself, first hit wins, and exports it as <code>MT_REPO_ROOT</code>
-so the resolver&#39;s existing pin honours it:</p>
+so the resolver's existing pin honours it:</p>
 <table>
 <thead>
 <tr>
@@ -588,7 +593,7 @@ before this resolution existed.</p>
 <p><strong>Honest boundary (§11.4.6).</strong> When the hook fires there
 is, by construction, no cwd project context — so on a host running more
 than one consumer the alias→consumer mapping is host policy that nothing
-in-tree can derive. Step 3&#39;s operator-owned file is the minimal artifact
+in-tree can derive. Step 3's operator-owned file is the minimal artifact
 that satisfies §11.4.177 (project-agnostic tooling) and §11.4.187
 (automatic, out-of-the-box) at once.</p>
 <p>Binding-file format — parsed, never sourced, so a typo can never
@@ -604,13 +609,14 @@ reported on stderr and <strong>ignored</strong> — never silently trusted
 <p><strong>Installation note (§11.4.177).</strong> Resolution being
 project-agnostic is only half the rule. The shared PATH entry itself
 must not live inside a consumer checkout — a symlink from
-<code>~/.local/bin/</code> into one project&#39;s tree couples every
-project&#39;s tooling availability and version to that one checkout. Install
-the engine from a location outside every consumer, or use the toolkit&#39;s
+<code>~/.local/bin/</code> into one project's tree couples every
+project's tooling availability and version to that one checkout. Install
+the engine from a location outside every consumer, or use the toolkit's
 per-project <code>&lt;dir&gt;/.claude-cwd-hook</code> /
 <code>CMA_CWD_HOOK</code> seams.</p>
 </blockquote>
-<h2 id="config-contract--how-a-generic-script-finds-project-config">Config
+<h2
+id="config-contract--how-a-generic-script-finds-project-config">Config
 contract — how a generic script finds project config</h2>
 <p>A generic script self-locates BOTH roots with zero hardcoding:</p>
 <ul>
@@ -623,7 +629,7 @@ git superproject pointer). These scripts do not need it at runtime (they
 are self-contained), but it is the canonical self-location primitive
 when a caller needs the constitution root.</li>
 <li><strong>Project/repo root</strong> — <code>MT_REPO_ROOT</code>
-(explicit override) else the script&#39;s <code>../..</code>.
+(explicit override) else the script's <code>../..</code>.
 <strong>Because these scripts live at
 <code>constitution/scripts/multitrack/</code>, their <code>../..</code>
 resolves to the constitution submodule, NOT the consuming
@@ -684,17 +690,17 @@ location)</td>
 <tr>
 <td><code>MT_ALIAS_DIR</code></td>
 <td>orchestrator runtime dir (bindings/cooldowns/events)</td>
-<td><code>${XDG_RUNTIME_DIR:-/tmp}/$(basename &quot;$MT_REPO_ROOT&quot;)/multitrack/aliasorch</code></td>
+<td><code>${XDG_RUNTIME_DIR:-/tmp}/$(basename "$MT_REPO_ROOT")/multitrack/aliasorch</code></td>
 </tr>
 <tr>
 <td><code>MT_LOCK_DIR</code></td>
 <td>device-lock runtime dir</td>
-<td><code>${XDG_RUNTIME_DIR:-/tmp}/$(basename &quot;$MT_REPO_ROOT&quot;)/multitrack/devicelock</code></td>
+<td><code>${XDG_RUNTIME_DIR:-/tmp}/$(basename "$MT_REPO_ROOT")/multitrack/devicelock</code></td>
 </tr>
 <tr>
 <td><code>MT_REGISTRY_LOCK</code></td>
 <td>streams-registry flock</td>
-<td><code>${XDG_RUNTIME_DIR:-/tmp}/$(basename &quot;$MT_REPO_ROOT&quot;)/multitrack/registry.lock</code></td>
+<td><code>${XDG_RUNTIME_DIR:-/tmp}/$(basename "$MT_REPO_ROOT")/multitrack/registry.lock</code></td>
 </tr>
 <tr>
 <td><code>MT_STREAMS_TSV</code></td>
@@ -709,7 +715,7 @@ location)</td>
 <tr>
 <td><code>MT_WORKTREE_SUBDIR</code></td>
 <td>worktree subdir under a track mount</td>
-<td><code>$(basename &quot;$MT_REPO_ROOT&quot;)</code></td>
+<td><code>$(basename "$MT_REPO_ROOT")</code></td>
 </tr>
 <tr>
 <td><code>MT_ALIAS_ROSTER</code></td>
@@ -780,7 +786,7 @@ monitor</td>
 <td>§11.4.177 auto-fallback. The rate-limit transcript signatures the
 monitor matches to detect a usage/quota limit and trigger
 <code>orchestrator fallback</code>. Surrounding single/double quotes are
-stripped (values that themselves contain <code>&quot;</code> are
+stripped (values that themselves contain <code>"</code> are
 single-quoted in YAML). <strong>Consumer-overridable</strong> — a future
 rate-limit wording change is a one-line pin here, not a code change.
 Empty/absent ⇒ no signatures (the monitor decides its own default).</td>
@@ -789,7 +795,8 @@ Empty/absent ⇒ no signatures (the monitor decides its own default).</td>
 </table>
 <p>Reference-consumer seed (both keys are consumer data, so they live in
 the project config, never in this engine):</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">conductor</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;&quot;</span><span class="co">            # empty ⇒ /home session is conductor</span></span>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">conductor</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;&quot;</span><span class="co">            # empty ⇒ /home session is conductor</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">fallback</span><span class="kw">:</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">signatures</span><span class="kw">:</span></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="st">&#39;&quot;apiErrorStatus&quot;:429&#39;</span></span>
@@ -797,19 +804,159 @@ the project config, never in this engine):</p>
 <h3 id="runtime-namespace-derivation">Runtime namespace derivation</h3>
 <p>The tmp runtime dirs (<code>aliasorch</code> /
 <code>devicelock</code> / <code>registry.lock</code>) derive their
-top-level namespace from <code>$(basename &quot;$MT_REPO_ROOT&quot;)</code> (via
-<code>mt_repo_root</code>), so a consumer&#39;s runtime state is namespaced
+top-level namespace from <code>$(basename "$MT_REPO_ROOT")</code> (via
+<code>mt_repo_root</code>), so a consumer's runtime state is namespaced
 by its own project directory name — no project literal is baked into the
 engine.</p>
 <h2 id="quick-start-consumer">Quick start (consumer)</h2>
-<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># from the project root, with a config/multitrack/&lt;hostname&gt;.yaml present:</span></span>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># from the project root, with a config/multitrack/&lt;hostname&gt;.yaml present:</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="va">MT_REPO_ROOT</span><span class="op">=</span><span class="st">&quot;</span><span class="va">$PWD</span><span class="st">&quot;</span> <span class="fu">bash</span> constitution/scripts/multitrack/multitrack_resolve_worktree.sh map</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># or point at an explicit config file:</span></span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="va">MT_CONFIG</span><span class="op">=</span>config/multitrack/<span class="op">&lt;</span>host<span class="op">&gt;</span>.yaml <span class="va">MT_REPO_ROOT</span><span class="op">=</span><span class="st">&quot;</span><span class="va">$PWD</span><span class="st">&quot;</span> <span class="dt">\</span></span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bash</span> constitution/scripts/multitrack/multitrack_resolve_worktree.sh resolve claude1</span></code></pre></div>
+<h2
+id="default-single-track-mode--multitrack-works-on-every-host-114187">Default
+single-track mode — multitrack works on EVERY host (§11.4.187)</h2>
+<p><strong>You do not need a per-host config to use this
+engine.</strong> A host with no
+<code>config/multitrack/&lt;hostname&gt;.yaml</code> runs in
+<strong>default single-track mode</strong>:</p>
+<table>
+<tbody>
+<tr>
+<td>tracks</td>
+<td>exactly <strong>one</strong></td>
+</tr>
+<tr>
+<td>track-1</td>
+<td>the <strong>invocation project root</strong>, used as-is</td>
+</tr>
+<tr>
+<td>worktrees</td>
+<td>none — the project root <em>is</em> the track</td>
+</tr>
+<tr>
+<td>drives</td>
+<td>none — track-1 is a plain directory, not a mounted volume</td>
+</tr>
+<tr>
+<td>notice</td>
+<td>printed loudly on stderr on every activation</td>
+</tr>
+</tbody>
+</table>
+<p>Multiple tracks are opt-in: you add them <strong>only when explicitly
+required</strong>, by authoring the per-host config below.</p>
+<h3 id="why-this-is-not-a-1146-violation">Why this is not a §11.4.6
+violation</h3>
+<p>Host <em>data</em> — mount paths, drive serials, alias→track maps —
+genuinely cannot be guessed, and the engine still refuses to invent any
+of it. But <em>"Track 1 is the project root you are standing in"</em> is
+not invented data: it is a <strong>defined default</strong>, derivable
+with certainty from the invocation context (§11.4.177
+invocation-directory operation). Fataling when a correct and safe
+default exists is the §11.4.201 false-refusal class — which is what the
+engine used to do, and what made multi-track work on exactly one
+hand-provisioned host.</p>
+<h3 id="the-three-cases-kept-strictly-apart">The three cases, kept
+strictly apart</h3>
+<table>
+<thead>
+<tr>
+<th>situation</th>
+<th>behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a host config <strong>exists</strong></td>
+<td>loaded exactly as before — <strong>no behaviour change at
+all</strong></td>
+</tr>
+<tr>
+<td>a host config <strong>is malformed</strong> (unparsable, or zero
+tracks)</td>
+<td><strong>still FATAL.</strong> That <em>is</em> ambiguity and is
+never defaulted past (§11.4.6)</td>
+</tr>
+<tr>
+<td><strong>no</strong> host config at all</td>
+<td>default single-track mode + a loud notice</td>
+</tr>
+</tbody>
+</table>
+<p>A defaulted setup can never be silently mistaken for a provisioned
+one: the notice names the mode, the host, the config path it looked for,
+the track count, and the resolved Track 1.</p>
+<h3 id="track-1-does-not-have-to-be-the-project-root">Track 1 does not
+have to be the project root</h3>
+<p>It is only the <strong>default</strong>. Point Track 1 anywhere —
+<code>/mnt/track-1</code>, a dedicated drive, a worktree — by declaring
+it explicitly in the per-host config. The default exists so that a host
+with nothing configured still works, not to constrain a host that is
+configured.</p>
+<h3 id="overrides">Overrides</h3>
+<table>
+<thead>
+<tr>
+<th>variable</th>
+<th>effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MT_REQUIRE_HOST_CONFIG=1</code></td>
+<td>strict mode: restore the pre-§11.4.187 behaviour — a missing host
+config is fatal, never defaulted</td>
+</tr>
+<tr>
+<td><code>MT_REPO_ROOT=/path</code></td>
+<td>pin the project root explicitly instead of deriving it from the
+invocation context</td>
+</tr>
+<tr>
+<td><code>MT_CONFIG=/path/to.yaml</code></td>
+<td>use an explicit config file, bypassing the hostname-keyed
+lookup</td>
+</tr>
+</tbody>
+</table>
+<p>If the project root cannot be resolved at all, the engine
+<strong>fails loudly</strong> — it never silently defaults Track 1 to a
+wrong location.</p>
+<h3 id="inspecting-activation-before-it-touches-anything">Inspecting
+activation before it touches anything</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># report only: installs no symlink, starts no daemon, reconciles nothing</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> constitution/scripts/multitrack/multitrack_bootstrap.sh <span class="at">--check</span></span></code></pre></div>
+<p><code>--check</code> (alias <code>--dry-run</code>) prints each
+step's decision and what it <em>would</em> run. Two consecutive
+<code>--check</code> runs produce byte-identical output.</p>
+<h3 id="directory-tracks-vs-drive-tracks">Directory tracks vs drive
+tracks</h3>
+<p>A track declared <strong>without</strong> a <code>drive_serial</code>
+is a <em>directory track</em>: it is READY when its directory exists.
+The engine never probes <code>/proc/mounts</code> for one, so a
+directory track is never reported as "unmounted" and never drags in the
+LUKS/mount operator hand-off that does not apply to it. A track
+<strong>with</strong> a <code>drive_serial</code> behaves exactly as
+before.</p>
+<p>Likewise, a host that declares no <code>device_pool</code> reports an
+honestly empty pool instead of failing; only the commands that genuinely
+need a device (<code>acquire</code> / <code>release</code> /
+<code>heartbeat</code> / <code>reap</code> / <code>reconcile</code>)
+refuse.</p>
+<h3 id="alias-mapping-in-single-track-mode">Alias mapping in
+single-track mode</h3>
+<p>Aliases are mapped positionally onto <strong>feature</strong>-role
+tracks. A single main-only track has no feature tracks, so no alias is
+worktree-bound — every session simply stays on the one checkout, which
+is the project root. That is the correct outcome, and <code>map</code>
+reports it as <code>fallback(/home)</code> for each alias.</p>
 <h2 id="genericization-delta-vs-the-reference-consumer">Genericization
 delta vs the reference consumer</h2>
-<p>Lifted from the reference project&#39;s <code>scripts/multitrack/</code>
+<p>Lifted from the reference project's <code>scripts/multitrack/</code>
 per §11.4.35 with a small, mechanical delta (three executed-code fixes +
 comment-literal scrub):</p>
 <ol type="1">
@@ -818,14 +965,14 @@ comment-literal scrub):</p>
 <code>multitrack_resolve_worktree.sh</code>,
 <code>multitrack_device_lock.sh</code>, and
 <code>multitrack_alias_orchestrator.sh</code> derive the top-level dir
-from <code>$(basename &quot;$MT_REPO_ROOT&quot;)</code> instead of a hardcoded
+from <code>$(basename "$MT_REPO_ROOT")</code> instead of a hardcoded
 project name (orchestrator + resolve share one runtime dir, so both are
 fixed in lockstep).</li>
 <li><strong>Build command</strong> — <code>multitrack_build.sh</code>
 reads the <code>build.command</code> config key via
 <code>MT_BUILD_COMMAND</code>, falling back to a documented auto-detect
 default.</li>
-<li><strong>Item-id param</strong> — <code>multitrack_claim.sh</code>&#39;s
+<li><strong>Item-id param</strong> — <code>multitrack_claim.sh</code>'s
 user-facing <code>atm-id</code> label is the scheme-agnostic
 <code>item-id</code> (the positional arg accepts any stable id — no
 named flag existed, so no back-compat alias is needed).</li>
@@ -833,7 +980,8 @@ named flag existed, so no back-compat alias is needed).</li>
 <p>Consumer-side DATA (<code>config/multitrack/&lt;host&gt;.yaml</code>,
 serials, mount paths) stays in the consuming project and is NEVER copied
 here.</p>
-<h2 id="alias-priority-per-alias-limitsubscription-tracking-auto-rebind-on-recovery-114196">Alias
+<h2
+id="alias-priority-per-alias-limitsubscription-tracking-auto-rebind-on-recovery-114196">Alias
 priority, per-alias limit/subscription tracking, auto-rebind-on-recovery
 (§11.4.196)</h2>
 <p>The alias↔︎track binding layer
@@ -854,7 +1002,7 @@ tracked, non-secret record (alias NAMES only, never keys — §11.4.10).
 <code>_alias_rank</code> exposes the same ordering as a comparable
 integer (native base 0 &lt; provider base 100000).</p>
 <p><strong>Per-alias reason-class limit tracking (from REAL signals,
-never faked — §11.4.6).</strong> A cooled alias&#39;s
+never faked — §11.4.6).</strong> A cooled alias's
 <code>cooldowns.snapshot</code> row is
 <code>alias|until|reason|class</code> where
 <code>class ∈ {session | weekly | subscription}</code> and
@@ -897,7 +1045,7 @@ marker, which wins over the class default.</p>
 calls this / <code>fallback --class …</code>). A limited alias is never
 auto-selected until <code>until</code> passes (session/weekly) or
 <code>mark-operational</code> clears it (subscription).</li>
-<li><code>mark-operational --alias A</code> — clear an alias&#39;s cooldown
+<li><code>mark-operational --alias A</code> — clear an alias's cooldown
 NOW (a subscription renewal / operator-confirmed recovery). The next
 <code>auto-assign</code>/<code>promote</code> prefers it.</li>
 <li><code>promote [--ttl S]</code> — auto-use-on-recovery: for EVERY
@@ -919,7 +1067,7 @@ next available alias.</li>
 no longer trusts a bare <code>pgrep -f REGEX</code> substring match
 (which false-matched a live <code>claude</code> worker whose prompt
 QUOTED the pgrep pattern and REFUSED every spawn on a host with zero
-real builds — forensic FACT 2026-07-13). It re-reads each matched PID&#39;s
+real builds — forensic FACT 2026-07-13). It re-reads each matched PID's
 REAL <code>/proc/&lt;pid&gt;/cmdline</code> (via the
 <code>_mt_host_budget_pid_cmdline</code> seam) and excludes the
 pattern-CARRIER / multitrack- ENGINE / <code>claude</code>-worker /

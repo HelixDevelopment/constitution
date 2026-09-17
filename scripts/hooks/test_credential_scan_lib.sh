@@ -277,9 +277,9 @@ assert_caught "(6) real password adjacent to email (window not over-narrow)" "$W
 # registry / tracker-item that QUOTES it as the example (a self-referential
 # carrier — the credscan-fix tracker item quotes `PASSWORD=CHANGE_ME`). detector-1
 # uses `grep -Eio`, so the EXTRACTED MATCH is `PASSWORD=CHANGE_ME` (not the whole
-# line) and #8a strips it — MUST be CLEAN. The prior hook/commit_all raw
-# `grep -Eiq value_pattern` bypassed #8a and false-positive-REFUSED this; the fix
-# routes both through helix_cred_detector1_real_hit_stream.
+# line) and #8a strips it — MUST be CLEAN. A raw `grep -Eiq value_pattern` in a
+# consumer bypasses #8a and false-positive-REFUSES this; every stream consumer is
+# therefore required to route through helix_cred_detector1_real_hit_stream.
 cat > "$WORK/good_l_midline_placeholder.txt" <<'EOF'
 {"ts":"2026-07-27T21:50:46Z","event":"complete","label":"(T1/main - claude4) credscan false-positive on legit PASSWORD=CHANGE_ME example"}
 The task quotes the placeholder api_key=PLACEHOLDER in prose to describe the fix.
@@ -412,10 +412,21 @@ api_key=abc123def456...
 EOF
 assert_caught "(9a) alnum value with trailing dots, NO separator (ellipsis strip must not fire)" "$WORK/bad_9a_ellipsis_alnum_sep.txt"
 
-# --- STREAM DETECTOR CONTRACT (the function the hook + commit_all call directly) --
+# --- STREAM DETECTOR CONTRACT (the entry point every STREAM consumer calls) ----
 # helix_cred_detector1_real_hit_stream reads STDIN. Exit 1 = clean, 0 = hit. The
-# file scanner delegates to it, but the hook/commit_all call it on a `git show`
-# stream — pin its contract directly so a regression in either path is caught.
+# file scanner delegates to it; a consumer that scans a STREAM (a `git show` in a
+# commit hook, a captured evidence stream) calls it directly — pin its contract
+# here so a regression in either path is caught.
+# CONSUMER FACTS (§11.4.6, measured in THIS checkout 2026-09-08): the seams that
+# actually source this library are constitution/scripts/gates/lib/execution_record.sh
+# (`_xr_redact`, the §11.4.268 evidence-stream redactor) and a second checkout at
+# submodules/claude-toolkit/constitution/ (which needs a LOCKSTEP bump). The parent
+# project's scripts/git_hooks/pre-commit and commit_all.sh do NOT source it — the
+# pre-commit credential step is a FILENAME-class check plus scripts/secret_scan.sh,
+# whose patterns are known TOKEN FORMATS only. The library is project-agnostic
+# (§11.4.28), so a consuming project MAY wire it into its own commit seam; the
+# pipefail / binary-stream contracts below are pinned for any such consumer, not
+# because a hook in this repo happens to call it.
 if printf 'note PASSWORD=CHANGE_ME in a captured prompt\n' | helix_cred_detector1_real_hit_stream; then
     bad "(stream-good) mid-line PASSWORD=CHANGE_ME — FALSE POSITIVE (stream reported credential; expected clean)"
 else
@@ -430,9 +441,9 @@ fi
 # real secrets (>~64 KB of matches) under `set -o pipefail` — the pre-fix verdict
 # `printf … | grep -Eiv CARRIER | grep -q '[^space]'` short-circuited at the first
 # survivor, SIGPIPE-killed the upstream grep, and the pipeline exited 141 → wrongly
-# CLEAN (a credential DUMP is the highest-value leak). BOTH new consumers run
-# pipefail (pre-commit:15 `set -uo pipefail`, commit_all.sh:98 `set -euo pipefail`),
-# so reproduce under pipefail exactly as those seams do. The fix captures survivors
+# CLEAN (a credential DUMP is the highest-value leak). A stream consumer typically
+# runs under `set -o pipefail` (execution_record.sh's caller does), so reproduce
+# under pipefail exactly as such a seam does. The fix captures survivors
 # into a variable (no pipe short-circuit) + a case-glob non-whitespace test.
 if ( set -o pipefail
      awk 'BEGIN{for (i = 0; i < 60000; i++) print "password: hunter2hunter2realleak"}' \
@@ -444,8 +455,8 @@ fi
 # (stream-bad-B2 §11.4.115/§11.4.201(2), Fable-review 2026-07-28): a BINARY stream
 # (NUL bytes) carrying a plaintext secret — the pre-fix `grep -Eio` (no `-a`) on
 # binary emits "binary file matches" to STDERR with EMPTY stdout → extracted
-# nothing → wrongly CLEAN at the pre-commit seam (`git show | stream_fn`, NULs
-# intact), where the old raw `grep -Eiq` had caught it. The fix adds `-a` to the
+# nothing → wrongly CLEAN at any stream seam (`git show | stream_fn` / a captured
+# evidence stream, NULs intact), where a raw `grep -Eiq` had caught it. The fix adds `-a` to the
 # extraction so a .db/.so/.apk with an embedded plaintext secret is still caught.
 if printf 'BIN\000\001\002 password: hunter2hunter2realsecret \000\377 more\n' \
      | helix_cred_detector1_real_hit_stream; then
@@ -640,6 +651,259 @@ keyAlias      = System.getenv("ATMO_ALIAS") ?: "atmosphere-release"
 EOF
 assert_clean "(24) empty / CHANGE_ME elvis fallback + non-keyword keyAlias fallback" \
              "$WORK/good_24_elvis_placeholder.kts"
+
+# --- carrier gap #26: PLURAL credential keywords (2026-09-08, HXC-352) -------
+# FORENSIC ANCHOR (§11.4.10 / §11.4.138). A dispatched agent inspecting a live
+# server's environment printed two credential VALUES in full despite running a
+# redaction filter: the filter recognised `KEY=` but not `KEYS=`. Measured on
+# the affected host, exactly two variables ended in the plural form —
+# HELIX_AUTH_API_KEYS and HELIX_WIRE_FACADE_API_KEYS — while nine variables
+# ending in the SINGULAR `KEY=` were correctly redacted. The singular/plural
+# split WAS the whole defect.
+#
+# UNCONFIRMED (§11.4.6) — WHICH filter leaked. The redaction filter named in the
+# incident report is NOT present in the tracked corpus, so there is NO evidence
+# that THIS library was the filter that leaked. What IS established, and is the
+# whole justification for this change, is that this library exhibits the SAME
+# defect class: it named the singular keyword and missed the plural. The
+# incident is cited as the ORIGIN of the observation, never as proof of this
+# library's involvement.
+#
+# BLAST RADIUS — the ACTUAL consumers (§11.4.6, measured 2026-09-08). This
+# library is NOT wired into the parent project's commit seam: the parent
+# `scripts/git_hooks/pre-commit` credential step is a FILENAME-class check
+# (basename `.env` / `*.pem` / `id_rsa` …) plus a call to `scripts/secret_scan.sh`,
+# whose pattern set is known TOKEN FORMATS (AKIA / ghp_ / sk-ant- / AIza …) plus
+# one `AZURE_*(KEY|SECRET)` shape — it carries NO generic `<keyword>=<value>`
+# pattern, so neither `API_KEY=<v>` NOR `API_KEYS=<v>` is caught there, before or
+# after this change. The consumers that DO source this library are:
+#   * constitution/scripts/gates/lib/execution_record.sh (`_xr_redact`) — the
+#     §11.4.268 evidence-stream redactor; this IS the seam the plural gap left open;
+#   * submodules/claude-toolkit/constitution/scripts/hooks/credential_scan_lib.sh —
+#     a SECOND checkout of this same library, which still carries the pre-change
+#     pattern (verified: the two files differ at the pattern line). It needs a
+#     LOCKSTEP bump; until then the plural gap remains open in that checkout.
+#
+# The gap was never limited to `API_KEYS`: every keyword in the detector-1
+# alternation was singular-only, so `PASSWORDS=`, `SECRETS=`, `ACCESS_TOKENS=`,
+# `CLIENT_SECRETS=`, `AUTH_TOKENS=` and `PASSWDS=` all escaped identically.
+# A pattern that names `password` and then misses `passwords` is the §11.4.201
+# FALSE-NEGATIVE class: the scanner reports clean and the leak ships.
+#
+# THE FIX IS NARROW, AND EVERY STEP OF THE NARROWING IS MEASURED against the
+# 644-file tracked corpus (evidence:
+# docs/qa/hxc352_plural_credential_pattern_20260908T201833Z/
+# remediation_20260908T204420Z/ (7d_corpus_delta_matrix.txt carries every count
+# quoted here; 7b_falsification_matrix.log carries the per-mutation proof).).
+#   * BLANKET form (`s?` on the generic `[[:space:]]*[:=]` alternative, i.e.
+#     admitting the COLON too): 141 -> 152 flagged files, +11 false-positive
+#     refusals, because a PLURAL keyword before a colon is how code names a
+#     COLLECTION of keys — `APIKeys: map[string]string{`, `Secrets: HashiCorp …`.
+#     REFUTED: trading false negatives for false-positive refusals is the
+#     §11.4.201(1) FAIL-bluff, not a fix. Pinned by (26-neg-3) below.
+#   * ASSIGNMENT-ONLY, no padding (`s=`): correct but too tight — it missed
+#     `PASSWORDS = <secret>` and `passwords = "<secret>"`.
+#   * ASSIGNMENT-ONLY WITH PADDING (`s[[:space:]]*=[[:space:]]*`) — SHIPPED.
+#     Measured cost: 2 corpus false positives, BOTH `apiKeys = &APIKeys{}` Go
+#     composite literals, cured by widening carrier-strip #21 to admit a `&Type{}`
+#     value. FINAL corpus verdict: 141 -> 141 flagged files — zero new false
+#     positives, zero lost catches — while closing the plural false-negative
+#     class, the space-padded class and the elvis-fallback class.
+#
+# CARRIER-STRIPS #8a / #18 / #20 / #21 / #25 also admit the plural `s?`. The
+# earlier rationale for that ("a strip can only ever REMOVE a false positive,
+# never create one") was FALSE and has been withdrawn: a strip removes a detector
+# HIT, and if the hit was a TRUE positive the strip manufactures a false
+# NEGATIVE. The correct argument is SYMMETRY — every widened carrier is
+# `^(<keyword>)s?<separator>…`, so the `s?` can consume only an `s` standing
+# between the keyword and the separator, and the only extracts carrying such an
+# `s` are the ones the plural alternative itself produces. The widened strip
+# therefore fires on `<kw>s=<v>` exactly when the un-widened one fired on
+# `<kw>=<v>`: the plural masking surface EQUALS the pre-existing singular one, so
+# no new masking class is created. Probed 2026-09-08; no counter-example could be
+# constructed. Each widened strip is pinned by its OWN falsifying fixture below.
+#
+# HONEST RESIDUALS (§11.4.6 — stated, not silently omitted):
+#   (1) COLON config style (`api_keys: <secret>` in YAML) is still NOT caught;
+#       catching it is exactly what produced the +11 false positives.
+#   (2) `SECRET_KEY=<v>`, `DJANGO_SECRET_KEY=<v>` and `SECRET_KEYS=<v>` are NOT
+#       caught, BEFORE and AFTER this change alike, because `secret` must be
+#       followed DIRECTLY by a separator and an intervening `_KEY` defeats it.
+#       A PRE-EXISTING gap of the same defect class — NOT introduced here, NOT
+#       closed here, and deliberately out of scope (a separate work item). It is
+#       recorded so the §11.4.146 STEP-3 fan-out is not silently claimed complete.
+#   (3) one standing corpus false positive: a spec file whose prose quotes an
+#       `APIKeys=` fixture value. It is genuinely credential-shaped; adding that
+#       value to the placeholder vocabulary would be over-fitting, so it is
+#       recorded rather than hidden. Consequence, stated precisely: any consumer
+#       scanning that file treats it as a hit — the §11.4.268 evidence-stream
+#       redactor would REDACT a captured stream containing it, and a commit seam
+#       wired to this library (none in this checkout) would REFUSE the commit —
+#       until the fixture value is made placeholder-shaped.
+#
+# These fixtures are the FALSIFYING tests for the fix (§11.4.115 / §11.4.224):
+# each names the mutation it catches, and each was OBSERVED to FAIL with that
+# mutation applied to a scratch copy of the library (§1.1 / §11.4.84 — never the
+# live tree). Values are synthetic (§11.4.10).
+
+cat > "$WORK/bad_26_api_keys_plural.env" <<'EOF'
+HELIX_AUTH_API_KEYS=hunter2hunter2hunter2
+EOF
+assert_caught "(26-a) plural API_KEYS= assignment (the exact shape that escaped)" \
+              "$WORK/bad_26_api_keys_plural.env"
+
+cat > "$WORK/bad_26_passwords_plural.env" <<'EOF'
+DB_PASSWORDS=hunter2hunter2hunter2
+EOF
+assert_caught "(26-b) plural PASSWORDS= assignment" "$WORK/bad_26_passwords_plural.env"
+
+cat > "$WORK/bad_26_secrets_plural.env" <<'EOF'
+APP_SECRETS=hunter2hunter2hunter2
+EOF
+assert_caught "(26-c) plural SECRETS= assignment" "$WORK/bad_26_secrets_plural.env"
+
+cat > "$WORK/bad_26_access_tokens_plural.env" <<'EOF'
+SERVICE_ACCESS_TOKENS=hunter2hunter2hunter2
+EOF
+assert_caught "(26-d) plural ACCESS_TOKENS= assignment" "$WORK/bad_26_access_tokens_plural.env"
+
+cat > "$WORK/bad_26_client_secrets_plural.env" <<'EOF'
+OAUTH_CLIENT_SECRETS=hunter2hunter2hunter2
+EOF
+assert_caught "(26-e) plural CLIENT_SECRETS= assignment" "$WORK/bad_26_client_secrets_plural.env"
+
+cat > "$WORK/bad_26_auth_tokens_plural.env" <<'EOF'
+GATEWAY_AUTH_TOKENS=hunter2hunter2hunter2
+EOF
+assert_caught "(26-f) plural AUTH_TOKENS= assignment" "$WORK/bad_26_auth_tokens_plural.env"
+
+cat > "$WORK/bad_26_passwds_plural.env" <<'EOF'
+SYSTEM_PASSWDS=hunter2hunter2hunter2
+EOF
+assert_caught "(26-g) plural PASSWDS= assignment" "$WORK/bad_26_passwds_plural.env"
+
+# (26-h / 26-i) SPACE-PADDED plural assignment. FALSIFYING MUTATION: tighten the
+# plural alternative back to `s=` (no padding) — both FAIL. These are the two
+# false negatives that the padded form was adopted to close; the padding is the
+# measured trade whose ONLY corpus cost was cured by (26-neg-8).
+cat > "$WORK/bad_26_padded_passwords.conf" <<'EOF'
+DB_PASSWORDS = hunter2hunter2hunter2
+EOF
+assert_caught "(26-h) plural PASSWORDS with spaces around = " \
+              "$WORK/bad_26_padded_passwords.conf"
+
+cat > "$WORK/bad_26_padded_quoted.kts" <<'EOF'
+val passwords = "hunter2hunter2hunter2"
+EOF
+assert_caught "(26-i) plural passwords = \"<secret>\" quoted literal" \
+              "$WORK/bad_26_padded_quoted.kts"
+
+# (26-j) PLURAL ELVIS / OR-FALLBACK. The elvis alternative was singular-only, so
+# a plural keyword with a hard-coded fallback secret escaped even after the
+# assignment fix. FALSIFYING MUTATION: remove `s?` from the elvis alternative.
+# The left-hand value is deliberately SHORT (under the 8-character value floor)
+# so the plural ASSIGNMENT alternative cannot match it — MEASURED: with a longer
+# left-hand value (`readKeys()`) this fixture passes via the assignment path and
+# is NON-DISCRIMINATING for the elvis widening, which is exactly the decoration
+# §1.1 forbids.
+cat > "$WORK/bad_26_plural_elvis.kts" <<'EOF'
+val passwords = env ?: "hunter2hunter2hunter2"
+EOF
+assert_caught "(26-j) plural keyword with an elvis fallback secret" \
+              "$WORK/bad_26_plural_elvis.kts"
+
+# --- NEGATIVE CONTROLS (§11.4.201 both-directions) --------------------------
+# (26-neg-1) BLANKET control only, and it is NON-DISCRIMINATING for the plural
+# alternative by construction: it contains no credential keyword at all, so it
+# stays clean with or without this change. It is kept deliberately, as the
+# blanket "the widening did not turn the detector into a match-any-plural
+# identifier" assertion. Every DISCRIMINATING negative control is (26-neg-2)
+# through (26-neg-8), each of which names the exact mutation it fails against.
+cat > "$WORK/good_26_plural_noncred.env" <<'EOF'
+HELIX_LOG_LEVELS=debugdebugdebugdebug
+HELIX_ALLOWED_ORIGINS=localhostlocalhost
+EOF
+assert_clean "(26-neg-1) plural NON-credential identifiers stay clean (blanket control)" \
+             "$WORK/good_26_plural_noncred.env"
+
+# (26-neg-2) FALSIFYING MUTATION: remove `s?` from HELIX_CRED_PLACEHOLDER_CARRIER.
+cat > "$WORK/good_26_plural_placeholder.env" <<'EOF'
+HELIX_AUTH_API_KEYS=CHANGE_ME
+OAUTH_CLIENT_SECRETS=PLACEHOLDER
+EOF
+assert_clean "(26-neg-2) plural keyword with placeholder value still hits the #8a strip" \
+             "$WORK/good_26_plural_placeholder.env"
+
+# (26-neg-3) THE LOAD-BEARING NARROWING. These are the COLLECTION-declaration
+# shapes that the REFUTED blanket form (`s?` + `[:=]` + padding) wrongly refuses.
+# FALSIFYING MUTATION: restore the blanket form — this fixture FAILS, which is
+# the whole reason the shipped alternative is assignment-only.
+cat > "$WORK/good_26_plural_collection.go" <<'EOF'
+type Config struct {
+	APIKeys: map[string]string{
+	Secrets: HashiCorp Vault is the reference store
+	api_keys: REFUSING to enumerate them here
+}
+EOF
+assert_clean "(26-neg-3) plural keyword + COLON = a collection declaration, not a secret" \
+             "$WORK/good_26_plural_collection.go"
+
+# (26-neg-4) FALSIFYING MUTATION: remove `s?` from HELIX_CRED_ENV_LOOKUP_CARRIER.
+# The value is deliberately a `process.env.X` form and NOT a call, so the
+# accessor strip (#25) cannot mask the failure — this fixture discriminates the
+# env-lookup strip alone.
+cat > "$WORK/good_26_plural_envlookup.js" <<'EOF'
+const HELIX_AUTH_API_KEYS=process.env.HELIX_AUTH_API_KEYS
+EOF
+assert_clean "(26-neg-4) plural keyword whose value is an env lookup (#20 strip)" \
+             "$WORK/good_26_plural_envlookup.js"
+
+# (26-neg-5) FALSIFYING MUTATION: remove `s?` from HELIX_CRED_ACCESSOR_CALL_CARRIER.
+# The value is a call the env-lookup strip does NOT know, so it discriminates the
+# accessor strip alone.
+cat > "$WORK/good_26_plural_accessor.go" <<'EOF'
+HELIX_AUTH_API_KEYS=vault.read(
+EOF
+assert_clean "(26-neg-5) plural keyword whose value is an accessor call (#25 strip)" \
+             "$WORK/good_26_plural_accessor.go"
+
+# (26-neg-6) FALSIFYING MUTATION: remove `s?` from
+# HELIX_CRED_IDENTIFIER_REFERENCE_CARRIER. Without it, `passwords=passwords` is a
+# HIT while the singular `password=password` is clean — a false-positive class the
+# singular form explicitly exempts (§11.4.201(1)).
+cat > "$WORK/good_26_plural_identref.go" <<'EOF'
+passwords=passwords
+api_keys=api_keys
+EOF
+assert_clean "(26-neg-6) plural value-equals-key is a variable reference (#18 strip)" \
+             "$WORK/good_26_plural_identref.go"
+
+# (26-neg-7) FALSIFYING MUTATION: remove `s?` from
+# HELIX_CRED_SYMBOL_REFERENCE_CARRIER. Without it, `apiKeys=DefaultAPIKey` is a
+# HIT while the singular `apiKey=DefaultAPIKey` is clean — same asymmetry.
+cat > "$WORK/good_26_plural_symbolref.go" <<'EOF'
+apiKeys=DefaultAPIKey
+EOF
+assert_clean "(26-neg-7) plural keyword whose value is a TYPE name (#21 strip)" \
+             "$WORK/good_26_plural_symbolref.go"
+
+# (26-neg-8) FALSIFYING MUTATION: remove the `&?` / `(\{\})?` composite-literal
+# form from HELIX_CRED_SYMBOL_REFERENCE_CARRIER. This is the exact shape (2
+# tracked files) that the space-padded plural alternative would otherwise refuse;
+# it is the measured cost of (26-h)/(26-i), and this strip is its cure.
+cat > "$WORK/good_26_plural_composite.go" <<'EOF'
+apiKeys = &APIKeys{}
+EOF
+assert_clean "(26-neg-8) plural keyword whose value is a Go composite literal (#21 strip)" \
+             "$WORK/good_26_plural_composite.go"
+
+# (26-neg-9) The widened #21 strip must NOT swallow the weak-but-plausible real
+# secrets its two-hump floor was chosen to keep. Re-measured after the widening.
+cat > "$WORK/bad_26_symbol_floor.go" <<'EOF'
+secret = SuperSecret
+EOF
+assert_caught "(26-neg-9) #21 two-hump floor survives the widening (still caught)" \
+              "$WORK/bad_26_symbol_floor.go"
 
 echo ""
 echo "== RESULT: ${pass} passed, ${fail} failed =="

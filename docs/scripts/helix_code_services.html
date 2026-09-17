@@ -441,8 +441,8 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 <body>
 <h1 id="helix_code_servicesmd--services-guide">helix_code_services.md —
 Services Guide</h1>
-<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
-2026-07-17T00:00:00Z</p>
+<p><strong>Revision:</strong> 2 <strong>Last modified:</strong>
+2026-09-03T00:00:00Z</p>
 <h2 id="overview">Overview</h2>
 <p>HelixCode service management wrappers: install, boot, stop,
 health-check, and status for the HelixCode / HelixLLM / HelixAgent
@@ -500,7 +500,8 @@ wait)</td>
 </tr>
 <tr>
 <td><code>hc_status</code></td>
-<td>Print health status of all 4 HelixCode services</td>
+<td>Print health status of every service in the
+<code>hc__status_endpoints</code> table</td>
 </tr>
 <tr>
 <td><code>hc_verify_binaries</code></td>
@@ -508,15 +509,27 @@ wait)</td>
 </tr>
 <tr>
 <td><code>hc_health [host] [port] [path]</code></td>
-<td>Health check (from <code>helix_code_home.sh</code>)</td>
+<td>Health check over <code>http</code> only (from
+<code>helix_code_home.sh</code>)</td>
+</tr>
+<tr>
+<td><code>hc_health_url &lt;url&gt;</code></td>
+<td>Scheme-aware health check; prints <code>OK</code> or
+<code>DOWN</code></td>
 </tr>
 </tbody>
 </table>
 <h2 id="service-ports">Service Ports</h2>
+<p>These are the rows of the <code>hc__status_endpoints</code> table in
+<code>helix_code_services.sh</code> — that table is the single source,
+this table mirrors it. Verified against the consuming project's
+<code>scripts/systemd/*.service</code> units and a live
+<code>ss -ltnp</code> on 2026-09-03.</p>
 <table>
 <thead>
 <tr>
 <th>Service</th>
+<th>Scheme</th>
 <th>Port</th>
 <th>Health Endpoint</th>
 </tr>
@@ -524,26 +537,52 @@ wait)</td>
 <tbody>
 <tr>
 <td>HelixCode server</td>
+<td><code>http</code></td>
 <td><code>:8080</code></td>
 <td><code>/health</code></td>
 </tr>
 <tr>
 <td>HelixLLM coder</td>
+<td><code>http</code></td>
 <td><code>:18434</code></td>
 <td><code>/health</code></td>
 </tr>
 <tr>
 <td>HelixLLM gateway</td>
+<td><code>https</code></td>
 <td><code>:8443</code></td>
 <td><code>/internal/health</code></td>
 </tr>
 <tr>
 <td>HelixAgent</td>
+<td><code>http</code></td>
+<td><code>:7061</code></td>
+<td><code>/v1/models</code></td>
+</tr>
+<tr>
+<td>LLMsVerifier</td>
+<td><code>http</code></td>
 <td><code>:8100</code></td>
 <td><code>/health</code></td>
 </tr>
 </tbody>
 </table>
+<p>Notes:</p>
+<ul>
+<li><strong>HelixAgent is <code>:7061</code>, not
+<code>:8100</code>.</strong> <code>:8100</code> is the
+<strong>LLMsVerifier's</strong> port; a prior revision of this table and
+of <code>hc_status</code> attributed it to HelixAgent, so
+<code>hc_status</code> reported "HelixAgent: DOWN" while HelixAgent was
+serving normally. HelixAgent also exposes a liveness probe on
+<code>:8111</code>, but that endpoint answers 200 while the service is
+still starting, so the status probe deliberately targets
+<code>:7061/v1/models</code> — the port consumers actually call.</li>
+<li><strong>The gateway is <code>https</code>.</strong>
+<code>hc_health</code> hardcodes <code>http://</code>, which is why
+<code>hc_health_url</code> exists; plain <code>http</code> against the
+TLS listener answers 400.</li>
+</ul>
 <h2 id="safety">Safety</h2>
 <ul>
 <li>§11.4.161: uses rootless podman via the Containers submodule</li>

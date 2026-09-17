@@ -28,8 +28,12 @@
 #      registered behavioral ACTION still resolves kind=action (precedence
 #      preserved); an unknown grammar-shaped token still ASKs; a lowercase token
 #      does NOT expand (grammar honoured at runtime).
-#   5. PARSEABILITY (§11.4.67) — the library + this gate parse clean under BOTH
-#      bash -n and sh -n.
+#   5. PARSEABILITY (§11.4.67) — the library + this gate parse clean under the
+#      interpreter each one's OWN shebang DECLARES (the "target shell" of
+#      §11.4.67 is the declared shell; clause 4 sanctions bash-shebang +
+#      `bash script.sh` callers for the clause-3 bash-only constructs, so
+#      demanding `sh -n` of a declared-bash script is a §11.4.201(1)
+#      false-positive refusal).
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_subsystem_shortcuts.sh [--lib <path>] [--registry <path>] [--quiet]
@@ -180,12 +184,26 @@ else
 fi
 
 # ── Invariant 5: PARSEABILITY (§11.4.67) ─────────────────────────────────────
+# §11.4.67 binds a script to the shell it DECLARES: its mandate covers scripts
+# "invoked under a target shell other than the one in its shebang", and clause 4
+# ("Honest shebangs") sanctions bash-shebang + bash-callers for scripts carrying
+# bash-only constructs (clause 3 names process substitution / `<<<` / `arr=()`
+# explicitly). Running `sh -n` over a `#!/usr/bin/env bash` script asserts a
+# condition the anchor never imposed — a §11.4.201(1) false-positive refusal and
+# a §11.4.201(11) proxy check. Parse each file under its DECLARED interpreter;
+# demand POSIX-cleanliness only where a POSIX shebang is actually declared.
 for f in "$lib" "$0"; do
     rel="$(basename "$f")"
-    if bash -n "$f" 2>/tmp/cm_subsys_bn.$$; then ok "PARSEABILITY: ${rel} clean under bash -n"; else bad "PARSEABILITY: ${rel} fails bash -n: $(tr '\n' ' ' < /tmp/cm_subsys_bn.$$)"; fi
-    rm -f /tmp/cm_subsys_bn.$$
-    if sh -n "$f" 2>/tmp/cm_subsys_sn.$$; then ok "PARSEABILITY: ${rel} clean under sh -n"; else bad "PARSEABILITY: ${rel} fails sh -n: $(tr '\n' ' ' < /tmp/cm_subsys_sn.$$)"; fi
-    rm -f /tmp/cm_subsys_sn.$$
+    case "$(head -n 1 "$f")" in
+        *bash*) declared_sh="bash" ;;
+        *)      declared_sh="sh"   ;;
+    esac
+    if "$declared_sh" -n "$f" 2>/tmp/cm_subsys_pn.$$; then
+        ok "PARSEABILITY: ${rel} clean under its declared interpreter (${declared_sh} -n)"
+    else
+        bad "PARSEABILITY: ${rel} fails ${declared_sh} -n (its DECLARED interpreter): $(tr '\n' ' ' < /tmp/cm_subsys_pn.$$)"
+    fi
+    rm -f /tmp/cm_subsys_pn.$$
 done
 
 echo "----------------------------------------------------------------------"

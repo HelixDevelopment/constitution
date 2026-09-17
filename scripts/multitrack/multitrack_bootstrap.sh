@@ -54,7 +54,7 @@
 #        existing default behaviour/exit-code for any pre-existing caller.
 #
 # Usage:
-#   multitrack_bootstrap.sh [PROJECT_ROOT]
+#   multitrack_bootstrap.sh [--check|--dry-run] [PROJECT_ROOT]
 #   PROJECT_ROOT=/path/to/project multitrack_bootstrap.sh
 #   (no args -> PROJECT_ROOT defaults to $PWD; §11.4.177 — NEVER a hardcoded
 #   project path, always the invocation directory / an explicit target)
@@ -89,9 +89,12 @@
 #      drive are printed as informational NOTEs, NEVER a non-zero exit.
 #   1  a required sibling engine script is missing (tree incomplete), OR
 #      cwd-hook --install itself failed.
-#   2  no per-host config resolvable for this host — THE §11.4.6 fatal path:
-#      prints the exact YAML template + the operator authoring step.
-#   3  config resolved but failed to parse, or parsed with zero tracks.
+#   2  no per-host config resolvable for this host AND no default single-track
+#      fallback could be established (§11.4.187) — prints the exact YAML
+#      template + the operator authoring step. Also the strict-mode fatal path
+#      when MT_REQUIRE_HOST_CONFIG=1 is set.
+#   3  config resolved but failed to parse, or parsed with zero tracks — a
+#      malformed config is NEVER defaulted past (§11.4.6).
 #   4  orchestrator reconcile or status failed unexpectedly.
 #
 # Side-effects:
@@ -156,9 +159,27 @@ for _mtb_sib in "$CONFIG_LIB" "$CWH" "$ORCH"; do
     fi
 done
 
-# --- PROJECT_ROOT resolution (§11.4.177 — $1 > $PROJECT_ROOT env >
-#     invocation cwd; NEVER a hardcoded project path) -----------------------
-PROJECT_ROOT="${1:-${PROJECT_ROOT:-$(pwd)}}"
+# --- flags: --check / --dry-run (INSPECT-ONLY, mutate NOTHING) --------------
+# A caller must be able to see exactly what activation WOULD do before anything
+# on the host is touched. In check mode this script installs no symlink, starts
+# no daemon and runs no orchestrator reconcile — it only resolves + reports.
+MTB_CHECK=0
+MTB_ARGS=""
+for _mtb_a in "$@"; do
+    case "$_mtb_a" in
+        --check|--dry-run) MTB_CHECK=1 ;;
+        -h|--help)
+            echo "usage: multitrack_bootstrap.sh [--check|--dry-run] [PROJECT_ROOT]"
+            echo "  --check / --dry-run   inspect + report only; installs nothing,"
+            echo "                        starts nothing, reconciles nothing."
+            exit 0 ;;
+        *) [ -n "$MTB_ARGS" ] || MTB_ARGS="$_mtb_a" ;;
+    esac
+done
+
+# --- PROJECT_ROOT resolution (§11.4.177 — first non-flag arg > $PROJECT_ROOT
+#     env > invocation cwd; NEVER a hardcoded project path) -----------------
+PROJECT_ROOT="${MTB_ARGS:-${PROJECT_ROOT:-$(pwd)}}"
 export PROJECT_ROOT
 
 # The engine's OWN config-contract override — an explicit MT_REPO_ROOT always
@@ -179,12 +200,16 @@ echo
 # STEP 1/5 — install the cwd-hook symlink (idempotent, delegated in full)
 # ---------------------------------------------------------------------------
 echo "-- step 1/5: cwd-hook symlink --"
-_mtb_install_out="$(bash "$CWH" --install 2>&1)"
-_mtb_install_rc=$?
-echo "$_mtb_install_out"
-if [ "$_mtb_install_rc" -ne 0 ]; then
-    echo "FATAL: multitrack_cwd_hook.sh --install failed (rc=$_mtb_install_rc)" >&2
-    exit 1
+if [ "$MTB_CHECK" -eq 1 ]; then
+    echo "CHECK: would run: bash $CWH --install   (skipped — inspect-only)"
+else
+    _mtb_install_out="$(bash "$CWH" --install 2>&1)"
+    _mtb_install_rc=$?
+    echo "$_mtb_install_out"
+    if [ "$_mtb_install_rc" -ne 0 ]; then
+        echo "FATAL: multitrack_cwd_hook.sh --install failed (rc=$_mtb_install_rc)" >&2
+        exit 1
+    fi
 fi
 echo
 
@@ -209,6 +234,8 @@ if [ -L "$_mtb_link" ]; then
         echo "NOTE: $_mtb_link -> $_mtb_target (points elsewhere — left as-is;"
         echo "      --install refuses to clobber a foreign symlink)"
     fi
+elif [ "$MTB_CHECK" -eq 1 ]; then
+    echo "NOTE: $_mtb_link is not a symlink (nothing was installed — inspect-only run)"
 else
     echo "NOTE: $_mtb_link is not a symlink (unexpected right after --install)"
 fi
@@ -219,14 +246,25 @@ echo
 # ---------------------------------------------------------------------------
 echo "-- step 3/5: validate per-host config --"
 _mtb_host="${MT_HOST:-$(mt_resolve_host)}"
-if [ -n "${MT_CONFIG:-}" ]; then
-    _mtb_cfg="$MT_CONFIG"
-else
-    _mtb_cfg="$(mt_config_file "$_mtb_host" 2>/dev/null)" || _mtb_cfg=""
+# §11.4.187 universality: a per-host config is loaded exactly as before; a host
+# with NO config falls back to the universal DEFAULT single-track mode (ONE
+# track, track-1 = the invocation project root) with a loud notice; a config
+# that EXISTS but is malformed/zero-track stays FATAL (rc 3) — that IS ambiguity
+# and is NEVER defaulted past (§11.4.6). Strict pre-§11.4.187 behaviour (fatal
+# on a missing config) remains available via MT_REQUIRE_HOST_CONFIG=1.
+mt_resolve_and_load
+_mtb_cfg_rc=$?
+if [ "$_mtb_cfg_rc" -eq 3 ]; then
+    echo "FATAL: the per-host config for host='$_mtb_host' exists but is unusable" >&2
+    echo "       (unparsable, or it defines zero tracks). A malformed config is" >&2
+    echo "       never defaulted past — fix it, or remove it to fall back to" >&2
+    echo "       default single-track mode." >&2
+    exit 3
 fi
-if [ -z "$_mtb_cfg" ] || [ ! -r "$_mtb_cfg" ]; then
+if [ "$_mtb_cfg_rc" -ne 0 ]; then
     echo "FATAL: no per-host multitrack config for host='$_mtb_host'" >&2
     echo "       (looked under $(mt_config_dir)/$_mtb_host.yaml)" >&2
+    echo "       and no default single-track fallback could be established." >&2
     cat >&2 <<OPBLOCK
 
 OPERATOR STEP REQUIRED (§11.4.6 — host config is DATA, never invented):
@@ -248,21 +286,23 @@ OPERATOR STEP REQUIRED (§11.4.6 — host config is DATA, never invented):
 OPBLOCK
     exit 2
 fi
-if ! mt_load_config "$_mtb_cfg"; then
-    echo "FATAL: could not parse $_mtb_cfg" >&2
-    exit 3
+_mtb_cfg="${MT_CFG_FILE:-}"
+if [ "${MT_DEFAULT_MODE:-0}" = "1" ]; then
+    echo "OK: DEFAULT SINGLE-TRACK MODE (no per-host config for '$_mtb_host')"
+    echo "    MT_TRACK_COUNT=$MT_TRACK_COUNT  track-1=${MT_DEFAULT_TRACK1_ROOT:-?}"
+else
+    echo "OK: $_mtb_cfg loaded, MT_TRACK_COUNT=$MT_TRACK_COUNT"
 fi
-if [ "${MT_TRACK_COUNT:-0}" -lt 1 ]; then
-    echo "FATAL: $_mtb_cfg parsed but defines zero tracks" >&2
-    exit 3
-fi
-echo "OK: $_mtb_cfg loaded, MT_TRACK_COUNT=$MT_TRACK_COUNT"
 echo
 
 # ---------------------------------------------------------------------------
 # STEP 4/5 — seed orchestrator state (idempotent reconcile + status confirm)
 # ---------------------------------------------------------------------------
 echo "-- step 4/5: orchestrator reconcile + status --"
+if [ "$MTB_CHECK" -eq 1 ]; then
+    echo "CHECK: would run: bash $ORCH reconcile && bash $ORCH status   (skipped — inspect-only)"
+    echo
+else
 _mtb_reconcile_out="$(bash "$ORCH" reconcile 2>&1)"
 _mtb_reconcile_rc=$?
 echo "$_mtb_reconcile_out"
@@ -278,6 +318,7 @@ if [ "$_mtb_status_rc" -ne 0 ]; then
     exit 4
 fi
 echo "OK: orchestrator reconcile+status rc=0"
+fi
 echo
 
 # ---------------------------------------------------------------------------
@@ -287,7 +328,8 @@ echo "-- step 5/5: track drive readiness (read-only probe) --"
 _mtb_plan="$(mt_plan 2>/dev/null || true)"
 printf '%s\n' "$_mtb_plan" | while IFS= read -r _mtb_line; do
     case "$_mtb_line" in
-        TRACK*STATUS=READY*) : ;;
+        TRACKS_READY=*) : ;;   # the summary line, not a track (was caught by TRACK*)
+        TRACK*STATUS=READY*) : ;;      # READY and READY-DIR both land here
         TRACK*)
             echo "NOTE: $_mtb_line"
             echo "      OPERATOR STEP (§11.4.133 — NEVER auto-mount/format):"
@@ -317,7 +359,9 @@ echo
 # ---------------------------------------------------------------------------
 echo "-- step 6 (opt-in): ruler supervisor watchdog --"
 SUP="$MTB_DIR/multitrack_supervisor.sh"
-if [ "${MT_SUPERVISOR_WATCH_ENABLE:-0}" != "1" ]; then
+if [ "$MTB_CHECK" -eq 1 ]; then
+    echo "CHECK: would evaluate the supervisor watchdog (MT_SUPERVISOR_WATCH_ENABLE=${MT_SUPERVISOR_WATCH_ENABLE:-0}); starts nothing — inspect-only"
+elif [ "${MT_SUPERVISOR_WATCH_ENABLE:-0}" != "1" ]; then
     echo "NOTE: disabled by default -- set MT_SUPERVISOR_WATCH_ENABLE=1 to start the watchdog"
 elif [ ! -r "$SUP" ]; then
     echo "NOTE: multitrack_supervisor.sh not found at $SUP -- watchdog NOT started"
