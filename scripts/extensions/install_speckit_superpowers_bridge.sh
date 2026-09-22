@@ -165,6 +165,14 @@ if [ -z "$REPORT_FILE" ]; then
 		warn "FATAL: probe script missing: $PROBE"
 		exit 1
 	fi
+	# Extract "report written: <path>" from the probe's OWN stdout rather
+	# than "latest directory under bridge_layers/ by sort" — this checkout is
+	# shared by concurrent agents/tracks (§11.4.119/§11.4.176) that may run
+	# this same probe concurrently; "latest by lexicographic sort" can race a
+	# sibling track's in-flight (not-yet-written) run-id directory, producing
+	# a false "no report" FATAL unrelated to THIS invocation's own result
+	# (found + fixed during this script's own integration run, §11.4.6 —
+	# never guess which run is ours).
 	PROBE_OUT=$(bash "$PROBE" --root "$ROOT" --quiet 2>&1)
 	PROBE_RC=$?
 	log_only "$PROBE_OUT"
@@ -172,13 +180,11 @@ if [ -z "$REPORT_FILE" ]; then
 		warn "FATAL: probe_bridge_layers.sh exited $PROBE_RC — cannot determine layer state"
 		exit 1
 	fi
-	LAYERS_DIR="$ROOT/qa-results/hxc159/bridge_layers"
-	LATEST_RUN=$(ls -1 "$LAYERS_DIR" 2>/dev/null | sort | tail -1)
-	if [ -z "$LATEST_RUN" ]; then
-		warn "FATAL: probe ran but produced no report under $LAYERS_DIR"
+	REPORT_FILE=$(printf '%s\n' "$PROBE_OUT" | sed -n 's/^report written: //p' | tail -1)
+	if [ -z "$REPORT_FILE" ]; then
+		warn "FATAL: probe ran (rc=0) but its stdout contained no 'report written: <path>' line — cannot determine which report is ours"
 		exit 1
 	fi
-	REPORT_FILE="$LAYERS_DIR/$LATEST_RUN/report.json"
 fi
 if [ ! -f "$REPORT_FILE" ]; then
 	warn "FATAL: report-file not found: $REPORT_FILE"
