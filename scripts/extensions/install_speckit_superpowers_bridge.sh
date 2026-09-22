@@ -314,7 +314,18 @@ else
 			say "   L3: dry-run — would install via '$SPECIFY_BIN extension add superspec --from <pinned-source>@$SUPERSPEC_PIN'."
 			STATUS_L3="dry-run-would-install"
 		else
-			INSTALL_OUT=$("$SPECIFY_BIN" extension add superspec --from "${SUPERSPEC_FROM:-https://github.com/WangX0111/superspec}@"$SUPERSPEC_PIN 2>&1)
+			# HONEST LIMITATION (§11.4.6): this branch has NEVER been exercised
+			# on any host measured in HXC-159 T-B1/T-B2 — L3 has always been
+			# found already WIRED (installed as a git submodule pinned to an
+			# immutable commit SHA, never via a `--from` archive fetch). The
+			# exact `specify extension add --from <url>` archive-URL SYNTAX
+			# for a specific pinned commit (as opposed to a release tag) has
+			# NOT been verified against the real `specify` CLI's expectations;
+			# $SUPERSPEC_FROM defaults to a best-effort guess, not a proven
+			# value. Treat this path as UNTESTED until a host is measured with
+			# L3 genuinely absent and this branch is exercised end-to-end.
+			SUPERSPEC_SOURCE_URL="${SUPERSPEC_FROM:-https://github.com/WangX0111/superspec}@$SUPERSPEC_PIN"
+			INSTALL_OUT=$("$SPECIFY_BIN" extension add superspec --from "$SUPERSPEC_SOURCE_URL" 2>&1)
 			INSTALL_RC=$?
 			log_only "$INSTALL_OUT"
 			if [ "$INSTALL_RC" -eq 0 ]; then
