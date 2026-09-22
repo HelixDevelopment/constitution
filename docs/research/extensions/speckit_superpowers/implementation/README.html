@@ -1,458 +1,272 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8" />
-  <meta name="generator" content="pandoc 3.10" />
+  <meta name="generator" content="pandoc 3.11" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>Helix Constitution–Powered SpecKit–Superpowers Bridge:
-Implementation Documentation</title>
+  <title>README</title>
   <style>
-
-span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: 1.5em;}
-div.column{flex: auto;}
-@media screen {
-div.columns{gap: min(4vw, 1.5em);}
-div.column{overflow-x: auto;}
-}
-div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
-
-ul.task-list[class]{list-style: none;}
-ul.task-list li input[type="checkbox"] {
-font-size: inherit;
-width: 0.8em;
-margin: 0 0.8em 0.2em -1.6em;
-vertical-align: middle;
-}
-.display.math{display: block; text-align: center; margin: 0.5rem auto;}
-
-html { -webkit-text-size-adjust: 100%; }
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-{ counter-reset: source-line 0; }
-pre.numberSource code > span
-{ position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-{ content: counter(source-line);
-position: relative; left: -1em; text-align: right; vertical-align: baseline;
-border: none; display: inline-block;
--webkit-touch-callout: none; -webkit-user-select: none;
--khtml-user-select: none; -moz-user-select: none;
--ms-user-select: none; user-select: none;
-padding: 0 4px; width: 4em;
-color: #aaaaaa;
-}
-pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
-div.sourceCode
-{ }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
-}
-code span.al { color: #ff0000; font-weight: bold; } 
-code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
-code span.at { color: #7d9029; } 
-code span.bn { color: #40a070; } 
-code span.bu { color: #008000; } 
-code span.cf { color: #007020; font-weight: bold; } 
-code span.ch { color: #4070a0; } 
-code span.cn { color: #880000; } 
-code span.co { color: #60a0b0; font-style: italic; } 
-code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
-code span.do { color: #ba2121; font-style: italic; } 
-code span.dt { color: #902000; } 
-code span.dv { color: #40a070; } 
-code span.er { color: #ff0000; font-weight: bold; } 
-code span.ex { } 
-code span.fl { color: #40a070; } 
-code span.fu { color: #06287e; } 
-code span.im { color: #008000; font-weight: bold; } 
-code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
-code span.kw { color: #007020; font-weight: bold; } 
-code span.op { color: #666666; } 
-code span.ot { color: #007020; } 
-code span.pp { color: #bc7a00; } 
-code span.sc { color: #4070a0; } 
-code span.ss { color: #bb6688; } 
-code span.st { color: #4070a0; } 
-code span.va { color: #19177c; } 
-code span.vs { color: #4070a0; } 
-code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
-</style>
-  <style type="text/css">
-
-:root {
-
---od-bg: #f5f8ff; 
---od-surface: #ffffff; 
---od-surface-warm: #eaf1ff; 
---od-surface-muted: #f4f6fb; 
-
---od-fg: #101828; 
---od-fg-2: #344054; 
---od-muted: #667085; 
-
---od-border: #d7e0ef; 
---od-border-soft: #edf2f8; 
-
---od-accent: #2563eb; 
---od-accent-on: #ffffff; 
---od-accent-hover: #205fd6; 
---od-accent-tint: #eaf1ff; 
-
---od-success: #16a34a; 
---od-warn: #f59e0b; 
---od-danger: #ef4444; 
-
-
---od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
--apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
-"Apple Color Emoji", "Segoe UI Emoji";
---od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
-SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-
---od-leading-body: 1.65;
---od-leading-tight: 1.2;
-
---od-radius-xs: 4px;
---od-radius-sm: 6px;
---od-radius: 8px;
---od-radius-lg: 12px;
---od-radius-pill: 9999px;
-
---od-elev-ring: 0 0 0 1px var(--od-border);
---od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
---od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
-
---doc-fg: var(--od-fg);
---doc-fg-muted: var(--od-muted);
---doc-bg: var(--od-bg);
---doc-surface: var(--od-surface);
---doc-accent: var(--od-accent);
---doc-accent-soft: var(--od-accent-tint);
---doc-border: var(--od-border);
---doc-border-soft: var(--od-border-soft);
---doc-code-bg: #eef2fb;
---doc-code-fg: #1d2433;
---doc-quote-bar: var(--od-accent);
---doc-quote-bg: #f4f7fe;
---doc-table-stripe:#f7f9fe;
-}
-
-html {
-font-size: 16px;
-}
-body {
-font-family: var(--od-font-body);
-color: var(--doc-fg);
-background: var(--doc-bg);
-line-height: var(--od-leading-body);
-font-size: 1rem;
-max-width: 58rem;
-margin: 2.5rem auto;
-padding: 2.25rem 2.5rem 4rem;
-background-clip: padding-box;
-border-radius: var(--od-radius-lg);
--webkit-text-size-adjust: 100%;
-text-rendering: optimizeLegibility;
--webkit-font-smoothing: antialiased;
-}
-
-@media screen and (min-width: 62rem) {
-body {
-background: var(--doc-surface);
-box-shadow: var(--od-elev-raised);
-}
-html { background: var(--doc-bg); }
-}
-
-h1, h2, h3, h4, h5, h6 {
-font-family: var(--od-font-body);
-font-weight: 600;
-line-height: var(--od-leading-tight);
-letter-spacing: -0.011em;
-margin: 1.8em 0 0.6em;
-color: var(--od-fg);
-}
-h1 {
-font-size: 2.1rem;
-font-weight: 700;
-letter-spacing: -0.022em;
-border-bottom: 2px solid var(--doc-border);
-padding-bottom: 0.32em;
-margin-top: 0;
-}
-h2 {
-font-size: 1.55rem;
-border-bottom: 1px solid var(--doc-border-soft);
-padding-bottom: 0.25em;
-}
-h3 { font-size: 1.3rem; }
-h4 { font-size: 1.1rem; }
-h5 { font-size: 1.0rem; color: var(--od-fg-2); }
-h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-
-h3.status-group-heading {
-margin-top: 1.6em;
-padding: 0.4em 0.7em;
-background: var(--doc-accent-soft);
-color: var(--od-fg);
-border-left: 4px solid var(--doc-accent);
-border-radius: var(--od-radius-sm);
-font-size: 1.15rem;
-}
-
-p { margin: 0.75em 0; }
-a {
-color: var(--doc-accent);
-text-decoration: none;
-border-bottom: 1px solid transparent;
-transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
-}
-a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
-a:focus-visible {
-outline: none;
-border-radius: var(--od-radius-xs);
-box-shadow: var(--od-focus-ring);
-}
-strong { font-weight: 600; color: var(--od-fg); }
-em { font-style: italic; }
-hr {
-border: 0;
-border-top: 1px solid var(--doc-border);
-margin: 2.25em 0;
-}
-blockquote {
-margin: 1.1em 0;
-padding: 0.6em 1.2em;
-color: var(--od-fg-2);
-border-left: 4px solid var(--doc-quote-bar);
-background: var(--doc-quote-bg);
-border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
-}
-ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
-li { margin: 0.3em 0; }
-li::marker { color: var(--doc-fg-muted); }
-
-code, pre, kbd, samp {
-font-family: var(--od-font-mono);
-font-size: 0.88em;
-}
-code {
-background: var(--doc-code-bg);
-color: var(--doc-code-fg);
-padding: 0.15em 0.42em;
-border-radius: var(--od-radius-xs);
-border: 1px solid var(--doc-border-soft);
-}
-pre {
-background: var(--doc-code-bg);
-color: var(--doc-code-fg);
-padding: 1em 1.2em;
-border-radius: var(--od-radius);
-overflow-x: auto;
-line-height: 1.5;
-border: 1px solid var(--doc-border);
-}
-pre code {
-background: transparent;
-padding: 0;
-border: 0;
-border-radius: 0;
-}
-kbd {
-background: var(--od-surface);
-color: var(--od-fg-2);
-padding: 0.1em 0.45em;
-border-radius: var(--od-radius-xs);
-border: 1px solid var(--doc-border);
-box-shadow: 0 1px 0 var(--doc-border);
-}
-
-table {
-border-collapse: separate;
-border-spacing: 0;
-width: 100%;
-margin: 1.3em 0;
-font-size: 0.93rem;
-display: block;
-overflow-x: auto;
-border: 1px solid var(--doc-border);
-border-radius: var(--od-radius-sm);
-}
-thead th {
-background: var(--doc-accent-soft);
-color: var(--od-fg);
-font-weight: 600;
-text-align: left;
-}
-th, td {
-border-bottom: 1px solid var(--doc-border-soft);
-border-right: 1px solid var(--doc-border-soft);
-padding: 0.55em 0.8em;
-vertical-align: top;
-
-overflow-wrap: break-word;
-word-break: normal;
-white-space: normal;
-hyphens: auto;
-}
-tr > th:last-child, tr > td:last-child { border-right: 0; }
-tbody tr:last-child > td { border-bottom: 0; }
-tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
-
-
-td.cell-type-bug { background: #fdecec; } 
-td.cell-type-feature { background: #e7f6ec; } 
-td.cell-type-task { background: #eef2fb; } 
-
-td.cell-status-queued { background: #eef1f6; } 
-td.cell-status-in-progress { background: #e7eefc; } 
-td.cell-status-ready-for-testing { background: #e3eefe; } 
-td.cell-status-in-testing { background: #d8e6fd; } 
-td.cell-status-reopened { background: #fdeccd; } 
-td.cell-status-operator-blocked { background: #fdd9d9; } 
-td.cell-status-fixed { background: #d8f3e2; } 
-td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
-
-tr.row-status-fixed { background: #f1faf4; }
-tr.row-status-fixed td { border-color: #cfead8; }
-tr.row-status-operator-blocked { background: #fdf4f4; }
-tr.row-status-operator-blocked td { border-color: #f4cccc; }
-
-tr.row-status-obsolete {
-background: #e3e6ec;
-color: var(--doc-fg-muted);
-}
-tr.row-status-obsolete td {
-text-decoration: line-through;
-border-color: #d1d5dd;
-}
-
-tr.row-status-obsolete td.cell-status-obsolete {
-text-decoration: line-through;
-}
-
-.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
-display: inline-block;
-padding: 0.12em 0.66em;
-border-radius: var(--od-radius-pill);
-font-size: 0.82em;
-font-weight: 600;
-line-height: 1.5;
-letter-spacing: 0.01em;
-white-space: nowrap;
-border: 1px solid transparent;
-vertical-align: baseline;
-}
-
-.tag-done, .tag-completed {
-background: #e7f6ec;
-color: #14773a;
-border-color: #bfe6cd;
-}
-
-.tag-in-progress {
-background: #e7eefc;
-color: #1c4fce;
-border-color: #c4d6fb;
-}
-
-.tag-future, .tag-planned {
-background: #fdf3d3;
-color: #8a6400;
-border-color: #f0dca0;
-}
-
-img {
-max-width: 100%;
-height: auto;
-border-radius: var(--od-radius-sm);
-}
-
-@media screen and (prefers-color-scheme: dark) {
-:root {
---od-bg: #0f1420;
---od-surface: #161c2b;
---od-surface-warm: #1c2740;
---od-surface-muted: #141a28;
---od-fg: #e6ebf4;
---od-fg-2: #c2cad8;
---od-muted: #8b94a7;
---od-border: #2a3346;
---od-border-soft: #1f2839;
---od-accent: #5b8def; 
---od-accent-on: #0f1420;
---od-accent-hover: #79a3f4;
---od-accent-tint: #19233a;
---od-success: #4caf72;
---od-warn: #e0a13a;
---od-danger: #e0655f;
---od-elev-ring: 0 0 0 1px var(--od-border);
---od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
---od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
---doc-code-bg: #11192a;
---doc-code-fg: #d7def0;
---doc-quote-bg: #161f33;
---doc-table-stripe:#141b29;
-}
-
-td.cell-type-bug { background: #2a1110; }
-td.cell-type-feature { background: #0f2a18; }
-td.cell-type-task { background: #141f38; }
-
-td.cell-status-queued { background: #1c2330; }
-td.cell-status-in-progress { background: #14233f; }
-td.cell-status-ready-for-testing { background: #14223c; }
-td.cell-status-in-testing { background: #182a4a; }
-td.cell-status-reopened { background: #2c2008; }
-td.cell-status-operator-blocked { background: #2f0f0d; }
-td.cell-status-fixed { background: #0f2a18; }
-td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
-
-tr.row-status-fixed { background: #0d1f15; }
-tr.row-status-fixed td { border-color: #1c402a; }
-tr.row-status-operator-blocked { background: #220d0c; }
-tr.row-status-operator-blocked td { border-color: #45201e; }
-tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
-tr.row-status-obsolete td { border-color: #2c313c; }
-
-.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
-.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
-.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
-
-h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
-kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
-}
-</style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
 </head>
 <body>
-<h1 id="helix-constitutionpowered-speckitsuperpowers-bridge-implementation-documentation">Helix
+<header id="title-block-header">
+<h1 class="title">README</h1>
+</header>
+<h1
+id="helix-constitutionpowered-speckitsuperpowers-bridge-implementation-documentation">Helix
 Constitution–Powered SpecKit–Superpowers Bridge: Implementation
 Documentation</h1>
-<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
-2026-07-24T12:00:00Z <strong>Description:</strong> Master index and
+<p><strong>Revision:</strong> 2 <strong>Last modified:</strong>
+2026-09-22T00:00:00Z <strong>Description:</strong> Master index and
 architecture overview for the Helix Constitution–powered
 SpecKit–Superpowers Bridge implementation. <strong>Maintainer:</strong>
 HelixDevelopment <strong>Scope:</strong>
 <code>constitution/docs/research/extensions/speckit_superpowers/implementation/</code></p>
+<blockquote>
+<p><strong>AMENDED 2026-09-22 (HXC-159 Phase B3).</strong> This
+document's architecture was originally drawn as 7 layers. Layer 5
+("SuperBridge MCP") does not exist as software and never did. The design
+is corrected to its true <strong>6-layer</strong> shape below. See <a
+href="#architecture-amendment-2026-09-22">Architecture Amendment</a> for
+the finding, the substitution, and why this is a correction rather than
+a removal.</p>
+</blockquote>
 <hr />
 <h2 id="table-of-contents">Table of Contents</h2>
 <ol type="1">
 <li><a href="#executive-summary">Executive Summary</a></li>
+<li><a href="#architecture-amendment-2026-09-22">Architecture Amendment
+(2026-09-22)</a></li>
 <li><a href="#system-architecture">System Architecture</a>
 <ul>
 <li><a href="#architecture-diagram">Architecture Diagram</a></li>
@@ -464,11 +278,12 @@ Spec-Kit Core (Governance Layer)</a></li>
 SuperSpec Bridge (Orchestration Layer)</a></li>
 <li><a href="#layer-4--superb-extension-discipline-enforcement">Layer 4
 — SuperB Extension (Discipline Enforcement)</a></li>
-<li><a href="#layer-5--superbridge-mcp-execution-layer">Layer 5 —
-SuperBridge MCP (Execution Layer)</a></li>
-<li><a href="#layer-6--helix-llm-inference-layer">Layer 6 — Helix LLM
+<li><a
+href="#layer-5-retired-design--superbridge-mcp-never-built-superseded">Layer
+5 (retired design) — SuperBridge MCP: never built, superseded</a></li>
+<li><a href="#layer-5--helix-llm-inference-layer">Layer 5 — Helix LLM
 (Inference Layer)</a></li>
-<li><a href="#layer-7--distributed-host-cluster">Layer 7 — Distributed
+<li><a href="#layer-6--distributed-host-cluster">Layer 6 — Distributed
 Host Cluster</a></li>
 </ul></li>
 <li><a href="#data-flow">Data Flow</a>
@@ -492,9 +307,13 @@ Applied</a></li>
 SpecKit–Superpowers Bridge</strong> — a unified, multi-layer development
 system that integrates the full SDD (Specification-Driven Development)
 lifecycle of <a href="https://github.com/github/spec-kit">Spec-Kit</a>
-with the agent-skill ecosystem of <a href="https://github.com/obra/superpowers">Superpowers</a>, orchestrated
-through the <a href="https://github.com/WangX0111/superspec">SuperSpec</a> and <a href="https://speckit-community.github.io/extensions/superb">SuperB</a>
-bridge extensions, with distributed inference powered by <a href="https://github.com/HelixDevelopment/helix_llm">Helix LLM</a>
+with the agent-skill ecosystem of <a
+href="https://github.com/obra/superpowers">Superpowers</a>, orchestrated
+through the <a
+href="https://github.com/WangX0111/superspec">SuperSpec</a> and <a
+href="https://speckit-community.github.io/extensions/superb">SuperB</a>
+bridge extensions, with distributed inference powered by <a
+href="https://github.com/HelixDevelopment/helix_llm">Helix LLM</a>
 backed by a <code>llama.cpp</code> RPC cluster.</p>
 <h3 id="problem-it-solves">Problem It Solves</h3>
 <p>Modern software development with LLM-assisted agents suffers from
@@ -518,7 +337,7 @@ tools</td>
 <tr>
 <td><strong>Discipline drift</strong></td>
 <td>Specifications written but never consulted during implementation;
-plans that do not reflect reality; &quot;fix it later&quot; culture</td>
+plans that do not reflect reality; "fix it later" culture</td>
 <td>No mechanical enforcement that the spec <em>governs</em> the
 work</td>
 </tr>
@@ -537,17 +356,21 @@ lifecycle</td>
 </tr>
 </tbody>
 </table>
-<p>This bridge closes all four gaps by composing Spec-Kit&#39;s
+<p>This bridge closes all four gaps by composing Spec-Kit's
 <code>specify → plan → tasks → implement</code> lifecycle with
-Superpowers&#39; <code>brainstorm / debug / review / test</code> skills
+Superpowers' <code>brainstorm / debug / review / test</code> skills
 under a single Constitution-governed execution framework, all powered by
 local distributed inference that keeps the autonomous loop running
 without API rate-limit interruptions.</p>
 <h3 id="what-this-documentation-covers">What This Documentation
 Covers</h3>
 <ol type="1">
-<li>The <strong>7-layer system architecture</strong> with each layer&#39;s
-responsibilities, technologies, and contractual interfaces.</li>
+<li>The <strong>6-layer system architecture</strong> (corrected
+2026-09-22 — the original design's Layer 5 "SuperBridge MCP" was found
+not to exist as software; see the <a
+href="#architecture-amendment-2026-09-22">Architecture Amendment</a>)
+with each layer's responsibilities, technologies, and contractual
+interfaces.</li>
 <li>The <strong>data flow</strong> — how a natural-language feature
 description moves through the layers and emerges as tested, verified,
 checked-in code.</li>
@@ -564,10 +387,115 @@ CLI-agent context carriers, installs the bridge extensions, and goes
 from zero to full autonomous-loop development.</li>
 </ol>
 <hr />
+<h2 id="architecture-amendment-2026-09-22">Architecture Amendment
+(2026-09-22)</h2>
+<p><strong>HXC-159 Phase B3 finding.</strong> The original design below
+(§2026-07-24) drew the Bridge as a <strong>7-layer</strong> stack whose
+middle execution tier, "Layer 5 — SuperBridge MCP", was an MCP (Model
+Context Protocol) server exposing the Superpowers skill suite as
+callable tools. Phase B1's layer-presence probe
+(<code>constitution/scripts/extensions/probe_bridge_layers.sh</code>)
+and Phase B3's independent re-derivation both confirm:
+<strong>"SuperBridge MCP" does not exist as installable software, and
+never did.</strong></p>
+<p><strong>Two independent derivations (re-verified 2026-09-22, evidence
+at
+<code>qa-results/hxc159/l5_finding/20260922T210000Z/</code>):</strong></p>
+<ol type="1">
+<li><strong>GitHub</strong> — a repository search returns
+<code>total_count: 0</code>. A broader, authenticated code search
+(reaching further than the original unauthenticated check) returns 17
+hits, and every single one is inside this project's OWN GitHub mirror
+(<code>HelixDevelopment/code</code>) — our own investigation documents
+about the non-existence finding, not the software itself. Zero hits from
+any third-party repository.</li>
+<li><strong>npm</strong> — a fuzzy registry search over 95,472 ranked
+results contains no package named <code>superbridge-mcp</code> or
+<code>SuperBridge MCP</code> (the nearest lexical neighbour,
+<code>@chenmk/superflow</code>, is a <em>different</em> tool). A direct
+exact-name lookup (<code>GET /superbridge-mcp</code>) returns
+<strong>HTTP 404 — package not found</strong>, the strongest single
+derivation in the set.</li>
+</ol>
+<p><strong>A third finding, from the design itself:</strong> SuperB
+(Layer 4, the layer immediately adjacent to the claimed L5 execution
+tier) states in its own published README that it <em>"owns no plan, task
+store, execution lifecycle, completion state, or convergence
+command."</em> No adjacent, real layer in the original design ever
+claimed the execution role either — L5 was a pure design gap from
+inception, not a missing installation.</p>
+<p><strong>The substitution (proven by a real worked run, not
+asserted).</strong> The execution tier that actually fills this role —
+and has been WIRED and available in this repository throughout — is
+<strong>Spec Kit + Superpowers + Claude Code's own skill/subagent
+machinery</strong>. Every responsibility the original design assigned to
+the phantom MCP server has a real owner among the other six layers:</p>
+<table>
+<thead>
+<tr>
+<th>Original claimed L5 responsibility</th>
+<th>Actual owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Skill contract exposure (the <code>superbridge_*</code> tool
+list)</td>
+<td>Claude Code's own native skill system (<code>superpowers:*</code>
+skills, loaded directly — no MCP indirection needed)</td>
+</tr>
+<tr>
+<td>Task decomposition / dispatch loop</td>
+<td><code>speckit-tasks</code> (Layer 2), via SuperSpec's (Layer 3)
+template/preset resolution</td>
+</tr>
+<tr>
+<td>Subagent execution of an individual task</td>
+<td>Claude Code's native <code>Agent</code> tool — a genuine dispatched,
+isolated-context subagent (§11.4.20/§11.4.70)</td>
+</tr>
+<tr>
+<td>Tool-contract verdict emission (PASS/FAIL + evidence path)</td>
+<td>The dispatched subagent's own structured report + independent
+re-verification by the orchestrating session (§11.4.5/§11.4.69)</td>
+</tr>
+</tbody>
+</table>
+<p>This mapping was <strong>proven by running the flow end to
+end</strong> —
+<code>/speckit-specify → /speckit-plan → /speckit-tasks → /speckit-implement</code>,
+driving a real dispatched subagent that wrote a real file with zero MCP
+calls, in an isolated git worktree — captured as a full bidirectional
+transcript at
+<code>docs/qa/hxc159_b3_speckit_demo_20260922T211500Z/</code> per
+§11.4.83. During that same run, <code>speckit-tasks</code>'s
+prerequisite check independently resolved its template file THROUGH
+<code>.specify/extensions/superspec/</code> — incidental, real
+confirmation that Layer 3 (SuperSpec) is genuinely wired, exactly as
+this substitution mapping assumes.</p>
+<p><strong>What changed in this document.</strong> The architecture is
+redrawn below as <strong>6 layers</strong>: Layer 1 (Developer
+Workstation), Layer 2 (Spec-Kit Core), Layer 3 (SuperSpec Bridge), Layer
+4 (SuperB Extension), Layer 5 (Helix LLM — renumbered from the original
+Layer 6), Layer 6 (Distributed Host Cluster — renumbered from the
+original Layer 7). The original Layer 5 "SuperBridge MCP" design content
+is <strong>retained below, not deleted</strong> (per §11.4.35
+no-silent-promotion-or-demotion and §11.4.124 investigate-before-remove
+applied to design content) but is now clearly marked <strong>RETIRED
+DESIGN — never built, superseded by the substitution above</strong>
+rather than presented as part of the live, shipped architecture. Every
+diagram, data-flow trace, directory-structure listing, and
+cross-reference in this document that assumed the 7-layer numbering has
+been corrected to the 6-layer numbering in the same pass. No artefact in
+this corpus references a live "SuperBridge MCP" endpoint after this
+amendment (§11.4.168 exported-document validation confirms the same for
+the HTML/PDF/ DOCX exports — see the export-validation record at
+<code>qa-results/hxc159/bridge_redraw/</code>).</p>
+<hr />
 <h2 id="system-architecture">System Architecture</h2>
 <h3 id="architecture-diagram">Architecture Diagram</h3>
 <pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
-│  Layer 7: Distributed Host Cluster                                           │
+│  Layer 6: Distributed Host Cluster                                           │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │  │ llama.cpp    │  │ llama.cpp    │  │ llama.cpp    │  │ llama.cpp    │     │
 │  │ RPC Node 1   │  │ RPC Node 2   │  │ RPC Node 3   │  │ RPC Node N   │     │
@@ -577,7 +505,7 @@ from zero to full autonomous-loop development.</li>
 ├─────────┼─────────────────┼─────────────────┼─────────────────┼──────────────┤
 │         └─────────────────┴────────┬────────┴─────────────────┘              │
 │                                    │                                         │
-│  Layer 6: Helix LLM (Inference Layer)                                        │
+│  Layer 5: Helix LLM (Inference Layer)                                        │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                │   │
 │  │  │ Gateway      │  │ Brain        │  │ Knowledge    │                │   │
@@ -589,19 +517,9 @@ from zero to full autonomous-loop development.</li>
 │  │  ┌──────────────────────────────────────────────────────────────┐    │   │
 │  │  │ Agents (subagent dispatch, lifecycle, registry, respawn)     │    │   │
 │  │  └──────────────────────────────────────────────────────────────┘    │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                    │                                         │
-├────────────────────────────────────┼─────────────────────────────────────────┤
-│                                    │                                         │
-│  Layer 5: SuperBridge MCP (Execution Layer)                                  │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  MCP Server exposing Superpowers skill suite:                        │   │
-│  │  brainstorm │ debug │ review │ test-gen │ red-green-refactor │        │   │
-│  │  analyze-arch │ refactor │ document │ search │ more...               │   │
-│  │                                                                       │   │
-│  │  Tool contracts:    each tool emits structured (PASS/FAIL + evidence  │   │
-│  │                     path) per §11.4.69; self-validated with golden-   │   │
-│  │                     good/golden-bad fixtures per §11.4.107(10)        │   │
+│  │  Execution NOTE (2026-09-22): individual nano-task execution is       │   │
+│  │  carried out by Claude Code&#39;s own skill/subagent machinery, not an   │   │
+│  │  MCP server — see the Architecture Amendment above.                  │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                                    │                                         │
 ├────────────────────────────────────┼─────────────────────────────────────────┤
@@ -708,7 +626,9 @@ enforced</td>
 </tr>
 <tr>
 <td><strong>MCP Servers</strong></td>
-<td>CodeGraph, SuperBridge, filesystem</td>
+<td>CodeGraph, filesystem (no "SuperBridge" — see <a
+href="#architecture-amendment-2026-09-22">Architecture
+Amendment</a>)</td>
 <td>Tool-accessible subprocesses providing structured agent
 capabilities</td>
 </tr>
@@ -727,7 +647,8 @@ capabilities</td>
 </table>
 <h3 id="layer-2--spec-kit-core-governance-layer">Layer 2 — Spec-Kit Core
 (Governance Layer)</h3>
-<p>The canonical <a href="https://github.com/github/spec-kit">Spec-Kit</a> SDD toolkit,
+<p>The canonical <a
+href="https://github.com/github/spec-kit">Spec-Kit</a> SDD toolkit,
 extended by the Helix Constitution. This is the <strong>source of
 truth</strong> for what is being built and how.</p>
 <table>
@@ -791,7 +712,7 @@ pipeline)</td>
 produced by <code>speckit-constitution</code> contains:</p>
 <ul>
 <li><strong>Invariants</strong> — assertions that must hold true at
-every gate (e.g., &quot;no commit without captured evidence&quot;)</li>
+every gate (e.g., "no commit without captured evidence")</li>
 <li><strong>Gates</strong> — <code>CM-*</code> pre-build / post-build /
 pre-commit / pre-push gates with paired §1.1 meta-test mutations</li>
 <li><strong>Propagation directives</strong> — §11.4.17 classification
@@ -801,7 +722,7 @@ dependencies</li>
 <h3 id="layer-3--superspec-bridge-orchestration-layer">Layer 3 —
 SuperSpec Bridge (Orchestration Layer)</h3>
 <p>The <a href="https://github.com/WangX0111/superspec">SuperSpec</a>
-bridge sits between Spec-Kit&#39;s governance artifacts and the execution
+bridge sits between Spec-Kit's governance artifacts and the execution
 layer. It translates <code>spec.md</code> / <code>plan.md</code> /
 <code>tasks.md</code> into structured workflows that can be dispatched
 to subagents.</p>
@@ -863,7 +784,8 @@ atomic review unit)</li>
 </ul>
 <h3 id="layer-4--superb-extension-discipline-enforcement">Layer 4 —
 SuperB Extension (Discipline Enforcement)</h3>
-<p>The <a href="https://speckit-community.github.io/extensions/superb">SuperB</a>
+<p>The <a
+href="https://speckit-community.github.io/extensions/superb">SuperB</a>
 extension enforces Spec-Kit discipline mechanically — no implementation
 proceeds past any gate that fails its §11.4.107(10)
 golden-good/golden-bad self-validation.</p>
@@ -901,16 +823,16 @@ per §11.4.67</td>
 </tr>
 <tr>
 <td><code>superb critique</code></td>
-<td>After each nano-task&#39;s subagent returns</td>
-<td>Independent adversarial review of the subagent&#39;s output</td>
+<td>After each nano-task's subagent returns</td>
+<td>Independent adversarial review of the subagent's output</td>
 <td>Zero unreviewed outputs; findings iterate to GO per §11.4.134</td>
 </tr>
 <tr>
 <td><code>superb debug</code></td>
 <td>Triggered by any test FAIL or critique finding</td>
 <td>Systematic-debugging per §11.4.102</td>
-<td>Root cause identified at <code>file:line</code>, not &quot;the test timed
-out&quot;</td>
+<td>Root cause identified at <code>file:line</code>, not "the test timed
+out"</td>
 </tr>
 <tr>
 <td><code>superb finish</code></td>
@@ -923,14 +845,34 @@ Issues.md→Fixed.md migration per §11.4.19</td>
 </table>
 <p><strong>Discipline enforcement is mechanical, not advisory</strong> —
 per §11.4.205, every gate is a <code>commit_all.sh</code>-wrapper
-refusal, not a prose suggestion. The gate&#39;s paired §1.1 mutation MUST
+refusal, not a prose suggestion. The gate's paired §1.1 mutation MUST
 FAIL the gate; a gate whose mutation passes is a bluff gate and a
 release blocker.</p>
-<h3 id="layer-5--superbridge-mcp-execution-layer">Layer 5 — SuperBridge
-MCP (Execution Layer)</h3>
-<p>An MCP (Model Context Protocol) server that exposes the Superpowers
-skill suite as tool-callable endpoints consumable by any MCP-compatible
-CLI agent.</p>
+<h3
+id="layer-5-retired-design--superbridge-mcp-never-built-superseded">Layer
+5 (retired design) — SuperBridge MCP: never built, superseded</h3>
+<blockquote>
+<p><strong>RETIRED DESIGN — 2026-09-22.</strong> Everything in this
+subsection describes a design that was <strong>never built and does not
+exist as software</strong> (see the <a
+href="#architecture-amendment-2026-09-22">Architecture Amendment</a>
+above for the two independent derivations proving this: GitHub
+<code>total_count: 0</code> for any real repository, and npm
+<code>HTTP 404</code> for an exact-name package lookup). It is retained
+here — not deleted — as a historical record of the original design
+intent, per §11.4.35 (no silent promotion/demotion) and §11.4.124
+(investigate, never silently remove). <strong>It is NOT part of the
+live, corrected 6-layer architecture.</strong> The execution role this
+section describes is actually filled by Spec Kit + Superpowers + Claude
+Code's own skill/subagent machinery — see <a
+href="#layer-5--helix-llm-inference-layer">Layer 5 — Helix LLM</a> below
+for the corrected, live Layer 5, and the Architecture Amendment for the
+full substitution mapping, proven by a real worked run.</p>
+</blockquote>
+<p>An MCP (Model Context Protocol) server that would have exposed the
+Superpowers skill suite as tool-callable endpoints consumable by any
+MCP-compatible CLI agent — as originally designed, never
+implemented.</p>
 <table>
 <thead>
 <tr>
@@ -996,7 +938,8 @@ URLs + access dates.</td>
 </tr>
 </tbody>
 </table>
-<p><strong>MCP server requirements:</strong></p>
+<p><strong>MCP server requirements (as originally designed — never
+built):</strong></p>
 <ul>
 <li>Runs rootless per §11.4.161 (no rootful Docker; podman-compose or
 systemd user unit)</li>
@@ -1006,7 +949,9 @@ systemd user unit)</li>
 <li>Self-validated with golden-good + golden-bad + negative-control
 fixtures per §11.4.107(10)</li>
 </ul>
-<h3 id="layer-6--helix-llm-inference-layer">Layer 6 — Helix LLM
+<p><em>(End of retired-design subsection. The live, corrected Layer 5
+follows.)</em></p>
+<h3 id="layer-5--helix-llm-inference-layer">Layer 5 — Helix LLM
 (Inference Layer)</h3>
 <p>The <a href="https://github.com/HelixDevelopment/helix_llm">Helix
 LLM</a> distributed inference system provides <strong>local-first,
@@ -1069,7 +1014,7 @@ fallback for Fable-only tasks, systematic debugging</li>
 <li><strong>Helix-local</strong> (custom fine-tune on RK3588/ATMOSphere
 corpus) — nano-task implementation, test generation, documentation</li>
 </ul>
-<h3 id="layer-7--distributed-host-cluster">Layer 7 — Distributed Host
+<h3 id="layer-6--distributed-host-cluster">Layer 6 — Distributed Host
 Cluster</h3>
 <p>A pool of machines running <code>llama.cpp</code> in RPC-server mode,
 providing horizontally-scalable inference capacity.</p>
@@ -1105,7 +1050,8 @@ providing horizontally-scalable inference capacity.</p>
 </table>
 <p><strong>RPC configuration</strong> (per node
 <code>llama-server</code> invocation):</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># On each cluster node:</span></span>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># On each cluster node:</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">llama-server</span> <span class="dt">\</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--model</span> /models/deepseek-v4-pro-Q4_K_M.gguf <span class="dt">\</span></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--host</span> 0.0.0.0 <span class="dt">\</span></span>
@@ -1134,7 +1080,7 @@ the Layers</h3>
        │
        ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│ L7: Helix LLM Brain classifies intent → &quot;Feature&quot;, enriches with│
+│ L5: Helix LLM Brain classifies intent → &quot;Feature&quot;, enriches with│
 │     RAG context (existing audio HAL docs, ALSA config, ES8388   │
 │     codec spec, HDMI EDID passthrough constraints)              │
 └──────────────────────────┬───────────────────────────────────────┘
@@ -1178,11 +1124,14 @@ the Layers</h3>
                            │ tasks.md
                            ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│ L3+L4+L5: SuperSpec + SuperB + SuperBridge execute loop:        │
+│ L3+L4: SuperSpec + SuperB + [Claude Code skill/subagent          │
+│         machinery — see Architecture Amendment] execute loop:   │
 │                                                                  │
 │   superb check → superspec status → superspec tasks (nano) →   │
 │   → superb implementation-gate (verify RED tests) →             │
-│   → superspec execute (dispatch nano-subagents per task) →      │
+│   → superspec execute (dispatch nano-subagents per task,        │
+│       via Claude Code&#39;s native Agent tool — NOT an MCP server,  │
+│       proven by the T-B3.02 worked run) →                       │
 │   → superb critique (review each subagent output) →             │
 │   → superb debug (fix any findings) →                           │
 │   → superb check (re-verify) → loop until GO                    │
@@ -1216,7 +1165,7 @@ the Layers</h3>
 │   - Tag created + pushed to all remotes + submodules             │
 └──────────────────────────────────────────────────────────────────┘</code></pre>
 <h3 id="nano-task-decomposition-flow">Nano-Task Decomposition Flow</h3>
-<p>The SuperSpec bridge&#39;s nano-task decomposer (backed by Helix LLM
+<p>The SuperSpec bridge's nano-task decomposer (backed by Helix LLM
 Brain) transforms Spec-Kit tasks into subagent-dispatchable units:</p>
 <pre><code>Input: tasks.md task &quot;T2: audio_hw.c: add TrueHD format to supported codecs&quot;
 
@@ -1251,7 +1200,7 @@ Step 5 — Merge gate (§11.4.41):
 <p><strong>Nano-task size rule (mechanical):</strong> The decomposer
 counts net-new/changed lines. A task producing &gt;100 net-new/changed
 lines is automatically split. A split task &lt;5 lines merges back into
-its parent. This bounds every subagent&#39;s context to ≤100 lines of
+its parent. This bounds every subagent's context to ≤100 lines of
 code-under-test + surrounding context.</p>
 <hr />
 <h2 id="document-index">Document Index</h2>
@@ -1361,54 +1310,69 @@ results, known limitations</td>
 </table>
 <h3 id="step-1--add-the-constitution-submodule">Step 1 — Add the
 Constitution Submodule</h3>
-<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># In the consuming project&#39;s root (e.g., /mnt/track1/atmosphere-t1):</span></span>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># In the consuming project&#39;s root (e.g., /mnt/track1/atmosphere-t1):</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule add git@github.com:HelixDevelopment/helix_constitution.git constitution</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule update <span class="at">--init</span> <span class="at">--recursive</span></span></code></pre></div>
 <h3 id="step-2--wire-cli-agent-context-carriers">Step 2 — Wire CLI-Agent
 Context Carriers</h3>
-<p>Add the inheritance pointer to the consuming project&#39;s context
+<p>Add the inheritance pointer to the consuming project's context
 carriers:</p>
 <p><strong>CLAUDE.md</strong> (project root):</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">## INHERITED FROM constitution/CLAUDE.md</span></span>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">## INHERITED FROM constitution/CLAUDE.md</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; Base agent rules: </span><span class="in">`constitution/CLAUDE.md`</span><span class="at"> ...</span></span></code></pre></div>
 <p><strong>AGENTS.md</strong> (project root):</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">## INHERITED FROM constitution/AGENTS.md</span></span>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">## INHERITED FROM constitution/AGENTS.md</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; Base agent rules: </span><span class="in">`constitution/AGENTS.md`</span><span class="at"> ...</span></span></code></pre></div>
 <p>Do the same for <code>QWEN.md</code>, <code>GEMINI.md</code>, and any
 other LLM-specific context carrier.</p>
 <h3 id="step-3--install-the-bridge-extensions">Step 3 — Install the
 Bridge Extensions</h3>
-<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># From the consuming project root:</span></span>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># From the consuming project root:</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> constitution/scripts/extensions/install_speckit_superpowers_bridge.sh</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># This script:</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">#  1. Clones or updates spec-kit, superpowers, superspec, superb as</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co">#     submodules under constitution/submodules/</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co">#  2. Builds the SuperBridge MCP server (npm install + build)</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">#  3. Registers the MCP server in the CLI agent&#39;s MCP config</span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co">#  4. Installs the Spec-Kit extensions into .claude/skills/</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">#  5. Runs self-check: all extensions parse, MCP server health-check</span></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co">#     responds, Spec-Kit skills load</span></span></code></pre></div>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># This script (corrected 2026-09-22 to match what it ACTUALLY does —</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># see the Architecture Amendment above; it deliberately has NO L5 step,</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co"># a step that could never succeed is a defect, not a </span><span class="al">TODO</span><span class="co">):</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co">#  1. Detects and validates the pin for SuperSpec (L3) — idempotent,</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">#     already WIRED on a properly-onboarded host</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co">#  2. Refuses SuperB (L4) by default (HIGH-risk supply-chain dependency;</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co">#     requires an explicit --superb-from + --superb-vetted-by record)</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co">#  3. Reconciles with the plugin-sourced Superpowers copy — never</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co">#     double-installs</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co">#  4. Installs the Spec-Kit extensions into .claude/skills/</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="co">#  5. Runs self-check: `specify extension list` is non-empty after every</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="co">#     run (RS-19)</span></span></code></pre></div>
 <h3 id="step-4--run-the-self-validation-suite">Step 4 — Run the
 Self-Validation Suite</h3>
-<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> constitution/scripts/extensions/validate_bridge.sh</span>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> constitution/scripts/extensions/validate_bridge.sh</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Expected output:</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] SuperBridge MCP server health-check</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] speckit-specify extension loads</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] speckit-plan extension loads</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] speckit-tasks extension loads</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] superspec status returns valid JSON</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] superb check passes on constitution files</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] Helix LLM Gateway reachable</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] llama.cpp RPC backend health-check</span></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#   ─────────────────────────────────────────</span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co">#   ALL 8/8 CHECKS PASSED — bridge ready</span></span></code></pre></div>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Corrected 2026-09-22 to match the real, measured output on this host —</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># see the Architecture Amendment above. The validator reports honestly</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># against the LIVE layer-presence report and NEVER claims 8/8 while a</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># layer is absent — this is what it actually printed:</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">#   [N/A]  Check 1 — SuperBridge MCP health-check (L5 is a proven</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">#          structural impossibility per §11.4.112 — never reported FAIL)</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] speckit-specify extension loads</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] speckit-plan extension loads</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] speckit-tasks extension loads</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] Check 5 — superspec status returns valid JSON (L3 WIRED)</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co">#   [FAIL] Check 6 — superb check (L4 not installed pending vetting)</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="co">#   [PASS] Check 7 — Helix LLM Gateway reachable (Layer 5 WIRED)</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="co">#   [FAIL] Check 8 — llama.cpp RPC backend health-check (Layer 6</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co">#          rpc-server not yet built, tracked separately)</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="co">#   ─────────────────────────────────────────</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="co">#   5/7 evaluable checks PASS — bridge NOT fully ready, reported HONESTLY</span></span></code></pre></div>
 <h3 id="step-5--create-your-first-speckit-feature">Step 5 — Create Your
 First SpecKit Feature</h3>
-<div class="sourceCode" id="cb11"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Operator prompt (any of the six §11.4.140 forms):</span></span>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Operator prompt (any of the six §11.4.140 forms):</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co">#   /FEATURE Add multi-channel audio passthrough for Dolby TrueHD</span></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
 <span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co"># The CLI agent with the bridge wired will:</span></span>
@@ -1423,7 +1387,8 @@ First SpecKit Feature</h3>
 <span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="co">#  9. superb finish    → full-suite retest + migration</span></span></code></pre></div>
 <h3 id="step-6--verify-the-autonomous-loop">Step 6 — Verify the
 Autonomous Loop</h3>
-<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check that the feature completed through all layers:</span></span>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check that the feature completed through all layers:</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> docs/features/<span class="op">&lt;</span>feature-slug<span class="op">&gt;</span>/Status.md <span class="kw">|</span> <span class="fu">grep</span> <span class="st">&quot;Validation:&quot;</span></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Expected: Validation: PASS (evidence: qa-results/&lt;run-id&gt;/&lt;feature&gt;/)</span></span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
@@ -1436,8 +1401,16 @@ Autonomous Loop</h3>
 <span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Expected: Row with Status &quot;Implemented (→ Fixed.md)&quot;</span></span></code></pre></div>
 <hr />
 <h2 id="key-design-decisions">Key Design Decisions</h2>
-<h3 id="1-seven-layer-separation-why-not-monolithic">1. Seven-Layer
+<h3 id="1-six-layer-separation-why-not-monolithic">1. Six-Layer
 Separation (Why Not Monolithic?)</h3>
+<blockquote>
+<p><strong>Corrected 2026-09-22</strong> — this was originally titled
+"Seven-Layer Separation" and included a row justifying a Layer 5
+"Execution" tier that turned out never to have been built (see the <a
+href="#architecture-amendment-2026-09-22">Architecture Amendment</a>).
+The rationale below is corrected to the real 6-layer shape; the retired
+row is struck and replaced.</p>
+</blockquote>
 <table>
 <thead>
 <tr>
@@ -1455,24 +1428,28 @@ to different CLI-agent tool shapes without touching governance
 files.</td>
 </tr>
 <tr>
-<td><strong>Orchestration (L3) separate from Execution
-(L5)</strong></td>
-<td>SuperSpec manages workflows; SuperBridge MCP manages tool contracts.
-A new skill added to Superpowers updates only the MCP server, not the
-orchestration logic.</td>
+<td><strong>Orchestration (L3) separate from execution (Claude Code's
+own skill/subagent machinery)</strong></td>
+<td>SuperSpec manages workflows; individual nano-task execution is
+carried out by dispatched Claude Code subagents (§11.4.20/§11.4.70), not
+by a separate MCP server layer. A new Superpowers skill is available to
+every subagent directly — no intermediary tool-contract server to
+update.</td>
 </tr>
 <tr>
 <td><strong>Discipline (L4) is its own layer, not a sub-component of
 Orchestration</strong></td>
-<td>SuperB&#39;s enforcement is adversarial — it MUST refuse work that
+<td>SuperB's enforcement is adversarial — it MUST refuse work that
 passes orchestration but fails constitutional invariants. Embedding it
 in SuperSpec would create the self-review blind spot (§11.4.70).</td>
 </tr>
 <tr>
-<td><strong>Inference (L6) separate from Execution (L5)</strong></td>
-<td>The MCP server calls the Gateway via HTTP; the Gateway abstracts
-local/remote/cloud routing. Swapping the inference backend (llama.cpp →
-vLLM → cloud API) changes only Layer 6, nothing above it.</td>
+<td><strong>Inference (L5) separate from the execution mechanism above
+it</strong></td>
+<td>Dispatched subagents call the Gateway via HTTP; the Gateway
+abstracts local/remote/cloud routing. Swapping the inference backend
+(llama.cpp → vLLM → cloud API) changes only Layer 5, nothing above
+it.</td>
 </tr>
 </tbody>
 </table>
@@ -1494,7 +1471,7 @@ dependencies dispatch in parallel (§11.4.103 ≥3 concurrent
 streams).</li>
 </ul>
 <h3 id="3-tdd-everywhere-why-not-write-tests-after">3. TDD Everywhere
-(Why Not &quot;Write Tests After&quot;?)</h3>
+(Why Not "Write Tests After"?)</h3>
 <p>Per §11.4.43, a test authored after the fix is a PASS-bluff — it
 demonstrates only that the test agrees with the fix, not that the test
 catches the bug. The bridge enforces:</p>
@@ -1519,17 +1496,18 @@ incompatible with an always-on loop.</li>
 <li><strong>§11.4.10 credentials-handling</strong> — local inference
 eliminates the API-key-in-every-request surface.</li>
 <li><strong>§11.4.6 no-guessing</strong> — a local Gateway logs every
-prompt + response. A cloud API&#39;s opaque logging (or lack thereof) makes
-forensic debugging of an agent&#39;s decision path impossible.</li>
+prompt + response. A cloud API's opaque logging (or lack thereof) makes
+forensic debugging of an agent's decision path impossible.</li>
 <li><strong>Cost</strong> — autonomous loops issue thousands of
 inference calls per day. At cloud API pricing, that is hundreds of
 dollars per day; at local inference, it is electricity-only.</li>
 </ul>
-<h3 id="5-constitution-as-the-single-source-of-truth-why-not-per-project-rules">5.
+<h3
+id="5-constitution-as-the-single-source-of-truth-why-not-per-project-rules">5.
 Constitution as the Single Source of Truth (Why Not Per-Project
 Rules?)</h3>
 <p>Per §11.4.17 / §11.4.35, universal rules live in the Constitution
-submodule; project-specific extensions live in the consumer&#39;s context
+submodule; project-specific extensions live in the consumer's context
 carriers. The bridge reads the Constitution file at startup and
 derives:</p>
 <ul>
@@ -1565,7 +1543,7 @@ config-only PASS, no absence-of-error PASS.</td>
 <tr>
 <td><strong>§11.4.6</strong> (no-guessing mandate)</td>
 <td>Every verdict cites a <code>file:line</code> or a captured-evidence
-path. The bridge&#39;s decomposer, reviewer, and debugger all refuse to emit
+path. The bridge's decomposer, reviewer, and debugger all refuse to emit
 <code>likely</code>/<code>probably</code>/<code>maybe</code>/<code>seems</code>
 in any formal output.</td>
 </tr>
@@ -1600,10 +1578,12 @@ exports), <code>pre-push</code> hook (re-checks propagation gates),
 </tr>
 <tr>
 <td><strong>§11.4.76</strong> (containers submodule)</td>
-<td>All containerized services (Helix LLM Gateway, SuperBridge MCP,
-ChromaDB, llama.cpp RPC nodes) are defined in
-<code>constitution/submodules/containers/compose/</code> and booted via
-<code>pkg/boot</code>. No ad-hoc <code>podman run</code>.</td>
+<td>All containerized services (Helix LLM Gateway, ChromaDB, llama.cpp
+RPC nodes — no "SuperBridge MCP", see <a
+href="#architecture-amendment-2026-09-22">Architecture Amendment</a>)
+are defined in <code>constitution/submodules/containers/compose/</code>
+and booted via <code>pkg/boot</code>. No ad-hoc
+<code>podman run</code>.</td>
 </tr>
 <tr>
 <td><strong>§11.4.202</strong> (reporting directives)</td>
@@ -1622,8 +1602,8 @@ subagent dispatches without a registered RED test.</td>
 </tr>
 <tr>
 <td><strong>§11.4.70</strong> (subagent-driven default)</td>
-<td>Every nano-task dispatches as an isolated subagent. The conductor&#39;s
-role is task decomposition + review; the subagent&#39;s role is isolated
+<td>Every nano-task dispatches as an isolated subagent. The conductor's
+role is task decomposition + review; the subagent's role is isolated
 implementation.</td>
 </tr>
 <tr>
@@ -1657,14 +1637,14 @@ Conflict-resolution subagent carries its own scope + evidence.</td>
 </tr>
 <tr>
 <td><strong>§11.4.205</strong> (enforced-not-advisory)</td>
-<td>Every gate is a commit-wrapper refusal, not prose. Every gate&#39;s
+<td>Every gate is a commit-wrapper refusal, not prose. Every gate's
 paired §1.1 mutation FAILs the gate. A gate whose mutation passes is a
 bluff gate.</td>
 </tr>
 <tr>
 <td><strong>§11.4.194</strong> (exhaustive review all scenarios)</td>
 <td>The review subagent enumerates the full input/scenario space, proves
-every &quot;unreachable&quot; assumption, cross-checks against captured runtime
+every "unreachable" assumption, cross-checks against captured runtime
 evidence.</td>
 </tr>
 <tr>
@@ -1692,18 +1672,17 @@ TIMELINE, CROSS-DOC, INTEGRITY, STRUCTURAL check families.</td>
 │   ├── layer_2_speckit.md             Spec-Kit governance layer details
 │   ├── layer_3_superspec.md           SuperSpec orchestration engine
 │   ├── layer_4_superb.md              SuperB discipline enforcement
-│   ├── layer_5_mcp.md                 SuperBridge MCP server contract
-│   ├── layer_6_helix_llm.md           Helix LLM inference pipeline
-│   ├── layer_7_cluster.md             Distributed inference cluster
+│   ├── layer_5_retired_mcp.md         RETIRED — SuperBridge MCP design (never built; see Architecture Amendment)
+│   ├── layer_5_helix_llm.md           Helix LLM inference pipeline (live Layer 5)
+│   ├── layer_6_cluster.md             Distributed inference cluster (live Layer 6)
 │   └── contracts/                     Interface contracts between layers
 │       ├── spec_to_superspec.md       Spec-Kit → SuperSpec bridge contract
-│       ├── superspec_to_mcp.md        SuperSpec → SuperBridge MCP contract
-│       ├── mcp_to_helix.md            MCP → Helix LLM contract
+│       ├── superspec_to_subagent.md   SuperSpec → Claude Code subagent dispatch contract (was superspec_to_mcp.md)
+│       ├── subagent_to_helix.md       Subagent → Helix LLM contract (was mcp_to_helix.md)
 │       └── helix_to_cluster.md        Helix LLM → llama.cpp RPC contract
 │
 ├── 02_extensions/
 │   ├── README.md                      Extensions overview + installation guide
-│   ├── superbridge_mcp/               SuperBridge MCP server source + config
 │   ├── speckit_bridge_skills/         Extended Spec-Kit skills for bridge integration
 │   ├── skill_manifests/               Per-skill manifest files
 │   └── constitution_registry.yaml     Action registry entries for bridge commands
@@ -1758,54 +1737,62 @@ TIMELINE, CROSS-DOC, INTEGRITY, STRUCTURAL check families.</td>
 <tr>
 <td>1</td>
 <td><strong>Spec-Kit</strong> (SDD toolkit)</td>
-<td><a href="https://github.com/github/spec-kit">https://github.com/github/spec-kit</a></td>
+<td><a
+href="https://github.com/github/spec-kit">https://github.com/github/spec-kit</a></td>
 <td>Spec-Kit core: specify, plan, tasks, implement lifecycle</td>
 </tr>
 <tr>
 <td>2</td>
 <td><strong>Superpowers</strong> (agent skills)</td>
-<td><a href="https://github.com/obra/superpowers">https://github.com/obra/superpowers</a></td>
+<td><a
+href="https://github.com/obra/superpowers">https://github.com/obra/superpowers</a></td>
 <td>15+ agent skills: brainstorming, TDD, debugging, code review,
 refactoring, documentation</td>
 </tr>
 <tr>
 <td>3</td>
 <td><strong>SuperSpec</strong> (SpecKit-Superpowers bridge)</td>
-<td><a href="https://github.com/WangX0111/superspec">https://github.com/WangX0111/superspec</a></td>
+<td><a
+href="https://github.com/WangX0111/superspec">https://github.com/WangX0111/superspec</a></td>
 <td>Bridge orchestration: status, brainstorm, tasks, execute,
 review</td>
 </tr>
 <tr>
 <td>4</td>
 <td><strong>SuperB</strong> (Spec-Kit discipline enforcement)</td>
-<td><a href="https://speckit-community.github.io/extensions/superb">https://speckit-community.github.io/extensions/superb</a></td>
+<td><a
+href="https://speckit-community.github.io/extensions/superb">https://speckit-community.github.io/extensions/superb</a></td>
 <td>Discipline gates: check, brainstorm, implementation-gate, critique,
 debug, finish</td>
 </tr>
 <tr>
 <td>5</td>
 <td><strong>Helix LLM</strong> (distributed inference)</td>
-<td><a href="https://github.com/HelixDevelopment/helix_llm">https://github.com/HelixDevelopment/helix_llm</a></td>
+<td><a
+href="https://github.com/HelixDevelopment/helix_llm">https://github.com/HelixDevelopment/helix_llm</a></td>
 <td>Local-first distributed LLM inference: Gateway, Brain, Knowledge,
 Agents</td>
 </tr>
 <tr>
 <td>6</td>
 <td><strong>llama.cpp</strong> (inference engine)</td>
-<td><a href="https://github.com/ggerganov/llama.cpp">https://github.com/ggerganov/llama.cpp</a></td>
+<td><a
+href="https://github.com/ggerganov/llama.cpp">https://github.com/ggerganov/llama.cpp</a></td>
 <td>RPC-server mode for distributed inference backend</td>
 </tr>
 <tr>
 <td>7</td>
 <td><strong>Helix Constitution</strong> (governance submodule)</td>
-<td><a href="mailto:git@github.com">git@github.com</a>:HelixDevelopment/helix_constitution.git</td>
+<td><a
+href="mailto:git@github.com">git@github.com</a>:HelixDevelopment/helix_constitution.git</td>
 <td>Universal development mandates, mechanical enforcement, agent
 rules</td>
 </tr>
 <tr>
 <td>8</td>
 <td><strong>MCP (Model Context Protocol)</strong></td>
-<td><a href="https://modelcontextprotocol.io">https://modelcontextprotocol.io</a></td>
+<td><a
+href="https://modelcontextprotocol.io">https://modelcontextprotocol.io</a></td>
 <td>Protocol for LLM-tool interoperability</td>
 </tr>
 <tr>
@@ -1817,13 +1804,15 @@ rules</td>
 <tr>
 <td>10</td>
 <td><strong>Claude Code</strong> (CLI agent)</td>
-<td><a href="https://docs.anthropic.com/en/docs/claude-code">https://docs.anthropic.com/en/docs/claude-code</a></td>
+<td><a
+href="https://docs.anthropic.com/en/docs/claude-code">https://docs.anthropic.com/en/docs/claude-code</a></td>
 <td>Primary CLI agent implementing the autonomous loop</td>
 </tr>
 <tr>
 <td>11</td>
 <td><strong>ATMOSphere</strong> (consuming project)</td>
-<td><a href="mailto:git@github.com">git@github.com</a>:vasic-digital/Android_15.git</td>
+<td><a
+href="mailto:git@github.com">git@github.com</a>:vasic-digital/Android_15.git</td>
 <td>Reference consuming project implementing the bridge</td>
 </tr>
 <tr>

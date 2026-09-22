@@ -2,16 +2,26 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-07-24 |
-| Last modified | 2026-07-24 |
+| Last modified | 2026-09-22 |
 | Status | active |
-| Status summary | SpecKit-Superpowers Bridge constitutional integration plan — new anchor proposal §11.4.NNB, governance-file amendment catalogue, consumer-onboarding recipe, and per-§-letter binding table. |
+| Status summary | SpecKit-Superpowers Bridge constitutional integration plan — new anchor proposal §11.4.NNB (UNLANDED), governance-file amendment catalogue, consumer-onboarding recipe, and per-§-letter binding table. **2026-09-22 (HXC-159 Phase B3): the §2 anchor proposal's implicit dependency on the never-built nano-task-engine/"SuperBridge MCP" infrastructure is flagged and corrected — see the amendment note at §2.** |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial document |
+| Fixed | initial document + HXC-159 Phase B3 architecture-correction pass (§2 amendment note) |
 | Fixed summary | This document codifies how the SpecKit-Superpowers Bridge integrates with the Helix Constitution submodule (git@github.com:HelixDevelopment/helix_constitution.git). |
 | Continuation | Awaiting constitution anchor allocation; gate-code = separate PWU per §11.4.227. |
+
+> **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** This project's
+> REAL Bridge architecture has been corrected to 6 layers with no MCP
+> execution tier — "SuperBridge MCP" was independently re-derived twice
+> (GitHub `total_count: 0`; npm exact-name lookup `HTTP 404`) not to exist as
+> software. See `../README.md#architecture-amendment-2026-09-22` for the full
+> finding and the worked proof (Spec Kit + Superpowers + Claude Code's own
+> skill/subagent machinery). The §2 anchor proposal below is corrected
+> in-place (see its own amendment note); the remainder of this document is
+> unaffected design content.
 
 ## Table of contents
 
@@ -97,6 +107,30 @@ the engine consumes.
 ---
 
 ## §2. New Constitution Anchor Proposal — SpecKit-Superpowers Lifecycle
+
+> **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** This anchor
+> proposal is **UNLANDED** — it has never been adopted into `Constitution.md`;
+> the anchor number itself is explicitly a placeholder ("the actual number is
+> assigned by the constitution maintainer on landing"). It calls the whole
+> Bridge a mandatory "core technology stack" including the nano-task
+> decomposition & execution engine described elsewhere in this corpus
+> (`NANO_TASK_ENGINE.md`, `EXTENSION_DEVELOPMENT.md` Part C) — and that engine's
+> own design assumed a "SuperBridge MCP" execution tier which has been
+> independently re-derived TWICE (GitHub `total_count: 0`; npm exact-name
+> lookup `HTTP 404`) **not to exist as software**. **Verified 2026-09-22:**
+> the pipeline text below (stage 5, IMPLEMENT) does NOT itself invoke an MCP
+> server — it already specifies subagent-driven execution in an isolated git
+> worktree (§11.4.70/§11.4.58 L4), which is consistent with the corrected
+> substitution. The correction needed here is narrower than a rewrite: **if
+> this proposal is ever pursued for landing**, its "core technology stack"
+> framing MUST be corrected to drop any implicit dependency on the never-built
+> nano-task-engine/MCP infrastructure, and its execution substrate MUST be
+> stated explicitly as **Spec Kit + Superpowers + Claude Code's own
+> skill/subagent machinery** (proven, not merely asserted, by the T-B3.02
+> worked run — see `../README.md#architecture-amendment-2026-09-22`) rather
+> than any MCP-server-mediated tool-contract layer. Until landed, nothing
+> below binds any project; it is retained design intent per
+> §11.4.35/§11.4.124.
 
 ### Proposed anchor number
 

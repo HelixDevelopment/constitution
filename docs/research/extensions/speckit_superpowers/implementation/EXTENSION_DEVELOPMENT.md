@@ -1,7 +1,19 @@
 # SpecKit Extension, Superpowers Skill & MCP Server Development Specification
 
-**Revision:** 1
-**Last modified:** 2026-07-24T00:00:00Z
+**Revision:** 2
+**Last modified:** 2026-09-22T00:00:00Z
+
+> **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** Part C of this
+> document ("MCP Server (`superbridge-mcp`)") specifies a server that was
+> never built and does not exist as software — independently re-derived twice
+> (GitHub `total_count: 0`; npm exact-name lookup `HTTP 404`). This document
+> describes the project's OWN proposed FUTURE `helix-nano-bridge` extension
+> (Part A) and its (unbuilt) MCP server companion (Part C) — NOT the real,
+> live Bridge architecture, which is 6 layers with no MCP execution tier; the
+> execution role is filled by Spec Kit + Superpowers + Claude Code's own
+> skill/subagent machinery. See `../README.md#architecture-amendment-2026-09-22`
+> for the finding and the worked proof. Content is retained as historical
+> design intent (§11.4.35/§11.4.124), not a description of shipped software.
 
 ---
 
