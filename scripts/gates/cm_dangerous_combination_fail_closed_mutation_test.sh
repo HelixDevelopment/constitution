@@ -2692,6 +2692,216 @@ else
     rc=1
 fi
 
+# ── 84. MUTATED (L75 / MUT44): BOB-199 — a NARROW suppress() combined with ──
+# an IRREVERSIBLE-capability call (os.remove) under an UNRELATED exception
+# class is a real fail-open shape: `PermissionError` names a DIFFERENT
+# failure than "the file to be removed does not exist", so the delete still
+# runs unconditionally and any OTHER exception the narrow suppress lets
+# through is silently swallowed around a destructive call. Per the §11.4.66
+# operator decision (2026-08-26): "The scanner flags a narrow
+# contextlib.suppress ONLY when combined with an irreversible capability
+# (delete / truncate / kill) -- the shape that actually causes harm." This is
+# exactly that shape and MUST be caught.
+MUT44="$TMP/mut44"
+mkfixture "$MUT44"
+cat > "$MUT44/l75.py" <<'PY'
+import contextlib
+import os
+
+def do_thing(path):
+    with contextlib.suppress(PermissionError):
+        os.remove(path)
+PY
+expect_fail "L75 narrow suppress(PermissionError) around os.remove — BOB-199 irreversible-capability shape" \
+    bash "$GATE_SCRIPT" --root "$MUT44" --quiet
+# HONEST SCOPE BOUNDARY (§11.4.6): BOB-199's narrow+irreversible detection
+# lives ENTIRELY in the Python AST-structural analyser -- the task's own
+# scope statement names exactly "classify_suppress and its surrounding
+# AST-mode machinery". The degraded text-fallback scanner
+# (scan_py_text_suppress) still implements ONLY the pre-existing BROAD-form
+# detection; teaching it to also resolve exception-name bindings and walk a
+# with-block body for an irreversible call is a distinct, materially larger
+# change and is explicitly OUT OF SCOPE here. This is a DISCLOSED gap
+# consistent with the pre-existing TEXT_MODE_CAVEAT (already on record as an
+# approximation that under-reports in several measured ways), never a
+# silent one -- and it is PROVEN below, not merely asserted: this exact
+# fixture (a NARROW suppress, so the broad-form scanner never fires, over a
+# call the text scanner has no irreversible-capability concept for at all)
+# genuinely produces no hit in degraded mode.
+expect_pass "L75 (degraded text-fallback mode — KNOWN, DISCLOSED gap: narrow+irreversible detection is AST-mode only, per BOB-199 scope)" \
+    gate_textmode --root "$MUT44" --quiet
+
+# ── 85. NEGATIVE CONTROL (L76 / CLEAN40): BOB-199 — the CANONICAL Python ────
+# stdlib delete-if-absent idiom (`with suppress(FileNotFoundError):
+# os.remove(path)`) is the LITERAL example given by contextlib.suppress's own
+# official documentation, and appears three times already in THIS fixture
+# file (L1/L13/L20/L24-class `purge()` helpers used as realistic safe filler
+# for unrelated fixtures) as unremarkable, obviously-safe code. Flagging it
+# would be precisely the false-positive storm the §11.4.66 operator decision
+# itself warns against: "Idiomatic narrow tolerances stay quiet, so the gate
+# keeps its credibility." The suppressed exception here names the EXACT "the
+# thing is already gone" condition os.remove would otherwise raise, so
+# re-raising it would make the with-block pointless -- this MUST stay quiet.
+CLEAN40="$TMP/clean40"
+mkfixture "$CLEAN40"
+cat > "$CLEAN40/l76.py" <<'PY'
+import contextlib
+import os
+
+def purge(path):
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(path)
+PY
+expect_pass "L76 NEGATIVE CONTROL — the canonical stdlib delete-if-absent idiom (suppress(FileNotFoundError): os.remove) stays quiet" \
+    bash "$GATE_SCRIPT" --root "$CLEAN40" --quiet
+expect_pass "L76 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN40" --quiet
+
+# ── 86. MUTATED (L77 / MUT45): BOB-199 — `os.kill` combined with a NARROW ───
+# suppress(FileNotFoundError) MUST still be flagged, even though the SAME
+# exception class is quiet over os.remove/unlink/rmtree at L76. There is no
+# "the process is already gone" idiom that makes swallowing an unrelated
+# signal-delivery failure around a kill() call safe the way FileNotFoundError
+# is safe around a delete -- kill/killpg/truncate stay ALWAYS-flagged
+# regardless of which exception the narrow suppress names, per the
+# call_is_irreversible() DELETE_IF_ABSENT_ATTRS exclusion being scoped to
+# exactly {remove, unlink, rmtree}, never {kill, killpg, truncate}.
+MUT45="$TMP/mut45"
+mkfixture "$MUT45"
+cat > "$MUT45/l77.py" <<'PY'
+import contextlib
+import os
+
+def stop(pid):
+    with contextlib.suppress(FileNotFoundError):
+        os.kill(pid, 9)
+PY
+expect_fail "L77 narrow suppress(FileNotFoundError) around os.kill — kill is ALWAYS flagged, no delete-if-absent idiom applies" \
+    bash "$GATE_SCRIPT" --root "$MUT45" --quiet
+# Same HONEST SCOPE BOUNDARY as L75 above: narrow+irreversible detection is
+# AST-mode only (BOB-199 scope), a DISCLOSED gap in the degraded scanner.
+expect_pass "L77 (degraded text-fallback mode — KNOWN, DISCLOSED gap, same as L75)" \
+    gate_textmode --root "$MUT45" --quiet
+
+# ── 87. NEGATIVE CONTROL (L78 / CLEAN41): BOB-199 — a VALID `# guardrails: ──
+# allow <reason>` waiver on a narrow-suppress+irreversible-capability site
+# MUST silence the FAIL and produce a WAIVED note instead (never silent per
+# §11.4.201(5)) using the project's established per-line waiver convention
+# (the same `check_cm_no_production_mutation_residue.sh` marker shape).
+CLEAN41="$TMP/clean41"
+mkfixture "$CLEAN41"
+cat > "$CLEAN41/l78.py" <<'PY'
+import contextlib
+import os
+
+def do_thing(path):
+    with contextlib.suppress(PermissionError):  # guardrails:allow reviewed and accepted by ops 2026-09
+        os.remove(path)
+PY
+expect_pass "L78 NEGATIVE CONTROL — a VALID guardrails:allow waiver silences the narrow+irreversible FAIL" \
+    bash "$GATE_SCRIPT" --root "$CLEAN41" --quiet
+# NOT asserted in degraded mode here: the waiver mechanism itself lives in
+# the AST-structural path (it resolves source_lines + call.lineno from the
+# parsed tree), so a degraded-mode PASS on this fixture would be true for
+# the WRONG reason -- text mode is already blind to the underlying narrow+
+# irreversible shape (per L75/L77's disclosed gap) and never reaches a
+# waiver decision at all. Asserting it here would misleadingly imply
+# degraded-mode waiver support that does not exist (§11.4.6).
+expect_output_contains "L78 the WAIVED note names the waiver reason, never silent (§11.4.201(5))" \
+    "reviewed and accepted by ops 2026-09" \
+    bash "$GATE_SCRIPT" --root "$CLEAN41"
+
+# ── 88. MUTATED (L79 / MUT46): BOB-199 — a MALFORMED waiver (the marker is ──
+# present but carries NO REASON) MUST NOT silence the FAIL -- §11.4.224(E)
+# requires a mandatory, non-empty reason on every waiver; a bare marker with
+# nothing after it is indistinguishable from an operator forgetting to
+# finish the comment, and honouring it would reopen the exact silent-bypass
+# channel the waiver convention exists to close.
+MUT46="$TMP/mut46"
+mkfixture "$MUT46"
+cat > "$MUT46/l79.py" <<'PY'
+import contextlib
+import os
+
+def do_thing(path):
+    with contextlib.suppress(PermissionError):  # guardrails:allow
+        os.remove(path)
+PY
+expect_fail "L79 a MALFORMED guardrails:allow waiver (marker present, no reason) does NOT silence the FAIL" \
+    bash "$GATE_SCRIPT" --root "$MUT46" --quiet
+# NOT asserted expect_fail in degraded mode: same disclosed AST-mode-only
+# boundary as L75/L77/L78 -- the malformed-waiver check lives entirely in
+# the Python AST path, so text mode is blind to this fixture's shape too
+# and would trivially PASS (clean) here, not because the malformed waiver
+# was honoured but because the underlying narrow+irreversible violation is
+# never detected in the first place. Asserted honestly below instead.
+expect_pass "L79 (degraded text-fallback mode — KNOWN, DISCLOSED gap, same as L75/L77)" \
+    gate_textmode --root "$MUT46" --quiet
+
+# ── 89. MUTATED (L80): BOB-200 — a `find(1)` ENUMERATION FAILURE (a subtree ──
+# `chmod 000` under --root, so find(1) cannot descend into it and exits
+# non-zero) MUST be refused as an unresolved precondition (rc=1, a FINDING),
+# NEVER silently read as "find succeeded, zero files" (the honest
+# topology_unsupported SKIP path, rc=0). Before the fix, `find ... | mapfile`
+# fed find's output through a process substitution that discarded find's own
+# exit status -- mapfile always saw *some* stream (even an empty one) and
+# reported success, so a permission-denied/resource-exhausted/interrupted
+# scan silently downgraded from "the corpus could not be fully enumerated"
+# to "the corpus is empty and clean" -- a textbook §11.4.201(6) false-null /
+# §11.4.252 fail-open. This fixture RED-reproduces exactly that on the
+# CURRENT (pre-fix) gate shape, and is retained here as the permanent
+# regression guard for the fix.
+MUT47="$TMP/mut47"
+mkfixture "$MUT47"
+mkdir -p "$MUT47/blocked"
+cat > "$MUT47/blocked/violation.py" <<'PY'
+import contextlib
+with contextlib.suppress(Exception):
+    pass
+PY
+chmod 000 "$MUT47/blocked"
+# Restore permissions in a trap-local so a failed assertion still leaves the
+# fixture tree removable by the suite's top-level `cleanup` on EXIT --
+# `rm -rf` only needs write+execute on the PARENT (mkfixture's own dir) to
+# unlink a directory entry, but a defensive restore is cheap and honest.
+restore_l80_perms() { chmod 755 "$MUT47/blocked" 2>/dev/null || true; }
+trap restore_l80_perms RETURN 2>/dev/null || true
+_l80_out="$(bash "$GATE_SCRIPT" --root "$MUT47" --quiet 2>&1)"; _l80_rc=$?
+restore_l80_perms
+if [ "$_l80_rc" -eq 1 ]; then
+    echo "✅ META OK:   L80 a find(1) enumeration failure (permission-denied subtree) is refused as an unresolved precondition (rc=1), never a silent empty-scan SKIP (BOB-200/§11.4.201(6))"
+else
+    echo "❌ META FAIL: L80 find-enumeration-failure exited ${_l80_rc}, expected rc=1 (a FINDING) -- a permission-denied subtree must not silently read as an empty/clean scan"
+    rc=1
+fi
+if printf '%s' "$_l80_out" | grep -qF -- "scan enumeration failed"; then
+    echo "✅ META OK:   L80 the refusal names the unresolved precondition (\"scan enumeration failed\"), never silent"
+else
+    echo "❌ META FAIL: L80 expected the find-failure output to contain: scan enumeration failed"
+    rc=1
+fi
+
+# ── 90. NEGATIVE CONTROL (L81): BOB-200 — after the find-failure fix, a ─────
+# NORMAL violation directly under --root (no permission-denied subtree
+# anywhere in the tree) is STILL caught exactly as before -- the scratch-file
+# capture of find(1)'s own exit status does not itself introduce a new
+# blind spot on the ordinary success path. CLEAN4 (section 7) already pins
+# the sibling golden-FALSE (a genuinely empty, fully-readable root honestly
+# SKIPs at rc=0) -- this fixture is the MUTATED-polarity regression check
+# for the same code path, proving the fix did not trade a false-null for a
+# false-refusal on healthy input.
+MUT48="$TMP/mut48"
+mkfixture "$MUT48"
+cat > "$MUT48/l81.py" <<'PY'
+import contextlib
+with contextlib.suppress(Exception):
+    pass
+PY
+expect_fail "L81 a normal violation is still caught after the BOB-200 find-failure fix (no permission-denied subtree present)" \
+    bash "$GATE_SCRIPT" --root "$MUT48" --quiet
+expect_fail "L81 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT48" --quiet
+
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
     echo "✅ META PASS — CM-DANGEROUS-COMBINATION-FAIL-CLOSED FAILs-on-mutation AND PASSes-on-clean for every fixture (§1.1 proof holds)"

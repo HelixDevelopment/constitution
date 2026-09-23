@@ -53,11 +53,11 @@
 #       happens to be called `suppress` does NOT (matching the bare name
 #       would refuse healthy code -- a §11.4.201(1) FAIL-bluff).
 #
-#       ONLY THE BROAD FORM IS FLAGGED. `suppress(Exception)` /
+#       THE BROAD FORM IS ALWAYS FLAGGED. `suppress(Exception)` /
 #       `suppress(BaseException)` swallow everything and are the violation.
 #       `suppress(FileNotFoundError)` is a DECLARED, BOUNDED tolerance --
 #       the developer named exactly the one failure they accept and every
-#       other exception still propagates -- and is deliberately NOT flagged.
+#       other exception still propagates -- and stays QUIET on its own.
 #       `suppress()` with NO arguments is likewise NOT flagged: it suppresses
 #       NOTHING (`issubclass(exc, ())` is always False), verified empirically
 #       rather than assumed (§11.4.6). An argument list that cannot be
@@ -65,18 +65,36 @@
 #       its own distinct message per §11.4.201(4)'s conservative-safe-on-
 #       unresolvable rule, naming the unresolved signal rather than guessing.
 #
+#       BOB-199 (§11.4.66 operator decision, 2026-08-26): a NARROW suppress
+#       IS additionally flagged when its `with`-block BODY contains an
+#       IRREVERSIBLE-capability call (delete/truncate/kill) -- the shape
+#       that actually causes harm, per the operator's own verbatim decision:
+#       "The scanner flags a narrow contextlib.suppress ONLY when combined
+#       with an irreversible capability (delete / truncate / kill) -- the
+#       shape that actually causes harm. Idiomatic narrow tolerances stay
+#       quiet, so the gate keeps its credibility and no false-positive storm
+#       trains readers to ignore it." A narrow suppress around anything ELSE
+#       (a plain read, a lookup, a non-destructive computation) stays quiet
+#       exactly as before -- this is a COMBINATION check, not a blanket
+#       narrow-suppress flag. See `IRREVERSIBLE_ATTRS` / `classify_suppress`'
+#       call site below for the closed attribute-name set and the per-site
+#       `# guardrails:allow <reason>` waiver path (§11.4.224(E)).
+#
 #       HONEST RESIDUAL GAPS (§11.4.6) -- named, never silent:
-#         * ASYMMETRY. A NARROW `try/except X: pass` IS flagged by (A1)
-#           while the semantically-equivalent `with suppress(X)` is NOT, so
-#           a SIM105 rewrite of a narrow handler moves that site out of
-#           scope. Flagging narrow suppression instead would fire on the
-#           idiomatic, correct form, and a false-positive storm is the worse
-#           defect (§11.4.201(1)) -- so the asymmetry is recorded as a known
-#           gap rather than closed by over-reach. Whether to close it is a
-#           consumer/operator decision (§11.4.66), not a default this gate
-#           picks; a consuming project measures its OWN corpus before
-#           deciding, since the trade depends entirely on how many narrow
-#           sites that corpus holds.
+#         * ASYMMETRY, NOW PARTIALLY CLOSED. A NARROW `try/except X: pass`
+#           IS flagged by (A1) while the semantically-equivalent
+#           `with suppress(X)` was NOT flagged AT ALL until BOB-199, so a
+#           SIM105 rewrite of a narrow handler moved that site out of scope
+#           regardless of what the handler body did. BOB-199 closes the
+#           SUBSET of that gap where the body performs an irreversible
+#           operation; a narrow suppress around a non-destructive body is
+#           STILL an asymmetric, undetected case relative to the equivalent
+#           `try/except`, by the same false-positive-storm reasoning as
+#           before -- flagging EVERY narrow suppress would fire on the
+#           idiomatic, correct form, and that remains the worse defect
+#           (§11.4.201(1)). Whether to close the REMAINING (non-irreversible)
+#           subset further is still a consumer/operator decision (§11.4.66),
+#           not a default this gate picks.
 #         * INDIRECTION. Resolution is syntactic and FLOW-INSENSITIVE, so it
 #           errs in BOTH directions on value-flow shapes -- measured, not
 #           assumed, and BOTH modes agree on every case below (no divergence):
@@ -569,7 +587,7 @@ ANCHOR="11.4.252"
 # the size of what was probed and NOT told that nothing else exists
 # (§11.4.118). The full enumeration, per class, is in the --help header.
 TEXT_MODE_CAVEAT="a DEGRADED APPROXIMATION, not a census — for the suppress shape it UNDER-reports in seven measured ways and has FOUR measured OVER-reporting classes (a whole line inside a string, a licensing import harvested from a string, or a real line whose own string ARGUMENT quotes the pattern — each matched as if it were code); the except shape carries its own string-carrier OVER class AND two measured UNDER shapes of its own (a one-line except-with-pass written on a SINGLE line, and a handler whose pass is preceded by a docstring — both ast=1/text=0). Both counts are MEASURED SAMPLES, not proven-complete censuses; see --help for the per-class enumeration — §11.4.6/§11.4.118/§11.4.201(6)"
-HEADER_LINES=547
+HEADER_LINES=565
 
 root="${DANGEROUS_COMBO_ROOT:-..}"
 quiet=0
@@ -621,13 +639,49 @@ if [ "${#prune_expr[@]}" -gt 0 ]; then
     unset 'prune_expr[${#prune_expr[@]}-1]'
 fi
 
-mapfile -d '' -t files < <(
-    if [ "${#prune_expr[@]}" -gt 0 ]; then
-        find "$root" "${maxdepth_expr[@]}" -type d \( "${prune_expr[@]}" \) -prune -o -type f \( "${find_name_expr[@]}" \) -print0
-    else
-        find "$root" "${maxdepth_expr[@]}" -type f \( "${find_name_expr[@]}" \) -print0
-    fi
-)
+# BOB-200 (§11.4.201(6)): `find` was fed straight into `mapfile` through a
+# process substitution -- `mapfile -d '' -t files < <(find ...)`. A process
+# substitution's exit status is NOT the exit status of the command inside
+# it: `$?` after `mapfile` reflects whether the READ succeeded, never
+# whether `find` itself died. If `find` hits a permission error / resource
+# exhaustion / interruption partway through the walk, it still writes
+# whatever it found before the error and then exits non-zero -- but that
+# non-zero status was UNOBSERVABLE here, so a corpus `find` could not fully
+# enumerate silently became an EMPTY `files` array, which the very next
+# check reads as "no source files under scan" -- an honest topology SKIP
+# for a condition that was not a genuinely empty scan root at all. A blind
+# instrument and a clean artifact return the identical quiet zero
+# (§11.4.201(6)'s own false-null), and this gate's own stated discipline is
+# to fail CLOSED on exactly that shape (§11.4.252), not open.
+#
+# The fix: `find`'s output is captured to a SCRATCH FILE first, as an
+# ordinary foreground command whose `$?` IS `find`'s own exit status --
+# never through a process substitution, which is the mechanism that hid it
+# -- and that status is checked BEFORE `files` is even read, so a failed
+# enumeration is a FINDING (non-zero exit) naming the unresolved
+# precondition, never silently reinterpreted as an empty corpus. A
+# genuinely empty scan root (find succeeds, rc=0, zero matches) is
+# UNCHANGED: it still reaches the SKIP below exactly as before -- the
+# §11.4.201(1) false-positive guard this fix must not become.
+find_scratch="$(mktemp "${TMPDIR:-/tmp}/dcfc_find.XXXXXX" 2>/dev/null)" || {
+    echo "${GATE}: FAIL — could not create a scratch file for scan enumeration (root=$root); refusing rather than scanning through an unverifiable pipe (§11.4.252)" >&2
+    exit 1
+}
+trap 'rm -f "$find_scratch"' EXIT
+
+if [ "${#prune_expr[@]}" -gt 0 ]; then
+    find "$root" "${maxdepth_expr[@]}" -type d \( "${prune_expr[@]}" \) -prune -o -type f \( "${find_name_expr[@]}" \) -print0 > "$find_scratch"
+else
+    find "$root" "${maxdepth_expr[@]}" -type f \( "${find_name_expr[@]}" \) -print0 > "$find_scratch"
+fi
+find_rc=$?
+
+if [ "$find_rc" -ne 0 ]; then
+    echo "${GATE}: FAIL — scan enumeration failed: find exited ${find_rc} (root=$root); the source corpus could not be fully enumerated, so this is refused as an unresolved precondition rather than silently reported as an empty/clean scan (§11.4.201(6)/§11.4.252)" >&2
+    exit 1
+fi
+
+mapfile -d '' -t files < "$find_scratch"
 
 if [ "${#files[@]}" -eq 0 ]; then
     echo "⏭ ${GATE}: SKIP — topology_unsupported: no source files under scan (root=$root, ext=[$exts])"
@@ -1188,19 +1242,160 @@ def classify_suppress(call):
     return "unresolved" if unresolved else None
 
 
+# BOB-199 (§11.4.66 operator decision, 2026-08-26): a NARROW suppress is a
+# declared, bounded tolerance and stays QUIET on its own -- that is the
+# whole point of classify_suppress() above. But a narrow suppress whose
+# `with`-block BODY contains an IRREVERSIBLE-capability call (delete /
+# truncate / kill) is the shape that actually causes harm: the declared
+# exception silently absorbs a failure of an operation that cannot be
+# undone. Flagging every narrow suppress would be the exact false-positive
+# storm §11.4.201(1) forbids (idiomatic tolerances like
+# `suppress(FileNotFoundError)` around a plain file read MUST stay quiet);
+# flagging the narrow+irreversible COMBINATION targets the actual danger
+# shape without widening scope to the idiomatic case.
+#
+# The set is a CLOSED, project-agnostic list matching the §11.4.252 header
+# vocabulary of this file (shell-exec, file delete/truncate, process
+# kill): os.remove / os.unlink / shutil.rmtree / <anything>.truncate( /
+# os.kill / os.killpg / <anything>.kill( (covers subprocess.Popen(...).
+# kill() and equivalents, per the header phrase "subprocess.*kill*").
+#
+# IDENTIFICATION IS BY ATTRIBUTE NAME, NOT BY RESOLVED RECEIVER -- the SAME
+# presence-shaped simplification the credential detector in shape (C)
+# already uses (§11.4.201(7)(a) notwithstanding, this is a DELIBERATE,
+# DOCUMENTED trade, not a silent gap per §11.4.6): resolving `os.kill(...)`
+# needs only that `os` be a bare Name, which `is_suppress_call` already
+# demonstrates is reliable for a stdlib module, but `proc.kill()` -- the
+# shape the BOB-199 item itself names (`os.killpg`/`proc.kill`/`proc.wait`
+# in a cleanup path) -- has an arbitrary receiver (a Popen instance) with no
+# resolvable module binding at all. Matching the attribute NAME alone is the
+# only way to catch that shape without a type-inference engine this gate
+# does not have and does not claim. HONEST RESIDUAL GAP (§11.4.6), stated
+# not silently assumed away: an attribute-name match can over-match a
+# same-named method on an unrelated object (`list.remove(x)`,
+# `set.remove(x)` are NOT file deletions). This is the SAME conservative
+# "over-report is recoverable, silently passing a real fail-open path is
+# not" trade already made, in this file, for the breadth-by-name design of
+# shape (B); it is not re-argued here.
+IRREVERSIBLE_ATTRS = frozenset((
+    "remove", "unlink", "rmtree", "truncate", "kill", "killpg",
+))
+
+# REFINEMENT (measured, not assumed -- §11.4.6): `suppress(FileNotFoundError):
+# os.remove(path)` -- delete-a-file-if-it-exists -- is not a hypothetical
+# idiomatic case; it is the LITERAL canonical example in the Python standard
+# library documentation for contextlib.suppress itself, and this same
+# project own pre-existing fixture corpus for this gate independently reaches
+# for that exact idiom three separate times as realistic, obviously-safe
+# filler code in fixtures testing something else entirely (carrier
+# detection, alias binding, whole-identifier matching). Flagging it would be
+# precisely the false-positive storm the BOB-199 operator decision itself
+# warns against ("Idiomatic narrow tolerances stay quiet, so the gate keeps
+# its credibility") -- proven, not merely argued, by three real regressions
+# this refinement closes. The suppressed exception in that idiom names the
+# EXACT "there was nothing to remove" condition, so re-raising it would make
+# the with-block pointless; there is no equivalent single-exception "safe
+# because it is already gone" idiom for `truncate`/`kill`/`killpg`, which
+# stay flagged unconditionally regardless of the suppressed exception class.
+DELETE_IF_ABSENT_ATTRS = frozenset(("remove", "unlink", "rmtree"))
+ABSENCE_EXC = frozenset(("FileNotFoundError", "FileExistsError"))
+
+
+def suppressed_exc_names(call):
+    """The set of exception NAMES this narrow suppress() call declares,
+    resolved the SAME way classify_suppress() above resolves each argument
+    (a bare Name -> its id, a dotted Attribute -> its final attr) so the two
+    stay in lock-step rather than re-deriving a second, potentially
+    divergent notion of "which exceptions are named here".
+    """
+    names = set()
+    for arg in call.args:
+        if isinstance(arg, ast.Name):
+            names.add(arg.id)
+        elif isinstance(arg, ast.Attribute):
+            names.add(arg.attr)
+    return names
+
+
+def call_is_irreversible(call, exc_names):
+    func = call.func
+    if not (isinstance(func, ast.Attribute) and func.attr in IRREVERSIBLE_ATTRS):
+        return False
+    if func.attr in DELETE_IF_ABSENT_ATTRS and exc_names and exc_names <= ABSENCE_EXC:
+        return False
+    return True
+
+
+def body_has_irreversible_call(stmts, exc_names):
+    """True iff ANY statement in this with-block body contains a call whose
+    attribute name is in IRREVERSIBLE_ATTRS (and is not the documented
+    delete-if-absent idiom above) -- walked structurally (every descendant
+    node of every statement), never by re-scanning source text, so a call
+    nested inside an `if`/`try`/comprehension/lambda inside the block is
+    still found (§11.4.201(7)(a): match structure, not substring).
+    """
+    for stmt in stmts:
+        for node in ast.walk(stmt):
+            if isinstance(node, ast.Call) and call_is_irreversible(node, exc_names):
+                return True
+    return False
+
+
+# BOB-199 exemption path: a per-line `# guardrails:allow <reason>` trailing
+# comment on the `with suppress(...)` line itself -- the SAME fenced
+# escape-sentinel convention this project already uses elsewhere
+# (constitution/scripts/hooks/guard-*.sh, scripts/pre_build/
+# check_cm_no_production_mutation_residue.sh) -- generalised here rather
+# than a parallel, gate-local mechanism invented from scratch (extend
+# rather than reimplement, per §11.4.28/§11.4.74). It DELIBERATELY diverges
+# from the sibling gate rule of never honouring a marker on a code line:
+# there the natural home of the marker is a DOCUMENTATION mention (a
+# code-line trailing comment IS the residue shape it hunts), while here the
+# flagged construct IS the code line itself -- the `with suppress(...):`
+# statement -- so a trailing comment on THAT exact line is the only place a
+# per-site waiver can attach without inventing a second annotation syntax.
+# A REASON is mandatory (§11.4.224(E)): a bare sentinel with fewer than 3
+# reason characters is a MALFORMED waiver and does NOT suppress the
+# finding -- it is reported as its own distinct hit so the operator sees
+# WHY the waiver did not take, never silently ignored (§11.4.201(5): a
+# waiver can never be silent).
+WAIVER_MARKER = "guardrails:allow"
+
+
+def waiver_reason(source_lines, lineno):
+    """None (no waiver marker on this line) | "" (malformed: no/short
+    reason) | <reason text> (a valid, honoured waiver).
+    """
+    if lineno < 1 or lineno > len(source_lines):
+        return None
+    line = source_lines[lineno - 1]
+    hash_at = line.find("#")
+    if hash_at == -1:
+        return None
+    comment = line[hash_at:]
+    marker_at = comment.find(WAIVER_MARKER)
+    if marker_at == -1:
+        return None
+    after = comment[marker_at + len(WAIVER_MARKER):]
+    after = after.lstrip(":=- \t").rstrip()
+    return after if len(after) >= 3 else ""
+
+
 data = sys.stdin.buffer.read().split(b"\0")
 paths = [p for p in data if p]
 for idx, raw in enumerate(paths):
     path = raw.decode("utf-8", "surrogateescape")
     try:
         with open(path, "rb") as fh:
-            tree = ast.parse(fh.read(), filename=path)
+            content = fh.read()
+        tree = ast.parse(content, filename=path)
     except (SyntaxError, ValueError, OSError, UnicodeDecodeError) as exc:
         # Never a silent skip: hand the file back for the text fallback and
         # report why the structural read failed (§11.4.201(6)).
         reason = type(exc).__name__
         sys.stdout.write("UNPARSED\t%d\t%s\n" % (idx, reason))
         continue
+    source_lines = content.decode("utf-8", "surrogateescape").splitlines()
     module_aliases, direct_names = suppress_bindings(tree)
     for node in ast.walk(tree):
         if isinstance(node, TRY_TYPES):
@@ -1225,6 +1420,29 @@ for idx, raw in enumerate(paths):
                     sys.stdout.write(
                         "HIT\tsuppress_unresolved\t%d\t%d\n"
                         % (idx, call.lineno))
+                elif kind is None and call.args and body_has_irreversible_call(node.body, suppressed_exc_names(call)):
+                    # kind is None here for TWO distinct reasons -- a
+                    # genuinely EMPTY suppress() (suppresses nothing, never
+                    # a violation, per classify_suppress own docstring) and
+                    # a NARROW-but-non-empty exception list. `call.args`
+                    # (the narrow case has at least one resolved exception
+                    # name) is what tells them apart; an empty suppress()
+                    # is never flagged even around an irreversible call,
+                    # because it suppresses NOTHING -- the exception still
+                    # propagates normally, so there is no fail-open shape
+                    # here at all.
+                    reason = waiver_reason(source_lines, call.lineno)
+                    if reason is None:
+                        sys.stdout.write(
+                            "HIT\tsuppress_narrow_irreversible\t%d\t%d\n"
+                            % (idx, call.lineno))
+                    elif reason == "":
+                        sys.stdout.write(
+                            "HIT\tsuppress_narrow_irreversible_malformed_waiver\t%d\t%d\n"
+                            % (idx, call.lineno))
+                    else:
+                        sys.stdout.write(
+                            "WAIVED\t%d\t%d\t%s\n" % (idx, call.lineno, reason))
 ' 2>/dev/null)"
         ast_rc=$?
         if [ "$ast_rc" -ne 0 ]; then
@@ -1243,10 +1461,18 @@ for idx, raw in enumerate(paths):
                             echo "❌ ${GATE}: FAIL — swallowed exception (contextlib.suppress over a broad exception class - swallows everything with no re-raise/log) at ${f}:${c} (§${ANCHOR})"
                         elif [ "$a" = "suppress_unresolved" ]; then
                             echo "❌ ${GATE}: FAIL — swallowed exception (contextlib.suppress whose exception list could not be resolved statically - conservative-safe refusal per §11.4.201(4)) at ${f}:${c} (§${ANCHOR})"
+                        elif [ "$a" = "suppress_narrow_irreversible" ]; then
+                            echo "❌ ${GATE}: FAIL — swallowed exception (contextlib.suppress with a NARROW, declared exception class whose with-block body contains an IRREVERSIBLE-capability call - delete/truncate/kill under conditional exception suppression; BOB-199/§11.4.66) at ${f}:${c} (§${ANCHOR})"
+                        elif [ "$a" = "suppress_narrow_irreversible_malformed_waiver" ]; then
+                            echo "❌ ${GATE}: FAIL — swallowed exception (contextlib.suppress with a NARROW, declared exception class whose with-block body contains an IRREVERSIBLE-capability call; a 'guardrails:allow' marker is present but carries NO REASON, so the waiver is MALFORMED and does not apply - §11.4.224(E) requires a mandatory reason) at ${f}:${c} (§${ANCHOR})"
                         else
                             echo "❌ ${GATE}: FAIL — swallowed exception (handler body is only 'pass' with no re-raise/log) at ${f}:${c} (§${ANCHOR})"
                         fi
                         hits=$(( hits + 1 ))
+                        ;;
+                    WAIVED)
+                        f="${py_files[$a]}"
+                        echo "⚠ ${GATE}: NOTE — WAIVED (guardrails:allow, never silent per §11.4.201(5)) — narrow suppress over an irreversible-capability call at ${f}:${b}: ${c}"
                         ;;
                     UNPARSED)
                         f="${py_files[$a]}"
