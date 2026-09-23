@@ -1,3 +1,9 @@
+---
+name: scheduled-work-queue
+description: Teaches an agent to record background/deferred work via the scheduled-work MCP server and — before ever reporting it done — to verify uncertain, blocked, or overdue items against real captured evidence. Use when dispatching background work, when a REMINDER fires and unconfirmed work must be re-checked, or before an autonomous loop declares its queue empty.
+version: 1.0.0
+---
+
 # Scheduled-Work Queue Skill
 
 ## Purpose

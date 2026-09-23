@@ -1,3 +1,9 @@
+---
+name: media-validator
+description: Validates media files (MP4, PNG, TXT) by running OCR, metadata checks, and pattern matching against expected content, returning PASS/FAIL with captured evidence. Use when a task needs to verify a recording, screenshot, or text-evidence file actually contains an expected pattern before a PASS is claimed — the §11.4.107/§11.4.163 anti-bluff media-validation oracle.
+version: 1.0.0
+---
+
 # Media Validator Skill
 
 ## Purpose

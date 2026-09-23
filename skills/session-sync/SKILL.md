@@ -1,3 +1,9 @@
+---
+name: session-sync
+description: Syncs Claude Code project data — memories, session transcripts, settings, agent definitions, remember-logs, and handoff documents — between the same project on a remote workstation and the local machine over SSH, so local work can resume exactly where a remote session left off. Use when starting on a new machine, switching workstations, or aligning multi-track session state (§11.4.187).
+version: 1.0.0
+---
+
 # Session Sync Skill — Bidirectional Claude Code Session Import/Export via SSH
 
 **Revision:** 1
