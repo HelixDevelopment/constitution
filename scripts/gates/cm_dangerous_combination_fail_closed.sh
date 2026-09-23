@@ -1125,11 +1125,10 @@ import ast, sys
 # a string literal is not a Try node, so trailing comments, tuple clauses,
 # comments inside the body, and documentation carriers are all handled by
 # construction rather than by an accumulating stack of regex epicycles.
-
-TRY_TYPES = tuple(
-    t for t in (getattr(ast, "Try", None), getattr(ast, "TryStar", None))
-    if t is not None
-)
+# Try/TryStar are visited by _HandlerVisitor below via the ast.NodeVisitor
+# name-based dispatch (visit_Try / visit_TryStar), not by an isinstance
+# tuple, because the visitor also needs the ENCLOSING FUNCTION per handler
+# (BOB-189) -- information plain ast.walk() does not carry.
 
 # Shape (C) lives on a DIFFERENT node type. `contextlib.suppress` is a With
 # (or AsyncWith) node, never a Try node, so a Try-only visitor is
@@ -1185,6 +1184,124 @@ def classify(handler):
     if isinstance(stmt, ast.Return) and is_trivial_literal(stmt.value):
         return "default"
     return None
+
+
+# BOB-189 (§11.4.201(1)): shape (A2) "silent default return" cannot by
+# itself distinguish `return False` meaning PROCEED-AS-IF-FINE (a genuine
+# fail-open) from `return False` meaning REFUSE (a fail-CLOSED guard whose
+# caller gates on the falsy return and stops). A textbook SSRF guard --
+# every `except ...: return False` path in it REJECTS the URL the caller
+# passed in, because its sole call site reads `if not guard(url): <log>;
+# continue` -- was flagged identically to a genuine fail-open. Acting on
+# that finding by removing the `except: return False` paths from the guard
+# would delete a security control to satisfy a gate: the exact class this
+# file already names, in its own header, as worse than the false positive
+# it originates from.
+#
+# CALL-SITE-AWARE DISCRIMINATION closes the whole SHAPE, not one instance
+# (§11.4.6 -- chosen over a per-site waiver list because the false positive
+# recurs for ANY similarly-written guard, not only this one): a "default"
+# hit is suppressed ONLY when its ENCLOSING function has AT LEAST ONE call
+# site in this file AND EVERY call site is REFUSE-SHAPED -- `if not
+# F(...):` whose body contains a `continue` / `break` / `return` / `raise`
+# ANYWHERE at its top level, not only as the first statement: the real SSRF
+# guard call site above logs a warning BEFORE `continue`, so a
+# first-statement-only test would itself miss the founding case. A function
+# with ZERO call sites in this file, or with EVEN ONE call site that is NOT
+# refuse-shaped (the value is used directly, defaulted via `F(...) or
+# <default>`, or gated by a bare `if F():` / `if not F(): pass`), is
+# conservative-safe per §11.4.201(4): NOT suppressed, because the caller
+# behaviour that would justify treating the default as safe cannot be
+# established from the evidence.
+#
+# SCOPE, matching the established trade THIS file already makes for the
+# IDENTICAL problem shape (see IRREVERSIBLE_ATTRS below): resolution is BY
+# NAME, over
+# bare `name(...)` calls (`ast.Name` func) ONLY -- never `self.method()` /
+# `module.func()` -- at FILE scope, not by resolved function identity.
+# HONEST RESIDUAL GAP (§11.4.6), stated not silently assumed away: two
+# DIFFERENT functions sharing one local name (e.g. nested inside two
+# different outer functions, or a module-level function shadowed by a
+# same-named nested one) are not distinguished, so a gated call site of one
+# could in principle license suppression of an ungated sibling of the same
+# name. This is the SAME presence-shaped trade already made in this file
+# for the credential detector (shape B) and for IRREVERSIBLE_ATTRS below,
+# and it is directionally bounded the same way: on a genuine name collision
+# it can only cost a suppression that should not have fired, never
+# manufacture a suppression for a single real function whose every call
+# site was actually ungated (the "every call site" requirement is computed
+# per FILE, over every call textually named `F`, so a real function with
+# even one genuinely ungated call anywhere in the file -- under whatever
+# name shares it -- is never suppressed).
+ESCAPE_STMT_TYPES = (ast.Continue, ast.Break, ast.Return, ast.Raise)
+
+
+def refuse_shaped_call_ids(tree):
+    """id() of every Call node that is the `not F(...)` test of an `if`
+    whose body contains a continue/break/return/raise ANYWHERE at its top
+    level -- the refuse-on-falsy caller shape a fail-CLOSED guard call
+    site takes.
+    """
+    ids = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        test = node.test
+        if not (isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not)):
+            continue
+        call = test.operand
+        if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)):
+            continue
+        if any(isinstance(s, ESCAPE_STMT_TYPES) for s in node.body):
+            ids.add(id(call))
+    return ids
+
+
+def gated_only_call_names(tree):
+    """Bare function NAMES whose every `name(...)` call site in this file
+    is refuse-shaped, requiring at least one call site (§11.4.201(4) --
+    zero call sites proves nothing about the caller and is never treated
+    as gated).
+    """
+    refuse_ids = refuse_shaped_call_ids(tree)
+    per_name = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            per_name.setdefault(node.func.id, []).append(id(node) in refuse_ids)
+    return {name for name, flags in per_name.items() if flags and all(flags)}
+
+
+class _HandlerVisitor(ast.NodeVisitor):
+    """Collects (kind, lineno, enclosing_function_name_or_None) for every
+    classify()-positive exception handler, tracking the enclosing function
+    with a name STACK so a Try nested inside a function is correctly
+    attributed -- plain ast.walk() carries no parent/enclosure information
+    on its own.
+    """
+
+    def __init__(self):
+        self.func_stack = []
+        self.hits = []
+
+    def _enclosing(self):
+        return self.func_stack[-1] if self.func_stack else None
+
+    def visit_FunctionDef(self, node):
+        self.func_stack.append(node.name)
+        self.generic_visit(node)
+        self.func_stack.pop()
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Try(self, node):
+        for handler in node.handlers:
+            kind = classify(handler)
+            if kind:
+                self.hits.append((kind, handler.lineno, self._enclosing()))
+        self.generic_visit(node)
+
+    if getattr(ast, "TryStar", None) is not None:
+        visit_TryStar = visit_Try
 
 
 def suppress_bindings(tree):
@@ -1397,14 +1514,24 @@ for idx, raw in enumerate(paths):
         continue
     source_lines = content.decode("utf-8", "surrogateescape").splitlines()
     module_aliases, direct_names = suppress_bindings(tree)
+
+    # BOB-189: "default" hits are collected with their enclosing-function
+    # attribution, then filtered against gated_only_call_names() BEFORE
+    # being reported. Every OTHER kind ("swallow" / suppress-shapes) is
+    # unaffected -- the call-site discrimination is scoped to exactly the
+    # shape it was measured to false-positive on (§11.4.6, no broader claim
+    # than what was proven).
+    gated_names = gated_only_call_names(tree)
+    handler_visitor = _HandlerVisitor()
+    handler_visitor.visit(tree)
+    for kind, lineno, enclosing in handler_visitor.hits:
+        if kind == "default" and enclosing is not None and enclosing in gated_names:
+            sys.stdout.write(
+                "WAIVED_CALLSITE\t%d\t%d\t%s\n" % (idx, lineno, enclosing))
+        else:
+            sys.stdout.write("HIT\t%s\t%d\t%d\n" % (kind, idx, lineno))
+
     for node in ast.walk(tree):
-        if isinstance(node, TRY_TYPES):
-            for handler in getattr(node, "handlers", []):
-                kind = classify(handler)
-                if kind:
-                    sys.stdout.write(
-                        "HIT\t%s\t%d\t%d\n" % (kind, idx, handler.lineno))
-            continue
         if isinstance(node, WITH_TYPES) and (module_aliases or direct_names):
             for item in node.items:
                 call = item.context_expr
@@ -1473,6 +1600,10 @@ for idx, raw in enumerate(paths):
                     WAIVED)
                         f="${py_files[$a]}"
                         echo "⚠ ${GATE}: NOTE — WAIVED (guardrails:allow, never silent per §11.4.201(5)) — narrow suppress over an irreversible-capability call at ${f}:${b}: ${c}"
+                        ;;
+                    WAIVED_CALLSITE)
+                        f="${py_files[$a]}"
+                        echo "⚠ ${GATE}: NOTE — CALL-SITE-GATED, never silent per §11.4.201(5) — every call site of \`${c}()\` in this file reads \`if not ${c}(...): <continue|break|return|raise>\`, so its \`except: return <trivial>\` REFUSES the caller rather than proceeding as if fine (fail-CLOSED, not fail-open; BOB-189/§11.4.201(1)) at ${f}:${b}"
                         ;;
                     UNPARSED)
                         f="${py_files[$a]}"

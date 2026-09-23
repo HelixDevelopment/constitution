@@ -2902,6 +2902,158 @@ expect_fail "L81 a normal violation is still caught after the BOB-200 find-failu
 expect_fail "L81 (degraded text-fallback mode)" \
     gate_textmode --root "$MUT48" --quiet
 
+# ── 91. NEGATIVE CONTROL (L82): BOB-189 -- a fail-CLOSED guard whose every ──
+# `except ...: return <trivial>` handler REFUSES the caller must NOT be
+# flagged as a fail-open silent-default-return. This is a synthetic
+# reproduction of the real `_is_safe_fetch_url` SSRF guard in
+# `download-proxy/src/api/routes.py`: TWO separate except handlers, each
+# returning `False`, and the SOLE call site reads `if not guard(host):
+# <log a warning>; continue` -- the escape statement (`continue`) is the
+# SECOND statement in the if-body, not the first, which is deliberate: the
+# real guard call site logs BEFORE it continues, so a naive
+# first-statement-only check would itself miss the founding case and this
+# fixture would wrongly stay flagged. Before BOB-189 this file was a live
+# FAIL (measured) -- acting on that finding would have meant deleting the
+# `except: return False` paths from a real SSRF guard, i.e. removing a
+# security control to satisfy a gate.
+CLEAN42="$TMP/clean42"
+mkfixture "$CLEAN42"
+cat > "$CLEAN42/l82.py" <<'PY'
+def is_safe_target(host):
+    try:
+        parsed = parse_host(host)
+    except (ValueError, TypeError):
+        return False
+    if not parsed:
+        return False
+    try:
+        resolved = resolve(parsed)
+    except OSError:
+        return False
+    return resolved.is_public
+
+
+def fetch_first_safe(candidates):
+    for candidate in candidates:
+        if not is_safe_target(candidate):
+            logger.warning("refusing unsafe target; skipping")
+            continue
+        return do_fetch(candidate)
+    return None
+PY
+expect_pass "L82 fail-CLOSED guard call-site-gated by \`if not F(): <log>; continue\` is NOT flagged (BOB-189/§11.4.201(1))" \
+    bash "$GATE_SCRIPT" --root "$CLEAN42" --quiet
+# HONEST SCOPE BOUNDARY (§11.4.6), the same class as L75/L77/L78/L79: the
+# call-site-aware discrimination lives entirely in the Python AST path, so
+# the degraded text-fallback scanner -- which has no notion of "enclosing
+# function" or "call site" at all -- stays blind to it and still reports
+# the pre-BOB-189 FAIL on this exact fixture. Asserted honestly, not
+# silently accepted as a regression.
+expect_fail "L82 (degraded text-fallback mode -- KNOWN, DISCLOSED gap: call-site-aware discrimination is AST-mode only, per BOB-189 scope)" \
+    gate_textmode --root "$CLEAN42" --quiet
+
+# ── 92. MUTATED (L83): BOB-189 -- the SAME `except: return <trivial>` shape ──
+# as L82, but the caller does NOT gate on the return value: it is read into
+# a local and used directly. This is the golden-TRUE fixture proving the
+# call-site discrimination does not over-suppress a GENUINE fail-open that
+# merely happens to share the silent-default-return shape with a guard.
+MUT49="$TMP/mut49"
+mkfixture "$MUT49"
+cat > "$MUT49/l83.py" <<'PY'
+def is_valid_amount(raw):
+    try:
+        return float(raw)
+    except Exception:
+        return False
+
+
+def process(raw):
+    amount = is_valid_amount(raw)
+    charge(amount)
+PY
+expect_fail "L83 genuine fail-open (proceed-shaped, caller does not gate on the return value) is STILL caught" \
+    bash "$GATE_SCRIPT" --root "$MUT49" --quiet
+expect_fail "L83 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT49" --quiet
+
+# ── 93. MUTATED (L84): BOB-189 -- an AMBIGUOUS call site: `if not F(): pass` ──
+# tests the falsy return but its body does not escape (no continue / break /
+# return / raise) -- the falsy result is effectively ignored and execution
+# proceeds regardless. This is NOT the refuse-shaped pattern and MUST stay
+# flagged: a bare `pass` body is exactly the "gated by a bare `if F():` /
+# `if not F(): pass`" case the fix's own header names as conservative-safe
+# per §11.4.201(4).
+MUT50="$TMP/mut50"
+mkfixture "$MUT50"
+cat > "$MUT50/l84.py" <<'PY'
+def check_ok(x):
+    try:
+        return validate(x)
+    except Exception:
+        return False
+
+
+def handle(x):
+    if not check_ok(x):
+        pass
+    do_work(x)
+PY
+expect_fail "L84 call site tests the falsy return but its if-body does not escape (bare pass) -- still caught" \
+    bash "$GATE_SCRIPT" --root "$MUT50" --quiet
+expect_fail "L84 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT50" --quiet
+
+# ── 94. MUTATED (L85): BOB-189 -- MIXED call sites for the SAME function: ──
+# one refuse-shaped (`if not is_allowed(x): return`) and one that reads the
+# value directly with no gating at all. The suppression rule requires EVERY
+# call site of the enclosing function to be refuse-shaped; a single ungated
+# call site anywhere in the file MUST keep the hit flagged, proving the
+# discrimination is not satisfied by "at least one gated caller".
+MUT51="$TMP/mut51"
+mkfixture "$MUT51"
+cat > "$MUT51/l85.py" <<'PY'
+def is_allowed(x):
+    try:
+        return acl_check(x)
+    except Exception:
+        return False
+
+
+def path_a(x):
+    if not is_allowed(x):
+        return
+    proceed(x)
+
+
+def path_b(x):
+    result = is_allowed(x)
+    proceed_regardless(x, result)
+PY
+expect_fail "L85 one refuse-shaped caller plus one ungated caller of the SAME function -- still caught (not every call site is refuse-shaped)" \
+    bash "$GATE_SCRIPT" --root "$MUT51" --quiet
+expect_fail "L85 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT51" --quiet
+
+# ── 95. MUTATED (L86): BOB-189 -- ZERO call sites in this file. A function ──
+# with the silent-default-return shape that is never called anywhere in the
+# scanned file proves nothing about caller behaviour, so it MUST stay
+# conservative-safe per §11.4.201(4): NOT suppressed. (A real cross-module
+# caller cannot be seen by a per-file AST pass; this is the honest, stated
+# boundary of the fix, not a silent gap.)
+MUT52="$TMP/mut52"
+mkfixture "$MUT52"
+cat > "$MUT52/l86.py" <<'PY'
+def unused_guard(x):
+    try:
+        return validate(x)
+    except Exception:
+        return False
+PY
+expect_fail "L86 silent-default-return with ZERO call sites in this file -- conservative-safe, still caught (§11.4.201(4))" \
+    bash "$GATE_SCRIPT" --root "$MUT52" --quiet
+expect_fail "L86 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT52" --quiet
+
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
     echo "✅ META PASS — CM-DANGEROUS-COMBINATION-FAIL-CLOSED FAILs-on-mutation AND PASSes-on-clean for every fixture (§1.1 proof holds)"
