@@ -117,8 +117,8 @@ text-decoration: line-through;
 <h1 id="speckit-extension-superpowers-skill-mcp-server-development-specification">SpecKit
 Extension, Superpowers Skill &amp; MCP Server Development
 Specification</h1>
-<p><strong>Revision:</strong> 2 <strong>Last modified:</strong>
-2026-09-22T00:00:00Z</p>
+<p><strong>Revision:</strong> 3 <strong>Last modified:</strong>
+2026-09-23T06:50:49Z</p>
 <blockquote>
 <p><strong>ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase
 B3).</strong> Part C of this document (“MCP Server
@@ -478,7 +478,7 @@ Extension (<code>helix-nano-bridge</code>)</h2>
 <span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="fu">## Mermaid Output</span></span>
 <span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="al">![Mermaid diagram 1](/tmp/sync_md_mermaid.3dUc19/constitution_docs_research_extensions_speckit_superpowers_implementation_EXTENSION_DEVELOPMENT.md/block_1.png)</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="al">![Mermaid diagram 1](/tmp/sync_md_mermaid.0YdGtC/constitution_docs_research_extensions_speckit_superpowers_implementation_EXTENSION_DEVELOPMENT.md/block_1.png)</span></span>
 <span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="fu">## JSON Output</span></span>
@@ -2332,6 +2332,17 @@ Implementations</h3>
 <span id="cb17-714"><a href="#cb17-714" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-715"><a href="#cb17-715" aria-hidden="true" tabindex="-1"></a><span class="fu">main</span>()<span class="op">.</span><span class="fu">catch</span>(<span class="bu">console</span><span class="op">.</span><span class="fu">error</span>)<span class="op">;</span></span></code></pre></div>
 <h3 id="c.2-mcp-server-configuration">C.2 MCP Server Configuration</h3>
+<blockquote>
+<p><strong>HISTORICAL — never built (see the top-of-document 2026-09-22
+Phase B3 amendment banner).</strong> Every <code>.mcp.json</code> /
+<code>mcp.yaml</code> fragment in C.2 and C.3 below names a
+<code>superbridge-mcp</code> server that does not exist as software
+(independently re-derived twice: GitHub <code>total_count: 0</code>; npm
+exact-name lookup <code>HTTP 404</code>). These are design-intent
+configuration EXAMPLES for the unbuilt Part C server, not operational
+instructions — do not paste them into a live <code>mcpServers</code>
+config; they will point at a nonexistent <code>dist/index.js</code>.</p>
+</blockquote>
 <div class="sourceCode" id="cb18"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;mcpServers&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;superbridge-mcp&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
@@ -2857,31 +2868,44 @@ and Configuration</h3>
 <span id="cb27-42"><a href="#cb27-42" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_CONSISTENCY_ITERATIONS</span><span class="op">=</span>3</span>
 <span id="cb27-43"><a href="#cb27-43" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb27-44"><a href="#cb27-44" aria-hidden="true" tabindex="-1"></a><span class="co"># === MCP Server ===</span></span>
-<span id="cb27-45"><a href="#cb27-45" aria-hidden="true" tabindex="-1"></a><span class="va">SUPERBRIDGE_MCP_ENABLED</span><span class="op">=</span>true</span>
-<span id="cb27-46"><a href="#cb27-46" aria-hidden="true" tabindex="-1"></a><span class="va">SUPERBRIDGE_MCP_PORT</span><span class="op">=</span>9595</span>
-<span id="cb27-47"><a href="#cb27-47" aria-hidden="true" tabindex="-1"></a><span class="va">SUPERBRIDGE_MCP_HOST</span><span class="op">=</span>127.0.0.1</span>
-<span id="cb27-48"><a href="#cb27-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-49"><a href="#cb27-49" aria-hidden="true" tabindex="-1"></a><span class="co"># === Evidence &amp; Logging ===</span></span>
-<span id="cb27-50"><a href="#cb27-50" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_EVIDENCE_DIR</span><span class="op">=</span>./qa-results/nano-tasks</span>
-<span id="cb27-51"><a href="#cb27-51" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_LOG_LEVEL</span><span class="op">=</span>info</span>
-<span id="cb27-52"><a href="#cb27-52" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_CAPTURE_ARTIFACTS</span><span class="op">=</span>true</span>
-<span id="cb27-53"><a href="#cb27-53" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_ARTIFACT_FORMAT</span><span class="op">=</span>jsonl</span>
-<span id="cb27-54"><a href="#cb27-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-55"><a href="#cb27-55" aria-hidden="true" tabindex="-1"></a><span class="co"># === SuperB Integration ===</span></span>
-<span id="cb27-56"><a href="#cb27-56" aria-hidden="true" tabindex="-1"></a><span class="va">SUPERB_BRIDGE_ENABLED</span><span class="op">=</span>true</span>
-<span id="cb27-57"><a href="#cb27-57" aria-hidden="true" tabindex="-1"></a><span class="va">SUPERB_FEATURE_DIR</span><span class="op">=</span>.specify/features</span>
+<span id="cb27-45"><a href="#cb27-45" aria-hidden="true" tabindex="-1"></a><span class="co"># HISTORICAL — superbridge-mcp was never built (2026-09-22 Phase B3</span></span>
+<span id="cb27-46"><a href="#cb27-46" aria-hidden="true" tabindex="-1"></a><span class="co"># amendment banner at the top of this document); these three variables</span></span>
+<span id="cb27-47"><a href="#cb27-47" aria-hidden="true" tabindex="-1"></a><span class="co"># configure a server that does not exist as software. Retained as</span></span>
+<span id="cb27-48"><a href="#cb27-48" aria-hidden="true" tabindex="-1"></a><span class="co"># design-intent only.</span></span>
+<span id="cb27-49"><a href="#cb27-49" aria-hidden="true" tabindex="-1"></a><span class="va">SUPERBRIDGE_MCP_ENABLED</span><span class="op">=</span>true</span>
+<span id="cb27-50"><a href="#cb27-50" aria-hidden="true" tabindex="-1"></a><span class="va">SUPERBRIDGE_MCP_PORT</span><span class="op">=</span>9595</span>
+<span id="cb27-51"><a href="#cb27-51" aria-hidden="true" tabindex="-1"></a><span class="va">SUPERBRIDGE_MCP_HOST</span><span class="op">=</span>127.0.0.1</span>
+<span id="cb27-52"><a href="#cb27-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-53"><a href="#cb27-53" aria-hidden="true" tabindex="-1"></a><span class="co"># === Evidence &amp; Logging ===</span></span>
+<span id="cb27-54"><a href="#cb27-54" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_EVIDENCE_DIR</span><span class="op">=</span>./qa-results/nano-tasks</span>
+<span id="cb27-55"><a href="#cb27-55" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_LOG_LEVEL</span><span class="op">=</span>info</span>
+<span id="cb27-56"><a href="#cb27-56" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_CAPTURE_ARTIFACTS</span><span class="op">=</span>true</span>
+<span id="cb27-57"><a href="#cb27-57" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_ARTIFACT_FORMAT</span><span class="op">=</span>jsonl</span>
 <span id="cb27-58"><a href="#cb27-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-59"><a href="#cb27-59" aria-hidden="true" tabindex="-1"></a><span class="co"># === Network ===</span></span>
-<span id="cb27-60"><a href="#cb27-60" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_MCP_TIMEOUT</span><span class="op">=</span>30</span>
-<span id="cb27-61"><a href="#cb27-61" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_LLM_TIMEOUT</span><span class="op">=</span>300</span>
-<span id="cb27-62"><a href="#cb27-62" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_TASK_TIMEOUT</span><span class="op">=</span>3600</span>
-<span id="cb27-63"><a href="#cb27-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-64"><a href="#cb27-64" aria-hidden="true" tabindex="-1"></a><span class="co"># === Retry Configuration ===</span></span>
-<span id="cb27-65"><a href="#cb27-65" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_MAX_RETRIES</span><span class="op">=</span>3</span>
-<span id="cb27-66"><a href="#cb27-66" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_RETRY_BACKOFF</span><span class="op">=</span>exponential</span>
-<span id="cb27-67"><a href="#cb27-67" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_RETRY_BASE_DELAY_MS</span><span class="op">=</span>1000</span></code></pre></div>
+<span id="cb27-59"><a href="#cb27-59" aria-hidden="true" tabindex="-1"></a><span class="co"># === SuperB Integration ===</span></span>
+<span id="cb27-60"><a href="#cb27-60" aria-hidden="true" tabindex="-1"></a><span class="va">SUPERB_BRIDGE_ENABLED</span><span class="op">=</span>true</span>
+<span id="cb27-61"><a href="#cb27-61" aria-hidden="true" tabindex="-1"></a><span class="va">SUPERB_FEATURE_DIR</span><span class="op">=</span>.specify/features</span>
+<span id="cb27-62"><a href="#cb27-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-63"><a href="#cb27-63" aria-hidden="true" tabindex="-1"></a><span class="co"># === Network ===</span></span>
+<span id="cb27-64"><a href="#cb27-64" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_MCP_TIMEOUT</span><span class="op">=</span>30</span>
+<span id="cb27-65"><a href="#cb27-65" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_LLM_TIMEOUT</span><span class="op">=</span>300</span>
+<span id="cb27-66"><a href="#cb27-66" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_TASK_TIMEOUT</span><span class="op">=</span>3600</span>
+<span id="cb27-67"><a href="#cb27-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-68"><a href="#cb27-68" aria-hidden="true" tabindex="-1"></a><span class="co"># === Retry Configuration ===</span></span>
+<span id="cb27-69"><a href="#cb27-69" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_MAX_RETRIES</span><span class="op">=</span>3</span>
+<span id="cb27-70"><a href="#cb27-70" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_RETRY_BACKOFF</span><span class="op">=</span>exponential</span>
+<span id="cb27-71"><a href="#cb27-71" aria-hidden="true" tabindex="-1"></a><span class="va">HELIX_RETRY_BASE_DELAY_MS</span><span class="op">=</span>1000</span></code></pre></div>
 <h3 id="e.3-distribution-script-pack.sh">E.3 Distribution Script
 (<code>pack.sh</code>)</h3>
+<blockquote>
+<p><strong>HISTORICAL — never built (see the top-of-document 2026-09-22
+Phase B3 amendment banner).</strong> This packaging + install script
+targets the whole unbuilt <code>helix-nano-bridge</code> extension,
+including its <code>mcp/superbridge-mcp/</code> directory and the
+<code>claude_desktop_config.json</code> fragment it would write — none
+of that exists. Design-intent only, never a runnable release
+process.</p>
+</blockquote>
 <div class="sourceCode" id="cb28"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env bash</span></span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="bu">set</span> <span class="at">-euo</span> pipefail</span>
 <span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a></span>

@@ -1,7 +1,7 @@
 # SpecKit Extension, Superpowers Skill & MCP Server Development Specification
 
-**Revision:** 2
-**Last modified:** 2026-09-22T00:00:00Z
+**Revision:** 3
+**Last modified:** 2026-09-23T06:50:49Z
 
 > **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** Part C of this
 > document ("MCP Server (`superbridge-mcp`)") specifies a server that was
@@ -2290,6 +2290,15 @@ main().catch(console.error);
 
 ### C.2 MCP Server Configuration
 
+> **HISTORICAL — never built (see the top-of-document 2026-09-22 Phase B3
+> amendment banner).** Every `.mcp.json` / `mcp.yaml` fragment in C.2 and C.3
+> below names a `superbridge-mcp` server that does not exist as software
+> (independently re-derived twice: GitHub `total_count: 0`; npm exact-name
+> lookup `HTTP 404`). These are design-intent configuration EXAMPLES for the
+> unbuilt Part C server, not operational instructions — do not paste them
+> into a live `mcpServers` config; they will point at a nonexistent
+> `dist/index.js`.
+
 ```json
 {
   "mcpServers": {
@@ -2822,6 +2831,10 @@ HELIX_RED_MODE_DEFAULT=1
 HELIX_CONSISTENCY_ITERATIONS=3
 
 # === MCP Server ===
+# HISTORICAL — superbridge-mcp was never built (2026-09-22 Phase B3
+# amendment banner at the top of this document); these three variables
+# configure a server that does not exist as software. Retained as
+# design-intent only.
 SUPERBRIDGE_MCP_ENABLED=true
 SUPERBRIDGE_MCP_PORT=9595
 SUPERBRIDGE_MCP_HOST=127.0.0.1
@@ -2848,6 +2861,12 @@ HELIX_RETRY_BASE_DELAY_MS=1000
 ```
 
 ### E.3 Distribution Script (`pack.sh`)
+
+> **HISTORICAL — never built (see the top-of-document 2026-09-22 Phase B3
+> amendment banner).** This packaging + install script targets the whole
+> unbuilt `helix-nano-bridge` extension, including its `mcp/superbridge-mcp/`
+> directory and the `claude_desktop_config.json` fragment it would write —
+> none of that exists. Design-intent only, never a runnable release process.
 
 ```bash
 #!/usr/bin/env bash

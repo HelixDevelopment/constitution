@@ -1,7 +1,7 @@
 # Appendix: Manifests, Schemas, Templates & Full Source Code
 
-**Revision:** 2
-**Last modified:** 2026-09-22T00:00:00Z
+**Revision:** 3
+**Last modified:** 2026-09-23T06:50:49Z
 
 > **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** Appendix section
 > F ("SuperBridge MCP Server — `src/index.ts`") is a FULL TYPESCRIPT SOURCE
@@ -425,6 +425,14 @@ feature:
 ---
 
 ## D. MCP Server Configuration
+
+> **HISTORICAL — never built (see the top-of-document 2026-09-22 Phase B3
+> amendment banner).** The `superbridge` entry below configures a server
+> that does not exist as software (independently re-derived twice: GitHub
+> `total_count: 0`; npm exact-name lookup `HTTP 404`) — a design-intent
+> example, not an operational `mcp.json`. Do not paste it into a live MCP
+> config; `cwd`/`dist/index.js` point at nothing. `codegraph` below it IS
+> real (§11.4.78) and is unaffected by this note.
 
 File: `mcp.json`
 
