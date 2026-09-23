@@ -2,6 +2,15 @@
 name: Multitrack
 description: Automatic multi-track ruler orchestration per §11.4.187 — one conductor session spawning, driving, resuming, monitoring and controlling per-track headless workers with per-subscription auth, rate-limit rebind and crash-resilient supervision. Use when working with parallel development tracks, per-track headless workers, or the multitrack orchestrator, supervisor and bootstrap.
 version: 1.0.0
+# --- HXC-159 F-13 superset fields (HelixCode builtin_skills REPL loader) ---
+# Optional fields consumed ONLY by helix_code's internal regex-triggered REPL
+# completion-prompt loader (markdown_skills.go). Other Agent-Skills-format
+# consumers ignore unknown YAML keys. Carried forward verbatim from the
+# pre-superset builtin_skills copy — never invented (§11.4.6).
+triggers:
+  - "(?i)^(?:how do i |how to )?(?:start|create|spin up|set up|begin)\\b.*\\bmultitrack\\b.*$"
+  - "(?i)^.*\\bmultitrack\\b.*\\b(?:work ?stream|track|branch|worktree)s?\\b.*$"
+requires_isolation: false
 ---
 
 # Multitrack
