@@ -1,7 +1,7 @@
 # Helix Constitution–Powered SpecKit–Superpowers Bridge: Implementation Documentation
 
-**Revision:** 2
-**Last modified:** 2026-09-22T00:00:00Z
+**Revision:** 3
+**Last modified:** 2026-09-23T00:00:00Z
 **Description:** Master index and architecture overview for the Helix Constitution–powered SpecKit–Superpowers Bridge implementation.
 **Maintainer:** HelixDevelopment
 **Scope:** `constitution/docs/research/extensions/speckit_superpowers/implementation/`
@@ -19,6 +19,7 @@
 
 1. [Executive Summary](#executive-summary)
 2. [Architecture Amendment (2026-09-22)](#architecture-amendment-2026-09-22)
+   - [Bridge layer-health (B1 probe result)](#bridge-layer-health-b1-probe-result)
 3. [System Architecture](#system-architecture)
    - [Architecture Diagram](#architecture-diagram)
    - [Layer 1 — Developer Workstation](#layer-1--developer-workstation)
@@ -134,6 +135,62 @@ artefact in this corpus references a live "SuperBridge MCP" endpoint after this
 amendment (§11.4.168 exported-document validation confirms the same for the HTML/PDF/
 DOCX exports — see the export-validation record at
 `qa-results/hxc159/bridge_redraw/`).
+
+## Bridge layer-health (B1 probe result)
+
+The corrected 6-layer architecture above is a **design** statement. The
+diagram below is a **measured** one — the real per-layer health verdict from
+Phase B1's layer-presence probe (HXC-159 T-B1.01,
+`constitution/scripts/extensions/probe_bridge_layers.sh`,
+`qa-results/hxc159/bridge_layers/20260922T185455Z/report.json`), colour-coded
+by the closed four-value vocabulary `WIRED / PARTIAL / DESIGNED-ONLY /
+NONEXISTENT` (never a binary present/absent — the remedies differ per class
+and a binary flattens that distinction away):
+
+```mermaid
+flowchart TB
+    subgraph Legend["Legend: measured layer-health verdict (Phase B1 probe)"]
+        direction LR
+        LW["WIRED"]
+        LP["PARTIAL"]
+        LD["DESIGNED-ONLY"]
+        LN["NONEXISTENT"]
+    end
+
+    L1["Layer 1: Developer Workstation"]
+    L2["Layer 2: Spec-Kit Core (Governance)"]
+    L3["Layer 3: SuperSpec Bridge (Orchestration)"]
+    L4["Layer 4: SuperB Extension (Discipline Enforcement)"]
+    L5["Layer 5: Helix LLM (Inference)"]
+    L6["Layer 6: Distributed Host Cluster"]
+    L1 --> L2 --> L3 --> L4 --> L5 --> L6
+
+    classDef wired fill:#90EE90,stroke:#2e7d32,color:#000;
+    classDef partial fill:#FFE082,stroke:#f57f17,color:#000;
+    classDef designedOnly fill:#FFCC80,stroke:#e65100,color:#000;
+    classDef nonexistent fill:#EF9A9A,stroke:#b71c1c,color:#000;
+
+    class LW wired
+    class LP partial
+    class LD designedOnly
+    class LN nonexistent
+    class L1 wired
+    class L2 wired
+    class L3 wired
+    class L4 designedOnly
+    class L5 wired
+    class L6 partial
+```
+
+Reading the diagram against the original (pre-renumbering) B1 probe output:
+Layer 1 = original L1 (**WIRED**), Layer 2 = original L2 (**WIRED**), Layer 3
+= original L3 (**WIRED** — an honest delta from an earlier, more pessimistic
+dated snapshot; see the T-B1.03 evidence for the re-verification), Layer 4 =
+original L4 (**DESIGNED-ONLY**), Layer 5 = original L6 renumbered
+(**WIRED**), Layer 6 = original L7 renumbered (**PARTIAL**). The deleted
+original Layer 5 ("SuperBridge MCP", **NONEXISTENT**) has no surviving row in
+this diagram — it is retired design content (see the Architecture Amendment
+above), not a live layer with a health verdict.
 
 ---
 

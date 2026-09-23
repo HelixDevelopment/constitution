@@ -194,7 +194,11 @@ dependencies:
 
 #### `speckit.helix-nano-bridge.decompose.md`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.01.4): same class of bug as the graph.md
+     block below — a 3-backtick outer fence containing a nested ```json
+     fence is closed early by that inner fence's own bare closer. Widened
+     to 4 backticks per the same fix. -->
+````markdown
 # Decompose — tasks.md → Nano-Tasks
 
 ## Purpose
@@ -285,11 +289,14 @@ surface, and decomposes it into a dependency-ordered list of atomic nano-tasks.
 | 2 | Dependency cycle detected |
 | 3 | Plan/spec missing required sections |
 | 4 | Evidence directory unwritable |
-```
+````
 
 #### `speckit.helix-nano-bridge.execute.md`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.01.4): same fence-nesting class as above —
+     the outer fence contains a nested bare ``` ASCII-art block; widened to
+     4 backticks. -->
+````markdown
 # Execute — TDD-Driven Nano-Task Execution
 
 ## Purpose
@@ -336,11 +343,20 @@ Every nano-task execution produces:
 | 2 | Pre-execution gate FAIL |
 | 3 | Evidence directory unwritable |
 | 4 | Timeout on task execution |
-```
+````
 
 #### `speckit.helix-nano-bridge.graph.md`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.01.4): this block illustrates the literal
+     Markdown SOURCE of a generated file, which itself contains ```mermaid
+     and ```json fences. CommonMark fences of equal length do not nest — a
+     3-backtick outer fence is closed by the FIRST bare 3-backtick line
+     encountered (the mermaid block's own closing fence, below), which
+     silently truncated this example and let its JSON tail leak as loose
+     top-level text/an unpaired fence in every exported HTML/PDF. The outer
+     fence is widened to 4 backticks so it can only be closed by a 4-backtick
+     line, letting the inner 3-backtick fences nest as literal content. -->
+````markdown
 # Graph — Nano-Task Dependency Visualization
 
 ## Purpose
@@ -393,11 +409,14 @@ graph TD
   }
 }
 ```
-```
+````
 
 #### `speckit.helix-nano-bridge.status.md`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.01.4): same fence-nesting class — the outer
+     fence contains a nested bare ``` box-drawing block AND two nested
+     ```json fences; widened to 4 backticks. -->
+````markdown
 # Status — Execution Dashboard
 
 ## Purpose
@@ -473,11 +492,16 @@ paths to captured artifacts. The `verdict.json` contains:
   "witness": "codegraph_explore"
 }
 ```
-```
+````
 
 #### `speckit.helix-nano-bridge.retry.md`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.01.4): this block's content has no nested
+     fence, but its outer fence was previously closed early by cascading
+     imbalance from the earlier blocks in this section; widened to 4
+     backticks for consistency with the rest of §A.2 and to remove the
+     now-redundant duplicate closing fence that followed it (see below). -->
+````markdown
 # Retry — Failed Nano-Task Retry Engine
 
 ## Purpose
@@ -513,8 +537,7 @@ the root, then propagates forward.
 | 0 | All retried tasks now GREEN |
 | 1 | Some tasks still FAIL after max attempts |
 | 2 | Dependency chain unresolvable |
-```
-```
+````
 
 ### A.3 Bash Script Implementations
 
