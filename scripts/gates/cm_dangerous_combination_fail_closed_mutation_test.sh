@@ -2489,6 +2489,209 @@ expect_fail "L63 a DOTTED broad exception ('suppress(builtins.Exception)') is th
 expect_fail "L63 (degraded text-fallback mode — where the breadth scan reads the qualified tail)" \
     gate_textmode --root "$MUT40" --quiet
 
+# ═══════════════════════════════════════════════════════════════════════════
+# BOB-213 / BOB-214 / BOB-216 fixtures (three related defects in this same
+# gate, fixed together — see constitution/scripts/gates/
+# cm_dangerous_combination_fail_closed.sh header "SHELL COUNTERPART (BOB-213)"
+# + "MODE-INDEPENDENT CARRIERS" sections for the design rationale).
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── 73. NEGATIVE CONTROL (L64 / CLEAN33): BOB-216 — a COMMENT quoting the ──
+# credential-default anti-pattern is NOT a live credential default.
+# Pre-fix, BOTH modes reported this as a LIVE violation (measured: a `#`
+# comment describing "never write `api_key = loaded_value or \"literal\"`"
+# as an example-of-what-not-to-do was matched by the raw shape-(B) grep,
+# which has no AST counterpart in any mode to fall back on) — the same
+# false-positive class L5 already pins for the swallowed-exception shape,
+# now closed for the credential-default shape via same-line comment/string
+# masking (sanitize_generic_carriers) before the shape-(B) grep runs.
+CLEAN33="$TMP/clean33"
+mkfixture "$CLEAN33"
+cat > "$CLEAN33/doc_comment.py" <<'PY'
+# Anti-pattern example, DO NOT DO THIS:
+#   api_key = loaded_value or "sk-hardcoded-fallback-secret"
+def load_config():
+    return {}
+PY
+expect_pass "L64 NEGATIVE CONTROL — a COMMENT quoting the credential-default anti-pattern is not a live default (BOB-216)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN33" --quiet
+expect_pass "L64 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN33" --quiet
+
+# ── 74. NEGATIVE CONTROL (L65 / CLEAN34): BOB-216 — a COMMENT quoting the ──
+# empty-catch anti-pattern is NOT a live swallowed exception. Pre-fix this
+# fired in BOTH modes (measured ast_rc=1 AND text_rc=1) because the
+# empty-catch grep is a language-agnostic raw-text match with NO structural
+# counterpart to consult in any mode.
+CLEAN34="$TMP/clean34"
+mkfixture "$CLEAN34"
+cat > "$CLEAN34/doc_comment.js" <<'JS'
+// Anti-pattern example, DO NOT DO THIS:
+//   try { risky(); } catch (e) { }
+function safe() {
+    return true;
+}
+JS
+expect_pass "L65 NEGATIVE CONTROL — a COMMENT quoting the empty-catch anti-pattern is not a live swallow (BOB-216)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN34" --quiet
+expect_pass "L65 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN34" --quiet
+
+# ── 75. NEGATIVE CONTROL (L66 / CLEAN35): BOB-216 — a STRING LITERAL ──
+# holding the empty-catch anti-pattern TEXT is not live code. Pre-fix this
+# also fired in both modes for the same reason as L65.
+CLEAN35="$TMP/clean35"
+mkfixture "$CLEAN35"
+cat > "$CLEAN35/string_literal.js" <<'JS'
+const antiPatternExample = "try { risky(); } catch (e) { }";
+function log() {
+    console.log(antiPatternExample);
+}
+JS
+expect_pass "L66 NEGATIVE CONTROL — a STRING LITERAL holding the empty-catch anti-pattern text is not live code (BOB-216)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN35" --quiet
+expect_pass "L66 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN35" --quiet
+
+# ── 76. MUTATED (L67 / MUT41): BOB-213 — shell parameter-expansion ──────────
+# credential default to a LITERAL is a real violation, caught by the new
+# shell-specific detector (`${VAR:-"literal"}` / `${VAR:="literal"}`, scoped
+# to *.sh/*.bash, RHS must NOT start with `$`). Pre-fix (sh/bash absent from
+# DANGEROUS_COMBO_EXT and no shell-native detector existed at all) this file
+# was 100% invisible to the gate.
+MUT41="$TMP/mut41"
+mkfixture "$MUT41"
+cat > "$MUT41/config.sh" <<'SH'
+#!/usr/bin/env bash
+password=${password:-"changeme"}
+echo "$password"
+SH
+expect_fail "L67 shell credential silently defaulted to a literal via parameter expansion (BOB-213)" \
+    bash "$GATE_SCRIPT" --root "$MUT41" --quiet
+expect_fail "L67 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT41" --quiet
+
+# ── 77. NEGATIVE CONTROL (L68 / CLEAN36): BOB-213 — a shell credential ─────
+# fallback to ANOTHER VARIABLE (`${token:-$FALLBACK_TOKEN}`) is a LEGITIMATE
+# secondary-source fallback, not a literal default; the RHS-must-not-start-
+# with-`$` exclusion in the shell detector must let it through.
+CLEAN36="$TMP/clean36"
+mkfixture "$CLEAN36"
+cat > "$CLEAN36/config.sh" <<'SH'
+#!/usr/bin/env bash
+token=${token:-$FALLBACK_TOKEN}
+echo "$token"
+SH
+expect_pass "L68 NEGATIVE CONTROL — shell credential fallback to ANOTHER VARIABLE is legitimate (BOB-213)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN36" --quiet
+expect_pass "L68 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN36" --quiet
+
+# ── 78. NEGATIVE CONTROL (L69 / CLEAN37): BOB-213 — a shell credential ─────
+# fallback to a COMMAND SUBSTITUTION (`${api_key:-$(vault_get_secret)}`) is
+# likewise a legitimate secondary source, not a hardcoded literal.
+CLEAN37="$TMP/clean37"
+mkfixture "$CLEAN37"
+cat > "$CLEAN37/config.sh" <<'SH'
+#!/usr/bin/env bash
+api_key=${api_key:-$(vault_get_secret)}
+echo "$api_key"
+SH
+expect_pass "L69 NEGATIVE CONTROL — shell credential fallback to COMMAND SUBSTITUTION is legitimate (BOB-213)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN37" --quiet
+expect_pass "L69 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN37" --quiet
+
+# ── 79. MUTATED (L70 / MUT42): BOB-213 — the PRE-EXISTING `||`/`or`-style ──
+# credential-default shape, now visible for the first time in a `.sh` file
+# because `sh`/`bash` were added to the default DANGEROUS_COMBO_EXT list.
+# Measured pre-fix: `scripts/` (a declared DANGER_ROOT) has 71 tracked .sh
+# files the gate never scanned at all — this fixture is the minimal
+# reproduction of that class, independent of the NEW shell-native detector
+# added in L67 (this shape is the gate's ORIGINAL `||`/`or` regex).
+MUT42="$TMP/mut42"
+mkfixture "$MUT42"
+cat > "$MUT42/loader.sh" <<'SH'
+#!/usr/bin/env bash
+api_key=loaded_value || "sk-hardcoded-fallback-secret"
+SH
+expect_fail "L70 pre-existing credential-default-to-literal shape, now DISCOVERABLE in a .sh file (BOB-213 extension-list fix)" \
+    bash "$GATE_SCRIPT" --root "$MUT42" --quiet
+expect_fail "L70 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT42" --quiet
+
+# ── 80. NEGATIVE CONTROL (L71 / CLEAN38): BOB-214 — the gate's default ─────
+# exclude list (.git/node_modules/vendor/.venv/__pycache__/scripts/gates/
+# out/build) is UNCHANGED by the BOB-214 fix and still keeps a violation
+# planted inside `.git/` from ever being scanned or flagged, confirming
+# adding `--max-depth`/the repo-root DANGER_ROOTS entry does NOT now scan
+# something wildly out-of-scope.
+CLEAN38="$TMP/clean38"
+mkfixture "$CLEAN38"
+mkdir -p "$CLEAN38/.git/hooks"
+cat > "$CLEAN38/.git/hooks/fake.py" <<'PY'
+try:
+    risky()
+except Exception:
+    pass
+PY
+expect_pass "L71 NEGATIVE CONTROL — a violation inside .git/ stays excluded by the default exclude list (BOB-214)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN38" --quiet
+expect_pass "L71 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN38" --quiet
+
+# ── 81. NEGATIVE CONTROL (L72 / CLEAN39): BOB-214 — a NESTED-only violation ──
+# is correctly invisible at `--max-depth 1` (intended narrowing, not a bug —
+# this proves the flag genuinely limits traversal depth rather than silently
+# being a no-op).
+CLEAN39="$TMP/clean39"
+mkfixture "$CLEAN39"
+mkdir -p "$CLEAN39/nested"
+cat > "$CLEAN39/nested/violation.py" <<'PY'
+try:
+    risky()
+except Exception:
+    pass
+PY
+expect_pass "L72 NEGATIVE CONTROL — a nested-only violation is invisible at --max-depth 1 (BOB-214, intended narrowing)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN39" --max-depth 1 --quiet
+expect_pass "L72 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN39" --max-depth 1 --quiet
+
+# ── 82. MUTATED (L73 / MUT43): BOB-214 — a ROOT-LEVEL violation is STILL ────
+# caught at `--max-depth 1` (the depth limit narrows scope, it does not
+# blind the gate to the level it is pointed at — this is the exact
+# webui-bridge.py-at-repo-root scenario BOB-214 fixes).
+MUT43="$TMP/mut43"
+mkfixture "$MUT43"
+cat > "$MUT43/webui_probe.py" <<'PY'
+def _is_root_liveness_probe(self):
+    try:
+        parsed = urllib.parse.urlparse(self.path)
+    except Exception:
+        return False
+    return True
+PY
+expect_fail "L73 a ROOT-LEVEL violation is still caught at --max-depth 1 (BOB-214)" \
+    bash "$GATE_SCRIPT" --root "$MUT43" --max-depth 1 --quiet
+expect_fail "L73 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT43" --max-depth 1 --quiet
+
+# ── 83. ARGUMENT VALIDATION (L74): BOB-214 — an invalid --max-depth value ──
+# is REFUSED with an environment/argument exit (rc=2), never silently
+# accepted as 0/unlimited nor crashing find(1) with a confusing error. This
+# is asserted directly (not via expect_fail/expect_pass) because BOTH of
+# those helpers treat rc=2 as a WRONG-ROUTE failure by design (§11.4.201: an
+# argument error is not a detection) — exactly the outcome under test here,
+# so the real rc is read and graded on its own terms instead.
+_l74_out="$(bash "$GATE_SCRIPT" --root "$TMP" --max-depth notanumber --quiet 2>&1)"; _l74_rc=$?
+if [ "$_l74_rc" -eq 2 ]; then
+    echo "✅ META OK:   L74 --max-depth with a non-numeric value exits 2 (argument error) (BOB-214)"
+else
+    echo "❌ META FAIL: L74 --max-depth notanumber exited ${_l74_rc}, expected 2 (argument error)"
+    rc=1
+fi
+
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
     echo "✅ META PASS — CM-DANGEROUS-COMBINATION-FAIL-CLOSED FAILs-on-mutation AND PASSes-on-clean for every fixture (§1.1 proof holds)"

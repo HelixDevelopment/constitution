@@ -381,6 +381,20 @@
 #       the unambiguous violation shape; a secondary CREDENTIAL SOURCE is
 #       not).
 #
+#       SHELL COUNTERPART (BOB-213) — bash/sh do not write `x || "default"`
+#       as a value-fallback expression (that parses as two SEPARATE commands
+#       joined by `||`, not an assignment expression); the shell-native shape
+#       of the SAME anti-pattern is PARAMETER-EXPANSION DEFAULTING:
+#       `token=${token:-"hunter2"}` / `PASSWORD="${PASSWORD:=changeme}"`. A
+#       second, shell-only grep (scoped to *.sh/*.bash files only, so it never
+#       fires on an unrelated `${...}` template-literal shape in JS/TS) flags
+#       a credential-shaped identifier defaulted via `:-`/`:=` to a value that
+#       does NOT itself begin with `$` — i.e. a LITERAL, never a fallback to
+#       another variable (`${TOKEN:-$FALLBACK}`) or a command substitution
+#       (`${TOKEN:-$(vault get token)}`), both of which are the SAME
+#       legitimate secondary-source pattern already exempted above and are
+#       deliberately NOT flagged.
+#
 # ── Why Python is analysed STRUCTURALLY, not textually (§11.4.201(7)(a)) ────
 # Shape (A) is a property of the PARSE TREE, not of the source text, and a
 # text scanner gets it wrong in BOTH directions -- each direction a §11.4
@@ -410,30 +424,48 @@
 # a degraded instrument that announces its degradation, never a silent floor
 # reported as a census (§11.4.6 / §11.4.201(6)).
 #
-# ── MODE-INDEPENDENT CARRIERS (§11.4.6 — measured, DISCLOSED, not closed) ───
+# ── MODE-INDEPENDENT CARRIERS (§11.4.6 — measured, PARTIALLY closed) ────────
 # That immunity is SCOPED to the Python `Try` / `With` shapes the AST
 # analyser owns, and an earlier revision stated it without the scope. It does
 # NOT extend to the other two detectors: shape (B) and the C-family half of
 # shape (A) are language-agnostic greps with NO structural counterpart in ANY
-# mode, so their carrier false-positives fire in the PRIMARY mode too, not
-# only in the degraded fallback. Each measured ast_rc=1 AND text_rc=1:
+# mode, so their carrier false-positives used to fire in the PRIMARY mode too,
+# not only in the degraded fallback (BOB-216). Each measured ast_rc=1 AND
+# text_rc=1 pre-fix:
 #   * Shape (B), CREDENTIAL — a comment or a docstring QUOTING the
 #     anti-pattern (`# NEVER write: api_key = cfg_key or "hunter2"`, or a
 #     style-guide docstring containing `password = supplied or "changeme"`)
-#     is reported as a live credential default.
+#     was reported as a live credential default.
 #   * Shape (A), C-FAMILY `catch` — a `//` comment or a string constant
-#     holding `try { x(); } catch (e) { }` is reported as an empty catch
+#     holding `try { x(); } catch (e) { }` was reported as an empty catch
 #     block, once per carrier line.
-# DISCLOSED, not built for. Closing them needs a per-language comment-and-
-# string model across every configured extension, and that model fails in the
-# UNDER direction this gate elsewhere refuses to take: a mis-modelled string
-# region deletes REAL code from the scan. The asymmetry already recorded for
-# BREADTH BY NAME governs here too -- over-reporting a carrier is visible and
-# recoverable; silently passing a real fail-open path is not. Whether to build
-# it is an operator / consumer decision (§11.4.66) and a tracked work item
-# (§11.4.197), never a default this gate picks. Stating these two is NOT a
-# claim the list is complete: it is a MEASURED SAMPLE of two detectors
-# (§11.4.118), exactly as the degraded-mode lists above are.
+#
+# CLOSED for the SAME-LINE case (BOB-216 fix, `strip_generic_carrier`, applied
+# BEFORE both the catch-shape search grep and the credential-default grep):
+# per-extension comment marker resolved from a CLOSED map (`//` for the
+# C-family/JS/TS/Java/C#/PHP/Go/Rust set, `#` for Python/Ruby/shell), a
+# character-by-character same-line quote-state walk (backslash-escape aware,
+# single AND double quotes) truncates the line at an UNQUOTED comment marker
+# and MASKS same-line string-literal content to whitespace before either
+# generic grep ever sees the line, so a `//`-commented or a same-line-quoted
+# spelling of the pattern no longer reaches the search. Extensions with no
+# entry in the marker map get an EMPTY marker (no comment-stripping applied,
+# same-line string-masking still applies) rather than a silent guess
+# (§11.4.6) — an honest, conservative default that never disables the
+# existing behaviour for an unenumerated extension.
+#
+# STILL OPEN, disclosed not built for (§11.4.6/§11.4.118): a CROSS-LINE
+# carrier — the anti-pattern spelled out inside a multi-line docstring or a
+# triple-quoted string whose opening delimiter is on an EARLIER line — is NOT
+# caught by this same-line-only walk, for the identical reason the Python
+# suppress text-scanner declines a cross-line fence counter above: a
+# mis-modelled multi-line string region deletes REAL code from the scan in
+# the UNDER direction this gate refuses to take (over-reporting a carrier is
+# visible and recoverable; silently passing a real fail-open path is not).
+# Closing the cross-line case is an operator / consumer decision (§11.4.66)
+# and a tracked work item (§11.4.197), never a default this gate picks.
+# Stating this open gap is NOT a claim it is the only one remaining: it is a
+# MEASURED SAMPLE (§11.4.118), exactly as the degraded-mode lists above are.
 #
 # This gate does NOT attempt to detect the remaining three anchor shapes
 # (validate-then-proceed-anyway, untrusted-input-defaulted-to-a-target,
@@ -446,22 +478,43 @@
 # SOMETHING, and deciding whether that something constitutes genuine
 # fallback handling is a judgement, not a decidable structural fact.
 #
+# HONEST SCOPE FOR SHELL'S OWN SWALLOWED-EXCEPTION IDIOM (BOB-213, §11.4.6):
+# shell has no fixed try/catch BLOCK syntax for shape (A) to key on — its
+# nearest equivalents (`command 2>/dev/null || true`, `set +e; risky; set
+# -e`) are exactly the multi-token / cross-statement correlation shapes the
+# paragraph above already declines to build a heuristic for, for the identical
+# stated reason (an unreliable, bluff-prone judgement rather than a decidable
+# structural fact). This gate does NOT attempt a shell-specific counterpart
+# for shape (A); the shell credential-default counterpart of shape (B) is
+# covered above. Disclosed, not silently assumed covered.
+#
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_dangerous_combination_fail_closed.sh [--root <dir>] [--quiet]
-#     --root <dir>   scan root (default: $DANGEROUS_COMBO_ROOT or "..")
-#     --quiet        suppress per-file PASS lines (FAIL lines always shown)
-#     -h|--help      print this header
+#                                            [--max-depth <N>]
+#     --root <dir>       scan root (default: $DANGEROUS_COMBO_ROOT or "..")
+#     --quiet            suppress per-file PASS lines (FAIL lines always shown)
+#     --max-depth <N>    limit `find` traversal to N levels below --root
+#                          (N=1 scans ONLY files directly in --root, never
+#                          descending into any subdirectory at all -- the
+#                          non-recursive complement to an already-recursively-
+#                          scanned set of subdirectories, per BOB-214; default
+#                          0 / unset = unlimited depth, the original recursive
+#                          behaviour, unchanged)
+#     -h|--help          print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
 #   DANGEROUS_COMBO_ROOT      default scan root (else --root, else "..")
 #   DANGEROUS_COMBO_EXT       space-separated source extensions to scan
 #                              (default: "py go rs c cc cpp h hpp java cs js
-#                               ts jsx tsx php rb")
+#                               ts jsx tsx php rb sh bash" -- sh/bash added
+#                               BOB-213, previously 198 tracked .sh files
+#                               project-wide were invisible to this gate)
 #   DANGEROUS_COMBO_EXCLUDE   space-separated dir-name globs to prune
 #                              (default: ".git node_modules vendor .venv
 #                               __pycache__ scripts/gates out build dist")
 #   DANGEROUS_COMBO_PYTHON    Python 3 interpreter used for AST analysis of
 #                              .py files (default: python3, then python).
+#   DANGEROUS_COMBO_MAX_DEPTH default for --max-depth (0/unset = unlimited).
 #
 # ── Outputs ──────────────────────────────────────────────────────────────────
 #   Per-hit evidence line (file:line + matched anti-pattern class) + a final
@@ -516,15 +569,17 @@ ANCHOR="11.4.252"
 # the size of what was probed and NOT told that nothing else exists
 # (§11.4.118). The full enumeration, per class, is in the --help header.
 TEXT_MODE_CAVEAT="a DEGRADED APPROXIMATION, not a census — for the suppress shape it UNDER-reports in seven measured ways and has FOUR measured OVER-reporting classes (a whole line inside a string, a licensing import harvested from a string, or a real line whose own string ARGUMENT quotes the pattern — each matched as if it were code); the except shape carries its own string-carrier OVER class AND two measured UNDER shapes of its own (a one-line except-with-pass written on a SINGLE line, and a handler whose pass is preceded by a docstring — both ast=1/text=0). Both counts are MEASURED SAMPLES, not proven-complete censuses; see --help for the per-class enumeration — §11.4.6/§11.4.118/§11.4.201(6)"
-HEADER_LINES=494
+HEADER_LINES=547
 
 root="${DANGEROUS_COMBO_ROOT:-..}"
 quiet=0
+maxdepth="${DANGEROUS_COMBO_MAX_DEPTH:-0}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --root) root="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
+        --max-depth) maxdepth="$2"; shift 2 ;;
         -h|--help) sed -n "1,${HEADER_LINES}p" "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -533,7 +588,19 @@ done
 [ -d "$root" ] || { echo "${GATE}: scan root not found: $root" >&2; exit 2; }
 root="$(cd "$root" && pwd)"
 
-exts="${DANGEROUS_COMBO_EXT:-py go rs c cc cpp h hpp java cs js ts jsx tsx php rb}"
+# --max-depth is validated as a non-negative integer (§11.4.201 — assert the
+# real condition, never silently coerce a garbage value into "unlimited" or
+# into a `find` argument-error that reads as an unrelated environment bug).
+# 0 means unlimited (the original, unchanged recursive behaviour).
+case "$maxdepth" in
+    ''|*[!0-9]*) echo "${GATE}: --max-depth must be a non-negative integer, got '${maxdepth}'" >&2; exit 2 ;;
+esac
+maxdepth_expr=()
+if [ "$maxdepth" -gt 0 ]; then
+    maxdepth_expr=(-maxdepth "$maxdepth")
+fi
+
+exts="${DANGEROUS_COMBO_EXT:-py go rs c cc cpp h hpp java cs js ts jsx tsx php rb sh bash}"
 excludes="${DANGEROUS_COMBO_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist}"
 
 find_name_expr=()
@@ -556,9 +623,9 @@ fi
 
 mapfile -d '' -t files < <(
     if [ "${#prune_expr[@]}" -gt 0 ]; then
-        find "$root" -type d \( "${prune_expr[@]}" \) -prune -o -type f \( "${find_name_expr[@]}" \) -print0
+        find "$root" "${maxdepth_expr[@]}" -type d \( "${prune_expr[@]}" \) -prune -o -type f \( "${find_name_expr[@]}" \) -print0
     else
-        find "$root" -type f \( "${find_name_expr[@]}" \) -print0
+        find "$root" "${maxdepth_expr[@]}" -type f \( "${find_name_expr[@]}" \) -print0
     fi
 )
 
@@ -1218,13 +1285,79 @@ if [ "${#py_text_fallback_files[@]}" -gt 0 ]; then
     done
 fi
 
+# ── BOB-216 carrier-stripping pre-pass for the two MODE-INDEPENDENT generic
+# greps (shape A C-family catch + shape B credential-default). Same-line
+# ONLY (§11.4.6 -- the cross-line docstring/triple-quoted carrier is a
+# disclosed, open gap, see the header): a character-by-character walk of ONE
+# line, backslash-escape aware, tracking single/double-quote string state,
+# that (1) truncates the line at an UNQUOTED occurrence of this file's
+# comment marker and (2) MASKS same-line string-literal CONTENT to spaces
+# (quote delimiters themselves are preserved) so a same-line comment or a
+# same-line string constant spelling out the anti-pattern never reaches
+# either search grep. Preserves the file's LINE COUNT exactly (one sanitized
+# line per raw line) so line numbers read from the sanitized stream map 1:1
+# to the original file, which is what lets the ORIGINAL (unsanitized) line
+# be re-read for the evidence message and for shape A's own body-emptiness
+# window scan below -- both of those still need the REAL content.
+sanitize_generic_carriers() { # $1=file $2=comment-marker("//"|"#"|"")
+    local f="$1" marker="$2"
+    awk -v marker="$marker" '
+        function strip(s,    i, n, c, out, q, esc, mlen, sq) {
+            # The apostrophe is built via sprintf, never written literally,
+            # because this awk program lives inside a single-quoted shell
+            # string (§11.4.201(7)(c) -- the same convention this file
+            # already uses in scan_py_text_suppress above).
+            sq = sprintf("%c", 39)
+            n = length(s)
+            out = ""
+            q = ""
+            esc = 0
+            mlen = length(marker)
+            for (i = 1; i <= n; i++) {
+                c = substr(s, i, 1)
+                if (q != "") {
+                    if (esc) { esc = 0; out = out " "; continue }
+                    if (c == "\\") { esc = 1; out = out " "; continue }
+                    if (c == q) { q = ""; out = out c; continue }
+                    out = out " "
+                    continue
+                }
+                if (c == "\"" || c == sq) { q = c; out = out c; continue }
+                if (mlen > 0 && substr(s, i, mlen) == marker) break
+                out = out c
+            }
+            return out
+        }
+        { print strip($0) }
+    ' "$f" 2>/dev/null || true
+}
+
 for f in "${files[@]}"; do
+    # Comment marker resolved from a CLOSED, per-extension map -- never
+    # guessed for an unenumerated extension (§11.4.6): an unrecognised
+    # extension gets an EMPTY marker (no comment-stripping applied, the
+    # same-line string-masking above still applies), the conservative
+    # default that never silently disables the pre-existing behaviour for a
+    # consumer-supplied DANGEROUS_COMBO_EXT extension this map does not name.
+    case "$f" in
+        *.py|*.rb|*.sh|*.bash) _carrier_marker='#' ;;
+        *.c|*.cc|*.cpp|*.h|*.hpp|*.java|*.cs|*.js|*.ts|*.jsx|*.tsx|*.php|*.go|*.rs) _carrier_marker='//' ;;
+        *) _carrier_marker='' ;;
+    esac
+    _sanitized="$(sanitize_generic_carriers "$f" "$_carrier_marker")"
+
     # ── (A) C-family/JS/TS/Java/C#/PHP: catch (...) { <empty-or-comment-only> }
     # Comment-stripped-then-collapsed single-line window search (bounded to
     # avoid multi-KB false spans): scan a joined 1-3-line window starting at
     # each `catch (...) {` for an immediate `}` with nothing but whitespace/
-    # a single-line comment between.
-    catch_hits="$(grep -nE 'catch[[:space:]]*\([^)]*\)[[:space:]]*\{' "$f" 2>/dev/null || true)"
+    # a single-line comment between. The FINDING search below runs over the
+    # sanitized stream (BOB-216) so a `catch (...) {` shape that is itself
+    # only a same-line comment or a same-line string constant is never found
+    # in the first place; the WINDOW/BODY scan still reads the ORIGINAL file,
+    # unchanged, since the body-emptiness check already does its own
+    # comment-stripping and needs the real content for real (non-carrier)
+    # multi-statement bodies.
+    catch_hits="$(printf '%s\n' "$_sanitized" | grep -nE 'catch[[:space:]]*\([^)]*\)[[:space:]]*\{' 2>/dev/null || true)"
     if [ -n "$catch_hits" ]; then
         while IFS= read -r hit; do
             [ -n "$hit" ] || continue
@@ -1246,16 +1379,44 @@ for f in "${files[@]}"; do
     fi
 
     # ── (B) Credential silently defaulted to a literal string ──────────────
-    cred_hits="$(grep -nEi '(credential|secret|token|api[_-]?key|password|passwd)[A-Za-z0-9_]*[[:space:]]*=[[:space:]]*[A-Za-z_][A-Za-z0-9_.]*[[:space:]]*(\|\||or)[[:space:]]*["'"'"'][^"'"'"']*["'"'"']' "$f" 2>/dev/null || true)"
+    # The FINDING search below runs over the sanitized stream (BOB-216) for
+    # the same reason as shape A; the printed EVIDENCE line re-reads the
+    # ORIGINAL file content at that line number so the captured evidence
+    # shows the real source, not masked whitespace (§11.4.5).
+    cred_hits="$(printf '%s\n' "$_sanitized" | grep -nEi '(credential|secret|token|api[_-]?key|password|passwd)[A-Za-z0-9_]*[[:space:]]*=[[:space:]]*[A-Za-z_][A-Za-z0-9_.]*[[:space:]]*(\|\||or)[[:space:]]*["'"'"'][^"'"'"']*["'"'"']' 2>/dev/null || true)"
     if [ -n "$cred_hits" ]; then
         while IFS= read -r hit; do
             [ -n "$hit" ] || continue
             lineno="${hit%%:*}"
-            text="${hit#*:}"
+            text="$(sed -n "${lineno}p" "$f" 2>/dev/null || true)"
             hits=$(( hits + 1 ))
             echo "❌ ${GATE}: FAIL — credential silently defaulted to a literal value at ${f}:${lineno}: ${text# } (§${ANCHOR})"
         done <<< "$cred_hits"
     fi
+
+    # ── Shell-native credential defaulting via parameter expansion (BOB-213)
+    # `${VAR:-"literal"}` / `${VAR:="literal"}`, scoped to *.sh/*.bash ONLY
+    # so it never fires on the unrelated `${...}` template-literal shape in
+    # JS/TS (see the header for the full rationale). The default value is
+    # required to NOT start with `$`, so a fallback to another variable
+    # (`${TOKEN:-$FALLBACK}`) or a command substitution
+    # (`${TOKEN:-$(vault get token)}`) — the shell-native form of the SAME
+    # legitimate secondary-source pattern already exempted for shape (B) — is
+    # deliberately NOT flagged.
+    case "$f" in
+        *.sh|*.bash)
+            shell_cred_hits="$(printf '%s\n' "$_sanitized" | grep -nEi '(credential|secret|token|api[_-]?key|password|passwd)[A-Za-z0-9_]*[[:space:]]*=[[:space:]]*"?\$\{[A-Za-z_][A-Za-z0-9_]*:[=-]"?[^$}]+"?\}"?' 2>/dev/null || true)"
+            if [ -n "$shell_cred_hits" ]; then
+                while IFS= read -r hit; do
+                    [ -n "$hit" ] || continue
+                    lineno="${hit%%:*}"
+                    text="$(sed -n "${lineno}p" "$f" 2>/dev/null || true)"
+                    hits=$(( hits + 1 ))
+                    echo "❌ ${GATE}: FAIL — credential silently defaulted to a literal value via shell parameter expansion at ${f}:${lineno}: ${text# } (§${ANCHOR})"
+                done <<< "$shell_cred_hits"
+            fi
+            ;;
+    esac
 done
 
 echo "======================================================================"
