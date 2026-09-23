@@ -604,6 +604,25 @@ Step 5 — Merge gate (§11.4.41):
 | **Risk & Mitigation** | `06_risk/` | Risk register, failure-mode analysis, circuit-breaker design, fallback chains, rollback procedures |
 | **Proof-of-Concept** | `poc/` | Working POC walkthrough, sample feature lifecycle trace, benchmark results, known limitations |
 
+The table above describes a planned directory layout; the documents that
+actually ship alongside this README are the flat files in this same
+directory, linked below (§11.4.212 README-reachability):
+
+- [`APPENDIX.md`](APPENDIX.md) — supporting reference material for this corpus.
+- [`CONSTITUTION_INTEGRATION.md`](CONSTITUTION_INTEGRATION.md) — how this
+  Bridge integrates with the Constitution submodule's governance mechanisms.
+- [`EXTENSION_DEVELOPMENT.md`](EXTENSION_DEVELOPMENT.md) — Part A (SpecKit
+  extension), Part B (Superpowers skills), Part C (MCP server), Part D
+  (SuperB integration) implementation reference.
+- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) — phased implementation
+  plan for the Bridge.
+- [`NANO_TASK_ENGINE.md`](NANO_TASK_ENGINE.md) — the nano-task dependency-DAG
+  execution engine design.
+- [`SECURITY.md`](SECURITY.md) — the Bridge's security model and threat
+  analysis.
+- [`TDD_INTEGRATION.md`](TDD_INTEGRATION.md) — how the Bridge enforces the
+  RED→GREEN TDD-fix discipline (§11.4.43/§11.4.115) end to end.
+
 ---
 
 ## Quick Start

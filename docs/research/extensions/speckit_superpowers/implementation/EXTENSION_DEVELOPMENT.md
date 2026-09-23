@@ -1378,7 +1378,21 @@ specify helix-nano-bridge status --format table
 
 ### B.1 Skill: `nano-task-execution`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.04.1): recurrence of the same fence-nesting
+     class flagged by the sibling stream as unfixed in A.5/B.1+ — the outer
+     fence contains nested bare ``` box-drawing + ```yaml + a markdown table,
+     each of which prematurely closed the 3-backtick outer wrapper under
+     CommonMark's no-nesting rule (a bare closing fence needs no info string
+     and only backtick-count >= the opener's, so it closes whatever fence is
+     currently open regardless of nesting intent). Verified via real A/B
+     pandoc rendering: before the fix, "### B.2 Skill: `nano-task-decompose`"
+     rendered as LITERAL TEXT inside an unlabeled code block (the heading
+     disappeared) and a stray "```yaml" marker leaked as visible body text
+     inside another code block; after widening to 4 backticks both defects
+     are gone and the heading + config + table render normally outside the
+     illustrative markdown wrapper. Widened to 4 backticks (closing pair at
+     line ~1455, see below). -->
+````markdown
 # nano-task-execution
 
 ## Description
@@ -1452,11 +1466,18 @@ evidence_dir: "{{ FEATURE_DIR }}/qa-results/nano-tasks"
 | NTX003 | Evidence dir unwritable | Check permissions |
 | NTX004 | Dependency not satisfied | Execute dependency first |
 | NTX005 | Timeout | Increase timeout or optimize |
-```
+````
 
 ### B.2 Skill: `nano-task-decompose`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.04.1): same nesting class as B.1 above — the
+     outer fence contains a nested bare ``` "Decomposition Algorithm" box plus
+     the "Quality Gates" table + "Output Schema" line, each of which
+     prematurely closed the 3-backtick outer wrapper. Verified via real A/B
+     pandoc rendering: before the fix the Quality Gates table rendered as a
+     literal, unformatted code block instead of a real table. Widened to 4
+     backticks (closing pair below, before "### B.3 Skill Installation"). -->
+````markdown
 # nano-task-decompose
 
 ## Description
@@ -1519,7 +1540,7 @@ nano-tasks suitable for TDD-driven execution.
 ### Output Schema
 
 See `nano-tasks.json` schema in EXTENSION_DEVELOPMENT.md §A.2.
-```
+````
 
 ### B.3 Skill Installation
 
