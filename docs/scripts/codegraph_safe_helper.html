@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>codegraph_safe_helper — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="codegraph_safe_helper--guide">codegraph_safe_helper — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-24T19:12:21Z</p>
+<p>Source:
+<code>constitution/scripts/codegraph/codegraph_safe_helper.py</code>
+(446 lines). Citations below are
+<code>codegraph_safe_helper.py:&lt;line&gt;</code>.</p>
+<h2 id="overview">Overview</h2>
+<p>Read-only, deterministic measurements that the launcher
+<code>codegraph_safe.sh</code> needs and that are awkward in POSIX shell
+(header lines 4-12; the launcher binds it as <code>HELPER</code> at
+<code>codegraph_safe.sh:112</code>). Seven sub-commands:</p>
+<table>
+<thead>
+<tr>
+<th>Sub-command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>identity</code></td>
+<td>Decide from <code>/proc/&lt;pid&gt;/cmdline</code> whether a PID
+really is a CodeGraph node process (argv identity, never a substring
+match)</td>
+</tr>
+<tr>
+<td><code>scan</code></td>
+<td>List live CodeGraph processes that conflict with a project</td>
+</tr>
+<tr>
+<td><code>dbinfo</code></td>
+<td>JSON facts about the project&#39;s database</td>
+</tr>
+<tr>
+<td><code>pending</code></td>
+<td>Bounded count of <code>status=&#39;pending&#39;</code> unresolved references
+against a threshold</td>
+</tr>
+<tr>
+<td><code>verify</code></td>
+<td>Post-run count and state checks</td>
+</tr>
+<tr>
+<td><code>scope</code></td>
+<td>Control-needled proof that no secret/excluded path is in the
+index</td>
+</tr>
+<tr>
+<td><code>receipt</code></td>
+<td>Check a patched runner&#39;s receipt against its patched file</td>
+</tr>
+</tbody>
+</table>
+<p>It prints only paths and counts, never file contents (header lines
+17-18). The database is opened <code>mode=ro</code> and nothing is
+written anywhere (lines 145-151; header line 46).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>python3</code>, standard library only: <code>sqlite3</code>,
+<code>fnmatch</code>, <code>hashlib</code>, <code>json</code> (header
+line 47).</li>
+<li>Linux <code>/proc</code> for <code>identity</code> and
+<code>scan</code> (lines 64, 92, 128).</li>
+<li>For the DB sub-commands:
+<code>&lt;project&gt;/.codegraph/codegraph.db</code> (line 146). The
+tables/columns the code reads are <code>files(path)</code>,
+<code>nodes</code>, <code>project_metadata(key, value)</code> and
+<code>unresolved_refs(status)</code> with the index
+<code>idx_unresolved_status</code> (lines 166-175, 190-191, 216).</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> identity <span class="op">&lt;</span>pid<span class="op">&gt;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> scan <span class="op">&lt;</span>project<span class="op">&gt;</span> writer<span class="kw">|</span><span class="ex">reader</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> dbinfo <span class="op">&lt;</span>project<span class="op">&gt;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> pending <span class="op">&lt;</span>project<span class="op">&gt;</span> [--threshold N]</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> verify <span class="op">&lt;</span>project<span class="op">&gt;</span> [--reported N] [--status-files N]</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>                                          <span class="ex">[--expected</span> N <span class="at">--tolerance-pct</span> P]</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> scope <span class="op">&lt;</span>project<span class="op">&gt;</span> <span class="op">&lt;</span>baseline-file<span class="op">&gt;</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> receipt <span class="op">&lt;</span>runner-dir<span class="op">&gt;</span> <span class="op">&lt;</span>stock-version<span class="op">&gt;</span></span></code></pre></div>
+<p>There is no <code>--help</code>: no arguments, an unknown
+sub-command, or wrong argument shape returns exit 2 (lines 431-437).</p>
+<h3 id="identity">identity</h3>
+<p><code>identity &lt;pid&gt;</code>: exactly one all-digit argument,
+PID greater than 1, else exit 2 (lines 103-108). A process is a
+CodeGraph process when <code>argv[0]</code>&#39;s basename is
+<code>node</code> or <code>nodejs</code> AND some later argv element
+ends in <code>/lib/dist/bin/codegraph.js</code> (lines 80-88). A shell
+that merely mentions the path in its arguments is not one (docstring
+lines 73-75). The op is the token right after that element. The root is
+the process cwd for <code>serve</code> or when no positional argument
+exists, otherwise the normalised join of cwd and the LAST argument not
+starting with <code>-</code> (lines 89-100); option values are not
+distinguished from positionals (line 95). Output:
+<code>OK &lt;op&gt; &lt;root&gt;</code> (exit 0), or
+<code>not-node</code> / <code>not-codegraph</code> (exit 1), or
+<code>gone</code> (exit 2) (lines 109-114).</p>
+<h3 id="scan">scan</h3>
+<p><code>scan &lt;project&gt; writer|reader</code> (lines 121-142). The
+project is <code>realpath</code>ed. <code>writer</code> conflicts with
+ops <code>init index sync serve</code>; <code>reader</code> only with
+<code>init index sync</code> (lines 58-59, 125). The helper&#39;s own PID
+and PIDs &lt;= 1 are skipped (line 132). A process is related when its
+(realpath) root equals the project or lies below it (lines 117-118); a
+process rooted in a parent of the project is not matched. One line per
+hit, sorted:
+<code>LIVE pid=&lt;n&gt; op=&lt;op&gt; root=&lt;root&gt;</code>; exit 1
+if any, else 0.</p>
+<h3 id="dbinfo">dbinfo</h3>
+<p><code>dbinfo &lt;project&gt;</code> prints one JSON object with
+sorted keys <code>accounted</code>, <code>error</code>,
+<code>exists</code>, <code>files</code>, <code>nodes_present</code>,
+<code>stamp_extraction</code>, <code>stamp_version</code>,
+<code>state</code> and exits 0 (lines 154-187, 245-249).
+<code>nodes_present</code> comes from a
+<code>select 1 from nodes limit 1</code> probe: the nodes table is never
+counted (lines 169-172).
+<code>state</code>/<code>accounted</code>/<code>stamp_*</code> are the
+metadata keys <code>index_state</code>,
+<code>index_files_accounted</code>, <code>indexed_with_version</code>,
+<code>indexed_with_extraction_version</code> (lines 174-183). A missing
+metadata table is swallowed silently (lines 184-185).</p>
+<h3 id="pending">pending</h3>
+<p><code>pending &lt;project&gt; [--threshold N]</code> (lines 225-242).
+Default threshold 150000; below 1 is exit 2. The count is bounded:
+<code>count(*)</code> over
+<code>select 1 from unresolved_refs indexed by idx_unresolved_status where status=&#39;pending&#39; limit threshold+1</code>
+(lines 215-217). <code>INDEXED BY</code> turns a missing index into an
+error instead of a full scan; a progress handler aborts after
+<code>CG_SAFE_PENDING_PROBE_BUDGET_S</code> seconds (default 30; a
+non-numeric value falls back to 30) (lines 197-200, 210-214). Output is
+one line
+<code>PENDING verdict=&lt;BELOW|AT_OR_ABOVE|UNKNOWN&gt; counted=&lt;n|?&gt; threshold=&lt;T&gt; ...</code>.</p>
+<h3 id="verify">verify</h3>
+<p><code>verify &lt;project&gt; [...]</code> prints one
+<code>VERIFY &lt;name&gt; PASS|FAIL &lt;detail&gt;</code> line per
+check, in this order (lines 273-301):</p>
+<ol type="1">
+<li><code>db_present</code> (exists and no error);</li>
+<li><code>index_state</code> (<code>index_state</code> metadata equals
+<code>complete</code>);</li>
+<li><code>files_nonzero</code>;</li>
+<li><code>pending_zero</code>: bounded probe with cap 10000 (line 277);
+fails closed when the probe cannot run (lines 279-280);</li>
+<li><code>files_eq_accounted</code>: only when
+<code>index_files_accounted</code> exists; a non-integer value counts as
+-1 and fails (lines 284-289);</li>
+<li><code>files_eq_reported</code> (<code>--reported N</code>),
+<code>files_eq_status</code> (<code>--status-files N</code>);</li>
+<li><code>files_vs_expected</code> (<code>--expected N</code>, optional
+<code>--tolerance-pct P</code>, default 0.0): passes when
+<code>abs(files - N) &lt;= N * P / 100</code> (lines 296-301).</li>
+</ol>
+<p>Then <code>VERIFY_NOTE version_stamp PRESENT|ABSENT ...</code>
+(informational; the stamps are written only by a completed full index,
+and the helper never fabricates them, lines 302-310) and
+<code>VERIFY_FILES &lt;n&gt;</code> (line 311). Exit 0 only if every
+check passed.</p>
+<h3 id="scope">scope</h3>
+<p><code>scope &lt;project&gt; &lt;baseline-file&gt;</code> (lines
+351-409).</p>
+<p>Baseline format (lines 316-329): one rule per line,
+<code>&lt;class&gt; &lt;secret|exclude&gt; &lt;matcher&gt;:&lt;value&gt;</code>;
+blank lines and <code>#</code> comments are skipped; any other shape is
+an error. Matchers (lines 332-348), applied to project-relative paths
+only (an absolute path never matches):</p>
+<table>
+<thead>
+<tr>
+<th>Matcher</th>
+<th>Matches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>exact:P</code></td>
+<td>the whole path equals P</td>
+</tr>
+<tr>
+<td><code>seg:N</code></td>
+<td>some path component equals N</td>
+</tr>
+<tr>
+<td><code>segglob:G</code></td>
+<td>some component matches glob G (<code>fnmatchcase</code>)</td>
+</tr>
+<tr>
+<td><code>dir:N</code></td>
+<td>some directory component (not the last) equals N</td>
+</tr>
+<tr>
+<td><code>topdir:N</code></td>
+<td>the first component equals N and the path has more than one
+component</td>
+</tr>
+</tbody>
+</table>
+<p>Procedure: read <code>select path from files order by path</code>;
+then a control needle (lines 375-393). The needle is the first row that
+is relative and exists on disk; it must be found by <code>exact:</code>,
+by <code>segglob:</code> on its base name and, when it has a directory,
+by <code>topdir:</code>, while a fabricated path
+(<code>__cg_scope_needle_absent__/&lt;sha256[:16]&gt;.none</code>) must
+not be found. Only then are class counts trusted. Output lines:
+<code>SCOPE_NEEDLE ... -&gt; SEEING|BLIND</code>,
+<code>SCOPE_CLASS &lt;class&gt; kind=&lt;kind&gt; count=&lt;n&gt; PASS|FAIL</code>
+(PASS iff count 0), up to 5
+<code>  SCOPE_HIT &lt;class&gt; &lt;path&gt;</code> lines per failing
+class, then
+<code>SCOPE PASS|FAIL rows=&lt;n&gt; classes=&lt;n&gt;</code>.</p>
+<h3 id="receipt">receipt</h3>
+<p><code>receipt &lt;runner-dir&gt; &lt;stock-version&gt;</code> (lines
+412-427). Reads <code>&lt;runner-dir&gt;/RUNNER_RECEIPT.json</code> and
+hashes <code>&lt;runner-dir&gt;/lib/dist/db/index.js</code> with
+SHA-256. PASS requires <code>patched_dbjs_sha256</code> equal to that
+hash, <code>codegraph_version</code> equal to
+<code>&lt;stock-version&gt;</code>, and a non-empty
+<code>patch_id</code>. Output:
+<code>RECEIPT PASS|FAIL patch_id=... receipt_version=... stock_version=... sha_match=...</code>.</p>
+<h2 id="inputs">Inputs</h2>
+<p><code>/proc/&lt;pid&gt;/cmdline</code> and
+<code>/proc/&lt;pid&gt;/cwd</code> (lines 64, 92); the project&#39;s
+<code>.codegraph/codegraph.db</code> opened read-only with a 10 s
+connect timeout and <code>busy_timeout=10000</code> (lines 149-150); the
+baseline file; the runner directory; environment variable
+<code>CG_SAFE_PENDING_PROBE_BUDGET_S</code> (line 210).</p>
+<h2 id="outputs-and-exit-codes">Outputs and exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Sub-command</th>
+<th>0</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>identity</code></td>
+<td>codegraph process</td>
+<td>alive but not codegraph</td>
+<td>no such process, or usage</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>scan</code></td>
+<td>no conflicting process</td>
+<td>conflict</td>
+<td>usage</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>dbinfo</code></td>
+<td>always (given one argument)</td>
+<td>-</td>
+<td>usage</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>pending</code></td>
+<td>below threshold</td>
+<td>at or above threshold (inclusive)</td>
+<td>usage / bad threshold</td>
+<td>UNKNOWN (no DB, missing table or index, over budget, SQL error)</td>
+</tr>
+<tr>
+<td><code>verify</code></td>
+<td>all checks pass</td>
+<td>any check fails</td>
+<td>usage / bad option value</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>scope</code></td>
+<td>PASS</td>
+<td>FAIL, BLIND, unreadable baseline or files table</td>
+<td>usage / unknown matcher</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>receipt</code></td>
+<td>PASS</td>
+<td>FAIL or unreadable</td>
+<td>usage</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p><code>main()</code> turns an uncaught <code>ValueError</code> into
+<code>ERROR &lt;message&gt;</code> and exit 2 (lines 438-442).
+<code>verify</code> prints its check lines as it goes, so a bad numeric
+option value can produce partial output followed by
+<code>ERROR ...</code>.</p>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><code>pending &lt;project&gt; --threshold</code> with no value
+silently uses the default 150000, because <code>opt()</code> returns
+<code>None</code> when the value is missing or empty (lines 252-257,
+229-231). A non-integer value (for example <code>3.5</code>) exits
+2.</li>
+<li><code>scope</code> counts are the SUM over a class&#39;s patterns (line
+398), so a path matched by two patterns of one class is counted twice.
+The <code>kind</code> (<code>secret</code>/<code>exclude</code>) is
+printed but does not change the verdict.</li>
+<li>An unknown matcher name in the baseline is not rejected at load time
+(only the <code>:</code> is checked, lines 326-327); it raises when
+first used and the run ends
+<code>ERROR unknown matcher &#39;&lt;name&gt;&#39;</code>, exit 2.</li>
+<li><code>scope</code> with no database, an empty <code>files</code>
+table, or no row that resolves to a file on disk reports
+<code>BLIND</code> (exit 1): an empty scan proves nothing (lines
+368-381).</li>
+<li><code>receipt</code>: a <code>RUNNER_RECEIPT.json</code> that parses
+but is not a JSON object is outside the <code>except</code> on line 420;
+it ended with an uncaught <code>AttributeError</code> traceback and exit
+1 in the run below.</li>
+<li><code>scan writer</code> treats a <code>serve</code> process as a
+conflict; <code>scan reader</code> does not (lines 58-59).</li>
+</ul>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<p><code>open_ro()</code> returns <code>None</code> when the DB file
+does not exist (lines 147-148). <code>db_facts()</code> is shared by
+<code>dbinfo</code>, <code>verify</code>. <code>pending_probe()</code>
+returns <code>(count, None)</code> or <code>(None, reason)</code> and
+never guesses a count (lines 194-222). <code>related()</code>,
+<code>match()</code> and <code>codegraph_identity()</code> are pure
+helpers. Nothing in the file writes to disk or to a database.</p>
+<h2 id="related">Related</h2>
+<table>
+<thead>
+<tr>
+<th>Guide / file</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="codegraph_safe.md">codegraph_safe</a></td>
+<td>The launcher that calls every sub-command</td>
+</tr>
+<tr>
+<td><a href="codegraph_guard.md">codegraph_guard</a></td>
+<td>Static gate protecting the launcher as the only writer entry</td>
+</tr>
+<tr>
+<td><a href="owed_report.md">owed_report</a></td>
+<td>Reports whether this tool has tests and a guide</td>
+</tr>
+<tr>
+<td><code>scope_baseline.txt</code></td>
+<td>Baseline file consumed by <code>scope</code> (header
+cross-refs)</td>
+</tr>
+<tr>
+<td><code>tests/test_unit_safe.sh</code></td>
+<td>Launcher unit tests (stub binaries) named in the header
+cross-refs</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-24T19:12:21Z — ran every sub-command from
+<code>scripts/codegraph</code> against a throwaway fixture in a scratch
+directory (a small SQLite DB with <code>files</code>,
+<code>nodes</code>, <code>project_metadata</code>,
+<code>unresolved_refs</code>; a runner directory with a receipt; a
+stand-in process started with
+<code>exec -a node python3 -c ... /x/lib/dist/bin/codegraph.js index &lt;dir&gt;</code>).
+No CodeGraph binary and no live index was touched.</p>
+<ul>
+<li><code>dbinfo</code>:
+<code>{&quot;accounted&quot;: &quot;2&quot;, &quot;error&quot;: null, &quot;exists&quot;: true, &quot;files&quot;: 2, &quot;nodes_present&quot;: true, &quot;stamp_extraction&quot;: null, &quot;stamp_version&quot;: null, &quot;state&quot;: &quot;complete&quot;}</code>,
+exit 0.</li>
+<li><code>pending --threshold 3</code> with 3 pending rows:
+<code>verdict=AT_OR_ABOVE counted=3</code>, exit 1;
+<code>--threshold 4</code>: <code>BELOW</code>, exit 0; no DB:
+<code>UNKNOWN ... reason=no database</code>, exit 3;
+<code>--threshold 0</code>: exit 2; no value: default 150000, exit
+0.</li>
+<li><code>verify</code> with 0 pending: exit 0; with 3 pending or
+<code>--reported 5</code>: FAIL, exit 1; no DB: 4 FAIL lines, exit 1;
+<code>--reported abc</code>:
+<code>ERROR invalid literal for int()...</code>, exit 2.</li>
+<li><code>scope</code>: <code>SCOPE_NEEDLE ... -&gt; SEEING</code>, both
+classes <code>count=0 PASS</code>, exit 0; <code>segglob:src*</code>
+class: <code>count=2 FAIL</code> plus two <code>SCOPE_HIT</code> lines,
+exit 1; missing baseline / empty files table: exit 1;
+<code>weird:foo</code> matcher: exit 2.</li>
+<li><code>receipt</code>: matching version and hash:
+<code>RECEIPT PASS</code>, exit 0; wrong stock version, tampered
+<code>index.js</code>, missing receipt: exit 1; receipt file
+<code>[]</code>: <code>AttributeError</code> traceback, exit 1.</li>
+<li><code>identity</code> on the stand-in:
+<code>OK index &lt;dir&gt;</code>, exit 0; on the invoking shell:
+<code>not-node</code>, exit 1; PID 999999: <code>gone</code>, exit 2;
+PID 1: exit 2.</li>
+<li><code>scan writer</code> and <code>scan reader</code> while the
+<code>index</code> stand-in ran: one
+<code>LIVE pid=... op=index root=...</code> line, exit 1; a different
+project: exit 0; after the stand-in was killed: exit 0. With a
+<code>serve</code> stand-in (<code>identity</code> gave
+<code>OK serve &lt;cwd&gt;</code>), <code>scan reader</code> and
+<code>scan writer</code> on an unrelated project both exited 0 (so this
+run does not show the reader-vs-serve distinction; that comes from lines
+58-59 and 125).</li>
+<li>No arguments, unknown sub-command, <code>scan ... both</code>: exit
+2.</li>
+</ul>
+<p>UNCONFIRMED: <code>tests/test_unit_safe.sh</code> was not run for
+this guide.</p>
+</body>
+</html>

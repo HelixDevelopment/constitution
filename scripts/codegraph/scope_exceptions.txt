@@ -1,0 +1,56 @@
+# scope_exceptions.txt — narrow, per-EXACT-path exceptions for codegraph_safe_helper.py's
+# post-index scope audit (`cmd_scope`, invoked by `codegraph_safe.sh verify`).
+#
+# Format:  <class> <exact-project-relative-path>   # <justification>
+#   - <class> MUST be one of ALLOWED_EXCEPTION_CLASSES in codegraph_safe_helper.py
+#     (currently: secret_named, secrets_dir). Any other class is a hard error —
+#     credential-CONTENT classes (env_file/keystore/signing_key/service_account,
+#     §11.4.10) admit NO exceptions, ever.
+#   - <path> MUST be an EXACT project-relative path — never a glob/pattern. A typo
+#     simply never matches anything and the underlying SCOPE_CLASS FAIL persists
+#     (fail-closed): this file can only narrow an ALREADY-VERIFIED hit, never widen
+#     what the baseline patterns themselves catch.
+#   - Every entry below was content-inspected (not just name-inspected) before being
+#     added, and carries a one-line reason. Adding an entry without that inspection
+#     is a §11.4.6 violation (no-guessing) at the security-hygiene layer.
+#
+# Context (§11.4.201 / §11.4.273): the `secret_named` (segglob:*secret*) and
+# `secrets_dir` (dir:secrets) baseline classes in scope_baseline.txt are
+# deliberately broad path-substring heuristics — a defense-in-depth net, INDEPENDENT
+# of and stricter than the actual CodeGraph indexing exclude config
+# (.codegraph/config.json only excludes literal `secrets/**` directories, not any
+# path merely containing the substring "secret"). Broad-by-design means broad
+# false-positive rate on a large, real-world codebase: this repo ships AOSP/Google
+# source that legitimately implements or discusses the CONCEPT of a "shared secret"
+# (crypto HAL protocols, a Secret-Manager API schema) or that SCANS FOR secrets
+# (this project's own credential-scanning tooling) — none of which is a credential
+# leak. Loosening the glob itself was rejected: it would also narrow detection of a
+# genuinely new secret-shaped file. A narrow, human/agent-verified, exact-path
+# allowlist is the sanctioned pattern this project already uses for the identical
+# problem class elsewhere (the pre-commit credential scanner's docs/accesses/
+# accounts.* + .env-class allowlist).
+#
+# Cross-refs: codegraph_safe_helper.py (load_exceptions/cmd_scope),
+# constitution/scripts/codegraph/scope_baseline.txt, docs/scripts/codegraph_safe.md,
+# constitution §11.4.10 / §11.4.78 / §11.4.201 / §11.4.273.
+
+# --- secret_named (segglob:*secret*) ---------------------------------------------
+secret_named  constitution/submodules/watch-skill/scripts/secret_scan.py            # a secret-SCANNING tool, not a secret; content-verified: module docstring describes scanning the repo for leaked credentials
+secret_named  constitution/submodules/watch-skill/tests/test_secret_scan.py         # unit tests for the above scanner; no credential material
+secret_named  device/google/cuttlefish/guest/hals/keymint/remote/remote_shared_secret.h    # Apache-2.0 AOSP KeyMint HAL header implementing the ISharedSecret crypto protocol; a protocol NAME, not a leaked value
+secret_named  device/google/cuttlefish/guest/hals/keymint/remote/remote_shared_secret.cpp  # Apache-2.0 AOSP KeyMint HAL implementation of the same protocol; content-verified, no embedded credential
+secret_named  device/google/cuttlefish/guest/hals/keymint/remote/android.hardware.security.sharedsecret-service.remote.xml  # AOSP HAL manifest (XML) declaring the ISharedSecret AIDL interface; no credential value
+secret_named  hardware/rockchip/keymaster4/android.hardware.security.sharedsecret-service.optee.xml  # sibling AOSP HAL manifest (OP-TEE variant) for the same ISharedSecret interface; no credential value
+secret_named  device/google/cuttlefish/guest/hals/keymint/rust/android.hardware.security.sharedsecret-service.rust.xml  # sibling AOSP HAL manifest (Rust variant) for the same ISharedSecret interface; no credential value
+secret_named  device/google/cuttlefish/guest/hals/keymint/rust/android.hardware.security.sharedsecret-service.trusty.system.xml  # sibling AOSP HAL manifest (Trusty variant) for the same ISharedSecret interface; no credential value
+secret_named  external/autotest/utils/frozen_chromite/third_party/oauth2client/clientsecrets.py  # Apache-2.0 Google oauth2client library module implementing client_secrets.json LOADING logic; no embedded credential value
+secret_named  external/aws-sdk-java-v2/services/secretsmanager/pom.xml  # Apache-2.0 AWS SDK build manifest (Maven POM) for the AWS Secrets Manager SDK client module; no credential value
+secret_named  external/federated-compute/fcp/secagg/server/secret_sharing_complete_graph.h  # Apache-2.0 Google federated-compute header implementing Shamir-style secret-SHARING cryptography (a technique name), not a leaked value
+
+# --- secrets_dir (dir:secrets) ----------------------------------------------------
+# NOTE: this file also has "secret" in its OWN basename (secretmanager_v1beta1.yaml),
+# so it trips secret_named TOO — both entries are required (test_09b in
+# tests/test_scope_exceptions.py proves a single-class exception is insufficient
+# for a path that hits more than one class).
+secret_named  external/googleapis/google/cloud/secrets/v1beta1/secretmanager_v1beta1.yaml  # Google's PUBLIC Secret Manager API service schema (proto/service definition); no credential value — basename half of the same file as the secrets_dir entry below
+secrets_dir   external/googleapis/google/cloud/secrets/v1beta1/secretmanager_v1beta1.yaml  # Google's PUBLIC Secret Manager API service schema (proto/service definition); no credential value, it is the API's own published contract
