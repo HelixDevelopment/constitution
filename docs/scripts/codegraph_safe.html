@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>codegraph_safe.sh — Companion Guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="codegraph_safesh--companion-guide">codegraph_safe.sh — Companion
+Guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-24T12:00:53Z</p>
+<p>Source: <code>constitution/scripts/codegraph/codegraph_safe.sh</code>
+(561 lines). Every statement below cites
+<code>codegraph_safe.sh:&lt;line&gt;</code>.</p>
+<h2 id="overview">Overview</h2>
+<p><code>codegraph_safe.sh</code> is the ONLY sanctioned entry point for
+CodeGraph <code>init</code>, <code>index</code> and <code>sync</code>
+(line 3). It exists to make the failure modes of the 2026-09-23
+bulk-window incident impossible by construction (lines 5-32):</p>
+<ol type="1">
+<li>Stock <code>init</code>/<code>index</code> on a fresh DB drops the
+FK child-key indexes during the bulk window, so
+<code>INSERT OR REPLACE</code> cascades full-scan very large tables.
+Bulk ops run ONLY through the patched runner derived by
+<code>fk_index_patch.py</code>, or through stock AFTER
+<code>fk_cascade_probe.py</code> proves stock safe. A refused runner is
+NEVER silently replaced by stock (lines 7-11, 411-437).</li>
+<li><code>codegraph … || true</code> masking — every failure is a
+non-zero exit (line 12).</li>
+<li>A stall that looks alive — <code>index_watch.py</code> proves
+progress; a STALL is exit 7 (lines 13-14, 174-177).</li>
+<li>Unbounded DB growth — <code>disk_tripwire.sh</code> SIGSTOPs the
+indexer below <code>--tripwire-min-gib</code> (exit 8), plus a host
+preflight (lines 15-16, 170-173, 297-329).</li>
+<li>The fix vanishing after an upgrade — the runner is re-derived per
+stock version and its receipt/version checked on every bulk run (lines
+17-18, 424-428).</li>
+<li>The v1.6.0 stale-lock behaviour (a lock older than 2 minutes deleted
+regardless of holder liveness) — this wrapper checks the lock holder&#39;s
+real <code>/proc</code> argv and refuses while it lives, whatever the
+lock&#39;s age (lines 19-22, 331-378).</li>
+<li><code>sync</code> on any populated DB used to run stock + foreground
+with no patches, watcher or tripwire. <code>sync</code> is now
+classified BULK vs INCREMENTAL by the pending-refs backlog (lines 23-32,
+467-487).</li>
+</ol>
+<p><strong>Hard rule:</strong> never run a writer against a project root
+whose lock holder is alive. The script enforces this itself (exit 3),
+but equally never run stock
+<code>codegraph init|index|sync|serve|unlock</code> by hand on such a
+root — that bypasses every check below. <code>codegraph_guard.sh</code>
+refuses tracked scripts that do so.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>bash</code>, <code>flock</code>, <code>setsid</code>,
+<code>nohup</code>, <code>df</code>, <code>python3</code> (line
+102).</li>
+<li>Siblings in the same directory:
+<code>codegraph_safe_helper.py</code>, <code>index_watch.py</code>,
+<code>disk_tripwire.sh</code>, <code>fk_index_patch.py</code>,
+<code>fk_cascade_probe.py</code> (lines 102-103, 112-116).</li>
+<li>A stock CodeGraph CLI on <code>PATH</code> or in
+<code>CODEGRAPH_BIN</code> (line 117).</li>
+<li>For bulk ops: host headroom as measured by <code>preflight</code>
+(see below).</li>
+</ul>
+<h2 id="usage-examples">Usage examples</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Host check only (no DB touched)</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe.sh</span> <span class="at">--project</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span> preflight</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># First full index, detached, return immediately</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe.sh</span> <span class="at">--project</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span> index</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Same, block until the detached run finishes; exit = run result</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe.sh</span> <span class="at">--project</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span> --wait <span class="at">--poll-s</span> 30 index</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Sync; classification decided by the pending-refs backlog</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe.sh</span> <span class="at">--project</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span> sync</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Force the supervised bulk path for sync</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe.sh</span> <span class="at">--project</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span> --bulk sync</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Read-only checks</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe.sh</span> <span class="at">--project</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span> status</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe.sh</span> <span class="at">--project</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span> --expected-count 580000 <span class="at">--tolerance-pct</span> 2 verify</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove a lock whose holder is provably dead (decision logged)</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe.sh</span> <span class="at">--project</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span> --reap-dead-lock unlock</span></code></pre></div>
+<h2 id="operations-lines-34-36-440-561">Operations (lines 34-36,
+440-561)</h2>
+<p>Exactly one op is allowed (line 262); missing or unknown op → exit 2
+(lines 265-266).</p>
+<table>
+<thead>
+<tr>
+<th>Op</th>
+<th>Kind</th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init</code></td>
+<td>writer</td>
+<td>Always bulk. Runner args <code>init -y -v &lt;P&gt;</code> (line
+515).</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td>writer</td>
+<td>Always bulk. Runner args <code>index -v &lt;P&gt;</code> (line
+516).</td>
+</tr>
+<tr>
+<td><code>sync</code></td>
+<td>writer</td>
+<td>BULK or INCREMENTAL, see classification. Bulk runner args
+<code>sync &lt;P&gt;</code> (line 517).</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>reader</td>
+<td><code>lock_check reader</code>, <code>/proc</code> scan (3 tries),
+then stock <code>status &lt;P&gt;</code>; non-zero stock exit → 1 (lines
+449-454).</td>
+</tr>
+<tr>
+<td><code>verify</code></td>
+<td>reader</td>
+<td><code>lock_check reader</code>, scan, then <code>verify_now</code>
+(helper <code>verify</code> + <code>scope</code>) →
+<code>VERDICT PASS</code> 0 / <code>VERDICT FAIL</code> 1 (lines
+455-459, 398-407).</td>
+</tr>
+<tr>
+<td><code>preflight</code></td>
+<td>other</td>
+<td>Prints measurements; <code>PREFLIGHT PASS</code> 0 or exit 6 (lines
+442-444).</td>
+</tr>
+<tr>
+<td><code>unlock</code></td>
+<td>other</td>
+<td>Takes the wrapper flock, runs <code>lock_check unlock</code> (writer
+rules); exit 0 when no stale lock remains (lines 445-448).</td>
+</tr>
+</tbody>
+</table>
+<p>Writers first take the wrapper flock, then
+<code>lock_check writer</code>, then the <code>/proc</code> scan (lines
+462-464).</p>
+<h2 id="options-lines-37-66-238-282">Options (lines 37-66, 238-282)</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Validation / notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--project DIR</code></td>
+<td>git toplevel of <code>$PWD</code>, else <code>$PWD</code> (lines
+284-286)</td>
+<td>must exist (line 287); path containing whitespace → exit 2 for bulk
+ops (line 519)</td>
+</tr>
+<tr>
+<td><code>--bulk</code></td>
+<td>off</td>
+<td>writer ops only, else exit 2 (lines 277-279); only changes behaviour
+for <code>sync</code></td>
+</tr>
+<tr>
+<td><code>--pending-threshold N</code></td>
+<td><code>$CG_SAFE_PENDING_BULK_MIN</code>, else <code>150000</code>
+(line 240)</td>
+<td>integer ≥ 1 (lines 271-272)</td>
+</tr>
+<tr>
+<td><code>--patches IDS</code></td>
+<td><code>$CG_SAFE_PATCHES</code>, else <code>fkidx1,resolve1</code>
+(line 240)</td>
+<td><code>all</code> or comma list <code>[a-z0-9]</code>, no
+leading/trailing/double commas (lines 273-276)</td>
+</tr>
+<tr>
+<td><code>--wait</code></td>
+<td>off</td>
+<td>block until the detached bulk run writes its result (lines
+543-561)</td>
+</tr>
+<tr>
+<td><code>--poll-s N</code></td>
+<td>10</td>
+<td>integer (lines 267-269)</td>
+</tr>
+<tr>
+<td><code>--watch-interval N</code></td>
+<td>60</td>
+<td>integer; passed to <code>index_watch.py</code></td>
+</tr>
+<tr>
+<td><code>--stall-min M</code></td>
+<td>10</td>
+<td>number, decimals allowed (line 270)</td>
+</tr>
+<tr>
+<td><code>--tripwire-min-gib N</code></td>
+<td>20</td>
+<td>integer in <code>[5,500]</code> (line 280)</td>
+</tr>
+<tr>
+<td><code>--tripwire-interval N</code></td>
+<td>30</td>
+<td>integer</td>
+</tr>
+<tr>
+<td><code>--reap-dead-lock</code></td>
+<td>off</td>
+<td>allow removal of a provably dead lock</td>
+</tr>
+<tr>
+<td><code>--expected-count N</code></td>
+<td>—</td>
+<td>integer (line 281); with <code>--tolerance-pct P</code> (number,
+line 282; default 0 when only N given, line 294)</td>
+</tr>
+<tr>
+<td><code>--status-doc FILE</code></td>
+<td><code>&lt;P&gt;/docs/codegraph/Status.md</code> (line 292)</td>
+<td>absent file → ledger SKIP, run not failed (lines 221-224)</td>
+</tr>
+<tr>
+<td><code>--scope-baseline FILE</code></td>
+<td><code>scope_baseline.txt</code> beside the script (line 241)</td>
+<td>passed to helper <code>scope</code></td>
+</tr>
+<tr>
+<td><code>--scope-exceptions FILE</code></td>
+<td><code>scope_exceptions.txt</code> beside the script</td>
+<td>narrow per-exact-path exceptions for the
+<code>secret_named</code>/<code>secrets_dir</code> heuristic classes
+ONLY (never the credential-CONTENT classes); passed as helper
+<code>scope</code>&#39;s optional 3rd argument at every call-site, including
+inside <code>supervise()</code> via env
+<code>CG_SV_SCOPE_EXCEPTIONS</code>; absent file ⇒ no exceptions
+(unchanged, strictest posture). See
+<code>docs/scripts/codegraph_safe_helper.md</code>&#39;s
+<code>### scope</code> section for the full mechanism.</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>—</td>
+<td>prints the header, exit 0 (line 260)</td>
+</tr>
+</tbody>
+</table>
+<p>Any other <code>-…</code> option → exit 2 (line 261). An option
+missing its value → exit 2 (<code>need</code>, line 242).</p>
+<h3 id="patch-set-lines-60-65">Patch set (lines 60-65)</h3>
+<p>Only <code>fkidx1</code> and <code>resolve1</code> have tests;
+<code>lockfix1</code> and <code>datafrag1</code> have none and are
+opt-in via <code>--patches</code> / <code>CG_SAFE_PATCHES</code>.
+<code>fkidx1</code> must be in the set — the receipt gate requires it,
+else exit 5 (lines 45-46). The default runner key is
+<code>&lt;version&gt;-fkidx1-resolve1</code>.</p>
+<p>UNCONFIRMED: the receipt check itself
+(<code>python3 codegraph_safe_helper.py receipt</code>, line 425) was
+not read; the fkidx1 requirement is stated in the header only.</p>
+<h3 id="environment-lines-66-76">Environment (lines 66-76)</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CODEGRAPH_BIN</code></td>
+<td><code>codegraph</code></td>
+<td>stock CLI (line 117)</td>
+</tr>
+<tr>
+<td><code>CG_SAFE_PENDING_BULK_MIN</code></td>
+<td>150000</td>
+<td>default sync BULK threshold</td>
+</tr>
+<tr>
+<td><code>CG_SAFE_PATCHES</code></td>
+<td><code>fkidx1,resolve1</code></td>
+<td>default <code>--patches</code></td>
+</tr>
+<tr>
+<td><code>CG_SAFE_PENDING_PROBE_BUDGET_S</code></td>
+<td>30</td>
+<td>wall-clock budget of the pending probe (UNCONFIRMED: consumed inside
+the helper; not referenced in this script&#39;s code)</td>
+</tr>
+<tr>
+<td><code>CG_SAFE_PATCH_TOOL</code> /
+<code>CG_SAFE_PROBE_TOOL</code></td>
+<td>sibling <code>fk_index_patch.py</code> /
+<code>fk_cascade_probe.py</code></td>
+<td>lines 115-116</td>
+</tr>
+<tr>
+<td><code>CG_SAFE_MIN_THREAD_HEADROOM</code></td>
+<td>1024</td>
+<td>preflight thread headroom (line 322)</td>
+</tr>
+<tr>
+<td><code>CG_SAFE_TEST_FREE_BYTES</code></td>
+<td>—</td>
+<td>TEST-ONLY, can only lower free bytes (line 303)</td>
+</tr>
+<tr>
+<td><code>CG_SAFE_TEST_MEMAVAIL_KB</code></td>
+<td>—</td>
+<td>TEST-ONLY, can only lower MemAvailable (line 314)</td>
+</tr>
+<tr>
+<td><code>CG_SAFE_TEST_THREADS_USED</code></td>
+<td>—</td>
+<td>TEST-ONLY, can only raise threads used (line 320)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="sync-classification-bulk-vs-incremental-lines-467-487">Sync
+classification: BULK vs INCREMENTAL (lines 467-487)</h2>
+<p><code>BULK=1</code> by default (line 471). For <code>sync</code>:</p>
+<ol type="1">
+<li><code>--bulk</code> given → BULK
+(<code>reason=--bulk requested</code>, line 474).</li>
+<li>Else helper <code>dbinfo</code> must report the DB exists, nodes
+present, no error (lines 476-477). If not → BULK
+(<code>reason=database missing, empty or unreadable</code>, line
+485).</li>
+<li>Else helper <code>pending &lt;P&gt; --threshold N</code> (line 478):
+<ul>
+<li>exit 0 → INCREMENTAL (<code>pending&lt;threshold</code>, line
+480);</li>
+<li>exit 1 → BULK (<code>pending&gt;=threshold</code>, line 481);</li>
+<li>any other exit → BULK (<code>pending-probe UNKNOWN</code>, line
+482). UNKNOWN is never read as &quot;small&quot;.</li>
+</ul></li>
+</ol>
+<p>Every sync prints
+<code>sync classification: BULK|INCREMENTAL (reason=…)</code>. The
+header states the pending probe is bounded (an index range read of at
+most threshold+1 entries, never <code>COUNT(*)</code>, lines 29-31);
+UNCONFIRMED from this file — implemented in
+<code>codegraph_safe_helper.py</code>.</p>
+<p><strong>INCREMENTAL path</strong> (lines 489-503): stock
+<code>sync &lt;P&gt;</code> in the foreground under the held flock,
+output to <code>index_runs/sync_&lt;UTC&gt;.log</code>, last 5 lines
+echoed. Non-zero → exit 1. Then helper <code>verify</code> +
+<code>scope</code>; ledger entry; <code>VERDICT PASS</code> 0 /
+<code>VERDICT FAIL</code> 1. No preflight, no watcher, no tripwire.</p>
+<h2 id="bulk-path-lines-505-561">Bulk path (lines 505-561)</h2>
+<ol type="1">
+<li><code>preflight</code> — FAIL → exit 6 (lines 505-507).</li>
+<li><code>resolve_runner</code> (lines 411-437): read stock
+<code>--version</code> (none → 5); run the patch tool with
+<code>--patches &lt;IDS&gt; --print-bin</code> (or
+<code>--print-bin</code> for <code>all</code>):
+<ul>
+<li>exit 0 → runner path must be executable, its parent dir must hold a
+valid <code>RUNNER_RECEIPT.json</code> for the stock version, and the
+runner&#39;s <code>--version</code> must equal stock&#39;s; any mismatch →
+5;</li>
+<li>exit 2 → 5 (stock is FORBIDDEN as fallback);</li>
+<li>exit 3 (patch not needed) →
+<code>fk_cascade_probe.py --work-dir index_runs/probe --json-out index_runs/probe_verdict.json</code>
+must exit 0, then the runner is stock; otherwise 5;</li>
+<li>any other exit → 5.</li>
+</ul></li>
+<li>Launch detached:
+<code>setsid nohup bash &lt;self&gt; __supervise</code> with state in
+<code>CG_SV_*</code> environment variables (lines 525-529). The caller
+waits up to 600 × 0.1 s for the indexer to be identified (lines
+533-541).</li>
+<li>Without <code>--wait</code>: exit 0 after launch (lines 543-546).
+With <code>--wait</code>: poll every <code>--poll-s</code> seconds until
+<code>run_&lt;id&gt;.result</code> exists; exit with the
+<code>EXIT=</code> code it records (lines 547-561).</li>
+</ol>
+<h3 id="supervisor-lines-134-201">Supervisor (lines 134-201)</h3>
+<ul>
+<li>Starts the runner with the op args, logs to
+<code>index_&lt;UTC&gt;.log</code>, records PIDs.</li>
+<li>Waits up to 300 × 0.1 s for <code>.codegraph/codegraph.lock</code>
+to name a PID whose identity check passes; that PID (else the launched
+PID) is the indexer (lines 145-157).</li>
+<li>Arms <code>index_watch.py</code> and <code>disk_tripwire.sh</code>
+on the identified indexer (lines 158-163); if none identified, logs a
+WARN and arms neither (line 165).</li>
+<li>While the indexer runs: a
+<code>tripwire_&lt;id&gt;.log.TRIPPED</code> marker → result 8; a last
+watcher line containing <code> STALL_</code> → result 7, indexer left
+running for inspection (lines 167-179).</li>
+<li>On exit: helper <code>verify</code> (with the reported
+<code>Indexed N files</code> count and stock <code>status</code> Files
+count) + helper <code>scope</code>; any non-zero among indexer, verify,
+scope → result 1; ledger append; result written atomically via
+<code>.tmp</code> + <code>mv</code> (lines 180-206).</li>
+</ul>
+<h2 id="preflight-thresholds-lines-297-329">Preflight thresholds (lines
+297-329)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Pass condition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Disk</td>
+<td>free on <code>.codegraph</code> (else project) ≥ max(60 GiB, 2 × (db
++ wal bytes))</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td><code>MemAvailable</code> ≥ 32 GiB</td>
+</tr>
+<tr>
+<td>Threads</td>
+<td><code>ulimit -u</code> − threads used by this uid ≥ 1024 (skipped
+when unlimited)</td>
+</tr>
+</tbody>
+</table>
+<p>Unreadable <code>df</code> or <code>MemAvailable</code> → FAIL (lines
+301, 313).</p>
+<h2 id="lock-handling-lines-331-396">Lock handling (lines 331-396)</h2>
+<ul>
+<li>No lock file → proceed (line 334).</li>
+<li>Numeric PID &gt; 1 whose helper <code>identity</code> begins
+<code>OK</code>:
+<ul>
+<li>reader op → continue, unless the holder&#39;s op is
+<code>init|index|sync</code> → 3 (lines 345-349);</li>
+<li>writer / unlock → 3, &quot;whatever the lock&#39;s age, it is NOT stale&quot;
+(line 351).</li>
+</ul></li>
+<li>Holder dead, non-numeric content, PID ≤ 1, or
+alive-but-not-codegraph → stale. Reader: WARN and continue (lines
+357-360). Writer without <code>--reap-dead-lock</code> → 4 (line 363).
+With it: re-check immediately before removal (live → 3), then remove and
+append a <code>REAPED</code> line to
+<code>index_runs/lock_reap.log</code> (lines 365-377).</li>
+<li><code>/proc</code> scan via helper <code>scan</code> (writer 1 try,
+reader 3 tries 0.5 s apart) → 3 on a live writer (lines 380-390).</li>
+<li>Wrapper flock <code>.codegraph/.helix_index.flock</code> taken
+non-blocking; held by another launcher → 3; cannot open → 2 (lines
+392-396).</li>
+</ul>
+<h2 id="exit-codes-header-lines-83-96-verified-against-code">Exit codes
+(header lines 83-96, verified against code)</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Success / verified / detached launch without <code>--wait</code> /
+<code>--help</code></td>
+<td>260, 443, 448, 454, 458, 499, 545</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Indexer failed, verification FAILED, stock status failed, supervisor
+ended without result, unreadable result</td>
+<td>453, 459, 496, 502, 554, 560; result 1 at 186-188</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Usage error / unknown op / bad option / flock file unopenable /
+whitespace path</td>
+<td>242-287, 394, 519</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Live writer (lock holder or <code>/proc</code> scan) or wrapper
+flock held</td>
+<td>348, 351, 369, 387, 395</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Stale lock present, not reaped</td>
+<td>363</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Safe runner unavailable — stock NEVER used as fallback</td>
+<td>415, 423, 426, 428, 430, 433, 436</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Host preflight failed</td>
+<td>444, 507</td>
+</tr>
+<tr>
+<td>7</td>
+<td>STALL detected (via <code>--wait</code>)</td>
+<td>result written at 175</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Disk tripwire tripped (via <code>--wait</code>)</td>
+<td>result written at 171</td>
+</tr>
+</tbody>
+</table>
+<p>Codes 7 and 8 (and a bulk-run 1) reach the caller only through
+<code>--wait</code>, which exits with the recorded <code>EXIT=</code>
+value (line 561).</p>
+<h2 id="files-written-under-pcodegraphindex_runs">Files written under
+<code>&lt;P&gt;/.codegraph/index_runs/</code></h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Written by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>index_&lt;UTC&gt;.log</code></td>
+<td>bulk runner output (line 522)</td>
+</tr>
+<tr>
+<td><code>sync_&lt;UTC&gt;.log</code></td>
+<td>incremental sync output (line 492) — not listed in the header</td>
+</tr>
+<tr>
+<td><code>run_&lt;id&gt;.pids</code></td>
+<td><code>supervisor=</code>, <code>indexer_launch=</code>,
+<code>indexer=</code>, <code>watcher=</code>, <code>tripwire=</code>
+(lines 139-163, 524)</td>
+</tr>
+<tr>
+<td><code>run_&lt;id&gt;.result</code></td>
+<td><code>EXIT=&lt;n&gt;</code> + summary, atomic (lines 203-206)</td>
+</tr>
+<tr>
+<td><code>watch_&lt;id&gt;.log</code></td>
+<td><code>index_watch.py</code> output (line 159)</td>
+</tr>
+<tr>
+<td><code>tripwire_&lt;id&gt;.log</code> (+ <code>.TRIPPED</code>)</td>
+<td><code>disk_tripwire.sh</code> (line 161)</td>
+</tr>
+<tr>
+<td><code>supervisor_&lt;id&gt;.log</code></td>
+<td>detached supervisor stdout/stderr (line 529)</td>
+</tr>
+<tr>
+<td><code>lock_reap.log</code></td>
+<td>reaped-lock decisions (line 375)</td>
+</tr>
+<tr>
+<td><code>probe/</code>, <code>probe_verdict.json</code></td>
+<td>only when the patch tool says NOT_NEEDED (line 432)</td>
+</tr>
+</tbody>
+</table>
+<p><code>&lt;id&gt;</code> is <code>&lt;UTC&gt;_&lt;pid&gt;</code> (line
+521). <code>watch_state.json</code> is deleted before each bulk launch
+(line 523). Also created:
+<code>&lt;P&gt;/.codegraph/.helix_index.flock</code> (line 394).</p>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><code>--bulk</code> with <code>init</code>/<code>index</code> is
+accepted and changes nothing (always bulk).</li>
+<li><code>unlock</code> with a stale lock and no
+<code>--reap-dead-lock</code> → exit 4.</li>
+<li>A missing Status doc is not a failure: <code>LEDGER: SKIP</code>
+(line 222).</li>
+<li>If no indexer identity is observed within 30 s, the run continues
+with no watcher and no tripwire (line 165).</li>
+</ul>
+<h2 id="related-scripts">Related scripts</h2>
+<table>
+<thead>
+<tr>
+<th>Guide</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="codegraph_safe_helper.md">codegraph_safe_helper</a></td>
+<td><code>identity</code>, <code>scan</code>, <code>dbinfo</code>,
+<code>pending</code>, <code>verify</code>, <code>scope</code>,
+<code>receipt</code> subcommands</td>
+</tr>
+<tr>
+<td><a href="disk_tripwire.md">disk_tripwire</a></td>
+<td>Free-space watcher armed by the supervisor</td>
+</tr>
+<tr>
+<td><a href="index_watch.md">index_watch</a></td>
+<td>Progress-proven stall detector</td>
+</tr>
+<tr>
+<td><a href="fk_index_patch.md">fk_index_patch</a></td>
+<td>Derives the patched runner</td>
+</tr>
+<tr>
+<td><a href="fk_cascade_probe.md">fk_cascade_probe</a></td>
+<td>Proves stock safe when no patch is needed</td>
+</tr>
+<tr>
+<td><a href="codegraph_runner_patches.md">codegraph_runner_patches</a></td>
+<td>Registered runner patches</td>
+</tr>
+<tr>
+<td><a href="codegraph_guard.md">codegraph_guard</a></td>
+<td>Gate that refuses bypasses of this script</td>
+</tr>
+<tr>
+<td><a href="codegraph_scope_guard.md">codegraph_scope_guard</a></td>
+<td>Scope proof</td>
+</tr>
+<tr>
+<td><a href="scope_render.md">scope_render</a></td>
+<td>Scope generator</td>
+</tr>
+<tr>
+<td><a href="codegraph_mcp_probe.md">codegraph_mcp_probe</a></td>
+<td>MCP reachability probe</td>
+</tr>
+<tr>
+<td><a href="lumen_verify.md">lumen_verify</a></td>
+<td>Semantic-index health check</td>
+</tr>
+<tr>
+<td><a href="gen_lumenignore.md">gen_lumenignore</a></td>
+<td>Semantic-index scope generator</td>
+</tr>
+<tr>
+<td><a href="codegraph_lumen_overview.md">codegraph_lumen_overview</a></td>
+<td>Overview</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-24 — read <code>codegraph_safe.sh</code> lines 1-561 in full
+(in slices); <code>bash -n codegraph_safe.sh</code> passed. The script
+was NOT executed (a live indexer holds the project DB). Helper
+subcommand internals were not read.</p>
+</body>
+</html>

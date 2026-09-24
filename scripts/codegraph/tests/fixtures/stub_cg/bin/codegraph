@@ -1,0 +1,5 @@
+#!/bin/sh
+# UNIT-TEST STUB ONLY (§11.4.27). Plays the role of the patched private runner.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+STUB_ROLE=runner; export STUB_ROLE
+exec node "$DIR/lib/dist/bin/codegraph.js" "$@"

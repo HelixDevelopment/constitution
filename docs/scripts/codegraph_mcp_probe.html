@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>codegraph_mcp_probe — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="codegraph_mcp_probe--guide">codegraph_mcp_probe — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-24T19:09:29Z</p>
+<p>Source:
+<code>constitution/scripts/codegraph/codegraph_mcp_probe.py</code> (211
+lines). Citations below are
+<code>codegraph_mcp_probe.py:&lt;line&gt;</code>.</p>
+<h2 id="overview">Overview</h2>
+<p>A minimal, dependency-free MCP client. It starts ONE stdio MCP server
+command, speaks newline-delimited JSON-RPC 2.0 (protocol
+<code>2024-11-05</code>), performs <code>initialize</code>,
+<code>tools/list</code> and N <code>tools/call</code> requests, and
+prints a single JSON report (lines 5-8, 165-179, 204). It exists to
+prove with captured evidence, not by reading configuration, that a
+configured server answers a real query and how it holds the database:
+the access mode of each open <code>codegraph.db</code> descriptor is
+read from <code>/proc</code> (lines 9-13, 72-95).</p>
+<p>The server is launched as
+<code>&lt;--bin&gt; serve --mcp [--extra-arg ...]</code> with the
+working directory set to <code>--project</code> (lines 18, 128-130).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>python3</code>, standard library only (line 35).</li>
+<li>Linux <code>/proc</code> for <code>db_fd_modes</code>,
+<code>rss_kb</code> and <code>threads</code> (lines 75, 101); where
+<code>/proc/&lt;pid&gt;/...</code> is unreadable those fields come back
+empty or <code>null</code> (lines 78-79, 107-108). UNCONFIRMED:
+behaviour on non-Linux hosts was not run.</li>
+<li>A server command that speaks MCP over stdio (default
+<code>codegraph</code>, line 58).</li>
+<li><code>--project</code> must be a FIXTURE or a project the caller has
+verified is safe to open: the server opens that project&#39;s database
+(lines 19-21, 32-33). Never point it at a live index without that
+check.</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_mcp_probe.py</span> <span class="at">--project</span> DIR [--bin CMD] [--env K=V]...</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="ex">[--tool</span> NAME] [--query TEXT] [--expect SUBSTR] [--calls N]</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="ex">[--hold</span> SECONDS] [--timeout SECONDS] [--stderr-file PATH]</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="ex">[--list-only]</span> [--extra-arg ARG]...</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--project DIR</code></td>
+<td>required</td>
+<td>Working directory and <code>rootUri</code> of the server</td>
+<td>lines 57, 114, 130, 164</td>
+</tr>
+<tr>
+<td><code>--bin CMD</code></td>
+<td><code>codegraph</code></td>
+<td>Server executable; run as <code>CMD serve --mcp</code></td>
+<td>lines 58, 128</td>
+</tr>
+<tr>
+<td><code>--env K=V</code></td>
+<td>none</td>
+<td>Extra environment entry, repeatable; merged over the inherited
+environment, later entries win</td>
+<td>lines 59, 116-121</td>
+</tr>
+<tr>
+<td><code>--tool NAME</code></td>
+<td><code>codegraph_search</code></td>
+<td>Tool name for <code>tools/call</code></td>
+<td>line 60</td>
+</tr>
+<tr>
+<td><code>--query TEXT</code></td>
+<td><code>compute_total</code></td>
+<td>Sent as <code>arguments: {&quot;query&quot;: TEXT}</code></td>
+<td>lines 61, 179</td>
+</tr>
+<tr>
+<td><code>--expect SUBSTR</code></td>
+<td>the query text</td>
+<td>Substring that must appear in every answer</td>
+<td>lines 62, 176</td>
+</tr>
+<tr>
+<td><code>--calls N</code></td>
+<td><code>1</code></td>
+<td>Number of <code>tools/call</code> requests</td>
+<td>lines 63, 177</td>
+</tr>
+<tr>
+<td><code>--hold SECONDS</code></td>
+<td><code>0.0</code></td>
+<td>Sleep this long after the probes, before the server is shut
+down</td>
+<td>lines 64, 188-189</td>
+</tr>
+<tr>
+<td><code>--timeout SECONDS</code></td>
+<td><code>90.0</code></td>
+<td>Wait limit for EACH response (initialize, tools/list, every call),
+not a total</td>
+<td>lines 65, 141-160</td>
+</tr>
+<tr>
+<td><code>--stderr-file PATH</code></td>
+<td>temp file</td>
+<td>Where the server&#39;s stderr goes</td>
+<td>lines 66, 122-127</td>
+</tr>
+<tr>
+<td><code>--list-only</code></td>
+<td>off</td>
+<td>Skip <code>tools/call</code>; report <code>initialize</code> +
+<code>tools/list</code> only</td>
+<td>lines 67, 175</td>
+</tr>
+<tr>
+<td><code>--extra-arg ARG</code></td>
+<td>none</td>
+<td>Appended after <code>serve --mcp</code>, repeatable (not in the
+header usage line)</td>
+<td>lines 68, 128</td>
+</tr>
+</tbody>
+</table>
+<p><code>-h</code>/<code>--help</code> is provided by argparse
+(<code>add_help=True</code>, line 56).</p>
+<h2 id="inputs">Inputs</h2>
+<p>Only the flags above; nothing is read from stdin. The environment is
+inherited by the server (line 116).</p>
+<h2 id="outputs">Outputs</h2>
+<p>ONE JSON line on stdout (line 204). Fields (lines 162-187):</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init_ok</code></td>
+<td><code>true</code> when the <code>initialize</code> reply contained
+<code>result</code></td>
+</tr>
+<tr>
+<td><code>server</code></td>
+<td><code>result.serverInfo</code> of the initialize reply</td>
+</tr>
+<tr>
+<td><code>tools</code></td>
+<td>names from <code>tools/list</code></td>
+</tr>
+<tr>
+<td><code>calls</code>, <code>calls_ok</code></td>
+<td>requested vs. answered-as-expected count</td>
+</tr>
+<tr>
+<td><code>last</code></td>
+<td>first 300 characters of the last call&#39;s text (set only if a call
+ran)</td>
+</tr>
+<tr>
+<td><code>pid</code></td>
+<td>server PID</td>
+</tr>
+<tr>
+<td><code>db_fd_modes</code></td>
+<td>sorted list, one entry per open descriptor whose link target ends in
+<code>/codegraph.db</code>: <code>&quot;r&quot;</code> when
+<code>flags &amp; 3 == 0</code> (O_RDONLY), else <code>&quot;rw&quot;</code>
+(lines 85-95)</td>
+</tr>
+<tr>
+<td><code>rss_kb</code>, <code>threads</code></td>
+<td><code>VmRSS</code> and <code>Threads</code> from
+<code>/proc/&lt;pid&gt;/status</code> (lines 98-109)</td>
+</tr>
+<tr>
+<td><code>stderr_path</code></td>
+<td>file holding the server&#39;s stderr</td>
+</tr>
+</tbody>
+</table>
+<p>A call counts as OK when <code>--expect</code> (or the query) occurs
+in the joined <code>content[].text</code> AND <code>isError</code> is
+falsy (lines 182-185).</p>
+<p>If the server cannot be spawned, the output is instead
+<code>{&quot;init_ok&quot;: false, &quot;error&quot;: &quot;spawn failed: ...&quot;, &quot;stderr_path&quot;: ...}</code>
+and the exit code is 1 (lines 132-134).</p>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Initialized AND every requested call was OK
+(<code>calls_ok == calls</code>); with <code>--list-only</code>:
+initialized</td>
+<td>lines 205-207</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Spawn failed, initialization failed, or any call failed the
+expectation / returned <code>isError</code> / timed out</td>
+<td>lines 133-134, 205-207</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Usage: <code>--project</code> not a directory, or <code>--env</code>
+value without <code>=</code>; also argparse errors (missing
+<code>--project</code>)</td>
+<td>lines 50-52, 114-119</td>
+</tr>
+</tbody>
+</table>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><code>--calls 0</code> without <code>--list-only</code> exits 0 once
+initialized, because <code>calls_ok == calls == 0</code> (line
+207).</li>
+<li>If initialization fails, no calls are attempted (line 175) and
+<code>calls_ok</code> stays 0, so the exit is 1 unless
+<code>--calls 0</code>.</li>
+<li>Responses whose <code>id</code> does not match the awaited id (for
+example server notifications) are discarded, and undecodable lines are
+skipped (lines 148-153).</li>
+<li>EOF or timeout on the pipe yields <code>{&quot;error&quot;: &quot;eof&quot;}</code> /
+<code>{&quot;error&quot;: &quot;timeout&quot;}</code> for that request, which shows up as
+<code>init_ok: false</code> or a failed call (lines 157-160).</li>
+<li><code>db_fd_modes</code> is sampled after the calls and before
+<code>--hold</code>, while the server is still alive (lines 186-189). An
+empty list means no descriptor on a <code>.../codegraph.db</code> path
+was found at that moment.</li>
+<li><code>--stderr-file</code> is opened <code>wb</code>, so an existing
+file is truncated (line 124). Without it a
+<code>cg_mcp_probe_err.*</code> file is created under the temp directory
+and left in place (line 126).</li>
+</ul>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<ol type="1">
+<li>Validate <code>--project</code>, build the environment, open the
+stderr sink (lines 113-127).</li>
+<li><code>Popen</code> the server with piped stdin/stdout, unbuffered
+(lines 128-131).</li>
+<li><code>initialize</code> (id 1, <code>capabilities.roots</code>,
+<code>clientInfo.name</code> = <code>codegraph_mcp_probe</code>), then
+the <code>notifications/initialized</code> notification, then
+<code>tools/list</code> (id 2) (lines 165-174).</li>
+<li>Unless <code>--list-only</code>, send <code>tools/call</code> with
+ids <code>10 + i</code> (lines 175-185).</li>
+<li>Sample descriptors and process stats, optionally hold (lines
+186-189).</li>
+<li>Shutdown in <code>finally</code>: close stdin, wait 10 s,
+<code>terminate</code>, wait 5 s, <code>kill</code> (lines 190-203),
+then print the report.</li>
+</ol>
+<h2 id="related">Related</h2>
+<table>
+<thead>
+<tr>
+<th>Guide / file</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>codegraph_mcp_preflight.sh</code></td>
+<td>Calls this probe (<code>codegraph_mcp_preflight.sh:37</code>)</td>
+</tr>
+<tr>
+<td><code>tests/test_mcp_readonly.sh</code>,
+<code>tests/test_codegraph_mcp.sh</code></td>
+<td>Use it as <code>PROBE</code> (<code>test_mcp_readonly.sh:46</code>,
+<code>test_codegraph_mcp.sh:27</code>)</td>
+</tr>
+<tr>
+<td><a href="owed_report.md">owed_report</a></td>
+<td>Reports whether this tool has tests and a guide</td>
+</tr>
+<tr>
+<td><code>runner_patches/mcpro1.py</code></td>
+<td>Read-only MCP runner patch named in the header cross-refs (line
+37)</td>
+</tr>
+</tbody>
+</table>
+<p>Header line 36 also cites <code>codegraph_mcp_runner.py</code>;
+UNCONFIRMED: no such file exists in <code>scripts/codegraph</code> on
+the verification date.</p>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-24T19:09:29Z — ran from <code>scripts/codegraph</code>
+against a throwaway fixture (a stub MCP server script and an empty
+<code>codegraph.db</code> in a scratch directory; no real
+<code>codegraph</code> binary was started):</p>
+<ul>
+<li><code>--calls 2 --extra-arg=--x</code>: JSON with
+<code>init_ok: true</code>, <code>calls_ok: 2</code>,
+<code>tools: [&quot;codegraph_search&quot;]</code>,
+<code>last: &quot;found compute_total&quot;</code>,
+<code>db_fd_modes: [&quot;r&quot;]</code>; the stub&#39;s stderr file recorded
+<code>args=[&#39;serve&#39;, &#39;--mcp&#39;, &#39;--x&#39;]</code>; exit 0.</li>
+<li><code>--list-only</code>: exit 0. <code>--expect NOPE</code>: exit
+1.</li>
+<li><code>--bin &lt;missing path&gt;</code>:
+<code>{&quot;init_ok&quot;: false, &quot;error&quot;: &quot;spawn failed: ...&quot;}</code>, exit
+1.</li>
+<li>Missing directory, <code>--env NOEQ</code>, and no
+<code>--project</code>: exit 2 each.</li>
+<li><code>--calls 0</code>: exit 0.</li>
+</ul>
+</body>
+</html>

@@ -517,7 +517,7 @@ tables/columns the code reads are <code>files(path)</code>,
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> pending <span class="op">&lt;</span>project<span class="op">&gt;</span> [--threshold N]</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> verify <span class="op">&lt;</span>project<span class="op">&gt;</span> [--reported N] [--status-files N]</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>                                          <span class="ex">[--expected</span> N <span class="at">--tolerance-pct</span> P]</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> scope <span class="op">&lt;</span>project<span class="op">&gt;</span> <span class="op">&lt;</span>baseline-file<span class="op">&gt;</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> scope <span class="op">&lt;</span>project<span class="op">&gt;</span> <span class="op">&lt;</span>baseline-file<span class="op">&gt;</span> [<span class="op">&lt;</span>exceptions-file<span class="op">&gt;</span>]</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe_helper.py</span> receipt <span class="op">&lt;</span>runner-dir<span class="op">&gt;</span> <span class="op">&lt;</span>stock-version<span class="op">&gt;</span></span></code></pre></div>
 <p>There is no <code>--help</code>: no arguments, an unknown
 sub-command, or wrong argument shape returns exit 2 (lines 431-437).</p>
@@ -598,8 +598,72 @@ and the helper never fabricates them, lines 302-310) and
 <code>VERIFY_FILES &lt;n&gt;</code> (line 311). Exit 0 only if every
 check passed.</p>
 <h3 id="scope">scope</h3>
-<p><code>scope &lt;project&gt; &lt;baseline-file&gt;</code> (lines
-351-409).</p>
+<p><code>scope &lt;project&gt; &lt;baseline-file&gt; [&lt;exceptions-file&gt;]</code>
+(<code>cmd_scope</code>, currently at
+<code>codegraph_safe_helper.py:404</code>; line numbers elsewhere in
+this section predate the exceptions mechanism below and have not been
+re-walked — verify against the live source rather than trusting them
+literally, §11.4.6).</p>
+<p><strong>Per-path exceptions (added;
+<code>load_exceptions</code>/<code>ALLOWED_EXCEPTION_CLASSES</code>,
+currently <code>codegraph_safe_helper.py:341-383</code>).</strong> The
+<code>secret_named</code> (<code>segglob:*secret*</code>) and
+<code>secrets_dir</code> (<code>dir:secrets</code>) baseline classes are
+deliberately broad path-SUBSTRING heuristics — a defense-in-depth net,
+independent of and stricter than the real CodeGraph indexing exclude
+config — so on any real, large codebase they will false-positive on
+legitimate source that merely discusses or scans for &quot;secrets&quot; as a
+concept (a crypto HAL implementing a shared-secret protocol, a tool that
+scans FOR leaked credentials, a public API&#39;s own Secret-Manager service
+schema). Loosening the glob itself was rejected — it would also narrow
+detection of a genuinely new secret-shaped file. Instead, an OPTIONAL
+third argument names an exceptions file:
+<code>&lt;class&gt; &lt;exact-project-relative-path&gt;</code> per line
+(<code>#</code> starts a comment), narrow and auditable —</p>
+<ul>
+<li>Only classes in <code>ALLOWED_EXCEPTION_CLASSES</code>
+(<code>secret_named</code>, <code>secrets_dir</code>) may appear. Any
+other class name (in particular the credential-CONTENT classes
+<code>env_file</code>/<code>keystore</code>/<code>signing_key</code>/<code>service_account</code>,
+§11.4.10) is a <strong>hard error</strong> —
+<code>SCOPE FAIL exceptions file invalid</code> — never silently
+accepted. Those four classes admit zero exceptions, by
+construction.</li>
+<li>The path MUST be exact — no <code>*</code>/<code>?</code>, no
+leading <code>/</code> — a pattern is a hard error too. An exception
+narrows exactly the ONE file it names.</li>
+<li>Missing/absent exceptions file ⇒ empty exceptions (fully
+backward-compatible with the old 2-argument call; the strictest posture,
+never an error).</li>
+<li>A listed path that doesn&#39;t actually match anything (a typo, a stale
+entry) changes nothing — the underlying
+<code>SCOPE_CLASS ... FAIL</code> persists. This is fail-closed: the
+file can only narrow an ALREADY-VERIFIED hit, never widen what the
+baseline patterns themselves catch.</li>
+<li>A path under a literal <code>secrets/</code> directory ALSO always
+matches <code>segglob:*secret*</code> (the directory-name component
+itself satisfies the glob), so <code>secrets_dir</code> hits are always
+a subset of <code>secret_named</code> hits — such a path needs an
+exception entry in BOTH classes to fully clear (see
+<code>scope_exceptions.txt</code>&#39;s
+<code>external/googleapis/.../secretmanager_v1beta1.yaml</code> pair,
+and <code>tests/test_scope_exceptions.py::test_09b</code>).</li>
+<li><code>SCOPE_CLASS</code> output gains an
+<code> excepted=&lt;n&gt;</code> field when any hits for that class were
+excepted, e.g.
+<code>SCOPE_CLASS secret_named kind=secret count=0 excepted=6 PASS</code>.</li>
+</ul>
+<p>The project&#39;s own checked-in exceptions live at
+<code>constitution/scripts/codegraph/scope_exceptions.txt</code>, and
+<code>codegraph_safe.sh</code> defaults <code>--scope-exceptions</code>
+to that file (beside the script, mirroring how
+<code>--scope-baseline</code> defaults to
+<code>scope_baseline.txt</code>) at every <code>scope</code> call-site,
+including inside <code>supervise()</code> (env
+<code>CG_SV_SCOPE_EXCEPTIONS</code>). Tests:
+<code>tests/test_scope_exceptions.py</code> (13 cases) +
+<code>tests/test_scope_exceptions_mutations.sh</code> (7 mutants, all
+killed).</p>
 <p>Baseline format (lines 316-329): one rule per line,
 <code>&lt;class&gt; &lt;secret|exclude&gt; &lt;matcher&gt;:&lt;value&gt;</code>;
 blank lines and <code>#</code> comments are skipped; any other shape is
