@@ -498,6 +498,36 @@ refuses tracked scripts that do so.</p>
 <li>For bulk ops: host headroom as measured by <code>preflight</code>
 (see below).</li>
 </ul>
+<h3 id="host-adaptive-v8-heap-budget-added-2026-09-25-bob-xxx">Host-adaptive
+V8 heap budget (added 2026-09-25, BOB-XXX)</h3>
+<p><code>preflight</code> now also reports a <code>heap_mb=</code> line:
+half of currently-measured <code>MemAvailable</code> (kB, from
+<code>/proc/meminfo</code>), floored at 8192 MiB and capped at 65536
+MiB. The caller (<code>init</code>/<code>index</code>/<code>sync</code>)
+extracts it and exports
+<code>NODE_OPTIONS=--max-old-space-size=$heap_mb</code> (additive to any
+pre-existing <code>NODE_OPTIONS</code>) before launching the detached
+supervisor, so the indexer child inherits it. Without this, a stock
+launch runs on Node&#39;s <em>default</em> old-space limit (~4 GiB)
+regardless of host RAM — on a large repo (584K files / 49M edges
+observed) the resolve phase legitimately needs far more than that and
+the indexer OOM-aborts (<code>rc=134</code>,
+<code>FATAL ERROR: Reached heap limit</code>) <em>after</em> finishing
+file parsing, discarding the whole bulk run (reproduced live 2026-09-25;
+see <code>docs/codegraph/Status.md</code>). Never hardcoded (§12.11) —
+always derived from the live measurement each run. Extraction failure
+(an unreadable/missing <code>heap_mb=</code> line) refuses the run
+(<code>die 6</code>) rather than silently falling back to the
+stock/unmeasured limit. Regression-tested:
+<code>tests/test_unit_safe.sh</code> U44 (proportional formula) / U45
+(floor). <strong>Known gap, not fixed in this pass:</strong> the
+line-number citations elsewhere in this document (§ headers above
+referencing specific <code>codegraph_safe.sh</code> line numbers) were
+NOT re-walked after this ~20-line insertion and are now stale by that
+offset for any code below the insertion point — a pre-existing pattern
+in this doc (see the sibling <code>codegraph_safe_helper.md</code>&#39;s own
+disclosed staleness), tracked as owed follow-up, not silently left
+unmentioned.</p>
 <h2 id="usage-examples">Usage examples</h2>
 <div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Host check only (no DB touched)</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_safe.sh</span> <span class="at">--project</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span> preflight</span>
