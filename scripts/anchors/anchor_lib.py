@@ -177,3 +177,131 @@ def extract_anchors(source_text: str) -> list[dict]:
     if current is not None:
         _close(len(lines))
     return anchors
+
+
+# --- appended to constitution/scripts/anchors/anchor_lib.py ---
+# Taxonomy source: research pass preserved at
+# .superpowers/sdd/tasks-003-reorganize-constitution-yaml/
+# foundational-phase-taxonomy-completion.md ("Complete, ready-to-paste
+# updated Python structures" section) — pasted verbatim, including its own
+# explanatory header comment below. That pass ran the real extract_anchors()
+# + a faithful re-implementation of this same assign_group() against the
+# live corpus as it stood at that time (243 anchors) and self-verified 0
+# unclassified / 0 collisions / 0 gaps. T006/T007 (this task) additionally
+# verified it against the CURRENT corpus (283 anchors, after a fourth
+# regression fix taught extract_anchors to recognize 26 more same-line-bold
+# real anchors) and widened/added entries as needed — see this task's
+# report for the itemized list and rationale.
+
+# Ranges are inclusive on the anchor's numeric TAIL within the "11.4" family
+# (e.g. id "11.4.209" -> tail 209). Anchors outside that family (bare "9",
+# "9.2", "12", "12.6".."12.12") are matched by EXPLICIT_ID_GROUPS below.
+# Twelve groups total — satisfies FR-001's "small number of thematic /
+# principle-bound documents" clarification (never one-file-per-anchor,
+# never a monolith).
+ID_RANGE_GROUPS = [
+    ("anti-bluff-and-evidence", [(1, 7), (13, 13), (38, 38), (68, 69),  # 68 added, was (69,69) # WIDENED
+                                  (83, 83), (105, 105), (107, 108), (110, 110),
+                                  (123, 123), (139, 139), (146, 146), (158, 160),
+                                  (163, 163), (193, 193),  # 193 added — T006/T007 283-corpus widening (see report)
+                                  (201, 201), (226, 226), (262, 262),
+                                  (268, 271)]),
+    ("code-review-and-quality", [(124, 125),  # 124 added, was (125,125) # WIDENED
+                                  (134, 134), (142, 142), (145, 145), (165, 165),
+                                  (194, 194), (209, 209), (240, 241),  # 240 added, was (241,241) # WIDENED
+                                  (251, 251)]),
+    ("testing-and-tdd", [(14, 14), (25, 25), (27, 27), (39, 39), (43, 43),
+                          (48, 51), (67, 67), (81, 81), (85, 85), (98, 98),
+                          (114, 114), (115, 115), (116, 118), (120, 120),
+                          (135, 135), (136, 138), (143, 143), (169, 169),
+                          (199, 199), (224, 224), (238, 239),
+                          (242, 250)]),  # 250 added, was (242,249) # WIDENED
+    ("workable-items-and-tracking", [(15, 16), (21, 21), (33, 34), (54, 55),
+                                      (90, 93), (95, 95), (104, 104), (112, 112),
+                                      (148, 149), (171, 171), (202, 202), (214, 214)]),
+    ("documentation-and-export", [(12, 12), (18, 19),  # 19 added, was (18,18) # WIDENED
+                                   (22, 23), (44, 45),  # 45 added, was (44,44) # WIDENED
+                                   (53, 53), (56, 57), (59, 61),  # 61 added, was (59,60) # WIDENED
+                                   (63, 63), (65, 65), (73, 73), (86, 86), (99, 99),
+                                   (106, 106), (153, 153), (168, 168), (212, 212),
+                                   (215, 215), (257, 259)]),
+    ("git-and-data-safety", [(10, 10), (30, 30), (36, 37), (41, 41), (71, 71),
+                              (84, 84), (88, 88), (113, 113), (121, 121),
+                              (176, 182), (188, 188), (191, 191), (195, 195),
+                              (206, 206), (234, 234), (252, 253)]),
+    ("host-and-resource-safety", [(24, 24), (58, 58), (96, 96), (111, 111),
+                                   (119, 119), (128, 128), (144, 144), (147, 147),
+                                   (154, 155), (174, 174),  # 174 added — T006/T007 283-corpus widening (see report)
+                                   (225, 225), (254, 254), (263, 263)]),
+    ("multi-track-and-parallelism", [(103, 103), (167, 167), (176, 192), (230, 233)]),
+    ("translation-and-localization", [(237, 237), (255, 256)]),
+    ("design-system-and-ui", [(162, 162), (170, 170), (190, 190), (216, 223)]),
+    ("governance-and-constitution-meta", [(11, 11), (17, 17), (26, 26), (28, 29),
+                                           (31, 31), (32, 32), (35, 35), (74, 74),
+                                           (75, 75), (76, 80), (100, 100),  # 100 added — T006/T007 283-corpus widening (see report)
+                                           (109, 109), (140, 141),
+                                           (156, 157),  # 156 added, was (157,157) # WIDENED
+                                           (161, 161), (164, 164), (166, 166),
+                                           (173, 173),  # 173 added — T006/T007 283-corpus widening (see report)
+                                           (184, 184), (196, 198), (227, 227),
+                                           (228, 228), (272, 275)]),
+    ("project-lifecycle-and-release", [(8, 9), (20, 20), (40, 40), (42, 42),
+                                        (46, 47), (52, 52), (66, 66), (70, 70),
+                                        (72, 72), (82, 82), (87, 87), (89, 89),
+                                        (94, 94), (97, 97), (101, 102), (122, 122),
+                                        (126, 127),  # 127 added, was (126,126) # WIDENED
+                                        (129, 133), (150, 152), (172, 172),  # 172 added — T006/T007 283-corpus widening (see report)
+                                        (185, 185), (200, 200),
+                                        (207, 207), (208, 208), (210, 211), (213, 213),
+                                        (229, 229), (235, 236), (260, 261), (264, 267)]),
+]
+
+EXPLICIT_ID_GROUPS = {
+    "9": "git-and-data-safety",
+    "9.2": "git-and-data-safety",
+    "12": "host-and-resource-safety",
+    "12.6": "host-and-resource-safety",
+    "12.7": "host-and-resource-safety",
+    "12.8": "host-and-resource-safety",
+    "12.9": "host-and-resource-safety",
+    "12.10": "host-and-resource-safety",
+    "12.11": "host-and-resource-safety",
+    "12.12": "host-and-resource-safety",
+    # --- added — T006/T007 283-corpus widening (see report for rationale) ---
+    # Ids outside the "11.4" family entirely, and the "11.4.184(I)" sub-anchor
+    # whose parenthesized tail does not convert cleanly to int — none of
+    # these can be reached by the range mechanism above, per assign_group's
+    # own gating condition (len(parts) >= 3 and parts[0] == "11" and
+    # parts[1] == "4"), so EXPLICIT_ID_GROUPS is the only correct mechanism.
+    "7.1": "anti-bluff-and-evidence",
+    "9.1": "git-and-data-safety",
+    "9.3": "git-and-data-safety",
+    "9.4": "git-and-data-safety",
+    "11.4": "anti-bluff-and-evidence",
+    "12.1": "host-and-resource-safety",
+    "12.2": "host-and-resource-safety",
+    "12.3": "host-and-resource-safety",
+    "11.4.184(I)": "governance-and-constitution-meta",
+}
+
+
+class UnclassifiedAnchorError(ValueError):
+    """Raised when an anchor id matches no range and no explicit mapping —
+    per contracts/generator-cli.md, this is a FATAL generation error, never
+    a silently-dropped anchor (FR-005 zero-content-loss)."""
+
+
+def assign_group(anchor_id: str) -> str:
+    if anchor_id in EXPLICIT_ID_GROUPS:
+        return EXPLICIT_ID_GROUPS[anchor_id]
+    parts = anchor_id.split(".")
+    if len(parts) >= 3 and parts[0] == "11" and parts[1] == "4":
+        try:
+            tail = int(parts[2])
+        except ValueError:
+            raise UnclassifiedAnchorError(anchor_id)
+        for group_name, ranges in ID_RANGE_GROUPS:
+            for lo, hi in ranges:
+                if lo <= tail <= hi:
+                    return group_name
+    raise UnclassifiedAnchorError(anchor_id)

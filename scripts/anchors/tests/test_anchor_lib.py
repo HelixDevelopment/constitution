@@ -368,3 +368,32 @@ if __name__ == "__main__":
     test_two_component_bullet_citation_to_an_undefined_id_is_not_a_phantom_anchor()
     test_two_component_bold_citation_to_a_real_defined_id_is_still_a_self_citation()
     print("PASS")
+
+# append to constitution/scripts/anchors/tests/test_anchor_lib.py
+from anchor_lib import assign_group, UnclassifiedAnchorError, extract_anchors
+
+def test_known_ids_classify_into_expected_groups():
+    assert assign_group("11.4.209") == "code-review-and-quality"
+    assert assign_group("11.4.6") == "anti-bluff-and-evidence"
+    assert assign_group("9.2") == "git-and-data-safety"
+    assert assign_group("12.6") == "host-and-resource-safety"
+
+def test_unknown_id_raises_unclassified():
+    try:
+        assign_group("99.99.99")
+        assert False, "expected UnclassifiedAnchorError"
+    except UnclassifiedAnchorError:
+        pass
+
+def test_zero_unclassified_against_real_corpus():
+    # This is the acceptance test named in Verified Notes: the LIVE
+    # constitution/Constitution.md must classify with zero misses.
+    with open("constitution/Constitution.md") as f:
+        anchors = extract_anchors(f.read())
+    unclassified = []
+    for a in anchors:
+        try:
+            assign_group(a["id"])
+        except UnclassifiedAnchorError:
+            unclassified.append(a["id"])
+    assert not unclassified, f"unclassified anchors: {unclassified}"
