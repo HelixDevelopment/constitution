@@ -50,8 +50,55 @@ def test_extracts_sub_anchor_letter_suffix_form():
     assert "sub-anchor body" in anchors[1]["body"]
     assert "sub-anchor body" not in anchors[0]["body"]
 
+def test_bold_inline_citation_is_not_mistaken_for_an_opener():
+    # Regression: a bolded inline citation to ANOTHER anchor, embedded in
+    # ordinary body prose ("**§11.4.30 carve-out.** This anchor is..."),
+    # was previously mistaken for a malformed bold-form heading attempt and
+    # raised MalformedHeadingError. It must instead be treated as ordinary
+    # body text — the WHOLE line is not the bolded title (more, unbolded,
+    # prose follows the closing ** on the same line), which is the
+    # structural signal that distinguishes it from a genuine bold-form
+    # opener (verified against the real corpus: constitution/Constitution.md
+    # line 7949 has this exact shape, and reproduced the real crash before
+    # this fix).
+    src = (
+        "### §11.4.95 amendment\n"
+        "some earlier body text\n"
+        "**§11.4.30 carve-out.** This anchor is an explicit named exception "
+        "to a different rule, continuing as ordinary prose on the same line.\n"
+        "more body text for §11.4.95\n"
+        "### §11.4.96 — Next real anchor\n"
+        "§11.4.96's body\n"
+    )
+    anchors = extract_anchors(src)
+    ids = [a["id"] for a in anchors]
+    # The inline citation must NOT create a spurious third anchor entry.
+    assert ids == ["11.4.95", "11.4.96"], ids
+    assert "**§11.4.30 carve-out.**" in anchors[0]["body"]  # stayed inside §11.4.95's body
+    assert "more body text for §11.4.95" in anchors[0]["body"]
+
+
+def test_genuine_bold_form_opener_still_recognized():
+    # Negative control for the fix above: a REAL bold-form opener (the
+    # whole line IS the bolded title, nothing after the closing ** on that
+    # line) must still be recognized as an opener — the fix narrows the
+    # false-positive, it must not also blind the parser to the legitimate
+    # bold-form convention (used in this project's overflow docs, e.g.
+    # docs/PROJECT_GOVERNANCE_ANCHORS.md).
+    src = (
+        "preamble\n"
+        "**§11.4.1 extension — Real bolded heading form**\n"
+        "body of that anchor\n"
+    )
+    anchors = extract_anchors(src)
+    assert [a["id"] for a in anchors] == ["11.4.1"]
+    assert anchors[0]["title"] == "extension — Real bolded heading form"
+
+
 if __name__ == "__main__":
     test_extracts_all_three_opener_forms()
     test_malformed_heading_raises()
     test_extracts_sub_anchor_letter_suffix_form()
+    test_bold_inline_citation_is_not_mistaken_for_an_opener()
+    test_genuine_bold_form_opener_still_recognized()
     print("PASS")

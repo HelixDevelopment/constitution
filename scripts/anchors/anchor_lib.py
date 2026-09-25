@@ -6,7 +6,22 @@ constitution/scripts/mechanical/anchor_census.sh opener forms).
 """
 import re
 
-_ATTEMPTED_OPENER_RE = re.compile(r'^(?:### §|\*\*§|- §)(\d+\.\d+\.\d+(?:\.[A-Z])?)')
+_ATTEMPTED_OPENER_RE = re.compile(
+    r'^(?:'
+    r'### §\d+\.\d+\.\d+(?:\.[A-Z])?|'
+    # Bold-form: only an ATTEMPT to open a heading if the WHOLE line is the
+    # bolded title (ends in ** at end-of-line, optionally trailing
+    # whitespace) — matches the end-of-line shape _STRICT_OPENER_RE already
+    # requires for this form. A line that starts "**§<id> ..." but keeps
+    # going as ordinary (unbolded) prose after the closing ** — e.g. a
+    # bolded inline citation to another anchor embedded in body text — was
+    # never attempting to be a bold-form opener at all, so it must not be
+    # routed into the strict-parse-or-raise path below (regression, real-
+    # corpus crash at Constitution.md:7949).
+    r'\*\*§\d+\.\d+\.\d+(?:\.[A-Z])?.*\*\*\s*$|'
+    r'- §\d+\.\d+\.\d+(?:\.[A-Z])?'
+    r')'
+)
 _STRICT_OPENER_RE = re.compile(
     r'^(?:'
     r'### §(?P<id1>\d+\.\d+\.\d+(?:\.[A-Z])?) (?P<title1>.+)|'
