@@ -377,6 +377,13 @@ def test_known_ids_classify_into_expected_groups():
     assert assign_group("11.4.6") == "anti-bluff-and-evidence"
     assert assign_group("9.2") == "git-and-data-safety"
     assert assign_group("12.6") == "host-and-resource-safety"
+    # fix round 2: both were found silently misclassified into
+    # multi-track-and-parallelism despite ZERO range collision (only one
+    # group ever claimed either tail) — a defect class the round-1
+    # structural no-overlap test cannot catch by construction, so this
+    # ground-truth spot-check is the only mechanism that locks them in.
+    assert assign_group("11.4.186") == "documentation-and-export"
+    assert assign_group("11.4.189") == "testing-and-tdd"
 
 def test_unknown_id_raises_unclassified():
     try:

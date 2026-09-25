@@ -214,6 +214,7 @@ ID_RANGE_GROUPS = [
                           (48, 51), (67, 67), (81, 81), (85, 85), (98, 98),
                           (114, 114), (115, 115), (116, 118), (120, 120),
                           (135, 135), (136, 138), (143, 143), (169, 169),
+                          (189, 189),  # 189 added — fix round 2, was wrongly reachable via multi-track's range (see report)
                           (199, 199), (224, 224), (238, 239),
                           (242, 250)]),  # 250 added, was (242,249) # WIDENED
     ("workable-items-and-tracking", [(15, 16), (21, 21), (33, 34), (54, 55),
@@ -223,8 +224,8 @@ ID_RANGE_GROUPS = [
                                    (22, 23), (44, 45),  # 45 added, was (44,44) # WIDENED
                                    (53, 53), (56, 57), (59, 61),  # 61 added, was (59,60) # WIDENED
                                    (63, 63), (65, 65), (73, 73), (86, 86), (99, 99),
-                                   (106, 106), (153, 153), (168, 168), (212, 212),
-                                   (215, 215), (257, 259)]),
+                                   (106, 106), (153, 153), (168, 168), (186, 186),  # 186 added — fix round 2, was wrongly reachable via multi-track's range (see report)
+                                   (212, 212), (215, 215), (257, 259)]),
     # NOTE (fix round 1, real-corpus range-overlap defect): the ORIGINAL
     # (176, 182) tuple here and multi-track-and-parallelism's ORIGINAL
     # (176, 192) tuple below both claimed the same 176-182 span (plus
@@ -259,8 +260,17 @@ ID_RANGE_GROUPS = [
     # per-id rationale. 183/186/187/189/192 were NOT part of the collision
     # investigation this fix round scoped (no other group's range ever
     # claimed them) and are carried forward unchanged.
+    # NOTE (fix round 2, non-colliding-but-wrong defect, a different class
+    # from round 1's overlap defect): 186 and 189 were REMOVED from this
+    # group's coverage below — the round-1 structural no-overlap test
+    # cannot catch this class (only ONE group ever claimed either tail, so
+    # there was no overlap to detect); both were found wrong by reading
+    # their real content — §11.4.186 (cross-document consistency /
+    # export-gate) belongs in documentation-and-export, §11.4.189
+    # (most-reopened-cases live-testing scrutiny) belongs in testing-and-tdd
+    # — see this fix round's report.
     ("multi-track-and-parallelism", [(103, 103), (167, 167), (176, 176), (178, 178),
-                                      (182, 183), (186, 187), (189, 189), (191, 192),
+                                      (182, 183), (187, 187), (191, 192),
                                       (230, 233)]),
     ("translation-and-localization", [(237, 237), (255, 256)]),
     ("design-system-and-ui", [(162, 162), (170, 170), (190, 190), (216, 223)]),
