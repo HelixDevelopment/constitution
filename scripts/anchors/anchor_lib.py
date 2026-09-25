@@ -6,22 +6,24 @@ constitution/scripts/mechanical/anchor_census.sh opener forms).
 """
 import re
 
-_ATTEMPTED_OPENER_RE = re.compile(
-    r'^(?:'
-    r'### §\d+\.\d+\.\d+(?:\.[A-Z])?|'
-    # Bold-form: only an ATTEMPT to open a heading if the WHOLE line is the
-    # bolded title (ends in ** at end-of-line, optionally trailing
-    # whitespace) — matches the end-of-line shape _STRICT_OPENER_RE already
-    # requires for this form. A line that starts "**§<id> ..." but keeps
-    # going as ordinary (unbolded) prose after the closing ** — e.g. a
-    # bolded inline citation to another anchor embedded in body text — was
-    # never attempting to be a bold-form opener at all, so it must not be
-    # routed into the strict-parse-or-raise path below (regression, real-
-    # corpus crash at Constitution.md:7949).
-    r'\*\*§\d+\.\d+\.\d+(?:\.[A-Z])?.*\*\*\s*$|'
-    r'- §\d+\.\d+\.\d+(?:\.[A-Z])?'
-    r')'
-)
+# The `(?:\.[A-Z])?` suffix on every id pattern below recognizes a real
+# sub-anchor form (regression fix, real-corpus crash at Constitution.md:753,
+# heading "### §11.4.10.A — Pre-store credential leak audit") — a trailing
+# single-uppercase-letter suffix on the normal 3-component dotted id,
+# distinct from and never truncated down to its parent id (§11.4.10 and
+# §11.4.10.A are two separate, real anchors).
+_ATTEMPTED_OPENER_RE = re.compile(r'^(?:### §|\*\*§|- §)(\d+\.\d+\.\d+(?:\.[A-Z])?)')
+# Bold-form-only additional gate (regression fix, real-corpus crash at
+# Constitution.md:7949): a bold-form ("**§") match from _ATTEMPTED_OPENER_RE
+# above only counts as a genuine attempt to open a heading if the WHOLE
+# line is the bolded title (ends in ** at end-of-line, optionally trailing
+# whitespace) — the same end-of-line shape _STRICT_OPENER_RE already
+# requires for this form. A line that starts "**§<id> ..." but keeps going
+# as ordinary (unbolded) prose after the closing ** — e.g. a bolded inline
+# citation to another anchor embedded in body text — was never attempting
+# to be a bold-form opener at all and must not be routed into the
+# strict-parse-or-raise path below.
+_BOLD_WHOLE_LINE_RE = re.compile(r'^\*\*§\d+\.\d+\.\d+(?:\.[A-Z])?.*\*\*\s*$')
 _STRICT_OPENER_RE = re.compile(
     r'^(?:'
     r'### §(?P<id1>\d+\.\d+\.\d+(?:\.[A-Z])?) (?P<title1>.+)|'
@@ -68,6 +70,10 @@ def extract_anchors(source_text: str) -> list[dict]:
 
     for lineno, line in enumerate(lines, start=1):
         if _ATTEMPTED_OPENER_RE.match(line):
+            if line.startswith('**§') and not _BOLD_WHOLE_LINE_RE.match(line):
+                continue  # bold-form loose match, but not a whole-line bold title —
+                          # ordinary body prose (a bolded inline citation), not an
+                          # attempted opener; never routes into MalformedHeadingError.
             m = _STRICT_OPENER_RE.match(line)
             if not m:
                 raise MalformedHeadingError(
