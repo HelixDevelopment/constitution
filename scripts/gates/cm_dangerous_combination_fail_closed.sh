@@ -533,6 +533,17 @@
 #   DANGEROUS_COMBO_PYTHON    Python 3 interpreter used for AST analysis of
 #                              .py files (default: python3, then python).
 #   DANGEROUS_COMBO_MAX_DEPTH default for --max-depth (0/unset = unlimited).
+#   DANGEROUS_COMBO_UNANALYSED_EXT
+#                              space-separated extensions with NO idiom-
+#                              matching analyser registered (default: "go rs
+#                              rb c" -- BOB-191: neither shape A's `catch (`
+#                              token nor shape B's `x = y || "literal"`
+#                              default is syntactically possible in valid Go/
+#                              Rust/Ruby/C, so files of these extensions are
+#                              scanned but reported UNANALYSED, never folded
+#                              into a clean PASS. C++ (cc/cpp/h/hpp) is NOT
+#                              in this default -- its `catch (...) {` IS real
+#                              syntax and shape A genuinely catches it.
 #
 # ── Outputs ──────────────────────────────────────────────────────────────────
 #   Per-hit evidence line (file:line + matched anti-pattern class) + a final
@@ -557,7 +568,10 @@
 #   cm_dangerous_combination_fail_closed_mutation_test.sh).
 #
 # ── Exit codes ───────────────────────────────────────────────────────────────
-#   0 — PASS (no candidate source files, or no anti-pattern hit found).
+#   0 — PASS (no candidate source files, or no anti-pattern hit found among
+#       the ANALYSED files -- an UNANALYSED-extension NOTE, see above, may
+#       still print on this same exit code; it is an honest UNKNOWN caveat,
+#       never a hit, so it does not change PASS to FAIL).
 #   1 — FAIL (a swallowed-exception, silent-default-return, or credential-
 #       default-to-literal hit).
 #   2 — environment / argument error.
@@ -587,7 +601,7 @@ ANCHOR="11.4.252"
 # the size of what was probed and NOT told that nothing else exists
 # (§11.4.118). The full enumeration, per class, is in the --help header.
 TEXT_MODE_CAVEAT="a DEGRADED APPROXIMATION, not a census — for the suppress shape it UNDER-reports in seven measured ways and has FOUR measured OVER-reporting classes (a whole line inside a string, a licensing import harvested from a string, or a real line whose own string ARGUMENT quotes the pattern — each matched as if it were code); the except shape carries its own string-carrier OVER class AND two measured UNDER shapes of its own (a one-line except-with-pass written on a SINGLE line, and a handler whose pass is preceded by a docstring — both ast=1/text=0). Both counts are MEASURED SAMPLES, not proven-complete censuses; see --help for the per-class enumeration — §11.4.6/§11.4.118/§11.4.201(6)"
-HEADER_LINES=565
+HEADER_LINES=579
 
 root="${DANGEROUS_COMBO_ROOT:-..}"
 quiet=0
@@ -1689,7 +1703,59 @@ sanitize_generic_carriers() { # $1=file $2=comment-marker("//"|"#"|"")
     ' "$f" 2>/dev/null || true
 }
 
+# ── UNANALYSED-extension registry (BOB-191, §11.4.6/§11.4.201(6)/§11.4.250) ──
+# `.go`/`.rs`/`.rb`/`.c` are ENUMERATED (scanned by shape A + shape B, same as
+# every other extension) but neither matcher's idiom is even SYNTACTICALLY
+# possible in valid code of those four languages: shape A keys on the literal
+# token `catch (` (no such keyword exists in Go/Rust/Ruby/C -- their native
+# fail-open idioms are an empty `if err != nil {}`, `let _ = risky()` /
+# `Err(_) => {}`, a bare `rescue ... end`, and an ignored return code,
+# respectively) and shape B keys on `x = y || "literal"` / `x = y or
+# "literal"` nil-coalescing, which is likewise not how any of the four
+# default a value. A control needle through this EXACT gate (genuine,
+# compiler/interpreter-valid fail-open source in each of the four) measured
+# rc=0 -- PASS -- confirming neither matcher can fire on them BY
+# CONSTRUCTION, not merely "did not happen to fire on this sample". This is
+# the false-null §11.4.201(6) names: a blind matcher and a genuinely clean
+# file return the identical quiet zero, and only one of those is honest.
+#
+# C++ (`.cc`/`.cpp`/`.h`/`.hpp`) is DELIBERATELY NOT in this set: unlike the
+# four above, C++ DOES have `catch (...) {` as real, idiomatic syntax, and
+# the SAME control-needle methodology (a genuine empty C++ catch block)
+# measured rc=1 -- FAIL, correctly caught by the existing shape-A matcher.
+# `.h` is extension-ambiguous (a C-only header reads as unanalysed content by
+# construction, same as `.c`; a C++ header with real try/catch is genuinely
+# caught) -- that per-file ambiguity is disclosed here, not silently resolved
+# either way, and is NOT a reason to add `.h`/`.cc`/`.cpp`/`.hpp` to this
+# registry, since doing so would falsely claim "unanalysed" for a file this
+# gate's existing matcher can and does see.
+#
+# Consumer-overridable (§11.4.28/§11.4.35), matching the existing
+# DANGEROUS_COMBO_EXT / DANGEROUS_COMBO_EXCLUDE override pattern: a project
+# that later ships a real per-language analyser for one of these four
+# extensions removes it from this list rather than waiting on an upstream
+# constitution change.
+unanalysed_exts="${DANGEROUS_COMBO_UNANALYSED_EXT:-go rs rb c}"
+unanalysed_hits=0
+unanalysed_detail=()
+is_unanalysed_ext() { # $1=filename -> rc 0 iff its extension has no idiom-
+    local fn="$1" e         # matching analyser registered (see block above)
+    for e in $unanalysed_exts; do
+        case "$fn" in
+            *".${e}") return 0 ;;
+        esac
+    done
+    return 1
+}
+
 for f in "${files[@]}"; do
+    if is_unanalysed_ext "$f"; then
+        unanalysed_hits=$(( unanalysed_hits + 1 ))
+        if [ "${#unanalysed_detail[@]}" -lt 10 ]; then
+            unanalysed_detail+=("$f")
+        fi
+    fi
+
     # Comment marker resolved from a CLOSED, per-extension map -- never
     # guessed for an unenumerated extension (§11.4.6): an unrecognised
     # extension gets an EMPTY marker (no comment-stripping applied, the
@@ -1780,6 +1846,23 @@ echo "======================================================================"
 if [ "$hits" -gt 0 ]; then
     echo "❌ ${GATE}: FAIL — ${hits} fail-open anti-pattern hit(s) found (§${ANCHOR})"
     exit 1
+fi
+
+if [ "$unanalysed_hits" -gt 0 ]; then
+    # BOB-191: zero HITS across an UNANALYSED-extension file is NOT the same
+    # claim as zero hits across a file this gate's matchers can actually see
+    # -- the former is an honest UNKNOWN, the latter is a real clean PASS,
+    # and printing the plain "PASS — no ... anti-patterns found" wording for
+    # the UNANALYSED case is the exact matcher-hole-prints-green defect this
+    # fix closes (§11.4.6/§11.4.201(6)). Exit 0, same as the topology_
+    # unsupported SKIP above in this same script (a scan that ran and found
+    # nothing IS a form of PASS at the invariant-39 call site's own
+    # advisory/non-blocking framing) -- but the TEXT never claims coverage
+    # this gate does not have.
+    _ud_sample="${unanalysed_detail[*]}"
+    echo "⚠ ${GATE}: NOTE — ${unanalysed_hits} file(s) of an UNANALYSED extension (${unanalysed_exts}) were enumerated but have NO idiom-matching fail-open analyser (Go/Rust/Ruby/C use non-catch, non-||-default error handling this gate's shape-A/shape-B matchers cannot see by construction; a control needle through this exact path confirms it, not merely a stated gap) -- sample: ${_ud_sample}. This is reported as UNKNOWN, never as a clean scan, for this extension's fail-open posture (§11.4.6/§11.4.201(6)/§11.4.250). Set DANGEROUS_COMBO_UNANALYSED_EXT to narrow this list once a real per-language analyser exists for one of them."
+    echo "✅ ${GATE}: PASS (PARTIAL COVERAGE) — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found among the ANALYSED files; ${unanalysed_hits} UNANALYSED file(s) reported above, NOT included in this clean claim (§${ANCHOR})"
+    exit 0
 fi
 
 echo "✅ ${GATE}: PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§${ANCHOR})"
