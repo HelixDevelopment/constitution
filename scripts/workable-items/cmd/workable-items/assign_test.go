@@ -541,8 +541,14 @@ func TestAssignGroupCompleteCmd_SucceedsWhenAllMembersTerminalWithEvidence(t *te
 	if code := groupSetCmd([]string{"--db", dbPath, "--item", "WIT-700", "--group", "grp-e2e-complete"}); code != exitOK {
 		t.Fatalf("group set --item exited %d", code)
 	}
+	// BOB-240 §11.4.33 Type↔Status guard reconciliation: WIT-700 is seeded
+	// Type=Task, whose §11.4.33 closure vocabulary is "completed", not
+	// "fixed" (Bug's word) — the ORIGINAL literal here was itself the exact
+	// Type↔Status mismatch BOB-240's guard now refuses. This test's actual
+	// intent (group-complete sees the closed member with its logic_group
+	// intact) is unaffected by which terminal status keyword closes it.
 	evRoot := newEvidenceRoot(t)
-	if code := closeCmd([]string{"WIT-700", "--db", dbPath, "--status", "fixed",
+	if code := closeCmd([]string{"WIT-700", "--db", dbPath, "--status", "completed",
 		"--evidence", materialiseEvidence(t, evRoot, "qa-results/assign-p3/wit-700-evidence.log")}); code != exitOK {
 		t.Fatalf("close exited %d", code)
 	}
