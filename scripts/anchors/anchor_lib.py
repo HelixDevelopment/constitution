@@ -6,12 +6,12 @@ constitution/scripts/mechanical/anchor_census.sh opener forms).
 """
 import re
 
-_ATTEMPTED_OPENER_RE = re.compile(r'^(?:### §|\*\*§|- §)(\d+\.\d+\.\d+)')
+_ATTEMPTED_OPENER_RE = re.compile(r'^(?:### §|\*\*§|- §)(\d+\.\d+\.\d+(?:\.[A-Z])?)')
 _STRICT_OPENER_RE = re.compile(
     r'^(?:'
-    r'### §(?P<id1>\d+\.\d+\.\d+) (?P<title1>.+)|'
-    r'\*\*§(?P<id2>\d+\.\d+\.\d+) (?P<title2>.+?)\*\*|'
-    r'- §(?P<id3>\d+\.\d+\.\d+) (?P<title3>.+)'
+    r'### §(?P<id1>\d+\.\d+\.\d+(?:\.[A-Z])?) (?P<title1>.+)|'
+    r'\*\*§(?P<id2>\d+\.\d+\.\d+(?:\.[A-Z])?) (?P<title2>.+?)\*\*|'
+    r'- §(?P<id3>\d+\.\d+\.\d+(?:\.[A-Z])?) (?P<title3>.+)'
     r')$'
 )
 
