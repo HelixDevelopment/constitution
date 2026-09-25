@@ -350,25 +350,6 @@ def test_two_component_bold_citation_to_a_real_defined_id_is_still_a_self_citati
     assert "This text MUST stay part of §11.4.90's body" in anchor_90["body"]
 
 
-if __name__ == "__main__":
-    test_extracts_all_three_opener_forms()
-    test_malformed_heading_raises()
-    test_extracts_sub_anchor_letter_suffix_form()
-    test_bold_inline_citation_is_not_mistaken_for_an_opener()
-    test_genuine_bold_form_opener_still_recognized()
-    test_bold_anchor_whose_body_starts_on_the_same_line_is_not_silently_dropped()
-    test_genuine_bold_form_opener_still_recognized_after_discriminator_change()
-    test_bullet_self_citation_after_definition_is_not_a_new_anchor()
-    test_bullet_self_citation_before_definition_still_resolves_to_the_real_definition()
-    test_genuine_duplicate_hash_form_heading_still_detected_downstream()
-    test_parenthesized_letter_suffix_form_is_recognized()
-    test_bold_only_id_self_citation_inside_another_anchor_does_not_truncate_it()
-    test_two_component_hash_form_id_is_recognized()
-    test_three_component_id_is_not_truncated_by_the_2_component_widening()
-    test_two_component_bullet_citation_to_an_undefined_id_is_not_a_phantom_anchor()
-    test_two_component_bold_citation_to_a_real_defined_id_is_still_a_self_citation()
-    print("PASS")
-
 # append to constitution/scripts/anchors/tests/test_anchor_lib.py
 from anchor_lib import assign_group, UnclassifiedAnchorError, extract_anchors
 
@@ -427,3 +408,31 @@ def test_no_two_groups_claim_the_same_numeric_tail():
                 tail_to_groups[tail].add(group_name)
     collisions = {tail: groups for tail, groups in tail_to_groups.items() if len(groups) > 1}
     assert not collisions, f"tails claimed by more than one group: {collisions}"
+
+
+if __name__ == "__main__":
+    # T009: runner entry point wired to invoke all 20 defined test functions
+    # (moved to the end of the file so every function it calls, including
+    # the 4 assign_group-family tests defined after the original mid-file
+    # __main__ block, is already defined by the time this block executes).
+    test_extracts_all_three_opener_forms()
+    test_malformed_heading_raises()
+    test_extracts_sub_anchor_letter_suffix_form()
+    test_bold_inline_citation_is_not_mistaken_for_an_opener()
+    test_genuine_bold_form_opener_still_recognized()
+    test_bold_anchor_whose_body_starts_on_the_same_line_is_not_silently_dropped()
+    test_genuine_bold_form_opener_still_recognized_after_discriminator_change()
+    test_bullet_self_citation_after_definition_is_not_a_new_anchor()
+    test_bullet_self_citation_before_definition_still_resolves_to_the_real_definition()
+    test_genuine_duplicate_hash_form_heading_still_detected_downstream()
+    test_parenthesized_letter_suffix_form_is_recognized()
+    test_bold_only_id_self_citation_inside_another_anchor_does_not_truncate_it()
+    test_two_component_hash_form_id_is_recognized()
+    test_three_component_id_is_not_truncated_by_the_2_component_widening()
+    test_two_component_bullet_citation_to_an_undefined_id_is_not_a_phantom_anchor()
+    test_two_component_bold_citation_to_a_real_defined_id_is_still_a_self_citation()
+    test_known_ids_classify_into_expected_groups()
+    test_unknown_id_raises_unclassified()
+    test_zero_unclassified_against_real_corpus()
+    test_no_two_groups_claim_the_same_numeric_tail()
+    print("PASS")
