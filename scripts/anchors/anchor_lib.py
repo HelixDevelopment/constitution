@@ -43,6 +43,24 @@ def extract_anchors(source_text: str) -> list[dict]:
     anchors: list[dict] = []
     current: dict | None = None
 
+    # First pass (regression fix, real-corpus over-count 344->243): collect
+    # the SET of ids that have at least one canonical `### §`-form occurrence
+    # anywhere in the document, BEFORE the main scan begins. constitution/
+    # Constitution.md legitimately re-cites an anchor's own id via the
+    # `- §`/`**§` forms elsewhere (a short summary/index pointer TO an anchor
+    # fully defined elsewhere via `###`, never a redefinition) — including,
+    # verified against the real corpus, 2 of 40 such ids (§11.4.55,
+    # §11.4.57) where the bullet-form citation appears BEFORE the real `###`
+    # definition later in the file. Scanning the whole document up front
+    # (rather than "first occurrence wins" during the single scan) is what
+    # lets the fix recognize that early citation correctly: the `###` form
+    # is always canonical regardless of document order.
+    canonical_ids: set[str] = set()
+    for line in lines:
+        m = _STRICT_OPENER_RE.match(line)
+        if m and m.group("id1") is not None:
+            canonical_ids.add(m.group("id1"))
+
     def _close(end_line: int) -> None:
         current["end_line"] = end_line
         current["body"] = "\n".join(lines[current["start_line"] - 1:end_line])
@@ -57,6 +75,17 @@ def extract_anchors(source_text: str) -> list[dict]:
                     f"strictly parse: {line!r}"
                 )
             anchor_id = m.group("id1") or m.group("id2") or m.group("id3")
+            if m.group("id1") is None and anchor_id in canonical_ids:
+                # A `**§`/`- §` self-citation to an id that is ALSO defined
+                # via `### §` elsewhere in the document is ordinary body
+                # text, not a new anchor opener — do not close the
+                # currently-open anchor, do not open a new one. Every `### §`
+                # match (id1 is not None) is exempt from this check and
+                # continues to open a new anchor unconditionally, including
+                # when it duplicates an already-seen id — that is a genuine
+                # error condition build_records (not this function) is
+                # responsible for catching.
+                continue
             title = (m.group("title1") or m.group("title2") or m.group("title3")).strip()
             if current is not None:
                 _close(lineno - 1)
