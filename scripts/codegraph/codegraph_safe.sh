@@ -330,6 +330,18 @@ preflight() {
         head=$((tl - used))
         [ "$head" -ge "$minh" ] || { echo "PREFLIGHT FAIL threads: headroom $head < $minh (ulimit -u $tl, used $used) — §12.12"; ok=1; }
     fi
+    # Host-adaptive V8 heap budget (2026-09-25, BOB-XXX): a stock-launched
+    # indexer inherits Node's DEFAULT old-space limit (~4 GiB regardless of
+    # host RAM) — the resolve phase on a 584K-file/49M-edge repo needs far
+    # more than that and OOM-aborts (rc=134) after finishing file parsing,
+    # discarding the whole bulk run. Never hardcode (§12.11): half of
+    # currently-MemAvailable, floored at 8 GiB so it is always meaningfully
+    # above the stock default, capped at 64 GiB so one process never alone
+    # threatens the §12.6 60%-of-TOTAL-RAM ceiling.
+    CG_SAFE_HEAP_MB=$(( mem / 1024 / 2 ))
+    [ "$CG_SAFE_HEAP_MB" -lt 8192 ] && CG_SAFE_HEAP_MB=8192
+    [ "$CG_SAFE_HEAP_MB" -gt 65536 ] && CG_SAFE_HEAP_MB=65536
+    echo "heap_mb=$CG_SAFE_HEAP_MB"
     return "$ok"
 }
 
@@ -510,6 +522,9 @@ fi
 pf="$(preflight)"; prc=$?
 printf '%s\n' "$pf"
 [ "$prc" -eq 0 ] || die 6 "host preflight FAILED — bulk $OP refused (§12.6 / §12.12)"
+HEAP_MB="$(printf '%s\n' "$pf" | sed -n 's/^heap_mb=\([0-9]*\)$/\1/p')"
+case "$HEAP_MB" in ''|*[!0-9]*) die 6 "host preflight did not report a usable heap_mb — refusing rather than launching with an unmeasured/stock heap limit" ;; esac
+say "V8 heap budget: --max-old-space-size=$HEAP_MB (host-adaptive, §12.11)"
 
 VERSION=""
 RUNNER=""
@@ -527,11 +542,15 @@ ID="$(date -u +%Y%m%dT%H%M%SZ)_$$"
 LOGF="$RUNS/index_$(date -u +%Y%m%dT%H%M%SZ).log"
 rm -f "$RUNS/watch_state.json"
 : > "$RUNS/run_$ID.pids"
+# Propagate the host-adaptive heap budget to the indexer child (inherited by
+# the detached supervisor -> "$CG_SV_RUNNER" launch below). Additive to any
+# NODE_OPTIONS the caller already set, never clobbers it.
+export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--max-old-space-size=$HEAP_MB"
 export CG_SV_PROJECT="$P" CG_SV_RUNS="$RUNS" CG_SV_ID="$ID" CG_SV_LOG="$LOGF" CG_SV_RUNNER="$RUNNER" \
        CG_SV_ARGS="$ARGS" CG_SV_WATCH_INT="$WATCH_INT" CG_SV_STALL_MIN="$STALL_MIN" CG_SV_TW_GIB="$TW_GIB" \
        CG_SV_TW_INT="$TW_INT" CG_SV_EXPECT_ARGS="$EXPECT_ARGS" CG_SV_BASELINE="$BASELINE" \
        CG_SV_SCOPE_EXCEPTIONS="$SCOPE_EXCEPTIONS" \
-       CG_SV_STATUS_DOC="$STATUS_DOC" CG_SV_OP="$OP" CG_SV_VERSION="$VERSION"
+       CG_SV_STATUS_DOC="$STATUS_DOC" CG_SV_OP="$OP" CG_SV_VERSION="$VERSION" CG_SV_HEAP_MB="$HEAP_MB"
 setsid nohup bash "$SELF" __supervise < /dev/null >> "$RUNS/supervisor_$ID.log" 2>&1 &
 SVPID=$!
 say "run $ID started detached: log $LOGF"

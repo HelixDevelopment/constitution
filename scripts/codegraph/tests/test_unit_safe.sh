@@ -556,4 +556,33 @@ if t_want U43; then setup u43; export STUB_PATCH_RC=0
     t_check U43 "BULK sync result file carries op=sync, pending_zero PASS and EXIT=0 (auditable evidence)" $? "resf=$resf head=$(sed -n '1,3p' "$resf" 2>/dev/null | tr '\n' ' ' | cut -c1-160)"
 fi
 
+# U44/U45 (2026-09-25, BOB-XXX): host-adaptive V8 heap budget. A stock-launched
+# indexer inherits Node's DEFAULT old-space limit (~4 GiB regardless of host
+# RAM); on a 584K-file/49M-edge repo the resolve phase OOM-aborts (rc=134)
+# after finishing file parsing, discarding the whole bulk run (reproduced
+# live 2026-09-25, see docs/codegraph/Status.md). preflight() now computes
+# and reports a heap_mb budget (half of MemAvailable, floored 8 GiB so it is
+# always meaningfully above stock, capped 64 GiB per §12.6), and the caller
+# propagates it via NODE_OPTIONS=--max-old-space-size=$heap_mb before
+# launching the detached supervisor.
+# NOTE: heap_mb is asserted independently of the overall PREFLIGHT PASS/FAIL
+# verdict (exit 0 vs exit 6) — disk-free-space is a SEPARATE gate whose real
+# value depends on the test host's filesystem and is not what these two
+# cases exercise; conflating them would make the test flaky across hosts/CI.
+if t_want U44; then setup u44
+    OUT="$(CG_SAFE_TEST_MEMAVAIL_KB=$((32 * 1048576)) bash "$SAFE" --project "$P" preflight 2>&1)"
+    hm="$(printf '%s\n' "$OUT" | sed -n 's/^heap_mb=\([0-9]*\)$/\1/p')"
+    [ "$hm" = "16384" ]
+    t_check U44 "heap_mb = half of MemAvailable (32 GiB avail -> 16384 MiB, above floor/below cap, exact formula)" $? "heap_mb=$hm out=$(printf '%s' "$OUT" | tr '\n' ' ')"
+fi
+
+if t_want U45; then setup u45
+    OUT="$(CG_SAFE_TEST_MEMAVAIL_KB=$((10 * 1048576)) bash "$SAFE" --project "$P" preflight 2>&1)"
+    hm="$(printf '%s\n' "$OUT" | sed -n 's/^heap_mb=\([0-9]*\)$/\1/p')"
+    # 10 GiB avail also fails the separate 32 GiB preflight memory floor —
+    # heap_mb is still computed+printed unconditionally, floored at 8192.
+    [ "$hm" = "8192" ]
+    t_check U45 "heap_mb floors at 8192 MiB when half-of-available would go lower (never below stock-plus-headroom)" $? "heap_mb=$hm out=$(printf '%s' "$OUT" | tr '\n' ' ')"
+fi
+
 t_finish

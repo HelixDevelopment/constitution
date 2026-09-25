@@ -50,6 +50,31 @@ scripts that do so.
 - A stock CodeGraph CLI on `PATH` or in `CODEGRAPH_BIN` (line 117).
 - For bulk ops: host headroom as measured by `preflight` (see below).
 
+### Host-adaptive V8 heap budget (added 2026-09-25, BOB-XXX)
+
+`preflight` now also reports a `heap_mb=` line: half of currently-measured
+`MemAvailable` (kB, from `/proc/meminfo`), floored at 8192 MiB and capped at
+65536 MiB. The caller (`init`/`index`/`sync`) extracts it and exports
+`NODE_OPTIONS=--max-old-space-size=$heap_mb` (additive to any pre-existing
+`NODE_OPTIONS`) before launching the detached supervisor, so the indexer
+child inherits it. Without this, a stock launch runs on Node's *default*
+old-space limit (~4 GiB) regardless of host RAM — on a large repo (584K
+files / 49M edges observed) the resolve phase legitimately needs far more
+than that and the indexer OOM-aborts (`rc=134`, `FATAL ERROR: Reached heap
+limit`) *after* finishing file parsing, discarding the whole bulk run
+(reproduced live 2026-09-25; see `docs/codegraph/Status.md`). Never
+hardcoded (§12.11) — always derived from the live measurement each run.
+Extraction failure (an unreadable/missing `heap_mb=` line) refuses the run
+(`die 6`) rather than silently falling back to the stock/unmeasured limit.
+Regression-tested: `tests/test_unit_safe.sh` U44 (proportional formula) /
+U45 (floor). **Known gap, not fixed in this pass:** the line-number
+citations elsewhere in this document (§ headers above referencing specific
+`codegraph_safe.sh` line numbers) were NOT re-walked after this ~20-line
+insertion and are now stale by that offset for any code below the
+insertion point — a pre-existing pattern in this doc (see the sibling
+`codegraph_safe_helper.md`'s own disclosed staleness), tracked as owed
+follow-up, not silently left unmentioned.
+
 ## Usage examples
 
 ```sh
