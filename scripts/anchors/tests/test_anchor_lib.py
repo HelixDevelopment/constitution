@@ -270,6 +270,86 @@ def test_bold_only_id_self_citation_inside_another_anchor_does_not_truncate_it()
     assert "11.4.214's body, part 2 — this line proves the anchor was not truncated" in anchor_214["body"]
 
 
+def test_two_component_hash_form_id_is_recognized():
+    # Regression: a real anchor form (verified live: Constitution.md's real
+    # §9.2, §12.6, and 11 other real anchors) uses a 2-component id
+    # ("9.2", not "9.2.0" or similar) via the ### form. Previously silently
+    # dropped with zero error because the id-core pattern hardcoded a
+    # minimum of 3 dot-separated numeric components.
+    src = (
+        "### §9.1 First 2-component anchor\n"
+        "9.1's body\n"
+        "### §9.2 Second 2-component anchor\n"
+        "9.2's body\n"
+        "### §11.4.1 A normal 3-component anchor, for contrast\n"
+        "11.4.1's body\n"
+    )
+    anchors = extract_anchors(src)
+    ids = [a["id"] for a in anchors]
+    assert ids == ["9.1", "9.2", "11.4.1"], ids
+
+
+def test_three_component_id_is_not_truncated_by_the_2_component_widening():
+    # Guard against the greedy-optional-group regression this fix could
+    # introduce: a genuine 3-component id must still match in FULL, never
+    # truncated to its first 2 components.
+    src = "### §11.4.10 A real 3-component anchor\nbody\n"
+    anchors = extract_anchors(src)
+    assert anchors[0]["id"] == "11.4.10", anchors[0]["id"]
+
+
+def test_two_component_bullet_citation_to_an_undefined_id_is_not_a_phantom_anchor():
+    # Regression: a real defect the NAIVE version of this fix would have
+    # introduced (verified live: Constitution.md:7305's "- §1.1 (paired
+    # mutation): ..." bullet, citing a 2-component id with ZERO heading-form
+    # definition anywhere in the real corpus, despite 276 body-text
+    # citations). Because bold/bullet forms deliberately keep their
+    # existing 3-component-minimum id-core, this line must NOT be
+    # recognized as an anchor opener at all — it stays ordinary body prose
+    # inside whichever anchor it is actually part of.
+    src = (
+        "### §11.4.90 Some real anchor\n"
+        "body line 1\n"
+        "- §1.1 (paired mutation): every validate probe added per step 5 "
+        "above MUST land with a mutation pair.\n"
+        "body line 2 — this MUST stay part of §11.4.90's body\n"
+        "### §11.4.91 Next real anchor\n"
+        "11.4.91's body\n"
+    )
+    anchors = extract_anchors(src)
+    ids = [a["id"] for a in anchors]
+    assert ids == ["11.4.90", "11.4.91"], ids  # NOT ["11.4.90", "1.1", "11.4.91"]
+    anchor_90 = anchors[0]
+    assert "body line 1" in anchor_90["body"]
+    assert "- §1.1 (paired mutation)" in anchor_90["body"]
+    assert "body line 2 — this MUST stay part of" in anchor_90["body"]
+
+
+def test_two_component_bold_citation_to_a_real_defined_id_is_still_a_self_citation():
+    # A bold-form citation to a REAL 2-component ###-defined id (e.g. the
+    # real corpus cites "§12.10" via bold form from elsewhere) must still
+    # be excluded as a self-citation via canonical_ids, exactly like the
+    # existing 3-component self-citation tests — confirms the restricted
+    # widening composes correctly with fix round 1's canonical_ids/
+    # opened_ids mechanism for the forms that DO stay recognized.
+    src = (
+        "### §9.2 A real 2-component anchor, defined here via ### form\n"
+        "9.2's own body\n"
+        "### §11.4.90 Another real anchor\n"
+        "body line 1\n"
+        "**§9.2 citation (a bolded reference to the anchor above).** "
+        "This text MUST stay part of §11.4.90's body.\n"
+        "body line 2\n"
+        "### §11.4.91 Next real anchor\n"
+        "11.4.91's body\n"
+    )
+    anchors = extract_anchors(src)
+    ids = [a["id"] for a in anchors]
+    assert ids == ["9.2", "11.4.90", "11.4.91"], ids  # NOT a duplicate "9.2"
+    anchor_90 = [a for a in anchors if a["id"] == "11.4.90"][0]
+    assert "This text MUST stay part of §11.4.90's body" in anchor_90["body"]
+
+
 if __name__ == "__main__":
     test_extracts_all_three_opener_forms()
     test_malformed_heading_raises()
@@ -283,4 +363,8 @@ if __name__ == "__main__":
     test_genuine_duplicate_hash_form_heading_still_detected_downstream()
     test_parenthesized_letter_suffix_form_is_recognized()
     test_bold_only_id_self_citation_inside_another_anchor_does_not_truncate_it()
+    test_two_component_hash_form_id_is_recognized()
+    test_three_component_id_is_not_truncated_by_the_2_component_widening()
+    test_two_component_bullet_citation_to_an_undefined_id_is_not_a_phantom_anchor()
+    test_two_component_bold_citation_to_a_real_defined_id_is_still_a_self_citation()
     print("PASS")

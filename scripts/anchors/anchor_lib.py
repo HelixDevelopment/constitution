@@ -29,10 +29,36 @@ import re
 # Either way, a sub-anchor id is distinct from and never truncated down to
 # its parent id (§11.4.10 and §11.4.10.A are two separate, real anchors;
 # likewise §11.4.184 and §11.4.184(I)).
-_ATTEMPTED_OPENER_RE = re.compile(r'^(?:### §|\*\*§|- §)(\d+\.\d+\.\d+(?:\.[A-Z]|\([A-Z]+\))?)')
+# PER-FORM id-core width (fix round 2, real-corpus silent drop of 13
+# genuine 2-component anchors, e.g. §9.2, §12.6, §12.10, §11.4, §7.1 —
+# Constitution.md:400, :10097, :10127, :454, :282): the `### §` form's
+# id-core is widened from EXACTLY 3 dot-separated numeric components
+# (`\d+\.\d+\.\d+`) to a MANDATORY 2 with an OPTIONAL 3rd
+# (`\d+\.\d+(?:\.\d+)?`) — every one of the 13 real 2-component ids uses
+# `### §`-form exclusively, zero exceptions. The bold (`**§`) and bullet
+# (`- §`) forms deliberately KEEP their existing 3-component-minimum
+# id-core, UNCHANGED — widening those too would create a phantom anchor
+# from Constitution.md:7305's `- §1.1 (paired mutation): ...`, a bullet
+# citing the general mutation-testing convention (276 body-text citations
+# throughout the document) that has ZERO heading-form definition anywhere;
+# neither canonical_ids nor opened_ids (both require the id to be seen
+# DEFINED somewhere first) can protect against that, since "1.1" is never
+# defined. `_ATTEMPTED_OPENER_RE` (the loose gate) and `_STRICT_OPENER_RE`
+# (the strict parser) must stay in agreement about what each form is
+# allowed to match, so both are restructured the SAME way: from one
+# id-core pattern shared across all three prefix forms into a per-form
+# alternation, each form's id-core matching exactly what that form's
+# `_STRICT_OPENER_RE` branch now requires.
+_ATTEMPTED_OPENER_RE = re.compile(
+    r'^(?:'
+    r'### §\d+\.\d+(?:\.\d+)?(?:\.[A-Z]|\([A-Z]+\))?|'
+    r'\*\*§\d+\.\d+\.\d+(?:\.[A-Z]|\([A-Z]+\))?|'
+    r'- §\d+\.\d+\.\d+(?:\.[A-Z]|\([A-Z]+\))?'
+    r')'
+)
 _STRICT_OPENER_RE = re.compile(
     r'^(?:'
-    r'### §(?P<id1>\d+\.\d+\.\d+(?:\.[A-Z]|\([A-Z]+\))?) (?P<title1>.+)$|'
+    r'### §(?P<id1>\d+\.\d+(?:\.\d+)?(?:\.[A-Z]|\([A-Z]+\))?) (?P<title1>.+)$|'
     # Bold-form branch (regression fix #4, real-corpus silent drop of 26
     # real anchors, e.g. the real §11.4.170 and §11.4.202): unlike the
     # ### and - branches above/below, this branch has NO trailing `$` —
