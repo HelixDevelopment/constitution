@@ -13,9 +13,10 @@
 #   A carrier CITES far more anchors than it DECLARES. Counting bare occurrences
 #   of an id conflates "this file defines §11.4.N" with "this file mentions
 #   §11.4.N in passing", so the census must key on the shapes that open a block.
-#   Two forms are in live use and both are matched by default:
+#   Three forms are in live use and all are matched by default:
 #       ^### §11.4.N …       (canonical constitution heading)
 #       ^**§11.4.N …         (consumer-carrier bolded opener)
+#       ^- §11.4.N …         (bullet compact-summary form)
 #   Override with --opener-re for a corpus that uses a different shape.
 #
 # THE FALSE-NULL GUARD (§11.4.273)
@@ -55,7 +56,7 @@ MECH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/mech_common.sh
 source "$MECH_DIR/lib/mech_common.sh"
 
-OPENER_RE='^(### §|\*\*§)11\.4\.[0-9]+'
+OPENER_RE='^(### §|\*\*§|- §)11\.4\.[0-9]+'
 ID_RE='11\.4\.[0-9]+'
 CONTROL="" QUIET=0
 CARRIERS=()

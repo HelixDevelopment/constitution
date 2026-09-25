@@ -64,6 +64,13 @@ it "the second live opener form (bolded consumer carrier) is matched too"
 assert_rc 0 "$CENSUS" "$TMP/a.md" "$TMP/bold.md"
 assert_contains "$LAST_OUT" "findings=0" "both opener shapes yield the same set"
 
+it "the third live opener form (bullet compact-summary) is matched too"
+{ printf -- '- §11.4.1 — short cascade reference. text\n'
+  printf -- '- §11.4.2 — short cascade reference. text\n'
+  printf -- '- §11.4.3 — short cascade reference. text\n'; } > "$TMP/bullet.md"
+assert_rc 0 "$CENSUS" "$TMP/a.md" "$TMP/bullet.md"
+assert_contains "$LAST_OUT" "findings=0" "the bullet form yields the same set as the heading form"
+
 it "THE FALSE-NULL GUARD: zero anchors is CANNOT_RUN, never a clean lockstep"
 printf 'a document with no anchors at all\n' > "$TMP/empty.md"
 assert_rc 2 "$CENSUS" "$TMP/a.md" "$TMP/empty.md"
