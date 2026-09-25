@@ -9131,6 +9131,232 @@ third-party roots; zero secret-class files (§11.4.10); at least one file
 under every own-org root (§11.4.79). Database size is NEVER evidence of
 a real index. Completeness (pending work == 0) is §11.4.275(C).</p></li>
 </ol>
+<p><strong>EXTENSION — host-adaptive V8 heap budget lands in the single
+writer entry, closing a real OOM crash on this consuming project&#39;s bulk
+index run (research-derived, 2026-09-25).</strong> Forensic FACT: on
+this constitution&#39;s own consuming project (584,328 tracked files, ~47.5M
+edges), a bulk <code>codegraph index</code> run reached 100% file
+parsing then crashed in the resolve phase with
+<code>FATAL ERROR: Reached heap limit ... JavaScript heap out of memory</code>
+(rc=134), discarding an approximately 85-minute run — on a host with 161
+GiB of RAM available at the time. Root cause: a stock-launched Node.js
+indexer inherits V8&#39;s DEFAULT old-space heap ceiling (roughly 4 GiB)
+regardless of the host&#39;s real memory, since
+<code>codegraph_safe.sh</code> (the item-7 single sanctioned writer
+entry) never set one — a self-imposed software limit masquerading as
+real memory exhaustion, exactly the class of un-measured resource quota
+§12.11 and §11.4.6 forbid. Fix: <code>preflight()</code> now computes a
+heap budget from MEASURED <code>MemAvailable</code> (half of it, floored
+at 8192 MiB so it always exceeds the stock default, capped at 65536 MiB
+so one process alone never threatens the §12.6 60%-of-total-RAM ceiling
+— never hardcoded, applying §12.11&#39;s dynamic-detection discipline to
+this bare-metal indexer process, not only to §12.11&#39;s own
+containerized-build scope) and exports it via
+<code>NODE_OPTIONS=--max-old-space-size=&lt;budget&gt;</code> before
+every <code>init</code>/<code>index</code>/<code>sync</code> launch; an
+unmeasurable budget REFUSES the run (<code>die 6</code>) rather than
+silently falling back to the unmeasured stock limit (§11.4.201
+conservative-safe default). Landed with two new regression tests
+(<code>scripts/codegraph/tests/test_unit_safe.sh</code> U44/U45, item-7
+test-first discipline) proving the exact floor/cap/proportional
+arithmetic, and independently VERIFIED LIVE (not merely unit-tested):
+the relaunched bulk run&#39;s real indexer process was confirmed via
+<code>/proc/&lt;pid&gt;/environ</code> to have genuinely received
+<code>NODE_OPTIONS=--max-old-space-size=65536</code>. Zero-regression
+proof: the full pre-existing test suite produced identical pass/fail
+counts before and after (git-stash comparison), isolating the delta to
+U44/U45 flipping FAIL→PASS. Companion doc updated per §11.4.18
+(<code>docs/scripts/codegraph_safe.md</code>). Commit
+<code>941841d3e7235a081e3199a4d3073b409d41753b</code>. Composes §11.4.6
+/ §12.6 / §12.11 / §12.12 / §11.4.80(4)(6) (upgrade-gated compatibility
+probes and supervised long runs — this closes exactly the crash class
+those clauses anticipate for bulk runs) / §11.4.201 / §11.4.224 /
+§1.1.</p>
+<p><strong>CORRECTION (same day, operator mandate 2026-09-25 — &quot;do not
+set caps for codegraph and lumen … indexed space exposed and used by all
+agents&quot;): the &quot;capped at 65536 MiB&quot; clause above is SUPERSEDED, not
+deleted.</strong> The 64 GiB figure was an INVENTED ceiling, not a
+derivation of §12.6: on a 251 GiB host, 64 GiB is ~25% of total RAM, far
+below the actual §12.6 bound (60% ≈ 150 GiB) — an artificial cap that
+starved a legitimate large-repo resolve phase for no principled reason
+(observed live: the relaunched run&#39;s RSS climbed to ~58 GiB and
+plateaued against the invented ceiling, a genuine crash risk). Fixed:
+the ceiling is now <code>MemTotal * 60 / 100</code> (in MiB), computed
+fresh every preflight run from <code>/proc/meminfo</code> — the REAL
+§12.6 bound, never a fixed number. Mathematically this ceiling can never
+bind an ordinary run (half-of-available is always &lt; half-of-total,
+which is always &lt; 60%-of-total), so in practice the heap budget is
+now effectively unconstrained short of the one absolute, no-escape-hatch
+host-safety invariant this constitution carries — exactly matching the
+operator&#39;s mandate without weakening §12.6. New regression test
+<code>test_unit_safe.sh</code> U46 proves the cap is real and
+independently computed (not inert, not the old hardcoded number) by
+constructing a scenario where it overrides even the 8192 MiB floor.
+Full-suite zero-regression proof unchanged in kind:
+<code>cases=46 failed=31</code>, same 31 pre-existing unrelated
+failures. Commit
+<code>8a5f47ab2e0e7a05d1c1652ba5a3475751652062</code>.</p>
+<p><strong>EXTENSION — CodeGraph is now wired as a genuine,
+project-tracked, first-class MCP tool for this consuming project (not
+only the bare-<code>codegraph</code>-on-PATH posture clause 3 above
+describes), closing a &quot;tool exists but no agent can discover it&quot; gap
+found under the same operator mandate (forensic incident + fix,
+2026-09-25).</strong> Audit finding: prior to this extension, this
+project&#39;s <code>.mcp.json</code> was <code>{&quot;mcpServers&quot;: {}}</code> —
+EMPTY — despite CodeGraph shipping a full first-class MCP query surface
+(<code>codegraph_explore</code>, <code>codegraph_node</code>, and more,
+confirmed from the installed CLI&#39;s own <code>--help</code> text) and its
+own installer (<code>codegraph install</code>) built for exactly this
+purpose. The gap was total: an agent had no way to discover CodeGraph&#39;s
+query tools short of already knowing to hand-invoke the raw CLI via Bash
+— the opposite of &quot;regularly used for all major needs.&quot; Separately, the
+semantic (Lumen) tool&#39;s own &quot;use this instead of grep&quot; nudge, observed
+firing reliably all session, was traced to a Claude Code PLUGIN hook
+(<code>lumen/&lt;version&gt;/cmd/hook.go</code>) — entirely UNTRACKED by
+this repository; it works only by accident of which plugins happen to be
+enabled on a given host/account, and would not follow this project to a
+fresh clone, a different agent, or another track.
+<code>grep -rl &quot;codegraph\|lumen&quot; constitution/scripts/hooks/ scripts/hooks/</code>
+returned nothing — zero project-tracked enforcement of either tool&#39;s use
+existed anywhere.</p>
+<p>Fix landed: (1) <code>.mcp.json</code> now registers a
+<code>codegraph</code> MCP server whose command is
+<code>bash constitution/scripts/codegraph/codegraph_mcp_serve.sh</code>
+— a new, project-tracked, §11.4.177-decoupled wrapper, NOT the bare
+<code>codegraph</code> command clause 3 above names. This is a
+REFINEMENT of clause 3&#39;s &quot;no-hardcoding posture,&quot; not a violation:
+clause 3 forbids a HARDCODED HOST PATH, and the wrapper hardcodes
+nothing — it dynamically resolves the SAME validated, patched runner
+<code>codegraph_safe.sh</code> itself uses (via
+<code>fk_index_patch.py --print-bin</code>, re-derived every launch,
+correct automatically across a future <code>codegraph upgrade</code>)
+rather than trusting whatever <code>codegraph</code> happens to resolve
+first on <code>$PATH</code> (the STOCK, unpatched build — this project&#39;s
+own <code>codegraph_safe.sh</code> NEVER trusts stock for a write
+operation, per the 2026-09-23 incident item 7 above already documents;
+the wrapper extends that same discipline to MCP serving). Consuming
+projects with no equivalent patched-runner requirement MAY use clause
+3&#39;s plain bare-<code>codegraph</code> form; this wrapper is the pattern
+for a project that, like this one, cannot safely assume stock-on-PATH is
+correct.</p>
+<p><strong>A SEPARATE, MORE SERIOUS forensic incident surfaced while
+building and testing this wiring, and is now a permanent, tested safety
+property of the wrapper.</strong> <code>codegraph serve --mcp</code> is
+NOT a passive read-only query server — with its file watcher enabled it
+auto-syncs (WRITES) the database on detected file changes, and
+<code>serve --mcp</code> daemonizes (re-parents to init, outliving its
+own launching process or a <code>timeout</code>-based kill — this is
+CodeGraph&#39;s own documented persistent-background-service architecture).
+A first version of the wrapper omitted <code>--no-watch</code>; a single
+~5-second manual test of it against THIS project&#39;s own live checkout
+spawned a detached daemon that held
+<code>.codegraph/codegraph.db</code>/<code>-wal</code>/<code>-shm</code>
+open with an active write-capable file watcher for roughly two minutes
+before being found and killed — CONCURRENTLY with an in-flight bulk
+<code>sync</code> continuation also writing to the SAME database, which
+then hard-crashed with <code>Failed to index: database is locked</code>,
+discarding a further ~85 minutes of resolve-phase progress on top of the
+earlier heap-crash loss the same day. Root cause: two writers, one
+database, zero coordination — <code>codegraph_safe.sh</code>&#39;s own
+single-writer flock/lock discipline governs only ITS OWN launches; an
+MCP server started via <code>.mcp.json</code> launches completely
+outside that mechanism and was never taught to respect it. Recovery: the
+stray daemon was killed, <code>PRAGMA integrity_check</code> found
+exactly 3 rows missing from one index
+(<code>idx_nodes_lower_name</code>, a mid-transaction-crash artefact,
+not page-level corruption), repaired via <code>REINDEX</code> (a
+data-presence check on the affected rows confirmed the underlying table
+data was intact before and after), and the bulk operation was resumed
+via <code>codegraph_safe.sh … sync</code> (BULK-classified on
+<code>pending&gt;=threshold</code>, correctly continuing the interrupted
+resolve phase rather than re-parsing 584K files from scratch).</p>
+<p>The durable fix: the wrapper now ALWAYS passes
+<code>--path &lt;project&gt; --no-watch</code> — <code>--no-watch</code>
+is not optional, ever, per the CLI&#39;s own documented behaviour (&quot;Disable
+the file watcher (no auto-sync)&quot;), making this a TRUE query-only reader
+that can run PERMANENTLY (as a registered MCP server necessarily does)
+alongside future bulk index/sync operations without risk of this
+collision class recurring; a permanently-registered MCP server WILL
+eventually overlap with a future bulk run in an actively multi-tracked
+project — the two-writer collision is not a one-off testing artefact, it
+is the exact risk profile permanent registration creates. An
+occasionally-stale query view (never auto-refreshing) is the correct
+trade against a database corruption/crash risk;
+<code>codegraph sync</code> (or a fresh query once an agent knows a sync
+completed) is how staleness is cleared, deliberately, never
+automatically. Verified DECISIVELY, not by argv inspection alone (the
+daemon&#39;s own child process does not necessarily inherit its launching
+invocation&#39;s literal argv — verified empirically instead): against a
+real, freshly-<code>init</code>&#39;d scratch project (never this
+repository&#39;s own checkout), the index database&#39;s mtime was read before
+and after editing a tracked file with the wrapper&#39;s server running, and
+found byte-for-byte unchanged after a 4-second settle — proving no
+auto-sync write occurred.</p>
+<p>Six new regression tests landed
+(<code>scripts/codegraph/tests/test_codegraph_mcp_serve.sh</code>,
+item-7 test-first discipline): T01 (resolved runner is always the SAME
+path <code>fk_index_patch.py --print-bin</code> reports, never
+independently computed), T02
+(<code>--path</code>+<code>--no-watch</code> are always present, never
+optional), T03 (<code>--path</code> targets exactly the resolved
+project, never cwd/guessed), <strong>T04 — the incident itself, replayed
+as a repeatable regression test</strong> (a real init&#39;d scratch project,
+real <code>serve --mcp</code> launch, real file mutation, real DB-mtime
+proof of zero writes), T05 (<code>$CLAUDE_PROJECT_DIR</code>, when set,
+is used verbatim, never overridden by git-toplevel guessing), T06 (fails
+closed — non-zero exit — when patched-runner resolution cannot proceed,
+never silently falls back to an unverified binary). All 6/6 PASS.
+T01/T03/T05 initially failed on an unrelated wrapper bug (the wrapper
+hardcoded <code>python3 &quot;$PATCH_TOOL&quot;</code>, force-feeding a
+<code>.sh</code>-fixture stub to the Python interpreter in tests — fixed
+by reusing <code>codegraph_safe.sh</code>&#39;s own <code>run_tool()</code>
+dispatch, which the production path never exercised since
+<code>$PATCH_TOOL</code> defaults to a real <code>.py</code> script
+there); found and fixed before landing, not after. A second, independent
+bug (the submodule-vs-parent project-root fallback used a plain
+<code>git rev-parse --show-toplevel</code>, which from inside a
+submodule resolves to the SUBMODULE&#39;s own root, not the consuming
+project&#39;s — fixed with <code>--show-superproject-working-tree</code>,
+tried first) was likewise found and fixed during this same
+investigation, not discovered later.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> <code>.mcp.json</code>
+registration takes effect on a FRESH Claude Code session — this session,
+already running, cannot self-restart to verify the
+<code>codegraph_explore</code>/<code>codegraph_node</code> tools are
+genuinely callable end-to-end from inside it; that verification is OWED
+as a tracked §11.4.197 follow-up on the next fresh session in this
+project, not claimed here. This extension delivers and tests the
+MECHANISM (a project-tracked, always-present MCP registration pointing
+at a verified-correct, incident-hardened, non-writing wrapper) — it does
+NOT, and cannot, mechanically guarantee that every agent ALWAYS chooses
+to call it over a raw grep/find/glob on every occasion; that remains a
+soft property of tool-selection behaviour, same honest limit
+§11.4.275(A)&#39;s own accessibility clause already lives with for Lumen.
+What changed today is that the mechanism itself is no longer an accident
+of host/plugin configuration — it is now a committed, tested, portable
+part of this repository, present for any agent, any track, any future
+clone.</p>
+<p>Composes §11.4.6 / §11.4.14 (cleanup on every exit path — every test
+daemon this investigation spawned was found and killed, none left
+running) / §11.4.35 / §11.4.78(3) (refines the
+bare-<code>codegraph</code>-on-PATH posture for a patched-runner
+project) / §11.4.78(7) (the wrapper is a new tool under the same
+inherited-by-reference / §11.4.18-documented / test-first discipline
+item 7 already mandates) / §11.4.102 (systematic-debugging
+root-cause-first — the incident was investigated to a proven, evidenced
+cause before any fix, not patched blind) / §11.4.108 (runtime-signature
+verification — the heap-budget correction was proven live on the real
+running process before being called done) / §11.4.177 (decoupled,
+inherited by reference) / §11.4.197 (the fresh-session verification is
+tracked, not silently dropped) / §11.4.201 (fail-closed on unresolvable
+runner state) / §11.4.224 (test-first) / §11.4.263 (process-group signal
+safety — every daemon kill in this investigation, manual and automated,
+validated real <code>/proc</code> cmdline identity before signaling,
+never a bare <code>pkill -f</code> carrier-match) / §11.4.273
+(control-needle-proven measurement — the incident&#39;s own root cause was
+confirmed via <code>/proc/&lt;pid&gt;/cmdline</code> + daemon registry
+JSON, never assumed) / §11.4.275(A) (universal agent/subagent
+accessibility — this is its CodeGraph-side completion) / §1.1.</p>
 <p><strong>Classification:</strong> universal (per §11.4.17). Applies to
 every project that is worked on by AI coding CLI agents.</p>
 <p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.78.</p>
@@ -30865,7 +31091,52 @@ index scope to hit a threshold (scope narrowing is a §11.4.66 operator
 decision). The reference benchmark harness exists today as a prototype
 OUTSIDE the constitution tree; landing it under
 <code>&lt;constitution&gt;/scripts/</code> is owed work, not claimed
-done.</p>
+done. <strong>[2026-09-25 STATUS UPDATE — see the EXTENSION below: the
+harness has since landed INSIDE
+<code>&lt;constitution&gt;/scripts/lumen/</code>; this sentence&#39;s
+&quot;outside the tree&quot; premise is superseded, tracked-work-remaining is
+narrowed to the gate CODE only.]</strong></p>
+<p><strong>EXTENSION — clause (D) benchmark run live on this consuming
+project + harness-location correction (research-derived,
+2026-09-25).</strong> Clause (D)&#39;s deterministic-benchmark requirement
+was exercised end-to-end via the sanctioned
+<code>constitution/scripts/lumen/lumen_verify.sh</code> tool. This
+corrects the honest-boundary sentence above: as of this extension the
+harness is no longer &quot;a prototype OUTSIDE the constitution tree&quot; — it
+now LIVES inside <code>constitution/scripts/lumen/</code> with its own
+test file
+<code>constitution/scripts/lumen/tests/test_lumen_verify.sh</code>; only
+the recommended <code>CM-CODE-INDEX-BENCH</code> gate CODE remains owed,
+unchanged (§11.4.6/§11.4.227 — a fact stated as fact, not claimed beyond
+what landed). A 13-query golden set (9 conceptual, 2 structural, 2
+deliberately-unsupported) was pre-declared via
+<code>Grep</code>/<code>Read</code>/direct <code>sqlite3</code> queries
+against the index database BEFORE any Lumen query ran, then benchmarked
+3 times back-to-back producing byte-identical
+<code>results.tsv</code>/<code>summary.txt</code> on every run (§11.4.50
+determinism, satisfying clause (D)&#39;s N≥3-identical-canonical-hash
+requirement for the WHOLE benchmark, not one query). Result: recall 9/11
+= 0.818 over in-scope indexable queries; both FAILs are near-misses at
+rank 7 (one place past k=5); token reduction computed ONLY over the 9
+correctly-answered queries (mean-of-per-query 30.1%), the 2
+negative-reduction outliers reported honestly rather than averaged away
+— satisfying clause (D)&#39;s reduction-over-both-correct-only +
+wrong-answers-listed-by-ID requirements. The Q7 <code>.sh</code>-file
+mystery (zero results for a query whose gold file is a <code>.sh</code>
+script) was root-caused with NON-GUESSED evidence per §11.4.6: a direct
+<code>sqlite3</code> query of Lumen&#39;s own index database showed ZERO
+<code>.sh</code> files indexed anywhere (0 of 2625 in-scope
+<code>.sh</code> files on disk), confirmed authoritative by Lumen&#39;s own
+source (<code>internal/chunker/languages.go</code>&#39;s
+<code>supportedExtensions</code> has no <code>.sh</code>,
+<code>.kt</code>, or <code>.txt</code> entry) — a genuine
+chunker-coverage gap, not a scope or freshness defect, tracked per
+clause (E) + §11.4.197 rather than silently worked around. Evidence:
+<code>docs/research/lumen_benchmark_20260925/RESULTS_v2.md</code> (+
+<code>.html</code>/<code>.pdf</code>/<code>.docx</code> siblings per
+§11.4.65), commit <code>ac532a21df78a447c2aceec30f63476348e93077</code>.
+Composes §11.4.6 / §11.4.28 / §11.4.50 / §11.4.65 / §11.4.177 /
+§11.4.197 / §1.1.</p>
 <p><strong>Classification: universal (§11.4.17)</strong> — no
 hardware/vendor/project literal; the consumer supplies its own-org list,
 scope DATA, accepted counts, tolerances, TTL, benchmark queries/golden

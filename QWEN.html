@@ -11567,5 +11567,77 @@ diff is authoritative over the embedded list, and telemetry MUST be off
 <code>CM-COVENANT-114-78/79/80-PROPAGATION</code> gate exists (none in
 <code>constitution/scripts/gates/</code>), so no propagation gate is
 claimed for them.</p>
+<p><strong>EXTENSION landed 2026-09-25 — §11.4.78 host-adaptive V8 heap
+budget + §11.4.275(D) benchmark run, both live-verified on this project
+(full text in <code>Constitution.md</code>).</strong> §11.4.78&#39;s item-7
+single writer entry <code>codegraph_safe.sh</code> now computes its
+Node.js heap budget from measured <code>MemAvailable</code> (never
+hardcoded, §12.11/§11.4.6) instead of inheriting V8&#39;s roughly-4-GiB
+stock default — closing a real bulk-index OOM crash (rc=134) on this
+repo&#39;s 584K-file/49M-edge tree; landed with 2 new regression tests +
+live <code>/proc/&lt;pid&gt;/environ</code> verification + a
+zero-regression full-suite comparison (commit
+<code>941841d3e7235a081e3199a4d3073b409d41753b</code>). §11.4.275(D)&#39;s
+deterministic benchmark ran via the now-in-tree
+<code>constitution/scripts/lumen/lumen_verify.sh</code> (superseding
+this anchor&#39;s own note that the harness lived outside the constitution
+tree — it now has its own test file): a pre-declared 13-query golden
+set, N=3 byte-identical runs, recall 9/11=0.818, the 2
+failing/unsupported query classes (<code>.sh</code>/<code>.kt</code>,
+unindexed by Lumen&#39;s chunker — confirmed via direct <code>sqlite3</code>
++ Lumen&#39;s own source, not guessed) reported honestly and tracked, never
+averaged away (commit
+<code>ac532a21df78a447c2aceec30f63476348e93077</code>,
+<code>docs/research/lumen_benchmark_20260925/RESULTS_v2.md</code>). Gate
+code for both anchors remains owed, unchanged (§11.4.6/§11.4.227).</p>
+<p><strong>EXTENSION landed 2026-09-25 (round 2) — §11.4.78 heap ceiling
+corrected to the REAL §12.6 60%-of-total-RAM bound (was an invented 64
+GiB) + CodeGraph now wired as a genuine, project-tracked MCP tool via a
+new incident-hardened wrapper (full text in
+<code>Constitution.md</code>).</strong> Direct operator mandate
+mid-session: &quot;do not set caps for codegraph and lumen … indexed space
+exposed and used by all agents&quot; — audited, and both were genuinely
+under-delivering. (1) The earlier round&#39;s 64 GiB heap cap was an
+INVENTED ceiling (~25% of this 251 GiB host&#39;s total RAM), not a
+derivation of §12.6; fixed to <code>MemTotal * 60/100</code> computed
+fresh every run — the real, unweakened §12.6 bound, mathematically
+almost never binding an ordinary run (commit
+<code>8a5f47ab2e0e7a05d1c1652ba5a3475751652062</code>, new regression
+test U46). (2) Audited further and found <code>.mcp.json</code> was
+completely EMPTY — CodeGraph had ZERO agent-facing MCP presence in this
+repository despite shipping a full query toolset
+(<code>codegraph_explore</code>/<code>codegraph_node</code>/etc.) and
+its own installer; Lumen&#39;s own &quot;prefer this over grep&quot; nudge was found
+to be an UNTRACKED Claude Code PLUGIN hook, not anything this repository
+owns — neither tool&#39;s use was actually guaranteed for any future
+clone/agent/track. Fixed by registering <code>.mcp.json</code>&#39;s
+<code>codegraph</code> server against a new, tested,
+<code>§11.4.177</code>-decoupled wrapper
+(<code>constitution/scripts/codegraph/codegraph_mcp_serve.sh</code>)
+that resolves the SAME validated patched runner
+<code>codegraph_safe.sh</code> itself uses (never bare stock-on-PATH).
+<strong>A separate, more serious forensic incident surfaced while
+building this</strong>: <code>serve --mcp</code>&#39;s file watcher WRITES
+(auto-syncs) the database and the server daemonizes past its own
+parent&#39;s death — a single manual test against this project&#39;s own live
+checkout spawned a stray daemon that collided with an in-flight bulk
+<code>sync</code>, crashing it with &quot;database is locked&quot; (a further ~85
+minutes of progress lost, on top of the earlier heap-crash loss);
+recovered via a targeted <code>REINDEX</code> (3 rows, confirmed
+non-corrupting) + a bulk <code>sync</code> resume. Durable fix: the
+wrapper now ALWAYS passes <code>--no-watch</code> (never optional),
+making it a true non-writing reader safe to run permanently — a fact
+PROVEN, not assumed, by a real init&#39;d scratch-project DB-mtime check
+(unchanged after a tracked-file edit with the server running). Six new
+regression tests land (<code>tests/test_codegraph_mcp_serve.sh</code>),
+including the incident itself replayed as a repeatable test (T04); two
+unrelated bugs found and fixed during this same investigation before
+landing (a <code>.sh</code>-stub force-fed to <code>python3</code>; a
+submodule-vs-parent project-root resolution bug). Honest boundary
+(§11.4.6): <code>.mcp.json</code> registration takes effect on a fresh
+session — this session could not self-restart to verify the MCP tools
+are end-to-end callable from inside it; that check is a tracked
+§11.4.197 follow-up, not claimed here. Gate code for all of the above
+remains owed, unchanged (§11.4.6/§11.4.227).</p>
 </body>
 </html>
