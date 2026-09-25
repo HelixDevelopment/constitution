@@ -430,6 +430,24 @@ expect_output_contains() { # $1=desc  $2=needle  $3..=command
         rc=1
     fi
 }
+expect_output_not_contains() { # $1=desc  $2=needle  $3..=command
+    # The negative twin of expect_output_contains, same capture-first
+    # discipline (§11.4.201(12) — the pipeline exit status is part of the
+    # instrument, so the command is run to completion BEFORE grep ever sees
+    # its output). Used to prove a DECEPTIVE marker is genuinely ABSENT, not
+    # merely that a truthful one is present — the two are not symmetric: a
+    # gate could print both the honest caveat AND the bare unqualified claim
+    # in the same run, and only this half catches that.
+    local desc="$1" needle="$2"; shift 2
+    local out
+    out="$("$@" 2>&1)" || true
+    if printf '%s' "$out" | grep -qF -- "$needle"; then
+        echo "❌ META FAIL: ${desc} — unwanted marker present in gate output: ${needle}"
+        rc=1
+    else
+        echo "✅ META OK:   ${desc} — unwanted marker correctly absent from gate output"
+    fi
+}
 
 # Fixture-directory constructor. `mkdir -p` is SILENT when the directory
 # already exists, so two sections reusing one variable name land two fixtures
@@ -3053,6 +3071,160 @@ expect_fail "L86 silent-default-return with ZERO call sites in this file -- cons
     bash "$GATE_SCRIPT" --root "$MUT52" --quiet
 expect_fail "L86 (degraded text-fallback mode)" \
     gate_textmode --root "$MUT52" --quiet
+
+# ── 96. BOB-191: the UNANALYSED-extension registry ──────────────────────────
+# The gate's shape A (`catch (...) {`) and shape B (`x = y || "literal"`)
+# matchers run over EVERY enumerated extension, but neither idiom is
+# syntactically possible in valid Go/Rust/Ruby/C -- a genuine fail-open
+# construct in each of the four measured rc=0 (PASS) against the PRE-FIX
+# gate, indistinguishable from a genuinely clean file (§11.4.201(6)'s own
+# false-null). L87-L90 pin that each of the four now prints the honest
+# UNANALYSED NOTE and NEVER the bare unqualified clean-PASS sentence; L91
+# proves the fix did NOT accidentally widen the UNANALYSED set to swallow an
+# extension (C++) whose idiom this gate genuinely catches; L92 proves the
+# NOTE is absent on a plain analysed-only root (the negative control for the
+# whole registry); L93 proves a REAL hit still FAILs the build even when an
+# UNANALYSED file sits alongside it in the same root (the new branch must
+# never mask a genuine finding).
+MUT53="$TMP/mut53_go"
+mkfixture "$MUT53"
+cat > "$MUT53/needle.go" <<'GO'
+package main
+
+func doThing() error {
+	err := riskyOp()
+	if err != nil {
+	}
+	_ = anotherRiskyOp()
+	return nil
+}
+
+func riskyOp() error { return nil }
+func anotherRiskyOp() error { return nil }
+GO
+expect_pass "L87 Go: empty err-check + discarded error -- ADVISORY, still exits 0 (never blocks the build)" \
+    bash "$GATE_SCRIPT" --root "$MUT53" --quiet
+expect_output_contains "L87 Go: honest UNANALYSED NOTE names the extension" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT53" --quiet
+expect_output_not_contains "L87 Go: bare unqualified clean-PASS sentence is NEVER printed for an unanalysed root" \
+    "PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§11.4.252)" \
+    bash "$GATE_SCRIPT" --root "$MUT53" --quiet
+
+MUT54="$TMP/mut54_rust"
+mkfixture "$MUT54"
+cat > "$MUT54/needle.rs" <<'RS'
+fn do_thing() {
+    let _ = risky_op();
+    match risky_op() {
+        Err(_) => {}
+        Ok(_) => {}
+    }
+}
+
+fn risky_op() -> Result<(), ()> { Ok(()) }
+RS
+expect_pass "L88 Rust: discarded Result + empty Err arm -- ADVISORY, still exits 0" \
+    bash "$GATE_SCRIPT" --root "$MUT54" --quiet
+expect_output_contains "L88 Rust: honest UNANALYSED NOTE names the extension" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT54" --quiet
+expect_output_not_contains "L88 Rust: bare unqualified clean-PASS sentence is NEVER printed" \
+    "PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§11.4.252)" \
+    bash "$GATE_SCRIPT" --root "$MUT54" --quiet
+
+MUT55="$TMP/mut55_ruby"
+mkfixture "$MUT55"
+cat > "$MUT55/needle.rb" <<'RB'
+def do_thing
+  begin
+    risky_op
+  rescue StandardError
+    # swallowed
+  end
+end
+RB
+expect_pass "L89 Ruby: rescue-swallowed StandardError -- ADVISORY, still exits 0" \
+    bash "$GATE_SCRIPT" --root "$MUT55" --quiet
+expect_output_contains "L89 Ruby: honest UNANALYSED NOTE names the extension" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT55" --quiet
+expect_output_not_contains "L89 Ruby: bare unqualified clean-PASS sentence is NEVER printed" \
+    "PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§11.4.252)" \
+    bash "$GATE_SCRIPT" --root "$MUT55" --quiet
+
+MUT56="$TMP/mut56_c"
+mkfixture "$MUT56"
+cat > "$MUT56/needle.c" <<'C'
+int do_thing(void) {
+    int ret = risky_op();
+    if (ret != 0) {
+    }
+    return 0;
+}
+C
+expect_pass "L90 C: ignored return code + empty if-block -- ADVISORY, still exits 0" \
+    bash "$GATE_SCRIPT" --root "$MUT56" --quiet
+expect_output_contains "L90 C: honest UNANALYSED NOTE names the extension" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT56" --quiet
+expect_output_not_contains "L90 C: bare unqualified clean-PASS sentence is NEVER printed" \
+    "PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§11.4.252)" \
+    bash "$GATE_SCRIPT" --root "$MUT56" --quiet
+
+# L91 NEGATIVE CONTROL — C++ genuinely HAS `catch (...) {` as real syntax and
+# the existing shape-A matcher catches it (measured live, BOB-191 round-2
+# needle: rc=1 both pre- and post-fix). The registry MUST NOT have been
+# widened to swallow cc/cpp/h/hpp -- proving that would be exactly the
+# §11.4.201(1) false-positive-refusal-turned-false-negative-pass this fixture
+# guards against (a working analyser silently downgraded to UNANALYSED).
+MUT57="$TMP/mut57_cpp_negctrl"
+mkfixture "$MUT57"
+cat > "$MUT57/needle.cpp" <<'CPP'
+void do_thing() {
+    try {
+        risky_op();
+    } catch (const std::exception& e) {
+    }
+}
+CPP
+expect_fail "L91 NEGATIVE CONTROL — C++ empty catch block is STILL caught (rc=1); the UNANALYSED registry must not swallow a working extension" \
+    bash "$GATE_SCRIPT" --root "$MUT57" --quiet
+expect_output_not_contains "L91 NEGATIVE CONTROL — C++ is never reported UNANALYSED" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT57" --quiet
+
+# L92 NEGATIVE CONTROL — a plain, fully-analysed clean root (Python only)
+# prints the UNANALYSED NOTE for NEITHER a real finding nor a coverage gap:
+# reuses the file's own existing "legitimate handling" clean fixture shape so
+# this control needle is drawn from code already proven clean by this suite.
+MUT58="$TMP/mut58_clean_negctrl"
+mkfixture "$MUT58"
+cat > "$MUT58/clean.py" <<'PY'
+def do_thing():
+    try:
+        risky()
+    except Exception as e:
+        log.warning("failed: %s", e)
+        raise
+PY
+expect_output_not_contains "L92 NEGATIVE CONTROL — a fully-analysed clean root never prints the UNANALYSED NOTE" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT58" --quiet
+expect_output_contains "L92 NEGATIVE CONTROL — the plain unqualified clean-PASS sentence IS printed when nothing is unanalysed" \
+    "PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§11.4.252)" \
+    bash "$GATE_SCRIPT" --root "$MUT58" --quiet
+
+# L93 the UNANALYSED branch MUST NEVER mask a genuine finding: a REAL Python
+# hit alongside an unanalysed Go file in the SAME root still FAILs (rc=1),
+# proving the new code path is reached only via the post-hits-check branch
+# and cannot short-circuit a real violation.
+MUT59="$TMP/mut59_mixed_real_hit"
+mkfixture "$MUT59"
+cat > "$MUT59/bad.py" <<'PY'
+def do_thing():
+    try:
+        risky()
+    except Exception:
+        pass
+PY
+cp "$MUT53/needle.go" "$MUT59/needle.go"
+expect_fail "L93 a REAL hit beside an unanalysed Go file in the same root still FAILs (rc=1) -- the UNANALYSED branch never masks a genuine finding" \
+    bash "$GATE_SCRIPT" --root "$MUT59" --quiet
 
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then
