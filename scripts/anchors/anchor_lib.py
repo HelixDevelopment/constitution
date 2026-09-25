@@ -225,15 +225,43 @@ ID_RANGE_GROUPS = [
                                    (63, 63), (65, 65), (73, 73), (86, 86), (99, 99),
                                    (106, 106), (153, 153), (168, 168), (212, 212),
                                    (215, 215), (257, 259)]),
+    # NOTE (fix round 1, real-corpus range-overlap defect): the ORIGINAL
+    # (176, 182) tuple here and multi-track-and-parallelism's ORIGINAL
+    # (176, 192) tuple below both claimed the same 176-182 span (plus
+    # 184/185/188/190/191 individually), so several ids resolved to
+    # whichever group happened to sit EARLIER in ID_RANGE_GROUPS's list
+    # order regardless of real content (§11.4.176/§11.4.191, genuinely
+    # multi-track-themed, were both silently resolving here instead).
+    # Narrowed to (179, 181) — the specific tails whose real content
+    # (§11.4.179 corruption-isolated own-`.git` streams, §11.4.180
+    # stale-lock auto-reap, §11.4.181 branch-naming consistency) is
+    # genuinely git-workflow/data-safety, not track-coordination — and the
+    # erroneous (191, 191) tuple (§11.4.191 is genuinely
+    # multi-track-and-parallelism, see below) is REMOVED rather than left
+    # duplicated. See this fix round's report for the full per-id rationale.
     ("git-and-data-safety", [(10, 10), (30, 30), (36, 37), (41, 41), (71, 71),
                               (84, 84), (88, 88), (113, 113), (121, 121),
-                              (176, 182), (188, 188), (191, 191), (195, 195),
+                              (179, 181), (188, 188), (195, 195),
                               (206, 206), (234, 234), (252, 253)]),
     ("host-and-resource-safety", [(24, 24), (58, 58), (96, 96), (111, 111),
                                    (119, 119), (128, 128), (144, 144), (147, 147),
                                    (154, 155), (174, 174),  # 174 added — T006/T007 283-corpus widening (see report)
                                    (225, 225), (254, 254), (263, 263)]),
-    ("multi-track-and-parallelism", [(103, 103), (167, 167), (176, 192), (230, 233)]),
+    # NOTE (fix round 1): the ORIGINAL (176, 192) single contiguous tuple
+    # here silently swallowed several tails that genuinely belong to OTHER
+    # groups (177 governance-and-constitution-meta, 179-181/188 git-and-
+    # data-safety, 184 governance-and-constitution-meta, 185 project-
+    # lifecycle-and-release, 190 design-system-and-ui) purely because this
+    # group sits earlier in ID_RANGE_GROUPS's list order than all of those.
+    # Narrowed to the tails whose real content is genuinely about
+    # multi-track work-division/coordination/identity (176, 178, 182-183,
+    # 186-187, 189, 191-192) — see this fix round's report for the full
+    # per-id rationale. 183/186/187/189/192 were NOT part of the collision
+    # investigation this fix round scoped (no other group's range ever
+    # claimed them) and are carried forward unchanged.
+    ("multi-track-and-parallelism", [(103, 103), (167, 167), (176, 176), (178, 178),
+                                      (182, 183), (186, 187), (189, 189), (191, 192),
+                                      (230, 233)]),
     ("translation-and-localization", [(237, 237), (255, 256)]),
     ("design-system-and-ui", [(162, 162), (170, 170), (190, 190), (216, 223)]),
     ("governance-and-constitution-meta", [(11, 11), (17, 17), (26, 26), (28, 29),
@@ -243,6 +271,7 @@ ID_RANGE_GROUPS = [
                                            (156, 157),  # 156 added, was (157,157) # WIDENED
                                            (161, 161), (164, 164), (166, 166),
                                            (173, 173),  # 173 added — T006/T007 283-corpus widening (see report)
+                                           (177, 177),  # 177 added — fix round 1, was wrongly reachable via multi-track's over-broad (176,192) (see report)
                                            (184, 184), (196, 198), (227, 227),
                                            (228, 228), (272, 275)]),
     ("project-lifecycle-and-release", [(8, 9), (20, 20), (40, 40), (42, 42),

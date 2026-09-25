@@ -397,3 +397,26 @@ def test_zero_unclassified_against_real_corpus():
         except UnclassifiedAnchorError:
             unclassified.append(a["id"])
     assert not unclassified, f"unclassified anchors: {unclassified}"
+
+# fix round 1 (colliding-range regression, appended to
+# constitution/scripts/anchors/tests/test_anchor_lib.py)
+from anchor_lib import ID_RANGE_GROUPS
+
+def test_no_two_groups_claim_the_same_numeric_tail():
+    # Regression: verified live that ID_RANGE_GROUPS's ranges silently
+    # overlapped for 12 real tails (176-182, 184, 185, 188, 190, 191) across
+    # 4 different groups, with the FIRST group in list order silently
+    # winning regardless of whether that group's theme actually matched the
+    # id's real content (e.g. §11.4.176, genuinely about multi-track work
+    # coordination, was resolving to git-and-data-safety). This structural
+    # invariant test ensures NO tail is ever covered by more than one
+    # group's ranges anywhere in the table, so this class of defect can
+    # never silently regress.
+    from collections import defaultdict
+    tail_to_groups = defaultdict(set)
+    for group_name, ranges in ID_RANGE_GROUPS:
+        for lo, hi in ranges:
+            for tail in range(lo, hi + 1):
+                tail_to_groups[tail].add(group_name)
+    collisions = {tail: groups for tail, groups in tail_to_groups.items() if len(groups) > 1}
+    assert not collisions, f"tails claimed by more than one group: {collisions}"
