@@ -180,6 +180,110 @@ func updateCmd(args []string) int {
 				ns, *id, *id, *id)
 			return exitUsage
 		}
+		// BOB-175 — the MIRROR half of the same invariant. BOB-166 (the guard
+		// above) left this direction OPEN deliberately: `update --location Fixed
+		// --status <non-terminal>` still exits 0 and mints a row that validate's
+		// own fixedLocationNonTerminalStatus check (f) immediately refuses — the
+		// exact §11.4.196(F) shape (configured in validate, unenforced at the
+		// seam that can violate it) BOB-166 closed in the OTHER direction only.
+		//
+		// WHY IT WAS LEFT OPEN, AND WHY CLOSING IT DOES NOT COLLIDE WITH
+		// reopenCmd's SANCTIONED --location Fixed OVERRIDE (BOB-166's stated
+		// reason for deferring this — the design decision this item exists to
+		// make and record, §11.4.6, not to infer from the diff):
+		//
+		//  1. STRUCTURAL INDEPENDENCE, VERIFIED NOT ASSUMED: reopenCmd (below)
+		//     performs its OWN `tx.Exec(...)` write directly against the items
+		//     table — it never calls updateCmd, and nothing else in this package
+		//     routes through it either (the only two callers of updateCmd are
+		//     runUpdate and updateCmd's own tests). A guard added HERE therefore
+		//     cannot intercept, alter, or refuse anything reopenCmd does
+		//     internally. The "collision" BOB-166 anticipated does not exist at
+		//     the code-execution level — it can only be an OPERATOR-FACING
+		//     question: should the generic `update` command be ABLE to
+		//     independently mint the same Fixed+non-terminal state reopen's
+		//     override mints?
+		//
+		//  2. THE ANSWER IS NO — and for a reason stronger than mere symmetry
+		//     with the guard above. reopenCmd's `--location Fixed` override EARNS
+		//     its exemption from the ordinary Fixed⇒terminal rule: it forces
+		//     status='Reopened', writes a `**Reopened-Details:**` block, and
+		//     MANDATES full §11.4.34 attribution (--why from the closed reason
+		//     vocabulary, --who AI|User, --when an ISO date, --incident an
+		//     evidence path — reopenCmd refuses to proceed without every one of
+		//     them). A bare `update --location Fixed --status 'In progress'`
+		//     would mint the IDENTICAL desync-flagged state with NONE of that
+		//     attribution: an unaudited, unattributed "quiet reopen". Leaving
+		//     `update` free to do this is not a neutral omission that happens to
+		//     overlap reopen's override — it is a strictly WEAKER, unaudited back
+		//     door to the exact same state reopen's override deliberately makes
+		//     expensive. Closing it here therefore also closes a §11.4.34
+		//     attribution-bypass vector, distinct from (and in addition to) the
+		//     bare INTEG-03 location↔status gap.
+		//
+		//  3. WHY NO OVERRIDE FLAG IS ADDED TO `update` (the item's second listed
+		//     candidate design, considered and rejected): a flag on `update`
+		//     mirroring `--location Fixed` could never carry reopen's mandatory
+		//     --why/--who/--when/--incident payload without update becoming
+		//     reopen under a different name — it would just re-open the same
+		//     unaudited back door point 2 closes. The refusal below instead
+		//     redirects the operator to the mechanisms that already carry that
+		//     payload.
+		//
+		//  4. terminalStatuses() is reused — never a second predicate, so this
+		//     direction and the Issues⇒terminal direction above can never drift
+		//     apart (the same discipline BOB-166 established). Scoped to
+		//     set["status"] for the identical §11.4.201(1) reason as above: a
+		//     non-status field edit on a row already in this state (planted
+		//     before the guard existed, or by raw SQL) must still succeed, or the
+		//     guard would block the very remediation it exists to prompt — see
+		//     TestUpdateCmd_AllowsNonStatusFieldEditOnFixedLocatedForbiddenRow.
+		//
+		// NEGATIVE CONTROL (§11.4.201(1), the sharp one this item calls out):
+		// because of point 1, reopenCmd's own existing test suite — in
+		// particular TestReopenCmd_LocationFixedOverrideKeepsInFixed — is
+		// unmodified and unaffected by this guard; it is re-run verbatim as the
+		// closure evidence for this item.
+		if loc == "Fixed" && !terminalStatuses()[strings.TrimSpace(ns)] {
+			fmt.Fprintf(os.Stderr,
+				"update: refusing to set non-terminal status %q on %s while it is located in Fixed — "+
+					"a Fixed-location item must carry a terminal `… (→ Fixed.md)` status; writing a "+
+					"non-terminal one here mints exactly the state validate's fixedLocationNonTerminalStatus "+
+					"check refuses (§11.4.15/§11.4.148/ATM-627 INTEG-03) — and, unlike a plain column write, "+
+					"SKIPS the mandatory §11.4.34 reopen attribution (--why/--who/--when/--incident) a real "+
+					"reopen requires.\n"+
+					"  genuine demotion (records §11.4.34 attribution, relocates to Issues by default):\n"+
+					"    reopen --id %s --db <db> --why <reason> --who <AI|User> --when <ISO-date> --incident <path>\n"+
+					"  non-demotion relocation (fix landed, runtime GREEN still owed — no reopens_count inflation):\n"+
+					"    move --id %s --db <db> --to Issues --status <non-terminal> --why <text>\n"+
+					"  keep it in Fixed anyway (the SANCTIONED, deliberately transient override — validate WILL flag it):\n"+
+					"    reopen --id %s --db <db> --location Fixed --why <reason> --who <AI|User> --when <ISO-date> --incident <path>\n",
+				ns, *id, *id, *id, *id)
+			return exitUsage
+		}
+		// BOB-240 §11.4.33 Type↔Status guard — the update-command analogue of
+		// closeCmd's guard (crud.go). Scoped to ns TERMINAL deliberately: by
+		// this point EITHER loc=="Issues" && !terminal (survived the guard
+		// above unchanged) OR loc=="Fixed" && terminal (survived the BOB-175
+		// mirror above) — the only two combinations that can still reach this
+		// line, since the two location↔status guards above already refuse the
+		// other two cells of the (location, terminality) partition — so
+		// terminalStatuses()[ns] is true precisely in the loc=="Fixed" case
+		// this check exists to cover, and is a no-op (never fires) in the
+		// loc=="Issues" case: the two guard families can never mask or compete
+		// with each other for a single call (see
+		// TestUpdateCmd_LocationGuardFiresBeforeTypeStatusGuard).
+		if terminalStatuses()[strings.TrimSpace(ns)] {
+			if wantKeyword, wantStatus, mismatch := typeStatusMismatch(cur.Type, ns); mismatch {
+				gotKeyword := closeKeywordForStatus(ns)
+				fmt.Fprintf(os.Stderr,
+					"update: refusing — %s has Type=%s, whose §11.4.33 closure vocabulary is %q (--status %s), not %q (--status %s); Obsolete is valid for any Type.\n"+
+						"  correct command:  update --id %s --db <db> --location %s --status %s\n",
+					*id, cur.Type, wantStatus, wantKeyword, ns, gotKeyword,
+					*id, loc, wantKeyword)
+				return exitUsage
+			}
+		}
 		cur.Status = ns
 	}
 	if set["created-by"] {

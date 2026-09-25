@@ -182,6 +182,63 @@ var closeStatusMap = map[string]struct {
 	"obsolete":    {"Obsolete (→ Fixed.md)", "Obsolete"},
 }
 
+// typeCloseKeyword is the §11.4.33 closed Type→close-keyword mapping BOB-240
+// enforces: which `close --status <word>` / `update --status <word>` keyword
+// is the ONLY correct one for each Type (Bug→fixed, Feature→implemented,
+// Task→completed). Obsolete is deliberately ABSENT from this table — per
+// §11.4.90/§11.4.33 it is valid closure vocabulary for ANY Type (criterion 5),
+// so it is exempted explicitly in typeStatusMismatch rather than being a
+// fourth, always-true entry here.
+var typeCloseKeyword = map[string]string{
+	"Bug":     "fixed",
+	"Feature": "implemented",
+	"Task":    "completed",
+}
+
+// closeKeywordForStatus reverse-maps a terminal closed-set status TEXT back
+// onto its closeStatusMap keyword — the inverse of closeStatusMap[keyword]
+// .status — for refusal messages that need to echo the wrong keyword a
+// caller effectively supplied. Returns "" when status is not a recognised
+// terminal value (unreached in practice: every caller invokes this only on
+// an ns already confirmed terminal by terminalStatuses()).
+func closeKeywordForStatus(status string) string {
+	for k, m := range closeStatusMap {
+		if m.status == status {
+			return k
+		}
+	}
+	return ""
+}
+
+// typeStatusMismatch reports whether TERMINAL status ns violates the §11.4.33
+// Type↔Status mapping for typ (typeCloseKeyword, resolved through
+// closeStatusMap so the STATUS TEXT itself is never re-derived — §11.4.251).
+// Obsolete is exempt for ANY Type (criterion 5). Callers MUST confirm ns is
+// terminal (terminalStatuses()[ns]) before calling — this predicate does not
+// itself distinguish "non-terminal" from "terminal but wrong", the same
+// §11.4.201(1) scoping discipline BOB-166/BOB-175's location↔status guards
+// already use.
+//
+// wantKeyword/wantStatus name the CORRECT `close --status`/`update --status`
+// word and its full terminal-status text for the caller's refusal message —
+// BOB-240 criterion 1/2's "printing the correct word to use".
+func typeStatusMismatch(typ, ns string) (wantKeyword, wantStatus string, mismatch bool) {
+	if ns == closeStatusMap["obsolete"].status {
+		return "", "", false
+	}
+	keyword, ok := typeCloseKeyword[typ]
+	if !ok {
+		// typ outside {Bug,Feature,Task} is itself the §11.4.16 type-closed-set
+		// violation validateCmd's typeSet check already reports; refusing to
+		// ALSO flag a Type/Status mismatch here would misattribute the real
+		// defect and is unreachable in practice (normalizeType defaults every
+		// unrecognised input to "Task").
+		return "", "", false
+	}
+	wantStatus = closeStatusMap[keyword].status
+	return keyword, wantStatus, ns != wantStatus
+}
+
 // runClose implements `close <atm-id> --status <fixed|implemented|completed|
 // obsolete> --evidence <path>`. It performs the §11.4.19 atomic move from
 // Issues to Fixed: the item's current_location flips, its status becomes the
@@ -255,6 +312,23 @@ func closeCmd(args []string) int {
 	}
 	if exists {
 		fmt.Fprintf(os.Stderr, "close: item %s already present in Fixed\n", id)
+		return exitUsage
+	}
+
+	// BOB-240 §11.4.33 Type↔Status guard: refuse a --status keyword whose
+	// implied Type-mapping does not match src.Type (Obsolete exempt for ANY
+	// Type — criterion 5). Placed AFTER the not-found/already-in-Fixed checks
+	// (matching this command's existing refusal order) but BEFORE any write,
+	// so a mismatched call — the exact BOB-077/100/179/226 shape, this
+	// session's conductor's own repeated mistake — leaves no trace at all,
+	// mirroring the requireEvidencePath refusal-before-write discipline
+	// already established above.
+	if wantKeyword, wantStatus, mismatch := typeStatusMismatch(src.Type, mapping.status); mismatch {
+		fmt.Fprintf(os.Stderr,
+			"close: refusing — %s has Type=%s, whose §11.4.33 closure vocabulary is %q (--status %s), not %q (--status %s); Obsolete is valid for any Type.\n"+
+				"  correct command:  close %s --db <db> --status %s --evidence %s\n",
+			id, src.Type, wantStatus, wantKeyword, mapping.status, strings.ToLower(strings.TrimSpace(*status)),
+			id, wantKeyword, *evidence)
 		return exitUsage
 	}
 

@@ -344,6 +344,18 @@ func validateCmd(args []string) int {
 		violations = append(violations, unresolvable...)
 	}
 
+	// (h) §11.4.33 / BOB-240 — Type↔Status mapping invariant: a Fixed-location
+	// item's terminal status must match its Type's mandated closure vocabulary
+	// (Bug→Fixed, Feature→Implemented, Task→Completed; Obsolete valid for any
+	// Type). CONFIRMED this session that `validate: OK` ran repeatedly against
+	// a DB simultaneously holding 30+ live violations of exactly this class
+	// (BOB-239) — the existing invariant set checked location↔status
+	// ((f)/(f2)) and the status/type closed-sets independently, but never
+	// their AGREEMENT. Composes with (f)/(f2) — orthogonal invariants (those:
+	// location↔status closed-set membership; this: Type↔Status vocabulary
+	// agreement).
+	violations = append(violations, typeStatusMismatches(items)...)
+
 	if len(violations) > 0 {
 		sort.Strings(violations)
 		fmt.Fprintf(os.Stderr, "validate: %d violation(s):\n", len(violations))
@@ -481,6 +493,49 @@ func issuesLocationTerminalStatus(items []item) []string {
 			out = append(out, fmt.Sprintf(
 				"%s: Issues-location item has TERMINAL status %q — a closed item must live at Fixed; the §11.4.19 closure migration was skipped (use `close` for a new closure, or `move --to Fixed` to reconcile one already closed elsewhere) (§11.4.15/ATM-627 INTEG-03) [%s]",
 				it.AtmID, it.Status, it.repOrDefault()))
+		}
+	}
+	return out
+}
+
+// typeStatusMismatches returns, for the BOB-240 §11.4.33 Type↔Status defect
+// CLASS, a description of every Fixed-location item whose TERMINAL status
+// does not match its Type's mandated closure vocabulary (Bug→Fixed,
+// Feature→Implemented, Task→Completed; Obsolete valid for ANY Type —
+// criterion 5). Confirmed this session that `validate: OK` ran repeatedly
+// against a DB simultaneously holding 30+ live violations of exactly this
+// class (BOB-239) — the existing invariant set checked location↔status
+// ((f)/(f2), fixedLocationNonTerminalStatus/issuesLocationTerminalStatus) and
+// the status/type CLOSED-SETS independently (validateCmd's statusSet/
+// typeSet), but never their AGREEMENT. Scoped to items already confirmed
+// terminal-at-Fixed (terminalStatuses()[ns]) deliberately — a Fixed-location
+// item with a NON-terminal status is (f)'s own, DIFFERENT finding, and
+// double-reporting it here under the wrong invariant would misattribute the
+// defect (§11.4.201(1)). Read-only, so it can never break an already-
+// consistent DB.
+//
+// §1.1 PAIRED-MUTATION SENTINEL: replacing this function's body with `return
+// nil` removes the guard; TestValidate_CatchesTypeStatusMismatch (RED
+// polarity per §11.4.115) then FAILs — proving the guard is not a tautology.
+func typeStatusMismatches(items []item) []string {
+	terminal := terminalStatuses()
+	var out []string
+	for _, it := range items {
+		if it.CurrentLocation != "Fixed" {
+			continue
+		}
+		ns := strings.TrimSpace(it.Status)
+		if !terminal[ns] {
+			// Non-terminal-at-Fixed is fixedLocationNonTerminalStatus's OWN
+			// finding (check (f)) — skip here to avoid a duplicate/incorrect
+			// Type↔Status claim piled on top of an already-reported different
+			// defect class.
+			continue
+		}
+		if wantKeyword, wantStatus, mismatch := typeStatusMismatch(it.Type, ns); mismatch {
+			out = append(out, fmt.Sprintf(
+				"%s: Type=%s closed with status %q — §11.4.33 requires %q (`close --status %s`); Obsolete is valid for any Type [%s]",
+				it.AtmID, it.Type, it.Status, wantStatus, wantKeyword, it.repOrDefault()))
 		}
 	}
 	return out
