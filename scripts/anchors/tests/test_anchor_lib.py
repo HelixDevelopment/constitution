@@ -55,13 +55,13 @@ def test_bold_inline_citation_is_not_mistaken_for_an_opener():
     # ordinary body prose ("**§11.4.30 carve-out.** This anchor is..."),
     # was previously mistaken for a malformed bold-form heading attempt and
     # raised MalformedHeadingError. It must instead be treated as ordinary
-    # body text — the WHOLE line is not the bolded title (more, unbolded,
-    # prose follows the closing ** on the same line), which is the
-    # structural signal that distinguishes it from a genuine bold-form
-    # opener (verified against the real corpus: constitution/Constitution.md
-    # line 7949 has this exact shape, and reproduced the real crash before
-    # this fix).
+    # body text. UPDATED (4th regression fix): the fixture now includes
+    # §11.4.30's own ###-form definition, matching the real corpus, since
+    # the discriminator is now "does this id have a ###-form definition
+    # elsewhere" (canonical_ids), not "does this line fill the whole line."
     src = (
+        "### §11.4.30 — Some earlier, unrelated, genuinely-canonical anchor\n"
+        "§11.4.30's own real body text\n"
         "### §11.4.95 amendment\n"
         "some earlier body text\n"
         "**§11.4.30 carve-out.** This anchor is an explicit named exception "
@@ -72,10 +72,11 @@ def test_bold_inline_citation_is_not_mistaken_for_an_opener():
     )
     anchors = extract_anchors(src)
     ids = [a["id"] for a in anchors]
-    # The inline citation must NOT create a spurious third anchor entry.
-    assert ids == ["11.4.95", "11.4.96"], ids
-    assert "**§11.4.30 carve-out.**" in anchors[0]["body"]  # stayed inside §11.4.95's body
-    assert "more body text for §11.4.95" in anchors[0]["body"]
+    assert ids == ["11.4.30", "11.4.95", "11.4.96"], ids
+    ninetyfive = anchors[1]
+    assert ninetyfive["id"] == "11.4.95"
+    assert "**§11.4.30 carve-out.**" in ninetyfive["body"]
+    assert "more body text for §11.4.95" in ninetyfive["body"]
 
 
 def test_genuine_bold_form_opener_still_recognized():
@@ -85,6 +86,54 @@ def test_genuine_bold_form_opener_still_recognized():
     # false-positive, it must not also blind the parser to the legitimate
     # bold-form convention (used in this project's overflow docs, e.g.
     # docs/PROJECT_GOVERNANCE_ANCHORS.md).
+    src = (
+        "preamble\n"
+        "**§11.4.1 extension — Real bolded heading form**\n"
+        "body of that anchor\n"
+    )
+    anchors = extract_anchors(src)
+    assert [a["id"] for a in anchors] == ["11.4.1"]
+    assert anchors[0]["title"] == "extension — Real bolded heading form"
+
+
+def test_bold_anchor_whose_body_starts_on_the_same_line_is_not_silently_dropped():
+    # Regression: a real anchor form (verified live in the actual
+    # constitution/Constitution.md corpus, e.g. the real §11.4.170) is a
+    # bold-form opener whose OWN body begins on the SAME physical line as
+    # the closing ** — "**§<id> — Title (details).** Body text starts
+    # immediately here..." This id has NO ###-form definition anywhere
+    # else in the document (verified: it is genuinely bold-only). It MUST
+    # open a new anchor — silently absorbing it into whatever anchor was
+    # previously open, with no error and no warning, was the real defect:
+    # 26 real anchors in the real corpus were being lost this way.
+    src = (
+        "### §11.4.1 — First anchor\n"
+        "first anchor's body\n"
+        "**§11.4.170 — A real same-line-body anchor (User mandate, 2026-06-25).** "
+        "Body text for this anchor starts immediately on this same line.\n"
+        "more body text for §11.4.170 on the next line\n"
+        "### §11.4.171 — Next real anchor\n"
+        "§11.4.171's body\n"
+    )
+    anchors = extract_anchors(src)
+    ids = [a["id"] for a in anchors]
+    assert ids == ["11.4.1", "11.4.170", "11.4.171"], ids  # NOT silently dropped
+    bold_anchor = anchors[1]
+    assert bold_anchor["id"] == "11.4.170"
+    assert "Body text for this anchor starts immediately" in bold_anchor["body"]
+    assert "more body text for §11.4.170 on the next line" in bold_anchor["body"]
+    # And it did NOT get merged into §11.4.1's body:
+    first_anchor = anchors[0]
+    assert "Body text for this anchor starts immediately" not in first_anchor["body"]
+
+
+def test_genuine_bold_form_opener_still_recognized_after_discriminator_change():
+    # Re-confirmation of the pre-existing negative control (from the second
+    # regression fix) under the NEW canonical_ids-based discriminator: a
+    # real bold-form opener whose id has NO ###-form elsewhere (whole-line
+    # OR same-line-body shape, doesn't matter which) must still be
+    # recognized as an opener — the fix narrows nothing about GENUINE bold
+    # anchors, it only widens what counts as "genuine."
     src = (
         "preamble\n"
         "**§11.4.1 extension — Real bolded heading form**\n"
@@ -175,13 +224,63 @@ def test_genuine_duplicate_hash_form_heading_still_detected_downstream():
     assert ids == ["11.4.1", "11.4.1"], ids  # both genuine ###-openers present, unfiltered
 
 
+def test_parenthesized_letter_suffix_form_is_recognized():
+    # Regression: a real anchor form (verified live in the actual
+    # constitution/Constitution.md corpus, §11.4.184(I) at line 10279) uses
+    # a PARENTHESIZED letter suffix, not the earlier-recognized .LETTER
+    # dotted form. Same underlying concept, different real-corpus
+    # punctuation convention.
+    src = (
+        "### §11.4.184 — Base anchor\n"
+        "base anchor's body\n"
+        "### §11.4.184(I) — Extension anchor\n"
+        "extension anchor's body\n"
+    )
+    anchors = extract_anchors(src)
+    ids = [a["id"] for a in anchors]
+    assert ids == ["11.4.184", "11.4.184(I)"], ids
+
+
+def test_bold_only_id_self_citation_inside_another_anchor_does_not_truncate_it():
+    # Regression: a real defect (verified live: Constitution.md's real
+    # §11.4.214, a ###-form anchor, gets truncated by a bolded
+    # self-citation to §11.4.202 embedded 10 lines into its own body,
+    # because §11.4.202's real definition is bold-form-only and so never
+    # enters canonical_ids). A bold-form citation to an id that was
+    # ALREADY OPENED earlier in this same scan — by ANY form, not just
+    # ###-form — must be recognized as self-citation, never a new opener.
+    src = (
+        "**§11.4.202 — Bold-only anchor, defined here first**\n"
+        "11.4.202's own real body\n"
+        "### §11.4.214 — A real hash-form anchor\n"
+        "11.4.214's body, part 1\n"
+        "**§11.4.202 precedence (a citation embedded inside 11.4.214's body).**\n"
+        "This text MUST stay part of 11.4.214's body, not get split off.\n"
+        "11.4.214's body, part 2 — this line proves the anchor was not truncated\n"
+        "### §11.4.215 — Next real anchor\n"
+        "11.4.215's body\n"
+    )
+    anchors = extract_anchors(src)
+    ids = [a["id"] for a in anchors]
+    assert ids == ["11.4.202", "11.4.214", "11.4.215"], ids
+    anchor_214 = anchors[1]
+    assert anchor_214["id"] == "11.4.214"
+    assert "11.4.214's body, part 1" in anchor_214["body"]
+    assert "This text MUST stay part of 11.4.214's body" in anchor_214["body"]
+    assert "11.4.214's body, part 2 — this line proves the anchor was not truncated" in anchor_214["body"]
+
+
 if __name__ == "__main__":
     test_extracts_all_three_opener_forms()
     test_malformed_heading_raises()
     test_extracts_sub_anchor_letter_suffix_form()
     test_bold_inline_citation_is_not_mistaken_for_an_opener()
     test_genuine_bold_form_opener_still_recognized()
+    test_bold_anchor_whose_body_starts_on_the_same_line_is_not_silently_dropped()
+    test_genuine_bold_form_opener_still_recognized_after_discriminator_change()
     test_bullet_self_citation_after_definition_is_not_a_new_anchor()
     test_bullet_self_citation_before_definition_still_resolves_to_the_real_definition()
     test_genuine_duplicate_hash_form_heading_still_detected_downstream()
+    test_parenthesized_letter_suffix_form_is_recognized()
+    test_bold_only_id_self_citation_inside_another_anchor_does_not_truncate_it()
     print("PASS")
