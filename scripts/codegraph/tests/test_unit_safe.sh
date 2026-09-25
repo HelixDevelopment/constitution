@@ -585,4 +585,24 @@ if t_want U45; then setup u45
     t_check U45 "heap_mb floors at 8192 MiB when half-of-available would go lower (never below stock-plus-headroom)" $? "heap_mb=$hm out=$(printf '%s' "$OUT" | tr '\n' ' ')"
 fi
 
+if t_want U46; then setup u46
+    # heap_mb ceiling is 60% of MemTotal (§12.6), computed fresh — NEVER a
+    # fixed number (operator mandate 2026-09-25: "do not set caps for
+    # codegraph and lumen"). CG_SAFE_TEST_MEMAVAIL_KB can only LOWER the real
+    # measurement (U15), so this cannot inflate "available" to force the
+    # clamp against a real-sized total; instead it shrinks BOTH overrides so
+    # the floor (8192) fires first (5 GiB avail -> half=2560 < 8192 ->
+    # floored to 8192), then a smaller-still 60%-of-total cap (10 GiB total
+    # -> 6144 MiB) clamps that floored value back DOWN — proving the cap is
+    # a real, independently-computed ceiling, not merely inert alongside the
+    # floor, and that it is NOT the old hardcoded 65536.
+    OUT="$(CG_SAFE_TEST_MEMAVAIL_KB=$((5 * 1048576)) CG_SAFE_TEST_MEMTOTAL_KB=$((10 * 1048576)) bash "$SAFE" --project "$P" preflight 2>&1)"
+    hm="$(printf '%s\n' "$OUT" | sed -n 's/^heap_mb=\([0-9]*\)$/\1/p')"
+    hc="$(printf '%s\n' "$OUT" | sed -n 's/^heap_cap_mb=\([0-9]*\)$/\1/p')"
+    # 10 GiB * 60% = 6 GiB = 6144 MiB; floor (8192) would otherwise win, so a
+    # final heap_mb of 6144 proves the cap is applied AFTER, and overrides, the floor.
+    [ "$hc" = "6144" ] && [ "$hm" = "6144" ]
+    t_check U46 "heap_mb clamps to §12.6's real 60%-of-MemTotal ceiling (6144 MiB on a 10 GiB host), overriding even the 8192 floor, never a hardcoded number" $? "heap_mb=$hm heap_cap_mb=$hc out=$(printf '%s' "$OUT" | tr '\n' ' ')"
+fi
+
 t_finish

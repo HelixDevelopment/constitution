@@ -330,18 +330,39 @@ preflight() {
         head=$((tl - used))
         [ "$head" -ge "$minh" ] || { echo "PREFLIGHT FAIL threads: headroom $head < $minh (ulimit -u $tl, used $used) — §12.12"; ok=1; }
     fi
-    # Host-adaptive V8 heap budget (2026-09-25, BOB-XXX): a stock-launched
-    # indexer inherits Node's DEFAULT old-space limit (~4 GiB regardless of
-    # host RAM) — the resolve phase on a 584K-file/49M-edge repo needs far
-    # more than that and OOM-aborts (rc=134) after finishing file parsing,
-    # discarding the whole bulk run. Never hardcode (§12.11): half of
-    # currently-MemAvailable, floored at 8 GiB so it is always meaningfully
-    # above the stock default, capped at 64 GiB so one process never alone
-    # threatens the §12.6 60%-of-TOTAL-RAM ceiling.
+    # Host-adaptive V8 heap budget (2026-09-25, BOB-XXX; ceiling corrected
+    # 2026-09-25, operator mandate — "do not set caps for codegraph and lumen,
+    # we need all codebase and data properly and fully indexed"): a
+    # stock-launched indexer inherits Node's DEFAULT old-space limit (~4 GiB
+    # regardless of host RAM) — the resolve phase on a 584K-file/49M-edge
+    # repo needs far more than that and OOM-aborts (rc=134) after finishing
+    # file parsing, discarding the whole bulk run. Never hardcode (§12.11):
+    # half of currently-MemAvailable, floored at 8 GiB so it is always
+    # meaningfully above the stock default.
+    #
+    # The ceiling is the ACTUAL constitutional bound (§12.6: 60% of TOTAL
+    # system RAM), computed fresh every run from /proc/meminfo — never an
+    # arbitrary fixed number. A prior revision of this fix capped at a
+    # hardcoded 65536 MiB (64 GiB); on a large host that is LOWER than the
+    # real §12.6 ceiling (e.g. 60% of 251 GiB ~= 150 GiB) and starved a
+    # legitimate large-repo resolve phase for no principled reason — the
+    # exact "artificial cap" the operator's mandate forbids. Mathematically,
+    # half-of-MemAvailable can never exceed half-of-MemTotal, which is
+    # always < 60%-of-MemTotal, so this §12.6 ceiling is a correctness
+    # backstop (never let one process alone threaten the host, the one
+    # invariant with NO escape hatch anywhere in this constitution) that in
+    # practice does not bind ordinary runs — full indexing is never starved
+    # by an invented number again.
+    total_kb="$(sed -n 's/^MemTotal:[[:space:]]*\([0-9]*\).*/\1/p' /proc/meminfo)"
+    ov="${CG_SAFE_TEST_MEMTOTAL_KB:-}"
+    case "$ov" in ''|*[!0-9]*) ;; *) total_kb="$ov" ;; esac
+    case "$total_kb" in ''|*[!0-9]*) total_kb=$((mem * 2)) ;; esac  # unreadable: fall back to 2x available (never crash preflight over this)
+    CG_SAFE_HEAP_CAP_MB=$(( total_kb * 60 / 100 / 1024 ))
     CG_SAFE_HEAP_MB=$(( mem / 1024 / 2 ))
     [ "$CG_SAFE_HEAP_MB" -lt 8192 ] && CG_SAFE_HEAP_MB=8192
-    [ "$CG_SAFE_HEAP_MB" -gt 65536 ] && CG_SAFE_HEAP_MB=65536
+    [ "$CG_SAFE_HEAP_MB" -gt "$CG_SAFE_HEAP_CAP_MB" ] && CG_SAFE_HEAP_MB="$CG_SAFE_HEAP_CAP_MB"
     echo "heap_mb=$CG_SAFE_HEAP_MB"
+    echo "heap_cap_mb=$CG_SAFE_HEAP_CAP_MB"
     return "$ok"
 }
 
