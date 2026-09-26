@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Multi Track And Parallelism</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="multi-track-and-parallelism">Multi Track And Parallelism</h1>
+<h3 id="114103--continuous-parallel-stream-working-routine-user-mandate-2026-05-29">§11.4.103
+— Continuous parallel-stream working routine (User mandate,
+2026-05-29)</h3>
+<p><strong>Short tag:</strong>
+<code>continuous-parallel-stream-routine</code>.</p>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-29):</strong></p>
+<blockquote>
+<p>&quot;Do this working approach continuously and make it part of regular
+working routine and add it to the Constitution Submodule documented
+fully.&quot;</p>
+</blockquote>
+<p>This anchor promotes the proven multi-stream operating pattern —
+repeatedly demonstrated effective across prior autonomous rounds — from
+an ad-hoc practice into the project&#39;s <strong>standing default working
+routine</strong>. §11.4.87 told the agent to keep working in an endless
+loop; §11.4.94 told it never to sit idle when something is progressable;
+§11.4.88 / §11.4.89 detached push and test execution; §11.4.96
+catalogued what is safe to do during a long build. §11.4.103 binds those
+into a single always-on routine and adds the load-bearing invariant the
+prior anchors only implied: <strong>the main work stream MUST always
+stay FREE.</strong> It is the conductor&#39;s standing operating mode, not a
+per-request opt-in.</p>
+<p><strong>Strengthened (User mandate, 2026-05-29):</strong> the
+parallel-stream floor is raised from ≥2 to <strong>≥3</strong> and an
+<strong>auto-backfill rule</strong> is added — the moment any one stream
+is FULLY done, a new stream MUST immediately start and take its place,
+so the count NEVER drops below 3 while actionable workable items remain.
+Verbatim mandate: <em>&quot;make sure there are always at all times at least
+3 parallel working streams parallel with main work stream as long there
+are workable items we can do! as soon as one working stream is fully
+done, another new MUST start work and take its place.&quot;</em></p>
+<p><strong>(A) Main stream stays FREE — ALL commit AND push run
+detached, never blocking.</strong> Every commit operation AND every push
+operation MUST run in the background (detached via
+<code>nohup … &gt; &lt;log&gt; 2&gt;&amp;1 &amp;</code> +
+<code>disown</code>, per §11.4.88&#39;s commit-lock-release-immediately +
+detached-push seam). The conductor&#39;s main work stream MUST NOT block on
+a commit landing or a push completing — the moment the local commit is
+durable, the main stream returns to the priority queue while the push
+fans out to every upstream in the background. Blocking the main stream
+on a push (or a slow mirror) is a §11.4.103 violation (the exact
+2026-05-26 §11.4.88 forensic harm — a 5-hour flock hold — generalised to
+the routine layer).</p>
+<p><strong>(B) ≥3 parallel background streams at all times whenever
+actionable work exists + auto-backfill.</strong> Whenever the queue
+holds three or more non-contending actionable items, the conductor MUST
+run <strong>at least three</strong> parallel background streams
+alongside the main stream (subagent-driven per §11.4.70 / §11.4.20,
+isolated per the §11.4.58 PWU worktree model + §11.4.84 working-tree
+quiescence). <strong>Auto-backfill rule (User mandate,
+2026-05-29):</strong> the moment any one stream is FULLY done (its
+workable item closed with anti-bluff evidence per sub-rule (E), or
+merged), a new stream MUST IMMEDIATELY start and take its place by
+claiming the next-highest-priority non-contending item from the queue —
+the active-stream count NEVER drops below 3 while actionable workable
+items remain. Dropping below 3 active streams while three-plus disjoint
+actionable items wait — or serialising work that could run in parallel —
+is a §11.4.103 violation. The count may fall below 3 ONLY when there
+genuinely are no remaining non-contending actionable workable items OR
+every remaining item is externally blocked (per §11.4.94 / §11.4.97 /
+§11.4.101 idle-only-when-blocked). The §12.6 60% memory ceiling and the
+§11.4.58 6-concurrent-agent cap bound the stream count from above (so
+the standing band is 3–6 background streams).</p>
+<p><strong>(C) Most-critical + most-visible first; audio always
+top.</strong> Streams are filled in strict priority order —
+most-critical and most-user-visible items first — and <strong>audio
+fixes are always the apex priority</strong> per §11.4.72. When the
+conductor faces a choice of which item to dispatch onto a free stream,
+the highest-severity / most-user-visible / audio item wins; research,
+refactors, and low-stakes tasks fill remaining capacity only after the
+critical set is dispatched (per §11.4.42 priority-ordered
+iteration).</p>
+<p><strong>(D) Safe-during-build scope only while a heavy build
+runs.</strong> While the 42 GB containerised AOSP rebuild (§12.9) — or
+any heavy <code>gradle</code> / <code>m -j</code> build — is in flight,
+the parallel background streams MUST restrict themselves to the §11.4.96
+SAFE catalogue: investigation / forensic analysis, documentation,
+test-authoring, gate + paired-mutation authoring, read-only on-device
+probes, submodule edits, web research, workable-items DB ops, and
+backgrounded pre-build / meta-test runs. The streams MUST NOT launch a
+second <code>gradle</code> / <code>m -j</code> / containerised build
+concurrent with the running one (§12.8 concurrency-hardening — a second
+heavy JVM/Soong build storms the host and risks the §12.7 OOM cascade).
+UNSAFE-during-build operations (§11.4.96 (α)-(θ)) are deferred to
+between-build windows.</p>
+<p><strong>(E) Heavy anti-bluff on every closure.</strong> Every item
+closed by a parallel stream MUST carry real captured evidence and
+survive the anti-bluff covenant family — root cause proven or explicitly
+marked <code>UNCONFIRMED:</code> / <code>UNKNOWN:</code> /
+<code>PENDING_FORENSICS:</code> per §11.4.6, captured-evidence per
+§11.4.5 + §11.4.69, deterministic consistency per §11.4.50, paired §1.1
+meta-test mutations, and the structured root-cause investigation of
+§11.4.102 the moment any problem surfaces. A stream that closes an item
+on metadata-only / configuration-only / absence-of-error /
+grep-without-runtime evidence is a §11.4 PASS-bluff regardless of how
+parallel the routine looked.</p>
+<p><strong>(F) Idle ONLY when genuinely externally blocked.</strong> The
+conductor idles ONLY when every queued item is genuinely blocked on an
+external result it cannot accelerate (hardware access, network upstream,
+an in-flight build / test / push completion) OR the operator issues STOP
+OR §12 host-session-safety demands it (per §11.4.94(A) + §11.4.97).
+&quot;Nothing visible to do&quot; with progressable non-contending items in the
+queue is NEVER a valid idle reason. Posing a question and going idle
+while non-blocked items remain is a §11.4.94 + §11.4.97 + §11.4.103
+violation; an unavoidable block parks one work unit, not the whole loop
+(§11.4.101 maximize-progress-while-blocked).</p>
+<p><strong>Composes with</strong> §11.4.58 (parallel-development PWU
+pipeline — §11.4.103 is its standing-routine framing), §11.4.70 /
+§11.4.20 (subagent-driven default — the parallel streams ARE subagents),
+§11.4.72 (audio top-priority — sub-rule (C)), §11.4.87 (endless-loop
+autonomous work — §11.4.103 is the always-on operating mode that anchor
+governs), §11.4.88 (background-push — sub-rule (A) is its routine-layer
+generalisation), §11.4.89 (background test execution — backgrounded
+tests are one stream class), §11.4.94 (zero-idle priority-first
+parallel-by-default — sub-rules (B)+(C)+(F) bind it), §11.4.96
+(safe-parallel-work-with-long-build catalogue — sub-rule (D) cites it),
+§11.4.97 (maximum-use-of-idle-time — sub-rule (F)), §11.4.101
+(autonomous-decision-over-blocking — maximize-progress-while-blocked),
+§11.4.102 (systematic-debugging on any spotted problem inside any
+stream), §11.4.42 (priority-ordered iteration), §11.4.84 (working-tree
+quiescence for concurrent subagent commits), §12.6 / §12.7 / §12.8 /
+§12.9 (host-session safety bounds stream count + forbids a second heavy
+build), §9.2 (data-safety for any destructive op a stream would
+attempt).</p>
+<p><strong>Classification:</strong> universal (§11.4.17) — continuous
+parallel-stream working with a free main stream, priority-first
+dispatch, and anti-bluff closures is a reusable operating discipline for
+ANY project on ANY runtime that supports background execution + subagent
+delegation; nothing in the routine is hardware-, vendor-, or
+region-specific.</p>
+<p><strong>4-layer coverage per §11.4.4(b).</strong> Propagation gate
+<code>CM-COVENANT-114-103-PROPAGATION</code> enforces the literal anchor
+<code>11.4.103</code> across the canonical consumer fleet (parent +
+owned-submodule CLAUDE.md / AGENTS.md / QWEN.md). Paired §1.1 meta-test
+mutation strips the <code>11.4.103</code> literal from a consumer file →
+the gate FAILs. (Gate-code implementation lands as a separate work item;
+this anchor defines the contract.)</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.103
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p><strong>Non-compliance is a release blocker regardless of
+context.</strong> No escape hatch — no <code>--block-main-stream</code>,
+<code>--synchronous-commit</code>, <code>--synchronous-push</code>,
+<code>--single-stream-only</code>, <code>--skip-parallel-streams</code>,
+<code>--serialise-actionable-work</code>,
+<code>--idle-without-queue-survey</code> flag exists. The 2026-05-29
+user mandate is unambiguous: continuous parallel-stream working with a
+free main stream is the regular working routine, not a per-request
+opt-in.</p>
+<hr />
+<h3 id="114167--big-work-item-feature-work-stream-lifecycle-own-copy-on-write-project-copy--own-branchtags--per-feature-builds-no-merge-until-approved-trunk-merged-into-every-stream-user-mandate-2026-06-23">§11.4.167
+— Big-work-item feature work-stream lifecycle (own copy-on-write project
+copy + own branch/tags + per-feature builds, no-merge-until-approved,
+trunk-merged-into-every-stream) (User mandate, 2026-06-23)</h3>
+<p>Every BIG work item — a new feature OR a drastic/large fix — MUST be
+developed as its own isolated <strong>feature work-stream</strong>: its
+OWN full project copy in a sibling directory, its OWN feature branch,
+its OWN per-feature flashable builds + feature release tags, kept
+SEPARATE from the trunk until manually approved after testing, with the
+trunk regularly merged INTO every feature stream. This generalises
+Git-flow&#39;s feature/release/tag discipline (long-lived <code>main</code>
+trunk, one <code>feature/&lt;slug&gt;</code> per big item, no merge to
+trunk until reviewed-complete) and binds it to the project&#39;s
+parallel-stream (§11.4.58/§11.4.103), single-builder, and
+finite-test-device realities. The mandate (ALL hold):</p>
+<p><strong>(A) One big item = one feature work-stream in a sibling
+project copy.</strong> Each big work item gets its own complete project
+copy in a sibling directory (<code>&lt;project&gt;</code>,
+<code>&lt;project&gt;_&lt;slug-1&gt;</code>,
+<code>&lt;project&gt;_&lt;slug-2&gt;</code>, …), the
+<code>&lt;slug&gt;</code> a lowercase identifier per §11.4.29. The trunk
+copy is the canonical <code>main</code>. Small changes stay on the
+trunk; only BIG items earn a stream (the threshold is the project&#39;s own
+per §11.4.35).</p>
+<p><strong>(B) Disk-feasible duplication is MANDATORY, naive copies
+FORBIDDEN.</strong> A feature-stream copy MUST be created by a
+near-zero-disk mechanism — on a copy-on-write filesystem
+(btrfs/XFS/ZFS/APFS) a reflink/CoW clone
+(<code>cp -a --reflink=auto</code> / filesystem snapshot) so only
+DIVERGED bytes consume disk; elsewhere a shared-object-store mechanism
+(e.g. <code>git worktree</code> + externalized build output + sparse
+where the build tolerates it). A full deep copy or full
+<code>git clone</code> per stream of a large working tree is FORBIDDEN
+where it would exhaust free space (§9 data safety + the project&#39;s
+host-disk reality per §11.4.35). The chosen mechanism MUST be verified
+to consume ~0 disk for a fresh stream (captured evidence per §11.4.69)
+before being relied on (§11.4.6 — no guessing about disk). Build output
+(<code>out/</code>-class) MUST be per-stream and excluded from the CoW
+clone; one shared compiler cache (ccache-class) across streams maximises
+queued- build hit-rate.</p>
+<p><strong>(C) Own branch + own tags, separate until approved.</strong>
+Each stream develops on its own <code>feature/&lt;slug&gt;</code>
+branch; per-feature flashable builds are marked with feature tags under
+a scheme that embeds the slug so the build is greppable across every
+repository (composes §11.4.151), e.g.
+<code>&lt;base-version&gt;-feat-&lt;slug&gt;[-&lt;iter&gt;]</code>, the
+<code>&lt;iter&gt;</code> monotonic per §11.4.54. <strong>The feature
+branch is NEVER merged to the trunk until the operator manually approves
+after testing</strong> — approval requires the §11.4.40 full-suite
+retest GREEN on a clean target, then the §11.4.41 merge-first
+integration, then a §11.4.113 ff-only (no-force) merge to trunk.</p>
+<p><strong>(D) Trunk merged INTO every feature stream,
+regularly.</strong> The trunk MUST be merged INTO every live feature
+stream FREQUENTLY (at minimum after every trunk tag / daily) to prevent
+long-lived-branch conflict storms — <code>git merge</code> (never rebase
+a shared/tagged branch). A stream that has not been synced within the
+cadence is flagged stale.</p>
+<p><strong>(E) Feature-level branching AND tagging cascades to ALL
+submodules the moment a submodule is modified.</strong> The instant a
+stream modifies ANY submodule, that submodule gets its own
+<code>feature/&lt;slug&gt;</code> branch; per-feature tags on the main
+repo are mirrored on EVERY touched submodule at the same HEAD and
+ff-only-pushed to all owned remotes (§11.4.113 + the project&#39;s
+tag-cascade rule). Untouched submodules stay trunk-pinned (no branch/tag
+churn). Merge-to-trunk applies the same cascade. Where the duplication
+mechanism is <code>git worktree</code>, the experimental/disk-
+duplicating worktree-submodule path (each worktree keeps a unique
+submodule copy; removal must be forced) is a documented hazard and the
+CoW-clone mechanism (each stream owns CoW-shared submodule git dirs) is
+preferred where available.</p>
+<p><strong>(F) Single-builder build queue + finite-device test
+queue.</strong> Where the host can run only ONE build at a time, feature
+builds MUST QUEUE (FIFO + advisory lock, composes §11.4.58 L1 / §12.7 /
+§12.8), never contend. Where live testing has a finite device count,
+per-device exclusive ownership (§11.4.119) serialises tests; streams
+beyond the device count queue. The build queue MUST garbage-collect idle
+streams&#39; regenerable build output (§11.4.77) to keep disk within
+budget.</p>
+<p><strong>(G) Every change crosses the full quality gauntlet.</strong>
+Every change in any stream passes the extensive independent code review
+(§11.4.142/§11.4.125/§11.4.134)</p>
+<ul>
+<li>multi-angle impact research (§11.4.145) + anti-bluff
+captured-evidence testing (§11.4 / §11.4.5 / §11.4.69 / §11.4.107) — a
+feature stream is NOT a quality carve-out.</li>
+</ul>
+<p><strong>(H) Resumable, data-safe stream lifecycle.</strong> A stream
+registry (single source of &quot;is this stream owed?&quot;, composes §11.4.116 /
+§11.4.147) tracks each stream&#39;s branch, base tag, build/out state,
+last-trunk-merge, and merge-approval state. Stream creation is
+atomic-on-success (clone to a <code>.partial</code> name, rename on
+success) and resumable (§11.4.84 quiescence check on resume). Retiring a
+stream requires a §9.2 pre-op backup + a guard that the feature work is
+merged/approved (unmerged work blocks auto-deletion). Host-session
+safety (§12) and the ≤60%-memory ceiling (§12.6) bound clone +
+build.</p>
+<p>Honest boundary (§11.4.6): this lifecycle guarantees ISOLATION,
+disk-feasibility, greppable identity, and a controlled trunk↔︎feature
+merge discipline — it does NOT by itself prove any stream&#39;s work is
+correct (each change still crosses §11.4.108 runtime-signature +
+§11.4.40 retest). Classification: universal (§11.4.17) — the consuming
+project supplies its filesystem/CoW mechanism, sibling- dir + tag
+naming, build-queue + device-queue counts, and big-item threshold per
+§11.4.35.</p>
+<p>Propagation gate <code>CM-COVENANT-114-167-PROPAGATION</code>
+(literal <code>11.4.167</code> across the consumer fleet) + recommended
+gates <code>CM-FEATURE-WORKSTREAM-COW-CLONE</code> (a feature stream is
+created by the verified near-zero-disk mechanism, NOT a full deep copy/
+clone; per-stream out/ + shared cache; captured disk-cost evidence) +
+<code>CM-FEATURE-WORKSTREAM-NO-MERGE-UNTIL-APPROVED</code> (no
+feature→trunk merge without the approval marker + §11.4.40 GREEN) +
+<code>CM-FEATURE-WORKSTREAM-TRUNK-SYNC-CADENCE</code> (every live
+stream&#39;s last-trunk-merge within the declared cadence) +
+<code>CM-FEATURE-WORKSTREAM-SUBMODULE-CASCADE</code> (every touched
+submodule carries the <code>feature/&lt;slug&gt;</code> branch +
+mirrored feature tag). Paired §1.1 meta-test mutations: strip the
+literal → propagation gate FAILs; create a stream via full deep copy →
+<code>CM-FEATURE-WORKSTREAM-COW-CLONE</code> FAILs; merge a feature to
+trunk with no approval marker →
+<code>CM-FEATURE-WORKSTREAM-NO-MERGE-UNTIL-APPROVED</code> FAILs; let a
+stream go stale past the cadence →
+<code>CM-FEATURE-WORKSTREAM-TRUNK-SYNC-CADENCE</code> FAILs; modify a
+submodule in a stream without its <code>feature/&lt;slug&gt;</code>
+branch/tag → <code>CM-FEATURE-WORKSTREAM-SUBMODULE-CASCADE</code> FAILs
+(gate-code = separate work item).</p>
+<p>Composes §9 / §9.2 / §11.4.6 / §11.4.17 / §11.4.28 / §11.4.29 /
+§11.4.35 / §11.4.40 / §11.4.41 / §11.4.54 / §11.4.58 / §11.4.66 /
+§11.4.69 / §11.4.71 / §11.4.77 / §11.4.84 / §11.4.103 / §11.4.108 /
+§11.4.113 / §11.4.116 / §11.4.119 / §11.4.125 / §11.4.142 / §11.4.145 /
+§11.4.147 / §11.4.151 / §12 / §12.6 / §12.7 / §12.8 / §12.9 / §1.1.</p>
+<p><strong>Canonical authority:</strong> constitution submodule
+<code>Constitution.md</code> §11.4.167. Non-compliance is a release
+blocker. No escape hatch — no <code>--full-clone-per-feature</code>,
+<code>--deep-copy-stream</code>, <code>--skip-cow-clone</code>,
+<code>--merge-feature-without-approval</code>,
+<code>--no-trunk-sync</code>, <code>--skip-submodule-cascade</code>,
+<code>--unbounded-parallel-builds</code>,
+<code>--shared-device-no-lock</code>,
+<code>--retire-unmerged-stream</code>,
+<code>--feature-stream-quality-carveout</code> flag.</p>
+<p><strong>§11.4.176 — Conflict-free multi-track work-division +
+exactly-once claim registry + capability-aware deadlock-proof
+device-lock (User mandate, 2026-07-02).</strong> When a project runs
+multiple concurrent work-STREAM tracks (§11.4.167 feature work-stream
+lifecycle; §11.4.58/§11.4.103 parallel streams) that share (a) a common
+pool of workable items and (b) a scarce pool of exclusive
+hardware/resources, TWO cooperating arbitration layers are MANDATORY —
+both conflict-free BY CONSTRUCTION, not by convention. Forensic anchor —
+verbatim user mandate (2026-07-02, REM-17): &quot;MUST prevent multiple
+Tracks working the same workable item OR the same group of workable
+items resembling one consistent logical group of functionalities.
+Division of work assigned to Tracks MUST be conflict-free: no conflicts,
+misunderstandings, race conditions, data corruptions, codebase loss.
+Risk-free + safe; results ALWAYS produced; no false results, no bluff.&quot;
+(REM-02): &quot;there MUST exist proper synchronization mechanism for
+flashing and use of device ... lock ... release ... available test
+devices pool and information about held locks ... dead-lock-proof ... a
+track locks one OR more devices selected by required capability.&quot;
+<strong>(A) Work-item layer — exactly-once claim registry
+(REM-17).</strong> Every workable item, OR every logical GROUP of items
+that share files / subsystem / feature / schema (a hidden-coupling
+cohort), is assigned to AT MOST ONE track at a time. (1)
+<strong>Exactly-once</strong> — a lock-arbitrated, append-only claim
+registry (extending §11.4.147 no-work-loss registry + §11.4.116
+real-time sync substrate) records
+<code>claim(item|group, track, ts, ttl)</code>; a track MUST
+claim-before-touch; a second claim on an already-claimed item is DENIED
+(no silent overlap). (2) <strong>Logical-group cohesion</strong> — items
+that share a file-scope / subsystem / feature / schema are one group
+claimed WHOLE by one track (prevents the hidden-coupling race two tracks
+editing the same seam would create — §11.4.58 L3 disjoint-file-scope is
+the enforcement). (3) <strong>Conflict-free by construction</strong> —
+disjoint file-scope partition (§11.4.58 L3) + per-track worktree/CoW
+isolation (§11.4.167) means two tracks physically cannot touch the same
+bytes. (4) <strong>No codebase loss</strong> — §9.2 hardlinked backups,
+§11.4.113 ff-only merge-onto-latest-main (NEVER force-push), §11.4.84
+working-tree quiescence, §11.4.41 merge-first. (5)
+<strong>Anti-bluff</strong> — the assignment + the merge are verifiable
+(registry event stream + captured merge evidence); results are ALWAYS
+produced (a claimed-but-abandoned item&#39;s claim TTL-expires and returns
+to the pool, §11.4.147). <strong>(B) Hardware layer — capability-aware
+deadlock-proof device-lock (REM-02).</strong> When N tracks outnumber M
+exclusive test devices, exactly ONE track owns each device at a time
+(§11.4.119 single-resource-owner). A track leases ONE OR MORE devices
+selected by required CAPABILITY (not merely identity) — the pool records
+per-device capabilities; leases are capability-matched; multi-device
+leases are supported. The arbiter is DEADLOCK-FREE by construction — all
+four Coffman conditions broken: hold-and-wait ELIMINATED (multi-device
+acquire is ALL-OR-NOTHING inside one critical section — never a partial
+hold while waiting); circular-wait ELIMINATED (acquire is NON-BLOCKING —
+wins the whole set at once or returns EBUSY immediately, never waits on
+another track&#39;s device); no-preemption RELAXED (lease TTL + heartbeat +
+reap — a crashed holder&#39;s lease auto-expires, §11.4.147, so a dead track
+never holds the pool hostage); the only lock ever held is a short
+bounded flock over the atomic check-and-claim critical section, released
+before any device work. Registry = append-only JSONL event stream +
+atomically-rewritten snapshot (§11.4.116). <strong>(C) Universal
+decoupling + evidence-based resource-tuning (REM-03).</strong> Both
+layers are universal, decoupled, project-not-aware, reusable
+(§11.4.17/§11.4.28/§11.4.35) — the consuming project injects its
+claim-store, device pool, and metric sources at runtime; nothing
+project-specific lands in the canonical root. Resource-tuning decisions
+(parallel-stream count, per-stream memory budget §12.6, device-lease
+breadth, build-queue depth §11.4.167) MUST be EVIDENCE-BASED — driven by
+captured metrics (§11.4.24 / §11.4.5), never guessed (§11.4.6). Composes
+§11.4.6 / §11.4.17 / §11.4.24 / §11.4.28 / §11.4.35 / §11.4.41 /
+§11.4.58 / §11.4.84 / §11.4.85 / §11.4.103 / §11.4.113 / §11.4.116 /
+§11.4.119 / §11.4.147 / §11.4.167 / §12.6 / §9.2. Classification:
+universal (§11.4.17). Propagation gate
+<code>CM-COVENANT-114-176-PROPAGATION</code> (literal
+<code>11.4.176</code> across the consumer fleet) + recommended gates
+<code>CM-WORK-DIVISION-EXCLUSIVE-CLAIM</code> +
+<code>CM-NO-CROSS-TRACK-SCOPE-OVERLAP</code> +
+<code>CM-LOGICAL-GROUP-COHESION</code> +
+<code>CM-DEVICE-LOCK-DEADLOCK-FREE</code> (device-lock arbiter ships an
+all-or-nothing + non-blocking + TTL-reap stress/chaos proof with a
+paired §1.1 mutation) + paired §1.1 meta-test mutations (gate-code =
+separate work item). <strong>Canonical authority:</strong> constitution
+submodule <a href="Constitution.md"><code>Constitution.md</code></a>
+§11.4.176. Non-compliance is a release blocker. No escape hatch — no
+<code>--allow-cross-track-overlap</code>,
+<code>--skip-claim-registry</code>, <code>--split-logical-group</code>,
+<code>--blocking-device-acquire</code>,
+<code>--allow-partial-device-hold</code>,
+<code>--tune-resources-by-guess</code> flag.</p>
+<p><strong>§11.4.178 — Track-qualified identity for parallel work
+streams (session-name collision ban) (User mandate,
+2026-07-04).</strong> Parallel work streams that share hardware, a git
+backing store, a tmux/session namespace, a lock namespace, or any
+single-owner resource MUST be addressed by a TRACK-QUALIFIED identity
+(<code>&lt;project&gt;__&lt;track&gt;__&lt;role&gt;</code>), NEVER a
+bare directory basename. Multiple checkouts/clones/worktrees sharing
+basename <code>atmosphere</code> collapse into one session/lock/log key
+and cross-wire tmux targets, lock files, device claims, and log
+directories (the observed collision, 2026-07-04). Every registry row,
+session name, lock path, log directory, and device claim MUST carry the
+track-qualified key; a bare-basename identity for a resource with ≥ 2
+concurrent claimants is a violation. Honest boundary (§11.4.6): a unique
+identity prevents cross-wiring — it does not itself arbitrate ownership
+(that is §11.4.119 + <strong>§11.4.176</strong> (the multi-track
+work-division + exactly-once-claim + device-lock arbitration anchor)).
+Composes §11.4.111 (resolve-by-stable-name-not-by-index) / §11.4.119
+(single-resource-owner partitioning) / <strong>§11.4.176</strong> (the
+multi-track work-division + exactly-once-claim + device-lock arbitration
+anchor) / §11.4.29 (naming) / §11.4.58 (parallel PWU). Classification:
+universal (§11.4.17) — the consuming project supplies its
+<code>&lt;project&gt;</code>/<code>&lt;track&gt;</code>/<code>&lt;role&gt;</code>
+vocabulary per §11.4.35. Propagation gate
+<code>CM-COVENANT-114-178-PROPAGATION</code> (literal
+<code>11.4.178</code>) + recommended gate
+<code>CM-TRACK-QUALIFIED-IDENTITY</code> (every session name / lock path
+/ log dir / device claim for a multi-claimant resource carries the
+track-qualified key, never a bare basename) + paired §1.1 meta-test
+mutation (address a shared resource by bare basename → gate FAILs; strip
+the literal → propagation gate FAILs; gate-code = separate work item).
+<strong>Multi-project-per-track layout clarification
+(2026-07-10):</strong> a <code>/mnt/track&lt;N&gt;</code> track parent
+is NOT single-project — MULTIPLE projects coexist on the same track
+parents, each in its OWN project-named subdirectory
+<code>/mnt/track&lt;N&gt;/&lt;project_name&gt;/</code> (e.g.
+<code>/mnt/track1/atmosphere/</code> AND
+<code>/mnt/track1/helix_ota/</code> side by side); the per-track working
+copy of project P on track N is ALWAYS
+<code>/mnt/track&lt;N&gt;/&lt;project_name&gt;/</code> (the project&#39;s
+canonical lowercase snake_case dir-name per §11.4.29), never the bare
+track root and never a shared basename. This is precisely WHY the
+identity is <code>&lt;project&gt;__&lt;track&gt;__&lt;role&gt;</code>
+and carries the <code>&lt;project&gt;</code> component: it keeps two
+coexisting projects&#39; track-N sessions / locks / logs / device-claims /
+registry rows from colliding. A project adopting this constitution + the
+multi-track engine (§11.4.187) MUST create AND register its own
+<code>/mnt/track&lt;N&gt;/&lt;project_name&gt;/</code> per track under
+its project-qualified identity — it MUST NOT assume it owns the track
+root or that a track hosts only one project. <strong>Canonical
+authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.178.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--bare-basename-ok</code>, <code>--skip-track-qualifier</code>,
+<code>--shared-session-name</code> flag.</p>
+<p><strong>§11.4.182 — Track+branch work-stream identity label
+<code>(T&lt;N&gt;/&lt;branch&gt;)</code> on every
+agent/subagent/work-stream label and every operator-facing work-stream
+reference (User mandate, 2026-07-05).</strong> <strong>Forensic anchor —
+operator mandate (2026-07-05):</strong> &quot;EVERY
+agent/subagent/work-stream label AND every operator-facing report
+reference to a work stream MUST carry a
+<code>(T&lt;N&gt;/&lt;branch&gt;)</code> prefix identifying the track +
+git branch — e.g.
+<code>(T1/main) ATM-312 MPV drm_prime investigation</code>,
+<code>(T2/feat/mistiq-vader) SPK-XXX ...</code>.&quot; In a multi-track
+layout (parallel checkouts each on a distinct branch — e.g.
+<code>/mnt/track1..4</code>) a bare work-stream label (&quot;ATM-312
+investigation&quot;) does not say WHICH track/branch produced it, so
+cross-track dispatches, status reports, and progress lines collide and
+mislead. The mandate (ALL hold): (1) <strong>Universal label
+form.</strong> Every agent / subagent / work-stream label AND every
+operator-facing reference to a work stream (agent-dispatch descriptions,
+status reports, resume/handoff docs, progress lines) MUST START with a
+<code>(T&lt;N&gt;/&lt;branch&gt; - &lt;alias&gt;)</code> prefix —
+<code>&lt;N&gt;</code> the track number, <code>&lt;branch&gt;</code> the
+git branch, <code>&lt;alias&gt;</code> the claude-toolkit alias in use —
+e.g.
+<code>(T1/main - claude1) ATM-312 MPV drm_prime investigation</code>,
+<code>(T2/feature/mistiq-vader - deepseek) SPK-XXX subtitle work</code>.
+(2) <strong>Deterministic derivation, never guessed (§11.4.6).</strong>
+The label is DERIVED, not typed from memory: <code>&lt;N&gt;</code> from
+the checkout path (the multi-track root
+<code>/mnt/track&lt;N&gt;/…</code>; honest <code>?</code> when the
+checkout is not under a numbered track — never a guessed number),
+<code>&lt;branch&gt;</code> from
+<code>git rev-parse --abbrev-ref HEAD</code>, <code>&lt;alias&gt;</code>
+from <code>CLAUDE_CONFIG_DIR</code> basename
+<code>.claude-&lt;alias&gt;</code> → <code>&lt;alias&gt;</code> (honest
+<code>?</code> when unset/non-matching, never a guessed name). The
+consuming project supplies a deterministic labeler (reference impl
+<code>scripts/multitrack/track_branch_label.sh</code>). (3)
+<strong>Mechanical enforcement (§11.4.75 / §11.4.109-class
+anti-forgetting).</strong> A PreToolUse guard hook (reference impl
+<code>constitution/scripts/hooks/guard-track-branch-label.sh</code>,
+inherited BY REFERENCE per §11.4.177, never copied) BLOCKS at the
+tool-call boundary any agent-dispatch tool (Agent / Task / TaskCreate)
+whose <code>description</code> (or <code>subagent</code> label) does not
+START with <code>^\(T[0-9]+/[^)]+\) </code> — so enforcement is
+independent of any agent&#39;s recall (a rule the orchestrator forgets to
+paste is not enforcement); non-agent tools pass through untouched. A
+pre-build gate <code>CM-TRACK-BRANCH-LABEL</code> asserts the labeler +
+hook exist, are executable + parseable, the hook is wired in the runtime
+settings, and the convention doc exists; a propagation gate
+<code>CM-COVENANT-114-182-PROPAGATION</code> asserts the literal
+<code>11.4.182</code> is present across the governance-file fleet.
+Paired §1.1 mutation: strip the hook&#39;s prefix-check → the hook
+test-suite FAILs; strip the <code>11.4.182</code> literal from a
+governance file → the propagation gate FAILs; restore → PASS. (4)
+<strong>Honest boundary (§11.4.6).</strong> A <code>?</code> in the
+track OR the alias field is a valid honest label (unknown track / no git
+repo), never a bluff; the enforced FORMAT is numeric-track
+<code>[0-9]+</code> per the reference regex, so an agent dispatch from a
+non-track checkout is surfaced (blocked) rather than silently
+mislabeled. Classification: universal (§11.4.17) — a platform-neutral
+multi-stream identity discipline reusable by any project running
+parallel track/branch work streams; the consuming project supplies its
+concrete track-root layout, labeler, hook wiring, and governance-file
+set per §11.4.35. Composes §11.4.178 (track-qualified identity —
+§11.4.182 is the label-prefix instantiation applied to EVERY
+agent/subagent label + every operator-facing work-stream reference) /
+§11.4.29 (naming) / §11.4.75 (mechanical enforcement) / §11.4.109
+(anti-forgetting PreToolUse guard) / §11.4.177 (hook inherited by
+reference, project-decoupled) / §11.4.6 (label is a derived fact;
+<code>?</code> is honest-unknown) / §11.4.58 · §11.4.103 (parallel work
+streams) / §11.4.119 (single-resource-owner per track) / §11.4.116 ·
+§11.4.147 (work-stream registry identity). Propagation gate
+<code>CM-COVENANT-114-182-PROPAGATION</code> (literal
+<code>11.4.182</code> across the consumer fleet) + recommended gate
+<code>CM-TRACK-BRANCH-LABEL</code> + paired §1.1 meta-test mutation.
+<strong>TRUNK RULE (operator mandate, 2026-07-28):</strong> work
+performed on the canonical trunk (<code>main</code>/<code>master</code>)
+is <strong>ALWAYS Track 1</strong> — the label reads
+<code>(T1/main - …)</code>, NEVER <code>(T?/main - …)</code>, regardless
+of checkout path. Precedence is deliberate: the BRANCH decides first and
+the checkout path decides only for non-trunk branches, so a trunk
+checkout living outside <code>/mnt/track&lt;N&gt;</code> — or inside a
+differently-numbered one — is still Track 1; the identity that matters
+is which STREAM the work belongs to, not which directory it happens to
+sit in. Rationale: §11.4.182 labels are how concurrent streams are told
+apart, so an unnumbered <code>T?</code> on trunk work makes it
+indistinguishable from a genuinely-unknown track in every dispatch,
+report and progress line — and the trunk is a well-known, singular
+stream that is never unknown. Reference implementation:
+<code>scripts/multitrack/track_branch_label.sh</code> derives the branch
+BEFORE the track number and maps <code>main|master -&gt; 1</code>.
+Labels MUST be re-derived from that script at dispatch time and kept in
+real-time sync with the live branch/alias/model/effort — a remembered or
+stale label is itself a §11.4.182 violation (§11.4.6: live identity is
+not knowable from memory). <strong>Canonical authority:</strong>
+constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.182.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-track-label</code>, <code>--unlabeled-agent-OK</code>,
+<code>--bare-work-stream-reference</code>,
+<code>--no-track-branch-prefix</code>, <code>--label-from-memory</code>
+flag.</p>
+<p><strong>§11.4.183 — Maximal multi-agent utilization per work-stream +
+full-constitution-application + zero-bluff mandate (User mandate,
+2026-07-07).</strong> <strong>Forensic anchor — verbatim operator
+mandate (2026-07-07):</strong> &quot;Every Track MUST USE and maximize
+multi-agents working approaches (subagent-driven, independent agents for
+various reviewing, and other forms of agents use)! We MUST maximize use
+of agents so every track produces as much as possible completed work
+with highest possible quality for the least spent time! Every Track MUST
+apply everything from the constitution — all rules, mandatory
+constraints, guides and technology derived! Nothing can be ignored,
+skipped, avoided or considered less relevant! There MUST NEVER BE false
+or faulty results, untested and unverified work or bluff of any kind
+anywhere!&quot; Every track / work-stream MUST maximize multi-agent working
+approaches — subagent-driven development (§11.4.20/§11.4.70),
+independent review agents (§11.4.125/§11.4.142/§11.4.165/§11.4.134),
+parallel background streams with auto-backfill (§11.4.58/§11.4.103), and
+every other applicable agent form — so that every track produces the
+MOST completed work at the HIGHEST quality in the LEAST time. The
+mandate (ALL hold): (1) <strong>Maximize agent utilization per
+track.</strong> Every track/work-stream (main + every parallel
+background stream per §11.4.58/§11.4.103) MUST default to
+subagent-driven execution for non-trivial work (§11.4.20/§11.4.70),
+dispatch independent review agents structurally separated from the
+author for quality/safety/correctness review
+(§11.4.125/§11.4.142/§11.4.165, iterated to a clean GO per §11.4.134),
+and use every other applicable specialised-agent form the runtime offers
+— never one monolithic foreground agent doing everything a task
+naturally decomposes into. (2) <strong>Full-constitution application —
+nothing ignored.</strong> Every track MUST apply the ENTIRE constitution
+to its work — every universal rule, every mandatory constraint, every
+guide, and every derived technology (gates, mutation pairs, sync
+engines, recording/evidence pipelines, lock/claim registries) this
+Constitution and its consuming project&#39;s governance define. No rule may
+be silently ignored, skipped, avoided, or judged &quot;less relevant&quot; for a
+given track — partial-constitution-application is itself a §11.4.183
+violation, equal in severity to skipping a mandated gate. (3)
+<strong>Zero-bluff, zero-false-result, zero-untested-work.</strong>
+There MUST NEVER be false or faulty results, untested or unverified
+work, or bluff of any kind, anywhere, on any track — this restates and
+BINDS the entire §11.4 anti-bluff covenant
+(§11.4/.1/.2/.5/.6/.7/.50/.69/.107) as an unconditional per-track
+invariant, not merely a release-gate check: every claim of &quot;done&quot; on any
+track carries captured evidence (§11.4.5/§11.4.69/§11.4.107), every
+gate/mutation pair is genuinely falsifiable (§1.1), and no track may
+report progress it did not actually perform (§11.4.126). Honest boundary
+(§11.4.6): &quot;maximize agents&quot; is bounded — by §12.6&#39;s 60% host-memory
+ceiling, §11.4.58&#39;s parallel-agent cap, genuine task parallelizability,
+and §11.4.119&#39;s single-resource-owner rule for contended hardware/locks
+— so spawning contending, redundant, or non-parallelizable agents is NOT
+maximization; the bar is maximum USEFUL parallel throughput per track,
+never raw agent count. Classification: universal (§11.4.17) — a
+platform-neutral operating-discipline reusable by any project running
+one or more parallel work-streams/tracks; the consuming project supplies
+its concrete track layout, subagent runtime, and review-agent roster per
+§11.4.35. Composes §11.4.20 (subagent-driven-by-default) / §11.4.58
+(parallel-development PWU pipeline) / §11.4.70 (subagent-driven
+execution is the default) / §11.4.92 (multi-pass change evaluation) /
+§11.4.94 (zero-idle priority-first parallel-by-default) / §11.4.97
+(maximum-use-of-idle-time) / §11.4.103 (continuous parallel-stream
+working routine) / §11.4.119 (single-resource-owner partitioning) /
+§11.4.125 (code-review-agent gate) / §11.4.126 (default autonomous-loop
+working mode) / §11.4.134 (code-review iterate-until-GO) / §11.4.142
+(universal code-review mandate) / §11.4.165 (universal independent
+verification agent mandate) / §12.6 (60% memory ceiling). Propagation
+gate <code>CM-COVENANT-114-183-PROPAGATION</code> (literal
+<code>11.4.183</code> across the consumer fleet) + recommended gate
+<code>CM-MAX-AGENTS-PER-TRACK</code> (every active track shows
+subagent/review-agent dispatch evidence for non-trivial work, not
+solitary foreground execution) + paired §1.1 meta-test mutation (strip
+the literal → propagation gate FAILs; record a track that skipped
+subagent/review-agent dispatch for non-trivial work with no genuine
+single-agent justification → <code>CM-MAX-AGENTS-PER-TRACK</code> FAILs;
+gate-code = separate work item). <strong>Canonical authority:</strong>
+constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.183.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--single-agent-OK</code>, <code>--skip-review-agents</code>,
+<code>--partial-constitution-application</code>,
+<code>--serialise-parallelisable-work</code> flag.</p>
+<p><strong>§11.4.187 — Automatic multi-track ruler orchestration (User
+mandate, 2026-07-04; landed 2026-07-09).</strong> Compact summary: every
+project incorporating this constitution MUST ship its multi-track
+parallel-development orchestration as a UNIVERSAL, AUTOMATIC,
+OUT-OF-THE-BOX, INHERITED capability — not a per-project
+reimplementation — via a single conductor session that programmatically
+SPAWNS, DRIVES, RESUMES, MONITORS, and CONTROLS per-track headless
+workers. (1) <strong>Headless spawn primitive</strong> — workers launch
+via native headless
+<code>claude -p --output-format stream-json --verbose</code>; the
+worker&#39;s <code>session_id</code> is captured from the FIRST
+<code>init</code> event (never invented); success/failure is read from
+the terminal event&#39;s <code>result.is_error</code> field, NEVER the
+process exit code (a CLI can exit non-zero on a successful
+<code>result</code>, or zero on a failed one —
+exit-code-as-success-signal is a §11.4.6 guess); continuation of an
+existing worker uses <code>--resume &lt;session_id&gt;</code> invoked
+from the SAME cwd + env the spawn used (the storage/resume-collision
+gotcha). (2) <strong>Per-subscription auth + rate-limit
+fallback</strong> — every spawn <code>unset</code>s any ambient
+<code>ANTHROPIC_API_KEY</code> (the precedence trap that silently routes
+a &quot;subscription&quot; worker onto pay-per-token API billing) and sets the
+selected alias&#39;s
+<code>CLAUDE_CODE_OAUTH_TOKEN</code>/<code>CLAUDE_CONFIG_DIR</code>; on
+a captured rate-limit signature
+(<code>isApiErrorMessage</code>+<code>apiErrorStatus:429</code>,
+quota-exhausted vs transient distinguished by evidence, never guessed)
+the ruler REBINDS the affected track onto the next healthy alias
+(cross-track reuse permitted), falls back to a provider alias where
+configured, and bounded-parks (§11.4.101) rather than hanging when every
+alias is cooled. (3) <strong>Crash-resilient ruler
+self-supervisor</strong> — the ruler&#39;s OWN state (per-track
+alias/session_id/worktree/last-verdict) is persisted durably
+(write-temp-then-rename, NEVER tmpfs) so an external watchdog detects a
+dead ruler PID and re-hydrates every track&#39;s binding from the durable
+state + the §11.4.116 event stream — no work is silently lost to a ruler
+crash (§11.4.147 at the ruler layer). (4) <strong>Idempotent bootstrap +
+auto-install + conductor-stays-home</strong> — one idempotent bootstrap
+command wires the whole system out of the box (cwd-hook install, config
+validation, reconciliation), auto-invoked on every constitution pull via
+the §11.4.164 <code>post_update_hook.sh</code> skill-register seam; the
+<code>conductor:</code>-designated alias/session is NEVER bound into a
+track worktree (the resolver returns nothing for it) so the conductor
+always runs from the main checkout. (5) <strong>Project-agnostic engine,
+consumer-owned data</strong> — the entire mechanism (config loader,
+alias→worktree resolver, cwd-hook, bind/fallback/cooldown orchestrator,
+session launcher, rate-limit monitor, supervisor) lives at
+<code>constitution/scripts/multitrack/</code>, inherited BY REFERENCE
+(§11.4.28(B)/§11.4.177), carrying NO project literal; every consuming
+project supplies its own per-host
+<code>config/multitrack/&lt;hostname&gt;.yaml</code>
+(tracks/mounts/serials/aliases/conductor) as DATA, never as an engine
+edit. Anti-bluff (§11.4/§11.4.108): every piece carries four-layer
+coverage (pre-build gate + on-host test + paired §1.1 mutation +
+captured evidence per §11.4.69), and each fix declares a runtime
+signature verified on a clean host — never a claim the mechanism &quot;should
+work.&quot; Honest boundary (§11.4.6): this anchor mandates the MECHANISM;
+genuine per-subscription quota-isolation proof requires live tokens
+exercising real rate-limit boundaries (an operator-scheduled live
+acceptance window) — a mock-driven GREEN proves the
+spawn/resume/fallback CONTRACT, never live-quota behaviour, and the two
+are never conflated or substituted for each other. Classification:
+universal (§11.4.17). Composes §11.4.20 (subagent-driven-by-default) /
+§11.4.28 (submodule decoupling + dependency layout) / §11.4.58
+(parallel-development PWU pipeline) / §11.4.70 (subagent-driven
+execution default) / §11.4.101 (autonomous-decision-over-blocking — the
+bounded-park-on-all-cooled behaviour) / §11.4.103 (continuous
+parallel-stream routine) / §11.4.111 (resolve-by-stable-name — config by
+serial, never by index) / §11.4.116 (real-time conductor↔︎framework sync
+channel) / §11.4.119 (single-resource-owner partitioning) / §11.4.126
+(default autonomous-loop mode) / §11.4.128 (always-on device-recording —
+the analogous host-safety discipline) / §11.4.131 (standing
+session-resumption file) / §11.4.147 (crashed-agent
+respawn-until-complete — the ruler-self-supervisor is its ruler-layer
+instantiation) / §11.4.164 (constitution auto-propagation hook seam) /
+§11.4.167 (feature work-stream lifecycle) / §11.4.176 (multi-track
+work-division + exactly-once claim + device-lock) / §12.6/§12.8
+(host-safety memory + concurrency ceilings — the spawn/launch pool is
+budget-gated). Propagation gate
+<code>CM-COVENANT-114-187-PROPAGATION</code> (literal
+<code>11.4.187</code>) + recommended gates
+<code>CM-MULTITRACK-ENGINE-IN-CONSTITUTION</code> (the generic ruler
+scripts present under <code>constitution/scripts/multitrack/</code>,
+carrying no project literal, <code>bash -n</code>+<code>sh -n</code>
+clean per §11.4.67) / <code>CM-MULTITRACK-AUTOINSTALL-WIRED</code> /
+<code>CM-MULTITRACK-BOOTSTRAP-IDEMPOTENT</code> /
+<code>CM-MULTITRACK-BIND-ON-START</code> /
+<code>CM-MULTITRACK-FALLBACK-MONITOR</code> /
+<code>CM-MULTITRACK-HEADLESS-SPAWN</code> /
+<code>CM-MULTITRACK-RULER-SUPERVISOR</code> + paired §1.1 mutation
+(strip the literal → propagation gate FAILs; re-introduce a project
+literal into the engine, or downgrade a rate-limit rebind to
+exit-code-based success detection → the corresponding mechanism gate
+FAILs). <strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.187.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-multitrack</code>, <code>--manual-multitrack-only</code>,
+<code>--no-auto-install</code>, <code>--per-project-reimpl-OK</code>,
+<code>--exit-code-is-success-signal</code> flag.</p>
+<p><strong>§11.4.191 — Work-to-track/branch binding enforcement: a
+logic-group&#39;s work can NEVER be committed OR dispatched onto the wrong
+track/branch (research-derived, 2026-07-10).</strong> Compact summary:
+every logical group of workable items binds to EXACTLY ONE canonical
+<code>(track, branch)</code> recorded ONCE in the single source of truth
+(the §11.4.93 workable-items DB <code>logic_groups.destination</code> =
+authoritative branch + a <code>canonical_track</code> column + a
+<code>group_paths</code> file-scope manifest), and NO change belonging
+to a group may LAND on, nor be DISPATCHED to, a track/branch other than
+that group&#39;s canonical one — the file-scope generalisation of
+§11.4.181/§11.4.182 from branch-NAME consistency to work-PLACEMENT
+consistency (forensic FACT 2026-07-10: scrcpy/Remote-app work — group
+<code>mistiq-vader</code>, canonical
+<code>feature/mistiq-vader</code>/T2 — was committed onto
+<code>main</code>/T1; §11.4.181&#39;s
+<code>guard-branch-consistency.sh</code> never fired because committing
+onto an existing branch is not a feature-branch CREATE, and no gate
+checked which FILES land on which BRANCH). (1) <strong>Single source of
+truth</strong> — the
+<code>logic_group → (branch, track, path-globs)</code> binding is
+recorded ONCE in the DB and LOOKED UP, never re-invented (a
+commit/dispatch placing a group&#39;s file-scope on a non-canonical
+branch/track is a §11.4.6 no-guessing violation). (2) <strong>Preventive
+hook (§11.4.109/§11.4.177)</strong> — a PreToolUse guard
+<code>guard-work-track-binding.sh</code> (inherited BY REFERENCE, never
+copied) BLOCKS (exit 2) a git-commit-class Bash call whose
+to-be-committed file set contains a path owned by a group whose
+canonical branch/track ≠ the current checkout, AND BLOCKS an Agent/Task
+dispatch whose §11.4.182 label track/branch ≠ the canonical (track,
+branch) of the ticket&#39;s group; fail-closed on unreadable registry,
+<code># guardrails:allow &lt;reason&gt;</code> audited escape. (3)
+<strong>Detective gate (§11.4.110/§11.4.108)</strong> —
+<code>CM-WORK-TRACK-BINDING-ENFORCED</code> asserts, on the current
+branch&#39;s own added commits (<code>merge-base(HEAD,main)..HEAD</code>),
+that every <code>group_paths</code>-owned file&#39;s group destination ==
+current branch (and canonical_track == current track when pinned) — the
+actual enforcement boundary regardless of how the commit was made, the
+runtime signature being FAIL-on-wrong-placement /
+PASS-on-canonical-placement on a clean checkout. (4) <strong>Risk-free
+reconciliation (§9.2/§11.4.113/§11.4.84)</strong> — a mis-placed change
+is reconciled by MERGING its commits onto the group&#39;s canonical branch
+(union, no commit lost, no <code>-s ours</code>/reset), ff-only push to
+all upstreams (NEVER force-push), then removing it from the wrong branch
+only after the merge is confirmed on all mirrors. Classification:
+universal (§11.4.17) — references no project hardware; the consuming
+project supplies its <code>(track, branch)</code> map,
+<code>group_paths</code> seed, and commit-wrapper wiring per §11.4.35.
+Composes
+§11.4.6/.28/.29/.35/.58/.75/.84/.93/.95/.109/.110/.113/.119/.167/.176/.177/.178/.181/.182/§9.2.
+Propagation gate <code>CM-COVENANT-114-191-PROPAGATION</code> (literal
+<code>11.4.191</code>) + recommended gate
+<code>CM-WORK-TRACK-BINDING-ENFORCED</code> + paired §1.1 mutation.
+<strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.191.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--allow-cross-track-commit</code>,
+<code>--skip-work-binding</code>, <code>--commit-any-branch-OK</code>,
+<code>--dispatch-any-track-OK</code>, <code>--no-file-scope-check</code>
+flag.</p>
+<p><strong>§11.4.192 — Continuous multi-track auto-backfill: a FREE
+track MUST be IMMEDIATELY re-assigned its next-highest-priority domain
+work-set, never left idle while its domain has actionable items (User
+mandate, 2026-07-11).</strong> Verbatim operator mandate: &quot;once a Track
+is free, we shall assign next set of workable items to it ... full
+continuous multi-track development ... no stopping ... this is
+MANDATORY&quot;. Compact summary: the moment any track&#39;s worker COMPLETES its
+current work-set (its item(s) closed with anti-bluff evidence, or
+merged), that FREE track MUST be IMMEDIATELY assigned the
+NEXT-highest-priority actionable work-set from its OWN domain (its
+§11.4.191 logic_group / canonical branch) — a track is NEVER left idle
+while its domain still holds actionable workable items, and the
+conductor/ruler CONTINUOUSLY re-assigns with NO stopping (full
+continuous multi-track development); PROMOTES the §11.4.103(B)
+≥3-parallel-background-streams-with-auto-backfill invariant into the
+multi-track (§11.4.176/§11.4.178/§11.4.179/§11.4.187) layer
+(§11.4.103(B) backfills a STREAM the moment it is done; §11.4.192
+backfills a TRACK the moment its worker is done, keyed to that track&#39;s
+canonical (track, branch) domain per §11.4.191). (1)
+<strong>WHAT</strong> — on any track-worker completion the
+conductor/ruler (§11.4.187) MUST, per that track&#39;s domain, look up the
+NEXT actionable work-set, CLAIM it exactly-once (§11.4.176 exactly-once
+claim registry, no two tracks claiming one item), and DISPATCH it as the
+track&#39;s new §11.4.182-labelled work stream — without waiting for a
+scheduled wake or an operator prompt. (2) <strong>PRIORITY</strong> —
+the next work-set is the track domain&#39;s highest-priority actionable item
+(§11.4.42/§11.4.72 priority order, audio-first where in scope), never an
+arbitrary pick. (3) <strong>SOURCE-SIDE ADVANCES EVEN WHEN VALIDATION IS
+GATED</strong> — when the next item&#39;s on-device VALIDATION is blocked on
+a pending build / device availability (§11.4.108 clean-target /
+§11.4.185 manual-QA / operator-gated flash), the track MUST still
+advance the item&#39;s SOURCE-SIDE work (investigation, RED-test §11.4.115,
+source patch, pre-build gate + paired §1.1 mutation, docs) and honestly
+§11.4.3/§11.4.52 SKIP-with-reason ONLY the genuinely device-gated
+validation portion — a build/device gate on the validation step is NOT a
+reason to idle the whole track. (4) <strong>HONEST BOUNDARY
+(§11.4.6)</strong> — a track idles ONLY when its domain GENUINELY has
+zero remaining actionable workable items OR every remaining item is
+externally blocked with no source-side advancement possible
+(§11.4.94(A)/§11.4.97/§11.4.101 idle-only-when-blocked closed set); &quot;the
+merges are done&quot; / &quot;the current item is done&quot; / &quot;nothing visible right
+now&quot; is NEVER a valid idle reason while the domain still holds
+progressable items (a §11.4.94+§11.4.97 violation); an unavoidable
+per-item block PARKS one item, it does NOT stop the track (§11.4.101 —
+the track backfills its next non-blocked domain item). Classification:
+universal (§11.4.17) — references no project hardware; the consuming
+project supplies its track→domain map + priority source per §11.4.35.
+Composes
+§11.4.42/.58/.72/.94/.97/.101/.103/.167/.176/.178/.179/.182/.187.
+Propagation gate <code>CM-COVENANT-114-192-PROPAGATION</code> (literal
+<code>11.4.192</code>) + recommended gate
+<code>CM-CONTINUOUS-MULTITRACK-BACKFILL</code> (on a track-worker
+completion the ruler re-assigns that track&#39;s next-highest-priority
+domain work-set; a track with a completed worker AND remaining
+actionable domain items but no new dispatch → the gate FAILs) + paired
+§1.1 mutation (let a free track sit idle while its domain holds an
+actionable item, OR treat &quot;merges done&quot; as a valid idle reason → the
+gate FAILs; strip the literal → propagation gate FAILs; gate-code =
+separate work item). <strong>Canonical authority:</strong> constitution
+submodule <a href="Constitution.md"><code>Constitution.md</code></a>
+§11.4.192. Non-compliance is a release blocker. No escape hatch — no
+<code>--allow-idle-track</code>, <code>--skip-backfill</code>,
+<code>--stop-multitrack</code>, <code>--merges-done-is-idle</code>,
+<code>--defer-track-reassign</code> flag.</p>
+<hr />
+<h2 id="appendix-c--multi-upstream-push">Appendix C — Multi-upstream
+push</h2>
+<p>This constitution submodule is hosted on multiple Git providers, and
+consuming projects often are too. The submodule ships an
+<code>install_upstreams.sh</code> helper (or invokes the
+<code>install_upstreams</code> system command from the parent toolkit)
+that reads <code>Upstreams/*.sh</code> declarations and configures all
+remotes locally.</p>
+<p>Every commit to the constitution submodule MUST be pushed to ALL
+configured upstreams. Use a shell helper that iterates
+<code>git remote</code> and pushes one by one, OR configure
+<code>origin</code> with multiple push URLs
+(<code>git remote set-url --add --push origin &lt;url&gt;</code> per
+remote).</p>
+<hr />
+<h3 id="114230--parallelized-pipeline-methodology-buildvalidate-overlap--affected-stages-only-re-run--parallel-multi-device-testingrecording--fan-out-subagents-always-research-derived-2026-07-26">§11.4.230
+— Parallelized-pipeline methodology: build↔︎validate overlap +
+affected-stages-only re-run + parallel multi-device testing/recording +
+fan-out-subagents-always (research-derived, 2026-07-26)</h3>
+<p>Forensic motivation (genericised): the sequential pipeline shape —
+build FULLY completes → THEN validation begins → on ANY discovery,
+restart the WHOLE cycle from scratch → all devices tested one-at-a-time
+— serialises the operator&#39;s wall-clock onto build latency +
+one-device-at-a-time evidence gathering, so a multi-hour containerised
+build followed by serial per-device validation and a from-scratch
+restart-on-discovery makes time-to-a-manual-QA-capable-release a
+multiple of what the genuinely-parallel work requires. §11.4.58&#39;s PWU
+pipeline already overlaps Stage 1 of round N+1 with Stages 4–5 of round
+N; §11.4.89 already backgrounds long tests; §11.4.103 already mandates
+≥3 auto-backfilled parallel streams; §11.4.119 already partitions shared
+hardware by single-owner; §11.4.128/§11.4.144 already mandate always-on
+recording + availability-following. §11.4.230 BINDS those into one
+operating discipline and adds the three invariants they did not each
+state on their own: (A) the build↔︎validate CONCURRENCY seam +
+affected-stages-only re-run-on-discovery, (B) all-devices-concurrent +
+worker-pool recording/processing, (C) fan-out-subagents as the standing
+default. It is the parallelization capstone the way §11.4.103 is the
+continuous-parallel-stream capstone — a strengthening bind, never a
+weakening.</p>
+<p><strong>(A) PIPELINE-OVERLAP PARALLELIZATION.</strong>
+Validation/verification work MUST run CONCURRENTLY WITH the build
+wherever a validation stage does NOT depend on the build&#39;s own
+not-yet-produced artifact — never deferred until the build finishes when
+it could have run alongside it. Deploy the moment the build is done
+(build-completion is the deploy trigger, per §11.4.121
+no-commit-while-build-writes-tracked-artifacts + §11.4.108
+artifact-must-exist ordering — the deploy waits for the artifact, the
+deploy-independent validation does not). Concretely, WHILE a build runs,
+the following run in parallel per the §11.4.96 SAFE-during-build
+catalogue: pre-build source-layer gates + meta-test mutation sweeps +
+coverage/clash checks (§11.4.110), the §11.4.125/§11.4.142/§11.4.194
+independent code-review on the batch&#39;s SOURCE, doc/DB sync (§11.4.106),
+and on-device validation of the PRIOR build (device-independent of the
+in-flight build, §11.4.119). On any NON-huge-blocker discovery, the
+cycle MUST: (1) bump the version code (a new, distinctly-identifiable
+candidate artifact — never re-use the failing artifact&#39;s id, §11.4.111
+stable-name + §11.4.200 target-identity); (2) fix at the proven root
+cause (§11.4.102 systematic-debugging first, §11.4.115
+RED-on-the-broken-artifact); (3) RE-RUN ONLY THE AFFECTED STAGES,
+PARALLELIZED — the stages whose inputs the fix changed (its own targeted
+validation FIRST per §11.4.130, then the affected regression set), NOT a
+serial restart-from-scratch of the entire cycle. The explicit efficiency
+target is a <strong>4–5× reduction in
+time-to-a-manual-QA-capable-release</strong> versus the fully-sequential
+shape — a measured target, tracked as build-and-validate wall-clock
+deltas (§11.4.24 build-resource stats), never an assumed one (§11.4.6).
+<strong>HONEST BOUNDARY (§11.4.6 / §11.4.108 / §11.4.120):</strong> the
+CURRENT build&#39;s ARTIFACT-layer (§11.4.108 layer 2) and
+RUNTIME-ON-CLEAN-TARGET-layer (layer 3) validation CANNOT precede its
+own artifact — a gate whose precondition is the build&#39;s output belongs
+at a post-build seam, never overlapped onto authorship (§11.4.120
+seam-placement; §11.4.69 <code>artifact_not_yet_built</code>).
+&quot;Concurrent with the build&quot; therefore means the deploy-INDEPENDENT
+stages overlap; the CURRENT-artifact runtime validation begins the
+moment that artifact exists, in parallel across devices per (B).
+<strong>&quot;Affected-stages-only re-run&quot; is bounded to NON-huge-blocker
+discovery</strong>: a HUGE BLOCKER (release-blocking-severity defect /
+regression invalidating the cycle / blast radius reaching the batch&#39;s
+other fixes) still triggers the §11.4.129 STOP → fix-all → full-RESTART
+protocol (restart, never resume) — §11.4.230(A) does NOT weaken
+§11.4.129, §11.4.40 full-suite-retest-before-tag, §11.4.130
+validate-the-fix-first, §11.4.132 risk-ordered validation, or §11.4.185
+manual-QA-final; it narrows the from-scratch restart to exactly the
+cases those anchors require it, and parallelises everything else.</p>
+<p><strong>(B) PARALLEL MULTI-DEVICE TESTING +
+RECORDING/PROCESSING.</strong> Every available, reachable test device
+MUST be exercised CONCURRENTLY — one validation stream per device, never
+one-device-at-a-time when the devices are independent — each stream the
+SINGLE EXCLUSIVE OWNER of that device&#39;s exclusive resources per
+§11.4.119 (the owner drives; any concurrent stream targeting the same
+device is read-only), so per-device evidence is never cross-contaminated
+(§11.4.119 evidence-integrity). Every device is ALWAYS-RECORDED per
+§11.4.128 (non-invasive, side-effect-free, deterministic layout) and
+AVAILABILITY-FOLLOWED per §11.4.144 (a dropped device logs an honest
+offline event + reconnect-and-resume, never a silent corpus hole, never
+a faked continuity). Recording CAPTURE + ANALYSIS/PROCESSING MUST be
+fanned out through a BOUNDED WORKER-POOL (a Go worker-pool or platform
+equivalent) so N devices&#39; recordings are captured + analysed in parallel
+and per-device evidence never serialises onto a single processor — the
+pool bounded by §12.6 memory + §12.12 thread headroom. Per-device PASS
+cites its own captured-evidence artefact (§11.4.5/§11.4.69/§11.4.107) on
+a CLEAN/fresh deployment (§11.4.108 runtime-signature, §11.4.200
+verify-deployed-artifact-identity-per-device); the highest-risk /
+most-reopened cases (§11.4.132/§11.4.189) get the deepest scrutiny FIRST
+on every device. <strong>HONEST BOUNDARY (§11.4.6):</strong>
+genuinely-shared exclusive resources (one HDMI/audio sink, one
+media-playback path) serialise per §11.4.119 single-owner-over-time even
+across devices; &quot;all devices concurrent&quot; means independent devices,
+never two owners of one exclusive resource.</p>
+<p><strong>(C) FAN-OUT-SUBAGENTS-ALWAYS.</strong> Subagent fan-out
+(§11.4.20/§11.4.70 subagent-driven; §11.4.187 multi-track ruler;
+§11.4.192 auto-backfill) is the STANDING DEFAULT for EVERY
+genuinely-parallelizable effort — batch investigation, test-authoring,
+gate-authoring, per-device validation (B), per-PWU development
+(§11.4.58), doc/research work — not a per-request opt-in and not
+reserved for &quot;big&quot; tasks. A parallelizable effort executed
+monolithically in the foreground when a fan-out path exists is a
+§11.4.230(C) violation (the §11.4.94/§11.4.97/§11.4.103 zero-idle
+discipline applied to HOW work is dispatched, not only WHETHER it runs).
+<strong>HONEST BOUNDARY (§11.4.6 / §11.4.183):</strong> &quot;always fan out&quot;
+is BOUNDED by (1) genuine parallelizability
+(contending/redundant/serially-dependent subagents are NOT fan-out —
+they are waste, and spawning them is NOT maximization per §11.4.183
+maximum-USEFUL-throughput); (2) §12.6 60% memory ceiling; (3) §12.12
+<code>RLIMIT_NPROC</code> thread headroom; (4) §11.4.58 ≤6
+concurrent-agent cap; (5) §11.4.119 single-resource-owner (two subagents
+may not both drive one exclusive device); (6) critical-state sequencing
+(commits/pushes/tags stay serial per §11.4.88/§11.4.113). The bar is
+maximum USEFUL parallel throughput, never agent count; fan-out that
+exceeds a host-safety ceiling or contends a single resource is a
+violation, not compliance.</p>
+<p>Classification: universal (§11.4.17) — a platform-neutral
+parallelization discipline reusable by ANY project that builds an
+artifact, validates it across multiple targets, and records device
+evidence; the consuming project supplies its concrete device set +
+serials, build/flash tooling, recording layout, and worker-pool
+implementation per §11.4.35. Composes §11.4.20 / §11.4.24 (wall-clock
+stats prove the 4–5× target) / §11.4.40 / §11.4.58 (the PWU pipeline
+this binds + extends) / §11.4.69 / §11.4.70 / §11.4.88 / §11.4.89 /
+§11.4.94 / §11.4.96 (SAFE-during-build catalogue) / §11.4.97 / §11.4.102
+/ §11.4.103 / §11.4.108 (artifact/runtime layer ordering — the honest
+boundary) / §11.4.110 / §11.4.115 / §11.4.119 (single-resource-owner —
+B&#39;s load-bearing partition) / §11.4.120 (seam-placement — A&#39;s honest
+boundary) / §11.4.121 / §11.4.125 / §11.4.126 / §11.4.128 (always-on
+recording — B&#39;s evidence source) / §11.4.129 (huge-blocker full-restart
+— the un-weakened carve-out) / §11.4.130 / §11.4.132 / §11.4.144
+(availability-following — B&#39;s drop-handling) / §11.4.183
+(maximum-USEFUL-parallelism — C&#39;s honest boundary) / §11.4.185
+(manual-QA-final — the un-weakened terminal gate) / §11.4.187 /
+§11.4.192 / §11.4.200 (per-device deployed-artifact verification) /
+§12.6 / §12.12. Propagation gate
+<code>CM-COVENANT-114-230-PROPAGATION</code> (literal
+<code>11.4.230</code> across the consumer fleet) + recommended gates
+<code>CM-PIPELINE-OVERLAP-VALIDATION</code> (a build that runs with zero
+deploy-independent validation stages running concurrently when
+SAFE-catalogue work is queued → FAIL; a NON-huge-blocker discovery that
+restarts the whole cycle from scratch instead of re-running only the
+affected stages → FAIL) + <code>CM-PARALLEL-DEVICE-WORKER-POOL</code>
+(available independent devices validated serially instead of
+concurrently, OR recording capture/analysis serialised onto one
+processor when a worker-pool path exists → FAIL) +
+<code>CM-FAN-OUT-SUBAGENTS-DEFAULT</code> (a genuinely-parallelizable
+effort run monolithically in the foreground when a fan-out path exists
+AND all host-safety ceilings have headroom → FAIL) + paired §1.1
+meta-test mutations (per §1.1; gate-code = separate work item, NOT
+claimed shipped §11.4.6).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.230.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--sequential-build-then-validate</code>,
+<code>--restart-whole-cycle-on-discovery</code>,
+<code>--serial-device-testing</code>,
+<code>--serialise-recording-processing</code>,
+<code>--no-fan-out</code>, <code>--monolithic-parallelizable-work</code>
+flag exists.</p>
+<h3 id="114231--nano-precision-model-tier-selection-lightest-capable-model-first-with-dynamic-mid-task-escalation-user-mandate-2026-07-26-critical">§11.4.231
+— Nano-precision model-tier selection: lightest-capable-model-first with
+dynamic mid-task escalation (User mandate, 2026-07-26,
+<code>CRITICAL</code>)</h3>
+<p>Verbatim operator mandate: every work effort MUST use the LIGHTEST
+CAPABLE model, escalating tier only as complexity rises — a
+nano-precision, per-task model-tier choice, NOT &quot;everything on the
+heaviest model.&quot; Forensic motivation (genericised, §11.4.6): dispatching
+every task — a trivial doc-sync, a one-line status read, a mechanical
+format fix — on the heaviest available model wastes capacity + token
+budget + wall-clock that a lighter tier would spend identically well,
+while the OPPOSITE failure (a hard multi-factor root-cause investigation
+dispatched on a tier too light to reason through it) produces exactly
+the shallow, guessed, or wrong-conclusion work §11.4.6 / §11.4.102 /
+§11.4.194 forbid. Neither &quot;always heaviest&quot; nor &quot;always lightest&quot; is
+compliant; the correct discipline is a PER-TASK, EVIDENCE-BASED tier
+choice that tracks the task&#39;s own complexity, re-evaluated as that
+complexity becomes known — the nano-precision selection this anchor
+mandates.</p>
+<p><strong>(A) LIGHTEST-CAPABLE-FIRST + ESCALATE-ON-COMPLEXITY.</strong>
+Every dispatched work effort — main-stream or subagent
+(§11.4.20/§11.4.70), single-track or multitrack (§11.4.187/§11.4.192) —
+is assigned the LIGHTEST model tier from the closed, capability-ordered
+ladder <code>haiku &lt; sonnet &lt; opus</code> genuinely sufficient to
+complete it correctly (the review/merge-conflict-resolution substrate is
+a SEPARATE, already-pinned tier per clause (E), not a fourth rung of
+this ladder). Tier selection is a DECIDABLE heuristic, not a guess
+(§11.4.6) — evaluated against, at minimum: (i) <strong>task
+scope</strong> (single mechanical edit / focused single-file change /
+multi-file-or-multi-component change); (ii) <strong>reasoning
+depth</strong> (a lookup-and-apply action vs. a multi-factor root-cause
+investigation per §11.4.102/§11.4.194); (iii) <strong>blast
+radius</strong> (a change touching one isolated file vs. one crossing
+shared state, hardware safety §11.4.133, or governance/gate seams
+§11.4.227); (iv) <strong>novelty</strong> (a previously-solved,
+pattern-matched task vs. a genuinely new problem with no established
+precedent). Closed-set tier bindings (illustrative, non-exhaustive — the
+consuming project supplies its own precise mapping per §11.4.35):
+<strong><code>haiku</code></strong> — trivial/mechanical work (simple
+greps/searches, doc-sync regeneration, status/field reads, format/lint
+fixes, boilerplate scaffolding); <strong><code>sonnet</code></strong> —
+moderate work (a focused single-component debug, a bounded single-file
+implementation, straightforward research or audit reads);
+<strong><code>opus</code></strong> — complex work (architecture/design
+decisions, multi-factor reasoning per §11.4.194(1), cross-feature
+blast-radius analysis per §11.4.92 Pass 2/3, hard root-cause
+investigation per §11.4.102 that resists a first-pass hypothesis). A
+task whose complexity is genuinely UNDECIDABLE from available evidence
+starts at the NEXT tier UP from the best available estimate (the
+safe-reversible default per §11.4.101) rather than guessed downward.</p>
+<p><strong>(B) DYNAMIC MID-FLIGHT SWITCHING.</strong> Tier assignment is
+NOT a one-time, start-of-task decision — it is RE-ASSESSED continuously
+as the task&#39;s real complexity becomes known during execution. A task
+DISPATCHED as simple that PROVES harder mid-flight (an unexpected
+multi-factor interaction surfaces, a root cause resists the first two
+hypotheses, the blast radius turns out to cross a
+governance/hardware-safety seam) MUST ESCALATE to the next-heavier tier
+for its remainder — continuing on an under-powered tier past the point
+complexity is KNOWN is a clause-(D) false economy, not compliance.
+Conversely, a task DISPATCHED as heavy that DECOMPOSES into genuinely
+light, bounded, low-blast-radius subtasks (mechanical file edits
+following an already-designed pattern, doc regeneration, per-item status
+reads) dispatches THOSE subtasks on a LIGHTER tier via subagent fan-out
+(§11.4.20/§11.4.70/§11.4.183) rather than running every subtask on the
+parent&#39;s heavier tier by default — capability-matching applies at EVERY
+dispatch granularity, not only the top-level task.</p>
+<p><strong>(C) ALWAYS-ON COMPOSITION, NEVER A PER-REQUEST
+OPT-IN.</strong> Nano-precision tier selection is a STANDING DEFAULT
+mechanism, engaged automatically for EVERY work effort from the first
+prompt of a session onward (mirrors §11.4.126 default-autonomous-loop /
+§11.4.198 default-mechanisms-always-on) — applied TOGETHER WITH, never
+as a substitute for: §11.4.141 (heavy token-optimization — a lighter
+model dispatched with a bloated context is not the efficiency this
+anchor targets); §11.4.183 (maximum-USEFUL-parallelism — tier-matching
+each parallel stream, not merely running more streams on one fixed
+tier); §11.4.187/§11.4.192 (the multi-track ruler orchestration +
+continuous auto-backfill — each track&#39;s worker is tier-assigned per this
+anchor, not defaulted to one blanket tier project-wide); and
+§11.4.196/§11.4.198 (native-alias-first priority + always-on default
+mechanisms — this anchor governs WHICH TIER within whichever
+alias/account is selected, composing with, never replacing, §11.4.196&#39;s
+ALIAS-layer priority). None of these five composed anchors is weakened,
+duplicated, or re-specified by §11.4.231 — this anchor adds the TIER
+axis to their existing ALIAS/PARALLELISM/TOKEN axes.</p>
+<p><strong>(D) HONEST BOUNDARY (§11.4.6) — &quot;LIGHTEST CAPABLE&quot; MEANS
+CAPABLE, NOT CHEAPEST-REGARDLESS.</strong> &quot;Lightest capable&quot; is a
+CONJUNCTION, not a discount: a tier choice that fails to actually
+complete the task correctly — producing a shallow investigation, a
+guessed root cause, an under-verified fix, or ANY form of bluff per the
+§11.4 anti-bluff covenant — is NOT &quot;lightest capable,&quot; it is
+UNDER-POWERED, and under-powering a task that then fails, bluffs, or
+requires costly rework is a FALSE ECONOMY and a §11.4 violation of equal
+severity to any other PASS-bluff (the token/time saved at dispatch is
+spent many times over in re-investigation, re-review, and the risk of a
+shipped defect). Capability determinations are made from the clause-(A)
+decidable heuristic + observed task outcomes — EVIDENCE-BASED, never
+guessed (§11.4.6): &quot;this always works fine on <code>haiku</code>&quot;
+without a captured basis is exactly the guess §11.4.6 forbids, and a
+tier&#39;s genuine capability for a task class is established by the same
+anti-bluff discipline (§11.4.5/§11.4.69/§11.4.107) that governs every
+other claim in this constitution. A platform-chosen serving model
+outside the <code>haiku &lt; sonnet &lt; opus</code> ladder (e.g.
+<code>fable</code> served for general non-review work) is NOT a
+§11.4.231 dispatch-tier violation — the ladder binds the DISPATCHER&#39;s
+tier ASSIGNMENT, not the platform&#39;s own per-turn serving choice.</p>
+<p><strong>(E) HARD PINS OVERRIDE THIS DEFAULT FOR THEIR
+SCOPES.</strong> §11.4.231 sets the DEFAULT working tier for NON-review,
+non-merge-conflict-resolution work. It does NOT relax, override, or
+compete with the two existing hard model-substrate pins: §11.4.209
+(every mandatory independent code-review — §11.4.125/§11.4.142/§11.4.194
+iterated to GO per §11.4.134 — runs on <strong>Fable at
+<code>xhigh</code> effort</strong>, <strong>Opus at
+<code>xhigh</code></strong> on genuine Fable-unavailability, NEVER a
+lower tier or lower effort) and §11.4.211 (every
+main→feature/product/flavor merge-CONFLICT resolution runs on the SAME
+Fable-xhigh / Opus-xhigh substrate). Those two anchors are STRICTER,
+SCOPE-SPECIFIC pins that this anchor&#39;s general ladder does not reach —
+review and merge-conflict-resolution are NOT eligible for
+haiku/sonnet/opus-by-complexity dispatch; they run on their pinned
+substrate ALWAYS, regardless of how &quot;simple&quot; the reviewed change or the
+conflict appears. A review or merge-conflict resolution dispatched on
+any tier other than the §11.4.209/§11.4.211 pin (absent a
+genuinely-proven Fable-unavailability fallback) is a violation of THOSE
+anchors, not a valid application of §11.4.231&#39;s general ladder.</p>
+<p><strong>(F) EFFORT-TIER SELECTION — the SAME nano-precision
+discipline applied to the reasoning-EFFORT axis (operator IMPORTANT
+mandate, 2026-07-26; verbatim: &quot;Besides dynamic determining proper
+models to use, we MUST decide the effort as well and switch between the
+effort settings same as we do now for chosen model! Labeling MUST BE
+extended for this details as well. Example: (T1/main - claude4 - opus -
+high).&quot;).</strong> Every dispatched work effort is assigned not only a
+model tier per clauses (A)-(E) but ALSO the LIGHTEST reasoning-EFFORT
+setting from the closed ladder
+<code>low &lt; medium &lt; high &lt; xhigh &lt; max</code> genuinely
+sufficient to complete the task correctly — chosen by the SAME
+clause-(A) decidable heuristic (scope / reasoning-depth / blast-radius /
+novelty), NOT a guess (§11.4.6). Illustrative bindings (non-exhaustive;
+the consuming project supplies its precise mapping per §11.4.35):
+<code>low</code> / <code>medium</code> — trivial / mechanical work
+(doc-sync regeneration, status / field reads, format / lint fixes,
+boilerplate); <code>high</code> — moderate-to-complex reasoning (focused
+single-component debug, multi-factor analysis per §11.4.102 /
+§11.4.194); <code>xhigh</code> / <code>max</code> — the HARDEST
+verification / merge-conflict / architecture work. (F.1) DYNAMIC
+MID-TASK ESCALATION — effort, like model tier per clause (B), is
+RE-ASSESSED continuously as the task&#39;s real complexity becomes known; a
+task dispatched at a lower effort that PROVES harder mid-flight MUST
+ESCALATE its effort for the remainder (continuing under-effort past the
+point complexity is KNOWN is the clause-(D) false economy), and a heavy
+task decomposing into light bounded subtasks dispatches THOSE at a
+lighter effort — effort-matching applies at EVERY dispatch granularity,
+not only the top-level task. (F.2) HONEST HARNESS BOUNDARY (§11.4.6,
+load-bearing — do NOT overstate the mechanism) — effort-tiering is REAL
+where the execution path exposes an effort control and a DOCUMENTED
+CAPABILITY-GAP where it does not: the current Claude Code <strong>Agent
+tool</strong> (subagent dispatch) exposes a <code>model</code> parameter
+but <strong>NO <code>effort</code> parameter</strong>, so a subagent&#39;s
+effort is NOT presently settable via that path (the §11.4.182
+<code>&lt;effort&gt;</code> label field degrades honestly to
+<code>?</code> there); the <strong>Workflow tool&#39;s
+<code>agent()</code></strong> DOES take an <code>effort</code> argument,
+so effort IS settable there — the label reports whichever path is live,
+never fakes one. This is the SAME aspirational-vs-harness state the
+clause-(E) §11.4.209 / §11.4.211 Fable-<code>xhigh</code> pins already
+occupy: the pins mandate the effort, and whether a dispatch path can SET
+it is a harness capability reported honestly, never faked (§11.4.182).
+(F.3) HARD-PIN FLOOR PRESERVED — clause (E)&#39;s hard pins are ALSO effort
+pins: every §11.4.209 mandatory independent code-review AND every
+§11.4.211 merge-conflict resolution runs at <code>xhigh</code> effort
+(Fable, or Opus at <code>xhigh</code> on genuine Fable-unavailability),
+and this general effort ladder NEVER tiers those two scopes below
+<code>xhigh</code> regardless of how &quot;simple&quot; the reviewed change or the
+conflict appears — a review / merge-conflict resolution run below
+<code>xhigh</code> is a §11.4.209 / §11.4.211 violation, not a valid
+application of this ladder. (F.4) HONEST BOUNDARY (§11.4.6) — &quot;lightest
+capable effort&quot; is a CONJUNCTION, not a discount: an effort setting that
+yields a shallow / guessed / under-verified result is UNDER-POWERED, a
+FALSE ECONOMY, and a §11.4 violation of PASS-bluff severity, exactly as
+an under-powered MODEL tier is per clause (D); capability determinations
+are evidence-based, never guessed (§11.4.6).</p>
+<p>Classification: universal (§11.4.17) — a platform-neutral
+model-capacity-matching discipline reusable by any project dispatching
+work across a tiered model roster; the consuming project supplies its
+own precise tier↔︎task-class mapping and its own model-name ladder per
+§11.4.35 (the <code>haiku</code>/<code>sonnet</code>/<code>opus</code>
+ladder and the Fable/Opus-xhigh pins are this project&#39;s current concrete
+instantiation, not a universally-fixed vocabulary — a consumer with a
+differently-named tier roster maps its own ladder onto the SAME
+lightest-capable-first + dynamic-escalation + always-on-composition +
+honest-boundary + hard-pin-override structure). Composes §11.4.6
+(no-guessing — capability determinations are evidence-based) / §11.4.20
+/ §11.4.70 (subagent-driven dispatch — the granularity at which
+tier-matching applies) / §11.4.92 (blast-radius analysis feeds the
+clause-(A) heuristic) / §11.4.101 (safe-reversible default on
+undecidable complexity — escalate up, never guess down) / §11.4.102 /
+§11.4.194 (reasoning-depth signals for the heuristic) / §11.4.126 /
+§11.4.141 / §11.4.183 / §11.4.187 / §11.4.192 / §11.4.196 / §11.4.198
+(the always-on composition set, clause (C)) / §11.4.209 / §11.4.211 (the
+hard-pinned review/merge-conflict substrate this anchor does NOT touch,
+clause (E)). Propagation gate
+<code>CM-COVENANT-114-231-PROPAGATION</code> (literal
+<code>11.4.231</code> present as a block-start, exactly-once per
+governance file, lockstep content-hash equality across the consumer
+fleet per §11.4.227(B)) + recommended gate
+<code>CM-MODEL-TIER-LIGHTEST-CAPABLE</code> (a dispatched effort whose
+logged/declared model tier exceeds the clause-(A) heuristic&#39;s indicated
+tier for a task later confirmed
+trivial-and-successful-at-the-lighter-tier is a WARN/candidate finding —
+never a hard FAIL on tier choice alone, since tier-adequacy is only
+provable in retrospect per clause (D); the gate instead HARD-FAILS the
+two decidable violations: (i) a review or merge-conflict-resolution
+effort NOT run on the §11.4.209/§11.4.211 pinned substrate, and (ii) a
+task whose complexity was PROVEN mid-flight [an escalation event was
+logged, or a downstream failure/bluff was traced back to it] that did
+NOT escalate tier before continuing) + paired §1.1 mutation (gate-code =
+separate work item, NOT claimed shipped — §11.4.6; mutation plan: (1)
+dispatch a code-review labeled as running on <code>sonnet</code> instead
+of Fable-xhigh → gate MUST FAIL; (2) inject a logged mid-task
+complexity-escalation event with NO corresponding tier-escalation record
+→ gate MUST FAIL; (3) golden-FALSE fixture: a task that stays on its
+initially-assigned tier throughout, with no escalation event logged →
+gate MUST NOT fire, per §11.4.201(1) the false-positive guard).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.231.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--always-heaviest-model</code>,
+<code>--always-lightest-model</code>,
+<code>--skip-complexity-reassessment</code>,
+<code>--fixed-tier-per-session</code>, <code>--relax-review-pin</code>,
+<code>--relax-merge-conflict-pin</code>,
+<code>--per-request-tier-opt-in</code> flag exists.</p>
+<h3 id="114232--anti-mess-long-op-orchestration-every-long-op-is-registered-single-owned-per-purpose-liveness-proven-handed-off-on-stop-safely-reaped-consistency-checked-and-escape-bounded--the-single-source-of-truth-for-what-is-running-never-inferred-research-derived-2026-07-26">§11.4.232
+— Anti-mess long-op orchestration: every long-op is registered,
+single-owned-per-purpose, liveness-PROVEN, handed-off-on-stop,
+safely-reaped, consistency-checked, and escape-bounded — the single
+source of truth for what is running, never inferred (research-derived,
+2026-07-26)</h3>
+<p>Forensic anchor (genericised): in one cycle a verification sweep
+produced five distinct mess states — (1) multiple concurrent
+same-purpose sweeps ran unintentionally (no single-owner-per-purpose
+claim); (2) a sweep HUNG on a consumer-blocked-on-an-unclosed-producer
+pipeline and was undetected because liveness was inferred from
+process-alive (a §11.4.201(6) FALSE-NULL: a wedged op and a progressing
+op returned the identical &quot;process alive&quot; signal); (3) stopping the
+owning subagent SILENTLY KILLED its child long-op because ownership was
+implicit (no handoff-on-stop); (4) a stale/non-growing log was read as
+live progress (the same false-null, reader-side); (5) an un-completable
+tooling gate blocked a release for hours (no escape to a terminal
+state). Per §11.4.102 Phase 4.5 these are ONE architectural
+state-management flaw, not five bugs: <strong>there was no single source
+of truth for what long-op is running, who owns it, its state, and its
+PROVEN liveness</strong> — the §11.4.196(F) configured≠in-use gap
+generalised to project long-ops, so every mess state was un-observable,
+and an un-observable bad state is a §11.4/§11.4.1 bluff at the
+orchestration layer.</p>
+<p>The mandate — a <strong>long-op orchestration layer</strong> binding
+every long-op (any op expected to exceed the runtime
+background-execution threshold per §11.4.89 — verification sweep,
+meta-test sweep, build, flash/deploy, test/QA suite, dispatched
+subagent), ALL of which hold:</p>
+<p><strong>(A) SINGLE SOURCE OF TRUTH — the long-op lifecycle
+registry.</strong> Every long-op MUST register BEFORE it runs and reach
+a terminal state
+(<code>complete|failed|reaped|handoff|blocked-escape</code>) when it
+ends, in a durable (never-tmpfs, write-temp-then-rename, §11.4.116
+append-only event stream + atomic snapshot) registry recording
+<code>{op_id, purpose_key, owner, pid|pgid, cwd, state, last_heartbeat, heartbeat_seq, progress_offset, log_path, verdict, evidence_path}</code>.
+Success is read from the op&#39;s terminal verdict/<code>result</code>,
+NEVER its process exit code. A long-op running with no registry record —
+or a record with no live op — is a FALSE-READY drift state.</p>
+<p><strong>(B) SINGLE-OWNER-PER-PURPOSE.</strong> No two
+same-<code>purpose_key</code> long-ops run at once; acquisition is a
+probe-race-safe claim keyed on <code>purpose_key</code> (§11.4.119). A
+live claim forces exactly ONE of REUSE (attach) or explicit SUPERSEDE
+(graceful handoff of the running owner, logged), never a silent second
+run.</p>
+<p><strong>(C) LIVENESS TRUTH-SOURCE.</strong> Progress is PROVEN, never
+inferred from process-alive: every long-op emits a monotonic heartbeat
+and/or an advancing progress offset; a watchdog reads the DELTA over a
+window and flags HUNG on no-advance past the op&#39;s declared no-progress
+budget (the §11.4.201(6)-(7)/§11.4.89 discipline — <code>kill -0</code>
+is a necessary-not-sufficient pre-filter, a stale heartbeat/non-growing
+log is NEVER &quot;progressing&quot;). A consumer blocked on an unclosed producer
+write-end (§11.4.201(12)) is caught by the flat heartbeat regardless of
+internal state.</p>
+<p><strong>(D) OWNERSHIP-HANDOFF-ON-STOP.</strong> Stopping/killing an
+owner MUST hand its long-ops to the registry (<code>handoff</code>,
+re-adoptable per §11.4.147) or deliberately reap them
+(<code>reaped</code>, reason logged) — NEVER silently orphan or
+accidentally cascade-kill; long-ops launch detached (own process-group)
+so an owner stop does not cascade-signal them, and the stop path records
+each owned op&#39;s disposition. The loop done-condition is not satisfied
+while a <code>handoff</code> op is un-adopted.</p>
+<p><strong>(E) SAFE REAPING.</strong> An orphaned/hung op is reaped ONLY
+on PROVEN staleness — holder PID dead (<code>kill -0</code> fails) OR
+no-progress-budget exceeded per (C) — resolved by the process&#39;s real
+<code>/proc/&lt;pid&gt;/cmdline</code> (§11.4.196(D)/§12.12), never a
+bare <code>pgrep</code>/substring that could match a carrier or the
+reaper itself; a LIVE, ADVANCING op is NEVER reaped (§9.2); every
+REAPED/KEPT decision + resolved evidence is logged (§11.4.180).</p>
+<p><strong>(F) CONSISTENCY INVARIANT SWEEP.</strong> A fast invariant
+check runs before every gated transition (build/flash/tag) and on a
+standing cadence, asserting: no duplicate owner per purpose, no orphan,
+no stale lock (§11.4.180), no hung op (C), no registry-vs-reality drift
+(live-long-op set == registry live rows — the §11.4.196(F) check
+generalised). Any violation is surfaced (named, actionable) and the
+gated transition is REFUSED until resolved. The sweep is itself a guard
+(§11.4.201): golden-TRUE + golden-FALSE-with-carrier fixtures,
+conservative-safe REFUSE on an unresolvable signal, resolved evidence
+printed on every refusal.</p>
+<p><strong>(G) UN-COMPLETABLE-BLOCKER ESCAPE.</strong> A gate that
+cannot reach a terminal verdict MUST degrade, after a bounded budget, to
+an explicit evidence-backed decision — NEVER an indefinite silent block:
+§11.4.102 first (hung/(C) vs duplicate/(B) vs wrong-seam/§11.4.120
+re-seat-at-activation); NOT-YET-RUNNABLE → §11.4.69
+<code>artifact_not_yet_built</code> (non-blocking on an intermediate
+artifact, blocking only on the release candidate per §11.4.135);
+genuinely un-completable → §11.4.101 (autonomous reversible
+SKIP-with-reason + tracked §11.4.197 item, ELSE a bounded §11.4.66
+operator decision) — the loop keeps progressing every other non-blocked
+item, it does not idle, and the escape NEVER fabricates a PASS.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> This layer reduces
+orchestration mess; it does NOT make product bugs impossible, does NOT
+make a gate correct (§11.4.108/§11.4.201 still bind each gate), and does
+NOT remove the operator from genuine blocks — it converts an indefinite
+silent stall into a bounded, evidence-backed, operator-visible decision.
+A heartbeat proves ADVANCE not CORRECTNESS; the registry proves what
+CLAIMS to run, (F) proves registry==reality.
+<strong>Reuse-not-rewrite:</strong> it is the multitrack per-track agent
+registry (§11.4.147/§11.4.116/§11.4.187) generalised from per-track
+workers to any long-op and bound through, per §11.4.196(F) — no parallel
+mechanism is invented.</p>
+<p>Classification: universal (§11.4.17) — no hardware/vendor/project
+literal; consumers supply their long-op set, purpose keys, no-progress
+budgets, and stop-hook wiring as DATA per §11.4.35. Composes §11.4.89 /
+§11.4.101 / §11.4.116 / §11.4.119 / §11.4.120 / §11.4.135 / §11.4.147 /
+§11.4.180 / §11.4.187 / §11.4.196(D)(F) / §11.4.201(1)(6)-(12) /
+§11.4.207 / §11.4.69 / §12.6 / §12.12 / §9.2. Propagation gate
+<code>CM-COVENANT-114-232-PROPAGATION</code> (literal
+<code>11.4.232</code>) + recommended mechanism gates
+<code>CM-LONGOP-REGISTRY-SINGLE-SOURCE</code> (A) /
+<code>CM-LONGOP-SINGLE-OWNER-PER-PURPOSE</code> (B) /
+<code>CM-LONGOP-LIVENESS-HEARTBEAT</code> (C) /
+<code>CM-LONGOP-OWNERSHIP-HANDOFF-ON-STOP</code> (D) /
+<code>CM-LONGOP-SAFE-REAP-PROVEN-STALE</code> (E) /
+<code>CM-ORCHESTRATION-CONSISTENCY-SWEEP</code> (F) /
+<code>CM-UNCOMPLETABLE-BLOCKER-ESCAPE</code> (G) + paired §1.1 mutations
+(run two same-purpose sweeps with no reuse/supersede → (B) FAILs; infer
+liveness from <code>kill -0</code> alone / drop the heartbeat-delta
+check → (C) FAILs; a stop that leaves an owned op with no
+terminal/handoff record → (D) FAILs; reap a live-advancing op OR reap by
+bare-<code>pgrep</code> substring → (E) FAILs; a live long-op with no
+registry row passes the consistency sweep → (F) FAILs; an un-completable
+gate blocks with no escape/decision → (G) FAILs; strip the literal →
+propagation FAILs; gate-code = separate work item, NOT claimed shipped
+§11.4.6). No escape hatch — no <code>--allow-duplicate-longop</code>,
+<code>--infer-liveness-from-pid</code>,
+<code>--silent-orphan-on-stop</code>, <code>--reap-live-op</code>,
+<code>--skip-consistency-sweep</code>,
+<code>--block-without-escape</code>,
+<code>--longop-without-registry</code> flag.</p>
+<p><strong>EXTENSION landed 2026-07-26 — §11.4.182 model-in-label +
+flawless alias/provider↔︎model consistency + real-time always-in-sync
+(User mandate, 2026-07-26).</strong> Verbatim operator mandates
+(2026-07-26): &quot;Extend our logging to present models used since we will
+now have dynamic models choice and switching! From (example) (T1/main -
+claude4) into: (T1/main - claude4 - model_used), model MUST be
+dynamically obtained so we present name equivalents - short names -
+like: haiku, opus, sonnet, fable. However we MUST fully support all
+Claude Toolkit providers aliases, so real model used names MUST BE
+obtained in this case(s) as well! Examples: (T1/main - claude4 - haiku),
+(T1/main - claude4 - fable), (T1/main - claude4 - opus), (T1/main -
+claude4 - deepseek), (T1/main - claude4 - xiaomi) ... Labels MUST BE
+everywhere ALWAYS up to date in real time and in sync!&quot; and &quot;Adding
+model names into labels considers that providers names / aliases will be
+up to date too and in relation to model used since models belong to
+providers / aliases !!! Consistency MUST BE flawless!&quot; This EXTENDS the
+§11.4.182 label discipline (it does NOT re-mint the anchor — the literal
+<code>11.4.182</code> and its propagation gate
+<code>CM-COVENANT-114-182-PROPAGATION</code> are UNCHANGED and stay
+GREEN; this carrier block cites §11.4.182, it is not a second §11.4.182
+block-start per §11.4.227(B)). (1) <strong>LABEL FORM EXTENDED</strong>
+— the mandated §11.4.182 label is extended from
+<code>(T&lt;N&gt;/&lt;branch&gt; - &lt;alias&gt;)</code> to
+<code>(T&lt;N&gt;/&lt;branch&gt; - &lt;alias&gt; - &lt;model&gt; - &lt;effort&gt;)</code>
+(the trailing <code>&lt;effort&gt;</code> field added 2026-07-26 per
+§11.4.231 clause (F) — see the EFFORT-FIELD clause (7) below),
+<code>&lt;model&gt;</code> recording which model is CURRENTLY answering
+for that alias: for a native Claude alias, the SHORT name
+(<code>opus</code> / <code>sonnet</code> / <code>haiku</code> /
+<code>fable</code>, case-insensitive-substring-derived from the model id
+the agent platform reports for the most recent turn — DYNAMIC, obtained
+live at label-emission time, never a fixed/assumed value since native
+aliases have no persistent per-alias model and the serving model can
+legitimately switch mid-session per §11.4.231); for a claude-toolkit
+PROVIDER alias (<code>deepseek</code>, <code>xiaomi</code>,
+<code>kimi-for-coding</code>, <code>opencode</code>, ...) the REAL
+provider model id as declared in that provider&#39;s host-config registry
+(the SAME value the alias&#39;s own launch mechanism uses — a single source
+of truth, never re-derived). (2) <strong>MODEL-FIELD DERIVATION
+(§11.4.6, never guessed)</strong> — a closed two-case split on the SHAPE
+of the already-derived <code>&lt;alias&gt;</code>: (a) native-alias →
+read the model id from the CURRENT session&#39;s own transcript (the
+platform&#39;s per-project per-session transcript; LAST assistant-turn&#39;s
+reported model → short name); (b) provider-alias → read the model id
+from the host multi-account-toolkit provider registry
+(<code>CMA_PROVIDER_MODEL</code>). Either lookup that cannot resolve
+yields the honest <code>?</code> — NEVER a fabricated or last-known
+value; an id obtained but matching none of the four native short-names
+is printed VERBATIM (real-but-unrecognised is more honest than a false
+<code>?</code>). The 3-field legacy form (no <code>&lt;model&gt;</code>)
+remains a VALID, ACCEPTED label during migration — the enforcing
+guard-hook <code>LABEL_RE</code> admits both forms, and NEVER treats an
+honest <code>?</code> model, or an absent model field, as a block-cause.
+(3) <strong>FLAWLESS ALIAS/PROVIDER↔︎MODEL CONSISTENCY INVARIANT
+(operator NOTE, load-bearing)</strong> — the
+<code>&lt;alias&gt;</code>/provider field and the
+<code>&lt;model&gt;</code> field MUST be MUTUALLY CONSISTENT AT ALL
+TIMES: the model shown MUST be a model that genuinely BELONGS to the
+alias/provider shown (models belong to providers/aliases), and the
+alias/provider name MUST itself be current — never a stale alias beside
+a fresh model, never a model that does not belong to the shown alias.
+This is guaranteed BY CONSTRUCTION, not by coincidence: the native model
+is read from THAT alias&#39;s own live session transcript, and the provider
+model is read from THAT provider&#39;s own registry entry — so the derived
+<code>&lt;model&gt;</code> is definitionally a model of the shown
+<code>&lt;alias&gt;</code>; a derivation that ever emits a model not
+belonging to the shown alias is a §11.4.6 / §11.4.182 consistency
+violation, never a valid label. (4) <strong>REAL-TIME, ALWAYS-IN-SYNC
+(§11.4.229/§11.4.106(F))</strong> — the label is STATELESS and
+RE-COMPUTED at EVERY emission (every human-invoked labeler run AND every
+synchronous PreToolUse guard-hook firing on every Agent/Task/TaskCreate
+dispatch) against the LIVE environment (current
+<code>CLAUDE_CONFIG_DIR</code>, current session id, current transcript
+tail, current provider <code>.env</code>) — so a mid-session model
+switch (<code>/model</code>, an autonomous §11.4.231 escalation) is
+reflected in the VERY NEXT emission with no cache to go stale: real-time
+BY CONSTRUCTION, not by a sync daemon. Honest boundary (§11.4.6): the
+live label has NO persisted artifact that could drift, so the Docs-Chain
+(§11.4.106) sync engine — which propagates PERSISTED documents/DBs —
+does not apply to the stateless label itself; the operator&#39;s &quot;use/extend
+Docs Chain for real-time responsiveness&quot; ask attaches to any PERSISTED
+label-history / model-switch LOG surface (a §11.4.197 follow-up to be
+tracked), which, if adopted, IS §11.4.106-Docs-Chain-synced and
+§11.4.208-request-history-adjacent — never faked as already-shipped. (5)
+<strong>HONEST SUBAGENT-INTROSPECTION LIMIT (§11.4.6/§11.4.197)</strong>
+— the native-alias transcript lookup is proven reliable when invoked
+from the DISPATCHING process&#39;s own shell (the guard-hook&#39;s actual
+execution context at dispatch time); it is NOT proven reliable when a
+background-dispatched subagent introspects its OWN model from inside its
+own subprocess on hosts where the subagent shares its parent&#39;s
+session-transcript with no subagent-vs-conductor marker — recorded as an
+open limitation to be tracked, never silently claimed solved. (6)
+<strong>DIVERGENT-LABELER RECONCILIATION (§11.4.227)</strong> — the LIVE
+labeler wired via <code>.claude/settings.json</code> is
+<code>constitution/scripts/multitrack/track_branch_label.sh</code>; the
+top-level <code>scripts/multitrack/</code> path is a thin pass-through
+WRAPPER that <code>exec</code>s that canonical copy (§11.4.177
+inherited-by-reference), so it mirrors nothing, cannot drift, and emits
+byte-identical output by construction. The reconciliation LANDED in
+commit <code>a48e919f52d</code> and is gate-enforced at
+<code>pre_build_verification.sh:41911-41915</code> (the gate detects the
+<code>exec</code> wrapper and follows it to the canonical
+implementation), never a silent divergence. (7) <strong>EFFORT FIELD
+(added 2026-07-26 per the operator IMPORTANT mandate — verbatim:
+&quot;Besides dynamic determining proper models to use, we MUST decide the
+effort as well and switch between the effort settings same as we do now
+for chosen model! Labeling MUST BE extended for this details as well.
+Example: (T1/main - claude4 - opus - high).&quot;).</strong> The 5-field
+label appends <code>&lt;effort&gt;</code> after
+<code>&lt;model&gt;</code>, recording which reasoning-EFFORT setting is
+CURRENTLY in force for that work-stream, drawn from the closed set
+<code>{low | medium | high | xhigh | max}</code> (the SAME effort ladder
+§11.4.231 clause (F) selects). (a) DERIVATION (§11.4.6, never guessed) —
+<code>&lt;effort&gt;</code> is read from whatever LIVE effort signal the
+execution path exposes (the Workflow-tool <code>agent()</code>
+<code>effort</code> argument, a future Agent-tool effort parameter, an
+env/config effort setting); a path exposing NO effort signal, OR any
+value outside the closed set, yields the honest <code>?</code> — EXACTLY
+like the <code>&lt;model&gt;</code> field&#39;s <code>?</code> fallback,
+NEVER a fabricated / assumed / last-known value. (b) HONEST HARNESS
+BOUNDARY (§11.4.6, load-bearing — do NOT overstate the mechanism) —
+effort-tiering is REAL where the execution path exposes it and a
+DOCUMENTED CAPABILITY-GAP where it does not: the current Claude Code
+<strong>Agent tool</strong> (subagent dispatch) exposes a
+<code>model</code> parameter but <strong>NO <code>effort</code>
+parameter</strong>, so a subagent&#39;s effort is NOT currently settable via
+that path and its <code>&lt;effort&gt;</code> field degrades honestly to
+<code>?</code>; the <strong>Workflow tool&#39;s
+<code>agent()</code></strong> DOES take an <code>effort</code> argument,
+so effort IS settable + derivable there — the label reports whichever
+path is live, never invents one. This is the SAME
+aspirational-vs-harness state the §11.4.209 / §11.4.211
+Fable-<code>xhigh</code> review/merge pins already occupy: the pins
+mandate the effort, and whether a given dispatch path can SET it is a
+harness capability the label reports honestly and NEVER fakes. (c)
+LEGACY-FORM ACCEPTANCE (migration) — the 3-field
+<code>(T&lt;N&gt;/&lt;branch&gt; - &lt;alias&gt;)</code> and 4-field
+<code>(T&lt;N&gt;/&lt;branch&gt; - &lt;alias&gt; - &lt;model&gt;)</code>
+label forms remain VALID and ACCEPTED; the guard <code>LABEL_RE</code>
+admits all three shapes and NEVER treats an absent
+<code>&lt;effort&gt;</code> field, or an honest <code>?</code> effort,
+as a block-cause (§11.4.6 — mirroring the §11.4.182 track/alias/model
+honest-<code>?</code> rule). (d) CONSISTENCY — the effort field is
+selected TOGETHER WITH the model by §11.4.231 (both tiers chosen for one
+task) and never contradicts it; a stale effort beside a fresh model, or
+an effort outside the closed set, is a §11.4.6 / §11.4.182 consistency
+violation, never a valid label. (e) REAL-TIME, ALWAYS-IN-SYNC
+(§11.4.229) — like <code>&lt;model&gt;</code>,
+<code>&lt;effort&gt;</code> is STATELESS and RE-COMPUTED at EVERY label
+emission against the LIVE environment, so a mid-task §11.4.231 effort
+escalation is reflected in the VERY NEXT emission with no cache to go
+stale. Propagation: <code>CM-TRACK-BRANCH-LABEL</code> is EXTENDED to
+also assert the labeler emits a parseable <code>&lt;model&gt;</code>
+field AND a parseable <code>&lt;effort&gt;</code> field, the guard
+<code>LABEL_RE</code> accepts the 3-field / 4-field / 5-field label
+forms (legacy 3-field and 4-field ALWAYS remain accepted during
+migration; a <code>?</code> effort is NEVER a block-cause), and the
+alias/provider↔︎model consistency holds; paired §1.1 mutation: strip the
+<code>&lt;model&gt;</code> derivation OR emit a model not belonging to
+the shown alias → the extended gate FAILs (gate-code = separate work
+item, NOT claimed shipped §11.4.6). No new escape hatch — the existing
+§11.4.182 &quot;no escape hatch&quot; list applies to the extended label
+unchanged.</p>
+<h3 id="114233--standing-anti-mess-control-plane-a-level-triggered-idempotent-invariant-catalogue-reconciliation-loop-over-the-whole-persistent-system-state-orchestrating-every-per-domain-enforcer-refusing-gated-transitions-on-un-reconciled-drift-research-derived-2026-07-26">§11.4.233
+— Standing anti-mess control plane: a level-triggered, idempotent,
+invariant-catalogue reconciliation loop over the WHOLE persistent System
+state, orchestrating every per-domain enforcer, refusing gated
+transitions on un-reconciled drift (research-derived, 2026-07-26)</h3>
+<p>Forensic anchor (genericised): every existing consistency enforcer in
+a multi-track / multi-agent / multi-submodule / multi-upstream System is
+EDGE-TRIGGERED — a PreToolUse hook fires on an action, a check runs at a
+seam (lock-acquisition / merge-time / build-time / commit-time), a gate
+runs when a build runs — so a mess that arises WITHOUT an edge firing is
+un-observed until it causes harm (two live examples captured 2026-07-26:
+a large uncommitted-batch pile-up sat unreconciled through a session,
+and multiple provably-stale VCS/wrapper locks were held by dead holders
+with no acquisition attempt to reap them — the §11.4.205 &quot;a hook never
+installed / a check that runs only when asked&quot; forensic generalised to
+the whole persistent state). Per §11.4.102 Phase 4.5 the ~19
+persistent-state mess classes (Plane R repository: uncommitted pile-up,
+stale/duplicate locks, orphaned worktrees, half-applied cross-repo
+commits, drifted submodule pointers, partial merges, divergent mirrors,
+mis-placed work; Plane G governance: divergent mirrors, pointer drift,
+gate-ledger drift, anchor-number collision; Plane S tracking: doc/DB
+drift, cross-track SSoT divergence, ledger drift, handoff-doc drift;
+Plane P runtime: the §11.4.232 long-op set + un-reaped streams +
+dangling review state) are ONE architectural flaw — there is no
+LEVEL-TRIGGERED control plane that re-derives the actual persistent
+state and reconciles it against a declared clean state; an un-observed
+drift is a §11.4/§11.4.1 bluff at the organization layer (&quot;the System is
+clean&quot; while a mess silently accumulates).</p>
+<p>The mandate — a standing <strong>anti-mess control plane</strong>
+(the desired-state/actual-state reconciliation-loop +
+control-plane/data-plane pattern of distributed systems), ALL of which
+hold:</p>
+<p><strong>(A) DECLARED INVARIANT CATALOGUE.</strong> A single
+machine-readable consumer-owned catalogue (DATA per §11.4.28/§11.4.35)
+enumerating every consistency invariant across the persistent planes,
+each carrying
+<code>{id, plane, desired-condition, detector, reconcile-class ∈ {auto-safe | operator-gated | owned-by &lt;anchor&gt;}, evidence-shape}</code>;
+the catalogue IS the desired clean state; an un-catalogued mess class is
+an honest tracked GAP (§11.4.6/§11.4.197), never silently claimed
+covered.</p>
+<p><strong>(B) LEVEL-TRIGGERED LOOP.</strong> The loop re-derives the
+ACTUAL state (not an event) and diffs it against the catalogue BEFORE
+every gated transition
+(commit-batch/build/flash/merge-to-trunk/tag/constitution-pull) AND on a
+standing cadence (§11.4.94/§11.4.103) — catching drift regardless of how
+it arose (the Kubernetes level-triggered property); actual-vs-desired
+uses a §11.4.86 fingerprint diff drilling to the offending record
+(anti-entropy), never a whole-scan where a fingerprint suffices.</p>
+<p><strong>(C) IDEMPOTENT RECONCILE-OR-REFUSE.</strong> Each drift takes
+exactly one dedup-keyed action: RECONCILE-AUTO-SAFE (reversible +
+evidence-determinable + bounded-blast per §11.4.101 — reap a
+provably-dead lock §11.4.180, regen a stale derived doc §11.4.106,
+scope-group-commit a placement-clean batch §11.4.191, retire a merged
+worktree §11.4.167), idempotent (a no-op on a clean state); OR
+REFUSE-THE-GATE + a bounded operator decision
+(irreversible/high-blast/indeterminate — id-colliding SSoT §11.4.206,
+anchor collision §11.4.227, partial cross-repo merge, divergent mirror)
+per §11.4.101/§11.4.66; a gated transition NEVER proceeds while a
+catalogued invariant is violated and un-reconciled; the loop keeps
+progressing every other non-blocked item (park-one-not-the-loop).</p>
+<p><strong>(D) SAGA FORWARD-RECONCILE (no-loss).</strong> A
+partially-applied cross-repo operation is reconciled complete-forward
+under a §9.2 pre-op backup (finish the remaining legs / bump the pointer
+/ complete the merge zero-markers-zero-drop §11.4.41 step 3 / ff the
+lagging mirror) — NEVER force-push/reset/<code>-s ours</code>
+(§11.4.113/§9.2); compensation is §9.2 backup-restore only; the saga
+reaches fully-completed, never rolled-back-with-loss.</p>
+<p><strong>(E) THE LOOP IS A GUARD (§11.4.201).</strong> Every detector
+ships golden-TRUE + golden-FALSE-with-carrier fixtures (§11.4.107(10));
+a false-positive REFUSAL of a clean state is a §11.4.201(1) FAIL-bluff
+exactly as a false-negative PASS is a §11.4 PASS-bluff; every &quot;no drift&quot;
+null is control-needle-proven (§11.4.201(6)-(12)); conservative-safe
+REFUSE on an unresolvable signal, resolved evidence printed on every
+refusal.</p>
+<p><strong>(F) CONTROL-PLANE / DATA-PLANE SEPARATION.</strong> The
+control plane DETECTS + RECONCILES state and NEVER performs the
+data-plane work (the actual build/commit/merge/long-op — §11.4.232 + the
+build/flash/commit wrappers); the two never merge; the control plane&#39;s
+own state is durable (§11.4.205(6) temp→fsync→rename, never tmpfs, may
+reuse §11.4.207).</p>
+<p><strong>Honest boundary (§11.4.6).</strong> Converges the CATALOGUED
+invariants; does NOT make an un-catalogued mess class impossible
+(extensible catalogue, never &quot;provably mess-free&quot;), does NOT make a gate
+correct (§11.4.108/§11.4.201), does NOT auto-fix irreversible drift
+(operator-gated §11.4.101/§11.4.66), and is
+eventual-consistency-at-every-gate-and-cadence NOT a real-time daemon
+(§11.4.205(7)). <strong>Reuse-not-rewrite:</strong> it is the
+level-triggered COMPOSER over the existing per-domain enforcers
+(§11.4.180/§11.4.186/§11.4.106/§11.4.191/§11.4.206/§11.4.227/§11.4.232/§11.4.147/§11.4.167),
+inheriting each&#39;s detector — no parallel enforcer is invented
+(§11.4.227). It composes §11.4.232 (the RUNTIME data-plane long-op
+orchestrator — §11.4.232 clause (F) is Plane P of this catalogue) as the
+plane it does not touch.</p>
+<p>Classification: universal (§11.4.17) — no hardware/vendor/project
+literal; consumers supply their invariant catalogue, plane detectors,
+gated-transition list, cadence, and reconcile-class bindings as DATA per
+§11.4.35. Composes §11.4.6 / §11.4.26 / §11.4.28 / §11.4.32 / §11.4.84 /
+§11.4.86 / §11.4.101 / §11.4.106 / §11.4.108 / §11.4.116 / §11.4.121 /
+§11.4.147 / §11.4.164 / §11.4.167 / §11.4.176 / §11.4.179 / §11.4.180 /
+§11.4.181 / §11.4.186 / §11.4.191 / §11.4.196(F) / §11.4.201 / §11.4.205
+/ §11.4.206 / §11.4.207 / §11.4.227 / §11.4.232 / §12.6 / §9.2 / §2.1.
+Propagation gate <code>CM-COVENANT-114-233-PROPAGATION</code> (literal
+<code>11.4.233</code>) + recommended mechanism gates
+<code>CM-ANTIMESS-INVARIANT-CATALOGUE</code> (A) /
+<code>CM-ANTIMESS-LEVEL-TRIGGERED-LOOP</code> (B) /
+<code>CM-ANTIMESS-RECONCILE-OR-REFUSE</code> (C) /
+<code>CM-ANTIMESS-SAGA-FORWARD-NO-LOSS</code> (D) /
+<code>CM-ANTIMESS-LOOP-IS-A-GUARD</code> (E) /
+<code>CM-ANTIMESS-CONTROL-DATA-PLANE-SPLIT</code> (F) + paired §1.1
+mutations (drop the standing-cadence trigger so the loop is edge-only →
+(B) FAILs on the pile-up/stale-lock fixture; let a gated transition
+proceed on a catalogued un-reconciled drift → (C) FAILs; a saga that
+force-pushes/resets to reconcile a mirror → (D) FAILs; a detector that
+REFUSES a clean golden-TRUE fixture, or PASSes a
+golden-FALSE-with-carrier → (E) FAILs; the control plane invokes a
+data-plane build/commit → (F) FAILs; strip the literal → propagation
+FAILs; gate-code = separate work item, NOT claimed shipped
+§11.4.6/§11.4.227). No escape hatch — no
+<code>--edge-triggered-only</code>,
+<code>--skip-consistency-catalogue</code>,
+<code>--proceed-on-drift</code>,
+<code>--reconcile-with-force-push</code>,
+<code>--unvalidated-detector</code>,
+<code>--control-plane-does-work</code>,
+<code>--assume-clean-without-reconcile</code> flag.</p>
+<p><strong>(G) DEPENDENCY-POINTER PREFLIGHT — stale, absent, and
+UNFETCHABLE are three distinct mess classes, and all three fail closed
+(extension, 2026-08-20).</strong> Clause (A)&#39;s Plane-R catalogue names
+<em>drifted submodule pointers</em>; drift is only one of three ways a
+multi-repo build ships code its own source tree does not contain. The
+AI-curriculum corpus (module 35, table row 5
+&quot;Submodule-pointer-not-bumped-so-fix-reverts&quot;) states the failure
+exactly: <em>&quot;The fix is real and merged in a submodule, but the
+top-level image ships the old pointer, so the bug returns from a clean
+checkout&quot;</em> — root cause: <em>&quot;A multi-repo build where &#39;the fix is
+in the submodule&#39; and &#39;the image ships the fix&#39; are two different facts,
+only one of them checked.&quot;</em> Its prescription is a HARD gate, not a
+warning: <em>&quot;A hard preflight gate that fails the build when a
+governance/component submodule its correctness depends on is at a stale
+pointer or absent — &#39;the fix is in the submodule but the image shipped
+old code&#39; must be impossible, not caught after.&quot;</em> The catalogue is
+therefore EXTENDED with all three classes and the preflight that closes
+them: <strong>(i) STALE</strong> — the parent&#39;s recorded pointer is
+behind the submodule&#39;s intended ref (the drift clause (A) already
+names); <strong>(ii) ABSENT / UNINITIALISED</strong> — the submodule is
+declared but not checked out, so a build reads an empty directory as a
+satisfied dependency; <strong>(iii) UNFETCHABLE</strong> — the recorded
+pointer resolves on NO configured remote (the <code>not our ref</code>
+condition), so the tree builds for whoever already has the object
+locally and is structurally un-clonable for everyone else. Class (iii)
+is the most dangerous because it is INVISIBLE in the checkout that
+created it and fails only on a fresh clone. The preflight&#39;s four
+mechanical steps, verbatim from the corpus: <em>&quot;resolves every
+submodule pointer, verifies it matches the intended ref, fails closed on
+a missing checkout, and — for the truly load-bearing components —
+asserts a runtime signature on the flashed/deployed artifact&quot;</em> (the
+last step is §11.4.108&#39;s RUNTIME-ON-CLEAN-TARGET layer). The general
+principle the corpus draws, which is why this belongs to the anti-mess
+control plane rather than to a build script: <em>&quot;fail closed when an
+input to your correctness is unverifiable. An absent submodule being
+treated as a satisfied one is the same class as an unencrypted DB being
+treated as encrypted or a <code>nil, nil</code> stub being counted as
+coverage: a missing thing silently read as a present, correct thing. The
+rock-solid habit is to make the absence itself a hard failure, because
+&#39;the gate was skipped because the dependency was missing&#39; is a bluff
+vector, not a pass.&quot;</em> Per clause (C) the reconcile-class is
+REFUSE-THE-GATE for classes (ii) and (iii) (a build/tag proceeding on an
+absent or unfetchable dependency is refused) and AUTO-SAFE only for a
+class-(i) drift whose correct pointer is evidence-determinable; per
+clause (E) the detector ships a golden-TRUE fixture per class and a
+golden-FALSE fixture — a fully-initialised tree at its intended refs —
+which it MUST NOT fire on (§11.4.201(1)). Composes §11.4.26 (pointer
+bumped in the same commit) / §11.4.28 / §11.4.31 / §11.4.32 / §11.4.36 /
+§11.4.108 / §11.4.167 / §11.4.246 (an unfetchable gitlink is a
+hermeticity violation: an undeclared-because-unobtainable input) /
+§11.4.252 (fail closed) / §11.4.264 (the shipped artifact must contain
+the tested source). Recommended mechanism gate
+<code>CM-DEPENDENCY-POINTER-PREFLIGHT-FAIL-CLOSED</code> + paired §1.1
+mutation (de-initialise one submodule → the gate MUST FAIL; point one
+gitlink at a commit no configured remote serves → it MUST FAIL;
+golden-FALSE: a fully-initialised tree at intended refs MUST NOT fire
+it). Honest boundary (§11.4.6): the preflight proves the dependency&#39;s
+SOURCE is present and at the intended ref — it does NOT prove the built
+artifact contains it (that is §11.4.108&#39;s ARTIFACT layer and the
+corpus&#39;s own fourth step, the runtime-signature assertion). Gate-code =
+separate work item, NOT claimed shipped (§11.4.6 / §11.4.227).</p>
+</body>
+</html>

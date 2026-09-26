@@ -1,0 +1,2391 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Host And Resource Safety</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="host-and-resource-safety">Host And Resource Safety</h1>
+<h3 id="11424--build-resource-stats-tracking-mandate-user-mandate-2026-05-14">§11.4.24
+— Build-resource stats tracking mandate (User mandate, 2026-05-14)</h3>
+<p><strong>Forensic anchor — direct user mandate (verbatim,
+2026-05-14):</strong></p>
+<blockquote>
+<p>&quot;We need to incorporate through the Containers Submodule we use to
+run our System build Container the following mechanism safely: during
+its working lifetime we MUST track in proper Markdown document exported
+into PDF and HTML stats on System resources use! What was the peak and
+the minimum EVER the Container / System building process used! ... In
+top of the document we MUST have this ever values. ... After this we
+MUST present properly sorted divided by version tags names all build
+processes we were running with notes if the process completed with
+success or not, and resources usage during the process! Besides min and
+max values ever and per build iteration we MUST have for each resource
+we have average values — average memory usage, average CPU usage, and
+all other parameters IO and other resources!&quot;</p>
+</blockquote>
+<p><strong>Classification:</strong> §11.4.17-classified
+<strong>mixed</strong> — the discipline of tracking host-side
+build-resource usage with min / max / mean / p95 per-build PLUS
+ever-values across all builds in a versioned Markdown + HTML + PDF
+triple is universal across every long-build project (AOSP, kernel, large
+monorepo, ML model training, multi-hour data pipelines). The
+implementation (registry path, monitor script name, exporter wiring) is
+project-specific.</p>
+<p><strong>The defect this anchor closes.</strong> Long builds
+(multi-hour AOSP builds, ML training runs, large monorepo CI) consume
+highly variable resource profiles over their lifetime — soong_build&#39;s 33
+GB peak coexists with quiescent linker-only stretches at &lt;2 GB.
+Without per-build sampling + ever-values, operators have NO empirical
+basis to (a) size containers correctly, (b) detect resource regressions
+across versions, (c) prove which build iteration was the OOM-killer&#39;s
+trigger, (d) reason about parallelism caps (cf. §12.7 -j2 hard cap whose
+forensic basis would have been one full Stats.md generation earlier had
+this discipline been in place). Memory pressure debugging without
+time-series data is the bluff this anchor forbids.</p>
+<p><strong>The mandate.</strong> Every project under this Constitution
+with a build exceeding <strong>1 minute wall-clock</strong> MUST:</p>
+<p><strong>1. Run a host-side resource sampler for every build.</strong>
+The sampler runs as a sibling background process (not inside the build&#39;s
+own process tree), reads <code>/proc/meminfo</code> +
+<code>/proc/loadavg</code> + <code>/proc/stat</code></p>
+<ul>
+<li><code>/proc/diskstats</code> (or platform equivalents on non-Linux)
+at a fixed interval (recommended 5 s default — fine-grained enough to
+catch seconds-long peaks; coarse enough to keep itself &lt;5% CPU and
+&lt;50 MB RSS). Samples written as TSV.</li>
+</ul>
+<p><strong>2. Compute per-build summaries on stop.</strong> Per metric
+(memory used, CPU%, load average, disk read/write): <strong>min, max,
+mean, p95</strong>. p95 is the 95th-percentile sample value — required
+because mean alone hides extended-peak behaviour (a 2 h build with one
+33 GB soong_build peak has mean ≈ 18 GB but p95 ≈ 32 GB; the latter is
+what operators must size for).</p>
+<p><strong>3. Append per-build summaries to a registry.</strong> One TSV
+row per build (build_id, status SUCCESS/FAIL/UNKNOWN, start/end
+timestamps, per-metric min/max/mean/p95, total disk read/write). The
+registry is the single source of truth — the Markdown report is
+derived.</p>
+<p><strong>4. Maintain ever-values across ALL builds.</strong> Min / max
+/ mean across every tracked build, computed on every Markdown
+regeneration from the registry. Surface at the <strong>top</strong> of
+the report per User mandate verbatim.</p>
+<p><strong>5. Markdown + HTML + PDF triple.</strong> Stats.md
+(auto-generated), exported to Stats.html + Stats.pdf through the
+project&#39;s normal export pipeline. Triple stays in sync per §11.4.12.
+Committed via the project&#39;s lightweight doc-sync wrapper per
+§11.4.22.</p>
+<p><strong>6. Sort per-build entries by recency (most recent first)
+AND,</strong> where applicable, <strong>group by version tag.</strong>
+Operators reading the report want the latest build&#39;s profile at the top
+and the historical sweep underneath.</p>
+<p><strong>7. Track status per build.</strong> SUCCESS / FAIL / UNKNOWN
+— and if FAIL, capture the reason (exit code, OOM, ANR, etc.). A FAIL
+build&#39;s resource profile is the most operationally interesting one in
+the report — never silently drop FAIL entries.</p>
+<p><strong>8. Performance budget for the sampler itself.</strong> &lt;50
+MB RSS, &lt;5% CPU. The monitor MUST NOT itself contribute to the
+resource pressure it is measuring (Heisenberg-class observer effect at
+scale). Pure /proc reads + awk arithmetic is the reference
+implementation; vmstat / pidstat acceptable; psrecord /
+heavy-Python-import samplers are forbidden.</p>
+<p><strong>9. Survive build failures.</strong> The stop hook MUST be
+called from both the success AND failure paths of the build wrapper so
+FAIL builds still produce a row. Hooking only the success path is a
+PASS-bluff at the telemetry layer.</p>
+<p><strong>Pre-build gate (recommended, per consuming
+project):</strong></p>
+<ul>
+<li><strong><code>CM-BUILD-RESOURCE-STATS-TRACKER</code></strong> —
+verifies (a) the monitor script exists + executable, (b) the Stats.md
+target file exists, (c) the build wrapper invokes start AND stop, (d)
+the doc-sync wrapper enumerates the Stats.{md,html,pdf} triple, (e) the
+exporter advertises the build-stats slug. Paired mutation hides the
+monitor script aside → gate FAILs.</li>
+</ul>
+<p><strong>Propagation.</strong> Composes with §11.4.12 (export-sync
+invariant — HTML + PDF in sync with Markdown), §11.4.18
+(script-documentation discipline — the monitor ships with an external
+user guide), §11.4.22 (lightweight doc-sync commit wrapper enumerates
+the Stats.{md,html,pdf} triple), §12.6 / §12.7 / §12.9 (host-safety +
+containerized-build envelope whose forensic anchors are the empirical
+motivation for this telemetry).</p>
+<p><strong>No escape hatch.</strong> Build-resource tracking is not
+optional polish — it is the operational-evidence seam that converts
+post-mortem &quot;the build OOM&#39;d, no idea why&quot; into &quot;build X at git-SHA Y
+peaked at Z GB at minute N, which is W% above the rolling p95&quot;. The
+discipline pays for itself the first time it diagnoses a build-resource
+regression.</p>
+<h3 id="11458--parallel-development-methodology-user-mandate-2026-05-19">§11.4.58
+— Parallel-development methodology (User mandate, 2026-05-19)</h3>
+<p><strong>Forensic anchor — verbatim user mandate (2026-05-19T~05:00Z
+MSK):</strong></p>
+<blockquote>
+<p>&quot;We MUST DO one comprehensive research and planning in the background
+in parallel with current mainstream work: our current methodolgy of the
+development is very slow. It takes us days to fix a bunch of bugs, add
+some changes or features and all this to be tested, verified and
+shipped. From iteration to iteration we are slower and slower. We MUST
+CREATE adjusted improoved version of working methodology where multiple
+workable items could be done in parallel, all come into the central
+(main) branch as they are done, then we at particular moment rebuild and
+reflash the System and in background full testing with validation and
+verification is done. Each parallel work on one workable (or more)
+item(s) must use parallel agents as much as possible! We MUST HAVE
+proper synchronization mechanism between parallel working routines so
+they do not cause conflicts, break features or create any other types of
+the problems! Document everything - the whole plan, whole methodology,
+working flow with in depth diagrams and graphs, all user guides and
+manuals and then add this all into our root (constitution Submodule)
+Constitution, CLAUDE.MD and AGENTS.MD! Make sure we start using this
+ASAP since we MUST increase efficiency and productivity a couple of
+times now! Writing in depth tests (all supported types of the tests)
+with Challenges and full HelixQA use is MANDATORY! Every test we execute
+besides executed with success MUST RESULT in proof that actual
+functionality being tested REALLY DOES WORK with NO BLUFF of any kind!
+Heavt enforcement of no-bluff / anti-bluff policy IS MANDATORY!&quot;</p>
+</blockquote>
+<p><strong>Why this anchor exists.</strong> Sequential phase-chain
+working pattern (<code>Phase 39.A → Phase 39.B → … → Phase 39.DT</code>,
+observed 2026-05-05 to 2026-05-19: 86 unique Phase 39.X sub-phases
+across 14 days = ~6/day sub-phase rotation, 224 commits / 14 days =
+~16/day) serialises on five distinct bottlenecks: (B1)
+<code>commit_all.sh</code> flock at <code>.git/.commit_all.lock</code>,
+(B2) single-thread sub-phase chaining via
+<code>docs/CONTINUATION.md</code> hand-offs, (B3) rebuild-blocking on
+every <code>REQUIRES_REBUILD</code> fix (§12.7 -j2 cap = 4–6 h rebuild +
+30 min flash</p>
+<ul>
+<li>60 min validate per cycle), (B4) single-thread
+<code>test_all_fixes.sh</code> sweep (~30–60 min × 8 phase-device
+combinations), (B5) subagent dispatch latency (one-at-a-time spawn +
+wait pattern). Net effect: single-item wall-clock 1–4 days where
+productive work is &lt; 4 h. The User mandate requires the methodology
+to multiply throughput several-x.</li>
+</ul>
+<p><strong>Operative rule.</strong> Project work proceeds through the
+Parallel Work Unit (PWU) pipeline rather than sequential phase-chain.
+Each PWU is a self-contained workable item with mandatory components
+(ATM-NNN identifier per §11.4.54, Issues.md entry per §11.4.15+§11.4.16,
+file- scope manifest, §11.4.43 RED test, source patch, pre-build gate
+per §11.4.4(b) layer 1, post-flash test per §11.4.4(b) layer 3, paired
+§1.1 meta-test mutation, §11.4.4(b) layer 4 HelixQA Challenge bank
+entry, captured-evidence directory per §11.4.5+§11.4.52). PWUs execute
+through five pipeline stages: <strong>Stage 1 DEVELOP</strong>
+(parallel, N PWU agents in isolated worktrees), <strong>Stage 2
+MERGE</strong> (serial, conductor processes one PWU at a time via
+<code>commit_all.sh</code> flock + §11.4.41 4- step merge-first
+pipeline), <strong>Stage 3 REBUILD+FLASH</strong> (parallel where
+possible: AOSP build inside §12.7 bounded scope, D3+D4 flash serialised
+on USB hardware), <strong>Stage 4 VALIDATE</strong> (parallel on
+D3+D4+meta-test+ coverage-audit), <strong>Stage 5 SWEEP</strong>
+(parallel: HelixQA Challenge bank, Issues→Fixed migration, README.md
+doc-link refresh per §11.4.57, HTML+PDF exports). Stage 1 of round N+1
+starts WHILE Stages 4+5 of round N are still running — this is the
+primary throughput multiplier.</p>
+<p><strong>Synchronization mechanism.</strong> Four-layer lock
+hierarchy: <strong>L1</strong> parent serial flock
+<code>.git/.commit_all.lock</code> (held only during Stage 2, released
+between PWUs), <strong>L2</strong> per-submodule git operations
+(implicit via cascade), <strong>L3</strong> contention-path advisory
+locks at <code>qa-results/pwu-locks/&lt;sha256(path)&gt;.lock</code> for
+the 10 forbidden cross- PWU paths
+(CLAUDE.md/AGENTS.md/Constitution.md/CONTINUATION.md/
+Issues.md/Fixed.md/pre_build_verification.sh/meta_test_false_positive_
+proof.sh/build.sh/commit_all.sh+push_all.sh/device.mk+BoardConfig.mk/
+atmosphere-<em>.sh/init.</em>.rc), <strong>L4</strong> per-PWU git
+worktree (zero cross- PWU file conflicts during Stage 1). Disjoint-scope
+PWUs (different test files, different APKs, different drivers, different
+framework services) run fully parallel. Conflict detection at Stage 2
+entry: <code>git fetch --all --prune --tags</code> +
+<code>git diff main...HEAD -- &lt;scope&gt;</code></p>
+<ul>
+<li>cross-PWU scope overlap check. Overlap detected → PWU rejected to
+Stage 1 for rebase (per §11.4.41 step 2
+integration-before-force-push).</li>
+</ul>
+<p><strong>Anti-bluff enforcement.</strong> Conductor REFUSES to merge a
+PWU lacking all four anti-bluff checks: <strong>C1</strong> §11.4.43 RED
+test captured-evidence (file exists + non-zero exit code in log +
+timestamp predates source patch — proves test catches regression),
+<strong>C2</strong> §1.1 paired meta-test mutation (applied + gate FAILs
+under mutation + restored + gate PASSes — proves gate is not a bluff
+gate), <strong>C3</strong> §11.4.50 deterministic- consistency (3
+iterations for normal, 10 for cycle-validation, ALL identical exit codes
+AND identical evidence-hashes — eliminates §11.4.7
+flake/transient/intermittent demotion path), <strong>C4</strong> §11.4.5
+captured-evidence (audio: WAV with non-trivial RMS + ffprobe channel
+count; video: screen recording with ffprobe frame count &gt; 0 +
+analyzer matched event; UI: uiautomator dump with under-test element
+state; or HelixQA <code>result.json</code> PASS verdict +
+positive-evidence chain). HelixQA coverage is MANDATORY for every
+user-visible PWU per User mandate — Challenge bank entry in
+<code>tools/helixqa/banks/atmosphere.yaml</code> referencing the PWU&#39;s
+ATM-NNN + dispatching to the on-device test + scoring PASS only on
+positive captured evidence. Metadata-only PASS / configuration- only
+PASS / absence-of-error PASS / grep-without-runtime-evidence PASS all
+REJECTED at the merge gate.</p>
+<p><strong>Agent orchestration.</strong> Four roles:
+<strong>Conductor</strong> (1, main thread) — issues ATM-NNN, dispatches
+PWU agents, runs Stage 2 merge serially, runs Stages 3-5, owns all
+contention-path edits, maintains <code>docs/CONTINUATION.md</code> §3
+live snapshot. <strong>PWU agent</strong> (4–6 background) — one PWU
+each, Stage 1 work in isolated worktree, signals
+<code>qa-results/pwu-&lt;atm&gt;/READY_FOR_MERGE</code> on completion.
+<strong>Validator</strong> (4 background) — Stage 4 work in parallel on
+D3+D4+meta-test+coverage- audit. <strong>Sweeper</strong> (2 background)
+— Stage 5 work in parallel with next round&#39;s Stage 1. Max concurrent
+agent count ~12 at peak, bounded by §12.6 60% memory budget (~6 GB total
+≤ 38 GB budget). Composition with §12 host-session safety: conductor
+refuses dispatch if <code>host_check_safety</code> fails; per §12.7 AOSP
+build still hard-capped at -j2 inside bounded scope; per §12.8 + §12.8b
++ §12.8c concurrency gates still block on stray gradle/kotlin
+daemons.</p>
+<p><strong>Composition map (mandatory):</strong></p>
+<ul>
+<li>§11.4.4 — four-layer test coverage per PWU (pre-build + post-build +
+on-device + HelixQA bank).</li>
+<li>§11.4.5 — audio/video quality analysis comprehensiveness (PWU
+captured-evidence directory).</li>
+<li>§11.4.6 — no-guessing mandate (every PWU claim backed by captured
+forensic evidence or explicit <code>UNCONFIRMED:</code> tag).</li>
+<li>§11.4.7 — demotion-evidence rule (3/3 deterministic-consistency
+closes the demotion-bluff path).</li>
+<li>§11.4.9 — batch-source-fixes-before-rebuild (Stage 2 → Stage 3 batch
+threshold).</li>
+<li>§11.4.15 + §11.4.16 + §11.4.33 — PWU status + type vocabulary +
+type-aware closure terminal value.</li>
+<li>§11.4.19 — atomic Issues.md → Fixed.md migration on PWU
+closure.</li>
+<li>§11.4.41 — Pre-Force-Push Merge-First 4-step pipeline at Stage 2
+entry.</li>
+<li>§11.4.42 — Iteration-discipline (PWU pipeline IS the iteration
+conductor; §11.4.58 binds steps 1-5 to PWU stages 1-5).</li>
+<li>§11.4.43 — TDD RED-first per-PWU enforced at merge time.</li>
+<li>§11.4.45 — Integration-status-doc maintenance (PWU&#39;s Status.md
+updated at every stage transition).</li>
+<li>§11.4.49 — Dual-approach testing (PWU MUST ship both UI-driven AND
+Intent/Broadcast-driven variants when applicable).</li>
+<li>§11.4.50 — Deterministic-consistency (3-iter normal / 10-iter
+cycle-validation merge-time enforcement).</li>
+<li>§11.4.52 — Autonomous-validation (PWU&#39;s on-device test MUST run
+without operator presence per Stage 4 parallel design).</li>
+<li>§11.4.54 — ATM-NNN ticket identifier (PWU identifier replaces Phase
+39.X letters).</li>
+<li>§11.4.57 — README.md doc-link refresh at Stage 5.</li>
+<li>§12.6 — 60% memory-budget ceiling (caps concurrent agent
+count).</li>
+<li>§12.7 — AOSP <code>m -j</code> hard-cap at -j2 (Stage 3 build
+cap).</li>
+<li>§12.8 + §12.8b + §12.8c — concurrency hardening (Stage 3 preflight
+refuses on running gradle/kotlin/git-pack-objects/load-per-cpu
+spike).</li>
+<li>§12.10 — CONTINUATION.md maintenance (conductor owns the file by
+§3.4 forbidden cross-PWU rule).</li>
+<li>§9.2 — data safety (every history rewrite during Stage 2 merge-first
+step 2 backed by hardlinked <code>.git</code> backup).</li>
+</ul>
+<p><strong>Pre-build gates:</strong></p>
+<ul>
+<li><code>CM-PWU-LOCK-HIERARCHY</code> — verify lock hierarchy script
+exists at <code>scripts/testing/pwu_acquire_path_lock.sh</code> and
+<code>scripts/testing/pwu_release_path_lock.sh</code>, both executable,
+both reference the 10 forbidden cross-PWU paths from §3.4 of
+<code>docs/guides/PARALLEL_DEVELOPMENT_METHODOLOGY.md</code>.</li>
+<li><code>CM-PWU-ANTI-BLUFF-COVERAGE</code> — for every PWU with status
+&quot;Ready for merge&quot; or beyond, assert all four anti-bluff checks (C1–C4)
+have captured-evidence files under
+<code>qa-results/pwu-&lt;atm&gt;/evidence/</code>. PWU lacking any of
+red-test-output / mutation_patch / deterministic- consistency /
+captured-feature-proof FAILs the gate.</li>
+<li><code>CM-PWU-MERGE-QUEUE-DISCIPLINE</code> — scan
+<code>qa-results/pwu-queue/</code> for PWUs that bypassed the merge
+queue (commits on main without a corresponding
+<code>qa-results/pwu-queue/merged/&lt;atm&gt;</code> marker). Any bypass
+FAILs the gate.</li>
+<li><code>CM-PWU-PARALLEL-AGENT-LIMIT</code> — assert no more than 6
+concurrent background PWU agents (count tmux/screen sessions or worktree
+branches) — over-limit FAILs the gate (per §12.6 memory budget).</li>
+<li><code>CM-COVENANT-114-58-PROPAGATION</code> — anchor literal
+<code>§11.4.58</code> present in <code>constitution/CLAUDE.md</code> +
+<code>constitution/AGENTS.md</code> + parent CLAUDE.md/AGENTS.md + every
+owned-submodule CLAUDE.md/ AGENTS.md (42 files total in the current
+consuming project&#39;s family).</li>
+</ul>
+<p><strong>Paired mutations (per §1.1):</strong></p>
+<ul>
+<li>Move <code>scripts/testing/pwu_acquire_path_lock.sh</code> aside →
+<code>CM-PWU-LOCK-HIERARCHY</code> FAILs.</li>
+<li>Touch a PWU&#39;s <code>READY_FOR_MERGE</code> marker without
+<code>red-test-output.log</code> →
+<code>CM-PWU-ANTI-BLUFF-COVERAGE</code> FAILs.</li>
+<li>Land a commit on main without a corresponding
+<code>qa-results/pwu-queue/merged/&lt;atm&gt;</code> marker →
+<code>CM-PWU-MERGE-QUEUE-DISCIPLINE</code> FAILs.</li>
+<li>Spawn a 7th concurrent PWU agent →
+<code>CM-PWU-PARALLEL-AGENT-LIMIT</code> FAILs.</li>
+<li>Strip <code>§11.4.58</code> literal from
+<code>constitution/CLAUDE.md</code> →
+<code>CM-COVENANT-114-58-PROPAGATION</code> FAILs.</li>
+</ul>
+<p><strong>No escape hatch.</strong> No <code>--skip-merge-queue</code>,
+<code>--allow-bypass</code>, <code>--no-anti-bluff-check</code>,
+<code>--unlimited-agents</code>,
+<code>--sequential-phase- chain-mode</code> flag exists in any pipeline
+helper. The discipline exists because (a) the User mandate explicitly
+requires the multiplier ASAP and (b) the §11.4 covenant specifically
+prohibits PASS-bluffs (which the four anti-bluff merge-time checks
+mechanically prevent). Operators who feel they need to bypass the
+pipeline for a specific high-urgency fix should split the work into a
+single trivial PWU and let the pipeline run normally — Stage 1 of a
+trivial PWU is &lt; 30 min, Stage 2 is &lt; 5 min, Stage 3 is the same
+rebuild cost they would pay anyway.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). Applies to
+every project consuming this Constitution that has multiple
+owned-submodules</p>
+<ul>
+<li>a sequential commit/push tool + a captured-evidence testing
+discipline. Project-specific implementations (agent dispatch helpers,
+worktree layout, batch thresholds) live in consumer-side
+<code>docs/guides/PARALLEL_DEVELOPMENT_METHODOLOGY.md</code> (this
+Constitution defines the discipline; consumers implement the
+tooling).</li>
+</ul>
+<p><strong>Reference:</strong> parent <a href="../../docs/guides/PARALLEL_DEVELOPMENT_METHODOLOGY.md"><code>docs/guides/PARALLEL_DEVELOPMENT_METHODOLOGY.md</code></a>
+(full methodology with diagrams, templates, operator manual, and
+migration plan).</p>
+<hr />
+<h3 id="11496--safe-parallel-work-with-long-build-catalogue--mandate-user-mandate-2026-05-27">§11.4.96
+— Safe-parallel-work-with-long-build catalogue + mandate (User mandate,
+2026-05-27)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-27):</strong></p>
+<blockquote>
+<p>&quot;Are there except AOSP build process any other active jobs being done
+at the moment? Can we work on something in parallel while build is in
+progress so we slowly cleanup our slate? Anything workable which will
+not affect the build process or final image we generate for the flashin.
+If yes, and that was not already clear by our root Constitution, we
+should add all mandatory details into it ... Make sure we do as much as
+possible work in background in parallel with main work stream and
+oreferrably using subagents-driven approach!&quot;</p>
+</blockquote>
+<p>§11.4.94 mandates &quot;always check parallel-work feasibility before
+idle&quot;; §11.4.89 mandates background-test discipline; §11.4.58 defines
+the parallel-work-unit pipeline. §11.4.96 is the <strong>operational
+catalogue</strong> that enumerates, for the canonical long-running
+workload (5-7 h AOSP containerised build per §12.9), exactly what CAN
+safely run in parallel and what MUST NOT — closing the ambiguity gap
+§11.4.94 left implicit.</p>
+<p><strong>Closed-set categories — SAFE during AOSP containerised
+build:</strong></p>
+<ul>
+<li><strong>(A) Markdown / documentation work</strong> anywhere under
+<code>docs/</code>, <code>*.md</code>, README, CLAUDE.md, AGENTS.md,
+QWEN.md, Status.md / Status_Summary.md, Issues.md / Fixed.md / their
+Summary siblings, changelogs, research notes. The build container mounts
+source read-only at a snapshot moment + reads only the build-relevant
+files (Android.bp / Android.mk / source code / vendor binaries). MD
+edits do NOT propagate into the build&#39;s read scope.</li>
+<li><strong>(B) Generator + helper script work</strong> under
+<code>scripts/</code>, <code>scripts/testing/</code>,
+<code>scripts/llm/</code>, <code>scripts/firebase/</code>, etc. — these
+are host-side helpers NEVER consumed by the AOSP build. Safe to edit +
+commit + push freely.</li>
+<li><strong>(C) Pre-build / meta-test gate authoring + paired §1.1
+mutations</strong> under
+<code>device/rockchip/rk3588/tests/pre_build_verification.sh</code> +
+<code>scripts/testing/meta_test_false_positive_proof.sh</code> — these
+run host-side via <code>bash pre_build_verification.sh</code> ; the AOSP
+build itself does NOT execute them inline. Safe to edit during build;
+the NEXT pre-build run (post-current-build) picks up the new gates.</li>
+<li><strong>(D) On-device tests</strong> under
+<code>device/rockchip/rk3588/tests/test_*.sh</code> — these run on D3/D4
+via ADB post-flash. Authoring new test scripts during build does NOT
+affect the build (the build packages the test corpus from the source
+tree but does so once at copy-out time; scripts added after the copy-out
+are absent from THIS image but present in source for the NEXT
+image).</li>
+<li><strong>(E) Constitution submodule edits + push</strong> — separate
+git workspace at <code>constitution/</code>, not on the AOSP build&#39;s
+path. Edits + push to all 6 constitution remotes safe at any time.</li>
+<li><strong>(F) Project submodule commit + push</strong> to either the
+parent or owned submodules&#39; remotes — per §11.4.88 background push, this
+is OS-level orthogonal to the container.</li>
+<li><strong>(G) D3 / D4 live-ADB probes</strong> (read-only
+<code>dumpsys</code> / <code>getprop</code> /
+<code>cat /proc/asound/...</code> / <code>screencap</code> /
+<code>logcat -d</code>) — these query device state without changing it;
+do NOT affect the host build.</li>
+<li><strong>(H) Subagent dispatch</strong> per §11.4.20 / §11.4.70 —
+each subagent runs in isolated context window; multiple subagents in
+same checkout coordinate via §11.4.84 working-tree quiescence (lockfile
+or git worktree per disjoint scope). Read-only analysis subagents
+(obsolescence audit, summary clarity sweep, code-review) are uniformly
+safe.</li>
+<li><strong>(I) Web research + external API queries</strong> (with
+§11.4.10 credential discipline preserved) — operator-relevant browsing,
+ASUS QVL lookups, vendor spec verification, package-registry version
+checks.</li>
+<li><strong>(J) Workable-items DB operations</strong> per §11.4.93 +
+§11.4.95 — <code>workable-items sync</code> (when implemented),
+<code>workable-items validate</code>, <code>workable-items report</code>
+— read/write SQLite at <code>docs/workable_items.db</code>, orthogonal
+to build.</li>
+<li><strong>(K) Pre-build verification + meta-test execution</strong> —
+RUN per §11.4.89 background-test discipline. The build container reads
+source; pre-build runs host-side reading the same source. No conflict at
+filesystem layer (read-only intersection).</li>
+</ul>
+<p><strong>Closed-set — UNSAFE during AOSP containerised
+build:</strong></p>
+<ul>
+<li><strong>(α) <code>git checkout</code> /
+<code>git reset --hard</code> / <code>git clean -df</code></strong> on
+the source tree — would change files the build is reading; introduces
+inconsistency. Defer until build completes OR use a
+<code>git worktree</code> per §11.4.84.</li>
+<li><strong>(β) Mass file deletions or renames</strong> under
+<code>device/</code>, <code>frameworks/</code>, <code>hardware/</code>,
+<code>vendor/</code>, <code>kernel-5.10/</code>, <code>external/</code>,
+<code>packages/</code>, <code>bionic/</code>, <code>bootable/</code>,
+<code>build/</code>, <code>system/</code>, <code>cts/</code>,
+<code>tools/</code>, <code>prebuilts/</code>, etc. — anything the AOSP
+build potentially reads. Apply ONLY after build completes.</li>
+<li><strong>(γ) Submodule pointer updates that affect built
+APKs</strong> — bumping
+<code>device/rockchip/atmosphere/presenter</code> or
+<code>smarttube-player</code> or <code>vlc-player</code> etc. pointer
+changes the binary content the build packages. Defer pointer bumps to
+between-build windows OR plan for the NEXT build to pick them up.</li>
+<li><strong>(δ) <code>out/</code> directory mutations</strong> — the
+build&#39;s output directory. Never touch concurrently.</li>
+<li><strong>(ε) <code>make clean</code> / <code>m clobber</code> /
+<code>rm -rf out/</code></strong> while build runs — direct conflict;
+will likely crash the build.</li>
+<li><strong>(ζ) Container destruction</strong>
+(<code>podman stop atmosphere-aosp-build</code>,
+<code>podman pod rm</code>) — terminates the build mid-flight.
+Operator-explicit only.</li>
+<li><strong>(η) Disk-filling operations</strong> (large file downloads,
+container image builds, NVMe duplication) that push the host below the
+§12.9 free-space minimum — could OOM the build&#39;s writable layer.</li>
+<li><strong>(θ) Host-session-safety breaches</strong> per §12 — suspend
+/ hibernate / logout / unbounded memory ops in user.slice — kill the
+build&#39;s parent cgroup.</li>
+</ul>
+<p><strong>Conductor responsibility</strong> (per §11.4.94 already;
+§11.4.96 makes the catalogue explicit):</p>
+<ul>
+<li>Before EVERY pause point during a long build, the conductor MUST
+consult this catalogue, identify all (A)-(K) items in the priority queue
+per §11.4.42 + §11.4.72, dispatch at least one per §11.4.20 / §11.4.70
+subagent-driven default + §11.4.89 background-task discipline. &quot;Build is
+running, nothing else to do&quot; is NEVER true per §11.4.94 + this
+catalogue.</li>
+</ul>
+<p><strong>Subagent-driven default for catalogue items:</strong></p>
+<ul>
+<li>(A) MD work + (E) constitution edits + (F) commits: conductor-direct
+(lightweight + critical-state sequencing).</li>
+<li>(B) generator/helper work + (C) gate authoring + (D) on-device test
+authoring + (G) live-ADB probes + (I) web research + (J) DB ops:
+subagent-dispatchable per §11.4.20.</li>
+<li>(H) is itself the subagent dispatch — composes with the rest.</li>
+<li>(K) pre-build / meta-test execution: backgrounded per §11.4.89,
+conductor polls outcome.</li>
+</ul>
+<p><strong>Pre-build gate</strong>
+<code>CM-COVENANT-114-96-PROPAGATION</code> enforces this anchor literal
+across the canonical fleet. Pre-build gate
+<code>CM-PARALLEL-WORK-DURING-BUILD-AUDIT</code> (when implemented)
+audits recent commits during AOSP build windows for the parallel-work
+output (commits landing during a build window with timestamps inside
+<code>qa-results/aosp_build_*.log</code> start/end). Paired §1.1
+meta-test mutations strip the catalogue literals → gates FAIL.</p>
+<p><strong>Composes with</strong> §11.4.20 (subagent-driven) + §11.4.42
+(iteration priority) + §11.4.58 (parallel PWU) + §11.4.70 (subagent
+default) + §11.4.72 (audio top-priority) + §11.4.82 (iteration-speedup)
++ §11.4.84 (working-tree quiescence — esp. for subagent parallelism) +
+§11.4.85 (stress + chaos can run in parallel) + §11.4.87 (endless-loop
+zero-idle) + §11.4.88 (background-push) + §11.4.89 (background-test) +
+§11.4.92 (multi-pass evaluation per parallel branch) + §11.4.93 /
+§11.4.95 (workable-items DB) + §11.4.94 (parallel-work survey mandate) +
+§12.6 / §12.7 / §12.8 / §12.9 (host-session safety + build cap).</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.96
+in the HelixConstitution submodule.</p>
+<p><strong>Non-compliance is a release blocker.</strong> Conductor
+scheduling a wake/sleep during an active AOSP build without first
+dispatching at least one (A)-(K) catalogue item from the priority queue
+is a §11.4.94 + §11.4.96 violation = §11.4 PASS-bluff at the
+operating-mode layer.</p>
+<hr />
+<h3 id="114111--resolve-by-stable-name-not-by-enumeration-index-mandate-research-derived-2026-06-03">§11.4.111
+— Resolve-by-stable-name-not-by-enumeration-index mandate
+(research-derived, 2026-06-03)</h3>
+<p><strong>Short tag:</strong> <code>resolve-by-stable-name</code>.</p>
+<p><strong>Forensic anchor (genericised, 2026-06-03).</strong> A
+platform bound an audio output to a kernel-enumerated device index
+(<code>card=0</code>). A second device of a different class enumerated
+FIRST at boot and took slot 0, shifting the intended device to slot 1.
+The static index binding now pointed at the wrong device: the policy
+layer failed to attach the intended sink, mis-assigned its TYPE, and the
+user-facing output switcher labelled the AV receiver &quot;Wired Headphone&quot;
+while routing collapsed to stereo. The lower layer of the SAME stack
+already resolved the device correctly <strong>by name</strong> (scanning
+<code>/proc/asound/card*/id</code> for the controller name) — proving
+the brittleness was the <em>index</em> binding, not the resolution
+capability. The defect class generalises to every enumerated resource
+whose ordinal is assigned at discovery/boot/hotplug time and is
+therefore non-deterministic across reboots, device additions, and
+topology changes.</p>
+<p><strong>The mandate.</strong> Any binding between a configuration /
+policy / code site and a hardware device, resource handle, or enumerated
+entity — audio cards, display connectors, network interfaces, storage
+devices, GPU render nodes, input devices, camera indices,
+container/process slots, any registry whose members are assigned an
+ordinal at discovery time — MUST resolve the target by a <strong>stable
+identifier</strong> (name, UUID, serial, label, controller-name,
+content-derived hash, sink-reported identity) and MUST NOT resolve it by
+an enumeration index / ordinal / slot number, UNLESS the platform
+documents that ordinal as deterministically pinned (and the pinning
+mechanism is itself part of the binding, captured and asserted). Where a
+stable identifier exists at one layer of a stack, every other layer
+binding the same resource MUST use the same identifier — mixed
+by-name-here / by-index-there is the structural weak link this anchor
+forbids. Where the platform offers a sink-reported / capability-derived
+identity (e.g. an EDID/ELD-style capability descriptor), preferring it
+makes the binding robust to the broadest class of topology change.</p>
+<p><strong>Honest boundary.</strong> When the platform genuinely
+provides no stable identifier and only an ordinal exists, the binding
+MUST (a) pin the ordinal deterministically via the platform&#39;s own
+pinning mechanism, (b) capture that pin as part of the binding&#39;s runtime
+signature per §11.4.108, and (c) document the residual fragility as
+<code>UNCONFIRMED:</code>-class risk per §11.4.6 — never silently trust
+an unpinned ordinal.</p>
+<p><strong>Classification:</strong> universal (§11.4.17) — index-vs-name
+resource resolution is a platform-neutral binding-robustness discipline
+reusable by ANY project that binds to enumerated hardware / resources /
+handles; the consuming project supplies its concrete stable-identifier
+mechanism (ALSA card name, DRM connector name, NIC predictable name,
+block-device UUID, etc.) and the specific layers that must agree per
+§11.4.35.</p>
+<p><strong>Composes with</strong> §11.4.6 (no-guessing — &quot;the index is
+<em>usually</em> stable&quot; is the exact guess this anchor forbids; prove
+the pin or bind by name), §11.4.8 (deep-web-research — mature platform
+stacks resolve by name/UUID; reproducing a known-brittle index binding
+when the by-name path is documented is a §11.4.8 violation by omission),
+§11.4.69 (sink-side positive-evidence — the by-name binding&#39;s
+correctness is verified by the downstream/sink-reported identity, not by
+the local config), §11.4.108 (four-layer fix-verification — the
+resolved-by-name binding&#39;s runtime signature is asserted on a clean
+target across the topology that originally broke the index binding),
+§11.4.110 (pre-build clash detection — a new ordinal-based binding in a
+diff is a statically-catchable clash class the change-impact detector
+flags).</p>
+<p><strong>Propagation.</strong> Propagation gate
+<code>CM-COVENANT-114-111-PROPAGATION</code> enforces the literal anchor
+<code>11.4.111</code> across the consumer fleet; paired §1.1 meta-test
+mutation strips the literal → the gate FAILs. Recommended per-family
+gate <code>CM-RESOLVE-BY-NAME-NOT-INDEX</code> (diff-driven scan
+flagging a new enumeration-index binding to a resource that exposes a
+stable identifier, unless an accompanying deterministic-pin +
+runtime-signature is present); paired §1.1 mutation plants an unpinned
+index binding → the gate FAILs. (Gate-code implementation lands as a
+separate work item; this anchor defines the contract.)</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.111
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--allow-index-binding</code>,
+<code>--ordinal-is-stable-enough</code>,
+<code>--skip-name-resolution</code>, <code>--trust-unpinned-index</code>
+flag exists.</p>
+<h3 id="114119--single-resource-owner-partitioning-for-parallel-hardware-testing-mandate-118-dev-remediation-2026-06-03">§11.4.119
+— Single-resource-owner partitioning for parallel hardware testing
+mandate (1.1.8-dev remediation, 2026-06-03)</h3>
+<p><strong>Short tag:</strong>
+<code>single-resource-owner-partitioning</code>.</p>
+<p><strong>Forensic anchor (genericised, 2026-06-03).</strong> Multiple
+parallel test/discovery streams ran against shared physical hardware
+(devices D3 + D4, an HDMI audio sink). Two streams driving media
+playback on the SAME device at once corrupt each other&#39;s evidence —
+overlapping audio routes the sink reports the wrong codec, concurrent
+<code>am start</code> fights over the foreground, a second stream&#39;s
+input events land in the first stream&#39;s app. The remediation enforced:
+exactly ONE stream OWNS each device&#39;s exclusive/media resource at a
+time; other streams targeting that device are read-only (probes /
+dumpsys / log capture). Parallelism is partitioned BY DEVICE — stream A
+owns D3&#39;s media, stream B owns D4&#39;s media — so the parallel-development
+pipeline (§11.4.58 / §11.4.103) runs without the streams clobbering each
+other&#39;s captured evidence.</p>
+<p><strong>The mandate.</strong> When multiple parallel
+work/test/discovery streams exercise SHARED hardware or any
+exclusive-access resource (a media-playback path, a single HDMI/audio
+sink, an exclusive device handle, a single serial/JTAG line, a GPU under
+exclusive capture), exactly ONE stream MUST own each such resource at a
+time. The exclusive owner drives the resource (playback, input
+injection, capture); every other concurrent stream targeting the same
+resource MUST be READ-ONLY (passive probes — <code>dumpsys</code> /
+<code>/proc</code> / <code>/sys</code> reads / sink-side network probes
+/ log tails) for the duration. Parallelism MUST be partitioned by
+resource: distinct devices / sinks / handles run fully concurrent
+(stream-per-device), but the same device&#39;s exclusive resource is
+single-owner. The ownership MUST be enforced by an advisory lock / token
+(per §11.4.58 L3 contention-path locking + §11.4.84 working-tree
+quiescence&#39;s hardware analogue), not by convention — a second stream
+MUST be unable to silently start media on a device another stream owns.
+Ownership is event-driven: a stream claims a device when its exclusive
+resource frees and releases it the moment its work completes, so the
+next queued stream can claim it (per §11.4.103 auto-backfill).</p>
+<p><strong>Why single-owner.</strong> Concurrent drivers of one
+exclusive resource produce CROSS-CONTAMINATED evidence: the sink reports
+whichever stream&#39;s audio won the race, the foreground belongs to
+whichever <code>am start</code> landed last, input events interleave. A
+PASS captured under contention is a §11.4 evidence-integrity bluff — the
+captured artefact does not reflect what the test under inspection
+actually did. Single-owner partitioning is the precondition that makes
+per-stream captured evidence trustworthy under parallelism.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> A read-only probe stream
+is genuinely read-only — it MUST NOT issue any state-changing command
+(no <code>am start</code>, no input injection, no setprop, no playback)
+against a device it does not own; a &quot;read-only&quot; stream that mutates
+state is the contention the partition forbids. When the resource
+genuinely cannot be partitioned (a single device the whole batch needs
+to drive), the streams MUST serialize on it (single-owner over time),
+not run concurrently and hope.</p>
+<p><strong>Classification:</strong> universal (§11.4.17) —
+single-owner-per-exclusive-resource partitioning is a platform-neutral
+parallel-testing discipline reusable by ANY project with parallel
+streams contending over shared hardware / exclusive handles; the
+consuming project supplies its resource inventory (which devices / sinks
+/ handles are exclusive) and lock mechanism per §11.4.35. Strict
+refinement of §11.4.58 / §11.4.103 for the hardware-contention case.</p>
+<p><strong>Composes with</strong> §11.4.5 / §11.4.69 (captured-evidence
+integrity — single-owner is the precondition for trustworthy per-stream
+evidence), §11.4.13 (sink-side evidence — a shared sink is the canonical
+single-owner resource), §11.4.50 (deterministic consistency — contended
+evidence is non-deterministic, defeating N-iteration stability),
+§11.4.58 (parallel-development PWU — §11.4.119 is the hardware-resource
+refinement of its L3 contention-path locking), §11.4.82(F) (parallel
+multi-device testing — per-device streams ARE the partition), §11.4.84
+(working-tree quiescence — the hardware analogue: a stream owns the
+device&#39;s exclusive state cleanly before it drives it), §11.4.103
+(continuous parallel streams — single-owner + event-driven release
+enables the auto-backfill), §11.4.118 (discovery pressure — parallel
+per-device discovery needs this partition).</p>
+<p><strong>Propagation.</strong> Propagation gate
+<code>CM-COVENANT-114-119-PROPAGATION</code> enforces the literal anchor
+<code>11.4.119</code> across the consumer fleet; paired §1.1 meta-test
+mutation strips the literal → the gate FAILs. Recommended per-family
+gate <code>CM-SINGLE-RESOURCE-OWNER-PARTITION</code> (parallel
+hardware-test streams acquire a per-resource ownership lock before any
+state-changing command; concurrent same-resource streams are read-only);
+paired §1.1 mutation removes the ownership-lock acquisition (letting two
+streams drive one device) → the gate FAILs. (Gate-code implementation
+lands as a separate work item; this anchor defines the contract.)</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.119
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--allow-concurrent-resource-drivers</code>,
+<code>--skip-ownership-lock</code>, <code>--read-only-may-mutate</code>,
+<code>--contended-evidence-OK</code> flag exists.</p>
+<hr />
+<h3 id="114128--always-on-device-recording-mandate-user-mandate-2026-06-06">§11.4.128
+— Always-on device-recording mandate (User mandate, 2026-06-06)</h3>
+<p><strong>Forensic anchor — direct user mandate (2026-06-06):</strong>
+we MUST ALWAYS live-record all available data from all devices we use
+for testing or that we know manual testing is being performed on, done
+EXTRA carefully so the recording never harms the device, its
+performance, or causes side effects; recorded raw data MUST NOT be
+processed without need (token-conscious) and is ALWAYS excluded from
+version control + the code-intelligence index; only curated
+analysis/evidence is committed, and only during release preparation.</p>
+<p>The mandate (ALL must hold). For EVERY test/debug device the project
+uses — and every device on which the operator is known to be performing
+manual testing — across EVERY reachable transport (USB or wireless ADB /
+SSH / serial / network introspection API), the project MUST ALWAYS
+live-record all available data sources it can later analyse: all
+activities, all logs (system log, kernel log, dropbox, crash/ANR
+traces), performance metrics (CPU / memory / I/O / thermal / load),
+every sink-side / downstream introspection report per §11.4.13, and any
+other live-changeable parameter. (1) <strong>Extra-careful,
+side-effect-free.</strong> Recording MUST be designed so it NEVER harms
+the device, degrades its performance, or causes a side effect —
+non-invasive read-only probes only, bounded sampling intervals, bounded
+write-volume, an observer-effect budget (no probe that mutates the
+system-under-test). A recorder that perturbs the device-under-test is a
+§11.4.128 violation, NOT evidence. (2) <strong>Background + parallel +
+subagent-driven.</strong> Recording MUST run in the background in
+parallel with the main work stream (per §11.4.103
+continuous-parallel-stream), dispatched subagent-driven per §11.4.70 —
+never blocking the main stream, never the only thing the conductor does.
+(3) <strong>Token-conscious — record-now, analyse-later.</strong> Raw
+recorded data MUST NOT be processed / analysed without need; the default
+is capture-and-store. The ONLY standing exception is during release-tag
+preparation (the §11.4.40 full-suite retest / §11.4.42 release-gate) OR
+when the operator explicitly asks — at which point the relevant slice is
+analysed and the curated findings become captured-evidence. Analysing
+raw recordings continuously, eagerly, for no tracked reason burns tokens
+and is a §11.4.128 violation. (4) <strong>Raw is git-ignored AND
+code-intelligence-excluded; only curated evidence is committed.</strong>
+The raw recording corpus MUST be excluded from version control (with a
+§11.4.77 regeneration-mechanism declaration — the mechanism is
+&quot;re-record by re-running the recorder against the device&quot;, with the
+honest caveat that a past device-state is not byte-reproducible) AND
+excluded from the code-intelligence index per §11.4.78/§11.4.79 (a raw
+log/recording corpus is not source; indexing it pollutes the graph).
+Only the CURATED analysis / extracted evidence artefacts are committed —
+and only during release preparation per §11.4.83
+(<code>docs/qa/&lt;run-id&gt;/</code>) — never the raw corpus. (5)
+<strong>Deterministic archive layout.</strong> The raw corpus MUST be
+laid out by date → combined-source-state-hash → device →
+recording-sequence so any artefact is traceable to the exact code state
+and device it came from:
+<code>&lt;recording-root&gt;/YYYY-MM-DD/&lt;combined main+submodules state hash&gt;/&lt;DEVICE&gt;_&lt;SERIAL&gt;/recording_NNN/&lt;files&gt;</code>
+(monotonic <code>NNN</code> per device per state-hash). (6)
+<strong>Anti-bluff.</strong> A recorder claimed running but producing no
+growing corpus is a §11.4 bluff; a curated finding cited as evidence
+MUST trace to a real raw-corpus path under the deterministic layout; the
+recorder&#39;s own health (alive + corpus growing) is itself a
+captured-evidence assertion per §11.4.5/§11.4.69.</p>
+<p>Classification: universal (§11.4.17) — a platform-neutral
+test-evidence-capture discipline reusable by ANY project with reachable
+test/debug devices; the consuming project supplies its concrete device
+serials, transport probes, recorder helper, recording-root, and
+performance-metric set per §11.4.35. Composes with §11.4.2
+(recorded-evidence — §11.4.128 guarantees the recording exists to BE the
+evidence) / §11.4.5 (captured-evidence quality) / §11.4.13 (sink-side
+introspection IS one recorded source) / §11.4.69 (sink-side
+positive-evidence taxonomy) / §11.4.40 + §11.4.42 (release-prep is the
+analyse-the-corpus trigger) / §11.4.70 (subagent-driven recorder
+dispatch) / §11.4.77 (raw corpus git-ignored WITH a
+regeneration-mechanism declaration) / §11.4.78 + §11.4.79 (raw corpus
+excluded from the code-intelligence index) / §11.4.83 (curated evidence
+lands under <code>docs/qa/&lt;run-id&gt;/</code>) / §11.4.103
+(background parallel stream) / §11.4.119 (single-resource-owner — a
+read-only recorder never contends with an exclusive driver). Propagation
+gate <code>CM-COVENANT-114-128-PROPAGATION</code> (literal
+<code>11.4.128</code> across the consumer fleet) + recommended gate
+<code>CM-DEVICE-RECORDING-ALWAYS-ON</code> (recorder present +
+raw-corpus git-ignored + code-intelligence-excluded + deterministic
+layout) + paired §1.1 meta-test mutation (strip the literal →
+propagation gate FAILs; gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.128
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-recording</code>,
+<code>--record-without-layout</code>, <code>--commit-raw-corpus</code>,
+<code>--index-raw-corpus</code>, <code>--analyse-corpus-always</code>,
+<code>--invasive-probe-OK</code> flag exists.</p>
+<h3 id="114144--trackedrecorded-device-availability-following-mandate-user-mandate-2026-06-10">§11.4.144
+— Tracked/recorded-device availability-following mandate (User mandate,
+2026-06-10)</h3>
+<p><strong>Forensic anchor — direct user mandate (2026-06-10):</strong>
+every device the project is tracking / following / recording MUST be
+availability-followed with the project&#39;s already-defined reconnection
+timings + the sanctioned device-recovery path; a silent
+recording/tracking gap — papering a disconnect as continuous capture —
+is a §11.4 bluff.</p>
+<p>Every device the project is recording or tracking (test / debug /
+manual-testing device, across every reachable transport — USB / wireless
+ADB / SSH / serial / network introspection API) MUST be
+availability-FOLLOWED: its connection state continuously monitored, and
+any drop handled — never silently abandoned and never presented as a
+continuous recording. The always-on recorder under §11.4.128 KNOWS a
+tracked device is absent (its per-device loop guards on the reachable
+state) but, lacking a following discipline, merely spins idle — no data
+captured, no offline event logged, no resume, no escalation — so the
+recording corpus presents a continuous timeline with a silent hole. That
+silent hole is a §11.4 PASS-bluff at the recording-integrity layer: it
+claims continuous capture while no data exists for the gap.</p>
+<p>On a tracked device leaving its reachable state the system MUST,
+automatically: (a) <strong>DETECT</strong> the drop and <strong>log an
+honest offline event</strong> into the recording corpus (§11.4.6 — a
+silent gap presented as continuous capture is a fabricated-continuity
+bluff; §11.4.128 — a silent recording gap defeats always-on recording);
+(b) <strong>WAIT</strong> for the device to return using the project&#39;s
+ALREADY-DEFINED reconnection timings — never invented numbers (§11.4.6),
+the SAME grace / reconnect / poll budgets the project&#39;s recovery path
+already uses; (c) <strong>RE-ATTACH</strong> — resume recording /
+tracking the moment the device returns and log an honest online / resume
+event; and (d) <strong>ESCALATE</strong> to the project&#39;s sanctioned
+device-recovery path (per §11.4.69 feature class
+<code>device_recovery</code>) if the device does not return within the
+defined timeout — through the sanctioned, authorization-gated recovery
+entry point ONLY, never bypassing its gate and never performing a
+destructive recovery (e.g. a power-cycle) autonomously without that
+authorization (§11.4.21 / §11.4.101 — high-blast-radius recovery is
+gated; while blocked the system keeps following the device, logging the
+blocked-escalation honestly). A tracked-device drop that produces a
+silent corpus hole, a never-resumed recording, or a never-escalated
+permanent absence is the bluff this anchor forbids.</p>
+<p>Classification: universal (§11.4.17) — a platform-neutral
+device-following discipline reusable by ANY project that records or
+tracks devices; the consuming project supplies its concrete tracking
+transport, the device set, the already-defined reconnection timings, and
+the sanctioned recovery entry point per §11.4.35. Composes §11.4.128
+(always-on recording — §11.4.144 closes its drop-handling gap) /
+§11.4.69 (<code>device_recovery</code> sink-side positive evidence) /
+§11.4.6 (honest offline / online events, reused-not-invented timings) /
+§11.4.14 (watchdog children reaped on stop) / §11.4.21 + §11.4.101
+(gated, non-autonomous escalation). Propagation gate
+<code>CM-COVENANT-114-144-PROPAGATION</code> (literal
+<code>11.4.144</code> across the consumer fleet) + recommended gate
+<code>CM-DEVICE-AVAILABILITY-FOLLOWED</code> (the recorder wires a
+per-device availability watchdog that reuses the defined timings +
+escalates only through the gated recovery path) + paired §1.1 meta-test
+mutation (strip the watchdog wiring / let an absence go unlogged → gate
+FAILs; strip the literal → propagation gate FAILs; gate-code = separate
+work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.144.
+Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-availability-following</code>,
+<code>--silent-recording-gap-OK</code>,
+<code>--no-reconnect-wait</code>,
+<code>--invent-reconnect-timing</code>,
+<code>--skip-recovery-escalation</code>,
+<code>--autonomous-power-cycle-OK</code> flag exists.</p>
+<hr />
+<h3 id="114147--crashed-agent-respawn-until-complete--no-work-loss-registry-mandate-user-mandate-2026-06-10">§11.4.147
+— Crashed-agent respawn-until-complete + no-work-loss registry mandate
+(User mandate, 2026-06-10)</h3>
+<p><strong>Forensic anchor — verbatim operator intent
+(2026-06-10):</strong> &quot;any agent that crashed because of something MUST
+BE respawned and finish its work at some point! We MUST NOT lose any
+work, forget about or have it corrupted!&quot; Forensic case study (FACT,
+this session): dispatched subagents died on <strong>transient</strong>
+causes — <code>API Error: Server is temporarily limiting requests</code>
+(rate-limit) killed 5 at once,
+<code>API Error: socket connection closed unexpectedly</code> killed 2,
+and one left PARTIAL edits (two source files written, the dependent
+SystemUI sliders + doc + test NOT done). Each was re-dispatched by pure
+conductor vigilance with <strong>no mechanical guarantee</strong> — the
+moment conductor context is lost / compacted / the conductor itself
+crashes, an in-flight-but-dead work unit is silently dropped: work lost
+/ forgotten / corrupted.</p>
+<p>Every agent/subagent dispatched to perform a work unit MUST be
+tracked through its full lifecycle so that a crash NEVER loses, forgets,
+or corrupts its work. A crashed agent is <strong>NOT</strong> a
+completed agent (§11.4.6 — &quot;it probably finished before dying&quot; is a
+forbidden guess; an abnormal termination is positive evidence the work
+unit is OPEN). The mandate (ALL hold):</p>
+<p><strong>(a) Mandatory work-unit / agent REGISTRY.</strong> Every
+dispatched agent/subagent MUST have a durable, append-only,
+machine-readable registry entry carrying at minimum: a stable
+agent/work-unit id, its task + file-scope (§11.4.58 PWU manifest), its
+declared output path(s) + captured-evidence dir (§11.4.5/§11.4.69), its
+dispatch timestamp, and a status from the CLOSED SET
+<code>{dispatched | in-flight | crashed | respawned | complete}</code>.
+The registry reuses the §11.4.116 sync substrate (append-only JSONL
+event stream + atomically-rewritten status snapshot) — agent-lifecycle
+transitions are events; the §11.4.116 integrity property holds (&quot;an
+entry with no dispatch-event cannot show <code>complete</code>&quot;). The
+registry is the SINGLE SOURCE OF TRUTH for &quot;is this work owed?&quot; — an
+unregistered dispatch is itself a §11.4.147 violation (an untracked
+agent cannot be respawned).</p>
+<p><strong>(b) Mechanical CRASH-DETECTION +
+RESPAWN-until-complete.</strong> Any abnormal agent termination —
+transient API/rate-limit error
+(<code>Server is temporarily limiting requests</code>), socket-close
+(<code>socket connection closed unexpectedly</code>), any non-completion
+exit, OR a terminal error after the runtime&#39;s own retries are exhausted
+— MUST flip the registry entry to <code>crashed</code> and keep the work
+unit OPEN. An OPEN unit MUST be respawned (a fresh agent claims the same
+id + scope + preserved state) and re-respawned until an agent reaches
+<code>complete</code>. Respawn is the safe, reversible,
+bounded-blast-radius decision the conductor takes autonomously per
+§11.4.101 (never blocks the loop waiting for a human). Transient causes
+use the project&#39;s ALREADY-DEFINED backoff/retry budgets — never invented
+numbers (§11.4.6); a genuinely-non-transient terminal error
+(deterministically reproducible after respawn) is investigated per
+§11.4.102 before further respawn, never spun in a blind retry loop.</p>
+<p><strong>(c) PARTIAL-STATE handling — preserve, then
+resume-or-clean-restart.</strong> A crashed agent&#39;s uncommitted edits +
+output doc MUST be PRESERVED (never silently discarded → work lost;
+never blindly committed → corruption). Before resuming, the respawn MUST
+run the §11.4.84 quiescence check on the preserved tree (every modified
+file accounted-for against the unit&#39;s scope; no
+mutation/<code>// always pass</code>/<code>_mutated_*</code> residue; no
+half-written/torn artifact). Then EITHER (i) <strong>RESUME
+idempotently</strong> from the preserved partial when it passes the
+check (consistent + complete-enough to continue), OR (ii)
+<strong>CLEAN-RESTART</strong> the unit from a known-good base (§9.2
+pre-op backup, reversible per §11.4.101) when the partial is
+inconsistent / incomplete-unsafely / fails the §11.4.84 check. Either
+path guarantees nothing is lost and nothing is corrupted. Per-agent
+<code>git worktree</code> isolation (§11.4.58 L4 / §11.4.84) keeps a
+crashed unit&#39;s partial tree from contaminating other streams.</p>
+<p><strong>(d) COMPLETION criterion.</strong> A work unit is DONE
+<strong>only</strong> when an agent reaches <code>complete</code> with
+its required captured evidence/output landed (§11.4.5/§11.4.69 + the
+§11.4.116 verdict-carries-evidence-path rule). The endless-loop
+done-condition (§11.4.87 / §11.4.94 / §11.4.97 / §11.4.126) MUST NOT
+read as satisfied while any registry entry is <code>dispatched</code> /
+<code>in-flight</code> / <code>crashed</code> /
+<code>respawned</code>-not-yet-<code>complete</code>; the zero-idle
+survey (§11.4.94) MUST treat every non-<code>complete</code> entry as an
+OPEN actionable item to reclaim. A registry showing
+<code>complete</code> without the landed evidence is a §11.4 PASS-bluff
+at the agent-lifecycle layer.</p>
+<p>Honest boundary (§11.4.6): the registry + respawn guarantee that work
+is <em>not lost or corrupted</em>; it does NOT itself prove the work is
+<em>correct</em> — the respawned unit&#39;s output still crosses §11.4.108
+four-layer verification, the §11.4.125/§11.4.142 code-review gate, and
+§11.4.40 full-suite retest. §11.4.147 is the durability layer beneath
+those, not a substitute. §11.4.147 is the agent-side analogue of
+§11.4.144 (device availability-following): same detect-drop →
+wait/backoff → re-attach/respawn → escalate-if-non-transient shape —
+devices for §11.4.144, dispatched agents for §11.4.147.</p>
+<p>Classification: universal (§11.4.17) — the consuming project supplies
+its concrete registry path/format, its crash-detection signal source
+(runtime exit codes / sync-stream error events), its respawn-dispatch
+mechanism, and its already-defined backoff budgets per §11.4.35.
+Composes §11.4.6 (no-guessing — crash ≠ done) / §11.4.58 (PWU = the work
+unit + worktree isolation) / §11.4.84 (partial-state quiescence check
+before resume) / §11.4.87 + §11.4.94 + §11.4.97 + §11.4.126 (loop
+done-condition + zero-idle reclaim) / §11.4.101 (autonomous
+respawn-vs-restart decision, reversible-with-backup) / §11.4.116
+(registry reuses the sync-channel substrate) / §11.4.102 (non-transient
+terminal error → systematic-debugging before blind respawn) / §11.4.108
++ §11.4.125 + §11.4.142 + §11.4.40 (the respawned output still crosses
+every downstream verification layer) / §9.2 (clean-restart pre-op
+backup) / §11.4.128 + §11.4.144 (the recording/device-following siblings
+— same detect→wait→re-attach→escalate shape, agent-side here).
+Propagation gate <code>CM-COVENANT-114-147-PROPAGATION</code> (literal
+<code>11.4.147</code> across the consumer fleet) + recommended gate
+<code>CM-CRASHED-AGENT-RESPAWN-TRACKED</code> (every dispatched agent
+has a registry entry; every <code>crashed</code> entry is
+respawned-until-<code>complete</code>; the loop done-condition reads no
+non-<code>complete</code> entries; partial state preserved +
+§11.4.84-checked before resume) + paired §1.1 meta-test mutation (strip
+the literal → propagation gate FAILs; mark a <code>crashed</code> entry
+as the loop&#39;s done-condition <code>complete</code> without landed
+evidence, OR drop a dispatched agent without a registry entry →
+<code>CM-CRASHED-AGENT-RESPAWN-TRACKED</code> FAILs; gate-code =
+separate work item).</p>
+<p><strong>(e) API-QUOTA / RATE-LIMIT EXHAUSTION IS A FIRST-CLASS CRASH
+CLASS (extension, 2026-07-15).</strong> Forensic FACT (2026-07-11 +
+2026-07-15): background agents were terminated MID-WORK when the driving
+subscription hit its weekly / session quota — the agents did not fail,
+they were KILLED by an EXTERNAL quota boundary, and their in-flight work
+would have been silently lost had a conductor not manually re-dispatched
+them. Quota exhaustion MUST be handled by the SAME registry + respawn
+machinery as any other crash, with these additions: (1) the
+crash-detection layer MUST record the REAL limit signal + its
+reason-CLASS per §11.4.196(B)
+(<code>{session | weekly | subscription}</code>, derived from the
+captured 429 signature — never faked, never guessed, §11.4.6); (2) the
+remedy is NOT &quot;wait for the same alias&quot; — the killed unit MUST be
+REBOUND to the next OPERATIONAL alias per §11.4.196(A)/(C)
+(native-first, provider fallback where configured) and RESPAWNED there;
+when EVERY alias is cooled the unit bounded-PARKS per §11.4.101 carrying
+its operational-again epoch, and it stays <code>crashed</code> / OPEN —
+never <code>complete</code>; (3) the respawned agent MUST RESUME from
+the killed agent&#39;s captured transcript + on-disk partial state at its
+EXACT last point (clause (c): preserve → §11.4.84 quiescence check →
+resume-or-clean-restart), never restart blind, never silently re-do or
+drop the work; (4) the §11.4.87 / §11.4.94 / §11.4.97 / §11.4.126 loop
+done-condition MUST NOT read satisfied while any quota-killed entry is
+non-<code>complete</code> — &quot;the quota ran out&quot; is a PARK, never a DONE.
+No work may be lost, forgotten, or corrupted by a quota boundary
+(composes §11.4.196 alias-limit tracking + §11.4.198 always-on
+multi-alias default — the rebind path is what makes a quota crash
+recoverable rather than terminal).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.147.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-agent-registry</code>, <code>--crash-equals-done</code>,
+<code>--no-respawn</code>, <code>--discard-partial-state</code>,
+<code>--blind-commit-partial</code>, <code>--forget-dead-agent</code>,
+<code>--loop-done-with-crashed-entries</code> flag.</p>
+<h3 id="114154--window-scoped-capture--fresh-corpus-rotation-for-featureqa-recordings-user-mandate-2026-06-15">§11.4.154
+— Window-scoped capture + fresh-corpus rotation for feature/QA
+recordings (User mandate, 2026-06-15)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-06-15):</strong> &quot;IMPORTANT: Make sure that recording you perform
+does record the window containing apps and services, not the whole
+desktop or monitor screen!&quot; + &quot;NOTE: All old recording files MUST BE
+removed when new one starts!&quot;</p>
+<p>Refines/strengthens the §11.4.2/§11.4.5/§11.4.107/§11.4.153 recording
+disciplines with two capture-hygiene invariants every feature/QA video
+MUST satisfy. <strong>(A) Window-scoped capture, NOT
+whole-screen.</strong> A recording that proves a feature works MUST
+capture ONLY the window / surface / viewport of the application or
+service under test — the app&#39;s own window (GUI), its terminal pane
+(CLI/TUI), its browser tab/viewport (web), or its
+device/emulator/simulator frame (mobile) — NEVER the whole desktop, the
+whole monitor, or unrelated windows. Whole-desktop capture is forbidden
+because it (i) leaks unrelated/operator-private content into a committed
+artefact (a §11.4.10/§11.4.83 hygiene breach), (ii) dilutes the
+§11.4.107 liveness/freeze/frame-advance oracle with non-feature pixels
+(a defect can hide in the noise — a §11.4 evidence-integrity weakening),
+and (iii) makes the §11.4.137-class OCR/ROI content oracle unreliable.
+The capture mechanism MUST target the window/region by stable identity
+(window id/title, device serial, browser context, tmux/terminal target)
+per §11.4.111 — never a fixed full-screen device index that happens to
+contain the window. Where the platform genuinely cannot capture below
+whole-screen for the surface under test, that is an honest §11.4.3
+SKIP-with-reason + tracked migration item, NEVER a whole-screen capture
+passed off as window-scoped. <strong>(B) Fresh-corpus rotation — remove
+old recordings when a new run starts.</strong> When a new recording run
+for a given scope begins, the prior run&#39;s stale recording files for that
+scope MUST be removed FIRST, so the live recording corpus always
+reflects the CURRENT artefact/run and a reader never mistakes a stale
+video for current evidence (the §11.4.107 not-stale-from-previous
+principle applied to the corpus, and the §11.4.86 roster-freshness
+principle applied to video artefacts). Honest boundary (§11.4.6 + §9.2):
+&quot;remove old&quot; means the agent&#39;s OWN prior recordings for the SAME
+scope/project at the project-declared recording path — NEVER another
+project&#39;s, another scope&#39;s, or operator-authored files the agent did not
+create; when uncertain whether a file is in-scope-stale vs foreign, do
+NOT delete it — surface it (§11.4.122). Curated evidence already
+committed under <code>docs/qa/&lt;run-id&gt;/</code> (§11.4.83) is the
+durable record and is NOT deleted by rotation; rotation operates on the
+raw working recording path (§11.4.128 raw corpus), not the committed
+evidence trail. Classification: universal (§11.4.17) — the consuming
+project supplies its concrete window-capture mechanism (per surface
+class), recording path, and scope-key per §11.4.35. Composes §11.4.2 /
+§11.4.5 / §11.4.10 / §11.4.83 / §11.4.86 / §11.4.107 / §11.4.111 /
+§11.4.122 / §11.4.128 / §11.4.137 / §11.4.153 / §9.2 / §11.4.6.
+Propagation gate <code>CM-COVENANT-114-154-PROPAGATION</code> (literal
+<code>11.4.154</code>) + recommended gate
+<code>CM-WINDOW-SCOPED-FRESH-CORPUS-RECORDING</code> (every feature/QA
+recording is window/surface-scoped not whole-screen + a new run removes
+its own prior in-scope recordings first) + paired §1.1 meta-test
+mutation (strip the literal → propagation gate FAILs; a whole-screen
+capture where window-scoped is feasible, or a new run that leaves its
+own stale prior recordings, → the recording gate FAILs; gate-code =
+separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.154.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--whole-screen-capture-OK</code>,
+<code>--skip-window-scope</code>, <code>--keep-stale-recordings</code>,
+<code>--no-corpus-rotation</code>, <code>--full-desktop-recording</code>
+flag.</p>
+<p><strong>(C) MP4 auto-conversion REQUIRED.</strong> Any
+<code>.cast</code> file produced MUST be auto-converted to
+<code>.mp4</code> via <code>agg</code> + <code>ffmpeg</code> immediately
+after capture. The <code>.mp4</code> is the primary evidence;
+<code>.cast</code> is supplementary only. Conversion command:
+<code>agg input.cast output.mp4 --renderer-res 1920x1080</code> followed
+by
+<code>ffmpeg -i output.mp4 -c:v libx264 -pix_fmt yuv420p -movflags +faststart final.mp4</code>.</p>
+<hr />
+<h3 id="114155--project-name-prefixed-featureqa-recording-filenames-user-mandate-2026-06-15">§11.4.155
+— Project-name-prefixed feature/QA recording filenames (User mandate,
+2026-06-15)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-06-15):</strong> &quot;All recorded videos MUST START with prefix: the
+PROJECT NAME (ALWAYS USE THE PROJECT NAME). Project name MUST be
+obtained according to the constitution&#39;s own project-name
+resolution.&quot;</p>
+<p>Every recorded video the project produces — every feature/QA real-use
+recording (§11.4.153), every window-scoped capture (§11.4.154), every
+always-on device recording (§11.4.128), and every raw or curated
+recording artefact under the project-declared recording path (§11.4.35)
+and the committed <code>docs/qa/&lt;run-id&gt;/</code> evidence trail
+(§11.4.83) — MUST have a filename that STARTS WITH the PROJECT-NAME
+prefix, ALWAYS, with no exception. A recording filename that omits the
+project-name prefix is a §11.4.155 violation: a corpus spanning multiple
+projects/scopes on one host (a real condition under §11.4.128 always-on
+recording + §11.4.103 parallel streams) becomes un-greppable and
+un-attributable, and a reader cannot tell at a glance which project a
+recording belongs to — the same identify-and-grep failure §11.4.151
+forbids on the release-tag axis, applied to the recording-corpus
+axis.</p>
+<p><strong>Prefix resolution order (closed-set, deterministic — §11.4.6
+no-guessing; IDENTICAL to §11.4.151&#39;s prefix resolution):</strong> the
+project-name prefix MUST be resolved, never guessed, by the
+constitution&#39;s own project-name resolution: (1)
+<code>HELIX_RELEASE_PREFIX</code> from the project&#39;s <code>.env</code> —
+authoritative when set; <code>.env</code> is git-ignored per §11.4.30
+and the variable is documented in the tracked <code>.env.example</code>
+(a §11.4.77 re-obtain mechanism, never committed); (2) fallback = the
+lowercased snake_case form of the project root directory name (no
+spaces) per §11.4.29 — used whenever the env var is unset/empty, so a
+prefix is ALWAYS resolvable from the checkout with zero operator input.
+The SAME resolved prefix is used for EVERY recording the project
+produces in a given checkout, so a single
+<code>ls &#39;&lt;PREFIX&gt;---&#39;*</code> (or
+<code>find . -name &#39;&lt;PREFIX&gt;---*&#39;</code>) enumerates the whole
+recording corpus for that project. Canonical filename form:
+<code>&lt;PREFIX&gt;---&lt;feature-or-scope&gt;---&lt;run-id&gt;.&lt;ext&gt;</code>
+(the <code>---</code> triple-hyphen separator keeps the prefix
+unambiguously delimited from a feature/scope name that may itself
+contain hyphens). The prefix MUST be the SAME value §11.4.151 resolves
+for release tags in the same checkout — a recording prefix and a
+release-tag prefix diverging in one checkout is itself a §11.4.155
+violation (one project, one resolved name).</p>
+<p>Honest boundary (§11.4.6): the project-name prefix guarantees a
+recording is attributable + greppable to its project, NOT that the
+recording&#39;s CONTENT is valid — content validity still rests on the
+§11.4.107 liveness battery, the §11.4.137 content-correctness oracle,
+and the §11.4.153 video-analysis remediation loop; the prefix is a
+naming/attribution discipline that composes with, never replaces, those
+evidence layers. The prefix also does NOT relax §11.4.154&#39;s
+window-scoped-capture + fresh-corpus-rotation invariants (rotation
+removes the agent&#39;s OWN prior in-scope <code>&lt;PREFIX&gt;---*</code>
+recordings first; a foreign-prefix or operator-authored file is
+surfaced, never deleted, per §11.4.122 + §9.2).</p>
+<p>Classification: universal (§11.4.17) — a platform-neutral
+recording-attribution discipline reusable by ANY project that produces
+recordings; the consuming project supplies its concrete prefix value +
+the <code>HELIX_RELEASE_PREFIX</code> env var + its recording path per
+§11.4.35. Composes §11.4.151 (the SAME prefix-resolution order + the
+same identify-and-grep purpose, applied to recordings instead of release
+tags) / §11.4.128 (every always-on device recording filename carries the
+prefix) / §11.4.153 (the per-feature real-use video&#39;s confirmation path
+is prefixed) / §11.4.154 (window-scoped + fresh-corpus rotation operate
+on prefixed filenames) / §11.4.111 (the prefix is a stable-identity
+name, not an enumeration index) / §11.4.83 (committed
+<code>docs/qa/&lt;run-id&gt;/</code> recording evidence carries the
+prefix) plus §11.4.6 / §11.4.29 / §11.4.30 / §11.4.35 / §11.4.77 /
+§11.4.86. Propagation gate <code>CM-COVENANT-114-155-PROPAGATION</code>
+(literal <code>11.4.155</code> across the consumer fleet) + recommended
+gate <code>CM-RECORDING-PROJECT-NAME-PREFIX</code> (every recording
+filename at the project&#39;s recording path + every committed
+<code>docs/qa/&lt;run-id&gt;/</code> recording artefact starts with the
+resolved <code>&lt;PREFIX&gt;---</code> prefix, identical to the
+§11.4.151-resolved prefix for the checkout) + paired §1.1 meta-test
+mutation (strip the literal → propagation gate FAILs; write a recording
+with no project-name prefix, or a prefix differing from the
+§11.4.151-resolved value → <code>CM-RECORDING-PROJECT-NAME-PREFIX</code>
+FAILs; gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.155.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--no-recording-prefix</code>,
+<code>--recording-without-project-name</code>,
+<code>--unprefixed-recording</code>,
+<code>--prefix-optional-for-recording</code>,
+<code>--differing-recording-prefix</code> flag.</p>
+<p><strong>§11.4.174 — Shared-host process-ownership verification
+mandate (User mandate, 2026-06-29).</strong> Verbatim operator mandate:
+&quot;Make sure that processes we are checking are always OURS! Add this as
+mandatory constitution rule / constraint, since on every host there may
+be other work being done!&quot; On ANY host where concurrent work from other
+projects / users / agents may run (the normal case — a shared developer
+workstation), EVERY inspection of, conclusion about, or action on a
+process, build, daemon, port, lock-file, or system-state signal MUST
+FIRST positively VERIFY the target is OURS (this project&#39;s) before
+drawing a diagnosis or acting on it. A diagnosis based on a process that
+is actually another project&#39;s work is a §11.4.6 guessing-class error;
+KILLING / signalling / restarting / altering a process that is NOT
+positively ours is a §12 + §11.4.133-class safety violation
+(operator-workload destruction) — forbidden. Forensic anchor (FACT,
+2026-06-29): during an ATMOSphere build-stall diagnosis, a 200%-CPU
+<code>java</code> + <code>gradlew</code> on the shared host were nearly
+mis-attributed to our SmartTube build; they were in fact a separate
+<code>catalogizer</code> project&#39;s gradle test
+(<code>cwd=Projects/catalogizer</code>), and a naive
+<code>pgrep java</code>/<code>gradle</code> would have matched them as
+&quot;ours.&quot; The mandate (ALL hold): (a) <strong>positive-ownership
+discriminator REQUIRED</strong> — attribute a process to us ONLY via a
+strong signal: its <code>cwd</code> resolves inside THIS project&#39;s tree,
+its <code>argv</code> names this project&#39;s scripts / artifacts / repo
+path, a PID we ourselves launched and recorded (the §11.4.147
+launched-PID registry), or a lock / port / socket path under our tree. A
+loose name match (<code>pgrep java</code> / <code>gradle</code> /
+<code>node</code> / <code>python</code> / <code>podman</code> /
+<code>zig</code>) is NEVER sufficient — it matches every project on the
+host. (b) <strong>NEVER kill / signal / restart a process not positively
+ours</strong> — other projects&#39; gradle / java / kotlin daemons / podman
+pods / build processes are strictly off-limits
+(operator-workload-safety); the §12.8 remediation
+<code>pkill -f GradleDaemon</code> MUST be scoped to OUR daemons (cwd /
+argv under our tree), never a blanket host-wide kill. (c)
+<strong>contention → surface, don&#39;t break</strong> — when our work waits
+on host contention caused by another project&#39;s process (e.g. our §12.8
+build gate sleeping because another project&#39;s gradle daemon is alive),
+surface it per §11.4.66 / §11.4.101 (the safe blocked-decision) and keep
+progressing non-blocked work; do NOT kill the other project&#39;s process to
+unblock ours. (d) <strong>filters exclude self + others</strong> — every
+<code>pgrep</code> / <code>ps</code> filter MUST exclude the checking
+command&#39;s OWN argv (the self-match that produced the false &quot;still
+running&quot; restyle watcher bug, 2026-06-29) AND other-project matches;
+prefer matching on our absolute repo path. (e) <strong>applies to all
+state, not just processes</strong> — ports, lock files, gradle/maven
+caches, podman pods, tmux sessions, temp files on a shared host all
+belong to potentially-other work; verify ownership before
+reading-as-ours or mutating. Honest boundary (§11.4.6):
+ownership-verified inspection prevents mis-attribution + cross-project
+damage — it does not itself prove our process is healthy (that still
+needs our own artifacts: our build log, our output files, our
+launched-PID). Composes §11.4.6 (no-guessing) / §11.4.101 (autonomous
+safe blocked-decision — block-don&#39;t-break) / §11.4.66 (surface
+contention) / §11.4.147 (launched-PID registry as the ownership source)
+/ §12 + §12.8 (host-safety, now scoped to our daemons) / §11.4.133
+(don&#39;t break other workloads). Classification: universal (§11.4.17).
+Propagation gate <code>CM-COVENANT-114-174-PROPAGATION</code> (literal
+<code>11.4.174</code>) + recommended gate
+<code>CM-PROCESS-OWNERSHIP-VERIFIED</code> (process/daemon-killing or
+build-state-diagnosing scripts attribute by cwd/argv/launched-PID, never
+a bare name match; pgrep filters exclude self) + paired §1.1 mutation
+(replace an ownership-verified attribution with a bare
+<code>pgrep &lt;name&gt;</code> → gate FAILs; strip the literal →
+propagation gate FAILs; gate-code = separate work item). Non-compliance
+is a release blocker. No escape hatch — no
+<code>--assume-process-ours</code>, <code>--loose-pgrep-ok</code>,
+<code>--kill-any-matching-process</code>,
+<code>--skip-ownership-check</code> flag.</p>
+<h3 id="114225--scheduler-quota-burst-throttling-telemetry--interactive-scope-isolation-from-bursty-fleets-progressive-interactive-degradation-is-diagnosed-from-throttling-accounting-over-time-never-from-averages-and-an-interactive-latency-sensitive-process-never-shares-a-fixed-quota-no-burst-scope-with-a-bursty-fleet-research-derived-2026-07-23">§11.4.225
+— Scheduler-quota burst-throttling telemetry + interactive-scope
+isolation from bursty fleets: progressive interactive degradation is
+diagnosed from throttling accounting over time, never from averages, and
+an interactive-latency-sensitive process never shares a fixed-quota
+no-burst scope with a bursty fleet (research-derived, 2026-07-23)</h3>
+<p><strong>Forensic anchor (genericised, 2026-07-22 — two independent
+instances in one day).</strong> (a) Progressive interactive sluggishness
+— worsening with the number of live subagents — was root-caused to a
+scheduler CPU quota (a cgroup <code>cpu.max</code> limit) with NO burst
+allowance on a session scope hosting BOTH the operator&#39;s interactive
+terminal-multiplexer server AND a spawning agent fleet. Measured live on
+a 64-CPU host: the scope&#39;s quota was 9.6 CPU per 100 ms enforcement
+period; average demand was 4.35 CPU — comfortably UNDER quota — yet 51
+of 301 periods (16.9%) were throttled during active phases, ~6.4
+runqueue-seconds of forced idle per wall-second at peak, 0% throttled
+during quiet phases (episodic, fleet-phase-correlated), and the lifetime
+ratio (10.9%) vs the live ratio (16.9%) showed it WORSENING with session
+age. The terminal server was co-resident in the throttled scope: it
+froze for ≥100 ms per throttled period, and consecutive throttled
+periods compounded into multi-second interactive stalls. Every
+conventional instrument read HEALTHY — CPU average under quota, load
+average unremarkable, memory fine, thread counts fine — the degradation
+was INVISIBLE to averages and lived entirely in the throttling
+accounting (<code>cpu.stat</code> <code>nr_throttled</code> /
+<code>throttled_usec</code> deltas). (b) A sibling session launcher
+shipped a FIXED default quota (2 CPUs) on the same 64-core host — 18.8%
+of periods throttled and 1757 s of cumulative forced idle — fixed by
+computing the default from real detected host capacity (a per-core
+fraction with a floor and a cap), proven by a four-quadrant polarity
+test reading the LIVE cgroup back.</p>
+<p>Two operative halves, BOTH mandatory:</p>
+<p><strong>(A) DIAGNOSTIC — throttling accounting over time under load,
+never averages.</strong> Any investigation of progressive / bursty /
+load-correlated interactive degradation (sluggish TUI or terminal,
+editor lag, stalls that worsen with parallel-agent or worker count) MUST
+sample the scheduling scope&#39;s THROTTLING ACCOUNTING — on Linux cgroup
+v2, <code>cpu.stat</code> <code>nr_throttled</code> +
+<code>throttled_usec</code> as DELTAS over a measured window under load,
+expressed as a fraction of elapsed enforcement periods, WITH a
+quiet-phase control sample (the §11.4.201(7)(b) needle in time: a
+mechanism that fires 17% under load and 0% quiet is proven load-coupled,
+not ambient) — BEFORE any verdict on the cause is minted. A HEALTHY
+AVERAGE WITH A HIGH THROTTLE RATIO IS THE TRAP: quota enforcement is
+per-period (canonically 100 ms), so a workload can sit far below its
+quota ON AVERAGE while a large fraction of individual periods hit the
+ceiling and stall every co-resident process; CPU averages, load average,
+memory, and thread counts are all structurally BLIND to it — their quiet
+&quot;healthy&quot; readings are §11.4.201(6) FALSE-NULLS, and &quot;the averages look
+healthy, so the host is fine&quot; without throttle-accounting deltas is a
+§11.4.6 guess. The same discipline applies to EVERY quota&#39;d scheduler
+(container CPU limits, VM caps, hypervisor shares / steal time): the
+throttle/steal accounting IS the authoritative source (§11.4.201); the
+utilisation average is a proxy that the real condition does not have to
+satisfy.</p>
+<p><strong>(B) DESIGN — an interactive-latency-sensitive process NEVER
+shares a fixed-quota, no-burst scope with a bursty fleet.</strong> An
+interactive-latency-sensitive process (terminal-multiplexer server, TUI,
+editor, operator shell) MUST NOT be co-resident in a fixed-quota
+scheduling scope that has NO burst allowance together with a bursty
+multi-process fleet (spawning subagents, build workers, test runners):
+the fleet&#39;s demand spikes consume whole enforcement periods and the
+interactive process freezes with them — in bursts, progressively as the
+fleet grows (the §11.4.103/§11.4.183 parallel-stream mechanics make the
+fleet&#39;s demand spiky BY DESIGN, so the collision is structural, not
+incidental). The consuming project MUST (1) grant the shared scope a
+burst allowance sized for the fleet&#39;s measured spike profile, OR (2)
+isolate the interactive process in its OWN scope (or leave it unquoted
+where host policy allows), OR both. Quota values MUST be HOST-ADAPTIVE —
+computed from real detected capacity with a documented floor and cap
+(§12.11&#39;s dynamic-detection discipline; §11.4.6 never hardcode), never a
+fixed literal that silently strangles a many-core host (the forensic
+clause-(b) instance); and a quota change is verified by READING THE LIVE
+scope&#39;s values BACK (§11.4.108 runtime signature — the configured value
+is not the effective value until read back). Composes §12.6 (memory
+ceiling) + §12.12 (thread/RLIMIT_NPROC headroom) as the THIRD orthogonal
+host-exhaustion axis: abundant RAM and abundant thread headroom do NOT
+imply an un-throttled scheduler — each axis has its own authoritative
+instrument, and none substitutes for another.</p>
+<p>Honest boundary (§11.4.6): throttle telemetry proves WHERE
+enforcement periods were lost — it does NOT prove throttling is the ONLY
+degrader (network RTT floors, in-process GC/event-loop load, and
+sink-side effects remain separately measurable; the founding
+investigation ranked them independently and REFUTED five candidate
+mechanisms with the same instrumentation rigor); and clause (B) bounds
+PLACEMENT + SIZING — it does not exempt the fleet from the
+§12.6/§12.8/§12.12 host-safety ceilings, and it never licenses removing
+a quota that host policy requires (widen/isolate/burst within policy,
+per §12).</p>
+<p>Classification: universal (§11.4.17) — scheduler-quota throttling is
+a platform-general mechanism (cgroup v1/v2, container runtimes, VM
+hypervisors); the consuming project supplies its concrete scope layout,
+quota/burst values, sampling windows, and instruments per §11.4.35.
+Composes §11.4.6 / §11.4.24 (build-resource stats — the sampler seam
+this telemetry extends) / §11.4.102 (systematic-debugging — the throttle
+sample is Phase-1 fact-gathering, and the forensic investigation reached
+it only by refusing to stop at healthy averages) / §11.4.108 (read the
+live scope back) / §11.4.128(1) (observer-effect budget — the sampler
+itself stays lightweight) / §11.4.201 (authoritative-source measurement;
+the averages-only verdict is a false-null) / §12.6 / §12.8 / §12.11 /
+§12.12. Propagation gate <code>CM-COVENANT-114-225-PROPAGATION</code>
+(literal <code>11.4.225</code>) + recommended gates
+<code>CM-QUOTA-THROTTLE-TELEMETRY</code> (every
+progressive/bursty-degradation investigation&#39;s verdict cites
+throttle-accounting DELTAS sampled over a measured window under load + a
+quiet-phase control; an averages-only verdict on a
+progressive-degradation issue → FAIL) and
+<code>CM-INTERACTIVE-SCOPE-NOT-QUOTA-STARVED</code> (no
+interactive-latency-sensitive process is co-resident in a fixed-quota
+no-burst scope with a bursty fleet; quota defaults are host-adaptive
+with a live read-back, never fixed literals) + paired §1.1 mutations
+(record a progressive-degradation verdict citing only averages → the
+telemetry gate FAILs; pin a fixed low quota literal as the default on a
+detected many-core host, or co-locate the terminal server with the fleet
+in a no-burst quota scope → the isolation gate FAILs; strip the literal
+→ the propagation gate FAILs; gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.225.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--averages-prove-healthy</code>,
+<code>--skip-throttle-telemetry</code>,
+<code>--fixed-quota-default-OK</code>,
+<code>--interactive-in-fleet-scope-OK</code>,
+<code>--no-burst-needed</code>, <code>--skip-quiet-phase-control</code>
+flag exists.</p>
+<h3 id="114254--boot-time-invariant-assertion--capability-matrix-research-derived-2026-08-15">§11.4.254
+— Boot-time invariant assertion + capability matrix (research-derived,
+2026-08-15)</h3>
+<p>Full anchor per Phase 3 landing brief §11.4.254. Every service /
+process / long-running executable MUST assert BOOT-TIME INVARIANTS at
+startup — required env vars present + valid; required config files
+parseable + declared schema version matches; required deps reachable;
+required credentials present + not-expired; required schema migrations
+applied; required feature-flag states declared; required host resources
+present (disk / memory / thread limits per §12.12 / port availability) —
+and FAIL FAST + LOUD if any violated, BEFORE accepting request /
+performing work. Extraction line 6488 [offset un-resolvable per the
+§11.4.239 CITATION NOTE; <strong>MODULE ADDED 2026-08-20</strong> —
+resolves to <strong>module 35</strong> taxonomy row 6
+&quot;Config-present-but-unwired&quot;, verified locators
+<code>module_35:113</code> (row header), <code>module_35:116</code> (the
+case), <code>module_35:118</code> (the boot-time
+<code>cipher_version</code> remedy)] (Catalogizer SQLCipher case:
+<code>catalog.db</code>&#39;s first 16 bytes are ASCII
+<code>SQLite format 3</code> — plaintext despite &quot;encrypted at rest&quot;;
+fix = boot-time-check-that-fails-closed verifying
+<code>cipher_version</code> at startup) + line 6489 [<strong>MODULE
+ADDED 2026-08-20</strong> — resolves to <strong>module 35</strong>
+taxonomy row 7 &quot;Stubbed-core-behind-claim&quot;, verified locators
+<code>module_35:120</code> (row header), <code>module_35:123</code> (the
+Catalogizer nil,nil-providers case), <code>module_35:125</code> (the
+<code>IsImplemented()</code> capability-matrix remedy)]
+(stubbed-core-behind-claim + explicit capability matrix with every
+adapter reports <code>IsImplemented()</code>/attempted-vs-not +
+challenge that fails against no-op stub). Prevents &quot;service silently
+starts with broken invariant + serves requests that fail deep in request
+path hours after boot.&quot; INVARIANT CLASSES: (i) environment, (ii)
+configuration, (iii) dependencies, (iv) credentials, (v) schema, (vi)
+capabilities, (vii) host. FAIL-FAST-LOUD: (1) EMIT structured error to
+stderr + captured log naming specific failed invariant; (2) EXIT
+non-zero (traditionally 78 EX_CONFIG for config, consumer supplies per
+§11.4.35); (3) DO NOT accept requests / begin main event loop / bind
+listening port. Service booting partially + serving
+requests-that-will-fail is worse than refusing to start — partial-boot
+masquerades healthy long enough for load balancer to route traffic. Dual
+to §11.4.252 fail-closed on dangerous combinations. CAPABILITY MATRIX:
+consumer&#39;s <code>docs/services/CAPABILITY_MATRIX.md</code> (per
+§11.4.35) declares per service (i) boot-time invariants, (ii) runtime
+capabilities OFFERED, (iii) runtime capabilities REQUIRED from other
+services. Regenerated / verified on every commit per §11.4.106
+docs-chain + §11.4.86 fingerprint. Undeclared endpoints emitted =
+violation; silent upstream deps not declared = violation (invisible to
+§11.4.244 contract testing). Composes §11.4.5 / §11.4.6 / §11.4.35 /
+§11.4.86 / §11.4.106 / §11.4.108 Layer 3 (boot IS
+runtime-on-clean-target check) / §11.4.128 / §11.4.244 (contract tests
+consume matrix) / §11.4.252 / §12.12 / §1.1. Classification: universal
+(§11.4.17). Propagation gate
+<code>CM-COVENANT-114-254-PROPAGATION</code> (literal
+<code>11.4.254</code>) + recommended gates
+<code>CM-BOOT-TIME-INVARIANT-ASSERTED</code> +
+<code>CM-CAPABILITY-MATRIX-PRESENT-AND-IN-SYNC</code> + paired §1.1
+mutations.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.254.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-boot-time-assertion</code>, <code>--boot-partial-OK</code>,
+<code>--default-missing-env-silently</code>,
+<code>--capability-matrix-optional</code>,
+<code>--service-with-undeclared-dependency-OK</code> flag.</p>
+<hr />
+<h3 id="114263--process-group-signal-safety-mandate-never-signal-pgid--1-never-trust-a-mock-derived-pidpgid--validate-as-int--1-before-every-killpg--kill-pid-sig--pkill--killall-call-bob-126-forensic-anchor-2026-08-19">§11.4.263
+— Process-group signal-safety mandate: NEVER signal pgid ≤ 1, NEVER
+trust a mock-derived pid/pgid — validate as int &gt; 1 before every
+<code>killpg</code> / <code>kill(-pid, sig)</code> / <code>pkill</code>
+/ <code>killall</code> call (BOB-126 forensic anchor, 2026-08-19)</h3>
+<p><strong>Forensic anchor — verbatim operator mandate
+(2026-08-19):</strong></p>
+<blockquote>
+<p>&quot;CRITICAL: Fix MUST BE systhematic so any other projects do not have
+same issue!&quot;</p>
+</blockquote>
+<p><strong>Forensic case study (BOB-126, boba project,
+2026-08-19).</strong> SEVEN forced-logout incidents on the operator&#39;s
+workstation over ~48 hours (BOB-116/120/123/124/125/126) — the
+operator&#39;s entire graphical session, tmux, SSH, browsers, and Claude
+Code process were repeatedly SIGKILLed. Kernel audit rules installed
+2026-08-19 15:56 finally captured the initiator on incident #7:</p>
+<pre><code>audit[399861]: SYSCALL syscall=62 a0=ffffffff a1=9
+  pid=399861 auid=1000 comm=&quot;pytest&quot; exe=&quot;/usr/bin/python3.14&quot;
+  key=&quot;sigkill_investigation&quot;</code></pre>
+<p>A <code>pytest</code> process called <code>kill(-1, SIGKILL)</code>.
+Root cause: a Python test created an <code>AsyncMock()</code> subprocess
+object without explicitly setting <code>mock.pid</code> as an int. The
+production code path called
+<code>os.killpg(os.getpgid(proc.pid), signal.SIGKILL)</code>. Python&#39;s
+<code>MagicMock.__int__</code> defaults to <strong>1</strong>, so:</p>
+<ol type="1">
+<li><code>proc.pid</code> → <code>MagicMock</code></li>
+<li>Python coerces to <code>int</code> for <code>os.getpgid</code> →
+<strong><code>int(MagicMock()) == 1</code></strong> (documented
+default)</li>
+<li><code>os.getpgid(1)</code> returns <strong>1</strong> (init&#39;s
+process group)</li>
+<li><code>os.killpg(1, SIGKILL)</code> → glibc →
+<strong><code>kill(-1, SIGKILL)</code></strong></li>
+<li><code>kill(-1, sig)</code> semantics = &quot;signal every process the
+caller may signal, except pid 1 and self&quot; → under UID 1000 that means
+the entire user session (systemd <code>user@1000</code> manager,
+gnome-shell, tmux, ssh, browsers, Claude Code)</li>
+</ol>
+<p>The <code>contextlib.suppress(Exception)</code> around the call
+swallowed nothing because the syscall SUCCEEDED before any exception
+path. The defect existed for ~4 months (since 2026-04-24) before audit
+rules exposed it.</p>
+<p><strong>The mandate (ALL hold):</strong></p>
+<p><strong>(A) NEVER signal pgid ≤ 1.</strong> No project, no language
+binding, no code path may call <code>os.killpg(pgid, sig)</code> /
+<code>kill(-pid, sig)</code> / <code>killpg(2)</code> (POSIX) /
+<code>pkill -&lt;pgid&gt;</code> / <code>subprocess.killpg</code> /
+<code>Process.killpg</code> where <code>pgid</code> (or <code>pid</code>
+in the negative-pid form of <code>kill(2)</code>) is <code>≤ 1</code>.
+On Linux, <code>killpg(1, sig)</code> and <code>kill(-1, sig)</code> are
+equivalent and BOTH signal every process the caller has permission to
+signal — under a non-root UID, that includes the user&#39;s session manager,
+GUI, shell, and every daemon in the same UID scope. This is the disaster
+syscall. Guarding with a positive integer test is trivial; failing to
+guard is catastrophic. On other Unixes (BSD family, macOS) the semantics
+of <code>kill(-1, sig)</code> is broadly the same &quot;signal all processes
+the caller may signal&quot;; the mandate is portable.</p>
+<p><strong>(B) VALIDATE pid + pgid as <code>int &gt; 1</code> BEFORE
+every process-group signal call.</strong> The universal invariant:</p>
+<pre><code>IF calling killpg(pgid, sig) OR kill(-pid, sig) OR any process-group signal:
+  ASSERT isinstance(pgid, int)         # never a mock, never a string, never None
+  ASSERT pgid &gt; 1                      # never init&#39;s pgid, never 0 (self-group), never negative
+  (same for pid when the negative-pid kill(2) form is used)</code></pre>
+<p>Language-specific enforcement:</p>
+<ul>
+<li><strong>Python</strong>: guard with
+<code>if isinstance(pid, int) and pid &gt; 1: pgid = os.getpgid(pid); if isinstance(pgid, int) and pgid &gt; 1: os.killpg(pgid, sig)</code>.</li>
+<li><strong>Go</strong>: <code>syscall.Kill(-pgid, sig)</code> — guard
+<code>pgid &gt; 1</code> before the call; test doubles must return
+<code>int(pgid) &gt; 1</code>.</li>
+<li><strong>Rust</strong>: <code>nix::sys::signal::killpg</code> —
+accept only <code>Pid::from_raw(n)</code> with <code>n &gt; 1</code>,
+and reject the sentinel meaning &quot;current process group&quot;.</li>
+<li><strong>Bash / shell</strong>:
+<code>kill -&lt;pgid&gt; &lt;sig&gt;</code> /
+<code>pkill -g &lt;pgid&gt;</code> — validate
+<code>[[ &quot;$pgid&quot; -gt 1 ]]</code> before the call.</li>
+<li><strong>C</strong>: <code>killpg(pgid, sig)</code> and
+<code>kill(-pid, sig)</code> — same integer guard.</li>
+</ul>
+<p><strong>(C) TESTS mocking subprocess/proc objects MUST explicitly set
+<code>mock.pid</code> (or equivalent) as int.</strong> A subprocess mock
+with an unset <code>pid</code> field is BOB-126-shaped by construction:
+the language&#39;s mock library (Python&#39;s <code>MagicMock</code>, Go
+testify&#39;s <code>Mock</code>, JS Jest&#39;s <code>jest.fn()</code>, etc.)
+provides a default coercion that can silently become a low integer.
+Every test that creates a fake subprocess object MUST:</p>
+<ol type="1">
+<li>Set <code>mock.pid = &lt;large int, e.g. 12345&gt;</code> explicitly
+— never rely on the mock library&#39;s default.</li>
+<li>Patch the process-group signaling call itself (e.g.
+<code>patch.object(module.os, &#39;killpg&#39;)</code>) as belt-and-suspenders
+so a future regression of the production code&#39;s guard cannot re-open the
+disaster.</li>
+<li>Assert the mocked <code>killpg</code> was called with
+<code>pgid &gt; 1</code> (paired §1.1 mutation catches a regression that
+lets pgid=1 through).</li>
+</ol>
+<p><strong>(D) DEFENSE-IN-DEPTH (§11.4.107(10) analyzer discipline
+applied).</strong> The guard MUST be present in BOTH the production code
+AND the test. Removing either layer alone must break at least one test.
+This is the four-layer coverage per §11.4.4(b) applied to the
+signal-safety class:</p>
+<ul>
+<li>Layer 1 (pre-build gate): grep pattern for <code>killpg\(.*\)</code>
+/ <code>kill\(-.*\)</code> calls that are NOT preceded by the guard —
+surface as review findings.</li>
+<li>Layer 2 (post-build gate): CodeGraph query for callers of
+<code>os.killpg</code> / <code>syscall.Kill(-*)</code> / equivalent,
+cross-referenced against guard presence.</li>
+<li>Layer 3 (runtime): kernel audit rules on SIGKILL syscalls with
+<code>a0=0xffffffff</code> (kill(-1)) or <code>a0=0x00000001</code> in
+the pidfd_send_signal case — a live host-safety canary.</li>
+<li>Layer 4 (paired §1.1 mutation): a regression test that DELIBERATELY
+invokes the killpg code path with a mock pid AND asserts
+<code>killpg</code> was not called with <code>pgid ≤ 1</code>. Reverts
+of the pid guard MUST make this test fail.</li>
+</ul>
+<p><strong>(E) HONEST BOUNDARY (§11.4.6).</strong> §11.4.263 hardens the
+process-group signal APIs specifically. It does NOT prohibit legitimate
+use of <code>killpg</code> for well-scoped process groups
+(<code>start_new_session=True</code> subprocesses where the child owns
+its group). It does NOT extend to signals other than SIGKILL where the
+blast radius is small (SIGCHLD, SIGUSR1, etc. — though the same guard is
+cheap and recommended). It does NOT prevent kernel OOM-killer or
+systemd-oomd from killing the user (those are separate host-safety
+concerns — §12.6 memory ceiling + §11.4.225 quota telemetry apply).</p>
+<p><strong>(F) STANDING DEFAULT.</strong> Every project inheriting this
+constitution treats §11.4.263 as always-on from the first prompt. Every
+code review (§11.4.125/§11.4.142/§11.4.194) MUST scan for process-group
+signal calls and verify the guard. Every subagent dispatched to write
+subprocess-cleanup code MUST include the guard in its output. Every
+test-writing subagent MUST include the
+<code>mock.pid = &lt;int&gt;</code> discipline.</p>
+<p><strong>Classification: universal (§11.4.17).</strong> Composes
+§11.4.1 (FAIL-bluff — swallowed exception around a successful
+catastrophic syscall is a bluff at the error-handling layer) /
+§11.4.4(b) (four-layer coverage) / §11.4.5 / §11.4.6 / §11.4.85
+(chaos-test host safety) / §11.4.107(10) (self-validated analyzer) /
+§11.4.115 (RED-first with the actual defect condition) / §11.4.126
+(standing default) / §11.4.201 (guard asserts real condition — pgid &gt;
+1) / §11.4.225 (host-safety orthogonal axis) / §11.4.226 (real captured
+evidence). Propagation gate <code>CM-COVENANT-114-263-PROPAGATION</code>
+(literal <code>11.4.263</code>) + recommended gates
+<code>CM-KILLPG-PGID-GUARD</code> (production code — every
+killpg/kill(-pid) call site has the
+<code>pid&gt;1 &amp;&amp; pgid&gt;1</code> guard) +
+<code>CM-TEST-MOCK-PID-EXPLICIT-INT</code> (test code — every subprocess
+mock has <code>mock.pid</code> explicitly set as int + killpg patched) +
+paired §1.1 mutations (remove the guard from production → the regression
+test fails; unset <code>mock.pid</code> in the test → assertion catches
+pgid&lt;=1 attempt).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.263.
+Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-killpg-guard</code>,
+<code>--mock-pid-optional</code>, <code>--killpg-1-is-ok</code>,
+<code>--kill-minus-1-permitted</code>,
+<code>--suppress-catches-syscall</code>,
+<code>--test-may-not-explicit-pid</code> flag exists.</p>
+<hr />
+<h3 id="121-forbidden-operations--directly-or-indirectly">§12.1
+Forbidden operations — directly OR indirectly</h3>
+<ol type="1">
+<li><strong>Suspending the host</strong>:
+<code>systemctl suspend</code>, <code>pm-suspend</code>,
+<code>loginctl suspend</code>, DBus
+<code>org.freedesktop.login1.Suspend</code>, GNOME idle-suspend,
+lid-close handler.</li>
+<li><strong>Hibernating / hybrid-sleeping</strong>: any
+<code>Hibernate</code> / <code>HybridSleep</code> /
+<code>SuspendThenHibernate</code> method.</li>
+<li><strong>Logging out the user</strong>:
+<code>loginctl terminate-session</code>,
+<code>pkill -u &lt;user&gt;</code>,
+<code>systemctl --user --kill</code>, anything that signals
+<code>user@&lt;uid&gt;.service</code>.</li>
+<li><strong>Unbounded-memory operations</strong> inside
+<code>user@&lt;uid&gt;.service</code> cgroup. Any single command
+expected to exceed ~4 GiB RSS MUST be wrapped in a bounded execution
+scope (e.g. <code>bounded_run</code> from a project helper library that
+wraps <code>systemd-run --user --scope -p MemoryMax=...</code>).</li>
+<li><strong>Programmatic rfkill toggles, lid-switch handlers, or
+power-button handlers</strong> — these cascade into idle-actions.</li>
+<li><strong>Disabling systemd-logind, GDM, or session managers</strong>
+&quot;to make things faster&quot; — even temporary stops leave the system unable
+to recover.</li>
+</ol>
+<h3 id="122-required-safeguards">§12.2 Required safeguards</h3>
+<p>Every script in this project that performs heavy work (build,
+transcription, model inference, large compression, multi-GB git
+operations) MUST:</p>
+<ol type="1">
+<li>Source the project&#39;s host-safety helper library at the top.</li>
+<li>Call its pre-flight check and <strong>abort if it
+fails</strong>.</li>
+<li>Wrap any subprocess expected to exceed ~4 GiB RSS in a bounded
+execution scope so the kernel OOM killer is contained to that scope and
+cannot escalate to user.slice.</li>
+<li>Cap parallelism (<code>-j</code>) to fit available RAM (estimate
+per-job-peak-RSS and divide into the budget).</li>
+</ol>
+<h3 id="123-container-hygiene">§12.3 Container hygiene</h3>
+<p>Containers (Docker / Podman) the project owns or relies on MUST:</p>
+<ol type="1">
+<li>Declare an explicit memory limit (<code>mem_limit</code> /
+<code>--memory</code> / <code>MemoryMax</code>).</li>
+<li>Set <code>OOMPolicy=stop</code> in their systemd unit to avoid retry
+loops.</li>
+<li>Use exponential-backoff restart policies, never immediate
+retry.</li>
+<li>Be clean-slate destroyed and rebuilt after any host crash or session
+loss so stale lock files don&#39;t keep producing failures.</li>
+</ol>
+<h3 id="126-memory-budget-ceiling--60-maximum">§12.6 Memory-Budget
+Ceiling — 60% MAXIMUM</h3>
+<p><strong>Forensic anchor — direct user mandate:</strong></p>
+<blockquote>
+<p>&quot;First make sure that whatever we do through our procedures related
+to this project MUST NOT use more than 60% of total system memory! All
+processes MUST be able to function normally!&quot;</p>
+</blockquote>
+<p><strong>The mandate.</strong> Project procedures MUST NOT use more
+than <strong>60% of total system RAM</strong>. The remaining 40% is
+reserved for the operator&#39;s other workloads so the host can keep serving
+them while project work proceeds.</p>
+<p><strong>The protections:</strong></p>
+<ol type="1">
+<li><code>HOST_SAFETY_MAX_MEM_PCT</code> defaults to 60.</li>
+<li><code>HOST_SAFETY_BUDGET_GB</code> is computed at source-time from
+<code>MemTotal × MAX_PCT/100</code>, in GiB.</li>
+<li>Bounded execution scopes clamp <code>MemoryMax</code> down to the
+budget if the caller asks for more.</li>
+<li>The build script&#39;s parallelism is computed as
+<code>min(nproc, floor(budget_gb / per_job_peak_rss_gb))</code>.</li>
+<li>Heavy work MUST be wrapped in a bounded execution scope so the
+kernel OOM-kills only the scope — <code>user@&lt;uid&gt;.service</code>
+stays alive.</li>
+</ol>
+<p><strong>No escape hatch.</strong> §12.6 has NO operator-facing
+override flag. The cap exists for the operator&#39;s own protection;
+bypassing it is the bluff the §11.4 covenant specifically prohibits.</p>
+<h3 id="1210-continuation-document--sacred-invariant">§12.10
+Continuation document — sacred invariant</h3>
+<p><strong>Forensic anchor — direct user mandate:</strong></p>
+<blockquote>
+<p>&quot;during any work we perfrom, during Phases implementation, debugging
+and fixing, during ANY effort we have the Continuation document MUST BE
+maintained and it MUST NOT BE out of sync with current work we are
+doing! If for any reson we stop our work, we MUST BE able to continue
+any time, with current work, exactly where we have left of and from any
+CLI agent or any LLM model we chose! Nothing can be broken or faulty in
+maintained Continuation document!&quot;</p>
+</blockquote>
+<p><strong>The mandate.</strong> A single, canonical, machine-readable
+handoff document — <code>docs/CONTINUATION.md</code> — must always
+reflect the live state of the project. Any agent (human, Claude Code,
+Cursor, Aider, Codex, Gemini CLI, any future LLM) must be able to resume
+work <strong>exactly where the previous session left off</strong> by
+reading this single file.</p>
+<p><strong>Mandatory protections:</strong></p>
+<ol type="1">
+<li><strong><code>docs/CONTINUATION.md</code> MUST exist</strong> at the
+project root. Its absence is a release blocker.</li>
+<li><strong>Every non-trivial state change</strong> MUST update this
+document in the same commit as the work itself.</li>
+<li><strong>Top-of-file timestamp</strong> is updated on every edit.
+Stale timestamps trigger gate failure.</li>
+<li><strong>Section §3 &quot;Active work&quot;</strong> lists every IN PROGRESS /
+BLOCKED item with enough detail that any agent can resume without
+conversation context — concrete commands, file paths, monitor IDs.</li>
+<li><strong>Section §0 &quot;How to use this document&quot;</strong> contains the
+verbatim resumption prompt — a single block any operator can paste into
+any CLI agent.</li>
+<li><strong>Document MUST be self-contained.</strong> No hyperlinks to
+ephemeral external systems as the only source of truth.</li>
+</ol>
+<p><strong>No escape hatch.</strong> §12.10 has NO operator-facing
+override flag for the existence requirement. The discipline exists for
+the operator&#39;s own protection.</p>
+<h3 id="1211--maximal-dynamic-resource-utilization-for-containerized-builds-user-mandate-2026-07-03">§12.11
+— Maximal dynamic resource utilization for containerized builds (User
+mandate, 2026-07-03)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-07-03):</strong></p>
+<blockquote>
+<p>&quot;Use full workstation system capacity — all resources to build and
+test! Give maximal number of cores and memory! Use dynamic capabilities!
+No limiting to -j2 anymore! ... MUST NOT break the system, create
+bottlenecks, or get stuck! ... MUST BE now part of constitution
+Submodule! On each System we use, aim for maximal use of available
+resources for maximal efficiency!&quot;</p>
+</blockquote>
+<p><strong>The reconciliation (the load-bearing logic).</strong> The
+existing memory-and-parallelism caps were born from a specific,
+forensically-captured failure mode: <strong>heavy build work running
+inside the user login session&#39;s cgroup
+(<code>user@&lt;uid&gt;.service</code> / <code>user.slice</code>)
+overran memory and the kernel OOM-killer escalated to the session
+itself, SIGKILLing the operator&#39;s desktop, terminals, and the
+agent</strong> (the §12.6 forensic anchor: &quot;three consecutive
+session-loss SIGKILLs&quot; during a bare-metal <code>m -j5</code>;
+consuming-project instantiations extend this — a bare-metal AOSP
+<code>m -j</code> was hard-capped at -j2 because
+<code>soong_build</code> alone holds a large constant RSS inside
+user.slice). Those caps — <strong>§12.6&#39;s 60%-of-total-RAM
+ceiling</strong> and the consuming project&#39;s bare-metal <code>-j</code>
+cap — are CORRECT and REMAIN in force for <strong>any heavy work that
+executes inside <code>user@&lt;uid&gt;.service</code> /
+<code>user.slice</code></strong>, because such work shares the session&#39;s
+OOM fate.</p>
+<p>A build that runs in <strong>its OWN container cgroup with its OWN
+<code>MemoryMax</code></strong> (the rootless-Podman containerized build
+path — generically &quot;the sanctioned containerized build&quot;) is a
+<strong>fundamentally different accounting domain</strong>: it is NOT a
+child of <code>user.slice</code>, so the kernel OOM-killer and any
+userspace OOM watchdog (systemd-oomd&#39;s <code>user.slice</code> PSI
+watch) act on the <strong>container&#39;s own cgroup FIRST</strong> — the
+container OOM-kills ITSELF, it does not escalate to and cannot SIGKILL
+the operator session. Therefore a high memory / CPU / <code>-j</code>
+envelope in the containerized path is <strong>host-SAFE by
+construction</strong> — the exact hazard the §12.6 ceiling guards
+against does not reach the session across the cgroup boundary.</p>
+<p><strong>The mandate.</strong> For the <strong>containerized build
+path only</strong>, the project MUST use the <strong>maximal SAFE
+fraction</strong> of the host&#39;s real capacity, computed
+<strong>dynamically per host</strong> — NOT a fixed low <code>-j</code>
+count, NOT clamped to the §12.6 60% figure (which governs
+user.slice-resident work, a different domain). Concretely (ALL hold):
+(1) <strong>Auto-detect host capacity, never hardcode</strong> — read
+this host&#39;s real <code>nproc</code>, <code>MemTotal</code>,
+<code>SwapTotal</code>, and the hard process/thread rlimit
+(<code>RLIMIT_NPROC</code> / <code>ulimit -Hu</code>) at launch; every
+number driving the envelope MUST be measured on the running host, never
+assumed (§11.4.6 no-guessing); a launcher that prints a build envelope
+it did not measure is a §11.4.6 violation. (2) <strong>Reserve explicit
+host headroom (cores AND RAM)</strong> — the maximal-safe fraction is
+&quot;all capacity MINUS a reserved slice kept free for the operator&#39;s live
+session + other workloads&quot;; the headroom MUST be explicit and captured
+in the printed envelope; this preserves the SPIRIT of §12.6 (the
+operator&#39;s session keeps functioning) via a reserved-headroom mechanism,
+WITHOUT importing §12.6&#39;s 60% number — the container&#39;s cgroup, not a
+user.slice budget line, bounds it. (3) <strong><code>-j</code> scales
+nproc-awarely, not just memory-awarely</strong> — the parallel-job count
+MUST respect BOTH the memory governor
+(<code>floor((container_mem_gb − build_constant_overhead_gb) / per_job_peak_rss_gb)</code>)
+AND the process/thread rlimit, because each <code>-j</code> unit spawns
+compiler/linker worker THREADS that count against
+<code>RLIMIT_NPROC</code> and exceeding it causes <code>EAGAIN</code>
+&quot;fork: retry&quot; storms that stall/wedge the build (the &quot;never get stuck&quot;
+clause); where the login&#39;s hard <code>nproc</code> is too low for the
+full memory-and-CPU-derived <code>-j</code>, the launcher MUST either
+(a) run at the proven-safe lower <code>-j</code> under the rlimit, OR
+(b) on a privileged path raise the rlimit (e.g. <code>prlimit</code>)
+and drop back to the unprivileged uid (e.g. <code>setpriv</code>) before
+launching so the container keeps its rootless identity; the launcher
+MUST print which mode it chose (§11.4.6 — the envelope is captured
+evidence). (4) <strong>The caps REMAIN for the bare-metal / user.slice
+path</strong> — §12.6&#39;s 60% ceiling and the consuming project&#39;s
+bare-metal <code>-j</code> cap are NOT relaxed for any work inside
+<code>user@&lt;uid&gt;.service</code>; §12.11 grants the maximal
+envelope ONLY across the container-cgroup boundary; a bare-metal heavy
+build is still forbidden from claiming the §12.11 envelope (that would
+reproduce the original session-loss incident); §12.11 does NOT weaken
+§12.6, it SCOPES it. (5) <strong>Never break, never bottleneck, never
+get stuck</strong> — the envelope MUST leave the reserved host headroom
+genuinely free (verifiable post-launch: session memory-available stays
+above the reserved floor), MUST NOT drive swap-thrash inside the
+container (bound <code>MemorySwapMax</code> so the container hits its
+own OOM before pathological swap), and MUST NOT exceed the process
+rlimit (per clause 3); &quot;maximal&quot; means maximal-SAFE, not
+maximal-reckless — an envelope that wedges the host is a §12.11
+violation, not compliance. (6) <strong>Evidence-based tuning, no
+guessing (§11.4.6 + §11.4.24)</strong> — the chosen envelope is driven
+by captured host metrics + the build&#39;s own resource profile (§11.4.24
+build-resource stats); &quot;use a bigger <code>-j</code>&quot; without captured
+headroom evidence proving the host can absorb it is a §11.4.6 +
+§12.11(5) violation; when in doubt, the reserved-headroom floor
+wins.</p>
+<p><strong>Reference implementation (consuming project).</strong> A thin
+DYNAMIC wrapper over the sanctioned containerized build (ATMOSphere:
+<code>scripts/build_maxres.sh</code> over
+<code>scripts/build_containerized.sh</code>) reserves a fixed core count
++ a RAM floor (e.g. 72% of MemTotal to the container, clamped so a
+fixed-GiB slice stays free for the session), computes
+<code>JOBS_MEM = floor((container_mem_gb − constant_overhead_gb) / per_job_peak_rss_gb)</code>,
+and governs <code>-j</code> against the real hard <code>nproc</code>:
+unprivileged → the proven-no-<code>EAGAIN</code> job count; privileged
+(root re-exec raises <code>RLIMIT_NPROC</code> via <code>prlimit</code>
+then <code>setpriv</code>-drops back to the unprivileged uid) → full
+<code>-j = min(cpus, JOBS_MEM)</code>; <code>--dry-run</code> prints the
+full envelope and launches nothing. This is the §11.4.35 project
+instantiation; the mechanism above is universal.</p>
+<p><strong>Composes with</strong> §12.1 / §12.2 / §12.3 (host-session
+safety — §12.11 is a strengthening within, not a relaxation of, host
+safety) / <strong>§12.6</strong> (the 60% ceiling — §12.11 SCOPES it to
+user.slice-resident work, does NOT weaken it) / §12.10 (the launcher&#39;s
+envelope is a live-state anchor for the resumption file) / §11.4.6
+(no-guessing — every envelope number measured) / §11.4.24
+(build-resource stats feed the tuning) / §11.4.133 (target/hardware
+safety — the reserved-headroom + rlimit governors are the host-safety
+equivalent) / §9.2 (the containerized path is the non-destructive
+default). The consuming project supplies its containerized-build path,
+cgroup mechanism, and per-host detection per §11.4.35.</p>
+<p><strong>Classification: universal (§11.4.17)</strong> — the
+reconciliation logic (caps bind user.slice-resident work; the
+containerized cgroup is separately accounted so it may claim the maximal
+safe fraction) is platform-agnostic and true on every host. Propagation
+gate <strong><code>CM-COVENANT-12-11-PROPAGATION</code></strong>
+(literal anchor <code>12.11</code> present across the consumer fleet&#39;s
+CLAUDE.md / AGENTS.md / QWEN.md / GEMINI.md) + recommended gate
+<strong><code>CM-MAXRES-DYNAMIC-BUILD</code></strong> (the
+containerized-build launcher (a) auto-detects
+<code>nproc</code>/<code>MemTotal</code>/<code>RLIMIT_NPROC</code>, (b)
+reserves explicit host headroom, (c) governs <code>-j</code> against
+BOTH the memory model AND the process rlimit, (d) prints the chosen
+envelope, (e) does NOT hardcode a fixed low <code>-j</code> for the
+containerized path AND does NOT relax §12.6 for any user.slice path) +
+paired §1.1 meta-test mutations (strip the <code>12.11</code> literal →
+propagation gate FAILs; replace the dynamic detection with a hardcoded
+<code>-j2</code> in the containerized launcher OR strip the rlimit-aware
+<code>-j</code> governor → <code>CM-MAXRES-DYNAMIC-BUILD</code> FAILs;
+gate-code = a separate tracked work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §12.11.
+Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--fixed-jobs</code>,
+<code>--no-dynamic-detection</code>,
+<code>--ignore-host-capacity</code>,
+<code>--relax-user-slice-cap</code>, <code>--bare-metal-maximal</code>
+flag exists.</p>
+<h3 id="1212--processthread-limit-rlimit_nproc-awareness-for-parallel-subagentmulti-process-work-user-mandate-2026-07-07">§12.12
+— Process/thread-limit (RLIMIT_NPROC) awareness for parallel
+subagent/multi-process work (User mandate, 2026-07-07)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-07-07):</strong></p>
+<blockquote>
+<p>&quot;Add these ulimit details and instructions to the constitution so
+they are mandatory for this and all projects!&quot;</p>
+</blockquote>
+<p><strong>The limit.</strong> Heavy parallel subagent / multi-process
+work is bounded by the OS per-user process/thread limit
+<code>ulimit -u</code> (<code>RLIMIT_NPROC</code>), which on Linux
+counts ALL threads AND processes owned by the real UID — NOT a
+per-process limit. The ambient tooling fleet already running in a
+session (MCP servers, language runtimes — tokio/V8/libuv worker pools,
+<code>mongod</code>/<code>chrome</code>/<code>prisma</code>-class MCP
+servers, local LLM servers) consumes a large FIXED fraction of this
+budget before any project work even starts. <strong>FORENSIC FACT
+(2026-07-07):</strong> a host configured with
+<code>ulimit -u 4096</code> sat at ~3900–4005 threads from the ambient
+MCP fleet alone, leaving under 150 threads of headroom; dispatching a
+4th Go-heavy subagent (the Go runtime sets <code>GOMAXPROCS</code> to
+<code>nproc</code>, spawning dozens of OS threads per invocation) hit
+<code>EAGAIN</code> /
+<code>failed to create new OS thread (errno=11)</code> and crashed
+tooling. Stopping three non-essential MCP servers
+(<code>mongod</code>/<code>chrome</code>/<code>prisma</code>) freed
+approximately 1345 threads (3827 → 2482), restoring headroom.</p>
+<p><strong>Mandate — treat thread-limit exhaustion as a §12 host-safety
+event.</strong> BEFORE scaling to N parallel subagents / processes, the
+agent MUST check thread headroom and treat thread-limit exhaustion as a
+§12 host-safety event that YIELDS UNCONDITIONALLY — the same standing as
+§12.6 (memory) and §12.7 (AOSP <code>-j</code> cap). This is an
+ORTHOGONAL exhaustion axis to §12.6&#39;s memory ceiling: a host can have
+abundant free RAM while its thread/process budget is fully exhausted,
+and vice versa — both MUST be checked independently before scaling
+parallelism.</p>
+<p><strong>Diagnosis (mandatory before scaling).</strong>
+<code>ulimit -u</code> (soft limit) + <code>ulimit -Hu</code> (hard
+limit) + the LIVE count
+<code>ps -L --no-headers -u &quot;$USER&quot; | wc -l</code> (threads, not just
+processes — <code>RLIMIT_NPROC</code> counts threads); headroom = soft
+limit minus live count. <strong>Signals of exhaustion</strong> (never
+guessed, always captured per §11.4.6): <code>EAGAIN</code>,
+<code>fork: retry: Resource temporarily unavailable</code>,
+<code>failed to create new OS thread</code>, or
+<code>cannot allocate memory</code> returned from a
+<code>fork</code>/<code>clone</code>/thread-spawn call — this is
+DISTINCT from OOM (memory can be abundant while the thread/process
+budget is exhausted; the diagnostic MUST NOT conflate the two). When
+headroom is low, the agent MUST SERIALIZE (run fewer concurrent
+subagents/processes) and avoid Go-heavy /
+<code>GOMAXPROCS=nproc</code>-class spikes — dispatching parallel work
+blind at near-limit headroom is forbidden; a subagent that hits
+<code>EAGAIN</code> mid-operation (e.g. mid-<code>git push</code>) risks
+incomplete/corrupted state (§9.2 data-safety risk).</p>
+<p><strong>Raising the limit — three techniques (cite the mechanism
+used, never guess which applies).</strong> (a) <strong>No-restart, on a
+running process:</strong>
+<code>prlimit --pid &lt;PID&gt; --nproc=&lt;soft&gt;:&lt;hard&gt;</code>
+(requires root — e.g. via <code>su -c</code>) to raise a HARD limit
+above the process&#39;s current hard ceiling; a running process&#39;s new
+children inherit the raised limit going forward. (b) <strong>Persistent,
+system-wide:</strong> <code>/etc/security/limits.conf</code>
+(<code>&lt;user&gt; hard nproc &lt;N&gt;</code> + a matching
+<code>soft</code> line) or a systemd unit&#39;s
+<code>LimitNPROC=&lt;N&gt;</code>, taking effect on the NEXT
+login/session (not the current one). (c) <strong>Self-raise, within the
+current session:</strong> any process may raise its own SOFT limit up to
+its existing HARD limit via <code>ulimit -u &lt;N&gt;</code> where
+<code>N ≤ hard</code> — it can NEVER exceed the hard ceiling without
+root-assisted method (a). <strong>Caveat (§11.4.6 — do not assume
+scope):</strong> <code>su -c &quot;ulimit -u N&quot;</code> sets the limit ONLY
+inside that transient <code>su</code> subshell — it does NOT
+retroactively affect an already-running session; a running process keeps
+the <code>RLIMIT_NPROC</code> value captured at its own launch time.</p>
+<p><strong>Freeing threads — operator-authorized only
+(§11.4.122).</strong> Stopping non-essential MCP servers / background
+tooling frees the ambient fraction of the budget consumed before project
+work starts — but this REQUIRES explicit operator authorization per
+§11.4.122 (no-silent-removal); the agent MUST NOT autonomously kill the
+operator&#39;s tooling without asking first. <strong>CAUTION — self-kill
+hazard (forensic FACT):</strong> <code>pkill -f &lt;pattern&gt;</code> /
+<code>pgrep -f &lt;pattern&gt;</code> matches against the FULL COMMAND
+LINE, including the killer&#39;s own invocation if the search pattern string
+happens to appear in it — this can cause an unintended self-kill of the
+very process issuing the kill command. Any cmdline-pattern-based kill
+list MUST explicitly exclude the caller&#39;s own <code>$$</code> /
+<code>$PPID</code> (and the conductor&#39;s PID, when dispatched as a
+subagent) before executing.</p>
+<p>Composes with §12 (host-session safety umbrella) / §12.6
+(memory-budget ceiling — the ORTHOGONAL second exhaustion axis alongside
+this thread/process-count axis) / §12.7 (bare-metal AOSP <code>-j</code>
+cap — thread exhaustion is a DISTINCT failure mode from the
+memory-driven cap that section addresses) / §11.4.58
+(parallel-development PWU pipeline — the concurrency this section
+bounds) / §11.4.103 (continuous parallel-stream working routine — the
+≥3-background-stream target is bounded by available thread headroom, not
+merely memory) / §11.4.101 (autonomous-decision-over-blocking — safe,
+reversible decisions, e.g. serializing dispatch, are made without
+operator involvement) / §11.4.122
+(no-silent-removal-of-existing-components — freeing ambient tooling
+threads requires operator authorization) / §9.2 (absolute data safety —
+a subagent crashed mid-git-operation by <code>EAGAIN</code> is a
+data-safety risk this section exists to prevent).</p>
+<p><strong>Classification: universal (§11.4.17)</strong> —
+<code>RLIMIT_NPROC</code> / <code>ulimit -u</code> is a Linux/POSIX
+kernel-level per-UID accounting mechanism, platform-agnostic and true on
+every host running this Constitution&#39;s parallel-subagent/multi-process
+disciplines; the consuming project supplies its concrete ambient-tooling
+roster and ulimit values per §11.4.35. Propagation gate
+<code>CM-COVENANT-12-12-PROPAGATION</code> (literal anchor
+<code>12.12</code> present across the consumer fleet&#39;s CLAUDE.md /
+AGENTS.md / QWEN.md / GEMINI.md) + recommended gate
+<code>CM-NPROC-HEADROOM-CHECK</code> (parallel-dispatch orchestration
+checks <code>ulimit -u</code> + live thread count BEFORE scaling
+concurrency; a cmdline-pattern kill helper excludes the caller&#39;s own
+PID) + paired §1.1 meta-test mutation (strip the <code>12.12</code>
+literal → propagation gate FAILs; strip the headroom-check call before a
+parallel-dispatch scale-up OR remove the self-PID exclusion from a kill
+helper → <code>CM-NPROC-HEADROOM-CHECK</code> FAILs; gate-code = a
+separate tracked work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §12.12.
+Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--ignore-thread-limit</code>,
+<code>--dispatch-blind</code>, <code>--skip-headroom-check</code>,
+<code>--autonomous-tooling-kill</code>,
+<code>--assume-ulimit-scope</code> flag exists.</p>
+<hr />
+<h2 id="appendix-a--mutation-testing--academic-and-industrial-foundations">Appendix
+A — Mutation testing — academic and industrial foundations</h2>
+<p>The anti-bluff / paired-mutation policy in §1.1 is rooted in the
+<strong>mutation testing</strong> literature. References that the
+consuming project SHOULD cite when explaining its meta-test harness:</p>
+<ul>
+<li>Jia, Y. &amp; Harman, M. (2011). <em>An Analysis and Survey of the
+Development of Mutation Testing</em>. IEEE Transactions on Software
+Engineering, 37(5).</li>
+<li>DeMillo, R.A., Lipton, R.J., Sayward, F.G. (1978). <em>Hints on Test
+Data Selection: Help for the Practicing Programmer</em>. IEEE
+Computer.</li>
+<li>Open-source mutation testers worth studying:
+<ul>
+<li><strong>PIT</strong> (Java) — <a href="https://pitest.org/">https://pitest.org/</a></li>
+<li><strong>Stryker</strong> (JS / C# / Scala) — <a href="https://stryker-mutator.io/">https://stryker-mutator.io/</a></li>
+<li><strong>Cosmic Ray</strong> (Python) — <a href="https://github.com/sixty-north/cosmic-ray">https://github.com/sixty-north/cosmic-ray</a></li>
+<li><strong>mutmut</strong> (Python) — <a href="https://mutmut.readthedocs.io/">https://mutmut.readthedocs.io/</a></li>
+<li><strong>mull</strong> (LLVM-IR) — <a href="https://mull.readthedocs.io/">https://mull.readthedocs.io/</a></li>
+</ul></li>
+</ul>
+<p>The §1.1 paired-mutation policy is a <strong>lightweight</strong>
+variant of mutation testing applied at the gate-assertion layer rather
+than at the production-code layer. It does not need a mutation
+framework; it needs ONE mutation per gate that proves the gate catches
+the break. This is computationally cheap (O(gates), not O(production
+code lines)) and produces a strong &quot;bluff-immunity&quot; guarantee.</p>
+<hr />
+<h2 id="appendix-b--recursive-inheritance--path-independence">Appendix B
+— Recursive inheritance &amp; path-independence</h2>
+<p>Projects that include this constitution submodule MUST tolerate
+<strong>arbitrary submodule depth</strong>. Between the main project
+root and any consuming submodule there may be N intermediate levels. To
+locate this constitution submodule from any depth, every project SHOULD
+provide a helper that walks up parents until it finds
+<code>constitution/Constitution.md</code> (the file you are reading
+right now) OR follows
+<code>git rev-parse --show-superproject-working-tree</code> recursively.
+The constitution submodule ships <code>find_constitution.sh</code> for
+exactly this purpose; nested submodules can source it without knowing
+their own depth.</p>
+</body>
+</html>

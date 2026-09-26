@@ -1,0 +1,2181 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Git And Data Safety</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="git-and-data-safety">Git And Data Safety</h1>
+<h3 id="91-mandatory-safety-protocol-for-destructive-operations">§9.1
+Mandatory safety protocol for destructive operations</h3>
+<p>Every destructive operation MUST execute, in strict order:</p>
+<ol type="1">
+<li><strong>Full backup before touching anything.</strong> Hardlinked
+mirror of <code>.git</code> to a sibling backup directory:
+<pre><code>cp -al .git &lt;backup&gt;/&lt;repo&gt;.git.mirror</code></pre>
+This is near-instant on the same filesystem and uses zero additional
+disk. If <code>.git</code> is small, also create
+<code>git bundle create &lt;backup&gt;/main.bundle --all</code>.</li>
+<li><strong>Record critical metadata into the backup dir</strong>:
+<ul>
+<li><code>git show-ref &gt; refs.txt</code></li>
+<li><code>git tag &gt; tags.txt</code></li>
+<li><code>git submodule status &gt; submodules.txt</code></li>
+<li><code>git rev-parse HEAD &gt; head.txt</code></li>
+<li><code>git rev-parse HEAD^{tree} &gt; head_tree.txt</code></li>
+<li><code>git ls-tree -r HEAD --full-tree | sha256sum &gt; head_tree_content.sha256</code></li>
+<li><code>git ls-tree -r HEAD --full-tree &gt; head_tree_listing.txt</code></li>
+</ul></li>
+<li><strong>Identify the target state</strong>: the expected HEAD
+commit, tree hash, and tree content hash after the operation completes.
+The operation MUST preserve these unless it is explicitly changing HEAD
+content.</li>
+<li><strong>Run the operation</strong> (filter-repo, rebase, etc.).
+NEVER use <code>--no-verify</code> / bypass-hooks flags. NEVER
+auto-force on failure.</li>
+<li><strong>Post-operation verification gate</strong> (all MUST pass):
+<ul>
+<li>HEAD tree hash matches pre-op target (content identical for
+non-content-changing rewrites)</li>
+<li>HEAD tree content sha256 matches pre-op sha256</li>
+<li>All tags from <code>tags.txt</code> are preserved and resolve to
+valid commits</li>
+<li>All submodule pointers from <code>submodules.txt</code> match
+current state</li>
+<li>Project&#39;s pre-build / pre-merge gates pass with zero FAIL and zero
+unclassified WARN</li>
+</ul></li>
+<li><strong>Only if every check in §9.1.5 passes</strong> may the
+operation be considered successful. Otherwise: restore from backup
+immediately
+(<code>rm -rf .git &amp;&amp; mv &lt;backup&gt;/&lt;repo&gt;.git.mirror .git</code>).</li>
+<li><strong>Then and only then</strong> may a force-push proceed — and
+still not without explicit user authorization per §9.2.</li>
+</ol>
+<h3 id="92-force-push-requires-explicit-user-authorization-every-time">§9.2
+Force-push requires explicit user authorization every time</h3>
+<p>Force-pushing (including <code>push --force</code>,
+<code>push --force-with-lease</code>, or any divergence-recovery code
+path inside an automated wrapper) overwrites the remote&#39;s view of
+history. On any shared branch this is irreversible.</p>
+<p>Rules:</p>
+<ul>
+<li>Automated push wrappers MUST NOT auto-force-push as a fallback to
+any kind of failure (size rejection, divergence, server error,
+anything). The historical divergence-recovery code that silently
+force-resets the remote is forbidden and must be removed or gated behind
+an explicit flag.</li>
+<li>A human must affirmatively say &quot;force-push&quot; (or equivalent) in the
+session to authorize each force-push.</li>
+<li>Force-push to <code>main</code> (and any equivalent primary branch
+on owned submodules) is only authorized after the §9.1.5 gate has
+passed.</li>
+<li>Every force-push event is recorded in
+<code>docs/changelogs/&lt;tag&gt;.md</code> under a &quot;Force-push audit&quot;
+section (target refs, backup location, validation gate output).</li>
+</ul>
+<h3 id="93-hardlinked-backup-is-the-standard--there-is-no-excuse">§9.3
+Hardlinked backup is the standard — there is no excuse</h3>
+<p>Because hardlinked <code>.git</code> copies are near-instant and use
+zero additional disk (same-filesystem inodes), the cost of making a
+backup is trivial. Any destructive operation without a fresh hardlinked
+backup is a Constitution violation regardless of how small the repo is
+or how confident the operator.</p>
+<h3 id="94-commit-message-audit-trail-for-history-rewrites">§9.4
+Commit-message audit trail for history rewrites</h3>
+<p>After any <code>git filter-repo</code> run (or equivalent), commit a
+record under <code>docs/changelogs/</code> (or
+<code>docs/history-rewrites/</code>) containing:</p>
+<ul>
+<li>What was stripped and why</li>
+<li>Pre-op <code>.git</code> size vs post-op <code>.git</code> size</li>
+<li>Pre-op HEAD commit vs post-op HEAD commit</li>
+<li>Pre-op HEAD tree hash vs post-op HEAD tree hash (MUST match for
+non-content-changing rewrites)</li>
+<li>Backup location</li>
+</ul>
+<hr />
+<h2 id="10-enforcement">§10. Enforcement</h2>
+<p>Any commit, tag, or release that violates §1–§9 is non-compliant. The
+fix is to amend/revert and re-land with compliance. No exceptions for
+speed pressure. Data-safety violations (§9) and host-session-safety
+violations (§12) are treated as catastrophic and block the entire
+release cycle until fully remediated.</p>
+<hr />
+<h2 id="11-end-user-quality-covenant">§11. End-user quality
+covenant</h2>
+<h3 id="11410--credentials-handling-mandate">§11.4.10 —
+Credentials-handling mandate</h3>
+<p><strong>Forensic anchor — direct user mandate:</strong></p>
+<blockquote>
+<p>&quot;Credentials or any secret and sensitive data MUST NOT leak! This
+MUST BE added as the mandatory constraint into all Submodules and main
+project&#39;s Constitution, CLAUDE.MD and AGENTS.MD.&quot;</p>
+</blockquote>
+<p>All credentials, secrets, API tokens, passwords, phone numbers, OAuth
+refresh tokens, signing keys, encryption keys, and any other
+authentication-or-authorization-bearing data used by test scripts, build
+automation, or any project tooling MUST be handled per the following
+rules without exception:</p>
+<ol type="1">
+<li><strong>No tracked-file storage.</strong> Credentials NEVER live in
+any file that git tracks. Placeholder templates with
+<code>&lt;replace ...&gt;</code> or
+<code>EXAMPLE_VALUE_DO_NOT_USE</code> placeholders ARE allowed in
+<code>.example</code> files committed to show operators what keys to
+populate.</li>
+<li><strong>Repository-wide ignore.</strong> <code>.gitignore</code>
+MUST exclude all credential-bearing paths:
+<ul>
+<li><code>.env</code>, <code>.env.*</code>, <code>*.env</code>,
+<code>.&lt;service&gt;.env</code>,
+<code>*.&lt;service&gt;.env</code></li>
+<li><code>scripts/testing/secrets/*</code> with <code>.example</code> +
+<code>README.md</code> exception</li>
+</ul></li>
+<li><strong>Runtime-load-only.</strong> Tests load credentials AT
+EXECUTION TIME from operator-populated files under
+<code>scripts/testing/secrets/</code> (or per-project equivalent). If
+the file is missing, the test SKIPs with &quot;credentials not configured for
+<service>&quot; — it does NOT proceed without credentials and does NOT use
+defaults.</li>
+<li><strong>No echo / no log.</strong> Test scripts MUST NEVER print,
+log, or include credentials in error paths, stack traces, screen
+recordings, or output artifacts.</li>
+<li><strong>Per-service file separation.</strong> One file per service
+keeps blast radius small.</li>
+<li><strong>Filesystem permissions.</strong> <code>.env</code> files are
+<code>chmod 600</code>, parent directory is <code>chmod 700</code>.</li>
+<li><strong>Rotation on suspected leak.</strong> Rotate at provider,
+update local files, audit captured artifacts.</li>
+</ol>
+<p>The consuming project&#39;s <code>.gitignore</code> MUST be verified
+before every commit:
+<code>git ls-files --cached | grep -E &quot;\\.env$&quot;</code> MUST show no real
+<code>.env</code> files (only <code>.env.example</code>).</p>
+<h3 id="11410a--pre-store-credential-leak-audit-user-mandate-2026-05-17">§11.4.10.A
+— Pre-store credential leak audit (User mandate, 2026-05-17)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-17):</strong></p>
+<blockquote>
+<p>&quot;Us these for all future testing (full automation testing) and make
+sure they are not leaking anywhere or get git versioned!&quot;</p>
+<p>[Discovered during execution: the operator-provided test credentials
+ALREADY existed in 5 tracked files dating to prior project cycles.
+§11.4.10 + §11.4.30 catch new commits but did not detect the
+pre-existing leak when the operator re-provided the same values for a
+new use.]</p>
+</blockquote>
+<p>When an operator provides credentials, API tokens, signing keys, or
+any other secret material to be stored in the project&#39;s gitignored
+configuration (.env, scripts/testing/secrets/<em>, secrets/</em>, etc.),
+the agent or human storing them MUST FIRST execute a repo-wide audit for
+prior leaks of THOSE specific values BEFORE storing.</p>
+<p>The audit MUST:</p>
+<ol type="1">
+<li><strong>Grep every tracked file</strong> for the literal credential
+value(s). <code>git ls-files | xargs grep -l &lt;value&gt;</code> is the
+canonical form. Search MUST cover all file types — <code>.md</code>,
+<code>.json</code>, <code>.yaml</code>, <code>.kt</code>,
+<code>.go</code>, <code>.py</code>, <code>.sh</code>, <code>.sql</code>,
+build configs, docs.</li>
+<li><strong>Grep the entire git history</strong> for the literal
+credential value(s).
+<code>git log -S&lt;value&gt; --all --source --remotes</code> reveals
+historical commits even if the current tree is clean. A history-only
+leak is a §11.4.10 violation of equal severity to a tree-leak — anyone
+who pulled an older commit still has the value in their working copy of
+any branch they cloned.</li>
+<li><strong>Report findings to the operator BEFORE storing the new value
+in any operator-controlled location.</strong> The operator may then
+decide whether to (a) rotate the credential at the upstream provider
+before reusing, (b) accept the historical leak as a known-compromise and
+proceed, or (c) abort the storage. Storing the value without surfacing
+the audit is itself a §11.4 PASS- bluff at the security layer.</li>
+<li><strong>If a leak is found:</strong> open a forensic incident record
+per the project&#39;s §6/§7 sixth-law-incidents discipline (or equivalent),
+redact the literal values from all tracked files in-place (replace with
+<code>&lt;redacted-per-§11.4.10&gt;</code> placeholders), and record an
+OPERATOR ACTION REQUIRED for rotation per §11.4.10 sub-clause 7. The
+redaction commit lives on master IMMEDIATELY; the history- purge
+follow-up (git-filter-repo / BFG / equivalent + force-push to every
+upstream) requires explicit per-operation operator authorization per
+§9.2.</li>
+<li><strong>Strengthen pre-push hook detection</strong> when a
+previously-undetected class of literal credential is discovered. The
+pre-push hook&#39;s credential-pattern grep MUST be extended to catch the
+specific pattern class that escaped (literal usernames matched with
+literal passwords in the same file, well-known credential SHA-256
+hashes, org-specific naming conventions for service accounts, etc.). The
+extension MUST land in the same commit as the redaction.</li>
+</ol>
+<p>Pre-build gate (recommended)
+<code>CM-PRE-STORE-CREDENTIAL-AUDIT</code> (when implemented in
+consuming project) checks the commit message body of any commit that
+touches <code>.env</code>, <code>.env.example</code>,
+<code>scripts/testing/ secrets/</code>, or equivalent for an
+<code>Audit-Pre-Stored:</code> stamp citing the audit&#39;s outcome. Paired
+mutation (§1.1) strips the stamp and asserts gate FAILs.</p>
+<p>Composes with §11.4.10 (the core credentials mandate this extends),
+§11.4.30 (.gitignore + no-versioned-artifacts — overlapping enforce-
+ment surface), §11.4.6 (no-guessing — audit findings stated as fact or
+as PENDING_FORENSICS), §11.4.7 (demotion-evidence — &quot;I think it&#39;s not
+leaked&quot; without grep evidence is a guess). Classification: universal
+(per §11.4.17). No escape hatch.</p>
+<h3 id="11430--gitignore--no-versioned-build-artifacts-mandate-user-mandate-2026-05-15">§11.4.30
+— .gitignore + No-Versioned-Build-Artifacts Mandate (User mandate,
+2026-05-15)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-15):</strong></p>
+<blockquote>
+<p>&quot;every project module, every Submodule, every servcie and apolication
+MUST HAVE proper .gitignore file! We MUST NOT git version build
+artifacts, cache files, tmp files, main .env file(s) or any files
+containing sensitive data, API keys or token! Any build derivate which
+we can recreate by executing proper mechanism for generating MUST NOT be
+versioned! We MUST pay attention what is going to be commited every time
+we are preparing to execute commit! If any violetion is detected it MUST
+be fixed before commit is executed!&quot;</p>
+</blockquote>
+<p><strong>Operative rule.</strong> Every project module, owned-by-us
+submodule, service, and application under this Constitution MUST ship a
+proper <code>.gitignore</code> covering its full set of
+forbidden-from-version- control patterns. The following file/directory
+classes MUST NEVER appear in version control:</p>
+<ol type="1">
+<li><p><strong>Build artefacts</strong> — anything produced by a build /
+compile / package step that can be regenerated from sources:</p>
+<ul>
+<li>Binaries (<code>/bin/</code>, <code>/build/</code>,
+<code>/dist/</code>, <code>/out/</code>, <code>target/</code>,
+<code>*.exe</code>, <code>*.dll</code>, <code>*.so</code>,
+<code>*.dylib</code>, <code>*.a</code>, <code>*.o</code>,
+<code>*.class</code>, <code>*.pyc</code>).</li>
+<li>Generated source files where the generator is committed (e.g.
+protobuf <code>.pb.go</code> may be checked in OR ignored — project
+decides — but never both).</li>
+<li>Bundled assets where the bundler is committed.</li>
+</ul></li>
+<li><p><strong>Cache files</strong> — anything a tool regenerates on
+demand:</p>
+<ul>
+<li><code>__pycache__/</code>, <code>.pytest_cache/</code>,
+<code>.mypy_cache/</code>, <code>.ruff_cache/</code>,
+<code>node_modules/</code>, <code>.next/</code>, <code>.nuxt/</code>,
+<code>.cache/</code>, <code>.gradle/</code>, <code>.idea/cache/</code>,
+<code>.vscode-test/</code>, <code>target/</code>,
+<code>.terraform/</code>, language-server caches.</li>
+</ul></li>
+<li><p><strong>Temp files</strong> — <code>*.tmp</code>,
+<code>*.swp</code>, <code>*.swo</code>, <code>*~</code>,
+<code>.DS_Store</code>, <code>Thumbs.db</code>, IDE backup files,
+<code>*.orig</code>, <code>*.rej</code>.</p></li>
+<li><p><strong>Sensitive-data files</strong> — anything containing
+credentials, tokens, keys, or personal data:</p>
+<ul>
+<li><code>.env</code>, <code>.env.*</code> (allow
+<code>.env.example</code> / <code>.env.sample</code> /
+<code>.env.template</code> with placeholder values only — never real
+secrets even as examples).</li>
+<li><code>*.pem</code>, <code>*.key</code>, <code>*.crt</code>,
+<code>*.p12</code>, <code>*.pfx</code>, <code>id_rsa*</code>,
+<code>id_ed25519*</code>, <code>*.kdbx</code>, <code>.netrc</code>,
+<code>secrets/</code> directory trees.</li>
+<li><code>api_keys.sh</code>, any file containing
+<code>BEGIN PRIVATE KEY</code>, credential tokens, or session
+cookies.</li>
+</ul></li>
+<li><p><strong>Generated reports / logs</strong> — <code>*.log</code>,
+<code>coverage.out</code>, <code>*.coverage</code>,
+<code>htmlcov/</code>, <code>*.gcda</code>, <code>*.gcno</code>,
+screenshots/ recordings that aren&#39;t reference assets.</p></li>
+<li><p><strong>OS / IDE / personal-state files</strong> —
+<code>.idea/</code>, <code>.vscode/</code> (except shareable
+<code>.vscode/settings.json</code> etc. if explicitly project-shared),
+<code>.history/</code>, <code>.svn/</code>, editor-state files.</p></li>
+<li><p><strong>Test playback artefacts</strong> (§11.4.14) — every
+test&#39;s runtime capture goes under an ignored evidence directory unless
+the capture IS the reference asset.</p></li>
+</ol>
+<p><strong>Anti-bluff invariant.</strong> Per CONST-035 / §11.4 the
+presence of a <code>.gitignore</code> line alone is not sufficient — the
+project MUST also verify that no file matching the forbidden patterns is
+currently tracked. A <code>.gitignore</code> that lists
+<code>*.log</code> while <code>app.log</code> sits tracked in the repo
+is a §11.4.30 violation of equal severity to no <code>.gitignore</code>
+at all.</p>
+<p><strong>Pre-commit attention.</strong> Every commit author (human OR
+agent) MUST inspect <code>git diff --staged</code> and
+<code>git status</code> BEFORE executing the commit. If a staged path
+matches any forbidden class, the commit MUST be aborted and the issue
+fixed (un-stage the path, add to <code>.gitignore</code>, scrub if
+already-tracked). Gate <code>CM-GITIGNORE-PRECOMMIT-AUDIT</code>:
+pre-commit hook (or commit wrapper in §2) inspects every staged path
+against the forbidden-pattern matrix; hits abort the commit with a
+directed error pointing the operator at the specific offending path and
+the canonical fix. Paired mutation (§1.1): stage a <code>*.log</code> →
+gate FAILs.</p>
+<p><strong>Cascade reach.</strong> This rule applies recursively to
+every owned-by- us submodule per CONST-047 and to every
+owned-submodule&#39;s nested non-owned trees within their working copy. The
+<code>.gitignore</code> files themselves are project-specific in their
+concrete patterns but universally bound to the rule&#39;s normative
+force.</p>
+<p><strong>Secret-leak intersection.</strong> §11.4.30 composes tightly
+with §11.4.10 (Credentials-handling mandate / CONST-042) and §12.1. A
+<code>.env</code> leak is BOTH a §11.4.30 violation (build/sensitive
+file versioned) AND a §11.4.10 violation (credential leak). The combined
+severity is <strong>release-blocker requiring rotation +
+post-mortem</strong> per §11.4.10.</p>
+<p><strong>Coverage of &quot;recreatable&quot; content.</strong> When in doubt
+about whether something is a build derivative: if there exists a
+documented, scripted, or automated mechanism that recreates the file
+from sources, the file is a build derivative and MUST be ignored. The
+committed sources MUST include the generator (Makefile target, npm
+script, codegen invocation), so any downstream consumer regenerates the
+artefact on demand.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). No escape
+hatch beyond the explicit exceptions enumerated above (e.g.,
+<code>.env.example</code> placeholder files). Severity-equivalent to a
+§11.4 PASS-bluff at the repository-hygiene layer — a tracked build
+artefact silently drifts vs. its source over time, producing the same
+class of &quot;works-on-my-machine&quot; surprise that the §11.4 anti-bluff
+covenant forbids at the test layer.</p>
+<p><strong>Composition.</strong> §11.4.30 composes with §1 (test
+coverage — ignored files don&#39;t get spuriously included in coverage
+stats), §2 (commit-wrapper enforces the pre-commit gate), §9.1
+(destructive-operation safeguards — never <code>git clean</code> an
+operator&#39;s working tree to &quot;fix&quot; a violation), §11.4.10
+(credentials-handling), §11.4.12 (auto-generated docs sync — generators
+committed, outputs ignored only if recreatable on demand from the same
+generator), §11.4.17 (universal — applies to every consuming project),
+§11.4.18 (script docs — generator scripts documented), §11.4.20
+(subagent delegation for cross-submodule .gitignore audit sweeps),
+§11.4.25 (coverage ledger lists <code>.gitignore</code> presence per
+submodule), §11.4.26 (constitution-update workflow — the constitution
+submodule&#39;s own <code>.gitignore</code> complies), §11.4.27 (no-fakes:
+test fixtures that ARE the reference asset are tracked; runtime captures
+are ignored), §11.4.28 (submodules-as-equal-codebase: each submodule&#39;s
+<code>.gitignore</code> audited on equal basis), §11.4.29 (the renamed
+paths in the lowercase migration MUST also be properly ignored where
+applicable), CONST-047 (recursive governance reach).</p>
+<h3 id="11436--mandatory-install_upstreams-on-cloneadd-mandate-user-mandate-2026-05-15">§11.4.36
+— Mandatory install_upstreams on clone/add Mandate (User mandate,
+2026-05-15)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-15):</strong></p>
+<blockquote>
+<p>&quot;Every Submodule or Git repository we add or clone MUST BE upstreams
+installed using Upstreamable utility which MUST BE available through
+exported paths of the host system (in .bashrc or .zhrc) using
+install_upstreams command executed from the root of the cloned (added)
+repository - only if in it is Upstreams or upstreams directory present
+with bash script files (recipes) for all repository&#39;s upstreams!&quot;</p>
+</blockquote>
+<p><strong>Operative rule.</strong> Every time an operator or agent adds
+or clones a Git repository (<code>git clone</code>,
+<code>git submodule add</code>, <code>incorporate-submodule</code> per
+§11.4.31, etc.) under any consuming project of this Constitution, the
+post-clone procedure MUST be:</p>
+<ol type="1">
+<li><code>cd</code> into the newly-cloned (or newly-added submodule&#39;s)
+working tree.</li>
+<li>If the working tree contains an <code>upstreams/</code> directory
+(or legacy <code>Upstreams/</code> per the §11.4.29 transition)
+populated with one or more <code>*.sh</code> recipe files declaring
+upstream Git SSH URLs (the canonical declaration format defined by this
+constitution submodule&#39;s <code>Upstreams/*.sh</code> shape), the
+operator or agent MUST invoke <code>install_upstreams</code> from that
+directory.</li>
+<li><code>install_upstreams</code> is a host-system utility installed on
+the operator&#39;s <code>PATH</code> via <code>.bashrc</code> or
+<code>.zshrc</code> export. Implementation lives in the constitution
+submodule (<code>install_upstreams.sh</code>); operators alias / symlink
+it onto <code>PATH</code> once per host setup. The utility reads the
+recipe files, configures every declared upstream as a named git remote,
+and fans out <code>origin</code> push URLs across all declared
+upstreams.</li>
+<li>If no <code>upstreams/</code> directory is present, no
+<code>install_upstreams</code> invocation is required.</li>
+<li>If <code>upstreams/</code> is present but
+<code>install_upstreams</code> is not on <code>PATH</code>, the operator
+MUST install it (per the constitution submodule&#39;s setup docs) BEFORE
+making the clone usable.</li>
+<li>Skipping step 2 when an <code>upstreams/</code> directory IS present
+is a §11.4.36 violation — the next push from that working tree will land
+on only one upstream, breaking §2.1 (Multi-upstream push is the
+norm).</li>
+</ol>
+<p><strong>Pre-commit attention.</strong> Before the first commit lands
+inside the newly-cloned working tree, the operator MUST verify that
+<code>install_upstreams</code> has been executed (when applicable). The
+quickest check: <code>git remote -v | grep -c push</code> reports the
+expected upstream count. If it reports <code>1</code> while
+<code>upstreams/*.sh</code> declares more, abort the commit and run
+<code>install_upstreams</code> first.</p>
+<p><strong>Automation.</strong> The constitution submodule&#39;s tooling
+(the future <code>incorporate-submodule</code> per §11.4.31, the
+existing <code>scripts/init-submodules.sh</code> patterns in consuming
+projects) MUST auto-invoke <code>install_upstreams</code> as part of any
+clone / add operation when the target tree has an
+<code>upstreams/</code> directory. Operator-explicit manual invocation
+remains supported.</p>
+<p><strong>Gate <code>CM-INSTALL-UPSTREAMS-ON-CLONE</code>.</strong>
+Pre-merge gate inspects every owned-by-us submodule pointer commit and
+verifies that: (a) if <code>upstreams/</code> (or legacy
+<code>Upstreams/</code>) is present in the submodule&#39;s tree, (b) the
+submodule&#39;s local checkout has at least as many configured push URLs as
+the declared recipe count. Paired mutation (§1.1): remove one upstream
+from local <code>origin --push</code> config → gate FAILs.</p>
+<p><strong>Composition.</strong> §11.4.36 composes with §2
+(single-entrypoint commit/push wrapper), §2.1 (multi-upstream push is
+the norm — this rule is its setup-time complement), §3 (submodule
+changes propagate through submodule commits first — requires
+multi-upstream parity), §9.2 / CONST-043 (no force-push — the
+multi-upstream wrap-up makes unforced parity easy), §11.4.17 (universal
+— every consuming project&#39;s clone procedure), §11.4.20 (subagent
+delegation when batch-cloning), §11.4.28 / CONST-051 (owned-submodule
+discipline), §11.4.29 / CONST-052 (<code>Upstreams/</code> →
+<code>upstreams/</code> transition is exactly this rule&#39;s scope),
+§11.4.30 / CONST-053 (<code>.gitignore</code> ignores
+<code>upstreams/</code> only if the project explicitly decides not to
+track recipes, which is unusual — recipes ARE source of truth and SHOULD
+be tracked), §11.4.31 / CONST-054 (submodule-dependency- manifest works
+alongside upstreams recipes: helix-deps.yaml lists WHAT to add at parent
+root, upstreams/ recipes list WHERE to push the resulting clones).</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). No escape
+hatch. Severity-equivalent to §2.1 multi-upstream-push-violation at the
+clone-time setup layer — without the post-clone install, the working
+tree silently has a single-upstream blind spot.</p>
+<hr />
+<h3 id="11437--fetch-before-edit-mandate-user-mandate-2026-05-15">§11.4.37 —
+Fetch-before-edit mandate (User mandate, 2026-05-15)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-15):</strong></p>
+<blockquote>
+<p>&quot;Make sure that feedback_fetch_before_edit memory rule is part of our
+constitution Submodule - the root Consitution, AGENTS.MD and CLAUDE.MD.
+Validate and verify that Proejct-Toolkit and all Submodules do inherit
+all of them! Follow the constitution Submodule documentation for
+details.&quot;</p>
+</blockquote>
+<p><strong>Background.</strong> In multi-agent / multi-upstream
+codebases — where parallel Claude Code, Cursor, Aider, Codex, Gemini
+CLI, or human operator sessions may operate on overlapping scope — the
+local working tree&#39;s state can lag behind the canonical upstream state
+by the time any given agent receives a task. Acting on stale local state
+produces three failure modes documented in the originating session
+(2026-05-15):</p>
+<ol type="1">
+<li><strong>Redundant work</strong> — the agent re-does what a parallel
+session already finished, wasting tokens and operator review time. (In
+the originating incident, &quot;Gitee removal&quot; had already been committed
+upstream by a parallel agent 25 minutes earlier; the second agent&#39;s
+<code>git remote remove gitee</code> was a no-op echo of work already
+done.)</li>
+<li><strong>False confidence</strong> — the agent reports completion of
+work that was already done by someone else, with no mechanical signal
+that their commit duplicates upstream history.</li>
+<li><strong>Divergent history</strong> — if the agent commits a parallel
+&quot;completion&quot; of already-done work, the result is two siblings of the
+same change, doubling the conflict surface for the next push attempt to
+multi-upstream remotes (§2.1).</li>
+</ol>
+<p><strong>The mandate.</strong> The FIRST git-touching action of any
+session, on any consuming project that participates in this
+constitution, MUST be:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> fetch <span class="at">--all</span> <span class="at">--prune</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> HEAD..@{u}              <span class="co"># parent</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule foreach <span class="at">--recursive</span> <span class="st">&#39;git fetch --all --prune --quiet&#39;</span></span></code></pre></div>
+<p>If <code>HEAD..@{u}</code> is non-empty, the agent MUST integrate
+(ff-merge, rebase, or — if non-fast-forward — surface to operator per
+§11.4.4) BEFORE issuing any local edit, scanner run, or test cycle. The
+fetch step is non-negotiable even when the operator&#39;s directive is
+phrased as &quot;do X immediately&quot; — the 30-second check prevents hour-long
+conflict reconciliation later.</p>
+<p><strong>Scope.</strong> Applies to:</p>
+<ol type="1">
+<li>The consuming project root.</li>
+<li>Every owned submodule (per §11.4.28) — recursive.</li>
+<li>The constitution submodule itself (§11.4.26 step 1 makes this
+explicit for constitution-side edits; §11.4.37 generalises it to ANY
+edit on the consuming project, not only constitution edits).</li>
+<li>Any dependency cloned via <code>incorporate-submodule</code>
+(§11.4.31) or <code>git submodule add</code> (§11.4.36).</li>
+</ol>
+<p><strong>Anti-bluff invariant.</strong> The fetch+log check MUST
+produce captured evidence — the actual <code>HEAD..@{u}</code> output,
+even if empty. Skipping the check on the basis of &quot;I just fetched&quot; or
+&quot;nothing could have changed in the last N minutes&quot; is a §11.4.6
+(no-guessing) violation: the remote state is not knowable without a
+fetch.</p>
+<p><strong>Composition.</strong> Composes with §2.1 (multi-upstream push
+— without the fetch, the agent can&#39;t know which upstream has the
+canonical ref), §11.4.4 (test-interrupt-on-discovery — newly-fetched
+commits that contradict the planned work are exactly the &quot;freshly
+discovered defect&quot; that triggers cycle interruption), §11.4.6
+(no-guessing — remote state requires fetch, not assumption), §11.4.20
+(subagent delegation — parallel subagents MUST coordinate through
+fetched state, never assumed-local state), §11.4.26 (constitution update
+workflow — this rule generalises §11.4.26 step 1 to ALL edits, not only
+constitution-file edits), §11.4.32 (post-constitution-pull validation —
+fetch-before-edit happens BEFORE the constitution-pull sweep §11.4.32
+mandates).</p>
+<p><strong>Gates.</strong> Pre-build gate
+<code>CM-FETCH-BEFORE-EDIT-AUDIT</code> (when implemented in the
+consuming project) audits the most-recent commit range against the
+upstream HEAD at the commit&#39;s parent — if the parent ref was not the
+upstream HEAD at the time the commit was authored, FAIL. Paired mutation
+(§1.1): synthetic commit whose parent is N commits behind the
+then-current upstream HEAD — gate must FAIL.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). The rule
+has no project-specific assumptions — it applies to any multi-upstream /
+multi-agent codebase. No escape hatch. Severity-equivalent to a §11.4
+PASS-bluff at the planning layer — acting on stale local state is the
+operational analog of asserting truth from unverified premises.</p>
+<h3 id="11441--pre-force-push-merge-first-mandate-user-mandate-2026-05-17">§11.4.41
+— Pre-Force-Push Merge-First Mandate (User mandate, 2026-05-17)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-17):</strong></p>
+<blockquote>
+<p>&quot;make sure we bring everything from branches to our side before forc
+push is done! Afer everything is safely and fully merged and all
+potential conflicts (if any) resolved, then do force push! make sure
+nothing isnlost, broken or corrupted on bith sides! add these rules in
+our root Constitution, CLAUDE.MD, AGENTS.MD (constitution Submodule) if
+itnis not added already! Extremely important rules and mandatory
+constraints we MUST HAVE and fully respect!&quot;</p>
+</blockquote>
+<p><strong>Operative rule.</strong> Any force-push
+(<code>git push --force</code>,
+<code>git push --force-with-lease</code>,
+<code>git push +&lt;ref&gt;</code>, equivalent history-rewriting
+operation on any remote) authorised under §9.2 / CONST-043 MUST be
+preceded by a mechanical 4-step merge- first pipeline that brings every
+remote-side commit into the local tree, resolves every conflict
+carefully, and verifies nothing is lost or corrupted on EITHER side
+BEFORE the overwriting push is executed.</p>
+<p><strong>The 4-step pipeline (mandatory, in order):</strong></p>
+<ol type="1">
+<li><strong>Fetch every remote-side reference.</strong> Run
+<code>git fetch --all --prune --tags</code> against every configured
+remote (origin + every upstream). Capture the output.</li>
+<li><strong>Integrate every divergent commit locally.</strong> Compute
+<code>git log --oneline HEAD..&lt;remote&gt;/&lt;branch&gt;</code> for
+every remote. For every non-empty range, integrate the remote commits
+into the local tree via the appropriate strategy:
+<ul>
+<li><strong><code>git rebase &lt;remote&gt;/&lt;branch&gt;</code></strong>
+when the local divergent work is a strict superset that should land on
+top, OR</li>
+<li><strong><code>git merge &lt;remote&gt;/&lt;branch&gt;</code></strong>
+when the local + remote histories are independent additions that both
+deserve preservation, OR</li>
+<li><strong>operator-confirmed cherry-pick</strong> when remote contains
+a subset of commits already present locally in different form.</li>
+</ul></li>
+<li><strong>Audit the integrated tree.</strong> Verify (a) no conflict
+markers anywhere in the working tree
+(<code>grep -rn &#39;^&lt;&lt;&lt;&lt;&lt;&lt;&lt; \|^=======$\|^&gt;&gt;&gt;&gt;&gt;&gt;&gt; &#39; .</code>
+returns empty across all governance + source + test files — third-party
+docs containing the markers as illustrative content excepted), (b) no
+file silently dropped (<code>git diff --stat HEAD@{1} HEAD</code> shows
+only expected additions), (c) every previously-passing test still passes
+on the integrated tree (per §11.4.4 + §11.4.40 baseline), (d) every
+captured- evidence artifact from the pre-merge state still
+validates.</li>
+<li><strong>Execute force-push.</strong> Only after steps 1-3 produce
+captured evidence of clean integration:
+<code>git push --force-with-lease &lt;remote&gt; &lt;ref&gt;</code>
+(NEVER <code>--force</code> without <code>--with-lease</code> unless
+explicitly authorised per §9.2 sub-clause 6 for a specific remote where
+lease semantics are unavailable). One force-push event per CONST-043
+authorisation — no batch authorisation across multiple
+force-pushes.</li>
+</ol>
+<p><strong>Three failure modes prevented:</strong></p>
+<p>(a) <strong>Remote-side content loss.</strong> Force-push without
+prior fetch silently overwrites commits a parallel session, sibling
+agent, or co-developer landed on the remote. The lost work is
+recoverable from the remote&#39;s reflog only within its TTL window —
+typically 30-90 days — but the audit trail (PR comments, CI evidence,
+governance signatures) is lost permanently.</p>
+<p>(b) <strong>Stale-state act on remote.</strong> Force-push from a
+divergent local state that was branched from a remote tip N hours ago
+treats the remote-side N hours of work as nonexistent. The operator&#39;s
+<code>--force-with-lease</code> safety check catches the literal SHA
+mismatch but ONLY when invoked AFTER a fetch that updated the lease
+reference; without step 1, the lease check is reading stale local
+refs.</p>
+<p>(c) <strong>Conflict-driven corruption.</strong> A merge that
+completes with unresolved markers in the tree (one half kept, other
+dropped silently because the marker was inside a comment block, OR
+markers committed verbatim as in CONST-049-prerequisite incidents
+observed 2026-05-17 on helix_qa + containers) lands broken governance /
+source on the force-push target. Step 3&#39;s explicit conflict-marker grep
+is the mechanical guard.</p>
+<p><strong>Two-gate composition with CONST-043.</strong> §11.4.41 does
+NOT relax CONST-043&#39;s operator-approval requirement — it adds a SECOND
+gate on top:</p>
+<ul>
+<li><strong>Gate A (CONST-043).</strong> Operator types explicit
+per-operation force-push authorisation in the conversation.</li>
+<li><strong>Gate B (§11.4.41).</strong> Agent executes the 4-step
+merge-first pipeline, captures evidence of clean integration, presents
+evidence to operator BEFORE the force-push.</li>
+</ul>
+<p>Both gates required. CONST-043 alone authorises a force-push that
+loses remote work; §11.4.41 alone risks force-pushing without operator
+awareness. The two together produce a force-push that is BOTH
+operator-authorised AND remote-safe.</p>
+<p><strong>Verification artefact.</strong> Every §11.4.41-governed
+force-push emits a <code>docs/changelogs/&lt;tag&gt;.md</code>
+&quot;Force-push merge-first audit&quot; section containing: (i)
+<code>git fetch</code> output, (ii) per- remote
+<code>HEAD..&lt;remote&gt;/&lt;branch&gt;</code> log before integration,
+(iii) integration strategy chosen per remote with rationale, (iv)
+post-integration conflict-marker scan output (must be empty), (v)
+post-integration test suite delta (must show only expected changes),
+(vi) the <code>--force-with-lease</code> push output with lease SHA
+evidence, (vii) CONST-043 authorisation quote from the conversation.</p>
+<p><strong>Cascade requirement</strong> (per CONST-047). This anchor
+(verbatim or by <code>§11.4.41</code> / <code>CONST-061</code> ID
+reference) MUST appear in every owned submodule&#39;s
+<code>CONSTITUTION.md</code>, <code>CLAUDE.md</code>, and
+<code>AGENTS.md</code>. Severity-equivalent to a §11.4 PASS-bluff at the
+remote-data-integrity layer. Gate <code>CM-FORCE-PUSH-MERGE-FIRST</code>
+walks <code>docs/changelogs/&lt;tag&gt;.md</code> &quot;Force-push&quot; entries
+for the 7 audit elements; paired mutation strips any element and asserts
+gate FAILs.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17) — every
+owned project executes force-pushes against its remotes; the merge-
+first discipline is reusable verbatim. No escape hatch — the
+operator-pressure escape (&quot;just force-push, we&#39;ll fix it later&quot;) is the
+exact failure mode this anchor closes.</p>
+<p><strong>Composes with:</strong> §9.2 (data-safety hardlinked backup),
+§11.4.4 (test-interrupt-on-discovery — broken integration triggers
+rollback), §11.4.6 (no-guessing — every step&#39;s outcome captured, not
+assumed), §11.4.26 (constitution-submodule update pipeline — that
+mandate is the per-submodule specialisation of §11.4.41 for
+governance-files-only commits), §11.4.32 (post-pull validation — the
+audit step&#39;s mechanical companion), §11.4.37 (fetch-before- edit — step
+1 enforces it for the force-push specifically), §11.4.40 (full-suite
+retest — step 3&#39;s test-evidence prerequisite), CONST-043 (per-operation
+operator approval), CONST-047 (recursive cascade).</p>
+<h3 id="11471--pre-push-fetch--investigate--integrate-mandate-user-mandate-2026-05-20">§11.4.71
+— Pre-Push Fetch + Investigate + Integrate Mandate (User mandate,
+2026-05-20)</h3>
+<p><strong>Forensic anchor — direct user mandate (verbatim,
+2026-05-20):</strong></p>
+<blockquote>
+<p>&quot;before pushing changes to any upstream for any repository - main
+repo or Submodule, we MUST fetch and pull all changes. Once these are
+obtained WE MUST investigate what is different compared to head position
+we were on last time before fetching and pulling new changes! We MUST
+understand what is done and for what purpose, easpecially how that does
+affect our project and our System in general! Any mandatory changes or
+improvements required by fresh changes we just have brough in MUST BE
+incorporated, covered with all supported types of the tests which will
+produce as a result of its success execution REAL PROOFS of working for
+all componetns and functionalities covered and work fully in anti-bluff
+manner!&quot;</p>
+</blockquote>
+<p>This anchor is the <strong>everyday-push variant</strong> of §11.4.41
+(Pre-Force-Push Merge-First). §11.4.41 governs the destructive
+force-push case; this anchor governs EVERY push including ordinary
+fast-forwards. The complementary discipline closes the
+regression-via-stale-baseline gap: a project committing against a HEAD
+that&#39;s behind any upstream&#39;s main risks pushing changes that conflict
+with, regress, or fail to incorporate accepted work landed in parallel
+by other consumers (Catalogizer and other consuming projects on the
+constitution submodule; sibling projects on other shared
+submodules).</p>
+<p><strong>The mandatory 5-step pre-push cycle (every push, every
+repository — main + every submodule):</strong></p>
+<ol type="1">
+<li><strong>Fetch all remotes</strong> —
+<code>git fetch --all --prune --tags</code> (or per-remote loop if
+<code>--all</code> is unavailable). Capture stdout for the audit
+trail.</li>
+<li><strong>Pull all upstream branches</strong> —
+<code>git pull --no-rebase &lt;remote&gt; &lt;branch&gt;</code> for each
+configured remote whose tip differs from the local branch. Resolve any
+merge conflict per §11.4.41 step 2 (rebase / merge / cherry-pick per
+consumer judgment, NOT auto-<code>--ours</code> or
+<code>--theirs</code>).</li>
+<li><strong>Investigate the diff vs OUR previous HEAD</strong> —
+<code>git log --oneline &lt;previous-head&gt;..HEAD</code> +
+<code>git diff --stat &lt;previous-head&gt;..HEAD</code> + read EVERY
+commit&#39;s body. For each foreign commit understand: (a) what changed, (b)
+why (forensic anchor + cited user mandate or §-anchor), (c) how it
+affects OUR project + OUR System (does it touch surfaces we ship? does
+it introduce constraints we now MUST honor? does it deprecate or
+supersede patterns we use?).</li>
+<li><strong>Integrate mandatory changes + cover with full anti-bluff
+test coverage</strong> — if the pulled-in work mandates anything (new
+§-anchor, new gate, new propagation requirement), implement it per
+§11.4.4(b) four-layer coverage (pre-build gate + post-build inspection +
+on-device test + HelixQA Challenge) + §11.4.43 TDD-fix RED-test-first
+discipline. Every PASS MUST carry §11.4.5 captured-evidence (REAL PROOFS
+— not metadata-only).</li>
+<li><strong>Then push</strong> — only after Steps 1–4 land. Push to
+every configured remote in the per-repo cascade order (canonical first,
+then mirrors). Verify the push landed with
+<code>git ls-remote &lt;remote&gt; &lt;branch&gt;</code> post-push.</li>
+</ol>
+<p><strong>Composition</strong> with §11.4.26 (constitution-submodule
+update pipeline — per-submodule specialisation) + §11.4.32 (post-pull
+validation) + §11.4.37 (fetch-before-edit) + §11.4.40 (full-suite retest
+before tag) + §11.4.41 (pre-force-push merge-first — the force-push case
+of this anchor) + §11.4.42 (iteration discipline) + §11.4.43
+(TDD-fix-discipline) + §11.4.4(b) (four-layer coverage) + §11.4.5 (audio
++ video quality analysis comprehensiveness) + §11.4.6 (no-guessing —
+every integration decision cites the foreign commit by SHA, not &quot;we
+think it does X&quot;).</p>
+<p><strong>No escape hatch</strong> — there is no
+<code>--skip-fetch</code>, <code>--no-investigate</code>,
+<code>--fast-push</code>, <code>--trust-upstream</code> flag. The
+discipline exists because:</p>
+<ul>
+<li>Pushing-without-fetching produces silent stale-baseline regressions
+(consumer A&#39;s PR diverges from consumer B&#39;s PR; neither saw the other;
+both merge; resulting tree corrupts).</li>
+<li>Pulling-without-investigating destroys the foreign work&#39;s
+traceability (we now carry someone else&#39;s code without understanding it;
+future debugging crosses the §11.4.6 no-guessing line).</li>
+<li>Integrating-without-testing reproduces the §11.4 PASS-bluff pattern
+(we adopt a change but don&#39;t prove it works in OUR system).</li>
+<li>Pushing-after-integration-without-evidence reproduces §11.4 itself
+(untested integration = release-blocker by definition).</li>
+</ul>
+<p><strong>Per-repository scope:</strong> this anchor applies to (a) the
+parent consuming project&#39;s repo, (b) the constitution submodule (across
+all 6 remotes), (c) every owned submodule (presenter, vlc-player,
+nova-player, mpv-player, gramophone-player, rhythm-player, strep-player,
+smarttube-player, torrserve, lampa), (d) every nested submodule
+(smarttube-player/SharedModules / smarttube-player/MediaServiceCore /
+smarttube-player/MediaServiceCore/SharedModules), (e) every HelixQA
+dependency (Challenges, Containers, DocProcessor, LLMOrchestrator,
+LLMProvider, VisionEngine, HelixQA).</p>
+<p><strong>Audit-trail requirement:</strong> every push event MUST be
+reconstructable post-hoc from
+<code>docs/changelogs/&lt;tag&gt;.md</code> + the per-repo
+<code>git log</code> evidence. Operators auditing a release MUST be able
+to: (1) see what each repo&#39;s <code>HEAD..@{u}</code> was BEFORE this
+push, (2) see what foreign work was pulled in, (3) see what new tests +
+captured-evidence were generated by the integration. Anchor enforcement
+may be partially automated by extending
+<code>scripts/commit_all.sh</code> to refuse pushes without an
+audit-trail log entry.</p>
+<p><strong>Pre-build gate
+<code>CM-COVENANT-114-71-PROPAGATION</code></strong> enforces this
+anchor literal across the consumer fleet (parent + 10 owned submodules +
+nested + HelixQA). Paired mutation strips the anchor literal → gate
+FAILs. Paired meta-test also asserts the audit-trail-log file produced
+by a recent push exists + lists the foreign-commit SHAs that were pulled
+in.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.71.</p>
+<p>Non-compliance is a release blocker regardless of context.</p>
+<h3 id="11484--working-tree-quiescence-rule-for-subagent-commits-user-mandate-2026-05-22">§11.4.84
+— Working-tree quiescence rule for subagent commits (User mandate,
+2026-05-22)</h3>
+<p><strong>Short tag:</strong> <code>working-tree quiescence</code>.</p>
+<p><strong>The mandate.</strong> No subagent commit may proceed while
+any concurrent mutation gate, paired-mutation experiment, or other
+in-flight mutation is live in the same checkout. Before
+<code>git add</code>, the committing agent MUST grep its own working
+tree for mutation markers (<code>MUTATED for paired</code>,
+<code>// always pass</code>, <code>return json.Marshal</code> shortcut
+paths, <code>// MUTATION</code> / <code># MUTATION</code> annotations,
+<code>_mutated_*</code> filename suffixes, etc.) and explicitly account
+for every modified file in the staging area. Any unexplained file in the
+staging area triggers ABORT.</p>
+<p><strong>Forensic anchor (verbatim user mandate,
+2026-05-22):</strong></p>
+<blockquote>
+<p>&quot;no subagent commit may proceed while any concurrent mutation gate is
+in flight in the same checkout. Before <code>git add</code>, the
+committing agent MUST <code>grep</code> its own working tree for
+mutation markers (<code>MUTATED for paired</code>,
+<code>// always pass</code>, <code>return json.Marshal</code> shortcut
+paths, etc.). Any unexplained file in the staging area triggers
+ABORT.&quot;</p>
+</blockquote>
+<p><strong>Lesson (forensic case study).</strong> A consuming project&#39;s
+logo-fix subagent (Herald commit <code>72e81ab</code>, 2026-05-21) ran
+in a checkout where a paired §1.1 mutation gate had temporarily
+introduced an <code>// always pass</code> shortcut into
+<code>commons_auth/middleware.go</code> (JWT-bypass mutation, intended
+to be reverted by the same gate). The subagent&#39;s <code>git add</code> +
+<code>git commit</code> swept the mutation residue into the same commit
+as the unrelated logo fix, and the resulting commit was pushed to all
+four mirrors before any other agent caught it. The fix (Herald
+<code>d5bd360</code>, &quot;SECURITY FIX: restore commons_auth/middleware.go
+JWT verify&quot;) landed within the hour, but the window during which
+production-equivalent binaries shipped with a bypassed JWT verify is a
+real security-defect window — small but non-zero — and is the canonical
+example of why this rule exists.</p>
+<p><strong>Operative rule.</strong></p>
+<ol type="1">
+<li>Subagent (and main-thread) commit flows MUST run a
+pre-<code>git add</code> quiescence check that:
+<ul>
+<li>Greps the working tree for mutation markers (canonical list above;
+the consuming project MAY extend with project-specific markers).</li>
+<li>Lists every modified / untracked / staged file and matches each one
+against the subagent&#39;s declared scope. Any file outside the declared
+scope → ABORT.</li>
+<li>Cross-checks <code>git status --porcelain</code> against the
+subagent&#39;s task description; unaccounted entries → ABORT.</li>
+</ul></li>
+<li>Any active mutation gate (paired-mutation experiment in progress,
+AVR/AVI mutation cycle, manual <code>// always pass</code> patch, etc.)
+MUST be serialised — the gate runs to completion (mutate → assert FAIL →
+restore → assert PASS) and the working tree is verifiably clean BEFORE
+any unrelated commit may proceed in the same checkout.</li>
+<li>Concurrent subagents working in the SAME checkout (single working
+tree, no <code>git worktree add</code>) MUST coordinate through a
+lockfile or marker file (e.g. <code>.git/MUTATION_IN_PROGRESS</code>) so
+a logo-fix subagent cannot race a JWT-mutation subagent. The
+constitution submodule&#39;s <code>scripts/quiescence_check.sh</code> (when
+implemented) is the universal lock helper.</li>
+<li>When parallel work is necessary, the §11.4.20 / §11.4.70
+subagent-driven mandate SHOULD be combined with
+<code>git worktree add</code> to give each subagent an isolated working
+tree — eliminates the cross-mutation race by construction.</li>
+<li>Post-commit, an automated <code>mutation-residue-scanner</code>
+(consuming project&#39;s <code>scripts/mutation_residue_audit.sh</code>)
+MUST run before push. Any commit containing a mutation marker → push
+BLOCKED, commit MUST be reverted or amended before mirrors are
+updated.</li>
+</ol>
+<p><strong>Composes with</strong> §1.1 (mutation-paired gates —
+quiescence rule protects the mutation cycle from concurrent
+contamination), §11.4.20 / §11.4.70 (subagent-driven-by-default —
+quiescence rule is what makes parallel subagent dispatch safe), §11.4.27
+(no-fakes-beyond-unit — a mutation residue swept into a commit IS a
+fake-pass surface in production), §11.4.10 (credentials handling — same
+class of &quot;do not let unrelated content leak into a commit&quot;), §107 (a
+security-bypass mutation that ships to production is the gravest §107
+PASS-bluff: tests pass against the mutated codebase, but the end user
+loses an entire security property), §11.4.71 (pre-push fetch +
+investigate — quiescence check is the pre-push companion).</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). Every
+project under this Constitution carries this rule.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.84.</p>
+<p>Non-compliance is a release blocker. No <code>--allow-residue</code>,
+<code>--skip-quiescence</code>, <code>--mutation-cleanup-later</code>
+flag exists. A mutation marker that lands in a tagged commit is a
+critical defect regardless of how briefly it persisted.</p>
+<hr />
+<h3 id="11488--background-push-mandate-commit-lock-release-immediately-after-commit-push-runs-detached-user-mandate-2026-05-26">§11.4.88
+— Background-push mandate: commit-lock release immediately after commit,
+push runs detached (User mandate, 2026-05-26)</h3>
+<p><strong>Forensic anchor — verbatim User mandate
+(2026-05-26):</strong></p>
+<blockquote>
+<p>&quot;Make sure all these pushes are being done ALWAYS in backgroubd in
+parallel with main work stream so we do not loose time waiting.
+Everything is commited anyway? If we can do this add this as mandatory
+rule / constraint that we must respect and follow ALWAYS! ... We MUST
+ensure that main work stream has always something to do, or wait for the
+results only when that is absolutely required! We have enormous amount
+of work in front of us, short deadlines and we MUST DELIVER!&quot;</p>
+</blockquote>
+<p><strong>Forensic incident.</strong> 2026-05-26 between 14:35Z and
+≥19:30Z (~5 hours observed), a single <code>commit_all.sh</code>
+invocation held its <code>.git/.commit_all.lock</code> flock the entire
+time — the COMMIT had succeeded within seconds at
+<code>63d307234ce</code>, but the synchronous <code>do_push</code> call
+kept the flock while <code>git push vasicdigital_gitlab</code> did a
+large initial-mirror upload. <strong>Every subsequent commit_all.sh
+invocation in that window was BLOCKED</strong> — 21 submodule pointer
+bumps + parent §11.4.87 propagation work + §KA Critical audio quality
+matrix artifacts all sat staged in the working tree waiting for the push
+to finish. This is the exact anti-pattern §11.4.87 (zero-idle) prohibits
+at the project-execution layer.</p>
+<p><strong>The mandate.</strong></p>
+<p><strong>(A) Flock release IMMEDIATELY after commit lands.</strong>
+Once <code>git commit</code> returns 0 (commit object recorded in the
+local repo), the <code>.git/.commit_all.lock</code> MUST be released
+BEFORE <code>do_push</code> is invoked. The commit is durable on local
+disk regardless of push outcome — there is no correctness reason to gate
+further local work on a remote-push round-trip.</p>
+<p><strong>(B) Push runs detached.</strong> After flock release, the
+push step is spawned via
+<code>nohup ./push_all.sh ... &gt; &lt;log&gt; 2&gt;&amp;1 &amp;</code>
+then <code>disown</code> so the orchestrator&#39;s exit does not propagate
+SIGTERM. The orchestrator&#39;s exit code reports COMMIT success, NOT push
+success (push success is logged separately and reconciled by §11.4.71
+fetch-before-edit on the next interactive turn).</p>
+<p><strong>(C) Push concurrency control: per-remote serialization,
+multi-remote parallelism.</strong> <code>push_all.sh</code> MUST acquire
+a per-remote flock (<code>.git/.push.&lt;remote&gt;.lock</code>) so two
+concurrent invocations targeting the same remote serialize (avoid
+push-race / non-fast-forward), but invocations targeting DIFFERENT
+remotes run in parallel. This converts the prior 5-hour serial-stall
+pattern into a multi-stream pipeline where the operator&#39;s main work
+stream never blocks on the slowest mirror.</p>
+<p><strong>(D) Failure surface.</strong> Backgrounded push failures land
+in
+<code>qa-results/push_failures/&lt;timestamp&gt;_&lt;remote&gt;.log</code>.
+The next interactive autonomous-loop tick MUST check that directory (per
+§11.4.87(A) &quot;no external dependency is in-flight&quot; check) and surface
+failures — re-push attempted automatically, or operator notified if
+auth/quota issue. Silent push-failure is a §11.4 PASS-bluff at the
+distribution layer.</p>
+<p><strong>(E) Synchronous-push escape.</strong> An explicit
+<code>--sync-push</code> CLI flag on <code>commit_all.sh</code>
+preserves the legacy synchronous behaviour for
+<code>--force-with-lease</code> paths (per §11.4.41 force-push
+merge-first audit) where the push outcome MUST gate the next step. This
+is the ONLY escape — without it, every push is backgrounded.</p>
+<p><strong>Composes with</strong> §2.1 (multi-upstream push norm —
+§11.4.88 makes it non-blocking), §9.2 (data safety — backgrounded push
+still uses hardlinked-backup pre-op), §11.4.41 (force-push merge-first —
+uses <code>--sync-push</code> escape), §11.4.42 (iteration discipline —
+endless-loop ticks no longer waste budget on remote-network latency),
+§11.4.71 (fetch-before-push merge-first — applies before background push
+spawns), §11.4.87 (endless-loop / zero-idle — §11.4.88 is the
+implementation seam that makes §11.4.87(B) genuinely zero-idle for the
+dominant blocker class).</p>
+<p><strong>Pre-build gate</strong>
+<code>CM-COVENANT-114-88-PROPAGATION</code> enforces this anchor literal
+in every CLAUDE.md / AGENTS.md / QWEN.md across the canonical fleet.
+Pre-build gate <code>CM-BACKGROUND-PUSH-WIRED</code> verifies
+<code>commit_all.sh</code> releases flock before <code>do_push</code>
+AND spawns push via <code>nohup ... &amp;</code> AND
+<code>push_all.sh</code> acquires per-remote flock. Paired §1.1
+meta-test mutations strip the load-bearing literals → gates FAIL.</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.88
+in the HelixConstitution submodule
+(<code>git@github.com:HelixDevelopment/HelixConstitution.git</code>).</p>
+<p><strong>Non-compliance is a release blocker.</strong> Synchronous
+push (without <code>--sync-push</code> flag) is severity-equivalent to a
+§11.4 PASS-bluff at the project-execution layer. No escape hatch beyond
+<code>--sync-push</code> for §11.4.41 force-push events.</p>
+<hr />
+<h3 id="114113--absolute-no-force-push--merge-onto-latest-main-mandate-user-mandate-2026-06-03">§11.4.113
+— Absolute no-force-push + merge-onto-latest-main mandate (User mandate,
+2026-06-03)</h3>
+<p><strong>Short tag:</strong> <code>absolute-no-force-push</code>.</p>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-06-03):</strong></p>
+<blockquote>
+<p>&quot;Any force-push is strictly forbidden! We must for every Submodule
+take as a base latest commit on Submodule&#39;s main (or master) branch,
+then on top of it carefully to merge all changes that have to be pushed!
+Once all merging is carefully done we perform commit and push to all
+Submodule&#39;s upstreams!&quot;</p>
+</blockquote>
+<p><strong>The mandate — force-push is STRICTLY FORBIDDEN, with NO
+exception.</strong> Any force-push — <code>git push --force</code>,
+<code>git push --force-with-lease</code>,
+<code>git push +&lt;ref&gt;</code>, or any history-rewriting operation
+that overwrites a remote ref non-fast-forward — is forbidden against
+every repository this Constitution governs (every consuming project&#39;s
+main repo, this constitution submodule, every owned submodule, every
+nested submodule, every upstream of each). There is no escape hatch, no
+operator-approval path, no &quot;after a merge-first audit&quot; path. The
+merge-onto-latest-main procedure below is ALWAYS available, so a
+force-push is NEVER necessary; eliminating the need eliminates the
+operation.</p>
+<p><strong>The mandated 6-step integration procedure</strong> (for every
+repo/submodule whose local has commits to publish OR whose mirrors have
+diverged):</p>
+<ol type="1">
+<li><strong>Fetch all remotes</strong> —
+<code>git fetch --all --prune --tags</code> against <code>origin</code>
++ every configured upstream; capture the output as evidence.</li>
+<li><strong>Set the base to the LATEST commit on the canonical
+<code>main</code>/<code>master</code> branch</strong> — the
+most-advanced mirror tip across all upstreams. The integration target is
+that tip, never a stale local branch point.</li>
+<li><strong>Carefully MERGE every change that must be published on top
+of that base</strong> — a union merge that preserves BOTH sides (local
+commits AND every remote-side commit). NEVER <code>-s ours</code> (it
+silently discards the remote side), NEVER a
+rebase/reset/<code>--allow-unrelated-histories</code> that could drop
+commits (per §9 no-commit-loss). The merge commit MUST descend from
+every mirror tip so that every subsequent push is a clean
+fast-forward.</li>
+<li><strong>Resolve every conflict carefully</strong> so nothing is
+broken, lost, or corrupted on either side — no conflict markers anywhere
+(<code>grep -rn &#39;^&lt;&lt;&lt;&lt;&lt;&lt;&lt; \|^=======$\|^&gt;&gt;&gt;&gt;&gt;&gt;&gt; &#39;</code>
+returns empty across governance + source + test files), no file silently
+dropped, every previously-passing gate/test still passes on the
+integrated tree (per §11.4.4 + §11.4.40), every captured-evidence
+artefact still validates.</li>
+<li><strong>Commit the merge</strong> — stage only the intended files
+(NEVER <code>git add -A</code> inside a submodule with untracked build
+content per §11.4.30), commit the carefully-resolved merge.</li>
+<li><strong>Push the result to ALL upstreams</strong> — each push is a
+fast-forward because the merge commit descends from every mirror tip, so
+NO force is ever needed. If an upstream still reports non-fast-forward
+(a sibling landed work between step 1 and the push), do NOT force —
+return to step 1 for that upstream, fetch its new tip, MERGE it (union,
+preserve both), re-validate step 4, and re-push.</li>
+</ol>
+<p><strong>Tightens §11.4.41 / §11.4.71 / §9.2 / CONST-043 — force-push
+escape hatch REMOVED.</strong> §11.4.41 (Pre-Force-Push Merge-First
+Mandate), §11.4.71 (Pre-Push Fetch + Investigate + Integrate), §9.2
+(Force-push requires explicit user authorization), and CONST-043
+previously PERMITTED a force-push after a merge-first pipeline +
+per-operation operator approval. §11.4.113 supersedes that permitting
+stance: even WITH operator approval, even AFTER a clean merge-first
+audit, a force-push is forbidden — because the merge-onto-latest-main
+path in this clause is always available and always sufficient, force is
+never necessary and therefore never authorised. Those clauses&#39;
+merge-first/fetch-first machinery REMAINS in force as the integration
+discipline; only their terminal &quot;...then force-push&quot; step is struck.
+§9.2&#39;s destructive-operation §9 backup discipline still applies to any
+non-push history operation, but a history-rewriting <em>push</em> is
+simply not performed.</p>
+<p><strong>No escape hatch.</strong> No <code>--force</code>, no
+<code>--force-with-lease</code>, no <code>+&lt;ref&gt;</code> push, no
+<code>--no-verify</code> to slip a forced ref past a hook, no &quot;operator
+authorised the force-push&quot; path, no &quot;lease semantics unavailable so
+plain --force is OK&quot; path. A force-push that lands on any remote is a
+critical defect regardless of how briefly it persisted,
+severity-equivalent to a §11.4 PASS-bluff at the data-safety layer (per
+§9).</p>
+<p><strong>Classification:</strong> universal (§11.4.17) — an
+absolute-no-force-push + merge-onto-latest-main integration discipline
+is platform-neutral and reusable across every repository in every
+consuming project; nothing here references a particular project, vendor,
+hardware, or region.</p>
+<p><strong>Composes with</strong> §2.1 (multi-upstream push is the norm
+— step 6 fans out to all), §9 / §9.2 (absolute data safety — §11.4.113
+is the no-loss push discipline that makes force-push unnecessary),
+§11.4.4 (test-interrupt + clean-baseline retest — step 4 audit), §11.4.6
+(no-guessing — remote state is not knowable without the step-1 fetch),
+§11.4.26 (constitution-submodule update workflow — its
+conflict-resolution step is this procedure), §11.4.37 (fetch-before-edit
+— step 1 generalised to fetch-before-push), §11.4.40 (full-suite retest
+authority for the integrated tree), §11.4.41 (force-push merge-first —
+TIGHTENED: merge-first stays, the force-push step is removed), §11.4.71
+(pre-push fetch + integrate — TIGHTENED the same way), §11.4.88
+(background-push — the detached push still follows this
+fast-forward-only discipline), CONST-043 (per-operation authorization —
+TIGHTENED: no force-push is authorisable).</p>
+<p><strong>Propagation.</strong> Propagation gate
+<code>CM-COVENANT-114-113-PROPAGATION</code> enforces the literal anchor
+<code>11.4.113</code> across the consumer fleet; paired §1.1 meta-test
+mutation strips the literal → the gate FAILs. Recommended per-family
+gate <code>CM-NO-FORCE-PUSH-ABSOLUTE</code> (scans tracked scripts +
+hooks for any <code>push --force</code> /
+<code>push --force-with-lease</code> / <code>push +&lt;ref&gt;</code>
+invocation and rejects it; a §11.4.109-class PreToolUse guard blocks the
+force-push command class at the tool-call boundary); paired §1.1
+mutation injects a <code>git push --force</code> into a tracked script →
+the gate FAILs. (Gate-code implementation lands as a separate work item;
+this anchor defines the contract.)</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.113
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--force</code>, <code>--force-with-lease</code>,
+<code>--allow-force-push</code>, <code>--force-push-authorised</code>,
+<code>--skip-merge-onto-main</code> flag exists.</p>
+<hr />
+<h3 id="114121--no-commit-while-build-writes-tracked-artifacts-mandate-118-dev-remediation-2026-06-03">§11.4.121
+— No-commit-while-build-writes-tracked-artifacts mandate (1.1.8-dev
+remediation, 2026-06-03)</h3>
+<p><strong>Short tag:</strong>
+<code>no-commit-during-artifact-write</code>.</p>
+<p><strong>Forensic anchor (genericised, 2026-06-03).</strong> The build
+pipeline&#39;s per-component build steps write produced artifacts
+(forked-app APKs) INTO tracked directories that are under version
+control (<code>prebuilt_apps/</code>). Running <code>git add -A</code> /
+a commit while those steps are mid-write stages a PARTIAL or stale
+artifact — a race between the build writing the file and git reading it
+— so the commit captures a half-written or pre-rebuild artifact. The
+remediation deferred the commit to BUILD-COMPLETION: the tree is
+quiescent (no build step writing tracked files) AND the freshly-built
+artifacts are captured whole (no stale prebuilt in git). This is the
+artifact-write analogue of §11.4.84 (no commit while a mutation gate is
+in flight) at the build-output layer.</p>
+<p><strong>The mandate.</strong> A commit (especially
+<code>git add -A</code> / any broad stage) MUST NOT run while a build /
+packaging / generation step is actively writing artifacts INTO tracked
+directories. Doing so races the writer and stages a partial or stale
+artifact — the commit captures bytes that are mid-write or pre-rebuild,
+a §11.4.108 SOURCE→ARTIFACT integrity failure landed in version control.
+The commit MUST be deferred until the build step that writes tracked
+artifacts has COMPLETED, so that: (1) the working tree is quiescent at
+the artifact layer (no step writing a tracked file); (2) the committed
+artifacts are the FRESH, whole outputs of the completed build (no stale
+pre-rebuild artifact, no half-written file). Before committing tracked
+build outputs, the committer MUST verify the writing step finished
+(process exit, completion marker, or per-artifact mtime ≥ build-start) —
+a build still in flight that writes tracked dirs is a HOLD on the
+commit, not a race to win.</p>
+<p><strong>Composition with §11.4.84.</strong> §11.4.84 forbids
+committing while a mutation gate is in flight in the checkout (mutation
+residue). §11.4.121 is the BUILD-OUTPUT analogue: forbid committing
+while a build is in flight WRITING TRACKED ARTIFACTS (partial/stale
+artifact residue). Both close the same class of defect — a commit
+captures transient, non-final tree state — at two different
+write-sources (mutation experiments vs build outputs). Where build
+outputs land OUTSIDE version control (gitignored <code>out/</code> /
+<code>dist/</code>), the race does not apply; the mandate binds
+specifically to build steps writing into TRACKED directories.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> &quot;The build probably
+finished&quot; is not &quot;the build finished&quot; — verify with a completion signal
+(exit code / marker / mtime), not an assumption, before committing
+tracked artifacts. Committing source changes that DON&#39;T touch the
+build&#39;s tracked-artifact directories is fine mid-build (those files are
+not being written by the build); the hold applies only to the tracked
+dirs the in-flight build writes.</p>
+<p><strong>Classification:</strong> universal (§11.4.17) — deferring
+commit until a tracked-artifact-writing build completes is a
+platform-neutral commit-integrity discipline reusable by ANY project
+whose build writes produced artifacts into version-controlled
+directories; the consuming project supplies which build steps write
+which tracked directories and its completion-signal mechanism per
+§11.4.35. The PROJECT-SPECIFIC instance (which tracked directory — e.g.
+a prebuilt-apps directory — and which build steps write it) is recorded
+in the consuming project&#39;s own governance per §11.4.35.</p>
+<p><strong>Composes with</strong> §11.4.6 (no-guessing — verify build
+completion, never assume), §11.4.30 (no-versioned-build-artifacts —
+artifacts that ARE legitimately tracked, like signed prebuilts, are the
+exact case this mandate protects from partial commit; gitignored build
+outputs are exempt), §11.4.58 / §11.4.103 (parallel-development — the
+commit/merge stage is serialized AFTER the build stage for this reason),
+§11.4.84 (working-tree quiescence — §11.4.121 is its build-output
+analogue), §11.4.88 (background-push — commit timing is decoupled from
+push, but the commit itself still waits for artifact-write completion),
+§11.4.108 (four-layer fix-verification — a partial/stale committed
+artifact is the ARTIFACT-layer integrity failure this prevents from
+entering version control), §11.4.96 (safe-parallel-work-with-long-build
+— committing tracked build outputs mid-build is an UNSAFE operation in
+its catalogue).</p>
+<p><strong>Propagation.</strong> Propagation gate
+<code>CM-COVENANT-114-121-PROPAGATION</code> enforces the literal anchor
+<code>11.4.121</code> across the consumer fleet; paired §1.1 meta-test
+mutation strips the literal → the gate FAILs. Recommended per-family
+gate <code>CM-NO-COMMIT-DURING-ARTIFACT-WRITE</code> (the commit wrapper
+refuses to stage tracked build-artifact directories while a build step
+writing them is in flight — checks a build-in-progress lock / completion
+marker); paired §1.1 mutation removes the build-in-flight check from the
+commit wrapper → the gate FAILs. (Gate-code implementation lands as a
+separate work item; this anchor defines the contract.)</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.121
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--commit-during-build</code>,
+<code>--stage-partial-artifact-OK</code>,
+<code>--assume-build-finished</code>,
+<code>--skip-build-completion-check</code> flag exists.</p>
+<hr />
+<p><strong>§11.4.179 — Corruption-isolated parallel git streams
+(own-.git independent clones, not shared-common-dir worktrees) (User
+mandate, 2026-07-04).</strong> When corruption-isolation is a
+requirement, parallel git work streams MUST each be an isolated
+repository with its OWN <code>.git</code> (own object store, own index,
+own lock namespace), NOT <code>git worktree</code> checkouts sharing one
+common <code>.git</code>. A shared common-dir is a single point of
+failure: one stale <code>index.lock</code> /
+<code>.commit_all.lock</code> / <code>.push_all.lock</code> freezes
+EVERY stream at once (the observed 9-h all-track freeze, 2026-07-04),
+and one corrupted object store loses every stream. Each stream&#39;s
+<code>git rev-parse --git-common-dir</code> MUST resolve INSIDE the
+stream&#39;s own tree; a common-dir resolving to a shared parent is a
+violation. Where CoW/reflink disk-feasibility is the constraint, use the
+§11.4.167 reflink-clone-with-own-<code>.git</code> path — a
+btrfs/XFS/ZFS/APFS reflink shares extents on disk while keeping a
+per-stream <code>.git</code>, so isolation and disk-feasibility are BOTH
+satisfied. Honest boundary (§11.4.6): own-<code>.git</code> isolation
+contains lock/corruption blast radius — it does NOT remove the need for
+per-repo stale-lock reaping (§11.4.180) nor for ff-only no-force
+integration (§11.4.113). Composes §11.4.167 (feature work-stream
+lifecycle / CoW clone) / §11.4.119 (single-resource-owner) /
+<strong>§11.4.176</strong> (the multi-track work-division +
+exactly-once-claim + device-lock arbitration anchor) / §9.2 (data
+safety) / §11.4.58 (parallel PWU). Classification: universal (§11.4.17)
+— the consuming project supplies its reflink mechanism + clone layout
+per §11.4.35. Propagation gate
+<code>CM-COVENANT-114-179-PROPAGATION</code> (literal
+<code>11.4.179</code>) + recommended gate
+<code>CM-GIT-STREAMS-OWN-COMMON-DIR</code> (every registered parallel
+stream&#39;s <code>git rev-parse --git-common-dir</code> resolves inside its
+own tree, never a shared parent) + paired §1.1 meta-test mutation
+(register a stream whose common-dir points to a shared parent → gate
+FAILs; strip the literal → propagation gate FAILs; gate-code = separate
+work item). <strong>Canonical authority:</strong> constitution submodule
+<a href="Constitution.md"><code>Constitution.md</code></a> §11.4.179.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--shared-common-git</code>,
+<code>--worktree-when-isolation-required</code>,
+<code>--skip-git-isolation</code> flag.</p>
+<p><strong>§11.4.180 — Commit/push (single-writer) wrappers MUST
+auto-reap provably-stale locks before acquiring (User mandate,
+2026-07-04).</strong> Every commit / push / single-writer wrapper MUST,
+before acquiring its own lock, auto-reap any PROVABLY-stale git lock — a
+lock whose recorded holder PID is DEAD (<code>kill -0</code> fails), OR
+(no PID recorded) older than a defined threshold AND with no live
+wrapper/git process holding that repo. The reap covers the wrapper&#39;s own
+lock plus the git-internal existence-based locks
+(<code>index.lock</code>, <code>HEAD.lock</code>,
+<code>refs/**/*.lock</code>) that git does NOT auto-release on holder
+death. It MUST NEVER remove a lock whose holder is ALIVE (removing a
+live-held lock corrupts a concurrent writer — §9.2). Each reap decision
+(REAPED / KEPT + reason) is logged as captured evidence (§11.4.6 —
+liveness PROVEN via <code>kill -0</code>, never assumed). A wrapper that
+blocks indefinitely on a dead-holder lock (the observed 9-h freeze,
+2026-07-04) is a violation. Honest boundary (§11.4.6): reaping clears
+dead-holder deadlock — it does NOT substitute for the
+own-<code>.git</code> isolation of §11.4.179 (which shrinks the blast
+radius from all-streams to one). Composes §11.4.84 (working-tree
+quiescence) / §11.4.88 (commit-lock-release-immediately + detached push)
+/ §11.4.6 (no-guessing) / §9.2 (data safety) / §11.4.116 (evidence
+stream) / §11.4.179 (own-<code>.git</code> isolation companion).
+Classification: universal (§11.4.17) — the consuming project supplies
+its concrete wrapper + reap helper + stale-age threshold per §11.4.35.
+Propagation gate <code>CM-COVENANT-114-180-PROPAGATION</code> (literal
+<code>11.4.180</code>) + recommended gate
+<code>CM-WRAPPER-STALE-LOCK-AUTO-REAP</code> (every single-writer
+wrapper reaps provably-stale locks before acquiring, never removes a
+live-held lock, and logs each REAPED/KEPT decision) + paired §1.1
+meta-test mutation (make the reaper remove a live-held lock, OR skip the
+reap-before-acquire step → gate FAILs; strip the literal → propagation
+gate FAILs; gate-code = separate work item). <strong>Canonical
+authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.180.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-stale-lock-reap</code>,
+<code>--force-remove-live-lock</code>,
+<code>--block-on-dead-holder</code> flag.</p>
+<p><strong>§11.4.181 — Consistent controlled feature-branch naming: one
+feature/logic-group ⇒ exactly ONE canonical branch name across the main
+repo + all owned submodules (User mandate, 2026-07-05).</strong>
+<strong>Forensic anchor — verbatim user mandate (2026-07-05):</strong>
+&quot;System MUST pay attention not to create multiple feat. branches with
+different names for one same feature or group of workable items /
+features! Naming MUST BE consistent and carefully controlled! This MUST
+BE part of the constitution too and carefully risk-free handled! No
+mistakes can happen! There MUST NOT be any false results,
+mis-alignments, inconsistency or bluff of any kind anywhere!&quot; One
+feature / logical group of workable items MUST map to EXACTLY ONE
+canonical branch name, used IDENTICALLY on the main repo AND on every
+owned submodule the group touches — NEVER two (or more)
+differently-named branches for the same feature/group, NEVER a per-repo
+naming drift. The mandate (ALL hold): (1) <strong>Single canonical name
+per group.</strong> For each feature/logical-group a single canonical
+branch name is minted ONCE (per the §11.4.167 D scheme:
+<code>feature/&lt;slug&gt;</code> on the branch axis +
+<code>&lt;prefix&gt;-&lt;base&gt;-feat-&lt;slug&gt;</code> on the tag
+axis, <code>&lt;slug&gt;</code> lowercase snake/kebab per §11.4.29).
+That exact string is the branch name on the main repo AND on every
+touched owned submodule; an untouched submodule stays on its base branch
+(it is NOT force-branched), but any submodule that IS branched for this
+group MUST use the identical canonical name. (2) <strong>Single source
+of truth for branch names — look up, never re-invent.</strong> The
+canonical name is recorded ONCE in a tracked registry and every
+subsequent branch creation for that group LOOKS IT UP rather than
+re-deriving/re-typing it. Bind this to the §11.4.176 exactly-once claim
+registry / the §11.4.93 workable-items DB
+<code>logic_group → branch</code> mapping (a <code>branch_name</code>
+field on the group/claim record): the claim that reserves a
+feature/group ALSO reserves its canonical branch name, so a second
+stream working the same group reads the same name instead of minting a
+divergent one. Creating a branch whose name does NOT match the
+registry&#39;s canonical name for that group — OR minting a SECOND canonical
+name for a group that already has one — is a §11.4.181 violation (a
+§11.4.6 no-guessing violation: the branch name is a looked-up FACT,
+never an ad-hoc re-invention). (3) <strong>Mechanical enforcement
+(§11.4.75).</strong> A pre-build/commit gate
+<code>CM-BRANCH-NAME-CONSISTENCY</code> verifies that every live feature
+branch (main repo + each owned submodule) maps to a registered
+feature/logical-group AND carries the identical registered canonical
+name across the main repo and every touched submodule; it FAILs on (a)
+an unregistered feature-branch name, (b) two differently-named branches
+bound to the same group, (c) a submodule branch whose name diverges from
+the group&#39;s main-repo canonical name. Paired §1.1 mutation: register a
+single group under two divergent branch names (or point a submodule
+branch at a name ≠ the group&#39;s canonical name) → the gate FAILs; restore
+→ PASS. (4) <strong>Risk-free reconciliation — no force, no loss (§9.2 /
+§11.4.113 / §11.4.84).</strong> When a mis-named / duplicate branch is
+discovered, reconciling it to the canonical name MUST preserve every
+commit: create/checkout the canonical branch at the merge-base, MERGE
+the mis-named branch&#39;s commits onto it (union, no
+<code>-s ours</code>/rebase/reset that drops commits per §11.4.113 step
+3), verify no commit lost
+(<code>git log &lt;canonical&gt;..&lt;misnamed&gt;</code> empty after
+merge) + no conflict markers, push fast-forward to all upstreams (NEVER
+force-push — the canonical branch descends from the mis-named tip), THEN
+retire the mis-named branch only after the merge is confirmed on all
+mirrors; delete-before-merge is forbidden. Honest boundary (§11.4.6):
+&quot;the branches are probably the same feature&quot; is NOT a determination —
+bind the branch to a group via the registry (claim id / logic-group id),
+never guess two branches are &quot;the same feature&quot; without the registry
+record. Classification: universal (§11.4.17) — a platform-neutral
+naming-discipline reusable across any multi-repo/multi-submodule
+project; the consuming project supplies its concrete registry (claim
+registry / workable-items DB), branch/tag scheme, and owned-submodule
+set per §11.4.35. Composes §11.4.167 (feature work-stream lifecycle / D
+branch+tag scheme) / §11.4.176 (exactly-once claim registry — the
+branch-name reservation rides the claim) / §11.4.178 (track-qualified
+identity — a track-qualified session/lock key is distinct from the
+shared cross-track feature-branch name; both hold) / §11.4.179
+(own-<code>.git</code> streams still share ONE canonical feature-branch
+name across their independent repos) / §11.4.28 (owned-submodule set) /
+§11.4.29 (lowercase snake/kebab slug) / §11.4.93 (workable-items DB
+<code>logic_group</code>) / §11.4.113 (no-force merge-onto-latest) /
+§11.4.84 (quiescence) / §9.2 (no-loss) / §11.4.6 (branch name is a
+looked-up fact) / §11.4.75 (mechanical enforcement). Propagation gate
+<code>CM-COVENANT-114-181-PROPAGATION</code> (literal
+<code>11.4.181</code> across the consumer fleet) + recommended gate
+<code>CM-BRANCH-NAME-CONSISTENCY</code> + paired §1.1 meta-test mutation
+(register one group under two divergent branch names → gate FAILs; strip
+the literal → propagation gate FAILs; gate-code = separate work item).
+<strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.181.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--allow-divergent-branch-names</code>,
+<code>--skip-branch-registry</code>,
+<code>--rename-branch-freely</code>,
+<code>--per-repo-branch-name-OK</code>,
+<code>--two-names-one-feature-OK</code> flag.</p>
+<p><strong>§11.4.188 — Regular main→feature merge cadence: every track /
+feature-branch MUST FREQUENTLY merge canonical <code>main</code> into
+itself DURING the work, never only at the end (User mandate,
+2026-07-09).</strong> Compact summary: every long-lived feature branch
+AND every parallel-development track (§11.4.58/§11.4.103 parallel
+streams; §11.4.167 feature work-streams; §11.4.176/§11.4.178/§11.4.179
+multi-track) MUST regularly <code>git merge origin/main</code> (the
+canonical trunk/master) INTO its own branch THROUGHOUT the work — NOT
+only at the end — so no branch ever drifts far from main and the
+eventual back-merge stays a small, low-conflict, low-risk operation.
+GENERALISES §11.4.167(D) (trunk-merged-INTO-every-BIG-feature-STREAM, at
+minimum after every trunk tag / daily, <code>git merge</code> never
+rebase, stale-if-not-synced) from the big-work-item feature-stream
+lifecycle to EVERY feature branch on EVERY track — a small/medium
+feature branch, or any <code>git worktree</code>/CoW track that never
+earned a full §11.4.167 stream, is STILL bound to this cadence (the
+§11.4.167(D) discipline promoted to the general standalone rule;
+§11.4.167(D) remains its big-item specialisation). (1)
+<strong>WHAT</strong> — fetch the latest canonical
+<code>main</code>/<code>master</code> and merge it INTO the working
+branch, keeping the branch continuously close to trunk; a branch that
+has NOT integrated trunk within the cadence is flagged STALE (the exact
+long-lived-branch conflict-storm + integration-risk anti-pattern this
+forbids). (2) <strong>CADENCE</strong> — merge trunk in FREQUENTLY:
+after EVERY trunk tag, at minimum DAILY while the branch is live, AND
+before starting any significant new chunk of work on the branch — MANY
+SMALL merges, never one big deferred end-of-branch merge (small frequent
+merges minimise the divergence + conflict surface). (3) <strong>HOW
+(safe-by-construction)</strong> — MERGE, NEVER rebase a
+shared/tagged/pushed branch (no commit-loss, no history rewrite —
+§9/§11.4.113); FETCH-FIRST every remote before the merge
+(§11.4.37/§11.4.71 — remote state is unknowable without a fetch,
+§11.4.6); take a §9.2 hardlinked pre-op backup before any LARGE /
+conflict-heavy / risky merge; resolve every conflict CAREFULLY — ZERO
+conflict markers committed, ZERO file silently dropped, union of both
+sides preserved (§11.4.41 step 3 / §9 no-loss); integrate ONLY when the
+branch is QUIESCENT (§11.4.84 — no in-flight mutation gate, no
+unaccounted uncommitted work); prefer running the merge + its
+verification in the BACKGROUND parallel to the main stream so it never
+stalls other work (§11.4.88/§11.4.89/§11.4.103); NEVER force-push the
+merged result (§11.4.113 — the merged branch fast-forwards its own
+mirrors). (4) <strong>CONSISTENCY + ANTI-BLUFF</strong> — after EVERY
+merge the branch MUST be PROVEN consistent, never ASSUMED: a pre-build
+smoke gate runs post-merge (§11.4.42 step-3 smoke) and is GREEN, a
+<code>git grep</code> for conflict markers
+(<code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> / <code>=======</code> /
+<code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>) returns EMPTY, and no commit
+present pre-merge on either side is lost — captured evidence per
+§11.4.5/§11.4.69; a merge claimed &quot;clean&quot; without the post-merge smoke +
+marker-scan + no-lost-commit check is a §11.4/§11.4.1 bluff at the
+integration layer. (5) <strong>HONEST BOUNDARY (§11.4.6)</strong> —
+regular trunk-integration keeps the branch MERGEABLE + low-conflict; it
+does NOT by itself prove the branch&#39;s own work is correct (each change
+still crosses §11.4.108 runtime-signature + §11.4.40 retest), and it is
+NOT the approval-gated back-merge TO trunk (that stays
+§11.4.167(I)/§11.4.40/§11.4.41 no-merge-until-approved). Classification:
+universal (§11.4.17) — the consuming project supplies its
+canonical-trunk ref name, cadence unit, post-merge smoke-gate command,
+and per-track worktree/CoW mechanism per §11.4.35. Composes
+§9/§9.2/§11.4.6/§11.4.17/§11.4.37/§11.4.41/§11.4.42/§11.4.71/§11.4.84/§11.4.88/§11.4.89/§11.4.103/§11.4.113/§11.4.167/§11.4.176/§11.4.178/§11.4.179/§11.4.181.
+Propagation gate <code>CM-COVENANT-114-188-PROPAGATION</code> (literal
+<code>11.4.188</code>) + recommended gate
+<code>CM-REGULAR-MAIN-MERGE-INTO-FEATURE</code> (every live feature
+branch / track has integrated the canonical trunk within the declared
+cadence; its last integration is a real <code>git merge</code> not a
+rebase; the post-merge smoke + zero-conflict-marker + no-lost-commit
+checks passed) + paired §1.1 mutation (let a live branch go stale past
+the cadence, OR record a rebase of a shared branch in place of a merge,
+OR commit a conflict marker → the gate FAILs; gate-code = separate work
+item). <strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.188.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-main-merge</code>, <code>--merge-only-at-end</code>,
+<code>--rebase-shared-branch</code>, <code>--defer-trunk-sync</code>,
+<code>--no-post-merge-smoke</code>,
+<code>--force-push-after-merge</code>,
+<code>--big-items-only-trunk-sync</code> flag.</p>
+<h3 id="114195--branch-structure-governance-taxonomy--merge-after-live-qa--flavorproduct-non-merge-user-mandate-2026-07-14">§11.4.195
+— Branch-structure governance: taxonomy + merge-after-live-QA +
+flavor/product non-merge (User mandate, 2026-07-14)</h3>
+<p><strong>Forensic anchor — verbatim operator rules
+(2026-07-14):</strong></p>
+<blockquote>
+<ol type="1">
+<li>Branch taxonomy: <code>feat/&lt;NAME_OF_FEATURE&gt;</code>,
+<code>product/&lt;NAME_OF_PRODUCT&gt;</code>,
+<code>flavor/&lt;NAME_OF_FLAVOR&gt;</code> (extends §11.4.181 /
+§11.4.167(D)).</li>
+<li>Tracks on FEATURE branches or <code>main</code> MUST — after full
+confirmation + validation + verification + full LIVE MANUAL TESTING
+(§11.4.185) — MERGE their work to <code>main</code> COMPLETELY (all
+submodules + main repo), ff-only, NEVER force-push (§11.4.113), no
+commit lost (§9.2) (extends §11.4.167(I) / §11.4.188).</li>
+<li>Tracks with an entirely-new FLAVOR/PRODUCT do ALL work on a flavor
+branch AND/OR product branch (both may exist) — this product-line work
+does NOT merge to <code>main</code> the same way.</li>
+<li>Commit + push ALL branches to ALL upstreams (§2.1), ff-only.</li>
+</ol>
+</blockquote>
+<p>Every controlled branch in a governed repository MUST belong to one
+of THREE canonical taxonomy classes, and each class carries a distinct
+integration lifecycle:</p>
+<p><strong>(A) Taxonomy (extends §11.4.181 / §11.4.167(D)).</strong> A
+branch&#39;s PREFIX declares its class and its lifecycle:</p>
+<table>
+<thead>
+<tr>
+<th>Prefix</th>
+<th>Class</th>
+<th>Integration lifecycle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>feat/&lt;NAME_OF_FEATURE&gt;</code></td>
+<td>FEATURE</td>
+<td>merges to <code>main</code> after full live-manual-QA (clause
+B)</td>
+</tr>
+<tr>
+<td><code>product/&lt;NAME_OF_PRODUCT&gt;</code></td>
+<td>PRODUCT line</td>
+<td>does NOT merge to <code>main</code> the standard way (clause C)</td>
+</tr>
+<tr>
+<td><code>flavor/&lt;NAME_OF_FLAVOR&gt;</code></td>
+<td>FLAVOR line</td>
+<td>does NOT merge to <code>main</code> the standard way (clause C)</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>&lt;NAME_*&gt;</code> slug is lowercase snake/kebab
+(§11.4.29). The canonical branch NAME for a feature / logical group is
+minted ONCE and used IDENTICALLY across the main repo AND every touched
+owned submodule (§11.4.181) — recorded once in the §11.4.176
+exactly-once claim registry / the §11.4.93 workable-items
+<code>logic_group → branch</code> mapping and LOOKED UP, never
+re-invented (§11.4.6). An untouched submodule stays on its base branch.
+The prefix STRINGS above are the operator-canonical form; a project
+already using a different feature-prefix convention (e.g.
+<code>feature/…</code>) is compliant so long as that convention is the
+ONE canonical name for the group per §11.4.181 — reconciling an
+inconsistent set of names is the §11.4.181 risk-free
+MERGE-onto-canonical path (ff-only, no commit lost, NEVER a rename that
+drops commits), never a silent rename (§11.4.6).</p>
+<p><strong>(B) FEATURE / main tracks —
+MERGE-TO-MAIN-AFTER-LIVE-QA.</strong> A track working on a
+<code>feat/*</code> branch (or on <code>main</code> directly) MUST,
+before merging its work to <code>main</code>, satisfy IN ORDER: full
+confirmation + validation + verification (automated four-layer per
+§11.4.4(b) + §11.4.40 full-suite retest) THEN full <strong>LIVE MANUAL
+TESTING</strong> by the QA team (§11.4.185 — the FINAL human sufficiency
+gate; automated GREEN is necessary but NOT sufficient). Only after
+§11.4.185 confirmation may the merge proceed, and it MUST be COMPLETE —
+the main repo AND every touched owned submodule — integrated
+<strong>ff-only</strong> onto the latest <code>main</code> (§11.4.113
+merge-onto-latest-main), <strong>NEVER force-push</strong> (§11.4.113),
+with <strong>NO commit lost / NO history rewrite</strong> (§9.2 /
+§11.4.41 step 3: union, zero conflict markers, zero dropped files),
+pushed to <strong>ALL upstreams</strong> (§2.1, ff-only). This is
+§11.4.167(I) (no-merge-until-approved) + §11.4.188 (regular
+trunk-integration keeps the branch mergeable) — §11.4.195 binds the
+§11.4.185 live-manual-QA gate as an explicit precondition of the
+approval-gated back-merge.</p>
+<p><strong>(C) FLAVOR / PRODUCT lines —
+DO-NOT-MERGE-TO-MAIN-THE-SAME-WAY.</strong> A track producing an
+ENTIRELY-NEW flavor and/or product line (a distinct downstream product,
+not a feature destined for the trunk) does ALL its work on a
+<code>product/&lt;NAME&gt;</code> AND/OR
+<code>flavor/&lt;NAME&gt;</code> branch (BOTH may exist for one line — a
+product line may carry a product branch AND a flavor branch
+simultaneously). This product-line work does NOT flow back into
+<code>main</code> via the clause-B merge — it is a divergent line with
+its own release lifecycle. It STILL obeys §11.4.113 (no force-push),
+§9.2 (no commit lost), §2.1 (push all branches to all upstreams,
+ff-only), and §11.4.188 (it MAY still merge <code>main</code> INTO
+itself to stay close to trunk — trunk-into-line is permitted and
+encouraged; it is the line-into-trunk direction that clause B gates and
+clause C withholds for product/flavor lines).</p>
+<p><strong>(D) Push discipline (§2.1 / §11.4.113).</strong> Commit +
+push ALL branches (feature, product, flavor) to ALL configured
+upstreams, ff-only, NEVER force-push. New branch creation is inherently
+ff (a new ref loses nothing, §9.2). Branch creation from an existing
+HEAD (<code>git branch &lt;name&gt; &lt;sha&gt;</code>) is
+non-disruptive (does not touch the working tree / index / other refs)
+and MAY proceed even in a dirty working tree under §11.4.84 provided no
+commit is in-flight (<code>.git/index.lock</code> absent, no live
+<code>git-commit</code>/<code>pack-objects</code>).</p>
+<p>Honest boundary (§11.4.6): this anchor governs branch STRUCTURE +
+integration DIRECTION; it does NOT by itself prove any branch&#39;s work
+correct (each change still crosses §11.4.108 runtime-signature +
+§11.4.40 retest + §11.4.185 manual-QA).</p>
+<p>Classification: universal (§11.4.17) — a platform-neutral
+branch-structure discipline reusable across any multi-track project; it
+references no project-specific hardware / vendor / region / asset, and
+is a strict generalisation of §11.4.181
+(one-feature-one-canonical-branch-name) + §11.4.167(D)/(I) (feature
+work-stream lifecycle) + §11.4.188 (regular main→feature merge cadence)
++ §11.4.185 (manual-QA final confirmation). Composes §2.1 / §9 / §9.2 /
+§11.4.6 / §11.4.17 / §11.4.29 / §11.4.35 / §11.4.40 / §11.4.41 /
+§11.4.84 / §11.4.93 / §11.4.113 / §11.4.167(D)/(I) / §11.4.176 /
+§11.4.178 / §11.4.181 / §11.4.185 / §11.4.188 / §11.4.191. Propagation
+gate <code>CM-COVENANT-114-195-PROPAGATION</code> (literal
+<code>11.4.195</code> across the consumer fleet) + recommended gate
+<code>CM-BRANCH-TAXONOMY-CLASS</code> (every controlled branch&#39;s prefix
+is one of <code>feat/</code> | <code>product/</code> |
+<code>flavor/</code> | the reserved bases
+<code>main</code>/<code>master</code>; a
+<code>product/</code>|<code>flavor/</code> branch is NOT the source of a
+merge onto <code>main</code>; a <code>feat/</code>|<code>main</code>
+back-merge cites a §11.4.185 manual-QA confirmation) + paired §1.1
+mutation (a <code>product/*</code> branch merged onto <code>main</code>,
+OR a <code>feat/*</code> back-merge with no §11.4.185 citation → gate
+FAILs; strip the literal → propagation gate FAILs; gate-code = separate
+work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.195.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--any-branch-prefix-OK</code>,
+<code>--merge-product-to-main</code>,
+<code>--skip-live-qa-before-merge</code>,
+<code>--force-push-branch</code>, <code>--partial-submodule-merge</code>
+flag.</p>
+<h3 id="114234--dedicated-hook-validation-script-hook-checks-run-as-an-explicit-stage-of-a-dedicated-commitpush-script-and-the-commitpush-mechanism-is-always-unblocked-operator-mandate-2026-07-26">§11.4.234
+— Dedicated hook-validation script: hook checks run as an explicit stage
+of a dedicated commit/push script, and the commit/push mechanism is
+ALWAYS unblocked (operator mandate, 2026-07-26)</h3>
+<p>Forensic anchor (genericised): a consumer project wired its full
+local CI gate as an automatic git <code>pre-push</code> hook
+(<code>core.hooksPath</code> → hook → multi-minute build/test/sweep
+stage on EVERY push). The result, captured 2026-07-26: routine pushes
+took many minutes each, and when one gate stage inside the hook failed
+or stalled, the push was rejected outright — the commit/push mechanism
+itself became blocked, with pending commits stranded locally and no
+operator-usable path forward short of a forbidden
+<code>--no-verify</code> bypass. The gate logic was sound; wiring it as
+an uninterruptible implicit hook on the commit/push code path was the
+architectural flaw — an edge-triggered enforcer (§11.4.233) placed
+directly on the operator&#39;s only forward path, violating the §2
+single-entrypoint discipline by making the entrypoint unusable.</p>
+<p>The mandate, ALL of which hold:</p>
+<p><strong>(A) DEDICATED SCRIPT AS THE SINGLE COMMIT/PUSH
+ENTRYPOINT.</strong> Every consumer MUST ship a dedicated, executable,
+idempotent script (Lava binding:
+<code>scripts/commit-push-all.sh</code>; consumers bind their own path
+as DATA per §11.4.35) that runs, in order: (1) submodule/workspace sync,
+(2) commit of all pending state, (3) the hook validations as an EXPLICIT
+stage — the unmodified hook logic fed the real push range, Layer-cheap
+checks always, long gates stage-separated, (4) push to ALL configured
+upstreams (§2.1), (5) a closing green/clean verification (clean status +
+zero unpushed commits, recursive over submodules). The script prints
+per-stage evidence and is safe to re-run; direct
+<code>git commit</code>/<code>git push</code> on the main repo ceases to
+be the routine workflow (§2).</p>
+<p><strong>(B) HOOKS MUST NOT BLOCK THE MECHANISM.</strong> Automatic
+git hooks wired via <code>core.hooksPath</code> MUST NOT gate routine
+commit/push in a way that can leave the repository uncommittable or
+unpushable. Disconnecting means: <code>core.hooksPath</code> unset, the
+hook file itself preserved UNMODIFIED in the repo, and
+<code>--no-verify</code> NEVER used as the routine path. Validation
+relocates from the implicit hook to the explicit script stage (A) and to
+tag/release-time gates — it is never deleted.</p>
+<p><strong>(C) NO GATE IS LOST.</strong> Every check the disconnected
+hook performed MUST remain executed — by the dedicated script&#39;s
+validation stage, by the tag/release gate, or by a documented scheduled
+run. Dropping a check silently because the hook no longer fires is a
+§11.4 PASS-bluff at the process layer (&quot;the gate still exists&quot; while
+nothing invokes it); the script&#39;s stage list MUST name every check it
+runs and every check it defers, with the deferral target recorded.</p>
+<p><strong>(D) ALWAYS-UNBLOCKED INVARIANT.</strong> The commit/push
+mechanism MUST always be able to complete. A failing validation yields a
+clear per-check report plus a documented remediation path — never an
+opaque hung or rejected push. Long gates (multi-minute build/test/sweep
+stages) MUST be separable from the cheap checks and skippable via an
+explicit, documented flag (Lava binding:
+<code>LAVA_SYNC_SKIP_CI=1</code>), with every skip recorded in the
+commit message or evidence pack so the deferred gate is tracked, never
+forgotten. The escape hatch is a recorded deferral, not a bypass: the
+skipped gate remains owed and is caught at the next full run or tag
+gate.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> This anchor relocates
+WHERE validation executes (implicit hook → explicit script stage +
+release gates); it does NOT weaken any substantive gate — the
+Sixth/Seventh-Law-equivalent anti-bluff covenant, the tag-time full
+gate, and §11.4.32&#39;s sweep-after-constitution-pull all still bind at
+their own seams. It does NOT mandate deleting hooks (the hook file is
+preserved), does NOT authorise <code>--no-verify</code> as routine
+practice, and does NOT make a failing gate pass — it makes the mechanism
+reachable while the failure is remediated. Composes §2 / §2.1 (single
+entrypoint + all-upstreams push — this anchor keeps that entrypoint
+usable), §11.4.32 (sweep still runs, now as a named stage), §11.4.113
+(no force-push history-rewrite — the unblocked path never rewrites),
+§11.4.201 (the script is a guard: a false GREEN verification is a
+FAIL-bluff), §11.4.227 (amendment discipline), §11.4.233 (the
+commit/push path is a gated transition the anti-mess control plane
+reconciles).</p>
+<p>Classification: universal (§11.4.17) — no hardware/vendor/project
+literal; consumers supply their script path, upstream-remote list,
+cheap-vs-long gate split, and skip-flag name as DATA per §11.4.35.
+Propagation gate <code>CM-COVENANT-114-234-PROPAGATION</code> (literal
+<code>11.4.234</code>) + recommended mechanism gates
+<code>CM-DEDICATED-HOOK-VALIDATION-SCRIPT</code> (A) /
+<code>CM-HOOKS-NEVER-BLOCK-PUSH</code> (B) /
+<code>CM-NO-GATE-LOST-ON-HOOK-DISCONNECT</code> (C) /
+<code>CM-COMMIT-PUSH-ALWAYS-UNBLOCKED</code> (D) + paired §1.1 mutations
+(wire the full gate back as an automatic blocking pre-push hook → (B)
+FAILs; disconnect the hook AND drop a check from every stage → (C)
+FAILs; a validation failure that strands commits with no remediation
+report → (D) FAILs; strip the literal → propagation FAILs; gate-code =
+separate work item, NOT claimed shipped §11.4.6/§11.4.227). No escape
+hatch beyond the recorded (D) deferral — no
+<code>--no-verify-routine</code>,
+<code>--skip-all-gates-silently</code>,
+<code>--delete-blocking-hook</code>,
+<code>--push-without-any-validation</code> flag.</p>
+<h3 id="114252--fail-closed-on-dangerous-combination-for-mutating--credential-surfaces-research-derived-2026-08-15">§11.4.252
+— Fail-closed-on-dangerous-combination for mutating / credential
+surfaces (research-derived, 2026-08-15)</h3>
+<p>Full anchor per Phase 3 landing brief §11.4.252. Every code path
+COMBINING ≥ 2 dangerous capabilities MUST FAIL CLOSED — refuse operation
+unless every capability&#39;s precondition verifiably satisfied — NEVER fail
+open on ambiguous/missing/unresolvable input. Security-engineering
+generalisation of §11.4.201 guard-honesty applied to code paths where
+false-negative blast radius dwarfs operator inconvenience of
+false-positive. DANGEROUS-COMBINATION TAXONOMY: (1) MUTATION of shared
+resource (DB / filesystem / container state / config), (2) UNTRUSTED
+INPUT (user string / network bytes / external env var / unverified
+file), (3) CREDENTIAL ACCESS (secret read / authenticated API call /
+signing key use), (4) EXTERNAL SIDE EFFECT (email / webhook / MQ publish
+/ payment endpoint), (5) SHELL / EXEC (subshell / binary with
+user-influenced args / template eval with user values), (6) IRREVERSIBLE
+(delete / drop / truncate — §11.4.113 force-push already absolutely
+forbidden). Any path combining ≥ 2 = dangerous-combination, MUST fail
+closed. INVARIANT: (1) VERIFY every precondition (authorization + input
+shape + credential presence + target identity); (2) REFUSE when ANY
+unverifiable with ERROR EXIT naming specific unresolved precondition;
+(3) EMIT captured evidence per §11.4.5 of refusal; (4) NEVER default to
+allow/proceed/retry-with-relaxed on ambiguity — §11.4.101
+conservative-safe default = REFUSE. FAIL-OPEN ANTI-PATTERNS refused:
+<code>catch { /* ignore */ }</code>,
+<code>credential = credential || default</code>,
+<code>if (!valid) { log(&quot;warn&quot;); return proceed(input); }</code>,
+<code>target = user_input || default_target</code>, unbounded
+<code>retry { dangerous(); }</code>. Distinct from graceful degradation.
+[MATERIAL-THIN: 6-class dangerous-combination taxonomy is a §11.4.17
+generalisation of the fail-closed pattern&#39;s shape applied to specific
+dangerous surfaces; closed-set formalisation, not literal per-class
+enumeration.] Composes §11.4.5 / §11.4.6 / §11.4.10 (credentials
+specialisation) / §11.4.66 (operator escalation when refuse stuck) /
+§11.4.101 / §11.4.113 (max instantiation) / §11.4.194 / §11.4.201 /
+§1.1. Classification: universal (§11.4.17). Propagation gate
+<code>CM-COVENANT-114-252-PROPAGATION</code> (literal
+<code>11.4.252</code>) + recommended gate
+<code>CM-DANGEROUS-COMBINATION-FAIL-CLOSED</code> + paired §1.1
+mutation.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.252.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--fail-open-on-error</code>, <code>--swallow-exception</code>,
+<code>--default-missing-credential</code>,
+<code>--proceed-on-ambiguous-input</code>,
+<code>--retry-until-succeeds</code> flag.</p>
+<hr />
+<h3 id="114253--idempotency-under-retry--db-level-durable-uniqueness-guard-research-derived-2026-08-15">§11.4.253
+— Idempotency under retry + DB-level durable uniqueness guard
+(research-derived, 2026-08-15)</h3>
+<p>Full anchor per Phase 3 landing brief §11.4.253. Every retryable
+operation (network calls with auto-retry, at-least-once MQ consumers,
+cron with overlapping schedules, HTTP endpoints with client-retry, DB
+transactions with retry-on-serialisation-failure, deploy pipelines with
+rerun capability) MUST BE IDEMPOTENT: N executions produce same
+observable end state as one. Idempotency ENFORCED at LOWEST LAYER where
+&quot;same end state&quot; is durably provable — typically DATABASE UNIQUENESS
+CONSTRAINT on caller-supplied idempotency key, NEVER only
+application-layer check-then-insert (races). Prevents DOUBLE-CHARGE /
+DOUBLE-EMAIL / DOUBLE-DELETE / DOUBLE-EFFECT bugs. IDEMPOTENCY-KEY
+DISCIPLINE: every retryable op accepts (or generates + passes forward)
+unique identifier naming THIS logical op; persistence layer has UNIQUE
+INDEX / CONSTRAINT on key column; second attempt REFUSED by DB at
+durable level not application logic reading-then-writing; refusal caught
+by caller as &quot;duplicate — already succeeded&quot; = SUCCESS. ANTI-PATTERNS:
+(i) check-then-insert without unique index races; (ii) app-level dedup
+table read without spanning-transaction; (iii) key scoped to app
+instance (in-memory not shared); (iv) effect persisted BEFORE key (crash
+between = double-effect on retry); (v) no key at all + &quot;the effect is
+&#39;set X to V&#39; so redoing is fine&quot; (safe for pure sets, NOT for INSERTs /
+MQ emissions / external-system side effects); (vi) idempotency-key
+expires — converts to time-bounded-idempotent = §11.4.6 mis-labelling if
+caller expects unbounded. CHAOS VERIFICATION per §11.4.85: (1)
+SIMULTANEOUS RETRIES (same key from 2 concurrent callers), (2)
+MID-OPERATION CRASHES (kill receiver between &quot;check exists&quot; and &quot;insert
+effect&quot;), (3) RETRY AFTER APPARENT SUCCESS (caller believes fail,
+receiver persisted, retry MUST recognise duplicate). External-system
+side effects (Stripe/PayPal charging card + local DB write): idempotency
+key MUST pass through to external; if external does not support, op is
+not fully idempotent — label honestly per §11.4.6. Composes §11.4.5 /
+§11.4.6 / §11.4.85 / §11.4.201 / §11.4.252 / §1.1. Classification:
+universal (§11.4.17). Propagation gate
+<code>CM-COVENANT-114-253-PROPAGATION</code> (literal
+<code>11.4.253</code>) + recommended gates
+<code>CM-IDEMPOTENCY-DB-LEVEL-UNIQUE-GUARD</code> +
+<code>CM-IDEMPOTENCY-CHAOS-VERIFIED</code> + paired §1.1 mutation.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.253.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--check-then-insert-OK</code>,
+<code>--application-dedup-suffices</code>,
+<code>--skip-idempotency-chaos-test</code>,
+<code>--claim-idempotent-without-key</code>,
+<code>--expire-idempotency-marker-silently</code> flag.</p>
+<hr />
+</body>
+</html>

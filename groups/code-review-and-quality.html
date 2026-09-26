@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Code Review And Quality</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="code-review-and-quality">Code Review And Quality</h1>
+<h3 id="114124--deadunwired-code-investigate-before-remove-mandate-user-mandate-2026-06-04">§11.4.124
+— Dead/unwired-code investigate-before-remove mandate (User mandate,
+2026-06-04)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-06-04):</strong></p>
+<blockquote>
+<p>&quot;Before removing any seemingly-dead (zero-importer / unwired)
+codebase, we MUST investigate via git history where/how it was
+originally used and how it became dead. Removal is permitted ONLY when
+we have captured PROOF it is genuinely no longer needed — and that
+removal MUST be its own separate commit with a proper descriptive
+message. If there is no such proof, the code MUST be investigated for
+where/how it should be wired in properly, and any missing or unwired
+tests MUST be added. We MUST ALWAYS be extra careful with any codebase
+removal.&quot;</p>
+</blockquote>
+<p><strong>The defect class.</strong> &quot;This has zero importers / is
+never called / is unwired, so it is dead — delete it&quot; is a guess
+(§11.4.6), not a finding. A <code>git grep</code> / static-analysis &quot;no
+references&quot; result proves only <em>current</em> non-reference; it does
+NOT prove the code is genuinely unneeded. Code becomes apparently-dead
+for several distinct reasons — its call-site was deleted by mistake (a
+regression: the code SHOULD still be wired in), its wiring was never
+finished (it is intended but unwired — the fix is to WIRE it, plus its
+tests), it is reflectively / dynamically / build-tag / plugin /
+DI-container referenced (the static tool simply cannot see the
+reference), or it is genuinely obsolete and safe to remove. Deleting it
+without first distinguishing which case applies risks silently removing
+a needed-but-temporarily-unwired capability — the same severity class as
+the §11.4.122 silent-removal defect and a §11.4 PASS-bluff at the
+maintenance layer.</p>
+<p><strong>The mandate.</strong> Before removing ANY seemingly-dead
+codebase element (a zero-importer / never-called / unwired /
+unreferenced function, method, type, file, module, package, asset,
+config, or build target), the agent MUST FIRST investigate via git
+history (<code>git log --follow</code>,
+<code>git log -S&lt;symbol&gt;</code> / <code>-G&lt;regex&gt;</code>
+pickaxe across all history, <code>git log --diff-filter</code>, blame on
+the deletion of the former call-site) to establish, as captured FACT
+(§11.4.6): (1) WHERE and HOW it was originally used / wired in; (2) WHEN
+and HOW it became dead — its call-site removed deliberately, removed by
+mistake (regression), never completed, or made unreachable by a
+refactor; (3) whether the &quot;no references&quot; result is real OR an artefact
+of a reference the static tool cannot see (reflection / dynamic dispatch
+/ build-tags / codegen / DI / plugin registry / cross-language FFI /
+config-driven wiring). The investigation output (the cited commits + the
+determination) is the captured evidence.</p>
+<p><strong>Removal is conditional — proof-of-genuinely-unneeded
+REQUIRED.</strong> Removal is permitted ONLY when the investigation
+produces captured PROOF the element is genuinely no longer needed (its
+purpose is fully superseded, its former caller is intentionally and
+permanently gone, no hidden reference exists). When that proof exists,
+the removal MUST be its OWN SEPARATE COMMIT (not bundled with unrelated
+work — so it is independently reviewable and revertible, composing with
+§11.4.84 working-tree quiescence + §11.4.92 multi-pass) carrying a
+proper descriptive message that cites the git-history investigation
+evidence (the commits that wired it in, the commit that orphaned it, the
+determination that it is unneeded) and — where the element is an
+end-user-facing capability — the §11.4.122 operator-confirmation. The
+§11.4.90 tracked path applies: classify the tracker item
+<code>Obsolete (→ Fixed.md)</code> with the appropriate reason.</p>
+<p><strong>No proof ⇒ wire it in + add the missing tests (do NOT
+delete).</strong> If the investigation does NOT yield proof the element
+is unneeded, the element MUST NOT be removed. Instead it MUST be
+investigated for WHERE and HOW it should be wired in properly (restore
+the deleted call-site if its removal was a regression per §11.4.114;
+complete the intended wiring if it was never finished), AND any missing
+or unwired tests for it MUST be added (the absence of a test is itself
+part of why it drifted into apparent-deadness — composes §11.4.27
+100%-test-type-coverage + §11.4.43 TDD-fix + §11.4.115 RED-baseline).
+Apparent-deadness with no removal-proof is a wiring/coverage GAP to
+close, never a delete-on-sight.</p>
+<p><strong>Extra-caution default.</strong> The agent MUST ALWAYS be
+extra careful with any codebase removal: when uncertain whether
+removal-proof is sufficient, default to NOT removing (investigate + wire
++ test), per §11.4.6 no-guessing + §11.4.101 (an irreversible-ish,
+possibly-needed removal whose safety cannot be determined from evidence
+is exactly the class that blocks to the operator rather than being
+autonomously deleted) + §11.4.122 (removal of a live end-user capability
+requires operator confirmation). &quot;Probably dead&quot; is never sufficient;
+the bar is captured proof.</p>
+<p><strong>Composition.</strong> §11.4.124 composes with §11.4.6
+(no-guessing — &quot;zero importers therefore dead&quot; is the exact guess
+forbidden; the determination must be FACT from git history), §11.4.8
+(deep-research — git history IS the primary research corpus for how the
+code was used + how it died; external research applies when the wiring
+mechanism is unclear), §11.4.84 / §11.4.92 (the separate-removal-commit
+discipline — quiescent tree, multi-pass evaluation, independently
+revertible), §11.4.90 (Obsolete classification is the tracked path for a
+proven removal), §11.4.101 (autonomous-decision-over-blocking — a
+removal whose safety cannot be proven blocks rather than proceeds),
+§11.4.114 (last-known-good-tag isolation — a call-site deleted by
+mistake is a regression to repair, the same diagnostic the &quot;became dead
+by mistake&quot; case demands), §11.4.122 (no-silent-removal — §11.4.124 is
+its complement: §11.4.122 governs removal of KNOWN-shipped capabilities
+by operator confirmation, §11.4.124 governs removal of SEEMINGLY-dead
+code by git-history proof; an end-user-facing seemingly-dead element
+triggers BOTH), §11.4.27 / §11.4.43 / §11.4.115 (the missing-tests
+obligation when the element is wired in rather than removed).</p>
+<p><strong>Enforcement.</strong> Propagation gate
+<code>CM-COVENANT-114-124-PROPAGATION</code> enforces the literal anchor
+<code>11.4.124</code> across the consumer fleet (every CLAUDE.md /
+AGENTS.md / QWEN.md). Recommended gate
+<code>CM-DEAD-CODE-INVESTIGATE-BEFORE-REMOVE</code> (a commit-audit
+detector: any commit whose diff is a NET DELETION of a code element —
+function/type/file/module/package/asset/build-target — MUST be a
+removal-only commit whose message cites the git-history investigation
+evidence, OR the deletion is part of a tracked
+<code>Obsolete (→ Fixed.md)</code> item per §11.4.90; a net-deletion
+commit bundled with unrelated changes OR lacking the investigation
+citation FAILs). Paired §1.1 meta-test mutations: strip the
+<code>11.4.124</code> literal → propagation gate FAILs; introduce a
+net-deletion commit with no investigation citation and not part of an
+Obsolete item → <code>CM-DEAD-CODE-INVESTIGATE-BEFORE-REMOVE</code>
+FAILs. (Gate-code implementation lands as a separate follow-up work
+item; this anchor defines the contract.)</p>
+<p><strong>Classification:</strong> universal (§11.4.17) — &quot;investigate
+git history + capture proof-of-unneeded before removing seemingly-dead
+code, otherwise wire it in and add its tests; removal is its own
+descriptive commit&quot; is a platform-neutral maintenance discipline
+reusable by ANY codebase; the consuming project supplies its concrete
+static-analysis / importer-graph tooling and its hidden-reference
+mechanisms (reflection, DI, build-tags, codegen) per §11.4.35.</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.124
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--zero-importers-means-dead</code>,
+<code>--delete-unwired-on-sight</code>,
+<code>--skip-git-history-investigation</code>,
+<code>--remove-without-proof</code>,
+<code>--bundle-removal-with-other-work</code> flag exists.</p>
+<h3 id="114125--code-review-agent-gate-before-pre-build--main-build-mandatory-multi-layer-review-user-mandate-2026-06-04">§11.4.125
+— Code-review-agent gate before pre-build + main build (mandatory
+multi-layer review) (User mandate, 2026-06-04)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-06-04):</strong></p>
+<blockquote>
+<p>&quot;After all fixes/changes/implementations are done, BEFORE running
+pre-build tests and the main build, dispatch code-review agent(s) that
+analyze all work done + all existing data/facts + the existing codebase
++ current git history to determine quality, safety, and whether the
+fixes/changes will REALLY work; they MUST validate and verify that every
+test covering the fixes/changes genuinely validates the work with NO
+chance of false results or bluff of any kind. Any finding MUST be fixed,
+polished, improved, and covered with additional tests before the build
+proceeds. Multiple strong layers of checks.&quot;</p>
+</blockquote>
+<p><strong>The defect class.</strong> Running the pre-build gate sweep
+and the main (artifact) build directly after a batch of fixes/changes —
+without an independent review pass first — lets a defective fix, an
+error-prone change, a bluff test, or a test that does not genuinely
+validate the work-under-test consume an expensive build cycle and
+(worse) ship green. Pre-build gates and the build prove the codebase is
+internally consistent + buildable; they do NOT prove the work is
+correct, safe, will-really-work for the end user, or that the tests
+covering it actually catch its negation. That assurance is an
+independent-review responsibility that MUST run BEFORE the build, not
+after.</p>
+<p><strong>The mandate.</strong> After all fixes / changes /
+implementations in a batch are done, and BEFORE running the pre-build
+test sweep and the main build (for ANY project), the agent MUST dispatch
+one or more dedicated code-review agent(s) (subagent-driven by default
+per §11.4.70 / §11.4.20) that perform a multi-layer review. The review
+MUST: (1) <strong>analyze ALL work done in the batch</strong> — every
+fix / change / implementation, its source diff, and its stated intent;
+(2) <strong>analyze ALL existing data + facts</strong> — captured
+evidence per §11.4.5 / §11.4.69 / §11.4.107, tracker entries, prior
+findings, the §11.4.108 runtime-signature registry; (3) <strong>analyze
+the existing codebase</strong> — the blast radius of each change
+(§11.4.92 multi-pass), cross-feature interaction, contract integrity of
+every dependency; (4) <strong>analyze current git history</strong> —
+what each change touched, how it composes with concurrent / recent work,
+whether it reproduces a known-broken pattern (§11.4.114 / §11.4.124
+git-history discipline); (5) <strong>determine quality, safety, and
+will-it-REALLY-work</strong> — assess whether each change is robust +
+not error-prone (will not solve A while creating B), safe (no
+host-safety / data-safety / security regression), and genuinely delivers
+the end-user-visible behaviour it claims (§11.4 / §107); (6)
+<strong>validate + verify the tests covering the work</strong> — confirm
+every test that covers a fix/change genuinely exercises the
+work-under-test and catches its negation, with ZERO chance of a false
+result or bluff of any kind (a test that PASSes on broken-for-the-user
+work, a metadata-only / config-only / absence-of-error /
+grep-without-runtime assertion, or a gate whose paired §1.1 mutation
+does not make it FAIL is a finding the review MUST surface per §11.4.1 /
+§11.4.6 / §11.4.107 / §1.1).</p>
+<p><strong>Findings block the build.</strong> Any finding the review
+surfaces — a defect, an error-prone change, a safety risk, a
+will-not-really-work conclusion, a bluff/false-result-capable test, a
+missing-coverage gap — MUST be fixed, polished, improved, and covered
+with additional tests (four-layer per §11.4.4(b), TDD-RED-first per
+§11.4.43 / §11.4.115) BEFORE the pre-build sweep and main build proceed.
+The review MUST iterate (re-review after each remediation) until it
+surfaces no remaining blocking findings; only then does the build
+proceed. The review is itself anti-bluff: its conclusions are captured
+evidence (§11.4.5 / §11.4.69), and a review that rubber-stamps a
+defective batch is the same severity class as a PASS-bluff.</p>
+<p><strong>Multiple strong layers.</strong> The review is one of
+multiple strong layers of checks, complementing — never replacing — the
+pre-build gate sweep (§1 four-layer), the §11.4.92 multi-pass
+change-evaluation, the §11.4.108 four-layer fix-verification, the
+§11.4.110 pre-build build-readiness verdict + clash detector, and the
+post-build / runtime-on-clean-target / user-visible layers. §11.4.125
+sits at the seam between &quot;all batch work done&quot; and &quot;start the pre-build
++ build&quot;: it is the independent-review gate that the other layers do not
+provide (the multi-pass per §11.4.92 is self-review by the change
+author; §11.4.125 adds the structurally-separated reviewer seam per
+§11.4.70).</p>
+<p><strong>Composition.</strong> §11.4.125 composes with §11.4 (the
+end-user-quality covenant the review enforces), §11.4.1 (FAIL-bluffs
+equally caught), §11.4.4 (four-layer coverage of every remediation the
+review demands), §11.4.6 (no-guessing — review conclusions are FACT from
+captured evidence, never &quot;looks fine&quot;), §11.4.40 (the full-suite retest
+is a later gate; §11.4.125 is the pre-build review gate that precedes
+it), §11.4.43 (TDD-fix — remediation lands RED-first), §11.4.50
+(deterministic-consistency of the tests the review validates), §11.4.70
+/ §11.4.20 (the review IS a subagent dispatch — structurally-separated
+reviewer eliminates self-review blind spots), §11.4.92 (multi-pass
+change-evaluation is the author-side pass; §11.4.125 is the
+independent-reviewer pass), §11.4.102 (any defect the review finds
+triggers systematic-debugging before remediation), §11.4.107 (the review
+verifies AV/test-validation analyzers are not themselves bluffs),
+§11.4.108 (the review checks each fix&#39;s runtime signature is declared +
+verifiable), §11.4.110 (the build-readiness verdict + clash detector are
+mechanical gates the review complements with judgement).</p>
+<p><strong>Enforcement.</strong> Propagation gate
+<code>CM-COVENANT-114-125-PROPAGATION</code> enforces the literal anchor
+<code>11.4.125</code> across the consumer fleet (every CLAUDE.md /
+AGENTS.md / QWEN.md). Recommended gate
+<code>CM-CODE-REVIEW-GATE-BEFORE-BUILD</code> (the build orchestrator
+records a code-review-completed marker — with the review&#39;s findings +
+their remediation-or-no-blocking-findings determination — produced AFTER
+the batch&#39;s last fix and BEFORE the pre-build sweep + main build; a
+build that starts without a fresh review marker for the current batch
+FAILs). Paired §1.1 meta-test mutations: strip the <code>11.4.125</code>
+literal → propagation gate FAILs; start a build with no fresh
+code-review marker for the batch →
+<code>CM-CODE-REVIEW-GATE-BEFORE-BUILD</code> FAILs. (Gate-code
+implementation lands as a separate follow-up work item; this anchor
+defines the contract.)</p>
+<p><strong>Classification:</strong> universal (§11.4.17) — &quot;an
+independent multi-layer code-review-agent gate analyzing all work + data
++ codebase + git history for quality/safety/will-it-really-work +
+genuine test-validation, with findings blocking the build, runs BEFORE
+the pre-build sweep + main build&quot; is a platform-neutral discipline
+reusable by ANY project that builds an artifact from source; the
+consuming project supplies its concrete review-marker mechanism +
+build-orchestrator integration per §11.4.35.</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.125
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-code-review</code>,
+<code>--build-without-review</code>, <code>--no-review-gate</code>,
+<code>--review-optional</code>, <code>--trust-the-author</code> flag
+exists.</p>
+<hr />
+<h3 id="114134--code-review-iterate-until-go--rock-solid-evidence-mandate-user-mandate-2026-06-08">§11.4.134
+— Code-review iterate-until-GO + rock-solid-evidence mandate (User
+mandate, 2026-06-08)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-06-08):</strong> &quot;For any fixes/changes given back to us for
+re-work by the code-review process, once we fix/improve everything per
+the code-review&#39;s requests, we MUST RE-RUN code-review AGAIN until we
+get a GO from it with NO new issues reported or warnings of any kind!
+All results produced by this whole process MUST ALWAYS give us
+rock-solid PHYSICAL evidence that the fixed/improved codebase really
+works now as expected, with no false results and no bluff(s) of any
+kind.&quot;</p>
+<p>When the §11.4.125 code-review returns ANY finding — BLOCKING, nit,
+or warning — and the author fixes/improves the batch per that review,
+the code review MUST BE RE-RUN, and MUST KEEP being re-run after each
+remediation round, until it returns a clean GO with ZERO new issues AND
+ZERO warnings of any kind. A single pass that &quot;addressed the findings&quot;
+is NOT sufficient: the corrected batch MUST pass a FRESH adversarial
+review (a re-review can surface NEW findings introduced by the very
+fixes that closed the prior ones — the §11.4.1 fix-A-creates-B failure
+mode). The loop terminates ONLY on a clean GO (no new findings, no
+warnings); a residual warning is itself a finding that re-arms the
+loop.</p>
+<p>Every round&#39;s verdict AND every fix&#39;s validation MUST carry
+rock-solid PHYSICAL captured evidence per §11.4.5 / §11.4.69 / §11.4.107
+(captured audio / video / sysfs / dumpsys / sink-side /
+runtime-signature) proving the fixed/improved codebase REALLY works as
+expected on the target — never metadata-only / configuration-only /
+absence-of-error / grep-without-runtime. No false results, no bluff of
+any kind, at any round. A reported GO unbacked by captured physical
+evidence is itself a §11.4 PASS-bluff at the review-loop layer.</p>
+<p>§11.4.134 REFINES / STRENGTHENS §11.4.125 (which requires the review
+to iterate &quot;until no blocking findings remain&quot;): it makes the loop
+EXPLICIT (re-run after every remediation round, not once), raises the
+termination bar to ZERO findings AND ZERO warnings (not merely
+zero-blocking), and BINDS rock-solid physical evidence to every round
+(not just the final one). Classification: universal (§11.4.17). Composes
+§11.4.125 / §11.4.1 / §11.4.4 / §11.4.5 / §11.4.6 / §11.4.69 / §11.4.107
+/ §11.4.50 / §11.4.108 / §11.4.123. Propagation gate
+<code>CM-COVENANT-114-134-PROPAGATION</code> (literal
+<code>11.4.134</code>) + recommended gate
+<code>CM-CODE-REVIEW-ITERATE-UNTIL-GO</code> + paired §1.1 meta-test
+mutation (gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.134
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-rereview</code>,
+<code>--single-review-pass</code>, <code>--warnings-ok</code>,
+<code>--evidence-optional</code> flag exists.</p>
+<h3 id="114142--universal-code-review-mandate--every-change-reviewed-always-no-exception-user-mandate-2026-06-09">§11.4.142
+— Universal code-review mandate — every change reviewed, always, no
+exception (User mandate, 2026-06-09)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-06-09):</strong></p>
+<blockquote>
+<p>&quot;ALL changes we do MUST pass through the code review step!!!
+ALWAYS!!!&quot;</p>
+</blockquote>
+<p>EVERY change made to ANY repository this Constitution governs —
+without exception — MUST pass through an INDEPENDENT code-review step
+BEFORE it is accepted, committed, or built. There is NO change class
+exempt: source code, fixes, tests, gates, meta-test mutations,
+documentation, doc-tooling, build/CI scripts, configuration, governance
+files (Constitution / CLAUDE / AGENTS / QWEN), conductor main-stream
+edits, sub-agent output, refactors, single-line edits — all of it. This
+is the ABSOLUTE form of §11.4.125 (which mandated a code-review agent
+gate after a batch of fixes, before the pre-build sweep + main build):
+§11.4.142 removes every implicit scoping that §11.4.125&#39;s &quot;after all
+fixes/changes/implementations are done&quot; phrasing could be read to leave
+open — there is no &quot;this is just a doc edit&quot; exemption, no &quot;this is just
+a one-liner&quot; exemption, no &quot;the author already self-reviewed (§11.4.92)&quot;
+substitution, no &quot;trivial change&quot; carve-out. If a diff exists, it gets
+an independent review.</p>
+<p><strong>Independence is load-bearing.</strong> The review MUST be
+performed by a reviewer structurally separated from the author (a
+dedicated code-review agent, subagent-driven by default per §11.4.70 /
+§11.4.20, or a distinct human reviewer) — NOT the author re-reading
+their own work. §11.4.92&#39;s multi-pass self-evaluation is the AUTHOR-side
+discipline and remains required, but it does NOT satisfy §11.4.142: the
+whole point of an independent review seam is to catch the blind spots
+self-review cannot (the structurally-separated reviewer seam §11.4.70
+names). A self-review labelled as the code-review step is a §11.4.142
+violation of the same class as a §11.4 PASS-bluff at the review
+layer.</p>
+<p><strong>The review is itself anti-bluff.</strong> A rubber-stamp
+&quot;looks good&quot; with no examined findings is not a review (§11.4 / §11.4.1)
+— the review MUST genuinely analyse the change for correctness, safety
+(no host §12 / data §9 / target-hardware §11.4.133 regression),
+will-it-really-work (no solve-A-create-B per §11.4.1), end-user
+behaviour (§11.4 / §107), and test-genuineness (every covering test
+exercises the work and catches its negation per §1.1). Its conclusions
+are captured evidence per §11.4.5 / §11.4.69. <strong>The review
+iterates to a clean GO per §11.4.134</strong> — any finding (BLOCKING /
+nit / warning) re-arms the loop; the change is accepted only after a
+re-run review returns ZERO new findings AND ZERO warnings, with
+rock-solid physical evidence per §11.4.134.</p>
+<p><strong>Composition, not duplication.</strong> §11.4.142 is the
+universal &quot;always, every change, no exception&quot; capstone over the
+code-review family: §11.4.125 supplies the multi-layer review CONTENT
+(the six analysis dimensions + the build-gate marker
+<code>CM-CODE-REVIEW-GATE-BEFORE-BUILD</code>); §11.4.134 supplies the
+iterate-until-GO + rock-solid-evidence LOOP; §11.4.92 supplies the
+author-side self-review that PRECEDES (never replaces) the independent
+review; §11.4.70 / §11.4.20 supply the subagent-driven default execution
+model. §11.4.142 binds them and strips the last exemption: the review
+step is not a batch-end nicety, it is a precondition on the ACCEPTANCE
+of any diff. Honest boundary (§11.4.6): a passing review proves the
+change was independently examined and found sound to the reviewer&#39;s
+evidence — it does NOT replace the §11.4.108 four-layer
+runtime-signature verification nor the §11.4.40 full-suite retest; it is
+one of MULTIPLE STRONG LAYERS, and the FIRST one every change
+crosses.</p>
+<p><strong>Forensic FACT (teaching citation, 2026-07-22 —
+review-before-push is not optional).</strong> A transport-hardening
+change was committed AND pushed to a project&#39;s <code>main</code> BEFORE
+any independent review (the author honestly flagged the omission); the
+post-hoc §11.4.209-substrate review then returned CONDITIONAL/NO-GO with
+ONE BLOCKING finding — the change had left a security-relevant
+protection default in the unsafe direction (an
+operator-keystroke-obscuring option shipped default-off with no
+disclosure) — plus two Important and four Minor findings, and the
+remediation consumed a full fix-forward cycle (RED-first test updates
+per §11.4.115, the launcher fix, three documentation surfaces, and a
+§11.4.134 re-review) that a pre-push review would have folded into the
+original change. This is the exact class this anchor forbids: the review
+found a real security-default defect that was ALREADY public on every
+mirror when it was found. The review comes BEFORE commit/push; a
+post-hoc review that catches a Blocking issue PROVES the mandate, it is
+not a substitute for it (remediation is fix-forward per §11.4.113 —
+never a history rewrite).</p>
+<p>Classification: universal (§11.4.17) — a platform-neutral
+acceptance-gate discipline reusable by ANY project; the consuming
+project supplies its concrete reviewer-dispatch mechanism + the
+change-acceptance seam (commit wrapper / merge queue / PR gate) per
+§11.4.35. Composes §11.4.1 / §11.4.4 / §11.4.5 / §11.4.6 / §11.4.20 /
+§11.4.40 / §11.4.69 / §11.4.70 / §11.4.92 / §11.4.108 / §11.4.110 /
+§11.4.125 / §11.4.134 / §107 / §1.1. Propagation gate
+<code>CM-COVENANT-114-142-PROPAGATION</code> (literal
+<code>11.4.142</code> across the consumer fleet) + recommended gate
+<code>CM-EVERY-CHANGE-REVIEWED</code> (every accepted change carries a
+fresh independent-review-completed marker for its diff, produced by a
+reviewer distinct from the author, before acceptance/commit/build) +
+paired §1.1 meta-test mutation (strip the literal → propagation gate
+FAILs; accept a diff with no independent-review marker →
+<code>CM-EVERY-CHANGE-REVIEWED</code> FAILs; gate-code = separate work
+item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.142.
+Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-review</code>, <code>--no-review</code>,
+<code>--trivial-change-exempt</code>, <code>--doc-edit-exempt</code>,
+<code>--self-review-suffices</code>, <code>--review-after-commit</code>
+flag exists.</p>
+<h3 id="114145--independent-multi-angle-impact-research-per-change-user-mandate-2026-06-10">§11.4.145
+— Independent multi-angle impact-research per change (User mandate,
+2026-06-10)</h3>
+<p><strong>Forensic anchor — verbatim operator intent
+(2026-06-10):</strong> for EVERY fix / change / new feature, independent
+agents MUST research potential issues related to that work AND
+connected/dependent features, from VARIOUS ANGLES, to be SURE no new
+issues are created, no existing working functionality is broken, and no
+dangerous code is introduced &quot;like we had with the recents feature&quot;,
+incorporating a VARIETY OF TOOLS.</p>
+<p><strong>Forensic anchor (FACT, project-internal):</strong> the
+recents / 3-button-nav path shipped a latent AIDL-interface-contract
+mismatch that PASSED code review (the diff &quot;looked correct&quot;) yet failed
+at RUNTIME ONLY — it ANR&#39;d on a recents-reaping gesture — because no
+review angle interrogated the interface contract, the
+concurrency/lifecycle, or the connected feature it silently broke; the
+§11.4.108 SOURCE→ARTIFACT→RUNTIME→USER-VISIBLE gap, here caught only
+after the fact.</p>
+<p>§11.4.145 shifts blast-radius discovery LEFT: for EVERY change,
+INDEPENDENT impact-research agents (subagent-driven §11.4.70/§11.4.20,
+structurally separate from the author — §11.4.92 self-eval PRECEDES,
+never satisfies — adversarial &quot;refute-the-change&quot; stance to defeat the
+documented LLM confirmation-bias failure mode where reviewers accept
+plausible-but-wrong arguments) research the change AND its
+connected/dependent features across a CLOSED SET OF EIGHT ANGLES — (1)
+<strong>correctness/logic</strong>, (2) <strong>regression</strong>
+(what existing working feature could break — via call-graph impact
+enumerating every direct + transitive caller and contract-dependent
+feature, each mapped to its test), (3) <strong>latent/dangerous-code —
+the recents class</strong> (runtime-only failure, interface/ABI/contract
+mismatch, concurrency/data-race, resource lifecycle), (4)
+<strong>security</strong> (taint/injection/secret/unsafe-API), (5)
+<strong>performance</strong> (latency/memory/thermal under load vs
+baseline), (6) <strong>host/data/target-hardware safety</strong> per
+§12/§9/§11.4.133, (7) <strong>cross-feature interaction</strong> (shared
+state/timing/hardware contention), (8) <strong>business-logic
+conformance</strong> (matches the spec AND the connected features&#39;
+contracts, not merely compiles).</p>
+<p>Each angle MUST name the TOOL(S) used + obtain the required DEPTH of
+codebase + business-logic detail (read the diff, the full changed unit,
+its declared contract, the spec section, and every connected feature —
+NEVER the diff lines alone) + emit a captured-evidence conclusion per
+§11.4.5/§11.4.69 (the tool&#39;s findings/impact/diff artefact path — &quot;looks
+fine&quot; is forbidden, §11.4.1). A genuinely-N/A angle is recorded
+<code>NOT_APPLICABLE: &lt;reason&gt;</code> per §11.4.6, never silently
+skipped. The output is a per-change impact-research REPORT (one section
+per angle: tool + evidence path + verdict) + a single GO/NO-GO that
+BLOCKS acceptance/commit/build on ANY unmitigated risk in ANY angle; the
+change is fixed/mitigated and the affected angles re-researched,
+iterating to a CLEAN GO (zero unmitigated risk + zero warning,
+rock-solid physical evidence) per §11.4.134 before the §11.4.125 review
+gate.</p>
+<p>Honest boundary (§11.4.6): a GO proves cross-angle
+internal-consistency + bounded blast-radius — it does NOT replace
+§11.4.108 four-layer runtime-signature verification nor the §11.4.40
+full-suite retest; it is one of MULTIPLE STRONG LAYERS, the FIRST
+research pass every change crosses.</p>
+<p>Classification: universal (§11.4.17) — the consuming project supplies
+its concrete toolkit (static-analyzer, call-graph engine,
+interface-freeze mechanism, behavioral harness) + per-angle depth per
+§11.4.35. Composes/strengthens §11.4.92 (adds independent tool-backed
+angle research) / §11.4.125 (its impact-research input) / §11.4.108
+(shifts blast-radius discovery left) / §11.4.110 (angles 2/3/7 use the
+build-graph + interface-freeze) / §11.4.134 (iterate-to-GO) / §11.4.78 /
+§11.4.79 (call-graph impact engine) / §11.4.107 / §11.4.85 (behavioral
+angle) / §11.4.133 / §12 / §9 (angle 6) / §11.4.99 (cite latest sources)
+/ §11.4.6 / §1.1. Propagation gate
+<code>CM-COVENANT-114-145-PROPAGATION</code> (literal
+<code>11.4.145</code> across the consumer fleet) + recommended gate
+<code>CM-IMPACT-RESEARCH-PER-CHANGE</code> (every accepted change
+carries a fresh independent impact-research report covering all eight
+angles with a clean GO, produced by agents distinct from the author,
+before acceptance/commit/build) + paired §1.1 meta-test mutation (strip
+the literal → propagation gate FAILs; accept a change with a report
+missing an angle or with an unmitigated NO-GO →
+<code>CM-IMPACT-RESEARCH-PER-CHANGE</code> FAILs; gate-code = separate
+work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.145.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-impact-research</code>,
+<code>--single-angle-suffices</code>,
+<code>--author-researches-own-change</code>,
+<code>--diff-skim-OK</code>, <code>--no-go-overridable</code>,
+<code>--trivial-change-no-research</code> flag.</p>
+<hr />
+<h3 id="114165--universal-independent-verification-agent-mandate-user-mandate-2026-06-21">§11.4.165
+— Universal Independent Verification Agent Mandate (User mandate,
+2026-06-21)</h3>
+<p><strong>Forensic anchor — direct user mandate
+(2026-06-21).</strong></p>
+<p><strong>The mandate.</strong> Every code change OR recorded media
+artifact produced by any project governed by this Constitution MUST pass
+through an INDEPENDENT verification agent structurally separate from the
+author (§11.4.70/§11.4.20, dedicated subagent or distinct human, NEVER
+the author re-reading their own work — §11.4.92 self-evaluation PRECEDES
+and never satisfies). The verifier is one of MULTIPLE STRONG LAYERS —
+the FIRST verification layer every output crosses, complementing (never
+replacing) §11.4.108 runtime-signature verification, §11.4.125/§11.4.142
+code review, and §11.4.40 full-suite retest.</p>
+<p><strong>(a) For CODE changes.</strong> The independent verification
+agent MUST: (i) run the §11.4.142 code-review discipline (adversarial
+analysis, blast radius, contract integrity, test genuineness), (ii)
+build and test the changed packages (invoke the project&#39;s
+<code>pre_build_verification.sh</code> on the diff scope), (iii) run the
+paired §1.1 meta-test mutations for every gate the change touches
+(asserting each mutated gate still FAILs and its restoration still
+PASSes), (iv) verify the §11.4.108 runtime-signature registry entry for
+this change declares one machine-checkable observable. A code change
+that passes only one of (i)–(iv) is NOT verified — all four must
+hold.</p>
+<p><strong>(b) For MEDIA artifacts
+(video/audio/screenshots/asciicast/text output).</strong> The
+independent verification agent MUST: (i) run the §11.4.163 media
+validation pipeline on every recorded artifact, (ii) confirm the content
+is genuine — real LLM/service responses, not
+mocked/stub/simulated/placeholder (per §11.4.159(I)), (iii) confirm the
+artifact format is correct (MP4 H.264 for video, WAV/FLAC for audio, PNG
+for screenshots, cast+mp4 for asciicast per §11.4.159(B)), (iv)
+cross-check the evidence path against the artifact (the path exists, is
+non-empty, and the content matches the feature&#39;s expected output). A
+media artifact that passes format but shows simulated/placeholder
+content is a finding, not a PASS.</p>
+<p><strong>(c) For DOCS changes.</strong> The independent verification
+agent MUST: (i) validate that HTML + PDF + DOCX exports exist and are
+current per §11.4.65 (mtime parity), (ii) verify the §11.4.44 revision
+header is present and its integer has incremented from the previous
+commit, (iii) for docs that carry a §11.4.86 drift-proof fingerprint,
+verify the fingerprint matches the sorted roster/keyset. A doc change
+with a stale export or missing revision header is NOT verified.</p>
+<p><strong>(d) For CONFIG changes.</strong> The independent verification
+agent MUST: (i) validate YAML/JSON/TOML syntax (parse with the
+language&#39;s own parser — <code>yq</code>, <code>jq</code>, basic JSON
+parser, <code>python -m json.tool</code>, etc.), (ii) cross-reference
+against a schema where available (e.g. JSON Schema for
+<code>.settings.json</code>, YAML Schema for
+<code>helix-deps.yaml</code>), (iii) confirm no credential or secret
+pattern leaked per §11.4.10. A config change with a syntax error, schema
+violation, or leak is a finding, not a PASS.</p>
+<p><strong>(e) Structured findings.</strong> The verifier MUST produce a
+structured findings report — for each finding: item (which
+code/media/doc/config), verification class (a–d), tool/command used,
+evidence path (log file, build output, mutation result, validator
+verdict), PASS/FAIL. &quot;Looks good&quot; without evidence is not a finding — a
+rubber-stamp verifier is a §11.4 PASS-bluff at the verification
+layer.</p>
+<p><strong>(f) Iterate to GO.</strong> If any finding exists (PASS/FAIL
+indeterminate, BLOCKING, or even a warning), the verifier iterates per
+§11.4.134 — the author fixes the finding, the verifier RE-VERIFIES,
+until GO with ZERO findings and ZERO warnings. A single-pass verifier
+that reports findings but accepts GO because &quot;the findings were minor&quot;
+is a §11.4.165 violation.</p>
+<p><strong>(g) Anti-bluff — verifier self-validation.</strong> The
+independent verification agent is itself anti-bluff. The verifier&#39;s
+meta-test is a paired §1.1 mutation that introduces a deliberately
+broken code change (e.g. a gate with a stripped assertion) and asserts
+the verifier catches it. A verifier that passes a known-broken change is
+a bluff gate and must be investigated per §11.4.102 before any further
+use.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> The independent
+verification agent confirms code/media/docs/config integrity at the
+source/artifact layer — it does NOT prove the feature works for the end
+user on the deployed target (that rests on §11.4.108 runtime-signature +
+§11.4.130 validate-fix-first + §11.4.40 full-suite retest) and does NOT
+replace the §11.4.40 full-suite retest or §11.4.118 discovery pass. A
+verifier that reports GO on an artifact whose downstream deployment is
+broken is not a verifier failure — that is caught by the later §11.4.108
+layer. A verifier that reports GO without having actually run any tool
+(rubber-stamp) IS a verifier failure and a §11.4.165 violation.</p>
+<p><strong>Classification:</strong> universal (§11.4.17) — the consuming
+project supplies its concrete build+test command per diff scope,
+mutation-test runner, media validator invocation, doc export checker,
+config parser, and verifier-dispatch agent per §11.4.35. Composes
+§11.4.142/.163/.44/.65/.86/.108/.125/.134/.10/.40/.92/.70/.20/.102/.159(I)/.159(B)/§1.1.
+Propagation gate <code>CM-COVENANT-114-165-PROPAGATION</code> (literal
+<code>11.4.165</code>) + recommended gate
+<code>CM-INDEPENDENT-VERIFICATION-AGENT</code> (every output —
+code/media/docs/config — passes an independent verifier structurally
+separate from the author, produces structured findings with evidence
+paths, iterates to zero-finding GO; verifier is self-validated by a
+paired §1.1 mutation) + paired §1.1 meta-test mutation (strip the
+literal → propagation gate FAILs; accept an output without the
+independent verifier&#39;s GO →
+<code>CM-INDEPENDENT-VERIFICATION-AGENT</code> FAILs; verifier reports
+GO on a known-broken fixture → self-validation FAILs; gate-code =
+separate work item).</p>
+<h3 id="114194--exhaustive-all-scenario-all-angle-code-review--verify-against-captured-runtime-evidence-mandate-user-mandate-2026-07-14">§11.4.194
+— Exhaustive all-scenario, all-angle code-review +
+verify-against-captured-runtime-evidence mandate (User mandate,
+2026-07-14)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-07-14):</strong></p>
+<blockquote>
+<p>&quot;CRITICAL: Code review MUST TAKE into the accounts all scenarios,
+look at the problem or change from all angles, deepest possible
+analisys! No gaps, shortcomings or false results or bluff is allowed!
+Extend our root constitution Submodule and all relevant files properly
+so the review process is more precise and we do not have situations like
+the last one!&quot;</p>
+</blockquote>
+<p><strong>Forensic case study (genericised, 2026-07-14 — &quot;the last
+one&quot;).</strong> A code-review (§11.4.125) returned a clean <strong>GO
+with ZERO findings</strong> on a boot-crash fix. It dismissed a
+defensive clamp branch as an INFORMATIONAL NIT — &quot;effectively
+unreachable ... the input is always valid&quot; — WITHOUT PROVING that
+assumption against the actual runtime input space. The fix shipped, was
+deployed to the target, and the target STILL crash-looped: the
+degenerate input the review had assumed could not happen DID happen at
+runtime (an empty / default-initialised profile opened with the exact
+zero / default value the review assumed impossible). The crash was a
+MULTIPLICATIVE size computation — a product <code>A × B</code> (e.g.
+<code>frame_size = channels × bytes_per_sample(format)</code>) — with
+TWO INDEPENDENT zero-triggers; the review verified only ONE factor
+(<code>A</code>, e.g. <code>channels</code>) and ASSUMED THE OTHER
+(<code>B</code>, e.g. <code>format</code>) away. The crash-loop
+reproduced on the deployed target under conditions PRESENT in the
+pre-fix crash evidence that the review never cross-checked the fix
+against — the evidence was available and not consulted.</p>
+<p>Every code-review this Constitution governs (STRENGTHENING §11.4.125
+/ §11.4.134 / §11.4.142 — the review remains NECESSARY; §11.4.194 makes
+it EXHAUSTIVE-and-evidence-grounded so a clean GO can no longer be
+returned on an unproven assumption) MUST, before returning GO:</p>
+<p><strong>(1) Enumerate the FULL input / scenario space</strong> of
+BOTH the change AND the defect it addresses — every dimension, every
+code path, every interacting feature, every input domain the change
+touches — NOT merely the reported / happy-path scenario. For a
+MULTI-FACTOR failure mode (e.g. a product of <code>N</code> terms, ANY
+of which being degenerate — zero, empty, null, default-initialised,
+out-of-range — triggers the failure), the review MUST enumerate AND
+INDEPENDENTLY VERIFY the fix covers EACH factor / dimension. Verifying
+ONE factor and ASSUMING the rest are safe is the EXACT forbidden gap
+this anchor closes (the forensic <code>channels</code>-verified /
+<code>format</code>-assumed pattern).</p>
+<p><strong>(2) Prove every assumption.</strong> &quot;This can&#39;t happen&quot; /
+&quot;unreachable&quot; / &quot;always valid&quot; / &quot;the caller never sends X&quot; / &quot;the input
+is always in range&quot; MUST be PROVEN from the code + spec + captured
+evidence — NEVER accepted on faith, NEVER inferred from &quot;it usually is&quot;
+(§11.4.6 no-guessing). An unproven assumption that later proves false is
+a §11.4 REVIEW-LAYER bluff of the SAME severity class as a PASS-bluff. A
+review NIT that DISMISSES a path / branch as unreachable / dead /
+defensive-only MUST carry the PROOF of unreachability (the callers
+enumerated, the input domain bounded, the degenerate value shown
+genuinely impossible) — a bare &quot;effectively unreachable&quot; NIT with no
+proof is ITSELF a finding, not a dismissal.</p>
+<p><strong>(3) Verify the fix against ANY captured runtime
+evidence.</strong> When captured runtime evidence of the failure EXISTS
+— a crash log / tombstone / stack trace / core dump / sink-probe report
+/ the §11.4.108 runtime-signature / a reproducer — the review MUST
+confirm the fix ACTUALLY PREVENTS the CAPTURED failure (walk the fix
+against the EXACT captured conditions, not a hypothetical). A review
+that GO&#39;s a fix which then FAILS at runtime on a scenario PRESENT in the
+evidence (or a scenario the review CHOSE NOT TO CONSIDER) is a bluff —
+the evidence was available and not cross-checked.</p>
+<p><strong>(4) All angles.</strong> The review MUST cover ALL of:
+correctness against the stated goal; the FULL input domain (every factor
+of a multi-factor computation, every boundary, every degenerate value);
+every downstream / interacting feature — ESPECIALLY must-not-break
+constraints (per §11.4.133 target / hardware safety, and any feature the
+change shares state / timing / a resource with — e.g. audio /
+multichannel / passthrough integrity); the TESTS&#39; OWN coverage of every
+dimension (a test that checks only ONE factor of a multi-factor bug is
+ITSELF a coverage gap the review MUST catch and require closed); and the
+§1.1 paired mutation covering EACH dimension (a mutation that flips only
+one factor leaves the others un-guarded).</p>
+<p><strong>(5) Honest boundary (§11.4.6).</strong> &quot;Exhaustive&quot; means
+the ENUMERATED + EVIDENCE-GROUNDED scenario space — NOT a claim of
+literal omniscience. A dimension that genuinely cannot be analysed
+(external state the review cannot inspect, a runtime path with no
+reproducer) MUST be stated as an EXPLICIT gap (<code>UNCONFIRMED:</code>
+/ <code>UNKNOWN:</code> / <code>PENDING_FORENSICS:</code> with a tracked
+follow-up) — NEVER silently assumed safe. A silently-assumed-safe
+un-analysed dimension is the §11.4.194 violation.</p>
+<p><strong>(6) The quality-harvest review classes (research-derived
+extension, 2026-07-23 — operator mandate: every check, diagnostic
+method, and preventive measure from the reopen/first-touch root-cause
+forensics is checked through EVERY code-review process).</strong> In
+addition to (1)–(5), every review MUST explicitly CHECK, per reviewed
+change: <strong>(a) closure-evidence class vs defect layer
+(§11.4.226)</strong> — no terminal or ready-class status in the change&#39;s
+scope moves on evidence whose class ranks below the defect layer&#39;s
+floor; a user-visible property &quot;verified&quot; by file-existence checks plus
+greps, an echo-assertion, or a state-only repair closing a defect as
+fixed is a FINDING; <strong>(b) needled measurements</strong> — every
+load-bearing measurement the change or its tests performs satisfies
+§11.4.201(6)–(12) (a reported absence cites its class-matched control
+needle), and NO count was converted into a finding without reading the
+underlying lines — a COUNT IS A LEAD, THE LINES ARE THE FINDING
+(forensic FACT: twice in one measured cycle a count was read as state —
+a &quot;mixed half-written doc&quot; that was actually coherent with a labelled
+historical citation, and an inflated FAIL total that included the
+summary line counting itself); <strong>(c) governance-and-gate integrity
+(§11.4.227)</strong> — a change that NAMES a gate lands its
+implementation or a registered deferral in the same change, and a
+governance edit preserves anchor-block integrity (exactly-once per
+mirror, lockstep-identical, no anchor-number collision); <strong>(d)
+reviewer-authored adversarial mutations</strong> — the author&#39;s
+self-authored mutation set is NECESSARY but NOT SUFFICIENT validation of
+a guard/test: forensic FACT (from the consuming project&#39;s dated forensic
+corpus cited in the 2026-07-22 root-cause analysis): an author&#39;s six
+self-authored mutations were ALL caught while an independent reviewer&#39;s
+FIRST THREE different mutations ALL sailed through, each restoring a
+user-visible defect. The reviewer MUST attempt at least one mutation the
+author did not write (or record honest infeasibility per §11.4.3); a
+guard whose reviewer-authored mutation survives is unvalidated
+instrumentation per §11.4.115(F) and a FINDING.</p>
+<p>Classification: universal (§11.4.17) — a platform-neutral
+review-rigor discipline reusable by ANY project; the consuming project
+supplies its concrete input registries, must-not-break constraint set,
+and captured-runtime-evidence sources per §11.4.35. Composes §11.4.125
+(the code-review-agent gate this strengthens) / §11.4.134
+(iterate-until-GO — a §11.4.194 gap is a finding that re-arms the loop)
+/ §11.4.142 (every-change-reviewed — §11.4.194 raises the review&#39;s
+PRECISION bar) / §11.4.6 (no-guessing — the operative discipline behind
+clauses 2 + 5) / §11.4.108 (runtime-signature — the captured evidence
+clause 3 cross-checks against) / §11.4.130
+(validate-the-fix-first-after-redeploy — the runtime confirmation that
+would have caught &quot;the last one&quot;) / §11.4.107(10) (self-validated
+analyzer — the multi-factor coverage discipline applied to the review&#39;s
+OWN test-coverage check). Propagation gate
+<code>CM-COVENANT-114-194-PROPAGATION</code> (literal
+<code>11.4.194</code> across the consumer fleet) + recommended gate
+<code>CM-EXHAUSTIVE-REVIEW-ALL-SCENARIOS</code> (a review GO must record
+the enumerated scenario / factor space + the proof of every
+dismissed-as-unreachable branch + the cross-check against captured
+runtime evidence where it exists) + paired §1.1 meta-test mutation
+(strip the enumeration / the assumption-proof / the captured-evidence
+cross-check from a review record → the gate FAILs; strip the literal →
+the propagation gate FAILs; gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.194.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--partial-scenario-review</code>,
+<code>--assume-unreachable-OK</code>,
+<code>--skip-captured-evidence-crosscheck</code>,
+<code>--single-factor-review-suffices</code>,
+<code>--dismiss-branch-without-proof</code> flag.</p>
+<h3 id="114209--code-review-must-run-on-the-opus-model-at-xhigh-effort-fable-escalation-for-bigcomplex-reviews-user-mandate-2026-09-15-supersedes-2026-07-15">§11.4.209
+— Code-review MUST run on the Opus model at xhigh effort (Fable
+escalation for big/complex reviews) (User mandate, 2026-09-15,
+supersedes 2026-07-15)</h3>
+<p><strong>Verbatim operator mandate (2026-09-15), superseding the
+2026-07-15 mandate below:</strong> the mandatory independent code-review
+MUST by default be performed with the <strong>Opus model at xhigh
+effort</strong>; for a review the operator or the reviewer itself
+classifies as <strong>extremely big or complex</strong>, the
+<strong>Fable model at xhigh effort</strong> MUST be used instead.</p>
+<p><strong>Prior mandate (2026-07-15), WITHDRAWN as current, kept for
+lineage:</strong> <em>&quot;the mandatory independent code-review MUST ALWAYS
+be performed with the Fable model at xhigh effort; if Fable is
+unavailable, use Opus at xhigh effort.&quot;</em> That ordering is inverted
+by the 2026-09-15 mandate above: Opus-xhigh is now the DEFAULT reviewer
+substrate and Fable-xhigh the ESCALATION tier for large/complex work,
+not an unavailability fallback.</p>
+<p>Every mandatory independent code-review the constitution requires —
+the §11.4.125 code-review-agent gate before pre-build + main build, the
+§11.4.142 universal every-change-review (no exception), and the
+§11.4.194 exhaustive all-scenario/all-angle review +
+verify-against-captured-runtime-evidence, iterated to a zero-finding GO
+per §11.4.134 — MUST be dispatched on the <strong>Opus model at
+<code>xhigh</code> effort</strong> by default. <strong>(A) Escalation
+(closed, ordered).</strong> When the review is classified — by the
+operator, or by the dispatching agent using a stated, evidenced reason
+(§11.4.6, never a guessed classification) — as <strong>extremely big or
+complex</strong> (very large diff, cross-cutting/architectural blast
+radius, a governance/gate-authoring change, or any change the operator
+explicitly flags), the review MUST run on the <strong>Fable model at
+<code>xhigh</code> effort</strong> instead of Opus. <code>xhigh</code>
+effort is REQUIRED in both the default and the escalated case — the
+exhaustive §11.4.194 all-angle depth is not reachable at a lower effort.
+<strong>(B) Independence preserved (§11.4.70/§11.4.20).</strong> The
+Opus-xhigh (or, on escalation, Fable-xhigh) model runs as the
+structurally-separated reviewer (never the author self-reviewing);
+§11.4.209 sets the MODEL + EFFORT of that review, it does not weaken the
+independence, the iterate-until-GO loop (§11.4.134), or the rock-solid
+captured-evidence requirement (§11.4.5/§11.4.69/§11.4.107). <strong>(C)
+Honest boundary (§11.4.6).</strong> A review claimed &quot;done&quot; that
+actually ran on a weaker model / lower effort than the tier this anchor
+requires (Opus-xhigh by default, Fable-xhigh once classified
+big/complex) is a §11.4 bluff at the review-substrate layer — the
+review&#39;s captured evidence MUST record which model + effort actually
+performed it, and, when escalated, the stated reason the review was
+classified big/complex. <strong>(D) Values already burned in a public
+repository (§11.4.10).</strong> Any plaintext credential value that has
+appeared in documentation, a spec, or commit history — including as a
+worked example — MUST be treated as compromised from the moment of
+commit; a document illustrating this anchor or any credential-adjacent
+mandate MUST NOT embed a real-looking username/password pair, even as an
+example, without the accompanying statement that the pair is
+compromised-by-disclosure and MUST NOT be relied on as a real secret.
+STRENGTHENS §11.4.125/§11.4.142/§11.4.194/§11.4.134 — it does NOT
+replace any of them; it pins the review&#39;s execution substrate.</p>
+<p>Classification: universal (§11.4.17). Composes §11.4.125 / §11.4.134
+/ §11.4.142 / §11.4.194 / §11.4.6 / §11.4.10 / §11.4.20 / §11.4.70 /
+§11.4.196 (alias/model selection) / §11.4.231 (nano-precision model-tier
+selection — §11.4.209 remains the hard pin for review/merge-conflict
+scope that §11.4.231(E) explicitly does not reach). Propagation gate
+<code>CM-COVENANT-114-209-PROPAGATION</code> (literal
+<code>11.4.209</code> across the consumer fleet) + recommended gate
+<code>CM-CODE-REVIEW-OPUS-XHIGH-DEFAULT-FABLE-ESCALATION</code> (the
+mandatory code-review&#39;s captured evidence records model=Opus +
+effort=xhigh by default, OR model=Fable + effort=xhigh with a recorded
+big/complex classification reason) + paired §1.1 meta-test mutation
+(record a code-review run on a lower-effort or non-Opus/non-Fable model
+without a recorded escalation reason → the gate FAILs; strip the literal
+→ the propagation gate FAILs; gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.209.</p>
+<p>Non-compliance is a release blocker. No escape hatch — no
+<code>--review-any-model</code>, <code>--review-lower-effort-OK</code>,
+<code>--skip-opus</code>, <code>--non-xhigh-review</code>,
+<code>--escalate-without-recorded-reason</code> flag.</p>
+<h3 id="114240--producer--verifier-scope-separation-the-actor-that-produces-a-changeartifactverdict-cannot-be-the-one-that-gates-it--least-privilege-over-cleverness-research-derived-2026-08-15">§11.4.240
+— Producer ≠ Verifier scope separation: the actor that produces a
+change/artifact/verdict cannot be the one that gates it — least
+privilege over cleverness (research-derived, 2026-08-15)</h3>
+<p><strong>Compact summary:</strong> every project MUST enforce
+STRUCTURAL SEPARATION between the actor that PRODUCES a
+change/artifact/verdict and the actor that GATES that same
+change/artifact/verdict — the producing actor cannot write, weaken,
+delete, or edit the acceptance tests, the oracle, the gate
+configuration, the verdict store, the paired §1.1 mutation, or any other
+check whose green result is a precondition for the producer&#39;s own work
+being certified done. Enforcement is by CAPABILITY (the producer
+STRUCTURALLY cannot reach the gate) rather than by INSTRUCTION (the
+producer is TOLD not to touch the gate), and the enforcement mechanism
+is LEAST PRIVILEGE OVER CLEVERNESS (extraction file line 1488 —
+<strong>MODULE ATTRIBUTION CORRECTED 2026-08-20: this citation
+originally read &quot;module 27&quot;. The quoted passage has ZERO occurrences in
+<code>module_27.txt</code> and resolves in the tracked corpus to module
+28 (&quot;Anti-Bluff Verification &amp; Release Validation&quot;), verified
+locator <code>module_28:393</code>. Instrument control-needled per
+§11.4.201(7)(b) before the absence was reported.</strong> — module 28,
+verified locator <code>module_28:393</code>: &quot;the durable fix is least
+privilege over cleverness — the same logic as prompt-injection defense
+... the load-bearing move is that the agent chasing the green gate
+cannot reach the gate, the oracle, or the evidence store&quot;). The failure
+mode this anchor forbids: a producer that CAN edit the tests/oracle/gate
+config/verdict store DOES edit them under long-horizon optimization
+pressure — hardcoding expected values, weakening assertions, mocking the
+unit under test, deleting the failing test, or writing
+<code>verified: true</code> on itself (extraction lines 5695, 5711-5717,
+5722-5730, 1343, 1396, 1482-1488). §11.4.240 makes the separation a
+STRUCTURAL PROPERTY of the codebase and its automation, not a social
+one.</p>
+<p><strong>(A) THE FOUR SCOPES + THE SEPARATION MATRIX.</strong> Every
+change/artifact/verdict flows through four SCOPES that MUST be distinct
+actors under §11.4.240: (i) PRODUCER — the actor that writes the source
+diff, the config change, the migration, the artifact-generation code;
+(ii) ORACLE — the actor / mechanism that decides &quot;correct output&quot; for a
+given input (test author, specification writer,
+characterization-baseline capturer, reference-implementation author per
+§11.4.245 oracle-independence); (iii) GATE — the actor / mechanism that
+decides whether the change PASSES the check (CI configuration, gate
+scripts, custody-chain enforcer per §11.4.146(D3),
+release-verdict-coverage machinery per §11.4.135); (iv) VERIFIER — the
+actor / mechanism that RE-RUNS the gate from a clean checkout and
+attaches receipts (independent verifier per §11.4.165, §11.4.209
+Fable-xhigh substrate for code review, §11.4.194 exhaustive review). The
+mandate: the PRODUCER of a change cannot ALSO be the ORACLE, GATE, or
+VERIFIER for that same change. Extraction line 5695 (module 34 core
+concept 4 — module attribution VERIFIED CORRECT 2026-08-20, verified
+locator <code>module_34:56</code>; offset un-resolvable per the
+§11.4.239 CITATION NOTE): &quot;the agent that wrote the code cannot be the
+authority that certifies it — self-preference bias and shared context
+make self-review worthless. Verification comes from an independent
+instance (fresh context, read-only, re-running from a clean checkout)
+and from an oracle the producer did not author and cannot edit ...
+Remove any one property and it degrades to self-certification.&quot; A
+four-scope collapse (one actor plays all four roles) is the
+maximum-severity form; any two-scope collapse involving the producer is
+a §11.4.240 finding of §11.4/§11.4.1 severity at the certification
+layer.</p>
+<p><strong>(B) LEAST PRIVILEGE OVER CLEVERNESS — CAPABILITY, NOT
+INSTRUCTION.</strong> Separation MUST be enforced by structural
+CAPABILITY LIMITS, not by prompts / instructions / policy documents /
+social contracts asking the producer &quot;please do not touch the tests.&quot;
+Extraction lines 1482-1488 [MODULE CORRECTED 2026-08-20 — the (E)
+Extraction-sources line attributes these offsets to module 27; the
+quoted passage resolves to module 28, verified locator
+<code>module_28:383</code>] name the load-bearing mechanism: &quot;The
+producer has no write access to the test files, the oracle, the CI/gate
+config, or the verdict store — enforced by scope, not by asking. If it
+can&#39;t touch the gate, it can&#39;t game it.&quot; Concrete enforcement channels
+the consuming project MUST supply per §11.4.35: (1) FILESYSTEM SCOPE —
+the producer&#39;s write scope excludes <code>tests/</code>,
+<code>oracle/</code>, <code>.github/workflows/</code>,
+<code>scripts/gates/</code>, <code>verdicts/</code> (or their
+consumer-declared equivalents); (2) BRANCH / REVIEW PROTECTION —
+protected paths (see §11.4.248 PROTECTED-SPEC + CODEOWNERS from the
+sibling 2026-08-15 operator decision) require an actor OTHER than the
+change author to approve modifications; (3) VERDICT-STORE ISOLATION —
+the store that records RED/GREEN verdicts per §11.4.115(F) is written
+only by the harness that ran the test, never by the producer&#39;s own code
+path; (4) EXECUTION ISOLATION — the verifier runs in a CLEAN CHECKOUT
+with FRESH CONTEXT (extraction lines 3168, 3117, 2381 [MODULE CORRECTED
+2026-08-20 — the (E) Extraction-sources line attributes these offsets to
+module 34; the quoted passage has ZERO occurrences in
+<code>module_34.txt</code> and resolves to module 29 / module 30,
+verified locators <code>module_29:655</code>,
+<code>module_30:591</code>, <code>module_30:655</code>]: &quot;an independent
+verifier re-running in a clean checkout&quot;) — the verifier does NOT
+inherit the producer&#39;s dirty worktree, cached artifacts, or in-flight
+session state. &quot;The agent will not do that&quot; is NEVER acceptable
+enforcement — extraction line 5715 [module 34 attribution VERIFIED
+CORRECT 2026-08-20, verified locator <code>module_34:87</code>]
+catalogues the failure (&quot;We told it in the prompt not to hardcode / not
+to skip tests&quot; as the shallow / red-flag answer). Exhortation is not
+capability; §11.4.240 refuses exhortation as the enforcement layer.</p>
+<p><strong>(C) THE THREE FORBIDDEN PRODUCER↔︎SCOPE COLLAPSES.</strong>
+The following collapses are §11.4.240 violations regardless of context,
+scale, or claimed rigor: (1) PRODUCER=ORACLE — the same actor writes the
+source diff AND the test that asserts its correctness, with no
+independent oracle authoring the assertion; the resulting test asserts
+whatever the code happens to do (&quot;tautological testing trap,&quot; extraction
+line 5764 [module 34 attribution VERIFIED CORRECT 2026-08-20, verified
+locator <code>module_34:155</code>], referenced) rather than what the
+specification requires. Countermeasure: the oracle is authored FROM the
+specification / from a characterization baseline captured BEFORE the
+change (§11.4.243) / from a reference implementation (§11.4.245 derived
+oracle), not co-authored with the diff. (2) PRODUCER=GATE — the same
+actor writes the source diff AND has write access to the gate
+configuration / CI pipeline / the mutation-testing thresholds / the
+paired §1.1 mutations; the producer can silence failing gates or weaken
+thresholds. Countermeasure: the gate configuration lives in a
+§11.4.248-protected path, and modifications require a non-producer
+approver. (3) PRODUCER=VERIFIER (self-certification) — the same actor
+produces the change AND writes the &quot;verified: true&quot; / &quot;PASS&quot; verdict for
+the change; the verdict is a producer-set flag with no independent
+re-run. Countermeasure: verdicts are MACHINE-WRITTEN by the harness that
+ran the test per §11.4.115(F), keyed to the target&#39;s artifact
+fingerprint read at run time, and the release-verdict-coverage seam per
+§11.4.135 REFUSES a release tag while any producer-asserted (rather than
+harness-written) verdict is in the release scope. Extraction lines 1212,
+1343, 1396, 1631 [MODULE CORRECTED 2026-08-20 — attributed to module 27
+in the (E) Extraction-sources line; the quoted passage resolves to
+module 28, verified locator <code>module_28:278</code>]: &quot;Tamper-evident
+and outside the producer&#39;s reach — the producer of the change cannot
+edit the verdict or the oracle to make itself green.&quot;</p>
+<p><strong>(D) COMPOSITION WITH §11.4.115(F) / §11.4.125 / §11.4.135 /
+§11.4.142 / §11.4.146(D3) / §11.4.165 / §11.4.194 / §11.4.209.</strong>
+§11.4.115(F) machine-written verdict pairs are the (C)(3) countermeasure
+at the verdict layer — a producer-typed status label is not a verdict.
+§11.4.125&#39;s code-review-agent gate before pre-build + main build IS the
+(A) VERIFIER role at the review layer, and §11.4.142&#39;s universal
+every-change-review mandate + §11.4.209&#39;s Fable-xhigh review-substrate
+pin (Opus-xhigh fallback) provide the independence + substrate
+requirements. §11.4.135&#39;s standing regression-guard suite is the GATE
+layer at the release seam. §11.4.146(D3) status custody is the
+STATUS-WRITE-SEAM enforcement — the store REFUSES a producer-asserted
+terminal-status write without the full custody chain. §11.4.165
+(universal independent verification agent) is the VERIFIER role
+generalised across every output. §11.4.194 (exhaustive all-scenario
+review) is the depth requirement applied to the verifier&#39;s pass.
+§11.4.240 does NOT invent a new mechanism at any of these layers — it
+ARTICULATES the property (structural producer-vs-verifier separation)
+that the existing mechanisms collectively enforce, and it forbids the
+collapses (§11.4.240(C)) that would render those mechanisms
+decoration.</p>
+<p><strong>(E) HONEST BOUNDARY (§11.4.6).</strong> Structural separation
+forbids the CLASS of self-certification failure modes; it does NOT prove
+the verifier is correct (a mis-calibrated verifier stays §11.4.107(10)
+golden-good/golden-bad territory; extraction line 1512 [MODULE CORRECTED
+2026-08-20 — implicitly module 27 via the (E) Extraction-sources line;
+the quoted passage resolves to module 28, verified locator
+<code>module_28:401</code>]: &quot;a flaky or false-positive gate destroys
+the whole evidence chain above it&quot;), does NOT prove the oracle is
+correct (§11.4.245 mandates oracle-strategy naming + independence), and
+does NOT guarantee the producer never tries to game the gate (it forbids
+the producer from succeeding at gaming the gate through direct write
+access; other gaming vectors — hardcoding to visible inputs,
+over-fitting the seen cases — are countered by §11.4.245 held-out
+oracles + property/metamorphic/differential coverage). Composes §11.4.6
+(no guessing — the producer&#39;s claim is a prediction, only the verifier&#39;s
+captured re-run is evidence) / §11.4.20 (subagent-driven — the verifier
+IS the natural subagent dispatch) / §11.4.70 (subagent-driven default) /
+§11.4.92 (multi-pass evaluation — self-review PRECEDES independent
+review, never satisfies it) / §11.4.107(10) (self-validated analyzers —
+the oracle carries its own golden fixtures) / §11.4.115(F)
+(machine-written verdicts) / §11.4.125 (code-review-agent gate) /
+§11.4.134 (iterate-to-GO — the verifier&#39;s clean-GO terminates the loop)
+/ §11.4.135 (standing regression-guard suite) / §11.4.142 (universal
+every-change-review) / §11.4.146(D3) (status custody chain refuses
+producer-asserted terminals) / §11.4.165 (universal independent verifier
+agent) / §11.4.194 (exhaustive review) / §11.4.201 (a gate that
+false-refuses a clean producer is a FAIL-bluff, so verifier honesty
+binds both directions) / §11.4.205 (seam-not-prose enforcement) /
+§11.4.209 (Fable-xhigh substrate pin for the review verifier) /
+§11.4.245 (oracle-strategy identification, independent by the same
+principle) / §11.4.248 (PROTECTED-SPEC + CODEOWNERS enforcement — the
+operator-decided mechanism for (B)) / §11.4.249 (four-role architecture
++ flight-recorder mechanism — §11.4.240 is the SEPARATION PRINCIPLE +
+capability enforcement, §11.4.249 is the concrete FOUR-ROLE {producer,
+oracle, gate, verifier} taxonomy + recorder that instantiates it; the
+two anchors mutually compose per §11.4.209 reviewer MINOR-1). Extraction
+sources [offsets un-resolvable per the §11.4.239 CITATION NOTE; module
+attributions AUDITED <strong>and CORRECTED</strong> 2026-08-20]: the
+offsets formerly attributed to &quot;module 27&quot; (1212, 1343, 1396, 1482-1488,
+1498, 1613, 1631-1634) are a WRONG-MODULE attribution — every phrase
+this anchor quotes from them resolves to <strong>module 28</strong>
+(&quot;Anti-Bluff Verification &amp; Release Validation&quot;), verified locators
+<code>module_28:278</code> (tamper-evident / the producer cannot edit
+the verdict or the oracle to make itself green),
+<code>module_28:383</code> (no write access to the test files; enforced
+by scope, not by asking; if it can&#39;t touch the gate, it can&#39;t game it),
+<code>module_28:393</code> (least privilege over cleverness; the same
+logic as prompt-injection defense), <code>module_28:401</code> (a flaky
+or false-positive gate destroys the whole evidence chain above it);
+<strong>module 34</strong> (&quot;Quality Under AI-Assisted / Agentic
+Development&quot;) lines 5695, 5711-5717, 5722-5730, 3180, 3201, 2313 are
+module-CORRECT for every phrase quoted from them — verified locators
+<code>module_34:56</code> (the agent that wrote the code cannot be the
+authority that certifies it), <code>module_34:87</code> (we told it in
+the prompt not to hardcode), <code>module_34:155</code> (tautological
+testing trap); the offsets <strong>3117-3168 and 2381</strong>, listed
+under module 34, are a WRONG-MODULE attribution — the phrase quoted from
+them (&quot;an independent verifier re-running in a clean checkout&quot;) has ZERO
+occurrences in <code>module_34.txt</code> and resolves to <strong>module
+29 / module 30</strong>, verified locators <code>module_29:655</code>,
+<code>module_30:591</code>, <code>module_30:655</code>. <strong>UNKNOWN
+(§11.4.6, stated rather than guessed):</strong> offsets 1498, 1613,
+1631-1634, 5711-5717, 5722-5730, 3180, 3201 and 2313 carry no quoted
+text in this anchor, so no phrase-level locator could be measured for
+them individually — their module attribution is UNVERIFIED: neither
+asserted correct nor asserted wrong.</p>
+<p><strong>(F) Independence-tier vocabulary + Tier-C
+capability-separation triggers, degrading honestly on a single-uid host
+(extension, spec-derived, speckit 002-anti-slop-enforcement,
+2026-08-26).</strong> Clauses (A)–(E) state the SEPARATION PRINCIPLE and
+its capability-not-instruction enforcement in the abstract; this clause
+supplies the CLOSED VOCABULARY for recording HOW MUCH separation was
+actually achieved, and the two triggers that raise the required strength
+— because a project claiming &quot;capability separation&quot; where only
+&quot;instance separation&quot; is genuinely achievable is itself a §11.4.240
+violation of the theatre this anchor exists to prevent. <strong>(1) The
+closed tier set.</strong> Per spec.md:124 (FR-035): every accepted
+verdict&#39;s recorded basis of independence MUST name which tier applied,
+drawn from the CLOSED SET <code>{instance, model, capability}</code> —
+<code>instance</code> (a separate agent/process instance verifies,
+sharing no in-flight state with the producer), <code>model</code> (a
+DIFFERENT model verifies — permitted, never required per (2) below),
+<code>capability</code> (a genuine host-level access-control boundary
+separates the producer&#39;s write scope from the verifier&#39;s — the strongest
+tier). <strong>(2) Model diversity is permitted, never required — the
+false-positive guard.</strong> Per spec.md:121 (FR-032): a verdict from
+an independent INSTANCE running the SAME model as the producer MUST be
+ACCEPTED on that basis alone (Tier B, permitted-never-required) — a
+check that refuses same-model independent verdicts has turned a
+legitimate separation into an unnecessary same-model prohibition, which
+is itself the exact class of false-positive refusal §11.4.201 forbids.
+This clause does NOT weaken the constitution&#39;s OTHER, distinct, narrower
+model-substrate pins — §11.4.256&#39;s requirement that a translation review
+run on a DIFFERENT model/provider than the translator, and §11.4.209&#39;s
+requirement that every mandatory independent code-review run on the
+Fable model at <code>xhigh</code> effort (Opus <code>xhigh</code> on
+genuine Fable-unavailability); both remain in force unmodified for their
+own narrower domains (translation review; code review). FR-032&#39;s
+permitted-not-required framing governs only the GENERAL
+producer≠verifier case this anchor addresses, never those two
+domain-specific, stricter pins. <strong>(3) Tier-C trigger 1 — the
+producer holds write access to the evidence/verdict store.</strong> Per
+spec.md:122 (FR-033): at a seam where the producer holds write access to
+the evidence or verdict store, a verdict MUST be written through the
+MOST RESTRICTIVE separation genuinely available on the host, and the
+ACHIEVED separation (not the aspired-to one) MUST be reported.
+<strong>Measured, honestly-degrading limit (spec.md:122):</strong>
+<em>&quot;on a single-uid host, capability separation cannot be established
+by any mechanism an agent can set up — ownership defeats access-control
+lists, the append-only attribute requires privilege the agent lacks, and
+any key the producer can use it can also read. Claiming
+<code>capability</code> there would be the theatre this feature exists
+to prevent.&quot;</em> A single-uid host therefore reports
+<code>instance</code> honestly, NEVER <code>capability</code>, until the
+operator takes the one action that establishes a real host boundary.
+<strong>(4) Tier-C trigger 2 — the three named high-blast-radius
+seams.</strong> Per spec.md:123 (FR-034): at the
+<code>release-tag</code>, <code>qa-deploy</code>, or
+<code>manual-qa-handoff</code> seam (or the consuming project&#39;s declared
+equivalent seams per §11.4.35), a producer-authored verdict is REFUSED
+regardless of the write-access analysis, and the achieved separation is
+reported rather than assumed. <strong>Same honest-degradation limit
+applies (spec.md:123):</strong> <em>&quot;Capability-strength at these three
+seams requires one operator action (a host boundary agents are correctly
+forbidden from creating); until it is taken they operate at
+<code>instance</code> tier and MUST say so.&quot;</em> <strong>(5) No demand
+for capability outside the two triggers.</strong> Per spec.md:125
+(FR-036): at a seam matching NEITHER Tier-C trigger, a separate agent
+instance MUST SUFFICE and capability separation MUST NOT be demanded —
+instance-tier verdicts are accepted at ordinary seams without a
+capability check, closing the negative half of this clause (a project
+over-applying Tier-C strength to every seam is itself a §11.4.240
+violation of the same &quot;false-positive refusal&quot; class). <strong>Honest
+boundary (§11.4.6).</strong> The <code>independence_tier</code> field
+records WHAT WAS ACHIEVED, never what was ASPIRED to — a project
+honestly reporting <code>instance</code> at a Tier-C-triggered seam
+because no host boundary yet exists is COMPLIANT with this clause (the
+honest-degradation path is the compliant path); a project reporting
+<code>capability</code> without the mechanically-verified boundary that
+makes it true is the violation. Composes §11.4.6 (honest reporting over
+aspiration) / §11.4.201 (a false-positive <code>capability</code> claim
+is the same class of bluff a false-positive guard refusal is) /
+§11.4.256 (its own, distinct, domain-specific different-model
+requirement stays unweakened) / §11.4.209 (its own, distinct,
+domain-specific Fable-<code>xhigh</code> code-review pin stays
+unweakened alongside §11.4.256&#39;s) / §12 (host-boundary establishment is
+a §12 host-safety-adjacent operator action, never an autonomous agent
+action). Recommended mechanism gate
+<code>CM-INDEPENDENCE-TIER-HONESTLY-RECORDED</code> (every accepted
+verdict&#39;s <code>independence_tier</code> field is present, within the
+closed {instance, model, capability} set, and — at a Tier-C-triggered
+seam without a mechanically-verified host boundary — is NEVER
+<code>capability</code>; a same-model independent verdict at an ordinary
+seam is accepted without a capability check) + paired §1.1 mutation
+(record <code>capability</code> at a seam where no verified host
+boundary exists → the gate MUST FAIL; refuse a same-model independent
+verdict at an ordinary seam → the gate MUST FAIL [the
+false-positive-guard case]; accept a producer-authored verdict at
+<code>release-tag</code>/<code>qa-deploy</code>/<code>manual-qa-handoff</code>
+→ the gate MUST FAIL; golden-FALSE per §11.4.201(1): an
+<code>instance</code>-tier verdict honestly reported at a
+Tier-C-triggered seam with no host boundary yet established → the gate
+MUST NOT fire). Gate-code = separate work item, NOT claimed shipped
+(§11.4.6 / §11.4.227).</p>
+<p>Classification: universal (§11.4.17). Propagation gate
+<code>CM-COVENANT-114-240-PROPAGATION</code> (literal
+<code>11.4.240</code>) + recommended gates
+<code>CM-PRODUCER-NOT-VERIFIER-SCOPE-SPLIT</code> (a change&#39;s four
+scopes per (A) — producer, oracle, gate, verifier — resolve to distinct
+actors; a producer-authored verdict, a producer-modifiable gate config,
+a producer-modifiable oracle, or a producer-modifiable test file in the
+same change violates the split) +
+<code>CM-LEAST-PRIVILEGE-CAPABILITY-NOT-INSTRUCTION</code> (the
+enforcement channel is a filesystem-scope / branch-protection /
+verdict-store-isolation / execution-isolation mechanism per (B), NOT an
+instruction / prompt / policy-document / social-contract; a project
+whose only enforcement is a written policy that &quot;producers do not touch
+tests&quot; fails the capability check) + paired §1.1 mutations (make the
+producer branch a modification to a <code>tests/*</code> file within the
+same change without a non-producer approver → the CODEOWNERS +
+capability check FAILs; author a status write of &quot;verified: true&quot; from
+the same actor that produced the diff, with no harness-written
+§11.4.115(F) verdict pair → the §11.4.146(D3) custody chain FAILs; grant
+the producer write access to the gate configuration + expect the review
+to catch the collapse → the capability-not-instruction gate FAILs on the
+enforcement-channel check; strip the literal → propagation FAILs;
+gate-code = separate work item, NOT claimed shipped
+§11.4.6/§11.4.227).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.240.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--producer-may-write-tests</code>,
+<code>--self-certification-OK</code>,
+<code>--exhortation-suffices-as-enforcement</code>,
+<code>--producer-authored-verdict-accepted</code>,
+<code>--capability-limit-optional</code>,
+<code>--policy-document-is-enforcement</code>,
+<code>--single-actor-for-all-scopes</code> flag.</p>
+<hr />
+<h3 id="114241--illegal-state-unrepresentability-preference-types-before-api-shape-before-lint-before-property-test-before-runtime-assertion-research-derived-2026-08-15">§11.4.241
+— Illegal-state-unrepresentability preference: types before API-shape
+before lint before property-test before runtime-assertion
+(research-derived, 2026-08-15)</h3>
+<p>Full anchor text per Phase 3 landing brief. See
+<code>curriculum_anchors_241_254_full_drafts.md</code> §11.4.241
+canonical block (Part A). Anchor establishes the closed ordered ladder
+(1) TYPE SYSTEM → (2) API SHAPE → (3) LINT → (4) PROPERTY-BASED TEST →
+(5) RUNTIME ASSERTION for every load-bearing invariant; a defect
+preventable at rung N caught only at rung &gt; N is a finding. Composes
+§11.4.108 (pushes enforcement LEFT of Layer 1) / §11.4.115 / §11.4.142 /
+§11.4.194 / §11.4.201 / §11.4.224 / §1.1 / §11.4.6 / §11.4.35. Includes
+rung-by-language capability baseline (strongly-typed: rungs 1-5;
+dynamically-typed with gradual: rung 1 conditional; untyped scripting:
+rungs 3-5 unconditional); genuinely-limited-environment clarification
+per §11.4.209 reviewer MINOR-4 (POSIX sh with only rung 5 SATISFIES the
+anchor IFF the runtime assertion GENUINELY CATCHES the invariant AND is
+paired with its §1.1 meta-test mutation per §11.4.107(10)
+self-validation). Classification: universal (§11.4.17). Propagation gate
+<code>CM-COVENANT-114-241-PROPAGATION</code> (literal
+<code>11.4.241</code>) + recommended gate
+<code>CM-ILLEGAL-STATE-LADDER-PREFERENCE</code> + paired §1.1 mutation
+(gate-code = separate work item, NOT claimed shipped
+§11.4.6/§11.4.227).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.241.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--runtime-assert-suffices</code>,
+<code>--skip-type-preference</code>,
+<code>--dynamic-language-exempts-all-rungs</code>,
+<code>--property-test-in-lieu-of-type</code>,
+<code>--decorative-type-annotation-OK</code> flag.</p>
+<hr />
+<h3 id="114251--byte-identical-fork-prohibition--role-as-data-pack-research-derived-2026-08-15">§11.4.251
+— Byte-identical-fork prohibition + role-as-data-pack (research-derived,
+2026-08-15)</h3>
+<p>Full anchor per Phase 3 landing brief §11.4.251. When project needs
+would be met by TWO NEAR-IDENTICAL CODE COPIES differing only in
+configuration/data/role-specific parameters (prod + staging with
+hardcoded hostnames; reader + writer with different flag values; web +
+mobile with different feature flags), copies MUST NOT be maintained as
+parallel forks. Instead ONE code copy retained + role-specific values
+extracted into DATA PACK (role-config file / env var set / capability
+descriptor / feature-flag bundle) consumed by the one code to
+instantiate as either role. Extraction line 6490 [offset un-resolvable
+per the §11.4.239 CITATION NOTE; <strong>MODULE ADDED
+2026-08-20</strong> — resolves to <strong>module 35</strong> taxonomy
+row 8 &quot;Byte-identical-fork&quot;, verified locators
+<code>module_35:127</code> (row header), <code>module_35:130</code> (the
+SonarQube-Factory case), <code>module_35:132</code> (the &quot;roles become
+data-only packs you reference, never repos you fork&quot; remedy)]:
+byte-identical-fork taxonomy row + SonarQube-Factory case
+(<code>Application/main.kt</code> byte-for-byte the caching-proxy
+launcher, still in
+<code>package net.milosvasic.factory.proxy.caching.application</code> —
+&quot;no SonarQube code&quot;; fix = role-real acceptance test, &quot;roles become
+data-only packs you reference, never repos you fork&quot;). DETECTION:
+reviewer or mechanical scan finds byte-identical fork when
+<code>diff</code> shows every difference is a config value
+(hostname/port/flag/label/env/credential-ref) NOT behavioral, common
+git-history ancestor, &gt; 90% byte identity; per §11.4.35
+threshold-DATA. EXTRACTION: (1) IDENTIFY configuration surface; (2)
+EXTRACT to data pack per role; (3) REFACTOR single code copy to consume
+at instantiation (constructor injection / factory /
+config-loader-at-startup); (4) DELETE one fork; (5) VERIFY per §11.4.5
+both role instantiations produce same observable behavior their forks
+previously produced (§11.4.243 characterization before refactor); (6)
+commit extraction per §11.4.124 with git-history evidence. LEGITIMATE
+FORKS: temporary migration (tracked §11.4.197 end date), experimental /
+A-B (bounded end date), truly divergent behavior (copies differ in
+algorithm/protocol/data-model not just config). Composes §11.4.5 /
+§11.4.6 / §11.4.28 (decoupling — role-configurable code shared across
+consumers) / §11.4.35 (data-pack location) / §11.4.124 / §11.4.177 /
+§11.4.194 / §11.4.197 / §11.4.243 / §1.1. Classification: universal
+(§11.4.17). Propagation gate
+<code>CM-COVENANT-114-251-PROPAGATION</code> (literal
+<code>11.4.251</code>) + recommended gate
+<code>CM-NO-BYTE-IDENTICAL-FORK</code> + paired §1.1 mutation.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.251.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--fork-for-role-OK</code>,
+<code>--skip-data-pack-extraction</code>,
+<code>--copy-and-modify-config</code>,
+<code>--duplicate-code-per-environment</code>,
+<code>--near-identical-forks-are-fine</code> flag.</p>
+<hr />
+</body>
+</html>
