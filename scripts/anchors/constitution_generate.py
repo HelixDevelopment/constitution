@@ -9,8 +9,15 @@ from datetime import datetime, timezone
 try:
     import yaml
 except ImportError:
+    # Exit code 5 per contracts/generator-cli.md's own exit-code table
+    # (G-005 == "Missing required dependency" == code 5). A prior version
+    # of this branch used exit(4), which the contract instead reserves for
+    # G-004 (hand-edit divergence, check-mode-only) — confirmed wrong via a
+    # T010+T011 independent review's fault injection (I-2 finding) that
+    # directly read the contract's table rather than assuming the code
+    # written here was already correct.
     sys.stderr.write("FATAL: PyYAML not installed. See check_deps.sh / G-005.\n")
-    sys.exit(4)
+    sys.exit(5)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from anchor_lib import extract_anchors, assign_group, UnclassifiedAnchorError, MalformedHeadingError
@@ -82,8 +89,20 @@ def build_records(source_path: str):
         try:
             group = assign_group(a["id"])
         except UnclassifiedAnchorError:
+            # Exit code 6 — a NEW code, added by controller ruling (T010/
+            # T011 review finding I-2): contracts/generator-cli.md's G-001
+            # .. G-005 table has NO row at all for "anchor matches no group
+            # rule" (this condition is orthogonal to every G-00N clause —
+            # it is neither a malformed heading (G-002), a duplicate id
+            # (G-003), a hand-edit divergence (G-004, check-mode-only), nor
+            # a missing dependency (G-005)). Reusing the dependency code
+            # (5, this branch's OWN prior — and wrong — value before this
+            # fix) would collide with G-005 the moment both conditions are
+            # possible in the same run. 6 is the lowest integer the
+            # contract's 0-5 table leaves free. See generator-cli.md's new
+            # G-008 clause for the corresponding contract-side ruling.
             sys.stderr.write(f"FATAL: anchor {a['id']!r} matches no group rule\n")
-            sys.exit(5)
+            sys.exit(6)
         records.append({
             "id": a["id"], "title": a["title"], "group": group, "body": a["body"],
             "location": f"constitution/groups/{group}.md#{a['id'].replace('.', '-')}",
