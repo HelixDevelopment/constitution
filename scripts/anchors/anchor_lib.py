@@ -373,3 +373,54 @@ def assign_group(anchor_id: str) -> str:
                 if lo <= tail <= hi:
                     return group_name
     raise UnclassifiedAnchorError(anchor_id)
+
+
+# --- T017 [US2]: queryable metadata fields — classification / gate / refs ---
+import re as _re
+
+# Corrected 2026-09-25 (census-validation finding, verified live against the
+# real constitution/Constitution.md corpus — the original regexes below,
+# executed for real, failed on 51% and 98.8% of real anchors respectively;
+# see data-model.md's Anchor entity table for the full evidence trail).
+#
+# Real Classification lines take TWO forms in the corpus: a plain
+# `Classification: universal` line (69 occurrences), and a bold-markdown
+# `**Classification:** ...` line (85 occurrences) where the enum VALUE does
+# not always immediately follow the label — e.g. the two real `mixed`
+# anchors read "**Classification:** §11.4.17-classified **mixed** — the
+# discipline ... is universal ... The implementation ... is
+# project-specific" (Constitution.md:1511, :1612). A regex anchored
+# immediately after "Classification:" can never match this. Instead:
+# locate the Classification LINE (bold-marker-tolerant), then find the
+# FIRST occurrence of any of the three enum words within that line's
+# remaining text — which correctly resolves to "mixed" for both real
+# mixed-classified anchors, since "mixed" appears before "universal"/
+# "project-specific" in their explanatory sentences.
+_CLASSIFICATION_LINE_RE = _re.compile(r'^\*{0,2}Classification:\*{0,2}(.*)$', _re.IGNORECASE | _re.MULTILINE)
+_CLASSIFICATION_VALUE_RE = _re.compile(r'\b(universal|project-specific|mixed)\b', _re.IGNORECASE)
+_PROPAGATION_GATE_RE = _re.compile(r'propagation gate `([A-Z0-9\-]+)`', _re.IGNORECASE)
+_CROSS_REF_RE = _re.compile(r'§(\d+(?:\.\d+)+)')
+
+
+def derive_metadata(body: str) -> dict:
+    """Best-effort extraction of the four optional Anchor fields from an
+    anchor's free-text body. A field this project's own prose does not state
+    resolves to None/[]/"universal" (the honest, documented default) —
+    NEVER guessed (§11.4.6) — never fabricated."""
+    line_m = _CLASSIFICATION_LINE_RE.search(body)
+    classification = "universal"
+    if line_m:
+        value_m = _CLASSIFICATION_VALUE_RE.search(line_m.group(1))
+        if value_m:
+            classification = value_m.group(1).lower()
+    gate_m = _PROPAGATION_GATE_RE.search(body)
+    refs = sorted(set(_CROSS_REF_RE.findall(body)))
+    return {
+        "classification": classification,
+        "propagation_gate": gate_m.group(1) if gate_m else None,
+        "cross_references": refs,
+        # NOT derivable from prose (census-validation finding: the corpus contains
+        # zero occurrences of any "binds a SpecKit Principle" table/convention) —
+        # populated by the reorganization's own manual review pass instead.
+        "binds_principle": [],
+    }

@@ -20,7 +20,7 @@ except ImportError:
     sys.exit(5)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from anchor_lib import extract_anchors, assign_group, UnclassifiedAnchorError, MalformedHeadingError
+from anchor_lib import extract_anchors, assign_group, derive_metadata, UnclassifiedAnchorError, MalformedHeadingError
 
 
 def _anchor_sort_key(anchor_id: str) -> tuple:
@@ -62,9 +62,21 @@ def _anchor_sort_key(anchor_id: str) -> tuple:
 
 
 def _git_commit_of(source_path: str) -> str:
+    # Fixed 2026-09-26 (found via T016's own synthetic-fixture test, which is
+    # the first caller in this whole plan to pass a --source path OUTSIDE any
+    # git repository): `check=True` on a `git rev-parse HEAD` run from a
+    # non-git cwd raises an UNCAUGHT CalledProcessError (exit 128), crashing
+    # the entire `generate`/`check` invocation with a raw Python traceback
+    # instead of a controlled outcome — flagged as a pre-existing, then-
+    # unexercised Minor finding (M-3) in the T010/T011 review, now genuinely
+    # triggered. The commit hash is provenance-only metadata (§11.4.6 — never
+    # fabricated); an honest "unknown" sentinel when the source has no git
+    # history is correct, not a silently-degraded guess.
     cwd = os.path.dirname(os.path.abspath(source_path)) or "."
     out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=cwd,
-                          capture_output=True, text=True, check=True)
+                          capture_output=True, text=True, check=False)
+    if out.returncode != 0:
+        return "unknown"
     return out.stdout.strip()
 
 
@@ -103,9 +115,11 @@ def build_records(source_path: str):
             # G-008 clause for the corresponding contract-side ruling.
             sys.stderr.write(f"FATAL: anchor {a['id']!r} matches no group rule\n")
             sys.exit(6)
+        meta = derive_metadata(a["body"])
         records.append({
             "id": a["id"], "title": a["title"], "group": group, "body": a["body"],
             "location": f"constitution/groups/{group}.md#{a['id'].replace('.', '-')}",
+            **meta,
         })
     return records
 
@@ -156,7 +170,9 @@ def build_yaml_index(records, group_counts, source_path: str, index_out: str) ->
             key=lambda x: x["name"],
         ),
         "anchors": sorted(
-            [{"id": r["id"], "title": r["title"], "group": r["group"], "location": r["location"]}
+            [{"id": r["id"], "title": r["title"], "group": r["group"], "location": r["location"],
+              "classification": r["classification"], "propagation_gate": r["propagation_gate"],
+              "binds_principle": r["binds_principle"], "cross_references": r["cross_references"]}
              for r in records],
             key=lambda r: _anchor_sort_key(r["id"]),
         ),
