@@ -303,7 +303,14 @@ def _drift_comparable(index: dict) -> dict:
     fully compared — a change to which source file was used, or to the
     source's own bytes, is a real thing `check` must still detect)."""
     payload = {k: v for k, v in index.items() if k != "generated_at"}
-    generated_from = dict(payload.get("generated_from") or {})
+    raw_gf = payload.get("generated_from")
+    if raw_gf is None:
+        raw_gf = {}
+    if not isinstance(raw_gf, dict):
+        # N-5: a scalar/list generated_from is malformed; surface it as a
+        # comparable dict so check reports a controlled divergence.
+        raw_gf = {"__invalid_generated_from__": repr(raw_gf)}
+    generated_from = dict(raw_gf)
     generated_from.pop("commit", None)
     payload["generated_from"] = generated_from
     return payload
@@ -398,7 +405,8 @@ def cmd_check(args) -> int:
             committed_index = yaml.safe_load(f)
 
         source_hash = fresh_index["generated_from"]["source_sha256"]
-        committed_hash = committed_index.get("generated_from", {}).get("source_sha256")
+        _cgf = committed_index.get("generated_from", {})
+        committed_hash = _cgf.get("source_sha256") if isinstance(_cgf, dict) else None
         # source_hash == committed_hash (source content byte-identical since
         # the last generate) => any divergence found below is a hand-edit of
         # the OUTPUT (G-004, exit 4). Otherwise the source itself changed,
@@ -432,6 +440,21 @@ def cmd_check(args) -> int:
                 sys.stderr.write(
                     f"FATAL: stale group file(s) in {groups_dir} no longer produced by a "
                     f"fresh generate — hand-edit or stale commit (FR-012): {stale}\n"
+                )
+                return divergence_exit_code
+            # N-1: non-.md sibling exports (.html/.pdf/.docx) whose stem has no
+            # fresh group .md are orphans of a vanished group. generate never
+            # deletes siblings (I-1), so check must surface them.
+            orphans = sorted(
+                f for f in os.listdir(groups_dir)
+                if not f.endswith(".md") and not f.startswith(".")
+                and os.path.isfile(os.path.join(groups_dir, f))
+                and os.path.splitext(f)[0] not in group_counts
+            )
+            if orphans:
+                sys.stderr.write(
+                    f"FATAL: orphaned sibling export(s) in {groups_dir} whose group no "
+                    f"longer exists (generate never deletes siblings; remove manually): {orphans}\n"
                 )
                 return divergence_exit_code
         for group in group_counts:
