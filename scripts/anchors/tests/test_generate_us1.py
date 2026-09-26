@@ -61,6 +61,30 @@ def test_sample_anchors_byte_identical_after_generate():
             post_anchors = {a["id"]: a["body"] for a in extract_anchors(grouped_text, known_ids=known_ids)}
             assert post_anchors[aid] == pre_anchors[aid], f"{aid} diverged"
 
+# T011b (FR-005 fault-injection Checked-by clause, /speckit-analyze finding E2):
+# build_records already implements the duplicate-id sys.exit(3) path (T011) but
+# shipped with no test proving it.
+def test_duplicate_anchor_id_exits_3_naming_the_duplicate():
+    with tempfile.TemporaryDirectory() as tmp:
+        with open("constitution/Constitution.md") as f:
+            text = f.read()
+        # Duplicate a real, already-present anchor heading verbatim — the
+        # FR-005 fault this Checked-by clause names: "a deliberately
+        # duplicated anchor id."
+        duped = text + "\n\n### §11.4.209 duplicate injected by test\nbody\n"
+        broken = os.path.join(tmp, "duped_constitution.md")
+        with open(broken, "w") as f:
+            f.write(duped)
+        r = subprocess.run(
+            ["python3", GEN, "generate", "--source", broken,
+             "--groups-dir", os.path.join(tmp, "out_groups"),
+             "--index-out", os.path.join(tmp, "out_index.yaml")],
+            capture_output=True, text=True,
+        )
+        assert r.returncode == 3, f"expected exit 3, got {r.returncode}: {r.stderr}"
+        assert "11.4.209" in r.stderr, "exit code alone is not enough — FR-005 requires naming the duplicate"
+
 if __name__ == "__main__":
     test_sample_anchors_byte_identical_after_generate()
+    test_duplicate_anchor_id_exits_3_naming_the_duplicate()
     print("PASS")
