@@ -158,12 +158,32 @@ def write_groups(records, groups_dir: str) -> dict:
     return {g: len(recs) for g, recs in by_group.items()}
 
 
+def _source_content_hash(source_path: str) -> str:
+    # Added 2026-09-26 (T013/T014 review remediation, Important-1 fix
+    # attempt #2): a git-commit-hash comparison (the first attempt) cannot
+    # distinguish "source content genuinely changed" from "source unchanged"
+    # for a --source outside any git repo (both compare equal via the
+    # honest "unknown" sentinel, regardless of real content changes —
+    # caught directly by this fix's OWN new drift-detection test, which
+    # uses a non-git synthetic source specifically to prove the two-way
+    # distinction and found the git-commit approach silently broken for
+    # that case) — and is ALSO vulnerable, for a genuinely git-tracked
+    # source, to an UNRELATED commit elsewhere in the same repository
+    # changing HEAD without touching the source file's own bytes at all,
+    # which would report false drift. Hashing the source file's OWN
+    # content directly answers "did THIS file's bytes change" precisely,
+    # independent of git history and unaffected by unrelated commits.
+    with open(source_path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
 def build_yaml_index(records, group_counts, source_path: str, index_out: str) -> dict:
     index = {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "generated_from": {"source": "constitution/Constitution.md",
-                            "commit": _git_commit_of(source_path)},
+                            "commit": _git_commit_of(source_path),
+                            "source_sha256": _source_content_hash(source_path)},
         "groups": sorted(
             [{"name": g, "path": f"constitution/groups/{g}.md", "anchor_count": n}
              for g, n in group_counts.items()],
@@ -213,7 +233,63 @@ def _content_hash(index: dict) -> str:
     return hashlib.sha256(yaml.safe_dump(payload, sort_keys=True).encode()).hexdigest()
 
 
+def _diverged_index_fields(fresh_index: dict, committed_index: dict) -> list:
+    """Field-level naming for a YAML-index divergence (T013/T014 review
+    finding Important-2 — G-004's clause text requires "naming the diverged
+    field(s)", which the original single generic FATAL message did not do).
+    Top-level keys first (schema_version/generated_from/groups/anchors);
+    for `anchors` specifically, additionally names which anchor id(s)
+    diverged (present-only-in-one-side ids reported as such, changed ids by
+    id) — proportionate detail without a full recursive diff."""
+    diffs = []
+    fresh_cmp = {k: v for k, v in fresh_index.items() if k != "generated_at"}
+    committed_cmp = {k: v for k, v in committed_index.items() if k != "generated_at"}
+    for key in sorted(set(fresh_cmp) | set(committed_cmp)):
+        if fresh_cmp.get(key) == committed_cmp.get(key):
+            continue
+        if key == "anchors":
+            fresh_by_id = {a["id"]: a for a in fresh_cmp.get("anchors", [])}
+            committed_by_id = {a["id"]: a for a in committed_cmp.get("anchors", [])}
+            only_fresh = sorted(set(fresh_by_id) - set(committed_by_id))
+            only_committed = sorted(set(committed_by_id) - set(fresh_by_id))
+            changed = sorted(
+                aid for aid in (set(fresh_by_id) & set(committed_by_id))
+                if fresh_by_id[aid] != committed_by_id[aid]
+            )
+            if only_fresh:
+                diffs.append(f"anchors: present in a fresh generate but not committed: {only_fresh}")
+            if only_committed:
+                diffs.append(f"anchors: present in committed but not a fresh generate: {only_committed}")
+            if changed:
+                diffs.append(f"anchors: fields differ for id(s): {changed}")
+        else:
+            diffs.append(f"{key}: differs")
+    return diffs
+
+
 def cmd_check(args) -> int:
+    # Exit-code reconciliation (T013/T014 review finding Important-1, fixed
+    # 2026-09-26): contracts/generator-cli.md's own exit-code table reserves
+    # code 1 for "Drift detected (check mode only)" and code 4 SEPARATELY
+    # for "Hand-edit divergence detected (check mode, G-004)" — the original
+    # implementation returned 1 for every divergence branch, leaving code 4
+    # permanently unreachable dead specification. The two conditions ARE
+    # genuinely distinguishable, not a redundant contract-authoring
+    # artifact: comparing the SOURCE's own content hash (see
+    # _source_content_hash — a git-commit-based first attempt at this same
+    # comparison was tried and found genuinely broken, both for a --source
+    # outside any git repo AND, latently, for one inside a repo where an
+    # UNRELATED commit could move HEAD without touching the source file's
+    # own bytes) against the committed index's own recorded hash tells
+    # whether the source's CONTENT moved since the last `generate`
+    # (ordinary staleness/DRIFT, exit 1 — the expected, benign state while
+    # Constitution.md is being actively edited) or stayed byte-identical
+    # while the COMMITTED OUTPUT itself diverges from what `generate` would
+    # currently produce (a genuine HAND-EDIT/tamper signal per G-004,
+    # exit 4 — the source is unchanged, so nothing legitimate explains the
+    # divergence). This is a real, actionable distinction this project's
+    # own governance discipline treats as first-class (tamper-evidence vs.
+    # ordinary staleness), not merely a cosmetic exit-code split.
     records = build_records(args.source)
     with __import__("tempfile").TemporaryDirectory() as tmp:
         fresh_groups_dir = os.path.join(tmp, "groups")
@@ -226,23 +302,40 @@ def cmd_check(args) -> int:
             return 1
         with open(args.index_out) as f:
             committed_index = yaml.safe_load(f)
+
+        source_hash = fresh_index["generated_from"]["source_sha256"]
+        committed_hash = committed_index.get("generated_from", {}).get("source_sha256")
+        # source_hash == committed_hash (source content byte-identical since
+        # the last generate) => any divergence found below is a hand-edit of
+        # the OUTPUT (G-004, exit 4). Otherwise the source itself changed,
+        # so a divergence is ordinary drift/staleness (exit 1). A committed
+        # index from BEFORE this field existed has no source_sha256 at all
+        # (None != any real hash), so an old committed index is correctly
+        # treated as "source changed" (exit 1, the safe/conservative
+        # default) rather than silently assumed unchanged.
+        divergence_exit_code = 4 if source_hash == committed_hash else 1
+
         if _content_hash(fresh_index) != _content_hash(committed_index):
-            sys.stderr.write("FATAL: committed constitution_index.yaml diverges from a fresh generate\n")
-            return 1
+            diffs = _diverged_index_fields(fresh_index, committed_index)
+            sys.stderr.write(
+                "FATAL: committed constitution_index.yaml diverges from a fresh generate "
+                f"— diverged field(s): {diffs}\n"
+            )
+            return divergence_exit_code
 
         for group in group_counts:
             fresh_path = os.path.join(fresh_groups_dir, f"{group}.md")
             committed_path = os.path.join(args.groups_dir, f"{group}.md")
             if not os.path.exists(committed_path):
                 sys.stderr.write(f"FATAL: {committed_path} missing (was 'generate' run?)\n")
-                return 1
+                return divergence_exit_code
             with open(fresh_path) as f1, open(committed_path) as f2:
                 if f1.read() != f2.read():
                     sys.stderr.write(
                         f"FATAL: constitution/groups/{group}.md diverges from a fresh "
                         f"generate — hand-edit or stale commit (FR-012)\n"
                     )
-                    return 1
+                    return divergence_exit_code
     print("check: no drift")
     return 0
 
