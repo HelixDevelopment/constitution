@@ -3,7 +3,7 @@
 constitution_index.yaml from constitution/Constitution.md.
 See specs/003-reorganize-constitution-yaml/contracts/generator-cli.md.
 """
-import argparse, hashlib, os, subprocess, sys
+import argparse, hashlib, os, shutil, subprocess, sys
 from datetime import datetime, timezone
 
 try:
@@ -167,10 +167,67 @@ def build_yaml_index(records, group_counts, source_path: str, index_out: str) ->
 
 
 def cmd_generate(args) -> int:
-    records = build_records(args.source)
-    group_counts = write_groups(records, args.groups_dir)
-    build_yaml_index(records, group_counts, args.source, args.index_out)
+    # T014 [US3]: write to a SCRATCH directory/file first and only move into
+    # place on full success, so a mid-generation failure (e.g. a later
+    # anchor's malformed heading, discovered only after earlier groups were
+    # already written) can NEVER leave the real --groups-dir/--index-out
+    # holding a partial result — G-002's "write NO output file" guarantee,
+    # which build_records's own early sys.exit(2)/(3)/(6) already satisfies
+    # for THAT function's own scope, but write_groups/build_yaml_index
+    # writing DIRECTLY to the real paths would not (a later exit inside one
+    # of those two calls would leave whatever the FIRST one already wrote).
+    records = build_records(args.source)  # raises/exits BEFORE any disk write on malformed input
+    scratch = args.groups_dir + ".scratch"
+    if os.path.exists(scratch):
+        shutil.rmtree(scratch)
+    group_counts = write_groups(records, scratch)
+    build_yaml_index(records, group_counts, args.source, args.index_out + ".scratch")
+    if os.path.exists(args.groups_dir):
+        shutil.rmtree(args.groups_dir)
+    os.rename(scratch, args.groups_dir)
+    os.replace(args.index_out + ".scratch", args.index_out)
     print(f"generated: {len(records)} anchors across {len(group_counts)} groups")
+    return 0
+
+
+def _content_hash(index: dict) -> str:
+    # generated_at is provenance-only per data-model.md's Determinism rule —
+    # excluded from the comparison hash so two runs a second apart still agree.
+    payload = {k: v for k, v in index.items() if k != "generated_at"}
+    return hashlib.sha256(yaml.safe_dump(payload, sort_keys=True).encode()).hexdigest()
+
+
+def cmd_check(args) -> int:
+    records = build_records(args.source)
+    with __import__("tempfile").TemporaryDirectory() as tmp:
+        fresh_groups_dir = os.path.join(tmp, "groups")
+        fresh_index_out = os.path.join(tmp, "index.yaml")
+        group_counts = write_groups(records, fresh_groups_dir)
+        fresh_index = build_yaml_index(records, group_counts, args.source, fresh_index_out)
+
+        if not os.path.exists(args.index_out):
+            sys.stderr.write(f"FATAL: {args.index_out} does not exist — run 'generate' first\n")
+            return 1
+        with open(args.index_out) as f:
+            committed_index = yaml.safe_load(f)
+        if _content_hash(fresh_index) != _content_hash(committed_index):
+            sys.stderr.write("FATAL: committed constitution_index.yaml diverges from a fresh generate\n")
+            return 1
+
+        for group in group_counts:
+            fresh_path = os.path.join(fresh_groups_dir, f"{group}.md")
+            committed_path = os.path.join(args.groups_dir, f"{group}.md")
+            if not os.path.exists(committed_path):
+                sys.stderr.write(f"FATAL: {committed_path} missing (was 'generate' run?)\n")
+                return 1
+            with open(fresh_path) as f1, open(committed_path) as f2:
+                if f1.read() != f2.read():
+                    sys.stderr.write(
+                        f"FATAL: constitution/groups/{group}.md diverges from a fresh "
+                        f"generate — hand-edit or stale commit (FR-012)\n"
+                    )
+                    return 1
+    print("check: no drift")
     return 0
 
 
@@ -182,6 +239,11 @@ def main():
     sp.add_argument("--groups-dir", required=True)
     sp.add_argument("--index-out", required=True)
     sp.set_defaults(func=cmd_generate)
+    sp2 = sub.add_parser("check")
+    sp2.add_argument("--source", required=True)
+    sp2.add_argument("--groups-dir", required=True)
+    sp2.add_argument("--index-out", required=True)
+    sp2.set_defaults(func=cmd_check)
     args = p.parse_args()
     sys.exit(args.func(args))
 
