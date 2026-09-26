@@ -97,11 +97,21 @@ def main():
                 text = f.read()
             for m in CITATION_RE.finditer(text):
                 if not _resolve(m.group(1), known_ids):
-                    unresolved.append((path, m.group(1)))
+                    # Final whole-branch review finding I-3, 2026-09-26,
+                    # IMPORTANT: the checker's own contract (L-001/L-005)
+                    # requires "naming every UNRESOLVED citation by
+                    # file:line" — the prior (path, id) tuple carried no
+                    # line number at all, and the print loop below was
+                    # capped at 50, silently hiding 83% (240/288) of the
+                    # real corpus's own findings. Line number computed via
+                    # a newline count up to the match start (1-indexed,
+                    # matching editor/grep convention).
+                    line_no = text.count("\n", 0, m.start()) + 1
+                    unresolved.append((path, line_no, m.group(1)))
 
     if unresolved:
-        for path, cid in unresolved[:50]:
-            print(f"UNRESOLVED: §{cid} in {path}")
+        for path, line_no, cid in unresolved:
+            print(f"UNRESOLVED: §{cid} in {path}:{line_no}")
         print(f"{len(unresolved)} unresolved citation(s)")
         sys.exit(1)
     print("all citations resolved")

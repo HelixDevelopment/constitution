@@ -1,8 +1,8 @@
 schema_version: 1
-generated_at: '2026-09-26T10:30:12.461789+00:00'
+generated_at: '2026-09-26T11:30:56.385675+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 77de34a413ee3325a05bfe9ceae066ad0e6fd19f
+  commit: 647f7553533a2006c57beab7b3ae1a5d40026eac
   source_sha256: e764f149a45884785770bf19ef2dbb27a42109910f7f15ea43085ea466f0d946
 groups:
 - name: anti-bluff-and-evidence
@@ -45,8 +45,8 @@ anchors:
 - id: '7.1'
   title: NO BLUFF — positive-evidence-only validation
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#7-1
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -54,8 +54,8 @@ anchors:
 - id: '9.1'
   title: Mandatory safety protocol for destructive operations
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#9-1
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -65,8 +65,8 @@ anchors:
 - id: '9.2'
   title: Force-push requires explicit user authorization every time
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#9-2
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -75,8 +75,8 @@ anchors:
 - id: '9.3'
   title: Hardlinked backup is the standard — there is no excuse
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#9-3
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -84,8 +84,8 @@ anchors:
 - id: '9.4'
   title: Commit-message audit trail for history rewrites
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#9-4
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -93,8 +93,8 @@ anchors:
 - id: '11.4'
   title: End-user quality guarantee — forensic anchor (User mandate, 2026-04-28)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -107,8 +107,8 @@ anchors:
 - id: 11.4.1
   title: — FAIL-bluffs are equally forbidden
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-1
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -116,8 +116,8 @@ anchors:
 - id: 11.4.2
   title: — Recorded-evidence requirement
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-2
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -126,8 +126,8 @@ anchors:
 - id: 11.4.3
   title: — Per-environment-topology test dispatch
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-3
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -136,8 +136,8 @@ anchors:
 - id: 11.4.4
   title: — Test-interrupt-on-discovery + retest-from-clean-baseline
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-4
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -147,8 +147,8 @@ anchors:
 - id: 11.4.5
   title: — Captured-evidence quality analysis
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-5
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -157,8 +157,8 @@ anchors:
 - id: 11.4.6
   title: — No-guessing mandate
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-6
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -166,8 +166,8 @@ anchors:
 - id: 11.4.7
   title: — Demotion-evidence rule
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-7
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -176,8 +176,8 @@ anchors:
 - id: 11.4.8
   title: — Deep-web-research-before-implementation
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-8
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -186,8 +186,8 @@ anchors:
 - id: 11.4.9
   title: — Batch-source-fixes-before-rebuild
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-9
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -195,8 +195,8 @@ anchors:
 - id: 11.4.10
   title: — Credentials-handling mandate
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-10
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -204,8 +204,8 @@ anchors:
 - id: 11.4.10.A
   title: — Pre-store credential leak audit (User mandate, 2026-05-17)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-10-A
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -220,8 +220,8 @@ anchors:
 - id: 11.4.11
   title: — File-layout discipline
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-11
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -236,8 +236,8 @@ anchors:
 - id: 11.4.12
   title: — Auto-generated docs sync mandate
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-12
-  classification: universal
+  location: constitution/groups/documentation-and-export.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -246,8 +246,8 @@ anchors:
 - id: 11.4.13
   title: — Out-of-band sink-side captured-evidence
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-13
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -257,8 +257,8 @@ anchors:
 - id: 11.4.14
   title: — Test playback cleanup mandate
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-14
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -268,8 +268,8 @@ anchors:
 - id: 11.4.15
   title: — Item-status tracking mandate
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-15
-  classification: universal
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -279,8 +279,8 @@ anchors:
 - id: 11.4.16
   title: — Item-type tracking mandate
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-16
-  classification: universal
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -290,8 +290,8 @@ anchors:
 - id: 11.4.17
   title: — Universal-vs-project classification of new rules (User mandate, 2026-05-14)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-17
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -299,8 +299,8 @@ anchors:
 - id: 11.4.18
   title: — Script documentation mandate (User mandate, 2026-05-14)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-18
-  classification: universal
+  location: constitution/groups/documentation-and-export.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -310,8 +310,8 @@ anchors:
 - id: 11.4.19
   title: — Fixed-document column-alignment mandate (User mandate, 2026-05-14)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-19
-  classification: universal
+  location: constitution/groups/documentation-and-export.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-19-PROPAGATION
   binds_principle: []
   cross_references:
@@ -326,8 +326,8 @@ anchors:
 - id: 11.4.20
   title: — Subagent-driven-by-default mandate (User mandate, 2026-05-14)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-20
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -340,8 +340,8 @@ anchors:
   title: — Operator-blocked status + self-resolution exhaustion mandate (User mandate,
     2026-05-14)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-21
-  classification: universal
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-21-PROPAGATION
   binds_principle: []
   cross_references:
@@ -360,7 +360,7 @@ anchors:
 - id: 11.4.22
   title: — Document-sync commit discipline (User mandate, 2026-05-14)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-22
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -376,7 +376,7 @@ anchors:
 - id: 11.4.23
   title: — Visual-cue & grouping mandate for Issues docs (User mandate, 2026-05-14)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-23
+  location: constitution/groups/documentation-and-export.md
   classification: mixed
   propagation_gate: null
   binds_principle: []
@@ -391,7 +391,7 @@ anchors:
 - id: 11.4.24
   title: — Build-resource stats tracking mandate (User mandate, 2026-05-14)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-24
+  location: constitution/groups/host-and-resource-safety.md
   classification: mixed
   propagation_gate: null
   binds_principle: []
@@ -407,7 +407,7 @@ anchors:
 - id: 11.4.25
   title: — Full-Automation-Coverage Mandate (User mandate, 2026-05-15)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-25
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -430,7 +430,7 @@ anchors:
 - id: 11.4.26
   title: — Constitution-Submodule Update Workflow Mandate (User mandate, 2026-05-15)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-26
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -448,7 +448,7 @@ anchors:
   title: — No-Fakes-Beyond-Unit-Tests + 100%-Test-Type-Coverage Mandate (User mandate,
     2026-05-15)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-27
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -477,7 +477,7 @@ anchors:
   title: — Submodules-As-Equal-Codebase + Decoupling + Dependency-Layout Mandate (User
     mandate, 2026-05-15)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-28
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -498,7 +498,7 @@ anchors:
 - id: 11.4.29
   title: — Lowercase-Snake_Case-Naming Mandate (User mandate, 2026-05-15)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-29
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -517,7 +517,7 @@ anchors:
 - id: 11.4.30
   title: — .gitignore + No-Versioned-Build-Artifacts Mandate (User mandate, 2026-05-15)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-30
+  location: constitution/groups/git-and-data-safety.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -541,7 +541,7 @@ anchors:
 - id: 11.4.31
   title: — Submodule-Dependency-Manifest Mandate (User mandate, 2026-05-15)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-31
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -562,7 +562,7 @@ anchors:
 - id: 11.4.32
   title: — Post-Constitution-Pull Validation Mandate (User mandate, 2026-05-15)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-32
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -590,7 +590,7 @@ anchors:
 - id: 11.4.33
   title: — Type-aware closure-status vocabulary (User mandate, 2026-05-15)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-33
+  location: constitution/groups/workable-items-and-tracking.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -604,7 +604,7 @@ anchors:
 - id: 11.4.34
   title: — Reopened-source attribution mandate (User mandate, 2026-05-15)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-34
+  location: constitution/groups/workable-items-and-tracking.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -618,7 +618,7 @@ anchors:
 - id: 11.4.35
   title: — Canonical-root inheritance clarity (User mandate, 2026-05-15)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-35
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -630,7 +630,7 @@ anchors:
 - id: 11.4.36
   title: — Mandatory install_upstreams on clone/add Mandate (User mandate, 2026-05-15)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-36
+  location: constitution/groups/git-and-data-safety.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -648,7 +648,7 @@ anchors:
 - id: 11.4.37
   title: — Fetch-before-edit mandate (User mandate, 2026-05-15)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-37
+  location: constitution/groups/git-and-data-safety.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -669,7 +669,7 @@ anchors:
 - id: 11.4.38
   title: — Installable-Asset Evidence Mandate (User mandate, 2026-05-17)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-38
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -684,7 +684,7 @@ anchors:
 - id: 11.4.39
   title: — Per-Feature On-Device End-User Validation Mandate (iter-76, 2026-05-17)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-39
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -699,7 +699,7 @@ anchors:
 - id: 11.4.40
   title: — Full-suite retest before release tag mandate (User mandate, 2026-05-17)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-40
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -718,7 +718,7 @@ anchors:
 - id: 11.4.41
   title: — Pre-Force-Push Merge-First Mandate (User mandate, 2026-05-17)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-41
+  location: constitution/groups/git-and-data-safety.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -736,7 +736,7 @@ anchors:
 - id: 11.4.42
   title: — Iteration-discipline mandate (User mandate, 2026-05-18)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-42
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -757,7 +757,7 @@ anchors:
 - id: 11.4.43
   title: — TDD-Fix-Discipline Mandate (User mandate, 2026-05-18)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-43
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -782,7 +782,7 @@ anchors:
 - id: 11.4.44
   title: — Document Revision Header Mandate (User mandate, 2026-05-18)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-44
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -798,7 +798,7 @@ anchors:
 - id: 11.4.45
   title: — Integration-Status-Doc Maintenance Mandate (User mandate, 2026-05-18)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-45
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -820,7 +820,7 @@ anchors:
 - id: 11.4.46
   title: — Validate-recent-work-before-post-flash-tests mandate (User mandate, 2026-05-18)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-46
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -841,7 +841,7 @@ anchors:
 - id: 11.4.47
   title: — Firebase Data Review Mandate (User mandate, 2026-05-18)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-47
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -866,7 +866,7 @@ anchors:
 - id: 11.4.48
   title: — UI-Driven Video Testing Mandate (User mandate, 2026-05-18)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-48
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -883,7 +883,7 @@ anchors:
 - id: 11.4.49
   title: — Dual-Approach Testing Mandate (User mandate, 2026-05-18)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-49
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -903,7 +903,7 @@ anchors:
 - id: 11.4.50
   title: — Deterministic Consistency Mandate (User mandate, 2026-05-18)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-50
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -923,7 +923,7 @@ anchors:
 - id: 11.4.51
   title: — Live-ADB-First Maximization Mandate (User mandate, 2026-05-18)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-51
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -940,7 +940,7 @@ anchors:
 - id: 11.4.52
   title: — Autonomous-Validation Mandate (User mandate, 2026-05-18)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-52
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -965,7 +965,7 @@ anchors:
 - id: 11.4.53
   title: — Fixed_Summary parity mandate (User mandate, 2026-05-18)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-53
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -984,7 +984,7 @@ anchors:
 - id: 11.4.54
   title: — ATM-NNN ticket identifier mandate (User mandate, 2026-05-19)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-54
+  location: constitution/groups/workable-items-and-tracking.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1004,7 +1004,7 @@ anchors:
 - id: 11.4.55
   title: — Reopens-history tracking + per-item Reopens.md doc (User mandate, 2026-05-19)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-55
+  location: constitution/groups/workable-items-and-tracking.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1022,7 +1022,7 @@ anchors:
 - id: 11.4.56
   title: — Status_Summary parity + two-audience format (User mandate, 2026-05-19)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-56
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1040,7 +1040,7 @@ anchors:
 - id: 11.4.57
   title: — README.md doc-link section + revision metadata (User mandate, 2026-05-19)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-57
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1061,7 +1061,7 @@ anchors:
 - id: 11.4.58
   title: — Parallel-development methodology (User mandate, 2026-05-19)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-58
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1097,7 +1097,7 @@ anchors:
 - id: 11.4.59
   title: — README always-sync mandate (User mandate, 2026-05-19)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-59
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1117,7 +1117,7 @@ anchors:
 - id: 11.4.60
   title: — Documentation always-sync composite covenant (User mandate, 2026-05-19)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-60
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1143,7 +1143,7 @@ anchors:
 - id: 11.4.61
   title: — Mandatory Markdown metadata table + structured-doc ToC (User mandate, 2026-05-19)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-61
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1161,7 +1161,7 @@ anchors:
   title: — Workable-items procedure docs as single source of truth (User mandate,
     2026-05-19)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-63
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1187,7 +1187,7 @@ anchors:
 - id: 11.4.65
   title: — Universal Markdown export mandate (User mandate, 2026-05-19)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-65
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1211,8 +1211,8 @@ anchors:
 - id: 11.4.66
   title: — Blocker-resolution interactive-clarification mandate (User mandate, 2026-05-19)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-66
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1226,8 +1226,8 @@ anchors:
 - id: 11.4.67
   title: — Shell-script target-shell-parseability mandate (User mandate, 2026-05-19)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-67
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-67-PROPAGATION
   binds_principle: []
   cross_references:
@@ -1243,8 +1243,8 @@ anchors:
 - id: 11.4.68
   title: — Positive sink-side / downstream evidence mandate (User mandate, 2026-05-20)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-68
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1262,8 +1262,8 @@ anchors:
   title: — Universal Sink-Side Positive-Evidence Taxonomy + Mechanical Enforcement
     (User mandate, 2026-05-20)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-69
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1285,8 +1285,8 @@ anchors:
 - id: 11.4.70
   title: — Subagent-Driven Execution Is The Default (User mandate, 2026-05-20)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-70
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1303,8 +1303,8 @@ anchors:
 - id: 11.4.71
   title: — Pre-Push Fetch + Investigate + Integrate Mandate (User mandate, 2026-05-20)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-71
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1323,8 +1323,8 @@ anchors:
 - id: 11.4.72
   title: — Audio Top-Priority Mandate (User mandate, 2026-05-20)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-72
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1335,7 +1335,7 @@ anchors:
   title: — Main-specification document versioning + revision discipline (User mandate,
     2026-05-20)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-73
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1351,7 +1351,7 @@ anchors:
   title: — Submodule-catalogue-first discovery + extend-don't-reimplement (User mandate,
     2026-05-20)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-74
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1372,8 +1372,8 @@ anchors:
 - id: 11.4.75
   title: — Mechanical Enforcement Without Exception (User mandate, 2026-05-20)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-75
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-75-PROPAGATION
   binds_principle: []
   cross_references:
@@ -1402,7 +1402,7 @@ anchors:
 - id: 11.4.76
   title: — Containers-submodule mandate (User mandate, 2026-05-20)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-76
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1422,7 +1422,7 @@ anchors:
 - id: 11.4.77
   title: — Regeneration-mechanism-required mandate (User mandate, 2026-05-20)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-77
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1443,7 +1443,7 @@ anchors:
 - id: 11.4.78
   title: — CodeGraph code-intelligence mandate (User mandate, 2026-05-20)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-78
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1484,7 +1484,7 @@ anchors:
   title: — Own-org submodules MUST be included in the CodeGraph index (User mandate,
     2026-05-21)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-79
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1499,7 +1499,7 @@ anchors:
 - id: 11.4.80
   title: — CodeGraph regular-update + sync automation mandate (User mandate, 2026-05-21)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-80
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1522,7 +1522,7 @@ anchors:
 - id: 11.4.81
   title: — Cross-platform-parity mandate (User mandate, 2026-05-21)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-81
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1545,7 +1545,7 @@ anchors:
 - id: 11.4.82
   title: — Iteration-speedup discipline mandate (User mandate, 2026-05-22)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-82
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1573,7 +1573,7 @@ anchors:
 - id: 11.4.83
   title: — docs/qa/ end-user evidence mandate (User mandate, 2026-05-22)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-83
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1591,7 +1591,7 @@ anchors:
 - id: 11.4.84
   title: — Working-tree quiescence rule for subagent commits (User mandate, 2026-05-22)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-84
+  location: constitution/groups/git-and-data-safety.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1607,7 +1607,7 @@ anchors:
 - id: 11.4.85
   title: — Stress + Chaos Test Mandate (User mandate, 2026-05-24)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-85
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1631,7 +1631,7 @@ anchors:
 - id: 11.4.86
   title: — Roster/corpus-backed Status-doc auto-sync mandate (User mandate, 2026-05-25)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-86
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -1653,8 +1653,8 @@ anchors:
   title: — Endless-loop autonomous work + zero-idle agent dispatch + anti-bluff testing
     mandate (User mandate, 2026-05-26)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-87
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1693,8 +1693,8 @@ anchors:
   title: '— Background-push mandate: commit-lock release immediately after commit,
     push runs detached (User mandate, 2026-05-26)'
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-88
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1710,8 +1710,8 @@ anchors:
 - id: 11.4.89
   title: — Background test execution mandate (User mandate, 2026-05-27)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-89
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1732,8 +1732,8 @@ anchors:
 - id: 11.4.90
   title: — Obsolete status + per-item obsolescence audit mandate (User mandate, 2026-05-27)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-90
-  classification: universal
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1756,8 +1756,8 @@ anchors:
 - id: 11.4.91
   title: — Summary-doc clarity mandate (User mandate, 2026-05-27)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-91
-  classification: universal
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1783,8 +1783,8 @@ anchors:
 - id: 11.4.92
   title: — Multi-pass change-evaluation discipline (User mandate, 2026-05-27)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-92
-  classification: universal
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1819,8 +1819,8 @@ anchors:
   title: — SQLite-backed single-source-of-truth for workable items (User mandate,
     2026-05-27)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-93
-  classification: universal
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1868,8 +1868,8 @@ anchors:
   title: — Zero-idle priority-first parallel-by-default operating mode (User mandate,
     2026-05-27)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-94
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1896,8 +1896,8 @@ anchors:
   title: — Workable-items SQLite DB is TRACKED in git, NEVER gitignored (User mandate,
     2026-05-27)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-95
-  classification: universal
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1914,8 +1914,8 @@ anchors:
 - id: 11.4.96
   title: — Safe-parallel-work-with-long-build catalogue + mandate (User mandate, 2026-05-27)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-96
-  classification: universal
+  location: constitution/groups/host-and-resource-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1946,8 +1946,8 @@ anchors:
   title: — Maximum-use-of-idle-time mandate + progress-update cadence (User mandate,
     2026-05-27)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-97
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -1977,8 +1977,8 @@ anchors:
   title: — Full-Automation Anti-Bluff Mandate — Live tests MUST be re-runnable end-to-end
     without manual intervention (User mandate, 2026-05-28)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-98
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -2001,8 +2001,8 @@ anchors:
     and manuals MUST be verified against the latest official online sources BEFORE
     publication (User mandate, 2026-05-28)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-99
-  classification: universal
+  location: constitution/groups/documentation-and-export.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -2019,8 +2019,8 @@ anchors:
 - id: 11.4.100
   title: — RETIRED.
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-100
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -2030,7 +2030,7 @@ anchors:
 - id: 11.4.101
   title: — Autonomous-decision-over-blocking mandate (User mandate, 2026-05-28)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-101
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-101-PROPAGATION
   binds_principle: []
@@ -2055,7 +2055,7 @@ anchors:
   title: — Mandatory systematic-debugging activation + always-loaded skill-discovery
     + plugin-dependency availability (User mandate, 2026-05-29)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-102
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-102-PROPAGATION
   binds_principle: []
@@ -2078,7 +2078,7 @@ anchors:
 - id: 11.4.103
   title: — Continuous parallel-stream working routine (User mandate, 2026-05-29)
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-103
+  location: constitution/groups/multi-track-and-parallelism.md
   classification: universal
   propagation_gate: CM-COVENANT-114-103-PROPAGATION
   binds_principle: []
@@ -2116,7 +2116,7 @@ anchors:
   title: — Participant identity, attribution & notification-tagging (User mandate,
     2026-05-31)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-104
+  location: constitution/groups/workable-items-and-tracking.md
   classification: universal
   propagation_gate: CM-COVENANT-114-104-PROPAGATION
   binds_principle: []
@@ -2139,7 +2139,7 @@ anchors:
 - id: 11.4.105
   title: — Natural-language intent recognition & clarification (User mandate, 2026-05-31)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-105
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-105-PROPAGATION
   binds_principle: []
@@ -2162,7 +2162,7 @@ anchors:
   title: — Docs Chain — mechanical documentation/DB sync engine (Operator mandate,
     2026-05-31)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-106
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: CM-COVENANT-114-106-PROPAGATION
   binds_principle: []
@@ -2204,7 +2204,7 @@ anchors:
   title: — Anti-bluff AV/test-validation techniques mandate (User-driven research,
     2026-06-02)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-107
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-107-PROPAGATION
   binds_principle: []
@@ -2230,7 +2230,7 @@ anchors:
   title: — Four-layer fix-verification + runtime-signature-as-definition-of-done mandate
     (systematic-debugging Phase 4.5, 2026-06-03)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-108
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-108-PROPAGATION
   binds_principle: []
@@ -2262,7 +2262,7 @@ anchors:
   title: '— Mandatory Anti-Forgetting Enforcement: PreToolUse Guard Hook + Subagent
     Constitutional Preamble + Orchestrator Pre-Action Checklist (Operator mandate)'
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-109
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-109-PROPAGATION
   binds_principle: []
@@ -2291,7 +2291,7 @@ anchors:
   title: — Pre-build build-readiness verdict + change-impact clash detection mandate
     (operator mandate, 2026-06-03)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-110
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-110-PROPAGATION
   binds_principle: []
@@ -2320,7 +2320,7 @@ anchors:
   title: — Resolve-by-stable-name-not-by-enumeration-index mandate (research-derived,
     2026-06-03)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-111
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-111-PROPAGATION
   binds_principle: []
@@ -2338,7 +2338,7 @@ anchors:
   title: — Structural-impossibility won't-fix classification mandate (research-derived,
     2026-06-03)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-112
+  location: constitution/groups/workable-items-and-tracking.md
   classification: universal
   propagation_gate: CM-COVENANT-114-112-PROPAGATION
   binds_principle: []
@@ -2362,7 +2362,7 @@ anchors:
   title: — Absolute no-force-push + merge-onto-latest-main mandate (User mandate,
     2026-06-03)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-113
+  location: constitution/groups/git-and-data-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-113-PROPAGATION
   binds_principle: []
@@ -2388,7 +2388,7 @@ anchors:
   title: — Last-known-good-tag regression isolation mandate (1.1.8-dev remediation,
     2026-06-03)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-114
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: CM-COVENANT-114-114-PROPAGATION
   binds_principle: []
@@ -2409,7 +2409,7 @@ anchors:
   title: — RED-baseline-on-the-broken-artifact + polarity-switch mandate (1.1.8-dev
     remediation, 2026-06-03)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-115
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: CM-COVENANT-114-115-PROPAGATION
   binds_principle: []
@@ -2449,7 +2449,7 @@ anchors:
   title: — Real-time conductor↔autonomous-test-framework sync channel mandate (1.1.8-dev
     remediation, 2026-06-03)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-116
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: CM-COVENANT-114-116-PROPAGATION
   binds_principle: []
@@ -2473,7 +2473,7 @@ anchors:
   title: — Computer-vision / OCR pixel-oracle fallback for non-introspectable UIs
     mandate (1.1.8-dev remediation, 2026-06-03)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-117
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: CM-COVENANT-114-117-PROPAGATION
   binds_principle: []
@@ -2495,7 +2495,7 @@ anchors:
   title: — Discovery-pressure to confirm known-issue-set completeness mandate (1.1.8-dev
     remediation, 2026-06-03)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-118
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: CM-COVENANT-114-118-PROPAGATION
   binds_principle: []
@@ -2524,7 +2524,7 @@ anchors:
   title: — Single-resource-owner partitioning for parallel hardware testing mandate
     (1.1.8-dev remediation, 2026-06-03)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-119
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-119-PROPAGATION
   binds_principle: []
@@ -2548,7 +2548,7 @@ anchors:
   title: — Fix-breaks-its-own-gate reconciliation mandate (1.1.8-dev remediation,
     2026-06-03)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-120
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: CM-COVENANT-114-120-PROPAGATION
   binds_principle: []
@@ -2574,7 +2574,7 @@ anchors:
   title: — No-commit-while-build-writes-tracked-artifacts mandate (1.1.8-dev remediation,
     2026-06-03)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-121
+  location: constitution/groups/git-and-data-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-121-PROPAGATION
   binds_principle: []
@@ -2595,7 +2595,7 @@ anchors:
   title: — No-silent-removal-of-existing-components-without-operator-confirmation
     mandate (User mandate, 2026-06-03)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-122
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-122-PROPAGATION
   binds_principle: []
@@ -2616,7 +2616,7 @@ anchors:
 - id: 11.4.123
   title: — Rock-solid-proof-or-deep-research mandate (User mandate, 2026-06-03)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-123
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-123-PROPAGATION
   binds_principle: []
@@ -2642,7 +2642,7 @@ anchors:
 - id: 11.4.124
   title: — Dead/unwired-code investigate-before-remove mandate (User mandate, 2026-06-04)
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-124
+  location: constitution/groups/code-review-and-quality.md
   classification: universal
   propagation_gate: CM-COVENANT-114-124-PROPAGATION
   binds_principle: []
@@ -2667,7 +2667,7 @@ anchors:
   title: — Code-review-agent gate before pre-build + main build (mandatory multi-layer
     review) (User mandate, 2026-06-04)
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-125
+  location: constitution/groups/code-review-and-quality.md
   classification: universal
   propagation_gate: CM-COVENANT-114-125-PROPAGATION
   binds_principle: []
@@ -2698,7 +2698,7 @@ anchors:
 - id: 11.4.126
   title: — Default autonomous-loop working mode from first prompt (User mandate, 2026-06-04)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-126
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-126-PROPAGATION
   binds_principle: []
@@ -2729,7 +2729,7 @@ anchors:
 - id: 11.4.127
   title: — Session-handoff resumption-prompt mandate (User mandate, 2026-06-06)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-127
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-127-PROPAGATION
   binds_principle: []
@@ -2749,7 +2749,7 @@ anchors:
 - id: 11.4.128
   title: — Always-on device-recording mandate (User mandate, 2026-06-06)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-128
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-128-PROPAGATION
   binds_principle: []
@@ -2775,7 +2775,7 @@ anchors:
 - id: 11.4.129
   title: — Huge-blocker release protocol (User mandate, 2026-06-06)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-129
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-129-PROPAGATION
   binds_principle: []
@@ -2806,7 +2806,7 @@ anchors:
 - id: 11.4.130
   title: — Post-remediation validate-the-fix-FIRST-after-redeploy (User mandate, 2026-06-06)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-130
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-130-PROPAGATION
   binds_principle: []
@@ -2833,8 +2833,8 @@ anchors:
 - id: 11.4.131
   title: — Standing session-resumption file mandate (User mandate, 2026-06-07)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-131
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-131-PROPAGATION
   binds_principle: []
   cross_references:
@@ -2854,7 +2854,7 @@ anchors:
 - id: 11.4.132
   title: — Risk-ordered validation priority mandate (User mandate, 2026-06-07)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-132
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-132-PROPAGATION
   binds_principle: []
@@ -2882,7 +2882,7 @@ anchors:
 - id: 11.4.133
   title: — Target-System + hardware safety mandate (User mandate, 2026-06-08)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-133
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-133-PROPAGATION
   binds_principle: []
@@ -2908,8 +2908,8 @@ anchors:
   title: — Code-review iterate-until-GO + rock-solid-evidence mandate (User mandate,
     2026-06-08)
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-134
-  classification: universal
+  location: constitution/groups/code-review-and-quality.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-134-PROPAGATION
   binds_principle: []
   cross_references:
@@ -2932,7 +2932,7 @@ anchors:
   title: — Standing regression-guard suite + every-fixed-defect-gets-a-permanent-regression-test
     (User mandate, 2026-06-08)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-135
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -2961,7 +2961,7 @@ anchors:
 - id: 11.4.136
   title: — Real-content end-to-end playback-test mandate (User mandate, 2026-06-08)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-136
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -2983,7 +2983,7 @@ anchors:
   title: — Subtitle/caption content-correctness oracle + secure-display-proxy-honesty
     mandate (User mandate, 2026-06-08)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-137
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -3007,7 +3007,7 @@ anchors:
   title: — Operator-escape => mandatory bluff-audit + permanent guard (User mandate,
     2026-06-08)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-138
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -3026,7 +3026,7 @@ anchors:
 - id: 11.4.139
   title: — Fresh-process clean-artifact runtime-signature mandate (User mandate, 2026-06-08)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-139
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -3043,7 +3043,7 @@ anchors:
 - id: 11.4.140
   title: — Universal action-prefix system (`ACTION_NAME ::`) (User mandate, 2026-06-09)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-140
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -3085,8 +3085,8 @@ anchors:
 - id: 11.4.141
   title: — Token-efficiency mandate (research-derived + operator mandate, 2026-06-09)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-141
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-141-PROPAGATION
   binds_principle: []
   cross_references:
@@ -3118,7 +3118,7 @@ anchors:
   title: — Universal code-review mandate — every change reviewed, always, no exception
     (User mandate, 2026-06-09)
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-142
+  location: constitution/groups/code-review-and-quality.md
   classification: universal
   propagation_gate: CM-COVENANT-114-142-PROPAGATION
   binds_principle: []
@@ -3149,7 +3149,7 @@ anchors:
   title: — Real-user-journey mandate for video-streaming-app full-automation tests
     (User mandate, 2026-06-10)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-143
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: CM-COVENANT-114-143-PROPAGATION
   binds_principle: []
@@ -3174,7 +3174,7 @@ anchors:
 - id: 11.4.144
   title: — Tracked/recorded-device availability-following mandate (User mandate, 2026-06-10)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-144
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-144-PROPAGATION
   binds_principle: []
@@ -3193,7 +3193,7 @@ anchors:
 - id: 11.4.145
   title: — Independent multi-angle impact-research per change (User mandate, 2026-06-10)
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-145
+  location: constitution/groups/code-review-and-quality.md
   classification: universal
   propagation_gate: CM-COVENANT-114-145-PROPAGATION
   binds_principle: []
@@ -3224,7 +3224,7 @@ anchors:
   title: — Reproduce-first test + same-test-confirms-fix + mandatory extend-to-all-cases
     workflow (User mandate, 2026-06-10)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-146
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-146-PROPAGATION
   binds_principle: []
@@ -3270,7 +3270,7 @@ anchors:
   title: — Crashed-agent respawn-until-complete + no-work-loss registry mandate (User
     mandate, 2026-06-10)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-147
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-147-PROPAGATION
   binds_principle: []
@@ -3306,7 +3306,7 @@ anchors:
     + bidirectional external-tracker sync + BLOCKED unblock-choices mandate (User
     mandate, 2026-06-10)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-148
+  location: constitution/groups/workable-items-and-tracking.md
   classification: universal
   propagation_gate: CM-COVENANT-114-148-PROPAGATION
   binds_principle: []
@@ -3351,7 +3351,7 @@ anchors:
 - id: 11.4.149
   title: — Per-workable-item testing-diary mandate (User mandate, 2026-06-10)
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-149
+  location: constitution/groups/workable-items-and-tracking.md
   classification: universal
   propagation_gate: CM-COVENANT-114-149-PROPAGATION
   binds_principle: []
@@ -3385,7 +3385,7 @@ anchors:
   title: — Mandatory deep multi-angle web research per change/issue, before declaring
     fixed or structural (User mandate, 2026-06-11)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-150
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-150-PROPAGATION
   binds_principle: []
@@ -3425,7 +3425,7 @@ anchors:
 - id: 11.4.151
   title: — Project-prefixed release-tag/version-naming mandate (User mandate, 2026-06-12)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-151
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-151-PROPAGATION
   binds_principle: []
@@ -3448,7 +3448,7 @@ anchors:
   title: — Crashlytics-recorded-data continuous monitoring + systematic-debug + regression-test-coverage
     mandate (User mandate, 2026-06-13)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-152
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-152-PROPAGATION
   binds_principle: []
@@ -3483,8 +3483,8 @@ anchors:
   title: — Comprehensive per-feature Status + Status_Summary document set with mandatory
     video-recording confirmation (User mandate, 2026-06-15)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-153
-  classification: universal
+  location: constitution/groups/documentation-and-export.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-153-PROPAGATION
   binds_principle: []
   cross_references:
@@ -3523,8 +3523,8 @@ anchors:
   title: — Window-scoped capture + fresh-corpus rotation for feature/QA recordings
     (User mandate, 2026-06-15)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-154
-  classification: universal
+  location: constitution/groups/host-and-resource-safety.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-154-PROPAGATION
   binds_principle: []
   cross_references:
@@ -3550,7 +3550,7 @@ anchors:
 - id: 11.4.155
   title: — Project-name-prefixed feature/QA recording filenames (User mandate, 2026-06-15)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-155
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-155-PROPAGATION
   binds_principle: []
@@ -3579,7 +3579,7 @@ anchors:
   title: — All CI/CD automation (GitHub Actions / GitLab pipelines / equivalents)
     MUST be disabled (User mandate, 2026-06-15)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-156
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-156-PROPAGATION
   binds_principle: []
@@ -3600,7 +3600,7 @@ anchors:
   title: — GEMINI.md maintained in lockstep with CLAUDE.md / AGENTS.md / QWEN.md (User
     mandate, 2026-06-15)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-157
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-157-PROPAGATION
   binds_principle: []
@@ -3623,7 +3623,7 @@ anchors:
   title: — Intensive all-feature/flow/edge-case video-recording + read-the-screen
     content-verification mandate (User mandate, 2026-06-16)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-158
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-158-PROPAGATION
   binds_principle: []
@@ -3659,7 +3659,7 @@ anchors:
   title: — Mandatory window-specific video recording + vision validation mandate (User
     mandate, 2026-06-20)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-159
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-159-PROPAGATION
   binds_principle: []
@@ -3688,7 +3688,7 @@ anchors:
 - id: 11.4.160
   title: — Vision-verified recording + HelixQA bridge mandate (User mandate, 2026-06-21)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-160
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-160-PROPAGATION
   binds_principle: []
@@ -3712,7 +3712,7 @@ anchors:
 - id: 11.4.161
   title: — Rootless container runtime mandate (User mandate, 2026-06-21)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-161
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-161-PROPAGATION
   binds_principle: []
@@ -3731,7 +3731,7 @@ anchors:
 - id: 11.4.162
   title: — OpenDesign UI design system mandate (User mandate, 2026-06-21)
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-162
+  location: constitution/groups/design-system-and-ui.md
   classification: universal
   propagation_gate: CM-COVENANT-114-162-PROPAGATION
   binds_principle: []
@@ -3752,7 +3752,7 @@ anchors:
 - id: 11.4.163
   title: — Universal Media Validation & Verification Mandate (User mandate, 2026-06-21)
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-163
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-163-PROPAGATION
   binds_principle: []
@@ -3774,7 +3774,7 @@ anchors:
 - id: 11.4.164
   title: — Universal Constitution Auto-Propagation & Hook System (User mandate, 2026-06-21)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-164
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-164-PROPAGATION
   binds_principle: []
@@ -3796,7 +3796,7 @@ anchors:
 - id: 11.4.165
   title: — Universal Independent Verification Agent Mandate (User mandate, 2026-06-21)
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-165
+  location: constitution/groups/code-review-and-quality.md
   classification: universal
   propagation_gate: CM-COVENANT-114-165-PROPAGATION
   binds_principle: []
@@ -3827,8 +3827,8 @@ anchors:
 - id: 11.4.166
   title: — REPEALED (operator decision, 2026-06-22).
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-166
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -3838,8 +3838,8 @@ anchors:
     copy + own branch/tags + per-feature builds, no-merge-until-approved, trunk-merged-into-every-stream)
     (User mandate, 2026-06-23)
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-167
-  classification: universal
+  location: constitution/groups/multi-track-and-parallelism.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-167-PROPAGATION
   binds_principle: []
   cross_references:
@@ -3882,7 +3882,7 @@ anchors:
   title: — Exported-document independent content + textual + full-visual validation
     mandate (User mandate, 2026-06-23)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-168
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: CM-COVENANT-114-168-PROPAGATION
   binds_principle: []
@@ -3918,8 +3918,8 @@ anchors:
   title: — Mandatory comprehensive test-type coverage with anti-bluff captured evidence
     (User mandate, 2026-06-25)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-169
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -3959,8 +3959,8 @@ anchors:
   title: — Device-independent host-side rendered-UI visual-proof mandate (User mandate,
     2026-06-25).
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-170
-  classification: universal
+  location: constitution/groups/design-system-and-ui.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-170-PROPAGATION
   binds_principle: []
   cross_references:
@@ -3991,8 +3991,8 @@ anchors:
   title: — Mandatory comprehensive human-readable workable-item descriptions (User
     mandate, 2026-06-29).
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-171
-  classification: universal
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-171-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4011,8 +4011,8 @@ anchors:
   title: — Mandatory production-readiness planning with realistic timeline projection
     (User mandate, 2026-06-29).
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-172
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-172-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4028,8 +4028,8 @@ anchors:
 - id: 11.4.173
   title: — Containerized + distributed build mandate (User mandate, 2026-06-29).
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-173
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-173-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4051,8 +4051,8 @@ anchors:
 - id: 11.4.174
   title: — Shared-host process-ownership verification mandate (User mandate, 2026-06-29).
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-174
-  classification: universal
+  location: constitution/groups/host-and-resource-safety.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-174-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4069,8 +4069,8 @@ anchors:
   title: — Conflict-free multi-track work-division + exactly-once claim registry +
     capability-aware deadlock-proof device-lock (User mandate, 2026-07-02).
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-176
-  classification: universal
+  location: constitution/groups/multi-track-and-parallelism.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-176-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4098,8 +4098,8 @@ anchors:
   title: — Developer-tooling project-decoupling + invocation-directory operation (User
     mandate, 2026-07-04).
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-177
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-177-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4115,8 +4115,8 @@ anchors:
   title: — Track-qualified identity for parallel work streams (session-name collision
     ban) (User mandate, 2026-07-04).
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-178
-  classification: universal
+  location: constitution/groups/multi-track-and-parallelism.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-178-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4135,8 +4135,8 @@ anchors:
   title: — Corruption-isolated parallel git streams (own-.git independent clones,
     not shared-common-dir worktrees) (User mandate, 2026-07-04).
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-179
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-179-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4156,8 +4156,8 @@ anchors:
   title: — Commit/push (single-writer) wrappers MUST auto-reap provably-stale locks
     before acquiring (User mandate, 2026-07-04).
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-180
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-180-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4176,8 +4176,8 @@ anchors:
     exactly ONE canonical branch name across the main repo + all owned submodules
     (User mandate, 2026-07-05).'
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-181
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-181-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4201,8 +4201,8 @@ anchors:
   title: — Track+branch work-stream identity label `(T<N>/<branch>)` on every agent/subagent/work-stream
     label and every operator-facing work-stream reference (User mandate, 2026-07-05).
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-182
-  classification: universal
+  location: constitution/groups/multi-track-and-parallelism.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-182-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4225,8 +4225,8 @@ anchors:
   title: — Maximal multi-agent utilization per work-stream + full-constitution-application
     + zero-bluff mandate (User mandate, 2026-07-07).
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-183
-  classification: universal
+  location: constitution/groups/multi-track-and-parallelism.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-183-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4257,8 +4257,8 @@ anchors:
   title: — Mandatory SonarQube static-analysis CLI + local tooling installed and PATH-discoverable
     (User mandate, 2026-07-06).
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-184
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-184-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4281,8 +4281,8 @@ anchors:
   title: '— HawkScan (DAST) + OWASP ZAP + gitleaks + Trivy: mandatory local security-tooling
     extension (operator mandate, 2026-09-18).'
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-184(I)
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-184-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4300,8 +4300,8 @@ anchors:
   title: — Manual QA-team testing as the mandatory FINAL confirmation of done (User
     mandate, 2026-07-07).
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-185
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-185-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4328,8 +4328,8 @@ anchors:
   title: '— Anti-divergence enforcement: cross-document consistency is a mandatory-before-export/commit
     gate, never an after-the-fact audit (research-derived, 2026-07-08).'
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-186
-  classification: universal
+  location: constitution/groups/documentation-and-export.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-186-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4347,8 +4347,8 @@ anchors:
   title: — Automatic multi-track ruler orchestration (User mandate, 2026-07-04; landed
     2026-07-09).
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-187
-  classification: universal
+  location: constitution/groups/multi-track-and-parallelism.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-187-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4384,8 +4384,8 @@ anchors:
     FREQUENTLY merge canonical `main` into itself DURING the work, never only at the
     end (User mandate, 2026-07-09).'
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-188
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-188-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4420,8 +4420,8 @@ anchors:
   title: — Most-reopened cases get extra-depth live-testing scrutiny FIRST (User mandate,
     2026-07-10).
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-189
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-189-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4452,8 +4452,8 @@ anchors:
     responsive + completely SEO-optimized + uniquely OpenDesign-authored + bleeding-edge
     enterprise-quality, each PROVEN with captured evidence (User mandate, 2026-07-10).'
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-190
-  classification: universal
+  location: constitution/groups/design-system-and-ui.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-190-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4473,8 +4473,8 @@ anchors:
   title: '— Work-to-track/branch binding enforcement: a logic-group''s work can NEVER
     be committed OR dispatched onto the wrong track/branch (research-derived, 2026-07-10).'
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-191
-  classification: universal
+  location: constitution/groups/multi-track-and-parallelism.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-191-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4498,8 +4498,8 @@ anchors:
     re-assigned its next-highest-priority domain work-set, never left idle while its
     domain has actionable items (User mandate, 2026-07-11).'
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-192
-  classification: universal
+  location: constitution/groups/multi-track-and-parallelism.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-192-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4529,7 +4529,7 @@ anchors:
   title: '— Anti-blind-typing mandate: every UI interaction MUST be "seen" and "understood"
     via OCR/vision/screenshot proof, NEVER blind-typed (User mandate, 2026-07-13).'
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-193
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -4552,7 +4552,7 @@ anchors:
   title: — Exhaustive all-scenario, all-angle code-review + verify-against-captured-runtime-evidence
     mandate (User mandate, 2026-07-14)
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-194
+  location: constitution/groups/code-review-and-quality.md
   classification: universal
   propagation_gate: CM-COVENANT-114-194-PROPAGATION
   binds_principle: []
@@ -4579,7 +4579,7 @@ anchors:
   title: '— Branch-structure governance: taxonomy + merge-after-live-QA + flavor/product
     non-merge (User mandate, 2026-07-14)'
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-195
+  location: constitution/groups/git-and-data-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-195-PROPAGATION
   binds_principle: []
@@ -4611,8 +4611,8 @@ anchors:
     tracking + auto-rebind-on-recovery + resource-detection-by-real-identity-not-substring-match
     (User mandate, 2026-07-14)
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-196
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-196-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4643,7 +4643,7 @@ anchors:
     be driven to full, wired, verified completion or explicitly closed — never left
     un-wired in the backlog (User mandate, 2026-07-15)'
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-197
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-197-PROPAGATION
   binds_principle: []
@@ -4683,7 +4683,7 @@ anchors:
     heavy token-optimization are ALWAYS-ON defaults for single- and multi-track work
     (User mandate, 2026-07-15)'
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-198
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-198-PROPAGATION
   binds_principle: []
@@ -4710,8 +4710,8 @@ anchors:
     the investigation MUST use ITS exact sequence — a deviating repro proves NOTHING
     (research-derived, 2026-07-15)'
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-199
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-199-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4735,8 +4735,8 @@ anchors:
   title: — Non-targetable deploy/flash tooling MUST isolate exactly ONE eligible target
     and VERIFY-AFTER-WRITE on the INTENDED target (research-derived, 2026-07-15)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-200
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-200-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4758,8 +4758,8 @@ anchors:
   title: '— Every guard/gate MUST assert the REAL condition: a false-positive refusal
     is a FAIL-bluff, a false-negative pass is a PASS-bluff (research-derived, 2026-07-15)'
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-201
-  classification: universal
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-201-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4801,8 +4801,8 @@ anchors:
   title: '— Reporting directives: a report MUST auto-create a fully-populated, fully-synced
     workable item — never a prose acknowledgement (User mandate, 2026-07-15).'
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-202
-  classification: universal
+  location: constitution/groups/workable-items-and-tracking.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-202-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4841,8 +4841,8 @@ anchors:
     a durable, content-addressed, atomically-committed snapshot resumed in O(changed)
     reads, not an O(history) re-read (User mandate, 2026-07-15)'
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-207
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-207-PROPAGATION
   binds_principle: []
   cross_references:
@@ -4874,7 +4874,7 @@ anchors:
     always-in-sync ledger of every operator request/prompt (content + timestamp+timezone
     + track + alias + model + effort) (User mandate, 2026-07-15)'
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-208
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-208-PROPAGATION
   binds_principle: []
@@ -4907,7 +4907,7 @@ anchors:
   title: — Code-review MUST run on the Opus model at xhigh effort (Fable escalation
     for big/complex reviews) (User mandate, 2026-09-15, supersedes 2026-07-15)
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-209
+  location: constitution/groups/code-review-and-quality.md
   classification: universal
   propagation_gate: CM-COVENANT-114-209-PROPAGATION
   binds_principle: []
@@ -4934,7 +4934,7 @@ anchors:
     captured, tracked, and processed — never skipped, ignored, avoided, or lost (User
     mandate, 2026-07-15)'
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-210
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-210-PROPAGATION
   binds_principle: []
@@ -4963,7 +4963,7 @@ anchors:
   title: — Merge-conflict resolution during main→feature/product/flavor merges MUST
     run on the Fable model at xhigh effort (Opus xhigh fallback) (User mandate, 2026-07-16)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-211
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-211-PROPAGATION
   binds_principle: []
@@ -4991,7 +4991,7 @@ anchors:
     documentation — no doc may be an orphan unreachable from README (User mandate,
     2026-07-16)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-212
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: CM-COVENANT-114-212-PROPAGATION
   binds_principle: []
@@ -5019,7 +5019,7 @@ anchors:
     SCHEDULES (never synchronously executes) a deep, enterprise-grade research + implementation-planning
     effort as a tracked workable item (operator-directed mandate, 2026-07-16)'
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-213
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-213-PROPAGATION
   binds_principle: []
@@ -5068,7 +5068,7 @@ anchors:
   title: '— Recurrence-links-not-mints: a defect that returns MUST reopen its existing
     item, never enter as a new id (research-derived, 2026-07-17)'
   group: workable-items-and-tracking
-  location: constitution/groups/workable-items-and-tracking.md#11-4-214
+  location: constitution/groups/workable-items-and-tracking.md
   classification: universal
   propagation_gate: CM-COVENANT-114-214-PROPAGATION
   binds_principle: []
@@ -5103,7 +5103,7 @@ anchors:
   title: — A doc that BINDS work MUST live, tracked, in the repository where that
     work happens (research-derived, 2026-07-17)
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-215
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: CM-COVENANT-114-215-PROPAGATION
   binds_principle: []
@@ -5132,7 +5132,7 @@ anchors:
     file (`:root` + `[data-theme="dark"]`), generated bindings everywhere else (User
     mandate, 2026-07-22)'
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-216
+  location: constitution/groups/design-system-and-ui.md
   classification: universal
   propagation_gate: CM-COVENANT-114-216-PROPAGATION
   binds_principle: []
@@ -5153,7 +5153,7 @@ anchors:
     DESIGN.md + tokens.css twin with disjoint color roles, AA-pinned accents, and
     a locked attribution footer (User mandate, 2026-07-22)'
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-217
+  location: constitution/groups/design-system-and-ui.md
   classification: universal
   propagation_gate: CM-COVENANT-114-217-PROPAGATION
   binds_principle: []
@@ -5175,7 +5175,7 @@ anchors:
     self-contained + a cross-platform reusability matrix with per-cell provenance
     (User mandate, 2026-07-22)'
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-218
+  location: constitution/groups/design-system-and-ui.md
   classification: universal
   propagation_gate: CM-COVENANT-114-218-PROPAGATION
   binds_principle: []
@@ -5195,7 +5195,7 @@ anchors:
   title: '— Per-app screen catalogues: full-IA coverage per surface, per-platform
     chrome variants, honesty markers for unbuilt behavior (User mandate, 2026-07-22)'
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-219
+  location: constitution/groups/design-system-and-ui.md
   classification: universal
   propagation_gate: CM-COVENANT-114-219-PROPAGATION
   binds_principle: []
@@ -5218,7 +5218,7 @@ anchors:
     tools are import/export targets only; design sources live in-repo in open formats
     (User mandate, 2026-07-22)'
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-220
+  location: constitution/groups/design-system-and-ui.md
   classification: universal
   propagation_gate: CM-COVENANT-114-220-PROPAGATION
   binds_principle: []
@@ -5250,7 +5250,7 @@ anchors:
   title: '— Motion discipline: token-bound durations/easings + machine-readable manifest
     + reduced-motion static fallbacks everywhere (User mandate, 2026-07-22)'
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-221
+  location: constitution/groups/design-system-and-ui.md
   classification: universal
   propagation_gate: CM-COVENANT-114-221-PROPAGATION
   binds_principle: []
@@ -5272,7 +5272,7 @@ anchors:
     the honest-output raster matrix, both-theme renders, hand-off bundles, and doc
     twins land (User mandate, 2026-07-22)'
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-222
+  location: constitution/groups/design-system-and-ui.md
   classification: universal
   propagation_gate: CM-COVENANT-114-222-PROPAGATION
   binds_principle: []
@@ -5299,7 +5299,7 @@ anchors:
   title: — Provenance-marker discipline for design documentation + central open-item
     registry in the area index (User mandate, 2026-07-22)
   group: design-system-and-ui
-  location: constitution/groups/design-system-and-ui.md#11-4-223
+  location: constitution/groups/design-system-and-ui.md
   classification: universal
   propagation_gate: CM-COVENANT-114-223-PROPAGATION
   binds_principle: []
@@ -5323,7 +5323,7 @@ anchors:
   title: — Test-first (TDD) for ALL work, not only fixes + a minimum code-coverage
     floor that is NECESSARY-never-sufficient (User mandate, 2026-07-22)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-224
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: CM-COVENANT-114-224-PROPAGATION
   binds_principle: []
@@ -5371,7 +5371,7 @@ anchors:
     process never shares a fixed-quota no-burst scope with a bursty fleet (research-derived,
     2026-07-23)'
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-225
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-225-PROPAGATION
   binds_principle: []
@@ -5398,7 +5398,7 @@ anchors:
     vs source) under real DETECTION PRESSURE does; prose does not bind, seams do (research-derived,
     2026-07-23)'
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-226
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-226-PROPAGATION
   binds_principle: []
@@ -5441,7 +5441,7 @@ anchors:
     ratchet, and propagation gates count anchor BLOCKS (exactly-once + lockstep-identical),
     never bare literals (research-derived, 2026-07-23)'
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-227
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-227-PROPAGATION
   binds_principle: []
@@ -5477,8 +5477,8 @@ anchors:
     of constitution extensions into all detected agent platforms on constitution pull
     (research-derived from Extensions Catalog forensics, 2026-07-24)'
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-228
-  classification: universal
+  location: constitution/groups/governance-and-constitution-meta.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -5511,7 +5511,7 @@ anchors:
     sync with the real work state — never stale, never showing completed work as pending
     nor pending as done (User mandate, 2026-07-25)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-229
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-229-PROPAGATION
   binds_principle: []
@@ -5539,7 +5539,7 @@ anchors:
     re-run + parallel multi-device testing/recording + fan-out-subagents-always (research-derived,
     2026-07-26)'
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-230
+  location: constitution/groups/multi-track-and-parallelism.md
   classification: universal
   propagation_gate: CM-COVENANT-114-230-PROPAGATION
   binds_principle: []
@@ -5594,7 +5594,7 @@ anchors:
   title: '— Nano-precision model-tier selection: lightest-capable-model-first with
     dynamic mid-task escalation (User mandate, 2026-07-26, `CRITICAL`)'
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-231
+  location: constitution/groups/multi-track-and-parallelism.md
   classification: universal
   propagation_gate: CM-COVENANT-114-231-PROPAGATION
   binds_principle: []
@@ -5636,7 +5636,7 @@ anchors:
     — the single source of truth for what is running, never inferred (research-derived,
     2026-07-26)'
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-232
+  location: constitution/groups/multi-track-and-parallelism.md
   classification: universal
   propagation_gate: CM-COVENANT-114-232-PROPAGATION
   binds_principle: []
@@ -5683,7 +5683,7 @@ anchors:
     per-domain enforcer, refusing gated transitions on un-reconciled drift (research-derived,
     2026-07-26)'
   group: multi-track-and-parallelism
-  location: constitution/groups/multi-track-and-parallelism.md#11-4-233
+  location: constitution/groups/multi-track-and-parallelism.md
   classification: universal
   propagation_gate: CM-COVENANT-114-233-PROPAGATION
   binds_principle: []
@@ -5742,7 +5742,7 @@ anchors:
     of a dedicated commit/push script, and the commit/push mechanism is ALWAYS unblocked
     (operator mandate, 2026-07-26)'
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-234
+  location: constitution/groups/git-and-data-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-234-PROPAGATION
   binds_principle: []
@@ -5764,7 +5764,7 @@ anchors:
     hardening is a parallel stage, never a build gate) + post-deploy version increment
     (operator mandate, 2026-07-27)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-235
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-235-PROPAGATION
   binds_principle: []
@@ -5797,8 +5797,8 @@ anchors:
     produced a candidate-fingerprinted PASS verdict; a blocker MUST bind to a seam,
     never prose (research-derived, 2026-07-31)'
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-236
-  classification: universal
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-236-PROPAGATION
   binds_principle: []
   cross_references:
@@ -5828,7 +5828,7 @@ anchors:
     idiom/register) + technical/non-translatable fidelity — accuracy necessary, never
     sufficient (operator mandate, 2026-08-05)'
   group: translation-and-localization
-  location: constitution/groups/translation-and-localization.md#11-4-237
+  location: constitution/groups/translation-and-localization.md
   classification: universal
   propagation_gate: CM-COVENANT-114-237-PROPAGATION
   binds_principle: []
@@ -5858,7 +5858,7 @@ anchors:
   title: '— Automated QA must be the DISCOVERER: manual QA finds nothing new, and
     anything it finds is a coverage escape (User mandate, 2026-08-08)'
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-238
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: CM-COVENANT-114-238-PROPAGATION
   binds_principle: []
@@ -5890,7 +5890,7 @@ anchors:
     code MUST include failure-path scenarios as gates, not merely happy-path passes
     (research-derived, 2026-08-15)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-239
+  location: constitution/groups/testing-and-tdd.md
   classification: universal
   propagation_gate: CM-COVENANT-114-239-PROPAGATION
   binds_principle: []
@@ -5929,7 +5929,7 @@ anchors:
     cannot be the one that gates it — least privilege over cleverness (research-derived,
     2026-08-15)'
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-240
+  location: constitution/groups/code-review-and-quality.md
   classification: universal
   propagation_gate: CM-COVENANT-114-240-PROPAGATION
   binds_principle: []
@@ -5967,8 +5967,8 @@ anchors:
   title: '— Illegal-state-unrepresentability preference: types before API-shape before
     lint before property-test before runtime-assertion (research-derived, 2026-08-15)'
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-241
-  classification: universal
+  location: constitution/groups/code-review-and-quality.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-241-PROPAGATION
   binds_principle: []
   cross_references:
@@ -5990,8 +5990,8 @@ anchors:
   title: — Bisection-not-blame regression cause-finding + failure modes (research-derived,
     2026-08-15)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-242
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-242-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6015,8 +6015,8 @@ anchors:
   title: — Characterization / golden-master safety net for legacy code before behaviour-changing
     modification (research-derived, 2026-08-15)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-243
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-243-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6033,8 +6033,8 @@ anchors:
 - id: 11.4.244
   title: — Cross-boundary contract tests + can-i-deploy gate (research-derived, 2026-08-15)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-244
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-244-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6053,8 +6053,8 @@ anchors:
   title: '— Oracle-problem-first test authoring: identify the oracle BEFORE authoring
     the test (research-derived, 2026-08-15)'
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-245
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-245-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6076,8 +6076,8 @@ anchors:
   title: — Reproducible + hermetic builds + supply-chain integrity at SLSA Build Level
     2 (operator decision, 2026-08-15)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-246
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-246-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6101,8 +6101,8 @@ anchors:
 - id: 11.4.247
   title: — Composite-output layer-move must move every layer (research-derived, 2026-08-15)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-247
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-247-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6124,8 +6124,8 @@ anchors:
   title: '— Flaky-test quarantine + protected-regression-spec gate via `[PROTECTED-SPEC:
     ATM-NNN]` tag + CODEOWNERS required reviewer (operator decision, 2026-08-15)'
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-248
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-248-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6147,8 +6147,8 @@ anchors:
   title: — Producer ≠ oracle ≠ gate ≠ verifier + flight recorder (research-derived,
     2026-08-15)
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-249
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-249-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6170,8 +6170,8 @@ anchors:
   title: '— Heuristic-tower signals a primitive defect: when N heuristic layers stack
     to compensate, the primitive is broken (research-derived, 2026-08-15)'
   group: testing-and-tdd
-  location: constitution/groups/testing-and-tdd.md#11-4-250
-  classification: universal
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-250-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6192,8 +6192,8 @@ anchors:
   title: — Byte-identical-fork prohibition + role-as-data-pack (research-derived,
     2026-08-15)
   group: code-review-and-quality
-  location: constitution/groups/code-review-and-quality.md#11-4-251
-  classification: universal
+  location: constitution/groups/code-review-and-quality.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-251-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6214,8 +6214,8 @@ anchors:
   title: — Fail-closed-on-dangerous-combination for mutating / credential surfaces
     (research-derived, 2026-08-15)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-252
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-252-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6234,8 +6234,8 @@ anchors:
   title: — Idempotency under retry + DB-level durable uniqueness guard (research-derived,
     2026-08-15)
   group: git-and-data-safety
-  location: constitution/groups/git-and-data-safety.md#11-4-253
-  classification: universal
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-253-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6250,8 +6250,8 @@ anchors:
 - id: 11.4.254
   title: — Boot-time invariant assertion + capability matrix (research-derived, 2026-08-15)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-254
-  classification: universal
+  location: constitution/groups/host-and-resource-safety.md
+  classification: unstated
   propagation_gate: CM-COVENANT-114-254-PROPAGATION
   binds_principle: []
   cross_references:
@@ -6273,7 +6273,7 @@ anchors:
   title: — Mandatory HelixTranslate canonical translation pipeline (User mandate,
     2026-06-25)
   group: translation-and-localization
-  location: constitution/groups/translation-and-localization.md#11-4-255
+  location: constitution/groups/translation-and-localization.md
   classification: universal
   propagation_gate: CM-COVENANT-114-255-PROPAGATION
   binds_principle: []
@@ -6292,7 +6292,7 @@ anchors:
 - id: 11.4.256
   title: — Mandatory independent per-language translation review (User mandate, 2026-06-25)
   group: translation-and-localization
-  location: constitution/groups/translation-and-localization.md#11-4-256
+  location: constitution/groups/translation-and-localization.md
   classification: universal
   propagation_gate: CM-COVENANT-114-256-PROPAGATION
   binds_principle: []
@@ -6315,7 +6315,7 @@ anchors:
     guide, and FAQ, always in sync, no orphan capability (BACKGROUND :: REMINDER ::
     IMPORTANT operator mandate, 2026-08-15)'
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-257
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: CM-COVENANT-114-257-PROPAGATION
   binds_principle: []
@@ -6348,7 +6348,7 @@ anchors:
     diagrams embedded into the docs that describe the system (BACKGROUND :: REMINDER
     :: IMPORTANT operator mandate, 2026-08-15)'
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-258
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: CM-COVENANT-114-258-PROPAGATION
   binds_principle: []
@@ -6385,7 +6385,7 @@ anchors:
     each backed by machine-derived source data, illustrating quality and production-readiness
     in one glance (BACKGROUND :: REMINDER :: IMPORTANT operator mandate, 2026-08-15)'
   group: documentation-and-export
-  location: constitution/groups/documentation-and-export.md#11-4-259
+  location: constitution/groups/documentation-and-export.md
   classification: universal
   propagation_gate: CM-COVENANT-114-259-PROPAGATION
   binds_principle: []
@@ -6429,7 +6429,7 @@ anchors:
     surprises, and enterprise-grade robustness — never for "good enough" or "will
     do for now" (BACKGROUND :: REMINDER :: IMPORTANT operator mandate, 2026-08-15)'
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-260
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-260-PROPAGATION
   binds_principle: []
@@ -6499,7 +6499,7 @@ anchors:
     count of open findings is MONOTONE-DECREASING (BACKGROUND :: REMINDER :: IMPORTANT
     operator mandate, 2026-08-15)'
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-261
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-261-PROPAGATION
   binds_principle: []
@@ -6548,7 +6548,7 @@ anchors:
     produced by the gate — no operator eyeballing, no narrative-only PASS (BACKGROUND
     :: REMINDER :: IMPORTANT operator mandate, 2026-08-15)'
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-262
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-262-PROPAGATION
   binds_principle: []
@@ -6594,7 +6594,7 @@ anchors:
     a mock-derived pid/pgid — validate as int > 1 before every `killpg` / `kill(-pid,
     sig)` / `pkill` / `killall` call (BOB-126 forensic anchor, 2026-08-19)'
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#11-4-263
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-114-263-PROPAGATION
   binds_principle: []
@@ -6621,7 +6621,7 @@ anchors:
   title: — Build once, promote ONE immutable content-addressed artifact through every
     environment; never rebuild per stage (research-derived, 2026-08-20)
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-264
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-264-PROPAGATION
   binds_principle: []
@@ -6653,7 +6653,7 @@ anchors:
     on SLO **and business** metrics, with automatic abort to stable (research-derived,
     2026-08-20)'
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-265
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-265-PROPAGATION
   binds_principle: []
@@ -6686,7 +6686,7 @@ anchors:
     the closed bluff-type vocabulary, and a capability with no passing challenge is
     a release blocker (research-derived, 2026-08-20)'
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-266
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-266-PROPAGATION
   binds_principle: []
@@ -6733,7 +6733,7 @@ anchors:
     approach is never silently retried, and a non-converging loop is itself a signal
     (research-derived, 2026-08-20)'
   group: project-lifecycle-and-release
-  location: constitution/groups/project-lifecycle-and-release.md#11-4-267
+  location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
   propagation_gate: CM-COVENANT-114-267-PROPAGATION
   binds_principle: []
@@ -6775,7 +6775,7 @@ anchors:
     and tail-truncation of an accepted evidence record are DETECTED, not merely content-mutation
     (spec-derived, speckit 002-anti-slop-enforcement, 2026-08-26)'
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-268
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-268-PROPAGATION
   binds_principle: []
@@ -6805,7 +6805,7 @@ anchors:
     FAMILY (§11.4.125/.134/.142/.165/.209/.237/.256) IS UNWEAKENED (spec-derived,
     speckit 002-anti-slop-enforcement, 2026-08-26)'
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-269
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-269-PROPAGATION
   binds_principle: []
@@ -6836,7 +6836,7 @@ anchors:
     evidence; adoption is gated behind resolution and behind the wiring-sweep result
     (spec-derived, speckit 002-anti-slop-enforcement, 2026-08-26)'
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-270
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-270-PROPAGATION
   binds_principle: []
@@ -6864,7 +6864,7 @@ anchors:
     schema), distinct from refusal (§11.4.21) and closure (§11.4.90) vocabulary (spec-derived,
     speckit 002-anti-slop-enforcement, 2026-08-26)'
   group: anti-bluff-and-evidence
-  location: constitution/groups/anti-bluff-and-evidence.md#11-4-271
+  location: constitution/groups/anti-bluff-and-evidence.md
   classification: universal
   propagation_gate: CM-COVENANT-114-271-PROPAGATION
   binds_principle: []
@@ -6895,7 +6895,7 @@ anchors:
     is the MINIMUM needed now, everything else stays DISCOVERABLE and one command
     away (User mandate, 2026-09-07)'
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-272
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-272-PROPAGATION
   binds_principle: []
@@ -6925,7 +6925,7 @@ anchors:
   title: '— Measuring-instrument verification: a census that INFORMS a decision must
     be control-needled before its result is believed (research-derived, 2026-09-08)'
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-273
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-273-PROPAGATION
   binds_principle: []
@@ -6945,7 +6945,7 @@ anchors:
   title: '— Mechanical work belongs in a script, not in an agent''s context: extract
     it, test it, and re-scan for it on a cadence (User mandate, 2026-09-08)'
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-274
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-274-PROPAGATION
   binds_principle: []
@@ -6973,7 +6973,7 @@ anchors:
     COMPLETE before it is called ready, and earns its place by a MEASURED, honest
     efficiency result (research-derived, 2026-09-24)'
   group: governance-and-constitution-meta
-  location: constitution/groups/governance-and-constitution-meta.md#11-4-275
+  location: constitution/groups/governance-and-constitution-meta.md
   classification: universal
   propagation_gate: CM-COVENANT-114-275-PROPAGATION
   binds_principle: []
@@ -7009,8 +7009,8 @@ anchors:
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#12-1
-  classification: universal
+  location: constitution/groups/host-and-resource-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -7018,8 +7018,8 @@ anchors:
 - id: '12.2'
   title: Required safeguards
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#12-2
-  classification: universal
+  location: constitution/groups/host-and-resource-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -7027,8 +7027,8 @@ anchors:
 - id: '12.3'
   title: Container hygiene
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#12-3
-  classification: universal
+  location: constitution/groups/host-and-resource-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -7036,8 +7036,8 @@ anchors:
 - id: '12.6'
   title: Memory-Budget Ceiling — 60% MAXIMUM
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#12-6
-  classification: universal
+  location: constitution/groups/host-and-resource-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -7046,8 +7046,8 @@ anchors:
 - id: '12.10'
   title: Continuation document — sacred invariant
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#12-10
-  classification: universal
+  location: constitution/groups/host-and-resource-safety.md
+  classification: unstated
   propagation_gate: null
   binds_principle: []
   cross_references:
@@ -7056,7 +7056,7 @@ anchors:
   title: — Maximal dynamic resource utilization for containerized builds (User mandate,
     2026-07-03)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#12-11
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: null
   binds_principle: []
@@ -7078,7 +7078,7 @@ anchors:
   title: — Process/thread-limit (RLIMIT_NPROC) awareness for parallel subagent/multi-process
     work (User mandate, 2026-07-07)
   group: host-and-resource-safety
-  location: constitution/groups/host-and-resource-safety.md#12-12
+  location: constitution/groups/host-and-resource-safety.md
   classification: universal
   propagation_gate: CM-COVENANT-12-12-PROPAGATION
   binds_principle: []

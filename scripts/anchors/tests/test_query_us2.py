@@ -18,7 +18,12 @@ def test_every_anchor_has_classification_and_explicit_gate_key():
             # "mixed" added 2026-09-25 (census-validation finding): 2 real anchors
             # (§11.4.23, §11.4.24) carry this genuine third value — an enum check
             # that omits it would itself be wrong, not the generator.
-            assert a["classification"] in ("universal", "project-specific", "mixed"), a["id"]
+            # "unstated" added 2026-09-26 (final whole-branch review finding
+            # I-4): a 4th genuine value for an anchor whose source carries no
+            # Classification line at all — see anchor_lib.derive_metadata's
+            # own docstring for why defaulting silence to "universal" was
+            # itself a §11.4.6 guess.
+            assert a["classification"] in ("universal", "project-specific", "mixed", "unstated"), a["id"]
             assert "propagation_gate" in a, f"{a['id']} missing explicit propagation_gate key"
 
 def test_filter_by_classification_matches_plain_yaml_list_comprehension():
@@ -39,9 +44,25 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # §11.4.24) would otherwise silently vanish from this sum, making it a
         # false negative on exactly the anchors this test exists to catch.
         mixed = [a for a in idx["anchors"] if a["classification"] == "mixed"]
-        assert len(universal) + len(project_specific) + len(mixed) == len(idx["anchors"])
+        # "unstated" added 2026-09-26 (final whole-branch review finding
+        # I-4): a 3-way partition assumption is ALSO wrong — 108 real
+        # anchors carry no Classification line at all and must NOT be
+        # silently folded into "universal" (that was the exact defect this
+        # anchor's own fix closes). Independently re-measured here, not
+        # copied from the fix's own commit message.
+        unstated = [a for a in idx["anchors"] if a["classification"] == "unstated"]
+        assert len(universal) + len(project_specific) + len(mixed) + len(unstated) == len(idx["anchors"])
         assert len(universal) > 0  # this project's constitution is overwhelmingly universal-scoped
         assert len(mixed) == 2, f"expected exactly 2 mixed-classified anchors (§11.4.23, §11.4.24), got {len(mixed)}"
+        assert len(universal) == 173, (
+            f"expected exactly 173 anchors whose source TEXT genuinely states "
+            f"'universal' (independently re-measured), got {len(universal)} — "
+            f"if this grew, check whether 'unstated' anchors are leaking back in"
+        )
+        assert len(unstated) == 108, (
+            f"expected exactly 108 anchors with no Classification line at all "
+            f"(independently re-measured against the real corpus), got {len(unstated)}"
+        )
 
 def test_project_specific_classification_is_detected_via_synthetic_fixture():
     # Correction (`/speckit-superspec-execute` proactive-audit finding D3,
@@ -174,9 +195,40 @@ def test_project_specific_count_matches_an_independently_derived_manual_count():
         )
         print(f"independent cross-check PASS: {generator_count} == {grep_count}")
 
+def test_location_never_carries_a_fragment_that_does_not_resolve_anywhere():
+    # Final whole-branch review finding I-5, 2026-09-26, IMPORTANT: the
+    # old `location` scheme (`constitution/groups/{group}.md#{id-with-
+    # dashes}`) does not match any real renderer's actual heading-id slug
+    # — measured: the real committed .html sibling this project's own
+    # export pipeline (pandoc) produces for §11.4.209 carries
+    # `id="114209--code-review-must-run-..."`, never `id="11-4-209"`, and
+    # a bare uninvoked `pandoc -t html` on the same heading in isolation
+    # produces yet a THIRD, still-different slug. Shipping a fragment
+    # proven wrong is worse than shipping none, so `location` now points
+    # ONLY at the group file — this test proves no `#` ever appears.
+    with tempfile.TemporaryDirectory() as tmp:
+        groups_dir = os.path.join(tmp, "groups")
+        index_out = os.path.join(tmp, "index.yaml")
+        subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+                         "--groups-dir", groups_dir, "--index-out", index_out], check=True)
+        with open(index_out) as f:
+            idx = yaml.safe_load(f)
+        with_fragment = [a["id"] for a in idx["anchors"] if "#" in a["location"]]
+        assert not with_fragment, (
+            f"location carries an unresolvable fragment for: {with_fragment[:5]} "
+            f"(and {len(with_fragment) - 5} more)" if with_fragment else ""
+        )
+        # The location MUST still be a genuinely resolvable file path.
+        sample = idx["anchors"][0]
+        assert os.path.exists(os.path.join(tmp, sample["location"].replace("constitution/groups/", "groups/"))), (
+            f"location {sample['location']!r} does not resolve to a real file"
+        )
+
+
 if __name__ == "__main__":
     test_every_anchor_has_classification_and_explicit_gate_key()
     test_filter_by_classification_matches_plain_yaml_list_comprehension()
     test_project_specific_classification_is_detected_via_synthetic_fixture()
     test_project_specific_count_matches_an_independently_derived_manual_count()
+    test_location_never_carries_a_fragment_that_does_not_resolve_anywhere()
     print("PASS")

@@ -133,10 +133,146 @@ def test_check_reports_ordinary_drift_as_exit_1_when_source_itself_changed():
             f"(exit 1), never the G-004 hand-edit code — got {r_check.returncode}: {r_check.stderr}"
         )
 
+def test_check_is_not_broken_by_an_unrelated_commit_moving_head():
+    # Final whole-branch review finding C-1 (fable-xhigh reviewer,
+    # 2026-09-26, CRITICAL): _content_hash's payload excluded only
+    # `generated_at`, still including `generated_from.commit` (the git
+    # HEAD of the SOURCE's own directory at generate-time). The moment
+    # the generated output is itself committed, HEAD moves — even though
+    # neither the source's bytes NOR the generated output's bytes changed
+    # at all — so `check` reports a FALSE tamper alarm (G-004, exit 4) on
+    # a perfectly clean, correctly-committed state. Live repro on THIS
+    # project's own committed constitution/constitution_index.yaml
+    # confirmed this exact failure independently before this fix: `bash
+    # constitution/scripts/gates/gate_constitution_generate_no_drift.sh`
+    # -> "diverged field(s): ['generated_from: differs']", exit 4, on a
+    # completely untouched, freshly-cloned checkout.
+    #
+    # This reproduces the SAME defect class in a hermetic temp git repo
+    # (never touching the real repo's own history), matching the
+    # reviewer's own suggested regression design: generate once, make a
+    # SECOND commit that never touches the source file's bytes (so HEAD
+    # moves but nothing legitimate changed), and assert `check` still
+    # exits 0 — the commit hash is provenance-only metadata (per
+    # `_git_commit_of`'s own §11.4.6 comment) and MUST NOT participate in
+    # drift detection, exactly as `data-model.md`'s Determinism rule
+    # already specifies (`schema_version + generated_from.source +
+    # anchors` only — never `generated_from.commit`).
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = os.path.join(tmp, "repo")
+        os.makedirs(repo)
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+        src = os.path.join(repo, "Constitution.md")
+        with open(src, "w") as f:
+            f.write("### §12.7 — A synthetic anchor for this hermetic repro\n\n"
+                     "Classification: universal\n\n")
+        subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=repo, check=True)
+
+        # groups_dir/index_out live INSIDE the repo (matching this project's
+        # own real layout: constitution/groups/ + constitution_index.yaml
+        # are committed alongside constitution/Constitution.md in the same
+        # repo) so committing the generated output is a real, non-empty
+        # commit that genuinely moves HEAD.
+        groups_dir = os.path.join(repo, "groups")
+        index_out = os.path.join(repo, "index.yaml")
+        r_gen = _run(["generate", "--source", src, "--groups-dir", groups_dir, "--index-out", index_out])
+        assert r_gen.returncode == 0, r_gen.stderr
+
+        # Commit the generated output (matching this project's own real
+        # workflow: generate, THEN commit) -- this alone moves HEAD.
+        subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "commit the generated output"], cwd=repo, check=True)
+
+        # A SECOND, unrelated commit -- touches a different file, never
+        # the source -- so HEAD moves again with zero legitimate change
+        # to anything `check` is supposed to be comparing.
+        with open(os.path.join(repo, "unrelated.txt"), "w") as f:
+            f.write("an unrelated file, never read by check\n")
+        subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "unrelated commit moving HEAD"], cwd=repo, check=True)
+
+        r_check = _run(["check", "--source", src, "--groups-dir", groups_dir, "--index-out", index_out])
+        assert r_check.returncode == 0, (
+            f"an unrelated commit that never touches the source or the "
+            f"generated output MUST NOT be reported as a hand-edit/tamper "
+            f"divergence (C-1) -- got exit {r_check.returncode}: {r_check.stderr}"
+        )
+
+
+def test_generate_never_deletes_non_md_siblings_in_groups_dir():
+    # Final whole-branch review finding I-1, 2026-09-26, IMPORTANT: a fresh
+    # `generate` used to `shutil.rmtree(args.groups_dir)` -- wiping the
+    # WHOLE directory, including any `.docx`/`.html`/`.pdf` §11.4.65/
+    # §11.4.74 sibling exports a separate tool (sync_all_markdown_exports.sh)
+    # had placed there -- before re-populating it with only the fresh `.md`
+    # files. Live repro before this fix: copy constitution/groups/ (36 real
+    # committed siblings) to a scratch dir, re-run generate against it,
+    # observe 36 -> 0. This test proves a sibling file survives a SECOND
+    # `generate` run into the SAME directory.
+    with tempfile.TemporaryDirectory() as tmp:
+        groups_dir = os.path.join(tmp, "groups")
+        index_out = os.path.join(tmp, "index.yaml")
+        r1 = _run(["generate", "--source", "constitution/Constitution.md",
+                    "--groups-dir", groups_dir, "--index-out", index_out])
+        assert r1.returncode == 0, r1.stderr
+        # Place a fake sibling export next to one real group .md file,
+        # exactly matching the shape sync_all_markdown_exports.sh produces.
+        any_md = next(f for f in os.listdir(groups_dir) if f.endswith(".md"))
+        sibling = os.path.join(groups_dir, any_md.replace(".md", ".html"))
+        with open(sibling, "w") as f:
+            f.write("<html>a real sibling export, not owned by the generator</html>")
+        assert os.path.exists(sibling)
+
+        r2 = _run(["generate", "--source", "constitution/Constitution.md",
+                    "--groups-dir", groups_dir, "--index-out", index_out])
+        assert r2.returncode == 0, r2.stderr
+        assert os.path.exists(sibling), (
+            "a SECOND generate run into the same directory deleted a "
+            "non-.md sibling file it does not own (I-1)"
+        )
+        with open(sibling) as f:
+            assert "a real sibling export" in f.read(), "sibling content was replaced, not merely renamed"
+
+def test_generate_with_trailing_slash_groups_dir_does_not_destroy_output():
+    # Final whole-branch review finding I-2, 2026-09-26, IMPORTANT:
+    # `--groups-dir groups/` (trailing separator) made the OLD
+    # `scratch = args.groups_dir + ".scratch"` resolve to `groups/.scratch`
+    # -- a CHILD of groups_dir, not a sibling -- so the subsequent
+    # `shutil.rmtree(groups_dir)` deleted the freshly-written scratch
+    # output out from under itself, and the following `os.rename` crashed
+    # with `FileNotFoundError`, leaving NEITHER the old NOR the new output
+    # on disk. This test proves a trailing-slash groups_dir works cleanly,
+    # is genuinely regenerable a second time, and never crashes.
+    with tempfile.TemporaryDirectory() as tmp:
+        groups_dir_with_slash = os.path.join(tmp, "groups") + os.sep
+        index_out = os.path.join(tmp, "index.yaml")
+        r1 = _run(["generate", "--source", "constitution/Constitution.md",
+                    "--groups-dir", groups_dir_with_slash, "--index-out", index_out])
+        assert r1.returncode == 0, r1.stdout + r1.stderr
+        real_dir = os.path.join(tmp, "groups")
+        assert os.path.isdir(real_dir) and os.listdir(real_dir), (
+            "trailing-slash groups_dir produced no usable output (I-2)"
+        )
+        # Re-run a SECOND time (the scenario that actually crashed before
+        # the fix: scratch already inside groups_dir from a prior attempt).
+        r2 = _run(["generate", "--source", "constitution/Constitution.md",
+                    "--groups-dir", groups_dir_with_slash, "--index-out", index_out])
+        assert r2.returncode == 0, r2.stdout + r2.stderr
+        assert os.path.isdir(real_dir) and os.listdir(real_dir), (
+            "a second generate run with a trailing-slash groups_dir "
+            "destroyed the output (I-2)"
+        )
+
 if __name__ == "__main__":
     test_determinism_two_check_runs_agree()
     test_malformed_heading_exits_2_no_partial_output()
     test_no_partial_output_when_write_fails_after_groups_already_written()
     test_hand_edit_to_grouped_doc_detected_as_drift()
     test_check_reports_ordinary_drift_as_exit_1_when_source_itself_changed()
+    test_check_is_not_broken_by_an_unrelated_commit_moving_head()
+    test_generate_never_deletes_non_md_siblings_in_groups_dir()
+    test_generate_with_trailing_slash_groups_dir_does_not_destroy_output()
     print("PASS")

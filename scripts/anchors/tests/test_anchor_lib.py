@@ -1,6 +1,6 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from anchor_lib import extract_anchors, MalformedHeadingError
+from anchor_lib import extract_anchors, MalformedHeadingError, derive_metadata
 
 def test_extracts_all_three_opener_forms():
     src = (
@@ -410,6 +410,30 @@ def test_no_two_groups_claim_the_same_numeric_tail():
     assert not collisions, f"tails claimed by more than one group: {collisions}"
 
 
+def test_classification_defaults_to_unstated_never_universal_when_source_is_silent():
+    # Final whole-branch review finding I-4, 2026-09-26, IMPORTANT:
+    # derive_metadata used to default an ABSENT Classification line to the
+    # specific enum value "universal" — measured against the real corpus,
+    # this silently misrepresented 108/283 anchors as stating something
+    # their source text never says. A body with NO Classification line at
+    # all must derive "unstated", a fourth, genuinely distinct value —
+    # never silently folded into any of the three real answers.
+    body_with_no_classification_line = (
+        "Some rule text that never mentions the word Classification at all, "
+        "just an ordinary paragraph of prose describing a mandate.\n"
+    )
+    meta = derive_metadata(body_with_no_classification_line)
+    assert meta["classification"] == "unstated", (
+        f"a body with no Classification line MUST derive 'unstated', not "
+        f"a fabricated specific answer — got {meta['classification']!r}"
+    )
+    # The three real, stated answers must still extract correctly — this
+    # fix must not regress genuine extraction, only the silent default.
+    assert derive_metadata("**Classification:** universal\n")["classification"] == "universal"
+    assert derive_metadata("**Classification:** project-specific\n")["classification"] == "project-specific"
+    assert derive_metadata("**Classification:** mixed\n")["classification"] == "mixed"
+
+
 if __name__ == "__main__":
     # T009: runner entry point wired to invoke all 20 defined test functions
     # (moved to the end of the file so every function it calls, including
@@ -435,4 +459,5 @@ if __name__ == "__main__":
     test_unknown_id_raises_unclassified()
     test_zero_unclassified_against_real_corpus()
     test_no_two_groups_claim_the_same_numeric_tail()
+    test_classification_defaults_to_unstated_never_universal_when_source_is_silent()
     print("PASS")

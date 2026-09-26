@@ -118,7 +118,29 @@ def build_records(source_path: str):
         meta = derive_metadata(a["body"])
         records.append({
             "id": a["id"], "title": a["title"], "group": group, "body": a["body"],
-            "location": f"constitution/groups/{group}.md#{a['id'].replace('.', '-')}",
+            # Fragment DELIBERATELY OMITTED (final whole-branch review
+            # finding I-5, 2026-09-26, IMPORTANT): the prior
+            # `#{id.replace('.', '-')}` scheme (e.g. `#11-4-209`) does not
+            # match ANY real renderer's actual heading-id slug — confirmed
+            # by direct measurement: the real committed
+            # `constitution/groups/*.html` sibling this project's own
+            # export pipeline (pandoc) produces for §11.4.209 carries
+            # `id="114209--code-review-must-run-..."`, a full-heading-text
+            # slug that `id="11-4-209"` never matches (0 occurrences). A
+            # bare, uninvoked `pandoc file -t html` on just that one
+            # heading produces YET a THIRD, still-different id
+            # (`id="code-review-must-run-..."`, no numeric prefix at all)
+            # — proving this slug depends on invocation context/flags this
+            # generator does not control and cannot reliably reproduce
+            # without literally invoking the same exporter with the same
+            # flags. Per §11.4.6, shipping a fragment PROVEN wrong is
+            # worse than shipping none: `location` now points ONLY at the
+            # exact group file. SC-001's own ≤2-action bar (open the
+            # group document, then locate the heading) remains satisfied
+            # without a working URL fragment — every anchor's own id
+            # appears verbatim as the FIRST token of its heading line, so
+            # a plain text search for that id string reaches it directly.
+            "location": f"constitution/groups/{group}.md",
             **meta,
         })
     return records
@@ -212,24 +234,83 @@ def cmd_generate(args) -> int:
     # for THAT function's own scope, but write_groups/build_yaml_index
     # writing DIRECTLY to the real paths would not (a later exit inside one
     # of those two calls would leave whatever the FIRST one already wrote).
+    #
+    # groups_dir is normalized (final whole-branch review finding I-2,
+    # 2026-09-26, IMPORTANT): a trailing separator (`--groups-dir groups/`)
+    # previously made `groups_dir + ".scratch"` resolve to a CHILD of
+    # groups_dir (e.g. `groups/.scratch`) rather than a sibling — the
+    # subsequent `shutil.rmtree(groups_dir)` then deleted the scratch
+    # output it had just written, and the following `os.rename` crashed
+    # with `FileNotFoundError`, destroying BOTH the prior committed output
+    # AND the freshly-generated replacement. `os.path.normpath` collapses
+    # any trailing separator before scratch is derived, so scratch is
+    # always a true sibling.
+    groups_dir = os.path.normpath(args.groups_dir)
     records = build_records(args.source)  # raises/exits BEFORE any disk write on malformed input
-    scratch = args.groups_dir + ".scratch"
+    scratch = groups_dir + ".scratch"
     if os.path.exists(scratch):
         shutil.rmtree(scratch)
     group_counts = write_groups(records, scratch)
     build_yaml_index(records, group_counts, args.source, args.index_out + ".scratch")
-    if os.path.exists(args.groups_dir):
-        shutil.rmtree(args.groups_dir)
-    os.rename(scratch, args.groups_dir)
+    # Sync ONLY the `.md` files this generator owns into the real
+    # groups_dir (final whole-branch review finding I-1, 2026-09-26,
+    # IMPORTANT): the prior `shutil.rmtree(groups_dir)` + `os.rename`
+    # wiped the WHOLE directory, silently deleting the `.docx`/`.html`/
+    # `.pdf` sibling exports §11.4.65/§11.4.74 require alongside each
+    # `.md` file — those siblings are produced by a SEPARATE tool
+    # (`scripts/testing/sync_all_markdown_exports.sh`), never by this
+    # generator, and must never be touched by it. A stale `.md` file left
+    # over from a group this run no longer produces (e.g. a
+    # classification-table change emptying a group entirely) IS removed,
+    # since `check`'s own drift detection only ever compares files the
+    # fresh run's own `group_counts` names (see `cmd_check`) and would
+    # otherwise never notice it lingering.
+    os.makedirs(groups_dir, exist_ok=True)
+    fresh_md_names = {f"{g}.md" for g in group_counts}
+    for existing in os.listdir(groups_dir):
+        if existing.endswith(".md") and existing not in fresh_md_names:
+            os.remove(os.path.join(groups_dir, existing))
+    for name in fresh_md_names:
+        os.replace(os.path.join(scratch, name), os.path.join(groups_dir, name))
+    shutil.rmtree(scratch)
     os.replace(args.index_out + ".scratch", args.index_out)
     print(f"generated: {len(records)} anchors across {len(group_counts)} groups")
     return 0
 
 
-def _content_hash(index: dict) -> str:
-    # generated_at is provenance-only per data-model.md's Determinism rule —
-    # excluded from the comparison hash so two runs a second apart still agree.
+def _drift_comparable(index: dict) -> dict:
+    """The subset of an index dict that drift-detection is actually allowed
+    to compare. Excludes TWO provenance-only fields, neither of which
+    data-model.md's own Determinism rule includes in the comparison
+    (stated scope: `schema_version + generated_from.source + anchors` —
+    `generated_at` and `generated_from.commit` are both provenance
+    metadata, never comparison inputs): `generated_at` (a fresh run a
+    second apart must still agree — already excluded before this fix) and
+    `generated_from.commit` (final whole-branch review finding C-1,
+    2026-09-26, CRITICAL: `generated_from.commit` is the git HEAD of the
+    SOURCE's directory at generate-time — see `_git_commit_of`'s own
+    §11.4.6 comment, "provenance-only metadata, never fabricated" — but
+    HEAD legitimately moves the instant the generated output is itself
+    committed, or on ANY later unrelated commit, with zero change to the
+    source's bytes or the generated output's bytes. Including it in the
+    comparison made the standing regression guard
+    (`gate_constitution_generate_no_drift.sh`) FAIL with a false G-004
+    tamper alarm on every commit after the one that generated the output
+    — reproduced live on this project's own real, freshly-committed
+    `constitution_index.yaml` before this fix, and reproduced hermetically
+    by `test_check_is_not_broken_by_an_unrelated_commit_moving_head`.
+    `generated_from.source` and `generated_from.source_sha256` remain
+    fully compared — a change to which source file was used, or to the
+    source's own bytes, is a real thing `check` must still detect)."""
     payload = {k: v for k, v in index.items() if k != "generated_at"}
+    generated_from = dict(payload.get("generated_from") or {})
+    generated_from.pop("commit", None)
+    payload["generated_from"] = generated_from
+    return payload
+
+
+def _content_hash(index: dict) -> str:
+    payload = _drift_comparable(index)
     return hashlib.sha256(yaml.safe_dump(payload, sort_keys=True).encode()).hexdigest()
 
 
@@ -240,10 +321,15 @@ def _diverged_index_fields(fresh_index: dict, committed_index: dict) -> list:
     Top-level keys first (schema_version/generated_from/groups/anchors);
     for `anchors` specifically, additionally names which anchor id(s)
     diverged (present-only-in-one-side ids reported as such, changed ids by
-    id) — proportionate detail without a full recursive diff."""
+    id) — proportionate detail without a full recursive diff. For
+    `generated_from` specifically, names WHICH sub-field diverged (`source`
+    or `source_sha256` — `commit` is excluded from comparison entirely,
+    see `_drift_comparable`, so it can never appear here) — final
+    whole-branch review finding C-1/I-3-adjacent, 2026-09-26: the prior
+    single `"generated_from: differs"` line gave no actionable detail."""
     diffs = []
-    fresh_cmp = {k: v for k, v in fresh_index.items() if k != "generated_at"}
-    committed_cmp = {k: v for k, v in committed_index.items() if k != "generated_at"}
+    fresh_cmp = _drift_comparable(fresh_index)
+    committed_cmp = _drift_comparable(committed_index)
     for key in sorted(set(fresh_cmp) | set(committed_cmp)):
         if fresh_cmp.get(key) == committed_cmp.get(key):
             continue
@@ -262,6 +348,14 @@ def _diverged_index_fields(fresh_index: dict, committed_index: dict) -> list:
                 diffs.append(f"anchors: present in committed but not a fresh generate: {only_committed}")
             if changed:
                 diffs.append(f"anchors: fields differ for id(s): {changed}")
+        elif key == "generated_from":
+            fresh_gf = fresh_cmp.get("generated_from", {})
+            committed_gf = committed_cmp.get("generated_from", {})
+            sub_diffs = sorted(
+                k for k in (set(fresh_gf) | set(committed_gf))
+                if fresh_gf.get(k) != committed_gf.get(k)
+            )
+            diffs.append(f"generated_from: sub-field(s) differ: {sub_diffs}")
         else:
             diffs.append(f"{key}: differs")
     return diffs
@@ -323,9 +417,26 @@ def cmd_check(args) -> int:
             )
             return divergence_exit_code
 
+        groups_dir = os.path.normpath(args.groups_dir)
+        if os.path.isdir(groups_dir):
+            # Final whole-branch review finding M-8, 2026-09-26: `check` was
+            # one-directional — it only ever compared the `.md` names the
+            # FRESH run's own `group_counts` names, so an EXTRA, stale `.md`
+            # file left in groups_dir (e.g. a leftover from before a
+            # classification-table change emptied that group) was silently
+            # invisible. Detect it explicitly rather than leave it unnoticed.
+            committed_md_names = {f for f in os.listdir(groups_dir) if f.endswith(".md")}
+            fresh_md_names = {f"{g}.md" for g in group_counts}
+            stale = sorted(committed_md_names - fresh_md_names)
+            if stale:
+                sys.stderr.write(
+                    f"FATAL: stale group file(s) in {groups_dir} no longer produced by a "
+                    f"fresh generate — hand-edit or stale commit (FR-012): {stale}\n"
+                )
+                return divergence_exit_code
         for group in group_counts:
             fresh_path = os.path.join(fresh_groups_dir, f"{group}.md")
-            committed_path = os.path.join(args.groups_dir, f"{group}.md")
+            committed_path = os.path.join(groups_dir, f"{group}.md")
             if not os.path.exists(committed_path):
                 sys.stderr.write(f"FATAL: {committed_path} missing (was 'generate' run?)\n")
                 return divergence_exit_code

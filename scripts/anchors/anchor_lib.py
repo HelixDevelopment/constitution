@@ -415,10 +415,28 @@ _CROSS_REF_RE = _re.compile(r'§(\d+(?:\.\d+)+)')
 def derive_metadata(body: str) -> dict:
     """Best-effort extraction of the four optional Anchor fields from an
     anchor's free-text body. A field this project's own prose does not state
-    resolves to None/[]/"universal" (the honest, documented default) —
-    NEVER guessed (§11.4.6) — never fabricated."""
+    resolves to None/[]/"unstated" (the honest, documented default) —
+    NEVER guessed (§11.4.6) — never fabricated.
+
+    `classification` fixed 2026-09-26 (final whole-branch review finding
+    I-4, IMPORTANT): this used to default to the SPECIFIC enum value
+    "universal" whenever no Classification line was found at all — measured
+    against the real corpus, 108/283 anchors have no Classification line,
+    yet the generated index claimed "universal" for every one of them
+    (281/283 total, vs only 173 anchors whose source text actually states
+    it). Defaulting an UNSTATED field to any one specific enum value is
+    itself the exact kind of guess §11.4.6 forbids — this project's own
+    §11.4.17 "when uncertain, default to project-specific" guidance is a
+    HUMAN-AUTHORING heuristic for someone deciding how to classify a NEW
+    rule they are writing, not license for a PARSER to silently assert a
+    classification the existing source text never states. "unstated" is a
+    fourth, genuinely distinct enum value (never confusable with a real
+    "universal"/"project-specific"/"mixed" answer), so a naive consumer
+    query like `classification == "universal"` now correctly excludes
+    every anchor whose source is silent on the question, instead of
+    silently including 108 anchors it should not."""
     line_m = _CLASSIFICATION_LINE_RE.search(body)
-    classification = "universal"
+    classification = "unstated"
     if line_m:
         value_m = _CLASSIFICATION_VALUE_RE.search(line_m.group(1))
         if value_m:

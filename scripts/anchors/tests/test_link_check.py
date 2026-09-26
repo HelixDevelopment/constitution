@@ -115,8 +115,53 @@ def test_parenthesized_suffix_distinct_sub_anchor_not_silently_truncated():
     )
 
 
+def test_unresolved_citation_names_a_real_line_number_never_capped_at_50():
+    # Final whole-branch review finding I-3, 2026-09-26, IMPORTANT: the
+    # checker's own contract (L-001/L-005) requires "naming every
+    # UNRESOLVED citation by file:line" — the prior implementation carried
+    # no line number at all, and truncated its printed findings to the
+    # first 50 regardless of how many real citations were actually
+    # unresolved (the real corpus has 288; 240 -- 83% -- were silently
+    # unprinted before this fix). This test proves BOTH halves: a
+    # fabricated citation on a KNOWN line number is reported with that
+    # EXACT line number, and MORE than 50 fabricated citations are ALL
+    # reported (never truncated).
+    with tempfile.TemporaryDirectory() as tmp:
+        groups_dir = os.path.join(tmp, "groups")
+        index_out = os.path.join(tmp, "index.yaml")
+        subprocess.run(["python3", GEN, "generate", "--source", "constitution/Constitution.md",
+                         "--groups-dir", groups_dir, "--index-out", index_out], check=True)
+
+        bad_corpus_dir = os.path.join(tmp, "bad_corpus_many")
+        os.makedirs(bad_corpus_dir)
+        # 60 fabricated citations, one per line, each on a KNOWN line
+        # number (1-indexed) -- more than the old cap of 50.
+        with open(os.path.join(bad_corpus_dir, "sample.md"), "w") as f:
+            for i in range(60):
+                f.write(f"line {i}: see §11.4.9999{i} for detail.\n")
+
+        r = subprocess.run(
+            ["python3", LINK_CHECK, "--index", index_out, "--corpus", bad_corpus_dir],
+            capture_output=True, text=True,
+        )
+        assert r.returncode == 1, r.stdout + r.stderr
+        assert "60 unresolved citation(s)" in r.stdout, (
+            f"expected all 60 fabricated citations reported (no 50-cap truncation), "
+            f"got: {r.stdout}"
+        )
+        # Line 1 (1-indexed) carries §11.4.99990 -- assert its EXACT reported line number.
+        assert "§11.4.99990 in " in r.stdout and ":1\n" in r.stdout.split("§11.4.99990 in ")[1][:80], (
+            f"the first fabricated citation's line number was not reported correctly: {r.stdout}"
+        )
+        # Line 60 carries §11.4.999959 -- assert its line number too, at the other end.
+        assert "§11.4.999959 in " in r.stdout and ":60\n" in r.stdout.split("§11.4.999959 in ")[1][:80], (
+            f"the last fabricated citation's line number was not reported correctly: {r.stdout}"
+        )
+
+
 if __name__ == "__main__":
     test_selftest_control_needles_pass()
     test_negative_control_flags_fabricated_citation_in_a_real_scan()
     test_parenthesized_suffix_distinct_sub_anchor_not_silently_truncated()
+    test_unresolved_citation_names_a_real_line_number_never_capped_at_50()
     print("PASS")
