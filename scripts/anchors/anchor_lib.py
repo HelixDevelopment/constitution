@@ -89,7 +89,7 @@ class MalformedHeadingError(ValueError):
     silently skipped as ordinary prose."""
 
 
-def extract_anchors(source_text: str) -> list[dict]:
+def extract_anchors(source_text: str, known_ids: "set[str] | None" = None) -> list[dict]:
     lines = source_text.splitlines()
     anchors: list[dict] = []
     current: dict | None = None
@@ -111,7 +111,36 @@ def extract_anchors(source_text: str) -> list[dict]:
     # a `**§` match whose id is NOT in canonical_ids is a genuine opener
     # (the id has no ###-form definition anywhere else), regardless of
     # whether its own body starts on the same physical line.
-    canonical_ids: set[str] = set()
+    # `known_ids` (T010/T011 fix, real-corpus regrouping defect): a
+    # per-group document (constitution/groups/<group>.md) legitimately
+    # contains a bullet/bold-form citation to an anchor id whose OWN
+    # `### §`-form definition lives in a DIFFERENT group's file — e.g.
+    # §11.4.48's real body (Constitution.md) cites "- §11.4.3" as part of
+    # an ordinary "**Composition.**" cross-reference list, but §11.4.3's
+    # own heading is classified into a different group entirely. When this
+    # function is called on the FULL, ORIGINAL Constitution.md, that
+    # citation is harmless (§11.4.3's own `###` heading is present in the
+    # SAME text, so the canonical_ids pre-scan below already protects it).
+    # But when a caller re-parses a SMALLER, REGROUPED document derived
+    # from the original (T010's own byte-identity acceptance test does
+    # exactly this), §11.4.3's heading is no longer present in THAT text,
+    # so the pre-scan cannot see it, and the bullet citation is misread as
+    # a fresh anchor opener — confirmed live: this silently truncated
+    # §11.4.48's real body (and 13 further real anchors' bodies) mid-way
+    # through their own "Composition."-style cross-reference lists, first
+    # caught when T010's test was widened, beyond its own literal 10-id
+    # sample, to check all 283 real anchors. `known_ids`, when the caller
+    # supplies it, is unioned into canonical_ids below — treating every id
+    # in that set as already-canonically-defined regardless of whether
+    # ITS OWN heading appears in `source_text` — so a caller re-parsing a
+    # regrouped/partial document can pass in the FULL id set (e.g. the
+    # keys of a prior extract_anchors() call over the original,
+    # complete document) to correctly disambiguate every genuine
+    # cross-reference. Defaulting to `None` (union with an empty set)
+    # preserves this function's EXACT prior behavior for every existing
+    # caller that omits it — no existing test's parse of the full,
+    # original Constitution.md is affected.
+    canonical_ids: set[str] = set(known_ids) if known_ids else set()
     for line in lines:
         m = _STRICT_OPENER_RE.match(line)
         if m and m.group("id1") is not None:
