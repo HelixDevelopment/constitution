@@ -67,6 +67,30 @@ _EXCLUDED_SCAN_DIRS = {
 }
 
 
+# CRITICAL fix (T024 independent review, 2026-09-26): evidence acceptance
+# restricted to genuine executable/source-code file extensions. Before this
+# fix, ANY textual mention of a gate name outside the 5 excluded .md
+# basenames counted as "IMPLEMENTED" — measured live against the real
+# corpus's own 166 "IMPLEMENTED" evidence citations: 123 (74%) were `.tsv`
+# data-pack ledgers (e.g. covenant_propagation_anchors.tsv, explicitly
+# labelled "DATA PACK" in its own header), 7 were `.html` doc-twin exports
+# of the excluded .md mirrors (_EXCLUDED_MIRROR_BASENAMES never excluded
+# their .html/.pdf/.docx siblings, which are real, git-tracked files), 3
+# were plain-text `.txt` ledgers — only 33 (20%) were genuine `.sh` gate
+# scripts. This made the checker structurally incapable of reporting a real
+# gap against this corpus (whose OWN separately-measured §11.4.227 anchor
+# states "413 named CM-* gates, 241 = 58% unimplemented"), a hollow PASS of
+# exactly the class this project's anti-bluff covenant (§11.4.226/§11.4.262)
+# forbids in the tool built to detect that failure mode elsewhere.
+_EVIDENCE_EXTENSIONS = {".sh", ".py"}  # confirmed, via direct investigation
+# of every currently-real gate implementation in this corpus (constitution/
+# scripts/gates/*.sh, the paired mutation-test convention, plus a real
+# propagation-check inside device/rockchip/rk3588/tests/
+# pre_build_verification.sh) — no gate implementation in this project is
+# written in any other language; .tsv/.txt/.md/.html/.pdf/.docx are
+# EXCLUDED by omission (data/doc artifacts, never executable gate code).
+
+
 def _build_gate_index(consumer_root: str, gate_names: set) -> dict:
     """ONE combined recursive pass over consumer_root (minus
     _EXCLUDED_SCAN_DIRS) for ALL gate names simultaneously, returning
@@ -74,7 +98,9 @@ def _build_gate_index(consumer_root: str, gate_names: set) -> dict:
     containing ANY gate name via one alternation-regex grep; Phase 2
     re-greps only those already-matched files (cheap — a handful of small
     text files, never the whole tree again) to attribute each hit to its
-    SPECIFIC gate name(s)."""
+    SPECIFIC gate name(s). Evidence is accepted ONLY from files whose
+    extension is in _EVIDENCE_EXTENSIONS (genuine executable/source code) —
+    see the CRITICAL-fix comment above _EVIDENCE_EXTENSIONS."""
     if not gate_names:
         return {}
     exclude_flags = []
@@ -90,6 +116,7 @@ def _build_gate_index(consumer_root: str, gate_names: set) -> dict:
     candidate_files = [
         path for path in phase1.stdout.splitlines()
         if os.path.basename(path) not in _EXCLUDED_MIRROR_BASENAMES
+        and os.path.splitext(path)[1] in _EVIDENCE_EXTENSIONS
     ]
 
     index: dict = {g: [] for g in gate_names}

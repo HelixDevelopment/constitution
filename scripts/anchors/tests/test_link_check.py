@@ -1,5 +1,5 @@
 # constitution/scripts/anchors/tests/test_link_check.py
-import subprocess, tempfile, os
+import subprocess, tempfile, os, sys
 
 GEN = os.path.join(os.path.dirname(__file__), "..", "constitution_generate.py")
 LINK_CHECK = os.path.join(os.path.dirname(__file__), "..", "constitution_link_check.py")
@@ -81,7 +81,42 @@ def test_negative_control_flags_fabricated_citation_in_a_real_scan():
         assert "1 unresolved citation(s)" in r.stdout
 
 
+def test_parenthesized_suffix_distinct_sub_anchor_not_silently_truncated():
+    # T024 independent review finding (IMPORTANT, 2026-09-26): before this
+    # fix, CITATION_RE's character class stopped BEFORE any parenthesized
+    # suffix, so `§11.4.184(I)` was captured as bare `11.4.184` and silently
+    # resolved against the WRONG anchor — `11.4.184` and `11.4.184(I)` are
+    # two distinct, separately-defined, real headings in this corpus
+    # (confirmed live via extract_anchors()). This test proves BOTH
+    # directions: a genuine distinct parenthesized-suffix sub-anchor
+    # resolves to ITSELF (never silently truncated to its unrelated
+    # numeric-prefix neighbour), and a genuine parenthesized CLAUSE
+    # reference (§11.4.4(b), which has no anchor of its own) still resolves
+    # via L-004's parent-stripping fallback.
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from constitution_link_check import CITATION_RE, _resolve
+
+    known_ids = {"11.4.184", "11.4.184(I)", "11.4.4"}  # 11.4.4(b) deliberately absent
+
+    m = CITATION_RE.search("§11.4.184(I)")
+    assert m and m.group(1) == "11.4.184(I)", f"citation regex mis-captured: {m}"
+    assert _resolve(m.group(1), known_ids) is True
+    # The defect this test guards against: resolving via the WRONG anchor
+    # (truncating to the bare parent) would ALSO return True here since
+    # "11.4.184" is in known_ids — so the real proof is that the captured
+    # id itself was NOT truncated before resolution (checked above), not
+    # merely that _resolve() returns True.
+
+    m2 = CITATION_RE.search("§11.4.4(b)")
+    assert m2 and m2.group(1) == "11.4.4(b)"
+    assert _resolve(m2.group(1), known_ids) is True, (
+        "a genuine clause-reference (no anchor of its own) must still "
+        "resolve via parent-stripping"
+    )
+
+
 if __name__ == "__main__":
     test_selftest_control_needles_pass()
     test_negative_control_flags_fabricated_citation_in_a_real_scan()
+    test_parenthesized_suffix_distinct_sub_anchor_not_silently_truncated()
     print("PASS")

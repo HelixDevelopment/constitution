@@ -19,16 +19,39 @@ import yaml
 # `§11.4.10.A` resolves DIRECTLY against the index rather than only via the
 # L-004 parent-stripping fallback (§11.4.10.A is itself a genuine, distinct
 # heading in this corpus, not a mere sub-clause of §11.4.10). A trailing
-# PARENTHESIZED sub-clause suffix (e.g. `§11.4.4(b)`) is deliberately left
-# OUTSIDE the character class — the match naturally stops at `11.4.4`,
-# which is exactly L-004's parent-id resolution, achieved with no extra code.
-CITATION_RE = re.compile(r'§(11\.4(?:\.\d+)+(?:\.[A-Za-z])?)')
+# IMPORTANT fix (T024 independent review, 2026-09-26): a trailing
+# PARENTHESIZED suffix (e.g. `§11.4.4(b)`) is now CAPTURED (not left outside
+# the character class as before) — the prior design silently truncated
+# EVERY parenthesized-suffix citation to its bare parent id before
+# resolution ever ran, which is CORRECT for a genuine clause-reference
+# (`§11.4.4(b)` -> parent `11.4.4`, L-004) but WRONG for a real, distinct,
+# separately-headed sub-anchor whose id happens to end in a parenthesized
+# form (`§11.4.184(I)` IS its own real anchor in this corpus, confirmed via
+# a direct extract_anchors() scan — DIFFERENT from `§11.4.184`). Silently
+# resolving `§11.4.184(I)` against the wrong parent anchor is exactly the
+# "silent mis-resolve, never fails loud" defect this project's own
+# data-model.md explicitly forbids for this id pair. `_resolve()` below now
+# tries the FULL captured id (parens included) against known_ids FIRST —
+# catching a genuine distinct sub-anchor directly — and only STRIPS the
+# parenthesized suffix as a fallback, matching L-004's clause-reference
+# case, exactly mirroring how the dotted-letter-suffix form (`§11.4.10.A`)
+# already correctly tries the full id first.
+CITATION_RE = re.compile(r'§(11\.4(?:\.\d+)+(?:\.[A-Za-z])?(?:\([A-Za-z0-9]+\))?)')
 FABRICATED_NEEDLE = "99999"  # L-003's negative control: guaranteed absent from any real index
 
 
 def _resolve(anchor_id: str, known_ids: set) -> bool:
     if anchor_id in known_ids:
         return True
+    # A parenthesized suffix might name a genuinely distinct sub-anchor
+    # (already tried above and failed) OR a clause-reference (L-004) that
+    # should resolve to its bare parent — try stripping the parenthesized
+    # suffix next, before falling back to dotted-component stripping.
+    if "(" in anchor_id:
+        bare = anchor_id.split("(")[0]
+        if bare in known_ids:
+            return True
+        anchor_id = bare
     # L-004: a sub-clause citation (e.g. "11.4.115.G") resolves to its parent anchor.
     parts = anchor_id.split(".")
     while len(parts) > 3:
