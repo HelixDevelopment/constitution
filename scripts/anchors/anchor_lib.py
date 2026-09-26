@@ -3,6 +3,16 @@ Consumed by constitution_generate.py, constitution_link_check.py and
 constitution_wiring_audit.py — the SINGLE parser for this feature
 (research.md R2.4: extends, never duplicates, the existing
 constitution/scripts/mechanical/anchor_census.sh opener forms).
+
+FR-010 relationship to docs/PROJECT_GOVERNANCE_ANCHORS.md (spec.md FR-010,
+resolved 2026-09-25 per /speckit-analyze remediation): ORTHOGONAL, not
+extended by this feature. docs/PROJECT_GOVERNANCE_ANCHORS.md is the
+project-layer overflow doc for anchors cited compactly from CLAUDE.md/
+AGENTS.md at the repository root; this module's constitution/groups/ +
+constitution_index.yaml reorganize the constitution SUBMODULE's own
+canonical Constitution.md. Applying the same grouped+YAML-index treatment
+to docs/PROJECT_GOVERNANCE_ANCHORS.md is a tracked future iteration (filed
+below), not silently done, not silently declined.
 """
 import re
 
