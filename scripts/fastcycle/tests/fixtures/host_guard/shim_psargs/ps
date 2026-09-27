@@ -1,0 +1,4 @@
+#!/bin/sh
+# ps shim: records argv one-per-line to $FC_PS_ARGS_FILE, then prints 5 lines
+for a in "$@"; do echo "$a"; done > "$FC_PS_ARGS_FILE"
+i=0; while [ $i -lt 5 ]; do echo t; i=$((i+1)); done

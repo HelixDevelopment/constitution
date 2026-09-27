@@ -1,0 +1,2 @@
+#!/bin/sh
+echo "awk: shim noise" >&2; exit 2
