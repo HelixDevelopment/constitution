@@ -1120,52 +1120,58 @@ hatch — no <code>--partial-scenario-review</code>,
 <code>--skip-captured-evidence-crosscheck</code>,
 <code>--single-factor-review-suffices</code>,
 <code>--dismiss-branch-without-proof</code> flag.</p>
-<h3 id="114209--code-review-must-run-on-the-opus-model-at-xhigh-effort-fable-escalation-for-bigcomplex-reviews-user-mandate-2026-09-15-supersedes-2026-07-15">§11.4.209
-— Code-review MUST run on the Opus model at xhigh effort (Fable
-escalation for big/complex reviews) (User mandate, 2026-09-15,
-supersedes 2026-07-15)</h3>
-<p><strong>Verbatim operator mandate (2026-09-15), superseding the
-2026-07-15 mandate below:</strong> the mandatory independent code-review
-MUST by default be performed with the <strong>Opus model at xhigh
-effort</strong>; for a review the operator or the reviewer itself
-classifies as <strong>extremely big or complex</strong>, the
-<strong>Fable model at xhigh effort</strong> MUST be used instead.</p>
+<h3 id="114209--code-review-must-run-on-the-opus-model-at-xhigh-effort-always--no-fable-no-escalation-tier-no-fallback-model-user-mandate-2026-09-26-supersedes-2026-09-15-and-2026-07-15">§11.4.209
+— Code-review MUST run on the Opus model at xhigh effort, ALWAYS — no
+Fable, no escalation tier, no fallback model (User mandate, 2026-09-26,
+supersedes 2026-09-15 and 2026-07-15)</h3>
+<p><strong>Verbatim operator mandate (2026-09-26,
+<code>CRITICAL</code>), superseding both mandates below:</strong> &quot;Main
+model to use is Sonet, reviews and other heavy stuff have to be done by
+Opus instead of Fable!!! Fix this permanently on all levels!&quot;</p>
+<p><strong>Prior mandate (2026-09-15), WITHDRAWN as current, kept for
+lineage:</strong> <em>&quot;the mandatory independent code-review MUST by
+default be performed with the Opus model at xhigh effort; for a review
+the operator or the reviewer itself classifies as extremely big or
+complex, the Fable model at xhigh effort MUST be used instead.&quot;</em> Its
+Opus-xhigh default survives; its Fable escalation clause (former clause
+(A)) is REMOVED by the 2026-09-26 mandate — there is no review tier
+above Opus-xhigh.</p>
 <p><strong>Prior mandate (2026-07-15), WITHDRAWN as current, kept for
 lineage:</strong> <em>&quot;the mandatory independent code-review MUST ALWAYS
 be performed with the Fable model at xhigh effort; if Fable is
-unavailable, use Opus at xhigh effort.&quot;</em> That ordering is inverted
-by the 2026-09-15 mandate above: Opus-xhigh is now the DEFAULT reviewer
-substrate and Fable-xhigh the ESCALATION tier for large/complex work,
-not an unavailability fallback.</p>
+unavailable, use Opus at xhigh effort.&quot;</em> Inverted by the 2026-09-15
+mandate and fully superseded by the 2026-09-26 mandate.</p>
 <p>Every mandatory independent code-review the constitution requires —
 the §11.4.125 code-review-agent gate before pre-build + main build, the
 §11.4.142 universal every-change-review (no exception), and the
 §11.4.194 exhaustive all-scenario/all-angle review +
 verify-against-captured-runtime-evidence, iterated to a zero-finding GO
 per §11.4.134 — MUST be dispatched on the <strong>Opus model at
-<code>xhigh</code> effort</strong> by default. <strong>(A) Escalation
-(closed, ordered).</strong> When the review is classified — by the
-operator, or by the dispatching agent using a stated, evidenced reason
-(§11.4.6, never a guessed classification) — as <strong>extremely big or
-complex</strong> (very large diff, cross-cutting/architectural blast
-radius, a governance/gate-authoring change, or any change the operator
-explicitly flags), the review MUST run on the <strong>Fable model at
-<code>xhigh</code> effort</strong> instead of Opus. <code>xhigh</code>
-effort is REQUIRED in both the default and the escalated case — the
-exhaustive §11.4.194 all-angle depth is not reachable at a lower effort.
-<strong>(B) Independence preserved (§11.4.70/§11.4.20).</strong> The
-Opus-xhigh (or, on escalation, Fable-xhigh) model runs as the
+<code>xhigh</code> effort</strong>, ALWAYS, whatever the size or
+complexity of the reviewed change. <strong>(A) One substrate — no
+escalation tier, no fallback model.</strong> Opus at <code>xhigh</code>
+is the ONLY permitted review substrate. Fable is NOT permitted in any
+role (default, escalation, or fallback); no other model, no lower tier,
+and no lower effort substitutes for it. When Opus at <code>xhigh</code>
+is genuinely unavailable (not configured / rate-limited / unreachable,
+established as a captured FACT per §11.4.6 — never a guessed
+unavailability), the review is BLOCKED and deferred: the unavailability
+fact is recorded, the owed review is tracked (§11.4.197; §11.4.21 once
+the self-resolution audit is exhausted), and the reviewed change does
+NOT pass the review gate on a substitute model. <strong>(B) Independence
+preserved (§11.4.70/§11.4.20).</strong> The Opus-xhigh model runs as the
 structurally-separated reviewer (never the author self-reviewing);
 §11.4.209 sets the MODEL + EFFORT of that review, it does not weaken the
 independence, the iterate-until-GO loop (§11.4.134), or the rock-solid
 captured-evidence requirement (§11.4.5/§11.4.69/§11.4.107). <strong>(C)
 Honest boundary (§11.4.6).</strong> A review claimed &quot;done&quot; that
-actually ran on a weaker model / lower effort than the tier this anchor
-requires (Opus-xhigh by default, Fable-xhigh once classified
-big/complex) is a §11.4 bluff at the review-substrate layer — the
+actually ran on any model other than Opus, or at an effort below
+<code>xhigh</code>, is a §11.4 bluff at the review-substrate layer — the
 review&#39;s captured evidence MUST record which model + effort actually
-performed it, and, when escalated, the stated reason the review was
-classified big/complex. <strong>(D) Values already burned in a public
+performed it. Where the dispatch path cannot set or report the effort
+(the §11.4.231(F.2) harness gap), the evidence records that gap honestly
+and the review is never claimed to have run at <code>xhigh</code> on an
+unverified basis. <strong>(D) Values already burned in a public
 repository (§11.4.10).</strong> Any plaintext credential value that has
 appeared in documentation, a spec, or commit history — including as a
 worked example — MUST be treated as compromised from the moment of
@@ -1176,24 +1182,28 @@ compromised-by-disclosure and MUST NOT be relied on as a real secret.
 STRENGTHENS §11.4.125/§11.4.142/§11.4.194/§11.4.134 — it does NOT
 replace any of them; it pins the review&#39;s execution substrate.</p>
 <p>Classification: universal (§11.4.17). Composes §11.4.125 / §11.4.134
-/ §11.4.142 / §11.4.194 / §11.4.6 / §11.4.10 / §11.4.20 / §11.4.70 /
-§11.4.196 (alias/model selection) / §11.4.231 (nano-precision model-tier
-selection — §11.4.209 remains the hard pin for review/merge-conflict
-scope that §11.4.231(E) explicitly does not reach). Propagation gate
-<code>CM-COVENANT-114-209-PROPAGATION</code> (literal
-<code>11.4.209</code> across the consumer fleet) + recommended gate
-<code>CM-CODE-REVIEW-OPUS-XHIGH-DEFAULT-FABLE-ESCALATION</code> (the
-mandatory code-review&#39;s captured evidence records model=Opus +
-effort=xhigh by default, OR model=Fable + effort=xhigh with a recorded
-big/complex classification reason) + paired §1.1 meta-test mutation
-(record a code-review run on a lower-effort or non-Opus/non-Fable model
-without a recorded escalation reason → the gate FAILs; strip the literal
-→ the propagation gate FAILs; gate-code = separate work item).</p>
+/ §11.4.142 / §11.4.194 / §11.4.6 / §11.4.10 / §11.4.20 / §11.4.21 /
+§11.4.70 / §11.4.196 (alias/model selection) / §11.4.197 / §11.4.231
+(nano-precision model-tier selection — §11.4.209 remains the hard pin
+for review/merge-conflict scope that §11.4.231(E) explicitly does not
+reach). Propagation gate <code>CM-COVENANT-114-209-PROPAGATION</code>
+(literal <code>11.4.209</code> across the consumer fleet) + recommended
+gate <code>CM-CODE-REVIEW-OPUS-XHIGH</code> (renamed by the 2026-09-26
+amendment; the retired predecessor token is cited in
+<code>scripts/gates/gate_ledger_removals.tsv</code>) (the mandatory
+code-review&#39;s captured evidence records model=Opus + effort=xhigh; a
+review recorded on any other model or at a lower effort FAILs; a review
+recorded BLOCKED with a captured Opus-unavailability fact is honest and
+MUST NOT fire the gate — the §11.4.201(1) false-positive guard) + paired
+§1.1 meta-test mutation (record a code-review run on a non-Opus model or
+a lower effort → the gate FAILs; strip the literal → the propagation
+gate FAILs; gate-code = separate work item).</p>
 <p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.209.</p>
 <p>Non-compliance is a release blocker. No escape hatch — no
 <code>--review-any-model</code>, <code>--review-lower-effort-OK</code>,
 <code>--skip-opus</code>, <code>--non-xhigh-review</code>,
-<code>--escalate-without-recorded-reason</code> flag.</p>
+<code>--escalate-to-other-model</code>,
+<code>--substitute-model-on-unavailability</code> flag.</p>
 <h3 id="114240--producer--verifier-scope-separation-the-actor-that-produces-a-changeartifactverdict-cannot-be-the-one-that-gates-it--least-privilege-over-cleverness-research-derived-2026-08-15">§11.4.240
 — Producer ≠ Verifier scope separation: the actor that produces a
 change/artifact/verdict cannot be the one that gates it — least
@@ -1240,7 +1250,7 @@ scripts, custody-chain enforcer per §11.4.146(D3),
 release-verdict-coverage machinery per §11.4.135); (iv) VERIFIER — the
 actor / mechanism that RE-RUNS the gate from a clean checkout and
 attaches receipts (independent verifier per §11.4.165, §11.4.209
-Fable-xhigh substrate for code review, §11.4.194 exhaustive review). The
+Opus-xhigh substrate for code review, §11.4.194 exhaustive review). The
 mandate: the PRODUCER of a change cannot ALSO be the ORACLE, GATE, or
 VERIFIER for that same change. Extraction line 5695 (module 34 core
 concept 4 — module attribution VERIFIED CORRECT 2026-08-20, verified
@@ -1327,8 +1337,8 @@ edit the verdict or the oracle to make itself green.&quot;</p>
 at the verdict layer — a producer-typed status label is not a verdict.
 §11.4.125&#39;s code-review-agent gate before pre-build + main build IS the
 (A) VERIFIER role at the review layer, and §11.4.142&#39;s universal
-every-change-review mandate + §11.4.209&#39;s Fable-xhigh review-substrate
-pin (Opus-xhigh fallback) provide the independence + substrate
+every-change-review mandate + §11.4.209&#39;s Opus-xhigh review-substrate
+pin (no fallback model) provide the independence + substrate
 requirements. §11.4.135&#39;s standing regression-guard suite is the GATE
 layer at the release seam. §11.4.146(D3) status custody is the
 STATUS-WRITE-SEAM enforcement — the store REFUSES a producer-asserted
@@ -1369,9 +1379,9 @@ producer-asserted terminals) / §11.4.165 (universal independent verifier
 agent) / §11.4.194 (exhaustive review) / §11.4.201 (a gate that
 false-refuses a clean producer is a FAIL-bluff, so verifier honesty
 binds both directions) / §11.4.205 (seam-not-prose enforcement) /
-§11.4.209 (Fable-xhigh substrate pin for the review verifier) /
-§11.4.245 (oracle-strategy identification, independent by the same
-principle) / §11.4.248 (PROTECTED-SPEC + CODEOWNERS enforcement — the
+§11.4.209 (Opus-xhigh substrate pin for the review verifier) / §11.4.245
+(oracle-strategy identification, independent by the same principle) /
+§11.4.248 (PROTECTED-SPEC + CODEOWNERS enforcement — the
 operator-decided mechanism for (B)) / §11.4.249 (four-role architecture
 + flight-recorder mechanism — §11.4.240 is the SEPARATION PRINCIPLE +
 capability enforcement, §11.4.249 is the concrete FOUR-ROLE {producer,
@@ -1435,12 +1445,11 @@ is itself the exact class of false-positive refusal §11.4.201 forbids.
 This clause does NOT weaken the constitution&#39;s OTHER, distinct, narrower
 model-substrate pins — §11.4.256&#39;s requirement that a translation review
 run on a DIFFERENT model/provider than the translator, and §11.4.209&#39;s
-requirement that every mandatory independent code-review run on the
-Fable model at <code>xhigh</code> effort (Opus <code>xhigh</code> on
-genuine Fable-unavailability); both remain in force unmodified for their
-own narrower domains (translation review; code review). FR-032&#39;s
-permitted-not-required framing governs only the GENERAL
-producer≠verifier case this anchor addresses, never those two
+requirement that every mandatory independent code-review run on the Opus
+model at <code>xhigh</code> effort (no fallback model); both remain in
+force unmodified for their own narrower domains (translation review;
+code review). FR-032&#39;s permitted-not-required framing governs only the
+GENERAL producer≠verifier case this anchor addresses, never those two
 domain-specific, stricter pins. <strong>(3) Tier-C trigger 1 — the
 producer holds write access to the evidence/verdict store.</strong> Per
 spec.md:122 (FR-033): at a seam where the producer holds write access to
@@ -1485,10 +1494,10 @@ aspiration) / §11.4.201 (a false-positive <code>capability</code> claim
 is the same class of bluff a false-positive guard refusal is) /
 §11.4.256 (its own, distinct, domain-specific different-model
 requirement stays unweakened) / §11.4.209 (its own, distinct,
-domain-specific Fable-<code>xhigh</code> code-review pin stays
-unweakened alongside §11.4.256&#39;s) / §12 (host-boundary establishment is
-a §12 host-safety-adjacent operator action, never an autonomous agent
-action). Recommended mechanism gate
+domain-specific Opus-<code>xhigh</code> code-review pin stays unweakened
+alongside §11.4.256&#39;s) / §12 (host-boundary establishment is a §12
+host-safety-adjacent operator action, never an autonomous agent action).
+Recommended mechanism gate
 <code>CM-INDEPENDENCE-TIER-HONESTLY-RECORDED</code> (every accepted
 verdict&#39;s <code>independence_tier</code> field is present, within the
 closed {instance, model, capability} set, and — at a Tier-C-triggered

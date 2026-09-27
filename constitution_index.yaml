@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-09-26T11:30:56.385675+00:00'
+generated_at: '2026-09-26T14:41:19.328355+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 647f7553533a2006c57beab7b3ae1a5d40026eac
-  source_sha256: e764f149a45884785770bf19ef2dbb27a42109910f7f15ea43085ea466f0d946
+  commit: 488d213cf9a7e3aedd51d231f2d622f2143b83d0
+  source_sha256: d915a5c10f46041b5ba8020c685d845a6a3e3c5fca75384a1a807a98eed90c72
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -4904,8 +4904,9 @@ anchors:
   - 11.4.95
   - '12.10'
 - id: 11.4.209
-  title: — Code-review MUST run on the Opus model at xhigh effort (Fable escalation
-    for big/complex reviews) (User mandate, 2026-09-15, supersedes 2026-07-15)
+  title: — Code-review MUST run on the Opus model at xhigh effort, ALWAYS — no Fable,
+    no escalation tier, no fallback model (User mandate, 2026-09-26, supersedes 2026-09-15
+    and 2026-07-15)
   group: code-review-and-quality
   location: constitution/groups/code-review-and-quality.md
   classification: universal
@@ -4922,8 +4923,11 @@ anchors:
   - 11.4.17
   - 11.4.194
   - 11.4.196
+  - 11.4.197
   - 11.4.20
+  - 11.4.201
   - 11.4.209
+  - 11.4.21
   - 11.4.231
   - 11.4.5
   - 11.4.6
@@ -4961,7 +4965,8 @@ anchors:
   - 11.4.97
 - id: 11.4.211
   title: — Merge-conflict resolution during main→feature/product/flavor merges MUST
-    run on the Fable model at xhigh effort (Opus xhigh fallback) (User mandate, 2026-07-16)
+    run on the Opus model at xhigh effort, ALWAYS — no Fable, no fallback model (User
+    mandate, 2026-07-16; amended 2026-09-26)
   group: project-lifecycle-and-release
   location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
@@ -4976,6 +4981,7 @@ anchors:
   - 11.4.188
   - 11.4.195
   - 11.4.196
+  - 11.4.201
   - 11.4.209
   - 11.4.211
   - 11.4.37
@@ -5610,6 +5616,7 @@ anchors:
   - 11.4.134
   - 11.4.141
   - 11.4.142
+  - 11.4.147
   - 11.4.17
   - 11.4.182
   - 11.4.183

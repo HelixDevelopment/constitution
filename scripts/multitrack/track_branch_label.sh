@@ -109,7 +109,7 @@
 #             (subagent dispatch) exposes a `model` parameter but NO `effort`
 #             parameter, so a subagent's effort is NOT settable via that path and
 #             degrades to '?' — a DOCUMENTED capability-gap, exactly like the
-#             §11.4.209/§11.4.211 Fable-xhigh review/merge pins (§11.4.182
+#             §11.4.209/§11.4.211 Opus-xhigh review/merge pins (§11.4.182
 #             EXTENSION 2026-07-26 / §11.4.231 clause (F)).
 
 set -uo pipefail
