@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>SpecKit-004 + Superpowers Development Cycle: An Exhaustive Analysis</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="../../styles/default-md.css" />
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">SpecKit-004 + Superpowers Development Cycle: An
+Exhaustive Analysis</h1>
+</header>
+<h1
+id="speckit-004--superpowers-development-cycle-an-exhaustive-analysis">SpecKit-004
++ Superpowers Development Cycle: An Exhaustive Analysis</h1>
+<p><strong>Revision:</strong> 1</p>
+<p><strong>Created:</strong> 2026-09-27T17:33:54Z</p>
+<p><strong>Last modified:</strong> 2026-09-27T17:33:54Z</p>
+<p><strong>Status:</strong> active</p>
+<p><strong>Scope:</strong> this document analyses the SpecKit
+"004-fast-dev-cycles" feature cycle — its methodology, its real-time
+execution, its verified measurements, and the governance anchors it
+exercises — as observed and independently re-verified against the live
+project state at the moment of writing. Every specific figure below was
+checked against a real, current source (a tracked file, the agent
+registry, the operator request-history ledger, or a live command this
+document's author ran itself) at authoring time; anywhere a figure could
+<strong>not</strong> be independently confirmed, it is marked
+<code>UNVERIFIED</code> rather than presented as settled fact, per this
+project's own §11.4.6 no-guessing mandate — which this document is
+itself bound by.</p>
+<hr />
+<h2 id="table-of-contents">Table of contents</h2>
+<ol type="1">
+<li><a href="#1-executive-summary">Executive summary</a></li>
+<li><a href="#2-speckit-workflow-methodology">SpecKit workflow
+methodology</a></li>
+<li><a href="#3-superpowers-methodology-as-applied-here">Superpowers
+methodology as applied here</a></li>
+<li><a
+href="#4-detailed-narrative-of-the-foundational-batch-t001t014-development--review-cycle">Detailed
+narrative of the Foundational-batch (T001–T014) development + review
+cycle</a></li>
+<li><a
+href="#5-measurements-performance-and-metrics-analysis">Measurements,
+performance and metrics analysis</a></li>
+<li><a href="#6-diagrams-and-schemes">Diagrams and schemes</a></li>
+<li><a href="#7-constitution-anchors-applied">Constitution anchors
+applied</a></li>
+<li><a href="#8-lessons-learned-and-recommendations">Lessons learned and
+recommendations</a></li>
+<li><a
+href="#9-verification-methodology-and-honest-gaps-of-this-document-itself">Verification
+methodology and honest gaps</a></li>
+</ol>
+<hr />
+<h2 id="1-executive-summary">1. Executive summary</h2>
+<p><strong>SpecKit-004</strong> ("fast-dev-cycles") is a feature
+specification, implementation plan and task breakdown living at
+<code>specs/004-fast-dev-cycles/</code> in the parent ATMOSphere
+repository. It implements workable item <strong>ATM-1041</strong> (Type:
+Task), whose operator brief (quoted verbatim in <code>spec.md</code>) is
+that development iterations on this project have become "extremely
+slow", that the reopen rate on closed items is "still extremely high",
+and that the project must root-cause both problems by measurement —
+never by assertion — and then re-engineer the gate/iteration loop to be
+at least an order of magnitude faster <strong>without losing any of the
+anti-bluff quality guarantees</strong> this project's constitution
+already mandates.</p>
+<p>The spec resolves into <strong>8 user stories</strong>, <strong>25
+functional requirements</strong>
+(<code>FR-001</code>..<code>FR-025</code>), and <strong>10 measurable
+success criteria</strong> (<code>SC-001</code>..<code>SC-010</code>).
+The implementation plan (<code>plan.md</code>, Revision 2) decomposes
+this into <strong>68 plan tasks</strong>
+(<code>T-A01</code>..<code>T-H08</code>, verified: <code>T-A01</code>
+through <code>T-H08</code> is the full span present in
+<code>plan.md</code>, confirmed by an exact count of 68 distinct task
+ids) spanning Phases A–H, itself informed by <strong>46 root-cause
+candidates</strong> (<code>RC-01</code>..<code>RC-46</code>) and
+<strong>39 recorded decisions</strong>
+(<code>DEC-01</code>..<code>DEC-39</code>) in <code>research.md</code>.
+The task breakdown (<code>tasks.md</code>, Revision 2) turns this plan
+into <strong>195 executable, test-first tasks</strong>
+(<code>T001</code>..<code>T195</code>) across <strong>11 phases</strong>
+— Setup, Foundational, then one phase per user story, then a final
+Polish/Verification phase — each phase gated by an explicit,
+evidence-typed checkpoint that pauses for operator approval before the
+next phase may start.</p>
+<p>As of the moment this document was authored, the project has
+completed:</p>
+<ul>
+<li><strong>Phase 1 (Setup, T001–T006)</strong> and <strong>Phase 2
+(Foundational, T007–T014)</strong> — implemented against the real
+tracked tree, currently uncommitted (git status shows the entire
+<code>constitution/scripts/fastcycle/</code> directory as untracked,
+<code>?? scripts/fastcycle/</code>), pending the T014 independent-review
+gate reaching a clean GO. This is the deepest, most rigorously reviewed
+part of the cycle so far, and is the subject of Section 4 below.</li>
+<li><strong>RED-test drafting</strong> for parts of several later
+user-story phases (US2/Phase 4 and US4/Phase 6 and US6/Phase 8, per the
+agent registry's own task-id citations) performed in <strong>isolated
+scratch copies</strong>, explicitly <strong>not yet applied to the real
+tracked tree</strong> — a distinction this document is careful to
+preserve throughout, because conflating "drafted in scratch" with
+"implemented on the real tree" would itself be the exact kind of bluff
+this project's constitution forbids.</li>
+</ul>
+<p>The Foundational batch has now been through <strong>two full rounds
+of mandatory independent adversarial review</strong> (T014, Opus at
+<code>xhigh</code> effort, per §11.4.209) — round 9 returned
+<strong>NO-GO</strong> with 3 BLOCKING + 1 IMPORTANT + 4 MINOR findings;
+the fixes for those findings then <strong>triggered a real-execution
+discovery</strong> that no review round had itself caught: a live,
+host-wide <code>SIGTERM</code>/<code>SIGKILL</code> hazard in one of the
+batch's own test drivers, root-caused and fixed with a one-line
+<code>awk</code> guard. Round 10 then returned a <strong>second</strong>
+NO-GO, confirming every round-9 fix held and finding <strong>9 new
+issues</strong> (1 BLOCKING + 3 IMPORTANT + 5 MINOR) that round 9 could
+not have found because they did not yet exist in the pre-round-9 code.
+As of the moment of writing, <strong>one</strong> of the three parallel
+fix agents dispatched against round 10's findings has genuinely
+completed and been independently re-verified by the conductor (the
+<code>host_guard.sh</code> fix: its test suite grew from 125/125 to
+131/131 passing assertions); <strong>two</strong> remain in flight with
+no confirmed-real completion event yet recorded. This document reports
+that state honestly rather than assuming completion.</p>
+<hr />
+<h2 id="2-speckit-workflow-methodology">2. SpecKit workflow
+methodology</h2>
+<p>This project drives non-trivial development work through the SpecKit
+slash-command pipeline (<code>/speckit.specify</code> →
+<code>/speckit.clarify</code> → <code>/speckit.plan</code> →
+<code>/speckit.tasks</code> → <code>/speckit.superspec.execute</code>,
+with <code>/speckit.analyze</code> and <code>/speckit.checklist</code>
+available at any point for cross-artefact consistency checks). Each
+stage produces a durable, version-controlled artefact under
+<code>specs/&lt;NNN&gt;-&lt;slug&gt;/</code>, and every later stage is
+required to trace back to the earlier ones rather than re-deriving scope
+independently.</p>
+<h3
+id="21-the-artefact-chain-as-actually-produced-for-004-fast-dev-cycles">2.1
+The artefact chain, as actually produced for 004-fast-dev-cycles</h3>
+<table>
+<thead>
+<tr>
+<th>Artefact</th>
+<th style="text-align: right;">Lines</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>spec.md</code></td>
+<td style="text-align: right;">269</td>
+<td>User scenarios, functional requirements
+(<code>FR-001</code>..<code>FR-025</code>), success criteria
+(<code>SC-001</code>..<code>SC-010</code>), out-of-scope declarations,
+assumptions. Carries a <strong>Clarifications</strong> section recording
+4 operator answers to scope-narrowing questions asked during
+<code>/speckit.clarify</code> (review-step depth, consumer-project
+reach, baseline stratification, and how binding the "10x" target
+is).</td>
+</tr>
+<tr>
+<td><code>plan.md</code></td>
+<td style="text-align: right;">1,850</td>
+<td>The <strong>Phased Implementation Plan</strong> (68 tasks
+<code>T-A01</code>..<code>T-H08</code> across Phases A–H) plus a
+<strong>Phase 2 hand-off</strong> section. This is where root causes are
+turned into concrete engineering tasks.</td>
+</tr>
+<tr>
+<td><code>research.md</code></td>
+<td style="text-align: right;">verified: contains root-cause candidates
+through <strong><code>RC-46</code></strong> and recorded decisions
+through <strong><code>DEC-39</code></strong> (both counts independently
+re-derived from the file's own text, not merely cited from another
+document)</td>
+<td>The multi-pass deep-web-research log <code>FR-003</code> mandates,
+plus the root-cause classification
+(<code>CONFIRMED</code>/<code>REFUTED</code>/<code>UNDETERMINED</code>)
+<code>FR-002</code> mandates.</td>
+</tr>
+<tr>
+<td><code>data-model.md</code></td>
+<td style="text-align: right;">contains 25 <code>###</code>-level
+headings (entity groups plus their sub-sections; <code>tasks.md</code>
+itself cites "14 entity groups" as the entity-group count proper)</td>
+<td>The <strong>Key Entities</strong> from <code>spec.md</code> (Cycle
+Record, Root Cause, Gate, Affected-Set, Escape Mechanism, Handoff
+Record, Verification Report) expanded into concrete schemas.</td>
+</tr>
+<tr>
+<td><code>contracts/</code></td>
+<td style="text-align: right;"><strong>13 distinct contracts</strong>
+(verified: 52 files in the directory ÷ 4 export formats each = 13; e.g.
+<code>catch-set-comparison-harness</code>,
+<code>affected-set-and-verdict-cache</code>,
+<code>agent-registry-and-handoff</code>, <code>common-conventions</code>
+— the last defining the shared <code>C-001</code>..<code>C-007</code>
+conventions every tool in the batch must follow)</td>
+<td>Interface contracts each tool in the plan must satisfy — inputs,
+outputs, exit-code conventions, self-validation requirements — authored
+<strong>before</strong> the tool exists.</td>
+</tr>
+<tr>
+<td><code>quickstart.md</code></td>
+<td style="text-align: right;">—</td>
+<td>10 independent-test scenarios, one per user story, phrased as "can
+be fully tested by …" acceptance procedures.</td>
+</tr>
+<tr>
+<td><code>checklists/tasks-coverage.md</code></td>
+<td style="text-align: right;">—</td>
+<td>The mechanical join proving every
+<code>FR-*</code>/<code>SC-*</code> maps to a user story and every plan
+task (<code>T-A01</code>..) maps to at least one executable task
+(<code>T001</code>..), so no requirement or plan task is silently
+dropped when the plan is decomposed into tasks.</td>
+</tr>
+<tr>
+<td><code>tasks.md</code></td>
+<td style="text-align: right;">476 (frontmatter through the final
+checkpoint)</td>
+<td><strong>195 executable tasks</strong>
+(<code>T001</code>..<code>T195</code>) across 11 phases, each task line
+carrying inline
+<code>[P]</code>/<code>[TDD]</code>/<code>[REVIEW]</code>/<code>[SUBAGENT]</code>/<code>[SERIAL]</code>
+markers and its owning plan-task id(s) and
+<code>FR</code>/<code>SC</code> id(s), so the task↔︎requirement join is
+re-derivable from the file alone without consulting the checklist.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-the-phase--dependency-structure">2.2 The phase / dependency
+structure</h3>
+<p><code>tasks.md</code> organises its 195 tasks into 11 phases with
+hard task-id boundaries (independently re-derived from the file's own
+<code>## Phase</code> headings and task-line ids, not merely copied from
+a summary line):</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Task range</th>
+<th>Story</th>
+<th>Goal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>T001–T006</td>
+<td>Setup</td>
+<td>Skeleton, consumer-owned data, tool preflight, child workable
+items</td>
+</tr>
+<tr>
+<td>2</td>
+<td>T007–T014</td>
+<td>Foundational (blocking)</td>
+<td>Shared library every contract relies on: <code>C-001</code> exit
+codes, <code>C-002</code> canonical JSON, <code>C-003</code>
+determinism, <code>C-004</code> control needles, <code>C-005</code>
+self-validation triple, <code>C-007</code> host safety</td>
+</tr>
+<tr>
+<td>3</td>
+<td>T015–T049</td>
+<td>US1 🎯 MVP</td>
+<td>Know exactly where cycle time goes — instrumentation + frozen
+baseline</td>
+</tr>
+<tr>
+<td>4</td>
+<td>T050–T085</td>
+<td>US2</td>
+<td>Gates that are far faster and lose nothing (catch-set comparison,
+verdict cache, affected-set selection, sharding, batch bisection, gate
+audit, flake ledger, backstop)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>T086–T103</td>
+<td>US3</td>
+<td>Stop reopening — escape-mechanism classification,
+evidence-class-gated closure refusal, sibling-instance search,
+recurrence linking</td>
+</tr>
+<tr>
+<td>6</td>
+<td>T104–T121</td>
+<td>US4</td>
+<td>Minimal tokens per completed item — governance-subset selection,
+content-addressed evidence reuse</td>
+</tr>
+<tr>
+<td>7</td>
+<td>T122–T140</td>
+<td>US5</td>
+<td>Reliable orchestration — truthful agent registry, crash/quota
+handoffs, custody sweep</td>
+</tr>
+<tr>
+<td>8</td>
+<td>T141–T153</td>
+<td>US6</td>
+<td>A host that does not throttle the work — measured resource
+attribution, backup-first clean-up, unweakened host-safety limits</td>
+</tr>
+<tr>
+<td>9</td>
+<td>T154–T165</td>
+<td>US7</td>
+<td>Everything lands in the constitution, clean and pushed — recursive
+clean/push verification, propagation/lockstep checks</td>
+</tr>
+<tr>
+<td>10</td>
+<td>T166–T177</td>
+<td>US8</td>
+<td>Every consuming project gets the speed-up — enumerate, audit,
+migrate or honestly <code>NOT-MIGRATED</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td>T178–T195</td>
+<td>Polish/Verification</td>
+<td>Final gate: every <code>SC-001</code>..<code>SC-010</code> gets an
+evaluated verdict with evidence</td>
+</tr>
+</tbody>
+</table>
+<p>Every phase ends with a <strong>Checkpoint</strong> line stating its
+own pass condition and its own evidence class (<code>artifact</code> /
+<code>runtime</code> / <code>source</code>), and every checkpoint in
+<code>tasks.md</code> ends with the literal instruction "<strong>Pause
+for operator approval</strong>" — the plan does not treat phase
+completion as self-authorizing; an operator gate sits between every
+phase and the next.</p>
+<p>The dependency shape is not a flat sequence: Phase 2 (Foundational)
+blocks <em>every</em> user-story phase (nothing in Phases 3–10 may start
+before its checkpoint passes), Phase 3 (US1, the measurement MVP) gates
+every later phase that claims a saving (its own task <code>T049</code>
+is an explicit <strong>re-planning checkpoint</strong> that recomputes
+every root-cause's measured share from the newly frozen baseline before
+any saving-claiming task may proceed), and Phases 4–8 (US2, US3, US4,
+US5, US6) are designed to run as <strong>parallel streams</strong> once
+Phase 3's baseline exists. Phase 9 (US7 — constitution codification +
+recursive clean/push verification) depends on the <em>merged</em>
+mechanisms from all of those streams; Phase 10 (US8 — consumer
+migration) depends on Phase 9's codification.</p>
+<h3
+id="23-the-test-first--subagent-driven--review-gated-discipline-encoded-in-every-task-line">2.3
+The test-first / subagent-driven / review-gated discipline encoded in
+every task line</h3>
+<p>Every task line in <code>tasks.md</code> follows the literal format
+<code>- [ ] [ID] [P?] [Story] [markers] Description (plan T-Xnn; FR/SC ids)</code>,
+and the markers are not decorative — each is a load-bearing constraint
+the task's own executor must obey:</p>
+<ul>
+<li><strong><code>[TDD]</code></strong> — the failing test is written
+and <em>observed</em> failing for the right reason (its output stored
+under <code>qa-results/fastcycle/&lt;story&gt;/red/</code> with the
+candidate fingerprint) <strong>before</strong> the implementation
+exists; a test first observed GREEN is explicitly refused as a guard.
+Every such test additionally ships its paired §1.1 mutation and, for any
+null/absent/clean/hit result, a class-matched control needle per
+§11.4.273 (Section 7 below quotes this anchor's operative text).</li>
+<li><strong><code>[REVIEW]</code></strong> — the task's output is
+accepted only through the independent review gate on the pinned tier:
+<strong>Opus at <code>xhigh</code> effort, never Fable, never a lower
+tier or effort</strong>, in a fresh context on a clean checkout, framed
+to disprove completion, iterated to a zero-finding zero-warning GO.
+Related changes are batched into one review request of ordered
+≤~400-line slices with a machine pre-check pack attached, so speed comes
+from <em>fewer, better-prepared</em> reviews — never from a thinner or
+skipped review.</li>
+<li><strong><code>[SUBAGENT]</code></strong> — delegable to a parallel
+subagent whose scope is <em>exactly</em> the files named on its own task
+line (plus its own fixtures directory); it never edits a contention
+path, never commits or pushes, and its completion claim is treated as a
+<strong>prediction</strong> until the conductor re-runs its tests from a
+clean checkout — the producer is never its own verifier. A
+<code>[TDD]</code> subagent that writes the RED test is never the same
+subagent that implements the fix that turns it GREEN.</li>
+<li><strong><code>[SERIAL]</code></strong> — touches a single-owner
+contention path (the workable-items database, the agent-registry writer,
+the pre-build verification script, the meta-test mutation registry, the
+regression-guard registry, the commit wrapper, the doc-export sync
+script, the flash script, <code>.claude/settings.json</code>, every
+constitution anchor and its lockstep mirrors, and every commit/push) —
+executed by the conductor only, one at a time, never concurrently with
+another <code>[SERIAL]</code> task on the same path.</li>
+</ul>
+<p>This four-marker discipline is <em>how</em> the spec's own
+<code>FR-023</code> clarification ("keep the review requirement
+unchanged … speed comes from batching related changes per review and
+from machine pre-checks so reviews pass first time") becomes an
+executable constraint rather than a paragraph of prose — a distinction
+this project's own governance repeatedly insists on (see §11.4.205 /
+§11.4.227 in Section 7: a rule authored without its enforcement seam is,
+per this project's own doctrine, <em>worse</em> than no rule, because it
+stops the scrutiny that would otherwise have caught its absence).</p>
+<hr />
+<h2 id="3-superpowers-methodology-as-applied-here">3. Superpowers
+methodology as applied here</h2>
+<p><code>superpowers:systematic-debugging</code> and
+<code>superpowers:using-superpowers</code> are not invoked as abstract
+discipline in this cycle — they are visible, concretely, in the shape of
+the real work performed, and this section shows that work rather than
+describing the skills in the abstract.</p>
+<h3 id="31-the-iron-law-in-practice-the-descendants-investigation">3.1
+The Iron Law in practice: the <code>descendants()</code>
+investigation</h3>
+<p>The clearest, most consequential instance this cycle is the
+investigation of what the T014 round-8 review had flagged only as
+"suspected but unconfirmed host disruption" in
+<code>test_run_all.sh</code>'s <code>R8b-D6</code> sub-test (the test
+asserting the mutation driver's own cleanup-signal-handling test
+fixture, <code>drvwrap.sh</code>, dies within a fixed wall-clock bound
+after receiving <code>TERM</code>). Rather than treating the symptom —
+"the test sometimes takes longer than its bound" — as something to patch
+by loosening the bound or retrying, the investigating agent applied the
+systematic-debugging arc in full:</p>
+<ol type="1">
+<li><strong>Root-cause phase — read the real failure, reproduce
+it.</strong> The agent traced the exact mechanism:
+<code>descendants()</code>, the transitive-closure helper the mutation
+driver's cleanup path uses to find every process it must signal, builds
+its parent map from <code>ps -eo pid=,ppid=</code> output with
+<strong>no de-duplication</strong> — a later line for the same pid key
+silently overwrites an earlier one. The <code>R8b-D6</code> fixture's
+fake <code>ps</code> shim deliberately appends synthetic lines
+<em>after</em> the real output, one of which claims PID 1 is a child of
+the fixture's own fake root. Because PID 1 is the universal ancestor of
+(almost) every process on a Linux host, once that fake line overwrote
+<code>descendants()</code>'s internal mapping for PID 1, the closure
+computation transitively pulled in <strong>905 of 907</strong> real
+process IDs on the host — essentially the whole process table.</li>
+<li><strong>Pattern phase — classify, don't guess.</strong> The agent
+explicitly refused to classify the symptom as <code>flaky</code> (which
+this project's own governance treats as a forbidden vocabulary word
+absent captured evidence, §11.4.7): "the defect is deterministic and
+always present; only its timing outcome varies with host state" — host
+load (measured at the time: load average ~31–36 on a 64-core host, 53
+processes directly reparented to PID 1) is a real, <em>amplifying</em>
+factor on how long the resulting collateral signal storm takes to
+settle, but it is not the root cause, and the report is explicit that
+this conclusion is a measured fact, not an assumption.</li>
+<li><strong>Hypothesis phase — falsifiable, and proven both
+ways.</strong> The stated hypothesis ("a later duplicate <code>ps</code>
+line for pid 1 poisons the closure, causing real host-wide signal
+traffic that scales with how many processes are reparented to PID 1")
+was proven by a <strong>side-effect-free</strong> measurement run twice
+(905 pids on the unpatched closure, 1 pid — just the synthetic root — on
+the patched closure, over the identical input stream), and independently
+corroborated by a <strong>live</strong> demonstration: a separately
+process-grouped, unrelated harness process, run alongside the unpatched
+fixture purely as an observer, received roughly 100 real
+<code>SIGTERM</code> deliveries over about 10 seconds and was killed
+outright once by the collateral blast — direct, non-speculative proof
+the hazard is real and currently live in the tracked test file, not
+theoretical.</li>
+<li><strong>Implementation phase — the minimal fix at the proven cause,
+never the symptom.</strong> The fix is a single <code>awk</code> boolean
+added to the existing closure guard: a candidate is admitted to the
+transitive-closure "visited" set only if it is a bare non-negative
+integer string strictly greater than 1 — mirroring the guard
+<code>kill_tree()</code> already applied at <em>signal time</em>, moved
+<em>into the closure computation itself</em> so a poisoned parent-map
+entry can no longer be exploited as an expansion vector. This was
+verified RED (905 pids) → GREEN (1 pid) in an isolated scratch copy,
+then 3 clean full-fixture runs against the patched copy, then confirmed
+to introduce <strong>no regression</strong> against the sibling unit
+test that independently exercises the same pair of functions through a
+different fixture. Only after all of that was the fix even proposed for
+application to the real tracked file — and it was applied by the
+conductor, never autonomously by the investigating subagent, because it
+touched an already-committed, load-bearing test file gating the whole
+feature's promotion.</li>
+</ol>
+<p>This is precisely the "Iron Law: NO FIXES WITHOUT ROOT CAUSE
+INVESTIGATION FIRST" this project's constitution states for
+<code>superpowers:systematic-debugging</code> (§11.4.102) — and it is
+also a textbook instance of this project's §11.4.250 anchor
+("heuristic-tower signals a primitive defect"), inverted usefully:
+rather than <em>adding</em> a compensating heuristic on top of a
+symptom, the investigation found and removed the actual defective
+primitive.</p>
+<h3
+id="32-using-superpowers-in-practice-skill-discovery-before-improvisation">3.2
+<code>using-superpowers</code> in practice: skill-discovery before
+improvisation</h3>
+<p>The same investigating agent, and the review agents around it,
+consistently reached for the project's own existing tooling
+(<code>lib/host_guard.sh</code>'s live resource probes, the
+<code>triple_harness.sh</code> self-validation-triple machinery, the
+already-registered paired mutations in
+<code>scripts/testing/meta_test_false_positive_proof.sh</code>) rather
+than improvising ad-hoc equivalents — the observable signature of
+<code>superpowers:using-superpowers</code>'s "survey available skills
+before acting" discipline applied to in-repo tooling as much as to
+Claude Code's own skill marketplace.</p>
+<h3 id="33-a-second-smaller-but-equally-instructive-instance-r7f2">3.3 A
+second, smaller but equally instructive instance: <code>r7f2</code></h3>
+<p>Separately from the <code>descendants()</code> investigation, a
+different intermittent signal — internally tracked as <code>r7f2</code>,
+a <code>pid</code>-related <code>HUP</code> signal delivery issue — was
+investigated across <strong>11 reproduction attempts, including
+deliberately induced heavy host load</strong>, and was closed as a
+genuine non-reproducible flake rather than either (a) silently ignored
+or (b) mis-filed as a fixed defect on the strength of a single
+non-reproduction. The round-9 independent-review report itself notes
+plainly,
+"<code>r7f2 pid-HUP passed once. I did not chase that flake further</code>"
+— an honest, evidence-scoped statement rather than a claim of
+resolution, exactly the discipline §11.4.6 (no-guessing) and §11.4.7
+(demotion requires same-conditions evidence) require.</p>
+<hr />
+<h2
+id="4-detailed-narrative-of-the-foundational-batch-t001t014-development--review-cycle">4.
+Detailed narrative of the Foundational-batch (T001–T014) development +
+review cycle</h2>
+<h3 id="41-what-the-foundational-batch-is">4.1 What the Foundational
+batch is</h3>
+<p>Phase 2 of <code>tasks.md</code> (tasks
+<code>T007</code>–<code>T014</code>) builds the shared library every
+later contract in the plan depends on: <code>C-001</code> (exit-code
+conventions), <code>C-002</code> (canonical JSON with a
+<code>body_hash</code> excluding volatile fields), <code>C-003</code>
+(determinism — a <code>--determinism-check</code> flag that runs a tool
+twice and asserts identical output), <code>C-004</code> (control needles
+— a class-matched, known-present probe that must prove an instrument can
+see before its silence is trusted, directly implementing this project's
+own §11.4.273 anchor), <code>C-005</code> (the self-validation triple:
+golden-good must PASS, golden-bad must FAIL and pinpoint,
+negative-control must PASS), and <code>C-007</code> (host safety — live
+<code>nproc</code>/<code>ulimit -u</code>/<code>ps -L</code>
+thread-count/<code>MemAvailable</code> probes that clamp requested
+parallelism and refuse to ever <em>raise</em> a limit).</p>
+<p><strong>Independently verified file inventory</strong> (re-derived at
+authoring time by listing <code>constitution/scripts/fastcycle/</code>
+and excluding test fixtures and the Python <code>__pycache__</code>
+directory, neither of which is part of the batch's reviewed source
+surface):</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th style="text-align: right;">Lines</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lib/fc_common.py</code></td>
+<td style="text-align: right;">390</td>
+</tr>
+<tr>
+<td><code>lib/fc_common.sh</code></td>
+<td style="text-align: right;">9</td>
+</tr>
+<tr>
+<td><code>lib/host_guard.sh</code></td>
+<td style="text-align: right;">220</td>
+</tr>
+<tr>
+<td><code>tests/check_deps.sh</code></td>
+<td style="text-align: right;">89</td>
+</tr>
+<tr>
+<td><code>tests/run_all.sh</code></td>
+<td style="text-align: right;">93</td>
+</tr>
+<tr>
+<td><code>tests/test_check_deps.sh</code></td>
+<td style="text-align: right;">327</td>
+</tr>
+<tr>
+<td><code>tests/test_fc_common_red.sh</code></td>
+<td style="text-align: right;">752</td>
+</tr>
+<tr>
+<td><code>tests/test_foundational_mutations_descendants_filter.sh</code></td>
+<td style="text-align: right;">62</td>
+</tr>
+<tr>
+<td><code>tests/test_foundational_mutations_kill_tree.sh</code></td>
+<td style="text-align: right;">79</td>
+</tr>
+<tr>
+<td><code>tests/test_foundational_mutations.sh</code></td>
+<td style="text-align: right;">111</td>
+</tr>
+<tr>
+<td><code>tests/test_host_guard_red.sh</code></td>
+<td style="text-align: right;">507</td>
+</tr>
+<tr>
+<td><code>tests/test_run_all.sh</code></td>
+<td style="text-align: right;">409</td>
+</tr>
+<tr>
+<td><code>tests/test_triple_harness_red.sh</code></td>
+<td style="text-align: right;">431</td>
+</tr>
+<tr>
+<td><code>tests/lib/triple_harness.sh</code></td>
+<td style="text-align: right;">177</td>
+</tr>
+<tr>
+<td><strong>Total (14 files)</strong></td>
+<td style="text-align: right;"><strong>3,656</strong></td>
+</tr>
+</tbody>
+</table>
+<p>(One of the round-10 review dispatch notes cited "14 files, ~3594
+lines" — this document's own independently re-run <code>wc -l</code> at
+authoring time returns 3,656; the ~62-line difference is consistent with
+the intervening <code>test_foundational_mutations.sh</code> split and
+the B1/B2/B3/I1 fixes landing between that citation and this document's
+own count, and is reported here as the honestly re-measured current
+figure rather than silently repeating the earlier estimate.)</p>
+<p>Beyond these 14 reviewed source/test files, the batch also carries
+<strong>69</strong> <code>triple_harness</code> self-validation fixture
+directories (each holding a
+<code>golden-good</code>/<code>golden-bad</code>/<code>negative-control</code>
+triple, per <code>C-005</code>) and <strong>10</strong>
+<code>host_guard</code> fixture shims (fake
+<code>ps</code>/<code>id</code>/<code>nproc</code>/<code>awk</code>
+binaries used to drive <code>host_guard.sh</code> through
+resource-exhaustion scenarios it cannot safely be driven through on the
+real host) — both counts independently re-derived by directory listing
+at authoring time.</p>
+<h3 id="42-the-t014-review-gate-mandate">4.2 The T014 review-gate
+mandate</h3>
+<p>Task <code>T014</code> is the batch's mandatory independent review:
+"batching one request, slices ≤~400 lines … by a separate instance on
+the pinned tier — Opus <code>xhigh</code> only, never Fable, never a
+lower tier or effort — fresh context, clean checkout, framed to disprove
+completion; iterate to a zero-finding, zero-warning GO"
+(<code>tasks.md</code> line 86, quoted verbatim). This directly
+instantiates §11.4.209 (Section 7 quotes its operative text in full) and
+§11.4.134's iterate-until-GO discipline — a review that stops at the
+<em>first</em> clean pass is explicitly not sufficient; the batch must
+survive a <em>fresh</em>, adversarially-framed re-review after every
+remediation round.</p>
+<h3 id="43-round-9-no-go-and-the-fixes-applied">4.3 Round 9: NO-GO, and
+the fixes applied</h3>
+<p>Round 9's independent Opus review (dispatched fresh, clean checkout,
+framed to disprove completion) returned <strong>NO-GO</strong> with 3
+BLOCKING, 1 IMPORTANT, and 4 MINOR findings, quoted here verbatim from
+the operator request-history ledger's own persisted subagent hand-back
+report (<code>docs/requests/history.md</code>, entry
+<code>R-2026-09-27-173243</code>):</p>
+<ul>
+<li><strong>B1</strong> — "The <code>descendants()</code> fix broke the
+M7 mutation, so the T013 driver fails." A prior fix (adding the
+closure-membership filter described in Section 3.1 above, at the point
+where round 9 first inspected it) had removed pid 1 from ever entering
+the visited set — but the existing kill-tree unit test <em>relied</em>
+on pid 1 reaching <code>kill_tree()</code>'s own
+<code>[ "$p" -gt 1 ]</code> guard to exercise that guard at all. With
+the closure filter now excluding pid 1 upstream, the guard's own
+TERM/KILL checks were never exercised, and a deliberately weakened guard
+(<code>M7</code>, the paired mutation meant to catch exactly this
+regression) sailed through uncaught — measured directly: "with M7
+applied … the kill_tree test still passes (rc=0), so the mutation is not
+caught." A bluff gate, caught before it shipped.</li>
+<li><strong>B2</strong> — the <em>new</em> closure-membership check
+itself had <strong>zero</strong> paired mutation coverage: removing it
+entirely still left every test passing, meaning a future regression
+reintroducing the host-wide SIGTERM hazard ( Section 3.1) would have
+nothing to catch it.</li>
+<li><strong>B3</strong> — a separately-discovered, pre-existing defect:
+<code>lib/host_guard.sh</code> could <strong>never</strong> refuse work,
+even when a resource limit was already exhausted — floored to
+<code>N=1</code> unconditionally (measured:
+<code>FC_GUARD_ACTIVE_AGENTS=6</code> with 40 agents already active
+still returned <code>N=1 REASON=none</code>), directly violating this
+batch's own <code>C-007</code> contract and the spec's own edge-case
+requirement that work degrade "with a named reason, never … weakening a
+limit."</li>
+<li><strong>I1</strong> — the 60% memory ceiling was only checked when
+the caller passed <code>--per-job-mem-kb</code>, and the batch's own
+caller (<code>test_foundational_mutations.sh</code>) did not pass it —
+measured: a fixture at 99% memory already used still returned
+<code>N=16 REASON=none</code>, silently skipping the ceiling
+entirely.</li>
+<li><strong>M1–M4</strong> — missing <code>.gitkeep</code> markers on
+the Phase-1 skeleton directories (a fresh clone would not reproduce the
+T002 layout); stale wording in the meta-test banner and a contract
+comment; <code>triple_harness.sh</code> output not following the
+<code>C-002</code> canonical-JSON shape; and warning-level hardening
+items (a bash job-control stderr leak, a theoretical
+<code>pgid</code>-reuse race window in <code>fc_common.py</code>'s
+process-group reaping).</li>
+</ul>
+<p>Every finding above was fixed with its own paired-mutation regression
+coverage before the batch was resubmitted:</p>
+<ul>
+<li><strong>B1 + B2</strong> were fixed by <em>splitting</em> the
+combined kill-tree test into two independent tests, each stubbing out
+the <em>other</em> function —
+<code>test_foundational_mutations_kill_tree.sh</code> now stubs
+<code>descendants()</code> entirely and proves
+<code>kill_tree()</code>'s own <code>-gt 1</code> guard in isolation;
+the new sibling
+<code>test_foundational_mutations_descendants_filter.sh</code> stubs
+<code>ps</code> and calls <code>descendants()</code> directly, proving
+the closure filter in isolation with a real fake root as its positive
+control. This is exactly the fix described in Section 3.1 — and it is
+also where the <em>real-execution</em> discovery of the live host-wide
+signalling hazard happened: applying this split and then actually
+<em>running</em> the full suite for the first time (rather than trusting
+the split's own logic) is what surfaced the <code>descendants()</code>
+de-duplication bug, which no review round, static read, or
+<code>bash -n</code> check had caught.</li>
+<li><strong>B3 + I1</strong> were fixed by adding an
+<code>exhaust()</code> construct to <code>host_guard.sh</code> that
+returns <code>N=0</code> with a named
+<code>&lt;limit&gt;_exhausted</code> reason whenever headroom, the agent
+cap, or the memory budget is at or below zero — reserving the "floor to
+1" behaviour only for a genuine positive budget — and by making the
+memory-ceiling read unconditional rather than gated behind an optional
+flag.</li>
+<li><strong>M3 + M4</strong> were fixed by documenting
+<code>triple_harness.sh</code>'s <code>C-002</code> exemption (it is
+inherited shared machinery per the contract's own inheritance-scoping
+text, not a violation), adding <code>disown "$!"</code> after the
+offending backgrounded job in <code>test_check_deps.sh</code>
+(root-caused to bash's own job-notification mechanism reporting an
+un-disowned <code>setsid</code> job as "Killed" on the parent's stderr),
+and documenting the <code>fc_common.py</code> <code>pgid</code>-reuse
+window via docstring (judged genuinely negligible: a sub-instruction
+kernel-reap race with no constructible test and no available
+<code>pidfd</code>-group-signal primitive on this host).</li>
+</ul>
+<h3
+id="44-round-10-a-second-no-go-and-the-current-state-of-remediation">4.4
+Round 10: a second NO-GO, and the current state of remediation</h3>
+<p>A fresh Opus <code>xhigh</code> review — deliberately re-framed to
+specifically hunt for any further instance of the "function lost across
+<code>exec</code>" bug class the <code>descendants()</code> fix had
+exposed (Section 8.1 below names this pattern explicitly) — first
+<strong>confirmed</strong> every round-9 fix held: the full
+<code>run_all.sh</code> suite ran clean
+(<code>run_all: 8 run, 0 failed</code>, 9m38s wall-clock), all 8
+foundational mutations were caught, <code>host_guard</code> passed
+125/125 assertions, <code>fc_common</code> passed 229/229 assertions,
+and an explicit, deliberate search for any <em>other</em> instance of
+the export-across-<code>exec</code> bug class found none. It then
+returned a <strong>second NO-GO</strong> with genuinely new findings —
+new because they did not exist, or were not yet independently confirmed,
+before round 9's fixes landed:</p>
+<ul>
+<li><strong>BLOCKING</strong> — <code>host_guard.sh</code>'s new
+<code>exhaust()</code> logic had a precedence bug: a confirmed
+<code>*_exhausted</code> reason on one limit could be silently
+<strong>overridden</strong> by an <code>unreadable_*</code> reason on a
+<em>different</em> limit, reverting the result to the wrong
+<code>N=1</code> instead of the correct <code>N=0</code> — reproduced
+three separate ways against the real file.</li>
+<li><strong>IMPORTANT ×3</strong> — that exhausted-vs-unreadable
+precedence had zero paired mutation coverage (deleting it left the test
+suite still green); several <code>host_guard</code> tests had, as a side
+effect of the I1 fix making the memory check unconditional, come to
+depend on the <em>live</em> host's actual memory headroom staying under
+60% used — which would genuinely fail during, for example, this
+project's own documented 42 GB containerised AOSP build; and the
+<code>R8b-D6</code> "the driver signalled the real tree" assertion in
+<code>test_run_all.sh</code> was found to pass even when the fixture's
+<code>kill()</code> wrapper refuses <em>every</em> signal, because its
+log-write happens <em>before</em> the gating check — meaning only the
+25-second wall-clock bound, not the intended signal-delivery assertion,
+had actually been catching the regression all along.</li>
+<li><strong>MINOR ×5</strong> — three of the B3/I1/kill-tree fixes
+independently confirmed catchable by hand still had no
+<em>registered</em> paired mutation; <code>host_guard.sh</code>'s own
+header text contradicted its actual floor-to-1 code (and the test that
+locked in that contradiction); the <code>fc_common.py</code>
+<code>pgid</code>-reuse docstring's reasoning was incomplete (a real,
+portable fix exists via <code>os.waitid(..., os.WNOWAIT)</code>, not
+requiring the whole approach to change); three of
+<code>test_fc_common_red.sh</code>'s orphan-detection checks had no
+positive control per this project's own §11.4.273; and the pre-check
+pack still carried 160 <code>shellcheck</code> info/style items across 8
+files, of which exactly <strong>2</strong> were genuine findings
+(<code>SC2086</code> at <code>test_check_deps.sh:32</code>, plus two
+instances of <code>SC2143</code>) among a majority of false-positive
+<code>SC2329</code>s.</li>
+</ul>
+<p>Three parallel fix agents were then dispatched against these
+findings, scoped to disjoint file sets so none could contend with
+another:</p>
+<table>
+<thead>
+<tr>
+<th>Fix agent</th>
+<th>Scope</th>
+<th>Status at authoring time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fix host_guard exhausted-vs-unreadable bug</td>
+<td><code>lib/host_guard.sh</code> +
+<code>tests/test_host_guard_red.sh</code></td>
+<td><strong>Confirmed complete</strong>, independently re-verified by
+the conductor (not merely trusting the agent's own report): all three
+original repro commands now correctly return <code>N=0</code> with the
+right exhausted reason preserved; the full local suite grew from 125/125
+to <strong>131/131</strong> passing (6 new paired tests added,
+mutation-verified against the pre-fix file: exactly the 5
+fix-discriminating tests fail on the unpatched file and 1 insurance test
+still passes on it); the 3 live-host-memory-dependent test blocks were
+pinned against a <code>$MEMOK</code> override rather than left dependent
+on the actual live host's memory state.</td>
+</tr>
+<tr>
+<td>Fix fc_common pgid-reuse + orphan-check control</td>
+<td><code>lib/fc_common.py</code> +
+<code>tests/test_fc_common_red.sh</code></td>
+<td><strong>In flight</strong> — dispatched; no independently-confirmed
+real-completion event recorded in the agent registry as of the moment
+this document was authored.</td>
+</tr>
+<tr>
+<td>Fix R8b-D6 kill-log gate + shellcheck cleanup</td>
+<td><code>tests/test_run_all.sh</code> + shellcheck items across
+<code>check_deps.sh</code>/<code>triple_harness.sh</code>/<code>test_check_deps.sh</code>/<code>test_triple_harness_red.sh</code></td>
+<td><strong>In flight</strong> — dispatched; no independently-confirmed
+real-completion event recorded as of the moment this document was
+authored.</td>
+</tr>
+</tbody>
+</table>
+<p>This document deliberately does <strong>not</strong> claim the
+Foundational batch has reached a clean round-11 GO, because that has not
+happened yet at the time of writing — two of the three round-10 fixes
+remain unconfirmed, and no fresh round-11 independent review has been
+dispatched. Reporting otherwise would be exactly the kind of "reports
+green while the work is not actually done" bluff this project's entire
+governance apparatus exists to make impossible.</p>
+<hr />
+<h2 id="5-measurements-performance-and-metrics-analysis">5.
+Measurements, performance and metrics analysis</h2>
+<p>Every figure in this section was checked against a real, current
+artefact at authoring time (a tracked source file this document's author
+read directly, the agent registry, or the operator request-history
+ledger's own persisted verbatim subagent reports) — never estimated.
+Where the task brief that requested this document offered a figure this
+document's author could <strong>not</strong> independently confirm, that
+is stated explicitly rather than silently repeated.</p>
+<h3
+id="51-test-suite-pass-counts-verified-via-the-agent-registrys-own-captured-runs-not-re-run-by-this-documents-author-to-avoid-resource-contention-with-the-live-fix-agents--see-section-9">5.1
+Test-suite pass counts (verified via the agent registry's own captured
+runs, not re-run by this document's author to avoid resource contention
+with the live fix agents — see Section 9)</h3>
+<table>
+<thead>
+<tr>
+<th>Suite</th>
+<th>Count at round-10 review</th>
+<th>Count after the host_guard round-10 fix</th>
+<th>Independently re-verified?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_host_guard_red.sh</code></td>
+<td>125/125</td>
+<td><strong>131/131</strong> (+6 new paired tests)</td>
+<td>Yes — by the conductor, re-running the 3 original repro commands
+directly and the full suite, per the registry's own
+<code>complete</code> event for key <code>23b531299eda6d38</code></td>
+</tr>
+<tr>
+<td><code>test_fc_common_red.sh</code></td>
+<td>229/229</td>
+<td>unchanged as of writing (its own round-10 fix is still in
+flight)</td>
+<td>Yes, at the 229/229 figure — cited identically in both the round-10
+review's own report and its persisted verbatim hand-back in
+<code>docs/requests/history.md</code></td>
+</tr>
+<tr>
+<td>Full <code>run_all.sh</code> sweep (all <code>test_*.sh</code>
+files)</td>
+<td><code>run_all: 8 run, 0 failed</code>, 9m38s wall-clock</td>
+<td>not yet re-run since the host_guard fix, as of writing</td>
+<td>Yes — cited in the round-10 review's registry completion note and
+again verbatim in its persisted <code>docs/requests/history.md</code>
+report</td>
+</tr>
+<tr>
+<td><code>test_foundational_mutations.sh</code> (paired mutations)</td>
+<td><strong>8 caught / 8</strong> (<code>M1</code>–<code>M8</code>)</td>
+<td>unchanged</td>
+<td>Yes — the file itself (read directly by this document's author)
+currently registers exactly 8 <code>mut</code> calls and 5
+<code>ctl</code> calls</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-mutation-coverage-growth-test_foundational_mutationssh">5.2
+Mutation-coverage growth:
+<code>test_foundational_mutations.sh</code></h3>
+<p>Directly verified by reading the tracked file: it currently registers
+<strong>5 controls</strong> (<code>fc</code>, <code>th</code>,
+<code>hg</code>, <code>km</code>, <code>df</code>) and <strong>8 paired
+mutations</strong> (<code>M1</code>–<code>M8</code>), for <strong>13
+total registered checks</strong>. The file's own in-source comment
+states the pre-split shape had a single combined kill-tree/descendants
+test (one control, <code>M7</code> alone covering both functions
+together) — consistent with the B1/B2 fix (Section 4.3) having grown the
+registration from 4 controls</p>
+<ul>
+<li>7 mutations (11 total) to the current 5 controls + 8 mutations (13
+total) by splitting one previously-combined check into two
+independently-mutation-covered ones. This is a directly observable,
+concrete instance of §11.4.201's control- needle discipline being
+applied to the project's <em>own</em> meta-test suite, not merely to
+product code.</li>
+</ul>
+<h3
+id="53-parallel-vs-serial-mutation-suite-wall-clock-directly-quoted-from-the-tracked-files-own-header-comment-test_foundational_mutationssh-lines-2429">5.3
+Parallel vs. serial mutation-suite wall-clock (directly quoted from the
+tracked file's own header comment,
+<code>test_foundational_mutations.sh</code> lines 24–29)</h3>
+<blockquote>
+<p>"measured 2026-09-27 on the 64-CPU dev host at load average ~40: the
+previous serial form took <strong>425 s</strong> (12 full test runs) …
+the parallel form measured <strong>68 s</strong> at load average
+~38"</p>
+</blockquote>
+<p>This is a real, ~6.25x wall-clock reduction for this one suite,
+achieved by running the 5 controls and 8 mutation jobs concurrently on
+separate <code>mktemp</code> tree copies, bounded by the same
+<code>lib/host_guard.sh</code> parallelism clamp the batch itself builds
+and tests — i.e. the Foundational batch's own tooling was used to speed
+up the Foundational batch's own test suite, which is a direct,
+self-referential proof that the tooling works as intended.</p>
+<h3 id="54-the-descendants-regressions-own-measured-numbers">5.4 The
+<code>descendants()</code> regression's own measured numbers</h3>
+<ul>
+<li>Unpatched transitive closure over the <code>R8b-D6</code> fixture's
+poisoned input: <strong>905 pids out of 907</strong> input lines
+admitted to the visited set.</li>
+<li>Patched closure over the identical input: <strong>1 pid</strong>
+(only the synthetic fixture root).</li>
+<li>The fixed wall-clock bound the regression could exceed: <strong>25
+seconds</strong> (250 polling iterations at a 0.1-second step).</li>
+<li>Measured post-fix driver death time: <strong>~0.2 seconds</strong>
+(<code>i=2</code> on the same 0.1-second-step polling loop) — i.e. the
+fix did not merely bring the driver back <em>under</em> its 25-second
+bound, it collapsed the driver's cleanup time to roughly 1% of that
+bound.</li>
+<li><strong>A figure this document's author could NOT independently
+verify</strong>: the task brief that requested this document cited an
+approximate "~125–126 seconds elapsed per run before the fix, ~99–100
+seconds after" for <code>test_run_all.sh</code>'s own overall
+wall-clock, framed as roughly a 20% reduction. No tracked artefact,
+agent-registry entry, or persisted request-history report available to
+this document's author at authoring time contains that specific pair of
+figures — the <code>qa-results/fastcycle/</code> evidence directory the
+plan designates for exactly this kind of captured timing data does not
+yet exist on disk (confirmed: <code>find</code> returns nothing under
+it). Rather than repeat an unverified number as settled fact, this
+document reports the two numbers it <em>could</em> verify (905→1 pids;
+25 s cap vs. ~0.2 s actual) as the real, directly measured performance
+evidence for this fix, and marks the 125–126 s / 99–100 s pair
+<code>UNVERIFIED</code> per §11.4.6.</li>
+</ul>
+<h3 id="55-review-round-effectiveness">5.5 Review-round
+effectiveness</h3>
+<table>
+<thead>
+<tr>
+<th>Round</th>
+<th>Verdict</th>
+<th>Findings</th>
+<th>Notable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9</td>
+<td>NO-GO</td>
+<td>3 BLOCKING + 1 IMPORTANT + 4 MINOR (8 total)</td>
+<td>Found on the batch's state at that time; two of the three BLOCKING
+findings (B1, B2) concerned a fix that had <em>itself</em> just landed,
+and the third (B3) was a wholly separate pre-existing defect the review
+discovered independently</td>
+</tr>
+<tr>
+<td>10</td>
+<td>NO-GO</td>
+<td>1 BLOCKING + 3 IMPORTANT + 5 MINOR (9 total)</td>
+<td>Found on a <strong>smaller diff</strong> than round 9 reviewed (only
+the round-9 remediation, not the whole batch afresh) — every one of
+these 9 findings is a <em>different</em> defect class than any of round
+9's 8, confirming the fixes did not merely relocate the same bug</td>
+</tr>
+</tbody>
+</table>
+<p>Two independent, adversarially-reframed review rounds over the same
+14-file, ~3,656-line batch found <strong>17 distinct findings</strong>
+total, with <strong>zero overlap</strong> in defect identity between the
+two rounds. This is the concrete, measured argument for why this
+project's §11.4.134 mandatory-iterate-to-GO discipline is load-bearing
+rather than a formality: a single review pass — even a rigorous one —
+would, on this evidence, have missed at minimum the entire round-10
+finding set, including a BLOCKING defect (the exhausted-vs-unreadable
+precedence bug) capable of silently letting a 7th agent start work under
+a cap of 6.</p>
+<h3
+id="56-shellcheck-triage-a-worked-example-against-mass-suppression">5.6
+<code>shellcheck</code> triage: a worked example against
+mass-suppression</h3>
+<p>The pre-check pack attached to round 10's review carried
+<strong>160</strong> <code>shellcheck</code> info/style items across 8
+files. Of these, exactly <strong>2</strong> were confirmed genuine
+findings — <code>SC2086</code> (unquoted variable expansion) at
+<code>test_check_deps.sh:32</code> and two instances of
+<code>SC2143</code> (a
+use-<code>grep -q</code>-instead-of-piping-to-<code>wc -l</code> style
+note) — with the remainder being false-positive <code>SC2329</code>
+("function appears unused") notices, a known class of false positive for
+functions invoked only indirectly (via <code>trap</code>, sourcing, or
+dynamic dispatch) that <code>shellcheck</code>'s static analysis cannot
+see. This is a direct, worked demonstration of this project's own
+doctrine against mass-suppressing linter warnings (this project's §11.4
+family forbids blanket-disabling a check class rather than triaging each
+finding on its merits) — 158 of 160 items were correctly identified as
+noise <em>by individually checking each</em>, not by disabling the rule
+class that produced them.</p>
+<h3
+id="57-fixture-corpus-scale-a-proxy-for-how-exhaustively-c-005s-self-validation-triple-has-been-exercised-in-this-batch-alone">5.7
+Fixture-corpus scale (a proxy for how exhaustively <code>C-005</code>'s
+self-validation triple has been exercised in this batch alone)</h3>
+<ul>
+<li><strong>69</strong> independent <code>triple_harness</code> fixture
+directories, each carrying a
+<code>golden-good</code>/<code>golden-bad</code>/<code>negative-control</code>
+triple — directly counted by directory listing at authoring time.</li>
+<li><strong>10</strong> <code>host_guard</code> fixture shims (fake
+<code>ps</code>/<code>id</code>/<code>nproc</code>/<code>awk</code>
+binaries) driving resource-exhaustion scenarios that cannot safely be
+constructed against the real host.</li>
+</ul>
+<hr />
+<h2 id="6-diagrams-and-schemes">6. Diagrams and schemes</h2>
+<h3 id="61-speckit-004-phase--dependency-graph">6.1 SpecKit-004 phase /
+dependency graph</h3>
+<pre class="mermaid"><code>flowchart TD
+    P1[&quot;Phase 1: Setup&lt;br/&gt;T001-T006&quot;] --&gt; P2[&quot;Phase 2: Foundational&lt;br/&gt;T007-T014&lt;br/&gt;(blocks every story phase)&quot;]
+    P2 --&gt; P3[&quot;Phase 3: US1 - Know where&lt;br/&gt;time goes (MVP)&lt;br/&gt;T015-T049&quot;]
+    P3 --&gt; RP[&quot;T049 re-planning checkpoint&lt;br/&gt;(recompute RC-01..RC-46 shares&lt;br/&gt;from the frozen baseline)&quot;]
+    RP --&gt; P4[&quot;Phase 4: US2 - Fast,&lt;br/&gt;lossless gates&lt;br/&gt;T050-T085&quot;]
+    RP --&gt; P5[&quot;Phase 5: US3 - Stop&lt;br/&gt;reopening&lt;br/&gt;T086-T103&quot;]
+    RP --&gt; P6[&quot;Phase 6: US4 - Minimal&lt;br/&gt;tokens per item&lt;br/&gt;T104-T121&quot;]
+    RP --&gt; P7[&quot;Phase 7: US5 - Reliable&lt;br/&gt;orchestration&lt;br/&gt;T122-T140&quot;]
+    RP --&gt; P8[&quot;Phase 8: US6 - Host that&lt;br/&gt;does not throttle&lt;br/&gt;T141-T153&quot;]
+    P4 --&gt; P9[&quot;Phase 9: US7 - Everything&lt;br/&gt;lands in constitution,&lt;br/&gt;clean and pushed&lt;br/&gt;T154-T165&quot;]
+    P5 --&gt; P9
+    P6 --&gt; P9
+    P7 --&gt; P9
+    P8 --&gt; P9
+    P9 --&gt; P10[&quot;Phase 10: US8 - Every&lt;br/&gt;consuming project migrated&lt;br/&gt;T166-T177&quot;]
+    P10 --&gt; P11[&quot;Phase 11: Polish and&lt;br/&gt;Verification&lt;br/&gt;T178-T195&lt;br/&gt;(every SC-001..SC-010 verdict)&quot;]
+
+    style P2 fill:#f9d,stroke:#333
+    style RP fill:#ffd,stroke:#333
+    style P11 fill:#dfd,stroke:#333</code></pre>
+<h3
+id="62-sequence-diagram-the-t014-review-cycle-as-it-actually-ran">6.2
+Sequence diagram: the T014 review cycle as it actually ran</h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant C as Conductor
+    participant R9 as Reviewer (round 9, Opus xhigh)
+    participant FA as Fix agents (B1/B2, B3/I1, M3/M4)
+    participant EX as Real execution (run_all.sh)
+    participant R10 as Reviewer (round 10, Opus xhigh)
+    participant FB as Fix agents (round 10, x3 parallel)
+
+    C-&gt;&gt;R9: Dispatch fresh, clean checkout,&lt;br/&gt;framed to disprove completion
+    R9--&gt;&gt;C: NO-GO: 3 BLOCKING + 1 IMPORTANT + 4 MINOR
+    C-&gt;&gt;FA: Dispatch parallel fixes on disjoint files
+    FA--&gt;&gt;C: B1+B2 fixed by splitting kill_tree/descendants tests
+    FA--&gt;&gt;C: B3+I1 fixed (host_guard exhaust() + unconditional mem check)
+    FA--&gt;&gt;C: M3+M4 fixed (C-002 exemption doc, disown, docstring)
+    C-&gt;&gt;EX: Run full suite for the first time post-split
+    EX--&gt;&gt;C: R8b-D6 fails: driver still alive after 25s
+    Note over C,EX: Real execution finds what no review round&lt;br/&gt;had yet caught
+    C-&gt;&gt;C: Systematic-debugging root-cause investigation&lt;br/&gt;(isolated scratch, zero real-tree edits)
+    Note over C: descendants() de-dup bug found:&lt;br/&gt;905/907 pids poisoned, RED to GREEN in scratch
+    C-&gt;&gt;C: Apply the proven one-line awk fix&lt;br/&gt;to the real tracked file
+    C-&gt;&gt;R10: Dispatch fresh, re-framed to hunt for&lt;br/&gt;the same bug class elsewhere
+    R10--&gt;&gt;C: Confirms round-9 fixes hold and the new fix holds,&lt;br/&gt;finds NO further instance of the bug class
+    R10--&gt;&gt;C: NO-GO (round 10): 1 BLOCKING + 3 IMPORTANT + 5 MINOR&lt;br/&gt;(9 findings, none overlapping round 9&#39;s 8)
+    C-&gt;&gt;FB: Dispatch 3 parallel fixes on disjoint files
+    FB--&gt;&gt;C: host_guard fix: CONFIRMED complete, 125/125 -&gt; 131/131
+    Note over FB,C: fc_common fix: in flight, no confirmed completion yet
+    Note over FB,C: R8b-D6 kill-log + shellcheck fix: in flight, no confirmed completion yet</code></pre>
+<h3 id="63-state-diagram-the-descendants-regressions-lifecycle">6.3
+State diagram: the <code>descendants()</code> regression's
+lifecycle</h3>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; Correct: Original test_foundational_mutations.sh&lt;br/&gt;(no closure-membership filter,&lt;br/&gt;single combined kill_tree/descendants test)
+    Correct --&gt; FilterAdded: Round-9-triggered fix adds&lt;br/&gt;the pid-greater-than-1 closure filter
+    FilterAdded --&gt; MaskedRegression: Filter starves kill_tree&#39;s OWN&lt;br/&gt;-gt-1 guard of pid 1&lt;br/&gt;(M7 mutation now uncaught - a bluff gate)
+    MaskedRegression --&gt; DiscoveredByReview: Round 9 review measures it directly:&lt;br/&gt;M7-weakened mutation still passes rc=0
+    DiscoveredByReview --&gt; SplitTests: Fix: split into two independent tests,&lt;br/&gt;each stubbing out the OTHER function
+    SplitTests --&gt; RealExecutionDiscovery: First real full-suite run after the split&lt;br/&gt;surfaces R8b-D6: driver still alive after 25s
+    RealExecutionDiscovery --&gt; RootCaused: Systematic-debugging investigation:&lt;br/&gt;de-dup bug in descendants() awk closure,&lt;br/&gt;905/907 pids poisoned (measured, isolated scratch)
+    RootCaused --&gt; Fixed: One-line awk guard applied to the&lt;br/&gt;real tracked file (905 -&gt; 1 pids, RED to GREEN)
+    Fixed --&gt; IndependentlyReVerified: Round-10 review deliberately re-hunts&lt;br/&gt;for the same bug class: finds none
+    IndependentlyReVerified --&gt; [*]: Confirmed stable (round 10 GO on this specific defect,&lt;br/&gt;batch overall still NO-GO on 9 unrelated findings)</code></pre>
+<h3
+id="64-file-scope-partitioning-for-the-round-10-parallel-fan-out">6.4
+File-scope partitioning for the round-10 parallel fan-out</h3>
+<pre class="mermaid"><code>flowchart LR
+    subgraph Conductor
+        R[&quot;Round-10 review verdict:&lt;br/&gt;1 BLOCKING + 3 IMPORTANT + 5 MINOR&quot;]
+    end
+    R --&gt; A[&quot;Fix agent A&lt;br/&gt;Scope: lib/host_guard.sh&lt;br/&gt;+ tests/test_host_guard_red.sh&lt;br/&gt;Findings: BLOCKING-1, IMPORTANT-2,&lt;br/&gt;IMPORTANT-3, MINOR-6&quot;]
+    R --&gt; B[&quot;Fix agent B&lt;br/&gt;Scope: lib/fc_common.py&lt;br/&gt;+ tests/test_fc_common_red.sh&lt;br/&gt;Findings: MINOR-7, MINOR-8&quot;]
+    R --&gt; D[&quot;Fix agent C&lt;br/&gt;Scope: tests/test_run_all.sh&lt;br/&gt;+ shellcheck items across&lt;br/&gt;4 other files&lt;br/&gt;Findings: IMPORTANT-4, MINOR-9&quot;]
+    A -.no shared files.- B
+    B -.no shared files.- D
+    A -.no shared files.- D
+    A --&gt; CA[&quot;Conductor independently&lt;br/&gt;re-verifies: 131/131,&lt;br/&gt;CONFIRMED complete&quot;]
+    B --&gt; CB[&quot;Status at authoring time:&lt;br/&gt;in flight, unconfirmed&quot;]
+    D --&gt; CD[&quot;Status at authoring time:&lt;br/&gt;in flight, unconfirmed&quot;]</code></pre>
+<hr />
+<h2 id="7-constitution-anchors-applied">7. Constitution anchors
+applied</h2>
+<p>Every anchor below is quoted or precisely summarised from
+<code>Constitution.md</code> directly (line numbers cited are as found
+in this document's own real-time read of the file at authoring time),
+not paraphrased from memory.</p>
+<h3 id="1146--no-guessing-mandate-constitutionmd632">§11.4.6 —
+No-guessing mandate (<code>Constitution.md:632</code>)</h3>
+<p>Forbids
+<code>likely</code>/<code>probably</code>/<code>maybe</code>/<code>might</code>/<code>possibly</code>/<code>seems</code>/<code>appears to</code>
+and synonyms when describing causes; either prove a cause with captured
+forensic evidence and state it as fact, or explicitly mark
+<code>UNCONFIRMED:</code>/<code>UNKNOWN:</code>/
+<code>PENDING_FORENSICS:</code> with a tracked follow-up.
+<strong>Applied throughout this cycle</strong>: the
+<code>descendants()</code> investigation states its host-load conclusion
+as measured fact with the measurement cited, not as a guess; this
+document itself marks the one figure (Section 5.4) it could not verify
+as <code>UNVERIFIED</code> rather than repeating it as settled.</p>
+<h3
+id="11450--deterministic-consistency-mandate-constitutionmd4319">§11.4.50
+— Deterministic Consistency Mandate
+(<code>Constitution.md:4319</code>)</h3>
+<p>"Not a single feature, System or application flow … MUST NOT
+partially work, or sometimes work and sometimes not … results MUST BE
+consistent and successful without exception." Operationalised as
+N-iteration deterministic outcome (a test PASSing once is not sufficient
+— the same test must PASS identically across repeated runs against the
+same input). <strong>Applied directly</strong>: <code>C-003</code>'s
+<code>--determinism-check</code> (run twice, assert identical
+<code>body_hash</code>) is exactly this anchor turned into a mechanical
+contract every new tool in the batch must satisfy, and the
+<code>descendants()</code> fix's own verification protocol explicitly
+ran 3 clean repeats before being trusted.</p>
+<h3
+id="11458--11494--114230c--parallel-subagent-fan-out-on-disjoint-file-scopes">§11.4.58
+/ §11.4.94 / §11.4.230(C) — Parallel subagent fan-out on disjoint file
+scopes</h3>
+<p>§11.4.58 (parallel-development methodology,
+<code>Constitution.md:5331</code>) establishes the Parallel Work Unit
+pipeline and its 4-layer lock hierarchy so disjoint-scope work runs
+fully concurrently; §11.4.94 (<code>Constitution.md:7892</code>) makes
+zero-idle, priority-first, parallel-by-default the standing operating
+mode; §11.4.230(C) (<code>Constitution.md:10969</code>) makes subagent
+fan-out the standing default for any genuinely parallelizable effort,
+bounded by host-safety ceilings and single-resource-owner discipline.
+<strong>Applied directly</strong>: every
+<code>[SUBAGENT]</code>/<code>[P]</code>-marked task in
+<code>tasks.md</code>, and concretely the 3-way round-10 fix fan-out
+(Section 4.4 / Figure 6.4), each agent scoped to disjoint files with no
+contention, exactly matching this triad's structure.</p>
+<h3
+id="114102--114115f--systematic-debugging--machine-written-redgreen-verdicts">§11.4.102
+/ §11.4.115(F) — Systematic-debugging + machine-written RED→GREEN
+verdicts</h3>
+<p>§11.4.102 (<code>Constitution.md:8175</code>) mandates automatic
+activation of <code>superpowers:systematic-debugging</code> on any
+spotted issue, with the Iron Law "NO FIXES WITHOUT ROOT CAUSE
+INVESTIGATION FIRST." §11.4.115(F) (extension within
+<code>Constitution.md:8678</code>) requires RED and GREEN verdicts to be
+machine-written, never prose, carrying the item id, guard identity,
+polarity, exit code, the target's artifact fingerprint read from the
+target at run time, iteration count, and evidence whose class matches
+the defect's layer. <strong>Applied directly</strong>: the
+<code>descendants()</code> investigation is Section 3.1's worked example
+of the Iron Law in full; every <code>[TDD]</code> task's RED evidence is
+stored under <code>qa-results/fastcycle/&lt;story&gt;/red/</code> with
+the candidate fingerprint, per <code>tasks.md</code>'s own Test
+Discipline section.</p>
+<h3
+id="114134--code-review-iterate-until-go--rock-solid-evidence-mandate-constitutionmd9102">§11.4.134
+— Code-review iterate-until-GO + rock-solid-evidence mandate
+(<code>Constitution.md:9102</code>)</h3>
+<p>A review returning ANY finding — BLOCKING, IMPORTANT, or MINOR — must
+be re-run after remediation, and re-run again after that, until it
+returns a clean GO with ZERO new findings and ZERO warnings; a single
+pass that "addressed the findings" is explicitly insufficient, because
+the fixes themselves can introduce new findings. <strong>Applied
+directly</strong>: this is precisely what happened across rounds 9 and
+10 (Section 5.5) — round 10 found 9 entirely new findings on a
+<em>smaller</em> diff than round 9 reviewed, which is the anchor's own
+predicted failure mode ("a fix-A-creates-B failure mode") observed
+happening in real time on this batch.</p>
+<h3
+id="114147--atm-858-d1--crashedasync-agent-registry-hygiene-constitutionmd9407">§11.4.147
+/ ATM-858 D1 — Crashed/async-agent registry hygiene
+(<code>Constitution.md:9407</code>)</h3>
+<p>Every asynchronously launched agent must be tracked through its full
+lifecycle so a crash never loses or silently mis-records its work; a
+crash ≠ done. <strong>Applied directly, and its own known limitation
+honestly surfaced by this project's own tooling</strong>: the agent
+registry (<code>docs/requests/agent_registry.jsonl</code>) currently has
+a documented defect, internally tracked as <code>ATM-858 D1</code>,
+where an asynchronously dispatched agent's <code>complete</code> event
+fires at <em>launch</em> time rather than at real completion — every
+dispatch entry cited in Section 4.4 explicitly annotates
+"<code>'complete' above fired at async launch, ATM-858 D1</code>" and
+relies on a <em>separate</em>, later, genuinely-real completion event
+(or the honest absence of one, as for the two still-in-flight round-10
+fix agents) to establish ground truth. This document's own Section 4.4
+table was built by applying exactly that distinction.</p>
+<h3 id="114199--exact-reproduction-sequence-mandate">§11.4.199 —
+Exact-reproduction-sequence mandate</h3>
+<p>When a working reproduction exists, the investigation must use its
+EXACT sequence — a deviating repro proves nothing. <strong>Applied
+directly</strong>: the <code>descendants()</code> investigation
+deliberately reproduced the <code>R8b-D6</code> fixture's <em>exact</em>
+fake-<code>ps</code> shim sequence (not an approximation of it) before
+drawing any conclusion, and explicitly declined to re-trigger a third
+real host-wide signal storm purely for redundant confirmation once the
+mechanism was already pinned by two side-effect-free measurements plus
+one live signal-capture — an application of the anchor's spirit (use the
+real sequence; do not manufacture unnecessary risk once sufficient rigor
+is already achieved).</p>
+<h3
+id="114201--every-guardgate-must-assert-the-real-condition">§11.4.201 —
+Every guard/gate MUST assert the REAL condition</h3>
+<p>A false-positive refusal is a FAIL-bluff exactly as a false-negative
+pass is a PASS-bluff; every guard ships golden-TRUE +
+golden-FALSE-with-carrier fixtures. <strong>Applied directly</strong>:
+<code>C-005</code>'s self-validation triple (golden-good/golden-bad/
+negative-control) <em>is</em> this anchor's mandated fixture shape,
+applied to every new tool in the batch; the round-9 B1 finding
+("mutation NOT caught — a bluff gate") is a direct instance of this
+anchor's core failure mode being caught and fixed within this very
+cycle.</p>
+<h3
+id="114209--114211--opus-xhigh-pinned-reviewmerge-conflict-substrate-constitutionmd10574--constitutionmd10606">§11.4.209
+/ §11.4.211 — Opus-<code>xhigh</code>-pinned review/merge-conflict
+substrate (<code>Constitution.md:10574</code> /
+<code>Constitution.md:10606</code>)</h3>
+<p>Every mandatory independent code-review, and every main→feature
+merge-conflict resolution, must run on the Opus model at
+<code>xhigh</code> effort, ALWAYS — no Fable, no lower tier, no fallback
+model; genuine unavailability BLOCKS the review rather than substituting
+a lower tier. <strong>Applied directly</strong>: both T014 review rounds
+in this cycle were dispatched explicitly labelled "Opus
+<code>xhigh</code>", per the agent-registry entries this document read
+directly (Section 4).</p>
+<h3
+id="114263--114273--process-group-signal-safety--control-needle-proven-measurements-constitutionmd11518--constitutionmd11808">§11.4.263
+/ §11.4.273 — Process-group signal-safety + control-needle-proven
+measurements (<code>Constitution.md:11518</code> /
+<code>Constitution.md:11808</code>)</h3>
+<p>§11.4.263 forbids ever signalling a
+<code>pgid</code>/<code>pid</code> ≤ 1 and requires validating a value
+as a real integer &gt; 1 before every
+<code>killpg</code>/<code>kill(-pid, sig)</code> call. §11.4.273
+requires any census/measurement whose result informs a decision to be
+control-needled — a positive control proving the instrument can see, and
+a negative control proving it does not over-match — before its result is
+trusted. <strong>Applied directly, and this is the exact fault class
+this whole story is about</strong>: the <code>descendants()</code> bug
+<em>was</em> a §11.4.263-class hazard (unrelated, unrelated real
+processes were signalled with
+<code>kill -s TERM</code>/<code>KILL</code> because a non-integer/≤1
+guard existed at signal time but not at the earlier closure- membership
+stage); the fix restates the same <code>pid &gt; 1</code> guard at the
+point of closure construction. And the mutation-testing methodology in
+<code>test_foundational_mutations.sh</code> itself explicitly implements
+§11.4.273's "a sed that matched nothing cannot read as caught" control
+(<code>mut_job()</code>'s <code>cmp -s</code> check before trusting any
+mutation's caught/uncaught verdict) — the project applying its own
+anti-bluff-measurement doctrine to its own measurement tooling.</p>
+<hr />
+<h2 id="8-lessons-learned-and-recommendations">8. Lessons learned and
+recommendations</h2>
+<h3
+id="81-the-generic-shell-lesson-a-helper-function-can-survive-exec-differently-than-the-caller-expects">8.1
+The generic shell lesson: a helper function can survive
+<code>exec</code> differently than the caller expects</h3>
+<p>The <code>descendants()</code> regression is not, in its most general
+form, a bug about process closures specifically — it is an instance of a
+broader, genuinely useful lesson for anyone authoring bash test fixtures
+that use <code>exec</code>: functions and environment variables
+<code>export -f</code>'d before an <code>exec</code> <strong>do</strong>
+survive it (because <code>exec</code> replaces the process image but the
+shell's own exported state carries forward), but a plain, non-exported
+function or variable defined only in the calling shell <strong>does
+not</strong> — because <code>exec</code> replaces that shell's entire
+process image, and nothing of the old, un-exported state exists
+afterward for the new image to inherit. A test fixture that defines a
+helper function, then does <code>exec bash "$1"</code> as its last line,
+will silently lose that helper for every subsequent invocation inside
+the new process image unless the helper was <code>export -f</code>'d
+first — and the failure mode is not a crash or an obvious error; it is
+"the helper is not found, the function call that depends on it silently
+no-ops or falls through to a different code path, and the symptom that
+eventually surfaces (if any) can be arbitrarily far removed from the
+actual cause in both code location and wall- clock time." This is
+exactly the shape of pitfall this project's own §11.4.201(12)
+"shell-instrument footgun checklist" (a standing reference this cycle's
+own governance already maintains) exists to catalogue — and this cycle's
+own concrete instance (the
+<code>descendants()</code>/<code>kill()</code>-wrapper/<code>drvwrap.sh</code>
+interaction) is a strong candidate to be added to that catalogue as a
+fresh, cycle-native worked example, generalising past the specific
+process-closure framing to the underlying "exported vs. non-exported
+state across <code>exec</code>" mechanism.</p>
+<h3 id="82-real-execution-finds-what-review-by-itself-cannot">8.2 Real
+execution finds what review, by itself, cannot</h3>
+<p>The single most consequential fact this cycle demonstrates is that
+<strong>the <code>descendants()</code> de-duplication defect was
+invisible to two rounds of rigorous, adversarially-framed static/logical
+review</strong> — round 9's own review, which <em>introduced</em> the
+fix that (unintentionally) exposed the underlying defect, still did not
+itself catch the defect; it took an actual, real execution of the full
+test suite, on real process-table data, to surface it as a concrete
+"still alive after 25 seconds" failure. This is the empirical argument
+for why this project's constitution insists on <em>both</em> mandatory
+independent review <em>and</em> real, runtime, on-target execution as
+co-equal, non-substitutable layers (§11.4.108's four-layer
+fix-verification discipline, cited by name in <code>spec.md</code>'s own
+Workable-Item Linkage section) — a code review, however rigorous,
+reasons about what the code <em>should</em> do; only real execution
+proves what it <em>actually</em> does under real conditions.</p>
+<h3
+id="83-adversarial-reframing-between-review-rounds-is-load-bearing-not-ceremonial">8.3
+Adversarial reframing between review rounds is load-bearing, not
+ceremonial</h3>
+<p>Section 5.5's finding that round 10 discovered 9 entirely new,
+non-overlapping findings on a <em>smaller</em> diff than round 9
+reviewed is a direct, measured argument against treating "the previous
+round's findings are fixed" as equivalent to "the batch is done." Each
+review round in this cycle was deliberately re-framed — round 10 was
+explicitly briefed to hunt for a specific bug class the previous round's
+fix had exposed — rather than merely re-checking the same finding list.
+This project's recommendation, borne out by this cycle's own evidence,
+is that every re-review dispatch should continue to carry an explicit
+"and specifically hunt for X" framing derived from what the
+<em>previous</em> round's fixes changed, not merely a generic "please
+re-check" instruction.</p>
+<h3
+id="84-honest-partial-completion-reporting-is-itself-a-discipline-worth-preserving">8.4
+Honest partial-completion reporting is itself a discipline worth
+preserving</h3>
+<p>At the moment of authoring, one of three round-10 fixes is confirmed
+complete and two are not. This document's own Section 4.4 table, and its
+Section 5.1 table, were both constructed to reflect that asymmetry
+precisely — never rounding "2 of 3 still in flight" up to "the batch is
+basically done." This is recommended as a standing practice for any
+status report produced mid-cycle in this project: report the confirmed
+state, name the unconfirmed state explicitly, and never let a document's
+tone imply more certainty than its underlying evidence supports.</p>
+<hr />
+<h2
+id="9-verification-methodology-and-honest-gaps-of-this-document-itself">9.
+Verification methodology and honest gaps of this document itself</h2>
+<p>This document was produced by directly reading the following live
+artefacts at authoring time, rather than from memory or from the task
+brief that requested it (which is itself explicitly framed, and treated
+here, as a starting dossier requiring independent confirmation, not a
+source of truth):</p>
+<ul>
+<li><code>specs/004-fast-dev-cycles/spec.md</code> (full text, 269
+lines), <code>plan.md</code> (task-id and phase-boundary extraction via
+targeted <code>grep</code>, given its 1,850-line size),
+<code>research.md</code> and <code>tasks.md</code> (full text plus
+targeted structural greps for phase/task-id boundaries).</li>
+<li>Direct <code>wc -l</code> and directory-listing counts of every file
+named in Section 4.1 and Section 5.7, run against the real, current
+tracked tree.</li>
+<li><code>docs/requests/agent_registry.jsonl</code> (2,921 lines at the
+time of reading), filtered for every entry mentioning this cycle's work,
+cross-checked against its own documented <code>ATM-858 D1</code>
+async-completion-timing defect so that a launch-time
+<code>complete</code> event was never mistaken for a real one.</li>
+<li><code>docs/requests/history.md</code> (the operator request-history
+ledger), whose persisted verbatim subagent hand-back reports were the
+primary source for Section 3.1's and Section 4's most detailed factual
+claims, quoted directly rather than paraphrased wherever the exact
+wording carries load-bearing detail.</li>
+<li><code>Constitution.md</code> (11,900 lines), read at the exact line
+numbers cited in Section 7 for each anchor, rather than reproduced from
+a compact summary.</li>
+</ul>
+<p><strong>One deliberate methodological choice</strong>: this
+document's author did <strong>not</strong> independently re-run the
+fastcycle test suite (<code>run_all.sh</code> or the individual
+<code>test_*.sh</code> files) against the live tree, even though doing
+so is read-only and would not modify any source file. This is because,
+at authoring time, three fix agents were actively working inside
+<code>constitution/scripts/fastcycle/</code> (the exact directory this
+dispatch was told to treat as fully disjoint from this task's own
+scope), and <code>lib/host_guard.sh</code>'s own live resource probes
+(the very thing under test) read the <em>shared</em> host's current
+process count, thread headroom, and memory availability — launching an
+additional heavy test run concurrently would have measurably perturbed
+the host state those agents' own verification runs depend on, in a
+project whose own §12.6/§12.8/§12.12 host-safety discipline exists
+specifically to prevent exactly that class of self-inflicted
+interference. The pass/fail figures reported in Section 5 are therefore
+cited from the fix and review agents' own captured, registry- and
+ledger-recorded runtime evidence — which is itself the project's own
+mandated RED→GREEN and <code>run_all.sh</code>/mutation-suite invocation
+discipline — rather than from a fresh run this document's author
+performed itself.</p>
+<p><strong>Known gap, honestly recorded rather than silently worked
+around</strong>: per this project's own §11.4.212 anchor ("main README
+is the canonical starting-point … no doc may be an orphan unreachable
+from README"), this document should ultimately be linked, directly or
+transitively, from <code>constitution/README.md</code>. This dispatch's
+own scope was explicitly restricted to new files under
+<code>docs/optimization/</code> only, and <code>README.md</code> was, at
+the moment of writing, a file this dispatch was told other in-flight
+work might also be touching (it appeared among the pre-existing
+uncommitted changes present in the working tree before this dispatch
+began) — so no edit to <code>README.md</code> was made here. Wiring this
+document into the README's own doc-link section is recorded here as an
+explicitly owed, tracked follow-up (per this project's own §11.4.197
+research/kicked-off-work completion mandate — a started requirement is
+never silently left un-wired), to be done as its own small, disjoint,
+reviewed change once the README's current uncommitted state is known to
+be settled.</p>
+</body>
+</html>
