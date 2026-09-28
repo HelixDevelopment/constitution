@@ -1,10 +1,10 @@
 # SpecKit-004 + Superpowers Development Cycle: An Exhaustive Analysis
 
-**Revision:** 2
+**Revision:** 3
 
 **Created:** 2026-09-27T17:33:54Z
 
-**Last modified:** 2026-09-28T08:33:40Z
+**Last modified:** 2026-09-28T16:22:39Z
 
 **Status:** active
 
@@ -37,6 +37,42 @@ end of this document precisely so a reader can see what was already here versus 
 this revision adds, per this project's own §11.4.226 evidence-class discipline (never
 silently rewrite a prior claim; supersede it visibly, with its own new evidence).
 
+**Revision-3 note (2026-09-28, later the same day):** this revision was requested by
+the same operator directive Revision 2's own §11.4.140 quote already cites
+(`docs/requests/history.md` entries `R-2026-09-27-202244` and `R-2026-09-28-112940`,
+identical text, dispatched twice — the second time via the background queue as
+`BG-20260928-2117`), continuing the same "keep this document current" mandate rather
+than a new, distinct request. It extends the document forward through roughly seven
+more hours of real, committed work in the **parent** ATMOSphere repository (this
+constitution submodule itself received no further fastcycle-tool commits in that
+window beyond what Revision 2 already covered) — the Foundational batch's own
+`tasks.md` checkboxes for `T007`–`T014` were discovered still unchecked despite
+Section 10.3's own proof that the batch reached GO and was committed hours earlier
+(a real, independently-confirmed checkbox/reality drift, distinct from — but the
+same *class* of defect as — the source-present/runtime-absent bluff Section 10 already
+documents for `T020`); Phase 3 (US1)'s reconciliation-by-verification pass converted
+several structurally-broken tests (permanent-fail assertions with no flippable
+done-signal, and one test that "bluffed green" on an artifact-layer fact standing in
+for an unproven runtime-layer claim) into real, control-needle-proven assertions;
+`T029`/`T030`/`T032` (three of the four `[SERIAL]` wiring tasks Revision 2 left as
+draft-only) were reviewed, applied, tested, and committed by the conductor; and a
+large, independently-researched QA/PM findings-triage effort (`BG-20260928-1956`, 47
+findings, 4 parallel subagents + one serialized single-writer DB pass) landed as 37
+files and +38,850/-7,830 lines in the parent repository, exercising the exact
+fan-out-research + single-writer-serialization pattern this document's own Section 3
+already names as this cycle's live instance of `superpowers:subagent-driven-development`.
+As with Revision 2, sections 1–10 are **preserved verbatim** except for small inline
+correction notes; the new material is in
+**[Section 11](#11-update--2026-09-28-later-revision-3)**, appended at the end for the
+same §11.4.226 reason Revision 2's own note states. One item is reported here as
+genuinely still **PENDING** at authoring time, per this document's own no-guessing
+discipline: two read-only reconciliation subagents (dispatched 2026-09-28T16:16Z and
+16:19Z, per the agent registry, keys `f23ce7750cea7245` and `1f72b97fcc1ced00`) were
+independently investigating the Phase 1 and Phase 2 checkbox states *at the same
+moment* this section was authored, and neither had produced a real `complete` event in
+the registry by the time this section's own investigation concluded — this document
+does not, and cannot honestly, report their outcome.
+
 ---
 
 ## Table of contents
@@ -59,6 +95,18 @@ silently rewrite a prior claim; supersede it visibly, with its own new evidence)
     - [10.6 Diagrams (Revision 2)](#106-diagrams-revision-2)
     - [10.7 Current honest status and what remains](#107-current-honest-status-and-what-remains)
     - [10.8 Verification methodology for this revision](#108-verification-methodology-for-this-revision)
+11. [Update — 2026-09-28, later (Revision 3)](#11-update--2026-09-28-later-revision-3)
+    - [11.1 Executive summary of the delta](#111-executive-summary-of-the-delta)
+    - [11.2 Timeline of everything landed since Revision 2](#112-timeline-of-everything-landed-since-revision-2)
+    - [11.3 The Phase 1 / Phase 2 checkbox-reality gap — an in-flight, honestly-unresolved finding](#113-the-phase-1--phase-2-checkbox-reality-gap--an-in-flight-honestly-unresolved-finding)
+    - [11.4 ATM-1097: a pandoc-specific YAML-misdetection bug, isolated to one code path](#114-atm-1097-a-pandoc-specific-yaml-misdetection-bug-isolated-to-one-code-path)
+    - [11.5 BG-20260928-1956: fan-out research + single-writer serialization, worked example](#115-bg-20260928-1956-fan-out-research--single-writer-serialization-worked-example)
+    - [11.6 Reconciliation-by-verification: three more worked examples from Phase 3 (US1)](#116-reconciliation-by-verification-three-more-worked-examples-from-phase-3-us1)
+    - [11.7 Measured figures (Revision 3)](#117-measured-figures-revision-3)
+    - [11.8 Diagrams (Revision 3)](#118-diagrams-revision-3)
+    - [11.9 Constitution anchors newly exercised](#119-constitution-anchors-newly-exercised)
+    - [11.10 Current honest status and what remains](#1110-current-honest-status-and-what-remains)
+    - [11.11 Verification methodology for this revision](#1111-verification-methodology-for-this-revision)
 
 ---
 
@@ -1635,3 +1683,599 @@ pointing here — per this project's own §11.4.226 evidence-class discipline,
 a prior honest "not yet known" statement is never silently edited into a
 false "was always known"; it is superseded visibly, with the new evidence
 that resolves it.
+
+
+---
+
+## 11. Update — 2026-09-28, later (Revision 3)
+
+This section was requested by the same operator directive Revision 2's own §11.4.140
+quote already cites — the request was issued **twice**, verbatim, in the operator
+request-history ledger (`docs/requests/history.md`, entries `R-2026-09-27-202244`,
+2026-09-27 20:22:44 MSK, and `R-2026-09-28-112940`, 2026-09-28 11:29:40 MSK): *"Do
+exhaustive analisys of all work we are doing now via SpecKit and Superpowers with all
+details, proper summary, fully structured content divided into sections, additional
+explanations, measurements, analisys of performance and metrics changes, graphs,
+diagarams and schemes and put it all into constitution Submodule under
+docs/optimization/ dir. Create full proper Markdown in depth documentation and exports
+into all mandatory formats! Make sure as soon as it is done everything is fully
+commited and pushed to all upstreams and let us know when we can review it fully on
+GitHub! This is extreely urgent and important!"* — dispatched a third time this
+session via the durable background queue as `BG-20260928-2117`
+(`docs/requests/background_queue.md:515`), whose entry this revision's own author
+verified directly. This section is that continuation, produced by directly reading
+the live git history of both repositories, the live `specs/004-fast-dev-cycles/
+tasks.md` task list, the live `docs/workable_items.db` (read-only `sqlite3` queries),
+the agent registry, and the operator request-history ledger — the exact verification
+discipline Sections 9 and 10.8 already establish, applied to today's further delta.
+
+### 11.1 Executive summary of the delta
+
+Since Revision 2 was committed (constitution `391c4ee`, 2026-09-28T13:44:52+05:00, the
+commit Revision 2's own header cites), roughly seven further hours of real, committed
+work landed in the **parent** ATMOSphere repository — this constitution submodule
+received no further fastcycle-tool source commits in that specific window (its own
+`HEAD` at authoring time, `acdcad4a9f9f1a9c2e0b9e4c07a999b1abaeba2f`, carries only the
+Foundational-batch and Phase-3 fastcycle work Sections 4 and 10 already document, plus
+this revision's own doc-export commit once it lands). The headline changes, each
+independently re-verified below rather than repeated from a prior agent's own claim:
+
+1. **All four of Revision 2's `[SERIAL]` draft-only wiring tasks — `T029`, `T030`,
+   `T031`, `T032` — were reviewed, applied, tested, and committed by the
+   conductor.** `T031` (`db.go` `requested_at`/`applied_at` tracker-writer timing
+   instrumentation) landed first, independently, in the constitution submodule
+   (`5cada1d`, `2026-09-28T14:15:01+05:00`, **197 insertions** — this revision's
+   own author independently confirmed both that this commit is a real ancestor of
+   the submodule's current `HEAD` and that `db.go` genuinely contains the claimed
+   `requested_at`/`applied_at` fields, via a direct `grep`, rather than trusting
+   the commit message alone). `T030`+`T032` then landed together in one parent-repo
+   commit (`88171be130c`, 11 files, **+3,044/-220** lines — independently
+   re-confirmed via `git show --stat`, not repeated from the commit message's own
+   prose), wiring `fc_timer.sh` stage timers into `scripts/commit_all.sh`
+   (+406 lines) and per-mutation verdict rows into
+   `scripts/testing/meta_test_false_positive_proof.sh` (+2,193 lines).
+2. **A real, currently-observable checkbox/reality gap was found — and remains
+   open at authoring time.** `tasks.md`'s own checkboxes for the Foundational
+   batch (`T007`–`T014`) still read `[ ]` (unchecked) at this revision's authoring
+   moment, despite Section 10.3 of this very document already proving — and this
+   revision independently re-confirming via `git merge-base --is-ancestor` — that
+   the batch reached a clean GO and was committed to the real tracked tree
+   (`b72361b`) hours earlier. Two dedicated, read-only reconciliation subagents
+   were dispatched to investigate the Phase 1 and Phase 2 checkbox state
+   concurrently with this section's own authoring; neither had produced a
+   `complete` registry event by the time this investigation concluded, so this
+   document reports the gap as **found** and the reconciliation as **PENDING**,
+   never as resolved. See [Section 11.3](#113-the-phase-1--phase-2-checkbox-reality-gap--an-in-flight-honestly-unresolved-finding).
+3. **A pandoc-specific export bug (`ATM-1097`) was found, root-cause-investigated,
+   and worked around — but not yet fixed at its true source.** `workable-items
+   export`'s internal pandoc invocation fails with exit 64 on `docs/Issues.md`
+   ("YAML parse exception ... while scanning an alias", triggered near line 5952
+   of 1,375+ lines) because an *earlier*, still-unidentified bare `---` line
+   elsewhere in the file puts pandoc's `yaml_metadata_block` auto-detection
+   heuristic into a stuck parsing state. A working, verified, but not-yet-wired
+   workaround (`pandoc --from=markdown-yaml_metadata_block`) restored fresh
+   HTML/PDF/DOCX siblings; the investigation's own interesting, genuinely useful
+   finding — that the *identical* underlying `docs_chain` engine's own
+   `md-to-html`/`html-to-pdf` transform chain regenerates the same file cleanly
+   with no error — proves the bug is specific to one code path (`workable-items
+   export`'s own internal pandoc call), not a universal pandoc/Markdown defect.
+   See [Section 11.4](#114-atm-1097-a-pandoc-specific-yaml-misdetection-bug-isolated-to-one-code-path).
+4. **A large, independently-researched QA/PM findings-triage effort landed as a
+   strong worked example of the fan-out-research + single-writer-serialization
+   pattern this document's own Section 3 already names.** `BG-20260928-1956`
+   (47 findings, 4 parallel read-only research subagents split by finding
+   prefix, one later serialized single-writer DB-write pass per §11.4.206)
+   landed as **37 files, +38,850/-7,830 lines** (independently re-confirmed via
+   `git show --stat`, commit `3dc7be47172` — the current `HEAD` of the parent
+   repository at authoring time), creating 41 new workable items, augmenting **5
+   named** existing items despite the summary's own header claiming "6 existing
+   items augmented" (a real, unresolved off-by-one discrepancy in the source
+   document itself, reported honestly rather than silently corrected), and
+   cross-referencing one multi-item finding to 5 already-open items rather than
+   minting a duplicate. See
+   [Section 11.5](#115-bg-20260928-1956-fan-out-research--single-writer-serialization-worked-example).
+5. **Three further Phase 3 (US1) tests were converted from structurally broken
+   to genuinely test-first via a "reconciliation-by-verification" methodology** —
+   confirming real on-disk/runtime behaviour against each task's stated
+   acceptance property before marking it done, rather than trusting either a
+   checkbox's absence or its presence. `T020`'s own test was found to have
+   *bluffed green* — its final assertion verdicted a property `HOLDS` purely
+   because a file existed on disk (an artifact-layer fact) while the same
+   test's own earlier block had already empirically proven, by real invocation,
+   that the runtime-layer property it claimed did **not** hold — precisely the
+   §11.4.108/§11.4.226 source-present-runtime-absent bluff class this document's
+   own Section 7 already names. See
+   [Section 11.6](#116-reconciliation-by-verification-three-more-worked-examples-from-phase-3-us1).
+
+**Current real task-count snapshot** (measured directly, `grep -c` against the live
+`specs/004-fast-dev-cycles/tasks.md`, at `2026-09-28T16:20Z`): **30 of 195 tasks
+checked `[x]`** (15.4%), **165 unchecked `[ ]`** (84.6%). This is stated here as an
+honest, time-stamped snapshot only — Section 11.3 immediately below explains, with
+direct evidence, why this raw figure is known to **understate** real completion (the
+Foundational batch's 8 tasks are demonstrably done but unchecked), and this document
+does not attempt to project what the figure will read by the time a reader sees it,
+since the reconciliation this section documents was still running at authoring time.
+
+### 11.2 Timeline of everything landed since Revision 2
+
+Every commit below is independently re-confirmed by this revision's own author via
+direct `git show`/`git log`, not repeated from a prior commit message alone.
+
+| # | Time (+05:00) | Repo | Commit | What landed |
+|---:|---|---|---|---|
+| 1 | 13:18 | constitution | `c33c1d4` | `T043`'s race-recovery fix (already covered by Revision 2 §10.4(a); carried here as the timeline's own starting point) |
+| 2 | 13:27 | parent | `3e1ea0fa484` | **ATM-1014** recovery (already covered by Revision 2 §10.4(c)) |
+| 3 | 13:29 | parent | `72d918172e0` | `T003` Setup files + §11.4.65 scope-gap fix (already covered by Revision 2 §10.4(b)); this revision independently re-confirms this is the **earliest** commit touching `specs/004-fast-dev-cycles/tasks.md` in the parent repository's own history (`git log --reverse`), consistent with `tasks.md` having only just entered this repository's own tracked history at that point |
+| 4 | 14:15 | constitution | `5cada1d` | `T031` — `db.go` `requested_at`/`applied_at` tracker-writer timing instrumentation, 197 insertions — independently confirmed landed and present in the live file |
+| 5 | 17:43 | parent | `46910f486f0` | `feat(specs-004): add tasks.md with T029/T031/T034/T036/T038/T039/T041/T043/T046 complete` — the file's own first tracked commit already carried `T001`–`T006` (Phase 1) checked `[x]`; `T007`–`T014` (Phase 2) already `[ ]` at this point |
+| 6 | 18:56 | parent | `bddfa7d1f91` | `chore(specs-004): mark T015/T019/T021/T022/T024/T025/T026 complete` — `T015`/`T024`/`T025` converted from non-functional prose-stub/duplicate-logic tests to real subprocess-invocation assertions, self-validated via deliberate mutation; `T019`/`T021`/`T022`/`T026` confirmed already fully implemented by earlier parallel work with zero code changes needed |
+| 7 | 19:05 | parent | `572dd6c1c34` | Files **ATM-1055** per §11.4.197: the `T042` hand-verification subagent found a genuine `cycle_report.py` bug (`flag_status_desync()`'s bare string `!=` comparison between the short `item_history.event_type` form and the §11.4.33 long closure-vocabulary form of `items.status`, which are *by design* never byte-identical on a correctly-closed item — firing a false `STATUS_DESYNC` flag on essentially every genuinely-closed item) while independently hand-verifying 3 real items' timing figures and finding zero divergence on the timing itself |
+| 8 | 19:07 | parent | `a576d2fbca9` | `T016`/`T017` reconciliation — same `T015`-class structural defect (prose-only echo-block acceptance criteria with no polarity switch) found and fixed with real control-needle-proven assertions, both correctly `FAIL` pending `T030` |
+| 9 | 19:11 | parent | `e73c1238145` | `T016`/`T017` marked complete after conductor reconciliation, independently re-verified: both exit 1 (correctly RED) |
+| 10 | 19:20 | parent | `b2e02df55c7` | `T020`'s own test found to **bluff green** on the `T036`/`T037` wiring gap — see Section 11.6 |
+| 11 | 19:30 | parent | `8383d37cbbc` | `T023` (`test_cycle_report_red.sh`) — 4 "NOT YET IMPLEMENTED" prose stubs converted to real gating assertions with a real mutation-kill proof — see Section 11.6 |
+| 12 | 20:17 | parent | `88171be130c` | `T030`+`T032` landed (+3,044/-220, 11 files); `T015`/`T029` independently re-confirmed fully GREEN via two independent methods |
+| 13 | 20:50 | parent | `3dc7be47172` | **`BG-20260928-1956`** — 47 QA/PM findings triaged into 41 new + 5-named/6-claimed augmented workable items (Section 11.5's own honest discrepancy note), 37 files, **+38,850/-7,830** lines (current parent `HEAD` at authoring time) |
+
+**As of this writing, two further items are dispatched and genuinely in flight**
+(neither shows a real `complete` event in the agent registry, per the agent
+registry's own tail read at `2026-09-28T16:19:59Z`):
+
+- Reconciliation of SpecKit-004 **Phase 1** (`T001`–`T006`) — dispatched
+  `16:16:14Z`, in-flight `16:16:16Z`, registry key `f23ce7750cea7245`
+- Reconciliation of SpecKit-004 **Phase 2** (`T007`–`T014`) — dispatched
+  `16:19:10Z`, in-flight `16:19:59Z`, registry key `1f72b97fcc1ced00`
+
+### 11.3 The Phase 1 / Phase 2 checkbox-reality gap — an in-flight, honestly-unresolved finding
+
+This subsection exists specifically because this project's own §11.4.6 no-guessing
+mandate and §11.4.226 evidence-class discipline forbid reporting a finding's outcome
+before that outcome genuinely exists — and, at the moment of authoring, it does not
+yet exist. What follows is exactly what this revision's own author could and did
+independently verify, and nothing more.
+
+**The finding, independently confirmed.** `specs/004-fast-dev-cycles/tasks.md`'s own
+checkbox state for Phase 2 (the Foundational batch, `T007`–`T014`) currently reads
+**8 of 8 unchecked** (`[ ]`), verified by a direct `grep -n` against the tracked file
+at authoring time. This is a real, currently-observable checkbox/reality gap: this
+document's own Section 10.3 (Revision 2, landed hours earlier) already proves, with
+full evidence — round-11 and round-12 review findings, the landing commit's own final
+summary line (`run_all: 9 run, 0 failed`, 15/15 mutations, `test_fc_common_red.sh`
+233/233, `test_host_guard_red.sh` 131/131) — that the Foundational batch reached a
+clean GO and was committed to the real tracked tree. This revision independently
+re-confirmed the *committed* half of that claim itself, from scratch, rather than
+trusting Section 10.3's own prior citation: `git merge-base --is-ancestor b72361b
+HEAD`, run inside the constitution submodule, returns true (`b72361b` **is** an
+ancestor of the submodule's current `HEAD`), and the parent repository's own gitlink
+for `constitution` at its current `HEAD` resolves to
+`acdcad4a9f9f1a9c2e0b9e4c07a999b1abaeba2f` — a strict descendant of `b72361b`. The
+Foundational batch is genuinely, verifiably landed on the real tree; its own task
+file's checkboxes simply do not say so.
+
+**Phase 1's own state, reported honestly rather than assumed.** `T001`–`T006`
+currently read **6 of 6 checked** (`[x]`) in the live file. This revision's author
+traced this specific file's own tracked history in the parent repository back to its
+**very first** commit (`46910f486f0`, `2026-09-28T17:43:17+05:00` — independently
+confirmed via `git log --reverse --format="%h %cI %s"` against the file, which returns
+exactly this commit as the earliest) and found `T001`–`T006` already checked `[x]` at
+that first commit, before any of the reconciliation work this section documents began.
+This revision's author explicitly does **not** know, and does not claim to know,
+whether this reflects the specific Phase-1 reconciliation subagent (registry key
+`f23ce7750cea7245`, dispatched `16:16:14Z`, described in this section's own timeline)
+having already independently confirmed the same thing and found nothing to correct, or
+whether Phase 1's checkboxes were simply already accurate from the moment the file
+first entered this repository's tracked history and that subagent's own investigation
+is still in progress toward the same conclusion. Either is consistent with the
+evidence available to this document's author; neither is asserted as fact.
+
+**Why this matters, and what is genuinely still open.** The Phase 2 gap this
+subsection documents is not a cosmetic bookkeeping issue — it is the exact class of
+drift this project's own SpecKit-004 feature (Section 1's executive summary) exists to
+fix: a status artefact silently diverging from real completion state, in **either**
+direction (a checkbox can lag real completion, as demonstrated here for Phase 2). A
+directly-observed sibling instance of the *opposite* direction — this document's own
+author found it while reading `docs/CONTINUATION.md` for this section's own
+verification (Section 11.11) — is `docs/CONTINUATION.md`'s own top-of-file "RESUME-HERE
+ADDENDUM 4" block, timestamped `20:44Z`, which states "Phase D commit is the very next
+action"; the commit that block describes (`BG-20260928-1956`) is, at this revision's
+own authoring moment, already the parent repository's current `HEAD` (`3dc7be47172`,
+Section 11.2's own timeline row 13) — meaning that specific status block's own "next
+action" text is itself now stale relative to the real committed state, an instance of
+the identical status-vs-reality drift this subsection is about, observed from the
+opposite direction. This is noted here as a directly-observed fact, not investigated
+further as part of this revision's own scope — fixing it belongs to whichever agent
+next regenerates `docs/CONTINUATION.md`'s own top block. The operative discipline this session's own
+work demonstrates, and which this document recommends as a standing practice
+(extending Section 8's own lessons-learned register): **periodic reconciliation-by-
+verification, never reconciliation-by-trust** — a checkbox is marked `[x]` only after
+its task's own stated acceptance property is independently re-confirmed against real,
+current, on-disk or runtime evidence, and a checkbox left `[ ]` past its task's real
+completion is treated with the same seriousness as a checkbox wrongly marked `[x]` too
+early, because both are the identical failure mode (status divergent from reality)
+observed from opposite directions. This document reports the Phase 2 gap as **FOUND**
+and the two dispatched reconciliations as **PENDING** — not fixed, not confirmed, not
+assumed — as of `2026-09-28T16:20Z`.
+
+### 11.4 ATM-1097: a pandoc-specific YAML-misdetection bug, isolated to one code path
+
+While regenerating `docs/Issues.md`'s HTML/PDF/DOCX siblings as part of the
+`BG-20260928-1956` closing work (Section 11.5), `workable-items export --db
+docs/workable_items.db --out-dir docs`'s own internal pandoc invocation failed with:
+
+> `Error parsing YAML metadata at .../docs/Issues.md (line 5952, column 1): YAML parse
+> exception at line 1, column 1, while scanning an alias: did not find expected
+> alphabetic or numeric character` (exit 64)
+
+This revision's author read `ATM-1097`'s own tracked description directly
+(`sqlite3 docs/workable_items.db "SELECT description FROM items WHERE
+atm_id='ATM-1097';"`, read-only) rather than paraphrasing a prior agent's summary of
+it, and confirms the investigation's own real findings, exactly as recorded there:
+
+- Line 5952 is a bare `---` line — an ordinary Markdown horizontal rule, one of 116
+  such lines in the file. Isolating that specific line plus its surrounding ~18 lines
+  into a standalone test file and running pandoc directly against it **succeeds** with
+  no error — proving this specific `---` is not, in isolation, the trigger.
+- This means pandoc's own `yaml_metadata_block` reader extension is being put into an
+  open/unclosed YAML-parsing state by some *earlier* bare `---` line elsewhere in the
+  file that pandoc's own heuristic misidentifies as the *start* of a YAML front-matter
+  block — and the failure only surfaces once the (still-open) parse reaches content,
+  near line 5952, that cannot validly continue as YAML (the "while scanning an alias"
+  wording is consistent with pandoc's YAML parser hitting a bare or misplaced `*`
+  character it attempted to interpret as a YAML alias reference).
+- **A genuinely useful, independently interesting finding, worth stating explicitly**:
+  the *same* underlying `docs_chain` engine's own `md-to-html`/`html-to-pdf` transform
+  chain (§11.4.106, the mechanism this project's own broader export/sync tooling is
+  built on) regenerates the identical `docs/Issues.md` file **cleanly, with no error**,
+  when invoked through its own pipeline rather than through `workable-items export`'s
+  own internal pandoc call. This is direct, positive evidence that the defect is
+  specific to *one particular code path's* pandoc invocation (a flag or reader-mode
+  difference between the two callers), not a defect in pandoc's YAML-detection
+  heuristic in general, nor in `docs/Issues.md`'s own Markdown content, which the
+  item's own description independently confirms is "correct and complete — the
+  failure is pandoc-side only."
+
+**The working workaround applied, verified, and honestly scoped as not-yet-wired**:
+`pandoc --from=markdown-yaml_metadata_block ...` (the extension explicitly disabled)
+for the HTML and DOCX legs, followed by `weasyprint --stylesheet
+constitution/styles/default-pdf.css docs/Issues.html docs/Issues.pdf` for the PDF leg.
+Verified per `ATM-1097`'s own recorded evidence: exit 0 on all three, no YAML-parse
+error, non-degenerate output (`html=2.45MB`, `pdf=2.97MB`, `docx=828KB`, versus the
+prior stale copies), §11.4.73-styled. The item's own description is explicit that this
+workaround is **not yet wired** into `scripts/testing/sync_all_markdown_exports.sh` or
+`workable-items export` itself — both still use the extension-enabled pandoc default
+and will regress to the exit-64 failure on their very next invocation against
+`docs/Issues.md` — and that the true root-cause bisection (identifying the specific
+*earlier* `---` line responsible) remains open, tracked, and explicitly deferred
+pending evidence that the flag change is safe across the rest of the `docs/*.md`
+corpus (not yet checked for any file other than `Issues.md`). `ATM-1097` remains
+`Status: Queued`, `Type: Bug`, exactly as its own tracker row shows — this document
+does not, and the item itself does not, claim it closed.
+
+### 11.5 BG-20260928-1956: fan-out research + single-writer serialization, worked example
+
+`BG-20260928-1956` is a strong, concrete continuation of this document's own Section 3
+("Superpowers methodology as applied here") — a real instance of
+`superpowers:subagent-driven-development`'s fan-out-then-serialize shape, worth
+documenting as its own case study rather than only as a line in Section 11.2's
+timeline table, because the shape of the work is itself the methodological point.
+
+**The task.** The project's Project-Management and QA teams delivered two source
+documents under `docs/planning/2026.09/issues_01/`: a 47-row Russian-language findings
+registry (`Comments_list.xlsx`, three sheets) and a 321-paragraph narrative summary
+with a proposed 6-step work order (`Current_Comments_to_codebase.docx`). Every one of
+the 47 findings required independent research (deep git history, direct current-`HEAD`
+source verification, cross-reference against the live `docs/workable_items.db`,
+product-coverage determination, effort estimation) before it could be either filed as
+a new workable item, matched to an existing one, or cross-referenced without
+duplication.
+
+**The fan-out.** Four parallel subagents, split by the findings registry's own real
+`№`-column prefix (never an arbitrary even split — the partition follows the data's
+own natural grouping), each independently researched its own disjoint slice:
+
+| Group | Scope | Count | Evidence file |
+|---|---|---:|---|
+| A | Audio (`AU-*`) | 15 | `qa-results/qa_pm_20260928/group_a_audio.json` |
+| B | Security + Authorization (`SEC-*`/`AUTH-*`) | 14 | `qa-results/qa_pm_20260928/group_b_security_auth.json` |
+| C | Build/Platform/Bootloader/Kernel/DeviceTree/BoardBinding/OTA/Repo (`BLD-*`/`OTA-*`/`REP-*`) | 11 | `qa-results/qa_pm_20260928/group_c_build_platform.json` |
+| D | Process/Licenses/AppSigning/SpeakerConfig/HDMI/CameraMic/Compatibility (`LIC-*`/`PRD-*`) | 7 | `qa-results/qa_pm_20260928/group_d_process_license_product.json` |
+
+15 + 14 + 11 + 7 = 47 — every one of the 47 findings accounted for, none silently
+dropped, independently re-confirmed by this revision's own author by summing the
+group's own stated counts directly from `BG-20260928-1956_SUMMARY.md` rather than
+trusting the "47/47" headline alone.
+
+**The serialization.** The four parallel research streams' own outputs were entirely
+read-only against the shared tracker — no research subagent itself wrote to
+`docs/workable_items.db`. The actual database writes (41 new items minted, 6 existing
+items augmented via a read-then-concatenate update that never discarded prior
+content, 1 finding cross-referenced to 5 already-open items rather than duplicated)
+were performed by a **single, serialized writer pass**, following this project's own
+§11.4.206 "exactly one writer per shared single-source-of-truth entity" discipline —
+the same discipline that governs every other write to this tracker throughout the
+whole SpecKit-004 cycle this document documents (Section 2.3's `[SERIAL]` marker
+convention, applied here to a QA-intake workflow rather than a fastcycle-tool task).
+
+**The outcome, independently re-confirmed — with one honest discrepancy surfaced,
+not smoothed over.** This revision's author independently ran `sqlite3
+docs/workable_items.db "SELECT COUNT(*) FROM items;"` (read-only) at authoring time
+and it returns **921** — not the **920** `BG-20260928-1956_SUMMARY.md`'s own
+"Outcome" section states as the post-write total (itself claimed there as a delta
+from a pre-write 879, matching "41 new items" exactly: 879 + 41 = 920). The real,
+current, independently-measured count is one item higher than the summary's own
+claimed figure. This revision's author does **not** know, and does not guess, the
+specific cause of that +1 — a reasonable, evidence-consistent possibility is that at
+least one further item (this revision's own Section 11.4 names `ATM-1097`, and
+Section 11.2 names `ATM-1055`, both filed in connection with this same work) was
+minted after the summary document's own count was taken and before this revision's
+own query — but this is recorded explicitly as an inference, never as a confirmed
+fact, per §11.4.6. The summary's own further claim of a successful `workable-items
+validate` pass with "all invariants satisfied" is recorded here as the summary's own
+claim, not independently re-run by this revision's author (re-running a full
+validate pass was judged an unnecessary, non-disjoint perturbation of the shared
+tracker state while this document's own investigation and the two Phase 1/Phase 2
+reconciliation subagents were concurrently active against overlapping artefacts — the
+same §12.6/§12.8/§12.12 host-safety reasoning Section 9 and Section 10.8 already give
+for not independently re-running the live fastcycle test suite).
+
+### 11.6 Reconciliation-by-verification: three more worked examples from Phase 3 (US1)
+
+Three commits today extend this document's own running theme (Section 8.2: "real
+execution finds what review, by itself, cannot") with a distinct but related lesson —
+**a test that has never genuinely been run to completion, or that verdicts on the
+wrong evidence layer, is itself a defect indistinguishable from the product defect it
+was meant to catch**, until someone actually reconciles the test's own claimed
+behaviour against real, current evidence.
+
+**`T020` — a test that bluffed green on an artifact-layer fact.**
+`test_token_attribution_red.sh`'s own final assertion for its "PART A" property
+verdicted `HOLDS` purely because `dispatch_stamp.sh` **existed as a file on disk**
+(`T036` had landed) — an artifact-layer fact (§11.4.108 layer 2) standing in for the
+runtime-layer invariant (layer 3) the property actually claims: that a dispatch
+lacking an `item=` field is correctly *rejected*, not silently accepted. The same
+test's own earlier "A-real" block had already, by a real invocation of the real,
+unmodified `agent_registry_writer.sh`, empirically proven the **opposite** —
+`item=`-less dispatches are still silently accepted today with zero item attribution
+(`FOUND=0`) — directly contradicting its own later `HOLDS` verdict two lines below.
+Confirmed by a direct `grep`: zero references to `dispatch_stamp` anywhere in
+`agent_registry_writer.sh` or `.claude/settings.json` — `T037` (the `[SERIAL]` task
+that would actually wire `dispatch_stamp.sh` in) is genuinely unwired, matching
+`dispatch_stamp.sh`'s own in-source header comment ("NOT YET WIRED (deliberately, by
+design — T037's job)"). The fix does not merely patch the one broken assertion: it
+requires the property's verdict to satisfy **both** a structural wiring reference
+(`grep` for `dispatch_stamp` in the writer + settings) **and** cross-validation
+against the real `A-real` result already captured, with a distinct third branch for
+"wiring reference present but not taking effect" (a source-only reference with no
+observed behavioural change) — self-validated via a temporary, backed-up, restored
+one-line no-op comment injected into `agent_registry_writer.sh`, confirming that new
+branch correctly fires before the fix was trusted.
+
+**`T023` — four prose stubs converted to real gating assertions, with a real
+mutation-kill proof.** `test_cycle_report_red.sh` carried 4 blocks reading "NOT YET
+IMPLEMENTED" where a real assertion was meant to sit. All 4 were replaced with real
+gating assertions invoking `cycle_report.py` against all 4 of its own fixtures
+(`missing_record`, `empty_window`, `golden_atm953` — run against the **live** database
+via `--item ATM-953`, and `negative_control_all_present`), each exact-match-diffed
+against the fixture's own `expected*` field. The fix's own self-validation went
+further than merely making the assertions pass: it ran **2 control needles** (an
+empty-window discrimination check against a real 132-record window; a comparator
+discrimination check between two fixtures' outputs) **plus a real mutation-kill
+proof** — deliberately mutating the tool's own stage-selection logic to compare the
+wrong stage, confirming exactly one finding fired as a result, then cleaning the
+mutation up immediately — proving the new assertions genuinely catch the defect class
+they are meant to gate, rather than merely agreeing with whatever the tool currently
+happens to output (the exact "test agrees with code" anti-pattern this project's own
+§11.4.245 anchor names). Independently re-verified before commit: 15/15 pass, exit 0,
+`bash -n` clean.
+
+**`T016`/`T017` — the same `T015`-class structural defect, found and fixed by the same
+pattern proven three times earlier the same session.** Both tests asserted a
+permanent, un-flippable fact with no polarity switch: `T016`
+(`test_fc_commit_stage_timer_red.sh`) asserted `fc_timer.sh` was **absent**, a claim
+`T028` had already made permanently false weeks/hours earlier; its two named
+acceptance criteria (one TSV row per executed dry-run-commit stage; one push row per
+remote with a read-back tip) were prose-only echo blocks, never real assertions. The
+fix adds a `RED_MODE` polarity switch (`FC_TIMER_COMMIT_RED_MODE`, default `0` since
+`T028`'s landing is now permanent, `=1` retained as an audit-only escape hatch) and
+replaces the two echo blocks with real, control-needle-proven assertions (a
+`fc_timer_start`/`fc_timer_end` call-site check plus a TSV-row count; an `ls-remote`
+read-back plus a push-row count) — both of which, at the moment they were written,
+correctly `FAIL`, because `T030` (the task that would actually wire the timers in)
+had not yet landed, and both are explicitly designed to flip `PASS` the instant `T030`
+does land (which it since has, per Section 11.2's own timeline — this revision did not
+independently re-confirm whether `T016`/`T017` have themselves since been re-run
+post-`T030` and flipped; that re-confirmation is recorded here as a genuinely owed,
+tracked follow-up rather than assumed). This is the same reconciliation pattern this
+session's own commit history records having already been "proven 3x earlier" against
+`T015`/`T024`/`T025` (Section 11.2's own timeline, commit `bddfa7d1f91`, `18:56`) — a
+fourth and fifth independent instance
+of the identical defect class (a permanently-failing or permanently-passing assertion
+with no way to ever observe the property it claims), found by the same
+reconciliation-by-verification discipline each time.
+
+### 11.7 Measured figures (Revision 3)
+
+Every figure below was read directly from a real, current artefact at authoring time —
+never estimated — per this document's own Section 9 discipline, continued through
+Revision 2 (Section 10.8) and into this revision.
+
+| Metric | Value | How measured |
+|---|---:|---|
+| `tasks.md` checkboxes checked (`[x]`) | **30 / 195** (15.4%) | `grep -c '^\s*- \[x\]' specs/004-fast-dev-cycles/tasks.md`, at `2026-09-28T16:20Z` |
+| `tasks.md` checkboxes unchecked (`[ ]`) | **165 / 195** (84.6%) | `grep -c '^\s*- \[ \]' specs/004-fast-dev-cycles/tasks.md`, same moment |
+| `T031` diffstat (`db.go` timing instrumentation) | **1 file, +197/-1** | `git show --stat 5cada1d`, constitution submodule |
+| `T030`+`T032` combined diffstat | **11 files, +3,044/-220** | `git show --stat 88171be130c` |
+| `BG-20260928-1956` diffstat | **37 files, +38,850/-7,830** | `git show --stat 3dc7be47172` |
+| `BG-20260928-1956` findings triaged | **47 / 47** (15 + 14 + 11 + 7) | Direct group-count sum, `BG-20260928-1956_SUMMARY.md` |
+| `BG-20260928-1956` new workable items minted | **41** (`ATM-1056`–`ATM-1096`) | `BG-20260928-1956_SUMMARY.md`; the summary's own claimed 879→920 delta live-rechecked — see the honest +1 discrepancy in Section 11.5 |
+| `docs/workable_items.db` live item count, this revision's authoring moment | **921** | `sqlite3 docs/workable_items.db "SELECT COUNT(*) FROM items;"`, run directly — 1 higher than the summary's own claimed 920, unexplained-but-plausible per Section 11.5 |
+| `BG-20260928-1956` existing items augmented | Summary header states **6**; only **5** named in the summary's own text | `BG-20260928-1956_SUMMARY.md` — a real, unresolved discrepancy in the source document, reported honestly rather than silently corrected |
+| `ATM-1097` reproduction line | **line 5952** of `docs/Issues.md` | `ATM-1097`'s own tracked description, `sqlite3` read |
+| `ATM-1097` bare `---` line count in `docs/Issues.md` | **116** | `ATM-1097`'s own tracked description |
+| Foundational batch (`T007`–`T014`) landed-but-unchecked | **8 / 8 tasks** checkbox-`[ ]` despite a confirmed committed GO | Direct `grep` of `tasks.md` + `git merge-base --is-ancestor b72361b HEAD` (true) |
+| Phase 1 (`T001`–`T006`) checkbox state | **6 / 6 checked `[x]`** at this file's own first tracked commit | `git log --reverse` on `tasks.md`, earliest commit `46910f486f0` |
+| In-flight reconciliation agents, this section's own subject | **2**, neither `complete` | Agent registry tail, keys `f23ce7750cea7245` (Phase 1) and `1f72b97fcc1ced00` (Phase 2) |
+
+**A figure this document's author could NOT independently confirm**: whether
+`T016`/`T017`'s two assertions (Section 11.6) have themselves been re-run since
+`T030` landed and confirmed to flip `PASS` as designed. No tracked artefact or agent
+registry entry available to this revision's author at authoring time records that
+specific re-run event — marked `UNVERIFIED` / an owed follow-up rather than assumed,
+per §11.4.6.
+
+### 11.8 Diagrams (Revision 3)
+
+**11.8.1 — Sequence diagram: the `BG-20260928-1956` fan-out-research +
+single-writer-serialization pattern**
+
+```mermaid
+sequenceDiagram
+    participant C as Conductor
+    participant A as Research subagent A (AU-*, 15)
+    participant B as Research subagent B (SEC-*/AUTH-*, 14)
+    participant D as Research subagent C (BLD-*/OTA-*/REP-*, 11)
+    participant E as Research subagent D (LIC-*/PRD-*, 7)
+    participant W as Single-writer DB pass (§11.4.206)
+    participant DB as workable_items.db
+
+    C->>A: Dispatch, read-only research scope: group A
+    C->>B: Dispatch, read-only research scope: group B
+    C->>D: Dispatch, read-only research scope: group C
+    C->>E: Dispatch, read-only research scope: group D
+    par All four run fully concurrently, no shared write path
+        A-->>C: group_a_audio.json (15 findings researched)
+    and
+        B-->>C: group_b_security_auth.json (14 findings researched)
+    and
+        D-->>C: group_c_build_platform.json (11 findings researched)
+    and
+        E-->>C: group_d_process_license_product.json (7 findings researched)
+    end
+    Note over C: 15+14+11+7 = 47/47 accounted for, none dropped
+    C->>W: Dispatch ONE serialized writer pass<br/>over all 4 research outputs
+    W->>DB: 41 new items minted
+    W->>DB: 5 named existing items augmented<br/>(summary claims 6 -- honest discrepancy, 11.5)<br/>(read-then-concatenate, never discard)
+    W->>DB: 1 finding cross-referenced to<br/>5 already-open items (no duplicate)
+    DB-->>W: summary claims 920 (was 879);<br/>live re-query measures 921 (11.5)
+    W-->>C: Regenerate docs/Issues.md + docs/Fixed.md from the DB
+    Note over C,DB: Exactly ONE writer touched the DB at any moment --<br/>the four research streams never contended with each other<br/>or with the write path
+```
+
+**11.8.2 — Phase/task-completion state overview (Revision 3, honest snapshot)**
+
+```mermaid
+flowchart TD
+    P1["Phase 1: Setup<br/>T001-T006<br/>6/6 checked in tasks.md<br/>(Phase-1 reconciliation IN FLIGHT<br/>to confirm this reading is real)"]
+    P2["Phase 2: Foundational<br/>T007-T014<br/>0/8 checked in tasks.md<br/>YET independently confirmed<br/>COMMITTED + GO (b72361b)<br/>-- a real checkbox/reality gap<br/>(Phase-2 reconciliation IN FLIGHT)"]
+    P3RED["Phase 3 (US1) RED tests<br/>T015-T026: all 12 landed<br/>+ independently verified"]
+    P3IMPL["Phase 3 (US1) implementation<br/>T028/T034/T036/T038/T039/T041/T046: GO<br/>T029/T030/T031/T032: applied + committed today<br/>T043: implemented, review in flight"]
+    P3REM["Phase 3 (US1) remaining<br/>T033/T035/T037/T040/T042/T044/T045/<br/>T047/T048/T049: not started"]
+    P4TO11["Phases 4-11 (US2..US8 + Polish)<br/>NOT STARTED<br/>127 of 195 total plan tasks"]
+
+    P1 -.honest uncertainty.-> P2
+    P2 --> P3RED --> P3IMPL --> P3REM --> P4TO11
+
+    style P1 fill:#ffd,stroke:#333
+    style P2 fill:#fdd,stroke:#333
+    style P3RED fill:#dfd,stroke:#333
+    style P3IMPL fill:#ffd,stroke:#333
+    style P3REM fill:#eee,stroke:#333
+    style P4TO11 fill:#eee,stroke:#333
+```
+
+### 11.9 Constitution anchors newly exercised
+
+Every anchor already quoted in Section 7 continued to apply throughout today's own
+work (§11.4.6, §11.4.50, §11.4.58/§11.4.94/§11.4.230(C), §11.4.102/§11.4.115(F),
+§11.4.134, §11.4.147/ATM-858 D1, §11.4.201, §11.4.209/§11.4.211) — this subsection
+records only the anchors this revision's own new material exercises concretely for
+the first time in this document.
+
+**§11.4.197 — Research / kicked-off-work completion mandate.** `ATM-1055` (Section
+11.2's own timeline, commit `572dd6c1c34`, `19:05`) is a direct instance: a genuine bug discovered as a *side effect* of
+unrelated hand-verification work was filed as its own tracked item rather than fixed
+inline and forgotten, or silently left unrecorded — "loss of requirements, failure to
+incorporate them is FORBIDDEN," per the anchor's own operative text.
+
+**§11.4.206 — Shared single-source-of-truth: exactly ONE writer.** `BG-20260928-1956`'s
+own fan-out-then-serialize shape (Section 11.5, Figure 11.8.1) is a direct, textbook
+application: four independent research streams produced data concurrently with zero
+write contention, and exactly one serialized pass performed every write to the shared
+`workable_items.db` — never a second concurrent writer.
+
+**§11.4.226 — Evidence-class-at-closure.** `T020`'s own bug (Section 11.6) is a
+precise, concrete instance of this anchor's core failure mode: a runtime-layer claim
+("an item-less dispatch is rejected") verdicted `HOLDS` on artifact-layer evidence
+alone (a file's mere existence on disk) — exactly the class of defect this anchor
+exists to make structurally visible rather than silently trusted.
+
+**§11.4.245 — Oracle-problem-first test authoring.** `T023`'s own mutation-kill proof
+(Section 11.6) directly demonstrates this anchor's own operative distinction: an
+assertion is only a genuine test if it can be shown to disagree with a deliberately
+broken implementation, not merely agree with whatever the current implementation
+outputs — proven here by literally breaking the tool on purpose, confirming exactly
+one finding fired, and restoring it.
+
+### 11.10 Current honest status and what remains
+
+Stated plainly, continuing exactly the discipline Section 10.7 already establishes:
+**SpecKit-004 is still not complete.** Relative to Section 10.7's own accounting:
+
+- `T029`, `T030`, `T031`, `T032` — all four of Revision 2's `[SERIAL]` draft-only
+  wiring tasks — have moved to **landed and committed**.
+- `T043`'s own independent review remains **in flight**, with no confirmed verdict
+  recorded as of this writing (unchanged from Section 10.7's own report).
+- `T033`, `T035`, `T037`, `T040`, `T042`, `T044`, `T045`, `T047`, `T048`, `T049` — the
+  remainder of Phase 3 (US1) — remain **not started**, unchanged from Section 10.7.
+- Phases 4 through 11 (US2 through US8 plus the final Polish/Verification phase)
+  remain **not started at all**, unchanged from Section 10.7 — still **127 of the
+  plan's 195 tasks** untouched.
+- The Phase 1 / Phase 2 checkbox-reconciliation finding this revision's own Section
+  11.3 documents is, as of this writing, **genuinely open** — found, not resolved.
+
+This is repeated here, in this revision's own closing section, for the identical
+reason Section 10.7 gives for repeating it there: this project's own §11.4.126
+governance explicitly forbids letting a status report's tone imply more completion
+than its underlying evidence supports, and a reader arriving at this section directly
+deserves the same honest floor the rest of this document holds itself to.
+
+### 11.11 Verification methodology for this revision
+
+This revision was produced by the same discipline Sections 9 and 10.8 already
+establish, applied to today's own delta: direct `git log`/`git show --stat` reads of
+both repositories (diffstat figures independently re-run, never taken from a commit
+message's own prose alone); a direct, read-only `sqlite3` query of the live
+`docs/workable_items.db` for `ATM-1097`'s own full tracked description and the DB's
+own item count; a direct `grep -c` of the live `specs/004-fast-dev-cycles/tasks.md`
+for the real, current checkbox counts; a direct `git merge-base --is-ancestor` check
+(run fresh by this revision's own author, not trusted from Section 10.3's own prior
+citation) to independently re-confirm the Foundational batch's own committed state;
+and a direct read of the agent registry's own tail to establish, honestly, that the
+two Phase 1/Phase 2 reconciliation subagents this section documents had **not**
+produced a `complete` event as of the moment this investigation concluded. This
+revision's own author did **not** independently re-run the fastcycle test suite, the
+full `workable-items validate` pass, nor any other write-adjacent operation against
+the live, shared tree — for the identical §12.6/§12.8/§12.12 host-safety reason
+Sections 9 and 10.8 already give: two read-only reconciliation subagents and this
+document's own investigation were genuinely concurrent against overlapping shared
+state (the tracker database, the task file, the constitution submodule) at authoring
+time, and an additional heavy or write-adjacent operation launched from this revision
+would have been an avoidable perturbation of exactly the shared evidence those other,
+independently-dispatched agents' own verification depends on.
+
+**One figure this revision could not independently confirm and does not repeat as
+settled fact**: whether `T016`/`T017`'s two control-needle-proven assertions have
+themselves been re-run and observed to flip `PASS` following `T030`'s landing
+(Section 11.6's own closing note; Section 11.7's own "figure this document's author
+could NOT independently confirm" entry). Per §11.4.6, this is recorded as an owed,
+tracked follow-up rather than assumed complete merely because its precondition (`T030`
+landing) has itself since occurred.
+
+**The reconciliation this section's own subject describes was, by design, still
+unresolved at the moment this section was completed.** This document does not, and
+per its own governing discipline cannot, state whether the Phase 1 and Phase 2
+checkbox reconciliations concluded that the checkboxes were already correct, required
+correction, or surfaced some further finding neither this revision's own author nor
+its dispatching conductor anticipated. A future revision, once those two subagents'
+own real, independently-verified completion events exist, is the correct and only
+honest place to report that outcome.
