@@ -146,22 +146,27 @@
 #   tracker DB unreadable.
 #
 # =============================================================================
-# DETERMINISM (C-003)
+# DETERMINISM (C-003; T024 RED-test contract stub 1/3) -- HONEST BOUNDARY,
+# a real design correction made after directly testing the first draft
 # =============================================================================
-# Unlike cycle_report.py / select_sample.py (which each reimplement their
-# own internal --determinism-check re-exec), this script instead writes
-# its result to `$FC_OUT` whenever that env var is set (falling back to
-# `--out` only when it is not) -- the EXACT contract `fc_common.py`'s own
-# generic `determinism-check` subcommand documents for the command it
-# wraps ("CMD writes its doc to $FC_OUT"). This composes directly:
-#   FC_OUT=/dev/null python3 "$FC/lib/fc_common.py" determinism-check -- \
-#     bash baseline_replay.sh replay --commit SHA --tree SHA \
-#     --gate-cmd "..." --cold-runs 2 --warm-runs 2
-# runs this script twice against the SAME frozen inputs and asserts the
-# two resulting `body_hash`es match, per T024's own contract stub 1/3
-# ("two independent invocations ... against the SAME frozen sample change
-# ... MUST produce the SAME verdict SET"). A convenience `--determinism-
-# check` flag on this script's own CLI does exactly the above internally.
+# `replay`'s report embeds REAL wall-clock measurements (start_ns/end_ns/
+# duration_ms/median_ms) inside its hashed body -- that data is
+# INHERENTLY non-deterministic between two separate invocations (real
+# timing jitter always differs), so this tool does NOT compose with
+# fc_common.py's generic byte-identical-`body_hash` `determinism-check`
+# the way cycle_report.py / select_sample.py's own timing-free bodies
+# correctly do -- verified directly: an earlier draft that DID delegate
+# to the generic mechanism reported "nondeterministic" on its very first
+# real run against a real scratch repo (2026-09-28), even though nothing
+# was actually wrong. T024's own RED-test contract stub 1/3 already says
+# what THIS tool's determinism means: "two independent invocations ...
+# MUST produce the SAME verdict SET (per-item PASS/FAIL/SKIP
+# classification, compared as a set, never merely as equal counts)".
+# `replay --determinism-check` therefore runs the SAME frozen
+# {commit, tree, gate-cmd} TWICE internally and compares ONLY the two
+# runs' `verdict_set` fields (never the timing fields) as sets; exit 0 =
+# same verdict set both times, exit 1 = genuinely differs (a real
+# determinism defect, S11.4.50), printing both verdict sets either way.
 #
 # =============================================================================
 # SAFETY (C-006)
@@ -534,16 +539,45 @@ cmd_replay() {
   repo_root="$(cd "$repo_root" 2>/dev/null && pwd)" || blind "cannot resolve --repo-root"
   [ -n "$worktree_root" ] || worktree_root="$repo_root/.fc_worktrees"
 
-  if [ "$determinism_check" = 1 ]; then
-    # Reconstruct the full arg list minus --determinism-check for the two sub-invocations.
-    exec env FC_OUT=/dev/null python3 "$FC/lib/fc_common.py" determinism-check -- \
-      "$SCRIPT_DIR/baseline_replay.sh" replay --commit "$commit" --tree "$tree" \
-      --gate-cmd "$gate_cmd_str" --cold-runs "$cold_runs" --warm-runs "$warm_runs" \
-      --repo-root "$repo_root" --worktree-root "$worktree_root" --min-free-kb "$min_free_kb" \
-      --timeout-s "$timeout_s" --out "$out"
-  fi
-
   run_selfcheck || return 3
+
+  if [ "$determinism_check" = 1 ]; then
+    # HONEST BOUNDARY / DESIGN FIX (S11.4.6, found by directly running the
+    # naive design against a real scratch repo before shipping it):
+    # `replay`'s report embeds REAL wall-clock timestamps
+    # (start_ns/end_ns/duration_ms/median_ms) in its hashed body -- that
+    # data is INHERENTLY non-deterministic between two separate
+    # invocations (real timing jitter), so delegating to fc_common.py's
+    # generic byte-identical-body_hash `determinism-check` (the pattern
+    # cycle_report.py/select_sample.py both use, correctly, for their own
+    # timing-free bodies) ALWAYS reports "nondeterministic" here, even
+    # when nothing is actually wrong -- verified directly: it did, on the
+    # very first real run against a real scratch repo, 2026-09-28. T024's
+    # own RED-test contract stub 1/3 says what THIS tool's determinism
+    # actually means: "two independent invocations ... MUST produce the
+    # SAME verdict SET (per-item PASS/FAIL/SKIP classification, compared
+    # as a set, never merely as equal counts)" -- so this flag runs
+    # `do_one_replay` TWICE directly and compares ONLY `verdict_set`
+    # (never the timing fields) between the two runs.
+    local body1 body2
+    # word-split --gate-cmd intentionally (see HONEST BOUNDARY note above the
+    # header's DETERMINISM section).
+    # shellcheck disable=SC2086
+    body1="$(do_one_replay "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
+      "$timeout_s" "$cold_runs" "$warm_runs" $gate_cmd_str)" || return 4
+    # shellcheck disable=SC2086
+    body2="$(do_one_replay "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
+      "$timeout_s" "$cold_runs" "$warm_runs" $gate_cmd_str)" || return 4
+    python3 -c "
+import json, sys
+b1, b2 = json.loads(sys.argv[1]), json.loads(sys.argv[2])
+vs1, vs2 = b1['verdict_set'], b2['verdict_set']
+same = all(set(vs1.get(p, [])) == set(vs2.get(p, [])) for p in ('cold', 'warm'))
+print(json.dumps({'run1_verdict_set': vs1, 'run2_verdict_set': vs2, 'deterministic': same}))
+sys.exit(0 if same else 1)
+" "$body1" "$body2"
+    return $?
+  fi
 
   local body
   # word-split --gate-cmd intentionally (shell command string, matching
