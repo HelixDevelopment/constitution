@@ -201,7 +201,7 @@ EOF2
     --repo "$repo" \
     >"$WORK/${fx}.stdout" 2>"$WORK/${fx}.stderr"
   rc=$?
-  local exp_exit exp_det exp_members exp_skipped exp_fbr
+  local exp_exit exp_det exp_members exp_skipped
   exp_exit=$(json_field "$exp" expected_exit_code)
   exp_det=$(json_field "$exp" expected_determinable)
   exp_members=$(python3 -c 'import json,sys; print(sorted(json.load(open(sys.argv[1]))["expected_members"]))' "$exp")
@@ -247,10 +247,19 @@ assert_fixed_fixture as_bad_undeclared_read
 assert_fixed_fixture as_bad_stale_map
 assert_fixed_fixture as_negctrl_docs_only
 assert_fixed_fixture as_selfchange
-# as_determinism exercises the "commit" head form again but is checked as
-# a two-run equality below, not a single fixed-fixture match.
-# One fixture is run with head=WORKTREE to prove that form is real too.
-assert_fixed_fixture as_concurrent
+# as_determinism and as_concurrent both drive the tool TWICE and check a
+# relation between the two runs (equality / correct attribution), not a
+# single fixed-fixture match against one expected.json shape -- each gets
+# its own dedicated assert_* function below (real bug caught authoring
+# this file, SS11.4.201(7)(a)/SS11.4.273: an earlier draft routed
+# as_concurrent through assert_fixed_fixture, which reads a single
+# top-level "changed_paths" key -- as_concurrent's fixture instead has
+# TWO independent run_1_changed_paths/run_2_changed_paths keys because it
+# is a two-run relation fixture like metamorphic/determinism, not a
+# single-run golden fixture; routing it through the wrong helper raised a
+# Python KeyError instead of producing a real per-fixture "NOT ok" --
+# fixed by giving it its own dedicated assert_concurrent function,
+# mirroring assert_metamorphic/assert_determinism's already-correct shape).
 
 # --- (3) metamorphic: adding an unrelated changed path never shrinks the
 #     selected set -- drives the REAL tool twice and checks a RELATION,
@@ -382,6 +391,56 @@ EOF2
   fi
 }
 assert_worktree_head_form
+
+# --- (AS-014) concurrent: two DIFFERENT changes must never have their
+#     member sets swapped -- drives the REAL tool twice against two
+#     DISTINCT disposable repos and checks each output only selects its
+#     OWN change's gate, per Edge Case "concurrent changes" ---
+assert_concurrent() {
+  local exp="$FIXDIR/as_concurrent/expected.json"
+  local map_file="$SHARED/$(json_field "$exp" map_file)"
+  local changed_1 changed_2 base1 head1 repo1 base2 head2 repo2
+  changed_1=$(python3 -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1]))["run_1_changed_paths"]))' "$exp")
+  changed_2=$(python3 -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1]))["run_2_changed_paths"]))' "$exp")
+  read -r base1 head1 repo1 <<EOF2
+$(build_repo "$changed_1" commit)
+EOF2
+  read -r base2 head2 repo2 <<EOF2
+$(build_repo "$changed_2" commit)
+EOF2
+  local out1="$WORK/concurrent_1.json" out2="$WORK/concurrent_2.json"
+  python3 "$AFFECTED_SET" --config "$ROOT/config/fastcycle/fastcycle.yaml" \
+    --base "$base1" --head "$head1" --map "$map_file" --layer all \
+    --out "$out1" --repo "$repo1" >/dev/null 2>"$WORK/concurrent_1.stderr"
+  local rc1=$?
+  python3 "$AFFECTED_SET" --config "$ROOT/config/fastcycle/fastcycle.yaml" \
+    --base "$base2" --head "$head2" --map "$map_file" --layer all \
+    --out "$out2" --repo "$repo2" >/dev/null 2>"$WORK/concurrent_2.stderr"
+  local rc2=$?
+  local exp1 exp2
+  exp1=$(python3 -c 'import json,sys; print(sorted(json.load(open(sys.argv[1]))["expected_run_1_members"]))' "$exp")
+  exp2=$(python3 -c 'import json,sys; print(sorted(json.load(open(sys.argv[1]))["expected_run_2_members"]))' "$exp")
+  if [ "$rc1" -eq 0 ] && [ "$rc2" -eq 0 ] && [ -f "$out1" ] && [ -f "$out2" ]; then
+    local m1 m2
+    m1=$(python3 -c 'import json,sys; print(sorted(json.load(open(sys.argv[1]))["members"]))' "$out1")
+    m2=$(python3 -c 'import json,sys; print(sorted(json.load(open(sys.argv[1]))["members"]))' "$out2")
+    if [ "$m1" = "$exp1" ] && [ "$m2" = "$exp2" ] && [ "$m1" != "$m2" ]; then
+      echo "ok as_concurrent: two independently-processed changes each"
+      echo "   correctly select ONLY their own gate (run_1=$m1 run_2=$m2)"
+      echo "   -- verdicts/members were never swapped between them"
+    else
+      echo "NOT ok as_concurrent: run_1 members=$m1 (want $exp1),"
+      echo "     run_2 members=$m2 (want $exp2)"
+      failx
+    fi
+  else
+    echo "NOT ok as_concurrent: one or both real invocations did not"
+    echo "     succeed (rc1=$rc1 rc2=$rc2) -- current reason: $AFFECTED_SET"
+    echo "     does not exist yet"
+    failx
+  fi
+}
+assert_concurrent
 
 # --- paired mutation self-check (contract's own "Paired mutation" row):
 #     if AS-010 were mutated to treat unmapped paths as unaffected instead

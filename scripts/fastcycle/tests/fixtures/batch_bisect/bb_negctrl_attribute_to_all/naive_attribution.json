@@ -1,0 +1,4 @@
+{
+  "batch_verdict": "FAIL",
+  "per_change": {"chg-A": "FAIL", "chg-B": "FAIL", "chg-C": "FAIL"}
+}

@@ -1,0 +1,5 @@
+{
+  "batch_verdict": "FAIL",
+  "per_change": {"chg-A": "PASS", "chg-B": "PASS", "chg-C": "FAIL"},
+  "culprits": ["chg-C"]
+}

@@ -1,0 +1,7 @@
+{
+  "individual_batches": [
+    {"batch_id": "chg-A-alone", "changes": [{"change_id": "chg-A", "target_file": "widget_a.sh", "patch": "change_a_good.sh"}]},
+    {"batch_id": "chg-B-alone", "changes": [{"change_id": "chg-B", "target_file": "widget_b.sh", "patch": "change_b_good.sh"}]},
+    {"batch_id": "chg-C-alone", "changes": [{"change_id": "chg-C", "target_file": "widget_c.sh", "patch": "change_c_bad.sh"}]}
+  ]
+}

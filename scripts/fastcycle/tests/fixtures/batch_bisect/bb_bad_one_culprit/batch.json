@@ -1,0 +1,8 @@
+{
+  "batch_id": "bb_bad_one_culprit",
+  "changes": [
+    {"change_id": "chg-A", "target_file": "widget_a.sh", "patch": "change_a_good.sh"},
+    {"change_id": "chg-B", "target_file": "widget_b.sh", "patch": "change_b_good.sh"},
+    {"change_id": "chg-C", "target_file": "widget_c.sh", "patch": "change_c_bad.sh"}
+  ]
+}
