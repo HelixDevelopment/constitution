@@ -1,0 +1,3 @@
+inputs/c_irrelevant.txt sha256=967f2f7b65a683f1a00f0278132d400a5f70ed809d3e20d46638bf5427e80232
+inputs/c_irrelevant_changed.txt sha256=1ff22975f9141545c204a5c4d1835858fce45264d913638aff3057c0ba224334
+Neither path ever appears in put_envelope.json/get_envelope.json's observed_inputs -- this file documents that the two really differ on disk (a real, measured content change) so the HIT expectation above is proven against a genuine 'irrelevant file changed' fact, not an assumed one.

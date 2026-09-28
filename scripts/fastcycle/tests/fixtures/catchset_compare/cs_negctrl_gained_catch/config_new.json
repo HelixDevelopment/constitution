@@ -1,0 +1,8 @@
+{
+  "config_id": "cs_negctrl_gained_catch.new",
+  "gates": [
+    {"id": "g_marker", "script": "../_shared/gates/gate_marker.sh"},
+    {"id": "g_noop", "script": "../_shared/gates/gate_noop.sh"},
+    {"id": "g_extra", "script": "../_shared/gates/gate_extra.sh"}
+  ]
+}

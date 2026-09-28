@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 4
-**Last modified:** 2026-08-26T16:56:28Z
+**Revision:** 5
+**Last modified:** 2026-09-28T18:09:28Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -649,4 +649,47 @@ missing.
 - **OWED-GATE-095** — `CM-WAIVER-ROSTERED-EXPIRY-TRACKED`
   - **Must assert:** asserts every active waiver resolves to a genuinely rostered non-producer authoriser identity, a future unelapsed expiry and a named stable-id tracked item, with any one of the three missing invalidating the waiver and reverting its gate to blocking
   - **Blocked on:** no authoriser roster and no waiver store exist in-repo, and the consumer binds both as DATA per 11.4.35
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+
+### §11.4.275 (registered 2026-09-28 — the 10 recommended gates the anchor's own landing left named-but-undeferred, discovered by CM-GATE-LEDGER-RATCHET going 403→412 with zero rows added to `gate_ledger_deferrals.tsv` for the new names)
+
+- **OWED-GATE-096** — `CM-CODE-INDEX-AGENT-ACCESSIBLE`
+  - **Must assert:** asserts every indexed space (structural CodeGraph + semantic Lumen + any future code index) answers an unforgeable challenge issued from a genuinely DISPATCHED subagent, per agent, and that an enabled-but-undeclared server (no resolvable definition where the agent/subagent runs) FAILs rather than reading as configured
+  - **Blocked on:** no per-agent/per-subagent accessibility-challenge harness exists in-repo today (§11.4.275(A), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-097** — `CM-CODE-INDEX-COMPLETE-BEFORE-READY`
+  - **Must assert:** asserts an index is called ready only when its pending backlog is zero, its state reports complete, its file count is within the consumer-declared tolerance of the accepted expected count, and its required schema indexes exist, with every count and every empty result control-needled per §11.4.273
+  - **Blocked on:** no readiness-verdict harness reads the index's pending/state/count/schema fields today (§11.4.275(C), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-098** — `CM-LUMEN-MODEL-PROVEN`
+  - **Must assert:** asserts the semantic index's embedding model is provisioned rootless (§11.4.161) and proven by a real embed call returning the declared dimensionality — a model listing alone is refused as insufficient evidence
+  - **Blocked on:** no embed-call proof harness exists in-repo today (§11.4.275(B), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-099** — `CM-LUMEN-SCOPED-FRESH`
+  - **Must assert:** asserts the semantic index's scope is GENERATED from the same class source as the structural CodeGraph scope (§11.4.78(7)–(8), `scripts/lumen/gen_lumenignore.py`) so third-party and secret classes are excluded identically, and that health = files AND chunks non-zero + a known-symbol search hit + a negative control + freshness within the consumer-declared TTL
+  - **Blocked on:** no scope-provenance-plus-health harness exists in-repo today (§11.4.275(B), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-100** — `CM-CODE-INDEX-BENCH`
+  - **Must assert:** asserts a fixed golden-answer query set is run N≥3 times against the index route AND a grep+read baseline with an identical canonical result hash (§11.4.50), token reduction computed ONLY over queries BOTH routes answered correctly, wrong answers reported separately BY QUERY ID and never averaged away, and thresholds sourced from consumer DATA never constitutional literals — the sanctioned `constitution/scripts/lumen/lumen_verify.sh` harness already exists and has been run live (see the §11.4.275 EXTENSION, 2026-09-25); only THIS recommended gate wiring it into the pre-build/pre-commit seam remains owed
+  - **Blocked on:** the harness is landed (`constitution/scripts/lumen/lumen_verify.sh` + `constitution/scripts/lumen/tests/test_lumen_verify.sh`); the gate-code that WIRES its exit status into a pre-build/pre-commit CM-* check is the sole remaining piece (§11.4.275(D), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-101** — `CM-CODEGRAPH-SCOPE-PROOF`
+  - **Must assert:** asserts the structural CodeGraph index's effective scope is enumerated through the runner's own discovery code and the resulting count is within tolerance of the accepted expected count, with zero third-party files, zero secret-class files, and at least one file per own-org root — every count control-needled per §11.4.273
+  - **Blocked on:** no scope-enumeration-proof harness exists in-repo today (§11.4.78(7) cross-referenced by §11.4.275, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-102** — `CM-CODEGRAPH-UPGRADE-PROBE-GATED`
+  - **Must assert:** asserts a CodeGraph runner upgrade is gated on a compatibility probe (loader config filename/keys, bulk-window hazard probe, runner-patch applicability) and refuses loudly, keeping the prior version, when the patched runner cannot be re-proven
+  - **Blocked on:** no upgrade-compatibility-probe harness exists in-repo today (§11.4.80(4) cross-referenced by §11.4.275, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-103** — `CM-CODEGRAPH-WRITER-EXCLUSIVE`
+  - **Must assert:** asserts every init/index/sync write goes through the single sanctioned writer entry, which refuses while any live process targets the same root (real cmdline per §11.4.196(D), regardless of lock age — never age-based lock deletion)
+  - **Blocked on:** no single-writer-exclusivity proof harness exists in-repo today (§11.4.80(5) cross-referenced by §11.4.275(G), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-104** — `CM-CODEGRAPH-BULK-BY-BACKLOG`
+  - **Must assert:** asserts a bulk re-index/re-sync classification is derived from PENDING backlog (unresolved-reference count, files still to parse), never from rows already stored — the exact launcher defect the §11.4.275 forensic anchor clause (5) captured (tens of millions of references bulk-run foreground and unsupervised because `sync` was classified by stored rows)
+  - **Blocked on:** no backlog-classification proof harness exists in-repo today (§11.4.275 forensic anchor clause (5), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-105** — `CM-CODEGRAPH-STALL-WATCHDOG`
+  - **Must assert:** asserts a long-running CodeGraph bulk operation emits a monotonic progress signal and a watchdog flags HUNG on no-advance past a declared no-progress budget — `kill -0`/process-alive is a necessary-not-sufficient pre-filter, never sufficient proof of progress (§11.4.201(6)–(7), §11.4.232(C))
+  - **Blocked on:** no progress-heartbeat-plus-watchdog harness exists in-repo today (§11.4.232(C) cross-referenced by §11.4.275, gate-code declared a separate work item)
   - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.

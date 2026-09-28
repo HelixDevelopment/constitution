@@ -1,0 +1,7 @@
+{
+  "config_id": "cs_bad_removal_no_transfer.survivors",
+  "gates": [
+    {"id": "g_marker", "script": "../_shared/gates/gate_marker.sh"},
+    {"id": "g_noop", "script": "../_shared/gates/gate_noop.sh"}
+  ]
+}

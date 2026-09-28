@@ -1,0 +1,6 @@
+{
+  "config_id": "cs_bad_dropped_gate.new",
+  "gates": [
+    {"id": "g_noop", "script": "../_shared/gates/gate_noop.sh"}
+  ]
+}

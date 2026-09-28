@@ -280,13 +280,21 @@ RC=$(run_subprocess "$TMP/case_notsv.sh")
 NOTSV_OUT="$(cat "$TMP/sub.out")"
 NOTSV_ERR="$(cat "$TMP/sub.err")"
 chk "timing enabled with FC_TIMER_TSV unset: fc_timer_start returns nonzero (2), never silently succeeds" "$([ "$NOTSV_OUT" = "RC_AFTER_START=2" ] && echo 1 || echo 0)"
-chk "the FC_TIMER_TSV-unset failure names the missing variable on stderr (never a bare/guessed failure)" "$(printf '%s' "$NOTSV_ERR" | grep -qc 'FC_TIMER_TSV' && echo 1 || echo 0)"
+# here-string, not a pipe: this runs under `set -euo pipefail` (line 256) and a
+# `printf | grep -qc` pipeline here would fall into the SIGPIPE×pipefail
+# false-negative class (grep matches early, printf gets SIGPIPE, pipefail
+# promotes 141 over grep's real 0) whenever NOTSV_ERR is provably-not-single-
+# line -- CM-SIGPIPE-PIPEFAIL-CLASS correctly reports this shape UNDECIDABLE
+# rather than assuming immunity. A here-string has no separate writer process,
+# so the class cannot occur here at all.
+chk "the FC_TIMER_TSV-unset failure names the missing variable on stderr (never a bare/guessed failure)" "$(grep -qc 'FC_TIMER_TSV' <<< "$NOTSV_ERR" && echo 1 || echo 0)"
 
 # --- direct execution (not sourced) is refused with a clear message and exit 1 ---
 DIRECT_OUT="$(bash "$FC_TIMER" 2>&1)"
 DIRECT_RC=$?
 chk "executing fc_timer.sh directly (not sourcing it) exits 1" "$([ "$DIRECT_RC" -eq 1 ] && echo 1 || echo 0)"
-chk "...and prints a clear 'meant to be sourced' usage message" "$(printf '%s' "$DIRECT_OUT" | grep -qc "meant to be 'source'd" && echo 1 || echo 0)"
+# here-string per the CM-SIGPIPE-PIPEFAIL-CLASS fix (see NOTSV_ERR chk above).
+chk "...and prints a clear 'meant to be sourced' usage message" "$(grep -qc "meant to be 'source'd" <<< "$DIRECT_OUT" && echo 1 || echo 0)"
 
 # --- idempotent double-sourcing: sourcing twice does not duplicate/corrupt behaviour ---
 cat > "$TMP/case_double_source.sh" <<EOF

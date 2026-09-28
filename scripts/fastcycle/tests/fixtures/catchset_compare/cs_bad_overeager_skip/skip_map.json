@@ -1,0 +1,9 @@
+{
+  "skip_map": [
+    {
+      "defect_id": "D1",
+      "gate_id": "g_marker",
+      "skip_reason": "affected-set: g_marker's observed-I/O map (simulated) does not list widget.sh as an input, so the affected-set emitter (wrongly) determined g_marker was not affected by this change and skipped it -- NOT the DEC-08 'affected-set undeterminable' fallback, which would instead run the full suite; this is the overeager-skip bug itself"
+    }
+  ]
+}

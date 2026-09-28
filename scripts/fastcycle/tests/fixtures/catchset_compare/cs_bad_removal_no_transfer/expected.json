@@ -1,0 +1,15 @@
+{
+  "schema": "catchset/v1",
+  "fixture": "cs_bad_removal_no_transfer",
+  "kind": "golden-bad",
+  "contract_clause": "CS-005; contracts/catch-set-comparison-harness.md RED fixtures row 5",
+  "tool_invocation": "gate_audit.py transfer-proof",
+  "removed_gate_id": "g_extra",
+  "removed_gate_paired_mutation_defect_id": "D_extra",
+  "surviving_gate_ids": ["g_marker", "g_noop"],
+  "surviving_verdicts_against_removed_gates_mutation": {"g_marker": "PASS", "g_noop": "PASS"},
+  "can_fail_status": "NOT_PROVEN",
+  "expected_exit_code": 1,
+  "transfer_record_written": false,
+  "note": "g_extra is the ONE gate that detects D_extra (removing EXTRA_MARKER). Neither surviving gate (g_marker checks SAFE_MARKER; g_noop always passes) FAILs against D_extra's mutated copy -- so no surviving gate has `can_fail=PROVEN` for D_extra. Per CS-005, transfer-proof MUST refuse (exit 1) and write NO MutationTransferRecord."
+}
