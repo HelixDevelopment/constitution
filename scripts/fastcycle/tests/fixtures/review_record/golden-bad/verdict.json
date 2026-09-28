@@ -8,5 +8,6 @@
       "severity": "BLOCKING"
     }
   ],
-  "round": 1
+  "round": 1,
+  "verdict": "NO-GO"
 }

@@ -15,21 +15,34 @@ Classifier (this tool's decision rule -- pinned by
     constitution/scripts/fastcycle/tests/test_review_record_red.sh /
     fixtures/review_record/{golden-good,golden-bad,negative-control}; any
     classifier reaching the same per-fixture verdict satisfies the contract):
-    1. finding carries a non-empty "rule" field (a named lint/style rule,
-       e.g. verdict.json {"rule": "SC2086"})
-         -> "mechanical" (findable by the machine pre-check pack, DEC-33)
-    2. else finding's (file, line) matches an entry in precheck.json's
+    1. finding's (file, line) -- both genuinely present and non-null on the
+       finding AND on a marker, line numbers compared as integers so "87"
+       and 87 are the same location -- matches an entry in precheck.json's
        "already-fixed-markers" check evidence.markers
          -> "false-positive" (DEC-33 "state-temporal misalignment": the
             code was already fixed by the time the reviewer filed the
             comment)
+    2. else finding carries a non-empty "rule" field (a named lint/style
+       rule, e.g. verdict.json {"rule": "SC2086"})
+         -> "mechanical" (findable by the machine pre-check pack, DEC-33)
     3. else
-         -> "judgment" (a substantive design/architecture concern; no lint
-            rule, no already-fixed-markers match)
-   Rule (1) is checked before markers (2): none of the three fixtures needs
-   both to disambiguate, and a mechanical (lint-findable) issue is
-   classified mechanical even if its line also happens to appear in an
-   already-fixed-markers entry.
+         -> "judgment" (a substantive design/architecture concern; no
+            already-fixed-markers match, no lint rule)
+   false-positive (1) is checked BEFORE the rule/mechanical check (2) --
+   reviewed and deliberately reversed from an earlier revision that checked
+   the rule first. Reasoning: "false-positive" answers a logically PRIOR
+   question ("is this finding still about the code as it exists?") than
+   "mechanical"/"judgment" answer ("if the finding is real, what kind of
+   real finding is it?"). A finding that names a lint rule AND matches an
+   already-fixed marker is a comment about code that no longer exists in
+   that form -- it is stale noise, not a genuine machine-findable defect,
+   and counting it "mechanical" would inflate RB-007's mechanical-share
+   metric with a finding that was never a real, present-tense issue in the
+   first place. None of the three original fixtures needs both signals to
+   disambiguate (each triggers exactly one), so this reordering changes no
+   existing fixture's classification -- it only changes the (currently
+   untested) case where both a rule name and a marker match are present on
+   the same finding.
 
 Usage:   review_record.py record --batch B --round N --verdict-file V
              --tier opus --effort xhigh --out O
@@ -39,30 +52,54 @@ Usage:   review_record.py record --batch B --round N --verdict-file V
              [--substrate-evidence TEXT]
          review_record.py backfill --input SPEC --out O
 
-Exit:    record : 0 accepted + written (tier/effort match the designated
-                    review tier, constitution 11.4.209 as amended
-                    2026-09-26: Opus xhigh, no Fable, no fallback model);
-                  1 refused (tier/effort mismatch -- nothing written);
-                  2 usage/configuration error (bad args, unreadable or
-                    malformed --batch/--verdict-file/--precheck/--input,
-                    malformed --tokens/--reviewer-mutations JSON, cannot
-                    write --out).
+Exit:    record : 0 accepted + written (tier equals the designated review
+                    tier and effort equals xhigh OR the honest capability-
+                    gap token "?", constitution 11.4.209 as amended
+                    2026-09-26: Opus xhigh, no Fable, no fallback model;
+                    11.4.231(F.2): a dispatch path that cannot report
+                    effort records "?", never a fabricated "xhigh");
+                  1 refused (tier mismatch, or effort neither "xhigh" nor
+                    "?" -- nothing written);
+                  2 usage/configuration error (bad args, --round < 1, a
+                    --verdict-file "round" that disagrees with --round, a
+                    --verdict-file with no "verdict" field or a "verdict"
+                    outside {GO, NO-GO}, unreadable or malformed
+                    --batch/--verdict-file/--precheck/--input, malformed
+                    --tokens/--reviewer-mutations JSON, cannot write
+                    --out).
          backfill: 0 written; 2 usage/configuration error (missing
-                    required --input key, malformed finding, bad verdict,
-                    cannot write --out). There is no tier/effort refusal
-                    path for backfill -- a backfilled row records history,
-                    it does not gate a live review.
+                    required --input key, a "round" < 1, malformed
+                    finding, bad verdict, cannot write --out). There is no
+                    tier/effort refusal path for backfill -- a backfilled
+                    row records history, it does not gate a live review.
          Any other internal error: 4 (BLIND, C-001 row 4 -- no honest
          verdict is possible; never 1, which is reserved for a genuine
          review finding).
 
+Verdict (constitution 11.4.240 producer != verifier; data-model.md #10.1
+        "verdict | GO | NO-GO"): the reviewer's own conclusion, read
+        VERBATIM from --verdict-file's "verdict" field -- a REQUIRED field
+        from the closed set {GO, NO-GO}. This tool NEVER derives a verdict
+        from the findings' severities: a review's overall GO/NO-GO call is
+        the reviewer's to make, not this tool's to infer. `first_round_go`
+        is a SEPARATE, derived correctness flag -- `round == 1 AND
+        verdict == "GO" AND len(findings) == 0` (RB-005 / constitution
+        11.4.134: "a GO is terminal only when it has zero findings of any
+        severity") -- so a recorded "GO" verdict that still carries
+        findings (rb_bad_go_with_nit) is stored faithfully but never counts
+        as a clean first-round GO.
+
 Output (C-002): canonical JSON (UTF-8, sorted keys, no insignificant
-        whitespace, `schema: "review_record/v1"`, `body_hash` = sha256 of
-        the canonical body excluding `run_meta`). See
+        whitespace, `schema: "review-record/v1"` per
+        contracts/review-batch-and-precheck.md "Output schemas", `body_hash`
+        = sha256 of the canonical body excluding `run_meta`). See
         data-model.md #10.1 for the full ReviewVerdictRecord field list;
         this tool additionally emits `source` (`"live"` for `record`,
-        `"backfill"` for `backfill`) and, for `record`, `precheck_used`
-        (bool: whether a readable precheck.json was actually consulted).
+        `"backfill"` for `backfill`), `effort_capability_gap` (bool: true
+        iff `effort == "?"` -- constitution 11.4.231(F.2); a future `gate`
+        command MUST treat this as non-satisfying regardless of `verdict`)
+        and, for `record`, `precheck_used` (bool: whether a readable
+        precheck.json was actually consulted).
 
 Honesty (constitution 11.4.6): no field is ever invented. A `record`
 invocation given no --item/--started-at/--ended-at/--tokens/
@@ -93,7 +130,7 @@ import os
 import sys
 import tempfile
 
-SCHEMA = "review_record/v1"
+SCHEMA = "review-record/v1"  # contracts/review-batch-and-precheck.md "Output schemas" (hyphen, not underscore)
 DESIGNATED_TIER = "opus"
 DESIGNATED_EFFORT = "xhigh"
 # C-002: body_hash covers the canonical doc EXCLUDING run_meta (and body_hash
@@ -142,11 +179,19 @@ def _write_record(body, out_path):
 
 
 def _load_json(path, label):
-    """Returns (doc, None) on success, (None, error-message) on failure. Never raises."""
+    """Returns (doc, None) on success, (None, error-message) on failure. Never raises.
+
+    json.JSONDecodeError is a ValueError subclass; a non-UTF-8 file raises
+    UnicodeDecodeError (also a ValueError subclass) while `open(..., encoding="utf-8")`
+    is being read by json.load. Both are "malformed input file" per this tool's own
+    documented contract (C-001 code 2, "unreadable or malformed"), so both are caught
+    here -- previously only json.JSONDecodeError was caught, so a non-UTF-8 file
+    propagated uncaught to main()'s BLIND (4) handler instead of the documented 2.
+    """
     try:
         with open(path, encoding="utf-8") as fh:
             return json.load(fh), None
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError) as exc:
         return None, "%s: cannot read/parse %s: %s" % (label, path, exc)
 
 
@@ -179,15 +224,44 @@ def already_fixed_markers(precheck_doc):
     return []
 
 
+def _normalize_line(value):
+    """Best-effort int normalisation for a location's line number so "87" (str) and 87
+    (int) compare equal (I1: a finding/marker author may write either shape for the same
+    location). Returns None for anything not genuinely a line number (None, bool -- a
+    bool is an int subclass in Python and must NOT silently normalise to 0/1 --, a
+    non-numeric string, float, etc.). Never raises."""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.lstrip("-").isdigit():
+            return int(stripped)
+    return None
+
+
 def classify_finding(finding, markers):
-    """T-A04 closed class set: mechanical | judgment | false-positive. See module docstring."""
+    """T-A04 closed class set: mechanical | judgment | false-positive. See module docstring
+    for the precedence rationale (false-positive checked BEFORE rule/mechanical)."""
+    file_ = finding.get("file")
+    line_ = _normalize_line(finding.get("line"))
+    # I1: a match requires BOTH file and line genuinely present (non-null, non-empty
+    # file, a real line number) on BOTH sides -- `None == None` must never count as a
+    # location match (that reclassified a location-less BLOCKING architectural finding
+    # down to false-positive against a location-less marker in the pre-fix reviewer
+    # reproduction), and line numbers are compared as normalised ints so "87" and 87
+    # match.
+    if isinstance(file_, str) and file_ and line_ is not None:
+        for marker in markers:
+            marker_file = marker.get("file")
+            marker_line = _normalize_line(marker.get("line"))
+            if (isinstance(marker_file, str) and marker_file and marker_line is not None
+                    and marker_file == file_ and marker_line == line_):
+                return "false-positive"
     rule = finding.get("rule")
     if isinstance(rule, str) and rule.strip():
         return "mechanical"
-    file_, line_ = finding.get("file"), finding.get("line")
-    for marker in markers:
-        if marker.get("file") == file_ and marker.get("line") == line_:
-            return "false-positive"
     return "judgment"
 
 
@@ -211,9 +285,22 @@ def _extract_slice_lines(batch):
 
 
 def cmd_record(a):
-    if a.tier != DESIGNATED_TIER or a.effort != DESIGNATED_EFFORT:
-        print("review_record: refused -- tier/effort must equal the designated review tier "
-              "(%s/%s per constitution 11.4.209 as amended 2026-09-26), got %s/%s"
+    # M1: round integrity is a usage error (2), checked before anything else.
+    if a.round < 1:
+        print("review_record: --round must be >= 1, got %d" % a.round, file=sys.stderr)
+        return 2
+
+    # B2 / constitution 11.4.231(F.2): effort "?" is the honest capability-gap token a
+    # dispatch path records when it cannot report effort at all -- it is ACCEPTED here
+    # (never refused), stored verbatim, and flagged via effort_capability_gap below so a
+    # future `gate`/`report` consumer can correctly treat it as non-satisfying. Only
+    # effort has this exception (data-model.md #10.1's `?` note is specifically about
+    # effort, never tier -- the dispatch mechanism always knows which model answered).
+    effort_capability_gap = (a.effort == "?")
+    if a.tier != DESIGNATED_TIER or (not effort_capability_gap and a.effort != DESIGNATED_EFFORT):
+        print("review_record: refused -- tier must equal the designated review tier (%s) and "
+              "effort must equal %s or the honest capability-gap token '?' "
+              "(constitution 11.4.209 as amended 2026-09-26 / 11.4.231(F.2)), got %s/%s"
               % (DESIGNATED_TIER, DESIGNATED_EFFORT, a.tier, a.effort), file=sys.stderr)
         return 1
 
@@ -237,11 +324,28 @@ def cmd_record(a):
         print("review_record: --verdict-file 'findings' must be a JSON list", file=sys.stderr)
         return 2
 
+    # B1 / constitution 11.4.240 (producer != verifier): `verdict` is the reviewer's OWN
+    # conclusion, REQUIRED in --verdict-file, read verbatim -- this tool never derives it
+    # from findings' severities (a review's GO/NO-GO call belongs to the reviewer, not to
+    # this recorder). A missing or out-of-closed-set value is a malformed --verdict-file,
+    # exit 2 -- not silently invented (constitution 11.4.6).
+    verdict = verdict_doc.get("verdict")
+    if verdict not in ("GO", "NO-GO"):
+        print("review_record: --verdict-file must carry a 'verdict' field of 'GO' or 'NO-GO' "
+              "(the reviewer's own conclusion; never derived from findings), got %r"
+              % (verdict,), file=sys.stderr)
+        return 2
+
+    # M1: a round mismatch between --round and the verdict-file's own 'round' is a hard
+    # usage error (2), not a warning -- RB-005's round-chaining discipline (and
+    # first_round_go below) depends on the round number being correct, and silently
+    # "picking one" over the other is exactly the guess constitution 11.4.6 forbids.
     verdict_round = verdict_doc.get("round")
     if verdict_round is not None and verdict_round != a.round:
-        print("review_record: WARNING: --round %s differs from --verdict-file's own 'round' %s "
-              "(recording the CLI-supplied --round as authoritative)" % (a.round, verdict_round),
-              file=sys.stderr)
+        print("review_record: --round %s does not match --verdict-file's own 'round' %s -- "
+              "refusing rather than silently pick one (constitution 11.4.6)"
+              % (a.round, verdict_round), file=sys.stderr)
+        return 2
 
     precheck_path = a.precheck or os.path.join(os.path.dirname(os.path.abspath(a.batch)), "precheck.json")
     precheck_doc = None
@@ -279,9 +383,11 @@ def cmd_record(a):
         reviewer_mutations = "UNKNOWN"
 
     batch_id = batch.get("batch_id", "UNKNOWN")
-    findings_severities = [f["severity"] for f in findings_out]
-    verdict = "NO-GO" if "BLOCKING" in findings_severities else "GO"
-    first_round_go = (a.round == 1 and verdict == "GO")
+    # B1: first_round_go is a DERIVED correctness flag, never the recorded verdict itself
+    # -- a "GO" that still carries findings of any severity (rb_bad_go_with_nit) is
+    # recorded faithfully but is NOT a clean first-round GO (RB-005 / 11.4.134: "a GO is
+    # terminal only when it has zero findings of any severity").
+    first_round_go = (a.round == 1 and verdict == "GO" and len(findings_out) == 0)
 
     body = {
         "review_id": "REV-%s-%s" % (batch_id, a.round),
@@ -289,6 +395,7 @@ def cmd_record(a):
         "round": a.round,
         "model_tier": a.tier,
         "effort": a.effort,
+        "effort_capability_gap": effort_capability_gap,
         "substrate_evidence": a.substrate_evidence or "cli-flag",
         "verdict": verdict,
         "findings": findings_out,
@@ -335,8 +442,12 @@ def cmd_backfill(a):
         return 2
 
     round_n = spec["round"]
-    if not isinstance(round_n, int):
-        print("review_record: --input 'round' must be an integer, got %r" % (round_n,), file=sys.stderr)
+    # M1, extended here to backfill for consistency: data-model.md #10.1 states the SAME
+    # ReviewVerdictRecord invariant "round int >=1" for a backfilled row as for a live
+    # one; `bool` is an `int` subclass in Python and must not slip through as a round
+    # number.
+    if not isinstance(round_n, int) or isinstance(round_n, bool) or round_n < 1:
+        print("review_record: --input 'round' must be an integer >= 1, got %r" % (round_n,), file=sys.stderr)
         return 2
 
     findings_out = []
@@ -358,12 +469,17 @@ def cmd_backfill(a):
         val = spec.get(key)
         return val if val not in (None, "") else "UNKNOWN"
 
+    effort_val = opt("effort")
     body = {
         "review_id": spec["review_id"],
         "batch_id": spec["batch_id"],
         "round": round_n,
         "model_tier": opt("model_tier"),
-        "effort": opt("effort"),
+        "effort": effort_val,
+        # Schema consistency with cmd_record (B2): computed the same way regardless of
+        # `source`, so a downstream report/gate reads one uniform flag whether the record
+        # is live or backfilled.
+        "effort_capability_gap": (effort_val == "?"),
         "substrate_evidence": opt("substrate_evidence"),
         "verdict": verdict,
         "findings": findings_out,
@@ -375,7 +491,10 @@ def cmd_backfill(a):
         # data-model.md #10.1: "tokens ... UNKNOWN on back-filled rows (source=backfill)" -- always,
         # never a caller-supplied value: a backfilled row never claims a measured token count.
         "tokens": "UNKNOWN",
-        "first_round_go": (round_n == 1 and verdict == "GO"),
+        # B1, applied consistently here too: first_round_go requires zero findings as well
+        # as round==1 and verdict=="GO" (RB-005 / 11.4.134) -- the same corrected formula
+        # as cmd_record, since backfill constructs the identical ReviewVerdictRecord field.
+        "first_round_go": (round_n == 1 and verdict == "GO" and len(findings_out) == 0),
         "reviewer_mutations": spec.get("reviewer_mutations") if isinstance(spec.get("reviewer_mutations"), list) else "UNKNOWN",
         "source": "backfill",
         "source_evidence": spec["source_evidence"],

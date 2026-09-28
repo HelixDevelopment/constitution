@@ -1,0 +1,14 @@
+{
+  "findings": [
+    {
+      "description": "I2 negative-control fixture: a MINOR finding present only so the record has realistic content; not the assertion under test here (that is effort/effort_capability_gap).",
+      "file": "review_record_fixture_unkeffort.sh",
+      "id": "F1",
+      "line": 9,
+      "rule": "SC2154",
+      "severity": "MINOR"
+    }
+  ],
+  "round": 1,
+  "verdict": "NO-GO"
+}

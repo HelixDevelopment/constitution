@@ -83,6 +83,29 @@
 # triple_harness.sh "golden-bad/expected" convention: one non-blank line the
 # tool's output must eventually name).
 #
+# I2 fixtures (contract review-batch-and-precheck.md "RED fixtures" table --
+# added as a T034 fix-pass so the tier/effort refusal path this file's own
+# assertions previously exercised only by hand becomes a PERMANENT regression
+# guard, not a one-off manual check): these three carry no `expected` file --
+# they assert on the record call's exit code and, for the negative control,
+# on specific output fields, not on classification.
+#   fixtures/review_record/rb_bad_wrong_tier/        -- record --tier sonnet
+#                                                        (wrong model tier)
+#                                                        -> exit 1, no file written
+#   fixtures/review_record/rb_bad_low_effort/         -- record --effort high
+#                                                        (below the xhigh floor)
+#                                                        -> exit 1, no file written
+#   fixtures/review_record/rb_negctrl_unknown_effort/ -- record --effort '?'
+#                                                        (the honest capability-
+#                                                        gap token, constitution
+#                                                        11.4.231(F.2)) -> exit 0,
+#                                                        file written, effort=="?",
+#                                                        effort_capability_gap==true
+#                                                        (the false-positive guard:
+#                                                        this MUST NOT be refused
+#                                                        like the two golden-bad
+#                                                        cases above it)
+#
 # T027 tie-in: the GREEN-mode assertion `doc.get("effort") == "xhigh"` below
 # is exactly the check T027's paired mutation "review_record drops `effort`"
 # (T-A04) must flip to FAIL: once T034 exists and this test is GREEN,
@@ -233,6 +256,87 @@ for fx in golden-good golden-bad negative-control; do
   chk "$fx: record.effort == xhigh (T027 mutation target; got '$GOT_EFFORT')" \
     "$([ "$GOT_EFFORT" = "xhigh" ] && echo 1 || echo 0)"
 done
+
+# ---------------------------------------------------------------------------
+# I2: permanent regression guard for the tier/effort refusal path (RB-004 /
+# review-batch-and-precheck.md RED fixtures rb_bad_wrong_tier, rb_bad_low_effort,
+# rb_negctrl_unknown_effort) -- previously exercised only by hand, never pinned
+# in this file.
+# ---------------------------------------------------------------------------
+
+# record_call_te <fixture-dir> <out-file> <tier> <effort>: identical to
+# record_call() above but with the tier/effort under test, not the fixed
+# opus/xhigh pair. Sets $RC to the exit status.
+record_call_te() {
+  timeout -k 2 "$RECORD_TIMEOUT_S" python3 "$TOOL" record \
+    --batch "$1/batch.json" \
+    --round 1 \
+    --verdict-file "$1/verdict.json" \
+    --tier "$3" --effort "$4" \
+    --out "$2" >"$TMP/out" 2>"$TMP/err"
+  RC=$?
+}
+
+# field_of <record-file> <field-name>: prints json.dumps(value) for a top-level
+# field (so a bool prints "true"/"false"), or "" if the file is
+# absent/unreadable/malformed/lacks the field -- never raises, never invents a
+# value (constitution 11.4.6), matching class_of()/effort_of()'s convention.
+field_of() {
+  python3 - "$1" "$2" <<'PY'
+import json, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as fh:
+        doc = json.load(fh)
+except (FileNotFoundError, json.JSONDecodeError, OSError):
+    doc = {}
+if isinstance(doc, dict) and sys.argv[2] in doc:
+    print(json.dumps(doc[sys.argv[2]]))
+else:
+    print("")
+PY
+}
+
+# rb_bad_wrong_tier: sonnet where opus is designated -- record MUST refuse (1)
+# and MUST NOT write --out.
+OUT="$TMP/rb_bad_wrong_tier.record.json"
+rm -f "$OUT"
+record_call_te "$FX/rb_bad_wrong_tier" "$OUT" sonnet xhigh
+info "rb_bad_wrong_tier: ran: python3 $TOOL record --tier sonnet --effort xhigh ... ; rc=$RC stderr='$(cat "$TMP/err" 2>/dev/null)'"
+chk "rb_bad_wrong_tier: record refused (exit 1) for a non-designated model tier" \
+  "$([ "$RC" -eq 1 ] && echo 1 || echo 0)"
+chk "rb_bad_wrong_tier: no record file written on refusal" \
+  "$([ ! -f "$OUT" ] && echo 1 || echo 0)"
+
+# rb_bad_low_effort: "high" where "xhigh" is designated -- record MUST refuse
+# (1) and MUST NOT write --out.
+OUT="$TMP/rb_bad_low_effort.record.json"
+rm -f "$OUT"
+record_call_te "$FX/rb_bad_low_effort" "$OUT" opus high
+info "rb_bad_low_effort: ran: python3 $TOOL record --tier opus --effort high ... ; rc=$RC stderr='$(cat "$TMP/err" 2>/dev/null)'"
+chk "rb_bad_low_effort: record refused (exit 1) for a below-xhigh effort" \
+  "$([ "$RC" -eq 1 ] && echo 1 || echo 0)"
+chk "rb_bad_low_effort: no record file written on refusal" \
+  "$([ ! -f "$OUT" ] && echo 1 || echo 0)"
+
+# rb_negctrl_unknown_effort (negative control, constitution 11.4.231(F.2) /
+# 11.4.201(1) false-positive guard): effort "?" is the HONEST capability-gap
+# token, not a wrong-effort refusal case -- it MUST be ACCEPTED (0), stored
+# verbatim, and flagged as a capability gap, never silently treated like
+# rb_bad_low_effort above it.
+OUT="$TMP/rb_negctrl_unknown_effort.record.json"
+rm -f "$OUT"
+record_call_te "$FX/rb_negctrl_unknown_effort" "$OUT" opus '?'
+info "rb_negctrl_unknown_effort: ran: python3 $TOOL record --tier opus --effort '?' ... ; rc=$RC stderr='$(cat "$TMP/err" 2>/dev/null)'"
+chk "rb_negctrl_unknown_effort: record ACCEPTED (exit 0) for the honest '?' effort token" \
+  "$([ "$RC" -eq 0 ] && echo 1 || echo 0)"
+chk "rb_negctrl_unknown_effort: record file was written ($OUT)" \
+  "$([ -f "$OUT" ] && echo 1 || echo 0)"
+GOT_EFFORT="$(field_of "$OUT" effort)"
+chk "rb_negctrl_unknown_effort: record.effort == \"?\" verbatim (got $GOT_EFFORT)" \
+  "$([ "$GOT_EFFORT" = '"?"' ] && echo 1 || echo 0)"
+GOT_GAP="$(field_of "$OUT" effort_capability_gap)"
+chk "rb_negctrl_unknown_effort: record.effort_capability_gap == true (got '$GOT_GAP')" \
+  "$([ "$GOT_GAP" = "true" ] && echo 1 || echo 0)"
 
 echo "SUMMARY pass=$((N - FAIL)) fail=$FAIL total=$N"
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1

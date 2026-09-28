@@ -1,0 +1,19 @@
+{
+  "batch_id": "RB-T034-UNKEFFORT",
+  "changes": [
+    "sha256:e9e8d6dbd8d7c5cac7c6b4c9a6a19b66fe63c3fdd6ec5d8ad19e4a3d5f9a6a1"
+  ],
+  "related_by": "logic_group:fastcycle-review-record-fixture",
+  "slices": [
+    {
+      "context_pack": {
+        "blast_radius": "single helper function; no callers outside this file (fixture)",
+        "intent": "I2 negative-control fixture: the dispatch path cannot report effort at all -- the harness records the honest capability-gap token '?' (constitution 11.4.231(F.2)) rather than fabricating xhigh.",
+        "sibling_search_ref": "qa-results/fastcycle/us1/green/T034_fixpass/sibling_search_rb_negctrl_unknown_effort.json"
+      },
+      "lines": 6,
+      "slice_id": "S1"
+    }
+  ],
+  "total_changed_lines": 6
+}
