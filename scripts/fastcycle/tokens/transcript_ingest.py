@@ -10,12 +10,20 @@ CREDENTIAL SAFETY (§11.4.10) — READ THIS BEFORE TOUCHING THIS FILE
 Real Claude Code transcripts carry full conversational message CONTENT
 (`message["content"]`) alongside usage/token metadata. This module extracts
 and persists ONLY usage counts, model identifiers, and structural ids
-(session id, agent id, message id, timestamps) — it NEVER reads
+(session id, agent id, message id, timestamps) — it NEVER EXTRACTS
 `message["content"]` (or any nested field under it, e.g. a `tool_use`
-block's `input.description`) into any variable, for any purpose, anywhere
-in this file — not even to hash it, log it, or check its length. Grep this
-file for the literal substring `"content"` before believing that claim; it
-must never appear as a dict-key access on a `message` object.
+block's `input.description`) via a dict-key access, for any purpose,
+anywhere in this file — not even to hash it, log it, or check its length
+(precision note, T038 independent review finding F5, 2026-09-28: ordinary
+JSON decoding of a whole JSONL record necessarily loads its full bytes,
+`content` included, into a Python dict in memory as part of parsing that
+line at all — the guarantee this module makes is that NOTHING is ever
+READ OUT of that parsed structure, via a key access or otherwise, beyond
+the narrow set of fields named above, and nothing beyond that narrow set
+is ever retained past the parse of a single line or reaches this module's
+output). Grep this file for the literal substring `"content"` before
+believing that claim; it must never appear as a dict-key access on a
+`message` object.
 
 The ONE place this module reads free text at all is `toolUseResult`
 (present on the tool-RESULT `user` record that follows an Agent/Task
@@ -184,12 +192,29 @@ from pathlib import Path
 # lives in a different directory, constitution/scripts/fastcycle/tokens/,
 # four levels below the repo root) so both tools agree on the default
 # without a cross-tree import.
-# --------------------------------------------------------------------------
-DEFAULT_DB = str(
-    Path(__file__).resolve().parents[4]
-    / "docs" / "research" / "tokens" / "ws1_token_waste_baseline" / "POC"
-    / "usage_telemetry.db"
-)
+#
+# §11.4.28/§11.4.177 DECOUPLING (T038 independent review finding F3,
+# 2026-09-28): the `parents[4]` computation below hardcodes an assumption
+# specific to THIS project's tree shape (a `docs/research/tokens/...`
+# sibling directory living exactly 4 levels above where this constitution
+# script happens to be checked out). A standalone constitution checkout,
+# or a consuming project with a different layout, would have this resolve
+# to a nonexistent or nonsensical path. Fixed with the SAME `FC_*`-
+# prefixed environment-variable override convention this codebase already
+# uses elsewhere (see fc_common.py's `FC_DETERMINISM_TIMEOUT_S`):
+# `FC_TELEMETRY_DB`, when set, takes precedence over the project-specific
+# guess below entirely -- the guess remains ONLY as this project's own
+# convenient zero-config default, never assumed correct for any other
+# consumer of this constitution script.
+_env_db = os.environ.get("FC_TELEMETRY_DB")
+if _env_db:
+    DEFAULT_DB = _env_db
+else:
+    DEFAULT_DB = str(
+        Path(__file__).resolve().parents[4]
+        / "docs" / "research" / "tokens" / "ws1_token_waste_baseline" / "POC"
+        / "usage_telemetry.db"
+    )
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS transcript_usage_events (

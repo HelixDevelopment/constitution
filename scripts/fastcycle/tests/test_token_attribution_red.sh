@@ -461,6 +461,50 @@ fi
 #          telemetry DB (§11.4.10; plan T-A06 (2)(b) credential test)
 # =============================================================================
 echo "=== PART E: credential safety of the future telemetry DB ==="
+# Strengthened per T038 independent review finding F1 (BLOCKING) + F2
+# (IMPORTANT), agent ab41d614f9a8e1933, 2026-09-28: the ORIGINAL form of
+# this PART only grepped the produced DB for the EXACT marker string,
+# which a self-authored mutation (M3: `model = base64.b64encode(
+# json.dumps(msg).encode()).decode()`, dumping the ENTIRE message dict --
+# including its content -- into the `model` column as base64) defeated
+# completely: the mutated transcript_ingest.py leaked real conversational
+# content, base64-decodable straight out of the `model` column, while
+# this PART still reported "credential safety holds" and the whole suite
+# still reported 53/0. F2: a SEPARATE self-authored mutation (M2, exiting
+# before any row is written) also passed this PART on an EMPTY database
+# -- an absence-of-marker verdict proves nothing when nothing was ever
+# scanned (§11.4.201(6) false-null).
+#
+# Fixed with TWO independent, complementary layers, neither alone
+# sufficient (defense-in-depth, matching both independent reviewers'
+# actual manual verification methodology, now built into the test
+# permanently rather than performed ad hoc):
+#
+#   (i) STRUCTURAL ALLOWLIST (the layer that actually closes the M3
+#       mutation class): every TEXT-typed column of the ingested row is
+#       compared for EXACT EQUALITY against this fixture's own known-
+#       correct structural values (its real message id, session id,
+#       record uuid, model name, usage_status, source file, timestamp).
+#       An encoded/truncated/partial/any-other-shape leak in ANY column
+#       -- whatever encoding hides it -- can never equal these short,
+#       exact, independently-known-correct literals, so this check does
+#       not need to anticipate every possible encoding scheme the way a
+#       substring scan does.
+#
+#  (ii) DEFENSE-IN-DEPTH SUBSTRING/ENCODING SCAN (the layer both
+#       reviewers ran manually this session): exact marker (case-
+#       sensitive + insensitive), base64, hex (text form AND raw binary
+#       bytes), and a sliding-window scan of every 12+ character
+#       contiguous chunk of the marker, across the ENTIRE DB file --
+#       catching a leak this fixture's OWN row-shape assertion above
+#       would not (e.g. a leak smuggled into some OTHER row, or a future
+#       schema change adding a new text column this file's allowlist has
+#       not yet been updated to check).
+#
+# Plus the F2 fix: the ingest's own exit code and produced row COUNT are
+# asserted BEFORE any absence verdict is trusted, and the fixture's own
+# KNOWN-correct msg_id is asserted PRESENT (not merely "marker absent")
+# so a vacuous empty-DB run can no longer pass this PART.
 CRED_FIX="$FIX/credential_leak/session.jsonl"
 MARKER="FASTCYCLE-T020-PLANTED-MARKER-7f3a9c2e1b8d4f6091ab34cd"
 FABRICATED_MARKER="FASTCYCLE-T020-NEVER-PLANTED-0000000000000000000000"
@@ -473,15 +517,103 @@ else
 
     if [ -f "$TRANSCRIPT_INGEST" ]; then
         DB="$WORK/telemetry_e.db"
+        rm -f "$DB"
         python3 "$TRANSCRIPT_INGEST" ingest "$CRED_FIX" --db "$DB" >/dev/null 2>&1
-        if [ -f "$DB" ]; then
-            if grep -aFq "$MARKER" "$DB" 2>/dev/null; then
-                bad "CREDENTIAL LEAK: the planted marker reached the telemetry DB ($DB) — transcript_ingest.py is copying message bodies, violating §11.4.10 and DEC-30 (usage counts, model and ids only)"
-            else
-                ok "credential safety holds: the planted marker does NOT appear anywhere in the produced telemetry DB ($DB)"
-            fi
+        INGEST_RC=$?
+
+        # --- F2: rc + row-count + known-row-presence BEFORE trusting any
+        # absence verdict below (never a vacuous pass on a failed or empty
+        # ingest). ---
+        if [ "$INGEST_RC" != 0 ]; then
+            bad "PART E ingest itself exited $INGEST_RC (expected 0) -- every check below would be vacuous against a failed/partial run"
+        elif [ ! -f "$DB" ]; then
+            bad "transcript_ingest.py exited 0 but produced no DB at the assumed path ($DB) -- update this test's assumed CLI contract"
         else
-            bad "transcript_ingest.py exists but produced no DB at the assumed path ($DB) — update this test's assumed CLI contract"
+            ROWCOUNT="$(sqlite3 -readonly "$DB" 'SELECT COUNT(*) FROM transcript_usage_events;' 2>/dev/null)"
+            needle_check "PART E ingest produced a genuinely non-empty DB (rows>=1), never a vacuous empty-DB pass" 1 "$([ "${ROWCOUNT:-0}" -ge 1 ] 2>/dev/null && echo 1 || echo 0)"
+            KNOWN_MSGID="msg_fixture_t020_cred_a1"
+            MSGID_PRESENT="$(sqlite3 -readonly "$DB" "SELECT COUNT(*) FROM transcript_usage_events WHERE msg_id = '$KNOWN_MSGID';" 2>/dev/null)"
+            needle_check "PART E's own fixture's known-correct msg_id ($KNOWN_MSGID) is genuinely present in the DB -- proves THIS row was really scanned below, not an unrelated/empty one" 1 "$([ "${MSGID_PRESENT:-0}" -ge 1 ] 2>/dev/null && echo 1 || echo 0)"
+
+            # --- (i) structural allowlist: every text column of the known
+            # row must EQUAL its known-correct value exactly. This is what
+            # catches an encoded leak regardless of encoding scheme, since
+            # an encoded blob of message content can never equal a short
+            # exact literal like "claude-sonnet-5". ---
+            ALLOWLIST_REPORT="$(python3 -c "
+import sqlite3, sys
+db = sys.argv[1]
+expected = {
+    'record_uuid': 'fixture-t020-cred-a1',
+    'session_id': 'fixture-t020-cred-session',
+    'agent_id': None,
+    'item_id': None,
+    'ts': '2026-09-28T04:20:05.000Z',
+    'model': 'claude-sonnet-5',
+    'msg_id': 'msg_fixture_t020_cred_a1',
+    'usage_status': 'measured',
+    'missing_instrument': None,
+}
+con = sqlite3.connect(db)
+con.row_factory = sqlite3.Row
+row = con.execute(\"SELECT * FROM transcript_usage_events WHERE msg_id = ?\", ('$KNOWN_MSGID',)).fetchone()
+if row is None:
+    print('MISSING_ROW')
+    sys.exit(1)
+mismatches = []
+for col, want in expected.items():
+    got = row[col]
+    if got != want:
+        # Never print the actual leaked value verbatim into test output
+        # (this output may itself be captured/logged) -- report shape only.
+        got_repr = 'NULL' if got is None else ('<%d chars>' % len(str(got)))
+        want_repr = 'NULL' if want is None else repr(want)
+        mismatches.append('%s: expected %s, got %s' % (col, want_repr, got_repr))
+if mismatches:
+    print('MISMATCH: ' + '; '.join(mismatches))
+    sys.exit(1)
+print('ALL_MATCH')
+sys.exit(0)
+" "$DB")"
+            if [ "$ALLOWLIST_REPORT" = "ALL_MATCH" ]; then
+                ok "structural allowlist holds: every text column of the ingested row EXACTLY matches this fixture's known-correct structural values -- an encoded/reshaped leak in ANY column, in ANY encoding, would have failed this check (T038 review finding F1)"
+            else
+                bad "CREDENTIAL LEAK (or schema drift): structural allowlist mismatch -- $ALLOWLIST_REPORT -- a column holds something other than its expected exact structural value; this is EXACTLY the class of leak a plain marker-substring grep cannot see (T038 review finding F1)"
+            fi
+
+            # --- (ii) defense-in-depth: exact/case-insensitive/base64/hex/
+            # sliding-window substring scan across the WHOLE DB file. ---
+            if grep -aFq "$MARKER" "$DB" 2>/dev/null; then
+                bad "CREDENTIAL LEAK: the exact planted marker reached the telemetry DB ($DB)"
+            elif grep -aFqi "$MARKER" "$DB" 2>/dev/null; then
+                bad "CREDENTIAL LEAK (case-insensitive): a case-transformed copy of the planted marker reached the telemetry DB ($DB)"
+            else
+                ENCODING_SCAN="$(python3 -c "
+import base64, sys
+marker = sys.argv[1]
+data = open(sys.argv[2], 'rb').read()
+hits = []
+b64 = base64.b64encode(marker.encode()).decode()
+if b64.encode() in data:
+    hits.append('base64')
+hexenc = marker.encode().hex()
+if hexenc.encode() in data:
+    hits.append('hex-text')
+if bytes.fromhex(hexenc) in data:
+    hits.append('hex-bytes')
+for i in range(0, len(marker) - 11):
+    chunk = marker[i:i+12]
+    if chunk.encode() in data:
+        hits.append('substring[%d:%d]' % (i, i+12))
+        break
+print(','.join(hits) if hits else 'CLEAN')
+" "$MARKER" "$DB")"
+                if [ "$ENCODING_SCAN" = "CLEAN" ]; then
+                    ok "credential safety holds: the planted marker does NOT appear anywhere in the produced telemetry DB ($DB) -- exact, case-insensitive, base64, hex, and 12-char-sliding-window substring scans all clean, PLUS the structural allowlist above (T038 review finding F1 defense-in-depth)"
+                else
+                    bad "CREDENTIAL LEAK: an encoded/partial variant of the planted marker ($ENCODING_SCAN) reached the telemetry DB ($DB) -- the exact-string grep alone would have missed this"
+                fi
+            fi
         fi
     else
         bad "FR-013/SC-005 property (e) UNMET: transcript_ingest.py absent — no telemetry DB exists to scan; credential safety of the eventual ingest path is unproven (paired mutation once T038 lands, per plan.md T-A06: an implementation that ingests message bodies verbatim would leak the marker and this exact assertion would then correctly FAIL)"
