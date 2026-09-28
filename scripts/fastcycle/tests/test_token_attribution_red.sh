@@ -222,12 +222,61 @@ fi
 # A-RED: the DESIRED future invariant (T036 stamps the tag; T037 wires
 # dispatch_stamp.sh so a dispatch lacking item=<ATM-nnnn> is mechanically
 # flagged/refused/requires the tag before being recorded as a normal
-# 'dispatched' row) does not hold today, because dispatch_stamp.sh does not
-# exist. This is the actual RED signal for property (a).
-if [ -f "$DISPATCH_STAMP" ]; then
-    ok "FR-013/FR-001/SC-005 property (a) HOLDS: dispatch_stamp.sh exists (re-verify its behaviour once landed — this branch is not yet exercised)"
+# 'dispatched' row) does not hold today. The task text itself pairs BOTH
+# T036 AND T037 as the joint gap-closer ("T036/T037 absent"), and
+# dispatch_stamp.sh's OWN header confirms this in-source: "NOT YET WIRED
+# (deliberately, by design — T037's job, NOT this task's) ... this file is
+# NOT registered in .claude/settings.json's PreToolUse hook chain ...
+# Invoke it directly/manually until T037 lands." tasks.md:121 independently
+# confirms T037 ([SERIAL], conductor-only wiring into $WRITER's item-id
+# column AND .claude/settings.json's PreToolUse hook list) is still `[ ]`
+# unchecked as of this run.
+#
+# (§11.4.108/§11.4.226/§11.4.240 remediation, T020 self-review, 2026-09-28):
+# the ORIGINAL form of this check treated `[ -f "$DISPATCH_STAMP" ]` alone
+# as sufficient to declare property (a) HOLDS — an ARTIFACT-layer
+# (T036-file-exists) verdict standing in for the RUNTIME-layer invariant
+# the task actually requires (a REAL dispatch through the REAL pipeline is
+# flagged/refused/attributed). That is exactly the source-present-runtime-
+# absent bluff this project's own T020/T036/T038 batch review found and
+# fixed repeatedly elsewhere this same session: a standalone, deliberately-
+# unwired script existing on disk proves NOTHING about what a live dispatch
+# actually does, and the A-real block immediately above THIS one already
+# empirically demonstrated (via a REAL invocation of the REAL, unmodified
+# $WRITER) that a description lacking item=<ATM-nnnn> is STILL accepted
+# today with NO item token in the resulting row (FOUND=0, captured above) —
+# directly contradicting a bare "property (a) HOLDS" verdict drawn from
+# file-existence alone.
+#
+# Fixed: property (a)'s verdict is now driven by (i) a structural check for
+# a genuine wiring REFERENCE to dispatch_stamp.sh inside the REAL pipeline
+# files T037 is scoped to touch ($WRITER and .claude/settings.json), AND
+# (ii) cross-validated against the REAL A-real invocation's own FOUND
+# result computed above — never file-existence of T036 in isolation. This
+# does not presuppose T037's not-yet-written implementation details; it
+# only asserts that BOTH a source-level wiring reference AND a real,
+# observed behavioural effect must be present before the invariant is
+# declared to hold, and explicitly flags the "reference exists but has no
+# observed effect" case as its own distinct FAIL rather than silently
+# treating it as either PASS or the pre-T037 FAIL.
+WIRED_INTO_WRITER=0
+if [ -f "$WRITER" ] && grep -Fq "dispatch_stamp" "$WRITER" 2>/dev/null; then
+    WIRED_INTO_WRITER=1
+fi
+SETTINGS_JSON="$REPO_ROOT/.claude/settings.json"
+WIRED_INTO_SETTINGS=0
+if [ -f "$SETTINGS_JSON" ] && grep -Fq "dispatch_stamp" "$SETTINGS_JSON" 2>/dev/null; then
+    WIRED_INTO_SETTINGS=1
+fi
+
+if [ -f "$DISPATCH_STAMP" ] && { [ "$WIRED_INTO_WRITER" -eq 1 ] || [ "$WIRED_INTO_SETTINGS" -eq 1 ]; }; then
+    if [ "${FOUND:-0}" = "1" ]; then
+        ok "FR-013/FR-001/SC-005 property (a) HOLDS: dispatch_stamp.sh exists AND a wiring reference was found (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), AND the REAL $WRITER invocation above genuinely carried an item token for a description that named none inline (T037 has landed and is taking real effect) — re-verify this branch's exact assertion shape once T037's real interface is fully known"
+    else
+        bad "FR-013/FR-001/SC-005 property (a) UNMET (wiring reference present but NOT taking effect): a reference to dispatch_stamp.sh was found in the real pipeline (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), BUT the REAL $WRITER invocation above still recorded the item=-lacking dispatch with FOUND=${FOUND:-unset} (no item token extracted/required) — a source-level wiring reference existing is not the same as it genuinely taking effect on a real dispatch; investigate before declaring T037 done"
+    fi
 else
-    bad "FR-013/FR-001/SC-005 property (a) UNMET: no mechanism exists yet to require/flag item=<ATM-nnnn> on a dispatch description (T036 $DISPATCH_STAMP absent; T037 wiring into $WRITER absent) — a dispatch is accepted and recorded with no item attribution whatsoever, exactly as captured above"
+    bad "FR-013/FR-001/SC-005 property (a) UNMET: dispatch_stamp.sh $([ -f "$DISPATCH_STAMP" ] && echo 'exists as a standalone, deliberately-unwired T036 artifact' || echo 'is absent (T036 not yet landed)') — T037 (wiring $DISPATCH_STAMP into \$WRITER's item-id column AND .claude/settings.json's PreToolUse hook list, tasks.md:121, still \`[ ]\` unchecked) has NOT landed (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS) — a dispatch is accepted and recorded with no item attribution whatsoever on the REAL pipeline, exactly as the A-real block above just captured (FOUND=${FOUND:-unset})"
 fi
 
 # =============================================================================

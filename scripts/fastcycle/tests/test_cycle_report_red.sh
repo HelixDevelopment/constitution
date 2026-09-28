@@ -54,9 +54,40 @@
 # "honest_gap_deferred_to_T042" block names exactly which of the 11 stages
 # have no citable source in this pass.
 #
-# Usage : bash test_cycle_report_red.sh   Exit 0 = RED baseline holds
-#         (absence proven, both control needles pass) and the four contract
-#         stubs + fixtures are printed/verified for T041's implementer.
+# STATUS (corrected 2026-09-28, T023 functional-testing-gap remediation):
+# this file's original four "NOT YET IMPLEMENTED" contract-stub blocks
+# (missing_record, empty_window, golden_atm953, negative_control_all_present)
+# printed prose describing what T041's implementer needed to build, but
+# never actually INVOKED cycle_report.py against any of the four fixtures
+# and diffed the real output against each fixture's own documented expected
+# value -- a real functional-testing gap: T041 (cycle/cycle_report.py) had
+# genuinely landed and been independently reviewed GO (two rounds), yet
+# this test file still exited 0 without ever exercising it. This is the
+# exact "stale contract-stub-left-as-prose defect class" this suite already
+# fixed one level up, at the presence-check level, in the "post-T036-review
+# remediation" note further below and in the SIBLING file
+# test_baseline_replay_red.sh's own 2026-09-28 correction. Fixed here by
+# independently re-verifying, then converting, each of the four stubs into
+# a real, gating, exact-JSON-match assertion (never heuristic) against the
+# tool's actual output. Two self-validation control needles
+# (§11.4.107(10)/§11.4.201(1)) are woven in, mirroring T024's golden-good/
+# golden-bad technique -- neither mutates any real file on disk, so nothing
+# needs restoring afterward: (1) negative_control_all_present's real,
+# fully-measured 'build' stage is cross-compared against missing_record's
+# UNMEASURED expected 'build' stage and MUST be reported unequal, proving
+# the exact-match comparator used for check 1/4 can genuinely detect a
+# mismatch (this exact opposite-verdicts pairing is what
+# negative_control_all_present's own fixture docstring already asks for);
+# (2) a window independently confirmed (live, 2026-09-28) to contain real
+# closure events is run through the same --window-json path as check 2/4
+# and MUST NOT be reported NO_DATA_IN_WINDOW, proving that check can
+# genuinely distinguish empty from non-empty rather than rubber-stamping
+# the empty state.
+#
+# Usage : bash test_cycle_report_red.sh   Exit 0 = every real assertion below
+#         (both original control needles, fixture presence, the four
+#         exact-match contract checks against cycle_report.py's real output,
+#         and the two self-validation control needles) held.
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
