@@ -143,11 +143,13 @@ func TestGroupAssignmentSchemaMigration(t *testing.T) {
 		}
 	}
 
-	// schema_version advanced to 6.
+	// schema_version advanced to 6, then further to 7 by T-A05's
+	// migrateItemHistoryOccurredAt (§11.4.120 reconciled 2026-09-29: this test's
+	// fixture assumption about the CURRENT final version is updated to match).
 	var ver string
 	_ = db.QueryRow(`SELECT value FROM meta WHERE key='schema_version'`).Scan(&ver)
-	if ver != "6" {
-		t.Fatalf("post schema_version = %q, want 6", ver)
+	if ver != "7" {
+		t.Fatalf("post schema_version = %q, want 7", ver)
 	}
 
 	// Live sync state preserved (INSERT OR IGNORE / UPDATE ... AND value<'6'
@@ -212,10 +214,11 @@ func TestGroupAssignmentSchemaIdempotent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("openDB #%d: %v", i, err)
 		}
+		// §11.4.120 reconciled 2026-09-29 (T-A05: schema_version now advances to 7).
 		var ver string
 		_ = db.QueryRow(`SELECT value FROM meta WHERE key='schema_version'`).Scan(&ver)
-		if ver != "6" {
-			t.Fatalf("re-open #%d schema_version = %q, want 6", i, ver)
+		if ver != "7" {
+			t.Fatalf("re-open #%d schema_version = %q, want 7", i, ver)
 		}
 		var total int
 		_ = db.QueryRow(`SELECT COUNT(*) FROM items`).Scan(&total)
@@ -252,10 +255,11 @@ func TestFreshDBHasGroupAssignmentSchemaFromCreate(t *testing.T) {
 	if n := sqliteMasterCountDB(t, db, "logic_groups"); n != 1 {
 		t.Errorf("fresh DB missing logic_groups table")
 	}
+	// §11.4.120 reconciled 2026-09-29 (T-A05: a fresh DB now seeds schema_version=7).
 	var ver string
 	_ = db.QueryRow(`SELECT value FROM meta WHERE key='schema_version'`).Scan(&ver)
-	if ver != "6" {
-		t.Fatalf("fresh DB schema_version = %q, want 6 (seeded)", ver)
+	if ver != "7" {
+		t.Fatalf("fresh DB schema_version = %q, want 7 (seeded)", ver)
 	}
 }
 

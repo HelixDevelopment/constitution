@@ -549,12 +549,12 @@ func removeItemSegment(tx *sql.Tx, document, id string) error {
 }
 
 // recordHistory appends an append-only audit entry per §11.4.34 / §11.4.90.
+// Delegates to recordHistoryWithTime (occurred_at.go, T-A05) with an empty
+// occurred_at — every existing call site keeps writing NULL/"UNKNOWN"
+// exactly as before this migration, with no behavioural change beyond the
+// two new (always-populated-honestly) columns.
 func recordHistory(tx *sql.Tx, id, event, by, reason, evidence string) error {
-	_, err := tx.Exec(`INSERT INTO item_history
-		(atm_id, event_type, by, on_date, reason, evidence_path)
-		VALUES (?,?,?,date('now'),?,?)`,
-		id, event, nullable(by), nullable(reason), nullable(evidence))
-	return err
+	return recordHistoryWithTime(tx, id, event, by, reason, evidence, "", "")
 }
 
 // setStatusAndSyncBody is the SINGLE choke-point for a BARE items.status write —

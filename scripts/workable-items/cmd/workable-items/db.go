@@ -75,6 +75,12 @@ func openDB(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate obsolete_details CHECK: %w", err)
 	}
+	// T-A05 (SpecKit-004, v6→v7): item_history.occurred_at + occurred_at_source.
+	// Idempotent (no-op once both columns exist), lossless (nullable, no DEFAULT).
+	if err := migrateItemHistoryOccurredAt(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate item_history occurred_at: %w", err)
+	}
 	return db, nil
 }
 
