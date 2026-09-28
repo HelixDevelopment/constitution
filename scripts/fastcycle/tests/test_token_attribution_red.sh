@@ -77,7 +77,9 @@
 #          only, removed on exit (trap). Never touches
 #          docs/requests/agent_registry.jsonl, never touches
 #          docs/research/tokens/ws1_token_waste_baseline/POC/usage_telemetry.db.
-# Dependencies: bash, python3, grep, mktemp.
+# Dependencies: bash, python3, grep, mktemp, sqlite3 (PART C/D query the
+#          transcript_ingest.py-produced DB directly, independent of its own
+#          Python internals — §11.4.240 producer≠verifier oracle).
 # Cross-references: §11.4.6, §11.4.10, §11.4.224, §11.4.240, §11.4.273,
 #          §11.4.201(6)/(7)(b) (control needles), plan.md T-A06, tasks.md
 #          T020/T036/T037/T038, contracts/common-conventions.md C-001..C-007.
@@ -119,16 +121,27 @@ needle_check() {
     fi
 }
 
-echo "=== pre-flight: confirm the two not-yet-built tools are genuinely absent ==="
+echo "=== pre-flight: report which of the two guarded tools currently exist ==="
+# NOTE (conductor remediation, post-T036/T038 landing): this pre-flight
+# originally FAILed once its guarded tool landed, treating "tool now
+# exists" as a permanent stale-premise error — the exact same batch-wide
+# defect independently found and fixed in test_cycle_report_red.sh (T023),
+# test_plan_struct_causes_red.sh (T025), and test_dispatch_stamp_red.sh
+# (T036's own RED test) during T036's Opus-xhigh review (Finding 1): an
+# absence-precondition, once its guarded tool lands, must NOT become a
+# permanent FAIL — the properties below already carry dedicated real-tool
+# probes (PART A/B/E genuinely exercise dispatch_stamp.sh/transcript_ingest.py
+# once present), so this pre-flight is purely informational going forward:
+# it reports presence/absence, it never fails on either state alone.
 if [ -f "$DISPATCH_STAMP" ]; then
-    bad "PRECONDITION: $DISPATCH_STAMP already exists — this RED test's property (a) premise (T036 not yet landed) is stale; re-check scope before trusting the rest of this file"
+    ok "pre-flight: $DISPATCH_STAMP now exists (T036 landed) — exercised for real by property (a) below"
 else
-    ok "precondition: $DISPATCH_STAMP absent (T036 not yet landed)"
+    ok "pre-flight: $DISPATCH_STAMP absent (T036 not yet landed) — property (a) below exercises only the current writer"
 fi
 if [ -f "$TRANSCRIPT_INGEST" ]; then
-    bad "PRECONDITION: $TRANSCRIPT_INGEST already exists — this RED test's properties (b)-(e) premise (T038 not yet landed) is stale; re-check scope before trusting the rest of this file"
+    ok "pre-flight: $TRANSCRIPT_INGEST now exists (T038 landed) — exercised for real by properties (b)/(e) below"
 else
-    ok "precondition: $TRANSCRIPT_INGEST absent (T038 not yet landed)"
+    ok "pre-flight: $TRANSCRIPT_INGEST absent (T038 not yet landed) — properties (b)-(e) stay RED below"
 fi
 
 # =============================================================================
@@ -302,7 +315,48 @@ PYEOF
     fi
 
     if [ -f "$TRANSCRIPT_INGEST" ]; then
-        bad "transcript_ingest.py now exists — this test's assumed-CLI probe is not yet written for property (c); update this file to invoke it against $ABSENT_FIX and $ZERO_FIX and assert UNMEASURED vs a real 0 respectively"
+        DB_C="$WORK/telemetry_c.db"
+        OUT_C="$(python3 "$TRANSCRIPT_INGEST" ingest "$FIX/missing_usage_block" --db "$DB_C" 2>&1)"
+        RC_C=$?
+        if [ "$RC_C" -eq 0 ] && [ -f "$DB_C" ]; then
+            ok "transcript_ingest.py ran against missing_usage_block fixture dir (exit 0): $OUT_C"
+
+            ABSENT_STATUS="$(sqlite3 -noheader "$DB_C" "SELECT usage_status FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_missing_a1';")"
+            ABSENT_MISSING_INSTR="$(sqlite3 -noheader "$DB_C" "SELECT missing_instrument FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_missing_a1';")"
+            ABSENT_INPUT_NULL="$(sqlite3 -noheader "$DB_C" "SELECT input_tokens IS NULL FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_missing_a1';")"
+            ABSENT_OUTPUT_NULL="$(sqlite3 -noheader "$DB_C" "SELECT output_tokens IS NULL FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_missing_a1';")"
+            ABSENT_CR_NULL="$(sqlite3 -noheader "$DB_C" "SELECT cache_read_input_tokens IS NULL FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_missing_a1';")"
+            ABSENT_CC_NULL="$(sqlite3 -noheader "$DB_C" "SELECT cache_creation_input_tokens IS NULL FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_missing_a1';")"
+
+            ZERO_STATUS="$(sqlite3 -noheader "$DB_C" "SELECT usage_status FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_zero_a1';")"
+            ZERO_INPUT="$(sqlite3 -noheader "$DB_C" "SELECT input_tokens FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_zero_a1';")"
+            ZERO_OUTPUT="$(sqlite3 -noheader "$DB_C" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_zero_a1';")"
+            ZERO_CR="$(sqlite3 -noheader "$DB_C" "SELECT cache_read_input_tokens FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_zero_a1';")"
+            ZERO_CC="$(sqlite3 -noheader "$DB_C" "SELECT cache_creation_input_tokens FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_zero_a1';")"
+
+            needle_check "usage_absent row: usage_status is genuinely 'UNMEASURED', not silently coerced" 1 "$([ "$ABSENT_STATUS" = "UNMEASURED" ] && echo 1 || echo 0)"
+            needle_check "usage_absent row: usage_status is NOT the fabricated 'measured' value" 0 "$([ "$ABSENT_STATUS" = "measured" ] && echo 1 || echo 0)"
+            needle_check "usage_absent row: missing_instrument is populated (non-empty)" 1 "$([ -n "$ABSENT_MISSING_INSTR" ] && echo 1 || echo 0)"
+            needle_check "usage_absent row: input_tokens is NULL, not coerced to 0" 1 "$ABSENT_INPUT_NULL"
+            needle_check "usage_absent row: output_tokens is NULL, not coerced to 0" 1 "$ABSENT_OUTPUT_NULL"
+            needle_check "usage_absent row: cache_read_input_tokens is NULL, not coerced to 0" 1 "$ABSENT_CR_NULL"
+            needle_check "usage_absent row: cache_creation_input_tokens is NULL, not coerced to 0" 1 "$ABSENT_CC_NULL"
+
+            needle_check "usage_present_zero row: usage_status is genuinely 'measured', a real capture" 1 "$([ "$ZERO_STATUS" = "measured" ] && echo 1 || echo 0)"
+            needle_check "usage_present_zero row: usage_status is NOT conflated with 'UNMEASURED'" 0 "$([ "$ZERO_STATUS" = "UNMEASURED" ] && echo 1 || echo 0)"
+            needle_check "usage_present_zero row: input_tokens is the literal captured 0, not NULL" 1 "$([ "$ZERO_INPUT" = "0" ] && echo 1 || echo 0)"
+            needle_check "usage_present_zero row: output_tokens is the literal captured 0, not NULL" 1 "$([ "$ZERO_OUTPUT" = "0" ] && echo 1 || echo 0)"
+            needle_check "usage_present_zero row: cache_read_input_tokens is the literal captured 0, not NULL" 1 "$([ "$ZERO_CR" = "0" ] && echo 1 || echo 0)"
+            needle_check "usage_present_zero row: cache_creation_input_tokens is the literal captured 0, not NULL" 1 "$([ "$ZERO_CC" = "0" ] && echo 1 || echo 0)"
+
+            if [ -n "$ABSENT_STATUS" ] && [ -n "$ZERO_STATUS" ] && [ "$ABSENT_STATUS" != "$ZERO_STATUS" ]; then
+                ok "PART C dual assertion HOLDS: missing usage_status ('$ABSENT_STATUS') genuinely differs from a genuine-zero usage_status ('$ZERO_STATUS') — missing and zero are decidable, not conflated"
+            else
+                bad "PART C dual assertion FAILED: missing usage_status ('$ABSENT_STATUS') and genuine-zero usage_status ('$ZERO_STATUS') are the same (or one/both empty) — a broken classifier could report both the same way and still individually 'look right', which is exactly the bluff property (c) forbids"
+            fi
+        else
+            bad "transcript_ingest.py exists but the assumed CLI (ingest <dir> --db <path>) did not run cleanly against missing_usage_block fixture dir: rc=$RC_C out=$OUT_C — update this test's assumed CLI contract"
+        fi
     else
         # Genuine investigation: demonstrate the REAL, currently-reproducible
         # defect in the existing WS1 R0 prototype using its OWN flat schema
@@ -363,7 +417,40 @@ else
     fi
 
     if [ -f "$TRANSCRIPT_INGEST" ]; then
-        bad "transcript_ingest.py now exists — this test's assumed-CLI probe is not yet written for property (d); update this file to ingest $HERE/fixtures/transcript_ingest/subagent_attribution and assert the subagent's usage rows attribute to item ATM-9999"
+        DB_D="$WORK/telemetry_d.db"
+        OUT_D="$(python3 "$TRANSCRIPT_INGEST" ingest "$PARENT_FIX" --db "$DB_D" 2>&1)"
+        RC_D=$?
+        if [ "$RC_D" -eq 0 ] && [ -f "$DB_D" ]; then
+            ok "transcript_ingest.py ran against parent_session.jsonl ONLY (exit 0), exercising sibling subagents/ auto-discovery: $OUT_D"
+
+            SUB_ROW_ITEM="$(sqlite3 -noheader "$DB_D" "SELECT item_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_sub_a1';")"
+            SUB_ROW_AGENT="$(sqlite3 -noheader "$DB_D" "SELECT agent_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_sub_a1';")"
+            SUB_ROW_SESSION="$(sqlite3 -noheader "$DB_D" "SELECT session_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_sub_a1';")"
+            SUB_ROW_STATUS="$(sqlite3 -noheader "$DB_D" "SELECT usage_status FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_sub_a1';")"
+            SUB_ROW_TOTAL="$(sqlite3 -noheader "$DB_D" "SELECT total_tokens FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_sub_a1';")"
+
+            needle_check "auto-discovery worked: the subagent's own usage row exists in the DB despite only the PARENT path being passed to ingest" 1 "$([ -n "$SUB_ROW_STATUS" ] && echo 1 || echo 0)"
+            needle_check "subagent usage row: item_id genuinely attributes to ATM-9999 (the parent dispatch's stamped item)" 1 "$([ "$SUB_ROW_ITEM" = "ATM-9999" ] && echo 1 || echo 0)"
+            needle_check "subagent usage row: item_id is NOT a fabricated, distinct item id" 0 "$([ "$SUB_ROW_ITEM" = "ATM-0000-fabricated" ] && echo 1 || echo 0)"
+            needle_check "subagent usage row: agent_id genuinely matches the real fixture value (fixturet020attr01)" 1 "$([ "$SUB_ROW_AGENT" = "fixturet020attr01" ] && echo 1 || echo 0)"
+            needle_check "subagent usage row: session_id resolves through the dispatch map to the parent's real session id" 1 "$([ "$SUB_ROW_SESSION" = "fixture-t020-attr-parent-session" ] && echo 1 || echo 0)"
+            needle_check "subagent usage row: usage_status is 'measured' (a genuine usage block was present)" 1 "$([ "$SUB_ROW_STATUS" = "measured" ] && echo 1 || echo 0)"
+            needle_check "subagent usage row: total_tokens equals the real computed sum (40+200+500+8000=8740)" 1 "$([ "$SUB_ROW_TOTAL" = "8740" ] && echo 1 || echo 0)"
+
+            PARENT_ROW_ITEM_IS_NULL="$(sqlite3 -noheader "$DB_D" "SELECT item_id IS NULL FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_a1';")"
+            needle_check "negative control: the parent's own top-level dispatch-turn row is NOT item-attributed (item_id IS NULL) — build_row() only attributes a DISPATCHED subagent's usage, never the dispatching session's own turns" 1 "$PARENT_ROW_ITEM_IS_NULL"
+
+            PARENT_TAGGED_COUNT="$(sqlite3 -noheader "$DB_D" "SELECT COUNT(*) FROM transcript_usage_events WHERE agent_id IS NULL AND item_id='ATM-9999';")"
+            needle_check "negative control: ZERO of the parent session's own (non-subagent, agent_id IS NULL) rows carry item_id='ATM-9999'" 1 "$([ "$PARENT_TAGGED_COUNT" = "0" ] && echo 1 || echo 0)"
+
+            if [ "$SUB_ROW_ITEM" = "ATM-9999" ] && [ "$PARENT_ROW_ITEM_IS_NULL" = "1" ] && [ "$PARENT_TAGGED_COUNT" = "0" ]; then
+                ok "PART D property (d) HOLDS: session(fixture-t020-attr-parent-session) -> agent(fixturet020attr01) -> item(ATM-9999) attribution is real, and the parent's own turns are correctly left unattributed"
+            else
+                bad "PART D property (d) UNMET (post-implementation): subagent item=$SUB_ROW_ITEM parent-item-is-null=$PARENT_ROW_ITEM_IS_NULL parent-tagged-count=$PARENT_TAGGED_COUNT — attribution is broken, investigate before trusting this ingest path"
+            fi
+        else
+            bad "transcript_ingest.py exists but the assumed CLI (ingest <parent-file> --db <path>) did not run cleanly against the subagent_attribution fixture (auto-discovery of sibling subagents/ dir): rc=$RC_D out=$OUT_D — update this test's assumed CLI contract"
+        fi
     else
         bad "FR-013/SC-005 property (d) UNMET: transcript_ingest.py absent — subagent-transcript-to-parent-item attribution (session->agent->item keying) is unverified; the real on-disk join key is proven present and consistent above, but nothing reads it yet"
     fi
