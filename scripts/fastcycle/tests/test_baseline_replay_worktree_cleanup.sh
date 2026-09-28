@@ -90,7 +90,20 @@ WRONG_TREE="0000000000000000000000000000000000dead"
 # run_case SCRIPT WTROOT LABEL
 # Runs SCRIPT's `replay` subcommand against the mismatched-tree early-return
 # path with --worktree-root WTROOT, and prints the pre/post worktree count +
-# leftover-dir listing. Returns 0 if clean (no leak), 1 if it leaked.
+# leftover-dir listing. Returns 0 if clean (no leak AND the expected exit
+# code), 1 otherwise.
+#
+# Sets three globals for the CALLER to inspect the SPECIFIC failure shape
+# (T043 round-3 review finding F1, fixed 2026-09-28): a failure with NO
+# count-change and NO leftover directory is a DIFFERENT-reason failure (e.g.
+# an unrelated exit-code mismatch), never itself proof of "this reproduces
+# THE LEAK" -- case 3 below now checks RUN_CASE_IS_LEAK specifically rather
+# than treating run_case's overall non-zero return as sufficient evidence of
+# a leak, closing the bluff-gate shape the review found (a mutant failing
+# for ANY unrelated reason could previously have been misreported as "the
+# mutation reproduces the leak").
+RUN_CASE_IS_LEAK=0
+RUN_CASE_STDERR=""
 run_case() {
   script="$1"; wtroot="$2"; label="$3"
   mkdir -p "$wtroot"
@@ -103,6 +116,12 @@ run_case() {
   rc=$?
   after="$(git -C "$REPO" worktree list --porcelain | grep -c '^worktree ')"
   leftover="$(find "$wtroot" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)"
+  RUN_CASE_STDERR="$(cat "$WORK/stderr_${label}.log" 2>/dev/null)"
+  if [ "$after" != "$before" ] || [ "$leftover" != "0" ]; then
+    RUN_CASE_IS_LEAK=1
+  else
+    RUN_CASE_IS_LEAK=0
+  fi
   # clean up any real leak so the NEXT case (possibly against the SAME repo)
   # starts from a known-clean state regardless of this case's own verdict.
   if [ "$after" != "$before" ]; then
@@ -112,12 +131,12 @@ run_case() {
     done
     rm -rf "$wtroot"
   fi
-  if [ "$rc" = 4 ] && [ "$after" = "$before" ] && [ "$leftover" = "0" ]; then
+  if [ "$rc" = 4 ] && [ "$RUN_CASE_IS_LEAK" = 0 ]; then
     echo "ok $label: exit=$rc (expect 4) worktree-count $before -> $after (unchanged) leftover-dirs=$leftover -- no leak"
     return 0
   else
-    echo "NOT ok $label: exit=$rc (expect 4) worktree-count $before -> $after leftover-dirs=$leftover"
-    echo "   -- LEAK (or unexpected exit code) -- stderr:"
+    echo "NOT ok $label: exit=$rc (expect 4) worktree-count $before -> $after leftover-dirs=$leftover leak=$RUN_CASE_IS_LEAK"
+    echo "   -- stderr:"
     sed 's/^/     /' "$WORK/stderr_${label}.log"
     return 1
   fi
@@ -165,31 +184,95 @@ src = src.replace(fixed_block, buggy_block, 1)
 src = src.replace('cleanup "$repo_root" "$wt_path"\n  trap - EXIT', 'cleanup\n  trap - EXIT', 1)
 open(path, "w", encoding="utf-8").write(src)
 PYEOF
+MUTANT_OUT="$WORK/mutant_case_output.log"
 if [ $? != 0 ]; then
   echo "NOT ok mutation construction failed (see python traceback above) -- cannot verify this test catches the regression"
   failx
 else
   bash -n "$MUTANT" 2>/dev/null || { echo "NOT ok mutant script has a syntax error"; failx; }
-  # the mutant is EXPECTED to leak -- run_case returning 0 (clean) here is the
-  # test-suite-layer failure (a mutation-residue false negative, §11.4.201(1)).
-  if run_case "$MUTANT" "$WORK/wtroot_mutant" "mutant" >/tmp/mutant_case_output_$$ 2>&1; then
-    echo "NOT ok mutation check: reverting the fix did NOT reproduce a leak"
-    echo "   (this test would not have caught the original regression -- see"
-    echo "   $WORK for evidence before it is cleaned up)"
-    cat /tmp/mutant_case_output_$$
-    failx
+  # T043 round-3 review finding F1 (fixed 2026-09-28): a mutant failing for
+  # SOME reason is not, by itself, proof it reproduces THE LEAK this test
+  # guards against -- a mutant that happened to fail for an unrelated cause
+  # (a different exit code, a transient error) would previously have been
+  # misreported as "the mutation reproduces the leak" too, since run_case's
+  # overall non-zero return conflated every failure shape. Now requires
+  # SPECIFICALLY: RUN_CASE_IS_LEAK=1 (a real count-change or leftover
+  # directory, set by run_case above) AND the exact "unbound variable"
+  # stderr signature the ORIGINAL bug produced (see round-1's own
+  # forensics) -- both together, never either alone.
+  run_case "$MUTANT" "$WORK/wtroot_mutant" "mutant" >"$MUTANT_OUT" 2>&1
+  MUTANT_STDERR="$RUN_CASE_STDERR"
+  if [ "$RUN_CASE_IS_LEAK" = 1 ] && printf '%s' "$MUTANT_STDERR" | grep -q "unbound variable"; then
+    echo "ok mutation check: reverting the fix DOES reproduce the leak (worktree"
+    echo "   count changed or a directory was left behind) WITH the exact"
+    echo "   original 'unbound variable' crash signature -- this test genuinely"
+    echo "   catches the regression it guards, not merely agreeing with"
+    echo "   whatever the current code happens to do"
+    sed 's/^NOT ok/    (expected leak) NOT ok/' "$MUTANT_OUT"
   else
-    echo "ok mutation check: reverting the fix DOES reproduce the leak -- this"
-    echo "   test genuinely catches the regression it guards, not merely"
-    echo "   agreeing with whatever the current code happens to do"
-    cat /tmp/mutant_case_output_$$ | sed 's/^NOT ok/    (expected leak) NOT ok/'
+    echo "NOT ok mutation check: reverting the fix did not reproduce a genuine"
+    echo "   leak WITH the original crash signature (leak=$RUN_CASE_IS_LEAK,"
+    echo "   'unbound variable' in stderr=$(printf '%s' "$MUTANT_STDERR" | grep -q "unbound variable" && echo yes || echo no))"
+    echo "   -- this test would not reliably have caught the original"
+    echo "   regression; see $MUTANT_OUT for the full run_case output"
+    cat "$MUTANT_OUT"
+    failx
   fi
-  rm -f /tmp/mutant_case_output_$$
+fi
+
+# --- F3a (T043 round-3 review): a SECOND, N1-SPECIFIC paired mutation --
+# reverts ONLY the printf-%q shell-safe-quoting improvement (keeping the
+# rest of the N1 fix: cleanup() taking positional args, no cleanup_done
+# guard) back to the naive hand-single-quoted trap-registration form that
+# round-2 proved leaks on a quote-containing path but NOT on a plain one.
+# This makes N1's OWN fix self-proven by an in-file mutation, rather than
+# relying only on case 2 passing against the CURRENT code (which proves the
+# fix works, but not on its own that a REGRESSION to the pre-N1 hand-quoted
+# form would be CAUGHT). ---
+echo
+echo "=== case 4 (N1-specific paired mutation, §1.1): reverting ONLY the %q shell-safe-quoting fix must leak on a quote-containing path but NOT on a plain one ==="
+MUTANT_N1="$WORK/baseline_replay_mutant_n1.sh"
+cp "$REAL_SCRIPT" "$MUTANT_N1"
+python3 - "$MUTANT_N1" <<'PYEOF'
+import sys
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+qsafe_form = '''  local _cleanup_trap_cmd
+  printf -v _cleanup_trap_cmd 'cleanup %q %q' "$repo_root" "$wt_path"
+  trap "$_cleanup_trap_cmd" EXIT'''
+handquoted_form = '''  trap "cleanup '$repo_root' '$wt_path'" EXIT'''
+assert src.count(qsafe_form) == 1, "N1 mutation anchor (the printf %%q trap-registration block) not found -- update this mutation's anchor string"
+src = src.replace(qsafe_form, handquoted_form, 1)
+open(path, "w", encoding="utf-8").write(src)
+PYEOF
+if [ $? != 0 ]; then
+  echo "NOT ok N1-specific mutation construction failed -- cannot verify N1's fix is self-proven"
+  failx
+else
+  bash -n "$MUTANT_N1" 2>/dev/null || { echo "NOT ok N1 mutant script has a syntax error"; failx; }
+  N1_PLAIN_OUT="$WORK/mutant_n1_plain.log"
+  run_case "$MUTANT_N1" "$WORK/wtroot_mutant_n1_plain" "mutant_n1_plain" >"$N1_PLAIN_OUT" 2>&1
+  N1_PLAIN_LEAK="$RUN_CASE_IS_LEAK"
+  N1_QUOTE_OUT="$WORK/mutant_n1_quote.log"
+  run_case "$MUTANT_N1" "$WORK/wt_mutant_n1_quote'x" "mutant_n1_quote" >"$N1_QUOTE_OUT" 2>&1
+  N1_QUOTE_LEAK="$RUN_CASE_IS_LEAK"
+  if [ "$N1_PLAIN_LEAK" = 0 ] && [ "$N1_QUOTE_LEAK" = 1 ]; then
+    echo "ok N1-specific mutation check: the hand-quoted form is clean on a"
+    echo "   PLAIN path (leak=$N1_PLAIN_LEAK) but genuinely leaks on a"
+    echo "   quote-containing path (leak=$N1_QUOTE_LEAK) -- exactly matching"
+    echo "   round-2's own finding, proving the %q fix is what closes this"
+    echo "   SPECIFIC gap, not merely correlated with some other change"
+  else
+    echo "NOT ok N1-specific mutation check: expected plain-path leak=0 and"
+    echo "   quote-path leak=1, got plain=$N1_PLAIN_LEAK quote=$N1_QUOTE_LEAK"
+    echo "   -- see $N1_PLAIN_OUT / $N1_QUOTE_OUT"
+    failx
+  fi
 fi
 
 echo
 if [ "$fail" = 0 ]; then
-  echo "SUMMARY: all worktree-cleanup regression checks PASS (fixed script clean on both cases, mutant genuinely leaks)"
+  echo "SUMMARY: all worktree-cleanup regression checks PASS (fixed script clean on all real-path cases, both the full-revert and N1-specific mutants genuinely leak in exactly the shape expected)"
 else
   echo "SUMMARY: worktree-cleanup regression check FAILED -- see NOT ok lines above"
 fi

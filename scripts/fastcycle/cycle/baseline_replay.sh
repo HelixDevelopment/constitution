@@ -434,8 +434,17 @@ do_one_replay() {
   rmdir "$wt_path" 2>/dev/null  # git worktree add requires the target NOT already exist
 
   # `cleanup()` is invoked via the EXIT trap on EVERY path out of this
-  # function, including every early `return 4` below that runs AFTER the
-  # trap is registered (lines 466/473/483/488). bash pops a function's
+  # function, including every early `return 4` BELOW THIS POINT (i.e.
+  # every `return 4` between this comment and the explicit `cleanup
+  # "$repo_root" "$wt_path"; trap - EXIT` success-path call further down
+  # this same function -- a SYMBOLIC reference, not a line-number literal,
+  # deliberately: a hardcoded citation here drifted stale once already
+  # (T043 round-3 review finding F2, 2026-09-28 -- an earlier version of
+  # this comment cited specific line numbers that were already wrong by
+  # the time of that review, off by exactly the number of lines an
+  # UNRELATED later edit to this same function had since added; a
+  # symbolic "below this point, until the explicit cleanup call" reference
+  # cannot go stale the same way). bash pops a function's
   # `local` bindings as part of `return`, but the EXIT trap fires
   # AFTERWARD in the (sub)shell that is exiting -- so any of
   # do_one_replay's OWN `local` variables that cleanup() referenced
@@ -617,7 +626,7 @@ cmd_replay() {
     # persist it to $out via the same emit_doc envelope every other
     # subcommand uses -- but return the DETERMINISM verdict's own exit
     # code (0=same, 1=differs), never emit_doc's.
-    local det_body det_rc
+    local det_body det_rc emit_rc
     det_body="$(python3 -c "
 import json, sys
 b1, b2 = json.loads(sys.argv[1]), json.loads(sys.argv[2])
@@ -628,7 +637,27 @@ sys.exit(0 if same else 1)
 " "$body1" "$body2")"
     det_rc=$?
     echo "$det_body"
+    # T043 round-3 review finding F3(c): every OTHER subcommand in this file
+    # lets `emit_doc`'s own exit code become its function's exit code
+    # implicitly (emit_doc is their LAST statement, no explicit `return`
+    # after it) -- so a --out write failure is already surfaced everywhere
+    # else. This branch is the one exception (it explicitly overrides with
+    # `return $det_rc` per its own documented design: the DETERMINISM
+    # comparison's own same/differs verdict is the primary semantic
+    # signal, not emit_doc's plumbing). Silently discarding emit_doc's
+    # failure entirely would still be wrong, though -- fixed to check it:
+    # a write failure is ALWAYS surfaced audibly on stderr (never silent),
+    # and additionally escalates the exit code when det_rc alone would
+    # otherwise have reported success (0) -- a caller must never see exit 0
+    # when the mandatory --out contract was not actually honored.
     emit_doc "baseline-replay-determinism/v1" "$det_body" "$out"
+    emit_rc=$?
+    if [ "$emit_rc" != 0 ]; then
+      echo "baseline_replay: WARNING: writing the --determinism-check result to --out ($out) failed (emit_doc exit $emit_rc) -- the determinism verdict printed above is still accurate, but the mandatory --out contract was not honored" >&2
+      if [ "$det_rc" = 0 ]; then
+        return 4
+      fi
+    fi
     return $det_rc
   fi
 
