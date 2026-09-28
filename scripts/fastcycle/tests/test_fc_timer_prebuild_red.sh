@@ -87,6 +87,52 @@
 #   design above is deliberately chosen so this mutation class is caught WITHOUT needing to
 #   know the section count in advance.
 #
+# ---------------------------------------------------------------------------------------
+# RECONCILIATION (Constitution S11.4.115(polarity switch) / S11.4.120(gate reconciliation),
+# applied 2026-09-28 the moment T028+T029 genuinely landed -- conductor-only, since this
+# file's own header commits it to "does NOT weaken this file's own assertions", so any
+# broken-assertion fix is reconciliation, never a silent weakening):
+#
+#   T029's landing (independently re-verified, +180/-0 lines, additive-only wiring into
+#   pre_build_verification.sh) exposed FOUR assertions in the ORIGINAL version of this file
+#   that could never pass under ANY correct implementation, by construction:
+#     (a) "fc_timer.sh is ABSENT today" -- was written as a permanent pre-landing snapshot
+#         with no polarity switch; false forever the moment T028 lands.
+#     (b) "no prebuild_sections.tsv exists anywhere" vs "TSV exists with rows" -- MUTUALLY
+#         EXCLUSIVE by construction once ANY implementation run has ever produced a TSV file
+#         anywhere under qa-results/fastcycle/; exactly one of the pair must fail forever.
+#     (c) the control-needle TSV-row check searched for the GATE NAME
+#         "CM-COVENANT-114-182-PROPAGATION" as a literal TSV row value -- but that string is
+#         a `log_pass`/`log_fail` MESSAGE emitted from INSIDE "SECTION TSBA: Testing-System
+#         Bluff-Audit Gates (TSBA_GATE_BLOCK_20260610)", never a SECTION banner itself (T-A01's
+#         instrumentation is per-SECTION granularity, not per-gate) -- so the gate-name string
+#         can never appear as a TSV `id` column value under ANY correct per-section
+#         implementation. Traced by line-number-then-nearest-preceding-boundary-call
+#         resolution (never hardcoded): needle at source line 44850, nearest preceding
+#         `log_section "SECTION TSBA: ..."` call at line 41943.
+#     (d) "section-time-sum is within 2% of wall-clock" was `chk ... "0"` -- a LITERAL "0"
+#         hardcoded in BOTH branches of its if/else (the original lines 259 and 261) --
+#         tautologically FAIL regardless of any TSV content, forever.
+#
+#   Fix, per S11.4.115's polarity-switch pattern: a single `RED_MODE` env-overridable flag,
+#   defaulting to 0 (GREEN / post-landing -- the repo's now-PERMANENT state, since fc_timer.sh
+#   is a landed, committed part of the codebase going forward) with `FC_TIMER_RED_MODE=1`
+#   preserved as an explicit, documented escape hatch to reconstruct and audit the ORIGINAL
+#   pre-landing RED assertions (requires temporarily moving fc_timer.sh aside -- an audit/
+#   documentation path, never the routine one). Assertion (a) flips its polarity on the flag.
+#   Assertion (b)'s "absent anywhere" half is RED_MODE=1-only (that precondition is now
+#   permanently false in RED_MODE=0, so it is dropped from the GREEN path rather than left to
+#   spuriously fail forever); its "present with rows" half is unconditional (was already
+#   correct). Assertion (c) is fixed by dynamically resolving the needle's OWN enclosing
+#   section from source (nearest preceding `_fc_section_boundary '...'` / `log_section "..."`
+#   call before the needle's line number -- re-derived at every run, never hardcoded, matching
+#   this file's own "never hardcode 94" philosophy above) and checking THAT section's TSV row,
+#   never the raw gate-name string. Assertion (d) is now computed for real: sum of the TSV's
+#   `duration_ms` column vs (max(end_ns) - min(start_ns)) in milliseconds across all rows of
+#   the SAME run, in python3 (nanosecond epoch values exceed IEEE-754 double's exact-integer
+#   range -- ~1.9e18 vs ~9e15 -- so this arithmetic is deliberately NOT done in awk/bash
+#   floating point; python3 ints are arbitrary-precision, the correctness-safe choice here).
+#
 # Usage: bash test_fc_timer_prebuild_red.sh
 #   Env FC_TIMER_RED_LOG=<path>    : skip auto-discovery and invoking pre_build_verification.sh
 #                                    for real; analyze an already-captured real stdout log at
@@ -100,6 +146,13 @@
 #   Env FC_TIMER_RED_BOUND_S=N     : bound in seconds for the default bounded sample run
 #                                    (default 90; used only when neither of the above applies
 #                                    and no evidence log auto-discovers).
+#   Env FC_TIMER_RED_MODE=0|1      : polarity switch (S11.4.115). Default 0 = GREEN /
+#                                    post-landing (T028+T029 have landed; this is the repo's
+#                                    permanent state going forward -- assert fc_timer.sh IS
+#                                    present, sourced, and producing real TSV rows). Set to 1
+#                                    ONLY to reconstruct/audit the original pre-landing RED
+#                                    assertions (requires fc_timer.sh to be temporarily absent
+#                                    or moved aside -- an audit path, not the routine one).
 #
 # Auto-discovery (default, no env vars needed): the most recent
 # qa-results/fastcycle/us1/red/T015/prebuild_full_run_*.log is used automatically if present
@@ -124,6 +177,9 @@ FAIL=0; N=0; SKIPPED=0
 chk() { N=$((N + 1)); if [ "$2" = "1" ]; then echo "PASS[$N]: $1"; else echo "FAIL[$N]: $1"; FAIL=$((FAIL + 1)); fi; }
 skip() { N=$((N + 1)); SKIPPED=$((SKIPPED + 1)); echo "SKIP[$N]: $1"; }
 
+RED_MODE="${FC_TIMER_RED_MODE:-0}"
+echo "INFO: RED_MODE=$RED_MODE (0=GREEN/post-landing [default], 1=pre-landing audit reconstruction)"
+
 [ -f "$PRE_BUILD" ] || { echo "FATAL: pre_build_verification.sh not found at $PRE_BUILD"; exit 2; }
 
 # ---- Precondition sanity (0): confirm we are looking at the file the claims above describe ----
@@ -134,8 +190,12 @@ chk "pre_build_verification.sh exists and is readable ($LIVE_LINES lines)" "$([ 
 # GROUP 1 -- static source-level absence checks (fast, always run)
 # ============================================================================
 
-# 1. fc_timer.sh (T028's deliverable) does not exist yet.
-chk "fc_timer.sh is ABSENT today (RED precondition -- T028 not landed)" "$([ ! -f "$FC_TIMER" ] && echo 1 || echo 0)"
+# 1. fc_timer.sh (T028's deliverable) -- polarity depends on RED_MODE (see RECONCILIATION above).
+if [ "$RED_MODE" = "1" ]; then
+  chk "fc_timer.sh is ABSENT today (RED precondition -- T028 not landed) [RED_MODE=1]" "$([ ! -f "$FC_TIMER" ] && echo 1 || echo 0)"
+else
+  chk "fc_timer.sh is PRESENT (T028 landed) [RED_MODE=0/GREEN]" "$([ -f "$FC_TIMER" ] && echo 1 || echo 0)"
+fi
 
 # 2. pre_build_verification.sh does not yet source fc_timer.sh (T029's deliverable).
 grep -q 'fc_timer\.sh' "$PRE_BUILD" 2>/dev/null && SRC_LINE=1 || SRC_LINE=0
@@ -210,10 +270,17 @@ BANNER_COUNT="$(grep -cE "$BANNER_RE" "$CLEAN_LOG" 2>/dev/null || true)"
 : "${BANNER_COUNT:=0}"
 chk "real run shows genuine SECTION banner output ($BANNER_COUNT lines match the banner shape)" "$([ "$BANNER_COUNT" -ge 1 ] && echo 1 || echo 0)"
 
-# 6. No TSV artefact exists anywhere in the tree at any documented fastcycle timing path.
+# 6. No TSV artefact exists anywhere in the tree -- RED_MODE=1-only (S11.4.115 polarity switch;
+#    see RECONCILIATION above: this precondition is now PERMANENTLY false in RED_MODE=0/GREEN
+#    the moment any implementation run has ever produced a TSV, so asserting it there would be
+#    a tautological, unfixable FAIL, not a meaningful regression signal).
 TSV_HITS="$(find "$ROOT/qa-results/fastcycle" -name 'prebuild_sections.tsv' 2>/dev/null | wc -l | tr -d ' ')"
 : "${TSV_HITS:=0}"
-chk "no prebuild_sections.tsv exists anywhere under qa-results/fastcycle/ (RED)" "$([ "$TSV_HITS" -eq 0 ] && echo 1 || echo 0)"
+if [ "$RED_MODE" = "1" ]; then
+  chk "no prebuild_sections.tsv exists anywhere under qa-results/fastcycle/ (RED) [RED_MODE=1]" "$([ "$TSV_HITS" -eq 0 ] && echo 1 || echo 0)"
+else
+  skip "no-TSV-anywhere precondition (superseded by assertion 7 in RED_MODE=0/GREEN -- permanently false once any implementation run exists, $TSV_HITS TSV(s) found; this is expected)"
+fi
 
 TSV_EXISTS=0
 _f=""
@@ -242,21 +309,90 @@ if [ "$EVIDENCE_DEPTH" = "full" ]; then
   NEEDLE_RAN="$(grep -c -- "$NEEDLE_PRESENT" "$CLEAN_LOG" 2>/dev/null || true)"
   : "${NEEDLE_RAN:=0}"
   chk "control-needle section genuinely ran in this evidence ($NEEDLE_RAN hits in captured output)" "$([ "$NEEDLE_RAN" -ge 1 ] && echo 1 || echo 0)"
-  if [ "$TSV_EXISTS" = 1 ]; then
-    NEEDLE_IN_TSV="$(grep -c -- "$NEEDLE_PRESENT" "$_f" 2>/dev/null || true)"
+
+  # The needle string itself is a GATE NAME (a log_pass/log_fail message), never a SECTION
+  # banner -- T-A01's instrumentation is per-SECTION granularity, so the raw needle string can
+  # never appear as a TSV `id` value under any correct implementation (see RECONCILIATION
+  # above). Dynamically resolve the needle's OWN enclosing section: the nearest preceding
+  # `_fc_section_boundary '...'` / `log_section "..."` call before the needle's source line --
+  # re-derived every run, never hardcoded, so this stays correct even if the codebase
+  # reorganizes sections later.
+  ENCLOSING_SECTION_ID="$(python3 - "$PRE_BUILD" "$NEEDLE_PRESENT" <<'PYEOF'
+import re, sys
+path, needle = sys.argv[1], sys.argv[2]
+lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
+needle_line = next((i for i, l in enumerate(lines) if needle in l), None)
+if needle_line is None:
+    sys.exit(0)
+pat1 = re.compile(r"_fc_section_boundary\s+'([^']*)'")
+pat2 = re.compile(r'log_section\s+"([^"]*)"')
+last = None
+for i in range(needle_line + 1):
+    m1 = pat1.search(lines[i])
+    m2 = pat2.search(lines[i])
+    if m1:
+        last = m1.group(1)
+    elif m2:
+        last = m2.group(1)
+if last:
+    print(last)
+PYEOF
+)"
+  if [ -n "$ENCLOSING_SECTION_ID" ] && [ "$TSV_EXISTS" = 1 ]; then
+    NEEDLE_IN_TSV="$(awk -F'\t' -v want="$ENCLOSING_SECTION_ID" 'NR>1 && $3==want {c++} END{print c+0}' "$_f")"
   else
     NEEDLE_IN_TSV=0
   fi
   : "${NEEDLE_IN_TSV:=0}"
-  chk "control-needle section's row appears in the TSV (plan.md T-A01 control needle)" "$([ "$NEEDLE_IN_TSV" -ge 1 ] && echo 1 || echo 0)"
+  chk "control-needle's enclosing section ('$ENCLOSING_SECTION_ID') has a TSV row (plan.md T-A01 control needle, dynamically resolved)" "$([ "$NEEDLE_IN_TSV" -ge 1 ] && echo 1 || echo 0)"
 
-  # 10. Section-time-sum within 2% of wall-clock, with residue reported. There is no timing
-  #     column to sum today (no TSV), so this is a direct, meaningful FAIL, not a SKIP.
+  # 10. Section-time-sum within 2% of wall-clock, with residue reported. Computed for real
+  #     against the TSV's duration_ms column vs (max(end_ns)-min(start_ns)) across the SAME
+  #     run. Nanosecond epoch values (~1.9e18) exceed IEEE-754 double's exact-integer range
+  #     (~9e15) so this is deliberately done in python3 (arbitrary-precision ints), never
+  #     awk/bash floating point (S11.4.6 -- correctness-safe arithmetic, not a guess).
   if [ "$TSV_EXISTS" = 1 ]; then
-    # Documented future column contract (T028): a duration column in milliseconds, one of
-    # possibly several columns; the eventual T029 implementer's exact header decides which.
-    # Until it exists there is nothing to sum -- report the absence explicitly.
-    chk "section-time-sum is within 2% of wall-clock with residue reported (T-A01 confirmation)" "0"
+    TIMESUM_RESULT="$(python3 - "$_f" <<'PYEOF'
+import sys
+path = sys.argv[1]
+rows = []
+with open(path, encoding="utf-8", errors="replace") as f:
+    header = f.readline()
+    for line in f:
+        line = line.rstrip("\n")
+        if not line:
+            continue
+        cols = line.split("\t")
+        if len(cols) < 6:
+            continue
+        rows.append(cols)
+if not rows:
+    print("0 0 0.0 NO_ROWS")
+    sys.exit(0)
+try:
+    starts = [int(r[3]) for r in rows]
+    ends = [int(r[4]) for r in rows]
+    durs = [int(r[5]) for r in rows]
+except (ValueError, IndexError):
+    print("0 0 0.0 PARSE_ERROR")
+    sys.exit(0)
+span_ms = (max(ends) - min(starts)) / 1_000_000
+sum_ms = sum(durs)
+if span_ms <= 0:
+    print(f"{sum_ms} 0 0.0 ZERO_SPAN")
+    sys.exit(0)
+pct = abs(sum_ms - span_ms) / span_ms * 100.0
+print(f"{sum_ms} {span_ms:.3f} {pct:.4f} OK")
+PYEOF
+)"
+    read -r TIME_SUM_MS TIME_SPAN_MS TIME_PCT TIME_STATUS <<EOF
+$TIMESUM_RESULT
+EOF
+    TIME_WITHIN_2PCT=0
+    if [ "$TIME_STATUS" = "OK" ]; then
+      TIME_WITHIN_2PCT="$(python3 -c "print(1 if $TIME_PCT <= 2.0 else 0)")"
+    fi
+    chk "section-time-sum (${TIME_SUM_MS}ms) is within 2% of wall-clock span (${TIME_SPAN_MS}ms), residue=${TIME_PCT}% (T-A01 confirmation, status=$TIME_STATUS)" "$TIME_WITHIN_2PCT"
   else
     chk "section-time-sum is within 2% of wall-clock with residue reported (T-A01 confirmation) -- TSV absent, nothing to sum" "0"
   fi

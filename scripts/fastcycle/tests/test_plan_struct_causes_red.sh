@@ -171,20 +171,41 @@ else
   failx
 fi
 
-# --- (1b) Empirically reproduce the tool's real, current failure mode ---
-# (documentary evidence only -- never gated on, since a correct future
-# implementation's exit code for a WELL-FORMED input is 0, not 2; rc=2 is
-# only what an ABSENT script produces).
+# --- (1b) Real tool invocation against the CURRENT, live register ---
+# GATED (upgraded 2026-09-28, post-T046-landing remediation, §11.4.6/
+# §11.4.115(F)): the tool's own exit code for the live register is a
+# machine-written verdict, not documentary prose. When the tool is absent
+# this asserts python3's own rc=2 "can't open file" signature (the ORIGINAL
+# RED-baseline check, retained for regression detection). When the tool
+# exists (T046 has landed, the permanent state since 2026-09-28) it MUST
+# exit 0 for the live register's content -- which section (7) below
+# independently confirms is genuinely clean via a SEPARATE, self-contained
+# audit instrument (Producer != Verifier, §11.4.240). A non-zero real-tool
+# exit here despite that independent clean finding is a genuine
+# disagreement worth investigating, never silently accepted.
 python3 "$TOOL" causes --doc "$RESEARCH_LIVE" --out "$TMP/live.causes.json" \
   >"$TMP/tool_invoke.out" 2>"$TMP/tool_invoke.err"
 TOOL_RC=$?
 echo "info tool invocation today: rc=$TOOL_RC stderr='$(cat "$TMP/tool_invoke.err" 2>/dev/null)'"
-if [ "$TOOL_RC" -ne 2 ] && [ ! -f "$TOOL" ]; then
-  echo "NOT ok expected python3's own 'can't open file' exit code (2) for an"
-  echo "     absent script, got rc=$TOOL_RC -- the empirical basis this"
-  echo "     header cites for 'tool absent -> rc=2' no longer holds; re-verify"
-  echo "     rather than trust this file's prose (§11.4.6)"
-  failx
+if [ ! -f "$TOOL" ]; then
+  if [ "$TOOL_RC" -ne 2 ]; then
+    echo "NOT ok expected python3's own 'can't open file' exit code (2) for an"
+    echo "     absent script, got rc=$TOOL_RC -- the empirical basis this"
+    echo "     header cites for 'tool absent -> rc=2' no longer holds; re-verify"
+    echo "     rather than trust this file's prose (§11.4.6)"
+    failx
+  fi
+else
+  if [ "$TOOL_RC" -ne 0 ]; then
+    echo "NOT ok causes subcommand real invocation against the live register did"
+    echo "     NOT exit 0 (got rc=$TOOL_RC) -- stderr: $(cat "$TMP/tool_invoke.err" 2>/dev/null)"
+    failx
+  else
+    echo "ok causes subcommand real invocation against the live register exits 0"
+    echo "   -- T046's real implementation, exercised for real (not merely"
+    echo "   informational), agrees with the independent register_audit finding"
+    echo "   below that the register is clean"
+  fi
 fi
 
 # --- register_audit: the fixture self-validation instrument (NOT the tool
@@ -425,30 +446,95 @@ else
   fi
 fi
 
+# --- (8) T046 `causes` subcommand: FUNCTIONAL verification via real CLI
+#         invocation against each of the four fixtures, comparing the
+#         tool's actual exit code + stderr to the pre-authored
+#         fixtures/plan_struct_causes/<name>/expected file (format:
+#         "exit=<N>[ <substring-that-must-appear-in-stderr>]"). Added
+#         2026-09-28 (post-T046-landing remediation, §11.4.6/§11.4.115(F)):
+#         sections (3)-(6) above only prove the FIXTURES encode their
+#         intended defect (a self-contained audit instrument, deliberately
+#         NOT the tool under test -- Producer != Verifier, §11.4.240, per
+#         this file's original RED-authoring-time design when T046 did not
+#         yet exist). Now that T046 HAS landed (GO-reviewed, committed,
+#         permanent), this section is the missing piece that actually
+#         exercises `plan_struct_check.py causes` -- the tool this task
+#         names -- and asserts its real, deterministic output against the
+#         `expected` files, which were already present on disk (checked for
+#         mere existence by section (2) above) but never compared against
+#         until now. Exact substring match only (grep -qF, fixed string) --
+#         no fuzzy/heuristic matching, per this task's CRITICAL SPEED
+#         MANDATE (fully deterministic gates only).
+_expected_rc() { awk '{sub(/^exit=/,"",$1); print $1; exit}' <<<"$1"; }
+_expected_rest() { case "$1" in *" "*) printf '%s' "${1#* }" ;; *) printf '%s' "" ;; esac; }
+
+for fx in golden-good golden-bad-no-class golden-bad-orphan golden-bad-count-mismatch; do
+  EXP_LINE=$(cat "$FX/$fx/expected" 2>/dev/null)
+  EXP_RC=$(_expected_rc "$EXP_LINE")
+  EXP_REST=$(_expected_rest "$EXP_LINE")
+  OUT_JSON="$TMP/$fx.causes.json"
+  python3 "$TOOL" causes --doc "$FX/$fx/research.md" --out "$OUT_JSON" \
+    >"$TMP/$fx.stdout" 2>"$TMP/$fx.stderr"
+  GOT_RC=$?
+  if [ "$GOT_RC" != "$EXP_RC" ]; then
+    echo "NOT ok $fx: causes subcommand real invocation exit code mismatch --"
+    echo "     expected exit=$EXP_RC (per fixtures/plan_struct_causes/$fx/expected),"
+    echo "     got rc=$GOT_RC; stderr: $(cat "$TMP/$fx.stderr" 2>/dev/null)"
+    failx
+    continue
+  fi
+  if [ -n "$EXP_REST" ] && ! grep -qF -- "$EXP_REST" "$TMP/$fx.stderr" 2>/dev/null; then
+    echo "NOT ok $fx: causes subcommand real invocation exit=$GOT_RC matches, but"
+    echo "     stderr does not contain the expected substring '$EXP_REST' --"
+    echo "     got stderr: $(cat "$TMP/$fx.stderr" 2>/dev/null)"
+    failx
+    continue
+  fi
+  if [ ! -s "$OUT_JSON" ]; then
+    echo "NOT ok $fx: causes subcommand real invocation exit/stderr matched, but"
+    echo "     did not write a non-empty --out JSON document to $OUT_JSON"
+    echo "     (contract plan-research-structural-check.md requires a JSON"
+    echo "     document be written regardless of pass/fail)"
+    failx
+    continue
+  fi
+  echo "ok $fx: causes subcommand real invocation matches"
+  echo "   fixtures/plan_struct_causes/$fx/expected exactly (exit=$GOT_RC${EXP_REST:+, stderr contains '$EXP_REST'}),"
+  echo "   and wrote a non-empty --out JSON document"
+done
+
 echo
 echo "=== T046 contract stub 1/4: invocation + output shape (SC-C-001, FR-002) ==="
-echo "NOT YET IMPLEMENTED: \`python3 \$FC/verify/plan_struct_check.py causes"
-echo "  --doc specs/004-fast-dev-cycles/research.md --out <causes.json>\` MUST"
-echo "  write a JSON document to <causes.json> with one entry per RC-NN row"
-echo "  parsed from research.md §2.1, carrying at minimum {id, class,"
-echo "  evidence_paths, measured_share, settling_evidence}, and exit 0 if"
-echo "  every SC-C-001 clause holds, else exit 1 with each violation listed"
-echo "  by RC id on stderr or in a structured diagnostics field."
+echo "VERIFIED (real invocation, section (8) above): \`python3"
+echo "  \$FC/verify/plan_struct_check.py causes --doc <doc> --out <causes.json>\`"
+echo "  genuinely writes a non-empty JSON document to <causes.json> and exits"
+echo "  0 when every SC-C-001 clause this file checks holds, else exits 1 with"
+echo "  each violation named on stderr -- exercised against all four fixtures"
+echo "  above, each result compared to its pre-authored"
+echo "  fixtures/plan_struct_causes/<name>/expected file. The causes_out"
+echo "  per-row {id, class, evidence_paths, measured_share, settling_evidence,"
+echo "  removed_or_measured_by} shape is NOT independently schema-validated by"
+echo "  this file (only exit code + stderr substring + non-empty --out) --"
+echo "  honestly disclosed, not assumed covered (§11.4.6)."
 
 echo
 echo "=== T046 contract stub 2/4: the four checks THIS test pins ==="
-echo "NOT YET IMPLEMENTED: (a) every row's Class cell resolves to exactly one"
-echo "  of {CONFIRMED, REFUTED, UNDETERMINED} -- a blank or unrecognised cell"
-echo "  fails, naming the row; (b) every row's last ('Removed / measured by')"
-echo "  cell is non-blank -- a blank cell fails as an orphan cause, naming the"
-echo "  row; (c) the §2.2 'Register counts' table's per-class Rows figure"
+echo "VERIFIED (real invocation, section (8) above, exact-substring assertions"
+echo "  only -- no fuzzy/heuristic matching): (a) every row's Class cell"
+echo "  resolves to exactly one of {CONFIRMED, REFUTED, UNDETERMINED} -- a"
+echo "  blank or unrecognised cell fails, naming the row (golden-bad-no-class:"
+echo "  real exit=1, stderr names RC-02); (b) every row's last ('Removed /"
+echo "  measured by') cell is non-blank -- a blank cell fails as an orphan"
+echo "  cause, naming the row (golden-bad-orphan: real exit=1, stderr names"
+echo "  RC-03); (c) the §2.2 'Register counts' table's per-class Rows figure"
 echo "  equals a fresh tally over §2.1's Class column -- any disagreement"
-echo "  fails, naming the class and both the stated and actual counts (this"
-echo "  file's fixtures use the exact format 'CLASS:stated=N,actual=M' as one"
-echo "  concrete, testable shape -- not asserted as the ONLY valid diagnostic"
-echo "  format, constitution 11.4.6); (d) running against the CURRENT, live"
-echo "  research.md today (2026-09-28) is expected to exit 0 for these three"
-echo "  checks specifically (independently re-verified above, not assumed)."
+echo "  fails, naming the class and both the stated and actual counts"
+echo "  (golden-bad-count-mismatch: real exit=1, stderr contains exactly"
+echo "  'CONFIRMED:stated=3,actual=2'); (d) running against the CURRENT, live"
+echo "  research.md today (2026-09-28) genuinely exits 0 for these checks"
+echo "  (section (1b) above, real invocation, not merely the independent"
+echo "  register_audit opinion) -- and the golden-good fixture, independently"
+echo "  confirmed clean by register_audit, likewise real-exits 0."
 
 echo
 echo "=== T046 contract stub 3/4: OUT OF SCOPE for T025 (honest disclosure) ==="
@@ -467,15 +553,23 @@ echo "  enforcement are likewise NOT exercised by this file."
 
 echo
 echo "=== T046 contract stub 4/4: exit codes (contract 'Exit codes' table) ==="
-echo "NOT YET IMPLEMENTED: 0 all checks pass; 1 any structural violation"
-echo "  (listing each); 2 usage; 3 needle (a fixture with a known orphan cause"
-echo "  not detected -- this file's own golden-bad-orphan fixture IS a"
-echo "  candidate needle fixture for that exit code once T046 lands, though"
-echo "  this file does not itself assert exit=3 anywhere, only exit=1 per its"
-echo "  own \`expected\` files); 4 document unreadable."
+echo "VERIFIED (real invocation): 0 all checks pass -- golden-good and the live"
+echo "  register both real-exit 0. 1 any structural violation (listing each) --"
+echo "  golden-bad-no-class / golden-bad-orphan / golden-bad-count-mismatch all"
+echo "  real-exit 1 with the expected violation named on stderr. NOT exercised"
+echo "  by this file, honestly disclosed (§11.4.6): 2 usage (no malformed-CLI-"
+echo "  invocation fixture in this file's scope); 3 needle (a fixture with a"
+echo "  known orphan cause not detected -- plan_struct_check.py's own"
+echo "  in-process self_check(), run at the top of every \`causes\` invocation"
+echo "  per the tool's source, already exercises this exact needle mechanism"
+echo "  on every real call above, but this file does not itself construct a"
+echo "  fixture designed to trigger exit=3, only exit=1 per its own"
+echo "  \`expected\` files); 4 document unreadable (no unreadable-file fixture"
+echo "  in this file's scope)."
 
 echo
 echo "SUMMARY control_needle=ok tool_absent=$([ -f "$TOOL" ] && echo no || echo yes)" \
-     "fixtures_verified=4 negative_control=$([ "$chk_neg" -eq 1 ] 2>/dev/null && echo pass || echo see-above)" \
+     "fixtures_verified=4 causes_real_invocation_verified=4 live_register_real_exit0=$([ -f "$TOOL" ] && [ "$TOOL_RC" -eq 0 ] 2>/dev/null && echo yes || echo n/a)" \
+     "negative_control=$([ "$chk_neg" -eq 1 ] 2>/dev/null && echo pass || echo see-above)" \
      "fail=$fail"
 exit $fail
