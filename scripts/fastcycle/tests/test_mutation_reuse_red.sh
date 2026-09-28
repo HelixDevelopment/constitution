@@ -247,6 +247,43 @@ PYEOF
     else
         bad "mr_bad_survived_never_reused: reference keys of put/get envelopes DIFFER (put=$sv_put get=$sv_get) -- this fixture accidentally also differs in a key-bearing field, contaminating the SURVIVED-rule check with a key-mismatch effect"
     fi
+
+    # -------------------------------------------------------------------
+    # mr_gate_isolation -- T057 case 1's "(not others)" half: every OTHER
+    # scenario above uses one hardcoded gate id in its own isolated
+    # scratch cache dir, so none of them alone proves that changing one
+    # gate's input leaves an UNRELATED gate's cache entry, sharing the
+    # SAME cache directory, untouched. Reference-check BEFORE Section D
+    # claims anything about the real tool: gate A's put/get keys must
+    # DIFFER (its own input changed), gate B's put/get keys must be
+    # IDENTICAL (unchanged), and gate A's key must differ from gate B's
+    # key (genuinely distinct gates, not an accidental collision that
+    # would make "isolation" trivially true for the wrong reason).
+    # -------------------------------------------------------------------
+    GI_DIR="$FIXDIR/mr_gate_isolation"
+    gi_a_put=$(python3 "$DEC23_PY" "$GI_DIR/gate_a_put.json" 2>/dev/null)
+    gi_a_get=$(python3 "$DEC23_PY" "$GI_DIR/gate_a_get.json" 2>/dev/null)
+    gi_b_put=$(python3 "$DEC23_PY" "$GI_DIR/gate_b_put.json" 2>/dev/null)
+    gi_b_get=$(python3 "$DEC23_PY" "$GI_DIR/gate_b_get.json" 2>/dev/null)
+    if [ -z "$gi_a_put" ] || [ -z "$gi_a_get" ] || [ -z "$gi_b_put" ] || [ -z "$gi_b_get" ]; then
+        bad "mr_gate_isolation: reference key builder failed to compute a key from one of the 4 envelopes"
+    else
+        if [ "$gi_a_put" != "$gi_a_get" ]; then
+            ok "mr_gate_isolation: gate A's reference keys DIFFER (put=$gi_a_put get=$gi_a_get) -- its changed input means its own mutation must re-run"
+        else
+            bad "mr_gate_isolation: gate A's reference keys are IDENTICAL ($gi_a_put) -- this fixture's 'gate A input changed' half is vacuous"
+        fi
+        if [ "$gi_b_put" = "$gi_b_get" ]; then
+            ok "mr_gate_isolation: gate B's reference keys are IDENTICAL ($gi_b_put) -- its unchanged input means its cached verdict stays servable"
+        else
+            bad "mr_gate_isolation: gate B's reference keys DIFFER (put=$gi_b_put get=$gi_b_get) -- this fixture's 'gate B unchanged' half is vacuous"
+        fi
+        if [ "$gi_a_put" != "$gi_b_put" ]; then
+            ok "mr_gate_isolation: gate A's key ($gi_a_put) differs from gate B's key ($gi_b_put) -- the two gates are genuinely distinct cache slots, not an accidental collision"
+        else
+            bad "mr_gate_isolation: gate A's key equals gate B's key ($gi_a_put) -- the two gates COLLIDE in the reference formula, which would make any 'isolation' observed against the real tool meaningless (both gates would share one cache slot for the wrong reason)"
+        fi
+    fi
 fi
 
 # =============================================================================
@@ -371,6 +408,51 @@ for scen in mr_good_killed_reuse mr_bad_survived_never_reused mr_one_input_chang
             ;;
     esac
 done
+
+# =============================================================================
+# Section D-bis -- mr_gate_isolation: T057 case 1's "(not others)" half.
+# TWO independent gates (GATE-MR-ISO-A, GATE-MR-ISO-B) are put into ONE
+# SHARED cache_dir (unlike every scenario above, each of which gets its
+# own isolated scratch cache_dir per iteration of the main loop). Gate A's
+# input then changes -> expect MISS. Gate B's input stays byte-identical
+# in that SAME shared cache_dir -> expect HIT, proving gate A's change did
+# not evict or otherwise disturb gate B's independently-cached entry.
+# =============================================================================
+GI_DIR="$FIXDIR/mr_gate_isolation"
+if [ ! -d "$GI_DIR" ]; then
+    bad "mr_gate_isolation: fixture directory missing at $GI_DIR"
+elif [ ! -f "$TOOL" ]; then
+    bad "RED: mr_gate_isolation gate A (expected=MISS) -- $TOOL is absent, cannot run get/put"
+    bad "RED: mr_gate_isolation gate B (expected=HIT) -- $TOOL is absent, cannot run get/put"
+elif [ -z "${CACHE_ROOT:-}" ]; then
+    bad "mr_gate_isolation: no scratch cache-dir available, skipping invocation"
+else
+    gi_cache="$CACHE_ROOT/mr_gate_isolation"
+    mkdir -p "$gi_cache"
+    a_verdict=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('verdict',''))" "$GI_DIR/gate_a_put.json" 2>/dev/null)
+    b_verdict=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('verdict',''))" "$GI_DIR/gate_b_put.json" 2>/dev/null)
+    python3 "$TOOL" put --cache-dir "$gi_cache" --gate GATE-MR-ISO-A --mutation-id M-101 --patch "$FIXDIR/mutation_patch.diff" --gate-script "$FIXDIR/gate_script.sh" --inputs "$GI_DIR/gate_a_put.json" --verdict "$a_verdict" --evidence "$FIXDIR/evidence.txt" >"$gi_cache/.a_put_out" 2>"$gi_cache/.a_put_err"
+    python3 "$TOOL" put --cache-dir "$gi_cache" --gate GATE-MR-ISO-B --mutation-id M-102 --patch "$FIXDIR/mutation_patch_v2.diff" --gate-script "$FIXDIR/gate_script_v2.sh" --inputs "$GI_DIR/gate_b_put.json" --verdict "$b_verdict" --evidence "$FIXDIR/evidence.txt" >"$gi_cache/.b_put_out" 2>"$gi_cache/.b_put_err"
+
+    a_get_out=$(python3 "$TOOL" get --cache-dir "$gi_cache" --gate GATE-MR-ISO-A --mutation-id M-101 --patch "$FIXDIR/mutation_patch.diff" --gate-script "$FIXDIR/gate_script.sh" --inputs "$GI_DIR/gate_a_get.json" 2>"$gi_cache/.a_get_err")
+    a_get_rc=$?
+    b_get_out=$(python3 "$TOOL" get --cache-dir "$gi_cache" --gate GATE-MR-ISO-B --mutation-id M-102 --patch "$FIXDIR/mutation_patch_v2.diff" --gate-script "$FIXDIR/gate_script_v2.sh" --inputs "$GI_DIR/gate_b_get.json" 2>"$gi_cache/.b_get_err")
+    b_get_rc=$?
+
+    if [ "$a_get_rc" -eq 1 ] && printf '%s\n' "$a_get_out" | grep -q '^MISS '; then
+        ok "mr_gate_isolation: gate A (changed input) reports MISS as expected (rc=$a_get_rc)"
+    else
+        bad "mr_gate_isolation: gate A expected MISS, got rc=$a_get_rc stdout='$a_get_out'"
+    fi
+    if [ "$b_get_rc" -eq 0 ] && printf '%s\n' "$b_get_out" | grep -q '^HIT '; then
+        ok "mr_gate_isolation: gate B (unchanged input, SAME shared cache_dir as gate A) reports HIT as expected (rc=$b_get_rc) -- gate A's change did not touch it"
+        if printf '%s\n' "$b_get_out" | grep -q 'verdict=SURVIVED'; then
+            bad "mr_gate_isolation: gate B's HIT output reports a SURVIVED verdict, which must never be servable (DEC-23)"
+        fi
+    else
+        bad "mr_gate_isolation: gate B expected HIT, got rc=$b_get_rc stdout='$b_get_out' -- either the tool never stored it, or gate A's put/get disturbed an unrelated gate's cache entry (the exact cross-gate leak T057 case 1 forbids)"
+    fi
+fi
 
 for scen in mr_tce_duplicate mr_tce_distinct; do
     scen_dir="$FIXDIR/$scen"

@@ -1,0 +1,8 @@
+{
+  "removed_gate": "TOY-GATE-REMOVED",
+  "removed_script": "gates/gate_removed.sh",
+  "survivor_gate": "TOY-GATE-SURVIVOR",
+  "survivor_script": "gates/gate_survivor.sh",
+  "planted_mutation_target": "targets/has_pattern_x.txt",
+  "transfer_run_log": "transfer_runs/good_transfer_run.log"
+}
