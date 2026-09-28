@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "description": "Line 87 is missing input validation for the --round flag: a non-numeric or negative value is passed straight through to the record store index.",
+      "file": "review_record_fixture_validate.sh",
+      "id": "F1",
+      "line": 87,
+      "severity": "IMPORTANT"
+    }
+  ],
+  "round": 1
+}

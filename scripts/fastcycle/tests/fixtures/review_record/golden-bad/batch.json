@@ -1,0 +1,19 @@
+{
+  "batch_id": "RB-T018-GB",
+  "changes": [
+    "sha256:51ca6a4ee4309665cdbd54656d4c465796d2a79cbdbc09a6aee25c68341723fd"
+  ],
+  "related_by": "logic_group:fastcycle-review-record-fixture",
+  "slices": [
+    {
+      "context_pack": {
+        "blast_radius": "one dispatcher module plus its two direct callers (fixture)",
+        "intent": "Add a retry wrapper around the upstream fetch call used by the fixture's demo dispatcher.",
+        "sibling_search_ref": "qa-results/fastcycle/us1/red/T018/sibling_search_golden_bad.json"
+      },
+      "lines": 41,
+      "slice_id": "S1"
+    }
+  ],
+  "total_changed_lines": 41
+}

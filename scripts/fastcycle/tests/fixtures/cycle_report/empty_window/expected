@@ -1,0 +1,19 @@
+CT-008 / data-model.md V-CR-3 contract for a window containing zero eligible
+closure events:
+
+  exit code: 0 (an honest empty result is NOT a failure and NOT a usage
+  error -- distinct from exit 2 usage/config and exit 4 DB-unreadable)
+
+  body (task-line's exact phrasing): a message equivalent to
+    "no data in window [from, to]"
+  which the contract's own schema (CT-008) expresses as:
+    { "state": "NO_DATA_IN_WINDOW", "window": { "from": "2020-01-01", "to": "2020-01-02" } }
+
+MUST NOT appear in the output: `"strata"` populated with zero-valued rows
+presented as real medians, `"medians"` containing a computed 0 or an
+averaged-over-nothing value, or a non-zero exit code. The task line's plain
+phrasing "no data in window [from, to]" and the contract's structured
+NO_DATA_IN_WINDOW state are the SAME requirement -- the future implementer's
+message text (human-readable --md output) and the JSON `state` field both
+carry it; whichever surface is checked, the literal window bounds MUST be
+present, not omitted or replaced with an ellipsis.

@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "description": "SC2086: Double quote to prevent globbing and word splitting of $STAGE_DIR before it is used in the glob expression below.",
+      "file": "review_record_fixture.sh",
+      "id": "F1",
+      "line": 14,
+      "rule": "SC2086",
+      "severity": "MINOR"
+    }
+  ],
+  "round": 1
+}

@@ -1,0 +1,37 @@
+{
+  "_fixture": "missing_record",
+  "_purpose": "Scenario 1/4 of T023 (spec Edge Case \"missing record\", FR-001, contract CT-002/CT-004, data-model.md StageMeasurement.missing_instrument). One item whose `build` stage has NO source artefact anywhere in the fixture's synthetic evidence set. cycle_report.py MUST emit that stage as the literal string `UNMEASURED: <instrument-name>` -- NEVER a number, NEVER 0, NEVER an interpolated/averaged value (CT-004, data-model.md V-CR-2).",
+  "_synthetic": true,
+  "_note": "This item id does not exist in the real docs/workable_items.db (verified 2026-09-28 -- an ATM-99999-class id is a control-needle-proven zero-row lookup) so this fixture cannot be confused with a real tracked item.",
+  "item": {
+    "atm_id": "ATM-90001",
+    "type": "Bug",
+    "status": "Fixed",
+    "created_at": "2026-08-01T09:00:00Z",
+    "last_modified": "2026-08-01T17:00:00Z"
+  },
+  "item_history": [
+    { "event_type": "Opened", "by": "User", "on_date": "2026-08-01", "created_at": "2026-08-01T09:00:00Z" },
+    { "event_type": "Fixed", "by": "AI", "on_date": "2026-08-01", "created_at": "2026-08-01T17:00:00Z", "evidence_path": "qa-results/fixture-missing-record/GREEN.log" }
+  ],
+  "git_log": [
+    { "sha": "aaaaaaa1111111111111111111111111111111a", "author_date": "2026-08-01T10:15:00Z", "committer_date": "2026-08-01T10:20:00Z", "message": "fix: fixture ATM-90001 implementation" }
+  ],
+  "evidence_files_present": [
+    { "path": "qa-results/fixture-missing-record/GREEN.log", "mtime": "2026-08-01T17:00:00Z" }
+  ],
+  "evidence_files_deliberately_absent": [
+    {
+      "expected_path_pattern": "docs/build/resources/builds.tsv row for ATM-90001, OR a qa-results/ build-log file mtime-correlated to this item's implementation window",
+      "stage_affected": "build",
+      "missing_instrument": "per-item build-log/builds.tsv row keyed to ATM-90001 (R1's instrument table; contract CT-002 default mapping)"
+    }
+  ],
+  "expected_stage_ct002_ct004": {
+    "stage": "build",
+    "start": "UNMEASURED",
+    "end": "UNMEASURED",
+    "elapsed": "UNMEASURED",
+    "missing_instrument": "per-item build-log/builds.tsv row keyed to ATM-90001 (R1's instrument table; contract CT-002 default mapping)"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "all_pass": true,
+  "batch_id": "RB-T018-GG",
+  "checks": [
+    {
+      "check": "parse",
+      "evidence": {
+        "tool": "bash -n / sh -n"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "shellcheck",
+      "evidence": {
+        "note": "This precheck run's shellcheck pass did not flag review_record_fixture.sh:14 -- the reviewer independently found it; the finding is still of a machine-findable KIND (a documented shellcheck rule), which is exactly the 'mechanical' share DEC-33/RB-007 measure over time."
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "affected-gates",
+      "evidence": {
+        "gates": []
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "touched-gate-mutations",
+      "evidence": {
+        "gates": []
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "secret-scan",
+      "evidence": {},
+      "verdict": "PASS"
+    },
+    {
+      "check": "doc-sync",
+      "evidence": {},
+      "verdict": "PASS"
+    },
+    {
+      "check": "closure-evidence-class",
+      "evidence": {
+        "items": []
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "sibling-search",
+      "evidence": {
+        "ref": "qa-results/fastcycle/us1/red/T018/sibling_search_golden_good.json"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "blast-radius",
+      "evidence": {
+        "scope": "single function"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "already-fixed-markers",
+      "evidence": {
+        "markers": []
+      },
+      "verdict": "PASS"
+    }
+  ],
+  "independence_tier": "instance",
+  "run_from": "qa-results/fastcycle/us1/red/T018/clean-checkout-golden-good"
+}
