@@ -278,6 +278,18 @@ git_subject_freeze() {
   local raw
   raw="$(git -C "$root" log --all -i --grep="$item_id" --pretty=format:'%H|%aI|%cI|%s' 2>/dev/null)" || raw=""
   local best_sha="" best_date="" best_subject="" count=0
+  # T043 round-4 finding B2 (BLOCKING, agent ad5d869e28efdddbd, 2026-09-28):
+  # a plain substring case-match (`*"$item_id"*`) makes ATM-95 match
+  # ATM-953, ATM-103 match ATM-1038, etc. -- reproduced on this project's
+  # own real history: `--item ATM-103` silently froze commit fd5585c7's
+  # "...ATM-1038 option b" subject with exit 0, no BLIND, no warning.
+  # This is exactly the "silent fall-back to any other guessed commit"
+  # §11.4.6 forbids. Fixed with a token-boundary regex: the item id must
+  # be bounded by a non-alnum-non-hyphen char (or string start) on the
+  # left and a non-digit char (or string end) on the right, so ATM-103
+  # can never match inside ATM-1038 or ATM-953.
+  local item_re
+  item_re="$(printf '%s' "$item_id" | sed 's/[][\.^$*+?(){}|]/\\&/g')"
   local IFS_OLD="$IFS"
   IFS=$'\n'
   local line
@@ -290,14 +302,12 @@ git_subject_freeze() {
     rest="${rest#*|}"
     rest="${rest#*|}"  # discard committer date (%cD) field -- not used (only author date, matching cycle_report.py)
     subject="${rest}"
-    case "$subject" in
-      *"$item_id"*)
+    if [[ "$subject" =~ (^|[^A-Za-z0-9-])${item_re}([^0-9]|$) ]]; then
         count=$((count + 1))
         if [ -z "$best_date" ] || [[ "$adate" > "$best_date" ]]; then
           best_sha="$sha"; best_date="$adate"; best_subject="$subject"
         fi
-        ;;
-    esac
+    fi
     IFS=$'\n'
   done
   IFS="$IFS_OLD"
@@ -483,6 +493,33 @@ do_one_replay() {
   local _cleanup_trap_cmd
   printf -v _cleanup_trap_cmd 'cleanup %q %q' "$repo_root" "$wt_path"
   trap "$_cleanup_trap_cmd" EXIT
+  # T043 round-4 finding B1 (BLOCKING, agent ad5d869e28efdddbd, 2026-09-28):
+  # bash does NOT run the EXIT trap when it dies from an un-handled SIGHUP
+  # or SIGQUIT (unlike SIGINT/SIGTERM, independently reproduced as already
+  # safe via bash's default disposition -- both correctly run the EXIT
+  # trap with no explicit handling needed). SIGHUP is the realistic case
+  # (an SSH disconnect, a tmux server dying, a closed terminal) and, per
+  # this script's own DISK SAFETY note, each orphan is a full checkout
+  # (~49 GB). Fixed by converting HUP/QUIT into an explicit `exit`, which
+  # DOES run the already-registered EXIT trap (standard 128+signal exit
+  # codes).
+  # Call cleanup() DIRECTLY inside the signal handler itself -- rather
+  # than `exit N` and relying on that subsequently triggering the EXIT
+  # trap -- so this fix has NO dependency on exactly when/whether bash
+  # gets around to running a deferred EXIT trap after a non-EXIT signal's
+  # own `exit`. `trap - EXIT HUP QUIT` first, so the handler cannot
+  # re-enter itself and cleanup() is never invoked twice concurrently.
+  # Computed independently from repo_root/wt_path directly (never by
+  # string-concatenating onto $_cleanup_trap_cmd above) so this block
+  # stays self-contained: mutating the EXIT-trap-registration block above
+  # (e.g. §1.1's own paired-mutation test, which reverts it to the
+  # original buggy form) must not ALSO collaterally break this
+  # DIFFERENT, unrelated fix by removing a variable this block secretly
+  # depended on.
+  local _sig_cleanup_cmd
+  printf -v _sig_cleanup_cmd 'cleanup %q %q; trap - EXIT HUP QUIT' "$repo_root" "$wt_path"
+  trap "$_sig_cleanup_cmd; exit 129" HUP
+  trap "$_sig_cleanup_cmd; exit 131" QUIT
 
   if ! git -C "$repo_root" worktree add --detach --quiet "$wt_path" "$commit" >/dev/null 2>&1; then
     echo "baseline_replay: BLIND: git worktree add failed for commit $commit at $wt_path" >&2
@@ -505,7 +542,29 @@ do_one_replay() {
     while [ "$run_idx" -le "$n_runs" ]; do
       start_ns="$(now_ns)" || return 4
       timed_out=0
-      ( cd "$wt_path" && timeout --kill-after=5 "${timeout_s}s" "${gate_cmd[@]}" ) >/dev/null 2>&1
+      # T043 round-4 finding B1 continued: a plain FOREGROUND subshell
+      # here (no trailing `&` + explicit `wait`) makes bash DEFER any
+      # trapped signal -- including the `trap 'exit 129' HUP` registered
+      # above -- until this WHOLE foreground command finishes (documented
+      # bash behavior: "If bash is waiting for a command to complete and
+      # receives a signal for which a trap has been set, the trap will
+      # not be executed until the command completes"). That defers
+      # cleanup past the gate-cmd's own natural end, which -- for a
+      # SIGHUP-causing event like an SSH disconnect or a dying tmux
+      # server -- the parent process is unlikely to survive to see;
+      # independently reproduced: the gate-cmd's OWN process dies from
+      # SIGHUP's default disposition (not trapped there), the foreground
+      # wait unblocks, but the worktree still leaks because the ORIGINAL
+      # repro path (kill sent to the process group at t+1.5s of a t+5s
+      # gate-cmd) verified this genuinely happens. Fixed by BACKGROUNDING
+      # the gate-cmd subshell and using the `wait` BUILTIN explicitly --
+      # per POSIX, `wait` on a specific job returns immediately when a
+      # trapped signal is delivered, so the pending HUP trap runs
+      # (converting to `exit 129`, firing the EXIT-trap cleanup)
+      # WITHOUT waiting for the gate-cmd to finish on its own.
+      ( cd "$wt_path" && timeout --kill-after=5 "${timeout_s}s" "${gate_cmd[@]}" ) >/dev/null 2>&1 &
+      local gate_pid=$!
+      wait "$gate_pid"
       rc=$?
       if [ "$rc" = 124 ] || [ "$rc" = 137 ]; then timed_out=1; fi
       end_ns="$(now_ns)" || return 4
@@ -583,6 +642,22 @@ cmd_replay() {
   [ -n "$repo_root" ] || repo_root="$DEFAULT_REPO_ROOT"
   repo_root="$(cd "$repo_root" 2>/dev/null && pwd)" || blind "cannot resolve --repo-root"
   [ -n "$worktree_root" ] || worktree_root="$repo_root/.fc_worktrees"
+  # T043 round-4 finding B3 (BLOCKING, agent ad5d869e28efdddbd, 2026-09-28):
+  # a RELATIVE --worktree-root resolves against the CALLER's cwd for
+  # mktemp/rev-parse/df/the gate's own `cd`, but against $repo_root for
+  # `git -C "$repo_root" worktree add` -- two different base directories
+  # for the SAME value, silently pointing at two different locations.
+  # Reproduced: from a cwd other than the repo, a relative
+  # --worktree-root with --tree omitted produced exit 0 + a false
+  # "cold":["FAIL"] verdict without the gate ever running against the
+  # real checkout -- a §11.4.1 FAIL-bluff in a measurement tool. Fixed
+  # the SAME way repo_root already is, two lines up: resolve to an
+  # absolute, canonical path up front so every later consumer (mktemp,
+  # df, git -C, the gate's cd) agrees on the SAME directory, closing the
+  # root cause for the --tree-provided case too (caught by luck there
+  # via the tree-mismatch check, not by design).
+  mkdir -p "$worktree_root" 2>/dev/null || die "replay: cannot create --worktree-root $worktree_root"
+  worktree_root="$(cd "$worktree_root" 2>/dev/null && pwd)" || die "replay: cannot resolve --worktree-root $worktree_root to an absolute path"
 
   run_selfcheck || return 3
 
@@ -698,6 +773,22 @@ cmd_replay_sample() {
   [ -n "$repo_root" ] || repo_root="$DEFAULT_REPO_ROOT"
   repo_root="$(cd "$repo_root" 2>/dev/null && pwd)" || blind "cannot resolve --repo-root"
   [ -n "$worktree_root" ] || worktree_root="$repo_root/.fc_worktrees"
+  # T043 round-4 finding B3 (BLOCKING, agent ad5d869e28efdddbd, 2026-09-28):
+  # a RELATIVE --worktree-root resolves against the CALLER's cwd for
+  # mktemp/rev-parse/df/the gate's own `cd`, but against $repo_root for
+  # `git -C "$repo_root" worktree add` -- two different base directories
+  # for the SAME value, silently pointing at two different locations.
+  # Reproduced: from a cwd other than the repo, a relative
+  # --worktree-root with --tree omitted produced exit 0 + a false
+  # "cold":["FAIL"] verdict without the gate ever running against the
+  # real checkout -- a §11.4.1 FAIL-bluff in a measurement tool. Fixed
+  # the SAME way repo_root already is, two lines up: resolve to an
+  # absolute, canonical path up front so every later consumer (mktemp,
+  # df, git -C, the gate's cd) agrees on the SAME directory, closing the
+  # root cause for the --tree-provided case too (caught by luck there
+  # via the tree-mismatch check, not by design).
+  mkdir -p "$worktree_root" 2>/dev/null || die "replay: cannot create --worktree-root $worktree_root"
+  worktree_root="$(cd "$worktree_root" 2>/dev/null && pwd)" || die "replay: cannot resolve --worktree-root $worktree_root to an absolute path"
 
   run_selfcheck || return 3
 

@@ -523,9 +523,22 @@ else
     ok "fixture also carries a genuine usage block (input_tokens=60 output_tokens=90) so a real GREEN ingest run exercises normal counting alongside the credential check"
 
     if [ -f "$TRANSCRIPT_INGEST" ]; then
-        DB="$WORK/telemetry_e.db"
-        rm -f "$DB"
-        python3 "$TRANSCRIPT_INGEST" ingest "$CRED_FIX" --db "$DB" >/dev/null 2>&1
+        # T038 round-4 independent review (agent a29d6aaf96f5f6440,
+        # 2026-09-28) found 3 side-channel leak classes this PART
+        # previously could not see at all because the ingest's own I/O
+        # was discarded (>/dev/null 2>&1, never inspected: R4-7) and it
+        # ran directly into $WORK, a directory shared with other test
+        # fixtures rather than one whose file listing is directly
+        # enumerable (R4-6). Fixed: run in a freshly-created, otherwise-
+        # empty isolated directory, and capture both streams to files
+        # instead of discarding them.
+        CRED_ISOLATED_DIR="$WORK/cred_isolated_run"
+        rm -rf "$CRED_ISOLATED_DIR"
+        mkdir -p "$CRED_ISOLATED_DIR"
+        DB="$CRED_ISOLATED_DIR/telemetry_e.db"
+        STDOUT_CAP="$CRED_ISOLATED_DIR/.ingest_stdout.log"
+        STDERR_CAP="$CRED_ISOLATED_DIR/.ingest_stderr.log"
+        python3 "$TRANSCRIPT_INGEST" ingest "$CRED_FIX" --db "$DB" >"$STDOUT_CAP" 2>"$STDERR_CAP"
         INGEST_RC=$?
 
         # --- F2: rc + row-count + known-row-presence BEFORE trusting any
@@ -634,7 +647,102 @@ sys.exit(0)
                 bad "CREDENTIAL LEAK (or schema drift): structural allowlist mismatch -- $ALLOWLIST_REPORT -- a column holds something other than its expected exact structural value, or an uncovered schema column was found, or the row count is wrong; this is EXACTLY the class of leak a plain marker-substring grep cannot see (T038 review finding F1)"
             fi
 
-            # --- (ii) defense-in-depth: exact/case-insensitive/base64/hex/
+            # --- (ii) WHOLE-DATABASE-FILE deterministic census (T038
+            # round-4 independent review, agent a29d6aaf96f5f6440,
+            # 2026-09-28, 3 BLOCKING root causes demonstrated with 7
+            # concrete mutations R4-1..R4-5): layer (i) above proves the
+            # ONE CHECKED ROW is clean but says NOTHING about the REST of
+            # the database file -- an extra table, a view, an index whose
+            # NAME itself carries the leak (all invisible to a per-row
+            # column check), or bytes left in a freed page after a
+            # delete (R4-5: insert-then-delete a leak row, the checked
+            # table's row count returns to 1, but the freed page's old
+            # content survives on disk with secure_delete=0). This is
+            # DELIBERATELY the fully deterministic replacement for
+            # "think of one more creative attack" -- it does not
+            # enumerate attack SHAPES at all, it asserts the database's
+            # ENTIRE logical content equals the ONE expected state, so
+            # there is no shape of leak left un-covered by construction.
+            # Built from this module's OWN `SCHEMA` string (never a
+            # hand-duplicated copy that could silently drift from the
+            # real schema) so this check cannot go stale the way the
+            # original hand-maintained 9-column allowlist did. ---
+            DUMP_REPORT="$(python3 -c "
+import hashlib, importlib.util, sqlite3, sys
+
+real_db, cred_fix_path, known_msgid, ingest_path = sys.argv[1:5]
+
+spec = importlib.util.spec_from_file_location('transcript_ingest', ingest_path)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+ref = sqlite3.connect(':memory:')
+ref.executescript(mod.SCHEMA)
+row_hash = hashlib.sha256(('msgid:' + known_msgid).encode('utf-8')).hexdigest()
+ref.execute(
+    'INSERT INTO transcript_usage_events VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    (row_hash, cred_fix_path, 2, 'fixture-t020-cred-a1', 'fixture-t020-cred-session',
+     None, None, '2026-09-28T04:20:05.000Z', 'claude-sonnet-5', known_msgid, 'measured',
+     None, 60, 90, 0, 0, 150),
+)
+ref.commit()
+
+real = sqlite3.connect(real_db)
+real_freelist = real.execute('PRAGMA freelist_count').fetchone()[0]
+
+# iterdump() order is stable (schema-creation order, then rowid order) for
+# a single-writer, single-transaction DB -- no sort needed, and sorting
+# would hide a genuine ordering-dependent difference.
+ref_dump = list(ref.iterdump())
+real_dump = list(real.iterdump())
+
+if real_freelist != 0:
+    print('FREELIST_NONZERO: %d freed page(s) remain in the real DB -- possible insert-then-delete residue (R4-5)' % real_freelist)
+    sys.exit(1)
+
+if real_dump != ref_dump:
+    # Never print the actual dump content (it may itself carry the leak)
+    # -- report only the shape of the divergence.
+    extra = [l for l in real_dump if l not in ref_dump]
+    missing = [l for l in ref_dump if l not in real_dump]
+    print('DUMP_MISMATCH: %d line(s) in the real DB not in the reference, %d line(s) in the reference not in the real DB -- extra/missing table, view, index, trigger, row, or row-content divergence' % (len(extra), len(missing)))
+    sys.exit(1)
+
+print('DUMP_MATCH(%d lines, freelist=0)' % len(real_dump))
+sys.exit(0)
+" "$DB" "$CRED_FIX" "$KNOWN_MSGID" "$TRANSCRIPT_INGEST")"
+            if [ "${DUMP_REPORT#DUMP_MATCH}" != "$DUMP_REPORT" ]; then
+                ok "whole-database deterministic census holds: $DUMP_REPORT -- an extra table/view/index/trigger/row or freed-page residue would have failed this (T038 round-4 review, R4-1..R4-5)"
+            else
+                bad "CREDENTIAL LEAK (whole-database census): $DUMP_REPORT -- this is EXACTLY the class of leak a single-row/single-column check cannot see (T038 round-4 review, R4-1..R4-5)"
+            fi
+
+            # --- (iii) stdout/stderr + run-directory census (T038 round-4
+            # review, R4-6/R4-7): the ingest's own process I/O was
+            # previously discarded (>/dev/null 2>&1) and never inspected,
+            # and it ran into a shared directory whose file listing was
+            # never enumerated -- a debug print or a sidecar cache file
+            # could carry a leak invisible to every DB-only check above. ---
+            IO_LEAK_FOUND=0
+            for f in "$STDOUT_CAP" "$STDERR_CAP"; do
+                if [ -f "$f" ] && grep -aFq "$MARKER" "$f" 2>/dev/null; then
+                    bad "CREDENTIAL LEAK: the planted marker reached $(basename "$f") -- ingest I/O was previously discarded via >/dev/null and never checked (T038 review R4-7)"
+                    IO_LEAK_FOUND=1
+                fi
+            done
+            [ "$IO_LEAK_FOUND" = 0 ] && ok "ingest stdout+stderr captured and scanned clean (T038 review R4-7 -- previously discarded, never inspected)"
+
+            UNEXPECTED_FILES="$(find "$CRED_ISOLATED_DIR" -maxdepth 1 -type f \
+                ! -name "$(basename "$DB")" \
+                ! -name "$(basename "$DB")-journal" ! -name "$(basename "$DB")-wal" ! -name "$(basename "$DB")-shm" \
+                ! -name "$(basename "$STDOUT_CAP")" ! -name "$(basename "$STDERR_CAP")" 2>/dev/null)"
+            if [ -n "$UNEXPECTED_FILES" ]; then
+                bad "CREDENTIAL LEAK (or unaccounted artifact): the isolated ingest run directory contains unexpected file(s): $UNEXPECTED_FILES (T038 review R4-6 -- a sidecar cache file previously went uncensused)"
+            else
+                ok "isolated ingest run directory contains only the expected DB + normal SQLite sidecars -- no unaccounted sidecar file was created (T038 review R4-6)"
+            fi
+
+            # --- (iv) defense-in-depth: exact/case-insensitive/base64/hex/
             # sliding-window substring scan across the WHOLE DB file (see
             # the HONEST BOUNDARY note above this PART -- this layer has
             # known blind spots and is never the load-bearing check). ---

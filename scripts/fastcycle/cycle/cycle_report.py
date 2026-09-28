@@ -510,13 +510,22 @@ def git_subject_matches(repo_root, item_id, timeout_s=60):
         return []
     if out.returncode != 0:
         return []
+    # T043 round-4 finding B2 (BLOCKING, agent ad5d869e28efdddbd, 2026-09-28):
+    # `item_id in subject` is a plain substring test, so ATM-103 matches
+    # inside ATM-1038, ATM-95 matches inside ATM-953, etc. -- this function
+    # was the ORIGINAL of the same bug reproduced independently in
+    # baseline_replay.sh's git_subject_freeze() (fixed the same way there).
+    # Token-boundary regex: item_id must be bounded by a non-alnum-non-
+    # hyphen char (or string start) on the left and a non-digit char (or
+    # string end) on the right.
+    item_re = re.compile(r"(?:^|[^A-Za-z0-9-])" + re.escape(item_id) + r"(?:[^0-9]|$)")
     matches = []
     for line in out.stdout.splitlines():
         parts = line.split("|", 3)
         if len(parts) != 4:
             continue
         sha, ad, cd, subject = parts
-        if item_id in subject:
+        if item_re.search(subject):
             matches.append({"sha": sha, "author_date": ad, "committer_date": cd, "subject": subject})
     matches.sort(key=lambda m: m["author_date"])
     return matches
