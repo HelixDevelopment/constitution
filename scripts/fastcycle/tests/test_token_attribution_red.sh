@@ -300,7 +300,40 @@ else
         OUT="$(python3 "$TRANSCRIPT_INGEST" ingest "$CACHE_FIX" --db "$DB" 2>&1)"
         RC=$?
         if [ "$RC" -eq 0 ] && [ -f "$DB" ]; then
-            ok "transcript_ingest.py ran against cache_hits fixture (exit 0) — MANUALLY VERIFY its counted cache-read total equals $EXPECTED_CACHE_READ_SUM before trusting a GREEN verdict here"
+            ok "transcript_ingest.py ran against cache_hits fixture (exit 0): $OUT"
+
+            # Real DB-level control needles (§11.4.273/§11.4.201(6)/(7)(b)) —
+            # this replaces an earlier 'MANUALLY VERIFY ... before trusting a
+            # GREEN verdict here' placeholder found during this task's own
+            # investigation (2026-09-28, T020 RED-test re-verification): a
+            # bare exit-0 + DB-file-exists check proves nothing about whether
+            # cache-hit tokens were actually counted or summed correctly —
+            # PART C/D already query the DB directly for their properties;
+            # PART B is brought to the same rigor here, never left to a human
+            # to eyeball. The oracle is sqlite3 (producer-independent of
+            # transcript_ingest.py's own Python internals — §11.4.240).
+            SUM_CACHE_READ="$(sqlite3 -noheader "$DB" "SELECT SUM(cache_read_input_tokens) FROM transcript_usage_events WHERE msg_id IN ('msg_fixture_t020_cachehit_a1','msg_fixture_t020_cachehit_a2');")"
+            SUM_CACHE_CREATION="$(sqlite3 -noheader "$DB" "SELECT SUM(cache_creation_input_tokens) FROM transcript_usage_events WHERE msg_id IN ('msg_fixture_t020_cachehit_a1','msg_fixture_t020_cachehit_a2');")"
+            TURN1_CR="$(sqlite3 -noheader "$DB" "SELECT cache_read_input_tokens FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_cachehit_a1';")"
+            TURN1_CC="$(sqlite3 -noheader "$DB" "SELECT cache_creation_input_tokens FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_cachehit_a1';")"
+            TURN2_CR="$(sqlite3 -noheader "$DB" "SELECT cache_read_input_tokens FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_cachehit_a2';")"
+            TURN2_CC="$(sqlite3 -noheader "$DB" "SELECT cache_creation_input_tokens FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_cachehit_a2';")"
+            ROW_COUNT="$(sqlite3 -noheader "$DB" "SELECT COUNT(*) FROM transcript_usage_events WHERE msg_id IN ('msg_fixture_t020_cachehit_a1','msg_fixture_t020_cachehit_a2');")"
+
+            needle_check "cache_hits ingest: exactly 2 rows landed for this fixture's 2 assistant turns (not dropped, not duplicated)" 1 "$([ "$ROW_COUNT" = "2" ] && echo 1 || echo 0)"
+            needle_check "cache_hits ingest: SUM(cache_read_input_tokens) across both turns equals the real captured total ($EXPECTED_CACHE_READ_SUM)" 1 "$([ "$SUM_CACHE_READ" = "$EXPECTED_CACHE_READ_SUM" ] && echo 1 || echo 0)"
+            needle_check "cache_hits ingest: SUM(cache_read_input_tokens) is NOT a fabricated, distinct total (999999)" 0 "$([ "$SUM_CACHE_READ" = "999999" ] && echo 1 || echo 0)"
+            needle_check "cache_hits ingest: SUM(cache_creation_input_tokens) across both turns equals the real captured total ($EXPECTED_CACHE_CREATION_SUM)" 1 "$([ "$SUM_CACHE_CREATION" = "$EXPECTED_CACHE_CREATION_SUM" ] && echo 1 || echo 0)"
+            needle_check "cache_hits ingest: turn 1 (cold-cache write) is genuinely cache_read=0" 1 "$([ "$TURN1_CR" = "0" ] && echo 1 || echo 0)"
+            needle_check "cache_hits ingest: turn 1 (cold-cache write) is genuinely cache_creation=1200" 1 "$([ "$TURN1_CC" = "1200" ] && echo 1 || echo 0)"
+            needle_check "cache_hits ingest: turn 2 (warm-cache read) is genuinely cache_read=1200" 1 "$([ "$TURN2_CR" = "1200" ] && echo 1 || echo 0)"
+            needle_check "cache_hits ingest: turn 2 (warm-cache read) is genuinely cache_creation=0" 1 "$([ "$TURN2_CC" = "0" ] && echo 1 || echo 0)"
+
+            if [ "$SUM_CACHE_READ" = "$EXPECTED_CACHE_READ_SUM" ] && [ "$SUM_CACHE_CREATION" = "$EXPECTED_CACHE_CREATION_SUM" ] && [ "$TURN1_CR" = "0" ] && [ "$TURN2_CR" = "$EXPECTED_CACHE_READ_SUM" ]; then
+                ok "PART B property (b) HOLDS: cache-hit tokens are counted per-turn AND summed correctly — not dropped, not coerced, and not merely coincidentally summing right while individually wrong (turn 1 cold-write vs turn 2 warm-read are distinguishable in the DB)"
+            else
+                bad "PART B property (b) UNMET: cache-hit token counting does not match the real captured shape (sum_cache_read=$SUM_CACHE_READ sum_cache_creation=$SUM_CACHE_CREATION turn1_cr=$TURN1_CR turn2_cr=$TURN2_CR, want sum_cache_read=$EXPECTED_CACHE_READ_SUM sum_cache_creation=$EXPECTED_CACHE_CREATION_SUM turn1_cr=0 turn2_cr=$EXPECTED_CACHE_READ_SUM)"
+            fi
         else
             bad "transcript_ingest.py exists but the assumed CLI (ingest <path> --db <path>) did not run cleanly against cache_hits fixture: rc=$RC out=$OUT — update this test's assumed CLI contract"
         fi
