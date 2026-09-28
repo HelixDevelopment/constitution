@@ -167,7 +167,10 @@
 # {commit, tree, gate-cmd} TWICE internally and compares ONLY the two
 # runs' `verdict_set` fields (never the timing fields) as sets; exit 0 =
 # same verdict set both times, exit 1 = genuinely differs (a real
-# determinism defect, S11.4.50), printing both verdict sets either way.
+# determinism defect, S11.4.50), printing both verdict sets either way
+# AND (as of T043 round-2 review finding N5) writing the same
+# `baseline-replay-determinism/v1` document to the mandatory `--out`
+# PATH every other subcommand already writes to.
 #
 # =============================================================================
 # SAFETY (C-006)
@@ -431,10 +434,11 @@ do_one_replay() {
   rmdir "$wt_path" 2>/dev/null  # git worktree add requires the target NOT already exist
 
   # `cleanup()` is invoked via the EXIT trap on EVERY path out of this
-  # function, including every early `return 4` below (lines 444/451/461/
-  # 466). bash pops a function's `local` bindings as part of `return`, but
-  # the EXIT trap fires AFTERWARD in the (sub)shell that is exiting -- so
-  # any of do_one_replay's OWN `local` variables that cleanup() referenced
+  # function, including every early `return 4` below that runs AFTER the
+  # trap is registered (lines 466/473/483/488). bash pops a function's
+  # `local` bindings as part of `return`, but the EXIT trap fires
+  # AFTERWARD in the (sub)shell that is exiting -- so any of
+  # do_one_replay's OWN `local` variables that cleanup() referenced
   # (repo_root, wt_path, and a since-removed `cleanup_done` done-guard)
   # were already gone by the time the trap-invoked cleanup() body tried to
   # read them under `set -u`, crashing with "unbound variable" BEFORE the
@@ -444,22 +448,32 @@ do_one_replay() {
   # orphaned `replay.XXXXXX` worktree + directory behind).
   #
   # Fixed by passing the two paths cleanup() needs as EXPLICIT ARGUMENTS
-  # baked into the trap command STRING at `trap` REGISTRATION time -- the
-  # double-quoted "$repo_root"/"$wt_path" below expand immediately (not at
-  # trap-fire time), so the fired trap command is a fully literal string
-  # with no variable lookups left to perform, and cleanup() no longer
-  # depends on do_one_replay's own local-variable lifetime at all. This
-  # also makes cleanup() safely callable twice (once explicitly via
-  # `cleanup "$repo_root" "$wt_path"; trap - EXIT` on the success path,
-  # once via the EXIT trap on an early return): `git worktree remove
-  # --force` is a no-op (stderr already discarded) on an already-removed
-  # worktree, and `rm -rf` is a no-op on a missing path.
+  # baked into the trap command STRING at `trap` REGISTRATION time via
+  # `printf %q` (shell-safe quoting for ANY byte a path can legally
+  # contain, including an embedded single quote -- a naive
+  # `"cleanup '$repo_root' '$wt_path'"` form, which this fix used at
+  # first, still leaks on a path containing `'`: the unescaped quote
+  # breaks the trap command's own quoting and the resulting parse error
+  # pre-empts cleanup() exactly like the original bug, independently
+  # reproduced and fixed per T043 round-2 review finding N1). `%q`
+  # expands immediately at `trap` REGISTRATION time (not at trap-fire
+  # time), so the fired trap command is a fully literal, correctly-quoted
+  # string with no variable lookups left to perform, and cleanup() no
+  # longer depends on do_one_replay's own local-variable lifetime at all,
+  # for ANY path value. This also makes cleanup() safely callable twice
+  # (once explicitly via `cleanup "$repo_root" "$wt_path"; trap - EXIT`
+  # on the success path, once via the EXIT trap on an early return):
+  # `git worktree remove --force` is a no-op (stderr already discarded)
+  # on an already-removed worktree, and `rm -rf` is a no-op on a missing
+  # path.
   cleanup() {
     local rr="$1" wp="$2"
     git -C "$rr" worktree remove --force "$wp" >/dev/null 2>&1
     rm -rf "$wp" 2>/dev/null
   }
-  trap "cleanup '$repo_root' '$wt_path'" EXIT
+  local _cleanup_trap_cmd
+  printf -v _cleanup_trap_cmd 'cleanup %q %q' "$repo_root" "$wt_path"
+  trap "$_cleanup_trap_cmd" EXIT
 
   if ! git -C "$repo_root" worktree add --detach --quiet "$wt_path" "$commit" >/dev/null 2>&1; then
     echo "baseline_replay: BLIND: git worktree add failed for commit $commit at $wt_path" >&2
@@ -590,15 +604,32 @@ cmd_replay() {
     # shellcheck disable=SC2086
     body2="$(do_one_replay "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
       "$timeout_s" "$cold_runs" "$warm_runs" $gate_cmd_str)" || return 4
-    python3 -c "
+    # `--out` is REQUIRED by this subcommand's own arg parsing above
+    # (`[ -n "$out" ] || die ...`) in EVERY mode, including
+    # --determinism-check -- but this branch, until T043 round-2 review
+    # finding N5, only ever printed the determinism result to stdout and
+    # silently never wrote it to $out, contradicting its own documented
+    # contract. Fixed: capture the result body + its own exit code (a
+    # command substitution preserves the substituted command's exit
+    # status in $?, read immediately below, before anything else can
+    # clobber it), still print it (matching the DETERMINISM section's own
+    # documented "printing both verdict sets either way"), AND now also
+    # persist it to $out via the same emit_doc envelope every other
+    # subcommand uses -- but return the DETERMINISM verdict's own exit
+    # code (0=same, 1=differs), never emit_doc's.
+    local det_body det_rc
+    det_body="$(python3 -c "
 import json, sys
 b1, b2 = json.loads(sys.argv[1]), json.loads(sys.argv[2])
 vs1, vs2 = b1['verdict_set'], b2['verdict_set']
 same = all(set(vs1.get(p, [])) == set(vs2.get(p, [])) for p in ('cold', 'warm'))
 print(json.dumps({'run1_verdict_set': vs1, 'run2_verdict_set': vs2, 'deterministic': same}))
 sys.exit(0 if same else 1)
-" "$body1" "$body2"
-    return $?
+" "$body1" "$body2")"
+    det_rc=$?
+    echo "$det_body"
+    emit_doc "baseline-replay-determinism/v1" "$det_body" "$out"
+    return $det_rc
   fi
 
   local body

@@ -52,7 +52,9 @@ precedent in THIS tree, never invented from nothing per S11.4.6)
     default --bulk-threshold (10) verbatim, but NOT its clustering SCOPE:
     cycle_report.py groups clusters PER-TYPE (its clustering dict is
     re-initialised inside `for itype, ids in by_type.items():`,
-    `$FC/cycle/cycle_report.py:1035-1037`), while this module groups
+    `$FC/cycle/cycle_report.py:1040,1044` -- its `for itype, ids in
+    by_type.items():` loop and the `clusters = {}` dict it re-initialises
+    inside that loop, respectively), while this module groups
     clusters ONCE over the CROSS-TYPE UNION `all_candidate_ids` -- a real,
     currently-undocumented-until-this-review divergence (T043 independent
     review, 2026-09-28), NOT reconciled here: verified directly against
