@@ -48,10 +48,30 @@ precedent in THIS tree, never invented from nothing per S11.4.6)
     `exclusion_reason` on the item itself -- nothing is ever removed from
     `items` (S11.4.6: DEC-03's own words govern over a same-repo sibling
     tool's partial, differently-scoped convention). Bulk-import clustering
-    reuses cycle_report.py's exact (dirname(evidence_path), on_date) >=
-    --bulk-threshold rule (same default, 10, for cross-tool consistency);
-    retroactive-registration reuses its exact Opened-db_write-to-
-    terminal-closure-db_write < 60s rule.
+    reuses cycle_report.py's (dirname(evidence_path), on_date) key AND its
+    default --bulk-threshold (10) verbatim, but NOT its clustering SCOPE:
+    cycle_report.py groups clusters PER-TYPE (its clustering dict is
+    re-initialised inside `for itype, ids in by_type.items():`,
+    `$FC/cycle/cycle_report.py:1035-1037`), while this module groups
+    clusters ONCE over the CROSS-TYPE UNION `all_candidate_ids` -- a real,
+    currently-undocumented-until-this-review divergence (T043 independent
+    review, 2026-09-28), NOT reconciled here: verified directly against
+    the live DB that a real same-dated 8-item Task cluster combines under
+    this module's cross-type scoping with a same-dated 50-item Bug cluster
+    into one 58-item group clearing --bulk-threshold=10, where
+    cycle_report.py's per-type scoping would NOT flag that 8-item Task
+    cluster alone (8 < 10). Cross-type scoping is arguably the more
+    conservative choice for THIS module's purpose (it flags a superset of
+    what per-type scoping would, erring toward excluding-from-duration
+    rather than including a possible bulk-import row) but S11.4.6 forbids
+    calling it "exact" reuse of cycle_report.py's rule when the scope
+    differs; whether to align the two modules' scoping, or keep this
+    module's broader one deliberately, is an open S11.4.66 design decision
+    tracked as a follow-up, not settled by this docstring correction.
+    Retroactive-registration reuses cycle_report.py's exact Opened-
+    db_write-to-terminal-closure-db_write < 60s rule (scope-neutral: it
+    runs per-candidate, not per-cluster, so no analogous divergence
+    exists).
 (3) Reopened-in-window inclusion is UNCONDITIONAL (DEC-03: "plus every item
     reopened in the window") -- a reopened item is added to `items`
     regardless of whether its type-stratum already filled its N slots and
@@ -71,7 +91,7 @@ Bug=81, Feature=2, Task=34; for the 60-day shape: Bug=71, Feature=1,
 Task=24 -- NONE of these match research.md's cited figures, and the
 discrepancy is large (81 vs 21 Bugs; 71 vs 5 Bugs), not a rounding drift.
 A per-date breakdown of Bug closures shows a 51-item cluster landing on a
-single on_date (2026-08-15) and a 10-item cluster on 2026-06-11 -- the
+single on_date (2026-08-15) and a 10-item cluster on 2026-06-23 -- the
 10-item cluster's evidence_path values were checked directly and are all
 DISTINCT directories, so it does NOT match the bulk-import-cluster
 detector's own (evidence_dir, on_date) grouping rule; it is real, if
@@ -255,9 +275,10 @@ def run_needle(conn, present_id, present_event, present_date, fabricated_id):
 
 # ---------------------------------------------------------------------------
 # Bulk-import + retroactive-registration detection (DEC-03 clause;
-# cycle_report.py's CT-001 clustering rule reused verbatim -- see module
-# docstring point (2) for why this module keeps rather than drops flagged
-# rows).
+# cycle_report.py's CT-001 clustering KEY + default threshold reused, but
+# scoped cross-type here (this module) vs per-type there -- see module
+# docstring point (2) for the full divergence + why this module keeps
+# rather than drops flagged rows).
 # ---------------------------------------------------------------------------
 def detect_bulk_import_clusters(conn, candidate_ids, bulk_threshold):
     """Group candidates by (dirname(closure evidence_path), on_date) of

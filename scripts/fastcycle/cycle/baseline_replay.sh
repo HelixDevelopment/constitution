@@ -136,14 +136,15 @@
 # =============================================================================
 # 0 report written (a per-run gate FAIL is recorded DATA, not a harness
 #   exit-code failure -- this script measures gate outcomes, it does not
-#   itself judge them); 1 reserved for the generic `fc_common.py
-#   determinism-check` wrapper's own mismatch code (C-003; this script
-#   does not reimplement its own --determinism-check re-exec -- see
-#   DETERMINISM below); 2 usage/config error; 3 selfcheck (C-004 control
-#   needle) failed -- the verdict-classification instrument is not
-#   trustworthy this run, nothing else runs; 4 BLIND -- commit/tree
-#   unresolvable, worktree creation failed, disk pre-flight refused,
-#   tracker DB unreadable.
+#   itself judge them); 1 `--determinism-check` genuinely differs -- the
+#   two internal re-runs of the SAME frozen {commit, tree, gate-cmd} this
+#   script itself performs (C-003; NOT a delegation to fc_common.py's
+#   generic byte-identical wrapper -- see DETERMINISM below) produced
+#   different `verdict_set`s, a real determinism defect (S11.4.50); 2
+#   usage/config error; 3 selfcheck (C-004 control needle) failed -- the
+#   verdict-classification instrument is not trustworthy this run,
+#   nothing else runs; 4 BLIND -- commit/tree unresolvable, worktree
+#   creation failed, disk pre-flight refused, tracker DB unreadable.
 #
 # =============================================================================
 # DETERMINISM (C-003; T024 RED-test contract stub 1/3) -- HONEST BOUNDARY,
@@ -429,15 +430,36 @@ do_one_replay() {
   wt_path="$(mktemp -d "$worktree_root/replay.XXXXXX")" || { echo "baseline_replay: mktemp -d under $worktree_root failed" >&2; return 4; }
   rmdir "$wt_path" 2>/dev/null  # git worktree add requires the target NOT already exist
 
-  local cleanup_done=0
+  # `cleanup()` is invoked via the EXIT trap on EVERY path out of this
+  # function, including every early `return 4` below (lines 444/451/461/
+  # 466). bash pops a function's `local` bindings as part of `return`, but
+  # the EXIT trap fires AFTERWARD in the (sub)shell that is exiting -- so
+  # any of do_one_replay's OWN `local` variables that cleanup() referenced
+  # (repo_root, wt_path, and a since-removed `cleanup_done` done-guard)
+  # were already gone by the time the trap-invoked cleanup() body tried to
+  # read them under `set -u`, crashing with "unbound variable" BEFORE the
+  # real `git worktree remove` / `rm -rf` below ever ran -- silently
+  # leaking the worktree on disk. Independently reproduced for both the
+  # done-guard and for $wt_path itself (a mismatched---tree run left an
+  # orphaned `replay.XXXXXX` worktree + directory behind).
+  #
+  # Fixed by passing the two paths cleanup() needs as EXPLICIT ARGUMENTS
+  # baked into the trap command STRING at `trap` REGISTRATION time -- the
+  # double-quoted "$repo_root"/"$wt_path" below expand immediately (not at
+  # trap-fire time), so the fired trap command is a fully literal string
+  # with no variable lookups left to perform, and cleanup() no longer
+  # depends on do_one_replay's own local-variable lifetime at all. This
+  # also makes cleanup() safely callable twice (once explicitly via
+  # `cleanup "$repo_root" "$wt_path"; trap - EXIT` on the success path,
+  # once via the EXIT trap on an early return): `git worktree remove
+  # --force` is a no-op (stderr already discarded) on an already-removed
+  # worktree, and `rm -rf` is a no-op on a missing path.
   cleanup() {
-    if [ "$cleanup_done" = 0 ]; then
-      cleanup_done=1
-      git -C "$repo_root" worktree remove --force "$wt_path" >/dev/null 2>&1
-      rm -rf "$wt_path" 2>/dev/null
-    fi
+    local rr="$1" wp="$2"
+    git -C "$rr" worktree remove --force "$wp" >/dev/null 2>&1
+    rm -rf "$wp" 2>/dev/null
   }
-  trap cleanup EXIT
+  trap "cleanup '$repo_root' '$wt_path'" EXIT
 
   if ! git -C "$repo_root" worktree add --detach --quiet "$wt_path" "$commit" >/dev/null 2>&1; then
     echo "baseline_replay: BLIND: git worktree add failed for commit $commit at $wt_path" >&2
@@ -479,7 +501,7 @@ print(json.dumps(rows))
     done
   done
 
-  cleanup
+  cleanup "$repo_root" "$wt_path"
   trap - EXIT
 
   python3 -c "
