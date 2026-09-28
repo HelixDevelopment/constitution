@@ -222,59 +222,281 @@ else
   fi
 fi
 
-echo
-echo "=== T041 contract stub 1/4: missing record -> UNMEASURED, never a number (FR-001, CT-002, CT-004) ==="
-echo "NOT YET IMPLEMENTED: fixture $FIXDIR/missing_record/tracker_export.json"
-echo "  describes ATM-90001 (synthetic), a Bug whose 'build' stage has NO"
-echo "  source artefact anywhere in its evidence set. cycle_report.py MUST"
-echo "  emit that stage's start/end/elapsed as the literal token 'UNMEASURED'"
-echo "  plus a non-empty 'missing_instrument' string naming the R1 instrument"
-echo "  (per-item build-log/builds.tsv row) -- NEVER 0, NEVER null, NEVER an"
-echo "  interpolated/averaged value borrowed from a sibling item or stage"
-echo "  (data-model.md V-CR-2). See fixtures/cycle_report/missing_record/expected."
-echo "  Paired mutation this fixture must catch (tasks.md T027): 'default a"
-echo "  missing stage to 0'."
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
 
 echo
-echo "=== T041 contract stub 2/4: empty window -> 'no data in window [from, to]' (CT-008, V-CR-3) ==="
-echo "NOT YET IMPLEMENTED: fixture $FIXDIR/empty_window/window.json describes"
-echo "  a window (2020-01-01..2020-01-02) with zero eligible closure events."
-echo "  cycle_report.py MUST exit 0 (an empty window is honest, not a failure)"
-echo "  and emit the state {\"state\":\"NO_DATA_IN_WINDOW\",\"window\":{...}}"
-echo "  (CT-008) -- which is the structured form of the task line's plain"
-echo "  phrasing 'no data in window [from, to]'; the literal window bounds"
-echo "  MUST appear, never an ellipsis, never a zero-valued statistic standing"
-echo "  in for the absent data. See fixtures/cycle_report/empty_window/expected."
+echo "=== T041 contract check 1/4: missing record -> UNMEASURED, never a number (FR-001, CT-002, CT-004) ==="
+MR_OUT="$TMP/missing_record.json"
+MR_ERR="$TMP/missing_record.err"
+if [ -f "$CYCLE_REPORT" ]; then
+  python3 "$CYCLE_REPORT" --as-of 2026-09-28 \
+    --tracker-export "$FIXDIR/missing_record/tracker_export.json" \
+    --out "$MR_OUT" >"$MR_ERR" 2>&1
+  MR_RC=$?
+  if [ "$MR_RC" = 0 ] && [ -f "$MR_OUT" ]; then
+    MR_MATCH="$(python3 -c "
+import json
+actual = json.load(open('$MR_OUT'))['records'][0]
+stage = next(s for s in actual['stages'] if s['stage'] == 'build')
+expected = json.load(open('$FIXDIR/missing_record/tracker_export.json'))['expected_stage_ct002_ct004']
+print(stage == expected)
+" 2>&1)"
+    if [ "$MR_MATCH" = "True" ]; then
+      echo "ok cycle_report.py --tracker-export missing_record: the 'build' stage"
+      echo "   EXACTLY matches the fixture's own expected_stage_ct002_ct004 (start/"
+      echo "   end/elapsed all the literal token UNMEASURED, plus the exact CT-002"
+      echo "   default missing_instrument string) -- never a number, never 0, never"
+      echo "   interpolated (CT-004, data-model.md V-CR-2). Paired mutation T013/T027"
+      echo "   ('default a missing stage to 0') is caught: this exact-match"
+      echo "   assertion fails the instant elapsed/start/end stop being UNMEASURED."
+    else
+      echo "NOT ok cycle_report.py --tracker-export missing_record: the 'build'"
+      echo "     stage did NOT exactly match the fixture's expected_stage_ct002_ct004"
+      echo "     (comparator result: '$MR_MATCH'); actual: $(python3 -c "
+import json
+a = json.load(open('$MR_OUT'))['records'][0]
+print(json.dumps(next(s for s in a['stages'] if s['stage'] == 'build')))
+" 2>&1)"
+      failx
+    fi
+  else
+    echo "NOT ok cycle_report.py --tracker-export missing_record invocation failed"
+    echo "     (rc=$MR_RC) or produced no output file -- $(cat "$MR_ERR" 2>/dev/null)"
+    failx
+  fi
+else
+  echo "NOT ok contract check 1/4 SKIPPED: cycle_report.py not present (see presence check above)"
+  failx
+fi
 
 echo
-echo "=== T041 contract stub 3/4: golden ATM-953 hand-verified stages (CT-009, task line) ==="
-echo "NOT YET IMPLEMENTED: fixture $FIXDIR/golden_atm953/tracker_export.json"
-echo "  carries ATM-953's REAL item_history rows (Opened/Updated/Updated/"
-echo "  Fixed/Reopened, verbatim from docs/workable_items.db, re-verified"
-echo "  live by control needle #2 above) plus one corroborating git commit"
-echo "  (f1abb59e). This is the contract's CT-009 default needle item"
-echo "  ('the R1-verified ATM-953 Fixed 2026-07-28'). §11.4.6 honest boundary:"
-echo "  this fixture does NOT claim a full 11-stage hand-verified timeline for"
-echo "  ATM-953 -- 8 of the 11 data-model.md §1.1 stages have no citable"
-echo "  source found in this pass and are named explicitly in the fixture's"
-echo "  'honest_gap_deferred_to_T042' block; that full hand-verification"
-echo "  against raw artefacts is tasks.md's own T042 (a separate later task)."
-echo "  See fixtures/cycle_report/golden_atm953/expected."
+echo "=== T041 contract check 2/4: empty window -> 'no data in window [from, to]' (CT-008, V-CR-3) ==="
+EW_OUT="$TMP/empty_window.json"
+EW_ERR="$TMP/empty_window.err"
+if [ -f "$CYCLE_REPORT" ]; then
+  python3 "$CYCLE_REPORT" --as-of 2026-09-28 \
+    --window-json "$FIXDIR/empty_window/window.json" \
+    --out "$EW_OUT" >"$EW_ERR" 2>&1
+  EW_RC=$?
+  if [ "$EW_RC" = 0 ] && [ -f "$EW_OUT" ]; then
+    EW_MATCH="$(python3 -c "
+import json
+actual = json.load(open('$EW_OUT'))
+expected = json.load(open('$FIXDIR/empty_window/window.json'))['expected_body_ct008']
+print(actual.get('state') == expected['state'] and actual.get('window') == expected['window'])
+" 2>&1)"
+    if grep -qF "no data in window [2020-01-01, 2020-01-02]" "$EW_ERR"; then
+      EW_MSG_OK=True
+    else
+      EW_MSG_OK=False
+    fi
+    if [ "$EW_MATCH" = "True" ] && [ "$EW_MSG_OK" = "True" ]; then
+      echo "ok cycle_report.py --window-json empty_window: exit 0 (an honest empty"
+      echo "   result is not a failure, CT-008), body {state,window} EXACTLY matches"
+      echo "   fixture's expected_body_ct008 (state=NO_DATA_IN_WINDOW, literal bounds"
+      echo "   [2020-01-01, 2020-01-02], never an ellipsis, never a zero-valued"
+      echo "   statistic), AND the human-readable message carries the task line's"
+      echo "   exact phrasing 'no data in window [2020-01-01, 2020-01-02]'."
+    else
+      echo "NOT ok cycle_report.py --window-json empty_window: body/message did NOT"
+      echo "     exactly match CT-008 (body_match='$EW_MATCH' msg_ok='$EW_MSG_OK')"
+      echo "     actual body: $(cat "$EW_OUT" 2>/dev/null)"
+      echo "     stderr: $(cat "$EW_ERR" 2>/dev/null)"
+      failx
+    fi
+  else
+    echo "NOT ok cycle_report.py --window-json empty_window invocation failed"
+    echo "     (rc=$EW_RC, expected 0 -- an empty window is honest, not a failure)"
+    echo "     -- $(cat "$EW_ERR" 2>/dev/null)"
+    failx
+  fi
+else
+  echo "NOT ok contract check 2/4 SKIPPED: cycle_report.py not present (see presence check above)"
+  failx
+fi
+
+# Self-validation control needle (§11.4.107(10)/§11.4.201(1)) for check 2/4:
+# a window independently confirmed (live, 2026-09-28) to contain real
+# closure events, run through the SAME --window-json code path, MUST NOT be
+# reported NO_DATA_IN_WINDOW -- proving this check can genuinely distinguish
+# empty from non-empty rather than rubber-stamping the empty state for any
+# input (mirrors T024's golden-bad gate-cmd technique; nothing on disk is
+# mutated, so nothing needs restoring).
+if [ -f "$CYCLE_REPORT" ]; then
+  WIDE_WINDOW="$TMP/wide_window.json"
+  cat > "$WIDE_WINDOW" <<'JSON'
+{"window": {"from": "2026-06-01", "to": "2026-09-28"}}
+JSON
+  WIDE_OUT="$TMP/wide_window_out.json"
+  WIDE_ERR="$TMP/wide_window.err"
+  python3 "$CYCLE_REPORT" --as-of 2026-09-28 --window-json "$WIDE_WINDOW" \
+    --out "$WIDE_OUT" >"$WIDE_ERR" 2>&1
+  WIDE_RC=$?
+  if [ "$WIDE_RC" = 0 ] && [ -f "$WIDE_OUT" ]; then
+    WIDE_STATE="$(python3 -c "import json; print(json.load(open('$WIDE_OUT')).get('state'))" 2>&1)"
+    WIDE_NREC="$(python3 -c "import json; print(len(json.load(open('$WIDE_OUT')).get('records', [])))" 2>&1)"
+    if [ "$WIDE_STATE" != "NO_DATA_IN_WINDOW" ] && [ "${WIDE_NREC:-0}" -gt 0 ] 2>/dev/null; then
+      echo "ok control needle (empty-window discrimination): a window known to"
+      echo "   contain real closure events (2026-06-01..2026-09-28, $WIDE_NREC real"
+      echo "   records) is correctly NOT reported NO_DATA_IN_WINDOW -- check 2/4"
+      echo "   above can therefore be trusted to genuinely distinguish empty from"
+      echo "   non-empty (§11.4.201(1)/§11.4.273), not merely rubber-stamp the empty"
+      echo "   state for any input."
+    else
+      echo "NOT ok control needle (empty-window discrimination) FAILED: a window"
+      echo "     known to contain real closure events was reported state='$WIDE_STATE'"
+      echo "     n_records='$WIDE_NREC' -- either the live tracker DB genuinely has no"
+      echo "     closures in this range any more, or cycle_report.py's empty-window"
+      echo "     detection is over-firing; either way check 2/4 above is UNTRUSTWORTHY"
+      echo "     until this is resolved"
+      failx
+    fi
+  else
+    echo "NOT ok control needle (empty-window discrimination) SKIPPED: the wide-window"
+    echo "     invocation itself failed (rc=$WIDE_RC) -- $(cat "$WIDE_ERR" 2>/dev/null)"
+    failx
+  fi
+fi
 
 echo
-echo "=== T041 contract stub 4/4: negative control -- every instrument present -> zero UNMEASURED (§11.4.201(1)) ==="
-echo "NOT YET IMPLEMENTED: fixture"
-echo "  $FIXDIR/negative_control_all_present/tracker_export.json describes"
-echo "  ATM-90002 (synthetic), a Task with all 11 stages fully populated:"
-echo "  real start/end Instants with labelled time_source, real elapsed,"
-echo "  real evidence_path, and tokens on the implementation stage."
-echo "  cycle_report.py's output for this item MUST contain ZERO occurrences"
-echo "  of 'UNMEASURED', ZERO 'missing_instrument' fields, and no"
-echo "  data-quality flag -- a tool that over-flags fully-present data is"
-echo "  exactly as defective as one that under-flags a genuine gap (the"
-echo "  false-positive guard, §11.4.201(1)). This is the negative control the"
-echo "  missing_record fixture's positive case is checked against; the same"
-echo "  future test harness MUST produce opposite UNMEASURED verdicts on the"
-echo "  two fixtures. See fixtures/cycle_report/negative_control_all_present/expected."
+echo "=== T041 contract check 3/4: golden ATM-953 hand-verified stages (CT-009, task line) ==="
+GA_OUT="$TMP/golden_atm953.json"
+GA_ERR="$TMP/golden_atm953.err"
+if [ -f "$CYCLE_REPORT" ]; then
+  # This fixture is Shape-agnostic (no top-level "item"/"stages" key -- it
+  # supplies REAL item_history rows for the REAL live-tracked item ATM-953,
+  # not a --tracker-export synthetic fixture); the CT-009 default needle
+  # item is exercised via --item against the LIVE tracker DB, matching the
+  # fixture's own "_how_this_was_obtained" provenance (a live sqlite3 query
+  # against the same DB, not a frozen replay).
+  python3 "$CYCLE_REPORT" --as-of 2026-09-28 --item ATM-953 --out "$GA_OUT" >"$GA_ERR" 2>&1
+  GA_RC=$?
+  if [ "$GA_RC" = 0 ] && [ -f "$GA_OUT" ]; then
+    GA_CHECK="$TMP/golden_atm953_check.json"
+    GA_ALL_OK="$(python3 -c "
+import json
+actual = json.load(open('$GA_OUT'))['records'][0]
+fx = json.load(open('$FIXDIR/golden_atm953/tracker_export.json'))
+needle = fx['expected_ct009_needle_default']['known_present']
+fixed_row = next(r for r in fx['item_history'] if r['event_type'] == 'Fixed')
+ce = actual.get('closure_event') or {}
+result = {
+    'ok_item': actual['item_id'] == needle['atm_id'],
+    'ok_event': ce.get('event_type') == needle['event_type'],
+    'ok_date': ce.get('on_date') == needle['on_date'],
+    'ok_evidence': ce.get('evidence_path') == fixed_row['evidence_path'],
+    'ok_flagged': len(actual.get('data_quality_flags', [])) > 0,
+    'closure_event': ce,
+    'flags': actual.get('data_quality_flags'),
+}
+json.dump(result, open('$GA_CHECK', 'w'))
+print(all(result[k] for k in ('ok_item', 'ok_event', 'ok_date', 'ok_evidence', 'ok_flagged')))
+" 2>&1)"
+    if [ "$GA_ALL_OK" = "True" ]; then
+      GA_EVIDENCE="$(python3 -c "import json; print(json.load(open('$GA_CHECK'))['closure_event']['evidence_path'])" 2>&1)"
+      GA_FLAGS="$(python3 -c "import json; print(json.load(open('$GA_CHECK'))['flags'])" 2>&1)"
+      echo "ok cycle_report.py --item ATM-953 (live tracker DB): closure_event"
+      echo "   EXACTLY matches the fixture's expected_ct009_needle_default"
+      echo "   (item_id=ATM-953, event_type=Fixed, on_date=2026-07-28,"
+      echo "   evidence_path=$GA_EVIDENCE), AND the item carries >=1 real CT-005"
+      echo "   data-quality flag ($GA_FLAGS) -- the Reopened row's on_date/"
+      echo "   created_at discrepancy documented in the fixture's"
+      echo "   'data_quality_observation_not_fabricated' block is not silently"
+      echo "   dropped. §11.4.6 honest boundary preserved: this does not assert a"
+      echo "   full 11-stage hand-verified timeline (T042's own separate scope)."
+    else
+      echo "NOT ok cycle_report.py --item ATM-953: closure_event or data-quality"
+      echo "     flags did NOT match the fixture's CT-009 needle claim -- $(cat "$GA_CHECK" 2>/dev/null)"
+      failx
+    fi
+  else
+    echo "NOT ok cycle_report.py --item ATM-953 invocation failed (rc=$GA_RC) --"
+    echo "     $(cat "$GA_ERR" 2>/dev/null)"
+    failx
+  fi
+else
+  echo "NOT ok contract check 3/4 SKIPPED: cycle_report.py not present (see presence check above)"
+  failx
+fi
+
+echo
+echo "=== T041 contract check 4/4: negative control -- every instrument present -> zero UNMEASURED (§11.4.201(1)) ==="
+NC_OUT="$TMP/negative_control.json"
+NC_ERR="$TMP/negative_control.err"
+if [ -f "$CYCLE_REPORT" ]; then
+  python3 "$CYCLE_REPORT" --as-of 2026-09-28 \
+    --tracker-export "$FIXDIR/negative_control_all_present/tracker_export.json" \
+    --out "$NC_OUT" >"$NC_ERR" 2>&1
+  NC_RC=$?
+  if [ "$NC_RC" = 0 ] && [ -f "$NC_OUT" ]; then
+    NC_UNMEASURED_COUNT=$(grep -o "UNMEASURED" "$NC_OUT" | wc -l)
+    NC_MISSING_INSTR_COUNT=$(grep -o "missing_instrument" "$NC_OUT" | wc -l)
+    NC_FLAG_COUNT="$(python3 -c "import json; print(len(json.load(open('$NC_OUT'))['records'][0]['data_quality_flags']))" 2>&1)"
+    if [ "$NC_UNMEASURED_COUNT" = 0 ] && [ "$NC_MISSING_INSTR_COUNT" = 0 ] && [ "$NC_FLAG_COUNT" = 0 ]; then
+      echo "ok cycle_report.py --tracker-export negative_control_all_present: ZERO"
+      echo "   occurrences of UNMEASURED, ZERO missing_instrument fields, ZERO"
+      echo "   data-quality flags against a fully-populated 11-stage item --"
+      echo "   matches fixture's expected_unmeasured_count=0 exactly (the"
+      echo "   §11.4.201(1) false-positive guard: over-flagging present data is"
+      echo "   exactly as defective as under-flagging a genuine gap)."
+    else
+      echo "NOT ok cycle_report.py --tracker-export negative_control_all_present:"
+      echo "     over-flagged fully-present data (UNMEASURED=$NC_UNMEASURED_COUNT"
+      echo "     missing_instrument=$NC_MISSING_INSTR_COUNT flags=$NC_FLAG_COUNT, all"
+      echo "     must be 0)"
+      failx
+    fi
+  else
+    echo "NOT ok cycle_report.py --tracker-export negative_control_all_present"
+    echo "     invocation failed (rc=$NC_RC) -- $(cat "$NC_ERR" 2>/dev/null)"
+    failx
+  fi
+else
+  echo "NOT ok contract check 4/4 SKIPPED: cycle_report.py not present (see presence check above)"
+  failx
+fi
+
+# Self-validation control needle (§11.4.107(10)/§11.4.201(1)) for check 1/4:
+# fixture negative_control_all_present's own docstring states these two
+# fixtures MUST produce OPPOSITE UNMEASURED verdicts on the same test
+# harness. Prove the exact-match comparator used in check 1/4 above can
+# genuinely detect a mismatch by cross-comparing negative_control's REAL,
+# fully-measured 'build' stage against missing_record's expected (UNMEASURED)
+# 'build' stage -- if the comparator reported these EQUAL, check 1/4's PASS
+# would be worthless (a rubber-stamp comparator). Mirrors T024's golden-bad
+# gate-cmd technique; these are two independently-generated REAL tool
+# outputs being cross-compared, nothing on disk is mutated or corrupted, so
+# nothing needs restoring afterward.
+if [ -f "$CYCLE_REPORT" ] && [ -f "$MR_OUT" ] && [ -f "$NC_OUT" ]; then
+  CROSS_MATCH="$(python3 -c "
+import json
+mr_expected = json.load(open('$FIXDIR/missing_record/tracker_export.json'))['expected_stage_ct002_ct004']
+nc_actual = json.load(open('$NC_OUT'))['records'][0]
+nc_build = next(s for s in nc_actual['stages'] if s['stage'] == 'build')
+print(nc_build == mr_expected)
+" 2>&1)"
+  if [ "$CROSS_MATCH" = "False" ]; then
+    echo "ok control needle (comparator discrimination): negative_control's REAL,"
+    echo "   fully-measured 'build' stage correctly does NOT equal missing_record's"
+    echo "   expected UNMEASURED 'build' stage -- the exact-match comparator used"
+    echo "   in check 1/4 can genuinely detect a mismatch, so its PASS above is"
+    echo "   trustworthy (the two fixtures produce the opposite verdicts their own"
+    echo "   docstrings require)."
+  else
+    echo "NOT ok control needle (comparator discrimination) FAILED: negative_control's"
+    echo "     real, fully-measured 'build' stage was reported EQUAL to"
+    echo "     missing_record's UNMEASURED expected stage (comparator result:"
+    echo "     '$CROSS_MATCH') -- the comparator used in check 1/4 is a rubber"
+    echo "     stamp and its PASS above cannot be trusted"
+    failx
+  fi
+else
+  echo "NOT ok control needle (comparator discrimination) SKIPPED: a prerequisite"
+  echo "     output is missing (cycle_report.py present=$([ -f "$CYCLE_REPORT" ] && echo yes || echo no),"
+  echo "     missing_record output present=$([ -f "$MR_OUT" ] && echo yes || echo no),"
+  echo "     negative_control output present=$([ -f "$NC_OUT" ] && echo yes || echo no))"
+  failx
+fi
 
 exit $fail
