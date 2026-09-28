@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>codegraph_mcp_preflight.sh — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="codegraph_mcp_preflightsh--guide">codegraph_mcp_preflight.sh —
+guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T12:59:10Z</p>
+<p>Source:
+<code>constitution/scripts/codegraph/codegraph_mcp_preflight.sh</code>
+(173 lines). Tests:
+<code>constitution/scripts/codegraph/tests/test_codegraph_mcp_preflight.sh</code>
+(cases F1-F14) and the mutation harness
+<code>test_codegraph_mcp_preflight_mutations.sh</code> (mutants Y1-Y6).
+Citations below are <code>codegraph_mcp_preflight.sh:&lt;line&gt;</code>
+unless another file is named.</p>
+<h2 id="overview">Overview</h2>
+<p>A pre-flight check that answers, with evidence and without touching
+the project&#39;s index, &quot;can an agent safely use the CodeGraph MCP server
+here?&quot; (header, lines 3-15). It runs six numbered checks and prints one
+line per check:</p>
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>What it checks</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1</td>
+<td><code>.mcp.json</code> declares a <code>codegraph</code> server
+whose command is the sanctioned <code>codegraph_mcp.sh</code>
+(executable, with <code>fk_index_patch.py</code> beside it) and whose
+arguments are only <code>serve --mcp [--project DIR]</code></td>
+<td>lines 43-89</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>No OTHER <code>.mcp.json</code> server entry launches the stock
+<code>codegraph</code></td>
+<td>lines 90-98</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>Optional settings files carry no stock-codegraph hook or server.
+Runs only when <code>--settings</code> is given</td>
+<td>lines 101-128</td>
+</tr>
+<tr>
+<td>P4</td>
+<td>The wrapper resolves a receipt-valid <code>mcpro1</code> runner for
+a throwaway fixture (may build it into the runner cache)</td>
+<td>lines 142-148</td>
+</tr>
+<tr>
+<td>P5</td>
+<td>A fixture query is answered end to end through the wrapper AND the
+server holds the database read-only (descriptor modes read from
+<code>/proc</code> by the probe)</td>
+<td>lines 149-158</td>
+</tr>
+<tr>
+<td>P6</td>
+<td>The real project has an index; a live writer on it is a WARN, any
+other refusal is a FAIL</td>
+<td>lines 162-171</td>
+</tr>
+</tbody>
+</table>
+<p>The real project is only ever <code>stat</code>-ed and passed to
+<code>codegraph_mcp.sh --dry-run</code>, which reads <code>/proc</code>
+and the lock file but never opens the database and never runs
+<code>codegraph</code> (header lines 14-15). The fixture for P4/P5 is
+created in a temporary directory with the pristine package (lines
+131-140).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>bash</code>, <code>python3</code>, <code>git</code>,
+<code>sed</code>, <code>mktemp</code> (lines 40, 43, 135). The header
+also lists &quot;a pristine codegraph 1.6.x package&quot; (line 20): the fixture
+is indexed with <code>$HELIX_CODEGRAPH_SRC/bin/codegraph init</code>
+(lines 131-136).</li>
+<li>Files beside the script: <code>codegraph_mcp.sh</code>,
+<code>codegraph_mcp_probe.py</code>, <code>fk_index_patch.py</code>
+(lines 37, 80, 131).</li>
+<li>Linux <code>/proc</code> (through the wrapper and the probe).</li>
+<li><code>--project</code> must be an existing directory (line 35).</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_mcp_preflight.sh</span> [--project DIR] [--mcp-json FILE] [--settings FILE]...</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_mcp_preflight.sh</span> <span class="at">-h</span> <span class="kw">|</span> <span class="ex">--help</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--project DIR</code></td>
+<td>Project to check. Default <code>$PWD</code>. Must exist, otherwise
+exit 2 (<code>project directory not found</code>)</td>
+<td>lines 25, 28, 35</td>
+</tr>
+<tr>
+<td><code>--mcp-json FILE</code></td>
+<td><code>.mcp.json</code> to inspect. Default
+<code>&lt;project&gt;/.mcp.json</code>. The path is opened as given
+(relative to the current directory, not to the project)</td>
+<td>lines 29, 36, 48</td>
+</tr>
+<tr>
+<td><code>--settings FILE</code></td>
+<td>A settings file for P3. Repeatable. Without it P3 does not run and
+no <code>P3</code> line is printed</td>
+<td>lines 30, 101</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>Print lines 2-26 of the script and exit 0</td>
+<td>line 31</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td><code>unknown argument: &lt;arg&gt;</code> on stderr, exit 2. A flag
+without its value prints <code>usage: --&lt;flag&gt; ...</code> and
+exits 2</td>
+<td>lines 28-30, 32</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples">Examples</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Command</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>codegraph_mcp_preflight.sh --help</code></td>
+<td>VERIFIED (ran; saw 25 lines, exit 0; the last four are shell code,
+see Findings)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>--bogus</code>, and <code>--settings</code> with no value, and
+<code>--project &lt;missing dir&gt;</code></td>
+<td>VERIFIED (ran; saw <code>unknown argument: --bogus</code>,
+<code>usage: --settings FILE</code>,
+<code>project directory not found</code>; exit 2 each)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>codegraph_mcp_preflight.sh --project &lt;fixture project with a correct .mcp.json and an index&gt;</code></td>
+<td>VERIFIED (ran on a throwaway fixture project inside the scratch
+area, with a scratch runner cache and fixture
+<code>HOME</code>/<code>CLAUDE_CONFIG_DIR</code>; saw
+<code>P1 PASS</code>, <code>P2 PASS</code>,
+<code>P4 PASS ... (1.6.0-mcpro1)</code>, <code>P5 PASS</code>,
+<code>P6 PASS index present, no live writer, runner valid — the server would start</code>,
+<code>SUMMARY fail=0 warn=0</code>, exit 0)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Same, but <code>--project</code> is an empty directory</td>
+<td>VERIFIED (ran; saw
+<code>P1 FAIL no .mcp.json at &lt;dir&gt;/.mcp.json</code>,
+<code>P2 FAIL no .mcp.json to inspect</code>, <code>P4 PASS</code>,
+<code>P5 PASS</code>,
+<code>P6 FAIL no CodeGraph index at &lt;dir&gt;/.codegraph/codegraph.db</code>,
+<code>SUMMARY fail=3 warn=0</code>, exit 1; the empty directory stayed
+empty)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>A scratch directory holding a copy of this repository&#39;s
+<code>.mcp.json</code> and a <code>constitution</code> symlink, used as
+<code>--project</code></td>
+<td>VERIFIED (ran; saw
+<code>P1 PASS &#39;codegraph&#39; server -&gt; .../constitution/scripts/codegraph/codegraph_mcp.sh</code>,
+<code>P2 PASS</code>, <code>P4 PASS</code>, <code>P5 PASS</code>, and
+<code>P6 FAIL</code> only because the scratch directory has no index;
+exit 1)</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>--settings &lt;file whose hook matcher is mcp__codegraph__codegraph_explore&gt;</code></td>
+<td>VERIFIED (ran; saw
+<code>P3 FAIL &lt;file&gt;: hook runs the stock codegraph: mcp__codegraph__codegraph_explore</code>,
+exit 1; see Edge cases)</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>--settings &lt;nonexistent file&gt;</code></td>
+<td>VERIFIED (ran; saw
+<code>P3 PASS settings carry no stock-codegraph hook/server</code>, exit
+0)</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>--settings &lt;file with invalid JSON&gt;</code></td>
+<td>VERIFIED (ran; saw
+<code>P3 FAIL &lt;file&gt; unreadable (Expecting &#39;,&#39; delimiter: line 1 column 12 (char 11))</code>,
+exit 1)</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Live writer on the fixture index (a process holding the database in
+<code>BEGIN IMMEDIATE</code>)</td>
+<td>VERIFIED (ran; saw <code>P6 WARN live writer on the pr...</code>,
+exit 0 — a WARN, never a FAIL; also test case F7 in a scratch directory
+with a longer path)</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>codegraph_mcp_preflight.sh</code> with no arguments from the
+repository root (checks the real project)</td>
+<td>NOT RUN (P6 would pass the real <code>.codegraph</code> to the
+wrapper&#39;s <code>--dry-run</code>; deliberately not done against the live
+index)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="inputs">Inputs</h2>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Effect</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HELIX_CODEGRAPH_SRC</code></td>
+<td>Pristine package used for the fixture. Default:
+<code>python3 -c &#39;import fk_index_patch as m; print(m.default_src())&#39;</code>
+run from the script directory</td>
+<td>line 131</td>
+</tr>
+<tr>
+<td><code>HELIX_CODEGRAPH_FIXTURE_BIN</code></td>
+<td>Binary used to <code>init</code> the fixture. Default
+<code>$SRC/bin/codegraph</code>. Header: &quot;tests: the fixture
+writer&quot;</td>
+<td>lines 17, 132, 136</td>
+</tr>
+<tr>
+<td><code>HELIX_CODEGRAPH_RUNNER_DIR</code></td>
+<td>Runner cache used by the wrapper (see the wrapper&#39;s guide)</td>
+<td>header line 17</td>
+</tr>
+<tr>
+<td><code>HELIX_CODEGRAPH_MCP_RUNNER</code></td>
+<td>Read by the wrapper the script calls; pins a runner (test F6/F10/F11
+use it)</td>
+<td>via <code>codegraph_mcp.sh:55</code></td>
+</tr>
+<tr>
+<td><code>TMPDIR</code></td>
+<td>Where the temp directory <code>cg_mcp_pf.XXXXXX</code> is
+created</td>
+<td>line 40</td>
+</tr>
+</tbody>
+</table>
+<h2 id="outputs">Outputs</h2>
+<ul>
+<li>stdout: one line per check,
+<code>PREFLIGHT &lt;id&gt; &lt;PASS|FAIL|WARN&gt; &lt;text&gt;</code>
+(line 39), in the order P1, P2, [P3], P4, P5, P6, then
+<code>SUMMARY fail=&lt;N&gt; warn=&lt;M&gt;</code> (line 172).</li>
+<li>stderr: usage and argument errors only.</li>
+</ul>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>No check failed (<code>FAILS == 0</code>); WARN lines do not affect
+the code</td>
+<td>lines 39, 173</td>
+</tr>
+<tr>
+<td>1</td>
+<td>At least one <code>FAIL</code> line</td>
+<td>line 173</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Usage: unknown argument, missing flag value, or project directory
+not found</td>
+<td>lines 28-32, 35</td>
+</tr>
+</tbody>
+</table>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><strong><code>.mcp.json</code> problems fail P1 and P2
+together</strong>: missing file, invalid JSON, or no
+<code>mcpServers</code> object print a <code>P1 FAIL</code> and a
+<code>P2 FAIL</code> and skip the rest of the file check (lines
+49-55).</li>
+<li><strong>How P1 finds the wrapper:</strong> if the command&#39;s basename
+is <code>bash</code>, <code>sh</code> or <code>env</code> and there are
+arguments, the first argument is treated as the script and the rest as
+its arguments; a relative script path is joined to the project
+directory; the path is resolved with <code>realpath</code> (lines 56-65,
+75). This is why this repository&#39;s own entry
+(<code>command: bash</code>,
+<code>args: [constitution/scripts/codegraph/codegraph_mcp.sh]</code>)
+passes (example 5).</li>
+<li><strong>P1 allows only <code>serve</code>, <code>--mcp</code>,
+<code>--project DIR</code>, <code>--project=DIR</code></strong> as
+arguments; anything else is reported as
+<code>argument &#39;x&#39; is not allowed</code> (lines 83-88; test F4 with
+<code>index</code>). The <code>--project</code> value is not
+checked.</li>
+<li><strong>P1 reports at most one of three wrapper problems</strong>
+(wrong basename, not executable, no <code>fk_index_patch.py</code>
+beside it) because they are an <code>if/elif</code> chain (lines 76-81);
+argument problems are added to that reason.</li>
+<li><strong>P2 compares basenames only.</strong> For every other server
+it takes the basename of <code>command</code> and, when
+<code>command</code> is
+<code>bash</code>/<code>sh</code>/<code>env</code>, the basename of the
+resolved first argument, and flags the entry only if one equals exactly
+<code>codegraph</code> (lines 56-65, 90-98). Entries such as
+<code>node .../codegraph.js</code>,
+<code>bash -c &quot;codegraph ...&quot;</code>,
+<code>npx @colbymchenry/codegraph</code> or a shim script named
+otherwise are NOT flagged (test F14 records <code>res=ppppp</code>, five
+misses; see Findings).</li>
+<li><strong>P3 only runs with <code>--settings</code>,</strong> and only
+looks at (a) every string anywhere under the file&#39;s <code>hooks</code>
+key that contains <code>codegraph</code> (case-insensitive) and does not
+contain <code>codegraph_mcp</code>, and (b) <code>mcpServers</code>
+entries whose command basename is <code>codegraph</code> (lines
+111-125). Consequences, all observed in examples 6-8: a hook MATCHER
+string like <code>mcp__codegraph__codegraph_explore</code> is reported
+as a stock-codegraph hook; a nonexistent settings file is skipped
+silently and P3 PASSes (lines 114-115); an unparsable file is a P3 FAIL
+(lines 116-117).</li>
+<li><strong>P4/P5 need a fixture.</strong> If <code>$FIXBIN</code> is
+not executable or <code>init</code> fails, only
+<code>P5 FAIL fixture could not be created with &lt;bin&gt; (init failed: ...)</code>
+is printed and P4 is not printed (lines 136-140). If the package cannot
+be found, <code>SRC</code> is empty and <code>FIXBIN</code> becomes
+<code>/bin/codegraph</code> (lines 131-132); NOT RUN with an empty
+source.</li>
+<li><strong>P4 passes only if the wrapper&#39;s dry-run exits 0 and
+<code>runner_key</code> ends in <code>-mcpro1</code></strong> (lines
+142-147). A receipt-valid runner is not proof of working: P5 is the
+check that catches a runner that passes P4 but launches the stock writer
+or fails its session (tests F10, F11).</li>
+<li><strong>P5 requires every observed database descriptor to be
+read-only and at least one to exist</strong>
+(<code>modes and all(m == &quot;r&quot;)</code>, lines 154-155).</li>
+<li><strong>P6 with a live writer is a WARN (exit stays 0) by
+design</strong> (line 166); the wrapper&#39;s stderr is cut to 220 bytes
+(line 166), and any other wrapper exit is a FAIL (line 167).</li>
+<li><strong>Temp files.</strong> The script removes its own directory on
+exit (line 40, checked: no <code>cg_mcp_pf.*</code> left over). It does
+NOT remove the empty <code>cg_mcp_err.XXXXXX</code> file that the
+wrapper leaves behind when it starts the server: one such file remained
+in <code>TMPDIR</code> after each run that reached P5 (observed: 0 files
+before, 1 after a single run).</li>
+</ul>
+<h2 id="findings-things-in-the-tool-or-its-tests-that-do-not-match">Findings
+(things in the tool or its tests that do not match)</h2>
+<ol type="1">
+<li><strong>The test file expects features the source does not
+have.</strong> <code>tests/test_codegraph_mcp_preflight.sh</code>
+asserts a <code>P7</code> check (user-scope <code>~/.claude.json</code>
+/ <code>$CLAUDE_CONFIG_DIR/.claude.json</code>, case F13, header line
+13) and P2 classification &quot;by the RESOLVED launch target&quot; (case F14,
+comment at test line 144). Neither exists in
+<code>codegraph_mcp_preflight.sh</code>: the string <code>P7</code>
+occurs only in the test file, and P2 is basename-only (lines 90-98). The
+header of the script itself lists only P1-P6. Ran the test suite in a
+scratch <code>TMPDIR</code>: F1-F6, F8-F12 PASS; F13 and F14 FAIL
+(<code>p7a=</code> empty; <code>res=ppppp</code>), so the suite exits 1
+(<code>SUMMARY cases=14 failed=3</code>). Source and tests were added by
+the same commit (<code>b3a73cf</code>).</li>
+<li><strong>The mutation harness cannot run.</strong> It first requires
+the baseline test suite to pass and otherwise stops
+(<code>test_codegraph_mcp_preflight_mutations.sh:17-18</code>); ran it:
+<code>BASELINE FAILED (rc=1)</code>, no mutant was applied.</li>
+<li><strong>F7 depends on path length.</strong> P6 cuts the wrapper&#39;s
+stderr with <code>head -c 220</code> (bytes, line 166); the wrapper&#39;s
+message contains an em dash (<code>—</code>, three bytes) right after
+the database path. The message prefix is 49 bytes, so the em dash starts
+at byte <code>51 + &lt;path length&gt;</code>; with a 168- or 169-byte
+path the 220-byte cut lands inside that character. Observed with a
+168-byte path (the same fixture, a fresh live writer: rc 0; the
+<code>P6 WARN</code> line ends with the two bytes <code>E2 80</code>,
+<code>iconv -f UTF-8</code> rejects the output, and the test&#39;s
+<code>grep</code> prints <code>binary file matches</code> so F7 fails);
+the 169-byte case is derived from the arithmetic, not run. The same case
+PASSes when <code>TMPDIR</code> is 7 characters longer.</li>
+<li><strong><code>--help</code> prints code.</strong> The header block
+ends at line 22, but <code>sed -n &#39;2,26p&#39;</code> (line 31) prints lines
+2-26, so the last four printed lines are <code>set -u</code>,
+<code>HERE=...</code>, <code>PROJECT=...</code>, <code>while ...</code>.
+(The sibling wrapper&#39;s help range, <code>2,32</code>, matches its header
+exactly.)</li>
+<li><strong>Undocumented side effect.</strong> The header&#39;s &quot;Side
+effects&quot; (line 19) omits the leftover <code>cg_mcp_err.*</code> file
+(see Edge cases; the cause is in
+<code>codegraph_mcp.sh:54,140</code>).</li>
+</ol>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<ol type="1">
+<li>Parse arguments; resolve the project; default <code>.mcp.json</code>
+(lines 23-37).</li>
+<li>Create the temp directory and its EXIT trap (line 40).</li>
+<li>P1/P2: an embedded Python program parses the JSON (never greps it)
+and prints one line per check; the shell reads them through a process
+substitution so the FAIL/WARN counters survive (a piped
+<code>while</code> would lose them, comment on line 100).</li>
+<li>P3 (only with <code>--settings</code>): a second embedded Python
+program (lines 101-128).</li>
+<li>Build the fixture project and index it with the pristine package&#39;s
+<code>init -y</code> (lines 131-140).</li>
+<li>P4:
+<code>codegraph_mcp.sh --project &lt;fixture&gt; --dry-run</code>; P5:
+<code>codegraph_mcp_probe.py --bin &lt;wrapper&gt; --project &lt;fixture&gt; --query compute_total</code>
+and a Python assertion over its JSON (lines 141-159).</li>
+<li>P6: <code>stat</code> the real database; if present,
+<code>codegraph_mcp.sh --project &lt;project&gt; --dry-run</code> (lines
+162-171).</li>
+<li>Print <code>SUMMARY</code> and exit <code>0</code> iff no FAIL
+(lines 172-173).</li>
+</ol>
+<h2 id="related">Related</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="codegraph_mcp.md">codegraph_mcp</a></td>
+<td>The wrapper this script exercises (P4, P5, P6)</td>
+</tr>
+<tr>
+<td><a href="codegraph_mcp_probe.md">codegraph_mcp_probe</a></td>
+<td>MCP client that produces the JSON P5 asserts on</td>
+</tr>
+<tr>
+<td><code>fk_index_patch.py</code></td>
+<td>Builds/finds the <code>mcpro1</code> runner; also gives the default
+package source (line 131)</td>
+</tr>
+<tr>
+<td><code>tests/test_codegraph_mcp_preflight.sh</code></td>
+<td>Cases F1-F14 (F7, F13, F14 currently fail, see Findings)</td>
+</tr>
+<tr>
+<td><code>tests/test_codegraph_mcp_preflight_mutations.sh</code>,
+<code>..._mutate.py</code></td>
+<td>Mutants Y1-Y6 against a copy of this script (blocked by the baseline
+failure)</td>
+</tr>
+<tr>
+<td><a href="owed_report.md">owed_report</a></td>
+<td>Reports whether this tool has tests and a guide</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26T12:59:10Z — everything ran in a scratch area (fixtures,
+runner cache, fixture <code>HOME</code> and
+<code>CLAUDE_CONFIG_DIR</code>, scratch <code>TMPDIR</code>); the
+repository&#39;s real <code>.codegraph</code> was never passed to any
+command.</p>
+<ul>
+<li><code>bash tests/test_codegraph_mcp_preflight.sh</code>: 11 PASS, 3
+FAIL (F7, F13, F14), <code>SUMMARY cases=14 failed=3</code>.</li>
+<li><code>ONLY=F7 bash tests/test_codegraph_mcp_preflight.sh</code> with
+a longer <code>TMPDIR</code>: PASS.</li>
+<li>Re-run 2026-09-26 (second verification pass, scratch
+<code>TMPDIR</code> of a different length): F7 PASSED, F13 and F14
+FAILED, <code>SUMMARY cases=14 failed=2</code> (confirms F7 is
+path-length dependent, Finding 3; F13/F14 fail deterministically).
+<code>--help</code> printed 25 lines, last four shell code (Finding 4).
+21 <code>cg_mcp_err.*</code> files remained in <code>TMPDIR</code> after
+the suite (Finding 5).</li>
+<li><code>bash tests/test_codegraph_mcp_preflight_mutations.sh</code>:
+<code>BASELINE FAILED (rc=1)</code>.</li>
+<li>The direct invocations in the examples table (help, usage errors,
+correct project, empty project, this repository&#39;s <code>.mcp.json</code>
+shape, three <code>--settings</code> cases, live writer).</li>
+</ul>
+</body>
+</html>

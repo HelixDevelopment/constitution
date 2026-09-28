@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>resolve2 (runner patch) — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="resolve2-runner-patch--guide">resolve2 (runner patch) —
+guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T14:10:00Z</p>
+<p>Source:
+<code>constitution/scripts/codegraph/runner_patches/resolve2.py</code>
+(63 lines). A <strong>module driven by
+<code>fk_index_patch.py</code></strong>, not a command. Citations are
+<code>resolve2.py:&lt;line&gt;</code> unless another file is named.
+Machinery guide: <a href="fk_index_patch.md">fk_index_patch</a>.</p>
+<h2 id="overview">Overview</h2>
+<p>Stock CodeGraph 1.6.0 <code>frameworks/swift-objc.js</code>
+<code>buildObjcMap()</code>, reached the first time a Swift
+<code>calls</code> reference survives to the framework stage, does
+<code>context.getNodesByKind(&#39;method&#39;).filter((n) =&gt; n.language === &#39;objc&#39;)</code>.
+<code>getNodesByKind</code> runs
+<code>SELECT * FROM nodes WHERE kind = ?</code> with
+<code>.all()</code>, maps every row to a node and <strong>pins the
+array</strong> in the per-resolver <code>nodesByKindCache</code> for the
+rest of the pass. On the ATMOSphere index that is 3,478,494 method nodes
+(46,158 objc), and the single call exhausts the default 4,288 MB V8 heap
+(<code>FATAL &quot;Reached heap limit&quot;</code>); every resolver pool worker
+that meets a Swift ref dies the same way (docstring lines 3-15, citing
+ATM-1030 evidence files named in the source; those files were not
+re-read for this guide).</p>
+<p>Fix (one anchor, lines 38-48): iterate
+<code>context.iterateNodesByKind(&#39;method&#39;)</code> (same SQL text and row
+mapping, lazy, same statement order) and keep only
+<code>language === &#39;objc&#39;</code> rows. Memory becomes O(#objc methods)
+and nothing is pinned in <code>nodesByKindCache</code>. Filter and
+element order are unchanged, so <code>candidates[0]</code> (the chosen
+bridge target) is unchanged (lines 21-24).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Reads <code>lib/dist/resolution/frameworks/swift-objc.js</code> and
+reads (never edits) <code>lib/dist/resolution/index.js</code>. Python
+stdlib plus <code>runner_patches/common.py</code>. Default-set patch
+(<code>runner_patches/__init__.py:17</code>), applied fifth.</p>
+<h2 id="usage">Usage</h2>
+<p>Only through <code>fk_index_patch.py</code>:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/fk_index_patch.py <span class="at">--patches</span> resolve2 <span class="at">--dst</span> <span class="op">&lt;</span>scratch dir<span class="op">&gt;</span></span></code></pre></div>
+<ul>
+<li><code>VERIFIED (ran: tests/test_resolve2.sh with TMPDIR set to a scratch directory; saw: SUMMARY cases=3 failed=0, exit 0)</code>.
+The test builds a <code>--patches resolve2</code> runner into its own
+workdir with <code>HELIX_CODEGRAPH_RUNNER_DIR</code> set to that workdir
+(<code>test_resolve2.sh:39</code>), never the real cache.</li>
+<li><code>VERIFIED (ran: resolve2.plan via fk_index_patch.plan_all against stock 1.6.0; saw: APPLIED, file lib/dist/resolution/frameworks/swift-objc.js, anchor &quot;buildObjcMap getNodesByKind(&#39;method&#39;).filter(objc)&quot;, detail order_preserved true)</code>.</li>
+<li><code>NOT RUN</code>: the optional Q4 check
+(<code>REAL=&lt;db&gt; REAL_ROOT=&lt;root&gt; REAL_OFF=&lt;rowid&gt;</code>)
+opens a real index read-only and was deliberately not run (hard rule:
+never touch the live index).</li>
+</ul>
+<h2 id="behaviour-source-traced">Behaviour (source-traced)</h2>
+<p><code>plan(view)</code> (lines 51-63):</p>
+<ol type="1">
+<li>Refuse <code>resolve2: source is ALREADY patched</code> if
+<code>helix-resolve2</code> occurs in <code>swift-objc.js</code> (line
+53-54).</li>
+<li>Refuse
+<code>resolution context lacks the expected iterateNodesByKind member (index.js shape changed)</code>
+unless <code>resolution/index.js</code> contains the line
+<code>iterateNodesByKind: (kind) =&gt; this.queries.iterateNodesByKind(kind),</code>
+exactly once (lines 36, 55-57). This is the fail-closed guard against a
+silent fallback to the materializing path.</li>
+<li>One <code>replace_once</code> of the
+<code>context.getNodesByKind(&#39;method&#39;).filter(...)</code> expression by
+a <code>for...of</code> over
+<code>context.iterateNodesByKind(&#39;method&#39;)</code> pushing objc rows into
+an array (lines 38-48, 59). There is no NOT_NEEDED path in this
+patch.</li>
+</ol>
+<h2 id="what-the-tests-prove-teststest_resolve2sh-header-lines-3-15">What
+the tests prove (<code>tests/test_resolve2.sh</code>, header lines
+3-15)</h2>
+<p>Q1 after driving the bridge
+<code>queries.getNodesByKind(&#39;method&#39;)</code> was not called and
+<code>nodesByKindCache</code> holds no <code>method</code>; Q2 bridge
+targets are identical to the stock package&#39;s, order-sensitive (three
+<code>.m</code> files define each selector, plus same-named non-objc
+Java methods indexed first); Q3 a full-index sorted edge+ref dump is
+byte-identical to stock; Q4 (real index, opt-in only) 200 real pending
+refs resolve under the default heap without OOM.
+<code>tests/test_resolve2_mutations.sh</code> applies single-edit
+mutants (table in <code>test_resolve2_mutate.py</code>) and requires the
+named tests red.</p>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li>Already-patched input:
+<code>VERIFIED (parent guide: plan on the patched text -&gt; Refuse &quot;source is ALREADY patched&quot;)</code>.</li>
+<li>Anchor removed or duplicated:
+<code>VERIFIED (parent guide: Refuse &quot;anchor ... occurs 0x|2x ... expected exactly 1&quot;)</code>.</li>
+<li><code>iterateNodesByKind</code> missing from the resolution context:
+Refuse by the guard above (source-traced; not separately run).</li>
+<li>The patched loop still builds an array of all objc methods (46,158
+on the ATMOSphere index per the source), so memory is bounded by the
+objc method count, not by zero.</li>
+</ul>
+<h2 id="related-scripts">Related scripts</h2>
+<p><a href="fk_index_patch.md">fk_index_patch</a>, siblings <a href="fkidx1.md">fkidx1</a>, <a href="lockfix1.md">lockfix1</a>, <a href="datafrag1.md">datafrag1</a>, <a href="resolve1.md">resolve1</a>
+(edits the <code>resolution/index.js</code> that resolve2 only reads),
+<a href="mcpro1.md">mcpro1</a>, <a href="codegraph_safe.md">codegraph_safe</a>.</p>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26: <code>tests/test_resolve2.sh</code> 3/3 PASS and
+<code>tests/test_resolve2_mutations.sh</code> SUMMARY cases=6 failed=0
+(golden plus 5 mutants killed), both with a scratch <code>TMPDIR</code>;
+the real runner cache directory listing was unchanged.</p>
+</body>
+</html>

@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>codegraph_scope_guard.py — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="codegraph_scope_guardpy--guide">codegraph_scope_guard.py —
+guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T13:03:00Z</p>
+<p>Source:
+<code>constitution/scripts/codegraph/codegraph_scope_guard.py</code>
+(433 lines). Tests:
+<code>constitution/scripts/codegraph/tests/run_scope_tests.sh</code>,
+which runs <code>t_scope_cases.py</code> (cases T01-T17) and
+<code>t_scope_mutations.py</code> (mutants M0-M15, 18 results) against a
+generated fixture repository. Citations below are
+<code>codegraph_scope_guard.py:&lt;line&gt;</code> unless another file
+is named.</p>
+<h2 id="overview">Overview</h2>
+<p>Proves that the file set a CodeGraph index would contain for a
+project is the mandated scope (header, lines 3-12): third-party
+submodules out, own-organisation submodules in, first-party source
+indexable, secret and bulk classes out. It does not model the engine: it
+asks the installed runner&#39;s own file discovery
+(<code>scanDirectory</code>) through <code>scope_enumerate.js</code> and
+judges the answer (lines 5-6, 97-108). It never opens a
+<code>.codegraph</code> database or lock and never runs
+<code>codegraph init/index/sync</code> (lines 32-34).</p>
+<p>The checks (violation ids, header lines 39-41):</p>
+<table>
+<thead>
+<tr>
+<th>Check id</th>
+<th>Fires when</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>third_party_files</code></td>
+<td>any enumerated file lies under a third-party submodule root</td>
+<td>lines 128-139, 233-238</td>
+</tr>
+<tr>
+<td><code>forbidden_class</code></td>
+<td>any enumerated path matches a <code>forbidden_classes</code> regex
+from the scope file</td>
+<td>lines 246-250</td>
+</tr>
+<tr>
+<td><code>negation_target_empty</code></td>
+<td>a <code>reinclude_negations</code> pattern matches no enumerated
+file</td>
+<td>lines 252-260</td>
+</tr>
+<tr>
+<td><code>include_target_empty</code></td>
+<td>an <code>include_patterns</code> pattern matches no enumerated
+file</td>
+<td>lines 262-269</td>
+</tr>
+<tr>
+<td><code>own_org_empty</code></td>
+<td>an own-org submodule is checked out and has tracked source but
+contributes zero enumerated files</td>
+<td>lines 271-278</td>
+</tr>
+<tr>
+<td><code>stale_render</code></td>
+<td><code>codegraph.json</code> / the <code>.gitignore</code> block on
+disk differ from a fresh render of the scope</td>
+<td>lines 225-231</td>
+</tr>
+<tr>
+<td><code>count_out_of_tolerance</code></td>
+<td>the enumerated count is outside <code>accepted_count</code> +/-
+<code>tolerance_pct</code>, or <code>accepted_count</code> is unset
+(0)</td>
+<td>lines 280-287</td>
+</tr>
+<tr>
+<td><code>control_needle</code></td>
+<td>the instrument could not prove it can see (see below)</td>
+<td>lines 199-223</td>
+</tr>
+<tr>
+<td><code>runner_contract</code></td>
+<td>the runner no longer behaves as this tooling assumes</td>
+<td>lines 379-388</td>
+</tr>
+<tr>
+<td><code>render_nondeterministic</code></td>
+<td>in dry-run mode, two renders of the same scope differ</td>
+<td>lines 395-398</td>
+</tr>
+</tbody>
+</table>
+<p>Every &quot;zero&quot; is control-needled (§11.4.273): a blind instrument
+yields exit 4, never a clean pass (header lines 11-12).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>python3</code> with PyYAML (loaded by
+<code>scope_render.py</code>, <code>scope_render.py:73-77</code>),
+<code>node</code> &gt;= 18 (<code>SCOPE_NODE</code> overrides the
+binary, line 99), <code>git</code>.</li>
+<li>Sibling files in the same directory: <code>scope_render.py</code>
+(imported, line 59) and <code>scope_enumerate.js</code> (line 61).</li>
+<li>A scope file (<code>scope.example.yaml</code> documents the schema)
+and a project root that is a directory.</li>
+<li>A runner <code>lib/dist</code> (see &quot;Runner resolution&quot;).</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_scope_guard.py</span> <span class="at">--scope</span> <span class="op">&lt;</span>scope.yaml<span class="op">&gt;</span> --root <span class="op">&lt;</span>project root<span class="op">&gt;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="ex">[--dist</span> <span class="op">&lt;</span>runner lib/dist<span class="op">&gt;</span>] [--work <span class="op">&lt;</span>scratch dir<span class="op">&gt;</span>]</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="ex">[--print-count]</span> <span class="pp">[--</span><span class="ss">contract</span><span class="pp">-</span><span class="ss">only</span><span class="pp">]</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="ex">[--dry-run-dir</span> <span class="op">&lt;</span>dir<span class="op">&gt;</span>] <span class="pp">[--</span><span class="ss">explain</span><span class="pp">]</span> [--report-out <span class="op">&lt;</span>file<span class="op">&gt;</span>]</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_scope_guard.py</span> <span class="at">--resolve-dist</span> [--dist D] [--scope S]</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--scope FILE</code></td>
+<td>Scope file. Required except with <code>--resolve-dist</code></td>
+<td>lines 322, 361-362</td>
+</tr>
+<tr>
+<td><code>--root DIR</code></td>
+<td>Project root. Must be a directory</td>
+<td>lines 323, 363-365</td>
+</tr>
+<tr>
+<td><code>--dist DIR</code></td>
+<td>Runner <code>lib/dist</code> (see below)</td>
+<td>lines 324, 355</td>
+</tr>
+<tr>
+<td><code>--work DIR</code></td>
+<td>Scratch directory. Default: a fresh <code>scope_guard_XXXXXX</code>
+directory under <code>$TMPDIR</code>. Refused (exit 3) when inside
+<code>--root</code></td>
+<td>lines 325, 366-370</td>
+</tr>
+<tr>
+<td><code>--print-count</code></td>
+<td>Print the enumerated count alone on stdout; the count-acceptance
+check is skipped</td>
+<td>lines 326, 281, 419-420</td>
+</tr>
+<tr>
+<td><code>--contract-only</code></td>
+<td>Run only the runner-contract probe, then exit</td>
+<td>lines 327, 389-390</td>
+</tr>
+<tr>
+<td><code>--resolve-dist</code></td>
+<td>Print the resolved runner dist path and exit 0</td>
+<td>lines 328, 356-358</td>
+</tr>
+<tr>
+<td><code>--dry-run-dir DIR</code></td>
+<td>Render the scope into DIR and enumerate with the rendered files
+overlaid; nothing is written to the root. Refused (exit 3) when inside
+<code>--root</code></td>
+<td>lines 329, 185-187, 291-303, 367-369</td>
+</tr>
+<tr>
+<td><code>--explain</code></td>
+<td>With <code>--dry-run-dir</code>: also list tracked source still
+dropped by the engine&#39;s built-in skips, into
+<code>&lt;dir&gt;/explain_dropped.tsv</code>. Silently ignored without
+<code>--dry-run-dir</code></td>
+<td>lines 330, 401-412</td>
+</tr>
+<tr>
+<td><code>--report-out FILE</code></td>
+<td>Also write the report JSON to FILE (atomic write)</td>
+<td>lines 331, 344-345</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>argparse help, exit 0</td>
+<td>lines 333-335</td>
+</tr>
+</tbody>
+</table>
+<h3 id="runner-resolution">Runner resolution</h3>
+<p>First usable of: <code>--dist</code>, the scope&#39;s
+<code>runner.dist_dir</code>, <code>$CODEGRAPH_RUNNER_DIST</code>, then
+the <code>codegraph</code> executable on <code>PATH</code> (looking for
+<code>node_modules/@colbymchenry/codegraph-*/lib/dist</code>,
+<code>lib/dist</code> and <code>../lib/dist</code> relative to the
+executable&#39;s real directory). A usable dist has
+<code>extraction/index.js</code> and <code>project-config.js</code>. An
+explicit choice that is unusable is an error (exit 3): it never falls
+through to the next source (lines 71-94).</p>
+<h3 id="examples">Examples</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Command</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>codegraph_scope_guard.py --help</code></td>
+<td>VERIFIED (ran; saw the usage text listing all 10 options, exit
+0)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>codegraph_scope_guard.py --resolve-dist</code></td>
+<td>VERIFIED (ran; saw
+<code>.../node_modules/@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-linux-x64/lib/dist</code>,
+exit 0)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>codegraph_scope_guard.py</code> (no arguments)</td>
+<td>VERIFIED (ran; saw
+<code>scope_guard: FAIL-CLOSED: --scope and --root are required</code>
+and a <code>SCOPE_GUARD_REPORT</code> line with
+<code>&quot;exit_code&quot;: 3</code>, exit 3)</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>codegraph_scope_guard.py --bogus</code></td>
+<td>VERIFIED (ran; argparse
+<code>unrecognized arguments: --bogus</code>, exit 3)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Guard on the generated, un-rendered test fixture
+(<code>--scope &lt;fixture&gt;/codegraph.scope.yaml --root &lt;fixture&gt; --work &lt;scratch&gt;</code>)</td>
+<td>VERIFIED (ran; saw
+<code>scope_guard: FAIL(rc=1) count=13 violations=[&#39;count_out_of_tolerance&#39;, &#39;forbidden_class&#39;, &#39;include_target_empty&#39;, &#39;negation_target_empty&#39;, &#39;stale_render&#39;, &#39;third_party_files&#39;]</code>,
+exit 1)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Same fixture after <code>scope_render.py --write</code>, with
+<code>--print-count</code></td>
+<td>VERIFIED (ran; stdout <code>8</code>, stderr
+<code>scope_guard: PASS count=8 violations=none</code>, exit 0)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Same fixture with <code>accepted_count: 8</code> set and
+re-rendered, plain run with <code>--report-out</code></td>
+<td>VERIFIED (ran; saw <code>PASS count=8</code>, exit 0; report keys
+<code>contract controls count enumeration_file exit_code include_targets mode negation_targets own_org root runner scan_mode scope_summary third_party tool verdict violations</code>;
+<code>verdict PASS</code>, <code>mode check</code>,
+<code>scan_mode git</code>)</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>--dry-run-dir &lt;dir&gt; --explain --print-count</code> on a
+fresh un-rendered fixture</td>
+<td>VERIFIED (ran; saw <code>PASS count=8</code>, exit 0;
+<code>&lt;dir&gt;</code> held <code>codegraph.json</code>,
+<code>explain_dropped.tsv</code>, <code>gitignore.block</code>,
+<code>gitignore.overlay</code>; the fixture root&#39;s file
+listing/size/mtime hash and its <code>git status</code> hash were
+identical before and after)</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>--work &lt;dir inside root&gt;</code> and
+<code>--dry-run-dir &lt;dir inside root&gt;</code></td>
+<td>VERIFIED (ran; saw
+<code>FAIL-CLOSED: --work ... is inside the project root</code>, exit 3;
+nothing created in the root)</td>
+</tr>
+<tr>
+<td>10</td>
+<td>unparsable scope file / <code>--root</code> that is not a directory
+/ <code>--dist /nonexistent/dist</code></td>
+<td>VERIFIED (ran; <code>unparsable scope file ...</code>,
+<code>root is not a directory</code>,
+<code>--dist=&#39;/nonexistent/dist&#39; is not a runner lib/dist</code>; exit 3
+each)</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>--contract-only</code></td>
+<td>VERIFIED (ran; exit 0; report <code>mode: contract_only</code>,
+<code>contract.ok: true</code>, runner version <code>1.6.0</code>,
+checks <code>C0_config_filename</code> ...
+<code>C5_exclude_wins_over_negation</code>)</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Guard against this repository&#39;s real project root</td>
+<td>NOT RUN (deliberately: the brief forbids pointing anything at the
+live 580K-file tree or its index; the guard would enumerate it)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="inputs">Inputs</h2>
+<ul>
+<li>The scope file (parsed and validated by
+<code>scope_render.load_scope</code>), rendered files on disk
+(<code>codegraph.json</code>, <code>.gitignore</code>), the project&#39;s
+git tree and <code>.gitmodules</code> files, and the runner dist.</li>
+<li>Scope sections the renderer does not validate and the guard requires
+(lines 148-168):
+<ul>
+<li><code>forbidden_classes</code>: non-empty list; each entry needs
+string <code>name</code>, <code>regex</code>, <code>positive</code>,
+<code>negative</code>; the regex must compile;</li>
+<li><code>enumeration_controls.present</code> /
+<code>.fabricated</code>: lists of paths (optional);</li>
+<li><code>accepted_count</code> (integer &gt;= 0, default 0) and
+<code>tolerance_pct</code> (number &gt;= 0, default 0). Any violation of
+these is a fail-closed exit 3 (lines 151-167).</li>
+</ul></li>
+<li>Environment: <code>CODEGRAPH_RUNNER_DIST</code>,
+<code>SCOPE_NODE</code>, <code>TMPDIR</code> (default work directory,
+line 366).</li>
+</ul>
+<h2 id="outputs">Outputs</h2>
+<ul>
+<li>stderr: one line <code>SCOPE_GUARD_REPORT &lt;json&gt;</code> (keys
+sorted, no timestamps or durations, lines 337-346), a human line
+<code>scope_guard: PASS|FAIL(rc=N) count=&lt;n&gt; violations=&lt;list&gt;</code>
+(lines 427-428), and on a fail-closed exit
+<code>scope_guard: FAIL-CLOSED: &lt;reason&gt;</code> (line 414).</li>
+<li>stdout: only the count with <code>--print-count</code> (line 420) or
+the dist path with <code>--resolve-dist</code> (line 357). The count is
+printed even when the run fails on violations (example:
+<code>--print-count</code> on the un-rendered fixture printed
+<code>13</code> and exited 1), but not on a fail-closed (3) or contract
+(2) exit.</li>
+<li>Report fields (lines 337-412): <code>tool</code>, <code>mode</code>
+(<code>check</code> / <code>dry_run</code> /
+<code>contract_only</code>), <code>root</code>, <code>verdict</code>,
+<code>exit_code</code>, <code>violations</code>, <code>controls</code>,
+<code>contract</code>, <code>scope_summary</code>, <code>count</code>,
+<code>enumeration_file</code>, <code>runner</code>
+(<code>version</code>, <code>config_filename</code>),
+<code>scan_mode</code> (<code>git</code> or
+<code>walk_fallback:&lt;reason&gt;</code>), <code>third_party</code>
+(<code>roots</code>, <code>files_enumerated</code>,
+<code>exclusion_proven_on_roots</code>, <code>vacuous_roots</code>),
+<code>own_org</code>, <code>negation_targets</code>,
+<code>include_targets</code>; in dry-run also <code>stale_render</code>
+(<code>not_applicable_dry_run</code>),
+<code>reinclude_untracked_ignored</code>, <code>explain</code>; on exit
+3, <code>error</code>.</li>
+<li>Files: <code>&lt;work&gt;/contract/</code>,
+<code>&lt;work&gt;/roots.json</code>,
+<code>&lt;work&gt;/enumerated.txt</code> (lines 176-182, 376-378), and
+<code>--report-out</code>.</li>
+</ul>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Scope proven (no violations); also <code>--help</code>,
+<code>--resolve-dist</code>, <code>--contract-only</code> success</td>
+<td>lines 335, 358, 390, 426</td>
+</tr>
+<tr>
+<td>1</td>
+<td>One or more violations, none of them a
+<code>control_needle</code></td>
+<td>lines 423-424</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Runner contract drift: the engine no longer behaves as assumed</td>
+<td>lines 384-388</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Fail-closed: unparsable or invalid scope, unloadable runner, bad
+root, unsafe path (<code>--work</code>/<code>--dry-run-dir</code> inside
+the root), enumeration or explain failure, usage error (also argparse
+errors)</td>
+<td>lines 334-335, 413-416</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Control needle blind: any <code>control_needle</code> violation wins
+over every other violation</td>
+<td>lines 421-422</td>
+</tr>
+</tbody>
+</table>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><strong>Order of work.</strong> The runner contract is probed FIRST
+(lines 374-391); if it drifts the guard exits 2 and measures nothing
+else.</li>
+<li><strong>Control needles</strong> (lines 199-223): each forbidden
+class&#39;s <code>positive</code> needle must match its regex and its
+<code>negative</code> needle must not; the enumeration must be
+non-empty; every <code>enumeration_controls.present</code> path must be
+enumerated; no <code>enumeration_controls.fabricated</code> path may be.
+Any failure is a <code>control_needle</code> violation, hence exit 4
+(tests T08, T09).</li>
+<li><strong>Third-party proof can be vacuous.</strong>
+<code>third_party.vacuous_roots</code> lists third-party roots that are
+not checked out or have no tracked source, for which &quot;zero enumerated&quot;
+proves nothing; this is reported, not a violation (lines 239-244).</li>
+<li><strong>Count acceptance.</strong> With <code>accepted_count</code>
+0 every non-<code>--print-count</code> run fails
+<code>count_out_of_tolerance</code> (&quot;measure with --print-count,
+review, then set it&quot;); otherwise the check is
+<code>abs(count - accepted) * 100 &gt; tolerance_pct * accepted</code>
+(lines 281-287).</li>
+<li><strong>Own-org roots not checked out</strong> are listed under
+<code>own_org.not_checked_out</code> and are not a violation (line
+274).</li>
+<li><strong>Scan mode is measured, not assumed.</strong> If the runner&#39;s
+<code>git ls-files</code> listing throws (for example a buffer overflow
+on a huge tree) the runner silently falls back to a filesystem walk; the
+report says <code>walk_fallback:&lt;code&gt;</code> because the file-set
+semantics then differ (<code>scope_enumerate.js:136-149</code>; test
+T17).</li>
+<li><strong>The guard deletes inside <code>--work</code>.</strong> It
+removes <code>&lt;work&gt;/enumerated.txt</code> and recursively removes
+<code>&lt;work&gt;/contract</code> before recreating them (lines
+177-178, 376-378). Verified: a pre-existing
+<code>&lt;work&gt;/contract/precious.txt</code> was deleted and a
+pre-existing <code>enumerated.txt</code> was overwritten. Point
+<code>--work</code> at a dedicated scratch directory.</li>
+<li><strong>Default work directory is not cleaned up.</strong> Without
+<code>--work</code> a <code>scope_guard_XXXXXX</code> directory (holding
+<code>contract/</code>, <code>enumerated.txt</code>,
+<code>roots.json</code>) is created under <code>$TMPDIR</code> and left
+behind (line 366; observed).</li>
+<li><strong>Dry run.</strong> Renders twice to prove determinism (lines
+395-398), writes overlay files only under <code>--dry-run-dir</code>,
+and lets the runner read them in place of
+<code>&lt;root&gt;/codegraph.json</code> and
+<code>&lt;root&gt;/.gitignore</code>
+(<code>scope_enumerate.js:57-85</code>).
+<code>reinclude_untracked_ignored</code> counts files git itself ignores
+under literal, anchored negation directories; a non-literal pattern is
+reported as <code>unmeasured_non_literal_pattern</code> (lines
+306-317).</li>
+<li><strong><code>--resolve-dist</code> with a bad scope</strong> still
+prints the dist path: an unparsable scope is only raised after the
+<code>--resolve-dist</code> branch (lines 349-360).</li>
+</ul>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<ol type="1">
+<li>Parse arguments; load the scope for the runner settings; resolve the
+dist (lines 332-358).</li>
+<li>Validate <code>--scope</code>/<code>--root</code>, choose and check
+<code>--work</code> / <code>--dry-run-dir</code> (lines 359-372).</li>
+<li>Runner contract probe through
+<code>node scope_enumerate.js contract</code> (lines 374-391).</li>
+<li>Render the scope (<code>scope_render.render</code>); in dry-run mode
+render twice and write the overlay files (lines 392-399).</li>
+<li><code>evaluate</code> (lines 172-288): enumerate through
+<code>scope_enumerate.js enumerate</code> with a roots file (own plus
+third-party roots), then run the control needles, stale-render,
+third-party, forbidden-class, negation, include, own-org and count
+checks.</li>
+<li>Dry-run extras: <code>reinclude_untracked_ignored</code> and
+optional <code>explain</code> (lines 401-412).</li>
+<li>Decide the exit code, print the report (lines 418-429).</li>
+</ol>
+<h2 id="related">Related</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="scope_render.md">scope_render</a></td>
+<td>Renders <code>codegraph.json</code> and the <code>.gitignore</code>
+block; the guard imports it</td>
+</tr>
+<tr>
+<td><a href="scope_enumerate.md">scope_enumerate</a></td>
+<td>The node bridge into the runner&#39;s own discovery</td>
+</tr>
+<tr>
+<td><code>scope.example.yaml</code></td>
+<td>Scope schema example</td>
+</tr>
+<tr>
+<td><code>scope_baseline.txt</code></td>
+<td>Must-exclude classes data file for the
+<code>codegraph_safe.sh</code> scope-proof stage (its header, lines
+1-3); this guard does not read it</td>
+</tr>
+<tr>
+<td><a href="codegraph_safe.md">codegraph_safe</a>, <a href="codegraph_guard.md">codegraph_guard</a>, <a href="disk_tripwire.md">disk_tripwire</a></td>
+<td>Sibling tools that refer to this guard as the scope proof before
+&quot;ready&quot;</td>
+</tr>
+<tr>
+<td><code>tests/run_scope_tests.sh</code>,
+<code>t_scope_cases.py</code>, <code>t_scope_fixture.py</code>,
+<code>t_scope_mutations.py</code></td>
+<td>Test suite and fixture builder</td>
+</tr>
+<tr>
+<td><a href="owed_report.md">owed_report</a></td>
+<td>Reports whether this tool has tests and a guide</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26T13:03:00Z — everything ran against generated fixtures in a
+scratch area; the real repository and its <code>.codegraph</code> were
+never opened.</p>
+<ul>
+<li><code>TMPDIR=&lt;scratch&gt; bash tests/run_scope_tests.sh</code> (1
+iteration): T01-T17 <code>PASS</code>
+(<code>SUMMARY cases=17 fail=0</code>), M0-M15 <code>PASS</code>
+(<code>SUMMARY mutations=18 fail=0</code>),
+<code>DETERMINISM iterations=1 ... verdict=PASS</code>. (One iteration
+proves no cross-iteration determinism; <code>--iterations N</code>
+exists for that, line 26 of the runner, and was not run.)</li>
+<li>The direct invocations in the examples table, on scratch fixtures
+built by <code>tests/t_scope_fixture.py</code>.</li>
+</ul>
+</body>
+</html>
