@@ -1,0 +1,6 @@
+{
+  "scenario": "negative control (CT-5): own-dir-only gate reads exactly its own set",
+  "gate_script": "own_dir_only_gate.sh",
+  "exact_read_basenames": ["own_dir_only_gate.sh", "sibling_data.txt"],
+  "note": "io_trace.sh's observed-reads set for this gate MUST equal exactly {own_dir_only_gate.sh, sibling_data.txt} -- the shell interpreter opening the script itself counts, plus the one data file it cats. No extra basenames (dynamic-linker/shared-library noise must be filtered by the real tool) and no missing ones. This is the false-positive/false-negative dual guard (§11.4.201(1)) for the tracer itself."
+}
