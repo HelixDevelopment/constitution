@@ -1,0 +1,11 @@
+{
+  "review_id": "REV-RB-T061-C3-LE-1",
+  "batch_id": "RB-T061-C3-LE",
+  "round": 1,
+  "verdict": "GO",
+  "model_tier": "opus",
+  "effort": "high",
+  "change_ids": ["sha256:01c1a0b095e5a74560f689ad24169c4dc2e22113a5b1a1b1d0bfd2c4e815a472"],
+  "findings": [],
+  "source_evidence": "T061 fixture: a hand-authored --input spec for the REAL, existing review_record.py backfill subcommand (backfill does not validate effort either, confirmed by reading cmd_backfill()). Used to place a real, on-disk ReviewVerdictRecord whose effort is 'high' (below the designated xhigh, contracts/common-conventions.md Terms and constitution 11.4.231(F.2)) so this RED test can prove the absent review_record.py gate subcommand refuses to treat it as covering its change (contract review-batch-and-precheck.md RB-004/RB-006; T061 case 3: golden-bad, a review record with a non-pinned tier or effort is refused)."
+}

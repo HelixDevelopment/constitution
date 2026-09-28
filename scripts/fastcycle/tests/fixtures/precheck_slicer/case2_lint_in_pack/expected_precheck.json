@@ -1,0 +1,19 @@
+{
+  "_house_note": "GREEN-branch expectation for the (today absent) precheck_pack.sh, T-C11. This file is NOT invented -- every 'evidence' string below is copied verbatim from a REAL `sh -n`/`shellcheck -s sh -f json` run this RED test's own Section B performed against the sibling .sh files in THIS directory (see test_precheck_slicer_red.sh Section B for the live re-derivation). The RED test does not compare against this file byte-for-byte (schema/field-order/extra-fields are T-C11's implementer's own decision); it only asserts, once precheck_pack.sh is real, that its real output's `all_pass` is false and that its `checks` array carries a FAIL-verdict entry whose evidence cites broken_syntax_gate.sh's real parse error and unquoted_var_gate.sh's real SC2086 finding.",
+  "schema": "precheck/v1",
+  "batch_id": "RB-T061-C2",
+  "all_pass": false,
+  "independence_tier": "instance",
+  "checks": [
+    {
+      "check": "parse",
+      "verdict": "FAIL",
+      "evidence": "broken_syntax_gate.sh: line 11: syntax error: unexpected end of file"
+    },
+    {
+      "check": "shellcheck",
+      "verdict": "FAIL",
+      "evidence": "unquoted_var_gate.sh:13:5: SC2086 (info): Double quote to prevent globbing and word splitting."
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "_purpose": "Names the single change (by its real ContentAddress, sha256 over case3_change.diff's real bytes) that backfill_wrong_tier.json and backfill_low_effort.json each nominally 'cover' with a GO record whose model_tier/effort is NOT the designated Opus xhigh tier. This RED test queries the absent `review_record.py gate --change <this sha> --records <dir-with-only-the-bad-record>` and asserts the documented expected_gate.json outcome.",
+  "change_id": "sha256:01c1a0b095e5a74560f689ad24169c4dc2e22113a5b1a1b1d0bfd2c4e815a472",
+  "change_diff": "case3_change.diff"
+}
