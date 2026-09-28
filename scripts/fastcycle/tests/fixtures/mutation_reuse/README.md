@@ -37,6 +37,19 @@ line is `HIT` or `MISS` and whose remaining lines explain why:
 | `mr_flip_gate_script` | control needle: gate script itself changed → MISS |
 | `mr_flip_tool_version` | control needle: toolchain version changed → MISS |
 
+## Cross-gate isolation scenario (mr_gate_isolation/)
+
+`mr_gate_isolation/` is a distinct fixture shape (its own subdirectory,
+own `README.md`) from the 7 above: it puts TWO independent gates
+(`GATE-MR-ISO-A`, `GATE-MR-ISO-B` — distinct gate scripts + distinct
+mutation patches, so their DEC-23 keys are provably distinct) into ONE
+SHARED cache directory, closing the "(not others)" half of tasks.md
+T057's case 1 ("changing one gate's input content re-runs THAT gate's
+mutations (not others)") — none of the 7 scenarios above tests this
+alone, since each of them uses a single hardcoded gate id in its own
+isolated scratch cache directory. See `mr_gate_isolation/README.md` for
+the full scenario.
+
 `dec23_key_ref.py` (`../lib/dec23_key_ref.py`) is this project's own
 reference implementation of the 4-component DEC-23 key formula, used by the
 RED test's Section B to prove every scenario's put/get envelope pair is
