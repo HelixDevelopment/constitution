@@ -92,31 +92,45 @@ fi
 # file at all, and specifically cycle_report.py?
 CYCLE_DIR="$FC/cycle"
 CYCLE_REPORT="$FC/cycle/cycle_report.py"
+# NOTE (post-T036-review remediation, 2026-09-28, §11.4.1): T041 has since
+# LANDED and been independently reviewed GO (two rounds) -- these two
+# precondition checks are RETAINED (never deleted outright, they still have
+# real regression-detection value: a future accidental deletion of
+# cycle_report.py would be a genuine defect worth catching), but their
+# POLARITY is flipped to match the tool's now-permanent presence. This
+# mirrors the exact defect class an independent Opus-xhigh review found in
+# the SIBLING file test_dispatch_stamp_red.sh (T036): a "NOT ok ... now
+# exists -- DELETE this" assertion left un-flipped after its guarded tool
+# landed silently converts `constitution/scripts/fastcycle/tests/run_all.sh`
+# (the project's designated test runner, tasks.md:34) into reporting FAIL
+# for an otherwise fully-correct, GO-reviewed, committed tool -- exactly the
+# §11.4.1 "a test that fails for a script-internal reason, not a genuine
+# product defect, is as misleading as a PASS-bluff" class. Fixed here on
+# discovery of the same pattern across sibling files, not merely in T036.
 if [ -d "$CYCLE_DIR" ]; then
   py_count=$(find "$CYCLE_DIR" -maxdepth 1 -name '*.py' | wc -l)
   if [ "$py_count" -gt 0 ]; then
-    echo "NOT ok $CYCLE_DIR now contains $py_count *.py file(s) -- part of"
-    echo "     T041/T043 has landed. Re-check which files exist before"
-    echo "     deleting this RED baseline wholesale."
-    failx
+    echo "ok $CYCLE_DIR now contains $py_count *.py file(s) -- T041/T043 has"
+    echo "   landed (expected, permanent state since 2026-09-28)"
   else
-    echo "ok $CYCLE_DIR exists but holds no *.py file (confirmed 2026-09-28:"
-    echo "   only a scaffold placeholder such as .gitkeep) -- this is NOT a"
-    echo "   §11.4.201-class false positive; the directory's mere existence"
-    echo "   is not evidence T041/T043 landed, only cycle_report.py itself is"
+    echo "NOT ok $CYCLE_DIR exists but holds no *.py file -- T041 was"
+    echo "     reviewed GO and committed; a regression removed cycle_report.py"
+    failx
   fi
 else
-  echo "ok $CYCLE_DIR absent today (confirmed 2026-09-28) -- neither"
-  echo "   cycle_report.py (T041) nor its T043 siblings have landed"
+  echo "NOT ok $CYCLE_DIR is absent -- T041 was reviewed GO and committed;"
+  echo "     a regression removed the whole cycle/ directory"
+  failx
 fi
 if [ -f "$CYCLE_REPORT" ]; then
-  echo "NOT ok cycle/cycle_report.py now exists -- T041 has landed. DELETE this"
-  echo "     RED-baseline assertion; the four fixture directories under"
-  echo "     tests/fixtures/cycle_report/ are the real tests to run against it."
-  failx
+  echo "ok cycle/cycle_report.py exists -- T041 has landed + is GO-reviewed"
+  echo "   (expected, permanent state since 2026-09-28). The four fixture"
+  echo "   directories under tests/fixtures/cycle_report/ are the real"
+  echo "   functional tests to run against it (see verify_t041.sh)."
 else
-  echo "ok cycle/cycle_report.py absent today (confirmed 2026-09-28) --"
-  echo "   T041 has not yet landed the cycle-time report generator"
+  echo "NOT ok cycle/cycle_report.py is absent -- T041 was reviewed GO and"
+  echo "     committed; a regression removed the cycle-time report generator"
+  failx
 fi
 
 # --- Fixture directories present ---

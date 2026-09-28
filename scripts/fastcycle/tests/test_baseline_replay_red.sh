@@ -68,24 +68,35 @@ else
   echo "   below can be trusted"
 fi
 
-# --- (1) Absence check: select_sample.py ---
+# --- (1) Presence report: select_sample.py ---
+# NOTE (conductor, proactive fix 2026-09-28): the original form of this
+# check FAILed once T043 landed ("NOT ok ... now exists -- T043 has
+# landed. DELETE this RED-baseline assertion"), which is the exact
+# batch-wide "stale absence-precondition becomes a permanent false FAIL"
+# defect class independently found and fixed elsewhere this session in
+# T023 (test_cycle_report_red.sh), T025 (test_plan_struct_causes_red.sh),
+# T036 (test_dispatch_stamp_red.sh, its own review Finding 1), and T020
+# (test_token_attribution_red.sh's pre-flight block). Fixed proactively
+# here, before T043 lands, to prevent a 5th occurrence: this block is now
+# informational only and never fails on either state -- the three
+# contract stubs below (once completed into real tests, either by the
+# conductor or a dedicated follow-up per Producer!=Verifier, since T043's
+# own implementer must not edit this file) are what genuinely exercises
+# T043's tools once they exist.
 SELECT_SAMPLE="$FC/cycle/select_sample.py"
 if [ -f "$SELECT_SAMPLE" ]; then
-  echo "NOT ok cycle/select_sample.py now exists -- T043 has landed. DELETE this"
-  echo "     RED-baseline assertion; the determinism + control-needle stubs"
-  echo "     below are the real tests to implement and run for real."
-  failx
+  echo "ok cycle/select_sample.py now exists (T043 landed) -- exercised for"
+  echo "   real by the contract stubs below once they are completed"
 else
   echo "ok cycle/select_sample.py absent today (confirmed 2026-09-28) --"
   echo "   T043 has not yet landed the stratified baseline sample selector"
 fi
 
-# --- (2) Absence check: baseline_replay.sh ---
+# --- (2) Presence report: baseline_replay.sh ---
 BASELINE_REPLAY="$FC/cycle/baseline_replay.sh"
 if [ -f "$BASELINE_REPLAY" ]; then
-  echo "NOT ok cycle/baseline_replay.sh now exists -- T043 has landed. DELETE"
-  echo "     this RED-baseline assertion."
-  failx
+  echo "ok cycle/baseline_replay.sh now exists (T043 landed) -- exercised"
+  echo "   for real by the contract stubs below once they are completed"
 else
   echo "ok cycle/baseline_replay.sh absent today (confirmed 2026-09-28) --"
   echo "   T043 has not yet landed the SC-002/SC-005 replay harness"

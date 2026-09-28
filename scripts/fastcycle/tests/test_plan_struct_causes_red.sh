@@ -148,15 +148,27 @@ else
 fi
 
 # --- (1) Absence check: plan_struct_check.py ---
+# NOTE (post-T036-review remediation, 2026-09-28, §11.4.1): T046 has since
+# LANDED and been independently reviewed GO (two rounds, including a
+# malformed-row BLOCKING fix). This check is RETAINED (real regression-
+# detection value) but its polarity is flipped to match the tool's now-
+# permanent presence -- an un-flipped "NOT ok ... now exists -- DELETE this"
+# assertion silently converts run_all.sh (tasks.md:34's designated runner)
+# into reporting FAIL for an otherwise fully-correct, GO-reviewed, committed
+# tool. Found via an independent review of the SIBLING file
+# test_dispatch_stamp_red.sh (T036) exhibiting the same pattern; fixed here
+# on discovery, not merely in T036 (§11.4.1: a test failing for a script-
+# internal/stale-assertion reason, not a genuine product defect, is as
+# misleading as a PASS-bluff).
 if [ -f "$TOOL" ]; then
-  echo "NOT ok verify/plan_struct_check.py now exists -- T046 has landed. DELETE"
-  echo "     this RED-baseline assertion; the fixture-driven checks below,"
-  echo "     re-pointed at the real CLI's output, are the real tests to run."
-  failx
+  echo "ok verify/plan_struct_check.py exists -- T046 has landed + is"
+  echo "   GO-reviewed (expected, permanent state since 2026-09-28). The"
+  echo "   fixture-driven checks below, re-pointed at the real CLI's output,"
+  echo "   are the real functional tests to run against it."
 else
-  echo "ok verify/plan_struct_check.py absent today (confirmed 2026-09-28) --"
-  echo "   only an empty scaffold directory (verify/.gitkeep) exists; T046 has"
-  echo "   not yet landed the \`causes\` subcommand"
+  echo "NOT ok verify/plan_struct_check.py is absent -- T046 was reviewed GO"
+  echo "     and committed; a regression removed the \`causes\` subcommand"
+  failx
 fi
 
 # --- (1b) Empirically reproduce the tool's real, current failure mode ---

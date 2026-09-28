@@ -4,19 +4,42 @@
 #           proves the tool is absent today, and documents the contract its
 #           implementer must satisfy.
 #
-# THE GAP (verified directly, 2026-09-28, §11.4.6 no-guessing): tasks.md's
-# T036 line is the ONLY mention of dispatch_stamp.sh anywhere in this
-# feature's spec.md/plan.md/data-model.md/contracts/ tree -- unlike every
-# sibling [SUBAGENT] task in the T015-T026 RED-test batch (T038/T039/T041/
-# T046 each carry an explicit "until T0NN is GREEN" clause naming a
-# pre-existing RED test), T036 names NO RED test and NONE of T015-T026
-# reference dispatch_stamp.sh, tokens/dispatch_stamp, or "item=". No
-# contracts/*.md file exists for it either (confirmed:
-# `ls specs/004-fast-dev-cycles/contracts/ | grep -i dispatch` -> empty).
-# This file closes that gap the same way T017/T019/T024/T026 were
-# conductor-authored earlier in this same session: absence proof + control
-# needle + concrete, explicitly-DERIVED (never fabricated-as-spec) contract
-# stubs for T036's future implementer.
+# THE GAP -- CORRECTED 2026-09-28 (§11.4.1/§11.4.6 remediation, found by an
+# independent Opus-xhigh review of the implementation this file guards): the
+# claim originally here -- "NONE of T015-T026 reference dispatch_stamp.sh"
+# -- was FALSE and has been disproven by direct grep. T020's own RED test,
+# `constitution/scripts/fastcycle/tests/test_token_attribution_red.sh`
+# (part of the SAME T015-T026 batch, landed BEFORE this file was authored),
+# explicitly guards dispatch_stamp.sh: its header states "Guards two
+# NOT-YET-BUILT tools (T036/T037's `$FC/tokens/dispatch_stamp.sh` and
+# T038's ...)", it sets `DISPATCH_STAMP="$FC/tokens/dispatch_stamp.sh"`,
+# and its entire "PART A" section is dedicated to this exact tool's
+# `item=<ATM-nnnn>` enforcement gap -- including a
+# captured, real dispatch example proving no current dispatch carries the
+# tag. tasks.md:102 (T020) also literally names `item=<ATM-nnnn>`. The
+# ORIGINAL author's own control-needle discipline (§11.4.273) verified two
+# NARROWER claims (about the sibling guard hooks and the registry writer)
+# but never verified the actual, broader "T015-T026 corpus" claim this
+# header asserted -- a genuine investigation gap, corrected here rather
+# than left standing (a disprovable "verified directly" claim shipped in a
+# file's own header is PASS-bluff-severity per this project's standard,
+# regardless of whether the file's operative CONCLUSIONS below -- absence
+# proof, control needles, the derived contract stubs -- remain correct,
+# which they do; T020's own reproduction happens to have arrived
+# independently at the SAME contract shape T036's implementer landed,
+# corroborating rather than contradicting this file's stubs).
+#
+# What genuinely IS true (re-verified, narrower and accurate): no
+# `contracts/*.md` file exists for dispatch_stamp.sh (confirmed: `ls
+# specs/004-fast-dev-cycles/contracts/ | grep -i dispatch` -> empty), and
+# tasks.md's own T036 line is the only tasks.md line NAMING an "until T0NN
+# is GREEN" clause pointing AT a pre-existing RED test the way T038/T039/
+# T041/T046 each do -- T020 guards it as a SECONDARY concern (one of its
+# five parts) rather than as T036's own primary, dedicated RED gate. This
+# file remains the primary, dedicated RED baseline + derived contract for
+# T036 specifically; T020 is a real, independently-corroborating SIBLING
+# guard, not a substitute for it, and not something this file's original
+# author was entitled to claim didn't exist.
 #
 # THE ONE LINE OF SPEC THIS DERIVES FROM (tasks.md:120, verbatim):
 #   "[P] [US1] [SUBAGENT] [REVIEW] Implement
@@ -127,15 +150,30 @@ else
 fi
 
 # --- Absence check: dispatch_stamp.sh ---
+# NOTE (2026-09-28, §11.4.1 remediation, found by round-1 Opus-xhigh review
+# of the implementation this file guards): a "NOT ok ... now exists --
+# DELETE this" assertion left un-flipped once its guarded tool lands
+# silently converts run_all.sh (tasks.md:34's designated test runner) into
+# reporting FAIL for an otherwise-correct, committed tool -- misleading
+# exactly like a §11.4.1 PASS-bluff, just inverted (a FAIL-bluff). The
+# SAME defect class was found + fixed in this same remediation round across
+# sibling RED tests test_cycle_report_red.sh (T023/T041) and
+# test_plan_struct_causes_red.sh (T025/T046) -- this file's own check is
+# fixed identically here, retaining real regression-detection value (a
+# future accidental deletion of dispatch_stamp.sh is still caught) while no
+# longer permanently misreporting a working, landed tool as failing.
 DISPATCH_STAMP="$FC/tokens/dispatch_stamp.sh"
 if [ -f "$DISPATCH_STAMP" ]; then
-  echo "NOT ok tokens/dispatch_stamp.sh now exists -- T036 has landed. DELETE"
-  echo "     this RED-baseline assertion; the contract stubs below are the"
-  echo "     real tests to implement and run for real against the live file."
-  failx
+  echo "ok tokens/dispatch_stamp.sh exists -- T036 has landed (expected,"
+  echo "   permanent state since 2026-09-28). The fixture-driven checks"
+  echo "   under tests/fixtures/dispatch_stamp/ are the real functional"
+  echo "   tests to run against it (README.md documents both GUARD-mode"
+  echo "   and EXTRACTION-mode invocation)."
 else
-  echo "ok tokens/dispatch_stamp.sh absent today (confirmed 2026-09-28) --"
-  echo "   T036 has not yet landed the item-id dispatch-stamping mechanism"
+  echo "NOT ok tokens/dispatch_stamp.sh is absent -- T036 landed on this"
+  echo "     checkout as of 2026-09-28; a regression removed the item-id"
+  echo "     dispatch-stamping mechanism"
+  failx
 fi
 
 echo
