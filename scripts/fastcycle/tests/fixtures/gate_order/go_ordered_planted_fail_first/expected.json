@@ -1,0 +1,10 @@
+{
+  "execution_order_first_gate_id": "gate_c_planted_fail",
+  "gate_c_planted_fail_verdict": "FAIL",
+  "results_gate_id_set_sorted": [
+    "gate_a_reliable",
+    "gate_b_moderate",
+    "gate_c_planted_fail",
+    "gate_d_new"
+  ]
+}

@@ -1,0 +1,16 @@
+# config.yaml -- fixture config for T054's gate_order test scenarios.
+#
+# Per specs/004-fast-dev-cycles/contracts/common-conventions.md ("Placement"):
+# project-specific data (here: the toy gate-site list + the T-A01 historical
+# timing log gate_runner.sh's `--order history-cost` reads to compute
+# historical_fail_rate/mean_cost per AS-013) is consumer DATA passed via
+# --config. Paths below are relative to this file's own directory (each
+# scenario's driver script resolves them before invoking the real tool).
+
+gate_sites:
+  gate_a_reliable: gates/gate_a_reliable.sh
+  gate_b_moderate: gates/gate_b_moderate.sh
+  gate_c_planted_fail: gates/gate_c_planted_fail.sh
+  gate_d_new: gates/gate_d_new.sh
+
+history_log: history/prebuild_sections.tsv

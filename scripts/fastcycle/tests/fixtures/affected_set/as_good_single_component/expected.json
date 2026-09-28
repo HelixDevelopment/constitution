@@ -1,0 +1,16 @@
+{
+  "description": "change touches only src/alpha.sh (1 of 5 gates' inputs); the other 4 must be skipped, each with an exact machine reason",
+  "map_file": "map.json",
+  "changed_paths": ["src/alpha.sh"],
+  "layer": "all",
+  "expected_exit_code": 0,
+  "expected_determinable": true,
+  "expected_members": ["gate_alpha"],
+  "expected_skipped_reason_codes": {
+    "gate_beta": "NO_OBSERVED_INPUT_CHANGED",
+    "gate_gamma": "NO_OBSERVED_INPUT_CHANGED",
+    "gate_docsync": "NO_OBSERVED_INPUT_CHANGED",
+    "gate_integrity": "NO_OBSERVED_INPUT_CHANGED"
+  },
+  "expected_fallback_reason": null
+}

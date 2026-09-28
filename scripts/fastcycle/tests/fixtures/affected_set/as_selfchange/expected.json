@@ -1,0 +1,16 @@
+{
+  "description": "the CHANGED PATH is the gate script's own file (not one of its declared observed_inputs) -- AS-010a: a gate whose own script changed is ALWAYS a member",
+  "map_file": "map.json",
+  "changed_paths": ["gates/gate_gamma.sh"],
+  "layer": "all",
+  "expected_exit_code": 0,
+  "expected_determinable": true,
+  "expected_members": ["gate_gamma"],
+  "expected_skipped_reason_codes": {
+    "gate_alpha": "NO_OBSERVED_INPUT_CHANGED",
+    "gate_beta": "NO_OBSERVED_INPUT_CHANGED",
+    "gate_docsync": "NO_OBSERVED_INPUT_CHANGED",
+    "gate_integrity": "NO_OBSERVED_INPUT_CHANGED"
+  },
+  "expected_fallback_reason": null
+}
