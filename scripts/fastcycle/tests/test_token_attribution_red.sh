@@ -495,11 +495,18 @@ echo "=== PART E: credential safety of the future telemetry DB ==="
 #       reviewers ran manually this session): exact marker (case-
 #       sensitive + insensitive), base64, hex (text form AND raw binary
 #       bytes), and a sliding-window scan of every 12+ character
-#       contiguous chunk of the marker, across the ENTIRE DB file --
-#       catching a leak this fixture's OWN row-shape assertion above
-#       would not (e.g. a leak smuggled into some OTHER row, or a future
-#       schema change adding a new text column this file's allowlist has
-#       not yet been updated to check).
+#       contiguous chunk of the marker, across the ENTIRE DB file. HONEST
+#       BOUNDARY (T038 round-3 review, agent a3e3aec6be73b24e3,
+#       2026-09-28): this layer is NOT, by itself, a complete oracle --
+#       it is base64-ALIGNMENT-dependent (a leak shifted by 1 or 2 bytes
+#       before encoding evades the base64 check entirely, independently
+#       reproduced) and catches only FORWARD, PLAINTEXT-adjacent
+#       substrings (a reversed, rot13'd, compressed, or otherwise
+#       transformed copy of the marker is NOT caught by this scan at
+#       all). It remains useful defense-in-depth for the SPECIFIC forms
+#       it does cover, but layer (i) below -- never this layer alone --
+#       is what this PART actually relies on to catch an arbitrary-shape
+#       leak.
 #
 # Plus the F2 fix: the ingest's own exit code and produced row COUNT are
 # asserted BEFORE any absence verdict is trusted, and the fixture's own
@@ -535,54 +542,102 @@ else
             MSGID_PRESENT="$(sqlite3 -readonly "$DB" "SELECT COUNT(*) FROM transcript_usage_events WHERE msg_id = '$KNOWN_MSGID';" 2>/dev/null)"
             needle_check "PART E's own fixture's known-correct msg_id ($KNOWN_MSGID) is genuinely present in the DB -- proves THIS row was really scanned below, not an unrelated/empty one" 1 "$([ "${MSGID_PRESENT:-0}" -ge 1 ] 2>/dev/null && echo 1 || echo 0)"
 
-            # --- (i) structural allowlist: every text column of the known
-            # row must EQUAL its known-correct value exactly. This is what
-            # catches an encoded leak regardless of encoding scheme, since
-            # an encoded blob of message content can never equal a short
-            # exact literal like "claude-sonnet-5". ---
+            # --- (i) COMPLETE, DYNAMICALLY-DERIVED structural allowlist
+            # (T038 round-3 review finding, BLOCKING, fixed 2026-09-28):
+            # the FIRST version of this check hand-maintained a 9-column
+            # expected dict that OMITTED source_file, row_hash, lineno,
+            # and all 4 numeric token columns -- 7 independently-authored
+            # adversarial mutations smuggled a real, recoverable content
+            # leak through exactly those UNCHECKED columns (including
+            # source_file, which an earlier version of THIS COMMENT
+            # falsely claimed was checked -- a real self-inflicted
+            # inaccuracy, corrected here rather than repeated) and still
+            # scored a full 56/0 PASS. Fixed properly this time: every
+            # column this table's OWN schema reports via
+            # `PRAGMA table_info` is checked -- never a hand-maintained
+            # subset that can silently miss a column, today or after any
+            # future schema change -- AND the table's TOTAL row count is
+            # asserted to be EXACTLY 1 (never merely >=1), closing the
+            # "smuggle a leak into an extra, unscanned row" mutation
+            # class the round-3 review also found. row_hash is verified
+            # against the SAME sha256("msgid:"+msg_id) formula this
+            # module's own build_row() documents (never a hardcoded
+            # magic hex string, which would silently stop verifying
+            # anything the moment the fixture's msg_id ever changed). A
+            # schema column this check does not yet know how to derive
+            # an expected value for FAILS LOUD naming the column, rather
+            # than being silently skipped -- the uncovered-column class
+            # that broke the first version cannot recur unnoticed. ---
             ALLOWLIST_REPORT="$(python3 -c "
-import sqlite3, sys
+import hashlib, sqlite3, sys
 db = sys.argv[1]
+cred_fix_path = sys.argv[2]
+known_msgid = sys.argv[3]
+con = sqlite3.connect(db)
+con.row_factory = sqlite3.Row
+
+total_rows = con.execute('SELECT COUNT(*) FROM transcript_usage_events').fetchone()[0]
+if total_rows != 1:
+    print('ROW_COUNT: expected exactly 1 row in the whole table, got %d -- a leak could be smuggled into an extra, otherwise-unscanned row' % total_rows)
+    sys.exit(1)
+
+row = con.execute('SELECT * FROM transcript_usage_events WHERE msg_id = ?', (known_msgid,)).fetchone()
+if row is None:
+    print('MISSING_ROW')
+    sys.exit(1)
+
 expected = {
+    'row_hash': hashlib.sha256(('msgid:' + known_msgid).encode('utf-8')).hexdigest(),
+    'source_file': cred_fix_path,
+    'lineno': 2,
     'record_uuid': 'fixture-t020-cred-a1',
     'session_id': 'fixture-t020-cred-session',
     'agent_id': None,
     'item_id': None,
     'ts': '2026-09-28T04:20:05.000Z',
     'model': 'claude-sonnet-5',
-    'msg_id': 'msg_fixture_t020_cred_a1',
+    'msg_id': known_msgid,
     'usage_status': 'measured',
     'missing_instrument': None,
+    'input_tokens': 60,
+    'output_tokens': 90,
+    'cache_read_input_tokens': 0,
+    'cache_creation_input_tokens': 0,
+    'total_tokens': 150,
 }
-con = sqlite3.connect(db)
-con.row_factory = sqlite3.Row
-row = con.execute(\"SELECT * FROM transcript_usage_events WHERE msg_id = ?\", ('$KNOWN_MSGID',)).fetchone()
-if row is None:
-    print('MISSING_ROW')
-    sys.exit(1)
+
+schema_cols = [r[1] for r in con.execute('PRAGMA table_info(transcript_usage_events)').fetchall()]
 mismatches = []
-for col, want in expected.items():
+uncovered = [c for c in schema_cols if c not in expected]
+if uncovered:
+    print('UNCOVERED_COLUMNS: %s -- this check does not yet know an expected value for these schema columns; add them rather than silently trusting them' % ','.join(uncovered))
+    sys.exit(1)
+
+for col in schema_cols:
+    want = expected[col]
     got = row[col]
     if got != want:
         # Never print the actual leaked value verbatim into test output
         # (this output may itself be captured/logged) -- report shape only.
-        got_repr = 'NULL' if got is None else ('<%d chars>' % len(str(got)))
+        got_repr = 'NULL' if got is None else ('<%d chars/bytes: %r>' % (len(str(got)), type(got).__name__))
         want_repr = 'NULL' if want is None else repr(want)
         mismatches.append('%s: expected %s, got %s' % (col, want_repr, got_repr))
 if mismatches:
     print('MISMATCH: ' + '; '.join(mismatches))
     sys.exit(1)
-print('ALL_MATCH')
+print('ALL_MATCH(%d columns, %d rows)' % (len(schema_cols), total_rows))
 sys.exit(0)
-" "$DB")"
-            if [ "$ALLOWLIST_REPORT" = "ALL_MATCH" ]; then
-                ok "structural allowlist holds: every text column of the ingested row EXACTLY matches this fixture's known-correct structural values -- an encoded/reshaped leak in ANY column, in ANY encoding, would have failed this check (T038 review finding F1)"
+" "$DB" "$CRED_FIX" "$KNOWN_MSGID")"
+            if [ "${ALLOWLIST_REPORT#ALL_MATCH}" != "$ALLOWLIST_REPORT" ]; then
+                ok "structural allowlist holds: $ALLOWLIST_REPORT, dynamically derived from PRAGMA table_info (never a hand-maintained subset), the table holds EXACTLY one row -- an encoded/reshaped/smuggled-into-an-extra-row leak in ANY column, in ANY encoding, would have failed this check (T038 review finding F1, fixed properly after round-3 found the first attempt incomplete)"
             else
-                bad "CREDENTIAL LEAK (or schema drift): structural allowlist mismatch -- $ALLOWLIST_REPORT -- a column holds something other than its expected exact structural value; this is EXACTLY the class of leak a plain marker-substring grep cannot see (T038 review finding F1)"
+                bad "CREDENTIAL LEAK (or schema drift): structural allowlist mismatch -- $ALLOWLIST_REPORT -- a column holds something other than its expected exact structural value, or an uncovered schema column was found, or the row count is wrong; this is EXACTLY the class of leak a plain marker-substring grep cannot see (T038 review finding F1)"
             fi
 
             # --- (ii) defense-in-depth: exact/case-insensitive/base64/hex/
-            # sliding-window substring scan across the WHOLE DB file. ---
+            # sliding-window substring scan across the WHOLE DB file (see
+            # the HONEST BOUNDARY note above this PART -- this layer has
+            # known blind spots and is never the load-bearing check). ---
             if grep -aFq "$MARKER" "$DB" 2>/dev/null; then
                 bad "CREDENTIAL LEAK: the exact planted marker reached the telemetry DB ($DB)"
             elif grep -aFqi "$MARKER" "$DB" 2>/dev/null; then
@@ -596,6 +651,13 @@ hits = []
 b64 = base64.b64encode(marker.encode()).decode()
 if b64.encode() in data:
     hits.append('base64')
+# alignment-shifted base64 (round-3 finding: byte-alignment matters for
+# base64 -- a leak encoded with 1 or 2 bytes of padding before it shifts
+# every subsequent triplet, producing a DIFFERENT base64 string entirely)
+for pad in (1, 2):
+    b64_shifted = base64.b64encode(b'\\\\x00' * pad + marker.encode()).decode()
+    if b64_shifted.encode() in data:
+        hits.append('base64-shifted-%d' % pad)
 hexenc = marker.encode().hex()
 if hexenc.encode() in data:
     hits.append('hex-text')
@@ -609,7 +671,7 @@ for i in range(0, len(marker) - 11):
 print(','.join(hits) if hits else 'CLEAN')
 " "$MARKER" "$DB")"
                 if [ "$ENCODING_SCAN" = "CLEAN" ]; then
-                    ok "credential safety holds: the planted marker does NOT appear anywhere in the produced telemetry DB ($DB) -- exact, case-insensitive, base64, hex, and 12-char-sliding-window substring scans all clean, PLUS the structural allowlist above (T038 review finding F1 defense-in-depth)"
+                    ok "defense-in-depth encoding scan clean (exact, case-insensitive, base64 incl. 2 alignment shifts, hex, 12-char sliding window) -- PLUS the load-bearing structural allowlist above (T038 review finding F1 defense-in-depth; see this PART's HONEST BOUNDARY note for this layer's known remaining blind spots, e.g. reversal/rot13/compression, which the structural allowlist -- not this layer -- is what actually covers)"
                 else
                     bad "CREDENTIAL LEAK: an encoded/partial variant of the planted marker ($ENCODING_SCAN) reached the telemetry DB ($DB) -- the exact-string grep alone would have missed this"
                 fi
