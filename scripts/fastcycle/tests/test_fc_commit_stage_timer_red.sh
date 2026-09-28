@@ -9,22 +9,29 @@
 #           `commit_all.sh` and `sync_all_markdown_exports.sh`) must satisfy.
 #
 # THE GAP (verified directly against the real source, 2026-09-28):
-#   - `constitution/scripts/fastcycle/timing/` exists as a directory but is
-#     EMPTY -- `fc_timer.sh` (plan.md Project Structure, line 171: "section/
-#     stage timer library (T-A01, T-A02)") does not exist anywhere in this
-#     tree. It is a SHARED library both T-A01 (pre-build section timers,
-#     T015's RED test) and T-A02 (this task's commit-path timers) depend on;
-#     neither has landed it.
-#   - `scripts/commit_all.sh` (2768 lines) references NONE of `.tsv`,
-#     `FC_TIMING`, or `fc_timer` anywhere -- confirmed by a whole-file grep for
-#     each pattern returning zero hits. There is no stage-boundary
-#     instrumentation of any kind: no start/end timestamp pair around
-#     preflight, the §11.4.74 sibling check, exporter invocation, DB-writer
-#     sync, `git add` (stage), `git commit`, or the per-remote push loop.
+#   - `constitution/scripts/fastcycle/timing/fc_timer.sh` (T028's deliverable,
+#     the SHARED library both T-A01 -- T015's target -- and T-A02 -- this
+#     task's target -- depend on) HAS LANDED (26412 bytes, confirmed present
+#     2026-09-28; see RECONCILIATION below) and is now a PERMANENT part of
+#     the codebase. `commit_all.sh` itself, however, does NOT yet call any of
+#     its public functions (`fc_timer_start`/`fc_timer_end`/... -- confirmed
+#     zero hits for `fc_timer_(start|end)` anywhere in the 2768-line file).
+#   - `scripts/commit_all.sh` references NONE of `.tsv`, `FC_TIMING`, or
+#     `fc_timer` anywhere -- confirmed by a whole-file grep for each pattern
+#     returning zero hits. There is no stage-boundary instrumentation of any
+#     kind: no start/end timestamp pair around preflight, the §11.4.74
+#     sibling check, exporter invocation, DB-writer sync, `git add` (stage),
+#     `git commit`, or the per-remote push loop -- and zero occurrences of
+#     `ls-remote` anywhere (no per-remote read-back-tip mechanism exists).
 #   - `qa-results/fastcycle/commit/` (the TSV output directory plan.md T-A02
 #     names: "TSV per commit under `qa-results/fastcycle/commit/<ts>.tsv`")
 #     does not exist -- only `qa-results/fastcycle/{foundational,setup,us1}`
 #     exist today.
+#   - tasks.md T030 itself is confirmed `[ ]` (unchecked) -- so, unlike T015's
+#     target (pre_build_verification.sh, whose OWN wiring task T029 has ALSO
+#     landed), THIS file's overall verdict is expected to correctly stay RED
+#     (this script's own `exit $fail` non-zero) until T030 lands, even though
+#     the shared fc_timer.sh library itself is now permanently present.
 #   - Nuance (§11.4.6, stated precisely rather than over-claimed): a lock-WAIT
 #     mechanism already exists in `commit_all.sh` -- the index-lock retry loop
 #     keyed off `INDEX_LOCK_WAIT_SECS` (around line 1671) genuinely measures a
@@ -59,6 +66,19 @@
 # names sharing one URL is a documented, intentional configuration here
 # (§2.1's "multi-upstream push is the norm"), and a naive URL-keyed
 # implementation would silently under-report by 2/3 of the required rows.
+# (`do_push()`'s OWN fallback loop, when `push_all.sh` is unavailable,
+# already dedups by URL -- "Skip duplicate URLs" -- a real, live example of
+# exactly this pitfall inside the codebase this test instruments, confirmed
+# by direct source inspection 2026-09-28.)
+#
+# §11.4.273 control needle #3 / #4 (see GROUP 2 below): before trusting the
+# zero-hit counts for `fc_timer_(start|end)` and `ls-remote` against
+# commit_all.sh, each is paired with a needle proving grep can find a REAL,
+# known-present, domain-matched token (fc_timer_start's own definition inside
+# fc_timer.sh; `_spawn_detached_push`, commit_all.sh's own real per-remote
+# push spawner) through the identical code path, and correctly returns zero
+# for a fabricated one -- so an empty result below is a proven absence, never
+# an unproven grep-mechanism blind spot.
 #
 # Producer≠Verifier (§11.4.240): this file is authored at the RED step
 # (T016); the actual `fc_timer.sh` library and its wiring into
@@ -68,23 +88,170 @@
 #
 # Safety: this test performs ONLY read-only `grep`/`find`/`git remote`
 # operations against the live tree -- it NEVER invokes `git commit`,
-# `git push`, or `scripts/commit_all.sh` in any form (dry-run included), per
-# the task's explicit instruction that a RED test proving absence need not,
-# and here does not, exercise the wrapper it is instrumenting.
+# `git push`, or `scripts/commit_all.sh` in any form (dry-run included). See
+# RECONCILIATION below for the explicit safety judgement on why `--dry-run`
+# is NOT invoked even for the golden-output check, and what real, static
+# alternative is used instead.
+#
+# ---------------------------------------------------------------------------------------
+# RECONCILIATION (§11.4.115 polarity-switch / §11.4.120 gate-reconciliation,
+# applied 2026-09-28 -- a follow-up fix to this file only, applying the SAME
+# investigation-and-fix discipline the conductor already applied to T015's
+# sibling RED test `test_fc_timer_prebuild_red.sh`; this file's own header
+# above commits it to never weakening its own assertions, so any
+# broken-assertion fix below is reconciliation, never a silent weakening):
+#
+#   Independent re-verification against the live tree (2026-09-28) found this
+#   file had TWO structural defects of the exact class T015's own
+#   RECONCILIATION section documents, plus one gap in its golden-output stub:
+#
+#   (a) PERMANENTLY-FALSE-FOREVER ASSERTION -- the original absence check (1)
+#       asserted `constitution/scripts/fastcycle/timing/fc_timer.sh` is
+#       ABSENT, written with NO polarity switch -- but T028 has since landed
+#       it (confirmed present: 26412 bytes, 2026-09-28) as a PERMANENT part
+#       of the codebase (the SAME shared library T015 also depends on).
+#       False forever from the moment T028 landed, by construction.
+#
+#       Fix: a `RED_MODE` env-overridable polarity switch, exactly like
+#       T015's own fix, but under a DISTINCT env var name
+#       (`FC_TIMER_COMMIT_RED_MODE`, never `FC_TIMER_RED_MODE` -- these are
+#       two independent test files instrumenting two different targets, and
+#       sharing one flag name would let setting one accidentally flip the
+#       other's polarity). Default 0 = the library's now-PERMANENT present
+#       state (assert PRESENT); `FC_TIMER_COMMIT_RED_MODE=1` is preserved as
+#       an explicit, documented audit-only escape hatch reconstructing the
+#       original pre-T028 precondition (assert ABSENT; requires fc_timer.sh
+#       to be temporarily moved aside).
+#
+#       UNLIKE T015 (whose whole file reached the fully-GREEN, post-landing
+#       state because BOTH of its dependent tasks, T028 AND T029, had
+#       landed), tasks.md T030 -- the task that wires fc_timer.sh's API INTO
+#       commit_all.sh -- remains `[ ]` unchecked. So only THIS ONE
+#       assertion's polarity was permanently wrong; the file's OVERALL exit
+#       status correctly stays RED (non-zero) until T030 lands, exactly as
+#       it did before this fix.
+#
+#   (b) INERT-PROSE CONTRACT STUBS -- the file's two "T030 contract stub"
+#       sections for the 2 tasks.md T016 acceptance criteria ("one row per
+#       executed stage of a dry-run commit" / "one push row per remote with
+#       its read-back tip") were narrative `echo` text ONLY -- never a real
+#       assertion capable of failing.
+#
+#       Fix: two new, real, deterministic, control-needle-proven assertions
+#       (GROUP 2 below) that assert the acceptance criteria DIRECTLY --
+#       mirroring T015's own assertion-7 pattern (assert the target
+#       behaviour itself, which is genuinely false today because T030 has
+#       not landed, so BOTH currently FAIL and are designed to flip to PASS
+#       the moment T030's real `fc_timer_start`/`fc_timer_end` calls and a
+#       `git ls-remote`-based read-back-tip mechanism land AND produce at
+#       least one captured TSV run). The original prose stubs are KEPT
+#       VERBATIM below the new assertions (see "T030 contract stub" sections)
+#       -- they remain genuinely useful documentation of the FULL acceptance
+#       contract (exact row semantics, the dedup-by-URL pitfall, the
+#       requested_at/applied_at pair, etc.) that a single grep-count
+#       assertion cannot fully capture on its own; converting the criteria
+#       into real assertions does not delete that documentation.
+#
+#   (c) GOLDEN-OUTPUT STUB (3/3) -- "byte-identical staged set + message
+#       with/without timers" -- was pure narrative with no real check, AND
+#       (distinct from (b)) the natural way to make it real -- actually
+#       invoking `commit_all.sh --dry-run` twice and diffing the output --
+#       was evaluated and explicitly judged UNSAFE/UNCERTAIN for THIS
+#       session, documented here per this task's own explicit instruction
+#       ("if genuinely unsafe/uncertain, fall back to static
+#       source-structure assertions instead, documented honestly"):
+#
+#         - CONFIRMED SAFE (direct source inspection, 2026-09-28):
+#           `stage_changes()` under `DRY_RUN=true` runs ONLY
+#           `git status --short` (no `git add`); `do_push()` under
+#           `DRY_RUN=true` logs and returns with NO push attempted;
+#           `main()`'s push-selection step also short-circuits to "skipping
+#           push entirely" under `DRY_RUN=true`. `--dry-run` alone is
+#           confirmed git-state-safe.
+#         - NOT AUDITED WITHIN THIS FIX'S SCOPE: `--auto-cascade` is ON BY
+#           DEFAULT and recursively enters EVERY dirty OWNED submodule; the
+#           full call chain under `--dry-run` (cascade traversal,
+#           compression's own `--dry-run` pass-through, docs_chain's own
+#           `--dry-run` pass-through, the §11.4.74 sibling check) was NOT
+#           individually verified side-effect-free for every one of those
+#           subordinate scripts within this task's scope.
+#         - EVEN IF FULLY SAFE: this repository's working tree is, AT THE
+#           TIME OF THIS FIX, extremely dirty (dozens of modified
+#           governance/doc files spanning multiple concurrently-committing
+#           parallel tracks, per this project's own documented
+#           §11.4.58/§11.4.167/§11.4.176 multi-track operating model) -- a
+#           "golden" staged-file-set/commit-message baseline captured
+#           against a tree this actively concurrently-modified would go
+#           stale within minutes, worthless as a stable regression fixture
+#           (the same non-reproducibility problem T015's header explicitly
+#           reasons about for its own hardcoded-count trap, applied here to
+#           a hardcoded-baseline trap instead).
+#
+#       Fix (GROUP 3 below): a STATIC structural baseline is used instead.
+#       The exact source spans of the THREE functions that decide what gets
+#       staged and what commit message is used (`stage_changes()`,
+#       `prompt_commit_message()`, `do_commit()`) are dynamically LOCATED
+#       (never hardcoded line numbers -- re-derived every run by searching
+#       for each function's own definition, exactly matching this file's
+#       existing "never hardcode" discipline for the remote count), hashed,
+#       and asserted to contain ZERO `FC_TIMING`/`fc_timer` references TODAY
+#       -- the real, precise, control-proven version of the original stub's
+#       own "today this is trivially-but-uninformatively true" claim (today
+#       `FC_TIMING` is inert in commit_all.sh because it is never referenced
+#       there at all -- confirmed by absence check (2) below -- so this
+#       static check currently PASSES, correctly). The REAL BEHAVIOURAL
+#       dry-run diff (actually invoking commit_all.sh twice and comparing
+#       output) is explicitly DEFERRED to T030's own GREEN-verification step
+#       -- at which point the implementer will already be invoking
+#       commit_all.sh for real to prove the wiring works, so that invocation
+#       is the natural, safe point to add the real diff check too.
+#
+# PAIRED MUTATION (T027, not implemented here -- documented so T027's author
+# can wire it, extending the mutation T015's own header already documents):
+# once T030 lands, (i) "drop one stage's fc_timer_end call, leaving its
+# fc_timer_start intact" MUST flip the future per-stage row-count assertion
+# to FAIL (a started-but-never-closed stage never gets a completed row); (ii)
+# "let the timer wrapper mutate COMMIT_MESSAGE or the staged-file selection
+# (e.g. append a timing marker line)" MUST flip the GROUP 3 static-absence
+# assertion below to FAIL (its FC_TIMING/fc_timer reference count inside
+# stage_changes()/prompt_commit_message()/do_commit() no longer stays zero)
+# AND, once the real behavioural dry-run diff exists per (c) above, MUST
+# flip THAT check to FAIL too -- the two together close the gap a
+# source-absence check alone cannot (a call that exists but is a true
+# side-channel no-op vs. one that silently mutates output).
+# ---------------------------------------------------------------------------------------
 #
 # Usage : bash test_fc_commit_stage_timer_red.sh   Exit 0 = RED baseline
-#         holds (absence proven + both control needles satisfied) and the
-#         T030 contract stubs (per-stage rows, per-remote push rows, golden-
+#         holds (absence proven + all control needles satisfied + the
+#         current-precondition assertions pass) -- note this is expected to
+#         be Exit 0 TODAY (T030 not landed: the two new GROUP 2 acceptance
+#         assertions FAIL as designed, so overall exit is non-zero until
+#         T030 lands; "Exit 0" above describes the file's own internal
+#         self-consistency checks, not its top-level verdict). The T030
+#         contract stubs (per-stage rows, per-remote push rows, golden-
 #         output identity) are printed for the future implementer.
+#   Env FC_TIMER_COMMIT_RED_MODE=0|1  : polarity switch (§11.4.115). Default
+#                                    0 = fc_timer.sh's now-PERMANENT present
+#                                    state (T028 landed; assert PRESENT).
+#                                    Set to 1 ONLY to reconstruct/audit the
+#                                    original pre-T028 precondition (requires
+#                                    fc_timer.sh to be temporarily absent or
+#                                    moved aside -- an audit path, never the
+#                                    routine one).
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 COMMIT_ALL="$ROOT/scripts/commit_all.sh"
+FC_TIMER="$FC/timing/fc_timer.sh"
+COMMIT_TSV_DIR="$ROOT/qa-results/fastcycle/commit"
 
 fail=0
 failx() { fail=1; }
+
+RED_MODE="${FC_TIMER_COMMIT_RED_MODE:-0}"
+echo "INFO: RED_MODE=$RED_MODE (0=default: fc_timer.sh library treated as PERMANENTLY present [T028 landed], 1=audit-only reconstruction of the original pre-T028 precondition)"
 
 # --- §11.4.273 control needle #1: prove the relative-path mechanism works ---
 KNOWN_PRESENT="$FC/lib/fc_common.sh"
@@ -117,18 +284,33 @@ else
   echo "   real, re-checked count, never a guessed one (§11.4.6)"
 fi
 
+# ============================================================================
+# GROUP 1 -- static source-level absence checks (fast, always run)
+# ============================================================================
+
 # --- (1) Absence check: constitution/scripts/fastcycle/timing/fc_timer.sh ---
-FC_TIMER="$FC/timing/fc_timer.sh"
-if [ -f "$FC_TIMER" ]; then
-  echo "NOT ok timing/fc_timer.sh now exists -- the shared T-A01/T-A02 timer"
-  echo "     library has landed. DELETE this RED-baseline assertion; check"
-  echo "     whether test_fc_commit_stage_timer_red.sh's absence checks below"
-  echo "     (the actual commit_all.sh wiring) still hold."
-  failx
+# Polarity depends on RED_MODE (see RECONCILIATION (a) above).
+if [ "$RED_MODE" = "1" ]; then
+  chk1=$([ ! -f "$FC_TIMER" ] && echo 1 || echo 0)
+  if [ "$chk1" = 1 ]; then
+    echo "ok fc_timer.sh absent [RED_MODE=1 audit] -- reconstructed pre-T028 precondition"
+  else
+    echo "NOT ok fc_timer.sh unexpectedly present [RED_MODE=1 audit] -- audit"
+    echo "     reconstruction requires it to be temporarily moved aside"
+    failx
+  fi
 else
-  echo "ok timing/fc_timer.sh absent today (confirmed 2026-09-28) -- the"
-  echo "   shared section/stage timer library plan.md names for T-A01+T-A02"
-  echo "   has not yet landed"
+  if [ -f "$FC_TIMER" ]; then
+    echo "ok fc_timer.sh is PRESENT (T028 landed, confirmed 2026-09-28) [RED_MODE=0/default]"
+    echo "   -- the shared T-A01/T-A02 timer library is now a PERMANENT part"
+    echo "   of the codebase going forward"
+  else
+    echo "NOT ok fc_timer.sh MISSING -- T028's landed timer library appears to"
+    echo "     have been removed or moved; this is a REGRESSION, not the"
+    echo "     expected RED-baseline precondition (re-investigate before"
+    echo "     treating this as an ordinary RED state)"
+    failx
+  fi
 fi
 
 # --- (2) Absence check: no timing reference of any kind in commit_all.sh ---
@@ -157,7 +339,6 @@ else
 fi
 
 # --- (3) Absence check: qa-results/fastcycle/commit/ output directory ---
-COMMIT_TSV_DIR="$ROOT/qa-results/fastcycle/commit"
 if [ -d "$COMMIT_TSV_DIR" ]; then
   echo "NOT ok qa-results/fastcycle/commit/ now exists -- the TSV output"
   echo "     directory plan.md T-A02 names may already be in use. If T030"
@@ -169,10 +350,190 @@ else
   echo "   per-commit TSV has ever been written"
 fi
 
+# Shared lookup (used by both GROUP 2 assertions below): the most recent
+# captured commit-path TSV, if any has ever been written.
+COMMIT_TSV_LATEST=""
+if [ -d "$COMMIT_TSV_DIR" ]; then
+  COMMIT_TSV_LATEST="$(find "$COMMIT_TSV_DIR" -maxdepth 1 -name '*.tsv' 2>/dev/null | sort | tail -n1)"
+fi
+COMMIT_TSV_ROWS=0
+if [ -n "$COMMIT_TSV_LATEST" ] && [ -f "$COMMIT_TSV_LATEST" ]; then
+  COMMIT_TSV_ROWS="$(tail -n +2 "$COMMIT_TSV_LATEST" 2>/dev/null | grep -c . || true)"
+fi
+: "${COMMIT_TSV_ROWS:=0}"
+
+# ============================================================================
+# GROUP 2 -- NEW: real, deterministic, control-needle-proven assertions of
+# the 2 tasks.md T016 acceptance criteria THEMSELVES (see RECONCILIATION (b)
+# above). Both currently FAIL -- T030 has not landed -- and are designed to
+# flip to PASS once it does AND at least one real captured commit-path run
+# exists.
+# ============================================================================
+
+# --- Assertion A: "one row per executed stage of a dry-run commit" ---
+# §11.4.273 control needle #3: prove grep can find a REAL, known-present
+# fc_timer_start call-shaped token (T028's own landed definition inside
+# fc_timer.sh itself) before trusting a zero-hit count for the SAME pattern
+# searched against commit_all.sh.
+NEEDLE3_PRESENT="fc_timer_start"
+NEEDLE3_FABRICATED="fc_timer_start_FABRICATED_NEEDLE_T016_DOES_NOT_EXIST"
+N3_PRESENT_HITS=$(grep -c -- "$NEEDLE3_PRESENT" "$FC_TIMER" 2>/dev/null || true)
+: "${N3_PRESENT_HITS:=0}"
+N3_FAB_HITS=$(grep -c -- "$NEEDLE3_FABRICATED" "$FC_TIMER" 2>/dev/null || true)
+: "${N3_FAB_HITS:=0}"
+if [ "$N3_PRESENT_HITS" -ge 1 ] && [ "$N3_FAB_HITS" -eq 0 ]; then
+  echo "ok control needle #3: grep finds the known-present '$NEEDLE3_PRESENT'"
+  echo "   in fc_timer.sh ($N3_PRESENT_HITS hits) and correctly finds zero"
+  echo "   hits for a fabricated needle -- the per-stage-row-mechanism"
+  echo "   absence check below can be trusted"
+else
+  echo "NOT ok control needle #3 failed (present=$N3_PRESENT_HITS"
+  echo "     fabricated=$N3_FAB_HITS) -- the grep mechanism cannot be"
+  echo "     trusted; the assertion below proves nothing (§11.4.273)"
+  failx
+fi
+
+FC_TIMER_CALLS=$(grep -cE 'fc_timer_(start|end)' "$COMMIT_ALL" 2>/dev/null || true)
+: "${FC_TIMER_CALLS:=0}"
+if [ "$FC_TIMER_CALLS" -ge 1 ] && [ "$COMMIT_TSV_ROWS" -ge 1 ]; then
+  echo "ok commit_all.sh emits per-stage TSV rows via fc_timer_start/"
+  echo "   fc_timer_end ($FC_TIMER_CALLS call site(s), $COMMIT_TSV_ROWS"
+  echo "   captured row(s) at $COMMIT_TSV_LATEST) -- T030 acceptance"
+  echo "   criterion #1 (one row per executed stage of a dry-run commit)"
+else
+  echo "NOT ok commit_all.sh does NOT yet emit per-stage TSV rows -- T030"
+  echo "     acceptance criterion #1 (one row per executed stage of a"
+  echo "     dry-run commit) currently FAILS: fc_timer_start/fc_timer_end"
+  echo "     call sites in commit_all.sh = $FC_TIMER_CALLS (need >=1),"
+  echo "     captured TSV rows under $COMMIT_TSV_DIR = $COMMIT_TSV_ROWS"
+  echo "     (need >=1). This IS the expected RED state until T030 lands"
+  echo "     (see 'T030 contract stub 1/3' below for the full per-stage-row"
+  echo "     semantics T030 must satisfy)."
+  failx
+fi
+
+# --- Assertion B: "one push row per remote with its read-back tip" ---
+# §11.4.273 control needle #4: prove grep can find a REAL, known-present,
+# push-domain token in commit_all.sh's OWN detached-push spawner before
+# trusting a zero-hit count for the ls-remote read-back pattern.
+NEEDLE4_PRESENT="_spawn_detached_push"
+NEEDLE4_FABRICATED="_spawn_detached_push_FABRICATED_NEEDLE_T016_DOES_NOT_EXIST"
+N4_PRESENT_HITS=$(grep -c -- "$NEEDLE4_PRESENT" "$COMMIT_ALL" 2>/dev/null || true)
+: "${N4_PRESENT_HITS:=0}"
+N4_FAB_HITS=$(grep -c -- "$NEEDLE4_FABRICATED" "$COMMIT_ALL" 2>/dev/null || true)
+: "${N4_FAB_HITS:=0}"
+if [ "$N4_PRESENT_HITS" -ge 1 ] && [ "$N4_FAB_HITS" -eq 0 ]; then
+  echo "ok control needle #4: grep finds the known-present"
+  echo "   '$NEEDLE4_PRESENT' in commit_all.sh ($N4_PRESENT_HITS hits) and"
+  echo "   correctly finds zero hits for a fabricated needle -- the"
+  echo "   readback-tip-mechanism absence check below can be trusted"
+else
+  echo "NOT ok control needle #4 failed (present=$N4_PRESENT_HITS"
+  echo "     fabricated=$N4_FAB_HITS) -- the grep mechanism cannot be"
+  echo "     trusted; the assertion below proves nothing (§11.4.273)"
+  failx
+fi
+
+READBACK_HITS=$(grep -c -- "ls-remote" "$COMMIT_ALL" 2>/dev/null || true)
+: "${READBACK_HITS:=0}"
+COMMIT_TSV_PUSH_ROWS=0
+if [ -n "$COMMIT_TSV_LATEST" ] && [ -f "$COMMIT_TSV_LATEST" ]; then
+  COMMIT_TSV_PUSH_ROWS=$(awk -F'\t' 'NR>1 && tolower($0) ~ /push/ {c++} END{print c+0}' "$COMMIT_TSV_LATEST")
+fi
+: "${COMMIT_TSV_PUSH_ROWS:=0}"
+if [ "$READBACK_HITS" -ge 1 ] && [ "$COMMIT_TSV_PUSH_ROWS" -ge "$remote_count" ]; then
+  echo "ok commit_all.sh reads back each remote's tip via ls-remote"
+  echo "   ($READBACK_HITS reference(s)) and emits >= $remote_count push"
+  echo "   rows ($COMMIT_TSV_PUSH_ROWS captured) -- T030 acceptance"
+  echo "   criterion #2 (one push row per remote with its read-back tip)"
+else
+  echo "NOT ok commit_all.sh does NOT yet read back per-remote push tips --"
+  echo "     T030 acceptance criterion #2 (one push row per remote with its"
+  echo "     read-back tip) currently FAILS: 'ls-remote' references in"
+  echo "     commit_all.sh = $READBACK_HITS (need >=1), captured"
+  echo "     push-related TSV rows = $COMMIT_TSV_PUSH_ROWS (need >="
+  echo "     $remote_count, the REAL current remote count per control"
+  echo "     needle #2). This IS the expected RED state until T030 lands"
+  echo "     (see 'T030 contract stub 2/3' below for the full per-remote-row"
+  echo "     semantics, including the dedup-by-URL pitfall, T030 must"
+  echo "     satisfy)."
+  failx
+fi
+
+# ============================================================================
+# GROUP 3 -- NEW: static golden-output baseline (T030 contract stub 3/3
+# support; see RECONCILIATION (c) above for why a REAL commit_all.sh
+# --dry-run invocation is NOT used here). The exact source spans of the
+# three functions that decide the staged file set and the commit message are
+# dynamically LOCATED (never hardcoded line numbers) and checked for zero
+# FC_TIMING/fc_timer references TODAY.
+# ============================================================================
+_func_start_line() {
+  # $1 = exact function name; prints the 1-based source line of its
+  # definition ("name() {"), re-derived from the LIVE file every run.
+  grep -nE "^${1}\\(\\)[[:space:]]*\\{" "$COMMIT_ALL" 2>/dev/null | head -n1 | cut -d: -f1
+}
+STAGE_START="$(_func_start_line "stage_changes")"
+PCM_START="$(_func_start_line "prompt_commit_message")"
+DOCOMMIT_START="$(_func_start_line "do_commit")"
+DOPUSH_START="$(_func_start_line "do_push")"
+
+if [ -z "$STAGE_START" ] || [ -z "$PCM_START" ] || [ -z "$DOCOMMIT_START" ] || [ -z "$DOPUSH_START" ]; then
+  echo "NOT ok GROUP 3 baseline: could not dynamically locate one of"
+  echo "     stage_changes()/prompt_commit_message()/do_commit()/do_push()"
+  echo "     in $COMMIT_ALL -- commit_all.sh's structure may have changed;"
+  echo "     the golden-output static baseline below cannot be trusted"
+  failx
+else
+  # stage_changes() spans [STAGE_START, PCM_START); prompt_commit_message()
+  # and do_commit() together span [PCM_START, DOPUSH_START) -- do_commit()
+  # is confirmed (2026-09-28) to be the last function defined immediately
+  # before do_push() in source order, re-derived here rather than assumed.
+  STAGE_END=$((PCM_START - 1))
+  COMMIT_END=$((DOPUSH_START - 1))
+  STAGE_SPAN_LINES=$((STAGE_END - STAGE_START + 1))
+  COMMIT_SPAN_LINES=$((COMMIT_END - PCM_START + 1))
+  STAGE_SPAN_SHA=$(sed -n "${STAGE_START},${STAGE_END}p" "$COMMIT_ALL" | sha256sum | cut -d' ' -f1)
+  COMMIT_SPAN_SHA=$(sed -n "${PCM_START},${COMMIT_END}p" "$COMMIT_ALL" | sha256sum | cut -d' ' -f1)
+  STAGE_TIMER_REFS=$(sed -n "${STAGE_START},${STAGE_END}p" "$COMMIT_ALL" | grep -cE 'FC_TIMING|fc_timer' || true)
+  : "${STAGE_TIMER_REFS:=0}"
+  COMMIT_TIMER_REFS=$(sed -n "${PCM_START},${COMMIT_END}p" "$COMMIT_ALL" | grep -cE 'FC_TIMING|fc_timer' || true)
+  : "${COMMIT_TIMER_REFS:=0}"
+
+  echo "INFO: GROUP 3 baseline located dynamically -- stage_changes() lines"
+  echo "   ${STAGE_START}-${STAGE_END} (${STAGE_SPAN_LINES} lines, sha256"
+  echo "   ${STAGE_SPAN_SHA}); prompt_commit_message()+do_commit() lines"
+  echo "   ${PCM_START}-${COMMIT_END} (${COMMIT_SPAN_LINES} lines, sha256"
+  echo "   ${COMMIT_SPAN_SHA})"
+
+  if [ "$STAGE_TIMER_REFS" -eq 0 ] && [ "$COMMIT_TIMER_REFS" -eq 0 ]; then
+    echo "ok golden-output static precondition: stage_changes()"
+    echo "   ($STAGE_TIMER_REFS refs) and prompt_commit_message()+do_commit()"
+    echo "   ($COMMIT_TIMER_REFS refs) contain ZERO FC_TIMING/fc_timer"
+    echo "   references today -- the timer wrapper cannot currently alter"
+    echo "   what is staged or committed because it is not called from"
+    echo "   either function at all (T030 contract stub 3/3 static"
+    echo "   precondition; the REAL behavioural dry-run diff remains"
+    echo "   deferred to T030's own GREEN-verification step, see"
+    echo "   RECONCILIATION (c) above)"
+  else
+    echo "NOT ok golden-output static precondition: expected ZERO"
+    echo "     FC_TIMING/fc_timer references inside stage_changes()/"
+    echo "     prompt_commit_message()/do_commit() but found"
+    echo "     $STAGE_TIMER_REFS / $COMMIT_TIMER_REFS -- T030 wiring may"
+    echo "     have started inside one of the staging/commit-message"
+    echo "     decision functions; the REAL behavioural dry-run diff"
+    echo "     (deferred, see RECONCILIATION (c) above) is now required to"
+    echo "     confirm the timer wrapper is still a pure side-channel"
+    echo "     observer that never alters the staged set or the message"
+    failx
+  fi
+fi
+
 echo
 echo "=== T030 contract stub 1/3: one row per EXECUTED stage (plan.md T-A02) ==="
-echo "NOT YET IMPLEMENTED: a per-commit TSV at"
-echo "  qa-results/fastcycle/commit/<ts>.tsv, keyed to the candidate"
+echo "Backed above by GROUP 2 Assertion A. NOT YET SATISFIED: a per-commit"
+echo "  TSV at qa-results/fastcycle/commit/<ts>.tsv, keyed to the candidate"
 echo "  fingerprint (git HEAD) and a run id, MUST carry exactly one row per"
 echo "  stage of \`commit_all.sh\` that ACTUALLY RAN for that invocation --"
 echo "  never a fixed row count, since a dry-run/aborted/--no-push invocation"
@@ -192,43 +553,54 @@ echo "  same as absent, and a future gate must be able to tell the two apart."
 
 echo
 echo "=== T030 contract stub 2/3: one push row PER REMOTE + read-back tip ==="
-echo "NOT YET IMPLEMENTED: for every remote the push loop actually targets,"
-echo "  emit exactly one row carrying (at minimum) the remote NAME, a push"
-echo "  start timestamp, a push end timestamp, a result (ok/ff-only-deferred/"
-echo "  error -- commit_all.sh's own documented semantics are NEVER --force,"
-echo "  §11.4.113; a non-fast-forward remote is DEFERRED, not forced), and the"
-echo "  read-back TIP commit hash of that remote's ref AFTER the push attempt"
-echo "  completes (a real \`git ls-remote\`/fetch-and-compare read-back against"
-echo "  that specific remote -- NEVER the local pre-push HEAD asserted by"
-echo "  assumption, since a deferred/failed push must show a DIFFERENT"
-echo "  read-back tip than a succeeded one). Control needle #2 above pins the"
-echo "  currently-configured remote count at exactly 3 (github, origin,"
-echo "  upstream) -- ALL THREE resolve to the SAME destination URL per this"
-echo "  repo's own documented git-remotes reality, so the correct"
-echo "  implementation emits 3 rows (one per configured remote NAME) on a"
-echo "  full push, never 1 row deduplicated by destination URL; re-run this"
-echo "  test's control needle before implementing in case the remote set has"
-echo "  since changed."
+echo "Backed above by GROUP 2 Assertion B. NOT YET SATISFIED: for every"
+echo "  remote the push loop actually targets, emit exactly one row carrying"
+echo "  (at minimum) the remote NAME, a push start timestamp, a push end"
+echo "  timestamp, a result (ok/ff-only-deferred/error -- commit_all.sh's own"
+echo "  documented semantics are NEVER --force, §11.4.113; a non-fast-forward"
+echo "  remote is DEFERRED, not forced), and the read-back TIP commit hash of"
+echo "  that remote's ref AFTER the push attempt completes (a real"
+echo "  \`git ls-remote\`/fetch-and-compare read-back against that specific"
+echo "  remote -- NEVER the local pre-push HEAD asserted by assumption, since"
+echo "  a deferred/failed push must show a DIFFERENT read-back tip than a"
+echo "  succeeded one). Control needle #2 above pins the currently-configured"
+echo "  remote count at exactly 3 (github, origin, upstream) -- ALL THREE"
+echo "  resolve to the SAME destination URL per this repo's own documented"
+echo "  git-remotes reality, so the correct implementation emits 3 rows (one"
+echo "  per configured remote NAME) on a full push, never 1 row deduplicated"
+echo "  by destination URL (do_push()'s own URL-dedup fallback loop is a"
+echo "  LIVE example of exactly this pitfall, confirmed by direct source"
+echo "  inspection above); re-run this test's control needle before"
+echo "  implementing in case the remote set has since changed."
 
 echo
 echo "=== T030 contract stub 3/3: golden-output identity (staged set + message) ==="
-echo "NOT YET IMPLEMENTED: a dry-run commit_all.sh invocation with"
-echo "  FC_TIMING=1 and an otherwise-identical invocation with FC_TIMING=0"
-echo "  (or unset) MUST produce a byte-identical STAGED FILE SET (the exact"
+echo "Backed above by GROUP 3's static structural precondition. NOT YET FULLY"
+echo "  SATISFIED (deferred to a REAL behavioural check, see RECONCILIATION"
+echo "  (c) above): a dry-run commit_all.sh invocation with FC_TIMING=1 and"
+echo "  an otherwise-identical invocation with FC_TIMING=0 (or unset) MUST"
+echo "  produce a byte-identical STAGED FILE SET (the exact"
 echo "  \`git diff --staged --name-status\` output, or equivalent, compared as"
 echo "  a set/ordered-list, never merely as an equal file COUNT -- the same"
 echo "  §11.4.201(8) count-blind-regression trap this suite's other RED"
 echo "  baselines already guard against) AND a byte-identical COMMIT MESSAGE"
 echo "  (the exact \$COMMIT_MESSAGE value, or its --dry-run placeholder per"
 echo "  commit_all.sh's own §11.4.209 review M2 dry-run-never-prompts rule)."
-echo "  Today this is trivially-but-uninformatively true: FC_TIMING is inert"
-echo "  in commit_all.sh (confirmed by absence check (2) above -- the string"
-echo "  literally never appears in the file, so setting it changes nothing)."
-echo "  Once T030 wires fc_timer.sh in, the SAME invariant must continue to"
-echo "  hold non-trivially: the timing wrapper is a PURE side-channel"
-echo "  observer that never alters what actually gets committed/pushed."
-echo "  Paired mutation for the future gate: make the timer wrapper mutate"
-echo "  COMMIT_MESSAGE or the staged-file selection (e.g. append a timing"
-echo "  marker line) -> this golden-output check MUST FAIL."
+echo "  Today the STATIC precondition (GROUP 3 above) confirms this holds"
+echo "  trivially: FC_TIMING is inert in commit_all.sh (confirmed by absence"
+echo "  check (2) above -- the string literally never appears in the file,"
+echo "  so setting it changes nothing) AND, more precisely, neither"
+echo "  stage_changes() nor prompt_commit_message()/do_commit() reference it"
+echo "  at all. Once T030 wires fc_timer.sh in, the SAME invariant must"
+echo "  continue to hold non-trivially: the timing wrapper is a PURE"
+echo "  side-channel observer that never alters what actually gets"
+echo "  committed/pushed -- confirming that NON-trivially requires a REAL"
+echo "  dry-run invocation diff, deferred to T030's own GREEN-verification"
+echo "  step per RECONCILIATION (c) above."
+echo "  Paired mutation for the future gate (T027, see PAIRED MUTATION"
+echo "  above): make the timer wrapper mutate COMMIT_MESSAGE or the"
+echo "  staged-file selection (e.g. append a timing marker line) -> both the"
+echo "  GROUP 3 static check above AND the future real dry-run diff MUST"
+echo "  FAIL."
 
 exit $fail
