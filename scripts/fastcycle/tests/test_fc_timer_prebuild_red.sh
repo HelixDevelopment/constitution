@@ -174,10 +174,12 @@ if [ -n "${FC_TIMER_RED_LOG:-}" ] && [ -f "${FC_TIMER_RED_LOG:-/nonexistent}" ];
   EVIDENCE_DEPTH="full"
   echo "INFO: using caller-supplied evidence log: $EVIDENCE_LOG"
 else
-  # shellcheck disable=SC2086 # intentional glob (no spaces in these generated filenames)
-  _auto_candidates=$(ls -1 $EVIDENCE_DEFAULT_GLOB 2>/dev/null | sort | tail -n1)
-  if [ -n "$_auto_candidates" ] && [ -f "$_auto_candidates" ]; then
-    EVIDENCE_LOG="$_auto_candidates"
+  _auto_candidate=""
+  if [ -d "$EVIDENCE_DEFAULT_DIR" ]; then
+    _auto_candidate="$(find "$EVIDENCE_DEFAULT_DIR" -maxdepth 1 -name 'prebuild_full_run_*.log' 2>/dev/null | sort | tail -n1)"
+  fi
+  if [ -n "$_auto_candidate" ] && [ -f "$_auto_candidate" ]; then
+    EVIDENCE_LOG="$_auto_candidate"
     EVIDENCE_DEPTH="full"
     echo "INFO: auto-discovered evidence log: $EVIDENCE_LOG"
   elif [ "${FC_TIMER_RED_FULL_RUN:-0}" = "1" ]; then
@@ -213,10 +215,10 @@ TSV_HITS="$(find "$ROOT/qa-results/fastcycle" -name 'prebuild_sections.tsv' 2>/d
 : "${TSV_HITS:=0}"
 chk "no prebuild_sections.tsv exists anywhere under qa-results/fastcycle/ (RED)" "$([ "$TSV_HITS" -eq 0 ] && echo 1 || echo 0)"
 
-TSV_PATH_GLOB="$ROOT/qa-results/fastcycle/"*"/prebuild_sections.tsv"
-# shellcheck disable=SC2086 # intentional glob
 TSV_EXISTS=0
-for _f in $TSV_PATH_GLOB; do [ -f "$_f" ] && TSV_EXISTS=1; done
+_f=""
+_found_tsv="$(find "$ROOT/qa-results/fastcycle" -mindepth 2 -maxdepth 2 -name 'prebuild_sections.tsv' 2>/dev/null | sort | tail -n1)"
+if [ -n "$_found_tsv" ] && [ -f "$_found_tsv" ]; then TSV_EXISTS=1; _f="$_found_tsv"; fi
 
 # 7. Acceptance criterion: "TSV exists with one row per section that ran" -- MUST currently FAIL.
 chk "TSV exists with one row per section that ran (T029 acceptance criterion)" "$([ "$TSV_EXISTS" = 1 ] && echo 1 || echo 0)"
