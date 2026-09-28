@@ -1,0 +1,1 @@
+this file contains BANNED_PATTERN_X and should be caught

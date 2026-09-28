@@ -1,0 +1,14 @@
+# toy gate-registry (mirrors constitution/scripts/gates/gate_ledger_baseline.txt
+# + gate_ledger_deferrals.tsv shape) — id, script-path-relative-to-_shared (or
+# "NONE" for a named-only/deferred id), classification-hint (never trusted
+# blindly by the tool under test — it's here only so this fixture's own
+# README can explain what SHOULD come out; gate_audit.py computes its own
+# classification from the real script bodies).
+#
+# id	script	expected_classification
+TOY-GATE-EXECUTING	gates/gate_executing.sh	executing
+TOY-GATE-VACUOUS	gates/gate_vacuous.sh	vacuous
+TOY-GATE-REMOVED	gates/gate_removed.sh	executing
+TOY-GATE-SURVIVOR	gates/gate_survivor.sh	executing
+TOY-GATE-SURVIVOR-NARROW	gates/gate_survivor_narrow.sh	executing
+TOY-GATE-DEFERRED	NONE	named-only

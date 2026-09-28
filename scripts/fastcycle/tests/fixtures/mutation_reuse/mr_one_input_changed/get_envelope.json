@@ -1,0 +1,9 @@
+{
+  "patch_sha256": "89d1444e9f557388df195370642527ddfe10829242161287f31cc01dde31946d",
+  "gate_script_sha256": "be61ce3b4280e325d5c2d5ef504ad83b3a771779ba6e2d08d2ef032fe0439e03",
+  "observed_inputs": [{"path": "observed_input.txt", "sha256": "6c86f8be35ee23aa75833540670882f36c767d9dcdc574990430a2cd706793b9"}],
+  "tool_versions": {"python3": "3.11.0", "bash": "5.2.0"},
+  "verdict": "",
+  "mutation_id": "M-001",
+  "gate_id": "GATE-MR-DEMO"
+}
