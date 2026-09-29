@@ -298,3 +298,33 @@ The scripts append entries below automatically; manual entries are also acceptab
 - current: `1.6.0`
 - latest:  `1.6.0`
 - action:  **no-op** (already at latest)
+
+## 2026-09-29T14:46:47Z — codegraph update FAILED (§107 bluff caught)
+
+- before: `1.6.0`
+- target: `1.6.1`
+- after:  `1.6.0` (mismatch — npm exit 0 was bluffing)
+
+## 2026-09-29T14:47:30Z — codegraph update FAILED (§107 bluff caught)
+
+- before: `1.6.0`
+- target: `1.6.1`
+- after:  `1.6.0` (mismatch — npm exit 0 was bluffing)
+
+## 2026-09-29T14:56:33Z — codegraph update FAILED (§107 bluff caught)
+
+- before: `1.6.0`
+- target: `1.6.1`
+- after:  `1.6.0` (mismatch — npm exit 0 was bluffing)
+
+## 2026-09-29T15:17:33Z — codegraph update FAILED (§107 bluff caught)
+
+- before: `1.6.0`
+- target: `1.6.1`
+- after:  `1.6.0` (mismatch — npm exit 0 was bluffing)
+
+## 2026-09-29T15:27:35Z — codegraph update FAILED (§107 bluff caught)
+
+- before: `1.6.0`
+- target: `1.6.1`
+- after:  `1.6.0` (mismatch — npm exit 0 was bluffing)
