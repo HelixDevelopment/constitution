@@ -1,0 +1,5 @@
+{
+  "_purpose": "CT-5 negative control (this task's own explicit addition per plan.md T-B05's 'protecting tests' line): every dependency is genuinely UNCHANGED -- internal timestamps are causally consistent (established_at <= written_at), the recorded phase (VERIFY) is a valid +1 transition from the last verified phase (IMPLEMENT), the external dep dep_a's live content_address matches the recorded one exactly (tree_current byte-identical to tree_snapshot), no pending step names a nondeterministic source, and ground_truth_effects.json matches effects_performed exactly (no unrecorded effect). Resume MUST proceed WITHOUT forced re-verification -- proving the oracle is precise, not maximally paranoid: a check that flags this fixture is itself a false positive (section 11.4.201) that would force expensive re-verification work on every resume regardless of whether anything actually changed.",
+  "target_class": null,
+  "kind": "negative-control"
+}

@@ -1,0 +1,31 @@
+{
+  "handoff_id": "sha256:rr04000000000000000000000000000000000000000000000000000000004",
+  "agent_key": "rr04agentkey0004",
+  "item_id": "ATM-9004",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "VERIFY",
+  "verified": [
+    {
+      "ref_id": "EV-RR04-A",
+      "fact": "the fix compiles cleanly",
+      "verifier_id": "build-check",
+      "verifier_version": "sha256:1111000000000000000000000000000000000000000000000000000000a1",
+      "inputs": "sha256:2222000000000000000000000000000000000000000000000000000000a2",
+      "phase": "IMPLEMENT",
+      "target_fingerprint": "hermetic",
+      "verdict": "PASS",
+      "evidence": "qa-results/fastcycle/rr04/build.log",
+      "established_by": "rr04agentkey0004",
+      "established_at": "2026-09-30T09:00:00Z"
+    }
+  ],
+  "pending": [
+    {"step": "wait for CI to report on the pushed branch", "precondition": "branch pushed"}
+  ],
+  "partial_artefacts": [],
+  "external_deps": [],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

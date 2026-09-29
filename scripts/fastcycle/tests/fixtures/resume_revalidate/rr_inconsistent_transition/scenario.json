@@ -1,0 +1,5 @@
+{
+  "_purpose": "Safe-to-Resume failure class 5/5: INCONSISTENT TRANSITION -- the handoff's recorded current phase (DEPLOY) is not a valid next state given the phase the agent's own verified evidence last confirmed it reached (PLAN, from EV-RR05-A's 'phase' tag -- an UNCONFIRMED-by-the-canonical-schema field this test DEFINES for phase-adjacency derivation, matching the interim-contract convention already established in fixtures/evidence_ref/README.md and test_governance_subset_red.sh). The declared canonical phase order is PLAN -> IMPLEMENT -> VERIFY -> DEPLOY -> DONE (this test's own interim definition, matching HO-001's phase-boundary write cadence in contracts/agent-registry-and-handoff.md); jumping PLAN directly to DEPLOY with zero verified facts for IMPLEMENT or VERIFY is not a valid recorded transition and must not be trusted at face value -- either the record is wrong, or two whole phases' worth of unverified work is being silently assumed complete.",
+  "target_class": "inconsistent-transition",
+  "kind": "golden-bad"
+}

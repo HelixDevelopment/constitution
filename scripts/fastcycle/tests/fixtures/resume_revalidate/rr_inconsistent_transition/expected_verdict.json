@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr05000000000000000000000000000000000000000000000000000000005",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "inconsistent-transition",
+      "detail": "phase jumped from PLAN to DEPLOY, skipping IMPLEMENT, VERIFY with no verified evidence for those phases"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}

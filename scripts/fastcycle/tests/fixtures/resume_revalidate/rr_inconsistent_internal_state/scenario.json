@@ -1,0 +1,5 @@
+{
+  "_purpose": "Safe-to-Resume failure class 1/5: INCONSISTENT INTERNAL STATE -- the killed agent's own recorded progress state does not match what could actually be true. Modelled here as a temporal-causality violation: a verified-fact's own established_at timestamp is AFTER the handoff record's written_at timestamp, which is impossible if the record genuinely reflects the agent's state at the moment it was written. A resumer that trusts this record without first checking internal self-consistency risks building on a corrupted or fabricated handoff.",
+  "target_class": "inconsistent-internal-state",
+  "kind": "golden-bad"
+}

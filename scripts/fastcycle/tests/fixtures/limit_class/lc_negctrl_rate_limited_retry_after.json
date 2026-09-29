@@ -1,0 +1,18 @@
+{
+  "schema": "limit-class-fixture/v1",
+  "fixture_kind": "negative-control",
+  "provenance": "constructed",
+  "task_id": "FC-LC-SAMPLE-004",
+  "source": {
+    "note": "NO real retry-after-bearing 429 row exists in docs/requests/agent_registry.jsonl as of this dispatch -- confirmed by a `grep -i retry-after` control needle in test_limit_class_red.sh itself (0 genuine matches; the only textual hits anywhere in this project's request-tracking docs are prose DISCUSSING the concept inside two prior agent hand-back reports in docs/requests/history.md, never a real crashed-row signal). This fixture is therefore honestly CONSTRUCTED per section 11.4.115(G), never presented as an observed row. Field shape (a `retry-after` seconds header on a 429) is the standard, well-established Anthropic API rate-limit convention this project's own constitution already cites (section 11.4.187/section 11.4.196(B): the captured 429 signature 'isApiErrorMessage+apiErrorStatus:429'; research.md DEC-14's own cited primary source, Anthropic rate limits https://platform.claude.com/docs/en/api/rate-limits, R5:97) -- never fabricated arbitrarily."
+  },
+  "raw_signal": "API 429 rate_limit_error on alias claude2; retry-after: 12 (seconds); no cap/weekly/subscription wording anywhere in the response.",
+  "http_status": 429,
+  "error_code": "rate_limit_error",
+  "retry_after_seconds": 12,
+  "reset_named": false,
+  "resets_at": null,
+  "alias": "claude2",
+  "expected_class": "rate-limited",
+  "_defect": "The DISCRIMINATOR against lc_golden_cap_weekly.json / lc_bad_cap_via_429_no_retry_after.json: this is ALSO an HTTP 429 on an alias (identical status code to both cap fixtures), but it carries a SHORT (12s) retry-after header AND names NO weekly/subscription reset anywhere -- DEC-14's own rule (AR-005: 'cap = ... no retry-after, OR a named weekly/subscription reset') means NEITHER disqualifying condition holds here, so this correctly derives to rate-limited, never cap. Proves the classifier does not collapse every HTTP 429 into cap (the MIRROR-IMAGE failure mode of the golden-bad fixture, which proves the classifier does not collapse a real cap DOWN into rate-limited) -- a genuinely transient, short-window signal must still be eligible for the SAME-alias backoff-then-resume path AR-005/T-B06 reserve for rate-limited alone, never wrongly cooled off an entire alias for days over a 12-second throttle."
+}

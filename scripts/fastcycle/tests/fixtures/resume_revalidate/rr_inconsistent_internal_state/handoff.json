@@ -1,0 +1,31 @@
+{
+  "handoff_id": "sha256:rr01000000000000000000000000000000000000000000000000000000001",
+  "agent_key": "rr01agentkey0001",
+  "item_id": "ATM-9001",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "IMPLEMENT",
+  "verified": [
+    {
+      "ref_id": "EV-RR01-A",
+      "fact": "the parser's unit-test suite passes",
+      "verifier_id": "pytest",
+      "verifier_version": "sha256:aaaa0000000000000000000000000000000000000000000000000000000a",
+      "inputs": "sha256:bbbb0000000000000000000000000000000000000000000000000000000b",
+      "phase": "IMPLEMENT",
+      "target_fingerprint": "hermetic",
+      "verdict": "PASS",
+      "evidence": "qa-results/fastcycle/rr01/pytest.log",
+      "established_by": "rr01agentkey0001",
+      "established_at": "2026-09-30T12:00:00Z"
+    }
+  ],
+  "pending": [
+    {"step": "wire the parser into the CLI", "precondition": "EV-RR01-A verified"}
+  ],
+  "partial_artefacts": [],
+  "external_deps": [],
+  "effects_performed": [],
+  "written_at": "2026-09-30T11:00:00Z"
+}

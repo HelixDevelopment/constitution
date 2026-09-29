@@ -1,0 +1,25 @@
+{
+  "schema": "limit-class-fixture/v1",
+  "fixture_kind": "golden-bad",
+  "provenance": "observed",
+  "task_id": "FC-LC-SAMPLE-003",
+  "source": {
+    "file": "docs/requests/agent_registry.jsonl",
+    "lines": "2524-2529",
+    "sample_key": "331601e77ca605e2",
+    "ts": "2026-09-26T13:24:22Z",
+    "event": "crashed",
+    "note": "a DIFFERENT key from the SAME real six-row 2026-09-26 weekly-cap incident lc_golden_cap_weekly.json uses (sample_key 5e485887643cba3c there); both rows are byte-identical in raw_signal text -- the incident killed six agents at once on one alias"
+  },
+  "raw_signal": "API weekly-limit 429 on alias claude1 (resets 2026-09-29 20:00 Asia/Aqtau); agent killed mid-work; partial artifacts preserved in qa-results/agent_custody_20260926/partial_after_quota/; respawn by description per 11.4.147(e).",
+  "http_status": 429,
+  "error_code": "rate_limit_error",
+  "retry_after_seconds": null,
+  "reset_named": true,
+  "resets_at": "2026-09-29T20:00:00+05:00",
+  "resets_at_tz": "Asia/Aqtau",
+  "alias": "claude1",
+  "expected_class": "cap",
+  "wrongly_classified_as_under_mutation": "rate-limited",
+  "_defect": "This IS the T127 task text's own named golden-bad scenario ('golden-bad: a cap classified as rate-limited FAILs'). The CORRECT class for this real row is cap (identical reasoning to lc_golden_cap_weekly.json: no retry-after present, a named weekly reset instant is present -- DEC-14's OR-disambiguator is satisfied on both grounds). The DANGER this fixture exists to catch: a naive/buggy classifier could plausibly see 'HTTP 429' alone and default to rate-limited (the intuitive-but-wrong reading -- '429 means rate limit'), silently discarding the retry-after-absence and named-reset signals that DEC-14 requires be checked. tasks.md T130's own named paired mutation for T-B06 ('collapse limit classes into one backoff') is exactly this failure mode: it drops the cap disambiguator and treats every 429 identically. This test's paired-mutation-self-test section applies that mutation to THIS fixture's raw fields and proves the mutated derivation flips from the correct 'cap' to the WRONG 'rate-limited' -- i.e. it genuinely FAILS a check comparing against expected_class -- proving a real meta-test built against this fixture, once T135 lands, would catch that mutation. Per AR-005, misclassifying this row as rate-limited would authorise a short backoff-then-retry on alias claude1 -- futile and harmful, since claude1 stays weekly-capped until 2026-09-29T20:00 Asia/Aqtau regardless of how many short backoffs are attempted (DEC-14's own rationale: 'retrying a cap is futile')."
+}

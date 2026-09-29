@@ -1,0 +1,29 @@
+{
+  "schema": "limit-class-fixture/v1",
+  "fixture_kind": "golden",
+  "provenance": "observed",
+  "task_id": "FC-LC-SAMPLE-002",
+  "source": {
+    "file": "docs/requests/agent_registry.jsonl",
+    "line": 2583,
+    "key": "d477c22fbd6a50b2",
+    "ts": "2026-09-26T14:08:33Z",
+    "event": "crashed"
+  },
+  "raw_signal": "haiku dispatch failed: Prompt too long (~421k tokens vs 200k limit; project preamble exceeds haiku context, req_011CfSBXm7Kn6enyUT1UEaWd). Respawn on sonnet. Lesson: never dispatch haiku in this repo.",
+  "http_status": 400,
+  "error_code": "invalid_request",
+  "retry_after_seconds": null,
+  "reset_named": false,
+  "resets_at": null,
+  "alias": "claude4",
+  "corroborating_signal": {
+    "note": "an independently-real, SEPARATE occurrence of the identical class, captured 2026-09-30 by this project's own T114 dispatch (specs/004-fast-dev-cycles/tasks.md:398, docs/CONTINUATION.md:74, docs/requests/history.md:44) -- used here ONLY as cross-confirmation that this derivation rule generalises across two distinct real incidents, NEVER as this fixture's own raw_signal (which stays the agent_registry.jsonl:2583 row above, this suite's canonical registry source, per T127's own task text naming 'the haiku prompt-too-long row' in the singular)",
+    "request_id": "req_011CfYLCPsw14dmqgLyLkXje",
+    "raw_error": "prompt is too long: 423497 tokens > 200000 maximum",
+    "api_error_status": 400,
+    "model": "claude-haiku-4-5-20251001"
+  },
+  "expected_class": "context-overflow",
+  "_defect": "This is the T127 task text's own named golden scenario ('the haiku prompt-too-long row'), a REAL row copied byte-for-byte from docs/requests/agent_registry.jsonl:2583. Structurally DISTINCT from lc_golden_cap_weekly.json / lc_bad_cap_via_429_no_retry_after.json: HTTP status is 400 (never 429), the error class is invalid_request (never rate_limit_error), there is no retry-after header and no named weekly/subscription reset (reset_named=false, resets_at=null) -- this is NOT a rate/quota-throttling signal of any kind, it is a per-request TOKEN-COUNT ceiling being exceeded ('Prompt too long ... vs 200k limit'). Per contracts/agent-registry-and-handoff.md AR-005 + plan.md T-B06, class=context-overflow means the resume must re-dispatch with the governance subset (DEC-12/T-E01), never with the SAME prompt (re-sending an unshrunk prompt against the same 200k-token window would deterministically fail identically). The corroborating_signal block (req_011CfYLCPsw14dmqgLyLkXje, apiErrorStatus=400, error=invalid_request, 'prompt is too long: 423497 tokens > 200000 maximum') is a genuinely SEPARATE real occurrence of this same class recorded 2026-09-30 -- independent confirmation this derivation rule is not overfit to one row's exact wording."
+}

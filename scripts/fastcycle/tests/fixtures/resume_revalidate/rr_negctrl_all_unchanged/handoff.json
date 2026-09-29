@@ -1,0 +1,40 @@
+{
+  "handoff_id": "sha256:rr06000000000000000000000000000000000000000000000000000000006",
+  "agent_key": "rr06agentkey0006",
+  "item_id": "ATM-9006",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "VERIFY",
+  "verified": [
+    {
+      "ref_id": "EV-RR06-A",
+      "fact": "dep_a's schema matches the spec",
+      "verifier_id": "schema-check",
+      "verifier_version": "sha256:5555000000000000000000000000000000000000000000000000000000c1",
+      "inputs": "sha256:6666000000000000000000000000000000000000000000000000000000c2",
+      "phase": "IMPLEMENT",
+      "target_fingerprint": "hermetic",
+      "verdict": "PASS",
+      "evidence": "qa-results/fastcycle/rr06/schema.log",
+      "established_by": "rr06agentkey0006",
+      "established_at": "2026-09-30T09:00:00Z"
+    }
+  ],
+  "pending": [
+    {"step": "run the integration test suite", "precondition": "EV-RR06-A verified"}
+  ],
+  "partial_artefacts": [],
+  "external_deps": [
+    {
+      "kind": "git-tree",
+      "locator": "dep_a",
+      "content_address": "sha256:8c6c02d3802ced99be205cdad54e4a5fbf400d8e9ac34e12bd4fae3e345dce66",
+      "affects_verified": ["EV-RR06-A"]
+    }
+  ],
+  "effects_performed": [
+    {"kind": "commit", "id": "commit-rr06-0001"}
+  ],
+  "written_at": "2026-09-30T10:00:00Z"
+}

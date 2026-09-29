@@ -1,0 +1,31 @@
+{
+  "handoff_id": "sha256:rr03000000000000000000000000000000000000000000000000000000003",
+  "agent_key": "rr03agentkey0003",
+  "item_id": "ATM-9003",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "medium",
+  "phase": "IMPLEMENT",
+  "verified": [
+    {
+      "ref_id": "EV-RR03-A",
+      "fact": "the changelog template renders without error",
+      "verifier_id": "template-check",
+      "verifier_version": "sha256:eeee0000000000000000000000000000000000000000000000000000000e",
+      "inputs": "sha256:ffff0000000000000000000000000000000000000000000000000000000f",
+      "phase": "IMPLEMENT",
+      "target_fingerprint": "hermetic",
+      "verdict": "PASS",
+      "evidence": "qa-results/fastcycle/rr03/template.log",
+      "established_by": "rr03agentkey0003",
+      "established_at": "2026-09-30T09:00:00Z"
+    }
+  ],
+  "pending": [
+    {"step": "llm-generate the release-notes summary paragraph", "precondition": "EV-RR03-A verified"}
+  ],
+  "partial_artefacts": [],
+  "external_deps": [],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

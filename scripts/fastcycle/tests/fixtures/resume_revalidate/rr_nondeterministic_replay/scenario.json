@@ -1,0 +1,5 @@
+{
+  "_purpose": "Safe-to-Resume failure class 3/5: NONDETERMINISTIC REPLAY -- resuming would re-execute a pending step whose outcome depends on something that has changed or cannot be replayed identically (here, an LLM-generated text output, per research.md DEC-34/arXiv 2608.29381: 'nondeterministic replay (LLM output re-generated instead of replayed)'). A resumer that blindly re-runs this step and treats its NEW output as equivalent to whatever the killed agent might have produced risks silently diverging from any downstream fact that assumed a specific (never-recorded) prior output. The oracle flags any pending step whose text names a known nondeterministic-source keyword ('llm-generate', 'random', 'nondeterministic', ...) so it is re-verified/regenerated explicitly rather than assumed safe to naively replay.",
+  "target_class": "nondeterministic-replay",
+  "kind": "golden-bad"
+}
