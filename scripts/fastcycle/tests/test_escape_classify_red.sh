@@ -294,29 +294,54 @@ print(json.dumps(result if result is not None else {}))
 PY
 }
 
-# field_eq <found-json-line> <field> <expected-json-value>: True/False,
-# comparing found[<field>] to the parsed <expected-json-value> by deep
-# equality (so a list like [869] or [] compares correctly). Never raises.
+# field_eq <found-json-line> <field> <expected-json-value>: prints "1"/"0"
+# (chk()'s own truthy convention, matching every other check in this file --
+# see the FIXED note below), comparing found[<field>] to the parsed
+# <expected-json-value> by deep equality (so a list like [869] or []
+# compares correctly). Never raises.
+#
+# FIXED (real bug in this test's own harness, caught while driving T094's
+# implementation to GREEN, 2026-09-29 -- constitution 11.4.1: "a test must
+# fail only for genuine product defects, never a script-internal bug"):
+# this function's `print(found.get(...) == expected)` emitted Python's
+# capitalized boolean literals "True"/"False", but chk() (line 154 of this
+# file) compares its second argument against the literal string "1" --
+# `[ "$2" = "1" ]`. "True" != "1" and "False" != "1" unconditionally, so
+# EVERY assertion routed through field_eq()/evidence_paths_superset() was
+# STRUCTURALLY INCAPABLE of ever reporting PASS, regardless of whether the
+# tool under test was correct -- confirmed directly: a byte-for-byte
+# manually-invoked escape_classify.py run against ec_good_atm953_e1 produced
+# an --out document whose every field exactly matched expected.json (primary
+# E1, contributing [], detection_channel manual-testing-detected,
+# reopen_events [869], both evidence paths present with matching hashes),
+# yet the pre-fix version of this function still reported FAIL for every one
+# of those fields. This is the exact class of bug 11.4.1 requires be fixed
+# at the harness, not worked around at the call site (a "print 1 if X else
+# 0" fix here, matching this file's own established chk()-compatible
+# convention everywhere else, is the minimal correction -- no other
+# function, expectation, or fixture value in this file changes).
 field_eq() {
   python3 -c "
 import json, sys
 found = json.loads(sys.argv[1])
 expected = json.loads(sys.argv[3])
-print(found.get(sys.argv[2]) == expected)
+print('1' if found.get(sys.argv[2]) == expected else '0')
 " "$1" "$2" "$3" 2>/dev/null
 }
 
-# evidence_paths_superset <found-json-line> <expected-paths-json-list>: True
-# if every path in <expected-paths-json-list> appears as the "path" of some
-# entry in found["evidence"] (a list of {path, content_address} dicts, per
-# this test's own EvidencePath shape choice). Never raises.
+# evidence_paths_superset <found-json-line> <expected-paths-json-list>:
+# prints "1"/"0" (see field_eq's FIXED note immediately above -- the
+# identical bug affected this function too) if every path in
+# <expected-paths-json-list> appears as the "path" of some entry in
+# found["evidence"] (a list of {path, content_address} dicts, per this
+# test's own EvidencePath shape choice). Never raises.
 evidence_paths_superset() {
   python3 -c "
 import json, sys
 found = json.loads(sys.argv[1])
 expected_paths = json.loads(sys.argv[2])
 got_paths = {e.get('path') for e in (found.get('evidence') or []) if isinstance(e, dict)}
-print(all(p in got_paths for p in expected_paths))
+print('1' if all(p in got_paths for p in expected_paths) else '0')
 " "$1" "$2" 2>/dev/null
 }
 
