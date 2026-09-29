@@ -1,0 +1,9 @@
+{
+  "entry_kind": "worktree",
+  "entry_id": "a17eb3df7db2f148a",
+  "action": "retire",
+  "backup_hash": null,
+  "backup_artifact_path": null,
+  "expected_verdict": "REFUSED",
+  "reason": "golden-bad: a destructive (retire) proposal for a real, currently-live worktree with NO backup_hash at all must be refused per section 9.2 (no destructive op without a verified pre-op backup)."
+}

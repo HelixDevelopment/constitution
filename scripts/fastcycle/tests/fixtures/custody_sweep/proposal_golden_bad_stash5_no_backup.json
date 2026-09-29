@@ -1,0 +1,9 @@
+{
+  "entry_kind": "stash",
+  "entry_id": "stash@{5}",
+  "action": "land",
+  "backup_hash": null,
+  "backup_artifact_path": null,
+  "expected_verdict": "REFUSED",
+  "reason": "golden-bad: 'land' is a destructive-to-the-stash-list proposal (the stash entry is intended to be dropped once landed) with NO backup_hash and, per this test's own re-verified real-state audit (see the test's REAL-STATE section), NO real backup artifact for stash@{5} was actually found anywhere under qa-results/ despite the T129 task text's stale claim that one exists -- must be refused precisely because no verifiable backup exists to check the hash against."
+}

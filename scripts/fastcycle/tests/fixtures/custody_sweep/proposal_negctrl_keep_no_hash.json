@@ -1,0 +1,9 @@
+{
+  "entry_kind": "worktree",
+  "entry_id": "a67d4795f1c7c710a",
+  "action": "keep",
+  "backup_hash": null,
+  "backup_artifact_path": null,
+  "expected_verdict": "ALLOWED",
+  "reason": "negative control (section 11.4.201(1) false-positive guard): 'keep' is a NON-destructive proposal (leaves the entry exactly as-is) -- it must NEVER be refused merely for lacking a backup_hash, or the refusal rule would be a blanket refuse-everything rule proving nothing. This fixture exists to prove the golden-bad refusals above are refusing the DESTRUCTIVE-without-verified-backup condition specifically, not simply 'no backup_hash field present'."
+}

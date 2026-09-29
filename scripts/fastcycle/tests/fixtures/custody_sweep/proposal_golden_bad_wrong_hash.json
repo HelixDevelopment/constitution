@@ -1,0 +1,9 @@
+{
+  "entry_kind": "worktree",
+  "entry_id": "a17eb3df7db2f148a",
+  "action": "retire",
+  "backup_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "backup_artifact_path": "qa-results/agent_custody_20260926/backup_worktrees/a17eb3df7db2f148a/tracked.patch",
+  "expected_verdict": "REFUSED",
+  "reason": "golden-bad: backup_hash present but does NOT match the real backup_artifact_path's sha256 (a stale/tampered/wrong hash) -- must be refused. Proves the sweep verifies the hash against the real file rather than trusting the presence of a backup_hash field alone."
+}

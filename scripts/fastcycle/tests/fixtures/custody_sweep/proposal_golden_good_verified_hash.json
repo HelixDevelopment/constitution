@@ -1,0 +1,9 @@
+{
+  "entry_kind": "worktree",
+  "entry_id": "a17eb3df7db2f148a",
+  "action": "retire",
+  "backup_hash": "dd5532745336c950665243a773fae06fca2bcbda05d800925db35021740c147e",
+  "backup_artifact_path": "qa-results/agent_custody_20260926/backup_worktrees/a17eb3df7db2f148a/tracked.patch",
+  "expected_verdict": "ALLOWED",
+  "reason": "golden-good: backup_hash is the REAL sha256 of the REAL, already-existing backup_artifact_path (computed independently via `sha256sum` against the real file on disk, not copied from any sweep implementation) -- must be allowed. The hash MUST be re-verified against the live file at test time (never trusted from this fixture alone), so a future tamper of the real backup file is still caught even if this fixture is never edited."
+}
