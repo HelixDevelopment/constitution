@@ -84,6 +84,7 @@ import datetime
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -146,16 +147,26 @@ def has_closure_ever(history):
     return any(r.get("event_type") in CLOSURE_EVENTS for r in history)
 
 
+def _day(on_date):
+    """Window membership is decided on the calendar DAY (the first 10 chars,
+    YYYY-MM-DD). A raw string compare of a full-timestamp on_date
+    ("2026-03-31T18:00:00Z") against a bare "2026-03-31" window bound sorts the
+    timestamp AFTER the bound and silently drops the window's last day
+    (T103 review R1-M2; the live tracker only ever stores 10-char dates, but
+    --tracker-export accepts any export)."""
+    return (on_date or "")[:10]
+
+
 def closed_in_window(history, frm, to):
     return any(
-        r.get("event_type") in CLOSURE_EVENTS and frm <= r.get("on_date", "") <= to
+        r.get("event_type") in CLOSURE_EVENTS and frm <= _day(r.get("on_date")) <= to
         for r in history
     )
 
 
 def reopened_in_window(history, frm, to):
     return any(
-        r.get("event_type") == "Reopened" and frm <= r.get("on_date", "") <= to
+        r.get("event_type") == "Reopened" and frm <= _day(r.get("on_date")) <= to
         for r in history
     )
 
@@ -315,20 +326,24 @@ def derive_report(items, history, frm, to):
         overall["rate"] = round(total_reopened / total_closed, 6)
 
     # Honest empty state (CT-008 convention, shared verbatim with
-    # cycle_report.py) -- a window with no items/history at all, or one
-    # where NOTHING (no matched closure, no retroactive exclusion) touched
-    # any item for the window, is NO_DATA_IN_WINDOW, never a zero-valued
-    # by_type/overall statistic presented as a real measurement.
-    if not items or not history:
-        state = "NO_DATA_IN_WINDOW"
-    elif total_closed == 0 and not any(
+    # cycle_report.py): NO_DATA_IN_WINDOW iff NO item has ANY closure or
+    # Reopened event inside the window -- never a zero-valued by_type/overall
+    # statistic presented as a real measurement. Both directions are
+    # window-scoped (T103 review R1-I1): an in-window Reopened event IS data
+    # even when nothing closed in-window (the mismatched_items refusal of a
+    # never-closed reopened item must be REPORTED, not hidden behind "no
+    # data"), and a retroactive registration that happened long BEFORE the
+    # window is NOT in-window activity (it previously forced state OK on a
+    # genuinely empty window). Retroactive exclusions only ever arise from an
+    # in-window closure, so they are already covered by closed_in_window().
+    if any(
         closed_in_window(hist_by_item.get(it.get("atm_id"), []), frm, to)
-        or is_retroactive_registration(hist_by_item.get(it.get("atm_id"), []))
+        or reopened_in_window(hist_by_item.get(it.get("atm_id"), []), frm, to)
         for it in items
     ):
-        state = "NO_DATA_IN_WINDOW"
-    else:
         state = "OK"
+    else:
+        state = "NO_DATA_IN_WINDOW"
 
     excluded_ids_top = sorted(set(total_excluded))
     excluded_retroactive_top = [
@@ -386,11 +401,48 @@ def build_arg_parser():
     p.add_argument("--window-days", type=int, default=90)  # DEC-03 convention (cycle_report.py parity)
     p.add_argument("--tracker-export", required=True)
     p.add_argument("--out", required=True)
+    # US3 checkpoint gate (tasks.md "Checkpoint (US3 / Phase D gate)":
+    # "`escape_classify.py` and `reopen_rate.py` pass --determinism-check";
+    # T103 review R1-I10 -- T100 never added it). Identical pattern to the
+    # sibling escape_classify.py / cycle_report.py: re-invoke this SAME
+    # process twice as subprocesses with their own --out and compare
+    # body_hash (run_meta is excluded from the hash by construction).
+    p.add_argument("--determinism-check", action="store_true")
     return p
+
+
+def run_determinism_check(argv, timeout_s=120):
+    inner = [a for a in argv if a != "--determinism-check"]
+    runs = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for i in (1, 2):
+            out_i = os.path.join(tmp, "run%d.json" % i)
+            # argparse `--out` is last-wins, so ours overrides the caller's.
+            cmd = [sys.executable, os.path.abspath(__file__)] + inner + ["--out", out_i]
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
+            except subprocess.TimeoutExpired:
+                print("reopen_rate: determinism-check run %d timed out" % i, file=sys.stderr)
+                return 4
+            if proc.returncode != 0 or not os.path.exists(out_i):
+                sys.stderr.write(proc.stderr)
+                print("reopen_rate: determinism-check run %d rc=%d, no honest verdict"
+                      % (i, proc.returncode), file=sys.stderr)
+                return 4
+            with open(out_i, encoding="utf-8") as fh:
+                runs.append(json.load(fh).get("body_hash"))
+    if runs[0] is None or runs[0] != runs[1]:
+        print("reopen_rate: nondeterministic: run1=%s run2=%s" % (runs[0], runs[1]), file=sys.stderr)
+        return 1
+    print("reopen_rate: deterministic (body_hash=%s)" % runs[0])
+    return 0
 
 
 def main(argv):
     args = build_arg_parser().parse_args(argv)
+
+    if args.determinism_check:
+        return run_determinism_check(argv)
 
     if not require_as_of(args.as_of):
         return 2

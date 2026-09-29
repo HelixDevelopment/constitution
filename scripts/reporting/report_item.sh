@@ -376,8 +376,15 @@ ITEM_STATUS_LABEL="Queued"
 
 if [ "$TYPE" = "Bug" ]; then
 	IM_CFG="$TMP_EVID/intake_config.yaml"
-	IM_REPORT="$TMP_EVID/intake_report.json"
-	IM_LINK="$TMP_EVID/intake_link.json"
+	# T103 review R1-I9: the report + decision (and the reopen-evidence file
+	# intake-match writes NEXT TO --out) go under the PERSISTENT evidence dir,
+	# never $TMP_EVID — a SAME_DEFECT reopen records that evidence file's path
+	# in its Reopened item_history row, and $TMP_EVID is deleted when this
+	# script exits (§11.4.7: a reopen whose evidence vanishes is a
+	# demotion-without-evidence).
+	IM_DIR="$EVIDENCE_DIR/intake_match_${RUN_TS}_$$"
+	IM_REPORT="$IM_DIR/intake_report.json"
+	IM_LINK="$IM_DIR/intake_link.json"
 	printf 'db: %s\n' "$DB" > "$IM_CFG"
 	# Thread the SAME configured id_prefix a direct `add --prefix` call below
 	# would use, so an item minted THROUGH intake-match never silently
@@ -385,7 +392,10 @@ if [ "$TYPE" = "Bug" ]; then
 	if [ -n "${CFG_ID_PREFIX:-}" ]; then
 		printf 'id_prefix: %s\n' "$CFG_ID_PREFIX" >> "$IM_CFG"
 	fi
-	if python3 - "$TITLE" "$SCOPE" "$REPORT" > "$IM_REPORT" <<'PYEOF'
+	# An unwritable evidence dir skips the matcher (never aborts the report —
+	# `set -e` would otherwise kill it here); the INTAKE-MATCH UNAVAILABLE
+	# notice below then records that dedup was skipped.
+	if mkdir -p "$IM_DIR" 2>/dev/null && python3 - "$TITLE" "$SCOPE" "$REPORT" > "$IM_REPORT" <<'PYEOF'
 import json, sys
 title, scope, report = sys.argv[1:4]
 print(json.dumps({"title": title, "scope": scope, "description": report,
@@ -417,6 +427,16 @@ case "$IM_VERDICT" in
 		[ -n "$ITEM_ID" ] || IM_VERDICT=""
 		;;
 esac
+
+if [ "$TYPE" = "Bug" ] && { [ -z "$IM_VERDICT" ] || [ -z "${ITEM_ID:-}" ]; }; then
+	# T103 review R1-I8: the fallback below is honest (a report is never
+	# dropped) but it must never be SILENT — a Bug minted here skipped
+	# §11.4.214 recurrence detection, so say so, with the matcher's own output,
+	# before CREATE_LOG is overwritten by the fallback `add`.
+	# stderr, not log(): must stay visible even in --json mode (stdout = pure JSON).
+	printf '[report_item] INTAKE-MATCH UNAVAILABLE: §11.4.214 recurrence dedup was SKIPPED for this Bug report — falling back to a direct mint (binary: %s). Matcher output:\n' "$WI" >&2
+	sed 's/^/    /' "$CREATE_LOG" >&2 2>/dev/null || true
+fi
 
 if [ -z "$IM_VERDICT" ] || [ -z "${ITEM_ID:-}" ]; then
 	set +e

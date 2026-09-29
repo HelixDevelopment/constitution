@@ -335,13 +335,12 @@ func hasTargetFingerprint(fields map[string]interface{}) bool {
 		if !ok || v == nil {
 			continue
 		}
-		if s, ok := v.(string); ok {
-			if strings.TrimSpace(s) != "" {
-				return true
-			}
-			continue
+		// Only a non-empty STRING is a fingerprint (T103 review R1-M1): a
+		// bool/number/object/array value is not a fingerprint read from the
+		// target, and previously ANY non-string value (even `false`) counted.
+		if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+			return true
 		}
-		return true
 	}
 	return false
 }
@@ -439,7 +438,19 @@ func checkSiblingSearch(itemType string, attempt closureAttempt, cfg closureChec
 
 	out, runErr := exec.Command(scriptPath, artefactPath).CombinedOutput()
 	if runErr == nil {
-		// sibling_search_check.sh exit 0 == the artefact is VALID (ACCEPTED).
+		// sibling_search_check.sh exit 0 == the artefact is SCHEMA-valid.
+		// The schema validator has no tracker access, so the one check only
+		// this seam can make is done here (T103 review R1-I6): every
+		// "tracked-as <ItemId>" disposition must name an item that genuinely
+		// EXISTS in the tracker — a sibling "tracked" as a non-existent id is
+		// a lost requirement (§11.4.197), not a tracked one. This is a
+		// cross-reference, not a second copy of the schema rules (§11.4.251).
+		if missing, err := untrackedSiblingIDs(attempt.SiblingSearch, cfg.dbPath); err != nil {
+			return fmt.Sprintf("REFUSED(missing: sibling-instance search; tracked-as ids could not be verified: %v)", err), true
+		} else if len(missing) > 0 {
+			return fmt.Sprintf("REFUSED(missing: sibling-instance search; tracked-as id(s) not found in the tracker: %s)",
+				strings.Join(missing, ", ")), true
+		}
 		return "", false
 	}
 	// Any non-zero exit (1 FINDING, 2 usage error, 4 BLIND — see
@@ -582,8 +593,20 @@ func currentArtifactFingerprint(startDirs ...string) string {
 // data-model.md beyond the field list — this file's own house precedent,
 // matching fastcycle_sibling_search_test.go's "Assumed CLI contract" note):
 // `<dir>/<guardID>.json`: `{"guard_id": "...", "green_fingerprints": ["<hash>", ...]}`.
+//
+// T103 review R1-I2 hardening: (a) guardID comes from the PRODUCER-authored
+// ClosureAttempt, so it must be a single plain file-name component — any
+// path separator, "." / ".." or NUL is refused, otherwise "../x" resolved a
+// producer-controlled verdict file OUTSIDE the configured store (§11.4.240:
+// the producer can never write its own verdict); (b) the "UNKNOWN" sentinel
+// (an unresolvable fingerprint) never matches, even if a store entry
+// literally contains it — the previous "a store can never match UNKNOWN"
+// comment was an unproven assumption (§11.4.194(2)).
 func guardHasVerdictForFingerprint(dir, guardID, fingerprint string) bool {
-	if dir == "" || guardID == "" {
+	if dir == "" || guardID == "" || fingerprint == "" || fingerprint == "UNKNOWN" {
+		return false
+	}
+	if !plainGuardIDComponent(guardID) {
 		return false
 	}
 	p := filepath.Join(resolveInvocationRelative(dir), guardID+".json")
@@ -603,4 +626,57 @@ func guardHasVerdictForFingerprint(dir, guardID, fingerprint string) bool {
 		}
 	}
 	return false
+}
+
+// plainGuardIDComponent reports whether guardID is safe to use as a single
+// file-name component inside the verdict store (T103 review R1-I2).
+func plainGuardIDComponent(guardID string) bool {
+	if guardID == "." || guardID == ".." || strings.ContainsAny(guardID, "/\\\x00") {
+		return false
+	}
+	return filepath.Base(guardID) == guardID
+}
+
+// untrackedSiblingIDs returns every "tracked-as <ItemId>" disposition id in
+// the raw SiblingSearchArtefact that does NOT exist in the tracker at dbPath
+// (any location). Called only after sibling_search_check.sh accepted the
+// artefact, so the JSON is known to be a well-formed object. An unreadable
+// tracker is an error (the caller refuses — §11.4.201 conservative-safe).
+func untrackedSiblingIDs(raw json.RawMessage, dbPath string) ([]string, error) {
+	var doc struct {
+		Instances []struct {
+			Disposition string `json:"disposition"`
+		} `json:"instances_found"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse sibling_search: %w", err)
+	}
+	var ids []string
+	for _, in := range doc.Instances {
+		if rest, ok := strings.CutPrefix(in.Disposition, "tracked-as "); ok {
+			ids = append(ids, strings.TrimSpace(rest))
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	if strings.TrimSpace(dbPath) == "" {
+		return nil, fmt.Errorf("no tracker db configured")
+	}
+	db, err := openDB(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	var missing []string
+	for _, id := range ids {
+		var n int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM items WHERE atm_id=?`, id).Scan(&n); err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			missing = append(missing, id)
+		}
+	}
+	return missing, nil
 }

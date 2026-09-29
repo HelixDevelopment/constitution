@@ -54,6 +54,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -539,14 +541,25 @@ func writeIntakeLinkJSON(outPath string, link recurrenceLinkOut) error {
 // the caller already owns write access to) rather than a fresh mktemp, so the
 // caller's own evidence-collection sweep finds it next to the decision it
 // backs.
+//
+// T103 review R1-I3: the file name is UNIQUE per reopen (head id + a
+// kernel-guaranteed-unique CreateTemp suffix, O_EXCL). It was previously a
+// FIXED name per directory, so a second SAME_DEFECT reopen overwrote the
+// first reopen's evidence and the first Reopened row's evidence_path silently
+// described a different item (§11.4.7 demotion-evidence audit-trail loss).
 func writeIntakeMatchEvidence(outPath, headID, reportPath string, score int) (string, error) {
-	dir := outPath
-	if idx := strings.LastIndexByte(outPath, '/'); idx >= 0 {
-		dir = outPath[:idx]
-	} else {
-		dir = "."
+	dir := filepath.Dir(outPath)
+	safeHead := strings.Map(func(r rune) rune {
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			return r
+		}
+		return '_'
+	}, headID)
+	f, err := os.CreateTemp(dir, "intake_match_reopen_evidence_"+safeHead+"_*.txt")
+	if err != nil {
+		return "", err
 	}
-	evidencePath := dir + "/intake_match_reopen_evidence.txt"
+	evidencePath := f.Name()
 	body := fmt.Sprintf(
 		"§11.4.214 intake-dedup SAME_DEFECT recurrence — reopening %s\n"+
 			"report:  %s\n"+
@@ -555,7 +568,16 @@ func writeIntakeMatchEvidence(outPath, headID, reportPath string, score int) (st
 			"when:    %s\n",
 		headID, reportPath, intakeMatchBasisSubjectScope, score, intakeSameDefectThreshold,
 		time.Now().UTC().Format(time.RFC3339))
-	if err := os.WriteFile(evidencePath, []byte(body), 0o644); err != nil {
+	if _, err := f.WriteString(body); err != nil {
+		f.Close()
+		os.Remove(evidencePath)
+		return "", err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(evidencePath)
+		return "", err
+	}
+	if err := os.Chmod(evidencePath, 0o644); err != nil {
 		return "", err
 	}
 	return evidencePath, nil
@@ -600,20 +622,44 @@ func mintIntakeReport(db *sql.DB, dbPath, idPrefix string, report intakeMatchRep
 	if code := addCmd(mintArgs); code != exitOK {
 		return "", fmt.Errorf("add exited %d", code)
 	}
-	afterIDs, err := allDistinctIDs(db)
+	return identifyMintedID(db, beforeIDs, report.Title)
+}
+
+// identifyMintedID returns the ONE id that appeared since the `before`
+// snapshot whose title equals title. T103 review R1-I4: this previously
+// returned ANY id in the after-minus-before set via Go map iteration (random
+// order), so a concurrent writer's item (another intake path running at the
+// same time — exactly the gate-failure + manual-qa concurrency this seam
+// exists for) could be reported as ours; the old "unreached in practice"
+// comment was an unproven single-writer assumption (§11.4.194(2)). Zero or
+// more-than-one candidates is an honest error, never a guess (§11.4.6).
+func identifyMintedID(db *sql.DB, before map[string]bool, title string) (string, error) {
+	after, err := allDistinctIDs(db)
 	if err != nil {
 		return "", err
 	}
-	for id := range afterIDs {
-		if !beforeIDs[id] {
-			return id, nil
+	var matches []string
+	for id := range after {
+		if before[id] {
+			continue
+		}
+		var n int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM items WHERE atm_id=? AND title=?`, id, title).Scan(&n); err != nil {
+			return "", err
+		}
+		if n > 0 {
+			matches = append(matches, id)
 		}
 	}
-	// addCmd reported success but the newly-minted id could not be
-	// identified by set difference -- report the failure honestly rather
-	// than guess an id (§11.4.6). Unreached in practice: addCmd always
-	// inserts exactly one new atm_id on exitOK.
-	return "", fmt.Errorf("add reported success but no new id was observed")
+	switch len(matches) {
+	case 1:
+		return matches[0], nil
+	case 0:
+		return "", fmt.Errorf("add reported success but no new id titled %q was observed", title)
+	default:
+		sort.Strings(matches)
+		return "", fmt.Errorf("add reported success but %d new ids carry the title %q (%s) — the minted id is ambiguous (concurrent writer); refusing to guess", len(matches), title, strings.Join(matches, ", "))
+	}
 }
 
 // allDistinctIDs returns the set of every distinct atm_id currently in db —

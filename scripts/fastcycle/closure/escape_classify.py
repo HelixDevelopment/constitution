@@ -325,7 +325,8 @@ def validate_entry(entry, root):
                 "and hash-matches for any non-E9 entry" % item_id)
 
     for ev in evidence:
-        if not isinstance(ev, dict) or "path" not in ev or "content_address" not in ev:
+        if (not isinstance(ev, dict) or not isinstance(ev.get("path"), str)
+                or not isinstance(ev.get("content_address"), str)):
             problems.append("%s: evidence entry %r is not a {path, content_address} EvidencePath"
                              % (item_id, ev))
             continue
@@ -508,6 +509,20 @@ def main(argv):
     # missing or extra entries => exit 1 listing them.
     entries_by_item = {}
     dup_input_ids = []
+    # T103 review R1-M3: malformed analyst input is a NAMED refusal (exit 1),
+    # never an uncaught traceback -- a Python crash also exits 1, the SAME
+    # code as EXIT_FINDING, so it was indistinguishable from a real refusal.
+    malformed = []
+    for idx, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            malformed.append("entries[%d] is not a mapping (got %s)" % (idx, type(entry).__name__))
+        elif not isinstance(entry.get("item_id"), str) or not entry.get("item_id").strip():
+            malformed.append("entries[%d] item_id %r is not a non-empty string" % (idx, entry.get("item_id")))
+    if malformed:
+        print("escape_classify: refused -- %d finding(s):" % len(malformed), file=sys.stderr)
+        for m in malformed:
+            print("  - %s" % m, file=sys.stderr)
+        return EXIT_FINDING
     for entry in entries:
         eid = entry.get("item_id")
         if eid in entries_by_item:
