@@ -6,15 +6,30 @@ contracts/agent-registry-and-handoff.md clauses HO-001 (write) and HO-002
 
 TDD-FIX target: this file turns T125's RED baseline
 (`constitution/scripts/fastcycle/tests/test_handoff_red.sh`, fixtures under
-`constitution/scripts/fastcycle/tests/fixtures/handoff/`) GREEN. It does NOT
-implement `resume-check`/HO-003 (re-hashing `external_deps`, invalidating
-dependent `verified` facts, the five "Safe to Resume?" failure modes) --
-that is T126/T-B05's own, separate, later task against its own RED test
-(`test_resume_revalidate_red.sh`), never duplicated or pre-empted here
-(fixtures/handoff/README.md's own "What this RED test does NOT cover"
-section, and T125's own header, both say the same). Calling
-`handoff.py resume-check ...` today is therefore an ordinary argparse usage
-error (exit 2, "invalid choice") -- an honest gap, not a fake stub.
+`constitution/scripts/fastcycle/tests/fixtures/handoff/`) GREEN with `write`/
+`validate`/`verify` (T133), and T126's RED baseline
+(`constitution/scripts/fastcycle/tests/test_resume_revalidate_red.sh`,
+fixtures under
+`constitution/scripts/fastcycle/tests/fixtures/resume_revalidate/`) GREEN
+with `resume`/`resume-check` (T134, THIS task, added in the same file after
+T133 per this file's own next task line).
+
+`resume-check` (HO-003) implements HO-003's own one stated rule -- "re-hashes
+every `external_dep`; mismatches list the `verified` facts that must be
+re-verified ... and the `effects_performed` that must not be repeated" --
+PLUS T126's own, separate, five-class extension of the "Safe to Resume?"
+framework (research.md DEC-34, arXiv 2608.29381, which "gives no
+prescriptive fix, so the revalidation design [is] original", per T126's own
+header): inconsistent internal state, stale external dependency,
+nondeterministic replay, unrecorded external effect, inconsistent
+transition. T126's RED test's own independent `derive_resume_check()` oracle
+(never imported by, shared with, or otherwise coupled to this file --
+Producer != Verifier, section 11.4.240) is the interim contract this file's
+`cmd_resume_check` satisfies; every wire-format decision T126's own header
+marks "UNCONFIRMED by the contract itself -- DEFINED here, binding-if-adopted
+on T134" is adopted here VERBATIM (never re-decided), verified byte-exact
+against every checked-in fixture BEFORE this file's own author wrote a
+single line of `cmd_resume_check` (see "resume-check wire format" below):
 
 Invocation (contract "Components" section names one generic line for all
 three subcommands, `handoff.py write|verify|resume-check --handoff <path>
@@ -34,6 +49,9 @@ fixtures/handoff/README.md's own "UNCONFIRMED... DEFINED here" sections):
 
     handoff.py validate --handoff <path> --out <result.json>
     handoff.py verify    --handoff <path> --out <result.json>   # HO-002's own contract wording; identical to `validate` (see HONEST NOTE below)
+
+    handoff.py resume-check --handoff <path> --out <result.json>   # contract's own Components-line wording (HO-003)
+    handoff.py resume       --handoff <path> --out <result.json>   # T134's own task-line wording; identical to `resume-check` (see HONEST NOTE below)
 
 `--handoff <path>` means the handoff RECORD ITSELF in every subcommand,
 consistent across `write` (where it is the OUTPUT path this tool writes the
@@ -56,6 +74,16 @@ either the task-line wording or the contract-clause wording gets the exact
 same, real behaviour; neither name silently falls back to the other via a
 lookup table (a genuinely unknown subcommand is still argparse's ordinary
 usage error, exit 2).
+
+SAME NAMING-AMBIGUITY PRECEDENT applied to T134 (T126's own RED test header,
+verbatim, flags this identically): T134's own task line calls the subcommand
+`resume`; the contract's Components section and HO-003's own clause text
+("Before the resumed agent acts, `resume-check` re-hashes every
+`external_dep`...") name it `resume-check`. Both are wired here as two
+argparse subparsers dispatching to the IDENTICAL handler function
+(`cmd_resume_check`) -- exactly the same two-subparsers-one-handler pattern
+T133 already established for `validate`/`verify`, never a lookup-table
+synonym, never a silent fallback.
 
 Wire format (UNCONFIRMED by data-model.md §9.2/the contract -- DEFINED in
 `fixtures/handoff/README.md`, binding-if-adopted, read it FIRST): the
@@ -124,30 +152,128 @@ T108/T117):
   fixture-only convention -- "a phase-boundary write is, by construction,
   the moment the event it describes occurred".
 
+resume-check wire format (UNCONFIRMED by data-model.md §9.2/the contract --
+DEFINED in T126's own RED test header
+(`test_resume_revalidate_red.sh`, "Wire format" section), binding-if-adopted,
+read it FIRST; every value below was independently re-derived from the
+checked-in fixtures under `fixtures/resume_revalidate/` and byte-verified
+against them BEFORE this file's `cmd_resume_check` was written, matching
+every `expected_verdict.json` exactly):
+- **Result shape**: `{handoff_id, safe_to_resume_without_reverification,
+  unsafe_reasons: [{class, detail}], facts_needing_reverification,
+  effects_not_to_repeat}`, written as the `--out` report body (schema
+  `handoff-resume-check/v1`, `run_meta` included -- the same report-doc
+  convention as `write`/`validate`); `safe_to_resume_without_reverification`
+  is `true` iff `unsafe_reasons` is empty.
+- **Five failure classes** (research.md DEC-34's own citation, "Safe to
+  Resume?" arXiv 2608.29381; the paper gives no prescriptive fix, so this
+  file's checks are this project's own original design, adopted verbatim
+  from T126's own RED-test header + its independently-DERIVED oracle, never
+  imported from it -- see Producer != Verifier below):
+    1. `inconsistent-internal-state` -- a `verified` entry's own
+       `established_at` is causally AFTER the handoff's own `written_at`
+       (impossible if the record genuinely reflects the agent's state at the
+       instant it was written), OR the recorded `phase` is terminal
+       (`"DONE"`) while `pending` is non-empty.
+    2. `stale-external-dependency` -- for every `external_deps` entry whose
+       `kind` is `"git-tree"` (the ONLY kind any checked-in fixture
+       exercises; `git-ref`/`tracker-row`/`device`/`file` re-hashing is an
+       honest, undecided gap this file does not attempt), re-hash
+       `os.path.join(dirname(--handoff), "tree_current", <locator>)` via the
+       data-model.md §0 `MerkleRoot` convention (sha256 over the sorted list
+       of `(relative-path, ContentAddress)` pairs of every file under that
+       directory) and compare against the recorded `content_address`; a
+       mismatch also adds every id in that dep's `affects_verified` to
+       `facts_needing_reverification`. (`tree_current/<locator>`, resolved
+       relative to `dirname(--handoff)` -- the SAME base-dir convention
+       `partial_artefacts` already uses -- is the fixture layout T126's own
+       RED test ships; a real production convention for locating a live git
+       tree, e.g. shelling out against an actual repo path, is future work
+       this task does not attempt. Verified byte-exact against both the
+       golden-bad and negative-control fixtures before writing this file's
+       `_merkle_over_dir`: recomputing over
+       `rr_stale_external_dependency/tree_current/dep_a` yields
+       `sha256:4b91...c87602`, matching that fixture's own
+       `expected_verdict.json` `live=` value character-for-character; over
+       `rr_negctrl_all_unchanged/tree_current/dep_a` it yields
+       `sha256:8c6c...dce66`, matching that fixture's own recorded
+       `content_address` exactly, so the negative control genuinely reports
+       zero mismatches rather than a false positive.)
+    3. `nondeterministic-replay` -- a `pending` entry's `step`+`precondition`
+       text names a nondeterministic-source keyword (`llm-generate`,
+       `llm-generated`, `random`, `nondeterministic`, `non-deterministic`;
+       T126's own closed, interim keyword set, adopted verbatim).
+    4. `unrecorded-external-effect` -- an OPTIONAL sibling
+       `ground_truth_effects.json`, resolved relative to `dirname(--handoff)`
+       (the SAME base-dir convention as `tree_current/`), stands in for an
+       independently-observable ground-truth source (a real
+       remote-tracking ref / reflog / marker file a production
+       implementation would consult -- Producer != oracle, section
+       11.4.245/11.4.240: this ground truth is never derived from the
+       handoff record itself); every effect id in it absent from the
+       handoff's own `effects_performed` is flagged. Absence of the sibling
+       file is an honest skip of this one check (section 11.4.3), never a
+       fabricated finding -- the other four checks still run.
+    5. `inconsistent-transition` -- using T126's own interim canonical phase
+       order `PLAN -> IMPLEMENT -> VERIFY -> DEPLOY -> DONE` (adopted
+       verbatim, matching HO-001's phase-boundary write cadence) and reading
+       an OPTIONAL `phase` tag on individual `verified` entries (NOT part of
+       the canonical `EvidenceReference` schema in data-model.md §8 -- a
+       genuinely necessary extension field this file accepts when present
+       and silently skips for `verified` entries that lack it, e.g. the bare
+       id strings `cmd_write` itself produces), the recorded `phase` jumping
+       more than one step past the LATEST phase any `verified` entry
+       actually confirmed is flagged, naming every skipped phase.
+- **`effects_not_to_repeat`** is always exactly the handoff's own
+  `effects_performed` ids (never the ground-truth source's) -- a resumer is
+  told what NOT to repeat from what the record itself already claims
+  happened, independent of whether the ground-truth cross-check above found
+  it complete.
+- Self-integrity (`handoff_id`/`body_hash` recomputation) is deliberately NOT
+  re-checked here -- that is `validate`/`verify`'s (HO-002's) own job, and
+  every checked-in `resume_revalidate` fixture's `handoff.json` in fact
+  carries no `body_hash` field at all (by design, per T126's own fixtures),
+  so re-enforcing it here would spuriously fail every fixture.
+
 Exit codes (contract "Exit codes" line, verbatim: "Handoff: 0 ok, 1 hash
 mismatch / missing field"): `write` 0 ok / 1 a declared `--partial-artefacts`
 path does not exist ("missing field") / 2 usage (bad/unreadable args,
 malformed `--*-json`). `validate`/`verify` 0 VALID / 1 INVALID (self-integrity
 mismatch or a partial-artefact hash mismatch/missing file -- HO-002's "exits
 1 on any difference") / 2 usage (`--handoff` missing/unreadable/not a JSON
-object). Neither subcommand here can produce a BLIND (4) verdict -- both
-operate entirely on locally-supplied, already-resolved inputs, unlike
-`resume-check`'s (T126's) re-hash of external state which genuinely can be
-unreachable.
+object). `resume`/`resume-check` 0 safe (`safe_to_resume_without_
+reverification=true`) / 1 unsafe (one or more `unsafe_reasons`) / 2 usage
+(`--handoff` missing/unreadable/not a JSON object) -- matching T126's own RED
+test's `want_rc` mapping (safe->0, unsafe->1) exactly. No subcommand here
+produces a BLIND (4) verdict -- every input (`tree_current/<locator>`,
+`ground_truth_effects.json`, `partial_artefacts`) is either locally present
+or its honest absence is itself a defined outcome (a mismatch, or a skipped
+check), never an unresolvable "could not look".
 
 Reuse, not reinvention (section 11.4.227): `canon`/`body_hash_of` are
 imported from the already-landed sibling `lib/fc_common.py`, the identical
 import-by-path pattern every other fastcycle tool in this tree uses
 (`context/evidence_ref.py`, `context/anchor_citations.py`, and others per
-that file's own module docstring); never reimplemented here.
+that file's own module docstring); never reimplemented here. `_merkle_over_dir`
+reuses the ALREADY-IMPORTED `canon()` for its own canonicalization (the
+data-model.md §0 `MerkleRoot` convention `context/evidence_ref.py`'s own
+`merkle_root()` and T126's RED test's own `merkle_over_dir()` each
+independently apply) but is its OWN small, independently-written function in
+this file -- matching this file's OWN already-established convention for
+`content_address()` (a small primitive independently defined in this file,
+in `context/evidence_ref.py`, AND in T126's own RED-test oracle, rather than
+cross-imported between `context/` and `orchestration/`), never imported from
+`context/evidence_ref.py` nor from T126's own test oracle.
 
 Producer != Verifier (section 11.4.240): this file is T133's implementation
 of the SEPARATE, EARLIER T125 RED test's own independent
-`derive_validate()` oracle (`test_handoff_red.sh`); that oracle is never
-imported by, shared with, nor coupled to this file, and this file never
-imports from that test -- the two are authored independently against the
-same contract/README text and are expected to agree because both correctly
-implement it, never because one delegates to the other.
+`derive_validate()` oracle (`test_handoff_red.sh`), and this task's (T134's)
+implementation of the SEPARATE, EARLIER T126 RED test's own independent
+`derive_resume_check()` oracle (`test_resume_revalidate_red.sh`); neither
+oracle is imported by, shared with, nor coupled to this file, and this file
+never imports from either test -- the two are authored independently against
+the same contract/README/fixture text and are expected to agree because both
+correctly implement it, never because one delegates to the other.
 
 Stdlib only. Python 3.
 """
@@ -175,10 +301,22 @@ canon = fc_common.canon
 SCHEMA_HANDOFF = "handoff/v1"
 SCHEMA_WRITE = "handoff-write/v1"
 SCHEMA_VALIDATE = "handoff-validate/v1"
+SCHEMA_RESUME_CHECK = "handoff-resume-check/v1"
 
 EXIT_OK = 0
-EXIT_FINDING = 1   # write: a declared partial-artefact path is missing; validate/verify: INVALID
+EXIT_FINDING = 1   # write: a declared partial-artefact path is missing; validate/verify: INVALID; resume/resume-check: UNSAFE
 EXIT_USAGE = 2
+
+# T126's own interim canonical phase order (UNCONFIRMED by the contract,
+# DEFINED in test_resume_revalidate_red.sh's own header, binding-if-adopted,
+# adopted here VERBATIM -- see module docstring "resume-check wire format").
+PHASE_ORDER = ["PLAN", "IMPLEMENT", "VERIFY", "DEPLOY", "DONE"]
+TERMINAL_PHASES = {"DONE"}
+# T126's own closed keyword set for detecting a nondeterministic pending step
+# (interim, DEFINED there; a future design might instead carry an explicit
+# `deterministic: bool` field on each pending entry -- either design must
+# catch the same fixture; adopted verbatim here, never re-decided).
+ND_KEYWORDS = ("llm-generate", "llm-generated", "random", "nondeterministic", "non-deterministic")
 
 
 # ---------------------------------------------------------------------------
@@ -379,6 +517,181 @@ def cmd_validate(a):
 
 
 # ---------------------------------------------------------------------------
+# resume / resume-check (HO-003 + T126's own five-class "Safe to Resume?"
+# extension). Both subparsers dispatch here -- see module docstring HONEST
+# NOTE (mirrors the write/validate `validate`/`verify` naming-ambiguity
+# precedent T133 already established for this same file).
+#
+# `_merkle_over_dir` is this file's OWN small, independently-written
+# reimplementation of the data-model.md §0 `MerkleRoot` convention
+# (Reuse, not reinvention, section 11.4.227 -- see module docstring): it
+# reuses the ALREADY-IMPORTED `canon()` for its own canonicalization step,
+# the same convention `context/evidence_ref.py`'s own `merkle_root()` and
+# T126's own RED-test oracle each independently apply, but is never imported
+# from either of those two files (Producer != Verifier, section 11.4.240,
+# for the test oracle; this file's own already-established per-file-primitive
+# convention -- see `content_address()` above -- for `evidence_ref.py`).
+# ---------------------------------------------------------------------------
+def _merkle_over_dir(root):
+    """sha256: over the sorted list of (relative-path, ContentAddress) pairs
+    of every file under `root` (data-model.md §0 MerkleRoot; "pairs sorted
+    bytewise by path; empty set is a distinct, valid root"). A non-existent
+    `root` yields the empty-set root -- an honest, real ContentAddress that
+    will (correctly) mismatch any non-empty recorded one, never a crash."""
+    pairs = []
+    if os.path.isdir(root):
+        for dirpath, _dirnames, filenames in os.walk(root):
+            for fn in filenames:
+                full = os.path.join(dirpath, fn)
+                rel = os.path.relpath(full, root)
+                pairs.append((rel.replace(os.sep, "/"), content_address(full)))
+    pairs.sort(key=lambda p: p[0].encode("utf-8"))
+    body = [[p, c] for p, c in pairs]
+    return "sha256:" + hashlib.sha256(canon(body).encode("utf-8")).hexdigest()
+
+
+def cmd_resume_check(a):
+    if not os.path.isfile(a.handoff):
+        print("handoff: --handoff not found: %s" % a.handoff, file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        with open(a.handoff, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError) as exc:
+        print("handoff: cannot read --handoff: %s" % exc, file=sys.stderr)
+        return EXIT_USAGE
+    if not isinstance(doc, dict):
+        print("handoff: --handoff is not a JSON object", file=sys.stderr)
+        return EXIT_USAGE
+
+    base_dir = os.path.dirname(os.path.abspath(a.handoff)) or "."
+    reasons = []
+    reverify = set()
+
+    # (1) INCONSISTENT INTERNAL STATE: a verified fact's own established_at
+    # is causally AFTER the handoff's own written_at (the record could not
+    # have known about a fact from its own future), OR the phase is declared
+    # terminal while pending work remains outstanding.
+    written_at = doc.get("written_at")
+    for v in (doc.get("verified") or []):
+        if not isinstance(v, dict):
+            continue
+        established_at = v.get("established_at")
+        if established_at is not None and written_at is not None and established_at > written_at:
+            reasons.append({
+                "class": "inconsistent-internal-state",
+                "detail": ("verified fact %s established_at %s is AFTER the handoff's "
+                           "own written_at %s (causally impossible -- the record cannot "
+                           "be trusted)") % (v.get("ref_id"), established_at, written_at),
+            })
+    if doc.get("phase") in TERMINAL_PHASES and doc.get("pending"):
+        reasons.append({
+            "class": "inconsistent-internal-state",
+            "detail": "phase %s is terminal but pending is non-empty" % doc.get("phase"),
+        })
+
+    # (2) STALE EXTERNAL DEPENDENCY: an external_dep's live content_address
+    # (recomputed over tree_current/<locator>, resolved relative to
+    # dirname(--handoff) -- see module docstring "resume-check wire format")
+    # no longer matches the recorded one. Only kind=="git-tree" is
+    # re-hashable here (the only kind any checked-in fixture exercises; an
+    # honest, documented scope, not a silent gap).
+    for dep in (doc.get("external_deps") or []):
+        if not isinstance(dep, dict) or dep.get("kind") != "git-tree":
+            continue
+        current_dir = os.path.join(base_dir, "tree_current", dep.get("locator") or "")
+        live_hash = _merkle_over_dir(current_dir)
+        recorded = dep.get("content_address")
+        if live_hash != recorded:
+            reasons.append({
+                "class": "stale-external-dependency",
+                "detail": "external dep %s content_address changed: recorded=%s live=%s" % (
+                    dep.get("locator"), recorded, live_hash),
+            })
+            for ref_id in (dep.get("affects_verified") or []):
+                reverify.add(ref_id)
+
+    # (3) NONDETERMINISTIC REPLAY: a pending step names a source that cannot
+    # be blindly re-executed and trusted to reproduce the same outcome.
+    for step in (doc.get("pending") or []):
+        if not isinstance(step, dict):
+            continue
+        text = ((step.get("step") or "") + " " + (step.get("precondition") or "")).lower()
+        if any(k in text for k in ND_KEYWORDS):
+            reasons.append({
+                "class": "nondeterministic-replay",
+                "detail": ("pending step %r depends on a nondeterministic source and "
+                           "must not be blindly replayed") % step.get("step"),
+            })
+
+    # (4) UNRECORDED EXTERNAL EFFECT: a real effect happened (per an
+    # OPTIONAL, independently-observable ground_truth_effects.json sibling,
+    # resolved relative to dirname(--handoff) -- never derived from the
+    # handoff record itself, Producer != oracle, section 11.4.245/11.4.240)
+    # but is absent from effects_performed. Absence of the sibling file is
+    # an honest skip of this one check (section 11.4.3), never a fabricated
+    # finding -- the other four checks still run.
+    gt_path = os.path.join(base_dir, "ground_truth_effects.json")
+    if os.path.isfile(gt_path):
+        try:
+            with open(gt_path, encoding="utf-8") as fh:
+                ground_truth = json.load(fh)
+        except (OSError, ValueError):
+            ground_truth = []
+        recorded_ids = {e.get("id") for e in (doc.get("effects_performed") or []) if isinstance(e, dict)}
+        for e in (ground_truth or []):
+            if not isinstance(e, dict):
+                continue
+            if e.get("id") not in recorded_ids:
+                reasons.append({
+                    "class": "unrecorded-external-effect",
+                    "detail": ("effect %s:%s genuinely occurred but is absent from "
+                               "effects_performed -- resume must not risk repeating it") % (
+                                   e.get("kind"), e.get("id")),
+                })
+
+    # (5) INCONSISTENT TRANSITION: the recorded current phase is not a valid
+    # next state given the phase the agent's own verified evidence last
+    # actually confirmed it reached (skips more than one phase step with
+    # zero verified evidence for the skipped phases).
+    verified_phases = [v.get("phase") for v in (doc.get("verified") or [])
+                        if isinstance(v, dict) and v.get("phase") in PHASE_ORDER]
+    last_verified_phase = None
+    if verified_phases:
+        last_verified_phase = max(verified_phases, key=lambda p: PHASE_ORDER.index(p))
+    cur_phase = doc.get("phase")
+    if last_verified_phase and cur_phase in PHASE_ORDER:
+        i_last = PHASE_ORDER.index(last_verified_phase)
+        i_cur = PHASE_ORDER.index(cur_phase)
+        if i_cur > i_last + 1:
+            skipped = PHASE_ORDER[i_last + 1:i_cur]
+            reasons.append({
+                "class": "inconsistent-transition",
+                "detail": "phase jumped from %s to %s, skipping %s with no verified evidence for those phases" % (
+                    last_verified_phase, cur_phase, ", ".join(skipped)),
+            })
+
+    effects_not_to_repeat = [e.get("id") for e in (doc.get("effects_performed") or []) if isinstance(e, dict)]
+
+    safe = (len(reasons) == 0)
+    body = {
+        "handoff_id": doc.get("handoff_id"),
+        "safe_to_resume_without_reverification": safe,
+        "unsafe_reasons": reasons,
+        "facts_needing_reverification": sorted(reverify),
+        "effects_not_to_repeat": effects_not_to_repeat,
+    }
+    write_report_atomic(a.out, body, SCHEMA_RESUME_CHECK, include_run_meta=True)
+
+    if safe:
+        print("handoff: resume-check SAFE %s (handoff_id=%s)" % (a.handoff, doc.get("handoff_id")))
+        return EXIT_OK
+    print("handoff: resume-check UNSAFE %s -- %d reason(s): %s"
+          % (a.handoff, len(reasons), ", ".join(sorted({r["class"] for r in reasons}))), file=sys.stderr)
+    return EXIT_FINDING
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 def _add_handoff_out_args(sp):
@@ -412,12 +725,29 @@ def build_arg_parser():
     vf = sub.add_parser("verify")
     _add_handoff_out_args(vf)
 
+    # Contract's own Components-line wording ("resume-check").
+    rc = sub.add_parser("resume-check")
+    _add_handoff_out_args(rc)
+
+    # T134's own task-line wording ("Implement `handoff.py resume` ..."); the
+    # SAME naming-ambiguity precedent T133 already established for
+    # validate/verify -- identical behaviour to `resume-check`, see module
+    # docstring HONEST NOTE.
+    r = sub.add_parser("resume")
+    _add_handoff_out_args(r)
+
     return p
 
 
 def main(argv):
     args = build_arg_parser().parse_args(argv)
-    table = {"write": cmd_write, "validate": cmd_validate, "verify": cmd_validate}
+    table = {
+        "write": cmd_write,
+        "validate": cmd_validate,
+        "verify": cmd_validate,
+        "resume-check": cmd_resume_check,
+        "resume": cmd_resume_check,
+    }
     return table[args.cmd_name](args)
 
 
