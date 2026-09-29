@@ -348,37 +348,105 @@ fi
 
 # ---------------------------------------------------------------------------
 # (1) CREATE the item in the SQLite SSoT (§11.4.93 / §11.4.95)
+#
+# T098/SOL-07 (§11.4.214, T-D04): for Bug-typed reports, resolve against the
+# intake-dedup matcher FIRST, through the workable-items `intake-match`
+# subcommand — a closed match REOPENS the original with §11.4.34 attribution
+# (no new id minted); a distinct/ambiguous report is minted THROUGH the
+# matcher's own --apply write (the SAME single-writer `add` path this
+# section used to call directly). Feature/Task reports are UNCHANGED — a
+# direct `add` call, byte-identical to this section's pre-T098 behaviour —
+# because recurrence-detection is scoped to DEFECTS (SOL-07's own measured
+# problem is Bug recurrence: "15 first-touch tickets ≈ 9 root causes"), and a
+# Task/Feature directive (e.g. the §11.4.213 FEATURE scheduler,
+# scripts/feature/schedule_feature_research.sh) legitimately mints a NEW
+# tracked item on every call — it must never be silently reopened into a
+# prior, unrelated research item.
+#
+# intake-match unavailable/failed/inapplicable (non-Bug type, or a
+# report/config/binary issue) honestly FALLS BACK to the direct,
+# unconditional mint this section always performed before this migration —
+# a report is NEVER silently dropped (§11.4.202/§11.4.197).
 # ---------------------------------------------------------------------------
 RUN_TS=$(date -u +%Y%m%dT%H%M%SZ)
 TMP_EVID=$(mktemp -d)
 CREATE_LOG="$TMP_EVID/create.log"
+IM_VERDICT=""
+ITEM_STATUS_LABEL="Queued"
 
-set +e
-if [ -n "${CFG_ID_PREFIX:-}" ]; then
-	"$WI" add "$TYPE" "$SEVERITY" --db "$DB" --title "$TITLE" --description "$DESCRIPTION" \
-		--prefix "$CFG_ID_PREFIX" --created-by "$REPORTED_BY" >"$CREATE_LOG" 2>&1
-else
-	"$WI" add "$TYPE" "$SEVERITY" --db "$DB" --title "$TITLE" --description "$DESCRIPTION" \
-		--created-by "$REPORTED_BY" >"$CREATE_LOG" 2>&1
+if [ "$TYPE" = "Bug" ]; then
+	IM_CFG="$TMP_EVID/intake_config.yaml"
+	IM_REPORT="$TMP_EVID/intake_report.json"
+	IM_LINK="$TMP_EVID/intake_link.json"
+	printf 'db: %s\n' "$DB" > "$IM_CFG"
+	# Thread the SAME configured id_prefix a direct `add --prefix` call below
+	# would use, so an item minted THROUGH intake-match never silently
+	# diverges from the consumer's configured id-prefix convention (§11.4.6).
+	if [ -n "${CFG_ID_PREFIX:-}" ]; then
+		printf 'id_prefix: %s\n' "$CFG_ID_PREFIX" >> "$IM_CFG"
+	fi
+	if python3 - "$TITLE" "$SCOPE" "$REPORT" > "$IM_REPORT" <<'PYEOF'
+import json, sys
+title, scope, report = sys.argv[1:4]
+print(json.dumps({"title": title, "scope": scope, "description": report,
+                   "intake_path": "reporting-directive"}))
+PYEOF
+	then
+		set +e
+		"$WI" intake-match --config "$IM_CFG" --report "$IM_REPORT" --out "$IM_LINK" --apply >"$CREATE_LOG" 2>&1
+		IM_RC=$?
+		set -e
+		if [ "$IM_RC" = "0" ] && [ -f "$IM_LINK" ]; then
+			IM_VERDICT=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('verdict',''))" "$IM_LINK" 2>/dev/null || true)
+		fi
+	fi
 fi
-CREATE_RC=$?
-set -e
 
-if [ "$CREATE_RC" != "0" ]; then
-	log "ITEM CREATION FAILED (rc=$CREATE_RC):"
-	cat "$CREATE_LOG" >&2
-	exit 4
+case "$IM_VERDICT" in
+	SAME_DEFECT)
+		ITEM_ID=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('original_item_id',''))" "$IM_LINK")
+		if [ -n "$ITEM_ID" ]; then
+			ITEM_STATUS_LABEL="Reopened"
+			log "(1) §11.4.214 RECURRENCE: matched + reopened $ITEM_ID (no new id minted, intake-match)"
+		else
+			IM_VERDICT=""
+		fi
+		;;
+	DISTINCT|UNDECIDED)
+		ITEM_ID=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('minted_item_id',''))" "$IM_LINK")
+		[ -n "$ITEM_ID" ] || IM_VERDICT=""
+		;;
+esac
+
+if [ -z "$IM_VERDICT" ] || [ -z "${ITEM_ID:-}" ]; then
+	set +e
+	if [ -n "${CFG_ID_PREFIX:-}" ]; then
+		"$WI" add "$TYPE" "$SEVERITY" --db "$DB" --title "$TITLE" --description "$DESCRIPTION" \
+			--prefix "$CFG_ID_PREFIX" --created-by "$REPORTED_BY" >"$CREATE_LOG" 2>&1
+	else
+		"$WI" add "$TYPE" "$SEVERITY" --db "$DB" --title "$TITLE" --description "$DESCRIPTION" \
+			--created-by "$REPORTED_BY" >"$CREATE_LOG" 2>&1
+	fi
+	CREATE_RC=$?
+	set -e
+
+	if [ "$CREATE_RC" != "0" ]; then
+		log "ITEM CREATION FAILED (rc=$CREATE_RC):"
+		cat "$CREATE_LOG" >&2
+		exit 4
+	fi
+
+	# The binary prints the assigned id; extract the FIRST <PREFIX>-NNN token.
+	ITEM_ID=$(grep -oE '[A-Z][A-Z0-9_]*-[0-9]{3,}' "$CREATE_LOG" | head -1 || true)
+	[ -n "$ITEM_ID" ] || ITEM_ID="UNKNOWN-ID"
+	ITEM_STATUS_LABEL="Queued"
 fi
-
-# The binary prints the assigned id; extract the FIRST <PREFIX>-NNN token.
-ITEM_ID=$(grep -oE '[A-Z][A-Z0-9_]*-[0-9]{3,}' "$CREATE_LOG" | head -1 || true)
-[ -n "$ITEM_ID" ] || ITEM_ID="UNKNOWN-ID"
 
 EVID="$EVIDENCE_DIR/${ITEM_ID}_${RUN_TS}"
 mkdir -p "$EVID"
 cp "$CREATE_LOG" "$EVID/create.log"
 rm -rf "$TMP_EVID"
-log "(1) CREATED $ITEM_ID  type=$TYPE  severity=$SEVERITY"
+log "(1) CREATED $ITEM_ID  type=$TYPE  severity=$SEVERITY  status=$ITEM_STATUS_LABEL"
 
 # ---------------------------------------------------------------------------
 # (2) SYNC every derived document FROM the DB (§11.4.106 / §11.4.12 / §11.4.65)
@@ -487,7 +555,7 @@ RESULT_JSON="$EVID/result.json"
 	printf '  "item_id": "%s",\n' "$ITEM_ID"
 	printf '  "kind": "%s",\n' "$KIND"
 	printf '  "type": "%s",\n' "$TYPE"
-	printf '  "status": "Queued",\n'
+	printf '  "status": "%s",\n' "$ITEM_STATUS_LABEL"
 	printf '  "severity": "%s",\n' "$SEVERITY"
 	printf '  "classification_note": "%s",\n' "$CLASSIFICATION_NOTE"
 	printf '  "created_at": "%s",\n' "$NOW_ISO"
@@ -501,7 +569,7 @@ RESULT_JSON="$EVID/result.json"
 if [ "$JSON_OUT" = "1" ]; then
 	cat "$RESULT_JSON"
 else
-	log "DONE — $ITEM_ID ($TYPE, Queued)"
+	log "DONE — $ITEM_ID ($TYPE, $ITEM_STATUS_LABEL)"
 	log "  sync:     $SYNC_VERDICT ${SYNC_REASON:+($SYNC_REASON)}"
 	log "  trackers: ${TRACKER_JSON:-none configured}"
 	log "  evidence: $RESULT_JSON"
