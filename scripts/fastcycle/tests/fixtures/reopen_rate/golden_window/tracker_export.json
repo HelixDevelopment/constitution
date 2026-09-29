@@ -1,0 +1,103 @@
+{
+  "_fixture": "golden_window",
+  "_purpose": "T091 (SpecKit-004 'fast-dev-cycles', User Story 3) golden case for closure/reopen_rate.py (plan.md T-D06, tasks.md T100). A hand-computed window with a clean, unambiguous per-type population: every closed item genuinely has a closure event (Fixed/Implemented/Completed) whose on_date falls inside the window, and the one reopened item is a genuine member of that same closed-in-window population (its own Reopened event ALSO falls inside the window) -- this is the healthy case CT-006's 'both counted from the same population' text describes, contrasted with golden_bad_mismatched_populations (a Reopened event on an item with NO closure event anywhere in its history) and negative_control_retroactive (a closure event that must be EXCLUDED, not merely a boundary case).",
+  "_synthetic": true,
+  "_note": "None of these atm_id values exist in the real docs/workable_items.db (a B-/T-/F- prefix distinct from the real ATM-/SPK- schemes; verified 2026-09-29 by control needle #1 in test_reopen_rate_red.sh against the live DB before this fixture's numbers are trusted).",
+  "as_of": "2026-07-31",
+  "window_days": 30,
+  "window": { "from": "2026-07-01", "to": "2026-07-31" },
+  "items": [
+    { "atm_id": "B-001", "type": "Bug" },
+    { "atm_id": "B-002", "type": "Bug" },
+    { "atm_id": "B-003", "type": "Bug" },
+    { "atm_id": "B-004", "type": "Bug" },
+    { "atm_id": "B-005", "type": "Bug" },
+    { "atm_id": "B-006", "type": "Bug" },
+    { "atm_id": "T-001", "type": "Task" },
+    { "atm_id": "T-002", "type": "Task" },
+    { "atm_id": "F-001", "type": "Feature" }
+  ],
+  "item_history": [
+    { "atm_id": "B-001", "event_type": "Opened",   "by": "User", "on_date": "2026-06-02", "created_at": "2026-06-02T09:00:00Z" },
+    { "atm_id": "B-001", "event_type": "Fixed",    "by": "AI",   "on_date": "2026-07-05", "created_at": "2026-07-05T14:22:10Z", "evidence_path": "qa-results/golden_window/b001_fixed.log" },
+    { "atm_id": "B-001", "event_type": "Reopened", "by": "AI",   "on_date": "2026-07-10", "created_at": "2026-07-10T08:15:00Z", "reason": "captured-evidence-contradicts", "evidence_path": "qa-results/golden_window/b001_reopen.log" },
+
+    { "atm_id": "B-002", "event_type": "Opened", "by": "User", "on_date": "2026-06-01", "created_at": "2026-06-01T10:00:00Z" },
+    { "atm_id": "B-002", "event_type": "Fixed",  "by": "AI",   "on_date": "2026-07-08", "created_at": "2026-07-08T11:00:00Z", "evidence_path": "qa-results/golden_window/b002_fixed.log" },
+
+    { "atm_id": "B-003", "event_type": "Opened", "by": "User", "on_date": "2026-06-10", "created_at": "2026-06-10T09:30:00Z" },
+    { "atm_id": "B-003", "event_type": "Fixed",  "by": "AI",   "on_date": "2026-07-20", "created_at": "2026-07-20T16:45:00Z", "evidence_path": "qa-results/golden_window/b003_fixed.log" },
+
+    { "atm_id": "B-004", "event_type": "Opened", "by": "User", "on_date": "2026-06-15", "created_at": "2026-06-15T08:00:00Z" },
+    { "atm_id": "B-004", "event_type": "Fixed",  "by": "AI",   "on_date": "2026-07-25", "created_at": "2026-07-25T13:10:00Z", "evidence_path": "qa-results/golden_window/b004_fixed.log" },
+
+    { "atm_id": "B-005", "event_type": "Opened", "by": "User", "on_date": "2026-05-01", "created_at": "2026-05-01T07:00:00Z", "_note": "Closed BEFORE the window (Fixed 2026-06-20 < window.from 2026-07-01) -- MUST NOT be counted in closed_in_window for any type. Window-start boundary exercise." },
+    { "atm_id": "B-005", "event_type": "Fixed",  "by": "AI",   "on_date": "2026-06-20", "created_at": "2026-06-20T12:00:00Z", "evidence_path": "qa-results/golden_window/b005_fixed.log" },
+
+    { "atm_id": "B-006", "event_type": "Opened",   "by": "User", "on_date": "2026-05-10", "created_at": "2026-05-10T07:00:00Z", "_note": "Closed INSIDE the window (counts toward Bug closed_in_window) but its Reopened event falls AFTER window.to (2026-08-05 > 2026-07-31) -- MUST NOT be counted toward reopened_in_window. Window-end boundary exercise for the numerator specifically (distinct from B-005's denominator boundary exercise)." },
+    { "atm_id": "B-006", "event_type": "Fixed",    "by": "AI",   "on_date": "2026-07-03", "created_at": "2026-07-03T09:00:00Z", "evidence_path": "qa-results/golden_window/b006_fixed.log" },
+    { "atm_id": "B-006", "event_type": "Reopened", "by": "User", "on_date": "2026-08-05", "created_at": "2026-08-05T10:00:00Z", "reason": "manual-testing-detected", "evidence_path": "qa-results/golden_window/b006_reopen.log" },
+
+    { "atm_id": "T-001", "event_type": "Opened",    "by": "User", "on_date": "2026-06-20", "created_at": "2026-06-20T08:00:00Z" },
+    { "atm_id": "T-001", "event_type": "Completed", "by": "AI",   "on_date": "2026-07-03", "created_at": "2026-07-03T09:00:00Z", "evidence_path": "qa-results/golden_window/t001_completed.log" },
+
+    { "atm_id": "T-002", "event_type": "Opened",    "by": "User", "on_date": "2026-06-25", "created_at": "2026-06-25T08:00:00Z" },
+    { "atm_id": "T-002", "event_type": "Completed", "by": "AI",   "on_date": "2026-07-15", "created_at": "2026-07-15T09:00:00Z", "evidence_path": "qa-results/golden_window/t002_completed.log" },
+
+    { "atm_id": "F-001", "event_type": "Opened",      "by": "User", "on_date": "2026-06-05", "created_at": "2026-06-05T08:00:00Z" },
+    { "atm_id": "F-001", "event_type": "Implemented", "by": "AI",   "on_date": "2026-07-12", "created_at": "2026-07-12T09:00:00Z", "evidence_path": "qa-results/golden_window/f001_implemented.log" }
+  ],
+  "_hand_computation": {
+    "Bug": {
+      "closed_in_window_members": ["B-001", "B-002", "B-003", "B-004", "B-006"],
+      "closed_in_window_reasoning": "B-005 excluded: its Fixed on_date=2026-06-20 is BEFORE window.from=2026-07-01. All other 5 Bug items have a closure event (Fixed) with on_date in [2026-07-01, 2026-07-31].",
+      "reopened_in_window_members": ["B-001"],
+      "reopened_in_window_reasoning": "Of the 5 closed-in-window Bug items, only B-001 has a Reopened event whose on_date (2026-07-10) is ALSO inside the window. B-006's own Reopened event exists but its on_date=2026-08-05 is AFTER window.to=2026-07-31, so B-006 does not count toward the numerator even though it is a member of the denominator population.",
+      "closed": 5,
+      "reopened": 1,
+      "rate": 0.2,
+      "rate_as_fraction": "1/5"
+    },
+    "Task": {
+      "closed_in_window_members": ["T-001", "T-002"],
+      "reopened_in_window_members": [],
+      "closed": 2,
+      "reopened": 0,
+      "rate": 0.0,
+      "rate_as_fraction": "0/2"
+    },
+    "Feature": {
+      "closed_in_window_members": ["F-001"],
+      "reopened_in_window_members": [],
+      "closed": 1,
+      "reopened": 0,
+      "rate": 0.0,
+      "rate_as_fraction": "0/1"
+    },
+    "overall": {
+      "closed": 8,
+      "closed_reasoning": "5 (Bug) + 2 (Task) + 1 (Feature) = 8. B-005 excluded per above.",
+      "reopened": 1,
+      "reopened_reasoning": "1 (Bug: B-001) + 0 (Task) + 0 (Feature) = 1.",
+      "rate": 0.125,
+      "rate_as_fraction": "1/8"
+    },
+    "dedup_rows_removed": 0,
+    "excluded_retroactive": [],
+    "excluded_retroactive_reasoning": "No item_history row pair in this fixture has an Opened->closure created_at gap in [0, 60) seconds; every gap is measured in days. This fixture deliberately keeps the retroactive-registration mechanic OUT of scope so it tests the matched-population happy path in isolation -- see the sibling fixture negative_control_retroactive/tracker_export.json for that mechanic."
+  },
+  "expected_report": {
+    "schema": "reopen-rate/v1",
+    "as_of": "2026-07-31",
+    "window": { "from": "2026-07-01", "to": "2026-07-31" },
+    "state": "OK",
+    "by_type": {
+      "Bug":     { "reopened": 1, "closed": 5, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": 0.2 },
+      "Task":    { "reopened": 0, "closed": 2, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": 0.0 },
+      "Feature": { "reopened": 0, "closed": 1, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": 0.0 }
+    },
+    "overall": { "reopened": 1, "closed": 8, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": 0.125 },
+    "excluded_retroactive": []
+  },
+  "expected_exit_code": 0
+}
