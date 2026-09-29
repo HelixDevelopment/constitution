@@ -176,12 +176,13 @@ REAL_DESC='(T1/main - claude5 - sonnet - high) T018 RED test review_record'
 if [ ! -f "$WRITER" ]; then
     bad "PRECONDITION: $WRITER (scripts/hooks/agent_registry_writer.sh) is missing — cannot investigate property (a) at all"
 else
-    PAYLOAD="$(python3 - "$REAL_DESC" <<'PYEOF'
+    PAYLOAD="$(python3 - "$REAL_DESC" "$REPO_ROOT" <<'PYEOF'
 import json, sys
 desc = sys.argv[1]
+cwd = sys.argv[2]
 d = {
     "session_id": "sess-fixture-t020-0001",
-    "cwd": "/mnt/track1/atmosphere-t1",
+    "cwd": cwd,
     "hook_event_name": "PreToolUse",
     "tool_name": "Agent",
     "tool_input": {
@@ -277,12 +278,13 @@ if [ -f "$WRITER" ]; then
     # merely present-but-inert.
     REG2="$WORK/agent_registry_tagged.jsonl"
     TAGGED_DESC="(T1/main - claude5 - sonnet - high) item=ATM-9042 T020 fixture control-needle dispatch"
-    PAYLOAD2="$(python3 - "$TAGGED_DESC" <<'PYEOF'
+    PAYLOAD2="$(python3 - "$TAGGED_DESC" "$REPO_ROOT" <<'PYEOF'
 import json, sys
 desc = sys.argv[1]
+cwd = sys.argv[2]
 d = {
     "session_id": "sess-fixture-t020-0002",
-    "cwd": "/mnt/track1/atmosphere-t1",
+    "cwd": cwd,
     "hook_event_name": "PreToolUse",
     "tool_name": "Agent",
     "tool_input": {

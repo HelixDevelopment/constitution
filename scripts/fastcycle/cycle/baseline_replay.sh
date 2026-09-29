@@ -666,52 +666,44 @@ do_one_replay() {
   # T048 remediation (finding F9 continued): after the submodule fix above,
   # a SECOND, DISTINCT missing-prerequisite class was independently
   # reproduced for the "slow" items (ATM-610/611/627/277/SPK-609, 170-263s
-  # elapsed vs. the "fast" CC83 class' 4-5s): pre_build_verification.sh's
-  # CM-DTB-SERIAL-CONSOLE-DISABLED-WIRED block runs `bash "$_dscd" >/dev/null
-  # 2>&1; _dscd_rc=$?` -- a SEQUENTIAL (`;`), not errexit-exempt, rc-capture
-  # (contrast the SAME script's own later CM-* blocks, e.g. its
-  # "§11.4.1-safe live-run" harness check, which deliberately use the
-  # errexit-EXEMPT `if cmd; then rc=0; else rc=$?; fi` form instead -- this
-  # script's own authors already know the sequential form is unsafe under
-  # `set -e`, they just didn't use it consistently everywhere). $_dscd
-  # (scripts/testing/verify_dtb_serial_console_disabled.sh) is DESIGNED to
-  # exit 2 as an honest SKIP when kernel-5.10/scripts/resource_tool is
-  # absent (its own header: "Outputs: ... exit 2 SKIP (tool/img absent)") --
-  # and resource_tool is a `.gitignore`d (kernel-5.10/scripts/.gitignore:6)
-  # HOST-COMPILED kbuild `hostprogs` target (kernel-5.10/scripts/Makefile:12:
-  # `hostprogs-always-$(CONFIG_ARCH_ROCKCHIP) += resource_tool`), built from
-  # a SINGLE self-contained C file (kernel-5.10/scripts/resource_tool.c --
-  # only <errno.h>/<memory.h>/<stdint.h>/<stdio.h>/<stdlib.h>/<stdbool.h>/
-  # <sys/stat.h>/<time.h>, no external libs, no project-specific
-  # HOSTCFLAGS_resource_tool.o override) that git NEVER tracks and that a
-  # bare `git worktree add` checkout therefore NEVER has -- while this
-  # project's own long-lived, repeatedly-built dev tree (the environment
-  # T045's cited "~18.9 min per full run" evidence-block figure was
-  # measured against) has it sitting around from a PRIOR build, since
-  # nothing in this project's normal workflow ever `make clean`s host
-  # tools. So the SKIP=2 the isolated worktree hits here is real to the
-  # worktree, but NOT representative of the environment this gate's timing
-  # was ever measured or is meant to be measured against. Rather than
-  # chasing every one of pre_build_verification.sh's ~700+ checks for a
-  # similar gap (a full audit of every "cmd; rc=$?" style inline sub-script
-  # invocation found exactly 3: CM-BOOTLOADER-BRICK-GUARD-WIRED [its own
-  # blob IS git-tracked -- reproduced returning a genuine 0, no crash],
-  # CM-DTB-SERIAL-CONSOLE-DISABLED-WIRED [this one], and
-  # CM-KERNEL-PERF-THERMAL-CONFIG-WIRED [reads only the tracked defconfig,
-  # "no image needed" per its own comment -- no missing-artifact SKIP
-  # path]; every OTHER inline sub-script run in this file already uses the
-  # errexit-exempt `if`-form), compile the ONE confirmed, cheap,
-  # self-contained, no-network host tool this isolated worktree is missing.
-  # BOUNDED, not a slippery slope toward replicating a full AOSP build: a
-  # single ~1575-line file, ~1s to compile, verified independently (`cc -O2
-  # -o resource_tool resource_tool.c` -> exit 0, `--help` runs, and
-  # `verify_dtb_serial_console_disabled.sh` genuinely PASSes against it
+  # elapsed vs. the "fast" CC83 class' 4-5s): a pre-build gate this project
+  # runs can itself contain a "cmd; rc=$?" style SEQUENTIAL (`;`), not
+  # errexit-exempt, inline sub-script invocation (contrast this SAME file's
+  # own later "§11.4.1-safe live-run" harness check, which deliberately
+  # uses the errexit-EXEMPT `if cmd; then rc=0; else rc=$?; fi` form
+  # instead) whose sub-script is DESIGNED to exit 2 as an honest SKIP when
+  # a single, project-defined, gitignored host-build prerequisite is
+  # absent -- a tool git NEVER tracks and that a bare `git worktree add`
+  # checkout therefore NEVER has, while this project's own long-lived,
+  # repeatedly-built dev tree (the environment T045's cited "~18.9 min per
+  # full run" evidence-block figure was measured against) has it sitting
+  # around from a PRIOR build, since nothing in this project's normal
+  # workflow ever `make clean`s host tools. So the SKIP=2 the isolated
+  # worktree hits here is real to the worktree, but NOT representative of
+  # the environment this gate's timing was ever measured or is meant to be
+  # measured against. Rather than chasing every gate's own inline
+  # sub-script sites for a similar gap (a full project-side audit found
+  # this class affects exactly one such site; every OTHER inline
+  # sub-script run in this file already uses the errexit-exempt `if`-form),
+  # compile the ONE confirmed, cheap, self-contained, no-network host tool
+  # this isolated worktree is missing -- IF the caller has named one via
+  # the two `FC_REPLAY_HOSTTOOL_*` env vars below. §11.4.28(B): this
+  # generic replay machinery takes any such project-specific prerequisite
+  # as caller-supplied DATA, never a hardcoded literal path -- leaving
+  # either env var unset makes this whole step an honest no-op. BOUNDED,
+  # not a slippery slope toward replicating a full project build: this
+  # project's own concrete instance names a single ~1575-line file, ~1s to
+  # compile, verified independently (`cc -O2` on it exits 0, its own
+  # `--help` runs, and the gate that needed it genuinely PASSes against it
   # afterward instead of SKIPping). A compile failure is treated exactly
   # like the worktree-add/submodule-update failures above -- an honest
   # BLIND (unmeasurable), never silently absorbed.
-  local _rt_src="$wt_path/kernel-5.10/scripts/resource_tool.c"
-  local _rt_bin="$wt_path/kernel-5.10/scripts/resource_tool"
-  if [ -f "$_rt_src" ] && [ ! -x "$_rt_bin" ]; then
+  local _rt_src="" _rt_bin=""
+  if [ -n "${FC_REPLAY_HOSTTOOL_SRC:-}" ] && [ -n "${FC_REPLAY_HOSTTOOL_BIN:-}" ]; then
+    _rt_src="$wt_path/${FC_REPLAY_HOSTTOOL_SRC}"
+    _rt_bin="$wt_path/${FC_REPLAY_HOSTTOOL_BIN}"
+  fi
+  if [ -n "$_rt_src" ] && [ -f "$_rt_src" ] && [ ! -x "$_rt_bin" ]; then
     # Security remediation (T048 review, 2026-09-29): symlink-follow-write
     # guard. $wt_path is a disposable `git worktree add --detach` checkout
     # of $commit (an arbitrary, possibly-historical commit from this
@@ -720,20 +712,20 @@ do_one_replay() {
     # its TREE CONTENT is still only as trustworthy as this repo's own
     # history). Git tracks symlinks as ordinary blobs (mode 120000), so
     # nothing here prevents SOME commit in that history from having
-    # checked out kernel-5.10/scripts (or kernel-5.10 itself, or even the
-    # resource_tool/resource_tool.c leaf entries) as a symlink pointing
-    # OUTSIDE this worktree -- `cc -O2 -o "$_rt_bin" "$_rt_src"` would then
+    # checked out the configured host-tool's containing directory (or the
+    # source/binary leaf entries themselves) as a symlink pointing OUTSIDE
+    # this worktree -- `cc -O2 -o "$_rt_bin" "$_rt_src"` would then
     # transparently follow that symlink and CREATE or OVERWRITE an
     # attacker-chosen file anywhere the invoking user can write, driven
     # entirely by tree content this script never authored. Refuse (BLIND)
-    # rather than follow: canonicalize resource_tool.c's containing
+    # rather than follow: canonicalize the source file's containing
     # directory with `pwd -P` (resolves every symlink component, unlike a
     # plain path-string prefix check) and verify the RESULT still lives
     # strictly inside $wt_path's own canonical path before compiling
-    # anything; independently also refuse if either resource_tool.c or
-    # resource_tool itself is a symlink LEAF (a legitimate scripts/
-    # directory containing a symlinked single file, which the directory-
-    # containment check alone would not catch).
+    # anything; independently also refuse if either the source or the
+    # binary path itself is a symlink LEAF (a legitimate directory
+    # containing a symlinked single file, which the directory-containment
+    # check alone would not catch).
     local _rt_dir _rt_dir_real wt_path_real
     _rt_dir="$(dirname "$_rt_src")"
     _rt_dir_real="$(cd "$_rt_dir" 2>/dev/null && pwd -P)"
@@ -742,11 +734,11 @@ do_one_replay() {
        { [ "$_rt_dir_real" != "$wt_path_real" ] && \
          [ "${_rt_dir_real#"$wt_path_real"/}" = "$_rt_dir_real" ]; } || \
        [ -L "$_rt_src" ] || [ -L "$_rt_bin" ]; then
-      echo "baseline_replay: BLIND: kernel-5.10/scripts (or resource_tool.c/resource_tool itself) resolves OUTSIDE the isolated worktree (worktree is ${wt_path_real:-$wt_path}) for commit $commit -- refusing to compile through what appears to be a git-tracked symlink escaping the disposable checkout, which could otherwise write an attacker-chosen file anywhere the invoking user can write" >&2
+      echo "baseline_replay: BLIND: configured host-tool path (FC_REPLAY_HOSTTOOL_SRC=${FC_REPLAY_HOSTTOOL_SRC}, FC_REPLAY_HOSTTOOL_BIN=${FC_REPLAY_HOSTTOOL_BIN}) resolves OUTSIDE the isolated worktree (worktree is ${wt_path_real:-$wt_path}) for commit $commit -- refusing to compile through what appears to be a git-tracked symlink escaping the disposable checkout, which could otherwise write an attacker-chosen file anywhere the invoking user can write" >&2
       return 4
     fi
     if ! cc -O2 -o "$_rt_bin" "$_rt_src" >/dev/null 2>&1; then
-      echo "baseline_replay: BLIND: host-tool compile failed for $_rt_src at $wt_path (kernel-5.10/scripts/resource_tool is a gitignored kbuild hostprogs target every pre_build_verification.sh run needs; without it, CM-DTB-SERIAL-CONSOLE-DISABLED-WIRED's own inline sub-run crashes the whole gate under set -e via an honest exit-2 SKIP the wrapper cannot safely capture)" >&2
+      echo "baseline_replay: BLIND: host-tool compile failed for $_rt_src at $wt_path (FC_REPLAY_HOSTTOOL_SRC names a gitignored host-build prerequisite the caller's gate_cmd needs; without it, that gate's own inline sub-run can crash the whole gate under set -e via an honest exit-2 SKIP the wrapper cannot safely capture)" >&2
       return 4
     fi
   fi
