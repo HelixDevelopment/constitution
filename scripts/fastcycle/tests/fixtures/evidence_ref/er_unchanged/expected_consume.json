@@ -1,0 +1,8 @@
+{
+  "changed_components": [],
+  "evidence_hash_ok": true,
+  "outcome": "REUSED",
+  "ref_id": "FC-ER-UNCHANGED-001",
+  "schema": "evref-consume/v1",
+  "verdict": "PASS"
+}

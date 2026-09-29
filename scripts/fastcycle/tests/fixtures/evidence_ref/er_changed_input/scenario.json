@@ -1,0 +1,6 @@
+{
+  "consume_target": null,
+  "failure_class": "changed_input",
+  "kind": "golden-bad",
+  "note": "declared input path unchanged; its CURRENT bytes (input_a.txt) differ from ref.json's recorded content_address (input_a_as_recorded.txt's bytes, at create time)."
+}
