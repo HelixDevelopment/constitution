@@ -620,7 +620,41 @@ do_one_replay() {
   # unlike a synchronous foreground pipeline) and bound it with `timeout`
   # (reusing the caller's own --timeout-s knob rather than adding a new
   # CLI flag) so a genuine network stall cannot hang this step forever.
-  ( timeout --kill-after=5 "${timeout_s}s" git -C "$wt_path" submodule update --init --recursive --quiet ) >/dev/null 2>&1 &
+  #
+  # Security remediation (T048 review, 2026-09-29): `$commit` here is
+  # always EITHER a SHA `cmd_freeze` resolved via `git log --all --grep`
+  # against THIS repo's own already-fetched local history, or an
+  # operator-supplied `--commit` argument -- in both cases `git -C
+  # "$repo_root" worktree add --detach "$wt_path" "$commit"` a few lines
+  # above ALREADY required that commit's TREE to be a valid, already-
+  # present object in $repo_root's local object store (worktree add never
+  # fetches; an unreachable SHA fails there with BLIND before this line is
+  # ever reached). So $commit itself is never unvalidated external input.
+  # $commit's TREE CONTENT, however, is only as trustworthy as this repo's
+  # own history -- and its .gitmodules is ordinary versioned content, so a
+  # submodule path this specific commit introduces (one with no prior
+  # `submodule.<name>.url` already recorded in the shared `.git/config`
+  # from the main checkout's own real `git submodule init`) has its
+  # fetch URL read straight out of THAT COMMIT's .gitmodules with no
+  # allowlist check. Git's own `ext::` submodule-URL remote-code-execution
+  # class (the CVE-2017-1000117 family) is denied by this host's git 2.50.1
+  # default (`protocol.ext.allow=user`, confirmed via `git config --get`
+  # returning unset -- i.e. the compiled-in default, "deny for an
+  # operation like this one that did not explicitly opt in"), so this is
+  # belt-and-braces defense-in-depth, not a bypass of an otherwise-open
+  # hole: pin `ext`/`file` to `never` explicitly on THIS invocation only
+  # (never touching the caller's global git config) so a future git
+  # version, a differently-configured host, or an ambient
+  # `GIT_ALLOW_PROTOCOL`/`GIT_CONFIG_*` environment override can never
+  # silently re-open it for this specific untrusted-content fetch. `file`
+  # is denied too -- a crafted local-path submodule URL pointing at an
+  # attacker-writable bare repo is the same class of risk as `ext::`, and
+  # this project's own real submodules (confirmed via `.gitmodules`) are
+  # exclusively `git@github.com:...` SSH URLs, so neither protocol is ever
+  # legitimately needed here.
+  ( timeout --kill-after=5 "${timeout_s}s" \
+      git -c protocol.ext.allow=never -c protocol.file.allow=never \
+      -C "$wt_path" submodule update --init --recursive --quiet ) >/dev/null 2>&1 &
   local submodule_pid=$!
   wait "$submodule_pid"
   local submodule_rc=$?
@@ -678,6 +712,39 @@ do_one_replay() {
   local _rt_src="$wt_path/kernel-5.10/scripts/resource_tool.c"
   local _rt_bin="$wt_path/kernel-5.10/scripts/resource_tool"
   if [ -f "$_rt_src" ] && [ ! -x "$_rt_bin" ]; then
+    # Security remediation (T048 review, 2026-09-29): symlink-follow-write
+    # guard. $wt_path is a disposable `git worktree add --detach` checkout
+    # of $commit (an arbitrary, possibly-historical commit from this
+    # repo's own local history -- see the submodule-fetch comment above
+    # for why $commit itself is never unvalidated external input, though
+    # its TREE CONTENT is still only as trustworthy as this repo's own
+    # history). Git tracks symlinks as ordinary blobs (mode 120000), so
+    # nothing here prevents SOME commit in that history from having
+    # checked out kernel-5.10/scripts (or kernel-5.10 itself, or even the
+    # resource_tool/resource_tool.c leaf entries) as a symlink pointing
+    # OUTSIDE this worktree -- `cc -O2 -o "$_rt_bin" "$_rt_src"` would then
+    # transparently follow that symlink and CREATE or OVERWRITE an
+    # attacker-chosen file anywhere the invoking user can write, driven
+    # entirely by tree content this script never authored. Refuse (BLIND)
+    # rather than follow: canonicalize resource_tool.c's containing
+    # directory with `pwd -P` (resolves every symlink component, unlike a
+    # plain path-string prefix check) and verify the RESULT still lives
+    # strictly inside $wt_path's own canonical path before compiling
+    # anything; independently also refuse if either resource_tool.c or
+    # resource_tool itself is a symlink LEAF (a legitimate scripts/
+    # directory containing a symlinked single file, which the directory-
+    # containment check alone would not catch).
+    local _rt_dir _rt_dir_real wt_path_real
+    _rt_dir="$(dirname "$_rt_src")"
+    _rt_dir_real="$(cd "$_rt_dir" 2>/dev/null && pwd -P)"
+    wt_path_real="$(cd "$wt_path" 2>/dev/null && pwd -P)"
+    if [ -z "$_rt_dir_real" ] || [ -z "$wt_path_real" ] || \
+       { [ "$_rt_dir_real" != "$wt_path_real" ] && \
+         [ "${_rt_dir_real#"$wt_path_real"/}" = "$_rt_dir_real" ]; } || \
+       [ -L "$_rt_src" ] || [ -L "$_rt_bin" ]; then
+      echo "baseline_replay: BLIND: kernel-5.10/scripts (or resource_tool.c/resource_tool itself) resolves OUTSIDE the isolated worktree (worktree is ${wt_path_real:-$wt_path}) for commit $commit -- refusing to compile through what appears to be a git-tracked symlink escaping the disposable checkout, which could otherwise write an attacker-chosen file anywhere the invoking user can write" >&2
+      return 4
+    fi
     if ! cc -O2 -o "$_rt_bin" "$_rt_src" >/dev/null 2>&1; then
       echo "baseline_replay: BLIND: host-tool compile failed for $_rt_src at $wt_path (kernel-5.10/scripts/resource_tool is a gitignored kbuild hostprogs target every pre_build_verification.sh run needs; without it, CM-DTB-SERIAL-CONSOLE-DISABLED-WIRED's own inline sub-run crashes the whole gate under set -e via an honest exit-2 SKIP the wrapper cannot safely capture)" >&2
       return 4
