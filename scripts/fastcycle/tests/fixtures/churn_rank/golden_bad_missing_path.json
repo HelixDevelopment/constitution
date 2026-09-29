@@ -1,0 +1,14 @@
+{
+  "_comment": "T090 golden-bad fixture (see fixtures/churn_rank/README.md). Names a component whose sole path was control-needled absent from the constitution submodule's own history at authoring time (2026-09-29): `git log --oneline -- scripts/fastcycle/tests/fixtures/churn_rank/THIS_PATH_DOES_NOT_EXIST_5f9c2a1b.txt` returns zero rows. Once churn_rank.py exists, invoking it with this component MUST exit 1 (a finding, per common-conventions.md C-001) and MUST name the missing path in a `missing_instrument` field -- never silently report `churn_commits: 0`.",
+  "components": [
+    {
+      "id": "golden_bad_missing_path",
+      "paths": [
+        {
+          "repo": "constitution",
+          "path": "scripts/fastcycle/tests/fixtures/churn_rank/THIS_PATH_DOES_NOT_EXIST_5f9c2a1b.txt"
+        }
+      ]
+    }
+  ]
+}
