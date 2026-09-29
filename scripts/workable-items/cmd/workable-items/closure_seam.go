@@ -1,40 +1,49 @@
-// closure_seam.go — T-D02: extends the SOL-01/SOL-04 status-custody seam
-// (constitution/docs/research/quality/solutions/SOL-01_status_custody.md,
+// closure_seam.go — T-D02/T-D03: extends the SOL-01/SOL-04 status-custody
+// seam (constitution/docs/research/quality/solutions/SOL-01_status_custody.md,
 // SOL-04_evidence_class.md) with the `closure-check` subcommand
 // (contracts/closure-refusal.md "Invocations"):
 //
 //	$WI closure-check --config <cfg> --item <ItemId> --to <Fixed|Implemented|Completed>
 //	                   --attempt <attempt.json> --out <decision.json>
 //
-// Scope (tasks.md T087/T095, verbatim): "runtime/user-visible Bug/Feature
-// cannot reach terminal status on source/artifact evidence (refusal names
-// the missing class); the registered guard must hold a verdict for the
-// current artifact fingerprint (E4)". This file implements exactly those
-// two clauses — CR-001/CR-002 (evidence-class-at-closure layer floor +
-// anti-echo reclassification) and the E4 slice of CR-005 (a CITED
-// regression_guard must hold a verdict for the current artifact
-// fingerprint). It does NOT implement CR-004 (sibling-instance search —
-// T096/T097's own scope, wired into this same seam AFTER T095 per T097's
-// task line: "Wire sibling_search_check.sh into ... closure_seam.go after
-// T095 ... until T088 is fully GREEN") nor the "a Bug closure requires a
-// registered guard at all" half of CR-005 (data-model.md §6.3 states the
-// field itself as "guard id ... or absent"; no RED test in this batch
-// exercises that broader clause). Producer != Verifier (§11.4.240):
-// implementing an unconditional guard requirement here, unrequested and
-// untested, would refuse every one of T088's own Bug fixtures for the
-// WRONG reason (a missing guard, since closureAttemptFixture in
+// T095 scope (tasks.md T087/T095, verbatim): "runtime/user-visible Bug/
+// Feature cannot reach terminal status on source/artifact evidence
+// (refusal names the missing class); the registered guard must hold a
+// verdict for the current artifact fingerprint (E4)" — CR-001/CR-002
+// (evidence-class-at-closure layer floor + anti-echo reclassification) and
+// the E4 slice of CR-005 (a CITED regression_guard must hold a verdict for
+// the current artifact fingerprint).
+//
+// T097 scope (tasks.md T097, verbatim): "Wire `sibling_search_check.sh`
+// into ... closure_seam.go after T095 so Bug closure is refused without a
+// valid artefact, until T088 is fully GREEN" — CR-004 (sibling-instance
+// search), implemented in checkSiblingSearch below by SHELLING OUT to the
+// already-landed, already-GREEN (T096) sibling_search_check.sh — never a
+// second, duplicate Go port of that tool's own SiblingSearchArtefact
+// validation logic (§11.4.227 reuse; §11.4.251 byte-identical-fork
+// prohibition — one validator, one schema, one place it can drift).
+//
+// This file does NOT implement the "a Bug closure requires a registered
+// guard at all" half of CR-005 (data-model.md §6.3 states the field itself
+// as "guard id ... or absent"; no RED test in this batch exercises that
+// broader clause). Producer != Verifier (§11.4.240): implementing an
+// unconditional guard requirement here, unrequested and untested, would
+// refuse every one of T088's own Bug fixtures for the WRONG reason (a
+// missing guard, since closureAttemptFixture in
 // fastcycle_sibling_search_test.go never populates regression_guard)
-// instead of the CR-004 reason T097 exists to wire in — silently defeating
-// T097's own stated goal, "so Bug closure is refused without a valid
-// artefact, UNTIL T088 IS FULLY GREEN".
+// instead of the CR-004 reason this file's own CR-004 wiring exists to
+// enforce — silently defeating T097's own stated goal.
 //
 // closure-check is READ-ONLY on the tracker — CR-007: "Refusals never
 // modify the tracker; acceptance writes through the single writer only."
-// No Exec/Begin call appears anywhere below; the DB is opened only to
-// resolve the cited item's Type. Per the contract's own words this
-// subcommand is "the dry-run face of the seam T-D02 extends" — it does not
-// gate the existing `close` subcommand itself; no RED test in this batch
-// exercises that wiring, so it is out of this file's scope.
+// No Exec/Begin call against the tracker DB appears anywhere below (the
+// DB is opened only to resolve the cited item's Type); the sibling_search_
+// check.sh subprocess and its staged artefact temp file are the ONLY
+// exec/write this file performs, and neither touches the tracker. Per the
+// contract's own words this subcommand is "the dry-run face of the seam
+// T-D02 extends" — it does not gate the existing `close` subcommand
+// itself; no RED test in this batch exercises that wiring, so it is out of
+// this file's scope.
 package main
 
 import (
@@ -45,6 +54,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 )
 
@@ -134,8 +144,9 @@ func runClosureCheck(args []string) int {
 // ---- config -------------------------------------------------------------
 
 type closureCheckConfig struct {
-	dbPath           string
-	guardVerdictsDir string
+	dbPath              string
+	guardVerdictsDir    string
+	siblingSearchScript string
 }
 
 // readClosureCheckConfig parses the minimal line-based `key: value` YAML
@@ -145,10 +156,13 @@ type closureCheckConfig struct {
 // writeMinimalClosureCheckConfig — for exactly the same reason that file
 // documents: no example JSON/YAML body is given anywhere beyond the field
 // list). Recognised keys: `db` (required, the workable-items SQLite DB
-// path) and `guard_verdicts_dir` (optional, E4's guard-verdict store — see
-// currentArtifactFingerprint / guardHasVerdictForFingerprint below). A full
-// YAML parser is not needed — nothing this seam reads is nested, quoted or
-// multi-line.
+// path), `guard_verdicts_dir` (optional, E4's guard-verdict store — see
+// currentArtifactFingerprint / guardHasVerdictForFingerprint below), and
+// `sibling_search_script` (optional, CR-004's override of the
+// sibling_search_check.sh location — see siblingSearchScriptPath below;
+// project-supplied per §11.4.28, mirroring guard_verdicts_dir's own
+// precedent). A full YAML parser is not needed — nothing this seam reads
+// is nested, quoted or multi-line.
 func readClosureCheckConfig(path string) (closureCheckConfig, error) {
 	var cfg closureCheckConfig
 	body, err := os.ReadFile(resolveInvocationRelative(path))
@@ -171,6 +185,8 @@ func readClosureCheckConfig(path string) (closureCheckConfig, error) {
 			cfg.dbPath = val
 		case "guard_verdicts_dir":
 			cfg.guardVerdictsDir = val
+		case "sibling_search_script":
+			cfg.siblingSearchScript = val
 		}
 	}
 	return cfg, nil
@@ -222,17 +238,23 @@ func readClosureAttempt(path string) (closureAttempt, error) {
 // ---- evaluation -----------------------------------------------------------
 
 // evaluateClosureAttempt is the seam's pure decision function: ACCEPTED or a
-// CR-00x refusal text. Check order (CR-001/CR-002 layer floor, then E4)
-// matches this file's own stated scope — deliberately, since T087's own
-// fixtures keep the two conditions isolated (the E4 fixture supplies
-// source-layer/source-class evidence so CR-001 never fires there; the
-// CR-001 fixtures never cite a regression_guard so E4 never fires there). A
-// real future closure could in principle violate both at once, in which
-// case CR-001 is reported first — the caller fixes it and re-runs to
-// discover any remaining refusal (CR-007: refusals never modify the
-// tracker, so nothing is lost by reporting one refusal at a time).
+// CR-00x refusal text. Check order (CR-001/CR-002 layer floor, then CR-004
+// sibling search, then E4/CR-005) matches this file's own stated scope —
+// deliberately, since T087/T088's own fixtures keep the conditions isolated
+// (the E4 fixture supplies source-layer/source-class evidence AND a fully
+// valid sibling_search artefact so neither CR-001 nor CR-004 fires there;
+// the CR-001 golden-bad fixture uses a Feature, exempt from CR-004/CR-005
+// entirely; the CR-004 golden-bad fixtures use a source-layer/source-
+// evidence Bug so CR-001 never fires there). A real future closure could in
+// principle violate more than one clause at once, in which case the
+// earliest-checked clause is reported first — the caller fixes it and
+// re-runs to discover any remaining refusal (CR-007: refusals never modify
+// the tracker, so nothing is lost by reporting one refusal at a time).
 func evaluateClosureAttempt(itemType string, attempt closureAttempt, cfg closureCheckConfig) string {
 	if decision, refused := checkEvidenceClassFloor(itemType, attempt); refused {
+		return decision
+	}
+	if decision, refused := checkSiblingSearch(itemType, attempt, cfg); refused {
 		return decision
 	}
 	if decision, refused := checkGuardFreshness(itemType, attempt, cfg); refused {
@@ -369,6 +391,119 @@ func checkEvidenceClassFloor(itemType string, attempt closureAttempt) (decision 
 		"REFUSED(missing evidence class: %s; supplied: %s; layer: %s)",
 		evidenceClassName(floor), evidenceClassName(highest), attempt.DefectLayer,
 	), true
+}
+
+// ---- CR-004 (sibling-instance search, T097) --------------------------------
+
+// checkSiblingSearch implements CR-004 (contracts/closure-refusal.md:
+// "Every Bug closure requires a valid SiblingSearchArtefact ... Absent or
+// invalid => REFUSED(missing: sibling-instance search) ... There is no
+// exemption flag ... Tasks and Features are not bound by CR-004 (DEC-20
+// alternative (b))"). Scoped to Bug ONLY, matching CR-004's own text
+// exactly and CR-005/E4's identical scope below — Features and Tasks are
+// always accepted by this clause regardless of what (if anything) their
+// attempt's sibling_search field carries.
+//
+// §11.4.227 reuse, never re-implemented (§11.4.251 byte-identical-fork
+// prohibition): this function does NOT duplicate sibling_search_validate.py
+// / sibling_search_check.sh's own SiblingSearchArtefact schema logic in Go
+// — it stages the attempt's raw `sibling_search` JSON to a temp file and
+// shells out to the ALREADY-LANDED, ALREADY-GREEN (T096)
+// sibling_search_check.sh, which is the ONE place that schema is validated.
+func checkSiblingSearch(itemType string, attempt closureAttempt, cfg closureCheckConfig) (decision string, refused bool) {
+	if itemType != "Bug" {
+		return "", false
+	}
+
+	raw := strings.TrimSpace(string(attempt.SiblingSearch))
+	if raw == "" || raw == "null" {
+		// The absent case, verbatim per CR-004: "Absent or invalid =>
+		// REFUSED(missing: sibling-instance search)". There is no need to
+		// invoke the script at all — an absent artefact cannot be staged.
+		return "REFUSED(missing: sibling-instance search)", true
+	}
+
+	scriptPath := siblingSearchScriptPath(cfg)
+	if scriptPath == "" {
+		// Conservative-safe default (§11.4.201): the validator could not be
+		// located at all, so the artefact cannot be proven valid — refuse,
+		// never silently trust an un-validated artefact.
+		return "REFUSED(missing: sibling-instance search; sibling_search_check.sh could not be located)", true
+	}
+
+	artefactPath, cleanup, stageErr := stageSiblingSearchArtefact(attempt.SiblingSearch)
+	if stageErr != nil {
+		return fmt.Sprintf("REFUSED(missing: sibling-instance search; could not stage artefact: %v)", stageErr), true
+	}
+	defer cleanup()
+
+	out, runErr := exec.Command(scriptPath, artefactPath).CombinedOutput()
+	if runErr == nil {
+		// sibling_search_check.sh exit 0 == the artefact is VALID (ACCEPTED).
+		return "", false
+	}
+	// Any non-zero exit (1 FINDING, 2 usage error, 4 BLIND — see
+	// sibling_search_check.sh's own header for the exit-code table) means
+	// the artefact was NOT proven valid, which per CR-004's own text is the
+	// SAME refusal as an absent artefact ("Absent OR INVALID => REFUSED
+	// (missing: sibling-instance search)"). The tool's own FINDING/BLIND
+	// lines are folded in for auditability, never dropped.
+	findings := strings.TrimSpace(string(out))
+	if findings == "" {
+		findings = runErr.Error()
+	}
+	return fmt.Sprintf(
+		"REFUSED(missing: sibling-instance search; %s)",
+		strings.ReplaceAll(findings, "\n", "; "),
+	), true
+}
+
+// siblingSearchScriptPath resolves the sibling_search_check.sh location.
+// A `sibling_search_script:` config key ALWAYS wins (project-supplied
+// override, §11.4.28 — mirrors guardVerdictsDir's own precedent above).
+// Absent that, the script is located relative to THIS SOURCE FILE's own
+// on-disk location (runtime.Caller(0)) — the SAME technique
+// fastcycle_sibling_search_test.go's own workableItemsModuleDir already
+// uses in this package, robust regardless of the invoking cwd or of the
+// built binary's own location (the path is captured at COMPILE time from
+// the source tree, not derived from os.Args[0] or the process cwd).
+// closure_seam.go lives at
+// .../constitution/scripts/workable-items/cmd/workable-items/closure_seam.go;
+// sibling_search_check.sh lives at the SIBLING directory
+// .../constitution/scripts/fastcycle/closure/sibling_search_check.sh — both
+// under the SAME constitution/scripts/ tree (§11.4.28/§11.4.177
+// decoupling: never a project-specific absolute path).
+func siblingSearchScriptPath(cfg closureCheckConfig) string {
+	if strings.TrimSpace(cfg.siblingSearchScript) != "" {
+		return resolveInvocationRelative(cfg.siblingSearchScript)
+	}
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return ""
+	}
+	dir := filepath.Dir(thisFile) // .../workable-items/cmd/workable-items
+	return filepath.Join(dir, "..", "..", "..", "fastcycle", "closure", "sibling_search_check.sh")
+}
+
+// stageSiblingSearchArtefact writes an attempt's raw sibling_search JSON to
+// a fresh temp file for sibling_search_check.sh's own single positional
+// <artefact.json> argument. The returned cleanup func removes it; callers
+// MUST defer it.
+func stageSiblingSearchArtefact(raw json.RawMessage) (path string, cleanup func(), err error) {
+	f, createErr := os.CreateTemp("", "sibling-search-artefact-*.json")
+	if createErr != nil {
+		return "", func() {}, createErr
+	}
+	if _, writeErr := f.Write(raw); writeErr != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return "", func() {}, writeErr
+	}
+	if closeErr := f.Close(); closeErr != nil {
+		os.Remove(f.Name())
+		return "", func() {}, closeErr
+	}
+	return f.Name(), func() { os.Remove(f.Name()) }, nil
 }
 
 // ---- E4 (the CR-005 slice this file is scoped to) --------------------------
