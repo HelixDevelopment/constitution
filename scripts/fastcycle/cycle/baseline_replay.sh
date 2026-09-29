@@ -533,8 +533,178 @@ do_one_replay() {
     return 4
   fi
 
+  # T048 remediation (finding F9, BLOCKING, 2026-09-29 -- systematic-debugging
+  # per §11.4.102): `git worktree add --detach` above checks out ONLY the
+  # superproject tree -- every git-submodule gitlink (160000 mode entry;
+  # this repo has 28 direct submodules incl. device/rockchip/atmosphere/
+  # presenter, .../smarttube-player, tools/helixqa/HelixQA, constitution --
+  # plus their own nested submodules) is left as an EMPTY placeholder
+  # directory in the new worktree. pre_build_verification.sh (line 65: `set
+  # -euo pipefail`) reads files out of those submodules (independently
+  # verified: PRESENTER_SRC="device/rockchip/atmosphere/presenter/Presenter/
+  # src/main/java/com/atmosphere/presenter", CC83's helper awk's
+  # "$PRESENTER_SRC/PresenterService.kt"; smarttube-player/SharedModules and
+  # .../MediaServiceCore are also read by name, e.g. line ~29471). On THIS
+  # host, GNU Awk 5.1.0 exits status 2 -- not 1 -- when its input file does
+  # not exist ("awk: fatal: cannot open file ... for reading", independently
+  # reproduced: `awk '{print}' /nonexistent 2>&1; echo $?` -> exit 2). CC83
+  # captures that failing command's output via a plain assignment
+  # (`_cc83_body="$(_cc83_onvideostopped_body ...)"`, itself an `awk ...
+  # 2>/dev/null` call) -- under `set -e`, a failing command substitution on
+  # the right-hand side of a plain variable assignment DOES trigger errexit
+  # (assignment statements are not one of bash's documented `set -e`
+  # exemptions, unlike an `if`/`while` condition or a `&&`/`||` operand), so
+  # pre_build_verification.sh dies immediately, mid-check, with exit status
+  # 2 -- NEVER reaching its own coded `exit 0`/`exit 1` paths. Reproduced
+  # twice, deterministically, by hand: an isolated `git worktree add
+  # --detach` checkout of ATM-799's frozen commit (07f9b2dd) with NO
+  # submodule init dies at CC83 in 4.7s with exit 2, matching this baseline
+  # run's own recorded `{"exit_code":2,...}` for every one of the 14
+  # cold+warm runs across all 7 duration-eligible items (durations ranging
+  # 4.1s-263s ONLY because each frozen commit's version of the script
+  # reaches ITS OWN first missing-submodule-file check at a different
+  # line/point in an otherwise-successful run, not because of a timeout --
+  # `timeout`'s own failure codes are 124/125/126/127/137, never bare 2).
+  # THE FIX: make the isolated worktree a faithful replica of what
+  # pre_build_verification.sh actually expects to run against (a normal,
+  # fully-submoduled checkout of the commit -- the ONLY context this
+  # 41k-line gate script was ever written/tested for) by initialising every
+  # submodule (direct + nested, since smarttube-player's own checks read
+  # ITS nested SharedModules/MediaServiceCore) before running gate_cmd.
+  # `--recursive` reuses `.git/modules` where it can: it is part of this
+  # repo's COMMON git dir (shared by every worktree of the same
+  # superproject, confirmed via `git worktree list`), and most submodule
+  # commits this isolated checkout needs are already cloned there from the
+  # main checkout's own prior `git submodule update --init --recursive`,
+  # so most of this step is a fast local-object checkout, not a clone.
+  # HONEST CORRECTION (§11.4.6 -- an earlier draft of this comment claimed
+  # "no clone, no network" unconditionally and was WRONG; independently
+  # observed live via `ps aux` during this fix's own end-to-end proof
+  # runs): when a FROZEN commit (an OLD one especially) pins a submodule
+  # SHA that was never locally fetched, `git submodule update --init`
+  # does NOT fail or go BLIND -- it does exactly what it is designed to
+  # do and performs a REAL network clone of that submodule (observed live:
+  # `git submodule--helper clone ... git@github.com:ATMOSphere1234321/
+  # ATMOSphere-Lampa.git` and, separately, `...ATMOSphere-SmartTube.git`,
+  # each followed by a real `git index-pack ... on the-factory` transfer).
+  # That is CORRECT, intended git behaviour, not a bug -- the fetched
+  # objects land in the shared `.git/modules/<name>/` object store, so the
+  # cost is paid ONCE per missing submodule SHA across the life of this
+  # repo's local clone, never repeated for that same SHA again (later
+  # do_one_replay calls, this run or a future one, reuse it). It is,
+  # however, a genuinely SLOW one-time cost for a large submodule (e.g.
+  # smarttube-player's tracked history, ~2.2 GiB working-tree size) --
+  # observed adding SEVERAL MINUTES to a single do_one_replay call the
+  # first time a historical commit needs it. The BLIND path below is for
+  # the genuine failure case only (network unreachable, auth rejected, or
+  # the pinned SHA truly gone from every configured remote) -- never for
+  # "needs a network fetch", which is expected, cacheable, and correct.
+  # Measured disk cost once fully cached: `du -sh` on all 28 direct
+  # submodule paths in the MAIN checkout (which already recurses through
+  # their own nested content) is ~7.4 GiB total -- well inside the
+  # existing ~49 GiB-per-worktree / --min-free-kb 10 GiB headroom this
+  # script's DISK SAFETY section already budgets for.
+  #
+  # T048 remediation, signal-safety hardening added AFTER independently
+  # observing the multi-minute network-clone cost above IN THIS SAME
+  # dispatch's own end-to-end proof runs: the SAME T043 round-4 finding B1
+  # class (a plain FOREGROUND command defers any trapped HUP/QUIT signal
+  # -- and, empirically re-confirmed live during this exact investigation,
+  # can leave a git-worktree-remove needed EVEN for a plain TERM sent to
+  # only the top-level script process while a `git submodule--helper`
+  # grandchild keeps running detached, reparented, and orphaned) applies
+  # here just as much as it did to the gate-cmd run below -- this step can
+  # now take LONGER than the gate-cmd itself on a stale local checkout.
+  # Fixed the identical way: BACKGROUND the command + `wait` on it
+  # explicitly (promptly interruptible by a pending trapped signal,
+  # unlike a synchronous foreground pipeline) and bound it with `timeout`
+  # (reusing the caller's own --timeout-s knob rather than adding a new
+  # CLI flag) so a genuine network stall cannot hang this step forever.
+  ( timeout --kill-after=5 "${timeout_s}s" git -C "$wt_path" submodule update --init --recursive --quiet ) >/dev/null 2>&1 &
+  local submodule_pid=$!
+  wait "$submodule_pid"
+  local submodule_rc=$?
+  if [ "$submodule_rc" -ne 0 ]; then
+    echo "baseline_replay: BLIND: git submodule update --init --recursive failed (exit $submodule_rc$( [ "$submodule_rc" = 124 ] || [ "$submodule_rc" = 137 ] && echo ", timed out after ${timeout_s}s")) for commit $commit at $wt_path (a frozen submodule SHA may be absent from the local object store, or a network fetch stalled -- refusing to run gate_cmd against a partially-checked-out tree)" >&2
+    return 4
+  fi
+
+  # T048 remediation (finding F9 continued): after the submodule fix above,
+  # a SECOND, DISTINCT missing-prerequisite class was independently
+  # reproduced for the "slow" items (ATM-610/611/627/277/SPK-609, 170-263s
+  # elapsed vs. the "fast" CC83 class' 4-5s): pre_build_verification.sh's
+  # CM-DTB-SERIAL-CONSOLE-DISABLED-WIRED block runs `bash "$_dscd" >/dev/null
+  # 2>&1; _dscd_rc=$?` -- a SEQUENTIAL (`;`), not errexit-exempt, rc-capture
+  # (contrast the SAME script's own later CM-* blocks, e.g. its
+  # "§11.4.1-safe live-run" harness check, which deliberately use the
+  # errexit-EXEMPT `if cmd; then rc=0; else rc=$?; fi` form instead -- this
+  # script's own authors already know the sequential form is unsafe under
+  # `set -e`, they just didn't use it consistently everywhere). $_dscd
+  # (scripts/testing/verify_dtb_serial_console_disabled.sh) is DESIGNED to
+  # exit 2 as an honest SKIP when kernel-5.10/scripts/resource_tool is
+  # absent (its own header: "Outputs: ... exit 2 SKIP (tool/img absent)") --
+  # and resource_tool is a `.gitignore`d (kernel-5.10/scripts/.gitignore:6)
+  # HOST-COMPILED kbuild `hostprogs` target (kernel-5.10/scripts/Makefile:12:
+  # `hostprogs-always-$(CONFIG_ARCH_ROCKCHIP) += resource_tool`), built from
+  # a SINGLE self-contained C file (kernel-5.10/scripts/resource_tool.c --
+  # only <errno.h>/<memory.h>/<stdint.h>/<stdio.h>/<stdlib.h>/<stdbool.h>/
+  # <sys/stat.h>/<time.h>, no external libs, no project-specific
+  # HOSTCFLAGS_resource_tool.o override) that git NEVER tracks and that a
+  # bare `git worktree add` checkout therefore NEVER has -- while this
+  # project's own long-lived, repeatedly-built dev tree (the environment
+  # T045's cited "~18.9 min per full run" evidence-block figure was
+  # measured against) has it sitting around from a PRIOR build, since
+  # nothing in this project's normal workflow ever `make clean`s host
+  # tools. So the SKIP=2 the isolated worktree hits here is real to the
+  # worktree, but NOT representative of the environment this gate's timing
+  # was ever measured or is meant to be measured against. Rather than
+  # chasing every one of pre_build_verification.sh's ~700+ checks for a
+  # similar gap (a full audit of every "cmd; rc=$?" style inline sub-script
+  # invocation found exactly 3: CM-BOOTLOADER-BRICK-GUARD-WIRED [its own
+  # blob IS git-tracked -- reproduced returning a genuine 0, no crash],
+  # CM-DTB-SERIAL-CONSOLE-DISABLED-WIRED [this one], and
+  # CM-KERNEL-PERF-THERMAL-CONFIG-WIRED [reads only the tracked defconfig,
+  # "no image needed" per its own comment -- no missing-artifact SKIP
+  # path]; every OTHER inline sub-script run in this file already uses the
+  # errexit-exempt `if`-form), compile the ONE confirmed, cheap,
+  # self-contained, no-network host tool this isolated worktree is missing.
+  # BOUNDED, not a slippery slope toward replicating a full AOSP build: a
+  # single ~1575-line file, ~1s to compile, verified independently (`cc -O2
+  # -o resource_tool resource_tool.c` -> exit 0, `--help` runs, and
+  # `verify_dtb_serial_console_disabled.sh` genuinely PASSes against it
+  # afterward instead of SKIPping). A compile failure is treated exactly
+  # like the worktree-add/submodule-update failures above -- an honest
+  # BLIND (unmeasurable), never silently absorbed.
+  local _rt_src="$wt_path/kernel-5.10/scripts/resource_tool.c"
+  local _rt_bin="$wt_path/kernel-5.10/scripts/resource_tool"
+  if [ -f "$_rt_src" ] && [ ! -x "$_rt_bin" ]; then
+    if ! cc -O2 -o "$_rt_bin" "$_rt_src" >/dev/null 2>&1; then
+      echo "baseline_replay: BLIND: host-tool compile failed for $_rt_src at $wt_path (kernel-5.10/scripts/resource_tool is a gitignored kbuild hostprogs target every pre_build_verification.sh run needs; without it, CM-DTB-SERIAL-CONSOLE-DISABLED-WIRED's own inline sub-run crashes the whole gate under set -e via an honest exit-2 SKIP the wrapper cannot safely capture)" >&2
+      return 4
+    fi
+  fi
+
+  # T048 remediation (finding F9 continued -- the output-discarding
+  # hardening asked for independently of the root cause fix above): the
+  # gate-cmd's combined stdout+stderr used to go straight to `/dev/null`
+  # (a prior version of this line), so a future crash/hang/unexpected
+  # nonzero exit had NO captured evidence to diagnose from without
+  # re-running the whole (multi-minute) replay by hand -- exactly the gap
+  # that made THIS finding (F9) itself slow to root-cause. Every run now
+  # gets its own real, persistent log file under $worktree_root (a
+  # sibling of $wt_path, so `cleanup()` -- which only removes $wt_path --
+  # never touches it), named uniquely per commit+phase+run_index so
+  # concurrent/successive do_one_replay calls for different items (e.g.
+  # cmd_replay_sample's per-item loop) can never collide or overwrite one
+  # another's evidence. The path is recorded in each run's own JSON row
+  # (captured-evidence citation per §11.4.5) so a FAIL/UNMEASURED verdict
+  # is diagnosable from the frozen report alone, without a re-run.
+  local run_log_dir="$worktree_root/replay-logs"
+  mkdir -p "$run_log_dir" 2>/dev/null || { echo "baseline_replay: cannot create run-log directory $run_log_dir" >&2; return 4; }
+  local commit_short="${commit:0:12}"
+
   local rows='[]'
-  local phase run_idx start_ns end_ns rc timed_out duration_ms verdict
+  local phase run_idx start_ns end_ns rc timed_out duration_ms verdict run_log
   for phase in cold warm; do
     local n_runs
     if [ "$phase" = cold ]; then n_runs="$cold_runs"; else n_runs="$warm_runs"; fi
@@ -562,7 +732,8 @@ do_one_replay() {
       # trapped signal is delivered, so the pending HUP trap runs
       # (converting to `exit 129`, firing the EXIT-trap cleanup)
       # WITHOUT waiting for the gate-cmd to finish on its own.
-      ( cd "$wt_path" && timeout --kill-after=5 "${timeout_s}s" "${gate_cmd[@]}" ) >/dev/null 2>&1 &
+      run_log="$run_log_dir/${commit_short}_${phase}_${run_idx}.log"
+      ( cd "$wt_path" && timeout --kill-after=5 "${timeout_s}s" "${gate_cmd[@]}" ) >"$run_log" 2>&1 &
       local gate_pid=$!
       wait "$gate_pid"
       rc=$?
@@ -576,9 +747,9 @@ import json, sys
 rows = json.loads(sys.argv[1])
 rows.append({'phase': sys.argv[2], 'run_index': int(sys.argv[3]), 'start_ns': int(sys.argv[4]),
              'end_ns': int(sys.argv[5]), 'duration_ms': int(sys.argv[6]), 'exit_code': int(sys.argv[7]),
-             'verdict': sys.argv[8]})
+             'verdict': sys.argv[8], 'log_path': sys.argv[9]})
 print(json.dumps(rows))
-" "$rows" "$phase" "$run_idx" "$start_ns" "$end_ns" "$duration_ms" "$rc" "$verdict")"
+" "$rows" "$phase" "$run_idx" "$start_ns" "$end_ns" "$duration_ms" "$rc" "$verdict" "$run_log")"
       run_idx=$((run_idx + 1))
     done
   done

@@ -124,12 +124,20 @@ src = src.replace(
     1,
 )
 # Revert to the synchronous foreground form (drops the background+wait fix).
+# NOTE (T048 remediation, 2026-09-29): the gate-cmd's stdout+stderr
+# redirect target changed from a fixed `/dev/null` to a per-run captured
+# log file (`"$run_log"`, F9 output-discarding hardening) -- this anchor
+# is updated to match so the mutation keeps finding (and correctly
+# reverting only) the B1 backgrounding+wait fix, independent of that
+# unrelated redirect-target change.
 src = src.replace(
-    '      ( cd "$wt_path" && timeout --kill-after=5 "${timeout_s}s" "${gate_cmd[@]}" ) >/dev/null 2>&1 &\n'
+    '      run_log="$run_log_dir/${commit_short}_${phase}_${run_idx}.log"\n'
+    '      ( cd "$wt_path" && timeout --kill-after=5 "${timeout_s}s" "${gate_cmd[@]}" ) >"$run_log" 2>&1 &\n'
     '      local gate_pid=$!\n'
     '      wait "$gate_pid"\n'
     '      rc=$?',
-    '      ( cd "$wt_path" && timeout --kill-after=5 "${timeout_s}s" "${gate_cmd[@]}" ) >/dev/null 2>&1\n'
+    '      run_log="$run_log_dir/${commit_short}_${phase}_${run_idx}.log"\n'
+    '      ( cd "$wt_path" && timeout --kill-after=5 "${timeout_s}s" "${gate_cmd[@]}" ) >"$run_log" 2>&1\n'
     '      rc=$?',
     1,
 )
