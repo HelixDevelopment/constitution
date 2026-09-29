@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>fixtures/precheck_slicer/ — T061 (SpecKit-004
+&quot;fast-dev-cycles&quot;, plan T-C11)</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="fixturesprecheck_slicer--t061-speckit-004-fast-dev-cycles-plan-t-c11">fixtures/precheck_slicer/
+— T061 (SpecKit-004 &quot;fast-dev-cycles&quot;, plan T-C11)</h1>
+<p>Fixtures proving
+<code>constitution/scripts/fastcycle/review/slicer.py</code>,
+<code>constitution/scripts/fastcycle/review/precheck_pack.sh</code>, and
+the (today absent) <code>gate</code> subcommand of the ALREADY-LANDED
+<code>constitution/scripts/fastcycle/review/review_record.py</code>
+(T034/T018) will correctly implement
+<code>contracts/review-batch-and-precheck.md</code>&#39;s RB-001.. RB-006
+clauses, against the 4 cases named verbatim in <code>tasks.md</code>
+T061:</p>
+<ol type="1">
+<li>a review request without a pack is accepted today (baseline);</li>
+<li>golden: a planted lint error appears in the pack, not in the
+review;</li>
+<li>golden-bad: a review record with a non-pinned tier or effort is
+refused;</li>
+<li>negative control: an unrelated change is not batched with the
+others.</li>
+</ol>
+<h2 id="tools-under-test-mostly-not-yet-implemented--t-c11t078-a-later-task">Tools
+under test (mostly not yet implemented — T-C11/T078, a later task)</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>State today</th>
+<th>CLI (contract <code>review-batch-and-precheck.md</code>
+&quot;Invocations&quot;, verbatim)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$FC/review/slicer.py</code></td>
+<td><strong>absent</strong> (confirmed by this RED test&#39;s Section
+A)</td>
+<td><code>slicer.py --config &lt;cfg&gt; --changes &lt;sha-range|list&gt; --slice-limit &lt;lines&gt; --out &lt;batch.json&gt;</code></td>
+</tr>
+<tr>
+<td><code>$FC/review/precheck_pack.sh</code></td>
+<td><strong>absent</strong></td>
+<td><code>precheck_pack.sh --config &lt;cfg&gt; --batch &lt;batch.json&gt; --clean-checkout &lt;dir&gt; --out &lt;precheck.json&gt;</code></td>
+</tr>
+<tr>
+<td><code>$FC/review/review_record.py gate</code></td>
+<td><strong>absent</strong> (the
+<code>record</code>/<code>backfill</code> subcommands ARE landed,
+T018/T034; <code>gate</code> is not registered — confirmed empirically,
+<code>python3 review_record.py gate ...</code> → real argparse &quot;invalid
+choice: &#39;gate&#39;&quot;, exit 2)</td>
+<td><code>review_record.py gate --change &lt;sha&gt; --records &lt;dir&gt;</code></td>
+</tr>
+<tr>
+<td><code>$FC/review/review_record.py record</code></td>
+<td><strong>landed</strong> (T034), used here for real to ground fixture
+assumptions, never as a stub</td>
+<td><code>review_record.py record --batch B --round N --verdict-file V --tier T --effort E --out O</code></td>
+</tr>
+<tr>
+<td><code>$FC/review/review_record.py backfill</code></td>
+<td><strong>landed</strong> (T034), used here for real — this is the
+ONLY currently-real path that can place a non-pinned-tier record on
+disk, since <code>record</code> refuses one at write time</td>
+<td><code>review_record.py backfill --input SPEC --out O</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="--changes-list-wire-format-unconfirmed-by-the-contract-beyond-sha-rangelist--defined-here-for-this-red-tests-own-green-branch-binding-if-adopted-on-t-c11s-implementer-per-house-precedent-set-by-fixturesverdict_cachereadmemdfixturesio_tracereadmemd"><code>--changes &lt;list&gt;</code>
+wire format (UNCONFIRMED by the contract beyond &quot;sha-range|list&quot; —
+DEFINED here for this RED test&#39;s own GREEN-branch, binding-if-adopted on
+T-C11&#39;s implementer, per house precedent set by
+<code>fixtures/verdict_cache/README.md</code>/<code>fixtures/io_trace/README.md</code>)</h2>
+<p>A comma-separated list of paths to per-change descriptor JSON files,
+each
+<code>{&quot;change_id&quot;: &quot;sha256:&lt;64-hex&gt;&quot;, &quot;path&quot;: &quot;&lt;changed path&gt;&quot;, &quot;diff&quot;: &quot;&lt;sibling diff file&gt;&quot;, &quot;lines_changed&quot;: &lt;int&gt;}</code>.
+<code>change_id</code> is a real <code>sha256:</code>
+<code>ContentAddress</code> (data-model.md §0) computed over the sibling
+diff file&#39;s real bytes — never a fabricated hex string.</p>
+<h2 id="case-1--case1_no_pack-baseline-needle-not-an-absent-tool-claim">Case
+1 — <code>case1_no_pack/</code> (baseline needle, not an absent-tool
+claim)</h2>
+<p><code>batch.json</code> + <code>verdict.json</code> for a single
+clean change (<code>GO</code>, zero findings, designated tier/effort).
+This RED test invokes the REAL, already- landed
+<code>review_record.py record</code> against this fixture with
+<strong>no</strong> <code>--precheck</code> flag and <strong>no</strong>
+sibling <code>precheck.json</code> file present, and asserts the REAL
+result: exit 0, output JSON <code>precheck_used: false</code>. This
+proves, with a genuine tool execution (never assumed), that a review
+request with no machine pre-check pack is accepted TODAY — the &quot;before&quot;
+state <code>precheck_pack.sh</code>/a future dispatch guard will change.
+A sibling control needle confirms
+<code>scripts/hooks/review_dispatch_guard.sh</code> (the NEW hook
+plan.md line 236 names for T-C11) does not exist anywhere in the repo
+yet — there is currently no enforcement mechanism at all.</p>
+<h2 id="case-2--case2_lint_in_pack">Case 2 —
+<code>case2_lint_in_pack/</code></h2>
+<p>Two real, planted defects, each independently self-validated by this
+RED test&#39;s Section B against a REAL live tool run
+(§11.4.107(10)/§11.4.273 — &quot;the path is part of the instrument&quot;) BEFORE
+any claim is made about the absent <code>precheck_pack.sh</code>:</p>
+<ul>
+<li><code>broken_syntax_gate.sh</code> — a genuine unclosed
+<code>if</code> (real parse error,
+<code>sh -n</code>/<code>bash -n</code> on this exact file reports &quot;line
+11: syntax error: unexpected end of file&quot;).</li>
+<li><code>unquoted_var_gate.sh</code> — a genuine shellcheck SC2086
+(real, unquoted variable expansion at
+<code>cat $STAGE_DIR/file.txt</code>, <code>shellcheck -s sh</code>
+reports <code>SC2086</code> at line 13 column 5 — the same classifier
+rule literal T018&#39;s <code>review_record</code> fixtures already use for
+the &quot;mechanical&quot; finding class).</li>
+</ul>
+<p><code>batch.json</code> batches both files as one change set (their
+real sha256 as change ids). <code>expected_precheck.json</code>
+documents the GREEN-branch shape (<code>all_pass: false</code>, a
+<code>parse</code> FAIL entry and a <code>shellcheck</code> FAIL entry,
+each citing the exact real evidence string reproduced above) — this RED
+test does not compare byte-for-byte against it (schema/ordering is
+T-C11&#39;s implementer&#39;s decision); it asserts only the two load-bearing
+facts once <code>precheck_pack.sh</code> is real.</p>
+<p><code>clean_review_verdict.json</code> (<code>GO</code>,
+<strong>zero</strong> findings) is fed to the REAL, already-landed
+<code>review_record.py record</code> for the SAME batch — a real
+invocation, expected real exit 0 — and this RED test parses the real
+output JSON to confirm its <code>findings</code> array is empty, i.e.
+the recorded review carries no independent finding about the lint.
+Together these prove &quot;the error [is] in the pack, not in the review&quot;
+with two real artifacts: one hand-documented-and-self-validated (the
+absent tool&#39;s future pack), one genuinely produced by a real,
+already-landed tool (the review record).</p>
+<h2 id="case-3--case3_wrong_tier_gate">Case 3 —
+<code>case3_wrong_tier_gate/</code></h2>
+<p><strong>Distinct from, and does not duplicate,</strong> T018&#39;s
+<code>fixtures/review_record/ rb_bad_wrong_tier</code>/<code>rb_bad_low_effort</code>
+(which already prove <code>record</code> itself refuses a non-pinned
+tier/effort AT WRITE TIME — that check is already landed and already
+GREEN). This fixture exercises the genuinely different, defense-in-depth
+question RB-004/RB-006 also demand: once a non-pinned-tier record
+somehow exists ON DISK, does the absent <code>gate</code> subcommand
+still correctly refuse to count it as coverage?</p>
+<p><code>backfill_wrong_tier.json</code> /
+<code>backfill_low_effort.json</code> are <code>--input</code> specs for
+the REAL, already-landed <code>review_record.py backfill</code>
+subcommand — empirically confirmed (before this file was written) that
+<code>backfill</code>, unlike <code>record</code>, does
+<strong>not</strong> validate
+<code>model_tier</code>/<code>effort</code> (it exists precisely to
+back-fill historical, pre-tool review rounds, data-model.md §10.1) — so
+<code>backfill</code> is the only currently-real path that can place a
+<code>model_tier: &quot;sonnet&quot;</code> or <code>effort: &quot;high&quot;</code>
+<code>ReviewVerdictRecord</code> on disk. This RED test runs
+<code>backfill</code> for real against both specs, then invokes the
+absent <code>gate --change &lt;sha&gt; --records &lt;dir&gt;</code>
+against each resulting real record file.
+<code>change_under_test.json</code> names the single change (real sha256
+of <code>case3_change.diff</code>) both bad records nominally cover;
+<code>expected_gate.json</code> documents the required outcome (exit 1,
+the change named in stdout) for both.</p>
+<h2 id="case-4--case4_unrelated_not_batched">Case 4 —
+<code>case4_unrelated_not_batched/</code></h2>
+<p><code>config.yaml</code> is this RED test&#39;s own fixture-level
+definition of the <code>--config</code>-driven &quot;shared logic group&quot;
+relation RB-001/DEC-06 name (UNCONFIRMED by any schema beyond
+&quot;config-defined relation&quot; — binding-if- adopted). It maps
+<code>widget_a.sh</code>/<code>widget_a_helper.sh</code> to logic group
+<code>widget_a</code> and <code>widget_c_unrelated.sh</code> to a
+DIFFERENT logic group <code>widget_c</code>.
+<code>change_widget_a_1.json</code>/<code>change_widget_a_2.json</code>
+(real sha256 change ids over their sibling <code>.diff</code> files) are
+genuinely related (same logic group) and MUST land in one batch;
+<code>change_widget_c_unrelated.json</code> is genuinely unrelated and
+MUST NOT be batched with them (RB-001). This RED test invokes the absent
+<code>slicer.py --config config.yaml --changes change_widget_a_1.json,change_widget_a_2.json,change_widget_c_unrelated.json --slice-limit 400 --out batch.json</code>.
+<code>expected_batch.json</code> documents the two load-bearing RB-001
+facts (never a byte-for-byte comparison target): the two related changes
+share a batch, the unrelated change does not, and the union of every
+produced batch&#39;s changes equals all 3 inputs (conservation).</p>
+<h2 id="what-this-red-test-does-not-cover">What this RED test does NOT
+cover</h2>
+<ul>
+<li>The full DEC-33 pack (10 checks total — RB-002 lists
+<code>parse</code>, <code>shellcheck</code>,
+<code>affected-gates</code>, <code>touched-gate-mutations</code>,
+<code>secret-scan</code>, <code>doc-sync</code>,
+<code>closure-evidence-class</code>, <code>sibling-search</code>,
+<code>blast-radius</code>, <code>already-fixed-markers</code>). This
+fixture set exercises exactly the two checks (<code>parse</code>,
+<code>shellcheck</code>) needed for T061&#39;s own case-2 wording (&quot;a
+planted lint error&quot;) — the remaining eight are T-C11&#39;s implementer&#39;s own
+scope, not silently claimed tested here.</li>
+<li><code>review_record.py report</code> (rounds-per-change /
+first-round-GO-rate metrics) and the full 3-change/round-2-GO
+<code>rb_good_batched</code> scenario from the contract&#39;s RED fixtures
+table — out of T061&#39;s own 4 named cases, handed to whichever later task
+drives <code>report</code> GREEN.</li>
+<li><code>rb_bad_edited_after_go</code> (content-address staleness after
+amendment) and <code>rb_batch_conservation</code>&#39;s own dedicated
+fixture — RB-001&#39;s conservation invariant is covered here via case 4&#39;s
+<code>expected_batch.json</code> instead of a separate scenario, to stay
+inside T061&#39;s own 4-named-case scope.</li>
+<li>Building/wiring the paired-mutation corpus entry itself (&quot;skip the
+tier check → the golden-bad FAILs&quot;) — that is T063&#39;s separate, later
+task; this RED test&#39;s own case-3 assertions are structured (real records
+on disk, real change-id argument, real invocation) so a future
+skip-the-check mutation on <code>gate</code> would genuinely flip them
+to FAIL, not so it is performed here.</li>
+</ul>
+</body>
+</html>
