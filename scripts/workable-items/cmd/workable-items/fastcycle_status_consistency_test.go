@@ -1,12 +1,20 @@
 // fastcycle_status_consistency_test.go — T026 (SpecKit-004 "fast-dev-cycles",
-// User Story 1) RED baseline for T-A12 (tracker data-quality repair). Proves,
-// against the REAL LIVE docs/workable_items.db (opened STRICTLY read-only --
-// this file NEVER writes to it), that two real reproduction queries return
-// non-zero counts TODAY, pins the EXACT queries T044 (a LATER, SEPARATE,
-// [SERIAL] conductor-only implementer task) must cite verbatim when it
-// repairs them through the single writer with a §9.2 backup, and proves those
-// same queries correctly classify a planted golden-bad desync and pass a
-// negative-control consistent item on a disposable scratch DB.
+// User Story 1) baseline + T044 (tracker data-quality repair) PERMANENT
+// regression guard for T-A12. Originally proved, against the REAL LIVE
+// docs/workable_items.db (opened STRICTLY read-only -- this file NEVER writes
+// to it), that two real reproduction queries returned non-zero counts (T026's
+// RED baseline). T044 has now landed the repair through the single writer
+// with a §9.2 backup (hardlinked mirror under .backups/workable_items_db/),
+// so the two former RED assertions (TestStatusDesyncCount_RED,
+// TestExactDuplicateHistoryRowCount_RED) have been DELETED per T026's own
+// documented instruction ("if this is now 0, T044 has landed the repair
+// (DELETE this RED assertion)") and replaced below by
+// TestStatusDesyncAndDuplicateHistoryRows_StayZero -- the PERMANENT
+// regression guard the T026 contract stub asked for, now GREEN-polarity
+// (asserts the queries stay at 0, catching a FUTURE regression rather than
+// proving a present-day defect). The golden-bad / negative-control tests are
+// UNCHANGED -- they validate the QUERY LOGIC ITSELF on a disposable scratch
+// DB and remain correct regardless of the live DB's current state.
 //
 // THE TWO DEFECTS, VERIFIED DIRECTLY (2026-09-28) AGAINST THE LIVE DB:
 //
@@ -83,6 +91,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -123,16 +132,24 @@ func openLiveReadOnly(t *testing.T) *sql.DB {
 	return db
 }
 
-// TestStatusDesyncCount_RED is the P-05 half of T026's RED baseline: proves,
-// against the REAL live DB, that EXACTLY 3 items have a terminal-class last
-// history event while items.status still reads 'Queued' -- the exact
-// desync class + exact item set research.md P-05 documents, once the
-// SEPARATELY-DOCUMENTED SPK-6xx bulk-import-closure class (P-04) is excluded.
-func TestStatusDesyncCount_RED(t *testing.T) {
+// TestStatusDesyncAndDuplicateHistoryRows_StayZero is T044's PERMANENT
+// regression guard (§11.4.135), GREEN-polarity, superseding the two deleted
+// T026 RED assertions (TestStatusDesyncCount_RED /
+// TestExactDuplicateHistoryRowCount_RED). Both P-05 (status desync) and P-06
+// (exact-duplicate 'Reopened' rows) reproduction queries are asserted to
+// return EXACTLY ZERO against the REAL LIVE DB -- T044 repaired all 3 + all 6
+// on 2026-09-29 through the single writer with a §9.2 backup
+// (.backups/workable_items_db/workable_items_20260928T195030Z_pre_T044.db.mirror).
+// A future re-introduction of either defect class (e.g. a bulk import that
+// skips the atomic close/reopen CLI paths) fails THIS test, catching the
+// regression on every `go test ./...` run of this package -- the standing
+// guard the T026 contract stub (below) asked for, at the layer this defect
+// class actually lives (the tracker DB itself, not an on-device surface).
+func TestStatusDesyncAndDuplicateHistoryRows_StayZero(t *testing.T) {
 	db := openLiveReadOnly(t)
 	defer db.Close()
 
-	const query = `
+	const desyncQuery = `
 		SELECT i.atm_id, i.status, h.event_type
 		FROM items i
 		JOIN (
@@ -145,56 +162,33 @@ func TestStatusDesyncCount_RED(t *testing.T) {
 		  AND i.atm_id NOT LIKE 'SPK-6%'
 		ORDER BY i.atm_id`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(desyncQuery)
 	if err != nil {
-		t.Fatalf("desync reproduction query: %v", err)
+		t.Fatalf("P-05 desync reproduction query: %v", err)
 	}
-	defer rows.Close()
-
-	type desync struct{ atmID, status, lastEvent string }
-	var got []desync
+	var desyncs []string
 	for rows.Next() {
-		var d desync
-		if err := rows.Scan(&d.atmID, &d.status, &d.lastEvent); err != nil {
+		var atmID, status, event string
+		if err := rows.Scan(&atmID, &status, &event); err != nil {
+			rows.Close()
 			t.Fatalf("scan desync row: %v", err)
 		}
-		got = append(got, d)
+		desyncs = append(desyncs, fmt.Sprintf("%s(%s/%s)", atmID, status, event))
 	}
 	if err := rows.Err(); err != nil {
+		rows.Close()
 		t.Fatalf("iterate desync rows: %v", err)
 	}
-
-	if len(got) != 3 {
-		t.Fatalf("RED baseline drifted: want exactly 3 status desyncs (research.md "+
-			"P-05, SPK-6xx bulk-import closures excluded per P-04), got %d: %v -- "+
-			"if this is now 0, T044 has landed the repair (DELETE this RED "+
-			"assertion); if it is some OTHER non-zero number, the live tracker "+
-			"has genuinely drifted since 2026-09-28 and T044's implementer MUST "+
-			"re-verify against the CURRENT live state before citing this query",
-			len(got), got)
+	rows.Close()
+	if len(desyncs) != 0 {
+		t.Fatalf("REGRESSION (§11.4.135, T044 repair from 2026-09-29 re-broken): "+
+			"P-05 status-desync query now returns %d row(s), want 0: %v -- "+
+			"a status/history desync has been re-introduced; repair through the "+
+			"single writer (`workable-items close`) with a §9.2 backup, never a "+
+			"direct SQL UPDATE", len(desyncs), desyncs)
 	}
-	wantIDs := map[string]bool{"ATM-1002": true, "ATM-1009": true, "ATM-906": true}
-	for _, d := range got {
-		if !wantIDs[d.atmID] {
-			t.Fatalf("desync count is 3 but item set differs from research.md "+
-				"P-05's named items (ATM-1002, ATM-1009, ATM-906): got %v", got)
-		}
-	}
-	t.Logf("RED confirmed: %d status desyncs today (matches research.md P-05 exactly): %v", len(got), got)
-}
 
-// TestExactDuplicateHistoryRowCount_RED is the P-06 half of T026's RED
-// baseline: proves, against the REAL live DB, that EXACTLY 6 excess
-// 'Reopened'-with-evidence history rows exist today -- the substantive
-// duplicate class that would corrupt §11.4.55 reopens_count / §11.4.214
-// recurrence tracking, distinct from the separately-documented, much larger,
-// cosmetic 'Opened'/'Updated' bulk-duplication class from the 2026-06-09
-// tracker migration (out of THIS task's scope).
-func TestExactDuplicateHistoryRowCount_RED(t *testing.T) {
-	db := openLiveReadOnly(t)
-	defer db.Close()
-
-	const query = `
+	const dupQuery = `
 		SELECT atm_id, COUNT(*) AS n
 		FROM item_history
 		WHERE event_type = 'Reopened'
@@ -203,44 +197,36 @@ func TestExactDuplicateHistoryRowCount_RED(t *testing.T) {
 		HAVING COUNT(*) > 1
 		ORDER BY atm_id`
 
-	rows, err := db.Query(query)
+	rows2, err := db.Query(dupQuery)
 	if err != nil {
-		t.Fatalf("duplicate-history reproduction query: %v", err)
+		t.Fatalf("P-06 duplicate-history reproduction query: %v", err)
 	}
-	defer rows.Close()
-
 	excess := 0
 	var groupedIDs []string
-	for rows.Next() {
+	for rows2.Next() {
 		var atmID string
 		var n int
-		if err := rows.Scan(&atmID, &n); err != nil {
+		if err := rows2.Scan(&atmID, &n); err != nil {
+			rows2.Close()
 			t.Fatalf("scan duplicate-group row: %v", err)
 		}
 		excess += n - 1
 		groupedIDs = append(groupedIDs, atmID)
 	}
-	if err := rows.Err(); err != nil {
+	if err := rows2.Err(); err != nil {
+		rows2.Close()
 		t.Fatalf("iterate duplicate-group rows: %v", err)
 	}
-
-	if excess != 6 {
-		t.Fatalf("RED baseline drifted: want exactly 6 excess exact-duplicate "+
-			"'Reopened'-with-evidence history rows (research.md P-06), got %d "+
-			"across groups %v -- if this is now 0, T044 has landed the repair "+
-			"(DELETE this RED assertion)", excess, groupedIDs)
+	rows2.Close()
+	if excess != 0 {
+		t.Fatalf("REGRESSION (§11.4.135, T044 repair from 2026-09-29 re-broken): "+
+			"P-06 exact-duplicate-history query now returns %d excess row(s), want 0: "+
+			"%v -- a duplicate 'Reopened'-with-evidence row has been re-introduced "+
+			"(§11.4.55/§11.4.214 recurrence-count corruption risk); repair through "+
+			"the single writer with a §9.2 backup, never a direct SQL DELETE without one",
+			excess, groupedIDs)
 	}
-	wantIDs := map[string]bool{
-		"ATM-347": true, "ATM-349": true, "ATM-350": true,
-		"ATM-351": true, "ATM-352": true, "ATM-353": true,
-	}
-	for _, id := range groupedIDs {
-		if !wantIDs[id] {
-			t.Fatalf("excess count is 6 but item set differs from research.md "+
-				"P-06's reconciled items (ATM-347/349/350/351/352/353): got %v", groupedIDs)
-		}
-	}
-	t.Logf("RED confirmed: %d excess exact-duplicate history rows today (matches research.md P-06 exactly): %v", excess, groupedIDs)
+	t.Logf("GREEN guard confirmed: 0 status desyncs, 0 excess duplicate-history rows (T044 repair holds)")
 }
 
 // TestStatusDesyncQuery_GoldenBad_PlantedDesyncCaught proves the P-05
@@ -339,22 +325,29 @@ func TestStatusDesyncQuery_NegativeControl_ConsistentItemPasses(t *testing.T) {
 	t.Logf("negative control confirmed: consistent item %s correctly NOT flagged", id)
 }
 
-// TestFastcycleStatusConsistency_T044ContractStub documents, as an explicit
-// t.Skip() specification, that a PERMANENT product-level consistency check
-// (a CLI subcommand or library function wired into the standing regression
-// guard suite, §11.4.135) does not exist yet -- T044 ([SERIAL], conductor-
-// only, through the single writer with a §9.2 backup) both repairs the 3+6
-// live rows AND is expected to wire a permanent guard using exactly the two
-// queries pinned above, so a REGRESSION of either defect class is caught
-// automatically on every future run, not only when this RED test happens to
-// be re-run by hand.
+// TestFastcycleStatusConsistency_T044ContractStub is UN-SKIPPED (T044 has
+// landed). The permanent-regression-guard half of this stub's original ask
+// is satisfied by TestStatusDesyncAndDuplicateHistoryRows_StayZero above (the
+// exact two queries pinned in this file's header, now GREEN-polarity,
+// exercised on every `go test ./...` run of this package). The SECOND half
+// of the original ask -- registering in
+// device/rockchip/rk3588/tests/regression_guard/registry.tsv -- was
+// INVESTIGATED and found to be a genuine scope mismatch, not silently
+// skipped (§11.4.6): that registry's own header comment
+// (device/rockchip/rk3588/tests/regression_guard/registry.tsv, "Schema"
+// section) scopes every row's guard_script to
+// "device/rockchip/rk3588/tests/ (NOT edited here; owned by other streams)"
+// -- an ON-DEVICE / on-host-Android-shell-script regression-guard registry.
+// This defect class has NO on-device dimension whatsoever (it is a pure
+// tracker-SQLite-DB consistency concern, host-side, Go-test-native, with no
+// §11.4.69 sink-side feature_class it genuinely maps to) -- forcing a
+// registration there would be a misfit, not a fix. The Go test suite itself
+// IS this defect class's correct, standing, permanent home.
 func TestFastcycleStatusConsistency_T044ContractStub(t *testing.T) {
-	t.Skip("T044 contract stub (not yet implemented): after repairing the 3 " +
-		"status desyncs and removing the 6 exact-duplicate history rows " +
-		"(keeping one of each pair) through the single writer with a §9.2 " +
-		"backup, T044 MUST wire a PERMANENT regression guard (§11.4.135) " +
-		"using the exact two queries pinned in this file's header, registered " +
-		"in regression_guard/registry.tsv, so either defect class re-appearing " +
-		"in the future is caught automatically -- un-skip and implement once " +
-		"T044 lands")
+	t.Log("T044 landed 2026-09-29: permanent regression guard = " +
+		"TestStatusDesyncAndDuplicateHistoryRows_StayZero (this file); " +
+		"device/rockchip/rk3588/tests/regression_guard/registry.tsv " +
+		"registration intentionally NOT done -- that registry is scoped to " +
+		"on-device guard scripts (see its own header comment), and this " +
+		"defect class is host-side tracker-DB-only with no on-device dimension")
 }
