@@ -147,6 +147,9 @@ EXIT_OK = 0
 EXIT_FINDING = 1   # refused: review-class hard-exclusion OR ladder exhaustion (C-001 row 1)
 EXIT_USAGE = 2      # malformed/missing --fixture, or a malformed fixture document
 
+# Constitution 11.4.231(A): "sonnet" is the DEFAULT working tier.
+CONSTITUTION_DEFAULT_TIER = "sonnet"
+
 # review_record.py lives one directory up from this file, under review/ (see
 # module docstring "Reuse, not reinvention"). Read by regex, never imported.
 _REVIEW_RECORD = os.path.join(
@@ -221,7 +224,19 @@ def _route_default(fx, ladder):
     refused, never an error -- this is the real, successful safety-net
     PASS (refused=false) the negative-control fixture proves is genuine,
     never a disguised refusal."""
-    default_tier = fx.get("default_tier", "sonnet")
+    # The safety-net branch routes to the constitution's own 11.4.231(A)
+    # default working tier. A fixture may RESTATE it but never OVERRIDE it
+    # (T121 review finding F-TR1): an override previously routed a
+    # no-verifier task to any ladder rung, including haiku, which
+    # 11.4.231(D.1) prohibits here -- the exact cheap-routing this branch
+    # exists to prevent.
+    default_tier = fx.get("default_tier", CONSTITUTION_DEFAULT_TIER)
+    if default_tier != CONSTITUTION_DEFAULT_TIER:
+        raise ValueError(
+            "default_tier %r overrides the constitution 11.4.231(A) default "
+            "working tier %r; the no-verifier safety-net branch never routes "
+            "anywhere else" % (default_tier, CONSTITUTION_DEFAULT_TIER)
+        )
     if default_tier not in ladder:
         raise ValueError(
             "default_tier %r is not a rung on this fixture's own ladder %r"
@@ -316,9 +331,23 @@ def derive_route(fx):
         raise ValueError("fixture document is missing a non-empty 'ladder' list")
     ladder = fx["ladder"]
 
-    if fx.get("is_review_class", False):
+    # Fail-closed classification (T121 review findings F-TR2, constitution
+    # 11.4.252 / 11.4.231(E)): the two routing-class flags MUST be present
+    # AND be real booleans. A missing `is_review_class` previously defaulted
+    # to False, so a review-class task could reach a cheap tier merely by
+    # omitting the flag; a non-bool truthy string was accepted as True by
+    # accident rather than by contract. Either is now a malformed document.
+    for flag in ("is_review_class", "has_deterministic_verifier"):
+        if not isinstance(fx.get(flag), bool):
+            raise ValueError(
+                "fixture document must carry an explicit boolean %r (got %r) -- "
+                "routing class is never inferred from an absent or non-bool "
+                "flag (fail closed, section 11.4.252)" % (flag, fx.get(flag))
+            )
+
+    if fx["is_review_class"]:
         return _refuse_review()
-    if not fx.get("has_deterministic_verifier", False):
+    if not fx["has_deterministic_verifier"]:
         return _route_default(fx, ladder)
     return _route_escalation(fx, ladder)
 

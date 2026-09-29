@@ -44,15 +44,17 @@ absent, classification resolves from the LIVE tracker (--repo's
 docs/workable_items.db, by --item) for item_type/logic_group, and from
 --diff (via --path-class-map) for touched_path_classes; defect_class and
 phase are NOT recoverable from the current items table schema (no such
-columns exist -- checked live, `.schema items`, 2026-09-29) and are left
-null in that path. This is an HONEST, WIDENING-SAFE gap, not an invented
-value (§11.4.6): GS-001's own text says exactly this class of input "may
-only widen a selection (superset direction), never narrow it" until
-T-E01's implementation decides otherwise -- a null defect_class simply
-means the 'critical-invariant-defect'-style rule never matches for a
-DB-resolved item today, which can only ever add fewer anchors than a
-correctly-populated defect_class would, never fewer than GS-002's
-always_core floor.
+columns exist -- checked live, `.schema items`, 2026-09-29) and are
+recorded in `unresolved_inputs` in that path (as is touched_path_classes
+when no --diff/--path-class-map is given). GS-001: such an input "may only
+widen a selection (superset direction), never narrow it". CORRECTED by the
+T121 review (finding G1): an earlier revision stored these as concrete
+nulls and claimed that was widening-safe -- it was not; a null
+defect_class un-matched the 'critical-invariant-defect' rule while other
+rules still matched, NARROWING the set below what a real
+critical_invariant item needs. Any rule that depends on an unresolved
+input now forces the GS-004 SUPERSET_FALLBACK (see derive_selection), the
+only selection guaranteed to be a superset of every possible value.
 
 Decision 2 -- verify's rule-table source: GS-007 re-derives "from the
 recorded inputs and rule-table address". A selection this tool WRITES
@@ -319,24 +321,51 @@ def closure_over_requires(selected, index_text):
     return set(selected)
 
 
+def match_rules(rule_table, item):
+    """Single shared rule-evaluation step for BOTH select and verify (T121
+    finding G2: verify previously re-implemented this loop by hand).
+    Returns (matched_rule_ids: list, added_anchors: set,
+    unresolved_referenced: sorted list) -- the last being every input the
+    item marks as unresolved (item['unresolved_inputs']) that at least one
+    rule's match block depends on."""
+    added = set()
+    matched = []
+    unresolved = set(item.get("unresolved_inputs") or [])
+    referenced = set()
+    for rule in rule_table["rules"]:
+        for key in rule["match"]:
+            field = key[:-4] if key.endswith("_any") else key
+            if field in unresolved:
+                referenced.add(field)
+        if rule_matches(rule["match"], item):
+            matched.append(rule["rule_id"])
+            added |= set(rule["add_anchors"])
+    return matched, added, sorted(referenced)
+
+
 def derive_selection(item, rule_table, live_ids, index_text):
     """GS-002 always_core + GS-003 rule union (+ closure, currently a
     no-op) + GS-004 conservative superset fallback. Returns
     (selected_anchors: sorted list, fallback: str|None,
-    matched_rule_ids: sorted list)."""
+    matched_rule_ids: sorted list).
+
+    GS-001 (T121 finding G1): an input the tool could not resolve may only
+    WIDEN a selection. Treating an unresolved input as a concrete null
+    silently un-matched every rule keyed on it while OTHER rules still
+    matched -- a narrower set than a correctly-populated input would give.
+    Since the tool cannot know which value the unresolved input really has,
+    the only selection that is a superset of every possible outcome is the
+    full corpus: any rule depending on an unresolved input => GS-004
+    SUPERSET_FALLBACK."""
     core = set(rule_table["always_core"])
-    added = set()
-    matched = []
-    for rule in rule_table["rules"]:
-        if rule_matches(rule["match"], item):
-            matched.append(rule["rule_id"])
-            added |= set(rule["add_anchors"])
-    if matched:
+    matched, added, unresolved_refs = match_rules(rule_table, item)
+    if matched and not unresolved_refs:
         selected = closure_over_requires(core | added, index_text)
         fallback = None
     else:
         # GS-004: any classification input with no rule => SUPERSET_
-        # FALLBACK (full corpus). Never a silent smaller set.
+        # FALLBACK (full corpus). Never a silent smaller set. Also taken
+        # when any rule depends on an unresolved input (GS-001, see above).
         selected = set(live_ids)
         fallback = FALLBACK_SUPERSET
     return sorted(selected), fallback, sorted(matched)
@@ -395,6 +424,9 @@ def resolve_item_from_db(repo, item_id):
         "touched_path_classes": [],
         "defect_class": None,
         "phase": None,
+        # Not recoverable from this schema -- recorded as UNRESOLVED, never
+        # as a concrete null value (GS-001, T121 finding G1).
+        "unresolved_inputs": ["defect_class", "phase"],
     }, None
 
 
@@ -489,6 +521,12 @@ def cmd_select(args):
             print("governance_subset select: item %r not found in docs/workable_items.db "
                   "and no --item-record was given" % args.item, file=sys.stderr)
             return 4
+        if not args.diff or not args.path_class_map:
+            # No diff evidence => touched_path_classes is UNKNOWN, not
+            # "touches nothing" (GS-001, T121 finding G1).
+            db_item["unresolved_inputs"] = sorted(
+                set(db_item["unresolved_inputs"]) | {"touched_path_classes"}
+            )
         try:
             db_item["touched_path_classes"] = resolve_touched_path_classes(
                 args.repo, args.diff, args.path_class_map
@@ -555,6 +593,7 @@ def cmd_select(args):
         "always_core": sorted(rule_table["always_core"]),
         "matched_rule_ids": matched,
         "fallback": fallback,
+        "unresolved_inputs": match_rules(rule_table, item)[2],
         "selected_anchors": selected,
         "anchor_ids": selected,
         "subset_id": subset_id,
@@ -681,8 +720,21 @@ def cmd_measure(args):
               % (args.usage, exc), file=sys.stderr)
         return 4
 
+    if not isinstance(usage_doc, dict):
+        print("governance_subset measure: --usage %r is not a JSON object" % args.usage,
+              file=sys.stderr)
+        return 4
     values = {k: usage_doc.get(k) for k in _USAGE_FIELDS}
+    bad = {k: v for k, v in values.items()
+           if v is not None and (isinstance(v, bool) or not isinstance(v, int) or v < 0)}
+    if bad:
+        # T121 finding G4: a non-integer token count previously crashed
+        # sum() with a traceback. Refused, never coerced.
+        print("governance_subset measure: --usage %r has non-integer/negative "
+              "token field(s) %s" % (args.usage, sorted(bad)), file=sys.stderr)
+        return 4
     measured = [v for v in values.values() if v is not None]
+    missing_fields = sorted(k for k, v in values.items() if v is None)
     # UNMEASURED (missing_instrument) is a FIRST-CLASS state, never
     # coerced to 0 -- common-conventions.md Terms: "UNMEASURED -- the
     # first-class token for a value with no recording instrument, always
@@ -690,6 +742,12 @@ def cmd_measure(args):
     if not measured:
         status = "UNMEASURED"
         total = None
+    elif missing_fields:
+        # T121 finding G4: a PARTIAL block was previously reported MEASURED
+        # and its partial sum compared against the bound -- an undercount
+        # that could pass falsely. The partial sum is a LOWER BOUND only.
+        status = "PARTIAL"
+        total = sum(measured)
     else:
         status = "MEASURED"
         total = sum(measured)
@@ -706,6 +764,9 @@ def cmd_measure(args):
             # honestly evaluated either way; recorded as null, not a
             # fabricated pass.
             within_bound = None
+        elif status == "PARTIAL":
+            # A lower bound can PROVE an overrun, never prove a fit.
+            within_bound = False if total > bound_tok else None
         else:
             within_bound = total <= bound_tok
 
@@ -713,6 +774,8 @@ def cmd_measure(args):
     usage_block["status"] = status
     if status == "UNMEASURED":
         usage_block["missing_instrument"] = "transcript usage block absent from --usage %r" % args.usage
+    elif status == "PARTIAL":
+        usage_block["missing_fields"] = missing_fields
     usage_block["total_measured_tokens"] = total
 
     body = {
@@ -767,15 +830,10 @@ def cmd_verify(args):
         return 2
     recorded_selected = sorted(selection.get("selected_anchors") or [])
 
-    matched = []
-    added = set()
-    for rule in rule_table["rules"]:
-        if rule_matches(rule["match"], item):
-            matched.append(rule["rule_id"])
-            added |= set(rule["add_anchors"])
+    matched, added, unresolved_refs = match_rules(rule_table, item)
     core = set(rule_table["always_core"])
 
-    if matched:
+    if matched and not unresolved_refs:
         derived_selected = sorted(core | added)
     else:
         index_path = args.index or selection.get("index_path")
