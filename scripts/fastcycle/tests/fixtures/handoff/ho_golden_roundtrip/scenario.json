@@ -1,0 +1,4 @@
+{
+  "kind": "golden-good",
+  "note": "handoff.json is self-consistent (body_hash/handoff_id recompute correctly) and both partial_artefacts' on-disk bytes hash-match their recorded content_address -- the record round-trips"
+}

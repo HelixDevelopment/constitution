@@ -1,0 +1,4 @@
+{
+  "kind": "red-baseline",
+  "note": "a fixture agent killed by a quota signal today leaves NO handoff.json -- orchestration/handoff.py (T133) does not exist yet, so HO-001's 'on crashed detection a final [handoff] one is written' obligation is wholly unmet"
+}

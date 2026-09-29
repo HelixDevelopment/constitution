@@ -1,0 +1,4 @@
+{
+  "kind": "golden-bad",
+  "note": "notes.md's CURRENT on-disk bytes were tampered after handoff.json was written -- its content_address no longer matches -- HO-002: 'verify re-hashes [partial artefacts] and exits 1 on any difference'"
+}
