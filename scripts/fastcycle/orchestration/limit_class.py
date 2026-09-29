@@ -82,23 +82,96 @@ into rate-limited, cap, or context-overflow; 1 = signal unparseable --
 class `other` emitted with the raw signal (never a crash, never a refusal
 to write --out); 2 = usage error (missing/malformed --signal or --out).
 
-Extension point for T136 (plan T-B06's sibling "place" decision, a
-SEPARATE, LATER task landing in this SAME file per operator instruction):
-this module deliberately keeps `classify_signal` / `cmd_classify` /
-`build_arg_parser` as clearly separable units and adds no subcommand
-wrapper around the CLI's flags (the contract's own invocation
-`--signal <raw> --out <class.json>` carries no subcommand token, so none
-is invented here) -- T136 is free to extend `build_arg_parser` (e.g. a
-new `--place`-shaped flag set or a genuinely separate invocation form) and
-add its own top-level function(s) below this file's `classify_signal`
-without disturbing this task's contract-fixed CLI shape or its exit-code
-table.
+T136 (plan T-B07's "place" decision, DEC-22 spread fan-out; FR-016,
+FR-018): landed in this SAME file, after `classify_signal` / `cmd_classify`
+/ `build_arg_parser`, per the operator's own instruction and exactly the
+extension point T135 deliberately left open above -- `classify`'s
+contract-fixed CLI shape (`--signal <raw> --out <class.json>`, no
+subcommand token) is left completely undisturbed; `place` is dispatched by
+`main()` inspecting `argv[0]` BEFORE `build_arg_parser()` (classify's
+parser) is ever invoked, so `limit_class.py --signal ... --out ...`
+(classify, T135) and `limit_class.py place --fixture ... --out ...`
+(place, T136) are two genuinely independent entry points sharing one file,
+never one parser trying to recognise both shapes.
+
+`place`'s CLI shape, fixture vocabulary, and placement rule are ALL
+governed by T128's own RED test + its `fixtures/alias_spread/README.md`
+(read that README before touching `derive_placement`/`cmd_place` below;
+its "The chosen CLI shape reuses the `--fixture <path> --out <path>`
+convention... (T109/T118, the closest sibling tool)" section documents
+this file's own binding-if-adopted CLI shape verbatim):
+
+  CLI:
+      limit_class.py place --fixture <fixture.json> --out <placement.json>
+
+  Fixture input shape (fixtures/alias_spread/*.json, T128's own fixtures):
+      {task_id, verb, live_agents: int,
+       aliases: [{alias, kind: "native"|other, operational: bool,
+                  near_cap: bool}, ...],
+       expected_placement: {...}}  -- `expected_placement` is the FIXTURE's
+      own recorded expectation, read only by the RED test, never by this
+      file.
+
+  Output shape (data-model.md's placement-decision vocabulary, restated in
+  fixtures/alias_spread/README.md's own table -- exactly these seven keys,
+  no extra envelope, mirroring `classify`'s own bare-entity wire shape):
+      {refused: bool, refusal_reason: str|None,
+       eligible_alias_count: int, cap_per_alias: int|None,
+       native_first_order: [str], assignment_alias_counts: {str: int},
+       max_assigned_count: int|None, excluded_near_cap_aliases: [str]}
+
+Placement rule (restated precisely from fixtures/alias_spread/README.md
+"The placement rule this fixture set encodes" -- copied from research.md
+DEC-22's own decision text, never independently re-derived nor invented
+here):
+
+  1. Eligibility filter -- an alias is eligible for new placements iff it
+     is `operational: true` AND `near_cap: false` (DEC-22's second clause:
+     an alias within a configurable margin of a known cap receives no new
+     long-running agents).
+  2. Native-first order (section 11.4.196) -- eligible NATIVE aliases
+     first (given relative order preserved), then eligible PROVIDER
+     aliases (given relative order preserved) -- a stable partition-by-
+     kind, never a re-sort within a kind.
+  3. Round-robin spread up to a per-alias cap -- with `m` = eligible alias
+     count and `n` = `live_agents`, `cap_per_alias = ceil(n / m) + 1`
+     (DEC-22's own formula, copied verbatim, confirmed live in
+     research.md by T128's own control needle #4). Agents assigned one at
+     a time, cycling `eligible[i % m]` for the i-th agent (0-indexed),
+     until all `n` are placed.
+  4. No eligible alias -- refused (this fixture set's fourth, out-of-
+     scope corner per its own "Explicit scope exclusion" section; T136's
+     own decision, documented below at `cmd_place`).
+
+Producer != Verifier (section 11.4.240), exactly as `classify_signal`
+above: `derive_placement` below is written fresh, directly from
+fixtures/alias_spread/README.md's restated DEC-22 rule (never imported
+from, nor shared with, T128's own embedded `derive_placement` oracle
+inside `test_alias_spread_red.sh`); the two are expected to agree on
+every one of T128's three fixtures because both correctly implement the
+same closed placement rule over the same real inputs, not because one
+delegates to the other. Cross-checked here against all three documented
+fixtures before landing.
+
+Exit codes for `place` (T136's own decision -- README.md's "Explicit
+scope exclusion" leaves the zero-eligible-alias refusal corner
+UNCONFIRMED by the fixture set, so this file must decide; the decision
+below deliberately mirrors `classify`'s own exit-code shape: a real
+verdict document is ALWAYS written, and the exit code signals via a
+distinguished non-zero value that a special, still-informative condition
+was recorded rather than a crash): 0 = placed (not refused; every one of
+T128's three fixtures lands here); 1 = refused (no eligible alias --
+`refusal_reason` recorded, the `--out` document still written, never a
+crash, never a refusal to write); 2 = usage error (missing/malformed
+`--fixture`/`--out`, an unreadable or non-JSON `--fixture` file, or a
+fixture missing a required field this rule depends on).
 
 Stdlib only. Python 3.
 """
 import argparse
 import datetime
 import json
+import math
 import os
 import re
 import sys
@@ -110,8 +183,16 @@ except ImportError:  # pragma: no cover - Python < 3.9 fallback, not expected on
     zoneinfo = None
 
 EXIT_OK = 0
-EXIT_UNPARSEABLE = 1  # class "other" emitted -- contract's own "Exit codes" row
+EXIT_UNPARSEABLE = 1  # classify: class "other" emitted -- contract's own "Exit codes" row
+EXIT_PLACE_REFUSED = 1  # place: no eligible alias -- verdict document still written (T136's own decision, see module docstring)
 EXIT_USAGE = 2
+
+# T136's own placement refusal-reason text (fixtures/alias_spread/README.md's
+# own "No eligible alias => refused" wording) -- the RED test's real-tool
+# invocation check ONLY asserts None-vs-not-None on `refusal_reason` (never
+# an exact string match), so this literal is free to be a real, readable
+# explanation rather than needing to byte-match anything in the test.
+PLACE_REFUSAL_REASON_NO_ELIGIBLE = "no operational, non-near-cap alias available"
 
 # Closed class set (research.md DEC-14 / AR-005) -- restated here purely for
 # documentation; classify_signal below never returns anything outside it.
@@ -266,9 +347,170 @@ def cmd_classify(a):
 
 
 # ---------------------------------------------------------------------------
-# CLI -- the contract's own fixed invocation carries no subcommand token
-# (`limit_class.py --signal <raw> --out <class.json>`), so none is added
-# here; see module docstring "Extension point for T136".
+# place (T136; plan T-B07; FR-016, FR-018) -- DEC-22 spread fan-out
+# placement decision. `derive_placement` below is an independent
+# implementation of fixtures/alias_spread/README.md's restated placement
+# rule (section 11.4.240 Producer != Verifier -- see module docstring),
+# written fresh from that README's own wording, never imported from nor
+# coupled to T128's own embedded `derive_placement` oracle inside
+# test_alias_spread_red.sh.
+# ---------------------------------------------------------------------------
+def derive_placement(fx):
+    """Independent implementation of DEC-22's placement rule (restated in
+    fixtures/alias_spread/README.md "The placement rule this fixture set
+    encodes", copied from research.md DEC-22's own decision text). `fx` is
+    a parsed placement-request fixture document
+    ({live_agents: int, aliases: [{alias, kind, operational, near_cap},
+    ...], ...}); `expected_placement`, if present in `fx`, is never read
+    here -- that field belongs to the RED test's own fixture-consistency
+    check, not to this tool.
+
+    Returns the seven-key placement-verdict dict documented in this
+    module's docstring ("Output shape"). Never raises for a well-formed
+    fixture; a fixture missing `live_agents` or `aliases`, or an alias
+    entry missing `alias`/`kind`/`operational`/`near_cap`, raises
+    KeyError, which `cmd_place` below catches and reports as a usage
+    error (a malformed fixture is not this rule's problem to silently
+    paper over -- section 11.4.6, never guess a missing field's value)."""
+    live_agents = fx["live_agents"]
+    aliases = fx["aliases"]
+
+    # Clause 1 (eligibility) + Clause 2 (native-first order, section
+    # 11.4.196): partition eligible aliases into natives-then-providers,
+    # preserving each partition's own given relative order -- a stable
+    # partition-by-kind, never a re-sort within a kind.
+    natives = [
+        a["alias"]
+        for a in aliases
+        if a["operational"] and not a["near_cap"] and a["kind"] == "native"
+    ]
+    providers = [
+        a["alias"]
+        for a in aliases
+        if a["operational"] and not a["near_cap"] and a["kind"] != "native"
+    ]
+    eligible = natives + providers
+
+    # An alias excluded from new placements ONLY because it is near its
+    # recorded cap (DEC-22's second clause) -- operational is required so
+    # a merely-unavailable alias is not double-counted here as well as
+    # simply-ineligible; sorted for a deterministic, order-independent
+    # verdict field.
+    excluded_near_cap = sorted(
+        a["alias"] for a in aliases if a["operational"] and a["near_cap"]
+    )
+
+    if not eligible:
+        # Clause 4 (out-of-scope corner, T136's own decision -- see module
+        # docstring "Exit codes for place"): no eligible alias => refused,
+        # a real verdict document still describing exactly why.
+        return {
+            "refused": True,
+            "refusal_reason": PLACE_REFUSAL_REASON_NO_ELIGIBLE,
+            "eligible_alias_count": 0,
+            "cap_per_alias": None,
+            "native_first_order": [],
+            "assignment_alias_counts": {},
+            "max_assigned_count": None,
+            "excluded_near_cap_aliases": excluded_near_cap,
+        }
+
+    # Clause 3 (round-robin spread up to a per-alias cap): DEC-22's own
+    # formula, copied verbatim (never independently re-derived) --
+    # confirmed live in research.md by T128's own control needle #4.
+    m = len(eligible)
+    cap_per_alias = math.ceil(live_agents / m) + 1
+
+    assignment_alias_counts = {alias: 0 for alias in eligible}
+    for i in range(live_agents):
+        assignment_alias_counts[eligible[i % m]] += 1
+
+    max_assigned_count = max(assignment_alias_counts.values()) if assignment_alias_counts else 0
+    return {
+        "refused": False,
+        "refusal_reason": None,
+        "eligible_alias_count": m,
+        "cap_per_alias": cap_per_alias,
+        "native_first_order": eligible,
+        "assignment_alias_counts": assignment_alias_counts,
+        "max_assigned_count": max_assigned_count,
+        "excluded_near_cap_aliases": excluded_near_cap,
+    }
+
+
+def cmd_place(a):
+    try:
+        with open(a.fixture, encoding="utf-8") as fh:
+            fx = json.load(fh)
+    except (OSError, ValueError) as exc:
+        print(
+            "limit_class place: cannot read/parse --fixture %s: %s" % (a.fixture, exc),
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+
+    try:
+        body = derive_placement(fx)
+    except KeyError as exc:
+        print(
+            "limit_class place: fixture %s is missing a required field: %s"
+            % (a.fixture, exc),
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+
+    write_class_doc_atomic(a.out, body)
+
+    if body["refused"]:
+        print(
+            "limit_class place: refused -- %s" % body["refusal_reason"],
+            file=sys.stderr,
+        )
+        return EXIT_PLACE_REFUSED
+    print(
+        "limit_class place: placed %d agent(s) across %d eligible alias(es) "
+        "(cap_per_alias=%s, max_assigned_count=%s)"
+        % (
+            fx.get("live_agents"),
+            body["eligible_alias_count"],
+            body["cap_per_alias"],
+            body["max_assigned_count"],
+        )
+    )
+    return EXIT_OK
+
+
+# ---------------------------------------------------------------------------
+# CLI (place) -- `limit_class.py place --fixture <fixture.json>
+# --out <placement.json>` (fixtures/alias_spread/README.md's own
+# binding-if-adopted CLI shape, reusing context/tier_route.py route's
+# convention). Dispatched by `main()` on `argv[0] == "place"`, entirely
+# separately from classify's own flag-only parser below, so neither
+# entry point's shape disturbs the other's (see module docstring).
+# ---------------------------------------------------------------------------
+def build_place_arg_parser():
+    p = argparse.ArgumentParser(
+        prog="limit_class.py place",
+        description="DEC-22 spread fan-out placement decision (plan T-B07; T136)",
+    )
+    p.add_argument(
+        "--fixture",
+        required=True,
+        help="path to a placement-request fixture JSON (fixtures/alias_spread/*.json shape)",
+    )
+    p.add_argument(
+        "--out",
+        required=True,
+        help="path to write the classified placement-verdict JSON document",
+    )
+    return p
+
+
+# ---------------------------------------------------------------------------
+# CLI (classify) -- the contract's own fixed invocation carries no
+# subcommand token (`limit_class.py --signal <raw> --out <class.json>`),
+# so none is added here; see module docstring "T136" section above for
+# how `place` (T136) coexists with this unchanged shape.
 # ---------------------------------------------------------------------------
 def build_arg_parser():
     p = argparse.ArgumentParser(prog="limit_class.py", description=__doc__.split("\n\n")[0])
@@ -278,6 +520,18 @@ def build_arg_parser():
 
 
 def main(argv):
+    # T136: dispatch to `place` on the literal leading token "place",
+    # BEFORE classify's own parser (build_arg_parser) ever sees argv --
+    # classify's contract-fixed invocation carries no subcommand token at
+    # all (its first token is always "--signal"), so this branch can
+    # never misroute a genuine classify invocation.
+    if argv and argv[0] == "place":
+        try:
+            place_args = build_place_arg_parser().parse_args(argv[1:])
+        except SystemExit as exc:
+            raise exc
+        return cmd_place(place_args)
+
     try:
         args = build_arg_parser().parse_args(argv)
     except SystemExit as exc:
