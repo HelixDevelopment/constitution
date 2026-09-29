@@ -219,17 +219,70 @@
 # flip THAT check to FAIL too -- the two together close the gap a
 # source-absence check alone cannot (a call that exists but is a true
 # side-channel no-op vs. one that silently mutates output).
+#
+# (d) T048 review round-1 finding F7 remediation (2026-09-29): independent
+#     re-verification found tasks.md T030 is now `[x]` (landed), and checks
+#     (2a)/(2b) below (the ".tsv" and "FC_TIMING|fc_timer" absence checks
+#     against commit_all.sh's own SOURCE) had the exact SAME
+#     PERMANENTLY-FALSE-FOREVER defect class as (a) above -- T030's own
+#     inline comments said "If T030 has shipped it, DELETE this assertion",
+#     but deletion would lose the ability to catch a REAL regression later
+#     (T030's wiring reverted/removed), so both were instead folded under
+#     the SAME RED_MODE switch as (1)/(a) (default 0 = assert PRESENT, the
+#     now-permanent state; 1 = audit-only reconstruction). Check (3)
+#     (qa-results/fastcycle/commit/ directory existence) was DELETED
+#     outright rather than flipped: unlike the tracked-source facts
+#     (1)/(2a)/(2b), that directory is gitignored CAPTURED EVIDENCE whose
+#     existence depends on whether commit_all.sh has ever actually RUN on a
+#     given checkout since T030 landed, not on whether T030's source wiring
+#     landed -- a fresh clone with T030 fully landed would still fail an
+#     "assert PRESENT" flip on its very first run, itself a §11.4.201
+#     false-positive refusal of a healthy state.
+#
+# (e) T048 review round-1 finding F7 remediation, GROUP 2 Assertion B
+#     (2026-09-29): the "one push row per remote with its read-back tip"
+#     check read ONLY the single most-recently-modified TSV under the
+#     SHARED, cross-track qa-results/fastcycle/commit/ directory. Direct
+#     source inspection of commit_all.sh's main() found this is the WRONG
+#     ARTIFACT (§11.4.120), not a stale-polarity flip: under the DEFAULT
+#     invocation (no --sync-push/--dry-run) main() releases the flock and
+#     calls _spawn_detached_push() -- a genuinely DETACHED `nohup ... &`
+#     subshell (§11.4.88 hard constraint) that NEVER reaches do_push()'s
+#     own per-remote fc_timer rows at all; those rows are emitted ONLY
+#     inside do_push(), reached ONLY via --sync-push or a direct call. The
+#     shared directory's newest file is therefore, under this repo's own
+#     routine multi-track operating model, overwhelmingly likely to be a
+#     default/async invocation that structurally cannot carry push rows --
+#     reading RED FOREVER regardless of whether T030's mechanism is correct
+#     (which several 2026-09-28 15:0x TSVs elsewhere in that same directory
+#     already independently demonstrate it is). Fix: Assertion B now
+#     freshly, deterministically, and safely re-verifies the contract
+#     itself every run -- sourcing the REAL commit_all.sh
+#     (COMMIT_ALL_SOURCE_ONLY=1, the same pattern
+#     scripts/testing/test_commit_all_push_failure_signal_red.sh already
+#     established) and calling do_push() directly with DRY_RUN=true (this
+#     file's own RECONCILIATION (c) already judged that branch "CONFIRMED
+#     SAFE ... NO push attempted") against a throwaway scratch
+#     FC_TIMER_TSV, checking every currently-configured remote (control
+#     needle #2's $remote_names) got a well-formed push:<remote> row
+#     carrying both remote= and tip= fields. See the assertion's own inline
+#     comment below for the full detail.
 # ---------------------------------------------------------------------------------------
 #
-# Usage : bash test_fc_commit_stage_timer_red.sh   Exit 0 = RED baseline
-#         holds (absence proven + all control needles satisfied + the
-#         current-precondition assertions pass) -- note this is expected to
-#         be Exit 0 TODAY (T030 not landed: the two new GROUP 2 acceptance
-#         assertions FAIL as designed, so overall exit is non-zero until
-#         T030 lands; "Exit 0" above describes the file's own internal
-#         self-consistency checks, not its top-level verdict). The T030
-#         contract stubs (per-stage rows, per-remote push rows, golden-
-#         output identity) are printed for the future implementer.
+# Usage : bash test_fc_commit_stage_timer_red.sh   Exit 0 = every check
+#         holds: T030's presence/wiring facts confirmed PRESENT (RED_MODE=0
+#         default), all control needles satisfied, GROUP 2's two acceptance
+#         criteria (per-stage rows / per-remote push rows + read-back tip)
+#         both genuinely demonstrated, and GROUP 3's golden-output static
+#         precondition holds. UPDATED 2026-09-29 (T048 review round-1 F7
+#         remediation, RECONCILIATION (d)/(e) above): T030 landed (tasks.md
+#         `[x]`) and every assertion below now targets the CORRECT artifact
+#         for that landed state, so Exit 0 is the expected steady-state
+#         result going forward -- a non-zero exit past this point is a real
+#         regression in T030's wiring, not an ordinary/expected RED
+#         baseline. The T030 contract stubs (per-stage rows, per-remote push
+#         rows, golden-output identity) remain printed below as full
+#         acceptance-contract documentation for any future maintainer.
 #   Env FC_TIMER_COMMIT_RED_MODE=0|1  : polarity switch (§11.4.115). Default
 #                                    0 = fc_timer.sh's now-PERMANENT present
 #                                    state (T028 landed; assert PRESENT).
@@ -316,39 +369,89 @@ fi
 # --- (2) Absence check: no timing reference of any kind in commit_all.sh ---
 [ -f "$COMMIT_ALL" ] || { echo "NOT ok scripts/commit_all.sh missing at $COMMIT_ALL"; exit 1; }
 
-if grep -qE '\.tsv' "$COMMIT_ALL"; then
-  echo "NOT ok scripts/commit_all.sh now references a .tsv path -- the stage-"
-  echo "     timer TSV mechanism this RED baseline pins as absent may have"
-  echo "     landed. If T030 has shipped it, DELETE this assertion."
-  failx
+# --- (2a)/(2b) T048 review round-1 F7 remediation (2026-09-29): SAME class
+# of defect as (1) above, SAME RED_MODE-gated fix. Independent re-
+# verification found T030 IS `[x]` in tasks.md and commit_all.sh's own
+# source NOW references '.tsv' and 'FC_TIMING'/'fc_timer' -- these two
+# absence checks were PERMANENTLY-false-forever the moment T030 landed,
+# exactly like check (1)'s fc_timer.sh-presence defect. Their own inline
+# comments said "DELETE this assertion" -- but deleting loses the ability to
+# catch a REAL regression (T030's wiring later reverted/removed), the same
+# reasoning (1)'s RECONCILIATION (a) already applied. Fix: fold both under
+# the SAME RED_MODE switch as (1) (one flag, one meaning: "has T030's timing
+# wiring landed in commit_all.sh's source"), default 0 = assert PRESENT
+# (today's permanent state), 1 = audit-only reconstruction of the pre-T030
+# precondition. See top-of-file RECONCILIATION (d) for the full writeup.
+if [ "$RED_MODE" = "1" ]; then
+  if grep -qE '\.tsv' "$COMMIT_ALL"; then
+    echo "NOT ok scripts/commit_all.sh unexpectedly references a .tsv path"
+    echo "     [RED_MODE=1 audit] -- reconstructing the pre-T030 precondition"
+    echo "     requires the .tsv wiring to be temporarily reverted/moved aside"
+    failx
+  else
+    echo "ok scripts/commit_all.sh contains zero '.tsv' references [RED_MODE=1"
+    echo "   audit] -- reconstructed pre-T030 precondition"
+  fi
 else
-  echo "ok scripts/commit_all.sh (2768 lines) contains zero '.tsv' references"
-  echo "   -- confirmed absent today (2026-09-28)"
+  if grep -qE '\.tsv' "$COMMIT_ALL"; then
+    echo "ok scripts/commit_all.sh now references a .tsv path (T030 landed,"
+    echo "   confirmed 2026-09-29 -- tasks.md T030 is \`[x]\`) [RED_MODE=0/"
+    echo "   default] -- the stage-timer TSV mechanism is now a PERMANENT"
+    echo "   part of the codebase going forward"
+  else
+    echo "NOT ok scripts/commit_all.sh has NO '.tsv' reference -- T030's own"
+    echo "     TSV-writing wiring appears to have been removed or reverted;"
+    echo "     this is a REGRESSION, not the expected RED-baseline"
+    echo "     precondition (re-investigate before treating this as an"
+    echo "     ordinary RED state)"
+    failx
+  fi
 fi
 
-if grep -qE 'FC_TIMING|fc_timer' "$COMMIT_ALL"; then
-  echo "NOT ok scripts/commit_all.sh now sources fc_timer.sh or reads"
-  echo "     FC_TIMING -- re-check whether the absence this RED baseline"
-  echo "     pins still holds"
-  failx
+if [ "$RED_MODE" = "1" ]; then
+  if grep -qE 'FC_TIMING|fc_timer' "$COMMIT_ALL"; then
+    echo "NOT ok scripts/commit_all.sh unexpectedly sources fc_timer.sh or"
+    echo "     reads FC_TIMING [RED_MODE=1 audit] -- reconstructing the"
+    echo "     pre-T030 precondition requires this wiring to be temporarily"
+    echo "     reverted/moved aside"
+    failx
+  else
+    echo "ok scripts/commit_all.sh has zero 'FC_TIMING'/'fc_timer' references"
+    echo "   [RED_MODE=1 audit] -- reconstructed pre-T030 precondition"
+  fi
 else
-  echo "ok scripts/commit_all.sh has zero 'FC_TIMING' or 'fc_timer'"
-  echo "   references anywhere -- no stage-boundary instrumentation of any"
-  echo "   kind wraps preflight/sibling-check/exporter/DB-sync/stage/commit/"
-  echo "   push today"
+  if grep -qE 'FC_TIMING|fc_timer' "$COMMIT_ALL"; then
+    echo "ok scripts/commit_all.sh now sources fc_timer.sh and reads"
+    echo "   FC_TIMING (T030 landed, confirmed 2026-09-29) [RED_MODE=0/"
+    echo "   default] -- stage-boundary instrumentation now wraps preflight/"
+    echo "   sibling-check/exporter/DB-sync/stage/commit/push"
+  else
+    echo "NOT ok scripts/commit_all.sh has NEITHER 'FC_TIMING' NOR"
+    echo "     'fc_timer' anywhere -- T030's own wiring appears to have been"
+    echo "     removed or reverted; this is a REGRESSION, not the expected"
+    echo "     RED-baseline precondition (re-investigate before treating"
+    echo "     this as an ordinary RED state)"
+    failx
+  fi
 fi
 
-# --- (3) Absence check: qa-results/fastcycle/commit/ output directory ---
-if [ -d "$COMMIT_TSV_DIR" ]; then
-  echo "NOT ok qa-results/fastcycle/commit/ now exists -- the TSV output"
-  echo "     directory plan.md T-A02 names may already be in use. If T030"
-  echo "     has landed, DELETE this RED-baseline assertion."
-  failx
-else
-  echo "ok qa-results/fastcycle/commit/ absent today (confirmed 2026-09-28) --"
-  echo "   only qa-results/fastcycle/{foundational,setup,us1} exist; no"
-  echo "   per-commit TSV has ever been written"
-fi
+# --- (3) REMOVED 2026-09-29 (T048 review round-1 F7 remediation) ---
+# The original check asserted qa-results/fastcycle/commit/ is ABSENT, with
+# no polarity switch, written the same day T030 was still unlanded. UNLIKE
+# checks (1)/(2a)/(2b) above (all tracked SOURCE facts, stable across every
+# checkout once T030 lands), this directory is CAPTURED EVIDENCE -- gitignored
+# (see fc_timer.sh wiring comment in commit_all.sh: "written to qa-results/
+# fastcycle/commit/<run-id>.tsv (gitignored -- captured evidence, never
+# tracked)") -- so its existence depends on whether commit_all.sh has EVER
+# actually RUN on THIS checkout since T030 landed, not on whether T030's
+# source wiring landed. A genuinely fresh clone with T030 fully landed in
+# source would still fail this check on its very first run, a FALSE-POSITIVE
+# refusal of a healthy state (§11.4.201) -- flipping it to "assert PRESENT"
+# would be exactly as wrong as leaving it "assert ABSENT" now is. Its own
+# inline comment already said "DELETE this RED-baseline assertion" once
+# T030 lands; this is that deletion. (COMMIT_TSV_DIR/COMMIT_TSV_LATEST/
+# COMMIT_TSV_ROWS below already handle "directory may not exist yet"
+# gracefully and are unaffected by this removal.)
 
 # Shared lookup (used by both GROUP 2 assertions below): the most recent
 # captured commit-path TSV, if any has ever been written.
@@ -436,28 +539,106 @@ fi
 
 READBACK_HITS=$(grep -c -- "ls-remote" "$COMMIT_ALL" 2>/dev/null || true)
 : "${READBACK_HITS:=0}"
-COMMIT_TSV_PUSH_ROWS=0
-if [ -n "$COMMIT_TSV_LATEST" ] && [ -f "$COMMIT_TSV_LATEST" ]; then
-  COMMIT_TSV_PUSH_ROWS=$(awk -F'\t' 'NR>1 && tolower($0) ~ /push/ {c++} END{print c+0}' "$COMMIT_TSV_LATEST")
-fi
-: "${COMMIT_TSV_PUSH_ROWS:=0}"
-if [ "$READBACK_HITS" -ge 1 ] && [ "$COMMIT_TSV_PUSH_ROWS" -ge "$remote_count" ]; then
-  echo "ok commit_all.sh reads back each remote's tip via ls-remote"
-  echo "   ($READBACK_HITS reference(s)) and emits >= $remote_count push"
-  echo "   rows ($COMMIT_TSV_PUSH_ROWS captured) -- T030 acceptance"
-  echo "   criterion #2 (one push row per remote with its read-back tip)"
-else
-  echo "NOT ok commit_all.sh does NOT yet read back per-remote push tips --"
-  echo "     T030 acceptance criterion #2 (one push row per remote with its"
-  echo "     read-back tip) currently FAILS: 'ls-remote' references in"
-  echo "     commit_all.sh = $READBACK_HITS (need >=1), captured"
-  echo "     push-related TSV rows = $COMMIT_TSV_PUSH_ROWS (need >="
-  echo "     $remote_count, the REAL current remote count per control"
-  echo "     needle #2). This IS the expected RED state until T030 lands"
-  echo "     (see 'T030 contract stub 2/3' below for the full per-remote-row"
-  echo "     semantics, including the dedup-by-URL pitfall, T030 must"
-  echo "     satisfy)."
+
+# 2026-09-29 T048 review round-1 F7 remediation -- see top-of-file
+# RECONCILIATION (e) for the full writeup. SUMMARY: the ORIGINAL check here
+# read COMMIT_TSV_LATEST -- the single most-recently-modified file under the
+# SHARED, cross-track qa-results/fastcycle/commit/ directory -- for >=
+# remote_count "push"-substring rows. That is the WRONG ARTIFACT to assert
+# on (§11.4.120), confirmed by direct source inspection of commit_all.sh's
+# main() (2026-09-29): under the DEFAULT invocation (no --sync-push, no
+# --dry-run) main()'s push-dispatch releases the flock and calls
+# _spawn_detached_push() -- a genuinely DETACHED `nohup ... &` subshell
+# (§11.4.88 hard constraint, "the push is NEVER made synchronous") that
+# NEVER goes through do_push()'s per-remote fc_timer rows. Those rows are
+# emitted ONLY inside do_push() itself, reached ONLY via --sync-push
+# (§11.4.88(E)) or a direct call. So the shared directory's most-recent file
+# is, under this repo's own routine multi-track operating model,
+# overwhelmingly likely to be a default/async invocation that structurally
+# CANNOT carry push rows -- checking it would read RED FOREVER even though
+# T030 IS `[x]` in tasks.md and several 2026-09-28 15:0x TSVs elsewhere in
+# this SAME directory already demonstrate the exact required shape.
+#
+# Fix: freshly, deterministically, and safely re-verify the CONTRACT ITSELF
+# every run -- source the REAL commit_all.sh (COMMIT_ALL_SOURCE_ONLY=1, the
+# SAME pattern scripts/testing/test_commit_all_push_failure_signal_red.sh
+# already established) and call do_push() directly with DRY_RUN=true and a
+# throwaway scratch FC_TIMER_TSV (never the shared directory) against the
+# REAL repo's REAL, currently-configured remotes (control needle #2's
+# $remote_names, re-derived above). do_push()'s DRY_RUN branch performs ONLY
+# read-only `git ls-remote` calls (no `git push`, no state mutation) --
+# already judged "CONFIRMED SAFE ... NO push attempted" by this file's own
+# RECONCILIATION (c). `_fc_ls_remote_tip`'s documented UNKNOWN fallback
+# (network-unreachable remote) is a VALID `tip=` reading -- this checks that
+# the row + both fields were genuinely emitted by a real per-remote
+# read-back attempt, not that every remote is reachable from this host.
+FC_ASSB_TSV="$(mktemp "${TMPDIR:-/tmp}/fc_t016_assertb_XXXXXX.tsv" 2>/dev/null || true)"
+if [ -z "$FC_ASSB_TSV" ]; then
+  echo "NOT ok Assertion B: could not create a scratch FC_TIMER_TSV file"
+  echo "     (mktemp failed) -- the fresh self-verification below cannot run"
   failx
+else
+  rm -f "$FC_ASSB_TSV" 2>/dev/null  # fc_timer.sh creates it fresh with the header
+  trap 'rm -f "$FC_ASSB_TSV" 2>/dev/null || true' EXIT
+  (
+    COMMIT_ALL_SOURCE_ONLY=1
+    # shellcheck disable=SC1090
+    source "$COMMIT_ALL"
+    set +e +u +o pipefail
+    FC_TIMING=1
+    FC_TIMER_RUN_ID="t016_assertion_b_$$"
+    export FC_TIMER_RUN_ID
+    FC_TIMER_TSV="$FC_ASSB_TSV"
+    export FC_TIMER_TSV
+    DRY_RUN=true
+    NO_PUSH=false
+    do_push >/dev/null 2>&1
+  )
+  FC_ASSB_ROWS_OK=0
+  FC_ASSB_MISSING=""
+  if [ -f "$FC_ASSB_TSV" ]; then
+    for _rn in $remote_names; do
+      _row="$(awk -F'\t' -v want="push:$_rn" 'NR>1 && $3==want {print; exit}' "$FC_ASSB_TSV" 2>/dev/null)"
+      if [ -z "$_row" ]; then
+        FC_ASSB_MISSING="$FC_ASSB_MISSING ${_rn}(no-row)"
+        continue
+      fi
+      _extra="$(printf '%s' "$_row" | awk -F'\t' '{print $11}')"
+      _has_remote=false
+      _has_tip=false
+      case "$_extra" in *"remote=$_rn"*) _has_remote=true ;; esac
+      case "$_extra" in *"tip="*) _has_tip=true ;; esac
+      if [ "$_has_remote" = true ] && [ "$_has_tip" = true ]; then
+        FC_ASSB_ROWS_OK=$((FC_ASSB_ROWS_OK + 1))
+      else
+        FC_ASSB_MISSING="$FC_ASSB_MISSING ${_rn}(row-present-but-malformed-extra:$_extra)"
+      fi
+    done
+  else
+    FC_ASSB_MISSING="(scratch TSV was never created -- do_push() sourcing/call failed)"
+  fi
+
+  if [ "$READBACK_HITS" -ge 1 ] && [ "$FC_ASSB_ROWS_OK" -eq "$remote_count" ]; then
+    echo "ok commit_all.sh reads back each remote's tip via ls-remote"
+    echo "   ($READBACK_HITS reference(s)) and do_push() -- freshly re-"
+    echo "   verified this run via a scratch FC_TIMER_TSV, never the shared"
+    echo "   qa-results/fastcycle/commit/ directory -- emits exactly"
+    echo "   $FC_ASSB_ROWS_OK/$remote_count well-formed push:<remote> rows"
+    echo "   (remote= + tip= fields both present) -- T030 acceptance"
+    echo "   criterion #2 (one push row per remote with its read-back tip)"
+  else
+    echo "NOT ok commit_all.sh's do_push() does NOT emit a well-formed push"
+    echo "     row (remote=+tip= fields) for every currently-configured"
+    echo "     remote: 'ls-remote' references in commit_all.sh = $READBACK_HITS"
+    echo "     (need >=1), fresh scratch-run rows = $FC_ASSB_ROWS_OK/"
+    echo "     $remote_count (need == $remote_count). Missing/malformed:"
+    echo "     ${FC_ASSB_MISSING:-<none -- see counts above>}."
+    echo "     This IS a genuine T030 acceptance-criterion #2 gap if it"
+    echo "     persists (see 'T030 contract stub 2/3' below for the full"
+    echo "     per-remote-row semantics, including the dedup-by-URL pitfall,"
+    echo "     T030 must satisfy)."
+    failx
+  fi
 fi
 
 # ============================================================================

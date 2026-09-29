@@ -131,21 +131,38 @@ else
 fi
 
 # --- §11.4.273 control needle 2: agent_registry_writer.sh's real JSONL row ---
-#     schema genuinely has no `item` field today.
+#     schema's `item` field state (T037's wiring step).
+# UPDATED 2026-09-29 (T048 review round-1 finding F7 remediation): the
+# ORIGINAL check here asserted the JSONL schema has NO `item` field, with no
+# polarity switch -- the SAME PERMANENTLY-FALSE-FOREVER defect class already
+# fixed for the "dispatch_stamp.sh absence" check below (lines ~152-177,
+# fixed 2026-09-28). tasks.md T037 IS `[x]` (landed) today: direct
+# inspection of the real, current agent_registry_writer.sh confirms it now
+# extracts `ITEM_ID` via `dispatch_stamp.sh --extract-item-id` and writes it
+# into a DEDICATED `"item"` JSONL key on every row (both the primary write
+# path and the latest-status-per-key reconciliation logic read `r.get(
+# "item", "")`) -- exactly matching T036/T037's own derived contract stub
+# 3/5 below ("a second CLI mode ... T037 can call it as a one-line helper").
+# Flipped to the SAME regression-detecting positive-assertion shape already
+# used for the dispatch_stamp.sh absence check: absence of the "item" key
+# now indicates T037's wiring was reverted/removed, not the expected
+# pre-landing RED state.
 if [ ! -f "$REGISTRY_WRITER" ]; then
   echo "NOT ok agent_registry_writer.sh missing at $REGISTRY_WRITER"
   failx
 else
   if grep -qE '"item"' "$REGISTRY_WRITER"; then
-    echo "NOT ok agent_registry_writer.sh already writes an \"item\" JSONL key --"
-    echo "     T037's wiring may have partially landed; re-check this baseline"
-    failx
+    echo "ok control needle 2: agent_registry_writer.sh now writes a"
+    echo "   dedicated \"item\" JSONL key (T037 landed, confirmed"
+    echo "   2026-09-29 -- tasks.md T037 is \`[x]\`, item extracted via"
+    echo "   dispatch_stamp.sh --extract-item-id) -- the expected, permanent"
+    echo "   state going forward"
   else
-    echo "ok control needle 2: agent_registry_writer.sh's real JSONL row schema"
-    echo "   ({ts,event,key,tool_name,session_id,description,note}, confirmed"
-    echo "   via direct grep of the real, current file) has NO 'item' key"
-    echo "   today -- confirms T037 (the wiring step) has not landed either,"
-    echo "   consistent with T036 (its prerequisite) being absent"
+    echo "NOT ok agent_registry_writer.sh has NO \"item\" JSONL key -- T037's"
+    echo "     wiring appears to have been removed or reverted; this is a"
+    echo "     REGRESSION, not the expected RED-baseline precondition"
+    echo "     (re-investigate before treating this as an ordinary RED state)"
+    failx
   fi
 fi
 

@@ -219,6 +219,89 @@ PYEOF
     fi
 fi
 
+# T048 review round-1 finding F8 remediation (2026-09-29): property (a)'s
+# HOLDS/UNMET verdict below (see the "A-RED" block) was originally driven
+# entirely by $FOUND -- i.e. by whether the row's DESCRIPTION field
+# contains an item=<ATM-nnnn> token. That premise is WRONG for T037's real,
+# deliberately-specified design: T037's own tasks.md line reads "item id
+# COLUMN" (not "inject the tag into the description"), and direct
+# inspection of the REAL, live scripts/hooks/agent_registry_writer.sh
+# confirms it writes `"item": item_id` as its OWN dedicated JSONL key,
+# NEVER touching `description` at all -- so $FOUND (description-based)
+# will structurally read 0 FOREVER, whether or not T037 has landed and is
+# genuinely taking effect. That is a §11.4.120 wrong-artifact assertion,
+# not a real gap: T037's implementation is the deliberate, already-shipped,
+# spec-matching choice (its own task line names a separate column), so the
+# fix is to correct the TEST to read the field T037 actually writes, per
+# §11.4.120, never to weaken T037's already-correct design.
+#
+# item_field_state <registry-jsonl-file> -- parses the REAL row's JSON
+# structure (never a brittle string grep across the raw text, which risks
+# a false match against unrelated content) and prints "PRESENT:<value>" if
+# the writer's own "item" key exists in the row (any value, including an
+# honest empty string for an untagged dispatch), "ABSENT" if the key is
+# missing from the row's schema entirely (the pre-T037 shape), or "NOFILE"
+# if the registry file is missing/unparseable/empty.
+item_field_state() {
+    python3 - "$1" <<'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        lines = [l for l in f if l.strip()]
+    if not lines:
+        print("NOFILE")
+        sys.exit(0)
+    row = json.loads(lines[-1])
+    if "item" in row:
+        print("PRESENT:" + str(row["item"]))
+    else:
+        print("ABSENT")
+except Exception:
+    print("NOFILE")
+PYEOF
+}
+
+ITEM_FIELD_UNTAGGED="ABSENT"
+ITEM_FIELD_TAGGED="ABSENT"
+ITEM_FIELD_TAKING_EFFECT=0
+if [ -f "$WRITER" ]; then
+    ITEM_FIELD_UNTAGGED="$(item_field_state "$REG")"
+
+    # A-tagged-real: a SECOND real writer invocation, this time with a
+    # description that DOES carry a well-formed item=ATM-nnnn tag -- the
+    # §11.4.273(b) control needle for the check above. An empty "item"
+    # field on the untagged case alone proves little on its own (a field
+    # that is ALWAYS empty, even when broken, would look identical); pairing
+    # it with a REAL tag that genuinely round-trips through the extraction
+    # + write path is what proves the mechanism is truly connected, not
+    # merely present-but-inert.
+    REG2="$WORK/agent_registry_tagged.jsonl"
+    TAGGED_DESC="(T1/main - claude5 - sonnet - high) item=ATM-9042 T020 fixture control-needle dispatch"
+    PAYLOAD2="$(python3 - "$TAGGED_DESC" <<'PYEOF'
+import json, sys
+desc = sys.argv[1]
+d = {
+    "session_id": "sess-fixture-t020-0002",
+    "cwd": "/mnt/track1/atmosphere-t1",
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_input": {
+        "description": desc,
+        "prompt": "FASTCYCLE fixture prompt body (T020). Not a real dispatch.",
+    },
+}
+print(json.dumps(d))
+PYEOF
+)"
+    printf '%s' "$PAYLOAD2" | HELIX_AGENT_REGISTRY_FILE="$REG2" bash "$WRITER" >/dev/null 2>&1
+    ITEM_FIELD_TAGGED="$(item_field_state "$REG2")"
+    needle_check "the REAL writer's 'item' JSON field genuinely round-trips a real item=ATM-nnnn tag (proves the untagged case's field state above is a real extraction result, not an always-inert field)" 1 "$([ "$ITEM_FIELD_TAGGED" = "PRESENT:ATM-9042" ] && echo 1 || echo 0)"
+
+    if [ "$ITEM_FIELD_UNTAGGED" = "PRESENT:" ] && [ "$ITEM_FIELD_TAGGED" = "PRESENT:ATM-9042" ]; then
+        ITEM_FIELD_TAKING_EFFECT=1
+    fi
+fi
+
 # A-RED: the DESIRED future invariant (T036 stamps the tag; T037 wires
 # dispatch_stamp.sh so a dispatch lacking item=<ATM-nnnn> is mechanically
 # flagged/refused/requires the tag before being recorded as a normal
@@ -269,14 +352,18 @@ if [ -f "$SETTINGS_JSON" ] && grep -Fq "dispatch_stamp" "$SETTINGS_JSON" 2>/dev/
     WIRED_INTO_SETTINGS=1
 fi
 
+# F8 remediation (2026-09-29): verdict now driven by $ITEM_FIELD_TAKING_EFFECT
+# (the REAL writer row's "item" JSON field -- what T037 actually writes),
+# never $FOUND (the description field -- what T037 was NEVER designed to
+# touch; see the item_field_state() block above for the full derivation).
 if [ -f "$DISPATCH_STAMP" ] && { [ "$WIRED_INTO_WRITER" -eq 1 ] || [ "$WIRED_INTO_SETTINGS" -eq 1 ]; }; then
-    if [ "${FOUND:-0}" = "1" ]; then
-        ok "FR-013/FR-001/SC-005 property (a) HOLDS: dispatch_stamp.sh exists AND a wiring reference was found (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), AND the REAL $WRITER invocation above genuinely carried an item token for a description that named none inline (T037 has landed and is taking real effect) — re-verify this branch's exact assertion shape once T037's real interface is fully known"
+    if [ "$ITEM_FIELD_TAKING_EFFECT" = "1" ]; then
+        ok "FR-013/FR-001/SC-005 property (a) HOLDS: dispatch_stamp.sh exists AND a wiring reference was found (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), AND the REAL $WRITER invocation genuinely writes its own dedicated 'item' JSON field for every dispatch -- untagged=$ITEM_FIELD_UNTAGGED, tagged=$ITEM_FIELD_TAGGED (T037's own 'item id column' design, confirmed via two real writer invocations, round-trips correctly: honest-empty for an untagged description, the real ATM-nnnn id for a tagged one) -- T037 has landed and is taking real effect"
     else
-        bad "FR-013/FR-001/SC-005 property (a) UNMET (wiring reference present but NOT taking effect): a reference to dispatch_stamp.sh was found in the real pipeline (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), BUT the REAL $WRITER invocation above still recorded the item=-lacking dispatch with FOUND=${FOUND:-unset} (no item token extracted/required) — a source-level wiring reference existing is not the same as it genuinely taking effect on a real dispatch; investigate before declaring T037 done"
+        bad "FR-013/FR-001/SC-005 property (a) UNMET (wiring reference present but NOT taking effect): a reference to dispatch_stamp.sh was found in the real pipeline (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), BUT the REAL $WRITER invocation(s) did NOT produce the expected 'item' field round-trip (untagged=$ITEM_FIELD_UNTAGGED want PRESENT:, tagged=$ITEM_FIELD_TAGGED want PRESENT:ATM-9042) — a source-level wiring reference existing is not the same as it genuinely taking effect on a real dispatch; investigate before declaring T037 done"
     fi
 else
-    bad "FR-013/FR-001/SC-005 property (a) UNMET: dispatch_stamp.sh $([ -f "$DISPATCH_STAMP" ] && echo 'exists as a standalone, deliberately-unwired T036 artifact' || echo 'is absent (T036 not yet landed)') — T037 (wiring $DISPATCH_STAMP into \$WRITER's item-id column AND .claude/settings.json's PreToolUse hook list, tasks.md:121, still \`[ ]\` unchecked) has NOT landed (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS) — a dispatch is accepted and recorded with no item attribution whatsoever on the REAL pipeline, exactly as the A-real block above just captured (FOUND=${FOUND:-unset})"
+    bad "FR-013/FR-001/SC-005 property (a) UNMET: dispatch_stamp.sh $([ -f "$DISPATCH_STAMP" ] && echo 'exists as a standalone, deliberately-unwired T036 artifact' || echo 'is absent (T036 not yet landed)') — T037 (wiring $DISPATCH_STAMP into \$WRITER's item-id column AND .claude/settings.json's PreToolUse hook list, tasks.md:121, still \`[ ]\` unchecked) has NOT landed (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS) — a dispatch is accepted and recorded with no item attribution whatsoever on the REAL pipeline (item field state=$ITEM_FIELD_UNTAGGED)"
 fi
 
 # =============================================================================
