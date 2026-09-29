@@ -46,6 +46,10 @@ Subcommands:
                                                         Set Status=Operator-blocked with §11.4.21 details.
   close <atm-id> --db <p> --status <fixed|implemented|completed|obsolete> --evidence <p>
                                                         Atomic Issues→Fixed closure (§11.4.19).
+  closure-check --config <cfg> --item <ID> --to <Fixed|Implemented|Completed> --attempt <a.json> --out <d.json>
+                                                        Dry-run status-custody seam check (contracts/closure-refusal.md
+                                                        CR-001/CR-002 evidence-class floor + E4 guard-freshness;
+                                                        T-D02). Read-only; never modifies the tracker.
   obsolete-details <atm-id> --db <p> --since <ISO> --reason <r> --superseding <s> --evidence <p>
                                                         Write the §11.4.90 obsolete_details row for an Obsolete item.
   report --db <p> [--by-type|--by-status|--by-severity|--by-assigned|--by-creator|--obsolete-audit]
@@ -130,6 +134,8 @@ func main() {
 		runBlock(args[1:])
 	case "close":
 		runClose(args[1:])
+	case "closure-check":
+		os.Exit(runClosureCheck(args[1:]))
 	case "obsolete-details":
 		runObsoleteDetails(args[1:])
 	case "report":
