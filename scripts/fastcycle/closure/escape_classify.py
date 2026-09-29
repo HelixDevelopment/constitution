@@ -55,6 +55,7 @@ import json
 import os
 import re
 import sqlite3
+import subprocess
 import sys
 import tempfile
 
@@ -418,11 +419,56 @@ def build_arg_parser():
     p.add_argument("--window-days", type=int, required=True)
     p.add_argument("--classifications", required=True)
     p.add_argument("--out", required=True)
+    # Phase D checkpoint gate (tasks.md line 298: "escape_classify.py and
+    # reopen_rate.py pass --determinism-check"). Identical pattern to the
+    # already-landed sibling cycle_report.py's own --determinism-check:
+    # re-invokes this SAME process twice as a subprocess with its own
+    # --out, compares body_hash (C-002 -- run_meta, e.g. hostname, is
+    # deliberately excluded from the hash so it can never cause a false
+    # nondeterminism finding).
+    p.add_argument("--determinism-check", action="store_true")
     return p
+
+
+def run_determinism_check(argv, timeout_s=120):
+    inner = [a for a in argv if a != "--determinism-check"]
+    runs = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for i in (1, 2):
+            out_i = os.path.join(tmp, "run%d.json" % i)
+            # argparse's `--out` is "last wins" for a repeated flag, so
+            # appending our own --out after `inner` (which may itself
+            # carry a caller-supplied --out) makes ours authoritative
+            # regardless of duplication -- identical to cycle_report.py's
+            # own determinism-check wiring.
+            cmd = [sys.executable, os.path.abspath(__file__)] + inner + ["--out", out_i]
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
+            except subprocess.TimeoutExpired:
+                print("escape_classify: determinism-check run %d timed out" % i, file=sys.stderr)
+                return 4
+            if proc.returncode not in (0, 1) or (proc.returncode == 0 and not os.path.exists(out_i)):
+                sys.stderr.write(proc.stderr)
+                print("escape_classify: determinism-check run %d rc=%d, no honest verdict"
+                      % (i, proc.returncode), file=sys.stderr)
+                return 4
+            body_hash = None
+            if proc.returncode == 0:
+                with open(out_i, encoding="utf-8") as fh:
+                    body_hash = json.load(fh).get("body_hash")
+            runs.append((proc.returncode, body_hash))
+    if runs[0] != runs[1]:
+        print("escape_classify: nondeterministic: run1=%s run2=%s" % (runs[0], runs[1]), file=sys.stderr)
+        return 1
+    print("escape_classify: deterministic (rc=%s, body_hash=%s)" % runs[0])
+    return 0
 
 
 def main(argv):
     args = build_arg_parser().parse_args(argv)
+
+    if args.determinism_check:
+        return run_determinism_check(argv)
 
     if not require_as_of(args.as_of):
         return EXIT_USAGE
