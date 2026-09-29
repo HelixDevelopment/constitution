@@ -1,0 +1,31 @@
+{
+  "_comment": "See ec_good_atm953_e1/expected.json's _comment for the same partial-match/robust-lookup discipline this fixture's checker uses.",
+  "expected_exit_code": 0,
+  "expected_row_count_for_window": 3,
+  "items": [
+    {
+      "item_id": "SPK-609",
+      "primary": "E7",
+      "contributing": [],
+      "detection_channel": "design-reconsidered",
+      "reopen_events": [238],
+      "evidence_paths_at_least": ["docs/qa/tracker_reconcile_20260707/EVIDENCE.md"]
+    },
+    {
+      "item_id": "ATM-610",
+      "primary": "E7",
+      "contributing": [],
+      "detection_channel": "design-reconsidered",
+      "reopen_events": [239],
+      "evidence_paths_at_least": ["docs/qa/tracker_reconcile_20260707/EVIDENCE.md"]
+    },
+    {
+      "item_id": "ATM-611",
+      "primary": "E7",
+      "contributing": [],
+      "detection_channel": "design-reconsidered",
+      "reopen_events": [240],
+      "evidence_paths_at_least": ["docs/qa/tracker_reconcile_20260707/EVIDENCE.md"]
+    }
+  ]
+}

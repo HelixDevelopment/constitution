@@ -1,0 +1,69 @@
+# T086 golden fixture (also serves the task-line "count check: rows == distinct
+# reopened items" requirement -- see test_escape_classify_red.sh's dedicated
+# count-check section, which live-cross-checks this exact window against
+# docs/workable_items.db). Contract closure-refusal.md EC-001..EC-003 / data-model
+# §6.1 E7 row ("R1: SPK-609/ATM-610/611") / research.md DEC-19.
+#
+# Window: --as-of 2026-07-07 --window-days 0 => [2026-07-07, 2026-07-07] inclusive.
+# Real, live-verified fact (2026-09-29, docs/workable_items.db): exactly THREE
+# item_history rows have event_type='Reopened' AND on_date='2026-07-07' -- SPK-609
+# (rowid=238), ATM-610 (rowid=239), ATM-611 (rowid=240) -- a real, natural 3-item
+# window, matching research.md DEC-19's own citation of these exact three ids as
+# the E7 design-reconsidered establishing example ("R1's reopen reasons include
+# design-reconsidered (SPK-609, ATM-610/611), which is not an escape").
+#
+# Provenance (real, citable, never guessed -- constitution 11.4.6):
+#   - docs/qa/tracker_reconcile_20260707/EVIDENCE.md (real file, 16493 bytes):
+#     all three items were marked Obsolete with NO obsolete_details/item_history
+#     row (a 11.4.90 violation); the reconciling agent found Plan V5
+#     (docs/planning/2026.07/V5/Plan_v5_0.xlsx, this project's declared
+#     authoritative delivery-scheduling source) ACTIVELY scheduling all three as
+#     live work -- i.e. the requirement was reconsidered after the original
+#     closure, matching E7's definition verbatim: "the item was right to close;
+#     the requirement changed".
+#   - item_history rowids (docs/workable_items.db, live-queried 2026-09-29), ALL
+#     THREE with reason='design-reconsidered' (the exact 11.4.34 detection_channel
+#     token) and the SAME evidence_path (one reconciliation covered all three):
+#       id=238 SPK-609 Reopened 2026-07-07 by=AI
+#       id=239 ATM-610 Reopened 2026-07-07 by=AI
+#       id=240 ATM-611 Reopened 2026-07-07 by=AI
+#     evidence_path (all three): docs/qa/tracker_reconcile_20260707/EVIDENCE.md
+#
+# EC-003 note (data-model.md §6.2 V-EC-2 / contract EC-003): E7 is "not an
+# escape" -- its count is reported in its own distribution column, separate from
+# the escape-mechanism columns E1..E6/E8, but it STILL contributes to
+# "sum = count(distinct reopened items)". This fixture's own expected.json
+# therefore asserts len(rows)==3 for this window (the count check) alongside the
+# per-item primary=E7 assertion -- not "0 rows because E7 isn't an escape".
+#
+# UNCONFIRMED field-shape choices: see ec_good_atm953_e1/input.yaml's header
+# (identical schema, same EscapeClassification / EvidencePath field-naming
+# justification, data-model.md lines 27 and 184).
+schema: escape-classify-input/v1
+as_of: "2026-07-07"
+window_days: 0
+entries:
+  - item_id: SPK-609
+    reopen_events: [238]
+    primary: E7
+    contributing: []
+    detection_channel: design-reconsidered
+    evidence:
+      - path: docs/qa/tracker_reconcile_20260707/EVIDENCE.md
+        content_address: "sha256:968d4557ac7884f532604666c611bf0c9940c42ed84068f8f54f3105a00a0970"
+  - item_id: ATM-610
+    reopen_events: [239]
+    primary: E7
+    contributing: []
+    detection_channel: design-reconsidered
+    evidence:
+      - path: docs/qa/tracker_reconcile_20260707/EVIDENCE.md
+        content_address: "sha256:968d4557ac7884f532604666c611bf0c9940c42ed84068f8f54f3105a00a0970"
+  - item_id: ATM-611
+    reopen_events: [240]
+    primary: E7
+    contributing: []
+    detection_channel: design-reconsidered
+    evidence:
+      - path: docs/qa/tracker_reconcile_20260707/EVIDENCE.md
+        content_address: "sha256:968d4557ac7884f532604666c611bf0c9940c42ed84068f8f54f3105a00a0970"
