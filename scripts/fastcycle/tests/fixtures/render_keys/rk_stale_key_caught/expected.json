@@ -1,0 +1,8 @@
+{
+  "scenario": "golden-bad: a twin whose source changed but whose key was not updated is caught by the freshness gate (plan.md T-C12; task line #3)",
+  "source": "source.md",
+  "recorded_key_file": "key_v1.json",
+  "today_behaviour": "docs/render_keys.py does not exist yet (control needle: constitution/scripts/fastcycle/docs/ genuinely holds nothing but .gitkeep). This test genuinely edits source.md to V2 (marker RK-STALE-V1 -> RK-STALE-V2) at runtime WITHOUT touching key_v1.json (simulating the named defect), then genuinely invokes `docs/render_keys.py check --source source.md --format html --key-file key_v1.json ...` -- the invocation fails with rc=127 (command not found) TODAY, confirming the tool is genuinely absent, never assumed.",
+  "future_behaviour_once_T-C12_lands": "`render_keys.py check` must recompute the CURRENT key from source.md's V2 bytes, compare it against key_v1.json's recorded V1-derived key (71396a97...), find them UNEQUAL, print something identifying the mismatch as STALE, and exit non-zero -- REFUSING to treat the recorded key as still valid. This is the freshness gate T-C12's Work line names: 'the freshness gate checks the key ... in addition to mtime.'",
+  "note": "golden-bad = the DEFECT scenario the gate must correctly CATCH (reject), not a scenario where the gate should pass -- same naming convention as fixtures/verdict_cache/'s vc_one_byte_flip (a MISS is the correct, desired outcome there too)."
+}

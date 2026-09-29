@@ -1,0 +1,7 @@
+{
+  "config_id": "cs_good_equal.new",
+  "gates": [
+    {"id": "g_noop", "script": "../_shared/gates/gate_noop.sh"},
+    {"id": "g_marker", "script": "../_shared/gates/gate_marker.sh"}
+  ]
+}

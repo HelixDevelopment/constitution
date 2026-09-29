@@ -1,0 +1,10 @@
+{
+  "stale_cache_entries": [
+    {
+      "defect_id": "D1",
+      "gate_id": "g_marker",
+      "cached_verdict": "PASS",
+      "cached_evidence_note": "verdict recorded against the CLEAN (unmutated) tree run, then wrongly served for the D1-mutated run instead of a fresh execution -- a stale content-addressed-cache bug (contracts/affected-set-and-verdict-cache.md; FR-007)"
+    }
+  ]
+}

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>fixtures/verdict_cache/ — T051 self-validation fixtures</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="fixturesverdict_cache--t051-self-validation-fixtures">fixtures/verdict_cache/
+— T051 self-validation fixtures</h1>
+<p>Fixture convention for
+<code>constitution/scripts/fastcycle/gates/verdict_cache.py</code>
+(contract
+<code>specs/004-fast-dev-cycles/contracts/affected-set-and-verdict-cache.md</code>,
+clauses VC-001..VC-005; data-model.md §5 &quot;Verdict Cache Entry&quot;; plan.md
+T-C01; research.md DEC-07). Task T051 (<code>tasks.md</code>) writes
+ONLY this RED test + these fixtures; the tool itself is T068, a later,
+separate task (Producer != Verifier, §11.4.240 — this file&#39;s author
+never implements <code>verdict_cache.py</code>).</p>
+<h2 id="shared-content-referenced-by-every-scenario-below">Shared
+content (referenced by every scenario below)</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gate_script.sh</code></td>
+<td>the fixture gate&#39;s script; its <strong>bytes</strong> are DEC-07 key
+component 1</td>
+</tr>
+<tr>
+<td><code>evidence.txt</code></td>
+<td>the fixture evidence artefact a
+<code>put --evidence &lt;path&gt;</code> records</td>
+</tr>
+<tr>
+<td><code>inputs/a.txt</code></td>
+<td>observed input #1, content
+<code>alpha-observed-input-000000000\n</code></td>
+</tr>
+<tr>
+<td><code>inputs/a_flipped.txt</code></td>
+<td><code>inputs/a.txt</code> with <strong>exactly one byte</strong>
+changed (<code>0</code>→<code>1</code> in the last digit; both files are
+31 bytes, <code>cmp -l</code> confirms a single differing byte at offset
+30) — stands in for &quot;the real file at <code>inputs/a.txt</code> was
+re-traced after a one-byte edit&quot;</td>
+</tr>
+<tr>
+<td><code>inputs/b.txt</code></td>
+<td>observed input #2, content
+<code>bravo-observed-input-000000000\n</code></td>
+</tr>
+<tr>
+<td><code>inputs/c_irrelevant.txt</code></td>
+<td>a file the fixture gate never reads (never listed in any
+<code>observed_inputs</code>)</td>
+</tr>
+<tr>
+<td><code>inputs/c_irrelevant_changed.txt</code></td>
+<td>different content standing in for &quot;<code>c_irrelevant.txt</code>
+changed for real on disk between put and get&quot; — its own sha256 never
+appears in any envelope; it exists only so the negative-control
+scenario&#39;s claim &quot;this file genuinely changed&quot; is a measured fact, not
+an assertion</td>
+</tr>
+</tbody>
+</table>
+<p>Every sha256 embedded in the envelope JSON files below is the REAL
+digest of the referenced <code>inputs/*</code> file (verified
+independently by both <code>sha256sum</code> and Python&#39;s
+<code>hashlib.sha256</code> at fixture-authoring time — the two agreed
+byte-for-byte; <code>test_verdict_cache_red.sh</code> re-verifies this
+agreement live on every run, §11.4.273 control needle, so a future
+hand-edit of <code>inputs/*.txt</code> without updating the matching
+envelope is caught rather than silently poisoning every fixture built on
+top of it).</p>
+<h2 id="--inputs-tracejson-envelope-schema-unconfirmed-binding-on-t068"><code>--inputs &lt;trace.json&gt;</code>
+envelope schema (UNCONFIRMED, binding on T068)</h2>
+<p>The contract&#39;s own CLI line
+(<code>get|put|purge --cache-dir &lt;dir&gt; --gate &lt;gate_id&gt; [--inputs &lt;trace.json&gt;] [--verdict PASS|FAIL --evidence &lt;path&gt;]</code>)
+names 5 flags, but DEC-07/VC-001&#39;s key has 7 components (gate-script
+bytes, gate id, observed inputs, tool versions, env allow-list, target
+fingerprint, mutation id) and the contract does not pin how the last 4
+reach the tool. This fixture set — like the established precedent in
+<code>fixtures/dispatch_stamp/</code> and
+<code>test_build_deploy_qa_events_red.sh</code>&#39;s own &quot;Contract for T040
+implementer (UNCONFIRMED...)&quot; section — DEFINES one concrete, defensible
+shape and flags it explicitly as binding-if-adopted, never silently
+assumed: <code>--inputs &lt;trace.json&gt;</code> is the FULL DEC-07
+&quot;observed context&quot; envelope a <code>io_trace.sh trace</code> run (T-C02,
+a separate task) would emit for one gate, carrying every
+non-gate-script-byte, non-gate-id key component in one document:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;gate_id&quot;</span><span class="fu">:</span> <span class="st">&quot;GATE-VC-DEMO&quot;</span><span class="fu">,</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;gate_script&quot;</span><span class="fu">:</span> <span class="st">&quot;../gate_script.sh&quot;</span><span class="fu">,</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;observed_inputs&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span><span class="dt">&quot;path&quot;</span><span class="fu">:</span> <span class="st">&quot;inputs/a.txt&quot;</span><span class="fu">,</span> <span class="dt">&quot;sha256&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;hex&gt;&quot;</span><span class="fu">,</span> <span class="dt">&quot;recorded_mtime&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;ISO-8601, NEVER part of the key&gt;&quot;</span><span class="fu">}</span><span class="ot">,</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span><span class="dt">&quot;path&quot;</span><span class="fu">:</span> <span class="st">&quot;inputs/b.txt&quot;</span><span class="fu">,</span> <span class="dt">&quot;sha256&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;hex&gt;&quot;</span><span class="fu">,</span> <span class="dt">&quot;recorded_mtime&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;ISO-8601, NEVER part of the key&gt;&quot;</span><span class="fu">}</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;tool_versions&quot;</span><span class="fu">:</span> <span class="fu">{</span><span class="dt">&quot;python3&quot;</span><span class="fu">:</span> <span class="st">&quot;3.11.4&quot;</span><span class="fu">,</span> <span class="dt">&quot;bash&quot;</span><span class="fu">:</span> <span class="st">&quot;5.2.15&quot;</span><span class="fu">},</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;env_allowlist&quot;</span><span class="fu">:</span> <span class="fu">{</span><span class="dt">&quot;LANG&quot;</span><span class="fu">:</span> <span class="st">&quot;C.UTF-8&quot;</span><span class="fu">,</span> <span class="dt">&quot;TZ&quot;</span><span class="fu">:</span> <span class="st">&quot;UTC&quot;</span><span class="fu">},</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;target_fingerprint&quot;</span><span class="fu">:</span> <span class="st">&quot;hermetic&quot;</span><span class="fu">,</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;mutation_id&quot;</span><span class="fu">:</span> <span class="st">&quot;none&quot;</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p><code>put</code>&#39;s envelope additionally carries
+<code>&quot;verdict&quot;</code> (<code>PASS</code>/<code>FAIL</code>/other) — the
+value <code>--verdict</code> on the command line is expected to supply;
+it is committed here as <code>put_envelope.json</code>&#39;s own field
+purely so one file documents the full <code>put</code> call, never as a
+claim that <code>get</code>&#39;s envelope needs it (it does not —
+<code>get_envelope.json</code> omits
+<code>verdict</code>/<code>evidence</code> throughout, matching
+<code>get</code>&#39;s own flag set). <code>recorded_mtime</code> is carried
+on each observed-input entry because a real tracer naturally records
+file metadata alongside content, but VC-002&#39;s own words (&quot;content, not
+mtime, decides&quot;) and data-model §5&#39;s <code>recorded_at</code> field
+(&quot;provenance only — not part of the key, so replays are byte-identical&quot;)
+both REQUIRE the key builder to ignore it;
+<code>vc_negctrl_mtime_only/</code> below is the fixture that proves
+this.</p>
+<p>T068&#39;s implementer MAY choose a different envelope shape or pass some
+components as separate CLI flags instead — if so, per the same
+precedent, that choice belongs in <code>verdict_cache.py</code>&#39;s own
+docstring, and this RED test&#39;s fixtures should then be read as &quot;the
+semantic scenario&quot;, with the concrete envelope files adapted (never as
+an unreviewable, silent contract override).</p>
+<h2 id="scenarios">Scenarios</h2>
+<table>
+<thead>
+<tr>
+<th>Directory</th>
+<th>Contract row / clause</th>
+<th>Kind</th>
+<th>Assertion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unchanged_hit/</code></td>
+<td>tasks.md T051 &quot;golden: unchanged inputs → hit&quot;</td>
+<td>golden-good</td>
+<td>identical put/get envelopes ⇒ HIT</td>
+</tr>
+<tr>
+<td><code>vc_one_byte_flip/</code></td>
+<td>contract RED fixtures table row <code>vc_one_byte_flip</code>;
+FR-007</td>
+<td>golden-bad</td>
+<td>one observed input&#39;s recorded sha256 differs between put and get ⇒
+MISS; the stale PASS is absent from <code>get</code>&#39;s output</td>
+</tr>
+<tr>
+<td><code>vc_key_completeness_drop/</code></td>
+<td>tasks.md T051 &quot;golden-bad: a key omitting one traced input is
+refused by the key-completeness check&quot;</td>
+<td>golden-bad</td>
+<td><code>get</code>&#39;s <code>observed_inputs</code> list is missing one
+entry <code>put</code>&#39;s list had ⇒ MISS</td>
+</tr>
+<tr>
+<td><code>vc_negctrl_mtime_only/</code></td>
+<td>tasks.md T051 &quot;negative control: mtime-only change → hit&quot;; plan.md
+T-C01 Protecting-tests line</td>
+<td>negative-control</td>
+<td>every <code>recorded_mtime</code> changes, every <code>sha256</code>
+stays identical ⇒ HIT</td>
+</tr>
+<tr>
+<td><code>vc_flip_tool_version/</code></td>
+<td>contract RED fixtures table row <code>vc_flip_tool_version</code>;
+plan.md T-C01 paired-mutation target (&quot;drop the tool-version component
+from the key&quot;)</td>
+<td>golden-bad</td>
+<td><code>tool_versions.python3</code> differs ⇒ MISS</td>
+</tr>
+<tr>
+<td><code>vc_flip_env/</code></td>
+<td>contract RED fixtures table row <code>vc_flip_env</code></td>
+<td>golden-bad</td>
+<td><code>env_allowlist.TZ</code> differs ⇒ MISS</td>
+</tr>
+<tr>
+<td><code>vc_flip_mutation_id/</code></td>
+<td>contract RED fixtures table row
+<code>vc_flip_mutation_id</code></td>
+<td>golden-bad</td>
+<td><code>mutation_id</code> differs (<code>none</code> vs a real
+mutation run) ⇒ MISS — a paired-mutation verdict must never be served as
+the gate&#39;s real verdict, or vice versa</td>
+</tr>
+<tr>
+<td><code>vc_negctrl_irrelevant_file/</code></td>
+<td>contract RED fixtures table row
+<code>vc_negctrl_irrelevant_file</code></td>
+<td>negative-control</td>
+<td><code>inputs/c_irrelevant.txt</code> genuinely changes on disk but
+is never in <code>observed_inputs</code> ⇒ HIT (proves the cache is not
+vacuously always-miss)</td>
+</tr>
+<tr>
+<td><code>vc_admission_skip_never_cached/</code></td>
+<td>VC-003 admission rule (&quot;Only PASS/FAIL ... are cached ... SKIP ...
+never cached&quot;)</td>
+<td>golden-bad</td>
+<td><code>put --verdict SKIP</code> followed by an otherwise-identical
+<code>get</code> ⇒ MISS</td>
+</tr>
+</tbody>
+</table>
+<p>Each scenario directory holds <code>put_envelope.json</code>,
+<code>get_envelope.json</code>, and <code>expected</code> (the literal
+<code>HIT</code> or <code>MISS</code>, plus for
+<code>vc_one_byte_flip</code> an extra non-blank line
+<code>STALE_PASS_ABSENT</code> the test greps for in <code>get</code>&#39;s
+stdout — i.e. the stale verdict string must NOT appear).</p>
+<h2 id="what-this-red-test-does-not-cover-honest-gap-not-silently-assumed-tested">What
+this RED test does NOT cover (honest gap, not silently assumed
+tested)</h2>
+<ul>
+<li><strong>VC-003&#39;s &quot;≥2 consecutive identical verdicts before
+admission&quot;</strong> rule needs a 3-call <code>put/put/put</code>
+sequence with a deliberately-differing middle verdict, not a single
+put/get pair; no fixture here exercises it. Left as a documented
+contract stub for T068&#39;s own implementation tests.</li>
+<li><strong>VC-004&#39;s
+purge-on-<code>FLAKY</code>/<code>INPUTS_UNSOUND</code></strong> rule is
+a cross-tool integration with <code>gates/flake_ledger.py</code> (T-C09)
+and <code>gates/io_trace.sh</code> (T-C02) state this task does not own;
+<code>test_flake_ledger_red.sh</code> (T059) is the RED test that
+contract-binds &quot;never cached&quot; for a flaky gate.</li>
+<li><strong>VC-005&#39;s periodic backstop lane</strong> is T-C10&#39;s own
+scope (<code>test_backstop_red.sh</code>, T060).</li>
+</ul>
+</body>
+</html>

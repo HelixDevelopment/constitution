@@ -1,0 +1,16 @@
+run_id	candidate_fingerprint	id	start_ns	end_ns	duration_ms	verdict	checks	fails	warns	extra
+run_h001	fp_hist_a1b2c3	gate_a_reliable	1000000000	1000800000000	800	PASS	1	0	0	-
+run_h002	fp_hist_d4e5f6	gate_a_reliable	2000000000	2000800000000	800	PASS	1	0	0	-
+run_h003	fp_hist_g7h8i9	gate_a_reliable	3000000000	3000800000000	800	PASS	1	0	0	-
+run_h004	fp_hist_j0k1l2	gate_a_reliable	4000000000	4000800000000	800	PASS	1	0	0	-
+run_h005	fp_hist_m3n4o5	gate_a_reliable	5000000000	5000800000000	800	PASS	1	0	0	-
+run_h001	fp_hist_a1b2c3	gate_b_moderate	1001000000000	1001500000000	500	PASS	1	0	0	-
+run_h002	fp_hist_d4e5f6	gate_b_moderate	2001000000000	2001500000000	500	PASS	1	0	0	-
+run_h003	fp_hist_g7h8i9	gate_b_moderate	3001000000000	3001500000000	500	PASS	1	0	0	-
+run_h004	fp_hist_j0k1l2	gate_b_moderate	4001000000000	4001500000000	500	PASS	1	0	0	-
+run_h005	fp_hist_m3n4o5	gate_b_moderate	5001000000000	5001500000000	500	FAIL	1	1	0	-
+run_h001	fp_hist_a1b2c3	gate_c_planted_fail	1002000000000	1002100000000	100	FAIL	1	1	0	-
+run_h002	fp_hist_d4e5f6	gate_c_planted_fail	2002000000000	2002100000000	100	FAIL	1	1	0	-
+run_h003	fp_hist_g7h8i9	gate_c_planted_fail	3002000000000	3002100000000	100	FAIL	1	1	0	-
+run_h004	fp_hist_j0k1l2	gate_c_planted_fail	4002000000000	4002100000000	100	FAIL	1	1	0	-
+run_h005	fp_hist_m3n4o5	gate_c_planted_fail	5002000000000	5002100000000	100	PASS	1	0	0	-

@@ -1,0 +1,11 @@
+{
+  "description": "gate_undeclared's map entry carries an undeclared_reads entry (a read the gate's declaration never listed) -- INPUTS_UNSOUND, always a member, never cached, and per AS-010 makes the WHOLE set determinable=false",
+  "map_file": "map_undeclared.json",
+  "changed_paths": ["src/alpha.sh"],
+  "layer": "all",
+  "expected_exit_code": 4,
+  "expected_determinable": false,
+  "expected_members": ["gate_alpha", "gate_beta", "gate_gamma", "gate_docsync", "gate_integrity", "gate_undeclared"],
+  "expected_skipped_reason_codes": {},
+  "expected_fallback_reason_prefix": "affected-set undeterminable:"
+}

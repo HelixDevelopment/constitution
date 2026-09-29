@@ -1,0 +1,112 @@
+# ============================================================================
+# scope.example.yaml — schema + template for a project's CodeGraph index scope
+# ============================================================================
+# Purpose      The ONE declarative source of truth from which scope_render.py
+#              derives the project's root `codegraph.json` and the root
+#              `.gitignore` negation block, and against which
+#              codegraph_scope_guard.py checks the runner's real enumeration.
+#              Every project-specific value lives HERE (constitution §11.4.35);
+#              the tooling itself carries no project literal.
+# Usage        copy to the project (conventional path: <root>/codegraph.scope.yaml),
+#              edit, then:  python3 scope_render.py --scope <file> --root <root> --write
+#                           python3 codegraph_scope_guard.py --scope <file> --root <root>
+# Cross-refs   constitution §11.4.10 (secrets), §11.4.28 (own-org set),
+#              §11.4.78 (baseline excludes, all source indexable),
+#              §11.4.79 (own-org INCLUDED / third-party EXCLUDED), §11.4.273.
+# ============================================================================
+schema_version: 1
+
+# ---- runner contract (what the tooling assumes about the CodeGraph engine) ----
+runner:
+  # file the engine reads at <root>; the guard's contract probe FAILS (exit 2)
+  # when the installed runner reads any other name or ignores `exclude`.
+  config_filename: codegraph.json
+  # optional: path to the runner's lib/dist; empty = $CODEGRAPH_RUNNER_DIST,
+  # then auto-discovery from the `codegraph` executable on PATH.
+  dist_dir: ""
+
+# ---- ownership (§11.4.28 / §11.4.79) -------------------------------------------
+# A submodule whose URL host is in `hosts` AND whose org/owner is in `orgs`
+# (case-insensitive) is OWN-ORG and MUST be indexed; every other submodule is
+# THIRD-PARTY and its whole root is excluded. Nested submodules inside an
+# own-org submodule are classified by THEIR OWN URL.
+own_orgs:
+  hosts: [github.com, gitlab.com, gitflic.ru, gitverse.ru]
+  orgs:
+    - vasic-digital
+    - HelixDevelopment
+    - red-elf
+    - ATMOSphere1234321
+    - Bear-Suite
+    - BoatOS123456
+    - Helix-Flow
+    - Helix-Track
+    - Server-Factory
+
+# gitlinks whose URL is missing/relative/unparsable MUST be classified here,
+# otherwise the renderer refuses (fail closed). Values: own | third_party
+submodule_class_overrides: {}
+#  path/to/submodule: third_party
+
+# ---- baseline mandatory excludes (§11.4.78 universal classes; §11.4.10) --------
+# gitignore-style patterns, root-relative, placed into codegraph.json `exclude`
+# in the order written. A class may NOT be removed (§11.4.78: dropping a class
+# is a violation); a project adds on top via project_excludes.
+baseline_excludes:
+  build_outputs: ["/out/", "/dist/", "/target/", ".compressed/"]
+  caches: ["**/ccache/", "**/.ccache/", "**/.gradle/", "**/__pycache__/", "**/.pytest_cache/",
+           "**/.mypy_cache/", "**/.ruff_cache/", "**/node_modules/", "**/.cache/", "**/.venv/",
+           "**/logs/"]
+  # ORDER MATTERS (the engine's `ignore` matcher: the LAST matching pattern wins). `!*secret*/` carves
+  # *secret*-named DIRECTORIES (source such as secretmgr/) back out of `*secret*`; every explicit exclusion
+  # that a directory carve-out could void (`**/secrets/`) is therefore written AFTER it. scope_render.py
+  # refuses (exit 3) an exclusion voided by a later negation.
+  secrets: [".env", ".env.*", "*.env", "*secret*", "!*secret*/", "**/secrets/",
+            "*.jks", "*.keystore", "*.p12", "*.pfx", "*.pk8", "*.pem", "*.key",
+            "**/service-account*.json", "**/google-services.json", "**/credentials*.json"]
+  qa_corpora: ["**/qa-results/", "**/recordings/"]
+
+# ---- project-specific excludes (rubbish only — never a source tree) ----------
+project_excludes: []
+
+# ---- pathological single files (TEMPORARY until the runner patch lands) -------
+pathological_excludes: []
+
+# ---- include: source that a NESTED .gitignore (or a root .gitignore rule a negation cannot
+# reach) hides is forced back into the index by the engine's `include` key (rendered from
+# here as codegraph.json "include"). Plain gitignore-style patterns, no leading "!".
+# `exclude` still wins and the engine's built-in default dirs (node_modules, dist, ...) never
+# resurface through it. The guard FAILS (include_target_empty) when a pattern enumerates zero
+# files. Typical use: tracked AOSP `external/*` source under a directory its own .gitignore hides.
+include_patterns: []
+#  - /external/some_project/third_party/hidden_dir/
+
+# ---- root .gitignore negations (re-include OWNED/AOSP source under a
+# built-in-skipped parent dir). Written WITHOUT the leading "!"; the renderer
+# emits "!<pattern>" inside the "# BEGIN helix-codegraph-scope" block, which
+# MUST be the last content of the root .gitignore. The guard FAILS when any
+# target enumerates zero files (the negation did not work).
+# NOTE: a negation only works at the SAME directory the built-in skip matches;
+# a parent-excluded child can never be re-included (gitignore semantics).
+reinclude_negations: []
+#  - /build/
+
+# ---- guard: forbidden path classes (every class MUST enumerate zero files) ----
+# Each class is control-needled: `positive` MUST match the regex and
+# `negative` MUST NOT, otherwise the instrument is blind (guard exit 4).
+forbidden_classes:
+  - {name: env_file,        regex: '(^|/)\.env($|\.)|\.env$',                positive: 'a/.env.local',        negative: 'a/environment.c'}
+  - {name: secrets_dir,     regex: '(^|/)secrets/',                          positive: 'x/secrets/a.py',      negative: 'x/secretsauce/a.py'}
+  - {name: secret_basename, regex: '(?i)(^|/)[^/]*secret[^/]*$',            positive: 'a/api_Secret.py',     negative: 'a/secure.py'}
+  - {name: keystore,        regex: '\.(jks|keystore|p12|pfx|pk8|pem|key)$', positive: 'a/release.jks',       negative: 'a/keys.c'}
+  - {name: qa_corpus,       regex: '(^|/)(qa-results|recordings)/',          positive: 'd/qa-results/r.py',   negative: 'd/qa_resultsx/r.py'}
+  - {name: cache_dir,       regex: '(^|/)(\.?ccache|__pycache__|node_modules|\.gradle)/', positive: 'a/__pycache__/x.py', negative: 'a/pycache.py'}
+
+# ---- guard: enumeration controls (§11.4.273 control needles) ------------------
+enumeration_controls:
+  present: []          # paths that MUST be enumerated (proves the instrument sees)
+  fabricated: ["__helix_scope_fabricated_needle__/none.c"]   # MUST NOT be enumerated
+
+# ---- guard: accepted count -------------------------------------------------------
+accepted_count: 0       # 0 = not yet accepted (guard FAILS until set)
+tolerance_pct: 2.0

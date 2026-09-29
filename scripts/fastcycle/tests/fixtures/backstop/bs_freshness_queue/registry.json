@@ -1,0 +1,9 @@
+{
+  "guards": [
+    {"guard_id": "GUARD-NEVER", "reopens_count": 2, "last_verdict_fingerprint": "", "last_verdict_at": ""},
+    {"guard_id": "GUARD-HIGH", "reopens_count": 9, "last_verdict_fingerprint": "fp-OLD-1", "last_verdict_at": "2026-01-01"},
+    {"guard_id": "GUARD-MID", "reopens_count": 4, "last_verdict_fingerprint": "fp-OLD-2", "last_verdict_at": "2026-06-01"},
+    {"guard_id": "GUARD-TIE", "reopens_count": 4, "last_verdict_fingerprint": "fp-OLD-3", "last_verdict_at": "2026-08-01"},
+    {"guard_id": "GUARD-FRESH", "reopens_count": 99, "last_verdict_fingerprint": "fp-2026-09-29", "last_verdict_at": "2026-09-29"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "description": "the same change run through affected_set.py twice must produce a byte-identical affected.json (identical body_hash) -- AS contract's own determinism fixture",
+  "map_file": "map.json",
+  "changed_paths": ["src/alpha.sh"],
+  "layer": "all",
+  "expected_exit_code": 0,
+  "expected_determinable": true,
+  "expected_members": ["gate_alpha"]
+}

@@ -1,0 +1,18 @@
+# stackhawk.yml.example — copy to <your-project-root>/stackhawk.yml and fill in.
+#
+# This file is a per-CONSUMING-PROJECT config, not part of the constitution
+# submodule's own tooling (§11.4.177 — each project supplies its own target
+# and applicationId). It is intentionally NOT auto-generated: an operator
+# must obtain the real applicationId from the StackHawk dashboard first (see
+# README.md in this directory for the step-by-step guide).
+
+app:
+  applicationId: REPLACE_WITH_REAL_STACKHAWK_APPLICATION_ID
+  env: Development
+  host: http://127.0.0.1:8080   # replace with this project's real local target
+
+hawk:
+  spider:
+    base: true
+  # See https://docs.stackhawk.com/ for the full config surface (auth,
+  # scan policy, scope, custom headers, etc.) once the base scan works.

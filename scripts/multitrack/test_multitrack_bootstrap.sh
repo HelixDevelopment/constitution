@@ -403,7 +403,14 @@ else
         fail "GREEN(b) negative control: dispatch fired without register.sh in the changed-file set -- classification is not load-bearing" "$EV"
     fi
 
-    # --- GREEN(c): missing per-host config -> honest non-zero + operator step
+    # --- GREEN(c): missing per-host config -> UNIVERSAL DEFAULT SINGLE-TRACK
+    # RECONCILED (§11.4.120, operator mandate 2026-09-07): this case previously
+    # asserted that a missing host config is FATAL. That behaviour was
+    # deliberately replaced -- multi-track MUST work on EVERY host, defaulting to
+    # ONE track whose Track 1 is the invocation project root (§11.4.187). The
+    # assertion is not weakened, it is REDIRECTED at the new contract, and the
+    # two fatal paths that DO remain are asserted in (c2)/(c3) below, so the
+    # no-guessing guarantee (§11.4.6) is still under test.
     GC_PROOT="$WORK/green_c_project_root"
     mkdir -p "$GC_PROOT"
     GC_HOOK="$WORK/green_c_home/.local/bin/claude-cwd-hook"
@@ -411,14 +418,45 @@ else
     mkdir -p "$GC_EMPTY_CFGDIR"
 
     CMA_CWD_HOOK="$GC_HOOK" MT_HOST="rb08-nonexistent-host-$$" MT_CONFIG_DIR="$GC_EMPTY_CFGDIR" \
+        MT_ALIAS_DIR="$WORK/green_c_aliasdir" \
         MT_FIXTURE_DRIVES="$MT_FIXTURE_DRIVES_FOR_TEST" \
         bash "$BOOTSTRAP" "$GC_PROOT" > "$WORK/green_c_run.log" 2>&1
     _gc_rc=$?
 
-    if [ "$_gc_rc" -ne 0 ] && grep -qF 'OPERATOR STEP REQUIRED' "$WORK/green_c_run.log"; then
-        pass "GREEN(c): missing per-host config -> bootstrap exits non-zero (rc=$_gc_rc) with the literal operator authoring step -- never green on an unconfigured host" "$WORK/green_c_run.log"
+    if [ "$_gc_rc" -eq 0 ] \
+       && grep -qF 'DEFAULT SINGLE-TRACK MODE' "$WORK/green_c_run.log" \
+       && grep -qF "track-1=$GC_PROOT" "$WORK/green_c_run.log"; then
+        pass "GREEN(c): missing per-host config -> bootstrap completes (rc=0) in DEFAULT SINGLE-TRACK MODE with track-1 == the invocation PROJECT_ROOT ($GC_PROOT), and says so loudly -- multi-track is universal, never host-gated" "$WORK/green_c_run.log"
     else
-        fail "GREEN(c): expected non-zero rc + 'OPERATOR STEP REQUIRED' on a missing host config, got rc=$_gc_rc" "$WORK/green_c_run.log"
+        fail "GREEN(c): expected rc=0 + 'DEFAULT SINGLE-TRACK MODE' + 'track-1=$GC_PROOT' on a missing host config, got rc=$_gc_rc" "$WORK/green_c_run.log"
+    fi
+
+    # --- GREEN(c2): STRICT mode -> the pre-§11.4.187 fatal path is still there
+    CMA_CWD_HOOK="$GC_HOOK" MT_HOST="rb08-nonexistent-host-$$" MT_CONFIG_DIR="$GC_EMPTY_CFGDIR" \
+        MT_ALIAS_DIR="$WORK/green_c2_aliasdir" MT_REQUIRE_HOST_CONFIG=1 \
+        MT_FIXTURE_DRIVES="$MT_FIXTURE_DRIVES_FOR_TEST" \
+        bash "$BOOTSTRAP" "$GC_PROOT" > "$WORK/green_c2_run.log" 2>&1
+    _gc2_rc=$?
+    if [ "$_gc2_rc" -ne 0 ] && grep -qF 'OPERATOR STEP REQUIRED' "$WORK/green_c2_run.log"; then
+        pass "GREEN(c2): MT_REQUIRE_HOST_CONFIG=1 -> missing host config is STILL fatal (rc=$_gc2_rc) with the literal operator authoring step -- an operator who wants the strict contract still has it" "$WORK/green_c2_run.log"
+    else
+        fail "GREEN(c2): expected non-zero rc + 'OPERATOR STEP REQUIRED' under MT_REQUIRE_HOST_CONFIG=1, got rc=$_gc2_rc" "$WORK/green_c2_run.log"
+    fi
+
+    # --- GREEN(c3): a MALFORMED config is NEVER defaulted past (§11.4.6)
+    GC3_CFGDIR="$WORK/green_c3_config_dir"
+    mkdir -p "$GC3_CFGDIR"
+    GC3_HOST="rb08-malformed-host-$$"
+    printf 'schema_version: 1\nhost:\n  hostname: %s\n' "$GC3_HOST" > "$GC3_CFGDIR/$GC3_HOST.yaml"
+    CMA_CWD_HOOK="$GC_HOOK" MT_HOST="$GC3_HOST" MT_CONFIG_DIR="$GC3_CFGDIR" \
+        MT_ALIAS_DIR="$WORK/green_c3_aliasdir" \
+        MT_FIXTURE_DRIVES="$MT_FIXTURE_DRIVES_FOR_TEST" \
+        bash "$BOOTSTRAP" "$GC_PROOT" > "$WORK/green_c3_run.log" 2>&1
+    _gc3_rc=$?
+    if [ "$_gc3_rc" -ne 0 ] && ! grep -qF 'DEFAULT SINGLE-TRACK MODE' "$WORK/green_c3_run.log"; then
+        pass "GREEN(c3): a config that EXISTS but defines zero tracks is fatal (rc=$_gc3_rc) and does NOT silently fall back to default single-track mode -- ambiguity is never defaulted past (§11.4.6)" "$WORK/green_c3_run.log"
+    else
+        fail "GREEN(c3): a malformed host config must be fatal AND must not print the default-mode notice, got rc=$_gc3_rc" "$WORK/green_c3_run.log"
     fi
 fi
 

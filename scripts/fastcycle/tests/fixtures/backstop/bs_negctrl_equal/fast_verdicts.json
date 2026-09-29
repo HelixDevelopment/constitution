@@ -1,0 +1,10 @@
+{
+  "schema": "verdicts/v1",
+  "change_id": "CH-BS-EQUAL-001",
+  "results": [
+    {"gate_id": "GATE-A", "verdict": "PASS", "source": "RUN", "evidence": "ev-a.txt", "duration_ms": 102},
+    {"gate_id": "GATE-B", "verdict": "FAIL", "source": "RUN", "evidence": "ev-b.txt", "duration_ms": 205},
+    {"gate_id": "GATE-C", "verdict": "PASS", "source": "CACHE", "evidence": "ev-c.txt", "duration_ms": 3}
+  ],
+  "summary": {"total": 3, "pass": 2, "fail": 1}
+}

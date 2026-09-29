@@ -1,0 +1,40 @@
+# scope_baseline.txt — must-exclude classes for the codegraph_safe.sh SCOPE-PROOF
+# stage (constitution §11.4.78). DATA, not code: a consuming project may extend
+# this file (§11.4.35); the launcher accepts --scope-baseline <file>.
+#
+# Format:  <class> <kind> <matcher>:<value>
+#   kind     secret  -> any hit FAILs the run (credential-bearing class, §11.4.10)
+#            exclude -> any hit FAILs the run (bulk/derived class that must never
+#                       be indexed per §11.4.78)
+#   matcher  exact:<rel/path>   whole project-relative path
+#            seg:<name>         any path component equals <name>
+#            segglob:<glob>     any path component matches <glob> (fnmatch, case-sensitive)
+#            dir:<name>         any DIRECTORY component equals <name>
+#            topdir:<name>      the FIRST path component is the directory <name>
+# Paths in the files table are project-relative; absolute rows never match and
+# are reported BLIND by the control needle (§11.4.273), never as a clean zero.
+env_file            secret   seg:.env
+env_file            secret   segglob:.env.*
+env_file            secret   segglob:*.env
+secrets_dir         secret   dir:secrets
+secret_named        secret   segglob:*secret*
+keystore            secret   segglob:*.jks
+keystore            secret   segglob:*.keystore
+keystore            secret   segglob:*.p12
+keystore            secret   segglob:*.pfx
+signing_key         secret   segglob:*.pk8
+signing_key         secret   segglob:*.pem
+signing_key         secret   segglob:*.key
+service_account     secret   segglob:*service-account*.json
+service_account     secret   segglob:*service_account*.json
+build_out           exclude  topdir:out
+prebuilts           exclude  topdir:prebuilts
+rockdev             exclude  topdir:rockdev
+rktools             exclude  topdir:RKTools
+compressed_archive  exclude  dir:.compressed
+qa_results          exclude  dir:qa-results
+recordings          exclude  dir:recordings
+ccache              exclude  dir:ccache
+ccache              exclude  dir:.ccache
+pycache             exclude  dir:__pycache__
+node_modules        exclude  dir:node_modules

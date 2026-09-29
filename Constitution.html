@@ -450,7 +450,7 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 <tbody>
 <tr>
 <td>Revision</td>
-<td>66</td>
+<td>68</td>
 </tr>
 <tr>
 <td>Created</td>
@@ -458,7 +458,7 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 </tr>
 <tr>
 <td>Last modified</td>
-<td>2026-08-26T11:55:02Z</td>
+<td>2026-09-26T14:40:00Z</td>
 </tr>
 <tr>
 <td>Status</td>
@@ -466,183 +466,50 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 </tr>
 <tr>
 <td>Status summary</td>
-<td>Amendment of 2026-08-26 — SPECKIT 002-anti-slop-enforcement
-T402/T403/T404: 4 NEW universal anchors §11.4.268 (tamper-evident
-evidence chain + periodic anchor record: deletion, reordering and
-tail-truncation of an evidence chain are DETECTED, not merely
-discouraged) / §11.4.269 (critic/consensus advisory-only ban AT THE
-EVIDENCE-ACCEPTANCE SEAM: an ungoverned confidence or consensus score
-never substitutes for a machine-written verdict) / §11.4.270
-(dependency-existence-verdict register: every proposed dependency
-carries a closed-set existence verdict, so a hallucinated package cannot
-be adopted silently) / §11.4.271 (waiver mechanism: the strict
-FORMALIZATION of allow-with-tracked-debt, unifying §11.4.234(D)&#39;s
-recorded deferral with the §11.4.135 ratchet), plus 3 EXTENSIONS landed
-INSIDE existing bodies per §11.4.227 extend-don&#39;t-restate — §11.4.115
-clause (H) (evidence-record full field set +
-stream-digest-before-truncation + recorder reconciliation), a titled
-EXTENSION block in §11.4.238 (discovery-channel record schema +
-escape-ratchet no-data-point rule), and §11.4.240 clause (F)
-(independence-tier vocabulary + Tier-C capability-separation triggers,
-degrading honestly on a single-uid host). The 4 NEW anchors are mirrored
-byte-identically into CLAUDE.md / AGENTS.md / QWEN.md / GEMINI.md (T403,
-all PASS, per-anchor content hashes agree); anchor-block integrity
-verified by TWO independent instruments that must agree (T404, both
-rc=0). HONEST BOUNDARY (§11.4.6): the 3 EXTENSIONS were deliberately NOT
-propagated to the mirrors in this change — syncing §11.4.115 would
-additionally overwrite pre-existing divergent mirror wording and insert
-the block currently MISSING from GEMINI.md (a pre-existing §11.4.157
-lockstep violation, tracked, outside this change&#39;s authorization); that
-mirror gap for §11.4.115/238/240 is RECORDED as owed, not left implicit.
-Gate-code for the recommended CM-* mechanism gates is a separate work
-item and is NOT claimed shipped (§11.4.6/§11.4.227). Amendment of
-2026-08-15 — MONOLITHIC ROUND: 22 NEW universal anchors (§11.4.239-254
-AI-curriculum modules 27-35 harvest + §11.4.257-262 enterprise-quality
-9-point mandate) + 5 targeted extensions (§11.4.212 EXT clauses (E)/(F)
-README intro+illustration + linkage-completeness ratchet; §11.4 covenant
-preamble EXT machine-created evidence at every gate binding; §11.4.108
-EXT clause (7) machine-created evidence at every layer; §11.4.224 EXT
-(B) 7-canonical-type coverage floor + 100% aim; §11.4.27 EXT (B)
-7-canonical-type breadth enumeration). §11.4.239 critical-invariant DoD
-money/safety/availability/integrity failure-path scenarios as gates;
-§11.4.240 producer≠verifier scope separation via
-least-privilege-not-instruction; §11.4.241
-illegal-state-unrepresentability preference ladder
-(types→API-shape→lint→property-test→runtime-assert); §11.4.242
-bisection-not-blame regression cause-finding + failure-mode catalogue;
-§11.4.243 characterization/golden-master safety net before
-behaviour-changing legacy modification; §11.4.244 cross-boundary
-contract tests + can-i-deploy gate merged; §11.4.245
-oracle-problem-first test authoring with named strategy + independence;
-§11.4.246 reproducible + hermetic builds + SLSA Build Level 2 fleet-wide
-minimum + supply-chain integrity chain; §11.4.247 composite-output
-layer-move must move every layer with completeness check + compatibility
-window; §11.4.248 flaky-test quarantine + [PROTECTED-SPEC: ATM-NNN] tag
-+ CODEOWNERS required reviewer; §11.4.249 producer≠oracle≠gate≠verifier
-four-role separation + flight recorder; §11.4.250 heuristic-tower
-signals a primitive defect requiring systematic-debug not layer N+1;
-§11.4.251 byte-identical-fork prohibition + role-as-data-pack
-extraction; §11.4.252 fail-closed-on-dangerous-combination for ≥2
-mutation/untrusted-input/credential/side-effect/exec/irreversible
-capabilities; §11.4.253 idempotency under retry with DB-level durable
-uniqueness guard; §11.4.254 boot-time invariant assertion + capability
-matrix; §11.4.257 comprehensive user-manual + guide + FAQ coverage per
-component/service/feature; §11.4.258 architectural + data-flow +
-state-machine + sequence-diagram coverage embedded not orphan; §11.4.259
-README quality-status badge row with closed green→amber→red vocabulary +
-machine-derived + production-readiness gauge; §11.4.260 cutting-edge
-enterprise quality + production-deployment readiness 10-invariant
-tracker; §11.4.261 zero-shortcomings/gaps/weak-spots/danger-zones
-invariant + mechanical audit ratchet monotone-decreasing; §11.4.262
-machine-created evidence at every gate binding covenant preamble
-universally. SUBSTRATE-GAP DISCLOSURE per §11.4.231(F)(b) honest
-boundary: the §11.4.209 review substrate for this round ran on the
-opus-class parent-inherited fork substrate (the Claude Code Agent tool
-exposes a <code>model</code> parameter but NO <code>effort</code>
-parameter, so subagent effort is not presently settable via that path —
-the label <code>&lt;effort&gt;</code> field degrades honestly to
-<code>?</code>) — SUBSTANTIVE on
-structural/traceability/composes/anti-bluff/classification/collision/cross-anchor/no-escape-hatch
-axes with clean GO on round 2 (subagent a6b89ff0, all IMPORTANT-1/2/3 +
-MINOR-1/2/3/4 findings resolved, zero new BLOCKING or IMPORTANT
-introduced); a re-review at the true §11.4.209 Fable-<code>xhigh</code>
-substrate via the Workflow-tool <code>agent()</code> path REMAINS
-RECOMMENDED (not blocking) before the anchors are considered fully
-substrate-verified — tracked as an owed §11.4.197 upgrade item, never a
-claim of shipped Fable-xhigh review. Classification: universal
-(§11.4.17). Propagation gates CM-COVENANT-114-239 through
-CM-COVENANT-114-254 + CM-COVENANT-114-257 through CM-COVENANT-114-262
-(14 anchor-block-start propagation gates + 6 more) + recommended
-mechanism gates enumerated per anchor + paired §1.1 mutations (gate-code
-= separate work item, NOT claimed shipped §11.4.6/§11.4.227).
-§11.4.239-254 + §11.4.257-262 amendment region byte-identical across the
-4 mirrors CLAUDE.md + AGENTS.md + QWEN.md + GEMINI.md per §11.4.157
-lockstep; Constitution.md carries the canonical ### §11.4.NNN heading
-variant per §11.4.227(B) canonical-vs-mirror layer variance legitimate.
-All 22 new anchors exactly-once block-start per file per §11.4.227(B).
-Generated .html/.pdf/.docx twins NOT regenerated (exporter still not a
-runnable in-repo script — honestly STALE per §11.4.106(E)). Prior round:
-Amendment of 2026-08-05 — NEW universal anchor §11.4.237 (operator
-mandate 2026-08-05): every translation / translated artifact (UI
-strings, pages, documents, PDFs, any localized content) MUST undergo a
-HEAVY, EXHAUSTIVE, INDEPENDENT context-and-spirit-aware review by a
-reviewer STRUCTURALLY SEPARATE from the translator (never self-review —
-§11.4.92 precedes, §11.4.142 never satisfies); the reviewer holds +
-applies (a) full CONTEXT of the source material (original ideas /
-subject-domain / purpose / audience), (b) the SPIRIT / idiom / register
-/ tradition / cultural-conventions of the TARGET language so the result
-reads NATIVE + natural + maximally polished, never
-literal/word-for-word/calqued, and (c) correct TECHNICAL vocabulary +
-VERBATIM preservation of NON-TRANSLATABLE terms (product/brand/proper
-names, technology/library/API names, code identifiers); goal = maximally
-slick, polished, professional localization — accuracy NECESSARY, never
-SUFFICIENT; anti-bluff — captured machine-readable POSITIVE evidence
-(verdict + per-dimension rationale across {fidelity,
-fluency/naturalness, spirit/register, terminology, completeness,
-non-translatable-preservation}, feature_class=translation_review,
-§11.4.5/§11.4.69) and a FAIL on any dimension loops back to
-re-translation/polish until a zero-finding clean verdict (§11.4.134).
-REFINES §11.4.140 (canonical translation pipeline) / §11.4.141
-(independent per-language translation review — from PASS/FAIL accuracy
-to context+spirit native polish; the KNOWN §11.4.54 anchor-number
-collision on 11.4.140/11.4.141 cited strictly in those senses — re-mint
-RESOLVED 2026-08-15 (operator-owned decision executed: HelixTranslate
-canonical translation pipeline → §11.4.255, independent per-language
-translation review → §11.4.256; Constitution.md 5ed8c80 + mirrors CLAUDE
-6dff307 / AGENTS f497412 / QWEN 9e45dec / GEMINI e5f2891), NO new
-collision introduced). Classification: universal (§11.4.17). Propagation
-gate CM-COVENANT-114-237-PROPAGATION + recommended gate
-CM-TRANSLATION-CONTEXT-SPIRIT-REVIEW + paired §1.1 mutation
-(accuracy-only check / self-reviewed-by-own-translator / golden-bad
-mistranslated-idiom or &quot;translated&quot; non-translatable product name → gate
-FAILs; gate-code = separate work item, NOT claimed shipped
-§11.4.6/§11.4.227). §11.4.237 amendment region byte-identical across the
-4 mirrors CLAUDE.md + AGENTS.md + QWEN.md + GEMINI.md (full-block md5
-05d4e829de58414ca8f7ce920b606173, §11.4.157 lockstep); Constitution.md
-carries the canonical ###-heading variant (identical body md5
-8f518d2f25d8c61a94b114c32c2db308 — §11.4.227(B) canonical-vs-mirror
-layer variance legitimate, content-hash equality binds within the
-lockstep set); §11.4.237 exactly-once block-start per file
-(§11.4.227(B)), no anchor-number collision. Generated .html/.pdf/.docx
-twins NOT regenerated (exporter still not a runnable in-repo script —
-honestly STALE per §11.4.106(E)). Prior round: Amendment of 2026-07-26 —
-NEW universal anchor §11.4.234 (operator mandate 2026-07-26, verbatim:
-&quot;We MUST have dedicated script to run hook validations, and commit and
-push mechanism ALWAYS unblocked!&quot;): hook validations run as an EXPLICIT
-stage of a dedicated, idempotent commit/push script (consumer-bound path
-as DATA per §11.4.35 — Lava binding: scripts/commit-push-all.sh);
-automatic git hooks wired via core.hooksPath MUST NOT gate routine
-commit/push (disconnect = hooksPath unset, hook file preserved
-UNMODIFIED, --no-verify never the routine path); NO gate is lost (every
-disconnected check remains executed at a named script stage or
-release/tag gate, silently dropping one is a §11.4 PASS-bluff at the
-process layer); the commit/push mechanism is ALWAYS unblocked (failing
-validation = clear per-check report + documented remediation path, long
-multi-minute gates separable from cheap checks and skippable ONLY via an
-explicit recorded deferral flag — Lava binding: LAVA_SYNC_SKIP_CI=1 —
-never an opaque hung/rejected push). Classification: universal
-(§11.4.17). Propagation gate CM-COVENANT-114-234-PROPAGATION +
-recommended mechanism gates CM-DEDICATED-HOOK-VALIDATION-SCRIPT /
-CM-HOOKS-NEVER-BLOCK-PUSH / CM-NO-GATE-LOST-ON-HOOK-DISCONNECT /
-CM-COMMIT-PUSH-ALWAYS-UNBLOCKED + paired §1.1 mutations (gate-code =
-separate work item, NOT claimed shipped §11.4.6/§11.4.227). Amendment
-region byte-identical across all 5 governance files (md5-verified);
-§11.4.234 exactly-once block-start per file (§11.4.227(B)), no
-anchor-number collision. CLAUDE.md + AGENTS.md + QWEN.md + GEMINI.md
-mirrors updated in lockstep (§11.4.157). Generated .html/.pdf/.docx
-twins NOT regenerated (exporter still not a runnable in-repo script —
-honestly STALE per §11.4.106(E)). Prior round: Amendment of 2026-07-26 —
-the EFFORT-tiering + 5-field-label batch (operator IMPORTANT mandate
-2026-07-26, verbatim: &quot;Besides dynamic determining proper models to use,
-we MUST decide the effort as well and switch between the effort settings
-same as we do now for chosen model! Labeling MUST BE extended for this
-details as well. Example: (T1/main - claude4 - opus - high).&quot;).
-§11.4.182 EXTENSION amended (in-place, no re-mint): the work-stream
-label form extends from
-<code>(T&lt;N&gt;/&lt;branch&gt; - &lt;alias&gt; - &lt;model&gt;)</code>
-to
-<code>(T&lt;N&gt;/&lt;branch&gt; - &lt;alias&gt; - &lt;model&gt; - &lt;effort&gt;)</code>,
-effort ∈ {low</td>
+<td>Amendment of 2026-09-26 — MODEL-SUBSTRATE CORRECTION (operator
+mandate 2026-09-26, <code>CRITICAL</code>, verbatim: &quot;Main model to use
+is Sonet, reviews and other heavy stuff have to be done by Opus instead
+of Fable!!! Fix this permanently on all levels!&quot;): §11.4.209 rewritten —
+every mandatory independent code-review (§11.4.125/§11.4.142/§11.4.194,
+iterated to GO per §11.4.134) runs on Opus at xhigh ALWAYS; the
+2026-09-15 Fable-escalation clause (A) is REMOVED; Fable is not
+permitted in any role; no fallback model — genuine Opus-unavailability
+BLOCKS the review (captured fact, §11.4.6) and is tracked
+(§11.4.197/§11.4.21); prior 2026-09-15 and 2026-07-15 mandate texts kept
+verbatim as WITHDRAWN lineage. §11.4.211 rewritten the same way for
+main→feature/product/flavor merge-CONFLICT resolution (Opus-xhigh only,
+blocked-not-substituted on unavailability; the 2026-07-16 verbatim
+mandate kept as lineage, withdrawn as to its model choice). §11.4.231
+amended: ladder is now <code>sonnet &lt; opus</code> with Sonnet the
+DEFAULT working tier (A); NEW clause (D.1) records as a measured fact
+that a <code>haiku</code> dispatch in the reference consuming repository
+failed with &quot;Prompt too long (~421k tokens vs 200k limit)&quot; (request id
+req_011CfSBXm7Kn6enyUT1UEaWd, 2026-09-26) and PROHIBITS
+<code>haiku</code> there, a consumer re-admitting it only on its own
+captured evidence; (D) tail, (E), (F.2), (F.3) and the classification
+text re-pinned to Opus-xhigh. Derived mentions re-pinned from Fable to
+Opus-xhigh in §11.4.182-EXTENSION (the truthful <code>fable</code> label
+vocabulary and the verbatim 2026-07-26 label mandate are KEPT — they
+describe what a live model-id may report, not a permitted dispatch
+tier), §11.4.235, §11.4.240, §11.4.260 and §11.4.269. Recommended gates
+renamed CM-CODE-REVIEW-OPUS-XHIGH and CM-MERGE-CONFLICT-OPUS-XHIGH
+(predecessor tokens retired with citations in
+scripts/gates/gate_ledger_removals.tsv; unimplemented count unchanged by
+the rename). Honest boundary (§11.4.6): the Fable mentions that remain
+in this file are (a) the verbatim WITHDRAWN mandate texts kept as
+lineage, (b) the verbatim 2026-07-26 label mandate + the
+label-vocabulary short-name list, (c) explicit prohibitions, and (d) the
+historical records of earlier rounds below — those records state what
+ran at the time and are not rewritten; any &#39;Fable re-review
+owed/recommended&#39; item inside them is superseded: that owed re-review
+now runs on Opus at xhigh. Gate-code for the renamed gates remains a
+separate work item, NOT claimed shipped (§11.4.6/§11.4.227). Prior
+round: Amendment of 2026-09-24 — NEW §11.4.275 (semantic Lumen index +
+indexing-efficiency gate + universal agent/subagent accessibility) +
+EXTENSIONS §11.4.78(7)-(10) / §11.4.79(6)-(8) / §11.4.80(4)-(8): the
+indexing mechanism (scope renderer, single writer entry, version-keyed
+runner patches, scope proof, watchdog, lumen scope generator) is
+consumed BY REFERENCE from constitution/scripts/codegraph</td>
 </tr>
 <tr>
 <td>Issues</td>
@@ -9231,6 +9098,303 @@ callee / impact resolution. Standardising on one tool — CodeGraph —
 across every Helix project means the capability is wired once, verified
 anti-bluff once, and reused everywhere, instead of each project
 hand-rolling ad-hoc context tooling.</p>
+<p><strong>EXTENSION — scope, launcher, runner patches and verification
+are CONSUMED BY REFERENCE; the consumer supplies only DATA
+(research-derived, 2026-09-24).</strong> Measured this cycle on a
+multi-hundred-thousand-file consuming project: clause 2&#39;s filter text
+contradicted itself and §11.4.79 steps 2–3 (one sentence says the
+<code>.codegraph/config.json</code> <code>exclude</code> list is not
+used for filtering, another instructs editing it), the installed CLI
+version read a DIFFERENT config file that did not exist in the
+repository and silently fell back to zero-config, nothing derived the
+scope from the submodule graph, and the anti-bluff gate treated any
+database above a size threshold as a real index — so a stalled, partial
+index would have PASSED. This extension closes those gaps without
+deleting any text above; where it conflicts with the clause-2 filter
+wording, THIS extension governs (§11.4.227 extend-don&#39;t-re-mint).</p>
+<ol start="7" type="1">
+<li><p><strong>ONE MECHANISM, INHERITED BY REFERENCE.</strong> The scope
+machinery
+(<code>&lt;constitution&gt;/scripts/codegraph/scope_render.py</code>,
+the runner-discovery bridge <code>scope_enumerate.js</code>, the
+baseline class list <code>scope_baseline.txt</code>, the DATA template
+<code>scope.example.yaml</code>), the single sanctioned writer entry
+(<code>codegraph_safe.sh</code> + <code>codegraph_safe_helper.py</code>
++ <code>codegraph_guard.sh</code> + <code>disk_tripwire.sh</code>), the
+version-keyed runner patcher (<code>fk_index_patch.py</code> +
+<code>runner_patches/</code>), the bulk-window hazard probe
+(<code>fk_cascade_probe.py</code>), the progress-proven watchdog
+(<code>index_watch.py</code>), the scope proof
+(<code>codegraph_scope_guard.py</code>) and the semantic-index scope
+generator
+(<code>&lt;constitution&gt;/scripts/lumen/gen_lumenignore.py</code>)
+MUST live in the constitution submodule and MUST be INVOKED BY REFERENCE
+from the consuming project (§11.4.28 / §11.4.80 / §11.4.177). A consumer
+copy, fork, vendored duplicate or hand-rolled equivalent is a violation
+(§11.4.227 — no parallel mechanism). Each tool MUST be documented
+(§11.4.18) and test-first with paired mutations (§11.4.224 / §1.1), and
+a tool lacking its own tests MUST NOT be pointed at a live index; at the
+time of writing <code>index_watch.py</code> and
+<code>fk_cascade_probe.py</code> (no test references of their own — the
+writer entry&#39;s unit test substitutes a stub for the probe), the runner
+patches <code>lockfix1</code> and <code>datafrag1</code> (no tests of
+their own — excluded from the default patch set for that reason), and
+the §11.4.18 companion guide of EVERY tool named here (none exists yet)
+are OWED, tracked per §11.4.197.</p></li>
+<li><p><strong>THE CONSUMER SUPPLIES DATA, NEVER MECHANISM
+(§11.4.35).</strong> A consuming project contributes exactly one
+declarative scope file (schema = the constitution&#39;s
+<code>scope.example.yaml</code>): its own-org list, its project-specific
+rubbish paths, its pathological inputs (files that stall the parser —
+declared, never retried to timeout), explicit re-include negations,
+per-submodule class overrides WITH a reason, the accepted indexed-file
+count and its tolerance, and its efficiency thresholds (§11.4.275(D)).
+It MUST NOT drop a baseline class (the universal baseline above still
+binds).</p></li>
+<li><p><strong>CONFIG TRUTH = WHAT THE INSTALLED CLI ACTUALLY
+READS.</strong> The scope source of truth is the configuration the
+INSTALLED CLI version loads, established from that version&#39;s own loader
+code (§11.4.99 latest-source, §11.4.6 never from memory); a config file
+the CLI does not read is dead documentation and MUST NOT be cited as the
+scope. The effective scope artifact is GENERATED by the renderer from
+the baseline classes + the §11.4.79 classification + the consumer DATA;
+hand edits are refused, and a missing or malformed config that the CLI
+silently falls back from is a FAIL, never a warning.</p></li>
+<li><p><strong>SCOPE PROOF BEFORE &quot;READY&quot; (supersedes size-based
+evidence).</strong> Before an index is called usable, the scope guard
+MUST enumerate files through the installed runner&#39;s OWN discovery code
+and assert, each with a control needle (§11.4.273): indexed-file count
+within the consumer tolerance of the accepted count; zero files under
+third-party roots; zero secret-class files (§11.4.10); at least one file
+under every own-org root (§11.4.79). Database size is NEVER evidence of
+a real index. Completeness (pending work == 0) is §11.4.275(C).</p></li>
+</ol>
+<p><strong>EXTENSION — host-adaptive V8 heap budget lands in the single
+writer entry, closing a real OOM crash on this consuming project&#39;s bulk
+index run (research-derived, 2026-09-25).</strong> Forensic FACT: on
+this constitution&#39;s own consuming project (584,328 tracked files, ~47.5M
+edges), a bulk <code>codegraph index</code> run reached 100% file
+parsing then crashed in the resolve phase with
+<code>FATAL ERROR: Reached heap limit ... JavaScript heap out of memory</code>
+(rc=134), discarding an approximately 85-minute run — on a host with 161
+GiB of RAM available at the time. Root cause: a stock-launched Node.js
+indexer inherits V8&#39;s DEFAULT old-space heap ceiling (roughly 4 GiB)
+regardless of the host&#39;s real memory, since
+<code>codegraph_safe.sh</code> (the item-7 single sanctioned writer
+entry) never set one — a self-imposed software limit masquerading as
+real memory exhaustion, exactly the class of un-measured resource quota
+§12.11 and §11.4.6 forbid. Fix: <code>preflight()</code> now computes a
+heap budget from MEASURED <code>MemAvailable</code> (half of it, floored
+at 8192 MiB so it always exceeds the stock default, capped at 65536 MiB
+so one process alone never threatens the §12.6 60%-of-total-RAM ceiling
+— never hardcoded, applying §12.11&#39;s dynamic-detection discipline to
+this bare-metal indexer process, not only to §12.11&#39;s own
+containerized-build scope) and exports it via
+<code>NODE_OPTIONS=--max-old-space-size=&lt;budget&gt;</code> before
+every <code>init</code>/<code>index</code>/<code>sync</code> launch; an
+unmeasurable budget REFUSES the run (<code>die 6</code>) rather than
+silently falling back to the unmeasured stock limit (§11.4.201
+conservative-safe default). Landed with two new regression tests
+(<code>scripts/codegraph/tests/test_unit_safe.sh</code> U44/U45, item-7
+test-first discipline) proving the exact floor/cap/proportional
+arithmetic, and independently VERIFIED LIVE (not merely unit-tested):
+the relaunched bulk run&#39;s real indexer process was confirmed via
+<code>/proc/&lt;pid&gt;/environ</code> to have genuinely received
+<code>NODE_OPTIONS=--max-old-space-size=65536</code>. Zero-regression
+proof: the full pre-existing test suite produced identical pass/fail
+counts before and after (git-stash comparison), isolating the delta to
+U44/U45 flipping FAIL→PASS. Companion doc updated per §11.4.18
+(<code>docs/scripts/codegraph_safe.md</code>). Commit
+<code>941841d3e7235a081e3199a4d3073b409d41753b</code>. Composes §11.4.6
+/ §12.6 / §12.11 / §12.12 / §11.4.80(4)(6) (upgrade-gated compatibility
+probes and supervised long runs — this closes exactly the crash class
+those clauses anticipate for bulk runs) / §11.4.201 / §11.4.224 /
+§1.1.</p>
+<p><strong>CORRECTION (same day, operator mandate 2026-09-25 — &quot;do not
+set caps for codegraph and lumen … indexed space exposed and used by all
+agents&quot;): the &quot;capped at 65536 MiB&quot; clause above is SUPERSEDED, not
+deleted.</strong> The 64 GiB figure was an INVENTED ceiling, not a
+derivation of §12.6: on a 251 GiB host, 64 GiB is ~25% of total RAM, far
+below the actual §12.6 bound (60% ≈ 150 GiB) — an artificial cap that
+starved a legitimate large-repo resolve phase for no principled reason
+(observed live: the relaunched run&#39;s RSS climbed to ~58 GiB and
+plateaued against the invented ceiling, a genuine crash risk). Fixed:
+the ceiling is now <code>MemTotal * 60 / 100</code> (in MiB), computed
+fresh every preflight run from <code>/proc/meminfo</code> — the REAL
+§12.6 bound, never a fixed number. Mathematically this ceiling can never
+bind an ordinary run (half-of-available is always &lt; half-of-total,
+which is always &lt; 60%-of-total), so in practice the heap budget is
+now effectively unconstrained short of the one absolute, no-escape-hatch
+host-safety invariant this constitution carries — exactly matching the
+operator&#39;s mandate without weakening §12.6. New regression test
+<code>test_unit_safe.sh</code> U46 proves the cap is real and
+independently computed (not inert, not the old hardcoded number) by
+constructing a scenario where it overrides even the 8192 MiB floor.
+Full-suite zero-regression proof unchanged in kind:
+<code>cases=46 failed=31</code>, same 31 pre-existing unrelated
+failures. Commit
+<code>8a5f47ab2e0e7a05d1c1652ba5a3475751652062</code>.</p>
+<p><strong>EXTENSION — CodeGraph is now wired as a genuine,
+project-tracked, first-class MCP tool for this consuming project (not
+only the bare-<code>codegraph</code>-on-PATH posture clause 3 above
+describes), closing a &quot;tool exists but no agent can discover it&quot; gap
+found under the same operator mandate (forensic incident + fix,
+2026-09-25).</strong> Audit finding: prior to this extension, this
+project&#39;s <code>.mcp.json</code> was <code>{&quot;mcpServers&quot;: {}}</code> —
+EMPTY — despite CodeGraph shipping a full first-class MCP query surface
+(<code>codegraph_explore</code>, <code>codegraph_node</code>, and more,
+confirmed from the installed CLI&#39;s own <code>--help</code> text) and its
+own installer (<code>codegraph install</code>) built for exactly this
+purpose. The gap was total: an agent had no way to discover CodeGraph&#39;s
+query tools short of already knowing to hand-invoke the raw CLI via Bash
+— the opposite of &quot;regularly used for all major needs.&quot; Separately, the
+semantic (Lumen) tool&#39;s own &quot;use this instead of grep&quot; nudge, observed
+firing reliably all session, was traced to a Claude Code PLUGIN hook
+(<code>lumen/&lt;version&gt;/cmd/hook.go</code>) — entirely UNTRACKED by
+this repository; it works only by accident of which plugins happen to be
+enabled on a given host/account, and would not follow this project to a
+fresh clone, a different agent, or another track.
+<code>grep -rl &quot;codegraph\|lumen&quot; constitution/scripts/hooks/ scripts/hooks/</code>
+returned nothing — zero project-tracked enforcement of either tool&#39;s use
+existed anywhere.</p>
+<p>Fix landed: (1) <code>.mcp.json</code> now registers a
+<code>codegraph</code> MCP server whose command is
+<code>bash constitution/scripts/codegraph/codegraph_mcp_serve.sh</code>
+— a new, project-tracked, §11.4.177-decoupled wrapper, NOT the bare
+<code>codegraph</code> command clause 3 above names. This is a
+REFINEMENT of clause 3&#39;s &quot;no-hardcoding posture,&quot; not a violation:
+clause 3 forbids a HARDCODED HOST PATH, and the wrapper hardcodes
+nothing — it dynamically resolves the SAME validated, patched runner
+<code>codegraph_safe.sh</code> itself uses (via
+<code>fk_index_patch.py --print-bin</code>, re-derived every launch,
+correct automatically across a future <code>codegraph upgrade</code>)
+rather than trusting whatever <code>codegraph</code> happens to resolve
+first on <code>$PATH</code> (the STOCK, unpatched build — this project&#39;s
+own <code>codegraph_safe.sh</code> NEVER trusts stock for a write
+operation, per the 2026-09-23 incident item 7 above already documents;
+the wrapper extends that same discipline to MCP serving). Consuming
+projects with no equivalent patched-runner requirement MAY use clause
+3&#39;s plain bare-<code>codegraph</code> form; this wrapper is the pattern
+for a project that, like this one, cannot safely assume stock-on-PATH is
+correct.</p>
+<p><strong>A SEPARATE, MORE SERIOUS forensic incident surfaced while
+building and testing this wiring, and is now a permanent, tested safety
+property of the wrapper.</strong> <code>codegraph serve --mcp</code> is
+NOT a passive read-only query server — with its file watcher enabled it
+auto-syncs (WRITES) the database on detected file changes, and
+<code>serve --mcp</code> daemonizes (re-parents to init, outliving its
+own launching process or a <code>timeout</code>-based kill — this is
+CodeGraph&#39;s own documented persistent-background-service architecture).
+A first version of the wrapper omitted <code>--no-watch</code>; a single
+~5-second manual test of it against THIS project&#39;s own live checkout
+spawned a detached daemon that held
+<code>.codegraph/codegraph.db</code>/<code>-wal</code>/<code>-shm</code>
+open with an active write-capable file watcher for roughly two minutes
+before being found and killed — CONCURRENTLY with an in-flight bulk
+<code>sync</code> continuation also writing to the SAME database, which
+then hard-crashed with <code>Failed to index: database is locked</code>,
+discarding a further ~85 minutes of resolve-phase progress on top of the
+earlier heap-crash loss the same day. Root cause: two writers, one
+database, zero coordination — <code>codegraph_safe.sh</code>&#39;s own
+single-writer flock/lock discipline governs only ITS OWN launches; an
+MCP server started via <code>.mcp.json</code> launches completely
+outside that mechanism and was never taught to respect it. Recovery: the
+stray daemon was killed, <code>PRAGMA integrity_check</code> found
+exactly 3 rows missing from one index
+(<code>idx_nodes_lower_name</code>, a mid-transaction-crash artefact,
+not page-level corruption), repaired via <code>REINDEX</code> (a
+data-presence check on the affected rows confirmed the underlying table
+data was intact before and after), and the bulk operation was resumed
+via <code>codegraph_safe.sh … sync</code> (BULK-classified on
+<code>pending&gt;=threshold</code>, correctly continuing the interrupted
+resolve phase rather than re-parsing 584K files from scratch).</p>
+<p>The durable fix: the wrapper now ALWAYS passes
+<code>--path &lt;project&gt; --no-watch</code> — <code>--no-watch</code>
+is not optional, ever, per the CLI&#39;s own documented behaviour (&quot;Disable
+the file watcher (no auto-sync)&quot;), making this a TRUE query-only reader
+that can run PERMANENTLY (as a registered MCP server necessarily does)
+alongside future bulk index/sync operations without risk of this
+collision class recurring; a permanently-registered MCP server WILL
+eventually overlap with a future bulk run in an actively multi-tracked
+project — the two-writer collision is not a one-off testing artefact, it
+is the exact risk profile permanent registration creates. An
+occasionally-stale query view (never auto-refreshing) is the correct
+trade against a database corruption/crash risk;
+<code>codegraph sync</code> (or a fresh query once an agent knows a sync
+completed) is how staleness is cleared, deliberately, never
+automatically. Verified DECISIVELY, not by argv inspection alone (the
+daemon&#39;s own child process does not necessarily inherit its launching
+invocation&#39;s literal argv — verified empirically instead): against a
+real, freshly-<code>init</code>&#39;d scratch project (never this
+repository&#39;s own checkout), the index database&#39;s mtime was read before
+and after editing a tracked file with the wrapper&#39;s server running, and
+found byte-for-byte unchanged after a 4-second settle — proving no
+auto-sync write occurred.</p>
+<p>Six new regression tests landed
+(<code>scripts/codegraph/tests/test_codegraph_mcp_serve.sh</code>,
+item-7 test-first discipline): T01 (resolved runner is always the SAME
+path <code>fk_index_patch.py --print-bin</code> reports, never
+independently computed), T02
+(<code>--path</code>+<code>--no-watch</code> are always present, never
+optional), T03 (<code>--path</code> targets exactly the resolved
+project, never cwd/guessed), <strong>T04 — the incident itself, replayed
+as a repeatable regression test</strong> (a real init&#39;d scratch project,
+real <code>serve --mcp</code> launch, real file mutation, real DB-mtime
+proof of zero writes), T05 (<code>$CLAUDE_PROJECT_DIR</code>, when set,
+is used verbatim, never overridden by git-toplevel guessing), T06 (fails
+closed — non-zero exit — when patched-runner resolution cannot proceed,
+never silently falls back to an unverified binary). All 6/6 PASS.
+T01/T03/T05 initially failed on an unrelated wrapper bug (the wrapper
+hardcoded <code>python3 &quot;$PATCH_TOOL&quot;</code>, force-feeding a
+<code>.sh</code>-fixture stub to the Python interpreter in tests — fixed
+by reusing <code>codegraph_safe.sh</code>&#39;s own <code>run_tool()</code>
+dispatch, which the production path never exercised since
+<code>$PATCH_TOOL</code> defaults to a real <code>.py</code> script
+there); found and fixed before landing, not after. A second, independent
+bug (the submodule-vs-parent project-root fallback used a plain
+<code>git rev-parse --show-toplevel</code>, which from inside a
+submodule resolves to the SUBMODULE&#39;s own root, not the consuming
+project&#39;s — fixed with <code>--show-superproject-working-tree</code>,
+tried first) was likewise found and fixed during this same
+investigation, not discovered later.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> <code>.mcp.json</code>
+registration takes effect on a FRESH Claude Code session — this session,
+already running, cannot self-restart to verify the
+<code>codegraph_explore</code>/<code>codegraph_node</code> tools are
+genuinely callable end-to-end from inside it; that verification is OWED
+as a tracked §11.4.197 follow-up on the next fresh session in this
+project, not claimed here. This extension delivers and tests the
+MECHANISM (a project-tracked, always-present MCP registration pointing
+at a verified-correct, incident-hardened, non-writing wrapper) — it does
+NOT, and cannot, mechanically guarantee that every agent ALWAYS chooses
+to call it over a raw grep/find/glob on every occasion; that remains a
+soft property of tool-selection behaviour, same honest limit
+§11.4.275(A)&#39;s own accessibility clause already lives with for Lumen.
+What changed today is that the mechanism itself is no longer an accident
+of host/plugin configuration — it is now a committed, tested, portable
+part of this repository, present for any agent, any track, any future
+clone.</p>
+<p>Composes §11.4.6 / §11.4.14 (cleanup on every exit path — every test
+daemon this investigation spawned was found and killed, none left
+running) / §11.4.35 / §11.4.78(3) (refines the
+bare-<code>codegraph</code>-on-PATH posture for a patched-runner
+project) / §11.4.78(7) (the wrapper is a new tool under the same
+inherited-by-reference / §11.4.18-documented / test-first discipline
+item 7 already mandates) / §11.4.102 (systematic-debugging
+root-cause-first — the incident was investigated to a proven, evidenced
+cause before any fix, not patched blind) / §11.4.108 (runtime-signature
+verification — the heap-budget correction was proven live on the real
+running process before being called done) / §11.4.177 (decoupled,
+inherited by reference) / §11.4.197 (the fresh-session verification is
+tracked, not silently dropped) / §11.4.201 (fail-closed on unresolvable
+runner state) / §11.4.224 (test-first) / §11.4.263 (process-group signal
+safety — every daemon kill in this investigation, manual and automated,
+validated real <code>/proc</code> cmdline identity before signaling,
+never a bare <code>pkill -f</code> carrier-match) / §11.4.273
+(control-needle-proven measurement — the incident&#39;s own root cause was
+confirmed via <code>/proc/&lt;pid&gt;/cmdline</code> + daemon registry
+JSON, never assumed) / §11.4.275(A) (universal agent/subagent
+accessibility — this is its CodeGraph-side completion) / §1.1.</p>
 <p><strong>Classification:</strong> universal (per §11.4.17). Applies to
 every project that is worked on by AI coding CLI agents.</p>
 <p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.78.</p>
@@ -9344,6 +9508,33 @@ code and own-org infra code. Including own-org submodules is the
 difference between agents seeing the project as a unified graph and
 agents tripping over an invisible boundary at the submodule
 directory.</p>
+<p><strong>EXTENSION — classification is DERIVED, not hand-maintained
+(research-derived, 2026-09-24).</strong> Measured this cycle: with no
+generator deriving scope from the submodule graph, dozens of third-party
+submodule roots (tens of thousands of files) were indexed while tens of
+thousands of tracked first-party source files were silently dropped by
+the engine&#39;s built-in skip list — neither error surfaced anywhere. Steps
+1–5 above remain in force; the following clauses are added:</p>
+<ol start="6" type="1">
+<li><p><strong>Mechanical classification.</strong> Own-org vs
+third-party is DERIVED by the constitution&#39;s renderer (§11.4.78(7)) by
+walking <code>.gitmodules</code> RECURSIVELY (nested gitlinks included)
+and matching each submodule&#39;s remote URL organisation against the
+consumer&#39;s own-org DATA list (§11.4.78(8)). Third-party code nested
+INSIDE an own-org submodule is third-party. A per-submodule override is
+DATA with a recorded reason, never an unexplained edit.</p></li>
+<li><p><strong>Stale render fails.</strong> Adding, removing or
+re-pointing a gitlink without re-rendering the scope makes the render
+stale; the scope guard (§11.4.78(10)) MUST FAIL on a stale render — the
+receipt carries the input hashes it was built from.</p></li>
+<li><p><strong>Steps 2–3 re-pointed.</strong> &quot;Adjust
+<code>.codegraph/config.json</code> <code>exclude</code>&quot; in step 2 now
+means: edit the consumer scope DATA file and re-render through the
+constitution renderer; step 3&#39;s re-index runs ONLY through the single
+writer entry of §11.4.80(5). Tracked first-party source that the engine
+skips by default is re-included by GENERATED negations, never by
+hand.</p></li>
+</ol>
 <p><strong>Classification:</strong> universal (per §11.4.17). Applies to
 every project under this Constitution that has CodeGraph configured and
 own-org submodules vendored.</p>
@@ -9456,6 +9647,58 @@ symbols exist and how they connect. Regular automated updates + sync
 close the loop: tooling stays current, the index reflects current
 source, AI agents see the truth. Manual &quot;run codegraph index when I
 remember&quot; is exactly the failure mode this mandate forbids.</p>
+<p><strong>EXTENSION — safe writes, gated upgrades, supervised long runs
+(research-derived, 2026-09-24).</strong> Measured this cycle
+(genericised): the update script installs the latest CLI with no
+compatibility probe, so every upgrade silently re-arms a known
+bulk-window stall; the sync script was never recorded running and exits
+0 when its validator is absent; the vendor CLI deletes a lock by AGE,
+not by holder liveness, and a writable open recreates
+deliberately-dropped indexes without taking the lock — so a second
+writer against a live index corrupts it; and a launcher that classified
+<code>sync</code> by the number of rows ALREADY stored rather than by
+the size of the PENDING backlog ran a bulk job of tens of millions of
+references on the stock runner, in the foreground, unsupervised.
+Deliverables 1–3 above remain in force; the following clauses are
+added:</p>
+<ol start="4" type="1">
+<li><p><strong>Upgrade gated on a compatibility probe.</strong> An
+update MUST first probe the new version (the config filename + keys its
+loader reads, the bulk-window hazard probe, and applicability of every
+version-keyed runner patch). If the patched runner cannot be re-derived
+and re-proven for the new version, the upgrade REFUSES loudly and keeps
+the prior version (§11.4.201) — never a silent fall-back to the stock
+runner. A runner patch without its own RED→GREEN test, paired mutation
+and equivalence proof on a byte copy (never on the live database) MUST
+NOT be applied to a live index (§11.4.224 / §1.1).</p></li>
+<li><p><strong>Exactly one writer entry.</strong> Every
+<code>init</code> / <code>index</code> / <code>sync</code> goes through
+the constitution&#39;s single writer entry (§11.4.78(7)), which MUST (i)
+refuse while ANY live process whose real command line (§11.4.196(D))
+targets the same root is running, WHATEVER the lock file&#39;s age; (ii)
+classify a run as BULK by the size of the PENDING work (unresolved
+backlog, files still to parse) — NEVER by the size of what is already
+stored; (iii) route bulk runs only through the proven patched runner,
+detached, under the watchdog of clause 6 and a disk tripwire. Readers of
+a live index open it read-only/immutable and never run full-table
+counts; experiments run on fixtures or copy-on-write copies.</p></li>
+<li><p><strong>Supervised long runs.</strong> Every long run is
+supervised by a PROGRESS-PROVEN watchdog (§11.4.232(C)); a process that
+is alive but not advancing is a STALL → loud stop + tracked item
+(§11.4.197), never &quot;still running&quot;.</p></li>
+<li><p><strong>Cadence is real and fail-closed.</strong> The weekly
+floor above is realised by an actual timer/hook plus the
+constitution-pull hook (§11.4.164), each run leaving a ledger entry; a
+missing validator is a FAIL, never a warning or a silent exit
+0.</p></li>
+<li><p><strong>Live help is authoritative.</strong> The embedded command
+list above is illustrative; the authoritative list is a live
+<code>codegraph help</code> diff against the previous run (for example,
+the current version also exposes a <code>telemetry</code> command the
+list omits). Telemetry MUST be off for the Local-Only posture — whether
+it is currently off is a per-host FACT to be captured, not
+assumed.</p></li>
+</ol>
 <p><strong>Classification:</strong> universal (per §11.4.17). Applies to
 every project under this Constitution that has CodeGraph configured per
 §11.4.78.</p>
@@ -20784,6 +21027,111 @@ submodule <a href="Constitution.md"><code>Constitution.md</code></a>
 <code>--skip-sonarqube-install</code>,
 <code>--sonar-cli-optional</code>, <code>--ad-hoc-sonar-path</code>,
 <code>--rootful-sonar-OK</code> flag.</p>
+<p><strong>§11.4.184(I) — HawkScan (DAST) + OWASP ZAP + gitleaks +
+Trivy: mandatory local security-tooling extension (operator mandate,
+2026-09-18).</strong> <strong>Forensic anchor — operator mandate
+(2026-09-18):</strong> &quot;Add HawkScan and all other missing utils as Git
+submodules fully available on local level through constitution Submodule
+and fully configured and optimized for high end use! ... Make sure
+everything is derived through constitution Submodule and accessible to
+all projects incorporating it.&quot; Following this anchor&#39;s own established
+pattern (this anchor&#39;s un-lettered SonarQube CLI clause above), every
+project/host that runs security scanning MUST have four additional tools
+installed and locally runnable through this constitution submodule&#39;s
+<code>scripts/&lt;tool&gt;/</code> tree, mirroring the
+<code>scripts/sonarqube/</code> five-file structure
+(<code>&lt;tool&gt;_lib.sh</code> shared functions, sourced never
+executed; <code>&lt;tool&gt;_install_check.sh</code> a three-tier
+presence/version verifier; <code>&lt;tool&gt;_container.sh</code>
+rootless-podman lifecycle where the tool needs a local server;
+<code>&lt;tool&gt;_run_scan.sh</code> drives the scan, polls for
+completion, and writes a Markdown report to
+<code>qa-results/&lt;tool&gt;/&lt;ts&gt;/</code>, never printing
+secrets; <code>compose/docker-compose.&lt;tool&gt;.yml</code> for
+containerized tools), consumed BY REFERENCE and never copied per project
+(§11.4.28 decoupled / §11.4.80-style inherited):</p>
+<ol type="1">
+<li><strong>gitleaks</strong> (secrets scanner) — fully open-source, no
+account required. Installable via package manager or the upstream
+release binary; runs entirely locally with no network callout.
+Complements, and does NOT replace or conflict with, this constitution&#39;s
+own <code>credential_scan_lib.sh</code> pre-commit-hook-seam detector —
+no prior anchor declares that detector the exclusive secrets-scanning
+mechanism, so both run.</li>
+<li><strong>Trivy</strong> (dependency/container/IaC vulnerability
+scanner) — fully open-source, no account required, runs entirely locally
+against a filesystem, image, or repository target, with no network
+callout beyond its own vulnerability-database pull (cacheable,
+refreshable offline).</li>
+<li><strong>OWASP ZAP</strong> (DAST) — fully open-source, no account
+required, runs as a local rootless-podman container
+(<code>zaproxy/zap-stable</code>, §11.4.161) against a locally-reachable
+target, no external SaaS dependency.</li>
+<li><strong>HawkScan</strong> (DAST, StackHawk) — <strong>the one tool
+in this set that is SaaS-backed, not self-contained.</strong> The
+scanner image (<code>docker.io/stackhawk/hawkscan</code>) always
+authenticates against StackHawk&#39;s own backend; there is no fully local,
+no-account mode. Setup therefore has an unavoidable manual, interactive,
+operator-only component — a free-tier account signup at
+<code>app.stackhawk.com</code> (email + verification) and creation of
+one &quot;Application&quot; per scanned project to obtain an
+<code>applicationId</code> — that cannot be automated by any agent or
+script. <code>scripts/hawkscan/run.sh</code> MUST fail open, never
+closed: with no <code>HAWK_API_KEY</code> set, or the placeholder
+<code>applicationId</code> still present, it prints a clear, loud,
+non-blocking warning and exits 0. A missing third-party credential is an
+operator setup gap, never a build or gate failure.</li>
+</ol>
+<p>Step-by-step key-acquisition guides for every tool that needs one
+(today: HawkScan only) live at <code>scripts/hawkscan/README.md</code>
+and propagate with the tool scripts themselves.</p>
+<p><strong>None of these four tools is declared in
+<code>helix-deps.yaml</code></strong> — that manifest&#39;s schema
+(§11.4.31) is for git-clonable source dependencies, and none of the four
+is distributed as a clonable repository consumable that way
+(gitleaks/Trivy/ZAP ship prebuilt binaries or container images; HawkScan
+is SaaS-backed with no source repository to pin). Presence and
+configuration are governed by this clause plus the install-check
+scripts, exactly as SonarQube already is under this same anchor&#39;s
+un-lettered clause above. <strong>Semgrep is deliberately NOT added by
+this clause</strong> — §11.4.166&#39;s repeal of the former universal
+Semgrep mandate, in favor of §11.4.184&#39;s SonarQube mandate, stands
+unreversed.</p>
+<p><strong>Honest boundary (§11.4.6):</strong> this clause mandates the
+tooling&#39;s presence and local runnability; it does NOT itself run a scan,
+does NOT claim any project has been scanned, and does NOT claim any
+finding from these tools has been triaged — those are separate,
+per-project work items. HawkScan specifically can never be claimed
+&quot;configured&quot; by an agent alone — the account and Application creation
+are irreducibly manual, and a project without them MUST show the
+non-blocking warning, never a fabricated pass.</p>
+<p>Composes with: §11.4.184 (SonarQube, this anchor&#39;s own un-lettered
+clause) / §11.4.166 (Semgrep-repeal boundary, deliberately not reversed)
+/ §11.4.31 (dependency-manifest schema, why these four are absent from
+it) / §11.4.28 / §11.4.80 (by-reference, never-copied inheritance) /
+§11.4.161 (rootless container runtime) / §11.4.10 (credentials —
+<code>HAWK_API_KEY</code> etc. are runtime-loaded env vars, never
+committed) / §11.4.6 (no-guessing / honest boundary). Propagation gate
+<code>CM-COVENANT-114-184-PROPAGATION</code> continues to cover this
+clause (same anchor, same literal <code>11.4.184</code> token — no new
+anchor number was minted). Recommended new gates:
+<code>CM-GITLEAKS-INSTALLED</code>, <code>CM-TRIVY-INSTALLED</code>,
+<code>CM-ZAP-CONTAINER-AVAILABLE</code>,
+<code>CM-HAWKSCAN-SCAFFOLDED</code> (each:
+<code>&lt;tool&gt;_install_check.sh</code> exit 0 — for HawkScan,
+&quot;scaffolded&quot; means the runner correctly detects and reports missing
+credentials, NOT that a scan ran) + paired §1.1 mutation (move/rename a
+tool off PATH → its install-check gate FAILs; neuter
+<code>hawkscan/run.sh</code>&#39;s credential guard so it runs with no key →
+the mutation proof for that gate FAILs); gate-code = separate work item,
+NOT claimed shipped (§11.4.6 / §11.4.227).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.184(I).
+Non-compliance is a release blocker for the three open-source tools
+(gitleaks, Trivy, ZAP); HawkScan&#39;s compliance bar is &quot;correctly
+scaffolded with a fail-open credential guard,&quot; never &quot;scanned,&quot; until an
+operator completes the two manual account-creation steps. No escape
+hatch — no <code>--skip-gitleaks</code>, <code>--trivy-optional</code>,
+<code>--zap-off</code>, <code>--hawkscan-required</code> flag.</p>
 <p><strong>§11.4.185 — Manual QA-team testing as the mandatory FINAL
 confirmation of done (User mandate, 2026-07-07).</strong>
 <strong>Forensic anchor — verbatim operator mandate
@@ -22841,57 +23189,90 @@ item).</p>
 <code>--invent-missing-field</code>,
 <code>--request-history-in-constitution</code>,
 <code>--prompt-without-history-entry</code> flag.</p>
-<h3 id="114209--code-review-must-run-on-the-fable-model-at-xhigh-effort-opus-xhigh-fallback-user-mandate-2026-07-15">§11.4.209
-— Code-review MUST run on the Fable model at xhigh effort (Opus xhigh
-fallback) (User mandate, 2026-07-15)</h3>
-<p><strong>Verbatim operator mandate (2026-07-15):</strong> the
-mandatory independent code-review MUST ALWAYS be performed with the
-<strong>Fable model at xhigh effort</strong>; if Fable is unavailable,
-use <strong>Opus at xhigh effort</strong>.</p>
+<h3 id="114209--code-review-must-run-on-the-opus-model-at-xhigh-effort-always--no-fable-no-escalation-tier-no-fallback-model-user-mandate-2026-09-26-supersedes-2026-09-15-and-2026-07-15">§11.4.209
+— Code-review MUST run on the Opus model at xhigh effort, ALWAYS — no
+Fable, no escalation tier, no fallback model (User mandate, 2026-09-26,
+supersedes 2026-09-15 and 2026-07-15)</h3>
+<p><strong>Verbatim operator mandate (2026-09-26,
+<code>CRITICAL</code>), superseding both mandates below:</strong> &quot;Main
+model to use is Sonet, reviews and other heavy stuff have to be done by
+Opus instead of Fable!!! Fix this permanently on all levels!&quot;</p>
+<p><strong>Prior mandate (2026-09-15), WITHDRAWN as current, kept for
+lineage:</strong> <em>&quot;the mandatory independent code-review MUST by
+default be performed with the Opus model at xhigh effort; for a review
+the operator or the reviewer itself classifies as extremely big or
+complex, the Fable model at xhigh effort MUST be used instead.&quot;</em> Its
+Opus-xhigh default survives; its Fable escalation clause (former clause
+(A)) is REMOVED by the 2026-09-26 mandate — there is no review tier
+above Opus-xhigh.</p>
+<p><strong>Prior mandate (2026-07-15), WITHDRAWN as current, kept for
+lineage:</strong> <em>&quot;the mandatory independent code-review MUST ALWAYS
+be performed with the Fable model at xhigh effort; if Fable is
+unavailable, use Opus at xhigh effort.&quot;</em> Inverted by the 2026-09-15
+mandate and fully superseded by the 2026-09-26 mandate.</p>
 <p>Every mandatory independent code-review the constitution requires —
 the §11.4.125 code-review-agent gate before pre-build + main build, the
 §11.4.142 universal every-change-review (no exception), and the
 §11.4.194 exhaustive all-scenario/all-angle review +
 verify-against-captured-runtime-evidence, iterated to a zero-finding GO
-per §11.4.134 — MUST be dispatched on the <strong>Fable model at
-<code>xhigh</code> effort</strong>. <strong>(A) Fallback (closed,
-ordered):</strong> ONLY when Fable is genuinely unavailable (not
-configured / rate-limited / unreachable, established as FACT per §11.4.6
-— never a guessed unavailability) the review MUST run on <strong>Opus at
-<code>xhigh</code> effort</strong>; a lower-effort or a
-non-Fable/non-Opus model is NOT an acceptable review substrate.
-<code>xhigh</code> effort is REQUIRED in both cases — the exhaustive
-§11.4.194 all-angle depth is not reachable at a lower effort.
-<strong>(B) Independence preserved (§11.4.70/§11.4.20).</strong> The
-Fable/Opus-xhigh model runs as the structurally-separated reviewer
-(never the author self-reviewing); §11.4.209 sets the MODEL + EFFORT of
-that review, it does not weaken the independence, the iterate-until-GO
-loop (§11.4.134), or the rock-solid captured-evidence requirement
-(§11.4.5/§11.4.69/§11.4.107). <strong>(C) Honest boundary
-(§11.4.6).</strong> A review claimed &quot;done&quot; that actually ran on a
-weaker model / lower effort than Fable-xhigh (or Opus-xhigh on genuine
-Fable-unavailability) is a §11.4 bluff at the review-substrate layer —
-the review&#39;s captured evidence MUST record which model + effort actually
-performed it (and, on fallback, the FACT of Fable&#39;s unavailability).
+per §11.4.134 — MUST be dispatched on the <strong>Opus model at
+<code>xhigh</code> effort</strong>, ALWAYS, whatever the size or
+complexity of the reviewed change. <strong>(A) One substrate — no
+escalation tier, no fallback model.</strong> Opus at <code>xhigh</code>
+is the ONLY permitted review substrate. Fable is NOT permitted in any
+role (default, escalation, or fallback); no other model, no lower tier,
+and no lower effort substitutes for it. When Opus at <code>xhigh</code>
+is genuinely unavailable (not configured / rate-limited / unreachable,
+established as a captured FACT per §11.4.6 — never a guessed
+unavailability), the review is BLOCKED and deferred: the unavailability
+fact is recorded, the owed review is tracked (§11.4.197; §11.4.21 once
+the self-resolution audit is exhausted), and the reviewed change does
+NOT pass the review gate on a substitute model. <strong>(B) Independence
+preserved (§11.4.70/§11.4.20).</strong> The Opus-xhigh model runs as the
+structurally-separated reviewer (never the author self-reviewing);
+§11.4.209 sets the MODEL + EFFORT of that review, it does not weaken the
+independence, the iterate-until-GO loop (§11.4.134), or the rock-solid
+captured-evidence requirement (§11.4.5/§11.4.69/§11.4.107). <strong>(C)
+Honest boundary (§11.4.6).</strong> A review claimed &quot;done&quot; that
+actually ran on any model other than Opus, or at an effort below
+<code>xhigh</code>, is a §11.4 bluff at the review-substrate layer — the
+review&#39;s captured evidence MUST record which model + effort actually
+performed it. Where the dispatch path cannot set or report the effort
+(the §11.4.231(F.2) harness gap), the evidence records that gap honestly
+and the review is never claimed to have run at <code>xhigh</code> on an
+unverified basis. <strong>(D) Values already burned in a public
+repository (§11.4.10).</strong> Any plaintext credential value that has
+appeared in documentation, a spec, or commit history — including as a
+worked example — MUST be treated as compromised from the moment of
+commit; a document illustrating this anchor or any credential-adjacent
+mandate MUST NOT embed a real-looking username/password pair, even as an
+example, without the accompanying statement that the pair is
+compromised-by-disclosure and MUST NOT be relied on as a real secret.
 STRENGTHENS §11.4.125/§11.4.142/§11.4.194/§11.4.134 — it does NOT
 replace any of them; it pins the review&#39;s execution substrate.</p>
 <p>Classification: universal (§11.4.17). Composes §11.4.125 / §11.4.134
-/ §11.4.142 / §11.4.194 / §11.4.6 / §11.4.20 / §11.4.70 / §11.4.196
-(alias/model selection). Propagation gate
-<code>CM-COVENANT-114-209-PROPAGATION</code> (literal
-<code>11.4.209</code> across the consumer fleet) + recommended gate
-<code>CM-CODE-REVIEW-FABLE-XHIGH</code> (the mandatory code-review&#39;s
-captured evidence records model=Fable + effort=xhigh, OR model=Opus +
-effort=xhigh with a recorded Fable-unavailability fact) + paired §1.1
-meta-test mutation (record a code-review run on a lower-effort or
-non-Fable/non-Opus model without a Fable-unavailability fact → the gate
-FAILs; strip the literal → the propagation gate FAILs; gate-code =
-separate work item).</p>
+/ §11.4.142 / §11.4.194 / §11.4.6 / §11.4.10 / §11.4.20 / §11.4.21 /
+§11.4.70 / §11.4.196 (alias/model selection) / §11.4.197 / §11.4.231
+(nano-precision model-tier selection — §11.4.209 remains the hard pin
+for review/merge-conflict scope that §11.4.231(E) explicitly does not
+reach). Propagation gate <code>CM-COVENANT-114-209-PROPAGATION</code>
+(literal <code>11.4.209</code> across the consumer fleet) + recommended
+gate <code>CM-CODE-REVIEW-OPUS-XHIGH</code> (renamed by the 2026-09-26
+amendment; the retired predecessor token is cited in
+<code>scripts/gates/gate_ledger_removals.tsv</code>) (the mandatory
+code-review&#39;s captured evidence records model=Opus + effort=xhigh; a
+review recorded on any other model or at a lower effort FAILs; a review
+recorded BLOCKED with a captured Opus-unavailability fact is honest and
+MUST NOT fire the gate — the §11.4.201(1) false-positive guard) + paired
+§1.1 meta-test mutation (record a code-review run on a non-Opus model or
+a lower effort → the gate FAILs; strip the literal → the propagation
+gate FAILs; gate-code = separate work item).</p>
 <p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.209.</p>
 <p>Non-compliance is a release blocker. No escape hatch — no
 <code>--review-any-model</code>, <code>--review-lower-effort-OK</code>,
-<code>--skip-fable</code>, <code>--non-xhigh-review</code>,
-<code>--fallback-without-fable-unavailability-proof</code> flag.</p>
+<code>--skip-opus</code>, <code>--non-xhigh-review</code>,
+<code>--escalate-to-other-model</code>,
+<code>--substitute-model-on-unavailability</code> flag.</p>
 <h3 id="114210--zero-loss-requestprompt-intake-every-operator-request-must-be-mechanically-captured-tracked-and-processed--never-skipped-ignored-avoided-or-lost-user-mandate-2026-07-15">§11.4.210
 — Zero-loss request/prompt intake: every operator request MUST be
 mechanically captured, tracked, and processed — never skipped, ignored,
@@ -22989,38 +23370,50 @@ item).</p>
 <code>--hook-optional</code>, <code>--drop-unprocessed-request</code>,
 <code>--ledger-may-be-stale</code>,
 <code>--request-may-be-skipped</code> flag.</p>
-<h3 id="114211--merge-conflict-resolution-during-mainfeatureproductflavor-merges-must-run-on-the-fable-model-at-xhigh-effort-opus-xhigh-fallback-user-mandate-2026-07-16">§11.4.211
+<h3 id="114211--merge-conflict-resolution-during-mainfeatureproductflavor-merges-must-run-on-the-opus-model-at-xhigh-effort-always--no-fable-no-fallback-model-user-mandate-2026-07-16-amended-2026-09-26">§11.4.211
 — Merge-conflict resolution during main→feature/product/flavor merges
-MUST run on the Fable model at xhigh effort (Opus xhigh fallback) (User
-mandate, 2026-07-16)</h3>
-<p><strong>Verbatim operator mandate (2026-07-16):</strong> &quot;During the
-merge of main branch to all feature/product/flavor branches of tracks 2
-- 4, if conflicts happen they MUST BE resolved using Fable model with
-xhigh effort! If Fable is not available, then with Opus with xhigh! Add
-this MANDATORY RULE into constitution Submodule and its files
+MUST run on the Opus model at xhigh effort, ALWAYS — no Fable, no
+fallback model (User mandate, 2026-07-16; amended 2026-09-26)</h3>
+<p><strong>Verbatim operator mandate (2026-09-26,
+<code>CRITICAL</code>), superseding the model choice of the 2026-07-16
+mandate below:</strong> &quot;Main model to use is Sonet, reviews and other
+heavy stuff have to be done by Opus instead of Fable!!! Fix this
+permanently on all levels!&quot;</p>
+<p><strong>Verbatim operator mandate (2026-07-16), WITHDRAWN as to its
+model choice, kept for lineage:</strong> &quot;During the merge of main
+branch to all feature/product/flavor branches of tracks 2 - 4, if
+conflicts happen they MUST BE resolved using Fable model with xhigh
+effort! If Fable is not available, then with Opus with xhigh! Add this
+MANDATORY RULE into constitution Submodule and its files
 CONSTITUTION.md, CLAUDE.md, AGENTS.md, QWEN.md, GEMINI.md, and other
-related relevant files!&quot;</p>
+related relevant files!&quot; Its SCOPE (every conflict-hitting
+main→feature/product/flavor merge) and its <code>xhigh</code> effort
+requirement stand; its Fable default and its Fable→Opus fallback
+ordering are withdrawn.</p>
 <p>Any merge-CONFLICT resolution performed while integrating the
 canonical trunk (<code>main</code>/<code>master</code>) into a feature /
 product / flavor branch — the §11.4.188 regular main→feature merge
 cadence, the §11.4.195 branch-taxonomy integration, the §11.4.41
 merge-first pipeline, the §11.4.167(D) trunk-into-stream sync AND the
 §11.4.167(I) approval-gated back-merge — MUST be carried out on the
-<strong>Fable model at <code>xhigh</code> effort</strong>. This is the
-merge-resolution analogue of §11.4.209 (which pins the same model +
-effort for code-REVIEW): §11.4.211 pins it for the DECISION-MAKING of
+<strong>Opus model at <code>xhigh</code> effort</strong>, ALWAYS. This
+is the merge-resolution analogue of §11.4.209 (which pins the same model
++ effort for code-REVIEW): §11.4.211 pins it for the DECISION-MAKING of
 conflict resolution (which side to keep, how to UNION both sides without
 loss, marker removal, semantic reconciliation of divergent edits).
-<strong>(A) Fallback (closed, ordered):</strong> ONLY when Fable is
+<strong>(A) One substrate — no fallback model:</strong> Opus at
+<code>xhigh</code> is the ONLY permitted conflict-resolution substrate;
+Fable is NOT permitted in any role, and a lower-effort or any other
+model is NOT an acceptable substrate. When Opus at <code>xhigh</code> is
 genuinely unavailable (not configured / rate-limited / unreachable,
-established as FACT per §11.4.6 — never a guessed unavailability) the
-conflict resolution MUST run on <strong>Opus at <code>xhigh</code>
-effort</strong>; a lower-effort or a non-Fable/non-Opus model is NOT an
-acceptable substrate for resolving merge conflicts. <code>xhigh</code>
-effort is REQUIRED in both cases — a careless conflict resolution
-silently drops a commit or commits a marker (§9 / §11.4.41 step 3), so
-the highest-effort scrutiny is mandatory. <strong>(B) Scope.</strong>
-The operator named tracks 2–4
+established as FACT per §11.4.6 — never a guessed unavailability), the
+conflict resolution is BLOCKED and deferred: the unavailability fact is
+recorded, the merge is NOT completed on a substitute model, and the
+branch is left quiescent with no conflict marker committed (§11.4.84 /
+§11.4.41 step 3). <code>xhigh</code> effort is REQUIRED — a careless
+conflict resolution silently drops a commit or commits a marker (§9 /
+§11.4.41 step 3), so the highest-effort scrutiny is mandatory.
+<strong>(B) Scope.</strong> The operator named tracks 2–4
 (<code>feature</code>/<code>product</code>/<code>flavor</code>
 branches); the rule GENERALISES per §11.4.17 to EVERY controlled
 main→(feature|product|flavor) merge on EVERY track that hits a conflict
@@ -23034,37 +23427,39 @@ silently dropped, union of both sides preserved), §11.4.188(4)
 anti-bluff (post-merge smoke GREEN + conflict-marker scan empty +
 no-lost-commit, captured evidence §11.4.5/§11.4.69), §11.4.84
 (quiescent-only), §11.4.37/§11.4.71 (fetch-first). <strong>(D) Honest
-boundary (§11.4.6).</strong> A merge whose conflicts were resolved on a
-weaker model / lower effort than Fable-xhigh (or Opus-xhigh on genuine
-Fable-unavailability) is a §11.4 bluff at the merge-resolution-substrate
-layer — the merge&#39;s captured evidence MUST record which model + effort
-resolved the conflicts (and, on fallback, the FACT of Fable&#39;s
-unavailability). STRICT EXTENSION of §11.4.209 (which pins Fable-xhigh /
-Opus-xhigh for code-REVIEW) applied to merge-CONFLICT resolution;
-STRENGTHENS §11.4.188 / §11.4.195 / §11.4.41 by pinning the substrate of
-their conflict-resolution step — the two anchors are the review-side
-(§11.4.209) and merge-side (§11.4.211) halves of the same Fable-xhigh
-substrate discipline.</p>
+boundary (§11.4.6).</strong> A merge whose conflicts were resolved on
+any model other than Opus, or at an effort below <code>xhigh</code>, is
+a §11.4 bluff at the merge-resolution-substrate layer — the merge&#39;s
+captured evidence MUST record which model + effort resolved the
+conflicts (and, when blocked, the FACT of Opus&#39;s unavailability). STRICT
+EXTENSION of §11.4.209 (which pins Opus-xhigh for code-REVIEW) applied
+to merge-CONFLICT resolution; STRENGTHENS §11.4.188 / §11.4.195 /
+§11.4.41 by pinning the substrate of their conflict-resolution step —
+the two anchors are the review-side (§11.4.209) and merge-side
+(§11.4.211) halves of the same Opus-xhigh substrate discipline.</p>
 <p>Classification: universal (§11.4.17). Composes §11.4.209 / §11.4.188
 / §11.4.195 / §11.4.41 / §11.4.113 / §9 / §9.2 / §11.4.6 /
 §11.4.167(D)(I) / §11.4.84 / §11.4.37 / §11.4.71 / §11.4.196
 (model/alias selection). Propagation gate
 <code>CM-COVENANT-114-211-PROPAGATION</code> (literal
 <code>11.4.211</code> across the consumer fleet) + recommended gate
-<code>CM-MERGE-CONFLICT-FABLE-XHIGH</code> (a
+<code>CM-MERGE-CONFLICT-OPUS-XHIGH</code> (renamed by the 2026-09-26
+amendment; the retired predecessor token is cited in
+<code>scripts/gates/gate_ledger_removals.tsv</code>) (a
 main→feature/product/flavor merge that resolved conflicts records
-model=Fable + effort=xhigh, OR model=Opus + effort=xhigh with a recorded
-Fable-unavailability fact) + paired §1.1 meta-test mutation (record a
-conflict-resolving merge on a lower-effort or non-Fable/non-Opus model
-without a Fable-unavailability fact → the gate FAILs; strip the literal
-→ the propagation gate FAILs; gate-code = separate work item).</p>
+model=Opus + effort=xhigh; a merge recorded BLOCKED with a captured
+Opus-unavailability fact MUST NOT fire the gate — the §11.4.201(1)
+false-positive guard) + paired §1.1 meta-test mutation (record a
+conflict-resolving merge on a non-Opus model or a lower effort → the
+gate FAILs; strip the literal → the propagation gate FAILs; gate-code =
+separate work item).</p>
 <p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.211.</p>
 <p>Non-compliance is a release blocker. No escape hatch — no
 <code>--merge-conflict-any-model</code>,
-<code>--skip-fable-merge-resolution</code>,
+<code>--skip-opus-merge-resolution</code>,
 <code>--non-xhigh-merge-conflict</code>,
 <code>--resolve-conflict-lower-effort-OK</code>,
-<code>--fallback-without-fable-unavailability-proof</code> flag.</p>
+<code>--substitute-model-on-unavailability</code> flag.</p>
 <h3 id="114212--main-readme-is-the-canonical-starting-point--entry-point-for-all-project-documentation--no-doc-may-be-an-orphan-unreachable-from-readme-user-mandate-2026-07-16">§11.4.212
 — Main README is the canonical starting-point / entry point for ALL
 project documentation — no doc may be an orphan unreachable from README
@@ -25449,33 +25844,40 @@ mandates.</p>
 Every dispatched work effort — main-stream or subagent
 (§11.4.20/§11.4.70), single-track or multitrack (§11.4.187/§11.4.192) —
 is assigned the LIGHTEST model tier from the closed, capability-ordered
-ladder <code>haiku &lt; sonnet &lt; opus</code> genuinely sufficient to
-complete it correctly (the review/merge-conflict-resolution substrate is
-a SEPARATE, already-pinned tier per clause (E), not a fourth rung of
-this ladder). Tier selection is a DECIDABLE heuristic, not a guess
-(§11.4.6) — evaluated against, at minimum: (i) <strong>task
-scope</strong> (single mechanical edit / focused single-file change /
-multi-file-or-multi-component change); (ii) <strong>reasoning
-depth</strong> (a lookup-and-apply action vs. a multi-factor root-cause
-investigation per §11.4.102/§11.4.194); (iii) <strong>blast
-radius</strong> (a change touching one isolated file vs. one crossing
-shared state, hardware safety §11.4.133, or governance/gate seams
-§11.4.227); (iv) <strong>novelty</strong> (a previously-solved,
+ladder <code>sonnet &lt; opus</code> genuinely sufficient to complete it
+correctly, with <strong><code>sonnet</code> the DEFAULT working
+tier</strong> and <code>opus</code> for every review and other heavy
+work (operator mandate 2026-09-26, <code>CRITICAL</code>, verbatim:
+&quot;Main model to use is Sonet, reviews and other heavy stuff have to be
+done by Opus instead of Fable!!! Fix this permanently on all levels!&quot;).
+The review/merge-conflict-resolution substrate is a SEPARATE,
+already-pinned Opus-xhigh tier per clause (E), not an extra rung of this
+ladder; <code>fable</code> is not a rung and is not a permitted dispatch
+tier; <code>haiku</code> is excluded per clause (D.1). Tier selection is
+a DECIDABLE heuristic, not a guess (§11.4.6) — evaluated against, at
+minimum: (i) <strong>task scope</strong> (single mechanical edit /
+focused single-file change / multi-file-or-multi-component change); (ii)
+<strong>reasoning depth</strong> (a lookup-and-apply action vs. a
+multi-factor root-cause investigation per §11.4.102/§11.4.194); (iii)
+<strong>blast radius</strong> (a change touching one isolated file vs.
+one crossing shared state, hardware safety §11.4.133, or governance/gate
+seams §11.4.227); (iv) <strong>novelty</strong> (a previously-solved,
 pattern-matched task vs. a genuinely new problem with no established
 precedent). Closed-set tier bindings (illustrative, non-exhaustive — the
 consuming project supplies its own precise mapping per §11.4.35):
-<strong><code>haiku</code></strong> — trivial/mechanical work (simple
-greps/searches, doc-sync regeneration, status/field reads, format/lint
-fixes, boilerplate scaffolding); <strong><code>sonnet</code></strong> —
-moderate work (a focused single-component debug, a bounded single-file
-implementation, straightforward research or audit reads);
-<strong><code>opus</code></strong> — complex work (architecture/design
-decisions, multi-factor reasoning per §11.4.194(1), cross-feature
-blast-radius analysis per §11.4.92 Pass 2/3, hard root-cause
-investigation per §11.4.102 that resists a first-pass hypothesis). A
-task whose complexity is genuinely UNDECIDABLE from available evidence
-starts at the NEXT tier UP from the best available estimate (the
-safe-reversible default per §11.4.101) rather than guessed downward.</p>
+<strong><code>sonnet</code></strong> (the default) — trivial/mechanical
+AND moderate work (simple greps/searches, doc-sync regeneration,
+status/field reads, format/lint fixes, boilerplate scaffolding, a
+focused single-component debug, a bounded single-file implementation,
+straightforward research or audit reads);
+<strong><code>opus</code></strong> — complex and other heavy work,
+including every review (architecture/design decisions, multi-factor
+reasoning per §11.4.194(1), cross-feature blast-radius analysis per
+§11.4.92 Pass 2/3, hard root-cause investigation per §11.4.102 that
+resists a first-pass hypothesis). A task whose complexity is genuinely
+UNDECIDABLE from available evidence starts at the NEXT tier UP from the
+best available estimate (the safe-reversible default per §11.4.101)
+rather than guessed downward.</p>
 <p><strong>(B) DYNAMIC MID-FLIGHT SWITCHING.</strong> Tier assignment is
 NOT a one-time, start-of-task decision — it is RE-ASSESSED continuously
 as the task&#39;s real complexity becomes known during execution. A task
@@ -25522,34 +25924,57 @@ severity to any other PASS-bluff (the token/time saved at dispatch is
 spent many times over in re-investigation, re-review, and the risk of a
 shipped defect). Capability determinations are made from the clause-(A)
 decidable heuristic + observed task outcomes — EVIDENCE-BASED, never
-guessed (§11.4.6): &quot;this always works fine on <code>haiku</code>&quot;
+guessed (§11.4.6): &quot;this always works fine on <code>sonnet</code>&quot;
 without a captured basis is exactly the guess §11.4.6 forbids, and a
 tier&#39;s genuine capability for a task class is established by the same
 anti-bluff discipline (§11.4.5/§11.4.69/§11.4.107) that governs every
-other claim in this constitution. A platform-chosen serving model
-outside the <code>haiku &lt; sonnet &lt; opus</code> ladder (e.g.
-<code>fable</code> served for general non-review work) is NOT a
-§11.4.231 dispatch-tier violation — the ladder binds the DISPATCHER&#39;s
-tier ASSIGNMENT, not the platform&#39;s own per-turn serving choice.</p>
+other claim in this constitution. The ladder binds the DISPATCHER&#39;s tier
+ASSIGNMENT: a dispatcher MUST NOT assign any tier outside
+<code>sonnet &lt; opus</code> — never <code>fable</code> (2026-09-26
+mandate), and never <code>haiku</code> where clause (D.1) applies. A
+serving model the platform selects for a turn WITHOUT a dispatcher
+assignment is recorded honestly in the §11.4.182 label (whatever id the
+platform reports, never re-labelled); it is neither a dispatch-tier
+violation by the dispatcher nor a licence to assign that model, and
+review/merge-conflict scopes run on Opus-xhigh per clause (E)
+regardless.</p>
+<p><strong>(D.1) <code>haiku</code> PROHIBITED WHERE IT CANNOT RECEIVE
+ITS GOVERNING CONTEXT — measured fact (2026-09-26).</strong> In the
+reference consuming repository a <code>haiku</code> subagent dispatch
+failed before doing any work with &quot;Prompt too long (~421k tokens vs 200k
+limit)&quot; (request id <code>req_011CfSBXm7Kn6enyUT1UEaWd</code>, recorded
+in that repository&#39;s agent registry
+<code>docs/requests/agent_registry.jsonl</code>): the governance context
+every dispatched agent must receive there exceeds the <code>haiku</code>
+tier&#39;s context window, so a <code>haiku</code> dispatch cannot carry its
+binding context and <code>haiku</code> is PROHIBITED as a dispatch tier
+in that repository. A consuming project MAY re-admit <code>haiku</code>
+as a rung below <code>sonnet</code> ONLY on its OWN captured evidence
+(§11.4.6/§11.4.35) that a <code>haiku</code> dispatch in that project
+receives its full governing context and completes its task correctly —
+never by assumption, and never by trimming the governing context to make
+it fit. A <code>haiku</code> dispatch that fails this way is recorded
+honestly as a failed dispatch (§11.4.147), never silently retried on the
+same tier.</p>
 <p><strong>(E) HARD PINS OVERRIDE THIS DEFAULT FOR THEIR
 SCOPES.</strong> §11.4.231 sets the DEFAULT working tier for NON-review,
 non-merge-conflict-resolution work. It does NOT relax, override, or
 compete with the two existing hard model-substrate pins: §11.4.209
 (every mandatory independent code-review — §11.4.125/§11.4.142/§11.4.194
-iterated to GO per §11.4.134 — runs on <strong>Fable at
-<code>xhigh</code> effort</strong>, <strong>Opus at
-<code>xhigh</code></strong> on genuine Fable-unavailability, NEVER a
-lower tier or lower effort) and §11.4.211 (every
+iterated to GO per §11.4.134 — runs on <strong>Opus at
+<code>xhigh</code> effort</strong>, ALWAYS — no Fable, no fallback
+model; genuine Opus-unavailability BLOCKS the review, NEVER a lower
+tier, another model, or a lower effort) and §11.4.211 (every
 main→feature/product/flavor merge-CONFLICT resolution runs on the SAME
-Fable-xhigh / Opus-xhigh substrate). Those two anchors are STRICTER,
-SCOPE-SPECIFIC pins that this anchor&#39;s general ladder does not reach —
-review and merge-conflict-resolution are NOT eligible for
-haiku/sonnet/opus-by-complexity dispatch; they run on their pinned
-substrate ALWAYS, regardless of how &quot;simple&quot; the reviewed change or the
-conflict appears. A review or merge-conflict resolution dispatched on
-any tier other than the §11.4.209/§11.4.211 pin (absent a
-genuinely-proven Fable-unavailability fallback) is a violation of THOSE
-anchors, not a valid application of §11.4.231&#39;s general ladder.</p>
+Opus-xhigh substrate, blocked — never substituted — on unavailability).
+Those two anchors are STRICTER, SCOPE-SPECIFIC pins that this anchor&#39;s
+general ladder does not reach — review and merge-conflict-resolution are
+NOT eligible for sonnet/opus-by-complexity dispatch; they run on their
+pinned substrate ALWAYS, regardless of how &quot;simple&quot; the reviewed change
+or the conflict appears. A review or merge-conflict resolution
+dispatched on anything other than the §11.4.209/§11.4.211 Opus-xhigh pin
+is a violation of THOSE anchors, not a valid application of §11.4.231&#39;s
+general ladder.</p>
 <p><strong>(F) EFFORT-TIER SELECTION — the SAME nano-precision
 discipline applied to the reasoning-EFFORT axis (operator IMPORTANT
 mandate, 2026-07-26; verbatim: &quot;Besides dynamic determining proper
@@ -25589,44 +26014,45 @@ effort is NOT presently settable via that path (the §11.4.182
 <code>agent()</code></strong> DOES take an <code>effort</code> argument,
 so effort IS settable there — the label reports whichever path is live,
 never fakes one. This is the SAME aspirational-vs-harness state the
-clause-(E) §11.4.209 / §11.4.211 Fable-<code>xhigh</code> pins already
+clause-(E) §11.4.209 / §11.4.211 Opus-<code>xhigh</code> pins already
 occupy: the pins mandate the effort, and whether a dispatch path can SET
 it is a harness capability reported honestly, never faked (§11.4.182).
 (F.3) HARD-PIN FLOOR PRESERVED — clause (E)&#39;s hard pins are ALSO effort
 pins: every §11.4.209 mandatory independent code-review AND every
-§11.4.211 merge-conflict resolution runs at <code>xhigh</code> effort
-(Fable, or Opus at <code>xhigh</code> on genuine Fable-unavailability),
-and this general effort ladder NEVER tiers those two scopes below
-<code>xhigh</code> regardless of how &quot;simple&quot; the reviewed change or the
-conflict appears — a review / merge-conflict resolution run below
-<code>xhigh</code> is a §11.4.209 / §11.4.211 violation, not a valid
-application of this ladder. (F.4) HONEST BOUNDARY (§11.4.6) — &quot;lightest
-capable effort&quot; is a CONJUNCTION, not a discount: an effort setting that
-yields a shallow / guessed / under-verified result is UNDER-POWERED, a
-FALSE ECONOMY, and a §11.4 violation of PASS-bluff severity, exactly as
-an under-powered MODEL tier is per clause (D); capability determinations
-are evidence-based, never guessed (§11.4.6).</p>
+§11.4.211 merge-conflict resolution runs at <code>xhigh</code> effort on
+Opus (no fallback model), and this general effort ladder NEVER tiers
+those two scopes below <code>xhigh</code> regardless of how &quot;simple&quot; the
+reviewed change or the conflict appears — a review / merge-conflict
+resolution run below <code>xhigh</code> is a §11.4.209 / §11.4.211
+violation, not a valid application of this ladder. (F.4) HONEST BOUNDARY
+(§11.4.6) — &quot;lightest capable effort&quot; is a CONJUNCTION, not a discount:
+an effort setting that yields a shallow / guessed / under-verified
+result is UNDER-POWERED, a FALSE ECONOMY, and a §11.4 violation of
+PASS-bluff severity, exactly as an under-powered MODEL tier is per
+clause (D); capability determinations are evidence-based, never guessed
+(§11.4.6).</p>
 <p>Classification: universal (§11.4.17) — a platform-neutral
 model-capacity-matching discipline reusable by any project dispatching
 work across a tiered model roster; the consuming project supplies its
 own precise tier↔︎task-class mapping and its own model-name ladder per
-§11.4.35 (the <code>haiku</code>/<code>sonnet</code>/<code>opus</code>
-ladder and the Fable/Opus-xhigh pins are this project&#39;s current concrete
-instantiation, not a universally-fixed vocabulary — a consumer with a
-differently-named tier roster maps its own ladder onto the SAME
-lightest-capable-first + dynamic-escalation + always-on-composition +
-honest-boundary + hard-pin-override structure). Composes §11.4.6
-(no-guessing — capability determinations are evidence-based) / §11.4.20
-/ §11.4.70 (subagent-driven dispatch — the granularity at which
-tier-matching applies) / §11.4.92 (blast-radius analysis feeds the
-clause-(A) heuristic) / §11.4.101 (safe-reversible default on
-undecidable complexity — escalate up, never guess down) / §11.4.102 /
-§11.4.194 (reasoning-depth signals for the heuristic) / §11.4.126 /
-§11.4.141 / §11.4.183 / §11.4.187 / §11.4.192 / §11.4.196 / §11.4.198
-(the always-on composition set, clause (C)) / §11.4.209 / §11.4.211 (the
-hard-pinned review/merge-conflict substrate this anchor does NOT touch,
-clause (E)). Propagation gate
-<code>CM-COVENANT-114-231-PROPAGATION</code> (literal
+§11.4.35 (the <code>sonnet</code>/<code>opus</code> ladder with Sonnet
+as the default, the clause-(D.1) <code>haiku</code> prohibition, and the
+Opus-xhigh pins are this project&#39;s current concrete instantiation, not a
+universally-fixed vocabulary — a consumer with a differently-named tier
+roster maps its own ladder onto the SAME lightest-capable-first +
+dynamic-escalation + always-on-composition + honest-boundary +
+hard-pin-override structure, re-admitting a lighter rung only on its own
+captured evidence per clause (D.1)). Composes §11.4.6 (no-guessing —
+capability determinations are evidence-based) / §11.4.20 / §11.4.70
+(subagent-driven dispatch — the granularity at which tier-matching
+applies) / §11.4.92 (blast-radius analysis feeds the clause-(A)
+heuristic) / §11.4.101 (safe-reversible default on undecidable
+complexity — escalate up, never guess down) / §11.4.102 / §11.4.194
+(reasoning-depth signals for the heuristic) / §11.4.126 / §11.4.141 /
+§11.4.183 / §11.4.187 / §11.4.192 / §11.4.196 / §11.4.198 (the always-on
+composition set, clause (C)) / §11.4.209 / §11.4.211 (the hard-pinned
+review/merge-conflict substrate this anchor does NOT touch, clause (E)).
+Propagation gate <code>CM-COVENANT-114-231-PROPAGATION</code> (literal
 <code>11.4.231</code> present as a block-start, exactly-once per
 governance file, lockstep content-hash equality across the consumer
 fleet per §11.4.227(B)) + recommended gate
@@ -25640,14 +26066,18 @@ two decidable violations: (i) a review or merge-conflict-resolution
 effort NOT run on the §11.4.209/§11.4.211 pinned substrate, and (ii) a
 task whose complexity was PROVEN mid-flight [an escalation event was
 logged, or a downstream failure/bluff was traced back to it] that did
-NOT escalate tier before continuing) + paired §1.1 mutation (gate-code =
-separate work item, NOT claimed shipped — §11.4.6; mutation plan: (1)
-dispatch a code-review labeled as running on <code>sonnet</code> instead
-of Fable-xhigh → gate MUST FAIL; (2) inject a logged mid-task
-complexity-escalation event with NO corresponding tier-escalation record
-→ gate MUST FAIL; (3) golden-FALSE fixture: a task that stays on its
-initially-assigned tier throughout, with no escalation event logged →
-gate MUST NOT fire, per §11.4.201(1) the false-positive guard).</p>
+NOT escalate tier before continuing, and (iii) a dispatch assigned
+<code>fable</code>, or assigned <code>haiku</code> where clause (D.1)
+applies) + paired §1.1 mutation (gate-code = separate work item, NOT
+claimed shipped — §11.4.6; mutation plan: (1) dispatch a code-review
+labeled as running on <code>sonnet</code> instead of Opus-xhigh → gate
+MUST FAIL; (2) inject a logged mid-task complexity-escalation event with
+NO corresponding tier-escalation record → gate MUST FAIL; (2b) record a
+dispatch assigned <code>fable</code>, or assigned <code>haiku</code>
+where clause (D.1) applies → gate MUST FAIL; (3) golden-FALSE fixture: a
+task that stays on its initially-assigned tier throughout, with no
+escalation event logged → gate MUST NOT fire, per §11.4.201(1) the
+false-positive guard).</p>
 <p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.231.</p>
 <p>Non-compliance is a release blocker regardless of context. No escape
 hatch — no <code>--always-heaviest-model</code>,
@@ -25918,7 +26348,7 @@ that path and its <code>&lt;effort&gt;</code> field degrades honestly to
 so effort IS settable + derivable there — the label reports whichever
 path is live, never invents one. This is the SAME
 aspirational-vs-harness state the §11.4.209 / §11.4.211
-Fable-<code>xhigh</code> review/merge pins already occupy: the pins
+Opus-<code>xhigh</code> review/merge pins already occupy: the pins
 mandate the effort, and whether a given dispatch path can SET it is a
 harness capability the label reports honestly and NEVER fakes. (c)
 LEGACY-FORM ACCEPTANCE (migration) — the 3-field
@@ -26237,20 +26667,19 @@ GATE.</strong> The moment the SOURCE fixes of a batch are done AND
 proven-correct — proven-correct = the mandatory independent
 SOURCE-correctness review has returned a clean GO
 (§11.4.125/§11.4.142/§11.4.194 on the source diff, on the §11.4.209
-Fable-<code>xhigh</code> substrate, iterated to
-zero-finding/zero-warning GO per §11.4.134) — the build MUST be
-triggered, pre-build + post-build tests EXECUTED (§11.4.108 layer-1
-before, layer-2 after), and the artifact deployed. IN PARALLEL WITH the
-build AND the manual-QA session (§11.4.185), NEVER gating the build: (1)
-gate-instrumentation hardening + new-gate authoring (§11.4.110); (2)
-paired §1.1 mutations + four-layer §11.4.4(b) coverage + HelixQA
-Challenges; (3) &quot;gates and checks of all kinds&quot; (§11.4.96); (4) the
-re-review of THAT test-instrumentation work. The build&#39;s GO-SIGNAL is
-source-correctness alone; test-guard hardening (future-regression
-coverage) + its re-review are a deploy-independent parallel stage per
-§11.4.230(A). Holding the build sequentially — waiting for the
-test-instrumentation buildout + its re-review — when the source is
-already proven-correct is a §11.4.235(A) violation.</p>
+Opus-<code>xhigh</code> substrate, iterated to zero-finding/zero-warning
+GO per §11.4.134) — the build MUST be triggered, pre-build + post-build
+tests EXECUTED (§11.4.108 layer-1 before, layer-2 after), and the
+artifact deployed. IN PARALLEL WITH the build AND the manual-QA session
+(§11.4.185), NEVER gating the build: (1) gate-instrumentation hardening
++ new-gate authoring (§11.4.110); (2) paired §1.1 mutations + four-layer
+§11.4.4(b) coverage + HelixQA Challenges; (3) &quot;gates and checks of all
+kinds&quot; (§11.4.96); (4) the re-review of THAT test-instrumentation work.
+The build&#39;s GO-SIGNAL is source-correctness alone; test-guard hardening
+(future-regression coverage) + its re-review are a deploy-independent
+parallel stage per §11.4.230(A). Holding the build sequentially —
+waiting for the test-instrumentation buildout + its re-review — when the
+source is already proven-correct is a §11.4.235(A) violation.</p>
 <p><strong>(B) POST-DEPLOY VERSION INCREMENT + MANUAL-QA-DEPLOY CYCLE
 BOUNDARY (extended 2026-07-28 — operator mandate, verbatim: &quot;Increase
 upcoming release to 0.1.5 since new cycle starts every time we deploy
@@ -26279,8 +26708,8 @@ new cycle&#39;s work still targeting the QA-deployed version id is a
 TEST-INSTRUMENTATION re-review + gate/check hardening OFF the build
 critical path; does NOT weaken any substantive gate. The
 SOURCE-correctness review (§11.4.125/§11.4.142/§11.4.194
-Fable-<code>xhigh</code> §11.4.209 → GO §11.4.134) STILL PRECEDES +
-gates the build (it IS &quot;source proven-correct&quot;); pre/post-build tests
+Opus-<code>xhigh</code> §11.4.209 → GO §11.4.134) STILL PRECEDES + gates
+the build (it IS &quot;source proven-correct&quot;); pre/post-build tests
 (§11.4.108 L1-2) run at their seams; §11.4.185 manual-QA-final
 un-weakened; §11.4.129/§11.4.40 un-weakened. &quot;Test-side work is
 parallel, never a build gate&quot; is bounded to future-regression
@@ -26921,7 +27350,7 @@ scripts, custody-chain enforcer per §11.4.146(D3),
 release-verdict-coverage machinery per §11.4.135); (iv) VERIFIER — the
 actor / mechanism that RE-RUNS the gate from a clean checkout and
 attaches receipts (independent verifier per §11.4.165, §11.4.209
-Fable-xhigh substrate for code review, §11.4.194 exhaustive review). The
+Opus-xhigh substrate for code review, §11.4.194 exhaustive review). The
 mandate: the PRODUCER of a change cannot ALSO be the ORACLE, GATE, or
 VERIFIER for that same change. Extraction line 5695 (module 34 core
 concept 4 — module attribution VERIFIED CORRECT 2026-08-20, verified
@@ -27008,8 +27437,8 @@ edit the verdict or the oracle to make itself green.&quot;</p>
 at the verdict layer — a producer-typed status label is not a verdict.
 §11.4.125&#39;s code-review-agent gate before pre-build + main build IS the
 (A) VERIFIER role at the review layer, and §11.4.142&#39;s universal
-every-change-review mandate + §11.4.209&#39;s Fable-xhigh review-substrate
-pin (Opus-xhigh fallback) provide the independence + substrate
+every-change-review mandate + §11.4.209&#39;s Opus-xhigh review-substrate
+pin (no fallback model) provide the independence + substrate
 requirements. §11.4.135&#39;s standing regression-guard suite is the GATE
 layer at the release seam. §11.4.146(D3) status custody is the
 STATUS-WRITE-SEAM enforcement — the store REFUSES a producer-asserted
@@ -27050,9 +27479,9 @@ producer-asserted terminals) / §11.4.165 (universal independent verifier
 agent) / §11.4.194 (exhaustive review) / §11.4.201 (a gate that
 false-refuses a clean producer is a FAIL-bluff, so verifier honesty
 binds both directions) / §11.4.205 (seam-not-prose enforcement) /
-§11.4.209 (Fable-xhigh substrate pin for the review verifier) /
-§11.4.245 (oracle-strategy identification, independent by the same
-principle) / §11.4.248 (PROTECTED-SPEC + CODEOWNERS enforcement — the
+§11.4.209 (Opus-xhigh substrate pin for the review verifier) / §11.4.245
+(oracle-strategy identification, independent by the same principle) /
+§11.4.248 (PROTECTED-SPEC + CODEOWNERS enforcement — the
 operator-decided mechanism for (B)) / §11.4.249 (four-role architecture
 + flight-recorder mechanism — §11.4.240 is the SEPARATION PRINCIPLE +
 capability enforcement, §11.4.249 is the concrete FOUR-ROLE {producer,
@@ -27116,12 +27545,11 @@ is itself the exact class of false-positive refusal §11.4.201 forbids.
 This clause does NOT weaken the constitution&#39;s OTHER, distinct, narrower
 model-substrate pins — §11.4.256&#39;s requirement that a translation review
 run on a DIFFERENT model/provider than the translator, and §11.4.209&#39;s
-requirement that every mandatory independent code-review run on the
-Fable model at <code>xhigh</code> effort (Opus <code>xhigh</code> on
-genuine Fable-unavailability); both remain in force unmodified for their
-own narrower domains (translation review; code review). FR-032&#39;s
-permitted-not-required framing governs only the GENERAL
-producer≠verifier case this anchor addresses, never those two
+requirement that every mandatory independent code-review run on the Opus
+model at <code>xhigh</code> effort (no fallback model); both remain in
+force unmodified for their own narrower domains (translation review;
+code review). FR-032&#39;s permitted-not-required framing governs only the
+GENERAL producer≠verifier case this anchor addresses, never those two
 domain-specific, stricter pins. <strong>(3) Tier-C trigger 1 — the
 producer holds write access to the evidence/verdict store.</strong> Per
 spec.md:122 (FR-033): at a seam where the producer holds write access to
@@ -27166,10 +27594,10 @@ aspiration) / §11.4.201 (a false-positive <code>capability</code> claim
 is the same class of bluff a false-positive guard refusal is) /
 §11.4.256 (its own, distinct, domain-specific different-model
 requirement stays unweakened) / §11.4.209 (its own, distinct,
-domain-specific Fable-<code>xhigh</code> code-review pin stays
-unweakened alongside §11.4.256&#39;s) / §12 (host-boundary establishment is
-a §12 host-safety-adjacent operator action, never an autonomous agent
-action). Recommended mechanism gate
+domain-specific Opus-<code>xhigh</code> code-review pin stays unweakened
+alongside §11.4.256&#39;s) / §12 (host-boundary establishment is a §12
+host-safety-adjacent operator action, never an autonomous agent action).
+Recommended mechanism gate
 <code>CM-INDEPENDENCE-TIER-HONESTLY-RECORDED</code> (every accepted
 verdict&#39;s <code>independence_tier</code> field is present, within the
 closed {instance, model, capability} set, and — at a Tier-C-triggered
@@ -28471,17 +28899,17 @@ scanned (§11.4.184), no leaked credentials (§11.4.10 pre-store audit),
 supply-chain integrity at the fleet minimum level (SLSA Build Level 2
 per §11.4.246); (5) PERFORMANCE — measured under sustained load per
 §11.4.85, latency + throughput + resource footprint within declared
-SLOs; (6) MAINTAINABILITY — code review passed at Fable-xhigh
-(§11.4.209) with zero findings + zero warnings iterated to GO per
-§11.4.134; (7) DEPLOYABILITY — rootless container per §11.4.161,
-deterministic build + reproducible artifact per §11.4.108 layer 2,
-deployment verified via §11.4.200 target-isolation + §11.4.108 layer 3
-runtime-signature; (8) DOCUMENTABILITY — §11.4.257 (manuals/guides/FAQ)
-+ §11.4.258 (diagrams) + §11.4.259 (badges) all GREEN; (9) TESTABILITY —
-§11.4.27/§11.4.169 seven-type breadth + §11.4.224 coverage floor, every
-gate paired §1.1 mutation, every regression permanently guarded per
-§11.4.135; (10) OPERATIONAL RUNBOOK — for every non-trivial failure mode
-a documented remediation path (§11.4.257 guide class).</p>
+SLOs; (6) MAINTAINABILITY — code review passed at Opus-xhigh (§11.4.209)
+with zero findings + zero warnings iterated to GO per §11.4.134; (7)
+DEPLOYABILITY — rootless container per §11.4.161, deterministic build +
+reproducible artifact per §11.4.108 layer 2, deployment verified via
+§11.4.200 target-isolation + §11.4.108 layer 3 runtime-signature; (8)
+DOCUMENTABILITY — §11.4.257 (manuals/guides/FAQ) + §11.4.258 (diagrams)
++ §11.4.259 (badges) all GREEN; (9) TESTABILITY — §11.4.27/§11.4.169
+seven-type breadth + §11.4.224 coverage floor, every gate paired §1.1
+mutation, every regression permanently guarded per §11.4.135; (10)
+OPERATIONAL RUNBOOK — for every non-trivial failure mode a documented
+remediation path (§11.4.257 guide class).</p>
 <p><strong>(C) ZERO NASTY SURPRISES.</strong> No known-broken behavior
 ships (§11.4.238 QA discovery channel closed), no failing gate is
 silenced (§11.4.120 seam-placement + §11.4.201 real-condition), no test
@@ -29796,7 +30224,7 @@ substitute for the constitution&#39;s SEPARATE, already-mandatory
 independent-review-verdict family (§11.4.125 code-review-before-build,
 §11.4.134 iterate-to-GO with rock-solid evidence, §11.4.142 universal
 every-change review, §11.4.165 independent verification agent, §11.4.209
-Fable-<code>xhigh</code> review substrate, §11.4.237 translation
+Opus-<code>xhigh</code> review substrate, §11.4.237 translation
 context-and-spirit review, §11.4.256 independent per-language
 translation review). Those seven anchors mandate a
 STRUCTURALLY-SEPARATED verifier&#39;s verdict (§11.4.240 producer≠verifier,
@@ -29876,7 +30304,7 @@ FOR THE MANDATORY INDEPENDENT-REVIEW-VERDICT FAMILY.</strong> §11.4.125
 (code-review-agent gate before pre-build + main build), §11.4.134
 (iterate-to-GO with rock-solid evidence), §11.4.142 (universal
 code-review — every change reviewed, always), §11.4.165 (independent
-verification agent), §11.4.209 (code-review MUST run on the Fable model
+verification agent), §11.4.209 (code-review MUST run on the Opus model
 at <code>xhigh</code> effort), §11.4.237 (context-and-spirit translation
 review), and §11.4.256 (independent per-language translation review)
 each mandate a STRUCTURALLY-SEPARATED verifier (§11.4.240
@@ -30231,5 +30659,618 @@ context. No escape hatch — no <code>--free-text-authorisation-OK</code>,
 <code>--waiver-without-tracked-item</code>,
 <code>--producer-may-self-waive</code>,
 <code>--permanent-waiver-renewal</code> flag.</p>
+<h3 id="114272--dynamic-on-demand-skillextension-activation-the-active-capability-surface-is-the-minimum-needed-now-everything-else-stays-discoverable-and-one-command-away-user-mandate-2026-09-07">§11.4.272
+— Dynamic, on-demand skill/extension activation: the active capability
+surface is the MINIMUM needed now, everything else stays DISCOVERABLE
+and one command away (User mandate, 2026-09-07)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-09-07):</strong> <em>&quot;We MUST use activelly only Skills we need at
+particular moment! Use of the Skills and other extensions MUST BE fully
+dynamic so token use is ALWAYS at the minimum and any of Skills and the
+extensions activated / deactivated as they are needed / used! Extend the
+constitution Submodule properly for this to work flawlessly and be a
+part of every project like all other heavy optimizations and
+improvements we MUST use!&quot;</em></p>
+<p><strong>Forensic case study (FACT, measured 2026-09-07, Claude Code
+2.1.263).</strong> A host-level skill pool of 955 skills renders as
+<strong>29,153 B (~7,288 tok) of skill NAMES in every turn of every
+session</strong> that loads it; the same pool rendered with its
+<code>description:</code> fields is <strong>101,279 B (~25,319
+tok/turn)</strong> — a <strong>3.5x</strong> cliff the consuming project
+neither controls nor observes. Both figures are exact byte counts; the
+token conversion is a bytes/4 ESTIMATE (no tokenizer on the measuring
+host) and is labelled as such per §11.4.6.</p>
+<p>Every project whose agent platform exposes a capability surface
+(Agent Skills, plugins, extensions, tool sets) MUST keep the
+<strong>ACTIVE</strong> surface at the minimum genuinely needed, with
+everything else activatable ON DEMAND — never a static all-on set paid
+for in every turn. ALL of the following hold:</p>
+<p><strong>(A) MINIMAL DECLARED CORE, EVERYTHING ELSE ON
+DEMAND.</strong> The consuming project declares, as DATA (§11.4.35), a
+deliberately small <code>core</code> set that is always active, and the
+pool it may draw from. Anything not <code>core</code> is inactive by
+default and activated only when a task needs it. An entry added to
+<code>core</code> is paid for in EVERY turn of EVERY session and MUST
+earn that.</p>
+<p><strong>(B) DISCOVERABILITY IS NEVER TRADED FOR TOKENS.</strong> A
+deactivated capability MUST remain FINDABLE — an always-available index
+lists the whole catalogue with its active/inactive state.
+<code>superpowers:using-superpowers</code> (§11.4.102(B)) continues to
+bind unconditionally: if any skill could apply, even at 1% relevance, it
+MUST be found in that index and invoked rather than improvised from
+memory. <strong>Saving tokens by making a capability unfindable is
+FORBIDDEN</strong> — that trades a measurable cost for an unmeasurable
+one and is a §11.4 bluff at the capability layer.</p>
+<p><strong>(C) FAIL SAFE, NEVER SILENT (§11.4.201).</strong> A failed
+activation MUST tell the agent explicitly that the capability is
+<strong>NOT</strong> available, and exit non-zero. An activation that
+appears to succeed while the capability is unusable leaves the agent
+believing it holds a tool it does not — the false-null class this
+constitution treats as a critical defect. A dangling or unreadable
+activation MUST be rolled back, not left behind.</p>
+<p><strong>(D) CONCURRENCY-SAFE BY REFERENCE COUNTING (§11.4.119 /
+§11.4.176).</strong> Where several agent sessions share one checkout,
+one session&#39;s deactivation MUST NOT strip a capability another session
+is using. Claims are reference-counted and released only when no other
+claimant is <strong>PROVEN</strong> live (§11.4.180 liveness, §11.4.174
+ownership-verified) — a claim whose holder cannot be proven live is
+reported as such, never silently assumed dead OR alive.</p>
+<p><strong>(E) HONEST ASYMMETRY — MEASURE WHAT THE PLATFORM ACTUALLY
+DOES (§11.4.6).</strong> The engine MUST be built on the platform&#39;s
+PROVEN behaviour, not its documented behaviour, wherever the two are not
+both established. Measured first-hand on this platform:
+<strong>activation hot-loads</strong> (a newly-linked skill appears in
+the ALREADY-RUNNING session with no restart) but <strong>deactivation
+does NOT hot-unload</strong> (the same session still invokes a deleted
+skill from cache). The saving is therefore a <strong>minimal
+session-start baseline plus on-demand growth</strong>; claiming that
+deactivation frees tokens in the live session is a bluff. Equally
+measured: the platform&#39;s own <code>permissions.deny</code>
+<code>Skill(name)</code> rule <strong>blocks invocation without removing
+the entry from the rendered list</strong>, so it saves ZERO tokens — a
+first-party mechanism must be TESTED for the property being relied on,
+never assumed from its documentation (§11.4.74 reuse-before-reimplement
+is satisfied by evidence, not by the existence of a similarly-named
+feature).</p>
+<p><strong>(F) A BUDGET GATE GUARDS THE RENDER-MODE CLIFF.</strong> The
+per-turn cost depends on a render mode the project does not control. A
+gate MUST budget the active surface in BOTH the name-only and the
+description-eager render, so an upstream switch to eager rendering
+breaks a gate LOUDLY instead of silently costing tokens in every turn
+thereafter.</p>
+<p><strong>(G) BOTH MODES — WITH AND WITHOUT THE CONSTITUTION SUBMODULE
+(REQ-NOTE-0001).</strong> The engine lives in the constitution submodule
+(§11.4.28, inherited by reference, never copied — §11.4.80/§11.4.177),
+but a project that does NOT vendor the submodule MUST still get a
+working command or an HONEST, LOUD refusal — never a silent no-op.
+Resolution order is explicit: an environment override, the in-project
+submodule, any ancestor&#39;s, an operator-configured host checkout, a
+documented host fallback, then honest degradation naming WHAT is
+unavailable, WHY, WHERE it looked, and WHAT still works. Degradation
+MUST use an exit code distinct from &quot;operation failed&quot;, and MUST state
+that the existing static capability set is untouched so the agent does
+not conclude a capability exists when it does not.</p>
+<p><strong>(H) PRUNE-TO-CORE IS THE DEFAULT, AND IT IS NOT A §11.4.122
+REMOVAL (operator decision, 2026-09-07).</strong> Session initialisation
+MUST <strong>prune by default</strong> — demoting every non-core
+capability so a session pays only for the declared <code>core</code> —
+rather than merely raising <code>core</code> and leaving whatever else
+accumulated. A raise-only baseline satisfies clause (A) in letter and
+voids it in substance: the surface grows monotonically as capabilities
+accumulate, and the operator&#39;s standing requirement that token use be at
+the minimum is never actually met (measured on the reference project: 19
+active / 422 B / ~105 tok-per-turn under raise-only, against 3 active /
+65 B / ~16 tok-per-turn under prune-by-default). <strong>Pruning is NOT
+the silent capability removal §11.4.122 forbids</strong>, and the
+distinction is structural, not a promise: §11.4.122 forbids removing an
+end-user CAPABILITY without asking, and pruning removes none, because
+all three properties that make it reversible and visible hold BY
+CONSTRUCTION — (1) <strong>LISTED</strong>: the always-core catalogue
+index of clause (B) still shows every pruned capability, so nothing
+becomes unfindable; (2) <strong>ACTIVATABLE</strong>: one command
+returns it, hot-loading into the running session per clause (E); (3)
+<strong>NOT DELETED</strong>: a link-style activation loses only the
+LINK (its target untouched), and a capability whose only copy lives in
+the active location is <strong>MOVED</strong> to a preserved store that
+is itself a searched source — never removed, zero bytes destroyed. A
+pruned capability is <strong>dormant and one command away</strong>,
+which is materially different from dropping a component from a build. A
+demotion that cannot be performed safely — another live session holds a
+claim per clause (D), the preserved store already holds an entry of that
+name (never clobber preserved content, §9.2), the move fails or lands
+unreadable (it is REVERTED), or the capability would not be
+re-activatable afterwards — MUST refuse LOUDLY and leave the capability
+ACTIVE per clause (C); refusing is always preferable to risking content.
+Relocating a capability MUST be relocation-SAFE: path-relative
+references inside it that would break at the new location are re-pointed
+at the identical resolved target before the move, and where that is not
+sufficient the post-move readability check refuses and reverts (§11.4.6
+— never leave a broken capability behind). An <strong>explicit,
+documented opt-out</strong> MUST exist at both session scope (an
+environment override) and project scope (a manifest flag), with session
+scope winning; a mechanism with no way out gets worked around
+destructively, and the opt-out keeps the engine in play rather than
+abandoned. Where the engine is unreachable (clause (G)), pruning
+inherits that clause&#39;s honest refusal — a session is NEVER left silently
+holding fewer capabilities than it believes it has.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> This anchor reduces the
+per-turn cost of the capability LIST; it does not reduce the cost of a
+skill&#39;s BODY once invoked (that is already lazy), and it does not make
+any capability more correct. It is a token-efficiency and
+capability-hygiene discipline (§11.4.141), not a substitute for
+§11.4.102(B) skill discovery, and never a licence to hide a capability
+the task needed. Clause (H)&#39;s prune-by-default inherits clause (E)&#39;s
+measured asymmetry: the saving lands at the next session start for any
+entry the platform has already cached, so pruning is run AT session
+initialisation and its in-session effect is never overclaimed.</p>
+<p><strong>Classification: universal (§11.4.17)</strong> —
+platform-neutral; the consuming project supplies its manifest, pool
+sources, preserved-store location, budget limits, opt-out names, and
+host fallback as DATA per §11.4.35. Composes §9.2 / §11.4.6 / §11.4.28 /
+§11.4.35 / §11.4.74 / §11.4.80 / §11.4.102(B) / §11.4.119 / §11.4.122
+(clause (H) — pruning is structurally NOT the removal §11.4.122 forbids)
+/ §11.4.141 / §11.4.164 / §11.4.174 / §11.4.176 / §11.4.177 / §11.4.180
+/ §11.4.201 / §1.1. Propagation gate
+<code>CM-COVENANT-114-272-PROPAGATION</code> (literal
+<code>11.4.272</code>) + recommended mechanism gates
+<code>CM-SKILL-SURFACE-BUDGET</code> (active surface within budget in
+BOTH render modes), <code>CM-SKILL-ACTIVATION-FAIL-SAFE</code> (a failed
+activation exits non-zero with an explicit reason and leaves nothing
+dangling) and <code>CM-SKILL-PRUNE-PRESERVES-CONTENT</code> (clause (H):
+after a prune every demoted capability is still LISTED, still
+ACTIVATABLE, and its content byte-identical to its pre-prune state; an
+unsafe demotion refuses and leaves the capability ACTIVE) + paired §1.1
+mutation (squeeze the budget below the real surface → the gate MUST
+FAIL; break an activation target → activation MUST refuse and leave no
+dangling link; remove the engine → the shim MUST exit with its distinct
+engine-absent code, never 0; make the demotion DESTRUCTIVE, or strip the
+relocation-safety step, or strip the other-live-session claim check →
+the prune gate MUST FAIL). Gate-code beyond the shipped scripts =
+separate work item, NOT claimed shipped (§11.4.6 / §11.4.227).
+<strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.272.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--all-skills-always-on</code>,
+<code>--skip-activation-engine</code>,
+<code>--hide-inactive-skills</code>,
+<code>--silent-activation-failure</code>,
+<code>--ignore-surface-budget</code>, <code>--assume-skill-loaded</code>
+flag.</p>
+<hr />
+<h3 id="114273--measuring-instrument-verification-a-census-that-informs-a-decision-must-be-control-needled-before-its-result-is-believed-research-derived-2026-09-08">§11.4.273
+— Measuring-instrument verification: a census that INFORMS a decision
+must be control-needled before its result is believed (research-derived,
+2026-09-08)</h3>
+<p><strong>Forensic anchor (FACT, 2026-09-08 — FIFTEEN instances in a
+single session).</strong> Across one working session, fifteen separate
+ad-hoc measurements each returned a confident, plausible,
+ACTIONABLE-looking result that was an artefact of the instrument rather
+than a property of the system. Every one was indistinguishable, at the
+moment it was read, from a real finding:</p>
+<ol type="1">
+<li>A governance-anchor census matched only one of two block-opener
+forms (<code>^### §N</code>, missing <code>^**§N</code>), under-counted
+the corpus by ~24 mandates and <strong>manufactured 24 phantom dangling
+anchors</strong> that were nearly reported as defects.</li>
+<li><code>comm</code> on inputs sorted numerically rather than
+lexicographically reported <strong>all 34 anchors missing</strong> from
+a file that contained none of them missing.</li>
+<li><code>$?</code> read after a pipeline reported the
+<strong>pipeline&#39;s last stage</strong>, turning a script&#39;s exit 1 into a
+reported exit 0 — a failure read as success.</li>
+<li>A field-name typo (<code>CMA_PROVIDER_KEY_VAR</code> for
+<code>CMA_PROVIDER_KEYVAR</code>) returned <code>&lt;none&gt;</code> for
+every record, reading exactly like &quot;the records have lost their key
+bindings&quot;.</li>
+<li><code>grep -w</code> treated <code>-</code> as a word boundary, so
+<code>zai</code> matched inside <code>zai-coding-plan</code> and moved a
+record from the NOT-PINNED to the PINNED column — corrupting the
+classification a recommendation was being built on.</li>
+<li>A summary-line grep assumed <code>passed, failed</code> ordering; on
+failure the tool prints <code>failed, passed</code>, so the match came
+back EMPTY and the run&#39;s outcome was unknown while looking merely
+quiet.</li>
+<li><code>while read</code> silently dropped a final line with no
+trailing newline, so a one-element list iterated zero times and printed
+nothing.</li>
+<li>A mutation was applied with the wrong environment knob
+(<code>CMA_TEST_SCRIPTS_DIR</code> where the suite reads
+<code>CMA_SCRIPTS_UNDER_TEST</code>), so the mutation tree was never
+loaded, the REAL tree was tested, and the resulting green was
+<strong>meaningless while looking like proof the guard
+held</strong>.</li>
+<li>A &quot;does the guard block this?&quot; probe used a command the guard does
+not target, so it ran unblocked and proved nothing either way — an
+inconclusive result that reads as a negative.</li>
+<li>A test fixture named each alias identically to its provider id, so
+two columns held the same string and a real column-swap mutation
+<strong>survived at 52/0</strong> under a comment asserting no two cells
+could share a value.</li>
+<li>A positive control was chosen OUTSIDE the instrument&#39;s declared
+scope — the needle was added by a different layer than the one under
+test — so a working instrument reported as broken.</li>
+<li>A positive control was chosen that WAS the very question under test,
+so it could not discriminate between &quot;the instrument works&quot; and &quot;the
+answer is yes&quot;.</li>
+<li>An <code>awk</code> range extracting a table cell used an escaping
+that matched nothing, reporting <strong>838 rows where the live system
+held 134</strong> — a number wrong by 6x that was about to gate a
+DESTRUCTIVE database recreate, caught only because it contradicted a
+count taken seconds earlier.</li>
+<li><strong>A denylist with TWO needles was searched with ONE.</strong>
+Both literals were loaded and both lengths were even PRINTED, then only
+the second was passed to the search. Every &quot;zero remaining&quot; was blind to
+the first — and the artefacts it cleared were regenerations of a
+CREDENTIAL SCRUB, so a live credential was reported eliminated while it
+was still being handed over in four copy-pasteable lines per file. The
+report was internally consistent, cited a positive control, and was
+wrong.</li>
+<li><strong><code>$?</code> clobbered by a command substitution in the
+same statement.</strong>
+<code>printf &#39;... exit=%s&#39; &quot;$(basename &quot;$f&quot;)&quot; &quot;$?&quot;</code> expands the
+substitution FIRST, so <code>$?</code> carried <code>basename</code>&#39;s
+status, not the command&#39;s: a <code>pandoc</code> run that FAILED with
+exit 64 was reported as <code>exit=0</code> while writing nothing.
+Distinct from instance 3 (exit code after a PIPELINE) — here the clobber
+happens inside the argument list of the very statement that reports
+it.</li>
+</ol>
+<p><strong>The gap this closes.</strong> §11.4.201 governs GUARDS AND
+GATES — instruments that BLOCK, where the failure modes are a false
+refusal and a false pass. §11.4.107(10) governs ANALYZERS, which must be
+calibrated golden-good / golden-bad. NEITHER covers the far more common
+instrument: the <strong>ad-hoc census that INFORMS</strong> — a
+<code>grep</code>, a set difference, an exit-code read, a field lookup,
+a row count — whose output is not a verdict but a FACT that a decision,
+a fix, a classification, or a report is then built upon. Those
+instruments are written inline, used once, trusted implicitly, and never
+themselves tested.</p>
+<p><strong>The mandate.</strong> Any measurement whose result will drive
+a decision, a claim, a classification, or a report MUST be
+control-needled BEFORE its result is acted on or communicated:</p>
+<ul>
+<li><strong>(a) POSITIVE control</strong> — a value KNOWN to be present
+must be found by the instrument. This catches a pattern too narrow, a
+wrong field name, a wrong path, a wrong knob, and a stage that silently
+produced nothing.</li>
+<li><strong>(b) NEGATIVE control</strong> — a value KNOWN to be absent
+(a fabricated needle) must NOT be found. This catches a pattern too
+broad, an accidental substring or word-boundary match, and a default
+that fabricates a hit.</li>
+<li><strong>(c) An EMPTY result is never a finding on its own.</strong>
+Absence of output is one of: the thing is genuinely absent; the
+instrument could not look; the instrument looked in the wrong place; the
+instrument&#39;s output shape differed from what was matched. Those are FOUR
+different states and the raw empty result distinguishes none of them
+(§11.4.6). An empty result may be reported only once (a) has established
+the instrument can see a positive.</li>
+<li><strong>(d) A result that CONTRADICTS directly-observed evidence is
+presumed to be an instrument fault until proven otherwise.</strong> When
+a census reports absent something that was just read on screen, the
+instrument is the first suspect, not the system.</li>
+<li><strong>(e) The instrument used to establish a FACT is itself part
+of the evidence.</strong> A captured claim cites the command that
+produced it, so a reader can re-run it and a later reader can see what
+was actually measured (§11.4.5 / §11.4.2).</li>
+<li><strong>(f) When the criterion is a SET, the control must cover
+EVERY member of it.</strong> A denylist, a literal list, a taxonomy, a
+multi-column key: needling ONE member proves only that member is
+searchable, and a search that silently drops the others still reports a
+clean, internally-consistent, positively-controlled zero. This is the
+failure mode instance 14 records, and it is the most dangerous on this
+list precisely because (a) and (b) both PASS while the answer is wrong:
+the control and the search shared the same single needle, so the
+instrument proved itself against exactly the case it was already
+handling. Enumerate the set, assert the search covers it, and state the
+member count in the captured claim.</li>
+<li><strong>(g) Capture an exit status BEFORE any other expansion can
+overwrite it.</strong> <code>$?</code> is the status of the LAST command
+to run, which in a compound statement is frequently not the command
+being reported on — a pipeline&#39;s last stage (instance 3) or a command
+substitution sitting earlier in the same argument list (instance 15).
+Assign it to a variable on its own line, immediately after the command,
+and report the variable.</li>
+</ul>
+<p><strong>Honest boundary (§11.4.6).</strong> Control needles prove an
+instrument can distinguish PRESENT from ABSENT. They do NOT prove it
+measures the RIGHT property — a correctly-needled census of the wrong
+thing is still the wrong answer, and no amount of needling substitutes
+for asking whether the question is the right one. Nor do they make an
+instrument correct for inputs unlike the needles; a needle chosen to
+resemble the expected data will not reveal a failure on data that does
+not.</p>
+<p><strong>Classification: universal (§11.4.17)</strong> —
+platform-neutral; the consuming project supplies its concrete
+instruments and needle values per §11.4.35. Composes §11.4.5 / §11.4.6
+(an un-needled census is a guess wearing a number) / §11.4.2 /
+§11.4.107(10) (the analyzer analogue) / §11.4.118 (an enumerated
+coverage claim rests on the instrument that enumerated it) / §11.4.201
+(the guard/gate analogue) / §1.1.</p>
+<p>Propagation gate <code>CM-COVENANT-114-273-PROPAGATION</code>
+(literal <code>11.4.273</code>) + recommended gate
+<code>CM-CENSUS-CONTROL-NEEDLED</code> (a decision-bearing census cites
+its positive and negative control) + paired §1.1 mutation (strip the
+literal → propagation gate FAILs; accept a decision-bearing census with
+no control → <code>CM-CENSUS-CONTROL-NEEDLED</code> FAILs; gate-code =
+separate work item, NOT claimed shipped §11.4.6 / §11.4.227).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.273.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-control-needle</code>, <code>--empty-is-absent</code>,
+<code>--trust-the-grep</code>, <code>--census-needs-no-proof</code>,
+<code>--obvious-result-exempt</code>,
+<code>--one-needle-covers-the-set</code>,
+<code>--read-status-after-substitution</code> flag exists.</p>
+<hr />
+<h3 id="114274--mechanical-work-belongs-in-a-script-not-in-an-agents-context-extract-it-test-it-and-re-scan-for-it-on-a-cadence-user-mandate-2026-09-08">§11.4.274
+— Mechanical work belongs in a script, not in an agent&#39;s context:
+extract it, test it, and re-scan for it on a cadence (User mandate,
+2026-09-08)</h3>
+<p><strong>Forensic anchor (FACT, 2026-09-08).</strong> In one working
+session, five independent review agents consumed roughly 400,000–450,000
+tokens EACH. Reading their transcripts, the dominant cost was not
+judgment — it was MECHANICS: copy a tree to a scratch directory, apply a
+one-line mutation, run a suite, read the summary line, restore, verify
+the restore byte-identical, compare counts against a previous round,
+repeat for seven mutations. Every step of that loop is deterministic,
+has a fixed input and output, contains no decision, and produces the
+same result every time. It is a shell script that was instead executed
+one tool call at a time by a language model, at roughly four orders of
+magnitude the cost, with a fresh opportunity for a transcription error
+at every step — and this session recorded ten such instrument errors
+(§11.4.273).</p>
+<p><strong>The rule.</strong> Work that is DETERMINISTIC, REPEATABLE and
+contains NO JUDGMENT MUST be delegated to a properly written script or
+small compiled utility, and invoked — not performed turn-by-turn inside
+an agent&#39;s context. Concretely, the following belong in a tool and not
+in a transcript: mutation apply / run / restore / verify loops; suite
+fan-outs and their result tabulation; before-and-after comparisons;
+scratch-tree setup and teardown; residue and quiescence scans; census
+and inventory queries; artifact fingerprinting; evidence collection and
+layout; and any step already written down as a fixed recipe.</p>
+<p><strong>(a) EXTRACT.</strong> When an agent performs the same
+mechanical sequence more than twice, that sequence is a defect in the
+tooling, not a task. It is extracted into a script or utility, given a
+name, and invoked thereafter. The bar is behavioural, not aesthetic: if
+the steps can be written down exactly, they can be executed exactly, and
+an agent executing them by hand is the wrong instrument.</p>
+<p><strong>(b) THE EXTRACTED TOOL IS ITSELF GOVERNED.</strong> It ships
+with documentation a reader can act on (§11.4.18), a user guide or
+manual entry where it is operator-facing, and tests that validate its
+behaviour and produce MACHINE evidence deterministically (§11.4.50 /
+§11.4.5) — including its failure paths, its exit-code semantics
+(§11.4.201), and the control needles that prove its own measurements
+(§11.4.273). An extraction that replaces a slow correct process with a
+fast unproven one is a regression, not an optimisation.</p>
+<p><strong>(c) RE-SCAN ON A CADENCE.</strong> Every project periodically
+scans itself for mechanical work still being performed by agents —
+recurring command sequences in transcripts and logs, repeated inline
+recipes across scripts, and steps documented as &quot;run these commands in
+order&quot; — and refactors the findings out. This is a standing, recurring
+obligation, not a one-off cleanup: new mechanical loops accrete
+continuously as features land, and a codebase that was clean last
+quarter will not be clean this one.</p>
+<p><strong>(d) HONEST BOUNDARY — what MUST NOT be extracted
+(§11.4.6).</strong> This rule is about MECHANICAL work, and misapplying
+it is worse than not applying it at all. JUDGMENT MUST NOT be scripted:
+root-cause determination (§11.4.102), review verdicts (§11.4.125 /
+§11.4.142 / §11.4.194), the decision that a fix is correct, the choice
+of what to measure, the reading of whether captured evidence actually
+supports a claim, and any assessment requiring the question &quot;is this the
+right thing to be checking?&quot; A script that renders a verdict is a bluff
+gate (§11.4.201), and automating a review into a green checkmark is
+precisely the PASS-bluff this constitution exists to prevent. The
+correct division is: the SCRIPT gathers and executes, deterministically
+and cheaply; the AGENT decides what it means. Cost is never a reason to
+move a decision into a script, and a script&#39;s output is evidence for a
+judgment, never a substitute for one.</p>
+<p><strong>Classification: universal (§11.4.17)</strong> —
+platform-neutral; the consuming project supplies its concrete scripts,
+utility language, scan cadence, and transcript/log sources per §11.4.35.
+Composes §11.4.18 (script documentation) / §11.4.50 (deterministic
+results) / §11.4.5 (captured machine evidence) / §11.4.141 (token
+efficiency — this is its mechanical-work instance) / §11.4.201
+(exit-code and real-condition semantics) / §11.4.273 (the extracted
+instrument is control-needled) / §11.4.124 (investigate before deleting
+the thing you replaced) / §1.1.</p>
+<p>Propagation gate <code>CM-COVENANT-114-274-PROPAGATION</code>
+(literal <code>11.4.274</code>) + recommended gates
+<code>CM-MECHANICAL-WORK-EXTRACTED</code> (a mechanical sequence
+performed by an agent more than twice has an extraction item) and
+<code>CM-EXTRACTED-TOOL-DOCUMENTED-AND-TESTED</code> (every extracted
+tool carries docs + tests + deterministic machine evidence) + paired
+§1.1 mutation (gate-code = separate work item, NOT claimed shipped
+§11.4.6 / §11.4.227).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.274.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-extraction</code>, <code>--agent-can-do-it</code>,
+<code>--one-off-is-fine</code>, <code>--script-the-review</code>,
+<code>--extract-without-tests</code> flag exists.</p>
+<h3 id="114275--semantic-lumen-index--indexing-efficiency-gate--universal-agentsubagent-accessibility-every-indexed-space-reaches-every-agent-and-subagent-is-proven-complete-before-it-is-called-ready-and-earns-its-place-by-a-measured-honest-efficiency-result-research-derived-2026-09-24">§11.4.275
+— Semantic (Lumen) index + indexing-efficiency gate + universal
+agent/subagent accessibility: every indexed space reaches every agent
+and subagent, is proven COMPLETE before it is called ready, and earns
+its place by a MEASURED, honest efficiency result (research-derived,
+2026-09-24)</h3>
+<p><strong>Forensic anchor (FACTS, measured in one cycle on a consuming
+project with a multi-hundred-thousand-file tree; genericised).</strong>
+(1) A semantic code-search server was configured, yet its own status
+reported 0 files, no embedding model, and &quot;never&quot; indexed — configured
+is not indexed (§11.4.196(F)); the constitution had no mandate for it at
+all. (2) A fixed-fixture benchmark measured a 69.2% token reduction for
+the structural index over grep+read — computed only over the 8 queries
+BOTH routes answered correctly — while the same structural index
+answered 5 of 15 fixture queries WRONG (grep+read: 2 of 15); the
+semantic route had 0 comparable answers because it was unindexed. A
+token saving reported without its wrong-answer count would have been a
+bluff. (3) One per-call, uncached, full-table file-list query accounted
+for 93.4% of the reference-resolution wall time (hundreds of calls at
+roughly 350 ms each on a ~585k-file index). (4) A foreign-key cascade on
+bulk re-insert stalled the bulk window on large tables. (5) A launcher
+classified <code>sync</code> by rows already stored instead of by
+pending backlog and ran a bulk job of tens of millions of references on
+the stock runner, foreground and unsupervised. (6) The vendor deletes a
+lock by age, not by holder liveness, and a writable open recreates
+dropped indexes without the lock — a concurrent-writer corruption
+hazard. (7) An empty result from an instrument that had errored or been
+silenced was nearly read as &quot;absent&quot; (§11.4.273).</p>
+<p><strong>The mandate (ALL hold).</strong></p>
+<p><strong>(A) UNIVERSAL ACCESSIBILITY — every indexed space, every
+agent, every subagent, no exception.</strong> Every code index the
+project maintains (the structural CodeGraph index of §11.4.78 AND the
+semantic Lumen index, and any future code index) MUST be reachable by
+EVERY AI agent the project uses AND by every subagent those agents
+dispatch, through a server DEFINITION the agent or subagent can actually
+resolve (project-scoped committed configuration or an installed plugin —
+never a per-user toggle only the main session sees). A configuration
+that ENABLES a server which nothing DECLARES (no definition resolvable
+where the agent or subagent runs) is a violation, not a partial setup.
+Proof is a real tool call FROM A DISPATCHED SUBAGENT returning an
+index-only fact (the §11.4.78(4) unforgeable challenge), per agent; an
+agent that genuinely cannot be driven is a documented §11.4.3 SKIP,
+never a faked PASS.</p>
+<p><strong>(B) SEMANTIC INDEX PROVEN, NOT CONFIGURED.</strong> The
+embedding model is provisioned (rootless per §11.4.161) and proven by a
+REAL embed call returning the declared dimensionality — a model listing
+alone is not evidence. The semantic index&#39;s scope is GENERATED from the
+SAME class source as the structural scope (§11.4.78(7)–(8), via the
+constitution&#39;s <code>scripts/lumen/gen_lumenignore.py</code>), so
+third-party and secret classes are excluded identically. Health = files
+AND chunks non-zero + a known-symbol search hit + a negative control +
+freshness within a consumer-declared TTL.</p>
+<p><strong>(C) COMPLETE BEFORE &quot;READY&quot;.</strong> An index is called
+ready only when its PENDING work is zero (unresolved-reference backlog,
+files still to parse, embedding queue), its state reports complete, its
+file count is within the consumer tolerance of the accepted expected
+count, and its required schema indexes exist. Calling a partial index
+ready is a §11.4 PASS-bluff. Every count and every empty result behind
+this verdict is control-needled (§11.4.273); an instrument that errored
+or was silenced proves nothing.</p>
+<p><strong>(D) EFFICIENCY IS MEASURED DETERMINISTICALLY AND REPORTED
+HONESTLY.</strong> A benchmark harness runs a FIXED query set with
+GOLDEN answers against the index route AND a grep+read baseline, N ≥ 3
+iterations with an identical canonical result hash (§11.4.50), recording
+per query: bytes, estimated tokens (declared estimator), p50/p95 latency
+and correctness against the golden answer. Token reduction is computed
+ONLY over queries BOTH routes answered correctly; wrong answers are
+reported separately, BY QUERY ID, and never averaged away. The harness
+is self-validating (a tampered golden fixture is rejected; a mutated
+estimator is caught). The thresholds — minimum reduction, maximum
+wrong-answer count, latency ceilings — are consumer DATA (§11.4.35),
+never constitutional literals. A route that saves tokens but is wrong
+more often than the baseline is NOT an efficiency win, and a report that
+shows only the saving is a bluff.</p>
+<p><strong>(E) ROUTING FOLLOWS THE MEASUREMENT.</strong> Structural
+questions go to the structural index and conceptual questions to the
+semantic index BEFORE grep+read (§11.4.141), EXCEPT for query classes
+the benchmark shows the route answers wrongly — those fall back to
+grep+read and the gap is tracked (§11.4.197), never hidden.</p>
+<p><strong>(F) PERFORMANCE DEFECTS ARE ROOT-CAUSED, PATCHED AND
+PROVEN.</strong> A measured hot spot or stall (clauses (3)–(4) of the
+anchor) is root-caused (§11.4.102) and fixed in the version-keyed
+patched runner with RED→GREEN, a paired mutation and an equivalence
+proof on a byte copy, then gated on every upgrade per §11.4.80(4).</p>
+<p><strong>(G) SAFETY.</strong> Writes obey §11.4.80(5) (one writer
+entry, liveness not lock age, bulk classified by pending backlog); live
+reads are read-only/immutable; experiments run on fixtures or
+copy-on-write copies.</p>
+<p><strong>Latent binding (§11.4.96 pattern).</strong> A project that
+maintains NO semantic index today is bound by clauses (A)–(G) only for
+the indexes it does maintain; the semantic-index clauses bind the moment
+it adds one — absence of a semantic index is never evidence that (B)–(E)
+were satisfied.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> This anchor proves an
+index is REACHABLE, COMPLETE, correctly SCOPED and MEASURED — it does
+NOT prove every answer correct (the benchmark samples a fixed set;
+wrong-answer classes stay tracked), does NOT make the benchmark
+representative of every query shape, and does NOT license narrowing the
+index scope to hit a threshold (scope narrowing is a §11.4.66 operator
+decision). The reference benchmark harness exists today as a prototype
+OUTSIDE the constitution tree; landing it under
+<code>&lt;constitution&gt;/scripts/</code> is owed work, not claimed
+done. <strong>[2026-09-25 STATUS UPDATE — see the EXTENSION below: the
+harness has since landed INSIDE
+<code>&lt;constitution&gt;/scripts/lumen/</code>; this sentence&#39;s
+&quot;outside the tree&quot; premise is superseded, tracked-work-remaining is
+narrowed to the gate CODE only.]</strong></p>
+<p><strong>EXTENSION — clause (D) benchmark run live on this consuming
+project + harness-location correction (research-derived,
+2026-09-25).</strong> Clause (D)&#39;s deterministic-benchmark requirement
+was exercised end-to-end via the sanctioned
+<code>constitution/scripts/lumen/lumen_verify.sh</code> tool. This
+corrects the honest-boundary sentence above: as of this extension the
+harness is no longer &quot;a prototype OUTSIDE the constitution tree&quot; — it
+now LIVES inside <code>constitution/scripts/lumen/</code> with its own
+test file
+<code>constitution/scripts/lumen/tests/test_lumen_verify.sh</code>; only
+the recommended <code>CM-CODE-INDEX-BENCH</code> gate CODE remains owed,
+unchanged (§11.4.6/§11.4.227 — a fact stated as fact, not claimed beyond
+what landed). A 13-query golden set (9 conceptual, 2 structural, 2
+deliberately-unsupported) was pre-declared via
+<code>Grep</code>/<code>Read</code>/direct <code>sqlite3</code> queries
+against the index database BEFORE any Lumen query ran, then benchmarked
+3 times back-to-back producing byte-identical
+<code>results.tsv</code>/<code>summary.txt</code> on every run (§11.4.50
+determinism, satisfying clause (D)&#39;s N≥3-identical-canonical-hash
+requirement for the WHOLE benchmark, not one query). Result: recall 9/11
+= 0.818 over in-scope indexable queries; both FAILs are near-misses at
+rank 7 (one place past k=5); token reduction computed ONLY over the 9
+correctly-answered queries (mean-of-per-query 30.1%), the 2
+negative-reduction outliers reported honestly rather than averaged away
+— satisfying clause (D)&#39;s reduction-over-both-correct-only +
+wrong-answers-listed-by-ID requirements. The Q7 <code>.sh</code>-file
+mystery (zero results for a query whose gold file is a <code>.sh</code>
+script) was root-caused with NON-GUESSED evidence per §11.4.6: a direct
+<code>sqlite3</code> query of Lumen&#39;s own index database showed ZERO
+<code>.sh</code> files indexed anywhere (0 of 2625 in-scope
+<code>.sh</code> files on disk), confirmed authoritative by Lumen&#39;s own
+source (<code>internal/chunker/languages.go</code>&#39;s
+<code>supportedExtensions</code> has no <code>.sh</code>,
+<code>.kt</code>, or <code>.txt</code> entry) — a genuine
+chunker-coverage gap, not a scope or freshness defect, tracked per
+clause (E) + §11.4.197 rather than silently worked around. Evidence:
+<code>docs/research/lumen_benchmark_20260925/RESULTS_v2.md</code> (+
+<code>.html</code>/<code>.pdf</code>/<code>.docx</code> siblings per
+§11.4.65), commit <code>ac532a21df78a447c2aceec30f63476348e93077</code>.
+Composes §11.4.6 / §11.4.28 / §11.4.50 / §11.4.65 / §11.4.177 /
+§11.4.197 / §1.1.</p>
+<p><strong>Classification: universal (§11.4.17)</strong> — no
+hardware/vendor/project literal; the consumer supplies its own-org list,
+scope DATA, accepted counts, tolerances, TTL, benchmark queries/golden
+answers and thresholds as DATA per §11.4.35; all mechanism is inherited
+by reference (§11.4.28 / §11.4.80 / §11.4.177). Composes §11.4.3 /
+§11.4.6 / §11.4.10 / §11.4.35 / §11.4.50 / §11.4.66 / §11.4.78 /
+§11.4.79 / §11.4.80 / §11.4.99 / §11.4.102 / §11.4.141 / §11.4.161 /
+§11.4.196(D)(F) / §11.4.197 / §11.4.201 / §11.4.224 / §11.4.227 /
+§11.4.232(C) / §11.4.273 / §1.1.</p>
+<p>Propagation gate <code>CM-COVENANT-114-275-PROPAGATION</code>
+(literal <code>11.4.275</code>, block-start exactly once per governance
+file, lockstep across mirrors per §11.4.227(B)) + recommended mechanism
+gates <code>CM-CODE-INDEX-AGENT-ACCESSIBLE</code> (every indexed space
+answers an unforgeable challenge from a dispatched subagent; an
+enabled-but-undeclared server FAILs) /
+<code>CM-CODE-INDEX-COMPLETE-BEFORE-READY</code> (pending == 0, state
+complete, count within tolerance) / <code>CM-LUMEN-MODEL-PROVEN</code> /
+<code>CM-LUMEN-SCOPED-FRESH</code> / <code>CM-CODE-INDEX-BENCH</code>
+(N≥3 identical hashes, reduction over both-correct only, wrong answers
+listed by id, thresholds from consumer DATA) /
+<code>CM-CODEGRAPH-SCOPE-PROOF</code> /
+<code>CM-CODEGRAPH-UPGRADE-PROBE-GATED</code> /
+<code>CM-CODEGRAPH-WRITER-EXCLUSIVE</code> /
+<code>CM-CODEGRAPH-BULK-BY-BACKLOG</code> /
+<code>CM-CODEGRAPH-STALL-WATCHDOG</code> + paired §1.1 mutations (enable
+a server with no resolvable definition → accessibility gate MUST FAIL;
+report ready with pending &gt; 0 → completeness gate MUST FAIL; drop the
+wrong-answer list or compute reduction over all queries → bench gate
+MUST FAIL; unload the embedding model → model gate MUST FAIL; classify
+bulk by stored rows → bulk gate MUST FAIL; drop the liveness check →
+writer gate MUST FAIL; golden-FALSE per §11.4.201(1): an unchanged,
+complete, reachable index MUST NOT fire any gate). Gate CODE is a
+separate work item, NOT claimed shipped (§11.4.6 / §11.4.227).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.275.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--index-partial-ready</code>, <code>--enabled-is-declared</code>,
+<code>--main-session-only-index</code>, <code>--skip-model-proof</code>,
+<code>--reduction-without-wrong-answers</code>,
+<code>--bulk-by-row-count</code>, <code>--lock-age-is-liveness</code>
+flag.</p>
 </body>
 </html>

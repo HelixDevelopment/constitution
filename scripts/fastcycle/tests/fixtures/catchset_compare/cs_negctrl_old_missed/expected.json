@@ -1,0 +1,18 @@
+{
+  "schema": "catchset/v1",
+  "fixture": "cs_negctrl_old_missed",
+  "kind": "negative-control",
+  "contract_clause": "CS-003; contracts/catch-set-comparison-harness.md RED fixtures row 7",
+  "defect_id": "D_uncaught",
+  "defect_patch": "../_shared/patches/defect_d_uncaught_widget.sh",
+  "baseline_all_pass": true,
+  "old_missed": ["D_uncaught"],
+  "assertion_changes": [],
+  "counts": {"caught_old": 0, "caught_new": 0, "lost": 0, "gained": 0},
+  "old_verdict": "MISSED",
+  "new_verdict": "MISSED",
+  "old_catchers": [],
+  "new_catchers": [],
+  "expected_exit_code": 0,
+  "note": "D_uncaught changes only a comment line -- no marker removed, so NEITHER config's gates catch it. Per CS-003 this is reported OLD_MISSED (a pre-existing gap, tracked separately), NOT counted in counts.lost, and does not violate superset. Negative control for cs_bad_dropped_gate/cs_bad_overeager_skip/cs_bad_stale_cache: a naive comparator that flags ANY old=new=MISSED row as a violation would wrongly FAIL this row."
+}

@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>fixtures/mutation_reuse/ — T057 (SpecKit-004 &quot;fast-dev-cycles&quot;,
+plan T-C07)</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="fixturesmutation_reuse--t057-speckit-004-fast-dev-cycles-plan-t-c07">fixtures/mutation_reuse/
+— T057 (SpecKit-004 &quot;fast-dev-cycles&quot;, plan T-C07)</h1>
+<p>Fixtures proving
+<code>constitution/scripts/fastcycle/gates/mutation_reuse.py</code> (not
+yet implemented — T-C07) will correctly implement DEC-23&#39;s
+sound-mutation-reuse rule:</p>
+<blockquote>
+<p>re-execute a paired mutation only when
+<code>hash(patch ‖ target gate script ‖ observed inputs ‖ tool versions)</code>
+changed; reuse KILLED only (SURVIVED is always re-examined); detect
+byte-identical (normalised) mutated scripts and report them as
+equivalent/duplicate instead of running twice.</p>
+</blockquote>
+<h2 id="shared-fixture-content">Shared fixture content</h2>
+<ul>
+<li><code>gate_script.sh</code> / <code>gate_script_v2.sh</code> — two
+genuinely different toy gate scripts (different grep rule) used across
+scenarios.</li>
+<li><code>mutation_patch.diff</code> /
+<code>mutation_patch_v2.diff</code> — two genuinely different toy
+mutation patches.</li>
+<li><code>observed_input.txt</code> /
+<code>observed_input_flipped.txt</code> — two byte-differing toy
+observed-input files.</li>
+<li><code>evidence.txt</code> — a stub evidence file referenced by
+<code>--evidence</code> in the RED test&#39;s real tool-invocation
+section.</li>
+</ul>
+<h2 id="cache-behavior-scenarios-put_envelopejson--get_envelopejson--expected">Cache-behavior
+scenarios (put_envelope.json / get_envelope.json / expected)</h2>
+<p>Each of the 7 directories below carries a
+<code>put_envelope.json</code> (what a prior run stored) and a
+<code>get_envelope.json</code> (what the current run asks about), built
+from the shared content above, plus an <code>expected</code> file whose
+first line is <code>HIT</code> or <code>MISS</code> and whose remaining
+lines explain why:</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mr_good_killed_reuse</code></td>
+<td>golden-good: unchanged key, KILLED verdict → HIT</td>
+</tr>
+<tr>
+<td><code>mr_bad_survived_never_reused</code></td>
+<td>golden-bad: unchanged key, SURVIVED verdict → MISS always</td>
+</tr>
+<tr>
+<td><code>mr_one_input_changed</code></td>
+<td>primary case: one observed input byte flipped → MISS</td>
+</tr>
+<tr>
+<td><code>mr_negctrl_mtime_only</code></td>
+<td>negative control: mtime-only diff, content same → HIT</td>
+</tr>
+<tr>
+<td><code>mr_flip_patch</code></td>
+<td>control needle: different mutation patch → MISS</td>
+</tr>
+<tr>
+<td><code>mr_flip_gate_script</code></td>
+<td>control needle: gate script itself changed → MISS</td>
+</tr>
+<tr>
+<td><code>mr_flip_tool_version</code></td>
+<td>control needle: toolchain version changed → MISS</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cross-gate-isolation-scenario-mr_gate_isolation">Cross-gate
+isolation scenario (mr_gate_isolation/)</h2>
+<p><code>mr_gate_isolation/</code> is a distinct fixture shape (its own
+subdirectory, own <code>README.md</code>) from the 7 above: it puts TWO
+independent gates (<code>GATE-MR-ISO-A</code>,
+<code>GATE-MR-ISO-B</code> — distinct gate scripts + distinct mutation
+patches, so their DEC-23 keys are provably distinct) into ONE SHARED
+cache directory, closing the &quot;(not others)&quot; half of tasks.md T057&#39;s case
+1 (&quot;changing one gate&#39;s input content re-runs THAT gate&#39;s mutations (not
+others)&quot;) — none of the 7 scenarios above tests this alone, since each
+of them uses a single hardcoded gate id in its own isolated scratch
+cache directory. See <code>mr_gate_isolation/README.md</code> for the
+full scenario.</p>
+<p><code>dec23_key_ref.py</code> (<code>../lib/dec23_key_ref.py</code>)
+is this project&#39;s own reference implementation of the 4-component DEC-23
+key formula, used by the RED test&#39;s Section B to prove every scenario&#39;s
+put/get envelope pair is non-vacuous (keys genuinely match or genuinely
+differ, as each scenario claims) BEFORE any claim is made about the
+absent real tool.</p>
+<h2 id="tce-dedup-scenarios-mr_tce_duplicate--mr_tce_distinct">TCE-dedup
+scenarios (mr_tce_duplicate / mr_tce_distinct)</h2>
+<p>Two DIRECTORIES, each holding <code>mutant_a.sh</code> +
+<code>mutant_b.sh</code> (two real, independently-written toy mutated
+gate scripts) + an <code>expected</code> file whose first line is
+<code>DUPLICATE</code> or <code>DISTINCT</code>:</p>
+<ul>
+<li><code>mr_tce_duplicate</code> — the two scripts encode the SAME
+mutation, differing only in comment placement / blank lines /
+indentation. After comment/whitespace normalisation they are
+byte-identical.</li>
+<li><code>mr_tce_distinct</code> — the two scripts encode GENUINELY
+DIFFERENT mutations (different grep pattern). Normalisation must NOT
+collapse them (the negative control proving the dedup rule does not
+over-merge).</li>
+</ul>
+<p><code>tce_normalize_ref.py</code>
+(<code>../lib/tce_normalize_ref.py</code>) is this project&#39;s own
+reference normaliser (strip comments outside quotes, collapse
+whitespace, drop blank lines, SHA-256 the result), self-validated in the
+RED test before any claim is made about the absent real tool&#39;s
+<code>check-duplicate</code> subcommand.</p>
+<h2 id="what-this-red-test-does-not-cover">What this RED test does NOT
+cover</h2>
+<ul>
+<li>The mutation cache&#39;s PURGE/eviction policy (out of scope for T057;
+no plan.md text names one for T-C07).</li>
+<li>The interaction between mutation-reuse and the flake ledger (T-C09,
+<code>flake_ledger.py</code>) — DEC-23 states mutations are
+&quot;sampling/prediction confined to the nightly drift lane (T-C10)&quot; but
+does not name a specific flake-and-reuse interaction fixture; left to
+T-C09&#39;s own test (<code>test_flake_ledger_red.sh</code>, T059) per this
+project&#39;s <code>producer != oracle</code> scope-separation discipline
+(§11.4.240) — this file&#39;s scope is DEC-23&#39;s reuse/dedup rule alone.</li>
+<li>The CLI wire format below is UNCONFIRMED by any contracts/*.md file
+(none exists for T-C07 at the time this file was written — confirmed by
+a real directory listing, not assumed) and is DEFINED here,
+binding-if-adopted, per this project&#39;s established house precedent
+(test_verdict_cache_red.sh&#39;s header comment;
+fixtures/verdict_cache/README.md).</li>
+</ul>
+</body>
+</html>

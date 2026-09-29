@@ -475,19 +475,186 @@ _fp_split_clauses() {
 
 # Word-bounded "git ... push" detector -- "git" and "push" MUST each be
 # complete words (never a substring/prefix of a longer token).
-GIT_PUSH_RE='(^|[[:space:]])git([[:space:]]+[^[:space:]]+)*[[:space:]]+push([[:space:]]|$)'
+#
+# BOUNDARY WIDENING (2026-09-08). The leading anchor was `(^|[[:space:]])`,
+# i.e. "git" had to sit at start-of-string or after WHITESPACE. That is too
+# narrow: in real shell text `git` is very often preceded by a non-space
+# character that is still a genuine word boundary, and every one of those was
+# a silent MISS of a real force-push -- a §11.4.113 escape hatch in a rule
+# that has none. Measured, all previously ALLOWED:
+#     echo $(git push --force ...)     <- `(` before git   (command subst)
+#     echo `git push --force ...`      <- '`' before git   (backtick subst)
+#     (git push --force ...)           <- `(` before git   (subshell)
+#     /usr/bin/git push --force ...    <- `/` before git   (absolute path)
+#     x $(y $(git push --force z) w)   <- nested subst
+# The class is "non-space word boundary", so the anchor now excludes only the
+# characters that would make `git` a SUBSTRING of a longer identifier
+# ([:alnum:], `_`, `-`). `legit push` / `mygit push` still do NOT match,
+# because `t`/`y` are alnum and therefore not boundaries.
+# `.` and `:` are EXCLUDED from the boundary class (review finding W2):
+# they appear inside ordinary tokens that are not a git invocation --
+#   echo repo.git push +tag        x:git push +x        .../repo.git push +1
+# were all newly and wrongly REFUSED by the first widening. A real
+# relative invocation `./git push` is unaffected: the char immediately
+# before `git` there is `/`, which is still a boundary.
+GIT_PUSH_RE='(^|[^[:alnum:]_.:-])git([[:space:]]+[^[:space:]]+)*[[:space:]]+push([[:space:]]|$)'
 
+# Command-substitution EXPANDER (2026-09-08).
+#
+# A command substitution is a DIFFERENT command that happens to be spelled
+# inside another one. Scanning it as though its tokens were arguments to the
+# OUTER command produced a false-positive refusal (§11.4.201: a false-positive
+# refusal is a FAIL-bluff of equal standing to a false pass). Measured:
+#     git push gitlab main > "log_$(date -u +%Y%m%dT%H%M%SZ).log"
+# was BLOCKED as a force-push, because `date`'s format string `+%Y...` looks
+# like a `+<refspec>` and shared a clause with the outer `git push`.
+#
+# The fix is EXTRACTION, never splitting. Splitting the string at `$(` / `)`
+# would break the clause splitter's load-bearing safety property ("can only
+# ever MERGE clauses, never SPLIT a real force-push apart") -- it would tear
+# `git push $(get_remote) --force` into pieces and MISS a genuine force-push.
+# Instead each substitution BODY is emitted as its own additional command,
+# while the outer command keeps an inert ` @@SUB@@ ` placeholder in its
+# place -- so `git push` and `--force` stay in the SAME outer clause.
+#
+# Emits one command per line: the placeholder-substituted outer command
+# first, then each substitution body (recursively expanded the same way).
+# Handles `$(...)` (incl. nesting) and backticks. Inert regions are already
+# blanked by _scrub_inert_regions, so any `$(` reaching here is genuinely
+# live. An UNTERMINATED substitution falls back to emitting the raw string,
+# so malformed input can only ever MERGE -- never hide a force-push.
+_fp_expand_substitutions() {
+  local s="$1"
+  local outer="" body="" ch
+  local -a bodies=()
+  local i n=${#s} depth=0 in_bt=0
+  for ((i = 0; i < n; i++)); do
+    ch="${s:i:1}"
+    if [[ "$in_bt" -eq 1 ]]; then
+      if [[ "$ch" == '`' ]]; then
+        in_bt=0; bodies+=("$body"); body=""; outer+=" @@SUB@@ "
+      else
+        body+="$ch"
+      fi
+      continue
+    fi
+    if [[ "$depth" -gt 0 ]]; then
+      if [[ "$ch" == '(' ]]; then
+        depth=$((depth + 1)); body+="$ch"
+      elif [[ "$ch" == ')' ]]; then
+        depth=$((depth - 1))
+        if [[ "$depth" -eq 0 ]]; then
+          bodies+=("$body"); body=""; outer+=" @@SUB@@ "
+        else
+          body+="$ch"
+        fi
+      else
+        body+="$ch"
+      fi
+      continue
+    fi
+    if [[ "$ch" == '$' && "${s:i+1:1}" == '(' ]]; then
+      depth=1; i=$((i + 1)); continue
+    fi
+    if [[ "$ch" == '`' ]]; then in_bt=1; continue; fi
+    outer+="$ch"
+  done
+  if [[ "$depth" -gt 0 || "$in_bt" -eq 1 ]]; then
+    printf '%s\n' "$s"; return 0
+  fi
+  printf '%s\n' "$outer"
+  # DEPTH BOUND (review finding W3): a BYTE bound alone does not cover
+  # deep-but-short input -- a 300-deep nesting is only ~1.2 KB yet cost
+  # ~6 s, because each level re-scans its own body. Past the cap the
+  # remaining bodies are emitted UNEXPANDED: same safe direction as the
+  # byte bound -- tokens stay merged, so a false POSITIVE is possible and a
+  # false NEGATIVE is not.
+  local _depth="${2:-0}"
+  local b
+  for b in ${bodies[@]+"${bodies[@]}"}; do
+    [[ -z "$b" ]] && continue
+    if [[ "$_depth" -ge "${_FP_EXPAND_MAX_DEPTH:-16}" ]]; then
+      printf '%s\n' "$b"
+    else
+      _fp_expand_substitutions "$b" "$((_depth + 1))"
+    fi
+  done
+}
+
+# RUNTIME BOUND (review finding W3, 2026-09-08).
+# The expander is an O(n) character walk per recursion level, so a
+# pathologically large or deeply nested command costs O(depth x len).
+# Measured: a 300-deep nesting took ~14 s, and a 40 KB command ~69 s. A
+# `command` hook that TIMES OUT does not block the tool call, so unbounded
+# runtime is itself a latent bypass vector on a rule with no escape hatch.
+#
+# Above the bound the expander is SKIPPED and the raw scrubbed command is
+# scanned instead. That is the SAFE direction: skipping expansion can only
+# MERGE tokens back into one clause, which risks a false POSITIVE (a
+# refusal the operator can see and question) and never a false NEGATIVE (a
+# force-push that slips through). The boundary widening is unaffected, so
+# every escape route stays closed on oversized input.
+# FAIL-CLOSED BOUND RESOLUTION (round-2 review finding 1, 2026-09-08).
+# These two bounds were read straight from the environment. A NON-NUMERIC
+# value was catastrophic, and in two different directions:
+#   HELIX_GUARD_EXPAND_MAX_BYTES=abc -> `abc: unbound variable` under `set -u`
+#     aborted the hook with exit 1. A non-2 exit means PROCEED, so EVERY gate
+#     below went dark -- host-power (CONST-033), sudo (§6.U), --no-verify --
+#     on a config typo.
+#   HELIX_GUARD_EXPAND_MAX_DEPTH=abc -> the arithmetic error fired INSIDE the
+#     `< <(...)` process substitution; the subshell died, `while read`
+#     consumed truncated output, and the guard exited 0 -- a §11.4.201(6)
+#     FALSE NULL that silently ALLOWED a force-push.
+# A guard that config can switch off is not a guard (§11.4.252 fail-closed).
+# Both values are now accepted ONLY as bare digits; anything else silently
+# falls back to the default rather than propagating into arithmetic.
+_fp_numeric_or_default() {   # $1 = candidate, $2 = default
+  case "$1" in
+    ''|*[!0-9]*) printf '%s\n' "$2" ;;
+    *)           printf '%s\n' "$1" ;;
+  esac
+}
+_FP_EXPAND_MAX_BYTES="$(_fp_numeric_or_default "${HELIX_GUARD_EXPAND_MAX_BYTES:-}" 8192)"
+_FP_EXPAND_MAX_DEPTH="$(_fp_numeric_or_default "${HELIX_GUARD_EXPAND_MAX_DEPTH:-}" 16)"
+if [[ "${#SCRUBBED_COMMAND}" -le "$_FP_EXPAND_MAX_BYTES" ]]; then
+  _fp_commands() { _fp_expand_substitutions "$1"; }
+else
+  _fp_commands() { printf '%s\n' "$1"; }
+fi
+
+# The expander runs in a SUBSHELL when used as `< <(...)`, so a failure
+# inside it is invisible: the `while read` simply sees short output and the
+# guard reports ALLOW. Capture it first and treat any failure as BLOCK --
+# the fail-closed direction (round-2 review finding 1).
+if ! _FP_EXPANDED="$(_fp_commands "$SCRUBBED_COMMAND")"; then
+  block "§6.T.3 force-push (guard self-check)" \
+    "The force-push scanner could not process this command, so it cannot certify it is safe. Refusing rather than allowing (fail-closed). Simplify the command or report this as a guard defect."
+fi
+
+while IFS= read -r fp_cmd; do
+  [[ -z "$fp_cmd" ]] && continue
 while IFS= read -r fp_clause; do
   [[ -z "$fp_clause" ]] && continue
   if [[ "$fp_clause" =~ $GIT_PUSH_RE ]]; then
-    if [[ "$fp_clause" =~ (^|[[:space:]])--force([[:space:]]|=|$) ]] ||
-       [[ "$fp_clause" =~ (^|[[:space:]])-f([[:space:]]|$) ]] ||
-       [[ "$fp_clause" =~ (^|[[:space:]])--force-with-lease([[:space:]]|=|$) ]] ||
+    # FLAG TERMINATOR CLASS (widened 2026-09-08, review finding B1).
+    # These tests required the flag to be followed by whitespace, `=` or
+    # end-of-string. A flag that is the LAST token before `)` or a redirect
+    # was therefore INVISIBLE, so the extremely common subshell idiom
+    #     (cd repo && git push --force)
+    # was ALLOWED -- another §11.4.113 escape hatch. `)` and `>` are now
+    # terminators. Note the first fix's own test fixture happened to be
+    # spelled `(git push --force origin main)`, i.e. with tokens AFTER the
+    # flag: the one shape that passes. A fixture ending in `--force)` is
+    # added alongside this so the hole cannot re-open unobserved.
+    if [[ "$fp_clause" =~ (^|[[:space:]])--force([^[:alnum:]_-]|$) ]] ||
+       [[ "$fp_clause" =~ (^|[[:space:]])-f([^[:alnum:]_-]|$) ]] ||
+       [[ "$fp_clause" =~ (^|[[:space:]])--force-with-lease([^[:alnum:]_-]|$) ]] ||
        [[ "$fp_clause" =~ (^|[[:space:]])\+[^[:space:]] ]]; then
       block "§6.T.3 force-push" "$FORCE_MSG"
     fi
   fi
-done < <(_fp_split_clauses "$SCRUBBED_COMMAND")
+done < <(_fp_split_clauses "$fp_cmd")
+done <<< "$_FP_EXPANDED"
 
 if [[ "$SCRUBBED_COMMAND" =~ (^|[[:space:]])--no-verify([[:space:]]|$) ]]; then
   block "§6.T.3 --no-verify" "$FORCE_MSG"

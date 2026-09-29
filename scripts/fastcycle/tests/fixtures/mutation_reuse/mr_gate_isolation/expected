@@ -1,0 +1,12 @@
+gate_a=MISS gate_b=HIT
+REASON: two INDEPENDENT gates (GATE-MR-ISO-A, GATE-MR-ISO-B -- distinct
+gate scripts + distinct mutation patches, so their DEC-23 keys are
+provably distinct, never colliding) are put into ONE SHARED cache_dir.
+Gate A's observed input then changes (put uses observed_input.txt's real
+sha256, get uses observed_input_flipped.txt's real sha256) -- its cached
+KILLED verdict must NOT be reused (MISS, re-run required). Gate B's
+inputs are completely UNCHANGED between put and get in that SAME shared
+cache_dir -- its cached KILLED verdict MUST still be servable (HIT),
+proving changing one gate's input re-runs THAT gate's mutations without
+touching an unrelated gate's cache entry (plan T-C07 / FR-006's "not
+others" half, tasks.md T057 case 1).

@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>gen_lumenignore.py — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="gen_lumenignorepy--guide">gen_lumenignore.py — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T13:36:00Z</p>
+<p>Source: <code>constitution/scripts/lumen/gen_lumenignore.py</code>
+(93 lines). Tests:
+<code>constitution/scripts/lumen/tests/test_gen_lumenignore.sh</code>
+(uses <code>tests/fake_ollama.py</code>). Citations below are
+<code>gen_lumenignore.py:&lt;line&gt;</code> unless another file is
+named.</p>
+<h2 id="overview">Overview</h2>
+<p>Turns an ALLOW-list (&quot;these directories are first-party&quot;) into an
+explicit <code>.lumenignore</code> DENY list (docstring, lines 2-9). The
+reason: Lumen walks the whole tree and honours only
+<code>.gitignore</code>, <code>.lumenignore</code>,
+<code>.gitattributes</code>, a built-in skip-dir set and an extension
+list, so a project that wants only its first-party code indexed must
+deny everything else (lines 4-8). The tool lists the real children of
+every ancestor directory of every allowed root and denies each one that
+is not on the path to an allowed root (lines 30-61), then appends the
+scope file&#39;s own <code>deny</code> patterns (lines 62-66).</p>
+<p>It never emits a catch-all pattern such as <code>*</code>,
+<code>**</code> or <code>/*</code>, because Lumen refuses such roots
+(line 16, lines 64-65). It carries no project literal: every
+project-specific value comes from the scope file (line 17). Output is
+deterministic: sorted, de-duplicated, no timestamps, with the sha256 of
+the scope file in a header line (lines 13-14, 79-84).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>python3</code> (standard library only: <code>argparse</code>,
+<code>hashlib</code>, <code>json</code>, <code>os</code>,
+<code>sys</code>, lines 19-23).</li>
+<li>A repository directory to inspect and a scope file in JSON.</li>
+<li>To run the test: the Lumen binary (<code>$LUMEN_BIN</code>, default
+the newest <code>lumen-linux-amd64</code> under
+<code>~/.claude-shared/plugins/cache/claude-plugins-official/lumen/</code>),
+otherwise the test prints <code>SKIP</code> and exits 2
+(<code>tests/test_gen_lumenignore.sh:9</code>).</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gen_lumenignore.py</span> <span class="at">--repo</span> <span class="op">&lt;</span>root<span class="op">&gt;</span> --scope <span class="op">&lt;</span>scope.json<span class="op">&gt;</span> [--out <span class="op">&lt;</span>file<span class="op">&gt;</span>]</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--repo DIR</code></td>
+<td>Repository root whose real directory listing is read. Required</td>
+<td>line 72</td>
+</tr>
+<tr>
+<td><code>--scope FILE</code></td>
+<td>Scope file (JSON). Required</td>
+<td>line 73</td>
+</tr>
+<tr>
+<td><code>--out FILE</code></td>
+<td>Write the result to FILE (plain write, not atomic). Without it the
+result goes to stdout</td>
+<td>lines 74, 85-89</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>argparse usage; the description is only the first docstring
+line</td>
+<td>lines 71, 75</td>
+</tr>
+</tbody>
+</table>
+<p>Scope file format (docstring lines 11-12):</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;allow&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="st">&quot;src_first&quot;</span><span class="ot">,</span> <span class="st">&quot;dev/keep&quot;</span><span class="ot">,</span> <span class="st">&quot;docs&quot;</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;deny&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="st">&quot;dev/keep/big/&quot;</span><span class="ot">,</span> <span class="st">&quot;**/*.min.js&quot;</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;root_files&quot;</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">}</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>allow</code></td>
+<td>Directories (relative to <code>--repo</code>, leading and trailing
+<code>/</code> stripped) that stay visible. Required non-empty</td>
+<td>lines 27-29</td>
+</tr>
+<tr>
+<td><code>deny</code></td>
+<td>Extra gitignore patterns; a pattern not starting with <code>/</code>
+or <code>**</code> gets a leading <code>/</code> prepended</td>
+<td>lines 62-66</td>
+</tr>
+<tr>
+<td><code>root_files</code></td>
+<td>Documented as &quot;keep files directly at repo root&quot;. See Findings: it
+has no effect on the output</td>
+<td>line 56</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples">Examples</h3>
+<p>Run against a throwaway repository in a scratch directory
+(<code>src_first/</code>, <code>third/</code>, <code>dev/keep/</code>,
+<code>dev/drop/</code>, <code>docs/</code>, a root
+<code>README.md</code>, <code>dev/note.txt</code> and a symlink
+<code>lnk -&gt; third</code>), never against the real tree.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Command</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>gen_lumenignore.py --help</code></td>
+<td>VERIFIED (ran; saw usage plus the one-line description, exit 0)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>gen_lumenignore.py --repo &lt;r&gt; --scope &lt;s&gt;</code>
+(scope: allow <code>src_first</code>, <code>dev/keep</code>,
+<code>docs</code>; deny <code>dev/keep/big/</code>,
+<code>**/*.min.js</code>, <code>x/y</code>)</td>
+<td>VERIFIED (ran; stdout: 3 header lines <code># GENERATED ...</code>,
+<code># scope-sha256: &lt;64 hex&gt;</code>,
+<code># allow: dev/keep, docs, src_first</code>, then
+<code>**/*.min.js</code>, <code>/dev/drop/</code>,
+<code>/dev/keep/big/</code>, <code>/dev/note.txt</code>,
+<code>/third/</code>, <code>/x/y</code>; exit 0)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Same with <code>--out &lt;file&gt;</code></td>
+<td>VERIFIED (ran; exit 0; the file was byte-identical to the stdout of
+example 2; nothing written in the repository)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Scope with <code>&quot;allow&quot;: []</code></td>
+<td>VERIFIED (ran;
+<code>scope.allow is empty - refusing to emit a deny-everything file</code>,
+exit 1)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Scope with <code>&quot;deny&quot;: [&quot;/*&quot;]</code></td>
+<td>VERIFIED (ran; <code>catch-all deny pattern refused: /*</code>, exit
+1)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Scope without an <code>allow</code> key</td>
+<td>VERIFIED (ran; same &quot;allow is empty&quot; refusal, exit 1)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Scope file that is not valid JSON, and a missing scope file</td>
+<td>VERIFIED (ran; Python traceback ending <code>JSONDecodeError</code>
+/ <code>FileNotFoundError</code>, exit 1 each)</td>
+</tr>
+<tr>
+<td>8</td>
+<td>No arguments</td>
+<td>VERIFIED (ran;
+<code>error: the following arguments are required: --repo, --scope</code>,
+exit 2)</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>--repo /nonexistent</code></td>
+<td>VERIFIED (ran; exit 0 and only the scope&#39;s <code>deny</code>
+patterns are emitted; see Edge cases)</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>TMPDIR=&lt;scratch&gt; bash tests/test_gen_lumenignore.sh</code></td>
+<td>VERIFIED (ran; <code>PASS: deterministic output</code>,
+<code>PASS: no catch-all pattern</code>,
+<code>PASS: control needle visible</code>,
+<code>PASS: lumen indexed exactly the scoped set</code>,
+<code>RESULT: PASS</code>, exit 0; it builds its own fixture repository,
+a fake embedding server on a random localhost port and its own
+<code>XDG_DATA_HOME</code>/<code>XDG_CONFIG_HOME</code> under a
+<code>mktemp</code> directory, and cleans up; nothing was left in the
+scratch <code>TMPDIR</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="outputs">Outputs</h2>
+<ul>
+<li>The <code>.lumenignore</code> text: three header lines
+(<code># GENERATED by gen_lumenignore.py ...</code>,
+<code># scope-sha256: &lt;sha256 of the scope file bytes&gt;</code>,
+<code># allow: &lt;sorted allow list as written&gt;</code>), then one
+pattern per line, sorted and de-duplicated (lines 79-84).</li>
+<li>Denied directories are written <code>/&lt;path&gt;/</code>
+(anchored, trailing slash); denied files inside a kept directory are
+written <code>/&lt;path&gt;</code> (lines 59, 61); scope
+<code>deny</code> patterns follow the rule in the table above.</li>
+<li>Nothing is printed on stderr in normal operation; refusals use
+<code>SystemExit(&lt;message&gt;)</code>, which prints the message on
+stderr and exits 1 (lines 29, 65).</li>
+</ul>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Text written or printed</td>
+<td>line 92</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Empty or missing <code>allow</code>; a catch-all deny pattern; an
+unreadable or invalid scope file (uncaught Python exception)</td>
+<td>lines 29, 65, 76-77</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Argument error (argparse)</td>
+<td>line 75</td>
+</tr>
+</tbody>
+</table>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><strong>Only the ancestor chain is walked.</strong> Starting at the
+repo root, the tool lists a directory only if it is an ancestor of an
+allowed root (<code>keep</code>, lines 30-35, 52-54); everything else at
+that level is denied as a whole directory, so the deny list stays short
+even for a huge tree.</li>
+<li><strong>Files at the repository root are never denied</strong> (line
+56-57: when <code>rel == &quot;&quot;</code> and <code>root_files</code> is true
+they are skipped; when <code>root_files</code> is false the code falls
+through to <code>continue</code> without emitting anything, see
+Findings). Files inside a kept-but-not-allowed directory ARE denied one
+by one (line 58-59; example 2 shows <code>/dev/note.txt</code>).</li>
+<li><strong>Symlinks are treated as files, not directories</strong>
+(<code>os.path.islink</code>, line 49). A symlink at the root is not
+listed; a symlink inside a kept directory would be denied as a file. Not
+run with a symlink inside a kept directory.</li>
+<li><strong>A missing <code>--repo</code> is not an error.</strong> An
+unlistable directory is skipped (<code>OSError</code>, lines 42-45);
+with a nonexistent repository only the scope&#39;s <code>deny</code>
+patterns are emitted (example 9). The <code>allow</code> paths are not
+checked for existence.</li>
+<li><strong>Deny patterns are trimmed and de-duplicated</strong>, and
+leading/trailing whitespace is removed before the check for catch-alls
+and the <code>/</code> prefixing (lines 62-66). The catch-all list is
+exactly <code>*</code>, <code>**</code>, <code>**/*</code>,
+<code>/*</code>, <code>/**</code> (line 64); other broad patterns are
+not refused.</li>
+<li><strong>Allowed roots that overlap</strong> (for example
+<code>dev</code> and <code>/dev/keep/</code>) are accepted; leading and
+trailing slashes are stripped before sorting (line 27). The
+<code># allow:</code> header line prints the values as written, not
+stripped (line 82).</li>
+<li><strong><code>--out</code> is not atomic</strong> (plain
+<code>open(..., &quot;w&quot;)</code>, line 86); a crash mid-write leaves a
+truncated file.</li>
+<li><strong>The deny list is a snapshot of the working tree.</strong> A
+directory added later to an ancestor is not denied until the file is
+regenerated; the header&#39;s <code>scope-sha256</code> covers the scope
+file only, not the tree.</li>
+</ul>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<ol type="1">
+<li>Parse arguments, read the scope file bytes and parse them as JSON
+(lines 75-77).</li>
+<li><code>build</code>: collect the allowed roots and every ancestor
+path (lines 27-35); iterate a stack of directories starting at the root,
+listing each sorted; skip allowed children, descend into kept ancestor
+directories, deny everything else (lines 38-61); append the scope&#39;s
+<code>deny</code> patterns (lines 62-66); return the sorted unique list
+(line 67).</li>
+<li>Prepend the three header lines and write to <code>--out</code> or
+stdout (lines 79-89).</li>
+</ol>
+<h2 id="findings">Findings</h2>
+<ol type="1">
+<li><strong><code>root_files: false</code> does nothing.</strong> The
+docstring describes <code>root_files</code> as &quot;keep files directly at
+repo root&quot; (line 12), but at line 56-57 only the <code>true</code> case
+is handled; with <code>false</code> execution reaches
+<code>continue</code> at line 60 without emitting a pattern for
+root-level files. Verified: the output body for <code>root_files</code>
+true and false was identical (only the <code># scope-sha256:</code> line
+differed), and the root <code>README.md</code> was not listed in
+either.</li>
+<li><strong>The in-source doc block is a docstring that lacks
+fields</strong> the constitution&#39;s script-documentation convention
+lists: it has Purpose, Usage, Inputs, Outputs and Side-effects but no
+Exit codes, Dependencies or Cross-references (lines 2-17).</li>
+<li><strong><code>--help</code> shows only the first docstring
+line</strong> as the description (line 71).</li>
+</ol>
+<h2 id="related">Related</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="lumen_verify.md">lumen_verify</a></td>
+<td>Verifies a Lumen index end to end; a <code>.lumenignore</code>
+produced here controls what it can index</td>
+</tr>
+<tr>
+<td><code>tests/test_gen_lumenignore.sh</code>,
+<code>tests/fake_ollama.py</code></td>
+<td>The test and the stub embedder it uses</td>
+</tr>
+<tr>
+<td><a href="scope_render.md">scope_render</a></td>
+<td>The CodeGraph counterpart: renders the CodeGraph scope from a scope
+file</td>
+</tr>
+<tr>
+<td><a href="owed_report.md">owed_report</a></td>
+<td>Reports whether this tool has tests and a guide</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26 (source lines read on that date; examples run on a scratch
+repository and the test in a scratch <code>TMPDIR</code>; no real index,
+repository tree or <code>.lumenignore</code> of this project was
+touched).</p>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "_comment": "T086 golden fixture expected values. This file states the SUBSET of the future escape_classify.py --out document's fields this RED test asserts on -- not a full-document exact match (the tool's exact JSON envelope, key-ordering, and provenance fields such as classified_by/reviewed_by are T094's to design; C-002 of contracts/common-conventions.md only fixes canonical-JSON formatting, not this tool's schema name). The test's own checker (test_escape_classify_red.sh) searches the real --out document for an object whose item_id == 'ATM-953' wherever it nests, then compares the fields below -- so it is robust to the top-level container key name T094 eventually chooses (rows / classifications / items / etc.), while still being a REAL, non-vacuous check per field (constitution 11.4.107(10)/11.4.201).",
+  "expected_exit_code": 0,
+  "item_id": "ATM-953",
+  "primary": "E1",
+  "contributing": [],
+  "detection_channel": "manual-testing-detected",
+  "reopen_events": [869],
+  "evidence_paths_at_least": [
+    "qa-results/atm953/GREEN_0.1.4_clean_flash_93f4_20260728T124901Z.log",
+    "qa-results/atm953_reopen_20260728/REOPEN_EVIDENCE.md"
+  ]
+}

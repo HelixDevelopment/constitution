@@ -1,0 +1,7 @@
+#!/bin/sh
+# UNIT-TEST STUB ONLY (constitution §11.4.27: stubs are permitted only in unit tests).
+# Mimics the stock codegraph launcher: exec node on lib/dist/bin/codegraph.js so the
+# process identity (argv0 = node, script = */lib/dist/bin/codegraph.js) matches the real one.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+STUB_ROLE=stock; export STUB_ROLE
+exec node "$DIR/lib/dist/bin/codegraph.js" "$@"

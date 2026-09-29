@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "description": "I2 fixture: a wrong-tier review is refused before findings are ever read -- this content is never inspected.",
+      "file": "review_record_fixture_wrongtier.sh",
+      "id": "F1",
+      "line": 5,
+      "severity": "IMPORTANT"
+    }
+  ],
+  "round": 1,
+  "verdict": "NO-GO"
+}

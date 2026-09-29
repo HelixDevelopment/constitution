@@ -1,0 +1,61 @@
+T-D06 / CT-006 contract for the golden_window fixture (window 2026-07-01..
+2026-07-31, as_of=2026-07-31, window_days=30):
+
+  Per-type reopen block (CT-006 field shape: reopened, closed, window,
+  dedup_rows_removed, rate):
+
+    Bug:     { "reopened": 1, "closed": 5, "rate": 0.2 }
+    Task:    { "reopened": 0, "closed": 2, "rate": 0.0 }
+    Feature: { "reopened": 0, "closed": 1, "rate": 0.0 }
+
+  Overall (aggregated across all three types):
+
+    { "reopened": 1, "closed": 8, "rate": 0.125 }
+
+  "excluded_retroactive": [] -- this fixture deliberately contains no
+  Opened->closure created_at gap under 60 seconds (see
+  negative_control_retroactive/ for that mechanic in isolation).
+
+HAND-COMPUTED GROUND TRUTH (independent of any reopen_rate.py invocation --
+this is the derivation the RED test's own Python cross-check performs and
+compares byte-for-byte against, per §11.4.245's DERIVED-oracle strategy):
+
+  Bug population = 6 items (B-001..B-006). B-005's ONLY closure event
+  (Fixed on_date=2026-06-20) falls BEFORE window.from=2026-07-01, so B-005
+  is NOT a member of closed_in_window -- 5 Bug items remain
+  (B-001,B-002,B-003,B-004,B-006). Of those 5, B-001 has a Reopened event
+  on_date=2026-07-10 (inside the window) -- it is the only Bug member whose
+  Reopened event ALSO falls inside the window. B-006 DOES carry a Reopened
+  event, but its on_date=2026-08-05 is AFTER window.to=2026-07-31, so B-006
+  contributes to the DENOMINATOR (closed=5) but NOT the numerator
+  (reopened stays 1, not 2) -- this is the numerator/denominator window
+  boundary distinguished from B-005's pure denominator boundary.
+  Bug: reopened=1, closed=5, rate = 1/5 = 0.2 exactly.
+
+  Task population = 2 items (T-001, T-002), both Completed inside the
+  window, neither reopened. Task: reopened=0, closed=2, rate = 0/2 = 0.0.
+
+  Feature population = 1 item (F-001), Implemented inside the window, not
+  reopened. Feature: reopened=0, closed=1, rate = 0/1 = 0.0.
+
+  Overall: closed = 5 + 2 + 1 = 8; reopened = 1 + 0 + 0 = 1;
+  rate = 1/8 = 0.125 exactly.
+
+MUST NOT appear anywhere in the output for this fixture: B-005 counted
+toward any type's closed population; B-006's Reopened event counted toward
+the numerator; any rate computed over a DIFFERENT population than the one
+named above (e.g. a naive whole-history count instead of the windowed,
+matched population -- this is exactly the class golden_bad_mismatched_
+populations/ tests as a rejection case; here it must simply be CORRECT);
+"RATE_NOT_COMPUTABLE" anywhere (this fixture's populations are clean and
+matched, so a real numeric rate is the only correct answer for every type
+and overall).
+
+Paired-mutation targets this fixture protects against (T093): counting a
+Reopened event outside the window toward the numerator (would inflate Bug
+to reopened=2, rate=0.4); counting a closure event outside the window
+toward the denominator (would inflate Bug to closed=6); computing the
+overall rate as an average-of-per-type-rates instead of a
+sum-of-counts ratio (0.2+0+0)/3 = 0.0667 would silently disagree with the
+correct 0.125 -- the exact-match assertion below catches either defect the
+instant it is introduced.

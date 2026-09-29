@@ -1,0 +1,45 @@
+{
+  "_fixture": "golden_atm953",
+  "_purpose": "Scenario 3/4 of T023: the task line's \"golden: ATM-953 hand-verified stages\" fixture, contract CT-009's default needle item (\"the R1-verified ATM-953 Fixed 2026-07-28\"). Unlike the other three fixtures in this directory (all synthetic), this fixture's item_history rows and git_log entry are the REAL rows for the REAL item ATM-953, extracted verbatim from the live tracked SSoT and verified against it directly.",
+  "_synthetic": false,
+  "_how_this_was_obtained": [
+    "sqlite3 -readonly docs/workable_items.db \"SELECT id, event_type, by, on_date, reason, evidence_path, created_at FROM item_history WHERE atm_id='ATM-953' ORDER BY id;\" -- run 2026-09-28 against git HEAD ada22d2778276b15e891e263b6243e8129d824a1",
+    "timeout 60 git log --all --grep=\"ATM-953\" --pretty=format:\"%H|%ad|%cd|%s\" --date=iso-strict -i -- run 2026-09-28 against the same HEAD",
+    "ls -la on both cited evidence_path files (both confirmed to exist on disk 2026-09-28)"
+  ],
+  "item_history": [
+    { "id": 825, "event_type": "Opened",   "by": "User", "on_date": "2026-07-28", "reason": null, "evidence_path": null, "created_at": "2026-07-28 05:46:59" },
+    { "id": 827, "event_type": "Updated",  "by": "AI",   "on_date": "2026-07-28", "reason": null, "evidence_path": null, "created_at": "2026-07-28 05:55:04" },
+    { "id": 830, "event_type": "Updated",  "by": "AI",   "on_date": "2026-07-28", "reason": null, "evidence_path": null, "created_at": "2026-07-28 06:11:23" },
+    { "id": 831, "event_type": "Fixed",    "by": "AI",   "on_date": "2026-07-28", "reason": null, "evidence_path": "qa-results/atm953/GREEN_0.1.4_clean_flash_93f4_20260728T124901Z.log", "created_at": "2026-07-28 08:03:46" },
+    { "id": 869, "event_type": "Reopened", "by": "User", "on_date": "2026-07-28", "reason": "manual-testing-detected", "evidence_path": "qa-results/atm953_reopen_20260728/REOPEN_EVIDENCE.md", "created_at": "2026-08-05 11:30:17" }
+  ],
+  "control_needle_evidence_files_confirmed_present": [
+    { "path": "qa-results/atm953/GREEN_0.1.4_clean_flash_93f4_20260728T124901Z.log", "size_bytes": 1255784, "mtime": "2026-07-28 13:03" },
+    { "path": "qa-results/atm953_reopen_20260728/REOPEN_EVIDENCE.md", "size_bytes": 2515, "mtime": "2026-07-28 16:30" }
+  ],
+  "git_log_corroborating_commit": {
+    "sha": "f1abb59eac851e560a49b9fb4465297f84d66bae",
+    "author_date": "2026-07-28T14:28:49+05:00",
+    "committer_date": "2026-07-28T14:28:49+05:00",
+    "subject": "feat(0.1.4): build+deploy 1.2.1-dev-0.1.4 — ATM-953 video-to-TV + ATM-954-D4 recents (MD5 21d8af00a7eb93348c768b8a57391938, post_build PASSED, all 3 devices flashed+verified)",
+    "note_chronology": "14:28:49+05:00 == 09:28:49 UTC, which is ~85 minutes after the Fixed event's created_at (2026-07-28 08:03:46 UTC) -- chronologically consistent with a tracker-close-then-build-deploy sequence, though this is a single commit whose subject names BOTH ATM-953 and ATM-954, so per-item commit attribution here would itself trigger data-model.md's COMMIT_ATTRIBUTION_BY_GREP data-quality flag if a future implementer attributed the whole commit's diff to ATM-953 alone."
+  },
+  "data_quality_observation_not_fabricated": {
+    "flag_candidate": "RETROACTIVE_REGISTRATION or DATE_ONLY_RESOLUTION (data-model.md §1)",
+    "detail": "item_history row id=869 (Reopened) carries on_date='2026-07-28' but created_at='2026-08-05 11:30:17' -- an 8-day gap between the claimed event date and the DB write time. Per CT-003 (contract), a span between two db_write instants must never be presented as `elapsed`; per data-model.md's DATE_ONLY_RESOLUTION / RETROACTIVE_REGISTRATION flags, this exact on_date-vs-created_at discrepancy is the class of defect the flag exists to surface. This fixture does NOT resolve which of the two dates is the 'true' event time -- that determination, and whichever flag applies, is left to cycle_report.py's own CT-005 implementation to classify, per §11.4.6 (no-guessing: this RED-test author does not invent the resolution)."
+  },
+  "honest_gap_deferred_to_T042": {
+    "statement": "This fixture supplies REAL, citable item_history rows (Opened/Updated/Updated/Fixed/Reopened) plus ONE corroborating git commit for ATM-953. It does NOT attempt a full mapping of these onto all 11 data-model.md §1.1 stages (intake, investigation, implementation, test_authoring, gate_runs, build, review_rounds, fix_rounds, commit_push, deployment, manual_qa_wait) -- that full hand-verification, cross-referencing git log/builds.tsv/qa-results mtimes/agent_registry.jsonl/review-round records per stage, is tasks.md's own T042 (\"Hand-verify the stage figures of ≥3 items (ATM-953 plus two more) from raw artefacts and diff them against cycle_report.py output; store the diff under qa-results/fastcycle/us1/handverify/\"), a SEPARATE LATER task in this same User Story. Per §11.4.6 (no-guessing), this file does not fabricate a plausible-looking per-stage timestamp table where none has yet been hand-verified.",
+    "stages_with_no_citable_source_in_this_fixture": ["intake", "investigation", "implementation", "test_authoring", "gate_runs", "review_rounds", "fix_rounds", "manual_qa_wait"],
+    "stages_with_partial_citable_source_in_this_fixture": {
+      "build": "corroborated only indirectly by the deployment commit's subject line (post_build PASSED) -- no per-item build-log or builds.tsv row for ATM-953 specifically was found in this pass",
+      "commit_push": "the single corroborating commit f1abb59e (but it is a multi-item commit -- see data_quality_observation_not_fabricated / COMMIT_ATTRIBUTION_BY_GREP caveat above)",
+      "deployment": "the same commit's subject line states \"all 3 devices flashed+verified\""
+    }
+  },
+  "expected_ct009_needle_default": {
+    "known_present": { "atm_id": "ATM-953", "event_type": "Fixed", "on_date": "2026-07-28" },
+    "known_absent_example": "ATM-99999-NEGATIVE-CONTROL (verified 2026-09-28: zero rows against the live items table)"
+  }
+}

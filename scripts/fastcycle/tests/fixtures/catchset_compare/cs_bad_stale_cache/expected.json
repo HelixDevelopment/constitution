@@ -1,0 +1,20 @@
+{
+  "schema": "catchset/v1",
+  "fixture": "cs_bad_stale_cache",
+  "kind": "golden-bad",
+  "contract_clause": "CS-004; contracts/catch-set-comparison-harness.md RED fixtures row 4",
+  "defect_id": "D1",
+  "defect_patch": "../_shared/patches/defect_d1_widget.sh",
+  "baseline_all_pass": true,
+  "old_missed": [],
+  "assertion_changes": [],
+  "counts": {"caught_old": 1, "caught_new": 0, "lost": 1, "gained": 0},
+  "old_verdict": "CAUGHT",
+  "new_verdict": "MISSED",
+  "old_catchers": ["g_marker"],
+  "new_catchers": [],
+  "expected_exit_code": 1,
+  "named_defects": ["D1"],
+  "stale_cache_used": [{"defect_id": "D1", "gate_id": "g_marker", "cached_verdict": "PASS", "ref": "stale_cache.json"}],
+  "note": "NEW's manifest is identical to OLD's (unlike cs_bad_dropped_gate/cs_bad_overeager_skip), and a LIVE re-run of g_marker against the D1-mutated copy WOULD fail -- but NEW instead reports the STALE cached PASS from the clean-tree run (stale_cache.json). Proves FR-007 (verdict-cache correctness) errors surface at this comparison layer too, per contract row 4's own annotation."
+}

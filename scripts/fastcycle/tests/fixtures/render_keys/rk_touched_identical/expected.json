@@ -1,0 +1,9 @@
+{
+  "scenario": "touched-but-identical file fixture shows mtime vs content difference (plan.md T-C12; task line #4)",
+  "source": "source.md",
+  "recorded_key_file": "key_matching.json",
+  "self_validation_mechanism": "This test genuinely `touch`es source.md (bumping its mtime forward) WITHOUT editing a single byte, then genuinely re-computes its sha256 and compares against the pre-touch sha256 -- they must be IDENTICAL while `stat`'s reported mtime differs. This is a real, measured proof (never assumed) that mtime and content are genuinely distinguishable on this host -- the underlying property a content-addressed key relies on.",
+  "today_behaviour": "docs/render_keys.py does not exist yet (same control needle as rk_stale_key_caught/). This test genuinely invokes `docs/render_keys.py check --source source.md --format html --key-file key_matching.json ...` after the touch -- the invocation fails with rc=127 TODAY, confirming the tool is genuinely absent.",
+  "future_behaviour_once_T-C12_lands": "`render_keys.py check` must recompute the CURRENT key from source.md's (byte-identical, never edited) bytes, compare it against key_matching.json's recorded key (622f614b...), find them EQUAL despite the mtime touch, print FRESH, and exit 0 -- skipping the render entirely. This is the DIRECT positive contrast to rk_unchanged_today/'s proof that the CURRENT mtime-only exporter wastes a render on this exact class of input.",
+  "note": "Pairs with rk_unchanged_today/ as a before/after: same underlying scenario (mtime touched, content unchanged), opposite tool (today's mtime-only exporter vs T-C12's future content-addressed gate), opposite outcome (wasteful re-render vs correct skip)."
+}

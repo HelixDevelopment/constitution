@@ -1,0 +1,6 @@
+{
+  "change_id": "sha256:78ea8f557204f1251690e45c3179335cb6408cc6f6cf57322ee355ecd68702c9",
+  "path": "widget_c_unrelated.sh",
+  "diff": "change_widget_c_unrelated.diff",
+  "lines_changed": 1
+}

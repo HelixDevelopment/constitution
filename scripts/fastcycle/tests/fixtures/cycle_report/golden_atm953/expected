@@ -1,0 +1,28 @@
+CT-009 needle contract (this fixture supplies the default needle item cited
+in the contract): when cycle_report.py's sampler is pointed at the live
+tracker DB, it MUST see the real ATM-953 `Fixed` closure event dated
+2026-07-28 (item_history id=831, created_at 2026-07-28 08:03:46) and it MUST
+NOT see a fabricated id such as ATM-99999-NEGATIVE-CONTROL (verified 2026-09-28:
+zero rows). Failure of either half of this needle MUST exit 3 per the
+contract's Exit codes table, BEFORE any sampling proceeds.
+
+Honest hand-verification boundary (documented, not fabricated): this fixture
+is real ground-truth data for ATM-953's item_history + one corroborating git
+commit ONLY. It is NOT a full 11-stage hand-verified Cycle Record -- FR-001's
+own hand-verification requirement ("≥3 items" incl. ATM-953) is tasks.md's
+T042, a separate later task. Do NOT treat this fixture's absence of a
+per-stage timestamp table for 8 of the 11 stages as a defect in
+cycle_report.py; treat it as this fixture's own honestly-recorded scope
+boundary (tracker_export.json's "honest_gap_deferred_to_T042" block).
+
+What CAN be checked against this fixture today (T023 RED scope): that
+cycle_report.py's tracker reader, given this exact item_history row set,
+produces a `Fixed` stage-adjacent record for ATM-953 whose `on_date` is
+2026-07-28 and whose evidence_path is
+"qa-results/atm953/GREEN_0.1.4_clean_flash_93f4_20260728T124901Z.log" (a
+file confirmed to exist on disk), and that it flags (per CT-005) the
+Reopened row's on_date/created_at discrepancy documented in
+"data_quality_observation_not_fabricated" -- as SOME data-quality flag from
+the closed set, never silently dropped, never invented as a specific flag
+value by this RED test (that classification decision belongs to
+cycle_report.py's own CT-005 implementation).

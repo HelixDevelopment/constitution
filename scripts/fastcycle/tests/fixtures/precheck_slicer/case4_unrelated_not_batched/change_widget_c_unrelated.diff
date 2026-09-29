@@ -1,0 +1,6 @@
+--- a/widget_c_unrelated.sh
++++ b/widget_c_unrelated.sh
+@@ -1,3 +1,3 @@
+ #!/bin/sh
+-echo "widget c old, unrelated component"
++echo "widget c new, unrelated component"

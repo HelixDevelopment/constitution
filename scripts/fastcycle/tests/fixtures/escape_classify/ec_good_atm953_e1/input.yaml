@@ -1,0 +1,60 @@
+# T086 golden fixture (constitution/scripts/fastcycle/tests/test_escape_classify_red.sh)
+# contract closure-refusal.md EC-001..EC-003 / data-model.md §6.1-6.2 EscapeClassification.
+#
+# Window: --as-of 2026-07-28 --window-days 0 => [2026-07-28, 2026-07-28] inclusive
+# (cycle_report.py precedent, already landed T041: window.from = as_of - window_days,
+# BETWEEN window.from AND window.to). Real, live-verified fact (2026-09-29, docs/
+# workable_items.db): exactly ONE item_history row has event_type='Reopened' AND
+# on_date='2026-07-28' -- ATM-953 (rowid=869). No other item reopens that day, so
+# this is a real, natural single-item window, not a synthetic truncation.
+#
+# Provenance for the E1 wrong-layer-evidence classification (real, citable, never
+# guessed -- constitution 11.4.6):
+#   - research.md RC-22 (2.4): "Reopens are driven by closure on wrong-layer
+#     evidence" -- CONFIRMED (mechanism); cites "ATM-953: GREEN asserted
+#     routing-only; reopened ~3.5 h later by manual QA (P-39)".
+#   - research.md P-39 (§2.3 table): "ATM-953 intra-day timeline ... Opened->Fixed
+#     2 h 17 m; reopened ~3 h 27 m after the Fixed write".
+#   - data-model.md §6.1 E1 row cites ATM-953 BY NAME as the establishing example:
+#     "R1: ATM-953's GREEN asserted routing counters, not the viewed result".
+#   - The item's own real qa-results/atm953_reopen_20260728/REOPEN_EVIDENCE.md
+#     (§11.4.226 bluff-audit, written by the AI on reopen) states IN ITS OWN WORDS:
+#     "test_atm953_video_2nd_display_no_thread_loop.sh GREEN asserts ONLY: (a) no
+#     CalledFromWrongThreadException, (b) moveRootTaskToDisplay->2 >= 1 (routed to
+#     display 2 AT LEAST ONCE) ... It does NOT assert ... that video actually PLAYS
+#     (frame-advance liveness 11.4.107) ... a 11.4.226 partial-oracle bluff ... the
+#     user-facing defect (endless loop + video never starts, no crash) persisted."
+#     -- (b) IS the "routing call happened" proxy assertion the E1 definition names
+#     verbatim (data-model.md: "proxy assertions such as 'routing call happened'").
+#   - item_history rowids (docs/workable_items.db, live-queried 2026-09-29):
+#       id=831 Fixed    2026-07-28 evidence_path=qa-results/atm953/GREEN_0.1.4_clean_flash_93f4_20260728T124901Z.log
+#       id=869 Reopened 2026-07-28 by=User reason=manual-testing-detected
+#              evidence_path=qa-results/atm953_reopen_20260728/REOPEN_EVIDENCE.md
+#
+# UNCONFIRMED (constitution 11.4.6 -- this fixture's own choice of shape, binding
+# on T094 unless T094 records an explicit, evidenced deviation): the top-level
+# schema/entries/item_id/reopen_events/primary/contributing/detection_channel/
+# evidence field names below are EXACTLY the EscapeClassification fields fixed
+# by data-model.md line 184 (`{item_id, reopen_events, primary, contributing,
+# detection_channel, evidence: [EvidencePath >=1], classified_by, reviewed_by}`);
+# EvidencePath's own shape (`path` + `content_address`) is data-model.md line 27
+# verbatim ("Repo-relative path ... plus its ContentAddress at capture time").
+# `classified_by`/`reviewed_by` are the TOOL's own provenance fields (who ran/
+# reviewed the classification) -- this fixture does not supply them as INPUT
+# because EC-002 lists them nowhere among the fields "each entry has"; if T094
+# requires them as input this fixture is an honest, documented gap, not a
+# fabricated value (constitution 11.4.6).
+schema: escape-classify-input/v1
+as_of: "2026-07-28"
+window_days: 0
+entries:
+  - item_id: ATM-953
+    reopen_events: [869]
+    primary: E1
+    contributing: []
+    detection_channel: manual-testing-detected
+    evidence:
+      - path: qa-results/atm953/GREEN_0.1.4_clean_flash_93f4_20260728T124901Z.log
+        content_address: "sha256:501b235bf19b38787ec53cde6cd30b4ec859b2549f06d180f2be530f1ccd8913"
+      - path: qa-results/atm953_reopen_20260728/REOPEN_EVIDENCE.md
+        content_address: "sha256:687b3d1e228822ab75342e60e145d64e471cbd7aab636dd5f027a458029c154c"

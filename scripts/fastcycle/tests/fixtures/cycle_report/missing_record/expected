@@ -1,0 +1,16 @@
+CT-002 / CT-004 / data-model.md V-CR-2 contract for the `build` stage of ATM-90001:
+
+  "stage": "build",
+  "start": "UNMEASURED",
+  "end": "UNMEASURED",
+  "elapsed": "UNMEASURED",
+  "missing_instrument": "per-item build-log/builds.tsv row keyed to ATM-90001 (R1's instrument table; contract CT-002 default mapping)"
+
+MUST NOT appear anywhere in the output for this stage: the numeral 0, null,
+NaN, an empty string standing in for a number, or any interpolated/averaged
+value borrowed from a sibling item or a sibling stage. Grep-testable
+negation: the string "UNMEASURED" MUST occur for this stage's start/end/
+elapsed fields, and no digit-only numeric value may occur in their place.
+This is the exact anti-pattern the T013/T027 paired mutation targets
+("default a missing stage to 0") -- a cycle_report.py that coerces this gap
+to 0 must be caught by this fixture, not silently accepted.

@@ -85,6 +85,21 @@ mt_repo_root() {
             return 0
         fi
     fi
+    # (c2) config-less consumer (§11.4.187 default single-track mode): the engine
+    #     is embedded as a submodule but the consumer has NOT authored a
+    #     config/multitrack dir yet. Branch (c) could not fire (it REQUIRES that
+    #     dir), and branch (d) would return the SUBMODULE root — which is the
+    #     wrong project entirely. The superproject working tree IS the consumer
+    #     root, so adopt it. Guarded to fire ONLY when base carries no
+    #     config/multitrack, so every already-configured consumer is untouched.
+    if [ -n "$_mtrr_base" ] && [ ! -d "$_mtrr_base/config/multitrack" ] \
+       && command -v git >/dev/null 2>&1; then
+        _mtrr_sp2=$( git -C "$_mtrr_base" rev-parse --show-superproject-working-tree 2>/dev/null ) || _mtrr_sp2=""
+        if [ -n "$_mtrr_sp2" ] && [ -d "$_mtrr_sp2" ]; then
+            printf '%s\n' "$_mtrr_sp2"
+            return 0
+        fi
+    fi
     # (d) last resort: base (unchanged legacy behaviour; empty only if cd failed).
     printf '%s\n' "$_mtrr_base"
 }
@@ -206,6 +221,191 @@ mt_load_config() {
     MT_HOSTNAME=""; MT_MACHINE_ID=""; MT_PROTECTED_SERIALS=""; MT_TRACK_COUNT=0
     eval "$(mt__parse_awk "$cfg")"
     export MT_HOSTNAME MT_MACHINE_ID MT_PROTECTED_SERIALS MT_TRACK_COUNT
+    return 0
+}
+
+# =============================================================================
+# UNIVERSAL DEFAULT SINGLE-TRACK MODE (§11.4.187 / §11.4.177 / §11.4.6 /
+# §11.4.201)
+# -----------------------------------------------------------------------------
+# WHY: the engine previously FATALED on any host with no per-host config file,
+# so multi-track was non-universal — it worked ONLY on a hand-provisioned host.
+# The refusal was RIGHT about never inventing HOST DATA (mount paths, drive
+# serials, alias->track maps cannot be guessed, §11.4.6). But "Track 1 is the
+# project root you are standing in" is NOT invented data: it is a DEFINED
+# DEFAULT, derivable with certainty from the invocation context (§11.4.177
+# invocation-directory operation). Fataling when a correct and safe default
+# exists is the §11.4.201 FALSE-REFUSAL class.
+#
+# The split this introduces (the ONLY behaviour change):
+#   * a host config EXISTS      -> load it exactly as before (no change at all)
+#   * a host config is MALFORMED-> still FATAL (that IS ambiguity, never defaulted)
+#   * NO host config at all     -> DEFAULT to ONE track, track-1 = project root,
+#                                  and SAY SO LOUDLY on stderr so a defaulted
+#                                  setup can never be mistaken for a provisioned
+#                                  multi-track host (§11.4.6 honesty).
+# =============================================================================
+
+# --- resolve the invocation project root (the default Track 1) ---------------
+# Deterministic, never guessed, never a hardcoded project path (§11.4.177).
+# Order: (a) an explicit caller/operator pin, (b) the git SUPERPROJECT of the
+# invocation dir (engine embedded as a submodule -> the CONSUMER root), (c) the
+# git toplevel of the invocation dir, (d) the invocation dir itself.
+# Returns non-zero (prints NOTHING) when none resolves to a real directory —
+# the caller MUST then fail loudly rather than default to a wrong root.
+mt_default_project_root() {
+    if [ -n "${MT_REPO_ROOT:-}" ] && [ -d "${MT_REPO_ROOT}" ]; then
+        printf '%s\n' "$MT_REPO_ROOT"
+        return 0
+    fi
+    _mtd_base=${MT_DEFAULT_ROOT_FROM:-$PWD}
+    if [ -d "$_mtd_base" ] && command -v git >/dev/null 2>&1; then
+        _mtd_sp=$( git -C "$_mtd_base" rev-parse --show-superproject-working-tree 2>/dev/null ) || _mtd_sp=""
+        if [ -n "$_mtd_sp" ] && [ -d "$_mtd_sp" ]; then
+            printf '%s\n' "$_mtd_sp"
+            return 0
+        fi
+        _mtd_tl=$( git -C "$_mtd_base" rev-parse --show-toplevel 2>/dev/null ) || _mtd_tl=""
+        if [ -n "$_mtd_tl" ] && [ -d "$_mtd_tl" ]; then
+            printf '%s\n' "$_mtd_tl"
+            return 0
+        fi
+    fi
+    if [ -d "$_mtd_base" ]; then
+        printf '%s\n' "$_mtd_base"
+        return 0
+    fi
+    return 1
+}
+
+# --- load the DEFAULT single-track config (no file involved) ------------------
+# Sets exactly the same MT_* contract mt_load_config sets, so every downstream
+# consumer (mt_plan, the resolver, the orchestrator) is unchanged.
+#
+# Track-1's MOUNT is the project root's PARENT and the worktree-subdir is the
+# project root's BASENAME, so the engine's existing "<mount>/<worktree_subdir>"
+# composition yields the project root ITSELF as track-1's worktree — no special
+# case anywhere downstream.
+#
+# Honest emptiness (§11.4.6): MT_MACHINE_ID / MT_PROTECTED_SERIALS / the track's
+# drive serial + fs are EMPTY because they are genuinely unknown for a defaulted
+# host — never fabricated. A serial-less track is a plain directory, not a drive.
+mt_load_default_config() {
+    _mtd_root=$(mt_default_project_root) || {
+        echo "mt_load_default_config: FATAL — cannot resolve the invocation project root;" >&2
+        echo "  refusing to default Track 1 to an unknown location (§11.4.6 no-guessing)." >&2
+        echo "  Pin it explicitly with MT_REPO_ROOT=/path/to/project, or author a per-host config." >&2
+        return 1
+    }
+    case "$_mtd_root" in
+        /*) : ;;
+        *)  echo "mt_load_default_config: FATAL — resolved project root '$_mtd_root' is not an absolute path" >&2
+            return 1 ;;
+    esac
+    i=1
+    while [ "$i" -le "${MT_TRACK_COUNT:-0}" ]; do
+        unset "MT_TRACK_${i}_ID" "MT_TRACK_${i}_SERIAL" "MT_TRACK_${i}_MOUNT" \
+              "MT_TRACK_${i}_ROLE" "MT_TRACK_${i}_FS" "MT_TRACK_${i}_BRANCH" 2>/dev/null || true
+        i=$((i + 1))
+    done
+    MT_HOSTNAME=$(mt_resolve_host)
+    MT_MACHINE_ID=""
+    MT_PROTECTED_SERIALS=""
+    MT_TRACK_COUNT=1
+    MT_TRACK_1_ID="track-1"
+    MT_TRACK_1_ROLE="main"
+    MT_TRACK_1_SERIAL=""
+    MT_TRACK_1_FS=""
+    MT_TRACK_1_BRANCH=""
+    MT_TRACK_1_MOUNT=$(dirname "$_mtd_root")
+    MT_DEFAULT_MODE=1
+    MT_DEFAULT_TRACK1_ROOT="$_mtd_root"
+    MT_WORKTREE_SUBDIR=${MT_WORKTREE_SUBDIR:-$(basename "$_mtd_root")}
+    export MT_HOSTNAME MT_MACHINE_ID MT_PROTECTED_SERIALS MT_TRACK_COUNT \
+           MT_TRACK_1_ID MT_TRACK_1_ROLE MT_TRACK_1_SERIAL MT_TRACK_1_FS \
+           MT_TRACK_1_BRANCH MT_TRACK_1_MOUNT MT_DEFAULT_MODE \
+           MT_DEFAULT_TRACK1_ROOT MT_WORKTREE_SUBDIR
+    return 0
+}
+
+# --- the loud, unmistakable default-mode notice ------------------------------
+# Printed to STDERR on EVERY default-mode activation. A defaulted setup must
+# never be silently mistaken for a provisioned multi-track host (§11.4.6).
+mt_default_mode_notice() {
+    _mtd_host=${1:-$(mt_resolve_host)}
+    _mtd_dir=${2:-$(mt_config_dir)}
+    {
+        echo "=============================================================="
+        echo "NOTICE: multitrack is running in DEFAULT SINGLE-TRACK MODE."
+        echo "        This host has NO per-host config — this is the DEFAULT,"
+        echo "        NOT a provisioned multi-track host."
+        echo "  host          : $_mtd_host"
+        echo "  looked for    : $_mtd_dir/$_mtd_host.yaml   (absent)"
+        echo "  tracks        : 1 (default)"
+        echo "  track-1 root  : ${MT_DEFAULT_TRACK1_ROOT:-<unresolved>}  (the invocation project root)"
+        echo "  To define tracks explicitly (more than one, or a different"
+        echo "  Track 1 such as /mnt/track-1), author:"
+        echo "        $_mtd_dir/$_mtd_host.yaml"
+        echo "  See constitution/scripts/multitrack/README.md - 'Default"
+        echo "  single-track mode'."
+        echo "=============================================================="
+    } >&2
+}
+
+# --- THE resolver every caller should use ------------------------------------
+# Resolves AND loads the per-host config, falling back to the universal default
+# single-track mode when (and ONLY when) no config file exists at all.
+#
+# Return codes (deliberately distinct so callers can react precisely):
+#   0  loaded (either a real config, or the default single-track mode —
+#      MT_DEFAULT_MODE=1 distinguishes them)
+#   1  no config AND the default could not be established (project root
+#      unresolvable), OR strict mode requested via MT_REQUIRE_HOST_CONFIG=1
+#      and no config exists
+#   3  a config file EXISTS but is unparsable or defines zero tracks — ALWAYS
+#      fatal, NEVER defaulted past (that IS ambiguity, §11.4.6)
+#
+# Sets MT_CFG_FILE to the loaded file path, or the empty string in default mode.
+mt_resolve_and_load() {
+    _mtr_host=${MT_HOST:-$(mt_resolve_host)}
+    if [ -n "${MT_CONFIG:-}" ]; then
+        _mtr_cfg=$MT_CONFIG
+        if [ ! -r "$_mtr_cfg" ]; then
+            echo "mt_resolve_and_load: MT_CONFIG='$_mtr_cfg' is not readable" >&2
+            return 3
+        fi
+    else
+        _mtr_cfg=$(mt_config_file "$_mtr_host" 2>/dev/null) || _mtr_cfg=""
+    fi
+
+    if [ -n "$_mtr_cfg" ]; then
+        # A config EXISTS -> behave exactly as before. Malformed is FATAL.
+        if ! mt_load_config "$_mtr_cfg"; then
+            echo "mt_resolve_and_load: FATAL — could not parse $_mtr_cfg" >&2
+            return 3
+        fi
+        if [ "${MT_TRACK_COUNT:-0}" -lt 1 ]; then
+            echo "mt_resolve_and_load: FATAL — $_mtr_cfg parsed but defines ZERO tracks" >&2
+            echo "  A malformed/empty config is NEVER defaulted past (§11.4.6): fix the file," >&2
+            echo "  or remove it to fall back to default single-track mode." >&2
+            return 3
+        fi
+        MT_CFG_FILE=$_mtr_cfg
+        MT_DEFAULT_MODE=0
+        export MT_CFG_FILE MT_DEFAULT_MODE
+        return 0
+    fi
+
+    # No config at all.
+    if [ "${MT_REQUIRE_HOST_CONFIG:-0}" = "1" ]; then
+        echo "mt_resolve_and_load: no per-host config for host='$_mtr_host' in $(mt_config_dir)" >&2
+        echo "  and MT_REQUIRE_HOST_CONFIG=1 was requested (strict mode: no default)." >&2
+        return 1
+    fi
+    mt_load_default_config || return 1
+    MT_CFG_FILE=""
+    export MT_CFG_FILE
+    mt_default_mode_notice "$_mtr_host"
     return 0
 }
 
@@ -609,6 +809,23 @@ mt_plan() {
         eval "tserial=\${MT_TRACK_${i}_SERIAL:-}"
         eval "tmount=\${MT_TRACK_${i}_MOUNT:-}"
         eval "trole=\${MT_TRACK_${i}_ROLE:-}"
+        # §11.4.187 default single-track mode: a track with NO drive_serial is a
+        # plain DIRECTORY, not a drive — never probe lsblk for it and never call
+        # it ABSENT (a §11.4.201 false-refusal). Report it honestly by whether
+        # the directory exists. Purely additive: every configured track carries a
+        # drive_serial, so this branch cannot fire for an existing config.
+        if [ -z "$tserial" ]; then
+            if [ -d "$tmount" ]; then
+                printf 'TRACK %s SERIAL=- DEV=- MOUNT=%s ROLE=%s STATUS=READY-DIR\n' \
+                    "$tid" "$tmount" "$trole"
+                ready=$((ready + 1))
+            else
+                printf 'TRACK %s SERIAL=- DEV=- MOUNT=%s ROLE=%s STATUS=MISSING-DIR\n' \
+                    "$tid" "$tmount" "$trole"
+            fi
+            i=$((i + 1))
+            continue
+        fi
         line=$(printf '%s\n' "$drives" | awk -F'|' -v s="$tserial" '$1==s{print; exit}')
         if [ -z "$line" ]; then
             printf 'TRACK %s SERIAL=%s DEV=- MOUNT=%s ROLE=%s STATUS=ABSENT\n' \

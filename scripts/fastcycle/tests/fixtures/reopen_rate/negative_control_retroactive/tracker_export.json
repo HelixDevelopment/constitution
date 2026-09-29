@@ -1,0 +1,81 @@
+{
+  "_fixture": "negative_control_retroactive",
+  "_purpose": "T091 (SpecKit-004 'fast-dev-cycles', User Story 3) CT-5 negative-control addition for closure/reopen_rate.py (plan.md T-D06, tasks.md T091/T100; plan.md line 128's Principle IV self-validation-triple requirement: this fixture is the NEGATIVE CONTROL member of the golden-good/golden-bad/negative-control triple -- golden_window is the golden-good, golden_bad_mismatched_populations is the golden-bad, THIS fixture is the negative control). Unlike golden_bad_mismatched_populations (which MUST be REFUSED), a window containing a genuine retroactive registration is a KNOWN, NORMAL, EXPECTED data condition (identical mechanic to cycle_report.py's flag_retroactive_registration and select_sample.py's detect_retroactive_registration, both keyed on the SAME rule: Opened->terminal-closure created_at (db_write) gap in [0, 60) seconds) that reopen_rate.py MUST silently, correctly ADJUST FOR -- excluding the retroactive item from BOTH the numerator and denominator, LISTING it separately by id and reason, and still PASSING (exit 0) with the correctly-adjusted rate. This is the opposite verdict from golden_bad_mismatched_populations on a superficially similar-looking 'one item needs special handling' fixture -- proving reopen_rate.py's exclusion logic does not conflate 'exclude and list, still compute' with 'exclude and refuse to compute' (the two fixtures' own docstrings require opposite outcomes on the SAME general shape of input).",
+  "_synthetic": true,
+  "_note": "None of these atm_id values exist in the real docs/workable_items.db (verified 2026-09-29 by control needle #1 in test_reopen_rate_red.sh). Every one of NB-001's item_history created_at timestamps in this fixture is deliberately far apart in date-only terms (on_date=2026-07-05 for both Opened and Fixed) but only 30 SECONDS apart in created_at (db-write) time -- exactly the R1 Table C observation 'Open->close spans of 0-10 s ... are retroactive registrations, not work durations' (research/R1_baseline_cycle_time.md line 52), generalised here to a 30 s gap (still inside the shared [0,60) rule).",
+  "as_of": "2026-07-31",
+  "window_days": 30,
+  "window": { "from": "2026-07-01", "to": "2026-07-31" },
+  "items": [
+    { "atm_id": "NB-001", "type": "Bug" },
+    { "atm_id": "NB-002", "type": "Bug" },
+    { "atm_id": "NB-003", "type": "Bug" },
+    { "atm_id": "NT-001", "type": "Task" },
+    { "atm_id": "NF-001", "type": "Feature" }
+  ],
+  "item_history": [
+    { "atm_id": "NB-001", "event_type": "Opened",   "by": "User", "on_date": "2026-07-05", "created_at": "2026-07-05T10:00:00Z", "_note": "THE RETROACTIVE ITEM: Opened->Fixed created_at gap = 30 seconds (0 <= 30 < 60), so this item is a retroactive registration per the exact rule cycle_report.py's flag_retroactive_registration / select_sample.py's detect_retroactive_registration already implement. reopen_rate.py MUST exclude NB-001 from BOTH the Bug closed_in_window and reopened_in_window counts, and LIST it under an excluded/retroactive block naming it and the reason -- while still PASSING (exit 0) with the correctly-adjusted rate for the REMAINING Bug items." },
+    { "atm_id": "NB-001", "event_type": "Fixed",    "by": "AI",   "on_date": "2026-07-05", "created_at": "2026-07-05T10:00:30Z", "evidence_path": "qa-results/negctrl_retroactive/nb001_fixed.log" },
+    { "atm_id": "NB-001", "event_type": "Reopened", "by": "AI",   "on_date": "2026-07-20", "created_at": "2026-07-20T09:00:00Z", "reason": "cycle-re-discovered", "evidence_path": "qa-results/negctrl_retroactive/nb001_reopen.log", "_note": "NB-001 ALSO has a Reopened event inside the window -- if it were NOT excluded, a buggy tool would count it toward the numerator too (reopened=1, closed=3, rate=0.333...), which is a DIFFERENT wrong answer from the correct exclude-and-recompute behaviour (reopened=0, closed=2, rate=0.0) this fixture actually requires." },
+
+    { "atm_id": "NB-002", "event_type": "Opened", "by": "User", "on_date": "2026-06-01", "created_at": "2026-06-01T10:00:00Z" },
+    { "atm_id": "NB-002", "event_type": "Fixed",  "by": "AI",   "on_date": "2026-07-08", "created_at": "2026-07-08T11:00:00Z", "evidence_path": "qa-results/negctrl_retroactive/nb002_fixed.log" },
+
+    { "atm_id": "NB-003", "event_type": "Opened", "by": "User", "on_date": "2026-06-05", "created_at": "2026-06-05T09:00:00Z" },
+    { "atm_id": "NB-003", "event_type": "Fixed",  "by": "AI",   "on_date": "2026-07-15", "created_at": "2026-07-15T16:00:00Z", "evidence_path": "qa-results/negctrl_retroactive/nb003_fixed.log" },
+
+    { "atm_id": "NT-001", "event_type": "Opened",    "by": "User", "on_date": "2026-06-10", "created_at": "2026-06-10T09:00:00Z" },
+    { "atm_id": "NT-001", "event_type": "Completed", "by": "AI",   "on_date": "2026-07-09", "created_at": "2026-07-09T13:00:00Z", "evidence_path": "qa-results/negctrl_retroactive/nt001_completed.log" },
+
+    { "atm_id": "NF-001", "event_type": "Opened",      "by": "User", "on_date": "2026-06-12", "created_at": "2026-06-12T09:00:00Z" },
+    { "atm_id": "NF-001", "event_type": "Implemented", "by": "AI",   "on_date": "2026-07-11", "created_at": "2026-07-11T13:00:00Z", "evidence_path": "qa-results/negctrl_retroactive/nf001_implemented.log" }
+  ],
+  "_hand_computation": {
+    "Bug": {
+      "raw_closed_in_window_members_before_exclusion": ["NB-001", "NB-002", "NB-003"],
+      "retroactive_gap_check": {
+        "NB-001": { "opened_created_at": "2026-07-05T10:00:00Z", "fixed_created_at": "2026-07-05T10:00:30Z", "gap_seconds": 30, "is_retroactive": true, "rule": "0 <= gap_seconds < 60" },
+        "NB-002": { "opened_created_at": "2026-06-01T10:00:00Z", "fixed_created_at": "2026-07-08T11:00:00Z", "gap_seconds": 3200400, "is_retroactive": false },
+        "NB-003": { "opened_created_at": "2026-06-05T09:00:00Z", "fixed_created_at": "2026-07-15T16:00:00Z", "gap_seconds": 3481200, "is_retroactive": false }
+      },
+      "excluded_retroactive_members": ["NB-001"],
+      "closed_in_window_after_exclusion": ["NB-002", "NB-003"],
+      "reopened_in_window_after_exclusion": [],
+      "reopened_in_window_reasoning": "NB-001's Reopened event (on_date=2026-07-20, inside the window) is excluded ALONG WITH NB-001 itself -- it does not count toward the numerator, precisely because NB-001 is excluded from the population entirely, not merely 'not counted as closed'. Neither NB-002 nor NB-003 has any Reopened event.",
+      "closed": 2,
+      "reopened": 0,
+      "rate": 0.0,
+      "rate_as_fraction": "0/2",
+      "naive_buggy_rate_if_not_excluded": 0.3333333333333333,
+      "naive_buggy_rate_reasoning": "If NB-001 were NOT excluded: closed=3 (NB-001,NB-002,NB-003), reopened=1 (NB-001) -> rate=1/3=0.333... This is a DIFFERENT wrong number from golden_bad_mismatched_populations' own naive-buggy value for the SAME reason it looks superficially similar (one item skews a small denominator) -- but the FIX here is exclude-both-and-still-compute, not refuse, because NB-001's closure event genuinely exists and is simply a retroactive (near-instantaneous db-write) registration, not a data-quality ambiguity about whether it was ever closed at all."
+    },
+    "Task": { "closed": 1, "reopened": 0, "rate": 0.0 },
+    "Feature": { "closed": 1, "reopened": 0, "rate": 0.0 },
+    "overall": {
+      "closed": 4,
+      "closed_reasoning": "2 (Bug, after excluding NB-001) + 1 (Task) + 1 (Feature) = 4.",
+      "reopened": 0,
+      "rate": 0.0,
+      "rate_as_fraction": "0/4"
+    },
+    "dedup_rows_removed": 0
+  },
+  "expected_report": {
+    "schema": "reopen-rate/v1",
+    "as_of": "2026-07-31",
+    "window": { "from": "2026-07-01", "to": "2026-07-31" },
+    "state": "OK",
+    "by_type": {
+      "Bug":     { "reopened": 0, "closed": 2, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": 0.0,
+                   "excluded_retroactive": [ { "item_id": "NB-001", "reason": "retroactive-registration (Opened->closure db_write gap < 60s)" } ] },
+      "Task":    { "reopened": 0, "closed": 1, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": 0.0 },
+      "Feature": { "reopened": 0, "closed": 1, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": 0.0 }
+    },
+    "overall": {
+      "reopened": 0, "closed": 4, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": 0.0,
+      "excluded_retroactive": [ { "item_id": "NB-001", "reason": "retroactive-registration (Opened->closure db_write gap < 60s)" } ]
+    },
+    "excluded_retroactive": [ { "item_id": "NB-001", "reason": "retroactive-registration (Opened->closure db_write gap < 60s)" } ]
+  },
+  "expected_exit_code": 0
+}

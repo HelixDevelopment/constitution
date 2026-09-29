@@ -1,0 +1,3436 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Documentation And Export</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="documentation-and-export">Documentation And Export</h1>
+<h3 id="11412--auto-generated-docs-sync-mandate">§11.4.12 —
+Auto-generated docs sync mandate</h3>
+<p>Every auto-generated document (Issues_Summary, API reference, build
+manifest, etc.) MUST be regenerated in the <strong>same commit</strong>
+as any edit to its source. Stale auto-generated docs are §11.4
+PASS-bluffs in document form: an operator reading them gets a divergent
+view of project state.</p>
+<p>All three file types MUST stay in sync at all times — Markdown source
++ HTML export + PDF export (or equivalent multi-format output the
+project ships). Enforced by a pre-build gate that checks mtime ordering
+and content hash agreement.</p>
+<h3 id="11418--script-documentation-mandate-user-mandate-2026-05-14">§11.4.18
+— Script documentation mandate (User mandate, 2026-05-14)</h3>
+<p><strong>Forensic anchor — direct user mandate (verbatim,
+2026-05-14):</strong></p>
+<blockquote>
+<p>&quot;Make sure that every single script inside the scripts dir (in all
+subdirs in depth) is fully documented and covered with full user manuals
+and user guides! ... Whenever is some bash script modified we MUST
+document it fully and create for it complete user guide(s) and manual(s)
+- if already exists make sure all of it is in sync and fully updated! No
+documentation ever can be out of sync with its codebase!&quot;</p>
+</blockquote>
+<p>Every Bash / shell / POSIX-sh script ANYWHERE in a project (anywhere
+under <code>scripts/</code>, <code>bin/</code>, <code>tests/</code>,
+library directories, <code>Upstreams/</code>, deployment hooks, CI
+helpers, etc. — depth-N recursive) MUST carry:</p>
+<ol type="1">
+<li><p><strong>In-source documentation block</strong> at the top of the
+file:</p>
+<ul>
+<li>Purpose: one-sentence description of what the script does.</li>
+<li>Usage: complete invocation syntax with all flags, env vars,
+positional arguments, examples.</li>
+<li>Inputs: env vars, files read, command-line args, stdin.</li>
+<li>Outputs: files written, stdout/stderr behaviour, exit codes.</li>
+<li>Side-effects: anything that changes system state outside the
+script&#39;s own scratch directory.</li>
+<li>Dependencies: required commands (and how to install them) + required
+system state (e.g., &quot;must be run as root&quot;, &quot;must run from project
+root&quot;).</li>
+<li>Cross-references: companion guides under <code>docs/</code>.</li>
+</ul></li>
+<li><p><strong>External user guide</strong> under
+<code>docs/scripts/&lt;script-name&gt;.md</code> (Markdown). Required
+sections:</p>
+<ul>
+<li><strong>Overview</strong> — what the script does in plain
+English.</li>
+<li><strong>Prerequisites</strong> — environment + dependencies.</li>
+<li><strong>Usage examples</strong> — copy-paste recipes for the common
+cases.</li>
+<li><strong>Edge cases</strong> — unusual invocations, error conditions,
+how to diagnose them.</li>
+<li><strong>Internal behaviour</strong> — for advanced users / future
+maintainers: what the script does step-by-step.</li>
+<li><strong>Related scripts</strong> — companion scripts and how they
+compose.</li>
+<li><strong>Last verified version / date</strong> — when the doc was
+last reconciled against the script source.</li>
+</ul></li>
+</ol>
+<p>Whenever the script source is modified, the in-source documentation
+block AND the external user guide MUST be updated in the SAME commit. A
+commit that touches a script but leaves its documentation unchanged (or
+worse, lets it drift) is a §11.4.18 violation.</p>
+<p>Pre-build gate <code>CM-SCRIPT-DOCS-SYNC</code> walks every
+<code>*.sh</code> and <code>*.bash</code> under <code>scripts/</code>
+(or equivalent script directories), verifies a companion
+<code>docs/scripts/&lt;name&gt;.md</code> exists, AND verifies the doc
+was modified in the same commit as the script (by SHA cross-reference,
+or by mtime ≥ script mtime as a softer floor). Paired mutation strips
+the doc-sync invariant and asserts the gate FAILs.</p>
+<p><strong>No documentation ever can be out of sync with its
+codebase.</strong></p>
+<p>This mandate composes with §11.4.11 (file-layout discipline — docs
+live under <code>docs/</code>, scripts live under <code>scripts/</code>)
+and §11.4.12 (auto-generated docs sync — the on-disk Markdown + its
+rendered HTML/PDF must all stay synchronised).</p>
+<h3 id="11419--fixed-document-column-alignment-mandate-user-mandate-2026-05-14">§11.4.19
+— Fixed-document column-alignment mandate (User mandate,
+2026-05-14)</h3>
+<p><strong>Forensic anchor — direct user mandate (verbatim,
+2026-05-14):</strong></p>
+<blockquote>
+<p>&quot;Make sure that Fixed document (all 3 file formats) is consistent and
+has the same structure and columns as Issues and Issues_Summary
+documents! This has to be added as detail to Constitution, CLAUDE.MD and
+AGENTS.MD (constitution Submodule where these information shall
+exist).&quot;</p>
+</blockquote>
+<p>Every project that maintains an Issues / open-work tracker AND a
+Fixed / closed-archive tracker MUST keep the two structurally aligned
+along the same lifecycle axes — at minimum <strong>Status</strong> and
+<strong>Type</strong> — so an operator reading either gets a consistent
+view across the entire lifecycle (open → in progress → ready for testing
+→ in testing → reopened → fixed).</p>
+<p>Specifically:</p>
+<ol type="1">
+<li><p><strong>Per-entry annotation.</strong> Every heading in the Fixed
+archive document MUST carry, within 8 non-blank lines of the heading, a
+<code>**Status:**</code> line and a <code>**Type:**</code> line —
+exactly as §11.4.15 + §11.4.16 require for the Issues tracker. For Fixed
+entries the Status value is drawn from the
+<strong>closure-set</strong>:</p>
+<ul>
+<li><code>Fixed (→ Fixed.md)</code> — fully verified on device with
+captured evidence per §11.4.5.</li>
+<li><code>Fixed — pending device verification</code> — source-side fix
+landed, regression-protection gate wired, awaiting the next firmware
+build + flash + cycle for captured evidence.</li>
+<li><code>Fixed — RECLASSIFIED</code> — item was reclassified during
+investigation (test-side defect, environment-only, etc.).</li>
+</ul>
+<p>Type values follow §11.4.16: <code>Bug</code> | <code>Feature</code>
+| <code>Task</code>. Default on missing-annotation:
+<code>Task</code>.</p></li>
+<li><p><strong>Auto-generated companion summary.</strong> A
+<code>Fixed_Summary.md</code> MUST exist alongside
+<code>Fixed.md</code>, regenerated by an automation script (e.g.
+<code>generate_fixed_summary.sh</code>), and MUST mirror the column
+structure of <code>Issues_Summary.md</code> exactly:</p>
+<p><code>| # | Level | Status | Type | One-line description |</code></p>
+<p>The <code>Level</code> (severity) column uses the <strong>original
+severity</strong> the item had when it was open — so an operator can
+correlate a closed item with its original priority bucket. The same
+deterministic classification rules apply (REAL PRODUCT DEFECT /
+PARTIAL-or-WORKSTREAM-or-DEEP-DIVE / everything-else mapping to C / M /
+L).</p></li>
+<li><p><strong>Three-format sync.</strong> All three file types
+(<code>.md</code>, <code>.html</code>, <code>.pdf</code>) for BOTH the
+Fixed archive AND the Fixed_Summary MUST stay in sync at all times —
+same <code>.html</code> + <code>.pdf</code> export pipeline that
+§11.4.12 requires for Issues + Issues_Summary. The single-shot sync
+wrapper (e.g. <code>sync_issues_docs.sh</code>) MUST invoke the
+Fixed_Summary generator AND export all five doc variants (Issues,
+Issues_Summary, Fixed, Fixed_Summary, CONTINUATION) in one operation so
+they all carry the same mtime.</p></li>
+<li><p><strong>Cross-lifecycle consistency.</strong> A status line in
+Issues.md that reads <code>Fixed (→ Fixed.md)</code> is a
+<strong>migration marker</strong>, not a self-describing closure: when
+an Issues.md entry resolves, it MUST be moved to Fixed.md in the same
+commit, then disappear from Issues_Summary (because Issues_Summary only
+enumerates OPEN items) and appear in Fixed_Summary (because
+Fixed_Summary enumerates CLOSED items). Per §11.4.4 fix-closure protocol
++ §11.4.5 captured-evidence requirement, the migrated entry in Fixed.md
+MUST carry: closure cycle, closure commit SHA, captured evidence
+pointer, regression-protection gate name + paired mutation
+reference.</p></li>
+</ol>
+<p><strong>Pre-build gate
+<code>CM-FIXED-COLUMN-ALIGNMENT</code></strong> (5+ invariants):</p>
+<ul>
+<li><code>docs/Fixed_Summary.md</code> exists.</li>
+<li><code>docs/Fixed_Summary.md</code> table header line contains both
+<code>Status</code> and <code>Type</code> columns (column-alignment with
+Issues_Summary).</li>
+<li><code>mtime(Fixed_Summary.md) &gt;= mtime(Fixed.md)</code>
+(regenerated after Fixed.md edits).</li>
+<li>Generator script exists (<code>generate_fixed_summary.sh</code> or
+equivalent integrated branch in
+<code>generate_issues_summary.sh</code>).</li>
+<li>Sync wrapper invokes the Fixed_Summary generator (grep for the
+script name in <code>sync_issues_docs.sh</code> or equivalent).</li>
+<li>HTML + PDF exports for both Fixed and Fixed_Summary exist
+(<code>docs/Fixed.html</code>, <code>docs/Fixed.pdf</code>,
+<code>docs/Fixed_Summary.html</code>,
+<code>docs/Fixed_Summary.pdf</code>).</li>
+</ul>
+<p><strong>Paired mutation</strong>: strip the Status column from
+<code>Fixed_Summary.md</code> table header (or rename the generator) →
+gate FAILs. Enforced by
+<code>meta_test_false_positive_proof.sh</code>.</p>
+<p><strong>Propagation.</strong> This anchor is a §11.4.17-classified
+<strong>universal</strong> rule — it composes naturally with §11.4.12
+(auto-generated docs sync), §11.4.15 (Status tracking), §11.4.16 (Type
+tracking) and is mandatory across every consuming project&#39;s CLAUDE.md /
+AGENTS.md. The propagation gate
+<code>CM-COVENANT-114-19-PROPAGATION</code> (when implemented per
+consuming project) enforces the anchor&#39;s presence in every covenant
+file.</p>
+<p><strong>No escape hatch.</strong> A Fixed archive that lacks
+Status/Type columns or whose Summary companion drifts out of sync is the
+exact &quot;different lifecycles report different facts&quot; hazard §11.4 forbids
+— an operator reading Issues_Summary can no longer answer &quot;where is item
+X now?&quot; by cross-referencing Fixed_Summary because the schemas diverge.
+Non-compliance is a release blocker regardless of context.</p>
+<h3 id="11422--document-sync-commit-discipline-user-mandate-2026-05-14">§11.4.22
+— Document-sync commit discipline (User mandate, 2026-05-14)</h3>
+<p><strong>Forensic anchor — direct user mandate (verbatim,
+2026-05-14):</strong></p>
+<blockquote>
+<p>&quot;For Issues, Issues_Summary and Fixed docs (and all its exports) we
+MUST commit and push (only them) as soon as they are updated (synced).
+Continuation doc and other similar / relevant documentation MUST be
+committed and pushed too! Like this we will always have up to date
+status of working items without need to do full commit and push of
+everything if that is not possible to do!&quot;</p>
+</blockquote>
+<p><strong>Classification:</strong> §11.4.17-classified
+<strong>universal</strong> — every project that tracks work items
+through an Issues / Fixed lifecycle has the same problem, so the
+discipline lives in the Constitution and every consuming project
+implements its own wrapper.</p>
+<p><strong>The defect this anchor closes.</strong> Until this anchor
+existed, the only way to push a status update was the full-tree commit
+wrapper. When the working tree had unrelated heavy churn (large
+submodule diffs, in-flight rebase, partial-network conditions, ongoing
+build), operators had two bad options: (a) wait until the heavy work
+finishes — which can be hours — leaving the doc-status stale to every
+other agent; (b) skip the doc-status update entirely — which is a
+§11.4.4 documentation-drift violation. Neither option is acceptable.</p>
+<p><strong>The mandate.</strong> Every project under this Constitution
+that ships a status-tracking doc set MUST provide a <strong>lightweight
+commit path</strong> distinct from the full-repo commit wrapper. The
+lightweight path stages, commits, and pushes <strong>only</strong> the
+status-tracking doc set:</p>
+<ol type="1">
+<li>The active issue tracker (<code>docs/Issues.md</code> in a consuming
+project&#39;s layout; the project&#39;s equivalent file elsewhere) and its HTML
++ PDF exports.</li>
+<li>The auto-generated issues summary
+(<code>docs/Issues_Summary.md</code>) and its HTML + PDF exports.</li>
+<li>The fixed-bug archive (<code>docs/Fixed.md</code>) and its HTML +
+PDF exports.</li>
+<li>The auto-generated fixed summary
+(<code>docs/Fixed_Summary.md</code>) and its HTML + PDF exports.</li>
+<li>The cross-session continuation document
+(<code>docs/CONTINUATION.md</code>, per §12.10) and its HTML + PDF
+exports.</li>
+<li>Any auto-generated audit artifact
+(<code>docs/audit/anti_bluff_audit.md</code> or equivalent) that pairs
+with the above.</li>
+</ol>
+<p>The lightweight wrapper MUST:</p>
+<ol type="1">
+<li><strong>Auto-invoke the project&#39;s export-regeneration pipeline
+first</strong> — so Markdown + HTML + PDF are all synchronised before
+push. (Skipped only when an explicit <code>--no-sync</code> flag is
+passed AND the operator just ran the pipeline manually.)</li>
+<li><strong>Stage ONLY the doc-set files</strong> — <code>git add</code>
+of an explicit file list, NEVER <code>git add -A</code> (which would
+catch unrelated WIP churn).</li>
+<li><strong>Use a separate flock</strong> disjoint from the full-tree
+commit wrapper&#39;s lock — so the two can run in parallel without
+contention on disjoint file sets.</li>
+<li><strong>Push to every parent-repo remote</strong> (reusing the
+project&#39;s push-all driver where available).</li>
+<li><strong>Exit code semantics</strong> — <code>0</code> success,
+<code>1</code> validation failure, <code>2</code> lock contention,
+<code>3</code> nothing-to-commit (informational, not an error — so the
+wrapper can be wired into automation that tolerates no-op
+outcomes).</li>
+</ol>
+<p>The lightweight wrapper MUST be invocable either standalone OR via a
+flag on the full-tree wrapper (e.g.
+<code>commit_all.sh --docs-only</code>) so operators have a single
+mental model.</p>
+<p><strong>§9 preflight inheritance.</strong> The lightweight wrapper
+inherits the parent project&#39;s §9 preflight discipline — if
+<code>meta_test_*</code> is mid- mutation or <code>*.mut.bak</code>
+files exist, the wrapper refuses to run, same as the full-tree
+wrapper.</p>
+<p><strong>Pre-build gates (recommended, per consuming
+project):</strong></p>
+<ul>
+<li><strong><code>CM-COMMIT-DOCS-EXISTS</code></strong> — verifies the
+lightweight wrapper exists + is executable, its external user guide (per
+§11.4.18) exists, the full-tree wrapper advertises the delegation flag,
+and the wrapper&#39;s doc-set enumeration lists ≥ N entries (N depends on
+project — a consuming project&#39;s set is 15). Paired mutation strips the
+doc-set array → gate FAILs.</li>
+</ul>
+<p><strong>Propagation.</strong> Composes with §11.4.12 (export-sync
+invariant — HTML + PDF in sync with Markdown after every edit), §11.4.15
+(item status tracking — Status lines must be visible quickly), §11.4.18
+(every script ships with an in-source doc block + an external user
+guide), §12.10 (CONTINUATION document maintenance — the lightweight
+wrapper is one of the mechanisms that keeps CONTINUATION current).</p>
+<p><strong>No escape hatch.</strong> The discipline exists because
+doc-status drift is itself a §11.4 PASS-bluff pattern at the
+documentation layer: a green-looking <code>Issues_Summary.html</code>
+that doesn&#39;t reflect Markdown reality is the same class of defect as a
+passing test that doesn&#39;t reflect runtime reality. Operators who can&#39;t
+run the lightweight wrapper for some reason MUST run the full-tree
+wrapper and accept the heavier cost — the doc-status drift is
+non-negotiable.</p>
+<hr />
+<h3 id="11423--visual-cue--grouping-mandate-for-issues-docs-user-mandate-2026-05-14">§11.4.23
+— Visual-cue &amp; grouping mandate for Issues docs (User mandate,
+2026-05-14)</h3>
+<p><strong>Forensic anchor — direct user mandate (verbatim,
+2026-05-14):</strong></p>
+<blockquote>
+<p>&quot;We MUST make sure that Issues, Issues_Summary and Fixed docs and its
+exported files (PDFs and HTMLs) have one small improvement: we MUST
+introduce some background coloring for cells of item type and status!
+Also, we MUST group items by the status! ... Base colors for types would
+be: bug - background pale red, task - background pale blue, feature -
+background pale yellow. However, changing the status affects the color
+of the cell of the type and the status cell background color: queued -
+no color, no effect, fixed - both cells pale green, in progress - only
+status cell is pale green, reopened - status cell is pale red, blocker -
+status cell is red (not pale, however MUST BE still readable), anything
+else please follow the same logic!&quot;</p>
+</blockquote>
+<p><strong>Classification:</strong> §11.4.17-classified
+<strong>mixed</strong> — the discipline (visual cues + status grouping
+for tracked-item docs) is universal across every project that maintains
+an Issues / Fixed lifecycle. The implementation (CSS classes, HTML
+post-processor, weasyprint integration) is project-specific because each
+project&#39;s export toolchain differs (pandoc, asciidoctor, sphinx,
+etc.).</p>
+<p><strong>The defect this anchor closes.</strong> A long, multi-column
+tracked-item table where every row looks identical at first glance is a
+§11.4 operational-readability defect — operators have to <em>read</em>
+every Status column to identify what is queued vs in-progress vs fixed.
+With dozens to hundreds of items, this is slow enough that operators
+inevitably skim, and the doc effectively becomes write-only. Color cues
++ status grouping make at-a-glance triage possible.</p>
+<p><strong>The mandate.</strong> Every project under this Constitution
+that ships tracked-item docs (per §11.4.15) MUST apply visual-cue
+coloring AND status grouping to those docs&#39; HTML + PDF exports. The
+Markdown source stays free of color noise (Markdown is the canonical
+text), but the HTML + PDF exports MUST be enriched in a post-processing
+stage:</p>
+<p><strong>Type cell base colors:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Background</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bug</td>
+<td>pale red (<code>#FFE5E5</code> or equivalent — ~5% red
+saturation)</td>
+</tr>
+<tr>
+<td>Task</td>
+<td>pale blue (<code>#E5F0FF</code>)</td>
+</tr>
+<tr>
+<td>Feature</td>
+<td>pale yellow (<code>#FFF8DC</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Status cell colors (override the Status column; Fixed also
+overrides Type cell):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Status cell</th>
+<th>Effect on Type cell</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Queued</td>
+<td>no color (transparent)</td>
+<td>keeps base type color</td>
+</tr>
+<tr>
+<td>In progress</td>
+<td>pale green (<code>#D4F1D4</code>)</td>
+<td>keeps base type color</td>
+</tr>
+<tr>
+<td>Ready for testing</td>
+<td>pale green-blue (<code>#C6EAEF</code>)</td>
+<td>keeps base type color</td>
+</tr>
+<tr>
+<td>In testing</td>
+<td>pale green-yellow (<code>#E7F4D6</code>)</td>
+<td>keeps base type color</td>
+</tr>
+<tr>
+<td>Reopened</td>
+<td>pale red (<code>#FFCCCC</code>)</td>
+<td>keeps base type color</td>
+</tr>
+<tr>
+<td>Fixed</td>
+<td>pale green (<code>#A8E6A8</code>)</td>
+<td><strong>also</strong> pale green</td>
+</tr>
+<tr>
+<td>Operator-blocked / Blocker</td>
+<td>vibrant red (<code>#FF4444</code>) with white text for
+readability</td>
+<td>keeps base type color</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Status grouping:</strong> items in the rendered table MUST be
+grouped by Status, emitting an H3-class heading for each Status group
+with the item count. Group order (most-actionable first; closed
+last):</p>
+<ol type="1">
+<li>Operator-blocked / Blocker</li>
+<li>In testing</li>
+<li>Ready for testing</li>
+<li>In progress</li>
+<li>Reopened</li>
+<li>Queued</li>
+<li>Fixed</li>
+</ol>
+<p>This ordering surfaces the items requiring operator attention at the
+top of the doc; closed/archived items sink to the bottom.</p>
+<p><strong>Print-fidelity requirement.</strong> The CSS MUST declare
+<code>print-color-adjust: exact</code> (or the project&#39;s renderer&#39;s
+equivalent) so PDF exports preserve the cell backgrounds. A weasyprint
+default-rendered PDF that strips colors is a §11.4 export-drift defect —
+HTML and PDF MUST be visually equivalent.</p>
+<p><strong>Pre-build gates (recommended, per consuming
+project):</strong></p>
+<ul>
+<li><strong><code>CM-DOC-COLOR-GROUPING-DISCIPLINE</code></strong> —
+verifies the project&#39;s CSS carries the type+status class set, the
+post-processor exists and is executable, the sync wrapper invokes it,
+AND after sync the rendered HTML carries the grouping-heading + per-cell
+color classes (the captured-evidence proof — without this last invariant
+a stub post-processor could silently pass the static gate). Paired
+mutation strips a Status class literal from CSS → gate FAILs.</li>
+</ul>
+<p><strong>Propagation.</strong> Composes with §11.4.12 (export-sync
+invariant — HTML + PDF in sync with Markdown after every edit), §11.4.15
+(item status tracking — every active item carries a Status line from the
+closed-set vocabulary), §11.4.19 (Fixed_Summary column-aligned
+companion), §11.4.22 (lightweight commit path for doc-set updates).</p>
+<p><strong>No escape hatch.</strong> Color cues are not optional polish
+— they are the operational-readability seam that converts a long
+tracked-item table from a write-only Markdown blob into a self-triaging
+document.</p>
+<hr />
+<h3 id="11444--document-revision-header-mandate-user-mandate-2026-05-18">§11.4.44
+— Document Revision Header Mandate (User mandate, 2026-05-18)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-18):</strong></p>
+<blockquote>
+<p>&quot;Add this change / improvement as background work in parallel with
+our mainstream work. All documents (Issues, Issues_Summary, Fixed,
+Continuation doc and all others MUST HAVE revision number! Revision
+number with information such as: last date and time when document was
+modified MUST GO at the top of the document below the main H1 title. Add
+all relevant information about the document as well. However, last date
+and time document has been modified and revision number are MANDATORY!
+Revision number shall be the whole number 1, 2, 3, etc. Document all
+this in our root (constitution Submodule) Constitution, AGENTS.MD and
+CLAUDE.MD as mandatory rule(s) and constraints we MUST HAVE! No bluff is
+allowed of any kind!&quot;</p>
+</blockquote>
+<p><strong>The mandate.</strong> Every IN-scope tracked Markdown
+document MUST carry a header block directly below the H1 title
+containing two MANDATORY fields:</p>
+<ul>
+<li><code>**Revision:** N</code> where N is a monotonic positive integer
+(1, 2, 3, ...). Never decremented. Never reset on rewrite. A freshly-
+created IN-scope document starts at Revision 1.</li>
+<li><code>**Last modified:** YYYY-MM-DDTHH:MM:SSZ</code> (ISO 8601
+UTC).</li>
+</ul>
+<p>Optional encouraged fields: <code>**Description:**</code>,
+<code>**Authority:**</code>, <code>**Maintainer:**</code>,
+<code>**Scope:**</code>, <code>**Auto-generated-from:**</code>
+(auto-generated docs only), <code>**Status:**</code> (plan docs
+only).</p>
+<p><strong>Header format (canonical):</strong></p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Document Title</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>**Revision:** 47</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>**Last modified:** 2026-05-18T13<span class="sc">:42:</span>00Z</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>**Description:** Open / in-flight bug + work tracker</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>**Authority:** Constitution §11.4 covenant</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>**Maintainer:** Operator + AI loop per §11.4.42</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">content...</span><span class="dt">&gt;</span></span></code></pre></div>
+<p>YAML front-matter and HTML-comment headers are FORBIDDEN — they are
+invisible to humans scrolling the raw Markdown and break the &quot;all
+relevant information about the document&quot; visibility clause.</p>
+<p><strong>IN scope (revision header MANDATORY):</strong>
+<code>docs/Issues.md</code>, <code>docs/Issues_Summary.md</code>,
+<code>docs/Fixed.md</code>, <code>docs/Fixed_Summary.md</code>,
+<code>docs/CONTINUATION.md</code>, <code>docs/guides/**/*.md</code>,
+<code>docs/research/**/*.md</code>, <code>docs/scripts/**/*.md</code>,
+<code>docs/changelogs/**/*.md</code>,
+<code>docs/superpowers/plans/**/*.md</code>,
+<code>docs/hardware/**/*.md</code>, and every other tracked Markdown
+under <code>docs/</code>.</p>
+<p><strong>OUT scope (revision header NOT required):</strong>
+<code>CLAUDE.md</code> / <code>AGENTS.md</code> (every layer — already
+version-tracked via VERSION file + inheritance pointer per §11.4.35;
+adding a per-file revision would duplicate authority and obscure the
+canonical-root contract); <code>README.md</code> /
+<code>CONTRIBUTING.md</code> / <code>LICENSE</code> /
+<code>NOTICE</code> / <code>VERSION</code> / <code>OWNERS</code>
+(standard metadata); rendered HTML/PDF artifacts (revision inherited
+from source Markdown); auto- generated docs that already carry an
+embedded generation-time stamp.</p>
+<p><strong>Auto-bump tooling:</strong></p>
+<ul>
+<li><code>scripts/doc_revision_bump.sh &lt;file&gt;</code> — manual
+entry point, idempotent (no-op if Last-modified within 5 s of
+<code>date -u</code>).</li>
+<li><code>.git/hooks/pre-commit</code> — automatic entry point; walks
+staged IN-scope docs, calls the bump for each, re-stages.</li>
+<li><code>scripts/testing/sync_issues_docs.sh</code> — composes the bump
+for Issues_Summary + Fixed_Summary after regeneration.</li>
+<li><code>scripts/commit_docs.sh</code> — calls the bump before staging
+so operators who skipped the hook installation are still covered.</li>
+</ul>
+<p><strong>Composition with §12.10.</strong> CONTINUATION.md already
+carries <code>Last updated:</code> per §12.10. §11.4.44 adds
+<code>**Revision:** N</code> directly under H1 + reuses the existing
+<code>Last updated:</code> line as the §11.4.44
+<code>Last modified:</code> line. One source of truth, two pointers — no
+duplication.</p>
+<p><strong>Composition with §11.4.12.</strong> Issues_Summary.md /
+Fixed_Summary.md inherit the revision number of their source-of-truth
+Markdown at generation time; they are NOT incremented independently.</p>
+<p><strong>Composition with §11.4.23.</strong> HTML colorizer preserves
+the revision header in the colorized HTML — pandoc renders the bold
+lines as styled
+<code>&lt;p&gt;&lt;strong&gt;...&lt;/strong&gt;&lt;/p&gt;</code> blocks
+which the colorizer leaves alone (only Issues-table rows are
+mutated).</p>
+<p><strong>Gates:</strong> <code>CM-DOC-REVISION-HEADER-PRESENT</code>
+walks IN-scope docs and asserts both mandatory fields appear within 15
+lines below the H1 title; <code>CM-COVENANT-114-44-PROPAGATION</code>
+asserts the anchor literal is present in every covenant file. Paired
+mutations strip the <code>**Revision:**</code> line OR the anchor
+literal → gates FAIL.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). <strong>No
+escape hatch</strong> — no <code>--skip-revision-bump</code>,
+<code>--no-header</code>, <code>--allow-missing-revision</code> flag
+exists. Operators who feel pressured to skip the bump should land
+smaller commits, not bypass the discipline.</p>
+<h3 id="11445--integration-status-doc-maintenance-mandate-user-mandate-2026-05-18">§11.4.45
+— Integration-Status-Doc Maintenance Mandate (User mandate,
+2026-05-18)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-18):</strong></p>
+<blockquote>
+<p>&quot;Make sure this Markdown document is regularly updated to reflect
+current up to date state of full integration ... Whole integrations MUST
+be regularly updated and retested! Keep the Markdown document ALWAYS up
+to date and ALWAYS exported into PDF and HTML! Make sure document is
+ALWAYS in sync! Add all this into our Constitution, AGENTS.MD and
+CLAUDE.MD.&quot;</p>
+</blockquote>
+<p><strong>Generalisation note.</strong> §11.4.45 is the generic form of
+§12.10 (CONTINUATION.md) applied to every domain integration. §12.10
+binds the canonical handoff document specifically; §11.4.45 generalises
+the sync-and-evidence pattern to every non-trivial integration
+(Dolby/Arvus, NanoKVM, Firebase, Widevine L1/L3, Play Protect, Netflix,
+Cuttlefish, Chromecast, WiFi chip, ES8388 codec, Sonos, AC-3, Google
+Stack, HiFi audio, TV apps, etc.). Without this generalisation each new
+integration re-invents the same sync wrapper, revision-header
+discipline, captured-evidence requirement, and operator-blocked surface
+— duplicating effort and risking drift.</p>
+<p><strong>Operative rule (10 sub-points — every Status.md MUST hold
+ALL).</strong></p>
+<p>Every integration-status document at
+<code>docs/&lt;domain&gt;/&lt;integration&gt;/Status.md</code>:</p>
+<ol type="1">
+<li>MUST exist when a domain integration is non-trivial (more than one
+fix / test / gate landing for that integration).</li>
+<li>MUST carry the §11.4.44 revision header directly below the H1 title
+(Revision + Last modified + Description + Authority + Maintainer +
+Scope).</li>
+<li>MUST be auto-synced (HTML + PDF) on every related-test-cycle
+completion AND every fix touching the integration. &quot;Auto-synced&quot; means
+the wrapper from sub-point 5 is invoked; manual regeneration is
+forbidden as the sole path because operators will forget.</li>
+<li>MUST be auto-colorized per §11.4.23 — Status column cells colored by
+lifecycle state, Type cells colored by Type, operator-blocked rows
+visually distinct.</li>
+<li>MUST have a sync wrapper invocable as
+<code>bash scripts/testing/sync_integration_status.sh &lt;Status.md&gt;</code>
+OR a per-integration thin shell that delegates to the generic wrapper.
+The thin shell exists so operators can type a short command per
+integration without remembering paths.</li>
+<li>MUST live under
+<code>docs/&lt;domain&gt;/&lt;integration&gt;/</code> directory
+structure — consistent layout, discovery by glob remains O(1).</li>
+<li>MUST include a captured-evidence-driven status table per §11.4.5 —
+every status claim cites the test log path, recording file path, or
+sink-probe report that backs it. Status claims without evidence are
+§11.4 PASS-bluffs.</li>
+<li>MUST distinguish status values per §11.4.6 / §11.4.7: PASS / FAIL /
+SKIP / PENDING_FORENSICS / OPERATOR-BLOCKED — closed vocabulary,
+mechanically distinguishable, no implicit values.</li>
+<li>MUST list operator-blocked items at the top of the document (just
+below the revision header) so an operator scanning the Status.md finds
+action items in O(1) — not buried 200 lines deep in a chronological
+evidence log.</li>
+<li>MUST be referenced from <code>docs/CONTINUATION.md</code> §3 (Active
+work) when any item in the Status.md is non-terminal (Queued / In
+progress / Reopened / Operator-blocked) — composes with §12.10 so the
+canonical handoff document points at the integration-status doc rather
+than re-stating its contents.</li>
+</ol>
+<p><strong>Gates:</strong></p>
+<ul>
+<li><code>CM-COVENANT-114-45-PROPAGATION</code> — anchor text propagated
+to every CLAUDE.md / AGENTS.md across the covenant file set.</li>
+<li><code>CM-AF-INTEGRATION-STATUS-DOCS</code> — discovers all
+<code>docs/**/Status.md</code> via glob, verifies each carries the
+§11.4.44 header, has a sync wrapper, HTML+PDF exports are mtime-current
+vs the source, colorization applied (cell-status class present in the
+colorized HTML).</li>
+</ul>
+<p><strong>Paired meta-test mutations</strong> (§1.1 compliance):
+propagation strip → propagation gate FAILs; delete
+<code>**Revision:**</code> from a Status.md → status-docs gate FAILs;
+touch Status.md without re-syncing → mtime mismatch FAILs; inject
+<code>likely</code> outside <code>UNCONFIRMED:</code> block → existing
+<code>CM-NO-GUESSING-MANDATE</code> catches it (composition catch).</p>
+<p><strong>Composition.</strong> §11.4.5 (captured evidence in every
+row), §11.4.6 / §11.4.7 (status vocabulary closed-set), §11.4.12 (sync
+wrapper pattern reused for HTML+PDF re-export), §11.4.13 (sink-side
+captured evidence is a specific instance of the generic rule), §11.4.15
+(status values), §11.4.22 (commit_docs.sh wrapper), §11.4.23 (colorizer
+extends to Status.md HTML), §11.4.44 (every Status.md carries the
+revision header), §12.10 (CONTINUATION.md references Status.md paths in
+§3).</p>
+<p><strong>No escape hatch</strong> — no
+<code>--skip-status-sync</code>,
+<code>--no-revision-bump-on-status</code>,
+<code>--allow-stale-html</code> flag. Operators who feel pressured to
+skip the sync should land smaller, more frequent integration commits
+rather than batching status updates into one giant push.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17).</p>
+<h3 id="11453--fixed_summary-parity-mandate-user-mandate-2026-05-18">§11.4.53
+— Fixed_Summary parity mandate (User mandate, 2026-05-18)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-18T17:55Z):</strong></p>
+<blockquote>
+<p>&quot;Note: Just like for Issues we have Issues_Summary, for Fixed we MUST
+HAVE Fixed_Summary - like all other docs: ALWAYS in sync and up to date
+and ALWAYS exported into the PDF and HTML! Add this mandatory rule /
+constraint into the root (constitution Submodule) Constitution,
+AGENTS.MD and CLAUDE.MD.&quot;</p>
+</blockquote>
+<p><strong>Why this anchor exists.</strong> §11.4.12 already established
+that <code>docs/Issues_Summary.md</code> is the canonical short-form
+summary of <code>docs/Issues.md</code> and MUST always be regenerated +
+re-exported (HTML</p>
+<ul>
+<li>PDF) whenever the source changes. §11.4.19 added the column-
+alignment requirement so <code>Fixed_Summary.md</code> mirrors
+<code>Issues_Summary.md</code> shape. §11.4.53 closes the propagation
+gap: the parity discipline that §11.4.12 imposes on Issues /
+Issues_Summary MUST apply symmetrically to Fixed / Fixed_Summary. The
+mechanical behaviour already exists in
+<code>scripts/testing/sync_issues_docs.sh</code> (lines 98- 105
+regenerate Fixed_Summary in stage 1b alongside Issues_Summary in stage
+1a), but the mandate was never explicit in the Constitution — and an
+unstated rule is a §11.4 PASS-bluff risk: future refactors of
+<code>sync_issues_docs.sh</code> could drop the Fixed_Summary half
+without violating any canonical authority. §11.4.53 makes the existing
+behaviour explicit canonical authority so the gate set can defend
+it.</li>
+</ul>
+<p><strong>Operative rule.</strong> <code>docs/Fixed_Summary.md</code>
+is the symmetric short- form summary of <code>docs/Fixed.md</code>. It
+MUST be regenerated whenever <code>Fixed.md</code> changes. Its HTML +
+PDF exports MUST travel with the markdown (identical mtimes within
+sync_issues_docs.sh granularity). Stale exports are §11.4.53 violations
+regardless of whether the underlying <code>.md</code> is correct — an
+operator (or future agent) reading the HTML or PDF gets a divergent view
+of which items are closed, and the §12.10 CONTINUATION resumption
+guarantee silently breaks. Same discipline as §11.4.12 Issues_Summary
+applied to Fixed.md.</p>
+<p><strong>Generator.</strong>
+<code>scripts/testing/generate_fixed_summary.sh</code> is the canonical
+generator. It MUST exist + be executable + emit a markdown table whose
+header columns include <code>Status</code> and <code>Type</code> (per
+§11.4.19 column-alignment) so the <code>Fixed_Summary.md</code> shape
+mirrors <code>Issues_Summary.md</code> exactly.</p>
+<p><strong>Auto-sync wrapper.</strong>
+<code>scripts/testing/sync_issues_docs.sh</code> is the single
+operator-facing entry point. It already regenerates BOTH Issues_Summary
+AND Fixed_Summary in one shot (stages 1a + 1b), then exports HTML + PDF
+(stage 2), then colorizes per §11.4.23 (stage 3), then re-renders the
+PDFs from the colorized HTML (stage 3b). MUST be invoked after any edit
+to <code>Fixed.md</code> (just as §11.4.12 requires after any edit to
+<code>Issues.md</code>). Manual invocation of just the Issues half
+(<code>--issues-only</code>-style flag) is FORBIDDEN — the wrapper has
+no such flag and §11.4.53 prohibits adding one.</p>
+<p><strong>Sort order.</strong> Same pattern as §11.4.12 — by closure
+date DESC (most-recent-Fixed first), with §-letter / Fix-# secondary
+sort. Documented at the top of the generated file.</p>
+<p><strong>HTML + PDF travel-together.</strong> Per §11.4.12 + §11.4.44,
+the three file types (<code>.md</code>, <code>.html</code>,
+<code>.pdf</code>) MUST always have identical mtimes within
+sync_issues_docs.sh granularity. Stale exports violate §11.4.53
+regardless of whether the underlying <code>.md</code> is correct.</p>
+<p><strong>Composition:</strong></p>
+<ul>
+<li>§11.4.12 — Issues_Summary parity is the sibling rule §11.4.53
+symmetrizes. §11.4.12 and §11.4.53 are the canonical pair: edits to one
+source-of-truth (<code>Issues.md</code> or <code>Fixed.md</code>)
+trigger regeneration of BOTH summaries via the same wrapper.</li>
+<li>§11.4.19 — atomic Issues→Fixed migration triggers Fixed_Summary
+regeneration. When an item closes (status
+<code>Fixed (→ Fixed.md)</code> / <code>Implemented (→ Fixed.md)</code>
+/ <code>Completed (→ Fixed.md)</code> per §11.4.33), the operator moves
+the entry from <code>Issues.md</code> to <code>Fixed.md</code>
+atomically and runs <code>sync_issues_docs.sh</code> — both summaries
+refresh.</li>
+<li>§11.4.23 — visual-cue &amp; grouping colorizer post-processes both
+<code>Issues_Summary.html</code> AND <code>Fixed_Summary.html</code>.
+Stale <code>Fixed_Summary.html</code> would carry pre-§11.4.23 styling —
+itself a §11.4.53 violation.</li>
+<li>§11.4.33 — type-aware closure-status vocabulary. Fixed_Summary MUST
+respect the three terminal values (<code>Fixed (→ Fixed.md)</code>,
+<code>Implemented (→ Fixed.md)</code>,
+<code>Completed (→ Fixed.md)</code>) and emit them literally in the
+Status column.</li>
+<li>§11.4.44 — revision-header mandate applies to
+<code>Fixed_Summary.md</code> exactly as it applies to every other
+tracked Markdown doc.</li>
+<li>§12.10 — CONTINUATION.md resumption guarantee depends on the
+divergent-summary problem NOT existing; §11.4.53 is the explicit
+symmetric closure of that risk for the Fixed half.</li>
+</ul>
+<p><strong>Pre-build gates:</strong></p>
+<ul>
+<li><p><code>CM-FIXED-SUMMARY-SYNC</code> — canonical artifact-level
+gate (6 invariants): (1) <code>docs/Fixed_Summary.md</code> exists; (2)
+<code>docs/Fixed_Summary.html</code> exists with mtime ≥
+<code>Fixed_Summary.md</code> mtime; (3)
+<code>docs/Fixed_Summary.pdf</code> exists with mtime ≥
+<code>Fixed_Summary.md</code> mtime; (4) <code>Fixed_Summary.md</code>
+mtime ≥ <code>Fixed.md</code> mtime; (5)
+<code>scripts/testing/generate_fixed_summary.sh</code> exists +
+executable; (6) <code>scripts/testing/sync_issues_docs.sh</code> invokes
+the generator. Pre-build FAILs if any invariant is violated. Partially
+overlaps with <code>CM-FIXED-COLUMN-ALIGNMENT</code> (§11.4.19 Phase
+39.AV gate) and <code>CM-DOCS-EXPORT-SYNC</code> (§11.4.15 4-doc +
+6-export scan), but is explicitly the Fixed_Summary derived-doc parity
+invariant for §11.4.53 enforcement.</p></li>
+<li><p><code>CM-COVENANT-114-53-PROPAGATION</code> — anchor literal
+<code>§11.4.53</code> present across all 5 canonical files
+(<code>constitution/Constitution.md</code>,
+<code>constitution/CLAUDE.md</code>,
+<code>constitution/AGENTS.md</code>, parent consumer&#39;s
+<code>CLAUDE.md</code> + <code>AGENTS.md</code>). Same propagation
+pattern as <code>CM-COVENANT-114-51-PROPAGATION</code> and
+<code>CM-COVENANT-114-52-PROPAGATION</code>. Consumer projects propagate
+further (owned submodules, nested submodules, HelixQA deps) at their own
+per-project gate granularity.</p></li>
+</ul>
+<p><strong>Paired mutations (per §1.1):</strong></p>
+<ul>
+<li>Strip <code>§11.4.53</code> literal from
+<code>constitution/CLAUDE.md</code> →
+<code>CM-COVENANT-114-53-PROPAGATION</code> FAILs.</li>
+<li>Move <code>scripts/testing/generate_fixed_summary.sh</code> aside
+(so the invariant-(5) executable-check fails) →
+<code>CM-FIXED-SUMMARY-SYNC</code> FAILs.</li>
+<li>Touch <code>docs/Fixed_Summary.md</code> to a date older than
+<code>docs/Fixed.md</code> → invariant-(4) violated →
+<code>CM-FIXED-SUMMARY-SYNC</code> FAILs.</li>
+</ul>
+<p><strong>No escape hatch.</strong> No
+<code>--skip-fixed-summary-sync</code>, <code>--issues-only</code>,
+<code>--summary-not-applicable</code> flag exists. The discipline exists
+because the user mandate is unambiguous: &quot;like all other docs: ALWAYS in
+sync and up to date and ALWAYS exported into the PDF and HTML&quot;. A
+divergent Fixed_Summary breaks operator + AI-agent ability to discover
+what is fixed vs what is still open — and that breakage IS the §11.4
+&quot;tests pass but reality differs&quot; pattern at the documentation layer.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). Applies to
+every project consuming the constitution submodule that maintains an
+<code>Issues.md</code> / <code>Fixed.md</code> split (the
+Issues-tracking lifecycle is already a §11.4.15 universal mandate, so
+this clause inherits the same universal scope). Projects that do not
+maintain a Fixed.md (e.g., single-binary throwaway prototypes) are
+NOT_APPLICABLE; all projects that DO maintain a Fixed.md MUST land both
+gates and mutations within one cycle of adopting this Constitution
+version.</p>
+<hr />
+<h3 id="11456--status_summary-parity--two-audience-format-user-mandate-2026-05-19">§11.4.56
+— Status_Summary parity + two-audience format (User mandate,
+2026-05-19)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-19):</strong></p>
+<blockquote>
+<p>&quot;Every Status.md doc gets a Status_Summary parity companion ALWAYS in
+sync, exported to HTML + PDF. Two-page format: page 1 = non-developer
+audience (team-specific: audio team for audio Status, video team for
+video Status, etc.), page 2 = software engineer summary. Auto-generated
+after every main Status update.&quot;</p>
+</blockquote>
+<p><strong>Why this anchor exists.</strong> §11.4.45 established
+<code>Status.md</code> per integration domain — but Status.md targets
+engineers (cites gate names, §-letter references, commit hashes,
+captured-evidence file paths). Non-developer stakeholders (audio team,
+video team, QA leads, product reviewers) need a plain-language version
+of the same content, <strong>always derived</strong> from the
+engineering Status.md so the two views can never diverge. §11.4.56
+introduces the symmetric companion doc with a two-audience layout.</p>
+<p><strong>Operative rule.</strong> For every
+<code>docs/&lt;domain&gt;/&lt;integration&gt;/ Status.md</code> that
+satisfies §11.4.45, a companion
+<code>docs/&lt;domain&gt;/&lt;integration&gt;/Status_Summary.md</code>
+MUST exist with:</p>
+<ol type="1">
+<li><strong>Revision header</strong> per §11.4.44.</li>
+<li><strong>Page 1 — For the <code>&lt;team&gt;</code></strong>
+(audience-specific heading; the team name is derived from the
+integration domain — audio team for <code>docs/dolby/*</code>, video
+team for <code>docs/video/*</code>, etc.). Page 1 contains:
+<ul>
+<li>Plain-language summary of current state (1-3 paragraphs).</li>
+<li><strong>What works</strong> (1-3 bullets, end-user-visible
+behaviour).</li>
+<li><strong>What&#39;s broken or pending</strong> (1-3 bullets).</li>
+<li><strong>Operator / team actions</strong> if any.</li>
+<li>NO code references, NO §-letter jargon, NO captured-evidence file
+paths, NO gate / mutation names.</li>
+</ul></li>
+<li><strong>Page 2 — For software engineers</strong> — same content
+density as Status.md but condensed:
+<ul>
+<li>§-letter references, gate names, commit hashes, captured- evidence
+file paths.</li>
+<li>Cross-references to Issues.md / Fixed.md items by ATM-NNN
+(§11.4.54).</li>
+</ul></li>
+<li><strong>HTML + PDF exports</strong> travel with the markdown
+(identical mtimes within sync wrapper granularity).</li>
+<li><strong>Auto-generation</strong> — the canonical helper
+<code>scripts/testing/generate_status_summary.sh &lt;Status.md path&gt;</code>
+produces both pages. The generator MUST be invoked from a sync wrapper
+(e.g. <code>scripts/testing/sync_integration_status.sh</code> per
+§11.4.45) every time the source Status.md is updated.</li>
+</ol>
+<p><strong>Page-1 audience derivation.</strong> The generator maps
+domain → audience name via a project-controlled mapping table (e.g.
+<code>audio</code> → <code>Audio team</code>, <code>video</code> →
+<code>Video team</code>, <code>network</code> →
+<code>Network team</code>, <code>drm</code> →
+<code>DRM / streaming team</code>). Unmapped domains default to
+<code>Project team</code>. The mapping table lives in the project&#39;s
+generator config, NOT in the Constitution (project-specific data per
+§11.4.17).</p>
+<p><strong>Composition:</strong></p>
+<ul>
+<li>§11.4.45 (Status.md per integration) — Status_Summary.md
+COMPLEMENTS, never replaces. Both files exist together.</li>
+<li>§11.4.12 + §11.4.53 (parity discipline) — Status_Summary follows the
+same regeneration / HTML+PDF / mtime-alignment pattern.</li>
+<li>§11.4.44 (revision header) — applies to Status_Summary.md.</li>
+<li>§11.4.23 (colorizer) — Status_Summary.html receives the same
+type/status visual cues if it embeds tracked-item references.</li>
+<li>§12.10 (CONTINUATION.md) — non-developer stakeholders read
+Status_Summary; engineers read Status.md + CONTINUATION.md +
+Issues.md.</li>
+</ul>
+<p><strong>Pre-build gates:</strong></p>
+<ul>
+<li><code>CM-STATUS-SUMMARY-EXISTS-FOR-EVERY-STATUS</code> — for every
+<code>docs/**/Status.md</code>, the sibling
+<code>Status_Summary.md</code> MUST exist (+ HTML + PDF) with mtime ≥
+Status.md mtime − tolerance.</li>
+<li><code>CM-STATUS-SUMMARY-TWO-AUDIENCE</code> — every
+Status_Summary.md contains BOTH the
+<code>Page 1 — For the &lt;team&gt;</code> heading AND the
+<code>Page 2 — For software engineers</code> heading. Missing either
+FAILs.</li>
+<li><code>CM-STATUS-SUMMARY-REVISION-HEADER</code> — §11.4.44 header
+present.</li>
+<li><code>CM-COVENANT-114-56-PROPAGATION</code> — anchor literal across
+files.</li>
+</ul>
+<p><strong>Paired mutations (per §1.1):</strong></p>
+<ul>
+<li>Delete a Status_Summary.md →
+<code>CM-STATUS-SUMMARY-EXISTS-FOR-EVERY-STATUS</code> FAILs.</li>
+<li>Remove <code>Page 1</code> heading from a Status_Summary.md →
+<code>CM-STATUS-SUMMARY-TWO-AUDIENCE</code> FAILs.</li>
+<li>Strip <code>§11.4.56</code> literal from
+<code>constitution/CLAUDE.md</code> →
+<code>CM-COVENANT-114-56-PROPAGATION</code> FAILs.</li>
+</ul>
+<p><strong>No escape hatch.</strong> No
+<code>--skip-status-summary</code>, <code>--engineer-only</code>,
+<code>--no-audience-split</code> flag. Plain-language stakeholder access
+is not negotiable — the project ships to humans, not just to
+engineers.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). Applies
+wherever §11.4.45 applies (every project that maintains domain-scoped
+Status.md docs).</p>
+<hr />
+<h3 id="11457--readmemd-doc-link-section--revision-metadata-user-mandate-2026-05-19">§11.4.57
+— README.md doc-link section + revision metadata (User mandate,
+2026-05-19)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-19):</strong></p>
+<blockquote>
+<p>&quot;Add a doc-link section to README.md — links to Issues +
+Issues_Summary + Fixed + Fixed_Summary + CONTINUATION + ALL Status docs
++ their exports. Each link shows revision + last-modified.&quot;</p>
+</blockquote>
+<p><strong>Why this anchor exists.</strong> Operators, AI agents, and
+external reviewers arriving at the project repo for the first time need
+a single discoverable entry point listing every canonical tracked- items
++ status document, along with each document&#39;s freshness (revision +
+last-modified). Without this surface, agents resort to
+<code>find docs -name &#39;*.md&#39;</code> which returns hundreds of files
+unranked. §11.4.57 makes the README.md the canonical index.</p>
+<p><strong>Operative rule.</strong> Every project&#39;s top-level
+<code>README.md</code> MUST contain a section titled
+<code>Tracked-Items + Status Documents</code> (or the project&#39;s
+localized equivalent — the section heading MUST contain the literal
+<code>Tracked-Items</code> for gate detection). The section MUST be a
+markdown table with columns: <code>Document</code> (human- readable
+name), <code>Last modified</code> (ISO 8601 UTC from the doc&#39;s §11.4.44
+revision header), <code>Revision</code> (integer from same header),
+<code>Markdown</code> (relative link to <code>.md</code>),
+<code>HTML</code> (relative link to <code>.html</code>),
+<code>PDF</code> (relative link to <code>.pdf</code>).</p>
+<p>The section MUST link to:</p>
+<ol type="1">
+<li><code>Issues.md</code>, <code>Issues_Summary.md</code> (§11.4.12,
+§11.4.15, §11.4.16).</li>
+<li><code>Fixed.md</code>, <code>Fixed_Summary.md</code> (§11.4.19,
+§11.4.53).</li>
+<li><code>CONTINUATION.md</code> (§12.10).</li>
+<li><strong>Every</strong> <code>docs/**/Status.md</code> and its
+<code>Status_Summary.md</code> pair (§11.4.45, §11.4.56). Status docs
+are auto-discovered by the generator via
+<code>find docs -name &#39;Status.md&#39;</code>.</li>
+</ol>
+<p><strong>Generator.</strong>
+<code>scripts/testing/update_readme_doc_links.sh</code> is the canonical
+helper. It:</p>
+<ol type="1">
+<li>Scans the canonical doc paths.</li>
+<li>Extracts each doc&#39;s <code>Revision</code> +
+<code>Last modified</code> fields from its §11.4.44 header.</li>
+<li>Renders the markdown table with current values.</li>
+<li>Replaces the section between explicit markers
+(<code>&lt;!-- doc-link-section:begin --&gt;</code> and
+<code>&lt;!-- doc-link-section:end --&gt;</code>) in README.md.</li>
+</ol>
+<p>The wrapper MUST be invoked from <code>sync_issues_docs.sh</code> (so
+every Issues.md / Fixed.md update refreshes the README freshness data)
+AND from <code>sync_integration_status.sh</code> (so every Status.md
+update likewise refreshes README).</p>
+<p><strong>Composition:</strong></p>
+<ul>
+<li>§11.4.12 + §11.4.19 + §11.4.53 (Issues / Issues_Summary / Fixed /
+Fixed_Summary parity) — README links to all four.</li>
+<li>§11.4.44 (revision header) — README pulls Revision + Last modified
+from each doc&#39;s header.</li>
+<li>§11.4.45 (Status.md) + §11.4.56 (Status_Summary.md) — README
+enumerates every Status pair.</li>
+<li>§12.10 (CONTINUATION.md) — explicitly linked from README so
+operators discover it on arrival.</li>
+</ul>
+<p><strong>Pre-build gates:</strong></p>
+<ul>
+<li><code>CM-README-DOC-LINK-SECTION-PRESENT</code> — README.md contains
+the literal <code>Tracked-Items</code> heading AND both section markers
+(<code>&lt;!-- doc-link-section:begin --&gt;</code>,
+<code>&lt;!-- doc-link-section:end --&gt;</code>).</li>
+<li><code>CM-README-DOC-LINK-ROWS-COMPLETE</code> — every canonical doc
+(Issues, Issues_Summary, Fixed, Fixed_Summary, CONTINUATION, every
+Status.md + Status_Summary.md found under <code>docs/</code>) appears as
+a row inside the section.</li>
+<li><code>CM-README-DOC-LINK-FRESHNESS</code> — the
+<code>Last modified</code> value in each row matches the corresponding
+doc&#39;s §11.4.44 header within sync-wrapper granularity (no row staler
+than the source doc by more than the sync wrapper&#39;s tolerance).</li>
+<li><code>CM-COVENANT-114-57-PROPAGATION</code> — anchor literal across
+files.</li>
+</ul>
+<p><strong>Paired mutations (per §1.1):</strong></p>
+<ul>
+<li>Strip the section markers from README.md →
+<code>CM-README-DOC-LINK-SECTION-PRESENT</code> FAILs.</li>
+<li>Remove the CONTINUATION.md row from the section →
+<code>CM-README-DOC-LINK-ROWS-COMPLETE</code> FAILs.</li>
+<li>Backdate a <code>Last modified</code> value in a row →
+<code>CM-README-DOC-LINK-FRESHNESS</code> FAILs.</li>
+<li>Strip <code>§11.4.57</code> literal from
+<code>constitution/CLAUDE.md</code> →
+<code>CM-COVENANT-114-57-PROPAGATION</code> FAILs.</li>
+</ul>
+<p><strong>No escape hatch.</strong> No
+<code>--skip-readme-doc-links</code>,
+<code>--collapse-status-rows</code>, <code>--no-freshness-check</code>
+flag. The discipline exists because invisible docs are non-existent docs
+from a discoverability standpoint, and the §11.4 covenant specifically
+prohibits surfaces where claims (here: doc freshness) can drift
+unnoticed.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). Applies to
+every project that maintains an Issues / Fixed split or Status.md docs
+(i.e., to every project consuming this Constitution that has any of
+§11.4.15 / §11.4.45 / §11.4.53 in scope).</p>
+<hr />
+<h3 id="11459--readme-always-sync-mandate-user-mandate-2026-05-19">§11.4.59
+— README always-sync mandate (User mandate, 2026-05-19)</h3>
+<p><strong>Forensic anchor — direct user mandate (verbatim,
+2026-05-19):</strong></p>
+<blockquote>
+<p>&quot;fully review and update our main README document. Some points are
+not valid anymore, some are missing. Make sure main README is among
+documents we MUST ALWAYS keep updated and in Sync with the projects and
+other documentation! Make sure we always export it (on every update)
+into PDF and HTML. This mandatory rules/constraints MUST BE all added
+into the root (constitution Submodule) Constitution, AGENT.MD and
+CLAUDE.MD!&quot;</p>
+</blockquote>
+<p><code>README.md</code> at the project root is a §11.4.12-class
+always-sync document. It MUST be:</p>
+<ol type="1">
+<li><strong>Reviewed and updated whenever</strong> new docs /
+integrations / Status.md entries appear, new submodules land,
+applied-fixes count changes, or canonical paths shift.</li>
+<li><strong>Kept in lockstep</strong> with
+<code>docs/CONTINUATION.md</code> (§12.10) and the Issues /
+Issues_Summary / Fixed / Fixed_Summary doc set (§11.4.12, §11.4.53) —
+same always-sync discipline.</li>
+<li><strong>Exported to <code>.html</code> and <code>.pdf</code> on
+every update</strong>. New helper
+<code>scripts/testing/sync_readme_export.sh</code> performs the pandoc +
+weasyprint export; it is auto-invoked by
+<code>scripts/testing/sync_issues_docs.sh</code> so a single doc-sync
+run refreshes the entire doc surface (Issues / Issues_Summary / Fixed /
+Fixed_Summary / CONTINUATION / README — md + html + pdf).</li>
+<li><strong>Carry a §11.4.44 revision header</strong> (Revision N + Last
+modified ISO timestamp) at the top of the file.</li>
+<li><strong>Contain a Documentation Map section</strong> linking to
+every Status.md
+<ul>
+<li>Status_Summary.md + spec + plan + guide + script-companion doc +
+changelog + the constitution submodule, plus a per-audience navigation
+(end user / developer / QA / agent).</li>
+</ul></li>
+<li><strong>Self-contained</strong> — no hyperlinks to ephemeral
+external systems as the only source of truth.</li>
+</ol>
+<p>Stale exports are §11.4.59 violations regardless of whether the
+underlying <code>README.md</code> is correct — an operator (or future
+agent) reading the HTML or PDF gets a divergent view, and the §12.10
+CONTINUATION resumption guarantee silently breaks. Same discipline as
+§11.4.12 Issues_Summary and §11.4.53 Fixed_Summary applied to
+README.md.</p>
+<p><strong>Captured-evidence enforcement.</strong> Pre-build gate
+<code>CM-README-EXPORT-SYNC</code> locks four invariants: (a)
+<code>README.md</code> exists, (b) <code>README.html</code> exists, (c)
+<code>README.html</code> mtime ≥ <code>README.md</code> mtime, (d)
+<code>README.pdf</code> mtime ≥ <code>README.md</code> mtime (skipped
+gracefully if weasyprint is unavailable on the host but enforced when
+the PDF is present). Paired meta-test mutation backdates
+<code>README.html</code> + <code>README.pdf</code> so the source is
+newer → gate FAILs.</p>
+<p><strong>Composition.</strong> Composes with §11.4.12 (Issues_Summary
+parity), §11.4.18 (script-companion docs), §11.4.23 (visual-cue HTML
+colorizer not applicable to README&#39;s narrative format), §11.4.44
+(revision header on every Status.md and now README.md), §11.4.45
+(Status.md integration), §11.4.53 (Fixed_Summary parity — README is the
+canonical sibling at the project-overview layer), §11.4.56
+(Status_Summary parity), §11.4.57 (README.md is the canonical index per
+Phase 39.EW+1), §12.10 (CONTINUATION.md resumption guarantee depends on
+README&#39;s Documentation Map being current).</p>
+<p><strong>No escape hatch.</strong> §11.4.59 has NO operator-facing
+override flag. No <code>--skip-readme-sync</code>,
+<code>--no-readme-export</code>, <code>--readme-stale-OK</code> flag
+exists. The discipline exists because README.md is the first file any
+new agent / operator / contributor reads — letting it diverge from
+reality is the exact §11.4 PASS-bluff pattern but at the
+project-overview layer.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). Applies to
+every project consuming this Constitution. The doc-sync helper, pandoc +
+weasyprint dependencies, and gate name are universal; the specific
+Documentation Map contents are consumer-side per-project.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.59.</p>
+<p>Non-compliance is a release blocker regardless of context.</p>
+<h3 id="11460--documentation-always-sync-composite-covenant-user-mandate-2026-05-19">§11.4.60
+— Documentation always-sync composite covenant (User mandate,
+2026-05-19)</h3>
+<p><strong>Forensic anchor — verbatim user mandate (2026-05-19
+~09:00Z):</strong></p>
+<blockquote>
+<p>&quot;Double check if all documents are properly tied with our root
+Constitution, CLAUDE.MD and AGENTS.MD so they are always up to date,
+always in sync and exported into PDF and HTML! ... Issues,
+Issues_Summary, Fixed, Fixed_Summary, Continuation, Status and
+Status_Summary for all contexts (areas) — THEY ALL MUST BE REGULARLY
+UPDATED, IN SYNC AND CONSISTENT without giving at any moment false
+picture about the state of the project or particular area(s) of it!&quot;</p>
+</blockquote>
+<p><strong>The covenant.</strong> Eight documentation classes constitute
+the project&#39;s living state surface. They MUST be in sync at all times
+across markdown + HTML + PDF artefacts. Per-class anchors §11.4.12 /
+§11.4.44 / §11.4.45 / §11.4.53 / §11.4.56 / §11.4.57 / §11.4.59 / §12.10
+each govern one class; §11.4.60 binds them via a single
+mechanically-enforced composite invariant so the failure mode &quot;one
+per-class gate silently disabled while operator reads a divergent
+HTML/PDF&quot; is structurally impossible.</p>
+<p><strong>Eight bound doc classes (artefact triple — <code>.md</code> +
+<code>.html</code> + <code>.pdf</code>):</strong></p>
+<ol type="1">
+<li><code>docs/Issues.md</code> — open-item tracker (§11.4.12 + §11.4.15
++ §11.4.16)</li>
+<li><code>docs/Issues_Summary.md</code> — auto-generated short form
+(§11.4.12)</li>
+<li><code>docs/Fixed.md</code> — closed-item archive (§11.4.53)</li>
+<li><code>docs/Fixed_Summary.md</code> — auto-generated short form
+(§11.4.53)</li>
+<li><code>docs/CONTINUATION.md</code> — resumption handoff (§12.10)</li>
+<li><code>README.md</code> — project overview + doc-link index (§11.4.57
++ §11.4.59)</li>
+<li><code>docs/**/Status.md</code> (every domain-scoped instance) —
+per-integration status (§11.4.45)</li>
+<li><code>docs/**/Status_Summary.md</code> (every domain-scoped
+instance) — auto-generated short form (§11.4.56)</li>
+</ol>
+<p><strong>Mandatory composite gate.</strong>
+<code>CM-DOCS-COMPOSITE-SYNC</code> (pre-build,
+device/rockchip/rk3588/tests/pre_build_verification.sh):</p>
+<ul>
+<li>For every doc-class instance with <code>.md</code> present, verify
+<code>.html</code> mtime ≥ <code>.md</code> mtime AND <code>.pdf</code>
+mtime ≥ <code>.md</code> mtime.</li>
+<li>For every Status.md instance, also verify the sibling
+<code>Status_Summary.md</code> mtime ≥ <code>Status.md</code> mtime (if
+the summary exists).</li>
+<li>Walks <code>docs/</code> recursively for <code>Status.md</code> —
+the Status fleet is not enumerated statically because new integrations
+land per phase.</li>
+</ul>
+<p>Composite gate FAILs the build if ANY single instance fails. The
+per-class gates (<code>CM-ISSUES-SUMMARY-SYNC</code>,
+<code>CM-DOCS-EXPORT-SYNC</code>, <code>CM-FIXED-SUMMARY-SYNC</code>,
+<code>CM-CONTINUATION-DOC-INSYNC</code>,
+<code>CM-README-EXPORT-SYNC</code>) remain in place — §11.4.60 is the
+belt-and-suspenders layer that catches what they miss.</p>
+<p><strong>Paired mutation (per §1.1).</strong>
+<code>meta_test_false_positive_proof.sh</code> backdates
+<code>docs/Issues.html</code> to year 2000
+(<code>touch -t 200001010000.00</code>) and asserts
+<code>CM-DOCS-COMPOSITE-SYNC</code> FAILs.</p>
+<p><strong>Revision-header coupling.</strong> Per §11.4.44 every one of
+the 8 doc classes carries the <code>**Revision:** N</code> +
+<code>**Last modified:** ISO 8601 UTC</code> header directly under the
+H1. <code>CM-DOCS-COMPOSITE-SYNC</code> does NOT re-check the revision
+header (already covered by <code>CM-DOC-REVISION-HEADER-PRESENT</code>)
+— composite gate is artefact-mtime only, by design narrow.</p>
+<p><strong>Auto-sync wrapper coupling.</strong> Per §11.4.12 every edit
+to an Issues/Fixed-class doc flows through
+<code>sync_issues_docs.sh</code>. Per §11.4.45 every edit to a Status.md
+flows through <code>sync_integration_status.sh &lt;Status.md&gt;</code>.
+Per §11.4.59 every edit to README.md flows through
+<code>sync_readme_export.sh</code>. §11.4.60 does NOT change the wrapper
+contract — it only catches the failure mode where an operator (or AI
+agent) bypassed the wrapper and committed markdown without regenerating
+exports.</p>
+<p><strong>No escape hatch.</strong> No
+<code>--skip-composite-doc-sync</code>, <code>--allow-stale-html</code>,
+<code>--summary-not-applicable</code> flag exists. The covenant exists
+for the operator&#39;s own protection — the moment a single per-class gate
+is bypassed, divergence accumulates silently until release-time
+forensics finds it (the exact §11.4 PASS-bluff pattern the canonical
+covenant was authored to eliminate).</p>
+<p><strong>Composes with</strong> §11.4.12 (Issues_Summary), §11.4.15
+(Status field), §11.4.16 (Type field), §11.4.19 (atomic Issues→Fixed
+migration), §11.4.23 (colorizer), §11.4.33 (type-aware closure
+vocabulary), §11.4.44 (revision header), §11.4.45 (Status.md), §11.4.53
+(Fixed_Summary), §11.4.56 (Status_Summary), §11.4.57 (README doc-link),
+§11.4.59 (README always-sync), §12.10 (CONTINUATION maintenance).</p>
+<p><strong>Propagation.</strong> Pre-build gate
+<code>CM-COVENANT-114-60-PROPAGATION</code> enforces the §11.4.60 anchor
+literal in every CLAUDE.md / AGENTS.md across parent + 10 owned
+submodules + HelixQA dependencies (same shape as existing §11.4.5X
+propagation gates). The propagation gate is OPTIONAL for Phase 39.FC&#39;s
+initial landing — only the composite gate + its paired mutation are
+mandatory; propagation gates trail per established phase pattern.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). Applies to
+every project consuming this Constitution that maintains any of the 8
+doc classes. The composite gate logic is universal; the specific
+doc-class instance paths are consumer-side per-project.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.60.</p>
+<p>Non-compliance is a release blocker regardless of context.</p>
+<h3 id="11461--mandatory-markdown-metadata-table--structured-doc-toc-user-mandate-2026-05-19">§11.4.61
+— Mandatory Markdown metadata table + structured-doc ToC (User mandate,
+2026-05-19)</h3>
+<p><strong>Forensic anchor — direct user mandate (verbatim,
+2026-05-19):</strong></p>
+<blockquote>
+<p>&quot;For every Markdown document which contains structured content (with
+headings / sections and sub-sections) make sure that every time we apply
+change to the structure, table of contents on the top of the document is
+created or updated! This is MANDATORY for every structured MARKDOWN
+document. Automatically its PDF and HTML versions MUST BE
+(re)generated!&quot;</p>
+<p>&quot;Introduce ... revision number, date and time of creation, date and
+time of last modification, other useful information we have in documents
+such as Issues, Issues_Summary, Fixed, Fixed_Summary, Status,
+Status_Summary, Continuation and similar. ... make this mandatory for
+EVERY Markdown document from now on, update root constitution Submodule
+with these changes and commit and push it all to all upstreams.&quot;</p>
+</blockquote>
+<p><strong>Scope of §11.4.61.</strong> This clause adds two universal
+disciplines that sit alongside (NOT replacing) the §11.4.65 universal
+export mandate. §11.4.65 governs the existence and freshness of
+<code>.html</code> + <code>.pdf</code> siblings; §11.4.61 governs the
+<em>content</em> of the Markdown sources: how revision/status metadata
+is displayed at the top, and how the document&#39;s navigation map (Table of
+contents) is kept in lockstep with the heading structure. The two
+clauses compose — §11.4.65 guarantees readers see <em>something
+current</em>; §11.4.61 guarantees what they see communicates its own
+provenance and is internally navigable.</p>
+<p><strong>A. Canonical metadata table (supersedes §11.4.44
+format).</strong> The §11.4.44 bold-line revision header is superseded
+by a <strong>Markdown table</strong> placed immediately after the
+document&#39;s H1 title (and any blank line that follows). Pre-existing
+bold-line headers remain historically valid but MUST migrate to the
+canonical table at the next substantive edit. The canonical table has
+these MANDATORY rows:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Revision</td>
+<td>positive integer; starts at 1, monotonic, never reset</td>
+</tr>
+<tr>
+<td>Created</td>
+<td>ISO 8601 date — first commit touching the file</td>
+</tr>
+<tr>
+<td>Last modified</td>
+<td>ISO 8601 date — most recent commit touching the file</td>
+</tr>
+<tr>
+<td>Status</td>
+<td>one of <code>active</code> / <code>draft</code> /
+<code>deprecated</code> / <code>superseded</code></td>
+</tr>
+</tbody>
+</table>
+<p>ENCOURAGED rows (REQUIRED when the document tracks workable items or
+has a known continuation; render with <code>—</code> / <code>none</code>
+when N/A):</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Status summary</td>
+<td>one-line current-state hook</td>
+</tr>
+<tr>
+<td>Issues</td>
+<td>comma-separated workable-item IDs</td>
+</tr>
+<tr>
+<td>Issues summary</td>
+<td>one-line summary of open issues</td>
+</tr>
+<tr>
+<td>Fixed</td>
+<td>comma-separated workable-item IDs of resolved items</td>
+</tr>
+<tr>
+<td>Fixed summary</td>
+<td>one-line summary of fixes</td>
+</tr>
+<tr>
+<td>Continuation</td>
+<td>next action or linked CONTINUATION.md anchor</td>
+</tr>
+</tbody>
+</table>
+<p>Additional rows MAY be added for project-specific metadata as long as
+the MANDATORY rows are present.</p>
+<p><strong>B. Structured-document Table of contents.</strong> Any
+tracked <code>*.md</code> with <strong>two or more H2 sections</strong>
+(&quot;structured content&quot;) MUST include a <code>## Table of contents</code>
+section immediately after the metadata table. The ToC MUST list every H2
+and H3 in document order with anchor links and MUST be regenerated on
+every structural change (heading added / removed / renamed / reordered).
+A stale ToC is a §11.4 PASS-bluff: operators reading the rendered
+Markdown see a navigation map that no longer matches the body.</p>
+<p><strong>Scope (IN-scope under §11.4.61).</strong> Every tracked
+<code>*.md</code> in the §11.4.65 INCLUDED set (project-root
+<code>*.md</code>, <code>docs/**/*.md</code>,
+<code>scripts/**/*.md</code> companion docs, owned-submodule trees,
+<code>constitution/**/*.md</code>, owned HelixQA dependencies). The
+§11.4.44 exclusions for <code>CLAUDE.md</code> / <code>AGENTS.md</code>
+/ <code>README.md</code> are SUPERSEDED here too — explicit metadata in
+the file itself is preferred over indirect tracking via a separate
+VERSION file because operators reading the rendered document see the
+freshness directly.</p>
+<p><strong>Narrow exemptions (NOT IN-scope).</strong> Same EXCLUDED set
+as §11.4.65 (<code>external/**</code>, <code>prebuilts/**</code>,
+<code>out/**</code>, <code>build/**</code>, application- internal
+<code>*.md</code> shipped with source code, non-owned third-party
+submodule trees). Additional exemptions for the structural rules:
+<code>LICENSE</code>, <code>LICENSE.md</code>, <code>NOTICE</code>,
+<code>VERSION</code>, <code>OWNERS</code>, machine- generated
+<code>CHANGELOG.md</code>.</p>
+<p><strong>PDF + HTML siblings.</strong> Deferred to §11.4.65. The
+metadata table and ToC are <em>content</em> requirements; their
+export-freshness guarantee lives in §11.4.65&#39;s
+<code>CM-UNIVERSAL-MARKDOWN-EXPORT-SYNC</code> gate. A §11.4.61 metadata
+or ToC change is a <code>.md</code> modification, which transitively
+triggers §11.4.65 regeneration — the two clauses compose without
+duplicate enforcement.</p>
+<p><strong>Anti-bluff captured-evidence gates (planned):</strong></p>
+<ul>
+<li><code>CM-MD-METADATA-PRESENT</code> — walks every tracked
+<code>*.md</code> (minus exemptions) and asserts (a) H1 present, (b)
+within 25 lines below H1 a Markdown table contains all four MANDATORY
+rows (<code>| Revision |</code>, <code>| Created |</code>,
+<code>| Last modified |</code>, <code>| Status |</code>).</li>
+<li><code>CM-MD-TOC-PARITY</code> — for every <code>*.md</code> with
+<code>≥ 2</code> H2 sections, asserts a
+<code>## Table of contents</code> is present and its entries&#39; anchor
+slugs match the document&#39;s live H2/H3 set in order.</li>
+</ul>
+<p><strong>Paired §1.1 mutation tests (planned):</strong></p>
+<ul>
+<li>Strip the <code>| Revision |</code> row from one <code>*.md</code> →
+<code>CM-MD-METADATA-PRESENT</code> FAILs.</li>
+<li>Rename one H2 without updating ToC → <code>CM-MD-TOC-PARITY</code>
+FAILs.</li>
+</ul>
+<p><strong>Composition with §11.4.44.</strong> §11.4.44 remains the
+authoritative clause for the <em>fact</em> that documents must carry
+revision metadata; §11.4.61 changes the <em>format</em> (bold-lines →
+table) and <em>scope</em> (<code>docs/**/*.md</code> → every tracked
+<code>*.md</code> per §11.4.65 INCLUDED set). Consumer projects with
+existing gates that grep for <code>**Revision:**</code> MUST update
+those gates to also accept the canonical table form. Migration period:
+30 days from §11.4.61 landing.</p>
+<p><strong>Composition with §11.4.45 / §11.4.59 / §11.4.60 /
+§11.4.65.</strong> The per-class always-sync clauses (Status.md
+§11.4.45, README §11.4.59, composite §11.4.60) and the universal export
+covenant §11.4.65 govern <em>artefact existence and freshness</em>;
+§11.4.61 governs <em>content discipline inside the source
+<code>.md</code></em>. The clauses are orthogonal layers of the same
+anti-bluff posture.</p>
+<p><strong>No escape hatch.</strong> No <code>--skip-md-metadata</code>,
+<code>--no-metadata-table</code>, <code>--toc-stale-OK</code>,
+<code>--allow-missing-revision</code> flag exists. Divergent metadata
+and stale ToCs are §11.4 PASS-bluff patterns at the doc-surface
+layer.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). Applies to
+every project consuming this Constitution. The canonical table format
+and ToC mandate are universal; the per-project tracker IDs (e.g.
+<code>HRD-</code>) and specific Issues/Fixed-class doc paths are
+consumer-side per-project.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.61.</p>
+<p>Non-compliance is a release blocker regardless of context.</p>
+<h3 id="11463--workable-items-procedure-docs-as-single-source-of-truth-user-mandate-2026-05-19">§11.4.63
+— Workable-items procedure docs as single source of truth (User mandate,
+2026-05-19)</h3>
+<p><strong>Forensic anchor — verbatim user mandate (2026-05-19
+~10:30Z):</strong></p>
+<blockquote>
+<p>&quot;To make workable items tracking and creation through all of the
+mentioned mandatory documents we MUST create proper procedure document
+which will be named in Constitution, AGENTS.md and CLAUDE.md as single
+source of truth for this procedure! Make sure it is created under:
+docs/procedures/issues/Creation.md which will be always exported to PDF
+and HTML whenever it is updated. We MUST create procedure documents for
+Updating.md, Resolution.md, Reopening.md and other workable items
+actions that we have. ... Everything done on project - new features,
+changes, tasks, bug fixes, investigation, ordinary tasks (writing
+documentation for example) MUST ALL go through the workable items flow
+and proper procedures!&quot;</p>
+</blockquote>
+<p>Every workable-item action — opening, updating, closing, reopening,
+migrating across Issues.md ↔︎ Fixed.md — MUST follow the canonical
+procedure document at
+<code>docs/procedures/issues/&lt;Action&gt;.md</code>. The five
+procedure docs are MANDATORY references; no agent or operator may invent
+ad-hoc procedures. The closed-set:</p>
+<table>
+<thead>
+<tr>
+<th>Procedure doc</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Creation.md</code></td>
+<td>Opening a new workable item (Bug / Feature / Task)</td>
+</tr>
+<tr>
+<td><code>Updating.md</code></td>
+<td>Non-closure, non-reopen edits — status transitions, evidence append,
+type re-classification</td>
+</tr>
+<tr>
+<td><code>Resolution.md</code></td>
+<td>Atomic Issues.md → Fixed.md close (Bug→Fixed, Feature→Implemented,
+Task→Completed per §11.4.33)</td>
+</tr>
+<tr>
+<td><code>Reopening.md</code></td>
+<td>Atomic Fixed.md → Issues.md reopen with §11.4.34 source attribution
++ §11.4.55 reopens-history</td>
+</tr>
+<tr>
+<td><code>Migration.md</code></td>
+<td>Bidirectional atomic-move mechanics + sync_issues_docs.sh internals
+(consumed by Resolution + Reopening)</td>
+</tr>
+</tbody>
+</table>
+<p>Each procedure doc carries the §11.4.44 revision header + HTML + PDF
+exports synchronised to its <code>.md</code> source. New helper
+<code>scripts/testing/sync_procedure_docs_export.sh</code> walks the
+procedure- docs directory and emits matching <code>.html</code> +
+<code>.pdf</code> for each <code>.md</code>; invoked as the final stage
+of <code>scripts/testing/sync_issues_docs.sh</code> so a single operator
+invocation refreshes every doc-side artifact.</p>
+<p><strong>Universality of scope.</strong> All work — new features,
+behavioural changes, tasks (refactor / doc / infra / gate / audit /
+cleanup), bug fixes, investigation, documentation work — MUST flow
+through these procedures. The &quot;I&#39;ll just tweak this one file&quot; escape
+hatch is forbidden because it produces silent doc drift and reopens the
+§11.4 covenant&#39;s PASS-bluff failure mode at the process-tracking
+layer.</p>
+<p><strong>Composes with</strong> §11.4.6 (no-guessing — every procedure
+step is mechanical, no <code>likely</code> / <code>seems</code>),
+§11.4.7 (demotion-evidence — Reopening.md is the canonical
+implementation), §11.4.11 (file-layout — procedure docs live in
+<code>docs/procedures/issues/</code>, qa-results forensics live in
+<code>qa-results/</code>), §11.4.12 (Issues_Summary sync — all five
+procedures invoke <code>sync_issues_docs.sh</code> whose pipeline is
+documented in Migration.md), §11.4.15 (Status closed-set — all five
+procedures cite the same closed-set), §11.4.16 (Type closed-set),
+§11.4.19 (atomic Issues↔︎Fixed move — Migration.md is the
+implementation), §11.4.23 (visual cue + grouping colorization — invoked
+by sync wrapper, no procedure-side bypass), §11.4.33 (type- aware
+closure vocabulary — Resolution.md enforces), §11.4.34 (Reopened-source
+attribution — Reopening.md enforces), §11.4.44 (revision header on every
+procedure doc), §11.4.53 (Fixed_Summary parity — Migration.md documents
+the pipeline), §11.4.54 (ATM-NNN identifier — Creation.md allocates),
+§11.4.55 (Reopens-history per- item doc — Reopening.md authors),
+§11.4.60 (documentation always- sync composite — procedure docs are an
+additional doc class binding to the composite covenant).</p>
+<p><strong>Pre-build gate</strong>
+<code>CM-PROCEDURES-DOCS-PRESENT</code> checks (1) all 5 procedure docs
+exist at
+<code>docs/procedures/issues/{Creation,Updating, Resolution,Reopening,Migration}.md</code>,
+(2) each carries the §11.4.44 revision header, (3) each has matching
+<code>.html</code> + <code>.pdf</code> exports with mtime ≥ the .md
+mtime, (4) <code>scripts/testing/sync_procedure_docs_ export.sh</code>
+exists + is executable, (5)
+<code>scripts/testing/sync_issues_ docs.sh</code> invokes
+<code>sync_procedure_docs_export.sh</code>. Paired mutation: rename one
+procedure doc → gate FAILs.</p>
+<p><strong>Propagation gate</strong>
+<code>CM-COVENANT-114-63-PROPAGATION</code> enforces this anchor literal
+in every CLAUDE.md / AGENTS.md across parent + 10 owned submodules +
+nested submodules + HelixQA dependencies. Paired mutation strips the
+anchor literal → gate FAILs.</p>
+<p>No escape hatch — no <code>--ad-hoc-procedure</code>,
+<code>--skip-procedure-doc</code>,
+<code>--procedure-not-applicable</code> flag exists. Inventing an
+alternate procedure for a &quot;small&quot; change is the exact failure mode this
+anchor closes.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). The
+closed-set of five procedure docs and the sync-wrapper composition are
+universal; the specific test-name / fix-name examples within each
+procedure doc may be consumer-side per-project.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.63.</p>
+<p>Non-compliance is a release blocker regardless of context.</p>
+<h3 id="11465--universal-markdown-export-mandate-user-mandate-2026-05-19">§11.4.65
+— Universal Markdown export mandate (User mandate, 2026-05-19)</h3>
+<p><strong>Forensic anchor — direct user mandate (verbatim,
+2026-05-19):</strong></p>
+<blockquote>
+<p>&quot;Any markdown document inside the project and which is not part of
+the applications or services source code MUST BE exported (be available)
+in PDF and HTML! Any already existing Markdown document that fulfills
+this condition and which does not have HTML or PDF at all or it is not
+in sync with it MUST HAVE (re)generated PDF and HTML version! Every time
+when Markdown document (file) is modified, its proper HTML and PDF
+versions MUST BE regenerated. Markdown documents MUST BE at all times in
+sync with PDF and HTML versions!&quot;</p>
+</blockquote>
+<p>The covenant generalizes the per-class always-sync discipline of
+§11.4.12 / §11.4.18 / §11.4.44 / §11.4.45 / §11.4.53 / §11.4.56 /
+§11.4.57 / §11.4.59 / §11.4.60 / §11.4.63 / §11.4.64 to <strong>every
+Markdown document in the project that is not part of an application or
+service&#39;s source-code tree</strong>. Per-class anchors govern specific
+files (Issues, Fixed, Status, README, etc.); §11.4.65 is the catch- all:
+any <em>other</em> <code>.md</code> file that documents the project —
+guides, research notes, plans, hardware-ID notes, script-companion docs,
+changelogs, procedure docs, README files inside owned submodules — MUST
+also have <code>.html</code> + <code>.pdf</code> siblings, all three
+artefacts in sync at all times. Stale exports of <em>any</em>
+documentation surface are the exact &quot;operator reads divergent HTML/PDF
+while .md is correct&quot; PASS-bluff §11.4 forbids — only the per-class
+enforcement so far prevented it for specifically-named docs; §11.4.65
+closes the long tail.</p>
+<p><strong>Scope (closed-set):</strong></p>
+<p>INCLUDED:</p>
+<ul>
+<li>Project root <code>*.md</code> (README.md, CLAUDE.md, AGENTS.md,
+CONTRIBUTING.md, etc.)</li>
+<li><code>docs/**/*.md</code> (guides, research, plans, changelogs,
+procedures, hardware notes)</li>
+<li><code>scripts/**/*.md</code> (script-companion docs in documentation
+format, NOT shebang scripts)</li>
+<li>Owned-submodule trees at
+<code>device/rockchip/atmosphere/&lt;submodule&gt;/</code>: top-level
+README.md / CLAUDE.md / AGENTS.md / CHANGELOG.md and any
+<code>docs/**/*.md</code></li>
+<li><code>constitution/**/*.md</code> (the canonical-root
+submodule)</li>
+<li><code>tools/helixqa/&lt;helixqa-submodule&gt;/</code> top-level
+README.md / CLAUDE.md / AGENTS.md and any <code>docs/**/*.md</code>
+(owned HelixQA dependencies)</li>
+</ul>
+<p>EXCLUDED (NOT subject to §11.4.65 — these are application/service
+source code or third-party trees we do not own):</p>
+<ul>
+<li><code>external/**</code> (AOSP-mainline / upstream-mirror source
+trees)</li>
+<li><code>prebuilts/**</code> (binary prebuilts + their bundled
+docs)</li>
+<li><code>packages/modules/**</code> (AOSP mainline modules)</li>
+<li><code>kernel-5.10/**</code> (kernel source tree — has its own
+upstream docs)</li>
+<li><code>out/**</code> (build output)</li>
+<li><code>build/**</code> (AOSP build system)</li>
+<li>Application / service source-code trees (e.g. Java/Kotlin
+module-internal <code>*.md</code> shipped with library code, README
+files inside source-only third-party gradle module directories)</li>
+<li>Any third-party submodule NOT in the owned-submodule set (presenter,
+vlc-player, nova-player, mpv-player, gramophone-player, rhythm-player,
+strep-player, smarttube-player, torrserve, lampa) or HelixQA-owned set
+(Challenges, Containers, DocProcessor, LLMOrchestrator, LLMProvider,
+VisionEngine)</li>
+</ul>
+<p><strong>Mandatory protections (ALL must hold):</strong></p>
+<ol type="1">
+<li><strong>Every INCLUDED <code>.md</code> file has <code>.html</code>
+and <code>.pdf</code> siblings.</strong> A missing export is a §11.4.65
+violation regardless of when the markdown was last touched.</li>
+<li><strong><code>.html</code> and <code>.pdf</code> mtime ≥
+<code>.md</code> mtime</strong> (within the same sync-wrapper invocation
+granularity). Stale exports are violations even if the .md itself is
+correct.</li>
+<li><strong>Every modification triggers regeneration.</strong> Whether
+via direct sync-wrapper invocation
+(<code>sync_all_markdown_exports.sh</code>), a git pre-commit hook
+auto-regenerating on staged <code>.md</code> changes, or the existing
+per-class wrappers (§11.4.12 sync_issues_docs.sh, §11.4.18 script-docs
+sync, §11.4.59 sync_readme_export.sh, etc.) all of which delegate the
+universal export path to the same canonical helper.</li>
+<li><strong>Pre-build gate enforces parity.</strong>
+<code>CM-UNIVERSAL-MARKDOWN-EXPORT- SYNC</code> walks the INCLUDED
+scope, verifies every <code>.md</code> has <code>.html</code>
+<ul>
+<li><code>.pdf</code> siblings with mtime ≥ <code>.md</code> mtime, and
+FAILs the build if any are missing or stale.</li>
+</ul></li>
+<li><strong>No escape hatch.</strong> No <code>--skip-md-exports</code>,
+<code>--no-pdf-only</code>, <code>--md-export-not-applicable</code>,
+<code>--application-internal-doc</code> flag exists for files inside the
+INCLUDED scope. The EXCLUDED scope is the only legitimate path to opt
+out, and it is closed-set.</li>
+</ol>
+<p><strong>Canonical helper.</strong>
+<code>scripts/testing/sync_all_markdown_exports.sh</code> walks the
+INCLUDED scope, invokes pandoc (HTML) + weasyprint (PDF) with
+<code>timeout 60</code> each (graceful per-file degradation), uses
+<code>docs/_progress-style.css</code> for visual consistency, and
+supports <code>--check-only</code> (exit nonzero if any out-of-sync,
+print list) and <code>--regenerate-all</code> (force) modes. Caps at 500
+candidates with explicit abort+list if the scope is unexpectedly large
+(e.g. after a new submodule lands without scope-update review).
+Idempotent.</p>
+<p><strong>Composition.</strong> Composes with §11.4.12 (Issues_Summary
+sync — universal helper is the back-end), §11.4.18 (script-companion
+docs), §11.4.23 (HTML colorizer continues to post-process the
+always-sync docs for visual cues), §11.4.44 (revision header on every
+.md the universal helper exports), §11.4.45 (Status.md auto-sync),
+§11.4.53 (Fixed_Summary), §11.4.59 (README always-sync — the universal
+helper covers the long tail of every <em>other</em> root-level .md too),
+§11.4.60 (composite always-sync covenant — §11.4.65 is the structural
+generalization), §11.4.63 (procedure docs — already always-sync;
+§11.4.65 adds catch-all for every doc class not yet anchored), §11.4.64
+(topic discoverability — summary docs the universal helper exports
+continue to be post-processed by inject_topic_index.py).</p>
+<p><strong>Pre-build gates:</strong></p>
+<ul>
+<li><code>CM-UNIVERSAL-MARKDOWN-EXPORT-SYNC</code> — invariants: (a)
+<code>scripts/testing/sync_all_markdown_exports.sh</code> exists +
+executable, (b) running it in <code>--check-only</code> mode returns 0
+(no out-of-sync file in the INCLUDED scope).</li>
+<li><code>CM-COVENANT-114-65-PROPAGATION</code> — anchor literal
+<code>11.4.65</code> in every CLAUDE.md / AGENTS.md across
+canonical-root + parent + 10 owned submodules + nested submodules +
+HelixQA dependencies (42-file fleet — same propagation set as
+§11.4.58).</li>
+</ul>
+<p>Paired meta-test mutations: one strips the
+<code>CM-UNIVERSAL-MARKDOWN- EXPORT-SYNC</code> gate&#39;s enforcement
+literal; one strips the §11.4.65 anchor literal from a sentinel
+propagation file. Both mutations assert the corresponding gate FAILs
+when applied.</p>
+<p><strong>Classification:</strong> universal (per §11.4.17). The
+mandate to export every project-doc Markdown to HTML+PDF is universal
+across every project that consumes this Constitution; the specific
+INCLUDED / EXCLUDED scope path lists are consumer-side per-project
+(since each consumer has different submodule topology, build trees, and
+source- code roots).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.65.</p>
+<p>Non-compliance is a release blocker regardless of context.</p>
+<hr />
+<h3 id="11473--main-specification-document-versioning--revision-discipline-user-mandate-2026-05-20">§11.4.73
+— Main-specification document versioning + revision discipline (User
+mandate, 2026-05-20)</h3>
+<p><strong>Forensic anchor — direct user mandate (verbatim,
+2026-05-20):</strong></p>
+<blockquote>
+<p>&quot;Make sure everything we add now in previous and upcoming requests IS
+ALWAYS applied to the main specification — if we have one. Since all
+these are not major changes we could increase Specification version per
+change for secondary version instead of the primary. Primary version
+MUST BE increased for much bigger levels of changes! Add this into root
+(constitution Submodule) Constitution.md, CLAUDE.md and AGENTS.md as
+mandatory rule / constraint applicable ONLY IF we have something like
+the main specification document or we do recognize something like the
+main specification document. Document MUST BE updated ALWAYS to follow
+the versioning rules we are appling here + revision and other properties
+we have!&quot;</p>
+</blockquote>
+<p><strong>Scope condition.</strong> This clause applies <strong>only
+when a project recognises a main specification document</strong> — i.e.
+a project-level Markdown file (or set of files) that constitutes the
+canonical &quot;what this system does&quot; reference, typically at
+<code>docs/specs/**/specification*.md</code> or a comparable path.
+Projects with no main specification (small libraries, internal tooling)
+are exempt. Projects that operate per-feature spec files (e.g. ADRs
+only) are exempt unless they elect to adopt the main-spec pattern.</p>
+<p><strong>The mandate.</strong> When a project DOES have a main
+specification document:</p>
+<ol type="1">
+<li><strong>Every additive operator requirement, refinement, or accepted
+recommendation MUST be applied to the spec</strong> before, or as part
+of, the work that implements it. The spec is the source of truth;
+downstream code and tracking docs reference it.</li>
+<li><strong>Spec versioning has two axes</strong> — <em>primary</em> and
+<em>secondary</em> (where &quot;secondary&quot; maps to the existing §11.4.61
+metadata-table <code>Revision</code> row):
+<ul>
+<li><strong>Primary (V1 / V2 / V3 / …)</strong> bumps for major rewrites
+— substantial architecture changes, foundational scope shifts,
+deprecating large sections, replacing the technology stack. Triggered
+explicitly by operator decision; old primary versions move to
+<code>archive/</code> per §11.4.61.</li>
+<li><strong>Secondary (<code>Revision</code>)</strong> bumps for every
+other change — section additions, mandate landings, structural
+reorganisation, polish, type-contract refinements. The metadata table&#39;s
+<code>Revision</code> integer is the secondary version (matches §11.4.44
+monotonic-integer rule).</li>
+</ul></li>
+<li><strong>The metadata table on the spec MUST stay current</strong> —
+<code>Revision</code> bumps in lockstep with the change;
+<code>Last modified</code> updates to the change date;
+<code>Status summary</code> describes the bump&#39;s content;
+<code>Fixed</code> and <code>Fixed summary</code> reference the relevant
+work IDs.</li>
+<li><strong>Cross-document propagation</strong> — when a project has
+propagated copies of the spec-change rule (Herald uses CLAUDE.md,
+AGENTS.md, HERALD_CONSTITUTION.md per its §106), those copies MUST also
+reference the active spec file
+(<code>specification.V&lt;primary&gt;.md</code>) and not a stale
+archived version.</li>
+<li><strong>Archive semantics</strong> — when the primary version bumps,
+the old <code>specification.V&lt;n&gt;.md</code> moves to
+<code>&lt;spec-dir&gt;/archive/specification.V&lt;n&gt;.md</code> and
+gains <code>Status: superseded</code> with a <code>Continuation</code>
+pointer to the new active file. Per the §11.4.65 universal-export
+mandate the archived <code>.html</code> and <code>.pdf</code> siblings
+travel with it.</li>
+</ol>
+<p><strong>Anti-bluff captured-evidence gate (planned).</strong>
+<code>CM-SPEC-VERSION-DISCIPLINE</code>:</p>
+<ul>
+<li>If the project advertises a main spec (operator marks via
+<code>[project].main_spec_path = &quot;docs/specs/.../specification.V&lt;n&gt;.md&quot;</code>
+in a canonical config file), the gate asserts:
+<ul>
+<li>The file at <code>main_spec_path</code> exists.</li>
+<li>Its metadata table&#39;s <code>Revision</code> row is ≥ the highest
+<code>Revision</code> referenced anywhere else in the repo (Issues.md,
+Fixed.md, CLAUDE.md, AGENTS.md).</li>
+<li>If commits exist that touch the spec since the last
+<code>Revision</code> bump, the gate FAILs (operator forgot to
+bump).</li>
+</ul></li>
+</ul>
+<p><strong>Paired §1.1 mutation.</strong> Backdate the
+<code>Last modified</code> row to a prior date while leaving
+real-content edits in place → gate FAILs.</p>
+<p><strong>Composition.</strong> Composes with §11.4.44 (revision header
+— <code>Revision</code> is the secondary version here), §11.4.61
+(metadata table + ToC), §11.4.59 (README always-sync — if README cites
+the spec, the citation MUST point at the current primary version),
+§11.4.65 (universal export — archived versions stay exported).</p>
+<p><strong>Classification:</strong> universal (per §11.4.17), applicable
+conditionally per the scope condition above.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.73.</p>
+<p>Non-compliance (forgetting to bump, or letting the spec drift behind
+operator-mandated requirements) is a release blocker.</p>
+<h3 id="11486--rostercorpus-backed-status-doc-auto-sync-mandate-user-mandate-2026-05-25">§11.4.86
+— Roster/corpus-backed Status-doc auto-sync mandate (User mandate,
+2026-05-25)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-25):</strong></p>
+<blockquote>
+<p>&quot;Make sure that assets and players Status docs are ALWAYS regularly
+updated and in sync like all others Status docs — any time we add or
+modify the assets content(s) or we change or add new / remove existing
+pre-installed video and audio player apps! This MUST WORK OUT OF THE
+BOX!&quot;</p>
+</blockquote>
+<p>Some Status docs (§11.4.45) are backed not by hand-written narrative
+alone but by a <strong>tracked roster</strong> (a set of installed apps
+/ components) or a <strong>tracked asset corpus</strong> (a directory of
+test / media assets). For these, freshness cannot be left to operator
+vigilance — the moment a member of the roster/corpus changes (a player
+app added / removed / renamed; a test asset added / modified / removed)
+the Status doc, its Status_Summary, and their HTML + PDF exports MUST be
+brought back into sync <strong>out of the box</strong>, mechanically,
+not by remembering to.</p>
+<p><strong>The mandate.</strong> Every Status doc whose subject is a
+tracked roster or asset corpus MUST be kept in sync with that subject by
+a mechanism where <strong>all</strong> of the following hold:</p>
+<ol type="1">
+<li><strong>Drift-proof signal.</strong> A content <em>fingerprint</em>
+— sha256 of the sorted member list, NOT mtime (which
+<code>git checkout</code> resets) — is persisted in a sidecar next to
+the Status doc. Adding / removing / modifying a member changes the
+fingerprint deterministically.</li>
+<li><strong>Sync helper.</strong> A helper regenerates the fingerprint
+and re-exports HTML + PDF (composing with the §11.4.65 universal
+exporter). Invocable standalone AND wired so the sync happens
+automatically (commit path and/or pre-build).</li>
+<li><strong>Enforcement gate.</strong> A pre-build gate recomputes the
+live fingerprint and FAILs when it differs from the persisted one —
+forcing the Status doc to be updated whenever the roster/corpus changes.
+Mirrors §11.4.12 <code>CM-ISSUES-SUMMARY-SYNC</code> + §11.4.45
+<code>sync_integration_status</code>.</li>
+<li><strong>Paired §1.1 mutation.</strong> A meta-test mutation corrupts
+the fingerprint (introducing drift without a doc update) and asserts the
+gate FAILs — proving the gate is not itself a bluff.</li>
+</ol>
+<p><strong>Composes with</strong> §11.4.12 (auto-generated docs sync —
+the canonical sibling pattern), §11.4.45 (integration-status-doc —
+§11.4.86 is its roster/corpus specialisation), §11.4.53 + §11.4.56
+(Summary parity), §11.4.57 + §11.4.59 (README doc-link freshness),
+§11.4.60 (composite doc sync), §11.4.65 (universal Markdown export),
+§11.4.6 (no-guessing — the fingerprint is FACT, not a guess about
+freshness).</p>
+<p><strong>Classification:</strong> universal (per §11.4.17) — the
+principle (roster/corpus-backed Status docs auto-sync on subject change)
+is project-agnostic; the consuming project supplies the specific docs,
+roster/corpus sources, helper, and gate name in its own CLAUDE.md /
+AGENTS.md / QWEN.md per §11.4.35.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.86.</p>
+<p><strong>Non-compliance is a release blocker regardless of
+context.</strong> No escape hatch — no <code>--skip-roster-sync</code>,
+<code>--allow-status-drift</code>,
+<code>--roster-sync-not-applicable</code> flag exists.</p>
+<h3 id="11499--latest-source-documentation-cross-reference-mandate--instructions-guides-and-manuals-must-be-verified-against-the-latest-official-online-sources-before-publication-user-mandate-2026-05-28">§11.4.99
+— Latest-Source Documentation Cross-Reference Mandate — instructions,
+guides, and manuals MUST be verified against the latest official online
+sources BEFORE publication (User mandate, 2026-05-28)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-05-28):</strong></p>
+<blockquote>
+<p>&quot;Make sure we ALWAYS check against latest versions of services we use
+web / online docs before creating instructions! This situation is
+illustration of how we can misguide ourselves or get banned! Add this
+all important generic / general points as proper mandatory rules when we
+are creating documentation or guides! These are mandatory rules /
+constraints and the result is consistency and safety of created
+instructions, guides and manuals!&quot;</p>
+</blockquote>
+<p><strong>Case study that anchored this rule (Herald
+2026-05-28).</strong> The first-draft Herald MTProto setup guide
+(committed at <code>35fc10c</code> / <code>fb00354</code> /
+<code>f089dd6</code>) recommended VoIP / Google Voice / Twilio / TextNow
+numbers as a budget-friendly fallback option AND omitted the critical
+<code>recover@telegram.org</code> pre-login email step. Both pieces of
+guidance directly contradicted (a) Telegram&#39;s official documentation at
+<a href="https://core.telegram.org/api/obtaining_api_id">https://core.telegram.org/api/obtaining_api_id</a>
+(&quot;all accounts that sign up or log in using unofficial Telegram clients
+are automatically put under observation&quot;) AND (b) the gotd/td
+maintainer&#39;s &quot;How to not get banned?&quot; guide (vendored at
+<code>submodules/gotd-td/.github/SUPPORT.md</code>). An operator who
+followed the original guide could have had their Telegram account
+permanently banned with no appeal — the very harm the documentation was
+supposed to help them avoid. The corrected guide landed at
+<code>8470ba7</code> after a forced cross-reference against the latest
+official sources. This case study is forensic evidence that
+misguidance-by-stale-docs is the same severity class as a §11.4
+PASS-bluff at the documentation layer.</p>
+<p><strong>Composition.</strong> This anchor composes with §11.4.4
+(test-interrupt-on-discovery), §11.4.5 (captured-evidence), §11.4.8
+(deep-research validation), §11.4.92 (multi-pass change-evaluation Pass
+4), §107 (anti-bluff), and §11.4.98 (full-automation). It closes a
+specific gap §11.4.92 Pass 4 alludes to but does not explicitly mandate:
+<strong>every operator-facing instruction, guide, manual,
+troubleshooting cookbook, or setup walkthrough MUST be cross-referenced
+against the LATEST official online documentation of the service /
+library being documented BEFORE the document is committed.</strong></p>
+<p><strong>(A) Binding rule — pre-commit cross-reference.</strong>
+Before committing any document that contains operator-actionable steps
+(setup walkthroughs, integration guides, API how-tos, credential
+acquisition, security configurations, troubleshooting cookbooks,
+billing-policy documentation, terms-of-service summaries, any
+external-service interaction guide), the author MUST:</p>
+<ol type="1">
+<li><strong>Fetch the latest official online documentation</strong> of
+the third-party service / library being documented via WebFetch, direct
+browsing, the service&#39;s own MCP server (if available), or equivalent
+authoritative real-time source. Do NOT rely on training data, memory,
+prior assumptions, or older committed docs as the source of truth.</li>
+<li><strong>Cross-reference each instruction in the new
+document</strong> against that source. For each step the operator will
+take, verify: (a) the service still supports that action; (b) the form
+fields / parameters / endpoints are still the same; (c) any new
+constraints, deprecations, or warnings the service published since the
+doc&#39;s last verification.</li>
+<li><strong>Seek secondary authoritative sources when the official
+documentation is sparse / silent</strong> on a critical requirement.
+Examples: the library maintainer&#39;s official guides
+(<code>submodules/&lt;lib&gt;/README.md</code>, <code>SUPPORT.md</code>,
+<code>SECURITY.md</code>), the service&#39;s official blog / changelog, the
+service&#39;s official support email / channel responses, community-vetted
+FAQs (Stack Overflow accepted answers, official Discord pinned
+messages).</li>
+<li><strong>Cite the source URL + the date checked at the bottom of the
+document</strong> in a <code>## Sources verified</code> section.
+Example:
+<code>Sources verified 2026-05-28: https://core.telegram.org/api/obtaining_api_id + submodules/gotd-td/.github/SUPPORT.md</code>.
+The citation is the audit trail; a doc without it is by §11.4.99
+definition NOT verified.</li>
+<li><strong>Cite the cross-reference in the commit message
+footer.</strong> A commit that adds or modifies operator-facing
+instructions MUST include a
+<code>Sources verified &lt;date&gt;: &lt;urls&gt;</code> footer line so
+the verification trail is reachable from <code>git log</code>
+queries.</li>
+</ol>
+<p><strong>(B) Negative-finding documentation is required.</strong> If
+the cross-reference reveals the official source is silent /
+contradictory / outdated on a question the new document needs to answer,
+the document MUST explicitly note that gap so the next reader does not
+assume the absence of contradiction means authoritative agreement.
+Example phrasing the Herald MTProto guide uses: <em>&quot;The official
+Telegram docs do not enumerate App title validation rules; the
+constraints below were verified against the gotd/td community channel +
+empirical operator testing 2026-05-28.&quot;</em></p>
+<p><strong>(C) Re-verification cadence.</strong> Documents older than 6
+months without re-verification are STALE — operators MUST NOT trust them
+for fresh action without re-running the cross-reference. Documents MUST
+be re-verified:</p>
+<ol type="1">
+<li><strong>Before being cited as the authority for an operator-action
+campaign</strong> (the operator&#39;s command to &quot;follow this guide&quot; is the
+trigger).</li>
+<li><strong>At every major release boundary</strong> (vN.0.0 tag — the
+release-gate sweep includes a §11.4.99 freshness audit).</li>
+<li><strong>Whenever the documented service publishes a breaking-change
+announcement</strong> (the agent that knows about the announcement MUST
+queue the re-verification).</li>
+<li><strong>When an operator reports an error following the
+guide</strong> (the case-study anchoring is automatic and triggers
+immediate re-verification).</li>
+</ol>
+<p><strong>(D) Service-specific risk-classifications.</strong>
+Documentation for the following service families MUST include explicit
+safety warnings cross-referenced against the latest published policies,
+with a §11.4.99 &quot;Sources verified&quot; date NEVER older than 90 days:</p>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Specific risks the documentation MUST address</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Telegram / WhatsApp / messenger APIs (unofficial
+clients)</strong></td>
+<td>Anti-abuse-system observation; one-phone-one-app-id limits;
+ban-on-VoIP policies; rate-limit floods; user-impersonation risks;
+pre-login declaration emails.</td>
+</tr>
+<tr>
+<td><strong>Cloud provider APIs (AWS, GCP, Azure,
+Cloudflare)</strong></td>
+<td>Billing blast-radius; account-lock policies; service-quota limits;
+least-privilege IAM; data-residency obligations.</td>
+</tr>
+<tr>
+<td><strong>Payment systems (Stripe, PayPal, banks, Mercado
+Pago)</strong></td>
+<td>KYC/AML compliance; PCI-DSS data-handling rules; webhook signature
+verification; idempotency keys; refund/chargeback flows.</td>
+</tr>
+<tr>
+<td><strong>AI / LLM providers (Anthropic, OpenAI, Google
+AI)</strong></td>
+<td>Terms-of-service violation triggers; rate-limit + quota policies;
+data-retention defaults; safety-classifier outcomes; PII-in-prompt
+risks.</td>
+</tr>
+<tr>
+<td><strong>Code-hosting services (GitHub, GitLab, GitFlic, GitVerse,
+Bitbucket)</strong></td>
+<td>Token-leak revocation policies; force-push to protected-branch
+policies; rate-limit-on-API-tokens; secret-scanning bot behaviour.</td>
+</tr>
+<tr>
+<td><strong>OS / package managers (apt, brew, npm, pip,
+cargo)</strong></td>
+<td>Supply-chain compromise vectors; signature verification; lockfile
+discipline; mirror-trust policies.</td>
+</tr>
+</tbody>
+</table>
+<p>This list is <strong>NOT exhaustive</strong> — when a new external
+service is documented, the §11.4.99 author judges whether the service
+has comparable risk surface; if yes, the same safety-warning requirement
+applies.</p>
+<p><strong>(E) Composition with §11.4.92 multi-pass
+change-evaluation.</strong> §11.4.92 Pass 4 (deep-research validation)
+already requires &quot;external precedent or literal &#39;NO external solution
+found&#39;&quot;. §11.4.99 strengthens this specifically for the
+operator-facing-instructions class: deep research is mandatory for ALL
+such docs, NOT just non-trivial code changes. The agent that authors an
+instruction guide CANNOT cite §11.4.92 Pass 4 as a substitute for
+§11.4.99 — the two pass independently.</p>
+<p><strong>(F) Inheritance per §11.4.35.</strong> Every consuming
+repository&#39;s CLAUDE.md / AGENTS.md / QWEN.md MUST carry a short-form
+restatement citing the literal anchor <code>11.4.99</code>. The
+pre-build gate <code>CM-COVENANT-114-99-PROPAGATION</code> (when
+implemented) enforces this literal anchor presence across the canonical
+fleet. Paired §1.1 meta-test mutations strip the load-bearing literal →
+gates FAIL.</p>
+<p><strong>(G) Enforcement.</strong> A commit that adds or modifies
+operator-facing instruction documentation without (a) a &quot;Sources
+verified <date>&quot; footer in the document itself AND (b) a
+<code>Sources verified</code> line in the commit-message footer is
+blocked at release-gate. A document with operator-actionable steps that
+becomes stale (older than 6 months without re-verification, or 90 days
+for risk-classified services per §(D)) graduates to §11.4.90 Obsolete
+with
+<code>Obsolete-Details: Reason=stale-documentation; superseded-by=&lt;replacement-doc-or-rewrite&gt;</code>
+after the 30-day grace window per §11.4.90.</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.99
+in the HelixConstitution submodule. All consuming projects (Herald, a
+consuming project, future) restate + cite via §11.4.35 inheritance.</p>
+<p><strong>Non-compliance is a release blocker.</strong> No
+<code>--skip-source-check</code> /
+<code>--documentation-freshness-optional</code> /
+<code>--cite-sources-later</code> /
+<code>--trust-prior-doc-as-authoritative</code> flag exists. The
+2026-05-28 user mandate is unambiguous: the result MUST be &quot;consistency
+and safety of created instructions, guides and manuals&quot;.</p>
+<h3 id="114106--docs-chain--mechanical-documentationdb-sync-engine-operator-mandate-2026-05-31">§11.4.106
+— Docs Chain — mechanical documentation/DB sync engine (Operator
+mandate, 2026-05-31)</h3>
+<p><strong>Short tag:</strong>
+<code>docs-chain-mechanical-sync</code>.</p>
+<p><strong>Forensic anchor — operator mandate (2026-05-31):</strong></p>
+<blockquote>
+<p>Docs Chain is the canonical mechanical enforcer of the
+documentation-sync mandates. Consuming projects MUST use the engine
+instead of ad-hoc per-project doc-sync scripts; they register their own
+chains via per-context YAML; the engine never fakes a transform and
+every <code>sync</code>/<code>verify</code> carries real captured
+evidence.</p>
+</blockquote>
+<p>Docs Chain — the <code>vasic-digital/docs_chain</code> engine (a
+universal, Go-implemented, <strong>bidirectional document-and-database
+dependency-propagation engine</strong>) — is the canonical mechanical
+enforcer of the family of documentation-sync mandates this Constitution
+already declares. This is a MANDATORY constraint binding every consuming
+project. The detailed normative spec is the engine&#39;s own documentation
+set — <code>docs/CONSTITUTION_INTEGRATION.md</code> (distribution +
+inheritance + the anchor mapping table) and
+<code>docs/USE_CASE_CATALOGUE.md</code> (the ready-to-use chain
+recipes); this section restates its load-bearing constraints, it does
+not redefine them. Implementations code against the engine&#39;s contract,
+not against a paraphrase.</p>
+<p><strong>(A) Use the engine, never ad-hoc scripts.</strong> Consuming
+projects MUST drive their documentation/DB sync through Docs Chain —
+consumed <strong>by reference</strong> via the flat-layout sibling (the
+<code>~/Projects/docs_chain</code> working tree during local development
+/ the path the constitution exposes once the Phase-6 submodule pointer
+lands), inherited the same way §11.4.80 inherits the
+<code>codegraph_*</code> scripts: referenced at the constitution-exposed
+path, <strong>NEVER copied</strong> into the consumer. Ad-hoc
+per-project doc-sync scripts (<code>sync_issues_docs.sh</code>,
+<code>generate_*_summary.sh</code>, <code>sync_*_export.sh</code>,
+<code>update_readme_doc_links.sh</code>, et al.) are superseded by the
+engine and MUST be retired as each matching context is registered.</p>
+<p><strong>(B) Consumer-owned contexts via config.</strong> The engine
+is project-agnostic; it carries NO project-specific path or chain. The
+consumer registers its chains as data via
+<code>.docs_chain/contexts/*.yaml</code> at its own project root — one
+independent context per file — per the §11.4.28 decoupling rule (the
+submodule never carries project-specific context; the consumer injects
+its chains via config). <code>state.json</code> (at
+<code>&lt;project-root&gt;/.docs_chain/state.json</code>, regenerated on
+demand by <code>docs_chain sync</code>) and the
+<code>*.docs_chain.tmp</code> staging sidecars are
+<strong>gitignored</strong>; the consumer owns those
+<code>.gitignore</code> entries.</p>
+<p><strong>(C) The sync anchors it mechanizes.</strong> Docs Chain is
+the mechanical engine behind a family of existing documentation-sync
+anchors; once a consumer registers the matching context it enforces the
+anchor <strong>in place of the ad-hoc script</strong> — see the
+<code>docs/CONSTITUTION_INTEGRATION.md</code> mapping table: §11.4.12
+(Issues_Summary always-sync), §11.4.53 (Fixed_Summary parity), §11.4.45
+(Status.md maintenance), §11.4.56 (Status_Summary two-audience parity),
+§11.4.57 (README doc-link section), §11.4.59 (README always-sync
+export), §11.4.60 (documentation composite-sync), §11.4.65 (universal
+markdown export), §11.4.86 (roster/corpus auto-sync), §11.4.93
+(workable-items DB single source of truth), §11.4.95 (DB tracked +
+WAL-checkpoint commit), §12.10 (CONTINUATION maintenance), and §11.4.44
+(document revision header — exports kept in sync). Engine-wide
+guarantees: change detection by <strong>content hash, NOT mtime</strong>
+(§11.4.86); <strong>atomic-rename + SQLite-transaction commit</strong>
+with rollback on any transform error and optional hardlink backup (§9.2
+zero-risk data safety); a both-dirty <code>sync</code> pair surfaces a
+<strong>conflict — never a silent merge</strong> (exit 2, §11.4.6
+no-guessing); <code>verify</code> is the deterministic CI / pre-build
+sink-side gate over byte-stable transforms (§11.4.50); per-run captured
+evidence lands at <code>qa-results/docs_chain/&lt;run-id&gt;/</code>
+(§11.4.69).</p>
+<p><strong>(D) It does NOT replace authoring discipline.</strong> Docs
+Chain replaces only the <strong>mechanical sync</strong> an anchor
+requires — it does NOT replace the authoring discipline of any anchor.
+The source author still writes the §11.4.44 revision header into the
+source; the engine then keeps every derived export in sync. A consumer
+must not treat the engine as licence to skip authoring.</p>
+<p><strong>(E) Anti-bluff (MANDATORY, composes with §11.4 / the end-user
+quality covenant).</strong> Docs Chain NEVER fakes a transform: a
+missing <code>pandoc</code> / <code>weasyprint</code> (or any absent
+tool) surfaces a typed <code>ToolAbsentError</code>
+(<code>IsToolAbsent</code>) and an honest §11.4.3 SKIP-with-reason —
+<strong>never a fake PASS</strong>, never a partial write. Every
+<code>sync</code> / <code>verify</code> run carries real captured
+evidence (the <code>qa-results/docs_chain/&lt;run-id&gt;/</code>
+artefact). A metadata-only / &quot;absence-of-error&quot; / config-only PASS at
+the sync layer is a §11.4 PASS-bluff.</p>
+<p><strong>Status note (§11.4.6 no-guessing).</strong> The engine&#39;s
+Phases 1–3 (core DAG + content-hash + adapters + atomicity/orchestrator)
+AND the <code>cmd/</code> CLI / per-context YAML loader (Phase 4) are
+IMPLEMENTED + tested — <code>cmd/docs_chain/main.go</code> registers the
+<code>sync</code> / <code>verify</code> / <code>diff</code> (alias of
+<code>verify</code>) / <code>doctor</code> subcommands wiring the config
+loader → state → orchestrator, and <code>go test -count=1 ./...</code>
+is GREEN at 7/7 packages (incl. <code>internal/orchestrator</code>
+spec_wiring_test, both PASS). FACT (§11.4.6): this CLI/loader lives in
+the working tree but is UNTRACKED
+(<code>git ls-files docs_chain/cmd/docs_chain/main.go</code> is empty)
+and the engine is NOT yet a registered git submodule
+(<code>git submodule status</code> shows no docs_chain entry; in-tree at
+<code>./docs_chain</code>, HEAD = parent HEAD). The
+constitution-submodule distribution (Phase 6) remains PLANNED +
+OPERATOR-GATED. This anchor states the binding contract; consumers wire
+the engine as each phase lands, and MUST NOT claim working behaviour a
+phase has not yet shipped.</p>
+<p><strong>Classification:</strong> universal (§11.4.17) — a
+content-hash bidirectional doc/DB propagation engine is a vendor-neutral
+mechanism reusable by ANY governed project. Projects with no
+derived-export or DB-sync surface inherit the anchor latently (it binds
+the moment they ship one) — the §11.4.96 &quot;the principle binds even
+absent the surface&quot; restatement pattern.</p>
+<p><strong>4-layer coverage per §11.4.4(b).</strong> Propagation gate
+<code>CM-COVENANT-114-106-PROPAGATION</code> enforces the literal anchor
+<code>11.4.106</code> across the canonical consumer fleet (parent +
+owned-submodule CLAUDE.md / AGENTS.md / QWEN.md). Paired §1.1 meta-test
+mutation strips the <code>11.4.106</code> literal from a consumer file →
+the gate FAILs. (Gate-code implementation lands as a separate work item;
+this anchor defines the contract.)</p>
+<p><strong>Composes with</strong> §11.4 + §11.4.1..§11.4.16 (end-user
+quality / anti-bluff — sub-rule (E) is bound by it), §11.4.6
+(no-guessing — both-dirty <code>sync</code> → conflict, never silent
+merge), §11.4.12 / §11.4.45 / §11.4.53 / §11.4.56 / §11.4.57 / §11.4.59
+/ §11.4.60 / §11.4.65 / §11.4.86 / §11.4.93 / §11.4.95 / §12.10 /
+§11.4.44 (the documentation-sync anchors it mechanizes), §11.4.28
+(engine/context decoupling), §11.4.80 (inherited-by-reference,
+never-copied — the codegraph pattern), §9.2 (atomic commit + rollback),
+§11.4.50 (deterministic <code>verify</code> gate), §11.4.69 / §11.4.5
+(captured evidence), §1.1 (paired-mutation propagation proof).</p>
+<p><strong>(F) Write-seam hook enforcement + real-time-sync honest
+boundary (extension, 2026-07-15; operator mandate — the Continuation /
+memory / knowledge artefacts MUST ALWAYS be in sync).</strong> The
+documentation/DB sync this engine mechanizes MUST be ENFORCED AT THE
+WRITE SEAMS, never left to agent vigilance: the consuming project MUST
+wire the engine&#39;s <code>verify</code> (and, where safe,
+<code>sync</code>) into (1) the COMMIT seam — a pre-commit /
+commit-wrapper hook that REFUSES a commit whose staged set touches a
+chain SOURCE while its derived exports / DB rows are stale; (2) the
+BUILD seam — the pre-build gate; and (3) the CONSTITUTION-PULL seam —
+the §11.4.164 <code>post_update_hook.sh</code> invocation. A stale
+<code>CONTINUATION.md</code> (§12.10), a stale standing
+session-resumption file (§11.4.131), or a stale memory / knowledge
+artefact while the live state has ALREADY moved is a violation of the
+SAME severity class as a stale export — the resumption guarantee
+silently breaks and a fresh session resumes on fiction. Honest boundary
+(§11.4.6): hook-wired seam enforcement makes the sync
+EVENTUALLY-CONSISTENT-AT-EVERY-WRITE — it is NOT literal continuous
+real-time; genuine continuous real-time sync requires a filesystem-watch
+daemon (inotify / FSEvents watcher running the chain on change). A
+project that CLAIMS &quot;real-time sync&quot; while shipping only seam hooks is
+bluffing the mechanism: state the seam-based guarantee honestly, and
+carry the watch daemon as a TRACKED upgrade path (§11.4.197 — driven to
+completion or explicitly closed, never left un-wired).</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.106
+in the HelixConstitution submodule; detailed spec the Docs Chain engine
+docs <code>docs/CONSTITUTION_INTEGRATION.md</code> +
+<code>docs/USE_CASE_CATALOGUE.md</code>
+(<code>vasic-digital/docs_chain</code>). All consuming projects restate
++ cite via §11.4.35 inheritance.</p>
+<p><strong>Non-compliance is a release blocker.</strong> No escape hatch
+— no <code>--ad-hoc-sync-ok</code>, <code>--skip-docs-chain</code>,
+<code>--fake-transform</code>, <code>--sync-evidence-optional</code>
+flag exists.</p>
+<hr />
+<h3 id="114153--comprehensive-per-feature-status--status_summary-document-set-with-mandatory-video-recording-confirmation-user-mandate-2026-06-15">§11.4.153
+— Comprehensive per-feature Status + Status_Summary document set with
+mandatory video-recording confirmation (User mandate, 2026-06-15)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-06-15):</strong> &quot;We MUST CREATE proper Status and Status_Summary
+documents under docs/features containing and covering all system
+components, all client apps, and all features we have and we have ported
+from all cli_agents! ... in-depth with no a single feature left ...
+table ... always up to date and in sync ... status of its usability
+implementation tests coverage and the confirmation of practical use
+confirmed on video recording with no false results or bluff of any kind!
+... tightly connected using docs_chain Submodule ... Exitence of such
+Status (with Status_Summary) document with all exported files (PDF,
+DOCX, HTML) is mandatory for every single project.&quot;</p>
+<p>Every project MUST maintain, under <code>docs/features/</code>, a
+comprehensive <strong>feature Status document set</strong>
+(<code>Status.md</code> + its §11.4.56 <code>Status_Summary.md</code>
+companion) that enumerates EVERY system component, EVERY client
+application/binary/surface (TUI / CLI / Web / desktop / mobile / API /
+gRPC / library / submodule / infrastructure), and EVERY feature —
+including features ported in from any incorporated CLI-agent / submodule
+catalogue (§11.4.74) — with NO single feature left out. The mandate (ALL
+hold):</p>
+<p>(1) <strong>Total, categorized feature coverage</strong> — a
+per-feature table covering the FULL feature surface, organized Component
+→ Category, reconciled against the actual codebase (a feature present in
+code but absent from the table, or a table row with no code, is a
+§11.4.153 violation; &quot;looks complete&quot; without a code-reconciliation pass
+is a §11.4.6/§11.4.118 bluff).</p>
+<p>(2) <strong>Per-feature fields</strong> — each feature row MUST
+carry: Component, Feature, Category, Implementation status, Wiring
+status (genuinely reachable by an end user, not merely compiled —
+§11.4.108), Real-use status, Tests-coverage status (the four-layer
+§11.4.4(b) coverage state), Validation status (closed vocabulary PASS /
+FAIL / SKIP / PENDING_FORENSICS / OPERATOR-BLOCKED per §11.4.45), and
+<strong>Video-recording confirmation</strong> (a path to the captured
+real-use video proving the feature works for the end user, or an honest
+gap marker).</p>
+<p>(3) <strong>Mandatory per-feature real-use video
+confirmation</strong> — each user-visible feature&#39;s &quot;confirmed working&quot;
+claim MUST be backed by a recorded real-use video showing a genuine
+end-user scenario: real prompts → real LLM/service responses producing
+real results, NEVER a frozen/stale frame (§11.4.107 liveness), NEVER a
+faked, mocked, demo-loop, or bluff response, NEVER an LLM error/garbage
+response passed off as success. Videos are captured evidence per
+§11.4.2/§11.4.5 and stored at the project-declared recording path
+(§11.4.35); a &quot;confirmed&quot; row with no real video, or a video whose
+content is a bluff, is a §11.4 PASS-bluff at the feature-status layer.
+Where autonomous video capture is genuinely infeasible the row is an
+honest §11.4.3/§11.4.52 SKIP-with-reason + tracked migration item —
+NEVER a faked confirmation.</p>
+<p>(4) <strong>Mandatory video-analysis remediation loop</strong> —
+every recorded video MUST be analysed (its presented data recognized +
+checked); any defect the video surfaces MUST trigger the §11.4.102
+systematic-debugging → fix → §11.4.146 retest → re-record loop,
+iterating to a clean GO per §11.4.134, before the feature is marked
+confirmed. A video that exposes a broken feature is a §11.4.4
+test-interrupt, not a confirmation.</p>
+<p>(5) <strong>Always-in-sync, mechanically enforced</strong> — the
+feature Status set is a §11.4.45-class roster/corpus-backed Status doc:
+kept in sync via the §11.4.106 docs_chain engine + a §11.4.86
+drift-proof fingerprint (sha256 of the sorted feature-key roster AND the
+sorted video-artefact roster, NOT mtime) so that
+adding/removing/renaming a feature OR a video artefact mechanically
+re-syncs the docs + exports out-of-the-box; stale = violation.</p>
+<p>(6) <strong>Four-format export</strong> — the feature Status set MUST
+export to HTML + PDF + DOCX (this doc class ADDS DOCX to the §11.4.65
+universal HTML+PDF export set; the other doc classes are unchanged), all
+kept in sync per §11.4.60.</p>
+<p>(7) <strong>Follows the Status-doc family</strong> — composes
+§11.4.44 (revision header), §11.4.45 (Status maintenance +
+captured-evidence table + operator-blocked-at-top), §11.4.56
+(Status_Summary two-audience parity), §11.4.57 (README doc-link row),
+§11.4.59/§11.4.60 (always-sync composite).</p>
+<p>(8) <strong>MP4 format REQUIRED.</strong> All video confirmations
+MUST be in <code>.mp4</code> format (H.264,
+<code>movflags +faststart</code>, <code>pix_fmt yuv420p</code>).
+Window-specific capture ONLY (§11.4.159(A)). Vision validation REQUIRED
+(§11.4.159(D)). <code>.cast</code> (asciinema) files are supplementary
+only — the primary evidence is the <code>.mp4</code> video.</p>
+<p>Honest boundary (§11.4.6): the feature Status set guarantees a
+complete, video-confirmed, always-synced ledger of what works for the
+end user — it does NOT itself prove correctness of any single feature
+(that rests on the feature&#39;s own §11.4.69/§11.4.107/§11.4.123 captured
+evidence the row cites), and it does NOT replace §11.4.40 full-suite
+retest. Classification: universal (§11.4.17) — the consuming project
+supplies its concrete <code>docs/features/</code> layout, feature roster
+source, recording path, and DOCX exporter per §11.4.35. Composes §11.4.2
+/ §11.4.5 / §11.4.44 / §11.4.45 / §11.4.52 / §11.4.56 / §11.4.57 /
+§11.4.59 / §11.4.60 / §11.4.65 / §11.4.86 / §11.4.102 / §11.4.106 /
+§11.4.107 / §11.4.108 / §11.4.118 / §11.4.123 / §11.4.134 / §11.4.146 /
+§1.1. Propagation gate <code>CM-COVENANT-114-153-PROPAGATION</code>
+(literal <code>11.4.153</code>) + recommended gates
+<code>CM-FEATURE-STATUS-COMPLETE</code> (every code-present feature has
+a Status row + every row maps to code) +
+<code>CM-FEATURE-STATUS-VIDEO-CONFIRMED</code> (every user-visible
+confirmed row cites a real captured video or an honest SKIP) + paired
+§1.1 meta-test mutation (strip the literal → propagation gate FAILs;
+mark a feature confirmed with no real video / drop a code-present
+feature from the table → the feature-status gates FAIL; gate-code =
+separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.153.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-feature-status</code>,
+<code>--feature-without-video</code>, <code>--frozen-video-OK</code>,
+<code>--bluff-response-video-OK</code>,
+<code>--skip-video-analysis</code>,
+<code>--feature-ledger-incomplete-OK</code>,
+<code>--no-docx-export</code>, <code>--allow-feature-ledger-drift</code>
+flag.</p>
+<h3 id="114168--exported-document-independent-content--textual--full-visual-validation-mandate-user-mandate-2026-06-23">§11.4.168
+— Exported-document independent content + textual + full-visual
+validation mandate (User mandate, 2026-06-23)</h3>
+<p><strong>Forensic anchor (FACT, 2026-06-23).</strong> A &quot;green&quot;
+Mermaid export fix shipped RAW gantt-diagram source — the literal lines
+<code>gantt</code>, <code>title</code>, <code>dateFormat</code>,
+<code>section</code>, <code>:done,</code> — as plain readable text into
+user-facing PDFs, unreadable to any reader who expected a rendered
+diagram. The fix&#39;s validation grepped the HTML for
+<code>class=&quot;mermaid&quot;</code> but NEVER opened the EXPORTED PDF to check
+whether raw diagram source had leaked into the body. The operator caught
+it (§11.4.138 operator-escape — the green suite missed it). Root lesson:
+generated/exported documents were never INDEPENDENTLY validated for the
+VISUAL + TEXTUAL correctness of the EXPORTED artifact itself — a
+<code>grep</code> of the source-or-intermediate HTML is NOT a check of
+what the reader actually receives. This is the §11.4.108 SOURCE→ARTIFACT
+gap (the change present in source / intermediate, but the rendered bytes
+a reader opens are broken) materialised at the documentation-export
+layer.</p>
+<p><strong>The mandate.</strong> Every generated/exported document —
+HTML, PDF, DOCX, or any format in the §11.4.65 universal-Markdown-export
+scope (and the §11.4.153 four-format feature-Status set that adds DOCX)
+— MUST pass INDEPENDENT validation by a review agent structurally
+separate from the generator (§11.4.70/§11.4.20 dedicated subagent or a
+distinct human; NEVER the author/generator self-checking its own output
+— §11.4.92 self-evaluation PRECEDES and never satisfies; this is the
+§11.4.142 every-change-reviewed discipline applied to exported
+artifacts). The validation MUST be run on BOTH the source Markdown AND
+every exported artifact derived from it, ALWAYS — every export, not a
+sampled subset — across THREE layers, ALL of which MUST hold:</p>
+<p><strong>(1) CONTENT layer.</strong> The export faithfully carries the
+source&#39;s intent + data: nothing dropped, truncated, re-ordered into
+nonsense, or garbled. Every section, table, list, code block, figure
+caption, and link the source declares is present and complete in the
+export (a table truncated to its first page, a list collapsed, a section
+silently omitted, a link stripped of its target are all CONTENT
+findings). Cross-check the exported artifact against the source —
+present-and-complete, not merely &quot;the file exists and is non-empty&quot; (the
+§11.4.5/§11.4.69 captured-evidence quality bar, not a presence-only
+bar).</p>
+<p><strong>(2) TEXTUAL layer.</strong> The export is human-readable: NO
+raw markup, NO diagram source, NO unrendered code-fence body leaking as
+ordinary body text. Specifically forbidden as body text in the exported
+artifact: raw Mermaid diagram source (<code>mermaid</code>,
+<code>gantt</code>, <code>graph</code>, <code>flowchart</code>,
+<code>sequenceDiagram</code>, <code>classDiagram</code>,
+<code>stateDiagram</code>, <code>erDiagram</code>, <code>pie</code>,
+<code>gitGraph</code>, <code>journey</code>, <code>dateFormat</code>,
+<code>section …</code>,
+<code>:done,</code>/<code>:active,</code>/<code>:crit,</code> task
+lines, and the closing-fence residue), raw HTML tags rendered as visible
+text, raw LaTeX/math source where math rendering was intended, and any
+triple-backtick code-fence whose intended rendering (diagram / formatted
+block) was supposed to replace the source. The 2026-06-23
+raw-gantt-in-PDF failure is the canonical TEXTUAL finding. Detection
+reads the exported artifact as text (e.g. <code>pdftotext</code> on the
+PDF, the rendered DOM/text of the HTML, the extracted document text of
+the DOCX) and asserts the forbidden tokens do NOT appear as body
+text.</p>
+<p><strong>(3) FULL VISUAL layer.</strong> Embedded diagrams render as
+IMAGES, not as source; layout is intact; no overlapping / cut-off /
+clipped / garbled / collapsed / blank content. Verified by RENDERING the
+export and inspecting the rendered result — never by inspecting the
+source or an intermediate alone: e.g. <code>pdftotext</code> to catch
+raw diagram source leaking as text (composes layer 2),
+<code>pdfimages</code> (or the format&#39;s image-enumeration) to CONFIRM
+the intended diagrams are present as rendered raster/vector images (a
+diagram that should be an image but produces zero embedded images is a
+VISUAL finding — the source leaked instead of rendering), and
+<code>pdftoppm</code>→OCR (§11.4.117/§11.4.107(12), confidence floor +
+ROI) to CONFIRM the rasterised page carries human-readable visual
+content and to re-catch any raw-source-as-pixels. Captured evidence per
+§11.4.5/§11.4.69/§11.4.107 (<code>pdftotext_body.txt</code>,
+<code>pdfimages_manifest.txt</code>, <code>ocr_pages/</code>, the
+per-finding pinpoint — which page/region/token, expected vs actual)
+accompanies every verdict.</p>
+<p><strong>(4) Anti-bluff — the validator is itself anti-bluff.</strong>
+A rubber-stamp &quot;the export looks fine&quot; is NOT validation (§11.4 /
+§11.4.1 — a rubber-stamp validator is a PASS-bluff at the
+export-validation layer). The analyzer/validator is self-validated with
+a golden-good / golden-bad fixture pair per §11.4.107(10): a golden-good
+export (clean rendered diagram + faithful content) MUST PASS, and a
+golden-bad export (a PDF/HTML/DOCX deliberately seeded with raw Mermaid
+<code>gantt</code> source as body text, plus a truncated table) MUST
+FAIL — a validator that passes its golden-bad fixture is a bluff gate
+and is investigated per §11.4.102 before any further use. The validation
+iterates to a clean GO per §11.4.134: any finding in ANY of the three
+layers (BLOCKING / nit / warning) re-arms the loop — the
+generator/author fixes it (e.g. pre-renders the diagram to an image
+before export), the export is regenerated, and the validator
+RE-VALIDATES, until GO with ZERO findings and ZERO warnings, every
+verdict backed by captured rendered-artifact evidence. A generated
+document that ships WITHOUT this independent content+textual+visual
+validation, or that contains raw diagram source / unreadable garble /
+dropped content in the exported artifact, is a §11.4 PASS-bluff at the
+documentation layer.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> This validation confirms
+the EXPORTED artifact a reader opens carries the source&#39;s content
+faithfully, is textually readable, and renders its visuals as images —
+it does NOT prove the source&#39;s content is itself correct (that rests on
+the source&#39;s own §11.4.142 review + §11.4.135 regression guards) and
+does NOT replace the §11.4.65 mtime-parity export-sync gate (which
+proves the exports are FRESH, not that they are READABLE — §11.4.168 is
+the READABILITY/FIDELITY layer the mtime gate cannot see). A FLAG_SECURE
+/ DRM-blanked / sink-blanked rendering surface that cannot be rasterised
+documents the gap per §11.4.112 and uses the §11.4.117 proxy oracle —
+never a faked visual PASS. &quot;The HTML had <code>class=&quot;mermaid&quot;</code>&quot;
+is a source-side check, NOT an exported-artifact check (the exact
+2026-06-23 omission); &quot;<code>pdftotext</code> shows no
+<code>gantt</code> source AND <code>pdfimages</code> shows the expected
+diagram image AND OCR reads human text&quot; is the exported-artifact
+check.</p>
+<p><strong>Classification:</strong> universal (§11.4.17) — a
+platform-neutral exported-document-fidelity discipline reusable by ANY
+project that generates/exports documents; the consuming project supplies
+its concrete pre-render pipeline, exporters, and rendered-artifact
+validators (text-extraction / image-enumeration / rasterise→OCR) per
+§11.4.35. Composes §11.4.65 (the export-scope + freshness layer this
+READABILITY layer sits atop) / §11.4.73 (project-wide MD/HTML/PDF/DOCX
+styling — styled exports MUST still pass the three layers) / §11.4.107
+(the self-validated-analyzer + liveness/OCR validation techniques) /
+§11.4.117 (CV/OCR pixel-oracle for rasterised-page validation) /
+§11.4.135 (a fixed export-fidelity defect registers a permanent
+regression guard) / §11.4.138 (the 2026-06-23 operator-escape that
+motivated this anchor) / §11.4.142 (independent every-change review
+applied to exports) / §11.4.159 (window-scoped recording +
+vision-validation discipline, the recording analogue) / §11.4.163 (the
+media-validation pipeline — §11.4.168 is its document-export sibling) /
+§11.4.165 (the independent verification agent — §11.4.168(c) DOCS layer
+is its export-fidelity refinement) / §1.1.</p>
+<p>Propagation gate <code>CM-COVENANT-114-168-PROPAGATION</code>
+(literal <code>11.4.168</code> across the consumer fleet) + recommended
+gate <code>CM-EXPORTED-DOC-VISUALLY-VALIDATED</code> (every exported
+document in the §11.4.65 scope carries an independent-validation marker
+— produced by a validator structurally separate from the generator —
+asserting the three layers PASS on the exported artifact, with captured
+rendered-artifact evidence; the validator is self-validated by a
+golden-good/golden-bad fixture pair) + paired §1.1 meta-test mutation
+(strip the literal <code>11.4.168</code> → propagation gate FAILs;
+produce a PDF/HTML/DOCX containing raw diagram source — e.g. raw Mermaid
+<code>gantt</code> lines — as body text and assert the gate catches it →
+<code>CM-EXPORTED-DOC-VISUALLY-VALIDATED</code> FAILs; feed the
+validator its golden-bad fixture → self-validation FAILs; gate-code =
+separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.168.
+Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-visual-validation</code>,
+<code>--raw-source-in-pdf-ok</code>,
+<code>--textual-check-suffices</code>,
+<code>--self-validate-export</code>,
+<code>--diagram-source-as-text-ok</code> flag exists.</p>
+<p><strong>§11.4.186 — Anti-divergence enforcement: cross-document
+consistency is a mandatory-before-export/commit gate, never an
+after-the-fact audit (research-derived, 2026-07-08).</strong> Compact
+summary: any project maintaining more than one representation of the
+same tracked data (a delivery plan + its MVP brief + a workable-items DB
++ their summaries +
+<code>.md</code>/<code>.html</code>/<code>.pdf</code>/<code>.docx</code>
+exports) MUST enforce cross-document CONSISTENCY as a deterministic gate
+that runs BEFORE any export render, any doc/DB sync <code>verify</code>,
+and any doc-set commit — NEVER as an after-the-fact human audit that
+runs only when an operator happens to ask (the forensic FACT: the same
+NanoKVM/phone-as-screen feature appeared in three plan clusters — one
+shared ticket SPK-596 across SIX rows split over TWO releases, and a
+carve-out due to ship 2026-08-31 whose own prerequisite does not START
+until 2026-10-05 — and NO gate caught it; only an operator&#39;s manual read
+of <code>Plan_v9.0.xlsx</code> surfaced it, after the divergent bytes
+had already exported). (1) <strong>One no-divergence verdict, three
+seams</strong> — a single deterministic PASS/FAIL/SKIP verdict (built by
+composing a cross-document integrity validator with the
+workable-items-DB internal <code>validate</code>) gates all three
+write-seams (export / sync-verify / commit); a FAIL at any seam refuses
+that seam, naming the exact offending records (§11.4.6 actionable). (2)
+<strong>Five decidable check families</strong> — DEDUP (no two records
+describe one feature with divergent timeline/status/release, keyed on
+ticket OR normalised <code>(subject, scope)</code>, NOT bare subject
+substring), TIMELINE (start ≤ deadline; no deadline-before-dependency;
+no dependency cycle; GATED exempt-but-marked), CROSS-DOC (the same item
+across every representation carries identical timeline/status/type
+against a NAMED authoritative source), INTEGRITY (no orphan refs;
+Status↔︎Type §11.4.33; location↔︎status), STRUCTURAL (required columns; ID
+uniqueness+monotonicity §11.4.54). (3) <strong>Drift-proof
+trigger</strong> — a §11.4.86 sha256-of-sorted-members fingerprint of
+the authoritative inputs re-arms the gate on ANY input change, so a
+stale verify cannot pass on changed data. (4) <strong>Self-validated
+analyzer (§11.4.107(10))</strong> — the validator ships golden-good
+(MUST PASS) + one golden-bad per family (MUST FAIL, pinpointing the
+offender) + a negative-control (distinct same-subject tasks that MUST
+PASS — the false-positive guard); a validator that passes its
+golden-bad, or fails golden-good/the negative-control, is itself a §11.4
+bluff and a release blocker. (5) <strong>Reusable + decoupled
+(§11.4.28/.31)</strong> — packaged as a depth-1 reusable engine under
+the constitution submodule per the §11.4.28(C) carve-out with a
+<code>helix-deps.yaml</code>; project-specific doc-sets +
+authoritative-source bindings live in a consumer-owned checkset (data,
+never engine code). (6) <strong>Supersedes ad-hoc audits</strong> — the
+per-cycle <code>*_INTEGRITY_FINDINGS.md</code> /
+<code>RECONCILIATION_*.md</code> after-the-fact audit docs are retired
+in favour of the gate; honest boundary §11.4.6 — the gate proves
+internal CONSISTENCY (no record diverges, no timeline is incoherent,
+every ref resolves), NOT plan CORRECTNESS (achievability/date-rightness
+stay operator/management decisions the gate SURFACES, never MAKES).
+Classification: universal (§11.4.17). Composes
+§11.4.6/.12/.33/.44/.50/.53/.54/.60/.65/.73/.75/.85/.86/.91/.93/.95/.106/.107/.108/.110/.148/.176.
+Propagation gate <code>CM-COVENANT-114-186-PROPAGATION</code> (literal
+<code>11.4.186</code>) + recommended gate
+<code>CM-DOC-INTEGRITY-VALIDATION</code> (5 invariants: validator
+present+executable; consumer checkset present; the no-divergence gate
+wired into each of the three seams; fingerprint sidecar fresh;
+<code>selfcheck</code> golden-good/golden-bad/negative-control wired
+into meta-test) + paired §1.1 mutation. <strong>Canonical
+authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.186.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-divergence-gate</code>,
+<code>--audit-after-export-OK</code>,
+<code>--cross-doc-check-not-applicable</code>,
+<code>--unvalidated-analyzer-OK</code>,
+<code>--divergent-commit-OK</code> flag.</p>
+<h3 id="114212--main-readme-is-the-canonical-starting-point--entry-point-for-all-project-documentation--no-doc-may-be-an-orphan-unreachable-from-readme-user-mandate-2026-07-16">§11.4.212
+— Main README is the canonical starting-point / entry point for ALL
+project documentation — no doc may be an orphan unreachable from README
+(User mandate, 2026-07-16)</h3>
+<p><strong>Verbatim operator mandate (2026-07-16):</strong> &quot;Manual
+tests catalog must have linking all through the main README as the
+starting point of this and any other Project documentation! This fact
+and mandatory rule MUST be added into the constitution.&quot;</p>
+<p>The main README (<code>README.md</code> at the repository root) is
+the canonical STARTING POINT / entry point for ALL project
+documentation, for THIS project and EVERY project incorporating this
+constitution. Every project document in the §11.4.65 export scope —
+INCLUDING the manual-tests catalog (the §11.4.185 manual-QA testing
+catalog), the §11.4.153 per-feature Status / Status_Summary docs, the
+Issues / Fixed trackers + their summaries (§11.4.12 / §11.4.53 /
+§11.4.57), and every guide / research note / changelog / script
+companion doc — MUST be reachable / linked (DIRECTLY or TRANSITIVELY)
+from the main README. No project document may be an ORPHAN — a doc that
+no link-path from README reaches is a §11.4.212 violation. This is the
+STRICT GENERALISATION of §11.4.57: §11.4.57 mandated a
+<code>Tracked-Items + Status Documents</code> doc-link section in the
+README covering the tracker / status doc set; §11.4.212 extends the same
+reachability guarantee to EVERY §11.4.65-scope document, so the README
+is the single navigable root of the project&#39;s documentation tree.
+<strong>(A) Reachability = a link path.</strong> README → guide →
+sub-doc is fine (transitive); the requirement is that SOME path from
+README reaches every in-scope doc, not that every doc is linked directly
+at top level. A doc no path reaches is an orphan. <strong>(B)
+Always-sync (§11.4.59 / §11.4.106 docs-chain).</strong> The README
+doc-graph is kept current mechanically — a newly-added §11.4.65-scope
+doc that no README-reachable path links is a §11.4.212 violation the
+moment it lands; the manual-tests catalog specifically MUST be linked
+from the README (the operator&#39;s load-bearing example). <strong>(C)
+Honest boundary (§11.4.6).</strong> Reachability is a link-graph
+property (every doc is FINDABLE from README), NOT a claim about each
+doc&#39;s CORRECTNESS or freshness (those stay §11.4.44 / §11.4.106 / the
+doc&#39;s own gates). <strong>(D) Composition with §11.4.57.</strong>
+§11.4.57&#39;s <code>Tracked-Items</code> section remains the mandated
+README landing block for the tracker / status set; §11.4.212 adds that
+EVERY OTHER in-scope doc is likewise reachable — §11.4.57 is the
+specialisation, §11.4.212 the generalisation.</p>
+<p><strong>(E) README INTRODUCTION + ILLUSTRATION (extension,
+2026-08-15).</strong> The main README MUST open with a SHORT
+introduction (what the project is, who it is for, its current state at a
+glance — the reader&#39;s 30-second answer) AND MUST ILLUSTRATE all work
+done: for every major capability the project ships, the README carries
+either a direct summary paragraph OR a link to a detailed document
+explaining WHAT was done AND WHY it was done (never orphaned links,
+never &quot;see the changelog&quot; as the only explanation). Every linked
+document MUST justify its own existence in one sentence at the link site
+— a link with no &quot;why this matters&quot; is a §11.4.212(E) violation of
+§11.4.91 summary-clarity severity at the entry-point layer.</p>
+<p><strong>(F) LINKAGE-COMPLETENESS RATCHET (extension,
+2026-08-15).</strong> The reachability graph from README (transitively
+per (A)) MUST cover the full §11.4.65-scope doc-set enumeration with a
+monotone-decreasing UNREACHED count (mirrors the §11.4.135 ratchet
+pattern); a §11.4.65-scope doc that is not reachable from README at
+pre-build/release seams FAILs the extended
+<code>CM-README-DOC-ENTRYPOINT-COMPLETE</code> gate; brownfield adoption
+per operator §11.4.66 (§11.4.224(E) fence). The existing
+<code>CM-COVENANT-114-212-PROPAGATION</code> gate stays unchanged
+(literal <code>11.4.212</code> unchanged, propagation stays GREEN);
+<code>CM-README-DOC-ENTRYPOINT-COMPLETE</code> is EXTENDED with clauses
+(E)/(F); a new paired mutation strips the introduction, OR removes a
+&quot;why this matters&quot; annotation, OR breaks reachability of an in-scope doc
+→ the extended gate FAILs.</p>
+<p>Classification: universal (§11.4.17) — the consuming project supplies
+its README path, its manual-tests-catalog path, and its §11.4.65 doc-set
+enumeration per §11.4.35. Composes §11.4.57 / §11.4.59 / §11.4.65 /
+§11.4.106 / §11.4.153 / §11.4.185 / §11.4.44 / §11.4.12 / §11.4.53.
+Propagation gate <code>CM-COVENANT-114-212-PROPAGATION</code> (literal
+<code>11.4.212</code> across the consumer fleet) + recommended gate
+<code>CM-README-DOC-ENTRYPOINT-COMPLETE</code> (every §11.4.65-scope
+document is reachable — directly or transitively — from the main README;
+the manual-tests catalog is linked) + paired §1.1 meta-test mutation
+(orphan an in-scope doc so no README path reaches it → the gate FAILs;
+strip the literal → the propagation gate FAILs; gate-code = separate
+work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.212.</p>
+<p>Non-compliance is a release blocker. No escape hatch — no
+<code>--orphan-doc-OK</code>, <code>--readme-not-entrypoint</code>,
+<code>--skip-readme-link</code>, <code>--doc-unreachable-OK</code>
+flag.</p>
+<h3 id="114215--a-doc-that-binds-work-must-live-tracked-in-the-repository-where-that-work-happens-research-derived-2026-07-17">§11.4.215
+— A doc that BINDS work MUST live, tracked, in the repository where that
+work happens (research-derived, 2026-07-17)</h3>
+<p><strong>Forensic anchor (genericised, 2026-07-17).</strong> In a
+consuming project, the document that DEFINED a binding acceptance gate —
+the gate a body of work was ordered to satisfy before proceeding — was
+<strong>untracked</strong> and lived in an out-of-tree scratch directory
+belonging to a different working checkout, i.e. it existed in NO
+repository and in no other agent&#39;s or operator&#39;s checkout. The gate
+could therefore not be honoured (agents could not read it), not be
+reviewed (no diff, no history, no authorship), not be version-controlled
+(no revision, no rollback, no §11.4.44 header), and not be reconciled
+when it contradicted the source of truth. A binding artifact that lives
+nowhere is not governance — it is a rumour with an imperative mood, and
+work ordered against it cannot be verified against it by anyone but the
+one process that happened to hold the file.</p>
+<p><strong>The mandate.</strong> Any document that BINDS work — one that
+defines a gate or acceptance criterion, states a contract the work is
+judged against, or carries a plan/order the work is required to satisfy
+— MUST be tracked, in the repository where that work happens, at a
+declared path, BEFORE it may be cited as binding. <strong>(1) BINDING ⇒
+TRACKED, and un-tracked ⇒ NOT BINDING.</strong> A binding claim sourced
+from an untracked or out-of-tree document MUST NOT be enforced against
+any work; the correct response to &quot;the gate is defined in a file nobody
+can read&quot; is to land the document (or decline the gate), never to obey a
+citation of it. <strong>(2) IN THE REPOSITORY THE WORK HAPPENS
+IN.</strong> Tracked in a sibling checkout, a scratch directory, a chat
+message, an issue comment, or a personal note is NOT tracked for this
+purpose — the test is whether an agent or operator who clones ONLY the
+repo the work happens in can read the binding text at its declared path.
+Where a binding doc must govern several repositories, it is inherited BY
+REFERENCE from a shared, tracked, version-controlled dependency
+(§11.4.28 / §11.4.177), never copied and never left out-of-tree.
+<strong>(3) THIS IS THE PRIOR QUESTION §11.4.212 CANNOT ASK.</strong>
+§11.4.212 mandates that every doc in the export scope be
+README-reachable — but its check ENUMERATES the in-repo scope and
+asserts each member is reachable, so a document that exists in no
+checkout is never enumerated and the gate cannot FAIL on it. §11.4.212
+answers &quot;is it findable?&quot;; §11.4.215 answers &quot;is it here at all?&quot;. Once
+a binding doc is in the repo, §11.4.212 (reachable from the README),
+§11.4.44 (revision header), §11.4.65/§11.4.73 (exports), and §11.4.106
+(kept in sync) all attach to it as normal — this anchor is their
+precondition, not their competitor. <strong>(4) THE GENERALISATION OF
+§11.4.95.</strong> §11.4.95 is this exact rule scoped to ONE named
+artifact: an authoritative tracker database is TRACKED, NEVER
+gitignored, &quot;NOT a build artefact, it IS authoritative source data&quot;, as
+an explicit named carve-out from the gitignore rule. §11.4.215 widens
+the artifact class from that one file to <strong>any doc that binds
+work</strong>, exactly as §11.4.212 was minted as the strict
+generalisation of §11.4.57. §11.4.11 is the counterweight and stays
+intact: logs, forensic captures, and scratch artifacts remain
+out-of-tree and untracked by default — §11.4.215 does NOT track them,
+and a doc&#39;s being untracked is only a defect once it is CITED as
+binding. That is the discriminator: <strong>binding is what pulls a
+document into the repository</strong>, and a document nobody cites as
+binding is governed by §11.4.11, not by this anchor.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> In-repo presence proves
+the binding text is AVAILABLE, ATTRIBUTABLE, and VERSION-CONTROLLED — it
+proves nothing about whether the text is CORRECT, current, or
+self-consistent (those remain §11.4.44 / §11.4.106 / §11.4.186), and
+nothing about whether the gate it defines is well-seated (that is
+§11.4.120&#39;s seam-placement clause, whose forensic case was defined by
+this same out-of-tree document — the two defects were carried by one
+artifact, which is itself the argument that an unreviewable binding doc
+is where bad gates hide).</p>
+<p>Classification: universal (§11.4.17) — references no project-specific
+hardware, vendor, or layout; the consuming project supplies its
+repository, its declared paths for binding docs, and its
+shared-dependency mechanism per §11.4.35. Composes §11.4.11 / §11.4.28 /
+§11.4.30 / §11.4.35 / §11.4.44 / §11.4.57 / §11.4.65 / §11.4.73 /
+§11.4.95 / §11.4.106 / §11.4.120 / §11.4.177 / §11.4.186 / §11.4.197 /
+§11.4.212. Propagation gate <code>CM-COVENANT-114-215-PROPAGATION</code>
+(literal <code>11.4.215</code>) + recommended gate
+<code>CM-BINDING-DOC-IN-REPO</code> (every doc cited as binding by a
+gate, order, or acceptance contract resolves to a tracked path in the
+repository the work happens in — or is inherited by reference from a
+tracked shared dependency; a binding citation resolving to an untracked
+or out-of-tree path FAILs) + paired §1.1 mutation (move a binding doc
+out of the tree, or untrack it, while a gate still cites it → the gate
+FAILs; strip the literal → the propagation gate FAILs; gate-code =
+separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.215.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--binding-doc-out-of-tree</code>,
+<code>--untracked-gate-definition</code>,
+<code>--cite-doc-nobody-can-read</code>,
+<code>--scratch-dir-is-good-enough</code>,
+<code>--binding-by-rumour</code> flag exists.</p>
+<h3 id="114257--comprehensive-user-manual--guide--faq-coverage-every-component--service--feature--user-visible-workflow-ships-an-operator-usable-manual-task-oriented-guide-and-faq-always-in-sync-no-orphan-capability-background--reminder--important-operator-mandate-2026-08-15">§11.4.257
+— Comprehensive user-manual + guide + FAQ coverage: every component /
+service / feature / user-visible workflow ships an operator-usable
+manual, task-oriented guide, and FAQ, always in sync, no orphan
+capability (BACKGROUND :: REMINDER :: IMPORTANT operator mandate,
+2026-08-15)</h3>
+<p><strong>Verbatim operator mandate (2026-08-15, Point 1):</strong>
+<em>&quot;Whole project and all work done MUST BE fully covered with full
+user manuals and guides and properly created FAQs.&quot;</em></p>
+<p><strong>Compact summary:</strong> every consuming project MUST cover
+the WHOLE project (every component, service, subsystem, binary,
+container, plugin, feature, and user-visible workflow) with three
+cooperating documentation classes — (a) a complete USER MANUAL per
+component/service/product, (b) task-oriented GUIDES for every
+user-facing workflow, and (c) properly-created FAQs derived from real
+operator/QA/end-user questions — always in sync with the shipped code,
+always exported per §11.4.65, always reachable from README per
+§11.4.212, always regenerated via Docs-Chain per §11.4.106, and always
+tracked as workable items when incomplete per §11.4.197; a component /
+service / feature that ships without its trio of docs (manual + guide +
+FAQ) is a §11.4.257 violation of §11.4 PASS-bluff severity at the
+documentation layer (the feature ships to a user who cannot use it
+because nothing tells them how; the §11.4 anti-bluff covenant extended
+to documentation completeness). §11.4.257 GENERALISES §11.4.18 (script
+docs — a single class of executable artifact) and §11.4.153 (per-feature
+Status set — a status not a manual) into the full three-class
+documentation floor for every user-facing surface, and BINDS §11.4.212
+(README entry point) + §11.4.106 (Docs-Chain sync) + §11.4.65
+(four-format export) into the always-in-sync guarantee.</p>
+<p><strong>(A) COMPREHENSIVE COVERAGE — no orphan capability.</strong>
+Every component / service / subsystem / binary / plugin / user-visible
+feature enumerated in the project&#39;s shipped surface (the §11.4.153
+feature Status roster or its equivalent SSoT) MUST map to at least ONE
+user manual (component-level operator reference), at least ONE
+task-oriented guide per user workflow that surface exposes, and one FAQ
+entry per real recurring question captured from operators / QA /
+end-users. A capability the project ships that no manual documents, no
+guide covers, and no FAQ addresses is UNSHIPPABLE regardless of how well
+the code works — the user has no path to use it.</p>
+<p><strong>(B) THREE DISTINCT DOCUMENT CLASSES, none substitutes
+another.</strong> (a) USER MANUAL — the component&#39;s operator reference:
+what it is, what it does, its inputs/outputs/env
+vars/config/ports/dependencies, its start/stop/status commands, its
+logs/metrics/health surface, its failure modes and their remediation;
+complete enough that an operator can run + supervise + debug it without
+reading the source. (b) GUIDES — task-oriented, workflow-shaped
+documents, one per user-facing workflow (setup, configuration,
+integration, migration, troubleshooting, security-hardening); each guide
+walks the user through a real journey, with prerequisites, step-by-step
+commands, expected output at each step, verification checkpoints, and
+rollback path. (c) FAQs — questions PROPERLY CREATED from real recurring
+signal (operator questions, QA reports, end-user tickets,
+agent-found-defect narratives), NEVER fabricated marketing FAQ; every
+entry cites the question source class + resolution + link to the
+manual/guide section that owns the durable answer.</p>
+<p><strong>(C) ALWAYS IN SYNC.</strong> Every doc carries the §11.4.44
+revision header; Docs-Chain (§11.4.106) is bound at commit / build /
+constitution-pull write-seams so an edited component whose docs are
+stale REFUSES the commit; four-format export per §11.4.65 (.md + .html +
+.pdf, + .docx where the class warrants — the §11.4.153 exception); every
+doc reachable transitively from README per §11.4.212. FAQ entries that
+describe now-fixed defects are RETAINED with a &quot;resolved in vN.N.N&quot; note
+(they answer the user asking &quot;why did this happen to me&quot;), never
+silently deleted.</p>
+<p><strong>(D) TRACKABLE COMPLETION.</strong> Missing docs are §11.4.197
+items (research/kicked-off-work completion mandate) — an undocumented
+capability is an un-wired requirement whose loss is FORBIDDEN; the
+workable-items DB (§11.4.93/.95) carries per-surface docs-status rows so
+&quot;what is documented / what is not&quot; is a live query, never a periodic
+manual audit.</p>
+<p><strong>(E) HONESTY.</strong> Where a genuine gap exists (a new
+capability whose docs are in flight), it is HONESTLY MARKED at both the
+README entry point + the component&#39;s Status.md (§11.4.153) as
+<code>[DOC-PENDING: &lt;tracker-id&gt;]</code> per the §11.4.223
+provenance-marker discipline, NEVER silently omitted, NEVER faked with a
+placeholder paragraph that says nothing (a fake-doc is a §11.4
+PASS-bluff at the documentation layer — an operator reads it, learns
+nothing, and thinks they read the doc).</p>
+<p><strong>Honest boundary (§11.4.6).</strong> §11.4.257 mandates the
+DOCUMENTATION EXISTS, is IN SYNC, and is REACHABLE; it does NOT verify
+the doc is CORRECT in every semantic detail — that stays §11.4.99
+(latest-source cross-reference) + §11.4.194 (exhaustive review including
+doc content) + §11.4.238 (any operator-found doc gap is a
+coverage-escape triggering a §11.4.138-family audit). &quot;Comprehensive&quot; is
+bounded to the shipped-surface enumeration; an internal implementation
+detail with no user-facing exposure has no user-manual obligation
+(documentation of it lives under §11.4.18 script/source class or design
+docs, not this anchor).</p>
+<p><strong>Classification: universal (§11.4.17).</strong> Composes
+§11.4.11 / §11.4.18 / §11.4.44 / §11.4.65 / §11.4.86 / §11.4.99 /
+§11.4.106 / §11.4.148 / §11.4.153 / §11.4.194 / §11.4.197 / §11.4.208 /
+§11.4.212 / §11.4.223 / §11.4.238. Propagation gate
+<code>CM-COVENANT-114-257-PROPAGATION</code> (literal
+<code>11.4.257</code>) + recommended gates
+<code>CM-USER-MANUAL-PER-COMPONENT</code> +
+<code>CM-GUIDE-PER-USER-WORKFLOW</code> +
+<code>CM-FAQ-FROM-REAL-QUESTIONS</code> + paired §1.1 meta-test
+mutations.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.257.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-user-manual</code>, <code>--guide-later</code>,
+<code>--faq-optional</code>, <code>--capability-without-docs-OK</code>,
+<code>--fake-doc-placeholder-OK</code>,
+<code>--source-of-truth-is-code-comments</code> flag.</p>
+<hr />
+<h3 id="114258--architectural--data-flow--state-machine--sequence-diagram-coverage-every-project-ships-accurate-exported-machine-derivable-or-honestly-authored-diagrams-embedded-into-the-docs-that-describe-the-system-background--reminder--important-operator-mandate-2026-08-15">§11.4.258
+— Architectural + data-flow + state-machine + sequence-diagram coverage:
+every project ships accurate, exported,
+machine-derivable-or-honestly-authored diagrams embedded into the docs
+that describe the system (BACKGROUND :: REMINDER :: IMPORTANT operator
+mandate, 2026-08-15)</h3>
+<p><strong>Verbatim operator mandate (2026-08-15, Point 2):</strong>
+<em>&quot;Whole project MUST BE fully covered with properly created graphs,
+diagrams, schemes which will be incorporated into all existing
+documentation.&quot;</em></p>
+<p><strong>Compact summary:</strong> every consuming project MUST cover
+the WHOLE project with properly created graphs / diagrams / schemes
+across the FOUR canonical diagram classes — (a) SYSTEM ARCHITECTURE
+(services, containers, ports, dependencies, deployment topology), (b)
+DATA FLOW (how information moves between components, storage, external
+systems), (c) STATE MACHINE (lifecycle of every stateful entity:
+workable items, orchestrator sessions, long-ops, agents, deploys), (d)
+SEQUENCE (per critical user workflow and per critical cross-component
+protocol) — INCORPORATED into the existing documentation surface
+(README, user manuals per §11.4.257, guides, Status docs per §11.4.153,
+design docs per §11.4.218/§11.4.219) at the natural point of use, NEVER
+a lone diagram directory nobody opens; every diagram is (i) exported in
+a scale-appropriate open format (SVG for structural diagrams; PNG for
+raster fallback; the source in a diffable text form — Mermaid, PlantUML,
+D2, or a diffable SVG source — §11.4.220 open-first, never a
+proprietary-tool-only master), (ii) rendered non-blank + non-degenerate
++ accurate (the §11.4.107(10) analyzer discipline applied to diagrams —
+a rendered blank / mislabelled / truncated diagram is a §11.4/§11.4.1
+bluff at the visual-doc layer), (iii) reachable from README per
+§11.4.212, and (iv) in sync via §11.4.106 Docs-Chain so a code change
+that invalidates a diagram REFUSES the commit until the diagram is
+updated. §11.4.258 STRENGTHENS §11.4.218 (design-library catalogue —
+components not architecture) and §11.4.219 (screen catalogues — UI IA
+not system topology) from design-side coverage into whole-project
+documentation-side diagram coverage.</p>
+<p><strong>(A) FOUR-CLASS COVERAGE.</strong> (a) ARCHITECTURE — the
+deployed / deployable topology: every service, container, binary, port,
+external dependency, host boundary, network boundary, storage boundary;
+kept true to the actual <code>docker-compose.yml</code> / deployment
+manifest / running system. (b) DATA FLOW — how information (user
+request, event, credential, artifact, evidence) traverses the system:
+source → transformation → sink; each edge annotated with format +
+protocol + trust boundary. (c) STATE MACHINE — the lifecycle of every
+stateful entity the system manages: workable items (§11.4.15), long-ops
+(§11.4.232), orchestrator sessions (§11.4.187), agents (§11.4.147),
+deploy artifacts (§11.4.108), builds; transitions labelled with the
+triggering event and the guard that gates it. (d) SEQUENCE — one diagram
+per critical user workflow and per critical cross-component protocol;
+actors + messages + return paths + failure branches, not only the happy
+path.</p>
+<p><strong>(B) INCORPORATION — never orphan.</strong> Each diagram lives
+at the point of use (architecture diagram in README +
+<code>docs/ARCHITECTURE.md</code>; per-service data-flow embedded in
+that service&#39;s user manual per §11.4.257; state-machine embedded in the
+doc that owns the state; sequence diagram in the guide for the workflow
+it depicts); a <code>docs/diagrams/</code> gallery may exist as an
+index, but the load-bearing appearance is EMBEDDED into the doc where
+the reader needs it, per §11.4.212 reachability.</p>
+<p><strong>(C) OPEN + DIFFABLE.</strong> Sources in diffable text
+(Mermaid / PlantUML / D2 / diffable SVG), NEVER proprietary-tool-only
+masters (§11.4.220); rendered outputs committed alongside sources so a
+reader without the render toolchain still sees the diagram; renderers
+§11.4.201-probed before use, absent-tool ⇒ §11.4.3 SKIP-with-reason not
+a fake output (§11.4.222 export-wave discipline applied here).</p>
+<p><strong>(D) ACCURACY VERIFICATION.</strong> Every diagram is rendered
+non-blank + non-degenerate + accurate: a probe render exists (a Mermaid
+parse-check; an SVG geometry check; a §11.4.107(10) golden-good vs
+golden-bad-with-drift fixture for the derived-from-code diagrams); a
+diagram whose depicted service list, port map, or state set diverges
+from the SSoT (compose file, workable-items schema, orchestrator
+registry) is caught by a §11.4.86-fingerprint diff on the SSoT + a
+stale-diagram audit run at pre-build; the Docs-Chain (§11.4.106) refuses
+a commit that changes an SSoT without an accompanying diagram refresh
+where a mapped diagram exists.</p>
+<p><strong>(E) DERIVED-WHERE-POSSIBLE.</strong> Prefer derived /
+generated diagrams over hand-drawn where the source data exists: a
+compose-file-driven architecture diagram, a schema-driven state machine,
+a route-table-driven sequence; hand-drawn diagrams (for user-journey
+narratives, conceptual overviews) are LABELED as such with an
+authored-date and reconciled against the SSoT at each release round.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> §11.4.258 mandates the
+diagrams EXIST, are ACCURATE against their SSoT, are EMBEDDED, and are
+RENDERED HONESTLY; it does NOT claim every possible diagram class is
+required for every project (an internal library with no runtime
+deployment has no ARCHITECTURE diagram in the deployment sense — it
+ships its module-dependency diagram in that class&#39;s place). Bounded to
+the WHOLE-PROJECT coverage the mandate names.</p>
+<p><strong>Classification: universal (§11.4.17).</strong> Composes
+§11.4.6 / §11.4.65 / §11.4.86 / §11.4.106 / §11.4.107(10) / §11.4.153 /
+§11.4.201 / §11.4.212 / §11.4.216 / §11.4.218 / §11.4.219 / §11.4.220 /
+§11.4.222 / §11.4.223 / §11.4.257. Propagation gate
+<code>CM-COVENANT-114-258-PROPAGATION</code> (literal
+<code>11.4.258</code>) + recommended gates
+<code>CM-ARCHITECTURE-DIAGRAM-PRESENT-ACCURATE</code> +
+<code>CM-DATAFLOW-DIAGRAM-PER-SERVICE</code> +
+<code>CM-STATEMACHINE-DIAGRAM-PER-STATEFUL-ENTITY</code> +
+<code>CM-SEQUENCE-DIAGRAM-PER-CRITICAL-WORKFLOW</code> +
+<code>CM-DIAGRAM-EMBEDDED-NOT-ORPHAN</code> + paired §1.1 mutations.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.258.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-architecture-diagram</code>,
+<code>--diagram-in-orphan-directory</code>,
+<code>--proprietary-master-only</code>, <code>--stale-diagram-OK</code>,
+<code>--dataflow-implied-from-code</code>, <code>--sequence-later</code>
+flag.</p>
+<hr />
+<h3 id="114259--readme-quality-status-badge-row-at-the-top-of-every-project-readme-a-comprehensive-row-of-quality-badges-with-a-closed-greenamberred-vocabulary-each-backed-by-machine-derived-source-data-illustrating-quality-and-production-readiness-in-one-glance-background--reminder--important-operator-mandate-2026-08-15">§11.4.259
+— README quality-status badge row: at the top of every project README, a
+comprehensive row of quality badges with a closed green→amber→red
+vocabulary, each backed by machine-derived source data, illustrating
+quality and production-readiness in one glance (BACKGROUND :: REMINDER
+:: IMPORTANT operator mandate, 2026-08-15)</h3>
+<p><strong>Verbatim operator mandate (2026-08-15, Point 5):</strong>
+<em>&quot;We MUST ADD at the top of the main README all possible badges with
+coloring from green (ok) to red (not ok) for all possible areas of work
+done to the project illustrating quality of work done and how close are
+we to deploying this project to full production.&quot;</em></p>
+<p><strong>Compact summary:</strong> every consuming project MUST
+render, at the TOP of the main README (immediately below the H1, above
+the introduction — the reader&#39;s first visual signal), a comprehensive
+BADGE ROW carrying every applicable quality signal with a CLOSED color
+vocabulary from GREEN (ok) through AMBER (attention) to RED (not ok) —
+plus a &quot;production-readiness&quot; gauge that summarises how close the
+project is to full production deployment — with EVERY badge backed by
+MACHINE-DERIVED source data (never a hand-typed color-of-the-day,
+§11.4.6 no-guessing at the status-report layer); a project whose README
+lacks the badge row, or carries badges whose colors are fabricated /
+stale / not backed by real source data, is a §11.4.259 violation of
+§11.4 PASS-bluff severity at the reader-first-impression layer (an
+operator glances at the README and gets a green picture of a broken
+project). §11.4.259 EXTENDS §11.4.57 (README doc-link section) with a
+symmetric BADGE section at the same first-visible-position privilege,
+and BINDS §11.4.106 (Docs-Chain sync — badges regenerate on every state
+change) + §11.4.86 (fingerprint-driven sync — badge data derived from
+the SSoT the badge refers to) + §11.4.201 (guards must assert the real
+condition — a badge is a guard for the reader&#39;s eye).</p>
+<p><strong>(A) CLOSED COLOR VOCABULARY.</strong> GREEN = healthy at
+target (all constraints met, no findings); AMBER = attention (metric
+on-target but degrading, or off-target within acceptable band, or
+blocked on a tracked follow-up); RED = not ok (metric off-target beyond
+acceptable band, a §11.4.108 gate failing, a §11.4.135 uncovered guard,
+an open release-blocker); optional GRAY = N/A (badge class does not
+apply to this project) with an inline note explaining why. NO other
+colors, NO other verdicts, NO &quot;yellow&quot; or &quot;orange&quot; or &quot;beta&quot; gradations
+— the closed vocabulary is the operator&#39;s cognitive contract with the
+badge row.</p>
+<p><strong>(B) BADGE CLASS FLOOR — every applicable area
+covered.</strong> The MINIMUM set every consuming project ships (adding
+project-specific badges as consumer-supplied §11.4.35 DATA is welcome,
+subtraction is not): (1) BUILD status (last build green/red, artifact
+fingerprint); (2) TEST-BREADTH per §11.4.27/§11.4.169
+(unit/integration/e2e/full-automation/security/performance/anti-bluff —
+one badge per type, or a rollup with a click-through detail per
+§11.4.224); (3) CODE COVERAGE per §11.4.224 (measured %, green ≥ target,
+amber ≥ ratchet-floor, red below); (4) SECURITY POSTURE per §11.4.184
+SonarQube scanner + supply-chain integrity per §11.4.246 (reproducible +
+hermetic builds + SLSA Build Level 2 as fleet-wide minimum); (5)
+DOCUMENTATION completeness per §11.4.257 (fraction of shipped surfaces
+with the required manual + guide + FAQ trio); (6) DIAGRAM completeness
+per §11.4.258 (fraction of shipped surfaces with the required diagram
+set, non-stale); (7) LIVE HEALTH where applicable (uptime / SLO /
+recent-crash-rate); (8) OPEN DEFECTS per §11.4.15 (Queued + In-progress
++ Reopened counts, most-reopened highlighted per §11.4.189); (9)
+SUPPLY-CHAIN integrity level per §11.4.246 (the SLSA Build Level tracked
+in <code>docs/security/SLSA_LEVEL.md</code>, fleet-wide minimum L2);
+(10) ZERO-SHORTCOMINGS status per §11.4.261 (audit-sweep verdict); (11)
+MACHINE-EVIDENCE COVERAGE per §11.4.262 (fraction of PASS claims with
+captured evidence paths); (12) PRODUCTION READINESS gauge (see clause
+(D)).</p>
+<p><strong>(C) MACHINE-DERIVED SOURCE DATA.</strong> Every badge&#39;s color
++ value is COMPUTED from a live source of truth, NEVER hand-typed. Every
+badge PROVENANCE — the exact source path/query/build id — is embedded in
+the badge tooltip OR a companion <code>docs/BADGES.md</code> provenance
+table. A badge whose provenance is <code>hand-typed</code> fails
+§11.4.259.</p>
+<p><strong>(D) PRODUCTION-READINESS GAUGE.</strong> A composite badge —
+GREEN when every clause-(B) badge is GREEN AND no §11.4.185 manual-QA
+blocker is open AND no §11.4.260 production-readiness criterion is
+unmet; AMBER when one or more badges are AMBER but no RED and no
+blocker; RED when any badge is RED or any blocker is open. The gauge is
+the operator&#39;s one-glance answer to &quot;can we deploy this to production?&quot;
+and its color is BINDING on the release decision — a RED gauge is a
+release-blocker (§11.4.108 layer 4 + §11.4.129 huge-blocker family +
+§11.4.185 manual-QA + §11.4.236 QA-deploy-readiness).</p>
+<p><strong>(E) ALWAYS IN SYNC.</strong> Badges regenerate on every state
+change (build completion, test run, defect open/close, doc change,
+release cut) via §11.4.106 Docs-Chain at the same write-seams that
+regenerate the rest of the doc surface; a stale badge (color no longer
+reflects source data) is a §11.4.229 in-sync violation at the
+reader-facing layer.</p>
+<p><strong>(F) BADGE SELF-VALIDATED.</strong> The badge-computer is a
+guard (§11.4.201): golden-GREEN fixture MUST render GREEN, golden-RED
+fixture MUST render RED, golden-AMBER MUST render AMBER; a
+badge-computer that PASSes its golden-RED fixture is the §11.4 bluff
+itself and a release-blocker. Paired §1.1 mutation flips the golden-RED
+source data and confirms the badge flips.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> §11.4.259 mandates every
+applicable badge is PRESENT + accurately derived; it does NOT claim
+green badges prove the project is bug-free (badges are
+necessary-not-sufficient, mirroring the §11.4.224 metric-validation
+family); a project whose badge row is HONESTLY red is compliant with
+§11.4.259 (the reader gets the truth) even while it fails other release
+gates. A badge class that GENUINELY does not apply is GRAY-labeled with
+a reason, never omitted (silence-as-badge is a §11.4.201(6) FALSE-NULL —
+the reader assumes green because they see nothing red).</p>
+<p><strong>Classification: universal (§11.4.17)</strong> — badge PALETTE
++ AT-TOP-OF-README placement + closed color vocabulary + machine-derived
++ production-readiness gauge are universal; the SPECIFIC badge palette
+per project is consumer-owned §11.4.35 DATA. Composes §11.4.6 / §11.4.15
+/ §11.4.27 / §11.4.44 / §11.4.57 / §11.4.86 / §11.4.93 / §11.4.106 /
+§11.4.108 / §11.4.129 / §11.4.135 / §11.4.169 / §11.4.184 / §11.4.185 /
+§11.4.189 / §11.4.201 / §11.4.212 / §11.4.223 / §11.4.224 / §11.4.229 /
+§11.4.236 / §11.4.238 / §11.4.257 / §11.4.258 / §11.4.260 / §11.4.261 /
+§11.4.262. Propagation gate <code>CM-COVENANT-114-259-PROPAGATION</code>
+(literal <code>11.4.259</code>) + recommended gates
+<code>CM-README-BADGE-ROW-AT-TOP</code> +
+<code>CM-BADGE-CLOSED-COLOR-VOCABULARY</code> +
+<code>CM-BADGE-MACHINE-DERIVED-SOURCE</code> +
+<code>CM-PRODUCTION-READINESS-GAUGE</code> +
+<code>CM-BADGE-SELF-VALIDATED</code> + paired §1.1 mutations.</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.259.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--badges-optional</code>, <code>--hand-type-color</code>,
+<code>--skip-production-gauge</code>,
+<code>--badge-not-derived-from-source</code>,
+<code>--silent-omit-red-badge</code>, <code>--badge-in-footer-OK</code>
+flag.</p>
+<hr />
+</body>
+</html>

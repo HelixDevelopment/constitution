@@ -1,0 +1,19 @@
+{
+  "batch_id": "RB-T018-NC",
+  "changes": [
+    "sha256:e755f850b5ccc02e5fc0c0df021dc8b4230c6cbddd1316c4fae24f62a08e5566"
+  ],
+  "related_by": "logic_group:fastcycle-review-record-fixture",
+  "slices": [
+    {
+      "context_pack": {
+        "blast_radius": "single validation helper (fixture)",
+        "intent": "Validate the --round flag before it is used to index into the review-record store.",
+        "sibling_search_ref": "qa-results/fastcycle/us1/red/T018/sibling_search_negative_control.json"
+      },
+      "lines": 23,
+      "slice_id": "S1"
+    }
+  ],
+  "total_changed_lines": 23
+}

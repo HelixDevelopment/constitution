@@ -1,0 +1,9 @@
+{
+  "gates": [
+    { "name": "gate_shared_writer_x", "script": "gate_shared_writer_x.sh", "args": ["$SHARED_TMP"], "writes": ["$SHARED_TMP"] },
+    { "name": "gate_shared_writer_y", "script": "gate_shared_writer_y.sh", "args": ["$SHARED_TMP"], "writes": ["$SHARED_TMP"] },
+    { "name": "gate_pass_a", "script": "gate_pass_a.sh", "args": [], "writes": [] }
+  ],
+  "n_shards": 3,
+  "note": "$SHARED_TMP is resolved by the test harness at run time to a fresh per-run temp path -- both x and y are given the SAME resolved path, making their write-sets genuinely intersect (not merely nominally, per §11.4.201(7)(a) match-structure-not-substring discipline)."
+}

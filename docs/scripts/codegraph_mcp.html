@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>codegraph_mcp.sh — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="codegraph_mcpsh--guide">codegraph_mcp.sh — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T12:55:57Z</p>
+<p>Source: <code>constitution/scripts/codegraph/codegraph_mcp.sh</code>
+(140 lines). Tests:
+<code>constitution/scripts/codegraph/tests/test_codegraph_mcp.sh</code>
+(cases W1-W9) and its mutation harness
+<code>test_codegraph_mcp_mutations.sh</code>. Citations below are
+<code>codegraph_mcp.sh:&lt;line&gt;</code> unless another file is
+named.</p>
+<h2 id="overview">Overview</h2>
+<p>The only sanctioned way to start a CodeGraph MCP server (header,
+lines 3-16). It starts a READ-ONLY server for one project so any agent
+or subagent can query the index without any chance of changing it. The
+reason it exists is that stock <code>codegraph serve --mcp</code> is not
+read-only: it runs a startup catch-up sync, runs schema/index heal DDL
+on open, steals a lock older than two minutes regardless of the holder,
+and spawns a detached daemon (lines 5-8; measured and described in
+<code>runner_patches/mcpro1.py:3-13</code>).</p>
+<p>The wrapper therefore does three things (lines 9-16):</p>
+<ol type="1">
+<li>serves ONLY through the <code>mcpro1</code> runner, verified from
+its receipt; it never uses the <code>codegraph</code> found on
+<code>PATH</code> and never any other runner;</li>
+<li>refuses to start while a live writer exists on the project&#39;s
+database, decided from real evidence (a process holding
+<code>codegraph.db</code> open for writing, or a live
+<code>codegraph</code>-looking process named in the lock file), never
+from the lock file&#39;s age;</li>
+<li>pins the server environment (no daemon, no watcher, no update check,
+no telemetry, no prompt hook, query pool off, eight tools exposed) and
+then <code>exec</code>s the runner with <code>serve --mcp</code>, so the
+wrapper&#39;s stdout becomes the MCP JSON-RPC channel.</li>
+</ol>
+<p>In this repository the wrapper is what <code>.mcp.json</code>
+registers for the <code>codegraph</code> server:
+<code>command: bash</code>,
+<code>args: [&quot;constitution/scripts/codegraph/codegraph_mcp.sh&quot;]</code>
+(<code>.mcp.json:6</code>). No <code>--project</code> is passed, so the
+target is <code>$CODEGRAPH_MCP_PROJECT</code> if set, otherwise the
+current working directory (lines 37, 48).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>bash</code>, <code>python3</code> (used for the runner-receipt
+check, the live-writer scan and, on first use, the runner builder), plus
+<code>sed</code>, <code>mktemp</code>, <code>head</code>,
+<code>tr</code> (lines 44, 54, 59, 63, 78).</li>
+<li>Linux <code>/proc</code> (the writer scan reads
+<code>/proc/&lt;pid&gt;/fd</code>,
+<code>/proc/&lt;pid&gt;/fdinfo</code>,
+<code>/proc/&lt;pid&gt;/cmdline</code>, lines 86, 90-110, 112-118).
+UNCONFIRMED: behaviour on a host without <code>/proc</code> was not
+run.</li>
+<li>An existing index:
+<code>&lt;project&gt;/.codegraph/codegraph.db</code> must be a regular
+file (lines 50-51). The wrapper never creates one.</li>
+<li>A way to obtain the <code>mcpro1</code> runner, either
+<ul>
+<li>an installed <code>@colbymchenry/codegraph</code> 1.6.x package to
+build it from (the builder finds it with <code>npm root -g</code>,
+<code>fk_index_patch.py:104-116</code>), or</li>
+<li>a pre-built runner pinned through
+<code>HELIX_CODEGRAPH_MCP_RUNNER</code> (line 55).</li>
+</ul></li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_mcp.sh</span> [--project DIR <span class="kw">|</span> <span class="ex">--project=DIR]</span> <span class="pp">[--</span><span class="ss">dry</span><span class="pp">-</span><span class="ss">run</span><span class="pp">]</span> <span class="pp">[</span><span class="ss">serve</span><span class="pp">]</span> <span class="pp">[--</span><span class="ss">mcp</span><span class="pp">]</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">codegraph_mcp.sh</span> <span class="at">-h</span> <span class="kw">|</span> <span class="ex">--help</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--project DIR</code></td>
+<td>Project root that holds <code>.codegraph/codegraph.db</code>.
+Default: <code>$CODEGRAPH_MCP_PROJECT</code>, then <code>$PWD</code>. A
+bare <code>--project</code> with no value exits 2</td>
+<td>lines 37, 40, 48</td>
+</tr>
+<tr>
+<td><code>--project=DIR</code></td>
+<td>Same, single-word form. Accepted by the code, but not listed in the
+header&#39;s usage line</td>
+<td>line 41</td>
+</tr>
+<tr>
+<td><code>--dry-run</code></td>
+<td>Do every check, print one JSON verdict line plus the
+<code>ENV</code>/<code>EXEC</code> plan, and do NOT start the
+server</td>
+<td>lines 42, 132-137</td>
+</tr>
+<tr>
+<td><code>serve</code>, <code>--mcp</code></td>
+<td>Accepted and ignored, so an MCP client can declare
+<code>command=codegraph_mcp.sh args=[serve,--mcp]</code></td>
+<td>line 43</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>Print lines 2-32 of the script itself (the header block) and exit
+0</td>
+<td>line 44</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>Refused with exit 2 (<code>index</code>, <code>sync</code>,
+<code>init</code>, <code>uninit</code> are the usual cases)</td>
+<td>line 45</td>
+</tr>
+</tbody>
+</table>
+<p>Arguments are parsed left to right; <code>-h</code> and a bad
+argument take effect as soon as they are reached, before any project,
+runner or database is touched (lines 38-47).</p>
+<h3 id="examples">Examples</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Command</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>codegraph_mcp.sh --help</code></td>
+<td>VERIFIED (ran: <code>bash codegraph_mcp.sh --help</code>; saw: 31
+header lines from <code># ====</code> on, exit 0)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>codegraph_mcp.sh index</code></td>
+<td>VERIFIED (ran: <code>bash codegraph_mcp.sh index</code>; saw:
+<code>codegraph_mcp: refusing &#39;index&#39;: this entry point only serves MCP read-only ...</code>,
+exit 2)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>codegraph_mcp.sh --project</code> (no value)</td>
+<td>VERIFIED (ran; saw: <code>--project needs a directory</code>, exit
+2)</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>codegraph_mcp.sh --project &lt;dir without .codegraph&gt; --dry-run</code></td>
+<td>VERIFIED (ran against an empty scratch directory; saw:
+<code>no CodeGraph index at &lt;dir&gt;/.codegraph/codegraph.db (the read-only server never creates one)</code>,
+exit 3; directory still empty afterwards)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>codegraph_mcp.sh --project &lt;nonexistent dir&gt;</code></td>
+<td>VERIFIED (ran; saw: <code>project directory not found</code>, exit
+3)</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>CODEGRAPH_MCP_PROJECT=&lt;dir&gt; codegraph_mcp.sh --dry-run</code>
+and <code>--project=&lt;dir&gt; serve --mcp --dry-run</code></td>
+<td>VERIFIED (ran against the same empty scratch directory; both reached
+the no-index refusal, exit 3, proving the env-var default and the
+<code>=</code> form are read)</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>HELIX_CODEGRAPH_RUNNER_DIR=&lt;scratch cache&gt; HELIX_CODEGRAPH_SRC=&lt;installed package&gt; codegraph_mcp.sh --project &lt;fixture&gt; --dry-run</code></td>
+<td>VERIFIED (ran against a throwaway fixture project and a scratch
+runner cache built by the test suite; saw one JSON line
+<code>{&quot;ok&quot;: true, &quot;project&quot;: ..., &quot;runner&quot;: &quot;.../1.6.0-mcpro1/bin/codegraph&quot;, &quot;runner_key&quot;: &quot;1.6.0-mcpro1&quot;, &quot;writers&quot;: []}</code>,
+then eight <code>ENV ...</code> lines, then
+<code>EXEC &lt;runner&gt; serve --mcp (cwd &lt;project&gt;)</code>, exit
+0)</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>HELIX_CODEGRAPH_MCP_RUNNER=/nonexistent/bin/codegraph codegraph_mcp.sh --project &lt;fixture&gt; --dry-run</code></td>
+<td>VERIFIED (ran on the same fixture; saw
+<code>runner not executable: /nonexistent/bin/codegraph</code>, exit
+5)</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>codegraph_mcp.sh --project &lt;real project&gt;</code> (starts
+a live server)</td>
+<td>NOT RUN (a live server was deliberately never started against this
+repository&#39;s real <code>.codegraph</code>; the server path is covered by
+test cases W1 and W9, which start it on fixtures, see &quot;Last
+verified&quot;)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="inputs">Inputs</h2>
+<p>Environment variables read by the script:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Effect</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CODEGRAPH_MCP_PROJECT</code></td>
+<td>Default project directory when <code>--project</code> is not
+given</td>
+<td>line 37</td>
+</tr>
+<tr>
+<td><code>HELIX_CODEGRAPH_MCP_RUNNER</code></td>
+<td>Pin an explicit runner binary. Its receipt is STILL verified and
+must say exactly <code>mcpro1</code></td>
+<td>lines 24, 55-56, 63-75</td>
+</tr>
+<tr>
+<td><code>HELIX_CODEGRAPH_SRC</code></td>
+<td>Pristine package the runner is built from (passed as
+<code>--src</code> to the builder). Ignored when
+<code>HELIX_CODEGRAPH_MCP_RUNNER</code> is set</td>
+<td>lines 23, 58</td>
+</tr>
+<tr>
+<td><code>HELIX_CODEGRAPH_RUNNER_DIR</code></td>
+<td>Runner cache directory (read by the builder, not by this script).
+Builder default <code>~/.cache/helix/codegraph_runner</code></td>
+<td>line 22; <code>fk_index_patch.py:207-209</code></td>
+</tr>
+<tr>
+<td><code>TMPDIR</code></td>
+<td>Where the wrapper&#39;s own temp file is created (default
+<code>/tmp</code>)</td>
+<td>line 54</td>
+</tr>
+</tbody>
+</table>
+<p>Nothing is read from stdin: once <code>exec</code> runs, stdin
+belongs to the MCP server.</p>
+<h2 id="outputs">Outputs</h2>
+<ul>
+<li>stdout: only the MCP JSON-RPC stream produced by the server, or,
+with <code>--dry-run</code>, the plan below. The script itself never
+writes to stdout on a refusal (<code>die</code> writes to stderr, line
+35).</li>
+<li>stderr: <code>codegraph_mcp: &lt;message&gt;</code> on any refusal
+(line 35).</li>
+</ul>
+<p><code>--dry-run</code> output (lines 133-135):</p>
+<ol type="1">
+<li>one JSON line:
+<code>{&quot;ok&quot;: true, &quot;project&quot;: &quot;&lt;dir&gt;&quot;, &quot;runner&quot;: &quot;&lt;bin&gt;&quot;, &quot;runner_key&quot;: &quot;&lt;key&gt;&quot;, &quot;writers&quot;: []}</code></li>
+<li>eight lines <code>ENV NAME=value</code>, one per pinned
+variable</li>
+<li>one line
+<code>EXEC &lt;runner&gt; serve --mcp (cwd &lt;project&gt;)</code></li>
+</ol>
+<p>The pinned environment (lines 127-131), exactly:</p>
+<pre><code>CODEGRAPH_NO_DAEMON=1        CODEGRAPH_NO_WATCH=1        CODEGRAPH_NO_UPDATE_CHECK=1
+DO_NOT_TRACK=1               CODEGRAPH_TELEMETRY=0       CODEGRAPH_NO_PROMPT_HOOK=1
+CODEGRAPH_QUERY_POOL_SIZE=0
+CODEGRAPH_MCP_TOOLS=explore,node,search,callers,callees,impact,files,status</code></pre>
+<p>Without <code>--dry-run</code> the same variables are exported, the
+working directory is changed to the project, and the runner is exec&#39;d:
+<code>exec &quot;$RUNNER&quot; serve --mcp</code> (lines 138-140).</p>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>--dry-run</code> completed; <code>--help</code> printed. A
+normal server start never returns: the process becomes the runner and
+the exit status is the runner&#39;s</td>
+<td>lines 44, 136, 140</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Usage: <code>--project</code> without a value, or any unsupported
+argument</td>
+<td>lines 40, 45</td>
+</tr>
+<tr>
+<td>3</td>
+<td>The project directory does not exist, there is no
+<code>.codegraph/codegraph.db</code>, or <code>cd</code> into the
+project failed</td>
+<td>lines 49, 51, 139</td>
+</tr>
+<tr>
+<td>4</td>
+<td>A live writer was found, OR the writer scan itself failed (refused
+conservatively)</td>
+<td>lines 121-123</td>
+</tr>
+<tr>
+<td>5</td>
+<td>The runner cannot be provided, is not executable, its directory is
+unresolvable, or it is not a valid <code>mcpro1</code> runner</td>
+<td>lines 59, 61, 62, 75</td>
+</tr>
+</tbody>
+</table>
+<p>The header lists 0/2/3/4/5 (line 26); the exit 3 for &quot;project
+directory not found&quot; and &quot;cannot enter&quot; is part of the code but the
+header names only &quot;no index&quot;.</p>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><strong>Read-only means no index creation.</strong> A project
+without <code>.codegraph/codegraph.db</code> is refused (exit 3) and
+nothing is created (lines 50-51; example 4 left the scratch directory
+empty).</li>
+<li><strong><code>index</code>, <code>sync</code>, <code>init</code>,
+<code>uninit</code> are refused before anything else is
+resolved</strong> (exit 2, lines 45; test W6).</li>
+<li><strong>No fallback to the <code>PATH</code> codegraph.</strong> If
+the <code>mcpro1</code> runner cannot be built or found, the wrapper
+exits 5 instead of running whatever <code>codegraph</code> is on
+<code>PATH</code> (lines 55-60, error text &quot;no fallback to the PATH
+codegraph&quot;; test W5 plants a stub <code>codegraph</code> on
+<code>PATH</code> and asserts it never runs).</li>
+<li><strong>A pinned runner is not trusted on its name.</strong>
+<code>HELIX_CODEGRAPH_MCP_RUNNER</code> still goes through the receipt
+check: <code>RUNNER_RECEIPT.json</code> in the runner&#39;s directory (the
+parent of <code>bin/</code>) must have <code>patch_set</code> exactly
+<code>[&quot;mcpro1&quot;]</code>, a <code>runner_key</code> ending
+<code>-mcpro1</code>, the <code>helix-mcpro1</code> marker in five
+listed files, and a <code>db/index.js</code> whose SHA-256 equals
+<code>patched_dbjs_sha256</code> (lines 62-75). A writer runner is
+refused with exit 5 (test W8).</li>
+<li><strong>Writer detection uses the main database file only.</strong>
+SQLite opens <code>-wal</code> and <code>-shm</code> read-write even for
+a read-only connection, so those descriptors are not treated as writer
+evidence (line 82, comment records the measurement). A process is a
+writer when it holds <code>codegraph.db</code> open with
+<code>flags &amp; 3 != 0</code>, or when the flags are unreadable
+(treated as writable, lines 106-110).</li>
+<li><strong>Lock file: liveness is judged from <code>/proc</code>, never
+from age.</strong> The first token of
+<code>.codegraph/codegraph.lock</code> is read as a PID; if that process
+is alive and its command line contains <code>codegraph</code>
+(case-insensitive) or is unreadable, it counts as a writer
+(<code>lock-holder-alive</code>). A live process that is not
+<code>codegraph</code> (a recycled PID) and a dead PID do not block
+(lines 111-118; test W4 covers an ancient lock plus live codegraph PID =
+refuse, live non-codegraph = allow, dead PID = allow).</li>
+<li><strong>The wrapper and its parent are excluded from the
+scan</strong> (<code>os.getpid()</code>, <code>os.getppid()</code>,
+lines 83, 91, 115).</li>
+<li><strong>Other users&#39; processes are invisible to the scan.</strong> A
+process whose <code>/proc/&lt;pid&gt;/fd</code> cannot be listed is
+skipped silently (lines 94-97). This is a property of the code;
+UNCONFIRMED: not run with a second user.</li>
+<li><strong>Readers never block readers.</strong> A live read-only MCP
+session holds no writable descriptor on the main file, so a second
+wrapper start is not refused (test W9).</li>
+<li><strong>Symlinks:</strong> the project path is resolved with
+<code>pwd -P</code> and the database path with <code>realpath</code>
+before comparing with <code>/proc</code> link targets (lines 49,
+81).</li>
+<li><strong>Refusal text is truncated:</strong> the writer report is cut
+to 400 characters (line 123) and runner errors to 300 (lines 59, 75,
+121).</li>
+<li><strong>Temp file left behind on a successful start
+(FINDING).</strong> Line 54 creates an empty
+<code>${TMPDIR:-/tmp}/cg_mcp_err.XXXXXX</code> file and installs
+<code>trap &#39;rm -f &quot;$ERRF&quot;&#39; EXIT</code>. On a successful start the script
+ends with <code>exec</code> (line 140), the shell is replaced, and the
+trap never runs, so one empty file is left behind per server start.
+Observed: after the test suite (two servers started, cases W1 and W9),
+exactly two empty <code>cg_mcp_err.*</code> files remained in the
+scratch <code>TMPDIR</code>, while every <code>--dry-run</code> and
+every refusal removed its own. The header&#39;s &quot;Side effects&quot; (lines 27-28)
+does not mention this file.</li>
+</ul>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<ol type="1">
+<li>Parse arguments (lines 37-47); resolve the project to a physical
+path; require the database file (lines 48-51).</li>
+<li>Create the temp error file and the EXIT trap (line 54).</li>
+<li>Obtain the runner (lines 55-61): pinned path, or
+<code>python3 fk_index_patch.py --patches mcpro1 --print-bin [--src &lt;HELIX_CODEGRAPH_SRC&gt;]</code>.
+The builder reuses a runner whose receipt is valid or builds one by
+copying the installed package and applying the patch
+(<code>fk_index_patch.py:214-215, 225, 245</code>); it refuses to
+replace a runner directory that live processes are using
+(<code>fk_index_patch.py:218-220</code>). The runner is built only into
+the runner cache, never into the project.</li>
+<li>Verify the runner receipt and marker files (lines 62-75); exit 5 on
+any assertion failure.</li>
+<li>Scan <code>/proc</code> for writers of the main database file and
+check the lock holder (lines 78-124); exit 4 if any, or if the scan
+cannot finish.</li>
+<li><code>--dry-run</code>: print the plan and exit 0 (lines
+132-137).</li>
+<li>Export the pinned variables, <code>cd</code> into the project,
+<code>exec</code> the runner (lines 138-140).</li>
+</ol>
+<p>What the <code>mcpro1</code> runner itself enforces (read-only open,
+no migrations or heals, no lock stealing, no daemon, CLI allowlist of
+<code>serve --mcp</code> and <code>status</code>) is described in
+<code>runner_patches/mcpro1.py:15-38</code>; this wrapper only
+guarantees that this runner, and no other, is what starts.</p>
+<h2 id="related">Related</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fk_index_patch.py</code></td>
+<td>Builds/reuses the <code>mcpro1</code> runner
+(<code>--patches mcpro1 --print-bin</code>)</td>
+</tr>
+<tr>
+<td><code>runner_patches/mcpro1.py</code></td>
+<td>The read-only patch the runner carries</td>
+</tr>
+<tr>
+<td><code>codegraph_mcp_preflight.sh</code></td>
+<td>Pre-flight check that uses this wrapper (see its guide)</td>
+</tr>
+<tr>
+<td><a href="codegraph_mcp_probe.md">codegraph_mcp_probe</a></td>
+<td>MCP client used by the tests to prove read-only behaviour; reads
+descriptor modes from <code>/proc</code></td>
+</tr>
+<tr>
+<td><code>codegraph_safe.sh</code></td>
+<td>The writer entry point: index/sync/init belong there, not here (line
+45)</td>
+</tr>
+<tr>
+<td><a href="owed_report.md">owed_report</a></td>
+<td>Reports whether this tool has tests and a guide</td>
+</tr>
+<tr>
+<td><code>tests/test_codegraph_mcp.sh</code></td>
+<td>Cases W1-W9</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26T12:55:57Z (source lines quoted above were read on that
+date).</p>
+<ul>
+<li>Ran
+<code>TMPDIR=&lt;scratch&gt; bash tests/test_codegraph_mcp.sh</code>
+(fixtures and a runner cache created under the scratch
+<code>TMPDIR</code>; the repository&#39;s real <code>.codegraph</code> was
+never opened): <code>W1</code>-<code>W9</code> all <code>PASS</code>,
+<code>SUMMARY cases=9 failed=0</code>.</li>
+<li>Ran the safe invocations in the examples table (help, usage errors,
+no-index and missing-directory refusals, dry-run on a scratch fixture,
+bad pinned runner).</li>
+<li>Counted leftover <code>cg_mcp_err.*</code> files in the scratch
+<code>TMPDIR</code> after the suite: 2 (the two servers started by W1
+and W9); after an extra dry-run the count stayed 2 (control: the
+non-exec path leaves none).</li>
+</ul>
+</body>
+</html>

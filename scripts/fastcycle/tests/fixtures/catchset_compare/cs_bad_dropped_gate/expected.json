@@ -1,0 +1,19 @@
+{
+  "schema": "catchset/v1",
+  "fixture": "cs_bad_dropped_gate",
+  "kind": "golden-bad",
+  "contract_clause": "CS-004; contracts/catch-set-comparison-harness.md RED fixtures row 2",
+  "defect_id": "D1",
+  "defect_patch": "../_shared/patches/defect_d1_widget.sh",
+  "baseline_all_pass": true,
+  "old_missed": [],
+  "assertion_changes": [],
+  "counts": {"caught_old": 1, "caught_new": 0, "lost": 1, "gained": 0},
+  "old_verdict": "CAUGHT",
+  "new_verdict": "MISSED",
+  "old_catchers": ["g_marker"],
+  "new_catchers": [],
+  "expected_exit_code": 1,
+  "named_defects": ["D1"],
+  "note": "NEW omits the one gate (g_marker) that catches D1. Row D1: CAUGHT(old) -> MISSED(new). Superset violated: exit 1, naming D1 -- matches tasks.md T050's literal golden-bad clause ('a new run missing one defect FAILs and names it')."
+}

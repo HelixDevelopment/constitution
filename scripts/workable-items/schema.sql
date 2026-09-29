@@ -147,6 +147,20 @@ CREATE TABLE IF NOT EXISTS item_history (
     -- Captured-evidence per §11.4.5 — path to artefact under qa-results/ etc.
     evidence_path    TEXT,
 
+    -- T-A05 (SpecKit-004): the event's OWN provable occurrence time (UTC
+    -- ISO-8601, seconds), DISTINCT from created_at (row-INSERT wall-clock
+    -- time, §11.4.226 evidence-class-at-closure). NULL unless a requester
+    -- supplied it or a provable artefact backfilled it. NEVER guessed
+    -- (§11.4.6) and NEVER copied from created_at (§11.4.226).
+    occurred_at      TEXT,
+
+    -- Provenance of occurred_at: "commit:<sha>", "evidence:<path>",
+    -- "registry:<field>", or the literal "UNKNOWN" when occurred_at is
+    -- NULL. Set automatically by recordHistoryWithTime — never left NULL
+    -- itself, so an UNKNOWN time is always machine-distinguishable from an
+    -- unset column.
+    occurred_at_source TEXT,
+
     created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

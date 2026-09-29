@@ -1,0 +1,11 @@
+{
+  "verdict_set": {
+    "gate_pass_a": "PASS",
+    "gate_pass_b": "PASS",
+    "gate_fail_c": "FAIL"
+  },
+  "canonical_evidence_string": "gate_fail_c:FAIL\ngate_pass_a:PASS\ngate_pass_b:PASS",
+  "canonical_evidence_sha256": "e83d1c49322c9b5e1631b73d25341c375f06dec4f8453d18f03632929ca9e481",
+  "canonicalisation_rule": "sorted 'gate_name:VERDICT' lines (PASS = exit 0, FAIL = nonzero exit), newline-joined, sha256 -- computed AND verified by this test file's own Section B, not merely asserted (§11.4.273)",
+  "assertion": "run this manifest through gate_runner.sh 3x in serial mode and 3x in --shards 3 mode (6 total invocations); ALL SIX must produce this exact verdict_set and this exact canonical_evidence_sha256 -- plan.md T-C05 Protecting Test: 'sharded vs serial x3 each -> identical verdicts and identical canonical evidence hashes'"
+}

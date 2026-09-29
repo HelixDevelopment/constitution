@@ -107,7 +107,62 @@
 # preceding character, which is harmless: the extracted match is only tested
 # against the `^`-anchored placeholder carrier (#8a), which an `sk-` token never
 # matches either way.
-HELIX_CRED_VALUE_PATTERN='(AKIA[0-9A-Z]{16}|ghp_[0-9A-Za-z]{36}|gho_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{22,}|xox[baprs]-[0-9A-Za-z-]{10,}|(^|[^0-9A-Za-z])sk-[0-9A-Za-z]{20,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN (RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----|(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)[[:space:]]*[:=].{0,80}(\?:|\|\|)[[:space:]]*["'"'"'][^"'"'"']{8,}["'"'"']|(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'"']?[^[:space:]"'"'"'$<%{][^[:space:]"'"'"']{7,})'
+# --- Detector 1 alternative #27: PLURAL credential keyword, ASSIGNMENT only ---
+# §11.4.201(2) FALSE-NEGATIVE cure, MEASURED 2026-09-08 (HXC-352). Every keyword
+# in the alternation above is SINGULAR, so `API_KEYS=<v>`, `PASSWORDS=<v>`,
+# `SECRETS=<v>`, `ACCESS_TOKENS=<v>`, `CLIENT_SECRETS=<v>`, `AUTH_TOKENS=<v>` and
+# `PASSWDS=<v>` all read CLEAN while the singular `API_KEY=<v>` is caught. A
+# scanner that names `password` and misses `passwords` reports clean and the leak
+# ships — the §11.4.201 false-negative direction.
+#
+# THE NARROWING IS LOAD-BEARING, AND IT IS MEASURED. The obvious repair —
+# appending `s?` to the keyword group of the generic `[[:space:]]*[:=]`
+# alternative — was BUILT and REFUTED against the 644-file tracked corpus: it
+# opens 11 NEW false-positive refusals (141 -> 152 flagged files) because a PLURAL
+# keyword before a COLON is how code names a COLLECTION of keys, not a secret
+# (`APIKeys: map[string]string{`, `Secrets: HashiCorp …`). Trading false negatives
+# for false-positive refusals is the §11.4.201(1) FAIL-bluff, not a fix.
+# What ships is ASSIGNMENT-ONLY: plural keyword + `=`, space-padding permitted,
+# COLON NOT. Corpus 141 -> 141: zero new false positives, zero lost catches.
+# The space-padded `=` was itself the measured choice — the tighter `s=` (no
+# padding) missed `PASSWORDS = <secret>` and `passwords = "<secret>"`; the padded
+# form catches both and cost 2 corpus false positives, BOTH of them
+# `apiKeys = &APIKeys{}` Go composite literals, cured by carrier-strip #21 below.
+# The elvis/or-fallback alternative above likewise admits the plural keyword.
+# Evidence: docs/qa/hxc352_plural_credential_pattern_20260908T201833Z/
+# remediation_20260908T204420Z/ (7d_corpus_delta_matrix.txt carries every count
+# quoted here; 7b_falsification_matrix.log carries the per-mutation proof)..
+# Golden fixtures + falsifying mutations: case (26) in test_credential_scan_lib.sh.
+#
+# WHY WIDENING THE CARRIER-STRIPS WITH `s?` IS SAFE — BY SYMMETRY. It is NOT
+# because "a strip can only remove a false positive": that claim is FALSE in
+# general, since a strip removes a detector HIT and, if the hit was a TRUE
+# positive, manufactures a false NEGATIVE. The real argument is structural: every
+# widened carrier is `^(<keyword>)s?<separator>…`, so the `s?` can consume only an
+# `s` standing between the keyword and the separator, and the ONLY extracts that
+# carry such an `s` are the ones the plural alternative itself produces. The
+# widened strip therefore fires on `<kw>s=<v>` exactly when the un-widened strip
+# fired on `<kw>=<v>` — the plural masking surface EQUALS the pre-existing
+# singular one, adding no new class. Probed 2026-09-08; no counter-example could
+# be constructed.
+#
+# HONEST RESIDUALS (§11.4.6 — stated, never silently omitted):
+#   (1) COLON config style (`api_keys: <secret>` in YAML) is NOT caught; catching
+#       it is exactly what produced the 11 false positives above.
+#   (2) `SECRET_KEY=<v>`, `DJANGO_SECRET_KEY=<v>` and `SECRET_KEYS=<v>` are NOT
+#       caught, BEFORE and AFTER this change alike: `secret` must be followed
+#       DIRECTLY by a separator, so an intervening `_KEY` defeats the keyword.
+#       A PRE-EXISTING gap of the same defect class, NOT introduced here and NOT
+#       closed here; it is a separate work item, never claimed fixed.
+#   (3) one standing corpus false positive: a spec file whose prose quotes an
+#       `APIKeys=` fixture value. It is genuinely credential-shaped; adding that
+#       value to the placeholder vocabulary would be over-fitting, so it is
+#       recorded rather than hidden. Consequence, stated precisely: any consumer
+#       scanning that file treats it as a hit — the §11.4.268 evidence-stream
+#       redactor would REDACT a captured stream containing it, and a commit seam
+#       wired to this library (none in this checkout) would REFUSE the commit —
+#       until the fixture value is made placeholder-shaped.
+HELIX_CRED_VALUE_PATTERN='(AKIA[0-9A-Z]{16}|ghp_[0-9A-Za-z]{36}|gho_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{22,}|xox[baprs]-[0-9A-Za-z-]{10,}|(^|[^0-9A-Za-z])sk-[0-9A-Za-z]{20,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN (RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----|(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)s?[[:space:]]*[:=].{0,80}(\?:|\|\|)[[:space:]]*["'"'"'][^"'"'"']{8,}["'"'"']|(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'"']?[^[:space:]"'"'"'$<%{][^[:space:]"'"'"']{7,}|(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)s[[:space:]]*=[[:space:]]*["'"'"']?[^[:space:]"'"'"'$<%{][^[:space:]"'"'"']{7,})'
 
 # --- Detector 1 carrier-strip #8: placeholder-value + base64-image data-URI ---
 # §11.4.201 carrier-strip #8a (placeholder-value allowlist). A recognised secret
@@ -175,7 +230,12 @@ HELIX_CRED_VALUE_PATTERN='(AKIA[0-9A-Z]{16}|ghp_[0-9A-Za-z]{36}|gho_[0-9A-Za-z]{
 # Covers the ASCII `...` and the UTF-8 `…` forms. Proven by the golden-good /
 # golden-bad / negative-control fixtures (n) below and in
 # <project>/scripts/git_hooks/fixtures/credscan_ellipsis_fp_proof.sh (§11.4.107(10)).
-HELIX_CRED_PLACEHOLDER_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'"']?(change_?me|placeholder|example|dummy|redacted|todo|tbd|fixme|xxx+|your[_-][a-z0-9._-]*|[a-z0-9._-]*must_not_leak[a-z0-9._-]*|(change_?me|placeholder|example|dummy|redacted|todo|tbd|fixme)([_-][a-z0-9]+)+|[a-z0-9_-]*[_-](\.{3,}|…))["'"'"']?$'
+# PLURAL (`s?`) — added 2026-09-08 with detector alternative #27. Safe by the
+# SYMMETRY argument stated in the #27 block above (a widened strip fires on
+# `<kw>s=<v>` exactly when the un-widened one fired on `<kw>=<v>`), NOT by the
+# false "a strip can only remove a false positive" claim. Falsifying fixture:
+# case (26) in test_credential_scan_lib.sh — removing this `s?` makes it FAIL.
+HELIX_CRED_PLACEHOLDER_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)s?[[:space:]]*[:=][[:space:]]*["'"'"']?(change_?me|placeholder|example|dummy|redacted|todo|tbd|fixme|xxx+|your[_-][a-z0-9._-]*|[a-z0-9._-]*must_not_leak[a-z0-9._-]*|(change_?me|placeholder|example|dummy|redacted|todo|tbd|fixme)([_-][a-z0-9]+)+|[a-z0-9_-]*[_-](\.{3,}|…))["'"'"']?$'
 
 # §11.4.201 carrier-strip #8b (base64-image data-URI). A data:image/…;base64,<blob>
 # embeds a long base64 run of image bytes that can RANDOMLY contain a token-shaped
@@ -222,7 +282,15 @@ HELIX_CRED_BASE64_IMAGE_CARRIER='data:image/[^;]*;base64,[A-Za-z0-9+/=_-]+'
 # key) and is still caught. `password = "AKIA..."` does NOT match and is still
 # caught. Enumerated per keyword because ERE has no backreferences, so
 # "value equals key" cannot be expressed generically.
-HELIX_CRED_IDENTIFIER_REFERENCE_CARRIER='^(password[[:space:]]*[:=][[:space:]]*password|passwd[[:space:]]*[:=][[:space:]]*passwd|secret[[:space:]]*[:=][[:space:]]*secret|api[_-]?key[[:space:]]*[:=][[:space:]]*api[_-]?key|access[_-]?token[[:space:]]*[:=][[:space:]]*access[_-]?token|auth[_-]?token[[:space:]]*[:=][[:space:]]*auth[_-]?token|client[_-]?secret[[:space:]]*[:=][[:space:]]*client[_-]?secret)[},;[:space:]]*$'
+# PLURAL SYMMETRY (2026-09-08, §11.4.201(1)). Before detector alternative #27
+# existed, `passwords=passwords` was never DETECTED, so this strip needed no
+# plural form. With #27 it IS detected, and the singular-only strip left
+# `passwords=passwords` and `api_keys=api_keys` as HITS while `password=password`
+# and `api_key=api_key` stayed clean — a false-positive class the singular form
+# explicitly exempts (MEASURED 2026-09-08). `s?` on BOTH sides restores symmetry:
+# value-equals-key is a VARIABLE REFERENCE in the plural exactly as in the
+# singular. Falsifying fixture: case (26) in test_credential_scan_lib.sh.
+HELIX_CRED_IDENTIFIER_REFERENCE_CARRIER='^(passwords?[[:space:]]*[:=][[:space:]]*passwords?|passwds?[[:space:]]*[:=][[:space:]]*passwds?|secrets?[[:space:]]*[:=][[:space:]]*secrets?|api[_-]?keys?[[:space:]]*[:=][[:space:]]*api[_-]?keys?|access[_-]?tokens?[[:space:]]*[:=][[:space:]]*access[_-]?tokens?|auth[_-]?tokens?[[:space:]]*[:=][[:space:]]*auth[_-]?tokens?|client[_-]?secrets?[[:space:]]*[:=][[:space:]]*client[_-]?secrets?)[},;[:space:]]*$'
 
 # --- Detector 1 carrier-strip #24: PLACEHOLDER elvis/or FALLBACK literal ---
 # §11.4.201 companion to the new elvis/or-fallback detector alternative. That
@@ -269,7 +337,12 @@ HELIX_CRED_FALLBACK_PLACEHOLDER_CARRIER='(\?:|\|\|)[[:space:]]*["'"'"']?(change_
 # weakening any catch that previously existed; the fallback gap is PRE-EXISTING
 # and is stated here rather than silently inherited. Golden-bad fixture (20-bad)
 # pins the literal-assignment catch.
-HELIX_CRED_ENV_LOOKUP_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*((java\.lang\.)?system\.getenv\(|os\.getenv\(|getenv\(|os\.environ(\[|\.get\()|process\.env[.[][A-Za-z0-9_.]*|env\[|environment\.getenvironmentvariable\()$'
+# PLURAL (`s?`) — added 2026-09-08 with detector alternative #27. Safe by the
+# SYMMETRY argument stated in the #27 block above (a widened strip fires on
+# `<kw>s=<v>` exactly when the un-widened one fired on `<kw>=<v>`), NOT by the
+# false "a strip can only remove a false positive" claim. Falsifying fixture:
+# case (26) in test_credential_scan_lib.sh — removing this `s?` makes it FAIL.
+HELIX_CRED_ENV_LOOKUP_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)s?[[:space:]]*[:=][[:space:]]*((java\.lang\.)?system\.getenv\(|os\.getenv\(|getenv\(|os\.environ(\[|\.get\()|process\.env[.[][A-Za-z0-9_.]*|env\[|environment\.getenvironmentvariable\()$'
 
 # --- Detector 1 carrier-strip #25: GENERIC ACCESSOR / METHOD-CALL value -----
 # 11.4.201(1) false-positive cure, MEASURED 2026-08-27. #20 exempts env-lookup
@@ -286,7 +359,12 @@ HELIX_CRED_ENV_LOOKUP_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-]?t
 # elvis/or-fallback alternative (#24) is a SEPARATE detector alternative, so
 # password = foo() ?: "<real secret>" is still caught. The value must be an
 # identifier chain terminated by an opening paren and nothing else (end-anchored).
-HELIX_CRED_ACCESSOR_CALL_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)*\($'
+# PLURAL (`s?`) — added 2026-09-08 with detector alternative #27. Safe by the
+# SYMMETRY argument stated in the #27 block above (a widened strip fires on
+# `<kw>s=<v>` exactly when the un-widened one fired on `<kw>=<v>`), NOT by the
+# false "a strip can only remove a false positive" claim. Falsifying fixture:
+# case (26) in test_credential_scan_lib.sh — removing this `s?` makes it FAIL.
+HELIX_CRED_ACCESSOR_CALL_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret)s?[[:space:]]*[:=][[:space:]]*[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)*\($'
 
 # --- Detector 1 carrier-strip #21: PASCALCASE SYMBOL-REFERENCE value ---
 # §11.4.201 carrier-strip #21 (TYPE / SYMBOL NAME value). A secret keyword whose
@@ -318,7 +396,21 @@ HELIX_CRED_ACCESSOR_CALL_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-
 # (lowercase initial, no noun suffix). Both are still caught. Under `-i` the
 # uppercase-initial test would collapse and the strip WOULD over-match, so the
 # case-sensitive grep is load-bearing, not cosmetic.
-HELIX_CRED_SYMBOL_REFERENCE_CARRIER='^[A-Za-z_.-]*([Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Tt][Oo][Kk][Ee][Nn]|[Kk][Ee][Yy])[[:space:]]*[:=][[:space:]]*[A-Z][a-z]*[A-Z][A-Za-z]*(Secret|Password|Passwd|Token|Key)[,;)}]?$'
+# PLURAL + COMPOSITE-LITERAL (2026-09-08, §11.4.201(1)). Two measured
+# false-positive classes that the singular form exempts but the plural did not:
+#   * `apiKeys=DefaultAPIKey` was a HIT while `apiKey=DefaultAPIKey` was clean —
+#     cured by `s?` after the keyword AND after the trailing credential noun;
+#   * `apiKeys = &APIKeys{}` — a Go composite literal, i.e. a TYPE reference and
+#     precisely this strip's subject — was the ONLY corpus cost (2 tracked files)
+#     of admitting the space-padded plural assignment in #27. An optional leading
+#     `&` and a trailing `{}` cure it; corpus 141 -> 141, zero lost catches. A
+#     `&Type{}` composite literal is never a literal secret value.
+# UNCHANGED by the widening, and re-MEASURED after it: the two-hump floor and the
+# case-sensitive application still hold — `secret = SuperSecret` and
+# `secret: SuperSecretValue` remain CAUGHT. Falsifying fixtures: case (26) in
+# test_credential_scan_lib.sh — removing either the `s?` or the `&`/`{}` form
+# makes them FAIL.
+HELIX_CRED_SYMBOL_REFERENCE_CARRIER='^[A-Za-z_.-]*([Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Tt][Oo][Kk][Ee][Nn]|[Kk][Ee][Yy])s?[[:space:]]*[:=][[:space:]]*&?[A-Z][a-z]*[A-Z][A-Za-z]*(Secret|Password|Passwd|Token|Key)s?(\{\})?[,;)}]?$'
 
 HELIX_CRED_ADJACENCY_AWK='
 {

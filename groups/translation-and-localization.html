@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Translation And Localization</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="translation-and-localization">Translation And Localization</h1>
+<h3 id="114237--mandatory-exhaustive-context-and-spirit-aware-translation-review-every-localized-artifact-independently-reviewed-for-context-source--spirit-target-language-idiomregister--technicalnon-translatable-fidelity--accuracy-necessary-never-sufficient-operator-mandate-2026-08-05">§11.4.237
+— Mandatory exhaustive context-and-spirit-aware translation review:
+every localized artifact independently reviewed for CONTEXT (source) +
+SPIRIT (target-language idiom/register) + technical/non-translatable
+fidelity — accuracy necessary, never sufficient (operator mandate,
+2026-08-05)</h3>
+<p><strong>Forensic anchor (operator mandate, 2026-08-05):</strong> a
+translated artifact that is merely ACCURATE — every source token
+faithfully rendered — can still read as stilted, foreign,
+machine-literal, register-wrong, or idiom-broken to a native speaker of
+the target language, and a localization pass that silently mangles a
+technical term or &quot;translates&quot; a non-translatable product/proper name
+ships a defect worse than untranslated text; the recurring failure mode
+is a translation that scores green on an accuracy check while a native
+reader immediately perceives it as non-native. Accuracy is NECESSARY; it
+is NOT SUFFICIENT for a slick, polished, professional localization.</p>
+<p>The mandate (ALL hold):</p>
+<p><strong>(A) EVERY LOCALIZED ARTIFACT IS INDEPENDENTLY REVIEWED —
+NEVER SELF-REVIEWED.</strong> Every translation and every translated
+artifact — UI strings, pages, documents, PDFs, manuals, marketing copy,
+captions/subtitles, help text, any localized content — MUST undergo a
+HEAVY, EXHAUSTIVE, independent review by a reviewer (agent or human)
+STRUCTURALLY SEPARATE from the translator that produced it
+(§11.4.70/§11.4.20 independence). The translator&#39;s own pass (§11.4.92
+multi-pass self-review) PRECEDES this review and NEVER satisfies it
+(§11.4.142&#39;s no-self-review-substitution discipline applied to
+localization; §11.4.92 precedes, never satisfies). A localized artifact
+accepted without an independent context-and-spirit review is a §11.4
+PASS-bluff at the localization layer.</p>
+<p><strong>(B) THE REVIEWER HOLDS AND APPLIES THREE DIMENSIONS.</strong>
+(a) FULL CONTEXT OF THE SOURCE MATERIAL — the original ideas, the
+subject/domain, the purpose, and the intended audience; the reviewer
+reads the source MEANING, not merely the source STRING, so intent,
+nuance, and tone are carried across, never lost. (b) THE SPIRIT OF THE
+TARGET LANGUAGE — its tradition, idiom, register, tone, and cultural
+conventions — so the result reads as NATIVE, natural, fluent, and
+MAXIMALLY POLISHED, never literal / word-for-word / calqued; a
+construction correct in the source that reads foreign in the target is
+REWRITTEN into the natural target-language form. (c) CORRECT TECHNICAL
+VOCABULARY AND VERBATIM PRESERVATION OF NON-TRANSLATABLE TERMS —
+domain/technical terms rendered with their established target-language
+equivalents, and NON-TRANSLATABLE tokens (product names, brand names,
+proper nouns, technology/library/API names, code identifiers,
+trademarks) preserved VERBATIM — never &quot;translated&quot;, never accidentally
+transliterated, never localized away.</p>
+<p><strong>(C) THE GOAL IS MAXIMALLY POLISHED LOCALIZATION — ACCURACY
+NECESSARY, NEVER SUFFICIENT.</strong> The bar is a slick, polished,
+professional, native-reading localization; fidelity to the source is the
+FLOOR, not the ceiling. A rendering that is accurate but stilted /
+foreign / register-wrong / idiom-broken is a FINDING, not a pass.</p>
+<p><strong>(D) ANTI-BLUFF — CAPTURED MACHINE-READABLE POSITIVE EVIDENCE
++ FAIL-LOOPS-TO-CLEAN.</strong> The review emits captured,
+machine-readable POSITIVE evidence per §11.4.5/§11.4.69
+(<code>feature_class</code> = translation_review): a per-artifact
+verdict carrying a PER-DIMENSION rationale across the closed dimension
+set {fidelity, fluency/naturalness, spirit/register, terminology,
+completeness, non-translatable-preservation} — a PASS with no captured
+per-dimension rationale is a §11.4/§11.4.1 bluff. A FAIL on ANY
+dimension LOOPS BACK to re-translation/polish and re-review, iterating
+to a zero-finding clean verdict per §11.4.134 — a single pass that
+&quot;looked fine&quot; never closes the artifact.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> This anchor REFINES the
+existing localization discipline from PASS/FAIL accuracy checking to
+CONTEXT-AND-SPIRIT native-polish review; it does NOT replace §11.4.140&#39;s
+canonical translation pipeline (the
+HelixTranslate-canonical-translation-pipeline sense of that anchor
+number) nor §11.4.141&#39;s independent per-language review (the
+independent-per-language-translation-review sense of that anchor number
+— a KNOWN operator-owned §11.4.54 anchor-number collision on
+<code>11.4.140</code>/<code>11.4.141</code>, re-mint still
+operator-owned; cited here strictly in those senses, introducing no new
+collision), it STRENGTHENS them (accuracy → native polish). It does not
+make a mistranslation impossible (a miscalibrated reviewer stays
+§11.4.107(10) golden-good/golden-bad fixture territory), and where a
+target language genuinely has no established term for a source concept,
+that gap is an honestly recorded finding (§11.4.3 SKIP-with-reason),
+never a silently invented word.</p>
+<p>Classification: universal (§11.4.17) — no vendor/project/language
+literal; the consuming project supplies its language set, term glossary,
+non-translatable token list, and reviewer substrate as DATA per
+§11.4.35. Composes §11.4.140 (canonical translation pipeline) /
+§11.4.141 (independent per-language translation review — this REFINES it
+from PASS/FAIL accuracy to context+spirit polish) / §11.4.6 / §11.4.69 /
+§11.4.92 / §11.4.134 / §11.4.142 / §11.4.209 / §1.1. Propagation gate
+<code>CM-COVENANT-114-237-PROPAGATION</code> (literal
+<code>11.4.237</code>) + recommended gate
+<code>CM-TRANSLATION-CONTEXT-SPIRIT-REVIEW</code> (every localized
+artifact carries an independent per-dimension context-and-spirit review
+verdict with captured rationale across {fidelity, fluency/naturalness,
+spirit/register, terminology, completeness,
+non-translatable-preservation}, FAIL looping to re-review per §11.4.134)
++ paired §1.1 mutation (a translation accepted on an accuracy-only
+check, OR self-reviewed by its own translator, OR carrying a
+golden-bad-seeded mistranslated idiom / a &quot;translated&quot; non-translatable
+product name → the gate FAILs; strip the literal → the propagation gate
+FAILs; gate-code = separate work item, NOT claimed shipped
+§11.4.6/§11.4.227).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.237.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-spirit-review</code>,
+<code>--accuracy-only-OK</code>,
+<code>--self-review-translation-OK</code>,
+<code>--literal-translation-OK</code>,
+<code>--translate-non-translatable-OK</code>,
+<code>--skip-per-dimension-rationale</code> flag exists.</p>
+<h3 id="114255--mandatory-helixtranslate-canonical-translation-pipeline-user-mandate-2026-06-25">§11.4.255
+— Mandatory HelixTranslate canonical translation pipeline (User mandate,
+2026-06-25)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-06-25):</strong> &quot;Every project that inherits this constitution
+MUST use HelixTranslate (<a href="mailto:git@github.com">git@github.com</a>:HelixDevelopment/HelixTranslate.git)
+— via a universal, reusable pipeline — to generate ANY translations it
+needs. This is a hard rule/constraint.&quot;</p>
+<p>ALL translations of ANY content — UI strings, documents, articles,
+CVs, READMEs, marketing copy, in-app messages, release notes, legal
+text, ANY human-language string rendered in a non-source language — MUST
+be produced by <strong>HelixTranslate</strong>
+(<code>git@github.com:HelixDevelopment/HelixTranslate.git</code>) driven
+through the <strong>canonical universal translation pipeline</strong>
+shipped in this submodule at <code>scripts/translation/</code>
+(<code>translate-pipeline.sh</code> + <code>render-articles.sh</code>).
+This is a hard, non-negotiable constraint.</p>
+<p>The following are FORBIDDEN and constitute a §11.4.255 violation:</p>
+<p>(a) <strong>Hand-translation</strong> — no human-authored, manually
+edited, or &quot;good enough&quot; hand-written translation of any content, ever.
+The engine is the single source of every translated string.</p>
+<p>(b) <strong>Other engines</strong> — no Google Translate, DeepL, raw
+ChatGPT/Claude prompting, OS translation APIs, library i18n
+auto-translators, or any engine other than HelixTranslate&#39;s
+<code>unified-translator</code>. There is exactly one engine.</p>
+<p>(c) <strong>Silent fallback</strong> — no quiet substitution of the
+source string, no empty/partial output passed off as a translation, no
+swallowed engine error, no &quot;absence-of-error&quot; PASS (§11.4 / §11.4.1). On
+exhaustion of all configured providers the pipeline MUST FAIL LOUD
+(non-zero exit, destination NOT written) so the caller detects it; a
+missing translation is a hard error, never a degraded-but-shipped
+string. Provider-to-provider failover WITHIN HelixTranslate (primary →
+fallback, with logged, evidenced retries) is NOT a silent fallback and
+is permitted; falling back to ANY non-HelixTranslate source is
+forbidden.</p>
+<p><strong>Mandatory validation.</strong> Every generated translation
+MUST be validated for accuracy with real (physical) captured evidence
+per §11.4.5 / §11.4.69 / §11.4.107 — no metadata-only / config-only /
+grep-without-runtime PASS (§11.4 / §11.4.1), no false results, no bluff
+of any kind (§11.4.6). The per-file run log (provider used, byte counts,
+retries, success/failure) is the evidence artifact; an unvalidated or
+unevidenced translation is treated as ABSENT.</p>
+<p><strong>Explicit provider routing.</strong> Provider + model routing
+MUST be explicit and recorded — never implicit/defaulted-in-the-dark.
+The canonical routing is provider <code>groq</code> / model
+<code>llama-3.3-70b-versatile</code> with documented failover to
+provider <code>mistral</code> / model <code>mistral-large-latest</code>;
+the provider that actually produced each output MUST be recorded in the
+per-file log. Any deviation from the canonical routing MUST be stated
+explicitly in configuration and logged.</p>
+<p><strong>Canonical pipeline location.</strong>
+<code>scripts/translation/translate-pipeline.sh</code> (universal
+Markdown / plain-text + article-frontmatter-preserving translator) and
+<code>scripts/translation/render-articles.sh</code> (article-source →
+HTML fragment renderer). Both are reusable verbatim across projects; the
+engine binary is supplied by the consuming project via
+<code>HELIX_TRANSLATE_BIN</code> and built from the HelixTranslate
+repository.</p>
+<p>Classification: universal (§11.4.17) — a platform-neutral,
+language-neutral translation discipline reusable by ANY project; the
+consuming project supplies its concrete source files, target languages,
+and the HelixTranslate engine build per §11.4.35. Composes §11.4 /
+§11.4.1 / §11.4.5 / §11.4.6 / §11.4.7 / §11.4.69 / §11.4.107.
+Propagation gate <code>CM-COVENANT-114-255-PROPAGATION</code> (literal
+<code>11.4.255</code>) + recommended gate
+<code>CM-MANDATORY-HELIXTRANSLATE-PIPELINE</code> + paired §1.1
+meta-test mutation (gate-code = separate work item).</p>
+<p><strong>Rationale.</strong> A single, evidenced, fail-loud
+translation engine guarantees that every translated string in the fleet
+has a known provenance, a reproducible pipeline, and a captured accuracy
+proof — eliminating the silent drift, inconsistent quality, and
+untraceable &quot;where did this string come from&quot; failures that
+hand-translation and ad-hoc engines produce. One engine, one pipeline,
+one evidence trail.</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.255
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--allow-hand-translation</code>,
+<code>--other-engine-OK</code>,
+<code>--skip-translation-validation</code>,
+<code>--silent-fallback</code> flag exists.</p>
+<hr />
+<h3 id="114256--mandatory-independent-per-language-translation-review-user-mandate-2026-06-25">§11.4.256
+— Mandatory independent per-language translation review (User mandate,
+2026-06-25)</h3>
+<p><strong>Forensic anchor — verbatim user mandate
+(2026-06-25):</strong> &quot;Quality of translations for all languages MUST
+BE ALWAYS properly checked and reviewed! We MUST CREATE independent,
+specialized translations review agents for all languages we support
+which will be performing full testing, review, validation and
+verification for all translated content! This MUST BE mandatory part of
+our root constitution (Submodule) and followed as mandatory constraint /
+rule by this and all our projects implementing the constitution
+Submodule.&quot;</p>
+<p>Every translated artifact produced under §11.4.255 MUST, before it is
+shipped / committed / deployed, be INDEPENDENTLY REVIEWED for quality by
+a per-language review agent. This is a hard, non-negotiable gate that
+composes with — and never replaces — the §11.4.255 generation
+mandate.</p>
+<p>Requirements:</p>
+<p>(a) <strong>Independence.</strong> The reviewer MUST be a different
+model/provider than the one that produced the translation (e.g.
+translator <code>mistral/mistral-large-latest</code> → reviewer
+<code>groq/llama-3.3-70b-versatile</code>, or any distinct verified
+model). A model reviewing its own output is NOT an independent review
+and is forbidden.</p>
+<p>(b) <strong>Per-language specialization.</strong> The reviewer MUST
+act as a NATIVE speaker / linguistic reviewer of the SPECIFIC target
+language, evaluating that language&#39;s grammar, orthography, and correct
+script (Cyrillic for ru/be/kk, Arabic for ar/fa,
+Han/Kana/Hangul/Devanagari for zh/ja/ko/hi, Latin for sr/de/es/fr/tr,
+etc.).</p>
+<p>(c) <strong>Full criteria.</strong> Each review MUST judge:
+accuracy/fidelity, fluency/naturalness, completeness (nothing omitted or
+invented), correct script &amp; orthography, and absence of untranslated
+source leftovers (proper nouns / URLs / code excepted).</p>
+<p>(d) <strong>Strict machine-readable verdict + evidence.</strong> Each
+review MUST emit a structured PASS/FAIL verdict with per-criterion
+scores and an issues list, persisted as a physical evidence artifact
+(§11.4.5 / §11.4.69 / §11.4.107). A FAIL — or an ERROR /
+unavailable-reviewer — BLOCKS the content; only a real PASS may ship. No
+metadata-only / absence-of-error PASS (§11.4 / §11.4.1); no bluff
+(§11.4.6).</p>
+<p>(e) <strong>Remediation loop.</strong> A FAIL routes the artifact
+back through the §11.4.255 pipeline (re-translate / multipass-polish)
+and is re-reviewed, iterating until PASS — never hand-patched to pass
+(hand-translation remains forbidden under §11.4.255).</p>
+<p><strong>Canonical tooling.</strong>
+<code>scripts/translation/review-translations.sh</code> (per-language
+review driver) + <code>scripts/translation/review_translation.py</code>
+(independent reviewer engine emitting strict JSON verdicts). Reusable
+verbatim across projects; the consuming project supplies its
+source/translation file pairs and a reviewer provider DISTINCT from its
+translator.</p>
+<p>Classification: universal (§11.4.17) — a platform-neutral,
+language-neutral translation-quality-assurance discipline reusable by
+ANY project that ships translated content; composes §11.4.255 (the
+translation it gates) / §11.4 / §11.4.1 / §11.4.5 / §11.4.6 / §11.4.69 /
+§11.4.107 / §11.4.134 (rock-solid evidence). Propagation gate
+<code>CM-COVENANT-114-256-PROPAGATION</code> (literal
+<code>11.4.256</code>) + recommended gate
+<code>CM-MANDATORY-TRANSLATION-REVIEW</code> + paired §1.1 meta-test
+mutation (gate-code = separate work item).</p>
+<p><strong>Rationale.</strong> §11.4.255 guarantees a translation&#39;s
+provenance and a fail-loud pipeline, but not its linguistic quality. An
+independent, native-level, per-language reviewer with a captured
+PASS/FAIL verdict is what turns &quot;a string was produced&quot; into &quot;a string
+was verified correct&quot; — making translation quality an auditable fact
+rather than an assumption.</p>
+<p><strong>Canonical authority:</strong> this Constitution.md §11.4.256
+in the HelixConstitution submodule. All consuming projects restate +
+cite via §11.4.35 inheritance.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-translation-review</code>,
+<code>--self-review-OK</code>,
+<code>--accept-unreviewed-translation</code> flag exists.</p>
+<hr />
+</body>
+</html>

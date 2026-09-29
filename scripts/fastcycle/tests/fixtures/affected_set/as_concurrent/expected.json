@@ -1,0 +1,12 @@
+{
+  "description": "two DIFFERENT changes processed as if concurrent -- each affected.json's rows must carry their OWN change_id and never mix up which gate belongs to which change (AS-014, Edge Case 'concurrent changes')",
+  "map_file": "map.json",
+  "run_1_change_id": "change-A",
+  "run_1_changed_paths": ["src/alpha.sh"],
+  "run_2_change_id": "change-B",
+  "run_2_changed_paths": ["src/beta.sh"],
+  "layer": "all",
+  "expected_exit_code": 0,
+  "expected_run_1_members": ["gate_alpha"],
+  "expected_run_2_members": ["gate_beta"]
+}

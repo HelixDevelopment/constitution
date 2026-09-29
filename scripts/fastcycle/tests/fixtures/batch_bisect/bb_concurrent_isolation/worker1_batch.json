@@ -1,0 +1,7 @@
+{
+  "batch_id": "worker1",
+  "changes": [
+    {"change_id": "chg-A", "target_file": "widget_a.sh", "patch": "change_a_good.sh"},
+    {"change_id": "chg-C", "target_file": "widget_c.sh", "patch": "change_c_bad.sh"}
+  ]
+}

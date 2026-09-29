@@ -1,0 +1,8 @@
+{
+  "class_statement": "a closure whose evidence_path was accepted at record time despite never resolving to a real file",
+  "control_needle": "crud.go:requireEvidencePath",
+  "control_needle_found": true,
+  "instances_found": [
+    {"location": "constitution/scripts/workable-items/cmd/workable-items/crud.go:288", "disposition": "fixed-here"}
+  ]
+}

@@ -91,15 +91,14 @@ func TestMigrateV3ToV4NonDestructive(t *testing.T) {
 		t.Fatalf("top-level (NULL parent) count = %d, want 3 (backfill)", topLevel)
 	}
 
-	// schema_version advanced to 6 (the v6 destination/logic_group +
-	// logic_groups group-atomic track-assignment columns — §11.4.120
-	// reconciliation of this literal on top of the GAP-A representation
-	// rebuild + GAP-B closure-metadata columns that landed after the original
-	// v4 sub-task/diary work).
+	// schema_version advanced to 6, then further to 7 by T-A05's
+	// item_history.occurred_at migration (§11.4.120 reconciled 2026-09-29 —
+	// same pattern as the prior v6 reconciliation this comment already
+	// documents: the literal tracks whatever migration ran most recently).
 	var ver string
 	_ = db.QueryRow(`SELECT value FROM meta WHERE key='schema_version'`).Scan(&ver)
-	if ver != "6" {
-		t.Fatalf("post schema_version = %q, want 6", ver)
+	if ver != "7" {
+		t.Fatalf("post schema_version = %q, want 7", ver)
 	}
 
 	// Live sync state preserved (INSERT OR IGNORE did NOT clobber it).
@@ -154,10 +153,11 @@ func TestMigrateIdempotent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("openDB #%d: %v", i, err)
 		}
+		// §11.4.120 reconciled 2026-09-29 (T-A05: schema_version now advances to 7).
 		var ver string
 		_ = db.QueryRow(`SELECT value FROM meta WHERE key='schema_version'`).Scan(&ver)
-		if ver != "6" {
-			t.Fatalf("re-open #%d schema_version = %q, want 6", i, ver)
+		if ver != "7" {
+			t.Fatalf("re-open #%d schema_version = %q, want 7", i, ver)
 		}
 		var total int
 		_ = db.QueryRow(`SELECT COUNT(*) FROM items`).Scan(&total)

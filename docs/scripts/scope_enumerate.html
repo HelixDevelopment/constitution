@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>scope_enumerate.js — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="scope_enumeratejs--guide">scope_enumerate.js — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T13:34:00Z</p>
+<p>Source:
+<code>constitution/scripts/codegraph/scope_enumerate.js</code> (254
+lines). Tests: no test file of its own; it is exercised through
+<code>codegraph_scope_guard.py</code> by
+<code>constitution/scripts/codegraph/tests/run_scope_tests.sh</code>
+(cases T01-T17, mutants M0-M15; the scan-mode probe is case T17).
+Citations below are <code>scope_enumerate.js:&lt;line&gt;</code> unless
+another file is named.</p>
+<h2 id="overview">Overview</h2>
+<p>A read-only bridge into an installed CodeGraph runner&#39;s OWN
+file-discovery code (header, lines 3-10). It loads the runner&#39;s
+<code>project-config.js</code>, <code>extraction/index.js</code> and
+<code>extraction/grammars.js</code> from a <code>lib/dist</code>
+directory (lines 87-98) and answers three questions with one JSON object
+on stdout:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Question it answers</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enumerate</code></td>
+<td>Which files would the runner&#39;s <code>scanDirectory</code> index for
+this root?</td>
+<td>lines 132-165</td>
+</tr>
+<tr>
+<td><code>contract</code></td>
+<td>Does the runner still behave the way the scope tooling assumes
+(config file name, exclude handling, built-in skips,
+<code>.gitignore</code> negation)?</td>
+<td>lines 170-212</td>
+</tr>
+<tr>
+<td><code>explain</code></td>
+<td>Which tracked source files were dropped by the runner&#39;s built-in
+skips (as opposed to an explicit <code>exclude</code>)?</td>
+<td>lines 215-249</td>
+</tr>
+</tbody>
+</table>
+<p>It exists so the scope guard measures the engine&#39;s real behaviour
+instead of a re-implementation of it (lines 6-8). Its only caller in the
+tree is <code>codegraph_scope_guard.py</code> (<code>ENUM_JS</code>,
+<code>node_bridge</code>,
+<code>codegraph_scope_guard.py:61, 98-108</code>); it is not meant to be
+run by hand except to debug that guard.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>node</code> &gt;= 18 and <code>git</code> (header line 26;
+<code>git</code> is called through <code>execFileSync</code>, line
+107-109).</li>
+<li>A runner <code>lib/dist</code> tree containing
+<code>project-config.js</code>, <code>extraction/index.js</code> and
+<code>extraction/grammars.js</code> (lines 90-92). Any missing file is a
+&quot;runner not loadable&quot; refusal (exit 3, line 94).</li>
+<li>Optional: the <code>ignore</code> npm package resolvable from the
+dist tree; used by <code>explain</code> (line 229, hard failure if
+absent) and looked up (but not used) by <code>loadRunner</code> (line
+96, failure tolerated).</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> scope_enumerate.js <span class="op">&lt;</span>mode<span class="op">&gt;</span> --dist <span class="op">&lt;</span>runner lib/dist<span class="op">&gt;</span> [--root <span class="op">&lt;</span>dir<span class="op">&gt;</span>] <span class="pp">[</span><span class="ss">opts</span><span class="pp">]</span></span></code></pre></div>
+<p>The first argument is the mode; every following argument must be a
+<code>--key value</code> PAIR (lines 41-50). A key without a value, or a
+non-<code>--</code> token where a key is expected, is refused with exit
+3 (<code>bad argument near &lt;key&gt;</code>, line 46).
+<code>--dist</code> is required for every mode (line 53).</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Modes</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--dist DIR</code></td>
+<td>all</td>
+<td>Runner <code>lib/dist</code>. Never modified</td>
+<td>lines 53-54</td>
+</tr>
+<tr>
+<td><code>--root DIR</code></td>
+<td>enumerate, explain</td>
+<td>Project root. Required by both</td>
+<td>lines 133, 216</td>
+</tr>
+<tr>
+<td><code>--out FILE</code></td>
+<td>enumerate, explain</td>
+<td>Where the file list / dropped-groups table is written. Required</td>
+<td>lines 133, 216</td>
+</tr>
+<tr>
+<td><code>--config-filename NAME</code></td>
+<td>all</td>
+<td>Runner&#39;s project-config file name. Default
+<code>codegraph.json</code></td>
+<td>line 55</td>
+</tr>
+<tr>
+<td><code>--overlay-config FILE</code></td>
+<td>enumerate, explain</td>
+<td>Answer reads of <code>&lt;root&gt;/&lt;config-filename&gt;</code>
+from FILE instead of disk</td>
+<td>lines 63, 134, 217</td>
+</tr>
+<tr>
+<td><code>--overlay-gitignore FILE</code></td>
+<td>enumerate, explain</td>
+<td>Answer reads of <code>&lt;root&gt;/.gitignore</code> from FILE
+instead of disk</td>
+<td>lines 64, 134, 217</td>
+</tr>
+<tr>
+<td><code>--roots-file FILE</code></td>
+<td>enumerate</td>
+<td>JSON array of project-relative directories; the answer then carries
+<code>root_census</code></td>
+<td>lines 160-163</td>
+</tr>
+<tr>
+<td><code>--work DIR</code></td>
+<td>contract</td>
+<td>Scratch directory for the throwaway probe repository. Required</td>
+<td>line 171</td>
+</tr>
+<tr>
+<td><code>--enumerated FILE</code></td>
+<td>explain</td>
+<td>A previously written enumeration (<code>--out</code> of
+<code>enumerate</code>). Required</td>
+<td>line 216</td>
+</tr>
+</tbody>
+</table>
+<p>Overlays work by replacing <code>fs.readFileSync</code>,
+<code>fs.statSync</code> and <code>fs.existsSync</code> on the shared
+<code>fs</code> module BEFORE the runner is required, so reads of
+exactly the two overlaid absolute paths are answered from the overlay
+files and every other read goes to disk (lines 57-85). Nothing is
+written to the project.</p>
+<h3 id="examples">Examples</h3>
+<p>All examples were run against a throwaway git repository in a scratch
+directory (one tracked <code>src/a.c</code>, one tracked
+<code>build/b.c</code>) and the installed runner dist printed by
+<code>codegraph_scope_guard.py --resolve-dist</code>
+(<code>.../codegraph-linux-x64/lib/dist</code>, runner version 1.6.0).
+The real repository and its <code>.codegraph</code> were never
+touched.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Command</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>node scope_enumerate.js</code> (no arguments)</td>
+<td>VERIFIED (ran; saw
+<code>{&quot;ok&quot;:false,&quot;error&quot;:&quot;--dist &lt;runner lib/dist&gt; is required&quot;}</code>,
+exit 3)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>node scope_enumerate.js bogus --dist &lt;dist&gt;</code></td>
+<td>VERIFIED (ran; saw
+<code>{&quot;ok&quot;:false,&quot;error&quot;:&quot;unknown mode bogus&quot;}</code>, exit 3)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>node scope_enumerate.js enumerate --dist /nonexistent --root &lt;p&gt; --out &lt;f&gt;</code></td>
+<td>VERIFIED (ran; saw
+<code>{&quot;ok&quot;:false,&quot;error&quot;:&quot;runner not loadable from /nonexistent: Cannot find module ...&quot;}</code>,
+exit 3)</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>node scope_enumerate.js enumerate --dist &lt;dist&gt; --root</code>
+(key without value)</td>
+<td>VERIFIED (ran; saw <code>bad argument near --root</code>, exit
+3)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>node scope_enumerate.js enumerate --dist &lt;dist&gt; --root &lt;p&gt; --out &lt;f&gt;</code></td>
+<td>VERIFIED (ran; saw
+<code>{&quot;ok&quot;:true,&quot;mode&quot;:&quot;enumerate&quot;,&quot;count&quot;:1,&quot;ms&quot;:21,&quot;scan_mode&quot;:&quot;git&quot;,&quot;runner_version&quot;:&quot;1.6.0&quot;,&quot;runner_config_filename&quot;:&quot;codegraph.json&quot;,&quot;overlay&quot;:[]}</code>,
+exit 0; <code>&lt;f&gt;</code> held exactly <code>src/a.c</code>;
+<code>build/b.c</code> was dropped by the built-in skip)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Same plus <code>--roots-file</code> containing
+<code>[&quot;src&quot;,&quot;nothere&quot;]</code></td>
+<td>VERIFIED (ran; saw <code>root_census</code>
+<code>{&quot;src&quot;:{&quot;checked_out&quot;:false,&quot;tracked_source&quot;:0},&quot;nothere&quot;:{...same}}</code>,
+exit 0: a plain sub-directory is not its own git repository, so it is
+&quot;not checked out&quot; in this sense)</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>node scope_enumerate.js contract --dist &lt;dist&gt; --work &lt;scratch&gt;</code></td>
+<td>VERIFIED (ran; saw <code>&quot;ok&quot;:true</code> with six checks C0-C5 all
+<code>ok:true</code>, exit 0; the <code>cg_contract_repo</code>
+directory was removed afterwards)</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>node scope_enumerate.js explain --dist &lt;dist&gt; --root &lt;p&gt; --enumerated &lt;f&gt; --out &lt;t&gt;</code></td>
+<td>VERIFIED (ran; saw
+<code>{&quot;ok&quot;:true,&quot;mode&quot;:&quot;explain&quot;,&quot;tracked_source&quot;:2,&quot;dropped&quot;:1,&quot;groups&quot;:1}</code>,
+exit 0; <code>&lt;t&gt;</code> held
+<code>1&lt;TAB&gt;default:build/</code>)</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>enumerate</code> with <code>--overlay-config</code> naming a
+file <code>{&quot;exclude&quot;:[&quot;/src/&quot;]}</code></td>
+<td>VERIFIED (ran; saw <code>count&quot;:0</code> and <code>overlay</code>
+listing <code>&lt;root&gt;/codegraph.json</code>;
+<code>ls &lt;root&gt;</code> afterwards showed only <code>build</code>
+and <code>src</code>: no <code>codegraph.json</code> was written to the
+project)</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>contract</code> mode with a broken runner (exit 2)</td>
+<td>NOT RUN (no drifted runner available; the exit path is
+<code>process.exit(ok ? 0 : 2)</code>, line 211)</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>enumerate</code> against this repository&#39;s real root</td>
+<td>NOT RUN (the brief forbids pointing anything at the live 580K-file
+tree)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="outputs">Outputs</h2>
+<p>One JSON object on stdout, always the last line (the guard reads the
+last non-empty stdout line, <code>codegraph_scope_guard.py:103</code>),
+plus any file named by <code>--out</code>.</p>
+<ul>
+<li>Refusals: <code>{&quot;ok&quot;:false,&quot;error&quot;:&quot;&lt;message&gt;&quot;}</code>
+(<code>die</code>, lines 36-39).</li>
+<li><code>enumerate</code> (lines 155-164): <code>ok</code>,
+<code>mode</code>, <code>count</code>, <code>ms</code>,
+<code>scan_mode</code>, <code>runner_version</code>,
+<code>runner_config_filename</code>, <code>overlay</code> (list of
+overlaid absolute paths) and, with <code>--roots-file</code>,
+<code>root_census</code> =
+<code>{dir: {checked_out, tracked_source}}</code>. <code>--out</code>
+receives the sorted file list, one path per line, plus a trailing
+newline unless the list is empty (lines 153-154).</li>
+<li><code>contract</code> (lines 208-209): <code>ok</code>,
+<code>mode</code>, <code>runner_version</code>,
+<code>runner_config_filename</code>, <code>checks</code> = list of
+<code>{id, ok, detail}</code>.</li>
+<li><code>explain</code> (line 248): <code>ok</code>, <code>mode</code>,
+<code>tracked_source</code>, <code>dropped</code>, <code>groups</code>;
+<code>--out</code> receives one row per group,
+<code>&lt;count&gt;&lt;TAB&gt;&lt;key&gt;</code>, sorted by count
+descending then key (lines 246-247). Keys are
+<code>default:&lt;dir&gt;/</code> for a directory matched by the
+runner&#39;s default ignore list, otherwise
+<code>non-default:&lt;first two path segments&gt;/</code> (lines
+238-244).</li>
+</ul>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Success (<code>enumerate</code>, <code>explain</code>, and
+<code>contract</code> when every check passed)</td>
+<td>lines 164, 211, 248</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>contract</code> only: at least one check failed (runner
+drift)</td>
+<td>line 211</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Usage error, unknown mode, missing required option, or runner not
+loadable</td>
+<td>lines 36-39, 46, 53, 94, 133, 171, 216, 254</td>
+</tr>
+</tbody>
+</table>
+<p>An uncaught exception (for example <code>git</code> failing inside
+<code>explain</code>, or an unreadable <code>--roots-file</code>) is not
+turned into a <code>die</code>: Node prints its own stack trace to
+stderr and exits 1. UNCONFIRMED: not run; read from the code, which has
+no surrounding <code>try</code> for those calls.</p>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><strong>Scan mode is observed, not assumed</strong> (lines 136-149).
+For the duration of <code>scanDirectory</code> the script wraps
+<code>child_process.execFileSync</code>. If the runner&#39;s
+<code>git ls-files -z -s --recurse-submodules</code> (or
+<code>rev-parse --show-toplevel</code>) throws, the runner silently
+falls back to a filesystem walk; the wrapper records
+<code>scan_mode</code> as <code>walk_fallback:&lt;code&gt;</code> (or
+<code>walk_fallback:not_a_git_repo</code>) and re-throws so the runner
+behaves as it would unwrapped. Otherwise <code>scan_mode</code> is
+<code>git</code>. The wrapper is removed straight after the scan (line
+152), but not if the scan itself throws.</li>
+<li><strong><code>contract</code> recreates its probe
+repository</strong> at <code>&lt;work&gt;/cg_contract_repo</code> every
+time (<code>rmSync</code> then <code>mkdirSync</code>, lines 173-175)
+and removes it at the end (line 210). It runs C0 (config filename equals
+<code>--config-filename</code>), C1 (the probe repository is visible at
+all: the control needle), C2 (<code>build/</code> is skipped by
+default), C3 (a config <code>exclude</code> is honoured and an unknown
+<code>_generated</code> key is tolerated), C4 (a root
+<code>.gitignore</code> negation <code>!/build/</code> re-includes it),
+C5 (an <code>exclude</code> beats the negation) (lines 188-206).</li>
+<li><strong>Census counts a root only if it is its own git
+repository.</strong> <code>checked_out</code> is true only when
+<code>git rev-parse --show-toplevel</code> run inside the directory
+resolves to the directory itself (lines 121-124); a missing directory or
+an ordinary sub-directory of the parent repo is
+<code>checked_out:false, tracked_source:0</code> (example 6).
+<code>tracked_source</code> counts that repository&#39;s own tracked files
+(<code>git ls-files</code>, without <code>--recurse-submodules</code>)
+that the runner treats as source (lines 125-126).</li>
+<li><strong><code>explain</code> does not count explicit excludes as
+drops</strong> (line 235) and needs the <code>ignore</code> package
+(line 229).</li>
+<li><strong>Overlay is exact-path.</strong> Only
+<code>&lt;root&gt;/&lt;config-filename&gt;</code> and
+<code>&lt;root&gt;/.gitignore</code> are answered from overlay files
+(lines 63-64, 67); a nested <code>.gitignore</code> is read from
+disk.</li>
+</ul>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<ol type="1">
+<li>Parse <code>mode</code> and <code>--key value</code> pairs; require
+<code>--dist</code> (lines 41-55).</li>
+<li><code>enumerate</code>/<code>explain</code>: install the overlay
+(only if an overlay option was given), then load the runner (lines
+134-135, 217-218); <code>contract</code> loads the runner without an
+overlay (line 172).</li>
+<li>Do the mode&#39;s work (<code>scanDirectory</code>; probe repository; or
+diff of <code>git ls-files --recurse-submodules</code> against the
+enumeration) and print one JSON object.</li>
+</ol>
+<h2 id="related">Related</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="codegraph_scope_guard.md">codegraph_scope_guard</a></td>
+<td>The only caller; judges the JSON this script returns</td>
+</tr>
+<tr>
+<td><a href="scope_render.md">scope_render</a></td>
+<td>Renders the <code>codegraph.json</code> / <code>.gitignore</code>
+block that the overlay options let a dry run apply</td>
+</tr>
+<tr>
+<td><a href="owed_report.md">owed_report</a></td>
+<td>Reports whether this tool has tests and a guide</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26 (source lines read on that date; the examples above were
+run that day on a scratch fixture). Findings: none. The in-source header
+block (lines 2-29) matches the code; it does not state the
+<code>walk_fallback</code> values of <code>scan_mode</code>, which the
+code emits (line 138-146) and this guide documents.</p>
+</body>
+</html>

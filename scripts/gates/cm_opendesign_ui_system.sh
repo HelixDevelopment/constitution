@@ -63,6 +63,17 @@
 # Classification: universal (§11.4.17).
 
 set -euo pipefail
+# §11.4.201(7)(c)-class detector fix: OD_VISREG_GLOBS's default patterns use
+# `**/` to signal "search recursively at any depth" (e.g.
+# `**/*screenshot*test*`). Without `shopt -s globstar`, bash's `**` behaves
+# identically to a single `*` — it matches exactly ONE path component, not a
+# recursive descent — so a visual-regression suite nested two-or-more levels
+# below root (e.g. `e2e/visual/screenshot_test.spec.ts`) is silently missed
+# while the glob's OWN syntax claims to find it. Control-needle proven
+# 2026-09-22: a 1-level-deep needle matched either way; a 2-level-deep needle
+# matched ONLY with globstar enabled. Enabling it here makes every `**`
+# pattern in this script behave as its authors' own naming documents.
+shopt -s globstar
 
 GATE="CM-OPENDESIGN-UI-SYSTEM"
 ANCHOR="11.4.162"

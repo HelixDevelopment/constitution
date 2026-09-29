@@ -134,9 +134,15 @@ func TestRepairBodies_ClearsDesyncs_RedPolarity(t *testing.T) {
 	// TERMINAL `… (→ Fixed.md)` status so it does not trip validateCmd's new
 	// location↔status invariant (check (f), ATM-627 INTEG-03). This test exercises
 	// the empty-body column↔body repair class, NOT a Fixed+non-terminal desync;
-	// 'Completed' advances the column (was 'Fixed') AND blanks the body, so the
+	// 'Obsolete' advances the column (was 'Fixed') AND blanks the body, so the
 	// empty-body desync still fires while the item stays location↔status-valid.
-	rbExec(t, db, `UPDATE items SET body_md='', status='Completed (→ Fixed.md)'
+	// BOB-240 reconciliation (2026-09-25): ATM-971 is Type=Bug, so the earlier
+	// choice of 'Completed' here is now ITSELF a §11.4.33 Type↔Status mismatch
+	// (Completed belongs to Task) — the exact new class this item's own guard
+	// refuses. 'Obsolete' is valid for ANY Type (criterion 5) and is still a
+	// genuine column change from the fixture's initial 'Fixed', so it exercises
+	// the identical column↔body repair path without tripping the new invariant.
+	rbExec(t, db, `UPDATE items SET body_md='', status='Obsolete (→ Fixed.md)'
 		WHERE atm_id='ATM-971' AND current_location='Fixed' AND representation='section'`)
 	db.Close()
 
@@ -180,9 +186,13 @@ func TestRepairBodies_Idempotent(t *testing.T) {
 	// TERMINAL `… (→ Fixed.md)` status so it does not trip validateCmd's new
 	// location↔status invariant (check (f), ATM-627 INTEG-03). This test exercises
 	// the empty-body column↔body repair class, NOT a Fixed+non-terminal desync;
-	// 'Completed' advances the column (was 'Fixed') AND blanks the body, so the
+	// 'Obsolete' advances the column (was 'Fixed') AND blanks the body, so the
 	// empty-body desync still fires while the item stays location↔status-valid.
-	rbExec(t, db, `UPDATE items SET body_md='', status='Completed (→ Fixed.md)'
+	// BOB-240 reconciliation (2026-09-25): see the identical comment in
+	// TestRepairBodies_ClearsDesyncs_RedPolarity above — ATM-971 is Type=Bug, so
+	// 'Completed' would now itself be a §11.4.33 Type↔Status mismatch; 'Obsolete'
+	// is valid for ANY Type and still exercises the same column↔body repair path.
+	rbExec(t, db, `UPDATE items SET body_md='', status='Obsolete (→ Fixed.md)'
 		WHERE atm_id='ATM-971' AND current_location='Fixed' AND representation='section'`)
 	db.Close()
 

@@ -1,0 +1,13 @@
+{
+  "findings": [
+    {
+      "description": "The new retry loop around the upstream fetch has no backoff and no attempt cap, so a sustained upstream outage turns into a hot-loop that starves the host of the network budget other work needs (constitution 12.6/12.11). No lint rule or shellcheck check names this pattern -- it requires judging whether the retry strategy is architecturally sound, not matching a known style rule. Recommend extracting the shared bounded-backoff retry helper already used by constitution/scripts/fastcycle/orchestration/handoff.py instead of hand-rolling a new unbounded loop here.",
+      "file": "review_record_fixture_dispatch.sh",
+      "id": "F1",
+      "line": 61,
+      "severity": "BLOCKING"
+    }
+  ],
+  "round": 1,
+  "verdict": "NO-GO"
+}

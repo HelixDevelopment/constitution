@@ -1,0 +1,16 @@
+{
+  "schema": "catchset/v1",
+  "fixture": "cs_negctrl_removal_with_transfer",
+  "kind": "negative-control",
+  "contract_clause": "CS-005; contracts/catch-set-comparison-harness.md RED fixtures row 6",
+  "tool_invocation": "gate_audit.py transfer-proof",
+  "removed_gate_id": "g_marker_dup",
+  "removed_gate_paired_mutation_defect_id": "D1",
+  "into_gate_id": "g_marker",
+  "surviving_gate_ids": ["g_marker", "g_noop"],
+  "surviving_verdicts_against_removed_gates_mutation": {"g_marker": "FAIL", "g_noop": "PASS"},
+  "can_fail_status": "PROVEN",
+  "expected_exit_code": 0,
+  "transfer_record_written": true,
+  "note": "g_marker_dup is a genuine DUPLICATE of g_marker (both check SAFE_MARKER). Removing g_marker_dup and re-running its own paired mutation D1 against the surviving set: g_marker DOES fail (catches D1) -- can_fail=PROVEN for the survivor -- so transfer-proof correctly WRITES a MutationTransferRecord and exits 0. The §11.4.201(1) false-positive guard for this fixture family: a removal-proof harness that ALWAYS refuses (never transfers) would wrongly fail this row too."
+}

@@ -46,8 +46,20 @@ Subcommands:
                                                         Set Status=Operator-blocked with §11.4.21 details.
   close <atm-id> --db <p> --status <fixed|implemented|completed|obsolete> --evidence <p>
                                                         Atomic Issues→Fixed closure (§11.4.19).
+  closure-check --config <cfg> --item <ID> --to <Fixed|Implemented|Completed> --attempt <a.json> --out <d.json>
+                                                        Dry-run status-custody seam check (contracts/closure-refusal.md
+                                                        CR-001/CR-002 evidence-class floor + E4 guard-freshness;
+                                                        T-D02). Read-only; never modifies the tracker.
   obsolete-details <atm-id> --db <p> --since <ISO> --reason <r> --superseding <s> --evidence <p>
                                                         Write the §11.4.90 obsolete_details row for an Obsolete item.
+  intake-match --config <cfg> --report <report.json> --out <link.json> [--apply]
+                                                        §11.4.214/T-D04 SOL-07 intake-dedup matcher: resolve an incoming
+                                                        report (title/scope/description/intake_path) against existing
+                                                        items by normalised(subject,scope); SAME_DEFECT reopens the
+                                                        matched chain head (§11.4.34 attribution, no new id); DISTINCT
+                                                        or UNDECIDED mints a new id (UNDECIDED carries a candidate-
+                                                        duplicate-of note). --apply performs the write through the
+                                                        single writer; without it, --out is a dry-run decision only.
   report --db <p> [--by-type|--by-status|--by-severity|--by-assigned|--by-creator|--obsolete-audit]
                                                         Read-only grouped tally / §11.4.90 audit.
   diary add --id <atm> --db <p> --tested-by <User|Operator|AI-agent|HelixQA> --result <PASS|FAIL|SKIP>
@@ -130,8 +142,12 @@ func main() {
 		runBlock(args[1:])
 	case "close":
 		runClose(args[1:])
+	case "closure-check":
+		os.Exit(runClosureCheck(args[1:]))
 	case "obsolete-details":
 		runObsoleteDetails(args[1:])
+	case "intake-match":
+		runIntakeMatch(args[1:])
 	case "report":
 		runReport(args[1:])
 	case "diary":

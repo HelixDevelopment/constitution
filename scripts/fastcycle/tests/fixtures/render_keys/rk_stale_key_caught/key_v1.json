@@ -1,0 +1,17 @@
+{
+  "_comment": "T062 fixture: a recorded content-addressed key computed from source.md's V1 bytes (marker RK-STALE-V1), per T-C12's Work line formula (source bytes || stylesheet || exporter version || pandoc/weasyprint versions || format), reference-computed by tests/lib/render_keys_ref.py (a standalone non-production reference, never render_keys.py itself). test_render_keys_red.sh edits source.md to V2 (marker RK-STALE-V2) at runtime WITHOUT touching this file, then re-restores V1 on exit -- simulating exactly T-C12's named defect: 'a twin whose source changed but whose key was not updated'.",
+  "source": "source.md",
+  "format": "html",
+  "key": "71396a97b912ffb140df0e3ad0de5007a960b2217932cc99cda70d0c29aabce8",
+  "key_components": {
+    "stylesheet": "constitution/styles/default-md.css",
+    "exporter_version": "c3250b9251a4679f2843b873f64bba43d53c5880b5fd3e22912de7617f252d0a",
+    "exporter_version_note": "SHA-256 of scripts/testing/sync_all_markdown_exports.sh's own bytes at fixture-authoring time (2026-09-29) -- the exporter publishes no semver today, so this content hash is the defensible proxy render_keys_ref.py adopts; see its own module docstring",
+    "pandoc_version": "pandoc 3.10",
+    "weasyprint_version": "WeasyPrint version 69.0"
+  },
+  "recorded_source_sha256": "bfa929a5385cda82359792b4a7545f1ff4077f2a033f02cd2bc2d01fec95589b",
+  "recorded_source_sha256_note": "sha256 of source.md's V1 bytes at the moment this key was recorded -- NOT part of the key preimage itself (the composite key already covers source bytes), kept here purely so the test can assert 'the fixture's recorded state really was V1, not something else' independently of the key formula",
+  "computed_at": "2026-09-29T00:00:00Z",
+  "computed_at_note": "provenance only -- per T-C12's own formula and the render_keys_ref.py docstring's excluded-fields list, mtime/timestamps are NEVER part of the key"
+}

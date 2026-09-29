@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Design System And Ui</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="design-system-and-ui">Design System And Ui</h1>
+<h3 id="114162--opendesign-ui-design-system-mandate-user-mandate-2026-06-21">§11.4.162
+— OpenDesign UI design system mandate (User mandate, 2026-06-21)</h3>
+<p><strong>Forensic anchor — direct user mandate
+(2026-06-21).</strong></p>
+<p><strong>The mandate.</strong> Every project governed by this
+Constitution that produces user-facing interfaces (web, desktop, mobile,
+TUI, or any other surface classes the project supports per §11.4.25)
+MUST use <strong>OpenDesign</strong> (<a href="https://github.com/nexu-io/open-design">https://github.com/nexu-io/open-design</a>)
+as the mandatory UI design-and-refinement system — NOT ad-hoc CSS, not
+one-off design tools, not improvised inline styles, not a different
+design-token system. OpenDesign is consumed as a project dependency (npm
+package or equivalent per the consuming project&#39;s technology stack),
+never vendored or forked.</p>
+<p><strong>Design tokens and theming.</strong> The project MUST use
+OpenDesign&#39;s design tokens / themes system for:</p>
+<ol type="1">
+<li><strong>All color palette definitions</strong> — supporting BOTH
+light and dark themes using the project&#39;s brand colors extracted from
+canonical brand assets (logo, style guides, brand guidelines per
+§11.4.35). Color tokens are defined in OpenDesign&#39;s token format, never
+duplicated in CSS custom properties or inline styles.</li>
+<li><strong>Typography scale and spacing</strong> — typefaces, font
+sizes, line heights, letter spacing, and content margin/padding tokens
+are defined in OpenDesign, consumed by every UI component, never
+scattered across individual component files.</li>
+<li><strong>Component-level design tokens</strong> — every reusable UI
+component (buttons, cards, dialogs, inputs, navigation elements, tables,
+modals, etc.) defines its tokens (border radius, shadow,
+hover/active/focus states, animation timing) in OpenDesign, not in
+component-specific stylesheets.</li>
+</ol>
+<p><strong>Extend, never reimplement.</strong> If a desired UI pattern
+(a component, theme variant, token type, or rendering target) is not
+supported by OpenDesign, the project MUST extend OpenDesign upstream per
+§11.4.74 (extend-don&#39;t-reimplement) — submit a PR adding the missing
+capability rather than working around it with ad-hoc CSS or a different
+tool. A pattern worked around outside the design system is a §11.4.162
+violation (it silently fragments the UI surface — the divergence grows
+over time and the shared design system no longer governs all UI
+output).</p>
+<p><strong>Light+dark theme variants required.</strong> Every UI
+component MUST ship with BOTH light and dark theme variants, with the
+color palette defined from the project&#39;s canonical brand assets
+(logo/brand assets per §11.4.35). A component that renders correctly
+only in one theme is a §11.4.162 violation — a project&#39;s surfaces MUST
+be usable in both modes on any platform that supports theme
+switching.</p>
+<p><strong>Layout regression prohibition.</strong> UI elements MUST NOT
+overlap, fonts MUST NOT collide with other UI elements or other text,
+labels MUST NOT overlay labels. Any layout regression — including but
+not limited to clipped text, overlapping controls, misaligned grids,
+overflow-hidden content, or incorrect z-ordering — is a §11.4.162
+violation regardless of whether the underlying token change had good
+intent. The OpenDesign token-diff comparison is the primary
+regression-detection tool: token changes that produce layout regressions
+are caught by diffing the token set before and after the change,
+correlated with the project&#39;s visual regression tests.</p>
+<p><strong>Test coverage.</strong> All UI changes MUST be covered by the
+project&#39;s standard test types including visual regression tests
+(§11.4.4(b) layer 3) that capture before/after screenshots of every
+changed component/token, with per-pixel or perceptual-diff
+PASS/FAIL.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> OpenDesign governs design
+tokens and theme definitions — it does NOT replace the project&#39;s
+functional testing (§11.4.27), accessibility testing (WCAG color
+contrast is still verified per §11.4.107), or the §11.4.48/§11.4.49
+UI-driven and dual-approach testing methodology. A project that uses
+OpenDesign tokens but ships broken UI components is a §11.4.162
+violation — the tool is mandatory, but using it correctly (tokens →
+components → tests → regressions) is equally mandatory.</p>
+<p><strong>Composition.</strong> §11.4.162 composes with §11.4.74
+(extend-don&#39;t-reimplement — the rule for extending OpenDesign upstream),
+§11.4.25 (full-automation-coverage — UI components covered by every test
+type), §11.4.27 (no-fakes-beyond-unit — visual regression tests are real
+assertions, not mock screenshots), §11.4.4(b) (four-layer coverage
+includes visual regression at layer 3), §11.4.107
+(accessibility/color-contrast assertions still apply), §11.4.48/§11.4.49
+(UI-driven/dual-approach testing still applies), §11.4.35 (brand assets
+location and token-per-project instantiation), §11.4.6 (no-guessing —
+token configuration is declared, not inferred from appearance), §11.4.69
+(visual regression evidence is captured per component).</p>
+<p><strong>Gates.</strong> Propagation gate
+<code>CM-COVENANT-114-162-PROPAGATION</code> (literal
+<code>11.4.162</code>) + recommended gate
+<code>CM-OPENDESIGN-UI-SYSTEM</code> (every UI-capable project has
+OpenDesign installed as a dependency, uses its token/theme system for
+all colors (light+dark), typography, spacing, and component tokens;
+extends OpenDesign upstream for unsupported patterns; no ad-hoc CSS-only
+UI; visual regression tests cover every UI change) + paired §1.1
+meta-test mutation (replace a token-driven style with inline CSS → gate
+FAILs; ship a light-only component → gate FAILs; use a non-OpenDesign
+color tool → gate FAILs; gate-code = separate work item).</p>
+<p><strong>Classification:</strong> universal (§11.4.17) — the consuming
+project supplies its concrete OpenDesign package installation path,
+brand-asset location, token definitions file, component registry, and
+visual regression test harness per §11.4.35. No escape hatch — no
+<code>--skip-opendesign</code>, <code>--ad-hoc-css-OK</code>,
+<code>--light-only-OK</code>, <code>--no-token-system</code>,
+<code>--no-visual-regression-tests</code> flag exists.</p>
+<p><strong>§11.4.170 — Device-independent host-side rendered-UI
+visual-proof mandate (User mandate, 2026-06-25).</strong> Verbatim
+operator escalation set (2026-06-25): &quot;what this should represent, this
+uglyness!?!?!? UI we see does not purpos or sense at all! it is messed
+up with an giant button!&quot; + &quot;Eye candy stunning funcitonal UI and UX
+MUST BE prooven with full automation tests which &#39;see&#39; everything
+visually with no issues, false results or bluff of any kind!!! So far,
+anti-bluff policy seems completely ignored!&quot; Every change to any
+user-facing UI surface (screen / component / view / widget / layout /
+theme on any platform — Android-Compose, iOS-SwiftUI/UIKit, web,
+desktop, TUI) MUST be proven by <strong>device-independent host-side
+RENDERED PIXELS</strong> before it may be claimed correct: the actual
+component rendered to an image ON THE HOST (NO device, NO emulator, NO
+running app required) via a host-render harness (Compose →
+Roborazzi/Paparazzi on the JVM; web → Playwright/Storybook snapshot;
+SwiftUI → snapshot-testing; equivalent per stack), for EVERY relevant
+<code>screen × state × {light,dark} theme</code> combination, with the
+produced PNG validated by BOTH (i) <strong>image-diff against an
+approved golden</strong> (per-pixel or perceptual-diff PASS/FAIL) AND
+(ii) an <strong>OCR / vision oracle</strong> that reads the rendered
+text + labels + control bounds to assert legibility + NO element overlap
+/ NO label-over-label / NO clipping / NO off-screen control / NO
+collapsed-or-giant unbounded widget (the §11.4.162 layout invariants,
+here PROVEN on real pixels not asserted on tokens). <strong>The
+forbidden bluff (forensic anchor, FACT 2026-06-25):</strong> UI work was
+&quot;validated&quot; by VALUE-EQUALITY unit tests (asserting a hex colour string,
+an <code>sp</code>/<code>dp</code> size integer, a design-token field
+equals an expected constant) that NEVER RENDERED A SINGLE PIXEL — every
+such test was GREEN while the operator opened the running screen and saw
+a broken, unbounded giant-button layout. A value-equality /
+token-equality / property-assertion UI test is therefore FORBIDDEN as
+the <em>proof</em> a UI is correct (it may SUPPLEMENT — confirming a
+token&#39;s wiring — but NEVER SUBSTITUTE for the rendered-pixel proof); a
+&quot;green&quot; UI suite that contains no rendered-pixel artefact for the
+changed surface is a §11.4 PASS-bluff at the visual layer,
+severity-equivalent to a metadata-only PASS. The mandate (ALL hold): (1)
+<strong>rendered-pixel proof per screen × state × theme</strong>,
+device-independent, runnable in CI on EVERY commit with zero hardware
+(that is the whole point of host-side rendering — it is NOT subject to
+device availability); (2) <strong>dual oracle</strong> — golden
+image-diff AND OCR/vision content+layout oracle, both required, each
+PASS citing the captured PNG + diff artefact path per §11.4.5/§11.4.69;
+(3) <strong>value-only UI claims FORBIDDEN as proof</strong> — a UI
+change with no rendered-pixel artefact for its surface is a finding
+(§11.4.4 test-interrupt → render → fix → re-render GREEN); (4)
+<strong>self-validated analyzer</strong> — the image-diff + OCR oracle
+is golden-good/golden-bad calibrated per §11.4.107(10) (a golden-bad
+fixture seeded with overlapping labels / a clipped control / an
+unbounded button MUST FAIL, else the analyzer is itself a bluff gate),
+thresholds calibrated on the project&#39;s OWN fixtures not hardcoded from
+literature (§11.4.6); (5) <strong>&quot;device offline&quot; is NEVER a valid
+skip</strong> for this proof — host-render is precisely the
+device-independent path; an honest §11.4.3 SKIP applies ONLY where the
+platform genuinely has no host-render harness (a tracked migration item,
+never a silent gap or a value-only fallback). Honest boundary (§11.4.6):
+host-render proves the COMPONENT renders correctly device-independently
+on every commit — it does NOT prove the running app on real hardware
+(that remains §11.4.153/§11.4.158/§11.4.159/§11.4.160&#39;s live-device
+recording + read-the-screen layer, which §11.4.170 COMPLEMENTS not
+replaces — the two layers are both mandatory: host-render for per-commit
+device-free coverage, live-recording for end-to-end on-device
+confirmation), does NOT replace §11.4.162&#39;s OpenDesign token/theme
+governance (§11.4.170 PROVES the rendered RESULT of those tokens), and
+is a DISTINCT artifact class from §11.4.168&#39;s exported-document visual
+validation. Classification: universal (§11.4.17) — the consuming project
+supplies its concrete host-render harness, golden corpus,
+screen×state×theme matrix, and OCR/vision thresholds per §11.4.35.
+Composes
+§11.4.3/§11.4.5/§11.4.27/§11.4.40/§11.4.69/§11.4.107/§11.4.108/§11.4.117/§11.4.153/§11.4.158/§11.4.159/§11.4.160/§11.4.162/§11.4.163/§11.4.168/§11.4.169/§1.1.
+Propagation gate <code>CM-COVENANT-114-170-PROPAGATION</code> (literal
+<code>11.4.170</code>) + recommended gate
+<code>CM-HOST-RENDERED-UI-VISUAL-PROOF</code> (every changed UI surface
+carries a device-independent host-rendered PNG per screen×state×theme,
+dual-oracle-validated, run on every commit; a UI change proven only by
+value/token-equality assertions FAILs) + paired §1.1 meta-test mutation
+(strip the literal → propagation gate FAILs; accept a UI change whose
+only proof is a value-equality assertion / a golden-bad
+overlapping-label fixture that PASSes →
+<code>CM-HOST-RENDERED-UI-VISUAL-PROOF</code> FAILs; gate-code =
+separate work item). <strong>Canonical authority:</strong> constitution
+submodule <a href="Constitution.md"><code>Constitution.md</code></a>
+§11.4.170. Non-compliance is a release blocker. No escape hatch — no
+<code>--value-assertion-proves-ui</code>,
+<code>--skip-rendered-pixel-proof</code>,
+<code>--token-equality-suffices</code>,
+<code>--device-offline-skip-visual</code>,
+<code>--single-theme-only</code>,
+<code>--unvalidated-image-diff-OK</code>,
+<code>--no-ocr-layout-oracle</code> flag.</p>
+<hr />
+<h2 id="12-host-session-safety--directly-or-indirectly-signing-the-user-out-is-forbidden">§12.
+Host-session safety — directly OR indirectly signing the user out is
+FORBIDDEN</h2>
+<p>Every script, test, helper, and AI agent governed by this
+Constitution MUST respect host-session safety. Non-compliance is a
+release blocker.</p>
+<p><strong>§11.4.190 — Website engineering-quality mandate: every
+project website MUST be fully responsive + completely SEO-optimized +
+uniquely OpenDesign-authored + bleeding-edge enterprise-quality, each
+PROVEN with captured evidence (User mandate, 2026-07-10).</strong>
+Verbatim operator mandate: &quot;every website we create inside our projects
+MUST BE fully responsive - working on all browsers, all operating
+systems, all platforms and all devices and screen sizes! Every Website
+MUST BE completely SEO optimized! Layouts and templates done MUST BE
+unique and everything fully designed from OpenDesign! Make sure this
+applies to our project Website as well! Everything must be bleeding-edge
+enterprise quality, stunning visual look and feel, innovative, creative
+and unique! There MUST BE no false or faulty result or bluff of any kind
+anywhere!&quot; Every website / web-UI surface a project ships — INCLUDING
+this project&#39;s OWN website — MUST satisfy AND PROVE with captured
+physical evidence (§11.4.5/§11.4.69/§11.4.107/§11.4.170 — never a bare
+claim, §11.4.6) ALL of: <strong>(A) FULL RESPONSIVENESS</strong> —
+correct, usable rendering across ALL major browser engines
+(Chromium/Firefox/WebKit), all operating systems, all device classes
+(desktop/laptop/tablet/phone/large-display) and the full range of screen
+sizes/orientations/pixel-densities; NO broken layout / overflow /
+clipping / overlap / off-screen or unusable control at ANY breakpoint.
+<strong>(B) COMPLETE SEO OPTIMIZATION</strong> — semantic HTML + correct
+document outline; per-page unique <code>&lt;title&gt;</code> + meta
+description; Open Graph + Twitter cards; canonical URLs; structured data
+(schema.org / JSON-LD); <code>robots</code> + XML sitemap; crawlable /
+indexable markup; WCAG AA accessibility + Core Web Vitals performance
+(both feed ranking). <strong>(C) UNIQUE OpenDesign-AUTHORED
+templates/layouts</strong> — EVERY layout + template designed FROM the
+OpenDesign design-token system (§11.4.162), NOT generic / off-the-shelf
+/ templated; visually unique, innovative, creative, brand-distinct.
+<strong>(D) BLEEDING-EDGE ENTERPRISE VISUAL QUALITY</strong> — stunning,
+polished, professional look-and-feel in BOTH light AND dark themes
+(§11.4.162 tokens). <strong>(E) ANTI-BLUFF PROOF</strong> — NONE of
+(A)–(D) may be CLAIMED without captured physical evidence:
+responsiveness PROVEN by device-independent host-rendered screenshots
+across the real breakpoint × engine matrix + an OCR/vision layout oracle
+(no overlap / label-over-label / clip / overflow / off-screen); SEO
+PROVEN by an automated audit (Lighthouse SEO + structured-data
+validation + meta / OG / sitemap / robots presence) meeting a defined
+score floor; visual quality PROVEN by the §11.4.170 device-independent
+host-rendered pixel proof per screen × state × {light,dark}; uniqueness
+PROVEN by OpenDesign-token provenance. A website reported responsive /
+SEO-optimized / unique / enterprise-quality WITHOUT these captured
+proofs is a §11.4 PASS-bluff at the web-UI layer. §11.4.190 is the
+strict WEB-quality expansion of §11.4.162 (OpenDesign — it applies
+§11.4.162&#39;s design-token mandate to the full responsive + SEO +
+enterprise-quality web surface) and binds §11.4.170&#39;s device-independent
+host-rendered pixel proof as the correctness oracle; sibling of
+§11.4.168 (exported-document independent visual validation) at the
+web-UI layer. Classification: universal (§11.4.17) — references no
+project-specific hardware; the consuming project supplies its concrete
+breakpoint × engine matrix, SEO score-floor, and OpenDesign token set
+per §11.4.35. Composes
+§11.4.5/§11.4.6/§11.4.69/§11.4.107/§11.4.162/§11.4.168/§11.4.170.
+Propagation gate <code>CM-COVENANT-114-190-PROPAGATION</code> (literal
+<code>11.4.190</code>) + recommended gates
+<code>CM-WEBSITE-RESPONSIVE-PROVEN</code> (host-rendered screenshots
+across the breakpoint × engine matrix + layout oracle — no
+overlap/clip/overflow/off-screen) /
+<code>CM-WEBSITE-SEO-OPTIMIZED</code> (automated SEO audit meets the
+score floor + structured-data / meta / OG / sitemap / robots present) /
+<code>CM-WEBSITE-OPENDESIGN-UNIQUE</code> (every layout/template&#39;s
+OpenDesign-token provenance, no generic/off-the-shelf template) + paired
+§1.1 mutation (report a website responsive/SEO/unique/enterprise-quality
+with NO captured proof, OR ship a generic non-OpenDesign template, OR
+skip the light/dark host-rendered pixel proof → the recommended gate
+FAILs; strip the literal → propagation gate FAILs; gate-code = separate
+work item). <strong>Canonical authority:</strong> constitution submodule
+<a href="Constitution.md"><code>Constitution.md</code></a> §11.4.190.
+Non-compliance is a release blocker. No escape hatch — no
+<code>--skip-responsive-proof</code>, <code>--seo-optional</code>,
+<code>--generic-template-OK</code>, <code>--visual-quality-later</code>,
+<code>--claim-without-render</code> flag.</p>
+<h3 id="114216--canonical-machine-readable-design-token-source-one-css-custom-property-file-root--data-themedark-generated-bindings-everywhere-else-user-mandate-2026-07-22">§11.4.216
+— Canonical machine-readable design-token source: one CSS
+custom-property file (<code>:root</code> +
+<code>[data-theme=&quot;dark&quot;]</code>), generated bindings everywhere else
+(User mandate, 2026-07-22)</h3>
+<p><strong>Forensic anchor — proving project (Helix Thready MVP design
+package, 2026-07-22).</strong> The mandate&#39;s shape was proven end-to-end
+in the Helix Thready design package
+(<code>docs/public/research/mvp/design/</code>): ONE machine-readable
+token file (<code>opendesign/tokens.css</code>) carries every color /
+type / spacing / radius / elevation / motion value as CSS custom
+properties — light values in a <code>:root {}</code> block, dark values
+in a <code>[data-theme=&quot;dark&quot;]</code> override — and every value is
+evidence-traceable, never invented: the brand chartreuse
+<code>#B6E376</code> is the recorded eyedrop MEAN of 1,625,855
+green-dominant logo pixels, the mint secondary <code>#ABDDC9</code> the
+mean of 618,886 mint-region pixels, the light accent MEASURED at 6.03:1
+on white and the dark accent at 13.56:1 on the night surface. Every
+non-CSS platform in the fan-out consumes a GENERATED binding (token →
+Compose <code>Color</code>/<code>Dp</code>, Lipgloss
+<code>lipgloss.Color</code>, Flutter/Qt theme, Figma Variables payload),
+never a hand-kept copy; the not-yet-built codegen bridges are honestly
+<code>[OPEN]</code>-tracked, never claimed shipped.</p>
+<p><strong>The mandate.</strong> Every project governed by this
+Constitution that ships user-facing interfaces MUST maintain its design
+tokens as ONE canonical, machine-readable source, and everything else
+MUST derive from it: (1) <strong>Canonical file shape</strong> — CSS
+custom properties, light values in <code>:root {}</code>, dark values
+via the <code>[data-theme=&quot;dark&quot;]</code> override pattern, composing the
+project&#39;s sanctioned dark-mode mechanisms
+(<code>@media (prefers-color-scheme: dark)</code> system default,
+explicit <code>data-theme</code> attribute, framework-compat class) —
+never duplicate hand-kept light/dark palettes. (2) <strong>Generated
+bindings only</strong> — every consuming surface (web CSS, native
+mobile, desktop, TUI, design tools, rendered doc artifacts) binds to the
+canonical source either directly via <code>var(--…)</code> or through a
+GENERATED binding produced by codegen FROM the canonical file; a
+hand-copied or hand-restated token value anywhere (an inline hex that
+restates a token, a hand-kept per-platform palette) is a §11.4.216
+violation — hand-copies drift silently, and the drift is invisible until
+a surface renders off-brand. (3) <strong>No invented values — §11.4.6
+applied to design</strong> — every color / size / duration in the token
+source is traceable to captured evidence: brand colors to a recorded
+eyedrop / measurement of the canonical brand asset, accent pairs to a
+MEASURED WCAG contrast ratio against their PAIRED background, structural
+values to the documented shared-system scale; a hex that appears in any
+design artifact and resolves to no token is a violation — flag it and
+use the nearest existing token (per §11.4.162&#39;s no-invented-values
+discipline), never mint an ad-hoc value. (4) <strong>The token source is
+the white-label seam</strong> — per-brand / per-account re-theming swaps
+token VALUES within the §11.4.217 closed override set, never component
+structure.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> One canonical source
+proves consistency of DEFINITION, not correctness of USE — a component
+can still misuse a token (brand-as-body-text); role discipline is
+§11.4.217&#39;s and rendered-pixel proof is §11.4.170&#39;s. And &quot;generated
+binding&quot; follows §11.4.197 wiring honesty: a codegen bridge that does
+not exist yet is an <code>[OPEN]</code>-registered gap (§11.4.223),
+never claimed working.</p>
+<p>Classification: universal (§11.4.17) — references no project-specific
+brand or platform; the consuming project supplies its token-file path,
+brand-asset evidence, platform fan-out list, and codegen bridges per
+§11.4.35. Composes §11.4.6 / §11.4.162 (OpenDesign is the mandated token
+SYSTEM — this anchor pins its canonical FILE shape and consumption
+discipline) / §11.4.170 / §11.4.190 / §11.4.197 / §11.4.217 / §11.4.223.
+Propagation gate <code>CM-COVENANT-114-216-PROPAGATION</code> (literal
+<code>11.4.216</code>) + recommended gate
+<code>CM-DESIGN-TOKEN-SINGLE-SOURCE</code> (the canonical token file
+exists with <code>:root {}</code> + <code>[data-theme=&quot;dark&quot;]</code>
+blocks; tracked design artifacts bind via <code>var()</code> rather than
+restating token hex inline; every declared platform names its
+generated-binding artifact or its <code>[OPEN]</code> id) + paired §1.1
+mutation (hand-restate a token hex in a tracked artifact → gate FAILs;
+strip the dark override block → gate FAILs; strip the literal →
+propagation gate FAILs; gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.216.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--hand-copied-palette-OK</code>,
+<code>--inline-hex-OK</code>, <code>--invent-token-value</code>,
+<code>--light-only-tokens</code>,
+<code>--platform-keeps-own-palette</code> flag exists.</p>
+<h3 id="114217--opendesign-brand-contract-every-ui-shipping-product-carries-a-9-section-designmd--tokenscss-twin-with-disjoint-color-roles-aa-pinned-accents-and-a-locked-attribution-footer-user-mandate-2026-07-22">§11.4.217
+— OpenDesign brand contract: every UI-shipping product carries a
+9-section DESIGN.md + tokens.css twin with disjoint color roles,
+AA-pinned accents, and a locked attribution footer (User mandate,
+2026-07-22)</h3>
+<p><strong>Forensic anchor — proving project (Helix Thready MVP design
+package, 2026-07-22).</strong> Helix Thready ships
+<code>design/opendesign/DESIGN.md</code> in the OpenDesign 9-section
+brand-contract schema — VERIFIED against the tool&#39;s own source per
+§11.4.99 (spec, <code>design-systems/README.md</code>, the contributor
+authoring guide, and a measured 150-file corpus: two coexisting heading
+families, both parsed by number prefix only) — plus its machine-readable
+twin <code>tokens.css</code> per the OpenDesign token schema, and an
+honest <code>TOOLING.md</code> capability check. The contract encodes
+three DISJOINT color roles (brand decorative, accent interactive,
+semantic state), the closed white-label override set the three shipped
+sibling themes prove works, and the locked attribution footer.</p>
+<p><strong>The mandate.</strong> Every product governed by this
+Constitution that ships user-facing interfaces MUST carry an OpenDesign
+brand contract under its design area (<code>design/opendesign/</code> or
+the project&#39;s declared equivalent per §11.4.35), consisting of: (1)
+<strong><code>DESIGN.md</code> in the verified 9-section schema</strong>
+— H1 product title with the <code>&gt; Category:</code> blockquote
+IMMEDIATELY after the H1 (the picker parses the line immediately after
+the H1), nine numbered sections (the parser matches the number prefix,
+not the heading text), a &quot;Font labels for catalog extraction&quot; block
+(<code>Display:</code> / <code>Body:</code> / <code>Mono:</code> lines)
+in the typography section, real hex codes, CSS variables wrapped in
+<code>:root {}</code> (never bare) with dark tokens via the
+<code>[data-theme=&quot;dark&quot;]</code> override pattern, real component CSS
+with <code>prefers-reduced-motion</code> targeting specific elements
+(never a global <code>*</code>), and <code>:focus-visible</code> on
+every interactive component — the tool&#39;s own blocking review lens,
+satisfied in-file. Format claims are verified against the tool&#39;s CURRENT
+source per §11.4.99, never assumed from memory. (2) <strong>The
+<code>tokens.css</code> machine-readable twin</strong> — the §11.4.216
+canonical token file (or a compiled view of it), following the tool&#39;s
+token schema; prose and tokens never diverge. (3) <strong>Disjoint color
+roles by contract</strong> — brand is DECORATIVE only (never body text;
+the Thready brand base measures 1.47:1 on white — decorative by physics,
+not by preference), accent is INTERACTIVE and AA-PINNED (each
+accent/on-accent pair carries a measured ≥ 4.5:1 ratio against its
+paired background, both modes), semantic (success / warn / danger) is
+STATE and is NEVER overridden by a brand — a brand color can never mask
+an error signal. (4) <strong>White-label closed override set,
+server-validated</strong> — per-account branding may swap decorative
+brand tokens, the accent pair, logo, and slogan; accent overrides are
+SERVER-VALIDATED to WCAG AA ≥ 4.5:1 or REJECTED (the rejection carries
+the measured ratio + an AA-passing suggestion — instructive, never
+bare); structural tokens, neutral surfaces, and semantic tokens are NOT
+account-overridable (advanced neutral overrides gate behind a full AA
+re-validation). (5) <strong>Locked attribution footer</strong> — the
+organization&#39;s attribution footer ships on every surface and is NEVER
+removed, even fully white-labeled.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> The contract governs
+DEFINITION and roles; it does not prove rendered correctness (§11.4.170
+/ §11.4.190) nor replace §11.4.162&#39;s token-system, test-coverage, and
+extend-don&#39;t-reimplement obligations — this anchor pins the contract
+ARTIFACT §11.4.162 consumes. Schema-version drift between the local tool
+checkout and the doc is recorded as fact and re-verified at integration,
+never papered over.</p>
+<p>Classification: universal (§11.4.17) — the consuming project supplies
+its brand values, category line, white-label storage/API bindings, and
+attribution string per §11.4.35. Composes §11.4.6 / §11.4.99 / §11.4.162
+/ §11.4.190 / §11.4.216 / §11.4.220 / §11.4.223. Propagation gate
+<code>CM-COVENANT-114-217-PROPAGATION</code> (literal
+<code>11.4.217</code>) + recommended gate
+<code>CM-OPENDESIGN-BRAND-CONTRACT</code> (DESIGN.md present with the 9
+numbered sections + category blockquote + font-labels block +
+<code>:root {}</code> + <code>[data-theme=&quot;dark&quot;]</code> + targeted
+reduced-motion; tokens.css twin present and consistent; accent pairs
+carry measured ratios; the attribution footer token/lockup is present
+and not account-overridable) + paired §1.1 mutation (drop the
+font-labels block, or let a brand token override <code>--danger</code>,
+or mark the footer overridable → gate FAILs; strip the literal →
+propagation gate FAILs; gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.217.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-brand-contract</code>,
+<code>--prose-only-design-md</code>, <code>--brand-as-text-OK</code>,
+<code>--unvalidated-accent-override</code>,
+<code>--remove-attribution-footer</code>,
+<code>--semantic-tokens-brandable</code> flag exists.</p>
+<h3 id="114218--living-design-library-catalogue-every-component--state--theme-rendered-self-contained--a-cross-platform-reusability-matrix-with-per-cell-provenance-user-mandate-2026-07-22">§11.4.218
+— Living design-library catalogue: every component × state × theme
+rendered self-contained + a cross-platform reusability matrix with
+per-cell provenance (User mandate, 2026-07-22)</h3>
+<p><strong>Forensic anchor — proving project (Helix Thready MVP design
+package, 2026-07-22).</strong> Helix Thready&#39;s
+<code>design/library/</code> renders the ENTIRE component set as a
+living catalogue: <code>components.html</code> — 14 groups, ~38
+components, ≈ 118 component-state cells, each auditable in BOTH themes
+via a real toggle (≈ 236 rendered states), zero external requests,
+interactive behaviors REAL not mocked (theme cycling stamps
+<code>data-theme</code> and persists; column sorting drives
+<code>aria-sort</code>; a real <code>showModal()</code> dialog; an
+auto-dismissing toast that pauses on hover) — plus
+<code>components-sheet.svg</code> (an importable one-sheet) and
+<code>platform-map.md</code>, a 36-components × 8-platforms reusability
+matrix where EVERY cell carries a VERIFIED / PROPOSED / ASSUMED
+provenance marker re-checked at source.</p>
+<p><strong>The mandate.</strong> Every project governed by this
+Constitution that ships user-facing interfaces MUST maintain a LIVING
+design-library catalogue: (1) <strong>Complete component × state × theme
+rendering</strong> — every component of the project&#39;s design system, in
+every declared state (default / hover / focus-visible / disabled /
+loading / error / empty / skeleton as applicable), auditable in BOTH
+light and dark from one artifact; a component or state that exists in
+the spec but not in the catalogue is a coverage gap, tracked per
+§11.4.223. (2) <strong>Self-contained artifacts</strong> — the catalogue
+renders with ZERO external requests: no CDNs, no external fonts
+(self-hosted or system-stack fallback stated honestly), vendored
+libraries inlined; a catalogue that needs the network is not auditable
+offline and violates the project&#39;s CSP/offline posture. (3) <strong>Real
+behaviors, token-bound</strong> — interactive exhibits are real (real
+dialog, real sort, real toggle), every color/size binds to the §11.4.216
+token source, and all motion honors <code>prefers-reduced-motion</code>
+per §11.4.221. (4) <strong>Cross-platform reusability matrix with
+per-cell provenance</strong> — a components × platforms matrix where
+EVERY cell is marked from the closed provenance set: VERIFIED
+(reproduced from source and re-checked at source, with the check date),
+PROPOSED (a <code>[DEFAULT — adjustable]</code> design pending review),
+or ASSUMED (inference, labeled as such); an unmarked cell reads as
+ASSUMED. The matrix is read BEFORE implementing any component on any
+platform; scaffolds are named scaffolds — a scaffold cell claiming
+VERIFIED is a §11.4 PASS-bluff at the design-planning layer.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> The catalogue proves the
+DESIGN renders and behaves as specified in a browser-class runtime; it
+does not prove any platform IMPLEMENTATION (that is the matrix&#39;s
+per-cell provenance + each platform&#39;s own §11.4.170 rendered-pixel
+proof), and PROPOSED components are named proposals pending the
+upstream-vs-project split decision — never silently promoted to
+shipped.</p>
+<p>Classification: universal (§11.4.17) — the consuming project supplies
+its component set, state vocabulary, platform list, and matrix location
+per §11.4.35. Composes §11.4.6 / §11.4.162 / §11.4.170 / §11.4.216 /
+§11.4.221 / §11.4.223. Propagation gate
+<code>CM-COVENANT-114-218-PROPAGATION</code> (literal
+<code>11.4.218</code>) + recommended gate
+<code>CM-DESIGN-LIBRARY-LIVING-CATALOGUE</code> (the catalogue artifact
+exists, is self-contained — zero external URL references —, covers every
+spec&#39;d component × state in both themes or tracks the gap, and the
+reusability matrix carries a closed-set provenance marker in every cell)
++ paired §1.1 mutation (introduce a CDN reference → gate FAILs; blank a
+matrix cell&#39;s marker or claim VERIFIED on a scaffold row → gate FAILs;
+strip the literal → propagation gate FAILs; gate-code = separate work
+item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.218.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--cdn-in-catalogue</code>,
+<code>--single-theme-catalogue</code>,
+<code>--mocked-behaviors-OK</code>, <code>--unmarked-matrix-cell</code>,
+<code>--scaffold-claims-verified</code> flag exists.</p>
+<h3 id="114219--per-app-screen-catalogues-full-ia-coverage-per-surface-per-platform-chrome-variants-honesty-markers-for-unbuilt-behavior-user-mandate-2026-07-22">§11.4.219
+— Per-app screen catalogues: full-IA coverage per surface, per-platform
+chrome variants, honesty markers for unbuilt behavior (User mandate,
+2026-07-22)</h3>
+<p><strong>Forensic anchor — proving project (Helix Thready MVP design
+package, 2026-07-22).</strong> Helix Thready&#39;s
+<code>design/screens/</code> carries a screen catalogue PER SURFACE — 13
+web screens + an interactive prototype shell walking the four key
+journeys, 11 device-framed 390×844 mobile artifacts with an Android/iOS
+chrome TOGGLE (+ HarmonyOS/Aurora port notes) covering EVERY node of the
+wireframes&#39; information architecture, a desktop shell with per-OS title
+bars / menus / tray / file-drop mocks, ten 80-column TUI mockups
+covering the full state machine, and a 3-page marketing set with a
+claims-traceability register. Undefined product behavior is rendered
+HONESTLY: placeholder billing amounts labelled as placeholders, an
+unspecified forgot-password flow linked with an inline note instead of a
+fake flow, an undecided channel source rendered as a DISABLED tile —
+each carrying its <code>[OPEN: id]</code>.</p>
+<p><strong>The mandate.</strong> Every application/surface a governed
+project ships MUST have a screen catalogue: (1) <strong>Full-IA
+coverage</strong> — the catalogue covers EVERY node of the surface&#39;s
+information architecture (every screen of the wireframe/IA contract); a
+screen present in the IA but absent from the catalogue is a coverage gap
+tracked per §11.4.223 — never silently skipped. (2) <strong>Per-platform
+chrome variants</strong> — where one design serves several host
+platforms, the catalogue renders the platform chrome variants (mobile OS
+chrome toggle, per-OS window chrome, terminal-width constraints) rather
+than pretending one chrome fits all; ports not yet designed are tracked,
+not faked. (3) <strong>Self-contained, token-bound, both themes</strong>
+— each screen is a self-contained artifact binding the §11.4.216 tokens,
+rendered light + dark, populated with REALISTIC product data (never
+lorem-ipsum for load-bearing content), carrying its per-screen state
+contract (loading / empty / error / populated states declared). (4)
+<strong>Honesty markers for unbuilt behavior</strong> — where the
+backing backend, contract, or product decision does not exist, the
+screen MUST say so: a <code>[GAP: id]</code> / <code>[OPEN: id]</code>
+marker (registered per §11.4.223), a labelled placeholder, an inline
+note, or a disabled control — NEVER a designed-as-if-real fake flow;
+designing a flow for an undecided behavior and presenting it as settled
+is a §11.4 PASS-bluff at the product-design layer.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> A screen catalogue is the
+DESIGN contract, not the implementation: it proves every IA node has a
+designed, state-complete, theme-complete rendering — implementation
+correctness stays with §11.4.170 host-rendered pixel proof, §11.4.190
+web-quality proof, and the §11.4.185 manual-QA final gate.</p>
+<p>Classification: universal (§11.4.17) — the consuming project supplies
+its surface list, IA contract, chrome-variant matrix, and realistic-data
+corpus per §11.4.35. Composes §11.4.6 / §11.4.162 / §11.4.170 /
+§11.4.185 / §11.4.190 / §11.4.216 / §11.4.218 / §11.4.223. Propagation
+gate <code>CM-COVENANT-114-219-PROPAGATION</code> (literal
+<code>11.4.219</code>) + recommended gate
+<code>CM-SCREEN-CATALOGUE-FULL-IA</code> (every IA node maps to a
+catalogue screen or a registered <code>[OPEN]</code> id; every screen
+renders both themes; every screen whose backing contract is absent
+carries its honesty marker) + paired §1.1 mutation (remove a screen
+without registering the gap → gate FAILs; strip an honesty marker from
+an unbacked flow → gate FAILs; strip the literal → propagation gate
+FAILs; gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.219.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--partial-ia-coverage</code>,
+<code>--one-chrome-fits-all</code>, <code>--fake-flow-OK</code>,
+<code>--lorem-ipsum-content</code>, <code>--single-theme-screens</code>
+flag exists.</p>
+<h3 id="114220--open-first-design-tooling-self-hosted-open-platforms-are-primary-proprietary-tools-are-importexport-targets-only-design-sources-live-in-repo-in-open-formats-user-mandate-2026-07-22">§11.4.220
+— Open-first design tooling: self-hosted open platforms are primary;
+proprietary tools are import/export targets only; design sources live
+in-repo in open formats (User mandate, 2026-07-22)</h3>
+<p><strong>Forensic anchor — proving project (Helix Thready MVP design
+package, 2026-07-22).</strong> Helix Thready&#39;s tooling capability check
+(<code>opendesign/TOOLING.md</code>) and export capstone prove the
+posture: every design source lives IN-REPO in open formats (7 SVG brand
+masters, <code>tokens.css</code>, JSON manifests + 28 genuine
+<code>.od-figma.json</code> IR captures, 6 hand-authored Lottie JSONs,
+self-contained HTML screens); the OpenDesign daemon/CLI status was
+RUNTIME-PROBED (live health endpoint, CLI round-trip,
+headless-vs-operator matrix), never assumed; and Figma is an IMPORT-ONLY
+bridge — the import plugin pins <code>networkAccess: [&quot;none&quot;]</code>, no
+cloud token exists, and the docs state verbatim that any &quot;pushed to
+Figma cloud&quot; claim from that environment would be a fabrication. The
+actual proprietary-tool file is <code>[OPEN]</code>-tracked, not
+claimed.</p>
+<p><strong>The mandate.</strong> Every governed project&#39;s design
+workflow MUST be OPEN-FIRST: (1) <strong>Self-hosted open platform
+primary</strong> — the collaborative design platform is an open-source,
+self-hostable tool (PenPot as the standing default), run SELF-HOSTED;
+together with the §11.4.162 OpenDesign engine it forms the primary
+design toolchain. (2) <strong>Consumption ONLY via the PenPot
+submodule</strong> — ALL PenPot mechanisms and utilities (the deployment
+recipe, RPC client utilities, access-token minting, import tooling,
+browser-hydration automation, MCP wiring) live in the dedicated reusable
+PenPot submodule (working name <code>vasic-digital/PenPot</code>; the
+final repository name was UNCONFIRMED at this anchor&#39;s writing — the
+generic referent &quot;the PenPot submodule&quot; is normative until the name
+lands), inherited BY REFERENCE per §11.4.28; the PenPot submodule itself
+consumes the Containers submodule (§11.4.76, rootless per §11.4.161) for
+orchestration and DECLARES that dependency in its §11.4.31
+<code>helix-deps.yaml</code> manifest. Projects MUST NOT hand-roll
+PenPot deployment or client code outside the submodule — a missing
+capability is extended UPSTREAM in the submodule per §11.4.74, never
+worked around locally. The submodule carries MECHANISMS/UTILITIES ONLY,
+never project design content — per-project design sources stay in the
+project repo per clause (4). (3) <strong>Proprietary tools are optional
+bridges, never the source of truth</strong> — proprietary design tools
+(Figma or equivalent) MAY be used as import/export/review targets via
+documented bridge kits (variables payloads, IR captures, import guides),
+but NO design value may exist ONLY inside a proprietary tool or its
+cloud: the moment a decision lands, its canonical form lands in-repo.
+(4) <strong>In-repo open formats</strong> — design sources are versioned
+in the repository in open, diffable formats: SVG (vector masters), CSS
+(tokens per §11.4.216), JSON (manifests, IR captures, variables
+payloads), Lottie JSON (motion per §11.4.221), self-contained HTML
+(screens/library per §11.4.218/§11.4.219); binary proprietary formats
+are derived artifacts at most, never sources — the §11.4.215 discipline
+applied to design: a design that binds work MUST live tracked in the
+repo. (5) <strong>Runtime-probed capability claims</strong> — every
+tooling claim (&quot;the daemon runs&quot;, &quot;the CLI exports&quot;, &quot;import works&quot;) is
+established by a runtime probe recorded as evidence (§11.4.201
+real-condition discipline; §11.4.99 latest-source verification for
+format contracts), with an explicit headless-vs-operator-interactive
+matrix and an HONEST-LIMITS section; a cloud push claimed without a real
+credentialed run is a fabrication of §11.4 PASS-bluff severity. (6)
+<strong>PenPot automation operational rules (research-verified)</strong>
+— (a) the HEADLESS write path is the token-authenticated <strong>RPC
+API</strong>: access tokens (minted under the backend&#39;s
+<code>enable-access-tokens</code> flag, handled per §11.4.10) are the
+MANDATED auth mechanism for all automation — interactive OAuth relays /
+session-cookie scraping are FORBIDDEN as automation auth; (b)
+API-created PenPot files REQUIRE a <strong>browser hydration
+pass</strong> before handoff — thumbnails and text layout are
+materialized by the browser runtime, not by the write API, so a handoff
+of an unhydrated API-created file claimed render-ready is a §11.4
+PASS-bluff at the design-handoff layer; the hydration pass is automated
+via the PenPot submodule&#39;s browser-hydration utility and its execution
+is recorded as evidence (§11.4.69).</p>
+<p><strong>Honest boundary (§11.4.6).</strong> Open-first governs WHERE
+truth lives and WHICH tool is primary; it does not forbid operators
+using proprietary tools for review/hand-off, and it does not claim
+bridges exist before they are built — missing bridges (PenPot/Lottie
+export, proprietary-file creation) are <code>[OPEN]</code>-registered
+work per §11.4.223/§11.4.197; and until the PenPot submodule&#39;s final
+repository name is confirmed, citations use the generic referent
+honestly rather than asserting an unconfirmed name as fact.</p>
+<p>Classification: universal (§11.4.17) — the consuming project supplies
+its platform choice within the open-first constraint, its
+PenPot-submodule pointer + configuration (instance URL, token env-var
+NAMES per §11.4.10), bridge kits, and probe scripts per §11.4.35.
+Composes §11.4.6 / §11.4.10 / §11.4.28 / §11.4.31 / §11.4.69 / §11.4.74
+/ §11.4.76 / §11.4.99 / §11.4.161 / §11.4.162 / §11.4.201 / §11.4.215 /
+§11.4.216 / §11.4.223. Propagation gate
+<code>CM-COVENANT-114-220-PROPAGATION</code> (literal
+<code>11.4.220</code>) + recommended gate
+<code>CM-OPEN-DESIGN-TOOLING-PRIMARY</code> (the self-hosted open
+platform is declared and consumed via the PenPot submodule — no
+hand-rolled PenPot deployment/client code in the project tree; the
+submodule&#39;s <code>helix-deps.yaml</code> declares the Containers
+dependency; automation authenticates via access tokens, never an OAuth
+relay; every API-created file handed off carries a recorded
+hydration-pass run; every design source referenced by the design area
+resolves to an in-repo open-format file; every tooling capability claim
+cites a recorded probe; no design artifact exists only as a
+proprietary-cloud reference) + paired §1.1 mutation (hand-roll a PenPot
+RPC client in a project tree, or declare a proprietary tool as the
+source of truth, or hand off an API-created file with no hydration-pass
+record → gate FAILs; claim a capability with no recorded probe → gate
+FAILs; strip the literal → propagation gate FAILs; gate-code = separate
+work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.220.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--figma-is-source-of-truth</code>,
+<code>--cloud-only-design</code>,
+<code>--proprietary-format-source</code>,
+<code>--hand-rolled-penpot-stack</code>,
+<code>--oauth-relay-automation</code>,
+<code>--skip-hydration-pass</code>,
+<code>--unprobed-tooling-claim</code>,
+<code>--rootful-design-stack</code> flag exists.</p>
+<h3 id="114221--motion-discipline-token-bound-durationseasings--machine-readable-manifest--reduced-motion-static-fallbacks-everywhere-user-mandate-2026-07-22">§11.4.221
+— Motion discipline: token-bound durations/easings + machine-readable
+manifest + reduced-motion static fallbacks everywhere (User mandate,
+2026-07-22)</h3>
+<p><strong>Forensic anchor — proving project (Helix Thready MVP design
+package, 2026-07-22).</strong> Helix Thready&#39;s
+<code>design/motion/</code> package proves the discipline: six
+hand-authored vector Lottie animations bound to the token motion values,
+each validated by parse + structural schema check + REAL render
+(lottie-web under jsdom with animation-progression assertions, plus
+headless-Chromium light+dark contact sheets) — unverified runtimes
+(<code>lottie-compose</code> / <code>lottie-ios</code>) honestly
+<code>[OPEN]</code>-tracked; FIVE static reduced-motion fallback SVGs
+whose geometry is DERIVED FROM THE LOTTIE KEYFRAMES (the exact poster
+frame for loopers, the final frame for one-shots); and a
+machine-readable <code>motion-manifest.json</code> v2 naming, per
+animation, its loop mode, poster frame, segment markers, and
+<code>reducedMotionFallback</code> — with one DELIBERATE
+<code>null</code> (an instant-cut transition) recorded with its reason,
+never a silent absence.</p>
+<p><strong>The mandate.</strong> All motion in every governed project
+MUST satisfy: (1) <strong>Token-bound timing</strong> — every duration
+and easing binds to the §11.4.216 motion tokens (the shared base
+durations + easing curves); documented choreography MAY extend them, but
+an animation timed by an ad-hoc literal that bypasses the token layer is
+a §11.4.221 violation (per §11.4.6 no-invented-values). (2)
+<strong>Reduced-motion fallback per animation</strong> — every playable
+animation ships a STATIC fallback derived from its own keyframes (poster
+frame for looping animations, final frame for one-shots), delivered as
+an open-format asset; where the correct reduced-motion behavior is
+intentionally something else (instant cut, no artwork), that is recorded
+EXPLICITLY in the manifest with its reason — a missing fallback is a
+gap, a silent missing fallback is a violation. (3)
+<strong>Machine-readable manifest</strong> — a versioned motion manifest
+enumerates every animation with its id, loop mode, poster frame,
+reduced-motion mode, and fallback reference; runtimes consume the
+MANIFEST, not folklore. (4) <strong><code>prefers-reduced-motion</code>
+honored everywhere</strong> — every surface (web, library, screens,
+previews, implementations) gates motion on
+<code>prefers-reduced-motion: reduce</code> with TARGETED
+component-level gates (never a global <code>*</code> kill-switch, per
+the §11.4.217 review lens), swapping in the manifest-named fallback. (5)
+<strong>Render-validated, honestly bounded</strong> — no animation is
+claimed working without a real render in a real runtime (the
+§11.4.107(10) analyzer discipline applied to motion assets: parse +
+structure + rendered geometry with progression assertions); runtimes not
+yet exercised are named <code>[OPEN]</code> items, never assumed.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> The manifest + fallbacks
+prove reduced-motion COVERAGE; they do not prove physical-display
+fidelity (a pixel A/B of statics against frozen frames on a real display
+remains its own tracked item), and jsdom/headless renders do not certify
+mobile runtimes — the boundary is stated, tracked, and never
+blurred.</p>
+<p>Classification: universal (§11.4.17) — the consuming project supplies
+its animation inventory, motion tokens, manifest path, and runtime list
+per §11.4.35. Composes §11.4.6 / §11.4.107(10) / §11.4.162 / §11.4.170 /
+§11.4.216 / §11.4.218 / §11.4.223. Propagation gate
+<code>CM-COVENANT-114-221-PROPAGATION</code> (literal
+<code>11.4.221</code>) + recommended gate
+<code>CM-MOTION-TOKEN-BOUND-REDUCED-FALLBACK</code> (every animation&#39;s
+timing resolves to tokens; the manifest enumerates every playable
+animation; every manifest entry names a fallback or an explicit recorded
+null-with-reason; every animation carries its parse/structure/render
+validation record) + paired §1.1 mutation (add an animation with a
+literal ad-hoc duration → gate FAILs; drop a fallback reference without
+a recorded reason → gate FAILs; strip the literal → propagation gate
+FAILs; gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.221.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--ad-hoc-duration</code>,
+<code>--no-reduced-motion-fallback</code>,
+<code>--global-star-motion-kill</code>,
+<code>--manifest-optional</code>,
+<code>--unrendered-animation-claimed-working</code> flag exists.</p>
+<h3 id="114222--design-completion-export-wave-a-design-is-not-done-until-token-codegen-the-honest-output-raster-matrix-both-theme-renders-hand-off-bundles-and-doc-twins-land-user-mandate-2026-07-22">§11.4.222
+— Design-completion export wave: a design is not done until token
+codegen, the honest-output raster matrix, both-theme renders, hand-off
+bundles, and doc twins land (User mandate, 2026-07-22)</h3>
+<p><strong>Forensic anchor — proving project (Helix Thready MVP design
+package, 2026-07-22).</strong> Helix Thready&#39;s export capstone proves
+the wave: an icon/asset raster matrix locked 1:1 to its generator
+(<code>generate-raster.sh</code>), which SELECTS its SVG renderer by
+PROBE — each candidate (rsvg-convert → inkscape → resvg → headless
+Chromium → ImageMagick) must pass a real probe render with content
+verification before it is used, a failing candidate falls through with a
+note, and if NONE passes the script exits with instructions and writes
+NOTHING (&quot;No PNGs were written (output is not faked)&quot;); an absent
+bundler (iconutil for <code>.icns</code>) SKIPs with a note — a verified
+live run produced 83 REAL rasters, every one checked non-blank; 49
+screen PNGs (22 screens × light+dark at a confirmed 2× scale, theme
+forced deterministically, every file verified size-floor + stddev &gt;
+0); a 54-page bound design book; and PenPot + Figma hand-off bundles
+whose impossible/operator-only legs are recorded as DEFERRED with
+reasons — never faked.</p>
+<p><strong>The mandate.</strong> A design (a design system, a brand, a
+screen set, or a design change wave) is NOT &quot;done&quot; until its EXPORT WAVE
+has run and its outputs are verified: (1) <strong>Per-platform token
+codegen</strong> — the §11.4.216 generated bindings are (re)generated
+from the canonical token source, or their absence is
+<code>[OPEN]</code>-tracked. (2) <strong>Full icon/asset raster matrix
+via an honest-output pipeline</strong> — the per-platform pixel/format
+matrix (every OS surface) is documented, locked 1:1 to a generator
+script, and produced by a pipeline that (a) PROBE-TESTS every candidate
+renderer with a real content-verified probe render before trusting it
+(§11.4.201 — a renderer&#39;s presence is not its correctness; an unprobed
+renderer would silently emit blank/garbage icons), (b) falls through to
+the next candidate on probe failure, (c) SKIPs-with-note any step whose
+tool is genuinely absent (§11.4.3 / §11.4.69 honest-skip discipline),
+and (d) NEVER writes a placeholder, blank, or faked output — every
+produced raster is verified non-degenerate (size floor + non-blank
+content check; multi-resolution bundles verified to contain their
+declared members, per §11.4.38&#39;s open-the-artifact discipline). (3)
+<strong>Both-theme screen renders + bound design book</strong> — every
+catalogue screen rendered in light AND dark at the declared scale with
+deterministic theme forcing, each render verified non-blank, and the set
+bound into the portable design book. (4) <strong>Hand-off
+bundles</strong> — the open-platform and proprietary-bridge bundles
+(§11.4.220) built with per-leg HONEST statuses: produced /
+deferred-operator-only / impossible-with-reason. (5) <strong>Doc twins
+regenerated</strong> — the design area&#39;s §11.4.65 / §11.4.73 export
+siblings are regenerated so no reader gets a divergent view. A design
+wave reported complete without its export wave — or with any
+faked/unverified export output — is a §11.4 PASS-bluff at the
+design-delivery layer.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> The export wave proves
+the design&#39;s ARTIFACTS exist, are real, and are non-degenerate; it does
+not prove visual correctness on physical displays (§11.4.170 / §11.4.190
+/ §11.4.185 own that), and a wave rendered before later additions is
+honestly stamped with its coverage boundary — regeneration lands as a
+tracked downstream pass, never claimed retroactively.</p>
+<p>Classification: universal (§11.4.17) — the consuming project supplies
+its raster matrix, generator, renderer candidates, book builder, and
+bundle targets per §11.4.35. Composes §11.4.3 / §11.4.6 / §11.4.38 /
+§11.4.65 / §11.4.69 / §11.4.73 / §11.4.201 / §11.4.216 / §11.4.219 /
+§11.4.220. Propagation gate <code>CM-COVENANT-114-222-PROPAGATION</code>
+(literal <code>11.4.222</code>) + recommended gate
+<code>CM-DESIGN-EXPORT-WAVE-COMPLETE</code> (the raster generator
+probe-tests renderers and content-verifies outputs; the matrix doc and
+generator agree 1:1; every screen has both-theme verified renders or a
+tracked gap; every bundle leg carries an honest status; the doc twins
+are in sync) + paired §1.1 mutation (make a renderer skip its probe, or
+write a placeholder PNG on renderer absence → gate FAILs; report the
+wave complete with a stale doc twin → gate FAILs; strip the literal →
+propagation gate FAILs; gate-code = separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.222.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--skip-export-wave</code>,
+<code>--unprobed-renderer</code>, <code>--placeholder-raster-OK</code>,
+<code>--single-theme-renders</code>, <code>--fake-bundle-status</code>,
+<code>--stale-doc-twins</code> flag exists.</p>
+<h3 id="114223--provenance-marker-discipline-for-design-documentation--central-open-item-registry-in-the-area-index-user-mandate-2026-07-22">§11.4.223
+— Provenance-marker discipline for design documentation + central
+open-item registry in the area index (User mandate, 2026-07-22)</h3>
+<p><strong>Forensic anchor — proving project (Helix Thready MVP design
+package, 2026-07-22).</strong> Every statement in the Helix Thready
+design area carries an inline provenance marker from a closed vocabulary
+(<code>[VERIFIED]</code>, <code>[OPERATOR]</code>,
+<code>[RESEARCH]</code>, <code>[DEFAULT — adjustable]</code>,
+<code>[ASSUMED]</code>, <code>[BUILD-NEW]</code>,
+<code>[IN-HOUSE: module]</code>, <code>[CONSTITUTION §x]</code>,
+<code>[GAP: id]</code>, <code>[OPEN: id]</code>); the area index
+maintains the CANONICAL open-item registry — 41 registered ids across
+nine families, VERIFIED AGAINST THE TREE in both directions (every id in
+the tree exists in the registry, no registry id is absent from the
+tree), with per-id state (open / narrowed / closed, each closure citing
+the closing revision) — and a verified-vs-assumption ledger separating
+measured fact from proposed default from named scaffold.</p>
+<p><strong>The mandate.</strong> Every design document in a governed
+project MUST carry provenance discipline: (1) <strong>Mandatory marker
+vocabulary</strong> — a closed, project-declared marker set whose
+minimum core is <code>[VERIFIED]</code> (established from
+source/runtime/measurement, with the evidence or check date),
+<code>[OPERATOR]</code> (an operator decision),
+<code>[DEFAULT — adjustable]</code> (a proposed default pending review),
+and <code>[OPEN: id]</code> (an unresolved item with a stable id);
+projects extend the set (<code>[RESEARCH]</code>,
+<code>[ASSUMED]</code>, <code>[BUILD-NEW]</code>,
+<code>[GAP: id]</code>, <code>[IN-HOUSE: …]</code>,
+<code>[CONSTITUTION §x]</code>) per §11.4.35. A load-bearing claim with
+no marker reads as UNVERIFIED — and presenting an assumption as verified
+is a §11.4.6 violation of §11.4 PASS-bluff severity at the
+design-documentation layer. (2) <strong>Every unresolved decision is an
+<code>[OPEN: id]</code></strong> — with a stable, never-renumbered id
+(§11.4.54 discipline), owned by a named file, and never papered over
+with an invented answer. (3) <strong>Central registry in the area
+index</strong> — the design area&#39;s index maintains the SINGLE canonical
+open-item registry: every <code>[OPEN: id]</code> in the tree appears in
+it, every registry row names its owning file(s) and state, and the
+registry is TREE-VERIFIED in both directions on every consolidation pass
+(an id in the tree missing from the registry, or a registry ghost with
+no tree presence, is a violation — the §11.4.186 consistency discipline
+applied to design opens); closures cite the closing revision, and
+narrowed items record exactly what closed and what remains. (4)
+<strong>Opens map to tracked work</strong> — registry items map to the
+project&#39;s workable-item tracking (§11.4.15 / §11.4.54 / §11.4.93) so the
+§11.4.197 completion mandate applies: a design open is driven to
+closed-with-evidence or explicitly-closed-with-reason, never silently
+abandoned.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> Markers prove the
+EPISTEMIC STATUS of each claim, not its truth — a
+<code>[VERIFIED]</code> marker is only as good as its cited evidence
+(§11.4.123), and the registry proves open-item ACCOUNTING, not progress
+(§11.4.197 owns completion). This anchor binds the DESIGN area to the
+same honesty regime the tracker anchors give code — it cites
+§11.4.15/.54/.93/.186/.197 rather than duplicating them.</p>
+<p>Classification: universal (§11.4.17) — the consuming project supplies
+its marker-set extensions, id families, area-index path, and tracker
+binding per §11.4.35. Composes §11.4.6 / §11.4.15 / §11.4.44 / §11.4.54
+/ §11.4.61 / §11.4.93 / §11.4.123 / §11.4.186 / §11.4.197 / §11.4.212.
+Propagation gate <code>CM-COVENANT-114-223-PROPAGATION</code> (literal
+<code>11.4.223</code>) + recommended gate
+<code>CM-DESIGN-DOC-PROVENANCE-MARKERS</code> (every design doc
+declares/uses the marker vocabulary; the area index registry exists; a
+tree-grep of open-item ids equals the registry set in both directions;
+every registry row names owner + state) + paired §1.1 mutation (add an
+<code>[OPEN: id]</code> to a doc without registering it → gate FAILs;
+delete a registered id from the tree while the registry still lists it
+open → gate FAILs; strip the literal → propagation gate FAILs; gate-code
+= separate work item).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.223.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--unmarked-claims-OK</code>,
+<code>--assumption-as-verified</code>,
+<code>--unregistered-open-item</code>, <code>--registry-optional</code>,
+<code>--silently-abandon-open</code> flag exists.</p>
+</body>
+</html>

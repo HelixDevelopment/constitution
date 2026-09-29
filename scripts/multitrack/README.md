@@ -173,6 +173,91 @@ MT_CONFIG=config/multitrack/<host>.yaml MT_REPO_ROOT="$PWD" \
   bash constitution/scripts/multitrack/multitrack_resolve_worktree.sh resolve claude1
 ```
 
+## Default single-track mode — multitrack works on EVERY host (§11.4.187)
+
+**You do not need a per-host config to use this engine.** A host with no
+`config/multitrack/<hostname>.yaml` runs in **default single-track mode**:
+
+| | |
+|---|---|
+| tracks | exactly **one** |
+| track-1 | the **invocation project root**, used as-is |
+| worktrees | none — the project root *is* the track |
+| drives | none — track-1 is a plain directory, not a mounted volume |
+| notice | printed loudly on stderr on every activation |
+
+Multiple tracks are opt-in: you add them **only when explicitly required**, by
+authoring the per-host config below.
+
+### Why this is not a §11.4.6 violation
+
+Host *data* — mount paths, drive serials, alias→track maps — genuinely cannot be
+guessed, and the engine still refuses to invent any of it. But *"Track 1 is the
+project root you are standing in"* is not invented data: it is a **defined
+default**, derivable with certainty from the invocation context (§11.4.177
+invocation-directory operation). Fataling when a correct and safe default exists
+is the §11.4.201 false-refusal class — which is what the engine used to do, and
+what made multi-track work on exactly one hand-provisioned host.
+
+### The three cases, kept strictly apart
+
+| situation | behaviour |
+|---|---|
+| a host config **exists** | loaded exactly as before — **no behaviour change at all** |
+| a host config **is malformed** (unparsable, or zero tracks) | **still FATAL.** That *is* ambiguity and is never defaulted past (§11.4.6) |
+| **no** host config at all | default single-track mode + a loud notice |
+
+A defaulted setup can never be silently mistaken for a provisioned one: the
+notice names the mode, the host, the config path it looked for, the track count,
+and the resolved Track 1.
+
+### Track 1 does not have to be the project root
+
+It is only the **default**. Point Track 1 anywhere — `/mnt/track-1`, a
+dedicated drive, a worktree — by declaring it explicitly in the per-host config.
+The default exists so that a host with nothing configured still works, not to
+constrain a host that is configured.
+
+### Overrides
+
+| variable | effect |
+|---|---|
+| `MT_REQUIRE_HOST_CONFIG=1` | strict mode: restore the pre-§11.4.187 behaviour — a missing host config is fatal, never defaulted |
+| `MT_REPO_ROOT=/path` | pin the project root explicitly instead of deriving it from the invocation context |
+| `MT_CONFIG=/path/to.yaml` | use an explicit config file, bypassing the hostname-keyed lookup |
+
+If the project root cannot be resolved at all, the engine **fails loudly** — it
+never silently defaults Track 1 to a wrong location.
+
+### Inspecting activation before it touches anything
+
+```bash
+# report only: installs no symlink, starts no daemon, reconciles nothing
+bash constitution/scripts/multitrack/multitrack_bootstrap.sh --check
+```
+
+`--check` (alias `--dry-run`) prints each step's decision and what it *would*
+run. Two consecutive `--check` runs produce byte-identical output.
+
+### Directory tracks vs drive tracks
+
+A track declared **without** a `drive_serial` is a *directory track*: it is READY
+when its directory exists. The engine never probes `/proc/mounts` for one, so a
+directory track is never reported as "unmounted" and never drags in the
+LUKS/mount operator hand-off that does not apply to it. A track **with** a
+`drive_serial` behaves exactly as before.
+
+Likewise, a host that declares no `device_pool` reports an honestly empty pool
+instead of failing; only the commands that genuinely need a device
+(`acquire` / `release` / `heartbeat` / `reap` / `reconcile`) refuse.
+
+### Alias mapping in single-track mode
+
+Aliases are mapped positionally onto **feature**-role tracks. A single
+main-only track has no feature tracks, so no alias is worktree-bound — every
+session simply stays on the one checkout, which is the project root. That is the
+correct outcome, and `map` reports it as `fallback(/home)` for each alias.
+
 ## Genericization delta vs the reference consumer
 
 Lifted from the reference project's `scripts/multitrack/` per §11.4.35 with a

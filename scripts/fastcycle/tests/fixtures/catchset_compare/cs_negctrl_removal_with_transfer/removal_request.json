@@ -1,0 +1,8 @@
+{
+  "removed_gate_id": "g_marker_dup",
+  "removed_gate_script": "../_shared/gates/gate_marker_dup.sh",
+  "removed_gate_paired_mutation_defect_id": "D1",
+  "removed_gate_paired_mutation_patch": "../_shared/patches/defect_d1_widget.sh",
+  "surviving_config": "surviving_config.json",
+  "into_gate_id": "g_marker"
+}

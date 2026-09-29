@@ -1,0 +1,7 @@
+{
+  "scenario": "golden-bad: dynamically-built path must resolve",
+  "gate_script": "dynamic_path_gate.sh",
+  "must_contain_read_basenames": ["target_data.txt"],
+  "must_not_contain_literal": ["${base}_data${ext}", "$name", "$dir/$name"],
+  "note": "io_trace.sh must record the RESOLVED absolute path ending in target_data.txt, never the unexpanded shell-variable string. Checked by basename match on the strace-observed openat/stat path, plus a literal-string negative check on the raw output."
+}

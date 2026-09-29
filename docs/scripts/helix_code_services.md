@@ -1,7 +1,7 @@
 # helix_code_services.md — Services Guide
 
-**Revision:** 1
-**Last modified:** 2026-07-17T00:00:00Z
+**Revision:** 2
+**Last modified:** 2026-09-03T00:00:00Z
 
 ## Overview
 
@@ -42,18 +42,37 @@ hc_verify_binaries
 | `hc_boot_service <name>` | Boot a service via the Containers submodule compose |
 | `hc_boot_coder` | Boot the HelixLLM coder on `:18434` (with health wait) |
 | `hc_stop_service <name>` | Stop a service |
-| `hc_status` | Print health status of all 4 HelixCode services |
+| `hc_status` | Print health status of every service in the `hc__status_endpoints` table |
 | `hc_verify_binaries` | Verify all 6 binaries are on PATH |
-| `hc_health [host] [port] [path]` | Health check (from `helix_code_home.sh`) |
+| `hc_health [host] [port] [path]` | Health check over `http` only (from `helix_code_home.sh`) |
+| `hc_health_url <url>` | Scheme-aware health check; prints `OK` or `DOWN` |
 
 ## Service Ports
 
-| Service | Port | Health Endpoint |
-|---|---|---|
-| HelixCode server | `:8080` | `/health` |
-| HelixLLM coder | `:18434` | `/health` |
-| HelixLLM gateway | `:8443` | `/internal/health` |
-| HelixAgent | `:8100` | `/health` |
+These are the rows of the `hc__status_endpoints` table in
+`helix_code_services.sh` — that table is the single source, this table mirrors
+it. Verified against the consuming project's `scripts/systemd/*.service` units
+and a live `ss -ltnp` on 2026-09-03.
+
+| Service | Scheme | Port | Health Endpoint |
+|---|---|---|---|
+| HelixCode server | `http` | `:8080` | `/health` |
+| HelixLLM coder | `http` | `:18434` | `/health` |
+| HelixLLM gateway | `https` | `:8443` | `/internal/health` |
+| HelixAgent | `http` | `:7061` | `/v1/models` |
+| LLMsVerifier | `http` | `:8100` | `/health` |
+
+Notes:
+
+- **HelixAgent is `:7061`, not `:8100`.** `:8100` is the **LLMsVerifier's**
+  port; a prior revision of this table and of `hc_status` attributed it to
+  HelixAgent, so `hc_status` reported "HelixAgent: DOWN" while HelixAgent was
+  serving normally. HelixAgent also exposes a liveness probe on `:8111`, but
+  that endpoint answers 200 while the service is still starting, so the status
+  probe deliberately targets `:7061/v1/models` — the port consumers actually
+  call.
+- **The gateway is `https`.** `hc_health` hardcodes `http://`, which is why
+  `hc_health_url` exists; plain `http` against the TLS listener answers 400.
 
 ## Safety
 

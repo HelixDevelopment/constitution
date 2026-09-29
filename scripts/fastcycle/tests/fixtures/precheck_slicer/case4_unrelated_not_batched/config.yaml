@@ -1,0 +1,18 @@
+# T061 case-4 fixture: toy fastcycle config for the (today absent)
+# review/slicer.py, consumer DATA per constitution 11.4.35 -- a
+# config-defined relation for RB-001's "shared logic group, feature, or
+# defect class" (research.md DEC-06). This is this RED test's own
+# fixture-level definition of the --config shape slicer.py will read
+# (UNCONFIRMED by any schema in the contract beyond "config-defined
+# relation"), binding-if-adopted per house precedent
+# (fixtures/verdict_cache/README.md, fixtures/io_trace/README.md).
+#
+# Maps a changed path to the logic group it belongs to. change_widget_a_1
+# and change_widget_a_2 touch paths in the SAME logic group (widget_a) and
+# so MUST be batched together (RB-001); change_widget_c_unrelated touches a
+# path in a DIFFERENT logic group (widget_c) and so MUST NOT be batched
+# with the other two (T061 case 4, the negative control).
+components:
+  widget_a.sh: widget_a
+  widget_a_helper.sh: widget_a
+  widget_c_unrelated.sh: widget_c

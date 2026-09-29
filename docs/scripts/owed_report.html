@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>owed_report — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="owed_report--guide">owed_report — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-24T19:08:01Z</p>
+<p>Source: <code>constitution/scripts/codegraph/owed_report.py</code>
+(130 lines). Citations below are
+<code>owed_report.py:&lt;line&gt;</code>.</p>
+<h2 id="overview">Overview</h2>
+<p>A generated, read-only report of which governed indexing tools still
+lack tests or a §11.4.18 companion guide (header lines 1-15). The
+constitution states the rule &quot;a tool lacking its own tests or its guide
+MUST NOT be pointed at a live index&quot; but does not list which tools
+currently lack them; a prose list would go stale, so this tool derives
+the answer from the file tree on every run (lines 4-7).</p>
+<p>It is informational by default (exit 0) and becomes blocking only
+with <code>--strict</code> (line 126).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>python3</code>, standard library only (line 14, import on line
+24).</li>
+<li>Read access to the constitution root (default: two directories above
+the script, line 88).</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/owed_report.py                 <span class="co"># text table</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/owed_report.py <span class="at">--json</span>          <span class="co"># machine-readable</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/owed_report.py <span class="at">--strict</span>        <span class="co"># exit 1 if anything is owed</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/owed_report.py <span class="at">--root</span> <span class="op">&lt;</span>constitution dir<span class="op">&gt;</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--root ROOT</code></td>
+<td>Constitution root to scan (default: two levels above the
+script).</td>
+<td>lines 88-89</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>Print JSON instead of the table.</td>
+<td>lines 90, 117-118</td>
+</tr>
+<tr>
+<td><code>--strict</code></td>
+<td>Exit 1 when at least one tool owes something.</td>
+<td>lines 91, 126</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>argparse help (first line of the module docstring is the
+description).</td>
+<td>line 87</td>
+</tr>
+</tbody>
+</table>
+<h2 id="inputs">Inputs</h2>
+<p>The file tree under <code>--root</code> only (nothing on stdin, no
+environment variables read in the source).</p>
+<p><strong>Tool discovery</strong> (lines 43-53, extensions line 26,
+skip list line 28):</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Files considered</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tool</code></td>
+<td><code>scripts/codegraph/*.sh</code>, <code>*.py</code>,
+<code>*.js</code></td>
+</tr>
+<tr>
+<td><code>runner_patch</code></td>
+<td><code>scripts/codegraph/runner_patches/*.py</code>, except
+<code>__init__.py</code> and <code>common.py</code></td>
+</tr>
+<tr>
+<td><code>tool</code></td>
+<td><code>scripts/lumen/*.sh</code>, <code>*.py</code></td>
+</tr>
+</tbody>
+</table>
+<p>Regular files only; the result is sorted by relative path (lines 38,
+53).</p>
+<p><strong>Test attribution</strong> (lines 56-83, 100-107). A tool
+counts as tested when a file under <code>&lt;tooldir&gt;/tests/</code>
+(recursive; <code>fixtures</code> and <code>__pycache__</code>
+directories excluded, line 60; only <code>.sh .py .js .bats</code>, line
+27; files that fail to read as UTF-8 are skipped, lines 68-69)
+either:</p>
+<ol type="1">
+<li>is named <code>test_&lt;stem&gt;.&lt;ext&gt;</code>,
+<code>test_&lt;stem&gt;_mutate.&lt;ext&gt;</code>,
+<code>test_&lt;stem&gt;_mutations.&lt;ext&gt;</code> or
+<code>t_&lt;stem&gt;.&lt;ext&gt;</code> (<code>name_matches</code>,
+lines 80-83); or</li>
+<li>contains the tool&#39;s exact file name (runner patches: the stem, i.e.
+the patch id, line 106) bounded by non-identifier characters. The
+lookbehind also rejects <code>.</code> and <code>-</code> before the
+token, and a file name may not be followed by
+<code>.&lt;alnum&gt;</code> (e.g. <code>x.js.bak</code> does not match)
+(lines 74-77).</li>
+</ol>
+<p>For runner patches the tests directory is
+<code>scripts/codegraph/tests</code> (<code>tooldir</code> on line
+50).</p>
+<p><strong>Guide attribution</strong> (lines 108-112): the first
+existing file among <code>docs/scripts/&lt;stem&gt;.md</code> and
+<code>docs/scripts/&lt;file name&gt;.md</code>. Only file existence is
+checked (<code>os.path.isfile</code>), not the guide&#39;s content.</p>
+<h2 id="outputs">Outputs</h2>
+<p><code>owed</code> for a row is <code>[&quot;tests&quot;]</code> when no test
+matched, plus <code>[&quot;guide&quot;]</code> when no guide file exists (line
+113).</p>
+<p>Text mode (lines 119-125): a header row
+<code>TOOL KIND TESTS GUIDE</code>, one row per tool with
+<code>yes</code>/<code>NO</code> columns and a trailing
+<code>  OWED: tests, guide</code> when something is owed, then
+<code>owed: &lt;n&gt; of &lt;total&gt; tool(s)</code>.</p>
+<p><code>--json</code> (lines 117-118):
+<code>{&quot;root&quot;, &quot;tools&quot;, &quot;owed_count&quot;}</code> printed with
+<code>indent=1, sort_keys=True</code>; each tool row has
+<code>path</code>, <code>kind</code>, <code>tested</code>,
+<code>tests</code>, <code>guide</code>, <code>owed</code> (line
+114).</p>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Report produced (also when tools owe something, unless
+<code>--strict</code>)</td>
+<td>line 126</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>--strict</code> and at least one tool owes tests or a
+guide</td>
+<td>line 126</td>
+</tr>
+<tr>
+<td>2</td>
+<td>argparse usage error (unknown argument)</td>
+<td>argparse default; confirmed below</td>
+</tr>
+<tr>
+<td>3</td>
+<td>REFUSED: root is not a directory, or no tool was discovered</td>
+<td>lines 31-33, 94-98</td>
+</tr>
+</tbody>
+</table>
+<p>Exit 3 on an empty scan is deliberate: a blind scan must never read
+as &quot;nothing owed&quot; (header lines 11-12, refusal text on line 98).</p>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><strong>Test evidence is textual.</strong> Attribution by tool name
+(rule 2 above) searches the whole text of each test file, so a mention
+in a comment also counts (line 107). The tool proves a reference exists,
+not that the test executes the tool.</li>
+<li><strong>Guide evidence is existence only</strong> (line 110); an
+empty or stale guide file clears the <code>guide</code> debt.</li>
+<li><strong>Tests are cached per tool directory</strong> (lines
+100-105), so <code>scripts/codegraph</code> and its
+<code>runner_patches</code> share one scan.</li>
+<li><code>scripts/lumen</code> tests are read from
+<code>scripts/lumen/tests</code> (line 45,
+<code>read_tests(root, tooldir)</code> on line 105).</li>
+<li>The test-file header (<code>tests/test_owed_report.py</code>, line
+13) and this tool&#39;s own header (line 15) cite a
+<code>test_owed_report_mutations.sh</code>; UNCONFIRMED whether it
+exists: <code>ls tests | grep -i owed</code> on the verification date
+listed only <code>test_owed_report.py</code>.</li>
+</ul>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<p><code>main()</code> (line 86): parse flags, refuse on a missing root
+(lines 94-95), <code>discover()</code> (line 96), refuse when nothing
+was found (lines 97-98), then per tool compute the stem, load that
+directory&#39;s tests once, match, look up the guide, and append a row
+(lines 100-114). Nothing is ever written; the only file operations are
+<code>os.listdir</code>, <code>os.walk</code>,
+<code>os.path.isfile</code> and read-mode <code>open</code>.</p>
+<h2 id="related">Related</h2>
+<table>
+<thead>
+<tr>
+<th>Guide / file</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="codegraph_guard.md">codegraph_guard</a></td>
+<td>Sibling gate in the same tool set</td>
+</tr>
+<tr>
+<td><a href="codegraph_safe_helper.md">codegraph_safe_helper</a></td>
+<td>One of the tools this report covers</td>
+</tr>
+<tr>
+<td><a href="codegraph_mcp_probe.md">codegraph_mcp_probe</a></td>
+<td>One of the tools this report covers</td>
+</tr>
+<tr>
+<td><a href="resolve1.md">resolve1</a>, <a href="resolve2.md">resolve2</a>, <a href="lockfix1.md">lockfix1</a>, <a href="datafrag1.md">datafrag1</a></td>
+<td>Runner patches covered as kind <code>runner_patch</code></td>
+</tr>
+<tr>
+<td><a href="gen_lumenignore.md">gen_lumenignore</a>, <a href="lumen_verify.md">lumen_verify</a></td>
+<td><code>scripts/lumen</code> tools covered</td>
+</tr>
+<tr>
+<td><code>scripts/codegraph/tests/test_owed_report.py</code></td>
+<td>The unit tests for this tool</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-24T19:08:01Z — ran from <code>scripts/codegraph</code>:</p>
+<ul>
+<li><code>python3 tests/test_owed_report.py</code> twice: both
+<code>Ran 12 tests ... OK</code>, exit 0.</li>
+<li><code>python3 owed_report.py --strict &gt;/dev/null; echo $?</code>
+printed <code>1</code> (tools were still owed at that time).</li>
+<li><code>python3 owed_report.py --root /nonexistent_zz</code> printed
+<code>REFUSED: root is not a directory: /nonexistent_zz</code>, exit
+3.</li>
+<li><code>python3 owed_report.py --root &lt;empty dir&gt;</code> printed
+the <code>no governed indexing tool discovered</code> refusal, exit
+3.</li>
+<li><code>python3 owed_report.py --bogus</code> exit 2.</li>
+<li><code>python3 owed_report.py --json</code> top-level keys:
+<code>owed_count</code>, <code>root</code>, <code>tools</code>; row keys
+<code>guide kind owed path tested tests</code>.</li>
+</ul>
+</body>
+</html>

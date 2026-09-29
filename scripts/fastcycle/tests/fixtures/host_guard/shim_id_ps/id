@@ -1,0 +1,8 @@
+#!/bin/sh
+# id shim: -u prints $FC_ID_U, -ru prints $FC_ID_RU (either may be empty, non-numeric or
+# multi-word: "_" in the value is rendered as a space, env cannot carry spaces); anything else prints a user NAME. Lets a test tell `id -u` from `id -ru`/`id -un`.
+case "$*" in
+  -u)  printf "%s\n" "$FC_ID_U" | tr _ " " ;;
+  -ru) [ -n "$FC_ID_RU_FAIL" ] && exit 1; printf "%s\n" "$FC_ID_RU" | tr _ " " ;;
+  *)   echo shimuser ;;
+esac

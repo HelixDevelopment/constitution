@@ -197,8 +197,27 @@ func exportCmd(args []string) int {
 
 // runPandoc invokes pandoc <in> -o <out> [extraArgs...]. The caller has already
 // verified pandoc is on PATH.
+//
+// --from=markdown-yaml_metadata_block (T044, SpecKit-004 "fast-dev-cycles",
+// 2026-09-29 / ATM-1105): a tracker doc's item BODY content legitimately uses
+// a bare '---' line as a Markdown horizontal-rule / section-separator (110
+// such occurrences confirmed in docs/Issues.md alone) -- none of these files
+// carries a genuine top-level YAML frontmatter block (confirmed: every
+// tracker doc's header is a plain "**Field:** value" block, never
+// "---\nkey: value\n---"). Pandoc's default markdown reader enables the
+// yaml_metadata_block extension unconditionally, so ANY blank-line-preceded
+// bare '---' anywhere in the document is sniffed as a candidate YAML block;
+// most spans happen not to trip pandoc's YAML parser, but one genuinely did
+// (a body span containing a bare '*' pandoc could not resolve as a YAML
+// alias reference), reproducibly failing pandoc with exit 64 ("Error parsing
+// YAML metadata ... while scanning an alias") for EVERY sibling format
+// (HTML/DOCX/PDF) of that one document. Disabling the extension is safe for
+// every tracker doc (none needs it) and closes the WHOLE defect class (any
+// future body content hitting the same YAML-alias edge case), not just
+// today's one instance -- verified directly against the real
+// docs/Issues.md before this change (exit 0, real 2.5MB HTML produced).
 func runPandoc(pandoc, in, out string, extraArgs ...string) error {
-	args := append([]string{in, "-o", out}, extraArgs...)
+	args := append([]string{"--from=markdown-yaml_metadata_block", in, "-o", out}, extraArgs...)
 	cmd := exec.Command(pandoc, args...)
 	combined, err := cmd.CombinedOutput()
 	if err != nil {

@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>disk_tripwire.sh — Companion Guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="disk_tripwiresh--companion-guide">disk_tripwire.sh — Companion
+Guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-24T11:59:07Z</p>
+<p>Source: <code>constitution/scripts/codegraph/disk_tripwire.sh</code>
+(105 lines). Every statement below cites
+<code>disk_tripwire.sh:&lt;line&gt;</code>.</p>
+<h2 id="overview">Overview</h2>
+<p>A bulk CodeGraph index grows its SQLite database without bound. On a
+nearly full volume that exhausts the disk (header, lines 5-9).
+<code>disk_tripwire.sh</code> is a watcher that samples the free space
+of the volume holding the database and, the moment free space drops
+below <code>--min-gib</code>, sends <strong>SIGSTOP</strong> to the
+indexer process — a reversible pause (resume with
+<code>kill -CONT &lt;pid&gt;</code>), never SIGKILL (lines 7-9,
+97-98).</p>
+<p>It is started by <code>codegraph_safe.sh</code> (header cross-refs,
+line 30); it can also be run by hand against an indexer that was started
+some other way.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>bash</code>, <code>df</code>, <code>python3</code> (line
+29).</li>
+<li><code>codegraph_safe_helper.py</code> in the same directory — used
+for the process identity check
+(<code>HELPER=&quot;$HERE/codegraph_safe_helper.py&quot;</code>, line 35;
+<code>identity()</code>, line 67).</li>
+<li>A live indexer PID whose real <code>/proc</code> argv is a
+<code>node … /lib/dist/bin/codegraph.js</code> process (lines 12-14). A
+shell whose command line merely mentions <code>codegraph.js</code> is
+refused (line 14).</li>
+</ul>
+<h2 id="usage-examples">Usage examples</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Pause indexer PID 12345 if the DB volume drops below 20 GiB free,</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># sampling every 30 s (default).</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">disk_tripwire.sh</span> <span class="at">--pid</span> 12345 <span class="at">--dir</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span>/.codegraph <span class="dt">\</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>                 <span class="at">--min-gib</span> 20 <span class="at">--log</span> /path/to/tripwire.log</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Faster sampling</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ex">disk_tripwire.sh</span> <span class="at">--pid</span> 12345 <span class="at">--dir</span> <span class="op">&lt;</span>project_root<span class="op">&gt;</span>/.codegraph <span class="dt">\</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>                 <span class="at">--min-gib</span> 50 <span class="at">--interval</span> 5 <span class="at">--log</span> /path/to/tripwire.log</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># After a trip: free space, then resume the paused indexer</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> <span class="at">-CONT</span> 12345</span></code></pre></div>
+<h3 id="arguments-lines-38-46">Arguments (lines 38-46)</h3>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Required</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--pid &lt;n&gt;</code></td>
+<td>yes</td>
+<td>Indexer PID. Must be an integer &gt; 1 (lines 51-52) and pass the
+identity check (lines 69-74).</td>
+</tr>
+<tr>
+<td><code>--dir &lt;path&gt;</code></td>
+<td>yes</td>
+<td>Any path on the DB volume; used as the <code>df</code> target. Must
+exist as a directory (line 59).</td>
+</tr>
+<tr>
+<td><code>--min-gib &lt;n&gt;</code></td>
+<td>yes</td>
+<td>Threshold in GiB, integer, bounded to <code>[5,500]</code> (lines
+53-57).</td>
+</tr>
+<tr>
+<td><code>--interval &lt;s&gt;</code></td>
+<td>no</td>
+<td>Seconds between samples, positive integer, default <code>30</code>
+(lines 36, 58).</td>
+</tr>
+<tr>
+<td><code>--log &lt;file&gt;</code></td>
+<td>yes</td>
+<td>Append-only log (line 48). On trip, a marker file
+<code>&lt;log&gt;.TRIPPED</code> is created (line 99).</td>
+</tr>
+</tbody>
+</table>
+<p>Any other argument: <code>disk_tripwire: unknown argument</code> and
+exit 2 (line 44).</p>
+<h3 id="test-only-environment-variable">Test-only environment
+variable</h3>
+<p><code>CG_SAFE_TEST_FREE_BYTES</code> — can only
+<strong>lower</strong> the measured free bytes:
+<code>avail = min(measured, override)</code> (lines 19-20, 85-86). It
+cannot fake extra space. A non-numeric value is ignored (line 86).</p>
+<h2 id="exit-codes-header-lines-22-27-verified-against-code">Exit codes
+(header lines 22-27, verified against code)</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Indexer ended (PID gone, zombie <code>Z</code>, or dead
+<code>X</code>) with no trip</td>
+<td>lines 79-82</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Usage error or refused to arm: missing <code>--log</code>, bad/≤1
+PID, non-integer or out-of-range threshold, bad interval, missing dir,
+unknown argument, target is not a codegraph indexer</td>
+<td>lines 44, 47, 51-59, 70-73</td>
+</tr>
+<tr>
+<td>3</td>
+<td>PID changed identity while watched (PID reuse) — no signal sent;
+<strong>also</strong> returned when <code>kill -STOP</code> itself
+fails</td>
+<td>lines 90-94, 102-103</td>
+</tr>
+<tr>
+<td>10</td>
+<td>TRIPPED: free &lt; threshold, indexer SIGSTOPped, marker
+written</td>
+<td>lines 96-100</td>
+</tr>
+</tbody>
+</table>
+<p>Note: the header documents exit 3 only as &quot;pid changed identity&quot;; the
+code also uses 3 when the STOP signal fails (line 103).</p>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><strong>Missing <code>--log</code></strong> is checked first and
+writes to stderr only (line 47); every later refusal is also appended to
+the log via <code>say</code> (lines 48-59).</li>
+<li><strong><code>--interval 0</code></strong> is refused (line
+58).</li>
+<li><strong><code>df</code> output unreadable</strong> (empty or
+non-numeric): logs <code>WARN df unreadable</code>, sleeps, retries —
+does not trip and does not exit (line 84).</li>
+<li><strong>PID reuse:</strong> the identity string captured at arm time
+(<code>ID0</code>, line 69) is re-read immediately before signalling; if
+it differs the script refuses to signal and exits 3 (lines 88-93).
+Identity is only re-checked on the trip path, not on every sample (lines
+87-89).</li>
+<li><strong>Process state</strong> is read from field 3 of
+<code>/proc/&lt;pid&gt;/stat</code> after the last <code>) </code> so
+command names with spaces or parentheses do not break parsing (lines
+61-66).</li>
+<li>A stopped (<code>T</code>) indexer is not treated as gone; only
+<code>-</code>, <code>Z</code>, <code>X</code> end the watch (line
+79).</li>
+</ul>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<ol type="1">
+<li>Parse flags (lines 38-46); validate <code>--log</code>, PID,
+threshold, interval, dir (lines 47-59).</li>
+<li>Capture identity via
+<code>python3 codegraph_safe_helper.py identity &lt;pid&gt;</code>; the
+output must begin with <code>OK </code> (lines 69-74). Log
+<code>ARMED …</code> (line 75).</li>
+<li>Loop (lines 78-105): read process state; exit 0 if gone. Read
+<code>df -B1 --output=avail &lt;dir&gt;</code> (line 83); apply the test
+override; log <code>avail_bytes=… min_bytes=…</code> every sample (line
+87).</li>
+<li>If <code>avail &lt; min_gib × 1073741824</code> (lines 77, 88):
+re-check identity, send <code>kill -STOP</code>, log
+<code>TRIPPED …</code>, touch <code>&lt;log&gt;.TRIPPED</code>, exit
+10.</li>
+<li>Otherwise <code>sleep &lt;interval&gt;</code> and repeat.</li>
+</ol>
+<p>Log line format: <code>HH:MM:SS &lt;message&gt;</code>
+(<code>date +%T</code>, line 48).</p>
+<h2 id="related-scripts">Related scripts</h2>
+<table>
+<thead>
+<tr>
+<th>Guide</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="codegraph_safe.md">codegraph_safe</a></td>
+<td>Starts this watcher for index/sync runs</td>
+</tr>
+<tr>
+<td><a href="codegraph_safe_helper.md">codegraph_safe_helper</a></td>
+<td>Provides the <code>identity</code> subcommand used here</td>
+</tr>
+<tr>
+<td><a href="codegraph_guard.md">codegraph_guard</a></td>
+<td>Refuses a second writer against a live lock holder</td>
+</tr>
+<tr>
+<td><a href="index_watch.md">index_watch</a></td>
+<td>Progress-proven watchdog for long runs</td>
+</tr>
+<tr>
+<td><a href="codegraph_runner_patches.md">codegraph_runner_patches</a></td>
+<td>Patched runner used for bulk runs</td>
+</tr>
+<tr>
+<td><a href="fk_index_patch.md">fk_index_patch</a></td>
+<td>Runner patcher</td>
+</tr>
+<tr>
+<td><a href="fk_cascade_probe.md">fk_cascade_probe</a></td>
+<td>Bulk-window hazard probe</td>
+</tr>
+<tr>
+<td><a href="codegraph_scope_guard.md">codegraph_scope_guard</a></td>
+<td>Scope proof before &quot;ready&quot;</td>
+</tr>
+<tr>
+<td><a href="scope_render.md">scope_render</a></td>
+<td>Generates the effective scope</td>
+</tr>
+<tr>
+<td><a href="codegraph_mcp_probe.md">codegraph_mcp_probe</a></td>
+<td>MCP reachability probe</td>
+</tr>
+<tr>
+<td><a href="lumen_verify.md">lumen_verify</a></td>
+<td>Semantic-index health check</td>
+</tr>
+<tr>
+<td><a href="gen_lumenignore.md">gen_lumenignore</a></td>
+<td>Semantic-index scope generator</td>
+</tr>
+<tr>
+<td><a href="codegraph_lumen_overview.md">codegraph_lumen_overview</a></td>
+<td>Overview of the indexing tooling</td>
+</tr>
+</tbody>
+</table>
+<p>Tests: the header cites <code>tests/test_tripwire.sh</code> (line
+30); the file exists in <code>scripts/codegraph/tests/</code>.
+UNCONFIRMED: its content and coverage were not read for this guide.</p>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-24 — read <code>disk_tripwire.sh</code> lines 1-105 in full;
+<code>bash -n disk_tripwire.sh</code> passed. The script was NOT
+executed (a live indexer holds the project DB).</p>
+</body>
+</html>
