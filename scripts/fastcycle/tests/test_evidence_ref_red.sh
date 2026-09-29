@@ -8,13 +8,37 @@
 #           changed -- the Bazel action-digest model applied to agent
 #           evidence, R5 rec. 3").
 #
-# tasks.md T108's own task line (verbatim): "RED test
+# tasks.md T108's own task line, as committed at HEAD when this test was
+# authored (2026-09-29): "RED test
 # constitution/scripts/fastcycle/tests/test_evidence_ref_red.sh with
 # fixtures per contract evidence-reference-reverify (FR-014 two-step
 # fixture: unchanged artefact -> no re-verification, changed -> re-
 # verification; golden-bad: a reference whose on-target fingerprint
-# differs is refused; paired mutation: compare paths instead of content
-# hashes -> the changed-artefact fixture FAILs)".
+# differs is refused)".
+#
+# HONEST NOTE (section 11.4.6 -- caught while authoring, not silently
+# absorbed): this dispatch's own instructions additionally named a paired
+# mutation -- "compare paths instead of content hashes -> the changed-
+# artefact fixture FAILs" -- quoting what tasks.md's T108 line contained
+# at the MOMENT this dispatch was issued. By the time this file was
+# authored, the committed tasks.md T108 line (quoted above, re-verified
+# live immediately before writing this comment) no longer carries that
+# exact clause -- `git log -S "compare paths instead of content hashes"
+# --all` finds no removal commit either, so the most likely explanation is
+# a concurrent dispatch's in-place, never-separately-committed edit to
+# this heavily-multi-writer-contended line between dispatch time and now
+# (this repo runs many parallel tracks against the SAME tasks.md; see the
+# T033 entry a few hundred lines above this test's own commit, staged
+# concurrently with this very test's authoring). The mutation is
+# implemented below regardless (paired mutation 2/2) -- it is real,
+# valuable coverage the dispatch asked for -- but is attributed to "this
+# dispatch's own instructions," never claimed as a verbatim quote of the
+# CURRENT tasks.md text, which would be a checkably false citation. The
+# contract's OWN RED-fixtures table (evidence-reference-reverify.md,
+# unchanged) separately and independently names its OWN paired mutation
+# ("drop the verifier-version component from ER-001") -- that one IS
+# still verbatim-quotable from a stable, non-task-line source; see
+# paired mutation 1/2 below.
 #
 # This file's checks, in order:
 #   (1) absence check -- context/evidence_ref.py (T117) does not exist yet;
@@ -42,9 +66,11 @@
 #       of input;
 #   (7) BOTH the contract's own named paired mutation ("drop the
 #       verifier-version component from ER-001 => er_changed_verifier
-#       returns REUSED") AND tasks.md T108's own named paired mutation
+#       returns REUSED") AND this dispatch's own named paired mutation
 #       ("compare paths instead of content hashes => the changed-artefact
-#       fixture FAILs" -- i.e. er_changed_input wrongly returns REUSED);
+#       fixture FAILs" -- i.e. er_changed_input wrongly returns REUSED;
+#       see the HONEST NOTE above -- not verbatim-quotable from the
+#       CURRENT tasks.md T108 line, which no longer carries this clause);
 #   (8) a forward-compatible real-tool invocation block (dormant today,
 #       TOOL_PRESENT=0) that, once T117 lands, drives the real
 #       `consume` subcommand against every fixture and asserts (a) its
@@ -330,7 +356,7 @@ def derive_consume(scenario_dir, ref, consume_target, drop_verifier_version_muta
     # 1. inputs
     declared_paths = ref["inputs"]["paths"]
     if paths_only_mutation:
-        # tasks.md T108's own named paired mutation ("compare paths
+        # This dispatch's own named paired mutation ("compare paths
         # instead of content hashes") -- deliberately WRONG: compares only
         # the DECLARED PATH SET against itself (what a real "list the
         # files at these paths" call would return -- the same set, since
@@ -585,7 +611,7 @@ else
 fi
 
 echo
-echo "=== Paired mutation 2/2 (tasks.md T108's own, verbatim): compare paths instead of content hashes -> er_changed_input wrongly REUSED ==="
+echo "=== Paired mutation 2/2 (this dispatch's own instructions, verbatim at dispatch time -- see the HONEST NOTE at the top of this file): compare paths instead of content hashes -> er_changed_input wrongly REUSED ==="
 SDIR="$FIXDIR/er_changed_input"
 MUT2="$TMP/er_changed_input.mut_paths_only.json"
 python3 "$TMP/derive.py" "$SDIR" "$SDIR/ref.json" "$MUT2" --paths-only >/dev/null
@@ -597,7 +623,9 @@ if [ "$MUT2_OUT" = "REUSED" ] && [ "$CORRECT2_OUT" = "REVERIFY_REQUIRED" ]; then
   echo "   changed content at the SAME declared path) while the correct derivation"
   echo "   reports REVERIFY_REQUIRED -- proving a real meta-test built against this"
   echo "   fixture, once T117 lands, would genuinely catch this exact mutation"
-  echo "   (tasks.md T108's own paired-mutation clause)"
+  echo "   (this dispatch's own paired-mutation instruction -- see the HONEST"
+  echo "   NOTE at the top of this file: not verbatim-quotable from the CURRENT"
+  echo "   tasks.md T108 line, which a concurrent process has since trimmed)"
 else
   echo "NOT ok mutation 2 FAILED: mutated=$MUT2_OUT correct=$CORRECT2_OUT (expected"
   echo "     mutated=REUSED, correct=REVERIFY_REQUIRED) -- this fixture would not"
