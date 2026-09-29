@@ -364,14 +364,108 @@ chk "negative control: a HUGE absolute delta (15,000 tokens) that is a SMALL per
   "$([ "$BIG_RC" = "0" ] && echo 1 || echo 0)"
 
 # =========================================================================
-# Section 6: honest real-after note (informational only -- T119 has no
+# Section 6: paired-mutation self-test (tasks.md T111's own named mutation
+# for T-E07: "tolerance read after the runs"). tasks.md T110's own task
+# line requires the tolerance be read "before any run" -- this section
+# demonstrates WHY that ordering matters and mechanically proves a real
+# meta-test built against this contract would catch a violation of it.
+#
+# Model: a compliant implementation freezes the tolerance value BEFORE the
+# double-run happens (tol_before_runs, captured from the config file as it
+# reads at that moment). A mutated implementation instead re-reads the
+# config file only AFTER the runs have already produced their token
+# counts -- i.e. "tolerance read after the runs" -- which is exactly the
+# window in which the config file could have changed underneath it
+# (whether by a concurrent writer or by any other means), producing a
+# verdict against a tolerance that was never true at run time. The mutated
+# behaviour is reproduced deterministically below via an explicit,
+# control-needle-proven config swap between the "before" read and the
+# "after" read, using the identical MUT_RUN1/MUT_RUN2 pair for both.
+# =========================================================================
+echo
+echo "=== Section 6: paired-mutation self-test (tasks.md T111: 'tolerance read after the runs') ==="
+
+MUT_CFG="$TMP/thresholds_mutation_swap.yaml"
+cat > "$MUT_CFG" <<'CFG_MUT_BEFORE'
+schema_version: 1
+token_stability_tolerance_pct: 1   # T110 mutation fixture: the TRUE tolerance in force before any run
+CFG_MUT_BEFORE
+
+# Step 1: read the tolerance BEFORE any run -- this is what a compliant
+# ("before any run") implementation captures and freezes.
+TOL_BEFORE_RUNS="$(read_tolerance_pct "$MUT_CFG" 2>/dev/null || true)"
+MUT_CFG_CONTENT_BEFORE_SWAP="$(cat "$MUT_CFG" 2>/dev/null || true)"
+
+# Step 2: the double-run happens. Delta = |5300-5000|/5000 = 6.0% -- well
+# outside the true (tight) tolerance of 1% frozen above, and well inside a
+# loose tolerance chosen below for the mutated branch.
+MUT_RUN1=5000
+MUT_RUN2=5300
+
+# Step 3: simulate the exact hazard "before any run" exists to foreclose --
+# the SAME config path is overwritten with a much looser tolerance AFTER
+# the runs already produced MUT_RUN1/MUT_RUN2.
+cat > "$MUT_CFG" <<'CFG_MUT_AFTER'
+schema_version: 1
+token_stability_tolerance_pct: 50   # T110 mutation fixture: swapped in AFTER the runs already happened
+CFG_MUT_AFTER
+MUT_CFG_CONTENT_AFTER_SWAP="$(cat "$MUT_CFG" 2>/dev/null || true)"
+
+chk "control needle: the config-swap simulation genuinely changed $MUT_CFG's on-disk content between the 'before any run' read and the 'after the runs' read (before='$MUT_CFG_CONTENT_BEFORE_SWAP' after='$MUT_CFG_CONTENT_AFTER_SWAP') -- this is a real content change, not a decorative no-op" \
+  "$([ -n "$MUT_CFG_CONTENT_BEFORE_SWAP" ] && [ -n "$MUT_CFG_CONTENT_AFTER_SWAP" ] && [ "$MUT_CFG_CONTENT_BEFORE_SWAP" != "$MUT_CFG_CONTENT_AFTER_SWAP" ] && echo 1 || echo 0)"
+
+if [ -z "${TOL_BEFORE_RUNS:-}" ]; then
+  chk "paired-mutation self-test: 'tolerance read after the runs' (skipped -- the pre-run tolerance read failed, see needles above)" "0"
+else
+  # CORRECT: the tolerance frozen BEFORE any run (1%) is applied to the
+  # identical run pair -- the true, compliant "before any run" behaviour.
+  FROZEN_CFG="$TMP/thresholds_frozen_before_runs.yaml"
+  printf 'schema_version: 1\ntoken_stability_tolerance_pct: %s\n' "$TOL_BEFORE_RUNS" > "$FROZEN_CFG"
+  CORRECT_MUT_OUT="$(stability_verdict "$MUT_RUN1" "$MUT_RUN2" "$FROZEN_CFG")"; CORRECT_MUT_RC=$?
+  info "correct (tolerance frozen BEFORE any run, tol=$TOL_BEFORE_RUNS%): run1=$MUT_RUN1 run2=$MUT_RUN2 -- $CORRECT_MUT_OUT"
+
+  # MUTATED: the tolerance is re-read from the SAME config path only AFTER
+  # the runs -- picking up the since-swapped, looser value (50%).
+  MUTATED_MUT_OUT="$(stability_verdict "$MUT_RUN1" "$MUT_RUN2" "$MUT_CFG")"; MUTATED_MUT_RC=$?
+  info "mutated (tolerance read AFTER the runs, from the swapped config): run1=$MUT_RUN1 run2=$MUT_RUN2 -- $MUTATED_MUT_OUT"
+
+  chk "CORRECT ('before any run'): the SAME 6.0%-delta double-run FAILs stability (rc!=0) when the tolerance is the value that was genuinely true before any run happened (1%)" \
+    "$([ "$CORRECT_MUT_RC" != "0" ] && echo 1 || echo 0)"
+  chk "MUTATED ('tolerance read after the runs'): the IDENTICAL 6.0%-delta double-run wrongly PASSes stability (rc=0) once the tolerance is instead re-read only after the runs, from a config that changed in that window" \
+    "$([ "$MUTATED_MUT_RC" = "0" ] && echo 1 || echo 0)"
+
+  MUT_FLIPS="$([ "$CORRECT_MUT_RC" != "0" ] && [ "$MUTATED_MUT_RC" = "0" ] && echo 1 || echo 0)"
+  if [ "$MUT_FLIPS" = "1" ]; then
+    echo "ok mutation-simulation: reading the tolerance AFTER the runs (tasks.md"
+    echo "   T111's own named paired mutation, 'tolerance read after the runs')"
+    echo "   flips this identical 6.0%-delta double-run's verdict from FAIL"
+    echo "   (correct -- tolerance frozen BEFORE any run, 1%) to PASS (wrong --"
+    echo "   tolerance re-read AFTER the runs from a since-swapped config, 50%)."
+    echo "   A real T119 meta-test asserting this double-run's actual verdict"
+    echo "   equals its fixed expected verdict (FAIL, since 6.0% exceeds the"
+    echo "   true pre-run 1% tolerance) would go from PASS (matching expected"
+    echo "   under correct 'before any run' behaviour) to FAIL (mismatching,"
+    echo "   actual=PASS, once the implementation is mutated to read the"
+    echo "   tolerance only after the runs) -- genuinely catching this mutation."
+  else
+    echo "NOT ok mutation-simulation FAILED: correct_rc=$CORRECT_MUT_RC"
+    echo "     mutated_rc=$MUTATED_MUT_RC (expected correct!=0, mutated=0) --"
+    echo "     this fixture would not catch the 'tolerance read after the"
+    echo "     runs' mutation and needs revising"
+  fi
+  chk "mutation-simulation (tasks.md T111: 'tolerance read after the runs'): the mutation genuinely flips the verdict from correctly-FAIL to wrongly-PASS on the identical run pair -- a real T119 meta-test would catch it" \
+    "$MUT_FLIPS"
+fi
+
+# =========================================================================
+# Section 7: honest real-after note (informational only -- T119 has no
 # dedicated contract file or fixed evidence schema per
 # contracts/common-conventions.md's Tool-map / no-contract tables, so this
 # section does NOT guess a JSON shape (constitution 11.4.6); it only
 # reports honestly whether T119's output directory has appeared).
 # =========================================================================
 echo
-echo "=== Section 6: honest real-after note (informational, no schema assumed) ==="
+echo "=== Section 7: honest real-after note (informational, no schema assumed) ==="
 if [ -d "$STABILITY_DIR" ] && [ -n "$(ls -A "$STABILITY_DIR" 2>/dev/null)" ]; then
   info "qa-results/fastcycle/tokens/stability/ now exists and is non-empty -- T119 appears to have landed. This test's stability_verdict function is the fixed, binding comparison contract (Producer != Verifier, constitution 11.4.240) -- T119's own per-item verdicts should agree with it; a future revision of this test (or T119 itself, per constitution 11.4.115(F) polarity switch) is where that agreement is checked against T119's actual recorded schema, never guessed here."
 else
