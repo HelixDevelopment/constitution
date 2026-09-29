@@ -1,0 +1,29 @@
+{
+  "schema": "tier-route-fixture/v1",
+  "fixture_kind": "golden",
+  "task_id": "FC-TR-SAMPLE-001",
+  "task_class": "generated-json-schema-check",
+  "is_review_class": false,
+  "has_deterministic_verifier": true,
+  "ladder": ["haiku", "sonnet", "opus"],
+  "min_fitting_tier": "haiku",
+  "attempts": [
+    {
+      "tier": "haiku",
+      "verifier_result": "fail",
+      "failure_detail": "generated config JSON failed jsonschema validation: missing required key 'name'"
+    },
+    {
+      "tier": "sonnet",
+      "verifier_result": "pass"
+    }
+  ],
+  "expected_route": {
+    "refused": false,
+    "refusal_reason": null,
+    "route_sequence": ["haiku", "sonnet"],
+    "escalations": 1,
+    "final_tier": "sonnet"
+  },
+  "_defect": "This is the T109 task text's own GOLDEN scenario ('a verifier failure escalates one tier'). task_class has a real deterministic verifier (a generated file that must parse and pass a gate, per research.md DEC-28's own example); it starts at min_fitting_tier ('haiku', the lightest tier the window is declared to fit -- DEC-28/T-E02's concern, taken as a GIVEN classification input here, never computed by this fixture or this test). The first attempt at 'haiku' fails its verifier -> escalates EXACTLY ONE rung to 'sonnet' (never straight to 'opus', never staying at 'haiku'), where the second attempt passes. A correct tier_route.py MUST produce route_sequence=['haiku','sonnet'], escalations=1, final_tier='sonnet', refused=false."
+}

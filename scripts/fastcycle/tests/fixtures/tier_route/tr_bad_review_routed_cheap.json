@@ -1,0 +1,26 @@
+{
+  "schema": "tier-route-fixture/v1",
+  "fixture_kind": "golden-bad",
+  "task_id": "FC-TR-SAMPLE-002",
+  "task_class": "code-review",
+  "is_review_class": true,
+  "has_deterministic_verifier": false,
+  "ladder": ["haiku", "sonnet", "opus"],
+  "attempted_tier_if_wrongly_routed": "sonnet",
+  "designated_tier_reference": {
+    "tool": "$FC/review/review_record.py",
+    "constant": "DESIGNATED_TIER",
+    "value": "opus",
+    "effort_constant": "DESIGNATED_EFFORT",
+    "effort_value": "xhigh",
+    "note": "checked live below against the real, already-landed review_record.py source -- never assumed"
+  },
+  "expected_route": {
+    "refused": true,
+    "refusal_reason": "review-class task; hard-excluded from tier routing (FR-023, plan T-E06 'reviews are hard-excluded'; contracts/common-conventions.md 'Designated review tier' term: 'The tier and effort are recorded per review round and never lowered or routed (T-C11, T-E06)'); reviews stay pinned at the designated review tier (opus/xhigh) exclusively through review_record.py's own RB-004 refusal, never assigned any tier by this router",
+    "route_sequence": [],
+    "escalations": 0,
+    "final_tier": null
+  },
+  "_defect": "This is the T109 task text's own GOLDEN-BAD scenario ('a review routed to a cheaper tier is refused') and the fixture this file's paired-mutation-simulation check targets (tasks.md T111: 'route reviews by cost'). task_class='code-review' MUST be refused OUTRIGHT by tier_route.py -- not merely defaulted to a cheap tier, not merely defaulted to opus by coincidence of some other rule, but structurally EXCLUDED from this router's tier-assignment logic entirely, exactly as plan.md T-E06 states ('reviews are hard-excluded') and FR-023 requires ('MUST NOT lower review depth, skip it, or change the tier'). Reviews are judgment-class work with no deterministic machine verifier of overall correctness (has_deterministic_verifier=false; DEC-06's own measured finding is that only ~16% of reviewer comments are machine-findable -- not a basis for full automatic verification), so even the negative-control's 'never-below-default' safety net is the WRONG mechanism here: a review must be refused by this router, never merely defaulted to sonnet."
+}
