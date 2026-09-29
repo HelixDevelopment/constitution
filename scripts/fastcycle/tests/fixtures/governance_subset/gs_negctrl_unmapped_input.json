@@ -1,0 +1,17 @@
+{
+  "schema": "governance-subset-fixture-item/v1",
+  "fixture_kind": "negative-control",
+  "item_id": "FC-GS-SAMPLE-002",
+  "classification_inputs": {
+    "item_type": "Feature",
+    "logic_group": "telemetry-unmapped-probe",
+    "touched_path_classes": ["exotic_unmapped_class_zz"],
+    "defect_class": "unclassified_exotic_zz",
+    "phase": "design"
+  },
+  "_hand_computation": "No rule in rule_table.json matches this item's classification_inputs: rule 'bug-ui-touched' requires item_type='Bug' (this item's item_type is 'Feature'), so it does not match; rule 'device-orchestration-touched' requires touched_path_classes to contain 'device_orchestration' (this item's only touched_path_class is 'exotic_unmapped_class_zz'), so it does not match; rule 'critical-invariant-defect' requires defect_class='critical_invariant' (this item's defect_class is 'unclassified_exotic_zz'), so it does not match. Per contract GS-004 ('any classification input with no rule -> SUPERSET_FALLBACK (full corpus), recorded with the unmapped input. Never a silent smaller set'), zero rule matches on ANY classification input forces the conservative superset path: selected_anchors = every anchor id currently enumerated in constitution/constitution_index.yaml -- deliberately NOT hardcoded here as a literal id list (the live index is read fresh, at run/test time, per the codebase's own 'never a literal' convention -- e.g. test_anchor_citations_red.sh's anchor_opener_count check) -- fallback='SUPERSET_FALLBACK', exit 0 (conservative, NOT an error: GS-004's own wording is explicit that the fallback path is a PASS).",
+  "expected_selection": {
+    "matched_rule_ids": [],
+    "fallback": "SUPERSET_FALLBACK"
+  }
+}

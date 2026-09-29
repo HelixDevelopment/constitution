@@ -1,0 +1,34 @@
+{
+  "schema": "governance-subset-selection/v1",
+  "fixture_kind": "golden-bad",
+  "item_id": "FC-GS-SAMPLE-001",
+  "classification_inputs": {
+    "item_type": "Bug",
+    "logic_group": "presenter-ui",
+    "touched_path_classes": ["ui"],
+    "defect_class": "user_visible",
+    "phase": "implementation"
+  },
+  "always_core": [
+    "7.1",
+    "9.1",
+    "11.4.6",
+    "11.4.113",
+    "11.4.209",
+    "11.4.224",
+    "11.4.226",
+    "12.1"
+  ],
+  "selected_anchors": [
+    "11.4.113",
+    "11.4.170",
+    "11.4.209",
+    "11.4.224",
+    "11.4.226",
+    "11.4.6",
+    "12.1",
+    "7.1",
+    "9.1"
+  ],
+  "_defect": "This is the SAME item (FC-GS-SAMPLE-001, identical classification_inputs) as gs_good_bug_ui.json, but with anchor 11.4.107 -- one half of rule 'bug-ui-touched''s add_anchors, a BINDING anchor for this classification per rule_table.json -- removed from selected_anchors (9 ids here vs the correct 10). This is the T104 golden-bad fixture ('a subset missing a binding anchor FAILs') and mirrors contracts/governance-subset-selector.md's own fixture-table row 'gs_bad_wrong_subset -- selection file with one anchor removed -- golden-bad -- verify exit 1 naming the missing anchor'. A future governance_subset.py verify invocation against this file MUST exit 1 and name 11.4.107 as the missing anchor (contract GS-007)."
+}
