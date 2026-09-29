@@ -618,29 +618,41 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Forward-compatible invocation (dormant today, TOOL_PRESENT=0): once
-# context/governance_subset.py lands (T112), this block invokes it for real
-# per contract's own documented Invocation section:
+# Forward-compatible invocation (dormant until context/governance_subset.py
+# lands): once T112 lands, this block invokes it for real per contract's
+# own documented Invocation section:
 #   governance_subset.py select --config <cfg> --item <ItemId>
 #       [--diff <base>..<head>] --out <selection.json>
 #   governance_subset.py verify --selection <selection.json>
 #
-# UNCONFIRMED (honest, not invented -- mirrors the contract's own GS-005/
-# GS-008 "UNCONFIRMED" convention): the contract's Invocation section lists
-# "the item record" as a select input distinct from "the diff", but does not
-# specify HOW a real T112 implementation resolves --item <ItemId> to a
-# classification record for an item with no backing entry in the live
-# tracker DB (this file's fixture items are synthetic). This block passes
-# this fixture directory's rule_table.json as --config (rule_table.json IS
-# explicitly named among the contract's Inputs: "the rule table (consumer
-# DATA, content-addressed)") and the fixture item_id as --item; if T112's
-# real implementation resolves --item exclusively through docs/
-# workable_items.db with no override for a config-embedded fixture item, this
-# specific invocation will need adjusting at T112 review time -- that
-# adjustment is explicitly T112's to make, per common-conventions.md's
-# "Their interface ... fixed by the plan task text until a contract is
-# written" convention applied here to an under-specified corner of an
-# existing contract.
+# T112-LAND-TIME ADJUSTMENT (made 2026-09-29, EXPLICITLY pre-authorized by
+# this block's own prior comment: "if T112's real implementation resolves
+# --item exclusively through docs/workable_items.db with no override for a
+# config-embedded fixture item, this specific invocation will need
+# adjusting at T112 review time -- that adjustment is explicitly T112's to
+# make"). context/governance_subset.py's real implementation resolves
+# --item's classification record via (in order): an explicit --item-record
+# <path> override (a direct, honest realisation of the contract's own
+# named Input "the item record" -- see governance_subset.py's own module
+# docstring "Decision 1"), else docs/workable_items.db by --item (the
+# production path for a real tracked item, which these synthetic fixture
+# items deliberately are not). This test's own fixture item JSON files
+# (gs_good_bug_ui.json / gs_negctrl_unmapped_input.json) already carry the
+# exact {"item_id", "classification_inputs"} shape --item-record expects,
+# so they are passed directly here, plus the now-required --index
+# (constitution_index.yaml, needed by GS-004's fallback + by select's own
+# rendered_bytes_estimate) and --repo (the working tree root, needed to
+# locate anchor group files under --index's own recorded 'location'
+# field). --config remains exactly what T104's original comment already
+# established: rule_table.json IS the contract's own named "the rule
+# table" Input.
+#
+# This block also goes BEYOND the original exit-code-and-file-exists-only
+# check: it compares the real tool's select OUTPUT (selected_anchors,
+# fallback, matched_rule_ids) against each fixture's own hand-computed,
+# independently-re-derived expected_selection block -- proving the real,
+# now-landed tool genuinely agrees with the same oracle T104's derive.py
+# already proved correct, not merely that it exits 0 and writes a file.
 # ---------------------------------------------------------------------------
 if [ "$TOOL_PRESENT" = "1" ]; then
   echo
@@ -651,18 +663,60 @@ if [ "$TOOL_PRESENT" = "1" ]; then
     item_id="${rest%%:*}"; want_rc="${rest#*:}"
     OUT="$TMP/${name}.select.actual.json"
     ERR="$TMP/${name}.select.actual.err"
-    python3 "$IMPL" select --config "$FIXDIR/rule_table.json" --item "$item_id" --out "$OUT" >"$ERR" 2>&1
+    python3 "$IMPL" select --config "$FIXDIR/rule_table.json" --item "$item_id" \
+      --item-record "$FIXDIR/${name}.json" --index "$ANCHOR_INDEX" --repo "$ROOT" \
+      --out "$OUT" >"$ERR" 2>&1
     RC=$?
-    if [ "$RC" = "$want_rc" ] && [ -f "$OUT" ]; then
-      echo "ok $name: real governance_subset.py select exited $RC as expected"
-    else
+    if [ "$RC" != "$want_rc" ] || [ ! -f "$OUT" ]; then
       echo "NOT ok $name: real select invocation rc=$RC (wanted $want_rc) --"
       echo "     $(cat "$ERR" 2>/dev/null)"
+      failx
+      continue
+    fi
+    # expected_selection carries a literal selected_anchors list for the
+    # golden (matched-rule) fixture, but the negative-control fixture
+    # deliberately does NOT hardcode one (its own _hand_computation note:
+    # "deliberately NOT hardcoded here as a literal id list -- the live
+    # index is read fresh, at run/test time"); when absent, and fallback
+    # is SUPERSET_FALLBACK, the correct expected set is recomputed here,
+    # live, via the SAME safe per-line id-line regex this file's own
+    # control needle #3 already uses (never .finditer() over whole text).
+    CONTENT_MATCH="$(python3 -c "
+import json, re
+actual = json.load(open('$OUT'))
+expected = json.load(open('$FIXDIR/$name.json'))['expected_selection']
+if 'selected_anchors' in expected:
+    want = sorted(expected['selected_anchors'])
+elif expected.get('fallback') == 'SUPERSET_FALLBACK':
+    ID_LINE_RE = re.compile(r\"^- id: *'?([^']+)'?\$\")
+    with open('$ANCHOR_INDEX', encoding='utf-8') as fh:
+        live_text = fh.read()
+    want = sorted({
+        m.group(1)
+        for m in (ID_LINE_RE.match(line.rstrip('\r')) for line in live_text.split('\n'))
+        if m
+    })
+else:
+    want = None
+print(want is not None
+      and sorted(actual['selected_anchors']) == want
+      and actual['fallback'] == expected['fallback']
+      and sorted(actual['matched_rule_ids']) == sorted(expected['matched_rule_ids']))
+" 2>&1)"
+    if [ "$CONTENT_MATCH" = "True" ]; then
+      echo "ok $name: real governance_subset.py select exited $RC AND its"
+      echo "   selected_anchors/fallback/matched_rule_ids EXACTLY match this"
+      echo "   fixture's own expected_selection block"
+    else
+      echo "NOT ok $name: real select exited $RC (as wanted) but its output"
+      echo "     content did NOT match expected_selection (comparator:"
+      echo "     '$CONTENT_MATCH'). Actual: $(cat "$OUT" 2>/dev/null)"
       failx
     fi
   done
   VERIFY_OUT="$TMP/verify_bad.err"
-  python3 "$IMPL" verify --selection "$FIXDIR/gs_bad_wrong_subset.json" >"$VERIFY_OUT" 2>&1
+  python3 "$IMPL" verify --selection "$FIXDIR/gs_bad_wrong_subset.json" \
+    --config "$FIXDIR/rule_table.json" >"$VERIFY_OUT" 2>&1
   VRC=$?
   if [ "$VRC" = "1" ] && grep -q "11.4.107" "$VERIFY_OUT"; then
     echo "ok gs_bad_wrong_subset: real governance_subset.py verify exited 1 and"
@@ -671,6 +725,28 @@ if [ "$TOOL_PRESENT" = "1" ]; then
     echo "NOT ok gs_bad_wrong_subset: real verify invocation rc=$VRC, output:"
     echo "     $(cat "$VERIFY_OUT" 2>/dev/null)"
     failx
+  fi
+  # A real, tool-PRODUCED selection (the golden fixture's own select
+  # output above) must self-verify OK -- the discrimination companion to
+  # the golden-bad check just above: verify is not merely capable of
+  # saying FAIL, it correctly says OK on a genuinely-correct selection.
+  GOOD_SELECT_OUT="$TMP/gs_good_bug_ui.select.actual.json"
+  VERIFY_GOOD_OUT="$TMP/verify_good.err"
+  if [ -f "$GOOD_SELECT_OUT" ]; then
+    python3 "$IMPL" verify --selection "$GOOD_SELECT_OUT" \
+      --config "$FIXDIR/rule_table.json" >"$VERIFY_GOOD_OUT" 2>&1
+    VGRC=$?
+    if [ "$VGRC" = "0" ]; then
+      echo "ok gs_good_bug_ui (tool-produced): real governance_subset.py verify"
+      echo "   exited 0 on a genuinely-correct, tool-produced selection --"
+      echo "   proving verify discriminates correct from incorrect, not"
+      echo "   merely always refusing"
+    else
+      echo "NOT ok gs_good_bug_ui (tool-produced): real verify invocation on the"
+      echo "     tool's own correct select output rc=$VGRC, output:"
+      echo "     $(cat "$VERIFY_GOOD_OUT" 2>/dev/null)"
+      failx
+    fi
   fi
 else
   echo
