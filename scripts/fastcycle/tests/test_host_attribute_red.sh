@@ -271,5 +271,118 @@ PYEOF
   fi
 fi
 
+# --- (5) T153 Round-2 NO-GO finding B4: a root that IS accessible on this
+#     host but a COMPONENT of its path has NO search/execute permission
+#     (a genuine `chmod 000` parent, `EACCES` on `lstat`) must NEVER be
+#     reported as a legitimate zero -- `os.path.exists()` internally
+#     catches EVERY OSError (permission-denied included) and returns the
+#     SAME False it returns for a genuinely absent path, so the pre-fix
+#     code could not tell "cannot prove either way" from "genuinely gone".
+#
+#     Real reproduction performed live (throwaway scratch OUTSIDE this
+#     repo, on a real btrfs volume so the needle instrument works, never
+#     touching the real checkout) against a PINNED PRE-FIX copy of
+#     host_report.py before this fixture was written: a genuine 4 MiB
+#     directory under a `chmod 000` parent was reported
+#     `{"value": 0, "evidence": {...}}` -- a CONFIDENT, evidence-labeled
+#     zero -- while the real, independent `du` instrument run against the
+#     SAME path (as the SAME user) reported "Permission denied", not zero.
+#     Re-run against the fixed tool below: the root is reported honestly
+#     UNMEASURED with reason `root_unreadable_permission_denied`, NEVER
+#     coerced to a false 0, and `attribute` correctly signals BLIND
+#     (rc=4) for this run rather than a false-clean 0.
+#
+#     Skipped (not a finding) when run as root: permission bits are inert
+#     for uid 0, so this specific reproduction cannot be constructed --
+#     an environment gap, honestly noted, never silently omitted.
+if [ "$(id -u)" = "0" ]; then
+  ok "T153 B4 permission-denied check: SKIPPED (running as root -- permission bits inert, not a finding)"
+else
+  # NOTE: must live under $REPO_ROOT (real btrfs volume), NEVER under $WORK
+  # (mktemp -d resolves to tmpfs in this environment) -- the exclusive-
+  # bytes needle instrument requires a real btrfs filesystem (module
+  # docstring: "MEASUREMENT-INSTRUMENT TRAP"); a tmpfs root would fail the
+  # needle for an entirely UNRELATED reason (EXIT_NEEDLE(3), "not a btrfs
+  # filesystem") before ever reaching this assertion. Matches assertion
+  # (2)/(4)'s own established convention of placing measured roots under
+  # $REPO_ROOT/qa-results/fastcycle/ (gitignored, .gitignore:579).
+  DENIED_PARENT_REL="qa-results/fastcycle/_t153_b4_denied_parent.$$"
+  DENIED_ROOT_REL="$DENIED_PARENT_REL/subdir"
+  mkdir -p "$REPO_ROOT/$DENIED_ROOT_REL"
+  python3 -c "open('$REPO_ROOT/$DENIED_ROOT_REL/data.bin', 'wb').write(b'x' * 65536)"
+  chmod 000 "$REPO_ROOT/$DENIED_PARENT_REL"
+
+  CFG3="$WORK/fastcycle_denied.yaml"
+  NEEDLE_DIR_REL3="qa-results/fastcycle/_t153_b4_needle_denied.$$"
+  cat > "$CFG3" <<YAML
+schema: fastcycle-config/v1
+paths:
+  evidence_root: qa-results/fastcycle
+host:
+  attribution_roots:
+    - {path: "$DENIED_ROOT_REL", consumer_type: cache}
+  worktree_prefix: ".claude/worktrees-does-not-exist-t153-b4-denied"
+  session_scratch_roots: []
+  hardlink_mirror_roots: []
+  agent_registry_status: "docs/requests/agent_registry.status.tsv"
+  disk_floor:
+    volume_path: "."
+    floors_gib: {codegraph_launcher_floor: 20}
+    codegraph_safe_script: "constitution/scripts/codegraph/codegraph_safe.sh"
+  needle_scratch_dir: "$NEEDLE_DIR_REL3"
+YAML
+  OUT3="$WORK/attribution_denied.json"
+  cd "$REPO_ROOT" || exit 1
+  python3 "$TOOL" attribute --config "$CFG3" --out "$OUT3" >"$WORK/stdout3.log" 2>"$WORK/stderr3.log"
+  rc3=$?
+  # restore perms BEFORE any rm -rf attempt (rm needs search permission on
+  # the parent to remove its child).
+  chmod 755 "$REPO_ROOT/$DENIED_PARENT_REL" 2>/dev/null || true
+  rm -rf "$REPO_ROOT/$NEEDLE_DIR_REL3" "$REPO_ROOT/$DENIED_PARENT_REL"
+
+  if [ "$rc3" -ne 4 ] || [ ! -f "$OUT3" ]; then
+    bad "T153 B4: attribute (permission-denied case) expected exit 4 (BLIND) + output file, got rc=$rc3 stderr=$(cat "$WORK/stderr3.log" 2>/dev/null)"
+  else
+    ok "T153 B4: attribute (permission-denied case) exits 4 (BLIND) and writes its output file (was: exit 0, false zero)"
+    python3 - "$OUT3" "$DENIED_ROOT_REL" <<'PYEOF'
+import json, sys
+doc = json.load(open(sys.argv[1], encoding="utf-8"))
+path = sys.argv[2]
+rows = [c for c in doc.get("consumers", []) if c.get("path") == path]
+if not rows:
+    print("FAIL: no consumer row for the permission-denied root %r (must be reported, never omitted)" % path)
+    sys.exit(1)
+row = rows[0]
+fail = 0
+for field in ("apparent_bytes", "exclusive_bytes"):
+    entry = row.get(field, {})
+    if entry.get("value") == 0:
+        print("FAIL: permission-denied root %r %s reported a FALSE zero (value=0) -- must be UNMEASURED, got %r"
+              % (path, field, entry))
+        fail = 1
+        continue
+    if entry.get("value") != "UNMEASURED":
+        print("FAIL: permission-denied root %r %s.value = %r, expected 'UNMEASURED'" % (path, field, entry.get("value")))
+        fail = 1
+        continue
+    mi = entry.get("missing_instrument", "")
+    if "permission_denied" not in mi:
+        print("FAIL: permission-denied root %r %s missing_instrument = %r, expected it to name permission_denied"
+              % (path, field, mi))
+        fail = 1
+        continue
+    print("PASS: permission-denied root %r %s honestly UNMEASURED (missing_instrument=%r), never a false zero"
+          % (path, field, mi))
+sys.exit(fail)
+PYEOF
+    py_rc=$?
+    if [ "$py_rc" -eq 0 ]; then
+      ok "T153 B4: permission-denied root's apparent_bytes + exclusive_bytes are both honestly UNMEASURED, never a false zero"
+    else
+      bad "T153 B4: permission-denied root's apparent_bytes/exclusive_bytes shape/reason"
+    fi
+  fi
+fi
+
 echo "SUMMARY pass=$PASS fail=$FAIL"
 [ "$FAIL" -eq 0 ]

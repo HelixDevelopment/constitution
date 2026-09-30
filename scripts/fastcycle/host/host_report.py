@@ -40,6 +40,27 @@ file (delayed-allocation extents not yet committed) -- indistinguishable
 from a real reflinked-copy result. Every exclusive-bytes measurement below
 therefore calls `_sync()` first.
 
+T153 ROUND-2 NO-GO (two further real, live-reproduced data-loss/false-null
+findings, both closed with defense-in-depth): (1) `cleanup`'s HR-004(a)
+backup verification did not catch a backup built from PER-FILE SYMLINKS
+into the target (`cp -rs target/. backup/`) -- `content_address()` used to
+`open()` each entry, following the symlink and reading the target's own
+live bytes, so the "backup" trivially hashed identical to the target;
+deleting the target then destroyed the only bytes the backup's symlinks
+ever pointed at, and the crash on the post-delete re-verify lost the audit
+trail too. See `_backup_symlinks_into_target()` (refuses BEFORE any
+hashing), `content_address()`'s own symlink handling (never follows one for
+hashing), and `cmd_cleanup`'s post-delete re-verify (now error-caught so
+the action doc is ALWAYS written). (2) `attribute`'s absent-root evidence
+gated on `os.path.exists()`, which folds a PERMISSION-DENIED path into the
+SAME `False` it returns for a genuinely absent one -- a real, non-empty
+directory under a `chmod 000` parent was reported a confident,
+evidence-labeled zero. See `_probe_root_presence()` (an `lstat`-based
+probe distinguishing absent/permission-denied/other) and
+`measure_absent_root()`'s cross-check against the real external `stat`
+subprocess's own captured stderr before ever accepting an absence as
+genuine.
+
 Producer != Verifier (§11.4.240): this file is the T147..T151 implementation
 turning the T141..T145 RED tests GREEN; those tests' own needle/derived-
 oracle arithmetic is written independently in the test files, never
@@ -52,6 +73,7 @@ closure/escape_classify.py tools' own `import yaml` convention for
 pattern (no __init__.py anywhere under constitution/scripts/fastcycle/).
 """
 import argparse
+import errno
 import hashlib
 import json
 import os
@@ -172,6 +194,51 @@ def _paths_overlap(a, b):
     ra_prefix = ra.rstrip(os.sep) + os.sep
     rb_prefix = rb.rstrip(os.sep) + os.sep
     return rb.startswith(ra_prefix) or ra.startswith(rb_prefix)
+
+
+def _backup_symlinks_into_target(backup_path, target_path):
+    """B1 fix, T153 Round-2 NO-GO (§11.4.201(7)/§11.4.6, real reproduction
+    closed -- see host_report.py module docstring and the paired
+    `hr_bad_backup_symlink_tree_into_target` fixture): `_paths_overlap()`
+    (above) and the 3-way content-address check (`cmd_cleanup`, HR-004(a))
+    both assume a backup's on-disk bytes are its OWN independent bytes.
+    Neither one catches a backup built from PER-FILE SYMLINKS into the
+    target (e.g. `cp -rs target/. backup/`): the backup directory itself
+    does not overlap the target's path, and `content_address()`'s manifest
+    walk used to `open()` each backup entry -- which follows a symlink and
+    reads the TARGET's own live bytes -- so the "backup" trivially hashed
+    identical to the target it was meant to protect, satisfying the
+    self-consistency check while never having held independent content at
+    all. Deleting the target then destroyed the ONLY bytes the backup's
+    symlinks ever pointed at.
+
+    This is an `os.lstat`-based walk -- it NEVER follows a symlink to
+    decide whether it IS one -- so it runs, and refuses, BEFORE any
+    content hashing is attempted. It applies to EVERY `backup_kind`
+    (including `hardlink_mirror`, whose only LEGITIMATE sharing is via
+    real hardlinks -- shared inodes are expected there, but a symlink
+    inside a hardlink-mirror-kind backup is equally suspicious and is
+    refused just the same). Returns a reason string naming the specific
+    offending entry, or None if the backup genuinely contains no symlink
+    resolving into the target's tree.
+    """
+    if os.path.islink(backup_path):
+        return "backup_path %r is itself a symlink" % (backup_path,)
+    if not os.path.isdir(backup_path):
+        return None
+    target_real = os.path.realpath(target_path) if os.path.exists(target_path) else None
+    for dirpath, dirs, files in os.walk(backup_path, followlinks=False):
+        for name in list(dirs) + files:
+            p = os.path.join(dirpath, name)
+            if not os.path.islink(p):
+                continue
+            try:
+                real = os.path.realpath(p)
+            except OSError:
+                continue
+            if target_real is not None and (real == target_real or real.startswith(target_real + os.sep)):
+                return "backup entry %r is a symlink resolving into the target tree (%r)" % (p, real)
+    return None
 
 
 def _safe_rmtree(path, label):
@@ -297,17 +364,45 @@ def sha256_file(path):
 def content_address(path):
     """Deterministic content address for a file OR a directory tree: a single
     file's own sha256, or the sha256 of a sorted `relpath\\0filehash` manifest
-    over every regular file beneath a directory (HR-004(a) re-verification).
+    over every entry beneath a directory (HR-004(a) re-verification).
+
+    B1 fix, T153 Round-2 NO-GO (§11.4.201(7)/§11.4.6): a SYMLINK entry is
+    NEVER followed for hashing purposes here (`open()` follows symlinks by
+    default -- the pre-fix bug this hardens against). A symlink's manifest
+    line is instead derived from the symlink's OWN link-text
+    (`os.readlink`), tagged distinctly (`SYMLINK:`/`SYMLINK_DIR:`) from a
+    regular file's line, so a directory built from per-file symlinks into
+    ANOTHER tree (e.g. `cp -rs target/. backup/`) can never hash identical
+    to a directory that genuinely owns independent bytes on disk, even
+    when the two would read byte-identical content if the symlinks were
+    followed. This is defense-in-depth alongside `_backup_symlinks_into_
+    target()` (which refuses BEFORE any hashing is attempted at all) --
+    the two are independent layers, neither a substitute for the other.
+    A symlink AT THE ROOT (`path` itself a symlink) is likewise addressed
+    by its own link-text, never dereferenced.
     """
+    if os.path.islink(path):
+        return hashlib.sha256(("SYMLINK\0" + os.readlink(path)).encode("utf-8")).hexdigest()
     if os.path.isfile(path):
         return sha256_file(path)
     entries = []
-    for dirpath, dirs, files in os.walk(path):
+    for dirpath, dirs, files in os.walk(path, followlinks=False):
         dirs.sort()
         for f in sorted(files):
             p = os.path.join(dirpath, f)
             rel = os.path.relpath(p, path)
-            entries.append((rel, sha256_file(p)))
+            if os.path.islink(p):
+                entries.append(("SYMLINK:" + rel, os.readlink(p)))
+            else:
+                entries.append((rel, sha256_file(p)))
+        for d in list(dirs):
+            dp = os.path.join(dirpath, d)
+            if os.path.islink(dp):
+                # os.walk(followlinks=False) will not descend into this
+                # entry -- record it by its own link-text so a symlinked
+                # SUBDIRECTORY is never silently invisible to this address.
+                rel = os.path.relpath(dp, path)
+                entries.append(("SYMLINK_DIR:" + rel, os.readlink(dp)))
     entries.sort()
     manifest = "\n".join("%s\0%s" % e for e in entries)
     return hashlib.sha256(manifest.encode("utf-8")).hexdigest()
@@ -430,32 +525,95 @@ def _parse_btrfs_du(out):
         return None
 
 
-def measure_absent_root(path, evidence_dir, idx, tag):
-    """B4 fix (T153 Round-1 NO-GO): a root absent on this host is a real,
-    legitimate zero (HR-001 -- fastcycle.yaml's own documented convention:
-    "A root absent on this host is a real, legitimate zero, never
-    UNMEASURED"), never UNMEASURED -- but "legitimate zero" still needs
-    REAL evidence that the absence was genuinely CHECKED, right now, not
-    merely assumed from a prior in-process `os.path.exists()` call with no
-    externally-verifiable trace; this is what distinguishes "measured and
-    found absent" from "never measured". Runs a real external presence-
-    check command (`stat`, exactly parallel to every other measurement in
-    this file) and cites its ACTUAL captured output (a genuine "No such
-    file or directory" from a REAL failed `stat`) as the evidence -- never
-    a bare `{"value": 0}` with no evidence object, which
-    `_valid_measurement()` correctly rejects as an unproven, hand-entered
-    figure (the exact self-contradiction this fix closes: the old code
-    wrote a bare zero, its own validator refused it, and `attribute`
-    reported an internal error and wrote NOTHING).
+_ABSENT_STAT_STDERR_MARKERS = ("No such file or directory", "Not a directory")
+
+
+def _probe_root_presence(path):
+    """B4 fix, T153 Round-2 NO-GO (§11.4.201(6) false-null, real reproduction
+    closed): the pre-fix code gated on `os.path.exists(path)`, which
+    internally catches EVERY `OSError` (including `PermissionError` on a
+    component with no search/execute permission) and returns the SAME
+    `False` it returns for a genuinely absent path -- so a permission-
+    denied root and a genuinely absent root were INDISTINGUISHABLE to the
+    caller, and both flowed into `measure_absent_root()`'s confident,
+    evidence-labeled zero. (Reproduced live: a real 4 MiB directory under a
+    `chmod 000` parent was reported `value: 0` with a real evidence object,
+    while the independent `du` instrument on the SAME path reported
+    `Permission denied`, not zero.)
+
+    Returns one of the closed set:
+      "present"            -- `lstat` succeeded; the path exists.
+      "absent"              -- `lstat` failed ENOENT/ENOTDIR: genuinely gone.
+      "permission_denied"   -- `lstat` failed EACCES/EPERM: presence is
+                                UNKNOWN from here, never a zero.
+      "unexpected_error:<errno-name>" -- any other OSError: also NOT a
+                                proven absence.
     """
+    try:
+        os.lstat(path)
+        return "present"
+    except (FileNotFoundError, NotADirectoryError):
+        return "absent"
+    except PermissionError:
+        return "permission_denied"
+    except OSError as exc:
+        return "unexpected_error:%s" % (errno.errorcode.get(exc.errno, exc.errno),)
+
+
+def measure_absent_root(path, evidence_dir, idx, tag):
+    """B4 fix (T153 Round-1 NO-GO, hardened T153 Round-2 NO-GO): a root
+    absent on this host is a real, legitimate zero (HR-001 -- fastcycle.yaml's
+    own documented convention: "A root absent on this host is a real,
+    legitimate zero, never UNMEASURED"), never UNMEASURED -- but "legitimate
+    zero" still needs REAL evidence that the absence was genuinely CHECKED,
+    right now, not merely assumed from a prior in-process `os.path.exists()`
+    call with no externally-verifiable trace; this is what distinguishes
+    "measured and found absent" from "never measured".
+
+    Round-2 hardening (§11.4.201(6)/(7)/§11.4.6): a confident zero is
+    returned ONLY when BOTH an independent, internal `lstat`-based probe
+    (`_probe_root_presence`) AND the REAL external `stat` subprocess this
+    function runs agree the path is genuinely absent (ENOENT/ENOTDIR) --
+    never on the internal probe's classification alone, and never on the
+    external command's mere non-zero exit alone (a `stat` failing for ANY
+    other reason -- e.g. permission-denied, or a race where the path
+    changed between the two checks -- is NOT a proven absence). A
+    permission-denied or otherwise-inconclusive presence check is honestly
+    UNMEASURED, citing the real reason, never coerced to 0.
+    """
+    probe = _probe_root_presence(path)
     rc, out, err = run_cmd(["stat", path], timeout=10)
     content = "cmd: %r\nrc: %r\nstdout:\n%s\nstderr:\n%s\n" % (["stat", path], rc, out or "", err or "")
     out_path = _write_evidence(evidence_dir, "%s_absent_%d.log" % (tag, idx), content)
-    return measured(0, ["stat", path], out_path, sha256_file(out_path))
+    cmd = ["stat", path]
+
+    if probe == "permission_denied":
+        return unmeasured("root_unreadable_permission_denied")
+    if probe.startswith("unexpected_error:"):
+        return unmeasured("root_probe_%s" % probe)
+    # probe == "present": lstat succeeded (e.g. a permission-denied
+    # PARENT that this specific path's own permissions don't reproduce, or
+    # a race where the path appeared between the caller's own presence
+    # check and this function running) -- never a proven absence either.
+    if probe == "present":
+        return unmeasured("root_probe_present_but_caller_believed_absent")
+    # probe == "absent": cross-check the REAL, independent external `stat`
+    # command's own captured stderr genuinely agrees (§11.4.201(7) control-
+    # needle discipline -- the external command is a SECOND, independent
+    # instrument on the same question) -- never trust the internal lstat
+    # exception classification alone. A `stat` exit of 0 here (the path
+    # reappeared between the two checks) or a failure whose stderr does not
+    # actually say "genuinely absent" is an unconfirmed, possibly racy,
+    # absence -- honestly UNMEASURED, never a false zero.
+    stderr_confirms_absent = rc not in (0, None) and any(m in (err or "") for m in _ABSENT_STAT_STDERR_MARKERS)
+    if not stderr_confirms_absent:
+        return unmeasured("root_absence_unconfirmed_by_external_stat: rc=%r stderr=%r"
+                           % (rc, (err or "").strip()[:200]))
+    return measured(0, cmd, out_path, sha256_file(out_path))
 
 
 def measure_apparent_bytes(path, evidence_dir, idx):
-    if not os.path.exists(path):
+    if _probe_root_presence(path) != "present":
         return measure_absent_root(path, evidence_dir, idx, "apparent")
     rc, out, err = run_cmd(["du", "--apparent-size", "-sb", path], timeout=120)
     if rc != 0 or out is None:
@@ -470,7 +628,7 @@ def measure_apparent_bytes(path, evidence_dir, idx):
 
 def measure_exclusive_bytes(path, evidence_dir, idx):
     """Returns (total_entry, exclusive_entry)."""
-    if not os.path.exists(path):
+    if _probe_root_presence(path) != "present":
         e = measure_absent_root(path, evidence_dir, idx, "exclusive")
         return e, dict(e)
     if not shutil.which("btrfs"):
@@ -712,6 +870,43 @@ def cmd_attribute(args):
     return EXIT_OK
 
 
+def _cleanup_check_content_addresses(marker, target, backup_path, reasons):
+    """HR-004(a)/(b) content-address checks -- factored out of `cmd_cleanup`
+    (T153 Round-2 NO-GO) so it runs ONLY after `_paths_overlap()` and
+    `_backup_symlinks_into_target()` have both already cleared; neither of
+    those two checks can be expressed in terms of a content address, so
+    they must run BEFORE any hashing is attempted at all (see both
+    functions' own docstrings for the exploits this ordering closes).
+    Appends a reason string to `reasons` (in place) on any mismatch.
+    """
+    recorded = marker.get("content_address")
+    if marker.get("backup_kind") == "hardlink_mirror":
+        # HR-004(b): a hardlink-mirror backup MUST be on the same volume as
+        # the target it mirrors -- `cp -al` cannot create a cross-device
+        # hardlink in the first place, so a genuine hardlink mirror
+        # recorded here can never legitimately be on a different device
+        # than its target (memory: cross-device `cp -al` fails).
+        try:
+            same_dev = (os.stat(backup_path).st_dev == os.stat(target).st_dev)
+        except OSError:
+            same_dev = False
+        if not same_dev:
+            reasons.append("hardlink_mirror_cross_device")
+    # B1(c) fix (T153 Round-1 NO-GO): HR-004(a) self-consistency ALONE
+    # (recorded == content_address(backup_path)) is satisfied TRIVIALLY by
+    # an unrelated EMPTY backup directory -- every empty directory hashes
+    # to the SAME manifest digest regardless of what it is
+    # (§11.4.6/§11.4.201), so the backup's actual CONTENT was never
+    # compared to the TARGET's actual content. Independently re-compute
+    # BOTH LIVE, right now -- never trust any cached/stored value -- and
+    # require all three (marker's recorded address, the target's live
+    # address, the backup's live address) to agree.
+    target_addr = content_address(target) if os.path.exists(target) else None
+    backup_addr = content_address(backup_path)
+    if recorded != backup_addr or recorded != target_addr or backup_addr != target_addr:
+        reasons.append("backup_hash_mismatch")
+
+
 # ---------------------------------------------------------------------------
 # T-F03: guarded clean-up
 # ---------------------------------------------------------------------------
@@ -739,34 +934,20 @@ def cmd_cleanup(args):
             # backup can trivially "match itself").
             reasons.append("backup_path_overlaps_target")
         else:
-            recorded = marker.get("content_address")
-            if marker.get("backup_kind") == "hardlink_mirror":
-                # HR-004(b): a hardlink-mirror backup MUST be on the same
-                # volume as the target it mirrors -- `cp -al` cannot create
-                # a cross-device hardlink in the first place, so a genuine
-                # hardlink mirror recorded here can never legitimately be
-                # on a different device than its target (memory: cross-
-                # device `cp -al` fails).
-                try:
-                    same_dev = (os.stat(backup_path).st_dev == os.stat(target).st_dev)
-                except OSError:
-                    same_dev = False
-                if not same_dev:
-                    reasons.append("hardlink_mirror_cross_device")
-            # B1(c) fix (T153 Round-1 NO-GO): HR-004(a) self-consistency
-            # ALONE (recorded == content_address(backup_path)) is satisfied
-            # TRIVIALLY by an unrelated EMPTY backup directory -- every
-            # empty directory hashes to the SAME manifest digest regardless
-            # of what it is (§11.4.6/§11.4.201), so the backup's actual
-            # CONTENT was never compared to the TARGET's actual content.
-            # Independently re-compute BOTH LIVE, right now -- never trust
-            # any cached/stored value -- and require all three (marker's
-            # recorded address, the target's live address, the backup's
-            # live address) to agree.
-            target_addr = content_address(target) if os.path.exists(target) else None
-            backup_addr = content_address(backup_path)
-            if recorded != backup_addr or recorded != target_addr or backup_addr != target_addr:
-                reasons.append("backup_hash_mismatch")
+            symlink_reason = _backup_symlinks_into_target(backup_path, target)
+            if symlink_reason:
+                # B1 fix, T153 Round-2 NO-GO (real data-loss reproduction
+                # closed -- see `_backup_symlinks_into_target()`'s own
+                # docstring): a backup built from per-file symlinks into
+                # the target (`cp -rs target/. backup/`) is refused HERE,
+                # BEFORE any hashing -- the content-address checks below
+                # cannot detect this on their own, since hashing would
+                # (pre-fix) follow the symlinks and read the target's own
+                # live bytes, making the "backup" trivially hash identical
+                # to the target it was meant to protect.
+                reasons.append("backup_contains_symlink_into_target: %s" % symlink_reason)
+            else:
+                _cleanup_check_content_addresses(marker, target, backup_path, reasons)
 
     confirmation = _read_json_file(args.confirmation)
     if confirmation is None:
@@ -797,14 +978,32 @@ def cmd_cleanup(args):
         shutil.rmtree(target)
     else:
         os.remove(target)
-    post_addr = content_address(backup_path)
-    reverified = (post_addr == pre_addr == marker.get("content_address"))
+    # T153 Round-2 NO-GO fix ("catch errors on the POST-delete re-verify
+    # step specifically so the action doc is ALWAYS written even if the
+    # post-delete check itself fails"): the delete has ALREADY happened by
+    # this point -- an uncaught exception here would propagate to `main()`'s
+    # blanket handler (EXIT_BLIND, "internal error") and write NOTHING at
+    # all, losing the audit trail of what just happened on top of whatever
+    # else went wrong. Best-effort: record the real error string instead of
+    # crashing, and `reverified` is unambiguously False (never coerced to a
+    # true) whenever the post-delete check itself could not complete.
+    post_addr = None
+    post_addr_error = None
+    try:
+        post_addr = content_address(backup_path)
+    except OSError as exc:
+        post_addr_error = "%s: %s" % (type(exc).__name__, exc)
+    reverified = (post_addr is not None and post_addr == pre_addr == marker.get("content_address"))
     action["executed"] = True
     action["backup_reverified"] = reverified
+    if post_addr_error is not None:
+        action["post_delete_reverify_error"] = post_addr_error
     write_doc(args.out, SCHEMA_CLEANUP, action, run_meta={"host": _hostname()})
     if not reverified:
         print("host_report: cleanup executed but backup did NOT re-verify afterward "
-              "(pre=%s post=%s recorded=%s)" % (pre_addr, post_addr, marker.get("content_address")),
+              "(pre=%s post=%s recorded=%s%s)" % (
+                  pre_addr, post_addr, marker.get("content_address"),
+                  (" error=%s" % post_addr_error) if post_addr_error else ""),
               file=sys.stderr)
         return EXIT_FINDING
     return EXIT_OK

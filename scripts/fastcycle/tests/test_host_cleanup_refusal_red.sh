@@ -357,8 +357,85 @@ else
   bad "hr_good_confirmed_backed_up: no action.json written"
 fi
 
+# --- hr_bad_backup_symlink_tree_into_target (T153 Round-2 NO-GO finding
+#     B1, real data-loss reproduction): backup_path is a directory of
+#     PER-FILE SYMLINKS pointing into the target -- exactly what
+#     `cp -rs target/. backup/` produces. Neither `_paths_overlap()` (the
+#     backup dir itself is a distinct path, not nested in/equal to the
+#     target) nor the OLD, pre-Round-2 3-way content-address check catches
+#     this: `content_address()` used to `open()` each backup entry, which
+#     FOLLOWS a symlink and reads the TARGET's own live bytes -- so the
+#     "backup"'s computed address trivially equalled the target's (this
+#     fixture's own recorded content-address is deliberately computed the
+#     SAME naive, symlink-following way a real marker-writer would, to
+#     prove the pre-fix self-consistency check was satisfied). Deleting
+#     the target then destroyed the ONLY bytes the backup's symlinks ever
+#     pointed at.
+#
+#     Real reproduction performed live (throwaway scratch outside this
+#     repo, never touching the real checkout) against a PINNED PRE-FIX
+#     copy of host_report.py before this fixture was written: the target
+#     was genuinely destroyed, the backup's symlinks went dangling, the
+#     post-delete re-verify's content_address() raised an uncaught
+#     FileNotFoundError, and the run exited EXIT_BLIND(4) writing NO
+#     action.json at all -- both the data AND the audit trail were lost.
+#     Re-run against the fixed tool below: refused BEFORE any hashing or
+#     deletion, target byte-identical, action.json written and names the
+#     specific symlink entry.
+T10="$WORK/t10"; mk_target "$T10" "content-ten"
+B10="$WORK/backup10-symlink-tree"
+mkdir -p "$B10"
+cp -rs "$T10/." "$B10"
+ADDR10=$(python3 - "$B10" <<'PYEOF'
+import hashlib, os, sys
+root = sys.argv[1]
+entries = []
+for dirpath, _dirs, files in os.walk(root):
+    for f in sorted(files):
+        p = os.path.join(dirpath, f)
+        rel = os.path.relpath(p, root)
+        # deliberately naive -- open() follows a symlink, matching what a
+        # real marker-writer's own content-address computation would do.
+        h = hashlib.sha256(open(p, "rb").read()).hexdigest()
+        entries.append((rel, h))
+entries.sort()
+manifest = "\n".join("%s\0%s" % e for e in entries)
+print(hashlib.sha256(manifest.encode()).hexdigest())
+PYEOF
+)
+MARKER10="$WORK/marker10.json"
+cat > "$MARKER10" <<JSON
+{"target": "$T10", "backup_path": "$B10", "content_address": "$ADDR10"}
+JSON
+CONFIRM10="$WORK/confirm10.json"
+cat > "$CONFIRM10" <<JSON
+{"target": "$T10", "operator": "test", "confirmed_at": "2026-09-30T00:00:00Z"}
+JSON
+python3 "$TOOL" cleanup --target "$T10" --backup-marker "$MARKER10" --confirmation "$CONFIRM10" \
+  --out "$WORK/out10.json" --apply >"$WORK/o10.log" 2>&1
+rc=$?
+if [ "$rc" -eq 1 ] && [ -f "$T10/marker.txt" ] && [ "$(cat "$T10/marker.txt")" = "content-ten" ]; then
+  ok "hr_bad_backup_symlink_tree_into_target: refused (exit 1), target byte-identical (cp -rs symlink-tree backup)"
+else
+  bad "hr_bad_backup_symlink_tree_into_target: expected refused+untouched, got rc=$rc target-present=$([ -f "$T10/marker.txt" ] && echo yes || echo no)"
+fi
+if [ -f "$WORK/out10.json" ] && python3 -c "
+import json, sys
+doc = json.load(open('$WORK/out10.json', encoding='utf-8'))
+reasons = doc.get('reasons', [])
+sys.exit(0 if any('backup_contains_symlink_into_target' in r for r in reasons) else 1)
+"; then
+  ok "hr_bad_backup_symlink_tree_into_target: action.json names backup_contains_symlink_into_target"
+else
+  bad "hr_bad_backup_symlink_tree_into_target: action.json missing backup_contains_symlink_into_target reason"
+fi
+
 # --- hr_good_hardlink_mirror_same_device (HR-004(b), T153 Round-1 NO-GO B1
-#     fix item "same-volume check for hardlink-mirror backups"): a genuine
+#     fix item "same-volume check for hardlink-mirror backups"; ALSO the
+#     golden-good regression proof for the T153 Round-2 B1 symlink-tree
+#     fix above -- a genuine `cp -al` hardlink mirror contains real
+#     HARDLINKS, never symlinks, so the new `_backup_symlinks_into_target`
+#     walk must NOT spuriously refuse it): a genuine
 #     `cp -al` hardlink-mirror backup is, BY CONSTRUCTION, always on the
 #     SAME device as its source (a cross-device hardlink cannot exist,
 #     memory: cross-device `cp -al` fails) -- this negative control proves
