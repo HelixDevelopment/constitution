@@ -232,6 +232,92 @@ EXIT_UNPARSEABLE = 1  # classify: class "other" emitted -- contract's own "Exit 
 EXIT_PLACE_REFUSED = 1  # place: no eligible alias -- verdict document still written (T136's own decision, see module docstring)
 EXIT_USAGE = 2
 
+# ---------------------------------------------------------------------------
+# T140 Round 9/9b review (fixed here; mirrors `handoff.py`'s/
+# `custody_sweep.py`'s own identically-purposed helpers, section 11.4.227
+# reuse-the-SAME-discipline): three cooperating fixes closing the WHOLE
+# "a diagnostic-print/pre-parse crash can leave --out lying" defect class
+# both Round 9 reviewers converged on, rather than the two specific sites
+# either one reported (their own shared framing: "the fix should close the
+# whole class, not these two points").
+#
+# `_real_print` is captured BEFORE any renaming below so `_safe_print`'s
+# own implementation always calls the REAL builtin, never itself.
+# ---------------------------------------------------------------------------
+_real_print = print
+
+
+def _safe_print(*args, **kwargs):
+    """T140 Round 9 review finding R9-I1 + R9-M2 (fixed here; section
+    11.4.227 reuse-the-SAME-discipline -- every `print(...)` call site in
+    this file's subcommand handlers and dispatch boundaries below is
+    renamed to this function): NO diagnostic/success print anywhere in
+    this file may be allowed to raise and escape uncaught -- a `--out`
+    document already written (the durable, authoritative record of this
+    invocation's real result) must NEVER be silently OVERWRITTEN by
+    `main()`'s own dispatch-boundary internal-error doc merely because a
+    SUBSEQUENT, best-effort stdout/stderr diagnostic print failed (see
+    `handoff.py`'s own sibling `_safe_print` for the exact live repro of
+    this class -- identical mechanism, applied here). Swallows ANY
+    exception from the underlying `print()` call and, on failure,
+    best-effort re-points the TARGET stream's own file descriptor at
+    `os.devnull` (this round's own proven fix direction) so a LATER print
+    to the SAME now-broken stream, or Python's own interpreter-shutdown
+    flush of it, cannot re-raise and turn an otherwise-clean exit code
+    into an unrelated 120."""
+    stream = kwargs.get("file", sys.stdout)
+    try:
+        _real_print(*args, **kwargs)
+    except Exception:
+        try:
+            fd = stream.fileno()
+            os.dup2(os.open(os.devnull, os.O_WRONLY), fd)
+        except Exception:
+            pass
+
+
+def _safe_str(exc):
+    """T140 Round 9 review finding R9-M1 (fixed here): see `handoff.py`'s
+    own identically-purposed sibling for the full rationale. Falls back to
+    just the exception's type name on failure."""
+    try:
+        return str(exc)
+    except Exception:
+        return "<%s: str() raised>" % type(exc).__name__
+
+
+def _scan_argv_for_out(argv):
+    """T140 Round 9b review finding R9b-I1 (fixed here): see `handoff.py`'s
+    own identically-purposed sibling for the full rationale -- best-effort
+    extraction of `--out`'s value directly from RAW argv, usable even
+    BEFORE either of this file's two argument parsers (`build_arg_parser`
+    for `classify`, `build_place_arg_parser` for `place`) has parsed.
+    Supports both `--out VALUE` and `--out=VALUE`."""
+    for i, tok in enumerate(argv):
+        if tok == "--out" and i + 1 < len(argv):
+            return argv[i + 1]
+        if tok.startswith("--out="):
+            return tok[len("--out="):]
+    return None
+
+
+def _invalidate_stale_out(out_path):
+    """T140 Round 9b review finding R9b-I1 (fixed here): see `handoff.py`'s
+    own identically-purposed sibling for the full rationale and live
+    repro -- remove any EXISTING `--out` file EARLY, before any
+    computation for THIS invocation begins, so a crash reaching `main()`
+    BEFORE a fresh document is written for THIS invocation can never
+    leave a STALE, previous-run `--out` document in place looking like a
+    genuine, fresh result. Best-effort: a removal failure is swallowed
+    here -- it surfaces downstream when the real write is attempted."""
+    if not out_path:
+        return
+    try:
+        os.remove(out_path)
+    except OSError:
+        pass
+
+
 # T140 Round 7 review finding M3 (fixed here): `derive_placement`'s own
 # `for i in range(live_agents):` loop has no upper bound -- a `live_agents`
 # value like 10**12 (still a genuine, non-negative JSON integer, so
@@ -437,19 +523,19 @@ def cmd_classify(a):
         # observed from it; section 11.4.227: the SAME shared tuple every
         # sibling fastcycle orchestration tool now ORs onto its own
         # write-site except-clauses, never a file-specific one-off).
-        print(
+        _safe_print(
             "limit_class: cannot write --out %s: %s" % (a.out, exc),
             file=sys.stderr,
         )
         return EXIT_USAGE
 
     if cls == CLASS_OTHER:
-        print(
+        _safe_print(
             "limit_class: signal unparseable -- class 'other' emitted with the raw signal",
             file=sys.stderr,
         )
         return EXIT_UNPARSEABLE
-    print("limit_class: classified as %s (resets_at=%s)" % (cls, body["resets_at"]))
+    _safe_print("limit_class: classified as %s (resets_at=%s)" % (cls, body["resets_at"]))
     return EXIT_OK
 
 
@@ -695,7 +781,7 @@ def cmd_place(a):
             # raw fixture value back into `body` unchanged.
             fx = fc_common.strict_loads(fh.read())
     except (OSError, ValueError) as exc:
-        print(
+        _safe_print(
             "limit_class place: cannot read/parse --fixture %s: %s" % (a.fixture, exc),
             file=sys.stderr,
         )
@@ -703,7 +789,7 @@ def cmd_place(a):
 
     shape_error = _validate_placement_fixture_shape(fx)
     if shape_error is not None:
-        print(
+        _safe_print(
             "limit_class place: fixture %s has a malformed field: %s"
             % (a.fixture, shape_error),
             file=sys.stderr,
@@ -713,7 +799,7 @@ def cmd_place(a):
     try:
         body = derive_placement(fx)
     except KeyError as exc:
-        print(
+        _safe_print(
             "limit_class place: fixture %s is missing a required field: %s"
             % (a.fixture, exc),
             file=sys.stderr,
@@ -740,7 +826,7 @@ def cmd_place(a):
         # sibling fastcycle orchestration tool now ORs onto its own
         # narrower except-clauses, never a fourth independently-guessed one
         # (section 11.4.227).
-        print(
+        _safe_print(
             "limit_class place: fixture %s raised an unanticipated %s while "
             "placing: %s" % (a.fixture, type(exc).__name__, exc),
             file=sys.stderr,
@@ -775,19 +861,19 @@ def cmd_place(a):
         # duplicate `alias` before `derive_placement` -- and therefore
         # this write -- ever runs, closing the currently-reachable path to
         # this TypeError at its source).
-        print(
+        _safe_print(
             "limit_class place: cannot write --out %s: %s" % (a.out, exc),
             file=sys.stderr,
         )
         return EXIT_USAGE
 
     if body["refused"]:
-        print(
+        _safe_print(
             "limit_class place: refused -- %s" % body["refusal_reason"],
             file=sys.stderr,
         )
         return EXIT_PLACE_REFUSED
-    print(
+    _safe_print(
         "limit_class place: placed %d agent(s) across %d eligible alias(es) "
         "(cap_per_alias=%s, max_assigned_count=%s)"
         % (
@@ -833,7 +919,15 @@ def build_place_arg_parser():
 # how `place` (T136) coexists with this unchanged shape.
 # ---------------------------------------------------------------------------
 def build_arg_parser():
-    p = argparse.ArgumentParser(prog="limit_class.py", description=__doc__.split("\n\n")[0])
+    # T140 Round 9b review finding R9b-I1 (fixed here): `__doc__` is `None`
+    # under `python -OO`/`PYTHONOPTIMIZE=2` -- `__doc__.split(...)` raised
+    # an uncaught `AttributeError` HERE, before ANY of this function's own
+    # argument definitions ran, escaping `main()` entirely (see `main()`'s
+    # own boundary widening below for the defense-in-depth half of this
+    # same fix). `(__doc__ or "")` makes this call site simply never
+    # crash, matching `handoff.py`'s/`custody_sweep.py`'s own identical
+    # sibling fix.
+    p = argparse.ArgumentParser(prog="limit_class.py", description=(__doc__ or "").split("\n\n")[0])
     p.add_argument("--signal", required=True, help="verbatim raw limit-kill signal text")
     p.add_argument("--out", required=True, help="path to write the classified limit_signal JSON document")
     return p
@@ -872,20 +966,20 @@ def run_determinism_check(argv, timeout_s=120):
             try:
                 proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
             except subprocess.TimeoutExpired:
-                print("limit_class: determinism-check run %d timed out" % i, file=sys.stderr)
+                _safe_print("limit_class: determinism-check run %d timed out" % i, file=sys.stderr)
                 return 4
             if proc.returncode not in (0, 1) or not os.path.exists(out_i):
                 sys.stderr.write(proc.stderr)
-                print("limit_class: determinism-check run %d rc=%d, no honest verdict"
+                _safe_print("limit_class: determinism-check run %d rc=%d, no honest verdict"
                       % (i, proc.returncode), file=sys.stderr)
                 return 4
             with open(out_i, "rb") as fh:
                 hashes.append(hashlib.sha256(fh.read()).hexdigest())
     if hashes[0] != hashes[1]:
-        print("limit_class: nondeterministic: run1=%s run2=%s" % (hashes[0], hashes[1]),
+        _safe_print("limit_class: nondeterministic: run1=%s run2=%s" % (hashes[0], hashes[1]),
               file=sys.stderr)
         return 1
-    print("limit_class: deterministic (out_sha256=%s)" % hashes[0])
+    _safe_print("limit_class: deterministic (out_sha256=%s)" % hashes[0])
     return 0
 
 
@@ -917,10 +1011,13 @@ def _write_dispatch_internal_error_doc(out_path, subcommand, exc):
     mutually-incomparable-keys `body` -- `TypeError` IS already a
     `fc_common.SAFE_EXCEPTIONS` member, so this specific widening is
     consistency with the OTHER two sibling tools' identical fixes rather
-    than closing a NEW crash class here)."""
+    than closing a NEW crash class here).
+
+    T140 Round 9 review finding R9-M1 (fixed here): `str(exc)` replaced
+    with `_safe_str(exc)`."""
     if not out_path:
         return
-    body = {"subcommand": subcommand, "internal_error": {"class": type(exc).__name__, "detail": str(exc)}}
+    body = {"subcommand": subcommand, "internal_error": {"class": type(exc).__name__, "detail": _safe_str(exc)}}
     try:
         write_class_doc_atomic(out_path, body)
     except Exception:
@@ -946,10 +1043,20 @@ def main(argv):
         try:
             return run_determinism_check(argv)
         except Exception as exc:
-            print("limit_class: --determinism-check raised an uncaught %s: %s -- this is a "
+            _safe_print("limit_class: --determinism-check raised an uncaught %s: %s -- this is a "
                   "genuinely unanticipated case; treat as unsafe/unverified until independently, "
-                  "manually re-verified" % (type(exc).__name__, exc), file=sys.stderr)
+                  "manually re-verified" % (type(exc).__name__, _safe_str(exc)), file=sys.stderr)
             return EXIT_USAGE
+
+    # T140 Round 9b review finding R9b-I1 (fixed here, point 3 of that
+    # round's own prescription): pre-invalidate any stale --out file
+    # BEFORE any computation for this invocation begins, using a raw-argv
+    # scan that covers BOTH of this file's two subcommands (`place` and
+    # `classify` both use the flag name `--out`, so one scan of the full
+    # argv suffices regardless of which branch below ends up dispatching)
+    # and that works even if EITHER argument parser's own construction/
+    # parsing later crashes. See `_invalidate_stale_out`'s own docstring.
+    _invalidate_stale_out(_scan_argv_for_out(argv))
 
     # T136: dispatch to `place` on the literal leading token "place",
     # BEFORE classify's own parser (build_arg_parser) ever sees argv --
@@ -957,12 +1064,29 @@ def main(argv):
     # all (its first token is always "--signal"), so this branch can
     # never misroute a genuine classify invocation.
     if argv and argv[0] == "place":
+        place_args = None
         try:
+            # T140 Round 9b review finding R9b-I1 (fixed here, point 1 of
+            # that round's own prescription): argument-parser CONSTRUCTION
+            # and PARSING now live INSIDE the SAME dispatch boundary as
+            # `cmd_place`'s own dispatch, not before it -- previously only
+            # `cmd_place`'s own call was wrapped, so a crash in
+            # `build_place_arg_parser()`/`parse_args()` itself escaped
+            # uncaught (this file's own `build_place_arg_parser` uses a
+            # literal `description=` string, never `__doc__.split(...)`,
+            # so it is not affected by THIS round's specific `-OO` repro
+            # today -- but the boundary is widened defensively per
+            # section 11.4.227 reuse-the-SAME-discipline, exactly as
+            # `classify`'s own boundary below, so any FUTURE crash in
+            # this branch's own parser construction/parsing is covered
+            # too).
             place_args = build_place_arg_parser().parse_args(argv[1:])
-        except SystemExit as exc:
-            raise exc
-        try:
             return cmd_place(place_args)
+        except SystemExit:
+            # argparse's own usage-error/--help path; unaffected by the
+            # bare-Exception widening immediately below (SystemExit is
+            # not a subclass of Exception) -- re-raised unchanged.
+            raise
         except Exception as exc:
             # T140 Round 7 review, the ONE top-level dispatch boundary
             # wrapping EVERY subcommand this file dispatches to (see
@@ -986,34 +1110,54 @@ def main(argv):
             # Widened to bare `Exception` -- deliberately NEVER
             # `BaseException`: `SystemExit`/`KeyboardInterrupt` are NOT
             # subclasses of `Exception`, so an operator interrupt or this
-            # process's own `sys.exit()` correctly stays UNCAUGHT here
-            # (the `except SystemExit as exc: raise exc` immediately above
-            # this try, around argparse's own parsing, is unaffected --
-            # `SystemExit` was never routed through this boundary in the
-            # first place). `fc_common.SAFE_EXCEPTIONS` itself is
-            # UNCHANGED -- only this ONE top-level dispatch boundary is
-            # widened, the fix Round 8's own review recommended directly:
-            # "the fix is to change what the boundary catches to
-            # `Exception`, not to add one more type to the list."
-            print("limit_class place: fixture %s raised an uncaught %s while dispatching: %s -- "
+            # process's own `sys.exit()` correctly stays UNCAUGHT here.
+            # `fc_common.SAFE_EXCEPTIONS` itself is UNCHANGED -- only this
+            # ONE top-level dispatch boundary is widened, the fix Round
+            # 8's own review recommended directly: "the fix is to change
+            # what the boundary catches to `Exception`, not to add one
+            # more type to the list."
+            #
+            # T140 Round 9/9b review (fixed here): `out_path`/
+            # `fixture_label` resolve honestly even when `place_args` was
+            # never successfully parsed (a build_place_arg_parser()/
+            # parse_args() crash) -- falling back to the raw-argv scan /
+            # "?" respectively -- and the --out document write happens
+            # BEFORE the diagnostic print (point 4), through
+            # `_safe_print` (never able to escape and corrupt an
+            # already-written --out doc, point 4's own general fix, or
+            # exit 120 on a closed stderr, R9-I1's own fix).
+            out_path = getattr(place_args, "out", None) if place_args is not None else _scan_argv_for_out(argv)
+            fixture_label = getattr(place_args, "fixture", "?") if place_args is not None else "?"
+            _write_dispatch_internal_error_doc(out_path, "place", exc)
+            _safe_print("limit_class place: fixture %s raised an uncaught %s while dispatching: %s -- "
                   "this is a genuinely unanticipated case no individual fix above enumerated; "
                   "treat as unsafe/unverified until independently, manually re-verified"
-                  % (getattr(place_args, "fixture", "?"), type(exc).__name__, exc), file=sys.stderr)
-            _write_dispatch_internal_error_doc(getattr(place_args, "out", None), "place", exc)
+                  % (fixture_label, type(exc).__name__, _safe_str(exc)), file=sys.stderr)
             return EXIT_USAGE
 
+    args = None
     try:
+        # T140 Round 9b review finding R9b-I1 (fixed here, point 1 of
+        # that round's own prescription): argument-parser CONSTRUCTION
+        # and PARSING, THIS file's own field-shape check, AND
+        # `cmd_classify`'s own dispatch now all live INSIDE ONE boundary
+        # -- previously `build_arg_parser()`/`parse_args()` sat entirely
+        # OUTSIDE any bare-Exception boundary (only `except SystemExit`
+        # wrapped it), so this file's own `__doc__.split(...)` crash
+        # under `python -OO` (fixed at its source above) used to escape
+        # `main()` ENTIRELY uncaught, exactly like the `place` branch's
+        # own equivalent gap immediately above.
         args = build_arg_parser().parse_args(argv)
-    except SystemExit as exc:
+        if not isinstance(args.signal, str) or not isinstance(args.out, str) or not args.out:
+            _safe_print("limit_class: --signal and --out are both required", file=sys.stderr)
+            return EXIT_USAGE
+        return cmd_classify(args)
+    except SystemExit:
         # argparse's own usage-error path already exits 2; normalise any
         # other SystemExit code argparse might raise (e.g. --help exits 0)
-        # by re-raising it unchanged rather than reinterpreting it.
-        raise exc
-    if not isinstance(args.signal, str) or not isinstance(args.out, str) or not args.out:
-        print("limit_class: --signal and --out are both required", file=sys.stderr)
-        return EXIT_USAGE
-    try:
-        return cmd_classify(args)
+        # by re-raising it unchanged rather than reinterpreting it --
+        # unaffected by the bare-Exception widening immediately below.
+        raise
     except Exception as exc:
         # Same top-level dispatch boundary as `place` above, for
         # `classify` -- T140 Round 8 review finding R8-I1, identically
@@ -1021,12 +1165,17 @@ def main(argv):
         # above for the full rationale, proven live for THIS handler too
         # via `cmd_validate`/`cmd_verify_proposal`'s sibling
         # KeyError-injection proofs across the other two fastcycle
-        # orchestration tools).
-        print("limit_class: classify raised an uncaught %s while dispatching: %s -- this is a "
+        # orchestration tools). T140 Round 9/9b (fixed here): `out_path`
+        # resolves honestly even when `args` was never successfully
+        # parsed, and the --out document write happens BEFORE the
+        # diagnostic print, through `_safe_print` -- see the `place`
+        # branch's own comment immediately above for the full rationale.
+        out_path = getattr(args, "out", None) if args is not None else _scan_argv_for_out(argv)
+        _write_dispatch_internal_error_doc(out_path, "classify", exc)
+        _safe_print("limit_class: classify raised an uncaught %s while dispatching: %s -- this is a "
               "genuinely unanticipated case no individual fix above enumerated; treat as "
               "unsafe/unverified until independently, manually re-verified"
-              % (type(exc).__name__, exc), file=sys.stderr)
-        _write_dispatch_internal_error_doc(getattr(args, "out", None), "classify", exc)
+              % (type(exc).__name__, _safe_str(exc)), file=sys.stderr)
         return EXIT_USAGE
 
 

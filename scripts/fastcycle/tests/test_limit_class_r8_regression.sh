@@ -95,16 +95,25 @@ revert_place_boundary_to_r7_shape() {
   # Reverts ONLY the `place` dispatch's own bare `except Exception as
   # exc:` (the R8-I1 boundary) back to the narrower Round 7 shape,
   # leaving `classify`'s own boundary + every other R8 fix untouched.
+  #
+  # T140 Round 9/9b review (anchor updated here): the `place` branch was
+  # restructured to close R9b-I1 (argument-parser construction/parsing
+  # now live INSIDE this same try, plus a new `except SystemExit: raise`
+  # clause between the try body and this except clause) -- the anchor
+  # text below is updated to match the NEW source shape; the mutation's
+  # OWN intent (widen-back-to-SAFE_EXCEPTIONS) is unchanged.
   python3 - "$1" <<'PYEOF'
 import sys
 p = sys.argv[1]
 with open(p, encoding="utf-8") as fh:
     c = fh.read()
-old = "        try:\n            return cmd_place(place_args)\n        except Exception as exc:\n"
-new = "        try:\n            return cmd_place(place_args)\n        except fc_common.SAFE_EXCEPTIONS as exc:\n"
-if c.count(old) != 1:
+old = ("            return cmd_place(place_args)\n"
+       "        except SystemExit:\n")
+new_marker_ok = c.count(old) == 1
+old2 = "            raise\n        except Exception as exc:\n"
+if not new_marker_ok or c.count(old2) != 1:
     sys.exit(1)
-c = c.replace(old, new, 1)
+c = c.replace(old2, "            raise\n        except fc_common.SAFE_EXCEPTIONS as exc:\n", 1)
 with open(p, "w", encoding="utf-8") as fh:
     fh.write(c)
 PYEOF

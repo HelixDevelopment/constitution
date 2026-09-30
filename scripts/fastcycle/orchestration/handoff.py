@@ -381,6 +381,144 @@ EXIT_OK = 0
 EXIT_FINDING = 1   # write: a declared partial-artefact path is missing; validate/verify: INVALID; resume/resume-check: UNSAFE
 EXIT_USAGE = 2
 
+# ---------------------------------------------------------------------------
+# T140 Round 9/9b review (fixed here; mirrors `custody_sweep.py`'s/
+# `limit_class.py`'s own identically-purposed helpers, section 11.4.227
+# reuse-the-SAME-discipline): three cooperating fixes closing the WHOLE
+# "a diagnostic-print/pre-parse crash can leave --out lying" defect class
+# both Round 9 reviewers converged on, rather than the two specific sites
+# either one reported (their own shared framing: "the fix should close the
+# whole class, not these two points").
+#
+# `_real_print` is captured BEFORE any renaming below so `_safe_print`'s
+# own implementation always calls the REAL builtin, never itself.
+# ---------------------------------------------------------------------------
+_real_print = print
+
+
+def _safe_print(*args, **kwargs):
+    """T140 Round 9 review finding R9-I1 + R9-M2 (fixed here; section
+    11.4.227 reuse-the-SAME-discipline -- every `print(...)` call site in
+    this file's subcommand handlers and dispatch boundary below is
+    renamed to this function): NO diagnostic/success print anywhere in
+    this file may be allowed to raise and escape uncaught -- a `--out`
+    document already written (the durable, authoritative record of this
+    invocation's real result) must NEVER be silently OVERWRITTEN by
+    `main()`'s own dispatch-boundary internal-error doc merely because a
+    SUBSEQUENT, best-effort stdout/stderr diagnostic print failed.
+
+    Live-reproduced (R9-M2, precisely): `validate` on a non-UTF-8
+    `--handoff` path WRITES a correct VALID report via
+    `_write_report_or_usage_error` (returns None -- success), THEN its
+    own stdout success print (`print("handoff: validate VALID %s" %
+    a.handoff)`, no `file=` -- stdout's default encode-error handler is
+    `strict`, unlike stderr's own `backslashreplace`) raises
+    `UnicodeEncodeError` on the path's embedded lone surrogates -- which
+    used to escape `cmd_validate` entirely, be caught by `main()`'s own
+    boundary, and OVERWRITE the just-written correct VALID report with an
+    `internal_error` document, backwards: a print failure AFTER the truth
+    was already durably recorded must never retroactively corrupt that
+    already-good record.
+
+    Also closes R9-I1 (a closed/unwritable stderr -- dead pipe reader,
+    ENOSPC log redirect, `2>/dev/full` -- previously escaped the SAME
+    way, uncaught, before the `--out` doc was even attempted, exiting 120,
+    outside this tool's documented {0,1,2} contract): swallows ANY
+    exception from the underlying `print()` call (never raises a second,
+    different exception out of an already best-effort diagnostic path)
+    and, on failure, best-effort re-points the TARGET stream's own file
+    descriptor at `os.devnull` -- this round's own proven fix direction
+    ("os.dup2(os.open(os.devnull, os.O_WRONLY), 2) so interpreter-
+    shutdown flush cannot turn rc into 120") applied generically to
+    whichever stream (stdout or stderr) this particular call targets, so
+    a LATER print to the SAME now-broken stream, or Python's own
+    interpreter-shutdown flush of it, cannot re-raise and turn an
+    otherwise-clean exit code into an unrelated 120."""
+    stream = kwargs.get("file", sys.stdout)
+    try:
+        _real_print(*args, **kwargs)
+    except Exception:
+        try:
+            fd = stream.fileno()
+            os.dup2(os.open(os.devnull, os.O_WRONLY), fd)
+        except Exception:
+            pass
+
+
+def _safe_str(exc):
+    """T140 Round 9 review finding R9-M1 (fixed here): `str(exc)` is not
+    guaranteed safe -- an exception class with a pathological, raising
+    `__str__`/`__repr__` would itself escape a naive `"%s" % exc`
+    interpolation used while ALREADY handling an unrelated crash (the
+    worst possible place for a second, masking crash to occur). No
+    stdlib exception actually does this; this is defense-in-depth for a
+    hostile/buggy third-party exception type reaching this boundary.
+    Falls back to just the exception's type name on failure."""
+    try:
+        return str(exc)
+    except Exception:
+        return "<%s: str() raised>" % type(exc).__name__
+
+
+def _scan_argv_for_out(argv):
+    """T140 Round 9b review finding R9b-I1 (fixed here): best-effort
+    extraction of `--out`'s value directly from RAW argv, usable even
+    BEFORE argparse has parsed (or even successfully CONSTRUCTED its
+    parser) -- needed because parser construction itself can crash before
+    parsing ever begins (the `python -OO`/`PYTHONOPTIMIZE=2`
+    `__doc__.split()` AttributeError this round fixed at its source in
+    `build_arg_parser()` below, and defensively for any FUTURE pre-parse
+    crash class this file cannot yet enumerate). Supports both
+    `--out VALUE` and `--out=VALUE`. Heuristic/best-effort only -- does
+    not validate flag ownership per subcommand; a false-positive match
+    only causes an extra, harmless defensive invalidation (see
+    `_invalidate_stale_out` below) of a path this invocation may not end
+    up writing to anyway, never a security concern."""
+    for i, tok in enumerate(argv):
+        if tok == "--out" and i + 1 < len(argv):
+            return argv[i + 1]
+        if tok.startswith("--out="):
+            return tok[len("--out="):]
+    return None
+
+
+def _invalidate_stale_out(out_path):
+    """T140 Round 9b review finding R9b-I1 (fixed here): remove any
+    EXISTING `--out` file EARLY, before any computation for THIS
+    invocation begins, so that a crash reaching `main()` BEFORE a fresh
+    document is written for THIS invocation (argument-parser
+    construction/parsing itself, or any other pre-dispatch failure) can
+    NEVER leave a STALE, previous-run `--out` document in place looking
+    like a genuine, fresh, correct result for THIS invocation -- the
+    caller trusts `--out`'s content, and a leftover `VALID` from an
+    unrelated earlier run, read as if it were THIS run's real verdict, is
+    a silent lie (worse than an honest, detectable absence).
+
+    Live-reproduced (R9b-I1): a tampered handoff normally reports rc=1
+    INVALID with `--out` correctly updated; under `python -OO` the SAME
+    invocation crashes (rc=1, `AttributeError` from `__doc__.split()`,
+    fixed at its source two call sites below) BEFORE any fresh document
+    is attempted, and -- before this fix -- left a STALE, unrelated
+    earlier `VALID` sitting in `--out`, silently indistinguishable from a
+    genuine fresh result.
+
+    Every subsequent code path for THIS invocation then leaves `--out`
+    either ABSENT (this invocation crashed before writing anything --
+    honestly, detectably absent) or freshly written with THIS
+    invocation's own real content -- never stale content from a
+    DIFFERENT, unrelated run. Best-effort: a removal failure (permission
+    denied, read-only filesystem) is swallowed here -- it surfaces
+    downstream when the real write is attempted (the already-guarded
+    write-site error handling this file already has), never raised a
+    second time out of this early, best-effort safety step."""
+    if not out_path:
+        return
+    try:
+        os.remove(out_path)
+    except OSError:
+        pass
+
+
 # T126's own interim canonical phase order (UNCONFIRMED by the contract,
 # DEFINED in test_resume_revalidate_red.sh's own header, binding-if-adopted,
 # adopted here VERBATIM -- see module docstring "resume-check wire format").
@@ -484,7 +622,7 @@ def _write_report_or_usage_error(tool_label, out_path, body, schema, include_run
     try:
         write_report_atomic(out_path, body, schema, include_run_meta=include_run_meta)
     except Exception as exc:
-        print("handoff: %s -- cannot write --out %s: %s" % (tool_label, out_path, exc), file=sys.stderr)
+        _safe_print("handoff: %s -- cannot write --out %s: %s" % (tool_label, out_path, exc), file=sys.stderr)
         return EXIT_USAGE
     return None
 
@@ -570,22 +708,22 @@ def cmd_write(a):
     # defect this closes.
     err = _reject_non_utf8_cli_string(a.handoff, "--handoff")
     if err:
-        print("handoff: write refused -- %s" % err, file=sys.stderr)
+        _safe_print("handoff: write refused -- %s" % err, file=sys.stderr)
         return EXIT_USAGE
 
     base_dir = os.path.dirname(os.path.abspath(a.handoff)) or "."
 
     pending, err = _json_list_arg(a.pending_json, "--pending-json")
     if err:
-        print("handoff: %s" % err, file=sys.stderr)
+        _safe_print("handoff: %s" % err, file=sys.stderr)
         return EXIT_USAGE
     external_deps, err = _json_list_arg(a.external_deps_json, "--external-deps-json")
     if err:
-        print("handoff: %s" % err, file=sys.stderr)
+        _safe_print("handoff: %s" % err, file=sys.stderr)
         return EXIT_USAGE
     effects_performed, err = _json_list_arg(a.effects_performed_json, "--effects-performed-json")
     if err:
-        print("handoff: %s" % err, file=sys.stderr)
+        _safe_print("handoff: %s" % err, file=sys.stderr)
         return EXIT_USAGE
 
     # partial_artefacts: bare declared paths, content addresses COMPUTED here
@@ -596,7 +734,7 @@ def cmd_write(a):
     for rel in a.partial_artefacts:
         full = os.path.join(base_dir, rel)
         if not os.path.isfile(full):
-            print("handoff: write refused -- declared --partial-artefacts path does not "
+            _safe_print("handoff: write refused -- declared --partial-artefacts path does not "
                   "exist: %s (resolved: %s)" % (rel, full), file=sys.stderr)
             return EXIT_FINDING
         partial_artefacts.append({"path": rel, "content_address": content_address(full)})
@@ -636,7 +774,7 @@ def cmd_write(a):
     try:
         write_json_atomic(a.handoff, doc)
     except OSError as exc:
-        print("handoff: write -- cannot write --handoff %s: %s" % (a.handoff, exc), file=sys.stderr)
+        _safe_print("handoff: write -- cannot write --handoff %s: %s" % (a.handoff, exc), file=sys.stderr)
         return EXIT_USAGE
 
     report_body = {
@@ -651,7 +789,7 @@ def cmd_write(a):
     if err is not None:
         return err
 
-    print("handoff: write wrote %s (handoff_id=%s, item_id=%s, phase=%s)"
+    _safe_print("handoff: write wrote %s (handoff_id=%s, item_id=%s, phase=%s)"
           % (a.handoff, handoff_id, a.item_id, a.phase))
     return EXIT_OK
 
@@ -662,7 +800,7 @@ def cmd_write(a):
 # ---------------------------------------------------------------------------
 def cmd_validate(a):
     if not os.path.isfile(a.handoff):
-        print("handoff: --handoff not found: %s" % a.handoff, file=sys.stderr)
+        _safe_print("handoff: --handoff not found: %s" % a.handoff, file=sys.stderr)
         return EXIT_USAGE
     try:
         with open(a.handoff, encoding="utf-8") as fh:
@@ -672,10 +810,10 @@ def cmd_validate(a):
             # parse time, rather than reaching write_report_atomic below.
             doc = fc_common.strict_loads(fh.read())
     except (OSError, ValueError) as exc:
-        print("handoff: cannot read --handoff: %s" % exc, file=sys.stderr)
+        _safe_print("handoff: cannot read --handoff: %s" % exc, file=sys.stderr)
         return EXIT_USAGE
     if not isinstance(doc, dict):
-        print("handoff: --handoff is not a JSON object", file=sys.stderr)
+        _safe_print("handoff: --handoff is not a JSON object", file=sys.stderr)
         return EXIT_USAGE
 
     base_dir = os.path.dirname(os.path.abspath(a.handoff)) or "."
@@ -750,9 +888,9 @@ def cmd_validate(a):
         return err
 
     if outcome == "VALID":
-        print("handoff: validate VALID %s" % a.handoff)
+        _safe_print("handoff: validate VALID %s" % a.handoff)
         return EXIT_OK
-    print("handoff: validate INVALID %s -- mismatches: %s"
+    _safe_print("handoff: validate INVALID %s -- mismatches: %s"
           % (a.handoff, ", ".join(mismatches)), file=sys.stderr)
     return EXIT_FINDING
 
@@ -924,7 +1062,7 @@ def _validate_resume_check_top_level_shape(doc):
 
 def cmd_resume_check(a):
     if not os.path.isfile(a.handoff):
-        print("handoff: --handoff not found: %s" % a.handoff, file=sys.stderr)
+        _safe_print("handoff: --handoff not found: %s" % a.handoff, file=sys.stderr)
         return EXIT_USAGE
     try:
         with open(a.handoff, encoding="utf-8") as fh:
@@ -944,10 +1082,10 @@ def cmd_resume_check(a):
             # number once this single read succeeds.
             doc = fc_common.strict_loads(fh.read())
     except (OSError, ValueError) as exc:
-        print("handoff: cannot read --handoff: %s" % exc, file=sys.stderr)
+        _safe_print("handoff: cannot read --handoff: %s" % exc, file=sys.stderr)
         return EXIT_USAGE
     if not isinstance(doc, dict):
-        print("handoff: --handoff is not a JSON object", file=sys.stderr)
+        _safe_print("handoff: --handoff is not a JSON object", file=sys.stderr)
         return EXIT_USAGE
 
     # T140 Round 5 review finding R5-I1 fix (section 11.4.250, see
@@ -974,7 +1112,7 @@ def cmd_resume_check(a):
                                             include_run_meta=True)
         if err is not None:
             return err
-        print("handoff: resume-check UNSAFE %s -- 1 reason(s): %s"
+        _safe_print("handoff: resume-check UNSAFE %s -- 1 reason(s): %s"
               % (a.handoff, shape_violation["class"]), file=sys.stderr)
         return EXIT_FINDING
 
@@ -1168,6 +1306,53 @@ def cmd_resume_check(a):
                                    "host filesystem paths; refused before any filesystem access "
                                    "is attempted, treat as unsafe until independently, manually "
                                    "re-verified") % (locator, normalized_current_dir, containment_root),
+                    })
+                    for ref_id in (dep.get("affects_verified") or []):
+                        reverify.add(_typed_id_key(ref_id))
+                    continue
+                # T140 Round 9 review finding R9-M3 (fixed here): the
+                # LEXICAL (`os.path.normpath`-based) containment check
+                # immediately above only inspects the PATH STRING -- it
+                # never resolves symlinks, so a `locator` whose lexical
+                # form stays safely inside `tree_current/` (e.g. plain
+                # `lnk`) can still be a SYMLINK pointing OUTSIDE
+                # tree_current/ entirely (e.g. `tree_current/lnk -> /etc`)
+                # and sail straight through unchanged -- `_merkle_over_dir`
+                # below then walks the symlink's REAL target (arbitrary
+                # host filesystem) until it hits a filesystem error, an
+                # honest-but-UNINTENDED "unverifiable-external-dependency"
+                # outcome rather than a genuine, up-front REFUSAL of the
+                # untrusted locator itself. Live-reproduced exactly:
+                # `tree_current/lnk -> /etc` passes the check above,
+                # `_merkle_over_dir` then walks `/etc` (a REAL, unrelated
+                # host directory) until `PermissionError` on a file inside
+                # it. Fixed by additionally resolving the target with
+                # `os.path.realpath` (which DOES follow symlinks, unlike
+                # `normpath`) and re-checking containment against the SAME
+                # `containment_root` (also realpath'd, so a symlinked
+                # `tree_current/` itself -- unlikely but possible -- is
+                # never a false refusal) -- refuses BEFORE `_merkle_over_dir`
+                # ever opens a single file whenever a symlink (at ANY depth
+                # under `current_dir`, since `realpath` resolves the WHOLE
+                # path) escapes `tree_current/`'s own scope, even though
+                # the lexical check above already passed. Reuses the SAME
+                # "malformed-external-dependency" class (never a new one)
+                # -- a symlink escaping the declared scope is the SAME
+                # untrusted-locator refusal as an absolute/`..`-escaping
+                # one, just detected by a different, necessary mechanism.
+                real_current_dir = os.path.realpath(current_dir)
+                real_containment_root = os.path.realpath(containment_root)
+                if (real_current_dir != real_containment_root
+                        and not real_current_dir.startswith(real_containment_root + os.sep)):
+                    reasons.append({
+                        "class": "malformed-external-dependency",
+                        "detail": ("external dep has kind=git-tree but its `locator` field %r "
+                                   "resolves OUTSIDE its own tree_current/ scope via a SYMLINK "
+                                   "(resolved target: %r, must be under: %r) -- a symlink escaping "
+                                   "tree_current/ would let this tool inspect ARBITRARY host "
+                                   "filesystem paths; refused before any filesystem access is "
+                                   "attempted, treat as unsafe until independently, manually "
+                                   "re-verified") % (locator, real_current_dir, real_containment_root),
                     })
                     for ref_id in (dep.get("affects_verified") or []):
                         reverify.add(_typed_id_key(ref_id))
@@ -1618,7 +1803,7 @@ def cmd_resume_check(a):
                                             include_run_meta=True)
         if err is not None:
             return err
-        print("handoff: resume-check UNSAFE %s -- 1 reason(s): resume-check-internal-error "
+        _safe_print("handoff: resume-check UNSAFE %s -- 1 reason(s): resume-check-internal-error "
               "(%s: %s)" % (a.handoff, type(exc).__name__, exc), file=sys.stderr)
         return EXIT_FINDING
 
@@ -1678,9 +1863,9 @@ def cmd_resume_check(a):
         return err
 
     if safe:
-        print("handoff: resume-check SAFE %s (handoff_id=%s)" % (a.handoff, doc.get("handoff_id")))
+        _safe_print("handoff: resume-check SAFE %s (handoff_id=%s)" % (a.handoff, doc.get("handoff_id")))
         return EXIT_OK
-    print("handoff: resume-check UNSAFE %s -- %d reason(s): %s"
+    _safe_print("handoff: resume-check UNSAFE %s -- %d reason(s): %s"
           % (a.handoff, len(reasons), ", ".join(sorted({r["class"] for r in reasons}))), file=sys.stderr)
     return EXIT_FINDING
 
@@ -1729,19 +1914,19 @@ def run_determinism_check(argv, timeout_s=120):
             try:
                 proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
             except subprocess.TimeoutExpired:
-                print("handoff: determinism-check run %d timed out" % i, file=sys.stderr)
+                _safe_print("handoff: determinism-check run %d timed out" % i, file=sys.stderr)
                 return 4
             if proc.returncode not in (EXIT_OK, EXIT_FINDING) or not os.path.exists(out_i):
                 sys.stderr.write(proc.stderr)
-                print("handoff: determinism-check run %d rc=%d, no honest verdict"
+                _safe_print("handoff: determinism-check run %d rc=%d, no honest verdict"
                       % (i, proc.returncode), file=sys.stderr)
                 return 4
             with open(out_i, encoding="utf-8") as fh:
                 runs.append(json.load(fh).get("body_hash"))
     if runs[0] is None or runs[0] != runs[1]:
-        print("handoff: nondeterministic: run1=%s run2=%s" % (runs[0], runs[1]), file=sys.stderr)
+        _safe_print("handoff: nondeterministic: run1=%s run2=%s" % (runs[0], runs[1]), file=sys.stderr)
         return 1
-    print("handoff: deterministic (body_hash=%s)" % runs[0])
+    _safe_print("handoff: deterministic (body_hash=%s)" % runs[0])
     return 0
 
 
@@ -1754,7 +1939,16 @@ def _add_handoff_out_args(sp):
 
 
 def build_arg_parser():
-    p = argparse.ArgumentParser(prog="handoff.py", description=__doc__.split("\n\n")[0])
+    # T140 Round 9b review finding R9b-I1 (fixed here): `__doc__` is `None`
+    # under `python -OO`/`PYTHONOPTIMIZE=2` (docstrings are stripped from
+    # compiled bytecode at that optimization level) -- `__doc__.split(...)`
+    # then raised an uncaught `AttributeError` HERE, before ANY of this
+    # function's own argument definitions ran, escaping `main()` entirely
+    # (see `main()`'s own boundary widening below, point 1 of this round's
+    # prescription, for the defense-in-depth half of this same fix).
+    # `(__doc__ or "")` makes this call site itself simply never crash,
+    # independent of whether something else would also catch it if it did.
+    p = argparse.ArgumentParser(prog="handoff.py", description=(__doc__ or "").split("\n\n")[0])
     p.add_argument("--determinism-check", action="store_true",
                    help="re-invoke this same subcommand twice and compare body_hash (C-003)")
     sub = p.add_subparsers(dest="cmd_name", required=True)
@@ -1817,10 +2011,13 @@ def _write_dispatch_internal_error_doc(out_path, subcommand, exc):
     `main()`'s own dispatch boundary below receives and
     `_write_report_or_usage_error`'s own sibling fix above receives, so
     this best-effort write can never itself escape with a different,
-    still-uncaught exception class."""
+    still-uncaught exception class.
+
+    T140 Round 9 review finding R9-M1 (fixed here): `str(exc)` replaced
+    with `_safe_str(exc)` -- see that function's own docstring."""
     if not out_path:
         return
-    body = {"subcommand": subcommand, "internal_error": {"class": type(exc).__name__, "detail": str(exc)}}
+    body = {"subcommand": subcommand, "internal_error": {"class": type(exc).__name__, "detail": _safe_str(exc)}}
     try:
         write_report_atomic(out_path, body, SCHEMA_INTERNAL_ERROR, include_run_meta=True)
     except Exception:
@@ -1841,11 +2038,20 @@ def main(argv):
         try:
             return run_determinism_check(argv)
         except Exception as exc:
-            print("handoff: --determinism-check raised an uncaught %s: %s -- this is a genuinely "
+            _safe_print("handoff: --determinism-check raised an uncaught %s: %s -- this is a genuinely "
                   "unanticipated case; treat as unsafe/unverified until independently, manually "
-                  "re-verified" % (type(exc).__name__, exc), file=sys.stderr)
+                  "re-verified" % (type(exc).__name__, _safe_str(exc)), file=sys.stderr)
             return EXIT_USAGE
-    args = build_arg_parser().parse_args(argv)
+
+    # T140 Round 9b review finding R9b-I1 (fixed here, point 3 of that
+    # round's own prescription): pre-invalidate any stale --out file
+    # BEFORE any computation for this invocation begins, using a raw-argv
+    # scan that works even if argument-parser construction/parsing itself
+    # (below, now inside the SAME boundary -- point 1) later crashes. See
+    # `_invalidate_stale_out`'s own docstring for the full rationale and
+    # live repro.
+    _invalidate_stale_out(_scan_argv_for_out(argv))
+
     table = {
         "write": cmd_write,
         "validate": cmd_validate,
@@ -1853,8 +2059,28 @@ def main(argv):
         "resume-check": cmd_resume_check,
         "resume": cmd_resume_check,
     }
+    args = None
+    cmd_name = None
     try:
-        return table[args.cmd_name](args)
+        # T140 Round 9b review finding R9b-I1 (fixed here, point 1 of that
+        # round's own prescription): argument-parser CONSTRUCTION and
+        # PARSING now live INSIDE this SAME dispatch boundary, not before
+        # it. A crash reaching here from `build_arg_parser()`/
+        # `parse_args()` itself (live-proven: the `__doc__.split()`
+        # AttributeError under `python -OO`/`PYTHONOPTIMIZE=2`,
+        # independently fixed at its own source in `build_arg_parser()`
+        # above via `(__doc__ or "")`, point 2) used to escape this
+        # function ENTIRELY uncaught with a bare rc=1 and no
+        # internal-error document at all -- widened per section 11.4.227
+        # reuse-the-SAME-discipline as every other boundary widening in
+        # this file's history (Round 7's bare-Exception widening, Round
+        # 8's whole-`--determinism-check`-branch wrap). `SystemExit`
+        # (argparse's own `--help`/usage-error path) is NOT a subclass of
+        # `Exception`, so it is unaffected by this widening and still
+        # propagates exactly as before.
+        args = build_arg_parser().parse_args(argv)
+        cmd_name = args.cmd_name
+        return table[cmd_name](args)
     except Exception as exc:
         # T140 Round 7 review, the ONE top-level dispatch boundary wrapping
         # EVERY subcommand this file dispatches to (see
@@ -1888,11 +2114,23 @@ def main(argv):
         # dispatch boundary is widened, the fix Round 8's own review
         # recommended directly: "the fix is to change what the boundary
         # catches to `Exception`, not to add one more type to the list."
-        print("handoff: subcommand %r raised an uncaught %s while dispatching: %s -- this is a "
+        #
+        # T140 Round 9/9b review (fixed here): `out_path`/`cmd_name`
+        # resolve honestly even when `args` was never successfully
+        # parsed (a build_arg_parser()/parse_args() crash) -- falling
+        # back to the raw-argv scan / `None` respectively -- and the
+        # --out document write now happens BEFORE the diagnostic print
+        # (point 4), through `_safe_print` (never able to escape and
+        # trigger a SECOND, corrupting boundary re-entry -- there is only
+        # ever one boundary here, but a raising print previously escaped
+        # main() ENTIRELY, past this very except clause, to the
+        # interpreter's own top-level uncaught-exception handler).
+        out_path = getattr(args, "out", None) if args is not None else _scan_argv_for_out(argv)
+        _write_dispatch_internal_error_doc(out_path, cmd_name, exc)
+        _safe_print("handoff: subcommand %r raised an uncaught %s while dispatching: %s -- this is a "
               "genuinely unanticipated case no individual fix above enumerated; treat as "
               "unsafe/unverified until independently, manually re-verified"
-              % (args.cmd_name, type(exc).__name__, exc), file=sys.stderr)
-        _write_dispatch_internal_error_doc(getattr(args, "out", None), args.cmd_name, exc)
+              % (cmd_name, type(exc).__name__, _safe_str(exc)), file=sys.stderr)
         return EXIT_USAGE
 
 
