@@ -287,16 +287,29 @@ _fc_default_item_prefix() {
   # Resolve the SAME base release prefix scripts/release_prefix.sh /
   # prefix.go's resolveReleasePrefix() already use (HELIX_RELEASE_PREFIX env
   # -> its .env entry -> snake_case(project root dir name)), then derive the
-  # 3-letter ticket key from it. Falls back to the literal "ATM" ONLY if
-  # release_prefix.sh is genuinely unreachable (should not happen inside a
-  # checked-out constitution submodule -- kept as a defensive non-crash
-  # default, never a silent guess about a DIFFERENT project's real prefix).
+  # 3-letter ticket key from it. Falls back to the NEUTRAL "WIT" prefix
+  # (via the SAME _fc_derive_key_prefix() no-letters branch every OTHER
+  # unresolvable-input case already uses -- never a second, divergent
+  # fallback mechanism) ONLY if release_prefix.sh is genuinely unreachable
+  # (should not happen inside a checked-out constitution submodule -- kept
+  # as a defensive non-crash default).
+  #
+  # T048 round-3 review finding R3-M1 (2026-09-30): this used to fall back
+  # to the LITERAL "ATM" -- a hardcoded project-specific guess about a
+  # DIFFERENT project's real prefix, landed inside this project-agnostic
+  # constitution submodule (a §11.4.28/§11.4.177 decoupling violation) --
+  # directly contradicting this very function's own header comment, which
+  # already said "never a silent guess about a DIFFERENT project's real
+  # prefix" one line above the guess. Fixed to reuse the neutral "WIT"
+  # fallback _fc_derive_key_prefix() already defines for exactly this
+  # "no real prefix could be derived" case, rather than inventing a
+  # second, ATMOSphere-specific one.
   local self_path self_dir rp_script base
   # Pure bash parameter-expansion dirname (never the external `dirname`
   # command): the G-section AWK-fallback tests in test_dispatch_stamp.sh
   # deliberately restrict PATH to only awk+cat, so any external command
   # this function shells out to besides `bash "$rp_script"` itself would
-  # silently degrade to the ATM fallback there (harmless, but untested --
+  # silently degrade to the WIT fallback there (harmless, but untested --
   # this keeps prefix derivation genuinely exercised under that PATH too).
   self_path="${BASH_SOURCE[0]:-$0}"
   self_dir="${self_path%/*}"
@@ -310,7 +323,7 @@ _fc_default_item_prefix() {
   if [ -n "${base:-}" ]; then
     _fc_derive_key_prefix "$base"
   else
-    printf 'ATM'
+    _fc_derive_key_prefix ""
   fi
 }
 

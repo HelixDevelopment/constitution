@@ -295,9 +295,36 @@ fi
 #         flip to PASS the instant T033 archives a real run -- this is T017's
 #         real, content-verified done-signal for T032/T033, independent of
 #         RED_MODE.
+#         T048 round-3 review finding R3-I5 (2026-09-30): picking the
+#         lexically-newest *.tsv across the WHOLE shared archive picked up
+#         a genuinely PARTIAL/interrupted run's fragment (0 finalized
+#         KILLED/SURVIVED/ERROR rows -- reproduced live against the real
+#         archived qa-results/fastcycle/metatest/20260930T132445Z_2964251/
+#         per_mutant.tsv: 1 PASS row, empty verdict column, never
+#         finalized) whenever one happened to sort last -- the verdict
+#         reported here became environment-dependent on whatever ELSE had
+#         recently written into the shared directory (a concurrent
+#         track's smoke test, an interrupted run, ...), never a property
+#         of a genuine T032/T033 run under test. Fixed: only a run-dir
+#         carrying a sibling RUN_COMPLETE sentinel is eligible -- written
+#         by scripts/testing/meta_test_false_positive_proof.sh's own
+#         _fc_mut_write_completion_marker() ONLY when that script's run
+#         genuinely reached its literal last line (never on an early/
+#         abnormal exit; see that file's own R3-I5 comment) -- and among
+#         eligible run-dirs the lexically-newest TSV is selected (run-ids
+#         are ISO8601-prefixed, so lexical order IS chronological order).
+#         Still never hardcodes the TSV's own filename (`find -name
+#         '*.tsv'` per candidate dir, unchanged from before this fix).
 METATEST_TSV=""
 if [ -d "$METATEST_ARCHIVE_DIR" ]; then
-  METATEST_TSV="$(find "$METATEST_ARCHIVE_DIR" -mindepth 2 -maxdepth 2 -name '*.tsv' -type f 2>/dev/null | sort | tail -n1)"
+  for _mt_cand_dir in $(find "$METATEST_ARCHIVE_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -r); do
+    [ -f "$_mt_cand_dir/RUN_COMPLETE" ] || continue
+    _mt_cand_tsv="$(find "$_mt_cand_dir" -maxdepth 1 -name '*.tsv' -type f 2>/dev/null | sort | tail -n1)"
+    if [ -n "$_mt_cand_tsv" ]; then
+      METATEST_TSV="$_mt_cand_tsv"
+      break
+    fi
+  done
 fi
 
 if [ -n "$METATEST_TSV" ] && [ -f "$METATEST_TSV" ]; then

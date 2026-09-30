@@ -417,6 +417,113 @@ cmd_selfcheck() {
 }
 
 # =============================================================================
+# _fc_submodule_reference_update SRC TGT
+#   T048 round-3 review finding R3-B1 fix (2026-09-30): the round-2
+#   `--reference "$repo_root"` invocation was proven, by live measurement
+#   (git 2.50.1, file:// transport, see the comment above the call site
+#   below for the exact numbers), to be a NO-OP for object reuse -- a
+#   single `--reference <path>` passed to `git submodule update` is
+#   handed to git-clone(1) VERBATIM for EVERY submodule being cloned; it
+#   is NEVER expanded to `<path>/.git/modules/<name>` per submodule (that
+#   round-2 claim was independently re-tested this dispatch and is FALSE
+#   for this codepath -- see below). Registering the SUPERPROJECT's own
+#   `.git/objects` as an alternate buys nothing, because a submodule's
+#   blobs/trees/commits were never stored there in the first place; they
+#   live at `<repo>/.git/modules/<name>/objects`, a COMPLETELY SEPARATE
+#   object store one directory level down. (git DOES have a genuine
+#   feature for automatic per-submodule alternate resolution --
+#   `-c submodule.alternateLocation=superproject` -- but it is wired only
+#   into the `git clone --recurse-submodules --reference <path>`
+#   codepath; re-tested live this dispatch with THIS git version and
+#   confirmed it has NO effect on a `git submodule update --init
+#   --recursive --reference <path>` call against an ALREADY-EXISTING
+#   checkout, which is what a `git worktree add`-based replay needs, so
+#   it cannot be used here.)
+#
+#   This function does manually what `--reference` alone does not:
+#   submodule-BY-submodule, computing THAT submodule's own already-
+#   fetched object store under SRC's git-common-dir (`git -C "$SRC"
+#   rev-parse --git-common-dir` -- resolves correctly even when $SRC is
+#   ITSELF a linked worktree of some other checkout, since
+#   `--git-common-dir` always resolves to the shared repo, never a
+#   per-worktree path; verified live) and passing THAT specific path as
+#   `--reference` for a single-submodule `git submodule update --init --
+#   <path>` call. It then RECURSES into any submodule that itself
+#   declares a `.gitmodules` (a nested submodule), using SRC/<path> --
+#   the corresponding already-checked-out submodule directory inside
+#   SRC -- as the new source: a nested submodule's own object store
+#   lives at `<parent's-git-common-dir>/modules/<nested-name>`, which
+#   `git -C "$SRC/<path>" rev-parse --git-common-dir` resolves to
+#   directly (verified live against a real 2-level-nested scratch
+#   fixture: 0 objects transferred at BOTH the top-level AND the nested
+#   level).
+#
+#   Degrades safely per submodule, independently: a submodule SRC has
+#   never fetched (its `.git/modules/<name>` does not exist under SRC's
+#   git-common-dir) gets NO `--reference` flag at all and falls through
+#   to a normal network clone for THAT submodule only -- verified live,
+#   exit 0, unaffected. A submodule whose remote is genuinely
+#   unreachable still correctly fails non-zero regardless of whether a
+#   `--reference` was supplied (verified live: --reference never removes
+#   the need to negotiate refs with the remote; it only avoids
+#   re-transferring objects the remote and the reference already agree
+#   on) -- so this function preserves the exact "refuse to run gate_cmd
+#   against a partially-checked-out tree" semantics the caller below
+#   already depends on.
+#
+#   TGT is the linked worktree checkout ($wt_path) whose OWN
+#   .gitmodules (at the frozen commit) is walked; SRC is the tree to
+#   borrow already-fetched submodule objects from (initially $repo_root,
+#   then recursively SRC's own corresponding submodule directory).
+#   Returns the first non-zero exit encountered (or 0).
+# =============================================================================
+_fc_submodule_reference_update() {
+  local src="$1" tgt="$2"
+  [ -f "$tgt/.gitmodules" ] || return 0
+
+  local src_common=""
+  src_common="$(git -C "$src" rev-parse --git-common-dir 2>/dev/null)" || src_common=""
+  if [ -n "$src_common" ]; then
+    case "$src_common" in
+      /*) : ;;
+      *) src_common="$(cd "$src" 2>/dev/null && cd "$src_common" 2>/dev/null && pwd)" || src_common="" ;;
+    esac
+  fi
+
+  local list_file
+  list_file="$(mktemp)" || return 1
+  git -C "$tgt" config -f .gitmodules --get-regexp '^submodule\..*\.path$' >"$list_file" 2>/dev/null
+
+  local key path name ref_path rc=0
+  while IFS=' ' read -r key path; do
+    [ -n "$key" ] || continue
+    name="${key#submodule.}"
+    name="${name%.path}"
+    ref_path=""
+    if [ -n "$src_common" ] && [ -d "$src_common/modules/$name" ]; then
+      ref_path="$src_common/modules/$name"
+    fi
+    if [ -n "$ref_path" ]; then
+      git -c protocol.ext.allow=never -c protocol.file.allow=never \
+        -C "$tgt" submodule update --init --quiet --reference "$ref_path" -- "$path"
+    else
+      git -c protocol.ext.allow=never -c protocol.file.allow=never \
+        -C "$tgt" submodule update --init --quiet -- "$path"
+    fi
+    rc=$?
+    [ "$rc" -eq 0 ] || { rm -f "$list_file"; return "$rc"; }
+
+    if [ -f "$tgt/$path/.gitmodules" ]; then
+      _fc_submodule_reference_update "$src/$path" "$tgt/$path"
+      rc=$?
+      [ "$rc" -eq 0 ] || { rm -f "$list_file"; return "$rc"; }
+    fi
+  done <"$list_file"
+  rm -f "$list_file"
+  return 0
+}
+
+# =============================================================================
 # One frozen-commit replay: creates+removes exactly one worktree, runs
 # gate_cmd cold_runs+warm_runs times inside it. Prints the JSON body on
 # stdout (caller decides schema/out). Returns 0 on a successfully-measured
@@ -584,10 +691,14 @@ do_one_replay() {
   # `.git/worktrees/<name>/modules/<submodule>` path, NOT the shared
   # `.git/modules/<submodule>` this comment used to claim. `--recursive`
   # alone does NOT reuse the main checkout's already-fetched submodule
-  # objects at all -- see the `--reference "$repo_root"` fix a few lines
-  # below (at the actual submodule-update invocation) for what genuinely
-  # closes this gap, and its own comment for the live verification that
-  # proved BOTH the bug and the fix.
+  # objects at all -- see `_fc_submodule_reference_update()` (defined
+  # above `do_one_replay`, invoked a few lines below at the actual
+  # submodule-update call site) for what genuinely closes this gap
+  # (T048 round-3 review finding R3-B1: a bare `--reference "$repo_root"`
+  # was ALSO tried and independently proven, by live measurement, to be
+  # a no-op here -- see that function's own comment + the invocation
+  # site's comment for the full correction and the live verification
+  # that proved the bug, the false round-2 fix, AND the real fix).
   # HONEST CORRECTION (§11.4.6 -- an earlier draft of this comment claimed
   # "no clone, no network" unconditionally and was WRONG; independently
   # observed live via `ps aux` during this fix's own end-to-end proof
@@ -673,29 +784,60 @@ do_one_replay() {
   # for `submodules/open_design`, even though $repo_root (the MAIN
   # checkout this worktree was created FROM) already has that exact
   # submodule fully fetched at `.git/modules/submodules/open_design`.
-  # `--reference "$repo_root"` fixes this: verified directly, in an
-  # isolated scratch superproject+submodule pair (never touching this
-  # real repo), that git's own submodule-clone machinery automatically
-  # resolves `<reference>/.git/modules/<name>` for the submodule being
-  # cloned and reuses its objects as an alternate -- even when the
-  # submodule's own configured remote URL is UNREACHABLE, proving no
-  # network I/O for that submodule's objects when the reference already
-  # has them. ALSO verified directly that `--reference "$repo_root"`
-  # degrades SAFELY when $repo_root genuinely lacks a given submodule's
-  # objects (a brand-new submodule, or a SHA never locally fetched): git
-  # falls through to its normal real-clone path, exit 0, unaffected --
-  # this fix speeds up the already-cached case without weakening the
-  # documented real-network-clone fallback below. `--reference` (not
-  # `--reference-if-able`) is deliberate: this git version's
-  # `submodule update` does not recognise the `-if-able` form at all
-  # (confirmed live: real exit 1, a usage error) -- `--reference` alone
-  # is used here because $repo_root, the CALLER of `git worktree add`
-  # that produced $wt_path, is by construction always a real, existing
-  # git repository (never the "reference path itself does not exist"
-  # case `--reference` would error on).
+  # T048 round-3 review finding R3-B1 (2026-09-30, CORRECTS the round-2
+  # text that used to sit here): the round-2 claim that a bare
+  # `--reference "$repo_root"` makes "git's own submodule-clone machinery
+  # automatically resolve `<reference>/.git/modules/<name>`" is FALSE --
+  # independently re-measured live this dispatch (git 2.50.1, file://
+  # transport, `git count-objects` before/after, exactly the round-3
+  # reviewer's own methodology): a fresh submodule clone transferred the
+  # IDENTICAL object count with `--reference "$repo_root"` as with no
+  # `--reference` at all (both fetch everything over the wire), while
+  # referencing the submodule's OWN store directly
+  # (`"$repo_root"/.git/modules/<name>`) transferred ZERO objects. A
+  # single `--reference <path>` on `git submodule update` is passed to
+  # git-clone(1) verbatim for every submodule being cloned; it is never
+  # expanded per-submodule on this codepath. (git DOES have a genuine
+  # `-c submodule.alternateLocation=superproject` feature for automatic
+  # per-submodule alternate resolution, but it is wired only into `git
+  # clone --recurse-submodules --reference <path>`'s initial-clone
+  # codepath -- re-tested live and confirmed it has NO effect on a
+  # `submodule update --init --recursive --reference <path>` call
+  # against an ALREADY-EXISTING checkout, which is what a `git worktree
+  # add`-based replay needs here.) Fixed by `_fc_submodule_reference_
+  # update()` (defined above `do_one_replay`) which loops submodule-BY-
+  # submodule, computing and passing EACH submodule's own already-
+  # fetched store under $repo_root's git-common-dir individually
+  # (`git -C "$repo_root" rev-parse --git-common-dir` -- resolves
+  # correctly even when $repo_root is itself a linked worktree, since
+  # `--git-common-dir` always resolves to the shared repo, not a
+  # per-worktree path) as that ONE submodule's `--reference` --
+  # RECURSING into any submodule that itself declares its own
+  # `.gitmodules` (a nested submodule) using $repo_root's OWN
+  # already-checked-out copy of that submodule as the new reference
+  # source, since a nested submodule's store lives at
+  # `<parent-store>/modules/<nested-name>`, which `rev-parse
+  # --git-common-dir` composes correctly from within that checked-out
+  # directory (verified live against a real 2-level-nested scratch
+  # fixture: 0 objects transferred at BOTH the top-level AND the nested
+  # level). Degrades safely per submodule, independently, exactly as the
+  # round-2 text claimed for its own (broken) form: a submodule
+  # $repo_root has never fetched gets no `--reference` flag and falls
+  # through to a normal network clone for THAT submodule only (verified
+  # live, exit 0, unaffected); a submodule whose remote is genuinely
+  # unreachable still correctly fails non-zero regardless of whether a
+  # `--reference` was supplied (verified live: `--reference` never
+  # removes the need to negotiate refs with the remote -- it only avoids
+  # re-transferring objects the remote and the reference already
+  # agree on), preserving the exact "refuse to run gate_cmd against a
+  # partially-checked-out tree" semantics the caller below depends on.
+  # `--reference` (not `--reference-if-able`) is deliberate: this git
+  # version's `submodule update` does not recognise the `-if-able` form
+  # at all (confirmed live: real exit 1, a usage error).
+  export -f _fc_submodule_reference_update
   ( timeout --kill-after=5 "${timeout_s}s" \
-      git -c protocol.ext.allow=never -c protocol.file.allow=never \
-      -C "$wt_path" submodule update --init --recursive --quiet --reference "$repo_root" ) >/dev/null 2>&1 &
+      bash -c '_fc_submodule_reference_update "$1" "$2"' -- "$repo_root" "$wt_path" \
+  ) >/dev/null 2>&1 &
   local submodule_pid=$!
   wait "$submodule_pid"
   local submodule_rc=$?

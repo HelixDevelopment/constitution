@@ -296,3 +296,58 @@ func TestVersionTagsEmitJSON(t *testing.T) {
 		t.Fatalf("--emit unknown id stdout = %q, want %q", out, "{}\n")
 	}
 }
+
+// TestMigrateVersionTagsColumn_SchemaVersionNeverRegresses is the T048
+// round-3 review finding R3-I4 regression guard: migrateVersionTagsColumn's
+// own `ver == "" || ver < "3"` clause (fixed this session) used to compare
+// schema_version as TEXT — the exact SAME lexicographic-string-comparison
+// bug occurred_at.go's migrateItemHistoryOccurredAt() and db.go's own
+// schema_version bump were independently found+fixed for in T048 round-2
+// (finding F15; see TestMigrateItemHistoryOccurredAt_SchemaVersionNeverRegresses
+// and TestMigrateColumns_SchemaVersionNeverRegresses in occurred_at_test.go).
+// R3-I4 proved this THIRD occurrence of the same bug class live: seeding
+// schema_version='10' then calling migrateVersionTagsColumn regressed it to
+// '3'; a subsequent openDB() re-open (which re-runs db.go's own v6 bump,
+// the next migration step above v3 in the chain) then advanced it to '7' —
+// the exact 10 -> 3 -> 7 round-trip this test reproduces and asserts against
+// BEFORE trusting the fix, per §11.4.199 exact-reproduction-sequence.
+// strconv.Atoi now forces a genuine numeric comparison, matching this
+// column's real monotonic-integer semantics.
+func TestMigrateVersionTagsColumn_SchemaVersionNeverRegresses(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "wi.db")
+	db, err := openDB(dbPath)
+	if err != nil {
+		t.Fatalf("openDB: %v", err)
+	}
+	defer db.Close()
+
+	// Simulate a DB whose schema_version has already advanced past 3 into
+	// double digits (a future migration bumped it well beyond what this
+	// column's own migration would ever need to set).
+	if _, err := db.Exec(`UPDATE meta SET value='10' WHERE key='schema_version'`); err != nil {
+		t.Fatalf("seed schema_version=10: %v", err)
+	}
+
+	// Re-run the SAME idempotent migration this test's own name targets --
+	// this is exactly what the real `workable-items version-tags`
+	// subcommand does every time it runs against an already-advanced DB.
+	if err := migrateVersionTagsColumn(db); err != nil {
+		t.Fatalf("migrateVersionTagsColumn (on an already-advanced DB): %v", err)
+	}
+	if ver := readSchemaVersion(t, db); ver != "10" {
+		t.Fatalf("schema_version regressed to %q after migrateVersionTagsColumn on an already-advanced DB — want it to stay \"10\" (R3-I4: numeric comparison must not treat '10' as < '3')", ver)
+	}
+
+	// The reviewer's own exact reproduction sequence (§11.4.199): reopen the
+	// SAME db path afterward and confirm it advances forward through the
+	// rest of the migration chain (never bounces off a wrongly-regressed
+	// value) — never re-regresses.
+	db2, err := openDB(dbPath)
+	if err != nil {
+		t.Fatalf("openDB (second open): %v", err)
+	}
+	defer db2.Close()
+	if ver := readSchemaVersion(t, db2); ver != "10" {
+		t.Fatalf("schema_version = %q after re-opening an already-advanced DB — want it to stay \"10\"", ver)
+	}
+}

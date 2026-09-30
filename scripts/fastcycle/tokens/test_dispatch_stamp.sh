@@ -134,9 +134,37 @@ run_extract() {
 #   (`command -v jq` fails under this PATH). bash itself is invoked by its
 #   OWN absolute path ($BASH_ABS), never looked up on the restricted PATH,
 #   so only the TOOL's internal `command -v jq` check is affected.
+#
+# T048 round-3 review finding R3-M1 companion fix (2026-09-30): the claim
+# immediately above ("only the TOOL's internal `command -v jq` check is
+# affected") is INCOMPLETE, discovered live while fixing R3-M1 in
+# dispatch_stamp.sh itself. `_fc_default_item_prefix()` ALSO shells out to
+# a BARE `bash "$rp_script"` (release_prefix.sh) to derive the default
+# ticket-id prefix, and release_prefix.sh in turn needs `git`/`grep`/`sed`
+# — every one of which is ALSO unresolvable under `PATH="$NOJQ_BIN"`, so
+# this section's PATH restriction was ALWAYS breaking prefix resolution
+# too, silently masked before R3-M1 because the OLD hardcoded "ATM"
+# fallback happened to coincide with this checkout's real derived prefix.
+# R3-M1 replaced that literal "ATM" guess with the honest neutral "WIT"
+# fallback (§11.4.28/§11.4.177 decoupling), which genuinely changes what
+# this section's tool invocation resolves as its default prefix. A first
+# attempt at this companion fix tried `FC_DISPATCH_EXTRA_ITEM_PREFIXES=ATM`
+# (the tool's OTHER override mechanism) but that path ALSO needs `tr` to
+# parse the comma/pipe-separated list (dispatch_stamp.sh's own extra-
+# prefix loop), which is likewise unresolvable under this minimal PATH —
+# reproduced live (`tr: command not found`) before switching approach.
+# `FC_DISPATCH_ITEM_ID_RE` (a full regex override) is used instead: it
+# is read BEFORE `_fc_default_item_prefix()` is ever called (see
+# dispatch_stamp.sh's own `if [ -n "${FC_DISPATCH_ITEM_ID_RE:-}" ]`
+# branch), so it bypasses the whole prefix/tr/bash/git/grep/sed
+# dependency chain entirely — keeping this section testing exactly what
+# it always meant to test (the jq-absent AWK JSON-extraction path,
+# against the SAME shared "ATM-nnnn"-shaped fixtures section A already
+# uses) independently of, rather than accidentally coupled to, the
+# separate prefix-fallback mechanism R3-M1 fixed.
 run_guard_nojq() {
   local name="$1" want="$2" payload="$3" got
-  printf '%s' "$payload" | PATH="$NOJQ_BIN" "$BASH_ABS" "$TOOL" >/dev/null 2>&1
+  printf '%s' "$payload" | PATH="$NOJQ_BIN" FC_DISPATCH_ITEM_ID_RE='ATM-[0-9]+' "$BASH_ABS" "$TOOL" >/dev/null 2>&1
   got=$?
   if [ "$got" -eq "$want" ]; then
     printf '  PASS  %-64s (exit %s)\n' "$name" "$got"
@@ -148,7 +176,7 @@ run_guard_nojq() {
 }
 run_extract_nojq() {
   local name="$1" want="$2" payload="$3" got rc
-  got="$(printf '%s' "$payload" | PATH="$NOJQ_BIN" "$BASH_ABS" "$TOOL" --extract-item-id)"
+  got="$(printf '%s' "$payload" | PATH="$NOJQ_BIN" FC_DISPATCH_ITEM_ID_RE='ATM-[0-9]+' "$BASH_ABS" "$TOOL" --extract-item-id)"
   rc=$?
   if [ "$got" = "$want" ] && [ "$rc" -eq 0 ]; then
     printf '  PASS  %-64s (stdout="%s" exit=%s)\n' "$name" "$got" "$rc"
