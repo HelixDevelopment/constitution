@@ -392,7 +392,28 @@ def cmd_check(argv):
     # STABLE: a gate that was previously quarantined but whose freshly
     # recomputed same-key window is now clean re-stabilises and drops out
     # of quarantine (see module docstring's storage-layout section).
-    if existing is not None:
+    #
+    # I2 fix (T085 Round 1, 2026-09-30): the pre-remediation version
+    # cleared `quarantine[gate]` on ANY is_flaky=False result for this
+    # gate, regardless of which `key` the caller checked. Reproduced live
+    # before this fix (§11.4.199): 6 alternating PASS/FAIL `record` calls
+    # for gate=G1 key=K1 correctly flags FLAKY+EXCLUDED; a SUBSEQUENT
+    # `check --gate G1 --key K2` for an entirely unrelated, NEVER-recorded
+    # key K2 -- whose own `same_key_verdicts` window is empty and
+    # therefore trivially classifies STABLE (classify([]) => minority=0)
+    # -- silently deleted K1's quarantine entry too, because the deletion
+    # was keyed on `gate` alone. A `check` call MUST only ever
+    # read/evaluate the SPECIFIC key it was asked about -- never
+    # side-effect a DIFFERENT key's quarantine state. The quarantine entry
+    # therefore clears ONLY when (a) it exists, (b) it was flagged under
+    # THIS SAME key (existing["key"] == key -- a genuine re-evaluation of
+    # the key that triggered it, never an unrelated key's vacuous-empty
+    # window), and (c) this check's own window is non-empty (real evidence
+    # was actually re-examined, never an absence-of-data default -- an
+    # empty window proves nothing per §11.4.6/§11.4.201, so it must never
+    # be read as "now stable"). A quarantine flagged under a DIFFERENT key
+    # is left completely untouched by this check call.
+    if existing is not None and existing.get("key") == key and same_key_verdicts:
         del quarantine[gate]
         _atomic_write_json(quarantine_path(history_dir), quarantine)
 

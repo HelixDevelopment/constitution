@@ -13,6 +13,76 @@ elsewhere.
 Guarded by
 constitution/scripts/fastcycle/tests/test_catchset_compare_red.sh (T050).
 
+T085 Round 1 remediation (2026-09-30, B1): the pre-remediation `compare`
+was a bare gate-ID-SET diff -- it (a) accepted `--corpus` on JSON-parse
+alone (an empty `{}` was silently accepted, never consulted again),
+(b) never implemented CS-001/CS-002/CS-003/CS-006/CS-007, (c) hard-coded
+`old_missed`/`assertion_changes` to `[]` regardless of reality, (d) reported
+`caught_old`/`caught_new` as raw gate COUNTS rather than caught-defect
+counts, and (e) accepted a MutationTransferRecord on file EXISTENCE alone,
+never reading its `can_fail_status`. Reproduced live before this fix
+(§11.4.199): same gate id retained across OLD/NEW, NEW's script body
+GUTTED to unconditional `exit 0` (an "asserts text changed" mutation) with
+an empty `{}` --corpus -> `superset=true rc=0 assertion_changes=[]`. This
+module now implements, honestly bounded (see "Scope and honest boundary"
+below):
+
+  * genuine `--corpus` structural validation (schema + non-empty union of
+    mutation_defects/guard_defects; an empty/degenerate corpus is REFUSED,
+    never silently accepted) -- see load_corpus();
+  * a same-gate-id CONTENT-HASH diff (sha256 of the resolved script) for
+    every gate id retained in both manifests: a content change with no
+    proven MutationTransferRecord is now treated exactly like a REMOVAL
+    (requires the same CS-005 proof) -- this is the concrete mechanism
+    that closes the gutted-script repro above, since a gate id staying
+    present can no longer silently retain "coverage" credit for a script
+    whose behaviour changed underneath it;
+  * genuine CS-006 `assertion_changes` population (never hard-coded):
+    every same-id content change is listed with old/new sha256 + paths;
+  * genuine CS-005 transfer-record validation: `compare` now reads each
+    candidate record's `can_fail_status` and `schema` fields and accepts
+    it ONLY when `can_fail_status == "PROVEN"` and the schema matches
+    gate_audit.py's `mutation-transfer-record/v1` -- file existence alone
+    is no longer sufficient;
+  * genuine `caught_old`/`caught_new` counts derived from real gate-BODY
+    inspection (gate_audit.py's own FAIL_SIGNAL_RE classifier, imported --
+    not duplicated -- so both tools agree on "can this gate ever fail"):
+    a gate whose body can never signal FAIL (`gate_noop.sh`'s shape) no
+    longer inflates the catch count the way a bare `len(gates)` did;
+  * an OPTIONAL, additive per-manifest `seed_defects` + `base_tree` field
+    (SeededDefect, data-model.md §3.2) that, when a manifest declares it,
+    drives a REAL CS-001/CS-002/CS-003 per-defect execution: a disposable
+    mktemp copy of `base_tree` is made, the defect's `patch` is overlaid,
+    and EVERY gate in OLD then NEW is run against the SAME mutated copy,
+    producing genuine `old_verdict`/`new_verdict ∈ {CAUGHT, MISSED}` per
+    defect (data-model.md §3.3's CatchSetComparison.per_defect shape) --
+    `old_missed` is now populated from REAL per-defect execution results,
+    never hard-coded; a CAUGHT verdict cites a content-addressed evidence
+    file under `--workdir/evidence/` (CS-007);
+  * baseline sanity (CS-003) is strengthened from `sh -n` (syntax only)
+    to ALSO run every gate against an unmutated disposable copy of any
+    declared `base_tree`, requiring all-PASS, when one is declared.
+
+Scope and honest boundary (§11.4.6): this project's REAL corpus
+(corpus-build's `mutation_defects`/`guard_defects`, sourced from
+`meta_test_false_positive_proof.sh`'s inline mutation labels and the
+on-device `regression_guard/registry.tsv`) does not, as of this commit,
+carry a generic, source-side-invocable seed/patch reference per entry --
+mutation labels are inline bash logic inside their own harness, not
+standalone patch files, and guard-registry rows are almost entirely
+on-device (video_display/audio_output) checks a source-only comparison
+run cannot execute. `compare` therefore does NOT attempt to generically
+"apply" an arbitrary `--corpus` entry; it validates the corpus
+structurally (so a degenerate/empty corpus is refused, never silently
+accepted) and reports its real counts, and it performs GENUINE per-defect
+execution only for manifest-declared `seed_defects` (the concrete,
+generalisable mechanism the toy RED fixtures under
+tests/fixtures/catchset_compare/ now use). This is a real, load-bearing
+strengthening over the pre-remediation stub (which never used --corpus or
+ran anything), not a claim that every real corpus entry is executed here
+-- wiring the real corpus into a fully generic per-defect proof (T065/T083
+per tasks.md) remains separate, larger, device-gated follow-on work.
+
 Subcommands
 -----------
 corpus-build --config <cfg> --out <out>
@@ -27,21 +97,16 @@ corpus-build --config <cfg> --out <out>
 compare --config <cfg> --corpus <corpus.json> --old <old.json> \
         --new <new.json> --workdir <dir> --out <out> \
         [--jobs N] [--determinism-check]
-    Loads OLD and NEW gate manifests ({"gates":[{"id":..,"script":..}]},
-    script paths relative to the manifest file's own directory). Computes
-    the STRUCTURAL gate-set difference: any gate id present in OLD and
-    absent from NEW is a potential coverage loss (CS-004). For each such
-    removed gate, consults --config's transfer_records_dir (CS-005) for a
-    recorded MutationTransferRecord proving its mutation is caught
-    elsewhere; if none is recorded, the removal is treated as
-    old=CAUGHT/new=MISSED (a violation) and named. A gate present in NEW
-    but absent from OLD is a pure gain (never a violation, CS-004
-    directionality). Baseline sanity (CS-003 proxy, since no single
-    concrete target file is implied by a real-project gate id): every
-    gate script named in OLD/NEW is confirmed to exist and parse cleanly
-    (`sh -n`) before any comparison runs.
-    Exit 0 if no unproven removal is found (superset holds); exit 1
-    naming every unproven removal.
+    Loads OLD and NEW gate manifests ({"gates":[{"id":..,"script":..}],
+    "base_tree": <optional>, "seed_defects": <optional>}, paths relative to
+    the manifest file's own directory). Computes the gate-set diff plus the
+    content-hash diff for retained ids (CS-004/CS-006); consults
+    --config's transfer_records_dir (CS-005) for a PROVEN
+    MutationTransferRecord before accepting a removal or a content change
+    as safe. When either manifest declares `seed_defects`, runs the real
+    per-defect CS-001/CS-002/CS-003 execution described above.
+    Exit 0 if superset holds (no unproven removal/change AND no per-defect
+    old=CAUGHT/new=MISSED row); exit 1 naming every violation.
 
 --determinism-check (C-003): runs the comparison twice internally and
 refuses (exit 1) if the two canonical output bodies differ.
@@ -56,15 +121,24 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 
 SCHEMA_CATCHSET = "catchset/v1"
 SCHEMA_CORPUS = "catchset-corpus/v1"
+SCHEMA_TRANSFER = "mutation-transfer-record/v1"
 
 EXIT_OK = 0
 EXIT_FINDING = 1
 EXIT_USAGE = 2
 EXIT_SELFTEST = 3
 EXIT_BLIND = 4
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+import gate_audit as _gate_audit  # noqa: E402 -- sibling module, single source of
+# truth for "can this gate body ever fail" (FAIL_SIGNAL_RE) and the
+# `<script> <target>` execution convention (run_gate), never duplicated.
 
 
 def canonical_json(obj):
@@ -73,6 +147,17 @@ def canonical_json(obj):
 
 def body_hash(obj):
     return hashlib.sha256(canonical_json(obj).encode("utf-8")).hexdigest()
+
+
+def sha256_file(path):
+    h = hashlib.sha256()
+    try:
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(65536), b""):
+                h.update(chunk)
+    except OSError:
+        return None
+    return h.hexdigest()
 
 
 def load_yaml_config(path):
@@ -202,10 +287,66 @@ def cmd_corpus_build(args):
 
 
 # ---------------------------------------------------------------------------
-# compare
+# compare -- corpus loading + validation (B1 fix: genuinely consulted, never
+# merely JSON-parsed and discarded)
+# ---------------------------------------------------------------------------
+
+def load_corpus(path):
+    """Loads and STRUCTURALLY VALIDATES --corpus (B1 fix). A corpus that
+    parses as JSON but carries no real defect union (e.g. the bare `{}`
+    the pre-remediation `compare` silently accepted) is refused here --
+    CS-002 requires "the same corpus" to genuinely drive the comparison,
+    which an empty/degenerate corpus structurally cannot do. Returns the
+    parsed dict on success; never returns a corpus this function has not
+    itself confirmed carries `mutation_defects` + `guard_defects` lists
+    (empty lists are permitted individually -- e.g. a project with zero
+    registered guards yet -- but their UNION must be non-empty, and the
+    required schema/sources keys must be present)."""
+    if not os.path.isfile(path):
+        sys.stderr.write(f"catchset_compare compare: --corpus not found: {path}\n")
+        sys.exit(EXIT_USAGE)
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            corpus = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"catchset_compare compare: --corpus is not readable/parseable JSON: {exc}\n")
+        sys.exit(EXIT_USAGE)
+    if not isinstance(corpus, dict):
+        sys.stderr.write("catchset_compare compare: --corpus must be a JSON object\n")
+        sys.exit(EXIT_USAGE)
+    mutation_defects = corpus.get("mutation_defects")
+    guard_defects = corpus.get("guard_defects")
+    if not isinstance(mutation_defects, list) or not isinstance(guard_defects, list):
+        sys.stderr.write(
+            "catchset_compare compare: --corpus is missing required list keys "
+            "'mutation_defects'/'guard_defects' (or corpus-build has not been run "
+            f"against real sources) -- refusing a degenerate/empty corpus: {path}\n"
+        )
+        sys.exit(EXIT_USAGE)
+    if len(mutation_defects) + len(guard_defects) == 0:
+        sys.stderr.write(
+            f"catchset_compare compare: --corpus {path} carries ZERO defects "
+            "(mutation_defects and guard_defects are both empty) -- CS-002 "
+            "requires a real corpus to drive the comparison; run corpus-build "
+            "against real, non-empty sources first. Refusing rather than "
+            "silently proceeding as if the corpus were unused (B1)\n"
+        )
+        sys.exit(EXIT_USAGE)
+    return corpus
+
+
+# ---------------------------------------------------------------------------
+# compare -- gate manifest loading (extended with optional seed_defects /
+# base_tree, additive over the original {"gates":[...]} shape)
 # ---------------------------------------------------------------------------
 
 def load_gate_manifest(path):
+    """Returns (config_id, gates: {id: script_abs_path}, base_tree_abs_or_None,
+    seed_defects: {defect_id: patch_abs_path}). `base_tree`/`seed_defects`
+    are OPTIONAL, additive manifest fields (SeededDefect, data-model.md
+    §3.2) -- their absence is not an error; every existing manifest lacking
+    them behaves exactly as before (structural diff + sh -n baseline only).
+    """
     with open(path, "r", encoding="utf-8") as fh:
         manifest = json.load(fh)
     base = os.path.dirname(os.path.abspath(path))
@@ -214,13 +355,28 @@ def load_gate_manifest(path):
         gid = g["id"]
         script = os.path.normpath(os.path.join(base, g["script"]))
         gates[gid] = script
-    return manifest.get("config_id", ""), gates
+
+    base_tree = None
+    bt = manifest.get("base_tree")
+    if bt:
+        base_tree = os.path.normpath(os.path.join(base, bt))
+
+    seed_defects = {}
+    for sd in manifest.get("seed_defects", []):
+        did = sd["defect_id"]
+        patch = os.path.normpath(os.path.join(base, sd["patch"]))
+        seed_defects[did] = patch
+
+    return manifest.get("config_id", ""), gates, base_tree, seed_defects
 
 
 def gate_script_sane(script_path):
-    """Baseline-sanity proxy (CS-003, since no single concrete real-project
-    target is implied by a gate id alone): the gate script exists and
-    parses cleanly under `sh -n`."""
+    """Baseline-sanity proxy (CS-003 parse-level check, since no single
+    concrete real-project target is implied by a gate id alone in the
+    general case): the gate script exists and parses cleanly under
+    `sh -n`. A REAL execution baseline check runs additionally in
+    compute_comparison() whenever a `base_tree` is declared (see
+    baseline_execution_check())."""
     if not os.path.isfile(script_path):
         return False, f"script not found: {script_path}"
     try:
@@ -234,51 +390,265 @@ def gate_script_sane(script_path):
     return True, ""
 
 
+def make_disposable_target(workdir, base_tree, patch=None):
+    """CS-001 isolation: copies base_tree into a fresh mktemp subdirectory
+    of workdir (never the real tree), optionally overlaying `patch`'s
+    content onto that same file (the toy-fixture SeededDefect model this
+    contract's own gate_audit.py make_disposable_copy() already
+    established: "one file, wholesale-replaced by a sibling variant").
+    Returns the disposable copy's absolute path."""
+    dest_dir = tempfile.mkdtemp(dir=workdir)
+    dest = os.path.join(dest_dir, os.path.basename(base_tree))
+    import shutil
+    shutil.copy2(base_tree, dest)
+    if patch is not None:
+        shutil.copy2(patch, dest)
+    os.chmod(dest, 0o755)
+    return dest
+
+
+def baseline_execution_check(workdir, base_tree, gates):
+    """Runs every gate in `gates` (dict of id->script) against an
+    UNMUTATED disposable copy of base_tree (CS-003: "run both configs on
+    the unmutated tree; both must be all-PASS") -- a REAL execution check,
+    strengthening the pre-remediation `sh -n`-only baseline (B1). Returns
+    (all_pass: bool, failing_notes: [str])."""
+    target = make_disposable_target(workdir, base_tree, patch=None)
+    notes = []
+    all_pass = True
+    for gid, script in sorted(gates.items()):
+        verdict = _gate_audit.run_gate(script, target)
+        if verdict is not True:
+            all_pass = False
+            notes.append(f"{gid}: baseline execution against clean {os.path.basename(base_tree)} did not PASS (CS-003)")
+    return all_pass, notes
+
+
+def write_evidence(workdir, defect_id, gate_id, script, target):
+    """CS-007: captures the FAIL gate's real stdout+stderr to a
+    content-addressed evidence file under workdir/evidence/. Returns the
+    workdir-relative path (never a bare gate id/defect id as 'evidence')."""
+    try:
+        proc = subprocess.run(
+            ["sh", script, target], capture_output=True, text=True, timeout=15
+        )
+        payload = f"gate={gate_id} defect={defect_id} rc={proc.returncode}\n--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}\n"
+    except Exception as exc:  # noqa: BLE001 - never crash the comparison over an evidence-capture failure
+        payload = f"gate={gate_id} defect={defect_id} evidence capture raised: {exc}\n"
+    digest = hashlib.sha256(payload.encode("utf-8", errors="replace")).hexdigest()
+    ev_dir = os.path.join(workdir, "evidence")
+    os.makedirs(ev_dir, exist_ok=True)
+    rel = os.path.join("evidence", f"{digest}.txt")
+    full = os.path.join(workdir, rel)
+    if not os.path.isfile(full):
+        with open(full, "w", encoding="utf-8") as fh:
+            fh.write(payload)
+    return rel
+
+
+def run_defect_against_config(workdir, base_tree, patch, defect_id, gates):
+    """CS-001/CS-002: applies `defect_id`'s seed patch onto a fresh
+    disposable copy of base_tree, runs every gate in `gates`, and returns
+    (verdict ∈ {"CAUGHT","MISSED"}, catchers: [gate_id], evidence: {gate_id: rel_path}).
+    A CAUGHT gate's evidence is captured (CS-007); a PASSing gate is not
+    (nothing to cite -- it did not fail)."""
+    target = make_disposable_target(workdir, base_tree, patch=patch)
+    catchers = []
+    evidence = {}
+    for gid, script in sorted(gates.items()):
+        verdict = _gate_audit.run_gate(script, target)
+        if verdict is False:
+            catchers.append(gid)
+            evidence[gid] = write_evidence(workdir, defect_id, gid, script, target)
+    return ("CAUGHT" if catchers else "MISSED"), catchers, evidence
+
+
 def transfer_record_path(cfg, root, gate_id):
     tr_dir = cfg_path(cfg, root, "transfer_records_dir")
     return os.path.join(tr_dir, f"{gate_id}.json")
 
 
-def compute_comparison(cfg, root, old_path, new_path):
-    old_id, old_gates = load_gate_manifest(old_path)
-    new_id, new_gates = load_gate_manifest(new_path)
+def transfer_record_proven(cfg, root, gate_id):
+    """CS-005 consultation (B1 fix): reads the candidate MutationTransferRecord
+    and requires its `can_fail_status` field to literally equal "PROVEN"
+    AND its `schema` to match gate_audit.py's mutation-transfer-record/v1 --
+    file EXISTENCE alone (the pre-remediation behaviour) is no longer
+    sufficient. Returns (proven: bool, note: str)."""
+    rec_path = transfer_record_path(cfg, root, gate_id)
+    if not os.path.isfile(rec_path):
+        return False, f"no transfer record at {rec_path}"
+    try:
+        with open(rec_path, "r", encoding="utf-8") as fh:
+            rec = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        return False, f"transfer record at {rec_path} is not readable/parseable JSON: {exc}"
+    if not isinstance(rec, dict):
+        return False, f"transfer record at {rec_path} is not a JSON object"
+    if rec.get("schema") != SCHEMA_TRANSFER:
+        return False, f"transfer record at {rec_path} has schema={rec.get('schema')!r}, expected {SCHEMA_TRANSFER!r}"
+    if rec.get("can_fail_status") != "PROVEN":
+        return False, f"transfer record at {rec_path} has can_fail_status={rec.get('can_fail_status')!r}, not PROVEN"
+    return True, f"transfer record at {rec_path} is PROVEN"
 
+
+def compute_comparison(cfg, root, old_path, new_path, corpus, workdir):
+    old_id, old_gates, old_base_tree, old_seed_defects = load_gate_manifest(old_path)
+    new_id, new_gates, new_base_tree, new_seed_defects = load_gate_manifest(new_path)
+
+    # --- baseline sanity (CS-003): sh -n on every gate, plus a REAL
+    #     execution baseline whenever either manifest declares base_tree.
     baseline_all_pass = True
     sanity_notes = []
-    for gid, script in {**old_gates, **new_gates}.items():
+    all_gates = {**old_gates, **new_gates}
+    for gid, script in all_gates.items():
         ok, note = gate_script_sane(script)
         if not ok:
             baseline_all_pass = False
             sanity_notes.append(f"{gid}: {note}")
 
+    base_tree = new_base_tree or old_base_tree
+    if base_tree is not None and baseline_all_pass:
+        ok, notes = baseline_execution_check(workdir, base_tree, all_gates)
+        if not ok:
+            baseline_all_pass = False
+            sanity_notes.extend(notes)
+
+    # --- structural gate-set diff (CS-004 core) ---
     removed_ids = sorted(set(old_gates) - set(new_gates))
     gained_ids = sorted(set(new_gates) - set(old_gates))
+    retained_ids = sorted(set(old_gates) & set(new_gates))
+
+    # --- content-hash diff for retained ids (CS-006 + the concrete B1
+    #     fix: a same-id gate whose SCRIPT CONTENT changed can no longer
+    #     silently keep "coverage" credit -- it requires the same CS-005
+    #     transfer proof a removal would) ---
+    assertion_changes = []
+    changed_ids = []
+    for gid in retained_ids:
+        old_hash = sha256_file(old_gates[gid])
+        new_hash = sha256_file(new_gates[gid])
+        if old_hash is not None and new_hash is not None and old_hash != new_hash:
+            changed_ids.append(gid)
+            assertion_changes.append({
+                "gate_id": gid,
+                "old_script": os.path.relpath(old_gates[gid], root) if old_gates[gid].startswith(root) else old_gates[gid],
+                "new_script": os.path.relpath(new_gates[gid], root) if new_gates[gid].startswith(root) else new_gates[gid],
+                "old_sha256": old_hash,
+                "new_sha256": new_hash,
+                "note": "ASSERTION_CHANGED -- gate id retained, script content differs; review decides "
+                        "whether this is structural/additive (CS-006); this harness never approves it "
+                        "automatically -- it is treated as an unproven coverage change unless a PROVEN "
+                        "MutationTransferRecord exists for this gate id.",
+            })
 
     named_defects = []
-    lost = 0
+    named_defects_detail = []
     for gid in removed_ids:
-        rec_path = transfer_record_path(cfg, root, gid)
-        if os.path.isfile(rec_path):
-            continue  # a recorded MutationTransferRecord proves this removal safe (CS-005)
+        proven, note = transfer_record_proven(cfg, root, gid)
+        if proven:
+            continue
         named_defects.append(gid)
-        lost += 1
+        named_defects_detail.append({"gate_id": gid, "reason": "removed", "detail": note})
+    for gid in changed_ids:
+        proven, note = transfer_record_proven(cfg, root, gid)
+        if proven:
+            continue
+        named_defects.append(gid)
+        named_defects_detail.append({"gate_id": gid, "reason": "changed_unproven", "detail": note})
+
+    # --- genuine caught_old/caught_new (B1 fix): counts of gates whose
+    #     body actually carries a reachable FAIL signal (gate_audit.py's
+    #     own classifier, imported -- single source of truth), never raw
+    #     manifest sizes. A gate that can structurally never fail
+    #     (gate_noop.sh's shape) does not inflate this count. ---
+    def executing_count(gates):
+        n = 0
+        for script in gates.values():
+            if os.path.isfile(script):
+                body = _gate_audit.read_gate_body_with_siblings(script)
+                if _gate_audit.FAIL_SIGNAL_RE.search(body):
+                    n += 1
+        return n
+
+    caught_old = executing_count(old_gates)
+    caught_new = executing_count(new_gates)
+    catch_count_basis = "gate_capability_heuristic"
+
+    # --- genuine per-defect execution (CS-001/CS-002/CS-003) when either
+    #     manifest declares seed_defects (B1 fix: old_missed is now
+    #     computed from real execution, never hard-coded) ---
+    seed_defects = dict(old_seed_defects)
+    seed_defects.update(new_seed_defects)  # new's patch wins on a defect_id collision
+    per_defect = []
+    old_missed = []
+    if seed_defects and base_tree is not None:
+        catch_count_basis = "per_defect_execution"
+        real_caught_old = 0
+        real_caught_new = 0
+        for defect_id in sorted(seed_defects):
+            patch = seed_defects[defect_id]
+            old_verdict, old_catchers, old_evidence = run_defect_against_config(
+                workdir, base_tree, patch, defect_id, old_gates)
+            new_verdict, new_catchers, new_evidence = run_defect_against_config(
+                workdir, base_tree, patch, defect_id, new_gates)
+            if old_verdict == "CAUGHT":
+                real_caught_old += 1
+            if new_verdict == "CAUGHT":
+                real_caught_new += 1
+            evidence = {f"old:{k}": v for k, v in old_evidence.items()}
+            evidence.update({f"new:{k}": v for k, v in new_evidence.items()})
+            per_defect.append({
+                "defect_id": defect_id,
+                "old_verdict": old_verdict,
+                "new_verdict": new_verdict,
+                "old_catchers": old_catchers,
+                "new_catchers": new_catchers,
+                "evidence": evidence,
+            })
+            if old_verdict == "MISSED":
+                # CS-003: a defect OLD does not catch is OLD_MISSED -- a
+                # pre-existing gap, excluded from the superset test for
+                # this row, its count published (never silently dropped).
+                old_missed.append(defect_id)
+            elif new_verdict == "MISSED":
+                # old=CAUGHT & new=MISSED -- the ONLY superset-violating
+                # shape (CS-004 directionality).
+                if defect_id not in named_defects:
+                    named_defects.append(defect_id)
+                named_defects_detail.append({
+                    "defect_id": defect_id,
+                    "reason": "defect_missed",
+                    "detail": f"old={old_verdict} (catchers={old_catchers}) -> "
+                              f"new={new_verdict}: superset violated for this defect",
+                })
+        caught_old = real_caught_old
+        caught_new = real_caught_new
 
     result = {
         "schema": SCHEMA_CATCHSET,
         "old_config_id": old_id,
         "new_config_id": new_id,
         "baseline_all_pass": baseline_all_pass,
-        "old_missed": [],
-        "assertion_changes": [],
+        "old_missed": old_missed,
+        "assertion_changes": assertion_changes,
         "counts": {
-            "caught_old": len(old_gates),
-            "caught_new": len(new_gates),
-            "lost": lost,
+            "caught_old": caught_old,
+            "caught_new": caught_new,
+            "lost": len(named_defects),
             "gained": len(gained_ids),
         },
+        "catch_count_basis": catch_count_basis,
         "removed_gate_ids": removed_ids,
         "gained_gate_ids": gained_ids,
+        "changed_gate_ids": changed_ids,
         "named_defects": named_defects,
+        "named_defects_detail": named_defects_detail,
+        "per_defect": per_defect,
+        "corpus_summary": {
+            "schema": corpus.get("schema"),
+            "mutation_defect_count": len(corpus.get("mutation_defects", [])),
+            "guard_defect_count": len(corpus.get("guard_defects", [])),
+        },
         "sanity_notes": sanity_notes,
     }
     superset = baseline_all_pass and len(named_defects) == 0
@@ -292,15 +662,7 @@ def cmd_compare(args):
     cfg = load_yaml_config(args.config)
     root = project_root_of(args.config)
 
-    if not os.path.isfile(args.corpus):
-        sys.stderr.write(f"catchset_compare compare: --corpus not found: {args.corpus}\n")
-        sys.exit(EXIT_USAGE)
-    try:
-        with open(args.corpus, "r", encoding="utf-8") as fh:
-            json.load(fh)
-    except (OSError, json.JSONDecodeError) as exc:
-        sys.stderr.write(f"catchset_compare compare: --corpus is not readable/parseable JSON: {exc}\n")
-        sys.exit(EXIT_USAGE)
+    corpus = load_corpus(args.corpus)  # B1: genuinely validated, refuses on empty/degenerate
     if not os.path.isfile(args.old):
         sys.stderr.write(f"catchset_compare compare: --old not found: {args.old}\n")
         sys.exit(EXIT_USAGE)
@@ -310,10 +672,10 @@ def cmd_compare(args):
 
     os.makedirs(args.workdir, exist_ok=True)
 
-    result, rc = compute_comparison(cfg, root, args.old, args.new)
+    result, rc = compute_comparison(cfg, root, args.old, args.new, corpus, args.workdir)
 
     if args.determinism_check:
-        result2, rc2 = compute_comparison(cfg, root, args.old, args.new)
+        result2, rc2 = compute_comparison(cfg, root, args.old, args.new, corpus, args.workdir)
         if result["body_hash"] != result2["body_hash"]:
             sys.stderr.write(
                 "catchset_compare compare: --determinism-check FAILED: "
@@ -334,7 +696,7 @@ def cmd_compare(args):
     else:
         print(
             f"compare: superset VIOLATED -- {len(result['named_defects'])} "
-            f"unproven removal(s): {', '.join(result['named_defects'])} "
+            f"unproven removal/change/defect(s): {', '.join(str(x) for x in result['named_defects'])} "
             f"-- {args.out} written"
         )
     return rc

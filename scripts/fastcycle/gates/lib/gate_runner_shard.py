@@ -20,7 +20,10 @@ manifest.json ("UNCONFIRMED by plan.md itself... DEFINED here, binding-if-
 adopted", per test_gate_shard_red.sh's own header comment; matches every
 fixture under tests/fixtures/gate_shard/):
     {"gates": [{"name": str, "script": str, "args": [str,...],
-                "writes": [str,...]}, ...], "n_shards": int (informational
+                "writes": [str,...], "reads": [str,...] (OPTIONAL, T085
+                Round 1 I3 addition -- a gate omitting it behaves exactly
+                as before; see _union_find_clusters()'s own docstring)},
+               ...], "n_shards": int (informational
                only -- the REAL partition count is gate_runner.sh's own
                --n-shards CLI flag, since the RED test invokes the SAME
                manifest with DIFFERENT --n-shards values to compare
@@ -175,7 +178,29 @@ def _load_manifest(path, cmd):
 
 def _union_find_clusters(gates):
     """Returns (clusters: {root_name: [gate_name,...]}, protected_roots:
-    set(root_name)) per this file's own header-comment algorithm."""
+    set(root_name)) per this file's own header-comment algorithm.
+
+    I3 fix (T085 Round 1, 2026-09-30): the pre-remediation version unioned
+    ONLY write-write path intersections, contra plan.md line 812's own
+    literal rule "no shard writes what another READS" and this file's own
+    header-comment clause 1 (restated above the sole prior mention of the
+    word). Reproduced live before this fix (§11.4.199): a gate declaring
+    `writes: ["shared.txt"]` and a SEPARATE gate declaring
+    `reads: ["shared.txt"]` (no writes overlap at all) landed in DIFFERENT
+    shards and ran under `xargs -P` in PARALLEL -- exactly the
+    reader/writer race this whole mechanism exists to prevent, since a
+    manifest gate can now declare an OPTIONAL `"reads": [str, ...]` field
+    (additive to the existing `"writes"` field this tool already
+    consumed; a gate omitting `reads` behaves exactly as before). The
+    fix: after the existing write-write union pass, a SECOND pass unions
+    any gate's declared READ path with whichever OTHER gate (if any)
+    declared that SAME path as a WRITE -- so a reader is always
+    co-scheduled into the same cluster (and therefore the same shard) as
+    that path's writer, never split across shards to run concurrently
+    with it. Read-read intersections are NOT unioned (two gates that only
+    ever READ the same file are not a race and may run in parallel, per
+    the same "no shard writes what another reads" rule -- writes are the
+    hazard, not reads)."""
     parent = {g["name"]: g["name"] for g in gates}
 
     def find(x):
@@ -200,6 +225,25 @@ def _union_find_clusters(gates):
                 union(g["name"], write_owner[path])
             else:
                 write_owner[path] = g["name"]
+
+    # I3 fix: write-vs-read union pass -- a gate that READS a path another
+    # gate WRITES must co-schedule with that writer (never split across
+    # shards). This pass runs strictly AFTER every write-write union above
+    # has completed, so `write_owner` already reflects every writer's
+    # FINAL cluster membership before any reader is folded in.
+    for g in gates:
+        for raw_path in g.get("reads", []):
+            path = os.path.normpath(raw_path)
+            owner = write_owner.get(path)
+            if owner is not None and owner != g["name"]:
+                union(g["name"], owner)
+            if owner is not None and _is_protected(path):
+                # A reader of a PROTECTED path (tracker DB / agent
+                # registry) is swept into the same protected treatment as
+                # its writer -- see protected_roots computation below,
+                # which runs AFTER this pass so `find()` reflects the
+                # read-write union too.
+                protected_names.add(g["name"])
 
     clusters = {}
     for g in gates:

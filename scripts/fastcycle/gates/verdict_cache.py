@@ -132,6 +132,69 @@ def compute_key(envelope, gate_script_bytes):
     return hashlib.sha256(payload).hexdigest()
 
 
+def _sha256_file_or_none(path):
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(65536), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except OSError:
+        return None
+
+
+def verify_observed_inputs_integrity(envelope, envelope_dir):
+    """I1 fix (T085 Round 1, 2026-09-30): compute_key() above -- like
+    tests/lib/dec07_key_ref.py, the SAME authoritative reference T051's
+    RED test validates fixtures against -- deliberately builds its key
+    from the CALLER-DECLARED `sha256` field on each observed_inputs entry
+    (this IS the fixture-authoring intent: e.g. vc_one_byte_flip's
+    get_envelope.json keeps `path: "inputs/a.txt"` unchanged but declares
+    a DIFFERENT sha256 than put's, modelling "the caller re-traced and
+    the file's real content had changed by lookup time" -- switching the
+    KEY FORMULA itself to re-hash from disk would make that fixture's
+    real, unchanged inputs/a.txt collapse both envelopes onto the SAME
+    key, turning its required MISS into a false HIT and breaking a
+    currently-GREEN golden-bad fixture).
+
+    The genuine gap I1 identifies is different: NOTHING previously
+    verified that a caller's DECLARED hash is actually truthful about the
+    file it names, RIGHT NOW. Reproduced live before this fix (§11.4.199):
+    put a PASS verdict, then genuinely edit the real underlying input file
+    on disk, then get with the SAME (now stale) envelope the caller never
+    refreshed -- the tool served the stale PASS, because it never checked
+    the envelope's own claim against reality. This function closes that
+    gap as an INTEGRITY CHECK independent of the key formula: for every
+    observed_inputs[] entry, resolve `path` relative to the FIXTURE-FAMILY
+    base directory (`os.path.dirname(envelope_dir)` -- the same base
+    `gate_script`'s own `"../"` notation reaches; observed_inputs[].path
+    was never previously resolved as a real filesystem path at all, so
+    this is a new, additive convention matching the real, on-disk fixture
+    layout, not a change to an existing one) and re-hash the REAL file NOW
+    (VC-001: "the CURRENT bytes of every component at lookup time").
+    A caller-declared hash that does not match reality means the CALLER'S
+    OWN envelope cannot be trusted for this operation -- put/get both
+    refuse rather than build a key or serve a verdict from unverified
+    data. Returns a list of mismatch dicts (empty = every declared hash
+    verified against the real file); an unreadable file is ALSO reported
+    as a mismatch (fail-closed, §11.4.101 conservative-safe default)."""
+    base = os.path.dirname(envelope_dir)
+    mismatches = []
+    for entry in envelope.get("observed_inputs", []):
+        rel_path = entry.get("path", "")
+        resolved = os.path.normpath(os.path.join(base, rel_path))
+        real_hash = _sha256_file_or_none(resolved)
+        declared = entry.get("sha256")
+        if real_hash != declared:
+            mismatches.append({
+                "path": rel_path,
+                "resolved_path": resolved,
+                "declared_sha256": declared,
+                "real_sha256": real_hash,
+            })
+    return mismatches
+
+
 def load_envelope_and_key(inputs_path):
     """Load the --inputs envelope JSON, resolve gate_script relative to the
     envelope file's OWN directory (never the caller's cwd -- the fixtures'
@@ -215,6 +278,28 @@ def cmd_put(argv):
         print(f"REFUSE key={key} verdict_NOT_CACHEABLE={verdict}")
         return 3
 
+    # I1 fix: refuse to STORE a verdict keyed on an envelope whose
+    # observed_inputs claims do not match the real files right now --
+    # storing under an unverified key would risk this exact PUT becoming
+    # a stale-HIT source later (never observed in the existing fixtures,
+    # since every one declares real, correct hashes at put-time, but a
+    # genuine additional safety net per VC-001's own "current bytes").
+    envelope_dir = os.path.dirname(os.path.abspath(flags["inputs"]))
+    mismatches = verify_observed_inputs_integrity(envelope, envelope_dir)
+    if mismatches:
+        paths = ",".join(m["path"] for m in mismatches)
+        print(f"REFUSE key={key} observed_inputs_integrity_mismatch={paths}")
+        for m in mismatches:
+            sys.stderr.write(
+                f"verdict_cache.py put: observed_inputs entry {m['path']!r} "
+                f"(resolved {m['resolved_path']!r}) declares sha256="
+                f"{m['declared_sha256']!r} but the REAL file's current "
+                f"content hashes to {m['real_sha256']!r} -- refusing to "
+                "store a verdict keyed on an unverified envelope (I1, "
+                "VC-001 'current bytes at lookup time')\n"
+            )
+        return 3
+
     # --evidence is a CALLER-supplied CLI argument (never read from inside
     # the envelope's own "evidence" field, which the README documents as
     # record-keeping only, not a programmatic input) -- it therefore
@@ -250,6 +335,31 @@ def cmd_get(argv):
     except (OSError, KeyError, json.JSONDecodeError) as exc:
         print("MISS key=UNKNOWN")
         sys.stderr.write(f"verdict_cache.py get: cannot compute key: {exc}\n")
+        return 1
+
+    # I1 fix: NEVER serve a HIT (or even attempt the DB lookup) from an
+    # envelope whose observed_inputs claims do not match the real files
+    # right now -- this is the exact repro the finding describes ("put
+    # PASS, change the input so the real gate exits 1, get -> HIT
+    # verdict=PASS"): the caller's --inputs envelope was stale (never
+    # re-traced after the real change), and the pre-fix tool had no way
+    # to detect that. A mismatch is reported as an honest MISS (same wire
+    # format every other MISS uses -- FR-007's "never a stale verdict" is
+    # what matters, not a distinct exit path nothing tests for), with the
+    # real reason on stderr for diagnosability.
+    envelope_dir = os.path.dirname(os.path.abspath(flags["inputs"]))
+    mismatches = verify_observed_inputs_integrity(envelope, envelope_dir)
+    if mismatches:
+        for m in mismatches:
+            sys.stderr.write(
+                f"verdict_cache.py get: observed_inputs entry {m['path']!r} "
+                f"(resolved {m['resolved_path']!r}) declares sha256="
+                f"{m['declared_sha256']!r} but the REAL file's current "
+                f"content hashes to {m['real_sha256']!r} -- refusing to "
+                "trust this envelope, reporting MISS rather than risking a "
+                "stale HIT (I1, VC-001 'current bytes at lookup time')\n"
+            )
+        print(f"MISS key={key}")
         return 1
 
     cache_dir = flags["cache-dir"]

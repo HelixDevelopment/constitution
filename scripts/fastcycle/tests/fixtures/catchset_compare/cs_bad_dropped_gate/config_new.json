@@ -1,6 +1,16 @@
 {
   "config_id": "cs_bad_dropped_gate.new",
   "gates": [
-    {"id": "g_noop", "script": "../_shared/gates/gate_noop.sh"}
+    {
+      "id": "g_noop",
+      "script": "../_shared/gates/gate_noop.sh"
+    }
+  ],
+  "base_tree": "../_shared/base_tree/widget.sh",
+  "seed_defects": [
+    {
+      "defect_id": "D1",
+      "patch": "../_shared/patches/defect_d1_widget.sh"
+    }
   ]
 }

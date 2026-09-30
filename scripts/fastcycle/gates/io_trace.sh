@@ -49,7 +49,11 @@
 #   (fixtures/io_trace/README.md's own "What this RED test does NOT cover"
 #   section explicitly defers the caching/scheduling behaviour) -- this is
 #   a genuine, functional implementation of the task's stated design,
-#   scoped honestly where a dependency is missing.
+#   scoped honestly where a dependency is missing. Implemented by
+#   `lib/io_trace_build_map.py` (T085 Round 1 B2 remediation, 2026-09-30:
+#   the pre-remediation build-map called this exact module path but it had
+#   never existed, `python3: can't open file ... No such file or
+#   directory`, rc=2 -- reproduced live before this fix per §11.4.199).
 #
 # Noise-filter list (§11.4.6 -- a documented, reviewable heuristic, not an
 # unstated guess): dynamic linker / shared-library / kernel-pseudo-fs /
@@ -103,7 +107,7 @@ do_trace() {
     # The gate's own stdout/stderr are discarded -- the tracer only
     # observes I/O, it never judges or surfaces the gate's own output/exit
     # code (README: "regardless of the traced gate's own exit code").
-    strace -f -e trace=openat,stat,newfstatat,lstat,execve \
+    strace -f -e trace=openat,stat,newfstatat,lstat,execve,chdir \
         -o "$_log" sh "$gate_script" "$@" >/dev/null 2>&1 || true
 
     if [ ! -s "$_log" ]; then

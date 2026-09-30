@@ -1,8 +1,24 @@
 {
   "config_id": "cs_negctrl_gained_catch.new",
   "gates": [
-    {"id": "g_marker", "script": "../_shared/gates/gate_marker.sh"},
-    {"id": "g_noop", "script": "../_shared/gates/gate_noop.sh"},
-    {"id": "g_extra", "script": "../_shared/gates/gate_extra.sh"}
+    {
+      "id": "g_marker",
+      "script": "../_shared/gates/gate_marker.sh"
+    },
+    {
+      "id": "g_noop",
+      "script": "../_shared/gates/gate_noop.sh"
+    },
+    {
+      "id": "g_extra",
+      "script": "../_shared/gates/gate_extra.sh"
+    }
+  ],
+  "base_tree": "../_shared/base_tree/widget.sh",
+  "seed_defects": [
+    {
+      "defect_id": "D_extra",
+      "patch": "../_shared/patches/defect_d_extra_widget.sh"
+    }
   ]
 }

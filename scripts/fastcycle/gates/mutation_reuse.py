@@ -202,6 +202,57 @@ def load_key_inputs(patch_path, gate_script_path, inputs_path):
     return envelope, key
 
 
+def _sha256_file_or_none(path):
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(65536), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except OSError:
+        return None
+
+
+def verify_observed_inputs_integrity(envelope, envelope_dir):
+    """I1 fix (T085 Round 1, 2026-09-30), mirroring verdict_cache.py's own
+    fix of the SAME class of bug: compute_key() deliberately builds its
+    key from the CALLER-DECLARED `sha256` field on each observed_inputs
+    entry (this IS the fixture-authoring intent -- mr_one_input_changed's
+    get_envelope.json keeps `path: "observed_input.txt"` unchanged but
+    declares a DIFFERENT sha256, modelling "the caller re-traced and the
+    file's real content had changed"; re-hashing from disk in the key
+    formula itself would collapse both envelopes onto the SAME key since
+    the real, unchanged file matches put's declared hash, turning the
+    required MISS into a false HIT). The genuine gap: nothing verifies a
+    caller's DECLARED hash is truthful about the file it names RIGHT NOW
+    -- a stale envelope (never refreshed after a real file change) is
+    trusted unconditionally. This function closes that gap independently
+    of the key formula: for every observed_inputs[] entry, resolve `path`
+    relative to the fixture-family base directory
+    (`os.path.dirname(envelope_dir)` -- the same base every observed
+    fixture's `observed_input.txt`/etc. actually lives in; observed_inputs
+    [].path was never previously resolved as a real filesystem path at
+    all) and re-hash the REAL file now. A mismatch means the envelope
+    cannot be trusted for this operation. Returns a list of mismatch
+    dicts (empty = every declared hash verified); an unreadable file is
+    ALSO reported as a mismatch (fail-closed, §11.4.101)."""
+    base = os.path.dirname(envelope_dir)
+    mismatches = []
+    for entry in envelope.get("observed_inputs", []):
+        rel_path = entry.get("path", "")
+        resolved = os.path.normpath(os.path.join(base, rel_path))
+        real_hash = _sha256_file_or_none(resolved)
+        declared = entry.get("sha256")
+        if real_hash != declared:
+            mismatches.append({
+                "path": rel_path,
+                "resolved_path": resolved,
+                "declared_sha256": declared,
+                "real_sha256": real_hash,
+            })
+    return mismatches
+
+
 # -----------------------------------------------------------------------
 # Storage: one row per (gate_id, mutation_id) pair -- PUT REPLACES the
 # existing row for that pair (INSERT OR REPLACE), so each gate/mutation
@@ -310,6 +361,25 @@ def _do_put(flags):
         # VC-003 admission-refusal precedent.
         return f"REFUSE key={key} verdict_NOT_CACHEABLE={verdict}", 3, None
 
+    # I1 fix: refuse to STORE a verdict keyed on an envelope whose
+    # observed_inputs claims do not match the real files right now --
+    # mirrors verdict_cache.py's own I1 fix.
+    envelope_dir = os.path.dirname(os.path.abspath(flags["inputs"]))
+    mismatches = verify_observed_inputs_integrity(envelope, envelope_dir)
+    if mismatches:
+        paths = ",".join(m["path"] for m in mismatches)
+        detail = "; ".join(
+            f"{m['path']!r} (resolved {m['resolved_path']!r}) declares sha256="
+            f"{m['declared_sha256']!r}, real content hashes to {m['real_sha256']!r}"
+            for m in mismatches
+        )
+        return (
+            f"REFUSE key={key} observed_inputs_integrity_mismatch={paths}",
+            3,
+            f"refusing to store a verdict keyed on an unverified envelope: {detail} "
+            "(I1, DEC-23 key built from a caller claim never checked against reality)",
+        )
+
     # --evidence is a caller-supplied CLI argument, resolved relative to
     # the invoking process's cwd and made absolute at put-time so the
     # stored value stays unambiguous even if a later get runs from a
@@ -378,6 +448,27 @@ def _do_get(flags):
         )
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
         return "MISS key=UNKNOWN", 1, f"cannot compute key: {exc}"
+
+    # I1 fix: NEVER serve a HIT (or even attempt the DB lookup) from an
+    # envelope whose observed_inputs claims do not match the real files
+    # right now -- mirrors verdict_cache.py's own I1 fix. Reported as an
+    # honest MISS (same wire format every other MISS uses), reason on
+    # stderr.
+    envelope_dir = os.path.dirname(os.path.abspath(flags["inputs"]))
+    mismatches = verify_observed_inputs_integrity(envelope, envelope_dir)
+    if mismatches:
+        detail = "; ".join(
+            f"{m['path']!r} (resolved {m['resolved_path']!r}) declares sha256="
+            f"{m['declared_sha256']!r}, real content hashes to {m['real_sha256']!r}"
+            for m in mismatches
+        )
+        return (
+            f"MISS key={key}",
+            1,
+            f"refusing to trust this envelope, reporting MISS rather than risking "
+            f"a stale HIT: {detail} (I1, DEC-23 key built from a caller claim "
+            "never checked against reality)",
+        )
 
     cache_dir = flags["cache-dir"]
     if not os.path.exists(db_path(cache_dir)):
