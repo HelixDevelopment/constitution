@@ -443,19 +443,9 @@ def _json_list_arg(text, name):
     """Parses `text` as JSON, requiring the result to be a list. Returns
     (value, None) on success or (None, error-message) on failure -- callers
     print the message and exit EXIT_USAGE, never crash on a malformed
-    caller-supplied blob.
-
-    T140 Round 6 review finding R6-I1(b) (section 11.4.250, fixed here):
-    parses via `fc_common.strict_loads` (never the stdlib `json.loads`
-    directly) so a caller-supplied `NaN`/`Infinity`/`-Infinity` inside this
-    blob is refused HERE, at parse time, rather than being silently accepted
-    into the handoff record and crashing `write_report_atomic` far later
-    (`fc_common.canon`'s `allow_nan=False`) with no honest verdict written.
-    This is the ONE shared parse-time point (section 11.4.227) that closes
-    the whole non-finite-JSON-constant class for every caller-supplied blob
-    this tool reads -- never a per-write-site patch."""
+    caller-supplied blob."""
     try:
-        val = fc_common.strict_loads(text)
+        val = json.loads(text)
     except ValueError as exc:
         return None, "bad JSON for %s: %s" % (name, exc)
     if not isinstance(val, list):
@@ -549,11 +539,7 @@ def cmd_validate(a):
         return EXIT_USAGE
     try:
         with open(a.handoff, encoding="utf-8") as fh:
-            # T140 Round 6 review finding R6-I1(b): `fc_common.strict_loads`
-            # (never plain `json.load`), so a non-finite JSON constant in a
-            # hand-edited/corrupted --handoff record is refused HERE, at
-            # parse time, rather than reaching write_report_atomic below.
-            doc = fc_common.strict_loads(fh.read())
+            doc = json.load(fh)
     except (OSError, ValueError) as exc:
         print("handoff: cannot read --handoff: %s" % exc, file=sys.stderr)
         return EXIT_USAGE
@@ -771,21 +757,7 @@ def cmd_resume_check(a):
         return EXIT_USAGE
     try:
         with open(a.handoff, encoding="utf-8") as fh:
-            # T140 Round 6 review finding R6-I1(b) (section 11.4.250, fixed
-            # here): `fc_common.strict_loads` -- never plain `json.load` --
-            # so a NaN/Infinity/-Infinity anywhere in --handoff (e.g.
-            # {"handoff_id": NaN, ...}) is refused HERE, at parse time,
-            # BEFORE it can ever be copied verbatim into this function's own
-            # `body` dict and crash `write_report_atomic` -> fc_common.canon
-            # (allow_nan=False) at one of the THREE write sites below with
-            # no honest verdict written and a stale --out left un-rewritten.
-            # This is the ONE shared parse-time fix (section 11.4.227) --
-            # never a per-write-site patch -- because every value this
-            # function ever writes back out (handoff_id,
-            # facts_needing_reverification, effects_not_to_repeat, ...) is
-            # derived FROM `doc`, which can now never contain a non-finite
-            # number once this single read succeeds.
-            doc = fc_common.strict_loads(fh.read())
+            doc = json.load(fh)
     except (OSError, ValueError) as exc:
         print("handoff: cannot read --handoff: %s" % exc, file=sys.stderr)
         return EXIT_USAGE
@@ -934,7 +906,7 @@ def cmd_resume_check(a):
                                    dep.get("locator"), kind),
                 })
                 for ref_id in (dep.get("affects_verified") or []):
-                    reverify.add(_typed_id_key(ref_id))
+                    reverify.add(ref_id)
                 continue
             if kind == "git-tree":
                 # T140 Round 4 review finding R4-I1 (section 11.4.201(6)
@@ -961,46 +933,10 @@ def cmd_resume_check(a):
                                    "manually re-verified") % (locator,),
                     })
                     for ref_id in (dep.get("affects_verified") or []):
-                        reverify.add(_typed_id_key(ref_id))
+                        reverify.add(ref_id)
                     continue
                 current_dir = os.path.join(base_dir, "tree_current", locator or "")
-                # T140 Round 6 review finding R6-I1(a) (section 11.4.250
-                # heuristic-tower/primitive-defect, section 11.4.201(11)
-                # artifact-usability, fixed here): `_merkle_over_dir` walks
-                # real filesystem entries and opens each one
-                # (`content_address` -> `open(path, "rb")`) -- a dangling
-                # symlink or a mode-000 file under a real dependency's
-                # tree_current/<locator> (both plausible at AOSP-scale on a
-                # real checkout, never merely a fixture-only concern) raises
-                # FileNotFoundError/PermissionError (both OSError), which
-                # used to crash this tool uncaught with no honest verdict
-                # written and the caller's stale --out left un-rewritten.
-                # Fail CLOSED instead (section 11.4.101): this dependency
-                # cannot be re-hashed, so it cannot be confirmed unchanged --
-                # exactly the same "cannot inspect, therefore cannot confirm
-                # safe" reasoning the "unrecognized dependency kind" branch
-                # immediately below already applies, so this reuses that
-                # SAME "unverifiable-external-dependency" class (never a new
-                # one) with its own, distinct filesystem-error detail
-                # variant, and (matching every other fail-closed branch in
-                # this loop) still adds the dep's own affects_verified ids
-                # to facts_needing_reverification before moving on to the
-                # next dependency.
-                try:
-                    live_hash = _merkle_over_dir(current_dir)
-                except OSError as exc:
-                    reasons.append({
-                        "class": "unverifiable-external-dependency",
-                        "detail": ("external dep %s (kind=git-tree) could not be re-hashed: a "
-                                   "filesystem error (%s: %s) under tree_current/%s prevented "
-                                   "computing its live content_address -- this tool cannot "
-                                   "confirm the dependency is unchanged; treat as unsafe until "
-                                   "independently, manually re-verified") % (
-                                       locator, type(exc).__name__, exc, locator),
-                    })
-                    for ref_id in (dep.get("affects_verified") or []):
-                        reverify.add(_typed_id_key(ref_id))
-                    continue
+                live_hash = _merkle_over_dir(current_dir)
                 recorded = dep.get("content_address")
                 if live_hash != recorded:
                     reasons.append({
@@ -1009,7 +945,7 @@ def cmd_resume_check(a):
                             locator, recorded, live_hash),
                     })
                     for ref_id in (dep.get("affects_verified") or []):
-                        reverify.add(_typed_id_key(ref_id))
+                        reverify.add(ref_id)
             else:
                 reasons.append({
                     "class": "unverifiable-external-dependency",
@@ -1019,7 +955,7 @@ def cmd_resume_check(a):
                                    dep.get("locator"), kind),
                 })
                 for ref_id in (dep.get("affects_verified") or []):
-                    reverify.add(_typed_id_key(ref_id))
+                    reverify.add(ref_id)
 
         # (3) NONDETERMINISTIC REPLAY: a pending step names a source that cannot
         # be blindly re-executed and trusted to reproduce the same outcome.
@@ -1138,14 +1074,7 @@ def cmd_resume_check(a):
             ground_truth = None
             try:
                 with open(gt_path, encoding="utf-8") as fh:
-                    # T140 Round 6 review finding R6-I1(b): strict_loads, so
-                    # a non-finite constant in this sibling file is refused
-                    # here rather than silently accepted and (harmlessly, in
-                    # this particular case, since only `id` values feed into
-                    # facts_needing_reverification/effects_not_to_repeat --
-                    # but never assumed harmless, section 11.4.6) risking a
-                    # later crash.
-                    parsed = fc_common.strict_loads(fh.read())
+                    parsed = json.load(fh)
             except (OSError, ValueError) as exc:
                 reasons.append({
                     "class": "unreadable-ground-truth",
@@ -1357,7 +1286,7 @@ def cmd_resume_check(a):
                 })
 
         effects_not_to_repeat = [e.get("id") for e in (doc.get("effects_performed") or []) if isinstance(e, dict)]
-    except fc_common.SAFE_EXCEPTIONS as exc:
+    except (TypeError, ValueError) as exc:
         # T140 Round 5 review finding R5-I1(2) defense-in-depth catch-all
         # (see the comment immediately above the `try:` this closes for
         # the full rationale): a genuinely unanticipated malformed-shape
@@ -1371,21 +1300,6 @@ def cmd_resume_check(a):
         # reasons already appended were derived under that same violated
         # assumption and cannot be trusted either; this single
         # internal-error reason is the whole, honest verdict.
-        #
-        # T140 Round 6 review finding R6-I1 (section 11.4.250, WIDENED
-        # here): was `(TypeError, ValueError)` -- too narrow, as Round 6
-        # itself demonstrated (an uncaught OSError from a filesystem error
-        # re-hashing a dependency tree, now ALSO closed granularly by its
-        # own per-dependency fail-closed branch above, and an uncaught
-        # ValueError from a non-finite JSON constant, now closed at parse
-        # time above). Widened to the shared `fc_common.SAFE_EXCEPTIONS`
-        # tuple (TypeError, ValueError, OSError, OverflowError) as
-        # defense-in-depth for any FURTHER site inside checks (1)-(5) this
-        # round's review did not individually enumerate (section 11.4.6:
-        # neither the per-site fixes above nor this catch-all are claimed
-        # exhaustive) -- the SAME shared tuple every sibling fastcycle
-        # orchestration tool now ORs onto its own narrower except-clauses,
-        # never a fourth independently-guessed one (section 11.4.227).
         body = {
             "handoff_id": doc.get("handoff_id"),
             "safe_to_resume_without_reverification": False,
@@ -1424,7 +1338,8 @@ def cmd_resume_check(a):
         # cannot catch this either, since the violation only exists ACROSS
         # entries once accumulated into the shared `reverify` set -- the
         # genuinely robust fix is at the OPERATION itself: sort by a
-        # TYPE-TAGGED key so values are compared by `(type name, value)`
+        # TYPE-TAGGED key (`_typed_id_key`, the SAME helper R5-I2 uses for
+        # id matching) so values are compared by `(type name, value)`
         # tuples -- Python only reaches the second tuple element when the
         # first (a string) already compares equal, so cross-type values
         # NEVER reach a raw `<` comparison against each other; the
@@ -1432,27 +1347,7 @@ def cmd_resume_check(a):
         # value within a type) even though it is a JSON list of mixed
         # scalar types, which `facts_needing_reverification` was never
         # otherwise guaranteed to avoid.
-        #
-        # T140 Round 6 review finding N1 (section 11.4.201(6) FALSE-NULL,
-        # fixed here): EVERY `reverify.add(...)` call site above now stores
-        # the TYPE-TAGGED `_typed_id_key(ref_id)` tuple (never the bare
-        # `ref_id`) -- `reverify` was previously a `set()` of BARE values,
-        # so `affects_verified: [1, true, 1.0, "1"]` silently deduped
-        # `true`/`1.0` away (Python's `1 == True == 1.0` and all three hash
-        # identically), producing an INCOMPLETE
-        # `facts_needing_reverification` list with no trace anywhere that a
-        # distinct id was ever dropped -- the SAME id-type-collision class
-        # R5-I2 already fixed for the effects_performed<->
-        # ground_truth_effects.json comparison, present here too in a
-        # sibling code path that fix did not reach. `reverify` therefore now
-        # holds `(type_name, value)` tuples throughout; sorting the tuples
-        # directly (never re-wrapping an already-tuple element through
-        # `_typed_id_key` a second time, which would nest it wrongly) is
-        # already safe for the identical reason given above, and each
-        # tuple's ORIGINAL value is unwrapped back out for the final list --
-        # the output shape (a bare-scalar JSON list) is unchanged, only the
-        # dedup/sort semantics are fixed.
-        "facts_needing_reverification": [v for (_typ, v) in sorted(reverify)],
+        "facts_needing_reverification": sorted(reverify, key=_typed_id_key),
         "effects_not_to_repeat": effects_not_to_repeat,
     }
     write_report_atomic(a.out, body, SCHEMA_RESUME_CHECK, include_run_meta=True)

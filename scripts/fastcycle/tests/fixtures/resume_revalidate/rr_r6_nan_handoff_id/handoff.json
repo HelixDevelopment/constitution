@@ -1,0 +1,15 @@
+{
+  "handoff_id": NaN,
+  "agent_key": "r6nanagentkey001",
+  "item_id": "ATM-9602",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "IMPLEMENT",
+  "verified": [],
+  "pending": [],
+  "partial_artefacts": [],
+  "external_deps": [],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

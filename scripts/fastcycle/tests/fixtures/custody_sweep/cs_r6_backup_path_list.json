@@ -1,0 +1,7 @@
+{
+  "entry_kind": "worktree",
+  "entry_id": "r6-does-not-need-to-resolve",
+  "action": "retire",
+  "backup_hash": "deadbeef",
+  "backup_artifact_path": ["a"]
+}

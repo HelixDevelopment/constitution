@@ -585,19 +585,7 @@ def cmd_inventory(a):
             "with_verified_backup": sum(1 for e in entries if e.get("existing_backup")),
         },
     }
-    # T140 Round 6 review finding R6-I2's sibling fix applied here too
-    # (section 11.4.227 reuse-not-reinvention, section 11.4.250 -- written
-    # defensively for the SAME class of finding Round 6 found in this
-    # SAME orchestration/ directory's sibling `write_class_doc_atomic`
-    # call sites, rather than waiting for a future round to independently
-    # rediscover it here): an unwritable --out path (parent directory
-    # missing/not writable/a permissions error) used to crash this
-    # subcommand uncaught with no honest verdict at all.
-    try:
-        doc, text = write_doc(a.out, SCHEMA_INVENTORY, body, run_meta())
-    except OSError as exc:
-        print("custody_sweep inventory: cannot write --out %s: %s" % (a.out, exc), file=sys.stderr)
-        return 2
+    doc, text = write_doc(a.out, SCHEMA_INVENTORY, body, run_meta())
     print(text.rstrip("\n") if not a.out else
           "custody_sweep inventory: %d stash + %d worktree entries -> %s"
           % (len(stash_entries), len(wt_entries), a.out))
@@ -628,17 +616,8 @@ def cmd_propose(a):
     root = resolve_repo_root(a.repo_root)
     with open(a.inventory, encoding="utf-8") as fh:
         try:
-            # T140 Round 6 review finding R6-I1(b)'s sibling fix applied
-            # here too (section 11.4.227 reuse-not-reinvention):
-            # `fc_common.strict_loads`, never plain `json.load`, so a
-            # non-finite JSON constant anywhere in --inventory is refused
-            # here at parse time. `strict_loads` raises a plain `ValueError`
-            # on any parse failure; `json.JSONDecodeError` is itself a
-            # `ValueError` subclass, so the except clause below is widened
-            # to `ValueError` (never narrowed -- every case the previous
-            # `json.JSONDecodeError`-only clause caught is still caught).
-            inv = fc_common.strict_loads(fh.read())
-        except ValueError as exc:
+            inv = json.load(fh)
+        except json.JSONDecodeError as exc:
             print("custody_sweep propose: --inventory %r is not valid JSON: %s" % (a.inventory, exc),
                   file=sys.stderr)
             return 2
@@ -682,13 +661,7 @@ def cmd_propose(a):
                 "into a real git mutation requires a separate, explicit, operator-confirmed step "
                 "this tool does not implement (no --apply flag exists on custody_sweep.py).",
     }
-    # T140 Round 6 review finding R6-I2's sibling fix applied here too --
-    # see cmd_inventory's own identical comment above.
-    try:
-        doc, text = write_doc(a.out, SCHEMA_PROPOSE, body, run_meta())
-    except OSError as exc:
-        print("custody_sweep propose: cannot write --out %s: %s" % (a.out, exc), file=sys.stderr)
-        return 2
+    doc, text = write_doc(a.out, SCHEMA_PROPOSE, body, run_meta())
     print(text.rstrip("\n") if not a.out else
           "custody_sweep propose: %d proposal(s) (%d allowed, %d refused) -> %s"
           % (len(proposals), body["counts"]["allowed"], body["counts"]["refused"], a.out))
@@ -710,41 +683,10 @@ def cmd_verify_proposal(a):
 
     try:
         with open(a.proposal, encoding="utf-8") as fh:
-            # T140 Round 6 review finding R6-I1(b)'s sibling fix applied
-            # here too (section 11.4.227 reuse-not-reinvention):
-            # `fc_common.strict_loads`, never plain `json.load`, so a
-            # non-finite JSON constant anywhere in --proposal is refused
-            # HERE, at parse time. `strict_loads` raises a plain `ValueError`
-            # (never `json.JSONDecodeError` specifically) on ANY parse
-            # failure including a non-finite constant, so the except clause
-            # below is widened from `json.JSONDecodeError` to `ValueError`
-            # (json.JSONDecodeError is itself a ValueError subclass, so
-            # every case the narrower clause already caught is still caught
-            # -- this widens, never narrows, what is handled).
-            d = fc_common.strict_loads(fh.read())
-    except (OSError, ValueError) as exc:
+            d = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
         print("custody_sweep verify-proposal: --proposal %r unreadable or not valid JSON: %s"
               % (a.proposal, exc), file=sys.stderr)
-        return 2
-
-    # T140 Round 6 review finding R6-I3 (section 11.4.250, fixed here): a
-    # PRIOR round's docstring elsewhere in this tree (limit_class.py's own
-    # `_validate_placement_fixture_shape`, discussing R5-I3) incorrectly
-    # claimed this function "ALREADY handles equivalent malformed inputs
-    # cleanly" -- it did NOT. A --proposal top-level JSON value that is not
-    # an object (e.g. the bare int `5`, or `null`) used to crash this
-    # function uncaught at `k not in d` below (`TypeError: argument of type
-    # 'int' is not iterable`) -- an uncaught crash whose default Python exit
-    # code (1) is INDISTINGUISHABLE from this tool's own REFUSED/finding
-    # exit code (1, module docstring "Exit codes"), and which `main()`'s own
-    # `except RuntimeError` catch (this is a bare TypeError, not a
-    # RuntimeError) does not catch either. Fail CLOSED here instead, BEFORE
-    # the `missing`-keys membership check below is ever reached, with the
-    # SAME diagnosable EXIT_USAGE(2) convention every other malformed-
-    # --proposal case in this function already uses.
-    if not isinstance(d, dict):
-        print("custody_sweep verify-proposal: --proposal %r top-level value is not a JSON "
-              "object (got %s: %r)" % (a.proposal, type(d).__name__, d), file=sys.stderr)
         return 2
 
     missing = [k for k in REQUIRED_PROPOSAL_KEYS if k not in d]
@@ -756,25 +698,6 @@ def cmd_verify_proposal(a):
     action = d["action"]
     backup_hash = d.get("backup_hash")
     backup_artifact_path = d.get("backup_artifact_path")
-    # T140 Round 6 review finding R6-I3, second half (fixed here): a
-    # `backup_artifact_path` that is present but NOT a string (e.g. the
-    # JSON list `["a"]`) used to crash `derive_verdict` uncaught
-    # (`os.path.isabs()`/`os.path.join()` both require a str/bytes/PathLike
-    # argument, never a list) -- exactly the same class of "cannot inspect,
-    # therefore cannot confirm safe" gap `limit_class.py`'s own R5-I3/R6-I2
-    # fixes already close for their own sibling fields. `backup_hash` is
-    # type-checked identically for the same reason, even though this
-    # file's own current code path does not itself index into it the way
-    # `backup_artifact_path` is used as a path -- section 11.4.6, never
-    # assume a field is safe merely because no crash has YET been observed
-    # from it.
-    for field_name, field_val in (("backup_hash", backup_hash), ("backup_artifact_path", backup_artifact_path)):
-        if field_val is not None and not isinstance(field_val, str):
-            print("custody_sweep verify-proposal: --proposal %r field `%s` must be a JSON "
-                  "string when present (got %s: %r) -- this tool cannot re-hash or resolve a "
-                  "filesystem path from a non-string value" % (
-                      a.proposal, field_name, type(field_val).__name__, field_val), file=sys.stderr)
-            return 2
     verdict, detail = derive_verdict(action, backup_hash, backup_artifact_path, root,
                                       entry_kind=d.get("entry_kind"), entry_id=d.get("entry_id"))
 
@@ -795,13 +718,7 @@ def cmd_verify_proposal(a):
         "supplied_expected_verdict": supplied,
         "disagreement": disagreement,
     }
-    # T140 Round 6 review finding R6-I2's sibling fix applied here too --
-    # see cmd_inventory's own identical comment above.
-    try:
-        doc, text = write_doc(a.out, SCHEMA_VERIFY, body, run_meta())
-    except OSError as exc:
-        print("custody_sweep verify-proposal: cannot write --out %s: %s" % (a.out, exc), file=sys.stderr)
-        return 2
+    doc, text = write_doc(a.out, SCHEMA_VERIFY, body, run_meta())
     if a.out:
         print("custody_sweep verify-proposal: %s %s (%s) -> %s"
               % (d.get("entry_id"), verdict, detail, a.out))

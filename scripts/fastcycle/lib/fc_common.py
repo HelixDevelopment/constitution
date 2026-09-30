@@ -2,6 +2,14 @@
 """fc_common.py - shared conventions for spec-004 fastcycle tools (contracts/common-conventions.md C-001..C-004).
 
 Purpose: canonical JSON emit, body_hash (excluding run_meta), control needles, determinism check, --as-of guard.
+Also exports (T140 Round 6, importable helpers, no CLI subcommand of their own): `strict_loads(text)` -- parses
+JSON rejecting non-finite constants (NaN/Infinity/-Infinity) and duplicate keys, the ONE shared PARSE-TIME
+point every sibling tool reads caller-controlled JSON through (section 11.4.250 -- rejecting a non-finite
+constant here, once, closes every downstream write-site crash it would otherwise cause); `SAFE_EXCEPTIONS` --
+a shared (TypeError, ValueError, OSError, OverflowError) tuple every sibling tool ORs onto its own narrower
+except-clauses instead of independently guessing one; `is_strict_nonneg_int(v)` -- a shared "is this a genuine,
+non-negative JSON integer" predicate (rejects bool, rejects negative) for every "is this a valid count/id"
+check.
 Usage:   fc_common.py emit --schema S --body-json J [--run-meta-json J] --out P [--code 0|1|3|4]
          fc_common.py body-hash --doc P [--verify]
          fc_common.py needle --present L --fabricated L --haystack L
@@ -57,6 +65,59 @@ DETERMINISM_TIMEOUT_DEFAULT_S = 60
 DETERMINISM_KILL_AFTER_S = 2
 TIMEOUT_RE = re.compile(r"[0-9]{1,6}")
 SCHEMA_RE = re.compile(r"[A-Za-z0-9._-]+/v[0-9]+")
+
+# T140 Round 6 review (section 11.4.250 heuristic-tower/primitive-defect): the
+# realistic catch-all surface every fastcycle orchestration tool needs when
+# defensively wrapping code that touches caller-controlled JSON shapes,
+# filesystem paths, and numeric fields it did not itself validate -- built
+# from what Round 6 review actually found crashing UNCAUGHT across THREE
+# sibling tools (handoff.py, limit_class.py, custody_sweep.py) in ONE round,
+# never guessed in advance: TypeError/ValueError (a field has the wrong JSON
+# shape/value -- the pre-existing narrow catch every one of Rounds 1-5 already
+# used), OSError (a read/write touches an unreadable/unwritable/missing path,
+# e.g. a dangling symlink under a re-hashed dependency tree, or an unwritable
+# --out directory -- section 11.4.201(11) artifact-usability), OverflowError
+# (a caller-supplied integer too large to convert to float, e.g. Python
+# int -> float inside a math.ceil() division). A SINGLE SHARED tuple, not
+# three independently-guessed per-file catch-lists (section 11.4.227
+# reuse-not-reinvention; section 11.4.250 -- three files each narrowing their
+# own except-clause by trial and error, one crash site at a time across
+# rounds, is exactly the compensating-heuristic-tower pattern that anchor
+# forbids). Deliberately NEVER includes BaseException/Exception/
+# KeyboardInterrupt/SystemExit, nor tool-specific exceptions a caller already
+# handles with its own distinct message (e.g. KeyError for "field genuinely
+# missing" vs TypeError for "field present with the wrong type") -- those stay
+# each tool's own, narrower, more diagnosable except-clause; SAFE_EXCEPTIONS
+# is the MINIMUM shared floor every tool ORs its own exceptions onto, not a
+# replacement for a tool's own more specific handling. An internal error
+# outside this set stays uncaught by design (no honest verdict is ever
+# silently swallowed into a fabricated finding, section 11.4.6).
+SAFE_EXCEPTIONS = (TypeError, ValueError, OSError, OverflowError)
+
+
+def is_strict_nonneg_int(v):
+    """True iff `v` is a genuine, non-negative JSON integer.
+
+    REJECTS a Python `bool` (bool is a subclass of int in Python, so a bare
+    `isinstance(v, int)` check wrongly accepts `True`/`False` as valid
+    counts/ids -- T140 Round 6 review finding R6-I2,
+    orchestration/limit_class.py's own `live_agents` field: a fixture with
+    `live_agents: true` silently passed the pre-existing "must be a JSON
+    integer" check and was then treated as `1` by `range(True)`). REJECTS a
+    negative value (a negative count/id is never valid anywhere this helper
+    is used). Deliberately narrower than "any non-negative number" -- a JSON
+    float, even one with an integral value (e.g. `3.0`), is REJECTED too:
+    every documented field this helper guards is a JSON *integer*, not a
+    JSON number in general (a caller passing `3.0` for a field the schema
+    calls out as `int` is a shape violation, not a value this tool should
+    silently coerce).
+
+    Shared (section 11.4.227 reuse-not-reinvention; section 11.4.250
+    heuristic-tower) so every fastcycle tool that needs "is this a valid
+    count/id" answers it IDENTICALLY, instead of each guessing its own
+    `isinstance()` check independently and re-discovering the bool-is-a-
+    subclass-of-int footgun one file at a time."""
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
 
 
 def canon(obj):

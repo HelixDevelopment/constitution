@@ -1,0 +1,38 @@
+{
+  "handoff_id": "sha256:r6d10000000000000000000000000000000000000000000000000000000001",
+  "agent_key": "r6dsagentkey0001",
+  "item_id": "ATM-9601",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "IMPLEMENT",
+  "verified": [
+    {
+      "ref_id": "EV-R6D-A",
+      "fact": "dep_a's schema matches the spec",
+      "verifier_id": "schema-check",
+      "verifier_version": "sha256:cccc0000000000000000000000000000000000000000000000000000000c",
+      "inputs": "sha256:dddd0000000000000000000000000000000000000000000000000000000d",
+      "phase": "IMPLEMENT",
+      "target_fingerprint": "hermetic",
+      "verdict": "PASS",
+      "evidence": "qa-results/fastcycle/r6d/schema.log",
+      "established_by": "r6dsagentkey0001",
+      "established_at": "2026-09-30T09:00:00Z"
+    }
+  ],
+  "pending": [
+    {"step": "generate the migration script from dep_a", "precondition": "EV-R6D-A verified"}
+  ],
+  "partial_artefacts": [],
+  "external_deps": [
+    {
+      "kind": "git-tree",
+      "locator": "dep_a",
+      "content_address": "sha256:8c6c02d3802ced99be205cdad54e4a5fbf400d8e9ac34e12bd4fae3e345dce66",
+      "affects_verified": ["EV-R6D-A"]
+    }
+  ],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

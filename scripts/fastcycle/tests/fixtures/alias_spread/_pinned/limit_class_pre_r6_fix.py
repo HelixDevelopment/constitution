@@ -212,21 +212,6 @@ try:
 except ImportError:  # pragma: no cover - Python < 3.9 fallback, not expected on this host
     zoneinfo = None
 
-# T140 Round 6 review (section 11.4.250, section 11.4.227 reuse-not-
-# reinvention): wiring to the sibling C-002 fc_common helpers -- identical
-# import-by-path pattern to orchestration/handoff.py and
-# orchestration/custody_sweep.py (this file had NO such wiring before Round
-# 6; constitution/scripts/fastcycle has no __init__.py anywhere, matching
-# this tree's existing flat-script layout). Used here for the shared
-# `strict_loads` (reject non-finite JSON constants at parse time),
-# `SAFE_EXCEPTIONS` (shared catch-all tuple), and `is_strict_nonneg_int`
-# (shared "valid count/id" predicate) primitives -- never reimplemented
-# independently in this file.
-_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
-if _LIB_DIR not in sys.path:
-    sys.path.insert(0, _LIB_DIR)
-import fc_common  # noqa: E402  (path-inserted import, see above)
-
 EXIT_OK = 0
 EXIT_UNPARSEABLE = 1  # classify: class "other" emitted -- contract's own "Exit codes" row
 EXIT_PLACE_REFUSED = 1  # place: no eligible alias -- verdict document still written (T136's own decision, see module docstring)
@@ -358,23 +343,7 @@ def classify_signal(raw):
 # not carry).
 # ---------------------------------------------------------------------------
 def write_class_doc_atomic(out_path, body):
-    # T140 Round 6 review finding N2 (section 11.4.6, fixed here): plain
-    # `json.dumps` defaults to `allow_nan=True`, so this call used to
-    # silently emit the non-standard-JSON tokens `NaN`/`Infinity`/
-    # `-Infinity` if `body` ever carried one -- producing an --out document
-    # that LOOKS written (a real file, a clean exit) but is not valid JSON
-    # per spec, and would itself crash any downstream STRICT reader (e.g.
-    # this file's own `fc_common.strict_loads`, now wired in above). No
-    # currently-reachable `body` value can carry a non-finite number today
-    # (`cmd_classify`'s body is built entirely from regex-derived strings;
-    # `cmd_place`'s `live_agents` is now guarded by
-    # `fc_common.is_strict_nonneg_int`, which already rejects a float NaN
-    # before `derive_placement` ever runs) -- `allow_nan=False` here is
-    # deliberate defense-in-depth (section 11.4.250: fix the primitive, not
-    # merely today's one reachable path) so a FUTURE field never silently
-    # writes malformed JSON; the callers below now catch the resulting
-    # ValueError alongside OSError.
-    data = (json.dumps(body, indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
+    data = (json.dumps(body, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
     out_dir = os.path.dirname(os.path.abspath(out_path)) or "."
     os.makedirs(out_dir, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=out_dir, prefix=".limit_class.")
@@ -395,19 +364,7 @@ def cmd_classify(a):
         "raw": a.signal,
         "resets_at": resets_at if resets_at else "UNKNOWN",
     }
-    try:
-        write_class_doc_atomic(a.out, body)
-    except (OSError, ValueError) as exc:
-        # T140 Round 6 review finding R6-I2's sibling fix applied here too
-        # (section 11.4.227 reuse-not-reinvention): an unwritable --out path
-        # used to crash this subcommand uncaught the same way `cmd_place`'s
-        # own write did before this round's fix. ValueError additionally
-        # catches `write_class_doc_atomic`'s own N2 `allow_nan=False` fix.
-        print(
-            "limit_class: cannot write --out %s: %s" % (a.out, exc),
-            file=sys.stderr,
-        )
-        return EXIT_USAGE
+    write_class_doc_atomic(a.out, body)
 
     if cls == CLASS_OTHER:
         print(
@@ -525,34 +482,17 @@ def _validate_placement_fixture_shape(fx):
     could not tell a genuine crash from a deliberate refusal.
 
     Mirrors `orchestration/custody_sweep.py`'s own `cmd_verify_proposal`
-    reference pattern (section 11.4.227 reuse-the-pattern): a wrong-type
-    `action`/`entry_id`/`backup_hash` there resolves to a clean REFUSED
-    verdict via ordinary `not in`/set-membership comparisons in
-    `derive_verdict`, which never raise on a value of the wrong type. This
-    function is the SAME idea applied here, as an explicit up-front check
-    (since `derive_placement` itself, unlike `derive_verdict`, genuinely
-    INDEXES into structured dicts/lists by field name and therefore cannot
-    avoid a wrong-type crash purely through membership-test-shaped code).
-
-    CORRECTION (T140 Round 6 review finding R6-I3, section 11.4.6 -- an
-    earlier revision of THIS docstring claimed `cmd_verify_proposal`
-    "ALREADY handles equivalent malformed inputs cleanly" WITHOUT
-    qualification; that claim was WRONG, not merely imprecise): a
-    --proposal top-level JSON value that is a NON-ITERABLE scalar (a bare
-    int or `null` -- as opposed to a list, which the claim's own
-    parenthetical correctly reasoned about) crashed `cmd_verify_proposal`
-    UNCAUGHT at its `k not in d` membership check (`TypeError: argument of
-    type 'int' is not iterable`), and a wrong-type `backup_artifact_path`
-    (e.g. a JSON list) separately crashed `derive_verdict` uncaught at
-    `os.path.isabs()`/`os.path.join()`. Both gaps are now fixed in that
-    function (an up-front `isinstance(d, dict)` check, plus explicit
-    string-type checks on `backup_hash`/`backup_artifact_path`, both
-    returning its own EXIT_USAGE(2) before either crash site can be
-    reached) -- the claim is accurate again as of that fix, but is
-    recorded here with its correction rather than silently re-asserted,
-    since a docstring that was wrong once and is merely re-stated
-    identically gives a future reader no signal that it was ever
-    independently re-verified.
+    reference pattern (section 11.4.227 reuse-the-pattern): that function
+    ALREADY handles equivalent malformed inputs cleanly (a list top-level
+    value still supports `k not in d` membership tests with no crash, so
+    its own missing-required-key check naturally reports EXIT_USAGE; a
+    wrong-type `action`/`entry_id` still resolves to a clean REFUSED
+    verdict via ordinary `not in`/set-membership comparisons, which never
+    raise on a value of the wrong type). This function is the SAME idea
+    applied here, as an explicit up-front check (since `derive_placement`
+    itself, unlike `derive_verdict`, genuinely INDEXES into structured
+    dicts/lists by field name and therefore cannot avoid a wrong-type
+    crash purely through membership-test-shaped code).
 
     Returns a diagnosable message (naming the bad field + expected type +
     actual type/value) if `fx`'s top-level shape is malformed, or None if
@@ -564,19 +504,8 @@ def _validate_placement_fixture_shape(fx):
             type(fx).__name__, fx)
     if "live_agents" in fx:
         live_agents = fx["live_agents"]
-        # T140 Round 6 review finding R6-I2 (section 11.4.250, fixed here):
-        # `isinstance(live_agents, int)` alone wrongly ACCEPTS a JSON `true`/
-        # `false` -- Python's `bool` is a subclass of `int`, so
-        # `live_agents: true` silently passed this check and was then
-        # treated as `1` by `range(True)` below, placing exactly one agent
-        # for a fixture that never declared a sane integer count. It also
-        # wrongly accepted a NEGATIVE count (`live_agents: -5`), which
-        # `range(-5)` silently turns into zero placements with rc=0 --
-        # "worked" on a nonsensical input with no trace anything was wrong.
-        # `fc_common.is_strict_nonneg_int` (shared, section 11.4.227) rejects
-        # both: a genuine bool, and any negative integer.
-        if not fc_common.is_strict_nonneg_int(live_agents):
-            return "field `live_agents` must be a non-negative JSON integer (got %s: %r)" % (
+        if not isinstance(live_agents, int):
+            return "field `live_agents` must be a JSON integer (got %s: %r)" % (
                 type(live_agents).__name__, live_agents)
     if "aliases" in fx:
         aliases = fx["aliases"]
@@ -593,13 +522,7 @@ def _validate_placement_fixture_shape(fx):
 def cmd_place(a):
     try:
         with open(a.fixture, encoding="utf-8") as fh:
-            # T140 Round 6 review finding R6-I1(b)'s sibling fix applied here
-            # too (section 11.4.227 reuse-not-reinvention): `strict_loads`,
-            # never plain `json.load`, so a non-finite JSON constant
-            # anywhere in --fixture is refused HERE, at parse time, rather
-            # than risking a later crash if some future field ever echoes a
-            # raw fixture value back into `body` unchanged.
-            fx = fc_common.strict_loads(fh.read())
+            fx = json.load(fh)
     except (OSError, ValueError) as exc:
         print(
             "limit_class place: cannot read/parse --fixture %s: %s" % (a.fixture, exc),
@@ -625,7 +548,7 @@ def cmd_place(a):
             file=sys.stderr,
         )
         return EXIT_USAGE
-    except fc_common.SAFE_EXCEPTIONS as exc:
+    except TypeError as exc:
         # T140 Round 5 review finding R5-I3, DEFENSE IN DEPTH (never a
         # substitute for the up-front shape check above -- section
         # 11.4.6, that check is not claimed exhaustive): a genuinely
@@ -633,19 +556,6 @@ def cmd_place(a):
         # EXIT_USAGE and a diagnosable message naming the real exception,
         # never an uncaught crash landing on EXIT_PLACE_REFUSED's own
         # exit code.
-        #
-        # T140 Round 6 review finding R6-I2 (section 11.4.250, WIDENED
-        # here): was `except TypeError` alone -- too narrow, as Round 6
-        # itself demonstrated: `live_agents` set high enough that
-        # `live_agents / m` (true division, promoting to a Python float)
-        # cannot be represented as a float raises `OverflowError` at the
-        # `math.ceil(...)` call inside `derive_placement`, uncaught, also
-        # colliding with EXIT_PLACE_REFUSED's own exit code (1). Widened to
-        # the shared `fc_common.SAFE_EXCEPTIONS` tuple (TypeError,
-        # ValueError, OSError, OverflowError) -- the SAME shared tuple every
-        # sibling fastcycle orchestration tool now ORs onto its own
-        # narrower except-clauses, never a fourth independently-guessed one
-        # (section 11.4.227).
         print(
             "limit_class place: fixture %s raised an unanticipated %s while "
             "placing: %s" % (a.fixture, type(exc).__name__, exc),
@@ -653,23 +563,7 @@ def cmd_place(a):
         )
         return EXIT_USAGE
 
-    try:
-        write_class_doc_atomic(a.out, body)
-    except (OSError, ValueError) as exc:
-        # T140 Round 6 review finding R6-I2 (section 11.4.250, fixed here):
-        # this write used to be entirely unwrapped -- an unwritable --out
-        # path (parent directory missing/not writable/a permissions error)
-        # crashed uncaught with no honest verdict at all. Fail CLOSED with
-        # its own diagnosable EXIT_USAGE, matching the exit-code convention
-        # every OTHER malformed-input case above already uses (never
-        # colliding with EXIT_OK=0 or EXIT_PLACE_REFUSED=1). ValueError
-        # additionally catches `write_class_doc_atomic`'s own N2
-        # `allow_nan=False` fix.
-        print(
-            "limit_class place: cannot write --out %s: %s" % (a.out, exc),
-            file=sys.stderr,
-        )
-        return EXIT_USAGE
+    write_class_doc_atomic(a.out, body)
 
     if body["refused"]:
         print(
