@@ -47,11 +47,23 @@ format definition):
         [--determinism-check]
 
 Exit codes (C-001, contracts/common-conventions.md): 0 = NO_DRIFT (stdout
-first line "NO_DRIFT"); 1 = >=1 drift found (stdout one "DRIFT gate=<id>
-fast=<verdict|ABSENT> full=FAIL" line per drifting gate, sorted by
-gate_id, then "DRIFT_COUNT=<n>" -- exit 1 IS the block, C-001 code 1 =
-"a finding ... release blocker"); 2 = usage/config error (missing/
-unreadable --fast/--full/--map, or --apply without --map). --out always
+first line "NO_DRIFT" -- every gate's full-lane verdict is either PASS, or
+FAIL matched by fast, with NOTHING left unverified); 1 = >=1 drift found
+(stdout one "DRIFT gate=<id> fast=<verdict|ABSENT> full=FAIL" line per
+drifting gate, sorted by gate_id, then "DRIFT_COUNT=<n>", then any
+UNVERIFIED lines + "UNVERIFIED_COUNT=<n>" -- exit 1 IS the block, C-001
+code 1 = "a finding ... release blocker"); 2 = usage/config error
+(missing/unreadable --fast/--full/--map, or --apply without --map);
+3 = UNVERIFIED (I7 fix, T085 Round 1: zero genuine drifts, but >=1 gate's
+full-lane verdict is SKIP, BLIND, or the gate is entirely absent from the
+full lane's own results -- the full lane never established a clean
+verdict for it, so this MUST NOT be reported as NO_DRIFT; stdout one
+"UNVERIFIED gate=<id> fast=<verdict|ABSENT> full=<verdict|ABSENT>" line
+per such gate, then "UNVERIFIED_COUNT=<n>"); 4 = CHANGE_ID_MISMATCH (I7
+fix: --fast and --full name DIFFERENT, both-present change_id values --
+comparing verdicts for two different changes is meaningless, so no drift
+computation is attempted at all; stdout "CHANGE_ID_MISMATCH fast=<id>
+full=<id>"). --out always
 writes a `backstop_drift/v1` document (schema, change_id, drift[],
 drift_count, body_hash, run_meta per C-002) regardless of exit code.
 
@@ -89,6 +101,8 @@ import time
 EXIT_OK = 0
 EXIT_FINDING = 1
 EXIT_USAGE = 2
+EXIT_UNVERIFIED = 3
+EXIT_CHANGE_ID_MISMATCH = 4
 
 SCHEMA = "backstop_drift/v1"
 
@@ -115,33 +129,100 @@ def compute_drift(fast, full):
     """DEC-17: a gate drifts iff the full lane's verdict is FAIL and the
     fast lane did NOT also report FAIL for the same gate_id -- covering
     BOTH the "absent from fast" (selection hole) and "present but wrong
-    verdict" sub-cases. Sorted by gate_id (determinism, C-003)."""
+    verdict" sub-cases. Sorted by gate_id (determinism, C-003).
+
+    I7 fix (T085 Round 1, 2026-09-30): the pre-remediation version iterated
+    ONLY `full.items()` and skipped any gate whose full_verdict was not the
+    literal string "FAIL" -- so a full-lane verdict of SKIP, BLIND, or a
+    gate ENTIRELY ABSENT from the full lane's own results (never attempted
+    at all) was silently treated exactly like a clean PASS: folded into
+    "no drift", the SAME reported state as "the full lane genuinely
+    verified this gate clean". Reproduced live before this fix
+    (§11.4.199): full_verdicts.json declaring GATE-X verdict=BLIND (the
+    full lane could not determine a verdict at all) produced NO_DRIFT,
+    identical to a run where GATE-X was genuinely re-verified PASS -- the
+    two are NOT the same claim and must not share one output state. This
+    function now returns (drifts, unverified): `drifts` is UNCHANGED
+    DEC-17 logic for full_verdict=="FAIL"; `unverified` is every OTHER
+    gate (in the UNION of fast's and full's own gate ids, so a gate the
+    full lane never even attempted -- absent from its results entirely --
+    is included too) whose full_verdict is not literally "PASS" or "FAIL"
+    (i.e. SKIP, BLIND, or None/absent) -- reported honestly as a THIRD
+    state the caller must never conflate with NO_DRIFT."""
+    all_gate_ids = sorted(set(fast) | set(full))
     drifts = []
-    for gate_id, full_verdict in full.items():
-        if full_verdict != "FAIL":
-            continue
+    unverified = []
+    for gate_id in all_gate_ids:
+        full_verdict = full.get(gate_id)
         fast_verdict = fast.get(gate_id)
-        if fast_verdict != "FAIL":
-            drifts.append({
+        if full_verdict == "FAIL":
+            if fast_verdict != "FAIL":
+                drifts.append({
+                    "gate_id": gate_id,
+                    "fast_verdict": fast_verdict,
+                    "full_verdict": "FAIL",
+                })
+            continue
+        if full_verdict != "PASS":
+            unverified.append({
                 "gate_id": gate_id,
                 "fast_verdict": fast_verdict,
-                "full_verdict": "FAIL",
+                "full_verdict": full_verdict,  # None = entirely absent from full's results
             })
-    return sorted(drifts, key=lambda d: d["gate_id"])
+    return sorted(drifts, key=lambda d: d["gate_id"]), sorted(unverified, key=lambda d: d["gate_id"])
 
 
 def build_result(fast_path, full_path):
     fast_change_id, fast = load_verdicts(fast_path)
     full_change_id, full = load_verdicts(full_path)
-    drifts = compute_drift(fast, full)
+
+    # I7 fix: an explicit change_id match assertion (§11.4.201's own
+    # "never checks change_id" finding) -- comparing two verdict documents
+    # for DIFFERENT changes is meaningless, so a genuine mismatch (both
+    # present and different -- a MISSING change_id on one side is a
+    # separate, honestly-absent case, never treated as a mismatch) is
+    # reported and refuses to compute a drift verdict at all.
+    change_id_mismatch = (
+        fast_change_id is not None
+        and full_change_id is not None
+        and fast_change_id != full_change_id
+    )
+    if change_id_mismatch:
+        result = {
+            "schema": SCHEMA,
+            "change_id": None,
+            "fast_change_id": fast_change_id,
+            "full_change_id": full_change_id,
+            "drift": [],
+            "drift_count": 0,
+            "unverified": [],
+            "unverified_count": 0,
+            "change_id_mismatch": True,
+        }
+        result["body_hash"] = body_hash(result)
+        return result, EXIT_CHANGE_ID_MISMATCH
+
+    drifts, unverified = compute_drift(fast, full)
     result = {
         "schema": SCHEMA,
         "change_id": full_change_id if full_change_id is not None else fast_change_id,
         "drift": drifts,
         "drift_count": len(drifts),
+        "unverified": unverified,
+        "unverified_count": len(unverified),
+        "change_id_mismatch": False,
     }
     result["body_hash"] = body_hash(result)
-    exit_code = EXIT_FINDING if drifts else EXIT_OK
+    if drifts:
+        exit_code = EXIT_FINDING
+    elif unverified:
+        # I7 fix: NEVER report NO_DRIFT (the clean/verified state) while
+        # any gate's full-lane verdict is genuinely unestablished -- a
+        # distinct exit code so a caller cannot mistake "nothing was
+        # proven wrong" for "everything was proven right".
+        exit_code = EXIT_UNVERIFIED
+    else:
+        exit_code = EXIT_OK
     return result, exit_code
 
 
@@ -238,15 +319,28 @@ def main(argv):
         fh.write(canonical_json(result))
         fh.write("\n")
 
-    if exit_code == EXIT_OK:
+    if exit_code == EXIT_CHANGE_ID_MISMATCH:
+        print(
+            "CHANGE_ID_MISMATCH fast=%s full=%s"
+            % (result["fast_change_id"], result["full_change_id"])
+        )
+    elif exit_code == EXIT_OK:
         print("NO_DRIFT")
     else:
         for d in result["drift"]:
             fast_label = d["fast_verdict"] if d["fast_verdict"] is not None else "ABSENT"
             print("DRIFT gate=%s fast=%s full=FAIL" % (d["gate_id"], fast_label))
         print("DRIFT_COUNT=%d" % result["drift_count"])
+        for u in result["unverified"]:
+            full_label = u["full_verdict"] if u["full_verdict"] is not None else "ABSENT"
+            print("UNVERIFIED gate=%s fast=%s full=%s" % (
+                u["gate_id"],
+                u["fast_verdict"] if u["fast_verdict"] is not None else "ABSENT",
+                full_label,
+            ))
+        print("UNVERIFIED_COUNT=%d" % result["unverified_count"])
 
-    if a.apply and exit_code != EXIT_OK:
+    if a.apply and exit_code == EXIT_FINDING:
         drifting_ids = [d["gate_id"] for d in result["drift"]]
         updated, unknown, backup = apply_force_full(a.map, drifting_ids)
         if updated:

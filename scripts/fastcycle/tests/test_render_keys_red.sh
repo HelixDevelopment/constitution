@@ -95,12 +95,60 @@ mkdir -p "$_BACKUP_DIR" 2>/dev/null
 cp "$FIXDIR/rk_changed_all_four/source.md" "$_BACKUP_DIR/changed_all_four.orig.md" 2>/dev/null
 cp "$FIXDIR/rk_stale_key_caught/source.md" "$_BACKUP_DIR/stale_key_caught.orig.md" 2>/dev/null
 
+# I8(a) fix (T085 Round 1, 2026-09-30): the pre-remediation cleanup()
+# unconditionally `rm -f`'d every source.{html,pdf,docx} twin under all 4
+# fixture directories on every exit path -- but 9+ of those exact 12 files
+# are TRACKED, committed fixture twins (the doc-twin exporter, constitution
+# commit 310c065), not test-generated throwaway output. A real run of this
+# test therefore left the working tree with tracked files genuinely
+# DELETED from disk (confirmed live before this fix: `git status
+# --porcelain` reported them ` D <path>` after a run, requiring a manual
+# `git checkout --` to restore -- exactly the T085 Round 1 I8 finding's
+# repro). This test's OWN rendering work (if any) into these same paths is
+# still cleaned up -- the fix is which RESTORE MECHANISM is used, not
+# whether cleanup runs: a file that was ALREADY GIT-TRACKED before this
+# test touched anything is restored via `git checkout --` (its real,
+# committed bytes), never deleted; a file that was genuinely untracked
+# (this test's own fresh render) is still `rm -f`'d exactly as before.
+# The tracked/untracked determination is made ONCE, before any test work
+# runs, so a mid-run change in tracked-ness never confuses cleanup.
+_RENDER_KEYS_GIT_ROOT=$(cd "$FIXDIR" && git rev-parse --show-toplevel 2>/dev/null || true)
+_render_keys_is_tracked() {
+    [ -n "$_RENDER_KEYS_GIT_ROOT" ] || return 1
+    ( cd "$_RENDER_KEYS_GIT_ROOT" && git ls-files --error-unmatch "$1" ) >/dev/null 2>&1
+}
+_RK_TRACKED_TWINS=""
+for d in rk_unchanged_today rk_changed_all_four rk_stale_key_caught rk_touched_identical; do
+    for ext in html pdf docx; do
+        f="$FIXDIR/$d/source.$ext"
+        if _render_keys_is_tracked "$f"; then
+            _RK_TRACKED_TWINS="$_RK_TRACKED_TWINS $f"
+        fi
+    done
+done
+
 cleanup() {
     [ -f "$_BACKUP_DIR/changed_all_four.orig.md" ] && cp "$_BACKUP_DIR/changed_all_four.orig.md" "$FIXDIR/rk_changed_all_four/source.md" 2>/dev/null
     [ -f "$_BACKUP_DIR/stale_key_caught.orig.md" ] && cp "$_BACKUP_DIR/stale_key_caught.orig.md" "$FIXDIR/rk_stale_key_caught/source.md" 2>/dev/null
     rm -rf "$_BACKUP_DIR" 2>/dev/null
     for d in rk_unchanged_today rk_changed_all_four rk_stale_key_caught rk_touched_identical; do
-        rm -f "$FIXDIR/$d/source.html" "$FIXDIR/$d/source.pdf" "$FIXDIR/$d/source.docx" 2>/dev/null
+        for ext in html pdf docx; do
+            f="$FIXDIR/$d/source.$ext"
+            case " $_RK_TRACKED_TWINS " in
+                *" $f "*)
+                    # Tracked BEFORE this run -- restore its real committed
+                    # bytes, NEVER delete (I8(a) fix).
+                    if [ -n "$_RENDER_KEYS_GIT_ROOT" ]; then
+                        ( cd "$_RENDER_KEYS_GIT_ROOT" && git checkout -- "$f" ) 2>/dev/null
+                    fi
+                    ;;
+                *)
+                    # Genuinely untracked (this test's own fresh render) --
+                    # safe to remove, exactly as before.
+                    rm -f "$f" 2>/dev/null
+                    ;;
+            esac
+        done
     done
 }
 trap cleanup EXIT

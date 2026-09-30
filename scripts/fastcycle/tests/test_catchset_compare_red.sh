@@ -115,6 +115,57 @@ failx() { fail=1; }
 WORK=$(mktemp -d) || { echo "cannot create scratch dir (TMPDIR unusable)" >&2; exit 2; }
 trap 'rm -rf "$WORK"' EXIT
 
+# =============================================================================
+# I8(b) fix (T085 Round 1, 2026-09-30): every real-invocation call below
+# used to pass "$ROOT/config/fastcycle/fastcycle.yaml" -- the REAL,
+# project-wide config -- to catchset_compare.py/gate_audit.py. Both tools
+# consult (and gate_audit.py's transfer-proof WRITES INTO)
+# paths.transfer_records_dir, which fastcycle.yaml points at the REAL,
+# shared "qa-results/fastcycle/transfer_records" directory that a genuine
+# `compare` invocation consults before treating a real gate removal as
+# safe. Every run of THIS test therefore wrote toy transfer records
+# (g_marker_dup.json, TOY-GATE-REMOVED.json, ...) into that real,
+# production-consulted directory -- reproduced live before this fix
+# (§11.4.199): re-running this file left exactly those two toy files
+# sitting in qa-results/fastcycle/transfer_records/, silently pollutable
+# into a real future compare decision. Fixed by generating a SCRATCH
+# config (under $WORK, cleaned by the SAME `trap ... EXIT` above) that
+# keeps every OTHER key ABSOLUTE and pointed at the SAME real sources this
+# test's own comments document as intentional (mutation_source/
+# guard_registry -- genuinely real per T-C00's own design; gate_search_
+# dirs/patch_search_dirs/base_tree_dirs -- the real, intentionally-
+# registered fixture dirs) while redirecting ONLY transfer_records_dir
+# into an isolated scratch subdirectory. Every path below is written
+# ABSOLUTE (never relative) -- catchset_compare.py's own cfg_path()/
+# cfg_path_list() join `root` with each declared path via os.path.join(),
+# which DISCARDS a preceding component when the later one is already
+# absolute (standard os.path.join semantics), so `root`'s own value
+# (computed from wherever this scratch file happens to live) is never
+# actually consulted for resolution -- placing the scratch config fully
+# under $WORK, outside the real project tree, is therefore both correct
+# AND leaves zero stray files even if cleanup were ever skipped.
+# =============================================================================
+CFG="$WORK/scratch_fastcycle.yaml"
+cat > "$CFG" <<EOF
+schema: fastcycle-config/v1
+paths:
+  mutation_source: $ROOT/scripts/testing/meta_test_false_positive_proof.sh
+  guard_registry: $ROOT/device/rockchip/rk3588/tests/regression_guard/registry.tsv
+  workable_items_db: $ROOT/docs/workable_items.db
+  gate_sites: $ROOT/config/fastcycle/gate_sites.yaml
+  thresholds: $ROOT/config/fastcycle/thresholds.yaml
+  consumers_seed: $ROOT/config/fastcycle/consumers.seed.tsv
+  evidence_root: $ROOT/qa-results/fastcycle
+  pre_build_verification: $ROOT/device/rockchip/rk3588/tests/pre_build_verification.sh
+  gate_search_dirs:
+    - $SHARED/gates
+  patch_search_dirs:
+    - $SHARED/patches
+  base_tree_dirs:
+    - $SHARED/base_tree
+  transfer_records_dir: $WORK/transfer_records
+EOF
+
 # --- real-tree-untouched canary (cs_real_tree_untouched, row 9) ---
 CANARY="$FC/lib/fc_common.sh"
 canary_hash() { sha256sum "$CANARY" 2>/dev/null | awk '{print $1}'; }
@@ -187,7 +238,7 @@ assert_corpus_build() {
   local out="$WORK/corpus.json"
   rm -f "$out"
   python3 "$CATCHSET_COMPARE" corpus-build \
-    --config "$ROOT/config/fastcycle/fastcycle.yaml" \
+    --config "$CFG" \
     --out "$out" >"$WORK/corpus-build.stdout" 2>"$WORK/corpus-build.stderr"
   local rc=$?
   if [ "$rc" -eq 0 ] && [ -s "$out" ]; then
@@ -208,7 +259,7 @@ assert_compare_fixture_real() {
   out="$WORK/${fx}.catchset.json"
   rm -f "$out"
   python3 "$CATCHSET_COMPARE" compare \
-    --config "$ROOT/config/fastcycle/fastcycle.yaml" \
+    --config "$CFG" \
     --corpus "$WORK/corpus.json" \
     --old "$FIXDIR/$fx/config_old.json" \
     --new "$FIXDIR/$fx/config_new.json" \
@@ -236,7 +287,7 @@ assert_transfer_proof_real() {
   rm -f "$out"
   gate=$(json_field "$FIXDIR/$fx/removal_request.json" removed_gate_id)
   python3 "$GATE_AUDIT" transfer-proof \
-    --config "$ROOT/config/fastcycle/fastcycle.yaml" \
+    --config "$CFG" \
     --gate "$gate" --into g_marker --out "$out" \
     >"$WORK/transfer_${fx}.stdout" 2>"$WORK/transfer_${fx}.stderr"
   rc=$?
