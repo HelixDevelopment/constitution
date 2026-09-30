@@ -1,0 +1,17 @@
+{
+  "handoff_id": "sha256:rr10000000000000000000000000000000000000000000000000000000010",
+  "agent_key": "rr10agentkey0010",
+  "item_id": "ATM-9110",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "IMPLEMENT",
+  "verified": [],
+  "pending": [],
+  "partial_artefacts": [],
+  "external_deps": [],
+  "effects_performed": [
+    {"kind": "commit", "id": "commit-rr10-0001"}
+  ],
+  "written_at": "2026-09-30T10:00:00Z"
+}

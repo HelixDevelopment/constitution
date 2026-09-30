@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr10000000000000000000000000000000000000000000000000000000010",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "unreadable-ground-truth",
+      "detail": "ground_truth_effects.json exists but could not be read or parsed as JSON (Expecting property name enclosed in double quotes: line 1 column 2 (char 1)) -- this tool has no confirmed-readable independent ground-truth source, which is a DIFFERENT, weaker claim than 'no ground truth effects exist'; treat as unsafe until the file is repaired or an independent source is supplied"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": ["commit-rr10-0001"]
+}

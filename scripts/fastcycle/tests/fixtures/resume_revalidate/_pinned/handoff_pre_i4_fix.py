@@ -282,7 +282,6 @@ import datetime
 import hashlib
 import json
 import os
-import subprocess
 import sys
 import tempfile
 
@@ -595,70 +594,19 @@ def cmd_resume_check(a):
     # (recomputed over tree_current/<locator>, resolved relative to
     # dirname(--handoff) -- see module docstring "resume-check wire format")
     # no longer matches the recorded one. Only kind=="git-tree" is
-    # re-hashable here (the only kind any checked-in fixture exercises).
-    #
-    # T140 Round 1 review finding I4 (section 11.4.201(6) FALSE-NULL, fixed
-    # here): a dep of any OTHER kind used to be silently `continue`d past --
-    # reported neither as stale NOR as anything else, so
-    # safe_to_resume_without_reverification stayed wrongly `true` with no
-    # trace anywhere in the output that an unverifiable dependency existed.
-    # Fail CLOSED instead (section 11.4.101 safe-reversible default): a dep
-    # whose `kind` this tool cannot re-hash is UNVERIFIABLE, not silently
-    # trusted -- record it as its own unsafe_reasons entry naming the exact
-    # unrecognized kind, and (mirroring the stale-dependency branch) add any
-    # declared `affects_verified` ids to facts_needing_reverification, since
-    # this tool has no way to know those facts still hold either.
-    #
-    # T140 Round 2 review finding I2(F) (section 11.4.201(6) FALSE-NULL,
-    # fixed here): a NON-DICT external_deps entry used to be silently
-    # `continue`d past entirely -- DEC-34 requires EVERY dependency be
-    # re-hashed, so a malformed entry (not even a dict, or a dict whose
-    # `kind` field is itself missing/malformed) cannot be re-hashed and
-    # therefore cannot be confirmed unchanged, exactly like an unrecognized
-    # `kind` value (I4's own already-fixed case above) -- fail CLOSED with
-    # its own distinct "malformed-external-dependency" reason instead.
+    # re-hashable here (the only kind any checked-in fixture exercises; an
+    # honest, documented scope, not a silent gap).
     for dep in (doc.get("external_deps") or []):
-        if not isinstance(dep, dict):
-            reasons.append({
-                "class": "malformed-external-dependency",
-                "detail": ("external_deps entry is not a JSON object (got %r) -- DEC-34 "
-                           "requires every dependency be re-hashed, and a non-dict entry "
-                           "cannot be re-hashed or identified; treat as unsafe until "
-                           "independently, manually re-verified") % (dep,),
-            })
+        if not isinstance(dep, dict) or dep.get("kind") != "git-tree":
             continue
-        kind = dep.get("kind")
-        if not isinstance(kind, str) or not kind:
+        current_dir = os.path.join(base_dir, "tree_current", dep.get("locator") or "")
+        live_hash = _merkle_over_dir(current_dir)
+        recorded = dep.get("content_address")
+        if live_hash != recorded:
             reasons.append({
-                "class": "malformed-external-dependency",
-                "detail": ("external dep %s has a missing or malformed `kind` field (got %r) "
-                           "-- DEC-34 requires every dependency be re-hashed, and this tool "
-                           "cannot re-hash a dependency whose kind it cannot read; treat as "
-                           "unsafe until independently, manually re-verified") % (
-                               dep.get("locator"), kind),
-            })
-            for ref_id in (dep.get("affects_verified") or []):
-                reverify.add(ref_id)
-            continue
-        if kind == "git-tree":
-            current_dir = os.path.join(base_dir, "tree_current", dep.get("locator") or "")
-            live_hash = _merkle_over_dir(current_dir)
-            recorded = dep.get("content_address")
-            if live_hash != recorded:
-                reasons.append({
-                    "class": "stale-external-dependency",
-                    "detail": "external dep %s content_address changed: recorded=%s live=%s" % (
-                        dep.get("locator"), recorded, live_hash),
-                })
-                for ref_id in (dep.get("affects_verified") or []):
-                    reverify.add(ref_id)
-        else:
-            reasons.append({
-                "class": "unverifiable-external-dependency",
-                "detail": ("external dep %s has unrecognized dependency kind: %s -- this tool "
-                           "cannot re-hash it, so it cannot be confirmed unchanged; treat as "
-                           "unsafe until independently, manually re-verified") % (
-                               dep.get("locator"), kind),
+                "class": "stale-external-dependency",
+                "detail": "external dep %s content_address changed: recorded=%s live=%s" % (
+                    dep.get("locator"), recorded, live_hash),
             })
             for ref_id in (dep.get("affects_verified") or []):
                 reverify.add(ref_id)
@@ -680,106 +628,27 @@ def cmd_resume_check(a):
     # OPTIONAL, independently-observable ground_truth_effects.json sibling,
     # resolved relative to dirname(--handoff) -- never derived from the
     # handoff record itself, Producer != oracle, section 11.4.245/11.4.240)
-    # but is absent from effects_performed.
-    #
-    # T140 Round 1 review finding I4 (section 11.4.201(6) FALSE-NULL, fixed
-    # here): the sibling file's absence was PREVIOUSLY treated as an
-    # unconditional honest skip (section 11.4.3) even when the record's own
-    # `effects_performed` field claims effects genuinely happened --
-    # exactly the case where an independent ground-truth cross-check is
-    # actually needed.
-    #
-    # T140 Round 2 review finding I2(C) (section 11.4.201(6) FALSE-NULL,
-    # fixed here; a further correction of the Round 1 I4 fix's own design,
-    # not merely a missed case): the Round 1 fix narrowed the "missing
-    # sibling" finding to fire ONLY when `effects_performed` is non-empty,
-    # reasoning that an empty `effects_performed` means "nothing in the
-    # record claims an effect occurred, so there is nothing this check
-    # could cross-verify either way". That reasoning gets check (4)'s own
-    # purpose backwards: `effects_performed` is a field INSIDE the handoff
-    # record itself, written by the SAME agent whose crash this check
-    # exists to guard against -- an agent that crashed BEFORE it ever got
-    # to record an effect in its own handoff doc leaves `effects_performed`
-    # empty regardless of whether it actually performed one. An empty
-    # `effects_performed` therefore proves NOTHING about whether an effect
-    # genuinely occurred; it is not evidence of absence (section 11.4.6).
-    # A missing `ground_truth_effects.json` sibling is consequently ALWAYS
-    # a genuine, unverifiable gap -- fail CLOSED (section 11.4.101)
-    # unconditionally, never only when `effects_performed` happens to be
-    # non-empty. The two cases remain honestly DISTINGUISHED in the output
-    # detail text (empty vs non-empty `effects_performed`) even though both
-    # now contribute to unsafe.
-    #
-    # T140 Round 2 review finding I2(D) (section 11.4.201(6) FALSE-NULL,
-    # fixed here): a malformed or unreadable ground_truth_effects.json
-    # (JSON parse error, or a valid-JSON-but-non-list top-level value) used
-    # to be silently coerced to `[]` and therefore treated as "no ground
-    # truth effects exist" -- a DIFFERENT, STRONGER claim than "we could
-    # not read the file". Fail CLOSED instead with its own distinct
-    # "unreadable-ground-truth" reason, and skip the per-effect cross-check
-    # below entirely (there is no honestly-parsed ground truth to check
-    # against).
-    effects_performed = doc.get("effects_performed") or []
+    # but is absent from effects_performed. Absence of the sibling file is
+    # an honest skip of this one check (section 11.4.3), never a fabricated
+    # finding -- the other four checks still run.
     gt_path = os.path.join(base_dir, "ground_truth_effects.json")
     if os.path.isfile(gt_path):
-        ground_truth = None
         try:
             with open(gt_path, encoding="utf-8") as fh:
-                parsed = json.load(fh)
-        except (OSError, ValueError) as exc:
-            reasons.append({
-                "class": "unreadable-ground-truth",
-                "detail": ("ground_truth_effects.json exists but could not be read or "
-                           "parsed as JSON (%s) -- this tool has no confirmed-readable "
-                           "independent ground-truth source, which is a DIFFERENT, weaker "
-                           "claim than 'no ground truth effects exist'; treat as unsafe "
-                           "until the file is repaired or an independent source is "
-                           "supplied") % (exc,),
-            })
-        else:
-            if not isinstance(parsed, list):
+                ground_truth = json.load(fh)
+        except (OSError, ValueError):
+            ground_truth = []
+        recorded_ids = {e.get("id") for e in (doc.get("effects_performed") or []) if isinstance(e, dict)}
+        for e in (ground_truth or []):
+            if not isinstance(e, dict):
+                continue
+            if e.get("id") not in recorded_ids:
                 reasons.append({
-                    "class": "unreadable-ground-truth",
-                    "detail": ("ground_truth_effects.json top-level value is not a JSON "
-                               "list (got %s) -- this tool cannot enumerate ground-truth "
-                               "effects from it, which is a DIFFERENT, weaker claim than "
-                               "'no ground truth effects exist'; treat as unsafe until the "
-                               "file is repaired or an independent source is supplied") % (
-                                   type(parsed).__name__,),
+                    "class": "unrecorded-external-effect",
+                    "detail": ("effect %s:%s genuinely occurred but is absent from "
+                               "effects_performed -- resume must not risk repeating it") % (
+                                   e.get("kind"), e.get("id")),
                 })
-            else:
-                ground_truth = parsed
-        if ground_truth is not None:
-            recorded_ids = {e.get("id") for e in effects_performed if isinstance(e, dict)}
-            for e in ground_truth:
-                if not isinstance(e, dict):
-                    continue
-                if e.get("id") not in recorded_ids:
-                    reasons.append({
-                        "class": "unrecorded-external-effect",
-                        "detail": ("effect %s:%s genuinely occurred but is absent from "
-                                   "effects_performed -- resume must not risk repeating "
-                                   "it") % (e.get("kind"), e.get("id")),
-                    })
-    elif effects_performed:
-        reasons.append({
-            "class": "unverifiable-ground-truth",
-            "detail": ("ground_truth_effects.json missing while effects_performed lists %d "
-                       "effect(s) -- this tool has no independent source to confirm those are "
-                       "ALL the effects that genuinely occurred; treat as unsafe until an "
-                       "independent ground-truth source is supplied") % len(effects_performed),
-        })
-    else:
-        reasons.append({
-            "class": "unverifiable-ground-truth",
-            "detail": ("ground_truth_effects.json missing and effects_performed is empty -- "
-                       "an empty effects_performed does NOT prove no effect occurred (the "
-                       "agent may have crashed before it ever recorded one in its own "
-                       "handoff doc), so the absence of an independent ground-truth source "
-                       "is ALWAYS an unverifiable gap, never proof there is nothing to "
-                       "cross-verify; treat as unsafe until an independent ground-truth "
-                       "source is supplied"),
-        })
 
     # (5) INCONSISTENT TRANSITION: the recorded current phase is not a valid
     # next state given the phase the agent's own verified evidence last
@@ -823,66 +692,6 @@ def cmd_resume_check(a):
 
 
 # ---------------------------------------------------------------------------
-# --determinism-check (T140 Round 1 review finding I5, section 11.4.201(6):
-# this file had NO determinism-check mechanism at all -- fixed here by
-# adopting the SAME mechanism the already-landed sibling
-# orchestration/custody_sweep.py implements for its own `--determinism-check`
-# (C-003) -- re-invoke this SAME process as a subprocess twice with the same
-# argv (minus the flag itself) and compare the resulting --out document's
-# body_hash. This is this file's OWN independently-written copy of that
-# pattern (never imported from custody_sweep.py -- this file has no import
-# path to it, matching this file's own already-established per-file-
-# primitive convention; section 11.4.227 "reuse the PATTERN, not necessarily
-# the literal code, where no shared import site already exists").
-#
-# Exit 0 stable (both runs' body_hash match), 1 body_hash mismatch
-# (nondeterministic), 4 a run produced no honest verdict (timed out, crashed,
-# or wrote no --out document) -- identical exit-code contract to
-# custody_sweep.py's own run_determinism_check.
-#
-# HONEST BOUNDARY (section 11.4.6, mirroring custody_sweep.py's own
-# documented `inventory --determinism-check` boundary verbatim in spirit):
-# `write`'s own `written_at` field is, BY DESIGN (module docstring:
-# "time_source ... is always event_occurred ... a phase-boundary write is,
-# by construction, the moment the event it describes occurred"), the REAL
-# wall-clock instant of each invocation -- so `write --determinism-check` is
-# EXPECTED to report nondeterministic (rc=1) across two back-to-back
-# subprocess invocations whenever they do not land in the exact same wall-
-# clock second, because `written_at` (and therefore `handoff_id` and the
-# report's own `body_hash`) genuinely differs. This is a REAL property of
-# `write`'s own documented contract, never a defect in this mechanism.
-# `validate`/`verify`/`resume-check`/`resume` are pure functions of the
-# already-written `--handoff` file's bytes on disk and carry no live-clock
-# dependency of their own, so they are expected to report deterministic
-# (rc=0) on a genuinely-static, unchanging fixture.
-# ---------------------------------------------------------------------------
-def run_determinism_check(argv, timeout_s=120):
-    inner = [a for a in argv if a != "--determinism-check"]
-    runs = []
-    with tempfile.TemporaryDirectory() as tmp:
-        for i in (1, 2):
-            out_i = os.path.join(tmp, "run%d.json" % i)
-            cmd = [sys.executable, os.path.abspath(__file__)] + inner + ["--out", out_i]
-            try:
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
-            except subprocess.TimeoutExpired:
-                print("handoff: determinism-check run %d timed out" % i, file=sys.stderr)
-                return 4
-            if proc.returncode not in (EXIT_OK, EXIT_FINDING) or not os.path.exists(out_i):
-                sys.stderr.write(proc.stderr)
-                print("handoff: determinism-check run %d rc=%d, no honest verdict"
-                      % (i, proc.returncode), file=sys.stderr)
-                return 4
-            with open(out_i, encoding="utf-8") as fh:
-                runs.append(json.load(fh).get("body_hash"))
-    if runs[0] is None or runs[0] != runs[1]:
-        print("handoff: nondeterministic: run1=%s run2=%s" % (runs[0], runs[1]), file=sys.stderr)
-        return 1
-    print("handoff: deterministic (body_hash=%s)" % runs[0])
-    return 0
-
-
-# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 def _add_handoff_out_args(sp):
@@ -892,8 +701,6 @@ def _add_handoff_out_args(sp):
 
 def build_arg_parser():
     p = argparse.ArgumentParser(prog="handoff.py", description=__doc__.split("\n\n")[0])
-    p.add_argument("--determinism-check", action="store_true",
-                   help="re-invoke this same subcommand twice and compare body_hash (C-003)")
     sub = p.add_subparsers(dest="cmd_name", required=True)
 
     w = sub.add_parser("write")
@@ -933,8 +740,6 @@ def build_arg_parser():
 
 
 def main(argv):
-    if "--determinism-check" in argv:
-        return run_determinism_check(argv)
     args = build_arg_parser().parse_args(argv)
     table = {
         "write": cmd_write,

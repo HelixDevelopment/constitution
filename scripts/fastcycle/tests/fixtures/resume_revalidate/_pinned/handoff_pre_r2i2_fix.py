@@ -608,38 +608,10 @@ def cmd_resume_check(a):
     # unrecognized kind, and (mirroring the stale-dependency branch) add any
     # declared `affects_verified` ids to facts_needing_reverification, since
     # this tool has no way to know those facts still hold either.
-    #
-    # T140 Round 2 review finding I2(F) (section 11.4.201(6) FALSE-NULL,
-    # fixed here): a NON-DICT external_deps entry used to be silently
-    # `continue`d past entirely -- DEC-34 requires EVERY dependency be
-    # re-hashed, so a malformed entry (not even a dict, or a dict whose
-    # `kind` field is itself missing/malformed) cannot be re-hashed and
-    # therefore cannot be confirmed unchanged, exactly like an unrecognized
-    # `kind` value (I4's own already-fixed case above) -- fail CLOSED with
-    # its own distinct "malformed-external-dependency" reason instead.
     for dep in (doc.get("external_deps") or []):
         if not isinstance(dep, dict):
-            reasons.append({
-                "class": "malformed-external-dependency",
-                "detail": ("external_deps entry is not a JSON object (got %r) -- DEC-34 "
-                           "requires every dependency be re-hashed, and a non-dict entry "
-                           "cannot be re-hashed or identified; treat as unsafe until "
-                           "independently, manually re-verified") % (dep,),
-            })
             continue
         kind = dep.get("kind")
-        if not isinstance(kind, str) or not kind:
-            reasons.append({
-                "class": "malformed-external-dependency",
-                "detail": ("external dep %s has a missing or malformed `kind` field (got %r) "
-                           "-- DEC-34 requires every dependency be re-hashed, and this tool "
-                           "cannot re-hash a dependency whose kind it cannot read; treat as "
-                           "unsafe until independently, manually re-verified") % (
-                               dep.get("locator"), kind),
-            })
-            for ref_id in (dep.get("affects_verified") or []):
-                reverify.add(ref_id)
-            continue
         if kind == "git-tree":
             current_dir = os.path.join(base_dir, "tree_current", dep.get("locator") or "")
             live_hash = _merkle_over_dir(current_dir)
@@ -687,80 +659,33 @@ def cmd_resume_check(a):
     # unconditional honest skip (section 11.4.3) even when the record's own
     # `effects_performed` field claims effects genuinely happened --
     # exactly the case where an independent ground-truth cross-check is
-    # actually needed.
-    #
-    # T140 Round 2 review finding I2(C) (section 11.4.201(6) FALSE-NULL,
-    # fixed here; a further correction of the Round 1 I4 fix's own design,
-    # not merely a missed case): the Round 1 fix narrowed the "missing
-    # sibling" finding to fire ONLY when `effects_performed` is non-empty,
-    # reasoning that an empty `effects_performed` means "nothing in the
-    # record claims an effect occurred, so there is nothing this check
-    # could cross-verify either way". That reasoning gets check (4)'s own
-    # purpose backwards: `effects_performed` is a field INSIDE the handoff
-    # record itself, written by the SAME agent whose crash this check
-    # exists to guard against -- an agent that crashed BEFORE it ever got
-    # to record an effect in its own handoff doc leaves `effects_performed`
-    # empty regardless of whether it actually performed one. An empty
-    # `effects_performed` therefore proves NOTHING about whether an effect
-    # genuinely occurred; it is not evidence of absence (section 11.4.6).
-    # A missing `ground_truth_effects.json` sibling is consequently ALWAYS
-    # a genuine, unverifiable gap -- fail CLOSED (section 11.4.101)
-    # unconditionally, never only when `effects_performed` happens to be
-    # non-empty. The two cases remain honestly DISTINGUISHED in the output
-    # detail text (empty vs non-empty `effects_performed`) even though both
-    # now contribute to unsafe.
-    #
-    # T140 Round 2 review finding I2(D) (section 11.4.201(6) FALSE-NULL,
-    # fixed here): a malformed or unreadable ground_truth_effects.json
-    # (JSON parse error, or a valid-JSON-but-non-list top-level value) used
-    # to be silently coerced to `[]` and therefore treated as "no ground
-    # truth effects exist" -- a DIFFERENT, STRONGER claim than "we could
-    # not read the file". Fail CLOSED instead with its own distinct
-    # "unreadable-ground-truth" reason, and skip the per-effect cross-check
-    # below entirely (there is no honestly-parsed ground truth to check
-    # against).
+    # actually needed. That is now narrowed: absence of the sibling file is
+    # an honest, this-check-genuinely-does-not-apply skip ONLY when
+    # `effects_performed` is empty (nothing in the record claims an effect
+    # occurred, so there is nothing this check could have cross-verified
+    # either way); when `effects_performed` is non-empty, a missing sibling
+    # means this tool has NO independent way to confirm the record's own
+    # effect claims are complete -- fail CLOSED (section 11.4.101) with an
+    # explicit reason, never silently absorbed as safe.
     effects_performed = doc.get("effects_performed") or []
     gt_path = os.path.join(base_dir, "ground_truth_effects.json")
     if os.path.isfile(gt_path):
-        ground_truth = None
         try:
             with open(gt_path, encoding="utf-8") as fh:
-                parsed = json.load(fh)
-        except (OSError, ValueError) as exc:
-            reasons.append({
-                "class": "unreadable-ground-truth",
-                "detail": ("ground_truth_effects.json exists but could not be read or "
-                           "parsed as JSON (%s) -- this tool has no confirmed-readable "
-                           "independent ground-truth source, which is a DIFFERENT, weaker "
-                           "claim than 'no ground truth effects exist'; treat as unsafe "
-                           "until the file is repaired or an independent source is "
-                           "supplied") % (exc,),
-            })
-        else:
-            if not isinstance(parsed, list):
+                ground_truth = json.load(fh)
+        except (OSError, ValueError):
+            ground_truth = []
+        recorded_ids = {e.get("id") for e in effects_performed if isinstance(e, dict)}
+        for e in (ground_truth or []):
+            if not isinstance(e, dict):
+                continue
+            if e.get("id") not in recorded_ids:
                 reasons.append({
-                    "class": "unreadable-ground-truth",
-                    "detail": ("ground_truth_effects.json top-level value is not a JSON "
-                               "list (got %s) -- this tool cannot enumerate ground-truth "
-                               "effects from it, which is a DIFFERENT, weaker claim than "
-                               "'no ground truth effects exist'; treat as unsafe until the "
-                               "file is repaired or an independent source is supplied") % (
-                                   type(parsed).__name__,),
+                    "class": "unrecorded-external-effect",
+                    "detail": ("effect %s:%s genuinely occurred but is absent from "
+                               "effects_performed -- resume must not risk repeating it") % (
+                                   e.get("kind"), e.get("id")),
                 })
-            else:
-                ground_truth = parsed
-        if ground_truth is not None:
-            recorded_ids = {e.get("id") for e in effects_performed if isinstance(e, dict)}
-            for e in ground_truth:
-                if not isinstance(e, dict):
-                    continue
-                if e.get("id") not in recorded_ids:
-                    reasons.append({
-                        "class": "unrecorded-external-effect",
-                        "detail": ("effect %s:%s genuinely occurred but is absent from "
-                                   "effects_performed -- resume must not risk repeating "
-                                   "it") % (e.get("kind"), e.get("id")),
-                    })
     elif effects_performed:
         reasons.append({
             "class": "unverifiable-ground-truth",
@@ -768,17 +693,6 @@ def cmd_resume_check(a):
                        "effect(s) -- this tool has no independent source to confirm those are "
                        "ALL the effects that genuinely occurred; treat as unsafe until an "
                        "independent ground-truth source is supplied") % len(effects_performed),
-        })
-    else:
-        reasons.append({
-            "class": "unverifiable-ground-truth",
-            "detail": ("ground_truth_effects.json missing and effects_performed is empty -- "
-                       "an empty effects_performed does NOT prove no effect occurred (the "
-                       "agent may have crashed before it ever recorded one in its own "
-                       "handoff doc), so the absence of an independent ground-truth source "
-                       "is ALWAYS an unverifiable gap, never proof there is nothing to "
-                       "cross-verify; treat as unsafe until an independent ground-truth "
-                       "source is supplied"),
         })
 
     # (5) INCONSISTENT TRANSITION: the recorded current phase is not a valid
