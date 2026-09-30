@@ -7,29 +7,34 @@
 #          test: the verdict set (or commit result) with the instrumentation equals the verdict
 #          set without it, byte for byte after stripping timing columns."
 #
-# Honest state of this test TODAY (T028/T029 not landed -- see test_fc_timer_prebuild_red.sh's
-# header for the full independent-verification trail this file shares): there is NO "with
-# timers" run of pre_build_verification.sh to compare against a "without timers" run, because
-# fc_timer.sh does not exist and pre_build_verification.sh is not wired to it. A true
-# before/after comparison against the real script is therefore IMPOSSIBLE today, not merely
-# unperformed -- this test does not pretend otherwise. What CAN be, and is, verified for real
-# today:
+# Honest state of this test as of T048 round-3 review finding R3-I6 (2026-09-30): T028
+# (fc_timer.sh) and T029 (its wiring into pre_build_verification.sh) ARE landed (both `[x]` in
+# tasks.md) -- the STALE claim that used to sit here ("T028/T029 not landed... a true
+# before/after comparison is IMPOSSIBLE today") was corrected as part of R3-I6, independently
+# re-checked against tasks.md's own live checkbox state before writing this paragraph, per
+# S11.4.199. A genuine "with timers" run of pre_build_verification.sh IS now possible, and this
+# file performs the real comparison the moment BOTH a "without timers" and a "with timers" real
+# evidence log exist on disk (see the Usage section below for how each is located). What is
+# ALWAYS verified for real, independent of whether the "with timers" log exists yet:
 #   (a) the REAL "without timers" verdict set, captured from an actual pre_build_verification.sh
 #       run, is checked for any timing-looking noise that a stripping step would need to remove
 #       (Constitution S11.4.6 -- "check", never assume; documented finding: NONE found -- see
 #       FINDING note below);
-#   (b) the verdict-set EXTRACTION mechanism this test (and the eventual real golden-output
-#       comparison) depends on is deterministic: extracting twice from the SAME real captured
-#       log produces byte-identical output (C-003 determinism spirit);
-#   (c) the COMPARISON+STRIPPING logic that T029's real "with timers" vs "without timers" diff
-#       will use is self-validated on synthetic fixtures mimicking the real line shape (a
+#   (b) the verdict-set EXTRACTION mechanism this test (and the real golden-output comparison
+#       below) depends on is deterministic: extracting twice from the SAME real captured log
+#       produces byte-identical output (C-003 determinism spirit);
+#   (c) the COMPARISON+STRIPPING logic the real "with timers" vs "without timers" diff below
+#       uses is self-validated on synthetic fixtures mimicking the real line shape (a
 #       golden-good pair that differs ONLY by a synthetic trailing timing suffix -- MUST compare
 #       equal after stripping; a golden-bad pair whose ACTUAL verdict differs, not just its
 #       timing suffix -- MUST compare unequal; a negative-control pair that differs in gate id
 #       only -- MUST also compare unequal, so the comparator is proven to discriminate, not to
 #       blindly report "equal" regardless of input).
-# The genuine real-vs-real "with timers" comparison itself is an explicit, honest SKIP below,
-# not a fabricated PASS -- it becomes possible, and MUST be exercised, the moment T028+T029 land.
+# The genuine real-vs-real "with timers" comparison itself remains an explicit, honest SKIP
+# ONLY when no "with timers" evidence log is present on disk (a fresh checkout, or a run that
+# has not been captured yet) -- never a fabricated PASS, and never silently skipped once a real
+# log exists (that would be exactly the R3-I6 bug this fix closes: an unconditional SKIP that
+# never flips to a real assertion even after the precondition it names is satisfied).
 #
 # FINDING (checked, not assumed): scanning the real captured evidence log for a
 # verdict-line trailing duration suffix ("[N.NNs]"/"(N.NNs)"/"N ms") found exactly one
@@ -45,6 +50,18 @@
 #                                    the most recent
 #                                    qa-results/fastcycle/us1/red/T015/prebuild_full_run_*.log,
 #                                    the same evidence test_fc_timer_prebuild_red.sh uses).
+#   Env FC_TIMER_GOLDEN_LOG_WITH=<path> : real captured pre_build_verification.sh stdout log,
+#                                    from a run with fc_timer instrumentation ACTIVE (FC_TIMING
+#                                    unset/1), to use as the "with timers" comparison side
+#                                    (default: auto-discover the most recent
+#                                    qa-results/fastcycle/us1/red/T015/prebuild_with_timers_full_run_*.log
+#                                    -- a DELIBERATELY DIFFERENT filename prefix from the
+#                                    "without timers" baseline's own `prebuild_full_run_*.log`
+#                                    glob above, so a captured "with timers" log is never
+#                                    mistaken for -- or silently picked up as -- the "without
+#                                    timers" baseline by the OTHER auto-discovery above, and vice
+#                                    versa; absent -> the real comparison below is an honest SKIP,
+#                                    never a fabricated PASS).
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
@@ -74,6 +91,27 @@ if [ -z "$BASELINE_LOG" ] || [ ! -f "$BASELINE_LOG" ]; then
   exit 2
 fi
 echo "INFO: using baseline (without-timers) log: $BASELINE_LOG"
+
+# ---- locate the real "with timers" comparison log (R3-I6) ----
+# Deliberately a DIFFERENT filename prefix ('prebuild_with_timers_full_run_*.log') from the
+# baseline's own 'prebuild_full_run_*.log' glob above, so neither auto-discovery step can ever
+# pick up the other side's log.
+WITH_TIMERS_LOG="${FC_TIMER_GOLDEN_LOG_WITH:-}"
+if [ -z "$WITH_TIMERS_LOG" ] || [ ! -f "$WITH_TIMERS_LOG" ]; then
+  WITH_TIMERS_LOG=""
+  if [ -d "$EVIDENCE_DEFAULT_DIR" ]; then
+    WITH_TIMERS_LOG="$(find "$EVIDENCE_DEFAULT_DIR" -maxdepth 1 -name 'prebuild_with_timers_full_run_*.log' 2>/dev/null | sort | tail -n1)"
+  fi
+fi
+if [ -n "$WITH_TIMERS_LOG" ] && [ -f "$WITH_TIMERS_LOG" ]; then
+  echo "INFO: using with-timers comparison log: $WITH_TIMERS_LOG"
+else
+  echo "INFO: no real 'with timers' evidence log found yet (set FC_TIMER_GOLDEN_LOG_WITH=<path>," \
+       "or capture one with FC_TIMING=1 bash device/rockchip/rk3588/tests/pre_build_verification.sh" \
+       "> $EVIDENCE_DEFAULT_DIR/prebuild_with_timers_full_run_\$(date -u +%Y%m%dT%H%M%SZ).log" \
+       "2>&1) -- the real comparison below stays an honest SKIP until then."
+  WITH_TIMERS_LOG=""
+fi
 
 # verdict-line shape used throughout pre_build_verification.sh: PASS/FAIL/WARN lines carry a
 # UTF-8 checkmark/cross or the literal 'WARN'/'ERROR'. Banner/section lines never carry these.
@@ -192,12 +230,43 @@ BT3_EXPECTED="$(printf '%s' "$BT3_LINE" | sed -E 's/^[[:space:]]+//; s/[[:space:
 chk "real bare-suffix content ('... Keep-alive period 20s') is NOT corrupted by suffix-stripping" "$([ "$BT3_OUTPUT" = "$BT3_EXPECTED" ] && echo 1 || echo 0)"
 
 # ============================================================================
-# Honest boundary: the actual with-timers-vs-without-timers comparison against the real
-# pre_build_verification.sh cannot be performed until T028 (fc_timer.sh) and T029 (its wiring)
-# land -- there is no "with timers" run to capture. This is recorded as an explicit SKIP, never
-# a fabricated PASS (S11.4.6 / S11.4.201).
+# (d) R3-I6: the REAL with-timers-vs-without-timers verdict-set comparison, the actual FR-002
+# assertion this whole file exists to perform, run the moment a real "with timers" log is on
+# disk. An honest SKIP (never a fabricated PASS) when one is not yet captured -- T028/T029 being
+# `[x]` in tasks.md means the COMPARISON IS NOW POSSIBLE, not that a "with timers" log always
+# exists on every invocation of this file (capturing one is a separate, ~15-20 minute real
+# pre_build_verification.sh run -- see the FC_TIMER_GOLDEN_LOG_WITH usage note above).
 # ============================================================================
-skip "real with-timers-vs-without-timers verdict-set comparison against pre_build_verification.sh (requires T028 fc_timer.sh + T029 wiring, neither landed yet)"
+if [ -n "$WITH_TIMERS_LOG" ]; then
+  extract_verdicts "$WITH_TIMERS_LOG" "$TMP/with_timers.txt"
+  WITH_LINES="$(wc -l < "$TMP/with_timers.txt" | tr -d ' ')"
+  chk "real 'with timers' verdict set captured from $WITH_TIMERS_LOG ($WITH_LINES verdict lines)" "$([ "$WITH_LINES" -gt 0 ] && echo 1 || echo 0)"
+
+  HASH_WITHOUT_REAL="$(sha256sum "$TMP/baseline_1.txt" | awk '{print $1}')"
+  HASH_WITH_REAL="$(sha256sum "$TMP/with_timers.txt" | awk '{print $1}')"
+  REAL_MATCH=0
+  [ "$HASH_WITHOUT_REAL" = "$HASH_WITH_REAL" ] && REAL_MATCH=1
+
+  if [ "$REAL_MATCH" = "1" ]; then
+    chk "FR-002/T-A01: real with-timers verdict set is IDENTICAL to the real without-timers verdict set, byte-for-byte after stripping timing suffixes ($BASELINE_LOG vs $WITH_TIMERS_LOG)" "1"
+  else
+    # Two genuinely SEPARATE pre_build_verification.sh invocations (not one process with
+    # FC_TIMING toggled inline) can legitimately diverge in verdict-set CONTENT for reasons that
+    # have nothing to do with fc_timer instrumentation: the live repo tree can change between
+    # the two captures (a concurrent commit landing on a shared checkout, exactly the kind of
+    # activity this project's own multi-track model produces routinely -- see CONTINUATION.md).
+    # A raw hash mismatch is therefore reported WITH its full line-level diff, never silently
+    # swallowed and never silently upgraded to a PASS -- the honest FAIL below states exactly
+    # which lines differ so a human/agent can distinguish a genuine fc_timer-caused verdict
+    # change (an FR-002 regression) from unrelated inter-capture repo drift.
+    DIFF_REAL="$(diff "$TMP/baseline_1.txt" "$TMP/with_timers.txt" 2>/dev/null || true)"
+    DIFF_REAL_LINES="$(printf '%s\n' "$DIFF_REAL" | grep -c '^[<>]' || true)"
+    chk "FR-002/T-A01: real with-timers verdict set is IDENTICAL to the real without-timers verdict set, byte-for-byte after stripping timing suffixes ($BASELINE_LOG vs $WITH_TIMERS_LOG) -- MISMATCH, $DIFF_REAL_LINES differing line(s), see diff below (may be genuine inter-capture repo drift on this shared multi-track checkout rather than an fc_timer regression -- re-run both captures back-to-back with no intervening commits to isolate)" "0"
+    printf '%s\n' "$DIFF_REAL" | head -n 60
+  fi
+else
+  skip "real with-timers-vs-without-timers verdict-set comparison against pre_build_verification.sh (no 'with timers' evidence log captured yet -- set FC_TIMER_GOLDEN_LOG_WITH=<path> or capture one per the usage note above; T028+T029 are landed so this is now a capture gap, not a code gap)"
+fi
 
 echo "SUMMARY: $((N - FAIL - SKIPPED)) pass / $FAIL fail / $SKIPPED skip of $N assertions (baseline: $BASELINE_LOG, $BASELINE_LINES verdict lines)"
 [ "$FAIL" = 0 ]
