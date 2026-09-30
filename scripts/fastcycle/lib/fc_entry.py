@@ -325,23 +325,33 @@ def run_cli_main(main_fn, argv):
 
     THEN -- regardless of how `main_fn` returned -- explicitly,
     unconditionally flushes BOTH `sys.stdout` and `sys.stderr` ONE LAST
-    TIME, as a backstop closing T140 Round 10 review finding I1(b) wholly
-    (every individual `emit_result`/`diag` call already flushes its OWN
-    target stream immediately at its own call site -- this final flush
-    additionally covers any content a FUTURE caller might someday write
-    through some path this module does not yet enumerate, matching this
-    project's own "fix the primitive, not merely today's one reachable
-    path" convention, section 11.4.250). A failure flushing the PRIMARY
-    channel (stdout) when `main_fn` otherwise reported a clean `EXIT_OK`
-    (0) is escalated to `EXIT_USAGE` (2) -- an apparently-clean success
-    whose own output could not actually be delivered is not a genuine
-    success (section 11.4 anti-bluff); a failure flushing stdout when
-    `main_fn` ALREADY reported a non-zero code is never escalated
-    further (the existing non-zero code already reports the real
-    problem; this primitive never MASKS one honest failure code with a
-    different one). A failure flushing stderr (the diagnostic channel)
-    is always ignored, whatever `main_fn` returned -- matching `diag`'s
-    own swallow-on-failure contract above.
+    TIME, as a backstop closing T140 Round 10 review finding I1(b) for
+    any content a FUTURE caller might someday write through some path
+    this module does not yet enumerate (matching this project's own "fix
+    the primitive, not merely today's one reachable path" convention,
+    section 11.4.250). A failure flushing EITHER stream here is ALWAYS
+    swallowed, NEVER escalated into `rc` -- this backstop flush is
+    deliberately NOT where PRIMARY-channel delivery failures are
+    detected: that detection already happened, precisely, at
+    `emit_result`'s OWN call site (its own immediate `flush()`, which
+    RAISES on failure and is caught by THIS function's own `except
+    Exception` clause above, mapping to `EXIT_USAGE`). A live, corrected
+    bug from an earlier draft of this function is the reason this is
+    stated so explicitly: an EARLIER version of this backstop escalated
+    ANY stdout-flush failure to `EXIT_USAGE` whenever `rc == 0` --
+    reasoning "stdout is the primary channel" -- which is WRONG for
+    `handoff.py`/`limit_class.py` (where `--out` is ALWAYS the real
+    deliverable and stdout NEVER carries primary content at all).
+    Live-reproduced: `handoff.py --help >/dev/full` -- a pure DIAGNOSTIC
+    print via `diag()`, whose own internal flush already swallowed the
+    failure correctly -- still wrongly turned `--help`'s own clean
+    `SystemExit(0)` into `rc=2`, because THIS backstop's OWN second,
+    redundant `sys.stdout.flush()` call observed the SAME already-broken
+    stream's lingering error state and (wrongly) escalated it. The fix:
+    this backstop's flush is diagnostic-only (belt-and-suspenders that a
+    stream WAS flushed before process exit), never a SECOND, independent
+    primary-channel-failure detector competing with `emit_result`'s own,
+    correctly-scoped one.
 
     Finally calls `os._exit(rc)` -- deliberately NEVER `sys.exit(rc)`.
     `sys.exit`/a normal Python return from `main()` triggers Python's OWN
@@ -354,12 +364,14 @@ def run_cli_main(main_fn, argv):
     fact, the exact mechanism behind every one of this round's own rc=120
     findings). By the time `run_cli_main` reaches this final line, every
     stream this tool could possibly have written to has ALREADY been
-    explicitly flushed (via `emit_result`/`diag`'s own per-call flush,
-    or -- immediately above -- this function's own backstop flush, with
-    any failure already accounted for in `rc`) -- so `os._exit`, which
-    skips every atexit handler and every interpreter-shutdown buffer
-    flush Python would otherwise attempt, loses nothing, and closes the
-    one remaining gap through which a stream failure could still
+    explicitly flushed (via `emit_result`/`diag`'s own per-call flush, or
+    -- immediately above -- this function's own best-effort backstop
+    flush) and `rc` already correctly reflects any genuine primary-
+    channel delivery failure (detected, precisely, at `emit_result`'s own
+    call site, never guessed here) -- so `os._exit`, which skips every
+    atexit handler and every interpreter-shutdown buffer flush Python
+    would otherwise attempt, loses nothing, and closes the one remaining
+    gap through which a stream failure could still
     silently rewrite this tool's own exit code."""
     try:
         rc = main_fn(argv)
@@ -386,8 +398,7 @@ def run_cli_main(main_fn, argv):
     try:
         sys.stdout.flush()
     except Exception:
-        if rc == 0:
-            rc = 2
+        pass
     try:
         sys.stderr.flush()
     except Exception:
