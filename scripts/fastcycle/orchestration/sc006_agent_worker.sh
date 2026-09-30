@@ -32,29 +32,43 @@
 #     real-completion-event). The caller (sc006_exercise.sh) may `kill -9`
 #     this process at ANY point before it reaches its own `complete`
 #     write -- that interruption, with ZERO further write from this
-#     process, is exactly how the exercise's "crash-killed" agent is
-#     produced (the honest "no graceful registry update from the crashed
-#     process itself" case T138's own task text names).
-#   --mode capsignal
-#     dispatched ONLY -- deliberately never transitions to in-flight,
-#     because agent_registry_writer.sh's V-AR-2 ordering guard accepts a
-#     manual `refused` write ONLY when the key's prior history is `[]` or
-#     `["dispatched"]`; a `refused` after `in-flight` would be REJECTED.
-#     This process then loops writing marker-file lines only (no registry
-#     or heartbeat activity of its own) until the CALLER writes `refused`
-#     (mirroring a simulated rate-limit/cap kill's real reason-class
-#     signature, section 11.4.196(B)) and kills this process from the
-#     outside.
+#     process, is exactly how the exercise's "crash-killed" (kill -9,
+#     reaped to suspected-dead) AND "quota-crashed" (429/cap kill,
+#     terminal `crashed` + limit_signal written by the caller) agents are
+#     BOTH produced -- same worker behaviour, the caller decides which
+#     terminal registry write (if any) follows the kill and whether the
+#     kill happens at all (the "still-running" role passes a deliberately
+#     huge --steps so it is still legitimately mid-cycle, never killed,
+#     when the exercise takes its final snapshot; T140 Round 1 fix B1).
+#   --mode blocked
+#     T140 Round 1 fix (B1, SpecKit-004 US5): dispatched ONLY -- this
+#     process does NO further write and NO work loop of any kind (see
+#     `write_event dispatched` above the mode dispatch below; this mode's
+#     own case body is a no-op) and exits immediately. This is the
+#     HONEST shape of a genuinely blocked/refused-at-dispatch agent
+#     (contract AR-004: hook refusal / prompt-too-long / permission-
+#     denied) -- the dispatch is refused BEFORE any real background work
+#     ever starts, so this worker must never fabricate marker-file
+#     "progress" a blocked dispatch never actually did (the exact
+#     registry-vs-ground-truth contradiction T140 Round 1's finding B1
+#     identified in this mode's PRIOR incarnation, `--mode capsignal`,
+#     which wrote real marker-file progress while the caller recorded a
+#     terminal `refused` -- looking "never ran, not owed" while the
+#     markers proved real work happened). The CALLER (sc006_exercise.sh)
+#     writes the terminal `refused` event itself once this process has
+#     exited (mirroring exactly how every other role's terminal registry
+#     write is always issued by the caller, never this worker).
 #
 # This process's own exit code is never read by sc006_exercise.sh's
-# oracle -- it is either killed by its caller, or (in `cycle` mode) reaches
-# its own natural end. The oracle is built ENTIRELY from marker files this
+# oracle -- it is either killed by its caller, or reaches its own natural
+# end (`cycle` completing all STEPS, or `blocked` finishing its one write
+# immediately). The oracle is built ENTIRELY from marker files this
 # process writes plus the real process table (ps/kill -0/wait), per
 # T138's own explicit instruction ("oracle = marker files + process table,
 # never the registry itself").
 #
 # Usage:
-#   sc006_agent_worker.sh --mode cycle|capsignal --key <16-hex>
+#   sc006_agent_worker.sh --mode cycle|blocked --key <16-hex>
 #       --marker-dir <dir> --heartbeat-dir <dir> --steps <n>
 #       --sleep-seconds <n> --writer <path to agent_registry_writer.sh>
 #       --heartbeat-sh <path to heartbeat.sh> --registry-file <path>
@@ -73,11 +87,9 @@
 #   invocation.
 #
 # Exit codes: 0 on a `cycle` run that reaches its own natural completion,
-#   or a `capsignal` run that reaches the end of its own loop unkilled
-#   (both honest "the caller never killed me in time" outcomes the
-#   exercise's own timing margin is designed to avoid, but which are
-#   PID-observable, not silently hidden); 2 on a usage error (missing
-#   required flag or unknown --mode).
+#   or a `blocked` run (always reaches its own end immediately -- there is
+#   no loop to fail to finish); 2 on a usage error (missing required flag
+#   or unknown --mode).
 set -u
 
 MODE=""
@@ -151,20 +163,18 @@ case "$MODE" in
         printf '{"key":"%s","completed_steps":%d,"pid":%d,"ts":%s}\n' "$KEY" "$STEPS" "$$" "$(date -u +%s)" >"$DONE_FILE"
         write_event complete --completion-source real-completion-event --note "sc006 natural completion (mode=cycle)"
         ;;
-    capsignal)
-        # Deliberately NEVER writes in-flight -- see header. Loops writing
-        # marker lines only, until the caller writes `refused` + kills
-        # this process from the outside.
-        step=1
-        while [ "$step" -le "$STEPS" ]; do
-            printf '{"step":%d,"ts":%s,"pid":%d}\n' "$step" "$(date -u +%s)" "$$" >>"$MARKER_FILE"
-            sleep "$SLEEP_S"
-            step=$((step + 1))
-        done
-        printf '{"key":"%s","completed_steps":%d,"pid":%d,"ts":%s}\n' "$KEY" "$STEPS" "$$" "$(date -u +%s)" >"$DONE_FILE"
+    blocked)
+        # T140 Round 1 fix (B1): a genuinely blocked/refused-at-dispatch
+        # agent never starts real background work -- `write_event
+        # dispatched` above (the one write every mode makes) is this
+        # process's ONLY registry write and ONLY action. No marker-file
+        # loop, no heartbeat, no `.done` marker: fabricating any of those
+        # would recreate the exact registry-vs-ground-truth contradiction
+        # this fix exists to remove (see header).
+        :
         ;;
     *)
-        echo "sc006_agent_worker.sh: unknown --mode '$MODE' (must be cycle|capsignal)" >&2
+        echo "sc006_agent_worker.sh: unknown --mode '$MODE' (must be cycle|blocked)" >&2
         exit 2
         ;;
 esac
