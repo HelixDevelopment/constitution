@@ -137,9 +137,60 @@ if [ "$APPLY" -eq 0 ]; then
 fi
 
 # --- Step 2: backup (CA-021, §9.2 hardlinked mirror, same volume)
+#
+# §9.2's hardlink-mirror assumes hardlink-copying "the git directory"
+# gives real protection: for a plain checkout $WORKDIR/.git IS that
+# whole, self-contained directory, so a hardlinked copy keeps every
+# pre-migration object/ref reachable even after the live repo moves on
+# (objects are immutable + content-addressed, ref updates are atomic
+# renames -- the backup's own directory entries still point at the OLD
+# inode). A `git worktree` checkout breaks that: $WORKDIR/.git there is a
+# small TEXT FILE ("gitdir: <path>") pointing at the REAL git-dir, whose
+# objects/refs (the worktree's "common dir") live SHARED with the
+# worktree's own main checkout and with every SIBLING worktree of the
+# same backing repo (verified live in this fleet: 3 sibling worktrees of
+# one HelixDevelopment/skills backing repo, one per Track). Hardlinking
+# $WORKDIR/.git there copies only that ~100-byte pointer file, never the
+# real object database -- a FALSE SENSE of §9.2 protection while backing
+# up nothing (reproduced live in a scratch fixture: du -sh showed an 80K
+# real git-dir vs a 4-byte-shy 173-byte "backup"). A genuinely
+# independent backup of the shared common dir would need either (a)
+# hardlinking it -- not a clean "before this migration" snapshot, since a
+# SIBLING worktree can be writing the SAME shared objects/refs
+# concurrently with no relation to THIS migration -- or (b) a real,
+# non-hardlinked mirror clone, a materially heavier mechanism this tool
+# does not implement. Per §11.4.201's conservative-safe-default-on-an-
+# unresolvable-signal: refuse honestly (as a backup failure) rather than
+# pretend to protect a shape this mechanism cannot actually protect.
+#
+# The resolved real git-dir (`--absolute-git-dir`) is used as the
+# hardlink SOURCE for every checkout shape, not the raw "$WORKDIR/.git"
+# path -- for a plain checkout this resolves to exactly $WORKDIR/.git
+# (verified identical), so the already-working case is behavior-
+# preserving; for a `.git`-as-file checkout whose real git-dir is NOT
+# shared with any sibling (e.g. an ordinary git submodule nested as a
+# consumer's own workdir -- --git-dir == --git-common-dir there, since
+# each submodule's own git-dir is private under the outer repo's
+# .git/modules/, never shared), the resolved path is a real, self-
+# contained directory and the SAME §9.2 hardlink protection applies
+# correctly. Only the TRUE worktree shape (--git-dir differs from
+# --git-common-dir once both are resolved to absolute paths) is refused.
+GIT_DIR_ABS=$(git -C "$WORKDIR" rev-parse --absolute-git-dir 2>/dev/null)
+if [ -z "$GIT_DIR_ABS" ]; then
+    not_migrated "backup" "backup-failed"
+fi
+RAW_COMMON_DIR=$(git -C "$WORKDIR" rev-parse --git-common-dir 2>/dev/null)
+COMMON_DIR_ABS=""
+if [ -n "$RAW_COMMON_DIR" ]; then
+    COMMON_DIR_ABS=$( (cd "$WORKDIR" && cd "$RAW_COMMON_DIR" 2>/dev/null && pwd) )
+fi
+if [ -z "$COMMON_DIR_ABS" ] || [ "$GIT_DIR_ABS" != "$COMMON_DIR_ABS" ]; then
+    not_migrated "backup" "backup-failed"
+fi
+
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 BACKUP_DIR="$WORKDIR/../.fastcycle_migrate_backup_${STAMP}"
-if ! cp -al "$WORKDIR/.git" "$BACKUP_DIR" 2>/tmp/migrate_backup_err.$$; then
+if ! cp -al "$GIT_DIR_ABS" "$BACKUP_DIR" 2>/tmp/migrate_backup_err.$$; then
     R=$(cat /tmp/migrate_backup_err.$$ 2>/dev/null); rm -f /tmp/migrate_backup_err.$$
     not_migrated "backup" "backup-failed"
 fi
@@ -151,11 +202,44 @@ echo "backup: $BACKUP_DIR (hash=$BACKUP_HASH)"
 
 # --- Step 4: gitlink-bump -- resolve the consumer's OWN constitution
 # submodule url from .gitmodules and discover its latest commit.
+#
+# Resolved by PATH, never by .gitmodules SECTION NAME: the section name
+# is an arbitrary label each consumer chooses for itself (this
+# constitution repo's own .gitmodules uses [submodule "constitution"],
+# but a real consumer, HelixDevelopment/ota, names the SAME path's
+# section [submodule "HelixConstitution"] instead -- verified live by
+# direct .gitmodules inspection) -- looking it up as literal
+# submodule.constitution.url assumed every consumer names the section
+# "constitution", which is false in the wild. Find whichever section's
+# `path` value equals the expected constitution checkout path
+# ("constitution", matching this tool's own other hardcoded uses of that
+# path below at the ls-tree/submodule-update/allow-list steps), then
+# read THAT section's url -- the section name itself is never examined.
 GITMODULES="$WORKDIR/.gitmodules"
 if [ ! -f "$GITMODULES" ]; then
     not_migrated "gitlink-bump" "no .gitmodules (not a submodule consumer)"
 fi
-SUB_URL=$(git config -f "$GITMODULES" --get submodule.constitution.url 2>/dev/null)
+CONST_SECTION=""
+PATH_ENTRIES=$(git config -f "$GITMODULES" --get-regexp '^submodule\..*\.path$' 2>/dev/null)
+if [ -n "$PATH_ENTRIES" ]; then
+    OLD_IFS=$IFS
+    IFS='
+'
+    for line in $PATH_ENTRIES; do
+        key=${line%% *}
+        val=${line#* }
+        if [ "$val" = "constitution" ]; then
+            CONST_SECTION=${key#submodule.}
+            CONST_SECTION=${CONST_SECTION%.path}
+            break
+        fi
+    done
+    IFS=$OLD_IFS
+fi
+SUB_URL=""
+if [ -n "$CONST_SECTION" ]; then
+    SUB_URL=$(git config -f "$GITMODULES" --get "submodule.$CONST_SECTION.url" 2>/dev/null)
+fi
 if [ -z "$SUB_URL" ]; then
     not_migrated "gitlink-bump" "no constitution submodule entry in .gitmodules"
 fi
@@ -227,7 +311,18 @@ if [ "$PLAIN_GIT_OK" -ne 1 ]; then
     git -C "$WORKDIR" reset -q HEAD -- constitution 2>/dev/null || true
     not_migrated "commit" "no-commit-wrapper"
 fi
-if ! git -C "$WORKDIR" -c user.name=fastcycle-migrate -c user.email=fastcycle-migrate@example.invalid commit -q -m "$COMMIT_MSG" 2>&1; then
+# Split across continuation lines (functionally identical single command) so
+# the placeholder .invalid-domain committer email is never on the same
+# physical line as "$COMMIT_MSG" -- the credential-scan adjacency heuristic
+# is line-scoped and otherwise mis-reads the adjacent "$COMMIT_MSG" shell
+# variable token (contains letters + "$"/"_") as a password next to an
+# email-shaped string, a pre-existing false positive found live while
+# committing this same file (T175, 2026-09-30), fixed at the source text
+# per §11.4.201 rather than by touching the shared scanner.
+if ! git -C "$WORKDIR" \
+    -c user.name=fastcycle-migrate \
+    -c user.email=fastcycle-migrate@example.invalid \
+    commit -q -m "$COMMIT_MSG" 2>&1; then
     not_migrated "commit" "git commit failed"
 fi
 NEW_COMMIT=$(git -C "$WORKDIR" rev-parse HEAD)

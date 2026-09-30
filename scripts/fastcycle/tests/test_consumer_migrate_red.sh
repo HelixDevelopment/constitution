@@ -312,6 +312,157 @@ else
     bad "C4 C-006 static safety: $TOOL is absent -- cannot grep its source"
 fi
 
+# =============================================================================
+# Section D -- Gap 1 regression: §9.2 backup must not silently no-op on a
+# `git worktree` checkout. Live incident (2026-09-30, found while executing
+# T175's consumer audit): $WORKDIR/.git for a genuine `git worktree`
+# checkout is a small TEXT FILE ("gitdir: <path>") pointing at the REAL,
+# SHARED git-dir, so `cp -al "$WORKDIR/.git" "$BACKUP_DIR"` hardlink-copies
+# only that pointer file -- a FALSE SENSE of §9.2 protection while backing
+# up nothing. migrate.sh now detects this shape (--git-dir differs from
+# --git-common-dir once both resolve to absolute paths) and REFUSES the
+# migration honestly at the backup step (reason: backup-failed) rather
+# than pretend to protect it. This section builds a REAL worktree fixture
+# (a bare repo + a main checkout + a genuine `git worktree add` linked
+# checkout of a DIFFERENT branch) and proves: (1) migrate.sh --apply
+# refuses with NOT-MIGRATED (backup: backup-failed); (2) the worktree
+# checkout's own tree hash is unchanged (no data change, matching C1's
+# no-data-change proof for the dirty-local refusal); (3) no
+# .fastcycle_migrate_backup_* sibling directory is left behind (the
+# refusal happens BEFORE any write is attempted, never a partial/garbage
+# backup).
+# =============================================================================
+D_ROOT=$(mktemp -d)
+D_BARE="$D_ROOT/wt_consumer.git"
+D_MAIN="$D_ROOT/main_checkout"
+D_WT="$D_ROOT/wt_checkout"
+git init --bare -q -b main "$D_BARE"
+git init -q -b main "$D_MAIN" >/dev/null
+git -C "$D_MAIN" config user.name fastcycle-fixture
+git -C "$D_MAIN" config user.email fixture@example.invalid
+echo "worktree fixture consumer (T168 Section D, Gap 1 regression)" > "$D_MAIN/CLAUDE.md"
+git -C "$D_MAIN" add CLAUDE.md
+git -C "$D_MAIN" commit -q -m "initial worktree-fixture consumer state"
+git -C "$D_MAIN" remote add origin "$D_BARE"
+git -C "$D_MAIN" push -q origin main
+git -C "$D_MAIN" branch wt-branch
+D_WT_BUILD_RC=0
+git -C "$D_MAIN" worktree add -q "$D_WT" wt-branch >"$WORK/d_worktree_add.log" 2>&1 || D_WT_BUILD_RC=$?
+if [ "$D_WT_BUILD_RC" -ne 0 ] || [ ! -f "$D_WT/.git" ]; then
+    bad "D0 worktree fixture: 'git worktree add' did not produce a real .git-as-file linked checkout (rc=$D_WT_BUILD_RC; see $WORK/d_worktree_add.log)"
+else
+    ok "D0 worktree fixture: real 'git worktree add' checkout built at $D_WT with .git as a linked pointer file"
+
+    D_HASH_BEFORE=$(tree_hash "$D_WT")
+    D_BACKUP_GLOB_BEFORE=$(find "$D_ROOT" -maxdepth 1 -name '.fastcycle_migrate_backup_*' 2>/dev/null | wc -l)
+    D_OUT=$(run_tool --config "$CFG" --project "fixture/wt_consumer" \
+        --workdir "$D_WT" --out "$WORK/d_migration.json" --apply --review-ref "$REVIEW_REF"); D_RC=$?
+    D_HASH_AFTER=$(tree_hash "$D_WT")
+    D_BACKUP_GLOB_AFTER=$(find "$D_ROOT" -maxdepth 1 -name '.fastcycle_migrate_backup_*' 2>/dev/null | wc -l)
+
+    if [ "$D_RC" -eq 1 ] && echo "$D_OUT" | grep -q 'NOT-MIGRATED (backup: backup-failed)'; then
+        ok "D1 worktree backup refusal: migrate.sh recorded NOT-MIGRATED (backup: backup-failed) for a genuine worktree checkout"
+    else
+        bad "D1 worktree backup refusal: migrate.sh did not refuse a worktree checkout at the backup step (rc=$D_RC out=$D_OUT)"
+    fi
+    if [ "$D_HASH_BEFORE" = "$D_HASH_AFTER" ]; then
+        ok "D2 worktree backup refusal: the worktree checkout's tree hash is unchanged (no data change on refusal)"
+    else
+        bad "D2 worktree backup refusal: the worktree checkout's tree hash CHANGED on refusal (before=$D_HASH_BEFORE after=$D_HASH_AFTER)"
+    fi
+    if [ "$D_BACKUP_GLOB_BEFORE" = "$D_BACKUP_GLOB_AFTER" ]; then
+        ok "D3 worktree backup refusal: no .fastcycle_migrate_backup_* directory was left behind (refused before any write)"
+    else
+        bad "D3 worktree backup refusal: a .fastcycle_migrate_backup_* directory appeared despite the refusal (before=$D_BACKUP_GLOB_BEFORE after=$D_BACKUP_GLOB_AFTER)"
+    fi
+fi
+rm -rf "$D_ROOT" 2>/dev/null || true
+
+# =============================================================================
+# Section E -- Gap 2 regression: gitlink-bump must resolve the constitution
+# submodule by its PATH, never by an assumed ".gitmodules" section name.
+# Live finding (2026-09-30, direct .gitmodules inspection during T175):
+# this constitution repo's own .gitmodules names the section
+# [submodule "constitution"], but a real consumer (HelixDevelopment/ota)
+# names the SAME path's section [submodule "HelixConstitution"] instead --
+# the prior `git config -f .gitmodules --get submodule.constitution.url`
+# lookup returned empty for that shape, wrongly reporting
+# NOT-MIGRATED (gitlink-bump: no constitution submodule entry in
+# .gitmodules) even though a genuine constitution submodule entry exists.
+# This section builds a real golden-path fixture whose .gitmodules uses a
+# NON-"constitution" section name for the SAME "constitution" path, and
+# proves a full --apply migration still succeeds (MIGRATED, gitlink
+# bumped to the real target commit) -- i.e. resolution is genuinely by
+# path, not by the section label.
+# =============================================================================
+E_ROOT=$(mktemp -d)
+E_MINI_BARE="$E_ROOT/mini_constitution.git"
+git init --bare -q -b main "$E_MINI_BARE"
+E_MC_WORK=$(mktemp -d)
+git init -q -b main "$E_MC_WORK" >/dev/null
+git -C "$E_MC_WORK" config user.name fastcycle-fixture
+git -C "$E_MC_WORK" config user.email fixture@example.invalid
+echo "old constitution state (Section E)" > "$E_MC_WORK/CLAUDE.md"
+git -C "$E_MC_WORK" add CLAUDE.md
+git -C "$E_MC_WORK" commit -q -m "old constitution state (Section E)"
+git -C "$E_MC_WORK" remote add origin "$E_MINI_BARE"
+git -C "$E_MC_WORK" push -q origin main
+E_OLD_SHA=$(git -C "$E_MC_WORK" rev-parse HEAD)
+echo "new constitution state (Section E migration target)" >> "$E_MC_WORK/CLAUDE.md"
+git -C "$E_MC_WORK" add CLAUDE.md
+git -C "$E_MC_WORK" commit -q -m "new constitution state (Section E migration target)"
+git -C "$E_MC_WORK" push -q origin main
+E_NEW_SHA=$(git -C "$E_MC_WORK" rev-parse HEAD)
+rm -rf "$E_MC_WORK"
+
+E_BARE="$E_ROOT/consumer.git"
+git init --bare -q -b main "$E_BARE"
+E_WORK=$(mktemp -d)
+git init -q -b main "$E_WORK" >/dev/null
+git -C "$E_WORK" config user.name fastcycle-fixture
+git -C "$E_WORK" config user.email fixture@example.invalid
+cat > "$E_WORK/CLAUDE.md" <<'EOF'
+## INHERITED FROM constitution/CLAUDE.md
+
+Fixture consumer for consumers/migrate.sh RED testing (T168 Section E,
+Gap 2 non-canonical .gitmodules section name).
+
+## Commit Policy
+
+Commit wrapper: none (plain git permitted)
+EOF
+# The load-bearing line: the section name is "HelixConstitution", NOT
+# "constitution" -- only the `path` value is "constitution".
+cat > "$E_WORK/.gitmodules" <<EOF
+[submodule "HelixConstitution"]
+	path = constitution
+	url = $E_MINI_BARE
+EOF
+git -C "$E_WORK" add CLAUDE.md .gitmodules
+git -C "$E_WORK" update-index --add --cacheinfo 160000,"$E_OLD_SHA",constitution
+git -C "$E_WORK" commit -q -m "initial Section E consumer state (constitution gitlink=old)"
+git -C "$E_WORK" remote add origin "$E_BARE"
+git -C "$E_WORK" push -q origin main
+rm -rf "$E_WORK"
+git clone -q --no-hardlinks "$E_BARE" "$E_ROOT/checkout" >/dev/null 2>&1
+git -C "$E_ROOT/checkout" config user.name fastcycle-fixture
+git -C "$E_ROOT/checkout" config user.email fixture@example.invalid
+
+E_OUT=$(run_tool --config "$CFG" --project "fixture/section_e_nonstandard_section_name" \
+    --workdir "$E_ROOT/checkout" --out "$WORK/e_migration.json" --apply --review-ref "$REVIEW_REF"); E_RC=$?
+if [ "$E_RC" -eq 0 ] && echo "$E_OUT" | grep -q 'MIGRATED' && ! echo "$E_OUT" | grep -q 'NOT-MIGRATED'; then
+    ok "E1 non-canonical .gitmodules section name: migrate.sh reports MIGRATED despite a [submodule \"HelixConstitution\"] (not \"constitution\") section"
+    E_GITLINK_AFTER=$(git -C "$E_ROOT/checkout" ls-tree HEAD constitution 2>/dev/null | awk '{print $3}')
+    if [ "$E_GITLINK_AFTER" = "$E_NEW_SHA" ]; then
+        ok "E2 non-canonical .gitmodules section name: the constitution gitlink was bumped to the migration target ($E_NEW_SHA), resolved by PATH not section name"
+    else
+        bad "E2 non-canonical .gitmodules section name: the consumer's constitution gitlink is '$E_GITLINK_AFTER', expected $E_NEW_SHA"
+    fi
+else
+    bad "E1 non-canonical .gitmodules section name: migrate.sh did not report MIGRATED for a [submodule \"HelixConstitution\"] fixture (rc=$E_RC out=$E_OUT)"
+fi
+rm -rf "$E_ROOT" 2>/dev/null || true
+
 # Archive this run's stdout as the RED evidence per Test Discipline.
 {
     echo "T168 RED run; candidate fingerprint=$FINGERPRINT; date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
