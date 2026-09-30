@@ -78,13 +78,56 @@
 # time, and are themselves ordinary tracked files from this point on -- this
 # script never invokes `git show` against a moving ref again.
 #
+# R3-I1 fix (T140 Round 3 review, a sibling gap of Round 2's I2 in this SAME
+# function -- cmd_resume_check -- that fix did not reach; source-file commit
+# alongside this edit): THREE sub-findings, all fixed in
+# orchestration/handoff.py's cmd_resume_check:
+#   (a) a non-dict `ground_truth_effects.json` entry (check (4)) was
+#       silently `continue`d past -- now its own distinct
+#       "malformed-ground-truth-entry" finding.
+#   (b) a non-dict `pending` entry (check (3)) was silently `continue`d past
+#       -- now its own distinct "malformed-pending-step" finding. (The
+#       reviewer's own repro confirmed this ALSO passes `cmd_write`'s
+#       write-time check, since `_json_list_arg` -- shared verbatim across
+#       --pending-json/--external-deps-json/--effects-performed-json, three
+#       fields with three different required shapes -- validates only
+#       top-level list-ness, never per-entry shape; hardening it generically
+#       would need a per-field shape contract it does not carry, so per the
+#       ALREADY-ESTABLISHED check-(2) precedent -- a non-dict external_deps
+#       entry is likewise caught here, in resume-check, never at write --
+#       resume-check remains the right and only place this is caught.)
+#   (c) a `None in {None}` id-matching bug: an `effects_performed` entry
+#       missing its `id` field used to contribute the literal `None` to the
+#       match-key set, so an UNRELATED ground-truth entry that also happened
+#       to lack an `id` would wrongly test as "already recorded" -- fixed by
+#       excluding `None`/missing ids from the match-key set entirely, so an
+#       id-less ground-truth entry is now correctly UNMATCHABLE (always
+#       falls through to the pre-existing "unrecorded-external-effect"
+#       finding, never a silent match).
+# Investigated and confirmed NOT present, per the reviewer's own explicit
+# request to state so honestly rather than invent a fix: the SAME
+# silently-skip-a-malformed-entry pattern in checks (1) and (5) (both guard
+# `if not isinstance(v, dict)` on `verified` entries). Unlike (a)/(b) above,
+# a non-dict `verified` entry is the DOCUMENTED, INTENDED shape
+# `cmd_write`'s own `--verified` interface produces (bare ref-id strings --
+# see the module docstring's own "e.g. the bare id strings `cmd_write`
+# itself produces"), not caller-supplied malformed input DEC-34 requires be
+# inspectable; skipping it discards no established_at/phase signal that
+# genuinely existed. Check (5) skipping such an entry is additionally the
+# SAFE direction, not a fail-open one: excluding it from `verified_phases`
+# can only LOWER (never raise) `last_verified_phase`, which makes
+# `inconsistent-transition` MORE likely to fire, never less -- the opposite
+# of (a)/(b)'s fail-open bug. `fixtures/resume_revalidate/_pinned/
+# handoff_pre_r3i1_fix.py` (this submodule's HEAD immediately BEFORE this
+# fix landed) is the fourth pinned pre-fix copy, extracted the same way.
+#
 # This file is a SELF-CONTAINED regression guard -- it does NOT import,
 # source, or otherwise couple to test_resume_revalidate_red.sh's own
 # derive_resume_check() oracle (Producer != Verifier, section 11.4.240): its
 # own comparison logic below is written fresh, directly against each
 # fixture's own checked-in expected_verdict.json document.
 #
-# Five fixtures total under fixtures/resume_revalidate/ (NONE added to the
+# Eight fixtures total under fixtures/resume_revalidate/ (NONE added to the
 # pre-existing, closed T126 RED test's own fixed $SCENARIOS list -- that
 # file is a completed historical deliverable and is left untouched; every
 # fixture below is exercised ONLY by this file):
@@ -96,6 +139,9 @@
 #                                                    malformed entries in one
 #                                                    fixture (non-dict AND
 #                                                    dict-missing-kind)
+#   rr_malformed_ground_truth_entry/             -- R3-I1 case (a)
+#   rr_malformed_pending_step/                    -- R3-I1 case (b)
+#   rr_id_collision_none/                        -- R3-I1 case (c)
 #
 # Guard-viability proof (section 11.4.115(F), the canonical §1.1 mutation
 # for a landed fix being the fix-commit's own revert): this file re-runs
@@ -125,7 +171,8 @@ LIB="$FC/lib/fc_common.py"
 # scenario -> which pinned pre-fix copy proves its guard-viability
 I4_FIXTURES="rr_unverifiable_external_dependency_kind rr_unverifiable_ground_truth"
 R2I2_FIXTURES="rr_missing_ground_truth_empty_effects rr_malformed_ground_truth_file rr_malformed_external_dep"
-ALL_FIXTURES="$I4_FIXTURES $R2I2_FIXTURES"
+R3I1_FIXTURES="rr_malformed_ground_truth_entry rr_malformed_pending_step rr_id_collision_none"
+ALL_FIXTURES="$I4_FIXTURES $R2I2_FIXTURES $R3I1_FIXTURES"
 
 fail=0
 failx() { fail=1; }
@@ -133,7 +180,7 @@ failx() { fail=1; }
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-echo "=== I4+R2-I2 regression guard: control needle -- fixtures + the fixed tool + pinned copies all exist ==="
+echo "=== I4+R2-I2+R3-I1 regression guard: control needle -- fixtures + the fixed tool + pinned copies all exist ==="
 if [ ! -f "$IMPL" ]; then
   echo "NOT ok control needle FAILED: $IMPL not found"
   failx
@@ -146,7 +193,7 @@ for scen in $ALL_FIXTURES; do
     failx
   fi
 done
-for pinned in handoff_pre_i4_fix.py handoff_pre_r2i2_fix.py; do
+for pinned in handoff_pre_i4_fix.py handoff_pre_r2i2_fix.py handoff_pre_r3i1_fix.py; do
   if [ ! -f "$PINDIR/$pinned" ]; then
     echo "NOT ok control needle FAILED: pinned pre-fix copy $PINDIR/$pinned not found"
     failx
@@ -258,15 +305,36 @@ for scen in $R2I2_FIXTURES; do
     failx
   fi
 done
+for scen in $R3I1_FIXTURES; do
+  MUT_OUT="$TMP/${scen}.r3i1pin.mut.json"
+  run_against_pinned "handoff_pre_r3i1_fix.py" "$scen" "$MUT_OUT"
+  if [ ! -f "$MUT_OUT" ]; then
+    echo "NOT ok guard-viability $scen BLIND: pinned pre-R3-I1-fix copy wrote no --out document -- $(cat "$TMP/${scen}.handoff_pre_r3i1_fix.py.mut.err" 2>/dev/null)"
+    failx
+    continue
+  fi
+  MUT_RESULT=$(compare_outcome "$MUT_OUT" "$FIXDIR/$scen/expected_verdict.json")
+  if [ "$MUT_RESULT" != "MATCH" ]; then
+    echo "ok guard-viability ($scen): the PINNED pre-R3-I1-fix handoff.py's"
+    echo "   verdict does NOT match this fixture's expected_verdict.json"
+    echo "   ($MUT_RESULT) -- proving this fixture genuinely catches the R3-I1"
+    echo "   fail-open regression if the fix is ever reverted"
+  else
+    echo "NOT ok guard-viability ($scen) FAILED: the pinned pre-R3-I1-fix copy"
+    echo "     ALREADY matches the fixed verdict -- this fixture would NOT catch"
+    echo "     a revert of the R3-I1 fix and needs revising"
+    failx
+  fi
+done
 
 echo
 if [ "$fail" = 0 ]; then
-  echo "=== I4+R2-I2 REGRESSION GUARD: ALL CHECKS PASS -- the fixed handoff.py"
-  echo "    correctly fails CLOSED on every fixture, and every fixture's own"
+  echo "=== I4+R2-I2+R3-I1 REGRESSION GUARD: ALL CHECKS PASS -- the fixed"
+  echo "    handoff.py correctly fails CLOSED on every fixture, and every fixture's own"
   echo "    pinned pre-fix copy is independently confirmed to NOT reproduce that"
   echo "    verdict -- every guard here is load-bearing. ==="
 else
-  echo "=== I4+R2-I2 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ==="
+  echo "=== I4+R2-I2+R3-I1 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ==="
 fi
 
 exit $fail

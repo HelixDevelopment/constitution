@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr14000000000000000000000000000000000000000000000000000000014",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "unrecorded-external-effect",
+      "detail": "effect delete-prod-db:None genuinely occurred but is absent from effects_performed -- resume must not risk repeating it"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": [null]
+}

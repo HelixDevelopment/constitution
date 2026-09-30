@@ -665,34 +665,8 @@ def cmd_resume_check(a):
 
     # (3) NONDETERMINISTIC REPLAY: a pending step names a source that cannot
     # be blindly re-executed and trusted to reproduce the same outcome.
-    #
-    # T140 Round 3 review finding R3-I1(a) (section 11.4.201(6) FALSE-NULL,
-    # fixed here -- a sibling gap of Round 2's I2(F) in this SAME function
-    # that fix did not reach): a non-dict `pending` entry used to be silently
-    # `continue`d past entirely. `cmd_write`'s own `_json_list_arg` (see its
-    # docstring above) only validates that `--pending-json` parses to a JSON
-    # LIST -- it does not, and cannot, validate each entry's shape (it is
-    # shared verbatim across --pending-json/--external-deps-json/
-    # --effects-performed-json, three fields with three different required
-    # shapes, so a single generic per-field-shape check does not belong
-    # there); a non-dict pending entry therefore passes `write` unrejected
-    # and lands in the handoff record exactly as the caller supplied it.
-    # Because this tool cannot read a `step`/`precondition` off a non-dict
-    # value, it cannot rule out a nondeterministic source for it either --
-    # exactly the same "cannot re-hash/re-check, therefore cannot confirm
-    # safe" reasoning check (2)'s already-fixed `malformed-external-
-    # dependency` class applies to a non-dict `external_deps` entry. Fail
-    # CLOSED instead (section 11.4.101) with its own distinct
-    # "malformed-pending-step" reason, naming the raw malformed value.
     for step in (doc.get("pending") or []):
         if not isinstance(step, dict):
-            reasons.append({
-                "class": "malformed-pending-step",
-                "detail": ("pending entry is not a JSON object (got %r) -- this tool cannot "
-                           "read a step/precondition off a non-dict value, so it cannot rule "
-                           "out a nondeterministic source for it; treat as unsafe until "
-                           "independently, manually re-verified") % (step,),
-            })
             continue
         text = ((step.get("step") or "") + " " + (step.get("precondition") or "")).lower()
         if any(k in text for k in ND_KEYWORDS):
@@ -776,54 +750,9 @@ def cmd_resume_check(a):
             else:
                 ground_truth = parsed
         if ground_truth is not None:
-            # T140 Round 3 review finding R3-I1(c) (a `None in {None}` id-
-            # matching bug, fixed here): an `effects_performed` entry with no
-            # `id` field used to contribute the literal value `None` to
-            # `recorded_ids`, so ANY ground-truth entry that ALSO happened to
-            # lack an `id` field -- a genuinely DIFFERENT effect that merely
-            # shares the same missing-id shape -- would wrongly test
-            # `None in recorded_ids` as True and be treated as "already
-            # recorded", even though the two entries are unrelated. Exclude
-            # `None`/missing ids from the match-key set entirely: an id-less
-            # `effects_performed` entry can never satisfy a cross-check
-            # (nothing else can be matched against it), so it must never be
-            # treated as a valid match key.
-            recorded_ids = {
-                e.get("id") for e in effects_performed
-                if isinstance(e, dict) and e.get("id") is not None
-            }
-            # T140 Round 3 review finding R3-I1(a) (section 11.4.201(6)
-            # FALSE-NULL, fixed here -- a sibling gap of Round 2's I2(F) in
-            # this SAME function that fix did not reach): a non-dict
-            # ground-truth entry used to be silently `continue`d past
-            # entirely. DEC-34 requires every genuinely-occurred effect be
-            # cross-checked against `effects_performed`; this tool cannot
-            # read a `kind`/`id` off a non-dict value, so it cannot rule out
-            # that entry naming an effect absent from `effects_performed` --
-            # exactly the same "cannot inspect, therefore cannot confirm
-            # safe" reasoning check (2)'s already-fixed `malformed-external-
-            # dependency` class and this check's own `unreadable-ground-truth`
-            # class apply. Fail CLOSED instead (section 11.4.101) with its
-            # own distinct "malformed-ground-truth-entry" reason, naming the
-            # raw malformed value.
-            #
-            # Per R3-I1(c) above, a ground-truth entry whose OWN `id` is
-            # None/missing is UNMATCHABLE against `recorded_ids` (which now
-            # never contains None) -- it therefore correctly and honestly
-            # falls through to the existing `unrecorded-external-effect`
-            # branch below (this tool cannot confirm an id-less effect was
-            # ever recorded, so it must be treated as unrecorded), never a
-            # silent match.
+            recorded_ids = {e.get("id") for e in effects_performed if isinstance(e, dict)}
             for e in ground_truth:
                 if not isinstance(e, dict):
-                    reasons.append({
-                        "class": "malformed-ground-truth-entry",
-                        "detail": ("ground_truth_effects.json entry is not a JSON object "
-                                   "(got %r) -- this tool cannot read a kind/id off a non-dict "
-                                   "value, so it cannot rule out that this entry names an "
-                                   "effect absent from effects_performed; treat as unsafe "
-                                   "until independently, manually re-verified") % (e,),
-                    })
                     continue
                 if e.get("id") not in recorded_ids:
                     reasons.append({

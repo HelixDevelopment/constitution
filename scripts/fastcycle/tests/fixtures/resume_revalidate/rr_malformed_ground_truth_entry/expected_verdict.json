@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr12000000000000000000000000000000000000000000000000000000012",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "malformed-ground-truth-entry",
+      "detail": "ground_truth_effects.json entry is not a JSON object (got 'deploy:dep-99') -- this tool cannot read a kind/id off a non-dict value, so it cannot rule out that this entry names an effect absent from effects_performed; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}
