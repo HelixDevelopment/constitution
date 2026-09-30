@@ -370,6 +370,55 @@ def worktree_dirty_state(path):
     return {"status": "clean", "sha256": None, "has_untracked": False}, ""
 
 
+def resolve_live_dirty_state(entry_kind, entry_id, root):
+    """Independently RE-DERIVES the entry's CURRENT live dirty state, fresh,
+    at call time -- reusing the EXACT SAME git-querying functions `inventory`
+    itself uses to compute `dirty_file_hash` in the first place (never a
+    second implementation, section 11.4.227) -- so a backup can be checked
+    against what the stash/worktree ACTUALLY looks like RIGHT NOW, never
+    against a stale value cached in an inventory document and never against
+    itself (section 9.2 / T140 review finding I3: hashing the backup file
+    and comparing it to itself proves nothing about whether that backup
+    still covers today's content).
+
+    Returns (live_sha256_or_None, has_untracked_bool_or_None, found_bool).
+
+    found=False means entry_id no longer resolves to a LIVE stash/worktree
+    at all (e.g. already dropped/removed since the inventory was taken) --
+    treated conservatively as "cannot verify coverage", never as "matches"
+    (section 11.4.101 safe-reversible default; section 11.4.201: an
+    unresolvable signal takes the conservative-safe branch, never the
+    permissive one).
+
+    has_untracked is always False for a stash entry: `git stash` (without
+    `-u`) never captures untracked files in the first place, so there is no
+    untracked-coverage question to ask of a stash backup the way there is
+    for a worktree's tracked-only tracked.patch backup (see BACKUP LAYOUT
+    above -- a worktree's backup covers `git diff HEAD` only, never `git
+    status`'s `??` entries).
+    """
+    if entry_kind == "stash":
+        rc, _out, _err = _run(["git", "-C", root, "rev-parse", "--verify", "-q", entry_id], check=False)
+        if rc != 0:
+            return None, False, False
+        _files, patch_text = stash_files_touched(root, entry_id)
+        live_hash = sha256_of_text(patch_text) if patch_text else None
+        return live_hash, False, True
+    if entry_kind == "worktree":
+        for wt in list_worktree_entries(root):
+            path = wt.get("path")
+            if not path:
+                continue
+            if worktree_entry_id(path, root) != entry_id:
+                continue
+            if not os.path.isdir(path):
+                return None, None, False
+            dirty_state, _diff = worktree_dirty_state(path)
+            return dirty_state.get("sha256"), bool(dirty_state.get("has_untracked")), True
+        return None, None, False
+    return None, None, False
+
+
 def find_worktree_backup(root, backup_root, entry_id):
     candidate = os.path.join(backup_root, "backup_worktrees", entry_id, "tracked.patch")
     searched = [os.path.relpath(candidate, root) if candidate.startswith(root) else candidate]
@@ -405,16 +454,38 @@ def build_worktree_entry(root, backup_root, wt):
 
 # ---------------------------------------------------------------------------
 # Core rule (section 9.2): a destructive proposal (land | retire) is ALLOWED
-# only when it carries a backup_hash that matches the sha256 of the REAL
-# file at backup_artifact_path, re-hashed fresh every call -- never a
-# destructive proposal with no verifiable backup. 'keep' (non-destructive)
-# is always ALLOWED regardless of backup_hash (section 11.4.201(1) false-
-# positive guard -- refusing 'keep' for lacking a backup_hash would make
-# the rule "refuse everything", proving nothing).
+# only when (a) it carries a backup_hash that matches the sha256 of the REAL
+# file at backup_artifact_path, re-hashed fresh every call, AND (b) that
+# same real backup content matches the entry's OWN, INDEPENDENTLY
+# re-derived LIVE dirty content, re-hashed fresh every call via
+# resolve_live_dirty_state() -- never a destructive proposal with no
+# verifiable backup, and never one whose backup is stale relative to what
+# is ACTUALLY live right now. 'keep' (non-destructive) is always ALLOWED
+# regardless of backup_hash (section 11.4.201(1) false-positive guard --
+# refusing 'keep' for lacking a backup_hash would make the rule "refuse
+# everything", proving nothing).
+#
+# T140 review finding I3 (fixed here): the PRIOR version of this function
+# compared the backup file's re-computed hash against `backup_hash` -- a
+# value that itself came from hashing that SAME backup file (at inventory
+# time). That comparison is circular: it always matched regardless of
+# whether the backup was still current, so a diverged/stale backup was
+# silently accepted. This version closes that gap by additionally
+# comparing the backup's real content against the entry's LIVE dirty
+# content (re-derived fresh, never cached, never trusted from an inventory
+# document) via resolve_live_dirty_state(), and by refusing to allow a
+# worktree with untracked content the tracked-only backup layout cannot
+# possibly cover (section 11.4.6: never silently ignored).
 # ---------------------------------------------------------------------------
-def derive_verdict(action, backup_hash, backup_artifact_path, root):
+def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=None, entry_id=None):
     """Returns (verdict, detail) where verdict is 'ALLOWED' or 'REFUSED' and
-    detail explains why (section 11.4.201: every refusal names its reason)."""
+    detail explains why (section 11.4.201: every refusal names its reason).
+
+    entry_kind/entry_id are used ONLY to independently re-derive the LIVE
+    dirty state to compare the backup against (never to look anything else
+    up) -- every call site (propose, verify-proposal, selftest) passes them
+    so this anti-circularity check applies uniformly everywhere a
+    destructive verdict can be minted, per T140 finding I3."""
     if action not in VALID_ACTIONS:
         return "REFUSED", "unknown action %r (must be one of %s)" % (action, VALID_ACTIONS)
     if action not in DESTRUCTIVE_ACTIONS:
@@ -431,7 +502,33 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root):
     if real_hash != backup_hash:
         return "REFUSED", ("backup_hash %r does not match the real sha256 (%r) of %r -- stale, "
                             "tampered, or wrong hash" % (backup_hash, real_hash, backup_artifact_path))
-    return "ALLOWED", "backup_hash independently re-verified against the real file at %r" % backup_artifact_path
+
+    # Anti-circularity check (T140 I3): the claimed backup_hash matches the
+    # real bytes of the backup file (just proven above) -- but that alone
+    # says nothing about whether the backup still covers what is LIVE right
+    # now. Re-derive the live state fresh and compare against it, never
+    # against backup_hash/real_hash a second time.
+    if not entry_kind or not entry_id:
+        return "REFUSED", ("cannot independently verify backup coverage: no entry_kind/entry_id was "
+                            "supplied to re-derive the live dirty state against")
+    live_hash, has_untracked, found = resolve_live_dirty_state(entry_kind, entry_id, root)
+    if not found:
+        return "REFUSED", ("entry_id %r (%s) no longer resolves to a live stash/worktree -- cannot "
+                            "independently verify the backup still covers its content" % (entry_id, entry_kind))
+    if entry_kind == "worktree" and has_untracked is not False:
+        # has_untracked is True, or None (undeterminable) -- either way the
+        # tracked-only backup layout (BACKUP LAYOUT above) cannot possibly
+        # cover untracked content, so it is never silently ignored.
+        return "REFUSED", ("worktree %r has untracked content (has_untracked=%r) that the tracked-diff-"
+                            "only backup at %r cannot cover -- retire refused to avoid losing it"
+                            % (entry_id, has_untracked, backup_artifact_path))
+    if live_hash != real_hash:
+        return "REFUSED", ("backup content at %r (sha256=%r) does NOT match the entry's freshly "
+                            "re-derived LIVE dirty content (sha256=%r) -- the backup is stale and no "
+                            "longer covers today's live changes" % (backup_artifact_path, real_hash, live_hash))
+    return "ALLOWED", ("backup_hash independently re-verified against BOTH the real backup file at %r "
+                        "AND the entry's freshly re-derived live dirty content (no untracked content)"
+                        % backup_artifact_path)
 
 
 # ---------------------------------------------------------------------------
@@ -505,6 +602,7 @@ def propose_action_for(entry, root):
     verdict, _detail = derive_verdict(
         "retire" if entry["entry_kind"] == "worktree" else "land",
         backup.get("backup_hash"), backup.get("backup_artifact_path"), root,
+        entry_kind=entry.get("entry_kind"), entry_id=entry.get("entry_id"),
     )
     if verdict != "ALLOWED":
         # A stale/unverifiable backup record is treated exactly like no
@@ -534,7 +632,8 @@ def cmd_propose(a):
         backup = entry.get("existing_backup") or {}
         backup_hash = backup.get("backup_hash") if action in DESTRUCTIVE_ACTIONS else None
         backup_path = backup.get("backup_artifact_path") if action in DESTRUCTIVE_ACTIONS else None
-        verdict, detail = derive_verdict(action, backup_hash, backup_path, root)
+        verdict, detail = derive_verdict(action, backup_hash, backup_path, root,
+                                          entry_kind=entry.get("entry_kind"), entry_id=entry.get("entry_id"))
         proposals.append({
             "entry_kind": entry.get("entry_kind"),
             "entry_id": entry.get("entry_id"),
@@ -599,7 +698,8 @@ def cmd_verify_proposal(a):
     action = d["action"]
     backup_hash = d.get("backup_hash")
     backup_artifact_path = d.get("backup_artifact_path")
-    verdict, detail = derive_verdict(action, backup_hash, backup_artifact_path, root)
+    verdict, detail = derive_verdict(action, backup_hash, backup_artifact_path, root,
+                                      entry_kind=d.get("entry_kind"), entry_id=d.get("entry_id"))
 
     disagreement = None
     supplied = d.get("expected_verdict")
@@ -677,7 +777,8 @@ def cmd_selftest(a):
             continue
         with open(fpath, encoding="utf-8") as fh:
             d = json.load(fh)
-        verdict, detail = derive_verdict(d["action"], d.get("backup_hash"), d.get("backup_artifact_path"), root)
+        verdict, detail = derive_verdict(d["action"], d.get("backup_hash"), d.get("backup_artifact_path"), root,
+                                          entry_kind=d.get("entry_kind"), entry_id=d.get("entry_id"))
         if verdict == expected:
             print("custody_sweep selftest: ok %s -> %s (%s)" % (fname, verdict, detail))
         else:

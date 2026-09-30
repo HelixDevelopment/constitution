@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr08000000000000000000000000000000000000000000000000000000008",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "unverifiable-ground-truth",
+      "detail": "ground_truth_effects.json missing while effects_performed lists 1 effect(s) -- this tool has no independent source to confirm those are ALL the effects that genuinely occurred; treat as unsafe until an independent ground-truth source is supplied"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": ["commit-rr08-0001"]
+}

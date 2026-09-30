@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr07000000000000000000000000000000000000000000000000000000007",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "unverifiable-external-dependency",
+      "detail": "external dep https://example.com/releases/artefact-v1.tar.gz has unrecognized dependency kind: http-resource -- this tool cannot re-hash it, so it cannot be confirmed unchanged; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": ["EV-RR07-A"],
+  "effects_not_to_repeat": []
+}
