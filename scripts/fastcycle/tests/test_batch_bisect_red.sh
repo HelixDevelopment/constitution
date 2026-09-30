@@ -311,6 +311,46 @@ for scen in bb_good_all_pass bb_bad_one_culprit; do
     else
         bad "$scen: real tool exit=$rc, expected batch_verdict=$want_v"
     fi
+
+    # STRENGTHENED (T072, fixed forward per T056's own header: "Section F
+    # below (real tool invocations) are the real functional tests to run"
+    # -- this ADDS assertions, it removes/weakens none of the above).
+    # The exit-code check alone cannot distinguish a genuine bisector from
+    # the "attribute the batch verdict to every member" anti-pattern T056
+    # itself names as the paired-mutation target: a naive implementation
+    # that copies batch_verdict onto every change's per_change entry
+    # produces the SAME exit code (batch_verdict, and therefore the exit
+    # code, never depends on how per_change was computed) while reporting
+    # every clean member as a false culprit. Directly comparing the real
+    # tool's per_change/culprits against the golden expected.json closes
+    # that gap -- the exact check this scenario's own expected.json exists
+    # to make possible.
+    if [ -s "$OUT_JSON" ]; then
+        per_change_ok=$(python3 -c "
+import json
+want = json.load(open('$scen_dir/expected.json'))['per_change']
+got = json.load(open('$OUT_JSON')).get('per_change')
+print('1' if want == got else '0')
+" 2>/dev/null)
+        if [ "$per_change_ok" = 1 ]; then
+            ok "$scen: real tool's per_change map matches expected.json exactly (catches attribute-to-every-member)"
+        else
+            bad "$scen: real tool's per_change map does NOT match expected.json"
+        fi
+        culprits_ok=$(python3 -c "
+import json
+want = sorted(json.load(open('$scen_dir/expected.json'))['culprits'])
+got = sorted(json.load(open('$OUT_JSON')).get('culprits', []))
+print('1' if want == got else '0')
+" 2>/dev/null)
+        if [ "$culprits_ok" = 1 ]; then
+            ok "$scen: real tool's culprits list matches expected.json exactly"
+        else
+            bad "$scen: real tool's culprits list does NOT match expected.json"
+        fi
+    else
+        bad "$scen: real tool did not write a non-empty --out $OUT_JSON -- cannot check per_change/culprits"
+    fi
     rm -f "$OUT_JSON"
 done
 

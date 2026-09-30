@@ -372,7 +372,20 @@ if [ -f "$SK_SRC" ] && [ -f "$SK_KEY" ]; then
         C3_OUT="render_keys.py absent"
         C3_RC=127
     fi
-    if [ "$C3_RC" -eq 0 ] && echo "$C3_OUT" | grep -qi 'STALE'; then
+    # T080 fix-forward (§11.4.6, documented not silent): originally read
+    # `[ "$C3_RC" -eq 0 ] ...` here -- a copy/paste typo from C4's block
+    # requiring a ZERO exit code on a STALE verdict, contradicting (a) this
+    # file's own module docstring ("STALE + non-zero exit"), (b) this same
+    # block's own `bad`-branch text three lines below ("STALE+nonzero"),
+    # (c) fixtures/render_keys/README.md's CLI contract ("exits
+    # non-zero"), and (d) C-001's exit-code table (a finding = exit 1).
+    # Corrected to `-ne 0`, matching every one of those authorities and
+    # C4's own correct, parallel `-eq 0`-on-FRESH pattern below -- this
+    # STRENGTHENS the assertion (a gate that reports STALE but exits 0
+    # would let a naive `if render_keys.py check; then skip; fi` caller
+    # silently skip re-rendering a genuinely stale twin), it is never a
+    # weakening.
+    if [ "$C3_RC" -ne 0 ] && echo "$C3_OUT" | grep -qi 'STALE'; then
         ok "C3 golden-bad: render_keys.py check correctly caught the stale"
         echo "   key (source changed to V2, key_v1.json still recorded V1) --"
         echo "   reported STALE as expected"

@@ -51,6 +51,7 @@ Usage:   review_record.py record --batch B --round N --verdict-file V
              [--tokens JSON] [--reviewer-mutations JSON]
              [--substrate-evidence TEXT]
          review_record.py backfill --input SPEC --out O
+         review_record.py gate --change SHA[,SHA...] --records DIR
 
 Exit:    record : 0 accepted + written (tier equals the designated review
                     tier and effort equals xhigh OR the honest capability-
@@ -72,6 +73,26 @@ Exit:    record : 0 accepted + written (tier equals the designated review
                     finding, bad verdict, cannot write --out). There is no
                     tier/effort refusal path for backfill -- a backfilled
                     row records history, it does not gate a live review.
+         gate   : 0 every queried change is covered (contract RB-006:
+                    member of a batch whose LATEST-round record is a
+                    zero-finding GO at the designated tier/effort --
+                    "?" effort, the honest 11.4.231(F.2) capability-gap
+                    token, NEVER satisfies gate, matching RB-004's own
+                    note); 1 at least one queried change is uncovered
+                    (each uncovered change_id is printed on stdout, one
+                    per line -- "gate exits 1, lists changes" per the
+                    contract's own "Exit codes" row); 4 --records is not a
+                    readable directory, or any file under it that ends
+                    ".json" fails to parse / is not a JSON object / is
+                    missing a required ReviewVerdictRecord field / carries
+                    a non-integer round (records unreadable -- no honest
+                    coverage verdict is possible without knowing what
+                    that file was, constitution 11.4.201(6): a null read
+                    as "uncovered" here would be a false-null, not
+                    evidence). A --records directory that is readable but
+                    holds zero matching records is NOT records-unreadable
+                    (4) -- it is a genuine, honest "nothing covers this
+                    change" finding (1).
          Any other internal error: 4 (BLIND, C-001 row 4 -- no honest
          verdict is possible; never 1, which is reserved for a genuine
          review finding).
@@ -502,6 +523,114 @@ def cmd_backfill(a):
     return _write_record(body, a.out)
 
 
+# ---------------------------------------------------------------------------
+# `gate` (contract review-batch-and-precheck.md RB-006; T-C11/T078). Producer
+# != Verifier (constitution 11.4.240): this subcommand READS the
+# ReviewVerdictRecord files `record`/`backfill` already wrote -- it never
+# writes, edits, or influences any of them.
+# ---------------------------------------------------------------------------
+_GATE_REQUIRED_FIELDS = ("batch_id", "round", "verdict", "findings", "model_tier", "effort", "change_ids")
+
+
+def _gate_collect_records(records_dir):
+    """Walks --records recursively for every *.json file, parses each as a
+    ReviewVerdictRecord, and returns the list. Returns None (caller exits 4) on
+    the FIRST file that fails to parse / is not an object / is missing a required
+    field / carries a non-integer round -- a corrupt record file means no honest
+    coverage verdict is possible, never a silent skip (module docstring, C-001)."""
+    records = []
+    for dirpath, _dirnames, filenames in sorted(os.walk(records_dir)):
+        for fn in sorted(filenames):
+            if not fn.endswith(".json"):
+                continue
+            path = os.path.join(dirpath, fn)
+            doc, err = _load_json(path, "--records/%s" % os.path.relpath(path, records_dir))
+            if err:
+                print("review_record: gate refused -- %s" % err, file=sys.stderr)
+                return None
+            if not isinstance(doc, dict):
+                print("review_record: gate refused -- %s is not a JSON object" % path, file=sys.stderr)
+                return None
+            missing = [k for k in _GATE_REQUIRED_FIELDS if k not in doc]
+            if missing:
+                print("review_record: gate refused -- %s missing required field(s): %s"
+                      % (path, ", ".join(missing)), file=sys.stderr)
+                return None
+            rnd = doc["round"]
+            if not isinstance(rnd, int) or isinstance(rnd, bool):
+                print("review_record: gate refused -- %s has a non-integer round %r" % (path, rnd),
+                      file=sys.stderr)
+                return None
+            records.append(doc)
+    return records
+
+
+def _gate_latest_per_batch(records):
+    """RB-006 "that batch's ... latest record": groups by batch_id, keeps the
+    highest-round record per batch; a genuine round tie (malformed input --
+    review_id/round should be unique per batch) breaks deterministically on the
+    lexically-greatest review_id (C-003: never dict/insertion-order-dependent)."""
+    latest = {}
+    for rec in records:
+        bid = rec["batch_id"]
+        cur = latest.get(bid)
+        if cur is None or rec["round"] > cur["round"] or (
+                rec["round"] == cur["round"]
+                and str(rec.get("review_id", "")) > str(cur.get("review_id", ""))):
+            latest[bid] = rec
+    return latest
+
+
+def _gate_batch_qualifies(rec):
+    """RB-006 "a zero-finding GO at the designated tier and effort" -- re-derived
+    from the record's OWN verdict/findings/model_tier/effort fields, never from a
+    stored derived flag (mirrors B1's own reasoning for first_round_go: a summary
+    flag can be stale or absent on an older record; the raw fields are the source
+    of truth). effort=="?" (the honest 11.4.231(F.2) capability-gap token) never
+    equals DESIGNATED_EFFORT, so it never qualifies, matching RB-004's own note."""
+    findings = rec.get("findings")
+    return (
+        rec.get("verdict") == "GO"
+        and isinstance(findings, list) and len(findings) == 0
+        and rec.get("model_tier") == DESIGNATED_TIER
+        and rec.get("effort") == DESIGNATED_EFFORT
+    )
+
+
+def cmd_gate(a):
+    targets = [c.strip() for c in a.change.split(",") if c.strip()]
+    if not targets:
+        print("review_record: --change must name at least one change id", file=sys.stderr)
+        return 2
+
+    if not os.path.isdir(a.records):
+        print("review_record: gate refused -- --records is not a readable directory: %s" % a.records,
+              file=sys.stderr)
+        return 4
+
+    records = _gate_collect_records(a.records)
+    if records is None:
+        return 4
+
+    latest_by_batch = _gate_latest_per_batch(records)
+
+    uncovered = []
+    for change in targets:
+        covered_by = None
+        for bid, rec in sorted(latest_by_batch.items()):
+            change_ids = rec.get("change_ids")
+            if isinstance(change_ids, list) and change in change_ids and _gate_batch_qualifies(rec):
+                covered_by = (bid, rec.get("round"))
+                break
+        if covered_by is None:
+            uncovered.append(change)
+            print("UNCOVERED %s" % change)
+        else:
+            print("COVERED %s batch=%s round=%s" % (change, covered_by[0], covered_by[1]))
+
+    return 1 if uncovered else 0
+
+
 def main(argv):
     p = argparse.ArgumentParser(prog="review_record")
     sub = p.add_subparsers(dest="cmd_name", required=True)
@@ -525,12 +654,16 @@ def main(argv):
     b.add_argument("--input", required=True)
     b.add_argument("--out", required=True)
 
+    g = sub.add_parser("gate")
+    g.add_argument("--change", required=True)
+    g.add_argument("--records", required=True)
+
     try:
         a = p.parse_args(argv)
     except SystemExit as se:
         return 2 if se.code else 0
 
-    table = {"record": cmd_record, "backfill": cmd_backfill}
+    table = {"record": cmd_record, "backfill": cmd_backfill, "gate": cmd_gate}
     try:
         return table[a.cmd_name](a)
     except Exception as exc:  # C-001: an internal error is never a finding (1) -- BLIND (4)

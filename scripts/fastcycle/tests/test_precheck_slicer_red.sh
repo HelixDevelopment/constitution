@@ -143,9 +143,30 @@ else
     bad "control needle FAILED: $REVIEW_DIR does not exist at all"
 fi
 
-# --- A4: review_record.py's `gate` subcommand genuinely does not exist ---
-# (distinct from A1/A2: review_record.py the FILE exists, T034/T018 landed
-# it, but only its `record`/`backfill` subcommands are registered).
+# --- A4: review_record.py's `gate` subcommand -- pre-T078 absence needle,
+# post-T078 real-behaviour needle (distinct from A1/A2: review_record.py
+# the FILE exists, T034/T018 landed it; only whether `gate` is registered
+# on it changes here).
+#
+# T078 fix-forward (documented per this project's own HARD RULES "never
+# weaken the test... if it has a genuine bug, fix forward with documented
+# evidence"): this block originally scored `bad` on ANY outcome other
+# than the pre-landing "invalid choice: 'gate'" signature -- with no
+# second branch for the POST-landing state, unlike A1/A2's own two-branch
+# `if -f exists; ok "landed" ... else echo "RED: absent"` pattern. Once
+# `gate` is genuinely registered (T078), the pre-landing signature can
+# never reappear by construction, so the original code would permanently
+# score `bad` here even on a fully correct T078 landing -- an inverted
+# control needle, not a real regression signal. Fixed forward by adding
+# the missing landed-state branch, mirroring A1/A2: it makes its OWN real
+# assertion (a genuinely nonexistent --records dir refuses with the
+# DEC-33 contract's own documented exit code 4, naming the unreadable
+# path -- specs/004-fast-dev-cycles/contracts/review-batch-and-precheck.md
+# "Exit codes": "gate 0 covered, 1 uncovered (lists changes), 4 records
+# unreadable"), never a bare exit-code-only relaxation of the original
+# check -- verified for real before this fix landed: rc=4, stderr
+# "review_record: gate refused -- --records is not a readable directory:
+# y".
 if [ ! -f "$RECORD_TOOL" ]; then
     bad "control needle FAILED: $RECORD_TOOL does not exist at all -- T034"
     echo "   (which this file's cases 1/2/3 depend on for real) has not"
@@ -158,12 +179,21 @@ else
         echo "   genuinely unregistered today (real argparse rc=$GATE_RC,"
         echo "   stderr names 'gate' as an invalid choice) -- confirmed by a"
         echo "   real invocation, not assumed from reading source"
+    elif [ "$GATE_RC" -eq 4 ] && echo "$GATE_ERR" | grep -qF "not a readable directory"; then
+        ok "control needle: review_record.py's \`gate\` subcommand is now"
+        echo "   registered and landed (T078) -- a real invocation against a"
+        echo "   genuinely nonexistent --records dir correctly refuses with"
+        echo "   the contract's own exit code 4 ('records unreadable'),"
+        echo "   naming the unreadable path (rc=$GATE_RC,"
+        echo "   stderr='$GATE_ERR') -- confirmed by a real invocation, not"
+        echo "   assumed from reading source"
     else
         bad "control needle FAILED: review_record.py gate did not fail the"
         echo "   way expected (rc=$GATE_RC, stderr='$GATE_ERR') -- either"
-        echo "   \`gate\` has landed (re-check A4's premise) or something"
-        echo "   else about review_record.py changed; re-derive before"
-        echo "   trusting case 3 below"
+        echo "   \`gate\` has landed with different behaviour than the"
+        echo "   contract documents (re-check T078's compliance) or"
+        echo "   something else about review_record.py changed; re-derive"
+        echo "   before trusting case 3 below"
     fi
 fi
 
@@ -347,12 +377,34 @@ cp "$FIXDIR/case2_lint_in_pack/unquoted_var_gate.sh" "$C2_DIR/"
 cp "$FIXDIR/case2_lint_in_pack/batch.json" "$C2_DIR/batch.json"
 cp "$FIXDIR/case2_lint_in_pack/clean_review_verdict.json" "$C2_DIR/verdict.json"
 
-# --- C2a: real invocation of the absent precheck_pack.sh ---
+# --- C2a: real invocation of the (pre-T078) absent precheck_pack.sh ---
+#
+# T078 fix-forward (documented per this project's own HARD RULES "never
+# weaken the test... if it has a genuine bug, fix forward with documented
+# evidence"): this block originally required C2A_RC -eq 0 for the
+# GREEN-mode branch. That contradicts the DEC-33 contract's own stated
+# exit codes (specs/004-fast-dev-cycles/contracts/review-batch-and-
+# precheck.md "Exit codes": "precheck 0 all pass, 1 any fail, 4 clean
+# checkout unavailable") -- this fixture's own two files are DELIBERATELY
+# planted defects (module docstring above: "a genuine, planted parse
+# error"/"a genuine, planted shellcheck SC2086 issue"), so a CORRECT
+# precheck_pack.sh implementation MUST report all_pass=false and MUST
+# therefore exit 1, never 0, for this exact batch. Verified against a
+# real precheck_pack.sh run before this fix landed: rc=1, --out written,
+# all_pass=false, both a "parse" FAIL citing "syntax error" and a
+# "shellcheck" FAIL citing "SC2086" present -- exactly the golden shape
+# fixtures/precheck_slicer/case2_lint_in_pack/expected_precheck.json
+# documents, on a run this same block's own "else" branch was incorrectly
+# routing to "bad" (rc=1 != the old check's rc=0) as though the tool were
+# still absent. Corrected to require rc -eq 1 (this golden case's real,
+# contractually-correct exit code), never weakening what the branch
+# actually verifies below (all_pass=false AND a FAIL check citing the
+# real evidence are still both required).
 sh "$PRECHECK" --config "$FIXDIR/case2_lint_in_pack" \
     --batch "$C2_DIR/batch.json" --clean-checkout "$C2_DIR" \
     --out "$C2_DIR/precheck.json" >"$TMP/c2a.out" 2>"$TMP/c2a.err"
 C2A_RC=$?
-if [ "$C2A_RC" -eq 0 ] && [ -f "$C2_DIR/precheck.json" ]; then
+if [ "$C2A_RC" -eq 1 ] && [ -f "$C2_DIR/precheck.json" ]; then
     # GREEN mode: the real tool exists; check its real output for real.
     C2A_ALL_PASS=$(python3 - "$C2_DIR/precheck.json" <<'PY'
 import json, sys

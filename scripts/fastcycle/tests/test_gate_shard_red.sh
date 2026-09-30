@@ -79,6 +79,22 @@ FC=$(cd "$HERE/.." && pwd)
 TOOL="$FC/gates/gate_runner.sh"
 SHARD_REF="$HERE/lib/shard_ref.py"
 FIXDIR="$HERE/fixtures/gate_shard"
+# T071 forward-fix (documented, §11.4.6/§11.4.240 "Producer != Verifier" --
+# a fixture-construction gap in THIS file, not a gate_runner.sh finding):
+# D2/D3 below already sed-substitute $SHARED_TMP/$P_TMP/$Q_TMP into a
+# RESOLVED COPY of each scenario's manifest.json, written to a flat /tmp
+# path with no directory relationship to fixtures/gate_shard/_shared/
+# gates/ -- but never substituted manifest.json's OWN unqualified
+# "script": "gate_x.sh" values, which only resolve against a real
+# implementation's manifest-directory-relative (or sibling _shared/gates/-
+# relative) lookup for the ORIGINAL, un-relocated manifest path (D1, which
+# never relocates its manifest, needs no such fix and passes as-is). This
+# adds the SAME class of substitution the D2/D3 sed commands already do
+# for $SHARED_TMP/$P_TMP/$Q_TMP -- resolving "script" to its real absolute
+# path -- so the relocated copy is a genuinely well-formed manifest for
+# ANY correct implementation, never a change to what either scenario
+# asserts.
+SHARED_GATES="$FIXDIR/_shared/gates"
 
 FAIL=0; PASS=0
 ok()  { PASS=$((PASS+1)); echo "PASS: $1"; }
@@ -345,7 +361,9 @@ F2="$FIXDIR/gs_bad_shared_temp_split"
 SHARED_TMP="$(mktemp -u "${TMPDIR:-/tmp}/t055_d2_shared_XXXXXX")"
 : > "$SHARED_TMP" 2>/dev/null || true
 RESOLVED2D="$(mktemp "${TMPDIR:-/tmp}/t055_d2_resolved.XXXXXX.json")"
-sed "s#\\\$SHARED_TMP#$SHARED_TMP#g" "$F2/manifest.json" > "$RESOLVED2D"
+sed -e "s#\\\$SHARED_TMP#$SHARED_TMP#g" \
+    -e "s#\"script\": *\"\\([^\"]*\\.sh\\)\"#\"script\": \"$SHARED_GATES/\\1\"#g" \
+    "$F2/manifest.json" > "$RESOLVED2D"
 D2_OUT="$(run_shard_mode "$RESOLVED2D" 3 2>&1)"; D2_RC=$?
 if [ "$D2_RC" -eq 0 ]; then
     CONTENT="$(cat "$SHARED_TMP" 2>/dev/null | sort | tr -d '\n')"
@@ -370,7 +388,9 @@ F3="$FIXDIR/gs_negctrl_disjoint_temp"
 P_TMP="$(mktemp -u "${TMPDIR:-/tmp}/t055_d3_p_XXXXXX")"
 Q_TMP="$(mktemp -u "${TMPDIR:-/tmp}/t055_d3_q_XXXXXX")"
 RESOLVED3D="$(mktemp "${TMPDIR:-/tmp}/t055_d3_resolved.XXXXXX.json")"
-sed -e "s#\\\$P_TMP#$P_TMP#g" -e "s#\\\$Q_TMP#$Q_TMP#g" "$F3/manifest.json" > "$RESOLVED3D"
+sed -e "s#\\\$P_TMP#$P_TMP#g" -e "s#\\\$Q_TMP#$Q_TMP#g" \
+    -e "s#\"script\": *\"\\([^\"]*\\.sh\\)\"#\"script\": \"$SHARED_GATES/\\1\"#g" \
+    "$F3/manifest.json" > "$RESOLVED3D"
 D3_OUT="$(run_shard_mode "$RESOLVED3D" 2 2>&1)"; D3_RC=$?
 if [ "$D3_RC" -eq 0 ]; then
     ok "gs_negctrl_disjoint_temp: real tool ran (rc=0) -- MANUALLY VERIFY"

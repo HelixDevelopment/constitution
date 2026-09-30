@@ -1,0 +1,261 @@
+#!/usr/bin/env python3
+"""backstop_compare.py -- DEC-17 backstop drift detector + force-full
+write-back (SpecKit-004 "fast-dev-cycles", User Story 2; plan.md T-C10;
+tasks.md T077; FR-006, FR-022, SC-003).
+
+Guarded by
+constitution/scripts/fastcycle/tests/test_backstop_red.sh (T060), per
+fixtures/backstop/README.md's own "invented, binding-if-adopted" CLI wire
+format (no specs/004-fast-dev-cycles/contracts/*.md file exists for T-C10;
+confirmed absent by a real directory listing before writing this file,
+constitution SS11.4.6).
+
+DEC-17 rule (research.md line 654 / plan.md T-C10 Work line, restated in
+fixtures/backstop/README.md): the full backstop lane (every gate,
+`--no-cache`, no `--affected` narrowing) is compared against the fast
+lane's verdicts for the SAME change; any gate the full lane FAILed but
+the fast lane did not ALSO report FAIL for -- whether the gate is entirely
+absent from the fast lane's results (a "selection hole") or present with a
+different verdict (PASS/SKIP/BLIND) -- is a **drift**: a release blocker
+that MUST block (exit 1). affected-set-and-verdict-cache.md's VC-005
+clause states the special case this generalises: "any gate PASS in fast
+lane but FAIL in full lane is a release blocker".
+
+Both lanes are read as `verdicts/v1`-shaped documents -- the SCHEMA
+affected-set-and-verdict-cache.md's "Output schemas" section already
+defines (`{change_id, results: [{gate_id, verdict, source, evidence,
+duration_ms}], summary}`), reused here unchanged rather than inventing a
+new shape for backstop.sh (constitution SS11.4.6 -- do not invent when
+something adjacent already exists).
+
+Producer != Verifier (constitution SS11.4.240): this file is an
+INDEPENDENT, from-scratch implementation. It does NOT import, and was not
+derived by reverse-engineering,
+constitution/scripts/fastcycle/tests/lib/dec17_drift_ref.py (T060's own
+RED-test reference module, used ONLY to prove that RED test's fixtures are
+non-vacuous) -- both implement the SAME written DEC-17 rule independently,
+matching this project's own established house convention (see
+verdict_cache.py's identical framing re: dec07_key_ref.py). T060's RED
+test Section A control needle #4 mechanically confirms nothing under
+gates/ imports either of its reference modules.
+
+CLI (per fixtures/backstop/README.md, this RED test's own binding wire
+format definition):
+
+    backstop_compare.py --fast <fast_verdicts.json> --full <full_verdicts.json>
+        --out <drift.json> [--apply --map <gate_map.json>]
+        [--determinism-check]
+
+Exit codes (C-001, contracts/common-conventions.md): 0 = NO_DRIFT (stdout
+first line "NO_DRIFT"); 1 = >=1 drift found (stdout one "DRIFT gate=<id>
+fast=<verdict|ABSENT> full=FAIL" line per drifting gate, sorted by
+gate_id, then "DRIFT_COUNT=<n>" -- exit 1 IS the block, C-001 code 1 =
+"a finding ... release blocker"); 2 = usage/config error (missing/
+unreadable --fast/--full/--map, or --apply without --map). --out always
+writes a `backstop_drift/v1` document (schema, change_id, drift[],
+drift_count, body_hash, run_meta per C-002) regardless of exit code.
+
+--apply --map <gate_map.json> (DEC-17/AS-010a force-full write-back,
+data-model.md Section 3's `force_full` bool field -- "set by the backstop
+lane on a drift (DEC-17, T-C10) until the gate is re-traced; a force_full
+gate is always an affected-set member"): when >=1 drift is found AND
+--apply --map are both given, every drifting gate_id present in the map's
+`gates` dict (the SAME `{"gates": {"<gate_id>": {...}}}` shape
+affected_set.py already reads/writes, constitution SS11.4.6 -- reused, not
+invented) has its entry's `force_full` field set to `true`; a drifting
+gate_id NOT present in the map is reported, never silently invented into
+it. C-006 safety: any write is behind the explicit --apply flag and takes
+a hardlinked backup first (SS9.2 -- near-instant, zero extra disk; falls
+back to a real copy across filesystem boundaries).
+
+HONEST SCOPE (Producer != Verifier, SS11.4.240; fixtures/backstop/README.md
+"What this RED test does NOT cover"): affected_set.py (T069, already
+landed) does not yet READ the `force_full` field this --apply write-back
+sets -- consuming it to force affected-set membership is T-C03's own
+future follow-up, not this file's job. The release-tag-time / nightly-on-
+main / gate-engine-change scheduling triggers DEC-17 names for WHEN the
+full lane should run are documented in backstop.sh's own usage text, not
+implemented as an automated scheduler here (no fixture or spec defines
+one; inventing an unverified scheduler would itself be a SS11.4.6 guess).
+"""
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import sys
+import time
+
+EXIT_OK = 0
+EXIT_FINDING = 1
+EXIT_USAGE = 2
+
+SCHEMA = "backstop_drift/v1"
+
+
+def canonical_json(obj):
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def body_hash(obj):
+    return hashlib.sha256(canonical_json(obj).encode("utf-8")).hexdigest()
+
+
+def load_verdicts(path):
+    """Reads a verdicts/v1 document; returns (change_id, {gate_id: verdict})."""
+    with open(path, "r", encoding="utf-8") as fh:
+        doc = json.load(fh)
+    results = {}
+    for r in doc.get("results", []):
+        results[r["gate_id"]] = r.get("verdict")
+    return doc.get("change_id"), results
+
+
+def compute_drift(fast, full):
+    """DEC-17: a gate drifts iff the full lane's verdict is FAIL and the
+    fast lane did NOT also report FAIL for the same gate_id -- covering
+    BOTH the "absent from fast" (selection hole) and "present but wrong
+    verdict" sub-cases. Sorted by gate_id (determinism, C-003)."""
+    drifts = []
+    for gate_id, full_verdict in full.items():
+        if full_verdict != "FAIL":
+            continue
+        fast_verdict = fast.get(gate_id)
+        if fast_verdict != "FAIL":
+            drifts.append({
+                "gate_id": gate_id,
+                "fast_verdict": fast_verdict,
+                "full_verdict": "FAIL",
+            })
+    return sorted(drifts, key=lambda d: d["gate_id"])
+
+
+def build_result(fast_path, full_path):
+    fast_change_id, fast = load_verdicts(fast_path)
+    full_change_id, full = load_verdicts(full_path)
+    drifts = compute_drift(fast, full)
+    result = {
+        "schema": SCHEMA,
+        "change_id": full_change_id if full_change_id is not None else fast_change_id,
+        "drift": drifts,
+        "drift_count": len(drifts),
+    }
+    result["body_hash"] = body_hash(result)
+    exit_code = EXIT_FINDING if drifts else EXIT_OK
+    return result, exit_code
+
+
+def apply_force_full(map_path, drifting_gate_ids):
+    """Sets gates.<gate_id>.force_full = true for every drifting gate id
+    present in the map (data-model.md Section 3's `force_full` field,
+    read by affected_set.py's future consumer). C-006: a hardlinked
+    backup (SS9.2) is taken BEFORE any write; falls back to a real copy
+    if hardlinking is unsupported (e.g. across filesystem boundaries).
+    Returns (updated_ids, unknown_ids, backup_path_or_None)."""
+    with open(map_path, "r", encoding="utf-8") as fh:
+        gate_map = json.load(fh)
+    gates = gate_map.setdefault("gates", {})
+
+    updated = []
+    unknown = []
+    for gid in drifting_gate_ids:
+        if gid in gates:
+            gates[gid]["force_full"] = True
+            updated.append(gid)
+        else:
+            unknown.append(gid)
+
+    if not updated:
+        return updated, unknown, None
+
+    backup_path = "%s.bak-%d-%d" % (map_path, int(time.time()), os.getpid())
+    try:
+        os.link(map_path, backup_path)
+    except OSError:
+        shutil.copy2(map_path, backup_path)
+
+    with open(map_path, "w", encoding="utf-8") as fh:
+        fh.write(canonical_json(gate_map))
+        fh.write("\n")
+
+    return updated, unknown, backup_path
+
+
+def build_parser():
+    p = argparse.ArgumentParser(prog="backstop_compare.py")
+    p.add_argument("--fast", required=True)
+    p.add_argument("--full", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--apply", action="store_true")
+    p.add_argument("--map")
+    p.add_argument("--determinism-check", action="store_true")
+    return p
+
+
+def main(argv):
+    a = build_parser().parse_args(argv[1:])
+
+    if a.apply and not a.map:
+        sys.stderr.write("backstop_compare: --apply requires --map <gate_map.json>\n")
+        return EXIT_USAGE
+    if a.map and not a.apply:
+        sys.stderr.write(
+            "backstop_compare: --map given without --apply -- ignored (C-006: "
+            "writes are behind an explicit --apply flag; pass --apply to write)\n"
+        )
+
+    for label, path in (("--fast", a.fast), ("--full", a.full)):
+        if not os.path.isfile(path):
+            sys.stderr.write("backstop_compare: %s not found: %s\n" % (label, path))
+            return EXIT_USAGE
+    if a.apply and not os.path.isfile(a.map):
+        sys.stderr.write("backstop_compare: --map not found: %s\n" % a.map)
+        return EXIT_USAGE
+
+    try:
+        result, exit_code = build_result(a.fast, a.full)
+    except (OSError, json.JSONDecodeError, KeyError) as exc:
+        sys.stderr.write("backstop_compare: cannot read/parse --fast/--full: %s\n" % exc)
+        return EXIT_USAGE
+
+    if a.determinism_check:
+        try:
+            result2, _ = build_result(a.fast, a.full)
+        except (OSError, json.JSONDecodeError, KeyError) as exc:
+            sys.stderr.write("backstop_compare: --determinism-check second run failed: %s\n" % exc)
+            return EXIT_USAGE
+        if result["body_hash"] != result2["body_hash"]:
+            sys.stderr.write(
+                "backstop_compare: --determinism-check FAILED: two consecutive runs "
+                "produced different bodies (%s != %s)\n" % (result["body_hash"], result2["body_hash"])
+            )
+            return EXIT_FINDING
+
+    out_dir = os.path.dirname(os.path.abspath(a.out))
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    with open(a.out, "w", encoding="utf-8") as fh:
+        fh.write(canonical_json(result))
+        fh.write("\n")
+
+    if exit_code == EXIT_OK:
+        print("NO_DRIFT")
+    else:
+        for d in result["drift"]:
+            fast_label = d["fast_verdict"] if d["fast_verdict"] is not None else "ABSENT"
+            print("DRIFT gate=%s fast=%s full=FAIL" % (d["gate_id"], fast_label))
+        print("DRIFT_COUNT=%d" % result["drift_count"])
+
+    if a.apply and exit_code != EXIT_OK:
+        drifting_ids = [d["gate_id"] for d in result["drift"]]
+        updated, unknown, backup = apply_force_full(a.map, drifting_ids)
+        if updated:
+            print("APPLY: force_full=true set for %s (backup: %s)" % (", ".join(updated), backup))
+        if unknown:
+            print("APPLY: gate id(s) not present in %s, left unmarked: %s" % (a.map, ", ".join(unknown)))
+
+    return exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
