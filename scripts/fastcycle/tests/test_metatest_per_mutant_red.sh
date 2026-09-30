@@ -315,16 +315,30 @@ fi
 #         are ISO8601-prefixed, so lexical order IS chronological order).
 #         Still never hardcodes the TSV's own filename (`find -name
 #         '*.tsv'` per candidate dir, unchanged from before this fix).
+#         T048 round-4 review finding R4 minor (2026-09-30): the candidate
+#         run-dir loop used `for _mt_cand_dir in $(find ... | sort -r)`,
+#         which word-splits `find`'s own stdout on IFS -- a run-dir whose
+#         name (this project's run-ids are machine-generated
+#         ISO8601+pid-suffixed, but a manually-created/test-fixture
+#         directory could still legally contain a space or embedded
+#         newline) would silently split into multiple bogus loop
+#         iterations. Fixed to a NUL-delimited `find -print0 | sort -z`
+#         piped into `while IFS= read -r -d ''`, run via process
+#         substitution (`< <(...)`) rather than a trailing pipe so the
+#         loop body's own variable assignments (METATEST_TSV, `break`)
+#         still affect THIS shell, never a subshell -- unchanged
+#         candidate-selection semantics, now genuinely safe for any
+#         directory name.
 METATEST_TSV=""
 if [ -d "$METATEST_ARCHIVE_DIR" ]; then
-  for _mt_cand_dir in $(find "$METATEST_ARCHIVE_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -r); do
+  while IFS= read -r -d '' _mt_cand_dir; do
     [ -f "$_mt_cand_dir/RUN_COMPLETE" ] || continue
     _mt_cand_tsv="$(find "$_mt_cand_dir" -maxdepth 1 -name '*.tsv' -type f 2>/dev/null | sort | tail -n1)"
     if [ -n "$_mt_cand_tsv" ]; then
       METATEST_TSV="$_mt_cand_tsv"
       break
     fi
-  done
+  done < <(find "$METATEST_ARCHIVE_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -rz)
 fi
 
 if [ -n "$METATEST_TSV" ] && [ -f "$METATEST_TSV" ]; then

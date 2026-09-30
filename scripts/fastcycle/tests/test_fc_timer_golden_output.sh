@@ -46,22 +46,61 @@
 #
 # Usage: bash test_fc_timer_golden_output.sh
 #   Env FC_TIMER_GOLDEN_LOG=<path> : real captured pre_build_verification.sh stdout log to use
-#                                    as the "without timers" baseline (default: auto-discover
-#                                    the most recent
-#                                    qa-results/fastcycle/us1/red/T015/prebuild_full_run_*.log,
-#                                    the same evidence test_fc_timer_prebuild_red.sh uses).
+#                                    as the "without timers" baseline (default: auto-discover, see
+#                                    PAIRING below).
 #   Env FC_TIMER_GOLDEN_LOG_WITH=<path> : real captured pre_build_verification.sh stdout log,
 #                                    from a run with fc_timer instrumentation ACTIVE (FC_TIMING
 #                                    unset/1), to use as the "with timers" comparison side
-#                                    (default: auto-discover the most recent
-#                                    qa-results/fastcycle/us1/red/T015/prebuild_with_timers_full_run_*.log
-#                                    -- a DELIBERATELY DIFFERENT filename prefix from the
-#                                    "without timers" baseline's own `prebuild_full_run_*.log`
-#                                    glob above, so a captured "with timers" log is never
-#                                    mistaken for -- or silently picked up as -- the "without
-#                                    timers" baseline by the OTHER auto-discovery above, and vice
-#                                    versa; absent -> the real comparison below is an honest SKIP,
-#                                    never a fabricated PASS).
+#                                    (default: auto-discover, see PAIRING below; -- a
+#                                    DELIBERATELY DIFFERENT filename prefix
+#                                    ('prebuild_with_timers_full_run_*.log') from the "without
+#                                    timers" baseline's own `prebuild_full_run_*.log` glob, so a
+#                                    captured "with timers" log is never mistaken for -- or
+#                                    silently picked up as -- the "without timers" baseline by
+#                                    the OTHER auto-discovery, and vice versa; absent -> the real
+#                                    comparison below is an honest SKIP, never a fabricated PASS).
+#   Env FC_TIMER_GOLDEN_LOG_NOISE=<path> : a SECOND real "without timers" capture log (see NOISE
+#                                    FLOOR below), used to distinguish a genuine fc_timer-caused
+#                                    mismatch from pre-existing same-window repo/host-load drift.
+#
+# PAIRING (T048 round-4 review finding R4-I4, 2026-09-30): "Running with no arguments currently
+#   exits 1 because AUTO-DISCOVERY sorts candidate log filenames LEXICALLY, so the 'without
+#   timers' baseline gets stuck on an OLD log while the 'with timers' log is picked independently
+#   with NOTHING actually pairing the two logs as a genuine same-window comparison -- they're
+#   just two unrelated captures from different times, and any diff between them is meaningless
+#   noise, not a real signal." Independently reproduced before fixing: on this real tree, the
+#   old "lexically-latest, each side independent" auto-discovery picked
+#   prebuild_full_run_t029_t029_full_20260928T124322Z.log (2026-09-28 12:43) as baseline against
+#   prebuild_with_timers_full_run_20260930T152954Z.log (2026-09-30 15:29) -- a ~2.3-DAY gap,
+#   across which this shared multi-track checkout had dozens of intervening commits.
+#   Fixed: when BOTH sides are auto-discovered (the common no-args case), every candidate on each
+#   side is matched against every candidate on the other side by the ISO8601 timestamp each
+#   filename already embeds (`YYYYMMDDTHHMMSSZ`), and the PAIR with the SMALLEST time delta is
+#   selected -- a genuine closest-in-time, same-window match, never an independent per-side
+#   "latest". When only ONE side is auto-discovered (the other pinned via its own env var), the
+#   auto side picks the candidate closest in time to the pinned side's own embedded timestamp.
+#   When NEITHER side's candidate filenames carry a parseable timestamp (a legacy/foreign log),
+#   this degrades to the OLD per-side lexically-latest behaviour, never a crash -- logged
+#   honestly via the PAIRING_NOTE line below, so a degraded pairing is visible, not silent.
+#
+# NOISE FLOOR (same finding, second half): "only treat a mismatch between them as meaningful when
+#   compared against a SAME-WINDOW no-timer/no-timer noise floor (matching exactly the
+#   methodology ... 3 concurrent runs, 2 timers-off + 1 timers-on, establishing the noise floor
+#   via the 2 timers-off runs' own comparison before judging the timers-on diff as meaningful or
+#   not)." When the real with-vs-without comparison below MISMATCHES, a SECOND "without timers"
+#   capture close in time to the chosen with-timers log (auto-discovered the SAME way, or pinned
+#   via FC_TIMER_GOLDEN_LOG_NOISE) is diffed against the SAME baseline, and each differing line in
+#   the main mismatch is cross-referenced against this noise-floor diff: a line that ALSO differs
+#   between two genuinely timer-FREE captures is reported as pre-existing same-window noise (not
+#   attributable to fc_timer); a line that differs ONLY in the with-vs-without comparison is
+#   reported as a genuine candidate fc_timer-attributable difference needing investigation. This
+#   is DIAGNOSTIC classification only -- it NEVER changes the strict byte-for-byte FR-002/T-A01
+#   pass/fail verdict itself (a real mismatch still FAILs regardless of noise-floor
+#   classification; T-A01's own rule is unconditional identity, not "identical modulo known
+#   noise") -- it exists solely so a human/agent reading a FAIL is not left guessing whether it
+#   is a real fc_timer regression or inter-capture drift this project's own multi-track model
+#   already produces routinely. Absent a same-window second baseline capture, this stays an
+#   honest "no noise floor available" note, never a fabricated classification.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
@@ -77,40 +116,148 @@ FAIL=0; N=0; SKIPPED=0
 chk() { N=$((N + 1)); if [ "$2" = "1" ]; then echo "PASS[$N]: $1"; else echo "FAIL[$N]: $1"; FAIL=$((FAIL + 1)); fi; }
 skip() { N=$((N + 1)); SKIPPED=$((SKIPPED + 1)); echo "SKIP[$N]: $1"; }
 
-# ---- locate the real "without timers" baseline log ----
-BASELINE_LOG="${FC_TIMER_GOLDEN_LOG:-}"
-if [ -z "$BASELINE_LOG" ] || [ ! -f "$BASELINE_LOG" ]; then
-  BASELINE_LOG=""
-  if [ -d "$EVIDENCE_DEFAULT_DIR" ]; then
-    BASELINE_LOG="$(find "$EVIDENCE_DEFAULT_DIR" -maxdepth 1 -name 'prebuild_full_run_*.log' 2>/dev/null | sort | tail -n1)"
-  fi
+# _fc_ts_epoch PATH -- prints the epoch-seconds value of the LAST
+# YYYYMMDDTHHMMSSZ substring in PATH's own basename (every candidate log
+# this file globs for embeds exactly one), or an empty string if none is
+# found or `date` cannot parse it (a foreign/legacy filename) -- never a
+# guessed/default timestamp (S11.4.6).
+_fc_ts_epoch() {
+  local fname ts
+  fname="$(basename -- "$1")"
+  ts="$(printf '%s' "$fname" | grep -oE '[0-9]{8}T[0-9]{6}Z' | tail -n1)"
+  [ -n "$ts" ] || { printf ''; return 0; }
+  date -u -d "${ts:0:4}-${ts:4:2}-${ts:6:2}T${ts:9:2}:${ts:11:2}:${ts:13:2}Z" +%s 2>/dev/null
+}
+
+# _fc_closest_to_epoch TARGET_EPOCH CANDIDATE... -- prints the candidate
+# whose OWN embedded timestamp is closest (smallest absolute delta) to
+# TARGET_EPOCH; candidates with no parseable timestamp are skipped. Empty
+# output if no candidate has a parseable timestamp.
+_fc_closest_to_epoch() {
+  local target="$1"; shift
+  local best="" best_delta="" f ts delta
+  for f in "$@"; do
+    ts="$(_fc_ts_epoch "$f")"
+    [ -n "$ts" ] || continue
+    if [ "$ts" -gt "$target" ]; then delta=$((ts - target)); else delta=$((target - ts)); fi
+    if [ -z "$best_delta" ] || [ "$delta" -lt "$best_delta" ]; then
+      best="$f"; best_delta="$delta"
+    fi
+  done
+  printf '%s' "$best"
+}
+
+# ---- gather every candidate on each side (used by both explicit-pinned and full-auto pairing) ----
+BASELINE_CANDIDATES=()
+WITH_CANDIDATES=()
+if [ -d "$EVIDENCE_DEFAULT_DIR" ]; then
+  while IFS= read -r -d ''; do BASELINE_CANDIDATES+=("$REPLY"); done < <(find "$EVIDENCE_DEFAULT_DIR" -maxdepth 1 -name 'prebuild_full_run_*.log' -print0 2>/dev/null | sort -z)
+  while IFS= read -r -d ''; do WITH_CANDIDATES+=("$REPLY"); done < <(find "$EVIDENCE_DEFAULT_DIR" -maxdepth 1 -name 'prebuild_with_timers_full_run_*.log' -print0 2>/dev/null | sort -z)
 fi
+
+BASELINE_LOG="${FC_TIMER_GOLDEN_LOG:-}"
+BASELINE_EXPLICIT=0
+[ -n "$BASELINE_LOG" ] && [ -f "$BASELINE_LOG" ] && BASELINE_EXPLICIT=1
+WITH_TIMERS_LOG="${FC_TIMER_GOLDEN_LOG_WITH:-}"
+WITH_EXPLICIT=0
+[ -n "$WITH_TIMERS_LOG" ] && [ -f "$WITH_TIMERS_LOG" ] && WITH_EXPLICIT=1
+[ "$BASELINE_EXPLICIT" = 1 ] || BASELINE_LOG=""
+[ "$WITH_EXPLICIT" = 1 ] || WITH_TIMERS_LOG=""
+
+PAIRING_NOTE=""
+if [ "$BASELINE_EXPLICIT" = 1 ] && [ "$WITH_EXPLICIT" = 1 ]; then
+  PAIRING_NOTE="both logs explicitly provided by the caller (FC_TIMER_GOLDEN_LOG + FC_TIMER_GOLDEN_LOG_WITH) -- no auto-pairing performed"
+elif [ "$BASELINE_EXPLICIT" = 1 ] && [ ${#WITH_CANDIDATES[@]} -gt 0 ]; then
+  BTS="$(_fc_ts_epoch "$BASELINE_LOG")"
+  if [ -n "$BTS" ]; then
+    WITH_TIMERS_LOG="$(_fc_closest_to_epoch "$BTS" "${WITH_CANDIDATES[@]}")"
+    [ -n "$WITH_TIMERS_LOG" ] && PAIRING_NOTE="with-timers log auto-selected as the candidate closest in time to the explicit FC_TIMER_GOLDEN_LOG baseline"
+  fi
+  if [ -z "$WITH_TIMERS_LOG" ]; then
+    WITH_TIMERS_LOG="$(printf '%s\n' "${WITH_CANDIDATES[@]}" | sort | tail -n1)"
+    PAIRING_NOTE="baseline's own timestamp unparseable -- degraded to lexically-latest with-timers pick"
+  fi
+elif [ "$WITH_EXPLICIT" = 1 ] && [ ${#BASELINE_CANDIDATES[@]} -gt 0 ]; then
+  WTS="$(_fc_ts_epoch "$WITH_TIMERS_LOG")"
+  if [ -n "$WTS" ]; then
+    BASELINE_LOG="$(_fc_closest_to_epoch "$WTS" "${BASELINE_CANDIDATES[@]}")"
+    [ -n "$BASELINE_LOG" ] && PAIRING_NOTE="baseline log auto-selected as the candidate closest in time to the explicit FC_TIMER_GOLDEN_LOG_WITH log"
+  fi
+  if [ -z "$BASELINE_LOG" ]; then
+    BASELINE_LOG="$(printf '%s\n' "${BASELINE_CANDIDATES[@]}" | sort | tail -n1)"
+    PAIRING_NOTE="with-timers log's own timestamp unparseable -- degraded to lexically-latest baseline pick"
+  fi
+elif [ ${#BASELINE_CANDIDATES[@]} -gt 0 ] && [ ${#WITH_CANDIDATES[@]} -gt 0 ]; then
+  # R4-I4 core fix: the common no-args case. Find the (baseline, with-timers)
+  # PAIR across the full cross-product minimizing the timestamp delta --
+  # never two independent lexically-latest picks.
+  PAIR_B=""; PAIR_W=""; PAIR_DELTA=""
+  for _fc_b in "${BASELINE_CANDIDATES[@]}"; do
+    _fc_bts="$(_fc_ts_epoch "$_fc_b")"
+    [ -n "$_fc_bts" ] || continue
+    for _fc_w in "${WITH_CANDIDATES[@]}"; do
+      _fc_wts="$(_fc_ts_epoch "$_fc_w")"
+      [ -n "$_fc_wts" ] || continue
+      if [ "$_fc_bts" -gt "$_fc_wts" ]; then _fc_d=$((_fc_bts - _fc_wts)); else _fc_d=$((_fc_wts - _fc_bts)); fi
+      if [ -z "$PAIR_DELTA" ] || [ "$_fc_d" -lt "$PAIR_DELTA" ]; then
+        PAIR_B="$_fc_b"; PAIR_W="$_fc_w"; PAIR_DELTA="$_fc_d"
+      fi
+    done
+  done
+  if [ -n "$PAIR_B" ] && [ -n "$PAIR_W" ]; then
+    BASELINE_LOG="$PAIR_B"; WITH_TIMERS_LOG="$PAIR_W"
+    PAIRING_NOTE="closest-in-time pair selected across all candidates, ${PAIR_DELTA}s apart (was: independent per-side lexically-latest, which could pick captures days apart -- see R4-I4 header note)"
+  else
+    BASELINE_LOG="$(printf '%s\n' "${BASELINE_CANDIDATES[@]}" | sort | tail -n1)"
+    WITH_TIMERS_LOG="$(printf '%s\n' "${WITH_CANDIDATES[@]}" | sort | tail -n1)"
+    PAIRING_NOTE="no candidate filename on either side carried a parseable timestamp -- degraded to the OLD independent per-side lexically-latest behaviour"
+  fi
+elif [ ${#BASELINE_CANDIDATES[@]} -gt 0 ]; then
+  BASELINE_LOG="$(printf '%s\n' "${BASELINE_CANDIDATES[@]}" | sort | tail -n1)"
+fi
+
 if [ -z "$BASELINE_LOG" ] || [ ! -f "$BASELINE_LOG" ]; then
   echo "FATAL: no real 'without timers' evidence log found (set FC_TIMER_GOLDEN_LOG=<path>," \
        "or run test_fc_timer_prebuild_red.sh first so its evidence log is auto-discoverable)."
   exit 2
 fi
 echo "INFO: using baseline (without-timers) log: $BASELINE_LOG"
-
-# ---- locate the real "with timers" comparison log (R3-I6) ----
-# Deliberately a DIFFERENT filename prefix ('prebuild_with_timers_full_run_*.log') from the
-# baseline's own 'prebuild_full_run_*.log' glob above, so neither auto-discovery step can ever
-# pick up the other side's log.
-WITH_TIMERS_LOG="${FC_TIMER_GOLDEN_LOG_WITH:-}"
-if [ -z "$WITH_TIMERS_LOG" ] || [ ! -f "$WITH_TIMERS_LOG" ]; then
-  WITH_TIMERS_LOG=""
-  if [ -d "$EVIDENCE_DEFAULT_DIR" ]; then
-    WITH_TIMERS_LOG="$(find "$EVIDENCE_DEFAULT_DIR" -maxdepth 1 -name 'prebuild_with_timers_full_run_*.log' 2>/dev/null | sort | tail -n1)"
-  fi
-fi
 if [ -n "$WITH_TIMERS_LOG" ] && [ -f "$WITH_TIMERS_LOG" ]; then
   echo "INFO: using with-timers comparison log: $WITH_TIMERS_LOG"
+  [ -n "$PAIRING_NOTE" ] && echo "INFO: pairing -- $PAIRING_NOTE"
 else
   echo "INFO: no real 'with timers' evidence log found yet (set FC_TIMER_GOLDEN_LOG_WITH=<path>," \
        "or capture one with FC_TIMING=1 bash device/rockchip/rk3588/tests/pre_build_verification.sh" \
        "> $EVIDENCE_DEFAULT_DIR/prebuild_with_timers_full_run_\$(date -u +%Y%m%dT%H%M%SZ).log" \
        "2>&1) -- the real comparison below stays an honest SKIP until then."
   WITH_TIMERS_LOG=""
+fi
+
+# ---- locate a same-window SECOND "without timers" capture for the noise floor ----
+NOISE_LOG="${FC_TIMER_GOLDEN_LOG_NOISE:-}"
+NOISE_NOTE=""
+if [ -z "$NOISE_LOG" ] || [ ! -f "$NOISE_LOG" ]; then
+  NOISE_LOG=""
+  if [ -n "$WITH_TIMERS_LOG" ] && [ ${#BASELINE_CANDIDATES[@]} -ge 2 ]; then
+    _fc_wts_for_noise="$(_fc_ts_epoch "$WITH_TIMERS_LOG")"
+    if [ -n "$_fc_wts_for_noise" ]; then
+      OTHER_BASELINE_CANDS=()
+      for _fc_b in "${BASELINE_CANDIDATES[@]}"; do
+        [ "$_fc_b" = "$BASELINE_LOG" ] && continue
+        OTHER_BASELINE_CANDS+=("$_fc_b")
+      done
+      if [ ${#OTHER_BASELINE_CANDS[@]} -gt 0 ]; then
+        NOISE_LOG="$(_fc_closest_to_epoch "$_fc_wts_for_noise" "${OTHER_BASELINE_CANDS[@]}")"
+      fi
+    fi
+  fi
+fi
+if [ -n "$NOISE_LOG" ] && [ -f "$NOISE_LOG" ]; then
+  echo "INFO: using noise-floor (second without-timers) log: $NOISE_LOG"
+  NOISE_NOTE="established from $NOISE_LOG"
+else
+  NOISE_LOG=""
+  NOISE_NOTE="no same-window second 'without timers' capture available -- set FC_TIMER_GOLDEN_LOG_NOISE=<path> to establish one; a mismatch below (if any) is reported without noise-floor classification"
 fi
 
 # verdict-line shape used throughout pre_build_verification.sh: PASS/FAIL/WARN lines carry a
@@ -263,6 +410,35 @@ if [ -n "$WITH_TIMERS_LOG" ]; then
     DIFF_REAL_LINES="$(printf '%s\n' "$DIFF_REAL" | grep -c '^[<>]' || true)"
     chk "FR-002/T-A01: real with-timers verdict set is IDENTICAL to the real without-timers verdict set, byte-for-byte after stripping timing suffixes ($BASELINE_LOG vs $WITH_TIMERS_LOG) -- MISMATCH, $DIFF_REAL_LINES differing line(s), see diff below (may be genuine inter-capture repo drift on this shared multi-track checkout rather than an fc_timer regression -- re-run both captures back-to-back with no intervening commits to isolate)" "0"
     printf '%s\n' "$DIFF_REAL" | head -n 60
+
+    # ------------------------------------------------------------------
+    # R4-I4 NOISE-FLOOR CLASSIFICATION (diagnostic only -- see the header
+    # NOISE FLOOR note; never changes the strict chk() verdict above).
+    # ------------------------------------------------------------------
+    if [ -n "$NOISE_LOG" ]; then
+      extract_verdicts "$NOISE_LOG" "$TMP/noise.txt"
+      DIFF_NOISE="$(diff "$TMP/baseline_1.txt" "$TMP/noise.txt" 2>/dev/null || true)"
+      # Compare the CHANGED-BASELINE-CONTENT ('<'-prefixed) lines each diff
+      # removed -- both diffs share the SAME "before" side ($TMP/baseline_1.txt),
+      # so a baseline line that differs in BOTH comparisons is unstable
+      # independent of fc_timer (confirmed noise); a baseline line that
+      # differs ONLY against the with-timers side is a genuine candidate.
+      printf '%s\n' "$DIFF_REAL" | grep '^< ' | sed 's/^< //' > "$TMP/real_removed.txt"
+      printf '%s\n' "$DIFF_NOISE" | grep '^< ' | sed 's/^< //' > "$TMP/noise_removed.txt"
+      NOISE_EXPLAINED=0
+      GENUINE_CANDIDATE=0
+      while IFS= read -r _fc_line; do
+        [ -n "$_fc_line" ] || continue
+        if grep -qxF -- "$_fc_line" "$TMP/noise_removed.txt" 2>/dev/null; then
+          NOISE_EXPLAINED=$((NOISE_EXPLAINED + 1))
+        else
+          GENUINE_CANDIDATE=$((GENUINE_CANDIDATE + 1))
+        fi
+      done < "$TMP/real_removed.txt"
+      echo "INFO: noise-floor classification ($NOISE_NOTE, noise floor itself has $(printf '%s\n' "$DIFF_NOISE" | grep -c '^[<>]' || true) differing line(s) between two timer-free captures): of $(wc -l < "$TMP/real_removed.txt" | tr -d ' ') changed baseline verdict line(s) in the with-vs-without mismatch above, $NOISE_EXPLAINED also differ in the SAME-WINDOW no-timer/no-timer noise floor (pre-existing drift, NOT attributable to fc_timer) and $GENUINE_CANDIDATE do NOT appear in the noise floor at all (genuine candidate fc_timer-attributable difference -- investigate these specifically, never the whole mismatch)."
+    else
+      echo "INFO: noise-floor classification unavailable -- $NOISE_NOTE"
+    fi
   fi
 else
   skip "real with-timers-vs-without-timers verdict-set comparison against pre_build_verification.sh (no 'with timers' evidence log captured yet -- set FC_TIMER_GOLDEN_LOG_WITH=<path> or capture one per the usage note above; T028+T029 are landed so this is now a capture gap, not a code gap)"

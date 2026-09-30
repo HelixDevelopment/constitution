@@ -215,8 +215,12 @@ func TestVersionTagsMigrationIdempotent(t *testing.T) {
 	// v6 destination/logic_group + logic_groups group-atomic track-assignment
 	// columns — ASSIGNMENT_MECHANISM_DESIGN.md §3.1/§3.2 — on top of the GAP-A
 	// representation rebuild + GAP-B closure-metadata columns), and
-	// migrateVersionTagsColumn bumps only FORWARD (its `ver < "3"` guard), so it
-	// never downgrades a v7 DB. §11.4.120: this literal is reconciled to the new
+	// migrateVersionTagsColumn bumps only FORWARD (its `verNum < 3` numeric
+	// guard -- T048 round-3 review finding R3-I4, 2026-09-30, fixed the prior
+	// lexicographic-string `ver < "3"` comparison, which could regress a DB
+	// already past v3 back down to '3'; see version_tags.go's own comment at
+	// the guard site for the full fix), so it never downgrades a v7 DB.
+	// §11.4.120: this literal is reconciled to the new
 	// correct current-version value on every schema_version bump — it is NOT a
 	// version_tags-specific invariant, just this test's fixture assumption about
 	// "what a fresh DB's schema_version already is" before migrateVersionTagsColumn
