@@ -104,18 +104,48 @@ def git_diff_paths(repo, base, head):
     """Returns the sorted list of paths changed between base and head (or
     base and the current WORKTREE when head == "WORKTREE"), or None if
     the diff could not be computed (AS-010's 'diff cannot be computed'
-    trigger)."""
+    trigger).
+
+    m1 fix (T085 Round 1, 2026-09-30): the pre-remediation version had two
+    real gaps in WORKTREE mode: (a) `git diff --name-only <base>` reports
+    only TRACKED changes -- a genuinely NEW file the working tree has
+    never `git add`ed at all is invisible to `git diff` entirely, so a
+    brand-new gate script (or a new input a gate reads) landed in the
+    working tree would never appear in the affected-set at all; (b) `git
+    diff` runs rename DETECTION by default, so a moved/renamed file is
+    reported as a SINGLE path (the new location only) rather than a
+    delete+add pair -- a gate mapped to the OLD path is never flagged as
+    affected even though its own observed input was, in effect, deleted.
+    Fixed by (a) adding `--no-renames` so a rename is reported as its
+    constituent delete+add (BOTH the old and new paths appear), and
+    (b) additionally unioning in every untracked path `git ls-files
+    --others --exclude-standard` reports (respecting .gitignore, never
+    fabricating a path git itself would not report) -- but ONLY in
+    WORKTREE mode, since two fixed commits (base..head, neither being the
+    live working tree) have no "untracked" concept at all."""
     if head == "WORKTREE":
-        cmd = ["git", "-C", repo, "diff", "--name-only", base]
+        cmd = ["git", "-C", repo, "diff", "--no-renames", "--name-only", base]
     else:
-        cmd = ["git", "-C", repo, "diff", "--name-only", base, head]
+        cmd = ["git", "-C", repo, "diff", "--no-renames", "--name-only", base, head]
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0:
         return None
-    return sorted(p for p in out.stdout.splitlines() if p)
+    paths = set(p for p in out.stdout.splitlines() if p)
+
+    if head == "WORKTREE":
+        untracked_cmd = ["git", "-C", repo, "ls-files", "--others", "--exclude-standard"]
+        try:
+            untracked_out = subprocess.run(untracked_cmd, capture_output=True, text=True, timeout=30)
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        if untracked_out.returncode != 0:
+            return None
+        paths |= set(p for p in untracked_out.stdout.splitlines() if p)
+
+    return sorted(paths)
 
 
 def git_show_bytes(repo, ref, path):
