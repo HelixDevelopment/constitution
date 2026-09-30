@@ -166,14 +166,44 @@ crash, never a refusal to write); 2 = usage error (missing/malformed
 `--fixture`/`--out`, an unreadable or non-JSON `--fixture` file, or a
 fixture missing a required field this rule depends on).
 
+T140 Round 1 NO-GO, finding I5 (section 11.4.224(D)/C-003 determinism
+proof, section 11.4.240 Producer != Verifier's sibling "re-run and
+compare" discipline): `--determinism-check` re-invokes this SAME process
+twice with the same argv (minus that one flag) and compares the two
+runs' `--out` documents, exactly mirroring this SAME orchestration/
+directory's `custody_sweep.py::run_determinism_check` (T137) -- that
+tool's own body is this fix's exact working template. Adapted here
+because neither of this file's two wire shapes (`classify`'s bare
+{class, raw, resets_at} entity; `place`'s bare seven-key
+placement-verdict entity -- both documented above under "Output shape")
+carries a `body_hash` field the way custody_sweep's schema/body_hash-
+wrapped documents do, so determinism is proven by hashing the WRITTEN
+`--out` file's raw bytes directly rather than reading a `body_hash` key
+out of its JSON body. Covers BOTH `classify` and `place` from one
+re-invocation path -- the flag is recognised in `main()` BEFORE either
+subcommand's own argv dispatch, so whichever shape the caller passed
+(with or without a leading "place" token) is preserved verbatim and
+simply re-run twice with its own `--out` overridden to a private tmp
+path per run:
+
+    limit_class.py --signal '<raw>' --out y.json --determinism-check
+    limit_class.py place --fixture fx.json --out y.json --determinism-check
+
+Exit codes (mirrors custody_sweep's own): 0 = deterministic (both runs'
+`--out` bytes hash identically); 1 = nondeterministic (they differ); 4 =
+inconclusive (a re-invocation timed out, crashed, or wrote no `--out`
+document -- never silently read as "deterministic").
+
 Stdlib only. Python 3.
 """
 import argparse
 import datetime
+import hashlib
 import json
 import math
 import os
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -519,7 +549,65 @@ def build_arg_parser():
     return p
 
 
+# ---------------------------------------------------------------------------
+# --determinism-check (T140 Round 1 NO-GO, finding I5; section 11.4.224(D)/
+# C-003): re-invoke this SAME process twice with the same argv (minus the
+# flag) and compare the resulting --out document's bytes. Modelled directly
+# on this SAME orchestration/ directory's custody_sweep.py::
+# run_determinism_check (T137) -- that tool's own body already implements
+# this correctly and is this fix's exact working template (T140's recorded
+# finding I5) -- adapted here because neither of this file's two wire
+# shapes (`classify`'s bare {class, raw, resets_at} entity, `place`'s bare
+# seven-key placement-verdict entity; both documented in this file's own
+# module docstring "Output shape" sections) carries a `body_hash` field the
+# way custody_sweep's own schema/body_hash-wrapped documents do -- so
+# determinism here is proven by hashing the WRITTEN --out file's raw bytes
+# directly, rather than reading a `body_hash` key out of its JSON body.
+# Covers BOTH of this file's subcommands (`classify` and `place`) from ONE
+# re-invocation path, since the check below runs (from `main()`) before
+# either entry point's own argv dispatch -- whichever shape the caller
+# passed (with or without a leading "place" token) is preserved verbatim in
+# `inner` and simply re-run twice with its own `--out` overridden to a
+# private tmp path per run (argparse's own last-value-wins behaviour on a
+# repeated single-value option is relied on here, exactly as
+# custody_sweep's template also relies on it).
+# ---------------------------------------------------------------------------
+def run_determinism_check(argv, timeout_s=120):
+    inner = [a for a in argv if a != "--determinism-check"]
+    hashes = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for i in (1, 2):
+            out_i = os.path.join(tmp, "run%d.json" % i)
+            cmd = [sys.executable, os.path.abspath(__file__)] + inner + ["--out", out_i]
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
+            except subprocess.TimeoutExpired:
+                print("limit_class: determinism-check run %d timed out" % i, file=sys.stderr)
+                return 4
+            if proc.returncode not in (0, 1) or not os.path.exists(out_i):
+                sys.stderr.write(proc.stderr)
+                print("limit_class: determinism-check run %d rc=%d, no honest verdict"
+                      % (i, proc.returncode), file=sys.stderr)
+                return 4
+            with open(out_i, "rb") as fh:
+                hashes.append(hashlib.sha256(fh.read()).hexdigest())
+    if hashes[0] != hashes[1]:
+        print("limit_class: nondeterministic: run1=%s run2=%s" % (hashes[0], hashes[1]),
+              file=sys.stderr)
+        return 1
+    print("limit_class: deterministic (out_sha256=%s)" % hashes[0])
+    return 0
+
+
 def main(argv):
+    # T140/I5: --determinism-check is recognised BEFORE either subcommand's
+    # own argv dispatch below (classify's flag-only shape, or the leading
+    # "place" token), so it applies uniformly to both entry points sharing
+    # this one file -- see run_determinism_check's own docstring comment
+    # above.
+    if "--determinism-check" in argv:
+        return run_determinism_check(argv)
+
     # T136: dispatch to `place` on the literal leading token "place",
     # BEFORE classify's own parser (build_arg_parser) ever sees argv --
     # classify's contract-fixed invocation carries no subcommand token at
