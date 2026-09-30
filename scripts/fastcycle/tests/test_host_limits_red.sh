@@ -3,23 +3,46 @@
 # contract host-resource-attribution.md HR-005/HR-006) for
 # `host/host_report.py limits` and `limits-diff`.
 #
-# Per tasks.md T144's own line:
-#   golden-bad: a speed-up configured above the thread cap is refused by the check
-#     (i.e. the probe deliberately requests more than the real thread
-#     headroom, and the check reports `enforced: true` -- the over-cap
-#     request WAS refused/clamped, never silently honoured).
-#   control needle: a synthetic load throttling a test scope is detected via
-#     §11.4.225 cpu.stat deltas with a quiet-phase control.
+# REWRITTEN (T153 Round-1 NO-GO finding B3): the ORIGINAL version of this
+# test set `FC_GUARD_NPROC=8` (a small value) in its "AMPLE" fixture, so
+# `host_guard.sh`'s FIRST check (nproc) clamped every probe's returned_n
+# down to 8 immediately -- by the time the memory/thread/agent-cap checks
+# ran, `n` was already far below `requested_n`, so the old assertion
+# (`enforced: true` + `returned_n < requested_n`) was satisfied REGARDLESS
+# of whether the memory/thread/agent-cap logic did anything at all. This
+# version sets `FC_GUARD_NPROC` to a value well ABOVE `PROBE_N` so CPU
+# count alone can never be the binding constraint, and asserts the
+# SPECIFIC reason string each check reports (never merely "some
+# reduction happened") AND the derived `returned_n` (exactly 1 or 0, as
+# appropriate to the plain vs `_exhausted` form under test -- never merely
+# "less than a million"). `job_cap`'s underlying `host_safe_aosp_jobs`
+# has no reason-string concept at all (verified: its only per-call output
+# is a bare job count) and accepts no FC_GUARD_*-style override for a
+# deterministic pre-set host state, so it is additionally exercised
+# DIRECTLY (bypassing `host_report.py` entirely) with an explicit small
+# ceiling BELOW its natural capacity, proving that mechanism genuinely
+# honors a request rather than "similarly ignoring it" (the other half of
+# finding B3).
 #
 # `limits` reuses the EXISTING, already-landed lib/host_guard.sh for the
 # §12.6/§12.12/§11.4.58 enforcement probes (never a config read -- HR-005),
 # inheriting its FC_GUARD_* injectable-override convention through the
 # child process's environment, so this test can pin a fixed, deterministic
 # host state exactly as host_guard.sh's own test suite already does.
+# `agent_cap` determinism additionally uses the new
+# FC_HOST_AGENT_REGISTRY_STATUS_PATH testability seam (mirrors the
+# already-established FC_HOST_CPU_STAT_PATH convention) to point at a
+# controlled fixture TSV instead of this host's real, live agent registry.
 #
 # `limits-diff` weakened-limit detection is exercised against two
 # hand-constructed limits.json documents (a derived oracle, §11.4.245 --
 # never produced by calling `limits` itself for this half of the test).
+#
+# Paired mutation (T153 B3 fix, this file's own regression proof): see the
+# bottom of this file -- `probe_memory_ceiling()`'s per-job forcing value
+# is temporarily hardcoded to 1 (ignoring the REAL measured budget), the
+# test is re-run and its `memory_ceiling` reason/returned_n assertion is
+# confirmed to FAIL, then the mutation is reverted.
 
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -38,69 +61,141 @@ fi
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-# --- ample host state (mirrors host_guard.sh's own test suite AMPLE fixture) ---
-AMPLE="FC_GUARD_ULIMIT_U=100000 FC_GUARD_THREADS=100 FC_GUARD_MEM_TOTAL_KB=67108864 FC_GUARD_MEM_AVAIL_KB=67000000 FC_GUARD_ACTIVE_AGENTS=1 FC_GUARD_NPROC=8"
+# --- ample host state, CPU count deliberately set WELL ABOVE PROBE_N
+#     (1,000,000) so it can never be the binding constraint for any check
+#     (B3 fix: the old fixture's small FC_GUARD_NPROC=8 masked this). ---
+AMPLE="FC_GUARD_ULIMIT_U=100000 FC_GUARD_THREADS=100 FC_GUARD_MEM_TOTAL_KB=67108864 FC_GUARD_MEM_AVAIL_KB=67000000 FC_GUARD_NPROC=2000000"
 
-OUT="$WORK/limits_before.json"
-# shellcheck disable=SC2086
-env $AMPLE python3 "$TOOL" limits --speedup t144-probe --phase before --out "$OUT" \
-  >"$WORK/o1.log" 2>"$WORK/e1.log"
-rc=$?
-if [ "$rc" -eq 0 ] && [ -f "$OUT" ]; then
-  ok "limits (ample host state): exit 0, output written"
-else
-  bad "limits (ample host state): expected exit 0 + output, got rc=$rc stderr=$(cat "$WORK/e1.log")"
-fi
+# mk_registry <path> <n_active> -- a controlled agent_registry.status.tsv
+# fixture with exactly N unique keys, each latest-status "dispatched".
+mk_registry() {
+  local path="$1" n="$2" i
+  : > "$path"
+  for i in $(seq 1 "$n"); do
+    printf 'fixture-agent-%02d\tdispatched\t2026-09-30T00:00:00Z\t\t(test fixture)\n' "$i" >> "$path"
+  done
+}
 
-if [ -f "$OUT" ]; then
-  python3 - "$OUT" <<'PYEOF'
+REG0="$WORK/registry_0_active.tsv"; mk_registry "$REG0" 0
+REG5="$WORK/registry_5_active.tsv"; mk_registry "$REG5" 5
+REG6="$WORK/registry_6_active.tsv"; mk_registry "$REG6" 6
+
+assert_limit() {  # assert_limit <doc.json> <name> <expected_enforced> <expected_reason> <expected_returned_n>
+  local doc="$1" name="$2" exp_enforced="$3" exp_reason="$4" exp_n="$5"
+  python3 -c "
 import json, sys
-doc = json.load(open(sys.argv[1], encoding="utf-8"))
-fail = 0
-def bad(m):
-    global fail
-    print("FAIL:", m); fail = 1
-def ok(m):
-    print("PASS:", m)
+doc = json.load(open('$doc', encoding='utf-8'))
+row = doc.get('limits', {}).get('$name')
+if not isinstance(row, dict):
+    print('FAIL: limits.$name missing or not an object: %r' % row)
+    sys.exit(1)
+ok = True
+if row.get('enforced') is not $exp_enforced:
+    print('FAIL: limits.$name.enforced expected $exp_enforced, got %r' % row.get('enforced')); ok = False
+if row.get('reason') != '$exp_reason':
+    print('FAIL: limits.$name.reason expected %r, got %r' % ('$exp_reason', row.get('reason'))); ok = False
+if row.get('returned_n') != $exp_n:
+    print('FAIL: limits.$name.returned_n expected exactly $exp_n, got %r' % row.get('returned_n')); ok = False
+if ok:
+    print('PASS: limits.$name: enforced=$exp_enforced reason=$exp_reason returned_n=$exp_n (exact)')
+sys.exit(0 if ok else 1)
+"
+  if [ $? -eq 0 ]; then ok "$name exact reason+returned_n"; else bad "$name exact reason+returned_n"; fi
+}
 
-limits = doc.get("limits")
-if not isinstance(limits, dict):
-    bad("limits doc has no top-level 'limits' object")
-    print("SUMMARY pass=0 fail=1"); sys.exit(1)
-
-for name in ("memory_ceiling", "thread_headroom", "agent_cap", "job_cap"):
-    row = limits.get(name)
-    if not isinstance(row, dict) or "enforced" not in row:
-        bad("limits.%s missing or has no 'enforced' field" % name)
-        continue
-    if row["enforced"] is not True:
-        bad("limits.%s expected enforced: true against a huge synthetic over-budget probe, got %r"
-            % (name, row.get("enforced")))
-    else:
-        ok("limits.%s: enforced: true (over-cap request genuinely refused/clamped)" % name)
-    rn, gn = row.get("requested_n"), row.get("returned_n")
-    if isinstance(rn, int) and isinstance(gn, int) and gn < rn:
-        ok("limits.%s: returned_n (%r) < requested_n (%r) -- real clamp proof" % (name, gn, rn))
-    else:
-        bad("limits.%s: expected returned_n < requested_n, got requested_n=%r returned_n=%r"
-            % (name, rn, gn))
-
-sys.exit(1 if fail else 0)
-PYEOF
-  [ $? -eq 0 ] && ok "limits doc: all three enforcement checks proven with a real clamp" \
-                || bad "limits doc: enforcement-check shape/values"
+# --- (1) 0 active agents: memory_ceiling + thread_headroom forced to the
+#     floor (returned_n exactly 1) by host_report.py's own per-job forcing
+#     arithmetic; agent_cap's natural, UNFORCED value (6 - 0 = 6). ---
+OUT1="$WORK/limits_0active.json"
+# shellcheck disable=SC2086
+env $AMPLE FC_HOST_AGENT_REGISTRY_STATUS_PATH="$REG0" \
+  python3 "$TOOL" limits --speedup t144-probe --phase before --out "$OUT1" \
+  >"$WORK/o1.log" 2>"$WORK/e1.log"
+rc1=$?
+if [ "$rc1" -eq 0 ] && [ -f "$OUT1" ]; then
+  ok "limits (0 active agents): exit 0, output written"
+else
+  bad "limits (0 active agents): expected exit 0 + output, got rc=$rc1 stderr=$(cat "$WORK/e1.log")"
+fi
+if [ -f "$OUT1" ]; then
+  assert_limit "$OUT1" memory_ceiling True memory_ceiling 1
+  assert_limit "$OUT1" thread_headroom True thread_headroom 1
+  assert_limit "$OUT1" agent_cap True agent_cap 6
 fi
 
-if [ "$rc" -eq 0 ]; then
-  echo "SUMMARY (limits phase 1) pass=$PASS fail=$FAIL so far"
+# --- (2) 5 active agents: agent_cap's natural (unforced) floor-to-1 case,
+#     the exhausted form's plain-but-minimal sibling (returned_n exactly 1,
+#     never merely "< requested"). ---
+OUT2="$WORK/limits_5active.json"
+# shellcheck disable=SC2086
+env $AMPLE FC_HOST_AGENT_REGISTRY_STATUS_PATH="$REG5" \
+  python3 "$TOOL" limits --speedup t144-probe --phase before --out "$OUT2" \
+  >"$WORK/o2.log" 2>"$WORK/e2.log"
+if [ -f "$OUT2" ]; then
+  assert_limit "$OUT2" agent_cap True agent_cap 1
+else
+  bad "limits (5 active agents): no output written, stderr=$(cat "$WORK/e2.log")"
+fi
+
+# --- (3) 6 active agents (cap 6 - 6 = 0): agent_cap_exhausted -- the
+#     EXHAUSTED form, returned_n exactly 0, still `enforced: true` (a
+#     more-restrictive-than-requested refusal is still "enforced"). ---
+OUT3="$WORK/limits_6active.json"
+# shellcheck disable=SC2086
+env $AMPLE FC_HOST_AGENT_REGISTRY_STATUS_PATH="$REG6" \
+  python3 "$TOOL" limits --speedup t144-probe --phase before --out "$OUT3" \
+  >"$WORK/o3.log" 2>"$WORK/e3.log"
+if [ -f "$OUT3" ]; then
+  assert_limit "$OUT3" agent_cap True agent_cap_exhausted 0
+else
+  bad "limits (6 active agents): no output written, stderr=$(cat "$WORK/e3.log")"
+fi
+
+# --- (4) job_cap: host_safe_aosp_jobs has NO reason-string concept and
+#     accepts no FC_GUARD_*-style override for a controlled host state
+#     (verified against its own source), so its own `limits` row is
+#     checked for a sane bound only; the genuine "does N matter" proof is
+#     a DIRECT call below with an explicit ceiling BELOW natural capacity.
+if [ -f "$OUT1" ]; then
+  python3 -c "
+import json, sys
+doc = json.load(open('$OUT1', encoding='utf-8'))
+row = doc.get('limits', {}).get('job_cap')
+if not isinstance(row, dict) or row.get('enforced') is not True:
+    print('FAIL: limits.job_cap expected enforced: true, got %r' % row); sys.exit(1)
+rn = row.get('returned_n')
+if not isinstance(rn, int) or rn < 1:
+    print('FAIL: limits.job_cap.returned_n expected a sane positive int, got %r' % rn); sys.exit(1)
+print('PASS: limits.job_cap: enforced=true returned_n=%r (sane, positive)' % rn)
+sys.exit(0)
+"
+  [ $? -eq 0 ] && ok "job_cap sane-bound check" || bad "job_cap sane-bound check"
+fi
+
+# job_cap DIRECT override-honored proof (B3: "job_cap similarly ignores
+# the requested N" -- proven false by requesting something BELOW natural
+# capacity and confirming it IS honored, the genuine enforcement path the
+# over-budget-only probe above can never exercise).
+HSS="$(cd "$FC_ROOT/../../.." && pwd)/scripts/lib/host_session_safety.sh"
+if [ -f "$HSS" ]; then
+  j=$(bash -c "set -e; . '$HSS' >/dev/null 2>&1; host_safe_aosp_jobs 1" 2>"$WORK/jobcap_direct.log")
+  jrc=$?
+  if [ "$jrc" -eq 0 ] && [ "$j" = "1" ]; then
+    ok "host_safe_aosp_jobs: an explicit ceiling (1) BELOW natural capacity IS honored (returned exactly 1, requested N is not ignored)"
+  else
+    bad "host_safe_aosp_jobs: expected an explicit ceiling of 1 to be honored (returned 1), got rc=$jrc j=$j stderr=$(cat "$WORK/jobcap_direct.log")"
+  fi
+else
+  bad "host_safe_aosp_jobs: $HSS not found -- cannot prove the override mechanism directly"
 fi
 
 # --- limits-diff: identical before/after -> exit 0 ---
-OUT2="$WORK/limits_after_same.json"
+OUT4="$WORK/limits_after_same.json"
 # shellcheck disable=SC2086
-env $AMPLE python3 "$TOOL" limits --speedup t144-probe --phase after --out "$OUT2" \
-  >"$WORK/o2.log" 2>"$WORK/e2.log"
-python3 "$TOOL" limits-diff --before "$OUT" --after "$OUT2" >"$WORK/diff1.log" 2>&1
+env $AMPLE FC_HOST_AGENT_REGISTRY_STATUS_PATH="$REG0" \
+  python3 "$TOOL" limits --speedup t144-probe --phase after --out "$OUT4" \
+  >"$WORK/o4.log" 2>"$WORK/e4.log"
+python3 "$TOOL" limits-diff --before "$OUT1" --after "$OUT4" >"$WORK/diff1.log" 2>&1
 diff_rc=$?
 if [ "$diff_rc" -eq 0 ]; then
   ok "limits-diff: identical before/after (same host state) -> exit 0"

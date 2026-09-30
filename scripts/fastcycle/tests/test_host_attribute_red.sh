@@ -190,5 +190,86 @@ PYEOF
   if [ $? -eq 0 ]; then ok "empty consumer reported zero with its path"; else bad "empty consumer zero-reporting"; fi
 fi
 
+# --- (4) T153 Round-1 NO-GO finding B4: a root that is ABSENT (never
+#     created at all, distinct from (2)'s EXISTING-but-EMPTY directory)
+#     must still produce a real, evidence-backed zero -- the pre-fix code
+#     wrote a bare `{"value": 0, "note": "root_absent"}` with NO evidence
+#     object, which `validate_attribution_doc()`'s OWN schema check
+#     correctly rejected as a hand-entered figure, so `attribute` printed
+#     "internal error" and exited EXIT_BLIND(4) writing NOTHING --
+#     self-contradictory: HR-001/fastcycle.yaml's own documented
+#     convention says an absent root is "a real, legitimate zero", but
+#     the tool could never actually produce that legitimate zero end to
+#     end. This asserts the fixed tool exits 0, writes the output file,
+#     and the absent root's row carries value==0 backed by a real
+#     evidence object (proving `stat`, a real external command, was
+#     genuinely run against it) for BOTH apparent_bytes and
+#     exclusive_bytes.
+CFG2="$WORK/fastcycle_absent.yaml"
+ABSENT_ROOT_REL="qa-results/fastcycle/_t153_b4_absent_root_does_not_exist.$$"
+if [ -e "$REPO_ROOT/$ABSENT_ROOT_REL" ]; then
+  bad "T153 B4 fixture setup: $ABSENT_ROOT_REL unexpectedly already exists"
+else
+  NEEDLE_DIR_REL2="qa-results/fastcycle/_t153_b4_needle.$$"
+  cat > "$CFG2" <<YAML
+schema: fastcycle-config/v1
+paths:
+  evidence_root: qa-results/fastcycle
+host:
+  attribution_roots:
+    - {path: "$ABSENT_ROOT_REL", consumer_type: cache}
+  worktree_prefix: ".claude/worktrees-does-not-exist-t153-b4"
+  session_scratch_roots: []
+  hardlink_mirror_roots: []
+  agent_registry_status: "docs/requests/agent_registry.status.tsv"
+  disk_floor:
+    volume_path: "."
+    floors_gib: {codegraph_launcher_floor: 20}
+    codegraph_safe_script: "constitution/scripts/codegraph/codegraph_safe.sh"
+  needle_scratch_dir: "$NEEDLE_DIR_REL2"
+YAML
+  OUT2="$WORK/attribution_absent.json"
+  cd "$REPO_ROOT" || exit 1
+  python3 "$TOOL" attribute --config "$CFG2" --out "$OUT2" >"$WORK/stdout2.log" 2>"$WORK/stderr2.log"
+  rc2=$?
+  rm -rf "$REPO_ROOT/$NEEDLE_DIR_REL2"
+
+  if [ "$rc2" -ne 0 ] || [ ! -f "$OUT2" ]; then
+    bad "T153 B4: attribute (absent-root case) expected exit 0 + output file, got rc=$rc2 stderr=$(cat "$WORK/stderr2.log" 2>/dev/null)"
+  else
+    ok "T153 B4: attribute (absent-root case) exits 0 and writes its output file (was: EXIT_BLIND(4), nothing written)"
+    python3 - "$OUT2" "$ABSENT_ROOT_REL" <<'PYEOF'
+import json, sys
+doc = json.load(open(sys.argv[1], encoding="utf-8"))
+path = sys.argv[2]
+rows = [c for c in doc.get("consumers", []) if c.get("path") == path]
+if not rows:
+    print("FAIL: no consumer row for the absent root %r (must be reported, never omitted)" % path)
+    sys.exit(1)
+row = rows[0]
+fail = 0
+for field in ("apparent_bytes", "exclusive_bytes"):
+    entry = row.get(field, {})
+    if entry.get("value") != 0:
+        print("FAIL: absent root %r %s.value = %r, expected exactly 0" % (path, field, entry.get("value")))
+        fail = 1
+        continue
+    ev = entry.get("evidence")
+    if not isinstance(ev, dict) or not ev.get("cmd") or not ev.get("output_path") or not ev.get("sha256"):
+        print("FAIL: absent root %r %s has NO real evidence object (hand-entered figure) -- got %r" % (path, field, entry))
+        fail = 1
+        continue
+    print("PASS: absent root %r %s.value == 0 backed by a real evidence object (cmd=%r)" % (path, field, ev.get("cmd")))
+sys.exit(fail)
+PYEOF
+    py_rc=$?
+    if [ "$py_rc" -eq 0 ]; then
+      ok "T153 B4: absent root's apparent_bytes + exclusive_bytes are both evidence-backed zeros"
+    else
+      bad "T153 B4: absent root's apparent_bytes/exclusive_bytes shape/evidence"
+    fi
+  fi
+fi
+
 echo "SUMMARY pass=$PASS fail=$FAIL"
 [ "$FAIL" -eq 0 ]

@@ -430,9 +430,33 @@ def _parse_btrfs_du(out):
         return None
 
 
+def measure_absent_root(path, evidence_dir, idx, tag):
+    """B4 fix (T153 Round-1 NO-GO): a root absent on this host is a real,
+    legitimate zero (HR-001 -- fastcycle.yaml's own documented convention:
+    "A root absent on this host is a real, legitimate zero, never
+    UNMEASURED"), never UNMEASURED -- but "legitimate zero" still needs
+    REAL evidence that the absence was genuinely CHECKED, right now, not
+    merely assumed from a prior in-process `os.path.exists()` call with no
+    externally-verifiable trace; this is what distinguishes "measured and
+    found absent" from "never measured". Runs a real external presence-
+    check command (`stat`, exactly parallel to every other measurement in
+    this file) and cites its ACTUAL captured output (a genuine "No such
+    file or directory" from a REAL failed `stat`) as the evidence -- never
+    a bare `{"value": 0}` with no evidence object, which
+    `_valid_measurement()` correctly rejects as an unproven, hand-entered
+    figure (the exact self-contradiction this fix closes: the old code
+    wrote a bare zero, its own validator refused it, and `attribute`
+    reported an internal error and wrote NOTHING).
+    """
+    rc, out, err = run_cmd(["stat", path], timeout=10)
+    content = "cmd: %r\nrc: %r\nstdout:\n%s\nstderr:\n%s\n" % (["stat", path], rc, out or "", err or "")
+    out_path = _write_evidence(evidence_dir, "%s_absent_%d.log" % (tag, idx), content)
+    return measured(0, ["stat", path], out_path, sha256_file(out_path))
+
+
 def measure_apparent_bytes(path, evidence_dir, idx):
     if not os.path.exists(path):
-        return {"value": 0, "note": "root_absent"}
+        return measure_absent_root(path, evidence_dir, idx, "apparent")
     rc, out, err = run_cmd(["du", "--apparent-size", "-sb", path], timeout=120)
     if rc != 0 or out is None:
         return unmeasured("du_apparent_size_failed: %s" % (err or "").strip()[:200])
@@ -447,7 +471,7 @@ def measure_apparent_bytes(path, evidence_dir, idx):
 def measure_exclusive_bytes(path, evidence_dir, idx):
     """Returns (total_entry, exclusive_entry)."""
     if not os.path.exists(path):
-        e = {"value": 0, "note": "root_absent"}
+        e = measure_absent_root(path, evidence_dir, idx, "exclusive")
         return e, dict(e)
     if not shutil.which("btrfs"):
         u = unmeasured("btrfs_binary_unavailable")
@@ -1013,8 +1037,22 @@ def measure_swap_pagein_rate():
             "pswpout_delta": after.get("pswpout", 0) - before.get("pswpout", 0)}
 
 
+def _agent_registry_status_path():
+    """B3 testability seam (T153 Round-1 NO-GO): matches the established
+    FC_HOST_CPU_STAT_PATH injectable-override convention -- unset means the
+    real, live registry status file (unchanged default behavior); a test
+    can point this at a controlled fixture TSV to make the agent_cap probe
+    genuinely deterministic instead of depending on whatever this host's
+    real agent registry happens to contain at run time.
+    """
+    override = os.environ.get("FC_HOST_AGENT_REGISTRY_STATUS_PATH")
+    if override:
+        return override
+    return _resolve("docs/requests/agent_registry.status.tsv")
+
+
 def cmd_limits(args):
-    registry_status_path = _resolve("docs/requests/agent_registry.status.tsv")
+    registry_status_path = _agent_registry_status_path()
     limits = {
         "memory_ceiling": probe_memory_ceiling(),
         "thread_headroom": probe_thread_headroom(),
