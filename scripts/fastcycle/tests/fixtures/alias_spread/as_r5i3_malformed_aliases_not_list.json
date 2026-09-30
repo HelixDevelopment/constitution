@@ -1,0 +1,5 @@
+{
+  "note": "T140 Round 5 review finding R5-I3, case C: aliases is a JSON integer, not a list -- used to crash cmd_place uncaught (TypeError: 'int' object is not iterable) at derive_placement's list-comprehension partitioning.",
+  "live_agents": 1,
+  "aliases": 5
+}

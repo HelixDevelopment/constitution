@@ -468,57 +468,6 @@ def derive_placement(fx):
     }
 
 
-def _validate_placement_fixture_shape(fx):
-    """T140 Round 5 review finding R5-I3: `derive_placement` above raises
-    KeyError for a fixture MISSING `live_agents`/`aliases`/an alias
-    entry's own required keys (by design -- its own docstring: "a
-    malformed fixture is not this rule's problem to silently paper over"),
-    and `cmd_place` already catches that KeyError as an honest EXIT_USAGE.
-    But a field whose VALUE has the WRONG JSON TYPE (present, not
-    missing) used to crash `cmd_place` UNCAUGHT with a bare Python
-    TypeError -- and an uncaught crash's exit code (1) is
-    INDISTINGUISHABLE from `EXIT_PLACE_REFUSED` (also 1, the intentional
-    "no eligible alias" refusal), so a caller reading only the exit code
-    could not tell a genuine crash from a deliberate refusal.
-
-    Mirrors `orchestration/custody_sweep.py`'s own `cmd_verify_proposal`
-    reference pattern (section 11.4.227 reuse-the-pattern): that function
-    ALREADY handles equivalent malformed inputs cleanly (a list top-level
-    value still supports `k not in d` membership tests with no crash, so
-    its own missing-required-key check naturally reports EXIT_USAGE; a
-    wrong-type `action`/`entry_id` still resolves to a clean REFUSED
-    verdict via ordinary `not in`/set-membership comparisons, which never
-    raise on a value of the wrong type). This function is the SAME idea
-    applied here, as an explicit up-front check (since `derive_placement`
-    itself, unlike `derive_verdict`, genuinely INDEXES into structured
-    dicts/lists by field name and therefore cannot avoid a wrong-type
-    crash purely through membership-test-shaped code).
-
-    Returns a diagnosable message (naming the bad field + expected type +
-    actual type/value) if `fx`'s top-level shape is malformed, or None if
-    it is well-formed enough for `derive_placement` to safely index into
-    (a MISSING field is left to the existing KeyError path, exactly as
-    before -- this function checks TYPE, never PRESENCE)."""
-    if not isinstance(fx, dict):
-        return "--fixture top-level value is not a JSON object (got %s: %r)" % (
-            type(fx).__name__, fx)
-    if "live_agents" in fx:
-        live_agents = fx["live_agents"]
-        if not isinstance(live_agents, int):
-            return "field `live_agents` must be a JSON integer (got %s: %r)" % (
-                type(live_agents).__name__, live_agents)
-    if "aliases" in fx:
-        aliases = fx["aliases"]
-        if not isinstance(aliases, list):
-            return "field `aliases` must be a JSON list (got %s: %r)" % (
-                type(aliases).__name__, aliases)
-        for i, entry in enumerate(aliases):
-            if not isinstance(entry, dict):
-                return "aliases[%d] is not a JSON object (got %s: %r)" % (
-                    i, type(entry).__name__, entry)
-    return None
-
-
 def cmd_place(a):
     try:
         with open(a.fixture, encoding="utf-8") as fh:
@@ -530,35 +479,12 @@ def cmd_place(a):
         )
         return EXIT_USAGE
 
-    shape_error = _validate_placement_fixture_shape(fx)
-    if shape_error is not None:
-        print(
-            "limit_class place: fixture %s has a malformed field: %s"
-            % (a.fixture, shape_error),
-            file=sys.stderr,
-        )
-        return EXIT_USAGE
-
     try:
         body = derive_placement(fx)
     except KeyError as exc:
         print(
             "limit_class place: fixture %s is missing a required field: %s"
             % (a.fixture, exc),
-            file=sys.stderr,
-        )
-        return EXIT_USAGE
-    except TypeError as exc:
-        # T140 Round 5 review finding R5-I3, DEFENSE IN DEPTH (never a
-        # substitute for the up-front shape check above -- section
-        # 11.4.6, that check is not claimed exhaustive): a genuinely
-        # unanticipated wrong-type field still fails closed with
-        # EXIT_USAGE and a diagnosable message naming the real exception,
-        # never an uncaught crash landing on EXIT_PLACE_REFUSED's own
-        # exit code.
-        print(
-            "limit_class place: fixture %s raised an unanticipated %s while "
-            "placing: %s" % (a.fixture, type(exc).__name__, exc),
             file=sys.stderr,
         )
         return EXIT_USAGE

@@ -1,0 +1,5 @@
+{
+  "note": "T140 Round 5 review finding R5-I3, case D: aliases is a JSON list of integers rather than a list of alias objects -- used to crash cmd_place uncaught (TypeError: 'int' object is not subscriptable) at derive_placement's a['operational'] field access.",
+  "live_agents": 1,
+  "aliases": [5]
+}
