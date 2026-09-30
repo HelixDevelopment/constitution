@@ -165,6 +165,8 @@ Honest scope boundary (SS11.4.6 -- stated, not silently assumed covered):
   guard of its own yet -- verified by hand during this task's own
   implementation pass (see EVIDENCE report), not by the graded RED test.
 """
+import contextlib
+import fcntl
 import json
 import os
 import subprocess
@@ -220,6 +222,39 @@ def _atomic_write_json(path, obj):
         json.dump(obj, fh, sort_keys=True, indent=2)
         fh.write("\n")
     os.replace(tmp, path)
+
+
+@contextlib.contextmanager
+def _locked_ledger(history_dir, name):
+    """m2 fix (T085 Round 1, 2026-09-30): `_atomic_write_json` alone makes
+    a SINGLE write crash-safe (never a half-written file), but every
+    caller's own READ-then-MODIFY-then-WRITE sequence (load_history() /
+    load_quarantine() -> mutate the in-memory dict -> _atomic_write_json())
+    was previously UNLOCKED -- two concurrent callers (e.g. two gates in
+    DIFFERENT `gate_runner.sh --mode shard` shards, run genuinely in
+    parallel via `xargs -P N`, each recording their own verdict) can both
+    read the SAME starting document, each append their own entry in
+    memory, and then each write their own version back -- whichever
+    `os.replace()` runs LAST wins, silently DISCARDING the other's
+    append/mutation with no error, no warning, no trace (a classic
+    read-modify-write race, distinct from the write-atomicity
+    `_atomic_write_json` already provides). This context manager takes an
+    exclusive `flock` on a dedicated per-ledger-file lock (never the
+    ledger file itself, so a concurrent READER never blocks on a
+    lockfile that also needs truncating/replacing) for the DURATION of
+    the caller's own read-modify-write block, serialising concurrent
+    callers so no append/mutation is ever lost. `name` scopes the lock to
+    ONE of {history, quarantine, ratchet} so operations on independent
+    files never unnecessarily serialise against each other."""
+    os.makedirs(history_dir, exist_ok=True)
+    lock_path = os.path.join(history_dir, f".{name}.lock")
+    fh = open(lock_path, "a+")
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+        fh.close()
 
 
 def history_path(history_dir):
@@ -288,10 +323,14 @@ def cmd_record(argv):
     history_dir = flags["history-dir"]
     gate = flags["gate"]
     key = flags["key"]
-    history = load_history(history_dir)
-    gate_history = history.setdefault(gate, [])
-    gate_history.append({"key": key, "verdict": verdict})
-    _atomic_write_json(history_path(history_dir), history)
+    # m2 fix: the read-modify-write below is now serialised against every
+    # other concurrent `record` call (§9.2/§11.4.180 -- the lock itself is
+    # a dedicated .history.lock file, never the ledger file being replaced).
+    with _locked_ledger(history_dir, "history"):
+        history = load_history(history_dir)
+        gate_history = history.setdefault(gate, [])
+        gate_history.append({"key": key, "verdict": verdict})
+        _atomic_write_json(history_path(history_dir), history)
 
     history_len = len(gate_history)
     print(f"RECORDED gate={gate} key={key} verdict={verdict} history_len={history_len}")
@@ -351,74 +390,80 @@ def cmd_check(argv):
     ]
     is_flaky, minority, majority = classify(same_key_verdicts)
 
-    quarantine = load_quarantine(history_dir)
-    existing = quarantine.get(gate)
+    # m2 fix: serialise the quarantine read-modify-write below against every
+    # other concurrent `check` call (mirrors cmd_record's own fix above) --
+    # two concurrent checks for DIFFERENT gates (e.g. two shards' gates
+    # finishing at the same time) previously raced on the SAME
+    # quarantine.json document.
+    with _locked_ledger(history_dir, "quarantine"):
+        quarantine = load_quarantine(history_dir)
+        existing = quarantine.get(gate)
 
-    if is_flaky:
-        if existing is not None:
-            owner = existing["owner"]
-            deadline = existing["deadline"]
-            flagged_at = existing["flagged_at"]
-        else:
-            owner = flags.get("owner") or DEFAULT_OWNER
-            try:
-                deadline_days = int(flags.get("deadline-days", DEFAULT_DEADLINE_DAYS))
-            except ValueError:
-                sys.stderr.write("flake_ledger.py check: --deadline-days must be an integer\n")
-                return 2
-            now = time.time()
-            deadline = time.strftime(
-                "%Y-%m-%d", time.gmtime(now + deadline_days * SECONDS_PER_DAY)
-            )
-            flagged_at = now
-        quarantine[gate] = {
-            "key": key,
-            "minority": minority,
-            "majority": majority,
-            "owner": owner,
-            "deadline": deadline,
-            "flagged_at": flagged_at,
-        }
-        _atomic_write_json(quarantine_path(history_dir), quarantine)
+        if is_flaky:
+            if existing is not None:
+                owner = existing["owner"]
+                deadline = existing["deadline"]
+                flagged_at = existing["flagged_at"]
+            else:
+                owner = flags.get("owner") or DEFAULT_OWNER
+                try:
+                    deadline_days = int(flags.get("deadline-days", DEFAULT_DEADLINE_DAYS))
+                except ValueError:
+                    sys.stderr.write("flake_ledger.py check: --deadline-days must be an integer\n")
+                    return 2
+                now = time.time()
+                deadline = time.strftime(
+                    "%Y-%m-%d", time.gmtime(now + deadline_days * SECONDS_PER_DAY)
+                )
+                flagged_at = now
+            quarantine[gate] = {
+                "key": key,
+                "minority": minority,
+                "majority": majority,
+                "owner": owner,
+                "deadline": deadline,
+                "flagged_at": flagged_at,
+            }
+            _atomic_write_json(quarantine_path(history_dir), quarantine)
 
-        cache_dir = flags.get("cache-dir")
-        if cache_dir:
-            _purge_cache(cache_dir, gate)
+            cache_dir = flags.get("cache-dir")
+            if cache_dir:
+                _purge_cache(cache_dir, gate)
 
-        print(f"FLAKY gate={gate} quarantined=true")
-        print(f"owner={owner} deadline={deadline} minority={minority} majority={majority}")
-        return 1
+            print(f"FLAKY gate={gate} quarantined=true")
+            print(f"owner={owner} deadline={deadline} minority={minority} majority={majority}")
+            return 1
 
-    # STABLE: a gate that was previously quarantined but whose freshly
-    # recomputed same-key window is now clean re-stabilises and drops out
-    # of quarantine (see module docstring's storage-layout section).
-    #
-    # I2 fix (T085 Round 1, 2026-09-30): the pre-remediation version
-    # cleared `quarantine[gate]` on ANY is_flaky=False result for this
-    # gate, regardless of which `key` the caller checked. Reproduced live
-    # before this fix (§11.4.199): 6 alternating PASS/FAIL `record` calls
-    # for gate=G1 key=K1 correctly flags FLAKY+EXCLUDED; a SUBSEQUENT
-    # `check --gate G1 --key K2` for an entirely unrelated, NEVER-recorded
-    # key K2 -- whose own `same_key_verdicts` window is empty and
-    # therefore trivially classifies STABLE (classify([]) => minority=0)
-    # -- silently deleted K1's quarantine entry too, because the deletion
-    # was keyed on `gate` alone. A `check` call MUST only ever
-    # read/evaluate the SPECIFIC key it was asked about -- never
-    # side-effect a DIFFERENT key's quarantine state. The quarantine entry
-    # therefore clears ONLY when (a) it exists, (b) it was flagged under
-    # THIS SAME key (existing["key"] == key -- a genuine re-evaluation of
-    # the key that triggered it, never an unrelated key's vacuous-empty
-    # window), and (c) this check's own window is non-empty (real evidence
-    # was actually re-examined, never an absence-of-data default -- an
-    # empty window proves nothing per §11.4.6/§11.4.201, so it must never
-    # be read as "now stable"). A quarantine flagged under a DIFFERENT key
-    # is left completely untouched by this check call.
-    if existing is not None and existing.get("key") == key and same_key_verdicts:
-        del quarantine[gate]
-        _atomic_write_json(quarantine_path(history_dir), quarantine)
+        # STABLE: a gate that was previously quarantined but whose freshly
+        # recomputed same-key window is now clean re-stabilises and drops out
+        # of quarantine (see module docstring's storage-layout section).
+        #
+        # I2 fix (T085 Round 1, 2026-09-30): the pre-remediation version
+        # cleared `quarantine[gate]` on ANY is_flaky=False result for this
+        # gate, regardless of which `key` the caller checked. Reproduced live
+        # before this fix (§11.4.199): 6 alternating PASS/FAIL `record` calls
+        # for gate=G1 key=K1 correctly flags FLAKY+EXCLUDED; a SUBSEQUENT
+        # `check --gate G1 --key K2` for an entirely unrelated, NEVER-recorded
+        # key K2 -- whose own `same_key_verdicts` window is empty and
+        # therefore trivially classifies STABLE (classify([]) => minority=0)
+        # -- silently deleted K1's quarantine entry too, because the deletion
+        # was keyed on `gate` alone. A `check` call MUST only ever
+        # read/evaluate the SPECIFIC key it was asked about -- never
+        # side-effect a DIFFERENT key's quarantine state. The quarantine entry
+        # therefore clears ONLY when (a) it exists, (b) it was flagged under
+        # THIS SAME key (existing["key"] == key -- a genuine re-evaluation of
+        # the key that triggered it, never an unrelated key's vacuous-empty
+        # window), and (c) this check's own window is non-empty (real evidence
+        # was actually re-examined, never an absence-of-data default -- an
+        # empty window proves nothing per §11.4.6/§11.4.201, so it must never
+        # be read as "now stable"). A quarantine flagged under a DIFFERENT key
+        # is left completely untouched by this check call.
+        if existing is not None and existing.get("key") == key and same_key_verdicts:
+            del quarantine[gate]
+            _atomic_write_json(quarantine_path(history_dir), quarantine)
 
-    print(f"STABLE gate={gate}")
-    return 0
+        print(f"STABLE gate={gate}")
+        return 0
 
 
 def cmd_cache_eligible(argv):
@@ -447,25 +492,28 @@ def cmd_ratchet_check(argv):
     count = len(quarantine)
 
     rpath = ratchet_path(history_dir)
-    baseline_doc = _load_json(rpath, None)
-    if baseline_doc is None:
-        _atomic_write_json(rpath, {"baseline_count": count})
-        print(f"RATCHET-INIT count={count} baseline={count}")
+    # m2 fix: serialise the ratchet_baseline.json read-modify-write too
+    # (same class of race as history.json/quarantine.json above).
+    with _locked_ledger(history_dir, "ratchet"):
+        baseline_doc = _load_json(rpath, None)
+        if baseline_doc is None:
+            _atomic_write_json(rpath, {"baseline_count": count})
+            print(f"RATCHET-INIT count={count} baseline={count}")
+            return 0
+
+        baseline = baseline_doc["baseline_count"]
+        if count > baseline:
+            # A ratchet that silently absorbed an increase into its own
+            # baseline would stop being a ratchet (SS11.4.135/SS11.4.224(E)
+            # pattern) -- the baseline file is left UNCHANGED on a violation.
+            print(f"RATCHET-VIOLATION count={count} baseline={baseline}")
+            return 1
+
+        new_baseline = min(baseline, count)
+        if new_baseline != baseline:
+            _atomic_write_json(rpath, {"baseline_count": new_baseline})
+        print(f"RATCHET-OK count={count} baseline={new_baseline}")
         return 0
-
-    baseline = baseline_doc["baseline_count"]
-    if count > baseline:
-        # A ratchet that silently absorbed an increase into its own
-        # baseline would stop being a ratchet (SS11.4.135/SS11.4.224(E)
-        # pattern) -- the baseline file is left UNCHANGED on a violation.
-        print(f"RATCHET-VIOLATION count={count} baseline={baseline}")
-        return 1
-
-    new_baseline = min(baseline, count)
-    if new_baseline != baseline:
-        _atomic_write_json(rpath, {"baseline_count": new_baseline})
-    print(f"RATCHET-OK count={count} baseline={new_baseline}")
-    return 0
 
 
 def main(argv):
