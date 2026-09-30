@@ -895,25 +895,35 @@ def _write_dispatch_internal_error_doc(out_path, subcommand, exc):
     `_write_dispatch_internal_error_doc`/`handoff.py`'s own identically-
     purposed helper, section 11.4.227 reuse-the-SAME-discipline): on ANY
     exception escaping `cmd_place`/`cmd_classify` and being caught by
-    `main()`'s new `fc_common.SAFE_EXCEPTIONS` dispatch boundary below,
-    this tool MUST still write SOME document to --out (when one was
-    requested) rather than leaving a stale or entirely absent --out file --
-    the audit trail (section 11.4.5/11.4.69) is never silently lost
-    regardless of what crashed. Reuses `write_class_doc_atomic` (never a
-    second writer) -- this file's own wire formats carry no schema/
-    body_hash envelope (module docstring: "no extra envelope... this is
-    the literal sub-object"), so the minimal error doc matches that SAME
-    bare-object convention rather than inventing a new one. Best-effort:
-    a write failure here is itself swallowed (never raised a second time
-    out of an already-failing error path) -- the caller's stderr
-    diagnostic in main() is what remains authoritative in that
-    doubly-unlucky case."""
+    `main()`'s dispatch boundary below, this tool MUST still write SOME
+    document to --out (when one was requested) rather than leaving a
+    stale or entirely absent --out file -- the audit trail (section
+    11.4.5/11.4.69) is never silently lost regardless of what crashed.
+    Reuses `write_class_doc_atomic` (never a second writer) -- this
+    file's own wire formats carry no schema/body_hash envelope (module
+    docstring: "no extra envelope... this is the literal sub-object"), so
+    the minimal error doc matches that SAME bare-object convention rather
+    than inventing a new one. Best-effort: a write failure here is itself
+    swallowed (never raised a second time out of an already-failing
+    error path) -- the caller's stderr diagnostic in main() is what
+    remains authoritative in that doubly-unlucky case.
+
+    T140 Round 8 review finding R8-I1(d) (fixed here): was `except
+    fc_common.SAFE_EXCEPTIONS` -- widened to bare `Exception`, the SAME
+    widening `main()`'s own two dispatch boundaries below receive, so
+    this best-effort write can never itself escape with a different,
+    still-uncaught exception class (e.g. a `TypeError` from
+    `write_class_doc_atomic`'s own `json.dumps(..., sort_keys=True)` on a
+    mutually-incomparable-keys `body` -- `TypeError` IS already a
+    `fc_common.SAFE_EXCEPTIONS` member, so this specific widening is
+    consistency with the OTHER two sibling tools' identical fixes rather
+    than closing a NEW crash class here)."""
     if not out_path:
         return
     body = {"subcommand": subcommand, "internal_error": {"class": type(exc).__name__, "detail": str(exc)}}
     try:
         write_class_doc_atomic(out_path, body)
-    except fc_common.SAFE_EXCEPTIONS:
+    except Exception:
         pass
 
 
@@ -924,7 +934,22 @@ def main(argv):
     # this one file -- see run_determinism_check's own docstring comment
     # above.
     if "--determinism-check" in argv:
-        return run_determinism_check(argv)
+        # T140 Round 8 review finding R8-I1 minor (a) (fixed here):
+        # `run_determinism_check` used to run entirely OUTSIDE this
+        # function's own dispatch boundary. Wrapped in the SAME bare
+        # `except Exception` this function's own subcommand dispatch below
+        # now uses (section 11.4.227 reuse-not-reinvention) -- no single
+        # caller-level `--out` document exists to write an internal-error
+        # doc to here (each subprocess run already writes its OWN --out
+        # inside a throwaway temp dir, per `run_determinism_check`'s own
+        # body), so this boundary is diagnostic-message-only.
+        try:
+            return run_determinism_check(argv)
+        except Exception as exc:
+            print("limit_class: --determinism-check raised an uncaught %s: %s -- this is a "
+                  "genuinely unanticipated case; treat as unsafe/unverified until independently, "
+                  "manually re-verified" % (type(exc).__name__, exc), file=sys.stderr)
+            return EXIT_USAGE
 
     # T136: dispatch to `place` on the literal leading token "place",
     # BEFORE classify's own parser (build_arg_parser) ever sees argv --
@@ -938,7 +963,7 @@ def main(argv):
             raise exc
         try:
             return cmd_place(place_args)
-        except fc_common.SAFE_EXCEPTIONS as exc:
+        except Exception as exc:
             # T140 Round 7 review, the ONE top-level dispatch boundary
             # wrapping EVERY subcommand this file dispatches to (see
             # _write_dispatch_internal_error_doc's own docstring
@@ -948,6 +973,28 @@ def main(argv):
             # above) -- still fails CLOSED here with an honest, diagnosable
             # message, a real --out write, and this tool's own established
             # EXIT_USAGE convention.
+            #
+            # T140 Round 8 review finding R8-I1 (WIDENED here): was
+            # `except fc_common.SAFE_EXCEPTIONS` -- Round 8's own live
+            # fuzzing (5,000 random-field-mutation variants, verified
+            # first against a deliberately-broken script to confirm it
+            # genuinely catches crashes) proved this narrower catch set
+            # still let `KeyError`/`IndexError`/`AttributeError`/
+            # `RecursionError` escape uncaught in this file -- proven live
+            # by injecting a `KeyError` at the very TOP of `cmd_place`
+            # (before ANY of its own internal try/excepts could run).
+            # Widened to bare `Exception` -- deliberately NEVER
+            # `BaseException`: `SystemExit`/`KeyboardInterrupt` are NOT
+            # subclasses of `Exception`, so an operator interrupt or this
+            # process's own `sys.exit()` correctly stays UNCAUGHT here
+            # (the `except SystemExit as exc: raise exc` immediately above
+            # this try, around argparse's own parsing, is unaffected --
+            # `SystemExit` was never routed through this boundary in the
+            # first place). `fc_common.SAFE_EXCEPTIONS` itself is
+            # UNCHANGED -- only this ONE top-level dispatch boundary is
+            # widened, the fix Round 8's own review recommended directly:
+            # "the fix is to change what the boundary catches to
+            # `Exception`, not to add one more type to the list."
             print("limit_class place: fixture %s raised an uncaught %s while dispatching: %s -- "
                   "this is a genuinely unanticipated case no individual fix above enumerated; "
                   "treat as unsafe/unverified until independently, manually re-verified"
@@ -967,8 +1014,14 @@ def main(argv):
         return EXIT_USAGE
     try:
         return cmd_classify(args)
-    except fc_common.SAFE_EXCEPTIONS as exc:
-        # Same top-level dispatch boundary as `place` above, for `classify`.
+    except Exception as exc:
+        # Same top-level dispatch boundary as `place` above, for
+        # `classify` -- T140 Round 8 review finding R8-I1, identically
+        # widened (see the `place` branch's own comment immediately
+        # above for the full rationale, proven live for THIS handler too
+        # via `cmd_validate`/`cmd_verify_proposal`'s sibling
+        # KeyError-injection proofs across the other two fastcycle
+        # orchestration tools).
         print("limit_class: classify raised an uncaught %s while dispatching: %s -- this is a "
               "genuinely unanticipated case no individual fix above enumerated; treat as "
               "unsafe/unverified until independently, manually re-verified"

@@ -339,16 +339,28 @@ else
 fi
 
 echo
-echo "=== Top-level dispatch boundary: main() wraps EVERY subcommand in ONE fc_common.SAFE_EXCEPTIONS boundary ==="
-# Static control needle (mirrors R6-I2-sibling's own static needle
-# pattern): main()'s own try/except around the subcommand-dispatch
-# if/elif chain names fc_common.SAFE_EXCEPTIONS as one of its handled
-# exception groups, and a write-of-a-minimal-error-doc helper is called
-# from that except block.
+echo "=== Top-level dispatch boundary: main() wraps EVERY subcommand in ONE except Exception boundary ==="
+# T140 Round 8 review finding R8-I1 (fixed here): the boundary's own catch
+# set was WIDENED from `fc_common.SAFE_EXCEPTIONS` to bare `Exception` (see
+# custody_sweep.py's own main() comment) -- this static control needle
+# (mirrors R6-I2-sibling's own static needle pattern) is updated to match
+# the new reality: it now looks for a bare `except Exception as exc:`
+# handler (an `ast.Name` node whose `id == "Exception"`, NOT an
+# `ast.Attribute` node -- `fc_common.SAFE_EXCEPTIONS` parses as an
+# Attribute, `Exception` parses as a bare Name) that still calls the
+# minimal-error-doc writer, and ADDITIONALLY confirms `Exception` is never
+# accidentally widened all the way to `BaseException` (which would wrongly
+# swallow `SystemExit`/`KeyboardInterrupt` too -- section 11.4.6, never
+# silently over-widen a fix beyond what was asked). The `except
+# RuntimeError as exc:` handler listed BEFORE this boundary (its own,
+# MORE SPECIFIC clause, unaffected by this widening -- Python tries
+# handlers in source order) is deliberately not asserted on here; this
+# check is scoped to the boundary this round's own review named.
 BOUNDARY_CHECK=$(python3 - "$IMPL" <<'PYEOF'
 import ast, sys
 tree = ast.parse(open(sys.argv[1], encoding="utf-8").read(), filename=sys.argv[1])
 found_main_boundary = False
+found_base_exception = False
 for node in ast.walk(tree):
     if isinstance(node, ast.FunctionDef) and node.name == "main":
         for sub in ast.walk(node):
@@ -356,8 +368,10 @@ for node in ast.walk(tree):
                 for h in sub.handlers:
                     if h.type is None:
                         continue
-                    # matches `except fc_common.SAFE_EXCEPTIONS as exc:`
-                    if isinstance(h.type, ast.Attribute) and h.type.attr == "SAFE_EXCEPTIONS":
+                    if isinstance(h.type, ast.Name) and h.type.id == "BaseException":
+                        found_base_exception = True
+                    # matches `except Exception as exc:`
+                    if isinstance(h.type, ast.Name) and h.type.id == "Exception":
                         calls_writer = any(
                             isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
                             and "internal_error" in n.func.id
@@ -365,12 +379,20 @@ for node in ast.walk(tree):
                         )
                         if calls_writer:
                             found_main_boundary = True
-print("1" if found_main_boundary else "0")
+if found_base_exception:
+    print("BASEEXCEPTION")
+else:
+    print("1" if found_main_boundary else "0")
 PYEOF
 )
 if [ "$BOUNDARY_CHECK" = "1" ]; then
   echo "ok top-level dispatch boundary: main() wraps its subcommand dispatch in"
-  echo "   except fc_common.SAFE_EXCEPTIONS and calls the minimal-error-doc writer"
+  echo "   except Exception and calls the minimal-error-doc writer (never"
+  echo "   BaseException -- SystemExit/KeyboardInterrupt correctly stay uncaught)"
+elif [ "$BOUNDARY_CHECK" = "BASEEXCEPTION" ]; then
+  echo "NOT ok top-level dispatch boundary OVER-WIDENED to BaseException -- this would"
+  echo "     wrongly swallow SystemExit/KeyboardInterrupt too"
+  failx
 else
   echo "NOT ok top-level dispatch boundary MISSING or malformed"
   failx

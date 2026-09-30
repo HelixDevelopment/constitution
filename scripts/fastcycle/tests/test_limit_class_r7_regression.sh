@@ -202,11 +202,22 @@ else
 fi
 
 echo
-echo "=== Top-level dispatch boundary: main() wraps BOTH place and classify dispatch in their own fc_common.SAFE_EXCEPTIONS boundary ==="
+echo "=== Top-level dispatch boundary: main() wraps BOTH place and classify dispatch in their own except Exception boundary ==="
+# T140 Round 8 review finding R8-I1 (fixed here): the boundary's own catch
+# set was WIDENED from `fc_common.SAFE_EXCEPTIONS` to bare `Exception` (see
+# limit_class.py's own main() comment) -- this static check is updated to
+# match the new reality: it now looks for TWO bare `except Exception as
+# exc:` handlers (an `ast.Name` node whose `id == "Exception"`, NOT an
+# `ast.Attribute` node) that each still call the minimal-error-doc writer,
+# and ADDITIONALLY confirms `Exception` is never accidentally widened all
+# the way to `BaseException` (which would wrongly swallow
+# `SystemExit`/`KeyboardInterrupt` too -- section 11.4.6, never silently
+# over-widen a fix beyond what was asked).
 BOUNDARY_CHECK=$(python3 - "$IMPL" <<'PYEOF'
 import ast, sys
 tree = ast.parse(open(sys.argv[1], encoding="utf-8").read(), filename=sys.argv[1])
 count = 0
+found_base_exception = False
 for node in ast.walk(tree):
     if isinstance(node, ast.FunctionDef) and node.name == "main":
         for sub in ast.walk(node):
@@ -214,7 +225,9 @@ for node in ast.walk(tree):
                 for h in sub.handlers:
                     if h.type is None:
                         continue
-                    if isinstance(h.type, ast.Attribute) and h.type.attr == "SAFE_EXCEPTIONS":
+                    if isinstance(h.type, ast.Name) and h.type.id == "BaseException":
+                        found_base_exception = True
+                    if isinstance(h.type, ast.Name) and h.type.id == "Exception":
                         calls_writer = any(
                             isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
                             and "internal_error" in n.func.id
@@ -222,14 +235,22 @@ for node in ast.walk(tree):
                         )
                         if calls_writer:
                             count += 1
-print(count)
+if found_base_exception:
+    print("BASEEXCEPTION")
+else:
+    print(count)
 PYEOF
 )
 if [ "$BOUNDARY_CHECK" = "2" ]; then
   echo "ok top-level dispatch boundary: main() wraps BOTH cmd_place(...) and"
-  echo "   cmd_classify(...) in their own except fc_common.SAFE_EXCEPTIONS boundary"
-  echo "   that calls the minimal-error-doc writer (2 distinct guarded call sites"
-  echo "   found, one per dispatch path)"
+  echo "   cmd_classify(...) in their own except Exception boundary that calls the"
+  echo "   minimal-error-doc writer (2 distinct guarded call sites found, one per"
+  echo "   dispatch path; never BaseException -- SystemExit/KeyboardInterrupt"
+  echo "   correctly stay uncaught)"
+elif [ "$BOUNDARY_CHECK" = "BASEEXCEPTION" ]; then
+  echo "NOT ok top-level dispatch boundary OVER-WIDENED to BaseException -- this would"
+  echo "     wrongly swallow SystemExit/KeyboardInterrupt too"
+  failx
 else
   echo "NOT ok top-level dispatch boundary: found $BOUNDARY_CHECK guarded dispatch"
   echo "     call site(s), wanted 2 (place + classify)"

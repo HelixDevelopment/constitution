@@ -196,13 +196,65 @@ DIFF_FILE_RE = re.compile(r"^diff --git a/(.+?) b/")
 # mutating git subcommand -- grep this file for 'push', 'drop', 'remove',
 # 'reset', 'clean' to confirm none appear as an argv element anywhere below).
 # ---------------------------------------------------------------------------
-def _run(args, cwd=None, check=True):
-    proc = subprocess.run(args, cwd=cwd, capture_output=True, text=True)
+def _run(args, cwd=None, check=True, env=None):
+    """`env=None` (the default, EVERY pre-existing call site) preserves the
+    exact prior behaviour -- `subprocess.run`'s own `env=None` default means
+    "inherit the parent process's environment unchanged", so this parameter
+    is purely additive and never a behaviour change for any call site that
+    does not pass it. `env=<dict>` REPLACES the child's environment
+    entirely (never merges with `os.environ`) -- the ONE thing a caller
+    genuinely needing isolation (see `_sanitized_scratch_env()` below) can
+    rely on (T140 Round 8 review finding R8-I2)."""
+    proc = subprocess.run(args, cwd=cwd, capture_output=True, text=True, env=env)
     if check and proc.returncode != 0:
         raise RuntimeError(
             "command failed (rc=%d): %s\nstderr: %s" % (proc.returncode, " ".join(args), proc.stderr.strip())
         )
     return proc.returncode, proc.stdout, proc.stderr
+
+
+def _sanitized_scratch_env():
+    """T140 Round 8 review finding R8-I2 (section 11.4.201/11.4.6): builds a
+    FRESH environment dict (never mutates `os.environ`) fully isolated from
+    the parent process's own git state, for use ONLY by git operations
+    against a throwaway SCRATCH repository (e.g.
+    `_selftest_golden_good_scratch_check`'s own `git init`/`config`/`add`/
+    `commit`/`status`/`diff` calls).
+
+    Round 8's own live reproduction: this tool's scratch-repo `_run(...)`
+    calls previously passed NO explicit `env=` at all, so they silently
+    inherited whatever `GIT_DIR`/`GIT_WORK_TREE`/etc. happened to be set in
+    the CALLING process's environment -- the NORMAL case whenever this tool
+    is invoked from inside a real git hook. `git`'s own `-C <path>` flag
+    does NOT override an explicitly-set `GIT_DIR` (git honours `GIT_DIR`
+    over `-C`'s cwd-style redirection), so every one of this tool's own
+    `-C <scratch_repo>` calls silently landed on the HOST's real repository
+    instead -- reproduced live: a throwaway victim repo's `.git/config`
+    gained unwanted `core.hooksPath=` (empty, disabling its hooks),
+    `user.email`/`user.name` overrides, and `commit.gpgsign=false`, and in
+    the SAME run the selftest itself wrongly FAILED its own golden-good
+    case (rc=3) because `git -C <scratch>` operations were silently
+    redirected onto the unrelated victim repo instead of the scratch one.
+
+    Strips EVERY `GIT_*` environment variable (not merely `GIT_DIR`/
+    `GIT_WORK_TREE` -- the full set git itself recognises, e.g.
+    `GIT_INDEX_FILE`/`GIT_OBJECT_DIRECTORY`/
+    `GIT_ALTERNATE_OBJECT_DIRECTORIES`/`GIT_CONFIG`, none of which this
+    function enumerates individually -- any environment variable whose name
+    starts with `GIT_` is caller-controlled git-redirection state and is
+    stripped uniformly) and additionally pins `GIT_CONFIG_NOSYSTEM=1` +
+    `GIT_CONFIG_GLOBAL=/dev/null` so no system-wide or user-global git
+    config (hooks, signing keys, aliases) can influence the scratch
+    operation either -- full isolation from BOTH the parent process's own
+    git environment AND any global/system git config, matching this
+    function's own scratch-repo contract exactly. NEVER used for this
+    tool's own `--repo-root` git calls (those legitimately need the
+    caller's real ambient environment) -- scratch-only, by construction of
+    every call site that passes it."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    env["GIT_CONFIG_GLOBAL"] = "/dev/null"
+    return env
 
 
 def resolve_repo_root(explicit):
@@ -252,8 +304,8 @@ def list_stash_entries(root):
     return entries
 
 
-def stash_files_touched(root, ref):
-    rc, out, _ = _run(["git", "-C", root, "stash", "show", "-p", ref], check=False)
+def stash_files_touched(root, ref, env=None):
+    rc, out, _ = _run(["git", "-C", root, "stash", "show", "-p", ref], check=False, env=env)
     if rc != 0:
         return [], ""
     files = []
@@ -315,8 +367,8 @@ def build_stash_entry(root, backup_root, ref, message):
 AGENT_WT_RE = re.compile(r"\.claude/worktrees/agent-([0-9a-fA-F]+)$")
 
 
-def list_worktree_entries(root):
-    rc, out, _ = _run(["git", "-C", root, "worktree", "list", "--porcelain"], check=False)
+def list_worktree_entries(root, env=None):
+    rc, out, _ = _run(["git", "-C", root, "worktree", "list", "--porcelain"], check=False, env=env)
     if rc != 0:
         return []
     entries = []
@@ -355,13 +407,13 @@ def worktree_head_subject(path):
     return out.strip()
 
 
-def worktree_dirty_state(path):
-    rc, status_out, _ = _run(["git", "-C", path, "status", "--porcelain=v1"], check=False)
+def worktree_dirty_state(path, env=None):
+    rc, status_out, _ = _run(["git", "-C", path, "status", "--porcelain=v1"], check=False, env=env)
     if rc != 0:
         return {"status": "UNMEASURED", "sha256": None, "has_untracked": None}, ""
     if not status_out.strip():
         return {"status": "clean", "sha256": None, "has_untracked": False}, ""
-    rc2, diff_out, _ = _run(["git", "-C", path, "diff", "HEAD"], check=False)
+    rc2, diff_out, _ = _run(["git", "-C", path, "diff", "HEAD"], check=False, env=env)
     has_untracked = any(line.startswith("?? ") for line in status_out.splitlines())
     if rc2 == 0 and diff_out:
         return {"status": "dirty", "sha256": sha256_of_text(diff_out), "has_untracked": has_untracked}, diff_out
@@ -370,7 +422,7 @@ def worktree_dirty_state(path):
     return {"status": "clean", "sha256": None, "has_untracked": False}, ""
 
 
-def resolve_live_dirty_state(entry_kind, entry_id, root):
+def resolve_live_dirty_state(entry_kind, entry_id, root, env=None):
     """Independently RE-DERIVES the entry's CURRENT live dirty state, fresh,
     at call time -- reusing the EXACT SAME git-querying functions `inventory`
     itself uses to compute `dirty_file_hash` in the first place (never a
@@ -398,14 +450,15 @@ def resolve_live_dirty_state(entry_kind, entry_id, root):
     status`'s `??` entries).
     """
     if entry_kind == "stash":
-        rc, _out, _err = _run(["git", "-C", root, "rev-parse", "--verify", "-q", entry_id], check=False)
+        rc, _out, _err = _run(["git", "-C", root, "rev-parse", "--verify", "-q", entry_id],
+                               check=False, env=env)
         if rc != 0:
             return None, False, False
-        _files, patch_text = stash_files_touched(root, entry_id)
+        _files, patch_text = stash_files_touched(root, entry_id, env=env)
         live_hash = sha256_of_text(patch_text) if patch_text else None
         return live_hash, False, True
     if entry_kind == "worktree":
-        for wt in list_worktree_entries(root):
+        for wt in list_worktree_entries(root, env=env):
             path = wt.get("path")
             if not path:
                 continue
@@ -413,7 +466,7 @@ def resolve_live_dirty_state(entry_kind, entry_id, root):
                 continue
             if not os.path.isdir(path):
                 return None, None, False
-            dirty_state, _diff = worktree_dirty_state(path)
+            dirty_state, _diff = worktree_dirty_state(path, env=env)
             return dirty_state.get("sha256"), bool(dirty_state.get("has_untracked")), True
         return None, None, False
     return None, None, False
@@ -477,7 +530,7 @@ def build_worktree_entry(root, backup_root, wt):
 # worktree with untracked content the tracked-only backup layout cannot
 # possibly cover (section 11.4.6: never silently ignored).
 # ---------------------------------------------------------------------------
-def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=None, entry_id=None):
+def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=None, entry_id=None, env=None):
     """Returns (verdict, detail) where verdict is 'ALLOWED' or 'REFUSED' and
     detail explains why (section 11.4.201: every refusal names its reason).
 
@@ -485,7 +538,20 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
     dirty state to compare the backup against (never to look anything else
     up) -- every call site (propose, verify-proposal, selftest) passes them
     so this anti-circularity check applies uniformly everywhere a
-    destructive verdict can be minted, per T140 finding I3."""
+    destructive verdict can be minted, per T140 finding I3.
+
+    `env` (T140 Round 8 review finding R8-I2) is `None` for every real
+    (non-scratch) call site (propose, verify-proposal) -- unchanged
+    behaviour, `resolve_live_dirty_state`/`_run` inherit the caller's own
+    ambient environment exactly as before. Only
+    `_selftest_golden_good_scratch_check` passes a non-`None`,
+    `_sanitized_scratch_env()`-built dict here, so its OWN re-derivation of
+    the scratch repo's live dirty state (via `resolve_live_dirty_state` ->
+    `list_worktree_entries`/`worktree_dirty_state`) stays fully isolated
+    from the parent process's real git environment too -- never only the
+    scratch check's OWN direct `_run(...)` calls, since a partially-
+    sanitized fix would still leave THIS function's own internal git calls
+    silently redirectable."""
     if action not in VALID_ACTIONS:
         return "REFUSED", "unknown action %r (must be one of %s)" % (action, VALID_ACTIONS)
     if action not in DESTRUCTIVE_ACTIONS:
@@ -544,7 +610,7 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
     # uses immediately below, since both are "cannot confirm this backup
     # still covers something real" facts.
     try:
-        live_hash, has_untracked, found = resolve_live_dirty_state(entry_kind, entry_id, root)
+        live_hash, has_untracked, found = resolve_live_dirty_state(entry_kind, entry_id, root, env=env)
     except fc_common.SAFE_EXCEPTIONS as exc:
         return "REFUSED", ("could not independently re-derive the live dirty state for entry_id "
                             "%r (kind=%s): %s: %s -- entry_id must be a genuine string identifying "
@@ -1018,7 +1084,31 @@ def _selftest_golden_good_scratch_check():
 
     Returns (verdict, detail) exactly like `derive_verdict` itself, so the
     caller (`cmd_selftest`) applies the IDENTICAL pass/fail comparison it
-    already applies to every other `SELFTEST_FIXTURES` entry."""
+    already applies to every other `SELFTEST_FIXTURES` entry.
+
+    T140 Round 8 review finding R8-I2 (section 11.4.201/11.4.6, fixed
+    here): every git call this function makes -- its own direct
+    `_run(...)` calls below AND `worktree_dirty_state`'s AND
+    `derive_verdict`'s own internal `resolve_live_dirty_state` ->
+    `list_worktree_entries`/`worktree_dirty_state` re-derivation -- now
+    passes the SAME `_sanitized_scratch_env()`-built environment, so this
+    scratch repo is fully isolated from whatever `GIT_DIR`/`GIT_WORK_TREE`/
+    etc. the CALLING process happens to have set (the normal case when
+    this tool runs from inside a real git hook). Live-reproduced before
+    this fix: a `GIT_DIR` inherited from the caller silently redirected
+    EVERY one of this function's own `-C <scratch_repo>` calls onto an
+    unrelated victim repository instead (git honours an explicit `GIT_DIR`
+    over `-C`'s cwd-style redirection) -- mutating that victim's own
+    `.git/config` (`core.hooksPath`, `user.email`/`user.name`,
+    `commit.gpgsign`) and, in the SAME run, making this selftest wrongly
+    FAIL its own golden-good case (the scratch repo's `git add`/`commit`
+    themselves landed on the wrong repository and either failed outright
+    or silently diverged, and `derive_verdict`'s own internal
+    re-derivation likewise queried the wrong repository's worktree list).
+    A caller with NO such variables set is entirely unaffected (a
+    freshly-stripped environment identical in substance to the one it
+    already had)."""
+    scratch_env = _sanitized_scratch_env()
     with tempfile.TemporaryDirectory() as tmp:
         # The backup file lives OUTSIDE the scratch git repo directory
         # (a sibling of it, both inside `tmp`) -- deliberately: a backup
@@ -1032,20 +1122,22 @@ def _selftest_golden_good_scratch_check():
         repo = os.path.join(tmp, "repo")
         os.makedirs(repo)
         try:
-            _run(["git", "init", "--quiet", repo], check=True)
-            _run(["git", "-C", repo, "config", "commit.gpgsign", "false"], check=True)
-            _run(["git", "-C", repo, "config", "core.hooksPath", ""], check=False)
+            _run(["git", "init", "--quiet", repo], check=True, env=scratch_env)
+            _run(["git", "-C", repo, "config", "commit.gpgsign", "false"], check=True, env=scratch_env)
+            _run(["git", "-C", repo, "config", "core.hooksPath", ""], check=False, env=scratch_env)
             _run(["git", "-C", repo, "config", "user.email", "custody-sweep-selftest@example.invalid"],
-                 check=True)
-            _run(["git", "-C", repo, "config", "user.name", "custody_sweep selftest"], check=True)
+                 check=True, env=scratch_env)
+            _run(["git", "-C", repo, "config", "user.name", "custody_sweep selftest"],
+                 check=True, env=scratch_env)
             tracked = os.path.join(repo, "tracked.txt")
             with open(tracked, "w", encoding="utf-8") as fh:
                 fh.write("baseline content\n")
-            _run(["git", "-C", repo, "add", "tracked.txt"], check=True)
-            _run(["git", "-C", repo, "commit", "--quiet", "-m", "selftest baseline"], check=True)
+            _run(["git", "-C", repo, "add", "tracked.txt"], check=True, env=scratch_env)
+            _run(["git", "-C", repo, "commit", "--quiet", "-m", "selftest baseline"],
+                 check=True, env=scratch_env)
             with open(tracked, "w", encoding="utf-8") as fh:
                 fh.write("baseline content\nlive dirty edit\n")
-            dirty_state, diff_text = worktree_dirty_state(repo)
+            dirty_state, diff_text = worktree_dirty_state(repo, env=scratch_env)
         except (OSError, RuntimeError) as exc:
             return "REFUSED", ("scratch selftest setup raised %s: %s -- an internal setup failure is "
                                 "never silently read as ALLOWED") % (type(exc).__name__, exc)
@@ -1060,7 +1152,7 @@ def _selftest_golden_good_scratch_check():
             backup_hash = sha256_of_bytes(fh.read())
         entry_id = worktree_entry_id(repo, repo)  # repo is its own repo-root -> "MAIN"
         return derive_verdict("retire", backup_hash, backup_path, repo,
-                               entry_kind="worktree", entry_id=entry_id)
+                               entry_kind="worktree", entry_id=entry_id, env=scratch_env)
 
 
 def cmd_selftest(a):
@@ -1199,15 +1291,30 @@ def _write_dispatch_internal_error_doc(a, subcommand, exc):
     helper was only applied where earlier reviewers pointed. No tool has
     a single fail-closed boundary around its whole dispatch. Fix ONE
     boundary, not one crash site at a time"): on ANY exception escaping a
-    subcommand handler and being caught by main()'s new
-    `fc_common.SAFE_EXCEPTIONS` dispatch boundary below, this tool MUST
-    still write SOME verdict/output document to --out (when one was
-    requested) rather than leaving a stale or entirely absent --out file
-    -- the audit trail (section 11.4.5/11.4.69) is never silently lost
-    regardless of what crashed. Best-effort: an --out write failure here
-    is itself swallowed (never raised a second time out of an
-    already-failing error path) -- the caller's stderr diagnostic in
-    main() is what remains authoritative in that doubly-unlucky case."""
+    subcommand handler and being caught by main()'s dispatch boundary
+    below, this tool MUST still write SOME verdict/output document to
+    --out (when one was requested) rather than leaving a stale or
+    entirely absent --out file -- the audit trail (section 11.4.5/11.4.69)
+    is never silently lost regardless of what crashed. Best-effort: an
+    --out write failure here is itself swallowed (never raised a second
+    time out of an already-failing error path) -- the caller's stderr
+    diagnostic in main() is what remains authoritative in that
+    doubly-unlucky case.
+
+    T140 Round 8 review finding R8-I1(d) (fixed here): was `except
+    OSError` alone -- inconsistent with `limit_class.py`'s own sibling
+    helper (which already caught the shared `fc_common.SAFE_EXCEPTIONS`
+    tuple) and, more importantly, still narrower than the write itself can
+    raise (`write_doc`'s own `json.dumps(..., sort_keys=True)` can raise
+    `TypeError` on a mutually-incomparable-keys `body`, exactly the class
+    R8-I1's own widened dispatch boundary below now exists to catch for
+    every OTHER site in this file). Widened to bare `Exception` -- the
+    SAME widening `main()`'s own dispatch boundary below receives, so this
+    best-effort write-of-a-minimal-error-doc can never itself raise a
+    second, different uncaught exception out of an already-failing error
+    path (this call site is unconditionally best-effort by its own
+    docstring above; a write failure here was always meant to be silently
+    absorbed, whatever its exact exception class)."""
     out_path = getattr(a, "out", None)
     if not out_path:
         return
@@ -1217,13 +1324,38 @@ def _write_dispatch_internal_error_doc(a, subcommand, exc):
     }
     try:
         write_doc(out_path, SCHEMA_INTERNAL_ERROR, body, run_meta())
-    except OSError:
+    except Exception:
         pass
 
 
 def main(argv):
     if "--determinism-check" in argv:
-        return run_determinism_check(argv)
+        # T140 Round 8 review finding R8-I1 minor (a) (fixed here):
+        # `run_determinism_check` used to run entirely OUTSIDE this
+        # function's own dispatch boundary (it re-invokes THIS SAME
+        # script as a subprocess, whose own child-process `main()` call is
+        # already protected by the boundary below -- but the PARENT
+        # invocation's own bookkeeping around those subprocess calls
+        # (json.load-ing each child's --out document, comparing body_hash)
+        # was not). Wrapped in the SAME bare `except Exception` this
+        # function's own subcommand dispatch below now uses (section
+        # 11.4.227 reuse-not-reinvention), never `BaseException`, so a
+        # genuinely unanticipated crash here still fails closed with a
+        # diagnosable message and EXIT_USAGE(2), rather than an uncaught
+        # traceback -- there is no single caller-level `--out` document to
+        # write an internal-error doc to here (each subprocess run already
+        # writes its OWN --out inside a throwaway temp dir, per
+        # `run_determinism_check`'s own body), so this boundary is
+        # diagnostic-message-only, matching this function's own existing
+        # `subprocess.TimeoutExpired`/`rc not in (0, 1)` failure paths
+        # immediately inside `run_determinism_check` itself.
+        try:
+            return run_determinism_check(argv)
+        except Exception as exc:
+            print("custody_sweep.py: --determinism-check raised an uncaught %s: %s -- this is a "
+                  "genuinely unanticipated case; treat as unsafe/unverified until independently, "
+                  "manually re-verified" % (type(exc).__name__, exc), file=sys.stderr)
+            return 2
 
     args = build_arg_parser().parse_args(argv)
     if args.subcommand is None:
@@ -1241,9 +1373,24 @@ def main(argv):
         if args.subcommand == "selftest":
             return cmd_selftest(args)
     except RuntimeError as exc:
+        # T140 Round 8 review finding R8-I1 minor (c) (fixed here): this
+        # branch used to write NO --out document at all on a RuntimeError
+        # (e.g. `resolve_repo_root`'s own "not inside a git checkout"
+        # refusal) -- the audit trail (section 11.4.5/11.4.69) was silently
+        # lost for this ONE exception class even though it fails closed
+        # with the SAME EXIT_USAGE(2) convention every other error path in
+        # this function already uses. `RuntimeError` is deliberately its
+        # own, MORE SPECIFIC `except` clause listed BEFORE the broader
+        # `except Exception` immediately below -- Python tries handlers in
+        # source order, so a `RuntimeError` is always caught HERE first
+        # regardless of `RuntimeError` also being an `Exception` subclass
+        # -- this branch's own, more specific stderr message (naming just
+        # the refusal reason, never "raised an uncaught RuntimeError while
+        # dispatching") is preserved unchanged.
         print("custody_sweep.py: %s" % exc, file=sys.stderr)
+        _write_dispatch_internal_error_doc(args, args.subcommand, exc)
         return 2
-    except fc_common.SAFE_EXCEPTIONS as exc:
+    except Exception as exc:
         # T140 Round 7 review, the ONE top-level dispatch boundary wrapping
         # EVERY subcommand this file dispatches to (see
         # _write_dispatch_internal_error_doc's own docstring immediately
@@ -1254,6 +1401,33 @@ def main(argv):
         # tool's own established EXIT_USAGE(2) convention, rather than an
         # uncaught crash landing on Python's own default exit code 1
         # (indistinguishable from this tool's REFUSED/finding exit code).
+        #
+        # T140 Round 8 review finding R8-I1 (WIDENED here): was `except
+        # fc_common.SAFE_EXCEPTIONS` -- Round 8's own live fuzzing (5,000
+        # random-field-mutation variants) proved this narrower catch set
+        # (TypeError/ValueError/OSError/OverflowError) still let
+        # `KeyError`/`IndexError`/`AttributeError` escape uncaught in ALL
+        # THREE sibling fastcycle orchestration tools, and `RecursionError`
+        # escape uncaught in this file's own siblings (`handoff.py`,
+        # `limit_class.py`) -- proven live, TWICE independently: (1)
+        # reverting this same round's own point-fix in
+        # `propose_action_for` (`entry.get(...)` back to
+        # `entry["entry_kind"]`) makes `propose` crash with an uncaught
+        # `KeyError`; (2) injecting a `KeyError` at the very TOP of
+        # `cmd_verify_proposal` (before ANY of ITS own internal
+        # try/excepts could run) crashes uncaught here too. Widened to
+        # bare `Exception` -- deliberately NEVER `BaseException`:
+        # `SystemExit`/`KeyboardInterrupt` are NOT subclasses of
+        # `Exception` (Python's own exception hierarchy places both
+        # directly under `BaseException`), so an operator interrupt or
+        # this process's own `sys.exit()` correctly stays UNCAUGHT here,
+        # exactly as before this widening. `fc_common.SAFE_EXCEPTIONS`
+        # itself is UNCHANGED (still the narrower, shared floor every
+        # sibling tool's own per-site except-clauses OR onto, per its own
+        # module docstring) -- only this ONE top-level dispatch boundary
+        # is widened, the fix Round 8's own review recommended directly:
+        # "the fix is to change what the boundary catches to `Exception`,
+        # not to add one more type to the list."
         print("custody_sweep.py: subcommand %r raised an uncaught %s while dispatching: %s -- this "
               "is a genuinely unanticipated case no individual fix above enumerated; treat as "
               "unsafe/unverified until independently, manually re-verified"

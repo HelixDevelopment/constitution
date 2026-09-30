@@ -303,11 +303,23 @@ else
 fi
 
 echo
-echo "=== Top-level dispatch boundary: main() wraps the subcommand table lookup+call in ONE fc_common.SAFE_EXCEPTIONS boundary ==="
+echo "=== Top-level dispatch boundary: main() wraps the subcommand table lookup+call in ONE except Exception boundary ==="
+# T140 Round 8 review finding R8-I1 (fixed here): the boundary's own catch
+# set was WIDENED from `fc_common.SAFE_EXCEPTIONS` to bare `Exception` (see
+# handoff.py's own main() comment) -- this static check is updated to match
+# the new reality: it now looks for a bare `except Exception as exc:`
+# handler (an `ast.Name` node whose `id == "Exception"`, NOT an
+# `ast.Attribute` node -- `fc_common.SAFE_EXCEPTIONS` parses as an
+# Attribute, `Exception` parses as a bare Name) that still calls the
+# minimal-error-doc writer, and ADDITIONALLY confirms `Exception` is never
+# accidentally widened all the way to `BaseException` (which would wrongly
+# swallow `SystemExit`/`KeyboardInterrupt` too -- section 11.4.6, never
+# silently over-widen a fix beyond what was asked).
 BOUNDARY_CHECK=$(python3 - "$IMPL" <<'PYEOF'
 import ast, sys
 tree = ast.parse(open(sys.argv[1], encoding="utf-8").read(), filename=sys.argv[1])
 found = False
+found_base_exception = False
 for node in ast.walk(tree):
     if isinstance(node, ast.FunctionDef) and node.name == "main":
         for sub in ast.walk(node):
@@ -315,7 +327,9 @@ for node in ast.walk(tree):
                 for h in sub.handlers:
                     if h.type is None:
                         continue
-                    if isinstance(h.type, ast.Attribute) and h.type.attr == "SAFE_EXCEPTIONS":
+                    if isinstance(h.type, ast.Name) and h.type.id == "BaseException":
+                        found_base_exception = True
+                    if isinstance(h.type, ast.Name) and h.type.id == "Exception":
                         calls_writer = any(
                             isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
                             and "internal_error" in n.func.id
@@ -323,12 +337,20 @@ for node in ast.walk(tree):
                         )
                         if calls_writer:
                             found = True
-print("1" if found else "0")
+if found_base_exception:
+    print("BASEEXCEPTION")
+else:
+    print("1" if found else "0")
 PYEOF
 )
 if [ "$BOUNDARY_CHECK" = "1" ]; then
   echo "ok top-level dispatch boundary: main() wraps its table[cmd_name](args) call in"
-  echo "   except fc_common.SAFE_EXCEPTIONS and calls the minimal-error-doc writer"
+  echo "   except Exception and calls the minimal-error-doc writer (never BaseException --"
+  echo "   SystemExit/KeyboardInterrupt correctly stay uncaught)"
+elif [ "$BOUNDARY_CHECK" = "BASEEXCEPTION" ]; then
+  echo "NOT ok top-level dispatch boundary OVER-WIDENED to BaseException -- this would"
+  echo "     wrongly swallow SystemExit/KeyboardInterrupt too"
+  failx
 else
   echo "NOT ok top-level dispatch boundary MISSING or malformed"
   failx
@@ -340,10 +362,16 @@ cp "$LIB" "$LIVE_ROOT/scripts/fastcycle/lib/fc_common.py"
 python3 - "$LIVE_ROOT/scripts/fastcycle/orchestration/handoff.py" <<'PYEOF'
 import sys
 p = sys.argv[1]
-old = "def cmd_write(a):\n    base_dir = os.path.dirname(os.path.abspath(a.handoff)) or \".\"\n"
+# T140 Round 8 review finding R8-I1 minor (b): cmd_write's own body now
+# opens with the new _reject_non_utf8_cli_string(...) up-front check (see
+# handoff.py's own cmd_write comment), so the mutation anchor is updated to
+# match -- still fires BEFORE that check (and every other line of
+# cmd_write's own body), proving the boundary catches a crash regardless of
+# where in the function it originates.
+old = "def cmd_write(a):\n    # T140 Round 8 review finding R8-I1 minor (b) (fixed here): checked\n"
 new = ("def cmd_write(a):\n"
        "    raise TypeError('MUTATION_LIVE_BOUNDARY_PROOF: forced unanticipated crash')\n"
-       "    base_dir = os.path.dirname(os.path.abspath(a.handoff)) or \".\"\n")
+       "    # T140 Round 8 review finding R8-I1 minor (b) (fixed here): checked\n")
 with open(p, encoding="utf-8") as fh:
     content = fh.read()
 if content.count(old) != 1:

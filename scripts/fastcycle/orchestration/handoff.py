@@ -462,15 +462,28 @@ def _write_report_or_usage_error(tool_label, out_path, body, schema, include_run
     time across yet another round.
 
     Returns None on a successful write (the caller proceeds as before); on
-    an OSError, prints a diagnosable message and returns EXIT_USAGE, which
-    every call site below returns immediately -- there is deliberately no
-    second, distinguishable "the write itself failed after a real verdict
-    was already computed" exit code (matching this file's own
-    already-established EXIT_USAGE=2 "usage/config error" convention, and
-    the sibling tools' own identical choice)."""
+    a write failure, prints a diagnosable message and returns EXIT_USAGE,
+    which every call site below returns immediately -- there is
+    deliberately no second, distinguishable "the write itself failed after
+    a real verdict was already computed" exit code (matching this file's
+    own already-established EXIT_USAGE=2 "usage/config error" convention,
+    and the sibling tools' own identical choice).
+
+    T140 Round 8 review finding R8-I1(d) (fixed here): was `except
+    OSError` alone -- inconsistent with `limit_class.py`'s own sibling
+    write-site fix (which already caught the shared
+    `fc_common.SAFE_EXCEPTIONS` tuple) and narrower than `write_report_atomic`
+    itself can raise (`fc_common.body_hash_of` -> `canon` ->
+    `json.dumps(..., sort_keys=True, allow_nan=False)` can raise
+    `TypeError` on a mutually-incomparable-keys `body`, or `ValueError` on
+    a non-finite number reaching this far). Widened to bare `Exception` --
+    the SAME widening `main()`'s own top-level dispatch boundary below
+    receives, so a write site this function guards can never itself raise
+    a DIFFERENT, still-uncaught exception class out of an already-failing
+    error path."""
     try:
         write_report_atomic(out_path, body, schema, include_run_meta=include_run_meta)
-    except OSError as exc:
+    except Exception as exc:
         print("handoff: %s -- cannot write --out %s: %s" % (tool_label, out_path, exc), file=sys.stderr)
         return EXIT_USAGE
     return None
@@ -500,10 +513,66 @@ def _json_list_arg(text, name):
     return val, None
 
 
+def _reject_non_utf8_cli_string(value, flag_name):
+    """T140 Round 8 review finding R8-I1 minor (b) (section 11.4.6, fixed
+    here): a `--handoff` path decoded from argv on this platform's
+    filesystem encoding with the `surrogateescape` error handler (the
+    standard, POSIX-mandated way Python turns a non-UTF-8-decodable
+    filesystem path byte sequence into a `str` -- Linux filenames are just
+    bytes, so an arbitrary byte sequence is a genuinely reachable
+    `--handoff` value) round-trips fine through EVERY filesystem operation
+    (`open()`/`os.replace()`/etc. re-encode a surrogate-escaped `str` back
+    to its ORIGINAL bytes), but CANNOT be `.encode("utf-8")`-ed cleanly --
+    a lone surrogate code point is not valid UTF-8. This tool's own report
+    documents embed CLI string values (e.g. `write`'s own
+    `report_body["handoff_path"] = a.handoff`) and JSON-encode them via
+    `canon()` -> `.encode("utf-8")`, which RAISES on such a value.
+
+    Round 8's own live reproduction of the resulting defect: `write`'s
+    OWN `--handoff` RECORD file was previously written to disk
+    SUCCESSFULLY first (`write_json_atomic(a.handoff, doc)` never embeds
+    `a.handoff` itself inside `doc`'s own content, only inside the path
+    argument to `open()`, which re-encodes it back to its exact original
+    bytes) -- and ONLY THEN did the subsequent `--out` REPORT write
+    (which DOES embed `a.handoff` as a field value) raise
+    `UnicodeEncodeError` and report the whole command as FAILED (rc=2) --
+    a real, durably-persisted success being reported as a failure, the
+    write-then-report-failure split this tool's own established
+    conventions never otherwise produce.
+
+    Fix (per this round's own explicit direction: "refuse it UP FRONT
+    before any write happens, never write-then-report-failure"): this
+    tool cannot safely support a `--handoff` value that cannot itself be
+    embedded in the JSON documents it produces (end-to-end support would
+    require restructuring every report document's own field to carry raw
+    bytes rather than a JSON string, out of scope for a defensive fix), so
+    it refuses such a value BEFORE either write (the handoff record OR the
+    report) is ever attempted -- never after one has already succeeded.
+
+    Returns an error message string if `value` is not encodable, else
+    `None`."""
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        return ("%s value is not valid UTF-8 (%s) -- this tool cannot safely embed a "
+                "non-UTF-8-encodable string in its own JSON report documents, so it is refused "
+                "up front, before any write is attempted" % (flag_name, exc))
+    return None
+
+
 # ---------------------------------------------------------------------------
 # write (HO-001)
 # ---------------------------------------------------------------------------
 def cmd_write(a):
+    # T140 Round 8 review finding R8-I1 minor (b) (fixed here): checked
+    # BEFORE any write of any kind -- see _reject_non_utf8_cli_string's own
+    # docstring immediately above for the full write-then-report-failure
+    # defect this closes.
+    err = _reject_non_utf8_cli_string(a.handoff, "--handoff")
+    if err:
+        print("handoff: write refused -- %s" % err, file=sys.stderr)
+        return EXIT_USAGE
+
     base_dir = os.path.dirname(os.path.abspath(a.handoff)) or "."
 
     pending, err = _json_list_arg(a.pending_json, "--pending-json")
@@ -1058,7 +1127,51 @@ def cmd_resume_check(a):
                     for ref_id in (dep.get("affects_verified") or []):
                         reverify.add(_typed_id_key(ref_id))
                     continue
+                # T140 Round 8 review finding R8-I1 minor (e) (section
+                # 11.4.6, fixed here): `locator` reaches this point
+                # confirmed to be a genuine JSON string (the isinstance
+                # check immediately above), but was NEVER sanitized before
+                # being joined onto `base_dir/tree_current/` -- an
+                # ABSOLUTE `locator` (e.g. `/etc/passwd`) makes
+                # `os.path.join(base_dir, "tree_current", locator)`
+                # silently DROP every preceding component (Python's own
+                # `os.path.join` semantics: an absolute path component
+                # replaces everything before it), and a `..`-containing
+                # relative `locator` (e.g. `../../../../etc`) escapes
+                # `tree_current/` via ordinary path traversal -- EITHER
+                # way, `_merkle_over_dir` below would then walk and
+                # `open()`-read ARBITRARY host filesystem paths this
+                # dependency's `locator` never legitimately names, a
+                # caller-controlled-input class this tool must never
+                # trust blindly (found by code-reading; verified live
+                # below before landing). Fix: reject BEFORE any
+                # filesystem access is attempted whenever the normalized
+                # target does not resolve INSIDE `base_dir/tree_current/`
+                # -- `os.path.normpath` collapses `..`/`.`/redundant
+                # separators, and a single containment check (target ==
+                # the tree_current root, or starts with
+                # `tree_current root + os.sep`) catches BOTH the absolute-
+                # path case (its normalized form never starts with the
+                # containment root at all) and the `..`-escape case
+                # uniformly, rather than two separate ad-hoc checks.
                 current_dir = os.path.join(base_dir, "tree_current", locator or "")
+                containment_root = os.path.normpath(os.path.join(base_dir, "tree_current"))
+                normalized_current_dir = os.path.normpath(current_dir)
+                if (normalized_current_dir != containment_root
+                        and not normalized_current_dir.startswith(containment_root + os.sep)):
+                    reasons.append({
+                        "class": "malformed-external-dependency",
+                        "detail": ("external dep has kind=git-tree but its `locator` field %r "
+                                   "resolves OUTSIDE its own tree_current/ scope (normalized "
+                                   "target: %r, must be under: %r) -- an absolute path or a "
+                                   "`..`-escaping locator would let this tool inspect ARBITRARY "
+                                   "host filesystem paths; refused before any filesystem access "
+                                   "is attempted, treat as unsafe until independently, manually "
+                                   "re-verified") % (locator, normalized_current_dir, containment_root),
+                    })
+                    for ref_id in (dep.get("affects_verified") or []):
+                        reverify.add(_typed_id_key(ref_id))
+                    continue
                 # T140 Round 6 review finding R6-I1(a) (section 11.4.250
                 # heuristic-tower/primitive-defect, section 11.4.201(11)
                 # artifact-usability, fixed here): `_merkle_over_dir` walks
@@ -1687,29 +1800,51 @@ def _write_dispatch_internal_error_doc(out_path, subcommand, exc):
     defect -- mirrors `custody_sweep.py`'s/`limit_class.py`'s own
     identically-purposed helper, section 11.4.227 reuse-the-SAME-
     discipline): on ANY exception escaping a subcommand handler and being
-    caught by `main()`'s new `fc_common.SAFE_EXCEPTIONS` dispatch boundary
-    below, this tool MUST still write SOME report document to --out
-    (every one of this file's subcommands takes `--out`) rather than
-    leaving a stale or entirely absent --out file -- the audit trail
-    (section 11.4.5/11.4.69) is never silently lost regardless of what
-    crashed. Reuses `write_report_atomic` (never a second writer) --
-    this file's own established report-doc convention (schema +
-    body_hash + run_meta, per the module docstring). Best-effort: a write
-    failure here is itself swallowed (never raised a second time out of
-    an already-failing error path) -- the caller's stderr diagnostic in
-    main() is what remains authoritative in that doubly-unlucky case."""
+    caught by `main()`'s dispatch boundary below, this tool MUST still
+    write SOME report document to --out (every one of this file's
+    subcommands takes `--out`) rather than leaving a stale or entirely
+    absent --out file -- the audit trail (section 11.4.5/11.4.69) is
+    never silently lost regardless of what crashed. Reuses
+    `write_report_atomic` (never a second writer) -- this file's own
+    established report-doc convention (schema + body_hash + run_meta, per
+    the module docstring). Best-effort: a write failure here is itself
+    swallowed (never raised a second time out of an already-failing
+    error path) -- the caller's stderr diagnostic in main() is what
+    remains authoritative in that doubly-unlucky case.
+
+    T140 Round 8 review finding R8-I1(d) (fixed here): was `except
+    OSError` alone -- widened to bare `Exception`, the SAME widening
+    `main()`'s own dispatch boundary below receives and
+    `_write_report_or_usage_error`'s own sibling fix above receives, so
+    this best-effort write can never itself escape with a different,
+    still-uncaught exception class."""
     if not out_path:
         return
     body = {"subcommand": subcommand, "internal_error": {"class": type(exc).__name__, "detail": str(exc)}}
     try:
         write_report_atomic(out_path, body, SCHEMA_INTERNAL_ERROR, include_run_meta=True)
-    except OSError:
+    except Exception:
         pass
 
 
 def main(argv):
     if "--determinism-check" in argv:
-        return run_determinism_check(argv)
+        # T140 Round 8 review finding R8-I1 minor (a) (fixed here):
+        # `run_determinism_check` used to run entirely OUTSIDE this
+        # function's own dispatch boundary. Wrapped in the SAME bare
+        # `except Exception` this function's own subcommand dispatch below
+        # now uses (section 11.4.227 reuse-not-reinvention) -- no single
+        # caller-level `--out` document exists to write an internal-error
+        # doc to here (each subprocess run already writes its OWN --out
+        # inside a throwaway temp dir, per `run_determinism_check`'s own
+        # body), so this boundary is diagnostic-message-only.
+        try:
+            return run_determinism_check(argv)
+        except Exception as exc:
+            print("handoff: --determinism-check raised an uncaught %s: %s -- this is a genuinely "
+                  "unanticipated case; treat as unsafe/unverified until independently, manually "
+                  "re-verified" % (type(exc).__name__, exc), file=sys.stderr)
+            return EXIT_USAGE
     args = build_arg_parser().parse_args(argv)
     table = {
         "write": cmd_write,
@@ -1720,7 +1855,7 @@ def main(argv):
     }
     try:
         return table[args.cmd_name](args)
-    except fc_common.SAFE_EXCEPTIONS as exc:
+    except Exception as exc:
         # T140 Round 7 review, the ONE top-level dispatch boundary wrapping
         # EVERY subcommand this file dispatches to (see
         # _write_dispatch_internal_error_doc's own docstring immediately
@@ -1731,6 +1866,28 @@ def main(argv):
         # convention, rather than an uncaught crash landing on Python's own
         # default exit code 1 (indistinguishable from this tool's own
         # EXIT_FINDING(1) -- INVALID/UNSAFE/missing-partial-artefact).
+        #
+        # T140 Round 8 review finding R8-I1 (WIDENED here): was `except
+        # fc_common.SAFE_EXCEPTIONS` -- Round 8's own live fuzzing (5,000
+        # random-field-mutation variants, verified first against a
+        # deliberately-broken script to confirm it genuinely catches
+        # crashes) proved this narrower catch set
+        # (TypeError/ValueError/OSError/OverflowError) still let
+        # `KeyError`/`IndexError`/`AttributeError`/`RecursionError` escape
+        # uncaught in this file -- proven live by injecting a `KeyError`
+        # at the very TOP of `cmd_validate` (before ANY of its own
+        # internal try/excepts could run). Widened to bare `Exception` --
+        # deliberately NEVER `BaseException`: `SystemExit`/
+        # `KeyboardInterrupt` are NOT subclasses of `Exception` (Python's
+        # own exception hierarchy places both directly under
+        # `BaseException`), so an operator interrupt or this process's own
+        # `sys.exit()` correctly stays UNCAUGHT here, exactly as before
+        # this widening. `fc_common.SAFE_EXCEPTIONS` itself is UNCHANGED
+        # (still the narrower, shared floor every sibling tool's own
+        # per-site except-clauses OR onto) -- only this ONE top-level
+        # dispatch boundary is widened, the fix Round 8's own review
+        # recommended directly: "the fix is to change what the boundary
+        # catches to `Exception`, not to add one more type to the list."
         print("handoff: subcommand %r raised an uncaught %s while dispatching: %s -- this is a "
               "genuinely unanticipated case no individual fix above enumerated; treat as "
               "unsafe/unverified until independently, manually re-verified"
