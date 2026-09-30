@@ -59,7 +59,7 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 IMPL="$FC/orchestration/handoff.py"
 LIB="$FC/lib/fc_common.py"
-
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 fail=0
 failx() { fail=1; }
 
@@ -83,6 +83,7 @@ build_scratch_copy() {
   mkdir -p "$dir/orchestration" "$dir/lib"
   cp "$IMPL" "$dir/orchestration/handoff.py"
   cp "$LIB" "$dir/lib/fc_common.py"
+  cp "$EXLIB" "$dir/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 }
 
 mutate_revert_doc_fallback() {
@@ -104,8 +105,39 @@ with open(p, "w", encoding="utf-8") as fh:
 PYEOF
 }
 
+mutate_restore_unconditional_invalidation() {
+  # T140 Round 10 review finding M3, first half, guard-viability (fixed
+  # here): $1 = orchestration/<tool>.py path. Restores the PRE-M3 call
+  # SITE shape -- `invalidate_stale_out(scan_argv_for_out(argv))` called
+  # UNCONDITIONALLY at the top of main(), BEFORE argument parsing even
+  # begins -- leaving invalidate_stale_out's OWN implementation (now in
+  # lib/fc_entry.py, untouched) exactly as-is. This is the call-site
+  # shape M3 proved wrongly deletes a caller's pre-existing, wholly
+  # UNRELATED --out file on a PURE usage error (module docstring: "invalidate
+  # only happens once the tool is confident it's about to genuinely
+  # attempt the operation").
+  python3 - "$1" <<'PYEOF'
+import sys
+p = sys.argv[1]
+with open(p, encoding="utf-8") as fh:
+    c = fh.read()
+old = "            return EXIT_USAGE\n\n    table = {"
+new = ("            return EXIT_USAGE\n\n"
+       "    invalidate_stale_out(scan_argv_for_out(argv))  "
+       "# R9b GUARD-VIABILITY MUTATION: unconditional pre-M3 call site restored\n\n"
+       "    table = {")
+if c.count(old) != 1:
+    sys.exit(1)
+c = c.replace(old, new, 1)
+with open(p, "w", encoding="utf-8") as fh:
+    fh.write(c)
+PYEOF
+}
+
 mutate_disable_stale_invalidation() {
-  # $1 = orchestration/handoff.py path -- reverts R9b-I1's stale-doc fix
+  # T140 Round 10: _invalidate_stale_out's implementation now lives in
+  # lib/fc_entry.py (shared, as invalidate_stale_out) -- $1 = lib/fc_entry.py
+  # path (was: orchestration/handoff.py path -- reverts R9b-I1's stale-doc fix
   # by making `_invalidate_stale_out` an unconditional no-op (an early
   # `return` before its own body runs), leaving EVERY other R9/R9b fix
   # (including the __doc__.split() fix itself) untouched.
@@ -114,8 +146,8 @@ import sys
 p = sys.argv[1]
 with open(p, encoding="utf-8") as fh:
     c = fh.read()
-old = 'def _invalidate_stale_out(out_path):\n    """T140 Round 9b review finding R9b-I1 (fixed here): remove any'
-new = 'def _invalidate_stale_out(out_path):\n    return  # R9 GUARD-VIABILITY MUTATION: pre-invalidation disabled\n    """T140 Round 9b review finding R9b-I1 (fixed here): remove any'
+old = 'def invalidate_stale_out(out_path):\n    """Remove any EXISTING'
+new = 'def invalidate_stale_out(out_path):\n    return  # R9 GUARD-VIABILITY MUTATION: pre-invalidation disabled\n    """Remove any EXISTING'
 if c.count(old) != 1:
     sys.exit(1)
 c = c.replace(old, new, 1)
@@ -136,12 +168,9 @@ with open(p, encoding="utf-8") as fh:
 old = ('    stream = kwargs.get("file", sys.stdout)\n'
        '    try:\n'
        '        _real_print(*args, **kwargs)\n'
+       '        stream.flush()\n'
        '    except Exception:\n'
-       '        try:\n'
-       '            fd = stream.fileno()\n'
-       '            os.dup2(os.open(os.devnull, os.O_WRONLY), fd)\n'
-       '        except Exception:\n'
-       '            pass\n')
+       '        pass\n')
 new = '    _real_print(*args, **kwargs)  # R9 GUARD-VIABILITY MUTATION: guard removed\n'
 if c.count(old) != 1:
     sys.exit(1)
@@ -273,74 +302,69 @@ else
   fi
 fi
 
-# --- guard-viability: disable _invalidate_stale_out -------------------------
-# Isolated from the widened Exception boundary (which ALSO writes a
-# fresh internal_error doc on any Exception, masking pre-invalidation's
-# own distinct contribution for that class) by injecting a BaseException
-# subclass (KeyboardInterrupt, deliberately NOT a subclass of Exception,
-# exactly like SystemExit -- section 11.4.6/this file's own established
-# "never BaseException" convention) into build_arg_parser() -- this
-# propagates all the way out of main() UNCAUGHT (Python's own top-level
-# handler prints it and exits, deliberately not this tool's own
-# diagnostic), so `_write_dispatch_internal_error_doc` never runs and
-# `_invalidate_stale_out`'s OWN, otherwise-invisible contribution is the
-# ONLY thing standing between --out and a silently-stale prior verdict.
+# --- guard-viability: M3's relocation of invalidate_stale_out -------------
+# T140 Round 10 review finding M3, first half (this scenario REPLACES the
+# pre-Round-10 KeyboardInterrupt-isolation scenario, which tested a
+# property M3 deliberately changed: pre-invalidation used to run
+# UNCONDITIONALLY at the top of main(), before ANY argument parsing --
+# M3 moved it so it runs ONLY inside the exception-handling path, right
+# before a fresh internal-error doc is about to be written, specifically
+# so that a PURE, legitimate usage error never deletes a caller's
+# pre-existing, wholly UNRELATED --out file merely because a command line
+# was typed (module docstring: "invalidation only happens once the tool
+# is confident it's about to genuinely attempt the operation"). A
+# `KeyboardInterrupt` reaching `build_arg_parser()` now correctly no
+# longer triggers invalidation at all (that BaseException is caught by
+# NEITHER main()'s own `except Exception` NOR run_cli_main's own
+# SystemExit/Exception-only catches) -- a real, INTENDED narrowing of
+# scope, not a regression; this scenario instead directly exercises
+# M3's own headline property.
 D2="$TMP/mut_stale"
 build_scratch_copy "$D2"
-mutate_disable_stale_invalidation "$D2/orchestration/handoff.py"
+mutate_restore_unconditional_invalidation "$D2/orchestration/handoff.py"
 if [ $? -ne 0 ]; then
   echo "NOT ok R9b-I1 (stale-out) guard-viability: mutation anchor not found (content drifted)"
   failx
 else
-  D3="$TMP/mut_stale_control"
-  build_scratch_copy "$D3"
-  for D in "$D2" "$D3"; do
-    python3 - "$D/orchestration/handoff.py" <<'PYEOF'
-import sys
-p = sys.argv[1]
-with open(p, encoding="utf-8") as fh:
-    c = fh.read()
-old = "def build_arg_parser():\n"
-new = "def build_arg_parser():\n    raise KeyboardInterrupt('R9_PREPARSE_PROOF')\n"
-if c.count(old) != 1:
-    sys.exit(1)
-c = c.replace(old, new, 1)
-with open(p, "w", encoding="utf-8") as fh:
-    fh.write(c)
-PYEOF
-  done
-
+  # FIXED tool: `validate` with NO `--handoff` at all is a pure, clean
+  # argparse usage error (rc=2) -- it must NEVER touch a pre-existing,
+  # wholly unrelated --out file.
   python3 -c "
 import json
 with open('$TMP/c_out.json', 'w') as fh:
-    json.dump({'schema':'handoff-validate/v1','outcome':'VALID','mismatches':[],'body_hash':'stale-from-an-unrelated-earlier-run'}, fh)
+    json.dump({'schema':'handoff-validate/v1','outcome':'VALID','mismatches':[],'body_hash':'unrelated-earlier-run'}, fh)
 "
-  python3 "$D3/orchestration/handoff.py" validate --handoff "$TMP/tampered.json" --out "$TMP/c_out.json" >"$TMP/c.out" 2>"$TMP/c.err"
-  C_ABSENT=1
-  [ -f "$TMP/c_out.json" ] && C_ABSENT=0
+  python3 "$IMPL" validate --out "$TMP/c_out.json" >"$TMP/c.out" 2>"$TMP/c.err"
+  C_RC=$?
+  C_UNTOUCHED=0
+  if [ -f "$TMP/c_out.json" ] && python3 -c "import json,sys; d=json.load(open('$TMP/c_out.json')); sys.exit(0 if d.get('body_hash')=='unrelated-earlier-run' else 1)"; then
+    C_UNTOUCHED=1
+  fi
 
+  # MUTATED tool (pre-M3 call-site shape restored -- invalidation
+  # unconditional, before parsing): the SAME pure usage error now WRONGLY
+  # deletes the pre-existing, unrelated --out file.
   python3 -c "
 import json
 with open('$TMP/d_out.json', 'w') as fh:
-    json.dump({'schema':'handoff-validate/v1','outcome':'VALID','mismatches':[],'body_hash':'stale-from-an-unrelated-earlier-run'}, fh)
+    json.dump({'schema':'handoff-validate/v1','outcome':'VALID','mismatches':[],'body_hash':'unrelated-earlier-run'}, fh)
 "
-  python3 "$D2/orchestration/handoff.py" validate --handoff "$TMP/tampered.json" --out "$TMP/d_out.json" >"$TMP/d.out" 2>"$TMP/d.err"
-  D_STILL_STALE=0
-  if [ -f "$TMP/d_out.json" ] && python3 -c "import json,sys; d=json.load(open('$TMP/d_out.json')); sys.exit(0 if d.get('outcome')=='VALID' and d.get('body_hash')=='stale-from-an-unrelated-earlier-run' else 1)"; then
-    D_STILL_STALE=1
-  fi
+  python3 "$D2/orchestration/handoff.py" validate --out "$TMP/d_out.json" >"$TMP/d.out" 2>"$TMP/d.err"
+  D_RC=$?
+  D_DELETED=0
+  [ ! -f "$TMP/d_out.json" ] && D_DELETED=1
 
-  if [ "$C_ABSENT" = "1" ] && [ "$D_STILL_STALE" = "1" ]; then
-    echo "ok R9b-I1 (stale-out) guard-viability: with the SAME injected BaseException (never"
-    echo "   caught by main()'s own except-Exception boundary, exactly like a real -OO crash's"
-    echo "   own AttributeError WOULD be before it was widened) pre-parse crash, the REAL fixed"
-    echo "   tool (control copy) leaves --out honestly ABSENT (pre-invalidation ran before the"
-    echo "   crash), while the copy with _invalidate_stale_out neutered leaves the pre-seeded"
-    echo "   STALE 'VALID' verdict sitting there unchanged -- proving pre-invalidation is"
-    echo "   genuinely load-bearing, independent of both the __doc__ fallback AND the boundary"
-    echo "   widening fixes"
+  if [ "$C_RC" = "2" ] && [ "$C_UNTOUCHED" = "1" ] && [ "$D_RC" = "2" ] && [ "$D_DELETED" = "1" ]; then
+    echo "ok R9b-I1 (stale-out) guard-viability: T140 Round 10 review finding M3 (fixed"
+    echo "   here) moved pre-invalidation OUT of main()'s unconditional top-of-function"
+    echo "   call site into the exception-handler path only -- a PURE usage error"
+    echo "   (validate with no --handoff) now correctly LEAVES a pre-existing, wholly"
+    echo "   unrelated --out file untouched on the real fixed tool (rc=2, file"
+    echo "   unchanged), while a copy with the OLD, unconditional call site restored"
+    echo "   still wrongly deletes it (rc=2, file gone) -- proving M3's relocation is"
+    echo "   genuinely load-bearing, never a tautological mutation"
   else
-    echo "NOT ok R9b-I1 (stale-out) guard-viability BLIND: control_absent=$([ $C_ABSENT = 1 ] && echo yes || echo no) mutated_still_stale=$([ $D_STILL_STALE = 1 ] && echo yes || echo no)"
+    echo "NOT ok R9b-I1 (stale-out) guard-viability BLIND: c_rc=$C_RC c_untouched=$C_UNTOUCHED d_rc=$D_RC d_deleted=$D_DELETED"
     failx
   fi
 fi
@@ -416,7 +440,7 @@ fi
 # --- guard-viability: neuter _safe_print ------------------------------------
 D4="$TMP/mut_print"
 build_scratch_copy "$D4"
-mutate_neuter_safe_print "$D4/orchestration/handoff.py"
+mutate_neuter_safe_print "$D4/lib/fc_entry.py"
 inject_cmd_validate_crash "$D4/orchestration/handoff.py"
 if [ $? -ne 0 ]; then
   echo "NOT ok R9-I1 (_safe_print) guard-viability: mutation/injection anchor not found (content drifted)"
@@ -507,7 +531,7 @@ fi
 # and would never reach that success path at all).
 D7="$TMP/mut_print_only"
 build_scratch_copy "$D7"
-mutate_neuter_safe_print "$D7/orchestration/handoff.py"
+mutate_neuter_safe_print "$D7/lib/fc_entry.py"
 if [ $? -ne 0 ]; then
   echo "NOT ok R9-M2 (_safe_print) guard-viability: mutation anchor not found (content drifted)"
   failx

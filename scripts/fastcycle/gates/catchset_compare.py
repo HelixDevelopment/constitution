@@ -119,6 +119,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -158,6 +159,86 @@ def sha256_file(path):
     except OSError:
         return None
     return h.hexdigest()
+
+
+# T085 Round 2 I-R2-1: matches a shell dot-command / `source` statement at
+# the START of a (whitespace-stripped) line -- `. lib/foo.sh` or
+# `source lib/foo.sh`, the two conventions POSIX sh and bash both accept.
+_SOURCE_LINE_RE = re.compile(r'^[ \t]*(?:\.[ \t]+|source[ \t]+)(?P<target>\S+)', re.MULTILINE)
+
+# Path-prefix idioms this project's gate scripts commonly use to source a
+# sibling `lib/` file relative to their OWN directory (never the caller's
+# cwd) -- substituted with the gate script's real directory when found.
+_DIRNAME_IDIOMS = (
+    '$(dirname "$0")', "$(dirname '$0')", '$(dirname "${BASH_SOURCE[0]}")',
+    "$(dirname '${BASH_SOURCE[0]}')", '"$HERE"', "$HERE",
+)
+
+
+def resolve_sourced_files(script_path):
+    """T085 Round 2 I-R2-1: best-effort STATIC extraction of every file a
+    gate script `.`/`source`s -- the content-hash diff below must cover
+    these too, not only the gate script's own bytes (reproduced live
+    before this fix: gutting a SOURCED lib/*.sh engine a gate calls into,
+    leaving the gate script itself byte-identical, gave
+    old_sha256==new_sha256 and a clean rc=0/superset=true/changed=[]
+    verdict -- a retained-id coverage change that genuinely altered the
+    gate's behaviour went completely unreported). Handles a literal
+    relative/absolute path argument and the '$(dirname "$0")/...' idiom;
+    a target this cannot statically resolve (an unrecognised variable, a
+    glob) is SKIPPED, never guessed (§11.4.6) -- this is a best-effort
+    STATIC heuristic over the script TEXT, never a shell interpreter."""
+    try:
+        with open(script_path, "r", errors="replace") as fh:
+            text = fh.read()
+    except OSError:
+        return []
+    script_dir = os.path.dirname(os.path.abspath(script_path))
+    resolved = []
+    for m in _SOURCE_LINE_RE.finditer(text):
+        target = m.group("target").strip().strip('"').strip("'")
+        if not target:
+            continue
+        matched_idiom = False
+        for idiom in _DIRNAME_IDIOMS:
+            if target.startswith(idiom):
+                target = script_dir + target[len(idiom):]
+                matched_idiom = True
+                break
+        if not matched_idiom and (target.startswith("$") or "*" in target or "?" in target):
+            continue  # cannot statically resolve -- honestly skipped, not guessed
+        candidate = target if os.path.isabs(target) else os.path.join(script_dir, target)
+        candidate = os.path.normpath(candidate)
+        if os.path.isfile(candidate):
+            resolved.append(candidate)
+    return resolved
+
+
+def combined_content_hash(script_path):
+    """T085 Round 2 I-R2-1: the gate script's OWN sha256 PLUS the sha256 of
+    every statically-resolvable file it `.`/`source`s (transitively, via a
+    visited-set-bounded BFS so a sourced file that itself sources another
+    is also covered, with no risk of looping on a cyclical/self-
+    referential source chain). Returns a single sha256 hex digest over the
+    SORTED (path, per-file-sha256) list, so gutting a sourced engine file
+    -- leaving the gate script's own bytes untouched -- changes THIS
+    combined hash even though sha256_file(script_path) alone would not."""
+    visited = set()
+    queue = [os.path.abspath(script_path)]
+    file_hashes = []
+    while queue:
+        p = queue.pop()
+        if p in visited:
+            continue
+        visited.add(p)
+        h = sha256_file(p)
+        if h is None:
+            continue
+        file_hashes.append((p, h))
+        queue.extend(resolve_sourced_files(p))
+    file_hashes.sort()
+    payload = "\x1f".join(f"{p}={h}" for p, h in file_hashes)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def load_yaml_config(path):
@@ -468,12 +549,31 @@ def transfer_record_path(cfg, root, gate_id):
     return os.path.join(tr_dir, f"{gate_id}.json")
 
 
-def transfer_record_proven(cfg, root, gate_id):
+def transfer_record_proven(cfg, root, gate_id, bound_content_hash=None):
     """CS-005 consultation (B1 fix): reads the candidate MutationTransferRecord
     and requires its `can_fail_status` field to literally equal "PROVEN"
     AND its `schema` to match gate_audit.py's mutation-transfer-record/v1 --
     file EXISTENCE alone (the pre-remediation behaviour) is no longer
-    sufficient. Returns (proven: bool, note: str)."""
+    sufficient.
+
+    T085 Round 2 I-R2-2: a minimal two-field JSON
+    ({"schema": "mutation-transfer-record/v1", "can_fail_status": "PROVEN"})
+    with NO `into_gate_id` and no content binding previously satisfied
+    every check above -- reproduced live before this fix -- so the SAME
+    record could be copy-pasted to "prove" ANY gate id's removal/change,
+    for ANY manifest, forever (a record never expires nor binds to what
+    it actually claims to cover). Fixed by requiring TWO binding fields:
+    `into_gate_id` (must equal the gate_id this call is being consulted
+    for) and `bound_gate_sha256` (must equal `bound_content_hash`, the
+    CALLER-COMPUTED combined_content_hash() of the actual script content
+    under review right now -- the removed gate's old script for a
+    removed_ids consultation, the changed gate's NEW script for a
+    changed_ids consultation) -- a record whose binding fields do not
+    match the CURRENT change/manifest is refused exactly as a missing
+    record would be. `bound_content_hash=None` (a caller that has not
+    been updated to pass it) is treated as "binding check not requested"
+    ONLY for backward-compatibility of direct unit callers -- both real
+    call sites in compute_comparison() below always pass it."""
     rec_path = transfer_record_path(cfg, root, gate_id)
     if not os.path.isfile(rec_path):
         return False, f"no transfer record at {rec_path}"
@@ -488,7 +588,18 @@ def transfer_record_proven(cfg, root, gate_id):
         return False, f"transfer record at {rec_path} has schema={rec.get('schema')!r}, expected {SCHEMA_TRANSFER!r}"
     if rec.get("can_fail_status") != "PROVEN":
         return False, f"transfer record at {rec_path} has can_fail_status={rec.get('can_fail_status')!r}, not PROVEN"
-    return True, f"transfer record at {rec_path} is PROVEN"
+    if rec.get("into_gate_id") != gate_id:
+        return False, (
+            f"transfer record at {rec_path} has into_gate_id={rec.get('into_gate_id')!r}, "
+            f"expected {gate_id!r} (T085 Round 2 I-R2-2: unbound record refused)"
+        )
+    if bound_content_hash is not None and rec.get("bound_gate_sha256") != bound_content_hash:
+        return False, (
+            f"transfer record at {rec_path} has bound_gate_sha256={rec.get('bound_gate_sha256')!r}, "
+            f"expected {bound_content_hash!r} (T085 Round 2 I-R2-2: record does not bind to the "
+            "actual gate script content under review right now -- refused)"
+        )
+    return True, f"transfer record at {rec_path} is PROVEN and bound to {gate_id!r}"
 
 
 def compute_comparison(cfg, root, old_path, new_path, corpus, workdir):
@@ -521,12 +632,15 @@ def compute_comparison(cfg, root, old_path, new_path, corpus, workdir):
     # --- content-hash diff for retained ids (CS-006 + the concrete B1
     #     fix: a same-id gate whose SCRIPT CONTENT changed can no longer
     #     silently keep "coverage" credit -- it requires the same CS-005
-    #     transfer proof a removal would) ---
+    #     transfer proof a removal would). T085 Round 2 I-R2-1: the hash
+    #     COVERS every statically-resolvable `.`/`source`d file the gate
+    #     script declares, not only the gate script's own bytes --
+    #     combined_content_hash() above. ---
     assertion_changes = []
     changed_ids = []
     for gid in retained_ids:
-        old_hash = sha256_file(old_gates[gid])
-        new_hash = sha256_file(new_gates[gid])
+        old_hash = combined_content_hash(old_gates[gid])
+        new_hash = combined_content_hash(new_gates[gid])
         if old_hash is not None and new_hash is not None and old_hash != new_hash:
             changed_ids.append(gid)
             assertion_changes.append({
@@ -541,16 +655,24 @@ def compute_comparison(cfg, root, old_path, new_path, corpus, workdir):
                         "MutationTransferRecord exists for this gate id.",
             })
 
+    # T085 Round 2 I-R2-2: bind each consultation to the ACTUAL content
+    # under review right now -- the removed gate's OLD script for a
+    # removed_ids consultation (proving the record matches what is
+    # genuinely being removed), the changed gate's NEW script for a
+    # changed_ids consultation (proving it matches what the gate id now
+    # is, already computed above for assertion_changes).
+    changed_new_hash_by_gid = {c["gate_id"]: c["new_sha256"] for c in assertion_changes}
+
     named_defects = []
     named_defects_detail = []
     for gid in removed_ids:
-        proven, note = transfer_record_proven(cfg, root, gid)
+        proven, note = transfer_record_proven(cfg, root, gid, bound_content_hash=combined_content_hash(old_gates[gid]))
         if proven:
             continue
         named_defects.append(gid)
         named_defects_detail.append({"gate_id": gid, "reason": "removed", "detail": note})
     for gid in changed_ids:
-        proven, note = transfer_record_proven(cfg, root, gid)
+        proven, note = transfer_record_proven(cfg, root, gid, bound_content_hash=changed_new_hash_by_gid[gid])
         if proven:
             continue
         named_defects.append(gid)

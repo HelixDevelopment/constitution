@@ -371,7 +371,7 @@ FIXDIR="$FC/tests/fixtures/resume_revalidate"
 PINDIR="$FIXDIR/_pinned"
 IMPL="$FC/orchestration/handoff.py"
 LIB="$FC/lib/fc_common.py"
-
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 # scenario -> which pinned pre-fix copy proves its guard-viability
 I4_FIXTURES="rr_unverifiable_external_dependency_kind rr_unverifiable_ground_truth"
 R2I2_FIXTURES="rr_missing_ground_truth_empty_effects rr_malformed_ground_truth_file rr_malformed_external_dep"
@@ -480,6 +480,7 @@ run_against_pinned() {
   mkdir -p "$TMP/orchestration_scratch" "$TMP/lib"
   cp "$PINDIR/$pinned" "$TMP/orchestration_scratch/handoff.py"
   cp "$LIB" "$TMP/lib/fc_common.py"
+  cp "$EXLIB" "$TMP/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
   python3 "$TMP/orchestration_scratch/handoff.py" resume-check \
     --handoff "$FIXDIR/$scen/handoff.json" --out "$out" >"$TMP/${scen}.${pinned}.mut.err" 2>&1
 }

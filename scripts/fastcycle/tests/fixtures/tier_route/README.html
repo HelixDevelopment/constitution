@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>fixtures/tier_route/ — T109 self-validation fixtures</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="fixturestier_route--t109-self-validation-fixtures">fixtures/tier_route/
+— T109 self-validation fixtures</h1>
+<p>Fixture convention for
+<code>constitution/scripts/fastcycle/context/tier_route.py</code>
+(plan.md T-E06; tasks.md T109/T118; research.md DEC-28; SC-005, FR-023).
+Task T109 (<code>tasks.md</code>) writes ONLY this RED test + these
+fixtures; the tool itself is T118, a later, separate task (Producer !=
+Verifier, §11.4.240 — this file&#39;s author never implements
+<code>tier_route.py</code>).</p>
+<p><strong>No contract file exists for this tool.</strong>
+<code>specs/004-fast-dev-cycles/contracts/ common-conventions.md</code>&#39;s
+own &quot;Tool map&quot; section lists
+<code>$FC/context/tier_route.py (T-E06)</code> under &quot;Plan tools that no
+contract in this directory covers ... Their interface, output and RED
+fixtures are fixed by the plan task text until a contract is written.&quot;
+Unlike T104/T108 (which borrowed CLI verb names and field shapes from a
+real contract file and only DEFINED the under-specified corners), this
+file defines the ENTIRE interface — verb name included — from plan.md
+T-E06&#39;s + tasks.md T109/T118&#39;s own wording alone, flagged explicitly as
+binding-if-adopted, never claimed as something a contract already
+fixed.</p>
+<h2 id="the-routing-rule-this-fixture-set-encodes-from-planmd-t-e06--researchmd">The
+routing rule this fixture set encodes (from plan.md T-E06 +
+research.md</h2>
+<h2 id="dec-28-restated-precisely-never-invented">DEC-28, restated
+precisely, never invented)</h2>
+<ol type="1">
+<li><strong>Reviews are hard-excluded.</strong> A review-class task is
+REFUSED by this router outright — never assigned any tier, cheap or
+otherwise. Review tier/effort assignment belongs exclusively to the
+ALREADY-LANDED <code>$FC/review/review_record.py</code>&#39;s own
+<code>RB-004</code> refusal (its real
+<code>DESIGNATED_TIER = &quot;opus&quot;</code> /
+<code>DESIGNATED_EFFORT = &quot;xhigh&quot;</code> constants, checked live by this
+suite&#39;s test script, never assumed) and to
+<code>contracts/common-conventions.md</code>&#39;s &quot;Designated review tier&quot;
+term (&quot;never lowered or routed (T-C11, T-E06)&quot;).
+<code>tier_route.py</code> must never re-decide this.</li>
+<li><strong>A task class WITH a deterministic verifier</strong> starts
+at the lightest tier declared to fit the window
+(<code>min_fitting_tier</code> — a GIVEN classification input in this
+fixture set, exactly as <code>governance_subset</code>&#39;s
+<code>classification_inputs</code> are given rather than computed by
+that suite&#39;s fixtures; the window-fit determination itself is
+T-E02/T114&#39;s concern, not this tool&#39;s) and escalates EXACTLY ONE ladder
+rung on each verifier failure, never more, never fewer, until a
+<code>pass</code> or the ladder is exhausted (exhaustion behaviour is
+UNCONFIRMED by the plan text and explicitly OUT OF SCOPE for this
+fixture set — see &quot;Explicit scope exclusion&quot; below).</li>
+<li><strong>A task class WITHOUT a deterministic verifier</strong> (and
+not a review) is NEVER routed below the constitution&#39;s own default
+working tier (<code>sonnet</code>, §11.4.231(A)) — it is not refused,
+not treated as an error, and not silently defaulted to the cheapest tier
+either; it PASSES at the safe default with zero escalation attempts.
+This is the &quot;negative control&quot; that proves the safety net is a real
+PASS, not a disguised refusal.</li>
+</ol>
+<h2 id="tier-ladder-fixed-by-this-fixture-set-ascending--closed-three-rungs">Tier
+ladder (fixed by this fixture set, ascending — closed, three rungs)</h2>
+<p><code>[&quot;haiku&quot;, &quot;sonnet&quot;, &quot;opus&quot;]</code> — mirrors this project&#39;s
+constitution §11.4.231(A)&#39;s <code>sonnet &lt; opus</code> default
+working ladder EXTENDED with <code>haiku</code> as the lightest rung,
+per this project&#39;s own §11.4.231(D.1) re-admission clause and plan.md
+T-E02&#39;s stated goal (&quot;a haiku-tier dispatch of a representative item now
+fits its window&quot;). <code>sonnet</code> is the DEFAULT working tier
+(§11.4.231(A)); <code>opus</code>/<code>xhigh</code> is the SEPARATE,
+pinned review substrate (§11.4.209/§11.4.211/§11.4.231(E)) — never a
+rung this router assigns to a review, only the rung
+<code>review_record.py</code> independently pins outright.</p>
+<h2 id="layout">Layout</h2>
+<p>Four self-contained fixtures, one JSON file each,
+<code>schema: &quot;tier-route-fixture/v1&quot;</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Fixture</th>
+<th>Kind</th>
+<th>What it proves</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tr_golden_escalation.json</code></td>
+<td>golden</td>
+<td>T109&#39;s own named golden scenario: a single verifier failure at the
+lightest fitting tier escalates exactly one rung, then passes</td>
+</tr>
+<tr>
+<td><code>tr_golden_double_escalation.json</code></td>
+<td>golden (bonus, defence-in-depth)</td>
+<td>escalation walks ONE RUNG PER FAILURE even across two consecutive
+failures — never a &quot;give up and jump to the top&quot; shortcut</td>
+</tr>
+<tr>
+<td><code>tr_bad_review_routed_cheap.json</code></td>
+<td>golden-bad</td>
+<td>T109&#39;s own named golden-bad scenario: a review-class task is refused
+outright, never assigned any tier</td>
+</tr>
+<tr>
+<td><code>tr_negctrl_no_verifier.json</code></td>
+<td>negative-control</td>
+<td>T109&#39;s own named negative-control scenario: a non-review class with
+no verifier routes to the safe default, PASSING rather than erroring or
+refusing</td>
+</tr>
+</tbody>
+</table>
+<h2 id="wire-format-unconfirmed--no-contract-exists--defined-here">Wire
+format (UNCONFIRMED — no contract exists — DEFINED here,</h2>
+<h2 id="binding-if-adopted-on-t118">binding-if-adopted on T118)</h2>
+<p>Each fixture&#39;s <code>expected_route</code> block is the interim
+output contract:
+<code>{refused: bool, refusal_reason: str|null, route_sequence: [tier,...], escalations: int, final_tier: str|null}</code>.
+<code>refused=true</code> corresponds to C-001 exit code 1 (&quot;A finding:
+refusal ...&quot;); <code>refused=false</code> corresponds to exit code 0.
+This suite&#39;s <code>derive_route</code> (embedded in
+<code>test_tier_routing_red.sh</code>, never imported by nor shared with
+the not-yet-existing <code>context/tier_route.py</code>, section
+11.4.245) is the DERIVED oracle every fixture&#39;s own
+<code>expected_route</code> is independently re-verified against before
+that value is trusted for anything downstream (mirroring
+<code>test_governance_subset_red.sh</code>&#39;s
+<code>derive_selection</code> / <code>test_evidence_ref_red.sh</code>&#39;s
+<code>derive_consume</code> precedent exactly).</p>
+<p>The (speculative, this-file-defined) forward-compatible CLI this
+suite&#39;s &quot;real-tool invocation&quot; block exercises once T118 lands:
+<code>context/tier_route.py route --fixture &lt;fixture.json&gt; --out &lt;route.json&gt;</code>
+— a <code>route</code> verb chosen for consistency with the
+<code>select</code>/<code>verify</code>/<code>consume</code> verb-naming
+convention established by
+<code>governance_subset.py</code>/<code>evidence_ref.py</code>; T118 is
+free to choose a different verb, at which point this block (and only
+this block — every fixture and the derived-oracle checks above it are
+interface-agnostic) needs adjusting at T118 review time, exactly per
+<code>common-conventions.md</code>&#39;s &quot;Their interface ... fixed by the
+plan task text until a contract is written&quot; convention applied to a tool
+with NO contract at all.</p>
+<h2 id="explicit-scope-exclusion-section-1146--honestly-out-of-scope-not">Explicit
+scope exclusion (section 11.4.6 — honestly out of scope, not</h2>
+<h2 id="silently-absorbed">silently absorbed)</h2>
+<p>Two aspects of T118&#39;s own task text are deliberately NOT exercised by
+this fixture set, mirroring T108&#39;s own &quot;explicit scope exclusion&quot;
+precedent for <code>create</code>/<code>reverify</code>:</p>
+<ul>
+<li><strong>Ladder exhaustion</strong> (every rung&#39;s verifier fails,
+including <code>opus</code>). Neither plan.md T-E06 nor tasks.md
+T109/T118 specifies what happens next (a permanent refusal? a hand-off
+to a human? an operator-blocked state per §11.4.21?) — inventing an
+answer here would be a section-11.4.6 guess. <code>derive_route</code>
+below raises on this input shape rather than silently returning a
+fabricated verdict; T118&#39;s own implementation decision, once made, is
+this fixture set&#39;s to extend with a fifth fixture at review time.</li>
+<li><strong>&quot;Calibrate on recorded outcomes&quot;</strong> (T118&#39;s own
+closing clause). This requires a recorded-outcomes data store this spec
+has not yet defined anywhere (no contract, no data-model entity, no plan
+task that produces one ahead of T118) — out of scope for a RED test that
+must derive its expectations from data that already exists or is fixed
+by task text alone.</li>
+</ul>
+</body>
+</html>

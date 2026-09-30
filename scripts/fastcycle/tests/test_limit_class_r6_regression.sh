@@ -93,6 +93,7 @@ FIXDIR="$FC/tests/fixtures/alias_spread"
 PINDIR="$FIXDIR/_pinned"
 IMPL="$FC/orchestration/limit_class.py"
 LIB="$FC/lib/fc_common.py"
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 PINNED="$PINDIR/limit_class_pre_r6_fix.py"
 
 fail=0

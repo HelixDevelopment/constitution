@@ -48,7 +48,7 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 IMPL="$FC/orchestration/handoff.py"
 LIB="$FC/lib/fc_common.py"
-
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 fail=0
 failx() { fail=1; }
 
@@ -109,6 +109,7 @@ inject_and_build() {
   mkdir -p "$dir/orchestration" "$dir/lib"
   cp "$IMPL" "$dir/orchestration/handoff.py"
   cp "$LIB" "$dir/lib/fc_common.py"
+  cp "$EXLIB" "$dir/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
   python3 - "$dir/orchestration/handoff.py" "$exc" <<'PYEOF'
 import sys
 p, exc = sys.argv[1], sys.argv[2]
@@ -195,12 +196,29 @@ for exc in KeyError IndexError AttributeError RecursionError; do
   # 'R8_TOPINJ_PROOF'`); every other exception class here does not
   # (`IndexError: R8_TOPINJ_PROOF`) -- match EITHER shape rather than
   # assume one, never a tautological mutation-detection false-negative.
-  if [ ! -f "$OUT2" ] && grep -q "^Traceback" "$ERR2" \
-      && grep -Eq "^${exc}: (R8_TOPINJ_PROOF|'R8_TOPINJ_PROOF')\$" "$ERR2"; then
+  # T140 Round 10 review, "Recommended root-cause work" item 1: `run_cli_main`
+  # now wraps main() in its OWN, OUTER `except Exception` safety net (see
+  # fc_entry.run_cli_main's own docstring) -- so reverting JUST main()'s own
+  # internal boundary back to fc_common.SAFE_EXCEPTIONS no longer produces a
+  # raw, uncaught Python Traceback (the OUTER run_cli_main catch now handles
+  # it too) -- the genuinely DISTINGUISHING, still-load-bearing signal is
+  # that main()'s OWN widened boundary is what writes the RICH --out
+  # internal-error document naming the exact exception class (via
+  # `_write_dispatch_internal_error_doc`); the OUTER run_cli_main fallback
+  # has no access to `out_path`/`cmd_name` at all, so it can only ever emit
+  # its own GENERIC diagnostic with NO --out document written. Asserting
+  # "no --out AND the generic outer-boundary message (never a raw
+  # Traceback, never the tool-specific per-subcommand message)" is still a
+  # genuine, non-tautological guard-viability proof of main()'s OWN
+  # widening, even though the process itself no longer crashes uncaught.
+  if [ ! -f "$OUT2" ] && ! grep -q "^Traceback" "$ERR2" \
+      && grep -q "escaped the top-level dispatch entirely" "$ERR2" \
+      && grep -Eq "(R8_TOPINJ_PROOF|'R8_TOPINJ_PROOF')" "$ERR2"; then
     echo "ok R8-I1 ($exc) guard-viability: reverting JUST the boundary's own catch set back"
-    echo "   to fc_common.SAFE_EXCEPTIONS makes the SAME injected $exc crash uncaught"
-    echo "   (Traceback in stderr, no --out written) -- proving the Exception widening"
-    echo "   genuinely does the work, never a tautological mutation"
+    echo "   to fc_common.SAFE_EXCEPTIONS makes the SAME injected $exc escape main()'s OWN"
+    echo "   boundary entirely -- no rich --out internal-error document is written (only"
+    echo "   run_cli_main's OUTER, tool-agnostic fallback fires instead) -- proving the"
+    echo "   Exception widening genuinely does the work, never a tautological mutation"
   else
     echo "NOT ok R8-I1 ($exc) guard-viability BLIND: out_exists=$([ -f "$OUT2" ] && echo yes || echo no) stderr=$(cat "$ERR2" 2>/dev/null)"
     failx

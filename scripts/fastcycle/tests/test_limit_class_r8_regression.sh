@@ -35,7 +35,7 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 IMPL="$FC/orchestration/limit_class.py"
 LIB="$FC/lib/fc_common.py"
-
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 fail=0
 failx() { fail=1; }
 
@@ -76,6 +76,7 @@ inject_and_build() {
   mkdir -p "$dir/orchestration" "$dir/lib"
   cp "$IMPL" "$dir/orchestration/limit_class.py"
   cp "$LIB" "$dir/lib/fc_common.py"
+  cp "$EXLIB" "$dir/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
   python3 - "$dir/orchestration/limit_class.py" "$exc" <<'PYEOF'
 import sys
 p, exc = sys.argv[1], sys.argv[2]
@@ -151,12 +152,23 @@ for exc in KeyError IndexError AttributeError RecursionError; do
   ERR2="$TMP/inj_${exc}.r7shape.err"
   rm -f "$OUT2"
   python3 "$D/orchestration/limit_class.py" place --fixture "$TMP/fx.json" --out "$OUT2" >"$ERR2" 2>&1
-  if [ ! -f "$OUT2" ] && grep -q "^Traceback" "$ERR2" \
-      && grep -Eq "^${exc}: (R8_TOPINJ_PROOF|'R8_TOPINJ_PROOF')\$" "$ERR2"; then
+  # T140 Round 10 review, "Recommended root-cause work" item 1: `run_cli_main`
+  # now wraps main() in its OWN, OUTER `except Exception` safety net -- see
+  # test_handoff_r8_regression.sh's own identically-purposed sibling fix for
+  # the full rationale. Reverting JUST the place boundary's own catch set no
+  # longer produces a raw, uncaught Python Traceback (the OUTER run_cli_main
+  # catch now handles it too); the still-load-bearing, distinguishing signal
+  # is that ONLY the widened boundary writes the rich --out internal-error
+  # document -- the outer fallback writes none at all.
+  if [ ! -f "$OUT2" ] && ! grep -q "^Traceback" "$ERR2" \
+      && grep -q "escaped the top-level dispatch entirely" "$ERR2" \
+      && grep -Eq "(R8_TOPINJ_PROOF|'R8_TOPINJ_PROOF')" "$ERR2"; then
     echo "ok R8-I1 ($exc) guard-viability: reverting JUST the place boundary's own catch"
-    echo "   set back to fc_common.SAFE_EXCEPTIONS makes the SAME injected $exc crash"
-    echo "   uncaught (Traceback in stderr, no --out written) -- proving the Exception"
-    echo "   widening genuinely does the work, never a tautological mutation"
+    echo "   set back to fc_common.SAFE_EXCEPTIONS makes the SAME injected $exc escape"
+    echo "   the place boundary entirely -- no rich --out internal-error document is"
+    echo "   written (only run_cli_main's OUTER, tool-agnostic fallback fires instead)"
+    echo "   -- proving the Exception widening genuinely does the work, never a"
+    echo "   tautological mutation"
   else
     echo "NOT ok R8-I1 ($exc) guard-viability BLIND: out_exists=$([ -f "$OUT2" ] && echo yes || echo no) stderr=$(cat "$ERR2" 2>/dev/null)"
     failx

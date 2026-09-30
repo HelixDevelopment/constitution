@@ -101,6 +101,7 @@ FIXDIR="$FC/tests/fixtures/custody_sweep"
 PINDIR="$FIXDIR/_pinned"
 IMPL="$FC/orchestration/custody_sweep.py"
 LIB="$FC/lib/fc_common.py"
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 PINNED="$PINDIR/custody_sweep_pre_r6_fix.py"
 REPO_ROOT_ARG="$ROOT/constitution"
 
@@ -134,6 +135,7 @@ run_against_pinned() {
   mkdir -p "$TMP/orchestration_scratch" "$TMP/lib"
   cp "$PINNED" "$TMP/orchestration_scratch/custody_sweep.py"
   cp "$LIB" "$TMP/lib/fc_common.py"
+  cp "$EXLIB" "$TMP/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
   python3 "$TMP/orchestration_scratch/custody_sweep.py" "$@"
 }
 

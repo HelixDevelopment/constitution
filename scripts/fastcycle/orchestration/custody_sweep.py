@@ -176,107 +176,39 @@ _LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
 if _LIB_DIR not in sys.path:
     sys.path.insert(0, _LIB_DIR)
 import fc_common  # noqa: E402  (path-inserted import, see above)
+import fc_entry  # noqa: E402  (T140 Round 10 review: the ONE shared CLI-entry
+# primitive -- emit_result/diag channel split, FcArgumentParser, run_cli_main,
+# safe_str, scan_argv_for_out, invalidate_stale_out -- see fc_entry.py's own
+# module docstring; replaces this file's own former per-tool copies of every
+# one of those, section 11.4.227/11.4.251)
 
 canon = fc_common.canon
 body_hash_of = fc_common.body_hash_of
+diag = fc_entry.diag
+emit_result = fc_entry.emit_result
+safe_str = fc_entry.safe_str
+scan_argv_for_out = fc_entry.scan_argv_for_out
+invalidate_stale_out = fc_entry.invalidate_stale_out
+FcArgumentParser = fc_entry.FcArgumentParser
+run_cli_main = fc_entry.run_cli_main
 
 SCHEMA_INVENTORY = "custody-sweep-inventory/v1"
 SCHEMA_PROPOSE = "custody-sweep-propose/v1"
 SCHEMA_VERIFY = "custody-sweep-verify/v1"
 
 # ---------------------------------------------------------------------------
-# T140 Round 9/9b review (fixed here; mirrors `handoff.py`'s/
-# `limit_class.py`'s own identically-purposed helpers, section 11.4.227
-# reuse-the-SAME-discipline): three cooperating fixes closing the WHOLE
-# "a diagnostic-print/pre-parse crash can leave --out lying" defect class
-# both Round 9 reviewers converged on, rather than the two specific sites
-# either one reported (their own shared framing: "the fix should close the
-# whole class, not these two points").
-#
-# `_real_print` is captured BEFORE any renaming below so `_safe_print`'s
-# own implementation always calls the REAL builtin, never itself.
+# T140 Round 10 independent review (docs/CONTINUATION.md ADDENDUM 114): the
+# shared `_real_print`/`_safe_print`/`_safe_str`/`_scan_argv_for_out`/
+# `_invalidate_stale_out` helpers this file used to define LOCALLY (Round
+# 9/9b) are now imported, ONCE, from `fc_entry.py` above -- see that
+# module's own docstring for the full rationale. UNLIKE `handoff.py`/
+# `limit_class.py` (where `--out` is always the real deliverable and every
+# print is genuinely diagnostic), this file's own `inventory`/`propose`/
+# `verify-proposal` print the verdict DOCUMENT ITSELF to stdout as their
+# ONLY delivery channel whenever `--out` is omitted -- see T140 Round 10
+# review finding B1, fixed at each of those three call sites below via
+# `emit_result` (never `diag`).
 # ---------------------------------------------------------------------------
-_real_print = print
-
-
-def _safe_print(*args, **kwargs):
-    """T140 Round 9 review finding R9-I1 + R9-M2 (fixed here; section
-    11.4.227 reuse-the-SAME-discipline -- every `print(...)` call site in
-    this file's subcommand handlers and dispatch boundary below is
-    renamed to this function): NO diagnostic/success print anywhere in
-    this file may be allowed to raise and escape uncaught -- a `--out`
-    document already written (the durable, authoritative record of this
-    invocation's real result) must NEVER be silently OVERWRITTEN by
-    `main()`'s own dispatch-boundary internal-error doc merely because a
-    SUBSEQUENT, best-effort stdout/stderr diagnostic print failed (see
-    `handoff.py`'s own sibling `_safe_print` for the exact live repro of
-    this class -- identical mechanism, applied here).
-
-    Also closes R9-I1 (a closed/unwritable stderr -- dead pipe reader,
-    ENOSPC log redirect, `2>/dev/full` -- previously escaped the SAME
-    way, uncaught, before the `--out` doc was even attempted, exiting
-    120, outside this tool's documented {0,1,2,3,4} contract; live-
-    reproduced: `custody_sweep.py inventory --repo-root /nonexist --out
-    X` normally rc=2 with a document written, `2>/dev/full` rc=120 with
-    NO document written): swallows ANY exception from the underlying
-    `print()` call and, on failure, best-effort re-points the TARGET
-    stream's own file descriptor at `os.devnull` (this round's own
-    proven fix direction) so a LATER print to the SAME now-broken
-    stream, or Python's own interpreter-shutdown flush of it, cannot
-    re-raise and turn an otherwise-clean exit code into an unrelated
-    120."""
-    stream = kwargs.get("file", sys.stdout)
-    try:
-        _real_print(*args, **kwargs)
-    except Exception:
-        try:
-            fd = stream.fileno()
-            os.dup2(os.open(os.devnull, os.O_WRONLY), fd)
-        except Exception:
-            pass
-
-
-def _safe_str(exc):
-    """T140 Round 9 review finding R9-M1 (fixed here): see `handoff.py`'s
-    own identically-purposed sibling for the full rationale. Falls back to
-    just the exception's type name on failure."""
-    try:
-        return str(exc)
-    except Exception:
-        return "<%s: str() raised>" % type(exc).__name__
-
-
-def _scan_argv_for_out(argv):
-    """T140 Round 9b review finding R9b-I1 (fixed here): see `handoff.py`'s
-    own identically-purposed sibling for the full rationale -- best-effort
-    extraction of `--out`'s value directly from RAW argv, usable even
-    BEFORE `build_arg_parser()` has constructed/parsed anything. Supports
-    both `--out VALUE` and `--out=VALUE`. `selftest` carries no `--out`
-    flag -- this scan correctly returns None for it, same as any other
-    invocation genuinely lacking one."""
-    for i, tok in enumerate(argv):
-        if tok == "--out" and i + 1 < len(argv):
-            return argv[i + 1]
-        if tok.startswith("--out="):
-            return tok[len("--out="):]
-    return None
-
-
-def _invalidate_stale_out(out_path):
-    """T140 Round 9b review finding R9b-I1 (fixed here): see `handoff.py`'s
-    own identically-purposed sibling for the full rationale and live
-    repro -- remove any EXISTING `--out` file EARLY, before any
-    computation for THIS invocation begins, so a crash reaching `main()`
-    BEFORE a fresh document is written for THIS invocation can never
-    leave a STALE, previous-run `--out` document in place looking like a
-    genuine, fresh result. Best-effort: a removal failure is swallowed
-    here -- it surfaces downstream when the real write is attempted."""
-    if not out_path:
-        return
-    try:
-        os.remove(out_path)
-    except OSError:
-        pass
 
 
 ATM_RE = re.compile(r"ATM-\d+")
@@ -795,11 +727,30 @@ def cmd_inventory(a):
     try:
         doc, text = write_doc(a.out, SCHEMA_INVENTORY, body, run_meta())
     except OSError as exc:
-        _safe_print("custody_sweep inventory: cannot write --out %s: %s" % (a.out, exc), file=sys.stderr)
+        diag("custody_sweep inventory: cannot write --out %s: %s" % (a.out, exc), file=sys.stderr)
         return 2
-    _safe_print(text.rstrip("\n") if not a.out else
-          "custody_sweep inventory: %d stash + %d worktree entries -> %s"
-          % (len(stash_entries), len(wt_entries), a.out))
+    # T140 Round 10 review finding B1 (fixed here): WITHOUT `--out`, the
+    # verdict DOCUMENT ITSELF (`text`) is this subcommand's ONLY delivery
+    # channel -- its PRIMARY output, never a mere diagnostic. Printed via
+    # `emit_result`, never `diag`: a write/flush failure here (live-
+    # reproduced: `inventory --repo-root big > /dev/full` on a 60-stash
+    # repo whose inventory JSON is 29,235 bytes) MUST be reported as an
+    # honest, non-zero exit -- the retired `diag`-everywhere shape
+    # (`_safe_print`) swallowed this failure and returned rc=0 with
+    # NOTHING delivered, a section 11.4 PASS-bluff. WITH `--out`, the real
+    # verdict already landed durably in that file -- this line is then a
+    # genuine, best-effort summary, unchanged from before, via `diag`.
+    if a.out:
+        diag("custody_sweep inventory: %d stash + %d worktree entries -> %s"
+             % (len(stash_entries), len(wt_entries), a.out))
+        return 0
+    try:
+        emit_result(text.rstrip("\n"))
+    except Exception as exc:
+        diag("custody_sweep inventory: cannot deliver the inventory verdict to stdout "
+             "(--out was not given, so stdout is this invocation's ONLY delivery channel): "
+             "%s: %s" % (type(exc).__name__, safe_str(exc)), file=sys.stderr)
+        return 2
     return 0
 
 
@@ -910,7 +861,7 @@ def cmd_propose(a):
             # here at parse time.
             inv = fc_common.strict_loads(fh.read())
     except (OSError, ValueError) as exc:
-        _safe_print("custody_sweep propose: --inventory %r unreadable or not valid JSON: %s" % (a.inventory, exc),
+        diag("custody_sweep propose: --inventory %r unreadable or not valid JSON: %s" % (a.inventory, exc),
               file=sys.stderr)
         return 2
 
@@ -925,13 +876,13 @@ def cmd_propose(a):
     # `cmd_verify_proposal`'s own pre-existing `isinstance(d, dict)` guard
     # (its "T140 Round 6 review finding R6-I3" comment).
     if not isinstance(inv, dict):
-        _safe_print("custody_sweep propose: --inventory %r top-level value is not a JSON object "
+        diag("custody_sweep propose: --inventory %r top-level value is not a JSON object "
               "(got %s: %r)" % (a.inventory, type(inv).__name__, inv), file=sys.stderr)
         return 2
 
     entries = inv.get("entries")
     if entries is None:
-        _safe_print("custody_sweep propose: --inventory %r has no 'entries' array" % a.inventory, file=sys.stderr)
+        diag("custody_sweep propose: --inventory %r has no 'entries' array" % a.inventory, file=sys.stderr)
         return 2
     # T140 Round 7 review finding R7-I3 (fixed here): a non-list `entries`
     # value (e.g. a bare string or object) used to crash the `for entry in
@@ -942,13 +893,13 @@ def cmd_propose(a):
     # raises an uncaught TypeError. Fail CLOSED with a diagnosable message
     # instead, naming the real type.
     if not isinstance(entries, list):
-        _safe_print("custody_sweep propose: --inventory %r field 'entries' must be a JSON list "
+        diag("custody_sweep propose: --inventory %r field 'entries' must be a JSON list "
               "(got %s: %r)" % (a.inventory, type(entries).__name__, entries), file=sys.stderr)
         return 2
 
     shape_error = _validate_propose_entries_shape(entries)
     if shape_error is not None:
-        _safe_print("custody_sweep propose: --inventory %r has a malformed entry: %s"
+        diag("custody_sweep propose: --inventory %r has a malformed entry: %s"
               % (a.inventory, shape_error), file=sys.stderr)
         return 2
 
@@ -992,11 +943,25 @@ def cmd_propose(a):
     try:
         doc, text = write_doc(a.out, SCHEMA_PROPOSE, body, run_meta())
     except OSError as exc:
-        _safe_print("custody_sweep propose: cannot write --out %s: %s" % (a.out, exc), file=sys.stderr)
+        diag("custody_sweep propose: cannot write --out %s: %s" % (a.out, exc), file=sys.stderr)
         return 2
-    _safe_print(text.rstrip("\n") if not a.out else
-          "custody_sweep propose: %d proposal(s) (%d allowed, %d refused) -> %s"
-          % (len(proposals), body["counts"]["allowed"], body["counts"]["refused"], a.out))
+    # T140 Round 10 review finding B1 (fixed here): see `cmd_inventory`'s
+    # own identical comment above -- WITHOUT `--out`, `text` is this
+    # subcommand's ONLY delivery channel, so it goes through `emit_result`
+    # (never `diag`), and a failure to deliver it is an honest, non-zero
+    # exit, never a swallowed rc=0 (live-reproduced on a 60-stash repo
+    # whose proposal JSON is 13,728 bytes: `propose ... > /dev/full`).
+    if a.out:
+        diag("custody_sweep propose: %d proposal(s) (%d allowed, %d refused) -> %s"
+             % (len(proposals), body["counts"]["allowed"], body["counts"]["refused"], a.out))
+        return 0
+    try:
+        emit_result(text.rstrip("\n"))
+    except Exception as exc:
+        diag("custody_sweep propose: cannot deliver the proposal verdict to stdout "
+             "(--out was not given, so stdout is this invocation's ONLY delivery channel): "
+             "%s: %s" % (type(exc).__name__, safe_str(exc)), file=sys.stderr)
+        return 2
     return 0
 
 
@@ -1010,7 +975,7 @@ def cmd_verify_proposal(a):
     try:
         root = resolve_repo_root(a.repo_root)
     except RuntimeError as exc:
-        _safe_print("custody_sweep verify-proposal: %s" % exc, file=sys.stderr)
+        diag("custody_sweep verify-proposal: %s" % exc, file=sys.stderr)
         return 2
 
     try:
@@ -1028,7 +993,7 @@ def cmd_verify_proposal(a):
             # -- this widens, never narrows, what is handled).
             d = fc_common.strict_loads(fh.read())
     except (OSError, ValueError) as exc:
-        _safe_print("custody_sweep verify-proposal: --proposal %r unreadable or not valid JSON: %s"
+        diag("custody_sweep verify-proposal: --proposal %r unreadable or not valid JSON: %s"
               % (a.proposal, exc), file=sys.stderr)
         return 2
 
@@ -1048,13 +1013,13 @@ def cmd_verify_proposal(a):
     # SAME diagnosable EXIT_USAGE(2) convention every other malformed-
     # --proposal case in this function already uses.
     if not isinstance(d, dict):
-        _safe_print("custody_sweep verify-proposal: --proposal %r top-level value is not a JSON "
+        diag("custody_sweep verify-proposal: --proposal %r top-level value is not a JSON "
               "object (got %s: %r)" % (a.proposal, type(d).__name__, d), file=sys.stderr)
         return 2
 
     missing = [k for k in REQUIRED_PROPOSAL_KEYS if k not in d]
     if missing:
-        _safe_print("custody_sweep verify-proposal: --proposal %r missing required key(s): %s"
+        diag("custody_sweep verify-proposal: --proposal %r missing required key(s): %s"
               % (a.proposal, ", ".join(missing)), file=sys.stderr)
         return 2
 
@@ -1075,7 +1040,7 @@ def cmd_verify_proposal(a):
     # from it.
     for field_name, field_val in (("backup_hash", backup_hash), ("backup_artifact_path", backup_artifact_path)):
         if field_val is not None and not isinstance(field_val, str):
-            _safe_print("custody_sweep verify-proposal: --proposal %r field `%s` must be a JSON "
+            diag("custody_sweep verify-proposal: --proposal %r field `%s` must be a JSON "
                   "string when present (got %s: %r) -- this tool cannot re-hash or resolve a "
                   "filesystem path from a non-string value" % (
                       a.proposal, field_name, type(field_val).__name__, field_val), file=sys.stderr)
@@ -1105,15 +1070,27 @@ def cmd_verify_proposal(a):
     try:
         doc, text = write_doc(a.out, SCHEMA_VERIFY, body, run_meta())
     except OSError as exc:
-        _safe_print("custody_sweep verify-proposal: cannot write --out %s: %s" % (a.out, exc), file=sys.stderr)
+        diag("custody_sweep verify-proposal: cannot write --out %s: %s" % (a.out, exc), file=sys.stderr)
         return 2
     if a.out:
-        _safe_print("custody_sweep verify-proposal: %s %s (%s) -> %s"
+        diag("custody_sweep verify-proposal: %s %s (%s) -> %s"
               % (d.get("entry_id"), verdict, detail, a.out))
     else:
-        _safe_print(text.rstrip("\n"))
+        # T140 Round 10 review finding B1 (fixed here): see `cmd_inventory`'s
+        # own identical comment above -- WITHOUT `--out`, `text` is this
+        # subcommand's ONLY delivery channel, so it goes through
+        # `emit_result` (never `diag`), and a failure to deliver it is an
+        # honest, non-zero exit, never a swallowed rc=0/rc=1 that silently
+        # omits the verdict text entirely.
+        try:
+            emit_result(text.rstrip("\n"))
+        except Exception as exc:
+            diag("custody_sweep verify-proposal: cannot deliver the verify-proposal verdict to "
+                 "stdout (--out was not given, so stdout is this invocation's ONLY delivery "
+                 "channel): %s: %s" % (type(exc).__name__, safe_str(exc)), file=sys.stderr)
+            return 2
     if disagreement:
-        _safe_print("custody_sweep verify-proposal: WARNING: %s" % disagreement, file=sys.stderr)
+        diag("custody_sweep verify-proposal: WARNING: %s" % disagreement, file=sys.stderr)
         return 1
     return 0 if verdict == "ALLOWED" else 1
 
@@ -1260,21 +1237,21 @@ def cmd_selftest(a):
     # fixture file must resolve before any absence below is trusted.
     known_present = os.path.join(fixdir, SELFTEST_FIXTURES[0][0])
     if not os.path.isfile(known_present):
-        _safe_print("custody_sweep selftest: control needle FAILED -- known-present fixture "
+        diag("custody_sweep selftest: control needle FAILED -- known-present fixture "
               "%r does not resolve; fixtures_dir may be wrong" % known_present, file=sys.stderr)
         return 3
     fabricated = os.path.join(fixdir, "definitely_never_shipped_fixture_xyz.json")
     if os.path.isfile(fabricated):
-        _safe_print("custody_sweep selftest: control needle FAILED -- a fabricated fixture name "
+        diag("custody_sweep selftest: control needle FAILED -- a fabricated fixture name "
               "unexpectedly exists; the fixtures_dir is not what this tool expects", file=sys.stderr)
         return 3
-    _safe_print("custody_sweep selftest: control needle OK (known-present resolves, fabricated absent)")
+    diag("custody_sweep selftest: control needle OK (known-present resolves, fabricated absent)")
 
     ok = True
     for fname, expected in SELFTEST_FIXTURES:
         fpath = os.path.join(fixdir, fname)
         if not os.path.isfile(fpath):
-            _safe_print("custody_sweep selftest: fixture %r is MISSING" % fpath, file=sys.stderr)
+            diag("custody_sweep selftest: fixture %r is MISSING" % fpath, file=sys.stderr)
             ok = False
             continue
         with open(fpath, encoding="utf-8") as fh:
@@ -1294,9 +1271,9 @@ def cmd_selftest(a):
             verdict, detail = derive_verdict(d["action"], d.get("backup_hash"), d.get("backup_artifact_path"), root,
                                               entry_kind=d.get("entry_kind"), entry_id=d.get("entry_id"))
         if verdict == expected:
-            _safe_print("custody_sweep selftest: ok %s -> %s (%s)" % (fname, verdict, detail))
+            diag("custody_sweep selftest: ok %s -> %s (%s)" % (fname, verdict, detail))
         else:
-            _safe_print("custody_sweep selftest: NOT ok %s -> %s, expected %s (%s)"
+            diag("custody_sweep selftest: NOT ok %s -> %s, expected %s (%s)"
                   % (fname, verdict, expected, detail), file=sys.stderr)
             ok = False
 
@@ -1308,10 +1285,10 @@ def cmd_selftest(a):
     refused = {f for f, e in SELFTEST_FIXTURES if e == "REFUSED"}
     allowed = {f for f, e in SELFTEST_FIXTURES if e == "ALLOWED"}
     if not refused or not allowed:
-        _safe_print("custody_sweep selftest: discrimination needle FAILED -- fixture set has no "
+        diag("custody_sweep selftest: discrimination needle FAILED -- fixture set has no "
               "both-sides coverage", file=sys.stderr)
         return 3
-    _safe_print("custody_sweep selftest: ALL %d fixture(s) resolved correctly; REFUSED/ALLOWED genuinely "
+    diag("custody_sweep selftest: ALL %d fixture(s) resolved correctly; REFUSED/ALLOWED genuinely "
           "diverge (%d vs %d)" % (len(SELFTEST_FIXTURES), len(refused), len(allowed)))
     return 0
 
@@ -1330,19 +1307,22 @@ def run_determinism_check(argv, timeout_s=120):
             try:
                 proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
             except subprocess.TimeoutExpired:
-                _safe_print("custody_sweep: determinism-check run %d timed out" % i, file=sys.stderr)
+                diag("custody_sweep: determinism-check run %d timed out" % i, file=sys.stderr)
                 return 4
             if proc.returncode not in (0, 1) or not os.path.exists(out_i):
-                sys.stderr.write(proc.stderr)
-                _safe_print("custody_sweep: determinism-check run %d rc=%d, no honest verdict"
+                # T140 Round 10 review finding I1(c) (fixed here): see
+                # `handoff.py`'s own identically-purposed sibling fix for
+                # the full rationale.
+                diag(proc.stderr, end="", file=sys.stderr)
+                diag("custody_sweep: determinism-check run %d rc=%d, no honest verdict"
                       % (i, proc.returncode), file=sys.stderr)
                 return 4
             with open(out_i, encoding="utf-8") as fh:
                 runs.append(json.load(fh).get("body_hash"))
     if runs[0] is None or runs[0] != runs[1]:
-        _safe_print("custody_sweep: nondeterministic: run1=%s run2=%s" % (runs[0], runs[1]), file=sys.stderr)
+        diag("custody_sweep: nondeterministic: run1=%s run2=%s" % (runs[0], runs[1]), file=sys.stderr)
         return 1
-    _safe_print("custody_sweep: deterministic (body_hash=%s)" % runs[0])
+    diag("custody_sweep: deterministic (body_hash=%s)" % runs[0])
     return 0
 
 
@@ -1358,7 +1338,12 @@ def build_arg_parser():
     # same fix). `(__doc__ or "")` makes this call site simply never
     # crash, matching `handoff.py`'s/`limit_class.py`'s own identical
     # sibling fix.
-    p = argparse.ArgumentParser(prog="custody_sweep.py", description=(__doc__ or "").split("\n\n")[0])
+    #
+    # T140 Round 10 review finding I1(a) (fixed here): `FcArgumentParser`
+    # -- see `fc_entry.FcArgumentParser`'s own docstring for the full
+    # rationale (closes the ONE remaining raw-write path into
+    # argparse-owned `--help`/usage-error message printing).
+    p = FcArgumentParser(prog="custody_sweep.py", description=(__doc__ or "").split("\n\n")[0])
     p.add_argument("--determinism-check", action="store_true",
                    help="re-invoke this same subcommand twice and compare body_hash (C-003)")
     sub = p.add_subparsers(dest="subcommand")
@@ -1429,12 +1414,12 @@ def _write_dispatch_internal_error_doc(out_path, subcommand, exc):
     `out_path` honestly (from `args.out` when available, else a raw-argv
     scan) BEFORE calling this function, rather than this function
     assuming an `args`-like object with a `.out` attribute always exists.
-    `str(exc)` also replaced with `_safe_str(exc)` (R9-M1)."""
+    `str(exc)` also replaced with `safe_str(exc)` (R9-M1)."""
     if not out_path:
         return
     body = {
         "subcommand": subcommand,
-        "internal_error": {"class": type(exc).__name__, "detail": _safe_str(exc)},
+        "internal_error": {"class": type(exc).__name__, "detail": safe_str(exc)},
     }
     try:
         write_doc(out_path, SCHEMA_INTERNAL_ERROR, body, run_meta())
@@ -1466,24 +1451,10 @@ def main(argv):
         try:
             return run_determinism_check(argv)
         except Exception as exc:
-            _safe_print("custody_sweep.py: --determinism-check raised an uncaught %s: %s -- this is a "
+            diag("custody_sweep.py: --determinism-check raised an uncaught %s: %s -- this is a "
                   "genuinely unanticipated case; treat as unsafe/unverified until independently, "
-                  "manually re-verified" % (type(exc).__name__, _safe_str(exc)), file=sys.stderr)
+                  "manually re-verified" % (type(exc).__name__, safe_str(exc)), file=sys.stderr)
             return 2
-
-    # T140 Round 9b review finding R9b-I1 (fixed here, point 3 of that
-    # round's own prescription): pre-invalidate any stale --out file
-    # BEFORE any computation for this invocation begins, using a raw-argv
-    # scan that works even if argument-parser construction/parsing itself
-    # (below, now inside the SAME boundary -- point 1) later crashes. See
-    # `_invalidate_stale_out`'s own docstring for the full rationale and
-    # live repro (live-reproduced HERE too, for THIS tool specifically:
-    # `inventory --repo-root /nonexist --out X` with stderr on `/dev/full`
-    # used to exit 120 with `--out` never written at all, R9-I1's own
-    # fix; a stale PRE-EXISTING `--out` in that same scenario would
-    # previously have been left untouched, exactly the R9b-I1 class this
-    # pre-invalidation closes).
-    _invalidate_stale_out(_scan_argv_for_out(argv))
 
     args = None
     try:
@@ -1511,7 +1482,7 @@ def main(argv):
         # sibling convention).
         args = build_arg_parser().parse_args(argv)
         if args.subcommand is None:
-            _safe_print("custody_sweep.py: a subcommand is required "
+            diag("custody_sweep.py: a subcommand is required "
                   "(inventory | propose | verify-proposal | selftest)", file=sys.stderr)
             return 2
 
@@ -1543,7 +1514,7 @@ def main(argv):
         #
         # T140 Round 9/9b review (fixed here): the --out document write
         # now happens BEFORE the diagnostic print (point 4), through
-        # `_safe_print` (never able to escape and corrupt an already-
+        # `diag` (never able to escape and corrupt an already-
         # written --out doc, or exit 120 on a closed stderr, R9-I1's own
         # fix). `out_path` resolves honestly even in the (currently
         # unreachable for THIS specific except clause, since `args` is
@@ -1551,10 +1522,18 @@ def main(argv):
         # subcommand dispatch above -- but resolved the SAME defensive
         # way as the `except Exception` clause immediately below, for
         # consistency and future-proofing) case `args` is None.
-        out_path = getattr(args, "out", None) if args is not None else _scan_argv_for_out(argv)
+        #
+        # T140 Round 10 review finding M3, first half (fixed here): the
+        # pre-invalidation this file's own `main()` used to run
+        # UNCONDITIONALLY at the very top is now made ONLY here (and in
+        # the `except Exception` clause immediately below) -- see
+        # `handoff.py`'s own identically-purposed sibling fix for the full
+        # rationale.
+        out_path = getattr(args, "out", None) if args is not None else scan_argv_for_out(argv)
         subcommand = getattr(args, "subcommand", None) if args is not None else None
+        invalidate_stale_out(out_path)
         _write_dispatch_internal_error_doc(out_path, subcommand, exc)
-        _safe_print("custody_sweep.py: %s" % _safe_str(exc), file=sys.stderr)
+        diag("custody_sweep.py: %s" % safe_str(exc), file=sys.stderr)
         return 2
     except Exception as exc:
         # T140 Round 7 review, the ONE top-level dispatch boundary wrapping
@@ -1606,18 +1585,26 @@ def main(argv):
         # clause, to the interpreter's own top-level uncaught-exception
         # handler, or -- for a closed/full stderr -- exited 120 with the
         # --out document never written at all, R9-I1's own fix).
-        out_path = getattr(args, "out", None) if args is not None else _scan_argv_for_out(argv)
+        #
+        # T140 Round 10 review finding M3 (fixed here): pre-invalidation
+        # now happens ONLY here too -- see the `except RuntimeError`
+        # clause's own comment immediately above for the full rationale.
+        out_path = getattr(args, "out", None) if args is not None else scan_argv_for_out(argv)
         subcommand = getattr(args, "subcommand", None) if args is not None else None
+        invalidate_stale_out(out_path)
         _write_dispatch_internal_error_doc(out_path, subcommand, exc)
-        _safe_print("custody_sweep.py: subcommand %r raised an uncaught %s while dispatching: %s -- this "
+        diag("custody_sweep.py: subcommand %r raised an uncaught %s while dispatching: %s -- this "
               "is a genuinely unanticipated case no individual fix above enumerated; treat as "
               "unsafe/unverified until independently, manually re-verified"
-              % (subcommand, type(exc).__name__, _safe_str(exc)), file=sys.stderr)
+              % (subcommand, type(exc).__name__, safe_str(exc)), file=sys.stderr)
         return 2
 
-    _safe_print("custody_sweep.py: unknown subcommand %r" % args.subcommand, file=sys.stderr)
+    diag("custody_sweep.py: unknown subcommand %r" % args.subcommand, file=sys.stderr)
     return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    # T140 Round 10 review, "Recommended root-cause work" item 1 (fixed
+    # here): `run_cli_main` -- see `handoff.py`'s own identically-purposed
+    # sibling fix for the full mechanism.
+    run_cli_main(main, sys.argv[1:])

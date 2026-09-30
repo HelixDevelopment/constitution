@@ -51,6 +51,7 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 IMPL="$FC/orchestration/custody_sweep.py"
 LIB="$FC/lib/fc_common.py"
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 CS_FIXDIR="$FC/tests/fixtures/custody_sweep"
 
 fail=0
@@ -109,6 +110,7 @@ D1="$TMP/r1_boundary_still_widened"
 mkdir -p "$D1/orchestration" "$D1/lib"
 cp "$IMPL" "$D1/orchestration/custody_sweep.py"
 cp "$LIB" "$D1/lib/fc_common.py"
+cp "$EXLIB" "$D1/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 revert_entry_get_point_fix "$D1/orchestration/custody_sweep.py"
 if [ $? -ne 0 ]; then
   echo "NOT ok R8-I1 repro (1a) mutation anchor not found (content drifted)"
@@ -153,6 +155,7 @@ D2="$TMP/r1_both_reverted"
 mkdir -p "$D2/orchestration" "$D2/lib"
 cp "$IMPL" "$D2/orchestration/custody_sweep.py"
 cp "$LIB" "$D2/lib/fc_common.py"
+cp "$EXLIB" "$D2/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 revert_entry_get_point_fix "$D2/orchestration/custody_sweep.py"
 RC1=$?
 revert_boundary_to_r7_shape "$D2/orchestration/custody_sweep.py"
@@ -166,10 +169,19 @@ else
   rm -f "$OUT2"
   python3 "$D2/orchestration/custody_sweep.py" propose --inventory "$TMP/inv_missing_kind.json" \
       --repo-root "$TMP/reporoot" --out "$OUT2" >"$ERR2" 2>&1
-  if [ ! -f "$OUT2" ] && grep -q "^Traceback" "$ERR2" && grep -q "KeyError: 'entry_kind'" "$ERR2"; then
+  # T140 Round 10 review, "Recommended root-cause work" item 1: `run_cli_main`
+  # now wraps main() in its OWN, OUTER `except Exception` safety net -- see
+  # test_handoff_r8_regression.sh's own identically-purposed sibling fix for
+  # the full rationale -- so this no longer produces a raw, uncaught
+  # Traceback; the still-load-bearing signal is no rich --out doc + the
+  # OUTER fallback message.
+  if [ ! -f "$OUT2" ] && ! grep -q "^Traceback" "$ERR2" \
+      && grep -q "escaped the top-level dispatch entirely" "$ERR2" \
+      && grep -q "'entry_kind'" "$ERR2"; then
     echo "ok R8-I1 repro (1b) guard-viability: reverting BOTH the point-fix AND the"
-    echo "   boundary reproduces the reviewer's own exact finding -- KeyError crashes"
-    echo "   uncaught, rc=1 (Python's own default), no --out written"
+    echo "   boundary reproduces the reviewer's own exact finding -- KeyError escapes"
+    echo "   main()'s own boundary entirely, caught only by run_cli_main's OUTER,"
+    echo "   tool-agnostic fallback (no rich --out internal-error document written)"
   else
     echo "NOT ok R8-I1 repro (1b) guard-viability BLIND: out_exists=$([ -f "$OUT2" ] && echo yes || echo no) stderr=$(cat "$ERR2" 2>/dev/null)"
     failx
@@ -192,6 +204,7 @@ inject_and_build() {
   mkdir -p "$dir/orchestration" "$dir/lib"
   cp "$IMPL" "$dir/orchestration/custody_sweep.py"
   cp "$LIB" "$dir/lib/fc_common.py"
+  cp "$EXLIB" "$dir/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
   python3 - "$dir/orchestration/custody_sweep.py" "$exc" <<'PYEOF'
 import sys
 p, exc = sys.argv[1], sys.argv[2]
@@ -241,11 +254,18 @@ for exc in KeyError IndexError AttributeError; do
   rm -f "$OUT2"
   python3 "$D/orchestration/custody_sweep.py" verify-proposal --proposal "$TMP/prop.json" \
       --repo-root "$TMP/prop_reporoot" --out "$OUT2" >"$ERR2" 2>&1
-  if [ ! -f "$OUT2" ] && grep -q "^Traceback" "$ERR2" \
-      && grep -Eq "^${exc}: (R8_TOPINJ_PROOF|'R8_TOPINJ_PROOF')\$" "$ERR2"; then
+  # T140 Round 10 review, "Recommended root-cause work" item 1: see
+  # test_handoff_r8_regression.sh's own identically-purposed sibling fix
+  # for the full rationale (run_cli_main's OUTER catch now handles this
+  # too, so no raw Traceback -- the load-bearing signal is no rich --out
+  # doc + the OUTER fallback message).
+  if [ ! -f "$OUT2" ] && ! grep -q "^Traceback" "$ERR2" \
+      && grep -q "escaped the top-level dispatch entirely" "$ERR2" \
+      && grep -Eq "(R8_TOPINJ_PROOF|'R8_TOPINJ_PROOF')" "$ERR2"; then
     echo "ok R8-I1 repro (2, $exc) guard-viability: reverting JUST the boundary's own"
     echo "   catch set back to fc_common.SAFE_EXCEPTIONS makes the SAME injected $exc"
-    echo "   crash uncaught -- proving the Exception widening genuinely does the work"
+    echo "   escape main()'s own boundary entirely (no rich --out doc; only run_cli_main's"
+    echo "   OUTER fallback fires) -- proving the Exception widening genuinely does the work"
   else
     echo "NOT ok R8-I1 repro (2, $exc) guard-viability BLIND: out_exists=$([ -f "$OUT2" ] && echo yes || echo no) stderr=$(cat "$ERR2" 2>/dev/null)"
     failx
@@ -321,6 +341,7 @@ D3="$TMP/r8i2_reverted"
 mkdir -p "$D3/orchestration" "$D3/lib"
 cp "$IMPL" "$D3/orchestration/custody_sweep.py"
 cp "$LIB" "$D3/lib/fc_common.py"
+cp "$EXLIB" "$D3/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 python3 - "$D3/orchestration/custody_sweep.py" <<'PYEOF'
 import re, sys
 p = sys.argv[1]

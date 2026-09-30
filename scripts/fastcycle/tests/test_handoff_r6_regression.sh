@@ -100,6 +100,7 @@ FIXDIR="$FC/tests/fixtures/resume_revalidate"
 PINDIR="$FIXDIR/_pinned"
 IMPL="$FC/orchestration/handoff.py"
 LIB="$FC/lib/fc_common.py"
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 PINNED="$PINDIR/handoff_pre_r6_fix.py"
 
 fail=0
@@ -146,6 +147,7 @@ run_against_pinned() {
   mkdir -p "$TMP/orchestration_scratch" "$TMP/lib"
   cp "$PINNED" "$TMP/orchestration_scratch/handoff.py"
   cp "$LIB" "$TMP/lib/fc_common.py"
+  cp "$EXLIB" "$TMP/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
   python3 "$TMP/orchestration_scratch/handoff.py" resume-check \
     --handoff "$FIXDIR/$scen/handoff.json" --out "$out" >"$TMP/${scen}.pin.err" 2>&1
 }
@@ -165,10 +167,33 @@ import json
 d = json.load(open('$FIXED_OUT'))
 print(','.join(sorted(r['class'] for r in d['unsafe_reasons'])))
 ")
-  if [ "$CLS" = "unverifiable-external-dependency,unverifiable-ground-truth" ]; then
+  # T140 Round 10 independent review finding I2 (docs/CONTINUATION.md
+  # ADDENDUM 114) changed the EXPECTED class here, honestly, for a real
+  # reason: `_merkle_over_dir` now delegates to the shared, lstat-based
+  # `fc_common.merkle_over_dir_lstat` (see that function's own docstring),
+  # which hashes a symlink from its OWN link text -- exactly as git
+  # hashes a symlink blob -- NEVER by following it. A DANGLING symlink's
+  # link text is fully readable via `os.readlink()` whether or not its
+  # target exists, so `broken_link` is no longer an `open()` failure at
+  # all (the class this fixture was originally built to exercise, R6-I1(a)'s
+  # own "fails CLOSED, never a crash" framing) -- it is now a genuinely
+  # hashable tree entry, same as git would see it. The fixture's own
+  # RECORDED `content_address` was computed under the OLD, following-based
+  # scheme (which never reached a hash for this dependency at all, since it
+  # crashed first) -- so the freshly, correctly lstat-computed live hash
+  # now legitimately DIFFERS from that stale recorded value, correctly
+  # reported as `stale-external-dependency` rather than
+  # `unverifiable-external-dependency`. This is the intended, honest
+  # consequence of I2's fix, not a regression: the dependency is no longer
+  # UNVERIFIABLE (this tool CAN now verify it, structurally, without ever
+  # opening the dangling target) -- it is VERIFIED to be stale.
+  if [ "$CLS" = "stale-external-dependency,unverifiable-ground-truth" ]; then
     echo "ok R6-I1(a) real (fixed) tool: resume-check exits 1, writes a real --out"
-    echo "   document, and reports 'unverifiable-external-dependency' for the"
-    echo "   dangling symlink (fails CLOSED, never a crash)"
+    echo "   document, and reports 'stale-external-dependency' for the dangling"
+    echo "   symlink -- T140 Round 10's lstat-based tree hasher (I2) now hashes"
+    echo "   a dangling symlink from its own link text rather than failing to"
+    echo "   open it, so this dependency is VERIFIED stale, never merely"
+    echo "   unverifiable (still fails CLOSED, never a crash)"
   else
     echo "NOT ok R6-I1(a) real (fixed) tool: unexpected unsafe_reasons classes: $CLS"
     failx

@@ -61,6 +61,7 @@ FIXDIR="$FC/tests/fixtures/alias_spread"
 PINDIR="$FIXDIR/_pinned"
 IMPL="$FC/orchestration/limit_class.py"
 LIB="$FC/lib/fc_common.py"
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 PINNED="$PINDIR/limit_class_pre_r7_fix.py"
 
 fail=0
@@ -93,6 +94,7 @@ run_against_pinned() {
   mkdir -p "$TMP/orchestration_scratch" "$TMP/lib"
   cp "$PINNED" "$TMP/orchestration_scratch/limit_class.py"
   cp "$LIB" "$TMP/lib/fc_common.py"
+  cp "$EXLIB" "$TMP/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
   python3 "$TMP/orchestration_scratch/limit_class.py" "$@"
 }
 
@@ -260,6 +262,7 @@ LIVE_ROOT="$TMP/live_boundary"
 mkdir -p "$LIVE_ROOT/scripts/fastcycle/orchestration" "$LIVE_ROOT/scripts/fastcycle/lib"
 cp "$IMPL" "$LIVE_ROOT/scripts/fastcycle/orchestration/limit_class.py"
 cp "$LIB" "$LIVE_ROOT/scripts/fastcycle/lib/fc_common.py"
+cp "$EXLIB" "$LIVE_ROOT/scripts/fastcycle/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 python3 - "$LIVE_ROOT/scripts/fastcycle/orchestration/limit_class.py" <<'PYEOF'
 import sys
 p = sys.argv[1]

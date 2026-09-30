@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>fixtures/limit_class/ — T127 self-validation fixtures</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="fixtureslimit_class--t127-self-validation-fixtures">fixtures/limit_class/
+— T127 self-validation fixtures</h1>
+<p>Fixture convention for
+<code>constitution/scripts/fastcycle/orchestration/limit_class.py</code>
+(plan.md T-B06; tasks.md T127/T135; research.md DEC-14; contracts/
+agent-registry-and-handoff.md AR-005; FR-016). Task T127
+(<code>tasks.md</code>) writes ONLY this RED test + these fixtures; the
+tool itself is T135, a later, separate task (Producer != Verifier,
+§11.4.240 — this file&#39;s author never implements
+<code>limit_class.py</code>).</p>
+<p><strong>A real contract DOES exist for this tool</strong> (unlike
+T109/tier_route.py):
+<code>specs/004-fast-dev-cycles/contracts/agent-registry-and-handoff.md</code>&#39;s
+AR-005 clause + Components block fix the CLI verb
+(<code>limit_class.py --signal &lt;raw&gt; --out &lt;class.json&gt;</code>),
+the closed class set, and the exit codes. This fixture set borrows those
+field names/shapes from the real contract (T104/T108 pattern) rather
+than defining the entire interface from scratch (the T109/ tier_route.py
+pattern, which had no contract at all).</p>
+<h2 id="the-classification-rule-this-fixture-set-encodes-from-researchmd-dec-14">The
+classification rule this fixture set encodes (from research.md
+DEC-14</h2>
+<h2 id="-contractsagent-registry-and-handoffmd-ar-005--data-modelmds">+
+contracts/agent-registry-and-handoff.md AR-005 + data-model.md&#39;s</h2>
+<h2 id="limit_signal-entity-restated-precisely-never-invented"><code>limit_signal</code>
+entity, restated precisely, never invented)</h2>
+<p>Closed class set (four members, DEC-14&#39;s own words):
+<code>{rate-limited (retry-after present) | cap (spend/subscription/weekly cap: no retry-after, or a named weekly/subscription reset) | context-overflow (prompt too long) | other}</code>.</p>
+<ol type="1">
+<li><strong><code>context-overflow</code></strong> — the raw signal is
+an HTTP 400 <code>invalid_request</code> whose text names a
+token/prompt-length ceiling being exceeded (&quot;prompt (is) too long ... N
+tokens &gt; M maximum&quot;). Structurally distinct from every other class:
+no HTTP 429, no <code>retry-after</code>, no cap/reset wording anywhere.
+Handling (AR-005 / plan T-B06): re-dispatch with the governance subset
+(DEC-12), <strong>never</strong> with the same prompt.</li>
+<li><strong><code>cap</code></strong> — an HTTP 429 that is EITHER
+missing a <code>retry-after</code> header OR carries a NAMED
+weekly/subscription reset instant (DEC-14&#39;s own disambiguator, stated as
+an OR of the two conditions). Handling: <strong>never</strong> retry on
+that alias; rebind the resume to an operational alias (§11.4.196
+native-first order) and mark the alias cooled until its stated
+reset.</li>
+<li><strong><code>rate-limited</code></strong> — an HTTP 429 that
+carries a <code>retry-after</code> header AND no named
+weekly/subscription reset (the genuine transient/short-window case).
+Handling: backoff honouring <code>retry-after</code>, then resume on the
+same or another alias.</li>
+<li><strong><code>other</code></strong> — none of the above structurally
+matches; the classifier still emits a verdict (never refuses to
+classify) per the contract&#39;s exit code 1 note (&quot;signal unparseable ...
+class <code>other</code> emitted with the raw signal&quot;).</li>
+</ol>
+<h2 id="layout">Layout</h2>
+<p>Five self-contained fixtures, one JSON file each,
+<code>schema: &quot;limit-class-fixture/v1&quot;</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Fixture</th>
+<th>Kind</th>
+<th>What it proves</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lc_golden_cap_weekly.json</code></td>
+<td>golden</td>
+<td>T127&#39;s own named golden scenario: the 2026-09-26 weekly-cap incident
+— a REAL row from <code>docs/requests/agent_registry.jsonl</code> —
+classifies as <code>cap</code>, never <code>rate-limited</code></td>
+</tr>
+<tr>
+<td><code>lc_golden_context_overflow.json</code></td>
+<td>golden</td>
+<td>T127&#39;s own named golden scenario: the haiku prompt-too-long incident
+— a REAL row from <code>docs/requests/agent_registry.jsonl</code>,
+corroborated by a second, independently-real occurrence captured
+2026-09-30 by this project&#39;s own T114 dispatch — classifies as
+<code>context-overflow</code></td>
+</tr>
+<tr>
+<td><code>lc_bad_cap_via_429_no_retry_after.json</code></td>
+<td>golden-bad</td>
+<td>T127&#39;s own named golden-bad scenario (&quot;a cap classified as
+rate-limited FAILs&quot;): a second REAL row from the SAME 2026-09-26
+weekly-cap incident, proving that a plausible mutation (ignore the
+retry-after/reset disambiguator, call every 429
+<code>rate-limited</code>) mis-derives it</td>
+</tr>
+<tr>
+<td><code>lc_negctrl_rate_limited_retry_after.json</code></td>
+<td>negative-control</td>
+<td>discriminator against the two <code>cap</code> fixtures above: an
+HTTP 429 that DOES carry a short <code>retry-after</code> and NO named
+reset classifies as <code>rate-limited</code>, proving the correct rule
+does not collapse every 429 into <code>cap</code> (the mirror-image
+failure mode of the golden-bad fixture). <strong>Honestly
+<code>provenance: constructed</code></strong> — grep-verified
+(§11.4.115(G)): no real <code>retry-after</code>-bearing row exists
+anywhere in <code>docs/requests/agent_registry.jsonl</code> as of this
+dispatch.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="wire-format-fixed-by-the-real-contract--classjsons-shape-per">Wire
+format (fixed by the real contract — <code>class.json</code>&#39;s shape
+per</h2>
+<h2 id="data-modelmds-limit_signal-entity-class-raw-resets_at"><code>data-model.md</code>&#39;s
+<code>limit_signal</code> entity:
+<code>{class, raw, resets_at}</code>)</h2>
+<p>Each fixture&#39;s <code>expected_class</code> field is one of the four
+closed-set string literals above (hyphenated exactly as the contract
+spells them: <code>&quot;rate-limited&quot;</code>, <code>&quot;cap&quot;</code>,
+<code>&quot;context-overflow&quot;</code>, <code>&quot;other&quot;</code>). This suite&#39;s
+<code>derive_class</code> (embedded in
+<code>test_limit_class_red.sh</code>, never imported by nor shared with
+the not-yet-existing <code>orchestration/limit_class.py</code>, section
+11.4.245) is the DERIVED oracle every fixture&#39;s own
+<code>expected_class</code> is independently re-verified against before
+that value is trusted for anything downstream (mirroring
+<code>test_tier_routing_red.sh</code>&#39;s <code>derive_route</code> /
+<code>test_governance_subset_red.sh</code>&#39;s
+<code>derive_selection</code> precedent exactly).</p>
+<p>The forward-compatible CLI this suite&#39;s &quot;real-tool invocation&quot; block
+exercises once T135 lands:
+<code>orchestration/limit_class.py --signal &lt;raw&gt; --out &lt;class.json&gt;</code>
+— the REAL, contract-fixed verb (not speculative, unlike
+T109/tier_route.py&#39;s provisional verb). Output shape
+<code>{class: str, raw: str, resets_at: str|&quot;UNKNOWN&quot;}</code> per
+<code>data-model.md</code>&#39;s <code>limit_signal</code> entity.</p>
+<h2 id="provenance-discipline-section-114115g--section-1146--constructed">Provenance
+discipline (section 11.4.115(G) / section 11.4.6 — CONSTRUCTED</h2>
+<h2 id="reproductions-never-silently-pass-as-observed-ones">reproductions
+never silently pass as OBSERVED ones)</h2>
+<p>Three of the five fixtures carry <code>provenance: &quot;observed&quot;</code>
+(their <code>raw_signal</code> is copied byte-for-byte from a real,
+cited row in <code>docs/requests/ agent_registry.jsonl</code> or, for
+the context-overflow corroborating signal, from
+<code>specs/004-fast-dev-cycles/tasks.md</code> /
+<code>docs/CONTINUATION.md</code> /
+<code>docs/ requests/history.md</code>). The negative-control fixture is
+honestly <code>provenance: &quot;constructed&quot;</code> — no real
+<code>retry-after</code>-bearing 429 row exists in this project&#39;s
+registry to date (confirmed by a <code>grep -i retry-after</code>
+control needle in the test script itself, not merely asserted here); the
+field shape it constructs (a <code>retry-after</code> seconds header on
+a 429) is the standard, well-established Anthropic API rate-limit
+convention this project&#39;s own constitution already cites
+(§11.4.187/§11.4.196(B) captured 429 signature; research.md DEC-14&#39;s own
+cited source, Anthropic rate limits, R5:97) — never fabricated at
+random.</p>
+</body>
+</html>

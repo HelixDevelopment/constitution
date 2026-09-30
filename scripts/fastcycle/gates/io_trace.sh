@@ -70,7 +70,13 @@ usage() {
 Usage:
   io_trace.sh <gate-script> [gate-args...]
   io_trace.sh trace <gate-script> [gate-args...]
-  io_trace.sh build-map [--sections-dir DIR] [--db PATH]
+  io_trace.sh build-map [--sections-dir DIR] [--db PATH] [--allow-device-scripts]
+                        [--per-script-timeout SECONDS]
+
+  build-map REFUSES to trace a script matching a device-mutating pattern
+  (adb, reboot, settings put, flash/power-cycle tooling, rm -rf outside a
+  scratch tree) unless --allow-device-scripts is passed (T085 Round 2
+  B-R2-3, §12/§11.4.225 host-safety).
 EOF
 }
 
@@ -107,7 +113,13 @@ do_trace() {
     # The gate's own stdout/stderr are discarded -- the tracer only
     # observes I/O, it never judges or surfaces the gate's own output/exit
     # code (README: "regardless of the traced gate's own exit code").
-    strace -f -e trace=openat,stat,newfstatat,lstat,execve,chdir \
+    # T085 Round 2 I-R2-4/I-R2-5: clone,fork,vfork,clone3 added so
+    # io_trace_parse.py can seed a forked child's cwd from its parent's
+    # tracked cwd (not unconditionally this process's own start cwd);
+    # faccessat,access added so a `[ -r marker ]`/`[ -x marker ]`
+    # permission-probe absence-branch is traced (previously only
+    # existence checks via stat/newfstatat were covered).
+    strace -f -e trace=openat,stat,newfstatat,lstat,execve,chdir,clone,fork,vfork,clone3,faccessat,faccessat2,access \
         -o "$_log" sh "$gate_script" "$@" >/dev/null 2>&1 || true
 
     if [ ! -s "$_log" ]; then
@@ -118,22 +130,30 @@ do_trace() {
     python3 "$HERE/lib/io_trace_parse.py" "$_log"
 }
 
-# do_build_map [--sections-dir DIR] [--db PATH]
+# do_build_map [--sections-dir DIR] [--db PATH] [--allow-device-scripts]
+#              [--per-script-timeout SECONDS]
 do_build_map() {
     sections_dir="device/rockchip/rk3588/tests"
     db_path=".cache/fastcycle/io_map.sqlite"
+    allow_device=""
+    timeout_args=""
     while [ $# -gt 0 ]; do
         case "$1" in
             --sections-dir) sections_dir="$2"; shift 2 ;;
             --db)           db_path="$2"; shift 2 ;;
+            --allow-device-scripts) allow_device="--allow-device-scripts"; shift ;;
+            --per-script-timeout) timeout_args="--per-script-timeout $2"; shift 2 ;;
             *) echo "io_trace.sh build-map: unknown option $1" >&2; exit 2 ;;
         esac
     done
     _require_strace_and_python3
+    # shellcheck disable=SC2086
     python3 "$HERE/lib/io_trace_build_map.py" \
         --sections-dir "$sections_dir" \
         --db "$db_path" \
-        --tool "$0"
+        --tool "$0" \
+        ${allow_device:+"$allow_device"} \
+        $timeout_args
 }
 
 case "${1:-}" in

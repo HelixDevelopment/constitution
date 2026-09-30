@@ -69,14 +69,42 @@ import sys
 # stat("<path>", ...) = <rc>                       (older glibc)
 # newfstatat(AT_FDCWD, "<path>", ...) = <rc>        (this host, verified)
 # lstat("<path>", ...) = <rc>
+# faccessat(AT_FDCWD, "<path>", <mode>, ...) = <rc> (T085 Round 2 I-R2-5:
+#   `[ -r marker ]`/`[ -x marker ]` permission-probe absence-branches were
+#   previously invisible -- only `-e`-shaped existence checks (stat/
+#   newfstatat) were covered; `access("<path>", <mode>) = <rc>` (the older
+#   glibc name for the same check) is traced alongside it, and
+#   `faccessat2` -- the modern kernel syscall dash's own `[ -r ... ]`
+#   builtin was empirically verified (2026-09-30) to actually emit on
+#   this host/kernel, NOT plain `faccessat` -- is traced too.
 _SYSCALL_LINE = re.compile(
-    r'^(?:(?P<pid>\d+)\s+)?(?P<syscall>openat|stat|newfstatat|lstat)\((?P<args>.*)\)\s*=\s*(?P<rc>-?\d+)'
+    r'^(?:(?P<pid>\d+)\s+)?(?P<syscall>openat|stat|newfstatat|lstat|faccessat2|faccessat|access)\((?P<args>.*)\)\s*=\s*(?P<rc>-?\d+)'
 )
 
 # chdir("<path>") = <rc> -- traced (io_trace.sh) specifically to resolve
 # relative reads/writes against the CORRECT per-process cwd (I5 fix (2)).
 _CHDIR_LINE = re.compile(
     r'^(?:(?P<pid>\d+)\s+)?chdir\("(?P<path>(?:[^"\\]|\\.)*)"\)\s*=\s*(?P<rc>-?\d+)'
+)
+
+# T085 Round 2 I-R2-4: <ppid> clone(...) = <cpid> (and the fork()/vfork()/
+# clone3() equivalents, plus strace -f's own "<... clone resumed>) = <cpid>"
+# shape when a clone's entry and exit land on different log lines) --
+# traced (io_trace.sh now adds clone,fork,vfork,clone3 to its -e trace=
+# list) specifically so a NEWLY-forked child's cwd is seeded from its
+# PARENT's tracked cwd at fork time, not unconditionally from this
+# process's own start_cwd (reproduced live before this fix: `cd sub;
+# cat data.txt` inside a subshell recorded a non-existent
+# "<start_cwd>/data.txt", missing the real "<start_cwd>/sub/data.txt", an
+# extra `sh -c '...'` fork between io_trace.sh's start and the read). Real
+# strace -f output on this host verified live, 2026-09-30: a plain
+# un-split "<ppid> clone(...) = <cpid>" line -- the resumed-line
+# alternative is matched defensively for hosts/loads where strace splits
+# the entry and exit across lines.
+_FORK_LINE = re.compile(
+    r'^(?:(?P<pid>\d+)\s+)?'
+    r'(?:(?:clone|clone3|fork|vfork)\(.*|<\.\.\.\s*(?:clone|clone3|fork|vfork)\s+resumed>.*)'
+    r'\)\s*=\s*(?P<child>\d+)\s*$'
 )
 
 # The path is the first double-quoted string in the argument list, whether
@@ -171,6 +199,19 @@ def main(argv):
 
     with open(argv[1], "r", encoding="utf-8", errors="replace") as fh:
         for line in fh:
+            fm = _FORK_LINE.match(line)
+            if fm:
+                # T085 Round 2 I-R2-4: seed the child's cwd from its
+                # PARENT's CURRENTLY-TRACKED cwd at the moment of fork,
+                # never from this process's global start_cwd -- a parent
+                # that already chdir'd before forking a child must pass
+                # that cwd on, exactly like the real kernel semantics of
+                # fork/clone (a child's cwd is inherited, not reset).
+                parent_pid = fm.group("pid")
+                child_pid = fm.group("child")
+                cwd_by_pid[child_pid] = cwd_for(parent_pid)
+                continue
+
             cm = _CHDIR_LINE.match(line)
             if cm:
                 try:

@@ -43,7 +43,7 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 IMPL="$FC/orchestration/custody_sweep.py"
 LIB="$FC/lib/fc_common.py"
-
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 fail=0
 failx() { fail=1; }
 
@@ -66,6 +66,7 @@ build_scratch_copy() {
   mkdir -p "$dir/orchestration" "$dir/lib"
   cp "$IMPL" "$dir/orchestration/custody_sweep.py"
   cp "$LIB" "$dir/lib/fc_common.py"
+  cp "$EXLIB" "$dir/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 }
 
 mutate_revert_doc_fallback() {
@@ -86,14 +87,40 @@ PYEOF
 }
 
 mutate_disable_stale_invalidation() {
-  # $1 = orchestration/custody_sweep.py path
+  # T140 Round 10: _invalidate_stale_out's implementation now lives in
+  # lib/fc_entry.py (shared, as invalidate_stale_out) -- $1 = lib/fc_entry.py
+  # path (was: orchestration/custody_sweep.py path
   python3 - "$1" <<'PYEOF'
 import sys
 p = sys.argv[1]
 with open(p, encoding="utf-8") as fh:
     c = fh.read()
-old = 'def _invalidate_stale_out(out_path):\n    """T140 Round 9b review finding R9b-I1 (fixed here): see'
-new = 'def _invalidate_stale_out(out_path):\n    return  # R9 GUARD-VIABILITY MUTATION: pre-invalidation disabled\n    """T140 Round 9b review finding R9b-I1 (fixed here): see'
+old = 'def invalidate_stale_out(out_path):\n    """Remove any EXISTING'
+new = 'def invalidate_stale_out(out_path):\n    return  # R9 GUARD-VIABILITY MUTATION: pre-invalidation disabled\n    """Remove any EXISTING'
+if c.count(old) != 1:
+    sys.exit(1)
+c = c.replace(old, new, 1)
+with open(p, "w", encoding="utf-8") as fh:
+    fh.write(c)
+PYEOF
+}
+
+mutate_restore_unconditional_invalidation() {
+  # T140 Round 10 review finding M3, first half, guard-viability (fixed
+  # here): $1 = orchestration/custody_sweep.py path -- see
+  # test_handoff_r9_regression.sh's own identically-purposed sibling for
+  # the full rationale. Restores the PRE-M3 call-site shape (unconditional,
+  # before argument parsing begins).
+  python3 - "$1" <<'PYEOF'
+import sys
+p = sys.argv[1]
+with open(p, encoding="utf-8") as fh:
+    c = fh.read()
+old = "            return 2\n\n    args = None"
+new = ("            return 2\n\n"
+       "    invalidate_stale_out(scan_argv_for_out(argv))  "
+       "# R9b GUARD-VIABILITY MUTATION: unconditional pre-M3 call site restored\n\n"
+       "    args = None")
 if c.count(old) != 1:
     sys.exit(1)
 c = c.replace(old, new, 1)
@@ -112,12 +139,9 @@ with open(p, encoding="utf-8") as fh:
 old = ('    stream = kwargs.get("file", sys.stdout)\n'
        '    try:\n'
        '        _real_print(*args, **kwargs)\n'
+       '        stream.flush()\n'
        '    except Exception:\n'
-       '        try:\n'
-       '            fd = stream.fileno()\n'
-       '            os.dup2(os.open(os.devnull, os.O_WRONLY), fd)\n'
-       '        except Exception:\n'
-       '            pass\n')
+       '        pass\n')
 new = '    _real_print(*args, **kwargs)  # R9 GUARD-VIABILITY MUTATION: guard removed\n'
 if c.count(old) != 1:
     sys.exit(1)
@@ -201,58 +225,50 @@ else
   fi
 fi
 
+# T140 Round 10 review finding M3, first half (this scenario REPLACES the
+# pre-Round-10 KeyboardInterrupt-isolation scenario -- see
+# test_handoff_r9_regression.sh's own identically-purposed sibling for the
+# full rationale). `inventory`/`propose` have NO required flags in this
+# tool (--repo-root/--out/--inventory are all optional except propose's
+# own --inventory and verify-proposal's own --proposal); `verify-proposal`
+# with no `--proposal` is this tool's own clean argparse usage error.
 D2="$TMP/mut_stale"
 build_scratch_copy "$D2"
-mutate_disable_stale_invalidation "$D2/orchestration/custody_sweep.py"
+mutate_restore_unconditional_invalidation "$D2/orchestration/custody_sweep.py"
 if [ $? -ne 0 ]; then
   echo "NOT ok R9b-I1 (stale-out) guard-viability: mutation anchor not found (content drifted)"
   failx
 else
-  D3="$TMP/mut_stale_control"
-  build_scratch_copy "$D3"
-  for D in "$D2" "$D3"; do
-    python3 - "$D/orchestration/custody_sweep.py" <<'PYEOF'
-import sys
-p = sys.argv[1]
-with open(p, encoding="utf-8") as fh:
-    c = fh.read()
-old = "def build_arg_parser():\n"
-new = "def build_arg_parser():\n    raise KeyboardInterrupt('R9_PREPARSE_PROOF')\n"
-if c.count(old) != 1:
-    sys.exit(1)
-c = c.replace(old, new, 1)
-with open(p, "w", encoding="utf-8") as fh:
-    fh.write(c)
-PYEOF
-  done
-
   python3 -c "
 import json
 with open('$TMP/c_out.json', 'w') as fh:
-    json.dump({'schema':'custody-sweep-inventory/v1','counts':{'stash':999}}, fh)
+    json.dump({'schema':'custody-sweep-verify/v1','entry_id':'unrelated-earlier-run'}, fh)
 "
-  python3 "$D3/orchestration/custody_sweep.py" inventory --repo-root "$REPO" --out "$TMP/c_out.json" >"$TMP/c.out" 2>"$TMP/c.err"
-  C_ABSENT=1
-  [ -f "$TMP/c_out.json" ] && C_ABSENT=0
+  python3 "$IMPL" verify-proposal --out "$TMP/c_out.json" >"$TMP/c.out" 2>"$TMP/c.err"
+  C_RC=$?
+  C_UNTOUCHED=0
+  if [ -f "$TMP/c_out.json" ] && python3 -c "import json,sys; d=json.load(open('$TMP/c_out.json')); sys.exit(0 if d.get('entry_id')=='unrelated-earlier-run' else 1)"; then
+    C_UNTOUCHED=1
+  fi
 
   python3 -c "
 import json
 with open('$TMP/d_out.json', 'w') as fh:
-    json.dump({'schema':'custody-sweep-inventory/v1','counts':{'stash':999}}, fh)
+    json.dump({'schema':'custody-sweep-verify/v1','entry_id':'unrelated-earlier-run'}, fh)
 "
-  python3 "$D2/orchestration/custody_sweep.py" inventory --repo-root "$REPO" --out "$TMP/d_out.json" >"$TMP/d.out" 2>"$TMP/d.err"
-  D_STILL_STALE=0
-  if [ -f "$TMP/d_out.json" ] && python3 -c "import json,sys; d=json.load(open('$TMP/d_out.json')); sys.exit(0 if d.get('counts',{}).get('stash')==999 else 1)"; then
-    D_STILL_STALE=1
-  fi
+  python3 "$D2/orchestration/custody_sweep.py" verify-proposal --out "$TMP/d_out.json" >"$TMP/d.out" 2>"$TMP/d.err"
+  D_RC=$?
+  D_DELETED=0
+  [ ! -f "$TMP/d_out.json" ] && D_DELETED=1
 
-  if [ "$C_ABSENT" = "1" ] && [ "$D_STILL_STALE" = "1" ]; then
-    echo "ok R9b-I1 (stale-out) guard-viability: with the SAME injected BaseException pre-parse"
-    echo "   crash, the REAL fixed tool (control copy) leaves --out honestly ABSENT, while the"
-    echo "   copy with _invalidate_stale_out neutered leaves the pre-seeded STALE verdict"
-    echo "   sitting there unchanged -- proving pre-invalidation is genuinely load-bearing"
+  if [ "$C_RC" = "2" ] && [ "$C_UNTOUCHED" = "1" ] && [ "$D_RC" = "2" ] && [ "$D_DELETED" = "1" ]; then
+    echo "ok R9b-I1 (stale-out) guard-viability: a pure usage error (verify-proposal with no"
+    echo "   --proposal) now correctly LEAVES a pre-existing, wholly unrelated --out file"
+    echo "   untouched on the real fixed tool, while a copy with the OLD, unconditional"
+    echo "   call site restored still wrongly deletes it -- proving M3's relocation is"
+    echo "   genuinely load-bearing"
   else
-    echo "NOT ok R9b-I1 (stale-out) guard-viability BLIND: control_absent=$([ $C_ABSENT = 1 ] && echo yes || echo no) mutated_still_stale=$([ $D_STILL_STALE = 1 ] && echo yes || echo no)"
+    echo "NOT ok R9b-I1 (stale-out) guard-viability BLIND: c_rc=$C_RC c_untouched=$C_UNTOUCHED d_rc=$D_RC d_deleted=$D_DELETED"
     failx
   fi
 fi
@@ -295,7 +311,7 @@ fi
 
 D4="$TMP/mut_print"
 build_scratch_copy "$D4"
-mutate_neuter_safe_print "$D4/orchestration/custody_sweep.py"
+mutate_neuter_safe_print "$D4/lib/fc_entry.py"
 inject_cmd_inventory_crash "$D4/orchestration/custody_sweep.py"
 if [ $? -ne 0 ]; then
   echo "NOT ok R9-I1 (_safe_print) guard-viability: mutation/injection anchor not found (content drifted)"
@@ -358,7 +374,7 @@ fi
 
 D7="$TMP/mut_print_only"
 build_scratch_copy "$D7"
-mutate_neuter_safe_print "$D7/orchestration/custody_sweep.py"
+mutate_neuter_safe_print "$D7/lib/fc_entry.py"
 if [ $? -ne 0 ]; then
   echo "NOT ok R9-M2 (_safe_print) guard-viability: mutation anchor not found (content drifted)"
   failx

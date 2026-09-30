@@ -161,6 +161,43 @@ import fc_common  # noqa: E402  (path-inserted import, see above)
 canon = fc_common.canon
 body_hash_of = fc_common.body_hash_of
 
+
+class TargetPathEscapeError(OSError):
+    """T085 Round 2 B-R2-5(a): raised by build_tree() when a change's
+    target_file would resolve OUTSIDE the disposable tree it is being
+    copied into -- an absolute target_file (os.path.join silently DISCARDS
+    the tmp prefix for an absolute second argument) or a '..'-escaping
+    relative one lets an attacker-or-buggy batch.json write anywhere on
+    the filesystem a real victim file became 'PWNED' when reproduced live
+    before this fix (§11.4.199). Subclasses OSError so every EXISTING
+    `except OSError` call site around build_tree()/verdict_for() already
+    maps this to EXIT_BLIND (no result.json written, no partial/untrusted
+    verdict) with no further call-site changes needed; cmd_run() ALSO
+    validates every change's target_file syntactically UP FRONT (before
+    any tree is built at all, alongside the existing --patches existence
+    check) so the common case is refused as a clean EXIT_USAGE before this
+    defense-in-depth check is ever reached."""
+
+
+def is_safe_relative_target(rel_path):
+    """T085 Round 2 B-R2-5(a): True iff rel_path is safe to join under ANY
+    directory root via os.path.join(root, rel_path) without escaping that
+    root -- never an absolute path (os.path.join(root, '/etc/passwd')
+    returns '/etc/passwd', discarding root entirely -- reproduced live),
+    never containing a '..' path segment that walks back out of root."""
+    if not isinstance(rel_path, str) or not rel_path:
+        return False
+    if os.path.isabs(rel_path):
+        return False
+    normalized = os.path.normpath(rel_path)
+    if normalized == os.pardir or normalized.startswith(os.pardir + os.sep):
+        return False
+    # normpath collapses a leading '/' away on POSIX for a relative-looking
+    # string like 'a/../../b' -> '../b', already caught above; an embedded
+    # '..' that stays net-non-escaping (e.g. 'a/../b' -> 'b') is fine.
+    return True
+
+
 SCHEMA = "batch-bisect/v1"
 WIP_CAPS_SCHEMA = "batch-bisect-wip-caps/v1"
 
@@ -231,16 +268,46 @@ def build_tree(base_tree_dir, patches_dir, changes):
         src = os.path.join(base_tree_dir, entry)
         if os.path.isfile(src):
             shutil.copy2(src, os.path.join(tmp, entry))
+    tmp_real = os.path.realpath(tmp)
     for ch in changes:
         src = os.path.join(patches_dir, ch["patch"])
         dst = os.path.join(tmp, ch["target_file"])
+        # T085 Round 2 B-R2-5(a) defense-in-depth: cmd_run() already
+        # refuses an unsafe target_file syntactically before reaching
+        # here (the common path); this realpath-based check is the
+        # authoritative one -- it also catches any direct compute_
+        # batch_result() caller that bypassed cmd_run()'s own validation.
+        dst_real = os.path.realpath(dst)
+        if dst_real != tmp_real and not dst_real.startswith(tmp_real + os.sep):
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise TargetPathEscapeError(
+                "change %r target_file %r resolves to %r, OUTSIDE the "
+                "disposable tree %r -- refusing to write (T085 Round 2 "
+                "B-R2-5(a))" % (ch.get("change_id"), ch["target_file"], dst_real, tmp_real)
+            )
         shutil.copy2(src, dst)
     return tmp
 
 
+# T085 Round 2 MINOR: a hung/misbehaving --gate previously had no bound --
+# a single stuck gate invocation could wedge this tool (and, transitively,
+# anything driving it) indefinitely. Mirrors gate_audit.py's own
+# run_gate() timeout convention (§12/§11.4.225 host-safety).
+GATE_TIMEOUT_SECONDS = 120
+
+
 def run_gate_on_tree(gate_path, tree_dir):
-    """Runs --gate against tree_dir; returns ("PASS"|"FAIL", raw_rc)."""
-    proc = subprocess.run([gate_path, tree_dir], capture_output=True, text=True)
+    """Runs --gate against tree_dir; returns ("PASS"|"FAIL", raw_rc). A
+    gate that exceeds GATE_TIMEOUT_SECONDS is treated as FAIL (a timed-out
+    gate cannot have genuinely validated the tree -- it is never silently
+    read as PASS) with raw_rc -1, distinguishable from a real exit code."""
+    try:
+        proc = subprocess.run(
+            [gate_path, tree_dir], capture_output=True, text=True,
+            timeout=GATE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return "FAIL", -1
     return ("PASS" if proc.returncode == 0 else "FAIL"), proc.returncode
 
 
@@ -430,6 +497,19 @@ def cmd_run(args):
                 % (ch["change_id"], ch["patch"], args.patches)
             )
             return EXIT_USAGE
+        # T085 Round 2 B-R2-5(a): reject a change whose target_file would
+        # escape the disposable tree BEFORE any tree is ever built (an
+        # absolute path, or a '..'-escaping relative one) -- reproduced
+        # live as a real write outside batch_bisect's own scratch tree.
+        if not is_safe_relative_target(ch["target_file"]):
+            sys.stderr.write(
+                "batch_bisect run: change %r target_file %r is unsafe -- "
+                "it must be a relative path that does not escape the "
+                "disposable tree (absolute paths and '..'-escaping "
+                "segments are refused, T085 Round 2 B-R2-5(a))\n"
+                % (ch["change_id"], ch["target_file"])
+            )
+            return EXIT_USAGE
 
     doc, exit_code = compute_batch_result(batch, args.base_tree, args.patches, args.gate)
     if doc is None:
@@ -587,8 +667,29 @@ def cmd_wip_caps(args):
             pass
         except OSError:
             shutil.copy2(args.thresholds, backup_path)
-        with open(args.thresholds, "w", encoding="utf-8") as fh:
-            fh.write(new_text)
+        # T085 Round 2 B-R2-5: NEVER open(args.thresholds, "w") after the
+        # hardlink above -- os.link() makes backup_path the SAME inode as
+        # args.thresholds, so truncating-and-writing args.thresholds in
+        # place silently overwrites the "backup" too (reproduced live:
+        # the .bak shared inode with the new content, the pre-change bytes
+        # were gone). Fixed via the SAME write-temp-then-rename pattern
+        # write_result() already uses above: the new content lands in a
+        # fresh temp file in the same directory, then os.replace() atomically
+        # repoints the args.thresholds directory entry at that NEW inode --
+        # the hardlinked backup_path entry keeps pointing at the OLD,
+        # untouched inode, genuinely preserving the pre-change bytes.
+        out_dir = os.path.dirname(os.path.abspath(args.thresholds)) or "."
+        fd, tmp_path = tempfile.mkstemp(dir=out_dir, prefix=".batch_bisect_wip_caps.")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(new_text)
+            os.replace(tmp_path, args.thresholds)
+        except OSError:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
         report["backup_path"] = backup_path
         print("batch_bisect wip-caps: wrote %s (backup: %s)" % (args.thresholds, backup_path))
     else:

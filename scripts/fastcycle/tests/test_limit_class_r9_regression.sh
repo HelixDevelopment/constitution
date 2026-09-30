@@ -60,6 +60,7 @@ ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 IMPL="$FC/orchestration/limit_class.py"
 LIB="$FC/lib/fc_common.py"
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 FIXTURE="$FC/tests/fixtures/alias_spread/as_golden_spread.json"
 
 fail=0
@@ -84,6 +85,7 @@ build_scratch_copy() {
   mkdir -p "$dir/orchestration" "$dir/lib"
   cp "$IMPL" "$dir/orchestration/limit_class.py"
   cp "$LIB" "$dir/lib/fc_common.py"
+  cp "$EXLIB" "$dir/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 }
 
 mutate_revert_doc_fallback() {
@@ -104,14 +106,43 @@ PYEOF
 }
 
 mutate_disable_stale_invalidation() {
-  # $1 = orchestration/limit_class.py path
+  # T140 Round 10: _invalidate_stale_out's implementation now lives in
+  # lib/fc_entry.py (shared, as invalidate_stale_out) -- $1 = lib/fc_entry.py
+  # path (was: orchestration/limit_class.py path
   python3 - "$1" <<'PYEOF'
 import sys
 p = sys.argv[1]
 with open(p, encoding="utf-8") as fh:
     c = fh.read()
-old = 'def _invalidate_stale_out(out_path):\n    """T140 Round 9b review finding R9b-I1 (fixed here): see'
-new = 'def _invalidate_stale_out(out_path):\n    return  # R9 GUARD-VIABILITY MUTATION: pre-invalidation disabled\n    """T140 Round 9b review finding R9b-I1 (fixed here): see'
+old = 'def invalidate_stale_out(out_path):\n    """Remove any EXISTING'
+new = 'def invalidate_stale_out(out_path):\n    return  # R9 GUARD-VIABILITY MUTATION: pre-invalidation disabled\n    """Remove any EXISTING'
+if c.count(old) != 1:
+    sys.exit(1)
+c = c.replace(old, new, 1)
+with open(p, "w", encoding="utf-8") as fh:
+    fh.write(c)
+PYEOF
+}
+
+mutate_restore_unconditional_invalidation() {
+  # T140 Round 10 review finding M3, first half, guard-viability (fixed
+  # here): $1 = orchestration/limit_class.py path -- see
+  # test_handoff_r9_regression.sh's own identically-purposed sibling for
+  # the full rationale. Restores the PRE-M3 call-site shape (unconditional,
+  # before argv[0]=="place" dispatch / classify's own parsing) -- the SAME
+  # single call site covers BOTH `place` and `classify` in this file
+  # (module docstring), so this one restoration exercises the usage-error
+  # scenario for `classify` (this test's own scenario below).
+  python3 - "$1" <<'PYEOF'
+import sys
+p = sys.argv[1]
+with open(p, encoding="utf-8") as fh:
+    c = fh.read()
+old = "            return EXIT_USAGE\n\n    # T136: dispatch to `place`"
+new = ("            return EXIT_USAGE\n\n"
+       "    invalidate_stale_out(scan_argv_for_out(argv))  "
+       "# R9b GUARD-VIABILITY MUTATION: unconditional pre-M3 call site restored\n\n"
+       "    # T136: dispatch to `place`")
 if c.count(old) != 1:
     sys.exit(1)
 c = c.replace(old, new, 1)
@@ -130,12 +161,9 @@ with open(p, encoding="utf-8") as fh:
 old = ('    stream = kwargs.get("file", sys.stdout)\n'
        '    try:\n'
        '        _real_print(*args, **kwargs)\n'
+       '        stream.flush()\n'
        '    except Exception:\n'
-       '        try:\n'
-       '            fd = stream.fileno()\n'
-       '            os.dup2(os.open(os.devnull, os.O_WRONLY), fd)\n'
-       '        except Exception:\n'
-       '            pass\n')
+       '        pass\n')
 new = '    _real_print(*args, **kwargs)  # R9 GUARD-VIABILITY MUTATION: guard removed\n'
 if c.count(old) != 1:
     sys.exit(1)
@@ -233,58 +261,47 @@ else
   fi
 fi
 
+# T140 Round 10 review finding M3, first half (this scenario REPLACES the
+# pre-Round-10 KeyboardInterrupt-isolation scenario -- see
+# test_handoff_r9_regression.sh's own identically-purposed sibling for the
+# full rationale). `classify` requires `--signal`, so a bare `--out X`
+# with no `--signal` is a clean argparse usage error (rc=2).
 D2="$TMP/mut_stale"
 build_scratch_copy "$D2"
-mutate_disable_stale_invalidation "$D2/orchestration/limit_class.py"
+mutate_restore_unconditional_invalidation "$D2/orchestration/limit_class.py"
 if [ $? -ne 0 ]; then
   echo "NOT ok R9b-I1 (stale-out) guard-viability: mutation anchor not found (content drifted)"
   failx
 else
-  D3="$TMP/mut_stale_control"
-  build_scratch_copy "$D3"
-  for D in "$D2" "$D3"; do
-    python3 - "$D/orchestration/limit_class.py" <<'PYEOF'
-import sys
-p = sys.argv[1]
-with open(p, encoding="utf-8") as fh:
-    c = fh.read()
-old = "def build_arg_parser():\n"
-new = "def build_arg_parser():\n    raise KeyboardInterrupt('R9_PREPARSE_PROOF')\n"
-if c.count(old) != 1:
-    sys.exit(1)
-c = c.replace(old, new, 1)
-with open(p, "w", encoding="utf-8") as fh:
-    fh.write(c)
-PYEOF
-  done
-
   python3 -c "
 import json
 with open('$TMP/c_out.json', 'w') as fh:
-    json.dump({'class':'cap','raw':'stale','resets_at':'UNKNOWN'}, fh)
+    json.dump({'class':'cap','raw':'unrelated-earlier-run','resets_at':'UNKNOWN'}, fh)
 "
-  python3 "$D3/orchestration/limit_class.py" --signal "HTTP 429 retry-after: 30" --out "$TMP/c_out.json" >"$TMP/c.out" 2>"$TMP/c.err"
-  C_ABSENT=1
-  [ -f "$TMP/c_out.json" ] && C_ABSENT=0
+  python3 "$IMPL" --out "$TMP/c_out.json" >"$TMP/c.out" 2>"$TMP/c.err"
+  C_RC=$?
+  C_UNTOUCHED=0
+  if [ -f "$TMP/c_out.json" ] && python3 -c "import json,sys; d=json.load(open('$TMP/c_out.json')); sys.exit(0 if d.get('raw')=='unrelated-earlier-run' else 1)"; then
+    C_UNTOUCHED=1
+  fi
 
   python3 -c "
 import json
 with open('$TMP/d_out.json', 'w') as fh:
-    json.dump({'class':'cap','raw':'stale','resets_at':'UNKNOWN'}, fh)
+    json.dump({'class':'cap','raw':'unrelated-earlier-run','resets_at':'UNKNOWN'}, fh)
 "
-  python3 "$D2/orchestration/limit_class.py" --signal "HTTP 429 retry-after: 30" --out "$TMP/d_out.json" >"$TMP/d.out" 2>"$TMP/d.err"
-  D_STILL_STALE=0
-  if [ -f "$TMP/d_out.json" ] && python3 -c "import json,sys; d=json.load(open('$TMP/d_out.json')); sys.exit(0 if d.get('raw')=='stale' else 1)"; then
-    D_STILL_STALE=1
-  fi
+  python3 "$D2/orchestration/limit_class.py" --out "$TMP/d_out.json" >"$TMP/d.out" 2>"$TMP/d.err"
+  D_RC=$?
+  D_DELETED=0
+  [ ! -f "$TMP/d_out.json" ] && D_DELETED=1
 
-  if [ "$C_ABSENT" = "1" ] && [ "$D_STILL_STALE" = "1" ]; then
-    echo "ok R9b-I1 (stale-out) guard-viability: with the SAME injected BaseException pre-parse"
-    echo "   crash, the REAL fixed tool (control copy) leaves --out honestly ABSENT, while the"
-    echo "   copy with _invalidate_stale_out neutered leaves the pre-seeded STALE verdict"
-    echo "   sitting there unchanged -- proving pre-invalidation is genuinely load-bearing"
+  if [ "$C_RC" = "2" ] && [ "$C_UNTOUCHED" = "1" ] && [ "$D_RC" = "2" ] && [ "$D_DELETED" = "1" ]; then
+    echo "ok R9b-I1 (stale-out) guard-viability: a pure usage error (no --signal) now"
+    echo "   correctly LEAVES a pre-existing, wholly unrelated --out file untouched on the"
+    echo "   real fixed tool, while a copy with the OLD, unconditional call site restored"
+    echo "   still wrongly deletes it -- proving M3's relocation is genuinely load-bearing"
   else
-    echo "NOT ok R9b-I1 (stale-out) guard-viability BLIND: control_absent=$([ $C_ABSENT = 1 ] && echo yes || echo no) mutated_still_stale=$([ $D_STILL_STALE = 1 ] && echo yes || echo no)"
+    echo "NOT ok R9b-I1 (stale-out) guard-viability BLIND: c_rc=$C_RC c_untouched=$C_UNTOUCHED d_rc=$D_RC d_deleted=$D_DELETED"
     failx
   fi
 fi
@@ -340,7 +357,7 @@ PYEOF
     continue
   fi
 
-  mutate_neuter_safe_print "$D6/orchestration/limit_class.py"
+  mutate_neuter_safe_print "$D6/lib/fc_entry.py"
   if [ $? -ne 0 ]; then
     echo "NOT ok R9-I1 ($BRANCH) guard-viability: mutation anchor not found (content drifted)"
     failx

@@ -35,12 +35,14 @@ Side-effects: emit writes --out (except code 3). Python stdlib only.
 """
 import argparse
 import datetime
+import errno
 import hashlib
 import json
 import difflib
 import os
 import re
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -127,6 +129,136 @@ def canon(obj):
 def body_hash_of(doc):
     body = {k: v for k, v in doc.items() if k not in EXCLUDED}
     return hashlib.sha256(canon(body).encode("utf-8")).hexdigest()
+
+
+def _nofollow_opener(path, flags):
+    """Custom `open()` opener (see `merkle_over_dir_lstat` below): adds
+    `O_NOFOLLOW` to the flags Python's own `open()` builtin would
+    otherwise pass to the real `os.open()` syscall, where the platform
+    exposes that flag (Linux/BSD; silently unavailable on platforms that
+    do not define `os.O_NOFOLLOW`, e.g. Windows -- `merkle_over_dir_lstat`'s
+    own preceding `os.lstat` check is its real, platform-independent
+    defense; `O_NOFOLLOW` here closes only the narrow TOCTOU window
+    between that `lstat` and this `open`, section 11.4.6 honest
+    boundary: it defends against nothing else)."""
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    return os.open(path, flags)
+
+
+def merkle_over_dir_lstat(root):
+    """T140 Round 10 independent review finding I2 (section 11.4.250
+    heuristic-tower/primitive-defect, section 11.4.227 reuse-not-
+    reinvention): the ONE shared, lstat-based, symlink-NON-following
+    MerkleRoot tree hasher every fastcycle tool that hashes a directory
+    tree now uses -- landed here, in `fc_common.py`, rather than as
+    another independently-reimplemented per-tool copy (the retired
+    `orchestration/handoff.py::_merkle_over_dir` was exactly such a copy,
+    and the defect this function closes was specific to that copy's own
+    unguarded, following `open()` deep inside its own tree walk).
+
+    The defect this closes (T140 ADDENDUM 114, verbatim): "The realpath
+    check only covers `current_dir`. `_merkle_over_dir` then opens every
+    entry with a following `open()`. Nested file symlink,
+    `tree_current/d/pw -> /etc/passwd`: passes the check, and
+    `/etc/passwd`'s bytes are hashed ... That makes the tool a hash
+    oracle for arbitrary readable files ... `tree_current/d/z ->
+    /dev/zero`: an unbounded read ... an OOM hazard (section 12) ... A
+    FIFO under the tree: the tool hung until `timeout` (rc=124)." The
+    caller's own top-level containment check (`os.path.realpath` against
+    `tree_current/`'s own root, still correct and unchanged -- see
+    `orchestration/handoff.py`'s own `cmd_resume_check`) only resolves
+    the SINGLE, top-level `locator` path once; it says nothing about
+    entries genuinely INSIDE that tree that are THEMSELVES symlinks,
+    which is exactly what this function now refuses to follow, at any
+    depth, ever.
+
+    sha256 over the sorted list of (relative-path, ContentAddress) pairs
+    of every REGULAR FILE under `root` (data-model.md sec0 MerkleRoot
+    convention: "pairs sorted bytewise by path; empty set is a distinct,
+    valid root"), where:
+      - `os.walk(root, followlinks=False)` never DESCENDS into a
+        symlinked directory in the first place (without this, a
+        symlinked SUBTREE, not merely one file, would be silently walked
+        as if it were real) -- this alone is not sufficient, since
+        `os.walk` still reports a NON-directory symlink as an ordinary
+        filename, which is why every entry is ALSO explicitly re-checked
+        below.
+      - every entry `os.walk` reports is inspected via `os.lstat`
+        (NEVER `os.stat`, NEVER a following `open()`) before this
+        function decides what it is -- a genuine TOCTOU window exists
+        between this `lstat` and any subsequent `open()`, closed for
+        regular files by `_nofollow_opener` above (`O_NOFOLLOW`); for a
+        symlink entry there is no subsequent open at all (see next
+        bullet), so no such window exists for that case.
+      - a symlink entry (file OR directory symlink alike -- `os.walk`
+        reports a directory symlink as a `dirnames` entry it will not
+        descend into, which would otherwise silently DROP it from the
+        Merkle set entirely, its own honesty gap per section 11.4.6: a
+        symlinked directory's mere presence is still a real, hashable
+        fact about this tree) is hashed from its OWN link text
+        (`os.readlink()`), exactly as git hashes a symlink blob -- its
+        TARGET is NEVER read, opened, or followed, at any depth. This is
+        the ONE change that structurally closes BOTH the `/etc/passwd`
+        hash-oracle finding AND the `/dev/zero` unbounded-read finding:
+        neither can be reached at all once a symlink's target is simply
+        never opened.
+      - a non-regular, non-symlink entry (FIFO, socket, device, ...) is
+        refused outright -- raises `OSError` (never `ValueError`;
+        matching `os.lstat`'s own exception class, so every caller of
+        this function that already wraps it in `except OSError` -- e.g.
+        `orchestration/handoff.py`'s own `cmd_resume_check` check (2) --
+        needs NO changes of its own to also catch this) naming the path
+        and its real mode -- rather than ever being `open()`-ed. This is
+        what structurally closes the FIFO-hang finding: `os.lstat`
+        identifies the FIFO BEFORE any `open()` is attempted, so the
+        blocking `open()` that previously hung this tool until `timeout`
+        is simply never reached.
+      - a regular file is opened via `_nofollow_opener` above (Python's
+        own `open(..., opener=...)` hook -- lets Python's `open()`
+        builtin manage the resulting file object's lifecycle normally,
+        rather than this function hand-managing a raw `os.open()` fd).
+
+    A non-existent `root` yields the empty-set root -- an honest, real
+    ContentAddress that will (correctly) mismatch any non-empty recorded
+    one, never a crash."""
+    pairs = []
+    if os.path.isdir(root):
+        for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+            for name in sorted(dirnames) + sorted(filenames):
+                full = os.path.join(dirpath, name)
+                rel = os.path.relpath(full, root).replace(os.sep, "/")
+                try:
+                    st = os.lstat(full)
+                except OSError as exc:
+                    raise OSError(exc.errno, "cannot lstat %r under tree %r: %s" % (rel, root, exc))
+                mode = st.st_mode
+                if stat.S_ISLNK(mode):
+                    link_text = os.readlink(full)
+                    digest = "sha256:" + hashlib.sha256(link_text.encode("utf-8", "surrogateescape")).hexdigest()
+                    pairs.append((rel, digest))
+                    continue
+                if name in dirnames:
+                    # A real (non-symlink) directory -- os.walk descends
+                    # into it on a later iteration; it contributes no leaf
+                    # entry of its own (the pre-existing, file-only
+                    # convention every checked-in fixture's own
+                    # expected_verdict.json was derived against).
+                    continue
+                if not stat.S_ISREG(mode):
+                    raise OSError(errno.EINVAL, "refusing non-regular, non-symlink entry %r under tree "
+                                                 "%r (mode=%s) -- this hasher never opens a FIFO/socket/"
+                                                 "device node" % (rel, root, oct(mode)))
+                try:
+                    with open(full, "rb", opener=_nofollow_opener) as fh:
+                        data = fh.read()
+                except OSError as exc:
+                    raise OSError(exc.errno, "cannot read %r under tree %r: %s" % (rel, root, exc))
+                digest = "sha256:" + hashlib.sha256(data).hexdigest()
+                pairs.append((rel, digest))
+    pairs.sort(key=lambda p: p[0].encode("utf-8"))
+    body = [[p, c] for p, c in pairs]
+    return "sha256:" + hashlib.sha256(canon(body).encode("utf-8")).hexdigest()
 
 
 def _no_dups(pairs):

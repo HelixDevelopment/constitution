@@ -65,6 +65,7 @@ FIXDIR="$FC/tests/fixtures/custody_sweep"
 PINDIR="$FIXDIR/_pinned"
 IMPL="$FC/orchestration/custody_sweep.py"
 LIB="$FC/lib/fc_common.py"
+EXLIB="$FC/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 PINNED="$PINDIR/custody_sweep_pre_r7_fix.py"
 
 fail=0
@@ -96,6 +97,7 @@ run_against_pinned() {
   mkdir -p "$TMP/orchestration_scratch" "$TMP/lib"
   cp "$PINNED" "$TMP/orchestration_scratch/custody_sweep.py"
   cp "$LIB" "$TMP/lib/fc_common.py"
+  cp "$EXLIB" "$TMP/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
   python3 "$TMP/orchestration_scratch/custody_sweep.py" "$@"
 }
 
@@ -406,6 +408,7 @@ LIVE_BOUNDARY_ROOT="$TMP/live_boundary"
 mkdir -p "$LIVE_BOUNDARY_ROOT/scripts/fastcycle/orchestration" "$LIVE_BOUNDARY_ROOT/scripts/fastcycle/lib"
 cp "$IMPL" "$LIVE_BOUNDARY_ROOT/scripts/fastcycle/orchestration/custody_sweep.py"
 cp "$LIB" "$LIVE_BOUNDARY_ROOT/scripts/fastcycle/lib/fc_common.py"
+cp "$EXLIB" "$LIVE_BOUNDARY_ROOT/scripts/fastcycle/lib/fc_entry.py"  # T140 Round 10: fc_entry.py is now a required sibling import
 python3 - "$LIVE_BOUNDARY_ROOT/scripts/fastcycle/orchestration/custody_sweep.py" <<'PYEOF'
 import sys
 p = sys.argv[1]
