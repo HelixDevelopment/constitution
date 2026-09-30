@@ -41,6 +41,36 @@ trap 'rm -rf "$WORK"' EXIT
 
 sha256_file() { python3 -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$1"; }
 
+# content_addr_of <dir> -- Producer != Verifier (§11.4.245): a directory
+# content-address function independently re-implemented here (never
+# imported from host_report.py), matching the same manifest-hash shape
+# T3/T4/T5's inline heredocs already used before this helper was factored
+# out of their duplication.
+content_addr_of() {
+  python3 - "$1" <<'PYEOF'
+import hashlib, os, sys
+root = sys.argv[1]
+entries = []
+for dirpath, _dirs, files in os.walk(root):
+    for f in sorted(files):
+        p = os.path.join(dirpath, f)
+        rel = os.path.relpath(p, root)
+        h = hashlib.sha256(open(p, "rb").read()).hexdigest()
+        entries.append((rel, h))
+entries.sort()
+manifest = "\n".join("%s\0%s" % e for e in entries)
+print(hashlib.sha256(manifest.encode()).hexdigest())
+PYEOF
+}
+
+# The fixed, well-known content-address of an EMPTY directory: sha256 of an
+# EMPTY manifest string -- identical for ANY empty directory anywhere,
+# regardless of what it is or where it lives. This is exactly the B1(c)
+# vulnerability: a marker can record THIS value and point backup_path at
+# ANY unrelated empty directory, and a self-consistency-only check
+# (recorded == content_address(backup_path)) is satisfied trivially.
+EMPTY_DIR_ADDR="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
 mk_target() {  # mk_target <dir> <content>
   mkdir -p "$1"
   printf '%s' "$2" > "$1/marker.txt"
@@ -174,6 +204,114 @@ else
   bad "hr_bad_live_session_dir: expected refused while live, got rc=$rc target-present=$([ -f "$T4/marker.txt" ] && echo yes || echo no)"
 fi
 
+# --- hr_bad_backup_equals_target (T153 Round-1 NO-GO B1(a)): backup_path IS
+#     the target. The marker's recorded content address is the REAL,
+#     CORRECTLY-COMPUTED address of the target itself -- an OLD
+#     self-consistency-only check (recorded == content_address(backup_path))
+#     would pass TRIVIALLY here (backup_path == target, so of course its own
+#     content matches its own recorded hash), which is exactly why that
+#     check alone is not enough: this fixture proves the delete is refused
+#     regardless, via the dedicated overlap check, BEFORE any hashing.
+T6="$WORK/t6"; mk_target "$T6" "content-six"
+ADDR6=$(content_addr_of "$T6")
+MARKER6="$WORK/marker6.json"
+cat > "$MARKER6" <<JSON
+{"target": "$T6", "backup_path": "$T6", "content_address": "$ADDR6"}
+JSON
+CONFIRM6="$WORK/confirm6.json"
+cat > "$CONFIRM6" <<JSON
+{"target": "$T6", "operator": "test", "confirmed_at": "2026-09-30T00:00:00Z"}
+JSON
+python3 "$TOOL" cleanup --target "$T6" --backup-marker "$MARKER6" --confirmation "$CONFIRM6" \
+  --out "$WORK/out6.json" --apply >"$WORK/o6.log" 2>&1
+rc=$?
+if [ "$rc" -eq 1 ] && [ -f "$T6/marker.txt" ] && [ "$(cat "$T6/marker.txt")" = "content-six" ]; then
+  ok "hr_bad_backup_equals_target: refused (exit 1), target byte-identical (backup_path == target)"
+else
+  bad "hr_bad_backup_equals_target: expected refused+untouched, got rc=$rc target-present=$([ -f "$T6/marker.txt" ] && echo yes || echo no)"
+fi
+if [ -f "$WORK/out6.json" ] && python3 -c "
+import json, sys
+doc = json.load(open('$WORK/out6.json', encoding='utf-8'))
+sys.exit(0 if 'backup_path_overlaps_target' in doc.get('reasons', []) else 1)
+"; then
+  ok "hr_bad_backup_equals_target: action.json names backup_path_overlaps_target"
+else
+  bad "hr_bad_backup_equals_target: action.json missing backup_path_overlaps_target reason"
+fi
+
+# --- hr_bad_backup_nested_under_target (T153 Round-1 NO-GO B1(b)): backup_path
+#     lives INSIDE the target directory (target/.backup). Its recorded
+#     content address is the REAL, CORRECTLY-COMPUTED address of that nested
+#     subdirectory -- again satisfying an OLD self-consistency-only check
+#     trivially. Deleting the target would destroy the backup along with it.
+T7="$WORK/t7"; mk_target "$T7" "content-seven"
+B7="$T7/.backup"; mk_target "$B7" "content-seven"
+ADDR7=$(content_addr_of "$B7")
+MARKER7="$WORK/marker7.json"
+cat > "$MARKER7" <<JSON
+{"target": "$T7", "backup_path": "$B7", "content_address": "$ADDR7"}
+JSON
+CONFIRM7="$WORK/confirm7.json"
+cat > "$CONFIRM7" <<JSON
+{"target": "$T7", "operator": "test", "confirmed_at": "2026-09-30T00:00:00Z"}
+JSON
+python3 "$TOOL" cleanup --target "$T7" --backup-marker "$MARKER7" --confirmation "$CONFIRM7" \
+  --out "$WORK/out7.json" --apply >"$WORK/o7.log" 2>&1
+rc=$?
+if [ "$rc" -eq 1 ] && [ -f "$T7/marker.txt" ] && [ -f "$B7/marker.txt" ]; then
+  ok "hr_bad_backup_nested_under_target: refused (exit 1), target+nested backup byte-identical"
+else
+  bad "hr_bad_backup_nested_under_target: expected refused+untouched, got rc=$rc target-present=$([ -f "$T7/marker.txt" ] && echo yes || echo no) backup-present=$([ -f "$B7/marker.txt" ] && echo yes || echo no)"
+fi
+if [ -f "$WORK/out7.json" ] && python3 -c "
+import json, sys
+doc = json.load(open('$WORK/out7.json', encoding='utf-8'))
+sys.exit(0 if 'backup_path_overlaps_target' in doc.get('reasons', []) else 1)
+"; then
+  ok "hr_bad_backup_nested_under_target: action.json names backup_path_overlaps_target"
+else
+  bad "hr_bad_backup_nested_under_target: action.json missing backup_path_overlaps_target reason"
+fi
+
+# --- hr_bad_empty_backup_hash_collision (T153 Round-1 NO-GO B1(c)): backup_path
+#     is an UNRELATED, completely EMPTY directory that NEVER held the
+#     target's content at all. Its content address (the fixed, well-known
+#     empty-manifest hash, identical for ANY empty directory anywhere) is
+#     recorded in the marker -- an OLD self-consistency-only check
+#     (recorded == content_address(backup_path)) is satisfied trivially by
+#     ANY empty backup dir, since it never cross-checks against the
+#     TARGET's own live content at all. The target here has REAL,
+#     non-empty content, so the strengthened 3-way check (recorded ==
+#     target-live == backup-live) must refuse.
+T8="$WORK/t8"; mk_target "$T8" "content-eight"
+B8="$WORK/backup8-unrelated-empty"; mkdir -p "$B8"
+MARKER8="$WORK/marker8.json"
+cat > "$MARKER8" <<JSON
+{"target": "$T8", "backup_path": "$B8", "content_address": "$EMPTY_DIR_ADDR"}
+JSON
+CONFIRM8="$WORK/confirm8.json"
+cat > "$CONFIRM8" <<JSON
+{"target": "$T8", "operator": "test", "confirmed_at": "2026-09-30T00:00:00Z"}
+JSON
+python3 "$TOOL" cleanup --target "$T8" --backup-marker "$MARKER8" --confirmation "$CONFIRM8" \
+  --out "$WORK/out8.json" --apply >"$WORK/o8.log" 2>&1
+rc=$?
+if [ "$rc" -eq 1 ] && [ -f "$T8/marker.txt" ] && [ "$(cat "$T8/marker.txt")" = "content-eight" ]; then
+  ok "hr_bad_empty_backup_hash_collision: refused (exit 1), target byte-identical (empty backup never held target content)"
+else
+  bad "hr_bad_empty_backup_hash_collision: expected refused+untouched, got rc=$rc target-present=$([ -f "$T8/marker.txt" ] && echo yes || echo no)"
+fi
+if [ -f "$WORK/out8.json" ] && python3 -c "
+import json, sys
+doc = json.load(open('$WORK/out8.json', encoding='utf-8'))
+sys.exit(0 if 'backup_hash_mismatch' in doc.get('reasons', []) else 1)
+"; then
+  ok "hr_bad_empty_backup_hash_collision: action.json names backup_hash_mismatch"
+else
+  bad "hr_bad_empty_backup_hash_collision: action.json missing backup_hash_mismatch reason"
+fi
+
 # --- hr_good_confirmed_backed_up: everything correct -- executes; backup re-verifies ---
 T5="$WORK/t5"; mk_target "$T5" "content-five"
 B5="$WORK/backup5"; cp -a "$T5" "$B5"
@@ -217,6 +355,33 @@ sys.exit(0 if doc.get('backup_reverified') is True else 1)
   || bad "hr_good_confirmed_backed_up: action.json missing backup_reverified: true"
 else
   bad "hr_good_confirmed_backed_up: no action.json written"
+fi
+
+# --- hr_good_hardlink_mirror_same_device (HR-004(b), T153 Round-1 NO-GO B1
+#     fix item "same-volume check for hardlink-mirror backups"): a genuine
+#     `cp -al` hardlink-mirror backup is, BY CONSTRUCTION, always on the
+#     SAME device as its source (a cross-device hardlink cannot exist,
+#     memory: cross-device `cp -al` fails) -- this negative control proves
+#     the new same-device gate does NOT spuriously refuse a real one.
+T9="$WORK/t9"; mk_target "$T9" "content-nine"
+B9="$WORK/backup9-hardlink-mirror"
+cp -al "$T9" "$B9" 2>/dev/null || cp -a "$T9" "$B9"  # fall back if -l unsupported on this fs
+ADDR9=$(content_addr_of "$B9")
+MARKER9="$WORK/marker9.json"
+cat > "$MARKER9" <<JSON
+{"target": "$T9", "backup_path": "$B9", "content_address": "$ADDR9", "backup_kind": "hardlink_mirror"}
+JSON
+CONFIRM9="$WORK/confirm9.json"
+cat > "$CONFIRM9" <<JSON
+{"target": "$T9", "operator": "test", "confirmed_at": "2026-09-30T00:00:00Z"}
+JSON
+python3 "$TOOL" cleanup --target "$T9" --backup-marker "$MARKER9" --confirmation "$CONFIRM9" \
+  --out "$WORK/out9.json" --apply >"$WORK/o9.log" 2>&1
+rc=$?
+if [ "$rc" -eq 0 ] && [ ! -e "$T9" ] && [ -f "$B9/marker.txt" ] && [ "$(cat "$B9/marker.txt")" = "content-nine" ]; then
+  ok "hr_good_hardlink_mirror_same_device: executed (exit 0), a genuine same-device hardlink mirror is never spuriously refused"
+else
+  bad "hr_good_hardlink_mirror_same_device: expected exit 0 + target removed + backup intact, got rc=$rc ($(cat "$WORK/o9.log"))"
 fi
 
 echo "SUMMARY pass=$PASS fail=$FAIL"

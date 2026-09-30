@@ -105,6 +105,88 @@ class ConfigError(Exception):
     pass
 
 
+class UnsafeDeleteError(Exception):
+    """A delete-capable operation resolved to a path this tool must never
+    touch (B2 fix, §11.4.201/§11.4.6): raised instead of ever silently
+    no-op'ing, so a violation of the "only ever delete a path this run
+    itself just created" invariant is never hidden.
+    """
+    pass
+
+
+# B2 fix: a config-supplied scratch-dir value that is empty/unset/"." (or a
+# handful of other well-known dangerous literals) MUST be refused OUTRIGHT,
+# regardless of what it would resolve to -- this is the exact class of bug
+# that let `needle_scratch_dir: ""` resolve to the repository root and be
+# recursively deleted (forensic FACT, T153 Round-1 NO-GO finding B2).
+_DANGEROUS_RAW_SCRATCH_VALUES = frozenset(("", ".", "/", "~", "..", "./", "~/", "../"))
+
+
+def _refuse_dangerous_delete_target(raw_value, resolved_path, label):
+    """B2 fix (§11.4.201/§11.4.6): two INDEPENDENT checks, both must clear
+    before ANY path is treated as safe to recursively delete:
+      (1) the RAW, pre-resolution config value is not one of the well-known
+          dangerous literal tokens (empty/unset, '.', '/', '~', ...)
+          regardless of how `_resolve()` would turn it into an absolute
+          path -- catching the bug class even if `_resolve()`'s own
+          semantics ever change;
+      (2) the RESOLVED, realpath'd value is not the repository root, an
+          ANCESTOR of the repository root, the filesystem root, or the
+          caller's home directory.
+    Returns a reason string naming the SPECIFIC refused path if unsafe, or
+    None if the target genuinely is safe to operate on.
+    """
+    stripped = (raw_value or "").strip()
+    if stripped in _DANGEROUS_RAW_SCRATCH_VALUES:
+        return "%s is the literal dangerous value %r" % (label, raw_value)
+    if not resolved_path or not str(resolved_path).strip():
+        return "%s resolves to an empty/unset path" % label
+    real = os.path.realpath(resolved_path)
+    repo_real = os.path.realpath(REPO_ROOT)
+    try:
+        home_real = os.path.realpath(os.path.expanduser("~"))
+    except OSError:
+        home_real = None
+    if real == "/":
+        return "%s resolves to the filesystem root (/) -- refusing to delete" % label
+    if home_real is not None and real == home_real:
+        return "%s resolves to the user's home directory (%r) -- refusing to delete" % (label, real)
+    if real == repo_real or repo_real.startswith(real + os.sep):
+        return ("%s resolves to %r, which is the repository root or an ANCESTOR of it (%r) "
+                "-- refusing to delete" % (label, real, repo_real))
+    return None
+
+
+def _paths_overlap(a, b):
+    """B1 fix (T153 Round-1 NO-GO finding B1(a)/B1(b), §11.4.201): True if
+    `a` and `b` reference the SAME location, or either one is nested inside
+    the other. A backup that IS the target -- or that lives inside it, or
+    that the target lives inside -- would be destroyed by the very delete
+    it exists to protect against, so `cleanup` MUST refuse before any
+    hashing or deletion is attempted whenever this returns True.
+    """
+    ra = os.path.realpath(a)
+    rb = os.path.realpath(b)
+    if ra == rb:
+        return True
+    ra_prefix = ra.rstrip(os.sep) + os.sep
+    rb_prefix = rb.rstrip(os.sep) + os.sep
+    return rb.startswith(ra_prefix) or ra.startswith(rb_prefix)
+
+
+def _safe_rmtree(path, label):
+    """The ONLY path through which this tool ever recursively deletes a
+    scratch directory it manages itself (B2 fix) -- `cleanup`'s user-target
+    delete has its own, separate HR-004 backup+confirmation gate and does
+    NOT go through this helper. Re-validates immediately before every
+    delete: a value computed earlier in the run is never trusted as-is.
+    """
+    reason = _refuse_dangerous_delete_target(path, path, label)
+    if reason:
+        raise UnsafeDeleteError(reason)
+    shutil.rmtree(path, ignore_errors=True)
+
+
 def _resolve(path):
     """A config-supplied path is relative to the project root (fastcycle.yaml's
     own stated convention); resolve it against REPO_ROOT so the tool works
@@ -390,16 +472,31 @@ NEEDLE_TOLERANCE_BYTES = 4096
 NEEDLE_KNOWN_SIZE = 65536
 
 
-def run_needle(needle_dir, evidence_dir):
+def run_needle(needle_parent_dir, evidence_dir):
     """T-F01 control needle: a fresh unshared file measures its own full size;
     a freshly reflinked copy of it measures ~0 exclusive bytes. Returns
     (needle_dict, None) on success or (None, reason) on failure -- a failure
     here means the exclusive-bytes instrument is not trustworthy this run
     (C-001 exit 3), never silently degraded to a partial report.
+
+    B2 fix (T153 Round-1 NO-GO finding B2): `needle_parent_dir` MUST already
+    be a validated, resolved, non-dangerous parent (checked by the caller,
+    re-checked here too -- never trust a value computed earlier in the run).
+    The actual working directory is a genuinely fresh, unique, unpredictable
+    directory created via `tempfile.mkdtemp()` UNDER that validated parent --
+    this tool NEVER deletes a fixed, predictable, config-derived path
+    directly; it only ever deletes the exact path `mkdtemp()` itself just
+    returned in THIS run (tracked in `needle_dir` below, never re-derived).
     """
-    if os.path.exists(needle_dir):
-        shutil.rmtree(needle_dir, ignore_errors=True)
-    os.makedirs(needle_dir, exist_ok=True)
+    parent_reason = _refuse_dangerous_delete_target(needle_parent_dir, needle_parent_dir,
+                                                      "needle scratch parent (post-resolve re-check)")
+    if parent_reason:
+        return None, "unsafe_needle_scratch_parent: %s" % parent_reason
+    try:
+        os.makedirs(needle_parent_dir, exist_ok=True)
+    except OSError as exc:
+        return None, "needle_scratch_parent_uncreatable: %s" % exc
+    needle_dir = tempfile.mkdtemp(prefix="needle-", dir=needle_parent_dir)
     try:
         orig = os.path.join(needle_dir, "unshared.bin")
         with open(orig, "wb") as fh:
@@ -453,7 +550,7 @@ def run_needle(needle_dir, evidence_dir):
         }
         return needle, None
     finally:
-        shutil.rmtree(needle_dir, ignore_errors=True)
+        _safe_rmtree(needle_dir, "needle scratch dir (mkdtemp-owned)")
 
 
 # ---------------------------------------------------------------------------
@@ -494,9 +591,21 @@ def cmd_attribute(args):
 
     run_id = "attribute_%d_%d" % (int(time.time()), os.getpid())
     evidence_dir = os.path.join(_resolve(evidence_root), run_id)
-    needle_dir = _resolve(needle_scratch_dir)
+    needle_parent = _resolve(needle_scratch_dir)
 
-    needle, needle_err = run_needle(needle_dir, evidence_dir)
+    # B2 fix (T153 Round-1 NO-GO finding B2): a `needle_scratch_dir` config
+    # value of "" (or "." etc) previously resolved to the repository root
+    # and was recursively deleted. Refuse OUTRIGHT, naming the exact
+    # resolved path, before `run_needle()` (which also re-checks internally,
+    # defense-in-depth) ever creates or deletes anything.
+    scratch_reason = _refuse_dangerous_delete_target(needle_scratch_dir, needle_parent,
+                                                       "host.needle_scratch_dir")
+    if scratch_reason:
+        print("host_report: attribute: refusing unsafe needle_scratch_dir: %s" % scratch_reason,
+              file=sys.stderr)
+        return EXIT_USAGE
+
+    needle, needle_err = run_needle(needle_parent, evidence_dir)
     if needle is None:
         print("host_report: attribute needle FAILED: %s -- exclusive-bytes instrument not "
               "trustworthy this run" % needle_err, file=sys.stderr)
@@ -596,10 +705,43 @@ def cmd_cleanup(args):
         backup_path = marker.get("backup_path")
         if not backup_path or not os.path.exists(backup_path):
             reasons.append("backup_path_missing")
+        elif _paths_overlap(backup_path, target):
+            # B1(a)/B1(b) fix (T153 Round-1 NO-GO): a backup that IS the
+            # target -- or that lives inside it, or that the target lives
+            # inside -- would be destroyed by the SAME delete it exists to
+            # protect against. Refuse before any hashing or deletion is
+            # even attempted; never fall through to the content-address
+            # checks below, which cannot detect this (a self-consistent
+            # backup can trivially "match itself").
+            reasons.append("backup_path_overlaps_target")
         else:
             recorded = marker.get("content_address")
-            actual = content_address(backup_path)
-            if recorded != actual:
+            if marker.get("backup_kind") == "hardlink_mirror":
+                # HR-004(b): a hardlink-mirror backup MUST be on the same
+                # volume as the target it mirrors -- `cp -al` cannot create
+                # a cross-device hardlink in the first place, so a genuine
+                # hardlink mirror recorded here can never legitimately be
+                # on a different device than its target (memory: cross-
+                # device `cp -al` fails).
+                try:
+                    same_dev = (os.stat(backup_path).st_dev == os.stat(target).st_dev)
+                except OSError:
+                    same_dev = False
+                if not same_dev:
+                    reasons.append("hardlink_mirror_cross_device")
+            # B1(c) fix (T153 Round-1 NO-GO): HR-004(a) self-consistency
+            # ALONE (recorded == content_address(backup_path)) is satisfied
+            # TRIVIALLY by an unrelated EMPTY backup directory -- every
+            # empty directory hashes to the SAME manifest digest regardless
+            # of what it is (§11.4.6/§11.4.201), so the backup's actual
+            # CONTENT was never compared to the TARGET's actual content.
+            # Independently re-compute BOTH LIVE, right now -- never trust
+            # any cached/stored value -- and require all three (marker's
+            # recorded address, the target's live address, the backup's
+            # live address) to agree.
+            target_addr = content_address(target) if os.path.exists(target) else None
+            backup_addr = content_address(backup_path)
+            if recorded != backup_addr or recorded != target_addr or backup_addr != target_addr:
                 reasons.append("backup_hash_mismatch")
 
     confirmation = _read_json_file(args.confirmation)
