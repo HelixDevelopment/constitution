@@ -254,6 +254,71 @@ else
     bad "C5 ca_enumerate_twice (CA-005): could not run enumerate.sh twice for comparison (rc=$C5_RC)"
 fi
 
+# =============================================================================
+# Section D -- T177 Round 1 B1 regression: a `gh`/`glab` failure for any
+# reason OTHER than a genuine HTTP 404 (auth failure, rate limit, network
+# error) MUST NOT be silently folded into "zero hits" -- it MUST be
+# recorded in the output doc's source_reachability block AND the run
+# MUST exit loudly (5), never a quiet, undercounted "success". A fake
+# gh/glab (prepended onto PATH, real gh/glab untouched) reproduces the
+# reviewer's exact repro: "put a fake gh/glab that exits 1 first on
+# PATH".
+# =============================================================================
+D_FAKEBIN=$(mktemp -d)
+cat > "$D_FAKEBIN/gh" <<'EOF'
+#!/bin/sh
+echo "gh: simulated auth failure (HTTP 401)" >&2
+exit 1
+EOF
+chmod +x "$D_FAKEBIN/gh"
+cat > "$D_FAKEBIN/glab" <<'EOF'
+#!/bin/sh
+echo "glab: simulated auth failure (HTTP 401)" >&2
+exit 1
+EOF
+chmod +x "$D_FAKEBIN/glab"
+
+D_OUT=$(PATH="$D_FAKEBIN:$PATH" run_tool --config "$CFG" --out "$WORK/degraded_consumers.json"); D_RC=$?
+if [ "$D_RC" -eq 5 ]; then
+    ok "D1 B1 degraded-probe exit: a fake gh/glab that always fails with a non-404 error (simulated auth failure) makes enumerate.sh exit 5 (partial enumeration), never a silent 0"
+else
+    bad "D1 B1 degraded-probe exit: expected exit 5 for a degraded (non-404-failing) gh/glab, got rc=$D_RC (out=$D_OUT)"
+fi
+if [ -f "$WORK/degraded_consumers.json" ]; then
+    D_DEGRADED_COUNT=$(python3 -c "
+import json
+d = json.load(open('$WORK/degraded_consumers.json'))
+r = d.get('source_reachability', {})
+print(len(r.get('github_degraded') or []) + len(r.get('gitlab_degraded') or []))
+" 2>/dev/null)
+    if [ -n "$D_DEGRADED_COUNT" ] && [ "$D_DEGRADED_COUNT" -gt 0 ] 2>/dev/null; then
+        ok "D2 B1 degraded-probe recorded: source_reachability names $D_DEGRADED_COUNT degraded probe(s) -- the failure is surfaced in the written document, never silently absorbed"
+    else
+        bad "D2 B1 degraded-probe recorded: source_reachability recorded no degraded probes despite gh/glab always failing (see $WORK/degraded_consumers.json)"
+    fi
+else
+    bad "D2 B1 degraded-probe recorded: enumerate.sh did not write --out at all despite a PARTIAL (not total) failure -- real local-source hits are still real data and must still be written"
+fi
+
+# D3: a genuine 404 (org/group absent) must STILL be treated as a normal
+# negative, never degraded -- the control-needle half of this fix (the
+# false-positive guard, §11.4.201(1)): a fix for B1 that also makes a
+# REAL absence look "degraded" would itself be a new false-positive bug.
+D_FAKEBIN_404=$(mktemp -d)
+cat > "$D_FAKEBIN_404/gh" <<'EOF'
+#!/bin/sh
+echo "gh: Not Found (HTTP 404)" >&2
+exit 1
+EOF
+chmod +x "$D_FAKEBIN_404/gh"
+D3_OUT=$(PATH="$D_FAKEBIN_404:$PATH" run_tool --config "$CFG" --out "$WORK/notfound_consumers.json"); D3_RC=$?
+if [ "$D3_RC" != "5" ]; then
+    ok "D3 B1 real-404-not-degraded: a gh that genuinely 404s on every call is NOT reported as degraded (exit != 5) -- a real confirmed-absent org is still a normal negative, never a false 'unreachable'"
+else
+    bad "D3 B1 real-404-not-degraded: a genuinely-404ing gh was wrongly reported as degraded (rc=5) -- the 404-vs-error distinction regressed"
+fi
+rm -rf "$D_FAKEBIN" "$D_FAKEBIN_404" 2>/dev/null || true
+
 # Archive this run's stdout as the RED evidence per Test Discipline.
 {
     echo "T166 RED run; candidate fingerprint=$FINGERPRINT; date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"

@@ -8,7 +8,9 @@
 # Usage: enumerate.sh --config <fastcycle.yaml> --out <consumers.json>
 #        [--determinism-check]
 # Exit: 0 ok, 1 determinism mismatch (--determinism-check only), 2 usage,
-#       3 needle failure (CA-004), 4 all sources unreachable.
+#       3 needle failure (CA-004), 4 all sources unreachable, 5 one or
+#       more probes degraded (partial enumeration; see --out's
+#       source_reachability block -- T177 Round 1 B1).
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 exec python3 "$HERE/_enumerate_impl.py" "$@"

@@ -27,9 +27,23 @@ CA-004 needles: `consumers.known_consumer` MUST be present and
 `consumers.known_non_consumer` MUST be absent from the final project set,
 else exit 3 (fail loud, never a silent wrong answer).
 
+Reachability (§11.4.201(6), T177 Round 1 B1 fix): a `gh`/`glab` call that
+fails for ANY reason other than a genuine HTTP 404 (auth failure, rate
+limit, network error, malformed response) MUST NOT be silently folded
+into "zero hits" -- that is exactly the false-null this constitution
+forbids. Every such failure is recorded, per org (and per repo for the
+submodule probe), in the output doc's `source_reachability` block, and
+the run exits loudly (5) rather than reporting a quietly-undercounted
+project set as if it were complete. Only a REAL HTTP 404 (the org/group/
+repo genuinely does not exist) is treated as a normal negative and folded
+into an empty/absent result, exactly as CA-002 already treats a missing
+GitLab group.
+
 Exit codes (contract "Exit codes"): 0 ok; 1 --determinism-check mismatch;
 2 usage/config error; 3 needle failure (CA-004); 4 all sources
-unreachable (no source could be probed at all).
+unreachable (no source could be probed at all); 5 one or more probes
+degraded (partial enumeration -- the project set is real but incomplete,
+and MUST NOT be trusted as the full SC-010 denominator).
 """
 import argparse
 import concurrent.futures
@@ -77,25 +91,44 @@ def load_config(path):
     return consumers
 
 
+HTTP_404_RE = re.compile(r"HTTP 404\b")
+
+
 def gh_json(args, timeout=GH_TIMEOUT_S):
+    """Returns (parsed_out_or_None, status) where status is one of
+    "ok" (the call succeeded, out may legitimately be None for a
+    non-JSON/empty body), "http_404" (a genuine, confirmed-absent 404 --
+    a normal negative, never an error) or "error" (auth failure, rate
+    limit, network error, timeout, or any other non-404 failure -- MUST
+    NOT be read as "zero results", §11.4.201(6))."""
     try:
         proc = subprocess.run(
             ["gh"] + args, capture_output=True, text=True, timeout=timeout,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return None, False
+        return None, "error"
     if proc.returncode != 0:
-        return None, True
+        if HTTP_404_RE.search(proc.stderr or ""):
+            return None, "http_404"
+        return None, "error"
     try:
-        return json.loads(proc.stdout), True
+        return json.loads(proc.stdout), "ok"
     except ValueError:
-        return None, True
+        return None, "ok"
 
 
 def gh_repo_list(org):
-    out, reachable = gh_json(["api", "orgs/%s/repos" % org, "--paginate", "--jq", ".[].name"])
-    if not reachable:
-        return None
+    """Returns (repos_or_None, status). status="ok" means repos is a
+    real (possibly empty) list that MAY be trusted as complete for this
+    org; status="error" means the call genuinely failed (auth/rate-
+    limit/network/malformed) and repos MUST NOT be treated as zero --
+    the caller records this org as degraded, never silently drops it
+    (§11.4.201(6), T177 Round 1 B1)."""
+    out, status = gh_json(["api", "orgs/%s/repos" % org, "--paginate", "--jq", ".[].name"])
+    if status == "http_404":
+        return [], "ok"  # org genuinely does not exist -- a normal negative
+    if status != "ok":
+        return None, status
     if out is None:
         # --jq streams newline-delimited scalars, not a JSON array; re-run raw.
         try:
@@ -104,38 +137,52 @@ def gh_repo_list(org):
                 capture_output=True, text=True, timeout=120,
             )
         except (OSError, subprocess.TimeoutExpired):
-            return None
+            return None, "error"
         if proc.returncode != 0:
-            return []
-        return [line for line in proc.stdout.splitlines() if line]
-    return []
+            if HTTP_404_RE.search(proc.stderr or ""):
+                return [], "ok"
+            return None, "error"
+        return [line for line in proc.stdout.splitlines() if line], "ok"
+    return [], "ok"
 
 
 def gh_probe_submodule(org, repo):
-    """Return True/False/None (True=submodule present, False=confirmed absent, None=unreachable)."""
+    """Return (True/False/None, status). True=submodule present,
+    False=confirmed absent (a REAL HTTP 404), None=result unknown (auth
+    failure/rate-limit/network error/timeout/malformed JSON) -- an
+    unknown probe is NEVER folded into "confirmed absent"
+    (§11.4.201(6), T177 Round 1 B1)."""
     try:
         proc = subprocess.run(
             ["gh", "api", "repos/%s/%s/contents/constitution" % (org, repo)],
             capture_output=True, text=True, timeout=GH_TIMEOUT_S,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return None
+        return None, "error"
     if proc.returncode != 0:
-        return False
+        if HTTP_404_RE.search(proc.stderr or ""):
+            return False, "ok"
+        return None, "error"
     try:
         doc = json.loads(proc.stdout)
     except ValueError:
-        return False
-    return isinstance(doc, dict) and doc.get("type") == "submodule"
+        return None, "error"
+    return (isinstance(doc, dict) and doc.get("type") == "submodule"), "ok"
 
 
 def source1_github(orgs):
-    """Returns (hits: {project_id: True}, any_reachable: bool)."""
+    """Returns (hits: {project_id: True}, any_reachable: bool, degraded:
+    [{"org", "repo"(optional), "reason"}]). `degraded` records every
+    org/repo probe that could not be confirmed one way or the other --
+    the caller MUST surface this rather than silently treat it as zero
+    hits (§11.4.201(6), T177 Round 1 B1)."""
     hits = {}
     any_reachable = False
+    degraded = []
     for org in orgs:
-        repos = gh_repo_list(org)
-        if repos is None:
+        repos, status = gh_repo_list(org)
+        if status != "ok":
+            degraded.append({"org": org, "reason": "repo-list-%s" % status})
             continue
         any_reachable = True
         if not repos:
@@ -145,46 +192,70 @@ def source1_github(orgs):
             for fut in concurrent.futures.as_completed(futs):
                 repo = futs[fut]
                 try:
-                    is_sub = fut.result()
+                    is_sub, pstatus = fut.result()
                 except Exception:
-                    is_sub = None
+                    is_sub, pstatus = None, "error"
+                if pstatus != "ok":
+                    degraded.append({"org": org, "repo": repo, "reason": "probe-%s" % pstatus})
+                    continue
                 if is_sub:
                     hits["%s/%s" % (org, repo)] = True
-    return hits, any_reachable
+    return hits, any_reachable, degraded
 
 
 def glab_json(args, timeout=GH_TIMEOUT_S):
+    """Returns (parsed_out_or_None, status), the GitLab analogue of
+    gh_json() -- a genuine HTTP 404 (group/project absent) is a normal
+    negative ("ok", empty), any OTHER failure (auth/rate-limit/network)
+    is "error" and MUST be surfaced, never silently folded into "no
+    hits" (§11.4.201(6), T177 Round 1 B1)."""
     try:
         proc = subprocess.run(["glab"] + args, capture_output=True, text=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired):
-        return None, False
+        return None, "error"
     if proc.returncode != 0:
-        return None, False  # a 404/group-absent is a normal negative, not "unreachable"
+        if HTTP_404_RE.search(proc.stderr or ""):
+            return None, "http_404"
+        return None, "error"
     try:
-        return json.loads(proc.stdout), True
+        return json.loads(proc.stdout), "ok"
     except ValueError:
-        return None, True
+        return None, "ok"
 
 
 def source2_gitlab(orgs):
+    """Returns (hits, any_reachable, degraded) -- see source1_github()
+    for the shape of `degraded`."""
     hits = {}
     any_reachable = False
+    degraded = []
     for org in orgs:
-        projects, ok = glab_json(["api", "groups/%s/projects?per_page=100" % org])
-        if not ok or not projects:
+        projects, status = glab_json(["api", "groups/%s/projects?per_page=100" % org])
+        if status == "http_404":
+            any_reachable = True  # a genuinely-absent group is a normal negative
+            continue
+        if status != "ok":
+            degraded.append({"org": org, "reason": "group-list-%s" % status})
             continue
         any_reachable = True
+        if not projects:
+            continue
         for proj in projects:
             pid = proj.get("id")
             path_with_ns = proj.get("path_with_namespace")
             if pid is None or not path_with_ns:
                 continue
-            tree, tree_ok = glab_json(["api", "projects/%s/repository/tree?path=constitution" % pid])
-            if not tree_ok or not tree:
+            tree, tree_status = glab_json(["api", "projects/%s/repository/tree?path=constitution" % pid])
+            if tree_status == "http_404":
+                continue  # project genuinely has no constitution/ path -- normal negative
+            if tree_status != "ok":
+                degraded.append({"org": org, "repo": path_with_ns, "reason": "tree-%s" % tree_status})
+                continue
+            if not tree:
                 continue
             if any(entry.get("mode") == "160000" or entry.get("type") == "commit" for entry in tree):
                 hits[path_with_ns] = True
-    return hits, any_reachable
+    return hits, any_reachable, degraded
 
 
 def source3_local(roots):
@@ -316,18 +387,23 @@ def summarize(projects):
 
 
 def run_once(cfg):
-    gh_hits, gh_reach = source1_github(cfg["github_orgs"])
-    gl_hits, gl_reach = source2_gitlab(cfg.get("gitlab_orgs") or [])
+    gh_hits, gh_reach, gh_degraded = source1_github(cfg["github_orgs"])
+    gl_hits, gl_reach, gl_degraded = source2_gitlab(cfg.get("gitlab_orgs") or [])
     local_hits, local_reach = source3_local(cfg["local_clone_roots"])
     if not (gh_reach or gl_reach or local_reach):
         print("_enumerate_impl.py: all sources unreachable", file=sys.stderr)
         sys.exit(4)
     redirects = cfg.get("redirects") or {}
     projects = build_projects(gh_hits, gl_hits, local_hits, redirects)
+    degraded = gh_degraded + gl_degraded
     doc = {
         "schema": "consumers/v1",
         "projects": projects,
         "source_agreement": summarize(projects),
+        "source_reachability": {
+            "github_degraded": gh_degraded,
+            "gitlab_degraded": gl_degraded,
+        },
         "run_meta": {},
     }
     doc["body_hash"] = body_hash_of(doc)
@@ -341,7 +417,7 @@ def run_once(cfg):
     if known_non_consumer in ids:
         print("_enumerate_impl.py: CA-004 needle failure: known_non_consumer %s was listed as a consumer" % known_non_consumer, file=sys.stderr)
         sys.exit(3)
-    return doc
+    return doc, degraded
 
 
 def main():
@@ -352,16 +428,31 @@ def main():
     args = ap.parse_args()
 
     cfg = load_config(args.config)
-    doc = run_once(cfg)
+    doc, degraded = run_once(cfg)
 
     if args.determinism_check:
-        doc2 = run_once(cfg)
+        doc2, _degraded2 = run_once(cfg)
         if body_hash_of(doc) != body_hash_of(doc2):
             print("_enumerate_impl.py: determinism check FAILED (body_hash differs between two runs)", file=sys.stderr)
             sys.exit(1)
 
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(doc, fh, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+    if degraded:
+        # §11.4.201(6): a partial enumeration is written (every source
+        # that DID succeed is still real, useful data) but the run
+        # exits loudly so a caller never silently trusts an undercounted
+        # project set as complete (T177 Round 1 B1).
+        print(
+            "_enumerate_impl.py: %d probe(s) degraded (auth/rate-limit/network -- NOT a confirmed absence); "
+            "see --out's source_reachability block; the written project set is real but INCOMPLETE:" % len(degraded),
+            file=sys.stderr,
+        )
+        for d in degraded:
+            print("  degraded: %s" % json.dumps(d, sort_keys=True), file=sys.stderr)
+        sys.exit(5)
+
     sys.exit(0)
 
 
