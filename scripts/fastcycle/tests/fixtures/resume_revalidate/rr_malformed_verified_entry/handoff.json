@@ -1,0 +1,15 @@
+{
+  "handoff_id": "sha256:rr18000000000000000000000000000000000000000000000000000000018",
+  "agent_key": "rr18agentkey0018",
+  "item_id": "ATM-9118",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "IMPLEMENT",
+  "verified": [{"ref_id": "EV-RR18-A", "established_at": 5}],
+  "pending": [],
+  "partial_artefacts": [],
+  "external_deps": [],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

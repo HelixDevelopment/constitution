@@ -211,48 +211,9 @@ every `expected_verdict.json` exactly):
        implementation would consult -- Producer != oracle, section
        11.4.245/11.4.240: this ground truth is never derived from the
        handoff record itself); every effect id in it absent from the
-       handoff's own `effects_performed` is flagged.
-
-       This check's own fail-closed surface has grown across T140 Rounds
-       1-4 and is NO LONGER a single "honest skip on absence" (that framing
-       was already stale by Round 2's own I2(C) fix, which made a missing
-       sibling ALWAYS unsafe -- never conditioned on `effects_performed`
-       happening to be empty, since an empty `effects_performed` is not
-       evidence no effect occurred). It now emits SIX distinct classes
-       depending on exactly what could not be confirmed:
-         - `unverifiable-ground-truth` -- the sibling file is genuinely
-           ABSENT (ALWAYS unsafe; the empty-vs-non-empty `effects_performed`
-           cases stay honestly DISTINGUISHED in the detail text, both
-           unsafe).
-         - `unreadable-ground-truth` -- the sibling EXISTS but fails to
-           parse as JSON, or parses to a non-list top-level value.
-         - `malformed-ground-truth-entry` -- a `ground_truth_effects.json`
-           list entry is not itself a JSON object (R3-I1), OR is an object
-           whose own `id` field is an unhashable JSON array/object (R4-I1 --
-           the SAME class extended with a second, distinct detail variant,
-           never a second class).
-         - `malformed-effects-performed-entry` -- an `effects_performed`
-           entry's own `id` field is an unhashable JSON array/object, so it
-           cannot be added to this check's internal match-key set (R4-I1,
-           a NEW class -- this field carried no malformed-entry class at
-           all before).
-         - `unrecorded-external-effect` itself -- a genuinely-parsed,
-           well-formed ground-truth entry's id is absent from
-           `effects_performed`'s recorded ids.
-       (A `verified` entry's own `established_at` field being the wrong
-       type is a SIBLING fail-closed extension landed the SAME round, in
-       check (1) below -- see its own comment there for why a NEW
-       `malformed-verified-entry` class was warranted there, unlike a
-       non-dict `verified` entry which remains an honest, deliberate skip;
-       check (2)'s `external_deps` entries and check (3)'s `pending`
-       entries similarly grew their OWN wrong-type-field detail variants
-       under the ALREADY-EXISTING `malformed-external-dependency` and
-       `malformed-pending-step` classes respectively -- see each check's
-       own R4-I1 comment.) Section 11.4.3's honest-skip discipline still
-       applies ELSEWHERE in this file (a non-dict `verified` entry in check
-       (1) is silently skipped by design -- see that check's own comment),
-       but NOT here: every gap THIS check can detect is fail-closed, never
-       a silent pass.
+       handoff's own `effects_performed` is flagged. Absence of the sibling
+       file is an honest skip of this one check (section 11.4.3), never a
+       fabricated finding -- the other four checks still run.
     5. `inconsistent-transition` -- using T126's own interim canonical phase
        order `PLAN -> IMPLEMENT -> VERIFY -> DEPLOY -> DONE` (adopted
        verbatim, matching HO-001's phase-boundary write cadence) and reading
@@ -612,44 +573,11 @@ def cmd_resume_check(a):
     # is causally AFTER the handoff's own written_at (the record could not
     # have known about a fact from its own future), OR the phase is declared
     # terminal while pending work remains outstanding.
-    #
-    # T140 Round 4 review finding R4-I1 (section 11.4.201(6) FALSE-NULL, fixed
-    # here): a `verified` entry's `established_at` field being a JSON value
-    # other than a string (e.g. a bare int) used to crash this tool uncaught
-    # (`'>' not supported between instances of 'int' and 'str'`) at the
-    # comparison below, rather than fail closed. This is a GENUINELY
-    # DIFFERENT situation from a non-dict `verified` entry (R3-I1's own
-    # investigated-and-confirmed-fine skip immediately above, and this same
-    # test_handoff_i4_regression.sh's own header note: a bare-string
-    # `verified` entry is cmd_write's own documented, intended shape and
-    # genuinely carries no established_at to discard). A DICT entry that DOES
-    # set `established_at` to a malformed value is unsafe-to-skip: the field
-    # is PRESENT, so it represents an attempt to record real causal
-    # information that turned out corrupted, not an absence of information --
-    # silently skipping it would let a causally-impossible fact slip through
-    # unnoticed exactly like every OTHER malformed-field case this tool
-    # already fails closed on (check (2)'s malformed-external-dependency,
-    # check (3)'s malformed-pending-step, check (4)'s malformed-ground-truth-
-    # entry/malformed-effects-performed-entry). NEW distinct
-    # "malformed-verified-entry" class -- this loop had none before, since
-    # R3-I1 only needed the non-dict case investigated, never a
-    # wrong-type-field-within-a-dict case.
     written_at = doc.get("written_at")
     for v in (doc.get("verified") or []):
         if not isinstance(v, dict):
             continue
         established_at = v.get("established_at")
-        if established_at is not None and not isinstance(established_at, str):
-            reasons.append({
-                "class": "malformed-verified-entry",
-                "detail": ("verified fact %s has an `established_at` field that is not a "
-                           "string (got %r) -- this tool cannot compare a non-string value "
-                           "against written_at to rule out a causally-impossible record, "
-                           "and a malformed timestamp may represent genuine but corrupted "
-                           "information rather than an absent one; treat as unsafe until "
-                           "independently, manually re-verified") % (v.get("ref_id"), established_at),
-            })
-            continue
         if established_at is not None and written_at is not None and established_at > written_at:
             reasons.append({
                 "class": "inconsistent-internal-state",
@@ -713,40 +641,14 @@ def cmd_resume_check(a):
                 reverify.add(ref_id)
             continue
         if kind == "git-tree":
-            # T140 Round 4 review finding R4-I1 (section 11.4.201(6)
-            # FALSE-NULL, fixed here): a `locator` field that is a JSON value
-            # other than a string (e.g. a bare int) used to crash this tool
-            # uncaught (`os.path.join() argument must be str, not int`) at
-            # the path join below. Extend the ALREADY-EXISTING
-            # "malformed-external-dependency" class (rather than mint a new
-            # one) with a FOURTH, distinct detail variant -- this file's own
-            # established convention (see check (3)'s malformed-pending-step
-            # precedent immediately below) of distinguishing "not a dict" /
-            # "missing kind" / "unrecognized kind" from "dict, kind=git-tree,
-            # but a field within it has the wrong type" in the detail text,
-            # so all four remain honestly distinguishable.
-            locator = dep.get("locator")
-            if locator is not None and not isinstance(locator, str):
-                reasons.append({
-                    "class": "malformed-external-dependency",
-                    "detail": ("external dep has kind=git-tree but its `locator` field is "
-                               "not a string (got %r) -- DEC-34 requires every dependency "
-                               "be re-hashed, and this tool cannot resolve a filesystem "
-                               "path from a non-string locator to compute its live "
-                               "content_address; treat as unsafe until independently, "
-                               "manually re-verified") % (locator,),
-                })
-                for ref_id in (dep.get("affects_verified") or []):
-                    reverify.add(ref_id)
-                continue
-            current_dir = os.path.join(base_dir, "tree_current", locator or "")
+            current_dir = os.path.join(base_dir, "tree_current", dep.get("locator") or "")
             live_hash = _merkle_over_dir(current_dir)
             recorded = dep.get("content_address")
             if live_hash != recorded:
                 reasons.append({
                     "class": "stale-external-dependency",
                     "detail": "external dep %s content_address changed: recorded=%s live=%s" % (
-                        locator, recorded, live_hash),
+                        dep.get("locator"), recorded, live_hash),
                 })
                 for ref_id in (dep.get("affects_verified") or []):
                     reverify.add(ref_id)
@@ -792,36 +694,7 @@ def cmd_resume_check(a):
                            "independently, manually re-verified") % (step,),
             })
             continue
-        # T140 Round 4 review finding R4-I1 (section 11.4.201(6) FALSE-NULL,
-        # fixed here): a `step`/`precondition` field that is a JSON value
-        # other than a string (e.g. a bare int) used to crash this tool
-        # uncaught (`can only concatenate str (not "int") to str`) at the
-        # text-concatenation below. Extend the ALREADY-EXISTING
-        # "malformed-pending-step" class (rather than mint a new one) with a
-        # SECOND, distinct detail variant that distinguishes "not a dict"
-        # (above) from "dict, but field X has the wrong type" (below) so the
-        # two remain honestly distinguishable, matching check (2)'s
-        # malformed-external-dependency / check (4)'s
-        # malformed-ground-truth-entry precedent for the same distinction.
-        step_text = step.get("step")
-        precondition_text = step.get("precondition")
-        bad_field = None
-        if step_text is not None and not isinstance(step_text, str):
-            bad_field = "step"
-        elif precondition_text is not None and not isinstance(precondition_text, str):
-            bad_field = "precondition"
-        if bad_field is not None:
-            bad_value = step_text if bad_field == "step" else precondition_text
-            reasons.append({
-                "class": "malformed-pending-step",
-                "detail": ("pending entry is a JSON object but its `%s` field is not a "
-                           "string (got %r) -- this tool cannot read a step/precondition "
-                           "off a non-string value, so it cannot rule out a "
-                           "nondeterministic source for it; treat as unsafe until "
-                           "independently, manually re-verified") % (bad_field, bad_value),
-            })
-            continue
-        text = ((step_text or "") + " " + (precondition_text or "")).lower()
+        text = ((step.get("step") or "") + " " + (step.get("precondition") or "")).lower()
         if any(k in text for k in ND_KEYWORDS):
             reasons.append({
                 "class": "nondeterministic-replay",
@@ -915,47 +788,10 @@ def cmd_resume_check(a):
             # `effects_performed` entry can never satisfy a cross-check
             # (nothing else can be matched against it), so it must never be
             # treated as a valid match key.
-            # T140 Round 4 review finding R4-I1 (section 11.4.201(6)
-            # FALSE-NULL, fixed here): an `effects_performed` entry's own
-            # `id` field being a JSON array or object (e.g. `{"a": 1}`) is
-            # UNHASHABLE and used to crash this tool uncaught
-            # (`TypeError: unhashable type: 'dict'`) building this set via
-            # the set-comprehension this replaces. This tool cannot use an
-            # unhashable id as a match key against ground_truth_effects.json
-            # at all, so -- exactly the same "cannot inspect, therefore
-            # cannot confirm safe" reasoning R3-I1's own
-            # malformed-ground-truth-entry class already applies to a
-            # non-dict ground-truth entry -- route it to its own NEW,
-            # distinct "malformed-effects-performed-entry" reason (this
-            # field had no malformed-entry class at all before; a non-dict
-            # `effects_performed` entry was ALREADY safely filtered out by
-            # `isinstance(e, dict)` below, so only the unhashable-`id`
-            # sub-case is genuinely new) instead of crashing (section
-            # 11.4.101 fail-closed). Per R3-I1(c)'s own already-landed fix
-            # (comment above, unchanged), a `None`/missing id is STILL
-            # excluded from the match-key set entirely, unaffected by this
-            # extension.
-            recorded_ids = set()
-            for e in effects_performed:
-                if not isinstance(e, dict):
-                    continue
-                id_val = e.get("id")
-                if id_val is None:
-                    continue
-                if isinstance(id_val, (list, dict)):
-                    reasons.append({
-                        "class": "malformed-effects-performed-entry",
-                        "detail": ("effects_performed entry has an `id` field that is a "
-                                   "JSON %s (got %r), which is unhashable and cannot be "
-                                   "used as a match key against ground_truth_effects.json "
-                                   "-- this tool cannot confirm this effect was genuinely "
-                                   "cross-checked; treat as unsafe until independently, "
-                                   "manually re-verified") % (
-                                       "array" if isinstance(id_val, list) else "object",
-                                       id_val),
-                    })
-                    continue
-                recorded_ids.add(id_val)
+            recorded_ids = {
+                e.get("id") for e in effects_performed
+                if isinstance(e, dict) and e.get("id") is not None
+            }
             # T140 Round 3 review finding R3-I1(a) (section 11.4.201(6)
             # FALSE-NULL, fixed here -- a sibling gap of Round 2's I2(F) in
             # this SAME function that fix did not reach): a non-dict
@@ -989,43 +825,12 @@ def cmd_resume_check(a):
                                    "until independently, manually re-verified") % (e,),
                     })
                     continue
-                gt_id = e.get("id")
-                # T140 Round 4 review finding R4-I1 (section 11.4.201(6)
-                # FALSE-NULL, fixed here): a ground-truth entry's own `id`
-                # field being a JSON array or object (e.g. `["x"]`) is
-                # UNHASHABLE and used to crash this tool uncaught
-                # (`TypeError: unhashable type: 'list'`) at the
-                # `not in recorded_ids` membership test below. Extend the
-                # ALREADY-EXISTING "malformed-ground-truth-entry" class
-                # (rather than mint a new one, since this IS still a
-                # malformed ground-truth entry -- just one that is a dict
-                # with a malformed `id`, rather than not a dict at all) with
-                # a SECOND, distinct detail variant that distinguishes
-                # "not a dict" (above) from "dict, but its `id` field has
-                # the wrong type" (below), matching check (2)'s
-                # malformed-external-dependency / check (3)'s
-                # malformed-pending-step precedent for the same
-                # not-a-dict-vs-wrong-type-field distinction.
-                if isinstance(gt_id, (list, dict)):
-                    reasons.append({
-                        "class": "malformed-ground-truth-entry",
-                        "detail": ("ground_truth_effects.json entry is a JSON object but "
-                                   "its `id` field is a JSON %s (got %r), which is "
-                                   "unhashable and cannot be compared against "
-                                   "effects_performed's recorded ids -- this tool cannot "
-                                   "rule out that this entry names an effect absent from "
-                                   "effects_performed; treat as unsafe until "
-                                   "independently, manually re-verified") % (
-                                       "array" if isinstance(gt_id, list) else "object",
-                                       gt_id),
-                    })
-                    continue
-                if gt_id not in recorded_ids:
+                if e.get("id") not in recorded_ids:
                     reasons.append({
                         "class": "unrecorded-external-effect",
                         "detail": ("effect %s:%s genuinely occurred but is absent from "
                                    "effects_performed -- resume must not risk repeating "
-                                   "it") % (e.get("kind"), gt_id),
+                                   "it") % (e.get("kind"), e.get("id")),
                     })
     elif effects_performed:
         reasons.append({

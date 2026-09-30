@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr16000000000000000000000000000000000000000000000000000000016",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "malformed-ground-truth-entry",
+      "detail": "ground_truth_effects.json entry is a JSON object but its `id` field is a JSON array (got ['x']), which is unhashable and cannot be compared against effects_performed's recorded ids -- this tool cannot rule out that this entry names an effect absent from effects_performed; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}

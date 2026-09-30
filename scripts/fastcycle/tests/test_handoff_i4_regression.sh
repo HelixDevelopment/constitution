@@ -121,14 +121,75 @@
 # handoff_pre_r3i1_fix.py` (this submodule's HEAD immediately BEFORE this
 # fix landed) is the fourth pinned pre-fix copy, extracted the same way.
 #
+# R4-I1 fix (T140 Round 4 review, a FOURTH sibling gap in cmd_resume_check --
+# after Round 1's I4, Round 2's R2-I2, and Round 3's R3-I1, all in this SAME
+# function -- source-file commit alongside this edit): R3-I1 fixed non-dict
+# entries; it did NOT cover a dict entry whose OWN fields have the WRONG
+# TYPE. Those used to crash with an UNCAUGHT Python TypeError (never a clean,
+# named finding) instead of failing closed -- and, critically, on crash NO
+# `--out` document is written at all, so a STALE prior `--out` file (from an
+# earlier, genuinely-SAFE run) survives UNCHANGED, byte-identical, silently
+# fed to any caller that reads the `--out` FILE rather than checking the
+# exit code (both confirmed live before fixing: a pre-seeded stale
+# `safe_to_resume_without_reverification: true` file's md5 was IDENTICAL
+# before and after the crashing invocation). FIVE sub-cases, ALL reproduced
+# live per the reviewer's exact repro against the pinned pre-R4-I1-fix copy
+# before fixing (confirmed rc=1 via the Python interpreter's own
+# unhandled-exception exit, indistinguishable from a genuine UNSAFE verdict
+# by exit code ALONE -- exactly the crash-into-FAIL hazard this fix closes),
+# then fixed by TYPE-CHECKING each field before use and routing every
+# mismatch to a NAMED, distinct unsafe_reasons class -- no abort path was
+# needed for any of the five (every mismatch has a genuinely meaningful
+# named finding to record):
+#   (a) `pending` entry's `step`/`precondition` field is a non-string JSON
+#       value (e.g. an int) -- the ALREADY-EXISTING "malformed-pending-step"
+#       class (R3-I1's own non-dict-entry class) is EXTENDED with a second,
+#       distinct detail variant ("dict, but field X has the wrong type"),
+#       never a new class.
+#   (b) `ground_truth_effects.json` entry's own `id` field is an unhashable
+#       JSON array/object -- the ALREADY-EXISTING "malformed-ground-truth-
+#       entry" class (R3-I1's own non-dict-entry class) is EXTENDED with a
+#       second, distinct detail variant, never a new class.
+#   (c) `effects_performed` entry's own `id` field is an unhashable JSON
+#       array/object (crashing while BUILDING the `recorded_ids` match-key
+#       set, a DIFFERENT crash site from (b)'s membership-test site) -- this
+#       field had NO malformed-entry class at all before; NEW distinct
+#       "malformed-effects-performed-entry" class.
+#   (d) `verified` entry's own `established_at` field is a non-string JSON
+#       value (e.g. an int) -- check (1) had NO malformed-entry class at all
+#       before (R3-I1 explicitly investigated and confirmed a non-dict
+#       `verified` entry needs no fix there, since it is cmd_write's own
+#       documented, intended bare-ref-id shape and genuinely carries no
+#       established_at to discard); a DICT entry that DOES set
+#       `established_at` to a malformed value is a GENUINELY DIFFERENT,
+#       unsafe-to-skip situation -- the field is PRESENT, so it represents
+#       an attempt to record real causal information that turned out
+#       corrupted, not an absence of information. NEW distinct
+#       "malformed-verified-entry" class.
+#   (e) `external_deps` entry's own `locator` field (kind="git-tree") is a
+#       non-string JSON value (e.g. an int) -- the ALREADY-EXISTING
+#       "malformed-external-dependency" class (I4/R2-I2's own non-dict/
+#       missing-kind/unrecognized-kind classes) is EXTENDED with a FOURTH,
+#       distinct detail variant, never a new class.
+# `fixtures/resume_revalidate/_pinned/handoff_pre_r4i1_fix.py` (this
+# submodule's HEAD immediately BEFORE this fix landed, i.e. the
+# R3-I1-fixed-but-still-R4-I1-broken content) is the FIFTH pinned pre-fix
+# copy, extracted the same way. Because this bug class is CRASH-into-FAIL
+# rather than fail-open-to-safe, its own guard-viability proof below is
+# NECESSARILY DIFFERENT from I4/R2-I2/R3-I1's own MISMATCH-based check: the
+# pinned pre-R4-I1-fix copy is expected to CRASH (non-zero exit, NO `--out`
+# document written at all, a Python "Traceback"+"TypeError" in stderr) on
+# every R4-I1 fixture below -- proving each fixture genuinely triggers the
+# pre-fix uncaught crash, never merely a wrong verdict.
+#
 # This file is a SELF-CONTAINED regression guard -- it does NOT import,
 # source, or otherwise couple to test_resume_revalidate_red.sh's own
 # derive_resume_check() oracle (Producer != Verifier, section 11.4.240): its
 # own comparison logic below is written fresh, directly against each
 # fixture's own checked-in expected_verdict.json document.
 #
-# Eight fixtures total under fixtures/resume_revalidate/ (NONE added to the
-# pre-existing, closed T126 RED test's own fixed $SCENARIOS list -- that
+# Thirteen fixtures total under fixtures/resume_revalidate/ (NONE added to
+# the pre-existing, closed T126 RED test's own fixed $SCENARIOS list -- that
 # file is a completed historical deliverable and is left untouched; every
 # fixture below is exercised ONLY by this file):
 #   rr_unverifiable_external_dependency_kind/   -- I4 case (a)
@@ -142,6 +203,11 @@
 #   rr_malformed_ground_truth_entry/             -- R3-I1 case (a)
 #   rr_malformed_pending_step/                    -- R3-I1 case (b)
 #   rr_id_collision_none/                        -- R3-I1 case (c)
+#   rr_malformed_pending_step_wrong_type/        -- R4-I1 case (a)
+#   rr_malformed_ground_truth_entry_wrong_type/  -- R4-I1 case (b)
+#   rr_malformed_effects_performed_entry/        -- R4-I1 case (c)
+#   rr_malformed_verified_entry/                 -- R4-I1 case (d)
+#   rr_malformed_external_dep_wrong_type/        -- R4-I1 case (e)
 #
 # Guard-viability proof (section 11.4.115(F), the canonical §1.1 mutation
 # for a landed fix being the fix-commit's own revert): this file re-runs
@@ -158,6 +224,16 @@
 # fixture still genuinely catches the R2-I2 regression via its full-verdict
 # mismatch (wrong class name + one missing reason), so this file compares
 # the COMPLETE verdict shape, not merely the boolean safe flag.
+#
+# R4-I1's own guard-viability proof is STRUCTURALLY DIFFERENT from the
+# MISMATCH-based check above (see the R4-I1 header section for why): the
+# pinned pre-R4-I1-fix copy does not produce a WRONG verdict on an R4-I1
+# fixture -- it CRASHES uncaught before it ever reaches the point where it
+# would write one. Guard-viability there is therefore proven by asserting
+# the pinned copy's invocation writes NO `--out` document at all AND its
+# stderr contains a genuine Python "Traceback"/"TypeError" (never merely a
+# non-zero exit code alone, since an uncaught crash and a genuine UNSAFE
+# verdict share the SAME rc=1 -- exactly the ambiguity R4-I1 itself reports).
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
@@ -172,7 +248,8 @@ LIB="$FC/lib/fc_common.py"
 I4_FIXTURES="rr_unverifiable_external_dependency_kind rr_unverifiable_ground_truth"
 R2I2_FIXTURES="rr_missing_ground_truth_empty_effects rr_malformed_ground_truth_file rr_malformed_external_dep"
 R3I1_FIXTURES="rr_malformed_ground_truth_entry rr_malformed_pending_step rr_id_collision_none"
-ALL_FIXTURES="$I4_FIXTURES $R2I2_FIXTURES $R3I1_FIXTURES"
+R4I1_FIXTURES="rr_malformed_pending_step_wrong_type rr_malformed_ground_truth_entry_wrong_type rr_malformed_effects_performed_entry rr_malformed_verified_entry rr_malformed_external_dep_wrong_type"
+ALL_FIXTURES="$I4_FIXTURES $R2I2_FIXTURES $R3I1_FIXTURES $R4I1_FIXTURES"
 
 fail=0
 failx() { fail=1; }
@@ -180,7 +257,7 @@ failx() { fail=1; }
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-echo "=== I4+R2-I2+R3-I1 regression guard: control needle -- fixtures + the fixed tool + pinned copies all exist ==="
+echo "=== I4+R2-I2+R3-I1+R4-I1 regression guard: control needle -- fixtures + the fixed tool + pinned copies all exist ==="
 if [ ! -f "$IMPL" ]; then
   echo "NOT ok control needle FAILED: $IMPL not found"
   failx
@@ -193,14 +270,15 @@ for scen in $ALL_FIXTURES; do
     failx
   fi
 done
-for pinned in handoff_pre_i4_fix.py handoff_pre_r2i2_fix.py handoff_pre_r3i1_fix.py; do
+PINNED_COPIES="handoff_pre_i4_fix.py handoff_pre_r2i2_fix.py handoff_pre_r3i1_fix.py handoff_pre_r4i1_fix.py"
+for pinned in $PINNED_COPIES; do
   if [ ! -f "$PINDIR/$pinned" ]; then
     echo "NOT ok control needle FAILED: pinned pre-fix copy $PINDIR/$pinned not found"
     failx
   fi
 done
 if [ "$fail" = 0 ]; then
-  echo "ok control needle: all $(echo $ALL_FIXTURES | wc -w) fixtures carry handoff.json + expected_verdict.json, both pinned pre-fix copies present"
+  echo "ok control needle: all $(echo $ALL_FIXTURES | wc -w) fixtures carry handoff.json + expected_verdict.json, all $(echo $PINNED_COPIES | wc -w) pinned pre-fix copies present"
 fi
 
 # --- own, from-scratch comparison (never imported from test_resume_revalidate_red.sh) ---
@@ -327,14 +405,52 @@ for scen in $R3I1_FIXTURES; do
   fi
 done
 
+# --- R4-I1 guard-viability (section 11.4.115(F)): CRASH-detection, not
+# verdict-mismatch -- see this file's own R4-I1 header section + the
+# "R4-I1's own guard-viability proof is STRUCTURALLY DIFFERENT" paragraph
+# above for why. Each fixture's pinned pre-R4-I1-fix copy MUST crash
+# uncaught (non-zero exit, NO --out document written, a genuine Python
+# "Traceback"/"TypeError" in stderr) -- proving the fixture genuinely
+# triggers the pre-fix crash-into-FAIL if the fix is ever reverted. ---
+for scen in $R4I1_FIXTURES; do
+  # $MUT_OUT is a path under mktemp -d's $TMP -- never itself pre-created
+  # (unlike e.g. `mktemp` on a bare file, which would make a subsequent
+  # `[ -f "$MUT_OUT" ]` check spuriously pass even when the crash wrote
+  # nothing into it) -- so its post-invocation existence genuinely reflects
+  # whether run_against_pinned()'s invocation reached write_report_atomic().
+  MUT_OUT="$TMP/${scen}.r4i1pin.mut.json"
+  rm -f "$MUT_OUT"
+  run_against_pinned "handoff_pre_r4i1_fix.py" "$scen" "$MUT_OUT"
+  MUT_ERR="$TMP/${scen}.handoff_pre_r4i1_fix.py.mut.err"
+  if [ -f "$MUT_OUT" ]; then
+    echo "NOT ok guard-viability ($scen) FAILED: the pinned pre-R4-I1-fix copy"
+    echo "     WROTE an --out document instead of crashing -- this fixture would NOT"
+    echo "     catch a revert of the R4-I1 fix and needs revising"
+    failx
+    continue
+  fi
+  if grep -q "^Traceback" "$MUT_ERR" 2>/dev/null && grep -q "^TypeError" "$MUT_ERR" 2>/dev/null; then
+    echo "ok guard-viability ($scen): the PINNED pre-R4-I1-fix handoff.py CRASHED"
+    echo "   uncaught (Traceback + TypeError in stderr, NO --out document written) --"
+    echo "   proving this fixture genuinely catches the R4-I1 crash-into-FAIL"
+    echo "   regression if the fix is ever reverted"
+  else
+    echo "NOT ok guard-viability ($scen) BLIND: the pinned pre-R4-I1-fix copy wrote"
+    echo "     no --out document but its stderr does not show the expected"
+    echo "     Traceback+TypeError crash signature -- $(cat "$MUT_ERR" 2>/dev/null)"
+    failx
+  fi
+done
+
 echo
 if [ "$fail" = 0 ]; then
-  echo "=== I4+R2-I2+R3-I1 REGRESSION GUARD: ALL CHECKS PASS -- the fixed"
+  echo "=== I4+R2-I2+R3-I1+R4-I1 REGRESSION GUARD: ALL CHECKS PASS -- the fixed"
   echo "    handoff.py correctly fails CLOSED on every fixture, and every fixture's own"
   echo "    pinned pre-fix copy is independently confirmed to NOT reproduce that"
-  echo "    verdict -- every guard here is load-bearing. ==="
+  echo "    verdict (I4/R2-I2/R3-I1) or to crash uncaught exactly as pre-fix (R4-I1) --"
+  echo "    every guard here is load-bearing. ==="
 else
-  echo "=== I4+R2-I2+R3-I1 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ==="
+  echo "=== I4+R2-I2+R3-I1+R4-I1 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ==="
 fi
 
 exit $fail

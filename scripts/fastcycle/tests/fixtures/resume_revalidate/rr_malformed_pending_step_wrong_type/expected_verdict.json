@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr15000000000000000000000000000000000000000000000000000000015",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "malformed-pending-step",
+      "detail": "pending entry is a JSON object but its `step` field is not a string (got 5) -- this tool cannot read a step/precondition off a non-string value, so it cannot rule out a nondeterministic source for it; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}
