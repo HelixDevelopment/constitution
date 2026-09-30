@@ -11,8 +11,16 @@ Subcommands:
 
 CA-010: exactly one ConsumerAuditReport per project in --consumers,
 including projects this host cannot reach at all (UNMEASURED fields with
-missing_instrument, never a silent 0/None); count(reports) != count
-(projects) => exit 1.
+missing_instrument, never a silent 0/None); the written set is verified
+by INDEPENDENTLY re-deriving it from disk (every report file's OWN
+`project_id` field, re-globbed after the write loop) and comparing
+against the project ids read from --consumers -- never by comparing the
+write loop's own running counter against a count derived from the SAME
+in-memory list it iterated (T177 Round 1 I8: that comparison is
+tautological by construction -- a mutation that truncates the iterated
+list moves both sides in lockstep and can never be caught by a bare
+count check). Any enumerated id with no matching report on disk => exit
+1, naming the missing id(s).
 
 CA-011: measurements reuse the same tools this feature already uses
 elsewhere -- constitution_pointer + behind_head_by via
@@ -20,11 +28,28 @@ elsewhere -- constitution_pointer + behind_head_by via
 mechanism T167's own live control needle proves sound), preamble_bytes via
 either the local CLAUDE.md's real byte size or (no local checkout) the
 GitHub Contents API's own reported `size` field for that file --
-Measured<int> in both cases. gate_suite_runtime and registry_defect_present
-have no cross-repo instrument yet and are recorded UNMEASURED with
-missing_instrument, never coerced to a fake value (C-001 false-null
-guard). migration_effort is an ESTIMATE derived from behind_head_by
-(labelled explicitly, never presented as Measured).
+Measured<int> in both cases. cleanliness is genuinely measured for every
+local checkout via `git status --porcelain` (T177 Round 1 I7 -- the prior
+docstring claimed this call without the code ever making it).
+gate_suite_runtime, registry_defect_present, mechanism_presence and
+pull_validate_time_seconds have no cross-repo instrument yet and are
+recorded UNMEASURED with missing_instrument, never coerced to a fake
+value (C-001 false-null guard). migration_effort is ALWAYS labelled
+"ESTIMATE:<hours>", NEVER "Measured:" (T177 Round 1 I7 -- it is derived
+from behind_head_by via a fixed hours-per-commit heuristic, not an
+actual measured duration, regardless of whether behind_head_by itself
+was measured).
+
+Per data-model.md #13.2, `count(reports) = count(projects)` -- for a
+project with MULTIPLE local checkouts (T177 Round 1 I9: a consumer can
+be checked out more than once, e.g. via separate git worktrees on
+separate tracks, and those checkouts can genuinely diverge), the ONE
+report's top-level fields (constitution_pointer, behind_head_by,
+measurements) describe `local_checkouts[0]` as before, and a NEW
+`local_checkouts_detail` array carries a per-checkout breakdown (path,
+constitution_pointer, behind_head_by, cleanliness) for EVERY known
+checkout, not only the first -- never silently auditing one checkout and
+treating it as authoritative for all.
 
 CA-012: read-only. A local checkout is inspected with `git ls-tree` /
 `git status --porcelain` only (never `checkout`, `pull`, `fetch --prune`,
@@ -123,6 +148,46 @@ def risk_and_effort(behind):
     return risk, reason, effort_hours
 
 
+def measure_cleanliness(checkout):
+    """Returns ("clean"|"dirty", measured: bool) -- T177 Round 1 I7: a
+    genuine `git status --porcelain` measurement (the docstring's
+    existing, pre-this-fix claim that CA-012 already did this was false
+    until now; the call did not exist anywhere in this module)."""
+    out = sh(["git", "-C", checkout, "status", "--porcelain=v1"])
+    if out is None:
+        return None, False
+    return ("clean" if out.strip() == "" else "dirty"), True
+
+
+def _is_real_checkout(path):
+    return bool(path) and (os.path.isdir(os.path.join(path, ".git")) or os.path.isfile(os.path.join(path, ".git")))
+
+
+def audit_checkout_detail(checkout, const_root):
+    """Per-checkout breakdown for local_checkouts_detail (T177 Round 1
+    I9): one entry per KNOWN local checkout, never only checkouts[0] --
+    a consumer with multiple local checkouts (e.g. separate git
+    worktrees on separate tracks) can genuinely diverge, and auditing
+    only the first silently hides that."""
+    detail = {"path": checkout, "constitution_pointer": None, "behind_head_by": "UNMEASURED", "cleanliness": "UNMEASURED"}
+    if not _is_real_checkout(checkout):
+        detail["cleanliness"] = "UNMEASURED"
+        return detail
+    out = sh(["git", "-C", checkout, "ls-tree", "HEAD", "constitution"])
+    gitlink = None
+    if out:
+        parts = out.split()
+        if len(parts) >= 3:
+            gitlink = parts[2]
+    detail["constitution_pointer"] = gitlink
+    if gitlink:
+        behind = measure_behind(const_root, gitlink)
+        detail["behind_head_by"] = behind if behind is not None else "UNMEASURED"
+    clean, measured = measure_cleanliness(checkout)
+    detail["cleanliness"] = clean if measured else "UNMEASURED"
+    return detail
+
+
 def audit_one(project, const_root):
     project_id = project["project_id"]
     consumer_kind = project.get("consumer_kind", "submodule")
@@ -132,8 +197,10 @@ def audit_one(project, const_root):
     preamble_bytes = None
     preamble_measured = False
     behind = None
+    cleanliness = "UNMEASURED"
     gaps = []
     measurements = {}
+    local_checkouts_detail = [audit_checkout_detail(c, const_root) for c in local_checkouts]
 
     if consumer_kind == "text-only-inheritance":
         gaps.append({
@@ -143,14 +210,19 @@ def audit_one(project, const_root):
         })
         measurements["gate_suite_runtime"] = {"value": None, "missing_instrument": "no gate suite in a text-only consumer"}
         measurements["registry_defect_present"] = {"value": None, "missing_instrument": "no owned tracker DB to inspect cross-repo"}
+        measurements["mechanism_presence"] = {"value": None, "missing_instrument": "no cross-repo mechanism-wiring instrument yet"}
+        measurements["pull_validate_time_seconds"] = {"value": None, "missing_instrument": "requires a live scratch clone + pull + validate run, not performed by a read-only audit pass (CA-012)"}
         local_ok = local_checkouts and os.path.isdir(local_checkouts[0])
         if local_ok:
             claude_md = os.path.join(local_checkouts[0], "CLAUDE.md")
             if os.path.isfile(claude_md):
                 preamble_bytes = os.path.getsize(claude_md)
                 preamble_measured = True
+            clean, measured = measure_cleanliness(local_checkouts[0])
+            cleanliness = clean if measured else "UNMEASURED"
         risk, risk_reason, effort = risk_and_effort(None)
         measurements["preamble_bytes"] = {"value": preamble_bytes, "measured": preamble_measured}
+        measurements["cleanliness"] = {"value": cleanliness if cleanliness != "UNMEASURED" else None, "measured": cleanliness != "UNMEASURED"}
         return {
             "project_id": project_id,
             "constitution_pointer": None,
@@ -160,11 +232,10 @@ def audit_one(project, const_root):
             "risk": risk,
             "risk_reason": risk_reason,
             "measurements": measurements,
+            "local_checkouts_detail": local_checkouts_detail,
         }
 
-    local_ok = local_checkouts and (
-        os.path.isdir(os.path.join(local_checkouts[0], ".git")) or os.path.isfile(os.path.join(local_checkouts[0], ".git"))
-    )
+    local_ok = _is_real_checkout(local_checkouts[0]) if local_checkouts else False
     if local_ok:
         checkout = local_checkouts[0]
         out = sh(["git", "-C", checkout, "ls-tree", "HEAD", "constitution"])
@@ -176,6 +247,8 @@ def audit_one(project, const_root):
         if os.path.isfile(claude_md):
             preamble_bytes = os.path.getsize(claude_md)
             preamble_measured = True
+        clean, measured = measure_cleanliness(checkout)
+        cleanliness = clean if measured else "UNMEASURED"
     else:
         doc = gh_contents(project_id, "constitution")
         if doc and doc.get("type") == "submodule":
@@ -202,18 +275,30 @@ def audit_one(project, const_root):
 
     measurements["gate_suite_runtime"] = {"value": None, "missing_instrument": "no cross-repo gate-suite-log instrument yet"}
     measurements["registry_defect_present"] = {"value": None, "missing_instrument": "no cross-repo tracker-DB instrument yet"}
+    measurements["mechanism_presence"] = {"value": None, "missing_instrument": "no cross-repo mechanism-wiring instrument yet"}
+    measurements["pull_validate_time_seconds"] = {"value": None, "missing_instrument": "requires a live scratch clone + pull + validate run, not performed by a read-only audit pass (CA-012)"}
     measurements["preamble_bytes"] = {"value": preamble_bytes, "measured": preamble_measured}
+    measurements["cleanliness"] = {"value": cleanliness if cleanliness != "UNMEASURED" else None, "measured": cleanliness != "UNMEASURED"}
 
     risk, risk_reason, effort = risk_and_effort(behind)
+    # T177 Round 1 I7: migration_effort is ALWAYS an ESTIMATE, never
+    # "Measured:" -- it is derived from behind_head_by via a fixed
+    # hours-per-commit heuristic (risk_and_effort's own `behind / 50.0`),
+    # which is an estimate regardless of whether behind_head_by itself
+    # was genuinely measured. The prior code labelled it "Measured:"
+    # whenever behind_head_by was known, directly contradicting this
+    # module's own docstring ("migration_effort is an ESTIMATE ...
+    # labelled explicitly, never presented as Measured").
     return {
         "project_id": project_id,
         "constitution_pointer": gitlink,
         "behind_head_by": behind if behind is not None else "UNMEASURED",
         "gaps": gaps,
-        "migration_effort": ("Measured:%s" % effort) if (effort is not None and behind is not None) else "ESTIMATE:%s" % (effort if effort is not None else "1"),
+        "migration_effort": "ESTIMATE:%s" % (effort if effort is not None else "1"),
         "risk": risk,
         "risk_reason": risk_reason,
         "measurements": measurements,
+        "local_checkouts_detail": local_checkouts_detail,
     }
 
 
@@ -223,6 +308,7 @@ def cmd_audit(args):
     with open(args.consumers, "r", encoding="utf-8") as fh:
         consumers_doc = json.load(fh)
     projects = consumers_doc.get("projects", [])
+    expected_ids = {p["project_id"] for p in projects}
 
     os.makedirs(args.out, exist_ok=True)
     written = 0
@@ -234,10 +320,42 @@ def cmd_audit(args):
             json.dump(report, fh, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         written += 1
 
-    if written != len(projects):
-        print("audit.py: CA-010 report count mismatch: wrote %d for %d projects" % (written, len(projects)), file=sys.stderr)
+    # CA-010 (T177 Round 1 I8 fix): re-derive the written set
+    # INDEPENDENTLY from disk -- glob --out's real directory content and
+    # read each report's OWN `project_id` field -- rather than trusting
+    # the write loop's own running counter compared against a count
+    # derived from the SAME in-memory `projects` list it just iterated.
+    # A count-vs-count check like the prior `written != len(projects)`
+    # is tautological by construction: a mutation that truncates the
+    # iterated list (e.g. `for project in projects[:-1]:`) moves BOTH
+    # sides of that comparison in lockstep and can never be caught,
+    # confirmed live by reproducing the reviewer's exact mutation before
+    # writing this fix. `expected_ids` is captured ONCE, above, from the
+    # untouched --consumers document, so it is immune to any such
+    # in-loop truncation.
+    on_disk_ids = set()
+    for out_path in glob.glob(os.path.join(args.out, "*.json")):
+        try:
+            with open(out_path, "r", encoding="utf-8") as fh:
+                rec = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        rec_id = rec.get("project_id")
+        if rec_id:
+            on_disk_ids.add(rec_id)
+
+    missing_ids = expected_ids - on_disk_ids
+    if missing_ids:
+        print(
+            "audit.py: CA-010 report coverage mismatch: %d/%d enumerated project(s) have no ConsumerAuditReport on disk: %s"
+            % (len(expected_ids) - len(missing_ids), len(expected_ids), ", ".join(sorted(missing_ids))),
+            file=sys.stderr,
+        )
         sys.exit(1)
-    print("audit.py: wrote %d ConsumerAuditReport(s) to %s" % (written, args.out))
+    print(
+        "audit.py: wrote %d ConsumerAuditReport(s) to %s (verified %d/%d enumerated project_id(s) present on disk)"
+        % (written, args.out, len(expected_ids & on_disk_ids), len(expected_ids))
+    )
     sys.exit(0)
 
 
@@ -245,38 +363,74 @@ def cmd_summary(args):
     with open(args.consumers, "r", encoding="utf-8") as fh:
         consumers_doc = json.load(fh)
     projects = consumers_doc.get("projects", [])
+    known_ids = {p["project_id"] for p in projects}
     audit_files = glob.glob(os.path.join(args.audits, "*.json"))
     migration_files = glob.glob(os.path.join(args.migrations, "*.json")) if args.migrations and os.path.isdir(args.migrations) else []
 
-    migrated = 0
-    not_migrated_by_reason = {}
-    migrated_ids = set()
-    for mf in migration_files:
+    # T177 Round 1 B4 fix: coverage MUST be counted by DISTINCT
+    # enumerated project_id, never by raw FILE count -- the prior code
+    # counted one unit per migration-record FILE and one unit per
+    # audit-record FILE, so N duplicate copies of a single project's
+    # record (a stray re-run leftover, a defect that writes the same id
+    # twice) inflated the numerator by N, and `coverage` could read 1.0
+    # on a directory holding only copies of ONE real record (reproduced
+    # live: 19 copies of one migration record + 19 empty audit files
+    # gave coverage=1.0 exit=0). `outcome_by_id` is keyed by
+    # project_id, so a duplicate file for the SAME id contributes
+    # exactly once (last-write-wins by lexicographic filename order, an
+    # arbitrary but deterministic tiebreak); a record naming a
+    # project_id OUTSIDE the enumerated set is rejected and reported,
+    # never silently counted.
+    outcome_by_id = {}
+    unknown_ids_seen = set()
+    for mf in sorted(migration_files):
         try:
             with open(mf, "r", encoding="utf-8") as fh:
                 rec = json.load(fh)
         except (OSError, ValueError):
             continue
         pid = rec.get("project_id")
-        if rec.get("outcome") == "MIGRATED":
-            migrated += 1
-            if pid:
-                migrated_ids.add(pid)
-        else:
-            reason = rec.get("not_migrated_reason", "UNKNOWN")
-            not_migrated_by_reason[reason] = not_migrated_by_reason.get(reason, 0) + 1
+        if not pid:
+            continue
+        if pid not in known_ids:
+            unknown_ids_seen.add(pid)
+            continue
+        outcome_by_id[pid] = "MIGRATED" if rec.get("outcome") == "MIGRATED" else rec.get("not_migrated_reason", "UNKNOWN")
 
+    migrated_ids = {pid for pid, outcome in outcome_by_id.items() if outcome == "MIGRATED"}
+    migrated = len(migrated_ids)
+    not_migrated_by_reason = {}
+    for pid, outcome in outcome_by_id.items():
+        if outcome == "MIGRATED":
+            continue
+        not_migrated_by_reason[outcome] = not_migrated_by_reason.get(outcome, 0) + 1
     not_migrated_total = sum(not_migrated_by_reason.values())
+
+    # `audited` likewise counts DISTINCT enumerated ids with a real
+    # report on disk, never raw file count (the same B4 defect class).
+    audited_ids = set()
+    for af in audit_files:
+        try:
+            with open(af, "r", encoding="utf-8") as fh:
+                arec = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        apid = arec.get("project_id")
+        if apid in known_ids:
+            audited_ids.add(apid)
+
     coverage = (migrated + not_migrated_total) / len(projects) if projects else 0.0
 
     doc = {
         "schema": "summary/v1",
         "projects": len(projects),
-        "audited": len(audit_files),
+        "audited": len(audited_ids),
         "migrated": migrated,
         "not_migrated_by_reason": not_migrated_by_reason,
         "coverage": coverage,
     }
+    if unknown_ids_seen:
+        doc["unknown_ids_ignored"] = sorted(unknown_ids_seen)
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(doc, fh, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     sys.exit(0 if coverage == 1.0 else 1)

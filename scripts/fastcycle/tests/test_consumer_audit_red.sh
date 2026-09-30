@@ -279,6 +279,167 @@ else
     bad "C3 CA-012 read-only: could not capture a before-fingerprint (see Section B control needle)"
 fi
 
+# =============================================================================
+# Section D -- T177 Round 1 regressions: B4 (coverage counted by distinct
+# enumerated id, never by raw file count), I7 (migration_effort ALWAYS
+# "ESTIMATE:", cleanliness genuinely measured), I8 (CA-010's coverage
+# check is genuinely non-tautological), I9 (every KNOWN local checkout
+# audited, not only the first).
+# =============================================================================
+
+# --- D1/D2: B4 -- `summary`'s coverage MUST be counted by DISTINCT
+# project_id, never by raw file count. Reproduces the reviewer's exact
+# repro: N copies of ONE migration record + N empty/stray audit files
+# must NOT inflate coverage toward 1.0.
+D_MIGDIR="$WORK/d_migrations"
+D_AUDDIR="$WORK/d_audits_stray"
+mkdir -p "$D_MIGDIR" "$D_AUDDIR"
+for i in 1 2 3 4 5; do
+    cat > "$D_MIGDIR/dup_$i.json" <<EOF
+{"schema":"consumer-migration/v1","project_id":"HelixDevelopment/ota","outcome":"MIGRATED","data_change":"NONE","commit":"deadbeef"}
+EOF
+    echo '{"not_a_real_report": true}' > "$D_AUDDIR/stray_$i.json"
+done
+D_SUM_OUT=$(run_tool summary --consumers "$CONSUMERS3" --audits "$D_AUDDIR" --migrations "$D_MIGDIR" --out "$WORK/d_summary.json" 2>&1); D_SUM_RC=$?
+if python3 -c "
+import json, sys
+d = json.load(open('$WORK/d_summary.json'))
+# 5 duplicate MIGRATED records for the SAME project_id (HelixDevelopment/ota,
+# one of the 3 enumerated projects) must count as exactly 1 migrated project,
+# never 5 -- and 'audited' must be 0 (the 5 stray files carry no real
+# project_id, so none of them count), never 5.
+ok = d.get('migrated') == 1 and d.get('audited') == 0 and abs(d.get('coverage', -1) - (1.0/3.0)) < 1e-6
+sys.exit(0 if ok else 1)
+" 2>/dev/null; then
+    ok "D1 B4 dedup-by-id: 5 duplicate migration-record FILES for the SAME project_id count as exactly 1 migrated project (not 5), and 5 stray no-project_id audit files count as 0 audited (not 5) -- coverage correctly reads 1/3, never inflated toward 1.0"
+else
+    bad "D1 B4 dedup-by-id: summary did not correctly dedup by project_id (rc=$D_SUM_RC; see $WORK/d_summary.json)"
+fi
+
+# --- D2: B4 -- a migration record naming a project_id OUTSIDE the
+# enumerated set MUST be reported separately, never silently counted
+# toward coverage.
+D_MIGDIR2="$WORK/d_migrations2"
+mkdir -p "$D_MIGDIR2"
+cat > "$D_MIGDIR2/unknown.json" <<'EOF'
+{"schema":"consumer-migration/v1","project_id":"some-org/not-in-the-enumeration","outcome":"MIGRATED","data_change":"NONE","commit":"deadbeef"}
+EOF
+mkdir -p "$WORK/d_audits_empty"
+run_tool summary --consumers "$CONSUMERS3" --audits "$WORK/d_audits_empty" --migrations "$D_MIGDIR2" --out "$WORK/d_summary2.json" >/dev/null 2>&1
+if python3 -c "
+import json, sys
+d = json.load(open('$WORK/d_summary2.json'))
+ok = d.get('migrated') == 0 and d.get('coverage') == 0.0 and 'some-org/not-in-the-enumeration' in (d.get('unknown_ids_ignored') or [])
+sys.exit(0 if ok else 1)
+" 2>/dev/null; then
+    ok "D2 B4 unknown-id rejected: a migration record naming a project_id outside the enumerated set is reported in unknown_ids_ignored, never silently counted toward coverage"
+else
+    bad "D2 B4 unknown-id rejected: an out-of-set project_id was not correctly rejected/reported (see $WORK/d_summary2.json)"
+fi
+
+# --- D3: I7 -- migration_effort is ALWAYS "ESTIMATE:", never "Measured:".
+D3_OUT=$(run_tool audit --config "$CFG" --consumers "$CONSUMERS3" --workdir "$WORK/d3_cwork" --out "$WORK/d3_audits/" 2>&1); D3_RC=$?
+if [ "$D3_RC" -eq 0 ] && python3 -c "
+import glob, json, sys
+bad = []
+for f in glob.glob('$WORK/d3_audits/*.json'):
+    d = json.load(open(f))
+    eff = d.get('migration_effort', '')
+    if not eff.startswith('ESTIMATE:'):
+        bad.append((d.get('project_id'), eff))
+sys.exit(1 if bad else 0)
+" 2>/dev/null; then
+    ok "D3 I7 migration_effort always ESTIMATE: every real audit report's migration_effort field starts with 'ESTIMATE:', never 'Measured:' -- matching this module's own docstring"
+else
+    bad "D3 I7 migration_effort always ESTIMATE: at least one report used a 'Measured:' label for a derived (never genuinely measured) effort figure (rc=$D3_RC)"
+fi
+
+# --- D4: I7 -- cleanliness is genuinely measured (git status --porcelain)
+# for a real local checkout, distinguishing clean from dirty.
+if python3 -c "
+import json, glob, sys
+for f in glob.glob('$WORK/d3_audits/*.json'):
+    d = json.load(open(f))
+    if d.get('project_id') == 'HelixDevelopment/ota':
+        m = d.get('measurements', {}).get('cleanliness', {})
+        sys.exit(0 if m.get('measured') is True and m.get('value') in ('clean', 'dirty') else 1)
+sys.exit(1)
+" 2>/dev/null; then
+    ok "D4 I7 cleanliness genuinely measured: HelixDevelopment/ota's real audit report carries a measured=true cleanliness value ('clean' or 'dirty'), a genuine 'git status --porcelain' call this module's docstring previously claimed but never made"
+else
+    bad "D4 I7 cleanliness genuinely measured: HelixDevelopment/ota's report did not carry a genuinely-measured cleanliness field (see $WORK/d3_audits/)"
+fi
+
+# --- D5: I8 guard-viability -- the NEW CA-010 coverage check is
+# genuinely non-tautological: a scratch copy of audit.py whose `audit`
+# loop silently SKIPS the last project (the reviewer's own exact
+# mutation shape) must now be CAUGHT (exit 1, naming the missing id),
+# proving expected_ids/on_disk_ids are independently derived rather than
+# moving in lockstep with a truncated loop.
+D5_SCRATCH="$WORK/d5_audit_skip_mutation.py"
+python3 -c "
+import re
+src = open('$TOOL').read()
+anchor = 'for project in projects:'
+assert src.count(anchor) == 1, 'anchor not unique or missing'
+mutated = src.replace(anchor, 'for project in projects[:-1]:', 1)
+open('$D5_SCRATCH', 'w').write(mutated)
+" 2>"$WORK/d5_mutate.err"
+if [ -f "$D5_SCRATCH" ]; then
+    D5_OUT=$(python3 "$D5_SCRATCH" audit --config "$CFG" --consumers "$CONSUMERS3" --workdir "$WORK/d5_cwork" --out "$WORK/d5_audits/" 2>&1); D5_RC=$?
+    if [ "$D5_RC" -eq 1 ] && echo "$D5_OUT" | grep -q 'CA-010 report coverage mismatch'; then
+        ok "D5 I8 guard-viability: a scratch mutation that skips the LAST project in the iterated list (the reviewer's exact 'skipping one project' repro) IS now caught by CA-010's independently-derived coverage check, naming the missing id"
+    else
+        bad "D5 I8 guard-viability: the skip-last-project mutation was NOT caught by the CA-010 coverage check (rc=$D5_RC out=$D5_OUT) -- the check may still be tautological"
+    fi
+else
+    bad "D5 I8 guard-viability: could not build the scratch mutation copy (see $WORK/d5_mutate.err) -- the anchor text may have changed; re-derive it"
+fi
+
+# --- D6: I9 -- a consumer with MULTIPLE local checkouts (HelixDevelopment/
+# skills has real, independently-checked-out git worktrees on this host:
+# /mnt/track2, /mnt/track3, /mnt/track4) gets a local_checkouts_detail
+# entry per checkout, not only the first.
+D6_MULTI_CONSUMERS="$WORK/d6_multi_consumers.json"
+D6_CHECKOUTS_PRESENT=0
+for p in /mnt/track2/helix_skills /mnt/track3/helix_skills /mnt/track4/helix_skills; do
+    [ -d "$p/.git" ] || [ -f "$p/.git" ] && D6_CHECKOUTS_PRESENT=$((D6_CHECKOUTS_PRESENT + 1))
+done
+if [ "$D6_CHECKOUTS_PRESENT" -eq 3 ]; then
+    cat > "$D6_MULTI_CONSUMERS" <<'EOF'
+{
+  "schema": "consumers/v1",
+  "projects": [
+    {
+      "project_id": "HelixDevelopment/skills",
+      "enumeration_sources": [{"source": "local-clone", "hit": true}],
+      "consumer_kind": "submodule",
+      "local_checkouts": ["/mnt/track2/helix_skills", "/mnt/track3/helix_skills", "/mnt/track4/helix_skills"]
+    }
+  ],
+  "source_agreement": {"multi_source": 0, "single_source": 1, "text_only": 0}
+}
+EOF
+    D6_OUT=$(run_tool audit --config "$CFG" --consumers "$D6_MULTI_CONSUMERS" --workdir "$WORK/d6_cwork" --out "$WORK/d6_audits/" 2>&1); D6_RC=$?
+    if [ "$D6_RC" -eq 0 ] && python3 -c "
+import glob, json, sys
+files = glob.glob('$WORK/d6_audits/*.json')
+if len(files) != 1:
+    sys.exit(1)
+d = json.load(open(files[0]))
+detail = d.get('local_checkouts_detail') or []
+paths = {x.get('path') for x in detail}
+expected = {'/mnt/track2/helix_skills', '/mnt/track3/helix_skills', '/mnt/track4/helix_skills'}
+sys.exit(0 if paths == expected else 1)
+" 2>/dev/null; then
+        ok "D6 I9 all-checkouts-audited: a consumer with 3 real local checkouts gets local_checkouts_detail entries for ALL 3 (/mnt/track2, /mnt/track3, /mnt/track4 helix_skills), not only the first"
+    else
+        bad "D6 I9 all-checkouts-audited: local_checkouts_detail did not cover all 3 real checkouts (rc=$D6_RC out=$D6_OUT)"
+    fi
+else
+    echo "NOTE: D6 I9 all-checkouts-audited SKIPPED -- fewer than 3 of the expected /mnt/track{2,3,4}/helix_skills checkouts are present on this host ($D6_CHECKOUTS_PRESENT/3); not a test failure, a host-topology precondition"
+fi
+
 # Archive this run's stdout as the RED evidence per Test Discipline.
 {
     echo "T167 RED run; candidate fingerprint=$FINGERPRINT; date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
