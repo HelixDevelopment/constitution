@@ -68,9 +68,19 @@
 # Guard-viability proof (section 11.4.115(F)): every live-CLI case is ALSO
 # run against `fixtures/custody_sweep/_pinned/custody_sweep_pre_r6_fix.py`
 # -- extracted ONCE, via `git show HEAD:...`, from this submodule's own HEAD
-# commit a925a8dabf644f2b075290cce9404da484f4d410 (verified, at authoring
-# time, to be the exact pre-Round-6-fix commit -- see
-# test_handoff_r6_regression.sh's own identical note). Unlike
+# commit cf0242a0b99faa0956b8cab1b297a7be93543137 (T140 Round 7 review
+# finding M1, section 11.4.6 -- CORRECTED here: an earlier revision of this
+# comment cited a925a8dabf644f2b075290cce9404da484f4d410, matching the
+# OTHER two sibling files' own [now also corrected] label. For THIS file
+# specifically that hash was DOUBLY imprecise: custody_sweep.py's own last
+# content-changing commit before the Round 6 fix is cf0242a0b99faa...
+# -- a DIFFERENT commit from the 80ef88cb47e25274797c4bf49704... that is
+# the correct answer for handoff.py/limit_class.py (verified
+# independently: `git log -- .../custody_sweep.py` up to the Round 6 fix
+# commit's own parent ends at cf0242a, never 80ef88c; and `git diff
+# cf0242a:.../custody_sweep.py a925a8d:.../custody_sweep.py` is empty,
+# confirming the CONTENT match while the commit that actually WROTE it is
+# cf0242a, never 80ef88c nor a925a8d themselves). Unlike
 # `limit_class.py`, `custody_sweep.py` ALREADY imports `fc_common` via the
 # SAME `_LIB_DIR`-relative sys.path insertion `handoff.py` uses (pre-dating
 # Round 6 -- only its `cmd_propose`/`cmd_verify_proposal` reads were widened
@@ -292,12 +302,27 @@ echo "=== R6-I2 sibling STATIC control needle: ALL THREE write_doc(...) call sit
 # own try/except (never merely cmd_inventory's) -- so a regression that
 # strips the guard from one specific subcommand (not all three at once)
 # is still caught even though only cmd_inventory is exercised live above.
+#
+# T140 Round 7 review finding M2 (section 11.4.6, fixed here): this needle
+# used to count GUARDED TRY NODES globally across all three target
+# functions, not DISTINCT GUARDED FUNCTIONS -- `guarded += 1` fired once
+# PER matching Try block found by the inner `ast.walk(node)`, so a
+# function with TWO guarded Try blocks (e.g. duplicated/refactored
+# defensive code) could push the total to 3 while a DIFFERENT one of the
+# three target functions had ZERO guards at all (e.g. 2+1+0 or 2+0+1 both
+# sum to 3) -- a genuinely missing guard in one function was masked by a
+# double-counted guard in another, a false PASS on a real regression.
+# Fixed by tracking the SET of function NAMES that have at least one
+# guarded Try (never a raw count), and requiring len() == 3 -- i.e. all
+# THREE distinct target functions individually guarded, regardless of how
+# many guarded Try blocks any one of them happens to contain.
 GUARD_COUNT=$(python3 - "$IMPL" <<'PYEOF'
 import ast, sys
 tree = ast.parse(open(sys.argv[1], encoding="utf-8").read(), filename=sys.argv[1])
-guarded = 0
+TARGETS = ("cmd_inventory", "cmd_propose", "cmd_verify_proposal")
+guarded_functions = set()
 for node in ast.walk(tree):
-    if isinstance(node, ast.FunctionDef) and node.name in ("cmd_inventory", "cmd_propose", "cmd_verify_proposal"):
+    if isinstance(node, ast.FunctionDef) and node.name in TARGETS:
         for sub in ast.walk(node):
             if isinstance(sub, ast.Try):
                 handled = any(
@@ -309,8 +334,9 @@ for node in ast.walk(tree):
                     for n in ast.walk(sub)
                 )
                 if handled and calls_write_doc:
-                    guarded += 1
-print(guarded)
+                    guarded_functions.add(node.name)
+                    break  # one guarded Try in this function suffices -- stop scanning it
+print(len(guarded_functions))
 PYEOF
 )
 if [ "$GUARD_COUNT" = "3" ]; then

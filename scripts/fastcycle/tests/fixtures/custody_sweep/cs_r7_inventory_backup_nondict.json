@@ -1,0 +1,10 @@
+{
+  "repo_root": "/tmp/nonexistent",
+  "entries": [
+    {
+      "entry_kind": "worktree",
+      "entry_id": "some_id",
+      "existing_backup": ["not", "a", "dict"]
+    }
+  ]
+}

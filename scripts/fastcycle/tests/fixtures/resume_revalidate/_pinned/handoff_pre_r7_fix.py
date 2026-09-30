@@ -372,10 +372,6 @@ SCHEMA_HANDOFF = "handoff/v1"
 SCHEMA_WRITE = "handoff-write/v1"
 SCHEMA_VALIDATE = "handoff-validate/v1"
 SCHEMA_RESUME_CHECK = "handoff-resume-check/v1"
-# T140 Round 7 review: the top-level dispatch-boundary minimal error doc's
-# own schema (see main()'s own dispatch boundary + its
-# _write_dispatch_internal_error_doc helper, below).
-SCHEMA_INTERNAL_ERROR = "handoff-internal-error/v1"
 
 EXIT_OK = 0
 EXIT_FINDING = 1   # write: a declared partial-artefact path is missing; validate/verify: INVALID; resume/resume-check: UNSAFE
@@ -441,39 +437,6 @@ def write_report_atomic(out_path, body, schema, include_run_meta=True):
         doc["run_meta"] = {"host": _hostname()}
     write_json_atomic(out_path, doc)
     return doc
-
-
-def _write_report_or_usage_error(tool_label, out_path, body, schema, include_run_meta=True):
-    """T140 Round 7 review finding R7-I5 (section 11.4.250 heuristic-tower/
-    primitive-defect, section 11.4.227 reuse-not-reinvention): every one of
-    `write`/`validate`/`verify`/`resume`/`resume-check`'s several
-    `write_report_atomic(...)` call sites below used to be entirely
-    UNWRAPPED -- an unwritable --out path (parent directory missing/not
-    writable/a permissions error) crashed this tool uncaught with no
-    honest verdict written at all, the EXACT class the sibling
-    `limit_class.py`/`custody_sweep.py` write sites already close (their
-    own "T140 Round 6 review finding R6-I2" fixes, which this file's own
-    Round 6 pass never reached -- an earlier Round 6 commit message's own
-    claim that the fix was "reused across all three sibling tools" was
-    FALSE for this file, per this round's own honest correction). ONE
-    shared helper closes every call site in this file at once, rather than
-    patching `cmd_write`'s two calls + `cmd_validate`'s one call +
-    `cmd_resume_check`'s three calls independently, one crash site at a
-    time across yet another round.
-
-    Returns None on a successful write (the caller proceeds as before); on
-    an OSError, prints a diagnosable message and returns EXIT_USAGE, which
-    every call site below returns immediately -- there is deliberately no
-    second, distinguishable "the write itself failed after a real verdict
-    was already computed" exit code (matching this file's own
-    already-established EXIT_USAGE=2 "usage/config error" convention, and
-    the sibling tools' own identical choice)."""
-    try:
-        write_report_atomic(out_path, body, schema, include_run_meta=include_run_meta)
-    except OSError as exc:
-        print("handoff: %s -- cannot write --out %s: %s" % (tool_label, out_path, exc), file=sys.stderr)
-        return EXIT_USAGE
-    return None
 
 
 def _json_list_arg(text, name):
@@ -559,16 +522,7 @@ def cmd_write(a):
     # body_hash/run_meta, neither of which is present yet).
     doc["body_hash"] = fc_common.body_hash_of(doc)
 
-    # T140 Round 7 review finding R7-I5 (fixed here): the handoff RECORD
-    # write (`--handoff`, distinct from the `--out` report below) was ALSO
-    # entirely unguarded -- an unwritable `--handoff` path (its own parent
-    # directory missing/not writable) crashed uncaught with no honest
-    # verdict written at all.
-    try:
-        write_json_atomic(a.handoff, doc)
-    except OSError as exc:
-        print("handoff: write -- cannot write --handoff %s: %s" % (a.handoff, exc), file=sys.stderr)
-        return EXIT_USAGE
+    write_json_atomic(a.handoff, doc)
 
     report_body = {
         "handoff_id": handoff_id,
@@ -578,9 +532,7 @@ def cmd_write(a):
         "phase": a.phase,
         "partial_artefact_count": len(partial_artefacts),
     }
-    err = _write_report_or_usage_error("write", a.out, report_body, SCHEMA_WRITE, include_run_meta=True)
-    if err is not None:
-        return err
+    write_report_atomic(a.out, report_body, SCHEMA_WRITE, include_run_meta=True)
 
     print("handoff: write wrote %s (handoff_id=%s, item_id=%s, phase=%s)"
           % (a.handoff, handoff_id, a.item_id, a.phase))
@@ -626,59 +578,19 @@ def cmd_validate(a):
 
     # 2. HO-002: "Partial artefacts are never deleted or rewritten by crash
     #    handling; verify re-hashes them and exits 1 on any difference."
-    #
-    # T140 Round 7 review finding R7-I5 (section 11.4.250/11.4.201(6), fixed
-    # here): `doc.get("partial_artefacts") or []` used to feed straight into
-    # `for art in ...:` without first confirming the field's JSON shape --
-    # a non-list `partial_artefacts` value (e.g. a bare, truthy string) was
-    # silently iterated CHARACTER BY CHARACTER (a JSON string is truthy, so
-    # `or []` never substitutes the honest empty default; each character
-    # then silently failed the `isinstance(art, dict)` guard and
-    # contributed a bogus "partial_artefact:None:missing" mismatch, with no
-    # trace anywhere that the FIELD ITSELF, not any individual artefact,
-    # was malformed). A `path` field present but not a string (e.g. a JSON
-    # int/list) used to crash `os.path.join(base_dir, path)` uncaught with
-    # a bare TypeError. And `content_address(full)` had no guard at all --
-    # a `path` resolving to an EXISTING-but-UNREADABLE file (e.g. a
-    # permission-denied path, or an absolute `path` that escapes `base_dir`
-    # entirely -- `os.path.join` discards `base_dir` whenever the second
-    # argument is itself absolute) crashed uncaught (PermissionError, an
-    # OSError). Every one of these now fails CLOSED per-entry (section
-    # 11.4.101 -- a malformed/unreadable entry becomes its own diagnosable
-    # `mismatches` entry, contributing to an honest INVALID outcome, never
-    # silently skipped nor crashing the whole subcommand) while still
-    # processing every OTHER, well-formed sibling entry.
-    raw_partial_artefacts = doc.get("partial_artefacts")
-    if raw_partial_artefacts is not None and not isinstance(raw_partial_artefacts, list):
-        mismatches.append("malformed:partial_artefacts:not-a-list:%s:%r" % (
-            type(raw_partial_artefacts).__name__, raw_partial_artefacts))
-        raw_partial_artefacts = []
-    for art in (raw_partial_artefacts or []):
-        if not isinstance(art, dict):
-            mismatches.append("malformed:partial_artefact-entry:not-an-object:%r" % (art,))
-            continue
-        path = art.get("path")
-        if path is not None and not isinstance(path, str):
-            mismatches.append("malformed:partial_artefact-entry:path-not-a-string:%s:%r" % (
-                type(path).__name__, path))
-            continue
+    for art in (doc.get("partial_artefacts") or []):
+        path = art.get("path") if isinstance(art, dict) else None
         full = os.path.join(base_dir, path) if path else None
         if not full or not os.path.isfile(full):
             mismatches.append("partial_artefact:%s:missing" % path)
             continue
-        try:
-            live_ca = content_address(full)
-        except OSError as exc:
-            mismatches.append("partial_artefact:%s:unreadable:%s: %s" % (path, type(exc).__name__, exc))
-            continue
+        live_ca = content_address(full)
         if live_ca != art.get("content_address"):
             mismatches.append("partial_artefact:%s" % path)
 
     outcome = "INVALID" if mismatches else "VALID"
     body = {"outcome": outcome, "mismatches": mismatches}
-    err = _write_report_or_usage_error("validate", a.out, body, SCHEMA_VALIDATE, include_run_meta=True)
-    if err is not None:
-        return err
+    write_report_atomic(a.out, body, SCHEMA_VALIDATE, include_run_meta=True)
 
     if outcome == "VALID":
         print("handoff: validate VALID %s" % a.handoff)
@@ -897,14 +809,7 @@ def cmd_resume_check(a):
             "facts_needing_reverification": [],
             "effects_not_to_repeat": [],
         }
-        # T140 Round 7 review finding R7-I5 (fixed here): see
-        # `_write_report_or_usage_error`'s own docstring for the full
-        # rationale -- this call site was, like every other
-        # `write_report_atomic(...)` call in this file, entirely unwrapped.
-        err = _write_report_or_usage_error("resume-check", a.out, body, SCHEMA_RESUME_CHECK,
-                                            include_run_meta=True)
-        if err is not None:
-            return err
+        write_report_atomic(a.out, body, SCHEMA_RESUME_CHECK, include_run_meta=True)
         print("handoff: resume-check UNSAFE %s -- 1 reason(s): %s"
               % (a.handoff, shape_violation["class"]), file=sys.stderr)
         return EXIT_FINDING
@@ -1496,15 +1401,7 @@ def cmd_resume_check(a):
             "facts_needing_reverification": [],
             "effects_not_to_repeat": [],
         }
-        # T140 Round 7 review finding R7-I5 (fixed here): this write site
-        # was doubly unguarded -- it lives INSIDE this very
-        # `except fc_common.SAFE_EXCEPTIONS` catch-all, so an OSError from
-        # an unwritable --out here would previously have escaped even this
-        # defense-in-depth branch, uncaught a second time.
-        err = _write_report_or_usage_error("resume-check", a.out, body, SCHEMA_RESUME_CHECK,
-                                            include_run_meta=True)
-        if err is not None:
-            return err
+        write_report_atomic(a.out, body, SCHEMA_RESUME_CHECK, include_run_meta=True)
         print("handoff: resume-check UNSAFE %s -- 1 reason(s): resume-check-internal-error "
               "(%s: %s)" % (a.handoff, type(exc).__name__, exc), file=sys.stderr)
         return EXIT_FINDING
@@ -1558,11 +1455,7 @@ def cmd_resume_check(a):
         "facts_needing_reverification": [v for (_typ, v) in sorted(reverify)],
         "effects_not_to_repeat": effects_not_to_repeat,
     }
-    # T140 Round 7 review finding R7-I5 (fixed here): the normal-path write,
-    # same as the two shape-violation/internal-error write sites above.
-    err = _write_report_or_usage_error("resume-check", a.out, body, SCHEMA_RESUME_CHECK, include_run_meta=True)
-    if err is not None:
-        return err
+    write_report_atomic(a.out, body, SCHEMA_RESUME_CHECK, include_run_meta=True)
 
     if safe:
         print("handoff: resume-check SAFE %s (handoff_id=%s)" % (a.handoff, doc.get("handoff_id")))
@@ -1682,31 +1575,6 @@ def build_arg_parser():
     return p
 
 
-def _write_dispatch_internal_error_doc(out_path, subcommand, exc):
-    """T140 Round 7 review (section 11.4.250 heuristic-tower/primitive-
-    defect -- mirrors `custody_sweep.py`'s/`limit_class.py`'s own
-    identically-purposed helper, section 11.4.227 reuse-the-SAME-
-    discipline): on ANY exception escaping a subcommand handler and being
-    caught by `main()`'s new `fc_common.SAFE_EXCEPTIONS` dispatch boundary
-    below, this tool MUST still write SOME report document to --out
-    (every one of this file's subcommands takes `--out`) rather than
-    leaving a stale or entirely absent --out file -- the audit trail
-    (section 11.4.5/11.4.69) is never silently lost regardless of what
-    crashed. Reuses `write_report_atomic` (never a second writer) --
-    this file's own established report-doc convention (schema +
-    body_hash + run_meta, per the module docstring). Best-effort: a write
-    failure here is itself swallowed (never raised a second time out of
-    an already-failing error path) -- the caller's stderr diagnostic in
-    main() is what remains authoritative in that doubly-unlucky case."""
-    if not out_path:
-        return
-    body = {"subcommand": subcommand, "internal_error": {"class": type(exc).__name__, "detail": str(exc)}}
-    try:
-        write_report_atomic(out_path, body, SCHEMA_INTERNAL_ERROR, include_run_meta=True)
-    except OSError:
-        pass
-
-
 def main(argv):
     if "--determinism-check" in argv:
         return run_determinism_check(argv)
@@ -1718,25 +1586,7 @@ def main(argv):
         "resume-check": cmd_resume_check,
         "resume": cmd_resume_check,
     }
-    try:
-        return table[args.cmd_name](args)
-    except fc_common.SAFE_EXCEPTIONS as exc:
-        # T140 Round 7 review, the ONE top-level dispatch boundary wrapping
-        # EVERY subcommand this file dispatches to (see
-        # _write_dispatch_internal_error_doc's own docstring immediately
-        # above): a genuinely unanticipated crash reaching here -- one none
-        # of R7-I5's own specific, diagnosable fixes above enumerated --
-        # still fails CLOSED with an honest, diagnosable message, a real
-        # --out write, and this tool's own established EXIT_USAGE(2)
-        # convention, rather than an uncaught crash landing on Python's own
-        # default exit code 1 (indistinguishable from this tool's own
-        # EXIT_FINDING(1) -- INVALID/UNSAFE/missing-partial-artefact).
-        print("handoff: subcommand %r raised an uncaught %s while dispatching: %s -- this is a "
-              "genuinely unanticipated case no individual fix above enumerated; treat as "
-              "unsafe/unverified until independently, manually re-verified"
-              % (args.cmd_name, type(exc).__name__, exc), file=sys.stderr)
-        _write_dispatch_internal_error_doc(getattr(args, "out", None), args.cmd_name, exc)
-        return EXIT_USAGE
+    return table[args.cmd_name](args)
 
 
 if __name__ == "__main__":

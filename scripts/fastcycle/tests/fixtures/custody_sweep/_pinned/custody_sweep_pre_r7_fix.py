@@ -497,24 +497,8 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
         full = os.path.join(root, backup_artifact_path)
     if not os.path.isfile(full):
         return "REFUSED", "claimed backup_artifact_path %r does not exist on disk" % backup_artifact_path
-    # T140 Round 7 review finding R7-I4 (section 11.4.201(11)
-    # artifact-usability, fixed here): `os.path.isfile` returning True only
-    # proves the path EXISTS and has file-type mode bits -- it says nothing
-    # about whether THIS process can actually READ it (e.g. a mode-000 file,
-    # or one owned by a different uid, exactly the same class of real-world
-    # filesystem-permission gap `cmd_resume_check`'s own `_merkle_over_dir`
-    # fix in the sibling `handoff.py` already closes for a different call
-    # site). An unreadable-but-existing backup_artifact_path used to crash
-    # this tool uncaught (PermissionError, an OSError) with no honest
-    # verdict at all. Fail CLOSED instead (section 11.4.101): this backup
-    # cannot be independently re-verified, so it is never silently trusted.
-    try:
-        with open(full, "rb") as fh:
-            real_hash = sha256_of_bytes(fh.read())
-    except OSError as exc:
-        return "REFUSED", ("claimed backup_artifact_path %r exists but could not be read (%s: %s) "
-                            "-- this tool cannot independently re-verify a backup it cannot open"
-                            % (backup_artifact_path, type(exc).__name__, exc))
+    with open(full, "rb") as fh:
+        real_hash = sha256_of_bytes(fh.read())
     if real_hash != backup_hash:
         return "REFUSED", ("backup_hash %r does not match the real sha256 (%r) of %r -- stale, "
                             "tampered, or wrong hash" % (backup_hash, real_hash, backup_artifact_path))
@@ -527,29 +511,7 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
     if not entry_kind or not entry_id:
         return "REFUSED", ("cannot independently verify backup coverage: no entry_kind/entry_id was "
                             "supplied to re-derive the live dirty state against")
-    # T140 Round 7 review finding R7-I4 (fixed here): `entry_id` reaches this
-    # point UNVALIDATED (only checked for truthiness above) and is fed
-    # directly into a real `git`/`subprocess.run` argv element by
-    # `resolve_live_dirty_state` -> `_run`. An `entry_id` that is a JSON
-    # NUMBER (e.g. `1`, truthy) raises an uncaught TypeError from
-    # `subprocess.run` ("expected str, bytes or os.PathLike object, not
-    # int"); an `entry_id` string containing an embedded NUL byte raises an
-    # uncaught ValueError ("embedded null byte") from the SAME call -- both
-    # are `fc_common.SAFE_EXCEPTIONS` members, but neither was ever CAUGHT
-    # anywhere between here and `main()`'s own pre-Round-7 dispatch, so both
-    # crashed uncaught. Fail CLOSED instead (section 11.4.101): this tool
-    # cannot re-derive live state for an entry_id it cannot even pass to
-    # git, so the backup's coverage is unverifiable -- the SAME REFUSED
-    # class `found=False` (a live stash/worktree genuinely absent) already
-    # uses immediately below, since both are "cannot confirm this backup
-    # still covers something real" facts.
-    try:
-        live_hash, has_untracked, found = resolve_live_dirty_state(entry_kind, entry_id, root)
-    except fc_common.SAFE_EXCEPTIONS as exc:
-        return "REFUSED", ("could not independently re-derive the live dirty state for entry_id "
-                            "%r (kind=%s): %s: %s -- entry_id must be a genuine string identifying "
-                            "a real stash/worktree; cannot confirm the backup still covers "
-                            "anything real" % (entry_id, entry_kind, type(exc).__name__, exc))
+    live_hash, has_untracked, found = resolve_live_dirty_state(entry_kind, entry_id, root)
     if not found:
         return "REFUSED", ("entry_id %r (%s) no longer resolves to a live stash/worktree -- cannot "
                             "independently verify the backup still covers its content" % (entry_id, entry_kind))
@@ -649,17 +611,8 @@ def propose_action_for(entry, root):
     backup = entry.get("existing_backup")
     if not backup:
         return "keep"
-    # T140 Round 7 review finding R7-I3 (fixed here): was `entry["entry_kind"]`
-    # (direct indexing) -- an entry with a truthy `existing_backup` but no
-    # `entry_kind` key at all raised an uncaught KeyError. `.get()` instead
-    # yields None for a genuinely missing key, and `derive_verdict`'s own
-    # pre-existing "cannot independently verify backup coverage: no
-    # entry_kind/entry_id was supplied" REFUSED branch already handles that
-    # safely and diagnosably -- no new validation code needed, this is the
-    # SAME safe-reversible default (section 11.4.101) every other malformed-
-    # field case in this tool already resolves to.
     verdict, _detail = derive_verdict(
-        "retire" if entry.get("entry_kind") == "worktree" else "land",
+        "retire" if entry["entry_kind"] == "worktree" else "land",
         backup.get("backup_hash"), backup.get("backup_artifact_path"), root,
         entry_kind=entry.get("entry_kind"), entry_id=entry.get("entry_id"),
     )
@@ -671,124 +624,27 @@ def propose_action_for(entry, root):
     return "retire" if entry["entry_kind"] == "worktree" else "land"
 
 
-def _validate_propose_entries_shape(entries):
-    """T140 Round 7 review finding R7-I3 (section 11.4.250 heuristic-tower/
-    primitive-defect, section 11.4.227 reuse-the-SAME-discipline): `propose`
-    used to index every `entries[i]`/`existing_backup`/`backup_*` field
-    without first confirming its JSON shape -- a non-dict entry (`entry.get`
-    -> AttributeError), a non-dict `existing_backup` (same), or a
-    non-string `backup_artifact_path`/`backup_hash` (the EXACT R6-I3(2)
-    crash class `cmd_verify_proposal` already closes for `--proposal`, but
-    that Round 6 fix never reached `--inventory`'s own `entries` array --
-    its docstring even claims elsewhere, in `limit_class.py`, that this
-    function "ALREADY handles equivalent malformed inputs cleanly", which
-    was true for `--proposal` but was NEVER checked against `--inventory`)
-    crashed `propose_action_for()`/`derive_verdict()` uncaught. Mirrors
-    `cmd_verify_proposal`'s own field-shape checks (see its "T140 Round 6
-    review finding R6-I3" comment) -- applied per-entry here since
-    `--inventory` carries a LIST of entries rather than one proposal.
-
-    Also closes a SIBLING crash `cmd_verify_proposal` never had:
-    `propose_action_for` used to index `entry["entry_kind"]` directly
-    (never `.get()`) whenever `existing_backup` was truthy, so an entry
-    with a real backup but no `entry_kind` key at all raised an uncaught
-    `KeyError`. Fixed at the call site itself (`propose_action_for` below,
-    `entry.get("entry_kind")` in place of `entry["entry_kind"]`) rather
-    than here, because `derive_verdict`'s OWN existing "cannot
-    independently verify backup coverage: no entry_kind/entry_id was
-    supplied" REFUSED branch already handles `entry_kind=None` safely and
-    diagnosably -- no NEW validation code is needed for that specific
-    field's ABSENCE, only its type when PRESENT (checked below, alongside
-    every other field this function guards).
-
-    Returns a diagnosable message (naming the bad entry/field + expected
-    type + actual type/value) if any `entries[i]` has a malformed shape, or
-    None if every entry is well-formed enough for `propose_action_for`/
-    `derive_verdict` to safely index into (a MISSING field is left to the
-    existing `.get()`-based honest-absence handling throughout this file,
-    exactly as before -- this function checks TYPE, never PRESENCE, matching
-    `limit_class.py`'s own `_validate_placement_fixture_shape` convention)."""
-    for i, entry in enumerate(entries):
-        if not isinstance(entry, dict):
-            return "entries[%d] is not a JSON object (got %s: %r)" % (i, type(entry).__name__, entry)
-        entry_kind = entry.get("entry_kind")
-        if entry_kind is not None and not isinstance(entry_kind, str):
-            return "entries[%d].entry_kind must be a JSON string when present (got %s: %r)" % (
-                i, type(entry_kind).__name__, entry_kind)
-        backup = entry.get("existing_backup")
-        if backup is not None and not isinstance(backup, dict):
-            return "entries[%d].existing_backup must be a JSON object when present (got %s: %r)" % (
-                i, type(backup).__name__, backup)
-        if isinstance(backup, dict):
-            for field_name in ("backup_hash", "backup_artifact_path"):
-                field_val = backup.get(field_name)
-                if field_val is not None and not isinstance(field_val, str):
-                    return ("entries[%d].existing_backup.%s must be a JSON string when present "
-                            "(got %s: %r) -- this tool cannot re-hash or resolve a filesystem "
-                            "path from a non-string value") % (
-                                i, field_name, type(field_val).__name__, field_val)
-    return None
-
-
 def cmd_propose(a):
     root = resolve_repo_root(a.repo_root)
-    try:
-        # T140 Round 7 review finding R7-I3 (fixed here): the `open()` call
-        # itself used to sit OUTSIDE any try block -- a missing --inventory
-        # file crashed uncaught (FileNotFoundError, an OSError) before the
-        # already-existing `strict_loads` try/except (which only wrapped the
-        # PARSE step) ever ran. Both the open AND the parse are now inside
-        # ONE try, and the except clause is widened from `ValueError` alone
-        # to `(OSError, ValueError)` -- never narrowed, every case the
-        # previous `ValueError`-only clause caught is still caught.
-        with open(a.inventory, encoding="utf-8") as fh:
+    with open(a.inventory, encoding="utf-8") as fh:
+        try:
             # T140 Round 6 review finding R6-I1(b)'s sibling fix applied
             # here too (section 11.4.227 reuse-not-reinvention):
             # `fc_common.strict_loads`, never plain `json.load`, so a
             # non-finite JSON constant anywhere in --inventory is refused
-            # here at parse time.
+            # here at parse time. `strict_loads` raises a plain `ValueError`
+            # on any parse failure; `json.JSONDecodeError` is itself a
+            # `ValueError` subclass, so the except clause below is widened
+            # to `ValueError` (never narrowed -- every case the previous
+            # `json.JSONDecodeError`-only clause caught is still caught).
             inv = fc_common.strict_loads(fh.read())
-    except (OSError, ValueError) as exc:
-        print("custody_sweep propose: --inventory %r unreadable or not valid JSON: %s" % (a.inventory, exc),
-              file=sys.stderr)
-        return 2
-
-    # T140 Round 7 review finding R7-I3 (fixed here): a non-dict top-level
-    # --inventory value (e.g. a bare JSON list, int, or null) used to crash
-    # `inv.get("entries")` immediately below UNCAUGHT with a bare
-    # `AttributeError` -- a class fc_common.SAFE_EXCEPTIONS does NOT cover
-    # (deliberately: it is TypeError/ValueError/OSError/OverflowError only,
-    # never AttributeError, per fc_common.py's own module docstring), so
-    # even the new top-level dispatch boundary in main() below would NOT
-    # have caught this one -- it must be fixed at the SOURCE, exactly like
-    # `cmd_verify_proposal`'s own pre-existing `isinstance(d, dict)` guard
-    # (its "T140 Round 6 review finding R6-I3" comment).
-    if not isinstance(inv, dict):
-        print("custody_sweep propose: --inventory %r top-level value is not a JSON object "
-              "(got %s: %r)" % (a.inventory, type(inv).__name__, inv), file=sys.stderr)
-        return 2
-
+        except ValueError as exc:
+            print("custody_sweep propose: --inventory %r is not valid JSON: %s" % (a.inventory, exc),
+                  file=sys.stderr)
+            return 2
     entries = inv.get("entries")
     if entries is None:
         print("custody_sweep propose: --inventory %r has no 'entries' array" % a.inventory, file=sys.stderr)
-        return 2
-    # T140 Round 7 review finding R7-I3 (fixed here): a non-list `entries`
-    # value (e.g. a bare string or object) used to crash the `for entry in
-    # entries:` loop below -- iterating a string silently walks it
-    # character-by-character (the SAME fail-OPEN class section 11.4.201(6)
-    # names elsewhere in this tree, never a crash but a WORSE, silent
-    # wrong-answer), and iterating a non-iterable value (int/bool/null)
-    # raises an uncaught TypeError. Fail CLOSED with a diagnosable message
-    # instead, naming the real type.
-    if not isinstance(entries, list):
-        print("custody_sweep propose: --inventory %r field 'entries' must be a JSON list "
-              "(got %s: %r)" % (a.inventory, type(entries).__name__, entries), file=sys.stderr)
-        return 2
-
-    shape_error = _validate_propose_entries_shape(entries)
-    if shape_error is not None:
-        print("custody_sweep propose: --inventory %r has a malformed entry: %s"
-              % (a.inventory, shape_error), file=sys.stderr)
         return 2
 
     proposals = []
@@ -975,94 +831,6 @@ SELFTEST_FIXTURES = (
 )
 
 
-def _selftest_golden_good_scratch_check():
-    """T140 Round 7 review finding R7-I6 (section 11.4.6/11.4.201(6),
-    fixed here): the checked-in golden-good fixture
-    `proposal_golden_good_verified_hash.json` names a REAL worktree
-    (`entry_id: "a17eb3df7db2f148a"`) that existed in THIS repo at
-    fixture-authoring time and was later legitimately removed (backed up,
-    verified, operator-authorized) during a disk-space emergency cleanup
-    this same session -- so that fixture's own `entry_kind=worktree` +
-    `entry_id` combination no longer resolves via `list_worktree_entries`,
-    and `derive_verdict`'s own anti-circularity check (T140 finding I3)
-    correctly, HONESTLY refuses a backup whose entry no longer exists live
-    -- exactly the behaviour that check exists to enforce. The fixture
-    being refused is therefore not a defect in `derive_verdict` at all; it
-    is `cmd_selftest`'s OWN self-validation being BLINDED by incidental
-    host state it should never have depended on in the first place (a
-    `found=False` here is a section 11.4.201(6) FALSE-NULL when read as
-    "the golden-good case genuinely fails" -- it really means "the
-    fixture's chosen entry_id happens not to exist right now", a fact
-    about THIS host's git state, not about `derive_verdict`'s own
-    correctness).
-
-    Fix (per T140 Round 7 review's own suggested direction): construct a
-    throwaway, fully SELF-CONTAINED scratch git repository at test time --
-    a real `git init`, a real committed file, a real dirty modification
-    producing a real `git diff HEAD` patch, and a real backup file on disk
-    whose bytes are IDENTICAL to that live patch -- so this check proves
-    the exact SAME property the checked-in fixture's own `reason` field
-    documents ("a destructive retire proposal for a real, currently-live
-    worktree with a verified backup that matches BOTH the real backup
-    file's content AND the entry's live dirty content is ALLOWED")
-    WITHOUT depending on any specific real worktree existing in whichever
-    project repo this tool happens to be run against. Never touches this
-    project's OWN worktrees/stashes/locks (section 11.4.176/11.4.192
-    git-lock contention discipline) -- the scratch repo is entirely
-    separate, created and torn down inside one
-    `tempfile.TemporaryDirectory()`; `commit.gpgsign`/`core.hooksPath` are
-    explicitly disabled on the scratch repo's own local config so a global
-    signing/hook configuration on the HOST (never this repo's own, which a
-    fresh `git init` does not inherit) cannot make this selftest hang
-    waiting on a passphrase prompt or run an unrelated hook.
-
-    Returns (verdict, detail) exactly like `derive_verdict` itself, so the
-    caller (`cmd_selftest`) applies the IDENTICAL pass/fail comparison it
-    already applies to every other `SELFTEST_FIXTURES` entry."""
-    with tempfile.TemporaryDirectory() as tmp:
-        # The backup file lives OUTSIDE the scratch git repo directory
-        # (a sibling of it, both inside `tmp`) -- deliberately: a backup
-        # file written INSIDE the repo directory itself would show up as a
-        # genuine untracked file in `git status`, tripping derive_verdict's
-        # OWN (correct) "worktree has untracked content the tracked-diff-
-        # only backup cannot cover" REFUSED branch the moment this
-        # function's own second, internal `resolve_live_dirty_state` re-
-        # derives live state -- a self-inflicted false REFUSED this fix
-        # measured live while authoring it, never assumed away.
-        repo = os.path.join(tmp, "repo")
-        os.makedirs(repo)
-        try:
-            _run(["git", "init", "--quiet", repo], check=True)
-            _run(["git", "-C", repo, "config", "commit.gpgsign", "false"], check=True)
-            _run(["git", "-C", repo, "config", "core.hooksPath", ""], check=False)
-            _run(["git", "-C", repo, "config", "user.email", "custody-sweep-selftest@example.invalid"],
-                 check=True)
-            _run(["git", "-C", repo, "config", "user.name", "custody_sweep selftest"], check=True)
-            tracked = os.path.join(repo, "tracked.txt")
-            with open(tracked, "w", encoding="utf-8") as fh:
-                fh.write("baseline content\n")
-            _run(["git", "-C", repo, "add", "tracked.txt"], check=True)
-            _run(["git", "-C", repo, "commit", "--quiet", "-m", "selftest baseline"], check=True)
-            with open(tracked, "w", encoding="utf-8") as fh:
-                fh.write("baseline content\nlive dirty edit\n")
-            dirty_state, diff_text = worktree_dirty_state(repo)
-        except (OSError, RuntimeError) as exc:
-            return "REFUSED", ("scratch selftest setup raised %s: %s -- an internal setup failure is "
-                                "never silently read as ALLOWED") % (type(exc).__name__, exc)
-        if dirty_state.get("status") != "dirty" or not diff_text:
-            return "REFUSED", ("scratch selftest setup failed to produce a dirty worktree (status=%r) "
-                                "-- an internal setup failure is never silently read as ALLOWED"
-                                % dirty_state.get("status"))
-        backup_path = os.path.join(tmp, "backup.patch")
-        with open(backup_path, "w", encoding="utf-8") as fh:
-            fh.write(diff_text)
-        with open(backup_path, "rb") as fh:
-            backup_hash = sha256_of_bytes(fh.read())
-        entry_id = worktree_entry_id(repo, repo)  # repo is its own repo-root -> "MAIN"
-        return derive_verdict("retire", backup_hash, backup_path, repo,
-                               entry_kind="worktree", entry_id=entry_id)
-
-
 def cmd_selftest(a):
     root = resolve_repo_root(a.repo_root)
     fixdir = a.fixtures_dir or os.path.join(
@@ -1092,20 +860,8 @@ def cmd_selftest(a):
             continue
         with open(fpath, encoding="utf-8") as fh:
             d = json.load(fh)
-        if fname == "proposal_golden_good_verified_hash.json":
-            # T140 Round 7 review finding R7-I6 (see
-            # _selftest_golden_good_scratch_check's own docstring above):
-            # this ONE fixture's own checked-in entry_id no longer
-            # resolves to a real, currently-live worktree in `root` -- the
-            # fixture's FIELDS are read above (for the "fixture is MISSING"
-            # sanity check + the file being valid JSON), but the actual
-            # verdict this ONE case checks is derived from a fully
-            # self-contained scratch repo instead, never from `d`'s own
-            # `entry_id`/`backup_hash`/`backup_artifact_path` values.
-            verdict, detail = _selftest_golden_good_scratch_check()
-        else:
-            verdict, detail = derive_verdict(d["action"], d.get("backup_hash"), d.get("backup_artifact_path"), root,
-                                              entry_kind=d.get("entry_kind"), entry_id=d.get("entry_id"))
+        verdict, detail = derive_verdict(d["action"], d.get("backup_hash"), d.get("backup_artifact_path"), root,
+                                          entry_kind=d.get("entry_kind"), entry_id=d.get("entry_id"))
         if verdict == expected:
             print("custody_sweep selftest: ok %s -> %s (%s)" % (fname, verdict, detail))
         else:
@@ -1190,37 +946,6 @@ def build_arg_parser():
     return p
 
 
-SCHEMA_INTERNAL_ERROR = "custody-sweep-internal-error/v1"
-
-
-def _write_dispatch_internal_error_doc(a, subcommand, exc):
-    """T140 Round 7 review (section 11.4.250 heuristic-tower/primitive-
-    defect -- "This is the 7th round of the same class... The shared
-    helper was only applied where earlier reviewers pointed. No tool has
-    a single fail-closed boundary around its whole dispatch. Fix ONE
-    boundary, not one crash site at a time"): on ANY exception escaping a
-    subcommand handler and being caught by main()'s new
-    `fc_common.SAFE_EXCEPTIONS` dispatch boundary below, this tool MUST
-    still write SOME verdict/output document to --out (when one was
-    requested) rather than leaving a stale or entirely absent --out file
-    -- the audit trail (section 11.4.5/11.4.69) is never silently lost
-    regardless of what crashed. Best-effort: an --out write failure here
-    is itself swallowed (never raised a second time out of an
-    already-failing error path) -- the caller's stderr diagnostic in
-    main() is what remains authoritative in that doubly-unlucky case."""
-    out_path = getattr(a, "out", None)
-    if not out_path:
-        return
-    body = {
-        "subcommand": subcommand,
-        "internal_error": {"class": type(exc).__name__, "detail": str(exc)},
-    }
-    try:
-        write_doc(out_path, SCHEMA_INTERNAL_ERROR, body, run_meta())
-    except OSError:
-        pass
-
-
 def main(argv):
     if "--determinism-check" in argv:
         return run_determinism_check(argv)
@@ -1242,23 +967,6 @@ def main(argv):
             return cmd_selftest(args)
     except RuntimeError as exc:
         print("custody_sweep.py: %s" % exc, file=sys.stderr)
-        return 2
-    except fc_common.SAFE_EXCEPTIONS as exc:
-        # T140 Round 7 review, the ONE top-level dispatch boundary wrapping
-        # EVERY subcommand this file dispatches to (see
-        # _write_dispatch_internal_error_doc's own docstring immediately
-        # above): a genuinely unanticipated crash reaching here -- one none
-        # of R7-I3/R7-I4/R7-I6's own specific, diagnosable fixes above
-        # enumerated -- still fails CLOSED with an honest, diagnosable
-        # message, a real --out write (when --out was given), and this
-        # tool's own established EXIT_USAGE(2) convention, rather than an
-        # uncaught crash landing on Python's own default exit code 1
-        # (indistinguishable from this tool's REFUSED/finding exit code).
-        print("custody_sweep.py: subcommand %r raised an uncaught %s while dispatching: %s -- this "
-              "is a genuinely unanticipated case no individual fix above enumerated; treat as "
-              "unsafe/unverified until independently, manually re-verified"
-              % (args.subcommand, type(exc).__name__, exc), file=sys.stderr)
-        _write_dispatch_internal_error_doc(args, args.subcommand, exc)
         return 2
 
     print("custody_sweep.py: unknown subcommand %r" % args.subcommand, file=sys.stderr)

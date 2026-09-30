@@ -232,23 +232,6 @@ EXIT_UNPARSEABLE = 1  # classify: class "other" emitted -- contract's own "Exit 
 EXIT_PLACE_REFUSED = 1  # place: no eligible alias -- verdict document still written (T136's own decision, see module docstring)
 EXIT_USAGE = 2
 
-# T140 Round 7 review finding M3 (fixed here): `derive_placement`'s own
-# `for i in range(live_agents):` loop has no upper bound -- a `live_agents`
-# value like 10**12 (still a genuine, non-negative JSON integer, so
-# `fc_common.is_strict_nonneg_int` alone does not refuse it) does not crash
-# or refuse; it HANGS this tool for an unbounded amount of wall-clock time
-# building/iterating an absurdly large range, which is worse than a crash
-# (a hang gives no diagnosable exit code at all, and blocks whatever caller
-# is waiting on this process -- section 11.4.6/11.4.101). A sane,
-# generously-large upper bound rejects only genuinely nonsensical inputs:
-# even a real fleet under this project's own multitrack orchestration
-# (section 11.4.58/11.4.176) never approaches a live-agent count in the
-# thousands, let alone this bound, and 1,000,000 iterations of the
-# round-robin loop below still completes in well under a second on any
-# realistic host, so this bound is never reached by a genuine placement
-# request -- only by a malformed/adversarial one.
-MAX_LIVE_AGENTS = 1_000_000
-
 # T136's own placement refusal-reason text (fixtures/alias_spread/README.md's
 # own "No eligible alias => refused" wording) -- the RED test's real-tool
 # invocation check ONLY asserts None-vs-not-None on `refusal_reason` (never
@@ -414,29 +397,12 @@ def cmd_classify(a):
     }
     try:
         write_class_doc_atomic(a.out, body)
-    except fc_common.SAFE_EXCEPTIONS as exc:
+    except (OSError, ValueError) as exc:
         # T140 Round 6 review finding R6-I2's sibling fix applied here too
         # (section 11.4.227 reuse-not-reinvention): an unwritable --out path
         # used to crash this subcommand uncaught the same way `cmd_place`'s
         # own write did before this round's fix. ValueError additionally
         # catches `write_class_doc_atomic`'s own N2 `allow_nan=False` fix.
-        #
-        # T140 Round 7 review finding R7-I1 (fixed here, defense-in-depth):
-        # `write_class_doc_atomic`'s own `json.dumps(..., sort_keys=True)`
-        # can raise `TypeError` (never ValueError/OSError) whenever `body`
-        # ever carries a dict with mutually incomparable keys -- the exact
-        # shape `cmd_place`'s own `assignment_alias_counts` dict can take
-        # (see that write site's own identical widening below, and
-        # `_validate_placement_fixture_shape`'s own R7-I2 fix, which closes
-        # the one currently-reachable path to that TypeError at ITS
-        # source). `cmd_classify`'s own `body` here is built entirely from
-        # regex-derived strings, so this specific TypeError is not
-        # currently reachable from THIS call site -- widened to the shared
-        # `fc_common.SAFE_EXCEPTIONS` tuple anyway (section 11.4.6: never
-        # assume a write site is safe merely because no crash has YET been
-        # observed from it; section 11.4.227: the SAME shared tuple every
-        # sibling fastcycle orchestration tool now ORs onto its own
-        # write-site except-clauses, never a file-specific one-off).
         print(
             "limit_class: cannot write --out %s: %s" % (a.out, exc),
             file=sys.stderr,
@@ -612,75 +578,15 @@ def _validate_placement_fixture_shape(fx):
         if not fc_common.is_strict_nonneg_int(live_agents):
             return "field `live_agents` must be a non-negative JSON integer (got %s: %r)" % (
                 type(live_agents).__name__, live_agents)
-        # T140 Round 7 review finding M3 (see MAX_LIVE_AGENTS's own
-        # module-level comment above for the full rationale): a genuine,
-        # non-negative integer that is simply ABSURDLY large (e.g. 10**12)
-        # passes the check above unrejected and then HANGS `derive_placement`'s
-        # `range(live_agents)` loop indefinitely -- reject it here instead,
-        # with the SAME diagnosable EXIT_USAGE convention every other
-        # malformed-`live_agents` case above already uses.
-        elif live_agents > MAX_LIVE_AGENTS:
-            return ("field `live_agents` (%d) exceeds this tool's own sane upper bound (%d) -- "
-                    "no genuine placement request approaches this many live agents, and "
-                    "iterating a range this large would hang rather than crash or refuse "
-                    "promptly") % (live_agents, MAX_LIVE_AGENTS)
     if "aliases" in fx:
         aliases = fx["aliases"]
         if not isinstance(aliases, list):
             return "field `aliases` must be a JSON list (got %s: %r)" % (
                 type(aliases).__name__, aliases)
-        # T140 Round 7 review finding R7-I2 (section 11.4.250, fixed here):
-        # `derive_placement` below fails OPEN (not merely crashes) on
-        # duplicate or type-colliding `alias` values -- e.g. two entries
-        # both carrying `alias: "A"`, or one carrying `alias: 1` (int) and
-        # another `alias: true` (bool, `1 == True` in Python and hashes
-        # identically). `eligible = natives + providers` is a LIST (its
-        # length `m` is the round-robin spread's own denominator, computed
-        # correctly regardless of duplicates), but
-        # `assignment_alias_counts = {alias: 0 for alias in eligible}` is a
-        # DICT keyed by that SAME `alias` value -- a dict literal SILENTLY
-        # COLLAPSES duplicate/colliding keys, so two nominally-distinct
-        # eligible slots pointing at the SAME `assignment_alias_counts` key
-        # both accumulate their round-robin assignments onto that ONE key,
-        # letting `max_assigned_count` exceed `cap_per_alias` -- exactly
-        # the "concentrate blast radius on one alias" outcome DEC-22 exists
-        # to PREVENT (see this file's own module docstring "(a) fill-first
-        # -- rejected: concentrates blast radius"), reproduced silently by
-        # a malformed roster rather than a malformed placement DECISION.
-        # `alias` is, by this whole system's own established convention
-        # (section 11.4.196/11.4.182: an alias is always a human-readable
-        # CLI-account name string, e.g. "claude1"/"deepseek"), NEVER
-        # anything but a non-empty string -- so the fix REQUIRES that here,
-        # refusing (never silently coercing/accepting) a non-string or a
-        # value duplicating an EARLIER entry's alias, at THIS shape-check
-        # layer, before `derive_placement` ever runs. Checked across the
-        # WHOLE `aliases` roster (not merely the eligible subset) -- a
-        # duplicate alias entry is a malformed input regardless of whether
-        # today's `operational`/`near_cap` flags happen to make it
-        # eligible, and refusing it here is strictly safer than silently
-        # accepting it and letting a LATER config change (flipping
-        # `operational` to true) resurrect the same silent-collapse bug.
-        seen_aliases = set()
         for i, entry in enumerate(aliases):
             if not isinstance(entry, dict):
                 return "aliases[%d] is not a JSON object (got %s: %r)" % (
                     i, type(entry).__name__, entry)
-            if "alias" in entry:
-                alias_val = entry["alias"]
-                if not isinstance(alias_val, str) or not alias_val:
-                    return ("aliases[%d].alias must be a non-empty JSON string (got %s: %r) -- "
-                            "derive_placement's assignment_alias_counts dict is keyed by this "
-                            "value, and a non-string/empty alias risks silently colliding with "
-                            "another entry's key") % (i, type(alias_val).__name__, alias_val)
-                if alias_val in seen_aliases:
-                    return ("aliases[%d].alias %r duplicates an earlier entry's alias -- DEC-22's "
-                            "round-robin spread requires every eligible alias identify a "
-                            "genuinely distinct target; a duplicate alias silently collapses "
-                            "assignment_alias_counts's dict key while the spread's own "
-                            "denominator (m = len(eligible)) still counts both entries "
-                            "separately, letting more agents land on the one real alias than "
-                            "cap_per_alias permits") % (i, alias_val)
-                seen_aliases.add(alias_val)
     return None
 
 
@@ -749,7 +655,7 @@ def cmd_place(a):
 
     try:
         write_class_doc_atomic(a.out, body)
-    except fc_common.SAFE_EXCEPTIONS as exc:
+    except (OSError, ValueError) as exc:
         # T140 Round 6 review finding R6-I2 (section 11.4.250, fixed here):
         # this write used to be entirely unwrapped -- an unwritable --out
         # path (parent directory missing/not writable/a permissions error)
@@ -759,22 +665,6 @@ def cmd_place(a):
         # colliding with EXIT_OK=0 or EXIT_PLACE_REFUSED=1). ValueError
         # additionally catches `write_class_doc_atomic`'s own N2
         # `allow_nan=False` fix.
-        #
-        # T140 Round 7 review finding R7-I1 (fixed here): was
-        # `except (OSError, ValueError)` -- too narrow. `body` here
-        # includes `assignment_alias_counts`, a dict keyed by each eligible
-        # entry's `alias` value; `json.dumps(..., sort_keys=True)` raises
-        # `TypeError` (never ValueError) when sorting a dict whose keys are
-        # not mutually comparable (e.g. a str alongside an int) -- the
-        # EXACT class a mixed-type `aliases` roster (`["a", 1]`) used to
-        # produce here, uncaught, before landing on Python's own default
-        # exit code 1 (colliding with EXIT_PLACE_REFUSED). Widened to the
-        # shared `fc_common.SAFE_EXCEPTIONS` tuple (section 11.4.227) as
-        # defense-in-depth, alongside `_validate_placement_fixture_shape`'s
-        # own R7-I2 fix immediately above (which now refuses a non-string/
-        # duplicate `alias` before `derive_placement` -- and therefore
-        # this write -- ever runs, closing the currently-reachable path to
-        # this TypeError at its source).
         print(
             "limit_class place: cannot write --out %s: %s" % (a.out, exc),
             file=sys.stderr,
@@ -889,34 +779,6 @@ def run_determinism_check(argv, timeout_s=120):
     return 0
 
 
-def _write_dispatch_internal_error_doc(out_path, subcommand, exc):
-    """T140 Round 7 review (section 11.4.250 heuristic-tower/primitive-
-    defect -- mirrors `custody_sweep.py`'s own identically-purposed
-    `_write_dispatch_internal_error_doc`/`handoff.py`'s own identically-
-    purposed helper, section 11.4.227 reuse-the-SAME-discipline): on ANY
-    exception escaping `cmd_place`/`cmd_classify` and being caught by
-    `main()`'s new `fc_common.SAFE_EXCEPTIONS` dispatch boundary below,
-    this tool MUST still write SOME document to --out (when one was
-    requested) rather than leaving a stale or entirely absent --out file --
-    the audit trail (section 11.4.5/11.4.69) is never silently lost
-    regardless of what crashed. Reuses `write_class_doc_atomic` (never a
-    second writer) -- this file's own wire formats carry no schema/
-    body_hash envelope (module docstring: "no extra envelope... this is
-    the literal sub-object"), so the minimal error doc matches that SAME
-    bare-object convention rather than inventing a new one. Best-effort:
-    a write failure here is itself swallowed (never raised a second time
-    out of an already-failing error path) -- the caller's stderr
-    diagnostic in main() is what remains authoritative in that
-    doubly-unlucky case."""
-    if not out_path:
-        return
-    body = {"subcommand": subcommand, "internal_error": {"class": type(exc).__name__, "detail": str(exc)}}
-    try:
-        write_class_doc_atomic(out_path, body)
-    except fc_common.SAFE_EXCEPTIONS:
-        pass
-
-
 def main(argv):
     # T140/I5: --determinism-check is recognised BEFORE either subcommand's
     # own argv dispatch below (classify's flag-only shape, or the leading
@@ -936,24 +798,7 @@ def main(argv):
             place_args = build_place_arg_parser().parse_args(argv[1:])
         except SystemExit as exc:
             raise exc
-        try:
-            return cmd_place(place_args)
-        except fc_common.SAFE_EXCEPTIONS as exc:
-            # T140 Round 7 review, the ONE top-level dispatch boundary
-            # wrapping EVERY subcommand this file dispatches to (see
-            # _write_dispatch_internal_error_doc's own docstring
-            # immediately above): a genuinely unanticipated crash escaping
-            # `cmd_place` -- past every one of its own already-wrapped
-            # internal try/except blocks (R5-I3/R6-I2/R6-I3/R7-I1/R7-I2
-            # above) -- still fails CLOSED here with an honest, diagnosable
-            # message, a real --out write, and this tool's own established
-            # EXIT_USAGE convention.
-            print("limit_class place: fixture %s raised an uncaught %s while dispatching: %s -- "
-                  "this is a genuinely unanticipated case no individual fix above enumerated; "
-                  "treat as unsafe/unverified until independently, manually re-verified"
-                  % (getattr(place_args, "fixture", "?"), type(exc).__name__, exc), file=sys.stderr)
-            _write_dispatch_internal_error_doc(getattr(place_args, "out", None), "place", exc)
-            return EXIT_USAGE
+        return cmd_place(place_args)
 
     try:
         args = build_arg_parser().parse_args(argv)
@@ -965,16 +810,7 @@ def main(argv):
     if not isinstance(args.signal, str) or not isinstance(args.out, str) or not args.out:
         print("limit_class: --signal and --out are both required", file=sys.stderr)
         return EXIT_USAGE
-    try:
-        return cmd_classify(args)
-    except fc_common.SAFE_EXCEPTIONS as exc:
-        # Same top-level dispatch boundary as `place` above, for `classify`.
-        print("limit_class: classify raised an uncaught %s while dispatching: %s -- this is a "
-              "genuinely unanticipated case no individual fix above enumerated; treat as "
-              "unsafe/unverified until independently, manually re-verified"
-              % (type(exc).__name__, exc), file=sys.stderr)
-        _write_dispatch_internal_error_doc(getattr(args, "out", None), "classify", exc)
-        return EXIT_USAGE
+    return cmd_classify(args)
 
 
 if __name__ == "__main__":

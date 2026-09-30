@@ -71,9 +71,14 @@
 # Guard-viability proof (section 11.4.115(F)): every live-CLI case is ALSO
 # run against `fixtures/alias_spread/_pinned/limit_class_pre_r6_fix.py` --
 # extracted ONCE, via `git show HEAD:...`, from this submodule's own HEAD
-# commit a925a8dabf644f2b075290cce9404da484f4d410 (verified, at authoring
-# time, to be the exact pre-Round-6-fix commit -- see
-# test_handoff_r6_regression.sh's own identical note). `limit_class.py` has
+# commit 80ef88cb47e25274797c4bf4970469c495052a75 (T140 Round 7 review
+# finding M1, section 11.4.6 -- CORRECTED here: an earlier revision of this
+# comment cited a925a8dabf644f2b075290cce9404da484f4d410 instead, a LATER
+# commit whose own tree for limit_class.py happens to be byte-identical to
+# this one but which never itself touched limit_class.py's content; 80ef88c
+# is the genuine, precise "last commit that changed limit_class.py's
+# content before the Round 6 fix" -- see test_handoff_r6_regression.sh's
+# own identically-corrected note). `limit_class.py` has
 # no sibling-lib import in its PRE-fix form (the Round 6 fix is what FIRST
 # wires `fc_common` into this file), so -- mirroring
 # test_limit_class_place_r5i3_regression.sh's own established convention --
@@ -112,12 +117,34 @@ fi
 
 echo
 echo "=== R6-I2(a): live_agents so large that live_agents/m raises OverflowError ==="
+# T140 Round 7 review finding M3 (section 11.4.6, this assertion UPDATED
+# here, never silently left stale): `limit_class.py`'s own
+# `_validate_placement_fixture_shape` now ALSO refuses a `live_agents`
+# value exceeding a sane upper bound (MAX_LIVE_AGENTS) BEFORE
+# `derive_placement` ever runs -- closing a genuinely SEPARATE defect (an
+# unbounded `range(live_agents)` HANGING on an absurdly large-but-still-
+# in-range integer, which the R6-I2(a) OverflowError path below does NOT
+# reach for every such value, only ones large enough to blow float
+# conversion). This fixture's own `live_agents` (a ~500-digit integer) is
+# large enough to trip BOTH guards -- the NEW, earlier M3 upper-bound
+# refusal now fires FIRST, so the tool no longer reaches
+# `derive_placement`'s own `math.ceil(live_agents / m)` OverflowError at
+# all for THIS fixture. The real, load-bearing property this fixture
+# still proves -- fails CLOSED with EXIT_USAGE(2), writes NO --out
+# document, on a `live_agents` value neither of the earlier R6-era checks
+# (bool-is-a-subclass-of-int / negative) rejects -- is UNCHANGED; only
+# WHICH of the two now-independent guards names the reason changed. The
+# assertion below accepts EITHER wording (a regression stripping either
+# guard, leaving the other in place, is still caught; a regression
+# stripping BOTH is still caught by rc/out_exists alone).
 FIXED_OUT="$TMP/ov.fixed.json"
 python3 "$IMPL" place --fixture "$FIXDIR/as_r6_overflow_live_agents.json" --out "$FIXED_OUT" >"$TMP/ov.fixed.err" 2>&1
 FIXED_RC=$?
-if [ "$FIXED_RC" = "2" ] && [ ! -f "$FIXED_OUT" ] && grep -qi "overflowerror" "$TMP/ov.fixed.err"; then
+if [ "$FIXED_RC" = "2" ] && [ ! -f "$FIXED_OUT" ] \
+    && grep -qiE "overflowerror|exceeds this tool.s own sane upper bound" "$TMP/ov.fixed.err"; then
   echo "ok R6-I2(a) real (fixed) tool: place fails closed with EXIT_USAGE (2),"
-  echo "   writes no --out document, and names the real OverflowError -- $(cat "$TMP/ov.fixed.err")"
+  echo "   writes no --out document, and names a real reason (OverflowError or"
+  echo "   the newer M3 sane-upper-bound refusal) -- $(cat "$TMP/ov.fixed.err")"
 else
   echo "NOT ok R6-I2(a) real (fixed) tool: rc=$FIXED_RC (wanted 2), out_exists=$([ -f "$FIXED_OUT" ] && echo yes || echo no), stderr=$(cat "$TMP/ov.fixed.err" 2>/dev/null)"
   failx

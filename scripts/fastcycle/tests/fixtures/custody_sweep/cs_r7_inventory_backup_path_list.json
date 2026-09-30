@@ -1,0 +1,13 @@
+{
+  "repo_root": "/tmp/nonexistent",
+  "entries": [
+    {
+      "entry_kind": "worktree",
+      "entry_id": "some_id",
+      "existing_backup": {
+        "backup_hash": "dd5532745336c950665243a773fae06fca2bcbda05d800925db35021740c147e",
+        "backup_artifact_path": ["not", "a", "string"]
+      }
+    }
+  ]
+}

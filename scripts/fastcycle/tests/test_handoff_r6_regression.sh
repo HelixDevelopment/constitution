@@ -69,10 +69,20 @@
 # fixture is ALSO run against
 # `fixtures/resume_revalidate/_pinned/handoff_pre_r6_fix.py` -- extracted
 # ONCE, via `git show HEAD:...`, from this submodule's own HEAD commit
-# a925a8dabf644f2b075290cce9404da484f4d410 (verified, at authoring time,
-# to be the exact pre-Round-6-fix commit: the entire R6-I1/R6-I2/R6-I3/N1/N2
-# source-level fix existed ONLY as an uncommitted working-tree diff before
-# this file's own commit, per this task's own resume brief) -- proving each
+# 80ef88cb47e25274797c4bf4970469c495052a75 (T140 Round 7 review finding M1,
+# section 11.4.6 -- CORRECTED here: an earlier revision of this comment
+# cited a925a8dabf644f2b075290cce9404da484f4d410 instead. That commit's OWN
+# tree for handoff.py IS byte-identical to this one -- `git diff
+# 80ef88c:.../handoff.py a925a8d:.../handoff.py` is empty -- but a925a8d
+# never itself touched handoff.py's content (it is a LATER, unrelated
+# feature commit -- T070-T074 -- that merely happened to land on top of an
+# unchanged handoff.py); 80ef88c is the genuine, precise "last commit that
+# actually changed handoff.py's content before the Round 6 fix", verified
+# independently via `git log -- .../handoff.py` up to the Round 6 fix
+# commit's own parent). The entire R6-I1/R6-I2/R6-I3/N1/N2 source-level
+# fix existed ONLY as an uncommitted working-tree diff on top of that
+# commit before this file's own commit, per this task's own resume brief
+# -- proving each
 # fixture genuinely reproduces the pre-fix defect if the fix is ever
 # reverted. Layout matches `test_handoff_i4_regression.sh`'s own
 # `run_against_pinned()` helper EXACTLY (one level deep,
