@@ -77,7 +77,16 @@ func migrateItemHistoryOccurredAt(db *sql.DB) error {
 			return fmt.Errorf("add column %s: %w", c.name, err)
 		}
 	}
-	if _, err := db.Exec(`UPDATE meta SET value='7' WHERE key='schema_version' AND value < '7'`); err != nil {
+	// T048 round-2 review finding F15 (2026-09-30): `value < '7'` compares
+	// schema_version as TEXT, not a number -- lexicographically, '10' < '7'
+	// is TRUE ('1' < '7'), so once schema_version genuinely reaches double
+	// digits this guard would silently REGRESS it back down to '7' the next
+	// time this migration function runs (reproduced directly: an in-memory
+	// SQLite table seeded with schema_version='10' and this exact clause
+	// regresses it to '7'; CAST(value AS INTEGER) < 7 leaves '10' alone).
+	// CAST forces a genuine numeric comparison, matching this column's real
+	// monotonic-integer semantics.
+	if _, err := db.Exec(`UPDATE meta SET value='7' WHERE key='schema_version' AND CAST(value AS INTEGER) < 7`); err != nil {
 		return fmt.Errorf("advance schema_version to 7: %w", err)
 	}
 	return nil

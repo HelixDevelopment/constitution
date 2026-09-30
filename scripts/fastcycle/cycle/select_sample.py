@@ -250,6 +250,33 @@ def latest_closure_event(history):
     return None
 
 
+def closure_recency_key(history_by_id, atm_id):
+    """N2 fix (T048 round-2 review): sort key for "most recent N" stratum
+    selection, keyed by the candidate's LATEST closure event's real DB
+    write-order fields -- `created_at` (the item_history row's own
+    timestamp) then its `id` (the row's own autoincrement primary key, a
+    monotonic write-order tie-breaker at second-resolution ties) -- never
+    the atm_id STRING. The previous `sorted(ids)` sorted `atm_id` as TEXT:
+    "ATM-1002" < "ATM-953" lexicographically ('1' < '9') even though
+    1002 > 953 numerically, so real recent closures (verified directly
+    against docs/workable_items.db 2026-09-30: ATM-1105 09-29, ATM-1009/
+    ATM-1002 09-28, ATM-1025 08-23) were silently excluded from every
+    sample in favour of much older ATM-785..953-range ids whose atm_id
+    string merely sorted "higher". `atm_id` is kept as a final
+    deterministic tie-breaker ONLY (after created_at/id both tie exactly,
+    e.g. a same-second batch closure) -- never the primary sort key --
+    so --determinism-check (C-003) still gets byte-identical output
+    across runs. A candidate with no closure event/created_at sorts FIRST
+    (least recent) rather than crashing, per S11.4.6 fail-safe-not-guess.
+    """
+    closure = latest_closure_event(history_by_id.get(atm_id, []))
+    created_at = (closure or {}).get("created_at") or ""
+    hist_id = (closure or {}).get("id")
+    if hist_id is None:
+        hist_id = -1
+    return (created_at, hist_id, atm_id)
+
+
 # ---------------------------------------------------------------------------
 # CT-009-style needle (C-004) -- same two-check shape as cycle_report.py's
 # run_needle: a known-present closure event MUST be found, a fabricated id
@@ -342,12 +369,23 @@ def select_sample(conn, window, min_per_type, bulk_threshold):
     if not all_candidate_ids:
         return None  # NO_DATA_IN_WINDOW
 
+    # N2 fix (T048 round-2 review): resolve every candidate's history ONCE,
+    # up front, so both the recency-sort key below AND the per-item
+    # exclusion-detection loop further down reuse it (never a stale/second
+    # DB round-trip that could observe a different row set mid-selection).
+    history_by_id = {atm_id: db_item_history(conn, atm_id) for atm_id in all_candidate_ids}
+
     bulk_flagged = detect_bulk_import_clusters(conn, all_candidate_ids, bulk_threshold)
 
     strata = {}
     selected_by_type = {}
     for t in ITEM_TYPES:
-        ids = sorted(by_type.get(t, set()))
+        # N2 fix (T048 round-2 review): "most recent min_per_type" is a
+        # REAL-RECENCY selection (closure_recency_key, above) -- NOT a
+        # lexicographic atm_id string sort (the CT-001/DEC-03 bug this
+        # fixes; see closure_recency_key's own docstring for the measured
+        # ATM-1002/ATM-953 counter-example).
+        ids = sorted(by_type.get(t, set()), key=lambda i: closure_recency_key(history_by_id, i))
         n_available = len(ids)
         if n_available > min_per_type:
             picked = ids[-min_per_type:]
@@ -374,7 +412,7 @@ def select_sample(conn, window, min_per_type, bulk_threshold):
             itype = next(t for t in ITEM_TYPES if atm_id in selected_by_type[t])
             selection_reason = "sampled-%s" % itype.lower()
 
-        history = db_item_history(conn, atm_id)
+        history = history_by_id[atm_id]
         exclusion_reason = None
         if atm_id in bulk_flagged:
             dirname, on_date = bulk_flagged[atm_id]

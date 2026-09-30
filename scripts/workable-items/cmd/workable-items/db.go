@@ -164,9 +164,19 @@ func migrateColumns(db *sql.DB) error {
 	}
 	// Keep the schema_version meta marker honest after a successful migration: a
 	// DB materialised under an older schema (2/3/4/5) is now at v6 (destination +
-	// logic_group + logic_groups, ASSIGNMENT_MECHANISM_DESIGN.md). Lexical string
-	// compare is safe for single-digit versions ('2' < '3' < '4' < '5' < '6').
-	if _, err := db.Exec(`UPDATE meta SET value='6' WHERE key='schema_version' AND value < '6'`); err != nil {
+	// logic_group + logic_groups, ASSIGNMENT_MECHANISM_DESIGN.md).
+	//
+	// T048 round-2 review finding F15 (2026-09-30, sibling fix): this comment's
+	// own "lexical string compare is safe for single-digit versions" claim is
+	// now FALSE now that occurred_at.go's migrateItemHistoryOccurredAt() has
+	// landed a v7 -- the exact SAME `value < 'N'` TEXT-comparison pattern
+	// there was found+fixed to silently REGRESS a double-digit schema_version
+	// (e.g. '10' < '6' is lexicographically TRUE) back down to a stale single-
+	// digit value on its NEXT run. Reproduced directly against this clause's
+	// own pattern before fixing. CAST forces genuine numeric comparison,
+	// matching this column's real monotonic-integer semantics -- defusing the
+	// same latent landmine here for consistency with occurred_at.go's fix.
+	if _, err := db.Exec(`UPDATE meta SET value='6' WHERE key='schema_version' AND CAST(value AS INTEGER) < 6`); err != nil {
 		return err
 	}
 	return nil

@@ -160,6 +160,86 @@ func TestOccurredAt_NegativeControl_NoProvableTimeStaysUnknown(t *testing.T) {
 	}
 }
 
+// TestMigrateItemHistoryOccurredAt_SchemaVersionNeverRegresses is the T048
+// round-2 review finding F15 regression guard: migrateItemHistoryOccurredAt's
+// own `UPDATE meta SET value='7' WHERE key='schema_version' AND ...` clause
+// MUST NOT regress a schema_version that has already advanced PAST 7 (e.g.
+// a future migration bumped it to a double-digit value like '10') back down
+// to '7' the next time this function runs. Before the fix, comparing
+// schema_version as TEXT made '10' < '7' evaluate TRUE (lexicographic: '1'
+// < '7'), so re-running this idempotent migration on an already-advanced DB
+// silently REGRESSED the version marker -- the exact class of bluff
+// §11.4.226 forbids applied to the DB's own self-description of its schema.
+func TestMigrateItemHistoryOccurredAt_SchemaVersionNeverRegresses(t *testing.T) {
+	dbPath := newTestDB(t)
+	db, err := openDB(dbPath)
+	if err != nil {
+		t.Fatalf("openDB: %v", err)
+	}
+	defer db.Close()
+
+	// Simulate a DB whose schema_version has already advanced past 7 (a
+	// future migration bumped it into double digits).
+	if _, err := db.Exec(`UPDATE meta SET value='10' WHERE key='schema_version'`); err != nil {
+		t.Fatalf("seed schema_version=10: %v", err)
+	}
+
+	// Re-run the SAME idempotent migration this test's own name targets --
+	// this is exactly what a normal openDB() call on an already-migrated,
+	// already-advanced DB does every time the tool runs.
+	if err := migrateItemHistoryOccurredAt(db); err != nil {
+		t.Fatalf("migrateItemHistoryOccurredAt (second run): %v", err)
+	}
+
+	var got string
+	row := db.QueryRow(`SELECT value FROM meta WHERE key='schema_version'`)
+	if err := row.Scan(&got); err != nil {
+		t.Fatalf("query schema_version: %v", err)
+	}
+	if got != "10" {
+		t.Fatalf("schema_version regressed to %q after re-running migrateItemHistoryOccurredAt on an already-advanced DB — want it to stay \"10\" (F15: TEXT comparison must not treat '10' as < '7')", got)
+	}
+}
+
+// TestMigrateColumns_SchemaVersionNeverRegresses is the T048 round-2 review
+// finding F15 sibling regression guard: db.go's migrateColumns() carries the
+// SAME `UPDATE meta SET value='6' WHERE key='schema_version' AND ...` TEXT-
+// comparison pattern occurred_at.go's own v7 clause was found+fixed for
+// (see TestMigrateItemHistoryOccurredAt_SchemaVersionNeverRegresses above) —
+// fixed for consistency the same session. This test proves openDB()'s own
+// migration chain (which runs migrateColumns on every call, idempotently)
+// does not regress an already-advanced double-digit schema_version.
+func TestMigrateColumns_SchemaVersionNeverRegresses(t *testing.T) {
+	dbPath := newTestDB(t)
+	db, err := openDB(dbPath)
+	if err != nil {
+		t.Fatalf("openDB: %v", err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(`UPDATE meta SET value='10' WHERE key='schema_version'`); err != nil {
+		t.Fatalf("seed schema_version=10: %v", err)
+	}
+
+	// Re-open against the SAME db path: openDB() re-runs the full migration
+	// chain (migrateColumns included) idempotently on every call, exactly as
+	// every real subcommand invocation does against an already-migrated DB.
+	db2, err := openDB(dbPath)
+	if err != nil {
+		t.Fatalf("openDB (second open): %v", err)
+	}
+	defer db2.Close()
+
+	var got string
+	row := db2.QueryRow(`SELECT value FROM meta WHERE key='schema_version'`)
+	if err := row.Scan(&got); err != nil {
+		t.Fatalf("query schema_version: %v", err)
+	}
+	if got != "10" {
+		t.Fatalf("schema_version regressed to %q after re-opening an already-advanced DB — want it to stay \"10\" (F15 sibling: TEXT comparison must not treat '10' as < '6')", got)
+	}
+}
+
 // lastHistoryOccurredAt returns (occurred_at, occurred_at_source) for the
 // newest item_history row of id, failing the test if either column is
 // unexpectedly NULL (callers expect a populated row).

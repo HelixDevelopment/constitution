@@ -125,22 +125,58 @@
 #   benign empty result into a hook-level non-zero effect; that isolation
 #   is T037's job and is not derivable from this file alone.
 #
-# DECOUPLING (§11.4.177): lives in the constitution submodule, inherited BY
-# REFERENCE (never copied). Project-agnostic: validates the `item=` token
-# format only — no project-specific paths, no hardcoded ticket prefixes
-# beyond the `ATM-` form the RED test's own derivation names (SPK- tickets,
-# which the SIBLING guard-work-track-binding.sh separately recognises for
-# its own ticket-binding purpose, are deliberately NOT accepted here —
-# tasks.md's line and the RED test's stub 1 both name only `item=<ATM-nnnn>`,
-# and widening the accepted set beyond what the spec states would itself be
-# an unstated guess per §11.4.6).
+# DECOUPLING (§11.4.177 / §11.4.28 -- F13 fix, T048 round-2 review): this
+# file lives in the constitution submodule, inherited BY REFERENCE (never
+# copied), and MUST carry ZERO project-specific literals. Its accepted
+# ticket-id PREFIX(ES) are therefore CONFIGURABLE, never a hardcoded `ATM-`:
 #
-# NOT YET WIRED (deliberately, by design — T037's job, NOT this task's):
-#   this file is NOT registered in .claude/settings.json's PreToolUse hook
-#   chain. Wiring it prematurely could start blocking every agent dispatch
-#   in a live session before its interaction with the two existing sibling
-#   guards has been carefully tested. Invoke it directly/manually until
-#   T037 lands.
+#   1. `FC_DISPATCH_ITEM_ID_RE` (env, highest priority) -- if set, this
+#      value REPLACES the whole `item=` value alternation verbatim (e.g.
+#      `ATM-[0-9]+|SPK-[0-9]+`), the consuming project's own explicit,
+#      unvalidated choice (§11.4.6: an operator-supplied value is trusted,
+#      never second-guessed).
+#   2. Else, the DEFAULT prefix is DERIVED (never hardcoded) the SAME way
+#      the sibling `constitution/scripts/release_prefix.sh` (§11.4.151) /
+#      `constitution/scripts/workable-items/cmd/workable-items/prefix.go`'s
+#      `deriveKeyPrefix()` already do for this exact class of value: resolve
+#      the project's release prefix (HELIX_RELEASE_PREFIX env -> its .env
+#      entry -> snake_case(project root dir name)), then take its first 3
+#      ASCII letters, uppercased (padded with 'X' if <3, the neutral "WIT"
+#      fallback if none) -- for THIS checkout that derives "ATM" from
+#      "atmosphere" (verified live, 2026-09-30: `bash
+#      constitution/scripts/release_prefix.sh` prints "atmosphere"), so
+#      EVERY existing fixture/test in this suite (all written against
+#      literal `ATM-nnnn` ids) keeps passing unchanged with ZERO test
+#      edits -- while a DIFFERENT consuming project derives ITS OWN correct
+#      prefix automatically, with no source edit to this file.
+#   3. `FC_DISPATCH_EXTRA_ITEM_PREFIXES` (env, additive, comma/pipe/space-
+#      separated) -- extra accepted prefixes ADDED to the derived default
+#      from (2), e.g. `FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK` lets a dispatch
+#      naming `item=SPK-609` (the real T045-sample id round-2's F13 finding
+#      named) pass, entirely via CONFIGURATION -- never a source edit, and
+#      never silently widening the DEFAULT (which stays exactly `ATM-` for
+#      an unconfigured checkout, preserving §11.4.6's "don't guess a wider
+#      set than what's asked for" reasoning this file's earlier revision
+#      already applied to the ATM-only default -- see git history).
+#
+# HERMETICITY NOTE: this DOES read `constitution/scripts/release_prefix.sh`
+# (which in turn reads the git-tracked, checked-in project `.env`) once per
+# invocation UNLESS `FC_DISPATCH_ITEM_ID_RE` is set -- a deliberate, narrow
+# widening of the "no ambient ENV state affects this tool" claim in the
+# companion `test_dispatch_stamp.sh` suite's own header, which is about
+# session-scoped vars (CLAUDE_*, CLAUDE_CONFIG_DIR) varying RUN TO RUN, not
+# about this repository's own stable, git-tracked `.env` release-prefix
+# entry, which resolves identically on every invocation of this exact
+# checkout (the same "hermetic within a fixed checkout" guarantee every
+# other file-content-dependent check in this test family already relies on).
+#
+# NOW WIRED (T037 landed -- this comment corrected 2026-09-30, T048
+#   round-2 review F13; the file previously said "NOT YET WIRED" long after
+#   T037 registered it): this file IS the guard command in
+#   `.claude/settings.json`'s PreToolUse hook chain (search "dispatch_stamp"
+#   in that file) AND is invoked by `scripts/hooks/agent_registry_writer.sh`
+#   (its `--extract-item-id` EXTRACTION mode, search "DISPATCH_STAMP" in
+#   that file) -- both confirmed present in this checkout, 2026-09-30.
 #
 # Producer != Verifier (constitution §11.4.240): this implementation is a
 # separate, later step from the RED-test's author; it is followed by an
@@ -220,11 +256,82 @@ if [[ -z "$DESCRIPTION" ]]; then
   DESCRIPTION="$(json_field .tool_input.subagent)"
 fi
 
-# item=(ATM-[0-9]+|\?) at a token boundary (start-of-string or preceded by
-# whitespace) — the honest '?' form is unconditionally accepted (see header:
-# no live-derivable value exists to cross-check it against, unlike the
-# sibling label guard's <effort> field).
-ITEM_RE='(^|[[:space:]])item=(ATM-[0-9]+|\?)'
+# F13 fix (T048 round-2 review, §11.4.28/§11.4.177): the accepted ticket-id
+# PREFIX(ES) are resolved, never hardcoded -- see the DECOUPLING header
+# comment above for the full 3-tier priority + hermeticity reasoning.
+_fc_derive_key_prefix() {
+  # Mirror constitution/scripts/workable-items/cmd/workable-items/prefix.go's
+  # deriveKeyPrefix(): first 3 ASCII letters of $1, uppercased; padded with
+  # 'X' if fewer than 3; the neutral "WIT" fallback if the input has no
+  # ASCII letters at all.
+  local input="$1" letters="" i=0 n c
+  n=${#input}
+  while [ "$i" -lt "$n" ] && [ "${#letters}" -lt 3 ]; do
+    c="${input:$i:1}"
+    case "$c" in
+      [a-zA-Z]) letters="${letters}$(printf '%s' "$c" | tr '[:lower:]' '[:upper:]')" ;;
+    esac
+    i=$((i + 1))
+  done
+  if [ -z "$letters" ]; then
+    printf 'WIT'
+    return 0
+  fi
+  while [ "${#letters}" -lt 3 ]; do
+    letters="${letters}X"
+  done
+  printf '%s' "$letters"
+}
+
+_fc_default_item_prefix() {
+  # Resolve the SAME base release prefix scripts/release_prefix.sh /
+  # prefix.go's resolveReleasePrefix() already use (HELIX_RELEASE_PREFIX env
+  # -> its .env entry -> snake_case(project root dir name)), then derive the
+  # 3-letter ticket key from it. Falls back to the literal "ATM" ONLY if
+  # release_prefix.sh is genuinely unreachable (should not happen inside a
+  # checked-out constitution submodule -- kept as a defensive non-crash
+  # default, never a silent guess about a DIFFERENT project's real prefix).
+  local self_path self_dir rp_script base
+  # Pure bash parameter-expansion dirname (never the external `dirname`
+  # command): the G-section AWK-fallback tests in test_dispatch_stamp.sh
+  # deliberately restrict PATH to only awk+cat, so any external command
+  # this function shells out to besides `bash "$rp_script"` itself would
+  # silently degrade to the ATM fallback there (harmless, but untested --
+  # this keeps prefix derivation genuinely exercised under that PATH too).
+  self_path="${BASH_SOURCE[0]:-$0}"
+  self_dir="${self_path%/*}"
+  [ "$self_dir" = "$self_path" ] && self_dir="."
+  if [ -n "$self_dir" ]; then
+    rp_script="$(cd "$self_dir/../.." 2>/dev/null && pwd 2>/dev/null || true)/release_prefix.sh"
+  fi
+  if [ -n "${rp_script:-}" ] && [ -f "$rp_script" ]; then
+    base="$(bash "$rp_script" 2>/dev/null || true)"
+  fi
+  if [ -n "${base:-}" ]; then
+    _fc_derive_key_prefix "$base"
+  else
+    printf 'ATM'
+  fi
+}
+
+if [ -n "${FC_DISPATCH_ITEM_ID_RE:-}" ]; then
+  ITEM_VALUE_RE="$FC_DISPATCH_ITEM_ID_RE"
+else
+  ITEM_ALL_PREFIXES="$(_fc_default_item_prefix)"
+  if [ -n "${FC_DISPATCH_EXTRA_ITEM_PREFIXES:-}" ]; then
+    for _fc_p in $(printf '%s' "$FC_DISPATCH_EXTRA_ITEM_PREFIXES" | tr ',|' '  '); do
+      _fc_p_upper="$(printf '%s' "$_fc_p" | tr '[:lower:]' '[:upper:]')"
+      [ -n "$_fc_p_upper" ] && ITEM_ALL_PREFIXES="${ITEM_ALL_PREFIXES}|${_fc_p_upper}"
+    done
+  fi
+  ITEM_VALUE_RE="(${ITEM_ALL_PREFIXES})-[0-9]+"
+fi
+
+# item=(<resolved-prefix(es)>-[0-9]+|\?) at a token boundary (start-of-string
+# or preceded by whitespace) — the honest '?' form is unconditionally
+# accepted (see header: no live-derivable value exists to cross-check it
+# against, unlike the sibling label guard's <effort> field).
+ITEM_RE="(^|[[:space:]])item=(${ITEM_VALUE_RE}|\\?)"
 
 extract_item() {
   # Prints the captured item value (ATM-nnnn or literal '?') if ITEM_RE

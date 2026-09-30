@@ -571,12 +571,23 @@ do_one_replay() {
   # 41k-line gate script was ever written/tested for) by initialising every
   # submodule (direct + nested, since smarttube-player's own checks read
   # ITS nested SharedModules/MediaServiceCore) before running gate_cmd.
-  # `--recursive` reuses `.git/modules` where it can: it is part of this
-  # repo's COMMON git dir (shared by every worktree of the same
-  # superproject, confirmed via `git worktree list`), and most submodule
-  # commits this isolated checkout needs are already cloned there from the
-  # main checkout's own prior `git submodule update --init --recursive`,
-  # so most of this step is a fast local-object checkout, not a clone.
+  # SECOND CORRECTION (T048 round-2 review finding F9, 2026-09-30 -- the
+  # FIRST correction, immediately below, remains fully accurate and
+  # unchanged): the claim originally here -- that a linked worktree's
+  # submodule `.git/modules` is part of this repo's COMMON git dir,
+  # automatically SHARED with the main checkout -- is ALSO WRONG,
+  # independently discovered live in a LATER dispatch's own end-to-end
+  # proof runs (a real `do_one_replay()` call genuinely stalled 950+
+  # CPU-seconds on a real network fetch of `submodules/open_design` despite
+  # $repo_root already having that exact submodule fully fetched): a
+  # linked worktree's submodule git-dirs live under the PER-WORKTREE
+  # `.git/worktrees/<name>/modules/<submodule>` path, NOT the shared
+  # `.git/modules/<submodule>` this comment used to claim. `--recursive`
+  # alone does NOT reuse the main checkout's already-fetched submodule
+  # objects at all -- see the `--reference "$repo_root"` fix a few lines
+  # below (at the actual submodule-update invocation) for what genuinely
+  # closes this gap, and its own comment for the live verification that
+  # proved BOTH the bug and the fix.
   # HONEST CORRECTION (§11.4.6 -- an earlier draft of this comment claimed
   # "no clone, no network" unconditionally and was WRONG; independently
   # observed live via `ps aux` during this fix's own end-to-end proof
@@ -652,9 +663,39 @@ do_one_replay() {
   # this project's own real submodules (confirmed via `.gitmodules`) are
   # exclusively `git@github.com:...` SSH URLs, so neither protocol is ever
   # legitimately needed here.
+  # T048 round-2 review finding F9 (2026-09-30, §11.4.102 root-cause
+  # investigation): a linked worktree's `git submodule update --init
+  # --recursive` clones EACH submodule into its OWN per-worktree git-dir
+  # (`.git/worktrees/<name>/modules/<submodule>`, NOT the shared common
+  # `.git/modules/<submodule>` every earlier draft of this file's own
+  # comments assumed) -- reproduced live: a real do_one_replay() run
+  # genuinely stalled 950+ CPU-seconds on a real network `git index-pack`
+  # for `submodules/open_design`, even though $repo_root (the MAIN
+  # checkout this worktree was created FROM) already has that exact
+  # submodule fully fetched at `.git/modules/submodules/open_design`.
+  # `--reference "$repo_root"` fixes this: verified directly, in an
+  # isolated scratch superproject+submodule pair (never touching this
+  # real repo), that git's own submodule-clone machinery automatically
+  # resolves `<reference>/.git/modules/<name>` for the submodule being
+  # cloned and reuses its objects as an alternate -- even when the
+  # submodule's own configured remote URL is UNREACHABLE, proving no
+  # network I/O for that submodule's objects when the reference already
+  # has them. ALSO verified directly that `--reference "$repo_root"`
+  # degrades SAFELY when $repo_root genuinely lacks a given submodule's
+  # objects (a brand-new submodule, or a SHA never locally fetched): git
+  # falls through to its normal real-clone path, exit 0, unaffected --
+  # this fix speeds up the already-cached case without weakening the
+  # documented real-network-clone fallback below. `--reference` (not
+  # `--reference-if-able`) is deliberate: this git version's
+  # `submodule update` does not recognise the `-if-able` form at all
+  # (confirmed live: real exit 1, a usage error) -- `--reference` alone
+  # is used here because $repo_root, the CALLER of `git worktree add`
+  # that produced $wt_path, is by construction always a real, existing
+  # git repository (never the "reference path itself does not exist"
+  # case `--reference` would error on).
   ( timeout --kill-after=5 "${timeout_s}s" \
       git -c protocol.ext.allow=never -c protocol.file.allow=never \
-      -C "$wt_path" submodule update --init --recursive --quiet ) >/dev/null 2>&1 &
+      -C "$wt_path" submodule update --init --recursive --quiet --reference "$repo_root" ) >/dev/null 2>&1 &
   local submodule_pid=$!
   wait "$submodule_pid"
   local submodule_rc=$?

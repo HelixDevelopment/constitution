@@ -471,6 +471,39 @@ def latest_closure_event(history):
     return None
 
 
+def closure_recency_key(history_by_id, atm_id):
+    """N2 fix (T048 round-2 review): sort key for "most recent N" CT-001
+    stratum selection, keyed by the candidate's LATEST closure event's real
+    DB write-order fields -- `created_at` (the item_history row's own
+    timestamp) then its `id` (the row's own autoincrement primary key, a
+    monotonic write-order tie-breaker at second-resolution ties) -- never
+    the atm_id STRING. `sorted(keep)` previously sorted `atm_id` as TEXT:
+    "ATM-1002" < "ATM-953" lexicographically ('1' < '9') even though
+    1002 > 953 numerically, so real recent closures (verified directly
+    against docs/workable_items.db 2026-09-30: ATM-1105 09-29, ATM-1009/
+    ATM-1002 09-28, ATM-1025 08-23) were silently excluded from every
+    sample in favour of much older ATM-785..953-range ids whose atm_id
+    string merely sorted "higher" -- identical bug class, independently
+    fixed the same way as sibling tool select_sample.py's own
+    closure_recency_key (S11.4.227: same fix, same reasoning, kept as a
+    parallel-but-consistent per-tool implementation matching this file's
+    own already-established convention of NOT sharing a cross-tool helper
+    module beyond fc_common's canon/body_hash/needle primitives). `atm_id`
+    is kept as a final deterministic tie-breaker ONLY (after created_at/id
+    both tie exactly, e.g. a same-second batch closure) -- never the
+    primary sort key -- so --determinism-check (C-003) still gets
+    byte-identical output across runs. A candidate with no closure
+    event/created_at sorts FIRST (least recent) rather than crashing, per
+    S11.4.6 fail-safe-not-guess.
+    """
+    closure = latest_closure_event(history_by_id.get(atm_id, []))
+    created_at = (closure or {}).get("created_at") or ""
+    hist_id = (closure or {}).get("id")
+    if hist_id is None:
+        hist_id = -1
+    return (created_at, hist_id, atm_id)
+
+
 def dedup_history(history):
     seen = set()
     out = []
@@ -1051,8 +1084,22 @@ def main(argv):
         # see module docstring): group candidate closure rows by
         # (evidence-dir, on_date); a cluster >= --bulk-threshold is excluded.
         clusters = {}
-        for atm_id in ids:
+        hist_by_id = {}
+        # N3 fix (T048 round-2 review): `ids` is a Python `set` (built at
+        # `by_type.setdefault(itype, set()).add(atm_id)` above) whose
+        # iteration order is PYTHONHASHSEED-dependent for str elements
+        # (hash randomisation, on by default). Iterating it directly seeded
+        # `clusters`' dict-insertion order (and therefore every
+        # `members`/`excluded.append(...)` order downstream) with that same
+        # nondeterminism -- reproduced directly: two `--determinism-check`
+        # runs of the SAME command against the SAME DB state produced
+        # DIFFERENT `excluded[]` orderings and DIFFERENT body_hash values.
+        # `sorted()` here is a real ORDERING fix (not merely "stable"): it
+        # makes the base iteration -- and everything built from it --
+        # independent of the interpreter's hash seed.
+        for atm_id in sorted(ids):
             hist = db_item_history(conn, atm_id)
+            hist_by_id[atm_id] = hist
             closure = latest_closure_event(hist)
             if closure and closure.get("evidence_path"):
                 ekey = (os.path.dirname(closure["evidence_path"]), closure.get("on_date"))
@@ -1067,7 +1114,13 @@ def main(argv):
                                       % (len(members), ekey[0], ekey[1])})
             else:
                 keep.update(members)
-        recent = sorted(keep)[-args.min_per_type:] if len(keep) > args.min_per_type else sorted(keep)
+        # N2 fix (T048 round-2 review): "most recent min_per_type" is a
+        # REAL-RECENCY selection (closure_recency_key, above) -- NOT a
+        # lexicographic atm_id string sort (the CT-001/DEC-03 bug this
+        # fixes; see closure_recency_key's own docstring for the measured
+        # ATM-1002/ATM-953 counter-example).
+        keep_sorted = sorted(keep, key=lambda i: closure_recency_key(hist_by_id, i))
+        recent = keep_sorted[-args.min_per_type:] if len(keep_sorted) > args.min_per_type else keep_sorted
         selected.update(recent)
     selected |= reopened_ids
 

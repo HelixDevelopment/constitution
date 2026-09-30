@@ -499,4 +499,79 @@ else
   failx
 fi
 
+echo
+echo "=== N3 fix (T048 round-2 review): ct_determinism -- --determinism-check must ==="
+echo "=== hold on real production-mode data (C-003) ==="
+# Root cause verified directly (2026-09-30) BEFORE fixing: cycle_report.py's
+# full-sampling-mode selection built its `ids`/`keep` candidate sets as
+# Python `set`s and iterated them RAW -- `for atm_id in ids:` seeded
+# `clusters`' dict-insertion order (and therefore `excluded[]`'s element
+# order) with Python's per-process, PYTHONHASHSEED-randomised str hashing.
+# Reproduced live: two direct invocations of the SAME command against the
+# SAME DB state under PYTHONHASHSEED=1 vs PYTHONHASHSEED=42 produced
+# DIFFERENT excluded[] orderings and DIFFERENT body_hash values. Fixed by
+# sorting the base `ids` iteration (never a set's raw iteration order feeds
+# output) -- this check exercises the REAL --determinism-check flag (C-003),
+# which forks two real subprocesses that each pick their OWN random hash
+# seed by default (no PYTHONHASHSEED override here), so a regression of this
+# exact class would flip this check back to FAIL without any seed-forcing
+# needed from this test.
+if [ -f "$CYCLE_REPORT" ] && command -v sqlite3 >/dev/null 2>&1 && [ -f "$DB" ]; then
+  DC_OUT="$TMP/ct_determinism.out"
+  DC_JSON="$TMP/ct_determinism.json"
+  python3 "$CYCLE_REPORT" --config x --as-of 2026-09-28 --window-days 90 \
+    --determinism-check --out "$DC_JSON" >"$DC_OUT" 2>&1
+  DC_RC=$?
+  if [ "$DC_RC" = 0 ] && grep -qE '^cycle_report: deterministic \(body_hash=[0-9a-f]+\)$' "$DC_OUT"; then
+    echo "ok ct_determinism: cycle_report.py --determinism-check (full production"
+    echo "   mode, real tracker DB, real subprocess fork each with its own random"
+    echo "   hash seed) exits 0 and reports a stable body_hash -- N3 fixed"
+  else
+    echo "NOT ok ct_determinism FAILED: --determinism-check rc=$DC_RC (expected 0)"
+    echo "     -- $(cat "$DC_OUT" 2>/dev/null)"
+    echo "     (N3 regression class: set-iteration-order-seeded excluded[]/body_hash"
+    echo "     nondeterminism across independently-hash-seeded processes)"
+    failx
+  fi
+
+  # Self-validation control needle (§11.4.107(10)/§11.4.201(1)): prove the
+  # body_hash comparator is NOT a rubber-stamp that reports "equal" no
+  # matter what -- two genuinely DIFFERENT selection windows run directly
+  # (not through --determinism-check) MUST produce DIFFERENT body_hash
+  # values. If this needle failed (hashes equal despite different real
+  # content), check ct_determinism's PASS above would be worthless.
+  DIFFWIN_A="$TMP/ct_determinism_diffwin_a.json"
+  DIFFWIN_B="$TMP/ct_determinism_diffwin_b.json"
+  python3 "$CYCLE_REPORT" --config x --as-of 2026-09-28 --window-days 90 --out "$DIFFWIN_A" >/dev/null 2>&1
+  python3 "$CYCLE_REPORT" --config x --as-of 2026-09-28 --window-days 30 --out "$DIFFWIN_B" >/dev/null 2>&1
+  if [ -f "$DIFFWIN_A" ] && [ -f "$DIFFWIN_B" ]; then
+    DIFFWIN_DISTINCT="$(python3 -c "
+import json
+a = json.load(open('$DIFFWIN_A')).get('body_hash')
+b = json.load(open('$DIFFWIN_B')).get('body_hash')
+print(a != b)
+" 2>&1)"
+    if [ "$DIFFWIN_DISTINCT" = "True" ]; then
+      echo "ok control needle (ct_determinism comparator discrimination): two"
+      echo "   genuinely different windows (90d vs 30d) produce DIFFERENT"
+      echo "   body_hash values -- the body_hash mechanism checked by"
+      echo "   ct_determinism above is real content-sensitive, not a rubber stamp"
+    else
+      echo "NOT ok control needle (ct_determinism comparator discrimination) FAILED:"
+      echo "     a 90-day and a 30-day window produced the SAME body_hash --"
+      echo "     ct_determinism's PASS above cannot be trusted (comparator_result="
+      echo "     '$DIFFWIN_DISTINCT')"
+      failx
+    fi
+  else
+    echo "NOT ok control needle (ct_determinism comparator discrimination) SKIPPED:"
+    echo "     one or both window invocations failed to produce output"
+    failx
+  fi
+else
+  echo "NOT ok ct_determinism SKIPPED: cycle_report.py/sqlite3/tracker DB not"
+  echo "     available (see presence checks above)"
+  failx
+fi
+
 exit $fail

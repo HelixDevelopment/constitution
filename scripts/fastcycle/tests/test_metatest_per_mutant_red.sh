@@ -98,11 +98,34 @@
 #   test_fc_timer_prebuild_red.sh's own RECONCILIATION):
 #
 #     - A `RED_MODE` env-overridable flag, `FC_METATEST_RED_MODE`, defaulting
-#       to **1** (RED / pre-landing -- T032 and T033 are BOTH still unchecked
-#       `[ ]` in specs/004-fast-dev-cycles/tasks.md as of 2026-09-28; this
-#       differs from T015's default-0 because T015's own dependency, T028,
+#       (as ORIGINALLY written, 2026-09-28) to **1** (RED / pre-landing --
+#       T032 and T033 were BOTH still unchecked `[ ]` at that time; this
+#       differed from T015's default-0 because T015's own dependency, T028,
 #       HAD already landed by the time T015 was reconciled, whereas
-#       T032/T033 genuinely have not).
+#       T032/T033 genuinely had not).
+#
+#     F7 CORRECTION (T048 round-2 review, 2026-09-30): assertions 1/2's
+#     RED_MODE polarity depends on T032 ALONE (whether the per-mutant
+#     reporting MECHANISM exists in the SOURCE this file inspects) -- NOT on
+#     T033 (a SEPARATE, later milestone: actually EXECUTING one full run and
+#     archiving its TSV, which assertion (3) below already checks
+#     UNCONDITIONALLY, independent of RED_MODE). T032 landed (tasks.md now
+#     marks it `[x]`; verified live, 2026-09-30) while T033 remains
+#     HONESTLY BLOCKED on a separate, unrelated operator decision (2 named
+#     chronic-debt gates) -- so the ORIGINAL "T032 and T033 both unchecked"
+#     precondition this default cited is no longer true, and assertions 1/2
+#     genuinely hold under RED_MODE=0 (superseded) today: verified live,
+#     the file DOES now mention ".tsv"/"per-mutant" (T032's own added
+#     comments and fc_timer wiring), so RED_MODE=1's assertion (2) FAILS
+#     (a real regression class this file's own §11.4.115 design exists to
+#     catch -- an un-flipped "not yet implemented" assertion left failing
+#     forever after its guarded code landed, mirroring the SAME defect
+#     class an earlier independent review found in sibling
+#     test_dispatch_stamp_red.sh/T036, per that file's own precedent note).
+#     Default flipped to **0** below; `FC_METATEST_RED_MODE=1` remains
+#     available to manually re-arm the absence check (e.g. investigating a
+#     suspected regression of T032's own work), matching this file's
+#     already-designed polarity-switch escape hatch.
 #     - Assertions 1 and 2 now flip polarity on the flag: RED_MODE=1 (default)
 #       asserts absence, matching today's real state; RED_MODE=0 (set the day
 #       T032 lands) treats the absence precondition as permanently
@@ -139,18 +162,26 @@
 #       content-verified done-signal for T032/T033, closing the gap both
 #       investigations independently found.
 #
-# Usage : bash test_metatest_per_mutant_red.sh   Exit 0 = RED baseline holds
-#         (absence proven under RED_MODE=1 + control needle KILLED + no
-#         per-mutant TSV evidence found yet) and contract stub printed.
-#   Env FC_METATEST_RED_MODE=0|1 : polarity switch (§11.4.115). Default 1 =
-#                                   RED/pre-landing (T032+T033 not landed;
-#                                   assert absence). Set to 0 the day
-#                                   T032/T033 land (assertions 1/2 become
-#                                   skip-lines instead of chk()s). The new
-#                                   TSV-existence + verdict-row assertion pair
-#                                   is unconditional either way and needs no
-#                                   flag change to start reporting PASS once
-#                                   real evidence exists on disk.
+# Usage : bash test_metatest_per_mutant_red.sh   Exit 0 (default, RED_MODE=0
+#         post-T032-landing) = assertions 1/2 report superseded, the M12
+#         control needle reports KILLED, the driver-path assertion (N1, see
+#         below) holds, and control needle KILLED + real driver behaviour
+#         are verified; the unconditional TSV-existence + verdict-row
+#         assertion (T033-gated) reports its OWN real state either way.
+#   Env FC_METATEST_RED_MODE=0|1 : polarity switch (§11.4.115). Default 0
+#                                   (F7 fix, T048 round-2 review, 2026-09-30
+#                                   -- T032 has landed; see the F7
+#                                   CORRECTION note above) = GREEN/post-T032-
+#                                   landing (assertions 1/2 report
+#                                   superseded, not asserted). Set to 1 to
+#                                   manually re-arm the pre-T032 absence
+#                                   check (e.g. investigating a suspected
+#                                   regression of T032's own work). The
+#                                   TSV-existence + verdict-row assertion
+#                                   pair (T033-gated) is unconditional
+#                                   either way and needs no flag change to
+#                                   start reporting PASS once T033 archives
+#                                   real evidence on disk.
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
@@ -162,8 +193,16 @@ METATEST_ARCHIVE_DIR="$ROOT/qa-results/fastcycle/metatest"
 fail=0
 failx() { fail=1; }
 
-RED_MODE="${FC_METATEST_RED_MODE:-1}"
-echo "INFO: RED_MODE=$RED_MODE (1=RED/pre-landing [default; T032+T033 both unchecked in tasks.md], 0=GREEN/post-landing [set the day T032+T033 land])"
+# F7 fix (T048 round-2 review, 2026-09-30): default flipped 1->0 -- T032 has
+# landed (tasks.md marks it [x]; verified live, 2026-09-30); assertions 1/2's
+# RED_MODE polarity depends on T032 alone, never T033 (a separate, still-
+# blocked milestone the unconditional assertion (3) below already gates on
+# its own). See the F7 CORRECTION note in this file's header for the full
+# diagnosis: RED_MODE=1 (the old default) made assertion (2) FAIL forever
+# after T032 genuinely landed, an un-flipped "not yet implemented" assertion
+# left asserting a now-permanently-false precondition.
+RED_MODE="${FC_METATEST_RED_MODE:-0}"
+echo "INFO: RED_MODE=$RED_MODE (1=RED/pre-T032-landing [manual re-arm only], 0=GREEN/post-T032-landing [default since 2026-09-30 -- T032 [x] in tasks.md; T033 remains separately blocked, gated only by the unconditional assertion (3) below])"
 
 # --- (1) Absence check: no per-mutant TSV mechanism in the meta-test file ---
 [ -f "$MT" ] || { echo "NOT ok meta_test_false_positive_proof.sh missing at $MT"; exit 1; }
@@ -296,6 +335,130 @@ echo "  mutation driver this project's meta-test orchestrates (not only"
 echo "  test_foundational_mutations.sh), keyed by the mutation's own name -- the"
 echo "  scratch-dir .rc file contents (0/1/NOCHANGE/MARKER_MISS) that mut_job()"
 echo "  already produces map directly onto SURVIVED/KILLED/ERROR/ERROR."
+
+# --- (4) N1 fix (T048 round-2 review): a real DRIVER-PATH runtime assertion ---
+#         -- assertion (2) above only ever exercised the M_* INLINE region
+#         (test_foundational_mutations_killtree_root_guard.sh, run DIRECTLY,
+#         never through meta_test_false_positive_proof.sh's own mutation
+#         drivers), which is exactly how the F3 remediation's regression
+#         (round-2 finding N1: F3's `trap` shadow-function wrapper made the 4
+#         shared drivers -- mutate_gate_direct/mutate_gate_selftest_or_red/
+#         mutate_gate_via_fixture/mutate_anchor_gate -- re-leak the RETURN
+#         trap, reproducing the ORIGINAL F1 bug through a different mechanism
+#         -- went undetected by this file. This assertion extracts the LIVE,
+#         CURRENT content of pass()/fail()/skip(), the fc_timer wiring block
+#         (incl. the `trap` shadow function + _fc_mut_start/_fc_mut_end),
+#         sed_i_verified(), and mutate_gate_direct() straight out of $MT via
+#         content-anchored awk ranges (never hardcoded line numbers -- the
+#         same extraction discipline this file's own
+#         run_anchor_gate_isolated/run_les_gate_isolated already use), then
+#         actually RUNS mutate_gate_direct() twice in a row against a
+#         throwaway scratch gate script, followed by the exact inline-frame
+#         shape (_fc_mut_start / `.` source / fail() / _fc_mut_end) that
+#         exposed the original F1 bug. It sources the REAL
+#         constitution/scripts/fastcycle/timing/fc_timer.sh (read-only --
+#         nothing in the live tree is ever mutated; FC_TIMER_TSV is pointed
+#         at a scratch path so no real archive is touched) so a leaked
+#         RETURN trap produces the REAL fc_timer_end "stack is empty"
+#         warning the live regression actually emits, not a hand-simulated
+#         approximation. Two runtime signatures distinguish
+#         golden-bad(pre-fix)/golden-good(post-fix), both independently
+#         reproduced by hand before this assertion was authored: (i) zero
+#         "stack is empty" warnings anywhere in stderr across the whole
+#         sequence, and (ii) `builtin trap -p RETURN` reports EMPTY after
+#         both driver calls (a leaked trap prints its still-armed command
+#         string instead). A textual companion check further confirms all 4
+#         driver call sites use `builtin trap` (not a bare `trap` that would
+#         route back through the shadow function) -- cheap regression-
+#         proofing against literally reintroducing the bare form, layered on
+#         top of (never a substitute for) the dynamic proof above.
+DRIVER_EXTRACT_TMP="$(mktemp -d)" || { echo "NOT ok mktemp failed (driver-path assertion)"; failx; DRIVER_EXTRACT_TMP=""; }
+if [ -n "$DRIVER_EXTRACT_TMP" ]; then
+  d="$DRIVER_EXTRACT_TMP"
+  : > "$d/payload.sh"
+  awk '$0 ~ "^pass\\(\\) \\{", $0 ~ "^pass\\(\\) \\{"' "$MT" >> "$d/payload.sh"
+  awk '$0 ~ "^fail\\(\\) \\{", $0 ~ "^fail\\(\\) \\{"' "$MT" >> "$d/payload.sh"
+  awk '$0 ~ "^skip\\(\\) \\{", $0 ~ "^skip\\(\\) \\{"' "$MT" >> "$d/payload.sh"
+  awk '$0 ~ "^_FC_TIMER_LIB=", $0 ~ "^# --- end fc_timer\\.sh wiring"' "$MT" >> "$d/payload.sh"
+  awk '$0 ~ "^sed_i_verified\\(\\) \\{", $0 ~ "^\\}$"' "$MT" >> "$d/payload.sh"
+  awk '$0 ~ "^mutate_gate_direct\\(\\) \\{", $0 ~ "^\\}$"' "$MT" >> "$d/payload.sh"
+
+  MISSING_BLOCK=""
+  grep -q '^pass() {' "$d/payload.sh" || MISSING_BLOCK="pass()"
+  grep -q '^fail() {' "$d/payload.sh" || MISSING_BLOCK="fail()"
+  grep -q '^skip() {' "$d/payload.sh" || MISSING_BLOCK="skip()"
+  grep -q '^_FC_TIMER_LIB=' "$d/payload.sh" || MISSING_BLOCK="fc_timer wiring block"
+  grep -q '^sed_i_verified() {' "$d/payload.sh" || MISSING_BLOCK="sed_i_verified()"
+  grep -q '^mutate_gate_direct() {' "$d/payload.sh" || MISSING_BLOCK="mutate_gate_direct()"
+
+  if [ -n "$MISSING_BLOCK" ]; then
+    echo "NOT ok driver-path extraction: could not find $MISSING_BLOCK in $MT -- the file's"
+    echo "     structure changed; this assertion's content-anchors need updating"
+    failx
+  else
+    cat > "$d/gate.sh" <<'GATEEOF'
+#!/usr/bin/env bash
+DETECT_ENABLED=1
+if [ "$DETECT_ENABLED" = "1" ]; then exit 1; else exit 0; fi
+GATEEOF
+    chmod +x "$d/gate.sh"
+
+    {
+      echo 'set -uo pipefail'
+      echo "REPO_ROOT=\"$ROOT\""
+      echo "export FC_TIMER_TSV=\"$d/per_mutant.tsv\""
+      echo 'PASS_COUNT=0; FAIL_COUNT=0; SKIP_COUNT=0'
+      cat "$d/payload.sh"
+      echo "mutate_gate_direct M_T048N1_TEST1 \"$d/gate.sh\" 's/DETECT_ENABLED=1/DETECT_ENABLED=0/' 1"
+      echo "mutate_gate_direct M_T048N1_TEST2 \"$d/gate.sh\" 's/DETECT_ENABLED=1/DETECT_ENABLED=0/' 1"
+      echo 'echo "__RETURN_TRAP__=[$(builtin trap -p RETURN)]"'
+      echo '_fc_mut_start M_T048N1_INLINE'
+      echo "echo ':' > \"$d/defs.sh\""
+      echo ". \"$d/defs.sh\""
+      echo 'fail "M_T048N1_INLINE surviving mutant (driver-path assertion)"'
+      echo '_fc_mut_end'
+      echo 'echo "__FINAL__ PASS=$PASS_COUNT FAIL=$FAIL_COUNT"'
+    } > "$d/driver.sh"
+
+    DRIVER_OUT="$d/driver.out"
+    bash "$d/driver.sh" >"$DRIVER_OUT" 2>&1
+
+    STACK_EMPTY_WARN=0
+    grep -q 'stack is empty' "$DRIVER_OUT" && STACK_EMPTY_WARN=1
+    RETURN_TRAP_LEAKED=0
+    grep -qE '^__RETURN_TRAP__=\[.+\]$' "$DRIVER_OUT" && RETURN_TRAP_LEAKED=1
+
+    if [ "$STACK_EMPTY_WARN" = 0 ] && [ "$RETURN_TRAP_LEAKED" = 0 ]; then
+      echo "ok driver-path runtime assertion: 2 real mutate_gate_direct() calls + an inline"
+      echo "   _fc_mut_start/./fail()/_fc_mut_end frame, run against the LIVE extracted"
+      echo "   file content -- zero 'stack is empty' warnings, RETURN trap empty after"
+      echo "   both drivers (N1 fixed; T048 round-2)"
+    else
+      echo "NOT ok driver-path runtime assertion FAILED against the LIVE extracted file"
+      echo "     content -- stack_empty_warning=$STACK_EMPTY_WARN return_trap_leaked=$RETURN_TRAP_LEAKED"
+      echo "     (N1 regression class: the 4 shared mutation drivers re-leak the RETURN trap)"
+      sed 's/^/    /' "$DRIVER_OUT"
+      failx
+    fi
+  fi
+  rm -rf "$DRIVER_EXTRACT_TMP"
+fi
+
+DRIVER_SITES_NOT_BUILTIN="$(grep -cE "^\s+trap '_fc_mut_end; trap - RETURN' RETURN\s*\$" "$MT" 2>/dev/null || true)"
+: "${DRIVER_SITES_NOT_BUILTIN:=0}"
+DRIVER_SITES_BUILTIN="$(grep -cE "^\s+builtin trap '_fc_mut_end; builtin trap - RETURN' RETURN\s*\$" "$MT" 2>/dev/null || true)"
+: "${DRIVER_SITES_BUILTIN:=0}"
+if [ "$DRIVER_SITES_NOT_BUILTIN" = 0 ] && [ "$DRIVER_SITES_BUILTIN" -ge 4 ]; then
+  echo "ok all $DRIVER_SITES_BUILTIN driver call sites use \`builtin trap\` (not the shadow"
+  echo "   function) for both the arm and the inner self-clear -- zero bare-\`trap\`"
+  echo "   driver sites remain (N1 textual companion check)"
+else
+  echo "NOT ok driver call sites: $DRIVER_SITES_BUILTIN using \`builtin trap\`,"
+  echo "     $DRIVER_SITES_NOT_BUILTIN still using the bare, shadow-function-routed"
+  echo "     \`trap\` form (expected >=4 builtin, 0 bare) -- N1 may have regressed or a"
+  echo "     new driver call site was added without the fix"
+  failx
+fi
 
 echo
 echo "=== golden-output contract stub (verdict set identical with/without timing rows) ==="

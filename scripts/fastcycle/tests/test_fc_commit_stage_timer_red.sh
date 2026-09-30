@@ -648,6 +648,21 @@ fi
 # three functions that decide the staged file set and the commit message are
 # dynamically LOCATED (never hardcoded line numbers) and checked for zero
 # FC_TIMING/fc_timer references TODAY.
+#
+# T048 round-2 review finding F17 (2026-09-30) fix: the substring regex
+# below is widened from bare `FC_TIMING|fc_timer` to also match
+# `_fc_stage_(start|end)` -- commit_all.sh's own two thin wrapper functions
+# around fc_timer_start/fc_timer_end (see "fc_timer.sh wiring" near this
+# file's top, above _fc_stage_start()/_fc_stage_end()'s definitions).
+# Verified directly (2026-09-30): a call to `_fc_stage_start "x"` inside
+# stage_changes() contains NEITHER the literal substring "FC_TIMING" NOR
+# "fc_timer" -- the OLD regex would have reported STAGE_TIMER_REFS=0 even
+# with a real timer call wired straight into the function this GROUP exists
+# to prove is timer-free, satisfiable by moving code around a line-range
+# boundary rather than by the actual absence-of-instrumentation property
+# the check is meant to guard (F17's own finding, reproduced live before
+# fixing). Widening the regex here closes that gap for BOTH the direct
+# fc_timer_*/FC_TIMING form and the wrapper-call form.
 # ============================================================================
 _func_start_line() {
   # $1 = exact function name; prints the 1-based source line of its
@@ -676,9 +691,9 @@ else
   COMMIT_SPAN_LINES=$((COMMIT_END - PCM_START + 1))
   STAGE_SPAN_SHA=$(sed -n "${STAGE_START},${STAGE_END}p" "$COMMIT_ALL" | sha256sum | cut -d' ' -f1)
   COMMIT_SPAN_SHA=$(sed -n "${PCM_START},${COMMIT_END}p" "$COMMIT_ALL" | sha256sum | cut -d' ' -f1)
-  STAGE_TIMER_REFS=$(sed -n "${STAGE_START},${STAGE_END}p" "$COMMIT_ALL" | grep -cE 'FC_TIMING|fc_timer' || true)
+  STAGE_TIMER_REFS=$(sed -n "${STAGE_START},${STAGE_END}p" "$COMMIT_ALL" | grep -cE 'FC_TIMING|fc_timer|_fc_stage_(start|end)' || true)
   : "${STAGE_TIMER_REFS:=0}"
-  COMMIT_TIMER_REFS=$(sed -n "${PCM_START},${COMMIT_END}p" "$COMMIT_ALL" | grep -cE 'FC_TIMING|fc_timer' || true)
+  COMMIT_TIMER_REFS=$(sed -n "${PCM_START},${COMMIT_END}p" "$COMMIT_ALL" | grep -cE 'FC_TIMING|fc_timer|_fc_stage_(start|end)' || true)
   : "${COMMIT_TIMER_REFS:=0}"
 
   echo "INFO: GROUP 3 baseline located dynamically -- stage_changes() lines"
@@ -709,6 +724,61 @@ else
     echo "     observer that never alters the staged set or the message"
     failx
   fi
+fi
+
+echo
+echo "=== N5 fix (T048 round-2 review): missing-\$_FC_TIMER_LIB path is loud, ==="
+echo "=== never silent ==="
+# T048 round-2 review finding N5 (2026-09-30): commit-timing rows were found
+# to stop entirely after a specific run, with 44+ later real commits carrying
+# no TSV row at all and no visible explanation. Investigated: EVERY write
+# failure INSIDE fc_timer.sh itself (header write, row append) already
+# echoes a loud "fc_timer_*: failed to ..." to stderr on failure -- verified
+# directly against fc_timer.sh's own source. The ONE genuinely-silent gap
+# this investigation found is commit_all.sh's OWN `if [ -f "$_FC_TIMER_LIB"
+# ]` branch: when the library file is absent at the computed path, the
+# entire timing-instrumentation block was skipped with ZERO output
+# anywhere -- indistinguishable, from the outside, from "timing is simply
+# disabled by FC_TIMING=0" (which IS a documented, intentional no-op). This
+# assertion proves the fix: sourcing a scratch copy of commit_all.sh from a
+# directory with NO ../constitution sibling (so $_FC_TIMER_LIB genuinely
+# cannot resolve) now emits a named, actionable warning to stderr instead of
+# silence.
+N5_SCRATCH="$(mktemp -d)"
+if [ -z "$N5_SCRATCH" ] || [ ! -d "$N5_SCRATCH" ]; then
+  echo "NOT ok N5 fix: mktemp -d failed"
+  failx
+else
+  mkdir -p "$N5_SCRATCH/scripts"
+  cp -- "$COMMIT_ALL" "$N5_SCRATCH/scripts/commit_all.sh"
+  N5_OUT="$(cd "$N5_SCRATCH" && COMMIT_ALL_SOURCE_ONLY=1 bash -c 'source scripts/commit_all.sh' 2>&1)"
+  if printf '%s' "$N5_OUT" | grep -qF "fc_timer.sh not found at"; then
+    echo "ok N5 fix: sourcing commit_all.sh with no reachable fc_timer.sh emits a"
+    echo "   named, actionable stderr warning -- the missing-library path is no"
+    echo "   longer silent"
+  else
+    echo "NOT ok N5 fix FAILED: sourcing commit_all.sh with no reachable"
+    echo "     fc_timer.sh produced no 'fc_timer.sh not found at' warning --"
+    echo "     captured output: $(printf '%s' "$N5_OUT" | tr '\n' ' ' | head -c 300)"
+    failx
+  fi
+  # Self-validation control needle (§11.4.107(10)/§11.4.201(1)): a NORMAL
+  # source (real ../constitution sibling present, as in this actual repo)
+  # MUST NOT print this warning -- proving the check above is genuinely
+  # discriminating the missing-library case, not firing unconditionally.
+  N5_NORMAL_OUT="$(cd "$ROOT" && COMMIT_ALL_SOURCE_ONLY=1 bash -c 'source scripts/commit_all.sh' 2>&1)"
+  if printf '%s' "$N5_NORMAL_OUT" | grep -qF "fc_timer.sh not found at"; then
+    echo "NOT ok control needle (N5 fix false-positive guard) FAILED: a NORMAL"
+    echo "     source of the real commit_all.sh (real ../constitution sibling"
+    echo "     present) ALSO printed the missing-library warning -- the check"
+    echo "     is not discriminating, §11.4.201(1)"
+    failx
+  else
+    echo "ok control needle (N5 fix false-positive guard): a normal source of the"
+    echo "   real commit_all.sh (constitution sibling genuinely present) does NOT"
+    echo "   print the missing-library warning"
+  fi
+  rm -rf "$N5_SCRATCH"
 fi
 
 echo
