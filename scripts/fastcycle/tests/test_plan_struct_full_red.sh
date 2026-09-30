@@ -11,6 +11,43 @@
 #           still UNMEASURED after the T-A11 checkpoint without a named
 #           permanent gap; negative control: the current documents PASS."
 #
+# NOTE (post-T179-landing remediation, 2026-10-01, constitution 11.4.1/
+# 11.4.6): T179 has since LANDED, implementing both `research` and `plan`
+# in `plan_struct_check.py`. Every "expect rc=2, tool/subcommand absent"
+# assertion this file originally made is RETAINED for its historical
+# narrative value (below, unchanged -- it accurately records the real
+# gap this file found on 2026-09-30, before T179 existed) but each
+# fixture's actual RUNTIME ASSERTION is re-pointed, in this remediation,
+# at the tool's now-real per-fixture verdict: every golden-bad fixture is
+# asserted to exit 1 with its OWN specific, named violation-code
+# substring in stderr (never merely "some rc=1 fired"), and the negative
+# control's `research`/`plan` invocations against the real, live
+# documents are asserted to exit 0 -- mirroring exactly the flip
+# test_plan_struct_causes_red.sh's own post-T046-landing remediation
+# already made for `causes` (see that file's own dated NOTE at its
+# section (1)/(1b) for the precedent this remediation follows). This is
+# the SAME "update only the RED-baseline absence assertions into real
+# verdict assertions, preserving every fixture design and self-check
+# unchanged" discipline T159's own implementer used for the sibling
+# `landing`/`rule-diff` RED test. Every fixture's own self-check (proving
+# it genuinely encodes its one designed defect, independent of
+# `plan_struct_check.py`'s own code -- Producer != Verifier, constitution
+# 11.4.240) is UNCHANGED below.
+#
+# NOTE 2 (review round 2, I-B, 2026-10-01): the tasks.md line quoted verbatim
+# above (line 12, "negative control: the current documents PASS") is HISTORICAL
+# NARRATIVE -- the ORIGINAL task author's own wording, quoted for provenance,
+# never edited to match reality (that would misrepresent what tasks.md itself
+# actually says). It does NOT describe this file's own CURRENT runtime
+# assertion for `plan`: section (9) below and the Usage note two paragraphs up
+# assert a BOUNDED pair of acceptable outcomes (rc=0 clean, OR rc=1 with ONLY
+# honest `confirmed_unmeasured_no_permanent_gap` findings) rather than a single
+# hardcoded "PASS" -- see section (9)'s own header note for the full,
+# self-referential-fragility rationale this bounds against (a check hardcoded
+# to expect the corpus to stay "dirty" forever would itself start FALSELY
+# FAILING the moment the real corpus genuinely becomes clean, e.g. once T-A11
+# actually runs).
+#
 # THE GAP (verified directly, 2026-09-30, before writing a single fixture
 # below -- constitution 11.4.6): `plan_struct_check.py` (T046's file) exists
 # and its `causes` subcommand is implemented + GO-reviewed + committed (see
@@ -108,17 +145,27 @@
 # would not matter to the assertion below) and names the open question
 # rather than inventing an answer for it.
 #
-# Usage : bash test_plan_struct_full_red.sh   Exit 0 = RED baseline holds
-#         (both control needles pass, all seven golden-bad fixtures are
-#         independently confirmed to encode their designed defect, EVERY
-#         fixture's real `research`/`plan` invocation returns rc=2 with the
-#         "invalid choice" signature naming the right subcommand, the
-#         negative control's `causes` invocation against the real, live
-#         register genuinely exits 0, and the negative control's
-#         `research`/`plan` invocations against the real, live documents
-#         are reported honestly -- currently ALSO rc=2, for tool-absence,
-#         not for any document defect). Matches the T017/T024/T026/T025
-#         sibling files' "exit 0 = RED baseline PASS" convention.
+# Usage : bash test_plan_struct_full_red.sh   Exit 0 = every check holds
+#         (post-T179-landing remediation, see the dated NOTE above): both
+#         control needles pass, all seven golden-bad fixtures are
+#         independently confirmed to encode their designed defect AND each
+#         fixture's real `research`/`plan` invocation genuinely exits 1
+#         naming that SAME specific violation code in stderr (never a
+#         generic "some violation fired"), the negative control's `causes`
+#         invocation against the real, live register genuinely exits 0, the
+#         negative control's `research` invocation against the real, live
+#         documents ALSO genuinely exits 0, and the negative control's
+#         `plan` invocation against the real, live documents genuinely
+#         exits EITHER 0 (a corpus that has become genuinely clean) OR 1
+#         with ONLY honest `confirmed_unmeasured_no_permanent_gap` findings
+#         present (review round 2, I-B: see this section's own header note,
+#         and section (9) below, for why `plan`'s expected outcome is a
+#         BOUNDED pair of acceptable states rather than a single hardcoded
+#         one -- the tool has actually checked those documents in full and
+#         found them either clean, or clean-except-for-that-one-honestly-
+#         disclosed-and-out-of-scope Phase-0 gap, never merely "not yet
+#         evaluated"). Matches the T017/T024/T026/T025 sibling files' "exit
+#         0 = PASS" convention for every OTHER assertion in this file.
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
@@ -167,8 +214,8 @@ else
   failx
 fi
 
-# --- (0) The tool itself exists (T046 landed) but the specific subcommands
-#         this file targets do not -- both facts proven by REAL invocation,
+# --- (0) The tool itself exists (T046 landed) AND the subcommands this file
+#         targets now exist too (T179 landed) -- proven by REAL invocation,
 #         never by parsing the tool's own source as a proxy for its runtime
 #         behaviour (§11.4.201(11)) ---
 if [ ! -f "$TOOL" ]; then
@@ -177,50 +224,63 @@ if [ ! -f "$TOOL" ]; then
   echo "     file's own scope (research/plan) can characterise"
   failx
 else
-  echo "ok $TOOL exists (T046 has landed) -- the subcommand-absence checks"
-  echo "   below are exercised against the REAL, current subparser table"
+  echo "ok $TOOL exists (T046 has landed) -- the real per-fixture verdict"
+  echo "   checks below are exercised against the REAL, current subparser table"
 fi
 
-assert_subcommand_absent() {
-  # assert_subcommand_absent <label> <subcommand> -- <full invocation...>
-  # Runs the real tool; asserts rc=2 and that stderr names exactly the
-  # given subcommand as an invalid choice. This is the CORRECT, EXPECTED
-  # RED-baseline outcome for every fixture below today (2026-09-30):
-  # `research` and `plan` are both wholly absent, so no fixture's CONTENT
-  # can yet be distinguished from any other's by this tool -- the finding
-  # this assertion proves is tool-absence, never a structural verdict on
-  # the fixture's document content (that verdict does not exist until
-  # T179 lands).
+assert_violation() {
+  # assert_violation <label> <subcommand> <out-json-path> <expected-violation-code-substring>
+  #   -- <full invocation...>
+  # POST-T179-LANDING (see the dated NOTE near the top of this file): T179 has landed
+  # permanently, so the REAL, expected outcome for every golden-bad fixture below is rc=1 naming
+  # its OWN specific violation code in stderr, plus a real, non-empty --out JSON document (C-001:
+  # a finding on exit 1 is still a real, inspectable verdict, written just as it is on exit 0).
+  # The rc=2 "subcommand absent" branch is RETAINED as a dedicated REGRESSION check -- mirrors
+  # test_plan_struct_causes_red.sh's own dual-branch precedent at its section (1)/(1b) -- so a
+  # future regression that removes the subcommand again is still caught here, honestly reported
+  # as exactly that, never silently reinterpreted as "the document is clean".
   label=$1; shift
   subcmd=$1; shift
+  out_json=$1; shift
+  expect_code=$1; shift
   # remaining args: the real invocation (python3 "$TOOL" <subcmd> ...)
   out_file="$WORK/_inv_out_$$_${RANDOM}"
   err_file="$WORK/_inv_err_$$_${RANDOM}"
   "$@" >"$out_file" 2>"$err_file"
   rc=$?
-  if [ "$rc" -ne 2 ]; then
-    echo "NOT ok $label: expected rc=2 (subcommand '$subcmd' absent), got rc=$rc"
+  if [ "$rc" -eq 2 ] && grep -q "invalid choice: '$subcmd'" "$err_file" 2>/dev/null; then
+    echo "NOT ok $label: REGRESSION -- subcommand '$subcmd' is absent again (rc=2, invalid"
+    echo "     choice); T179 landed this subcommand permanently, so rc=2 is no longer the"
+    echo "     expected outcome here -- stderr: $(cat "$err_file" 2>/dev/null)"
+    failx
+    return
+  fi
+  if [ "$rc" -ne 1 ]; then
+    echo "NOT ok $label: expected rc=1 (a genuine structural violation), got rc=$rc"
     echo "     stdout: $(cat "$out_file" 2>/dev/null)"
     echo "     stderr: $(cat "$err_file" 2>/dev/null)"
     failx
     return
   fi
-  if ! grep -q "invalid choice: '$subcmd'" "$err_file"; then
-    echo "NOT ok $label: rc=2 as expected, but stderr does not name '$subcmd' as"
-    echo "     the invalid choice -- stderr: $(cat "$err_file" 2>/dev/null)"
+  if ! grep -qF -- "$expect_code" "$err_file"; then
+    echo "NOT ok $label: rc=1 as expected, but stderr does not contain the expected"
+    echo "     violation-code substring '$expect_code' -- stderr:"
+    echo "     $(cat "$err_file" 2>/dev/null)"
     failx
     return
   fi
-  if ! grep -q 'choose from' "$err_file"; then
-    echo "NOT ok $label: rc=2 and '$subcmd' named, but stderr is missing"
-    echo "     argparse's usual 'choose from ...' guidance -- unexpected error"
-    echo "     shape, worth re-checking by hand: $(cat "$err_file" 2>/dev/null)"
+  if [ ! -s "$out_json" ]; then
+    echo "NOT ok $label: rc=1 and the violation-code substring matched, but --out"
+    echo "     $out_json was not written / is empty (contract plan-research-structural-"
+    echo "     check.md requires a JSON document on exit 1 too, C-001)"
     failx
     return
   fi
-  echo "ok $label: real invocation of subcommand '$subcmd' exits rc=2, stderr"
-  echo "   names it an invalid choice (argparse's own 'choose from' guidance"
-  echo "   present) -- the correct, current RED baseline (T179 not yet landed)"
+  echo "ok $label: real invocation of subcommand '$subcmd' genuinely exits rc=1,"
+  echo "   stderr contains the expected violation-code substring '$expect_code', and a"
+  echo "   non-empty --out JSON document was written -- T179's real, committed"
+  echo "   implementation genuinely detects this fixture's designed defect (not merely"
+  echo "   tool/subcommand absence)"
 }
 
 # =============================================================================
@@ -253,7 +313,8 @@ else
   echo "   via grep, never assumed from having typed the fixture) -- this"
   echo "   fixture genuinely encodes the 'task with no rollback plan' defect"
 fi
-assert_subcommand_absent "fixture 1 (no-rollback task)" plan \
+assert_violation "fixture 1 (no-rollback task)" plan "$WORK/f1.out.json" \
+  "'code': 'no_rollback', 'task': 'T-X01'" \
   python3 "$TOOL" plan --plan "$F1/plan.md" --causes "$F1/causes.json" --out "$WORK/f1.out.json"
 
 # =============================================================================
@@ -306,7 +367,8 @@ else
     echo "   encodes the 'orphan RC with no implementing task' defect"
   fi
 fi
-assert_subcommand_absent "fixture 2 (orphan RC)" plan \
+assert_violation "fixture 2 (orphan RC)" plan "$WORK/f2.out.json" \
+  "'code': 'orphan_cause', 'row': 'RC-X01'" \
   python3 "$TOOL" plan --plan "$F2/plan.md" --causes "$F2/causes.json" --out "$WORK/f2.out.json"
 
 # =============================================================================
@@ -355,7 +417,8 @@ else
   echo "   genuinely IS served by T-X03; this fixture genuinely encodes an"
   echo "   orphan FR and demonstrably discriminates it from a covered one"
 fi
-assert_subcommand_absent "fixture 3 (orphan FR)" plan \
+assert_violation "fixture 3 (orphan FR)" plan "$WORK/f3.out.json" \
+  "'code': 'orphan_requirement', 'id': 'FR-X03'" \
   python3 "$TOOL" plan --plan "$F3/plan.md" --causes "$F3/causes.json" --out "$WORK/f3.out.json"
 
 # =============================================================================
@@ -414,7 +477,8 @@ else
   echo "   nor the literal 'no external solution found -- original work'"
   echo "   marker -- this fixture genuinely encodes an uncited recommendation"
 fi
-assert_subcommand_absent "fixture 4 (uncited recommendation)" research \
+assert_violation "fixture 4 (uncited recommendation)" research "$WORK/f4.out.json" \
+  "'code': 'uncited_recommendation', 'decision': 'DEC-X01'" \
   python3 "$TOOL" research --log "$F4/research.md" --plan "$F4/plan.md" --out "$WORK/f4.out.json"
 
 # =============================================================================
@@ -456,7 +520,8 @@ else
   echo "     pass row(s), expected a number in [1,2] (below the >=3 floor)"
   failx
 fi
-assert_subcommand_absent "fixture 5 (two research passes)" research \
+assert_violation "fixture 5 (two research passes)" research "$WORK/f5.out.json" \
+  "'code': 'insufficient_research_passes', 'count': 2" \
   python3 "$TOOL" research --log "$F5/research.md" --plan "$F5/plan.md" --out "$WORK/f5.out.json"
 
 # =============================================================================
@@ -497,7 +562,8 @@ else
   echo "     15000-word (30-page-equivalent) floor -- fixture too large"
   failx
 fi
-assert_subcommand_absent "fixture 6 (below-size-threshold)" plan \
+assert_violation "fixture 6 (below-size-threshold)" plan "$WORK/f6.out.json" \
+  "'code': 'below_size_threshold'" \
   python3 "$TOOL" plan --plan "$F6/plan.md" --causes "$F6/causes.json" --out "$WORK/f6.out.json"
 
 # =============================================================================
@@ -562,23 +628,493 @@ else
   echo "   genuinely encodes the 'CONFIRMED-but-still-UNMEASURED, no named"
   echo "   permanent gap' defect"
 fi
-assert_subcommand_absent "fixture 7 (CONFIRMED/UNMEASURED, no permanent gap)" plan \
+assert_violation "fixture 7 (CONFIRMED/UNMEASURED, no permanent gap)" plan "$WORK/f7.out.json" \
+  "'code': 'confirmed_unmeasured_no_permanent_gap', 'row': 'RC-X08'" \
   python3 "$TOOL" plan --plan "$F7/plan.md" --causes "$F7/causes.json" --out "$WORK/f7.out.json"
 
 # =============================================================================
+# POST-T179-ROUND-1-REVIEW REMEDIATION FIXTURES (2026-10-01, independent §11.4.209 Opus-xhigh
+# review of T179's initial landing): fixtures 8..15 below each reproduce ONE concrete finding
+# from that review, self-checked exactly like fixtures 1-7 above (a fixture is never trusted to
+# encode its designed defect merely from having typed it), and each was CONFIRMED to genuinely
+# FAIL against the pre-remediation code before the fix landed (constitution 11.4.115/11.4.6 --
+# never asserted without having watched it RED first).
+# =============================================================================
+
+# =============================================================================
+# Fixture 8 -- plan: B1 reproduction (a) -- two DIFFERENT CONFIRMED/UNMEASURED
+# causes where only ONE carries a genuine, per-row permanent-gap marker; the
+# OTHER (with no marker of its own) MUST still be flagged, never excused by
+# the first one's marker (the pre-fix bug matched the bare phrase "permanent
+# gap" ANYWHERE in the document and excused EVERY CONFIRMED/UNMEASURED row at
+# once, regardless of which specific row the note was actually about).
+# =============================================================================
+F8="$WORK/f8_percause_gap"
+mkdir -p "$F8"
+cat > "$F8/causes.json" <<'EOF'
+{
+  "doc": "fixture",
+  "causes": [
+    {"id": "RC-X09", "class": "CONFIRMED", "evidence_paths": ["fixture/evidence"],
+     "measured_share": "UNMEASURED", "settling_evidence": null, "removed_or_measured_by": "T-X09"},
+    {"id": "RC-X10", "class": "CONFIRMED", "evidence_paths": ["fixture/evidence"],
+     "measured_share": "UNMEASURED", "settling_evidence": null, "removed_or_measured_by": "T-X09"}
+  ],
+  "class_counts": {"stated": {"CONFIRMED": 2}, "actual": {"CONFIRMED": 2}},
+  "violations": []
+}
+EOF
+cat > "$F8/plan.md" <<'EOF'
+## Phased Implementation Plan
+
+#### T-X09 -- fixture task removing/measuring BOTH causes, only one gets a real gap note
+
+- **Removes / measures:** measures U-909; RC-X09, RC-X10.
+- **Serves:** FR-909.
+- **Expected saving -> measurement:** none directly (instrument).
+- **Rollback:** additive change, remove the added line.
+- **Protecting tests:** RED fixture_self_check.sh; golden triple present.
+- **Origin:** DEC-905; original work (no external solution found).
+
+permanent gap: RC-X09 -- settling task deferred indefinitely, no earlier measurement possible.
+EOF
+# --- independent self-check: the marker line names RC-X09 ONLY -- RC-X10 gets no marker of its
+#     own anywhere in the document (re-confirmed via an independent grep, never assumed) ---
+if grep -qE 'permanent gap:\s*RC-X10\b' "$F8/plan.md"; then
+  echo "NOT ok fixture 8 self-check FAILED: RC-X10 unexpectedly DOES have its own marker line --"
+  echo "     this fixture does not discriminate the two causes"
+  failx
+elif ! grep -qE 'permanent gap:\s*RC-X09\b.*-' "$F8/plan.md"; then
+  echo "NOT ok fixture 8 self-check FAILED: RC-X09's own marker line is not shaped as expected"
+  failx
+else
+  echo "ok fixture 8 self-check: exactly ONE of the two CONFIRMED/UNMEASURED causes (RC-X09) has"
+  echo "   its own genuine per-row permanent-gap marker line; RC-X10 has none -- this fixture"
+  echo "   genuinely discriminates the per-cause B1 scoping this test proves"
+fi
+assert_violation "fixture 8a (RC-X10, no marker of its own, MUST still be flagged)" plan \
+  "$WORK/f8.out.json" "'code': 'confirmed_unmeasured_no_permanent_gap', 'row': 'RC-X10'" \
+  python3 "$TOOL" plan --plan "$F8/plan.md" --causes "$F8/causes.json" --out "$WORK/f8.out.json"
+# --- the SAME invocation's own --out JSON must NOT ALSO flag RC-X09 (it has a genuine marker) --
+#     re-run is unnecessary (--out already written above); read it back directly ---
+if grep -q "'code': 'confirmed_unmeasured_no_permanent_gap', 'row': 'RC-X09'" "$WORK/f8.out.json" 2>/dev/null; then
+  echo "NOT ok fixture 8b: RC-X09 (which DOES carry its own genuine marker) was WRONGLY ALSO"
+  echo "     flagged as confirmed_unmeasured_no_permanent_gap -- the per-cause marker did not"
+  echo "     excuse the cause it actually names (constitution 11.4.201(1))"
+  failx
+else
+  echo "ok fixture 8b: RC-X09 (which DOES carry its own genuine per-row marker) was correctly"
+  echo "   EXCUSED -- only RC-X10 (the one with no marker of its own) was flagged, proving this"
+  echo "   is genuinely per-cause, not document-wide (review round 1, B1)"
+fi
+
+# =============================================================================
+# Fixture 9 -- plan: B1 reproduction (b) -- a document containing the NEGATION
+# "There is no permanent gap recorded." must NOT be read as a genuine marker
+# (the pre-fix bare-phrase regex matched this sentence too, since it still
+# contains the literal substring "permanent gap").
+# =============================================================================
+F9="$WORK/f9_negation_gap"
+mkdir -p "$F9"
+cat > "$F9/causes.json" <<'EOF'
+{
+  "doc": "fixture",
+  "causes": [
+    {"id": "RC-X11", "class": "CONFIRMED", "evidence_paths": ["fixture/evidence"],
+     "measured_share": "UNMEASURED", "settling_evidence": null, "removed_or_measured_by": "T-X11"}
+  ],
+  "class_counts": {"stated": {"CONFIRMED": 1}, "actual": {"CONFIRMED": 1}},
+  "violations": []
+}
+EOF
+cat > "$F9/plan.md" <<'EOF'
+## Phased Implementation Plan
+
+#### T-X11 -- fixture task; the plan text below is a NEGATION, not a real marker
+
+- **Removes / measures:** measures U-911; RC-X11.
+- **Serves:** FR-911.
+- **Expected saving -> measurement:** none directly (instrument).
+- **Rollback:** additive change, remove the added line.
+- **Protecting tests:** RED fixture_self_check.sh; golden triple present.
+- **Origin:** DEC-906; original work (no external solution found).
+
+There is no permanent gap recorded.
+EOF
+# --- independent self-check: the phrase "permanent gap" DOES appear (inside a negation), but no
+#     `permanent gap: RC-...` shaped marker line exists anywhere ---
+if grep -qE 'permanent gap\s*:\s*RC-' "$F9/plan.md"; then
+  echo "NOT ok fixture 9 self-check FAILED: a real marker-shaped line unexpectedly DOES exist --"
+  echo "     this fixture does not encode a pure negation"
+  failx
+elif ! grep -qi 'permanent gap' "$F9/plan.md"; then
+  echo "NOT ok fixture 9 self-check FAILED: the bare phrase 'permanent gap' is not even present --"
+  echo "     this fixture would not exercise the negation case at all"
+  failx
+else
+  echo "ok fixture 9 self-check: the bare phrase 'permanent gap' IS present (inside a negation"
+  echo "   sentence), but no genuine 'permanent gap: RC-...' marker line exists anywhere -- this"
+  echo "   fixture genuinely encodes the negation-sentence false-positive B1 reproduction (b)"
+fi
+assert_violation "fixture 9 (negation sentence must NOT excuse RC-X11)" plan "$WORK/f9.out.json" \
+  "'code': 'confirmed_unmeasured_no_permanent_gap', 'row': 'RC-X11'" \
+  python3 "$TOOL" plan --plan "$F9/plan.md" --causes "$F9/causes.json" --out "$WORK/f9.out.json"
+
+# =============================================================================
+# Fixture 10 -- plan: B2 reproduction (P1) -- a task carrying ONLY a Rollback
+# field and nothing else (no Removes/measures, no Serves, no Expected-saving,
+# no Protecting-tests) must be flagged for its missing Serves field (and the
+# other missing fields), never silently accepted just because SOME field on
+# the task block is present.
+# =============================================================================
+F10="$WORK/f10_only_rollback"
+mkdir -p "$F10"
+cat > "$F10/plan.md" <<'EOF'
+## Phased Implementation Plan
+
+#### T-X12 -- fixture task with ONLY a Rollback field
+
+- **Rollback:** additive.
+EOF
+cat > "$F10/causes.json" <<'EOF'
+{"doc": "fixture", "causes": [], "class_counts": {"stated": {}, "actual": {}}, "violations": []}
+EOF
+# --- independent self-check: T-X12's block genuinely has NO Serves/Removes/Expected-saving/
+#     Protecting-tests field, confirmed via an independent grep over the block's own text ---
+BLOCK_TEXT=$(sed -n '/^#### T-X12/,$p' "$F10/plan.md")
+if printf '%s\n' "$BLOCK_TEXT" | grep -qE '\*\*(Serves|Removes / measures|Expected saving|Protecting tests):\*\*'; then
+  echo "NOT ok fixture 10 self-check FAILED: T-X12's block unexpectedly DOES carry >=1 of the"
+  echo "     other required fields -- this fixture does not encode 'ONLY a Rollback field'"
+  failx
+else
+  echo "ok fixture 10 self-check: T-X12's task block genuinely carries ONLY a Rollback field --"
+  echo "   independently confirmed absent: Serves, Removes/measures, Expected saving, Protecting"
+  echo "   tests -- this fixture genuinely encodes review round 1's own P1 reproduction"
+fi
+assert_violation "fixture 10 (task with ONLY Rollback -> missing Serves)" plan \
+  "$WORK/f10.out.json" "'code': 'no_serves_field', 'task': 'T-X12'" \
+  python3 "$TOOL" plan --plan "$F10/plan.md" --causes "$F10/causes.json" --out "$WORK/f10.out.json"
+
+# =============================================================================
+# Fixture 11 -- plan: B2 reproduction (P2) -- a task's own Removes/measures
+# field names a cause id (RC-99) that does NOT exist anywhere in the real
+# cause universe (--causes's own `causes` array) -- a typo'd/nonexistent
+# reference, never silently accepted just because the field is non-blank.
+# =============================================================================
+F11="$WORK/f11_unknown_removes_id"
+mkdir -p "$F11"
+cat > "$F11/plan.md" <<'EOF'
+## Phased Implementation Plan
+
+#### T-X13 -- fixture task naming a cause id that does not exist in causes.json
+
+- **Removes / measures:** measures U-913; RC-99.
+- **Serves:** FR-913.
+- **Expected saving -> measurement:** none directly (instrument).
+- **Rollback:** additive change, remove the added line.
+- **Protecting tests:** RED fixture_self_check.sh; golden triple present.
+- **Origin:** DEC-907; original work (no external solution found).
+EOF
+cat > "$F11/causes.json" <<'EOF'
+{"doc": "fixture", "causes": [], "class_counts": {"stated": {}, "actual": {}}, "violations": []}
+EOF
+# --- independent self-check: RC-99 is named in plan.md's Removes/measures field, but causes.json
+#     declares ZERO causes at all -- RC-99 cannot possibly be a real, existing cause id ---
+if ! grep -q 'RC-99' "$F11/plan.md"; then
+  echo "NOT ok fixture 11 self-check FAILED: RC-99 is not even named in plan.md -- this fixture"
+  echo "     does not encode the intended defect"
+  failx
+elif grep -q '"id"' "$F11/causes.json"; then
+  echo "NOT ok fixture 11 self-check FAILED: causes.json unexpectedly declares >=1 real cause --"
+  echo "     RC-99's non-existence is no longer guaranteed by this fixture's own input"
+  failx
+else
+  echo "ok fixture 11 self-check: RC-99 is named in T-X13's own Removes/measures field, and"
+  echo "   causes.json independently confirmed to declare ZERO real causes at all -- RC-99"
+  echo "   genuinely names a nonexistent cause (review round 1, B2/P2)"
+fi
+assert_violation "fixture 11 (Removes field naming a nonexistent RC-99)" plan \
+  "$WORK/f11.out.json" "'code': 'removes_cause_unknown_id', 'task': 'T-X13', 'row': 'RC-99'" \
+  python3 "$TOOL" plan --plan "$F11/plan.md" --causes "$F11/causes.json" --out "$WORK/f11.out.json"
+
+# =============================================================================
+# Fixture 12 -- plan: B2 reproduction (P7) -- an FR id spec.md itself defines
+# (via its own `- **FR-NNN**:` bold-header line), that no table row, no scope
+# preamble, and no task's own Serves field mentions ANYWHERE, must be flagged
+# as orphan when `--spec` is supplied -- never silently accepted just because
+# the PLAN document itself never claims to cover it.
+# =============================================================================
+F12="$WORK/f12_orphan_via_spec"
+mkdir -p "$F12"
+cat > "$F12/spec.md" <<'EOF'
+- **FR-X14**: fixture requirement the plan below never once mentions. *Checked by*: nothing.
+- **FR-X15**: fixture requirement the plan below DOES serve. *Checked by*: x.
+EOF
+cat > "$F12/plan.md" <<'EOF'
+## Phased Implementation Plan
+
+#### T-X14 -- fixture task that serves FR-X15 only, never FR-X14
+
+- **Removes / measures:** measures U-914.
+- **Serves:** FR-X15.
+- **Expected saving -> measurement:** none directly (instrument).
+- **Rollback:** additive change, remove the added line.
+- **Protecting tests:** RED fixture_self_check.sh; golden triple present.
+- **Origin:** DEC-908; original work (no external solution found).
+EOF
+cat > "$F12/causes.json" <<'EOF'
+{"doc": "fixture", "causes": [], "class_counts": {"stated": {}, "actual": {}}, "violations": []}
+EOF
+# --- independent self-check: FR-X14 is defined in spec.md but appears in NO task's Serves field
+#     anywhere in plan.md, while FR-X15 (the in-fixture non-orphan control) genuinely IS served --
+if grep '\*\*Serves:\*\*' "$F12/plan.md" | grep -q 'FR-X14'; then
+  echo "NOT ok fixture 12 self-check FAILED: FR-X14 unexpectedly DOES appear in a Serves field"
+  failx
+elif ! grep '\*\*Serves:\*\*' "$F12/plan.md" | grep -q 'FR-X15'; then
+  echo "NOT ok fixture 12 self-check FAILED: FR-X15 (the non-orphan control) is ALSO missing"
+  failx
+else
+  echo "ok fixture 12 self-check: FR-X14 is defined by spec.md's own fixed FR-header set but is"
+  echo "   served by NO task anywhere in plan.md, while FR-X15 -- defined in the SAME spec.md --"
+  echo "   genuinely IS served; this fixture genuinely encodes review round 1's own P7"
+  echo "   reproduction and demonstrably discriminates it from a covered requirement"
+fi
+assert_violation "fixture 12 (FR-X14 orphan via the --spec fixed set)" plan "$WORK/f12.out.json" \
+  "'code': 'orphan_requirement', 'id': 'FR-X14', 'source': 'spec_fixed_set'" \
+  python3 "$TOOL" plan --plan "$F12/plan.md" --causes "$F12/causes.json" --spec "$F12/spec.md" \
+  --out "$WORK/f12.out.json"
+if grep -q "'id': 'FR-X15'" "$WORK/f12.out.json" 2>/dev/null; then
+  echo "NOT ok fixture 12b: FR-X15 (genuinely served) was WRONGLY ALSO flagged as orphan --"
+  echo "     the --spec cross-check over-rejects a genuinely-covered requirement"
+  failx
+else
+  echo "ok fixture 12b: FR-X15 (genuinely served by T-X14) was correctly NOT flagged -- the"
+  echo "   --spec fixed-set check discriminates covered from orphan requirements"
+fi
+
+# =============================================================================
+# Fixture 13 -- research: I2 reproduction (a) -- a plan's Origin field names a
+# DEC- id (DEC-X99) that does NOT exist anywhere in research.md's own decision
+# log at all -- a dangling reference, never silently ignored just because the
+# per-decision citation loop only ever iterates over decisions that DO exist.
+# =============================================================================
+F13="$WORK/f13_dangling_decision"
+mkdir -p "$F13"
+cat > "$F13/research.md" <<'EOF'
+## 3. Decision log
+
+### DEC-X16 -- fixture recommendation, genuinely cited
+
+- **Decision:** do the fixture thing.
+- **Rationale:** because.
+- **Alternatives considered:** (a) do nothing -- rejected.
+- **Source:** R1:1-2; constitution §1.1.
+EOF
+cat > "$F13/plan.md" <<'EOF'
+## Phased Implementation Plan
+
+#### T-X15 -- fixture task
+
+- **Removes / measures:** measures U-915.
+- **Serves:** FR-915.
+- **Expected saving -> measurement:** none directly.
+- **Rollback:** additive.
+- **Protecting tests:** RED fixture_self_check.sh.
+- **Origin:** DEC-X16, DEC-X99; original work (no external solution found).
+EOF
+# --- independent self-check: DEC-X99 is named in plan.md's Origin field but research.md's own
+#     decision log carries no such heading anywhere ---
+if grep -q 'DEC-X99' "$F13/research.md"; then
+  echo "NOT ok fixture 13 self-check FAILED: DEC-X99 unexpectedly DOES appear in research.md --"
+  echo "     this fixture does not encode a genuine dangling reference"
+  failx
+elif ! grep -q 'DEC-X99' "$F13/plan.md"; then
+  echo "NOT ok fixture 13 self-check FAILED: DEC-X99 is not even named in plan.md's Origin field"
+  failx
+else
+  echo "ok fixture 13 self-check: DEC-X99 is named in plan.md's own Origin field but independently"
+  echo "   confirmed absent from research.md's own decision log entirely -- this fixture"
+  echo "   genuinely encodes the dangling-decision-reference defect (review round 1, I2)"
+fi
+assert_violation "fixture 13 (dangling Origin reference to DEC-X99)" research \
+  "$WORK/f13.out.json" "'code': 'dangling_decision_reference', 'decision': 'DEC-X99'" \
+  python3 "$TOOL" research --log "$F13/research.md" --plan "$F13/plan.md" --out "$WORK/f13.out.json"
+
+# =============================================================================
+# Fixture 14 -- research: I2 reproduction (b)/(c) -- decisions genuinely exist
+# (every one a bare placeholder Source), but the plan's own Origin fields cite
+# NONE of them by id at all -- the citation-quality check has literally
+# nothing to examine; this MUST be honestly reported BLIND (exit 4), never a
+# false PASS (exit 0). A wholly EMPTY --plan file is the SAME condition.
+# =============================================================================
+F14="$WORK/f14_nothing_referenced"
+mkdir -p "$F14"
+cat > "$F14/research.md" <<'EOF'
+## 3. Decision log
+
+### DEC-X17 -- fixture decision, never referenced by any plan task
+
+- **Decision:** do the fixture thing.
+- **Rationale:** because.
+- **Alternatives considered:** (a) do nothing -- rejected.
+- **Source:** TBD
+EOF
+cat > "$F14/plan_no_origin.md" <<'EOF'
+## Phased Implementation Plan
+
+#### T-X16 -- fixture task with no Origin field referencing anything
+
+- **Removes / measures:** measures U-916.
+- **Serves:** FR-916.
+EOF
+: > "$F14/plan_empty.md"
+# --- independent self-check: DEC-X17 exists, but neither fixture plan document contains any
+#     `- **Origin:**` FIELD (the real shape, not a bare substring -- the task-block title text
+#     below deliberately mentions the word "Origin" in prose, which a bare substring grep would
+#     wrongly match, constitution 11.4.201(7)(a): match structure, not substring) naming it (or
+#     anything) at all ---
+if grep -q 'DEC-X17' "$F14/plan_no_origin.md" || grep -qE '^- \*\*Origin:\*\*' "$F14/plan_no_origin.md"; then
+  echo "NOT ok fixture 14 self-check FAILED: plan_no_origin.md unexpectedly DOES reference an"
+  echo "     Origin/decision -- this fixture does not encode 'nothing referenced'"
+  failx
+else
+  echo "ok fixture 14 self-check: research.md genuinely declares DEC-X17, and neither"
+  echo "   plan_no_origin.md (no Origin field at all) nor plan_empty.md (wholly empty) reference"
+  echo "   any decision by id -- this fixture genuinely encodes review round 1's own I2"
+  echo "   'nothing to check' BLIND reproduction"
+fi
+OUT14A="$WORK/f14a.out.json"
+python3 "$TOOL" research --log "$F14/research.md" --plan "$F14/plan_no_origin.md" --out "$OUT14A" \
+  >"$WORK/f14a.out" 2>"$WORK/f14a.err"
+RC14A=$?
+if [ "$RC14A" -eq 4 ] && grep -qi 'BLIND' "$WORK/f14a.err"; then
+  echo "ok fixture 14a: decisions exist but zero Origin fields reference any of them -> genuine"
+  echo "   BLIND (exit 4), never a false PASS (review round 1, I2)"
+else
+  echo "NOT ok fixture 14a: expected exit 4 with a BLIND message, got rc=$RC14A -- stderr:"
+  echo "     $(cat "$WORK/f14a.err" 2>/dev/null)"
+  failx
+fi
+OUT14B="$WORK/f14b.out.json"
+python3 "$TOOL" research --log "$F14/research.md" --plan "$F14/plan_empty.md" --out "$OUT14B" \
+  >"$WORK/f14b.out" 2>"$WORK/f14b.err"
+RC14B=$?
+if [ "$RC14B" -eq 4 ] && grep -qi 'BLIND' "$WORK/f14b.err"; then
+  echo "ok fixture 14b: an EMPTY --plan file against a real decision log -> genuine BLIND"
+  echo "   (exit 4), never a false PASS (review round 1, I2)"
+else
+  echo "NOT ok fixture 14b: expected exit 4 with a BLIND message, got rc=$RC14B -- stderr:"
+  echo "     $(cat "$WORK/f14b.err" 2>/dev/null)"
+  failx
+fi
+
+# =============================================================================
+# Fixture 15 -- research: I1 reproduction -- the expanded placeholder
+# vocabulary correctly rejects a bare "none" Source field (one of the
+# reviewer's own concrete examples the ORIGINAL five-token exact-match regex
+# wrongly accepted as cited).
+# =============================================================================
+F15="$WORK/f15_placeholder_none"
+mkdir -p "$F15"
+cat > "$F15/research.md" <<'EOF'
+## 3. Decision log
+
+### DEC-X18 -- fixture recommendation with a bare "none" Source field
+
+- **Decision:** do the fixture thing.
+- **Rationale:** because.
+- **Alternatives considered:** (a) do nothing -- rejected.
+- **Source:** none
+EOF
+cat > "$F15/plan.md" <<'EOF'
+## Phased Implementation Plan
+
+#### T-X17 -- fixture task
+
+- **Removes / measures:** measures U-917.
+- **Serves:** FR-917.
+- **Expected saving -> measurement:** none directly.
+- **Rollback:** additive.
+- **Protecting tests:** RED fixture_self_check.sh.
+- **Origin:** DEC-X18; TBD.
+EOF
+if ! grep -q '^- \*\*Source:\*\* none$' "$F15/research.md"; then
+  echo "NOT ok fixture 15 self-check FAILED: DEC-X18's Source line is not the expected bare"
+  echo "     'none' shape"
+  failx
+else
+  echo "ok fixture 15 self-check: DEC-X18's Source field is confirmed to be the bare word"
+  echo "   'none' -- independently verified as neither a URL/artefact-path citation nor the"
+  echo "   'no external solution found' marker -- one of review round 1's own I1 reproductions"
+fi
+assert_violation "fixture 15 (bare 'none' Source field, review round 1 I1)" research \
+  "$WORK/f15.out.json" "'code': 'uncited_recommendation', 'decision': 'DEC-X18'" \
+  python3 "$TOOL" research --log "$F15/research.md" --plan "$F15/plan.md" --out "$WORK/f15.out.json"
+
+# =============================================================================
 # (9) Negative control: the project's OWN current, real research.md and
-#     plan.md documents. Per this file's own header, `causes` is the ONLY
-#     already-implemented subcommand, so this section first re-verifies
-#     (real invocation, not assumed from the sibling test's own prose) that
-#     `causes` genuinely exits 0 against the live register TODAY -- giving
-#     this file a real `causes.json` to feed `plan` -- and THEN honestly
-#     reports what `research`/`plan` do against the real documents: the
-#     SAME rc=2 "invalid choice" every golden-bad fixture above got, for
-#     the SAME reason (the subcommand is wholly absent). This is reported
-#     as-is, never dressed up as "the documents cleanly PASS" -- a
-#     tool that does not exist has not evaluated these documents at all,
-#     and claiming otherwise would itself be a §11.4/§11.4.1 bluff at the
-#     investigation layer (§11.4.199/§11.4.6).
+#     plan.md documents. POST-T179-LANDING (see the dated NOTE near the top
+#     of this file): this section first re-verifies (real invocation, not
+#     assumed from the sibling test's own prose) that `causes` genuinely
+#     exits 0 against the live register TODAY -- giving this file a real
+#     `causes.json` to feed `plan` -- and THEN asserts that `research`
+#     ALSO genuinely exits 0 against the real, live documents.
+#
+#     POST-ROUND-1-REVIEW REMEDIATION (2026-10-01): `plan`'s own expected
+#     outcome against the real, live documents CHANGED in this remediation --
+#     it is NO LONGER rc=0. Fixing review finding B1 (the per-cause
+#     permanent-gap-marker scoping) correctly reveals a REAL, PRE-EXISTING
+#     GAP in the live corpus, never a regression THIS fix introduces: the
+#     module's own docstring (module docstring's `plan` section, clause (f))
+#     already honestly disclosed that Phase 0's live research.md/plan.md
+#     carry "0 of 46 rows" with a measured share, and this file's own §2.1
+#     Settling-evidence column for every one of the 27 real CONFIRMED-but-
+#     UNMEASURED rows genuinely names a FUTURE settling task ("T-A06",
+#     "T-D06", etc.), never a recorded PERMANENT gap -- confirmed live,
+#     never guessed, by reading every one of those 27 rows' own
+#     settling_evidence text before writing this assertion (constitution
+#     11.4.6/11.4.199). The OLD, pre-fix behaviour (rc=0) was itself the bug
+#     B1 reports: the bare document-wide phrase match happened to find
+#     "permanent gap" mentioned in plan.md's own RULE-DESCRIPTION prose
+#     (explaining what the escape hatch IS, never actually recording one for
+#     any specific cause) and silently excused all 27 rows at once. The
+#     correctly-fixed, per-cause-scoped check now honestly reports
+#     `confirmed_unmeasured_no_permanent_gap` for each of those 27 rows
+#     (rc=1) -- an ACCURATE finding about the real corpus's genuine Phase-0
+#     state (T-A11 has not yet run), not a tool defect; asserting rc=0 here
+#     would itself now be the stale, incorrect claim. This finding is
+#     reported to the operator/caller as a noteworthy side effect of this
+#     remediation -- fixing the real corpus's plan.md (adding real per-cause
+#     permanent-gap markers, or running T-A11) is OUT OF SCOPE for this fix
+#     round, which is strictly about `plan_struct_check.py`'s own logic. The
+#     `--spec` fixed-FR/SC-set cross-check (review round 1, B2/P7) is ALSO
+#     exercised here against the real spec.md and asserted to add NO
+#     additional violation beyond the 27 already-honest gap findings (the
+#     real corpus's traceability table already covers every one of spec.md's
+#     35 real FR/SC ids, independently re-verified live before landing this
+#     assertion). The dual-branch rc=2 regression check below is retained
+#     for both subcommands, so a future regression that removes either one
+#     again is still caught, honestly, as exactly that.
+#
+#     POST-ROUND-2-REVIEW REMEDIATION (2026-10-01, I-B): the immediately-above
+#     paragraph's own hardcoded expectation of rc=1 was ITSELF a fragile,
+#     self-referential test design (independent §11.4.209 Opus-xhigh review
+#     round 2's own finding) -- it silently ASSUMES the real corpus stays
+#     "dirty" (rc=1 with exactly this one finding class) FOREVER, and would
+#     start FALSELY FAILING the moment the real corpus genuinely becomes
+#     clean (e.g. once T-A11 actually runs and every CONFIRMED cause gets a
+#     real measured share, or every remaining gap gets its own genuine
+#     per-cause permanent-gap marker) -- a §11.4.201(1) false-refusal risk
+#     baked directly into a check whose whole JOB is to validate correctness,
+#     not to assume one fixed document state forever. The assertion below now
+#     accepts EITHER outcome as honestly correct: rc=0 (the corpus has
+#     genuinely become clean) OR rc=1 with ONLY `confirmed_unmeasured_no_
+#     permanent_gap`-class findings present and NO other violation type
+#     (proving the tool still correctly distinguishes "the corpus has this
+#     one known, honest, disclosed category of Phase-0 gap" from "the corpus
+#     has some OTHER, unexpected structural defect the tool caught") -- an
+#     rc=1 for any UNRELATED reason (any OTHER violation code present) is
+#     STILL a genuine failure of this check, never silently accepted.
 # =============================================================================
 if [ ! -f "$RESEARCH_LIVE" ] || [ ! -f "$PLAN_LIVE" ]; then
   echo "NOT ok negative control SKIPPED: live research.md/plan.md missing at"
@@ -607,66 +1143,139 @@ else
     --out "$WORK/live_research.out.json" \
     >"$WORK/live_research.out" 2>"$WORK/live_research.err"
   RESEARCH_RC=$?
-  if [ "$RESEARCH_RC" -eq 2 ] && grep -q "invalid choice: 'research'" "$WORK/live_research.err"; then
-    echo "info negative control, \`research\` subcommand against the REAL, live"
-    echo "   research.md/plan.md: rc=$RESEARCH_RC (subcommand absent -- the SAME"
-    echo "   reason every golden-bad fixture above got, not a finding about"
-    echo "   the live documents' own content, which this tool has not yet"
-    echo "   evaluated at all). Honestly reported, not claimed as a clean PASS."
+  if [ "$RESEARCH_RC" -eq 2 ] && grep -q "invalid choice: 'research'" "$WORK/live_research.err" 2>/dev/null; then
+    echo "NOT ok negative control, \`research\` against the real documents:"
+    echo "     REGRESSION -- subcommand 'research' is absent again (rc=2,"
+    echo "     invalid choice); T179 landed this subcommand permanently, so"
+    echo "     rc=2 is no longer the expected outcome -- stderr:"
+    echo "     $(cat "$WORK/live_research.err" 2>/dev/null)"
+    failx
+  elif [ "$RESEARCH_RC" -eq 0 ] && [ -s "$WORK/live_research.out.json" ]; then
+    echo "ok negative control, \`research\` subcommand against the REAL, live"
+    echo "   research.md/plan.md genuinely exits 0 and wrote a non-empty --out"
+    echo "   JSON document -- the real implementation (including review round"
+    echo "   1's own I1 expanded placeholder vocabulary, the I1 circular-self-"
+    echo "   reference check, and the I2 dangling-reference + nothing-"
+    echo "   referenced BLIND checks) has actually checked the live §3"
+    echo "   decision-log citations + the §6 pass-log row count and found them"
+    echo "   clean (never merely 'not yet evaluated')"
   else
     echo "NOT ok negative control, \`research\` against the real documents:"
-    echo "     expected the same tool-absence signature (rc=2, 'invalid"
-    echo "     choice'), got rc=$RESEARCH_RC -- stderr:"
-    echo "     $(cat "$WORK/live_research.err" 2>/dev/null)"
+    echo "     expected rc=0 with a non-empty --out JSON document, got"
+    echo "     rc=$RESEARCH_RC -- stderr: $(cat "$WORK/live_research.err" 2>/dev/null)"
     failx
   fi
 
-  # `plan` against the live documents + the just-produced live causes.json
+  # `plan` against the live documents + the just-produced live causes.json + the real spec.md
+  # (review round 1, B2/P7's own --spec cross-check, exercised here for real)
+  SPEC_LIVE="$ROOT/specs/004-fast-dev-cycles/spec.md"
   python3 "$TOOL" plan --plan "$PLAN_LIVE" --tasks "$ROOT/specs/004-fast-dev-cycles/tasks.md" \
-    --causes "$LIVE_CAUSES_JSON" --out "$WORK/live_plan.out.json" \
+    --causes "$LIVE_CAUSES_JSON" --spec "$SPEC_LIVE" --out "$WORK/live_plan.out.json" \
     >"$WORK/live_plan.out" 2>"$WORK/live_plan.err"
   PLAN_RC=$?
-  if [ "$PLAN_RC" -eq 2 ] && grep -q "invalid choice: 'plan'" "$WORK/live_plan.err"; then
-    echo "info negative control, \`plan\` subcommand against the REAL, live"
-    echo "   plan.md/tasks.md/causes.json: rc=$PLAN_RC (subcommand absent -- the"
-    echo "   SAME reason every golden-bad fixture above got). Honestly"
-    echo "   reported, not claimed as a clean PASS: whether the real, live"
-    echo "   plan.md genuinely satisfies SC-C-003 (rollback fields, the"
-    echo "   bipartite FR/RC coverage, the 30-page-equivalent floor, the"
-    echo "   post-T-A11 measured_share rule) is UNKNOWN until T179 lands and"
-    echo "   this fixture-driven RED baseline is re-pointed at the real CLI's"
-    echo "   output, exactly as test_plan_struct_causes_red.sh's own section"
-    echo "   (1b)/(8) already did for \`causes\` once T046 landed."
+  if [ "$PLAN_RC" -eq 2 ] && grep -q "invalid choice: 'plan'" "$WORK/live_plan.err" 2>/dev/null; then
+    echo "NOT ok negative control, \`plan\` against the real documents:"
+    echo "     REGRESSION -- subcommand 'plan' is absent again (rc=2, invalid"
+    echo "     choice); T179 landed this subcommand permanently, so rc=2 is no"
+    echo "     longer the expected outcome -- stderr:"
+    echo "     $(cat "$WORK/live_plan.err" 2>/dev/null)"
+    failx
+  elif [ "$PLAN_RC" -eq 0 ] && [ -s "$WORK/live_plan.out.json" ]; then
+    # review round 2 (I-B): the OTHER honest outcome this bounded acceptance check allows -- the
+    # real corpus has become genuinely clean (e.g. T-A11 has since run and every CONFIRMED cause
+    # now carries a real measured share, or every remaining gap now carries its own genuine
+    # per-cause permanent-gap marker). A clean corpus is NOT a tool regression; hardcoding rc=1
+    # forever would itself become the stale, incorrect claim the moment this happens.
+    echo "ok negative control, \`plan\` subcommand against the REAL, live"
+    echo "   plan.md/tasks.md/causes.json/spec.md genuinely exits 0 -- the real"
+    echo "   corpus has become genuinely clean (review round 2, I-B: this is the"
+    echo "   OTHER honest outcome this bounded acceptance check allows; see this"
+    echo "   section's own header note for the full rationale)"
+  elif [ "$PLAN_RC" -eq 1 ] && [ -s "$WORK/live_plan.out.json" ]; then
+    NON_GAP_OTHER=$(grep -v "confirmed_unmeasured_no_permanent_gap" "$WORK/live_plan.err" \
+      | grep -c "plan_struct_check: plan:" || true)
+    GAP_COUNT=$(grep -c "confirmed_unmeasured_no_permanent_gap" "$WORK/live_plan.err" 2>/dev/null || true)
+    if [ "${NON_GAP_OTHER:-0}" -eq 0 ] && [ "${GAP_COUNT:-0}" -ge 1 ]; then
+      echo "ok negative control, \`plan\` subcommand against the REAL, live"
+      echo "   plan.md/tasks.md/causes.json/spec.md genuinely exits 1, wrote a"
+      echo "   non-empty --out JSON document, and the ONLY violation class"
+      echo "   present is confirmed_unmeasured_no_permanent_gap ($GAP_COUNT"
+      echo "   rows) -- the real implementation has actually checked SC-C-003"
+      echo "   in full (every task's Rollback/Removes/Serves/Expected-saving/"
+      echo "   Protecting-tests field presence + real-cause-id cross-check incl."
+      echo "   the review-round-2 removes_cause_names_no_id check, the bipartite"
+      echo "   RC/FR coverage via the traceability table + scope preamble + the"
+      echo "   fixed spec.md FR/SC set, the 30-page-equivalent size floor) and"
+      echo "   found EVERYTHING ELSE clean; the review-round-1 (B1) per-cause fix"
+      echo "   correctly and honestly surfaces that Phase 0's real corpus has"
+      echo "   zero rows with a genuinely recorded per-cause permanent gap"
+      echo "   (T-A11 has not yet run) -- see this section's own header note"
+      echo "   above for the full, verified rationale for why rc=1 (not rc=0)"
+      echo "   is CURRENTLY the correct outcome (review round 2, I-B: this is"
+      echo "   ONE of the two bounded-acceptable outcomes, not the only one)."
+      echo "   (Known, disclosed limitations honestly NOT re-verified as clean"
+      echo "   by this check: expected_saving/protecting_tests field CONTENT"
+      echo "   quality, and the CT-5 self-validation-triple check -- see the"
+      echo "   module's own compute_plan_violations() docstring.)"
+    else
+      echo "NOT ok negative control, \`plan\` against the real documents:"
+      echo "     expected ONLY confirmed_unmeasured_no_permanent_gap violations,"
+      echo "     but found $NON_GAP_OTHER OTHER violation(s) -- a genuine"
+      echo "     regression in one of the review-round-1/round-2 fixes; stderr:"
+      echo "     $(cat "$WORK/live_plan.err" 2>/dev/null)"
+      failx
+    fi
   else
     echo "NOT ok negative control, \`plan\` against the real documents: expected"
-    echo "     the same tool-absence signature (rc=2, 'invalid choice'), got"
-    echo "     rc=$PLAN_RC -- stderr: $(cat "$WORK/live_plan.err" 2>/dev/null)"
+    echo "     EITHER rc=0 (a genuinely clean corpus) OR rc=1 with ONLY honest"
+    echo "     confirmed_unmeasured_no_permanent_gap findings (review round 2,"
+    echo "     I-B -- see this section's own header note) with a non-empty"
+    echo "     --out JSON document, got rc=$PLAN_RC -- stderr:"
+    echo "     $(cat "$WORK/live_plan.err" 2>/dev/null)"
     failx
   fi
 fi
 
 echo
 echo "=== T178 contract stub 1/3: which subcommand each fixture targets ==="
-echo "VERIFIED (real invocation, sections above): fixtures 1/2/3/6/7 target"
-echo "  \`plan\` (SC-C-003/FR-004: rollback, bipartite RC/FR coverage, the"
-echo "  30-page-equivalent size floor, and the post-T-A11 measured_share"
-echo "  rule read from --causes); fixtures 4/5 target \`research\`"
-echo "  (SC-C-002/FR-003: cited recommendations, >=3 research passes)."
+echo "VERIFIED (real invocation, sections above): fixtures 1/2/3/6/7/8/9/10/11/12"
+echo "  target \`plan\` (SC-C-003/FR-004: rollback, bipartite RC/FR/spec-fixed-set"
+echo "  coverage, the 30-page-equivalent size floor, the per-cause permanent-gap"
+echo "  marker, and the removes-cause/serves/expected-saving/protecting-tests"
+echo "  field-presence checks); fixtures 4/5/13/14/15 target \`research\`"
+echo "  (SC-C-002/FR-003: cited recommendations incl. the expanded placeholder"
+echo "  vocabulary and circular-self-reference detection, dangling-decision-"
+echo "  reference detection, the nothing-referenced BLIND case, and >=3 research"
+echo "  passes)."
 
 echo
-echo "=== T178 contract stub 2/3: today's uniform RED signature ==="
-echo "VERIFIED (real invocation, all nine cases above -- 7 golden-bad plus 2"
-echo "  negative-control subcommand calls): every single one exits rc=2 with"
-echo "  argparse's own 'invalid choice' + 'choose from' text naming the"
-echo "  absent subcommand. This tool CANNOT yet distinguish any of the seven"
-echo "  deliberately-broken fixtures from the live, real, presumably-clean"
-echo "  documents -- the only honest RED-baseline claim available today is"
-echo "  'the subcommand does not exist', never 'the documents were checked"
-echo "  and found clean/broken'. T179 replaces this uniform rc=2 with real,"
-echo "  per-fixture verdicts; this file's fixtures + their independent"
-echo "  self-checks above stand as T179's interim contract in the interim,"
-echo "  per contracts/common-conventions.md's own convention for open-gap"
-echo "  tools."
+echo "=== T178 contract stub 2/3: post-T179-landing + round-1/round-2/round-3-"
+echo "     review remediation, real per-fixture verdicts ==="
+echo "VERIFIED (real invocation, all cases above -- 15 golden-bad fixtures, 2"
+echo "  BLIND cases, plus the negative-control subcommand calls): T179 has"
+echo "  landed and every finding from the independent §11.4.209 Opus-xhigh"
+echo "  review round 1 (B1, B2, I1, I2, I3, I4, M3, M4), review round 2 (I-A,"
+echo "  I-B, I-C, Borderline-Important, Minor-1, Minor-7), AND review round 3"
+echo "  (I-1, I-2, I-3, M-1, M-3, M-6 -- see the module's own docstring for"
+echo "  the full round-2/round-3 lists) is fixed and independently"
+echo "  re-proven -- INCLUDING round 2's own I-C fix, whose fix landed in"
+echo "  round 2 but whose own self-check re-proof did not land until round 3"
+echo "  (review round 3, I-1's own finding; see the module's own docstring,"
+echo "  REVIEW ROUND 3 REMEDIATION, for the full honest account of what was"
+echo "  and was not independently re-proven in each round). Every one of the"
+echo "  fifteen deliberately-broken fixtures now exits rc=1 naming its OWN"
+echo "  specific violation code"
+echo "  in stderr; the two BLIND-case fixtures (14a/14b) genuinely exit rc=4;"
+echo "  the negative-control \`causes\`/\`research\` invocations against the"
+echo "  real, live documents genuinely exit 0; and the negative-control"
+echo "  \`plan\` invocation genuinely exits EITHER rc=0 (a genuinely clean"
+echo "  corpus) OR rc=1 with ONLY the honest, real"
+echo "  confirmed_unmeasured_no_permanent_gap findings the B1 fix correctly"
+echo "  surfaces (review round 2, I-B -- see this section's own header note"
+echo "  for the full bounded-acceptance rationale, never a single hardcoded"
+echo "  outcome) -- the tool has actually checked those documents in full,"
+echo "  not merely 'not yet evaluated', and reports a real, accurate defect"
+echo "  where one genuinely exists rather than a false-clean bluff."
 
 echo
 echo "=== T178 contract stub 3/3: OUT OF SCOPE for this file (honest disclosure) ==="
@@ -675,11 +1284,43 @@ echo "  task's test, per plan-research-structural-check.md's own RED-fixtures"
 echo "  table): sc_bad_duplicate_block / sc_bad_substantive_edit (the"
 echo "  \`landing\`/\`rule-diff\` subcommands, FR-019/FR-022, T-G01/T-G02);"
 echo "  sc_negctrl_refuted_cause_no_task (a REFUTED-class negative control,"
-echo "  belongs to \`causes\`'s own already-landed test suite); the CT-5"
-echo "  self-validation-triple check named by T179's own task line (that is"
-echo "  T179's own implementation's job to satisfy, not this RED test's)."
+echo "  belongs to \`causes\`'s own already-landed test suite)."
+echo ""
+echo "*** KNOWN, TRACKED GAP -- CT-5 IS NOT YET BUILT *** (review round 2's own"
+echo "  reviewer, verbatim: \"T179 cannot be closed as fully done without CT-5;"
+echo "  it needs a tracked item.\" -- review round 3, M-6: that tracked item"
+echo "  now genuinely EXISTS, ATM-1109, filed via this project's own canonical"
+echo "  workable-items mechanism and confirmed DB/Markdown-in-sync) the CT-5"
+echo "  self-validation-triple check named by T179's own governing task line"
+echo "  remains OUT OF SCOPE for this file AND wholly unimplemented anywhere"
+echo "  in plan_struct_check.py across all THREE review rounds so far -- see"
+echo "  the module's own docstring for the full, prominent disclosure. T179"
+echo "  MUST NOT be reported as fully, completely done until ATM-1109's own"
+echo "  separate, later, dedicated design+implementation work lands CT-5."
+echo ""
+echo "Also honestly disclosed, NOT fixed in any remediation round so far: the"
+echo "  CONTENT quality of the expected_saving/protecting_tests fields"
+echo "  (non-blank presence only is checked, never whether the text is a"
+echo "  genuine confirming measurement or test reference); orphan-cause"
+echo "  matching edge cases (hyphen-adjacent ids, negated mentions, range"
+echo "  notation) and regex-widening false negatives on compound identifiers"
+echo "  -- review round 1's own M1/M2; review round 2's own Minor-2"
+echo "  (dangling/negated/unspaced gap-marker edge cases), Minor-3 (BLIND-on-"
+echo "  zero-decisions regardless of pass-row count), Minor-4"
+echo "  (count_research_passes's scoping to the real §6 section only),"
+echo "  Minor-5 (the generic id-cell scan's false positives on shapes like"
+echo "  'UTF-8' or inside an HTML comment), and Minor-6 (hyphen-as-word-"
+echo "  boundary in the Serves-field coverage check); and review round 3's"
+echo "  own M-2 (several requirement-table header variants -- reversed"
+echo "  columns, a leading '#' column, 'Requirement ID', a bold header, an"
+echo "  indented table -- remain silently invisible with no diagnostic) and"
+echo "  M-4 (the rc=0 'clean' negative-control branch has no independent"
+echo "  cross-check that the live corpus genuinely has zero CONFIRMED+"
+echo "  UNMEASURED-without-gap-marker rows) -- all honestly disclosed as"
+echo "  known limitations in the module's own docstring, none fixed so far"
+echo "  (judgment call, constitution 11.4.6)."
 
 echo
-echo "SUMMARY control_needles=2 subcommand_calls_asserted=9" \
-     "(fixtures=7 negative_control_calls=2) fixture_self_checks=7 fail=$fail"
+echo "SUMMARY control_needles=2 golden_bad_fixtures=15 blind_case_fixtures=2" \
+     "negative_control_calls=3 (causes/research/plan) fail=$fail"
 exit $fail
