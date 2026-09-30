@@ -581,19 +581,56 @@ def _gate_latest_per_batch(records):
     return latest
 
 
+def _backfill_source_evidence_traceable(rec):
+    """T085 Round 2 I-R2-8: a `source: "backfill"` record's `source_evidence`
+    field is REQUIRED by data-model.md #10.1 to "name the REAL document this
+    row was reconstructed from" -- but nothing previously VERIFIED that claim
+    at gate-consultation time, so a hand-authored backfill row citing a vague
+    free-text placeholder (e.g. `source_evidence: "none really"`) was accepted
+    as genuine review coverage identically to a row backed by a real document.
+    Reproduced live before this fix (§11.4.199): such a row, with a claimed
+    opus/xhigh/GO/zero-findings shape, passed `_gate_batch_qualifies()` and
+    made `cmd_gate` report rc=0 COVERED for the change it named.
+
+    This function is the AUTHORITATIVE check: `source_evidence` MUST resolve
+    to a REAL, EXISTING, READABLE file on disk (absolute, or relative to the
+    gate command's OWN invoking cwd -- the only anchor available without a
+    new --root flag) -- never a free-text claim taken on faith. A live
+    (non-backfill) record is NEVER subject to this check (its own producer-
+    side machinery, `cmd_record`, already establishes its evidence directly
+    from a real --verdict-file/--precheck at RECORD time; this function only
+    closes the gap unique to the backfill path)."""
+    if rec.get("source") != "backfill":
+        return True
+    evidence = rec.get("source_evidence")
+    if not isinstance(evidence, str) or not evidence.strip():
+        return False
+    if evidence.strip().upper() in ("UNKNOWN", "N/A", "TBD"):
+        return False
+    return os.path.isfile(evidence) or os.path.isfile(os.path.join(os.getcwd(), evidence))
+
+
 def _gate_batch_qualifies(rec):
     """RB-006 "a zero-finding GO at the designated tier and effort" -- re-derived
     from the record's OWN verdict/findings/model_tier/effort fields, never from a
     stored derived flag (mirrors B1's own reasoning for first_round_go: a summary
     flag can be stale or absent on an older record; the raw fields are the source
     of truth). effort=="?" (the honest 11.4.231(F.2) capability-gap token) never
-    equals DESIGNATED_EFFORT, so it never qualifies, matching RB-004's own note."""
+    equals DESIGNATED_EFFORT, so it never qualifies, matching RB-004's own note.
+
+    T085 Round 2 I-R2-8: a backfill-sourced record ALSO requires its
+    source_evidence to be independently verified traceable (see
+    `_backfill_source_evidence_traceable()` above) before it may count as
+    genuine coverage -- a fabricated/placeholder-cited backfill row no
+    longer qualifies, however GO/zero-finding/correctly-tiered it claims to
+    be."""
     findings = rec.get("findings")
     return (
         rec.get("verdict") == "GO"
         and isinstance(findings, list) and len(findings) == 0
         and rec.get("model_tier") == DESIGNATED_TIER
         and rec.get("effort") == DESIGNATED_EFFORT
+        and _backfill_source_evidence_traceable(rec)
     )
 
 

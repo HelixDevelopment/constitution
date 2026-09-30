@@ -94,13 +94,53 @@ FC="$ROOT/constitution/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/gate_audit"
 SHARED="$FIXDIR/_shared"
 GATE_AUDIT="$FC/gates/gate_audit.py"
-CFG="$ROOT/config/fastcycle/fastcycle.yaml"
 
 fail=0
 failx() { fail=1; }
 
 WORK=$(mktemp -d) || { echo "cannot create scratch dir (TMPDIR unusable)" >&2; exit 2; }
 trap 'rm -rf "$WORK"' EXIT
+
+# =============================================================================
+# T085 Round 2 I-R2-7 remediation (2026-09-30): this file previously used
+# "$ROOT/config/fastcycle/fastcycle.yaml" DIRECTLY -- the REAL, project-
+# wide config -- so its transfer-proof() calls below wrote real toy
+# records (TOY-GATE-REMOVED.json and others) into the REAL, production-
+# consulted "qa-results/fastcycle/transfer_records/" directory. Reproduced
+# live before this fix (§11.4.199): re-running this file left
+# qa-results/fastcycle/transfer_records/TOY-GATE-REMOVED.json sitting in
+# the real tree, silently pollutable into a real future catchset_compare.py
+# `compare` decision -- the SAME class of bug the sibling
+# test_catchset_compare_red.sh's own Round 1 I8(b) fix ALREADY closed for
+# itself (that file's own header comment documents the identical repro).
+# Fixed identically: a SCRATCH config under $WORK (cleaned by the SAME
+# `trap ... EXIT` above) keeps every OTHER key ABSOLUTE and pointed at the
+# SAME real sources, while redirecting ONLY transfer_records_dir into an
+# isolated scratch subdirectory -- every path below is written ABSOLUTE
+# (never relative), matching cfg_path()/cfg_path_list()'s os.path.join()
+# absolute-overrides-root semantics this sibling fix's own comment already
+# documents in full.
+# =============================================================================
+CFG="$WORK/scratch_fastcycle.yaml"
+cat > "$CFG" <<EOF
+schema: fastcycle-config/v1
+paths:
+  mutation_source: $ROOT/scripts/testing/meta_test_false_positive_proof.sh
+  guard_registry: $ROOT/device/rockchip/rk3588/tests/regression_guard/registry.tsv
+  workable_items_db: $ROOT/docs/workable_items.db
+  gate_sites: $ROOT/config/fastcycle/gate_sites.yaml
+  thresholds: $ROOT/config/fastcycle/thresholds.yaml
+  consumers_seed: $ROOT/config/fastcycle/consumers.seed.tsv
+  evidence_root: $ROOT/qa-results/fastcycle
+  pre_build_verification: $ROOT/device/rockchip/rk3588/tests/pre_build_verification.sh
+  gate_search_dirs:
+    - $ROOT/constitution/scripts/fastcycle/tests/fixtures/catchset_compare/_shared/gates
+  patch_search_dirs:
+    - $ROOT/constitution/scripts/fastcycle/tests/fixtures/catchset_compare/_shared/patches
+  base_tree_dirs:
+    - $ROOT/constitution/scripts/fastcycle/tests/fixtures/catchset_compare/_shared/base_tree
+  transfer_records_dir: $WORK/transfer_records
+EOF
 
 json_field() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$1" "$2"; }
 

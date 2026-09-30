@@ -197,7 +197,25 @@ def load_history_ratios(history_log):
         fails = sum(1 for v, _ in rows if v == "FAIL")
         fail_rate = fails / n
         mean_cost = sum(d for _, d in rows) / n
-        ratios[gid] = (fail_rate / mean_cost) if mean_cost else float("inf")
+        # T085 Round 2 MINOR: a zero-duration gate that has NEVER failed
+        # (fail_rate==0, mean_cost==0) previously fell into the `else`
+        # branch by the mean_cost==0 falsy check alone and got `inf` --
+        # a pure division-by-zero ARTIFACT, not a genuine "run me first"
+        # signal, and it always sorted ahead of every gate with REAL
+        # fail-catching history. `inf` is now reserved for a genuinely
+        # informative case (zero-cost AND it DOES sometimes fail --
+        # maximal value, free to run, catches real defects); a
+        # zero-cost gate with ZERO fail history carries no signal and
+        # gets the neutral 0.0 floor instead (the SAME floor a
+        # no-history gate already gets via compute_order()'s median
+        # default), so it no longer wins a false tie-break over gates
+        # with genuine evidence.
+        if mean_cost:
+            ratios[gid] = fail_rate / mean_cost
+        elif fail_rate > 0:
+            ratios[gid] = float("inf")
+        else:
+            ratios[gid] = 0.0
     return ratios
 
 
@@ -315,8 +333,14 @@ def main(argv):
             # ranked gate fails -- see this file's own header comment for
             # why this is the ONLY reading consistent with the RED test's
             # determinism scenario (--out always carries every member).
-            print("FAST-LANE FAIL: %s (rank 1 by --order history-cost, evidence: %s)"
-                  % (gid, r["evidence"]))
+            # T085 Round 2 MINOR: the printed rank is now the gate's REAL
+            # 1-based position in execution_order, not a hardcoded "1" --
+            # a gate that fails after one or more earlier-ranked gates
+            # PASSed/were BLIND is genuinely NOT rank 1, and the old
+            # hardcoded text misreported that for every such run.
+            real_rank = execution_order.index(gid) + 1
+            print("FAST-LANE FAIL: %s (rank %d by --order history-cost, evidence: %s)"
+                  % (gid, real_rank, r["evidence"]))
             first_fail_reported = True
 
     results = []

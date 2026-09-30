@@ -451,6 +451,20 @@ def load_gate_manifest(path):
     return manifest.get("config_id", ""), gates, base_tree, seed_defects
 
 
+def load_seed_manifest(path):
+    """T085 Round 2 I-R2-9: loads an INDEPENDENT seed-defect source -- a
+    file DISTINCT from --old/--new, so the gate manifests actually under
+    comparison can never supply, override, or neutralize their own seed
+    corpus. Deliberately reuses load_gate_manifest()'s exact parsing (same
+    `{"seed_defects": [...], "base_tree": ...}` shape) rather than
+    inventing a second format -- only the `gates` field, if present in
+    this file, is ignored (a pure seed-manifest has no gates of its own to
+    compare). Returns (seed_defects: {defect_id: patch_abs_path},
+    base_tree_abs_or_None)."""
+    _config_id, _gates, base_tree, seed_defects = load_gate_manifest(path)
+    return seed_defects, base_tree
+
+
 def gate_script_sane(script_path):
     """Baseline-sanity proxy (CS-003 parse-level check, since no single
     concrete real-project target is implied by a gate id alone in the
@@ -530,18 +544,43 @@ def write_evidence(workdir, defect_id, gate_id, script, target):
 def run_defect_against_config(workdir, base_tree, patch, defect_id, gates):
     """CS-001/CS-002: applies `defect_id`'s seed patch onto a fresh
     disposable copy of base_tree, runs every gate in `gates`, and returns
-    (verdict ∈ {"CAUGHT","MISSED"}, catchers: [gate_id], evidence: {gate_id: rel_path}).
+    (verdict ∈ {"CAUGHT","MISSED","BLIND"}, catchers: [gate_id],
+    evidence: {gate_id: rel_path}, blind_gates: [gate_id]).
     A CAUGHT gate's evidence is captured (CS-007); a PASSing gate is not
-    (nothing to cite -- it did not fail)."""
+    (nothing to cite -- it did not fail).
+
+    T085 Round 2 I-R2-9: `_gate_audit.run_gate()` returns `None` (never
+    True/False) when a gate times out or raises -- the pre-fix version
+    here checked ONLY `verdict is False`, so a `None` silently fell
+    through neither branch and the defect's OVERALL verdict became
+    "MISSED" whenever no OTHER gate happened to catch it -- INDISTINGUISH-
+    ABLE from a genuine clean miss. Reproduced live before this fix
+    (§11.4.199): a gate that hangs past its own 15s timeout reported
+    MISSED, not "we could not establish whether this gate catches the
+    defect". Any gate returning None for this defect now makes the WHOLE
+    defect's verdict "BLIND" (unless >=1 OTHER gate genuinely CAUGHT it,
+    in which case CAUGHT still wins -- a real catch is real evidence
+    regardless of a DIFFERENT gate's own timeout) -- a defect whose
+    verdict could not be honestly established is never silently folded
+    into the clean-miss state."""
     target = make_disposable_target(workdir, base_tree, patch=patch)
     catchers = []
     evidence = {}
+    blind_gates = []
     for gid, script in sorted(gates.items()):
         verdict = _gate_audit.run_gate(script, target)
         if verdict is False:
             catchers.append(gid)
             evidence[gid] = write_evidence(workdir, defect_id, gid, script, target)
-    return ("CAUGHT" if catchers else "MISSED"), catchers, evidence
+        elif verdict is None:
+            blind_gates.append(gid)
+    if catchers:
+        overall = "CAUGHT"
+    elif blind_gates:
+        overall = "BLIND"
+    else:
+        overall = "MISSED"
+    return overall, catchers, evidence, blind_gates
 
 
 def transfer_record_path(cfg, root, gate_id):
@@ -602,7 +641,8 @@ def transfer_record_proven(cfg, root, gate_id, bound_content_hash=None):
     return True, f"transfer record at {rec_path} is PROVEN and bound to {gate_id!r}"
 
 
-def compute_comparison(cfg, root, old_path, new_path, corpus, workdir):
+def compute_comparison(cfg, root, old_path, new_path, corpus, workdir,
+                        independent_seed_defects=None, independent_base_tree=None):
     old_id, old_gates, old_base_tree, old_seed_defects = load_gate_manifest(old_path)
     new_id, new_gates, new_base_tree, new_seed_defects = load_gate_manifest(new_path)
 
@@ -617,7 +657,12 @@ def compute_comparison(cfg, root, old_path, new_path, corpus, workdir):
             baseline_all_pass = False
             sanity_notes.append(f"{gid}: {note}")
 
-    base_tree = new_base_tree or old_base_tree
+    # T085 Round 2 I-R2-9: when an independent seed manifest ALSO declares
+    # its own base_tree, that takes precedence -- the manifests under test
+    # must not be able to control the clean tree the independent seeds run
+    # against either (a malicious/buggy old|new base_tree could otherwise
+    # make even a genuinely-independent seed's patch fail to apply/catch).
+    base_tree = independent_base_tree or new_base_tree or old_base_tree
     if base_tree is not None and baseline_all_pass:
         ok, notes = baseline_execution_check(workdir, base_tree, all_gates)
         if not ok:
@@ -698,20 +743,57 @@ def compute_comparison(cfg, root, old_path, new_path, corpus, workdir):
 
     # --- genuine per-defect execution (CS-001/CS-002/CS-003) when either
     #     manifest declares seed_defects (B1 fix: old_missed is now
-    #     computed from real execution, never hard-coded) ---
-    seed_defects = dict(old_seed_defects)
-    seed_defects.update(new_seed_defects)  # new's patch wins on a defect_id collision
+    #     computed from real execution, never hard-coded).
+    #
+    #     T085 Round 2 I-R2-9: seeds now come from an INDEPENDENT source
+    #     whenever `independent_seed_defects` is supplied by the caller
+    #     (cmd_compare's new --seed-manifest, a file DISTINCT from --old/
+    #     --new) -- the gate manifests UNDER TEST can no longer supply,
+    #     override, or neutralize their own seed corpus in that mode. When
+    #     no independent source is given (legacy/back-compat path, the
+    #     existing RED-test fixture corpus's own self-declared
+    #     seed_defects), a defect_id BOTH old and new manifests declare
+    #     with DIFFERING patches is no longer silently resolved by "new
+    #     wins" -- reproduced live before this fix: a NEW manifest could
+    #     redeclare an EXISTING defect_id with a neutered/no-op patch,
+    #     silently overriding old's real one with zero indication. Such a
+    #     defect_id is now excluded from per-defect execution and reported
+    #     as an explicit "seed_conflict" finding instead. ---
+    if independent_seed_defects is not None:
+        seed_defects = dict(independent_seed_defects)
+        seed_conflicts = []
+    else:
+        seed_conflicts = sorted(
+            did for did in (set(old_seed_defects) & set(new_seed_defects))
+            if old_seed_defects[did] != new_seed_defects[did]
+        )
+        seed_defects = dict(old_seed_defects)
+        seed_defects.update(new_seed_defects)
+        for did in seed_conflicts:
+            seed_defects.pop(did, None)
     per_defect = []
     old_missed = []
+    for did in seed_conflicts:
+        named_defects_detail.append({
+            "defect_id": did,
+            "reason": "seed_conflict",
+            "detail": (
+                f"old manifest declares patch {old_seed_defects[did]!r}, new manifest "
+                f"declares a DIFFERENT patch {new_seed_defects[did]!r} for the SAME "
+                "defect_id -- excluded from per-defect execution rather than silently "
+                "resolved by 'new wins' (T085 Round 2 I-R2-9); supply --seed-manifest "
+                "for an independent, unforgeable seed source"
+            ),
+        })
     if seed_defects and base_tree is not None:
         catch_count_basis = "per_defect_execution"
         real_caught_old = 0
         real_caught_new = 0
         for defect_id in sorted(seed_defects):
             patch = seed_defects[defect_id]
-            old_verdict, old_catchers, old_evidence = run_defect_against_config(
+            old_verdict, old_catchers, old_evidence, old_blind = run_defect_against_config(
                 workdir, base_tree, patch, defect_id, old_gates)
-            new_verdict, new_catchers, new_evidence = run_defect_against_config(
+            new_verdict, new_catchers, new_evidence, new_blind = run_defect_against_config(
                 workdir, base_tree, patch, defect_id, new_gates)
             if old_verdict == "CAUGHT":
                 real_caught_old += 1
@@ -725,9 +807,27 @@ def compute_comparison(cfg, root, old_path, new_path, corpus, workdir):
                 "new_verdict": new_verdict,
                 "old_catchers": old_catchers,
                 "new_catchers": new_catchers,
+                "old_blind_gates": old_blind,
+                "new_blind_gates": new_blind,
                 "evidence": evidence,
             })
-            if old_verdict == "MISSED":
+            if old_verdict == "BLIND" or new_verdict == "BLIND":
+                # T085 Round 2 I-R2-9: a defect this run could not honestly
+                # establish a verdict for (>=1 gate timed out/errored, and
+                # no OTHER gate genuinely caught it) is its OWN finding
+                # class -- never silently folded into old_missed nor into
+                # a clean pass; the superset test cannot be trusted for
+                # this defect_id until it is re-run cleanly.
+                if defect_id not in named_defects:
+                    named_defects.append(defect_id)
+                named_defects_detail.append({
+                    "defect_id": defect_id,
+                    "reason": "defect_blind",
+                    "detail": f"old={old_verdict} (blind_gates={old_blind}) new={new_verdict} "
+                              f"(blind_gates={new_blind}): could not honestly establish a verdict "
+                              "-- never reported as a clean miss",
+                })
+            elif old_verdict == "MISSED":
                 # CS-003: a defect OLD does not catch is OLD_MISSED -- a
                 # pre-existing gap, excluded from the superset test for
                 # this row, its count published (never silently dropped).
@@ -794,10 +894,30 @@ def cmd_compare(args):
 
     os.makedirs(args.workdir, exist_ok=True)
 
-    result, rc = compute_comparison(cfg, root, args.old, args.new, corpus, args.workdir)
+    # T085 Round 2 I-R2-9: --seed-manifest is an INDEPENDENT seed source,
+    # a file DISTINCT from --old/--new -- when supplied, the old/new gate
+    # manifests' own self-declared seed_defects are entirely ignored for
+    # this run (see compute_comparison()'s own docstring/comments).
+    independent_seed_defects = None
+    independent_base_tree = None
+    if getattr(args, "seed_manifest", None):
+        if not os.path.isfile(args.seed_manifest):
+            sys.stderr.write(f"catchset_compare compare: --seed-manifest not found: {args.seed_manifest}\n")
+            sys.exit(EXIT_USAGE)
+        independent_seed_defects, independent_base_tree = load_seed_manifest(args.seed_manifest)
+
+    result, rc = compute_comparison(
+        cfg, root, args.old, args.new, corpus, args.workdir,
+        independent_seed_defects=independent_seed_defects,
+        independent_base_tree=independent_base_tree,
+    )
 
     if args.determinism_check:
-        result2, rc2 = compute_comparison(cfg, root, args.old, args.new, corpus, args.workdir)
+        result2, rc2 = compute_comparison(
+            cfg, root, args.old, args.new, corpus, args.workdir,
+            independent_seed_defects=independent_seed_defects,
+            independent_base_tree=independent_base_tree,
+        )
         if result["body_hash"] != result2["body_hash"]:
             sys.stderr.write(
                 "catchset_compare compare: --determinism-check FAILED: "
@@ -846,6 +966,16 @@ def build_parser():
     cmp_p.add_argument("--out", required=True)
     cmp_p.add_argument("--jobs", type=int, default=1)
     cmp_p.add_argument("--determinism-check", action="store_true")
+    cmp_p.add_argument(
+        "--seed-manifest",
+        help=(
+            "T085 Round 2 I-R2-9: an INDEPENDENT seed-defect source (a file "
+            "DISTINCT from --old/--new) -- when given, the --old/--new gate "
+            "manifests' own self-declared seed_defects are ignored entirely, "
+            "so neither manifest under test can supply, override, or "
+            "neutralize its own seed corpus."
+        ),
+    )
     cmp_p.set_defaults(func=cmd_compare)
 
     return p
