@@ -1,0 +1,35 @@
+{
+  "schema": "consumers/v1",
+  "_purpose": "T167 RED fixture for consumers/audit.py (plan T-G04; FR-024, SC-010). A real, small, 3-project subset of the live CA-001 enumeration (never the full 18 -- kept small for fast, host-scoped, network-free re-runs once audit.py exists). Every field below is LIVE-VERIFIED on this host (§11.4.6), not invented. local_checkouts are host-specific absolute paths -- re-verify with `test -d <path>` before trusting a run against them.",
+  "projects": [
+    {
+      "project_id": "ATMOSphere1234321/ATMOSphere-Android-15",
+      "enumeration_sources": [
+        {"source": "github-api-root-constitution", "hit": true},
+        {"source": "local-clone", "hit": true}
+      ],
+      "consumer_kind": "submodule",
+      "local_checkouts": ["/mnt/track1/atmosphere-t1"]
+    },
+    {
+      "project_id": "HelixDevelopment/ota",
+      "enumeration_sources": [
+        {"source": "github-api-root-constitution", "hit": true},
+        {"source": "local-clone", "hit": true}
+      ],
+      "consumer_kind": "submodule",
+      "local_checkouts": ["/mnt/track1/helix_ota"]
+    },
+    {
+      "project_id": "vasic-digital/helix_design",
+      "enumeration_sources": [
+        {"source": "github-api-root-constitution", "hit": false},
+        {"source": "local-clone", "hit": true},
+        {"source": "text-only-pointer", "hit": true}
+      ],
+      "consumer_kind": "text-only-inheritance",
+      "local_checkouts": ["/mnt/track1/helix_design"]
+    }
+  ],
+  "source_agreement": {"multi_source": 2, "single_source": 0, "text_only": 1}
+}
