@@ -1484,19 +1484,24 @@ import importlib.util, sys
 spec = importlib.util.spec_from_file_location("repo_verify", sys.argv[1])
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
+# T158 round 4 (I4-1): all 5 of these shapes have their LAST '@' at/after their FIRST '?'/'#' --
+# structurally indistinguishable from a real query carrying a literal '@' (e.g. the 5th case), so
+# redact_url now FAILS CLOSED for every one of them (fixed placeholder, zero bytes of the input).
+# The round-3 expectations (a real host for the first 4) were only reachable by guessing which
+# reading applies; the no-leak property each case was added for is unchanged and still asserted.
 cases = {
-    "https://user:pa#ss@github.com/org/repo.git": "github.com/org/repo",
-    "https://user:p?ss@github.com/org/repo.git": "github.com/org/repo",
-    "https://SECRETTOKEN#@github.com/o/r.git": "github.com/o/r",
-    "ssh://git:pw#d@host/x.git": "host/x",
+    "https://user:pa#ss@github.com/org/repo.git": "REDACTED_AMBIGUOUS_URL",
+    "https://user:p?ss@github.com/org/repo.git": "REDACTED_AMBIGUOUS_URL",
+    "https://SECRETTOKEN#@github.com/o/r.git": "REDACTED_AMBIGUOUS_URL",
+    "ssh://git:pw#d@host/x.git": "REDACTED_AMBIGUOUS_URL",
     # residual edge case the same finding names (a query value containing a literal '@') -- must
     # never let query DATA be rendered as if it were the host.
-    "https://host/o/r.git?u=a@SECRET": "host/o/r",
+    "https://host/o/r.git?u=a@SECRET": "REDACTED_AMBIGUOUS_URL",
 }
 ok = True
 for url, expected in cases.items():
     out = m.redact_url(url)
-    leaked = ("pa" == out[:2] and "ss" in out) or ("SECRET" in out and "SECRET123" not in out and out != "host/o/r") or ("git:pw" in out)
+    leaked = ("pa" == out[:2] and "ss" in out) or ("SECRET" in out) or ("git:pw" in out)
     status = "OK" if (out == expected and not leaked) else "MISMATCH_OR_LEAK"
     if out != expected or leaked:
         ok = False
@@ -1702,5 +1707,191 @@ case "$RU2_OUT" in
   *ALL_OK*) ok "redact_url: query-string ('?token=...') and fragment ('#...') credential material no longer leaks (T158 remediation round 2 MINOR fix confirmed, 11.4.10)" ;;
   *) not_ok "redact_url (round 2 query-string/fragment): at least one case failed or leaked -- see output above" ;;
 esac
+
+# ================================================================================================
+# T158 remediation round 4 -- fixtures/mutations closing the FOURTH independent review's three
+# IMPORTANT findings (I4-1 redact_url still leaking on '/'+'?'/'#' userinfo + a NEW scp-form leak,
+# I4-2 the unvalidated inner-'@' strip branch, I4-3 GIT_OPTIONAL_LOCKS=0 with zero coverage).
+# Every earlier assertion above stays in place.
+# ================================================================================================
+
+# --- shared redact_url checker: run against the real tool AND against each mutant below ---------
+# Two oracles, both independent of the implementation:
+#  (a) the reviewer's exact 5-URL leak table + the I4-2 shape + positive controls (case-2 URLs that
+#      MUST still render a real host, so a "redact everything" implementation cannot pass);
+#  (b) a seeded, deterministic property test: credential bytes and query-secret bytes are drawn
+#      ONLY from UPPERCASE letters, host/path/query-key bytes ONLY from lowercase, with '/', '?',
+#      '#', '@', ':' sprinkled into the credential and query parts in random positions. Any output
+#      other than the fixed placeholder that contains an uppercase letter is a credential/secret
+#      leak, regardless of HOW the parser was fooled -- this tests the CLASS, not 5 instances.
+cat >"$TMP/r4_redact_check.py" <<'PY'
+import importlib.util, random, sys
+spec = importlib.util.spec_from_file_location("repo_verify", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+PH = "REDACTED_AMBIGUOUS_URL"
+ok = True
+table = {
+    # I4-1: the reviewer's leak table (rows 1-4 leaked in rounds 2+3; row 5 is round 3's NEW leak)
+    "https://user:se/cr?et@github.com/org/repo.git": PH,
+    "https://pa/ss#word@github.com/o/r.git": PH,
+    "https://tok/en?x@github.com/o/r.git": PH,
+    "https://user:SEC@RET/x?y@github.com/o/r.git": PH,
+    "user:SE/CR?ET@github.com:org/repo.git": PH,
+    # I4-2: credentials present AND a literal '@' inside the query after them
+    "https://u:pw@host/o/r.git?u=a@S": PH,
+    # positive controls (case 2: last '@' strictly before any '?'/'#') -- real host still shown
+    "https://user:pa/ss@github.com/org/repo.git": "github.com/org/repo",
+    "https://user:p@ss@github.com/org/repo.git": "github.com/org/repo",
+    "https://user:pass@host/o/r.git?token=SECRET123": "host/o/r",
+    "user:SE/CR@github.com:org/repo.git": "github.com/org/repo",
+    "git@github.com:org/repo.git": "github.com/org/repo",
+    "https://gitlab.com/g/sub/repo.git": "gitlab.com/g/sub/repo",
+}
+for url, expected in table.items():
+    out = m.redact_url(url)
+    if out != expected:
+        ok = False
+        print("TABLE_MISMATCH url=%r got=%r expected=%r" % (url, out, expected))
+print("table: %d cases checked" % len(table))
+
+rng = random.Random(20261001)
+UP = "QWXZJKV"
+LO = "abcdefghmn"
+SEP = "/?#@:"
+def creds():
+    parts = [rng.choice(UP) for _ in range(rng.randint(1, 8))]
+    for _ in range(rng.randint(0, 4)):
+        parts.insert(rng.randint(0, len(parts)), rng.choice(SEP))
+    return "".join(parts)
+def lw(n):
+    return "".join(rng.choice(LO) for _ in range(n))
+leaks = 0
+placeholders = 0
+N = 20000
+for i in range(N):
+    host = lw(rng.randint(1, 6)) + ".io"
+    path = "/".join(lw(rng.randint(1, 5)) for _ in range(rng.randint(1, 3))) + ".git"
+    userinfo = creds() + "@" if rng.random() < 0.9 else ""
+    query = ""
+    r = rng.random()
+    if r < 0.4:
+        qv = "".join(rng.choice(UP + "@/:") for _ in range(rng.randint(1, 6)))
+        query = rng.choice("?#") + lw(2) + "=" + qv
+    form = rng.random()
+    if form < 0.7:
+        url = rng.choice(["https", "ssh", "git"]) + "://" + userinfo + host + "/" + path + query
+    else:
+        url = userinfo + host + ":" + path + query
+    out = m.redact_url(url)
+    if out == PH:
+        placeholders += 1
+        continue
+    if any(c.isupper() for c in out):
+        leaks += 1
+        if leaks <= 5:
+            print("PROPERTY_LEAK url=%r got=%r" % (url, out))
+print("property: %d urls, %d placeholder, %d leaks" % (N, placeholders, leaks))
+if leaks:
+    ok = False
+print("ALL_OK" if ok else "SOME_FAILED")
+PY
+
+R4_OUT=$(python3 "$TMP/r4_redact_check.py" "$TOOL" 2>&1)
+while IFS= read -r r4_line; do printf '   %s\n' "$r4_line"; done <<<"$R4_OUT"
+case "$R4_OUT" in
+  *ALL_OK*) ok "redact_url (I4-1/I4-2, round 4): all 5 reviewer leak-table URLs (incl. the NEW scp-form row) and the creds-plus-'@'-in-query shape fail closed to the placeholder; positive controls still render a real host; 20000-URL seeded property test finds ZERO credential/secret bytes in any output (11.4.10)" ;;
+  *) not_ok "redact_url (I4-1/I4-2, round 4): table mismatch or property-test leak -- see output above" ;;
+esac
+
+# --- paired mutation M-I4-1: restore round 3's '/'-before-'?' heuristic (with its inner '@' strip)
+printf '%s' '    if at >= qpos:
+        return None
+' >"$TMP/r4m1_old.txt"
+printf '%s' '    if at >= qpos and "/" in s[:qpos]:
+        pre = s[:qpos]
+        at_pre = pre.rfind("@")
+        return pre[at_pre + 1:] if at_pre != -1 else pre
+' >"$TMP/r4m1_new.txt"
+if mk_mutant mutant_r4m1 "$TMP/r4m1_old.txt" "$TMP/r4m1_new.txt" 2>"$TMP/mutant_r4m1.err"; then
+  R4M1_OUT=$(python3 "$TMP/r4_redact_check.py" "$TMP/mutant_r4m1/verify/repo_verify.py" 2>&1)
+  case "$R4M1_OUT" in
+    *SOME_FAILED*PROPERTY_LEAK*|*PROPERTY_LEAK*SOME_FAILED*|*TABLE_MISMATCH*SOME_FAILED*)
+      ok "paired mutation CAUGHT (I4-1): restoring round 3's '/'-before-'?'/'#' heuristic makes the round-4 checker FAIL (leak table and/or property test) -- confirms the fail-closed branch is load-bearing" ;;
+    *) not_ok "paired mutation (I4-1): expected the round-3-heuristic mutant to fail the redact checker, got: $R4M1_OUT" ;;
+  esac
+else
+  not_ok "paired mutation (I4-1): mutation anchor text not found -- source moved, update this test's anchor: $(cat "$TMP/mutant_r4m1.err")"
+fi
+
+# --- paired mutation M-I4-2: the reviewer's own mutant -- round 3's branch with an UNCONDITIONAL
+# 'return pre' (no inner-'@' strip). Post-restructure the strip branch no longer exists; this mutant
+# re-introduces it in its worst form and the I4-2 fixture (https://u:pw@host/o/r.git?u=a@S) MUST
+# catch it.
+printf '%s' '    if at >= qpos:
+        pre = s[:qpos]
+        return pre
+' >"$TMP/r4m2_new.txt"
+if mk_mutant mutant_r4m2 "$TMP/r4m1_old.txt" "$TMP/r4m2_new.txt" 2>"$TMP/mutant_r4m2.err"; then
+  R4M2_OUT=$(python3 "$TMP/r4_redact_check.py" "$TMP/mutant_r4m2/verify/repo_verify.py" 2>&1)
+  case "$R4M2_OUT" in
+    *"TABLE_MISMATCH url='https://u:pw@host/o/r.git?u=a@S'"*SOME_FAILED*)
+      ok "paired mutation CAUGHT (I4-2): an unconditional 'return pre' in the ambiguous branch leaks 'u:pw@...' and the I4-2 fixture catches it -- the creds-plus-'@'-in-query shape is now pinned" ;;
+    *) not_ok "paired mutation (I4-2): expected the I4-2 fixture to catch the unconditional-'return pre' mutant, got: $R4M2_OUT" ;;
+  esac
+else
+  not_ok "paired mutation (I4-2): mutation anchor text not found -- source moved, update this test's anchor: $(cat "$TMP/mutant_r4m2.err")"
+fi
+
+# --- paired mutation M-I4-1b: delete the ambiguity check entirely ("text after the last '@'")
+printf '%s' '' >"$TMP/r4m3_new.txt"
+if mk_mutant mutant_r4m3 "$TMP/r4m1_old.txt" "$TMP/r4m3_new.txt" 2>"$TMP/mutant_r4m3.err"; then
+  R4M3_OUT=$(python3 "$TMP/r4_redact_check.py" "$TMP/mutant_r4m3/verify/repo_verify.py" 2>&1)
+  case "$R4M3_OUT" in
+    *PROPERTY_LEAK*SOME_FAILED*)
+      ok "paired mutation CAUGHT (I4-1b): removing the ambiguity check entirely (always render the text after the last '@') leaks query-secret bytes and the property test catches it" ;;
+    *) not_ok "paired mutation (I4-1b): expected the property test to catch the no-ambiguity-check mutant, got: $R4M3_OUT" ;;
+  esac
+else
+  not_ok "paired mutation (I4-1b): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r4m3.err")"
+fi
+
+# --- I4-3: GIT_OPTIONAL_LOCKS=0 -- stale-stat fixture, top-level AND submodule --------------------
+# A tracked file whose mtime no longer matches the index entry makes a plain `git status` refresh
+# and REWRITE .git/index. The real tool must leave both the parent's and a submodule's index
+# byte-identical; dropping GIT_OPTIONAL_LOCKS=0 must rewrite them on the SAME fixture. No git
+# command is run in the fixture between the touch and the md5 snapshots (that would refresh it).
+build_stale_stat() {  # build_stale_stat <root>
+  build_good_clean "$1"
+  touch -d 2020-01-01 "$1/parent/f.txt" "$1/parent/subA/f.txt"
+}
+SS="$TMP/rv_i43_stale_stat"
+build_stale_stat "$SS"
+SS_SUB_GD=$(real_gitdir "$SS/parent/subA")
+ss_p0=$(md5sum <"$SS/parent/.git/index"); ss_s0=$(md5sum <"$SS_SUB_GD/index")
+run_tool "$SS/parent" "$TMP/i43.json"; SSRC=$?
+ss_p1=$(md5sum <"$SS/parent/.git/index"); ss_s1=$(md5sum <"$SS_SUB_GD/index")
+if [ "$SSRC" -eq 0 ] && [ "$ss_p0" = "$ss_p1" ] && [ "$ss_s0" = "$ss_s1" ]; then
+  ok "rv_i43_stale_stat (I4-3): with stale-stat tracked files at top level AND in subA, the real tool reports CLEAN (rc=0) and leaves BOTH .git/index files byte-identical"
+else
+  not_ok "rv_i43_stale_stat (I4-3): rc=$SSRC parent_index_same=$([ "$ss_p0" = "$ss_p1" ] && echo y || echo n) sub_index_same=$([ "$ss_s0" = "$ss_s1" ] && echo y || echo n)"
+fi
+printf '%s' 'env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")' >"$TMP/r4m4_old.txt"
+printf '%s' 'env = dict(os.environ)' >"$TMP/r4m4_new.txt"
+if mk_mutant mutant_r4m4 "$TMP/r4m4_old.txt" "$TMP/r4m4_new.txt" 2>"$TMP/mutant_r4m4.err"; then
+  SSM="$TMP/rv_i43_stale_stat_mut"
+  build_stale_stat "$SSM"
+  SSM_SUB_GD=$(real_gitdir "$SSM/parent/subA")
+  ssm_p0=$(md5sum <"$SSM/parent/.git/index"); ssm_s0=$(md5sum <"$SSM_SUB_GD/index")
+  python3 "$TMP/mutant_r4m4/verify/repo_verify.py" --recursive --root "$SSM/parent" --out "$TMP/i43_mut.json" >"$TMP/i43_mut.out" 2>"$TMP/i43_mut.err"
+  ssm_p1=$(md5sum <"$SSM/parent/.git/index"); ssm_s1=$(md5sum <"$SSM_SUB_GD/index")
+  if [ "$ssm_p0" != "$ssm_p1" ] && [ "$ssm_s0" != "$ssm_s1" ]; then
+    ok "paired mutation CAUGHT (I4-3): dropping GIT_OPTIONAL_LOCKS=0 rewrites BOTH the parent's and subA's .git/index on the SAME stale-stat fixture -- confirms the env var is genuinely load-bearing at both levels"
+  else
+    not_ok "paired mutation (I4-3): expected the mutant to rewrite both indexes, got parent_changed=$([ "$ssm_p0" != "$ssm_p1" ] && echo y || echo n) sub_changed=$([ "$ssm_s0" != "$ssm_s1" ] && echo y || echo n)"
+  fi
+else
+  not_ok "paired mutation (I4-3): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r4m4.err")"
+fi
 
 [ "$fail" -eq 0 ] && exit 0 || exit 1

@@ -30,10 +30,10 @@ literal `git ls-remote <remote> refs/heads/<branch>` clause -- reading the SAME 
 (the remote's real branch tip) via the remote's own reported default ref, never a guessed or
 locally-configured branch name.
 
-Unpushed count (RV-006): the remote's live tip is fetched (read-only) into a temporary ref under
-`refs/fastcycle_verify/<pid>/...`, removed immediately after use and swept again at exit (RV-009)
-even on error/exception -- so no state is left behind regardless of outcome. `git rev-list --count
-<fetched_tip>..HEAD` against that temp ref then gives the real unpushed count; a fetch failure (the
+Unpushed count (RV-006): the remote's live tip SHA is fetched (read-only) as a bare object -- no
+ref is created anywhere (since T158 remediation round 2, finding I1; the object itself lands only
+in a process-lifetime scratch object store, see "Safety" below). `git rev-list --count
+<fetched_tip>..HEAD` against that SHA then gives the real unpushed count; a fetch failure (the
 tip object cannot be obtained) reports `unpushed: "UNKNOWN"` for that remote and folds the repo
 into UNVERIFIED (never a silent 0, constitution 11.4.201(6)'s false-null guard).
 
@@ -98,12 +98,14 @@ a derived, non-authoritative Markdown summary.
 
 Safety (C-006) / RV-009 (T158 remediation round 1, finding #6): read-only against every repository
 under `--root`; no `push --force`/`reset --hard`/`stash`/`clean` anywhere in this file
-(grep-verifiable). The temporary ref namespace RV-009 names is the only REF ever written, and is
-always removed (both an immediate per-remote delete and a defence-in-depth
-`for-each-ref`-then-delete sweep at exit, itself re-verified empty via a second `for-each-ref`
-afterwards). Every git invocation runs with `GIT_OPTIONAL_LOCKS=0` (git's own documented mechanism
-for skipping opportunistic index/stat-cache rewrites it would otherwise perform during e.g. `git
-status`) and every fetch into a real repository's own git-dir passes `--no-write-fetch-head` (never
+(grep-verifiable). No ref is written in any repository under `--root` (since T158 remediation
+round 2, finding I1, every fetch targets a bare SHA, never a `sha:ref` destination); the RV-009
+`refs/fastcycle_verify/<pid>_<repo>/` sweep at exit is retained only as a belt-and-braces check of
+THIS process's own namespace (it never touches refs a different process created). Every git
+invocation runs with `GIT_OPTIONAL_LOCKS=0` (git's own documented mechanism for skipping
+opportunistic index/stat-cache rewrites it would otherwise perform during e.g. `git status`;
+test-pinned since T158 round 4, finding I4-3, by a stale-stat fixture at top level AND in a
+submodule whose paired mutation proves both .git/index files are rewritten without it) and every fetch into a real repository's own git-dir passes `--no-write-fetch-head` (never
 overwrites the operator's own `FETCH_HEAD`) and `-c gc.auto=0` (never opportunistically triggers a
 background gc). The read-only live-tip fetch RV-006 needs for the unpushed-commit COUNT would, by
 default, land any genuinely-new remote objects as loose objects in the repository's own object
@@ -363,6 +365,9 @@ def _git_objects_dir(repo_path, timeout_s=10):
     return d if os.path.isabs(d) else os.path.join(repo_path, d)
 
 
+AMBIGUOUS_URL_PLACEHOLDER = "REDACTED_AMBIGUOUS_URL"
+
+
 def redact_url(url):
     """C-006: remote URLs rendered as host/org/repo (or deeper, e.g. a GitLab subgroup), NEVER
     any credential text, under ANY input including a malformed-but-plausible URL whose userinfo
@@ -421,20 +426,55 @@ def redact_url(url):
     plausibly marks a genuine query/fragment start, positioned after real path segments, rather
     than being a decoy character embedded directly in credential/host text with no path segment
     yet) that `@` is treated as untrustworthy and the authority boundary is instead re-derived
-    from only the portion strictly before that `?`/`#`. This is a best-effort, documented
-    mitigation for a narrow, adversarial shape, not a provably-complete URI parser (11.4.6): a
-    pathological input combining round 1's embedded-`/`-in-credentials shape WITH this round's
-    embedded-`@`-in-query shape in the SAME string is a known, un-handled residual limitation."""
+    from only the portion strictly before that `?`/`#`. [Superseded by round 4 -- see below.]
+
+    T158 remediation round 4, IMPORTANT findings I4-1 / I4-2 (round 3's `/`-before-`?` heuristic
+    was itself a guess, and leaked credential text whenever userinfo carried BOTH an embedded `/`
+    AND a `?`/`#` -- e.g. `https://tok/en?x@github.com/o/r.git` rendered `tok/en`; it also
+    introduced a NEW leak in the scp form `user:SE/CR?ET@github.com:org/repo.git` -> `user/SE/CR`).
+    Rounds 1-3 each patched the shape that prompted them; this round replaces the heuristic with a
+    STRUCTURAL decision that never guesses. Let `s` be the scheme-stripped string, `q` the index
+    of its FIRST `?` or `#` (len(s) if neither occurs) and `a` the index of its LAST `@` (-1 if
+    none). Exactly three cases exist, and they are exhaustive:
+
+      (1) a == -1 (no `@` at all): there is no userinfo, so no credential text can exist before a
+          host; render `s` truncated at `q`.
+      (2) a < q (every `@` sits strictly before the first `?`/`#`, including "no `?`/`#` at all"):
+          the real userinfo separator, if any, is SOME `@` at index <= a, so every credential byte
+          sits at or before `a`. Render only `s[a+1:]`, truncated at its own first `?`/`#` (a
+          query/fragment that may carry a token). No byte at or before `a` can reach the output.
+      (3) a >= q (the last `@` sits at or after the first `?`/`#`): the boundary is GENUINELY
+          AMBIGUOUS -- either the `?`/`#` is a decoy inside credential text and `a` is the real
+          separator (then `s[:q]` is credential text), or the `?`/`#` starts a real query and `a`
+          is query DATA (then `s[a+1:]` may be a token). Both readings are syntactically valid
+          and no local evidence can tell them apart (`https://tok/en?x@github.com/o/r.git` and
+          `https://host/o/r.git?u=a@SECRET` have the identical shape), so this case FAILS CLOSED
+          and returns the fixed placeholder `REDACTED_AMBIGUOUS_URL` -- never ANY substring of
+          `s`. This deliberately sacrifices the host display for a legitimate URL whose query
+          carries a literal `@` (e.g. `https://host/o/r.git?u=a@S`, previously rendered
+          `host/o/r`) in exchange for never emitting credential bytes.
+
+    The round-3 inner-`@` strip branch (I4-2's subject) no longer exists: case (3) now never
+    inspects either side of the ambiguous boundary, so there is no strip logic left to validate;
+    its regression is instead pinned by fixtures asserting the placeholder for that exact shape
+    plus a paired mutation that restores the round-3 branch. Honest boundary (11.4.6): this
+    guarantees no byte positioned at or before the last `@` (case 2) and no byte at all (case 3)
+    reaches the output; it does NOT promise a useful rendering for every malformed URL (case 3
+    URLs and the scheme-less fallback may render as the placeholder or a basename)."""
     if not url:
         return "UNKNOWN"
     m = re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://(.*)$", url, re.DOTALL)
     if m:
         after_at = _authority_tail(m.group(1))
+        if after_at is None:
+            return AMBIGUOUS_URL_PLACEHOLDER
         segments = [p for p in after_at.split("/") if p]
         if segments and segments[-1].endswith(".git"):
             segments[-1] = segments[-1][:-4]
         return "/".join(segments) if segments else "UNKNOWN"
     cand = _authority_tail(url)
+    if cand is None:
+        return AMBIGUOUS_URL_PLACEHOLDER
     m2 = re.match(r"^([^:/]+):(.+)$", cand)
     if m2 and "/" in m2.group(2):
         host, path = m2.group(1), m2.group(2)
@@ -446,31 +486,23 @@ def redact_url(url):
 
 
 def _authority_tail(s):
-    """T158 remediation round 3, finding I-N1: the text strictly after the real userinfo `@`
-    separator (if any), with any trailing query-string/fragment removed -- computed by finding
-    the LAST `@` in the RAW, unstripped string `s` FIRST (never a pre-stripped one -- see
-    `redact_url`'s own docstring for why round 2's opposite order leaked credential text), then
-    stripping `?`/`#` from the remainder.
-
-    Guards the residual edge case the same finding names: if that globally-last `@` sits at or
-    after a `?`/`#` which is ITSELF preceded by at least one `/` in `s` (i.e. the `?`/`#`
-    plausibly starts a genuine query/fragment, since real path segments already precede it --
-    unlike a decoy `?`/`#` embedded directly in credential/host text with no `/` yet), the `@` is
-    untrusted and the authority boundary is instead re-derived from only the portion strictly
-    before that `?`/`#` (so query/fragment DATA, e.g. `?u=a@SECRET`, can never be rendered as if
-    it were the host)."""
+    """T158 remediation round 4 (I4-1/I4-2): return the text strictly after the LAST `@` with any
+    query/fragment removed, or None when the userinfo/host boundary is ambiguous (fail closed --
+    the caller renders `AMBIGUOUS_URL_PLACEHOLDER`, never any substring of `s`). See
+    `redact_url`'s docstring for the exhaustive three-case decision boundary:
+    no `@` -> strip query; last `@` strictly before the first `?`/`#` -> text after that `@`,
+    query stripped; last `@` at/after the first `?`/`#` -> None."""
     qpos = len(s)
     for sep in ("?", "#"):
         idx = s.find(sep)
         if idx != -1 and idx < qpos:
             qpos = idx
     at = s.rfind("@")
-    if at != -1 and at >= qpos and "/" in s[:qpos]:
-        pre = s[:qpos]
-        at_pre = pre.rfind("@")
-        return pre[at_pre + 1:] if at_pre != -1 else pre
-    after_at = s[at + 1:] if at != -1 else s
-    return _strip_query_fragment(after_at)
+    if at == -1:
+        return _strip_query_fragment(s)
+    if at >= qpos:
+        return None
+    return _strip_query_fragment(s[at + 1:])
 
 
 def _strip_query_fragment(s):
@@ -828,7 +860,7 @@ def _pointer_fetchable(repo_path, sha, remote_names, reachable_map, timeout_s):
                 continue
             rc, _out, err = _run(
                 ["git", "-c", "gc.auto=0", "--git-dir=" + probe_dir, "fetch", "--no-tags", "-q",
-                 "--no-write-fetch-head", "--depth=1", "--filter=tree:0", url, "%s:refs/probe" % sha],
+                 "--recurse-submodules=no", "--no-write-fetch-head", "--depth=1", "--filter=tree:0", url, "%s:refs/probe" % sha],
                 repo_path, timeout_s)
             if rc == 0:
                 return "FETCHABLE"
@@ -879,8 +911,9 @@ def verify_single_repo(repo_path, relpath, timeout_s, is_submodule, parent_gitli
     # T158 remediation round 2, finding I1: verify_remote() no longer creates ANY ref (it fetches
     # a bare SHA, never a `sha:ref` destination -- see its own docstring), so this namespace is no
     # longer written to by this process at all; the sweep below is retained purely as a defence-in-
-    # depth cleanup of any leftover `refs/fastcycle_verify/*` debris a PRE-round-2 run of this same
-    # tool may have left behind on a real repository, never itself a source of new state.
+    # depth check of THIS process's own pid-scoped namespace. (T158 round 4 MINOR: it does NOT --
+    # and structurally cannot -- clean debris from an EARLIER run, since that run's namespace
+    # carried a different pid; refs this process did not create are deliberately never touched.)
     tmp_ns = "refs/fastcycle_verify/%d_%s" % (os.getpid(), re.sub(r"[^A-Za-z0-9_]", "_", relpath) or "root")
     real_objects_dir = _git_objects_dir(repo_path, timeout_s)
     remotes_out = []
