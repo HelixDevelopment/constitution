@@ -6,8 +6,18 @@
 # Usage: migrate.sh --config <fastcycle.yaml> --project <org/repo>
 #          --workdir <consumer checkout dir> --out <migration.json>
 #          [--apply] [--review-ref <path>]
+#          [--operator-blocked] [--scope-decision <scope_decision.json>]
 #
-# Without --apply: preflight + planned-diff only (CA-028), never writes.
+# Without --apply: preflight only (CA-028); never writes to $WORKDIR, but
+# DOES write the --out record (outcome DRY-RUN) and exits 1 -- a dry run is
+# not a migration outcome and `audit.py summary` never counts it.
+#
+# --out holds exactly ONE record per project (T177 Round 5, round-4 I6):
+# `audit.py summary` resolves several records for the same project by
+# CONTENT, so an honest retry history left side by side (an earlier
+# `dirty-local` record next to a later MIGRATED one) reads as a CONFLICT
+# and that project as uncovered (fails safe). Re-runs MUST overwrite the
+# project's previous record (reuse the same --out path), never accumulate.
 #
 # --review-ref (CA-024, this tool's own documented decision -- the
 # contract requires "a zero-finding GO review record" before push but
@@ -51,7 +61,8 @@
 # commit (CA-019) -- its data_change instead names the commit and which
 # remote(s) succeeded/failed.
 #
-# Exit: 0 MIGRATED; 1 NOT-MIGRATED (reason in the JSON body, not a crash);
+# Exit: 0 MIGRATED; 1 NOT-MIGRATED (reason in the JSON body, not a crash)
+#       or DRY-RUN (no --apply; preflight passed, nothing migrated);
 #       2 usage; 4 BLIND (could not determine dirty/reachable state at all).
 set -u
 
@@ -239,6 +250,70 @@ current_data_change() {
     git -C "$WORKDIR" status --porcelain=v1 2>/dev/null | awk '{print $2}' | tr '\n' ',' | sed 's/,$//'
 }
 
+# Step 6 review check (CA-024), shared by the bump path and -- T177 Round 5
+# (round-4 I3) -- the already-at-target path. Sets REVIEW_REF_ID on GO;
+# returns 1 (REVIEW_REF_ID empty) for an absent, unbound, stale, non-zero-
+# finding or wrong-tier record. Reads $REVIEW_REF/$PROJECT/$NEW_SHA/
+# $LOCAL_HEAD at CALL time.
+check_review() {
+    REVIEW_GO=0
+    REVIEW_REF_ID=""
+    if [ -n "$REVIEW_REF" ] && [ -f "$REVIEW_REF" ]; then
+        REVIEW_CHECK=$(python3 - "$REVIEW_REF" "$PROJECT" "$NEW_SHA" "$LOCAL_HEAD" <<'PYEOF'
+import json, sys
+path, project, target, base = sys.argv[1:5]
+try:
+    with open(path, "r", encoding="utf-8") as fh:
+        doc = json.load(fh)
+except (OSError, ValueError):
+    print("NO-GO")
+    sys.exit(0)
+tier = doc.get("model_tier", doc.get("tier"))
+findings = doc.get("findings")
+if doc.get("verdict") != "GO":
+    print("NO-GO")
+elif doc.get("project_id") != project or doc.get("target_commit") != target:
+    print("NO-GO")
+elif doc.get("consumer_base_commit") != base:
+    print("NO-GO")
+elif not (isinstance(findings, list) and len(findings) == 0):
+    print("NO-GO")
+elif tier != "opus":
+    print("NO-GO")
+elif doc.get("effort") != "xhigh":
+    print("NO-GO")
+else:
+    print("GO")
+PYEOF
+)
+        if [ "$REVIEW_CHECK" = "GO" ]; then
+            REVIEW_GO=1
+        fi
+    fi
+    if [ "$REVIEW_GO" -ne 1 ]; then
+        return 1
+    fi
+    # data-model.md #13.3's `review_ref` field ("ReviewVerdictRecord id",
+    # "required iff MIGRATED") -- the record's OWN `review_id` where
+    # present (a real ReviewVerdictRecord, review_record.py's schema),
+    # else the --review-ref path itself (a hand-authored test fixture).
+    # (T177 Round 3: the path is passed as argv, never interpolated into
+    # Python source text -- a path containing a quote broke the old form.)
+    REVIEW_REF_ID=$(python3 -c "
+import json, sys
+path = sys.argv[1]
+try:
+    with open(path, encoding='utf-8') as fh:
+        d = json.load(fh)
+    rid = d.get('review_id')
+    print(rid if rid else path)
+except Exception:
+    print(path)
+" "$REVIEW_REF" 2>/dev/null)
+    [ -n "$REVIEW_REF_ID" ] || return 1
+    return 0
+}
+
 # --- Step 1: preflight (CA-020) -- no write below this point until it passes.
 #
 # T177 Round 2 R2-I3 fix: CA-020's refusal set also covers
@@ -337,23 +412,53 @@ fi
 # entire never-published branch). Reason `divergent-branches` is the
 # closed-set reason (data-model #13.3) closest in meaning ("local and
 # remote histories differ"); the exact cause is carried in `detail`.
+#
+# T177 Round 5 (round-4 MINOR, detached HEAD): `rev-parse --abbrev-ref HEAD`
+# prints the literal "HEAD" on a detached checkout, and the synthetic
+# `refs/remotes/origin/HEAD` symref then satisfied the "published
+# counterpart" lookup below -- the run committed locally and only failed
+# at the real push (`HEAD:HEAD`), leaving a local commit behind. A detached
+# checkout has no branch to fast-forward at all, so it is refused here,
+# before any write.
+if [ "$BRANCH" = "HEAD" ] || [ -z "$BRANCH" ]; then
+    not_migrated "preflight" "divergent-branches" "detached-HEAD-no-branch-to-fast-forward"
+fi
+#
+# T177 Round 5 (round-4 I4): the unpublished-commit count is now taken
+# COLLECTIVELY against the union of every remote's copy of THIS branch
+# (`git rev-list --count HEAD --not <every refs/remotes/<r>/$BRANCH>`),
+# never against each remote separately. The per-remote form produced a
+# FALSE refusal whenever one mirror merely LAGGED behind a commit already
+# published on another remote (reproduced in round 4: origin at HEAD,
+# `mirror` one commit behind -> "local-ahead-of-mirror/main-by-1-
+# unpublished-commit(s)" although `rev-list HEAD --not --remotes` was 0) --
+# a common shape in any multi-remote fleet. Pushing to the lagging mirror
+# only republishes history that is already public on another remote.
+# The union is deliberately restricted to THIS branch's remote copies, not
+# `--remotes` (every remote ref): a local branch fast-forwarded onto some
+# OTHER published branch (e.g. an unreviewed origin/feature-x) has zero
+# commits outside `--remotes`, yet pushing it would move product code onto
+# $BRANCH on every remote -- the same CA-022 violation finding 4 closed.
 PUBLISHED_REFS=0
+PUBLISHED_REF_LIST=""
 for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
     RREF="refs/remotes/$r/$BRANCH"
     if git -C "$WORKDIR" rev-parse -q --verify "$RREF" >/dev/null 2>&1; then
         PUBLISHED_REFS=$((PUBLISHED_REFS + 1))
-        AHEAD=$(git -C "$WORKDIR" rev-list --count "$RREF..$LOCAL_HEAD" 2>/dev/null)
-        if [ -z "$AHEAD" ]; then
-            echo "migrate.sh: could not measure unpublished commits against $RREF" >&2
-            exit 4
-        fi
-        if [ "$AHEAD" != "0" ]; then
-            not_migrated "preflight" "divergent-branches" "local-ahead-of-$r/$BRANCH-by-$AHEAD-unpublished-commit(s)"
-        fi
+        PUBLISHED_REF_LIST="$PUBLISHED_REF_LIST $RREF"
     fi
 done
 if [ "$PUBLISHED_REFS" -eq 0 ]; then
     not_migrated "preflight" "divergent-branches" "branch-$BRANCH-has-no-published-counterpart-on-any-remote"
+fi
+# shellcheck disable=SC2086  # deliberate word-splitting: one ref per word
+UNPUBLISHED=$(git -C "$WORKDIR" rev-list --count "$LOCAL_HEAD" --not $PUBLISHED_REF_LIST 2>/dev/null)
+if [ -z "$UNPUBLISHED" ]; then
+    echo "migrate.sh: could not measure unpublished commits against$PUBLISHED_REF_LIST" >&2
+    exit 4
+fi
+if [ "$UNPUBLISHED" != "0" ]; then
+    not_migrated "preflight" "divergent-branches" "local-$BRANCH-has-$UNPUBLISHED-commit(s)-unpublished-on-every-remote"
 fi
 
 if [ "$APPLY" -eq 0 ]; then
@@ -667,6 +772,64 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         :
     fi
 
+    # T177 Round 5 (round-4 BLOCKING B1): the allow-list above admits PATHS,
+    # but a path's CONTENT can still be host-specific. The real
+    # post_update_hook.sh wires skills as `ln -s "${CONST_DIR}/skills/<n>"
+    # "${PROJECT_ROOT}/skills/<n>"` -- CONST_DIR is THIS migrating host's
+    # own absolute path, so the staged blob is a mode-120000 symlink whose
+    # content is e.g. /tmp/.../checkout/constitution/skills/media-validator.
+    # Round 3 committed and pushed it verbatim and step 9 still reported
+    # CLEAN: the migrating host's filesystem layout landed in the
+    # consumer's PERMANENT history (irreversible -- no force-push, §11.4.113)
+    # and is dangling garbage on every other host's fresh clone. The review
+    # record is bound to (project, target, base) BEFORE the hook runs, so
+    # it never covers this host-dependent hook output either.
+    #
+    # Every staged symlink (mode 120000, added or modified) is therefore
+    # checked against the ONE property that makes content identical on every
+    # host: its target must be RELATIVE and must resolve -- lexically,
+    # without following any link -- to a location INSIDE this repository's
+    # own tree. An absolute target, or a relative one that climbs out of the
+    # repository, is refused out-of-scope-diff before review/commit/push;
+    # the refusal never rewrites the hook's output (the tool does not
+    # second-guess what the hook meant -- the hook must emit portable links).
+    SYMLINK_VIOLATION=$(git -C "$WORKDIR" diff --cached --raw -z --no-renames --diff-filter=AMT 2>/dev/null | python3 -c '
+import os, posixpath, subprocess, sys
+workdir = sys.argv[1]
+data = sys.stdin.buffer.read().split(b"\0")
+i = 0
+bad = []
+while i + 1 < len(data):
+    meta, path = data[i], data[i + 1]
+    i += 2
+    if not meta.startswith(b":"):
+        continue
+    fields = meta[1:].split()
+    if len(fields) < 4 or fields[1] != b"120000":
+        continue
+    blob = fields[3].decode()
+    rel = path.decode("utf-8", "surrogateescape")
+    target = subprocess.run(["git", "-C", workdir, "cat-file", "blob", blob],
+                            capture_output=True).stdout.decode("utf-8", "surrogateescape")
+    if target.startswith("/"):
+        bad.append("path=%s target-is-absolute" % rel)
+        continue
+    resolved = posixpath.normpath(posixpath.join(posixpath.dirname(rel), target))
+    if resolved == ".." or resolved.startswith("../") or resolved.startswith("/"):
+        bad.append("path=%s target-escapes-repository" % rel)
+if bad:
+    print("host-specific-symlink " + " ".join(bad))
+' "$WORKDIR" 2>/dev/null)
+    SYMLINK_RC=$?
+    if [ "$SYMLINK_RC" -ne 0 ]; then
+        # The scanner itself could not run: refuse rather than publish
+        # content nobody inspected (§11.4.201 conservative-safe default).
+        not_migrated_after_write "wiring" "out-of-scope-diff" "symlink-scan-failed"
+    fi
+    if [ -n "$SYMLINK_VIOLATION" ]; then
+        not_migrated_after_write "wiring" "out-of-scope-diff" "$SYMLINK_VIOLATION"
+    fi
+
     # --- Step 6: review (CA-024) -- absent or non-GO => review-no-go.
     #
     # T177 Round 1 I6 fix: the GO verdict must be BOUND to THIS EXACT
@@ -700,59 +863,9 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # for an earlier attempt could be replayed against a consumer that has
     # since received new commits. $LOCAL_HEAD is captured once, before any
     # write, at the top of this script.
-    REVIEW_GO=0
-    if [ -n "$REVIEW_REF" ] && [ -f "$REVIEW_REF" ]; then
-        REVIEW_CHECK=$(python3 - "$REVIEW_REF" "$PROJECT" "$NEW_SHA" "$LOCAL_HEAD" <<'PYEOF'
-import json, sys
-path, project, target, base = sys.argv[1:5]
-try:
-    with open(path, "r", encoding="utf-8") as fh:
-        doc = json.load(fh)
-except (OSError, ValueError):
-    print("NO-GO")
-    sys.exit(0)
-tier = doc.get("model_tier", doc.get("tier"))
-findings = doc.get("findings")
-if doc.get("verdict") != "GO":
-    print("NO-GO")
-elif doc.get("project_id") != project or doc.get("target_commit") != target:
-    print("NO-GO")
-elif doc.get("consumer_base_commit") != base:
-    print("NO-GO")
-elif not (isinstance(findings, list) and len(findings) == 0):
-    print("NO-GO")
-elif tier != "opus":
-    print("NO-GO")
-elif doc.get("effort") != "xhigh":
-    print("NO-GO")
-else:
-    print("GO")
-PYEOF
-)
-        if [ "$REVIEW_CHECK" = "GO" ]; then
-            REVIEW_GO=1
-        fi
-    fi
-    if [ "$REVIEW_GO" -ne 1 ]; then
+    if ! check_review; then
         not_migrated_after_write "review" "review-no-go"
     fi
-    # data-model.md #13.3's `review_ref` field ("ReviewVerdictRecord id",
-    # "required iff MIGRATED") -- the record's OWN `review_id` where
-    # present (a real ReviewVerdictRecord, review_record.py's schema),
-    # else the --review-ref path itself (a hand-authored test fixture).
-    # (T177 Round 3: the path is passed as argv, never interpolated into
-    # Python source text -- a path containing a quote broke the old form.)
-    REVIEW_REF_ID=$(python3 -c "
-import json, sys
-path = sys.argv[1]
-try:
-    with open(path, encoding='utf-8') as fh:
-        d = json.load(fh)
-    rid = d.get('review_id')
-    print(rid if rid else path)
-except Exception:
-    print(path)
-" "$REVIEW_REF" 2>/dev/null)
 
     # --- Step 7: commit via the consumer's own wrapper, or plain git if its
     # CLAUDE.md explicitly permits it (this tool's discovery marker).
@@ -779,10 +892,18 @@ except Exception:
         not_migrated_after_write "commit" "local-git-error" "git-commit-failed"
     fi
     NEW_COMMIT=$(git -C "$WORKDIR" rev-parse HEAD)
-    # T177 Round 3 finding 4, defence in depth at the push seam: the ONLY
-    # commit this migration may publish is its own. The preflight already
-    # refuses unpublished local commits before any write; this re-asserts
-    # the same invariant immediately before the irreversible push.
+    # T177 Round 3 finding 4, defence in depth at the push seam. What this
+    # check ACTUALLY verifies (T177 Round 5, round-4 I5 -- the earlier
+    # wording "the ONLY commit this migration may publish is its own"
+    # overclaimed): that exactly ONE commit lies between the pre-migration
+    # HEAD ($LOCAL_HEAD) and the migration commit -- i.e. that nothing
+    # between preflight and push (in practice: the hook or the consumer's
+    # gates) created an extra local commit. It does NOT re-measure what each
+    # individual remote would receive; that property is established once,
+    # before any write, by the preflight's collective unpublished-commit
+    # check (zero commits of $LOCAL_HEAD outside every remote's copy of
+    # $BRANCH), and this seam only confirms the local history did not grow
+    # beyond the migration's own single commit since then.
     PUSH_SET_SIZE=$(git -C "$WORKDIR" rev-list --count "$LOCAL_HEAD..$NEW_COMMIT" 2>/dev/null)
     if [ "$PUSH_SET_SIZE" != "1" ]; then
         FULL="NOT-MIGRATED (push: out-of-scope-diff)"
@@ -841,12 +962,28 @@ else
     # read-only cross-check spuriously report SUBMODULE_UNINITIALISED,
     # discovered live while testing this exact path. Idempotent + a
     # no-op for an already-initialised submodule.
+    #
+    # T177 Round 5 (round-4 I3, DESIGN DECISION): data-model.md #13.3 makes
+    # `review_ref` "required iff MIGRATED", and this path previously
+    # emitted MIGRATED with review_ref OMITTED -- a direct conflict with the
+    # data model, and `audit.py summary` could not tell an honest
+    # already-at-target record from a hand-written MIGRATED claim that
+    # simply dropped the field. Chosen resolution: ENFORCE the data model
+    # (no amendment). The same bound CA-024 review gate runs here, BEFORE
+    # any write to $WORKDIR (the submodule init below is the first one),
+    # bound to (project, target=$NEW_SHA, base=$LOCAL_HEAD) exactly as on
+    # the bump path. Rejected alternative: a self-declared
+    # "already_at_target" exemption flag in the record -- `summary` reads
+    # records off disk without trusting their author, so any record could
+    # set the flag and skip the review requirement; a field whose presence
+    # is unverifiable cannot be the thing that waives a verification. The
+    # operational cost is one verify-only review of a no-op state, which is
+    # cheap and honest.
+    if ! check_review; then
+        not_migrated "review" "review-no-go" "already-at-target-verify-only-path-still-requires-a-bound-GO-review"
+    fi
     git -C "$WORKDIR" -c protocol.file.allow=always submodule update --init constitution >/dev/null 2>&1 || true
     NEW_COMMIT="$LOCAL_HEAD"
-    # No review runs for an already-at-target consumer (steps 5-8 are
-    # entirely skipped -- nothing to review), so review_ref is honestly
-    # omitted rather than naming a review that never gated anything here.
-    REVIEW_REF_ID=""
 fi
 
 # --- Step 9: recursive verify TWICE (CA-026) -- MIGRATED only when BOTH

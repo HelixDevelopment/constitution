@@ -61,6 +61,7 @@ suffices, which it does for every measurement CA-011 currently defines.
 """
 import argparse
 import glob
+import hashlib
 import json
 import os
 import re
@@ -392,18 +393,79 @@ MIGRATION_REASONS = (
 _REASON_RE = re.compile(r"^NOT-MIGRATED \(([a-z-]+): ([a-z-]+)\)$")
 
 
-def classify_migration_record(rec):
+_SHA_ADDR_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+def _verification_problem(v, base_dir):
+    """None when `v` is a genuine CA-026 double-verify pair whose cited
+    evidence still exists on disk BYTE-FOR-BYTE; otherwise the invalid
+    class name. T177 Round 5 (round-4 I1 M1 + I3): the record's
+    `content_address` is RE-DERIVED from the cited report file's actual
+    bytes -- a shape-valid `sha256:<64 hex>` string that addresses
+    anything else (the reviewer's mutation hashed the PATH STRING) is
+    refused, and so is a record whose own `overall`/`body_hash` claim
+    disagrees with what the cited report file itself says."""
+    if not (isinstance(v, list) and len(v) == 2 and all(isinstance(e, dict) for e in v)):
+        return "record-missing-verification-evidence"
+    if not all(e.get("overall") == "CLEAN" for e in v):
+        return "record-missing-verification-evidence"
+    if not (v[0].get("body_hash") and v[0].get("body_hash") == v[1].get("body_hash")):
+        return "record-missing-verification-evidence"
+    for e in v:
+        addr = e.get("content_address")
+        path = e.get("path")
+        if not (isinstance(addr, str) and _SHA_ADDR_RE.match(addr)) or not (isinstance(path, str) and path):
+            return "record-missing-verification-evidence"
+        real = path if os.path.isabs(path) else os.path.join(base_dir, path)
+        try:
+            with open(real, "rb") as fh:
+                raw = fh.read()
+        except OSError:
+            return "record-verification-evidence-unverifiable"
+        if "sha256:" + hashlib.sha256(raw).hexdigest() != addr:
+            return "record-verification-evidence-mismatch"
+        try:
+            report = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return "record-verification-evidence-mismatch"
+        if not isinstance(report, dict) or report.get("overall") != e.get("overall") or report.get("body_hash") != e.get("body_hash"):
+            return "record-verification-evidence-mismatch"
+    return None
+
+
+def classify_migration_record(rec, base_dir="."):
     """Returns (valid: bool, key: str). A VALID record is one this summary
     may count toward coverage; key is "MIGRATED" or the exact closed-set
     not_migrated_reason. An INVALID record is never counted; key names why:
 
       record-missing-verification-evidence -- MIGRATED with no genuine
-          double-CLEAN, equal-body_hash verification pair (#13.3
-          "verification ... required iff MIGRATED");
+          double-CLEAN, equal-body_hash verification pair carrying a
+          sha256 content address + path per report (#13.3 "verification
+          ... required iff MIGRATED");
+      record-verification-evidence-unverifiable -- the cited report file
+          does not exist / cannot be read (relative paths resolve against
+          the record file's own directory);
+      record-verification-evidence-mismatch -- the cited report's REAL
+          bytes do not hash to the recorded content_address, or the report
+          itself says something other than the record claims (T177 Round
+          5, round-4 I1 M1 / I3);
+      record-missing-review-ref -- MIGRATED with no `review_ref` (#13.3
+          "required iff MIGRATED"; T177 Round 5 I3 -- enforced, data model
+          not amended);
+      record-missing-backup-marker -- MIGRATED with no `backup_marker`
+          {path, content_address sha256:<64 hex>} (#13.3, §9.2). Only the
+          marker's SHAPE is checked: the backup directory itself is a
+          disposable §9.2 mirror and may legitimately be pruned later, so
+          its absence on disk is not evidence of a false claim;
       nonconforming-reason -- NOT-MIGRATED whose reason is not EXACTLY a
           closed-set DEC-25 form (e.g. the reviewer's repro records that
           carried only {"project_id": ...} and were previously counted as
           not-migrated with reason "UNKNOWN");
+      local-git-error-vocabulary-gap -- a well-formed DEC-25 record whose
+          reason is migrate.sh's own `local-git-error` (a local git failure
+          no closed-set reason describes; T177 Round 3 N2). Still never
+          counted, but reported in its OWN bucket so an operator can tell
+          a tool-side git failure from a malformed record (round-4 MINOR);
       dry-run-only -- a dry run (CA-028: "planned diff and preflight
           verdict only") is not a migration outcome at all; migrate.sh
           writes outcome DRY-RUN, and the legacy "NOT-MIGRATED (preflight:
@@ -412,12 +474,17 @@ def classify_migration_record(rec):
     """
     outcome = rec.get("outcome")
     if outcome == "MIGRATED":
-        v = rec.get("verification")
-        if (isinstance(v, list) and len(v) == 2 and all(isinstance(e, dict) for e in v)
-                and all(e.get("overall") == "CLEAN" for e in v)
-                and v[0].get("body_hash") and v[0].get("body_hash") == v[1].get("body_hash")):
-            return True, "MIGRATED"
-        return False, "record-missing-verification-evidence"
+        problem = _verification_problem(rec.get("verification"), base_dir)
+        if problem:
+            return False, problem
+        rref = rec.get("review_ref")
+        if not (isinstance(rref, str) and rref.strip()):
+            return False, "record-missing-review-ref"
+        bm = rec.get("backup_marker")
+        if not (isinstance(bm, dict) and isinstance(bm.get("path"), str) and bm.get("path")
+                and isinstance(bm.get("content_address"), str) and _SHA_ADDR_RE.match(bm["content_address"])):
+            return False, "record-missing-backup-marker"
+        return True, "MIGRATED"
     if outcome == "DRY-RUN":
         return False, "dry-run-only"
     if outcome == "NOT-MIGRATED":
@@ -429,6 +496,8 @@ def classify_migration_record(rec):
         m = _REASON_RE.match(reason or "")
         if m and m.group(1) in MIGRATION_STEPS and m.group(2) in MIGRATION_REASONS and m.group(2) != "dirty-local":
             return True, reason
+        if m and m.group(1) in MIGRATION_STEPS and m.group(2) == "local-git-error":
+            return False, "local-git-error-vocabulary-gap"
         return False, "nonconforming-reason"
     return False, "missing-or-unknown-outcome"
 
@@ -452,13 +521,23 @@ def cmd_summary(args):
     # block at all (hand-written, or pre-B1) is recorded as "unrecorded"
     # and likewise never trusted as complete -- the absence of a
     # reachability record is not evidence of reachability (§11.4.201(6)).
+    #
+    # T177 Round 5 (round-4 I2): "complete" now requires BOTH degraded-probe
+    # lists to be genuinely PRESENT as lists. Round 3 only required the
+    # parent key: `"source_reachability": {}` (present but empty) read as
+    # complete via `reach.get(...) or []`, and a hand-written MIGRATED
+    # record then yielded coverage_trusted=true on a project set nobody
+    # proved complete. A block missing either list, or holding a non-list,
+    # is "incomplete" -- never trusted, exactly like an absent block.
     reach = consumers_doc.get("source_reachability")
-    if isinstance(reach, dict):
-        degraded = list(reach.get("github_degraded") or []) + list(reach.get("gitlab_degraded") or [])
-        enumeration_reachability = "degraded" if degraded else "complete"
-    else:
-        degraded = []
+    degraded = []
+    if not isinstance(reach, dict):
         enumeration_reachability = "unrecorded"
+    elif not (isinstance(reach.get("github_degraded"), list) and isinstance(reach.get("gitlab_degraded"), list)):
+        enumeration_reachability = "incomplete"
+    else:
+        degraded = list(reach["github_degraded"]) + list(reach["gitlab_degraded"])
+        enumeration_reachability = "degraded" if degraded else "complete"
 
     # T177 Round 1 B4: counted by DISTINCT enumerated project_id, never by
     # file count; out-of-set ids are reported, never counted.
@@ -473,6 +552,15 @@ def cmd_summary(args):
     # checkout, or a `touch` reorders them), so neither can decide which
     # claim is true. Invalid records never count and never override a
     # valid one; they are listed in `invalid_records_by_class`.
+    #
+    # OPERATIONAL CONSTRAINT (T177 Round 5, round-4 I6): --migrations must
+    # hold exactly ONE record per project. Content-based dedup cannot tell
+    # an honest RETRY history (an earlier valid `dirty-local` record left
+    # beside a later valid MIGRATED record for the same project) from two
+    # contradictory claims, so such a history is reported as conflicting
+    # and the project as uncovered. That fails SAFE (never silently
+    # trusted); the remedy is for re-runs to overwrite the project's
+    # previous record (migrate.sh --out <same path>), never accumulate.
     valid_by_id = {}
     invalid_by_id = {}
     unknown_ids_seen = set()
@@ -493,7 +581,7 @@ def cmd_summary(args):
         if pid not in known_ids:
             unknown_ids_seen.add(pid)
             continue
-        valid, key = classify_migration_record(rec)
+        valid, key = classify_migration_record(rec, os.path.dirname(os.path.abspath(mf)))
         if valid:
             valid_by_id.setdefault(pid, set()).add((key, rec.get("commit") or ""))
         else:
@@ -564,6 +652,8 @@ def cmd_summary(args):
             why.append("the consumers file comes from a DEGRADED enumeration (%d probe(s) failed) -- its project set is incomplete" % len(degraded))
         elif enumeration_reachability == "unrecorded":
             why.append("the consumers file carries no source_reachability block -- completeness of its project set is unknown")
+        elif enumeration_reachability == "incomplete":
+            why.append("the consumers file's source_reachability block lacks a github_degraded and/or gitlab_degraded LIST -- completeness of its project set is unproven")
         if conflicting:
             why.append("%d project(s) have conflicting valid records: %s" % (len(conflicting), ", ".join(sorted(conflicting))))
         print("audit.py summary: coverage NOT trusted: %s" % "; ".join(why), file=sys.stderr)

@@ -202,6 +202,54 @@ run_tool() {
     return 127
 }
 
+# T177 Round 5 (round-4 I1/I3): a MIGRATED record now only counts when its
+# cited verification reports EXIST and hash to the recorded content
+# address, and it carries review_ref + backup_marker. mkrec.py writes such a
+# record WITH REAL evidence files (or a deliberately broken variant, per
+# --break), so every MIGRATED fixture below is genuinely verifiable --
+# never a shape-only stand-in.
+MKREC="$WORK/mkrec.py"
+cat > "$MKREC" <<'PYEOF'
+import argparse, hashlib, json, os
+ap = argparse.ArgumentParser()
+ap.add_argument("--out", required=True)
+ap.add_argument("--project", required=True)
+ap.add_argument("--commit", default="c0ffee")
+ap.add_argument("--overall1", default="CLEAN")
+ap.add_argument("--overall2", default="CLEAN")
+ap.add_argument("--hash1", default="h")
+ap.add_argument("--hash2", default="h")
+ap.add_argument("--break", dest="brk", default="",
+                help="addr-of-path|missing-file|record-lies|no-review-ref|no-backup-marker|bad-backup-addr|relative-paths")
+a = ap.parse_args()
+base = a.out[:-len(".json")]
+ver = []
+for n, (ov, bh) in enumerate([(a.overall1, a.hash1), (a.overall2, a.hash2)], 1):
+    rpath = "%s.verify%d.json" % (base, n)
+    on_disk_overall = "NOT_CLEAN" if a.brk == "record-lies" else ov
+    raw = json.dumps({"schema": "verify-fixture/v1", "overall": on_disk_overall, "body_hash": bh}).encode()
+    with open(rpath, "wb") as fh:
+        fh.write(raw)
+    addr = "sha256:" + hashlib.sha256(raw).hexdigest()
+    if a.brk == "addr-of-path":
+        addr = "sha256:" + hashlib.sha256(rpath.encode()).hexdigest()
+    cited = os.path.basename(rpath) if a.brk == "relative-paths" else rpath
+    ver.append({"path": cited, "overall": ov, "body_hash": bh, "content_address": addr})
+    if a.brk == "missing-file":
+        os.remove(rpath)
+rec = {"schema": "consumer-migration/v1", "project_id": a.project, "outcome": "MIGRATED",
+       "data_change": "NONE", "commit": a.commit, "verification": ver,
+       "review_ref": "fixture-review-id", "backup_marker": {"path": "/fixture/backup/git", "content_address": "sha256:" + "a" * 64}}
+if a.brk == "no-review-ref":
+    del rec["review_ref"]
+if a.brk == "no-backup-marker":
+    del rec["backup_marker"]
+if a.brk == "bad-backup-addr":
+    rec["backup_marker"]["content_address"] = "sha256:not-hex"
+with open(a.out, "w") as fh:
+    json.dump(rec, fh)
+PYEOF
+
 # --- C1: CA-010 report count -- one ConsumerAuditReport per project
 C1_OUT=$(run_tool audit --config "$CFG" --consumers "$CONSUMERS3" --workdir "$WORK/cwork" --out "$WORK/audits/"); C1_RC=$?
 NUM_PROJECTS=$(python3 -c "import json; print(len(json.load(open('$CONSUMERS3'))['projects']))" 2>/dev/null || echo 3)
@@ -301,9 +349,7 @@ for i in 1 2 3 4 5; do
     # is DEDUP-BY-ID (D1/D2), so it carries a genuinely well-formed
     # `verification` pair (2 CLEAN reports) rather than accidentally
     # exercising the SEPARATE missing-evidence check this same round adds.
-    cat > "$D_MIGDIR/dup_$i.json" <<EOF
-{"schema":"consumer-migration/v1","project_id":"HelixDevelopment/ota","outcome":"MIGRATED","data_change":"NONE","commit":"deadbeef","verification":[{"path":"v1.json","overall":"CLEAN","body_hash":"abc"},{"path":"v2.json","overall":"CLEAN","body_hash":"abc"}]}
-EOF
+    python3 "$MKREC" --out "$D_MIGDIR/dup_$i.json" --project HelixDevelopment/ota --commit deadbeef --hash1 abc --hash2 abc
     echo '{"not_a_real_report": true}' > "$D_AUDDIR/stray_$i.json"
 done
 D_SUM_OUT=$(run_tool summary --consumers "$CONSUMERS3" --audits "$D_AUDDIR" --migrations "$D_MIGDIR" --out "$WORK/d_summary.json" 2>&1); D_SUM_RC=$?
@@ -569,9 +615,10 @@ for name, mk in sets.items():
 os.makedirs(os.path.join(d, "conflict"), exist_ok=True)
 for i in ids:
     json.dump(sets["valid"](i), open(os.path.join(d, "conflict", i.replace("/", "__") + ".json"), "w"))
-json.dump({"project_id": ids[0], "outcome": "MIGRATED", "commit": "c0ffee", "data_change": "NONE", "verification": VER},
-          open(os.path.join(d, "conflict", "zz_second_record.json"), "w"))
 PYEOF
+# the second, DIFFERENT valid record for p00 -- a MIGRATED record with real
+# verification evidence (T177 Round 5: shape-only evidence no longer counts)
+python3 "$MKREC" --out "$E_DIR/conflict/zz_second_record.json" --project e-org/p00 --commit c0ffee
 e_summary() {
     # $1=consumers-file $2=migrations-subdir $3=label -> sets E_RC; writes $E_DIR/$3.json
     run_tool summary --consumers "$E_DIR/$1" --audits "$E_DIR/aud" --migrations "$E_DIR/$2" --out "$E_DIR/$3.json" >/dev/null 2>&1
@@ -609,6 +656,234 @@ if [ "$E_RC" -eq 0 ] && [ "$(e_field valid coverage)" = "1.0" ] && [ "$(e_field 
     ok "E4 negative control (§11.4.201(1)): a COMPLETE enumeration with 19 valid closed-set records gives coverage 1.0, trusted, exit 0 -- the new checks do not refuse a genuinely complete run"
 else
     bad "E4 negative control: a genuinely complete, valid input was refused (rc=$E_RC; see $E_DIR/valid.json)"
+fi
+
+# =============================================================================
+# Section F -- T177 Round 5 (round-4 review I1 A1/A2/A3/A4/A6 + M1-at-summary,
+# I2, I3, N2-bucket, I6). Every guard below is paired with its EXACT
+# mutation, applied to a scratch copy of audit.py (never the tracked file):
+# the fixture must PASS on the real tool and the mutant must give the WRONG
+# answer on the SAME fixture -- otherwise the guard is decoration
+# (§11.4.115(F)/§1.1). Where round 5 restructured the code the reviewer's
+# anchor pointed at, the mutation is the SAME semantic deletion re-anchored
+# on the new text (noted per case); every other anchor is the reviewer's
+# verbatim.
+# =============================================================================
+F_DIR="$WORK/f_summary"
+mkdir -p "$F_DIR/aud"
+python3 - "$F_DIR" <<'PYEOF'
+import json, os, sys
+d = sys.argv[1]
+proj = [{"project_id": "f-org/p"}]
+ok = {"github_degraded": [], "gitlab_degraded": []}
+json.dump({"schema": "consumers/v1", "projects": proj, "source_reachability": ok}, open(os.path.join(d, "cons_ok.json"), "w"))
+json.dump({"schema": "consumers/v1", "projects": proj}, open(os.path.join(d, "cons_noreach.json"), "w"))
+json.dump({"schema": "consumers/v1", "projects": proj, "source_reachability": {}}, open(os.path.join(d, "cons_empty_reach.json"), "w"))
+json.dump({"schema": "consumers/v1", "projects": proj, "source_reachability": {"github_degraded": []}}, open(os.path.join(d, "cons_half_reach.json"), "w"))
+json.dump({"schema": "consumers/v1", "projects": proj, "source_reachability": {"github_degraded": "none", "gitlab_degraded": []}}, open(os.path.join(d, "cons_nonlist_reach.json"), "w"))
+PYEOF
+f_case() {
+    # $1=case-name; remaining args -> mkrec.py args (record written into its own dir)
+    _c=$1; shift
+    mkdir -p "$F_DIR/$_c"
+    python3 "$MKREC" --out "$F_DIR/$_c/rec.json" --project f-org/p "$@"
+}
+f_json() {
+    # $1=case $2=dir-name -> writes a raw JSON record (stdin) into the case dir
+    mkdir -p "$F_DIR/$1"; cat > "$F_DIR/$1/rec.json"
+}
+f_sum() {
+    # $1=tool $2=consumers-file $3=case $4=label -> F_RC; summary at $F_DIR/$4.sum
+    python3 "$1" summary --consumers "$F_DIR/$2" --audits "$F_DIR/aud" --migrations "$F_DIR/$3" --out "$F_DIR/$4.sum" >/dev/null 2>&1
+    F_RC=$?
+}
+f_get() { python3 -c "import json,sys; d=json.load(open('$F_DIR/$1.sum')); print(json.dumps(eval(sys.argv[1])))" "$2" 2>/dev/null; }
+f_mutant() {
+    # $1=label $2=anchor $3=replacement -> writes $F_DIR/mut_$1.py; F_MUT_OK=1 iff anchor unique
+    python3 - "$TOOL" "$F_DIR/mut_$1.py" "$2" "$3" <<'PYEOF'
+import sys
+src, dst, a, b = sys.argv[1:5]
+s = open(src, encoding="utf-8").read()
+if s.count(a) != 1:
+    sys.exit(2)
+open(dst, "w", encoding="utf-8").write(s.replace(a, b))
+PYEOF
+    _mrc=$?
+    F_MUT_OK=0
+    [ "$_mrc" -eq 0 ] && F_MUT_OK=1
+}
+# pair: $1=id $2=consumers $3=case $4=expected-real-python-expr $5=mutant-label $6=anchor $7=replacement $8=description
+f_pair() {
+    # The REAL-tool verdict is reported FIRST and independently of the
+    # mutant: an external mutation harness that mutates audit.py itself
+    # also breaks this function's own anchor, and the real-half failure
+    # must still be visible (never masked by the anchor-miss early return).
+    f_sum "$TOOL" "$2" "$3" "$1_real"
+    REAL_OK=$(f_get "$1_real" "$4")
+    REAL_RC=$F_RC
+    if [ "$REAL_OK" = "true" ] && [ "$REAL_RC" -ne 0 ]; then
+        ok "$1 $8 (real tool refuses: rc=$REAL_RC)"
+    else
+        bad "$1 $8: real tool did not refuse as expected (expr=$REAL_OK rc=$REAL_RC; see $F_DIR/$1_real.sum)"
+    fi
+    f_mutant "$5" "$6" "$7"
+    if [ "$F_MUT_OK" -ne 1 ]; then
+        bad "$1 guard-viability: mutation anchor for '$5' is not unique/present in audit.py -- re-derive it"
+        return
+    fi
+    f_sum "$F_DIR/mut_$5.py" "$2" "$3" "$1_mut"
+    MUT_OK=$(f_get "$1_mut" "$4")
+    if [ "$MUT_OK" = "false" ]; then
+        ok "$1 guard-viability: mutant '$5' gives the WRONG answer on the same fixture -- the guard is load-bearing"
+    else
+        bad "$1 guard-viability: mutant '$5' still gives the right answer (expr=$MUT_OK) -- the guard is NOT what catches it"
+    fi
+}
+
+# F0 negative control (§11.4.201(1)): a genuine MIGRATED record with real,
+# byte-matching evidence, review_ref and backup_marker IS counted; a
+# relative evidence path (resolved against the record's own directory) too.
+f_case f0_golden
+f_sum "$TOOL" cons_ok.json f0_golden f0
+if [ "$F_RC" -eq 0 ] && [ "$(f_get f0 "d['migrated']==1 and d['coverage_trusted'] is True")" = "true" ]; then
+    ok "F0 negative control: a MIGRATED record with real, byte-matching verification evidence + review_ref + backup_marker counts (coverage 1.0, trusted, exit 0)"
+else
+    bad "F0 negative control: a genuine MIGRATED record was refused (rc=$F_RC; see $F_DIR/f0.sum)"
+fi
+f_case f0_relative --break relative-paths
+f_sum "$TOOL" cons_ok.json f0_relative f0r
+if [ "$F_RC" -eq 0 ] && [ "$(f_get f0r "d['migrated']==1")" = "true" ]; then
+    ok "F0b negative control: relative evidence paths resolve against the record's own directory and still verify"
+else
+    bad "F0b negative control: relative evidence paths were not resolved (rc=$F_RC; see $F_DIR/f0r.sum)"
+fi
+
+# F1 (A1): NOT_CLEAN x2, equal hashes, files consistent with the record.
+# Round-5 code split the reviewer's anchor line; same deletion, re-anchored.
+f_case f1_notclean --overall1 NOT_CLEAN --overall2 NOT_CLEAN
+f_pair F1 cons_ok.json f1_notclean "d['migrated']==0 and d.get('invalid_records_by_class',{}).get('record-missing-verification-evidence')==1" \
+    A1_drop_clean_check \
+    '    if not all(e.get("overall") == "CLEAN" for e in v):
+        return "record-missing-verification-evidence"
+' '' \
+    "A1: a MIGRATED record whose verification pair is NOT_CLEAN is never counted"
+
+# F2 (A2): CLEAN x2 but DIFFERENT body_hash. Re-anchored (same deletion of the equality clause).
+f_case f2_hashdiff --hash1 h1 --hash2 h2
+f_pair F2 cons_ok.json f2_hashdiff "d['migrated']==0 and d.get('invalid_records_by_class',{}).get('record-missing-verification-evidence')==1" \
+    A2_drop_hash_eq \
+    'if not (v[0].get("body_hash") and v[0].get("body_hash") == v[1].get("body_hash")):' \
+    'if not (v[0].get("body_hash")):' \
+    "A2: a MIGRATED record whose two verify runs disagree on body_hash is never counted"
+
+# F3 (A3): two VALID MIGRATED records for one project naming DIFFERENT commits. Reviewer's verbatim anchor.
+mkdir -p "$F_DIR/f3_two_commits"
+python3 "$MKREC" --out "$F_DIR/f3_two_commits/a.json" --project f-org/p --commit aaaa1111
+python3 "$MKREC" --out "$F_DIR/f3_two_commits/b.json" --project f-org/p --commit bbbb2222
+f_pair F3 cons_ok.json f3_two_commits "'f-org/p' in d.get('conflicting_records',{}) and d['migrated']==0" \
+    A3_sig_ignores_commit \
+    'valid_by_id.setdefault(pid, set()).add((key, rec.get("commit") or ""))' \
+    'valid_by_id.setdefault(pid, set()).add((key, ""))' \
+    "A3: two MIGRATED claims naming different commits for one project are a conflict, not one migration"
+
+# F4 (A4, the RATIFIED 'missing source_reachability => untrusted' choice): reviewer's verbatim anchor.
+f_case f4_golden_rec
+f_pair F4 cons_noreach.json f4_golden_rec "d['enumeration_reachability']=='unrecorded' and d['coverage_trusted'] is False" \
+    A4_unrecorded_trusted \
+    'coverage_trusted = enumeration_reachability == "complete" and not conflicting' \
+    'coverage_trusted = enumeration_reachability in ("complete", "unrecorded") and not conflicting' \
+    "A4: a consumers file with NO source_reachability block is never trusted as complete, even with a valid record"
+
+# F5 (I2): source_reachability present but EMPTY / half / non-list -> never
+# complete. The mutant restores Round 3's exact parent-key-only logic
+# (`reach.get(...) or []`), the code the reviewer's `{}` repro defeated.
+for rc_file in cons_empty_reach.json cons_half_reach.json cons_nonlist_reach.json; do
+    f_pair "F5[$rc_file]" "$rc_file" f4_golden_rec "d['enumeration_reachability']=='incomplete' and d['coverage_trusted'] is False" \
+        I2_round3_presence_only \
+        '    elif not (isinstance(reach.get("github_degraded"), list) and isinstance(reach.get("gitlab_degraded"), list)):
+        enumeration_reachability = "incomplete"
+    else:
+        degraded = list(reach["github_degraded"]) + list(reach["gitlab_degraded"])' \
+        '    else:
+        degraded = list(reach.get("github_degraded") or []) + list(reach.get("gitlab_degraded") or [])' \
+        "I2: a source_reachability block lacking a real github_degraded AND gitlab_degraded list is 'incomplete', never trusted"
+done
+
+# F6 (A6): a well-formed reason whose STEP is outside the closed set. Reviewer's verbatim anchor.
+f_json f6_badstep <<'EOF'
+{"project_id":"f-org/p","outcome":"NOT-MIGRATED","not_migrated_reason":"NOT-MIGRATED (bogus-step: unreachable)","data_change":"NONE"}
+EOF
+f_pair F6 cons_ok.json f6_badstep "d.get('invalid_records_by_class',{}).get('nonconforming-reason')==1 and d['coverage']==0.0" \
+    A6_reason_any_step \
+    'if m and m.group(1) in MIGRATION_STEPS and m.group(2) in MIGRATION_REASONS' \
+    'if m and m.group(2) in MIGRATION_REASONS' \
+    "A6: a NOT-MIGRATED reason naming a step outside the closed DEC-25 step set is nonconforming, never counted"
+
+# F7 (M1 at the summary seam): the reviewer's M1 shape -- content_address =
+# sha256 of the PATH STRING -- plus a missing file and a record that lies
+# about what its own cited report says.
+f_case f7_addr_of_path --break addr-of-path
+f_pair F7a cons_ok.json f7_addr_of_path "d['migrated']==0 and d.get('invalid_records_by_class',{}).get('record-verification-evidence-mismatch')==1" \
+    M1S_drop_bytes_hash \
+    '        if "sha256:" + hashlib.sha256(raw).hexdigest() != addr:
+            return "record-verification-evidence-mismatch"
+' '' \
+    "M1(summary): a content_address that is not the sha256 of the cited report's REAL bytes is refused"
+f_case f7_missing --break missing-file
+f_pair F7b cons_ok.json f7_missing "d['migrated']==0 and d.get('invalid_records_by_class',{}).get('record-verification-evidence-unverifiable')==1" \
+    M1S_missing_ok \
+    '            return "record-verification-evidence-unverifiable"' \
+    '            continue' \
+    "M1(summary): a MIGRATED record whose cited report no longer exists is unverifiable, never counted"
+f_case f7_lies --break record-lies
+f_pair F7c cons_ok.json f7_lies "d['migrated']==0 and d.get('invalid_records_by_class',{}).get('record-verification-evidence-mismatch')==1" \
+    M1S_no_content_crosscheck \
+    'if not isinstance(report, dict) or report.get("overall") != e.get("overall") or report.get("body_hash") != e.get("body_hash"):' \
+    'if not isinstance(report, dict):' \
+    "M1(summary): a record claiming CLEAN while its own byte-matching report says NOT_CLEAN is refused"
+
+# F8 (I3): review_ref + backup_marker are REQUIRED iff MIGRATED (data model enforced, not amended).
+f_case f8_noref --break no-review-ref
+f_pair F8a cons_ok.json f8_noref "d['migrated']==0 and d.get('invalid_records_by_class',{}).get('record-missing-review-ref')==1" \
+    I3_drop_review_ref \
+    '        if not (isinstance(rref, str) and rref.strip()):
+            return False, "record-missing-review-ref"
+' '' \
+    "I3: a MIGRATED record with no review_ref is never counted"
+f_case f8_nobm --break no-backup-marker
+f_pair F8b cons_ok.json f8_nobm "d['migrated']==0 and d.get('invalid_records_by_class',{}).get('record-missing-backup-marker')==1" \
+    I3_drop_backup_marker \
+    '            return False, "record-missing-backup-marker"' \
+    '            pass' \
+    "I3: a MIGRATED record with no backup_marker is never counted"
+f_case f8_badbm --break bad-backup-addr
+f_sum "$TOOL" cons_ok.json f8_badbm f8c
+if [ "$F_RC" -ne 0 ] && [ "$(f_get f8c "d.get('invalid_records_by_class',{}).get('record-missing-backup-marker')==1")" = "true" ]; then
+    ok "F8c I3: a backup_marker whose content_address is not sha256:<64 hex> is refused"
+else
+    bad "F8c I3: a malformed backup_marker content address was accepted (rc=$F_RC; see $F_DIR/f8c.sum)"
+fi
+
+# F9 (round-4 MINOR N2): migrate.sh's own local-git-error lands in its OWN bucket.
+f_json f9_lge <<'EOF'
+{"project_id":"f-org/p","outcome":"NOT-MIGRATED","not_migrated_reason":"NOT-MIGRATED (gitlink-bump: local-git-error)","data_change":"NONE","detail":"git-update-index-failed"}
+EOF
+f_pair F9 cons_ok.json f9_lge "d.get('invalid_records_by_class',{}).get('local-git-error-vocabulary-gap')==1 and 'nonconforming-reason' not in d.get('invalid_records_by_class',{}) and d['coverage']==0.0" \
+    N2_merge_bucket \
+    '            return False, "local-git-error-vocabulary-gap"' \
+    '            return False, "nonconforming-reason"' \
+    "N2: a local-git-error record is reported in its own bucket (never counted, never confused with a malformed record)"
+
+# F10 (round-4 I6, documented constraint): an honest retry history left side
+# by side reads as a conflict -- fails SAFE, never silently trusted.
+mkdir -p "$F_DIR/f10_retry"
+printf '{"project_id":"f-org/p","outcome":"NOT-MIGRATED","not_migrated_reason":"NOT-MIGRATED (dirty-local)","data_change":"NONE"}' > "$F_DIR/f10_retry/attempt1.json"
+python3 "$MKREC" --out "$F_DIR/f10_retry/attempt2.json" --project f-org/p
+f_sum "$TOOL" cons_ok.json f10_retry f10
+if [ "$F_RC" -ne 0 ] && [ "$(f_get f10 "'f-org/p' in d.get('conflicting_records',{}) and d['coverage_trusted'] is False")" = "true" ]; then
+    ok "F10 I6 documented constraint: a retry history (dirty-local then MIGRATED) in one --migrations dir fails SAFE as a conflict -- one record per project is required"
+else
+    bad "F10 I6: a retry history was silently resolved (rc=$F_RC; see $F_DIR/f10.sum)"
 fi
 
 # Archive this run's stdout as the RED evidence per Test Discipline.

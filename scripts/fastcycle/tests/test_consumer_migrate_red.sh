@@ -838,12 +838,38 @@ F_CHECKOUT2="$F_ROOT/checkout2"
 git clone -q --no-hardlinks "$F_BARE" "$F_CHECKOUT2" >/dev/null 2>&1
 git -C "$F_CHECKOUT2" config user.name fastcycle-fixture 2>/dev/null
 git -C "$F_CHECKOUT2" config user.email fixture@example.invalid 2>/dev/null
+# T177 Round 5 (round-4 I3, enforced): the verify-only path ALSO requires a
+# bound GO review -- F3b proves the refusal without one, F3 the convergence
+# with one, and F3c that the MIGRATED record now carries review_ref +
+# backup_marker (data-model #13.3 "required iff MIGRATED").
+F3B_OUT=$(run_tool --config "$CFG" --project "fixture/section_f_verify_load_bearing" \
+    --workdir "$F_CHECKOUT2" --out "$WORK/f3b_migration.json" --apply); F3B_RC=$?
+if [ "$F3B_RC" -eq 1 ] && echo "$F3B_OUT" | grep -q 'NOT-MIGRATED (review: review-no-go)' && python3 -c "
+import json, sys
+d = json.load(open('$WORK/f3b_migration.json'))
+sys.exit(0 if d.get('data_change') == 'NONE' and 'review_ref' not in d and not d.get('commit') else 1)
+" 2>/dev/null && [ -z "$(git -C "$F_CHECKOUT2" status --porcelain=v1)" ]; then
+    ok "F3b R5 I3: an already-at-target consumer with NO bound review is refused review-no-go before any write (data_change NONE, tree clean) -- never a MIGRATED record without review_ref"
+else
+    bad "F3b R5 I3: already-at-target without a review was not refused honestly (rc=$F3B_RC out=$F3B_OUT; see $WORK/f3b_migration.json)"
+fi
+F3_REF=$(make_review_ref "fixture/section_f_verify_load_bearing" "$F_NEW_SHA" "$(git -C "$F_CHECKOUT2" rev-parse HEAD)")
 F3_OUT=$(run_tool --config "$CFG" --project "fixture/section_f_verify_load_bearing" \
-    --workdir "$F_CHECKOUT2" --out "$WORK/f3_migration.json" --apply); F3_RC=$?
+    --workdir "$F_CHECKOUT2" --out "$WORK/f3_migration.json" --apply --review-ref "$F3_REF"); F3_RC=$?
 if [ "$F3_RC" -eq 0 ] && echo "$F3_OUT" | grep -q 'MIGRATED' && ! echo "$F3_OUT" | grep -q 'NOT-MIGRATED'; then
     ok "F3 I4 already-at-target convergence: a fresh clone already at the migration target converges to MIGRATED via the verify-only path (no spurious 'git commit failed')"
 else
     bad "F3 I4 already-at-target convergence: an already-at-target consumer did NOT converge to MIGRATED (rc=$F3_RC out=$F3_OUT)"
+fi
+if python3 -c "
+import json, sys
+d = json.load(open('$WORK/f3_migration.json'))
+bm = d.get('backup_marker') or {}
+sys.exit(0 if d.get('outcome') == 'MIGRATED' and d.get('review_ref') and bm.get('content_address', '').startswith('sha256:') else 1)
+" 2>/dev/null; then
+    ok "F3c R5 I3: the already-at-target MIGRATED record carries review_ref and backup_marker (data-model #13.3 enforced, not amended)"
+else
+    bad "F3c R5 I3: the already-at-target MIGRATED record lacks review_ref/backup_marker (see $WORK/f3_migration.json)"
 fi
 
 # =============================================================================
@@ -1279,12 +1305,22 @@ if python3 -c "
 import json, sys
 d = json.load(open('$WORK/i4_migration.json'))
 v = d.get('verification') or []
+import hashlib
+def real_addr(p):
+    try:
+        return 'sha256:' + hashlib.sha256(open(p, 'rb').read()).hexdigest()
+    except OSError:
+        return None
+# T177 Round 5 (round-4 I1 M1): the content address must be the sha256 of
+# the persisted report's REAL BYTES, re-derived here -- never merely a
+# well-shaped 'sha256:<64>' string (the reviewer's M1 mutant hashed the
+# PATH STRING and passed the old shape-only check).
 ok = (d.get('outcome') == 'MIGRATED' and d.get('data_change') == 'NONE' and len(v) == 2
-      and all(e.get('content_address', '').startswith('sha256:') and len(e['content_address']) == 71 for e in v)
+      and all(e.get('content_address') and e.get('content_address') == real_addr(e.get('path', '')) for e in v)
       and d.get('backup_marker', {}).get('content_address', '').startswith('sha256:'))
 sys.exit(0 if ok else 1)
 " 2>/dev/null; then
-    ok "I6 R3 finding 8: the MIGRATED record carries both verification reports' content addresses and the backup marker's content address"
+    ok "I6 R3 finding 8 + R5 M1: the MIGRATED record's verification content addresses equal the sha256 of the persisted reports' REAL bytes, and the backup marker carries its content address"
 else
     bad "I6 R3 finding 8: the MIGRATED record lacks verification/backup content addresses (see $WORK/i4_migration.json)"
 fi
@@ -1355,6 +1391,9 @@ i9_run() {
     # $1=mode $2=label -> runs migrate.sh ($3 = tool path, default $TOOL)
     _tool=${3:-$TOOL}
     rm -f "$WORK/i9_counter"
+    # T177 Round 5 (I3): later runs take the already-at-target path, which
+    # now ALSO requires a GO review bound to the checkout's CURRENT HEAD.
+    I9_REF=$(make_review_ref "fixture/section_i9" "$R3_NEW" "$(git -C "$I_ROOT/i9/checkout" rev-parse HEAD)")
     FC_STUB_VERIFY_MODE=$1 FC_STUB_COUNTER="$WORK/i9_counter" FASTCYCLE_VERIFY_TOOL_OVERRIDE="$I9_STUB" \
         sh "$_tool" --config "$CFG" --project "fixture/section_i9" --workdir "$I_ROOT/i9/checkout" \
         --out "$WORK/i9_$2.json" --apply --review-ref "$I9_REF" 2>&1
@@ -1436,6 +1475,399 @@ sys.exit(0 if d.get('outcome') == 'DRY-RUN' and 'not_migrated_reason' not in d e
 else
     bad "I13 R3 finding 1(b): dry-run record shape is wrong (see $WORK/i13.json)"
 fi
+# =============================================================================
+# Section J -- T177 Round 5 (round-4 review: BLOCKING B1, I1 M1/M2/M3/M5/M6,
+# I4, MINOR detached-HEAD, I3). Every guard is paired with its mutation run
+# against a FRESH fixture on a scratch copy of migrate.sh (never the tracked
+# file): the real tool must refuse/behave correctly AND the mutant must give
+# the WRONG answer on the same fixture shape -- a guard no mutation breaks
+# is decoration (§11.4.115(F), §1.1). Anchors are the reviewer's verbatim
+# text unless noted (re-anchored only where round 5 rewrote the code).
+# =============================================================================
+j_mutant() {
+    # $1=label, then anchor/replacement PAIRS -> $WORK/jmut_$1.sh; J_MUT_OK=1 iff every anchor unique
+    _lbl=$1; shift
+    python3 - "$TOOL" "$WORK/jmut_$_lbl.sh" "$@" <<'PYEOF'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+pairs = sys.argv[3:]
+s = open(src, encoding="utf-8").read()
+for a, b in zip(pairs[0::2], pairs[1::2]):
+    if s.count(a) != 1:
+        sys.exit(2)
+    s = s.replace(a, b)
+open(dst, "w", encoding="utf-8").write(s)
+PYEOF
+    _jrc=$?
+    J_MUT_OK=0
+    [ "$_jrc" -eq 0 ] && J_MUT_OK=1
+}
+j_run() {
+    # $1=tool $2=fixture-root $3=project $4=out-json [extra args...] -> J_OUT/J_RC
+    _t=$1; _fr=$2; _pj=$3; _o=$4; shift 4
+    _ref=$(make_review_ref "$_pj" "$R3_NEW" "$(git -C "$_fr/checkout" rev-parse HEAD)")
+    # The REAL verifier path is pinned explicitly: a scratch mutant copy
+    # lives in $WORK, where its own $HERE-relative default would not resolve.
+    J_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$_t" --config "$CFG" --project "$_pj" --workdir "$_fr/checkout" --out "$_o" --apply --review-ref "$_ref" "$@" 2>&1)
+    J_RC=$?
+}
+jfield() { python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2],''))" "$1" "$2" 2>/dev/null; }
+
+# --- J1: BLOCKING B1 -- a hook mirroring the REAL post_update_hook.sh
+# install_skills() line (`ln -s "${CONST_DIR}/skills/<n>" "${PROJECT_ROOT}/
+# skills/<n>"`, an ABSOLUTE host path) must never be committed/pushed.
+J1_HOOK="$WORK/j1_abs_symlink_hook.sh"
+cat > "$J1_HOOK" <<'EOF'
+#!/usr/bin/env bash
+mkdir -p "$PROJECT_ROOT/skills"
+ln -s "${CONST_DIR}/skills/media-validator" "$PROJECT_ROOT/skills/media-validator"
+printf '{"mcpServers":{}}\n' > "$PROJECT_ROOT/.mcp.json"
+EOF
+build_r3_fixture "$I_ROOT/j1" "$J1_HOOK"
+J1_HEAD_BEFORE=$(git -C "$I_ROOT/j1/checkout" rev-parse HEAD)
+J1_REMOTE_BEFORE=$(git -C "$I_ROOT/j1/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j1" fixture/section_j1 "$WORK/j1.json"
+J1_REMOTE_AFTER=$(git -C "$I_ROOT/j1/consumer.git" rev-parse refs/heads/main)
+J1_HEAD_AFTER=$(git -C "$I_ROOT/j1/checkout" rev-parse HEAD)
+J1_DETAIL=$(jfield "$WORK/j1.json" detail)
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+    && echo "$J1_DETAIL" | grep -q 'host-specific-symlink path=skills/media-validator target-is-absolute' \
+    && [ "$J1_REMOTE_BEFORE" = "$J1_REMOTE_AFTER" ] && [ "$J1_HEAD_BEFORE" = "$J1_HEAD_AFTER" ]; then
+    ok "J1 R5 B1: a hook-created ABSOLUTE symlink (the real install_skills shape) is refused out-of-scope-diff before review/commit/push -- no local commit, remote tip unchanged"
+else
+    bad "J1 R5 B1: an absolute host-path symlink was not refused before publishing (rc=$J_RC out=$J_OUT detail=$J1_DETAIL remote $J1_REMOTE_BEFORE->$J1_REMOTE_AFTER head $J1_HEAD_BEFORE->$J1_HEAD_AFTER)"
+fi
+# Guard-viability: disable ONLY the symlink refusal -> the absolute path is
+# published into the remote's PERMANENT history (the reviewer's repro).
+j_mutant B1_no_symlink_check 'if [ -n "$SYMLINK_VIOLATION" ]; then' 'if false; then'
+build_r3_fixture "$I_ROOT/j1m" "$J1_HOOK"
+j_run "$WORK/jmut_B1_no_symlink_check.sh" "$I_ROOT/j1m" fixture/section_j1m "$WORK/j1m.json"
+J1M_LINK=$(git -C "$I_ROOT/j1m/consumer.git" cat-file -p "refs/heads/main:skills/media-validator" 2>/dev/null)
+J1M_MODE=$(git -C "$I_ROOT/j1m/consumer.git" ls-tree refs/heads/main skills/media-validator 2>/dev/null | awk '{print $1}')
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && [ "$J1M_MODE" = "120000" ] && echo "$J1M_LINK" | grep -q '^/'; then
+    ok "J1 guard-viability: with the symlink refusal disabled the mutant pushes a mode-120000 blob holding this host's ABSOLUTE path ($J1M_LINK) -- exactly the round-4 repro, so J1 is load-bearing"
+else
+    bad "J1 guard-viability: the symlink-check mutant did not reproduce the absolute-path publication (mut_ok=$J_MUT_OK rc=$J_RC mode=$J1M_MODE link=$J1M_LINK)"
+fi
+# J1b: a RELATIVE symlink that climbs OUT of the repository is refused too.
+J1B_HOOK="$WORK/j1b_escape_symlink_hook.sh"
+cat > "$J1B_HOOK" <<'EOF'
+#!/usr/bin/env bash
+mkdir -p "$PROJECT_ROOT/skills"
+ln -s "../../outside-the-repo/skill" "$PROJECT_ROOT/skills/escape"
+EOF
+build_r3_fixture "$I_ROOT/j1b" "$J1B_HOOK"
+J1B_REMOTE_BEFORE=$(git -C "$I_ROOT/j1b/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j1b" fixture/section_j1b "$WORK/j1b.json"
+if [ "$J_RC" -eq 1 ] && jfield "$WORK/j1b.json" detail | grep -q 'path=skills/escape target-escapes-repository' \
+    && [ "$J1B_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j1b/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J1b R5 B1: a relative symlink escaping the repository tree is refused, remote unchanged"
+else
+    bad "J1b R5 B1: an escaping relative symlink was not refused (rc=$J_RC out=$J_OUT; see $WORK/j1b.json)"
+fi
+# J1c negative control (§11.4.201(1)): a RELATIVE in-repo symlink (the
+# portable shape a fixed hook would emit) is host-independent and MIGRATES,
+# committed verbatim as a relative link.
+J1C_HOOK="$WORK/j1c_relative_symlink_hook.sh"
+cat > "$J1C_HOOK" <<'EOF'
+#!/usr/bin/env bash
+mkdir -p "$PROJECT_ROOT/skills"
+ln -s "../constitution/skills/media-validator" "$PROJECT_ROOT/skills/media-validator"
+EOF
+build_r3_fixture "$I_ROOT/j1c" "$J1C_HOOK"
+j_run "$TOOL" "$I_ROOT/j1c" fixture/section_j1c "$WORK/j1c.json"
+J1C_LINK=$(git -C "$I_ROOT/j1c/consumer.git" cat-file -p "refs/heads/main:skills/media-validator" 2>/dev/null)
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$J1C_LINK" = "../constitution/skills/media-validator" ]; then
+    ok "J1c negative control: a relative in-repo symlink is NOT refused -- MIGRATED, published as the portable relative link"
+else
+    bad "J1c negative control: a portable relative symlink was refused or mangled (rc=$J_RC out=$J_OUT link=$J1C_LINK)"
+fi
+
+# --- J2: I1 M5 -- a hook that modifies real product code (src/*) must be
+# refused by the post-hook allow-list; the reviewer's EXACT M5 mutation
+# (allow src/* and stage it) must instead publish the product change.
+J2_HOOK="$WORK/j2_src_hook.sh"
+cat > "$J2_HOOK" <<'EOF'
+#!/usr/bin/env bash
+echo "/* written by a hook */" >> "$PROJECT_ROOT/src/product.c"
+EOF
+build_r3_fixture "$I_ROOT/j2" "$J2_HOOK"
+J2_REMOTE_BEFORE=$(git -C "$I_ROOT/j2/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j2" fixture/section_j2 "$WORK/j2.json"
+if [ "$J_RC" -eq 1 ] && [ "$(jfield "$WORK/j2.json" detail)" = "path=src/product.c" ] \
+    && [ "$J2_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j2/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J2 R5 M5: a hook modifying src/product.c (product code) is refused out-of-scope-diff (detail path=src/product.c), remote unchanged"
+else
+    bad "J2 R5 M5: a hook-made product-code change was not refused (rc=$J_RC out=$J_OUT; see $WORK/j2.json)"
+fi
+j_mutant M5_allowlist_src \
+    'constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) : ;;' \
+    'constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*|src/*) : ;;' \
+    '[ -d "$WORKDIR/skills" ] && git -C "$WORKDIR" add -A -- skills 2>/dev/null
+' \
+    '[ -d "$WORKDIR/skills" ] && git -C "$WORKDIR" add -A -- skills 2>/dev/null
+        git -C "$WORKDIR" add -A -- src 2>/dev/null
+'
+build_r3_fixture "$I_ROOT/j2m" "$J2_HOOK"
+j_run "$WORK/jmut_M5_allowlist_src.sh" "$I_ROOT/j2m" fixture/section_j2m "$WORK/j2m.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && git -C "$I_ROOT/j2m/consumer.git" show refs/heads/main:src/product.c 2>/dev/null | grep -q 'written by a hook'; then
+    ok "J2 guard-viability: the reviewer's M5 mutant publishes the hook's src/product.c change as MIGRATED -- J2 is what catches it"
+else
+    bad "J2 guard-viability: the M5 mutant did not publish the product change (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+
+# --- J3: I1 M6 -- the CA-022 boundary is the EXACT root `.mcp.json`; a hook
+# writing any OTHER *.json (here a root package.json, product manifest)
+# must be refused. Reviewer's EXACT M6 mutation widens it to `*.json`.
+J3_HOOK="$WORK/j3_json_hook.sh"
+cat > "$J3_HOOK" <<'EOF'
+#!/usr/bin/env bash
+printf '{"name":"product","version":"9.9.9"}\n' > "$PROJECT_ROOT/package.json"
+EOF
+build_r3_fixture "$I_ROOT/j3" "$J3_HOOK"
+J3_REMOTE_BEFORE=$(git -C "$I_ROOT/j3/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j3" fixture/section_j3 "$WORK/j3.json"
+if [ "$J_RC" -eq 1 ] && [ "$(jfield "$WORK/j3.json" detail)" = "path=package.json" ] \
+    && [ "$J3_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j3/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J3 R5 M6: a hook-written root package.json (not the exact .mcp.json) is refused out-of-scope-diff, remote unchanged"
+else
+    bad "J3 R5 M6: a non-.mcp.json JSON file passed the allow-list (rc=$J_RC out=$J_OUT; see $WORK/j3.json)"
+fi
+j_mutant M6_allowlist_any_json '|config/fastcycle/*|.mcp.json|skills/*) : ;;' '|config/fastcycle/*|*.json|skills/*) : ;;'
+build_r3_fixture "$I_ROOT/j3m" "$J3_HOOK"
+J3M_REMOTE_BEFORE=$(git -C "$I_ROOT/j3m/consumer.git" rev-parse refs/heads/main)
+j_run "$WORK/jmut_M6_allowlist_any_json.sh" "$I_ROOT/j3m" fixture/section_j3m "$WORK/j3m.json"
+# The mutant lets package.json through the scope check; the staging block
+# does not add it, so the run commits + PUSHES the migration while leaving
+# product-manifest residue, and only the later verify step notices (as a
+# mis-classified verification-not-clean). The wrong answer is therefore:
+# the remote MOVED despite out-of-scope hook output.
+if [ "$J_MUT_OK" -eq 1 ] && [ "$(jfield "$WORK/j3m.json" detail)" != "path=package.json" ] \
+    && [ "$J3M_REMOTE_BEFORE" != "$(git -C "$I_ROOT/j3m/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J3 guard-viability: the reviewer's M6 mutant (allow *.json) lets package.json past the scope check and PUSHES the migration commit with product-manifest residue left behind (rc=$J_RC detail=$(jfield "$WORK/j3m.json" detail)) -- J3 is what catches the widening before anything is published"
+else
+    bad "J3 guard-viability: the M6 mutant still refuses package.json exactly as the real tool (mut_ok=$J_MUT_OK rc=$J_RC)"
+fi
+
+# --- J4: I1 M1 -- the reviewer's EXACT M1 mutant (content_address = sha256
+# of the PATH STRING) must fail I6's real-bytes check above.
+j_mutant M1_sha_of_path \
+    '[ -n "$V1_PERSIST" ] && V1_SHA=$(sha256sum "$V1_PERSIST" 2>/dev/null | awk '"'"'{print $1}'"'"')' \
+    '[ -n "$V1_PERSIST" ] && V1_SHA=$(printf %s "$V1_PERSIST" | sha256sum | awk '"'"'{print $1}'"'"')' \
+    '[ -n "$V2_PERSIST" ] && V2_SHA=$(sha256sum "$V2_PERSIST" 2>/dev/null | awk '"'"'{print $1}'"'"')' \
+    '[ -n "$V2_PERSIST" ] && V2_SHA=$(printf %s "$V2_PERSIST" | sha256sum | awk '"'"'{print $1}'"'"')'
+build_r3_fixture "$I_ROOT/j4m"
+j_run "$WORK/jmut_M1_sha_of_path.sh" "$I_ROOT/j4m" fixture/section_j4m "$WORK/j4m.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && ! python3 -c "
+import hashlib, json, sys
+d = json.load(open('$WORK/j4m.json'))
+v = d.get('verification') or []
+sys.exit(0 if v and all(e['content_address'] == 'sha256:' + hashlib.sha256(open(e['path'], 'rb').read()).hexdigest() for e in v) else 1)
+" 2>/dev/null; then
+    ok "J4 guard-viability: the reviewer's M1 mutant (sha256 of the path string) writes content addresses that do NOT match the reports' real bytes -- the I6 real-bytes check (and audit.py summary) catch it; the old shape-only check did not"
+else
+    bad "J4 guard-viability: the M1 mutant's content addresses were not distinguishable from real ones (mut_ok=$J_MUT_OK rc=$J_RC; see $WORK/j4m.json)"
+fi
+
+# --- J5: I1 M2 -- a verify report that cannot be persisted must refuse
+# MIGRATED (evidence-not-persisted). Forced for real: the persisted-report
+# path ${OUT%.json}.verify1.json is a DANGLING symlink into a directory that
+# does not exist, so `cp` genuinely fails.
+build_r3_fixture "$I_ROOT/j5"
+J5_OUT_JSON="$WORK/j5dir/j5.json"
+mkdir -p "$WORK/j5dir"
+ln -s "$WORK/j5_no_such_dir/target.json" "$WORK/j5dir/j5.verify1.json"
+j_run "$TOOL" "$I_ROOT/j5" fixture/section_j5 "$J5_OUT_JSON"
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (verify: verification-not-clean)' && jfield "$J5_OUT_JSON" detail | grep -q 'evidence-not-persisted'; then
+    ok "J5 R5 M2: a verify report that cannot be persisted refuses MIGRATED (verify: verification-not-clean, detail evidence-not-persisted)"
+else
+    bad "J5 R5 M2: an unpersistable verify report did not refuse MIGRATED (rc=$J_RC out=$J_OUT; see $J5_OUT_JSON)"
+fi
+j_mutant M2_drop_evidence_not_persisted '{ [ -z "$V1_SHA" ] || [ -z "$V2_SHA" ]; } && VERIFY_FAIL="$VERIFY_FAIL evidence-not-persisted"
+' ''
+build_r3_fixture "$I_ROOT/j5m"
+mkdir -p "$WORK/j5mdir"
+ln -s "$WORK/j5m_no_such_dir/target.json" "$WORK/j5mdir/j5m.verify1.json"
+j_run "$WORK/jmut_M2_drop_evidence_not_persisted.sh" "$I_ROOT/j5m" fixture/section_j5m "$WORK/j5mdir/j5m.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED'; then
+    ok "J5 guard-viability: the reviewer's M2 mutant claims MIGRATED with NO persisted evidence -- J5 is what catches it"
+else
+    bad "J5 guard-viability: the M2 mutant did not claim MIGRATED (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+
+# --- J6: I1 M3 -- a local branch with NO counterpart on any remote is
+# refused with the specific no-published-counterpart detail. Reviewer's
+# EXACT M3 anchor; the mutant falls through to the collective count and
+# refuses for a DIFFERENT (wrong) reason, so the detail is what proves the
+# guard ran.
+build_r3_fixture "$I_ROOT/j6"
+git -C "$I_ROOT/j6/checkout" checkout -q -b never-published-branch
+j_run "$TOOL" "$I_ROOT/j6" fixture/section_j6 "$WORK/j6.json"
+J6_DETAIL=$(jfield "$WORK/j6.json" detail)
+if [ "$J_RC" -eq 1 ] && [ "$J6_DETAIL" = "branch-never-published-branch-has-no-published-counterpart-on-any-remote" ]; then
+    ok "J6 R5 M3: a branch with no published counterpart on any remote is refused at preflight with the exact no-published-counterpart detail"
+else
+    bad "J6 R5 M3: unpublished-branch refusal missing or mislabelled (rc=$J_RC detail=$J6_DETAIL)"
+fi
+j_mutant M3_drop_no_published_counterpart 'if [ "$PUBLISHED_REFS" -eq 0 ]; then
+    not_migrated' 'if false; then
+    not_migrated'
+j_run "$WORK/jmut_M3_drop_no_published_counterpart.sh" "$I_ROOT/j6" fixture/section_j6 "$WORK/j6m.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ "$(jfield "$WORK/j6m.json" detail)" != "branch-never-published-branch-has-no-published-counterpart-on-any-remote" ]; then
+    ok "J6 guard-viability: the reviewer's M3 mutant no longer produces the no-published-counterpart refusal (got rc=$J_RC detail=$(jfield "$WORK/j6m.json" detail)) -- J6 is load-bearing"
+else
+    bad "J6 guard-viability: the M3 mutant still produced the same refusal (mut_ok=$J_MUT_OK)"
+fi
+
+# --- J7: I4 -- a mirror LAGGING behind a commit already published on origin
+# is NOT an unpublished commit: the run must migrate and bring BOTH remotes
+# to the migration commit. The original finding-4 shape (an unpublished
+# local product commit) is still refused (I1 above), and a local branch
+# fast-forwarded onto a DIFFERENT published branch is refused too.
+build_r3_fixture "$I_ROOT/j7"
+git clone -q --bare "$I_ROOT/j7/consumer.git" "$I_ROOT/j7/mirror.git" >/dev/null 2>&1
+J7_LAG=$(mktemp -d)
+git clone -q "$I_ROOT/j7/consumer.git" "$J7_LAG" >/dev/null 2>&1
+echo "published-on-origin-only" > "$J7_LAG/NOTES.md"
+git -C "$J7_LAG" add NOTES.md
+git -C "$J7_LAG" -c user.name=f -c user.email=f@example.invalid commit -q -m "already published on origin"
+git -C "$J7_LAG" push -q origin main
+rm -rf "$J7_LAG"
+git -C "$I_ROOT/j7/checkout" pull -q --ff-only origin main
+git -C "$I_ROOT/j7/checkout" remote add mirror "$I_ROOT/j7/mirror.git"
+git -C "$I_ROOT/j7/checkout" fetch -q mirror
+j_run "$TOOL" "$I_ROOT/j7" fixture/section_j7 "$WORK/j7.json"
+J7_HEAD=$(git -C "$I_ROOT/j7/checkout" rev-parse HEAD)
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' \
+    && [ "$(git -C "$I_ROOT/j7/consumer.git" rev-parse refs/heads/main)" = "$J7_HEAD" ] \
+    && [ "$(git -C "$I_ROOT/j7/mirror.git" rev-parse refs/heads/main)" = "$J7_HEAD" ]; then
+    ok "J7 R5 I4: a mirror lagging behind an ALREADY-PUBLISHED commit is not a false 'unpublished' refusal -- MIGRATED, origin and mirror both at the migration commit"
+else
+    bad "J7 R5 I4: the lagging-mirror fleet shape was refused or not converged (rc=$J_RC out=$J_OUT)"
+fi
+# Guard-viability for the I4 FIX: the round-3 per-remote comparison
+# (re-anchored on the round-5 collective line) re-creates the false refusal.
+j_mutant I4_per_remote 'UNPUBLISHED=$(git -C "$WORKDIR" rev-list --count "$LOCAL_HEAD" --not $PUBLISHED_REF_LIST 2>/dev/null)' \
+    'UNPUBLISHED=0; for _r in $PUBLISHED_REF_LIST; do _a=$(git -C "$WORKDIR" rev-list --count "$_r..$LOCAL_HEAD" 2>/dev/null); [ "$_a" != "0" ] && UNPUBLISHED=$_a; done'
+build_r3_fixture "$I_ROOT/j7m"
+git clone -q --bare "$I_ROOT/j7m/consumer.git" "$I_ROOT/j7m/mirror.git" >/dev/null 2>&1
+J7_LAG=$(mktemp -d)
+git clone -q "$I_ROOT/j7m/consumer.git" "$J7_LAG" >/dev/null 2>&1
+echo "published-on-origin-only" > "$J7_LAG/NOTES.md"
+git -C "$J7_LAG" add NOTES.md
+git -C "$J7_LAG" -c user.name=f -c user.email=f@example.invalid commit -q -m "already published on origin"
+git -C "$J7_LAG" push -q origin main
+rm -rf "$J7_LAG"
+git -C "$I_ROOT/j7m/checkout" pull -q --ff-only origin main
+git -C "$I_ROOT/j7m/checkout" remote add mirror "$I_ROOT/j7m/mirror.git"
+git -C "$I_ROOT/j7m/checkout" fetch -q mirror
+j_run "$WORK/jmut_I4_per_remote.sh" "$I_ROOT/j7m" fixture/section_j7m "$WORK/j7m.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (preflight: divergent-branches)'; then
+    ok "J7 guard-viability: the round-3 per-remote comparison falsely refuses the lagging-mirror fleet (divergent-branches) -- the collective count is what fixes it"
+else
+    bad "J7 guard-viability: the per-remote mutant did not reproduce the false refusal (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+# J7b: fast-forwarding main onto a DIFFERENT published branch (an unreviewed
+# feature branch) has zero commits outside `--remotes` but would publish
+# that branch's product code onto main -- still refused.
+build_r3_fixture "$I_ROOT/j7b"
+J7B_W=$(mktemp -d)
+git clone -q "$I_ROOT/j7b/consumer.git" "$J7B_W" >/dev/null 2>&1
+git -C "$J7B_W" checkout -q -b feature-x
+echo "/* unreviewed feature */" >> "$J7B_W/src/product.c"
+git -C "$J7B_W" -c user.name=f -c user.email=f@example.invalid commit -q -am "feature-x product change"
+git -C "$J7B_W" push -q origin feature-x
+rm -rf "$J7B_W"
+git -C "$I_ROOT/j7b/checkout" fetch -q origin
+git -C "$I_ROOT/j7b/checkout" merge -q --ff-only origin/feature-x
+J7B_REMOTE_BEFORE=$(git -C "$I_ROOT/j7b/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j7b" fixture/section_j7b "$WORK/j7b.json"
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (preflight: divergent-branches)' \
+    && [ "$J7B_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j7b/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J7b R5 I4: main fast-forwarded onto a different published branch is refused (its commits are on no remote copy of main) -- the collective count is branch-scoped, not --remotes"
+else
+    bad "J7b R5 I4: fast-forward onto another branch was not refused (rc=$J_RC out=$J_OUT)"
+fi
+
+# --- J8: round-4 MINOR -- a DETACHED HEAD is refused before any write; no
+# local commit is left behind.
+build_r3_fixture "$I_ROOT/j8"
+git -C "$I_ROOT/j8/checkout" checkout -q --detach
+J8_HEAD_BEFORE=$(git -C "$I_ROOT/j8/checkout" rev-parse HEAD)
+j_run "$TOOL" "$I_ROOT/j8" fixture/section_j8 "$WORK/j8.json"
+if [ "$J_RC" -eq 1 ] && [ "$(jfield "$WORK/j8.json" detail)" = "detached-HEAD-no-branch-to-fast-forward" ] \
+    && [ "$J8_HEAD_BEFORE" = "$(git -C "$I_ROOT/j8/checkout" rev-parse HEAD)" ]; then
+    ok "J8 R5 detached-HEAD: a detached checkout is refused at preflight and no local commit is left behind"
+else
+    bad "J8 R5 detached-HEAD: not refused before writing (rc=$J_RC out=$J_OUT head-before=$J8_HEAD_BEFORE)"
+fi
+j_mutant DH_no_detached_check 'if [ "$BRANCH" = "HEAD" ] || [ -z "$BRANCH" ]; then' 'if false; then'
+build_r3_fixture "$I_ROOT/j8m"
+git -C "$I_ROOT/j8m/checkout" checkout -q --detach
+J8M_HEAD_BEFORE=$(git -C "$I_ROOT/j8m/checkout" rev-parse HEAD)
+j_run "$WORK/jmut_DH_no_detached_check.sh" "$I_ROOT/j8m" fixture/section_j8m "$WORK/j8m.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J8M_HEAD_BEFORE" != "$(git -C "$I_ROOT/j8m/checkout" rev-parse HEAD)" ]; then
+    ok "J8 guard-viability: without the detached-HEAD check the mutant commits locally and leaves that commit behind (rc=$J_RC) -- the round-4 repro"
+else
+    bad "J8 guard-viability: the detached-HEAD mutant did not reproduce the left-behind local commit (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+
+# --- J9: I3 guard-viability -- dropping the already-at-target review check
+# lets a MIGRATED record out with NO review_ref (F3b above is the real-tool
+# half of this pair).
+# (Mutant = the round-3 code: no at-target review, REVIEW_REF_ID set empty.)
+j_mutant I3_no_at_target_review 'if ! check_review; then
+        not_migrated "review" "review-no-go"' 'REVIEW_REF_ID=""
+    if false; then
+        not_migrated "review" "review-no-go"'
+F_CHECKOUT3="$F_ROOT/checkout3"
+git clone -q --no-hardlinks "$F_BARE" "$F_CHECKOUT3" >/dev/null 2>&1
+J9_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_I3_no_at_target_review.sh" --config "$CFG" --project "fixture/section_f_verify_load_bearing" \
+    --workdir "$F_CHECKOUT3" --out "$WORK/j9m.json" --apply 2>&1); J9_RC=$?
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J9_RC" -eq 0 ] && [ "$(jfield "$WORK/j9m.json" outcome)" = "MIGRATED" ] && [ -z "$(jfield "$WORK/j9m.json" review_ref)" ]; then
+    ok "J9 guard-viability: without the at-target review check the mutant writes a MIGRATED record with NO review_ref -- exactly the round-4 I3 gap F3b now refuses"
+else
+    bad "J9 guard-viability: the at-target-review mutant did not reproduce the review_ref-less MIGRATED record (mut_ok=$J_MUT_OK rc=$J9_RC out=$J9_OUT)"
+fi
+
+# --- J10: the B1 scanner's OWN failure must refuse (conservative-safe,
+# §11.4.201), never publish uninspected content. Forced for real: a PATH
+# shim wraps python3 and fails ONLY the symlink-scanner invocation (matched
+# by its own source text), passing every other call to the real python3.
+J10_BIN="$WORK/j10_bin"
+mkdir -p "$J10_BIN"
+J10_REAL_PY=$(command -v python3)
+cat > "$J10_BIN/python3" <<EOF
+#!/bin/sh
+for a in "\$@"; do
+    case "\$a" in *host-specific-symlink*) echo "j10 shim: scanner forced to fail" >&2; exit 3 ;; esac
+done
+exec "$J10_REAL_PY" "\$@"
+EOF
+chmod +x "$J10_BIN/python3"
+build_r3_fixture "$I_ROOT/j10" "$J1C_HOOK"
+J10_REMOTE_BEFORE=$(git -C "$I_ROOT/j10/consumer.git" rev-parse refs/heads/main)
+J10_SAVED_PATH=$PATH; PATH="$J10_BIN:$PATH"
+j_run "$TOOL" "$I_ROOT/j10" fixture/section_j10 "$WORK/j10.json"
+PATH=$J10_SAVED_PATH
+if [ "$J_RC" -eq 1 ] && [ "$(jfield "$WORK/j10.json" detail)" = "symlink-scan-failed" ] \
+    && [ "$J10_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j10/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J10 R5 B1 fail-closed: when the symlink scanner itself cannot run, the migration is refused (detail symlink-scan-failed), remote unchanged"
+else
+    bad "J10 R5 B1 fail-closed: a failed symlink scan did not refuse (rc=$J_RC out=$J_OUT; see $WORK/j10.json)"
+fi
+j_mutant B1_scan_failure_ignored 'if [ "$SYMLINK_RC" -ne 0 ]; then' 'if false; then'
+build_r3_fixture "$I_ROOT/j10m" "$J1C_HOOK"
+J10M_REMOTE_BEFORE=$(git -C "$I_ROOT/j10m/consumer.git" rev-parse refs/heads/main)
+PATH="$J10_BIN:$PATH"
+j_run "$WORK/jmut_B1_scan_failure_ignored.sh" "$I_ROOT/j10m" fixture/section_j10m "$WORK/j10m.json"
+PATH=$J10_SAVED_PATH
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J10M_REMOTE_BEFORE" != "$(git -C "$I_ROOT/j10m/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J10 guard-viability: ignoring the scanner's failure publishes content no scan inspected (rc=$J_RC) -- J10 is load-bearing"
+else
+    bad "J10 guard-viability: the scan-failure mutant did not publish (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+
 rm -rf "$I_ROOT" 2>/dev/null || true
 
 rm -rf "$H_ROOT" 2>/dev/null || true
