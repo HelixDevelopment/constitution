@@ -681,7 +681,7 @@ for url, expected in cases.items():
 print("ALL_OK" if ok else "SOME_FAILED")
 PY
 )
-echo "$RU_OUT" | sed 's/^/   /'
+while IFS= read -r ru_line; do printf '   %s\n' "$ru_line"; done <<<"$RU_OUT"
 case "$RU_OUT" in
   *ALL_OK*) ok "redact_url: no credential fragment leaks for either reviewer-reported embedded-'/'-or-second-'@' URL, and a GitLab subgroup path is no longer truncated to its last two segments (MINOR credential-handling fix confirmed, 11.4.10)" ;;
   *) not_ok "redact_url: at least one case failed -- see output above" ;;
