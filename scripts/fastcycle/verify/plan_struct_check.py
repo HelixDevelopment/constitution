@@ -23,6 +23,8 @@ Usage:   plan_struct_check.py causes --doc <research.md> --out <causes.json>
              --out <landing.json>
          plan_struct_check.py rule-diff --constitution <dir> --base <sha> --out <rule_diff.json>
              [--operator-decisions 11.4.N=DEC-ref[,11.4.M=DEC-ref...]]
+         plan_struct_check.py triple --plan <plan.md> --tasks <tasks.md> --contracts <dir>
+             --out <triple.json> [--root <dir>]
 
 `research` (SC-C-002, FR-003, T178 fixtures 4/5): reads research.md's §3 decision log (every
 `### DEC-NN` entry's own `- **Source:**` field, scanned by heading shape alone -- never assuming
@@ -514,6 +516,73 @@ separate `register_audit` fixture-validation instrument.
 Side-effects: `causes` writes --out via fc_common.py's atomic emit path (except on exit 2/3/4).
 Stdlib only (matches lib/fc_common.py's own convention); imports canon/body_hash_of/cmd_emit
 from the sibling lib/fc_common.py (C-002), same wiring pattern as cycle_report.py.
+
+`triple` (CT-5, Post-Design Principle IV; common-conventions.md C-005; ATM-1109, 2026-10-01 --
+the tracked follow-up T179's own module docstring named as the one thing still owed after
+`research`/`plan` landed): checks that every "analyzer, oracle, judge and guard" task ships the
+self-validation triple (golden-good, golden-bad, negative-control) its own RED test is supposed
+to carry. "Analyzer/oracle/judge/guard task" is NOT a classification this file invents -- it is
+derived MECHANICALLY from two already-present, structural sources, never a hand-picked or
+hardcoded task list (constitution 11.4.6):
+
+  (1) SCOPE comes from `--contracts`/common-conventions.md's own `### Tool map (contract -> plan
+      file -> plan task)` table (parsed by `parse_tool_map`), cross-checked per contract against
+      that SAME contract's own text: a contract is "self-validation-triple-scoped" (CT-5's own
+      "oracle/analyzer/judge/guard" class) iff ITS OWN text genuinely demonstrates all three
+      triple classes somewhere (a RED-fixtures table, per C-005) -- `_svt_classes_present`,
+      reused identically for this scope decision and for the per-test-file completeness check
+      below. A contract this tool cannot confirm ships its own triple (common-conventions.md
+      itself, and the "Plan tools that no contract...covers" footnote list, both correctly fail
+      this test) is left OUT OF SCOPE, never silently assumed in -- verified live against the
+      real corpus (2026-10-01) before choosing this design: this yields exactly the 12 real tool
+      contracts (affected-set-and-verdict-cache, agent-registry-and-handoff,
+      catch-set-comparison-harness, closure-refusal, consumer-audit-and-migration,
+      cycle-time-report-cli, evidence-reference-reverify, governance-subset-selector,
+      host-resource-attribution, plan-research-structural-check, recursive-verification,
+      review-batch-and-precheck) and 43 of the 68 real plan tasks -- a strict superset of CT-5's
+      own 13 named examples (the 10 "cache, selector, compare tool, ... enumerator and verifier"
+      items plus the 3 originally-incomplete ones), all 13 of which land inside this 43-task
+      scope, confirming the mechanical derivation agrees with CT-5's own worked examples rather
+      than merely approximating them.
+  (2) COMPLETENESS, per in-scope task, comes from `--tasks`/tasks.md's own "RED test `<path>`
+      ... (plan T-...)" lines (parsed by `parse_red_test_task_map`, the SAME line shape this
+      project's own T052/T091/T125/T126 use, verified against all four real lines before choosing
+      it): the task's own RED-test file content is scanned (`_svt_classes_present`) for the THREE
+      self-validation-triple classes -- `golden-good`/`golden good`/`golden_good` OR `control
+      needle` (T052's and T126's own RED tests satisfy this member EXCLUSIVELY via "control
+      needle", never spelling out "golden-good" at all -- confirmed by direct inspection before
+      choosing this fallback, constitution 11.4.201(7)(a): match the vocabulary this project's
+      OWN files actually use, not a guess); `golden-bad`/`golden bad`/`golden_bad`; `negative
+      control`/`negative-control`/`negative_control`/`negctrl`. A missing class, a task with zero
+      RED-test entries at all, an unreadable RED-test file, a Tool-map-named contract whose own
+      `.md` file cannot be read, or a Tool-map-named task id absent from `--plan` are each their
+      own named violation (`triple_incomplete` / `triple_test_file_missing` /
+      `triple_test_file_unreadable` / `contract_file_missing` / `tool_map_task_unknown`).
+
+HONESTLY DISCLOSED, NOT caught (matching this file's own established convention for partial
+coverage -- see `causes`'s docstring clauses (d)/(e)/(f) and `research`'s own SEVEN-topics
+disclosure for precedent): (i) a fixture-class member represented ONLY by an abbreviated
+directory-naming convention with no descriptive prose ever spelling out one of the phrases above
+(a REAL, confirmed case in this corpus: T-C03's `test_affected_set_red.sh` names `as_bad_*`
+fixtures but never once writes "golden-bad" anywhere in its own text -- correctly, honestly
+flagged `triple_incomplete` by this design, in the CONSERVATIVE direction constitution
+11.4.201(4) prefers: a missed-but-real triple member under-reports completeness, never
+over-reports it); (ii) a RED-establishing task line phrased with a verb other than "RED test"
+(a REAL, confirmed case: T-B01's own line reads "Write and run the reproduction probe `...`; RED
+= ...", never the literal phrase "RED test", so `parse_red_test_task_map` does not find it and
+T-B01 is honestly reported `triple_test_file_missing` even though its own RED establishment
+genuinely exists under different wording). Verified live against the real corpus (2026-10-01,
+before this feature's own `self_check_triple` was written): of the 43 in-scope tasks, 21 are
+genuinely complete (including all 4 of T-C02/T-B04/T-B05/T-D06, the tasks CT-5's own box text
+named as needing the negative-control fix T052/T091/T125/T126 supplied), 8 have zero recognised
+RED-test entry at all, and 14 are missing exactly one named class from an otherwise-present RED
+test -- a real, actionable finding set this check's whole purpose is to surface honestly, not
+paper over with a narrower, hand-picked scope that would have stopped at the 4 tasks CT-5's own
+box text happened to already name.
+
+Output (C-002): schema "plan-struct-triple/v1". Body: {"plan", "tasks", "contracts",
+"in_scope_tasks" (sorted list of every plan task id this run held to the CT-5 bar),
+"in_scope_task_count", "violations": [{"code", ...fields}]}.
 """
 import argparse
 import bisect
@@ -540,6 +609,7 @@ SCHEMA_LANDING = "plan-struct-landing/v1"
 SCHEMA_RULE_DIFF = "plan-struct-rule-diff/v1"
 SCHEMA_RESEARCH = "plan-struct-research/v1"
 SCHEMA_PLAN = "plan-struct-plan/v1"
+SCHEMA_TRIPLE = "plan-struct-triple/v1"
 CLASS_MEMBERS = ("CONFIRMED", "REFUTED", "UNDETERMINED")
 
 # §2.1 Register table column indices after `line.split("|")` (parts[0] and parts[10] are the
@@ -4511,6 +4581,434 @@ def cmd_plan(a):
     return rc
 
 
+# ---------------------------------------------------------------------------
+# `triple` (CT-5, Post-Design Principle IV; common-conventions.md C-005; ATM-1109, 2026-10-01).
+# See this module's own top-of-file docstring, "`triple` (CT-5, ...)" section, for the full
+# rationale of how "analyzer/oracle/judge/guard" scope and per-task completeness are each
+# mechanically derived (never hand-picked) from common-conventions.md's own Tool map table and
+# tasks.md's own "RED test `<path>` ... (plan T-...)" lines.
+# ---------------------------------------------------------------------------
+
+# The closed, literal self-validation-triple (C-005) vocabulary this project's own contracts and
+# RED-test files actually use -- verified against the real corpus (every one of the 12 real tool
+# contracts; T052/T091/T125/T126's own real test files) before choosing this set, constitution
+# 11.4.6/11.4.201(7)(a), never guessed. "control needle" is accepted as an ADDITIONAL golden-good-
+# class marker alongside the literal "golden-good"/"golden good"/"golden_good" phrases: T052's
+# `test_io_trace_red.sh` and T126's `test_resume_revalidate_red.sh` both satisfy their own
+# golden-good member EXCLUSIVELY via "control needle" language and never once write "golden-good"
+# anywhere in their own text -- confirmed by direct inspection of both files before this fallback
+# was added; without it, this check would wrongly report BOTH of CT-5's own two hardest-named
+# "incomplete" tasks as still missing their golden-good member even after their own negative-
+# control fix landed, which is not what tasks.md's own T052/T126 evidence blocks claim is true.
+_SVT_GOOD_RE = re.compile(r"golden[-_ ]good|control needle", re.IGNORECASE)
+_SVT_BAD_RE = re.compile(r"golden[-_ ]bad", re.IGNORECASE)
+_SVT_NEG_RE = re.compile(r"negative[-_ ]control|negctrl", re.IGNORECASE)
+_SVT_ALL_CLASSES = frozenset(("golden-good", "golden-bad", "negative-control"))
+
+
+def _svt_classes_present(text):
+    """Returns the subset of `_SVT_ALL_CLASSES` this `text`'s own content genuinely demonstrates,
+    via the closed, literal self-validation-triple vocabulary above. HONESTLY DISCLOSED, NOT
+    caught (matching this file's own established convention for partial coverage -- see this
+    module's own top-of-file docstring, `triple` section, for the two REAL, confirmed gaps this
+    bounded vocabulary does not close): a fixture-class member represented ONLY by an abbreviated
+    directory-naming convention with no descriptive prose spelling out one of the phrases above
+    (e.g. a tool whose own test exclusively names fixtures `<prefix>_bad_*`/`<prefix>_good_*`/
+    `<prefix>_negctrl_*` without ever writing "golden"/"negative control" anywhere in its own
+    text); never a guess at a broader, unverified vocabulary (constitution 11.4.6)."""
+    found = set()
+    if _SVT_GOOD_RE.search(text):
+        found.add("golden-good")
+    if _SVT_BAD_RE.search(text):
+        found.add("golden-bad")
+    if _SVT_NEG_RE.search(text):
+        found.add("negative-control")
+    return found
+
+
+_TOOL_MAP_HEADING_RE = re.compile(r"^### Tool map\b")
+_TOOL_MAP_HEADER_ROW_RE = re.compile(r"^\|\s*Contract\s*\|", re.IGNORECASE)
+# The one range-notation shape common-conventions.md's own Tool map table uses today
+# (host-resource-attribution's "T-F01..T-F05" cell) -- a plain comma-separated id list (every
+# OTHER row) never matches this at all and is left untouched by `_expand_task_id_cell` below.
+_TASK_ID_RANGE_RE = re.compile(r"\bT-([A-Za-z]+)(\d+)\.\.(?:T-[A-Za-z]+)?(\d+)\b")
+
+
+def _expand_task_id_cell(cell):
+    """Returns the list of plan task ids a Tool-map "Plan tasks" cell names, expanding the one
+    range-notation shape this project's own table uses ("T-F01..T-F05") into every individual id
+    it denotes, zero-padded to the SAME width as its own start number (never assuming a fixed
+    width, constitution 11.4.6). A plain comma-separated cell (no range) round-trips unchanged."""
+    def _expand(m):
+        prefix, start, end = m.group(1), m.group(2), m.group(3)
+        width = len(start)
+        ids = ["T-%s%0*d" % (prefix, width, n) for n in range(int(start), int(end) + 1)]
+        return ", ".join(ids)
+    expanded = _TASK_ID_RANGE_RE.sub(_expand, cell)
+    return [tok.strip().strip("`*") for tok in expanded.split(",") if tok.strip().strip("`*")]
+
+
+def parse_tool_map(text):
+    """Parses common-conventions.md's own "### Tool map (contract -> plan file -> plan task)"
+    table -- the structural, already-present mapping this file reuses rather than inventing its
+    own classification of which plan tasks are "analyzer/oracle/judge/guard" tasks (see this
+    module's own top-of-file docstring, `triple` section, for the full rationale). Returns a list
+    of {"contract", "tool", "tasks"} dicts, one per data row, in table order, stopping at the
+    first non-table-row line (the real document's own footnote paragraph, "Plan tools that no
+    contract ... covers", is correctly excluded this way -- it does not start with "|"). Returns
+    [] when no "### Tool map" heading, or no header row naming "Contract" after it before the
+    next heading, is found at all -- the caller treats this as BLIND, never a silent empty-scope
+    PASS (constitution 11.4.201(6))."""
+    lines = text.splitlines()
+    heading_idx = None
+    for i, l in enumerate(lines):
+        if _TOOL_MAP_HEADING_RE.match(l):
+            heading_idx = i
+            break
+    if heading_idx is None:
+        return []
+    i = heading_idx + 1
+    header_idx = None
+    while i < len(lines):
+        if _TOOL_MAP_HEADER_ROW_RE.match(lines[i].strip()):
+            header_idx = i
+            break
+        if lines[i].startswith("## ") or lines[i].startswith("### "):
+            break  # a later section started before any header row was found
+        i += 1
+    if header_idx is None:
+        return []
+    i = header_idx + 1
+    if i < len(lines) and _TABLE_SEP_ROW_RE.match(lines[i].strip()):
+        i += 1
+    rows = []
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line.startswith("|"):
+            break
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) == 3:
+            rows.append({"contract": cells[0].strip("`"), "tool": cells[1],
+                         "tasks": _expand_task_id_cell(cells[2])})
+        i += 1
+    return rows
+
+
+# Matches this project's own real tasks.md convention (T052/T091/T125/T126's own real lines,
+# verified before choosing this shape, constitution 11.4.6): a line naming a RED test file via
+# the literal phrase "RED test(s) `<path>`" (singular or plural, case-insensitive). HONESTLY
+# DISCLOSED, NOT recognised (see this module's own top-of-file docstring, `triple` section): a
+# RED-establishing task line phrased with a verb other than "RED test" (a REAL, confirmed case:
+# T-B01's own line reads "Write and run the reproduction probe `...`; RED = ...").
+_RED_TEST_LINE_RE = re.compile(r"RED tests?\s*`([^`]+)`", re.IGNORECASE)
+_PLAN_REF_PAREN_RE = re.compile(r"\(plan\s+([^)]+)\)", re.IGNORECASE)
+
+
+def parse_red_test_task_map(text):
+    """Scans `text` (tasks.md) for every line naming a RED test file via `_RED_TEST_LINE_RE`
+    with an accompanying "(plan T-...)" annotation on the SAME line, and returns
+    {plan_task_id: [test_file_path, ...]} -- a task can be named by more than one RED-test line
+    (a comma-joined "(plan T-X, T-Y)" annotation maps BOTH ids to the same path); every path
+    found is kept in first-seen order, deduplicated, never only the first."""
+    out = {}
+    for line in text.splitlines():
+        m = _RED_TEST_LINE_RE.search(line)
+        if not m:
+            continue
+        path = m.group(1)
+        for pm in _PLAN_REF_PAREN_RE.finditer(line):
+            for tid in _CELL_TASK_ID_RE.findall(pm.group(1)):
+                out.setdefault(tid, [])
+                if path not in out[tid]:
+                    out[tid].append(path)
+    return out
+
+
+def compute_triple_violations(tool_map_rows, contract_classes, contract_present, known_task_ids,
+                               red_test_map, test_file_classes):
+    """Single, shared, I/O-free violation-generating function for the `triple` subcommand (CT-5)
+    -- exercised by BOTH `cmd_triple` (the real run, over real files already read by its own
+    caller) and `self_check_triple` (over a synthetic in-memory fixture), matching this file's
+    own established review-round-1 (I3) Producer != Verifier discipline (`compute_plan_
+    violations`'s own docstring documents the identical rationale for `plan`): a mutation to the
+    logic below is caught identically whether exercised via a real run or the self-check, since
+    both call this SAME function.
+
+    `tool_map_rows`: common-conventions.md's own Tool map table, already parsed by
+    `parse_tool_map` -- [{"contract", "tool", "tasks"}, ...].
+    `contract_classes`: {contract_name: set_of_classes_found_in_that_contracts_own_text} --
+    already computed via `_svt_classes_present` on each contract file's REAL content.
+    `contract_present`: {contract_name: bool} -- whether that contract's own .md file could be
+    read at all; a contract the Tool map names but whose file is missing/unreadable is itself a
+    violation, `contract_file_missing`, never silently skipped.
+    `known_task_ids`: the set of plan task ids that genuinely exist in --plan (`parse_task_
+    blocks`'s own "id" field) -- a Tool-map-named task id NOT in this set is `tool_map_task_
+    unknown`.
+    `red_test_map`: {plan_task_id: [test_file_path, ...]} -- already parsed by `parse_red_test_
+    task_map` from the real tasks.md text.
+    `test_file_classes`: {test_file_path: (classes_found_set_or_None, readable_bool)} -- already
+    read + classified by the caller; `classes_found_set_or_None` is None when `readable_bool` is
+    False (the path could not be opened at all -- `triple_test_file_unreadable`).
+
+    A contract whose OWN text does not genuinely demonstrate ALL THREE self-validation-triple
+    classes is OUT OF SCOPE for this check entirely -- never silently assumed in-scope just
+    because the Tool map names it (this is why `contract_classes`, not a fixed task-id list,
+    decides scope: CT-5's own box text names representative examples, never an exhaustive,
+    hand-maintained list this file would otherwise have to keep in sync by hand, constitution
+    11.4.6 -- see this module's own top-of-file docstring for the full derivation).
+
+    Returns (violations, in_scope_task_ids) -- the latter for the body's own "in_scope_tasks"
+    reporting field, so a consumer can see exactly which plan tasks this run held to the CT-5
+    bar without re-deriving it."""
+    violations = []
+    in_scope_task_ids = set()
+    for row in tool_map_rows:
+        contract = row["contract"]
+        if not contract_present.get(contract, False):
+            violations.append({"code": "contract_file_missing", "contract": contract})
+            continue
+        classes = contract_classes.get(contract, set())
+        if classes != _SVT_ALL_CLASSES:
+            # Out of scope: this contract's own text does not demonstrate it ships all three
+            # self-validation-triple classes itself -- never assumed in-scope (see docstring).
+            continue
+        for tid in row["tasks"]:
+            if tid not in known_task_ids:
+                violations.append({"code": "tool_map_task_unknown", "contract": contract,
+                                    "task": tid})
+                continue
+            in_scope_task_ids.add(tid)
+
+    for tid in sorted(in_scope_task_ids):
+        paths = red_test_map.get(tid, [])
+        if not paths:
+            violations.append({"code": "triple_test_file_missing", "task": tid})
+            continue
+        found = set()
+        any_readable = False
+        unreadable = []
+        for path in paths:
+            classes, readable = test_file_classes.get(path, (None, False))
+            if readable:
+                any_readable = True
+                found |= classes
+            else:
+                unreadable.append(path)
+        for path in unreadable:
+            violations.append({"code": "triple_test_file_unreadable", "task": tid, "file": path})
+        if any_readable:
+            missing = sorted(_SVT_ALL_CLASSES - found)
+            if missing:
+                violations.append({"code": "triple_incomplete", "task": tid,
+                                    "missing": missing, "files": sorted(paths)})
+    return violations, in_scope_task_ids
+
+
+def self_check_triple():
+    """§11.4.201/§11.4.115(F) control needle for `compute_triple_violations` AND its own upstream
+    parsers (`_svt_classes_present`, `_expand_task_id_cell`, `parse_tool_map`, `parse_red_test_
+    task_map`), run against synthetic, in-memory fixtures (never real files, matching `self_check_
+    plan`'s own convention). Returns None on success, else a diagnostic string (caller exits 3)."""
+    # --- parsing-helper needles (independent of the violation logic below) ---
+    range_expanded = _expand_task_id_cell("T-F01..T-F05")
+    if range_expanded != ["T-F01", "T-F02", "T-F03", "T-F04", "T-F05"]:
+        return ("self-check FAILED: _expand_task_id_cell('T-F01..T-F05') did not expand to the "
+                 "5 individual ids (got %r)" % (range_expanded,))
+    plain = _expand_task_id_cell("T-A09, T-A10, T-D06")
+    if plain != ["T-A09", "T-A10", "T-D06"]:
+        return ("self-check FAILED: _expand_task_id_cell on a plain comma-separated cell did not "
+                 "round-trip (got %r)" % (plain,))
+
+    tm_doc = ("### Tool map (contract -> plan file -> plan task)\n\n"
+              "| Contract | Tool | Plan tasks |\n"
+              "|---|---|---|\n"
+              "| needle-contract | `$FC/x.py` | T-X01, T-X02 |\n"
+              "\n"
+              "Plan tools that no contract covers: ...\n")
+    tm_rows = parse_tool_map(tm_doc)
+    if tm_rows != [{"contract": "needle-contract", "tool": "`$FC/x.py`",
+                    "tasks": ["T-X01", "T-X02"]}]:
+        return "self-check FAILED: parse_tool_map misparsed the synthetic needle table (got %r)" % (tm_rows,)
+    if parse_tool_map("no tool map heading here at all") != []:
+        return "self-check FAILED: parse_tool_map did not return [] when no heading is present"
+
+    red_doc = ("- [x] T999 [TDD] RED test `tests/test_needle_red.sh` (plan T-X01; FR-001)\n"
+               "- [x] T998 [TDD] RED tests `tests/test_needle2_red.sh` (plan T-X02, T-X03; FR-002)\n"
+               "- [x] T997 [SUBAGENT] Implement the thing (plan T-X01; FR-001)\n")
+    red_map = parse_red_test_task_map(red_doc)
+    if red_map.get("T-X01") != ["tests/test_needle_red.sh"]:
+        return ("self-check FAILED: parse_red_test_task_map did not map T-X01 to its singular "
+                 "RED test (got %r)" % (red_map.get("T-X01"),))
+    if (red_map.get("T-X02") != ["tests/test_needle2_red.sh"]
+            or red_map.get("T-X03") != ["tests/test_needle2_red.sh"]):
+        return ("self-check FAILED: parse_red_test_task_map did not map a plural 'RED tests' "
+                 "line naming 2 plan tasks to BOTH of them (got %r)" % (red_map,))
+
+    if _svt_classes_present("a golden-GOOD run; GOLDEN_BAD case; NEGCTRL check") != _SVT_ALL_CLASSES:
+        return "self-check FAILED: _svt_classes_present is not case/separator-insensitive over all 3 classes"
+    if _svt_classes_present("just a control needle, nothing else") != {"golden-good"}:
+        return "self-check FAILED: _svt_classes_present did not accept 'control needle' as the golden-good class"
+    if _svt_classes_present("ordinary prose with no triple vocabulary at all") != set():
+        return "self-check FAILED: _svt_classes_present found triple vocabulary in ordinary prose (false positive, constitution 11.4.201(1))"
+
+    # --- compute_triple_violations needles (one per violation code, plus the scope-exclusion
+    # false-positive guard) ---
+    tool_map_rows = [
+        {"contract": "needle-complete", "tool": "`$FC/x.py`", "tasks": ["T-NEEDLE-GOOD"]},
+        {"contract": "needle-incomplete", "tool": "`$FC/y.py`", "tasks": ["T-NEEDLE-BAD"]},
+        {"contract": "needle-no-test", "tool": "`$FC/z.py`", "tasks": ["T-NEEDLE-NOTEST"]},
+        {"contract": "needle-unreadable", "tool": "`$FC/w.py`", "tasks": ["T-NEEDLE-ORPHAN"]},
+        {"contract": "needle-missing-file", "tool": "`$FC/q.py`",
+         "tasks": ["T-NEEDLE-MISSINGCONTRACT"]},
+        {"contract": "needle-not-in-scope", "tool": "`$FC/v.py`", "tasks": ["T-NEEDLE-UNSCOPED"]},
+        {"contract": "needle-unknown-task", "tool": "`$FC/u.py`", "tasks": ["T-NEEDLE-GHOST"]},
+    ]
+    contract_present = {
+        "needle-complete": True, "needle-incomplete": True, "needle-no-test": True,
+        "needle-unreadable": True, "needle-missing-file": False,
+        "needle-not-in-scope": True, "needle-unknown-task": True,
+    }
+    contract_classes = {
+        "needle-complete": set(_SVT_ALL_CLASSES),
+        "needle-incomplete": set(_SVT_ALL_CLASSES),
+        "needle-no-test": set(_SVT_ALL_CLASSES),
+        "needle-unreadable": set(_SVT_ALL_CLASSES),
+        "needle-missing-file": set(),
+        "needle-not-in-scope": {"golden-good", "golden-bad"},  # missing negative-control itself
+        "needle-unknown-task": set(_SVT_ALL_CLASSES),
+    }
+    known_task_ids = {"T-NEEDLE-GOOD", "T-NEEDLE-BAD", "T-NEEDLE-NOTEST", "T-NEEDLE-ORPHAN",
+                       "T-NEEDLE-UNSCOPED"}  # T-NEEDLE-GHOST, T-NEEDLE-MISSINGCONTRACT absent
+    red_test_map = {
+        "T-NEEDLE-GOOD": ["fixtures/needle_good_red.sh"],
+        "T-NEEDLE-BAD": ["fixtures/needle_bad_red.sh"],
+        "T-NEEDLE-ORPHAN": ["fixtures/needle_missing_red.sh"],
+        # T-NEEDLE-NOTEST and T-NEEDLE-UNSCOPED intentionally absent.
+    }
+    test_file_classes = {
+        "fixtures/needle_good_red.sh": (set(_SVT_ALL_CLASSES), True),
+        "fixtures/needle_bad_red.sh": ({"golden-good", "golden-bad"}, True),
+        "fixtures/needle_missing_red.sh": (None, False),
+    }
+
+    violations, in_scope = compute_triple_violations(
+        tool_map_rows, contract_classes, contract_present, known_task_ids, red_test_map,
+        test_file_classes)
+
+    if "T-NEEDLE-UNSCOPED" in in_scope:
+        return ("self-check FAILED: a contract missing negative-control in its OWN text "
+                 "(needle-not-in-scope) was wrongly treated as in-scope for CT-5")
+    if any(v.get("task") == "T-NEEDLE-GOOD" for v in violations):
+        return "self-check FAILED: a genuinely-complete triple (T-NEEDLE-GOOD) was wrongly flagged (false positive, constitution 11.4.201(1))"
+    bad_v = [v for v in violations if v.get("task") == "T-NEEDLE-BAD"]
+    if not (len(bad_v) == 1 and bad_v[0]["code"] == "triple_incomplete"
+            and bad_v[0]["missing"] == ["negative-control"]):
+        return ("self-check FAILED: a triple missing exactly its negative-control member "
+                 "(T-NEEDLE-BAD) was not flagged triple_incomplete with missing=['negative-control'] "
+                 "(got %r)" % (bad_v,))
+    if not any(v["code"] == "triple_test_file_missing" and v["task"] == "T-NEEDLE-NOTEST"
+               for v in violations):
+        return "self-check FAILED: a task with ZERO red-test entries (T-NEEDLE-NOTEST) was not flagged triple_test_file_missing"
+    if not any(v["code"] == "triple_test_file_unreadable" and v["task"] == "T-NEEDLE-ORPHAN"
+               for v in violations):
+        return "self-check FAILED: a task whose test file cannot be read (T-NEEDLE-ORPHAN) was not flagged triple_test_file_unreadable"
+    if not any(v["code"] == "contract_file_missing" and v["contract"] == "needle-missing-file"
+               for v in violations):
+        return "self-check FAILED: a Tool-map contract with no real file (needle-missing-file) was not flagged contract_file_missing"
+    if not any(v["code"] == "tool_map_task_unknown" and v["task"] == "T-NEEDLE-GHOST"
+               for v in violations):
+        return "self-check FAILED: a Tool-map task id absent from --plan (T-NEEDLE-GHOST) was not flagged tool_map_task_unknown"
+    if any(v.get("task") == "T-NEEDLE-UNSCOPED" for v in violations):
+        return ("self-check FAILED: a task belonging ONLY to an out-of-scope contract "
+                 "(T-NEEDLE-UNSCOPED, which has no red-test entry at all) was wrongly given its "
+                 "own violation -- scope exclusion must suppress this entirely")
+    return None
+
+
+def cmd_triple(a):
+    self_check_err = self_check_triple()
+    if self_check_err:
+        print("plan_struct_check: %s" % self_check_err, file=sys.stderr)
+        return 3
+
+    plan_text, err = _read_doc(a.plan, "--plan")
+    if err:
+        print("plan_struct_check: BLIND -- %s" % err, file=sys.stderr)
+        return 4
+    tasks_text, err = _read_doc(a.tasks, "--tasks")
+    if err:
+        print("plan_struct_check: BLIND -- %s" % err, file=sys.stderr)
+        return 4
+    cc_path = os.path.join(a.contracts, "common-conventions.md")
+    cc_text, err = _read_doc(cc_path, "--contracts")
+    if err:
+        print("plan_struct_check: BLIND -- %s" % err, file=sys.stderr)
+        return 4
+
+    known_task_ids = {tb["id"] for tb in parse_task_blocks(plan_text)}
+    if not known_task_ids:
+        print("plan_struct_check: BLIND -- --plan %s has zero parseable '#### T-' task blocks "
+              "(no honest plan to check)" % a.plan, file=sys.stderr)
+        return 4
+
+    tool_map_rows = parse_tool_map(cc_text)
+    if not tool_map_rows:
+        print("plan_struct_check: BLIND -- %s has no parseable '### Tool map' table (cannot "
+              "decide CT-5 scope)" % cc_path, file=sys.stderr)
+        return 4
+
+    red_test_map = parse_red_test_task_map(tasks_text)
+
+    contract_present = {}
+    contract_classes = {}
+    for row in tool_map_rows:
+        contract = row["contract"]
+        if contract in contract_present:
+            continue
+        path = os.path.join(a.contracts, contract + ".md")
+        text, err = _read_doc(path, "--contracts")
+        contract_present[contract] = err is None
+        contract_classes[contract] = _svt_classes_present(text) if err is None else set()
+
+    all_paths = sorted({p for paths in red_test_map.values() for p in paths})
+    test_file_classes = {}
+    for path in all_paths:
+        full = os.path.join(a.root, path) if getattr(a, "root", None) else path
+        text, err = _read_doc(full, "--tasks (RED test path)")
+        if err is None:
+            test_file_classes[path] = (_svt_classes_present(text), True)
+        else:
+            test_file_classes[path] = (None, False)
+
+    violations, in_scope = compute_triple_violations(
+        tool_map_rows, contract_classes, contract_present, known_task_ids, red_test_map,
+        test_file_classes)
+
+    for v in violations:
+        print("plan_struct_check: triple: %s" % v, file=sys.stderr)
+
+    body = {
+        "plan": a.plan,
+        "tasks": a.tasks,
+        "contracts": a.contracts,
+        "in_scope_tasks": sorted(in_scope),
+        "in_scope_task_count": len(in_scope),
+        "violations": violations,
+    }
+    rc = 1 if violations else 0
+    ns = argparse.Namespace(
+        schema=SCHEMA_TRIPLE,
+        body_json=json.dumps(body),
+        run_meta_json=None,
+        out=a.out,
+        code=rc,
+    )
+    write_rc = fc_common.cmd_emit(ns)
+    if write_rc != rc:
+        return write_rc
+    return rc
+
+
 def main(argv):
     p = argparse.ArgumentParser(prog="plan_struct_check.py")
     sub = p.add_subparsers(dest="cmd_name", required=True)
@@ -4576,13 +5074,28 @@ def main(argv):
                           "--post-a11/--operator-causes convention).")
     pl.add_argument("--out", required=True)
 
+    tr = sub.add_parser("triple")
+    tr.add_argument("--plan", required=True,
+                     help="plan.md path (source of truth for which plan task ids genuinely "
+                          "exist, via the same `#### T-' task blocks `plan` reads).")
+    tr.add_argument("--tasks", required=True,
+                     help="tasks.md path (its own 'RED test `<path>` ... (plan T-...)' lines).")
+    tr.add_argument("--contracts", required=True,
+                     help="contracts directory holding common-conventions.md (its own '### Tool "
+                          "map' table) and the per-tool contract .md files it names.")
+    tr.add_argument("--root",
+                     help="optional prefix directory each discovered RED-test path is resolved "
+                          "against. Omitted by default -- every path is opened exactly as named "
+                          "in --tasks, relative to the current working directory.")
+    tr.add_argument("--out", required=True)
+
     try:
         a = p.parse_args(argv)
     except SystemExit as se:
         return 2 if se.code else 0
 
     table = {"causes": cmd_causes, "landing": cmd_landing, "rule-diff": cmd_rule_diff,
-             "research": cmd_research, "plan": cmd_plan}
+             "research": cmd_research, "plan": cmd_plan, "triple": cmd_triple}
     try:
         return table[a.cmd_name](a)
     except Exception as exc:  # C-001: an internal error is never a finding (1) -- BLIND (4)
