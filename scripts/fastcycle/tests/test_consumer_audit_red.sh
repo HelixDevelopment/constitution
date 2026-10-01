@@ -220,14 +220,27 @@ ap.add_argument("--overall2", default="CLEAN")
 ap.add_argument("--hash1", default="h")
 ap.add_argument("--hash2", default="h")
 ap.add_argument("--break", dest="brk", default="",
-                help="addr-of-path|missing-file|record-lies|no-review-ref|no-backup-marker|bad-backup-addr|relative-paths")
+                help="addr-of-path|missing-file|record-lies|no-review-ref|no-backup-marker|bad-backup-addr|relative-paths|foreign-commit|same-report-twice")
 a = ap.parse_args()
 base = a.out[:-len(".json")]
 ver = []
 for n, (ov, bh) in enumerate([(a.overall1, a.hash1), (a.overall2, a.hash2)], 1):
     rpath = "%s.verify%d.json" % (base, n)
     on_disk_overall = "NOT_CLEAN" if a.brk == "record-lies" else ov
-    raw = json.dumps({"schema": "verify-fixture/v1", "overall": on_disk_overall, "body_hash": bh}).encode()
+    # T177 Round 6 I4: every genuine repo_verify.py report carries a
+    # repos[] entry at path="." whose "head" is the root repo's own HEAD
+    # commit -- these fixture reports carry the SAME shape, bound to
+    # a.commit by default, so EVERY existing fixture (which does not
+    # exercise this new check) continues to pass unmodified; --break
+    # foreign-commit deliberately points it at a DIFFERENT, real-looking
+    # commit to reproduce the reviewer's E6 cross-project-citation repro.
+    report_head = a.commit
+    if a.brk == "foreign-commit":
+        report_head = "deadfeed" * 5
+    raw = json.dumps({
+        "schema": "verify-fixture/v1", "overall": on_disk_overall, "body_hash": bh,
+        "repos": [{"path": ".", "head": report_head}],
+    }).encode()
     with open(rpath, "wb") as fh:
         fh.write(raw)
     addr = "sha256:" + hashlib.sha256(raw).hexdigest()
@@ -237,6 +250,11 @@ for n, (ov, bh) in enumerate([(a.overall1, a.hash1), (a.overall2, a.hash2)], 1):
     ver.append({"path": cited, "overall": ov, "body_hash": bh, "content_address": addr})
     if a.brk == "missing-file":
         os.remove(rpath)
+# T177 Round 6 I4: --break same-report-twice reproduces the reviewer's E5
+# repro -- both cited entries name the SAME path (verify1.json's own entry
+# is duplicated; verify2.json still exists on disk but is never cited).
+if a.brk == "same-report-twice":
+    ver[1] = dict(ver[0])
 rec = {"schema": "consumer-migration/v1", "project_id": a.project, "outcome": "MIGRATED",
        "data_change": "NONE", "commit": a.commit, "verification": ver,
        "review_ref": "fixture-review-id", "backup_marker": {"path": "/fixture/backup/git", "content_address": "sha256:" + "a" * 64}}
@@ -693,8 +711,13 @@ f_json() {
     mkdir -p "$F_DIR/$1"; cat > "$F_DIR/$1/rec.json"
 }
 f_sum() {
-    # $1=tool $2=consumers-file $3=case $4=label -> F_RC; summary at $F_DIR/$4.sum
-    python3 "$1" summary --consumers "$F_DIR/$2" --audits "$F_DIR/aud" --migrations "$F_DIR/$3" --out "$F_DIR/$4.sum" >/dev/null 2>&1
+    # $1=tool $2=consumers-file $3=case $4=label [$5=reviews-dir] -> F_RC;
+    # summary at $F_DIR/$4.sum. $5 is T177 Round 6 I5's --reviews archive;
+    # omitted by every existing caller (unchanged CLI contract).
+    _revarg=""
+    [ -n "${5:-}" ] && _revarg="--reviews $5"
+    # shellcheck disable=SC2086  # deliberate: $_revarg is "" or "--reviews <dir>"
+    python3 "$1" summary --consumers "$F_DIR/$2" --audits "$F_DIR/aud" --migrations "$F_DIR/$3" --out "$F_DIR/$4.sum" $_revarg >/dev/null 2>&1
     F_RC=$?
 }
 f_get() { python3 -c "import json,sys; d=json.load(open('$F_DIR/$1.sum')); print(json.dumps(eval(sys.argv[1])))" "$2" 2>/dev/null; }
@@ -862,6 +885,120 @@ if [ "$F_RC" -ne 0 ] && [ "$(f_get f8c "d.get('invalid_records_by_class',{}).get
     ok "F8c I3: a backup_marker whose content_address is not sha256:<64 hex> is refused"
 else
     bad "F8c I3: a malformed backup_marker content address was accepted (rc=$F_RC; see $F_DIR/f8c.sum)"
+fi
+
+# =============================================================================
+# F11-F14 -- T177 Round 6 (round-5 review findings I4/I5/M5). Every guard is
+# paired with its mutation exactly as the F-series above; F14 is a positive
+# control (no mutant needed, mirroring F0's own style).
+# =============================================================================
+
+# F11 (I4): a MIGRATED record citing a FOREIGN project's real, byte-matching
+# CLEAN reports while claiming an unrelated commit is refused -- the cited
+# report's own repos[path=="."].head must equal the record's own commit.
+f_case f11_foreign --break foreign-commit
+f_pair F11 cons_ok.json f11_foreign "d['migrated']==0 and d.get('invalid_records_by_class',{}).get('record-verification-evidence-not-bound')==1" \
+    I4_drop_binding_check \
+    '        if root_head != commit:
+            return "record-verification-evidence-not-bound"
+' '' \
+    "I4: a MIGRATED record whose cited report's own root HEAD does not equal the record's commit (foreign evidence) is refused"
+
+# F12 (I4): citing the SAME report path twice as "two independent verify
+# runs" is refused -- CA-026's "verify TWICE" is not satisfied by one real
+# run cited twice.
+f_case f12_samereport --break same-report-twice
+f_pair F12 cons_ok.json f12_samereport "d['migrated']==0 and d.get('invalid_records_by_class',{}).get('record-verification-evidence-not-independent')==1" \
+    I4_drop_distinct_path_check \
+    'if v[0].get("path") == v[1].get("path"):' \
+    'if False:' \
+    "I4: a MIGRATED record citing the SAME report path twice as its two independent verify runs is refused"
+
+# F13 (I5, RULING a): review_ref is REAL-VERIFIED when a --reviews directory
+# is supplied (summary resolves review_ref against review-record files there
+# and ports migrate.sh's own check_review predicate); honest degrade to
+# presence-only when --reviews is omitted (today's unchanged default, kept
+# explicit and test-visible for every existing caller).
+F13_REVIEWS="$F_DIR/f13_reviews"
+mkdir -p "$F13_REVIEWS"
+cat > "$F13_REVIEWS/REV-f13-1.json" <<'EOF'
+{"review_id":"REV-f13-1","project_id":"f-org/p","verdict":"GO","findings":[],"model_tier":"opus","effort":"xhigh"}
+EOF
+f_case f13_go
+python3 -c "
+import json
+d = json.load(open('$F_DIR/f13_go/rec.json'))
+d['review_ref'] = 'REV-f13-1'
+json.dump(d, open('$F_DIR/f13_go/rec.json', 'w'))
+"
+f_sum "$TOOL" cons_ok.json f13_go f13go "$F13_REVIEWS"
+if [ "$F_RC" -eq 0 ] && [ "$(f_get f13go "d['migrated']==1")" = "true" ]; then
+    ok "F13a I5: a review_ref resolving (via --reviews) to a real GO/zero-finding/opus/xhigh review record is accepted"
+else
+    bad "F13a I5: a genuinely GO review_ref was refused when --reviews was supplied (rc=$F_RC; see $F_DIR/f13go.sum)"
+fi
+
+cat > "$F13_REVIEWS/REV-f13-nogo.json" <<'EOF'
+{"review_id":"REV-f13-nogo","project_id":"f-org/p","verdict":"NO-GO","findings":[{"severity":"Blocking"}],"model_tier":"opus","effort":"xhigh"}
+EOF
+f_case f13_nogo
+python3 -c "
+import json
+d = json.load(open('$F_DIR/f13_nogo/rec.json'))
+d['review_ref'] = 'REV-f13-nogo'
+json.dump(d, open('$F_DIR/f13_nogo/rec.json', 'w'))
+"
+f_sum "$TOOL" cons_ok.json f13_nogo f13nogo "$F13_REVIEWS"
+if [ "$F_RC" -ne 0 ] && [ "$(f_get f13nogo "d.get('invalid_records_by_class',{}).get('record-review-no-go')==1")" = "true" ]; then
+    ok "F13b I5: a review_ref resolving to a real NO-GO/non-zero-finding review record is refused (record-review-no-go), never trusted on presence alone -- RULING (a) genuinely enforced"
+else
+    bad "F13b I5: a review_ref resolving to a NO-GO review was still counted as MIGRATED (rc=$F_RC; see $F_DIR/f13nogo.sum)"
+fi
+
+f_sum "$TOOL" cons_ok.json f13_nogo f13nogo_noflag
+if [ "$F_RC" -eq 0 ] && [ "$(f_get f13nogo_noflag "d['migrated']==1")" = "true" ]; then
+    ok "F13c I5 honest degrade: WITHOUT --reviews, the SAME NO-GO-bound record is counted on presence alone -- the degrade is explicit and test-visible, never a silent gap, and the default CLI contract for every pre-existing caller is unchanged"
+else
+    bad "F13c I5 honest degrade: omitting --reviews unexpectedly changed behavior (rc=$F_RC; see $F_DIR/f13nogo_noflag.sum)"
+fi
+
+f_mutant I5_disable_real_check \
+    'def classify_migration_record(rec, base_dir=".", reviews_dir=None):' \
+    'def classify_migration_record(rec, base_dir=".", reviews_dir=None):
+    reviews_dir = None  # T177 Round 6 I5 mutant: real verification disabled'
+if [ "$F_MUT_OK" -eq 1 ]; then
+    python3 "$F_DIR/mut_I5_disable_real_check.py" summary --consumers "$F_DIR/cons_ok.json" --audits "$F_DIR/aud" --migrations "$F_DIR/f13_nogo" --out "$F_DIR/f13mut.sum" --reviews "$F13_REVIEWS" >/dev/null 2>&1
+    F_RC=$?
+    if [ "$F_RC" -eq 0 ] && [ "$(f_get f13mut "d['migrated']==1")" = "true" ]; then
+        ok "F13 guard-viability: forcing reviews_dir=None (disabling the real check even though --reviews was passed) lets the NO-GO-bound review_ref through -- F13b is what catches it"
+    else
+        bad "F13 guard-viability: the disabled-verification mutant still refused the NO-GO review (rc=$F_RC; see $F_DIR/f13mut.sum)"
+    fi
+else
+    bad "F13 guard-viability: mutation anchor for 'I5_disable_real_check' is not unique/present in audit.py -- re-derive it"
+fi
+
+# F14 (M5): backup_marker's DESIGN -- only its SHAPE is checked, never
+# whether the backup directory itself still exists on disk (the backup is a
+# disposable §9.2 mirror that may legitimately be pruned later). A
+# backup_marker whose path points at a GENUINELY NONEXISTENT directory, with
+# an otherwise shape-valid content_address, is STILL counted MIGRATED -- an
+# explicit, test-visible positive control for this intentional design
+# (round-5's own rationale), so a future accidental tightening (e.g.
+# requiring os.path.isdir(bm['path'])) is a DELIBERATE, test-visible
+# decision, never a silent behavior change.
+f_case f14_missing_backup_dir
+python3 -c "
+import json, os, sys
+d = json.load(open('$F_DIR/f14_missing_backup_dir/rec.json'))
+if os.path.exists(d['backup_marker']['path']):
+    sys.exit('fixture precondition violated: backup_marker.path exists on disk')
+"
+f_sum "$TOOL" cons_ok.json f14_missing_backup_dir f14
+if [ "$F_RC" -eq 0 ] && [ "$(f_get f14 "d['migrated']==1")" = "true" ]; then
+    ok "F14 M5 positive control: a backup_marker whose path does not exist on disk is STILL counted MIGRATED -- the backup mirror's disposability is a deliberate design choice, now test-visible"
+else
+    bad "F14 M5 positive control: a shape-valid-but-nonexistent backup_marker path was unexpectedly refused (rc=$F_RC; see $F_DIR/f14.sum) -- if this is an intentional tightening, update this test's expectation deliberately"
 fi
 
 # F9 (round-4 MINOR N2): migrate.sh's own local-git-error lands in its OWN bucket.

@@ -1817,6 +1817,19 @@ fi
 # half of this pair).
 # (Mutant = the round-3 code: no at-target review, REVIEW_REF_ID set empty.)
 j_mutant I3_no_at_target_review 'if ! check_review; then
+        # T177 Round 6 (round-6 MINOR M1): re-running an already-MIGRATED
+        # consumer with its ORIGINAL review (now stale -- its own base has
+        # since moved to the migration commit) must NEVER downgrade the
+        # existing on-disk MIGRATED record for this SAME project in place.
+        # Reproduced live: a second run with the same (now-stale) review
+        # overwrote outcome MIGRATED -> NOT-MIGRATED at the SAME --out path,
+        # with no new write to $WORKDIR at all. A pre-existing MIGRATED
+        # record for this exact project is left genuinely UNTOUCHED; the
+        # refusal is reported on stderr only, never written to $OUT.
+        if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ]; then
+            echo "migrate.sh: review-no-go on the already-at-target path, but $OUT already holds a MIGRATED record for $PROJECT -- left UNTOUCHED (re-run with a FRESH review bound to the migration commit to re-verify)" >&2
+            exit 1
+        fi
         not_migrated "review" "review-no-go"' 'REVIEW_REF_ID=""
     if false; then
         not_migrated "review" "review-no-go"'
@@ -1866,6 +1879,400 @@ if [ "$J_MUT_OK" -eq 1 ] && [ "$J10M_REMOTE_BEFORE" != "$(git -C "$I_ROOT/j10m/c
     ok "J10 guard-viability: ignoring the scanner's failure publishes content no scan inspected (rc=$J_RC) -- J10 is load-bearing"
 else
     bad "J10 guard-viability: the scan-failure mutant did not publish (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+
+# =============================================================================
+# J11-J18 -- T177 Round 6 (round-6 review of the round-5 remediation):
+# B1 (scanner fail-open on git sub-command failure), I1 (M/T diff-filter
+# coverage), I2 (staged gitlinks), I3 (relative --out), I6 (per-remote scope
+# of newly-delivered commits), M1 (idempotent re-run never downgrades a
+# MIGRATED record). Every guard is paired with a mutation that reproduces
+# the reviewer's EXACT repro on a FRESH fixture, scratch-copied (never the
+# tracked file).
+# =============================================================================
+
+# --- J11: BLOCKING B1 round-6 fix -- a failed `git cat-file blob` INSIDE
+# the symlink scanner must refuse (symlink-scan-failed), never decode the
+# failed read as an empty/clean target. A PATH shim on `git` forces ONLY
+# `cat-file blob <sha>` to fail; every other git invocation (the scanner's
+# own enumeration, the rest of the tool's pipeline, and repo_verify.py's
+# own git calls) passes through to the real git untouched.
+J11_REAL_GIT=$(command -v git)
+J11_BIN="$WORK/j11_bin"
+mkdir -p "$J11_BIN"
+cat > "$J11_BIN/git" <<EOF
+#!/bin/sh
+# Real invocation is "git -C <workdir> cat-file blob <sha>" -- "-C" is \$1,
+# so the "cat-file"/"blob" pair must be found ANYWHERE in the argument
+# list, not pinned to \$1/\$2.
+_prev=""
+for a in "\$@"; do
+    if [ "\$_prev" = "cat-file" ] && [ "\$a" = "blob" ]; then
+        echo "j11 shim: git cat-file blob forced to fail" >&2
+        exit 1
+    fi
+    _prev=\$a
+done
+exec "$J11_REAL_GIT" "\$@"
+EOF
+chmod +x "$J11_BIN/git"
+build_r3_fixture "$I_ROOT/j11" "$J1_HOOK"
+J11_REMOTE_BEFORE=$(git -C "$I_ROOT/j11/consumer.git" rev-parse refs/heads/main)
+J11_SAVED_PATH=$PATH; PATH="$J11_BIN:$PATH"
+j_run "$TOOL" "$I_ROOT/j11" fixture/section_j11 "$WORK/j11.json"
+PATH=$J11_SAVED_PATH
+if [ "$J_RC" -eq 1 ] && [ "$(jfield "$WORK/j11.json" detail)" = "symlink-scan-failed" ] \
+    && [ "$J11_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j11/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J11 R6 B1: a failed 'git cat-file blob' inside the symlink scanner refuses the migration (symlink-scan-failed), remote unchanged -- a failed blob read is no longer decoded as a clean/empty target"
+else
+    bad "J11 R6 B1: a failed cat-file read inside the scanner did not refuse (rc=$J_RC out=$J_OUT; see $WORK/j11.json)"
+fi
+j_mutant B1_ignore_catfile_rc \
+    'cat = subprocess.run(["git", "-C", workdir, "cat-file", "blob", blob],
+                         capture_output=True)
+    if cat.returncode != 0:
+        sys.exit(3)
+    target = cat.stdout.decode("utf-8", "surrogateescape")' \
+    'target = subprocess.run(["git", "-C", workdir, "cat-file", "blob", blob],
+                         capture_output=True).stdout.decode("utf-8", "surrogateescape")'
+build_r3_fixture "$I_ROOT/j11m" "$J1_HOOK"
+PATH="$J11_BIN:$PATH"
+j_run "$WORK/jmut_B1_ignore_catfile_rc.sh" "$I_ROOT/j11m" fixture/section_j11m "$WORK/j11m.json"
+PATH=$J11_SAVED_PATH
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED'; then
+    ok "J11 guard-viability: reverting to the round-5 cat-file-rc-blind scanner lets a blob whose read FAILED decode as an empty/clean target -- the absolute-path symlink MIGRATES -- J11 is what catches it"
+else
+    bad "J11 guard-viability: the cat-file-rc mutant did not reproduce the fail-open (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+
+# --- J12: BLOCKING B1 round-6 fix -- a failed `git diff --cached --raw`
+# enumeration (the scanner's OWN input) must refuse too, never feed python3
+# an empty stdin that legitimately exits 0. The shim fails ONLY a `diff`
+# invocation carrying `--raw` (the scanner's own query) -- the OTHER `git
+# diff --cached --name-only` (the CA-022 scope check) and every other git
+# call passes through untouched.
+J12_REAL_GIT=$(command -v git)
+J12_BIN="$WORK/j12_bin"
+mkdir -p "$J12_BIN"
+cat > "$J12_BIN/git" <<EOF
+#!/bin/sh
+# Real invocation is "git -C <workdir> diff --cached --raw ..." -- "-C" is
+# \$1, so "diff" and "--raw" must both be found ANYWHERE in the argument
+# list (never pinned to \$1), distinguishing this from the OTHER "git diff
+# --cached --name-only" call (the CA-022 scope check, no --raw) which must
+# keep passing through untouched.
+_has_diff=0; _has_raw=0
+for a in "\$@"; do
+    [ "\$a" = "diff" ] && _has_diff=1
+    [ "\$a" = "--raw" ] && _has_raw=1
+done
+if [ "\$_has_diff" = "1" ] && [ "\$_has_raw" = "1" ]; then
+    echo "j12 shim: git diff --cached --raw forced to fail" >&2
+    exit 1
+fi
+exec "$J12_REAL_GIT" "\$@"
+EOF
+chmod +x "$J12_BIN/git"
+build_r3_fixture "$I_ROOT/j12" "$J1_HOOK"
+J12_REMOTE_BEFORE=$(git -C "$I_ROOT/j12/consumer.git" rev-parse refs/heads/main)
+J12_SAVED_PATH=$PATH; PATH="$J12_BIN:$PATH"
+j_run "$TOOL" "$I_ROOT/j12" fixture/section_j12 "$WORK/j12.json"
+PATH=$J12_SAVED_PATH
+if [ "$J_RC" -eq 1 ] && [ "$(jfield "$WORK/j12.json" detail)" = "symlink-scan-failed" ] \
+    && [ "$J12_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j12/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J12 R6 B1: a failed 'git diff --cached --raw' enumeration refuses the migration (symlink-scan-failed) before python3 ever runs, remote unchanged"
+else
+    bad "J12 R6 B1: a failed diff enumeration did not refuse (rc=$J_RC out=$J_OUT; see $WORK/j12.json)"
+fi
+# Simpler-but-equivalent mutant: drop ONLY the "check the enumeration's own
+# exit status" wrapper, leaving the capture-to-file and the python3
+# invocation untouched. On a forced diff failure this still writes an
+# EMPTY $SYMLINK_DIFF (the redirection runs regardless of the command's own
+# exit status) -- python3 then reads zero bytes, its while-loop never
+# executes, and it exits 0 with no violation printed: the SAME "silent
+# clean on enumeration failure" bug, reached without needing to touch the
+# python3 invocation's own quoting at all.
+j_mutant B1_pipe_diff_unchecked \
+    'SYMLINK_DIFF="$MIGRATE_SCRATCH/migrate_symlink_diff.raw"
+    if ! git -C "$WORKDIR" diff --cached --raw -z --no-renames --diff-filter=AMT >"$SYMLINK_DIFF" 2>/dev/null; then
+        not_migrated_after_write "wiring" "out-of-scope-diff" "symlink-scan-failed"
+    fi' \
+    'SYMLINK_DIFF="$MIGRATE_SCRATCH/migrate_symlink_diff.raw"
+    git -C "$WORKDIR" diff --cached --raw -z --no-renames --diff-filter=AMT >"$SYMLINK_DIFF" 2>/dev/null'
+build_r3_fixture "$I_ROOT/j12m" "$J1_HOOK"
+PATH="$J12_BIN:$PATH"
+j_run "$WORK/jmut_B1_pipe_diff_unchecked.sh" "$I_ROOT/j12m" fixture/section_j12m "$WORK/j12m.json"
+PATH=$J12_SAVED_PATH
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED'; then
+    ok "J12 guard-viability: dropping the enumeration's own exit-status check leaves an EMPTY \$SYMLINK_DIFF on a forced diff failure -- python3 reads zero bytes and exits 0 with no violation -- the absolute-path symlink MIGRATES -- J12 is what catches it"
+else
+    bad "J12 guard-viability: the unchecked-pipeline mutant did not reproduce the fail-open (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+
+# --- J13/J14: IMPORTANT I1 round-6 fix -- the --diff-filter=AMT already
+# includes M (modified) and T (type-changed), but no fixture exercised
+# either half; a mutant narrowing the filter to A-only survived. J13: the
+# REAL post_update_hook.sh's own `rm -f "$dst"; ln -s "$src" "$dst"` pattern
+# over an EXISTING committed relative link (git status M). J14: a regular
+# file replaced by an absolute symlink (git status T, type-change).
+J13_HOOK="$WORK/j13_relink_absolute_hook.sh"
+cat > "$J13_HOOK" <<'EOF'
+#!/usr/bin/env bash
+rm -f "$PROJECT_ROOT/skills/media-validator"
+ln -s "${CONST_DIR}/skills/media-validator" "$PROJECT_ROOT/skills/media-validator"
+EOF
+build_r3_fixture "$I_ROOT/j13" "$J13_HOOK"
+mkdir -p "$I_ROOT/j13/checkout/skills"
+ln -s "../constitution/skills/media-validator" "$I_ROOT/j13/checkout/skills/media-validator"
+git -C "$I_ROOT/j13/checkout" add skills/media-validator
+git -C "$I_ROOT/j13/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -m "pre-existing portable skill link"
+git -C "$I_ROOT/j13/checkout" push -q origin main
+J13_REMOTE_BEFORE=$(git -C "$I_ROOT/j13/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j13" fixture/section_j13 "$WORK/j13.json"
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+    && jfield "$WORK/j13.json" detail | grep -q 'host-specific-symlink path=skills/media-validator target-is-absolute' \
+    && [ "$J13_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j13/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J13 R6 I1: a hook that re-links an ALREADY-COMMITTED relative symlink to an absolute target (git status M, the real hook's rm -f + ln -s shape over an existing link) is refused exactly like an added link -- --diff-filter=AMT's M half is genuinely exercised"
+else
+    bad "J13 R6 I1: a modified (M) host-specific symlink was not refused (rc=$J_RC out=$J_OUT; see $WORK/j13.json)"
+fi
+
+J14_HOOK="$WORK/j14_type_change_hook.sh"
+cat > "$J14_HOOK" <<'EOF'
+#!/usr/bin/env bash
+rm -f "$PROJECT_ROOT/skills/media-validator"
+ln -s "${CONST_DIR}/skills/media-validator" "$PROJECT_ROOT/skills/media-validator"
+EOF
+build_r3_fixture "$I_ROOT/j14" "$J14_HOOK"
+mkdir -p "$I_ROOT/j14/checkout/skills"
+echo "placeholder, not yet a symlink" > "$I_ROOT/j14/checkout/skills/media-validator"
+git -C "$I_ROOT/j14/checkout" add skills/media-validator
+git -C "$I_ROOT/j14/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -m "pre-existing regular file at the skill path"
+git -C "$I_ROOT/j14/checkout" push -q origin main
+J14_REMOTE_BEFORE=$(git -C "$I_ROOT/j14/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j14" fixture/section_j14 "$WORK/j14.json"
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+    && jfield "$WORK/j14.json" detail | grep -q 'host-specific-symlink path=skills/media-validator target-is-absolute' \
+    && [ "$J14_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j14/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J14 R6 I1: a hook that replaces a pre-existing REGULAR FILE with an absolute symlink (git status T, type-change) is refused -- --diff-filter=AMT's T half is genuinely exercised"
+else
+    bad "J14 R6 I1: a type-changed (T) host-specific symlink was not refused (rc=$J_RC out=$J_OUT; see $WORK/j14.json)"
+fi
+
+j_mutant I1_diff_filter_A_only '--diff-filter=AMT' '--diff-filter=A'
+build_r3_fixture "$I_ROOT/j13m" "$J13_HOOK"
+mkdir -p "$I_ROOT/j13m/checkout/skills"
+ln -s "../constitution/skills/media-validator" "$I_ROOT/j13m/checkout/skills/media-validator"
+git -C "$I_ROOT/j13m/checkout" add skills/media-validator
+git -C "$I_ROOT/j13m/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -m "pre-existing portable skill link"
+git -C "$I_ROOT/j13m/checkout" push -q origin main
+j_run "$WORK/jmut_I1_diff_filter_A_only.sh" "$I_ROOT/j13m" fixture/section_j13m "$WORK/j13m.json"
+J13M_LINK=$(git -C "$I_ROOT/j13m/consumer.git" cat-file -p "refs/heads/main:skills/media-validator" 2>/dev/null)
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J13M_LINK" | grep -q '^/'; then
+    ok "J13 guard-viability: narrowing --diff-filter to A-only lets a MODIFIED (M) host-specific symlink through -- J13/J14 are what catch the M/T half"
+else
+    bad "J13 guard-viability: the diff-filter=A mutant did not reproduce the M-symlink publication (mut_ok=$J_MUT_OK rc=$J_RC link=$J13M_LINK)"
+fi
+build_r3_fixture "$I_ROOT/j14m" "$J14_HOOK"
+mkdir -p "$I_ROOT/j14m/checkout/skills"
+echo "placeholder, not yet a symlink" > "$I_ROOT/j14m/checkout/skills/media-validator"
+git -C "$I_ROOT/j14m/checkout" add skills/media-validator
+git -C "$I_ROOT/j14m/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -m "pre-existing regular file at the skill path"
+git -C "$I_ROOT/j14m/checkout" push -q origin main
+j_run "$WORK/jmut_I1_diff_filter_A_only.sh" "$I_ROOT/j14m" fixture/section_j14m "$WORK/j14m.json"
+J14M_LINK=$(git -C "$I_ROOT/j14m/consumer.git" cat-file -p "refs/heads/main:skills/media-validator" 2>/dev/null)
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J14M_LINK" | grep -q '^/'; then
+    ok "J14 guard-viability: narrowing --diff-filter to A-only also lets a TYPE-CHANGED (T) host-specific symlink through"
+else
+    bad "J14 guard-viability: the diff-filter=A mutant did not reproduce the T-symlink publication (mut_ok=$J_MUT_OK rc=$J_RC link=$J14M_LINK)"
+fi
+
+# --- J15: IMPORTANT I2 round-6 fix -- a staged gitlink (mode 160000, a
+# hook that `git init`s + commits INSIDE an allow-listed directory) whose
+# commit exists ONLY on this host is refused BEFORE commit/push -- never
+# only caught after the fact by step 9's post-push verify (by then it is
+# already irreversibly published, no force-push, §11.4.113).
+J15_HOOK="$WORK/j15_nested_repo_hook.sh"
+cat > "$J15_HOOK" <<'EOF'
+#!/usr/bin/env bash
+mkdir -p "$PROJECT_ROOT/skills/emb"
+cd "$PROJECT_ROOT/skills/emb"
+git init -q
+git -c user.name=h -c user.email=h@example.invalid commit -q --allow-empty -m "host-only nested commit"
+EOF
+build_r3_fixture "$I_ROOT/j15" "$J15_HOOK"
+J15_REMOTE_BEFORE=$(git -C "$I_ROOT/j15/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j15" fixture/section_j15 "$WORK/j15.json"
+J15_DETAIL=$(jfield "$WORK/j15.json" detail)
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+    && echo "$J15_DETAIL" | grep -q 'unexpected-gitlink path=skills/emb' \
+    && [ "$J15_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j15/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J15 R6 I2: a staged gitlink under an allow-listed path (a nested git-init commit that exists only on this host) is refused BEFORE commit/push, remote unchanged"
+else
+    bad "J15 R6 I2: a host-only nested gitlink was not refused before publishing (rc=$J_RC out=$J_OUT detail=$J15_DETAIL; see $WORK/j15.json)"
+fi
+j_mutant I2_no_gitlink_check 'if [ -n "$GITLINK_VIOLATION" ]; then' 'if false; then'
+build_r3_fixture "$I_ROOT/j15m" "$J15_HOOK"
+j_run "$WORK/jmut_I2_no_gitlink_check.sh" "$I_ROOT/j15m" fixture/section_j15m "$WORK/j15m.json"
+J15M_MODE=$(git -C "$I_ROOT/j15m/consumer.git" ls-tree refs/heads/main skills/emb 2>/dev/null | awk '{print $1}')
+# The vulnerability is the PUBLICATION itself (irreversible, §11.4.113) --
+# regardless of whether the OVERALL run later reports MIGRATED or an
+# unrelated NOT-MIGRATED (e.g. step 9's verify noticing the uninitialised
+# nested gitlink afterward, exactly the finding's own "honest only because
+# step 9 runs AFTER the push" framing). rc is therefore not asserted here.
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J15M_MODE" = "160000" ]; then
+    ok "J15 guard-viability: without the gitlink check a host-only nested commit is published as a permanent, unfetchable gitlink -- J15 is what catches it"
+else
+    bad "J15 guard-viability: the gitlink-check mutant did not reproduce the gitlink publication (mut_ok=$J_MUT_OK rc=$J_RC mode=$J15M_MODE)"
+fi
+
+# --- J16: IMPORTANT I3 round-6 fix -- a RELATIVE --out from a cwd
+# different from where the record ends up must still be counted by
+# `audit.py summary` (the real end-to-end path, not mkrec's synthetic
+# already-relative-to-record-dir paths).
+# The --out argument is deliberately ONE PLAIN LEVEL below the tool's own
+# invocation cwd ("migrations/j16.json" from "$I_ROOT/j16"), never "../..."
+# -- a "../migrations/x" string happens to resolve to the SAME file whether
+# computed from the tool's cwd or from the record's own directory (the
+# ".." cancels back into "migrations"), which would mask this exact bug.
+# A bare one-level-down relative path has no such coincidental symmetry:
+# resolved against the tool's cwd it is correct; resolved against the
+# record's own directory (what audit.py actually does) it is NOT, unless
+# the tool itself canonicalised --out to an absolute path first.
+build_r3_fixture "$I_ROOT/j16"
+J16_RUNDIR="$I_ROOT/j16"
+J16_OUTDIR="$I_ROOT/j16/migrations"
+mkdir -p "$J16_OUTDIR" "$I_ROOT/j16/empty_audits"
+J16_REF=$(make_review_ref "fixture/section_j16" "$R3_NEW" "$(git -C "$I_ROOT/j16/checkout" rev-parse HEAD)")
+J16_RUN_OUT=$(cd "$J16_RUNDIR" && FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$TOOL" --config "$CFG" --project "fixture/section_j16" \
+    --workdir "$I_ROOT/j16/checkout" --out "migrations/j16.json" --apply --review-ref "$J16_REF" 2>&1); J16_RUN_RC=$?
+if [ "$J16_RUN_RC" -eq 0 ] && echo "$J16_RUN_OUT" | grep -q '^MIGRATED'; then
+    ok "J16 R6 I3 precondition: the real migration with a RELATIVE --out MIGRATED"
+else
+    bad "J16 R6 I3 precondition: the real migration with a RELATIVE --out did not MIGRATE (rc=$J16_RUN_RC out=$J16_RUN_OUT)"
+fi
+cat > "$WORK/j16_consumers.json" <<EOF
+{"projects":[{"project_id":"fixture/section_j16"}]}
+EOF
+J16_SUMMARY="$WORK/j16_summary.json"
+python3 "$FC/consumers/audit.py" summary --consumers "$WORK/j16_consumers.json" \
+    --audits "$I_ROOT/j16/empty_audits" --migrations "$J16_OUTDIR" --out "$J16_SUMMARY" >"$WORK/j16_audit.log" 2>&1
+if python3 -c "
+import json, sys
+d = json.load(open('$J16_SUMMARY'))
+sys.exit(0 if d.get('migrated') == 1 and d.get('coverage') == 1.0 else 1)
+" 2>/dev/null; then
+    ok "J16 R6 I3: audit.py summary counts a genuinely MIGRATED record written with a RELATIVE --out as migrated=1, coverage=1.0 (verification evidence resolves correctly regardless of the caller's cwd at invocation time)"
+else
+    bad "J16 R6 I3: a relative --out migration was not counted by summary (see $J16_SUMMARY, $WORK/j16_audit.log)"
+fi
+j_mutant I3_no_out_canon \
+    'OUT_DIR=$(cd "$(dirname "$OUT")" 2>/dev/null && pwd)
+if [ -z "$OUT_DIR" ]; then
+    echo "migrate.sh: the directory for --out $OUT does not exist" >&2
+    exit 2
+fi
+OUT="$OUT_DIR/$(basename "$OUT")"' \
+    ': # T177 Round 6 I3 mutant: OUT canonicalisation disabled, left relative'
+build_r3_fixture "$I_ROOT/j16m"
+J16M_RUNDIR="$I_ROOT/j16m"
+J16M_OUTDIR="$I_ROOT/j16m/migrations"
+mkdir -p "$J16M_OUTDIR" "$I_ROOT/j16m/empty_audits"
+J16M_REF=$(make_review_ref "fixture/section_j16m" "$R3_NEW" "$(git -C "$I_ROOT/j16m/checkout" rev-parse HEAD)")
+(cd "$J16M_RUNDIR" && FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_I3_no_out_canon.sh" --config "$CFG" --project "fixture/section_j16m" \
+    --workdir "$I_ROOT/j16m/checkout" --out "migrations/j16m.json" --apply --review-ref "$J16M_REF" >"$WORK/j16m_run.log" 2>&1)
+cat > "$WORK/j16m_consumers.json" <<EOF
+{"projects":[{"project_id":"fixture/section_j16m"}]}
+EOF
+python3 "$FC/consumers/audit.py" summary --consumers "$WORK/j16m_consumers.json" \
+    --audits "$I_ROOT/j16m/empty_audits" --migrations "$J16M_OUTDIR" --out "$WORK/j16m_summary.json" >"$WORK/j16m_audit.log" 2>&1
+if [ "$J_MUT_OK" -eq 1 ] && python3 -c "
+import json, sys
+d = json.load(open('$WORK/j16m_summary.json'))
+sys.exit(0 if d.get('migrated') == 0 and d.get('coverage') == 0.0 else 1)
+" 2>/dev/null; then
+    ok "J16 guard-viability: without OUT canonicalisation a genuinely MIGRATED record written with a relative --out reads as uncounted (migrated=0, coverage=0.0) -- J16/the I3 fix is what makes it count"
+else
+    bad "J16 guard-viability: the no-OUT-canon mutant still counted the record (mut_ok=$J_MUT_OK; see $WORK/j16m_summary.json)"
+fi
+
+# --- J17: IMPORTANT I6 round-6 fix -- a product-code commit published to
+# ONLY ONE mirror (never to origin or any other remote) must not be
+# propagated onto EVERY remote's copy of main by this tool -- the
+# collective (union) unpublished-commit count alone treats it as
+# "already published" the instant it exists on ANY remote.
+build_r3_fixture "$I_ROOT/j17"
+git clone -q --bare "$I_ROOT/j17/consumer.git" "$I_ROOT/j17/m3.git" >/dev/null 2>&1
+git -C "$I_ROOT/j17/checkout" remote add m3 "$I_ROOT/j17/m3.git"
+echo "/* unreviewed product change, m3-only-marker */" >> "$I_ROOT/j17/checkout/src/product.c"
+git -C "$I_ROOT/j17/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -am "product change, m3-only"
+git -C "$I_ROOT/j17/checkout" push -q m3 main
+git -C "$I_ROOT/j17/checkout" fetch -q m3
+J17_ORIGIN_BEFORE=$(git -C "$I_ROOT/j17/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j17" fixture/section_j17 "$WORK/j17.json"
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (preflight: divergent-branches)' \
+    && [ "$J17_ORIGIN_BEFORE" = "$(git -C "$I_ROOT/j17/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J17 R6 I6: a product-code commit published to only ONE mirror is refused before publishing it to every other remote's copy of main; origin unchanged"
+else
+    bad "J17 R6 I6: a mirror-only product commit was not refused (rc=$J_RC out=$J_OUT; origin before=$J17_ORIGIN_BEFORE after=$(git -C "$I_ROOT/j17/consumer.git" rev-parse refs/heads/main))"
+fi
+j_mutant I6_no_per_remote_scope_check \
+    'NEW_TO_R=$(git -C "$WORKDIR" rev-list "$LOCAL_HEAD" --not "$RREF" 2>/dev/null)
+    [ -z "$NEW_TO_R" ] && continue' \
+    'NEW_TO_R=""
+    [ -z "$NEW_TO_R" ] && continue'
+build_r3_fixture "$I_ROOT/j17m"
+git clone -q --bare "$I_ROOT/j17m/consumer.git" "$I_ROOT/j17m/m3.git" >/dev/null 2>&1
+git -C "$I_ROOT/j17m/checkout" remote add m3 "$I_ROOT/j17m/m3.git"
+echo "/* unreviewed product change, m3-only-marker */" >> "$I_ROOT/j17m/checkout/src/product.c"
+git -C "$I_ROOT/j17m/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -am "product change, m3-only"
+git -C "$I_ROOT/j17m/checkout" push -q m3 main
+git -C "$I_ROOT/j17m/checkout" fetch -q m3
+j_run "$WORK/jmut_I6_no_per_remote_scope_check.sh" "$I_ROOT/j17m" fixture/section_j17m "$WORK/j17m.json"
+J17M_ORIGIN_PRODUCT=$(git -C "$I_ROOT/j17m/consumer.git" show refs/heads/main:src/product.c 2>&1)
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' \
+    && echo "$J17M_ORIGIN_PRODUCT" | grep -q 'm3-only-marker'; then
+    ok "J17 guard-viability: without the per-remote scope check the mirror-only product commit is pushed to EVERY remote's main (including origin) -- J17 is what catches it"
+else
+    bad "J17 guard-viability: the no-per-remote-check mutant did not reproduce the propagation (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT; origin-product=$J17M_ORIGIN_PRODUCT)"
+fi
+
+# --- J18: MINOR M1 round-6 fix -- re-running an already-MIGRATED consumer
+# with its ORIGINAL (now-stale) review never downgrades the existing
+# MIGRATED record in place.
+build_r3_fixture "$I_ROOT/j18"
+J18_REF=$(make_review_ref "fixture/section_j18" "$R3_NEW" "$(git -C "$I_ROOT/j18/checkout" rev-parse HEAD)")
+J18_OUT1=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$TOOL" --config "$CFG" --project "fixture/section_j18" \
+    --workdir "$I_ROOT/j18/checkout" --out "$WORK/j18.json" --apply --review-ref "$J18_REF" 2>&1); J18_RC1=$?
+if [ "$J18_RC1" -eq 0 ] && echo "$J18_OUT1" | grep -q '^MIGRATED'; then
+    ok "J18 R6 M1 precondition: the first run genuinely MIGRATED"
+else
+    bad "J18 R6 M1 precondition: the first run did not MIGRATE (rc=$J18_RC1 out=$J18_OUT1)"
+fi
+J18_OUT2=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$TOOL" --config "$CFG" --project "fixture/section_j18" \
+    --workdir "$I_ROOT/j18/checkout" --out "$WORK/j18.json" --apply --review-ref "$J18_REF" 2>&1); J18_RC2=$?
+J18_OUTCOME_AFTER=$(jfield "$WORK/j18.json" outcome)
+if [ "$J18_RC2" -eq 1 ] && [ "$J18_OUTCOME_AFTER" = "MIGRATED" ] && echo "$J18_OUT2" | grep -q 'left UNTOUCHED'; then
+    ok "J18 R6 M1: re-running with the ORIGINAL (now-stale) review refuses (review-no-go) but LEAVES the existing MIGRATED record untouched -- the record never downgrades in place"
+else
+    bad "J18 R6 M1: the second run downgraded or corrupted the existing MIGRATED record (rc=$J18_RC2 outcome-after=$J18_OUTCOME_AFTER out=$J18_OUT2; see $WORK/j18.json)"
+fi
+j_mutant M1_overwrite_migrated_on_rerun \
+    'if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ]; then
+            echo "migrate.sh: review-no-go on the already-at-target path, but $OUT already holds a MIGRATED record for $PROJECT -- left UNTOUCHED (re-run with a FRESH review bound to the migration commit to re-verify)" >&2
+            exit 1
+        fi' \
+    ': # T177 Round 6 M1 mutant: the re-run guard is disabled'
+build_r3_fixture "$I_ROOT/j18m"
+J18M_REF=$(make_review_ref "fixture/section_j18m" "$R3_NEW" "$(git -C "$I_ROOT/j18m/checkout" rev-parse HEAD)")
+FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_M1_overwrite_migrated_on_rerun.sh" --config "$CFG" --project "fixture/section_j18m" \
+    --workdir "$I_ROOT/j18m/checkout" --out "$WORK/j18m.json" --apply --review-ref "$J18M_REF" >/dev/null 2>&1
+FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_M1_overwrite_migrated_on_rerun.sh" --config "$CFG" --project "fixture/section_j18m" \
+    --workdir "$I_ROOT/j18m/checkout" --out "$WORK/j18m.json" --apply --review-ref "$J18M_REF" >/dev/null 2>&1
+if [ "$J_MUT_OK" -eq 1 ] && [ "$(jfield "$WORK/j18m.json" outcome)" = "NOT-MIGRATED" ]; then
+    ok "J18 guard-viability: without the re-run guard, a second run with the SAME stale review downgrades the on-disk record from MIGRATED to NOT-MIGRATED in place -- J18 is what catches it"
+else
+    bad "J18 guard-viability: the overwrite-guard mutant did not reproduce the downgrade (mut_ok=$J_MUT_OK; see $WORK/j18m.json)"
 fi
 
 rm -rf "$I_ROOT" 2>/dev/null || true

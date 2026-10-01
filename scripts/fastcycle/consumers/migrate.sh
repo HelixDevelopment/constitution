@@ -108,6 +108,25 @@ fi
 # 2026-10-01 with a stub hook writing $PROJECT_ROOT/.mcp.json).
 WORKDIR=$(cd "$WORKDIR" && pwd)
 
+# T177 Round 6 (round-6 IMPORTANT I3): canonicalise --out to an ABSOLUTE
+# path too, the SAME way $WORKDIR already is. The persisted verification
+# report paths below (${OUT%.json}.verify1.json etc.) were previously
+# written relative to the CALLER's cwd at invocation time, but `audit.py
+# summary` resolves a record's relative evidence paths against the RECORD
+# FILE's own directory (dirname(abspath(mf))) -- a mismatch whenever those
+# two directories differ, which is almost always true in real usage (the
+# caller's cwd is rarely the same directory the record ends up in).
+# Reproduced live 2026-10-01: a migration run with a relative --out from a
+# cwd different from the record's eventual directory left a genuinely
+# MIGRATED record reading "record-verification-evidence-unverifiable",
+# coverage 0, even though the migration itself succeeded cleanly.
+OUT_DIR=$(cd "$(dirname "$OUT")" 2>/dev/null && pwd)
+if [ -z "$OUT_DIR" ]; then
+    echo "migrate.sh: the directory for --out $OUT does not exist" >&2
+    exit 2
+fi
+OUT="$OUT_DIR/$(basename "$OUT")"
+
 # T177 Round 2 R2-I1 fix: every tool-OWN transient file (fetch/push/hook/
 # gates stderr+log captures) MUST live OUTSIDE $WORKDIR -- writing them
 # inside the very consumer checkout being migrated means a refusal that
@@ -248,6 +267,26 @@ not_migrated_after_write() {
 # paths, none of which previously re-measured reality before writing.
 current_data_change() {
     git -C "$WORKDIR" status --porcelain=v1 2>/dev/null | awk '{print $2}' | tr '\n' ',' | sed 's/,$//'
+}
+
+# T177 Round 6 (round-6 MINOR M1): reads a single top-level field back from
+# the CURRENT on-disk $OUT (never assumed) -- used by the already-at-target
+# path to detect, before ANY write to $OUT, whether it already holds a
+# genuine MIGRATED record for THIS project that a re-run's review-no-go
+# refusal would otherwise silently downgrade in place. Absent/unreadable/
+# invalid JSON -> empty string, never a guess.
+read_out_field() {
+    [ -f "$OUT" ] || { echo ""; return; }
+    python3 -c "
+import json, sys
+try:
+    with open(sys.argv[1], encoding='utf-8') as fh:
+        d = json.load(fh)
+except Exception:
+    print('')
+else:
+    print(d.get(sys.argv[2], '') or '')
+" "$OUT" "$1" 2>/dev/null
 }
 
 # Step 6 review check (CA-024), shared by the bump path and -- T177 Round 5
@@ -460,6 +499,55 @@ fi
 if [ "$UNPUBLISHED" != "0" ]; then
     not_migrated "preflight" "divergent-branches" "local-$BRANCH-has-$UNPUBLISHED-commit(s)-unpublished-on-every-remote"
 fi
+
+# T177 Round 6 (round-6 IMPORTANT I6): the COLLECTIVE check above (zero
+# commits of $LOCAL_HEAD outside the UNION of every remote's copy of this
+# branch) correctly stops treating a merely-LAGGING mirror as "unpublished"
+# (round-4 I4), but the union also means a commit published to ONLY ONE
+# remote reads as "already published" for every OTHER remote too --
+# reproduced live: a product-code commit pushed to a SINGLE mirror, never
+# to origin or any other remote, was then propagated by this tool onto
+# EVERY remote's copy of $BRANCH, the exact CA-022 violation the collective
+# check was never meant to permit.
+#
+# Each PUBLISHED remote is checked INDIVIDUALLY: of the commits that would
+# be NEWLY DELIVERED to it by pushing (not yet on its own copy of
+# $BRANCH), every one must EITHER (a) already be an ancestor of this
+# branch's own tracked upstream ($UPSTREAM, resolved above -- the checkout's
+# own canonical source; a commit that reached THIS checkout via its own
+# upstream is trusted regardless of which paths it touches, exactly how
+# CA-025's legitimate retry case -- a prior MIGRATION commit already
+# fetched from upstream, pending push to a lagging mirror -- works), OR (b)
+# touch ONLY the CA-022 allow-listed paths (the SAME allow-list enforced on
+# this run's own staged diff above). A remote already carrying every local
+# commit has nothing newly delivered and is skipped.
+#
+# Honest boundary: a MERGE commit's own diff is not inspected here (plain
+# `git diff-tree` without `-m`/`-c` on a multi-parent commit prints
+# nothing) -- a merge commit reaching this check neither anchored to
+# $UPSTREAM nor itself touching an out-of-scope path is a residual gap,
+# narrower than the single-commit shape this fix closes.
+for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
+    RREF="refs/remotes/$r/$BRANCH"
+    if ! git -C "$WORKDIR" rev-parse -q --verify "$RREF" >/dev/null 2>&1; then
+        continue
+    fi
+    NEW_TO_R=$(git -C "$WORKDIR" rev-list "$LOCAL_HEAD" --not "$RREF" 2>/dev/null)
+    [ -z "$NEW_TO_R" ] && continue
+    for c in $NEW_TO_R; do
+        if [ -n "$UPSTREAM" ] && git -C "$WORKDIR" merge-base --is-ancestor "$c" "$UPSTREAM" 2>/dev/null; then
+            continue
+        fi
+        OUT_OF_SCOPE=$(git -C "$WORKDIR" diff-tree --no-commit-id --name-only -r "$c" 2>/dev/null | awk '
+            $0 == "constitution" || $0 == ".gitmodules" || $0 == ".mcp.json" { next }
+            /^\.claude\// || /^scripts\/hooks\// || /^config\/fastcycle\// || /^skills\// { next }
+            { print; exit }
+        ')
+        if [ -n "$OUT_OF_SCOPE" ]; then
+            not_migrated "preflight" "divergent-branches" "remote-$r-would-newly-receive-commit-$c-touching-out-of-scope-path-$OUT_OF_SCOPE"
+        fi
+    done
+done
 
 if [ "$APPLY" -eq 0 ]; then
     # T177 Round 3 finding 1(b): a dry run is NOT a migration outcome --
@@ -793,7 +881,24 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # repository, is refused out-of-scope-diff before review/commit/push;
     # the refusal never rewrites the hook's output (the tool does not
     # second-guess what the hook meant -- the hook must emit portable links).
-    SYMLINK_VIOLATION=$(git -C "$WORKDIR" diff --cached --raw -z --no-renames --diff-filter=AMT 2>/dev/null | python3 -c '
+    # T177 Round 6 (round-6 BLOCKING B1): the staged add/modify/type-change
+    # diff enumeration is captured to a file ONCE and its OWN exit status
+    # checked explicitly -- feeding it straight into a pipeline (the
+    # round-5 shape: `git diff ... | python3 -c '...'`) left the
+    # enumeration's own failure invisible: `$?` after a pipeline with no
+    # `pipefail` reflects only the LAST stage (python3), so a failure of
+    # the `git diff` itself fed python3 an EMPTY stdin, which legitimately
+    # prints nothing and exits 0 -- a silent "clean" verdict for content
+    # nobody enumerated. Reproduced live under a forced `git diff --cached
+    # --raw` failure: a staged absolute-path symlink was published
+    # verbatim, rc=0, remote tip moved. BOTH the symlink scan (mode 120000,
+    # below) and the gitlink scan (mode 160000, R6-I2, further below) read
+    # this SAME captured enumeration.
+    SYMLINK_DIFF="$MIGRATE_SCRATCH/migrate_symlink_diff.raw"
+    if ! git -C "$WORKDIR" diff --cached --raw -z --no-renames --diff-filter=AMT >"$SYMLINK_DIFF" 2>/dev/null; then
+        not_migrated_after_write "wiring" "out-of-scope-diff" "symlink-scan-failed"
+    fi
+    SYMLINK_VIOLATION=$(python3 -c '
 import os, posixpath, subprocess, sys
 workdir = sys.argv[1]
 data = sys.stdin.buffer.read().split(b"\0")
@@ -809,8 +914,18 @@ while i + 1 < len(data):
         continue
     blob = fields[3].decode()
     rel = path.decode("utf-8", "surrogateescape")
-    target = subprocess.run(["git", "-C", workdir, "cat-file", "blob", blob],
-                            capture_output=True).stdout.decode("utf-8", "surrogateescape")
+    # T177 Round 6 (round-6 BLOCKING B1): this subprocess returncode was
+    # previously never checked at all -- a FAILED blob read decoded its
+    # empty stdout as target="", which normalizes to "inside the repo"
+    # (clean) via posixpath.normpath, silently clearing a blob the scanner
+    # never actually inspected (reproduced live under a cat-file-failing
+    # shim: an absolute-path symlink was published, rc=0). A failed read
+    # is an UNKNOWN target, never a clean one -- the scanner fails loud.
+    cat = subprocess.run(["git", "-C", workdir, "cat-file", "blob", blob],
+                         capture_output=True)
+    if cat.returncode != 0:
+        sys.exit(3)
+    target = cat.stdout.decode("utf-8", "surrogateescape")
     if target.startswith("/"):
         bad.append("path=%s target-is-absolute" % rel)
         continue
@@ -819,7 +934,7 @@ while i + 1 < len(data):
         bad.append("path=%s target-escapes-repository" % rel)
 if bad:
     print("host-specific-symlink " + " ".join(bad))
-' "$WORKDIR" 2>/dev/null)
+' "$WORKDIR" <"$SYMLINK_DIFF" 2>/dev/null)
     SYMLINK_RC=$?
     if [ "$SYMLINK_RC" -ne 0 ]; then
         # The scanner itself could not run: refuse rather than publish
@@ -828,6 +943,47 @@ if bad:
     fi
     if [ -n "$SYMLINK_VIOLATION" ]; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "$SYMLINK_VIOLATION"
+    fi
+
+    # T177 Round 6 (round-6 IMPORTANT I2): a staged GITLINK (mode 160000)
+    # under an allow-listed directory -- e.g. a hook that `git init`s +
+    # commits INSIDE `skills/<n>` -- points at a commit that exists ONLY on
+    # this migrating host. The symlink scanner above only inspects mode
+    # 120000 entries, so this class previously published an unfetchable
+    # commit into the consumer's PERMANENT history BEFORE step 9's
+    # post-push verify could ever catch it (no force-push, §11.4.113 --
+    # irreversible by then). Every staged 160000 entry other than
+    # "constitution" itself, and not declared as a path in the currently
+    # staged .gitmodules, is refused HERE -- before commit/push -- never
+    # only caught after the fact.
+    DECLARED_SUBMODULE_PATHS=$(git config -f "$WORKDIR/.gitmodules" --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk '{print $2}')
+    GITLINK_VIOLATION=$(python3 -c '
+import sys
+data = sys.stdin.buffer.read().split(b"\0")
+declared = set(x for x in sys.argv[1].splitlines() if x)
+i = 0
+bad = []
+while i + 1 < len(data):
+    meta, path = data[i], data[i + 1]
+    i += 2
+    if not meta.startswith(b":"):
+        continue
+    fields = meta[1:].split()
+    if len(fields) < 4 or fields[1] != b"160000":
+        continue
+    rel = path.decode("utf-8", "surrogateescape")
+    if rel == "constitution" or rel in declared:
+        continue
+    bad.append("path=%s" % rel)
+if bad:
+    print("unexpected-gitlink " + " ".join(bad))
+' "$DECLARED_SUBMODULE_PATHS" <"$SYMLINK_DIFF" 2>/dev/null)
+    GITLINK_RC=$?
+    if [ "$GITLINK_RC" -ne 0 ]; then
+        not_migrated_after_write "wiring" "out-of-scope-diff" "gitlink-scan-failed"
+    fi
+    if [ -n "$GITLINK_VIOLATION" ]; then
+        not_migrated_after_write "wiring" "out-of-scope-diff" "$GITLINK_VIOLATION"
     fi
 
     # --- Step 6: review (CA-024) -- absent or non-GO => review-no-go.
@@ -980,6 +1136,19 @@ else
     # operational cost is one verify-only review of a no-op state, which is
     # cheap and honest.
     if ! check_review; then
+        # T177 Round 6 (round-6 MINOR M1): re-running an already-MIGRATED
+        # consumer with its ORIGINAL review (now stale -- its own base has
+        # since moved to the migration commit) must NEVER downgrade the
+        # existing on-disk MIGRATED record for this SAME project in place.
+        # Reproduced live: a second run with the same (now-stale) review
+        # overwrote outcome MIGRATED -> NOT-MIGRATED at the SAME --out path,
+        # with no new write to $WORKDIR at all. A pre-existing MIGRATED
+        # record for this exact project is left genuinely UNTOUCHED; the
+        # refusal is reported on stderr only, never written to $OUT.
+        if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ]; then
+            echo "migrate.sh: review-no-go on the already-at-target path, but $OUT already holds a MIGRATED record for $PROJECT -- left UNTOUCHED (re-run with a FRESH review bound to the migration commit to re-verify)" >&2
+            exit 1
+        fi
         not_migrated "review" "review-no-go" "already-at-target-verify-only-path-still-requires-a-bound-GO-review"
     fi
     git -C "$WORKDIR" -c protocol.file.allow=always submodule update --init constitution >/dev/null 2>&1 || true
