@@ -214,6 +214,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -328,29 +329,90 @@ _TIMEOUT_RC = 124
 _KILL_DRAIN_GRACE_S = 3.0
 
 
+def _proc_group_has_nonzombie_member(pgid):
+    """T140 Round 19 (round-18 finding MINOR-A): returns True if `/proc`
+    shows a process whose process group is `pgid` and whose state is NOT
+    `Z` (zombie); False if every readable `/proc` entry says otherwise (or
+    none belongs to `pgid`); None if `/proc` itself could not be
+    enumerated at all (the caller applies its own safe default -- an
+    individual unreadable `/proc/<pid>/stat`, e.g. a race where the pid
+    exited between `listdir` and `open`, is skipped rather than treated as
+    a reason to give up on the whole scan)."""
+    try:
+        entries = os.listdir("/proc")
+    except OSError:
+        return None
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        try:
+            with open("/proc/%s/stat" % entry, "rb") as fh:
+                raw = fh.read()
+        except OSError:
+            continue
+        text = raw.decode("utf-8", "surrogateescape")
+        # `comm` (proc(5) field 2) is parenthesised and may itself contain
+        # spaces/parentheses -- split on the LAST ')' to recover the
+        # fixed-width fields that follow it (state, ppid, pgrp, ...).
+        rparen = text.rfind(")")
+        if rparen == -1:
+            continue
+        fields = text[rparen + 1:].split()
+        if len(fields) < 3:
+            continue
+        proc_state, pgrp_field = fields[0], fields[2]
+        try:
+            pgrp = int(pgrp_field)
+        except ValueError:
+            continue
+        if pgrp == pgid and proc_state != "Z":
+            return True
+    return False
+
+
 def _group_has_survivor(pgid):
     """T140 Round 17 (round-16 finding MINOR-1): section 11.4.201 -- probes
     the REAL kernel state via signal 0, never guesses. True if the process
-    group `pgid` still has ANY member alive; False if it is genuinely empty
-    (every reachable member already died); None if `pgid` itself is not a
-    valid signalable group id (section 11.4.263: never signal a process
-    group <= 1). Used ONLY to decide, after a post-kill drain already timed
-    out once, whether a surviving pipe-holder is (a) still inside OUR OWN
-    process group -- meaning the kill above did not actually do its job, a
-    genuine defect that must stay observable as a hang -- or (b) has
-    escaped that group entirely (e.g. a filter that called `setsid`), where
-    nothing further can be targeted without guessing at an unrelated pid."""
+    group `pgid` still has a REAL (non-zombie) member alive; False if it is
+    genuinely empty of such a member (every reachable member already died,
+    or only zombies remain -- round 19, see below); None if `pgid` itself
+    is not a valid signalable group id (section 11.4.263: never signal a
+    process group <= 1). Used ONLY to decide, after a post-kill drain
+    already timed out once, whether a surviving pipe-holder is (a) still
+    inside OUR OWN process group -- meaning the kill above did not actually
+    do its job, a genuine defect that must stay observable as a hang -- or
+    (b) has escaped that group entirely (e.g. a filter that called
+    `setsid`), where nothing further can be targeted without guessing at an
+    unrelated pid.
+
+    T140 Round 19 (round-18 finding MINOR-A, fixed here): the signal-0
+    probe alone cannot tell a real survivor from a ZOMBIE member of the
+    same group -- signal 0 succeeds on a zombie too, but a zombie holds NO
+    file descriptors and so cannot be what is actually keeping a pipe
+    open. Reproduced live: a filter spawning BOTH an in-group child (killed
+    by the group kill, becomes a zombie) AND a `setsid`-escaped grandchild
+    (the real survivor, holding the pipe, never reaped) made the signal-0
+    probe alone report `survivor=True` from the zombie's mere presence, so
+    the bounded drain fell through to the ORIGINAL unbounded wait and took
+    the full ~25s instead of the intended ~3-6s bound. The signal-0 probe
+    below still decides existence/permission as before; a SUCCESSFUL probe
+    is now followed by a `/proc` scan that excludes zombie members before
+    reporting a real survivor."""
     if not (isinstance(pgid, int) and pgid > 1):
         return None
     try:
         os.killpg(pgid, 0)
-        return True
     except ProcessLookupError:
         return False
     except PermissionError:
         # exists but unsignalable by us -- the safe default keeps draining
         # rather than falsely declaring the group clean and abandoning it.
         return True
+    live = _proc_group_has_nonzombie_member(pgid)
+    # `/proc` could not be enumerated at all -- fall back to the same safe
+    # default as the PermissionError branch above (keep draining) rather
+    # than falsely declaring the group clean.
+    return True if live is None else live
 
 
 def _git_timeout_s():
@@ -1053,10 +1115,56 @@ def worktree_admin_dir_problems(path, env=None):
                 if not os.path.isdir(fp):
                     problems.append("%s: unexpected non-directory admin entry" % name)
                     continue
-                for dirpath, _dirs, files in os.walk(fp, onerror=_walk_raise):
+                # T140 Round 19 (round-18 finding IMPORTANT, fixed here):
+                # `os.walk`'s DEFAULT `followlinks=False` lists a symlinked
+                # subdirectory in `dirs` but never DESCENDS into it, and
+                # nothing raises (this is `os.walk`'s own documented,
+                # intentional behaviour -- not an error `_walk_raise` above
+                # would ever see). A symlink under `refs/`/`logs/` pointing
+                # at a location holding a commit reachable from nowhere else
+                # is therefore invisible to the candidate-collection loop
+                # below, and `git worktree remove` deletes the SYMLINK (not
+                # its target) -- reproduced live (3/3 deterministic):
+                # `verify-proposal ... retire` returned ALLOWED while
+                # `git -C wt for-each-ref refs/worktree` still listed a ref
+                # anchoring a commit that `gc --prune=now` then destroyed
+                # once the symlink -- and with it the worktree's only
+                # pointer to it -- was gone. Deliberately NOT
+                # `followlinks=True` (adds loop-risk, section 11.4.6); every
+                # symlink found ANYWHERE under these two trees -- as a
+                # listed subdirectory OR as a leaf entry -- is refused
+                # outright instead ("unexpected symlinked admin entry"),
+                # fail-closed. Folded into the SAME pass (round-18's own
+                # "minor sibling" note): any NON-REGULAR leaf entry (FIFO,
+                # socket, device -- never raised by `onerror`) is refused
+                # too, since `open()` on a FIFO can block forever outside
+                # any git timeout (section 11.4.201(12) shell-instrument
+                # footgun class) -- availability-only, closed in the same
+                # walk rather than a separate pass.
+                for dirpath, dirs, files in os.walk(fp, onerror=_walk_raise):
+                    for d in sorted(dirs):
+                        dfull = os.path.join(dirpath, d)
+                        if os.path.islink(dfull):
+                            drel = os.path.relpath(dfull, admin).replace(os.sep, "/")
+                            problems.append("%s: unexpected symlinked admin entry (refused; a symlinked "
+                                            "subdirectory under logs/ or refs/ is never descended into by "
+                                            "this walk, so a commit anchored only through it would be "
+                                            "silently missed)" % drel)
                     for f in sorted(files):
                         full = os.path.join(dirpath, f)
                         rel = os.path.relpath(full, admin).replace(os.sep, "/")
+                        try:
+                            lst = os.lstat(full)
+                        except OSError as exc:
+                            return None, "could not stat %r (%s: %s)" % (full, type(exc).__name__, exc)
+                        if stat.S_ISLNK(lst.st_mode):
+                            problems.append("%s: unexpected symlinked admin entry (refused; cannot prove "
+                                            "the symlink target is anchored elsewhere)" % rel)
+                            continue
+                        if not stat.S_ISREG(lst.st_mode):
+                            problems.append("%s: unexpected non-regular admin entry (refused; e.g. a FIFO "
+                                            "could block indefinitely outside any git timeout)" % rel)
+                            continue
                         if name == "refs":
                             problems.append("%s: a per-worktree ref (deleted with the worktree)" % rel)
                             candidates.extend(_oids_in_file(full, reflog=False))

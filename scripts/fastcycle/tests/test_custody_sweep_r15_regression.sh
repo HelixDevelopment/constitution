@@ -470,8 +470,39 @@ if gone "$B2/main" "$ORPHAN"; then
 else
   notok "B2 loss NOT reproduced ($ORPHAN survives)"
 fi
+# T140 round-19 (round-18 finding MINOR-B, fixed here): round-17's own
+# MINOR-3 comment above asserted "B1/B3/I1 do not share [the B2 confound]
+# because ... B3/I1's anchors are REFS not reflog entries" -- that is FALSE
+# for B3 specifically on this host's git version: `git gc --prune=now` run
+# FROM THE MAIN checkout does not protect another worktree's OWN private
+# `refs/worktree/*` namespace at all (that ref is invisible to `-C main
+# gc`'s reachability walk, which only sees the CURRENT worktree's own
+# per-worktree refs plus the shared namespace) -- confirmed live: with
+# "$B3/wt" STILL PRESENT, running `gc --prune=now` (plain, or the combined
+# `expire_gc`) FROM MAIN destroys SAVED even though the ref FILE itself
+# survives untouched (git run from main never looked at it to decide
+# reachability, so the loss has nothing to do with removal). That meant
+# B3's former single-step "loss proven: removal caused it" never actually
+# isolated removal as the cause -- the same confound class MINOR-3 fixed
+# for B2, in a different gc-invocation-context shape. This is a TEST-
+# EVIDENCE-QUALITY fix only: the real tool's REFUSED verdict for B3 (line
+# 167 above) is unaffected and already independently confirmed correct.
+# Fixed with the same B2-style explicit CONTROL-then-PROOF pair, but
+# running the control's `gc` FROM THE WORKTREE ITSELF ("$B3/wt", which
+# DOES see its own private ref and so correctly anchors SAVED) while it is
+# still present (SAVED must survive); only the subsequent actual removal
+# (admin dir deleted outright) plus a from-main gc may then destroy it.
+gc_only "$B3/wt"
+if gone "$B3/main" "$SAVED"; then
+  notok "B3 control FAILED: 'gc --prune=now' run FROM THE WORKTREE (still present) already destroyed $SAVED --" \
+        "the scenario's per-worktree-ref-only anchoring assumption is wrong"
+else
+  ok "B3 control: with the worktree STILL present, 'gc --prune=now' run FROM THE WORKTREE leaves $SAVED intact"
+fi
 g -C "$B3/main" worktree remove --force --force "$B3/wt" >/dev/null 2>&1; expire_gc "$B3/main"
-if gone "$B3/main" "$SAVED"; then ok "B3 loss proven: commit $SAVED gone after remove --force + reflog expire + gc"
+if gone "$B3/main" "$SAVED"; then
+  ok "B3 loss proven: commit $SAVED gone after remove --force + reflog expire + gc (control above shows this is" \
+     "removal itself, not gc's invocation context)"
 else notok "B3 loss NOT reproduced ($SAVED survives)"; fi
 g -C "$I1/main" stash drop --quiet; expire_gc "$I1/main"
 if gone "$I1/main" "$TMPC"; then ok "I1 loss proven: the stash base commit $TMPC (other.txt) gone after drop + gc"

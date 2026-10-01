@@ -363,9 +363,13 @@ SAVED2=$(echo only | g -C "$M2b/wt" commit-tree "HEAD^{tree}" -p HEAD -m only2)
 g -C "$M2b/wt" update-ref refs/worktree/saved "$SAVED2"
 echo z >> "$M2b/wt/keep"; wt_backup "$M2b"
 chmod 000 "$(admin "$M2b")/refs/worktree"
+# T140 round-19: the anchor's variable name changed from `_dirs` to `dirs`
+# when round 19 added the symlinked-subdirectory check (the walk now reads
+# the `dirs` list the round-19 fix inspects) -- the mutation itself (revert
+# `onerror=_walk_raise` to os.walk's silent-skip default) is unchanged.
 m=$(mk_mutant MR17_3_walk_onerror_removed \
-    '                for dirpath, _dirs, files in os.walk(fp, onerror=_walk_raise):' \
-    '                for dirpath, _dirs, files in os.walk(fp):')
+    '                for dirpath, dirs, files in os.walk(fp, onerror=_walk_raise):' \
+    '                for dirpath, dirs, files in os.walk(fp):')
 if [ -z "$m" ]; then
   notok "mutation MR17_3_walk_onerror_removed: anchor not found ($(cat "$TMP/mut_MR17_3_walk_onerror_removed.log"))"
 else
