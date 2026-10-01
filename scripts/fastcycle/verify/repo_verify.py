@@ -37,6 +37,12 @@ in a process-lifetime scratch object store, see "Safety" below). `git rev-list -
 tip object cannot be obtained) reports `unpushed: "UNKNOWN"` for that remote and folds the repo
 into UNVERIFIED (never a silent 0, constitution 11.4.201(6)'s false-null guard).
 
+Enumeration (RV-001, extended in T158 round 5, finding I5-2): submodules are walked from
+`.gitmodules`, AND every mode-160000 gitlink in each repo's HEAD tree (`git ls-tree -r`) is
+cross-checked against that set -- a gitlink present in the tree but unmapped by `.gitmodules`
+(a plain `git add` of a nested repo, or a hand-written index entry) is reported NOT_CLEAN with
+`SUBMODULE_UNMAPPED`, never silently skipped (a fresh clone cannot fetch it at all).
+
 Pointer checks (RV-003, constitution 11.4.233(G)): a submodule's checked-out HEAD is compared
 against the gitlink SHA recorded in the PARENT's own last COMMIT (via `git ls-tree <parent_head>
 -- <path>`, not the possibly-dirty index) -> `DETACHED_POINTER_DRIFT` on mismatch. The gitlink SHA
@@ -72,7 +78,8 @@ only the FETCH URL; a remote whose `pushurl` (or multiple `pushurl` entries) dif
 URL would otherwise never be checked at all -- a lagging/rejecting PUSH destination silently reads
 CLEAN forever. For every configured remote, every DISTINCT configured push URL (`git remote
 get-url --push --all <name>`) that is not identical to the already-checked fetch URL is verified
-the same way (live tip read, read-only temp-ref fetch, equality/ahead/differs classification),
+the same way (live tip read, read-only bare-SHA fetch into the scratch object store -- no ref
+written, since round 2's I1 fix -- equality/ahead/differs classification),
 reported as an additional `RemoteResult` entry named `<remote>:push`. The common case (no explicit
 `pushurl` configured) costs nothing extra: the one push URL git itself falls back to IS the fetch
 URL, so it is skipped.
@@ -152,6 +159,9 @@ REASON_CODES = (
     "DIRTY_TREE", "UNTRACKED_FILES", "UNPUSHED_COMMITS", "REMOTE_TIP_DIFFERS", "REMOTE_AHEAD",
     "REMOTE_REJECTED_LAST_PUSH", "REMOTE_UNREACHABLE", "DETACHED_POINTER_DRIFT",
     "SUBMODULE_UNINITIALISED", "POINTER_UNFETCHABLE",
+    # T158 round 5 (I5-2): a gitlink in the HEAD tree with no `.gitmodules` mapping -- addition to
+    # data-model.md #12.1's closed set (contract addendum noted in recursive-verification.md).
+    "SUBMODULE_UNMAPPED",
 )
 
 # Operator-tunable default; the contract states no measured bound. Overridable via
@@ -209,6 +219,22 @@ class Terminated(Exception):
     (never 1 -- reserved for findings) and reported as BLIND (4), not an uncaught traceback."""
 
 
+# T158 remediation round 5 (found while verifying the round-5 reviewer's MINOR claim that an
+# inherited GIT_DIR/GIT_INDEX_FILE "fails closed at rc=3" -- measured live, it does NOT): when this
+# tool runs inside a git hook (or any shell with GIT_DIR exported) every git subprocess silently
+# targets THAT repository instead of the one named by `cwd` -- the self-check's synthetic `git init`
+# + `git config user.email` were confirmed to REWRITE the caller's real `.git/config`, and the walk
+# reports on the wrong repo. Every repository-locating variable git itself lists via
+# `git rev-parse --local-env-vars` (git 2.50.1 list, verbatim) is therefore stripped from every
+# subprocess environment; `extra_env` (the RV-009 object-store redirect) is applied AFTER the strip.
+_GIT_LOCAL_ENV_VARS = (
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CONFIG", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT",
+    "GIT_OBJECT_DIRECTORY", "GIT_DIR", "GIT_WORK_TREE", "GIT_IMPLICIT_WORK_TREE", "GIT_GRAFT_FILE",
+    "GIT_INDEX_FILE", "GIT_NO_REPLACE_OBJECTS", "GIT_REPLACE_REF_BASE", "GIT_PREFIX",
+    "GIT_SHALLOW_FILE", "GIT_COMMON_DIR",
+)
+
+
 def _run(args, cwd, timeout_s, extra_env=None):
     """Run a git subprocess; return (rc, stdout, stderr). Never raises on a nonzero exit; a
     timeout or spawn failure is reported as rc=None so callers can tell it apart from a real,
@@ -226,6 +252,8 @@ def _run(args, cwd, timeout_s, extra_env=None):
     process's own str handling; it is `canon()`/`cmd_emit()`'s job (not this function's) to decide
     how an un-encodable surrogate is finally reported, never a crash here."""
     env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
+    for _k in _GIT_LOCAL_ENV_VARS:
+        env.pop(_k, None)
     if extra_env:
         env.update(extra_env)
     try:
@@ -600,6 +628,47 @@ def _sweep_ref_namespace(repo_path, namespace):
                   % (namespace, survivors), file=sys.stderr)
 
 
+# T158 remediation round 5, finding I5-1: the push-log `message` is UNTRUSTED free text (the
+# obvious future wrapper implementation stores git's own push stderr verbatim, which routinely
+# contains `To https://user:TOKEN@host/...`). It is therefore NEVER copied into the report unless
+# it passes a strict allow-list: short, single-line, only [A-Za-z0-9 space . , ( ) - _ '], and so
+# structurally incapable of carrying a URL (no ':', '/', '@'), a key=value secret (no '='), or a
+# multi-line stderr dump. Anything else is replaced by a FIXED category string chosen by keyword
+# match -- the raw text never reaches the report (C-006). Honest boundary (11.4.6): an allow-listed
+# message could in principle still contain a bare credential WORD with no URL/`=`/`:` context
+# around it (e.g. "rejected ghpXXXX"); git's own rejection output does not produce that shape, and
+# a wrapper writing one would be writing a bare secret into a log by design.
+_PUSH_MSG_SAFE_RE = re.compile(r"^[A-Za-z0-9 .,()_'-]{0,120}$")
+_PUSH_MSG_CATEGORIES = (
+    ("non-fast-forward", "non-fast-forward"),
+    ("fetch first", "fetch-first"),
+    ("hook declined", "hook-declined"),
+    ("pre-receive", "hook-declined"),
+    ("permission", "permission-denied"),
+    ("denied", "permission-denied"),
+    ("authentication", "authentication-failed"),
+    ("403", "permission-denied"),
+    ("401", "authentication-failed"),
+    ("protected branch", "protected-branch"),
+)
+PUSH_MSG_WITHHELD_SUFFIX = "; raw message withheld"
+
+
+def _sanitize_push_message(msg):
+    """I5-1: return text safe to embed in `REJECTED(<msg>)` -- the message itself when it passes
+    the allow-list above, otherwise a fixed category + PUSH_MSG_WITHHELD_SUFFIX. Never returns any
+    substring of a message that failed the allow-list."""
+    if not isinstance(msg, str):
+        return "unrecognised" + PUSH_MSG_WITHHELD_SUFFIX
+    if _PUSH_MSG_SAFE_RE.match(msg):
+        return msg
+    low = msg.lower()
+    for needle, category in _PUSH_MSG_CATEGORIES:
+        if needle in low:
+            return category + PUSH_MSG_WITHHELD_SUFFIX
+    return "unrecognised" + PUSH_MSG_WITHHELD_SUFFIX
+
+
 def _push_result_str(entry):
     if not isinstance(entry, dict):
         return "UNKNOWN"
@@ -607,7 +676,7 @@ def _push_result_str(entry):
     if result == "ACCEPTED":
         return "ACCEPTED"
     if result == "REJECTED":
-        return "REJECTED(%s)" % entry.get("message", "")
+        return "REJECTED(%s)" % _sanitize_push_message(entry.get("message", ""))
     return "UNKNOWN"
 
 
@@ -1014,12 +1083,60 @@ def _uninitialised_result(relpath, gitlink):
     }
 
 
+def _unmapped_result(relpath, gitlink):
+    """T158 remediation round 5, finding I5-2: a gitlink present in the parent's HEAD tree with NO
+    `.gitmodules` entry mapping its path. Whatever is on disk there, a fresh clone CANNOT check it
+    out (git has no URL to fetch it from), so it is never a satisfied dependency (11.4.233(G)).
+    Reported NOT_CLEAN with the reason code SUBMODULE_UNMAPPED (round-5 addition to the closed
+    reason-code set). Its own on-disk contents, if any, are deliberately NOT walked: without a
+    `.gitmodules` mapping there is no declared remote to verify its pointer against, and the repo
+    is already NOT_CLEAN -- the operator's fix (add a proper `.gitmodules` entry) re-enables the
+    full walk on the next run."""
+    return {
+        "path": relpath, "head": gitlink or "UNKNOWN", "branch": None, "worktree_clean": False,
+        "dirty_entries": [], "untracked": [], "unpushed": {}, "remotes": [],
+        "submodule_pointer_matches_checkout": False, "status": "NOT_CLEAN",
+        "reasons": ["SUBMODULE_UNMAPPED"],
+    }
+
+
+def _norm_tree_path(p):
+    p = p.strip().replace(os.sep, "/")
+    while p.startswith("./"):
+        p = p[2:]
+    return p.rstrip("/")
+
+
+def tree_gitlinks(repo_path, head, timeout_s=10):
+    """I5-2: {relpath: sha} for every mode-160000 (gitlink) entry in `head`'s full tree.
+    `git ls-tree -r` never descends INTO a gitlink (it is a commit, not a tree), so nested
+    submodules' own gitlinks are found by the recursive walk, not here. A failing ls-tree on a HEAD
+    that `rev-parse` already resolved is a genuinely unreadable repo -> RepoUnreadable (fail
+    closed, never an empty set read as "no gitlinks")."""
+    rc, out, err = _run(["git", "ls-tree", "-r", "-z", "--full-tree", head], repo_path, timeout_s)
+    if rc != 0:
+        raise RepoUnreadable(repo_path, "git ls-tree -r %s failed: %s" % (head, err.strip() or ("exit %s" % rc)))
+    links = {}
+    for record in out.split("\x00"):
+        if not record:
+            continue
+        meta, sep, path = record.partition("\t")
+        parts = meta.split()
+        if sep and len(parts) == 3 and parts[0] == "160000" and parts[1] == "commit":
+            links[_norm_tree_path(path)] = parts[2]
+    return links
+
+
 def _walk(repo_path, relpath, out_list, timeout_s, is_submodule=False, parent_gitlink=None,
           required_remotes=(), scratch_objdir=None):
     result = verify_single_repo(repo_path, relpath, timeout_s, is_submodule, parent_gitlink,
                                  required_remotes, scratch_objdir)
     out_list.append(result)
     parent_head = result["head"]
+    declared = set(_norm_tree_path(p) for p in list_gitmodules(repo_path, timeout_s))
+    for link_rel, link_sha in sorted(tree_gitlinks(repo_path, parent_head, timeout_s).items()):
+        if link_rel not in declared:  # I5-2: in the tree, unmapped by .gitmodules
+            out_list.append(_unmapped_result(_join_rel(relpath, link_rel), link_sha))
     for sub_rel in list_gitmodules(repo_path, timeout_s):  # RV-001: sorted, depth-first
         sub_path = os.path.join(repo_path, sub_rel)
         combined_rel = _join_rel(relpath, sub_rel)

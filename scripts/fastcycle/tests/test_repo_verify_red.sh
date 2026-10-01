@@ -1740,6 +1740,10 @@ table = {
     "user:SE/CR?ET@github.com:org/repo.git": PH,
     # I4-2: credentials present AND a literal '@' inside the query after them
     "https://u:pw@host/o/r.git?u=a@S": PH,
+    # I5-3 (round 5): TWO '?'/'#' markers with the '@' BETWEEN them -- a find->rfind mutant in
+    # _authority_tail renders 'SECRET' for both (the reviewer's exact leaking URLs)
+    "https://host/o/r.git?a=x@SECRET?b=1": PH,
+    "https://host/r#a@SECRET#b": PH,
     # positive controls (case 2: last '@' strictly before any '?'/'#') -- real host still shown
     "https://user:pa/ss@github.com/org/repo.git": "github.com/org/repo",
     "https://user:p@ss@github.com/org/repo.git": "github.com/org/repo",
@@ -1794,13 +1798,50 @@ for i in range(N):
 print("property: %d urls, %d placeholder, %d leaks" % (N, placeholders, leaks))
 if leaks:
     ok = False
+
+# I5-3 (round 5): a SECOND, independently-seeded phase that targets the generator blind spot the
+# round-5 reviewer found -- the phase above never emits more than one '?'/'#' marker, never an
+# '@' positioned BETWEEN two markers, and never a '?'/'#' INSIDE a query value. Kept separate so
+# the original 20000-URL stream (and everything it already proved) is byte-for-byte unchanged.
+rng2 = random.Random(20261005)
+def up2(n):
+    return "".join(rng2.choice(UP) for _ in range(n))
+def lw2(n):
+    return "".join(rng2.choice(LO) for _ in range(n))
+leaks2 = 0
+N2 = 10000
+for i in range(N2):
+    host = lw2(rng2.randint(1, 6)) + ".io"
+    path = "/".join(lw2(rng2.randint(1, 5)) for _ in range(rng2.randint(1, 3))) + ".git"
+    userinfo = (up2(rng2.randint(1, 6)) + "@") if rng2.random() < 0.5 else ""
+    nmark = rng2.randint(2, 4)
+    tail = ""
+    for k in range(nmark):
+        val = lw2(rng2.randint(0, 3))
+        if rng2.random() < 0.6:
+            val += "@" + up2(rng2.randint(1, 6))          # secret right after an '@'
+        if rng2.random() < 0.3:
+            val += rng2.choice("?#") + up2(rng2.randint(1, 3))  # marker INSIDE a value
+        tail += rng2.choice("?#") + lw2(1) + "=" + val
+    if rng2.random() < 0.7:
+        url = rng2.choice(["https", "ssh", "git"]) + "://" + userinfo + host + "/" + path + tail
+    else:
+        url = userinfo + host + ":" + path + tail
+    out = m.redact_url(url)
+    if out != PH and any(c.isupper() for c in out):
+        leaks2 += 1
+        if leaks2 <= 5:
+            print("PROPERTY2_LEAK url=%r got=%r" % (url, out))
+print("property2 (multi-marker): %d urls, %d leaks" % (N2, leaks2))
+if leaks2:
+    ok = False
 print("ALL_OK" if ok else "SOME_FAILED")
 PY
 
 R4_OUT=$(python3 "$TMP/r4_redact_check.py" "$TOOL" 2>&1)
 while IFS= read -r r4_line; do printf '   %s\n' "$r4_line"; done <<<"$R4_OUT"
 case "$R4_OUT" in
-  *ALL_OK*) ok "redact_url (I4-1/I4-2, round 4): all 5 reviewer leak-table URLs (incl. the NEW scp-form row) and the creds-plus-'@'-in-query shape fail closed to the placeholder; positive controls still render a real host; 20000-URL seeded property test finds ZERO credential/secret bytes in any output (11.4.10)" ;;
+  *ALL_OK*) ok "redact_url (I4-1/I4-2, round 4): all 5 reviewer leak-table URLs (incl. the NEW scp-form row) and the creds-plus-'@'-in-query shape fail closed to the placeholder; positive controls still render a real host; 20000-URL seeded property test + 10000-URL multi-marker phase (I5-3) find ZERO credential/secret bytes in any output (11.4.10)" ;;
   *) not_ok "redact_url (I4-1/I4-2, round 4): table mismatch or property-test leak -- see output above" ;;
 esac
 
@@ -1892,6 +1933,224 @@ if mk_mutant mutant_r4m4 "$TMP/r4m4_old.txt" "$TMP/r4m4_new.txt" 2>"$TMP/mutant_
   fi
 else
   not_ok "paired mutation (I4-3): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r4m4.err")"
+fi
+
+
+# ================================================================================================
+# T158 remediation round 5 (FINAL scheduled round) -- fixtures/mutations closing the FIFTH
+# independent review's three IMPORTANT findings (I5-1 push-log message copied verbatim into the
+# report, I5-2 a gitlink unmapped by .gitmodules read CLEAN, I5-3 the round-4 property generator's
+# multi-marker blind spot). Every earlier assertion above stays in place.
+# ================================================================================================
+
+# --- I5-3: paired mutation M-I5-3 -- the reviewer's own find->rfind swap in _authority_tail -----
+# The anchor includes `qpos = len(s)` so ONLY _authority_tail's loop is mutated (the identical
+# `idx = s.find(sep)` line in _strip_query_fragment is left alone, exactly as the reviewer did).
+printf '%s' '    qpos = len(s)
+    for sep in ("?", "#"):
+        idx = s.find(sep)
+' >"$TMP/r5m3_old.txt"
+printf '%s' '    qpos = len(s)
+    for sep in ("?", "#"):
+        idx = s.rfind(sep)
+' >"$TMP/r5m3_new.txt"
+if mk_mutant mutant_r5m3 "$TMP/r5m3_old.txt" "$TMP/r5m3_new.txt" 2>"$TMP/mutant_r5m3.err"; then
+  R5M3_OUT=$(python3 "$TMP/r4_redact_check.py" "$TMP/mutant_r5m3/verify/repo_verify.py" 2>&1)
+  case "$R5M3_OUT" in
+    *"TABLE_MISMATCH url='https://host/o/r.git?a=x@SECRET?b=1'"*"TABLE_MISMATCH url='https://host/r#a@SECRET#b'"*PROPERTY2_LEAK*SOME_FAILED*)
+      ok "paired mutation CAUGHT (I5-3): the find->rfind swap in _authority_tail fails BOTH new table rows AND the new multi-marker property phase -- the blind spot the round-5 reviewer found is now closed by two independent oracles" ;;
+    *) not_ok "paired mutation (I5-3): expected both new table rows + PROPERTY2_LEAK to catch the find->rfind mutant, got: $R5M3_OUT" ;;
+  esac
+  case "$R5M3_OUT" in
+    *"property: 20000 urls, "*", 0 leaks"*)
+      ok "I5-3 control: the ORIGINAL 20000-URL phase alone still reports 0 leaks on the find->rfind mutant (reproduces the reviewer's blind-spot claim -- proving the NEW phase, not the old one, is what catches it)" ;;
+    *) not_ok "I5-3 control: expected the original property phase to be blind to the find->rfind mutant (as the reviewer measured); output: $R5M3_OUT" ;;
+  esac
+else
+  not_ok "paired mutation (I5-3): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r5m3.err")"
+fi
+
+# --- I5-1: an untrusted push-log message must never reach the report ---------------------------
+# The reviewer's repro shape: git's own push stderr (multi-line, carrying a credentialed URL)
+# stored verbatim as the push-log `message`. Three variants: that stderr dump, a single-line
+# `key=value` secret, and a non-string (dict) message carrying the token as data.
+build_push_log_fixture() {  # build_push_log_fixture <root>
+  mk_repo "$1/repo"
+  echo one >"$1/repo/f.txt"
+  git -C "$1/repo" add -A; git -C "$1/repo" commit -qm c1
+  mk_bare "$1/remote.git"
+  git -C "$1/repo" remote add origin "$1/remote.git"
+  git -C "$1/repo" push -q origin main
+}
+write_push_log() {  # write_push_log <repo> <variant>
+  local gd
+  gd=$(real_gitdir "$1")
+  python3 - "$gd/fastcycle_push_log.json" "$2" <<'PY'
+import json, sys
+tok = "ghp_SUPERSECRETTOKEN123"
+v = sys.argv[2]
+if v == "stderr":
+    msg = ("To https://user:%s@github.com/org/repo.git\n ! [rejected]        main -> main (non-fast-forward)\n"
+           "error: failed to push some refs to 'https://user:%s@github.com/org/repo.git'" % (tok, tok))
+elif v == "kv":
+    msg = "auth token=%s rejected" % tok
+else:
+    msg = {"stderr": "https://u:%s@h/o/r.git" % tok}
+json.dump({"remotes": {"origin": {"result": "REJECTED", "message": msg}}}, open(sys.argv[1], "w"))
+PY
+}
+PL="$TMP/rv_i51_push_log"
+build_push_log_fixture "$PL"
+i51_all_ok=1
+for variant in stderr kv dict; do
+  write_push_log "$PL/repo" "$variant"
+  python3 "$TOOL" --recursive --root "$PL/repo" --out "$TMP/i51_$variant.json" --md "$TMP/i51_$variant.md" \
+    >"$TMP/i51_$variant.out" 2>"$TMP/i51_$variant.err"
+  rc=$?
+  lp=$(report_field "$TMP/i51_$variant.json" 'd["repos"][0]["remotes"][0]["last_push_result"]' 2>/dev/null)
+  rs=$(report_field "$TMP/i51_$variant.json" 'd["repos"][0]["reasons"]' 2>/dev/null)
+  case "$variant" in
+    stderr) want="REJECTED(non-fast-forward; raw message withheld)" ;;
+    *) want="REJECTED(unrecognised; raw message withheld)" ;;
+  esac
+  if [ "$rc" -eq 1 ] && [ "$rs" = "['REMOTE_REJECTED_LAST_PUSH']" ] && [ "$lp" = "$want" ] \
+     && ! grep -q "SUPERSECRET" "$TMP/i51_$variant.json" "$TMP/i51_$variant.md" "$TMP/i51_$variant.out" "$TMP/i51_$variant.err"; then
+    :
+  else
+    i51_all_ok=0
+    echo "     I5-1 variant=$variant rc=$rc reasons=$rs last_push=$lp (want $want); token in outputs: $(grep -l SUPERSECRET "$TMP/i51_$variant".* 2>/dev/null | tr '\n' ' ')"
+  fi
+done
+# control needle (11.4.201(7)(b)): the grep above must be able to SEE the token -- prove it on the
+# push-log file itself, which genuinely contains it, through the identical grep.
+if grep -q "SUPERSECRET" "$(real_gitdir "$PL/repo")/fastcycle_push_log.json"; then
+  i51_needle=1
+else
+  i51_needle=0
+fi
+if [ "$i51_all_ok" -eq 1 ] && [ "$i51_needle" -eq 1 ]; then
+  ok "rv_i51_push_log (I5-1): a credentialed git-stderr message, a key=value secret and a non-string message all render a FIXED category (never raw text), still NOT_CLEAN/REMOTE_REJECTED_LAST_PUSH, and the token appears in NONE of json/md/stdout/stderr (control needle: the same grep sees it in the push log itself)"
+else
+  not_ok "rv_i51_push_log (I5-1): all_ok=$i51_all_ok needle=$i51_needle -- see lines above"
+fi
+printf '%s' 'return "REJECTED(%s)" % _sanitize_push_message(entry.get("message", ""))' >"$TMP/r5m1_old.txt"
+printf '%s' 'return "REJECTED(%s)" % entry.get("message", "")' >"$TMP/r5m1_new.txt"
+if mk_mutant mutant_r5m1 "$TMP/r5m1_old.txt" "$TMP/r5m1_new.txt" 2>"$TMP/mutant_r5m1.err"; then
+  write_push_log "$PL/repo" stderr
+  python3 "$TMP/mutant_r5m1/verify/repo_verify.py" --recursive --root "$PL/repo" --out "$TMP/i51_mut.json" \
+    >"$TMP/i51_mut.out" 2>"$TMP/i51_mut.err"
+  if grep -q "SUPERSECRET" "$TMP/i51_mut.json"; then
+    ok "paired mutation CAUGHT (I5-1): removing _sanitize_push_message leaks the token into the report on the SAME fixture -- the sanitization is genuinely load-bearing"
+  else
+    not_ok "paired mutation (I5-1): the unsanitized mutant did NOT leak the token -- the fixture does not exercise the vector"
+  fi
+else
+  not_ok "paired mutation (I5-1): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r5m1.err")"
+fi
+
+# --- I5-2: a gitlink with NO .gitmodules entry must never read CLEAN ---------------------------
+# Variant A (the reviewer's repro): a hand-written gitlink to a fabricated, nowhere-pushed SHA with
+# an EMPTY directory on disk. Variant B (real-world shape #1): a plain `git add` of an embedded
+# nested repository (git's own "adding embedded git repository" warning case).
+build_unmapped() {  # build_unmapped <root> <A|B>
+  build_good_clean "$1"
+  if [ "$2" = A ]; then
+    mkdir -p "$1/parent/vendor/lib"
+    git -C "$1/parent" update-index --add --cacheinfo "160000,1111111111111111111111111111111111111111,vendor/lib"
+  else
+    mk_repo "$1/parent/nested"
+    echo n >"$1/parent/nested/n.txt"
+    git -C "$1/parent/nested" add -A; git -C "$1/parent/nested" commit -qm n
+    git -C "$1/parent" add nested 2>/dev/null
+  fi
+  git -C "$1/parent" commit -qm "unmapped gitlink ($2)"
+  git -C "$1/parent" push -q origin main
+  git -C "$1/parent" push -q mirror main
+}
+for variant in A B; do
+  UM="$TMP/rv_i52_unmapped_$variant"
+  build_unmapped "$UM" "$variant"
+  [ "$variant" = A ] && upath=vendor/lib || upath=nested
+  usha=$(git -C "$UM/parent" ls-tree HEAD -- "$upath" | awk '{print $3}')
+  # fixture control check: the gitlink IS in the tree and is NOT in .gitmodules
+  if [ -n "$usha" ] && ! git -C "$UM/parent" config -f .gitmodules --get-regexp path | grep -q " $upath\$"; then
+    run_tool "$UM/parent" "$TMP/i52_$variant.json"; umrc=$?
+    um_over=$(report_field "$TMP/i52_$variant.json" 'd.get("overall")' 2>/dev/null)
+    um_rs=$(report_field "$TMP/i52_$variant.json" "next(r['reasons'] for r in d['repos'] if r['path']=='$upath')" 2>/dev/null)
+    um_head=$(report_field "$TMP/i52_$variant.json" "next(r['head'] for r in d['repos'] if r['path']=='$upath')" 2>/dev/null)
+    um_others=$(report_field "$TMP/i52_$variant.json" "sorted((r['path'], r['status']) for r in d['repos'] if r['path']!='$upath')" 2>/dev/null)
+    if [ "$umrc" -eq 1 ] && [ "$um_over" = "NOT_CLEAN" ] && [ "$um_rs" = "['SUBMODULE_UNMAPPED']" ] && [ "$um_head" = "$usha" ] \
+       && [ "$um_others" = "[('.', 'CLEAN'), ('subA', 'CLEAN'), ('subB', 'CLEAN')]" ]; then
+      ok "rv_i52_unmapped_$variant (I5-2): a gitlink in the HEAD tree with no .gitmodules entry ($upath) is reported NOT_CLEAN/SUBMODULE_UNMAPPED with its recorded sha (rc=1) while every mapped repo stays CLEAN -- no more false CLEAN"
+    else
+      not_ok "rv_i52_unmapped_$variant (I5-2): rc=$umrc overall=$um_over reasons=$um_rs head=$um_head/$usha others=$um_others"
+    fi
+  else
+    not_ok "rv_i52_unmapped_$variant (I5-2): fixture setup bug -- gitlink sha='$usha' or it is unexpectedly mapped in .gitmodules"
+  fi
+done
+printf '%s' '        if link_rel not in declared:  # I5-2: in the tree, unmapped by .gitmodules' >"$TMP/r5m2_old.txt"
+printf '%s' '        if False:  # MUTANT: unmapped-gitlink check removed' >"$TMP/r5m2_new.txt"
+if mk_mutant mutant_r5m2 "$TMP/r5m2_old.txt" "$TMP/r5m2_new.txt" 2>"$TMP/mutant_r5m2.err"; then
+  python3 "$TMP/mutant_r5m2/verify/repo_verify.py" --recursive --root "$TMP/rv_i52_unmapped_A/parent" --out "$TMP/i52_mut.json" \
+    >"$TMP/i52_mut.out" 2>"$TMP/i52_mut.err"; umm_rc=$?
+  umm_over=$(report_field "$TMP/i52_mut.json" 'd.get("overall")' 2>/dev/null)
+  if [ "$umm_rc" -eq 0 ] && [ "$umm_over" = "CLEAN" ]; then
+    ok "paired mutation CAUGHT (I5-2): removing the unmapped-gitlink check flips the SAME fixture back to the reviewer's false rc=0 CLEAN -- the check is genuinely load-bearing"
+  else
+    not_ok "paired mutation (I5-2): expected the mutant to reproduce the false CLEAN (rc=0), got rc=$umm_rc overall=$umm_over"
+  fi
+else
+  not_ok "paired mutation (I5-2): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r5m2.err")"
+fi
+
+# --- round 5, found while verifying the reviewer's MINOR: an inherited GIT_DIR / GIT_INDEX_FILE
+# (tool invoked from inside a git hook) must neither redirect the verification to the wrong repo
+# NOR write into the caller's repository. The reviewer believed this already failed closed at rc=3;
+# measured live, it did NOT -- the self-check's synthetic `git init`/`git config` rewrote the
+# inherited GIT_DIR's real .git/config. Fixed by stripping git's own --local-env-vars in _run().
+EV="$TMP/rv_r5_inherited_env"
+build_good_clean "$EV"
+git init -q -b main "$EV/unrelated"   # plain init: NO user.* config, so a stray `git config user.email` write is visible
+run_tool "$EV/parent" "$TMP/env_base.json"; ev_base_rc=$?
+ev_base_hash=$(report_field "$TMP/env_base.json" 'd["body_hash"]' 2>/dev/null)
+ev_env_ok=1
+for case_ in self unrelated index; do
+  gd_before=$(tree_hash "$EV/parent/.git"); un_before=$(tree_hash "$EV/unrelated/.git")
+  case "$case_" in
+    self) env GIT_DIR="$EV/parent/.git" python3 "$TOOL" --recursive --root "$EV/parent" --out "$TMP/env_$case_.json" >"$TMP/env_$case_.out" 2>"$TMP/env_$case_.err" ;;
+    unrelated) env GIT_DIR="$EV/unrelated/.git" python3 "$TOOL" --recursive --root "$EV/parent" --out "$TMP/env_$case_.json" >"$TMP/env_$case_.out" 2>"$TMP/env_$case_.err" ;;
+    index) env GIT_INDEX_FILE="$TMP/bogus_index" python3 "$TOOL" --recursive --root "$EV/parent" --out "$TMP/env_$case_.json" >"$TMP/env_$case_.out" 2>"$TMP/env_$case_.err" ;;
+  esac
+  erc=$?
+  eh=$(report_field "$TMP/env_$case_.json" 'd["body_hash"]' 2>/dev/null)
+  gd_after=$(tree_hash "$EV/parent/.git"); un_after=$(tree_hash "$EV/unrelated/.git")
+  if [ "$erc" -ne 0 ] || [ "$eh" != "$ev_base_hash" ] || [ "$gd_before" != "$gd_after" ] || [ "$un_before" != "$un_after" ] || [ -e "$TMP/bogus_index" ]; then
+    ev_env_ok=0
+    echo "     inherited-env case=$case_ rc=$erc hash_same=$([ "$eh" = "$ev_base_hash" ] && echo y || echo n) parent_git_same=$([ "$gd_before" = "$gd_after" ] && echo y || echo n) unrelated_git_same=$([ "$un_before" = "$un_after" ] && echo y || echo n)"
+  fi
+done
+if [ "$ev_base_rc" -eq 0 ] && [ "$ev_env_ok" -eq 1 ]; then
+  ok "rv_r5_inherited_env: with GIT_DIR (pointing at --root itself, or at an UNRELATED repo) or GIT_INDEX_FILE inherited, the tool verifies --root exactly as without them (rc=0, identical body_hash) and leaves BOTH repositories' .git byte-identical"
+else
+  not_ok "rv_r5_inherited_env: base_rc=$ev_base_rc -- see lines above"
+fi
+printf '%s' '    for _k in _GIT_LOCAL_ENV_VARS:
+        env.pop(_k, None)
+' >"$TMP/r5m4_old.txt"
+printf '%s' '' >"$TMP/r5m4_new.txt"
+if mk_mutant mutant_r5m4 "$TMP/r5m4_old.txt" "$TMP/r5m4_new.txt" 2>"$TMP/mutant_r5m4.err"; then
+  un_before=$(tree_hash "$EV/unrelated/.git")
+  env GIT_DIR="$EV/unrelated/.git" python3 "$TMP/mutant_r5m4/verify/repo_verify.py" --recursive --root "$EV/parent" \
+    --out "$TMP/env_mut.json" >"$TMP/env_mut.out" 2>"$TMP/env_mut.err"
+  un_after=$(tree_hash "$EV/unrelated/.git")
+  if [ "$un_before" != "$un_after" ]; then
+    ok "paired mutation CAUGHT (round-5 env strip): without the --local-env-vars strip an inherited GIT_DIR makes the tool WRITE into that (unrelated) repository's .git -- the strip is genuinely load-bearing"
+  else
+    not_ok "paired mutation (round-5 env strip): the mutant did not modify the inherited GIT_DIR repo -- fixture does not exercise the vector"
+  fi
+else
+  not_ok "paired mutation (round-5 env strip): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r5m4.err")"
 fi
 
 [ "$fail" -eq 0 ] && exit 0 || exit 1
