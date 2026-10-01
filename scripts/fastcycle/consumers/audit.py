@@ -15,7 +15,15 @@ Subcommands:
               written summary.json -- a caller trusting coverage_trusted
               on an invocation that never supplied --reviews would
               otherwise be fooled into thinking an unverified review_ref
-              means real CA-024 coverage.
+              means real CA-024 coverage. T177 Round 10 (R10-M1): the
+              force above, and "presence-only"/"verified", apply only
+              when >=1 MIGRATED record exists to (dis)trust; a project set
+              with ZERO migrated records writes the closed THIRD value
+              review_ref_verification="not-applicable" instead (there is
+              nothing for --reviews to have verified either way), and
+              "verified" additionally requires --reviews to name a
+              genuinely existing directory (os.path.isdir), never a bare
+              argument string.
 
 CA-010: exactly one ConsumerAuditReport per project in --consumers,
 including projects this host cannot reach at all (UNMEASURED fields with
@@ -500,11 +508,10 @@ def _load_review_doc(review_ref, base_dir, reviews_dir):
     derivation does -- by the record's OWN `review_id` field first (the
     common real-world shape, since review_record.py always sets one), else
     by treating `review_ref` itself as a readable file path (absolute, or
-    relative to the MIGRATION record's own directory, mirroring the
-    resolution rule already used for verification evidence paths above).
-    Returns the loaded dict, or None if it could not be resolved/parsed at
-    all. `reviews_dir` is never required to exist (an absent-but-configured
-    --reviews path is just "no match by id").
+    relative to the declared --reviews archive -- see the T177 Round 10
+    note below). Returns the loaded dict, or None if it could not be
+    resolved/parsed at all. `reviews_dir` is never required to exist (an
+    absent-but-configured --reviews path is just "no match by id").
 
     T177 Round 9 (round-8 MINOR M5, point 3): the by-PATH fallback below is
     a LAST resort reached only when no id-lookup matched. `review_ref` is a
@@ -512,15 +519,38 @@ def _load_review_doc(review_ref, base_dir, reviews_dir):
     threat model is "summary reads records without trusting their author"
     -- so without a containment check, an attacker-controlled record could
     point `review_ref` at ANY absolute path this process can read, or
-    escape `base_dir` via `../..`, and have `summary` open and trust
+    escape the archive via `../..`, and have `summary` open and trust
     whatever JSON happens to live there. The resolved, REALPATH'd target is
-    therefore required to lie inside the ONE directory this fallback is
-    actually documented to read from: `reviews_dir` when one was supplied
-    (the declared, trusted archive), else `base_dir` (the migration
-    record's OWN directory -- the pre-existing, narrower fallback boundary
-    for every caller that omits --reviews). A path that escapes its
-    boundary is refused -- never silently ignored -- by returning None,
-    exactly like any other unresolvable review_ref."""
+    therefore required to lie inside `reviews_dir` -- the ONE directory
+    this fallback is actually documented to read from. A path that
+    escapes it is refused -- never silently ignored -- by returning None,
+    exactly like any other unresolvable review_ref.
+
+    T177 Round 10 fix (R10-M3 MINOR, `base_dir` parameter kept for call-site
+    compatibility and future use but no longer consulted below): this
+    function is reached ONLY when `reviews_dir` is truthy -- its sole
+    caller, `_review_ref_problem()`, returns None immediately otherwise,
+    before `_load_review_doc` is ever invoked (`if not reviews_dir: return
+    None`, before the `_load_review_doc(...)` call). The prior code's
+    `boundary = reviews_dir if reviews_dir else base_dir` could therefore
+    never take its `else base_dir` branch -- dead code describing a caller
+    shape that cannot occur, removed here rather than left to describe
+    behaviour nothing exercises.
+    #
+    A separate, genuine bug this round also fixes: a RELATIVE `review_ref`
+    was previously joined against `base_dir` (the migration record's OWN
+    directory) for path RESOLUTION, while being containment-CHECKED
+    against `reviews_dir` (the declared archive) -- two DIFFERENT
+    directories, so a relative ref resolved successfully only when the
+    record happened to already live inside the archive (reproduced live:
+    a relative "ok.json" ref resolved to None even though
+    "<archive>/ok.json" genuinely existed). Resolution now joins a
+    relative `review_ref` against `reviews_dir`, the SAME directory the
+    containment check already uses -- the two are consistent by
+    construction. Low real-world impact (migrate.sh itself canonicalises
+    every `--review-ref` to an absolute path before it is ever persisted,
+    T177 Round 9), but this read-time fallback's OWN documented behaviour
+    is corrected regardless of which caller produced the record."""
     if reviews_dir:
         try:
             candidates = glob.glob(os.path.join(reviews_dir, "*.json"))
@@ -534,9 +564,8 @@ def _load_review_doc(review_ref, base_dir, reviews_dir):
                 continue
             if isinstance(doc, dict) and doc.get("review_id") == review_ref:
                 return doc
-    path = review_ref if os.path.isabs(review_ref) else os.path.join(base_dir, review_ref)
-    boundary = reviews_dir if reviews_dir else base_dir
-    if not _contained(path, boundary):
+    path = review_ref if os.path.isabs(review_ref) else os.path.join(reviews_dir, review_ref)
+    if not _contained(path, reviews_dir):
         return None
     try:
         with open(path, "r", encoding="utf-8") as fh:
@@ -837,21 +866,59 @@ def cmd_summary(args):
     # matching this tool's documented CLI contract.
     #
     # `coverage_trusted` is now FORCED false whenever --reviews was
-    # omitted, REGARDLESS of enumeration completeness or conflicting
-    # records: a caller reading `coverage_trusted` can no longer be fooled
-    # into thinking an unverified `review_ref` means real coverage. This is
-    # a DELIBERATE behavior change from T177 Round 6/7 (which kept the
-    # degrade an "unchanged default" -- see F13c's rewritten assertion in
-    # the regression suite) -- the operative CA-024 coverage gate must
+    # omitted AND a MIGRATED record genuinely exists to distrust
+    # (REGARDLESS of enumeration completeness or conflicting records
+    # otherwise): a caller reading `coverage_trusted` can no longer be
+    # fooled into thinking an unverified `review_ref` means real coverage.
+    # This is a DELIBERATE behavior change from T177 Round 6/7 (which kept
+    # the degrade an "unchanged default" -- see F13c's rewritten assertion
+    # in the regression suite) -- the operative CA-024 coverage gate must
     # never report itself trusted while the one check CA-024 exists to
     # enforce (a genuine zero-finding GO review at the designated tier) was
     # never actually run.
+    #
+    # T177 Round 10 fix (R10-M1 MINOR, all three points): the force above
+    # was UNCONDITIONAL on --reviews being omitted, even on a project set
+    # with ZERO migrated=0 records -- there, there is genuinely nothing a
+    # --reviews archive could ever have verified, so forcing untrusted
+    # anyway is a vacuous, §11.4.201(1)-shaped FALSE-POSITIVE refusal of a
+    # genuinely complete, fully-honest coverage (reproduced live: 1 project,
+    # 1 valid NOT-MIGRATED record, 0 MIGRATED, no --reviews -> coverage 1.0,
+    # still forced untrusted). Three fixes, all from the review's own
+    # recommendation:
+    #   (1) the force below now applies ONLY when `migrated > 0` -- every
+    #       OTHER force-false condition (degraded/incomplete enumeration,
+    #       conflicting records) is unchanged and still applies regardless
+    #       of `migrated`;
+    #   (2) `review_ref_verification` reads the closed THIRD value
+    #       "not-applicable" whenever `migrated == 0` (checked BEFORE
+    #       either of the other two values, so it can never be confused
+    #       with a genuinely-attempted-but-undone verification), so the
+    #       field never implies verification activity that had nothing to
+    #       verify, regardless of whether --reviews happened to be supplied
+    #       or not;
+    #   (3) `review_ref_verification` reads "verified" only when
+    #       `reviews_dir_arg` is BOTH supplied AND a genuinely existing
+    #       directory (`os.path.isdir`) -- a typo'd or since-removed
+    #       --reviews path previously still read "verified" purely because
+    #       an argument string was present (the underlying per-record check
+    #       already failed closed whenever a MIGRATED record existed to
+    #       check -- `_load_review_doc`'s own glob/containment logic
+    #       against a nonexistent directory finds nothing and resolves to
+    #       `record-review-ref-unverifiable` -- this is a LABEL-honesty
+    #       fix only, not a new enforcement path).
     reviews_dir_arg = getattr(args, "reviews", None)
-    review_ref_verification = "verified" if reviews_dir_arg else "presence-only"
+    reviews_dir_usable = bool(reviews_dir_arg) and os.path.isdir(reviews_dir_arg)
+    if migrated == 0:
+        review_ref_verification = "not-applicable"
+    elif reviews_dir_usable:
+        review_ref_verification = "verified"
+    else:
+        review_ref_verification = "presence-only"
     coverage_trusted = (
         enumeration_reachability == "complete"
         and not conflicting
-        and review_ref_verification == "verified"
+        and (migrated == 0 or review_ref_verification == "verified")
     )
 
     doc = {
@@ -888,7 +955,7 @@ def cmd_summary(args):
             why.append("the consumers file's source_reachability block lacks a github_degraded and/or gitlab_degraded LIST -- completeness of its project set is unproven")
         if conflicting:
             why.append("%d project(s) have conflicting valid records: %s" % (len(conflicting), ", ".join(sorted(conflicting))))
-        if review_ref_verification != "verified":
+        if review_ref_verification == "presence-only":
             why.append("no --reviews archive was supplied to this invocation -- every MIGRATED record's review_ref was checked for PRESENCE only, never genuinely verified against CA-024's verdict/findings/tier/effort predicate (T177 Round 9 I2)")
         print("audit.py summary: coverage NOT trusted: %s" % "; ".join(why), file=sys.stderr)
         sys.exit(1)

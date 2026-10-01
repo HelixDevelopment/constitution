@@ -1075,11 +1075,17 @@ if [ "$F_RC" -eq 0 ] && [ "$(f_get f15_withflag "d.get('review_ref_verification'
 else
     bad "F15 I2 positive control: supplying --reviews did not restore the verified/trusted state (rc=$F_RC; see $F_DIR/f15_withflag.sum)"
 fi
+# T177 Round 10 (R10-M1 MINOR, point 1): `coverage_trusted` now ALSO
+# exempts a zero-migrated project set from the review_ref force (there is
+# nothing to distrust); f15_golden has migrated==1, so the exemption's
+# `migrated == 0` disjunct is false there and this mutant's disabling
+# effect on THIS fixture is unchanged -- the anchor is re-derived to match
+# the new expression's exact text.
 f_mutant I2_drop_force_false \
     'coverage_trusted = (
         enumeration_reachability == "complete"
         and not conflicting
-        and review_ref_verification == "verified"
+        and (migrated == 0 or review_ref_verification == "verified")
     )' \
     'coverage_trusted = (
         enumeration_reachability == "complete"
@@ -1158,9 +1164,13 @@ if [ "$F_RC" -ne 0 ] && [ "$(f_get f17 "d.get('invalid_records_by_class',{}).get
 else
     bad "F17 R8 M5(3): a path-escaping review_ref was wrongly resolved/accepted (rc=$F_RC; see $F_DIR/f17.sum)"
 fi
+# T177 Round 10 (R10-M3 MINOR): the dead "else base_dir" branch this round
+# removes is gone from the anchor -- the containment check itself is
+# otherwise unchanged (still refuses a path outside `reviews_dir`), so the
+# mutant's disabling shape (replace the check with a no-op) is unchanged
+# too.
 f_mutant M5_3_no_containment \
-    '    boundary = reviews_dir if reviews_dir else base_dir
-    if not _contained(path, boundary):
+    '    if not _contained(path, reviews_dir):
         return None' \
     '    pass'
 if [ "$F_MUT_OK" -eq 1 ]; then
@@ -1172,6 +1182,130 @@ if [ "$F_MUT_OK" -eq 1 ]; then
     fi
 else
     bad "F17 guard-viability: mutation anchor for 'M5_3_no_containment' is not unique/present in audit.py -- re-derive it"
+fi
+
+# =============================================================================
+# F18-F20 -- T177 Round 11 (round-10 independent review MINOR R10-M1, all
+# three points): a project set with ZERO migrated records has nothing a
+# --reviews archive could ever (dis)trust; `review_ref_verification` now
+# reads the closed third value "not-applicable" there, REGARDLESS of
+# whether --reviews was supplied, and `coverage_trusted` is no longer
+# vacuously forced false by the review_ref check alone in that case; a
+# "verified" label additionally requires --reviews to name a genuinely
+# existing directory.
+# =============================================================================
+
+# F18 (R10-M1, point 1): omitting --reviews on a project set with ZERO
+# migrated records must NOT vacuously force coverage_trusted=false -- the
+# reviewer's own live repro: 1 project, 1 valid NOT-MIGRATED record, 0
+# MIGRATED, no --reviews -> coverage 1.0, still forced untrusted before
+# this fix (a §11.4.201(1) false-positive refusal of a genuinely
+# complete, fully-honest coverage).
+f_json f18_dirty <<'EOF'
+{"project_id":"f-org/p","outcome":"NOT-MIGRATED","not_migrated_reason":"NOT-MIGRATED (dirty-local)","data_change":"NONE"}
+EOF
+f_sum "$TOOL" cons_ok.json f18_dirty f18
+if [ "$F_RC" -eq 0 ] && [ "$(f_get f18 "d['migrated']==0 and d.get('review_ref_verification')=='not-applicable' and d.get('coverage_trusted') is True and d['coverage']==1.0")" = "true" ]; then
+    ok "F18 R10 M1(1): omitting --reviews on a project set with ZERO migrated records does not force coverage_trusted=false -- review_ref_verification reads the honest third value 'not-applicable' and the genuinely complete coverage stays trusted (rc=0)"
+else
+    bad "F18 R10 M1(1): the zero-migrated exemption did not fire as expected (rc=$F_RC; see $F_DIR/f18.sum)"
+fi
+f_mutant M1_1_force_false_even_at_zero_migrated \
+    'and (migrated == 0 or review_ref_verification == "verified")' \
+    'and (review_ref_verification == "verified")'
+if [ "$F_MUT_OK" -eq 1 ]; then
+    f_sum "$F_DIR/mut_M1_1_force_false_even_at_zero_migrated.py" cons_ok.json f18_dirty f18mut
+    if [ "$F_RC" -ne 0 ] && [ "$(f_get f18mut "d.get('coverage_trusted') is False")" = "true" ]; then
+        ok "F18 guard-viability: without the migrated==0 exemption, a genuinely complete, fully-honest zero-migrated coverage is vacuously forced untrusted (rc!=0) -- F18/R10-M1(1) is what catches it"
+    else
+        bad "F18 guard-viability: the unconditional-force mutant did not reproduce the vacuous refusal (rc=$F_RC; see $F_DIR/f18mut.sum)"
+    fi
+else
+    bad "F18 guard-viability: mutation anchor for 'M1_1_force_false_even_at_zero_migrated' is not unique/present in audit.py -- re-derive it"
+fi
+
+# F19 (R10-M1, point 2): the "not-applicable" disclosure fires REGARDLESS
+# of whether --reviews happens to be supplied -- never confused with a
+# genuinely-attempted "verified" state just because an archive argument
+# was present. Same f18_dirty fixture (0 migrated records), this time
+# WITH --reviews supplied.
+f_sum "$TOOL" cons_ok.json f18_dirty f19 "$F_DEFAULT_REVIEWS"
+if [ "$F_RC" -eq 0 ] && [ "$(f_get f19 "d['migrated']==0 and d.get('review_ref_verification')=='not-applicable' and d.get('coverage_trusted') is True")" = "true" ]; then
+    ok "F19 R10 M1(2): review_ref_verification still reads 'not-applicable' (never 'verified') on a zero-migrated project set even when --reviews IS supplied -- the field never implies a verification activity that had nothing to verify"
+else
+    bad "F19 R10 M1(2): review_ref_verification did not read 'not-applicable' with --reviews supplied on a zero-migrated set (rc=$F_RC; see $F_DIR/f19.sum)"
+fi
+f_mutant M1_2_zero_migrated_check_dropped \
+    'if migrated == 0:
+        review_ref_verification = "not-applicable"' \
+    'if False:
+        review_ref_verification = "not-applicable"'
+if [ "$F_MUT_OK" -eq 1 ]; then
+    f_sum "$F_DIR/mut_M1_2_zero_migrated_check_dropped.py" cons_ok.json f18_dirty f19mut "$F_DEFAULT_REVIEWS"
+    if [ "$(f_get f19mut "d.get('review_ref_verification')=='verified'")" = "true" ]; then
+        ok "F19 guard-viability: without the migrated==0 check, a zero-migrated project set with --reviews supplied wrongly reads 'verified' -- F19/R10-M1(2) is what catches it"
+    else
+        bad "F19 guard-viability: the dropped-check mutant did not reproduce the mislabel (see $F_DIR/f19mut.sum)"
+    fi
+else
+    bad "F19 guard-viability: mutation anchor for 'M1_2_zero_migrated_check_dropped' is not unique/present in audit.py -- re-derive it"
+fi
+
+# F20 (R10-M1, point 3): "verified" requires --reviews to name a
+# GENUINELY EXISTING directory, never a bare argument string. A nonexistent
+# --reviews path, pointed at an OTHERWISE-genuinely-migrated fixture
+# (f0_golden -- a real review record exists, but not where this run looks
+# for it), demotes that record to invalid (record-review-ref-unverifiable,
+# UNCHANGED pre-existing behaviour, classify_migration_record's own
+# resolution genuinely fails against a path that does not exist) --
+# migrated reads 0 for THIS invocation, and (R10-M1 point 1's own
+# migrated==0 priority) review_ref_verification correctly discloses
+# "not-applicable", never the OLD code's "verified" (which it would have
+# claimed from the bare argument string's presence alone, REGARDLESS of
+# whether the record actually resolved -- the exact label-honesty bug
+# point 3 targets). HONEST NOTE: in THIS end-to-end scenario the isdir
+# check's OWN distinguishing contribution is not separately observable --
+# classify_migration_record's independent resolution already fails closed
+# against an unusable directory for any genuinely-migrated record, so
+# `migrated` is already 0 by the time the isdir-gated branch would matter,
+# and point 1's migrated==0 priority decides the label regardless. The
+# isdir check remains in the source as the reviewer's own requested
+# defence-in-depth (it would matter the moment any future caller path
+# feeds `migrated` from a source independent of this classification), but
+# this END-TO-END fixture cannot isolate its removal from point 1's own
+# already-dominant effect -- stated honestly rather than claiming a
+# mutant proves something it does not.
+F20_NONEXISTENT_REVIEWS="$F_DIR/f20_this_directory_does_not_exist"
+f_sum "$TOOL" cons_ok.json f0_golden f20 "$F20_NONEXISTENT_REVIEWS"
+if [ "$(f_get f20 "d.get('review_ref_verification')=='not-applicable' and d.get('migrated')==0 and d.get('invalid_records_by_class',{}).get('record-review-ref-unverifiable')==1")" = "true" ]; then
+    ok "F20 R10 M1(3): a --reviews argument naming a NONEXISTENT directory, pointed at an otherwise-genuinely-migrated fixture, demotes that record to invalid and discloses 'not-applicable' -- never the OLD code's 'verified', which it previously claimed purely from the argument string's presence"
+else
+    bad "F20 R10 M1(3): a nonexistent --reviews path against an otherwise-migrated fixture did not produce the expected not-applicable/demoted state (see $F_DIR/f20.sum)"
+fi
+f_mutant M1_3_zero_migrated_priority_dropped \
+    'if migrated == 0:
+        review_ref_verification = "not-applicable"' \
+    'if False:
+        review_ref_verification = "not-applicable"'
+if [ "$F_MUT_OK" -eq 1 ]; then
+    f_sum "$F_DIR/mut_M1_3_zero_migrated_priority_dropped.py" cons_ok.json f0_golden f20mut "$F20_NONEXISTENT_REVIEWS"
+    # Without the migrated==0 priority, the (still-present) isdir check
+    # correctly identifies the nonexistent directory as unusable and
+    # falls through to "presence-only" -- NOT the OLD code's "verified"
+    # (that would additionally require the isdir check gone too). This
+    # still proves the priority is genuinely load-bearing: the label
+    # changes from the fixed "not-applicable" to the pre-fix
+    # "presence-only" for this exact demoted-record scenario, which is
+    # itself still a less-honest label (it implies a presence-only check
+    # genuinely ran on a review_ref, when nothing here had anything to
+    # check in the first place).
+    if [ "$(f_get f20mut "d.get('review_ref_verification')=='presence-only'")" = "true" ]; then
+        ok "F20 guard-viability: without the migrated==0 priority, this exact demoted-record scenario reads the less-honest 'presence-only' instead of 'not-applicable' -- F20/R10-M1(1) is what catches it"
+    else
+        bad "F20 guard-viability: the dropped-priority mutant did not reproduce the less-honest label (see $F_DIR/f20mut.sum)"
+    fi
+else
+    bad "F20 guard-viability: mutation anchor for 'M1_3_zero_migrated_priority_dropped' is not unique/present in audit.py -- re-derive it"
 fi
 
 # F9 (round-4 MINOR N2): migrate.sh's own local-git-error lands in its OWN bucket.

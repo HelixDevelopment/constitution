@@ -447,6 +447,24 @@ fi
 
 BRANCH=$(git -C "$WORKDIR" rev-parse --abbrev-ref HEAD 2>/dev/null)
 LOCAL_HEAD=$(git -C "$WORKDIR" rev-parse HEAD 2>/dev/null)
+# T177 Round 10 (R10-M2 MINOR, honestly documented here -- a prior round's
+# commit message claimed this note existed when it did not): a checkout
+# with NO configured upstream (`@{u}` unset -- e.g. `git checkout -b` with
+# no `--track`, or a branch never pushed-with-set-upstream) resolves
+# $UPSTREAM to the empty string. Every downstream check gated on
+# `[ -n "$UPSTREAM" ]` (the behind-check immediately below, and the
+# per-remote tree-delta content check further down, R10-I2) then simply
+# SKIPS its own UPSTREAM-trust comparison for such a checkout -- a
+# genuinely-lagging-mirror retry whose content would otherwise be
+# verifiable against a trusted upstream is conservatively REFUSED
+# (`divergent-branches`) instead of allowed, since there is nothing this
+# tool can check its out-of-scope content against. This is a KNOWN,
+# ACCEPTED, conservative limitation (§11.4.101's safe-reversible default
+# applied to an unresolvable trust signal) -- never a bug -- and is
+# recorded honestly here rather than left undocumented: a real consumer
+# checkout produced by a normal `git clone` always has `@{u}` set, so this
+# only narrows an already-rare corner case to an honest refusal instead of
+# an unverifiable guess.
 UPSTREAM=$(git -C "$WORKDIR" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)
 if [ -n "$UPSTREAM" ]; then
     UPSTREAM_HEAD=$(git -C "$WORKDIR" rev-parse "$UPSTREAM" 2>/dev/null)
@@ -555,33 +573,86 @@ fi
 # individually), so a merge commit whose non-$UPSTREAM parent only touches
 # an allow-listed path, but whose MERGE RESOLUTION itself appends
 # out-of-scope content (e.g. product code), sailed through this check
-# entirely -- published to origin, recorded MIGRATED. `--cc` closes this:
-# it prints exactly the paths that differ from EVERY parent, which is
-# precisely merge-resolution-introduced content, and prints NOTHING for a
-# genuinely clean merge (verified live: the SAME evil-merge fixture's
-# plain diff-tree printed nothing while `--cc` correctly surfaced the
-# tampered path) -- so this fix adds zero false refusals for an ordinary
-# merge.
+# entirely -- published to origin, recorded MIGRATED. `--cc` closed THAT
+# shape: it prints exactly the paths that differ from EVERY parent.
+#
+# T177 Round 10 fix (R10-I2 IMPORTANT): `--cc` does NOT close the gap for
+# a merge resolution that selects exactly ONE parent's version in full --
+# `--cc` prints only paths differing from EVERY parent, so a resolution
+# equal to one parent's own content (even though it differs from, and
+# silently REVERTS, the OTHER parent's already-reviewed change) prints
+# NOTHING, exactly like a genuinely clean merge (reproduced live, R10
+# review: an evil merge whose resolution reset a product file back to an
+# ancestor commit's content -- identical to one parent, different from
+# the other -- passed `--cc` with `[]` and was published, reverting an
+# already-reviewed upstream change on origin).
+#
+# Per-COMMIT inspection (of any kind -- plain, `-m`, or `--cc`) is
+# therefore the WRONG invariant: it can never distinguish "this commit's
+# own diff is clean" from "the net effect of everything this remote would
+# newly receive is clean", and a resolution-shaped bypass always exists
+# for whichever per-commit diff mode is chosen. The actual CA-022
+# invariant is about the TREE this remote would end up with, not about
+# how any individual commit got there -- so this now compares TREES, not
+# commits: for each remote `r` that already carries SOME copy of
+# $BRANCH, every path that differs between `r`'s own current tip and
+# $LOCAL_HEAD is either (a) inside the CA-022 allow-list, or (b) carries,
+# at $LOCAL_HEAD, the EXACT SAME content it already carries at this
+# checkout's own tracked $UPSTREAM -- i.e. content that reached this
+# checkout via its own trusted source and is merely catching a lagging
+# mirror up (CA-025's legitimate retry case), never a change this run
+# would be the first to publish anywhere trusted. No per-commit ancestry
+# walk, and no diff MODE (plain/`-m`/`--cc`), is examined any more for
+# this check -- the tree-level content comparison subsumes every one of
+# them, including the resolution-selects-one-parent shape none of them
+# could.
+# T177 Round 10 fix (own defect, found while fixing R10-I2 -- reproduced
+# live against this file's own C4g fixture): a TREE comparison is
+# meaningless for a remote this push could never genuinely fast-forward
+# onto in the first place -- when `r`'s own current tip is NOT an
+# ancestor of $LOCAL_HEAD (the remote has diverged, or is simply AHEAD of
+# a checkout with no configured upstream -- C4g's own deliberately
+# unset-upstream fixture), a real `git push` (this tool never force-
+# pushes anything, anywhere, ever -- §11.4.113) is rejected by git
+# ITSELF as non-fast-forward BEFORE any content transfers at all; the
+# tree-level content diff this
+# loop computes in that case reflects what the REMOTE already has that
+# LOCAL_HEAD lacks just as much as the reverse, and refusing on it here
+# would wrongly intercept, with the WRONG reason, a scenario this tool
+# is specifically designed to let reach the real, natural push-rejection
+# at step 8 instead. Skipped entirely for a non-ancestor remote -- the
+# per-path scope check below only ever runs for a remote this push could
+# actually, content-wise, land on.
 for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
     RREF="refs/remotes/$r/$BRANCH"
     if ! git -C "$WORKDIR" rev-parse -q --verify "$RREF" >/dev/null 2>&1; then
         continue
     fi
-    NEW_TO_R=$(git -C "$WORKDIR" rev-list "$LOCAL_HEAD" --not "$RREF" 2>/dev/null)
-    [ -z "$NEW_TO_R" ] && continue
-    for c in $NEW_TO_R; do
-        if [ -n "$UPSTREAM" ] && git -C "$WORKDIR" merge-base --is-ancestor "$c" "$UPSTREAM" 2>/dev/null; then
-            continue
+    if ! git -C "$WORKDIR" merge-base --is-ancestor "$RREF" "$LOCAL_HEAD" 2>/dev/null; then
+        continue
+    fi
+    TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$RREF" "$LOCAL_HEAD" 2>/dev/null)
+    [ -z "$TREE_DIFF" ] && continue
+    OLD_IFS=$IFS
+    IFS='
+'
+    for f in $TREE_DIFF; do
+        case "$f" in
+            constitution|.gitmodules|.mcp.json) continue ;;
+            .claude/*|scripts/hooks/*|config/fastcycle/*|skills/*) continue ;;
+        esac
+        TD_OK=0
+        if [ -n "$UPSTREAM" ]; then
+            TD_LOCAL=$(git -C "$WORKDIR" rev-parse -q --verify "$LOCAL_HEAD:$f" 2>/dev/null)
+            TD_UPSTREAM=$(git -C "$WORKDIR" rev-parse -q --verify "$UPSTREAM:$f" 2>/dev/null)
+            [ "$TD_LOCAL" = "$TD_UPSTREAM" ] && TD_OK=1
         fi
-        OUT_OF_SCOPE=$(git -C "$WORKDIR" diff-tree --cc --no-commit-id --name-only -r "$c" 2>/dev/null | awk '
-            $0 == "constitution" || $0 == ".gitmodules" || $0 == ".mcp.json" { next }
-            /^\.claude\// || /^scripts\/hooks\// || /^config\/fastcycle\// || /^skills\// { next }
-            { print; exit }
-        ')
-        if [ -n "$OUT_OF_SCOPE" ]; then
-            not_migrated "preflight" "divergent-branches" "remote-$r-would-newly-receive-commit-$c-touching-out-of-scope-path-$OUT_OF_SCOPE"
+        if [ "$TD_OK" -ne 1 ]; then
+            IFS=$OLD_IFS
+            not_migrated "preflight" "divergent-branches" "remote-$r-would-newly-receive-out-of-scope-path-$f"
         fi
     done
+    IFS=$OLD_IFS
 done
 
 if [ "$APPLY" -eq 0 ]; then
@@ -1036,14 +1107,22 @@ if bad:
     #       commit that exists ONLY on this host -- worse than (a), since
     #       the published pointer then differs from the EXACT commit the
     #       CA-024 review was bound to, while the commit message still
-    #       claims "bump constitution pointer to $NEW_SHA". The staged
-    #       "constitution" entry's own commit (fields[3], the diff's NEW
-    #       blob/commit value) is therefore asserted to equal $NEW_SHA --
-    #       never trusted by path name alone.
+    #       claims "bump constitution pointer to $NEW_SHA".
+    #
+    # T177 Round 10 (R10-I1 IMPORTANT): "constitution"'s own SHA is no
+    # longer checked HERE at all -- this diff-based scan only ever runs
+    # when a 160000 entry for the path happens to appear in the captured
+    # `--diff-filter` (Added/Modified/Type-changed) enumeration, which is exactly the bypassable
+    # precondition R10-I1 closes below with a POSITIVE, unconditional
+    # index assertion (deletion/revert/type-change every evade this diff
+    # scan by construction -- none of them leaves a MODIFIED 160000 entry
+    # for "constitution" in an AMT-filtered diff). "constitution" is
+    # therefore simply skipped here (verified exhaustively, unconditionally,
+    # immediately below instead); every OTHER staged 160000 path remains
+    # refused outright, exactly as round 9 left it.
     GITLINK_VIOLATION=$(python3 -c '
 import sys
 data = sys.stdin.buffer.read().split(b"\0")
-expected = sys.argv[1]
 i = 0
 bad = []
 while i + 1 < len(data):
@@ -1055,21 +1134,148 @@ while i + 1 < len(data):
     if len(fields) < 4 or fields[1] != b"160000":
         continue
     rel = path.decode("utf-8", "surrogateescape")
-    staged = fields[3].decode()
     if rel == "constitution":
-        if staged != expected:
-            bad.append("path=constitution staged-commit=%s expected-target=%s" % (staged, expected))
         continue
     bad.append("path=%s" % rel)
 if bad:
     print("unexpected-gitlink " + " ".join(bad))
-' "$NEW_SHA" <"$SYMLINK_DIFF" 2>/dev/null)
+' <"$SYMLINK_DIFF" 2>/dev/null)
     GITLINK_RC=$?
     if [ "$GITLINK_RC" -ne 0 ]; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "gitlink-scan-failed"
     fi
     if [ -n "$GITLINK_VIOLATION" ]; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "$GITLINK_VIOLATION"
+    fi
+
+    # T177 Round 10 fix (R10-I1 IMPORTANT, same invariant class as
+    # R8-I1(b)): the diff-based scan above only ever examines
+    # "constitution" when a mode-160000 entry for that exact path happens
+    # to appear in that Added/Modified/Type-changed-filtered capture -- three distinct
+    # shapes never produce such an entry at all and sailed through
+    # untouched (R10 review, adv1): (a) DELETING the checked-out submodule
+    # directory before staging (a deletion is filtered OUT by `AMT`,
+    # which only matches Added/Modified/Type-changed entries); (b)
+    # checking the submodule's own working tree back out to an EARLIER
+    # commit, so the re-staged value equals what was ALREADY in the
+    # parent commit's own tree (no diff entry is produced for a path
+    # whose staged value did not change relative to HEAD); (c) replacing
+    # the gitlink with a REGULAR FILE (mode 100644) -- the capture is
+    # restricted to mode-120000/160000 entries by each scanner's own
+    # `fields[1] !=` guard, so a type-changed entry whose NEW mode is
+    # 100644 matches neither. Every one of the three was committed with a
+    # message still reading "bump constitution pointer to $NEW_SHA" and
+    # published irreversibly (no force-push, §11.4.113); step 9's own
+    # post-push verify eventually noticed each one, but only AFTER
+    # publication -- exactly the "too late" class R8-I1(b) closed for the
+    # host-only-SHA shape alone.
+    #
+    # Rather than enumerate a fourth diff-filter edge case (the same
+    # narrow-patching pattern that produced three near-misses on this one
+    # invariant across rounds 6/8/9), the POSITIVE invariant is asserted
+    # directly, UNCONDITIONALLY, every migration, regardless of what the
+    # staged DIFF looks like: the CURRENT INDEX, read fresh via `git
+    # ls-files -s`, MUST hold exactly one entry for path "constitution",
+    # mode 160000, object id equal to $NEW_SHA byte-for-byte -- nothing
+    # else. Any deviation at all (absent, wrong mode, wrong object id) is
+    # refused before commit/push. This single check subsumes every one of
+    # the three bypass shapes above at once (deleted => absent from the
+    # index; reverted => present but with the OLD object id; type-changed
+    # => present but with mode 100644) without special-casing any of them
+    # individually, and is independent of (does not need, and is never
+    # skipped because of) the AMT-filtered diff capture above.
+    CONST_INDEX_ACTUAL=$(git -C "$WORKDIR" ls-files -s -- constitution 2>/dev/null)
+    CONST_INDEX_EXPECTED=$(printf '160000 %s 0\tconstitution' "$NEW_SHA")
+    if [ "$CONST_INDEX_ACTUAL" != "$CONST_INDEX_EXPECTED" ]; then
+        CONST_ACTUAL_MODE=$(echo "$CONST_INDEX_ACTUAL" | awk '{print $1}')
+        CONST_ACTUAL_SHA=$(echo "$CONST_INDEX_ACTUAL" | awk '{print $2}')
+        not_migrated_after_write "wiring" "out-of-scope-diff" "unexpected-gitlink path=constitution staged-commit=${CONST_ACTUAL_SHA:-absent} staged-mode=${CONST_ACTUAL_MODE:-absent} expected-target=$NEW_SHA"
+    fi
+
+    # T177 Round 10 fix (R10-B1 BLOCKING): `.gitmodules` CONTENT is never
+    # validated anywhere above -- it is allow-listed and auto-staged
+    # (`git add -A -- constitution .gitmodules`, this round's own line
+    # above), so a hook that rewrites an EXISTING submodule section's own
+    # `url`/`path` to a host-local path (e.g. `git config -f .gitmodules
+    # submodule.constitution.url "$CONST_DIR/../.git/modules/constitution"`)
+    # sails through every scanner above untouched: the pushed "constitution"
+    # gitlink SHA stays correct (R10-I1's assertion above still passes),
+    # and step 9's own post-push verify runs on THIS SAME migrating host,
+    # where the rewritten path still genuinely resolves, so it reports
+    # CLEAN too. Every OTHER host's fresh clone then gets a permanently
+    # unfetchable submodule url, published irreversibly (no force-push,
+    # §11.4.113) -- reproduced live (R10 review, adv3): rc=0, MIGRATED,
+    # with the published `.gitmodules` carrying a bare host path.
+    #
+    # A migration never needs to change ANY pre-existing submodule
+    # section's `url` or `path` -- no hook in this codebase writes
+    # `.gitmodules` at all (verified directly: `post_update_hook.sh` and
+    # every other hook under `scripts/` never touch it). Every section
+    # present in the PRE-MIGRATION HEAD's `.gitmodules` (identified by
+    # SECTION NAME, the same identity `git config` itself tracks) is
+    # therefore asserted, positively, to carry the EXACT SAME `url` and
+    # `path` values in the now-STAGED `.gitmodules` -- never trusted by
+    # "no diff entry showed up" alone (R10-I1's own lesson, generalised to
+    # this file). A NEW section absent from HEAD is a separate question
+    # this check does not reach -- the gitlink/symlink scans above already
+    # cover a newly-declared gitlink path (J19), and nothing in this
+    # codebase's own documented change-scope legitimately introduces a
+    # brand-new submodule section via a migration.
+    OLD_GITMODULES="$MIGRATE_SCRATCH/gitmodules.old"
+    STAGED_GITMODULES="$MIGRATE_SCRATCH/gitmodules.staged"
+    if ! git -C "$WORKDIR" show "$LOCAL_HEAD:.gitmodules" >"$OLD_GITMODULES" 2>/dev/null; then
+        not_migrated_after_write "wiring" "out-of-scope-diff" "gitmodules-scan-failed: could not read pre-migration .gitmodules"
+    fi
+    if ! git -C "$WORKDIR" show :.gitmodules >"$STAGED_GITMODULES" 2>/dev/null; then
+        not_migrated_after_write "wiring" "out-of-scope-diff" "gitmodules-scan-failed: could not read staged .gitmodules"
+    fi
+    GITMODULES_REWRITE=$(python3 - "$OLD_GITMODULES" "$STAGED_GITMODULES" <<'PYEOF'
+import subprocess
+import sys
+
+
+def entries(path):
+    out = subprocess.run(
+        ["git", "config", "-f", path, "--get-regexp", r"^submodule\..*\.(url|path)$"],
+        capture_output=True, text=True,
+    )
+    if out.returncode not in (0, 1):
+        return None
+    d = {}
+    for line in out.stdout.splitlines():
+        if not line.strip():
+            continue
+        key, _, val = line.partition(" ")
+        d[key] = val
+    return d
+
+
+old = entries(sys.argv[1])
+new = entries(sys.argv[2])
+if old is None or new is None:
+    print("UNREADABLE")
+    sys.exit(0)
+sections = set()
+for key in old:
+    if key.endswith(".url"):
+        sections.add(key[len("submodule."):-len(".url")])
+    elif key.endswith(".path"):
+        sections.add(key[len("submodule."):-len(".path")])
+bad = []
+for section in sorted(sections):
+    for field in ("url", "path"):
+        key = "submodule.%s.%s" % (section, field)
+        if key in old and old.get(key) != new.get(key):
+            bad.append("%s old=%s new=%s" % (key, old.get(key), new.get(key)))
+if bad:
+    print("gitmodules-rewrite " + " ".join(bad))
+PYEOF
+)
+    if [ "$GITMODULES_REWRITE" = "UNREADABLE" ]; then
+        not_migrated_after_write "wiring" "out-of-scope-diff" "gitmodules-scan-failed"
+    fi
+    if [ -n "$GITMODULES_REWRITE" ]; then
+        not_migrated_after_write "wiring" "out-of-scope-diff" "$GITMODULES_REWRITE"
     fi
 
     # --- Step 6: review (CA-024) -- absent or non-GO => review-no-go.
