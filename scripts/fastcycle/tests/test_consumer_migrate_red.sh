@@ -208,17 +208,29 @@ CFG="$REPO_ROOT/config/fastcycle/fastcycle.yaml"
 # bound check honestly, never as a claim that a real Opus-xhigh review
 # ran over these synthetic fixture commits.
 make_review_ref() {
-    # $1=project_id $2=target_commit -> prints the path of a fresh,
-    # correctly-bound review-ref fixture file.
+    # $1=project_id $2=target_commit $3=consumer_base_commit -> prints the
+    # path of a fresh, correctly-bound review-ref fixture file. T177
+    # Round 2 R2-I3 fix: binding alone (project_id+target_commit) is not
+    # CA-024's "zero-finding GO ... at the designated tier" -- a fixture
+    # must ALSO carry an empty `findings` list, the designated
+    # model_tier/effort (constitution 11.4.209: opus/xhigh), and a
+    # `consumer_base_commit` naming the consumer's OWN pre-migration HEAD
+    # (closes a stale-record replay: without it, a GO bound only to
+    # project_id+target_commit stays valid for ANY later state of the SAME
+    # consumer at the SAME constitution target).
     out="$WORK/fixture_review_go_$(echo "$1" | tr '/' '_').json"
-    python3 - "$out" "$1" "$2" <<'PYEOF'
+    python3 - "$out" "$1" "$2" "$3" <<'PYEOF'
 import json, sys
-out, project, target = sys.argv[1:4]
+out, project, target, base = sys.argv[1:5]
 doc = {
     "schema": "review-verdict-fixture/v1",
     "verdict": "GO",
     "project_id": project,
     "target_commit": target,
+    "consumer_base_commit": base,
+    "findings": [],
+    "model_tier": "opus",
+    "effort": "xhigh",
     "note": "T168 RED-test fixture only -- not a real review record",
 }
 with open(out, "w", encoding="utf-8") as fh:
@@ -265,7 +277,7 @@ else
 fi
 
 # --- C2: rejecting-remote -- NOT-MIGRATED (push: ...), nothing force-pushed
-REJECT_REVIEW_REF=$(make_review_ref "fixture/ca_bad_rejecting_remote" "$NEW_SHA")
+REJECT_REVIEW_REF=$(make_review_ref "fixture/ca_bad_rejecting_remote" "$NEW_SHA" "$(git -C "$REJECT_CHECKOUT" rev-parse HEAD)")
 REJECT_REF_C2_BEFORE=$(git -C "$REJECT_REMOTE" rev-parse refs/heads/main 2>/dev/null)
 C2_OUT=$(run_tool --config "$CFG" --project "fixture/ca_bad_rejecting_remote" \
     --workdir "$REJECT_CHECKOUT" --out "$WORK/reject_migration.json" --apply --review-ref "$REJECT_REVIEW_REF"); C2_RC=$?
@@ -287,7 +299,7 @@ fi
 # --- C3: golden -- ca_good_migrate migrates (MIGRATED), gitlink bumped to
 # NEW_SHA, and the recursive verifier (CA-026) reports CLEAN twice with
 # equal body_hash.
-GOOD_REVIEW_REF=$(make_review_ref "fixture/ca_good_migrate" "$NEW_SHA")
+GOOD_REVIEW_REF=$(make_review_ref "fixture/ca_good_migrate" "$NEW_SHA" "$(git -C "$GOOD_CHECKOUT" rev-parse HEAD)")
 C3_OUT=$(run_tool --config "$CFG" --project "fixture/ca_good_migrate" \
     --workdir "$GOOD_CHECKOUT" --out "$WORK/good_migration.json" --apply --review-ref "$GOOD_REVIEW_REF"); C3_RC=$?
 if [ "$C3_RC" -eq 0 ] && echo "$C3_OUT" | grep -q 'MIGRATED' && ! echo "$C3_OUT" | grep -q 'NOT-MIGRATED'; then
@@ -372,6 +384,171 @@ if [ -f "$C4C_SCRATCH" ] && ! cmp -s "$C4C_SCRATCH" "$TOOL" && grep -nE -- "$FOR
 else
     bad "C4c I3 guard-viability: the widened C4 grep did NOT flag a '+\$BRANCH' force-refspec bypass (sed substitution may not have matched -- re-derive the anchor)"
 fi
+
+# --- C4d: T177 Round 2 R2-B1(b) fix -- the C4 static grep is LINE-SCOPED
+# ('push[^|]*...' never crosses a newline), so a `+`-prefixed refspec
+# ASSIGNED on one line and PUSHED on a later, separate line entirely
+# escapes it. Reviewer's exact live repro: on rejection, add
+# `RS="+${BRANCH}:${BRANCH}"; git push "$r" "$RS"` -- the `+` never
+# appears on any line containing the literal word "push", so C4's grep
+# (and C4b/C4c's scratch mutations, which only ever touch the SAME push
+# line) never sees it; T168 stayed 31/31 with this force-push bypass
+# present. A genuine cross-line scanner is required: find every shell
+# variable assigned a value whose literal content (after stripping one
+# layer of quoting) STARTS WITH `+` (a dynamic force-refspec
+# construction), then flag any line containing "push" that references
+# that SAME variable, anywhere in the file, regardless of line distance.
+FORCE_VAR_SCAN="$WORK/force_var_scan.py"
+cat > "$FORCE_VAR_SCAN" <<'PYEOF'
+import re, sys
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8", errors="replace") as fh:
+    lines = fh.readlines()
+assign_re = re.compile(r'^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$')
+plus_vars = set()
+for line in lines:
+    if line.lstrip().startswith("#"):
+        continue
+    m = assign_re.match(line)
+    if not m:
+        continue
+    name, rhs = m.group(1), m.group(2).strip()
+    if rhs[:1] in ('"', "'"):
+        rhs = rhs[1:]
+    if rhs.startswith("+"):
+        plus_vars.add(name)
+hits = []
+for i, line in enumerate(lines, 1):
+    if line.lstrip().startswith("#"):
+        continue
+    if "push" not in line:
+        continue
+    for v in plus_vars:
+        if ("$" + v) in line or ("${" + v + "}") in line:
+            hits.append("%d: variable '%s' (assigned a '+'-prefixed refspec) used on a push line: %s" % (i, v, line.rstrip()))
+if hits:
+    for h in hits:
+        print(h)
+    sys.exit(1)
+sys.exit(0)
+PYEOF
+if [ -f "$TOOL" ]; then
+    if python3 "$FORCE_VAR_SCAN" "$TOOL"; then
+        ok "C4d R2-B1(b) cross-line force-refspec scan: $TOOL's source contains no variable assigned a '+'-prefixed refspec that is later used on any push line"
+    else
+        bad "C4d R2-B1(b) cross-line force-refspec scan: $TOOL's source assigns a '+'-prefixed refspec to a variable that is later used on a push line (a force-push bypass invisible to the line-scoped C4 grep)"
+    fi
+else
+    bad "C4d R2-B1(b) cross-line force-refspec scan: $TOOL is absent"
+fi
+
+# --- C4e: guard-viability -- prove C4d genuinely catches the reviewer's
+# EXACT adversarial mutation (RS="+${BRANCH}:${BRANCH}"; push "$r" "$RS")
+# injected into a scratch copy, and (negative control, §11.4.201(1))
+# genuinely does NOT flag the real, unmutated tool as a false positive.
+C4D_SCRATCH="$WORK/c4d_force_var_indirect.sh"
+python3 - "$TOOL" "$C4D_SCRATCH" <<'PYEOF'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+with open(src, "r", encoding="utf-8") as fh:
+    content = fh.read()
+anchor = '        if ! git -C "$WORKDIR" push "$r" "$BRANCH":"$BRANCH" 2>"$MIGRATE_SCRATCH/migrate_push.err"; then\n'
+replacement = (
+    '        RS="+${BRANCH}:${BRANCH}"  # MUTATED_FOR_TEST (C4e adversarial)\n'
+    '        if ! git -C "$WORKDIR" push "$r" "$RS" 2>"$MIGRATE_SCRATCH/migrate_push.err"; then\n'
+)
+if anchor not in content:
+    sys.exit(2)
+with open(dst, "w", encoding="utf-8") as fh:
+    fh.write(content.replace(anchor, replacement, 1))
+PYEOF
+C4D_BUILD_RC=$?
+if [ "$C4D_BUILD_RC" -eq 0 ] && [ -f "$C4D_SCRATCH" ] && ! python3 "$FORCE_VAR_SCAN" "$C4D_SCRATCH"; then
+    ok "C4e guard-viability (positive): C4d's scanner genuinely flags the reviewer's exact RS=\"+\$BRANCH:\$BRANCH\" variable-indirection bypass injected into a scratch copy"
+else
+    bad "C4e guard-viability (positive): C4d's scanner did NOT flag the reviewer's exact variable-indirection bypass (build_rc=$C4D_BUILD_RC -- the anchor may have changed; re-derive it)"
+fi
+if [ -f "$TOOL" ] && python3 "$FORCE_VAR_SCAN" "$TOOL"; then
+    ok "C4f guard-viability (negative control): C4d's scanner does NOT flag the real, unmutated $TOOL -- no false positive"
+else
+    bad "C4f guard-viability (negative control): C4d's scanner falsely flags the real, unmutated $TOOL"
+fi
+
+# --- C4g: T177 Round 1 I3's prescribed DYNAMIC fixture, never added
+# before now -- a remote whose receive side GENUINELY ACCEPTS a
+# non-fast-forward / force push (no pre-receive hook rejecting anything,
+# unlike C2's fixture which rejects force AND non-force identically and
+# so cannot distinguish "migrate.sh never force-pushed" from "the remote
+# would have refused force anyway"). A diverged history is pushed to it
+# out-of-band (simulating a remote that has moved on since migrate.sh's
+# own fetch), so migrate.sh's own NORMAL (non-force) push is a genuine
+# non-fast-forward rejection that a real `--force` WOULD overcome -- and
+# the assertion is that the remote's tip stays at the diverged commit,
+# never becomes migrate.sh's NEW_COMMIT, proving migrate.sh had a real
+# opportunity to force and did not take it.
+C4G_ROOT=$(mktemp -d)
+C4G_BARE="$C4G_ROOT/accepting_remote.git"
+git init --bare -q -b main "$C4G_BARE"
+C4G_SEED=$(mktemp -d)
+git init -q -b main "$C4G_SEED" >/dev/null
+git -C "$C4G_SEED" config user.name fastcycle-fixture
+git -C "$C4G_SEED" config user.email fixture@example.invalid
+cat > "$C4G_SEED/CLAUDE.md" <<'EOF'
+## INHERITED FROM constitution/CLAUDE.md
+
+Fixture consumer for consumers/migrate.sh RED testing (T168 Section C4g,
+R2-B1(b) dynamic force-accepting-remote proof).
+
+## Commit Policy
+
+Commit wrapper: none (plain git permitted)
+EOF
+C4G_SUB_URL=$(git config -f "$GOOD_CHECKOUT/.gitmodules" --get submodule.constitution.url 2>/dev/null)
+cat > "$C4G_SEED/.gitmodules" <<EOF
+[submodule "constitution"]
+	path = constitution
+	url = $C4G_SUB_URL
+EOF
+git -C "$C4G_SEED" add CLAUDE.md .gitmodules
+git -C "$C4G_SEED" update-index --add --cacheinfo 160000,"$OLD_SHA",constitution
+git -C "$C4G_SEED" commit -q -m "initial C4g consumer state (constitution gitlink=old)"
+git -C "$C4G_SEED" remote add origin "$C4G_BARE"
+git -C "$C4G_SEED" push -q origin main
+C4G_CHECKOUT="$C4G_ROOT/checkout"
+git clone -q --no-hardlinks "$C4G_BARE" "$C4G_CHECKOUT" >/dev/null 2>&1
+git -C "$C4G_CHECKOUT" config user.name fastcycle-fixture
+git -C "$C4G_CHECKOUT" config user.email fixture@example.invalid
+# Unset the clone's automatic upstream tracking (branch.main.remote/merge,
+# set by `git clone` by default) -- migrate.sh's OWN preflight
+# divergent-branches check (DEC-25 step 1) reads `@{u}` and refuses BEFORE
+# reaching push if the tracked upstream is behind; this fixture WANTS to
+# reach push (the whole point is proving it never force-pushes once
+# there), so the diverged remote-tracking ref must not surface as a
+# configured upstream.
+git -C "$C4G_CHECKOUT" branch --unset-upstream 2>/dev/null || true
+# Diverge the remote AFTER the checkout clones it, out-of-band, so
+# migrate.sh's own later commit is genuinely non-fast-forward against it
+# -- the remote accepts THIS push unconditionally (no pre-receive hook).
+echo "diverged by a concurrent pusher" >> "$C4G_SEED/CLAUDE.md"
+git -C "$C4G_SEED" commit -q -am "diverge the remote (simulates a concurrent pusher)"
+git -C "$C4G_SEED" push -q origin main
+C4G_DIVERGED_TIP=$(git -C "$C4G_BARE" rev-parse refs/heads/main 2>/dev/null)
+rm -rf "$C4G_SEED"
+C4G_REVIEW_REF=$(make_review_ref "fixture/section_c4g_force_accepting_remote" "$NEW_SHA" "$(git -C "$C4G_CHECKOUT" rev-parse HEAD)")
+C4G_OUT=$(run_tool --config "$CFG" --project "fixture/section_c4g_force_accepting_remote" \
+    --workdir "$C4G_CHECKOUT" --out "$WORK/c4g_migration.json" --apply --review-ref "$C4G_REVIEW_REF"); C4G_RC=$?
+C4G_TIP_AFTER=$(git -C "$C4G_BARE" rev-parse refs/heads/main 2>/dev/null)
+if [ "$C4G_RC" -eq 1 ] && echo "$C4G_OUT" | grep -q 'NOT-MIGRATED (push:'; then
+    ok "C4g R2-B1(b) dynamic: migrate.sh correctly reports NOT-MIGRATED (push: ...) against a remote that diverged and genuinely ACCEPTS force pushes"
+else
+    bad "C4g R2-B1(b) dynamic: unexpected result against the force-accepting diverged remote (rc=$C4G_RC out=$C4G_OUT)"
+fi
+if [ "$C4G_TIP_AFTER" = "$C4G_DIVERGED_TIP" ]; then
+    ok "C4h R2-B1(b) dynamic (the load-bearing assertion): the remote's tip is UNCHANGED ($C4G_DIVERGED_TIP) -- migrate.sh had a genuine opportunity to force-push through and did not take it (a remote that rejects force AND non-force alike, like C2's, cannot prove this)"
+else
+    bad "C4h R2-B1(b) dynamic (the load-bearing assertion): the remote's tip CHANGED from the diverged commit (before=$C4G_DIVERGED_TIP after=$C4G_TIP_AFTER) -- this remote genuinely accepts force, so a changed tip proves a force-push landed"
+fi
+rm -rf "$C4G_ROOT" 2>/dev/null || true
 
 # --- C5: I6 negative control -- an UNBOUND review-ref (no project_id/
 # target_commit fields, the exact {"verdict":"GO"} shape a prior version
@@ -536,7 +713,7 @@ git clone -q --no-hardlinks "$E_BARE" "$E_ROOT/checkout" >/dev/null 2>&1
 git -C "$E_ROOT/checkout" config user.name fastcycle-fixture
 git -C "$E_ROOT/checkout" config user.email fixture@example.invalid
 
-E_REVIEW_REF=$(make_review_ref "fixture/section_e_nonstandard_section_name" "$E_NEW_SHA")
+E_REVIEW_REF=$(make_review_ref "fixture/section_e_nonstandard_section_name" "$E_NEW_SHA" "$(git -C "$E_ROOT/checkout" rev-parse HEAD)")
 E_OUT=$(run_tool --config "$CFG" --project "fixture/section_e_nonstandard_section_name" \
     --workdir "$E_ROOT/checkout" --out "$WORK/e_migration.json" --apply --review-ref "$E_REVIEW_REF"); E_RC=$?
 if [ "$E_RC" -eq 0 ] && echo "$E_OUT" | grep -q 'MIGRATED' && ! echo "$E_OUT" | grep -q 'NOT-MIGRATED'; then
@@ -621,7 +798,7 @@ git -C "$F_ROOT/checkout" config user.email fixture@example.invalid
 # verification-not-clean), and the commit that landed beforehand must be
 # reported honestly (never data_change: NONE) -- proving migrate.sh's OWN
 # step 9 genuinely gates on CA-026, not merely documents it.
-F_REVIEW_REF=$(make_review_ref "fixture/section_f_verify_load_bearing" "$F_NEW_SHA")
+F_REVIEW_REF=$(make_review_ref "fixture/section_f_verify_load_bearing" "$F_NEW_SHA" "$(git -C "$F_ROOT/checkout" rev-parse HEAD)")
 F1_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$WORK/nonexistent_repo_verify.py" run_tool --config "$CFG" --project "fixture/section_f_verify_load_bearing" \
     --workdir "$F_ROOT/checkout" --out "$WORK/f1_migration.json" --apply --review-ref "$F_REVIEW_REF"); F1_RC=$?
 if [ "$F1_RC" -eq 1 ] && echo "$F1_OUT" | grep -q 'NOT-MIGRATED (verify: verification-not-clean)'; then
@@ -724,7 +901,7 @@ git -C "$F_ROOT/g_checkout" remote add second "$G_BARE_ACCEPT"
 
 G_ACCEPT_BEFORE=$(git -C "$G_BARE_ACCEPT" rev-parse refs/heads/main 2>/dev/null)
 G_REJECT_BEFORE=$(git -C "$G_BARE_REJECT" rev-parse refs/heads/main 2>/dev/null)
-G_REVIEW_REF=$(make_review_ref "fixture/section_g_multi_remote" "$F_NEW_SHA")
+G_REVIEW_REF=$(make_review_ref "fixture/section_g_multi_remote" "$F_NEW_SHA" "$(git -C "$F_ROOT/g_checkout" rev-parse HEAD)")
 G_OUT=$(run_tool --config "$CFG" --project "fixture/section_g_multi_remote" \
     --workdir "$F_ROOT/g_checkout" --out "$WORK/g_migration.json" --apply --review-ref "$G_REVIEW_REF"); G_RC=$?
 G_ACCEPT_AFTER=$(git -C "$G_BARE_ACCEPT" rev-parse refs/heads/main 2>/dev/null)
@@ -832,7 +1009,7 @@ git -C "$H_ROOT/checkout" config user.name fastcycle-fixture
 git -C "$H_ROOT/checkout" config user.email fixture@example.invalid
 
 rm -f "$WORK/h_hook_pwd_marker.txt"
-H_REVIEW_REF=$(make_review_ref "fixture/section_h_hook_cwd" "$H_NEW_SHA")
+H_REVIEW_REF=$(make_review_ref "fixture/section_h_hook_cwd" "$H_NEW_SHA" "$(git -C "$H_ROOT/checkout" rev-parse HEAD)")
 H_OUT=$(
     cd "$WORK" && run_tool --config "$CFG" --project "fixture/section_h_hook_cwd" \
         --workdir "$H_ROOT/checkout" --out "$WORK/h_migration.json" --apply --review-ref "$H_REVIEW_REF"
@@ -885,7 +1062,7 @@ git clone -q --no-hardlinks "$H2_BARE" "$H_ROOT/checkout2" >/dev/null 2>&1
 git -C "$H_ROOT/checkout2" config user.name fastcycle-fixture
 git -C "$H_ROOT/checkout2" config user.email fixture@example.invalid
 H2_HASH_BEFORE=$(tree_hash "$H_ROOT/checkout2")
-H2_REVIEW_REF=$(make_review_ref "fixture/section_h2_failing_gate" "$H_NEW_SHA")
+H2_REVIEW_REF=$(make_review_ref "fixture/section_h2_failing_gate" "$H_NEW_SHA" "$(git -C "$H_ROOT/checkout2" rev-parse HEAD)")
 H2_OUT=$(run_tool --config "$CFG" --project "fixture/section_h2_failing_gate" \
     --workdir "$H_ROOT/checkout2" --out "$WORK/h2_migration.json" --apply --review-ref "$H2_REVIEW_REF"); H2_RC=$?
 if [ "$H2_RC" -eq 1 ] && echo "$H2_OUT" | grep -q 'NOT-MIGRATED (consumer-gates: consumer-gates-red)'; then
@@ -898,6 +1075,23 @@ if [ "$H2_HASH_AFTER_GITLINK" = "$H_OLD_SHA" ]; then
     ok "H3 I1 restore-on-gate-failure: the consumer-gates refusal genuinely restored the gitlink to its pre-migration value ($H_OLD_SHA), never left staged/committed"
 else
     bad "H3 I1 restore-on-gate-failure: the gitlink was NOT restored after the consumer-gates refusal (got $H2_HASH_AFTER_GITLINK, expected $H_OLD_SHA)"
+fi
+# --- H3b: I2 -- H3 alone is TAUTOLOGICAL: `ls-tree HEAD` can never change
+# for a migration refused BEFORE `git commit` ever runs (the consumer-
+# gates refusal fires at step 5, three steps before step 7's commit), so
+# H3 passes identically whether restore_staged_gitlink() genuinely runs OR
+# is a no-op (reviewer mutation: `restore_staged_gitlink() { :; }` still
+# leaves T168 at 31/31). The genuinely discriminating property is the
+# INDEX (what step 4's `git update-index --add --cacheinfo` staged): a
+# real restore (`git reset -q HEAD -- constitution`) resets the index
+# entry for `constitution` back to $H_OLD_SHA; a no-op restore leaves the
+# BUMPED $H_NEW_SHA still staged there, silently, forever (committable on
+# the very next `git commit` a human or another tool might run).
+H2_INDEX_SHA=$(git -C "$H_ROOT/checkout2" ls-files -s -- constitution 2>/dev/null | awk '{print $2}')
+if [ "$H2_INDEX_SHA" = "$H_OLD_SHA" ]; then
+    ok "H3b I2 restore-on-gate-failure (index): the staged INDEX entry for constitution was genuinely reset to the pre-migration gitlink ($H_OLD_SHA) -- a no-op restore would leave the bumped $H_NEW_SHA staged instead"
+else
+    bad "H3b I2 restore-on-gate-failure (index): the index still holds a gitlink SHA different from the pre-migration value (got $H2_INDEX_SHA, expected $H_OLD_SHA) -- restore_staged_gitlink() did not genuinely run"
 fi
 
 rm -rf "$H_ROOT" 2>/dev/null || true

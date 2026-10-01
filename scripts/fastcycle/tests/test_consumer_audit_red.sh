@@ -295,8 +295,14 @@ D_MIGDIR="$WORK/d_migrations"
 D_AUDDIR="$WORK/d_audits_stray"
 mkdir -p "$D_MIGDIR" "$D_AUDDIR"
 for i in 1 2 3 4 5; do
+    # T177 Round 2 R2-I6(b): a MIGRATED claim now requires genuine
+    # double-verify evidence (data-model.md #13.3, "verification ...
+    # required iff MIGRATED") to be counted -- this fixture's real point
+    # is DEDUP-BY-ID (D1/D2), so it carries a genuinely well-formed
+    # `verification` pair (2 CLEAN reports) rather than accidentally
+    # exercising the SEPARATE missing-evidence check this same round adds.
     cat > "$D_MIGDIR/dup_$i.json" <<EOF
-{"schema":"consumer-migration/v1","project_id":"HelixDevelopment/ota","outcome":"MIGRATED","data_change":"NONE","commit":"deadbeef"}
+{"schema":"consumer-migration/v1","project_id":"HelixDevelopment/ota","outcome":"MIGRATED","data_change":"NONE","commit":"deadbeef","verification":[{"path":"v1.json","overall":"CLEAN","body_hash":"abc"},{"path":"v2.json","overall":"CLEAN","body_hash":"abc"}]}
 EOF
     echo '{"not_a_real_report": true}' > "$D_AUDDIR/stray_$i.json"
 done
@@ -335,6 +341,62 @@ sys.exit(0 if ok else 1)
     ok "D2 B4 unknown-id rejected: a migration record naming a project_id outside the enumerated set is reported in unknown_ids_ignored, never silently counted toward coverage"
 else
     bad "D2 B4 unknown-id rejected: an out-of-set project_id was not correctly rejected/reported (see $WORK/d_summary2.json)"
+fi
+
+# --- D2b/D2c: T177 Round 2 R2-I6(b) -- duplicate-record resolution by
+# REAL MTIME (most-recent-write-wins), never by lexicographic FILENAME
+# order; and a MIGRATED claim carrying NO genuine double-verify evidence
+# is never silently counted. Reviewer's exact repro: an alphabetically
+# LATER `z_stale.json {"outcome":"MIGRATED"}` (no verification field at
+# all) must NOT override a genuinely NEWER, honest `a_new.json`
+# NOT-MIGRATED record for the SAME project_id.
+D_MIGDIR3="$WORK/d_migrations3"
+mkdir -p "$D_MIGDIR3"
+cat > "$D_MIGDIR3/z_stale.json" <<'EOF'
+{"schema":"consumer-migration/v1","project_id":"HelixDevelopment/ota","outcome":"MIGRATED"}
+EOF
+sleep 1
+cat > "$D_MIGDIR3/a_new.json" <<'EOF'
+{"schema":"consumer-migration/v1","project_id":"HelixDevelopment/ota","outcome":"NOT-MIGRATED","not_migrated_reason":"NOT-MIGRATED (dirty-local)","data_change":"NONE"}
+EOF
+mkdir -p "$WORK/d_audits_empty3"
+D2B_OUT=$(run_tool summary --consumers "$CONSUMERS3" --audits "$WORK/d_audits_empty3" --migrations "$D_MIGDIR3" --out "$WORK/d_summary3.json" 2>&1); D2B_RC=$?
+if python3 -c "
+import json, sys
+d = json.load(open('$WORK/d_summary3.json'))
+# The REAL mtime order is z_stale.json (older) then a_new.json (newer) --
+# filename order would process them the same way here BY COINCIDENCE
+# (z < a is false, so filename order would actually process a_new FIRST
+# then z_stale SECOND, letting the stale MIGRATED win) -- the genuinely
+# discriminating assertion is that the record actually counted reflects
+# the MORE RECENT write (a_new, NOT-MIGRATED), never the stale MIGRATED
+# claim, regardless of which name sorts first/last.
+reasons = d.get('not_migrated_by_reason', {})
+ok = d.get('migrated') == 0 and sum(reasons.values()) == 1 and 'NOT-MIGRATED (dirty-local)' in reasons
+sys.exit(0 if ok else 1)
+" 2>/dev/null; then
+    ok "D2b R2-I6(b) mtime-wins dedup: the genuinely MORE RECENT record (a_new.json, NOT-MIGRATED) is the one counted for HelixDevelopment/ota, never the alphabetically-later-but-chronologically-STALE z_stale.json's bare MIGRATED claim"
+else
+    bad "D2b R2-I6(b) mtime-wins dedup: summary did not resolve the duplicate by real recency (rc=$D2B_RC out=$D2B_OUT; see $WORK/d_summary3.json)"
+fi
+
+D_MIGDIR4="$WORK/d_migrations4"
+mkdir -p "$D_MIGDIR4"
+cat > "$D_MIGDIR4/bare_migrated_claim.json" <<'EOF'
+{"schema":"consumer-migration/v1","project_id":"HelixDevelopment/ota","outcome":"MIGRATED"}
+EOF
+mkdir -p "$WORK/d_audits_empty4"
+D2C_OUT=$(run_tool summary --consumers "$CONSUMERS3" --audits "$WORK/d_audits_empty4" --migrations "$D_MIGDIR4" --out "$WORK/d_summary4.json" 2>&1); D2C_RC=$?
+if python3 -c "
+import json, sys
+d = json.load(open('$WORK/d_summary4.json'))
+reasons = d.get('not_migrated_by_reason', {})
+ok = d.get('migrated') == 0 and reasons.get('record-missing-verification-evidence') == 1
+sys.exit(0 if ok else 1)
+" 2>/dev/null; then
+    ok "D2c R2-I6(b) verification-required: a bare {\"outcome\":\"MIGRATED\"} record with NO 'verification' field is never counted as a real migration -- reported as record-missing-verification-evidence instead"
+else
+    bad "D2c R2-I6(b) verification-required: a bare MIGRATED claim with no verification evidence was still counted as migrated (rc=$D2C_RC out=$D2C_OUT; see $WORK/d_summary4.json)"
 fi
 
 # --- D3: I7 -- migration_effort is ALWAYS "ESTIMATE:", never "Measured:".
@@ -394,6 +456,33 @@ if [ -f "$D5_SCRATCH" ]; then
     fi
 else
     bad "D5 I8 guard-viability: could not build the scratch mutation copy (see $WORK/d5_mutate.err) -- the anchor text may have changed; re-derive it"
+fi
+
+# --- D5b: T177 Round 2 R2-I6(a) guard-viability -- the SAME D5 mutation
+# (skip the last project) run against a REUSED --out directory that
+# already holds a STALE file for the dropped project (left over from an
+# earlier, complete run) MUST STILL be caught -- a glob-the-whole-
+# directory re-derivation (the pre-Round-2 shape) would silently pick up
+# the stale file and report the coverage check satisfied, exactly the
+# reviewer's live repro ("wrote 1 ... verified 2/2" on a scratch run
+# reusing a --out that already held a prior-run file for the skipped
+# project).
+D5B_OUT_DIR="$WORK/d5b_reused_audits"
+mkdir -p "$D5B_OUT_DIR"
+D5B_FULL_OUT=$(python3 "$TOOL" audit --config "$CFG" --consumers "$CONSUMERS3" --workdir "$WORK/d5b_cwork_full" --out "$D5B_OUT_DIR" 2>&1); D5B_FULL_RC=$?
+if [ "$D5B_FULL_RC" -ne 0 ]; then
+    bad "D5b R2-I6(a) guard-viability setup: could not seed a complete real audit run into the reused --out directory (rc=$D5B_FULL_RC out=$D5B_FULL_OUT)"
+else
+    # Re-run the SAME skip-last-project mutant, pointed at the SAME,
+    # now-populated --out directory (the stale files from the complete
+    # run above are still sitting there, including one for whichever
+    # project the mutant's own `projects[:-1]` will skip this time).
+    D5B_OUT=$(python3 "$D5_SCRATCH" audit --config "$CFG" --consumers "$CONSUMERS3" --workdir "$WORK/d5b_cwork_mut" --out "$D5B_OUT_DIR" 2>&1); D5B_RC=$?
+    if [ "$D5B_RC" -eq 1 ] && echo "$D5B_OUT" | grep -q 'CA-010 report coverage mismatch'; then
+        ok "D5b R2-I6(a) guard-viability: the skip-last-project mutation is STILL caught even when --out is a REUSED directory already holding a stale, complete-looking file for the skipped project (a blind directory glob would have been fooled by it)"
+    else
+        bad "D5b R2-I6(a) guard-viability: a REUSED --out directory with a stale file for the skipped project defeated the CA-010 coverage check (rc=$D5B_RC out=$D5B_OUT) -- re-derivation is reading stale disk content instead of this run's own written paths"
+    fi
 fi
 
 # --- D6: I9 -- a consumer with MULTIPLE local checkouts (HelixDevelopment/

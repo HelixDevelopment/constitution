@@ -312,6 +312,7 @@ def cmd_audit(args):
 
     os.makedirs(args.out, exist_ok=True)
     written = 0
+    written_paths = []
     for project in projects:
         report = audit_one(project, const_root)
         safe_name = project["project_id"].replace("/", "__")
@@ -319,22 +320,36 @@ def cmd_audit(args):
         with open(out_path, "w", encoding="utf-8") as fh:
             json.dump(report, fh, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         written += 1
+        written_paths.append(out_path)
 
     # CA-010 (T177 Round 1 I8 fix): re-derive the written set
-    # INDEPENDENTLY from disk -- glob --out's real directory content and
-    # read each report's OWN `project_id` field -- rather than trusting
-    # the write loop's own running counter compared against a count
-    # derived from the SAME in-memory `projects` list it just iterated.
-    # A count-vs-count check like the prior `written != len(projects)`
-    # is tautological by construction: a mutation that truncates the
-    # iterated list (e.g. `for project in projects[:-1]:`) moves BOTH
-    # sides of that comparison in lockstep and can never be caught,
-    # confirmed live by reproducing the reviewer's exact mutation before
-    # writing this fix. `expected_ids` is captured ONCE, above, from the
-    # untouched --consumers document, so it is immune to any such
-    # in-loop truncation.
+    # INDEPENDENTLY from disk -- read each report's OWN `project_id`
+    # field back -- rather than trusting the write loop's own running
+    # counter compared against a count derived from the SAME in-memory
+    # `projects` list it just iterated. A count-vs-count check like the
+    # prior `written != len(projects)` is tautological by construction:
+    # a mutation that truncates the iterated list (e.g.
+    # `for project in projects[:-1]:`) moves BOTH sides of that
+    # comparison in lockstep and can never be caught, confirmed live by
+    # reproducing the reviewer's exact mutation before writing this fix.
+    # `expected_ids` is captured ONCE, above, from the untouched
+    # --consumers document, so it is immune to any such in-loop
+    # truncation.
+    #
+    # T177 Round 2 R2-I6 fix: re-derive from `written_paths` (the paths
+    # THIS RUN actually wrote), never a blind `glob.glob(--out/*.json)`
+    # of the whole directory -- a REUSED --out directory can hold stale
+    # files left over from a PREVIOUS run, and globbing silently papers
+    # over a truncated-iteration mutation with a leftover file the
+    # CURRENT run never touched (reproduced live: the reviewer's own
+    # `projects[:-1]` mutant still globbed a stale prior-run file for the
+    # dropped project and reported "wrote 1 ... verified 2/2"). Re-reading
+    # each WRITTEN path's own content still independently verifies the
+    # file's CONTENT matches what was intended, per the original I8
+    # reasoning; it is the SET of paths considered, not the read-back
+    # itself, that changes.
     on_disk_ids = set()
-    for out_path in glob.glob(os.path.join(args.out, "*.json")):
+    for out_path in written_paths:
         try:
             with open(out_path, "r", encoding="utf-8") as fh:
                 rec = json.load(fh)
@@ -375,15 +390,26 @@ def cmd_summary(args):
     # twice) inflated the numerator by N, and `coverage` could read 1.0
     # on a directory holding only copies of ONE real record (reproduced
     # live: 19 copies of one migration record + 19 empty audit files
-    # gave coverage=1.0 exit=0). `outcome_by_id` is keyed by
-    # project_id, so a duplicate file for the SAME id contributes
-    # exactly once (last-write-wins by lexicographic filename order, an
-    # arbitrary but deterministic tiebreak); a record naming a
-    # project_id OUTSIDE the enumerated set is rejected and reported,
-    # never silently counted.
+    # gave coverage=1.0 exit=0). `outcome_by_id` is keyed by project_id,
+    # so a duplicate file for the SAME id contributes exactly once; a
+    # record naming a project_id OUTSIDE the enumerated set is rejected
+    # and reported, never silently counted.
+    #
+    # T177 Round 2 R2-I6(b) fix: duplicate resolution now picks by real
+    # file MTIME (oldest processed first, so the dict assignment for a
+    # repeated id naturally keeps the MOST RECENT write), never
+    # lexicographic FILENAME order -- reproduced live: a hand-written
+    # stale `z_stale.json {"outcome":"MIGRATED"}` (alphabetically last,
+    # so filename-order picked it) silently overrode a genuinely newer,
+    # honest `a_new.json` NOT-MIGRATED record. ALSO: a MIGRATED claim
+    # with no genuine double-verify evidence embedded (data-model.md
+    # #13.3: "verification ... required iff MIGRATED") is untrustworthy
+    # on its face and is never silently counted as a real migration --
+    # closes the exact exploit a hand-crafted `{"outcome":"MIGRATED"}`
+    # with no other fields previously sailed through as coverage=1.0.
     outcome_by_id = {}
     unknown_ids_seen = set()
-    for mf in sorted(migration_files):
+    for mf in sorted(migration_files, key=lambda p: (os.path.getmtime(p), p)):
         try:
             with open(mf, "r", encoding="utf-8") as fh:
                 rec = json.load(fh)
@@ -395,7 +421,14 @@ def cmd_summary(args):
         if pid not in known_ids:
             unknown_ids_seen.add(pid)
             continue
-        outcome_by_id[pid] = "MIGRATED" if rec.get("outcome") == "MIGRATED" else rec.get("not_migrated_reason", "UNKNOWN")
+        if rec.get("outcome") == "MIGRATED":
+            verification = rec.get("verification")
+            if isinstance(verification, list) and len(verification) == 2:
+                outcome_by_id[pid] = "MIGRATED"
+            else:
+                outcome_by_id[pid] = "record-missing-verification-evidence"
+        else:
+            outcome_by_id[pid] = rec.get("not_migrated_reason", "UNKNOWN")
 
     migrated_ids = {pid for pid, outcome in outcome_by_id.items() if outcome == "MIGRATED"}
     migrated = len(migrated_ids)

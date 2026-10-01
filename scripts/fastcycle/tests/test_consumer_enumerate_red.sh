@@ -312,12 +312,149 @@ exit 1
 EOF
 chmod +x "$D_FAKEBIN_404/gh"
 D3_OUT=$(PATH="$D_FAKEBIN_404:$PATH" run_tool --config "$CFG" --out "$WORK/notfound_consumers.json"); D3_RC=$?
-if [ "$D3_RC" != "5" ]; then
-    ok "D3 B1 real-404-not-degraded: a gh that genuinely 404s on every call is NOT reported as degraded (exit != 5) -- a real confirmed-absent org is still a normal negative, never a false 'unreachable'"
+# T177 Round 2 m-R2-1 fix: `rc != 5` alone would also pass on rc 1, 3 or 4
+# -- none of which is the correct outcome here. Confirmed live (control
+# needle, §11.4.199 exact reproduction) that this EXACT fixture (a gh that
+# 404s on every call, real glab + real local sources otherwise reachable)
+# genuinely exits 0 on this host today; assert that specific value.
+if [ "$D3_RC" -eq 0 ]; then
+    ok "D3 B1 real-404-not-degraded: a gh that genuinely 404s on every call exits 0 (real glab/local sources still reachable, needles satisfied) -- a real confirmed-absent org is still a normal negative, never a false 'unreachable'"
 else
-    bad "D3 B1 real-404-not-degraded: a genuinely-404ing gh was wrongly reported as degraded (rc=5) -- the 404-vs-error distinction regressed"
+    bad "D3 B1 real-404-not-degraded: expected rc=0 for a genuinely-404ing gh with otherwise-healthy sources, got rc=$D3_RC -- the 404-vs-error distinction regressed (or real glab/local-source reachability changed)"
 fi
 rm -rf "$D_FAKEBIN" "$D_FAKEBIN_404" 2>/dev/null || true
+
+# =============================================================================
+# D4/D5 -- T177 Round 2 R2-I5(c): the PER-REPO gh_probe_submodule()
+# degraded path was never reached by any suite fixture before now --
+# D1's fake gh always fails at the repo-LIST step (gh_repo_list), so
+# gh_probe_submodule's own "error" branch was untested; reverting it
+# (§11.4.107(10) guard-viability) flips exit 5 -> 0 with nothing in T166
+# noticing. A fake gh here SUCCEEDS at repo-list (one real-shaped repo
+# name returned) but FAILS the per-repo submodule content probe with a
+# genuine non-404 error, exercising gh_probe_submodule's degraded branch
+# specifically.
+# =============================================================================
+D_FAKEBIN_PROBE=$(mktemp -d)
+cat > "$D_FAKEBIN_PROBE/gh" <<'EOF'
+#!/bin/sh
+case "$*" in
+    *"contents/constitution"*)
+        echo "gh: simulated transient 500 Internal Server Error (not a 404)" >&2
+        exit 1
+        ;;
+    *"orgs/"*"/repos"*)
+        echo "d177r2-probe-fixture-repo"
+        exit 0
+        ;;
+    *)
+        exit 1
+        ;;
+esac
+EOF
+chmod +x "$D_FAKEBIN_PROBE/gh"
+D4_OUT=$(PATH="$D_FAKEBIN_PROBE:$PATH" run_tool --config "$CFG" --out "$WORK/probe_degraded_consumers.json"); D4_RC=$?
+if [ "$D4_RC" -eq 5 ]; then
+    ok "D4 R2-I5(c) per-repo probe degraded exit: a gh that succeeds at repo-list but fails the per-repo submodule content probe (non-404) makes enumerate.sh exit 5, never a silent success"
+else
+    bad "D4 R2-I5(c) per-repo probe degraded exit: expected exit 5 for a degraded per-repo probe, got rc=$D4_RC (out=$D4_OUT)"
+fi
+if [ -f "$WORK/probe_degraded_consumers.json" ]; then
+    D5_PROBE_REASON=$(python3 -c "
+import json
+d = json.load(open('$WORK/probe_degraded_consumers.json'))
+for e in d.get('source_reachability', {}).get('github_degraded') or []:
+    if e.get('repo') == 'd177r2-probe-fixture-repo' and str(e.get('reason', '')).startswith('probe-'):
+        print('ok')
+        break
+" 2>/dev/null)
+    if [ "$D5_PROBE_REASON" = "ok" ]; then
+        ok "D5 R2-I5(c) per-repo probe degraded recorded: source_reachability names the PER-REPO probe failure specifically (reason starting 'probe-'), distinct from a repo-list-level failure -- confirms gh_probe_submodule's own degraded branch was genuinely exercised, not just repo-list's"
+    else
+        bad "D5 R2-I5(c) per-repo probe degraded recorded: source_reachability did not name a per-repo probe-level degradation for the fixture repo (see $WORK/probe_degraded_consumers.json)"
+    fi
+else
+    bad "D5 R2-I5(c) per-repo probe degraded recorded: enumerate.sh did not write --out at all"
+fi
+rm -rf "$D_FAKEBIN_PROBE" 2>/dev/null || true
+
+# =============================================================================
+# D6/D7/D8 -- T177 Round 2 R2-I5(a)/(b): hermetic, in-process reproduction
+# of the exact malformed-glab-response repros (mirroring the reviewer's
+# own "hermetic A1" style, §11.4.199 exact reproduction) against
+# `_enumerate_impl.py`'s source2_gitlab() directly, monkey-patching only
+# glab_json() so no real network/glab call is involved. Confirms: (D6) a
+# genuine rc=0 + truncated/non-JSON glab body is NEVER folded into "zero
+# hits" (previously silently absorbed); (D7) a dict-shaped glab body
+# (instead of the expected list) is reported as degraded rather than
+# crashing with an uncaught AttributeError; (D8) negative control -- a
+# GENUINELY well-shaped, empty (real "no projects") response is still
+# correctly treated as zero hits with no degraded entry (the
+# §11.4.201(1) false-positive guard: a fix for (a)/(b) that also flags a
+# real empty result would itself be a new bug).
+# =============================================================================
+D678=$(python3 - "$FC/consumers/_enumerate_impl.py" <<'PYEOF'
+import importlib.util
+import sys
+
+spec = importlib.util.spec_from_file_location("_enumerate_impl", sys.argv[1])
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+results = {}
+
+# D6: truncated/non-JSON group-list body at rc=0.
+def fake_malformed_group_list(args, timeout=20):
+    if "groups/" in args[1]:
+        return None, "malformed"
+    return None, "error"
+mod.glab_json = fake_malformed_group_list
+hits, reach, degraded = mod.source2_gitlab(["d177r2-org"])
+results["D6"] = bool(hits == {} and any(d.get("reason", "").startswith("group-list-") and d["reason"] != "group-list-ok" for d in degraded))
+
+# D7: dict-shaped (not list) group-list body at rc=0 -- must not crash,
+# must be reported degraded.
+def fake_dict_group_list(args, timeout=20):
+    if "groups/" in args[1]:
+        return {"message": "not a list"}, "ok"
+    return None, "error"
+mod.glab_json = fake_dict_group_list
+try:
+    hits2, reach2, degraded2 = mod.source2_gitlab(["d177r2-org"])
+    results["D7"] = bool(hits2 == {} and any(d.get("reason", "") == "group-list-malformed-shape" for d in degraded2))
+except AttributeError:
+    results["D7"] = False
+
+# D8: negative control -- a genuinely well-shaped EMPTY list (a real
+# group with zero projects) must NOT be reported degraded.
+def fake_empty_group_list(args, timeout=20):
+    if "groups/" in args[1]:
+        return [], "ok"
+    return None, "error"
+mod.glab_json = fake_empty_group_list
+hits3, reach3, degraded3 = mod.source2_gitlab(["d177r2-org"])
+results["D8"] = bool(hits3 == {} and degraded3 == [] and reach3 is True)
+
+for k in ("D6", "D7", "D8"):
+    print("%s=%s" % (k, results[k]))
+PYEOF
+)
+echo "$D678"
+if echo "$D678" | grep -q '^D6=True$'; then
+    ok "D6 R2-I5(a) malformed group-list never folded to zero: a genuine rc=0 + truncated glab body is reported as a degraded probe, never silently absorbed as zero hits"
+else
+    bad "D6 R2-I5(a) malformed group-list never folded to zero: FAILED (see output above)"
+fi
+if echo "$D678" | grep -q '^D7=True$'; then
+    ok "D7 R2-I5(b) dict-shaped group-list does not crash: a dict-shaped (wrong-type) glab body at rc=0 is reported as degraded (malformed-shape), never an uncaught AttributeError"
+else
+    bad "D7 R2-I5(b) dict-shaped group-list does not crash: FAILED (see output above -- either it crashed or was not reported degraded)"
+fi
+if echo "$D678" | grep -q '^D8=True$'; then
+    ok "D8 negative control (§11.4.201(1)): a genuinely well-shaped EMPTY group-list is still correctly treated as zero hits with NO degraded entry -- the D6/D7 fix does not false-positive on a real empty result"
+else
+    bad "D8 negative control (§11.4.201(1)): FAILED -- a genuinely empty result was wrongly flagged degraded"
+fi
 
 # Archive this run's stdout as the RED evidence per Test Discipline.
 {

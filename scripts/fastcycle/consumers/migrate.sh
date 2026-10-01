@@ -65,6 +65,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 VERIFY_TOOL="${FASTCYCLE_VERIFY_TOOL_OVERRIDE:-$HERE/../verify/repo_verify.py}"
 
 CFG=""; PROJECT=""; WORKDIR=""; OUT=""; APPLY=0; REVIEW_REF=""
+OPERATOR_BLOCKED=0; SCOPE_DECISION=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --config) CFG=$2; shift 2 ;;
@@ -73,6 +74,8 @@ while [ $# -gt 0 ]; do
         --out) OUT=$2; shift 2 ;;
         --apply) APPLY=1; shift ;;
         --review-ref) REVIEW_REF=$2; shift 2 ;;
+        --operator-blocked) OPERATOR_BLOCKED=1; shift ;;
+        --scope-decision) SCOPE_DECISION=$2; shift 2 ;;
         *) echo "migrate.sh: unknown arg $1" >&2; exit 2 ;;
     esac
 done
@@ -85,9 +88,34 @@ if [ ! -d "$WORKDIR" ]; then
     exit 2
 fi
 
+# T177 Round 2 R2-I1 fix: every tool-OWN transient file (fetch/push/hook/
+# gates stderr+log captures) MUST live OUTSIDE $WORKDIR -- writing them
+# inside the very consumer checkout being migrated means a refusal that
+# fires BEFORE the normal-path `rm -f` runs (every not_migrated_after_write
+# call exits immediately, so a later `rm -f` on the SAME sequential path is
+# never reached) leaves the tool's OWN artefact as genuine `git status`
+# residue, reported as a non-NONE data_change on a NOT-MIGRATED outcome
+# (reproduced live: a failing "Consumer gates: tools/f.sh" left
+# .migrate_gates.log inside the consumer, permanently `dirty-local` on
+# every re-run). Mirrors the SAME scratch-outside-$WORKDIR pattern step 9's
+# CA-026 verify output already uses (§11.4.201(10) observer-
+# decontamination), applied to every other transient file this tool
+# writes. A `trap`-driven cleanup on EVERY exit path (normal or refused)
+# means no per-call-site `rm -f` is load-bearing any more.
+MIGRATE_SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/fastcycle_migrate_scratch.XXXXXX" 2>/dev/null)
+if [ -z "$MIGRATE_SCRATCH" ] || [ ! -d "$MIGRATE_SCRATCH" ]; then
+    echo "migrate.sh: could not create a scratch directory outside \$WORKDIR for transient tool output" >&2
+    exit 4
+fi
+trap 'rm -rf "$MIGRATE_SCRATCH"' EXIT INT TERM
+
 write_out() {
     # $1=outcome $2=reason_or_empty $3=commit_or_empty $4=data_change(NONE|list)
     # $5=push_results_or_empty -- comma-separated "remote:status" entries.
+    # $6=review_ref_id_or_empty $7=verification_json_or_empty
+    # $8=backup_marker_json_or_empty (T177 Round 2 R2-I4: data-model.md
+    # #13.3's `review_ref`/`verification`/`backup_marker` fields, "required
+    # iff MIGRATED").
     # data-model.md #13.3's ConsumerMigrationRecord field table states
     # data_change "must be NONE for every NOT-MIGRATED outcome"; a landed
     # local commit that a later step (push/verify) then refuses is
@@ -99,9 +127,9 @@ write_out() {
     # additional informational fields) carrying the per-remote
     # success/failure breakdown CA-025's "remaining remotes... proceed"
     # clause calls for.
-    python3 - "$OUT" "$PROJECT" "$1" "$2" "$3" "$4" "${5:-}" <<'PYEOF'
+    python3 - "$OUT" "$PROJECT" "$1" "$2" "$3" "$4" "${5:-}" "${6:-}" "${7:-}" "${8:-}" <<'PYEOF'
 import json, sys
-out, project, outcome, reason, commit, data_change, push_results = sys.argv[1:8]
+out, project, outcome, reason, commit, data_change, push_results, review_ref, verification_json, backup_marker_json = sys.argv[1:11]
 doc = {
     "schema": "consumer-migration/v1",
     "project_id": project,
@@ -114,6 +142,18 @@ if commit:
     doc["commit"] = commit
 if push_results:
     doc["push_results"] = push_results.split(",")
+if review_ref:
+    doc["review_ref"] = review_ref
+if verification_json:
+    try:
+        doc["verification"] = json.loads(verification_json)
+    except ValueError:
+        pass
+if backup_marker_json:
+    try:
+        doc["backup_marker"] = json.loads(backup_marker_json)
+    except ValueError:
+        pass
 with open(out, "w", encoding="utf-8") as fh:
     json.dump(doc, fh, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 PYEOF
@@ -169,7 +209,68 @@ not_migrated_after_write() {
     exit 1
 }
 
+# T177 Round 2 R2-B2/R2-I1 fix: every write_out call downstream of step 4
+# (any write having begun) MUST report the REAL current residue, never a
+# hardcoded "NONE" -- the exact bug behind both R2-B2 (a verify-step
+# refusal hardcoded "NONE" while the hook's own untracked file sat in
+# $WORKDIR) and R2-I1 (the tool's own log files, now fixed to live outside
+# $WORKDIR entirely so they never contribute here). Mirrors
+# not_migrated_after_write()'s own real-measurement pattern (T177 Round 1
+# I1), generalised to every call site, not only the "after write" refusal
+# helper -- includes the push-failure and step-9 verify-failure/MIGRATED
+# paths, none of which previously re-measured reality before writing.
+current_data_change() {
+    git -C "$WORKDIR" status --porcelain=v1 2>/dev/null | awk '{print $2}' | tr '\n' ',' | sed 's/,$//'
+}
+
 # --- Step 1: preflight (CA-020) -- no write below this point until it passes.
+#
+# T177 Round 2 R2-I3 fix: CA-020's refusal set also covers
+# `operator-blocked` (an explicit caller-supplied flag -- this tool never
+# infers it) and `outside-migration-scope` (a caller-supplied, previously
+# operator-answered scope_decision.json per T173; DEC-25 "migrated only if
+# the operator's standing scope includes them") and `no-write-access`.
+# All three are OPTIONAL/best-effort: a caller that supplies neither
+# --operator-blocked nor --scope-decision sees no behavior change (every
+# existing fixture invocation omits both). `--scope-decision`'s schema is
+# this tool's own documented decision (mirroring --review-ref's T177
+# Round 1 I6 precedent): `{"answer": {"in_scope_projects": [...]}}`; any
+# other shape (including the genuinely-PENDING `{"answer": null}`
+# scope_decision.json T173 already produced) is conservatively treated as
+# NOT in scope (§11.4.101 safe-reversible default -- never guess a
+# project into scope).
+if [ "$OPERATOR_BLOCKED" -eq 1 ]; then
+    not_migrated "preflight" "operator-blocked"
+fi
+if [ -n "$SCOPE_DECISION" ] && [ -f "$SCOPE_DECISION" ]; then
+    SCOPE_OK=$(python3 - "$SCOPE_DECISION" "$PROJECT" <<'PYEOF'
+import json, sys
+path, project = sys.argv[1:3]
+try:
+    with open(path, "r", encoding="utf-8") as fh:
+        doc = json.load(fh)
+except (OSError, ValueError):
+    print("UNKNOWN")
+    sys.exit(0)
+answer = doc.get("answer")
+if not isinstance(answer, dict):
+    print("UNKNOWN")
+    sys.exit(0)
+in_scope = answer.get("in_scope_projects")
+if isinstance(in_scope, list) and project in in_scope:
+    print("IN-SCOPE")
+else:
+    print("OUT-OF-SCOPE")
+PYEOF
+)
+    if [ "$SCOPE_OK" != "IN-SCOPE" ]; then
+        not_migrated "preflight" "outside-migration-scope"
+    fi
+fi
+if [ ! -w "$WORKDIR" ]; then
+    not_migrated "preflight" "no-write-access"
+fi
+
 if [ ! -d "$WORKDIR/.git" ] && [ ! -f "$WORKDIR/.git" ]; then
     echo "migrate.sh: $WORKDIR is not a git checkout" >&2
     exit 4
@@ -184,12 +285,10 @@ if [ -n "$DIRTY" ]; then
     not_migrated "preflight" "dirty-local"
 fi
 
-if ! git -C "$WORKDIR" fetch --all --quiet 2>"$WORKDIR/.migrate_fetch.err"; then
+if ! git -C "$WORKDIR" fetch --all --quiet 2>"$MIGRATE_SCRATCH/migrate_fetch.err"; then
     REASON="unreachable"
-    rm -f "$WORKDIR/.migrate_fetch.err"
     not_migrated "preflight" "$REASON"
 fi
-rm -f "$WORKDIR/.migrate_fetch.err"
 
 BRANCH=$(git -C "$WORKDIR" rev-parse --abbrev-ref HEAD 2>/dev/null)
 LOCAL_HEAD=$(git -C "$WORKDIR" rev-parse HEAD 2>/dev/null)
@@ -272,6 +371,10 @@ fi
 rm -f /tmp/migrate_backup_err.$$
 BACKUP_HASH=$(find "$BACKUP_DIR" -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | awk '{print $1}')
 echo "backup: $BACKUP_DIR (hash=$BACKUP_HASH)"
+# T177 Round 2 R2-I4: data-model.md #13.3's `backup_marker` field
+# ({path, ContentAddress}, "taken before any write"), embedded in the
+# final MIGRATED record.
+BACKUP_MARKER_JSON=$(python3 -c "import json,sys; print(json.dumps({'path': sys.argv[1], 'content_address': 'sha256:' + sys.argv[2]}))" "$BACKUP_DIR" "$BACKUP_HASH")
 
 # --- Step 3 already done above (fetch --all, read-only).
 
@@ -375,11 +478,9 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # objects could not be retrieved -- the same reason vocabulary the
     # tool's own initial `git fetch --all` already uses for this class
     # of failure).
-    if ! git -C "$WORKDIR" -c protocol.file.allow=always submodule update --init constitution >"$WORKDIR/.migrate_submodule_update.err" 2>&1; then
-        rm -f "$WORKDIR/.migrate_submodule_update.err"
+    if ! git -C "$WORKDIR" -c protocol.file.allow=always submodule update --init constitution >"$MIGRATE_SCRATCH/migrate_submodule_update.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable"
     fi
-    rm -f "$WORKDIR/.migrate_submodule_update.err"
 
     HOOK="$WORKDIR/constitution/scripts/post_update_hook.sh"
     if [ -f "$HOOK" ]; then
@@ -394,10 +495,9 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         # the caller dir, not $WORKDIR). CONST_DIR is set explicitly too, for
         # defense-in-depth, even though the hook's own SCRIPT_DIR-derived
         # default already resolves correctly once cwd is right.
-        if ! ( cd "$WORKDIR" && PROJECT_ROOT="$WORKDIR" CONST_DIR="$WORKDIR/constitution" sh "$HOOK" ) >"$WORKDIR/.migrate_hook.log" 2>&1; then
+        if ! ( cd "$WORKDIR" && PROJECT_ROOT="$WORKDIR" CONST_DIR="$WORKDIR/constitution" sh "$HOOK" ) >"$MIGRATE_SCRATCH/migrate_hook.log" 2>&1; then
             not_migrated_after_write "post-update-hook" "consumer-gates-red"
         fi
-        rm -f "$WORKDIR/.migrate_hook.log"
     fi
 
     # The consumer's OWN gates (CA-023, distinct from post_update_hook.sh
@@ -418,10 +518,51 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         if [ ! -f "$WORKDIR/$GATES_SCRIPT" ]; then
             not_migrated_after_write "consumer-gates" "consumer-gates-red"
         fi
-        if ! ( cd "$WORKDIR" && sh "$GATES_SCRIPT" ) >"$WORKDIR/.migrate_gates.log" 2>&1; then
+        if ! ( cd "$WORKDIR" && sh "$GATES_SCRIPT" ) >"$MIGRATE_SCRATCH/migrate_gates.log" 2>&1; then
             not_migrated_after_write "consumer-gates" "consumer-gates-red"
         fi
-        rm -f "$WORKDIR/.migrate_gates.log"
+    fi
+
+    # T177 Round 2 R2-B2 fix: post_update_hook.sh / the consumer's own
+    # gates can legitimately create or modify files -- the CA-022 scope
+    # check above only ever examined the STAGED gitlink diff BEFORE this
+    # step ran, so anything the hook/gates step creates (e.g. the real
+    # post_update_hook.sh's own `.mcp.json`) was never checked against the
+    # allow-list at all, and (being untracked, never staged) was never
+    # committed either -- left as genuine, permanent untracked residue
+    # even after a fully successful commit+push (reproduced live: a stub
+    # hook writing a project-root file left it as `?? HOOK_WROTE_HERE`
+    # forever after a real, pushed commit; CA-026's step-9 verify then
+    # correctly flagged NOT_CLEAN, but the record's `data_change` field
+    # was hardcoded "NONE" regardless -- fixed together with this, see
+    # current_data_change() below). Re-check the FULL current working-tree
+    # status (staged + unstaged + untracked, not only `--cached`) against
+    # the SAME CA-022 allow-list: anything outside it is refused as
+    # out-of-scope-diff before it can ever reach a commit; anything
+    # genuinely inside the allow-list is staged here so it lands in the
+    # SAME commit as the gitlink bump, converging to a real MIGRATED state
+    # instead of leaving honest-but-permanent residue behind forever.
+    POST_HOOK_STATUS=$(git -C "$WORKDIR" status --porcelain=v1 2>/dev/null)
+    if [ -n "$POST_HOOK_STATUS" ]; then
+        OLD_IFS=$IFS
+        IFS='
+'
+        for line in $POST_HOOK_STATUS; do
+            f=${line#???}
+            case "$f" in
+                constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*) : ;;
+                *)
+                    IFS=$OLD_IFS
+                    not_migrated_after_write "wiring" "out-of-scope-diff ($f)"
+                    ;;
+            esac
+        done
+        IFS=$OLD_IFS
+        git -C "$WORKDIR" add -A -- constitution .gitmodules 2>/dev/null || true
+        [ -d "$WORKDIR/.claude" ] && git -C "$WORKDIR" add -A -- .claude 2>/dev/null
+        [ -d "$WORKDIR/scripts/hooks" ] && git -C "$WORKDIR" add -A -- scripts/hooks 2>/dev/null
+        [ -d "$WORKDIR/config/fastcycle" ] && git -C "$WORKDIR" add -A -- config/fastcycle 2>/dev/null
+        :
     fi
 
     # --- Step 6: review (CA-024) -- absent or non-GO => review-no-go.
@@ -435,20 +576,52 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # record's own top-level `project_id` and `target_commit` fields
     # MUST match `$PROJECT`/`$NEW_SHA` exactly; either field absent or
     # mismatched is review-no-go, same as no record at all.
+    #
+    # T177 Round 2 R2-I3 fix: binding alone is not CA-024 ("a zero-finding
+    # GO review record at the designated tier"). A record whose `verdict`
+    # says "GO" while still carrying a Blocking finding, or produced at
+    # the WRONG model tier/effort, was previously accepted unconditionally
+    # once bound -- reproduced live: {"verdict":"GO", "project_id":...,
+    # "target_commit":..., "findings":[{"severity":"Blocking"}],
+    # "tier":"haiku"} was accepted and pushed. Now ALSO requires:
+    # `findings` present as a list of length 0 (genuinely zero-finding,
+    # mirroring review_record.py's own RB-005/constitution 11.4.134 "a GO
+    # is terminal only when it has zero findings of any severity"); the
+    # designated tier (`model_tier`, falling back to `tier` for a
+    # hand-authored fixture) equals "opus"; `effort` equals "xhigh" (the
+    # constitution 11.4.209/11.4.231 pin -- no fallback model/effort).
+    # Freshness (Round 2 I3 stale-record replay): the record must ALSO
+    # carry `consumer_base_commit` equal to THIS run's own pre-migration
+    # $LOCAL_HEAD -- without this, a GO record bound only to
+    # project_id+target_commit stays valid for ANY later state of the
+    # SAME consumer at the SAME constitution target, so a record issued
+    # for an earlier attempt could be replayed against a consumer that has
+    # since received new commits. $LOCAL_HEAD is captured once, before any
+    # write, at the top of this script.
     REVIEW_GO=0
     if [ -n "$REVIEW_REF" ] && [ -f "$REVIEW_REF" ]; then
-        REVIEW_CHECK=$(python3 - "$REVIEW_REF" "$PROJECT" "$NEW_SHA" <<'PYEOF'
+        REVIEW_CHECK=$(python3 - "$REVIEW_REF" "$PROJECT" "$NEW_SHA" "$LOCAL_HEAD" <<'PYEOF'
 import json, sys
-path, project, target = sys.argv[1:4]
+path, project, target, base = sys.argv[1:5]
 try:
     with open(path, "r", encoding="utf-8") as fh:
         doc = json.load(fh)
 except (OSError, ValueError):
     print("NO-GO")
     sys.exit(0)
+tier = doc.get("model_tier", doc.get("tier"))
+findings = doc.get("findings")
 if doc.get("verdict") != "GO":
     print("NO-GO")
 elif doc.get("project_id") != project or doc.get("target_commit") != target:
+    print("NO-GO")
+elif doc.get("consumer_base_commit") != base:
+    print("NO-GO")
+elif not (isinstance(findings, list) and len(findings) == 0):
+    print("NO-GO")
+elif tier != "opus":
+    print("NO-GO")
+elif doc.get("effort") != "xhigh":
     print("NO-GO")
 else:
     print("GO")
@@ -461,6 +634,20 @@ PYEOF
     if [ "$REVIEW_GO" -ne 1 ]; then
         not_migrated_after_write "review" "review-no-go"
     fi
+    # data-model.md #13.3's `review_ref` field ("ReviewVerdictRecord id",
+    # "required iff MIGRATED") -- the record's OWN `review_id` where
+    # present (a real ReviewVerdictRecord, review_record.py's schema),
+    # else the --review-ref path itself (a hand-authored test fixture).
+    REVIEW_REF_ID=$(python3 -c "
+import json
+try:
+    with open('$REVIEW_REF', encoding='utf-8') as fh:
+        d = json.load(fh)
+    rid = d.get('review_id')
+    print(rid if rid else '$REVIEW_REF')
+except Exception:
+    print('$REVIEW_REF')
+" 2>/dev/null)
 
     # --- Step 7: commit via the consumer's own wrapper, or plain git if its
     # CLAUDE.md explicitly permits it (this tool's discovery marker).
@@ -505,17 +692,15 @@ PYEOF
     PUSH_FAILURES=""
     PUSH_OK_REMOTES=""
     for r in $REMOTES; do
-        if ! git -C "$WORKDIR" push "$r" "$BRANCH":"$BRANCH" 2>"$WORKDIR/.migrate_push.err"; then
+        if ! git -C "$WORKDIR" push "$r" "$BRANCH":"$BRANCH" 2>"$MIGRATE_SCRATCH/migrate_push.err"; then
             REASON="remote-rejected"
-            if grep -qi 'non-fast-forward\|fetch first' "$WORKDIR/.migrate_push.err" 2>/dev/null; then
+            if grep -qi 'non-fast-forward\|fetch first' "$MIGRATE_SCRATCH/migrate_push.err" 2>/dev/null; then
                 REASON="non-fast-forward"
             fi
-            rm -f "$WORKDIR/.migrate_push.err"
             PUSH_FAILURES="$PUSH_FAILURES $r:$REASON"
         else
             PUSH_OK_REMOTES="$PUSH_OK_REMOTES $r"
         fi
-        rm -f "$WORKDIR/.migrate_push.err"
     done
     if [ -n "$PUSH_FAILURES" ]; then
         REASON="remote-rejected"
@@ -527,7 +712,7 @@ PYEOF
         for pf in $PUSH_FAILURES; do PR="$PR,$pf"; done
         PR=${PR#,}
         FULL="NOT-MIGRATED (push: $REASON)"
-        write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "NONE" "$PR"
+        write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "$(current_data_change)" "$PR"
         echo "$FULL (per-remote:$PUSH_FAILURES; pushed ok to:$PUSH_OK_REMOTES)"
         exit 1
     fi
@@ -542,6 +727,10 @@ else
     # no-op for an already-initialised submodule.
     git -C "$WORKDIR" -c protocol.file.allow=always submodule update --init constitution >/dev/null 2>&1 || true
     NEW_COMMIT="$LOCAL_HEAD"
+    # No review runs for an already-at-target consumer (steps 5-8 are
+    # entirely skipped -- nothing to review), so review_ref is honestly
+    # omitted rather than naming a review that never gated anything here.
+    REVIEW_REF_ID=""
 fi
 
 # --- Step 9: recursive verify TWICE (CA-026) -- MIGRATED only when BOTH
@@ -554,7 +743,7 @@ fi
 # CURRENT state either way).
 if [ ! -f "$VERIFY_TOOL" ]; then
     FULL="NOT-MIGRATED (verify: verification-not-clean)"
-    write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "NONE"
+    write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "$(current_data_change)"
     echo "$FULL ($VERIFY_TOOL not found -- CA-026 cannot run)"
     exit 1
 fi
@@ -570,7 +759,7 @@ fi
 VERIFY_SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/fastcycle_migrate_verify.XXXXXX" 2>/dev/null)
 if [ -z "$VERIFY_SCRATCH" ] || [ ! -d "$VERIFY_SCRATCH" ]; then
     FULL="NOT-MIGRATED (verify: verification-not-clean)"
-    write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "NONE"
+    write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "$(current_data_change)"
     echo "$FULL (could not create a scratch directory outside \$WORKDIR for CA-026 verify output)"
     exit 1
 fi
@@ -584,14 +773,53 @@ OVERALL1=$(python3 -c "import json; print(json.load(open('$V1')).get('overall','
 OVERALL2=$(python3 -c "import json; print(json.load(open('$V2')).get('overall',''))" 2>/dev/null)
 HASH1=$(python3 -c "import json; print(json.load(open('$V1')).get('body_hash',''))" 2>/dev/null)
 HASH2=$(python3 -c "import json; print(json.load(open('$V2')).get('body_hash',''))" 2>/dev/null)
+
+# T177 Round 2 R2-I4 (tips-equal): CA-026 "MIGRATED only when ... gates
+# green and tips equal". A real push failure is already caught at step 8;
+# this closes the remaining gap -- confirming EVERY configured remote's
+# OWN ref, read back via `ls-remote`, genuinely equals the local
+# NEW_COMMIT, for both the normal push path and the already-at-target
+# path (a remote's own tip may legitimately be unreadable for reasons
+# unrelated to this migration -- an empty ls-remote result is skipped,
+# never treated as a mismatch, §11.4.201's conservative-safe-default:
+# refuse only on a POSITIVELY CONFIRMED mismatch, never on an
+# unresolvable read).
+TIPS_OK=1
+TIPS_DETAIL=""
+for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
+    RTIP=$(git -C "$WORKDIR" ls-remote "$r" "refs/heads/$BRANCH" 2>/dev/null | awk '{print $1}')
+    if [ -n "$RTIP" ] && [ "$RTIP" != "$NEW_COMMIT" ]; then
+        TIPS_OK=0
+        TIPS_DETAIL="$TIPS_DETAIL $r:$RTIP"
+    fi
+done
+
+# T177 Round 2 R2-I4 fix: verify output is COPIED to a durable location
+# beside $OUT (never inside $WORKDIR, per the SAME observer-
+# decontamination reasoning above) before the scratch copy is deleted --
+# the prior code `rm -rf`'d $VERIFY_SCRATCH unconditionally, so a MIGRATED
+# record's claimed double-CLEAN-verify had NO surviving evidence to audit
+# (§11.4.262: every PASS cites a captured, machine-created artefact).
+V1_PERSIST="${OUT%.json}.verify1.json"
+V2_PERSIST="${OUT%.json}.verify2.json"
+cp -f "$V1" "$V1_PERSIST" 2>/dev/null || V1_PERSIST=""
+cp -f "$V2" "$V2_PERSIST" 2>/dev/null || V2_PERSIST=""
 rm -rf "$VERIFY_SCRATCH"
-if [ "$V1_RC" -ne 0 ] || [ "$V2_RC" -ne 0 ] || [ "$OVERALL1" != "CLEAN" ] || [ "$OVERALL2" != "CLEAN" ] || [ -z "$HASH1" ] || [ "$HASH1" != "$HASH2" ]; then
+if [ "$V1_RC" -ne 0 ] || [ "$V2_RC" -ne 0 ] || [ "$OVERALL1" != "CLEAN" ] || [ "$OVERALL2" != "CLEAN" ] || [ -z "$HASH1" ] || [ "$HASH1" != "$HASH2" ] || [ "$TIPS_OK" -ne 1 ]; then
     FULL="NOT-MIGRATED (verify: verification-not-clean)"
-    write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "NONE"
-    echo "$FULL (v1_rc=$V1_RC overall1=$OVERALL1 v2_rc=$V2_RC overall2=$OVERALL2 hash1=$HASH1 hash2=$HASH2)"
+    write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "$(current_data_change)"
+    echo "$FULL (v1_rc=$V1_RC overall1=$OVERALL1 v2_rc=$V2_RC overall2=$OVERALL2 hash1=$HASH1 hash2=$HASH2 tips_ok=$TIPS_OK$TIPS_DETAIL)"
     exit 1
 fi
 
+VERIFICATION_JSON=$(python3 -c "
+import json, sys
+print(json.dumps([
+    {'path': sys.argv[1], 'overall': sys.argv[2], 'body_hash': sys.argv[3]},
+    {'path': sys.argv[4], 'overall': sys.argv[5], 'body_hash': sys.argv[6]},
+]))
+" "$V1_PERSIST" "$OVERALL1" "$HASH1" "$V2_PERSIST" "$OVERALL2" "$HASH2")
+
 echo "MIGRATED: $PROJECT commit=$NEW_COMMIT (verified CLEAN x2, body_hash=$HASH1)"
-write_out "MIGRATED" "" "$NEW_COMMIT" "NONE"
+write_out "MIGRATED" "" "$NEW_COMMIT" "$(current_data_change)" "" "$REVIEW_REF_ID" "$VERIFICATION_JSON" "$BACKUP_MARKER_JSON"
 exit 0

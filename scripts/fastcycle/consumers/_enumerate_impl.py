@@ -208,7 +208,18 @@ def glab_json(args, timeout=GH_TIMEOUT_S):
     gh_json() -- a genuine HTTP 404 (group/project absent) is a normal
     negative ("ok", empty), any OTHER failure (auth/rate-limit/network)
     is "error" and MUST be surfaced, never silently folded into "no
-    hits" (§11.4.201(6), T177 Round 1 B1)."""
+    hits" (§11.4.201(6), T177 Round 1 B1).
+
+    T177 Round 2 R2-I5 fix: a genuine rc=0 exit with TRUNCATED/malformed
+    (non-JSON) stdout previously returned ("ok", None) -- a status
+    INDISTINGUISHABLE from a real, successful, empty-body call, so every
+    caller's `if not <result>: continue` silently folded a malformed
+    response into "zero hits" (reproduced live: `glab` exiting 0 with
+    truncated JSON made source2_gitlab's group-list AND tree-list probes
+    both silently report zero, the whole run exiting 0 with NO degraded
+    entry). A parse failure on rc=0 is now its OWN status, "malformed",
+    which is != "ok" and therefore already routes through every existing
+    `if status != "ok": degraded.append(...)` call site unchanged."""
     try:
         proc = subprocess.run(["glab"] + args, capture_output=True, text=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired):
@@ -220,17 +231,71 @@ def glab_json(args, timeout=GH_TIMEOUT_S):
     try:
         return json.loads(proc.stdout), "ok"
     except ValueError:
-        return None, "ok"
+        return None, "malformed"
+
+
+GITLAB_PAGE_SIZE = 100
+GITLAB_MAX_PAGES = 50  # 5000 projects/group sanity bound -- never loop forever on a misbehaving API
+
+
+def _glab_paginated_group_projects(org):
+    """Real pagination over `groups/<org>/projects` -- returns
+    (projects_or_None, status), mirroring glab_json()'s own shape.
+
+    T177 Round 2 m-R2-4 fix: `?per_page=100` with no pagination silently
+    TRUNCATED any group with MORE than 100 projects to its first page --
+    the SAME false-null class R2-I5 already fixed elsewhere, confirmed
+    live (not merely theoretical, §11.4.6): this fleet's OWN
+    `vasic-digital` GitLab group genuinely returns exactly 100 projects
+    on an unpaginated call, the page-size boundary -- silently
+    undercounting for as long as this tool has run. Pages are fetched
+    until a page returns fewer than GITLAB_PAGE_SIZE entries (the normal
+    "last page" signal) or GITLAB_MAX_PAGES is reached (a defensive
+    bound, recorded as degraded rather than looping forever)."""
+    all_projects = []
+    page = 1
+    while True:
+        body, status = glab_json(["api", "groups/%s/projects?per_page=%d&page=%d" % (org, GITLAB_PAGE_SIZE, page)])
+        if status == "http_404":
+            if page == 1:
+                return [], "http_404"  # genuinely-absent group -- normal negative
+            break  # a later page 404ing after real pages were seen is just "no more pages"
+        if status == "ok" and body is not None and not isinstance(body, list):
+            status = "malformed-shape"
+        if status != "ok":
+            return None, status
+        if not body:
+            break
+        all_projects.extend(body)
+        if len(body) < GITLAB_PAGE_SIZE:
+            break
+        page += 1
+        if page > GITLAB_MAX_PAGES:
+            return None, "pagination-limit-exceeded"
+    return all_projects, "ok"
 
 
 def source2_gitlab(orgs):
     """Returns (hits, any_reachable, degraded) -- see source1_github()
-    for the shape of `degraded`."""
+    for the shape of `degraded`.
+
+    T177 Round 2 R2-I5 fix (A3): `glab_json`'s "ok" status guarantees
+    valid JSON was parsed, but NOT that it parsed to the SHAPE this
+    caller expects (a list of project dicts for the group-list probe, a
+    list of tree-entry dicts for the tree-list probe) -- a dict-shaped
+    body (reproduced live: glab returning an error-object-as-JSON with
+    rc=0) previously crashed `for proj in projects: proj.get("id")` with
+    an uncaught AttributeError (iterating a dict yields its STRING keys,
+    which have no .get()), exiting 1 -- a code EXACTLY colliding with the
+    tool's own documented --determinism-check-mismatch exit 1, and no
+    --out was written at all. Both probes now explicitly require a LIST
+    before iterating; a wrong-shaped "ok" body is treated as malformed
+    (degraded), never crashed on and never silently skipped."""
     hits = {}
     any_reachable = False
     degraded = []
     for org in orgs:
-        projects, status = glab_json(["api", "groups/%s/projects?per_page=100" % org])
+        projects, status = _glab_paginated_group_projects(org)
         if status == "http_404":
             any_reachable = True  # a genuinely-absent group is a normal negative
             continue
@@ -241,6 +306,9 @@ def source2_gitlab(orgs):
         if not projects:
             continue
         for proj in projects:
+            if not isinstance(proj, dict):
+                degraded.append({"org": org, "reason": "group-list-malformed-entry"})
+                continue
             pid = proj.get("id")
             path_with_ns = proj.get("path_with_namespace")
             if pid is None or not path_with_ns:
@@ -248,12 +316,14 @@ def source2_gitlab(orgs):
             tree, tree_status = glab_json(["api", "projects/%s/repository/tree?path=constitution" % pid])
             if tree_status == "http_404":
                 continue  # project genuinely has no constitution/ path -- normal negative
+            if tree_status == "ok" and tree is not None and not isinstance(tree, list):
+                tree_status = "malformed-shape"
             if tree_status != "ok":
                 degraded.append({"org": org, "repo": path_with_ns, "reason": "tree-%s" % tree_status})
                 continue
             if not tree:
                 continue
-            if any(entry.get("mode") == "160000" or entry.get("type") == "commit" for entry in tree):
+            if any(isinstance(entry, dict) and (entry.get("mode") == "160000" or entry.get("type") == "commit") for entry in tree):
                 hits[path_with_ns] = True
     return hits, any_reachable, degraded
 
