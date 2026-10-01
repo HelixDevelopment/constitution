@@ -185,6 +185,20 @@ finding I-1) -- an operator who has decided such content is disposable must
 remove it explicitly first. See the oracle block above `derive_verdict` for
 the oracle's own honest boundary.
 
+GIT STATE OUTSIDE THE FILES (T140 Round 15, round-14 findings BLOCKING-1/2,
+IMPORTANT-1, MINOR-3): `git worktree remove --force` also deletes the
+worktree's per-worktree admin directory (`<common>/worktrees/<id>/`), and
+dropping a stash can orphan its base history. A retire is therefore also
+REFUSED when that admin directory holds a submodule git dir (`modules/`), a
+per-worktree ref, in-progress operation state, any entry this tool does not
+recognise, or a reflog/pseudo-ref commit reachable from no shared ref; a land
+is REFUSED when the stash's base history is held by nothing but the stash. A
+worktree whose reflog still holds commits superseded by amend/reset/rebase is
+refused until those are anchored or the reflog is explicitly expired. Every
+git call ignores ambient git-redirection variables (GIT_DIR, GIT_INDEX_FILE,
+...; IMPORTANT-2) and is bounded by CUSTODY_SWEEP_GIT_TIMEOUT_S (default
+1800 s; MINOR-4) -- a timeout refuses, never allows.
+
 Producer != Verifier (section 11.4.240): this file is the LATER
 implementation of T-B08; T129's RED test and its five fixtures were
 authored and committed BEFORE this file existed, by a different task, and
@@ -261,15 +275,101 @@ DIFF_FILE_RE = re.compile(r"^diff --git a/(.+?) b/")
 # mutating git subcommand -- grep this file for 'push', 'drop', 'remove',
 # 'reset', 'clean' to confirm none appear as an argv element anywhere below).
 # ---------------------------------------------------------------------------
+# T140 Round 15 (round-14 finding IMPORTANT-2, fixed here): git EXPORTS
+# GIT_DIR / GIT_INDEX_FILE / GIT_WORK_TREE / ... to every hook it runs, and
+# being invoked from inside a hook is this tool's documented NORMAL case. An
+# inherited GIT_INDEX_FILE silently redirected the index-divergence check to
+# the MAIN checkout's index (reproduced live: staged-only content in a linked
+# worktree was REFUSED without the variable and ALLOWED with it -- then lost
+# on retire). Every git call this tool makes names its target explicitly
+# (`-C <path>`), so NO ambient git-redirection variable is ever legitimate for
+# it. Rather than enumerating the (growing) set of redirection variables, the
+# environment is built from an ALLOWLIST: every `GIT_*` variable is dropped
+# except the ones below, which only choose WHICH user/system config file,
+# identity, git binary directory, transport helper or trace sink to use --
+# none of them can point a `-C <path>` command at a different repository,
+# index, object store, ref namespace, config parameter set or diff shape.
+_AMBIENT_GIT_KEEP_EXACT = frozenset((
+    "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_NOSYSTEM", "GIT_EXEC_PATH",
+    "GIT_ASKPASS", "GIT_TERMINAL_PROMPT", "GIT_SSH", "GIT_SSH_COMMAND", "GIT_SSH_VARIANT",
+))
+_AMBIENT_GIT_KEEP_PREFIX = ("GIT_AUTHOR_", "GIT_COMMITTER_", "GIT_TRACE")
+
+
+def _targeted_git_env(base=None):
+    """Returns a NEW environment dict (never mutates `os.environ`) for a git
+    command that targets an explicitly named path: `base` (default
+    `os.environ`) minus every `GIT_*` variable not on the allowlist above."""
+    src = os.environ if base is None else base
+    return {k: v for k, v in src.items()
+            if not k.startswith("GIT_") or k in _AMBIENT_GIT_KEEP_EXACT
+            or k.startswith(_AMBIENT_GIT_KEEP_PREFIX)}
+
+
+# T140 Round 15 (round-14 finding MINOR-4, fixed here): a hanging smudge/clean
+# filter (or a stuck git) used to hang the whole tool forever -- `_run` had no
+# timeout. Every git call is now bounded. The child is started in its OWN
+# session so a timeout can kill the whole process group (a filter spawned by
+# git holds our stdout pipe open; killing only `git` would leave
+# `communicate()` blocked on that pipe for the filter's lifetime -- the
+# section 11.4.201(12) pipe-inheritance footgun). A timeout is reported as
+# rc=124 with a "TIMED OUT" stderr: every caller already treats a non-zero rc
+# as "could not look" -> refuse (the one rc-specific caller,
+# `_conversion_config`'s rc==1 "no matching key", can never see 124).
+_GIT_TIMEOUT_ENV = "CUSTODY_SWEEP_GIT_TIMEOUT_S"
+_GIT_TIMEOUT_DEFAULT_S = 1800.0
+_TIMEOUT_RC = 124
+
+
+def _git_timeout_s():
+    raw = os.environ.get(_GIT_TIMEOUT_ENV, "")
+    try:
+        val = float(raw) if raw else _GIT_TIMEOUT_DEFAULT_S
+    except ValueError:
+        val = _GIT_TIMEOUT_DEFAULT_S
+    return val if val > 0 else _GIT_TIMEOUT_DEFAULT_S
+
+
+def _exec(args, cwd=None, env=None, input_bytes=None):
+    """Runs `args` bounded by the git timeout. Returns (rc, stdout_bytes,
+    stderr_bytes). `env=None` means `_targeted_git_env()` (IMPORTANT-2): the
+    ambient environment minus every git-redirection variable; an explicit
+    `env` dict (a scratch-repository env) is used exactly as given."""
+    import signal as _signal
+    child_env = _targeted_git_env() if env is None else env
+    proc = subprocess.Popen(args, cwd=cwd, env=child_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            stdin=subprocess.PIPE if input_bytes is not None else subprocess.DEVNULL,
+                            start_new_session=True)
+    try:
+        out, err = proc.communicate(input=input_bytes, timeout=_git_timeout_s())
+        return proc.returncode, out, err
+    except subprocess.TimeoutExpired:
+        pgid = proc.pid
+        # section 11.4.263: never signal a process group <= 1. With
+        # start_new_session=True the child leads its own group whose id is
+        # its pid; validate it is a real int > 1 before killpg.
+        if isinstance(pgid, int) and pgid > 1:
+            try:
+                os.killpg(pgid, _signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        else:
+            proc.kill()
+        proc.communicate()
+        return _TIMEOUT_RC, b"", ("TIMED OUT after %gs (%s=%s): %s"
+                                  % (_git_timeout_s(), _GIT_TIMEOUT_ENV, os.environ.get(_GIT_TIMEOUT_ENV, ""),
+                                     " ".join(args))).encode("utf-8", "replace")
+
+
 def _run(args, cwd=None, check=True, env=None):
-    """`env=None` (the default, EVERY pre-existing call site) preserves the
-    exact prior behaviour -- `subprocess.run`'s own `env=None` default means
-    "inherit the parent process's environment unchanged", so this parameter
-    is purely additive and never a behaviour change for any call site that
-    does not pass it. `env=<dict>` REPLACES the child's environment
-    entirely (never merges with `os.environ`) -- the ONE thing a caller
-    genuinely needing isolation (see `_sanitized_scratch_env()` below) can
-    rely on (T140 Round 8 review finding R8-I2)."""
+    """`env=None` (the default) runs with `_targeted_git_env()` -- the
+    caller's ambient environment with every git-REDIRECTION variable removed
+    (T140 Round 15, round-14 finding IMPORTANT-2; formerly the raw ambient
+    environment, which let a hook-exported GIT_INDEX_FILE / GIT_DIR silently
+    redirect a `-C <path>` call). `env=<dict>` REPLACES the child's
+    environment entirely (never merges with `os.environ`) -- used by the
+    scratch-repository call sites (see `_sanitized_scratch_env()` below; T140
+    Round 8 review finding R8-I2). Bounded by the git timeout (MINOR-4)."""
     # T140 Round 11 review finding I6 (fixed here): `errors="surrogateescape"`
     # -- a strict text decode (the former default) raised an uncaught
     # UnicodeDecodeError on ANY non-UTF-8 byte in git's output (a stash
@@ -278,13 +378,17 @@ def _run(args, cwd=None, check=True, env=None):
     # decoded this way is still usable with os.* calls); strings bound for
     # the JSON output are passed through `_json_safe()` before writing.
     # Patch CONTENT is never read through this function at all -- see
-    # `_run_bytes()` below (Round 11 finding B1).
-    proc = subprocess.run(args, cwd=cwd, capture_output=True, text=True, errors="surrogateescape", env=env)
-    if check and proc.returncode != 0:
-        raise RuntimeError(
-            "command failed (rc=%d): %s\nstderr: %s" % (proc.returncode, " ".join(args), proc.stderr.strip())
-        )
-    return proc.returncode, proc.stdout, proc.stderr
+    # `_run_bytes()` below (Round 11 finding B1). The universal-newline
+    # translation `text=True` used to apply is reproduced explicitly.
+    rc, out_b, err_b = _exec(args, cwd=cwd, env=env)
+
+    def _dec(b):
+        return b.decode("utf-8", "surrogateescape").replace("\r\n", "\n").replace("\r", "\n")
+
+    out, err = _dec(out_b), _dec(err_b)
+    if check and rc != 0:
+        raise RuntimeError("command failed (rc=%d): %s\nstderr: %s" % (rc, " ".join(args), err.strip()))
+    return rc, out, err
 
 
 def _run_bytes(args, cwd=None, env=None, input_bytes=None):
@@ -295,10 +399,9 @@ def _run_bytes(args, cwd=None, env=None, input_bytes=None):
     so the hash the tool compared against was the hash of a patch that no
     longer applies to the real files (reproduced live: a CR-stripped backup
     was ALLOWED, the faithful one REFUSED forever). Returns (rc, bytes,
-    stderr_text)."""
-    proc = subprocess.run(args, cwd=cwd, capture_output=True, env=env, input=input_bytes,
-                          stdin=None if input_bytes is not None else subprocess.DEVNULL)
-    return proc.returncode, proc.stdout, proc.stderr.decode("utf-8", "replace")
+    stderr_text). Same env + timeout semantics as `_run` (Round 15)."""
+    rc, out, err = _exec(args, cwd=cwd, env=env, input_bytes=input_bytes)
+    return rc, out, err.decode("utf-8", "replace")
 
 
 # T140 Round 11 review finding B1 (fixed here): the ONE canonical patch
@@ -383,10 +486,11 @@ def _sanitized_scratch_env():
     config (hooks, signing keys, aliases) can influence the scratch
     operation either -- full isolation from BOTH the parent process's own
     git environment AND any global/system git config, matching this
-    function's own scratch-repo contract exactly. NEVER used for this
-    tool's own `--repo-root` git calls (those legitimately need the
-    caller's real ambient environment) -- scratch-only, by construction of
-    every call site that passes it."""
+    function's own scratch-repo contract exactly. Scratch-only, by
+    construction of every call site that passes it; this tool's own
+    `--repo-root` / live-worktree git calls use `_targeted_git_env()`
+    instead (T140 Round 15, IMPORTANT-2: they keep the caller's user/system
+    config but never an ambient git-redirection variable)."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     env["GIT_CONFIG_NOSYSTEM"] = "1"
     env["GIT_CONFIG_GLOBAL"] = "/dev/null"
@@ -676,6 +780,232 @@ def worktree_dirty_state(path, env=None):
     return dict(status="clean", sha256=None, **extra), b""
 
 
+# ---------------------------------------------------------------------------
+# T140 Round 15 (round-14 findings BLOCKING-1 + BLOCKING-2 + MINOR-3, fixed
+# here as ONE check class): what `git worktree remove --force` deletes is not
+# only the worktree's working directory (the restorability oracle covers
+# that) but ALSO its per-worktree ADMIN directory, `<common>/worktrees/<id>/`.
+# That directory can hold git state found nowhere else, which the oracle never
+# looked at -- reproduced live in round 14, each ALLOWED and then permanently
+# lost after retire:
+#   - a deinit'd submodule's own git dir under `modules/<name>`, holding a
+#     commit that was never pushed (lost IMMEDIATELY on remove);
+#   - a commit reachable only from the worktree's own reflog (`logs/HEAD`),
+#     e.g. a detached-HEAD commit abandoned by checking a branch back out;
+#   - a commit held only by a PER-WORKTREE ref (`refs/worktree/*`,
+#     `refs/bisect/*`, `refs/rewritten/*` -- git's documented per-worktree
+#     namespaces, gitrepository-layout(5) / git-worktree(1));
+#   - in-progress operation state (`rebase-merge/` todo + autostash,
+#     `rebase-apply/` mailbox, `sequencer/`, `MERGE_HEAD`/`MERGE_MSG`, ...).
+# The check is an ALLOWLIST over the admin directory's top-level entries: an
+# entry this tool does not positively know to be either harmless or checked is
+# REFUSED by name -- an unknown future git file can only cause a false REFUSAL
+# (the safe direction), never a silent loss. Every object id recorded in the
+# admin directory's reflogs and pseudo-refs must be reachable from a SHARED
+# ref (`refs/stash` and the per-worktree namespaces never count: a stash can
+# itself be dropped by this tool, and a per-worktree ref is deleted with its
+# worktree).
+#
+# HONEST BOUNDARY (section 11.4.6): a commit superseded by `commit --amend` /
+# `reset` / `rebase` stays in `logs/HEAD` until the reflog expires, so such a
+# worktree is REFUSED until an operator either anchors that commit on a
+# branch/tag or explicitly expires the reflog -- deliberate: the tool cannot
+# tell an intentionally discarded commit from a lost one. A repository whose
+# ref storage is not the `files` backend (reftable) is REFUSED as not
+# inspectable by this check. `COMMIT_EDITMSG` (the text of the last commit
+# attempt) is treated as harmless.
+# ---------------------------------------------------------------------------
+_ADMIN_HARMLESS = frozenset(("commondir", "gitdir", "index", "locked", "COMMIT_EDITMSG"))
+# Entries whose content is CHECKED below rather than refused outright.
+_ADMIN_CHECKED = frozenset(("HEAD", "ORIG_HEAD", "FETCH_HEAD", "AUTO_MERGE", "logs", "refs", "modules"))
+_ADMIN_IN_PROGRESS = frozenset((
+    "rebase-merge", "rebase-apply", "sequencer", "MERGE_HEAD", "MERGE_MSG", "MERGE_MODE", "MERGE_AUTOSTASH",
+    "SQUASH_MSG", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_START", "BISECT_LOG",
+    "BISECT_TERMS", "BISECT_NAMES", "BISECT_EXPECTED_REV", "BISECT_ANCESTORS_OK", "BISECT_RUN",
+    "BISECT_FIRST_PARENT", "index.lock", "HEAD.lock",
+))
+_PER_WORKTREE_REF_PREFIXES = ("refs/worktree/", "refs/bisect/", "refs/rewritten/")
+_OID_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+
+
+def _shared_anchor_oids(path, env=None):
+    """Object ids of every ref that SURVIVES the removal of any worktree and
+    cannot itself be dropped by this tool: everything `for-each-ref` lists
+    EXCEPT `refs/stash` and the per-worktree namespaces. Returns (set, None)
+    or (None, reason)."""
+    rc, out, err = _run_bytes(["git", "-C", path, "for-each-ref", "--format=%(objectname) %(refname)"], env=env)
+    if rc != 0:
+        return None, "git for-each-ref failed: %s" % err.strip()
+    oids = set()
+    for line in out.decode("utf-8", "surrogateescape").splitlines():
+        oid, _sp, ref = line.partition(" ")
+        if not _OID_RE.match(oid):
+            return None, "unparseable for-each-ref line %r" % line[:120]
+        if ref == "refs/stash" or ref.startswith(_PER_WORKTREE_REF_PREFIXES):
+            continue
+        oids.add(oid)
+    return oids, None
+
+
+def _unanchored_commits(path, candidates, env=None):
+    """Of `candidates` (object ids), returns (list_of_commit_ids_reachable
+    from NO shared anchor ref, None) or (None, reason). Object ids that no
+    longer exist are skipped (already gone -- nothing left to lose); non-
+    commit ids are skipped (only commits carry history)."""
+    cands = sorted({c for c in candidates if c and not _null_oid(c)})
+    if not cands:
+        return [], None
+    rc, out, err = _run_bytes(["git", "--no-replace-objects", "-C", path, "cat-file",
+                               "--batch-check=%(objectname) %(objecttype)"],
+                              env=env, input_bytes="".join(c + "\n" for c in cands).encode())
+    if rc != 0:
+        return None, "git cat-file --batch-check failed: %s" % err.strip()
+    commits = []
+    for line in out.decode("utf-8", "replace").splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[1] == "commit":
+            commits.append(parts[0])
+        elif len(parts) == 2 and parts[1] == "missing":
+            continue
+        elif len(parts) == 2 and parts[1] in ("tree", "blob", "tag"):
+            continue
+        else:
+            return None, "unparseable cat-file line %r" % line[:120]
+    if not commits:
+        return [], None
+    anchors, why = _shared_anchor_oids(path, env=env)
+    if anchors is None:
+        return None, why
+    stdin = "".join(c + "\n" for c in commits) + "".join("^" + a + "\n" for a in sorted(anchors))
+    # --no-replace-objects: walk the REAL parent links (what gc keeps); any
+    # refs/replace/* ref is itself in the anchor set, so history reachable
+    # only through a replacement commit is still counted as anchored.
+    rc, out, err = _run_bytes(["git", "--no-replace-objects", "-C", path, "rev-list", "--stdin"], env=env,
+                              input_bytes=stdin.encode())
+    if rc != 0:
+        return None, "git rev-list failed: %s" % err.strip()
+    return [x for x in out.decode("utf-8", "replace").split() if x], None
+
+
+def _oids_in_file(fp, reflog):
+    """Object ids recorded in an admin-dir file. A reflog line is
+    '<old> <new> <ident>\\t<msg>'; a pseudo-ref holds '<oid>' (FETCH_HEAD:
+    '<oid>\\t...' per line). A symbolic 'ref: ...' line holds none. Raises
+    ValueError on an unparseable reflog line."""
+    with open(fp, "rb") as fh:
+        text = fh.read().decode("utf-8", "surrogateescape")
+    oids = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        if reflog:
+            parts = line.split(" ", 2)
+            if len(parts) < 3 or not _OID_RE.match(parts[0]) or not _OID_RE.match(parts[1]):
+                raise ValueError("unparseable reflog line in %s: %r" % (fp, line[:120]))
+            oids.extend(parts[:2])
+        else:
+            tok = line.split()[0] if line.split() else ""
+            if _OID_RE.match(tok):
+                oids.append(tok)
+    return oids
+
+
+def worktree_admin_dir_problems(path, env=None):
+    """Returns (problems, None) or (None, reason-it-could-not-be-checked) for
+    the per-worktree admin directory of the LINKED worktree at `path` (see
+    the block comment above)."""
+    rc, out, err = _run(["git", "-C", path, "rev-parse", "--path-format=absolute", "--git-dir",
+                         "--git-common-dir"], check=False, env=env)
+    lines = out.splitlines()
+    if rc != 0 or len(lines) != 2:
+        return None, "could not resolve the worktree's git dirs: %s" % err.strip()
+    admin, common = lines
+    if os.path.realpath(admin) == os.path.realpath(common):
+        return None, "the worktree has no separate per-worktree admin directory (it is the main worktree)"
+    rc, fmt, _err = _run(["git", "-C", path, "rev-parse", "--show-ref-format"], check=False, env=env)
+    if rc == 0 and fmt.strip() and fmt.strip() != "files":
+        return None, "ref storage %r is not inspectable by this check (only 'files')" % fmt.strip()
+    problems, candidates = [], []
+    try:
+        names = sorted(os.listdir(admin))
+        for name in names:
+            fp = os.path.join(admin, name)
+            if name in _ADMIN_HARMLESS:
+                continue
+            if name in _ADMIN_IN_PROGRESS:
+                problems.append("%s: in-progress operation state in the per-worktree admin dir (deleted with "
+                                "the worktree)" % name)
+                continue
+            if name not in _ADMIN_CHECKED:
+                problems.append("%s: unrecognised per-worktree admin entry (deleted with the worktree; this "
+                                "tool cannot prove its content is held anywhere else)" % name)
+                continue
+            if name == "modules":
+                subs = sorted(os.listdir(fp)) if os.path.isdir(fp) else ["<not a directory>"]
+                if subs:
+                    problems.append("modules/%s: a submodule git dir inside the per-worktree admin dir "
+                                    "(its commits/refs are deleted with the worktree)" % ",".join(subs))
+                continue
+            if name in ("logs", "refs"):
+                if not os.path.isdir(fp):
+                    problems.append("%s: unexpected non-directory admin entry" % name)
+                    continue
+                for dirpath, _dirs, files in os.walk(fp):
+                    for f in sorted(files):
+                        full = os.path.join(dirpath, f)
+                        rel = os.path.relpath(full, admin).replace(os.sep, "/")
+                        if name == "refs":
+                            problems.append("%s: a per-worktree ref (deleted with the worktree)" % rel)
+                            candidates.extend(_oids_in_file(full, reflog=False))
+                        else:
+                            candidates.extend(_oids_in_file(full, reflog=True))
+                continue
+            candidates.extend(_oids_in_file(fp, reflog=False))  # HEAD / ORIG_HEAD / FETCH_HEAD / AUTO_MERGE
+    except (OSError, ValueError) as exc:
+        return None, "could not read the per-worktree admin dir %r (%s: %s)" % (admin, type(exc).__name__, exc)
+    lost, why = _unanchored_commits(path, candidates, env=env)
+    if lost is None:
+        return None, why
+    if lost:
+        problems.append("%d commit(s) reachable only through this worktree's own refs/reflog/pseudo-refs "
+                        "(no branch/tag/remote ref holds them; they die with the worktree), e.g. %s"
+                        % (len(lost), ", ".join(lost[:3])))
+    return problems, None
+
+
+def stash_history_unanchored(root, ref, env=None):
+    """T140 Round 15 (round-14 finding IMPORTANT-1, fixed here): dropping a
+    stash deletes the only reference to its BASE commit's history when that
+    history is held by nothing else (e.g. the branch the stash was taken on
+    was deleted). The stash's own patch is a delta AGAINST that base, so it
+    never carries the base's content (reproduced live: a file committed only
+    on the deleted branch was lost after drop + gc while `land` was
+    ALLOWED). Returns (problems, None) or (None, reason): every parent of
+    the stash commit and of its `^2` index commit must be reachable from a
+    shared ref other than `refs/stash`."""
+    cands = []
+    for spec in (ref, "%s^2" % ref):
+        rc, out, err = _run(["git", "-C", root, "rev-list", "--parents", "--max-count=1", spec],
+                            check=False, env=env)
+        toks = out.split()
+        if rc != 0 or not toks:
+            return None, "could not list the parents of %s: %s" % (spec, err.strip())
+        cands.extend(toks[1:])
+    # the ^3 untracked commit (if any) has no parents; ^2 is the index commit
+    # itself, judged by content elsewhere -- only real history parents here.
+    stash_oid = _run(["git", "-C", root, "rev-parse", ref], check=False, env=env)[1].strip()
+    idx_oid = _run(["git", "-C", root, "rev-parse", "%s^2" % ref], check=False, env=env)[1].strip()
+    third = _run(["git", "-C", root, "rev-parse", "--verify", "-q", "%s^3" % ref], check=False, env=env)[1].strip()
+    cands = [c for c in cands if c not in (stash_oid, idx_oid, third)]
+    lost, why = _unanchored_commits(root, cands, env=env)
+    if lost is None:
+        return None, why
+    if lost:
+        return ["%d commit(s) of the stash's base history are reachable from no branch/tag/remote ref -- only "
+                "the stash keeps them alive (e.g. %s)" % (len(lost), ", ".join(lost[:3]))], None
+    return [], None
+
+
 STASH_REF_RE = re.compile(r"^stash@\{\d+\}$")
 
 
@@ -726,6 +1056,9 @@ def resolve_live_dirty_state(entry_kind, entry_id, root, env=None):
                    live_hash=sha256_of_bytes(patch_bytes) if patch_bytes else None,
                    has_untracked=stash_has_untracked(root, entry_id, env=env),
                    dirty_submodules=[], has_unmerged=False, measured=True)
+        # T140 Round 15 IMPORTANT-1: the stash's base history must survive
+        # the drop (see stash_history_unanchored).
+        res["history_problems"], res["history_why"] = stash_history_unanchored(root, entry_id, env=env)
         return res
     if entry_kind == "worktree":
         matches = []
@@ -769,6 +1102,13 @@ def resolve_live_dirty_state(entry_kind, entry_id, root, env=None):
                    dirty_submodules=state.get("dirty_submodules"),
                    has_unmerged=state.get("has_unmerged"), measured=True,
                    head=wt.get("head"))
+        # T140 Round 15 BLOCKING-1/2 + MINOR-3: what `worktree remove` also
+        # deletes -- the per-worktree admin dir (see worktree_admin_dir_problems).
+        # Not computed for the MAIN worktree (refused unconditionally anyway).
+        if res["is_main"]:
+            res["history_problems"], res["history_why"] = [], None
+        else:
+            res["history_problems"], res["history_why"] = worktree_admin_dir_problems(path, env=env)
         return res
     return res
 
@@ -1036,10 +1376,9 @@ def _worktree_index_unique_paths(path, env=None):
         fp = os.path.join(path, p)
         if not os.path.lexists(fp):
             problems.append("%s: staged content whose worktree file is absent" % p)
-        elif os.path.islink(fp) or m_index == "120000" or "\n" in p:
-            # Not batched through --stdin-paths (a symlink would be followed;
-            # a newline cannot be expressed there): hash the exact bytes a
-            # checkout of the staged entry would have to reproduce.
+        elif os.path.islink(fp) or m_index == "120000":
+            # Not hashed by path (a symlink would be followed): hash the
+            # exact bytes a checkout of the staged entry would reproduce.
             if os.path.islink(fp) and m_index == "120000":
                 data = os.fsencode(os.readlink(fp))
                 rc2, out2, _ = _run_bytes(["git", "-C", path, "hash-object", "--no-filters", "--stdin"],
@@ -1052,14 +1391,20 @@ def _worktree_index_unique_paths(path, env=None):
                 problems.append("%s: staged entry type/path not comparable with the live file" % p)
         else:
             to_hash.append((p, h_index))
+    # T140 Round 15 (round-14 finding MINOR-1, fixed here): paths are passed
+    # as ARGV after `--`, never via `--stdin-paths`, which C-unquotes a line
+    # starting with '"' (a file literally named `"q"` was hashed as `q` --
+    # the check compared against the WRONG file). Chunked to bound argv size.
+    hashed = []
+    for start in range(0, len(to_hash), 256):
+        chunk = to_hash[start:start + 256]
+        rc3, out3, err3 = _run_bytes(["git", "-C", path, "hash-object", "--"] + [p for p, _h in chunk], env=env)
+        lines = out3.decode("utf-8", "replace").split()
+        if rc3 != 0 or len(lines) != len(chunk):
+            return None, "git hash-object failed: %s" % err3.strip()
+        hashed.extend(lines)
     if to_hash:
-        data = "".join(p + "\n" for p, _h in to_hash).encode("utf-8", "surrogateescape")
-        rc3, out3, err3 = _run_bytes(["git", "-C", path, "hash-object", "--stdin-paths"], env=env,
-                                     input_bytes=data)
-        lines = out3.decode().split()
-        if rc3 != 0 or len(lines) != len(to_hash):
-            return None, "git hash-object --stdin-paths failed: %s" % err3.strip()
-        for (p, h_index), h_live in zip(to_hash, lines):
+        for (p, h_index), h_live in zip(to_hash, hashed):
             if h_live != h_index:
                 problems.append("%s: STAGED content differs from the worktree file (exists only in the "
                                 "index)" % p)
@@ -1271,7 +1616,8 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
     # cannot be independently re-verified, so it is never silently trusted.
     try:
         with open(full, "rb") as fh:
-            real_hash = sha256_of_bytes(fh.read())
+            backup_bytes = fh.read()
+        real_hash = sha256_of_bytes(backup_bytes)
     except OSError as exc:
         return "REFUSED", ("claimed backup_artifact_path %r exists but could not be read (%s: %s) "
                             "-- this tool cannot independently re-verify a backup it cannot open"
@@ -1362,6 +1708,18 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
     if live.get("has_unmerged"):
         return "REFUSED", ("%s %r has unresolved merge conflicts -- index state a patch backup cannot "
                             "capture; %s refused" % (entry_kind, entry_id, action))
+    # T140 Round 15 (round-14 BLOCKING-1/2 + MINOR-3 for a worktree,
+    # IMPORTANT-1 for a stash): git state that the destructive action deletes
+    # OUTSIDE anything a patch backup or the file-tree oracle covers -- the
+    # worktree's per-worktree admin dir (submodule git dirs, own reflog,
+    # per-worktree refs, in-progress operations) / the stash's base history.
+    history_problems = live.get("history_problems")
+    if history_problems is None:
+        return "REFUSED", ("could not prove that %s %r holds no git state outside its files (%s) -- %s refused"
+                            % (entry_kind, entry_id, live.get("history_why"), action))
+    if history_problems:
+        return "REFUSED", ("%s %r holds git state that '%s' would destroy and no patch backup carries -- %s"
+                            % (entry_kind, entry_id, action, _summarize(history_problems)))
     live_hash = live.get("live_hash")
     if live_hash != real_hash:
         return "REFUSED", ("backup content at %r (sha256=%r) does NOT match the entry's freshly "
@@ -1375,11 +1733,22 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
     # really on disk (see the oracle block above for what it does and does
     # not prove). Checked LAST so its cost is paid only by a candidate every
     # cheaper check already accepts.
-    backup_full = os.path.abspath(full)
-    if entry_kind == "worktree":
-        restorable, why = restore_oracle_worktree(live.get("path"), live.get("head"), backup_full, env=env)
-    else:
-        restorable, why = restore_oracle_stash(root, entry_id, backup_full, env=env)
+    # T140 Round 15 (round-14 finding MINOR-2, fixed here): the oracle must
+    # apply EXACTLY the bytes whose sha256 was just verified -- never re-read
+    # the backup path, which could change between the hash and the apply.
+    # The verified bytes are written to a private temp copy and the oracle
+    # consumes that copy only.
+    try:
+        with tempfile.TemporaryDirectory(prefix="custody_backup_") as bdir:
+            backup_full = os.path.join(bdir, "verified_backup.patch")
+            with open(backup_full, "wb") as fh:
+                fh.write(backup_bytes)
+            if entry_kind == "worktree":
+                restorable, why = restore_oracle_worktree(live.get("path"), live.get("head"), backup_full, env=env)
+            else:
+                restorable, why = restore_oracle_stash(root, entry_id, backup_full, env=env)
+    except OSError as exc:
+        restorable, why = False, "could not stage the verified backup bytes (%s: %s)" % (type(exc).__name__, exc)
     if not restorable:
         return "REFUSED", ("RESTORABILITY ORACLE: the backup at %r does NOT provably restore %s %r -- %s; "
                             "%s refused" % (backup_artifact_path, entry_kind, entry_id, why, action))

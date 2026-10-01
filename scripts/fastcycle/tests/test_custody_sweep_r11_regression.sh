@@ -471,20 +471,29 @@ mut M5_stash_resolve 'entry_id],
     "$S" stash 'stash@{99}' land "$(sha "$TMP/b_stash_plain.patch")" "$TMP/b_stash_plain.patch" DETAIL "no longer resolves"
 mut M6_is_main_check '    if entry_kind == "worktree" and live.get("is_main"):' '    if False:' \
     "$TMP/wt_text" worktree repoA retire "$(sha "$TMP/b_main.patch")" "$TMP/b_main.patch" ALLOWED "MAIN worktree"
+# T140 Round 15: M6b and M11 moved to DETAIL mode for the same reason as the
+# Round-13 group above. Round 15 added the per-worktree ADMIN-DIR check
+# (round-14 findings BLOCKING-1/2): it independently refuses a worktree with
+# no separate admin dir (the main worktree) and any commit reachable only
+# through a worktree's own reflog (which covers an unreachable detached HEAD).
+# Deleting the earlier check therefore no longer flips the verdict (genuine
+# defense-in-depth); the mutant is still caught because the refusal no longer
+# comes from the deleted check. The admin-dir check itself is proven
+# load-bearing by test_custody_sweep_r15_regression.sh.
 mut M6b_is_main_index0 '        res["is_main"] = (idx == 0) or' '        res["is_main"] = False or' \
-    "$TMP/wt_text" worktree repoA retire "$(sha "$TMP/b_main.patch")" "$TMP/b_main.patch" ALLOWED "MAIN worktree"
+    "$TMP/wt_text" worktree repoA retire "$(sha "$TMP/b_main.patch")" "$TMP/b_main.patch" DETAIL "MAIN worktree"
 mut M7_submodule_check '    if dirty_submodules is None or dirty_submodules:' '    if False:' \
     "$P" worktree wt_sub retire "$(sha "$TMP/b_sub.patch")" "$TMP/b_sub.patch" DETAIL "changed submodule"
 mut M8_stash_untracked 'has_untracked=stash_has_untracked(root, entry_id, env=env),' 'has_untracked=False,' \
     "$S" stash 'stash@{1}' land "$(sha "$TMP/b_stash_u.patch")" "$TMP/b_stash_u.patch" ALLOWED "untracked content"
 mut M9_no_binary '    "--binary", "--no-color",' '    "--no-color",' \
     "$A" worktree wt_bin retire "$(sha "$TMP/b_bin_lossy.patch")" "$TMP/b_bin_lossy.patch" DETAIL "freshly re-derived LIVE"
-mut M10_text_mode_crlf '    return proc.returncode, proc.stdout, proc.stderr.decode' \
-    '    return proc.returncode, proc.stdout.replace(b"\r\n", b"\n"), proc.stderr.decode' \
+mut M10_text_mode_crlf '    return rc, out, err.decode("utf-8", "replace")' \
+    '    return rc, out.replace(b"\r\n", b"\n"), err.decode("utf-8", "replace")' \
     "$A" worktree wt_crlf retire "$(sha "$TMP/b_crlf_stripped.patch")" "$TMP/b_crlf_stripped.patch" DETAIL "freshly re-derived LIVE"
 
 mut M11_detached_head '    if head_unreachable is not False:' '    if False:' \
-    "$A" worktree wt_det retire "$(sha "$TMP/b_det.patch")" "$TMP/b_det.patch" ALLOWED "DETACHED HEAD"
+    "$A" worktree wt_det retire "$(sha "$TMP/b_det.patch")" "$TMP/b_det.patch" DETAIL "DETACHED HEAD"
 
 # The MAIN check for the root==main case must flip the VERDICT (not only
 # the detail): with the is_main gate gone, a matching main backup is ALLOWED.

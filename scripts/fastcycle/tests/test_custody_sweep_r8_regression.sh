@@ -359,6 +359,18 @@ mutated_body = re.sub(r",?\s*env=scratch_env", "", body)
 mutated_body = mutated_body.replace("scratch_env = _sanitized_scratch_env()\n    ", "")
 if mutated_body == body:
     sys.exit(1)
+# T140 Round 15 (round-14 IMPORTANT-2): `_run` itself now strips ambient
+# git-redirection variables whenever no explicit env is passed -- a SECOND,
+# independent isolation layer that alone neutralises this victim scenario
+# (defense-in-depth, measured live: with only the scratch_env threading
+# reverted the victim stays untouched). Reverting the pre-R8 shape faithfully
+# therefore also reverts that layer to plain ambient inheritance; the
+# Round-15 layer is proven load-bearing on its own by
+# test_custody_sweep_r15_regression.sh (mutation ME1_inherit_ambient_env).
+old_inherit = "    child_env = _targeted_git_env() if env is None else env"
+if after.count(old_inherit) + before.count(old_inherit) != 1:
+    sys.exit(1)
+before = before.replace(old_inherit, "    child_env = env")
 with open(p, "w", encoding="utf-8") as fh:
     fh.write(before + mutated_body + after)
 PYEOF
