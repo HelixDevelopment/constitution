@@ -122,8 +122,7 @@ PYEOF
 
 for exc in KeyError IndexError AttributeError RecursionError; do
   D="$TMP/inj_$exc"
-  inject_and_build "$D" "$exc"
-  if [ $? -ne 0 ]; then
+  if ! inject_and_build "$D" "$exc"; then
     echo "NOT ok R8-I1 ($exc) mutation anchor not found (content drifted)"
     failx
     continue
@@ -142,8 +141,7 @@ for exc in KeyError IndexError AttributeError RecursionError; do
     continue
   fi
 
-  revert_place_boundary_to_r7_shape "$D/orchestration/limit_class.py"
-  if [ $? -ne 0 ]; then
+  if ! revert_place_boundary_to_r7_shape "$D/orchestration/limit_class.py"; then
     echo "NOT ok R8-I1 ($exc) guard-viability: boundary-revert mutation anchor not found (content drifted)"
     failx
     continue

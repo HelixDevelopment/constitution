@@ -134,28 +134,6 @@ with open(p, "w", encoding="utf-8") as fh:
 PYEOF
 }
 
-mutate_disable_stale_invalidation() {
-  # T140 Round 10: _invalidate_stale_out's implementation now lives in
-  # lib/fc_entry.py (shared, as invalidate_stale_out) -- $1 = lib/fc_entry.py
-  # path (was: orchestration/handoff.py path -- reverts R9b-I1's stale-doc fix
-  # by making `_invalidate_stale_out` an unconditional no-op (an early
-  # `return` before its own body runs), leaving EVERY other R9/R9b fix
-  # (including the __doc__.split() fix itself) untouched.
-  python3 - "$1" <<'PYEOF'
-import sys
-p = sys.argv[1]
-with open(p, encoding="utf-8") as fh:
-    c = fh.read()
-old = 'def invalidate_stale_out(out_path):\n    """Remove any EXISTING'
-new = 'def invalidate_stale_out(out_path):\n    return  # R9 GUARD-VIABILITY MUTATION: pre-invalidation disabled\n    """Remove any EXISTING'
-if c.count(old) != 1:
-    sys.exit(1)
-c = c.replace(old, new, 1)
-with open(p, "w", encoding="utf-8") as fh:
-    fh.write(c)
-PYEOF
-}
-
 mutate_neuter_safe_print() {
   # $1 = orchestration/handoff.py path -- reverts R9-I1's/R9-M2's fix by
   # making `_safe_print` call the real `print()` completely unguarded
@@ -282,8 +260,7 @@ fi
 # real, unmutated tool, which DOES reach the correct INVALID verdict).
 D1="$TMP/mut_doc"
 build_scratch_copy "$D1"
-mutate_revert_doc_fallback "$D1/orchestration/handoff.py"
-if [ $? -ne 0 ]; then
+if ! mutate_revert_doc_fallback "$D1/orchestration/handoff.py"; then
   echo "NOT ok R9b-I1 (__doc__ fallback) guard-viability: mutation anchor not found (content drifted)"
   failx
 else
@@ -321,8 +298,7 @@ fi
 # M3's own headline property.
 D2="$TMP/mut_stale"
 build_scratch_copy "$D2"
-mutate_restore_unconditional_invalidation "$D2/orchestration/handoff.py"
-if [ $? -ne 0 ]; then
+if ! mutate_restore_unconditional_invalidation "$D2/orchestration/handoff.py"; then
   echo "NOT ok R9b-I1 (stale-out) guard-viability: mutation anchor not found (content drifted)"
   failx
 else
@@ -408,8 +384,7 @@ build_valid_handoff_fixture "$TMP/e_h.json"
 
 D6="$TMP/inj_boundary"
 build_scratch_copy "$D6"
-inject_cmd_validate_crash "$D6/orchestration/handoff.py"
-if [ $? -ne 0 ]; then
+if ! inject_cmd_validate_crash "$D6/orchestration/handoff.py"; then
   echo "NOT ok R9-I1 real (fixed) tool: injection anchor not found (content drifted)"
   failx
 else
@@ -441,8 +416,7 @@ fi
 D4="$TMP/mut_print"
 build_scratch_copy "$D4"
 mutate_neuter_safe_print "$D4/lib/fc_entry.py"
-inject_cmd_validate_crash "$D4/orchestration/handoff.py"
-if [ $? -ne 0 ]; then
+if ! inject_cmd_validate_crash "$D4/orchestration/handoff.py"; then
   echo "NOT ok R9-I1 (_safe_print) guard-viability: mutation/injection anchor not found (content drifted)"
   failx
 else
@@ -531,8 +505,7 @@ fi
 # and would never reach that success path at all).
 D7="$TMP/mut_print_only"
 build_scratch_copy "$D7"
-mutate_neuter_safe_print "$D7/lib/fc_entry.py"
-if [ $? -ne 0 ]; then
+if ! mutate_neuter_safe_print "$D7/lib/fc_entry.py"; then
   echo "NOT ok R9-M2 (_safe_print) guard-viability: mutation anchor not found (content drifted)"
   failx
   H_RESULT="RESULT_FAIL mutation-anchor-not-found"
@@ -611,8 +584,7 @@ fi
 # --- guard-viability: disable the realpath re-check -------------------------
 D5="$TMP/mut_symlink"
 build_scratch_copy "$D5"
-mutate_disable_symlink_check "$D5/orchestration/handoff.py"
-if [ $? -ne 0 ]; then
+if ! mutate_disable_symlink_check "$D5/orchestration/handoff.py"; then
   echo "NOT ok R9-M3 guard-viability: mutation anchor not found (content drifted)"
   failx
 else

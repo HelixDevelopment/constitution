@@ -105,25 +105,6 @@ with open(p, "w", encoding="utf-8") as fh:
 PYEOF
 }
 
-mutate_disable_stale_invalidation() {
-  # T140 Round 10: _invalidate_stale_out's implementation now lives in
-  # lib/fc_entry.py (shared, as invalidate_stale_out) -- $1 = lib/fc_entry.py
-  # path (was: orchestration/limit_class.py path
-  python3 - "$1" <<'PYEOF'
-import sys
-p = sys.argv[1]
-with open(p, encoding="utf-8") as fh:
-    c = fh.read()
-old = 'def invalidate_stale_out(out_path):\n    """Remove any EXISTING'
-new = 'def invalidate_stale_out(out_path):\n    return  # R9 GUARD-VIABILITY MUTATION: pre-invalidation disabled\n    """Remove any EXISTING'
-if c.count(old) != 1:
-    sys.exit(1)
-c = c.replace(old, new, 1)
-with open(p, "w", encoding="utf-8") as fh:
-    fh.write(c)
-PYEOF
-}
-
 mutate_restore_unconditional_invalidation() {
   # T140 Round 10 review finding M3, first half, guard-viability (fixed
   # here): $1 = orchestration/limit_class.py path -- see
@@ -234,8 +215,7 @@ fi
 
 D1="$TMP/mut_doc"
 build_scratch_copy "$D1"
-mutate_revert_doc_fallback "$D1/orchestration/limit_class.py"
-if [ $? -ne 0 ]; then
+if ! mutate_revert_doc_fallback "$D1/orchestration/limit_class.py"; then
   echo "NOT ok R9b-I1 (__doc__ fallback) guard-viability: mutation anchor not found (content drifted)"
   failx
 else
@@ -268,8 +248,7 @@ fi
 # with no `--signal` is a clean argparse usage error (rc=2).
 D2="$TMP/mut_stale"
 build_scratch_copy "$D2"
-mutate_restore_unconditional_invalidation "$D2/orchestration/limit_class.py"
-if [ $? -ne 0 ]; then
+if ! mutate_restore_unconditional_invalidation "$D2/orchestration/limit_class.py"; then
   echo "NOT ok R9b-I1 (stale-out) guard-viability: mutation anchor not found (content drifted)"
   failx
 else
@@ -321,17 +300,13 @@ for BRANCH in classify place; do
   else
     inject_cmd_place_crash "$D6/orchestration/limit_class.py"
   fi
-  if [ $? -ne 0 ]; then
+  inj_rc=$?
+  if [ "$inj_rc" -ne 0 ]; then
     echo "NOT ok R9-I1 ($BRANCH) real (fixed) tool: injection anchor not found (content drifted)"
     failx
     continue
   fi
 
-  if [ "$BRANCH" = "classify" ]; then
-    ARGS="--signal HTTP_429 --out $TMP/e_${BRANCH}_out.json"
-  else
-    ARGS="place --fixture $FIXTURE --out $TMP/e_${BRANCH}_out.json"
-  fi
   rm -f "$TMP/e_${BRANCH}_out.json"
   E_RESULT=$(python3 - "$D6/orchestration/limit_class.py" "$TMP" "$BRANCH" "$FIXTURE" <<'PYEOF'
 import subprocess, os, sys
@@ -357,8 +332,7 @@ PYEOF
     continue
   fi
 
-  mutate_neuter_safe_print "$D6/lib/fc_entry.py"
-  if [ $? -ne 0 ]; then
+  if ! mutate_neuter_safe_print "$D6/lib/fc_entry.py"; then
     echo "NOT ok R9-I1 ($BRANCH) guard-viability: mutation anchor not found (content drifted)"
     failx
     continue

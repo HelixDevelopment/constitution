@@ -160,8 +160,7 @@ PYEOF
 
 for exc in KeyError IndexError AttributeError RecursionError; do
   D="$TMP/inj_$exc"
-  inject_and_build "$D" "$exc"
-  if [ $? -ne 0 ]; then
+  if ! inject_and_build "$D" "$exc"; then
     echo "NOT ok R8-I1 ($exc) mutation anchor not found (content drifted)"
     failx
     continue
@@ -182,8 +181,7 @@ for exc in KeyError IndexError AttributeError RecursionError; do
 
   # Guard-viability: SAME injected exception, on a SEPARATE copy whose
   # boundary is reverted to the R7 shape -- must crash uncaught.
-  revert_boundary_to_r7_shape "$D/orchestration/handoff.py"
-  if [ $? -ne 0 ]; then
+  if ! revert_boundary_to_r7_shape "$D/orchestration/handoff.py"; then
     echo "NOT ok R8-I1 ($exc) guard-viability: boundary-revert mutation anchor not found (content drifted)"
     failx
     continue
@@ -245,7 +243,7 @@ ok = (proc.returncode == 2 and not os.path.exists(badname) and not os.path.exist
 sys.stderr.write(proc.stderr.decode(errors="replace"))
 print("RESULT_OK" if ok else "RESULT_FAIL")
 PYEOF
-2>"$TMP/b_repro.err")
+true 2>"$TMP/b_repro.err")
 if [ "$B_RESULT" = "RESULT_OK" ]; then
   echo "ok R8-I1(b): a non-UTF-8 --handoff path is refused BEFORE any write is attempted --"
   echo "   neither the handoff record NOR the --out report was written, no traceback,"
