@@ -436,12 +436,43 @@ if gone "$B1/sub" "$PRECIOUS" && gone "$B1/main" "$PRECIOUS" && [ ! -d "$(admin 
 else
   notok "B1 loss NOT reproduced"
 fi
-for pair in "B2:$B2:$ORPHAN" "B3:$B3:$SAVED"; do
-  IFS=: read -r nm dir oid <<<"$pair"
-  g -C "$dir/main" worktree remove --force --force "$dir/wt" >/dev/null 2>&1; expire_gc "$dir/main"
-  if gone "$dir/main" "$oid"; then ok "$nm loss proven: commit $oid gone after remove --force + reflog expire + gc"
-  else notok "$nm loss NOT reproduced ($oid survives)"; fi
-done
+# T140 round-17 MINOR-3 (round-16 finding, fixed here): B2's proof used to
+# share the loop below with B3, both proven via `expire_gc` (an explicit
+# `reflog expire --expire=now --all` + `gc --prune=now`). For B2 specifically
+# ORPHAN is anchored ONLY by a reflog entry (per the B2a evidence block
+# above), so the EXPLICIT `--expire=now --all` step is, on its own, ALREADY
+# sufficient to destroy it -- confirmed live: running it with "$B2/wt" still
+# attached destroys ORPHAN even though `worktree remove` never ran. That
+# confound meant the before/after comparison never isolated "removal caused
+# the loss" for B2 (B1/B3/I1 do not share it: B1's loss needs no expire_gc
+# at all, B3/I1's anchors are REFS not reflog entries, so an explicit reflog
+# expire plays no role in destroying SAVED/TMPC). Fixed with a plain
+# `gc --prune=now` (git's OWN default internal reflog-expire window is
+# 30-90 days, so it does not expire a reflog entry created moments ago) for
+# BOTH an explicit CONTROL step (worktree still present: ORPHAN must
+# survive) and the actual proof step (worktree removed -- which deletes the
+# admin dir's `logs/HEAD` file outright -- ORPHAN must now be gone): this
+# isolates worktree removal itself as the cause, never the explicit expire.
+gc_only() { g -C "$1" gc --quiet --prune=now >/dev/null 2>&1; }
+gc_only "$B2/main"
+if gone "$B2/main" "$ORPHAN"; then
+  notok "B2 control FAILED: plain 'gc --prune=now' (no explicit reflog expire) already destroyed $ORPHAN with the" \
+        "worktree still present -- the scenario's reflog-only anchoring assumption is wrong"
+else
+  ok "B2 control: with the worktree STILL present, plain 'gc --prune=now' (no explicit reflog expire) leaves" \
+     "$ORPHAN intact"
+fi
+g -C "$B2/main" worktree remove --force --force "$B2/wt" >/dev/null 2>&1
+gc_only "$B2/main"
+if gone "$B2/main" "$ORPHAN"; then
+  ok "B2 loss proven: commit $ORPHAN gone after 'worktree remove --force' + plain 'gc --prune=now' (removal alone," \
+     "isolated from any explicit reflog expire, caused it)"
+else
+  notok "B2 loss NOT reproduced ($ORPHAN survives)"
+fi
+g -C "$B3/main" worktree remove --force --force "$B3/wt" >/dev/null 2>&1; expire_gc "$B3/main"
+if gone "$B3/main" "$SAVED"; then ok "B3 loss proven: commit $SAVED gone after remove --force + reflog expire + gc"
+else notok "B3 loss NOT reproduced ($SAVED survives)"; fi
 g -C "$I1/main" stash drop --quiet; expire_gc "$I1/main"
 if gone "$I1/main" "$TMPC"; then ok "I1 loss proven: the stash base commit $TMPC (other.txt) gone after drop + gc"
 else notok "I1 loss NOT reproduced"; fi

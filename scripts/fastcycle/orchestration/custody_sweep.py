@@ -320,6 +320,38 @@ _GIT_TIMEOUT_ENV = "CUSTODY_SWEEP_GIT_TIMEOUT_S"
 _GIT_TIMEOUT_DEFAULT_S = 1800.0
 _TIMEOUT_RC = 124
 
+# T140 Round 17 (round-16 finding MINOR-1): a short, FIXED grace period for
+# draining stdout/stderr after the process-group kill above -- deliberately
+# NOT derived from `_git_timeout_s()` (which may be the 1800s production
+# default) so a surviving orphan can never turn the post-kill drain into a
+# second multi-minute wait.
+_KILL_DRAIN_GRACE_S = 3.0
+
+
+def _group_has_survivor(pgid):
+    """T140 Round 17 (round-16 finding MINOR-1): section 11.4.201 -- probes
+    the REAL kernel state via signal 0, never guesses. True if the process
+    group `pgid` still has ANY member alive; False if it is genuinely empty
+    (every reachable member already died); None if `pgid` itself is not a
+    valid signalable group id (section 11.4.263: never signal a process
+    group <= 1). Used ONLY to decide, after a post-kill drain already timed
+    out once, whether a surviving pipe-holder is (a) still inside OUR OWN
+    process group -- meaning the kill above did not actually do its job, a
+    genuine defect that must stay observable as a hang -- or (b) has
+    escaped that group entirely (e.g. a filter that called `setsid`), where
+    nothing further can be targeted without guessing at an unrelated pid."""
+    if not (isinstance(pgid, int) and pgid > 1):
+        return None
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # exists but unsignalable by us -- the safe default keeps draining
+        # rather than falsely declaring the group clean and abandoning it.
+        return True
+
 
 def _git_timeout_s():
     raw = os.environ.get(_GIT_TIMEOUT_ENV, "")
@@ -355,7 +387,60 @@ def _exec(args, cwd=None, env=None, input_bytes=None):
                 pass
         else:
             proc.kill()
-        proc.communicate()
+        # T140 Round 17 (round-16 finding MINOR-1, fixed here): this second
+        # `communicate()` used to have NO timeout. Killing the process
+        # GROUP reaps `git` itself, but a smudge/clean filter that escaped
+        # the group (e.g. via `setsid`) keeps its OWN dup of our stdout/
+        # stderr PIPE write-end open; `communicate()` blocks reading those
+        # pipes until EVERY holder of the write end closes it, so an
+        # unbounded call here defeated the very timeout it exists to
+        # enforce (measured live: ~25s instead of ~3s with a `setsid sleep
+        # 25 & cat`-style filter; hangs FOREVER with `sleep infinity`). A
+        # short, bounded drain attempt is tried first; if it times out,
+        # `_group_has_survivor(pgid)` (signal 0 -- the REAL kernel state,
+        # never a guess) tells apart two different causes before deciding
+        # what to do next: something STILL alive in OUR OWN process group
+        # means the kill above did not actually do its job (a genuine
+        # kill-logic defect, e.g. killing only the direct child and not the
+        # group) -- that MUST stay observable as a hang, so the ORIGINAL
+        # unbounded drain runs for that case. A genuinely EMPTY group means
+        # the kill worked and whatever still holds a write end open has
+        # ESCAPED it entirely (the `setsid` case) -- nothing further can be
+        # targeted without guessing at an unrelated pid (forbidden), so the
+        # drain is ABANDONED instead of re-blocking indefinitely -- the
+        # TIMED OUT result below is the only thing any caller ever sees
+        # either way, so losing already-buffered partial output here is
+        # harmless (it still fails toward REFUSED, never ALLOWED: every
+        # caller treats a non-zero/124 rc as "could not look" -> refuse).
+        try:
+            proc.communicate(timeout=_KILL_DRAIN_GRACE_S)
+        except subprocess.TimeoutExpired:
+            # Reap OUR OWN direct child FIRST (it was already SIGKILLed
+            # above, so this does not block): `communicate(timeout=...)`
+            # raising TimeoutExpired does NOT itself call `wait()`, so
+            # `proc` can still be an un-reaped zombie at this point -- and
+            # a zombie answers a signal-0 probe just like a live process
+            # (it is still a valid process-table entry until reaped),
+            # which would make `_group_has_survivor` see OUR OWN already-
+            # dead child as a "survivor" every single time, never reaching
+            # the abandon path below.
+            try:
+                proc.wait(timeout=_KILL_DRAIN_GRACE_S)
+            except subprocess.TimeoutExpired:
+                pass
+            if _group_has_survivor(pgid) is False:
+                for pipe in (proc.stdin, proc.stdout, proc.stderr):
+                    if pipe is not None:
+                        try:
+                            pipe.close()
+                        except OSError:
+                            pass
+                try:
+                    proc.wait(timeout=_KILL_DRAIN_GRACE_S)
+                except subprocess.TimeoutExpired:
+                    pass
+            else:
+                proc.communicate()
         return _TIMEOUT_RC, b"", ("TIMED OUT after %gs (%s=%s): %s"
                                   % (_git_timeout_s(), _GIT_TIMEOUT_ENV, os.environ.get(_GIT_TIMEOUT_ENV, ""),
                                      " ".join(args))).encode("utf-8", "replace")
@@ -887,6 +972,24 @@ def _unanchored_commits(path, candidates, env=None):
     return [x for x in out.decode("utf-8", "replace").split() if x], None
 
 
+def _walk_raise(exc):
+    """T140 Round 17 (round-16 finding MINOR-2, fixed here): `os.walk`'s
+    DEFAULT `onerror` silently SWALLOWS an unreadable directory (e.g.
+    permission denied) -- it just yields nothing for it, as if it were
+    empty. That contradicts this module's own fail-closed design: the
+    sibling `os.scandir` call in `_snapshot_files` already lets a
+    permission error propagate so the caller refuses ("could not look",
+    never "nothing there"). Passed as `os.walk(..., onerror=_walk_raise)`
+    below so a `logs/`/`refs/` admin-dir subtree this process cannot read
+    RAISES (caught by the `except (OSError, ValueError)` around the walk)
+    instead of silently reading as zero entries -- the exact state that let
+    `chmod 000` on an admin `refs/worktree`/`logs` directory flip the
+    verdict from REFUSED to ALLOWED (reproduced live: `worktree
+    admin_dir_problems` returned `([], None)` instead of
+    `(None, "could not read ...")`)."""
+    raise exc
+
+
 def _oids_in_file(fp, reflog):
     """Object ids recorded in an admin-dir file. A reflog line is
     '<old> <new> <ident>\\t<msg>'; a pseudo-ref holds '<oid>' (FETCH_HEAD:
@@ -950,7 +1053,7 @@ def worktree_admin_dir_problems(path, env=None):
                 if not os.path.isdir(fp):
                     problems.append("%s: unexpected non-directory admin entry" % name)
                     continue
-                for dirpath, _dirs, files in os.walk(fp):
+                for dirpath, _dirs, files in os.walk(fp, onerror=_walk_raise):
                     for f in sorted(files):
                         full = os.path.join(dirpath, f)
                         rel = os.path.relpath(full, admin).replace(os.sep, "/")
