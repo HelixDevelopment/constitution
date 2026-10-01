@@ -638,8 +638,16 @@ PYEOF
 # verification evidence (T177 Round 5: shape-only evidence no longer counts)
 python3 "$MKREC" --out "$E_DIR/conflict/zz_second_record.json" --project e-org/p00 --commit c0ffee
 e_summary() {
-    # $1=consumers-file $2=migrations-subdir $3=label -> sets E_RC; writes $E_DIR/$3.json
-    run_tool summary --consumers "$E_DIR/$1" --audits "$E_DIR/aud" --migrations "$E_DIR/$2" --out "$E_DIR/$3.json" >/dev/null 2>&1
+    # $1=consumers-file $2=migrations-subdir $3=label [$4=reviews-dir] -> sets
+    # E_RC; writes $E_DIR/$3.json. $4 is T177 Round 9 I2's optional --reviews
+    # -- every E-series record here is NOT-MIGRATED (dirty-local), so
+    # review_ref is never consulted for classification either way; $4 only
+    # matters for decoupling THIS test's own axis from I2's unrelated
+    # force-false-on-omission (used by E4 below).
+    _erevarg=""
+    [ -n "${4:-}" ] && _erevarg="--reviews $4"
+    # shellcheck disable=SC2086  # deliberate: $_erevarg is "" or "--reviews <dir>"
+    run_tool summary --consumers "$E_DIR/$1" --audits "$E_DIR/aud" --migrations "$E_DIR/$2" --out "$E_DIR/$3.json" $_erevarg >/dev/null 2>&1
     E_RC=$?
 }
 e_field() {
@@ -669,7 +677,7 @@ sys.exit(0 if 'e-org/p00' in (d.get('conflicting_records') or {}) and 'e-org/p00
 else
     bad "E3 R3 finding 1 conflict: conflicting records were silently resolved (rc=$E_RC; see $E_DIR/conflict.json)"
 fi
-e_summary cons_ok.json valid valid
+e_summary cons_ok.json valid valid "$E_DIR/aud"
 if [ "$E_RC" -eq 0 ] && [ "$(e_field valid coverage)" = "1.0" ] && [ "$(e_field valid coverage_trusted)" = "true" ]; then
     ok "E4 negative control (§11.4.201(1)): a COMPLETE enumeration with 19 valid closed-set records gives coverage 1.0, trusted, exit 0 -- the new checks do not refuse a genuinely complete run"
 else
@@ -710,6 +718,17 @@ f_json() {
     # $1=case $2=dir-name -> writes a raw JSON record (stdin) into the case dir
     mkdir -p "$F_DIR/$1"; cat > "$F_DIR/$1/rec.json"
 }
+# T177 Round 9 (round-8 IMPORTANT I2 fallout): a shared, genuinely-verified
+# --reviews archive matching mkrec.py's OWN defaults (review_ref
+# "fixture-review-id", project "f-org/p"), so any fixture whose real
+# discriminating signal is UNRELATED to review_ref_verification can supply
+# it and stay decoupled from the force-false-on-omission behaviour I2
+# introduces (F0/F0r/F4/F5/F14 below).
+F_DEFAULT_REVIEWS="$F_DIR/default_reviews"
+mkdir -p "$F_DEFAULT_REVIEWS"
+cat > "$F_DEFAULT_REVIEWS/fixture-review-id.json" <<'EOF'
+{"review_id":"fixture-review-id","project_id":"f-org/p","verdict":"GO","findings":[],"model_tier":"opus","effort":"xhigh"}
+EOF
 f_sum() {
     # $1=tool $2=consumers-file $3=case $4=label [$5=reviews-dir] -> F_RC;
     # summary at $F_DIR/$4.sum. $5 is T177 Round 6 I5's --reviews archive;
@@ -735,13 +754,20 @@ PYEOF
     F_MUT_OK=0
     [ "$_mrc" -eq 0 ] && F_MUT_OK=1
 }
-# pair: $1=id $2=consumers $3=case $4=expected-real-python-expr $5=mutant-label $6=anchor $7=replacement $8=description
+# pair: $1=id $2=consumers $3=case $4=expected-real-python-expr $5=mutant-label $6=anchor $7=replacement $8=description [$9=reviews-dir]
+# T177 Round 9 (round-8 IMPORTANT I2 fallout): $9 is OPTIONAL and forwarded
+# to BOTH internal f_sum calls -- every pre-existing f_pair caller omits it
+# (unchanged default: review_ref_verification="presence-only",
+# coverage_trusted forced false regardless of what's under test). A test
+# whose discriminating assertion is `coverage_trusted` itself (F4/F5-style)
+# MUST supply $9 so the --reviews-omitted force-false doesn't mask the
+# UNRELATED property the mutant is meant to prove load-bearing.
 f_pair() {
     # The REAL-tool verdict is reported FIRST and independently of the
     # mutant: an external mutation harness that mutates audit.py itself
     # also breaks this function's own anchor, and the real-half failure
     # must still be visible (never masked by the anchor-miss early return).
-    f_sum "$TOOL" "$2" "$3" "$1_real"
+    f_sum "$TOOL" "$2" "$3" "$1_real" "${9:-}"
     REAL_OK=$(f_get "$1_real" "$4")
     REAL_RC=$F_RC
     if [ "$REAL_OK" = "true" ] && [ "$REAL_RC" -ne 0 ]; then
@@ -754,7 +780,7 @@ f_pair() {
         bad "$1 guard-viability: mutation anchor for '$5' is not unique/present in audit.py -- re-derive it"
         return
     fi
-    f_sum "$F_DIR/mut_$5.py" "$2" "$3" "$1_mut"
+    f_sum "$F_DIR/mut_$5.py" "$2" "$3" "$1_mut" "${9:-}"
     MUT_OK=$(f_get "$1_mut" "$4")
     if [ "$MUT_OK" = "false" ]; then
         ok "$1 guard-viability: mutant '$5' gives the WRONG answer on the same fixture -- the guard is load-bearing"
@@ -767,14 +793,14 @@ f_pair() {
 # byte-matching evidence, review_ref and backup_marker IS counted; a
 # relative evidence path (resolved against the record's own directory) too.
 f_case f0_golden
-f_sum "$TOOL" cons_ok.json f0_golden f0
-if [ "$F_RC" -eq 0 ] && [ "$(f_get f0 "d['migrated']==1 and d['coverage_trusted'] is True")" = "true" ]; then
-    ok "F0 negative control: a MIGRATED record with real, byte-matching verification evidence + review_ref + backup_marker counts (coverage 1.0, trusted, exit 0)"
+f_sum "$TOOL" cons_ok.json f0_golden f0 "$F_DEFAULT_REVIEWS"
+if [ "$F_RC" -eq 0 ] && [ "$(f_get f0 "d['migrated']==1 and d['coverage_trusted'] is True and d['review_ref_verification']=='verified'")" = "true" ]; then
+    ok "F0 negative control: a MIGRATED record with real, byte-matching verification evidence + review_ref + backup_marker counts (coverage 1.0, trusted, exit 0); review_ref_verification discloses 'verified' when --reviews is supplied (T177 Round 9 I2)"
 else
     bad "F0 negative control: a genuine MIGRATED record was refused (rc=$F_RC; see $F_DIR/f0.sum)"
 fi
 f_case f0_relative --break relative-paths
-f_sum "$TOOL" cons_ok.json f0_relative f0r
+f_sum "$TOOL" cons_ok.json f0_relative f0r "$F_DEFAULT_REVIEWS"
 if [ "$F_RC" -eq 0 ] && [ "$(f_get f0r "d['migrated']==1")" = "true" ]; then
     ok "F0b negative control: relative evidence paths resolve against the record's own directory and still verify"
 else
@@ -809,13 +835,18 @@ f_pair F3 cons_ok.json f3_two_commits "'f-org/p' in d.get('conflicting_records',
     'valid_by_id.setdefault(pid, set()).add((key, ""))' \
     "A3: two MIGRATED claims naming different commits for one project are a conflict, not one migration"
 
-# F4 (A4, the RATIFIED 'missing source_reachability => untrusted' choice): reviewer's verbatim anchor.
+# F4 (A4, the RATIFIED 'missing source_reachability => untrusted' choice):
+# anchor re-derived T177 Round 9 for the I2 multi-line coverage_trusted
+# expression; $F_DEFAULT_REVIEWS supplied so this test's OWN axis
+# (enumeration_reachability) is decoupled from I2's UNRELATED
+# review_ref_verification force-false.
 f_case f4_golden_rec
 f_pair F4 cons_noreach.json f4_golden_rec "d['enumeration_reachability']=='unrecorded' and d['coverage_trusted'] is False" \
     A4_unrecorded_trusted \
-    'coverage_trusted = enumeration_reachability == "complete" and not conflicting' \
-    'coverage_trusted = enumeration_reachability in ("complete", "unrecorded") and not conflicting' \
-    "A4: a consumers file with NO source_reachability block is never trusted as complete, even with a valid record"
+    'enumeration_reachability == "complete"' \
+    'enumeration_reachability in ("complete", "unrecorded")' \
+    "A4: a consumers file with NO source_reachability block is never trusted as complete, even with a valid record" \
+    "$F_DEFAULT_REVIEWS"
 
 # F5 (I2): source_reachability present but EMPTY / half / non-list -> never
 # complete. The mutant restores Round 3's exact parent-key-only logic
@@ -916,9 +947,14 @@ f_pair F12 cons_ok.json f12_samereport "d['migrated']==0 and d.get('invalid_reco
 
 # F13 (I5, RULING a): review_ref is REAL-VERIFIED when a --reviews directory
 # is supplied (summary resolves review_ref against review-record files there
-# and ports migrate.sh's own check_review predicate); honest degrade to
-# presence-only when --reviews is omitted (today's unchanged default, kept
-# explicit and test-visible for every existing caller).
+# and ports migrate.sh's own check_review predicate); degrade to
+# presence-only when --reviews is omitted -- T177 Round 9 (round-8
+# IMPORTANT I2) corrects the earlier round-6/7 framing ("today's unchanged
+# default ... kept explicit and test-visible") to be genuinely HONEST
+# rather than merely test-visible: the degrade is now disclosed in the
+# WRITTEN ARTIFACT itself (`review_ref_verification`) and `coverage_trusted`
+# is forced false, not merely left as an unchanged, trustable-looking
+# default for every pre-existing caller (F13c below).
 F13_REVIEWS="$F_DIR/f13_reviews"
 mkdir -p "$F13_REVIEWS"
 cat > "$F13_REVIEWS/REV-f13-1.json" <<'EOF'
@@ -955,11 +991,26 @@ else
     bad "F13b I5: a review_ref resolving to a NO-GO review was still counted as MIGRATED (rc=$F_RC; see $F_DIR/f13nogo.sum)"
 fi
 
+# T177 Round 9 (round-8 IMPORTANT I2): REWRITTEN. Round 6/7's framing --
+# "the degrade is explicit and test-visible, never a silent gap, and the
+# default CLI contract for every pre-existing caller is unchanged" -- was
+# itself the exact "capability added but invisible in the artifact a
+# release seam actually reads" bluff the round-8 review found: the record
+# still counted migrated=1 AND exit 0 AND coverage_trusted=true with
+# review_ref checked for PRESENCE ONLY, indistinguishable from a genuinely
+# verified run. I2 corrects this: per-record classification is UNCHANGED
+# (classify_migration_record's own presence-only fallback still counts
+# the record when no --reviews archive is supplied, so `migrated` still
+# reads 1 here -- the degrade's SHAPE is the same), but the SUMMARY-LEVEL
+# trust signal is now forced honest: `review_ref_verification` discloses
+# "presence-only" and `coverage_trusted` is forced false, so rc is now 1
+# -- a caller reading coverage_trusted can no longer be fooled into
+# thinking an unverified review_ref means real CA-024 coverage.
 f_sum "$TOOL" cons_ok.json f13_nogo f13nogo_noflag
-if [ "$F_RC" -eq 0 ] && [ "$(f_get f13nogo_noflag "d['migrated']==1")" = "true" ]; then
-    ok "F13c I5 honest degrade: WITHOUT --reviews, the SAME NO-GO-bound record is counted on presence alone -- the degrade is explicit and test-visible, never a silent gap, and the default CLI contract for every pre-existing caller is unchanged"
+if [ "$F_RC" -ne 0 ] && [ "$(f_get f13nogo_noflag "d['migrated']==1 and d.get('review_ref_verification')=='presence-only' and d.get('coverage_trusted') is False")" = "true" ]; then
+    ok "F13c I5/I2 honest degrade: WITHOUT --reviews, the SAME NO-GO-bound record is STILL counted toward migrated (per-record presence-only classification unchanged) but review_ref_verification discloses 'presence-only' and coverage_trusted is FORCED false (T177 Round 9 I2) -- a caller can no longer be fooled by an unverified review_ref"
 else
-    bad "F13c I5 honest degrade: omitting --reviews unexpectedly changed behavior (rc=$F_RC; see $F_DIR/f13nogo_noflag.sum)"
+    bad "F13c I5/I2 honest degrade: omitting --reviews did not force the honest untrusted/disclosed state (rc=$F_RC; see $F_DIR/f13nogo_noflag.sum)"
 fi
 
 f_mutant I5_disable_real_check \
@@ -994,11 +1045,133 @@ d = json.load(open('$F_DIR/f14_missing_backup_dir/rec.json'))
 if os.path.exists(d['backup_marker']['path']):
     sys.exit('fixture precondition violated: backup_marker.path exists on disk')
 "
-f_sum "$TOOL" cons_ok.json f14_missing_backup_dir f14
+f_sum "$TOOL" cons_ok.json f14_missing_backup_dir f14 "$F_DEFAULT_REVIEWS"
 if [ "$F_RC" -eq 0 ] && [ "$(f_get f14 "d['migrated']==1")" = "true" ]; then
     ok "F14 M5 positive control: a backup_marker whose path does not exist on disk is STILL counted MIGRATED -- the backup mirror's disposability is a deliberate design choice, now test-visible"
 else
     bad "F14 M5 positive control: a shape-valid-but-nonexistent backup_marker path was unexpectedly refused (rc=$F_RC; see $F_DIR/f14.sum) -- if this is an intentional tightening, update this test's expectation deliberately"
+fi
+
+
+# =============================================================================
+# F15-F17 -- T177 Round 9 (round-8 IMPORTANT I2 + MINOR M5 points 2/3).
+# =============================================================================
+
+# F15 (I2): `review_ref_verification` genuinely discloses the degrade IN
+# THE WRITTEN ARTIFACT, and `coverage_trusted` is genuinely FORCED false
+# when --reviews is omitted -- paired with a positive control (supplying
+# --reviews restores verified/trusted on the SAME fixture) and a mutant
+# proving the force is load-bearing, not merely a field nobody consults.
+f_case f15_golden
+f_sum "$TOOL" cons_ok.json f15_golden f15_noflag
+if [ "$F_RC" -ne 0 ] && [ "$(f_get f15_noflag "d.get('review_ref_verification')=='presence-only' and d.get('coverage_trusted') is False and d['migrated']==1")" = "true" ]; then
+    ok "F15 I2: omitting --reviews on an otherwise fully-valid MIGRATED fixture still discloses review_ref_verification='presence-only' and forces coverage_trusted=false (rc!=0)"
+else
+    bad "F15 I2: the --reviews-omitted disclosure/force did not fire as expected (rc=$F_RC; see $F_DIR/f15_noflag.sum)"
+fi
+f_sum "$TOOL" cons_ok.json f15_golden f15_withflag "$F_DEFAULT_REVIEWS"
+if [ "$F_RC" -eq 0 ] && [ "$(f_get f15_withflag "d.get('review_ref_verification')=='verified' and d.get('coverage_trusted') is True")" = "true" ]; then
+    ok "F15 I2 positive control: supplying --reviews on the SAME fixture flips review_ref_verification to 'verified' and coverage_trusted to true (rc=0) -- the force is genuinely conditioned on the CLI flag, not a permanent regression"
+else
+    bad "F15 I2 positive control: supplying --reviews did not restore the verified/trusted state (rc=$F_RC; see $F_DIR/f15_withflag.sum)"
+fi
+f_mutant I2_drop_force_false \
+    'coverage_trusted = (
+        enumeration_reachability == "complete"
+        and not conflicting
+        and review_ref_verification == "verified"
+    )' \
+    'coverage_trusted = (
+        enumeration_reachability == "complete"
+        and not conflicting
+    )'
+if [ "$F_MUT_OK" -eq 1 ]; then
+    f_sum "$F_DIR/mut_I2_drop_force_false.py" cons_ok.json f15_golden f15mut
+    if [ "$F_RC" -eq 0 ] && [ "$(f_get f15mut "d.get('coverage_trusted') is True")" = "true" ]; then
+        ok "F15 guard-viability: without the force, omitting --reviews leaves coverage_trusted=true (exit 0) on an unverified review_ref -- F15 is what catches it"
+    else
+        bad "F15 guard-viability: the drop-force mutant did not reproduce the untrusted-looking-trusted state (rc=$F_RC; see $F_DIR/f15mut.sum)"
+    fi
+else
+    bad "F15 guard-viability: mutation anchor for 'I2_drop_force_false' is not unique/present in audit.py -- re-derive it"
+fi
+
+# F16 (R8 M5, point 2): a review record with NO `project_id` field is
+# refused exactly like one naming a DIFFERENT project -- migrate.sh's own
+# check_review() binds project_id UNCONDITIONALLY (no "if present" guard
+# at all), so a review document without one is not something the WRITE
+# path would ever have genuinely accepted in the first place; checking it
+# only "where stated" at READ time was an unnecessary weakening.
+F16_REVIEWS="$F_DIR/f16_reviews"
+mkdir -p "$F16_REVIEWS"
+cat > "$F16_REVIEWS/REV-f16-noproj.json" <<'EOF'
+{"review_id":"REV-f16-noproj","verdict":"GO","findings":[],"model_tier":"opus","effort":"xhigh"}
+EOF
+f_case f16_noproj
+python3 -c "
+import json
+d = json.load(open('$F_DIR/f16_noproj/rec.json'))
+d['review_ref'] = 'REV-f16-noproj'
+json.dump(d, open('$F_DIR/f16_noproj/rec.json', 'w'))
+"
+f_sum "$TOOL" cons_ok.json f16_noproj f16 "$F16_REVIEWS"
+if [ "$F_RC" -ne 0 ] && [ "$(f_get f16 "d.get('invalid_records_by_class',{}).get('record-review-no-go')==1")" = "true" ]; then
+    ok "F16 R8 M5(2): a review record with NO project_id field is refused exactly like one naming a different project"
+else
+    bad "F16 R8 M5(2): a project_id-less review record was wrongly accepted (rc=$F_RC; see $F_DIR/f16.sum)"
+fi
+f_mutant M5_2_project_id_optional \
+    'if doc.get("project_id") != project_id:' \
+    'if "project_id" in doc and doc.get("project_id") != project_id:'
+if [ "$F_MUT_OK" -eq 1 ]; then
+    f_sum "$F_DIR/mut_M5_2_project_id_optional.py" cons_ok.json f16_noproj f16mut "$F16_REVIEWS"
+    if [ "$F_RC" -eq 0 ] && [ "$(f_get f16mut "d['migrated']==1")" = "true" ]; then
+        ok "F16 guard-viability: reverting to the conditional 'if present' project_id check accepts the project_id-less review record as MIGRATED -- F16 is what catches it"
+    else
+        bad "F16 guard-viability: the conditional-project_id mutant did not reproduce acceptance (rc=$F_RC; see $F_DIR/f16mut.sum)"
+    fi
+else
+    bad "F16 guard-viability: mutation anchor for 'M5_2_project_id_optional' is not unique/present in audit.py -- re-derive it"
+fi
+
+# F17 (R8 M5, point 3): a `review_ref` that ESCAPES the declared --reviews
+# archive (a relative path resolving, via the record's own directory,
+# OUTSIDE the archive) is refused as unverifiable, never silently opened.
+# `review_ref` is a field of the UNTRUSTED migration record itself -- an
+# attacker-controlled record must not be able to use it to read arbitrary
+# files this process can reach.
+F17_REVIEWS="$F_DIR/f17_reviews"
+mkdir -p "$F17_REVIEWS"
+cat > "$F_DIR/f17_outside_secret.json" <<'EOF'
+{"verdict":"GO","project_id":"f-org/p","findings":[],"model_tier":"opus","effort":"xhigh"}
+EOF
+f_case f17_escape
+python3 -c "
+import json
+d = json.load(open('$F_DIR/f17_escape/rec.json'))
+d['review_ref'] = '../f17_outside_secret.json'
+json.dump(d, open('$F_DIR/f17_escape/rec.json', 'w'))
+"
+f_sum "$TOOL" cons_ok.json f17_escape f17 "$F17_REVIEWS"
+if [ "$F_RC" -ne 0 ] && [ "$(f_get f17 "d.get('invalid_records_by_class',{}).get('record-review-ref-unverifiable')==1")" = "true" ]; then
+    ok "F17 R8 M5(3): a review_ref that escapes the declared --reviews archive is refused as unverifiable -- an attacker-controlled migration record cannot use review_ref to read arbitrary files"
+else
+    bad "F17 R8 M5(3): a path-escaping review_ref was wrongly resolved/accepted (rc=$F_RC; see $F_DIR/f17.sum)"
+fi
+f_mutant M5_3_no_containment \
+    '    boundary = reviews_dir if reviews_dir else base_dir
+    if not _contained(path, boundary):
+        return None' \
+    '    pass'
+if [ "$F_MUT_OK" -eq 1 ]; then
+    f_sum "$F_DIR/mut_M5_3_no_containment.py" cons_ok.json f17_escape f17mut "$F17_REVIEWS"
+    if [ "$F_RC" -eq 0 ] && [ "$(f_get f17mut "d['migrated']==1")" = "true" ]; then
+        ok "F17 guard-viability: without the containment check the path-escaping review_ref is opened and accepted as a genuine GO review, counted MIGRATED -- F17 is what catches it"
+    else
+        bad "F17 guard-viability: the no-containment mutant did not reproduce the escape acceptance (rc=$F_RC; see $F_DIR/f17mut.sum)"
+    fi
+else
+    bad "F17 guard-viability: mutation anchor for 'M5_3_no_containment' is not unique/present in audit.py -- re-derive it"
 fi
 
 # F9 (round-4 MINOR N2): migrate.sh's own local-git-error lands in its OWN bucket.

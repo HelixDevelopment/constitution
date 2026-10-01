@@ -127,6 +127,31 @@ if [ -z "$OUT_DIR" ]; then
 fi
 OUT="$OUT_DIR/$(basename "$OUT")"
 
+# T177 Round 9 (round-8 MINOR M5, point 1): canonicalise --review-ref to an
+# ABSOLUTE path too, the SAME class of bug R6-I3 fixed for --out above.
+# When the cited review record carries no `review_id` of its own,
+# check_review()'s REVIEW_REF_ID derivation falls back to storing
+# $REVIEW_REF VERBATIM as the persisted `review_ref` field -- a RELATIVE
+# path stored that way is later resolved by `audit.py summary` (when a
+# --reviews archive is supplied) against the MIGRATION RECORD's own
+# directory (dirname(abspath(mf))), never against the cwd this tool was
+# invoked from, so a relative --review-ref whose intended target lives
+# elsewhere silently fails to resolve once the record is read back
+# (reproduced live: a one-level-down relative --review-ref, with --out
+# landing in a DIFFERENT directory, stored verbatim and read back by
+# `audit.py summary --reviews` as record-review-ref-unverifiable even
+# though the real file existed all along). Canonicalised once, here,
+# exactly like $WORKDIR/$OUT above; left untouched when the path does not
+# (yet) exist -- check_review()'s own `[ -f "$REVIEW_REF" ]` guard already
+# handles that honestly, and canonicalising a nonexistent path's directory
+# would itself fail.
+if [ -n "$REVIEW_REF" ] && [ -f "$REVIEW_REF" ]; then
+    REVIEW_REF_DIR=$(cd "$(dirname "$REVIEW_REF")" 2>/dev/null && pwd)
+    if [ -n "$REVIEW_REF_DIR" ]; then
+        REVIEW_REF="$REVIEW_REF_DIR/$(basename "$REVIEW_REF")"
+    fi
+fi
+
 # T177 Round 2 R2-I1 fix: every tool-OWN transient file (fetch/push/hook/
 # gates stderr+log captures) MUST live OUTSIDE $WORKDIR -- writing them
 # inside the very consumer checkout being migrated means a refusal that
@@ -522,11 +547,21 @@ fi
 # this run's own staged diff above). A remote already carrying every local
 # commit has nothing newly delivered and is skipped.
 #
-# Honest boundary: a MERGE commit's own diff is not inspected here (plain
-# `git diff-tree` without `-m`/`-c` on a multi-parent commit prints
-# nothing) -- a merge commit reaching this check neither anchored to
-# $UPSTREAM nor itself touching an out-of-scope path is a residual gap,
-# narrower than the single-commit shape this fix closes.
+# T177 Round 9 (round-8 IMPORTANT I3): the "honest boundary" above was a
+# LIVE, trivially exploitable gap, not merely a documented residual --
+# confirmed by the round-8 review: a plain `git diff-tree` (no `-m`/`-c`)
+# on a MERGE commit prints NOTHING for the content the merge's own
+# CONFLICT RESOLUTION introduces (content present in neither parent
+# individually), so a merge commit whose non-$UPSTREAM parent only touches
+# an allow-listed path, but whose MERGE RESOLUTION itself appends
+# out-of-scope content (e.g. product code), sailed through this check
+# entirely -- published to origin, recorded MIGRATED. `--cc` closes this:
+# it prints exactly the paths that differ from EVERY parent, which is
+# precisely merge-resolution-introduced content, and prints NOTHING for a
+# genuinely clean merge (verified live: the SAME evil-merge fixture's
+# plain diff-tree printed nothing while `--cc` correctly surfaced the
+# tampered path) -- so this fix adds zero false refusals for an ordinary
+# merge.
 for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
     RREF="refs/remotes/$r/$BRANCH"
     if ! git -C "$WORKDIR" rev-parse -q --verify "$RREF" >/dev/null 2>&1; then
@@ -538,7 +573,7 @@ for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
         if [ -n "$UPSTREAM" ] && git -C "$WORKDIR" merge-base --is-ancestor "$c" "$UPSTREAM" 2>/dev/null; then
             continue
         fi
-        OUT_OF_SCOPE=$(git -C "$WORKDIR" diff-tree --no-commit-id --name-only -r "$c" 2>/dev/null | awk '
+        OUT_OF_SCOPE=$(git -C "$WORKDIR" diff-tree --cc --no-commit-id --name-only -r "$c" 2>/dev/null | awk '
             $0 == "constitution" || $0 == ".gitmodules" || $0 == ".mcp.json" { next }
             /^\.claude\// || /^scripts\/hooks\// || /^config\/fastcycle\// || /^skills\// { next }
             { print; exit }
@@ -894,8 +929,23 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # verbatim, rc=0, remote tip moved. BOTH the symlink scan (mode 120000,
     # below) and the gitlink scan (mode 160000, R6-I2, further below) read
     # this SAME captured enumeration.
+    # T177 Round 9 (round-8 IMPORTANT I1, own-defect self-caught by this
+    # round's real test run): `--no-abbrev` is REQUIRED here because the
+    # gitlink scanner below now compares a staged "constitution" entry's
+    # commit SHA, byte-for-byte, against the full 40-char $NEW_SHA --
+    # without it, `git diff --raw` ABBREVIATES object ids by default
+    # (measured live: `--full-index` has NO EFFECT on `--raw` output --
+    # that flag only widens the "index" line of PATCH format; `--raw`'s
+    # own abbreviation is controlled by `--no-abbrev`/`--abbrev=40`), so
+    # even a genuinely CORRECT migration's own staged SHA (e.g. 7 hex
+    # chars) could never equal the full $NEW_SHA string, and every real
+    # migration would be wrongly refused (reproduced live: J16/J18/every
+    # golden fixture failed to migrate at all until this was corrected).
+    # The symlink scanner's own `git cat-file blob <blob>` call accepts a
+    # full SHA exactly as well as an abbreviated one, so this is a strict
+    # improvement with no regression to that check.
     SYMLINK_DIFF="$MIGRATE_SCRATCH/migrate_symlink_diff.raw"
-    if ! git -C "$WORKDIR" diff --cached --raw -z --no-renames --diff-filter=AMT >"$SYMLINK_DIFF" 2>/dev/null; then
+    if ! git -C "$WORKDIR" diff --cached --raw --no-abbrev -z --no-renames --diff-filter=AMT >"$SYMLINK_DIFF" 2>/dev/null; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "symlink-scan-failed"
     fi
     SYMLINK_VIOLATION=$(python3 -c '
@@ -952,15 +1002,48 @@ if bad:
     # 120000 entries, so this class previously published an unfetchable
     # commit into the consumer's PERMANENT history BEFORE step 9's
     # post-push verify could ever catch it (no force-push, §11.4.113 --
-    # irreversible by then). Every staged 160000 entry other than
-    # "constitution" itself, and not declared as a path in the currently
-    # staged .gitmodules, is refused HERE -- before commit/push -- never
-    # only caught after the fact.
-    DECLARED_SUBMODULE_PATHS=$(git config -f "$WORKDIR/.gitmodules" --get-regexp '^submodule\..*\.path$' 2>/dev/null | awk '{print $2}')
+    # irreversible by then).
+    #
+    # T177 Round 9 (round-8 IMPORTANT I1): the round-6 fix above had TWO
+    # bypasses, both confirmed live by the round-8 review and BOTH closed
+    # here, never left as a narrow patch for the two demonstrated
+    # instances alone:
+    #
+    #   (a) The "declared as a path in .gitmodules" carve-out let a hook
+    #       `git init` + commit INSIDE an allow-listed directory, then
+    #       simply APPEND a `.gitmodules` entry declaring that same path a
+    #       submodule pointing at a host-local URL -- since `.gitmodules`
+    #       is itself allow-listed and auto-staged (`git add -A --
+    #       constitution .gitmodules` above), the now-"declared" gitlink
+    #       sailed through this scanner, was committed and pushed, and
+    #       only step 9's POST-PUSH verify (too late -- no force-push,
+    #       §11.4.113) ever noticed the fresh clone could not fetch it.
+    #       There is no carve-out for ANY declared path any more: every
+    #       staged 160000 entry other than "constitution" itself is
+    #       refused outright, before commit/push, regardless of whether
+    #       some OTHER file in the same staged diff declares it. (A
+    #       legitimate consumer may still carry OTHER, PRE-EXISTING,
+    #       UNCHANGED submodule gitlinks -- those never appear in this
+    #       migration's own staged diff at all, so they are never touched
+    #       by this check.)
+    #   (b) "constitution" was exempted BY NAME, never by the SHA it
+    #       staged -- `git update-index --add --cacheinfo
+    #       160000,$NEW_SHA,constitution` above sets the correct value,
+    #       but line 854's later `git add -A -- constitution .gitmodules`
+    #       RE-STAGES it, so a hook that commits INSIDE $CONST_DIR (the
+    #       checked-out constitution submodule itself) between those two
+    #       points silently moves the staged "constitution" gitlink to a
+    #       commit that exists ONLY on this host -- worse than (a), since
+    #       the published pointer then differs from the EXACT commit the
+    #       CA-024 review was bound to, while the commit message still
+    #       claims "bump constitution pointer to $NEW_SHA". The staged
+    #       "constitution" entry's own commit (fields[3], the diff's NEW
+    #       blob/commit value) is therefore asserted to equal $NEW_SHA --
+    #       never trusted by path name alone.
     GITLINK_VIOLATION=$(python3 -c '
 import sys
 data = sys.stdin.buffer.read().split(b"\0")
-declared = set(x for x in sys.argv[1].splitlines() if x)
+expected = sys.argv[1]
 i = 0
 bad = []
 while i + 1 < len(data):
@@ -972,12 +1055,15 @@ while i + 1 < len(data):
     if len(fields) < 4 or fields[1] != b"160000":
         continue
     rel = path.decode("utf-8", "surrogateescape")
-    if rel == "constitution" or rel in declared:
+    staged = fields[3].decode()
+    if rel == "constitution":
+        if staged != expected:
+            bad.append("path=constitution staged-commit=%s expected-target=%s" % (staged, expected))
         continue
     bad.append("path=%s" % rel)
 if bad:
     print("unexpected-gitlink " + " ".join(bad))
-' "$DECLARED_SUBMODULE_PATHS" <"$SYMLINK_DIFF" 2>/dev/null)
+' "$NEW_SHA" <"$SYMLINK_DIFF" 2>/dev/null)
     GITLINK_RC=$?
     if [ "$GITLINK_RC" -ne 0 ]; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "gitlink-scan-failed"
@@ -1119,6 +1205,24 @@ else
     # discovered live while testing this exact path. Idempotent + a
     # no-op for an already-initialised submodule.
     #
+    # T177 Round 9 (round-8 MINOR M1, honest-wording correction): THIS
+    # branch is reached only when the LOCAL gitlink already equals
+    # $NEW_SHA -- it is read-only with respect to push (it never calls
+    # `git push`). The round-7 commit message's framing of "CA-025's
+    # legitimate prior-migration-commit retry case" (above, in the I6
+    # per-remote scope check) describes disjunct (b) of THAT check
+    # correctly, but does NOT mean a genuine CA-025 retry -- a migration
+    # commit that reached only ONE remote because another remote rejected
+    # the push -- CONVERGES end-to-end on a re-run. Confirmed live
+    # (round-8 review, scenario A3a): on retry, THIS branch reports
+    # `NOT-MIGRATED (verify: verification-not-clean) ... tips-mismatch`
+    # forever, because it never attempts to push the lagging remote(s)
+    # up to the already-local, already-partially-published commit. This
+    # is a PRE-EXISTING limitation, not introduced by round 7 -- stated
+    # honestly here; the real fix (push to any remote still lagging
+    # behind $LOCAL_HEAD when already at target) is a tracked §11.4.197
+    # follow-up, out of this round's declared scope.
+    #
     # T177 Round 5 (round-4 I3, DESIGN DECISION): data-model.md #13.3 makes
     # `review_ref` "required iff MIGRATED", and this path previously
     # emitted MIGRATED with review_ref OMITTED -- a direct conflict with the
@@ -1143,10 +1247,31 @@ else
         # Reproduced live: a second run with the same (now-stale) review
         # overwrote outcome MIGRATED -> NOT-MIGRATED at the SAME --out path,
         # with no new write to $WORKDIR at all. A pre-existing MIGRATED
-        # record for this exact project is left genuinely UNTOUCHED; the
-        # refusal is reported on stderr only, never written to $OUT.
-        if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ]; then
-            echo "migrate.sh: review-no-go on the already-at-target path, but $OUT already holds a MIGRATED record for $PROJECT -- left UNTOUCHED (re-run with a FRESH review bound to the migration commit to re-verify)" >&2
+        # record for this exact project is left genuinely UNTOUCHED.
+        #
+        # T177 Round 9 (round-8 MINOR M4): the guard above was TOO BROAD --
+        # it preserved the existing record whenever check_review failed for
+        # ANY reason, including a FRESH, correctly-bound NO-GO for a
+        # consumer whose HEAD has genuinely MOVED since the record was
+        # written (further commits landed after the migration). A record
+        # is "still authoritative for the current state" only when its OWN
+        # `commit` field equals $LOCAL_HEAD (this run's pre-migration HEAD,
+        # captured once at the top of this script, before any write) --
+        # otherwise the record is STALE, not authoritative, and falls
+        # through to the normal refusal below, which honestly overwrites
+        # $OUT with a NOT-MIGRATED record reflecting the CURRENT state.
+        #
+        # T177 Round 9 (round-8 MINOR M4, contract nit): the refusal is now
+        # ALSO echoed to stdout in the documented "NOT-MIGRATED (<step>:
+        # <reason>) [detail]" shape (exit code 1 contractually means
+        # "NOT-MIGRATED (reason in body)" -- `specs/004-fast-dev-cycles/
+        # contracts/consumer-audit-and-migration.md`'s Exit codes clause)
+        # -- $OUT itself is still left genuinely untouched; only the
+        # printed line is new.
+        if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ] \
+            && [ "$(read_out_field commit)" = "$LOCAL_HEAD" ]; then
+            echo "migrate.sh: review-no-go on the already-at-target path, but $OUT already holds a MIGRATED record for $PROJECT still bound to the current HEAD $LOCAL_HEAD -- left UNTOUCHED (re-run with a FRESH review bound to the migration commit to re-verify)" >&2
+            echo "NOT-MIGRATED (review: review-no-go) [stale-review-preserved-existing-migrated-record-left-untouched]"
             exit 1
         fi
         not_migrated "review" "review-no-go" "already-at-target-verify-only-path-still-requires-a-bound-GO-review"

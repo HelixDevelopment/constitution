@@ -8,6 +8,14 @@ Subcommands:
           --workdir <dir> --out <audit_dir/>
   summary --consumers <consumers.json> --audits <audit_dir/>
           --migrations <dir> --out <summary.json>
+          --reviews <archived-review-records-dir/>    # RECOMMENDED default
+              (T177 Round 9 I2): omitting --reviews degrades `review_ref`
+              to presence-only verification and FORCES coverage_trusted
+              false (and review_ref_verification="presence-only") in the
+              written summary.json -- a caller trusting coverage_trusted
+              on an invocation that never supplied --reviews would
+              otherwise be fooled into thinking an unverified review_ref
+              means real CA-024 coverage.
 
 CA-010: exactly one ConsumerAuditReport per project in --consumers,
 including projects this host cannot reach at all (UNMEASURED fields with
@@ -475,6 +483,17 @@ def _verification_problem(v, base_dir, commit):
     return None
 
 
+def _contained(path, root):
+    """True iff the REAL (symlink-resolved) `path` lies inside -- or equals
+    -- `root`'s own REAL location. T177 Round 9 (round-8 MINOR M5, point
+    3): both sides are realpath'd so a path cannot escape the boundary via
+    `..` segments NOR via a symlink planted inside the boundary that points
+    outside it."""
+    root_real = os.path.realpath(root)
+    path_real = os.path.realpath(path)
+    return path_real == root_real or path_real.startswith(root_real + os.sep)
+
+
 def _load_review_doc(review_ref, base_dir, reviews_dir):
     """T177 Round 6 I5 (RULING a): resolve `review_ref` to an actual review
     record EXACTLY the way migrate.sh's own check_review()/REVIEW_REF_ID
@@ -485,7 +504,23 @@ def _load_review_doc(review_ref, base_dir, reviews_dir):
     resolution rule already used for verification evidence paths above).
     Returns the loaded dict, or None if it could not be resolved/parsed at
     all. `reviews_dir` is never required to exist (an absent-but-configured
-    --reviews path is just "no match by id")."""
+    --reviews path is just "no match by id").
+
+    T177 Round 9 (round-8 MINOR M5, point 3): the by-PATH fallback below is
+    a LAST resort reached only when no id-lookup matched. `review_ref` is a
+    field of the UNTRUSTED migration record itself -- this module's whole
+    threat model is "summary reads records without trusting their author"
+    -- so without a containment check, an attacker-controlled record could
+    point `review_ref` at ANY absolute path this process can read, or
+    escape `base_dir` via `../..`, and have `summary` open and trust
+    whatever JSON happens to live there. The resolved, REALPATH'd target is
+    therefore required to lie inside the ONE directory this fallback is
+    actually documented to read from: `reviews_dir` when one was supplied
+    (the declared, trusted archive), else `base_dir` (the migration
+    record's OWN directory -- the pre-existing, narrower fallback boundary
+    for every caller that omits --reviews). A path that escapes its
+    boundary is refused -- never silently ignored -- by returning None,
+    exactly like any other unresolvable review_ref."""
     if reviews_dir:
         try:
             candidates = glob.glob(os.path.join(reviews_dir, "*.json"))
@@ -500,6 +535,9 @@ def _load_review_doc(review_ref, base_dir, reviews_dir):
             if isinstance(doc, dict) and doc.get("review_id") == review_ref:
                 return doc
     path = review_ref if os.path.isabs(review_ref) else os.path.join(base_dir, review_ref)
+    boundary = reviews_dir if reviews_dir else base_dir
+    if not _contained(path, boundary):
+        return None
     try:
         with open(path, "r", encoding="utf-8") as fh:
             doc = json.load(fh)
@@ -516,8 +554,8 @@ def _review_ref_problem(review_ref, project_id, base_dir, reviews_dir):
     caller that has not wired a reviews archive yet; `summary`'s CLI
     contract is unchanged for every existing caller that omits --reviews),
     or (b) resolves to a real GO / zero-finding / opus / xhigh review
-    record, project-id-bound where the review record states one. Otherwise
-    the invalid class name.
+    record, REQUIRED to be project-id-bound (T177 Round 9, round-8 MINOR
+    M5, point 2 -- see below). Otherwise the invalid class name.
 
     T177 Round 6 (round-6 IMPORTANT I5, RULING a): the commit's own
     rejected-alternative rationale ("summary reads records without trusting
@@ -537,7 +575,15 @@ def _review_ref_problem(review_ref, project_id, base_dir, reviews_dir):
     captured at review time -- neither field survives into the migration
     record for `summary` to re-check. This is therefore a PARTIAL
     enforcement of RULING (a): verdict/findings/tier/effort are genuinely
-    checked, plus `project_id` where the review record itself states one;
+    checked, plus `project_id`, now REQUIRED rather than checked only
+    "where stated" (T177 Round 9, round-8 MINOR M5, point 2): migrate.sh's
+    own check_review() binds `project_id` unconditionally
+    (`doc.get("project_id") != project` -- no "if present" guard at all),
+    so a review document with no `project_id` is not something the WRITE
+    path would ever have genuinely accepted in the first place; checking
+    it only conditionally at READ time was an unnecessary weakening this
+    round closes -- a review doc with no `project_id` field now reads
+    exactly like one whose `project_id` names a different project.
     target_commit/consumer_base_commit binding is an honestly-tracked
     follow-up requiring a data-model change (persisting those two fields
     into the migration record), never silently claimed achieved here."""
@@ -550,7 +596,7 @@ def _review_ref_problem(review_ref, project_id, base_dir, reviews_dir):
     findings = doc.get("findings")
     if doc.get("verdict") != "GO":
         return "record-review-no-go"
-    if "project_id" in doc and doc.get("project_id") != project_id:
+    if doc.get("project_id") != project_id:
         return "record-review-no-go"
     if not (isinstance(findings, list) and len(findings) == 0):
         return "record-review-no-go"
@@ -772,7 +818,41 @@ def cmd_summary(args):
 
     coverage = covered / len(projects) if projects else 0.0
     uncovered = sorted(known_ids - {pid for pid in valid_by_id if pid not in conflicting})
-    coverage_trusted = enumeration_reachability == "complete" and not conflicting
+
+    # T177 Round 9 (round-8 IMPORTANT I2): `review_ref_verification`
+    # discloses -- IN THE ARTIFACT a release seam actually reads
+    # (summary.json), never only in a test -- whether THIS invocation
+    # genuinely verified every MIGRATED record's `review_ref` (a --reviews
+    # archive was supplied, so classify_migration_record's own
+    # _review_ref_problem() resolved + checked it against CA-024's
+    # verdict/findings/tier/effort predicate) or merely checked review_ref
+    # for PRESENCE -- the honest, documented, but previously INVISIBLE
+    # fallback for every caller that omits --reviews (reproduced live: a
+    # record with `review_ref: "x"` and NO --reviews read
+    # coverage_trusted=true, exit 0, with nothing in the output to say
+    # verification had been skipped). Keyed off the CLI argument itself,
+    # never off whatever a bug deeper in classify_migration_record might do
+    # with it (that class of defect is F13's own guard-viability mutant's
+    # job to catch) -- this field discloses what the CALLER asked for,
+    # matching this tool's documented CLI contract.
+    #
+    # `coverage_trusted` is now FORCED false whenever --reviews was
+    # omitted, REGARDLESS of enumeration completeness or conflicting
+    # records: a caller reading `coverage_trusted` can no longer be fooled
+    # into thinking an unverified `review_ref` means real coverage. This is
+    # a DELIBERATE behavior change from T177 Round 6/7 (which kept the
+    # degrade an "unchanged default" -- see F13c's rewritten assertion in
+    # the regression suite) -- the operative CA-024 coverage gate must
+    # never report itself trusted while the one check CA-024 exists to
+    # enforce (a genuine zero-finding GO review at the designated tier) was
+    # never actually run.
+    reviews_dir_arg = getattr(args, "reviews", None)
+    review_ref_verification = "verified" if reviews_dir_arg else "presence-only"
+    coverage_trusted = (
+        enumeration_reachability == "complete"
+        and not conflicting
+        and review_ref_verification == "verified"
+    )
 
     doc = {
         "schema": "summary/v1",
@@ -782,6 +862,7 @@ def cmd_summary(args):
         "not_migrated_by_reason": not_migrated_by_reason,
         "coverage": coverage,
         "coverage_trusted": coverage_trusted,
+        "review_ref_verification": review_ref_verification,
         "enumeration_reachability": enumeration_reachability,
         "uncovered_ids": uncovered,
     }
@@ -807,6 +888,8 @@ def cmd_summary(args):
             why.append("the consumers file's source_reachability block lacks a github_degraded and/or gitlab_degraded LIST -- completeness of its project set is unproven")
         if conflicting:
             why.append("%d project(s) have conflicting valid records: %s" % (len(conflicting), ", ".join(sorted(conflicting))))
+        if review_ref_verification != "verified":
+            why.append("no --reviews archive was supplied to this invocation -- every MIGRATED record's review_ref was checked for PRESENCE only, never genuinely verified against CA-024's verdict/findings/tier/effort predicate (T177 Round 9 I2)")
         print("audit.py summary: coverage NOT trusted: %s" % "; ".join(why), file=sys.stderr)
         sys.exit(1)
     sys.exit(0 if coverage == 1.0 else 1)
@@ -828,12 +911,17 @@ def main():
     s.add_argument("--audits", required=True)
     s.add_argument("--migrations", required=True)
     s.add_argument("--out", required=True)
-    # T177 Round 6 I5 (RULING a): OPTIONAL -- a directory of archived review
-    # records (review_record.py --out outputs) to resolve `review_ref`
-    # against. Omitted by every pre-existing caller (default None), which
-    # keeps the documented presence-only fallback unchanged -- see
+    # T177 Round 6 I5 (RULING a): OPTIONAL at the CLI level -- a directory
+    # of archived review records (review_record.py --out outputs) to
+    # resolve `review_ref` against. Still accepted as None for backward
+    # compatibility with every pre-existing caller, but T177 Round 9
+    # (round-8 IMPORTANT I2) makes omitting it VISIBLE and UNTRUSTED in the
+    # written artifact: `review_ref_verification` reads "presence-only" and
+    # `coverage_trusted` is forced false -- see cmd_summary() and
     # _review_ref_problem()'s docstring for the honest partial-binding
-    # boundary.
+    # boundary. The RECOMMENDED default invocation always supplies
+    # --reviews (contract consumer-audit-and-migration.md's canonical
+    # Invocations line, docs/scripts/consumer_audit.md).
     s.add_argument("--reviews", default=None)
     s.set_defaults(func=cmd_summary)
 

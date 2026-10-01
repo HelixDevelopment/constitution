@@ -1824,15 +1824,36 @@ j_mutant I3_no_at_target_review 'if ! check_review; then
         # Reproduced live: a second run with the same (now-stale) review
         # overwrote outcome MIGRATED -> NOT-MIGRATED at the SAME --out path,
         # with no new write to $WORKDIR at all. A pre-existing MIGRATED
-        # record for this exact project is left genuinely UNTOUCHED; the
-        # refusal is reported on stderr only, never written to $OUT.
-        if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ]; then
-            echo "migrate.sh: review-no-go on the already-at-target path, but $OUT already holds a MIGRATED record for $PROJECT -- left UNTOUCHED (re-run with a FRESH review bound to the migration commit to re-verify)" >&2
+        # record for this exact project is left genuinely UNTOUCHED.
+        #
+        # T177 Round 9 (round-8 MINOR M4): the guard above was TOO BROAD --
+        # it preserved the existing record whenever check_review failed for
+        # ANY reason, including a FRESH, correctly-bound NO-GO for a
+        # consumer whose HEAD has genuinely MOVED since the record was
+        # written (further commits landed after the migration). A record
+        # is "still authoritative for the current state" only when its OWN
+        # `commit` field equals $LOCAL_HEAD (this run'"'"'s pre-migration HEAD,
+        # captured once at the top of this script, before any write) --
+        # otherwise the record is STALE, not authoritative, and falls
+        # through to the normal refusal below, which honestly overwrites
+        # $OUT with a NOT-MIGRATED record reflecting the CURRENT state.
+        #
+        # T177 Round 9 (round-8 MINOR M4, contract nit): the refusal is now
+        # ALSO echoed to stdout in the documented "NOT-MIGRATED (<step>:
+        # <reason>) [detail]" shape (exit code 1 contractually means
+        # "NOT-MIGRATED (reason in body)" -- `specs/004-fast-dev-cycles/
+        # contracts/consumer-audit-and-migration.md`'"'"'s Exit codes clause)
+        # -- $OUT itself is still left genuinely untouched; only the
+        # printed line is new.
+        if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ] \
+            && [ "$(read_out_field commit)" = "$LOCAL_HEAD" ]; then
+            echo "migrate.sh: review-no-go on the already-at-target path, but $OUT already holds a MIGRATED record for $PROJECT still bound to the current HEAD $LOCAL_HEAD -- left UNTOUCHED (re-run with a FRESH review bound to the migration commit to re-verify)" >&2
+            echo "NOT-MIGRATED (review: review-no-go) [stale-review-preserved-existing-migrated-record-left-untouched]"
             exit 1
         fi
-        not_migrated "review" "review-no-go"' 'REVIEW_REF_ID=""
+        not_migrated "review" "review-no-go" "already-at-target-verify-only-path-still-requires-a-bound-GO-review"' 'REVIEW_REF_ID=""
     if false; then
-        not_migrated "review" "review-no-go"'
+        not_migrated "review" "review-no-go" "already-at-target-verify-only-path-still-requires-a-bound-GO-review"'
 F_CHECKOUT3="$F_ROOT/checkout3"
 git clone -q --no-hardlinks "$F_BARE" "$F_CHECKOUT3" >/dev/null 2>&1
 J9_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_I3_no_at_target_review.sh" --config "$CFG" --project "fixture/section_f_verify_load_bearing" \
@@ -1994,11 +2015,11 @@ fi
 # python3 invocation's own quoting at all.
 j_mutant B1_pipe_diff_unchecked \
     'SYMLINK_DIFF="$MIGRATE_SCRATCH/migrate_symlink_diff.raw"
-    if ! git -C "$WORKDIR" diff --cached --raw -z --no-renames --diff-filter=AMT >"$SYMLINK_DIFF" 2>/dev/null; then
+    if ! git -C "$WORKDIR" diff --cached --raw --no-abbrev -z --no-renames --diff-filter=AMT >"$SYMLINK_DIFF" 2>/dev/null; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "symlink-scan-failed"
     fi' \
     'SYMLINK_DIFF="$MIGRATE_SCRATCH/migrate_symlink_diff.raw"
-    git -C "$WORKDIR" diff --cached --raw -z --no-renames --diff-filter=AMT >"$SYMLINK_DIFF" 2>/dev/null'
+    git -C "$WORKDIR" diff --cached --raw --no-abbrev -z --no-renames --diff-filter=AMT >"$SYMLINK_DIFF" 2>/dev/null'
 build_r3_fixture "$I_ROOT/j12m" "$J1_HOOK"
 PATH="$J12_BIN:$PATH"
 j_run "$WORK/jmut_B1_pipe_diff_unchecked.sh" "$I_ROOT/j12m" fixture/section_j12m "$WORK/j12m.json"
@@ -2258,11 +2279,13 @@ else
     bad "J18 R6 M1: the second run downgraded or corrupted the existing MIGRATED record (rc=$J18_RC2 outcome-after=$J18_OUTCOME_AFTER out=$J18_OUT2; see $WORK/j18.json)"
 fi
 j_mutant M1_overwrite_migrated_on_rerun \
-    'if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ]; then
-            echo "migrate.sh: review-no-go on the already-at-target path, but $OUT already holds a MIGRATED record for $PROJECT -- left UNTOUCHED (re-run with a FRESH review bound to the migration commit to re-verify)" >&2
+    'if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ] \
+            && [ "$(read_out_field commit)" = "$LOCAL_HEAD" ]; then
+            echo "migrate.sh: review-no-go on the already-at-target path, but $OUT already holds a MIGRATED record for $PROJECT still bound to the current HEAD $LOCAL_HEAD -- left UNTOUCHED (re-run with a FRESH review bound to the migration commit to re-verify)" >&2
+            echo "NOT-MIGRATED (review: review-no-go) [stale-review-preserved-existing-migrated-record-left-untouched]"
             exit 1
         fi' \
-    ': # T177 Round 6 M1 mutant: the re-run guard is disabled'
+    ': # T177 Round 6 M1 mutant (re-anchored T177 Round 9 for the M4 fix): the re-run guard is disabled'
 build_r3_fixture "$I_ROOT/j18m"
 J18M_REF=$(make_review_ref "fixture/section_j18m" "$R3_NEW" "$(git -C "$I_ROOT/j18m/checkout" rev-parse HEAD)")
 FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_M1_overwrite_migrated_on_rerun.sh" --config "$CFG" --project "fixture/section_j18m" \
@@ -2273,6 +2296,289 @@ if [ "$J_MUT_OK" -eq 1 ] && [ "$(jfield "$WORK/j18m.json" outcome)" = "NOT-MIGRA
     ok "J18 guard-viability: without the re-run guard, a second run with the SAME stale review downgrades the on-disk record from MIGRATED to NOT-MIGRATED in place -- J18 is what catches it"
 else
     bad "J18 guard-viability: the overwrite-guard mutant did not reproduce the downgrade (mut_ok=$J_MUT_OK; see $WORK/j18m.json)"
+fi
+
+
+# --- J19: IMPORTANT I1 round-8 fix (bypass a) -- a staged gitlink is
+# refused even when a hook DECLARES it as a submodule path in the SAME
+# currently-staged .gitmodules (the round-6 fix's own carve-out). A hook
+# can `git init` + commit INSIDE an allow-listed directory, then simply
+# APPEND a .gitmodules entry declaring that path a submodule pointing at
+# a host-local URL -- since .gitmodules is itself allow-listed and
+# auto-staged, the now-"declared" gitlink previously sailed through,
+# was committed and pushed, and only step 9's POST-PUSH verify (too
+# late -- no force-push, §11.4.113) ever noticed a fresh clone could not
+# fetch it.
+J19_HOOK="$WORK/j19_declared_gitlink_hook.sh"
+cat > "$J19_HOOK" <<'EOF'
+#!/usr/bin/env bash
+set -e
+mkdir -p "$PROJECT_ROOT/skills/evil"
+cd "$PROJECT_ROOT/skills/evil"
+git init -q -b main .
+git -c user.name=h -c user.email=h@example.invalid commit -q --allow-empty -m host-only
+cd "$PROJECT_ROOT"
+printf '[submodule "skills/evil"]\n\tpath = skills/evil\n\turl = %s\n' "$PROJECT_ROOT/skills/evil" >> "$PROJECT_ROOT/.gitmodules"
+EOF
+build_r3_fixture "$I_ROOT/j19" "$J19_HOOK"
+J19_REMOTE_BEFORE=$(git -C "$I_ROOT/j19/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j19" fixture/section_j19 "$WORK/j19.json"
+J19_DETAIL=$(jfield "$WORK/j19.json" detail)
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+    && echo "$J19_DETAIL" | grep -q 'unexpected-gitlink path=skills/evil' \
+    && [ "$J19_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j19/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J19 R8 I1(a): a staged gitlink DECLARED as a submodule path in the same staged .gitmodules is still refused BEFORE commit/push, remote unchanged -- the declared-path carve-out is gone"
+else
+    bad "J19 R8 I1(a): a declared-but-host-only gitlink was not refused before publishing (rc=$J_RC out=$J_OUT detail=$J19_DETAIL; see $WORK/j19.json)"
+fi
+j_mutant I1a_restore_declared_skip \
+    'if rel == "constitution":
+        if staged != expected:
+            bad.append("path=constitution staged-commit=%s expected-target=%s" % (staged, expected))
+        continue
+    bad.append("path=%s" % rel)' \
+    'if rel == "constitution" or rel == "skills/evil":
+        continue
+    bad.append("path=%s" % rel)'
+build_r3_fixture "$I_ROOT/j19m" "$J19_HOOK"
+j_run "$WORK/jmut_I1a_restore_declared_skip.sh" "$I_ROOT/j19m" fixture/section_j19m "$WORK/j19m.json"
+J19M_MODE=$(git -C "$I_ROOT/j19m/consumer.git" ls-tree refs/heads/main skills/evil 2>/dev/null | awk '{print $1}')
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J19M_MODE" = "160000" ]; then
+    ok "J19 guard-viability: restoring a declared-path skip lets the host-only nested commit through as a permanent, unfetchable gitlink -- J19 is what catches it"
+else
+    bad "J19 guard-viability: the restored-declared-skip mutant did not reproduce the gitlink publication (mut_ok=$J_MUT_OK rc=$J_RC mode=$J19M_MODE)"
+fi
+
+# --- J20: IMPORTANT I1 round-8 fix (bypass b) -- the "constitution"
+# gitlink carve-out is checked by the STAGED SHA, never by path name
+# alone. A hook that commits INSIDE $CONST_DIR (the checked-out
+# constitution submodule) after the real `update-index` runs silently
+# moves the staged "constitution" gitlink to a commit that exists ONLY on
+# this host, published verbatim while the commit message still claims
+# "bump constitution pointer to $NEW_SHA".
+J20_HOOK="$WORK/j20_const_commit_hook.sh"
+cat > "$J20_HOOK" <<'EOF'
+#!/usr/bin/env bash
+set -e
+cd "$CONST_DIR"
+echo "host-only" > HOSTONLY.txt
+git add HOSTONLY.txt
+git -c user.name=h -c user.email=h@example.invalid commit -q -m "host-only commit inside constitution"
+EOF
+build_r3_fixture "$I_ROOT/j20" "$J20_HOOK"
+J20_REMOTE_BEFORE=$(git -C "$I_ROOT/j20/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j20" fixture/section_j20 "$WORK/j20.json"
+J20_DETAIL=$(jfield "$WORK/j20.json" detail)
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+    && echo "$J20_DETAIL" | grep -q 'path=constitution staged-commit=' \
+    && [ "$J20_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j20/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J20 R8 I1(b): a hook that commits INSIDE the checked-out constitution submodule AFTER update-index runs is refused BEFORE commit/push (staged SHA no longer equals the real target), remote unchanged"
+else
+    bad "J20 R8 I1(b): a host-only commit inside the constitution checkout was not refused before publishing (rc=$J_RC out=$J_OUT detail=$J20_DETAIL; see $WORK/j20.json)"
+fi
+j_mutant I1b_drop_sha_check \
+    'if rel == "constitution":
+        if staged != expected:
+            bad.append("path=constitution staged-commit=%s expected-target=%s" % (staged, expected))
+        continue' \
+    'if rel == "constitution":
+        continue'
+build_r3_fixture "$I_ROOT/j20m" "$J20_HOOK"
+j_run "$WORK/jmut_I1b_drop_sha_check.sh" "$I_ROOT/j20m" fixture/section_j20m "$WORK/j20m.json"
+# The vulnerability is the PUBLICATION itself (irreversible, §11.4.113) --
+# regardless of whether the OVERALL run later reports MIGRATED or an
+# unrelated NOT-MIGRATED (step 9's own post-push verify independently
+# notices the unfetchable submodule state and reports
+# "verify: verification-not-clean" -- but by then the bad gitlink has
+# ALREADY been pushed, exactly the "only caught after the fact, too late"
+# class I1(b) exists to close). rc is therefore not asserted here, mirroring
+# J15's own guard-viability style.
+J20M_REMOTE_GITLINK=$(git -C "$I_ROOT/j20m/consumer.git" ls-tree refs/heads/main constitution 2>/dev/null | awk '{print $3}')
+J20M_TARGET_EXISTS=$(git -C "$I_ROOT/j20m/mc.git" cat-file -t "$J20M_REMOTE_GITLINK" 2>&1)
+if [ "$J_MUT_OK" -eq 1 ] && [ -n "$J20M_REMOTE_GITLINK" ] && [ "$J20M_TARGET_EXISTS" != "commit" ]; then
+    ok "J20 guard-viability: without the staged-SHA check a host-only constitution commit is published verbatim as the consumer's permanent gitlink (unfetchable from the real constitution remote) -- J20 is what catches it"
+else
+    bad "J20 guard-viability: the dropped-sha-check mutant did not reproduce the unfetchable-pointer publication (mut_ok=$J_MUT_OK rc=$J_RC gitlink=$J20M_REMOTE_GITLINK target-type=$J20M_TARGET_EXISTS)"
+fi
+
+# --- J21: IMPORTANT I3 round-8 fix -- a MERGE commit's own CONFLICT
+# RESOLUTION can introduce out-of-scope content invisible to a plain
+# `git diff-tree` (no `-m`/`-c`), published to a single mirror the
+# per-remote scope check (J17/I6) then propagates onto EVERY remote.
+build_r3_fixture "$I_ROOT/j21"
+git clone -q --bare "$I_ROOT/j21/consumer.git" "$I_ROOT/j21/m3.git" >/dev/null 2>&1
+git -C "$I_ROOT/j21/checkout" remote add m3 "$I_ROOT/j21/m3.git"
+git -C "$I_ROOT/j21/checkout" checkout -q -b side
+mkdir -p "$I_ROOT/j21/checkout/.claude"
+echo '{}' > "$I_ROOT/j21/checkout/.claude/settings.json"
+git -C "$I_ROOT/j21/checkout" add .claude
+git -C "$I_ROOT/j21/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -m "allow-listed side"
+git -C "$I_ROOT/j21/checkout" checkout -q main
+git -C "$I_ROOT/j21/checkout" -c user.name=f -c user.email=f@example.invalid merge -q --no-ff --no-commit side >/dev/null 2>&1 || true
+echo "/* EVIL-MERGE-MARKER */" >> "$I_ROOT/j21/checkout/src/product.c"
+git -C "$I_ROOT/j21/checkout" add src/product.c
+git -C "$I_ROOT/j21/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -m "merge side"
+git -C "$I_ROOT/j21/checkout" branch -q -D side
+git -C "$I_ROOT/j21/checkout" push -q m3 main
+git -C "$I_ROOT/j21/checkout" fetch -q m3
+J21_ORIGIN_BEFORE=$(git -C "$I_ROOT/j21/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j21" fixture/section_j21 "$WORK/j21.json"
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (preflight: divergent-branches)' \
+    && [ "$J21_ORIGIN_BEFORE" = "$(git -C "$I_ROOT/j21/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J21 R8 I3: a merge commit whose CONFLICT RESOLUTION introduces out-of-scope content, published to only ONE mirror, is refused before propagating it to every other remote; origin unchanged"
+else
+    bad "J21 R8 I3: an evil merge commit was not refused (rc=$J_RC out=$J_OUT; origin before=$J21_ORIGIN_BEFORE after=$(git -C "$I_ROOT/j21/consumer.git" rev-parse refs/heads/main))"
+fi
+j_mutant I3_drop_cc_flag \
+    'diff-tree --cc --no-commit-id --name-only -r "$c"' \
+    'diff-tree --no-commit-id --name-only -r "$c"'
+build_r3_fixture "$I_ROOT/j21m"
+git clone -q --bare "$I_ROOT/j21m/consumer.git" "$I_ROOT/j21m/m3.git" >/dev/null 2>&1
+git -C "$I_ROOT/j21m/checkout" remote add m3 "$I_ROOT/j21m/m3.git"
+git -C "$I_ROOT/j21m/checkout" checkout -q -b side
+mkdir -p "$I_ROOT/j21m/checkout/.claude"
+echo '{}' > "$I_ROOT/j21m/checkout/.claude/settings.json"
+git -C "$I_ROOT/j21m/checkout" add .claude
+git -C "$I_ROOT/j21m/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -m "allow-listed side"
+git -C "$I_ROOT/j21m/checkout" checkout -q main
+git -C "$I_ROOT/j21m/checkout" -c user.name=f -c user.email=f@example.invalid merge -q --no-ff --no-commit side >/dev/null 2>&1 || true
+echo "/* EVIL-MERGE-MARKER */" >> "$I_ROOT/j21m/checkout/src/product.c"
+git -C "$I_ROOT/j21m/checkout" add src/product.c
+git -C "$I_ROOT/j21m/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -m "merge side"
+git -C "$I_ROOT/j21m/checkout" branch -q -D side
+git -C "$I_ROOT/j21m/checkout" push -q m3 main
+git -C "$I_ROOT/j21m/checkout" fetch -q m3
+j_run "$WORK/jmut_I3_drop_cc_flag.sh" "$I_ROOT/j21m" fixture/section_j21m "$WORK/j21m.json"
+J21M_ORIGIN_PRODUCT=$(git -C "$I_ROOT/j21m/consumer.git" show refs/heads/main:src/product.c 2>&1)
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' \
+    && echo "$J21M_ORIGIN_PRODUCT" | grep -q 'EVIL-MERGE-MARKER'; then
+    ok "J21 guard-viability: without --cc the evil merge's conflict-resolution content reaches origin and the record says MIGRATED -- J21/the --cc fix is what catches it"
+else
+    bad "J21 guard-viability: the drop-cc mutant did not reproduce the propagation (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT; origin-product=$J21M_ORIGIN_PRODUCT)"
+fi
+
+# --- J22: MINOR M4 round-8 fix -- the already-at-target stale-record
+# preservation guard (J18/M1) is TOO BROAD: it must NOT preserve an
+# existing MIGRATED record whenever the consumer's HEAD has genuinely
+# MOVED since that record was written (the record is then stale, not
+# authoritative for the current state, and must fall through to the
+# normal honest refusal that overwrites $OUT).
+build_r3_fixture "$I_ROOT/j22"
+J22_REF=$(make_review_ref "fixture/section_j22" "$R3_NEW" "$(git -C "$I_ROOT/j22/checkout" rev-parse HEAD)")
+J22_OUT1=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$TOOL" --config "$CFG" --project "fixture/section_j22" \
+    --workdir "$I_ROOT/j22/checkout" --out "$WORK/j22.json" --apply --review-ref "$J22_REF" 2>&1); J22_RC1=$?
+if [ "$J22_RC1" -eq 0 ] && echo "$J22_OUT1" | grep -q '^MIGRATED'; then
+    ok "J22 R8 M4 precondition: the first run genuinely MIGRATED"
+else
+    bad "J22 R8 M4 precondition: the first run did not MIGRATE (rc=$J22_RC1 out=$J22_OUT1)"
+fi
+# Advance local HEAD with a further, UNRELATED, allow-listed-irrelevant
+# change (the operator doing more work after the migration) -- the
+# existing on-disk MIGRATED record's own `commit` field now names an
+# OLDER commit than the current $LOCAL_HEAD.
+echo "further unrelated work" >> "$I_ROOT/j22/checkout/CLAUDE.md"
+git -C "$I_ROOT/j22/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -am "further unrelated consumer work after migration"
+git -C "$I_ROOT/j22/checkout" push -q origin main
+J22_OUT2=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$TOOL" --config "$CFG" --project "fixture/section_j22" \
+    --workdir "$I_ROOT/j22/checkout" --out "$WORK/j22.json" --apply --review-ref "$J22_REF" 2>&1); J22_RC2=$?
+J22_OUTCOME_AFTER=$(jfield "$WORK/j22.json" outcome)
+if [ "$J22_RC2" -eq 1 ] && [ "$J22_OUTCOME_AFTER" = "NOT-MIGRATED" ] && echo "$J22_OUT2" | grep -q 'NOT-MIGRATED (review: review-no-go)'; then
+    ok "J22 R8 M4: re-running with the ORIGINAL (now-stale) review AFTER local HEAD has genuinely moved does NOT preserve the stale MIGRATED record -- it honestly overwrites \$OUT with NOT-MIGRATED, reflecting the real current state"
+else
+    bad "J22 R8 M4: a stale MIGRATED record (bound to an OLDER HEAD) was wrongly preserved instead of being honestly superseded (rc=$J22_RC2 outcome-after=$J22_OUTCOME_AFTER out=$J22_OUT2; see $WORK/j22.json)"
+fi
+j_mutant M4_preserve_on_any_failure \
+    'if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ] \
+            && [ "$(read_out_field commit)" = "$LOCAL_HEAD" ]; then' \
+    'if [ "$(read_out_field outcome)" = "MIGRATED" ] && [ "$(read_out_field project_id)" = "$PROJECT" ]; then'
+build_r3_fixture "$I_ROOT/j22m"
+J22M_REF=$(make_review_ref "fixture/section_j22m" "$R3_NEW" "$(git -C "$I_ROOT/j22m/checkout" rev-parse HEAD)")
+FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_M4_preserve_on_any_failure.sh" --config "$CFG" --project "fixture/section_j22m" \
+    --workdir "$I_ROOT/j22m/checkout" --out "$WORK/j22m.json" --apply --review-ref "$J22M_REF" >/dev/null 2>&1
+echo "further unrelated work" >> "$I_ROOT/j22m/checkout/CLAUDE.md"
+git -C "$I_ROOT/j22m/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -am "further unrelated consumer work after migration"
+git -C "$I_ROOT/j22m/checkout" push -q origin main
+FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_M4_preserve_on_any_failure.sh" --config "$CFG" --project "fixture/section_j22m" \
+    --workdir "$I_ROOT/j22m/checkout" --out "$WORK/j22m.json" --apply --review-ref "$J22M_REF" >/dev/null 2>&1
+if [ "$J_MUT_OK" -eq 1 ] && [ "$(jfield "$WORK/j22m.json" outcome)" = "MIGRATED" ]; then
+    ok "J22 guard-viability: without the commit==LOCAL_HEAD check, a stale MIGRATED record for an OLDER HEAD is wrongly preserved as current -- J22 is what catches it"
+else
+    bad "J22 guard-viability: the overly-broad-preserve mutant did not reproduce the stale preservation (mut_ok=$J_MUT_OK; see $WORK/j22m.json)"
+fi
+
+# --- J23: MINOR M5 (point 1) round-8 fix -- a RELATIVE --review-ref from
+# a cwd different from where --out ends up must still resolve when
+# `audit.py summary --reviews` later reads the persisted record's
+# `review_ref` field BACK, exactly the I3/J16 bug class applied to
+# review_ref instead of verification-evidence paths. The one-level-down
+# relative path (never "../...") is deliberately non-symmetric: resolved
+# against the tool's own invocation cwd it is correct; resolved against
+# the record's own directory (what audit.py actually does) it is not,
+# unless migrate.sh itself canonicalised --review-ref to an absolute path
+# first.
+build_r3_fixture "$I_ROOT/j23"
+J23_RUNDIR="$I_ROOT/j23"
+mkdir -p "$I_ROOT/j23/reviews" "$I_ROOT/j23/empty_audits"
+J23_REF_ABS=$(make_review_ref "fixture/section_j23" "$R3_NEW" "$(git -C "$I_ROOT/j23/checkout" rev-parse HEAD)")
+cp "$J23_REF_ABS" "$I_ROOT/j23/reviews/j23ref.json"
+mkdir -p "$WORK/j23_migrations"
+J23_RUN_OUT=$(cd "$J23_RUNDIR" && FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$TOOL" --config "$CFG" --project "fixture/section_j23" \
+    --workdir "$I_ROOT/j23/checkout" --out "$WORK/j23_migrations/j23.json" --apply --review-ref "reviews/j23ref.json" 2>&1); J23_RUN_RC=$?
+if [ "$J23_RUN_RC" -eq 0 ] && echo "$J23_RUN_OUT" | grep -q '^MIGRATED'; then
+    ok "J23 R8 M5(1) precondition: the real migration with a RELATIVE --review-ref MIGRATED"
+else
+    bad "J23 R8 M5(1) precondition: the real migration with a RELATIVE --review-ref did not MIGRATE (rc=$J23_RUN_RC out=$J23_RUN_OUT)"
+fi
+J23_STORED_REF=$(jfield "$WORK/j23_migrations/j23.json" review_ref)
+cat > "$WORK/j23_consumers.json" <<EOF
+{"projects":[{"project_id":"fixture/section_j23"}]}
+EOF
+# --reviews points at the SAME directory the review file itself lives in
+# (R8-M5 point 3's own containment fix requires a by-path review_ref to
+# resolve INSIDE the declared --reviews archive when one is supplied --
+# this fixture satisfies that honestly rather than fighting it).
+python3 "$FC/consumers/audit.py" summary --consumers "$WORK/j23_consumers.json" \
+    --audits "$I_ROOT/j23/empty_audits" --migrations "$WORK/j23_migrations" \
+    --reviews "$I_ROOT/j23/reviews" --out "$WORK/j23_summary.json" >"$WORK/j23_audit.log" 2>&1
+if case "$J23_STORED_REF" in /*) true ;; *) false ;; esac && python3 -c "
+import json, sys
+d = json.load(open('$WORK/j23_summary.json'))
+sys.exit(0 if d.get('migrated') == 1 and d.get('invalid_records_by_class', {}).get('record-review-ref-unverifiable') is None else 1)
+" 2>/dev/null; then
+    ok "J23 R8 M5(1): --review-ref is canonicalised to an ABSOLUTE path ('$J23_STORED_REF') -- audit.py summary --reviews resolves it correctly regardless of the ORIGINAL invocation cwd, and the record counts migrated=1"
+else
+    bad "J23 R8 M5(1): the stored review_ref ('$J23_STORED_REF') was not an absolute path, or audit.py summary could not resolve it back (see $WORK/j23_summary.json, $WORK/j23_audit.log)"
+fi
+j_mutant M5_1_no_review_ref_canon \
+    'if [ -n "$REVIEW_REF" ] && [ -f "$REVIEW_REF" ]; then
+    REVIEW_REF_DIR=$(cd "$(dirname "$REVIEW_REF")" 2>/dev/null && pwd)
+    if [ -n "$REVIEW_REF_DIR" ]; then
+        REVIEW_REF="$REVIEW_REF_DIR/$(basename "$REVIEW_REF")"
+    fi
+fi' \
+    ': # T177 Round 9 M5(1) mutant: --review-ref canonicalisation disabled, left relative'
+build_r3_fixture "$I_ROOT/j23m"
+J23M_RUNDIR="$I_ROOT/j23m"
+mkdir -p "$I_ROOT/j23m/reviews" "$I_ROOT/j23m/empty_audits"
+J23M_REF_ABS=$(make_review_ref "fixture/section_j23m" "$R3_NEW" "$(git -C "$I_ROOT/j23m/checkout" rev-parse HEAD)")
+cp "$J23M_REF_ABS" "$I_ROOT/j23m/reviews/j23mref.json"
+mkdir -p "$WORK/j23m_migrations"
+(cd "$J23M_RUNDIR" && FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_M5_1_no_review_ref_canon.sh" --config "$CFG" --project "fixture/section_j23m" \
+    --workdir "$I_ROOT/j23m/checkout" --out "$WORK/j23m_migrations/j23m.json" --apply --review-ref "reviews/j23mref.json" >"$WORK/j23m_run.log" 2>&1)
+cat > "$WORK/j23m_consumers.json" <<EOF
+{"projects":[{"project_id":"fixture/section_j23m"}]}
+EOF
+python3 "$FC/consumers/audit.py" summary --consumers "$WORK/j23m_consumers.json" \
+    --audits "$I_ROOT/j23m/empty_audits" --migrations "$WORK/j23m_migrations" \
+    --reviews "$I_ROOT/j23m/reviews" --out "$WORK/j23m_summary.json" >"$WORK/j23m_audit.log" 2>&1
+if [ "$J_MUT_OK" -eq 1 ] && python3 -c "
+import json, sys
+d = json.load(open('$WORK/j23m_summary.json'))
+sys.exit(0 if d.get('migrated') == 0 and d.get('invalid_records_by_class', {}).get('record-review-ref-unverifiable') == 1 else 1)
+" 2>/dev/null; then
+    ok "J23 guard-viability: without --review-ref canonicalisation a genuinely MIGRATED record's relative review_ref fails to resolve when read back by audit.py summary (record-review-ref-unverifiable, migrated=0) -- J23/the M5(1) fix is what makes it resolve"
+else
+    bad "J23 guard-viability: the no-canon mutant still resolved the relative review_ref (mut_ok=$J_MUT_OK; see $WORK/j23m_summary.json)"
 fi
 
 rm -rf "$I_ROOT" 2>/dev/null || true
