@@ -70,6 +70,17 @@ failx() { fail=1; }
 TMP="$(mktemp -d)" || { echo "  FAIL  mktemp -d failed"; exit 1; }
 trap 'rm -rf "$TMP"' EXIT
 
+# T048 round-5 minor m5: this file's own fixture depends on
+# _fc_default_item_prefix()'s WIT fallback actually running, but if the
+# CALLER's real shell environment happens to export either of the two vars
+# extract_item() consults FIRST (FC_DISPATCH_ITEM_ID_RE / its companion
+# FC_DISPATCH_EXTRA_ITEM_PREFIXES), those take precedence over the fallback
+# and this test can false-FAIL (reproduced: exporting
+# FC_DISPATCH_ITEM_ID_RE='ATM-[0-9]+' before running this file gives rc=1).
+# Never let an ambient copy leak into a fixture that does not intend to set
+# it -- this file's own scenarios below export neither.
+unset FC_DISPATCH_ITEM_ID_RE FC_DISPATCH_EXTRA_ITEM_PREFIXES 2>/dev/null || true
+
 echo "=== control needle: source file resolves ==="
 if [ -f "$DS" ]; then
   echo "  ok    $DS resolves"

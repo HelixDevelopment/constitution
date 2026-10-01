@@ -1,275 +1,140 @@
 #!/bin/bash
-# T048 Round 4 (independent Opus-xhigh review of SpecKit-004 "fast-dev-cycles"
-# User Story 1's own round-3 remediation trail) finding R4-I4 regression
-# guard for test_fc_timer_golden_output.sh's own baseline/with-timers
-# PAIRING + NOISE-FLOOR logic.
+# T048 round-4 finding R4-I4 + round-5 finding R5-I3 regression guard for
+# test_fc_timer_golden_output.sh's noise-floor classifier (rewritten in
+# round 6; the round-4/5 version of this file extracted only the PAIRING block
+# up to the "# verdict-line shape" anchor, so nothing it ran ever reached the
+# classifier -- which is exactly why the round-5 reviewer's mutation M5
+# survived it).
 #
-# R4-I4 (verbatim finding, 2026-09-30): "the golden-output test fails BY
-# DEFAULT for a reason unrelated to fc_timer -- a real log-pairing bug.
-# Running with no arguments currently exits 1 (9/1) because AUTO-DISCOVERY
-# sorts candidate log filenames LEXICALLY, so the 'without timers' baseline
-# gets stuck on an OLD (2026-09-28) log while the 'with timers' log is
-# picked independently with NOTHING actually pairing the two logs as a
-# genuine same-window comparison -- they're just two unrelated captures
-# from different times, and any diff between them is meaningless noise,
-# not a real signal." Fix: "pick the paired logs by TIMESTAMP proximity ...
-# and only treat a mismatch between them as meaningful when compared
-# against a SAME-WINDOW no-timer/no-timer noise floor."
+# R4-I4: the golden test compared two unrelated captures days apart. Round 6
+#   removed pairing altogether (see test_fc_timer_golden_output_r5_regression.sh
+#   for the "never compared" cases). What remains of R4-I4 here is its noise-
+#   floor half: a mismatch is classified against the SAME triplet's own
+#   FC0a-vs-FC0b diff.
+# R5-I3: the classifier only read removed lines ('^< '). A verdict line that
+#   exists ONLY in the with-timers log ('^> ') was never counted -- the strict
+#   verdict FAILed but the classifier said "0 ... and 0", a S11.4.201(6)
+#   false-null on exactly the timer-induced-addition case.
 #
-# This file is an ISOLATED unit test of the PAIRING + NOISE-FLOOR logic
-# itself (the `_fc_ts_epoch`/`_fc_closest_to_epoch` helpers + the candidate-
-# gathering + selection block in test_fc_timer_golden_output.sh), driven
-# against purely SYNTHETIC filename fixtures whose embedded timestamps are
-# chosen specifically to distinguish "pick the genuinely closest pair" from
-# "pick each side's own lexically-latest independently" -- a distinction
-# this real repo's OWN currently-available evidence logs happen NOT to
-# exercise today (there is only one real 'with timers' capture on disk, so
-# the two algorithms coincide on this host's live data; a synthetic fixture
-# with >=2 candidates per side is required to prove the fix genuinely
-# changed behaviour, not merely that it runs without crashing).
+# Every case runs the REAL harness + REAL golden test end to end
+# (lib/golden_triplet_fixture.sh), parsing the golden test's machine-readable
+# line:  NOISE-FLOOR: changed=N noise_explained=N not_explained=N
 #
-# Extraction discipline (§11.4.6/§11.4.115(F)): the pairing block is pulled
-# LIVE out of test_fc_timer_golden_output.sh via a content-anchored `awk`
-# line range (its own preceding comment through the verdict-line-shape
-# comment immediately after the NOISE_LOG block) -- never hand-copied. A
-# control needle fails loudly if a future structural edit removes an
-# anchor. Fixture files are EMPTY (zero bytes) -- the pairing logic under
-# test inspects only FILENAMES (via `_fc_ts_epoch`), never file content, so
-# empty fixtures are a faithful, minimal, honest stand-in for a real
-# multi-hundred-KB prebuild log in this specific test's scope.
+# Cases:
+#  (C1) reviewer's own R5-I3 repro: FC1 = FC0a + one appended WARN line, FC0b
+#       identical to FC0a -> changed=1 noise_explained=0 not_explained=1.
+#  (C2) the same added line also appears in FC0b -> it is noise:
+#       changed=1 noise_explained=1 not_explained=0.
+#  (C3) a REMOVED line that FC0b also lacks -> noise; a removed line FC0b
+#       keeps -> not explained: changed=2 noise_explained=1 not_explained=1.
+#  (C4) a line removed in FC1 but ADDED in FC0b is not the same direction ->
+#       not explained (direction matters).
+#  (C5) the classifier never changes the strict verdict: every case exits 1.
+# Mutations (each applied to a copy of the real golden test, case re-run):
+#  (M5)  the round-5 reviewer's own M5, verbatim intent: invert the
+#        classifier's `grep -qxF` test -> (C1) and (C2) flip.
+#  (M-R5I3) drop the added-line classification call (the pre-R5-I3 shape) ->
+#        (C1) reports not_explained=0.
+#  (M-dir) compare against the WRONG-direction noise file -> (C4) flips.
 set -u
-
-repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
-ROOT=$(repo_root)
-SRC="$ROOT/constitution/scripts/fastcycle/tests/test_fc_timer_golden_output.sh"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib/golden_triplet_fixture.sh
+. "$HERE/lib/golden_triplet_fixture.sh"
+REAL_GOLDEN="$GT_GOLDEN"
 
 fail=0
-failx() { fail=1; }
+ok()  { echo "ok   $1"; }
+bad() { echo "NOT ok $1"; fail=1; }
 
 TMP="$(mktemp -d)" || { echo "NOT ok mktemp -d failed"; exit 1; }
 trap 'rm -rf "$TMP"' EXIT
+gt_init "$TMP/work"
 
-# Never let an ambient copy of these leak into scenarios that do not
-# intend to set them -- each scenario below exports exactly what it needs.
-unset FC_TIMER_GOLDEN_LOG FC_TIMER_GOLDEN_LOG_WITH FC_TIMER_GOLDEN_LOG_NOISE 2>/dev/null || true
+BASE='  ✓ CM-ONE: first
+  ✗ CM-TWO: second
+WARN: CM-THREE: third'
 
-echo "=== control needle: source file resolves ==="
-if [ -f "$SRC" ]; then
-  echo "ok control needle: $SRC resolves"
-else
-  echo "NOT ok control needle FAILED: $SRC not found"
-  failx
-fi
-
-PAIR_START='# _fc_ts_epoch PATH -- prints the epoch-seconds value of the LAST'
-PAIR_END='# verdict-line shape used throughout pre_build_verification.sh: PASS/FAIL/WARN lines carry a'
-PAYLOAD="$TMP/pairing_payload.sh"
-
-echo
-echo "=== control needle: pairing-block extraction anchors found + unique ==="
-START_HITS="$(grep -cxF "$PAIR_START" "$SRC" 2>/dev/null || true)"; : "${START_HITS:=0}"
-END_HITS="$(grep -cxF "$PAIR_END" "$SRC" 2>/dev/null || true)"; : "${END_HITS:=0}"
-if [ "$START_HITS" != 1 ] || [ "$END_HITS" != 1 ]; then
-  echo "NOT ok control needle FAILED: extraction anchors not exactly-once (start=$START_HITS,"
-  echo "     end=$END_HITS) -- $SRC's structure changed; this file's anchors need updating"
-  failx
-  PAYLOAD=""
-else
-  awk -v s="$PAIR_START" -v e="$PAIR_END" '$0==s,$0==e' "$SRC" > "$PAYLOAD" 2>/dev/null
-  if [ -s "$PAYLOAD" ] \
-     && grep -qF '_fc_ts_epoch() {' "$PAYLOAD" \
-     && grep -qF '_fc_closest_to_epoch() {' "$PAYLOAD" \
-     && grep -qF 'PAIRING_NOTE=' "$PAYLOAD" \
-     && grep -qF 'NOISE_LOG=' "$PAYLOAD"; then
-    echo "ok control needle: pairing block extracted ($(wc -l < "$PAYLOAD" | tr -d ' ') lines),"
-    echo "   contains both helper functions + the pairing/noise-log selection logic"
-  else
-    echo "NOT ok control needle FAILED: extraction is incomplete -- $SRC's structure changed;"
-    echo "     this file's anchors/fragment-checks need updating"
-    failx
-    PAYLOAD=""
-  fi
-fi
-
-if [ -z "${PAYLOAD:-}" ]; then
-  echo
-  echo "=== R4-I4 REGRESSION GUARD: SKIPPED -- extraction control needle failed above ==="
-  exit 1
-fi
-
-run_pairing() {
-  # $1 = scratch EVIDENCE_DEFAULT_DIR ; remaining env overrides already
-  # exported by the caller (FC_TIMER_GOLDEN_LOG / _WITH / _NOISE).
-  local evdir="$1" out="$2"
-  local driver="$TMP/driver_$$_$RANDOM.sh"
-  {
-    echo 'set -u'
-    printf 'EVIDENCE_DEFAULT_DIR=%q\n' "$evdir"
-    cat "$PAYLOAD"
-    echo 'printf "BASELINE_LOG=%s\n" "$BASELINE_LOG"'
-    echo 'printf "WITH_TIMERS_LOG=%s\n" "$WITH_TIMERS_LOG"'
-    echo 'printf "NOISE_LOG=%s\n" "$NOISE_LOG"'
-    echo 'printf "PAIRING_NOTE=%s\n" "$PAIRING_NOTE"'
-  } > "$driver"
-  bash "$driver" > "$out" 2>"${out}.err"
+# triplet NAME FC0a-text FC0b-text FC1-text -- real harness capture + promotion
+triplet() {
+  local fix="$TMP/fix_$1" out="$TMP/ev_$1"
+  printf '%s\n' "$2" | gt_member_text "$fix" FC0a
+  printf '%s\n' "$3" | gt_member_text "$fix" FC0b
+  printf '%s\n' "$4" | gt_member_text "$fix" FC1
+  gt_capture "$fix" "$out" t 20261001T120000Z || { bad "($1) harness failed: $(tail -n 3 "$out/.capture.log")"; return 1; }
+  gt_promote "$out/t_20261001T120000Z.triplet"
+}
+# classify NAME OUTFILE -- runs the golden test, prints its NOISE-FLOOR line
+classify() {
+  gt_golden "$2" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_$1"
+  echo "rc=$?"
+  grep -m1 '^NOISE-FLOOR:' "$2" | sed 's/ (noise floor.*//'
+}
+expect() {  # NAME OUTFILE WANT(e.g. "changed=1 noise_explained=0 not_explained=1")
+  local got; got="$(classify "$1" "$2" | tr '\n' ' ')"
+  case "$got" in
+    "rc=1 NOISE-FLOOR: $3 ") ok "($1) $3, strict verdict still FAIL (rc=1)" ;;
+    *) bad "($1) want 'rc=1 NOISE-FLOOR: $3', got '$got'" ;;
+  esac
 }
 
-# =============================================================================
-# (1) The CORE R4-I4 bug: two candidates per side, chosen so the OLD
-#     "independent per-side lexically-latest" algorithm picks a WRONG,
-#     far-apart pair, while the NEW closest-pair algorithm picks the
-#     correct, genuinely-close pair. Filenames embed real ISO8601
-#     timestamps the pairing logic parses; content is irrelevant (empty).
-# =============================================================================
-EVDIR1="$TMP/scn1"
-mkdir -p "$EVDIR1"
-# Baseline candidates: an OLD one (lexically-latest among baselines, since
-# its filename's extra "z_late" text sorts after a bare timestamp) and a
-# NEW one captured close to the with-timers run.
-touch "$EVDIR1/prebuild_full_run_20260101T000000Z.log"                      # OLD, far from everything
-touch "$EVDIR1/prebuild_full_run_z_late_20260105T000100Z.log"               # lexically LATEST, but still far from the with-timers log below
-# With-timers candidates: one close to the OLD baseline, one far away.
-touch "$EVDIR1/prebuild_with_timers_full_run_20260101T000200Z.log"          # 120s after the OLD baseline -- the CORRECT pair
-touch "$EVDIR1/prebuild_with_timers_full_run_20260201T000000Z.log"          # lexically LATEST, but ~27 days from anything
+for f in "$GT_HARNESS" "$REAL_GOLDEN"; do
+  [ -f "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
+done
 
-run_pairing "$EVDIR1" "$TMP/out1.txt"
-GOT_B1="$(sed -n 's/^BASELINE_LOG=//p' "$TMP/out1.txt")"
-GOT_W1="$(sed -n 's/^WITH_TIMERS_LOG=//p' "$TMP/out1.txt")"
-WANT_B1="$EVDIR1/prebuild_full_run_20260101T000000Z.log"
-WANT_W1="$EVDIR1/prebuild_with_timers_full_run_20260101T000200Z.log"
-# What the OLD (pre-R4-I4) "independent lexically-latest per side" logic
-# would have picked, computed independently here (never by re-invoking the
-# fixed code) as the negative comparison point:
-OLD_B1="$(printf '%s\n' "$EVDIR1"/prebuild_full_run_*.log | sort | tail -n1)"
-OLD_W1="$(printf '%s\n' "$EVDIR1"/prebuild_with_timers_full_run_*.log | sort | tail -n1)"
+ADDED='WARN: CM-NEW: only with timers'
+echo "=== (C1) R5-I3 reviewer repro: one appended WARN line on the with-timers side only ==="
+triplet C1 "$BASE" "$BASE" "$BASE
+$ADDED" && expect C1 "$TMP/c1.out" "changed=1 noise_explained=0 not_explained=1"
 
-echo
-echo "=== (1) closest-in-time PAIRING selects the genuinely close pair, not each side's own lexically-latest ==="
-if [ "$GOT_B1" = "$WANT_B1" ] && [ "$GOT_W1" = "$WANT_W1" ]; then
-  echo "ok (1) real (fixed) pairing selected the CORRECT, close-in-time pair"
-  echo "   (baseline=$GOT_B1, with-timers=$GOT_W1)"
-else
-  echo "NOT ok (1) real (fixed) pairing selected baseline='$GOT_B1' with-timers='$GOT_W1'"
-  echo "     (wanted baseline='$WANT_B1' with-timers='$WANT_W1') --"
-  echo "     $(cat "$TMP/out1.txt.err" 2>/dev/null)"
-  failx
-fi
-if [ "$OLD_B1" != "$WANT_B1" ] || [ "$OLD_W1" != "$WANT_W1" ]; then
-  echo "ok (1) guard-viability: the OLD independent-per-side-lexically-latest algorithm"
-  echo "   (computed here independently, never via the fixed code) would have picked a"
-  echo "   DIFFERENT, genuinely wrong pair (baseline=$OLD_B1, with-timers=$OLD_W1) --"
-  echo "   proving this fixture genuinely distinguishes the fix from its absence, not"
-  echo "   merely exercising a code path that happens to produce the same answer either"
-  echo "   way (R4-I4's own root cause: the real repo's current live data does not"
-  echo "   distinguish the two algorithms, since only one real with-timers log exists"
-  echo "   today -- this synthetic fixture is what makes the distinction provable)"
-else
-  echo "NOT ok (1) guard-viability BLIND: the OLD algorithm would have picked the SAME"
-  echo "     pair as the fix -- this fixture does not actually distinguish old-vs-new"
-  echo "     behaviour and needs redesigning"
-  failx
+echo "=== (C2) the same added line also appears between the two timer-free members -> noise ==="
+triplet C2 "$BASE" "$BASE
+$ADDED" "$BASE
+$ADDED" && expect C2 "$TMP/c2.out" "changed=1 noise_explained=1 not_explained=0"
+
+echo "=== (C3) removed lines: one also missing from FC0b (noise), one present in FC0b (not explained) ==="
+triplet C3 "$BASE" '  ✓ CM-ONE: first
+WARN: CM-THREE: third' 'WARN: CM-THREE: third' && expect C3 "$TMP/c3.out" "changed=2 noise_explained=1 not_explained=1"
+
+echo "=== (C4) direction matters: removed in FC1, added in FC0b, is NOT noise ==="
+triplet C4 "$BASE" "$BASE
+  ✓ CM-ONE: first" '  ✗ CM-TWO: second
+WARN: CM-THREE: third' && expect C4 "$TMP/c4.out" "changed=1 noise_explained=0 not_explained=1"
+
+# mutate NAME ANCHOR REPLACEMENT -- copy of the real golden test, anchor exactly once
+mutate() {
+  local hits; hits="$(grep -cF -- "$2" "$REAL_GOLDEN" || true)"
+  if [ "$hits" != 1 ]; then bad "($1) control needle: anchor found $hits times (want 1): $2"; return 1; fi
+  ANCHOR="$2" REPL="$3" python3 -c '
+import os,sys
+s=open(sys.argv[1]).read(); s=s.replace(os.environ["ANCHOR"],os.environ["REPL"],1); open(sys.argv[2],"w").write(s)
+' "$REAL_GOLDEN" "$TMP/golden_$1.sh"
+}
+# expect_flip MUT CASE WANT-UNDER-REAL -- the mutant must NOT reproduce WANT
+expect_flip() {
+  local got; got="$(GT_GOLDEN="$TMP/golden_$1.sh" classify "$2" "$TMP/$1_$2.out" | tr '\n' ' ')"
+  if [ "$got" != "rc=1 NOISE-FLOOR: $3 " ]; then
+    ok "($1) mutant flips ($2): got '$got' instead of '$3' -- ($2) is load-bearing"
+  else
+    bad "($1) BLIND: mutant still reports '$3' on ($2)"
+  fi
+}
+
+echo "=== (M5) round-5 reviewer's M5: invert the classifier's grep -qxF test ==="
+if mutate M5 'if grep -qxF -- "$_fc_line" "$2" 2>/dev/null; then' 'if ! grep -qxF -- "$_fc_line" "$2" 2>/dev/null; then'; then
+  expect_flip M5 C1 "changed=1 noise_explained=0 not_explained=1"
+  expect_flip M5 C2 "changed=1 noise_explained=1 not_explained=0"
 fi
 
-# =============================================================================
-# (2) An explicit FC_TIMER_GOLDEN_LOG pin still auto-selects the CLOSEST
-#     with-timers candidate to IT (never independently lexically-latest).
-# =============================================================================
-EVDIR2="$TMP/scn2"
-mkdir -p "$EVDIR2"
-touch "$EVDIR2/prebuild_with_timers_full_run_20260101T000200Z.log"   # close to the pin below
-touch "$EVDIR2/prebuild_with_timers_full_run_20260201T000000Z.log"   # lexically latest, far away
-PIN_BASELINE="$EVDIR2/pinned_baseline_20260101T000000Z.log"
-touch "$PIN_BASELINE"
-
-echo
-echo "=== (2) an explicit FC_TIMER_GOLDEN_LOG pin auto-selects the closest with-timers candidate to IT ==="
-( export FC_TIMER_GOLDEN_LOG="$PIN_BASELINE"
-  run_pairing "$EVDIR2" "$TMP/out2.txt" )
-GOT_W2="$(sed -n 's/^WITH_TIMERS_LOG=//p' "$TMP/out2.txt")"
-WANT_W2="$EVDIR2/prebuild_with_timers_full_run_20260101T000200Z.log"
-if [ "$GOT_W2" = "$WANT_W2" ]; then
-  echo "ok (2) with FC_TIMER_GOLDEN_LOG pinned, the auto-discovered with-timers log is the"
-  echo "   one genuinely closest in time to the pin ($GOT_W2), not the lexically-latest"
-  echo "   candidate"
-else
-  echo "NOT ok (2) with FC_TIMER_GOLDEN_LOG pinned, got with-timers='$GOT_W2' (wanted"
-  echo "     '$WANT_W2') -- $(cat "$TMP/out2.txt.err" 2>/dev/null)"
-  failx
+echo "=== (M-R5I3) pre-R5-I3 shape: added lines never classified ==="
+if mutate R5I3 '    _fc_classify_against "$TMP/real_added.txt" "$TMP/noise_added.txt"' '    :'; then
+  expect_flip R5I3 C1 "changed=1 noise_explained=0 not_explained=1"
 fi
 
-# =============================================================================
-# (3) NOISE-FLOOR auto-discovery: a second baseline candidate close in time
-#     to the with-timers log (excluding the one already chosen as
-#     BASELINE_LOG) is selected as NOISE_LOG.
-# =============================================================================
-EVDIR3="$TMP/scn3"
-mkdir -p "$EVDIR3"
-# with-timers log is at 00:02:00; deltas below are unambiguous (10s / 70s / 8min)
-# so the intended BASELINE_LOG (closest) / NOISE_LOG (2nd-closest) / far
-# (must-not-be-chosen) roles are never accidentally swapped.
-touch "$EVDIR3/prebuild_full_run_20260101T000150Z.log"           # delta 10s  -> chosen as BASELINE_LOG (closest to the with-timers log below)
-touch "$EVDIR3/prebuild_full_run_20260101T000050Z.log"           # delta 70s  -> chosen as NOISE_LOG (2nd-closest, same window)
-touch "$EVDIR3/prebuild_full_run_20260101T001000Z.log"           # delta 480s -> far away, must NOT be chosen as noise
-touch "$EVDIR3/prebuild_with_timers_full_run_20260101T000200Z.log"
-
-run_pairing "$EVDIR3" "$TMP/out3.txt"
-GOT_N3="$(sed -n 's/^NOISE_LOG=//p' "$TMP/out3.txt")"
-GOT_B3="$(sed -n 's/^BASELINE_LOG=//p' "$TMP/out3.txt")"
-WANT_B3="$EVDIR3/prebuild_full_run_20260101T000150Z.log"
-WANT_N3="$EVDIR3/prebuild_full_run_20260101T000050Z.log"
-
-echo
-echo "=== (3) noise-floor auto-discovery selects a same-window SECOND baseline, excluding the one already chosen as BASELINE_LOG ==="
-if [ "$GOT_B3" = "$WANT_B3" ] && [ "$GOT_N3" = "$WANT_N3" ] && [ "$GOT_N3" != "$GOT_B3" ]; then
-  echo "ok (3) real (fixed) BASELINE_LOG picked the genuinely closest candidate"
-  echo "   ($GOT_B3) and noise-log auto-discovery independently selected the genuinely"
-  echo "   same-window SECOND-closest baseline ($GOT_N3), distinct from BASELINE_LOG,"
-  echo "   never the far-away third candidate"
-else
-  echo "NOT ok (3) got BASELINE_LOG='$GOT_B3' NOISE_LOG='$GOT_N3' (wanted"
-  echo "     BASELINE_LOG='$WANT_B3' NOISE_LOG='$WANT_N3', distinct from each other) --"
-  echo "     $(cat "$TMP/out3.txt.err" 2>/dev/null)"
-  failx
-fi
-
-# =============================================================================
-# (4) honest degradation: candidate filenames with NO parseable timestamp
-#     never crash the pairing logic, and are reported via PAIRING_NOTE as a
-#     degraded pick rather than silently claimed as a genuine pairing.
-# =============================================================================
-EVDIR4="$TMP/scn4"
-mkdir -p "$EVDIR4"
-touch "$EVDIR4/prebuild_full_run_legacy_no_timestamp.log"
-touch "$EVDIR4/prebuild_with_timers_full_run_also_legacy.log"
-
-echo
-echo "=== (4) unparseable-timestamp candidates degrade honestly (never crash, never silently claim a real pairing) ==="
-run_pairing "$EVDIR4" "$TMP/out4.txt"
-RC4=$?
-GOT_B4="$(sed -n 's/^BASELINE_LOG=//p' "$TMP/out4.txt")"
-GOT_NOTE4="$(sed -n 's/^PAIRING_NOTE=//p' "$TMP/out4.txt")"
-if [ "$RC4" = 0 ] && [ -n "$GOT_B4" ] && printf '%s' "$GOT_NOTE4" | grep -qi "degraded\|unparseable"; then
-  echo "ok (4) with no parseable timestamps anywhere, the pairing logic did NOT crash,"
-  echo "   still picked a usable baseline ($GOT_B4), and honestly reported the"
-  echo "   degradation in PAIRING_NOTE ('$GOT_NOTE4')"
-else
-  echo "NOT ok (4) rc=$RC4 baseline='$GOT_B4' note='$GOT_NOTE4' -- expected a clean exit,"
-  echo "     a non-empty baseline pick, and an honest degradation note --"
-  echo "     $(cat "$TMP/out4.txt.err" 2>/dev/null)"
-  failx
+echo "=== (M-dir) classify removed lines against the ADDED noise side ==="
+if mutate DIR '    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_removed.txt"' '    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_added.txt"'; then
+  expect_flip DIR C4 "changed=1 noise_explained=0 not_explained=1"
 fi
 
 echo
-if [ "$fail" = 0 ]; then
-  echo "=== R4-I4 REGRESSION GUARD: ALL CHECKS PASS -- the real (fixed) pairing logic"
-  echo "    genuinely selects the closest-in-time (baseline, with-timers) pair rather than"
-  echo "    each side's own independent lexically-latest pick (proven to differ from the"
-  echo "    old algorithm on a fixture the real repo's own live data does not currently"
-  echo "    exercise), an explicit single-side pin still auto-pairs correctly, noise-floor"
-  echo "    auto-discovery picks a genuinely same-window second baseline, and unparseable"
-  echo "    timestamps degrade honestly without crashing. ==="
-else
-  echo "=== R4-I4 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ==="
-fi
-
+if [ "$fail" = 0 ]; then echo "=== R4-I4/R5-I3 CLASSIFIER REGRESSION GUARD: ALL CHECKS PASS ==="; else echo "=== R4-I4/R5-I3 CLASSIFIER REGRESSION GUARD: FAILURES ABOVE ==="; fi
 exit "$fail"

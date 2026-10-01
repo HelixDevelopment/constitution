@@ -13,9 +13,9 @@
 # before/after comparison is IMPOSSIBLE today") was corrected as part of R3-I6, independently
 # re-checked against tasks.md's own live checkbox state before writing this paragraph, per
 # S11.4.199. A genuine "with timers" run of pre_build_verification.sh IS now possible, and this
-# file performs the real comparison the moment BOTH a "without timers" and a "with timers" real
-# evidence log exist on disk (see the Usage section below for how each is located). What is
-# ALWAYS verified for real, independent of whether the "with timers" log exists yet:
+# file performs the real comparison the moment a validated same-run
+# triplet exists on disk (see the Usage section below). What is ALWAYS verified for real,
+# independent of whether a triplet exists yet:
 #   (a) the REAL "without timers" verdict set, captured from an actual pre_build_verification.sh
 #       run, is checked for any timing-looking noise that a stripping step would need to remove
 #       (Constitution S11.4.6 -- "check", never assume; documented finding: NONE found -- see
@@ -30,11 +30,9 @@
 #       timing suffix -- MUST compare unequal; a negative-control pair that differs in gate id
 #       only -- MUST also compare unequal, so the comparator is proven to discriminate, not to
 #       blindly report "equal" regardless of input).
-# The genuine real-vs-real "with timers" comparison itself remains an explicit, honest SKIP
-# ONLY when no "with timers" evidence log is present on disk (a fresh checkout, or a run that
-# has not been captured yet) -- never a fabricated PASS, and never silently skipped once a real
-# log exists (that would be exactly the R3-I6 bug this fix closes: an unconditional SKIP that
-# never flips to a real assertion even after the precondition it names is satisfied).
+# The genuine real-vs-real "with timers" comparison runs ONLY on a validated same-run triplet
+# (see ROUND-6 ARCHITECTURE below); without one it is an explicit, honest SKIP that names the
+# reason -- never a fabricated PASS, and never a comparison of two unrelated captures.
 #
 # FINDING (checked, not assumed): scanning the real captured evidence log for a
 # verdict-line trailing duration suffix ("[N.NNs]"/"(N.NNs)"/"N ms") found exactly one
@@ -45,66 +43,65 @@
 # fc_timer-style trailing duration suffix exists on any verdict line in the current tree.
 #
 # Usage: bash test_fc_timer_golden_output.sh
-#   Env FC_TIMER_GOLDEN_LOG=<path> : real captured pre_build_verification.sh stdout log to use
-#                                    as the "without timers" baseline (default: auto-discover, see
-#                                    PAIRING below).
-#   Env FC_TIMER_GOLDEN_LOG_WITH=<path> : real captured pre_build_verification.sh stdout log,
-#                                    from a run with fc_timer instrumentation ACTIVE (FC_TIMING
-#                                    unset/1), to use as the "with timers" comparison side
-#                                    (default: auto-discover, see PAIRING below; -- a
-#                                    DELIBERATELY DIFFERENT filename prefix
-#                                    ('prebuild_with_timers_full_run_*.log') from the "without
-#                                    timers" baseline's own `prebuild_full_run_*.log` glob, so a
-#                                    captured "with timers" log is never mistaken for -- or
-#                                    silently picked up as -- the "without timers" baseline by
-#                                    the OTHER auto-discovery, and vice versa; absent -> the real
-#                                    comparison below is an honest SKIP, never a fabricated PASS).
-#   Env FC_TIMER_GOLDEN_LOG_NOISE=<path> : a SECOND real "without timers" capture log (see NOISE
-#                                    FLOOR below), used to distinguish a genuine fc_timer-caused
-#                                    mismatch from pre-existing same-window repo/host-load drift.
 #
-# PAIRING (T048 round-4 review finding R4-I4, 2026-09-30): "Running with no arguments currently
-#   exits 1 because AUTO-DISCOVERY sorts candidate log filenames LEXICALLY, so the 'without
-#   timers' baseline gets stuck on an OLD log while the 'with timers' log is picked independently
-#   with NOTHING actually pairing the two logs as a genuine same-window comparison -- they're
-#   just two unrelated captures from different times, and any diff between them is meaningless
-#   noise, not a real signal." Independently reproduced before fixing: on this real tree, the
-#   old "lexically-latest, each side independent" auto-discovery picked
-#   prebuild_full_run_t029_t029_full_20260928T124322Z.log (2026-09-28 12:43) as baseline against
-#   prebuild_with_timers_full_run_20260930T152954Z.log (2026-09-30 15:29) -- a ~2.3-DAY gap,
-#   across which this shared multi-track checkout had dozens of intervening commits.
-#   Fixed: when BOTH sides are auto-discovered (the common no-args case), every candidate on each
-#   side is matched against every candidate on the other side by the ISO8601 timestamp each
-#   filename already embeds (`YYYYMMDDTHHMMSSZ`), and the PAIR with the SMALLEST time delta is
-#   selected -- a genuine closest-in-time, same-window match, never an independent per-side
-#   "latest". When only ONE side is auto-discovered (the other pinned via its own env var), the
-#   auto side picks the candidate closest in time to the pinned side's own embedded timestamp.
-#   When NEITHER side's candidate filenames carry a parseable timestamp (a legacy/foreign log),
-#   this degrades to the OLD per-side lexically-latest behaviour, never a crash -- logged
-#   honestly via the PAIRING_NOTE line below, so a degraded pairing is visible, not silent.
+# ROUND-6 ARCHITECTURE (T048 round-5 review, S11.4.250 heuristic-tower finding). Rounds 1-5
+#   auto-discovered HISTORICAL, NON-CONCURRENT captures of a drifting, flaky suite and kept adding
+#   heuristics to make them comparable: suffix stripping, with-vs-without selection, closest-
+#   timestamp pairing (R4-I4), a hardcoded "SAME-WINDOW" noise-floor label, then window labels
+#   (R5). Each layer compensated for the same primitive defect. Round 6 removes the primitive
+#   instead of adding layer N+1 (S11.4.250 step 5): THIS FILE NO LONGER PAIRS LOGS AT ALL. The real
+#   FR-002/T-A01 comparison runs ONLY on a same-run TRIPLET produced by capture_fc_timer_triplet.sh
+#   -- FC0a + FC0b (without timers; their diff is the noise floor) and FC1 (with timers), launched
+#   under one run-id, concurrently, against the same tree -- and described by that harness's
+#   provenance manifest (<prefix>_<run-id>.triplet). The closest-timestamp pairing, the fallback
+#   noise-floor search, the timestamp-proximity TSV corroboration and the filename-timestamp
+#   parser are all deleted; nothing in this file reads a timestamp out of a filename any more.
 #
-# NOISE FLOOR (same finding, second half): "only treat a mismatch between them as meaningful when
-#   compared against a SAME-WINDOW no-timer/no-timer noise floor (matching exactly the
-#   methodology ... 3 concurrent runs, 2 timers-off + 1 timers-on, establishing the noise floor
-#   via the 2 timers-off runs' own comparison before judging the timers-on diff as meaningful or
-#   not)." When the real with-vs-without comparison below MISMATCHES, a SECOND "without timers"
-#   capture close in time to the chosen with-timers log (auto-discovered the SAME way, or pinned
-#   via FC_TIMER_GOLDEN_LOG_NOISE) is diffed against the SAME baseline, and each differing line in
-#   the main mismatch is cross-referenced against this noise-floor diff: a line that ALSO differs
-#   between two genuinely timer-FREE captures is reported as pre-existing same-window noise (not
-#   attributable to fc_timer); a line that differs ONLY in the with-vs-without comparison is
-#   reported as a genuine candidate fc_timer-attributable difference needing investigation. This
-#   is DIAGNOSTIC classification only -- it NEVER changes the strict byte-for-byte FR-002/T-A01
-#   pass/fail verdict itself (a real mismatch still FAILs regardless of noise-floor
-#   classification; T-A01's own rule is unconditional identity, not "identical modulo known
-#   noise") -- it exists solely so a human/agent reading a FAIL is not left guessing whether it
-#   is a real fc_timer regression or inter-capture drift this project's own multi-track model
-#   already produces routinely. Absent a same-window second baseline capture, this stays an
-#   honest "no noise floor available" note, never a fabricated classification.
+#   No valid triplet  -> the real comparison is an honest SKIP naming why. Never a comparison of
+#                        two unrelated captures, never a "SAME-WINDOW" claim that was not measured.
+#   Triplet found     -> it is VALIDATED before use; every check below is a hard assertion:
+#     * integrity : all three member logs exist and match the manifest's sha256 (a partial,
+#                   truncated or edited capture is refused);
+#     * provenance (T048 round-5 m3, fixed from real evidence, not filenames): each member ran
+#                   with its OWN fc_timer run-id, so its section TSV sits at an EXACT path the
+#                   manifest records. A genuine timers-ON member (FC1) must have > 0 TSV data rows,
+#                   a genuine timers-OFF member (FC0a/FC0b) must have 0, and when the TSV is still
+#                   on disk this file RE-COUNTS it and refuses any disagreement with the manifest.
+#     * window (T048 round-5 R5-I2): finished_epoch - started_epoch must be <=
+#                   FC_TIMER_GOLDEN_MAX_WINDOW_S (default 3600 s, consumer data per S11.4.35). A
+#                   triplet outside the window is REFUSED with an honest SKIP of the comparison.
+#   Only the NEWEST real manifest is considered. If it fails validation this file does not quietly
+#   fall back to an older one; it reports why the newest is unusable.
+#
+#   Env FC_TIMER_GOLDEN_EVIDENCE_DIR=<dir> : where triplet manifests and the baseline log are looked
+#                                    up (default qa-results/fastcycle/us1/red/T015).
+#   Env FC_TIMER_GOLDEN_TRIPLET=<manifest> : pin one specific triplet manifest instead of the newest
+#                                    real one. A pinned stand-in (mode=stand-in) manifest is
+#                                    validated but its comparison is SKIPPED -- stand-in output is
+#                                    never FR-002 evidence.
+#   Env FC_TIMER_GOLDEN_MAX_WINDOW_S=<seconds> : maximum triplet span (positive integer).
+#   Env FC_TIMER_GOLDEN_LOG=<path>   : without-timers log used for checks (a)/(b) when no valid
+#                                    triplet exists (default: the newest prebuild_full_run_*.log by
+#                                    mtime). Single-log checks only -- this log is never paired with
+#                                    anything.
+#
+# NOISE FLOOR (diagnostic only): when the FC0a-vs-FC1 comparison mismatches, every changed line --
+#   removed (present without timers only) AND added (present with timers only; T048 round-5 R5-I3,
+#   the pre-fix classifier was blind to added lines) -- is checked against the SAME-direction
+#   change in FC0a-vs-FC0b. A line that also changes between two timer-free members of the same
+#   run is pre-existing noise. A line that does not is reported as "not explained by this ONE noise
+#   sample", never as "fc_timer-attributable": one noise pair cannot separate a timer effect from a
+#   rare flake (T048 round-5 m4). The classification NEVER changes the strict byte-for-byte
+#   FR-002/T-A01 verdict.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
-EVIDENCE_DEFAULT_DIR="$ROOT/qa-results/fastcycle/us1/red/T015"
+EVIDENCE_DIR="${FC_TIMER_GOLDEN_EVIDENCE_DIR:-$ROOT/qa-results/fastcycle/us1/red/T015}"
+MAX_WINDOW_S="${FC_TIMER_GOLDEN_MAX_WINDOW_S:-3600}"
+if ! printf '%s' "$MAX_WINDOW_S" | grep -qE '^[1-9][0-9]*$'; then
+  echo "FATAL: FC_TIMER_GOLDEN_MAX_WINDOW_S='$MAX_WINDOW_S' is not a positive integer"
+  exit 2
+fi
 
 TMP="$(mktemp -d)"
 cleanup() { rm -rf "$TMP"; }
@@ -116,149 +113,178 @@ FAIL=0; N=0; SKIPPED=0
 chk() { N=$((N + 1)); if [ "$2" = "1" ]; then echo "PASS[$N]: $1"; else echo "FAIL[$N]: $1"; FAIL=$((FAIL + 1)); fi; }
 skip() { N=$((N + 1)); SKIPPED=$((SKIPPED + 1)); echo "SKIP[$N]: $1"; }
 
-# _fc_ts_epoch PATH -- prints the epoch-seconds value of the LAST
-# YYYYMMDDTHHMMSSZ substring in PATH's own basename (every candidate log
-# this file globs for embeds exactly one), or an empty string if none is
-# found or `date` cannot parse it (a foreign/legacy filename) -- never a
-# guessed/default timestamp (S11.4.6).
-_fc_ts_epoch() {
-  local fname ts
-  fname="$(basename -- "$1")"
-  ts="$(printf '%s' "$fname" | grep -oE '[0-9]{8}T[0-9]{6}Z' | tail -n1)"
-  [ -n "$ts" ] || { printf ''; return 0; }
-  date -u -d "${ts:0:4}-${ts:4:2}-${ts:6:2}T${ts:9:2}:${ts:11:2}:${ts:13:2}Z" +%s 2>/dev/null
+# _mf_get KEY MANIFEST -- the value of KEY. Prints nothing, returns 1, when
+# KEY is absent OR present more than once (an ambiguous manifest is malformed,
+# never resolved by picking one of the duplicates).
+_mf_get() {
+  local n
+  n="$(grep -c -- "^$1=" "$2" 2>/dev/null || true)"
+  [ "${n:-0}" = 1 ] || return 1
+  sed -n "s/^$1=//p" "$2"
 }
 
-# _fc_closest_to_epoch TARGET_EPOCH CANDIDATE... -- prints the candidate
-# whose OWN embedded timestamp is closest (smallest absolute delta) to
-# TARGET_EPOCH; candidates with no parseable timestamp are skipped. Empty
-# output if no candidate has a parseable timestamp.
-_fc_closest_to_epoch() {
-  local target="$1"; shift
-  local best="" best_delta="" f ts delta
-  for f in "$@"; do
-    ts="$(_fc_ts_epoch "$f")"
-    [ -n "$ts" ] || continue
-    if [ "$ts" -gt "$target" ]; then delta=$((ts - target)); else delta=$((target - ts)); fi
-    if [ -z "$best_delta" ] || [ "$delta" -lt "$best_delta" ]; then
-      best="$f"; best_delta="$delta"
+# _tsv_rows PATH -- data rows (lines after the header) of a TSV, 0 if absent.
+_tsv_rows() {
+  if [ -f "$1" ]; then tail -n +2 "$1" | grep -c . || true; else echo 0; fi
+}
+
+# ============================================================================
+# Triplet selection: the pinned manifest, else the NEWEST mode=real manifest
+# (newest by its own run_id field; run_ids are YYYYMMDDTHHMMSSZ, so lexical
+# order is chronological). Stand-in manifests are not candidates for
+# auto-discovery. Nothing here reads a timestamp out of a log FILENAME.
+# ============================================================================
+MANIFEST=""
+if [ -n "${FC_TIMER_GOLDEN_TRIPLET:-}" ]; then
+  MANIFEST="$FC_TIMER_GOLDEN_TRIPLET"
+  if [ ! -f "$MANIFEST" ]; then
+    echo "FATAL: FC_TIMER_GOLDEN_TRIPLET=$MANIFEST does not exist"
+    exit 2
+  fi
+elif [ -d "$EVIDENCE_DIR" ]; then
+  _best_id=""
+  while IFS= read -r -d '' _mf; do
+    [ "$(_mf_get mode "$_mf")" = real ] || continue
+    _id="$(_mf_get run_id "$_mf")" || continue
+    if [ -z "$_best_id" ] || [ "$_id" \> "$_best_id" ]; then
+      _best_id="$_id"; MANIFEST="$_mf"
     fi
-  done
-  printf '%s' "$best"
-}
-
-# ---- gather every candidate on each side (used by both explicit-pinned and full-auto pairing) ----
-BASELINE_CANDIDATES=()
-WITH_CANDIDATES=()
-if [ -d "$EVIDENCE_DEFAULT_DIR" ]; then
-  while IFS= read -r -d ''; do BASELINE_CANDIDATES+=("$REPLY"); done < <(find "$EVIDENCE_DEFAULT_DIR" -maxdepth 1 -name 'prebuild_full_run_*.log' -print0 2>/dev/null | sort -z)
-  while IFS= read -r -d ''; do WITH_CANDIDATES+=("$REPLY"); done < <(find "$EVIDENCE_DEFAULT_DIR" -maxdepth 1 -name 'prebuild_with_timers_full_run_*.log' -print0 2>/dev/null | sort -z)
+  done < <(find "$EVIDENCE_DIR" -maxdepth 1 -name '*.triplet' -print0 2>/dev/null)
 fi
 
-BASELINE_LOG="${FC_TIMER_GOLDEN_LOG:-}"
-BASELINE_EXPLICIT=0
-[ -n "$BASELINE_LOG" ] && [ -f "$BASELINE_LOG" ] && BASELINE_EXPLICIT=1
-WITH_TIMERS_LOG="${FC_TIMER_GOLDEN_LOG_WITH:-}"
-WITH_EXPLICIT=0
-[ -n "$WITH_TIMERS_LOG" ] && [ -f "$WITH_TIMERS_LOG" ] && WITH_EXPLICIT=1
-[ "$BASELINE_EXPLICIT" = 1 ] || BASELINE_LOG=""
-[ "$WITH_EXPLICIT" = 1 ] || WITH_TIMERS_LOG=""
-
-PAIRING_NOTE=""
-if [ "$BASELINE_EXPLICIT" = 1 ] && [ "$WITH_EXPLICIT" = 1 ]; then
-  PAIRING_NOTE="both logs explicitly provided by the caller (FC_TIMER_GOLDEN_LOG + FC_TIMER_GOLDEN_LOG_WITH) -- no auto-pairing performed"
-elif [ "$BASELINE_EXPLICIT" = 1 ] && [ ${#WITH_CANDIDATES[@]} -gt 0 ]; then
-  BTS="$(_fc_ts_epoch "$BASELINE_LOG")"
-  if [ -n "$BTS" ]; then
-    WITH_TIMERS_LOG="$(_fc_closest_to_epoch "$BTS" "${WITH_CANDIDATES[@]}")"
-    [ -n "$WITH_TIMERS_LOG" ] && PAIRING_NOTE="with-timers log auto-selected as the candidate closest in time to the explicit FC_TIMER_GOLDEN_LOG baseline"
+# validate_triplet MANIFEST -- sets TRIPLET_STATE to one of:
+#   valid    : usable; BASELINE_LOG / WITH_TIMERS_LOG / NOISE_LOG are set
+#   refused  : genuine but not usable for a same-window comparison (window
+#              exceeded, or a stand-in capture) -- an honest SKIP
+#   invalid  : the evidence contradicts itself or its own manifest -- a FAIL
+# and TRIPLET_REASON to a one-line explanation. Records one chk() per
+# provenance/integrity property it verifies, so every PASS cites what was
+# actually checked.
+validate_triplet() {
+  local mf="$1" dir fmt run_id mode s f span m log sha want_sha timing want_timing tsv rows recount
+  dir="$(dirname -- "$mf")"
+  TRIPLET_STATE=invalid
+  fmt="$(_mf_get format "$mf")" || fmt=""
+  run_id="$(_mf_get run_id "$mf")" || run_id=""
+  mode="$(_mf_get mode "$mf")" || mode=""
+  if [ "$fmt" != "fc_timer_triplet/v1" ] || ! printf '%s' "$run_id" | grep -qE '^[0-9]{8}T[0-9]{6}Z$' \
+     || { [ "$mode" != real ] && [ "$mode" != stand-in ]; }; then
+    TRIPLET_REASON="malformed manifest $mf (format='$fmt' run_id='$run_id' mode='$mode')"
+    return
   fi
-  if [ -z "$WITH_TIMERS_LOG" ]; then
-    WITH_TIMERS_LOG="$(printf '%s\n' "${WITH_CANDIDATES[@]}" | sort | tail -n1)"
-    PAIRING_NOTE="baseline's own timestamp unparseable -- degraded to lexically-latest with-timers pick"
-  fi
-elif [ "$WITH_EXPLICIT" = 1 ] && [ ${#BASELINE_CANDIDATES[@]} -gt 0 ]; then
-  WTS="$(_fc_ts_epoch "$WITH_TIMERS_LOG")"
-  if [ -n "$WTS" ]; then
-    BASELINE_LOG="$(_fc_closest_to_epoch "$WTS" "${BASELINE_CANDIDATES[@]}")"
-    [ -n "$BASELINE_LOG" ] && PAIRING_NOTE="baseline log auto-selected as the candidate closest in time to the explicit FC_TIMER_GOLDEN_LOG_WITH log"
-  fi
-  if [ -z "$BASELINE_LOG" ]; then
-    BASELINE_LOG="$(printf '%s\n' "${BASELINE_CANDIDATES[@]}" | sort | tail -n1)"
-    PAIRING_NOTE="with-timers log's own timestamp unparseable -- degraded to lexically-latest baseline pick"
-  fi
-elif [ ${#BASELINE_CANDIDATES[@]} -gt 0 ] && [ ${#WITH_CANDIDATES[@]} -gt 0 ]; then
-  # R4-I4 core fix: the common no-args case. Find the (baseline, with-timers)
-  # PAIR across the full cross-product minimizing the timestamp delta --
-  # never two independent lexically-latest picks.
-  PAIR_B=""; PAIR_W=""; PAIR_DELTA=""
-  for _fc_b in "${BASELINE_CANDIDATES[@]}"; do
-    _fc_bts="$(_fc_ts_epoch "$_fc_b")"
-    [ -n "$_fc_bts" ] || continue
-    for _fc_w in "${WITH_CANDIDATES[@]}"; do
-      _fc_wts="$(_fc_ts_epoch "$_fc_w")"
-      [ -n "$_fc_wts" ] || continue
-      if [ "$_fc_bts" -gt "$_fc_wts" ]; then _fc_d=$((_fc_bts - _fc_wts)); else _fc_d=$((_fc_wts - _fc_bts)); fi
-      if [ -z "$PAIR_DELTA" ] || [ "$_fc_d" -lt "$PAIR_DELTA" ]; then
-        PAIR_B="$_fc_b"; PAIR_W="$_fc_w"; PAIR_DELTA="$_fc_d"
+  for m in FC0a FC0b FC1; do
+    log="$(_mf_get "member.$m.log" "$mf")" || log=""
+    want_sha="$(_mf_get "member.$m.log_sha256" "$mf")" || want_sha=""
+    if [ -z "$log" ] || [ "$(basename -- "$log")" != "$log" ] || [ ! -f "$dir/$log" ]; then
+      TRIPLET_REASON="member $m log '$log' missing next to $mf"
+      return
+    fi
+    sha="$(sha256sum "$dir/$log" | awk '{print $1}')"
+    if [ "$sha" != "$want_sha" ]; then
+      TRIPLET_REASON="member $m log $dir/$log sha256 $sha does not match the manifest's $want_sha (partial, truncated or edited capture)"
+      return
+    fi
+    want_timing=0; [ "$m" = FC1 ] && want_timing=1
+    timing="$(_mf_get "member.$m.fc_timing" "$mf")" || timing=""
+    if [ "$timing" != "$want_timing" ]; then
+      TRIPLET_REASON="member $m recorded fc_timing='$timing', a triplet requires $want_timing"
+      return
+    fi
+    tsv="$(_mf_get "member.$m.tsv" "$mf")" || tsv=""
+    rows="$(_mf_get "member.$m.tsv_rows" "$mf")" || rows=""
+    if ! printf '%s' "$rows" | grep -qE '^[0-9]+$' || [ -z "$tsv" ]; then
+      TRIPLET_REASON="member $m has no usable tsv/tsv_rows provenance in $mf"
+      return
+    fi
+    if [ -f "$tsv" ]; then
+      recount="$(_tsv_rows "$tsv")"
+      if [ "$recount" != "$rows" ]; then
+        TRIPLET_REASON="member $m TSV $tsv has $recount data rows now, the manifest recorded $rows"
+        return
       fi
-    done
+    fi
+    if [ "$want_timing" = 1 ] && [ "$rows" -eq 0 ]; then
+      TRIPLET_REASON="member $m claims timers ON but its own TSV ($tsv) has 0 data rows -- fc_timer did not actually run"
+      return
+    fi
+    if [ "$want_timing" = 0 ] && [ "$rows" -ne 0 ]; then
+      TRIPLET_REASON="member $m claims timers OFF but its own TSV ($tsv) has $rows data rows -- fc_timer DID run"
+      return
+    fi
   done
-  if [ -n "$PAIR_B" ] && [ -n "$PAIR_W" ]; then
-    BASELINE_LOG="$PAIR_B"; WITH_TIMERS_LOG="$PAIR_W"
-    PAIRING_NOTE="closest-in-time pair selected across all candidates, ${PAIR_DELTA}s apart (was: independent per-side lexically-latest, which could pick captures days apart -- see R4-I4 header note)"
+  s="$(_mf_get started_epoch "$mf")" || s=""
+  f="$(_mf_get finished_epoch "$mf")" || f=""
+  if ! printf '%s' "$s" | grep -qE '^[0-9]+$' || ! printf '%s' "$f" | grep -qE '^[0-9]+$' || [ "$f" -lt "$s" ]; then
+    TRIPLET_REASON="manifest $mf has no usable started_epoch/finished_epoch ('$s'/'$f')"
+    return
+  fi
+  span=$((f - s))
+  chk "triplet $run_id integrity: all 3 member logs present and byte-identical to the manifest's sha256" "1"
+  chk "triplet $run_id provenance (m3): FC1 ran WITH timers (its own TSV has $(_mf_get member.FC1.tsv_rows "$mf") rows), FC0a/FC0b ran WITHOUT (0 rows each) -- exact per-member TSV paths, never filename inference" "1"
+  # From here on the members are verified genuine, so FC0a can serve the
+  # single-log checks (a)/(b) even when the triplet is refused below.
+  BASELINE_LOG="$dir/$(_mf_get member.FC0a.log "$mf")"
+  if [ "$span" -gt "$MAX_WINDOW_S" ]; then
+    TRIPLET_STATE=refused
+    TRIPLET_REASON="triplet $run_id spans ${span}s, more than the ${MAX_WINDOW_S}s maximum (FC_TIMER_GOLDEN_MAX_WINDOW_S) -- NOT a same-window triplet"
+    return
+  fi
+  if [ "$mode" != real ]; then
+    TRIPLET_STATE=refused
+    TRIPLET_REASON="triplet $run_id is a stand-in capture (mode=$mode) -- never FR-002 evidence"
+    return
+  fi
+  NOISE_LOG="$dir/$(_mf_get member.FC0b.log "$mf")"
+  WITH_TIMERS_LOG="$dir/$(_mf_get member.FC1.log "$mf")"
+  TRIPLET_STATE=valid
+  TRIPLET_REASON="same-run triplet $run_id, $(_mf_get concurrency "$mf"), ${span}s span (<= ${MAX_WINDOW_S}s)"
+  local hs he ss se
+  hs="$(_mf_get tree_head_start "$mf")"; he="$(_mf_get tree_head_end "$mf")"
+  ss="$(_mf_get tree_status_sha256_start "$mf")"; se="$(_mf_get tree_status_sha256_end "$mf")"
+  if [ "$hs" = "$he" ] && [ "$ss" = "$se" ]; then
+    TRIPLET_TREE_NOTE="tree unchanged during the capture (HEAD $hs, status fingerprint stable)"
   else
-    BASELINE_LOG="$(printf '%s\n' "${BASELINE_CANDIDATES[@]}" | sort | tail -n1)"
-    WITH_TIMERS_LOG="$(printf '%s\n' "${WITH_CANDIDATES[@]}" | sort | tail -n1)"
-    PAIRING_NOTE="no candidate filename on either side carried a parseable timestamp -- degraded to the OLD independent per-side lexically-latest behaviour"
+    TRIPLET_TREE_NOTE="tree CHANGED during the capture (HEAD $hs -> $he, status $ss -> $se); all three members ran concurrently against the same changing tree, so the FC0a/FC0b noise floor carries that drift too"
   fi
-elif [ ${#BASELINE_CANDIDATES[@]} -gt 0 ]; then
-  BASELINE_LOG="$(printf '%s\n' "${BASELINE_CANDIDATES[@]}" | sort | tail -n1)"
+}
+
+BASELINE_LOG=""; WITH_TIMERS_LOG=""; NOISE_LOG=""
+TRIPLET_STATE=none; TRIPLET_REASON=""; TRIPLET_TREE_NOTE=""
+if [ -n "$MANIFEST" ]; then
+  validate_triplet "$MANIFEST"
+  case "$TRIPLET_STATE" in
+    valid)   echo "INFO: using $TRIPLET_REASON ($MANIFEST)"
+             echo "INFO: $TRIPLET_TREE_NOTE"
+             _cur_head="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo UNKNOWN)"
+             [ "$_cur_head" = "$(_mf_get tree_head_end "$MANIFEST")" ] \
+               || echo "INFO: triplet was captured at HEAD $(_mf_get tree_head_end "$MANIFEST"); current HEAD is $_cur_head -- re-capture to validate the current tree" ;;
+    refused) echo "INFO: newest triplet refused: $TRIPLET_REASON" ;;
+    invalid) chk "triplet evidence is self-consistent ($MANIFEST): $TRIPLET_REASON" "0" ;;
+  esac
+else
+  _legacy="$(find "$EVIDENCE_DIR" -maxdepth 1 -name '*_FC1_*.log' 2>/dev/null | wc -l | tr -d ' ')"
+  TRIPLET_REASON="no triplet manifest in $EVIDENCE_DIR (${_legacy} *_FC1_* log(s) present without a mode=real manifest are not consumed: without one their timer setting and window cannot be verified) -- run capture_fc_timer_triplet.sh"
+  echo "INFO: $TRIPLET_REASON"
 fi
 
-if [ -z "$BASELINE_LOG" ] || [ ! -f "$BASELINE_LOG" ]; then
-  echo "FATAL: no real 'without timers' evidence log found (set FC_TIMER_GOLDEN_LOG=<path>," \
-       "or run test_fc_timer_prebuild_red.sh first so its evidence log is auto-discoverable)."
-  exit 2
-fi
-echo "INFO: using baseline (without-timers) log: $BASELINE_LOG"
-if [ -n "$WITH_TIMERS_LOG" ] && [ -f "$WITH_TIMERS_LOG" ]; then
-  echo "INFO: using with-timers comparison log: $WITH_TIMERS_LOG"
-  [ -n "$PAIRING_NOTE" ] && echo "INFO: pairing -- $PAIRING_NOTE"
-else
-  echo "INFO: no real 'with timers' evidence log found yet (set FC_TIMER_GOLDEN_LOG_WITH=<path>," \
-       "or capture one with FC_TIMING=1 bash device/rockchip/rk3588/tests/pre_build_verification.sh" \
-       "> $EVIDENCE_DEFAULT_DIR/prebuild_with_timers_full_run_\$(date -u +%Y%m%dT%H%M%SZ).log" \
-       "2>&1) -- the real comparison below stays an honest SKIP until then."
-  WITH_TIMERS_LOG=""
-fi
-
-# ---- locate a same-window SECOND "without timers" capture for the noise floor ----
-NOISE_LOG="${FC_TIMER_GOLDEN_LOG_NOISE:-}"
-NOISE_NOTE=""
-if [ -z "$NOISE_LOG" ] || [ ! -f "$NOISE_LOG" ]; then
-  NOISE_LOG=""
-  if [ -n "$WITH_TIMERS_LOG" ] && [ ${#BASELINE_CANDIDATES[@]} -ge 2 ]; then
-    _fc_wts_for_noise="$(_fc_ts_epoch "$WITH_TIMERS_LOG")"
-    if [ -n "$_fc_wts_for_noise" ]; then
-      OTHER_BASELINE_CANDS=()
-      for _fc_b in "${BASELINE_CANDIDATES[@]}"; do
-        [ "$_fc_b" = "$BASELINE_LOG" ] && continue
-        OTHER_BASELINE_CANDS+=("$_fc_b")
-      done
-      if [ ${#OTHER_BASELINE_CANDS[@]} -gt 0 ]; then
-        NOISE_LOG="$(_fc_closest_to_epoch "$_fc_wts_for_noise" "${OTHER_BASELINE_CANDS[@]}")"
-      fi
-    fi
+# Baseline for the single-log checks (a)/(b): a valid or refused triplet's
+# own (sha-verified) FC0a; with no triplet at all, an explicit
+# FC_TIMER_GOLDEN_LOG, else the newest prebuild_full_run_*.log by mtime --
+# never paired with anything. An INVALID triplet supplies no baseline: its
+# members are not trustworthy, and the FAIL above already reports why.
+if [ "$TRIPLET_STATE" = none ]; then
+  BASELINE_LOG="${FC_TIMER_GOLDEN_LOG:-}"
+  if [ -z "$BASELINE_LOG" ] && [ -d "$EVIDENCE_DIR" ]; then
+    BASELINE_LOG="$(find "$EVIDENCE_DIR" -maxdepth 1 -name 'prebuild_full_run_*.log' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n1 | cut -d' ' -f2-)"
+  fi
+  if [ -z "$BASELINE_LOG" ] || [ ! -f "$BASELINE_LOG" ]; then
+    echo "FATAL: no real 'without timers' evidence log found (no triplet manifest, and no" \
+         "FC_TIMER_GOLDEN_LOG / prebuild_full_run_*.log in $EVIDENCE_DIR)."
+    exit 2
   fi
 fi
-if [ -n "$NOISE_LOG" ] && [ -f "$NOISE_LOG" ]; then
-  echo "INFO: using noise-floor (second without-timers) log: $NOISE_LOG"
-  NOISE_NOTE="established from $NOISE_LOG"
-else
-  NOISE_LOG=""
-  NOISE_NOTE="no same-window second 'without timers' capture available -- set FC_TIMER_GOLDEN_LOG_NOISE=<path> to establish one; a mismatch below (if any) is reported without noise-floor classification"
-fi
+[ "$TRIPLET_STATE" = invalid ] && BASELINE_LOG=""
+[ -n "$BASELINE_LOG" ] && echo "INFO: baseline (without-timers) log: $BASELINE_LOG"
 
 # verdict-line shape used throughout pre_build_verification.sh: PASS/FAIL/WARN lines carry a
 # UTF-8 checkmark/cross or the literal 'WARN'/'ERROR'. Banner/section lines never carry these.
@@ -282,19 +308,24 @@ extract_verdicts() {
 # ============================================================================
 # (a) + (b): real baseline capture + determinism of the extraction mechanism
 # ============================================================================
-extract_verdicts "$BASELINE_LOG" "$TMP/baseline_1.txt"
-extract_verdicts "$BASELINE_LOG" "$TMP/baseline_2.txt"
-BASELINE_LINES="$(wc -l < "$TMP/baseline_1.txt" | tr -d ' ')"
-chk "real 'without timers' verdict set captured from $BASELINE_LOG ($BASELINE_LINES verdict lines)" "$([ "$BASELINE_LINES" -gt 0 ] && echo 1 || echo 0)"
+if [ -n "$BASELINE_LOG" ]; then
+  extract_verdicts "$BASELINE_LOG" "$TMP/baseline_1.txt"
+  extract_verdicts "$BASELINE_LOG" "$TMP/baseline_2.txt"
+  BASELINE_LINES="$(wc -l < "$TMP/baseline_1.txt" | tr -d ' ')"
+  chk "real 'without timers' verdict set captured from $BASELINE_LOG ($BASELINE_LINES verdict lines)" "$([ "$BASELINE_LINES" -gt 0 ] && echo 1 || echo 0)"
 
-HASH_1="$(sha256sum "$TMP/baseline_1.txt" | awk '{print $1}')"
-HASH_2="$(sha256sum "$TMP/baseline_2.txt" | awk '{print $1}')"
-chk "verdict-set extraction is deterministic (two extractions of the same real log hash identically: $HASH_1)" "$([ "$HASH_1" = "$HASH_2" ] && [ -n "$HASH_1" ] && echo 1 || echo 0)"
+  HASH_1="$(sha256sum "$TMP/baseline_1.txt" | awk '{print $1}')"
+  HASH_2="$(sha256sum "$TMP/baseline_2.txt" | awk '{print $1}')"
+  chk "verdict-set extraction is deterministic (two extractions of the same real log hash identically: $HASH_1)" "$([ "$HASH_1" = "$HASH_2" ] && [ -n "$HASH_1" ] && echo 1 || echo 0)"
 
-# Persist the baseline for future re-use / comparison once T029 lands (this file is evidence,
-# not a fixture the pass/fail logic below depends on).
-cp "$TMP/baseline_1.txt" "$TMP/without_timers_baseline.txt"
-chk "baseline verdict set is non-empty and free of ANSI escape sequences" "$(grep -qc $'\x1b' "$TMP/without_timers_baseline.txt" 2>/dev/null && echo 0 || echo 1)"
+  # Persist the baseline for future re-use / comparison once T029 lands (this file is evidence,
+  # not a fixture the pass/fail logic below depends on).
+  cp "$TMP/baseline_1.txt" "$TMP/without_timers_baseline.txt"
+  chk "baseline verdict set is non-empty and free of ANSI escape sequences" "$(grep -qc $'\x1b' "$TMP/without_timers_baseline.txt" 2>/dev/null && echo 0 || echo 1)"
+else
+  BASELINE_LINES=0
+  skip "(a)/(b) real baseline checks: the only candidate baseline was a member of the invalid triplet reported above, so no trustworthy without-timers log is available"
+fi
 
 # ============================================================================
 # (c) self-validation triple for the comparison+stripping logic T029's real
@@ -377,71 +408,53 @@ BT3_EXPECTED="$(printf '%s' "$BT3_LINE" | sed -E 's/^[[:space:]]+//; s/[[:space:
 chk "real bare-suffix content ('... Keep-alive period 20s') is NOT corrupted by suffix-stripping" "$([ "$BT3_OUTPUT" = "$BT3_EXPECTED" ] && echo 1 || echo 0)"
 
 # ============================================================================
-# (d) R3-I6: the REAL with-timers-vs-without-timers verdict-set comparison, the actual FR-002
-# assertion this whole file exists to perform, run the moment a real "with timers" log is on
-# disk. An honest SKIP (never a fabricated PASS) when one is not yet captured -- T028/T029 being
-# `[x]` in tasks.md means the COMPARISON IS NOW POSSIBLE, not that a "with timers" log always
-# exists on every invocation of this file (capturing one is a separate, ~15-20 minute real
-# pre_build_verification.sh run -- see the FC_TIMER_GOLDEN_LOG_WITH usage note above).
+# (d) the REAL FR-002/T-A01 comparison: FC0a (without timers) vs FC1 (with
+# timers) of ONE validated same-run triplet. Anything else is an honest SKIP.
 # ============================================================================
-if [ -n "$WITH_TIMERS_LOG" ]; then
+if [ "$TRIPLET_STATE" = valid ]; then
   extract_verdicts "$WITH_TIMERS_LOG" "$TMP/with_timers.txt"
   WITH_LINES="$(wc -l < "$TMP/with_timers.txt" | tr -d ' ')"
   chk "real 'with timers' verdict set captured from $WITH_TIMERS_LOG ($WITH_LINES verdict lines)" "$([ "$WITH_LINES" -gt 0 ] && echo 1 || echo 0)"
 
-  HASH_WITHOUT_REAL="$(sha256sum "$TMP/baseline_1.txt" | awk '{print $1}')"
-  HASH_WITH_REAL="$(sha256sum "$TMP/with_timers.txt" | awk '{print $1}')"
-  REAL_MATCH=0
-  [ "$HASH_WITHOUT_REAL" = "$HASH_WITH_REAL" ] && REAL_MATCH=1
-
-  if [ "$REAL_MATCH" = "1" ]; then
-    chk "FR-002/T-A01: real with-timers verdict set is IDENTICAL to the real without-timers verdict set, byte-for-byte after stripping timing suffixes ($BASELINE_LOG vs $WITH_TIMERS_LOG)" "1"
+  if cmp -s "$TMP/baseline_1.txt" "$TMP/with_timers.txt"; then
+    chk "FR-002/T-A01: with-timers verdict set is IDENTICAL to the without-timers verdict set, byte-for-byte after stripping timing suffixes ($TRIPLET_REASON)" "1"
   else
-    # Two genuinely SEPARATE pre_build_verification.sh invocations (not one process with
-    # FC_TIMING toggled inline) can legitimately diverge in verdict-set CONTENT for reasons that
-    # have nothing to do with fc_timer instrumentation: the live repo tree can change between
-    # the two captures (a concurrent commit landing on a shared checkout, exactly the kind of
-    # activity this project's own multi-track model produces routinely -- see CONTINUATION.md).
-    # A raw hash mismatch is therefore reported WITH its full line-level diff, never silently
-    # swallowed and never silently upgraded to a PASS -- the honest FAIL below states exactly
-    # which lines differ so a human/agent can distinguish a genuine fc_timer-caused verdict
-    # change (an FR-002 regression) from unrelated inter-capture repo drift.
     DIFF_REAL="$(diff "$TMP/baseline_1.txt" "$TMP/with_timers.txt" 2>/dev/null || true)"
     DIFF_REAL_LINES="$(printf '%s\n' "$DIFF_REAL" | grep -c '^[<>]' || true)"
-    chk "FR-002/T-A01: real with-timers verdict set is IDENTICAL to the real without-timers verdict set, byte-for-byte after stripping timing suffixes ($BASELINE_LOG vs $WITH_TIMERS_LOG) -- MISMATCH, $DIFF_REAL_LINES differing line(s), see diff below (may be genuine inter-capture repo drift on this shared multi-track checkout rather than an fc_timer regression -- re-run both captures back-to-back with no intervening commits to isolate)" "0"
+    chk "FR-002/T-A01: with-timers verdict set is IDENTICAL to the without-timers verdict set, byte-for-byte after stripping timing suffixes ($TRIPLET_REASON) -- MISMATCH, $DIFF_REAL_LINES differing line(s), diff below" "0"
     printf '%s\n' "$DIFF_REAL" | head -n 60
 
-    # ------------------------------------------------------------------
-    # R4-I4 NOISE-FLOOR CLASSIFICATION (diagnostic only -- see the header
-    # NOISE FLOOR note; never changes the strict chk() verdict above).
-    # ------------------------------------------------------------------
-    if [ -n "$NOISE_LOG" ]; then
-      extract_verdicts "$NOISE_LOG" "$TMP/noise.txt"
-      DIFF_NOISE="$(diff "$TMP/baseline_1.txt" "$TMP/noise.txt" 2>/dev/null || true)"
-      # Compare the CHANGED-BASELINE-CONTENT ('<'-prefixed) lines each diff
-      # removed -- both diffs share the SAME "before" side ($TMP/baseline_1.txt),
-      # so a baseline line that differs in BOTH comparisons is unstable
-      # independent of fc_timer (confirmed noise); a baseline line that
-      # differs ONLY against the with-timers side is a genuine candidate.
-      printf '%s\n' "$DIFF_REAL" | grep '^< ' | sed 's/^< //' > "$TMP/real_removed.txt"
-      printf '%s\n' "$DIFF_NOISE" | grep '^< ' | sed 's/^< //' > "$TMP/noise_removed.txt"
-      NOISE_EXPLAINED=0
-      GENUINE_CANDIDATE=0
+    # Noise-floor classification (diagnostic only; never changes the verdict
+    # above). Both directions are classified (R5-I3), each against the SAME
+    # direction in FC0a-vs-FC0b.
+    extract_verdicts "$NOISE_LOG" "$TMP/noise.txt"
+    DIFF_NOISE="$(diff "$TMP/baseline_1.txt" "$TMP/noise.txt" 2>/dev/null || true)"
+    printf '%s\n' "$DIFF_REAL"  | sed -n 's/^< //p' > "$TMP/real_removed.txt"
+    printf '%s\n' "$DIFF_REAL"  | sed -n 's/^> //p' > "$TMP/real_added.txt"
+    printf '%s\n' "$DIFF_NOISE" | sed -n 's/^< //p' > "$TMP/noise_removed.txt"
+    printf '%s\n' "$DIFF_NOISE" | sed -n 's/^> //p' > "$TMP/noise_added.txt"
+    NOISE_EXPLAINED=0
+    UNEXPLAINED=0
+    _fc_classify_against() {
+      # $1 = changed lines on the real side, $2 = the noise side, SAME direction
+      local _fc_line
       while IFS= read -r _fc_line; do
         [ -n "$_fc_line" ] || continue
-        if grep -qxF -- "$_fc_line" "$TMP/noise_removed.txt" 2>/dev/null; then
+        if grep -qxF -- "$_fc_line" "$2" 2>/dev/null; then
           NOISE_EXPLAINED=$((NOISE_EXPLAINED + 1))
         else
-          GENUINE_CANDIDATE=$((GENUINE_CANDIDATE + 1))
+          UNEXPLAINED=$((UNEXPLAINED + 1))
         fi
-      done < "$TMP/real_removed.txt"
-      echo "INFO: noise-floor classification ($NOISE_NOTE, noise floor itself has $(printf '%s\n' "$DIFF_NOISE" | grep -c '^[<>]' || true) differing line(s) between two timer-free captures): of $(wc -l < "$TMP/real_removed.txt" | tr -d ' ') changed baseline verdict line(s) in the with-vs-without mismatch above, $NOISE_EXPLAINED also differ in the SAME-WINDOW no-timer/no-timer noise floor (pre-existing drift, NOT attributable to fc_timer) and $GENUINE_CANDIDATE do NOT appear in the noise floor at all (genuine candidate fc_timer-attributable difference -- investigate these specifically, never the whole mismatch)."
-    else
-      echo "INFO: noise-floor classification unavailable -- $NOISE_NOTE"
-    fi
+      done < "$1"
+    }
+    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_removed.txt"
+    _fc_classify_against "$TMP/real_added.txt" "$TMP/noise_added.txt"
+    TOTAL_CHANGED="$(( $(wc -l < "$TMP/real_removed.txt") + $(wc -l < "$TMP/real_added.txt") ))"
+    echo "NOISE-FLOOR: changed=$TOTAL_CHANGED noise_explained=$NOISE_EXPLAINED not_explained=$UNEXPLAINED (noise floor FC0a-vs-FC0b of the same triplet has $(printf '%s\n' "$DIFF_NOISE" | grep -c '^[<>]' || true) differing line(s))"
+    echo "INFO: of $TOTAL_CHANGED changed verdict line(s) (removed + added), $NOISE_EXPLAINED also change the same way between the two timer-free members of this run (pre-existing noise, not attributable to fc_timer) and $UNEXPLAINED are not explained by this ONE noise sample -- investigate those; one noise pair cannot tell a timer effect from a rare flake, so they are NEVER asserted fc_timer-caused here."
   fi
 else
-  skip "real with-timers-vs-without-timers verdict-set comparison against pre_build_verification.sh (no 'with timers' evidence log captured yet -- set FC_TIMER_GOLDEN_LOG_WITH=<path> or capture one per the usage note above; T028+T029 are landed so this is now a capture gap, not a code gap)"
+  skip "FR-002/T-A01 real with-timers-vs-without-timers comparison: no valid same-run triplet -- ${TRIPLET_REASON:-none found}. Two unrelated captures are never compared."
 fi
 
 echo "SUMMARY: $((N - FAIL - SKIPPED)) pass / $FAIL fail / $SKIPPED skip of $N assertions (baseline: $BASELINE_LOG, $BASELINE_LINES verdict lines)"

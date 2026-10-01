@@ -67,6 +67,21 @@
 # file removes one of these anchors, rather than silently testing stale
 # logic that no longer matches what ships.
 #
+# T048 ROUND 5 ADDITION (finding R5-I1, 2026-09-30): "R4-I1 is only partly
+# closed. The Round-4 reviewer's second named mutation still survives ...
+# Moving _fc_mut_run_complete=1 earlier would also go unnoticed ... The
+# cause is that the W1/W2 drivers write their own _fc_mut_run_complete=1,
+# so where the real file sets the flag is never tested. Fix: add a
+# structural assertion that the file has exactly one
+# _fc_mut_run_complete=1, placed after the final summary block and
+# directly before the exit decision. Pair it with this mutation." Section
+# (D) below closes this exactly: it asserts the REAL, UNMODIFIED source
+# file's OWN literal `_fc_mut_run_complete=1` line's POSITION (never a
+# driver-simulated flag), then proves that assertion load-bearing via the
+# reviewer's OWN exact mutation (move the line to directly after the
+# early `builtin trap '_mt_exit_final' EXIT` arm point, matching the
+# Round-5 review's own repro verbatim).
+#
 # Producer≠Verifier (§11.4.240): this file is authored as an independent
 # regression guard for an ALREADY-LANDED R3-I5 fix; it does not touch
 # either source file's own implementation.
@@ -76,7 +91,11 @@ repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 RED="$FC/tests/test_metatest_per_mutant_red.sh"
-MT="$ROOT/scripts/testing/meta_test_false_positive_proof.sh"
+# T048 round 6: METATEST_SRC lets a caller point this WHOLE guard at a
+# mutated COPY of the real file (round-6 proof that the reviewer's own R5-I1
+# mutation, applied to the real file's own text, makes this file exit != 0).
+# Default is the real, unmodified parent-repo file.
+MT="${METATEST_SRC:-$ROOT/scripts/testing/meta_test_false_positive_proof.sh}"
 
 fail=0
 failx() { fail=1; }
@@ -229,6 +248,129 @@ else
 fi
 
 # =============================================================================
+# (A2)/(B2) T048 ROUND 5 ADDITION (finding m1, 2026-09-30): "A three-dir
+# mixed-state archive is uncovered. If the newest dir is RUN_COMPLETE but has
+# no TSV, the middle dir is partial, and the oldest is complete, the real
+# logic correctly falls through to the oldest. Reviewer mutation M3, which
+# makes the loop `break` even without a TSV, selects nothing, yet the R4-I1
+# test stays rc=0." The 2-dir (A)/(B) fixture above never puts a
+# RUN_COMPLETE-bearing, TSV-less directory FIRST in iteration order, so it
+# never exercises the "skip this RUN_COMPLETE dir and keep looking" branch
+# at all -- M3's mutation (breaking unconditionally the first time
+# RUN_COMPLETE is seen, instead of continuing when that dir has no TSV) is
+# therefore invisible to it. This 3-dir fixture puts exactly that shape
+# first, proving the real logic correctly falls through TWO dirs (one
+# RUN_COMPLETE-but-no-TSV, one genuinely partial/no-RUN_COMPLETE) to land on
+# the oldest genuinely complete one, and proving the reviewer's M3 mutation
+# is caught.
+# =============================================================================
+ARCHIVE3="$TMP/archive3"
+NEWEST_ID="20260103T000000Z_newest_no_tsv"
+MIDDLE_ID="20260102T000000Z_middle_partial"
+OLDEST_ID="20260101T000000Z_oldest_complete"
+NEWEST_DIR="$ARCHIVE3/$NEWEST_ID"
+MIDDLE_DIR="$ARCHIVE3/$MIDDLE_ID"
+OLDEST_DIR="$ARCHIVE3/$OLDEST_ID"
+mkdir -p "$NEWEST_DIR" "$MIDDLE_DIR" "$OLDEST_DIR"
+# newest: genuinely RUN_COMPLETE but carries NO *.tsv at all -- the real
+# loop must skip it (via the inner `if [ -n "$_mt_cand_tsv" ]` falling
+# through) WITHOUT selecting anything and WITHOUT stopping.
+printf 'pass=1\nfail=0\nskip=0\nts=2026-01-03T00:00:00Z\n' > "$NEWEST_DIR/RUN_COMPLETE"
+# middle: genuinely partial/interrupted -- NO RUN_COMPLETE sentinel at all
+# (carries a TSV anyway, shaped like a never-finalized fragment, so the
+# fixture is realistic -- but the reader loop's own selection logic must
+# reject it on the RUN_COMPLETE check alone, before ever looking at the TSV).
+MIDDLE_TSV="$MIDDLE_DIR/per_mutant.tsv"
+printf 'label\tstart_ns\tend_ns\tduration_ms\tgate\tcmd\tverdict\tchecks\tpass\tfail\tmutation_verdict\n' > "$MIDDLE_TSV"
+printf 'M_R5M1_MIDDLE\t1\t2\t1\tgate.sh\tgate.sh\tPASS\t0\t0\t0\t\n' >> "$MIDDLE_TSV"
+# oldest: genuinely complete -- RUN_COMPLETE + a real finalized TSV.
+OLDEST_TSV="$OLDEST_DIR/per_mutant.tsv"
+printf 'label\tstart_ns\tend_ns\tduration_ms\tgate\tcmd\tverdict\tchecks\tpass\tfail\tmutation_verdict\n' > "$OLDEST_TSV"
+printf 'M_R5M1_OLDEST\t1\t2\t1\tgate.sh\tgate.sh\tPASS\t1\t1\t0\tKILLED\n' >> "$OLDEST_TSV"
+printf 'pass=1\nfail=0\nskip=0\nts=2026-01-01T00:00:00Z\n' > "$OLDEST_DIR/RUN_COMPLETE"
+
+echo
+echo "=== (A2) m1: real (fixed) selection logic falls through a RUN_COMPLETE-but-no-TSV newest dir AND a no-RUN_COMPLETE middle dir, landing on the oldest genuinely complete one ==="
+if [ -n "$SEL_PAYLOAD" ]; then
+  DRIVER_A2="$TMP/driver_a2.sh"
+  {
+    echo 'set -u'
+    printf 'METATEST_ARCHIVE_DIR=%q\n' "$ARCHIVE3"
+    cat "$SEL_PAYLOAD"
+    echo 'printf "SELECTED=%s\n" "$METATEST_TSV"'
+  } > "$DRIVER_A2"
+  SELECTED_A2="$(bash "$DRIVER_A2" 2>"$TMP/driver_a2.err" | sed -n 's/^SELECTED=//p')"
+  if [ "$SELECTED_A2" = "$OLDEST_TSV" ]; then
+    echo "ok (A2) real selection logic correctly skipped the newest (RUN_COMPLETE, no"
+    echo "   TSV) and middle (no RUN_COMPLETE) run-dirs and selected the oldest"
+    echo "   genuinely complete one's TSV ($SELECTED_A2)"
+  else
+    echo "NOT ok (A2) real selection logic picked '$SELECTED_A2' (wanted the oldest"
+    echo "     complete run's TSV '$OLDEST_TSV') -- $(cat "$TMP/driver_a2.err" 2>/dev/null)"
+    failx
+  fi
+else
+  echo "NOT ok (A2) SKIPPED: extraction control needle above already failed"
+  failx
+fi
+
+echo
+echo "=== (B2) guard-viability: the reviewer's OWN M3 mutation (the loop breaks on the FIRST RUN_COMPLETE dir even with no TSV) selects NOTHING on this exact fixture ==="
+SEL_PAYLOAD_M3=""
+if [ -n "$SEL_PAYLOAD" ]; then
+  IF_LINE='    if [ -n "$_mt_cand_tsv" ]; then'
+  FI_LINE='    fi'
+  IF_HITS="$(grep -cxF "$IF_LINE" "$SEL_PAYLOAD" 2>/dev/null || true)"; : "${IF_HITS:=0}"
+  if [ "$IF_HITS" != 1 ]; then
+    echo "NOT ok (B2) control needle FAILED: anchor '$IF_LINE' appears $IF_HITS"
+    echo "     time(s) in the extracted payload (expected exactly 1) -- M3's"
+    echo "     mutation target no longer exists in this exact form"
+    failx
+  else
+    # Drop the `if`/`fi` wrapper around the "only select+break when a TSV
+    # was found" guard, leaving the body (unconditional select+break)
+    # always executing -- the reviewer's M3 mutation reproduced exactly:
+    # the loop now breaks the FIRST time it sees a RUN_COMPLETE dir,
+    # whether or not that dir has a TSV.
+    SEL_PAYLOAD_M3="$TMP/selection_payload_m3_mutated.sh"
+    awk -v ifline="$IF_LINE" -v filine="$FI_LINE" '
+      $0==ifline { skipping=1; next }
+      skipping && $0==filine { skipping=0; next }
+      { print }
+    ' "$SEL_PAYLOAD" > "$SEL_PAYLOAD_M3"
+    echo "ok (B2) control needle: located + will mutate the TSV-found guard into an"
+    echo "   unconditional break -- the reviewer's own M3 mutation, reproduced"
+  fi
+fi
+if [ -n "$SEL_PAYLOAD_M3" ]; then
+  DRIVER_B2="$TMP/driver_b2.sh"
+  {
+    echo 'set -u'
+    printf 'METATEST_ARCHIVE_DIR=%q\n' "$ARCHIVE3"
+    cat "$SEL_PAYLOAD_M3"
+    echo 'printf "SELECTED=%s\n" "$METATEST_TSV"'
+  } > "$DRIVER_B2"
+  SELECTED_B2="$(bash "$DRIVER_B2" 2>"$TMP/driver_b2.err" | sed -n 's/^SELECTED=//p')"
+  if [ -z "$SELECTED_B2" ]; then
+    echo "ok (B2) mutated (unconditional-break) selection logic selected NOTHING"
+    echo "   ('$SELECTED_B2', empty) on the SAME 3-dir fixture (A2) correctly picked"
+    echo "   the oldest complete run from -- reproducing M3's exact reported effect"
+    echo "   ('selects nothing') end-to-end, proving the TSV-found guard this"
+    echo "   fixture exercises is genuinely load-bearing"
+  else
+    echo "NOT ok (B2) BLIND: mutated selection logic picked '$SELECTED_B2' (wanted"
+    echo "     empty/nothing, per M3's own reported effect) --"
+    echo "     $(cat "$TMP/driver_b2.err" 2>/dev/null); either the mutation"
+    echo "     extraction is malformed or this fixture does not genuinely exercise"
+    echo "     the TSV-found guard the way M3 describes"
+    failx
+  fi
+else
+  echo "NOT ok (B2) SKIPPED: could not construct the M3 mutation above"
+  failx
+fi
+
+# =============================================================================
 # (C) WRITER-side extraction: meta_test_false_positive_proof.sh's own
 # completion-marker machinery -- `_fc_mut_finalize_verdicts()` (called by
 # `_mt_exit_final`, harmless no-op here since `fc_timer_enabled` is never
@@ -363,10 +505,23 @@ if [ -n "$W_PAYLOAD" ]; then
   W2DIR="$TMP/w2"
   run_writer_scenario "$W_PAYLOAD" early "$W2DIR"
   if [ ! -f "$W2DIR/RUN_COMPLETE" ]; then
+    # T048 round-5 minor m7: the earlier wording here claimed the absent
+    # sentinel was "confirmed by $FC_TIMER_TSV's directory existing" as
+    # proof the EXIT trap fired -- but run_writer_scenario's OWN driver
+    # unconditionally `mkdir -p`s that directory before the payload even
+    # runs, so its existence is circular, not evidence of anything the
+    # trap did. Corrected: state plainly what THIS scenario alone proves
+    # (the guard correctly refused to write on an early exit), and point
+    # at (W1) -- which DOES independently prove the same unconditional
+    # top-level trap arm fires, by writing a real sentinel when the
+    # completion flag is set -- for the trap-firing claim itself.
     echo "ok (W2) real writer logic wrote NO RUN_COMPLETE sentinel on an early exit --"
-    echo "   the real EXIT trap fired ('_mt_exit_final' ran, confirmed by"
-    echo "   \$FC_TIMER_TSV's directory existing as designed) but the completion"
-    echo "   guard correctly refused to write the marker"
+    echo "   the completion guard correctly refused to write the marker. (This"
+    echo "   scenario's own absent-sentinel result does not by itself prove the"
+    echo "   EXIT trap fired -- (W1) above already proves that, via the SAME"
+    echo "   unconditional top-level trap arm writing a real sentinel when the"
+    echo "   completion flag IS set; (W3) below independently proves this guard"
+    echo "   clause, not trap non-firing, is what prevents a sentinel here.)"
   else
     echo "NOT ok (W2) real writer logic WRONGLY wrote RUN_COMPLETE on an early exit --"
     echo "     $(cat "$W2DIR/stderr.log" 2>/dev/null)"
@@ -398,17 +553,207 @@ else
   failx
 fi
 
+# =============================================================================
+# (D) T048 ROUND 5 finding R5-I1: structural assertion -- the REAL source
+# file's OWN `_fc_mut_run_complete=1` line is positioned AFTER genuine
+# completion work (the top-level `_fc_mut_finalize_verdicts || true` call)
+# and directly before the exit decision -- never merely a driver-controlled
+# flag the W1/W2/W3 scenarios above set themselves (which is exactly why
+# the reviewer's "move the flag earlier" mutation survived those checks:
+# they never exercise the REAL file's own placement of the line at all).
+# =============================================================================
+D_FLAG_LINE='_fc_mut_run_complete=1'
+D_FINALIZE_LINE='_fc_mut_finalize_verdicts || true'
+D_ARM_LINE="builtin trap '_mt_exit_final' EXIT"
+
+check_run_complete_placement() {
+  # $1 = file to check; prints "OK" or "BAD:<reason>" on stdout.
+  local f="$1"
+  local flag_count flag_line finalize_last summary_last next_code_line
+  flag_count="$(grep -cxF "$D_FLAG_LINE" "$f" 2>/dev/null || true)"; : "${flag_count:=0}"
+  if [ "$flag_count" != 1 ]; then
+    printf 'BAD:flag-count=%s (want exactly 1)\n' "$flag_count"
+    return
+  fi
+  flag_line="$(grep -nxF "$D_FLAG_LINE" "$f" | head -n1 | cut -d: -f1)"
+  finalize_last="$(grep -nxF "$D_FINALIZE_LINE" "$f" | tail -n1 | cut -d: -f1)"
+  if [ -z "$finalize_last" ] || [ "$flag_line" -le "$finalize_last" ]; then
+    printf 'BAD:flag-line=%s not-after-finalize-line=%s\n' "$flag_line" "${finalize_last:-MISSING}"
+    return
+  fi
+  # T048 round 6 tightening: the flag must also sit AFTER the LAST
+  # "Meta-test summary" banner (the reviewer's own wording: "after the final
+  # summary block"), not merely after the finalize call.
+  summary_last="$(grep -n 'echo "Meta-test summary"' "$f" | tail -n1 | cut -d: -f1)"
+  if [ -z "$summary_last" ] || [ "$flag_line" -le "$summary_last" ]; then
+    printf 'BAD:flag-line=%s not-after-final-summary-banner=%s\n' "$flag_line" "${summary_last:-MISSING}"
+    return
+  fi
+  # The next non-blank, non-comment line after the flag assignment MUST be
+  # the exit decision itself -- proving the flag is set DIRECTLY before it.
+  # Round 6: an exact shape match, never the old "*exit*" substring test
+  # (which "_mt_exit_final" or any "...exit..." word would also satisfy).
+  next_code_line="$(awk -v n="$flag_line" 'NR>n{ line=$0; gsub(/^[ \t]+/,"",line); if (line=="" || substr(line,1,1)=="#") next; print line; exit }' "$f")"
+  if printf '%s\n' "$next_code_line" | grep -qE '^if \[ "\$FAIL_COUNT" -gt 0 \]; then exit 1; fi$'; then
+    printf 'OK\n'
+  else
+    printf 'BAD:next-code-line=%s (is not the exit decision)\n' "$next_code_line"
+  fi
+}
+
+echo
+echo "=== (D-real) R5-I1: the REAL, unmutated source file's own completion-flag placement ==="
+D_REAL_RESULT="$(check_run_complete_placement "$MT")"
+if [ "$D_REAL_RESULT" = "OK" ]; then
+  echo "ok (D-real) the real source file's _fc_mut_run_complete=1 line is genuinely"
+  echo "   positioned after the top-level completion work"
+  echo "   (_fc_mut_finalize_verdicts || true) and directly before the exit decision"
+else
+  echo "NOT ok (D-real) real source file structural check FAILED: $D_REAL_RESULT"
+  failx
+fi
+
+echo
+echo "=== (D-mut) guard-viability: the reviewer's OWN R5-I1 mutation -- move the flag"
+echo "    assignment to directly after the early EXIT-trap arm point ==="
+D_MUT_FILE="$TMP/mt_r5i1_mutated.sh"
+awk -v flag="$D_FLAG_LINE" -v arm="$D_ARM_LINE" '
+  $0==flag { next }
+  { print }
+  $0==arm { print flag }
+' "$MT" > "$D_MUT_FILE"
+D_MUT_FLAG_COUNT="$(grep -cxF "$D_FLAG_LINE" "$D_MUT_FILE" 2>/dev/null || true)"; : "${D_MUT_FLAG_COUNT:=0}"
+D_ARM_COUNT="$(grep -cxF "$D_ARM_LINE" "$D_MUT_FILE" 2>/dev/null || true)"; : "${D_ARM_COUNT:=0}"
+if [ "$D_MUT_FLAG_COUNT" != 1 ] || [ "$D_ARM_COUNT" != 1 ]; then
+  echo "NOT ok (D-mut) SKIPPED: could not construct the mutation (flag-count=$D_MUT_FLAG_COUNT,"
+  echo "     arm-count=$D_ARM_COUNT) -- the file's structure changed; this assertion's"
+  echo "     anchors need updating"
+  failx
+else
+  D_MUT_RESULT="$(check_run_complete_placement "$D_MUT_FILE")"
+  if [ "$D_MUT_RESULT" != "OK" ]; then
+    echo "ok (D-mut) guard-viability: the reviewer's OWN mutation (flag moved to fire"
+    echo "   from the start of the run, immediately after the early EXIT-trap arm) is"
+    echo "   correctly REJECTED by the structural check: $D_MUT_RESULT"
+  else
+    echo "NOT ok (D-mut) BLIND: the structural check did not catch the reviewer's own"
+    echo "     R5-I1 mutation -- moving the flag earlier still reports OK"
+    failx
+  fi
+fi
+
+# =============================================================================
+# (E) T048 ROUND 5 ADDITION (finding m9, 2026-09-30): "The NUL-safe loop has
+# no committed space-bearing-dir fixture, so reverting it to
+# `for ... $(find)` would go unnoticed." The R4 minor fix converted this
+# loop from a word-splitting `for _mt_cand_dir in $(find ... | sort -r)` to
+# a NUL-delimited `find -print0 | sort -z` piped through
+# `while IFS= read -r -d ''` specifically to handle a space (or embedded
+# newline) in a run-dir's own name -- but nothing committed here actually
+# EXERCISES a space-bearing directory name, so the fix's own regression
+# protection was itself unguarded. This proves the REAL (fixed) selection
+# logic genuinely selects a space-bearing complete run-dir, and that
+# reverting to the OLD word-splitting form (reproduced verbatim from this
+# fix's own header comment) WRONGLY fails to select it.
+# =============================================================================
+echo
+echo "=== (E) m9: real (fixed) NUL-safe selection logic correctly selects a run-dir whose own name contains a SPACE ==="
+ARCHIVE_SPACE="$TMP/archive_space"
+SPACE_ID="20260102 run with space"
+SPACE_DIR="$ARCHIVE_SPACE/$SPACE_ID"
+mkdir -p "$SPACE_DIR"
+SPACE_TSV="$SPACE_DIR/per_mutant.tsv"
+printf 'label\tstart_ns\tend_ns\tduration_ms\tgate\tcmd\tverdict\tchecks\tpass\tfail\tmutation_verdict\n' > "$SPACE_TSV"
+printf 'M_R5M9_SPACE\t1\t2\t1\tgate.sh\tgate.sh\tPASS\t1\t1\t0\tKILLED\n' >> "$SPACE_TSV"
+printf 'pass=1\nfail=0\nskip=0\nts=2026-01-02T00:00:00Z\n' > "$SPACE_DIR/RUN_COMPLETE"
+
+if [ -n "$SEL_PAYLOAD" ]; then
+  DRIVER_E="$TMP/driver_e.sh"
+  {
+    echo 'set -u'
+    printf 'METATEST_ARCHIVE_DIR=%q\n' "$ARCHIVE_SPACE"
+    cat "$SEL_PAYLOAD"
+    echo 'printf "SELECTED=%s\n" "$METATEST_TSV"'
+  } > "$DRIVER_E"
+  SELECTED_E="$(bash "$DRIVER_E" 2>"$TMP/driver_e.err" | sed -n 's/^SELECTED=//p')"
+  if [ "$SELECTED_E" = "$SPACE_TSV" ]; then
+    echo "ok (E-real) real selection logic correctly selected the space-bearing"
+    echo "   run-dir's TSV ($SELECTED_E)"
+  else
+    echo "NOT ok (E-real) real selection logic picked '$SELECTED_E' (wanted the"
+    echo "     space-bearing run's TSV '$SPACE_TSV') -- $(cat "$TMP/driver_e.err" 2>/dev/null)"
+    failx
+  fi
+else
+  echo "NOT ok (E-real) SKIPPED: extraction control needle above already failed"
+  failx
+fi
+
+echo
+echo "=== (E-mut) guard-viability: reverting to the OLD word-splitting 'for \$(find)' form WRONGLY fails to select the space-bearing run-dir ==="
+WHILE_OPEN='  while IFS= read -r -d '"'"''"'"' _mt_cand_dir; do'
+WHILE_CLOSE='  done < <(find "$METATEST_ARCHIVE_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -rz)'
+OPEN_HITS="$(grep -cxF "$WHILE_OPEN" "$SEL_PAYLOAD" 2>/dev/null || true)"; : "${OPEN_HITS:=0}"
+CLOSE_HITS="$(grep -cxF "$WHILE_CLOSE" "$SEL_PAYLOAD" 2>/dev/null || true)"; : "${CLOSE_HITS:=0}"
+SEL_PAYLOAD_E_MUT=""
+if [ "$OPEN_HITS" != 1 ] || [ "$CLOSE_HITS" != 1 ]; then
+  echo "NOT ok (E-mut) control needle FAILED: anchors not exactly-once (open=$OPEN_HITS,"
+  echo "     close=$CLOSE_HITS) -- the NUL-safe loop's own shape changed; this"
+  echo "     assertion's anchors need updating"
+  failx
+else
+  FOR_OPEN='  for _mt_cand_dir in $(find "$METATEST_ARCHIVE_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -r); do'
+  SEL_PAYLOAD_E_MUT="$TMP/selection_payload_m9_mutated.sh"
+  awk -v wopen="$WHILE_OPEN" -v wclose="$WHILE_CLOSE" -v fopen="$FOR_OPEN" '
+    $0==wopen { print fopen; next }
+    $0==wclose { print "  done"; next }
+    { print }
+  ' "$SEL_PAYLOAD" > "$SEL_PAYLOAD_E_MUT"
+  echo "ok (E-mut) control needle: located + reverted the NUL-safe loop to the OLD"
+  echo "   word-splitting 'for \$(find ... | sort -r)' form -- this fix's own"
+  echo "   documented pre-fix shape, reproduced verbatim"
+fi
+if [ -n "$SEL_PAYLOAD_E_MUT" ]; then
+  DRIVER_E_MUT="$TMP/driver_e_mut.sh"
+  {
+    echo 'set -u'
+    printf 'METATEST_ARCHIVE_DIR=%q\n' "$ARCHIVE_SPACE"
+    cat "$SEL_PAYLOAD_E_MUT"
+    echo 'printf "SELECTED=%s\n" "$METATEST_TSV"'
+  } > "$DRIVER_E_MUT"
+  SELECTED_E_MUT="$(bash "$DRIVER_E_MUT" 2>"$TMP/driver_e_mut.err" | sed -n 's/^SELECTED=//p')"
+  if [ "$SELECTED_E_MUT" != "$SPACE_TSV" ]; then
+    echo "ok (E-mut) the reverted (word-splitting) selection logic WRONGLY failed to"
+    echo "   select the space-bearing run's TSV on the SAME fixture (got"
+    echo "   '$SELECTED_E_MUT', wanted '$SPACE_TSV') -- proving the NUL-safe loop"
+    echo "   this fixture exercises is genuinely load-bearing, and that reverting it"
+    echo "   would now be caught"
+  else
+    echo "NOT ok (E-mut) BLIND: the reverted word-splitting logic still correctly"
+    echo "     selected the space-bearing run's TSV -- either this host's find/sort"
+    echo "     genuinely tolerates the embedded space in this configuration, or the"
+    echo "     mutation extraction is malformed; either way this fixture does not"
+    echo "     currently distinguish the two loop forms"
+    failx
+  fi
+else
+  echo "NOT ok (E-mut) SKIPPED: could not construct the mutation above"
+  failx
+fi
+
 echo
 if [ "$fail" = 0 ]; then
-  echo "=== R4-I1 REGRESSION GUARD: ALL CHECKS PASS -- the real (fixed)"
+  echo "=== R4-I1/R5-I1 REGRESSION GUARD: ALL CHECKS PASS -- the real (fixed)"
   echo "    reader-side selection logic correctly picks the older, RUN_COMPLETE-"
   echo "    marked run-dir over a lexically-newer partial one, the real (fixed)"
   echo "    writer-side logic writes the sentinel only on a genuine completed run"
-  echo "    and never on an early exit, and both halves' own guard checks are"
+  echo "    and never on an early exit, both halves' own guard checks are"
   echo "    independently confirmed load-bearing via the reviewer's own mutation"
-  echo "    technique. ==="
+  echo "    technique, and the REAL source file's own _fc_mut_run_complete=1"
+  echo "    placement is structurally verified (never merely a driver-simulated"
+  echo "    flag) and proven load-bearing via the reviewer's own R5-I1 mutation. ==="
 else
-  echo "=== R4-I1 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ==="
+  echo "=== R4-I1/R5-I1 REGRESSION GUARD: FAILURES ABOVE -- see NOT ok lines. ==="
 fi
 
 exit "$fail"
