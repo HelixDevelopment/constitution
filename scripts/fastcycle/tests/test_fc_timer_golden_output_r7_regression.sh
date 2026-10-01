@@ -30,7 +30,11 @@
 #       real side, once in the noise floor -> 1 explained + 1 not explained).
 #  (R10) R6-B1: a CONCURRENT triplet without tmpdir_isolation=per-member is
 #       refused (SKIP); a SEQUENTIAL one without the key is still compared.
-#  (M-*) one mutation per fix, each restoring the round-6 behaviour.
+#  (R10c) T048 round 8, R8-M1: a CONCURRENT triplet whose tmpdir_isolation
+#       key is PRESENT but wrong-valued (e.g. "none") is ALSO refused -- the
+#       check reads the VALUE, not merely whether the key exists.
+#  (M-*) one mutation per fix, each restoring the round-6 (or round-8)
+#       pre-fix behaviour.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/golden_triplet_fixture.sh
@@ -180,6 +184,13 @@ gt_golden "$TMP/r10b.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/r10b"; rc=$?
 [ "$rc" = 0 ] && has "$TMP/r10b.out" "IDENTICAL" \
   && ok "(R10b) a sequential triplet (members never overlap) is compared without the key (golden-FALSE)" || bad "(R10b) rc=$rc; $(grep -E 'SKIP|INFO' "$TMP/r10b.out" | head -2)"
 
+echo "=== (R10c) T048 round 8 (R8-M1): a WRONG-VALUED tmpdir_isolation key (present, value != per-member) is STILL refused -- the check reads the VALUE, not merely presence ==="
+capture "$TMP/r10c" "$SAME" 20261001T180000Z
+set_key "$TMP/r10c/t_20261001T180000Z.triplet" tmpdir_isolation none
+gt_golden "$TMP/r10c.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/r10c"; rc=$?
+[ "$rc" = 0 ] && has "$TMP/r10c.out" "WITHOUT per-member TMPDIR isolation" && ! has "$TMP/r10c.out" "IDENTICAL" \
+  && ok "(R10c) a concurrent triplet whose tmpdir_isolation=none (present, wrong value) is refused exactly like a missing key" || bad "(R10c) rc=$rc"
+
 # ---------------------------------------------------------------------------
 # Mutations (each restores round-6 behaviour in a COPY of the golden test).
 # ---------------------------------------------------------------------------
@@ -248,6 +259,16 @@ echo "=== (M-iso) isolation refusal removed ==="
 if mutate iso '  if [ "$(_mf_get concurrency "$mf")" != sequential ] && [ "$(_mf_get tmpdir_isolation "$mf")" != per-member ]; then' '  if false; then'; then
   mrun iso "$TMP/miso.out" "$TMP/r10a"
   has "$TMP/miso.out" "IDENTICAL" && ok "(M-iso) the mutant compares the non-isolated concurrent triplet -- (R10a) is load-bearing" || bad "(M-iso) BLIND"
+fi
+
+echo "=== (M-presence) T048 round 8 (R8-M1): degrade the isolation check to presence-only (ignores the VALUE) ==="
+if mutate presence '[ "$(_mf_get tmpdir_isolation "$mf")" != per-member ]' '! grep -q "^tmpdir_isolation=" "$mf"'; then
+  mrun presence "$TMP/mpresence.out" "$TMP/r10c"
+  if has "$TMP/mpresence.out" "IDENTICAL" && ! has "$TMP/mpresence.out" "WITHOUT per-member TMPDIR isolation"; then
+    ok "(M-presence) the presence-only mutant WRONGLY compares (R10c)'s wrong-valued-key triplet -- (R10c) is genuinely load-bearing, closing the gap a presence-only check left open"
+  else
+    bad "(M-presence) BLIND: $(grep -E 'INFO:|SKIP' "$TMP/mpresence.out" | head -3)"
+  fi
 fi
 
 echo

@@ -566,51 +566,70 @@ D_FLAG_LINE='_fc_mut_run_complete=1'
 D_FINALIZE_LINE='_fc_mut_finalize_verdicts || true'
 D_ARM_LINE="builtin trap '_mt_exit_final' EXIT"
 
-# _rc_flag_assignments FILE -- prints "LINENO:<line>" for every NON-COMMENT
-# line that assigns _fc_mut_run_complete a value other than 0, in ANY form:
-# indented, `export`/`declare -g`/`typeset`/`readonly`/`local` prefixed,
-# `;`/`&&`-separated on a shared line, quoted ('1' "1"), trailing whitespace.
-# (T048 round 7, R6-I2.) Comment-only lines (first non-blank char '#') are
-# skipped; a reference such as "$_fc_mut_run_complete" is not an assignment
-# because no '=' directly follows the name.
-_rc_flag_assignments() {
+# _rc_bare_token_lines FILE -- prints "LINENO:<line>" for every NON-COMMENT
+# line in which the bare identifier `_fc_mut_run_complete` appears OUTSIDE
+# of a `$`-prefixed value-READ (`$_fc_mut_run_complete` /
+# `${_fc_mut_run_complete...}`) -- i.e. every line where the token could
+# plausibly be a WRITE TARGET, in ANY syntactic form whatsoever: a direct
+# `name=value` assignment with any decorator/whitespace/quoting/separator,
+# an arithmetic-context assignment (`(( name = 1 ))`), a `printf -v name`
+# write, a `read ... name` target, nameref indirection
+# (`declare -n alias=name`), or any future form not yet invented.
+# (T048 round 8, finding R8-I2: the round-6/round-7 counter keyed on the
+# literal substring `_fc_mut_run_complete=`, which `(( _fc_mut_run_complete
+# = 1 ))` (space before `=`), `printf -v _fc_mut_run_complete %s 1` (no `=`
+# at all), `read -r _fc_mut_run_complete <<< 1` (no `=`), and
+# `declare -n _rcref=_fc_mut_run_complete; _rcref=1` (the name appears only
+# as a nameref RHS, never followed by `=`) all evade -- each sets the flag
+# early with zero detection. Per the reviewer's own suggestion, this inverts
+# the whole approach to an ALLOW-LIST: instead of enumerating evasive
+# syntax forms one at a time, every line that so much as MENTIONS the bare
+# token in a non-read position is a candidate violation, and
+# check_run_complete_placement() below accepts ONLY the two known-good
+# literal shapes -- closing the entire evasion CLASS at once.) Comment-only
+# lines (first non-blank char '#') are skipped. A line whose ONLY
+# occurrence(s) of the token are value-reads is NEVER flagged here, however
+# many there are -- reading the flag can never set it early.
+_rc_bare_token_lines() {
   awk '
     { l=$0; t=l; sub(/^[ \t]+/, "", t); if (substr(t,1,1)=="#") next
-      rest=l; hit=0
-      while ((i = index(rest, "_fc_mut_run_complete=")) > 0) {
-        pre = (i > 1) ? substr(rest, i-1, 1) : ""
-        val = substr(rest, i + length("_fc_mut_run_complete="))
-        rest = val
-        if (pre ~ /[A-Za-z0-9_$]/) continue
-        match(val, /^[^ \t;&|)]*/); v = substr(val, 1, RLENGTH)
-        gsub(/["\047]/, "", v)
-        if (v != "0") hit=1
-      }
-      if (hit) print NR ":" l
+      work=l
+      gsub(/\$\{?_fc_mut_run_complete/, "", work)
+      if (work ~ /(^|[^A-Za-z0-9_])_fc_mut_run_complete([^A-Za-z0-9_]|$)/) print NR ":" l
     }' "$1"
 }
 
 check_run_complete_placement() {
   # $1 = file to check; prints "OK" or "BAD:<reason>" on stdout.
   local f="$1"
-  local flag_count flag_line finalize_last summary_last next_code_line assigns
-  # T048 round 7 (finding R6-I2, reviewer-authored mutation): the round-6
-  # check counted ONLY the exact, unindented whole line, so an INDENTED
-  # duplicate (or `export`/`declare -g`/`;`-terminated/trailing-space form)
-  # placed right after the early EXIT-trap arm point was invisible to it. Now
-  # EVERY non-comment assignment of the flag to a non-zero value is counted,
-  # whatever its form, and exactly one may exist (see _rc_flag_assignments).
-  assigns="$(_rc_flag_assignments "$f")"
-  flag_count="$(printf '%s' "$assigns" | grep -c . || true)"; : "${flag_count:=0}"
+  local flag_count flag_line finalize_last summary_last next_code_line bare
+  local _bl _bl_lineno _bl_text
+  # T048 round 8 (finding R8-I2, allow-list inversion -- see
+  # _rc_bare_token_lines() above for the full rationale): EVERY line that
+  # mentions the bare token in a non-read position must be EXACTLY one of
+  # the two known-good literal shapes -- the init `_fc_mut_run_complete=0`
+  # or the canonical final `$D_FLAG_LINE` -- regardless of its syntactic
+  # form; anything else is an outright violation.
+  bare="$(_rc_bare_token_lines "$f")"
+  flag_count=0
+  flag_line=""
+  while IFS= read -r _bl; do
+    [ -z "$_bl" ] && continue
+    _bl_lineno="${_bl%%:*}"
+    _bl_text="$(sed -n "${_bl_lineno}p" "$f")"
+    if [ "$_bl_text" = "$D_FLAG_LINE" ]; then
+      flag_count=$((flag_count + 1))
+      flag_line="$_bl_lineno"
+    elif [ "$_bl_text" = "_fc_mut_run_complete=0" ]; then
+      :  # known-good init line -- never counted toward flag_count
+    else
+      printf 'BAD:unexpected-token-line=%s: %s\n' "$_bl_lineno" "$_bl_text"
+      return
+    fi
+  done <<<"$bare"
   if [ "$flag_count" != 1 ]; then
-    printf 'BAD:flag-count=%s (want exactly 1 non-zero assignment, any form; at lines: %s)\n' \
-      "$flag_count" "$(printf '%s' "$assigns" | cut -d: -f1 | tr '\n' ' ')"
-    return
-  fi
-  flag_line="${assigns%%:*}"
-  # The single assignment must be the canonical, column-0 line itself.
-  if [ "$(sed -n "${flag_line}p" "$f")" != "$D_FLAG_LINE" ]; then
-    printf 'BAD:flag-line=%s is not the canonical form %s\n' "$flag_line" "$D_FLAG_LINE"
+    printf 'BAD:flag-count=%s (want exactly 1 non-zero assignment, any form; line: %s)\n' \
+      "$flag_count" "${flag_line:-NONE}"
     return
   fi
   finalize_last="$(grep -nxF "$D_FINALIZE_LINE" "$f" | tail -n1 | cut -d: -f1)"
@@ -727,6 +746,48 @@ else
   echo "NOT ok (D2.neg) FALSE POSITIVE: comment/read was counted as an assignment: $D2_NEG_RESULT"
   failx
 fi
+
+# =============================================================================
+# (D3) T048 ROUND 8 (finding R8-I2, independent review's own reviewer-
+# authored mutations): four additional bash idioms that set the flag to 1
+# WITHOUT the literal substring "_fc_mut_run_complete=" the round-6/round-7
+# counter keyed on ever appearing on their own line -- an arithmetic-
+# context assignment, a `printf -v` write, a `read` target, and nameref
+# indirection via `declare -n`. Each is inserted as its OWN additional line
+# directly after the early EXIT-trap arm point (the ORIGINAL correctly-
+# placed line is KEPT, exactly as (D2) does), and each MUST now be REJECTED
+# by the allow-list-based check above -- proving the inversion closes the
+# whole evasion class, not merely the round-6/round-7 variants it already
+# covered.
+# =============================================================================
+echo
+echo "=== (D3) R8-I2: reviewer-authored evasive-syntax variants (arithmetic/printf-v/read/nameref) ==="
+D3_I=0
+for D3_VARIANT in \
+  '  (( _fc_mut_run_complete = 1 ))' \
+  '  printf -v _fc_mut_run_complete %s 1' \
+  '  read -r _fc_mut_run_complete <<< 1' \
+  '  declare -n _rcref=_fc_mut_run_complete; _rcref=1'
+do
+  D3_I=$((D3_I + 1))
+  D3_FILE="$TMP/mt_r8i2_variant_$D3_I.sh"
+  awk -v arm="$D_ARM_LINE" -v ins="$D3_VARIANT" '{ print } $0==arm { print ins }' "$MT" > "$D3_FILE"
+  if [ "$(grep -cxF -- "$D3_VARIANT" "$D3_FILE" || true)" != 1 ]; then
+    echo "NOT ok (D3.$D3_I) SKIPPED: could not construct variant [$D3_VARIANT] (anchor changed)"
+    failx; continue
+  fi
+  D3_OLD_SUBSTR_HITS="$(printf '%s' "$D3_VARIANT" | grep -c '_fc_mut_run_complete=' || true)"; : "${D3_OLD_SUBSTR_HITS:=0}"
+  D3_RESULT="$(check_run_complete_placement "$D3_FILE")"
+  if [ "$D3_RESULT" != "OK" ]; then
+    echo "ok (D3.$D3_I) variant [$D3_VARIANT] REJECTED: $D3_RESULT (the round-6/7"
+    echo "   literal-substring counter would have seen $D3_OLD_SUBSTR_HITS occurrence(s)"
+    echo "   of '_fc_mut_run_complete=' on this exact line -- 0 means it was blind to"
+    echo "   this variant, confirming the allow-list inversion is what catches it)"
+  else
+    echo "NOT ok (D3.$D3_I) BLIND: variant [$D3_VARIANT] after the EXIT-trap arm still reports OK"
+    failx
+  fi
+done
 
 # =============================================================================
 # (E) T048 ROUND 5 ADDITION (finding m9, 2026-09-30): "The NUL-safe loop has

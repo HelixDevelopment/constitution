@@ -24,12 +24,16 @@
 #  (C1) reviewer's own R5-I3 repro: FC1 = FC0a + one appended WARN line, FC0b
 #       identical to FC0a -> changed=1 noise_explained=0 not_explained=1.
 #  (C2) the same added line also appears in FC0b -> it is noise:
-#       changed=1 noise_explained=1 not_explained=0.
+#       changed=1 noise_explained=1 not_explained=0 -- T048 round 8 (R8-B1):
+#       fully noise-explained (not_explained=0) is now an honest SKIP
+#       (rc=0), never a FAIL; see expect_skip() below.
 #  (C3) a REMOVED line that FC0b also lacks -> noise; a removed line FC0b
 #       keeps -> not explained: changed=2 noise_explained=1 not_explained=1.
 #  (C4) a line removed in FC1 but ADDED in FC0b is not the same direction ->
 #       not explained (direction matters).
-#  (C5) the classifier never changes the strict verdict: every case exits 1.
+#  (C5) the classifier never changes the strict verdict for a case with any
+#       UNEXPLAINED line: C1/C3/C4 still exit 1 (FAIL); C2 (fully explained,
+#       not_explained=0) exits 0 (SKIP, round 8 R8-B1 -- see expect_skip()).
 # Mutations (each applied to a copy of the real golden test, case re-run):
 #  (M5)  the round-5 reviewer's own M5, verbatim intent: invert the
 #        classifier's `grep -qxF` test -> (C1) and (C2) flip.
@@ -76,6 +80,22 @@ expect() {  # NAME OUTFILE WANT(e.g. "changed=1 noise_explained=0 not_explained=
     *) bad "($1) want 'rc=1 NOISE-FLOOR: $3', got '$got'" ;;
   esac
 }
+# expect_skip NAME OUTFILE WANT -- T048 round 8 (R8-B1): a mismatch FULLY
+# explained by this run's own FC0a-vs-FC0b noise floor (not_explained=0) is
+# now an honest SKIP (rc=0), never the unconditional FAIL (rc=1) every case
+# here asserted before round 8 -- see test_fc_timer_golden_output.sh's own
+# R8-B1 comment for the full rationale (a flaky, fc_timer-unrelated
+# parent-repo gate flipping in exactly one timers-OFF member made the
+# verifier FAIL a real fraction of genuinely-GREEN runs; a FAIL on a
+# deviation proven, by this SAME run's own noise floor, to occur even with
+# timers OFF was testing something other than FR-002/T-A01's own claim).
+expect_skip() {  # NAME OUTFILE WANT(e.g. "changed=1 noise_explained=1 not_explained=0")
+  local got; got="$(classify "$1" "$2" | tr '\n' ' ')"
+  case "$got" in
+    "rc=0 NOISE-FLOOR: $3 ") ok "($1) $3, fully noise-explained -> SKIP not FAIL (rc=0, R8-B1)" ;;
+    *) bad "($1) want 'rc=0 NOISE-FLOOR: $3', got '$got'" ;;
+  esac
+}
 
 for f in "$GT_HARNESS" "$REAL_GOLDEN"; do
   [ -f "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
@@ -89,7 +109,7 @@ $ADDED" && expect C1 "$TMP/c1.out" "changed=1 noise_explained=0 not_explained=1"
 echo "=== (C2) the same added line also appears between the two timer-free members -> noise ==="
 triplet C2 "$BASE" "$BASE
 $ADDED" "$BASE
-$ADDED" && expect C2 "$TMP/c2.out" "changed=1 noise_explained=1 not_explained=0"
+$ADDED" && expect_skip C2 "$TMP/c2.out" "changed=1 noise_explained=1 not_explained=0"
 
 echo "=== (C3) removed lines: one also missing from FC0b (noise), one present in FC0b (not explained) ==="
 triplet C3 "$BASE" '  ✓ CM-ONE: first

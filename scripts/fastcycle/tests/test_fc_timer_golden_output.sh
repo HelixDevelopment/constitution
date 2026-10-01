@@ -191,6 +191,26 @@ elif [ -d "$EVIDENCE_DIR" ]; then
   fi
 fi
 
+# _fc_ranges_overlap S1 F1 S2 F2 -- true if the epoch ranges [S1,F1] and
+# [S2,F2] GENUINELY overlap (STRICT: a shared boundary second -- one
+# member's finished_epoch equal to the other's started_epoch -- is NOT
+# overlap, it is exactly what "ran one after another" looks like at
+# 1-second epoch granularity; a fast stand-in/host can legitimately finish
+# member N and start member N+1 inside the SAME wall-clock second, or even
+# have every member's own started_epoch == finished_epoch, so an inclusive
+# test would false-refuse genuinely-sequential captures -- the S11.4.201(1)
+# false-positive this strict form avoids). All 4 arguments must already be
+# validated non-negative integers (T048 round 8, R8-M2); a non-integer
+# argument is treated as "cannot determine" (never overlapping, never a
+# false refusal) since this check is defense-in-depth on an
+# already-trusted producer, not a load-bearing refusal of untrusted input.
+_fc_ranges_overlap() {
+  for _r in "$1" "$2" "$3" "$4"; do
+    printf '%s' "$_r" | grep -qE '^[0-9]+$' || return 1
+  done
+  [ "$1" -lt "$4" ] && [ "$3" -lt "$2" ]
+}
+
 # validate_triplet MANIFEST -- sets TRIPLET_STATE to one of:
 #   valid    : usable; BASELINE_LOG / WITH_TIMERS_LOG / NOISE_LOG are set
 #   refused  : genuine but not usable for a same-window comparison (window
@@ -317,14 +337,53 @@ validate_triplet() {
   fi
   NOISE_LOG="$dir/$(_mf_get member.FC0b.log "$mf")"
   WITH_TIMERS_LOG="$dir/$(_mf_get member.FC1.log "$mf")"
-  TRIPLET_STATE=valid
-  TRIPLET_REASON="same-run triplet $run_id, $(_mf_get concurrency "$mf"), ${span}s span (<= ${MAX_WINDOW_S}s)"
-  local hs he ss se
+  local hs he ss se concurrency_mode
   hs="$(_mf_get tree_head_start "$mf")"; he="$(_mf_get tree_head_end "$mf")"
   ss="$(_mf_get tree_status_sha256_start "$mf")"; se="$(_mf_get tree_status_sha256_end "$mf")"
+  concurrency_mode="$(_mf_get concurrency "$mf")"
+  # T048 round 8 (finding R8-M2, Minor, defense-in-depth): a manifest
+  # CLAIMING concurrency=sequential is cheaply cross-checked against its
+  # own recorded per-member epochs -- the harness is the trusted producer
+  # of this claim today, so a mismatch here is a contradiction worth
+  # surfacing, not a hardening of untrusted input. Any two members'
+  # [started_epoch,finished_epoch] windows overlapping contradicts
+  # "sequential" (members never overlap, by definition).
+  if [ "$concurrency_mode" = sequential ]; then
+    local _ep_a_s _ep_a_f _ep_b_s _ep_b_f _ep_1_s _ep_1_f
+    _ep_a_s="$(_mf_get member.FC0a.started_epoch "$mf")"; _ep_a_f="$(_mf_get member.FC0a.finished_epoch "$mf")"
+    _ep_b_s="$(_mf_get member.FC0b.started_epoch "$mf")"; _ep_b_f="$(_mf_get member.FC0b.finished_epoch "$mf")"
+    _ep_1_s="$(_mf_get member.FC1.started_epoch "$mf")"; _ep_1_f="$(_mf_get member.FC1.finished_epoch "$mf")"
+    if _fc_ranges_overlap "$_ep_a_s" "$_ep_a_f" "$_ep_b_s" "$_ep_b_f" \
+       || _fc_ranges_overlap "$_ep_a_s" "$_ep_a_f" "$_ep_1_s" "$_ep_1_f" \
+       || _fc_ranges_overlap "$_ep_b_s" "$_ep_b_f" "$_ep_1_s" "$_ep_1_f"; then
+      TRIPLET_STATE=refused
+      TRIPLET_REASON="triplet $run_id claims concurrency=sequential but two members' recorded [started_epoch,finished_epoch] windows overlap (FC0a=[$_ep_a_s,$_ep_a_f] FC0b=[$_ep_b_s,$_ep_b_f] FC1=[$_ep_1_s,$_ep_1_f]) -- the sequential claim contradicts its own recorded timing"
+      return
+    fi
+  fi
+  # T048 round 8 (finding R8-I3): a SEQUENTIAL triplet's members run one
+  # after another, so a tree change DURING the capture lands DIFFERENTLY on
+  # each member (FC0a and FC1 see the tree at DIFFERENT points in time) --
+  # unlike a concurrent triplet, where drift affects all three members at
+  # roughly the same moments. The FC0a/FC0b noise floor is itself only a
+  # two-sample, same-moment comparison, so it cannot meaningfully carry an
+  # ASYMMETRIC drift the way the (concurrent-only) note below claims.
+  # Refuse this triplet the same way any other non-trustworthy triplet is
+  # refused above, rather than comparing it under a note that is false for
+  # the sequential case (S11.4.6).
+  if [ "$concurrency_mode" = sequential ] && { [ "$hs" != "$he" ] || [ "$ss" != "$se" ]; }; then
+    TRIPLET_STATE=refused
+    TRIPLET_REASON="triplet $run_id is sequential and the tree CHANGED during the capture (HEAD $hs -> $he, status $ss -> $se) -- a sequential triplet's members see the tree at DIFFERENT moments, so the drift is not symmetric across members and the FC0a/FC0b noise floor cannot be trusted to carry it; re-capture (concurrently, or once the tree is quiescent)"
+    return
+  fi
+  TRIPLET_STATE=valid
+  TRIPLET_REASON="same-run triplet $run_id, $concurrency_mode, ${span}s span (<= ${MAX_WINDOW_S}s)"
   if [ "$hs" = "$he" ] && [ "$ss" = "$se" ]; then
     TRIPLET_TREE_NOTE="tree unchanged during the capture (HEAD $hs, status fingerprint stable)"
   else
+    # Reaching here with a tree change means concurrency_mode != sequential
+    # (the sequential+changed case was refused above), so this claim is now
+    # always accurate.
     TRIPLET_TREE_NOTE="tree CHANGED during the capture (HEAD $hs -> $he, status $ss -> $se); all three members ran concurrently against the same changing tree, so the FC0a/FC0b noise floor carries that drift too"
   fi
 }
@@ -520,12 +579,16 @@ if [ "$TRIPLET_STATE" = valid ]; then
   else
     DIFF_REAL="$(diff "$TMP/baseline_1.txt" "$TMP/with_timers.txt" 2>/dev/null || true)"
     DIFF_REAL_LINES="$(printf '%s\n' "$DIFF_REAL" | grep -c '^[<>]' || true)"
-    chk "FR-002/T-A01: with-timers verdict set is IDENTICAL to the without-timers verdict set, byte-for-byte after stripping timing suffixes ($TRIPLET_REASON) -- MISMATCH, $DIFF_REAL_LINES differing line(s), diff below" "0"
-    printf '%s\n' "$DIFF_REAL" | head -n 60
 
-    # Noise-floor classification (diagnostic only; never changes the verdict
-    # above). Both directions are classified (R5-I3), each against the SAME
-    # direction in FC0a-vs-FC0b.
+    # Noise-floor classification -- round 8 (R8-B1): computed BEFORE the
+    # pass/fail/skip decision below (it used to be diagnostic-only, logged
+    # AFTER an unconditional FAIL had already been recorded; a deviation
+    # fully explained by this run's own noise floor was then reported but
+    # never turned into anything but a FAIL -- a flaky, fc_timer-unrelated
+    # parent-repo gate flipping in exactly ONE timers-OFF member made the
+    # verifier FAIL a sizeable fraction of genuinely-GREEN runs). Both
+    # directions are classified (R5-I3), each against the SAME direction in
+    # FC0a-vs-FC0b.
     extract_verdicts "$NOISE_LOG" "$TMP/noise.txt"
     DIFF_NOISE="$(diff "$TMP/baseline_1.txt" "$TMP/noise.txt" 2>/dev/null || true)"
     printf '%s\n' "$DIFF_REAL"  | sed -n 's/^< //p' > "$TMP/real_removed.txt"
@@ -553,6 +616,25 @@ if [ "$TRIPLET_STATE" = valid ]; then
     _fc_classify_against "$TMP/real_added.txt" "$TMP/noise_added.txt"
     TOTAL_CHANGED="$(( $(wc -l < "$TMP/real_removed.txt") + $(wc -l < "$TMP/real_added.txt") ))"
     echo "NOISE-FLOOR: changed=$TOTAL_CHANGED noise_explained=$NOISE_EXPLAINED not_explained=$UNEXPLAINED (noise floor FC0a-vs-FC0b of the same triplet has $(printf '%s\n' "$DIFF_NOISE" | grep -c '^[<>]' || true) differing line(s))"
+
+    if [ "$TOTAL_CHANGED" -gt 0 ] && [ "$UNEXPLAINED" = 0 ]; then
+      # Round 8 (R8-B1): EVERY differing line is also present, in the SAME
+      # direction, between this SAME run's own two timers-OFF members
+      # (FC0a-vs-FC0b) -- by construction it cannot be attributed to
+      # fc_timer, since it demonstrably occurs even with timers OFF. A FAIL
+      # here would be testing something OTHER than FR-002/T-A01's own claim
+      # (fc_timer causes no verdict change). Honestly SKIP, never a silent
+      # PASS and never a FAIL: this ONE noise sample still cannot positively
+      # CONFIRM fc_timer causes zero change on every other line (that is
+      # exactly this file's own long-standing "never asserted fc_timer-
+      # caused here" discipline, below) -- it only shows this SPECIFIC
+      # deviation is not evidence against FR-002.
+      printf '%s\n' "$DIFF_REAL" | head -n 60
+      skip "FR-002/T-A01: with-timers verdict set differs from the without-timers verdict set ($DIFF_REAL_LINES differing line(s)), but the deviation is FULLY explained by this SAME run's own FC0a-vs-FC0b noise floor (changed=$TOTAL_CHANGED noise_explained=$NOISE_EXPLAINED not_explained=0) -- it occurs even with timers OFF, so it cannot be attributed to fc_timer; this comparison is inconclusive, never a FR-002 counter-example ($TRIPLET_REASON)"
+    else
+      chk "FR-002/T-A01: with-timers verdict set is IDENTICAL to the without-timers verdict set, byte-for-byte after stripping timing suffixes ($TRIPLET_REASON) -- MISMATCH, $DIFF_REAL_LINES differing line(s), diff below" "0"
+      printf '%s\n' "$DIFF_REAL" | head -n 60
+    fi
     echo "INFO: of $TOTAL_CHANGED changed verdict line(s) (removed + added), $NOISE_EXPLAINED also change the same way between the two timer-free members of this run (pre-existing noise, not attributable to fc_timer) and $UNEXPLAINED are not explained by this ONE noise sample -- investigate those; one noise pair cannot tell a timer effect from a rare flake, so they are NEVER asserted fc_timer-caused here."
   fi
 else
