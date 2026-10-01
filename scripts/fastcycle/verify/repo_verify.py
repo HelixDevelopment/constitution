@@ -397,20 +397,44 @@ def redact_url(url):
     only ever matched a LITERAL trailing ".git", never anything following a `?`/`#`). Both a query
     string and a fragment always sit strictly AFTER the authority (`user:pass@host`) component, so
     truncating at the FIRST of either can never remove credential text that belongs earlier in the
-    string -- it only ever discards bytes that come after it."""
+    string -- it only ever discards bytes that come after it.
+
+    T158 remediation round 3, IMPORTANT finding I-N1 (a genuine REGRESSION introduced by round
+    2's own fix immediately above -- confirmed live against 4 URLs, constitution 11.4.10): round
+    2's fix stripped the query/fragment from the WHOLE (scheme-stripped) string BEFORE searching
+    for the last `@` -- so a `?` or `#` character appearing INSIDE the userinfo portion, BEFORE
+    the real `@` (e.g. `user:pa#ss@github.com/org/repo.git`), truncated the search string too
+    early, and the credential text in front of that `?`/`#` was then treated as the WHOLE "host"
+    -- i.e. printed VERBATIM in the supposedly-redacted output (round 2's own docstring claim
+    that "this truncation can never discard credential text" was therefore FALSE, confirmed by
+    direct comparison against the pre-round-2 (`adfd2c8~1`) behaviour, which handled all 4 of
+    these cases correctly). FIXED by reversing the order round 2 got backwards, exactly per the
+    fix direction: find the LAST `@` in the RAW, UNSTRIPPED string first, keep only the text
+    strictly after it, and only THEN strip any `?`/`#` from THAT remainder -- never strip before
+    locating `@` (see `_authority_tail` below). Verified against all 4 of round 3's own repro
+    URLs: both of round 2's own `#`/`?`-as-userinfo-decoy shapes, a bare secret-as-username with
+    a trailing `#`, and a scp/ssh-style authority with no `://` scheme at all. A residual edge
+    case the same finding flags (a query string that ITSELF carries a literal `@`, e.g.
+    `?u=a@SECRET`, where naively taking "text after the last @" would instead render query DATA
+    as if it were the host) is additionally guarded in `_authority_tail`: when the globally-last
+    `@` sits at or after a `?`/`#` that is itself preceded by at least one `/` (i.e. the `?`/`#`
+    plausibly marks a genuine query/fragment start, positioned after real path segments, rather
+    than being a decoy character embedded directly in credential/host text with no path segment
+    yet) that `@` is treated as untrustworthy and the authority boundary is instead re-derived
+    from only the portion strictly before that `?`/`#`. This is a best-effort, documented
+    mitigation for a narrow, adversarial shape, not a provably-complete URI parser (11.4.6): a
+    pathological input combining round 1's embedded-`/`-in-credentials shape WITH this round's
+    embedded-`@`-in-query shape in the SAME string is a known, un-handled residual limitation."""
     if not url:
         return "UNKNOWN"
     m = re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://(.*)$", url, re.DOTALL)
     if m:
-        rest = _strip_query_fragment(m.group(1))
-        at = rest.rfind("@")
-        after_at = rest[at + 1:] if at != -1 else rest
+        after_at = _authority_tail(m.group(1))
         segments = [p for p in after_at.split("/") if p]
         if segments and segments[-1].endswith(".git"):
             segments[-1] = segments[-1][:-4]
         return "/".join(segments) if segments else "UNKNOWN"
-    at2 = url.rfind("@")
-    cand = _strip_query_fragment(url[at2 + 1:] if at2 != -1 else url)
+    cand = _authority_tail(url)
     m2 = re.match(r"^([^:/]+):(.+)$", cand)
     if m2 and "/" in m2.group(2):
         host, path = m2.group(1), m2.group(2)
@@ -421,11 +445,41 @@ def redact_url(url):
     return os.path.basename(os.path.normpath(cand)) or cand
 
 
+def _authority_tail(s):
+    """T158 remediation round 3, finding I-N1: the text strictly after the real userinfo `@`
+    separator (if any), with any trailing query-string/fragment removed -- computed by finding
+    the LAST `@` in the RAW, unstripped string `s` FIRST (never a pre-stripped one -- see
+    `redact_url`'s own docstring for why round 2's opposite order leaked credential text), then
+    stripping `?`/`#` from the remainder.
+
+    Guards the residual edge case the same finding names: if that globally-last `@` sits at or
+    after a `?`/`#` which is ITSELF preceded by at least one `/` in `s` (i.e. the `?`/`#`
+    plausibly starts a genuine query/fragment, since real path segments already precede it --
+    unlike a decoy `?`/`#` embedded directly in credential/host text with no `/` yet), the `@` is
+    untrusted and the authority boundary is instead re-derived from only the portion strictly
+    before that `?`/`#` (so query/fragment DATA, e.g. `?u=a@SECRET`, can never be rendered as if
+    it were the host)."""
+    qpos = len(s)
+    for sep in ("?", "#"):
+        idx = s.find(sep)
+        if idx != -1 and idx < qpos:
+            qpos = idx
+    at = s.rfind("@")
+    if at != -1 and at >= qpos and "/" in s[:qpos]:
+        pre = s[:qpos]
+        at_pre = pre.rfind("@")
+        return pre[at_pre + 1:] if at_pre != -1 else pre
+    after_at = s[at + 1:] if at != -1 else s
+    return _strip_query_fragment(after_at)
+
+
 def _strip_query_fragment(s):
-    """Truncate `s` at the first `?` or `#`, whichever comes first (T158 remediation round 2,
-    MINOR finding -- see `redact_url`'s own docstring). Both mark the start of a query-
-    string/fragment component, which always sits strictly after the authority in a well-formed
-    URI, so this can never discard credential text, only bytes that come after it."""
+    """Truncate `s` at the first `?` or `#`, whichever comes first. T158 remediation round 3,
+    finding I-N1: this is now ONLY ever called (via `_authority_tail`) on text already known to
+    be strictly AFTER the real userinfo `@` separator (or on the whole string when no `@` is
+    present at all) -- never on text that might still contain an unresolved `@`, which was
+    precisely round 2's bug. So this can never discard credential text, only bytes that come
+    after it."""
     cut = len(s)
     for sep in ("?", "#"):
         idx = s.find(sep)
@@ -608,7 +662,31 @@ def verify_remote(repo_path, git_target, local_tip, branch, timeout_s, push_log_
     construction. (The caller's SIGTERM handler, main(), closes the SAME finding's secondary ask:
     a clean terminate signal now unwinds through every open `finally:`/`with:` -- including the
     scratch-objdir cleanup and `_pointer_fetchable`'s own TemporaryDirectory probes -- instead of
-    abandoning them mid-run.)"""
+    abandoning them mid-run.)
+
+    T158 remediation round 3, IMPORTANT finding I-N2 (a pre-existing bug present since round 1,
+    missed by both prior reviews -- a DIFFERENT read-only violation than the one finding #6/I1
+    above already closed): this fetch previously relied on git's DEFAULT submodule-recursion
+    behaviour (`fetch.recurseSubmodules` unset, defaulting to "on-demand"). When the remote side
+    has a newer commit whose TREE moves a submodule gitlink to a commit not yet present in that
+    submodule's own local checkout, git AUTOMATICALLY starts a FULL, UN-REDIRECTED `git fetch`
+    INSIDE the submodule to satisfy the recursion -- and git CLEARS
+    `GIT_OBJECT_DIRECTORY`/`GIT_ALTERNATE_OBJECT_DIRECTORIES` for that child process (the exact
+    env vars this function's own RV-009 object-store redirect, immediately above, relies on), so
+    the submodule-level fetch writes straight into the submodule's REAL `.git` directory instead
+    of the redirected scratch store. Reproduced live (3 separate experiments, round 3 review):
+    `refs/remotes/origin/HEAD` and `refs/remotes/origin/main` moved inside the submodule's real
+    git-dir, a reflog entry was written, and new loose objects appeared under
+    `.git/modules/<sub>` -- confirmed to ALSO happen with the pre-round-2 (round 1) tool, i.e.
+    this is NOT something round 2's own finding-#6 fix introduced. Probing the submodule alone
+    (never through a PARENT-level recursive fetch) does not trigger it -- only the parent-level
+    `git fetch` reaching a commit that moves a submodule pointer does. FIXED by `--recurse-
+    submodules=no` on this fetch invocation (git's command-line flag always overrides any
+    repo-local `fetch.recurseSubmodules`/`submodule.recurse` config, so this holds regardless of
+    what a given repository has configured): confirmed live, this makes the submodule's real
+    `.git` directory (refs, reflog, and object count) byte-identical before and after, even for
+    the exact scenario that previously triggered the write (a remote-ahead parent commit that
+    also moves the submodule's own gitlink)."""
     extra_env = None
     if scratch_objdir and real_objects_dir:
         extra_env = {"GIT_OBJECT_DIRECTORY": scratch_objdir,
@@ -625,7 +703,7 @@ def verify_remote(repo_path, git_target, local_tip, branch, timeout_s, push_log_
     equal = (tip == local_tip)
     fetched, _fout, _ferr = _run(
         ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         git_target, tip], repo_path, timeout_s, extra_env=extra_env)
+         "--recurse-submodules=no", git_target, tip], repo_path, timeout_s, extra_env=extra_env)
     unpushed = "UNKNOWN"
     if fetched == 0:
         rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,

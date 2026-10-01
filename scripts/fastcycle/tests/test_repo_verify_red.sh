@@ -1129,7 +1129,7 @@ cat >"$MUTMARK2/i1_old.txt" <<'EOF'
     equal = (tip == local_tip)
     fetched, _fout, _ferr = _run(
         ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         git_target, tip], repo_path, timeout_s, extra_env=extra_env)
+         "--recurse-submodules=no", git_target, tip], repo_path, timeout_s, extra_env=extra_env)
     unpushed = "UNKNOWN"
     if fetched == 0:
         rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,
@@ -1142,7 +1142,7 @@ cat >"$MUTMARK2/i1_new.txt" <<'EOF'
     tmp_ref = "refs/fastcycle_verify_mutant_i1/%s" % re.sub(r"[^A-Za-z0-9_.-]", "_", out_name)
     fetched, _fout, _ferr = _run(
         ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         git_target, "%s:%s" % (tip, tmp_ref)], repo_path, timeout_s, extra_env=extra_env)
+         "--recurse-submodules=no", git_target, "%s:%s" % (tip, tmp_ref)], repo_path, timeout_s, extra_env=extra_env)
     unpushed = "UNKNOWN"
     if fetched == 0:
         rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tmp_ref], repo_path, timeout_s,
@@ -1236,6 +1236,278 @@ fi
 # absolute path under this run's own freshly-mktemp'd $TMP, unique to this one test invocation --
 # never a bare/generic pattern (11.4.196(D)/§12.12 anti-carrier-match discipline).
 pkill -f "$I1/fake_ssh_sleep.sh" >/dev/null 2>&1 || true
+
+# ================================================================================================
+# T158 remediation round 3 -- new fixtures/mutations closing the THIRD independent review's three
+# IMPORTANT findings (I-N1 redact_url regression, I-N2 submodule-fetch-redirect bug, I-N3 the
+# round-2 I1 regression guard's own test-rigor gap). Round 1's + round 2's assertions above (and
+# their mutations) are UNTOUCHED and must all stay GREEN -- including the two i1_old.txt/i1_new.txt
+# mutation anchors just above, updated in place to include the I-N2 "--recurse-submodules=no" flag
+# this round adds, so they still match the real (now further-fixed) source exactly.
+# ================================================================================================
+
+MUTMARK3="$TMP/mutmark3"
+mkdir -p "$MUTMARK3"
+
+# ------------------------------------------------------------------------------------ I-N2 (IMPORTANT)
+# Round 1's own fix for finding #6 redirects NEWLY-FETCHED OBJECTS away from a repository's real
+# object store via GIT_OBJECT_DIRECTORY -- but git's DEFAULT submodule-recursion behaviour
+# (fetch.recurseSubmodules unset -> "on-demand") starts a SEPARATE, UN-REDIRECTED `git fetch`
+# INSIDE a submodule whenever the PARENT's own fetch reaches a commit that moves that submodule's
+# gitlink to a commit the submodule does not yet have locally -- and git CLEARS the redirect env
+# vars for that child process, so the submodule-level fetch writes straight into the submodule's
+# REAL .git directory. Fixture: the submodule is advanced (on a SEPARATE clone) and the PARENT's
+# gitlink is bumped to that new submodule commit (also on a separate clone) and pushed -- so the
+# LOCAL fixture's parent is genuinely behind its own remote by a gitlink-moving commit, AND the
+# local fixture's own submodule checkout genuinely lacks the new submodule commit object (the
+# exact precondition that triggers git's on-demand recursion, per the round-3 review's own
+# reproduction method -- never assumed, 11.4.199/11.4.6).
+I2P="$TMP/rv_i2n_submodule_fetch_redirect"
+mkdir -p "$I2P"
+mk_repo "$I2P/sub_src"
+echo "seed" >"$I2P/sub_src/f.txt"
+git -C "$I2P/sub_src" add -A; git -C "$I2P/sub_src" commit -qm "init sub"
+mk_bare "$I2P/sub_remote.git"
+git -C "$I2P/sub_src" remote add origin "$I2P/sub_remote.git"
+git -C "$I2P/sub_src" push -q origin main
+
+mk_repo "$I2P/parent"
+echo "parent-seed" >"$I2P/parent/f.txt"
+git -C "$I2P/parent" add -A; git -C "$I2P/parent" commit -qm "parent init"
+git -C "$I2P/parent" -c protocol.file.allow=always submodule add -q "$I2P/sub_remote.git" sub
+git -C "$I2P/parent" commit -qm "add submodule"
+mk_bare "$I2P/parent_remote.git"
+git -C "$I2P/parent" remote add origin "$I2P/parent_remote.git"
+git -C "$I2P/parent" push -q origin main
+
+# Advance the submodule on a SEPARATE clone and push -- the fixture's own local submodule checkout
+# (parent/sub) stays behind and never fetches this.
+git clone -q "$I2P/sub_remote.git" "$I2P/sub_other_clone"
+git -C "$I2P/sub_other_clone" config user.email fc@example.invalid
+git -C "$I2P/sub_other_clone" config user.name fastcycle
+echo "moved on" >"$I2P/sub_other_clone/f.txt"
+git -C "$I2P/sub_other_clone" commit -qam "sub moves on"
+git -C "$I2P/sub_other_clone" push -q origin main
+I2P_NEW_SUB_SHA=$(git -C "$I2P/sub_remote.git" rev-parse main)
+
+# Advance the PARENT on a SEPARATE clone, bumping its gitlink to the new submodule sha, and push --
+# the fixture's own local parent checkout never sees this until repo_verify.py's own live-tip fetch.
+# NOTE: `-c protocol.file.allow=always` is REQUIRED on this clone (not just on the original
+# `submodule add` above) -- without it, git's recursive submodule clone of this local bare
+# submodule remote fails ("transport 'file' not allowed"), leaving parent_other_clone/sub
+# unpopulated and the subsequent checkout/add/commit below silently a no-op -- which would make
+# this whole fixture fail to actually bump the parent's gitlink at all (confirmed live while
+# authoring this fixture: 11.4.199/11.4.6, never assumed from a first attempt).
+git -c protocol.file.allow=always clone -q --recurse-submodules "$I2P/parent_remote.git" "$I2P/parent_other_clone"
+git -C "$I2P/parent_other_clone" config user.email fc@example.invalid
+git -C "$I2P/parent_other_clone" config user.name fastcycle
+git -C "$I2P/parent_other_clone/sub" config user.email fc@example.invalid
+git -C "$I2P/parent_other_clone/sub" config user.name fastcycle
+git -C "$I2P/parent_other_clone/sub" fetch -q origin
+git -C "$I2P/parent_other_clone/sub" checkout -q "$I2P_NEW_SUB_SHA"
+git -C "$I2P/parent_other_clone" add sub
+git -C "$I2P/parent_other_clone" commit -qm "bump sub pointer"
+git -C "$I2P/parent_other_clone" push -q origin main
+
+# Control check (11.4.199/11.4.6): confirm the parent's REMOTE tip genuinely records the new
+# submodule sha as its gitlink for "sub" before trusting any assertion below -- a silently-failed
+# recursive clone/checkout above (e.g. a missing protocol.file.allow) would otherwise leave the
+# parent's gitlink UNCHANGED, and every assertion below would then be testing nothing.
+I2P_NEWPARENT_SHA=$(git -C "$I2P/parent_remote.git" rev-parse main)
+I2P_REMOTE_GITLINK=$(git -C "$I2P/parent_remote.git" ls-tree "$I2P_NEWPARENT_SHA" -- sub | awk '{print $3}')
+if [ "$I2P_REMOTE_GITLINK" = "$I2P_NEW_SUB_SHA" ]; then
+  ok "rv_i2n_submodule_fetch_redirect: fixture control check -- the parent's remote tip genuinely records the new submodule sha as its 'sub' gitlink (the bump commit actually landed)"
+else
+  not_ok "rv_i2n_submodule_fetch_redirect: fixture setup bug -- the parent remote's gitlink for 'sub' is $I2P_REMOTE_GITLINK, expected $I2P_NEW_SUB_SHA -- the gitlink bump did not land; every assertion below is testing nothing"
+fi
+
+if git -C "$I2P/parent/sub" cat-file -e "$I2P_NEW_SUB_SHA" 2>/dev/null; then
+  not_ok "rv_i2n_submodule_fetch_redirect: fixture setup bug -- the fixture's own local submodule checkout already has the new sha; this fixture cannot exercise the on-demand-recursion precondition"
+else
+  ok "rv_i2n_submodule_fetch_redirect: fixture control check -- the new submodule commit is genuinely absent from the fixture's own local submodule object store before either run below"
+fi
+
+I2P_SUB_GITDIR=$(real_gitdir "$I2P/parent/sub")
+I2P_SUB_BEFORE_TREEHASH=$(tree_hash "$I2P_SUB_GITDIR")
+I2P_SUB_BEFORE_REFS=$(git -C "$I2P/parent/sub" for-each-ref)
+
+# (1) THE FIX, real (fixed) tool, normal run: the submodule's REAL git-dir must stay byte-identical
+# -- the parent-level fetch above must never trigger an un-redirected recursive submodule fetch.
+run_tool "$I2P/parent" "$TMP/i2n_fixed.json"; I2N_FIXED_RC=$?
+I2P_SUB_AFTER_TREEHASH=$(tree_hash "$I2P_SUB_GITDIR")
+I2P_SUB_AFTER_REFS=$(git -C "$I2P/parent/sub" for-each-ref)
+if [ "$I2P_SUB_BEFORE_TREEHASH" = "$I2P_SUB_AFTER_TREEHASH" ] && [ "$I2P_SUB_BEFORE_REFS" = "$I2P_SUB_AFTER_REFS" ]; then
+  ok "rv_i2n_submodule_fetch_redirect (fixed tool, I-N2): the submodule's REAL git-dir (refs + whole-git-dir-tree-hash) is byte-identical before/after a parent-level fetch that reaches a gitlink-moving commit -- the on-demand recursive submodule fetch never wrote into the submodule's own repository (--recurse-submodules=no fix confirmed)"
+else
+  not_ok "rv_i2n_submodule_fetch_redirect (fixed tool, I-N2): the submodule's real git-dir CHANGED (refs_identical=$([ "$I2P_SUB_BEFORE_REFS" = "$I2P_SUB_AFTER_REFS" ] && echo yes || echo no) treehash_identical=$([ "$I2P_SUB_BEFORE_TREEHASH" = "$I2P_SUB_AFTER_TREEHASH" ] && echo yes || echo no)) -- rc=$I2N_FIXED_RC"
+fi
+
+# (2) MUTANT: drop the --recurse-submodules=no flag -- the submodule's real git-dir MUST then get
+# written to (proving the fixture and the fix are both genuinely load-bearing, 11.4.115(F)).
+cat >"$MUTMARK3/i2n_old.txt" <<'EOF'
+    equal = (tip == local_tip)
+    fetched, _fout, _ferr = _run(
+        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
+         "--recurse-submodules=no", git_target, tip], repo_path, timeout_s, extra_env=extra_env)
+    unpushed = "UNKNOWN"
+EOF
+cat >"$MUTMARK3/i2n_new.txt" <<'EOF'
+    equal = (tip == local_tip)
+    fetched, _fout, _ferr = _run(
+        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
+         git_target, tip], repo_path, timeout_s, extra_env=extra_env)  # PAIRED MUTATION (I-N2: drop --recurse-submodules=no)
+    unpushed = "UNKNOWN"
+EOF
+if mk_mutant "mutant_i2n" "$MUTMARK3/i2n_old.txt" "$MUTMARK3/i2n_new.txt" 2>"$TMP/mutant_i2n.err"; then
+  python3 "$TMP/mutant_i2n/verify/repo_verify.py" --recursive --root "$I2P/parent" --out "$TMP/i2n_mutant.json" >"$TMP/i2n_mutant.out" 2>>"$TMP/mutant_i2n.err"
+  I2N_MUT_TREEHASH=$(tree_hash "$I2P_SUB_GITDIR")
+  I2N_MUT_REFS=$(git -C "$I2P/parent/sub" for-each-ref)
+  if [ "$I2N_MUT_TREEHASH" != "$I2P_SUB_BEFORE_TREEHASH" ] || [ "$I2N_MUT_REFS" != "$I2P_SUB_BEFORE_REFS" ]; then
+    ok "paired mutation CAUGHT (I-N2): dropping --recurse-submodules=no lets git's default on-demand recursion write into the submodule's REAL git-dir (refs and/or whole-tree-hash changed) on the SAME rv_i2n_submodule_fetch_redirect fixture -- confirms the fixture and the fix are both genuinely load-bearing"
+  else
+    not_ok "paired mutation (I-N2): expected dropping --recurse-submodules=no to mutate the submodule's real git-dir on this fixture, but it stayed byte-identical -- either the mutation is not load-bearing in this git version, or the fixture no longer exercises the on-demand-recursion precondition"
+  fi
+else
+  not_ok "paired mutation (I-N2): mutation anchor text not found in repo_verify.py -- source moved, update this test's anchor: $(cat "$TMP/mutant_i2n.err")"
+fi
+
+# ------------------------------------------------------------------------------------ I-N3 (IMPORTANT)
+# Round 2's own I1 regression guard (the i1_old.txt/i1_new.txt mutation above) only ever caught its
+# own M5 mutant because that mutant's TEXT happened to differ from a source-text anchor some other
+# check greps for -- never because any check observed a REAL ref-write at the behaviour level. A
+# `reference-transaction` hook is git's own mechanism for observing EVERY ref transaction (even a
+# create-then-immediately-delete within one process, which the existing "refs identical before vs.
+# after the WHOLE run" check structurally cannot see) -- installed directly in the fixture repo's
+# own .git/hooks/ (a plain top-level repo, never a submodule, so no .git-file indirection to
+# resolve), it proves the fixed tool triggers ZERO ref transactions of any kind during a normal
+# run, and that a mutant restoring the old colon-refspec fetch-then-delete pattern -- built fresh
+# against the CURRENT (I-N2-fixed) source, WITHOUT touching any text another check's own anchor
+# greps for -- is still caught at the BEHAVIOUR layer regardless (11.4.115(F)/11.4.194(6)(d):
+# "a guard never observed FAILing on the genuinely-broken artifact is unvalidated instrumentation").
+I3="$TMP/rv_i3n_reftx_proof"
+mk_repo "$I3/repo"
+echo one >"$I3/repo/f.txt"; git -C "$I3/repo" add -A; git -C "$I3/repo" commit -qm c1
+mk_bare "$I3/remote.git"
+git -C "$I3/repo" remote add origin "$I3/remote.git"
+git -C "$I3/repo" push -q origin main
+git clone -q "$I3/remote.git" "$I3/other_clone"
+git -C "$I3/other_clone" config user.email fc@example.invalid
+git -C "$I3/other_clone" config user.name fastcycle
+echo two >"$I3/other_clone/f.txt"
+git -C "$I3/other_clone" add -A; git -C "$I3/other_clone" commit -qm c2
+git -C "$I3/other_clone" push -q origin main
+I3_REMOTE_SHA=$(git -C "$I3/remote.git" rev-parse main)
+if git -C "$I3/repo" cat-file -e "$I3_REMOTE_SHA" 2>/dev/null; then
+  not_ok "rv_i3n_reftx_proof: fixture setup bug -- repo already has the remote's new commit object locally; this fixture cannot force a real transfer"
+else
+  ok "rv_i3n_reftx_proof: fixture control check -- the remote's new commit object is genuinely absent from repo's own object store before either run below"
+fi
+
+mkdir -p "$I3/repo/.git/hooks"
+cat >"$I3/repo/.git/hooks/reference-transaction" <<'HOOK'
+#!/bin/bash
+{
+  echo "=== reference-transaction state=$1 ==="
+  cat
+} >>"$REFTX_LOG" 2>&1
+exit 0
+HOOK
+chmod +x "$I3/repo/.git/hooks/reference-transaction"
+
+# (1) THE FIX, real tool, normal run: the hook must record ZERO ref transactions of ANY kind.
+export REFTX_LOG="$I3/reftx_fixed.log"
+rm -f "$REFTX_LOG"
+python3 "$TOOL" --recursive --root "$I3/repo" --out "$TMP/i3n_fixed.json" >"$TMP/i3n_fixed.out" 2>"$TMP/i3n_fixed.err"
+I3N_FIXED_RC=$?
+unset REFTX_LOG
+if [ ! -s "$I3/reftx_fixed.log" ]; then
+  ok "rv_i3n_reftx_proof (fixed tool, I-N3): the reference-transaction hook recorded ZERO ref transactions during a normal run forcing a real object transfer -- a BEHAVIOURAL guarantee (not a source-text match) that no ref of any kind, including a create-then-immediately-delete, was ever written"
+else
+  not_ok "rv_i3n_reftx_proof (fixed tool, I-N3): expected zero reference-transaction hook firings, got: $(cat "$I3/reftx_fixed.log")"
+fi
+
+# (2) MUTANT: restore the OLD colon-refspec fetch-then-delete pattern, built fresh against the
+# CURRENT (I-N2-fixed) source -- the reference-transaction hook MUST still catch it even though
+# this mutant's own text was never checked against any OTHER test's source-text anchor.
+cat >"$MUTMARK3/i3n_old.txt" <<'EOF'
+    equal = (tip == local_tip)
+    fetched, _fout, _ferr = _run(
+        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
+         "--recurse-submodules=no", git_target, tip], repo_path, timeout_s, extra_env=extra_env)
+    unpushed = "UNKNOWN"
+    if fetched == 0:
+        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,
+                              extra_env=extra_env)
+        if rc == 0 and out.strip().isdigit():
+            unpushed = int(out.strip())
+EOF
+cat >"$MUTMARK3/i3n_new.txt" <<'EOF'
+    equal = (tip == local_tip)
+    i3n_tmp_ref = "refs/fastcycle_verify_mutant_i3n/%s" % re.sub(r"[^A-Za-z0-9_.-]", "_", out_name)
+    fetched, _fout, _ferr = _run(
+        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
+         "--recurse-submodules=no", git_target, "%s:%s" % (tip, i3n_tmp_ref)], repo_path, timeout_s, extra_env=extra_env)
+    unpushed = "UNKNOWN"
+    if fetched == 0:
+        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % i3n_tmp_ref], repo_path, timeout_s,
+                              extra_env=extra_env)
+        if rc == 0 and out.strip().isdigit():
+            unpushed = int(out.strip())
+    _run(["git", "update-ref", "-d", i3n_tmp_ref], repo_path, timeout_s)
+EOF
+if mk_mutant "mutant_i3n" "$MUTMARK3/i3n_old.txt" "$MUTMARK3/i3n_new.txt" 2>"$TMP/mutant_i3n.err"; then
+  export REFTX_LOG="$I3/reftx_mutant.log"
+  rm -f "$REFTX_LOG"
+  python3 "$TMP/mutant_i3n/verify/repo_verify.py" --recursive --root "$I3/repo" --out "$TMP/i3n_mutant.json" >"$TMP/i3n_mutant.out" 2>>"$TMP/mutant_i3n.err"
+  unset REFTX_LOG
+  git -C "$I3/repo" for-each-ref 'refs/fastcycle_verify_mutant_i3n/*' --format='%(refname)' | while read -r stray; do
+    git -C "$I3/repo" update-ref -d "$stray" 2>/dev/null || true
+  done
+  if [ -s "$I3/reftx_mutant.log" ]; then
+    ok "paired mutation CAUGHT (I-N3): the reference-transaction hook recorded >=1 real ref transaction when the OLD colon-refspec fetch-then-delete pattern is restored -- caught at the BEHAVIOUR level (the hook fires on both the create and the delete), proving round 2's I1 regression guard is no longer enforced ONLY by a source-text anchor match"
+  else
+    not_ok "paired mutation (I-N3): expected the reference-transaction hook to record >=1 transaction for the restored colon-refspec pattern, got none: $(cat "$TMP/mutant_i3n.err" 2>/dev/null)"
+  fi
+else
+  not_ok "paired mutation (I-N3): mutation anchor text not found -- source moved, update this test's anchor: $(cat "$TMP/mutant_i3n.err")"
+fi
+rm -f "$I3/reftx_fixed.log" "$I3/reftx_mutant.log"
+
+# --------------------------------------------------------------------------- redact_url (I-N1)
+# The round-2 "fix" for the query-string/fragment leak (MINOR block above, already re-confirmed
+# GREEN) itself re-introduced a credential leak: `_strip_query_fragment` ran BEFORE searching for
+# the real `@`, so a `?`/`#` embedded INSIDE the userinfo portion truncated the search too early
+# and the credential text in front of it was rendered as the whole "host".
+RU3_OUT=$(python3 - "$TOOL" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("repo_verify", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+cases = {
+    "https://user:pa#ss@github.com/org/repo.git": "github.com/org/repo",
+    "https://user:p?ss@github.com/org/repo.git": "github.com/org/repo",
+    "https://SECRETTOKEN#@github.com/o/r.git": "github.com/o/r",
+    "ssh://git:pw#d@host/x.git": "host/x",
+    # residual edge case the same finding names (a query value containing a literal '@') -- must
+    # never let query DATA be rendered as if it were the host.
+    "https://host/o/r.git?u=a@SECRET": "host/o/r",
+}
+ok = True
+for url, expected in cases.items():
+    out = m.redact_url(url)
+    leaked = ("pa" == out[:2] and "ss" in out) or ("SECRET" in out and "SECRET123" not in out and out != "host/o/r") or ("git:pw" in out)
+    status = "OK" if (out == expected and not leaked) else "MISMATCH_OR_LEAK"
+    if out != expected or leaked:
+        ok = False
+    print("%s url=%r got=%r expected=%r" % (status, url, out, expected))
+print("ALL_OK" if ok else "SOME_FAILED")
+PY
+)
+while IFS= read -r ru3_line; do printf '   %s\n' "$ru3_line"; done <<<"$RU3_OUT"
+case "$RU3_OUT" in
+  *ALL_OK*) ok "redact_url (I-N1): round 2's own query-string-stripping fix no longer re-leaks credential text embedded in userinfo before a decoy '?'/'#', for all 4 of round 3's repro URLs plus the residual query-embedded-'@' edge case (T158 remediation round 3 fix confirmed, 11.4.10)" ;;
+  *) not_ok "redact_url (I-N1, round 3): at least one case failed or leaked -- see output above" ;;
+esac
 
 # ------------------------------------------------------------------------------------ I2 (IMPORTANT)
 # A malformed/wrongly-shaped --remotes-config MUST exit 2 naming the specific problem, never
