@@ -97,6 +97,7 @@ Stdlib only. Python 3.
 import argparse
 import ast
 import os
+import stat
 import sys
 
 # Captured before any renaming below -- diag()/emit_result() always call the
@@ -238,8 +239,27 @@ def invalidate_stale_out(out_path):
     at exactly that point, never merely because a command line was
     typed. Best-effort: a removal failure (permission denied, read-only
     filesystem) is swallowed here -- it surfaces downstream when the
-    real write is attempted."""
+    real write is attempted.
+
+    T140 Round 11 review finding I3 (extends the above): each sibling
+    tool now ALSO calls this immediately after argv has successfully
+    PARSED (before any check that can refuse), so a HANDLED rc=1/rc=2
+    refusal that writes nothing can no longer leave the previous run's
+    document at --out looking current. A pure argparse usage error
+    (SystemExit before parsing completes) still never reaches it -- the
+    M3 property above is kept."""
     if not out_path:
+        return
+    # T140 Round 11 review finding I3: this now also runs on every handled
+    # exit after argv parses (not only on a crash), so it must NEVER remove
+    # anything but a stale REGULAR FILE -- an `--out /dev/stdout`, a FIFO,
+    # a device node or a directory is left strictly alone (lstat, so a
+    # symlink is judged as itself, never by what it points at).
+    try:
+        st = os.lstat(out_path)
+    except (OSError, ValueError, TypeError):
+        return
+    if not stat.S_ISREG(st.st_mode):
         return
     try:
         os.remove(out_path)

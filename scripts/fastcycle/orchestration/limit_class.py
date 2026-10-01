@@ -274,6 +274,13 @@ EXIT_USAGE = 2
 # request -- only by a malformed/adversarial one.
 MAX_LIVE_AGENTS = 1_000_000
 
+# T140 Round 11 review finding I1: the closed set of alias kinds DEC-22's
+# native-first partition understands (fixtures/alias_spread/*.json, the module
+# docstring's "kind: native|other" -- every real roster uses exactly these two).
+# Anything else is refused by `_validate_placement_fixture_shape`, never
+# silently bucketed as a provider.
+KNOWN_ALIAS_KINDS = frozenset(("native", "provider"))
+
 # T136's own placement refusal-reason text (fixtures/alias_spread/README.md's
 # own "No eligible alias => refused" wording) -- the RED test's real-tool
 # invocation check ONLY asserts None-vs-not-None on `refusal_reason` (never
@@ -324,6 +331,21 @@ _RETRY_AFTER_RE = re.compile(r"retry-after:?\s*(\d+)", re.IGNORECASE)
 _RESET_NAMED_RE = re.compile(
     r"resets?\s+(\d{4}-\d{2}-\d{2})[ t](\d{2}:\d{2})(?::(\d{2}))?"
     r"(?:\s+([A-Za-z_]+/[A-Za-z_]+))?",
+    re.IGNORECASE,
+)
+
+
+# T140 Round 11 review finding I4 (decision encoded here): a 429 that names a
+# WEEKLY/SUBSCRIPTION/MONTHLY limit in words but attaches NO reset date, while
+# ALSO carrying a retry-after value, is classified `cap`, not `rate-limited`.
+# DEC-14's text left this combination ambiguous; the conservative reading wins
+# because the two misclassifications are not symmetric -- treating a real
+# weekly cap as a short throttle makes the resume RETRY on an alias that is
+# capped for days (wasted dispatches, repeated kills), whereas treating a
+# short throttle as a cap only rebinds to another operational alias early.
+# resets_at stays UNKNOWN (no instant was named -- never fabricated).
+_PERIODIC_CAP_PHRASE_RE = re.compile(
+    r"\b(?:weekly|subscription|monthly)[\s_-]*(?:usage[\s_-]*)?(?:limit|cap|quota)",
     re.IGNORECASE,
 )
 
@@ -381,9 +403,13 @@ def classify_signal(raw):
         reset_match = _RESET_NAMED_RE.search(text)
         has_retry_after = retry_after_match is not None
         reset_named = reset_match is not None
+        periodic_cap_named = _PERIODIC_CAP_PHRASE_RE.search(text) is not None
         # DEC-14 / AR-005's own disambiguator, an OR of two conditions:
         # cap = (no retry-after) OR (a named weekly/subscription reset).
-        if (not has_retry_after) or reset_named:
+        # Round 11 I4: a weekly/subscription/monthly limit named in words
+        # (no date) also wins over a retry-after -- see
+        # _PERIODIC_CAP_PHRASE_RE's own comment for the decision.
+        if (not has_retry_after) or reset_named or periodic_cap_named:
             resets_at = _format_resets_at(reset_match) if reset_match else None
             return CLASS_CAP, resets_at
         return CLASS_RATE_LIMITED, None
@@ -706,6 +732,29 @@ def _validate_placement_fixture_shape(fx):
                             "separately, letting more agents land on the one real alias than "
                             "cap_per_alias permits") % (i, alias_val)
                 seen_aliases.add(alias_val)
+            # T140 Round 11 review finding I1 (fixed here): the SAME
+            # type-confusion class R6-I2 closed for `live_agents` recurred
+            # on three sibling fields that were never checked, each
+            # SILENTLY misclassifying the alias (reproduced live):
+            #   operational:"false" (a STRING) is truthy -> the alias was
+            #     marked eligible and assigned 2 agents, rc=0;
+            #   near_cap:null is falsy -> silently "not near cap";
+            #   kind:["native"] (a list) -> silently a provider.
+            # `operational`/`near_cap` must be genuine JSON booleans and
+            # `kind` a string from the closed set KNOWN_ALIAS_KINDS -- any
+            # other shape is REFUSED (EXIT_USAGE), never coerced or
+            # defaulted (section 11.4.6: guessing an alias's eligibility is
+            # exactly the misplacement DEC-22 exists to prevent).
+            for bool_field in ("operational", "near_cap"):
+                if bool_field in entry and not isinstance(entry[bool_field], bool):
+                    return ("aliases[%d].%s must be a JSON boolean true/false (got %s: %r) -- a "
+                            "non-boolean is never coerced (\"false\" as a string is truthy)") % (
+                                i, bool_field, type(entry[bool_field]).__name__, entry[bool_field])
+            if "kind" in entry:
+                kind_val = entry["kind"]
+                if not isinstance(kind_val, str) or kind_val not in KNOWN_ALIAS_KINDS:
+                    return ("aliases[%d].kind must be one of %s (got %s: %r)") % (
+                        i, sorted(KNOWN_ALIAS_KINDS), type(kind_val).__name__, kind_val)
     return None
 
 
@@ -1027,6 +1076,14 @@ def main(argv):
             # this branch's own parser construction/parsing is covered
             # too).
             place_args = build_place_arg_parser().parse_args(argv[1:])
+            # T140 Round 11 review finding I3 (fixed here): once argv has PARSED, this
+            # invocation's --out is genuinely this run's designated output -- a stale
+            # document from an earlier run must not survive ANY handled exit below (a
+            # rc=1 refusal / rc=2 config error that writes nothing used to leave the
+            # PREVIOUS run's verdict there, looking current; C-001). A pure argparse
+            # usage error (SystemExit before this line) still leaves --out untouched,
+            # per Round 10 finding M3 (guarded by the r9 regression suites).
+            invalidate_stale_out(getattr(place_args, "out", None))
             return cmd_place(place_args)
         except SystemExit:
             # argparse's own usage-error/--help path; unaffected by the
@@ -1105,6 +1162,14 @@ def main(argv):
         # `main()` ENTIRELY uncaught, exactly like the `place` branch's
         # own equivalent gap immediately above.
         args = build_arg_parser().parse_args(argv)
+        # T140 Round 11 review finding I3 (fixed here): once argv has PARSED, this
+        # invocation's --out is genuinely this run's designated output -- a stale
+        # document from an earlier run must not survive ANY handled exit below (a
+        # rc=1 refusal / rc=2 config error that writes nothing used to leave the
+        # PREVIOUS run's verdict there, looking current; C-001). A pure argparse
+        # usage error (SystemExit before this line) still leaves --out untouched,
+        # per Round 10 finding M3 (guarded by the r9 regression suites).
+        invalidate_stale_out(args.out if isinstance(getattr(args, "out", None), str) else None)
         if not isinstance(args.signal, str) or not isinstance(args.out, str) or not args.out:
             diag("limit_class: --signal and --out are both required", file=sys.stderr)
             return EXIT_USAGE

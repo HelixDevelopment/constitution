@@ -223,6 +223,17 @@ every `expected_verdict.json` exactly):
        `sha256:8c6c...dce66`, matching that fixture's own recorded
        `content_address` exactly, so the negative control genuinely reports
        zero mismatches rather than a false positive.)
+       HONEST GAP, decided explicitly (T140 Round 11 review finding I7):
+       OUTSIDE that fixture layout this check can verify NOTHING -- every
+       `file`/`git-ref`/`tracker-row`/`device` dependency, and any git-tree
+       dependency with no `tree_current/<locator>` beside the record, is
+       reported `unverifiable-external-dependency`, and a missing
+       `ground_truth_effects.json` is `unverifiable-ground-truth` -- so in
+       real (non-fixture) use resume-check answers UNSAFE for essentially
+       every record that declares a dependency. That is the fail-SAFE
+       direction (it never wrongly says SAFE), but HO-003 ("re-hash every
+       external_dep") is NOT satisfied in production; it is tracked as an
+       open gap, not claimed done.
     3. `nondeterministic-replay` -- a `pending` entry's `step`+`precondition`
        text names a nondeterministic-source keyword (`llm-generate`,
        `llm-generated`, `random`, `nondeterministic`, `non-deterministic`;
@@ -381,6 +392,15 @@ FcArgumentParser = fc_entry.FcArgumentParser
 run_cli_main = fc_entry.run_cli_main
 
 SCHEMA_HANDOFF = "handoff/v1"
+# T140 Round 11 review finding I2: the HO-001 record fields `validate`/`verify`
+# require (present, with this JSON type) before any hash check runs -- exactly
+# the fields `cmd_write` emits; handoff_id/body_hash are checked by the
+# self-integrity step itself.
+HO001_REQUIRED_FIELDS = (
+    ("item_id", str), ("alias", str), ("model", str), ("effort", str), ("phase", str),
+    ("verified", list), ("pending", list), ("partial_artefacts", list),
+    ("external_deps", list), ("effects_performed", list),
+)
 SCHEMA_WRITE = "handoff-write/v1"
 SCHEMA_VALIDATE = "handoff-validate/v1"
 SCHEMA_RESUME_CHECK = "handoff-resume-check/v1"
@@ -713,6 +733,24 @@ def cmd_validate(a):
 
     base_dir = os.path.dirname(os.path.abspath(a.handoff)) or "."
     mismatches = []
+
+    # 0. T140 Round 11 review finding I2 (fixed here): HO-001 shape check,
+    #    BEFORE any other check. A record holding ONLY {"schema":"whatever"}
+    #    with self-consistent hashes used to come back VALID -- the two
+    #    hash checks below only prove the record is internally CONSISTENT,
+    #    never that it is a COMPLETE handoff record, and with no
+    #    `partial_artefacts` field at all the HO-002 loop iterated nothing
+    #    and "passed" without checking anything. Every HO-001 field must be
+    #    present with its contract type, and `schema` must equal the one
+    #    schema this tool writes; anything else is INVALID, never VALID.
+    if doc.get("schema") != SCHEMA_HANDOFF:
+        mismatches.append("schema:expected=%s:got=%r" % (SCHEMA_HANDOFF, doc.get("schema")))
+    for field, want_type in HO001_REQUIRED_FIELDS:
+        if field not in doc:
+            mismatches.append("missing_required_field:%s" % field)
+        elif not isinstance(doc[field], want_type):
+            mismatches.append("malformed:%s:expected-%s:got-%s" % (
+                field, want_type.__name__, type(doc[field]).__name__))
 
     # 1. Self-integrity: handoff_id and body_hash both recompute correctly
     #    from the doc's own stored fields (the SAME two-pass construction
@@ -1946,6 +1984,22 @@ def _write_dispatch_internal_error_doc(out_path, subcommand, exc):
         pass
 
 
+# T140 Round 11 review finding I3 (fixed here): once argv has PARSED,
+# this invocation's --out is genuinely this run's designated output --
+# a stale document from an earlier run must not survive ANY handled
+# exit (a rc=1 refusal / rc=2 config error that writes nothing used to
+# leave the PREVIOUS run's verdict there, looking current; C-001). Done
+# in the dispatch wrapper (every table entry), immediately before the
+# handler runs. A pure argparse usage error (SystemExit before any
+# handler) still leaves --out untouched, per Round 10 finding M3
+# (guarded by test_handoff_r9_regression.sh).
+def _fresh_out(handler):
+    def run(a):
+        invalidate_stale_out(getattr(a, "out", None))
+        return handler(a)
+    return run
+
+
 def main(argv):
     if "--determinism-check" in argv:
         # T140 Round 8 review finding R8-I1 minor (a) (fixed here):
@@ -1966,11 +2020,11 @@ def main(argv):
             return EXIT_USAGE
 
     table = {
-        "write": cmd_write,
-        "validate": cmd_validate,
-        "verify": cmd_validate,
-        "resume-check": cmd_resume_check,
-        "resume": cmd_resume_check,
+        "write": _fresh_out(cmd_write),
+        "validate": _fresh_out(cmd_validate),
+        "verify": _fresh_out(cmd_validate),
+        "resume-check": _fresh_out(cmd_resume_check),
+        "resume": _fresh_out(cmd_resume_check),
     }
     args = None
     cmd_name = None

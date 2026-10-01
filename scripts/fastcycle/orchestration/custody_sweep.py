@@ -36,10 +36,14 @@ Three subcommands:
           else null (never guessed beyond that regex, section 11.4.6)
         - last_commit: the stash's own commit (stash entries) or the
           worktree's live HEAD sha (worktree entries)
-        - dirty_file_hash: sha256 of the real patch content (`git stash
-          show -p <ref>` for a stash; `git -C <path> diff HEAD` for a
-          worktree), computed FRESH every run -- never cached, never
-          assumed from a prior run
+        - dirty_file_hash: sha256 of the real patch content as RAW BYTES
+          (`git stash show -p <CANONICAL_PATCH_OPTS> <ref>` for a stash;
+          `git -C <path> diff <CANONICAL_PATCH_OPTS> HEAD` for a worktree
+          -- binary-safe, CRLF-preserving; T140 Round 11 finding B1),
+          computed FRESH every run -- never cached, never assumed from a
+          prior run; plus has_untracked (a stash's `-u` third parent
+          counts), dirty_submodules and has_unmerged -- the coverage facts
+          `derive_verdict` refuses on
         - existing_backup: {backup_artifact_path, backup_hash} if a
           matching backup artifact is found under --backup-root (see
           BACKUP LAYOUT below), with backup_hash recomputed live against
@@ -232,12 +236,82 @@ def _run(args, cwd=None, check=True, env=None):
     entirely (never merges with `os.environ`) -- the ONE thing a caller
     genuinely needing isolation (see `_sanitized_scratch_env()` below) can
     rely on (T140 Round 8 review finding R8-I2)."""
-    proc = subprocess.run(args, cwd=cwd, capture_output=True, text=True, env=env)
+    # T140 Round 11 review finding I6 (fixed here): `errors="surrogateescape"`
+    # -- a strict text decode (the former default) raised an uncaught
+    # UnicodeDecodeError on ANY non-UTF-8 byte in git's output (a stash
+    # message, a commit subject, a worktree path), aborting the WHOLE
+    # inventory. surrogateescape round-trips every byte losslessly (a path
+    # decoded this way is still usable with os.* calls); strings bound for
+    # the JSON output are passed through `_json_safe()` before writing.
+    # Patch CONTENT is never read through this function at all -- see
+    # `_run_bytes()` below (Round 11 finding B1).
+    proc = subprocess.run(args, cwd=cwd, capture_output=True, text=True, errors="surrogateescape", env=env)
     if check and proc.returncode != 0:
         raise RuntimeError(
             "command failed (rc=%d): %s\nstderr: %s" % (proc.returncode, " ".join(args), proc.stderr.strip())
         )
     return proc.returncode, proc.stdout, proc.stderr
+
+
+def _run_bytes(args, cwd=None, env=None):
+    """T140 Round 11 review finding B1 (fixed here): runs a git command and
+    returns its stdout as RAW BYTES, never decoded. Every patch whose sha256
+    decides a destructive verdict MUST be read through this function: the
+    former text-mode read (universal newlines) silently rewrote CRLF to LF,
+    so the hash the tool compared against was the hash of a patch that no
+    longer applies to the real files (reproduced live: a CR-stripped backup
+    was ALLOWED, the faithful one REFUSED forever). Returns (rc, bytes,
+    stderr_text)."""
+    proc = subprocess.run(args, cwd=cwd, capture_output=True, env=env)
+    return proc.returncode, proc.stdout, proc.stderr.decode("utf-8", "replace")
+
+
+# T140 Round 11 review finding B1 (fixed here): the ONE canonical patch
+# shape a backup must byte-match. Every option is load-bearing:
+#   --binary          a binary change is emitted as a restorable base85
+#                     literal, never the content-free "Binary files differ"
+#                     line the former plain `git diff HEAD` produced
+#                     (reproduced live: that "backup" fails `git apply`
+#                     with "cannot apply binary patch ... without full index
+#                     line" -- the binary change was unrecoverable)
+#   --no-textconv     a configured textconv filter would emit a LOSSY,
+#                     human-readable rendering instead of the real bytes
+#   --no-ext-diff / --no-color   no external diff driver, no ANSI escapes
+#   --src-prefix/--dst-prefix    a user `diff.noprefix=true` cannot change
+#                     the patch shape (`git apply` needs the a/ b/ prefixes)
+#   --no-relative     a user `diff.relative` cannot silently drop changes
+#                     outside the current subdirectory
+#   --ignore-submodules=none     a `submodule.*.ignore` config cannot HIDE a
+#                     submodule change (see the submodule check below)
+# An operator creating a backup MUST use the same options, e.g. for a
+# worktree:  git -C <wt> diff HEAD <CANONICAL_PATCH_OPTS> > tracked.patch
+# and for a stash:  git stash show -p <CANONICAL_PATCH_OPTS> <ref> > patch.diff
+# A backup created with a plain `git diff HEAD` (pre-Round-11 convention)
+# no longer byte-matches (if nothing else, --binary implies --full-index)
+# and is honestly REFUSED -> `keep`, the safe-reversible default.
+CANONICAL_PATCH_OPTS = (
+    "--binary", "--no-color", "--no-ext-diff", "--no-textconv", "--no-relative",
+    "--src-prefix=a/", "--dst-prefix=b/", "--ignore-submodules=none",
+)
+
+
+def _json_safe(obj):
+    """T140 Round 11 review finding I6 (fixed here): recursively replaces
+    any surrogate-escaped (non-UTF-8) character in a string with U+FFFD so
+    `canon()` (ensure_ascii=False, then `.encode("utf-8")`) can never crash
+    on a non-UTF-8 stash message / commit subject / path. Display-only --
+    never applied to a value this tool later passes back to git."""
+    if isinstance(obj, str):
+        try:
+            obj.encode("utf-8")
+            return obj
+        except UnicodeEncodeError:
+            return obj.encode("utf-8", "surrogateescape").decode("utf-8", "replace")
+    if isinstance(obj, list):
+        return [_json_safe(x) for x in obj]
+    if isinstance(obj, dict):
+        return {_json_safe(k): _json_safe(v) for k, v in obj.items()}
+    return obj
 
 
 def _sanitized_scratch_env():
@@ -332,15 +406,42 @@ def list_stash_entries(root):
 
 
 def stash_files_touched(root, ref, env=None):
-    rc, out, _ = _run(["git", "-C", root, "stash", "show", "-p", ref], check=False, env=env)
+    """Returns (files_touched, patch_bytes). T140 Round 11 finding B1: the
+    patch is read as RAW BYTES with CANONICAL_PATCH_OPTS (binary-safe,
+    CRLF-preserving) -- its sha256 is what a backup must byte-match. The
+    file list is decoded for display only (surrogateescape, I6)."""
+    rc, out, _ = _run_bytes(["git", "-C", root, "stash", "show", "-p"] + list(CANONICAL_PATCH_OPTS) + [ref],
+                            env=env)
     if rc != 0:
-        return [], ""
+        return [], b""
     files = []
-    for line in out.splitlines():
-        m = DIFF_FILE_RE.match(line)
+    for raw_line in out.split(b"\n"):
+        if not raw_line.startswith(b"diff --git "):
+            continue
+        m = DIFF_FILE_RE.match(raw_line.decode("utf-8", "surrogateescape"))
         if m:
             files.append(m.group(1))
     return files, out
+
+
+def stash_has_untracked(root, ref, env=None):
+    """T140 Round 11 review finding B1 scenario 3 (fixed here): a stash made
+    with `git stash push -u`/`--include-untracked` (or `-a`) stores the
+    untracked files in a THIRD parent commit (`<ref>^3`) that `git stash
+    show -p` does NOT include -- so a `patch.diff` backup can never cover
+    them. The former docstring claim "a stash never captures untracked
+    files" was FALSE for exactly the common -u case. Returns True when
+    `<ref>^3` resolves, False when it genuinely does not, None when the
+    question itself could not be answered (treated as unsafe by the
+    caller)."""
+    rc, _out, err = _run(["git", "-C", root, "rev-parse", "--verify", "-q", "%s^3" % ref],
+                         check=False, env=env)
+    if rc == 0:
+        return True
+    # `rev-parse --verify -q` exits 1 with EMPTY stderr for "no such
+    # revision"; anything else (a non-empty stderr) is an unanswered
+    # question, never silently read as "no untracked part".
+    return False if not err.strip() else None
 
 
 def stash_base_commit(root, ref):
@@ -369,10 +470,10 @@ def find_stash_backup(root, backup_root, entry_id):
 
 
 def build_stash_entry(root, backup_root, ref, message):
-    files, patch_text = stash_files_touched(root, ref)
+    files, patch_bytes = stash_files_touched(root, ref)
     owner_item = owner_item_from_text(message)
-    dirty_hash = sha256_of_text(patch_text) if patch_text else None
-    dirty_status = "dirty" if patch_text else "empty_patch"
+    dirty_hash = sha256_of_bytes(patch_bytes) if patch_bytes else None
+    dirty_status = "dirty" if patch_bytes else "empty_patch"
     backup, searched = find_stash_backup(root, backup_root, ref)
     return {
         "entry_kind": "stash",
@@ -382,7 +483,8 @@ def build_stash_entry(root, backup_root, ref, message):
         "last_commit": stash_commit(root, ref),
         "base_commit": stash_base_commit(root, ref),
         "files_touched": files,
-        "dirty_file_hash": {"status": dirty_status, "sha256": dirty_hash},
+        "dirty_file_hash": {"status": dirty_status, "sha256": dirty_hash,
+                            "has_untracked": stash_has_untracked(root, ref)},
         "existing_backup": backup,
         "backup_search_paths": searched,
     }
@@ -434,69 +536,195 @@ def worktree_head_subject(path):
     return out.strip()
 
 
+def _parse_status_v2_z(raw):
+    """T140 Round 11 review finding B1 scenario 4 (fixed here): parses
+    `git status --porcelain=v2 -z` RAW BYTES. Returns a dict
+      {any_change, has_untracked, dirty_submodules: [path, ...],
+       has_unmerged}
+    or None when a record cannot be parsed (the caller treats an unparseable
+    status as UNMEASURED -- never as clean).
+
+    porcelain v2 is used (never v1) because it carries the `<sub>` field:
+    "N..." for an ordinary path, "S<c><m><u>" for a SUBMODULE. A changed
+    submodule is the case the former code silently ALLOWED to be retired:
+    `git diff HEAD` records only the gitlink line ("Subproject commit
+    <sha>-dirty"), never the submodule's own uncommitted changes or its
+    unpushed commits -- and a linked worktree's submodule git dirs live
+    under `.git/worktrees/<id>/modules/`, deleted with the worktree. Every
+    changed submodule entry is therefore reported, whatever its c/m/u
+    flags (a moved pointer alone can name commits that exist only in that
+    about-to-be-deleted submodule git dir)."""
+    res = {"any_change": False, "has_untracked": False, "dirty_submodules": [], "has_unmerged": False}
+    tokens = raw.split(b"\0")
+    i = 0
+    while i < len(tokens):
+        rec = tokens[i]
+        i += 1
+        if not rec:
+            continue
+        if rec.startswith(b"# "):
+            continue
+        if rec.startswith(b"? "):
+            res["any_change"] = True
+            res["has_untracked"] = True
+            continue
+        if rec.startswith(b"! "):
+            continue  # ignored entry (only emitted with --ignored, never requested here)
+        if rec.startswith(b"1 "):
+            parts = rec.split(b" ", 8)
+            if len(parts) != 9:
+                return None
+        elif rec.startswith(b"2 "):
+            parts = rec.split(b" ", 9)
+            if len(parts) != 10:
+                return None
+            i += 1  # a rename/copy record is followed by its ORIGINAL path as the next NUL token
+        elif rec.startswith(b"u "):
+            parts = rec.split(b" ", 10)
+            if len(parts) != 11:
+                return None
+            res["has_unmerged"] = True
+        else:
+            return None
+        res["any_change"] = True
+        sub_field = parts[2]
+        if sub_field.startswith(b"S"):
+            res["dirty_submodules"].append(parts[-1].decode("utf-8", "surrogateescape"))
+    return res
+
+
+_UNMEASURED_WT_STATE = {"status": "UNMEASURED", "sha256": None, "has_untracked": None,
+                        "dirty_submodules": None, "has_unmerged": None}
+
+
 def worktree_dirty_state(path, env=None):
-    rc, status_out, _ = _run(["git", "-C", path, "status", "--porcelain=v1"], check=False, env=env)
+    """Returns (state_dict, patch_bytes). T140 Round 11 review findings
+    B1/I6 (fixed here):
+      - the patch is read as RAW BYTES with CANONICAL_PATCH_OPTS (binary-
+        safe, CRLF-preserving, textconv-free); its sha256 is what a
+        `tracked.patch` backup must byte-match;
+      - status is read via porcelain v2 -z so a changed SUBMODULE is
+        detected (see `_parse_status_v2_z`) and a non-UTF-8 path can never
+        crash the run;
+      - a FAILED `git diff` is now UNMEASURED -- the former code fell
+        through to "untracked_only"/"clean" when the diff command itself
+        failed (a fail-open read of "could not look" as "nothing there")."""
+    rc, raw, _ = _run_bytes(["git", "-C", path, "status", "--porcelain=v2", "-z",
+                             "--untracked-files=all", "--ignore-submodules=none"], env=env)
     if rc != 0:
-        return {"status": "UNMEASURED", "sha256": None, "has_untracked": None}, ""
-    if not status_out.strip():
-        return {"status": "clean", "sha256": None, "has_untracked": False}, ""
-    rc2, diff_out, _ = _run(["git", "-C", path, "diff", "HEAD"], check=False, env=env)
-    has_untracked = any(line.startswith("?? ") for line in status_out.splitlines())
-    if rc2 == 0 and diff_out:
-        return {"status": "dirty", "sha256": sha256_of_text(diff_out), "has_untracked": has_untracked}, diff_out
-    if has_untracked:
-        return {"status": "untracked_only", "sha256": None, "has_untracked": True}, ""
-    return {"status": "clean", "sha256": None, "has_untracked": False}, ""
+        return dict(_UNMEASURED_WT_STATE), b""
+    parsed = _parse_status_v2_z(raw)
+    if parsed is None:
+        return dict(_UNMEASURED_WT_STATE), b""
+    extra = {"has_untracked": parsed["has_untracked"], "dirty_submodules": parsed["dirty_submodules"],
+             "has_unmerged": parsed["has_unmerged"]}
+    if not parsed["any_change"]:
+        return dict(status="clean", sha256=None, **extra), b""
+    rc2, diff_out, _ = _run_bytes(["git", "-C", path, "diff"] + list(CANONICAL_PATCH_OPTS) + ["HEAD"],
+                                  env=env)
+    if rc2 != 0:
+        return dict(_UNMEASURED_WT_STATE), b""
+    if diff_out:
+        return dict(status="dirty", sha256=sha256_of_bytes(diff_out), **extra), diff_out
+    if parsed["has_untracked"]:
+        return dict(status="untracked_only", sha256=None, **extra), b""
+    return dict(status="clean", sha256=None, **extra), b""
+
+
+STASH_REF_RE = re.compile(r"^stash@\{\d+\}$")
 
 
 def resolve_live_dirty_state(entry_kind, entry_id, root, env=None):
-    """Independently RE-DERIVES the entry's CURRENT live dirty state, fresh,
-    at call time -- reusing the EXACT SAME git-querying functions `inventory`
-    itself uses to compute `dirty_file_hash` in the first place (never a
-    second implementation, section 11.4.227) -- so a backup can be checked
-    against what the stash/worktree ACTUALLY looks like RIGHT NOW, never
-    against a stale value cached in an inventory document and never against
-    itself (section 9.2 / T140 review finding I3: hashing the backup file
-    and comparing it to itself proves nothing about whether that backup
-    still covers today's content).
+    """Independently RE-DERIVES the entry's CURRENT live state, fresh, at
+    call time -- reusing the EXACT SAME git-querying functions `inventory`
+    itself uses (never a second implementation, section 11.4.227) -- so a
+    backup is checked against what the stash/worktree ACTUALLY looks like
+    RIGHT NOW, never against a cached inventory value and never against
+    itself (section 9.2 / T140 finding I3).
 
-    Returns (live_sha256_or_None, has_untracked_bool_or_None, found_bool).
-
-    found=False means entry_id no longer resolves to a LIVE stash/worktree
-    at all (e.g. already dropped/removed since the inventory was taken) --
-    treated conservatively as "cannot verify coverage", never as "matches"
-    (section 11.4.101 safe-reversible default; section 11.4.201: an
-    unresolvable signal takes the conservative-safe branch, never the
-    permissive one).
-
-    has_untracked is always False for a stash entry: `git stash` (without
-    `-u`) never captures untracked files in the first place, so there is no
-    untracked-coverage question to ask of a stash backup the way there is
-    for a worktree's tracked-only tracked.patch backup (see BACKUP LAYOUT
-    above -- a worktree's backup covers `git diff HEAD` only, never `git
-    status`'s `??` entries).
+    Returns a dict:
+      found             False => entry_id does not resolve to exactly one
+                        live stash/worktree (dropped/removed since the
+                        inventory, malformed, or AMBIGUOUS) -- the caller
+                        refuses, never reads it as "matches"
+      ambiguous         True when >1 live worktree maps to entry_id
+      live_hash         sha256 of the canonical raw-bytes patch, or None
+      has_untracked     True/False/None -- for a worktree: `git status`
+                        `??` entries; for a STASH: the `-u` third parent
+                        (T140 Round 11 finding B1 scenario 3 -- the former
+                        "always False for a stash" was false for -u)
+      dirty_submodules  list of changed submodule paths (worktree), [] for
+                        a stash, None when undeterminable
+      has_unmerged      True when the worktree has unresolved conflicts
+      is_main           True when the worktree is the repository's MAIN
+                        worktree (git always lists it FIRST) or the
+                        checkout this tool was pointed at (--repo-root)
+                        (T140 Round 11 finding B1 scenario 5)
+      path              the resolved worktree path (worktree only)
+      head_unreachable  True when a DETACHED worktree's HEAD is reachable
+                        from no ref (its commits die with the worktree)
+      measured          False when the live state could not be read at all
+                        (a failed git status/diff) -- the caller refuses
     """
+    res = {"found": False, "ambiguous": False, "live_hash": None, "has_untracked": None,
+           "dirty_submodules": None, "has_unmerged": None, "is_main": False, "path": None,
+           "measured": False}
     if entry_kind == "stash":
+        if not isinstance(entry_id, str) or not STASH_REF_RE.match(entry_id):
+            return res
         rc, _out, _err = _run(["git", "-C", root, "rev-parse", "--verify", "-q", entry_id],
                                check=False, env=env)
         if rc != 0:
-            return None, False, False
-        _files, patch_text = stash_files_touched(root, entry_id, env=env)
-        live_hash = sha256_of_text(patch_text) if patch_text else None
-        return live_hash, False, True
+            return res
+        _files, patch_bytes = stash_files_touched(root, entry_id, env=env)
+        res.update(found=True,
+                   live_hash=sha256_of_bytes(patch_bytes) if patch_bytes else None,
+                   has_untracked=stash_has_untracked(root, entry_id, env=env),
+                   dirty_submodules=[], has_unmerged=False, measured=True)
+        return res
     if entry_kind == "worktree":
-        for wt in list_worktree_entries(root, env=env):
+        matches = []
+        for idx, wt in enumerate(list_worktree_entries(root, env=env)):
             path = wt.get("path")
             if not path:
                 continue
             if worktree_entry_id(path, root) != entry_id:
                 continue
-            if not os.path.isdir(path):
-                return None, None, False
-            dirty_state, _diff = worktree_dirty_state(path, env=env)
-            return dirty_state.get("sha256"), bool(dirty_state.get("has_untracked")), True
-        return None, None, False
-    return None, None, False
+            matches.append((idx, path, wt))
+        if len(matches) > 1:
+            res["ambiguous"] = True
+            return res
+        if not matches:
+            return res
+        idx, path, wt = matches[0]
+        res["path"] = path
+        res["is_main"] = (idx == 0) or os.path.abspath(path) == os.path.abspath(root)
+        if not os.path.isdir(path):
+            return res
+        # T140 Round 11 (B1 sibling, found while fixing B1): a DETACHED
+        # worktree whose HEAD commit is reachable from NO ref holds commits
+        # that exist only via that worktree's own HEAD/reflog -- both live
+        # under `.git/worktrees/<id>/` and are deleted with the worktree,
+        # so `git gc` later destroys the commits. No patch backup covers
+        # committed history, so this is refused like any uncovered content.
+        res["head_unreachable"] = False
+        if wt.get("detached"):
+            head = wt.get("head")
+            rc, out, _ = _run(["git", "-C", root, "for-each-ref", "--count=1", "--format=%(refname)",
+                               "--contains", head or "HEAD"], check=False, env=env)
+            res["head_unreachable"] = None if (rc != 0 or not head) else (not out.strip())
+        state, _diff = worktree_dirty_state(path, env=env)
+        if state.get("status") == "UNMEASURED":
+            # Could not look -- reported as found-but-unmeasured; every
+            # coverage field stays None so the caller refuses.
+            res["found"] = True
+            return res
+        res.update(found=True, live_hash=state.get("sha256"),
+                   has_untracked=state.get("has_untracked"),
+                   dirty_submodules=state.get("dirty_submodules"),
+                   has_unmerged=state.get("has_unmerged"), measured=True)
+        return res
+    return res
 
 
 def find_worktree_backup(root, backup_root, entry_id):
@@ -509,21 +737,26 @@ def find_worktree_backup(root, backup_root, entry_id):
     return None, searched
 
 
-def build_worktree_entry(root, backup_root, wt):
+def build_worktree_entry(root, backup_root, wt, index=None):
     path = wt.get("path")
     entry_id = worktree_entry_id(path, root)
     branch = wt.get("branch", "")
     subject = worktree_head_subject(path) if path and os.path.isdir(path) else None
     owner_item = owner_item_from_text(subject, branch)
     dirty_state, _diff = worktree_dirty_state(path) if path and os.path.isdir(path) else (
-        {"status": "UNMEASURED", "sha256": None, "has_untracked": None}, "")
+        dict(_UNMEASURED_WT_STATE), b"")
     backup, searched = find_worktree_backup(root, backup_root, entry_id)
+    # T140 Round 11 finding B1 scenario 5: `git worktree list` ALWAYS lists
+    # the main worktree first; the checkout this tool was pointed at counts
+    # too. The former `entry_id == "MAIN"` test missed the real main
+    # worktree whenever --repo-root was a LINKED worktree.
+    is_main = (index == 0) or bool(path and os.path.abspath(path) == os.path.abspath(root))
     return {
         "entry_kind": "worktree",
         "entry_id": entry_id,
         "path": path,
         "branch": branch,
-        "is_main": entry_id == "MAIN",
+        "is_main": is_main,
         "owner_item": owner_item,
         "last_commit": wt.get("head"),
         "dirty_file_hash": dirty_state,
@@ -637,29 +870,72 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
     # uses immediately below, since both are "cannot confirm this backup
     # still covers something real" facts.
     try:
-        live_hash, has_untracked, found = resolve_live_dirty_state(entry_kind, entry_id, root, env=env)
+        live = resolve_live_dirty_state(entry_kind, entry_id, root, env=env)
     except fc_common.SAFE_EXCEPTIONS as exc:
         return "REFUSED", ("could not independently re-derive the live dirty state for entry_id "
                             "%r (kind=%s): %s: %s -- entry_id must be a genuine string identifying "
                             "a real stash/worktree; cannot confirm the backup still covers "
                             "anything real" % (entry_id, entry_kind, type(exc).__name__, exc))
-    if not found:
+    if live.get("ambiguous"):
+        return "REFUSED", ("entry_id %r (%s) is AMBIGUOUS -- more than one live worktree maps to it; "
+                            "cannot tell which one the backup covers" % (entry_id, entry_kind))
+    if not live.get("found"):
         return "REFUSED", ("entry_id %r (%s) no longer resolves to a live stash/worktree -- cannot "
                             "independently verify the backup still covers its content" % (entry_id, entry_kind))
-    if entry_kind == "worktree" and has_untracked is not False:
-        # has_untracked is True, or None (undeterminable) -- either way the
-        # tracked-only backup layout (BACKUP LAYOUT above) cannot possibly
+    # T140 Round 11 review finding B1 scenario 5 (fixed here): the MAIN
+    # worktree (and the checkout this tool was pointed at) is NEVER a retire
+    # candidate, whatever its backup looks like -- `is_main` existed in the
+    # data model but no verdict path ever checked it, so a gitignored-
+    # everything main checkout with a matching backup was ALLOWED retire
+    # (reproduced live). Checked BEFORE any coverage question: there is no
+    # backup that makes deleting the main checkout a reversible action.
+    if entry_kind == "worktree" and live.get("is_main"):
+        return "REFUSED", ("worktree %r is the repository's MAIN worktree / the checkout this tool was "
+                            "pointed at (%r) -- it is never a retire candidate" % (entry_id, live.get("path")))
+    if not live.get("measured"):
+        return "REFUSED", ("the live state of %s %r could not be read (git status/diff failed) -- "
+                            "cannot confirm the backup covers it" % (entry_kind, entry_id))
+    has_untracked = live.get("has_untracked")
+    if has_untracked is not False:
+        # True, or None (undeterminable) -- either way a tracked-diff-only
+        # backup (worktree tracked.patch / stash patch.diff) cannot possibly
         # cover untracked content, so it is never silently ignored.
-        return "REFUSED", ("worktree %r has untracked content (has_untracked=%r) that the tracked-diff-"
-                            "only backup at %r cannot cover -- retire refused to avoid losing it"
-                            % (entry_id, has_untracked, backup_artifact_path))
+        # T140 Round 11 review finding B1 scenario 3 (fixed here): this now
+        # applies to STASHES too -- a `git stash push -u` stash keeps its
+        # untracked files in the `^3` parent, which `git stash show -p`
+        # (and therefore patch.diff) never contains; `land` was ALLOWED on
+        # exactly that case (reproduced live).
+        return "REFUSED", ("%s %r has untracked content (has_untracked=%r) that the tracked-diff-only "
+                            "backup at %r cannot cover -- %s refused to avoid losing it"
+                            % (entry_kind, entry_id, has_untracked, backup_artifact_path, action))
+    dirty_submodules = live.get("dirty_submodules")
+    if dirty_submodules is None or dirty_submodules:
+        # T140 Round 11 review finding B1 scenario 4 (fixed here): a patch
+        # records a submodule only as a gitlink line ("Subproject commit
+        # <sha>-dirty") -- the submodule's own uncommitted changes and any
+        # commits that exist only in its (worktree-local) git dir are NOT
+        # in any backup this tool knows how to verify.
+        return "REFUSED", ("%s %r has changed submodule(s) %r whose own content no patch backup can "
+                            "capture -- %s refused" % (entry_kind, entry_id, dirty_submodules, action))
+    head_unreachable = live.get("head_unreachable", False)
+    if head_unreachable is not False:
+        return "REFUSED", ("worktree %r is on a DETACHED HEAD %s from any branch/tag -- its commits "
+                            "would be lost with the worktree's own reflog; no patch backup covers "
+                            "committed history, %s refused"
+                            % (entry_id, "unreachable" if head_unreachable else "of undeterminable reachability",
+                               action))
+    if live.get("has_unmerged"):
+        return "REFUSED", ("%s %r has unresolved merge conflicts -- index state a patch backup cannot "
+                            "capture; %s refused" % (entry_kind, entry_id, action))
+    live_hash = live.get("live_hash")
     if live_hash != real_hash:
         return "REFUSED", ("backup content at %r (sha256=%r) does NOT match the entry's freshly "
                             "re-derived LIVE dirty content (sha256=%r) -- the backup is stale and no "
                             "longer covers today's live changes" % (backup_artifact_path, real_hash, live_hash))
     return "ALLOWED", ("backup_hash independently re-verified against BOTH the real backup file at %r "
-                        "AND the entry's freshly re-derived live dirty content (no untracked content)"
-                        % backup_artifact_path)
+                        "AND the entry's freshly re-derived live dirty content (canonical binary-safe "
+                        "raw-bytes patch; no untracked content, no changed submodule, not the main "
+                        "worktree)" % backup_artifact_path)
 
 
 # ---------------------------------------------------------------------------
@@ -667,7 +943,7 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
 # closure/reopen_rate.py's own write_report).
 # ---------------------------------------------------------------------------
 def write_doc(out_path, schema, body, run_meta):
-    doc = dict(body)
+    doc = _json_safe(dict(body))  # T140 Round 11 I6: never crash canon() on a non-UTF-8 string
     doc["schema"] = schema
     doc["body_hash"] = body_hash_of(dict(doc))
     doc["run_meta"] = run_meta
@@ -699,13 +975,34 @@ def cmd_inventory(a):
     backup_root = os.path.abspath(a.backup_root) if a.backup_root else \
         os.path.join(root, "qa-results", "agent_custody_20260926")
 
+    # T140 Round 11 review finding I6 (fixed here): per-entry error
+    # isolation -- ONE unreadable entry (a failing git call, an undecodable
+    # byte) becomes ONE honest UNMEASURED entry naming its error, never a
+    # crash that aborts the WHOLE inventory.
+    def _isolated(kind, entry_id, build):
+        try:
+            return build()
+        except Exception as exc:
+            return {
+                "entry_kind": kind,
+                "entry_id": entry_id,
+                "dirty_file_hash": dict(_UNMEASURED_WT_STATE),
+                "existing_backup": None,
+                "backup_search_paths": [],
+                "inventory_error": {"class": type(exc).__name__, "detail": safe_str(exc)},
+            }
+
     stash_raw = list_stash_entries(root)
-    stash_entries = [build_stash_entry(root, backup_root, e["ref"], e["message"]) for e in stash_raw]
+    stash_entries = [_isolated("stash", e["ref"],
+                               lambda e=e: build_stash_entry(root, backup_root, e["ref"], e["message"]))
+                     for e in stash_raw]
 
     wt_raw = list_worktree_entries(root)
-    wt_entries = [build_worktree_entry(root, backup_root, w) for w in wt_raw]
+    wt_entries = [_isolated("worktree", w.get("path"),
+                            lambda w=w, idx=idx: build_worktree_entry(root, backup_root, w, index=idx))
+                  for idx, w in enumerate(wt_raw)]
 
-    entries = stash_entries + wt_entries
+    entries = _json_safe(stash_entries + wt_entries)
     body = {
         "repo_root": root,
         "backup_root": backup_root,
@@ -1202,29 +1499,85 @@ def _selftest_golden_good_scratch_check():
             _run(["git", "-C", repo, "config", "user.name", "custody_sweep selftest"],
                  check=True, env=scratch_env)
             tracked = os.path.join(repo, "tracked.txt")
-            with open(tracked, "w", encoding="utf-8") as fh:
-                fh.write("baseline content\n")
+            with open(tracked, "wb") as fh:
+                fh.write(b"baseline content\r\n")
             _run(["git", "-C", repo, "add", "tracked.txt"], check=True, env=scratch_env)
             _run(["git", "-C", repo, "commit", "--quiet", "-m", "selftest baseline"],
                  check=True, env=scratch_env)
-            with open(tracked, "w", encoding="utf-8") as fh:
-                fh.write("baseline content\nlive dirty edit\n")
-            dirty_state, diff_text = worktree_dirty_state(repo, env=scratch_env)
+            # T140 Round 11 review finding B1 scenario 5 (fixed here): the
+            # PRIOR version of this check retired the scratch repo's OWN
+            # main checkout (`worktree_entry_id(repo, repo)` -> "MAIN") and
+            # called that the golden-GOOD case -- i.e. the selftest was
+            # validating exactly the case that must be REFUSED. The golden-
+            # good case is now a genuine LINKED worktree of the scratch
+            # repo, dirtied, retired against `repo` (its main) as root.
+            linked = os.path.join(tmp, "linked_wt")
+            _run(["git", "-C", repo, "worktree", "add", "--quiet", "-b", "selftest-linked", linked],
+                 check=True, env=scratch_env)
+            # CRLF content (B1 scenario 2): a text-mode read would rewrite
+            # these bytes, so this golden-good case only passes when the
+            # whole pipeline is genuinely byte-faithful.
+            with open(os.path.join(linked, "tracked.txt"), "wb") as fh:
+                fh.write(b"baseline content\r\nlive dirty edit\r\n")
+            dirty_state, diff_bytes = worktree_dirty_state(linked, env=scratch_env)
         except (OSError, RuntimeError) as exc:
             return "REFUSED", ("scratch selftest setup raised %s: %s -- an internal setup failure is "
                                 "never silently read as ALLOWED") % (type(exc).__name__, exc)
-        if dirty_state.get("status") != "dirty" or not diff_text:
+        if dirty_state.get("status") != "dirty" or not diff_bytes:
             return "REFUSED", ("scratch selftest setup failed to produce a dirty worktree (status=%r) "
                                 "-- an internal setup failure is never silently read as ALLOWED"
                                 % dirty_state.get("status"))
         backup_path = os.path.join(tmp, "backup.patch")
-        with open(backup_path, "w", encoding="utf-8") as fh:
-            fh.write(diff_text)
+        # Bytes mode (B1 item 6): the backup is the exact raw patch bytes.
+        with open(backup_path, "wb") as fh:
+            fh.write(diff_bytes)
         with open(backup_path, "rb") as fh:
             backup_hash = sha256_of_bytes(fh.read())
-        entry_id = worktree_entry_id(repo, repo)  # repo is its own repo-root -> "MAIN"
-        return derive_verdict("retire", backup_hash, backup_path, repo,
-                               entry_kind="worktree", entry_id=entry_id, env=scratch_env)
+        entry_id = worktree_entry_id(linked, repo)
+        if entry_id == "MAIN":
+            return "REFUSED", "scratch selftest setup resolved the linked worktree as MAIN -- setup defect"
+        verdict, detail = derive_verdict("retire", backup_hash, backup_path, repo,
+                                         entry_kind="worktree", entry_id=entry_id, env=scratch_env)
+        if verdict != "ALLOWED":
+            return verdict, detail
+        # T140 Round 11 review finding B2 (fixed here): the checked-in
+        # `proposal_golden_bad_wrong_hash.json` fixture is refused only
+        # because its backup path does not exist on this host -- it never
+        # REACHES the hash comparison. These two golden-bad cases reuse the
+        # live, otherwise-ALLOWED scratch state so each refusal can only
+        # come from the specific check it names (the detail is asserted).
+        for label, claimed_hash, must_contain in (
+                ("wrong-hash", "0" * 64, "does not match the real sha256"),
+        ):
+            v, d = derive_verdict("retire", claimed_hash, backup_path, repo,
+                                  entry_kind="worktree", entry_id=entry_id, env=scratch_env)
+            if v != "REFUSED" or must_contain not in d:
+                return "REFUSED", ("selftest golden-bad %s FAILED: got %s (%s), expected REFUSED naming "
+                                    "%r" % (label, v, d, must_contain))
+        with open(os.path.join(linked, "tracked.txt"), "ab") as fh:
+            fh.write(b"edit made AFTER the backup\r\n")
+        v, d = derive_verdict("retire", backup_hash, backup_path, repo,
+                              entry_kind="worktree", entry_id=entry_id, env=scratch_env)
+        if v != "REFUSED" or "freshly re-derived LIVE" not in d:
+            return "REFUSED", ("selftest golden-bad stale-backup FAILED: got %s (%s), expected REFUSED by "
+                                "the live-content comparison" % (v, d))
+        # Negative control inside the SAME scratch repo: an identically-
+        # backed-up retire of the MAIN checkout must be REFUSED, or the
+        # ALLOWED above proves nothing about the is_main gate.
+        with open(tracked, "wb") as fh:
+            fh.write(b"baseline content\r\nmain dirty edit\r\n")
+        _st, main_bytes = worktree_dirty_state(repo, env=scratch_env)
+        main_backup = os.path.join(tmp, "main_backup.patch")
+        with open(main_backup, "wb") as fh:
+            fh.write(main_bytes)
+        main_verdict, main_detail = derive_verdict(
+            "retire", sha256_of_bytes(main_bytes), main_backup, repo,
+            entry_kind="worktree", entry_id="MAIN", env=scratch_env)
+        if main_verdict != "REFUSED":
+            return "REFUSED", ("selftest negative control FAILED: retiring the scratch repo's MAIN "
+                                "checkout was %s (%s) -- the is_main gate is not working"
+                                % (main_verdict, main_detail))
+        return verdict, detail
 
 
 def cmd_selftest(a):
@@ -1481,6 +1834,14 @@ def main(argv):
         # RuntimeError` clause unmatched, matching `limit_class.py`'s own
         # sibling convention).
         args = build_arg_parser().parse_args(argv)
+        # T140 Round 11 review finding I3 (fixed here): once argv has PARSED, this
+        # invocation's --out is genuinely this run's designated output -- a stale
+        # document from an earlier run must not survive ANY handled exit below (a
+        # rc=1 refusal / rc=2 config error that writes nothing used to leave the
+        # PREVIOUS run's verdict there, looking current; C-001). A pure argparse
+        # usage error (SystemExit before this line) still leaves --out untouched,
+        # per Round 10 finding M3 (guarded by the r9 regression suites).
+        invalidate_stale_out(getattr(args, "out", None))
         if args.subcommand is None:
             diag("custody_sweep.py: a subcommand is required "
                   "(inventory | propose | verify-proposal | selftest)", file=sys.stderr)
