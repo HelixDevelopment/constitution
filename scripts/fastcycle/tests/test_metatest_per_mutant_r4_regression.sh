@@ -566,16 +566,53 @@ D_FLAG_LINE='_fc_mut_run_complete=1'
 D_FINALIZE_LINE='_fc_mut_finalize_verdicts || true'
 D_ARM_LINE="builtin trap '_mt_exit_final' EXIT"
 
+# _rc_flag_assignments FILE -- prints "LINENO:<line>" for every NON-COMMENT
+# line that assigns _fc_mut_run_complete a value other than 0, in ANY form:
+# indented, `export`/`declare -g`/`typeset`/`readonly`/`local` prefixed,
+# `;`/`&&`-separated on a shared line, quoted ('1' "1"), trailing whitespace.
+# (T048 round 7, R6-I2.) Comment-only lines (first non-blank char '#') are
+# skipped; a reference such as "$_fc_mut_run_complete" is not an assignment
+# because no '=' directly follows the name.
+_rc_flag_assignments() {
+  awk '
+    { l=$0; t=l; sub(/^[ \t]+/, "", t); if (substr(t,1,1)=="#") next
+      rest=l; hit=0
+      while ((i = index(rest, "_fc_mut_run_complete=")) > 0) {
+        pre = (i > 1) ? substr(rest, i-1, 1) : ""
+        val = substr(rest, i + length("_fc_mut_run_complete="))
+        rest = val
+        if (pre ~ /[A-Za-z0-9_$]/) continue
+        match(val, /^[^ \t;&|)]*/); v = substr(val, 1, RLENGTH)
+        gsub(/["\047]/, "", v)
+        if (v != "0") hit=1
+      }
+      if (hit) print NR ":" l
+    }' "$1"
+}
+
 check_run_complete_placement() {
   # $1 = file to check; prints "OK" or "BAD:<reason>" on stdout.
   local f="$1"
-  local flag_count flag_line finalize_last summary_last next_code_line
-  flag_count="$(grep -cxF "$D_FLAG_LINE" "$f" 2>/dev/null || true)"; : "${flag_count:=0}"
+  local flag_count flag_line finalize_last summary_last next_code_line assigns
+  # T048 round 7 (finding R6-I2, reviewer-authored mutation): the round-6
+  # check counted ONLY the exact, unindented whole line, so an INDENTED
+  # duplicate (or `export`/`declare -g`/`;`-terminated/trailing-space form)
+  # placed right after the early EXIT-trap arm point was invisible to it. Now
+  # EVERY non-comment assignment of the flag to a non-zero value is counted,
+  # whatever its form, and exactly one may exist (see _rc_flag_assignments).
+  assigns="$(_rc_flag_assignments "$f")"
+  flag_count="$(printf '%s' "$assigns" | grep -c . || true)"; : "${flag_count:=0}"
   if [ "$flag_count" != 1 ]; then
-    printf 'BAD:flag-count=%s (want exactly 1)\n' "$flag_count"
+    printf 'BAD:flag-count=%s (want exactly 1 non-zero assignment, any form; at lines: %s)\n' \
+      "$flag_count" "$(printf '%s' "$assigns" | cut -d: -f1 | tr '\n' ' ')"
     return
   fi
-  flag_line="$(grep -nxF "$D_FLAG_LINE" "$f" | head -n1 | cut -d: -f1)"
+  flag_line="${assigns%%:*}"
+  # The single assignment must be the canonical, column-0 line itself.
+  if [ "$(sed -n "${flag_line}p" "$f")" != "$D_FLAG_LINE" ]; then
+    printf 'BAD:flag-line=%s is not the canonical form %s\n' "$flag_line" "$D_FLAG_LINE"
+    return
+  fi
   finalize_last="$(grep -nxF "$D_FINALIZE_LINE" "$f" | tail -n1 | cut -d: -f1)"
   if [ -z "$finalize_last" ] || [ "$flag_line" -le "$finalize_last" ]; then
     printf 'BAD:flag-line=%s not-after-finalize-line=%s\n' "$flag_line" "${finalize_last:-MISSING}"
@@ -640,6 +677,55 @@ else
     echo "     R5-I1 mutation -- moving the flag earlier still reports OK"
     failx
   fi
+fi
+
+# =============================================================================
+# (D2) T048 ROUND 7 (finding R6-I2, S11.4.194(6)(d) reviewer-authored
+# mutation): an ADDITIONAL flag assignment in any syntactic form, inserted
+# directly after the early EXIT-trap arm point while the ORIGINAL correctly
+# placed line is KEPT. Round 6's exact-whole-line counter saw only the
+# original and reported OK. Each variant MUST now be REJECTED, and the old
+# counter is re-run on the same file to prove it was blind (so the new
+# counter is what is load-bearing, not some other check).
+# =============================================================================
+echo
+echo "=== (D2) R6-I2: reviewer-authored duplicate-assignment variants after the EXIT-trap arm ==="
+D2_I=0
+for D2_VARIANT in \
+  '  _fc_mut_run_complete=1' \
+  '_fc_mut_run_complete=1;' \
+  'export _fc_mut_run_complete=1' \
+  'declare -g _fc_mut_run_complete=1' \
+  '_fc_mut_run_complete=1   ' \
+  '	_fc_mut_run_complete="1"' \
+  ': ; _fc_mut_run_complete=1'
+do
+  D2_I=$((D2_I + 1))
+  D2_FILE="$TMP/mt_r6i2_variant_$D2_I.sh"
+  awk -v arm="$D_ARM_LINE" -v ins="$D2_VARIANT" '{ print } $0==arm { print ins }' "$MT" > "$D2_FILE"
+  if [ "$(grep -cxF -- "$D2_VARIANT" "$D2_FILE" || true)" != 1 ] || [ "$(grep -cxF "$D_FLAG_LINE" "$D2_FILE" || true)" -lt 1 ]; then
+    echo "NOT ok (D2.$D2_I) SKIPPED: could not construct variant [$D2_VARIANT] (anchor changed)"
+    failx; continue
+  fi
+  D2_RESULT="$(check_run_complete_placement "$D2_FILE")"
+  D2_OLD_COUNT="$(grep -cxF "$D_FLAG_LINE" "$D2_FILE" || true)"
+  if [ "$D2_RESULT" != "OK" ]; then
+    echo "ok (D2.$D2_I) variant [$D2_VARIANT] REJECTED: $D2_RESULT (round-6 exact-line counter saw $D2_OLD_COUNT occurrence(s))"
+  else
+    echo "NOT ok (D2.$D2_I) BLIND: variant [$D2_VARIANT] after the EXIT-trap arm still reports OK"
+    failx
+  fi
+done
+# golden-FALSE (S11.4.201(1)): a COMMENT that quotes the assignment, and a
+# READ of the variable, are not assignments and must not trip the counter.
+D2_NEG="$TMP/mt_r6i2_negctrl.sh"
+awk -v arm="$D_ARM_LINE" '{ print } $0==arm { print "  # note: _fc_mut_run_complete=1 is set at the very end"; print "  [ \"$_fc_mut_run_complete\" = 1 ] || :" }' "$MT" > "$D2_NEG"
+D2_NEG_RESULT="$(check_run_complete_placement "$D2_NEG")"
+if [ "$D2_NEG_RESULT" = "OK" ]; then
+  echo "ok (D2.neg) negative control: a comment quoting the assignment and a plain read are NOT counted"
+else
+  echo "NOT ok (D2.neg) FALSE POSITIVE: comment/read was counted as an assignment: $D2_NEG_RESULT"
+  failx
 fi
 
 # =============================================================================

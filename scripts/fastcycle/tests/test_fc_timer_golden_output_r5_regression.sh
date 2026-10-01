@@ -237,7 +237,9 @@ if mutate sha 'if [ "$sha" != "$want_sha" ]; then' 'if false; then'; then
 fi
 
 echo "=== (M-standin) auto-discovery accepts stand-in manifests ==="
-if mutate standin '[ "$(_mf_get mode "$_mf")" = real ] || continue' ':'; then
+# (anchor updated in round 7: R6-I1 rewrote discovery so that only a
+# well-formed stand-in is skipped; the mutation still deletes that skip.)
+if mutate standin '[ "$_mode" = stand-in ] && continue' ':'; then
   GT_GOLDEN="$TMP/golden_standin.sh" gt_golden "$TMP/m6.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s9"; rc=$?
   ! has "$TMP/m6.out" "no triplet manifest in" \
     && ok "(M-standin) the mutant consumes the stand-in manifest -- (S9a) is load-bearing" || bad "(M-standin) BLIND: rc=$rc"

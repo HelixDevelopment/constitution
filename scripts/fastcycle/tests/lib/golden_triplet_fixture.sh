@@ -34,6 +34,17 @@ m="${FC_TIMER_RUN_ID##*_}"
 [ -n "${GT_FIX_SLEEP:-}" ] && sleep "$GT_FIX_SLEEP"
 cat "$GT_FIX/$m.txt"
 echo "stand-in member=$m FC_TIMING=${FC_TIMING-unset}"
+echo "stand-in member=$m TMPDIR=${TMPDIR-unset}"
+# GT_FIX_COLLIDE=<seconds> reproduces the round-7 R6-B1 mechanism: a sub-test
+# that keeps its evidence in a FIXED ${TMPDIR}/<name> dir and rm -rf's it at
+# start (as test_stress_chaos_oracles_selfcheck.sh does). Two members sharing
+# one TMPDIR clobber each other; isolated members do not.
+if [ -n "${GT_FIX_COLLIDE:-}" ]; then
+  d="${TMPDIR:-/nonexistent}/gt_shared_evid"; rm -rf "$d"; mkdir -p "$d"
+  echo "$m" > "$d/owner"; sleep "$GT_FIX_COLLIDE"
+  if [ "$(cat "$d/owner" 2>/dev/null)" = "$m" ]; then echo "  ✓ CM-SHARED-EVID: own evidence intact"
+  else echo "  ✗ ERROR: CM-SHARED-EVID: evidence dir clobbered by a concurrent member"; fi
+fi
 if [ -f "$GT_FIX/$m.rows" ]; then rows="$(cat "$GT_FIX/$m.rows")"
 elif [ "${FC_TIMING:-1}" != 0 ]; then rows=2
 else rows=0; fi
@@ -54,7 +65,10 @@ gt_member_text() { mkdir -p "$1"; cat > "$1/$2.txt"; }
 gt_capture() {
   local fix="$1" out="$2" prefix="$3" runid="$4"; shift 4
   mkdir -p "$out"
-  GT_FIX="$fix" CAPTURE_TRIPLET_PREBUILD="$GT_WORK/fake_prebuild.sh" \
+  mkdir -p "$GT_WORK/inherited_tmp"
+  # TMPDIR is pinned to ONE shared, test-private directory: a harness that
+  # did NOT isolate members would hand all three this same TMPDIR.
+  TMPDIR="$GT_WORK/inherited_tmp" GT_FIX="$fix" CAPTURE_TRIPLET_PREBUILD="$GT_WORK/fake_prebuild.sh" \
     CAPTURE_TRIPLET_OUT_DIR="$out" CAPTURE_TRIPLET_TSV_ROOT="$out/tsv" \
     CAPTURE_TRIPLET_RUN_ID="$runid" \
     bash "$GT_HARNESS" --prefix "$prefix" "$@" > "$out/.capture.log" 2>&1

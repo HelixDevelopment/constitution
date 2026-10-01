@@ -120,7 +120,9 @@ expect_flip() {
 }
 
 echo "=== (M5) round-5 reviewer's M5: invert the classifier's grep -qxF test ==="
-if mutate M5 'if grep -qxF -- "$_fc_line" "$2" 2>/dev/null; then' 'if ! grep -qxF -- "$_fc_line" "$2" 2>/dev/null; then'; then
+# (anchor updated in round 7: R6-M4 replaced the per-line grep -qxF set
+# match with a multiset awk match; the mutation still inverts the match test.)
+if mutate M5 '{ if (n[$0] > 0) { n[$0]--; e++ } else u++ }' '{ if (!(n[$0] > 0)) { e++ } else u++ }'; then
   expect_flip M5 C1 "changed=1 noise_explained=0 not_explained=1"
   expect_flip M5 C2 "changed=1 noise_explained=1 not_explained=0"
 fi

@@ -16,8 +16,9 @@
 # file performs the real comparison the moment a validated same-run
 # triplet exists on disk (see the Usage section below). What is ALWAYS verified for real,
 # independent of whether a triplet exists yet:
-#   (a) the REAL "without timers" verdict set, captured from an actual pre_build_verification.sh
-#       run, is checked for any timing-looking noise that a stripping step would need to remove
+#   (a) the REAL verdict set, captured from an actual pre_build_verification.sh run (labelled
+#       "without timers" ONLY when it is a validated triplet's FC0a; a fallback log's timer
+#       state is not verified and it is labelled so -- T048 round 7, R6-I3), is checked for any timing-looking noise that a stripping step would need to remove
 #       (Constitution S11.4.6 -- "check", never assume; documented finding: NONE found -- see
 #       FINDING note below);
 #   (b) the verdict-set EXTRACTION mechanism this test (and the real golden-output comparison
@@ -67,11 +68,24 @@
 #                   manifest records. A genuine timers-ON member (FC1) must have > 0 TSV data rows,
 #                   a genuine timers-OFF member (FC0a/FC0b) must have 0, and when the TSV is still
 #                   on disk this file RE-COUNTS it and refuses any disagreement with the manifest.
-#     * window (T048 round-5 R5-I2): finished_epoch - started_epoch must be <=
+#     * window (T048 round-5 R5-I2): finished_epoch - started_epoch must be <= (inclusive: a span
+#                   EXACTLY equal to the maximum is accepted -- pinned by the round-7 R6-M1 boundary cases)
 #                   FC_TIMER_GOLDEN_MAX_WINDOW_S (default 3600 s, consumer data per S11.4.35). A
 #                   triplet outside the window is REFUSED with an honest SKIP of the comparison.
-#   Only the NEWEST real manifest is considered. If it fails validation this file does not quietly
-#   fall back to an older one; it reports why the newest is unusable.
+#   Only the NEWEST manifest is considered. If it fails validation this file does not quietly
+#   fall back to an older one; it reports why the newest is unusable. (Round 7, R6-I1: "newest"
+#   now includes MALFORMED manifests -- ranked by their own run_id, else by the run-id in their
+#   filename -- so a broken newest manifest is a FAIL, never skipped in favour of an older one.
+#   Only a well-formed mode=stand-in manifest is excluded from discovery.)
+#     * isolation (round 7, R6-B1 root cause): a CONCURRENT triplet must record
+#                   tmpdir_isolation=per-member. Concurrent members sharing one TMPDIR were
+#                   MEASURED to clobber each other's fixed ${TMPDIR}/<name> evidence directories;
+#                   the two identical twins FC0a/FC0b collide identically, which their noise floor
+#                   cannot see. A concurrent triplet without the key is REFUSED (honest SKIP).
+#     * members   (round 7, R6-M2): every member exit code and start/finish epoch must be a
+#                   recorded integer (a MISSING exit is a killed/crashed member -> FAIL), the epochs
+#                   must lie inside the manifest window, and the FC0a vs FC1 EXIT CODE (the
+#                   "commit result" of FR-002) is compared alongside the verdict set.
 #
 #   Env FC_TIMER_GOLDEN_EVIDENCE_DIR=<dir> : where triplet manifests and the baseline log are looked
 #                                    up (default qa-results/fastcycle/us1/red/T015).
@@ -134,7 +148,7 @@ _tsv_rows() {
 # order is chronological). Stand-in manifests are not candidates for
 # auto-discovery. Nothing here reads a timestamp out of a log FILENAME.
 # ============================================================================
-MANIFEST=""
+MANIFEST=""; DISCOVERY_PROBLEM=""
 if [ -n "${FC_TIMER_GOLDEN_TRIPLET:-}" ]; then
   MANIFEST="$FC_TIMER_GOLDEN_TRIPLET"
   if [ ! -f "$MANIFEST" ]; then
@@ -142,14 +156,39 @@ if [ -n "${FC_TIMER_GOLDEN_TRIPLET:-}" ]; then
     exit 2
   fi
 elif [ -d "$EVIDENCE_DIR" ]; then
-  _best_id=""
+  # T048 round 7 (finding R6-I1): EVERY *.triplet is a candidate unless it is
+  # a WELL-FORMED stand-in (exactly one mode=stand-in line). Round 6 skipped
+  # any manifest whose mode/run_id key was missing or duplicated with a bare
+  # `continue`, so a malformed NEWEST manifest silently handed the comparison
+  # to an OLDER one (reviewer repro A1: a newer triplet with a real FC1
+  # verdict flip and `mode=real` written twice -> rc=0, 12 PASS, the older
+  # SAME triplet compared instead). A candidate is now ranked by its own
+  # run_id when that is readable, else by the run-id in its filename
+  # (<prefix>_<run-id>.triplet) -- used ONLY to rank, so a broken manifest can
+  # never hide behind an older good one; validate_triplet then FAILs it. A
+  # candidate with no recoverable run-id at all, or two candidates sharing
+  # the newest run-id, is a FAIL: the newest evidence cannot be identified.
+  _best_id=""; _best_n=0; DISCOVERY_PROBLEM=""
   while IFS= read -r -d '' _mf; do
-    [ "$(_mf_get mode "$_mf")" = real ] || continue
-    _id="$(_mf_get run_id "$_mf")" || continue
+    _mode="$(_mf_get mode "$_mf")" || _mode=""
+    [ "$_mode" = stand-in ] && continue
+    _id="$(_mf_get run_id "$_mf")" || _id=""
+    if ! printf '%s' "$_id" | grep -qE '^[0-9]{8}T[0-9]{6}Z$'; then
+      _id="$(basename -- "$_mf" .triplet)"; _id="${_id##*_}"
+      if ! printf '%s' "$_id" | grep -qE '^[0-9]{8}T[0-9]{6}Z$'; then
+        DISCOVERY_PROBLEM="$DISCOVERY_PROBLEM manifest $_mf has no readable run_id (neither in its content nor its filename), so it cannot be ruled out as the newest;"
+        continue
+      fi
+    fi
     if [ -z "$_best_id" ] || [ "$_id" \> "$_best_id" ]; then
-      _best_id="$_id"; MANIFEST="$_mf"
+      _best_id="$_id"; MANIFEST="$_mf"; _best_n=1
+    elif [ "$_id" = "$_best_id" ]; then
+      _best_n=$((_best_n + 1))
     fi
   done < <(find "$EVIDENCE_DIR" -maxdepth 1 -name '*.triplet' -print0 2>/dev/null)
+  if [ "$_best_n" -gt 1 ]; then
+    DISCOVERY_PROBLEM="$DISCOVERY_PROBLEM $_best_n manifests share the newest run-id $_best_id, so which one is the newest evidence is ambiguous;"
+  fi
 fi
 
 # validate_triplet MANIFEST -- sets TRIPLET_STATE to one of:
@@ -161,7 +200,8 @@ fi
 # provenance/integrity property it verifies, so every PASS cites what was
 # actually checked.
 validate_triplet() {
-  local mf="$1" dir fmt run_id mode s f span m log sha want_sha timing want_timing tsv rows recount
+  local mf="$1" dir fmt run_id mode prefix s f span m log sha want_sha timing want_timing tsv rows recount
+  local ex ms mf_ep absent=0
   dir="$(dirname -- "$mf")"
   TRIPLET_STATE=invalid
   fmt="$(_mf_get format "$mf")" || fmt=""
@@ -170,6 +210,19 @@ validate_triplet() {
   if [ "$fmt" != "fc_timer_triplet/v1" ] || ! printf '%s' "$run_id" | grep -qE '^[0-9]{8}T[0-9]{6}Z$' \
      || { [ "$mode" != real ] && [ "$mode" != stand-in ]; }; then
     TRIPLET_REASON="malformed manifest $mf (format='$fmt' run_id='$run_id' mode='$mode')"
+    return
+  fi
+  # Round 7 (R6-I1/M3): the manifest is bound to its own filename, and the
+  # member TSV paths are bound to run_id+prefix+member below.
+  prefix="$(_mf_get prefix "$mf")" || prefix=""
+  if ! printf '%s' "$prefix" | grep -qE '^[A-Za-z0-9-]+$' || [ "$(basename -- "$mf")" != "${prefix}_${run_id}.triplet" ]; then
+    TRIPLET_REASON="manifest $mf is not named <prefix>_<run_id>.triplet for its own prefix='$prefix' run_id='$run_id'"
+    return
+  fi
+  s="$(_mf_get started_epoch "$mf")" || s=""
+  f="$(_mf_get finished_epoch "$mf")" || f=""
+  if ! printf '%s' "$s" | grep -qE '^[0-9]+$' || ! printf '%s' "$f" | grep -qE '^[0-9]+$' || [ "$f" -lt "$s" ]; then
+    TRIPLET_REASON="manifest $mf has no usable started_epoch/finished_epoch ('$s'/'$f')"
     return
   fi
   for m in FC0a FC0b FC1; do
@@ -190,18 +243,43 @@ validate_triplet() {
       TRIPLET_REASON="member $m recorded fc_timing='$timing', a triplet requires $want_timing"
       return
     fi
+    # Round 7 (R6-M2): a member's exit and epochs are recorded evidence too.
+    # A non-integer exit (the harness writes MISSING when a member was killed
+    # before recording one) is a crashed member, never comparable.
+    ex="$(_mf_get "member.$m.exit" "$mf")" || ex=""
+    if ! printf '%s' "$ex" | grep -qE '^[0-9]+$'; then
+      TRIPLET_REASON="member $m recorded exit='$ex' -- not an integer exit status (killed or crashed member)"
+      return
+    fi
+    for mf_ep in started_epoch finished_epoch; do
+      ms="$(_mf_get "member.$m.$mf_ep" "$mf")" || ms=""
+      if ! printf '%s' "$ms" | grep -qE '^[0-9]+$' || [ "$ms" -lt "$s" ] || [ "$ms" -gt "$f" ]; then
+        TRIPLET_REASON="member $m $mf_ep='$ms' is not an integer inside the manifest window [$s, $f]"
+        return
+      fi
+    done
     tsv="$(_mf_get "member.$m.tsv" "$mf")" || tsv=""
     rows="$(_mf_get "member.$m.tsv_rows" "$mf")" || rows=""
     if ! printf '%s' "$rows" | grep -qE '^[0-9]+$' || [ -z "$tsv" ]; then
       TRIPLET_REASON="member $m has no usable tsv/tsv_rows provenance in $mf"
       return
     fi
+    # Round 7 (R6-M3): the TSV path must be the member's OWN fc_timer run-id
+    # directory (<root>/<run_id>_<prefix>_<member>/prebuild_sections.tsv), so
+    # three members can never share one path, nor point at another run's.
+    case "$tsv" in
+      */"${run_id}_${prefix}_${m}"/prebuild_sections.tsv) : ;;
+      *) TRIPLET_REASON="member $m TSV path '$tsv' is not .../${run_id}_${prefix}_${m}/prebuild_sections.tsv (not bound to this run and member)"
+         return ;;
+    esac
     if [ -f "$tsv" ]; then
       recount="$(_tsv_rows "$tsv")"
       if [ "$recount" != "$rows" ]; then
         TRIPLET_REASON="member $m TSV $tsv has $recount data rows now, the manifest recorded $rows"
         return
       fi
+    else
+      absent=$((absent + 1))
     fi
     if [ "$want_timing" = 1 ] && [ "$rows" -eq 0 ]; then
       TRIPLET_REASON="member $m claims timers ON but its own TSV ($tsv) has 0 data rows -- fc_timer did not actually run"
@@ -212,15 +290,13 @@ validate_triplet() {
       return
     fi
   done
-  s="$(_mf_get started_epoch "$mf")" || s=""
-  f="$(_mf_get finished_epoch "$mf")" || f=""
-  if ! printf '%s' "$s" | grep -qE '^[0-9]+$' || ! printf '%s' "$f" | grep -qE '^[0-9]+$' || [ "$f" -lt "$s" ]; then
-    TRIPLET_REASON="manifest $mf has no usable started_epoch/finished_epoch ('$s'/'$f')"
-    return
-  fi
   span=$((f - s))
-  chk "triplet $run_id integrity: all 3 member logs present and byte-identical to the manifest's sha256" "1"
-  chk "triplet $run_id provenance (m3): FC1 ran WITH timers (its own TSV has $(_mf_get member.FC1.tsv_rows "$mf") rows), FC0a/FC0b ran WITHOUT (0 rows each) -- exact per-member TSV paths, never filename inference" "1"
+  chk "triplet $run_id integrity: all 3 member logs present and byte-identical to the manifest's sha256; every member exit + epoch recorded" "1"
+  if [ "$absent" = 0 ]; then
+    chk "triplet $run_id provenance (m3): FC1 ran WITH timers (its own TSV has $(_mf_get member.FC1.tsv_rows "$mf") rows, re-counted on disk), FC0a/FC0b ran WITHOUT (0 rows each) -- exact per-member TSV paths bound to run_id+member, never filename inference" "1"
+  else
+    chk "triplet $run_id provenance (m3): manifest-recorded TSV rows FC1=$(_mf_get member.FC1.tsv_rows "$mf"), FC0a/FC0b=0 at per-member paths bound to run_id+member ($absent of 3 TSV(s) no longer on disk, NOT re-counted)" "1"
+  fi
   # From here on the members are verified genuine, so FC0a can serve the
   # single-log checks (a)/(b) even when the triplet is refused below.
   BASELINE_LOG="$dir/$(_mf_get member.FC0a.log "$mf")"
@@ -232,6 +308,11 @@ validate_triplet() {
   if [ "$mode" != real ]; then
     TRIPLET_STATE=refused
     TRIPLET_REASON="triplet $run_id is a stand-in capture (mode=$mode) -- never FR-002 evidence"
+    return
+  fi
+  if [ "$(_mf_get concurrency "$mf")" != sequential ] && [ "$(_mf_get tmpdir_isolation "$mf")" != per-member ]; then
+    TRIPLET_STATE=refused
+    TRIPLET_REASON="triplet $run_id ran its members concurrently WITHOUT per-member TMPDIR isolation (no tmpdir_isolation=per-member) -- concurrent members sharing one TMPDIR were measured to clobber each other's fixed \${TMPDIR}/<name> evidence dirs (T048 round 7, R6-B1), and the identical FC0a/FC0b twins collide identically, so neither the comparison nor its noise floor is trustworthy; re-capture with the current harness"
     return
   fi
   NOISE_LOG="$dir/$(_mf_get member.FC0b.log "$mf")"
@@ -250,7 +331,11 @@ validate_triplet() {
 
 BASELINE_LOG=""; WITH_TIMERS_LOG=""; NOISE_LOG=""
 TRIPLET_STATE=none; TRIPLET_REASON=""; TRIPLET_TREE_NOTE=""
-if [ -n "$MANIFEST" ]; then
+if [ -n "$DISCOVERY_PROBLEM" ]; then
+  TRIPLET_STATE=invalid
+  TRIPLET_REASON="triplet discovery in $EVIDENCE_DIR:$DISCOVERY_PROBLEM no triplet is compared"
+  chk "triplet evidence is self-consistent: $TRIPLET_REASON" "0"
+elif [ -n "$MANIFEST" ]; then
   validate_triplet "$MANIFEST"
   case "$TRIPLET_STATE" in
     valid)   echo "INFO: using $TRIPLET_REASON ($MANIFEST)"
@@ -272,19 +357,28 @@ fi
 # FC_TIMER_GOLDEN_LOG, else the newest prebuild_full_run_*.log by mtime --
 # never paired with anything. An INVALID triplet supplies no baseline: its
 # members are not trustworthy, and the FAIL above already reports why.
+# BASELINE_LABEL (T048 round 7, R6-I3): only a sha-verified triplet FC0a whose
+# own TSV was proven to have 0 rows is called "without timers". A fallback
+# log is NOT verified timer-free -- since T029 timers are ON unless
+# FC_TIMING=0, so the newest plain prebuild log is normally a WITH-timers run
+# (the round-6 default path printed "real 'without timers'" for a log whose
+# own TSV had 183 rows). The single-log checks (a)/(b) do not need a
+# timer-free log, so the fallback is labelled neutrally instead.
+BASELINE_LABEL="real 'without timers' (triplet FC0a, verified 0 TSV rows)"
 if [ "$TRIPLET_STATE" = none ]; then
+  BASELINE_LABEL="real pre_build_verification.sh log, timer state NOT verified"
   BASELINE_LOG="${FC_TIMER_GOLDEN_LOG:-}"
   if [ -z "$BASELINE_LOG" ] && [ -d "$EVIDENCE_DIR" ]; then
     BASELINE_LOG="$(find "$EVIDENCE_DIR" -maxdepth 1 -name 'prebuild_full_run_*.log' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n1 | cut -d' ' -f2-)"
   fi
   if [ -z "$BASELINE_LOG" ] || [ ! -f "$BASELINE_LOG" ]; then
-    echo "FATAL: no real 'without timers' evidence log found (no triplet manifest, and no" \
+    echo "FATAL: no real pre_build evidence log found (no triplet manifest, and no" \
          "FC_TIMER_GOLDEN_LOG / prebuild_full_run_*.log in $EVIDENCE_DIR)."
     exit 2
   fi
 fi
 [ "$TRIPLET_STATE" = invalid ] && BASELINE_LOG=""
-[ -n "$BASELINE_LOG" ] && echo "INFO: baseline (without-timers) log: $BASELINE_LOG"
+[ -n "$BASELINE_LOG" ] && echo "INFO: baseline log ($BASELINE_LABEL): $BASELINE_LOG"
 
 # verdict-line shape used throughout pre_build_verification.sh: PASS/FAIL/WARN lines carry a
 # UTF-8 checkmark/cross or the literal 'WARN'/'ERROR'. Banner/section lines never carry these.
@@ -312,7 +406,7 @@ if [ -n "$BASELINE_LOG" ]; then
   extract_verdicts "$BASELINE_LOG" "$TMP/baseline_1.txt"
   extract_verdicts "$BASELINE_LOG" "$TMP/baseline_2.txt"
   BASELINE_LINES="$(wc -l < "$TMP/baseline_1.txt" | tr -d ' ')"
-  chk "real 'without timers' verdict set captured from $BASELINE_LOG ($BASELINE_LINES verdict lines)" "$([ "$BASELINE_LINES" -gt 0 ] && echo 1 || echo 0)"
+  chk "$BASELINE_LABEL verdict set captured from $BASELINE_LOG ($BASELINE_LINES verdict lines)" "$([ "$BASELINE_LINES" -gt 0 ] && echo 1 || echo 0)"
 
   HASH_1="$(sha256sum "$TMP/baseline_1.txt" | awk '{print $1}')"
   HASH_2="$(sha256sum "$TMP/baseline_2.txt" | awk '{print $1}')"
@@ -416,6 +510,11 @@ if [ "$TRIPLET_STATE" = valid ]; then
   WITH_LINES="$(wc -l < "$TMP/with_timers.txt" | tr -d ' ')"
   chk "real 'with timers' verdict set captured from $WITH_TIMERS_LOG ($WITH_LINES verdict lines)" "$([ "$WITH_LINES" -gt 0 ] && echo 1 || echo 0)"
 
+  # Round 7 (R6-M2): FR-002 says "the verdict set (or commit result)"; the
+  # member exit status IS pre_build_verification.sh's commit result.
+  _ex0="$(_mf_get member.FC0a.exit "$MANIFEST")"; _ex1="$(_mf_get member.FC1.exit "$MANIFEST")"
+  _exn="$(_mf_get member.FC0b.exit "$MANIFEST")"
+  chk "FR-002 commit result: with-timers exit status ($_ex1) equals without-timers exit status ($_ex0) (noise-floor member FC0b exited $_exn)" "$([ "$_ex0" = "$_ex1" ] && echo 1 || echo 0)"
   if cmp -s "$TMP/baseline_1.txt" "$TMP/with_timers.txt"; then
     chk "FR-002/T-A01: with-timers verdict set is IDENTICAL to the without-timers verdict set, byte-for-byte after stripping timing suffixes ($TRIPLET_REASON)" "1"
   else
@@ -436,16 +535,19 @@ if [ "$TRIPLET_STATE" = valid ]; then
     NOISE_EXPLAINED=0
     UNEXPLAINED=0
     _fc_classify_against() {
-      # $1 = changed lines on the real side, $2 = the noise side, SAME direction
-      local _fc_line
-      while IFS= read -r _fc_line; do
-        [ -n "$_fc_line" ] || continue
-        if grep -qxF -- "$_fc_line" "$2" 2>/dev/null; then
-          NOISE_EXPLAINED=$((NOISE_EXPLAINED + 1))
-        else
-          UNEXPLAINED=$((UNEXPLAINED + 1))
-        fi
-      done < "$1"
+      # $1 = changed lines on the real side, $2 = the noise side, SAME direction.
+      # MULTISET match (round 7, R6-M4): each noise-side occurrence explains at
+      # most ONE real-side occurrence, so a line removed twice on the real side
+      # but once in the noise floor counts 1 explained + 1 not explained.
+      local _fc_counts
+      # (FILENAME, not NR==FNR: the noise side is often EMPTY, and NR==FNR
+      # would then mis-read the real side as the noise side.)
+      _fc_counts="$(awk 'FILENAME == ARGV[1] { if ($0 != "") n[$0]++; next }
+                         $0 == "" { next }
+                         { if (n[$0] > 0) { n[$0]--; e++ } else u++ }
+                         END { print e+0, u+0 }' "$2" "$1")"
+      NOISE_EXPLAINED=$((NOISE_EXPLAINED + ${_fc_counts% *}))
+      UNEXPLAINED=$((UNEXPLAINED + ${_fc_counts#* }))
     }
     _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_removed.txt"
     _fc_classify_against "$TMP/real_added.txt" "$TMP/noise_added.txt"

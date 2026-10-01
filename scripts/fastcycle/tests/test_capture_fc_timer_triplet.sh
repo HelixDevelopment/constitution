@@ -16,6 +16,11 @@
 #  (H8) end to end: harness output (promoted) is accepted by the golden test
 #  (M-timing) mutant harness gives FC0b timers ON -> the golden test refuses
 #       the triplet (proves (H2)+(H8) together catch a mislabelled member)
+#  (H9) round 7 (R6-B1): each member gets its own private TMPDIR, recorded in
+#       the manifest as tmpdir_isolation=per-member
+#  (H10) the R6-B1 MECHANISM reproduced in the stand-in (a fixed ${TMPDIR}/<name>
+#       evidence dir rm -rf'd at start): no member's evidence is clobbered
+#  (M-tmpdir) mutant harness without per-member TMPDIR -> (H10)'s collision appears
 #  (M-concurrent) mutant harness that silently serialises the members while
 #       still labelling the run "concurrent" -> the (H4) overlap check catches it
 set -u
@@ -82,6 +87,25 @@ else
   bad "(H5) rc=$rc; $(grep -E 'epoch|concurrency' "$MFB" 2>/dev/null | tr '\n' ' ')"
 fi
 
+echo "=== (H9) round 7 (R6-B1): every member runs with its OWN private TMPDIR ==="
+h9=1; seen=""
+for m in FC0a FC0b FC1; do
+  t="$(sed -n "s/^stand-in member=$m TMPDIR=//p" "$TMP/a/t_${m}_${RID}.log")"
+  case "$t" in ""|unset|"$TMP/work/inherited_tmp") h9=0 ;; esac
+  case " $seen " in *" $t "*) h9=0 ;; esac
+  seen="$seen $t"
+done
+[ "$(mf_get tmpdir_isolation "$MF")" = per-member ] || h9=0
+[ "$h9" = 1 ] && ok "(H9) three distinct private TMPDIRs (none the inherited one) + manifest tmpdir_isolation=per-member" \
+  || bad "(H9) TMPDIRs not isolated:$seen; isolation=$(mf_get tmpdir_isolation "$MF")"
+echo "=== (H10) R6-B1 mechanism: a fixed \${TMPDIR}/<name> evidence dir does NOT collide across concurrent members ==="
+GT_FIX_COLLIDE=2 gt_capture "$FIX" "$TMP/col" t "$RID"; rc=$?
+if [ "$rc" = 0 ] && ! grep -q "clobbered" "$TMP"/col/t_FC*_"$RID".log && [ "$(grep -l "own evidence intact" "$TMP"/col/t_FC*_"$RID".log | wc -l)" = 3 ]; then
+  ok "(H10) all 3 concurrent members kept their own evidence dir intact"
+else
+  bad "(H10) rc=$rc; $(grep -h SHARED-EVID "$TMP"/col/*.log | tr '\n' ' ')"
+fi
+
 echo "=== (H7) refusals ==="
 gt_capture "$FIX" "$TMP/a" t "$RID"; rc=$?
 [ "$rc" = 2 ] && grep -q "already exists" "$TMP/a/.capture.log" && ok "(H7a) existing manifest is never overwritten (exit 2)" || bad "(H7a) rc=$rc"
@@ -122,6 +146,16 @@ if mutate conc '  if [ "$CONCURRENCY" = concurrent ]; then' '  if false; then'; 
   s_last="$(for m in FC0a FC0b FC1; do mf_get "member.$m.started_epoch" "$MFE"; done | sort -n | tail -n1)"
   f_first="$(for m in FC0a FC0b FC1; do mf_get "member.$m.finished_epoch" "$MFE"; done | sort -n | head -n1)"
   [ "$(mf_get concurrency "$MFE")" = concurrent ] && [ "$s_last" -ge "$f_first" ] && ok "(M-concurrent) serialised mutant fails the (H4) overlap condition" || bad "(M-concurrent) BLIND"
+fi
+
+echo "=== (M-tmpdir) mutant harness drops the per-member TMPDIR (round-6 behaviour) ==="
+if mutate tmpdir '  TMPDIR="$WORK/tmp.$m" FC_TIMING=' '  FC_TIMING='; then
+  GT_FIX_COLLIDE=2 GT_HARNESS="$TMP/harness_tmpdir.sh" gt_capture "$FIX" "$TMP/f" t "$RID"
+  if grep -q "clobbered" "$TMP"/f/t_FC*_"$RID".log; then
+    ok "(M-tmpdir) without isolation concurrent members clobber the shared evidence dir -- (H10) is load-bearing ($(grep -l clobbered "$TMP"/f/*.log | wc -l) member(s) hit)"
+  else
+    bad "(M-tmpdir) BLIND: the shared-TMPDIR mutant showed no collision"
+  fi
 fi
 
 echo

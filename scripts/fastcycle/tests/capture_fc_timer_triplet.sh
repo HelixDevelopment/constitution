@@ -42,7 +42,7 @@
 #                                   members finished; a killed run leaves no
 #                                   manifest and is never consumed.
 # Manifest keys: format, run_id, prefix, mode (real|stand-in), concurrency,
-#   started_epoch, finished_epoch, tree_head_start/_end,
+#   tmpdir_isolation (per-member), started_epoch, finished_epoch, tree_head_start/_end,
 #   tree_status_sha256_start/_end, and per member M in FC0a FC0b FC1:
 #   member.M.log, member.M.log_sha256, member.M.fc_timing, member.M.exit,
 #   member.M.started_epoch, member.M.finished_epoch, member.M.tsv,
@@ -68,6 +68,25 @@
 #
 # Producer != Verifier (S11.4.240): this harness produces evidence only. The
 # golden test, run separately, is the verifier.
+#
+# PER-MEMBER TMPDIR ISOLATION (T048 round 7, finding R6-B1 root cause): each
+# member runs with its OWN private, empty TMPDIR (<work>/tmp.<member>), and the
+# manifest records tmpdir_isolation=per-member. Measured, not assumed: at least
+# two sub-tests pre_build_verification.sh runs keep their evidence in a FIXED
+# ${TMPDIR}/<name> directory (test_stress_chaos_oracles_selfcheck.sh -> $TMPDIR/
+# sc_oracles_selfcheck, which it rm -rf's at start; test_subtitle_denylist_
+# parity_unit.sh -> $TMPDIR/sub_parity_evidence). Two copies running at the
+# same moment with a SHARED TMPDIR failed 6/8 and 7/8 paired trials; with
+# separate TMPDIRs 0/8 and 0/8. In a concurrent triplet FC0a and FC0b run the
+# same code at the same speed, so they reach those sub-tests together and
+# clobber each other (BOTH get CM-ATM352-OCRW-SOURCE / CM-SC-COVERAGE-1215-FIXES
+# ERROR), while FC1 -- slower by its timing overhead -- reaches them at a
+# different moment and passes. Because the twins fail IDENTICALLY, their
+# FC0a-vs-FC0b noise floor was structurally blind to it, and the collision
+# surfaced as a false "verdict flip caused by timers". Isolating TMPDIR removes
+# that cross-member channel (and any collision with other users of the shared
+# TMPDIR on this host). The golden test refuses a CONCURRENT triplet whose
+# manifest does not record per-member isolation.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
@@ -148,8 +167,9 @@ _run_member() {
   timing="$(_timing_of "$m")"
   fc_id="${RUN_ID}_${PREFIX}_${m}"
   log="$OUT_DIR/${PREFIX}_${m}_${RUN_ID}.log"
+  mkdir -p "$WORK/tmp.$m" || { echo "FATAL: cannot create private TMPDIR for $m" >&2; echo 2 > "$WORK/$m.exit"; return; }
   date -u +%s > "$WORK/$m.started"
-  FC_TIMING="$timing" FC_TIMER_RUN_ID="$fc_id" CAPTURE_TRIPLET_TSV_ROOT="$TSV_ROOT" \
+  TMPDIR="$WORK/tmp.$m" FC_TIMING="$timing" FC_TIMER_RUN_ID="$fc_id" CAPTURE_TRIPLET_TSV_ROOT="$TSV_ROOT" \
     bash "$PREBUILD" > "$log" 2>&1
   echo "$?" > "$WORK/$m.exit"
   date -u +%s > "$WORK/$m.finished"
@@ -182,6 +202,7 @@ TMP_MANIFEST="$MANIFEST.tmp.$$"
   echo "prefix=$PREFIX"
   echo "mode=$MODE"
   echo "concurrency=$CONCURRENCY"
+  echo "tmpdir_isolation=per-member"
   echo "started_epoch=$STARTED_EPOCH"
   echo "finished_epoch=$FINISHED_EPOCH"
   echo "tree_head_start=$TREE_HEAD_START"
