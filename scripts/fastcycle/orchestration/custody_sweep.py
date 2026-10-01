@@ -101,15 +101,34 @@ Exit codes (contracts/common-conventions.md C-001, verbatim table):
   0 success / ALLOWED
   1 a finding: REFUSED, or a disagreement between a supplied
     expected_verdict and the independently computed verdict
-  2 usage / configuration error (bad args, unreadable/invalid JSON,
-    missing required proposal fields, unresolvable --repo-root)
+  2 usage / configuration error (bad args, unreadable/invalid JSON --
+    INCLUDING a missing or unparseable `propose --inventory` document or
+    `verify-proposal --proposal` document -- missing required proposal
+    fields, unresolvable --repo-root). Check order for `propose`: the repo
+    root is resolved FIRST, so outside a git checkout with no --repo-root
+    the run fails on that (rc=2, internal-error document) before the
+    --inventory file is ever opened -- both paths are rc=2 (T140 Round 13,
+    round-12 finding M-3: this table formerly claimed a missing --inventory
+    was "BLIND (exit 4)"; the live code and the round-11 regression test
+    both return 2, so the table is corrected to the real contract)
   3 self-test failed (`selftest` subcommand only: a control needle did
     not discriminate, or a golden/negative-control fixture resolved to
     the wrong verdict)
-  4 BLIND: a required input file genuinely could not be read at all
-    (e.g. the --inventory document for `propose` is missing or unparseable)
-    -- reserved for "could not look", never for "looked and found no
-    backup" (that is a REFUSED finding, not BLIND; see derive_verdict).
+  4 `--determinism-check` only: a run produced no honest verdict (it
+    timed out, crashed, or wrote no --out). No other subcommand path
+    returns 4 today.
+
+CONSUMERS MUST GATE ON THE EXIT CODE, NEVER ON --out's MERE PRESENCE (T140
+Round 13, round-12 finding M-2 + adjudication ruling 1): a handled failure
+(e.g. an unreadable --proposal / --inventory) deletes a stale regular-file
+--out before returning, but a pure argparse usage error (rc=2 -- e.g. a
+missing required flag) exits BEFORE the operation is attempted and leaves
+whatever was at --out untouched, and a non-regular-file --out (FIFO,
+device, symlink) is never deleted. `run_meta` holds only the host name, so
+a stale --out is NOT distinguishable from a fresh one by its content. Only
+rc=0 means "this run produced this --out and the verdict is ALLOWED";
+rc=1 means "this run produced this --out and it contains a finding";
+anything else means "do not trust whatever is at --out".
 
 --determinism-check (C-003): re-invokes this SAME process twice as
 subprocesses with the SAME argv (minus the flag itself) and compares
@@ -150,6 +169,21 @@ inline):
       exists for any real stash in this repo, so every stash entry's
       existing_backup resolves null today, honestly, until an operator
       creates one via this layout).
+
+RESTORABILITY ORACLE (T140 Round 13, round-12 finding B-1): a land/retire
+verdict is ALLOWED only when, after every cheaper check, the backup is
+proven to RESTORE the work -- for a worktree, it is applied onto a fresh,
+isolated scratch checkout of the worktree's HEAD and EVERY live file
+(tracked, untracked AND gitignored; only the top-level `.git` is excluded)
+must be byte-identical afterwards, and the index must hold no staged-only
+content; for a stash, base + backup must reproduce the stash's own tree and
+its `^2` index must hold nothing beyond it. Consequence, stated plainly: a
+worktree holding ANY gitignored file (build output, a local `.env`, caches)
+or a POPULATED submodule is never retire-ALLOWED, because `git worktree
+remove` would delete that content and no patch backup carries it (round-12
+finding I-1) -- an operator who has decided such content is disposable must
+remove it explicitly first. See the oracle block above `derive_verdict` for
+the oracle's own honest boundary.
 
 Producer != Verifier (section 11.4.240): this file is the LATER
 implementation of T-B08; T129's RED test and its five fixtures were
@@ -253,7 +287,7 @@ def _run(args, cwd=None, check=True, env=None):
     return proc.returncode, proc.stdout, proc.stderr
 
 
-def _run_bytes(args, cwd=None, env=None):
+def _run_bytes(args, cwd=None, env=None, input_bytes=None):
     """T140 Round 11 review finding B1 (fixed here): runs a git command and
     returns its stdout as RAW BYTES, never decoded. Every patch whose sha256
     decides a destructive verdict MUST be read through this function: the
@@ -262,7 +296,8 @@ def _run_bytes(args, cwd=None, env=None):
     longer applies to the real files (reproduced live: a CR-stripped backup
     was ALLOWED, the faithful one REFUSED forever). Returns (rc, bytes,
     stderr_text)."""
-    proc = subprocess.run(args, cwd=cwd, capture_output=True, env=env)
+    proc = subprocess.run(args, cwd=cwd, capture_output=True, env=env, input=input_bytes,
+                          stdin=None if input_bytes is not None else subprocess.DEVNULL)
     return proc.returncode, proc.stdout, proc.stderr.decode("utf-8", "replace")
 
 
@@ -520,11 +555,21 @@ def list_worktree_entries(root, env=None):
     return entries
 
 
+def _same_dir(a, b):
+    """T140 Round 13 (round-12 finding M-1, fixed here): `--repo-root` may be
+    a SYMLINK to a worktree while git reports every worktree path already
+    symlink-resolved, so the former `abspath(a) == abspath(b)` never matched
+    and a symlinked --repo-root pointing at a LINKED worktree was not
+    recognised as "the checkout this tool was pointed at". Both sides are
+    now fully resolved."""
+    return os.path.realpath(a) == os.path.realpath(b)
+
+
 def worktree_entry_id(path, root):
     m = AGENT_WT_RE.search(path)
     if m:
         return m.group(1)
-    if os.path.abspath(path) == os.path.abspath(root):
+    if _same_dir(path, root):
         return "MAIN"
     return os.path.basename(path.rstrip("/"))
 
@@ -698,7 +743,7 @@ def resolve_live_dirty_state(entry_kind, entry_id, root, env=None):
             return res
         idx, path, wt = matches[0]
         res["path"] = path
-        res["is_main"] = (idx == 0) or os.path.abspath(path) == os.path.abspath(root)
+        res["is_main"] = (idx == 0) or _same_dir(path, root)
         if not os.path.isdir(path):
             return res
         # T140 Round 11 (B1 sibling, found while fixing B1): a DETACHED
@@ -722,9 +767,399 @@ def resolve_live_dirty_state(entry_kind, entry_id, root, env=None):
         res.update(found=True, live_hash=state.get("sha256"),
                    has_untracked=state.get("has_untracked"),
                    dirty_submodules=state.get("dirty_submodules"),
-                   has_unmerged=state.get("has_unmerged"), measured=True)
+                   has_unmerged=state.get("has_unmerged"), measured=True,
+                   head=wt.get("head"))
         return res
     return res
+
+
+# ---------------------------------------------------------------------------
+# T140 Round 13 (round-12 review finding B-1, fixed here): the POSITIVE
+# RESTORABILITY ORACLE.
+#
+# Root cause the round-12 reviewer named: every check above compares the
+# backup against what `git diff HEAD` / `git stash show -p` REPORTS. That is
+# a proxy for "this backup brings the work back", and anything that makes the
+# live files diverge from what git reports defeats it -- reproduced live in
+# round 12 with `update-index --assume-unchanged` / `--skip-worktree` (the
+# edit is invisible to `git diff`), staged content that differs from the
+# worktree (`git diff HEAD` diffs the WORKTREE, never the index; a stash's
+# `^2` index parent is never in `stash show -p`), and a lossy clean filter
+# (the diff is of the FILTERED content, the real file keeps the unfiltered
+# bytes). Patching each instance would be the heuristic-tower pattern
+# (section 11.4.250); the fix is a check that does not consult git's report
+# at all:
+#
+#   WORKTREE: take the entry's own HEAD commit, check it out into a FRESH,
+#   ISOLATED scratch repository (a new `git init` under a temp dir that
+#   borrows the real object store READ-ONLY through objects/info/alternates
+#   -- nothing is ever written to the real repository: no `worktree add`, no
+#   ref, no index, no object), `git apply` the backup there, then BYTE-
+#   COMPARE every file in the REAL worktree (excluding its own top-level
+#   `.git`) against the post-apply scratch checkout. Any difference -- a
+#   file whose content/symlink target/exec bit differs, a file present live
+#   but absent after restore (untracked, IGNORED, inside a populated
+#   submodule, an assume-unchanged edit...), or the reverse -- REFUSES.
+#   Plus the INDEX: for every path whose staged blob differs from HEAD, the
+#   staged blob must equal the live file's clean-filtered content (or be a
+#   HEAD-side blob merely moved by a rename) -- otherwise the staged
+#   version exists ONLY in the about-to-be-deleted index (the one property a
+#   live-file comparison cannot see).
+#
+#   STASH: dropping a stash loses its worktree tree, its index tree (`^2`)
+#   and its untracked tree (`^3`, already refused above). The backup is
+#   applied onto the base commit's tree in a scratch index and the resulting
+#   tree id must EQUAL the stash's own tree; and every path whose `^2` blob
+#   differs from BOTH the base and the stash tree is index-only content no
+#   patch backup carries -- REFUSED.
+#
+# HONEST BOUNDARY (section 11.4.6) -- what this oracle does NOT prove:
+#   - it compares file CONTENT, symlink targets and the owner exec bit; it
+#     does not compare other permission bits, ownership, timestamps,
+#     extended attributes or ACLs (a restore would not reproduce those
+#     either, and none of them is "work" in the sense this tool guards);
+#   - an INDEX entry's MODE alone (a staged chmod later reverted live) is
+#     not checked -- only staged CONTENT;
+#   - the scratch checkout reproduces the live checkout's byte conversion
+#     only as faithfully as the conversion config transferred to it (every
+#     `filter.*` and the `core.*` keys that change checkout bytes, read as
+#     EFFECTIVE values from the live worktree) plus the repository's
+#     `info/attributes`; a smudge filter that is non-deterministic or needs
+#     data outside the object store (e.g. git-lfs content that is not
+#     already local) makes the scratch checkout differ or fail -- which
+#     REFUSES, the safe direction, never a false ALLOWED;
+#   - it is a point-in-time proof: a live file changed AFTER the comparison
+#     and before an operator acts on the proposal is not covered -- that is
+#     what the later, separate, operator-confirmed step must re-verify.
+# ---------------------------------------------------------------------------
+# Config keys whose EFFECTIVE value changes the bytes a checkout / `git
+# apply` writes. Transferred from the live worktree into the scratch
+# repository (via GIT_CONFIG_COUNT, so a key with any byte in it cannot be
+# mis-split the way a `-c key=value` argv could).
+_CONVERSION_CONFIG_RE = (r"^(filter\..*|core\.(autocrlf|eol|safecrlf|symlinks|filemode|"
+                         r"checkroundtripencoding|attributesfile|precomposeunicode|ignorecase))$")
+# Never let a scratch git run a hook, fsmonitor, auto-gc or a transport.
+_SCRATCH_PINNED_CONFIG = (
+    ("core.hooksPath", "/dev/null"), ("core.fsmonitor", "false"), ("advice.detachedHead", "false"),
+    ("gc.auto", "0"), ("maintenance.auto", "false"), ("protocol.allow", "never"),
+    ("submodule.recurse", "false"),
+)
+_ORACLE_MAX_LISTED = 10
+_SCRATCH_SPACE_MARGIN = 64 * 1024 * 1024
+
+
+def _null_oid(oid):
+    return bool(oid) and set(oid) == {"0"}
+
+
+def _conversion_config(path, env=None):
+    """Returns a list of (key, value) EFFECTIVE conversion-config pairs from
+    the live worktree, or None when the question could not be answered
+    (treated as unmeasurable -> refuse)."""
+    rc, out, _err = _run_bytes(["git", "-C", path, "config", "-z", "--get-regexp", _CONVERSION_CONFIG_RE],
+                               env=env)
+    if rc == 1:
+        return []  # git config's documented "no matching key" exit
+    if rc != 0:
+        return None
+    pairs = []
+    for rec in out.split(b"\0"):
+        if not rec:
+            continue
+        key, _sep, value = rec.partition(b"\n")
+        pairs.append((key.decode("utf-8", "surrogateescape"), value.decode("utf-8", "surrogateescape")))
+    return pairs
+
+
+def _scratch_git_env(conv_pairs, extra=None):
+    env = _sanitized_scratch_env()
+    pairs = list(conv_pairs) + list(_SCRATCH_PINNED_CONFIG)
+    env["GIT_CONFIG_COUNT"] = str(len(pairs))
+    for n, (k, v) in enumerate(pairs):
+        env["GIT_CONFIG_KEY_%d" % n] = k
+        env["GIT_CONFIG_VALUE_%d" % n] = v
+    if extra:
+        env.update(extra)
+    return env
+
+
+def _make_scratch_repo(scratch, object_dir, object_format, attributes_src, senv):
+    """`git init` a throwaway repository at `scratch` that READS the real
+    object store through objects/info/alternates (never writes to it).
+    Raises RuntimeError on failure."""
+    _run(["git", "init", "--quiet", "--object-format=%s" % object_format, scratch], check=True, env=senv)
+    alt = os.path.join(scratch, ".git", "objects", "info", "alternates")
+    os.makedirs(os.path.dirname(alt), exist_ok=True)
+    with open(alt, "w", encoding="utf-8", errors="surrogateescape") as fh:
+        fh.write(object_dir + "\n")
+    if attributes_src and os.path.isfile(attributes_src):
+        info = os.path.join(scratch, ".git", "info")
+        os.makedirs(info, exist_ok=True)
+        with open(attributes_src, "rb") as src, open(os.path.join(info, "attributes"), "wb") as dst:
+            dst.write(src.read())
+
+
+def _repo_storage(path, env=None):
+    """Returns (object_dir, object_format, info_attributes_path) for the
+    repository `path` belongs to, or raises RuntimeError."""
+    _rc, objdir, _ = _run(["git", "-C", path, "rev-parse", "--path-format=absolute", "--git-path", "objects"],
+                          check=True, env=env)
+    _rc, fmt, _ = _run(["git", "-C", path, "rev-parse", "--show-object-format"], check=True, env=env)
+    _rc, attrs, _ = _run(["git", "-C", path, "rev-parse", "--path-format=absolute", "--git-path",
+                          "info/attributes"], check=True, env=env)
+    return objdir.strip(), fmt.strip(), attrs.strip()
+
+
+def _sha256_file(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _snapshot_files(top):
+    """Maps every non-directory entry under `top` (relative path, '/'-
+    separated) to a comparable descriptor, never following a symlink.
+    Excludes ONLY `top`'s own top-level `.git` (the repository metadata,
+    which a restore re-creates). Directories are not recorded: an empty
+    directory carries no content. Raises OSError when any part cannot be
+    read -- the caller refuses (could not look, never "nothing there")."""
+    import stat as _stat
+    out = {}
+    stack = [""]
+    while stack:
+        rel = stack.pop()
+        with os.scandir(os.path.join(top, rel) if rel else top) as it:
+            for ent in it:
+                r = (rel + "/" + ent.name) if rel else ent.name
+                if not rel and ent.name == ".git":
+                    continue
+                st = os.lstat(ent.path)
+                if _stat.S_ISDIR(st.st_mode):
+                    stack.append(r)
+                elif _stat.S_ISLNK(st.st_mode):
+                    out[r] = ("symlink", os.readlink(ent.path))
+                elif _stat.S_ISREG(st.st_mode):
+                    out[r] = ("file", bool(st.st_mode & 0o100), _sha256_file(ent.path))
+                else:
+                    out[r] = ("special", _stat.S_IFMT(st.st_mode))
+    return out
+
+
+def _describe_tree_diff(live, restored):
+    problems = []
+    for r in sorted(set(live) | set(restored)):
+        lv, rv = live.get(r), restored.get(r)
+        if lv == rv:
+            continue
+        if rv is None:
+            problems.append("%s: present LIVE but absent after restore (untracked/ignored/hidden content "
+                            "the backup does not carry)" % r)
+        elif lv is None:
+            problems.append("%s: present after restore but absent LIVE" % r)
+        elif lv[0] != rv[0]:
+            problems.append("%s: file type differs (live %s, restored %s)" % (r, lv[0], rv[0]))
+        elif lv[0] == "file" and lv[2] == rv[2]:
+            problems.append("%s: exec bit differs (live %s, restored %s)" % (r, lv[1], rv[1]))
+        else:
+            problems.append("%s: content differs from the restored copy" % r)
+    return problems
+
+
+def _summarize(problems):
+    shown = problems[:_ORACLE_MAX_LISTED]
+    more = len(problems) - len(shown)
+    return "; ".join(_json_safe(shown)) + (" ... (+%d more)" % more if more > 0 else "")
+
+
+def _scratch_space_ok(path, head, tmpdir, env=None):
+    """True when the temp filesystem has room for a full checkout of
+    `head` (twice its blob bytes + a margin), False when it does not, None
+    when it could not be determined."""
+    rc, out, _ = _run_bytes(["git", "-C", path, "ls-tree", "-r", "-l", "-z", head], env=env)
+    if rc != 0:
+        return None
+    total = 0
+    for rec in out.split(b"\0"):
+        if not rec:
+            continue
+        meta = rec.split(b"\t", 1)[0].split()
+        if len(meta) == 4 and meta[3].isdigit():
+            total += int(meta[3])
+    try:
+        sv = os.statvfs(tmpdir)
+    except OSError:
+        return None
+    return sv.f_bavail * sv.f_frsize >= 2 * total + _SCRATCH_SPACE_MARGIN
+
+
+def _worktree_index_unique_paths(path, env=None):
+    """Returns (problems, None) or (None, reason-it-could-not-be-measured).
+    A problem is a path whose STAGED content exists nowhere but the index:
+    staged blob != HEAD blob, != the live file's clean-filtered content, and
+    not merely a HEAD-side blob moved by a rename. Computed from the index
+    itself (`diff-index --cached`, no stat cache involved), so neither
+    assume-unchanged nor skip-worktree can hide it. `--ita-invisible-in-
+    index`: an intent-to-add (`git add -N`) entry carries NO staged content
+    (it is shown as an empty blob otherwise and would be a false refusal);
+    its real content is the live file, which the restore comparison
+    covers."""
+    rc, raw, err = _run_bytes(["git", "-C", path, "diff-index", "--cached", "-z", "--no-renames",
+                               "--ita-invisible-in-index", "--ignore-submodules=none", "HEAD"], env=env)
+    if rc != 0:
+        return None, "git diff-index --cached failed: %s" % err.strip()
+    toks = raw.split(b"\0")
+    recs = []
+    i = 0
+    while i < len(toks):
+        meta = toks[i]
+        i += 1
+        if not meta:
+            continue
+        if not meta.startswith(b":") or i >= len(toks):
+            return None, "unparseable diff-index record %r" % meta[:80]
+        fields = meta[1:].split(b" ")
+        if len(fields) != 5:
+            return None, "unparseable diff-index record %r" % meta[:80]
+        p = toks[i].decode("utf-8", "surrogateescape")
+        i += 1
+        recs.append((fields[1].decode(), fields[2].decode(), fields[3].decode(), fields[4].decode()[:1], p))
+    head_side = {hH for (_mI, hH, _hI, _s, _p) in recs if not _null_oid(hH)}
+    problems, to_hash = [], []
+    for m_index, _h_head, h_index, status, p in recs:
+        if status == "U":
+            problems.append("%s: unmerged index entry (conflict stages exist only in the index)" % p)
+            continue
+        if status == "D" or m_index == "160000" or _null_oid(h_index) or h_index in head_side:
+            continue
+        fp = os.path.join(path, p)
+        if not os.path.lexists(fp):
+            problems.append("%s: staged content whose worktree file is absent" % p)
+        elif os.path.islink(fp) or m_index == "120000" or "\n" in p:
+            # Not batched through --stdin-paths (a symlink would be followed;
+            # a newline cannot be expressed there): hash the exact bytes a
+            # checkout of the staged entry would have to reproduce.
+            if os.path.islink(fp) and m_index == "120000":
+                data = os.fsencode(os.readlink(fp))
+                rc2, out2, _ = _run_bytes(["git", "-C", path, "hash-object", "--no-filters", "--stdin"],
+                                          env=env, input_bytes=data)
+                if rc2 != 0:
+                    return None, "git hash-object failed for symlink %r" % p
+                if out2.strip().decode() != h_index:
+                    problems.append("%s: staged symlink target differs from the live one" % p)
+            else:
+                problems.append("%s: staged entry type/path not comparable with the live file" % p)
+        else:
+            to_hash.append((p, h_index))
+    if to_hash:
+        data = "".join(p + "\n" for p, _h in to_hash).encode("utf-8", "surrogateescape")
+        rc3, out3, err3 = _run_bytes(["git", "-C", path, "hash-object", "--stdin-paths"], env=env,
+                                     input_bytes=data)
+        lines = out3.decode().split()
+        if rc3 != 0 or len(lines) != len(to_hash):
+            return None, "git hash-object --stdin-paths failed: %s" % err3.strip()
+        for (p, h_index), h_live in zip(to_hash, lines):
+            if h_live != h_index:
+                problems.append("%s: STAGED content differs from the worktree file (exists only in the "
+                                "index)" % p)
+    return problems, None
+
+
+def restore_oracle_worktree(path, head, backup_full, env=None):
+    """Returns (True, detail) when the backup PROVABLY restores the live
+    worktree, else (False, detail). Never raises for a git/OS failure --
+    that is (False, "could not prove ...")."""
+    if not head or _null_oid(head):
+        return False, "worktree has no HEAD commit to restore onto"
+    try:
+        idx_problems, why = _worktree_index_unique_paths(path, env=env)
+        if idx_problems is None:
+            return False, "could not inspect the index (%s)" % why
+        if idx_problems:
+            return False, ("index holds STAGED content no backup carries -- %s" % _summarize(idx_problems))
+        conv = _conversion_config(path, env=env)
+        if conv is None:
+            return False, "could not read the live worktree's conversion config"
+        objdir, fmt, attrs = _repo_storage(path, env=env)
+        tmpdir = tempfile.gettempdir()
+        space = _scratch_space_ok(path, head, tmpdir, env=env)
+        if not space:
+            return False, ("insufficient (or undeterminable) free space under %r for a full scratch "
+                           "checkout of %s -- restorability cannot be proven" % (tmpdir, head))
+        real_top = os.path.realpath(path)
+        with tempfile.TemporaryDirectory(prefix="custody_restore_") as tmp:
+            if os.path.realpath(tmp).startswith(real_top + os.sep):
+                return False, "scratch directory %r would sit inside the worktree under test" % tmp
+            scratch = os.path.join(tmp, "restore")
+            senv = _scratch_git_env(conv)
+            _make_scratch_repo(scratch, objdir, fmt, attrs, senv)
+            rc, _o, err = _run(["git", "-C", scratch, "checkout", "--quiet", "--detach", head],
+                               check=False, env=senv)
+            if rc != 0:
+                return False, "scratch checkout of HEAD %s failed: %s" % (head, err.strip()[:300])
+            rc, _o, err = _run(["git", "-C", scratch, "apply", "--whitespace=nowarn", backup_full],
+                               check=False, env=senv)
+            if rc != 0:
+                return False, ("the backup does NOT apply onto a fresh checkout of HEAD %s: %s"
+                               % (head, err.strip()[:300]))
+            restored = _snapshot_files(scratch)
+            live = _snapshot_files(path)
+        problems = _describe_tree_diff(live, restored)
+        if problems:
+            return False, ("%d path(s) differ between the LIVE worktree and the backup restored onto a "
+                           "fresh checkout of HEAD -- %s" % (len(problems), _summarize(problems)))
+        return True, ("backup applied onto a fresh isolated checkout of HEAD %s reproduces all %d live "
+                      "file(s) byte-for-byte (tracked, untracked and ignored alike), and the index holds "
+                      "no staged-only content" % (head, len(live)))
+    except (OSError, RuntimeError, ValueError) as exc:
+        return False, "could not prove restorability (%s: %s)" % (type(exc).__name__, exc)
+
+
+def restore_oracle_stash(root, ref, backup_full, env=None):
+    """Returns (True, detail) when the backup PROVABLY reproduces the
+    stash's worktree tree and the stash's index holds nothing beyond it,
+    else (False, detail)."""
+    try:
+        def rev(spec):
+            _rc, out, _ = _run(["git", "-C", root, "rev-parse", "--verify", "-q", spec], check=True, env=env)
+            return out.strip()
+
+        base, index_c, tree = rev("%s^1" % ref), rev("%s^2" % ref), rev("%s^{tree}" % ref)
+
+        def changed(a, b):
+            rc, out, err = _run_bytes(["git", "-C", root, "diff-tree", "-r", "-z", "--name-only",
+                                       "--no-renames", "--ignore-submodules=none", a, b], env=env)
+            if rc != 0:
+                raise RuntimeError("git diff-tree %s %s failed: %s" % (a, b, err.strip()))
+            return {t.decode("utf-8", "surrogateescape") for t in out.split(b"\0") if t}
+
+        index_only = sorted(changed(base, index_c) & changed(index_c, ref))
+        if index_only:
+            return False, ("the stash's index (^2) holds STAGED content that differs from both its base and "
+                           "its worktree tree -- no patch backup carries it: %s"
+                           % _summarize([p + ": staged-only content" for p in index_only]))
+        objdir, fmt, _attrs = _repo_storage(root, env=env)
+        with tempfile.TemporaryDirectory(prefix="custody_restore_") as tmp:
+            scratch = os.path.join(tmp, "restore")
+            senv = _scratch_git_env([])
+            _make_scratch_repo(scratch, objdir, fmt, None, senv)
+            senv = _scratch_git_env([], {"GIT_INDEX_FILE": os.path.join(tmp, "restore.index")})
+            _run(["git", "-C", scratch, "read-tree", base], check=True, env=senv)
+            rc, _o, err = _run(["git", "-C", scratch, "apply", "--cached", "--whitespace=nowarn", backup_full],
+                               check=False, env=senv)
+            if rc != 0:
+                return False, ("the backup does NOT apply onto the stash's base tree %s: %s"
+                               % (base, err.strip()[:300]))
+            _rc, got, _ = _run(["git", "-C", scratch, "write-tree"], check=True, env=senv)
+        got = got.strip()
+        if got != tree:
+            return False, ("the backup applied onto the stash's base produces tree %s, NOT the stash's own "
+                           "tree %s -- it does not restore the stashed work" % (got, tree))
+        return True, ("backup applied onto the stash's base tree reproduces the stash tree %s exactly, and "
+                      "its index holds no staged-only content" % tree)
+    except (OSError, RuntimeError, ValueError) as exc:
+        return False, "could not prove restorability (%s: %s)" % (type(exc).__name__, exc)
 
 
 def find_worktree_backup(root, backup_root, entry_id):
@@ -750,7 +1185,7 @@ def build_worktree_entry(root, backup_root, wt, index=None):
     # the main worktree first; the checkout this tool was pointed at counts
     # too. The former `entry_id == "MAIN"` test missed the real main
     # worktree whenever --repo-root was a LINKED worktree.
-    is_main = (index == 0) or bool(path and os.path.abspath(path) == os.path.abspath(root))
+    is_main = (index == 0) or bool(path and _same_dir(path, root))
     return {
         "entry_kind": "worktree",
         "entry_id": entry_id,
@@ -932,10 +1367,26 @@ def derive_verdict(action, backup_hash, backup_artifact_path, root, entry_kind=N
         return "REFUSED", ("backup content at %r (sha256=%r) does NOT match the entry's freshly "
                             "re-derived LIVE dirty content (sha256=%r) -- the backup is stale and no "
                             "longer covers today's live changes" % (backup_artifact_path, real_hash, live_hash))
+    # T140 Round 13 (round-12 finding B-1, fixed here): every check above is
+    # a NECESSARY condition measured against what git REPORTS. The final,
+    # sufficient condition is the positive restorability oracle -- it never
+    # consults git's report of the change, it restores the backup in an
+    # isolated scratch repository and compares the result with what is
+    # really on disk (see the oracle block above for what it does and does
+    # not prove). Checked LAST so its cost is paid only by a candidate every
+    # cheaper check already accepts.
+    backup_full = os.path.abspath(full)
+    if entry_kind == "worktree":
+        restorable, why = restore_oracle_worktree(live.get("path"), live.get("head"), backup_full, env=env)
+    else:
+        restorable, why = restore_oracle_stash(root, entry_id, backup_full, env=env)
+    if not restorable:
+        return "REFUSED", ("RESTORABILITY ORACLE: the backup at %r does NOT provably restore %s %r -- %s; "
+                            "%s refused" % (backup_artifact_path, entry_kind, entry_id, why, action))
     return "ALLOWED", ("backup_hash independently re-verified against BOTH the real backup file at %r "
                         "AND the entry's freshly re-derived live dirty content (canonical binary-safe "
-                        "raw-bytes patch; no untracked content, no changed submodule, not the main "
-                        "worktree)" % backup_artifact_path)
+                        "raw-bytes patch; no changed submodule, not the main worktree), AND the "
+                        "RESTORABILITY ORACLE passed: %s" % (backup_artifact_path, why))
 
 
 # ---------------------------------------------------------------------------
@@ -1697,6 +2148,15 @@ def build_arg_parser():
     # rationale (closes the ONE remaining raw-write path into
     # argparse-owned `--help`/usage-error message printing).
     p = FcArgumentParser(prog="custody_sweep.py", description=(__doc__ or "").split("\n\n")[0])
+    # T140 Round 13 (round-12 finding M-2): surfaced in --help itself, not
+    # only in the module docstring a caller may never read. (Set as an
+    # attribute so the constructor line above keeps the exact shape the
+    # round-9 regression guard mutates.)
+    p.epilog = ("Exit codes: 0 ALLOWED/success, 1 finding (REFUSED or expected_verdict "
+                "disagreement), 2 usage/configuration error, 3 selftest failed, 4 "
+                "--determinism-check had no honest verdict. Consumers MUST gate on the exit "
+                "code, never on --out's mere presence: a usage error leaves a stale --out "
+                "untouched and a stale --out is not distinguishable from a fresh one by content.")
     p.add_argument("--determinism-check", action="store_true",
                    help="re-invoke this same subcommand twice and compare body_hash (C-003)")
     sub = p.add_subparsers(dest="subcommand")

@@ -437,15 +437,25 @@ mut() {
 
 echo
 echo "=== guard viability (paired mutations) ==="
+# T140 Round 13: M2/M3a/M3b/M7/M9/M10 moved from "mutant must say ALLOWED"
+# to DETAIL mode. Round 13 added the positive RESTORABILITY ORACLE as the
+# final, sufficient check (round-12 finding B-1), so deleting one of these
+# earlier, cheaper checks no longer flips the verdict -- the oracle then
+# refuses the same case on its own (genuine defense-in-depth, measured
+# live: the stale/untracked/submodule/lossy backups are each refused by the
+# oracle with the specific differing paths named). The mutation is still
+# caught: the refusal no longer comes from the deleted check. The oracle
+# itself is proven load-bearing by test_custody_sweep_r13_regression.sh
+# (deleting it turns the round-12 bypasses ALLOWED).
 ZERO=$(printf '0%.0s' $(seq 64))
 mut M1_hash_compare '    if real_hash != backup_hash:' '    if False:' \
     "$A" worktree wt_text retire "$ZERO" "$TMP/b_text.patch" ALLOWED "does not match the real sha256"
 mut M2_live_compare '    if live_hash != real_hash:' '    if False:' \
-    "$A" worktree wt_stale retire "$(sha "$TMP/b_stale.patch")" "$TMP/b_stale.patch" ALLOWED "freshly re-derived LIVE"
+    "$A" worktree wt_stale retire "$(sha "$TMP/b_stale.patch")" "$TMP/b_stale.patch" DETAIL "freshly re-derived LIVE"
 mut M3a_untracked_check '    if has_untracked is not False:' '    if False:' \
-    "$A" worktree wt_untr retire "$(sha "$TMP/b_untr.patch")" "$TMP/b_untr.patch" ALLOWED "untracked content"
+    "$A" worktree wt_untr retire "$(sha "$TMP/b_untr.patch")" "$TMP/b_untr.patch" DETAIL "untracked content"
 mut M3b_untracked_detect '            res["has_untracked"] = True' '            res["has_untracked"] = False' \
-    "$A" worktree wt_untr retire "$(sha "$TMP/b_untr.patch")" "$TMP/b_untr.patch" ALLOWED "untracked content"
+    "$A" worktree wt_untr retire "$(sha "$TMP/b_untr.patch")" "$TMP/b_untr.patch" DETAIL "untracked content"
 # M4/M5: the existence/resolution checks are defense-in-depth -- with them
 # deleted a later check still refuses, so the mutant is detected by the
 # refusal no longer naming the real reason (honest: no verdict flip).
@@ -464,14 +474,14 @@ mut M6_is_main_check '    if entry_kind == "worktree" and live.get("is_main"):' 
 mut M6b_is_main_index0 '        res["is_main"] = (idx == 0) or' '        res["is_main"] = False or' \
     "$TMP/wt_text" worktree repoA retire "$(sha "$TMP/b_main.patch")" "$TMP/b_main.patch" ALLOWED "MAIN worktree"
 mut M7_submodule_check '    if dirty_submodules is None or dirty_submodules:' '    if False:' \
-    "$P" worktree wt_sub retire "$(sha "$TMP/b_sub.patch")" "$TMP/b_sub.patch" ALLOWED "submodule"
+    "$P" worktree wt_sub retire "$(sha "$TMP/b_sub.patch")" "$TMP/b_sub.patch" DETAIL "changed submodule"
 mut M8_stash_untracked 'has_untracked=stash_has_untracked(root, entry_id, env=env),' 'has_untracked=False,' \
     "$S" stash 'stash@{1}' land "$(sha "$TMP/b_stash_u.patch")" "$TMP/b_stash_u.patch" ALLOWED "untracked content"
 mut M9_no_binary '    "--binary", "--no-color",' '    "--no-color",' \
-    "$A" worktree wt_bin retire "$(sha "$TMP/b_bin_lossy.patch")" "$TMP/b_bin_lossy.patch" ALLOWED "freshly re-derived LIVE"
+    "$A" worktree wt_bin retire "$(sha "$TMP/b_bin_lossy.patch")" "$TMP/b_bin_lossy.patch" DETAIL "freshly re-derived LIVE"
 mut M10_text_mode_crlf '    return proc.returncode, proc.stdout, proc.stderr.decode' \
     '    return proc.returncode, proc.stdout.replace(b"\r\n", b"\n"), proc.stderr.decode' \
-    "$A" worktree wt_crlf retire "$(sha "$TMP/b_crlf_stripped.patch")" "$TMP/b_crlf_stripped.patch" ALLOWED "freshly re-derived LIVE"
+    "$A" worktree wt_crlf retire "$(sha "$TMP/b_crlf_stripped.patch")" "$TMP/b_crlf_stripped.patch" DETAIL "freshly re-derived LIVE"
 
 mut M11_detached_head '    if head_unreachable is not False:' '    if False:' \
     "$A" worktree wt_det retire "$(sha "$TMP/b_det.patch")" "$TMP/b_det.patch" ALLOWED "DETACHED HEAD"
