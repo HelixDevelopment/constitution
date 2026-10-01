@@ -128,6 +128,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -158,6 +159,21 @@ DEFAULT_TIMEOUT_S = 30
 
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
+# T158 remediation round 2, finding B1 (BLOCKING): the ONLY stderr shapes that mean a reachable
+# remote DEFINITIVELY rejected a `fetch <url> <sha>` want because the object is genuinely not
+# advertised there -- upload-pack's own refusal of an unreachable/unadvertised want (confirmed
+# live, both for a never-existing SHA and a genuinely-never-pushed real commit: "fatal: git
+# upload-pack: not our ref <sha>" / "fatal: remote error: upload-pack: not our ref <sha>"). ANY
+# other nonzero exit (auth failure, connection refused, unknown host, a repo-local config the
+# probe's fresh scratch repo does not inherit, or a timeout -- `rc=None`, which never even reaches
+# this pattern match) is NOT proof of absence and MUST NOT be treated as one (11.4.201/11.4.6).
+_DEFINITIVE_ABSENCE_RE = re.compile(
+    r"not our ref|couldn't find remote ref|unadvertised object", re.IGNORECASE)
+
+
+def _is_definitive_absence(stderr):
+    return bool(_DEFINITIVE_ABSENCE_RE.search(stderr or ""))
+
 
 class RepoUnreadable(Exception):
     """git itself could not resolve HEAD for a repository already reported present on disk --
@@ -168,6 +184,27 @@ class RepoUnreadable(Exception):
         super().__init__(detail)
         self.relpath = relpath
         self.detail = detail
+
+
+class RemotesConfigError(Exception):
+    """T158 remediation round 2, finding I2: `--remotes-config` names a file the operator
+    EXPLICITLY supplied expecting its declared requirement to be honored; a malformed/wrongly-
+    shaped document (truncated JSON, wrong JSON type, a typo'd key, a non-object top level) MUST
+    fail closed (exit 2, naming the specific problem) rather than be silently read as "no
+    requirement" -- the round-1 fix only ever returned `[]` for every one of these shapes, which
+    an operator cannot distinguish from "I have no required remotes" (the exact silent-drop this
+    exception exists to make impossible, 11.4.6)."""
+
+
+class Terminated(Exception):
+    """T158 remediation round 2, finding I1: raised by the SIGTERM handler installed in main() so
+    a clean `kill <pid>` (unlike SIGKILL, which this process cannot intercept at all) unwinds
+    through every open `finally:`/`with:` block exactly like any other exception -- the scratch
+    object-store tempdir (verify_recursive), the self-check synthetic repo
+    (self_check/_pointer_fetchable's own `tempfile.TemporaryDirectory` context managers), and the
+    RV-009 stale-ref sweep (verify_single_repo's `finally:`) all still run during a terminate
+    signal instead of being abandoned mid-run. Caught by main()'s own broad `except Exception`
+    (never 1 -- reserved for findings) and reported as BLIND (4), not an uncaught traceback."""
 
 
 def _run(args, cwd, timeout_s, extra_env=None):
@@ -351,12 +388,21 @@ def redact_url(url):
     ambiguous (per RFC 3986) userinfo component, which has no single unambiguous answer once an
     unescaped `/` appears inside it. The GitLab-subgroup truncation ("g/sub/repo" -> "sub/repo")
     the review also flagged is fixed as a side effect: every path segment is now kept, never only
-    the last two."""
+    the last two.
+
+    T158 remediation round 2, MINOR finding (a NEW, narrower gap than round 1's -- all 3 of
+    round 1's own leak shapes stay fixed): a query string or `#` fragment can itself carry
+    credential material (e.g. `?token=SECRET123`) and, since it comes strictly AFTER the final
+    path segment in a well-formed URI, previously rendered verbatim (the ".git"-suffix strip above
+    only ever matched a LITERAL trailing ".git", never anything following a `?`/`#`). Both a query
+    string and a fragment always sit strictly AFTER the authority (`user:pass@host`) component, so
+    truncating at the FIRST of either can never remove credential text that belongs earlier in the
+    string -- it only ever discards bytes that come after it."""
     if not url:
         return "UNKNOWN"
     m = re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://(.*)$", url, re.DOTALL)
     if m:
-        rest = m.group(1)
+        rest = _strip_query_fragment(m.group(1))
         at = rest.rfind("@")
         after_at = rest[at + 1:] if at != -1 else rest
         segments = [p for p in after_at.split("/") if p]
@@ -364,7 +410,7 @@ def redact_url(url):
             segments[-1] = segments[-1][:-4]
         return "/".join(segments) if segments else "UNKNOWN"
     at2 = url.rfind("@")
-    cand = url[at2 + 1:] if at2 != -1 else url
+    cand = _strip_query_fragment(url[at2 + 1:] if at2 != -1 else url)
     m2 = re.match(r"^([^:/]+):(.+)$", cand)
     if m2 and "/" in m2.group(2):
         host, path = m2.group(1), m2.group(2)
@@ -372,7 +418,20 @@ def redact_url(url):
             path = path[:-4]
         segments = [host] + [p for p in path.split("/") if p]
         return "/".join(segments)
-    return os.path.basename(os.path.normpath(url)) or url
+    return os.path.basename(os.path.normpath(cand)) or cand
+
+
+def _strip_query_fragment(s):
+    """Truncate `s` at the first `?` or `#`, whichever comes first (T158 remediation round 2,
+    MINOR finding -- see `redact_url`'s own docstring). Both mark the start of a query-
+    string/fragment component, which always sits strictly after the authority in a well-formed
+    URI, so this can never discard credential text, only bytes that come after it."""
+    cut = len(s)
+    for sep in ("?", "#"):
+        idx = s.find(sep)
+        if idx != -1 and idx < cut:
+            cut = idx
+    return s[:cut]
 
 
 def _remote_head_tip(repo_path, remote, branch, timeout_s):
@@ -493,7 +552,7 @@ def read_push_log(repo_path):
     return remotes if isinstance(remotes, dict) else {}
 
 
-def verify_remote(repo_path, git_target, local_tip, branch, timeout_s, tmp_ns, push_log_entry,
+def verify_remote(repo_path, git_target, local_tip, branch, timeout_s, push_log_entry,
                    out_name, url_redacted, scratch_objdir, real_objects_dir):
     """One RemoteResult (+ its internal-only "_unpushed"/"_reachable") and the reason code it
     contributes to the owning repo's `reasons`, or None if the remote is clean.
@@ -516,7 +575,40 @@ def verify_remote(repo_path, git_target, local_tip, branch, timeout_s, tmp_ns, p
     object store) and `GIT_ALTERNATE_OBJECT_DIRECTORIES` pointed back at `real_objects_dir` (so
     every object already local to `repo_path` -- including `local_tip` itself -- stays resolvable
     for the SAME env). `real_objects_dir` of None (its resolution genuinely failed) degrades
-    honestly to the pre-fix behaviour (no redirect) rather than fail the whole check."""
+    honestly to the pre-fix behaviour (no redirect) rather than fail the whole check.
+
+    T158 remediation round 2, finding I1 (IMPORTANT -- a genuine safety regression introduced by
+    round 1's own finding-#6 fix): the PREVIOUS form fetched `<tip>:<tmp_ref>` -- an explicit
+    colon-refspec -- which git ALWAYS writes into the "current" repository's OWN refs namespace
+    regardless of GIT_OBJECT_DIRECTORY (that env var redirects only where OBJECTS land, never
+    where REFS land); since `repo_path` itself (never a separate scratch repo) was, and still is,
+    the "current" repository here (needed so a CONFIGURED REMOTE NAME resolves against
+    `repo_path`'s own `.git/config` -- a literal URL would lose repo-local `core.sshCommand` /
+    `http.*` / `url.*.insteadOf` / credential-helper config the SAME way `_pointer_fetchable`'s
+    own probe already documents as a bounded limitation, see its docstring), a temp ref was
+    written into `repo_path`'s real refs/ tree pointing at an object that existed ONLY in the
+    redirected scratch object directory. A process killed between that fetch and the
+    (best-effort, non-signal-safe) cleanup left `repo_path` holding a ref to an object its OWN
+    object store does not have -- reproduced live (round 2 review): `git for-each-ref` fails with
+    "missing object" and `git fsck`/`git gc` both fail outright on the survivor, strictly WORSE
+    than the pre-finding-#6 behaviour (a harmless ref to a real, already-local object).
+
+    FIXED by never requesting a destination ref at all: `git fetch <remote> <sha>` (a BARE
+    revision, no `:<ref>` suffix) fetches the object into whichever object store
+    GIT_OBJECT_DIRECTORY names (the scratch directory, exactly as before) WITHOUT creating or
+    touching any ref anywhere -- confirmed live (round 2): `for-each-ref`/`count-objects` on
+    `repo_path` are byte-identical before and after, for both an already-local tip (the common
+    case) and a genuinely new, never-locally-present remote-ahead object (the one scenario that
+    forces a real transfer, same fixture class `rv_no_mutation_remote_ahead` already exercises).
+    `git rev-list --count`/`git merge-base --is-ancestor` both already accept a bare SHA1 string
+    directly wherever this file calls them (no ref needed, they always have) -- `_is_ancestor`
+    below is UNCHANGED by this fix; it already took `tip`/`local_tip` as plain SHA strings, never
+    ref names. With NO ref ever written, there is nothing left for an interrupted run to leave
+    dangling in `repo_path` -- not merely cleaned up better, structurally impossible by
+    construction. (The caller's SIGTERM handler, main(), closes the SAME finding's secondary ask:
+    a clean terminate signal now unwinds through every open `finally:`/`with:` -- including the
+    scratch-objdir cleanup and `_pointer_fetchable`'s own TemporaryDirectory probes -- instead of
+    abandoning them mid-run.)"""
     extra_env = None
     if scratch_objdir and real_objects_dir:
         extra_env = {"GIT_OBJECT_DIRECTORY": scratch_objdir,
@@ -531,17 +623,15 @@ def verify_remote(repo_path, git_target, local_tip, branch, timeout_s, tmp_ns, p
         }, "REMOTE_UNREACHABLE"
 
     equal = (tip == local_tip)
-    tmp_ref = "%s/%s" % (tmp_ns, re.sub(r"[^A-Za-z0-9_.-]", "_", out_name))
     fetched, _fout, _ferr = _run(
         ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         git_target, "%s:%s" % (tip, tmp_ref)], repo_path, timeout_s, extra_env=extra_env)
+         git_target, tip], repo_path, timeout_s, extra_env=extra_env)
     unpushed = "UNKNOWN"
     if fetched == 0:
-        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tmp_ref], repo_path, timeout_s,
+        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,
                               extra_env=extra_env)
         if rc == 0 and out.strip().isdigit():
             unpushed = int(out.strip())
-        _delete_ref_quiet(repo_path, tmp_ref)
 
     if fetched != 0 or unpushed == "UNKNOWN":
         # Tip was named by ls-remote but its object could not be obtained/verified locally --
@@ -622,30 +712,58 @@ def _pointer_fetchable(repo_path, sha, remote_names, reachable_map, timeout_s):
     specific probe (it targets a SEPARATE, freshly-initialised throwaway bare repo that carries
     none of `repo_path`'s own repo-local config) -- constitution 11.4.6, never silently assumed
     solved; `cwd=repo_path` closes the reproduced relative-URL case, which was the concrete,
-    reproducible half of finding #9."""
-    any_unreachable = False
+    reproducible half of finding #9.
+
+    T158 remediation round 2, finding B1 (BLOCKING): round 1's `reachable_map` fix only covered a
+    remote whose OWN `ls-remote` (the SAME reachability signal `verify_remote` already computed)
+    had itself failed -- it never covered a remote that WAS reachable for `ls-remote`/the live-tip
+    fetch but whose SEPARATE probe-fetch call, immediately below, then failed for an UNRELATED
+    reason: a timeout (`rc=None`, confirmed live against a wrapper `GIT_SSH_COMMAND` that sleeps
+    only on the probe's own upload-pack call, not the earlier ls-remote/fetch calls for the SAME
+    remote), or a non-definitive git failure (auth/connection/config-driven -- confirmed live
+    against a submodule remote whose repo-local `core.sshCommand` the probe's fresh, config-naive
+    scratch repo does not inherit, the documented limitation two paragraphs up). Both previously
+    fell through to the SAME bare `rc != 0` branch as a genuine "not our ref" rejection and were
+    indistinguishably counted toward UNFETCHABLE -> NOT_CLEAN -- asserting as fact that a commit is
+    on no remote when the probe for THAT remote never actually finished checking. Fixed by
+    classifying the probe's own outcome three ways, never just pass/fail: `rc == 0` -> FETCHABLE
+    (unchanged); `rc != 0` AND `_is_definitive_absence(stderr)` -> this ONE remote is genuinely,
+    definitively checked-and-absent (falls through to the next remote, contributing toward
+    UNFETCHABLE exactly as before); anything else (`rc is None`, i.e. a timeout, OR a non-definitive
+    stderr) -> this remote's probe proved NOTHING, folded into the SAME downgrade-to-UNVERIFIED path
+    as an outright-unreachable remote (never silently treated as a confirmed rejection)."""
+    any_inconclusive = False
     any_probed = False
     for remote in remote_names:
         if not reachable_map.get(remote, False):
-            any_unreachable = True
+            any_inconclusive = True
             continue
         url = _remote_url(repo_path, remote, timeout_s)
         if not url:
-            any_unreachable = True
+            any_inconclusive = True
             continue
         any_probed = True
         with tempfile.TemporaryDirectory(prefix="fc_repo_verify_pointer_probe_") as probe_dir:
             rc0, _o, _e = _run(["git", "init", "-q", "--bare", probe_dir], repo_path, timeout_s)
             if rc0 != 0:
-                any_unreachable = True
+                any_inconclusive = True
                 continue
-            rc, _out, _err = _run(
+            rc, _out, err = _run(
                 ["git", "-c", "gc.auto=0", "--git-dir=" + probe_dir, "fetch", "--no-tags", "-q",
                  "--no-write-fetch-head", "--depth=1", "--filter=tree:0", url, "%s:refs/probe" % sha],
                 repo_path, timeout_s)
             if rc == 0:
                 return "FETCHABLE"
-    if any_unreachable or not any_probed:
+            if rc is None or not _is_definitive_absence(err):
+                # B1 fix: a timeout (rc=None) or any non-definitive failure (auth/connection/
+                # config-driven) proves NOTHING about this remote -- it is NOT a confirmed
+                # rejection, so it must downgrade the final verdict to UNVERIFIED exactly like an
+                # outright-unreachable remote, never silently count toward UNFETCHABLE.
+                any_inconclusive = True
+            # else: rc != 0 AND the stderr matches a definitive-absence pattern -- this remote was
+            # genuinely reached and genuinely checked; fall through to the next remote without
+            # marking any_inconclusive (this is the real "probed, SHA absent here" case).
+    if any_inconclusive or not any_probed:
         return "UNVERIFIED"
     return "UNFETCHABLE"
 
@@ -680,6 +798,11 @@ def verify_single_repo(repo_path, relpath, timeout_s, is_submodule, parent_gitli
 
     remote_names = list_remotes(repo_path, timeout_s)
     push_log = read_push_log(repo_path)
+    # T158 remediation round 2, finding I1: verify_remote() no longer creates ANY ref (it fetches
+    # a bare SHA, never a `sha:ref` destination -- see its own docstring), so this namespace is no
+    # longer written to by this process at all; the sweep below is retained purely as a defence-in-
+    # depth cleanup of any leftover `refs/fastcycle_verify/*` debris a PRE-round-2 run of this same
+    # tool may have left behind on a real repository, never itself a source of new state.
     tmp_ns = "refs/fastcycle_verify/%d_%s" % (os.getpid(), re.sub(r"[^A-Za-z0-9_]", "_", relpath) or "root")
     real_objects_dir = _git_objects_dir(repo_path, timeout_s)
     remotes_out = []
@@ -690,7 +813,7 @@ def verify_single_repo(repo_path, relpath, timeout_s, is_submodule, parent_gitli
         for remote in remote_names:
             url = _remote_url(repo_path, remote, timeout_s)
             redacted = redact_url(url)
-            rr, reason = verify_remote(repo_path, remote, head, branch, timeout_s, tmp_ns,
+            rr, reason = verify_remote(repo_path, remote, head, branch, timeout_s,
                                         push_log.get(remote), remote, redacted,
                                         scratch_objdir, real_objects_dir)
             unpushed_map[remote] = rr.pop("_unpushed")
@@ -714,7 +837,7 @@ def verify_single_repo(repo_path, relpath, timeout_s, is_submodule, parent_gitli
                     continue
                 push_out_name = "%s:push" % remote
                 push_rr, push_reason = verify_remote(
-                    repo_path, push_url, head, branch, timeout_s, tmp_ns, push_log.get(remote),
+                    repo_path, push_url, head, branch, timeout_s, push_log.get(remote),
                     push_out_name, redact_url(push_url), scratch_objdir, real_objects_dir)
                 push_rr.pop("_unpushed", None)
                 push_rr.pop("_reachable", None)
@@ -803,20 +926,49 @@ def read_remotes_config(path):
     `{"required_remotes": ["<name>", ...]}` naming remote NAMES that MUST be configured on EVERY
     repository walked (main + every submodule, constitution 2.1 "push to ALL upstreams") -- a repo
     missing any of them is folded into `UNPUSHED_COMMITS` by `verify_single_repo` (data-model.md
-    #12.1 has no more specific closed reason code for a declared-but-absent upstream). Absent file,
-    unreadable JSON, a non-object document, or a `required_remotes` value that is not a JSON list
-    all yield [] -- never silently invents a requirement the caller did not actually give, and
-    never crashes (an EXPLICITLY-given but unreadable --remotes-config path already fails closed
-    in main(), before this function is ever called)."""
+    #12.1 has no more specific closed reason code for a declared-but-absent upstream). An absent
+    `--remotes-config` flag entirely yields [] at the call site below (main() never calls this
+    function at all in that case) -- that is the ONLY "no requirement" case this tool recognises.
+
+    T158 remediation round 2, finding I2 (IMPORTANT -- round 1's own fix was only partial): EVERY
+    one of truncated/unparsable JSON, a non-object top-level value, an unrecognised top-level key
+    (most dangerously a TYPO'd `required_remotes`, e.g. the singular `required_remote`), or a
+    `required_remotes` value that is not a JSON list of strings now raises `RemotesConfigError`
+    naming the SPECIFIC problem -- caught by main() and turned into exit 2, never silently folded
+    into "no requirement" (round 1's `return []` for every one of these shapes was indistinguishable,
+    from the operator's own config file, from "I deliberately require nothing"; an operator who
+    supplied this file expecting its declared requirement to be enforced must never have it
+    silently discarded, 11.4.6). Only an EMPTY document (`{}`, no `required_remotes` key present
+    at all) is a deliberate, valid "no requirement" declaration -- distinct from a key that is
+    merely misspelled, which is an unrecognised top-level key and therefore an error."""
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
-    except (OSError, ValueError):
-        return []
-    names = data.get("required_remotes") if isinstance(data, dict) else None
+    except OSError as exc:
+        raise RemotesConfigError("cannot read --remotes-config %r: %s" % (path, exc))
+    except ValueError as exc:
+        # json.JSONDecodeError is a ValueError subclass -- covers truncated/malformed JSON.
+        raise RemotesConfigError("--remotes-config %r is not valid JSON: %s" % (path, exc))
+    if not isinstance(data, dict):
+        raise RemotesConfigError(
+            "--remotes-config %r: top-level JSON value must be an object, got %s"
+            % (path, type(data).__name__))
+    unknown_keys = sorted(set(data.keys()) - {"required_remotes"})
+    if unknown_keys:
+        raise RemotesConfigError(
+            "--remotes-config %r: unrecognised key(s) %s (did you mean 'required_remotes'?)"
+            % (path, ", ".join(repr(k) for k in unknown_keys)))
+    if "required_remotes" not in data:
+        return []  # a deliberate, valid empty document -- no requirement declared
+    names = data["required_remotes"]
     if not isinstance(names, list):
-        return []
-    return sorted(set(n for n in names if isinstance(n, str) and n.strip()))
+        raise RemotesConfigError(
+            "--remotes-config %r: 'required_remotes' must be a JSON list, got %s"
+            % (path, type(names).__name__))
+    if not all(isinstance(n, str) for n in names):
+        raise RemotesConfigError(
+            "--remotes-config %r: every entry in 'required_remotes' must be a string" % (path,))
+    return sorted(set(n for n in names if n.strip()))
 
 
 def verify_recursive(root, timeout_s, required_remotes=()):
@@ -959,7 +1111,22 @@ def _run_determinism_check(a):
     return 1
 
 
+def _sigterm_handler(_signum, _frame):
+    """T158 remediation round 2, finding I1: converts a clean `kill <pid>`/SIGTERM into a raised
+    Python exception (never installed for SIGKILL -- a process cannot intercept that one at all,
+    and is not this finding's concern) so every open `finally:`/`with:` block on the call stack at
+    the moment of the signal still runs as it unwinds -- the scratch object-store tempdir cleanup
+    in verify_recursive(), self_check()'s and _pointer_fetchable()'s own
+    `tempfile.TemporaryDirectory` context managers, and the RV-009 stale-ref sweep in
+    verify_single_repo()'s own `finally:` -- instead of the process simply stopping mid-run with
+    none of that cleanup ever executing."""
+    raise Terminated("repo_verify: terminated by SIGTERM")
+
+
 def main(argv):
+    # Installed for the whole lifetime of this process (main() runs exactly once per invocation,
+    # matching every other git subprocess this tool launches, so there is nothing to restore).
+    signal.signal(signal.SIGTERM, _sigterm_handler)
     p = argparse.ArgumentParser(prog="repo_verify.py")
     p.add_argument("--recursive", action="store_true")
     p.add_argument("--root", required=True)
@@ -989,8 +1156,17 @@ def main(argv):
         print("repo_verify: --remotes-config file not found: %s" % a.remotes_config, file=sys.stderr)
         return 2
     # T158 remediation round 1, finding #5: actually READ the config (previously only
-    # existence-checked above, then silently discarded) -- see read_remotes_config().
-    a.required_remotes = read_remotes_config(a.remotes_config) if a.remotes_config else []
+    # existence-checked above, then silently discarded) -- see read_remotes_config(). T158
+    # remediation round 2, finding I2: a malformed/wrongly-shaped document (round 1 only ever
+    # existence-checked above, never shape-validated) now fails closed here too, naming the
+    # specific problem, rather than silently falling back to "no requirement" -- deliberately
+    # OUTSIDE the broad `except Exception` below (an internal error is never 2, and a config
+    # error the operator must fix is never 4).
+    try:
+        a.required_remotes = read_remotes_config(a.remotes_config) if a.remotes_config else []
+    except RemotesConfigError as exc:
+        print("repo_verify: %s" % exc, file=sys.stderr)
+        return 2
 
     try:
         if a.determinism_check:

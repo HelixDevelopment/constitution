@@ -950,4 +950,484 @@ else
 fi
 
 
+# ================================================================================================
+# T158 remediation round 2 -- new fixtures/mutations closing the SECOND independent review's
+# BLOCKING (B1) + IMPORTANT (I1, I2, I3) findings, plus the MINOR redact_url query-string leak.
+# Round 1's own 24 assertions above (+ its mutations) are UNTOUCHED and must all stay GREEN.
+# ================================================================================================
+
+MUTMARK2="$TMP/mutmark2"
+mkdir -p "$MUTMARK2"
+
+# ---------------------------------------------------------- rv_bad_pointer_probe_timeout (B1, repro a)
+# A submodule's pointer-probe fetch call specifically times out (the EARLIER ls-remote/fetch calls
+# for the SAME remote already succeeded) -- the probe's own `rc=None` MUST map to UNVERIFIED, never
+# to UNFETCHABLE/NOT_CLEAN (B1's original defect: ANY nonzero/timeout fell through to the same bare
+# "rejected" bucket as a genuine "not our ref"). A `GIT_SSH_COMMAND` wrapper counts real (non "-G")
+# ssh invocations and sleeps forever on the 2nd one -- empirically confirmed (2026-09-30, this
+# round): for a submodule whose checked-out HEAD already equals the remote tip, verify_remote's own
+# bare-SHA fetch of an ALREADY-LOCALLY-PRESENT object is a genuine git no-network-round-trip
+# short-circuit (git never contacts the remote at all when it already has the exact object), so the
+# real per-submodule ssh-invocation sequence is ls-remote (1st) then the pointer-probe's OWN fetch
+# (2nd) -- never a 3rd call for this scenario -- confirmed by directly tracing every `_run()` call
+# this tool makes against this exact fixture before writing this assertion (11.4.199/11.4.6: never
+# assumed from the contract prose alone).
+PPT="$TMP/rv_bad_pointer_probe_timeout"
+mkdir -p "$PPT"
+mk_repo "$PPT/sub_src"
+echo "seed" >"$PPT/sub_src/f.txt"
+git -C "$PPT/sub_src" add -A; git -C "$PPT/sub_src" commit -qm "init sub"
+mk_bare "$PPT/sub_remote.git"
+cat >"$PPT/fake_ssh_timeout.sh" <<'EOF'
+#!/bin/bash
+# args: [-G ...] <host> [<remote-command-string>] -- a "-G" config-probe query is never counted
+# (it carries no remote-command argument); every OTHER invocation is a real remote-command call,
+# counted via a shared counter file, sleeping forever on the configured Nth one instead of ever
+# running the real local-loopback command (the standard GIT_SSH_COMMAND test technique: this
+# wrapper IGNORES the host argument entirely and runs the remote command locally via `sh -c`,
+# simulating a reachable ssh remote with no real network/sshd involved at all).
+if [ "$1" = "-G" ]; then exit 1; fi
+shift
+cmd="$1"
+count=0
+[ -f "$FAKE_SSH_COUNTER" ] && count=$(cat "$FAKE_SSH_COUNTER")
+count=$((count + 1))
+echo "$count" >"$FAKE_SSH_COUNTER"
+if [ "$count" = "$FAKE_SSH_SLEEP_ON" ]; then
+  sleep 999
+  exit 1
+fi
+exec sh -c "$cmd"
+EOF
+chmod +x "$PPT/fake_ssh_timeout.sh"
+export GIT_SSH_COMMAND="$PPT/fake_ssh_timeout.sh"
+PPT_URL="ssh://fakehost$PPT/sub_remote.git"
+git -C "$PPT/sub_src" remote add origin "$PPT_URL"
+git -C "$PPT/sub_src" push -q origin main
+mk_repo "$PPT/parent"
+echo "parent-seed" >"$PPT/parent/f.txt"
+git -C "$PPT/parent" add -A; git -C "$PPT/parent" commit -qm "parent init"
+git -C "$PPT/parent" -c protocol.file.allow=always submodule add -q "$PPT/sub_remote.git" sub
+git -C "$PPT/parent" commit -qm "add submodule"
+git -C "$PPT/parent/sub" remote set-url origin "$PPT_URL"
+mk_bare "$PPT/parent_r1.git"
+git -C "$PPT/parent" remote add origin "$PPT/parent_r1.git"
+git -C "$PPT/parent" push -q origin main
+export FAKE_SSH_COUNTER="$PPT/counter.txt"
+export FAKE_SSH_SLEEP_ON=2
+rm -f "$FAKE_SSH_COUNTER"
+PPT_T0=$(date +%s)
+timeout 20 python3 "$TOOL" --recursive --root "$PPT/parent" --out "$TMP/ppt.json" --timeout-per-remote 4 >"$TMP/ppt.out" 2>"$TMP/ppt.err"
+PPTRC=$?
+PPT_T1=$(date +%s)
+unset GIT_SSH_COMMAND FAKE_SSH_COUNTER FAKE_SSH_SLEEP_ON
+PPTOVERALL=$(report_field "$TMP/ppt.json" 'd.get("overall")' 2>/dev/null)
+PPTSUB_STATUS=$(report_field "$TMP/ppt.json" 'next(r["status"] for r in d["repos"] if r["path"]=="sub")' 2>/dev/null)
+PPTSUB_REASONS=$(report_field "$TMP/ppt.json" 'next(r["reasons"] for r in d["repos"] if r["path"]=="sub")' 2>/dev/null)
+if [ "$PPTRC" -eq 4 ] && [ "$PPTOVERALL" = "UNVERIFIED" ] && [ "$PPTSUB_STATUS" = "UNVERIFIED" ] \
+   && [ "$PPTSUB_REASONS" = "['REMOTE_UNREACHABLE']" ] && [ $((PPT_T1 - PPT_T0)) -ge 4 ] && [ $((PPT_T1 - PPT_T0)) -lt 18 ]; then
+  ok "rv_bad_pointer_probe_timeout (B1 repro a): a probe-specific timeout (rc=None) on an otherwise-reachable remote maps to UNVERIFIED/REMOTE_UNREACHABLE, exit 4 -- NEVER POINTER_UNFETCHABLE/NOT_CLEAN (elapsed=$((PPT_T1 - PPT_T0))s, bounded by the 4s --timeout-per-remote)"
+else
+  not_ok "rv_bad_pointer_probe_timeout: rc=$PPTRC overall=$PPTOVERALL sub.status=$PPTSUB_STATUS sub.reasons=$PPTSUB_REASONS elapsed=$((PPT_T1 - PPT_T0))s"
+fi
+
+# -------------------------------------------------- rv_bad_pointer_probe_config_not_inherited (B1, repro b)
+# A submodule's remote origin uses a repo-LOCAL `core.sshCommand` (never an ambient env var) that
+# resolves the ssh:// url fine for the ORDINARY ls-remote/fetch checks (run with cwd=the submodule
+# itself, so its own repo-local config genuinely applies) -- but the pointer-probe's fetch targets a
+# FRESH, config-naive scratch bare repo via `--git-dir=<probe>`, which does NOT inherit that
+# repo-local setting, so the probe falls back to the real system `ssh` binary trying to resolve the
+# (deliberately unresolvable) hostname "fakehost" -- a config-driven failure, never a definitive
+# "not our ref" rejection, and B1 requires this maps to UNVERIFIED too.
+PPC="$TMP/rv_bad_pointer_probe_config_not_inherited"
+mkdir -p "$PPC"
+mk_repo "$PPC/sub_src"
+echo "seed" >"$PPC/sub_src/f.txt"
+git -C "$PPC/sub_src" add -A; git -C "$PPC/sub_src" commit -qm "init sub"
+mk_bare "$PPC/sub_remote.git"
+cat >"$PPC/fake_ssh_ok.sh" <<'EOF'
+#!/bin/bash
+if [ "$1" = "-G" ]; then exit 1; fi
+shift
+exec sh -c "$1"
+EOF
+chmod +x "$PPC/fake_ssh_ok.sh"
+export GIT_SSH_COMMAND="$PPC/fake_ssh_ok.sh"
+PPC_URL="ssh://fakehost$PPC/sub_remote.git"
+git -C "$PPC/sub_src" remote add origin "$PPC_URL"
+git -C "$PPC/sub_src" push -q origin main
+mk_repo "$PPC/parent"
+echo "parent-seed" >"$PPC/parent/f.txt"
+git -C "$PPC/parent" add -A; git -C "$PPC/parent" commit -qm "parent init"
+git -C "$PPC/parent" -c protocol.file.allow=always submodule add -q "$PPC/sub_remote.git" sub
+git -C "$PPC/parent" commit -qm "add submodule"
+git -C "$PPC/parent/sub" remote set-url origin "$PPC_URL"
+# Repo-LOCAL config, on the submodule only -- the probe's own fresh --git-dir scratch repo (see
+# repo_verify.py's own _pointer_fetchable docstring) carries none of this.
+git -C "$PPC/parent/sub" config core.sshCommand "$PPC/fake_ssh_ok.sh"
+mk_bare "$PPC/parent_r1.git"
+git -C "$PPC/parent" remote add origin "$PPC/parent_r1.git"
+git -C "$PPC/parent" push -q origin main
+unset GIT_SSH_COMMAND
+# Control check (11.4.6/11.4.199): confirm the repo-local config genuinely lets a PLAIN git command
+# resolve this fake remote BEFORE trusting any assertion about repo_verify's own handling of it.
+if git -C "$PPC/parent/sub" ls-remote origin >/dev/null 2>&1; then
+  ok "rv_bad_pointer_probe_config_not_inherited: control check -- plain 'git ls-remote origin' from the submodule's own directory resolves via its repo-local core.sshCommand with NO ambient GIT_SSH_COMMAND set"
+else
+  not_ok "rv_bad_pointer_probe_config_not_inherited: control check FAILED -- the repo-local core.sshCommand does not even let a plain git command resolve the fake remote; fixture setup is broken"
+fi
+timeout 20 python3 "$TOOL" --recursive --root "$PPC/parent" --out "$TMP/ppc.json" --timeout-per-remote 10 >"$TMP/ppc.out" 2>"$TMP/ppc.err"
+PPCRC=$?
+PPCOVERALL=$(report_field "$TMP/ppc.json" 'd.get("overall")' 2>/dev/null)
+PPCSUB_STATUS=$(report_field "$TMP/ppc.json" 'next(r["status"] for r in d["repos"] if r["path"]=="sub")' 2>/dev/null)
+PPCSUB_REASONS=$(report_field "$TMP/ppc.json" 'next(r["reasons"] for r in d["repos"] if r["path"]=="sub")' 2>/dev/null)
+PPCSUB_EQUAL=$(report_field "$TMP/ppc.json" 'next(rm["equal"] for r in d["repos"] if r["path"]=="sub" for rm in r["remotes"] if rm["name"]=="origin")' 2>/dev/null)
+if [ "$PPCRC" -eq 4 ] && [ "$PPCOVERALL" = "UNVERIFIED" ] && [ "$PPCSUB_STATUS" = "UNVERIFIED" ] \
+   && [ "$PPCSUB_REASONS" = "['REMOTE_UNREACHABLE']" ] && [ "$PPCSUB_EQUAL" = "True" ]; then
+  ok "rv_bad_pointer_probe_config_not_inherited (B1 repro b): the ordinary fetch-URL check succeeds (equal=True, inherited repo-local core.sshCommand) while the pointer-probe's own config-naive scratch repo cannot resolve the SAME url -- maps to UNVERIFIED/REMOTE_UNREACHABLE, exit 4 -- NEVER POINTER_UNFETCHABLE/NOT_CLEAN"
+else
+  not_ok "rv_bad_pointer_probe_config_not_inherited: rc=$PPCRC overall=$PPCOVERALL sub.status=$PPCSUB_STATUS sub.reasons=$PPCSUB_REASONS sub.origin.equal=$PPCSUB_EQUAL"
+fi
+
+# ------------------------------------------------------------------------------------ I1 (IMPORTANT)
+# verify_remote() no longer requests ANY destination ref for its live-tip fetch (a bare-SHA fetch,
+# never a `sha:ref` colon-refspec) -- so there is NO ref left anywhere for an interrupted run to
+# leave dangling, structurally, not merely "cleaned up better". Two proofs: (1) a MUTANT restoring
+# the OLD colon-refspec form (with its ref-delete step removed, so it never even reaches its own
+# best-effort cleanup) reproduces the EXACT reviewer-documented consequence -- a real, permanently
+# dangling, fsck-breaking ref in the REAL repository -- on a fixture that forces a genuine new-object
+# transfer (so the fetched object lives ONLY in the GIT_OBJECT_DIRECTORY-redirected scratch
+# directory, which this process's own normal `verify_recursive()` cleanup removes at exit exactly as
+# an interrupted run's would be removed by the OS/tmp-reaper); (2) the REAL (fixed) tool, sent an
+# ACTUAL SIGTERM mid-run against a real fixture whose remote never responds, leaves that repo's
+# refs/objects byte-identical to their pre-run state -- the SIGTERM handler (main()'s own
+# `_sigterm_handler`) converts the signal into a raised exception so every open `finally:`/`with:`
+# on the call stack still runs instead of the process being torn down mid-flight.
+I1="$TMP/rv_i1_proof"
+mk_repo "$I1/repo"
+echo one >"$I1/repo/f.txt"; git -C "$I1/repo" add -A; git -C "$I1/repo" commit -qm c1
+mk_bare "$I1/remote.git"
+git -C "$I1/repo" remote add origin "$I1/remote.git"
+git -C "$I1/repo" push -q origin main
+git clone -q "$I1/remote.git" "$I1/other_clone"
+git -C "$I1/other_clone" config user.email fc@example.invalid
+git -C "$I1/other_clone" config user.name fastcycle
+echo two >"$I1/other_clone/f.txt"
+git -C "$I1/other_clone" add -A; git -C "$I1/other_clone" commit -qm c2
+git -C "$I1/other_clone" push -q origin main
+I1_REMOTE_SHA=$(git -C "$I1/remote.git" rev-parse main)
+if git -C "$I1/repo" cat-file -e "$I1_REMOTE_SHA" 2>/dev/null; then
+  not_ok "rv_i1_proof: fixture setup bug -- repo already has the remote's new commit object locally; this fixture cannot force a real transfer"
+else
+  ok "rv_i1_proof: fixture control check -- the remote's new commit object is genuinely absent from repo's own object store before either run below"
+fi
+
+# (1) MUTANT: restore the pre-round-2 colon-refspec form, with its ref-delete removed entirely (the
+# SAME shape finding #6's own original defect had -- a ref written into the real repo's refs,
+# pointing at an object that only the redirected scratch object directory holds).
+cat >"$MUTMARK2/i1_old.txt" <<'EOF'
+    equal = (tip == local_tip)
+    fetched, _fout, _ferr = _run(
+        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
+         git_target, tip], repo_path, timeout_s, extra_env=extra_env)
+    unpushed = "UNKNOWN"
+    if fetched == 0:
+        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,
+                              extra_env=extra_env)
+        if rc == 0 and out.strip().isdigit():
+            unpushed = int(out.strip())
+EOF
+cat >"$MUTMARK2/i1_new.txt" <<'EOF'
+    equal = (tip == local_tip)
+    tmp_ref = "refs/fastcycle_verify_mutant_i1/%s" % re.sub(r"[^A-Za-z0-9_.-]", "_", out_name)
+    fetched, _fout, _ferr = _run(
+        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
+         git_target, "%s:%s" % (tip, tmp_ref)], repo_path, timeout_s, extra_env=extra_env)
+    unpushed = "UNKNOWN"
+    if fetched == 0:
+        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tmp_ref], repo_path, timeout_s,
+                              extra_env=extra_env)
+        if rc == 0 and out.strip().isdigit():
+            unpushed = int(out.strip())
+EOF
+if mk_mutant "mutant_i1" "$MUTMARK2/i1_old.txt" "$MUTMARK2/i1_new.txt" 2>"$TMP/mutant_i1.err"; then
+  python3 "$TMP/mutant_i1/verify/repo_verify.py" --recursive --root "$I1/repo" --out "$TMP/mutant_i1.json" >"$TMP/mutant_i1.out" 2>>"$TMP/mutant_i1.err"
+  I1_STRAY=$(git -C "$I1/repo" for-each-ref --format='%(refname)' 'refs/fastcycle_verify_mutant_i1/*' | head -1)
+  if [ -n "$I1_STRAY" ] && ! git -C "$I1/repo" cat-file -e "$I1_STRAY" 2>/dev/null; then
+    ok "rv_i1_proof (pre-fix repro, mutant): the OLD colon-refspec form left a REAL, permanently dangling ref ($I1_STRAY) in the repository -- 'git cat-file -e' on it fails exactly as the review's own reproduced consequence describes ('fatal: missing object ... for refs/fastcycle_verify/...')"
+  else
+    not_ok "rv_i1_proof (pre-fix repro, mutant): expected a dangling, cat-file-unreadable ref under refs/fastcycle_verify_mutant_i1/* after the mutant run, got stray_ref=$I1_STRAY"
+  fi
+  # Clean up the mutant's own deliberately-dangling ref so it cannot contaminate anything later.
+  git -C "$I1/repo" update-ref -d "$I1_STRAY" 2>/dev/null || true
+else
+  not_ok "rv_i1_proof (pre-fix repro, mutant): mutation anchor text not found in repo_verify.py -- source moved, update this test's anchor: $(cat "$TMP/mutant_i1.err")"
+fi
+
+# (2) THE FIX: the real (fixed) tool, run normally against the SAME real-transfer-forcing fixture,
+# creates NO ref anywhere, so there is nothing an interruption could ever leave dangling.
+I1_BEFORE_REFS=$(git -C "$I1/repo" for-each-ref)
+python3 "$TOOL" --recursive --root "$I1/repo" --out "$TMP/i1_fixed.json" >"$TMP/i1_fixed.out" 2>"$TMP/i1_fixed.err"
+I1_FIXED_RC=$?
+I1_AFTER_REFS=$(git -C "$I1/repo" for-each-ref)
+I1_FIXED_OVERALL=$(report_field "$TMP/i1_fixed.json" 'd.get("overall")' 2>/dev/null)
+if [ "$I1_FIXED_RC" -eq 1 ] && [ "$I1_FIXED_OVERALL" = "NOT_CLEAN" ] && [ "$I1_BEFORE_REFS" = "$I1_AFTER_REFS" ]; then
+  ok "rv_i1_proof (fixed tool, normal run): the real tool still correctly reports NOT_CLEAN/REMOTE_AHEAD for the genuine new-object-transfer fixture, AND refs are byte-identical before/after -- no ref of any kind was ever created"
+else
+  not_ok "rv_i1_proof (fixed tool, normal run): rc=$I1_FIXED_RC overall=$I1_FIXED_OVERALL refs_identical=$([ "$I1_BEFORE_REFS" = "$I1_AFTER_REFS" ] && echo yes || echo no)"
+fi
+
+# (3) THE FIX under an ACTUAL interrupt: a genuinely slow remote (the SAME GIT_SSH_COMMAND-sleep
+# technique as the B1 timeout fixture above, this time sleeping on the VERY FIRST ssh invocation so
+# the tool is reliably still blocked when the signal arrives) is sent a real SIGTERM mid-run; the
+# repo's refs/objects MUST be byte-identical afterward -- stronger than "no dangling ref", this
+# proves the real repo is untouched even when the process is torn down abnormally mid-flight.
+mk_repo "$I1/sigterm_sub_src"
+echo "seed" >"$I1/sigterm_sub_src/f.txt"
+git -C "$I1/sigterm_sub_src" add -A; git -C "$I1/sigterm_sub_src" commit -qm "init"
+mk_bare "$I1/sigterm_sub_remote.git"
+# Push to the LOCAL bare path directly (no ssh involved at all for setup -- matches every other
+# submodule fixture's own convention: `submodule add` always clones a local path, and the remote's
+# URL is rewritten to the ssh:// target ONLY AFTERWARD, a pure config change needing no network).
+git -C "$I1/sigterm_sub_src" remote add origin "$I1/sigterm_sub_remote.git"
+git -C "$I1/sigterm_sub_src" push -q origin main
+cat >"$I1/fake_ssh_sleep.sh" <<'EOF'
+#!/bin/bash
+if [ "$1" = "-G" ]; then exit 1; fi
+sleep 20
+exit 1
+EOF
+chmod +x "$I1/fake_ssh_sleep.sh"
+I1_SIGTERM_URL="ssh://fakehost$I1/sigterm_sub_remote.git"
+mk_repo "$I1/sigterm_parent"
+echo "parent-seed" >"$I1/sigterm_parent/f.txt"
+git -C "$I1/sigterm_parent" add -A; git -C "$I1/sigterm_parent" commit -qm "parent init"
+git -C "$I1/sigterm_parent" -c protocol.file.allow=always submodule add -q "$I1/sigterm_sub_remote.git" sub
+git -C "$I1/sigterm_parent" commit -qm "add submodule"
+git -C "$I1/sigterm_parent/sub" remote set-url origin "$I1_SIGTERM_URL"
+mk_bare "$I1/sigterm_parent_r1.git"
+git -C "$I1/sigterm_parent" remote add origin "$I1/sigterm_parent_r1.git"
+git -C "$I1/sigterm_parent" push -q origin main
+# Only NOW (after every real git operation setup needed is done) does GIT_SSH_COMMAND point at
+# the sleeping wrapper -- so it affects ONLY the repo_verify.py invocation below, never the setup
+# above.
+export GIT_SSH_COMMAND="$I1/fake_ssh_sleep.sh"
+I1_SIGTERM_BEFORE_REFS=$(git -C "$I1/sigterm_parent/sub" for-each-ref)
+I1_SIGTERM_BEFORE_OBJS=$(git -C "$I1/sigterm_parent/sub" count-objects -v)
+python3 "$TOOL" --recursive --root "$I1/sigterm_parent" --out "$TMP/i1_sigterm.json" --timeout-per-remote 120 >"$TMP/i1_sigterm.out" 2>"$TMP/i1_sigterm.err" &
+I1_SIGTERM_PID=$!
+sleep 1.5
+kill -TERM "$I1_SIGTERM_PID" 2>/dev/null
+wait "$I1_SIGTERM_PID" 2>/dev/null
+I1_SIGTERM_RC=$?
+unset GIT_SSH_COMMAND
+sleep 0.3
+I1_SIGTERM_AFTER_REFS=$(git -C "$I1/sigterm_parent/sub" for-each-ref)
+I1_SIGTERM_AFTER_OBJS=$(git -C "$I1/sigterm_parent/sub" count-objects -v)
+if grep -q "terminated by SIGTERM" "$TMP/i1_sigterm.err" && [ "$I1_SIGTERM_RC" -eq 4 ] \
+   && [ "$I1_SIGTERM_BEFORE_REFS" = "$I1_SIGTERM_AFTER_REFS" ] && [ "$I1_SIGTERM_BEFORE_OBJS" = "$I1_SIGTERM_AFTER_OBJS" ]; then
+  ok "rv_i1_proof (fixed tool, real SIGTERM mid-run): the SIGTERM handler converts the signal to exit 4 ('terminated by SIGTERM') and the submodule's refs + object counts are byte-identical before/after -- the real repo is provably untouched by an abrupt mid-flight interrupt, not merely 'cleaned up better'"
+else
+  not_ok "rv_i1_proof (fixed tool, real SIGTERM mid-run): rc=$I1_SIGTERM_RC refs_identical=$([ "$I1_SIGTERM_BEFORE_REFS" = "$I1_SIGTERM_AFTER_REFS" ] && echo yes || echo no) objs_identical=$([ "$I1_SIGTERM_BEFORE_OBJS" = "$I1_SIGTERM_AFTER_OBJS" ] && echo yes || echo no) stderr=$(cat "$TMP/i1_sigterm.err")"
+fi
+# Host hygiene: killing the python3 parent does not propagate to the `git fetch` subprocess it
+# spawned, which in turn means git's OWN child (this wrapper) is orphaned rather than killed --
+# reap it explicitly rather than leave it sleeping for its full budget. The match is the FULL
+# absolute path under this run's own freshly-mktemp'd $TMP, unique to this one test invocation --
+# never a bare/generic pattern (11.4.196(D)/§12.12 anti-carrier-match discipline).
+pkill -f "$I1/fake_ssh_sleep.sh" >/dev/null 2>&1 || true
+
+# ------------------------------------------------------------------------------------ I2 (IMPORTANT)
+# A malformed/wrongly-shaped --remotes-config MUST exit 2 naming the specific problem, never
+# silently fall back to "no requirement" -- four repro shapes, each against a repo where the
+# (fictionally) required remote 'upstream' is genuinely absent everywhere (so a silent "no
+# requirement" fallback would wrongly read CLEAN/exit 0, the exact bug this closes), plus one
+# NEGATIVE control (a deliberately empty `{}` document, which IS a valid "no requirement"
+# declaration and must NOT be refused, 11.4.201(1)).
+I2="$TMP/rv_i2_malformed_config"
+mk_repo "$I2/repo"
+echo one >"$I2/repo/f.txt"; git -C "$I2/repo" add -A; git -C "$I2/repo" commit -qm c1
+mk_bare "$I2/origin.git"
+git -C "$I2/repo" remote add origin "$I2/origin.git"
+git -C "$I2/repo" push -q origin main
+
+printf '{"required_remotes": ["upstream"' >"$I2/truncated.json"
+printf '{"required_remotes": "upstream"}' >"$I2/wrongtype.json"
+printf '{"required_remote": ["upstream"]}' >"$I2/typo.json"
+printf '["upstream"]' >"$I2/toplevellist.json"
+printf '{}' >"$I2/empty.json"
+
+python3 "$TOOL" --recursive --root "$I2/repo" --out "$TMP/i2_truncated.json" --remotes-config "$I2/truncated.json" >"$TMP/i2_truncated.out" 2>"$TMP/i2_truncated.err"
+I2_TRUNC_RC=$?
+if [ "$I2_TRUNC_RC" -eq 2 ] && grep -qi "not valid JSON" "$TMP/i2_truncated.err"; then
+  ok "rv_i2_malformed_config: truncated JSON ('{\"required_remotes\": [\"upstream\"') exits 2 naming the JSON parse failure, never silently \"no requirement\" (was exit 0/CLEAN pre-fix)"
+else
+  not_ok "rv_i2_malformed_config (truncated): rc=$I2_TRUNC_RC stderr=$(cat "$TMP/i2_truncated.err")"
+fi
+
+python3 "$TOOL" --recursive --root "$I2/repo" --out "$TMP/i2_wrongtype.json" --remotes-config "$I2/wrongtype.json" >"$TMP/i2_wrongtype.out" 2>"$TMP/i2_wrongtype.err"
+I2_WRONGTYPE_RC=$?
+if [ "$I2_WRONGTYPE_RC" -eq 2 ] && grep -qi "must be a JSON list" "$TMP/i2_wrongtype.err"; then
+  ok "rv_i2_malformed_config: wrong type ('required_remotes' as a string, not a list) exits 2 naming the type mismatch"
+else
+  not_ok "rv_i2_malformed_config (wrongtype): rc=$I2_WRONGTYPE_RC stderr=$(cat "$TMP/i2_wrongtype.err")"
+fi
+
+python3 "$TOOL" --recursive --root "$I2/repo" --out "$TMP/i2_typo.json" --remotes-config "$I2/typo.json" >"$TMP/i2_typo.out" 2>"$TMP/i2_typo.err"
+I2_TYPO_RC=$?
+if [ "$I2_TYPO_RC" -eq 2 ] && grep -qi "unrecognised key" "$TMP/i2_typo.err"; then
+  ok "rv_i2_malformed_config: typo'd key ('required_remote', missing the trailing 's') exits 2 naming the unrecognised key, never silently treated as an absent 'required_remotes'"
+else
+  not_ok "rv_i2_malformed_config (typo): rc=$I2_TYPO_RC stderr=$(cat "$TMP/i2_typo.err")"
+fi
+
+python3 "$TOOL" --recursive --root "$I2/repo" --out "$TMP/i2_toplevellist.json" --remotes-config "$I2/toplevellist.json" >"$TMP/i2_toplevellist.out" 2>"$TMP/i2_toplevellist.err"
+I2_TOPLIST_RC=$?
+if [ "$I2_TOPLIST_RC" -eq 2 ] && grep -qi "must be an object" "$TMP/i2_toplevellist.err"; then
+  ok "rv_i2_malformed_config: top-level JSON list instead of an object exits 2 naming the shape mismatch"
+else
+  not_ok "rv_i2_malformed_config (toplevellist): rc=$I2_TOPLIST_RC stderr=$(cat "$TMP/i2_toplevellist.err")"
+fi
+
+python3 "$TOOL" --recursive --root "$I2/repo" --out "$TMP/i2_empty.json" --remotes-config "$I2/empty.json" >"$TMP/i2_empty.out" 2>"$TMP/i2_empty.err"
+I2_EMPTY_RC=$?
+I2_EMPTY_OVERALL=$(report_field "$TMP/i2_empty.json" 'd.get("overall")' 2>/dev/null)
+if [ "$I2_EMPTY_RC" -eq 0 ] && [ "$I2_EMPTY_OVERALL" = "CLEAN" ]; then
+  ok "rv_i2_malformed_config: a deliberately empty '{}' document is a VALID 'no requirement' declaration and is NOT refused (exit 0/CLEAN) -- the 11.4.201(1) false-positive guard on I2's own fix"
+else
+  not_ok "rv_i2_malformed_config (empty negative control): rc=$I2_EMPTY_RC overall=$I2_EMPTY_OVERALL"
+fi
+
+# ------------------------------------------------------------------------------------ I3 (IMPORTANT)
+# The push-URL guards (finding #3's own fix) were themselves unvalidated: two reviewer-authored
+# mutations survived the round-1 suite with nothing catching them. Fixture + mutation pair for each.
+
+# ---- m2: an unreachable push URL must be flagged, never silently read CLEAN ----
+PUU="$TMP/rv_bad_push_url_unreachable"
+mk_repo "$PUU/repo"
+echo one >"$PUU/repo/f.txt"; git -C "$PUU/repo" add -A; git -C "$PUU/repo" commit -qm c1
+mk_bare "$PUU/fetch_target.git"
+git -C "$PUU/repo" remote add origin "$PUU/fetch_target.git"
+git -C "$PUU/repo" push -q origin main
+# The push destination is deliberately NEVER created (not even `git init --bare`) -- genuinely
+# unreachable, distinct from merely lagging.
+git -C "$PUU/repo" remote set-url --push origin "$PUU/gone_push_target.git"
+python3 "$TOOL" --recursive --root "$PUU/repo" --out "$TMP/puu.json" >"$TMP/puu.out" 2>"$TMP/puu.err"
+PUURC=$?
+PUUOVERALL=$(report_field "$TMP/puu.json" 'd.get("overall")' 2>/dev/null)
+PUUREASONS=$(report_field "$TMP/puu.json" 'd["repos"][0]["reasons"]' 2>/dev/null)
+PUU_PUSH_TIP=$(report_field "$TMP/puu.json" 'next((rm["remote_tip"] for rm in d["repos"][0]["remotes"] if rm["name"]=="origin:push"), "MISSING")' 2>/dev/null)
+if [ "$PUURC" -eq 4 ] && [ "$PUUOVERALL" = "UNVERIFIED" ] && [ "$PUUREASONS" = "['REMOTE_UNREACHABLE']" ] && [ "$PUU_PUSH_TIP" = "UNREACHABLE" ]; then
+  ok "rv_bad_push_url_unreachable (I3, m2 fixture): a push URL pointing at a destination that was never even created is correctly flagged UNVERIFIED/REMOTE_UNREACHABLE via the SAME origin:push entry -- exit 4"
+else
+  not_ok "rv_bad_push_url_unreachable: rc=$PUURC overall=$PUUOVERALL reasons=$PUUREASONS push_tip=$PUU_PUSH_TIP"
+fi
+
+cat >"$MUTMARK2/m2_old.txt" <<'EOF'
+                if push_reason == "REMOTE_UNREACHABLE":
+                    saw_unreachable = True
+EOF
+cat >"$MUTMARK2/m2_new.txt" <<'EOF'
+                if push_reason == "REMOTE_UNREACHABLE":
+                    pass  # PAIRED MUTATION (I3, m2: an unreachable push URL is never flagged)
+EOF
+if mk_mutant "mutant_m2" "$MUTMARK2/m2_old.txt" "$MUTMARK2/m2_new.txt" 2>"$TMP/mutant_m2.err"; then
+  python3 "$TMP/mutant_m2/verify/repo_verify.py" --recursive --root "$PUU/repo" --out "$TMP/mutant_m2.json" >"$TMP/mutant_m2.out" 2>>"$TMP/mutant_m2.err"
+  MUTM2_RC=$?
+  MUTM2_OVERALL=$(report_field "$TMP/mutant_m2.json" 'd.get("overall")' 2>/dev/null)
+  if [ "$MUTM2_RC" -eq 0 ] && [ "$MUTM2_OVERALL" = "CLEAN" ]; then
+    ok "paired mutation CAUGHT (I3, m2): no-op'ing the push-URL unreachable flag makes the SAME rv_bad_push_url_unreachable fixture wrongly report CLEAN -- confirms the check is genuinely load-bearing (was previously unvalidated)"
+  else
+    not_ok "paired mutation (I3, m2): expected the mutant to wrongly report rc=0/CLEAN on rv_bad_push_url_unreachable, got rc=$MUTM2_RC overall=$MUTM2_OVERALL"
+  fi
+else
+  not_ok "paired mutation (I3, m2): mutation anchor text not found -- source moved, update this test's anchor: $(cat "$TMP/mutant_m2.err")"
+fi
+
+# ---- m6: a remote with MORE THAN ONE pushurl must still have EVERY one of them checked ----
+PM="$TMP/rv_bad_push_url_multi_lagging"
+mk_repo "$PM/repo"
+echo one >"$PM/repo/f.txt"; git -C "$PM/repo" add -A; git -C "$PM/repo" commit -qm c1
+mk_bare "$PM/fetch.git"; mk_bare "$PM/push1.git"; mk_bare "$PM/push2.git"
+git -C "$PM/repo" remote add origin "$PM/fetch.git"
+git -C "$PM/repo" push -q origin main
+git -C "$PM/repo" push -q "$PM/push1.git" main
+git -C "$PM/repo" push -q "$PM/push2.git" main
+git -C "$PM/repo" remote set-url --add --push origin "$PM/push1.git"
+git -C "$PM/repo" remote set-url --add --push origin "$PM/push2.git"
+echo two >"$PM/repo/f.txt"; git -C "$PM/repo" commit -qam c2
+git -C "$PM/repo" push -q "$PM/fetch.git" main
+git -C "$PM/repo" push -q "$PM/push1.git" main
+# push2.git deliberately NOT advanced -- lags by 1 commit, the SECOND of two configured pushurls.
+PM_PUSH2_SHA=$(git -C "$PM/push2.git" rev-parse main)
+python3 "$TOOL" --recursive --root "$PM/repo" --out "$TMP/pm.json" >"$TMP/pm.out" 2>"$TMP/pm.err"
+PMRC=$?
+PMOVERALL=$(report_field "$TMP/pm.json" 'd.get("overall")' 2>/dev/null)
+PM_PUSH_COUNT=$(report_field "$TMP/pm.json" 'sum(1 for rm in d["repos"][0]["remotes"] if rm["name"]=="origin:push")' 2>/dev/null)
+PM_LAGGING_FOUND=$(report_field "$TMP/pm.json" 'any(rm["name"]=="origin:push" and rm["remote_tip"]=="'"$PM_PUSH2_SHA"'" and not rm["equal"] for rm in d["repos"][0]["remotes"])' 2>/dev/null)
+if [ "$PMRC" -eq 1 ] && [ "$PMOVERALL" = "NOT_CLEAN" ] && [ "$PM_PUSH_COUNT" = "2" ] && [ "$PM_LAGGING_FOUND" = "True" ]; then
+  ok "rv_bad_push_url_multi_lagging (I3, m6 fixture): BOTH of two configured pushurls are checked (2 distinct origin:push entries) and the lagging SECOND one is caught -- exit 1 NOT_CLEAN"
+else
+  not_ok "rv_bad_push_url_multi_lagging: rc=$PMRC overall=$PMOVERALL push_entry_count=$PM_PUSH_COUNT lagging_found=$PM_LAGGING_FOUND"
+fi
+
+cat >"$MUTMARK2/m6_old.txt" <<'EOF'
+            for push_url in _push_urls(repo_path, remote, timeout_s):
+                if url is not None and push_url == url:
+                    continue
+EOF
+cat >"$MUTMARK2/m6_new.txt" <<'EOF'
+            # PAIRED MUTATION (I3, m6: skip the push-URL check entirely for >1 pushurl)
+            _m6_push_urls = _push_urls(repo_path, remote, timeout_s)
+            if len(_m6_push_urls) > 1:
+                _m6_push_urls = []
+            for push_url in _m6_push_urls:
+                if url is not None and push_url == url:
+                    continue
+EOF
+if mk_mutant "mutant_m6" "$MUTMARK2/m6_old.txt" "$MUTMARK2/m6_new.txt" 2>"$TMP/mutant_m6.err"; then
+  python3 "$TMP/mutant_m6/verify/repo_verify.py" --recursive --root "$PM/repo" --out "$TMP/mutant_m6.json" >"$TMP/mutant_m6.out" 2>>"$TMP/mutant_m6.err"
+  MUTM6_RC=$?
+  MUTM6_OVERALL=$(report_field "$TMP/mutant_m6.json" 'd.get("overall")' 2>/dev/null)
+  if [ "$MUTM6_RC" -eq 0 ] && [ "$MUTM6_OVERALL" = "CLEAN" ]; then
+    ok "paired mutation CAUGHT (I3, m6): skipping the push-URL check whenever a remote has more than one pushurl makes the SAME rv_bad_push_url_multi_lagging fixture wrongly report CLEAN -- confirms the multi-pushurl path is genuinely load-bearing (was previously unvalidated)"
+  else
+    not_ok "paired mutation (I3, m6): expected the mutant to wrongly report rc=0/CLEAN on rv_bad_push_url_multi_lagging, got rc=$MUTM6_RC overall=$MUTM6_OVERALL"
+  fi
+else
+  not_ok "paired mutation (I3, m6): mutation anchor text not found -- source moved, update this test's anchor: $(cat "$TMP/mutant_m6.err")"
+fi
+
+# ------------------------------------------------------------------------- redact_url query-string/fragment leak
+# A new, narrower gap than round 1's own three (all of which stay fixed, confirmed by the
+# pre-existing redact_url block above): a query string or '#' fragment can itself carry credential
+# material (e.g. '?token=SECRET123') and, since it sits strictly after the final path segment,
+# previously rendered verbatim.
+RU2_OUT=$(python3 - "$TOOL" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("repo_verify", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+cases = {
+    "https://host/o/r.git?token=SECRET123": "host/o/r",
+    "https://host/o/r.git#fragment-secret": "host/o/r",
+    "https://user:pass@host/o/r.git?token=SECRET123": "host/o/r",
+}
+ok = True
+for url, expected in cases.items():
+    out = m.redact_url(url)
+    leaked = ("SECRET123" in out) or ("fragment-secret" in out)
+    status = "OK" if (out == expected and not leaked) else "MISMATCH_OR_LEAK"
+    if out != expected or leaked:
+        ok = False
+    print("%s url=%r got=%r expected=%r" % (status, url, out, expected))
+print("ALL_OK" if ok else "SOME_FAILED")
+PY
+)
+while IFS= read -r ru2_line; do printf '   %s\n' "$ru2_line"; done <<<"$RU2_OUT"
+case "$RU2_OUT" in
+  *ALL_OK*) ok "redact_url: query-string ('?token=...') and fragment ('#...') credential material no longer leaks (T158 remediation round 2 MINOR fix confirmed, 11.4.10)" ;;
+  *) not_ok "redact_url (round 2 query-string/fragment): at least one case failed or leaked -- see output above" ;;
+esac
+
 [ "$fail" -eq 0 ] && exit 0 || exit 1
