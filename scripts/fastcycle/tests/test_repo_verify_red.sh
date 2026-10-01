@@ -1420,10 +1420,11 @@ rm -f "$REFTX_LOG"
 python3 "$TOOL" --recursive --root "$I3/repo" --out "$TMP/i3n_fixed.json" >"$TMP/i3n_fixed.out" 2>"$TMP/i3n_fixed.err"
 I3N_FIXED_RC=$?
 unset REFTX_LOG
-if [ ! -s "$I3/reftx_fixed.log" ]; then
-  ok "rv_i3n_reftx_proof (fixed tool, I-N3): the reference-transaction hook recorded ZERO ref transactions during a normal run forcing a real object transfer -- a BEHAVIOURAL guarantee (not a source-text match) that no ref of any kind, including a create-then-immediately-delete, was ever written"
+I3N_FIXED_OVERALL=$(report_field "$TMP/i3n_fixed.json" 'd.get("overall")' 2>/dev/null)
+if [ "$I3N_FIXED_RC" -eq 1 ] && [ "$I3N_FIXED_OVERALL" = "NOT_CLEAN" ] && [ ! -s "$I3/reftx_fixed.log" ]; then
+  ok "rv_i3n_reftx_proof (fixed tool, I-N3): the real tool correctly reports rc=1/NOT_CLEAN/REMOTE_AHEAD for this genuine new-object-transfer fixture (matching rv_i1_proof's own fixture semantics), AND the reference-transaction hook recorded ZERO ref transactions -- a BEHAVIOURAL guarantee (not a source-text match) that no ref of any kind, including a create-then-immediately-delete, was ever written (a wrong-verdict run proving an empty log for the wrong reason is excluded by the verdict check)"
 else
-  not_ok "rv_i3n_reftx_proof (fixed tool, I-N3): expected zero reference-transaction hook firings, got: $(cat "$I3/reftx_fixed.log")"
+  not_ok "rv_i3n_reftx_proof (fixed tool, I-N3): expected rc=1/NOT_CLEAN and zero reference-transaction hook firings, got rc=$I3N_FIXED_RC overall=$I3N_FIXED_OVERALL log: $(cat "$I3/reftx_fixed.log" 2>/dev/null)"
 fi
 
 # (2) MUTANT: restore the OLD colon-refspec fetch-then-delete pattern, built fresh against the
