@@ -1171,6 +1171,35 @@ def worktree_admin_dir_problems(path, env=None):
                         else:
                             candidates.extend(_oids_in_file(full, reflog=True))
                 continue
+            # T140 Round 21 (round-20 finding MINOR-1, fixed here): the
+            # symlink/non-regular refusal above (lines ~1147-1167) applies
+            # only to leaves found while WALKING refs/ and logs/ -- these
+            # TOP-LEVEL per-worktree pseudo-ref files (HEAD / ORIG_HEAD /
+            # FETCH_HEAD / AUTO_MERGE) were read via this SEPARATE branch
+            # with NO such check at all, so a FIFO named e.g. ORIG_HEAD made
+            # `_oids_in_file`'s `open()` below block forever, outside any
+            # git timeout (reproduced live: `mkfifo
+            # main/.git/worktrees/wt/ORIG_HEAD` then `verify-proposal ...
+            # retire` hung indefinitely -- killed at 15s, rc=124; a
+            # faulthandler dump confirmed it was blocked in
+            # `_oids_in_file`'s `open()` call at this line, with git's own
+            # subprocess timeout set low to rule git itself out as the
+            # cause). The round-19 commit message's claim ("any non-regular
+            # leaf entry ... is refused too") was only true inside
+            # refs/logs/, not here. Fixed with the SAME os.lstat +
+            # S_ISLNK/S_ISREG refusal used for the refs/logs walk above.
+            try:
+                lst = os.lstat(fp)
+            except OSError as exc:
+                return None, "could not stat %r (%s: %s)" % (fp, type(exc).__name__, exc)
+            if stat.S_ISLNK(lst.st_mode):
+                problems.append("%s: unexpected symlinked admin entry (refused; cannot prove "
+                                "the symlink target is anchored elsewhere)" % name)
+                continue
+            if not stat.S_ISREG(lst.st_mode):
+                problems.append("%s: unexpected non-regular admin entry (refused; e.g. a FIFO "
+                                "could block indefinitely outside any git timeout)" % name)
+                continue
             candidates.extend(_oids_in_file(fp, reflog=False))  # HEAD / ORIG_HEAD / FETCH_HEAD / AUTO_MERGE
     except (OSError, ValueError) as exc:
         return None, "could not read the per-worktree admin dir %r (%s: %s)" % (admin, type(exc).__name__, exc)

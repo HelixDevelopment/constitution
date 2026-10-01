@@ -48,30 +48,43 @@
 #                        in that suite's own loss-proof methodology, not in
 #                        custody_sweep.py), not duplicated here.
 #
-# Honest boundary on MINOR-A's test methodology (section 11.4.6): a CLI-
-# level reproduction (git clean filter spawning a real zombie, driven
-# through `verify-proposal`) was attempted first and is NOT shipped here
-# because it measured NON-DETERMINISTIC on this host -- `_group_has_
-# survivor` is only probed ~3s (`_KILL_DRAIN_GRACE_S`) AFTER the group
-# SIGKILL (the bounded `communicate()` grace period), which is ample time
-# for this host's real init (`systemd`, confirmed PID 1, a prompt orphan
-# reaper) to have ALREADY collected the zombie -- measured live: an
-# identically-constructed CLI fixture gave the FIXED tool and a MUTANT with
-# the zombie-exclusion reverted the exact SAME elapsed time and verdict,
-# proving the CLI-level race does not reliably exercise the fixed code path
-# on this host (shipping it anyway would be a flaky, non-deterministic
-# test -- forbidden by section 11.4.248/11.4.50). The fix is instead proven
-# by a DETERMINISTIC UNIT-LEVEL test that imports the real module and
-# drives `_group_has_survivor` against process groups this test fully
-# controls (so reaping never races any external init): a group containing
-# ONLY a zombie member (the exact defect), a control group containing a
-# REAL alive member (proves the pre-existing "stay observable as a hang"
-# guarantee for a genuine kill-logic defect is NOT weakened), and a control
-# group that is genuinely empty/already-reaped (proves the ProcessLookup-
-# Error fast path is unaffected). Producer != Verifier (section 11.4.240):
-# this directly re-derives the round-18 reviewer's own finding text (a
-# zombie's signal-0 success, same pgid, fooling the probe), not the tool's
-# own selftest.
+# Honest boundary on MINOR-A's test methodology (section 11.4.6), CORRECTED
+# by round 21 (round-20 finding MINOR-2 -- a test-evidence accuracy issue,
+# not a production code gap): the paragraph that used to stand here claimed
+# a CLI-level reproduction of the zombie-survivor scenario "cannot be made
+# deterministic on this host." That claim was FALSE. The real reason the
+# earlier CLI attempt measured non-deterministic had nothing to do with
+# determinism being impossible: that attempt's escaped "survivor" was NOT
+# the zombie's own LIVE PARENT, so this host's real init (`systemd`,
+# confirmed PID 1, a prompt orphan reaper) could -- and did -- collect the
+# zombie within the ~3s window (`_KILL_DRAIN_GRACE_S`) BEFORE
+# `_group_has_survivor` ever got to probe it, erasing the exact precondition
+# the fix exists to handle before the test could observe it.
+#
+# Round 21 constructs a DETERMINISTIC CLI-level reproduction instead by
+# making the escaped survivor be the zombie's OWN LIVE PARENT: a git clean
+# filter forks a child that stays in the git process group (killed by the
+# group SIGKILL, becomes the zombie) while the PARENT calls `os.setsid()`
+# (escaping the group) and sleeps, holding the tool's inherited stderr pipe
+# open. Because the parent is alive for the whole test and never reaps its
+# own child, PID 1 never gets the chance to reap it either -- the zombie is
+# still present, inside `pgid`, exactly when `_group_has_survivor` probes
+# it, on every run. Confirmed deterministic over 3 runs on this host: the
+# real (fixed) tool REFUSES in ~6.1s every time (the bounded drain correctly
+# excludes the zombie and abandons the escaped-pipe wait instead of
+# re-blocking); the `MR19_3`-equivalent mutant (unconditional `return True`)
+# takes the FULL ~20.1s filter-sleep every time (it treats the zombie's
+# signal-0 success as a real survivor and falls through to the original
+# unbounded wait). This CLI-level test is shipped below, immediately after
+# the unit-level test that follows this paragraph -- ALONGSIDE, not instead
+# of it: the unit test remains a valid, finer-grained proof that
+# `_group_has_survivor` itself excludes a zombie-only group under full test
+# control (no external init can ever race it); the CLI-level test
+# additionally proves the SAME fix holds end-to-end through the real tool's
+# own `_exec`/`verify-proposal` path, against a real escaped OS process.
+# Producer != Verifier (section 11.4.240): both directly re-derive the
+# round-18/round-20 reviewers' own finding text and constructions, not the
+# tool's own selftest.
 #
 # Every CLI-level case builds REAL throwaway git repositories under a temp
 # dir (never this project's own repo, worktrees or stashes) and runs the
@@ -433,6 +446,80 @@ else
       notok "mutation MR19_3_zombie_exclusion_removed: expected $want unaffected, got: $MUT_Z"
     fi
   done
+fi
+
+# ---------------------------------------------------------------------------
+# MINOR-A (CLI level, round 21 / round-20 finding MINOR-2): the SAME fix,
+# driven end-to-end through the real tool's own `_exec`/`verify-proposal`
+# path against a REAL escaped OS process (a git clean filter), not merely
+# at the unit level above. See the corrected honest-boundary paragraph at
+# the top of this file for why round 19's own "cannot be made
+# deterministic" claim was wrong and how this construction fixes that.
+# ---------------------------------------------------------------------------
+echo
+echo "=== MINOR-A (CLI level): a setsid-escaped clean-filter parent holding the tool's pipe is correctly" \
+     "bounded, not mistaken for a real survivor by its own killed-and-zombied in-group child ==="
+ZDIR="$TMP/zr"; mkdir -p "$ZDIR"
+cat > "$ZDIR/zfilter.py" <<'PYEOF'
+import os, sys, time
+pid = os.fork()
+if pid == 0:
+    # in-group child: sleeps until the group SIGKILL turns it into a zombie
+    time.sleep(60); os._exit(0)
+os.setsid()            # escape the killed group; never reap the child
+time.sleep(20)         # hold inherited stderr (the tool's pipe) open
+PYEOF
+PYBIN=$(command -v python3)
+
+Z1="$TMP/z1"; mkrepo "$Z1"
+printf 'trigger\n' > "$Z1/wt/trigger"
+printf 'trigger filter=zfilter\n' > "$Z1/wt/.gitattributes"
+g -C "$Z1/wt" add trigger .gitattributes
+g -C "$Z1/wt" commit --quiet -m addtrigger
+echo z >> "$Z1/wt/keep"
+wt_backup "$Z1"   # captured BEFORE the filter is configured below -- fast, no hang
+g -C "$Z1/wt" config filter.zfilter.clean "$PYBIN $ZDIR/zfilter.py"
+echo changed >> "$Z1/wt/trigger"   # now the filtered path is dirty too -- the real tool's own
+                                   # git status/diff calls will invoke the clean filter
+
+export CUSTODY_SWEEP_GIT_TIMEOUT_S=3
+RES=$(run_case_walltimeout "$IMPL" "$Z1/main" worktree wt retire "$Z1/wt.patch" 15)
+unset CUSTODY_SWEEP_GIT_TIMEOUT_S
+IFS=$'\t' read -r Z1_RC Z1_V Z1_DET Z1_EL <<<"$RES"
+if [ "$Z1_RC" != 124 ] && [ "$Z1_V" = REFUSED ] && [ "$Z1_EL" -lt 12 ]; then
+  ok "Z1 real tool: zombie-only group correctly excluded -> REFUSED in ${Z1_EL}s (bounded drain abandoned," \
+     "never waits out the escaped setsid survivor's full sleep)"
+else
+  notok "Z1 expected a bounded (<12s) REFUSED, got rc=$Z1_RC verdict=$Z1_V elapsed=${Z1_EL}s (${Z1_DET:0:300})"
+fi
+# Paired mutation: the SAME MR19_3 mutation already defined above (revert
+# `_group_has_survivor` to the pre-round-19 logic -- a successful signal-0
+# probe alone means True, unconditionally), now exercised end-to-end
+# through the CLI instead of at the unit level.
+m=$(mk_mutant MR19_3_zombie_exclusion_removed \
+'    live = _proc_group_has_nonzombie_member(pgid)
+    # `/proc` could not be enumerated at all -- fall back to the same safe
+    # default as the PermissionError branch above (keep draining) rather
+    # than falsely declaring the group clean.
+    return True if live is None else live
+' \
+'    return True
+')
+if [ -z "$m" ]; then
+  notok "mutation MR19_3_zombie_exclusion_removed (CLI): anchor not found ($(cat "$TMP/mut_MR19_3_zombie_exclusion_removed.log"))"
+else
+  export CUSTODY_SWEEP_GIT_TIMEOUT_S=3
+  MRES=$(run_case_walltimeout "$m" "$Z1/main" worktree wt retire "$Z1/wt.patch" 30)
+  unset CUSTODY_SWEEP_GIT_TIMEOUT_S
+  IFS=$'\t' read -r MZ_RC MZ_V MZ_DET MZ_EL <<<"$MRES"
+  if [ "$MZ_RC" != 124 ] && [ "$MZ_EL" -ge 15 ]; then
+    ok "mutation MR19_3_zombie_exclusion_removed (CLI): caught -- mutant takes the FULL ~20s filter-sleep" \
+       "(elapsed=${MZ_EL}s) instead of the real tool's bounded ${Z1_EL}s, because it treats the zombie's" \
+       "signal-0 success as a real survivor and falls through to the unbounded drain"
+  else
+    notok "mutation MR19_3_zombie_exclusion_removed (CLI) SURVIVED: mutant did not take the expected ~20s" \
+          "(rc=$MZ_RC elapsed=${MZ_EL}s verdict=$MZ_V, detail: ${MZ_DET:0:200})"
+  fi
 fi
 
 echo
