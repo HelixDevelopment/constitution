@@ -2342,18 +2342,32 @@ fi
 # J24-J26 below) -- the anchor is re-derived to match the new, shorter
 # shape; same restored-carve-out semantics (any OTHER declared path,
 # "skills/evil", is skipped too).
+#
+# T177 Round 12: the J19 hook's own attack -- APPENDING a NEW section to
+# `.gitmodules` -- is now ALSO caught independently by the R12-B1
+# byte-identity check (J24/J24b below): any new section changes the
+# staged file's bytes, so with ONLY the gitlink scanner's declared-path
+# skip restored, the overall run is still refused (just by a DIFFERENT
+# layer, naming a `.gitmodules` rewrite rather than an unexpected
+# gitlink). To keep this mutant isolating J19's OWN mechanism -- proving
+# the gitlink scanner alone is load-bearing, not merely that SOME layer
+# catches this attack -- the R12-B1 check is disabled for the SAME run
+# via a second anchor pair; both must be down at once for the host-only
+# nested gitlink to actually reach the remote.
 j_mutant I1a_restore_declared_skip \
     'if rel == "constitution":
         continue
     bad.append("path=%s" % rel)' \
     'if rel == "constitution" or rel == "skills/evil":
         continue
-    bad.append("path=%s" % rel)'
+    bad.append("path=%s" % rel)' \
+    'if ! cmp -s "$OLD_GITMODULES" "$STAGED_GITMODULES"; then' \
+    'if false; then'
 build_r3_fixture "$I_ROOT/j19m" "$J19_HOOK"
 j_run "$WORK/jmut_I1a_restore_declared_skip.sh" "$I_ROOT/j19m" fixture/section_j19m "$WORK/j19m.json"
 J19M_MODE=$(git -C "$I_ROOT/j19m/consumer.git" ls-tree refs/heads/main skills/evil 2>/dev/null | awk '{print $1}')
 if [ "$J_MUT_OK" -eq 1 ] && [ "$J19M_MODE" = "160000" ]; then
-    ok "J19 guard-viability: restoring a declared-path skip lets the host-only nested commit through as a permanent, unfetchable gitlink -- J19 is what catches it"
+    ok "J19 guard-viability: with BOTH the gitlink scanner's declared-path skip restored AND the R12-B1 .gitmodules check disabled, the host-only nested commit gets through as a permanent, unfetchable gitlink -- J19's own scanner is independently load-bearing (R12-B1 alone, left enabled, also catches this exact attack -- defense in depth, not a substitute for either)"
 else
     bad "J19 guard-viability: the restored-declared-skip mutant did not reproduce the gitlink publication (mut_ok=$J_MUT_OK rc=$J_RC mode=$J19M_MODE)"
 fi
@@ -2614,6 +2628,14 @@ fi
 # PATH, never a NEW section) is refused before commit/push, even though
 # the "constitution" gitlink's own SHA (R10-I1's check) is left perfectly
 # correct. Reproduces the reviewer's own r10_adv3.sh repro exactly.
+#
+# T177 Round 12 (R12-B1 BLOCKING fix): the per-KEY url/path parser this
+# test originally covered is GONE -- replaced with a byte-identity
+# comparison of the whole `.gitmodules` file (R12-B1's own fix closes a
+# shadow-section bypass the per-key form could never see -- J29 below).
+# The detail format changed accordingly (no longer names the specific
+# rewritten key, since the check no longer parses keys at all); this
+# hook's OWN rewrite is still refused by the SAME mechanism.
 J24_HOOK="$WORK/j24_gitmodules_url_rewrite_hook.sh"
 cat > "$J24_HOOK" <<'EOF'
 #!/usr/bin/env bash
@@ -2626,17 +2648,23 @@ J24_REMOTE_BEFORE=$(git -C "$I_ROOT/j24/consumer.git" rev-parse refs/heads/main)
 j_run "$TOOL" "$I_ROOT/j24" fixture/section_j24 "$WORK/j24.json"
 J24_DETAIL=$(jfield "$WORK/j24.json" detail)
 if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
-    && echo "$J24_DETAIL" | grep -q 'gitmodules-rewrite submodule\.constitution\.url' \
+    && echo "$J24_DETAIL" | grep -q 'gitmodules-rewrite blob-changed' \
     && [ "$J24_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j24/consumer.git" rev-parse refs/heads/main)" ]; then
-    ok "J24 R10 B1: a hook that rewrites the staged .gitmodules' submodule.constitution.url to a host-local path is refused BEFORE commit/push (detail names the rewritten key), remote unchanged -- the constitution gitlink's own SHA staying correct does not save it"
+    ok "J24 R12 B1: a hook that rewrites the staged .gitmodules' submodule.constitution.url to a host-local path is refused BEFORE commit/push (byte-identity check, detail names the changed blob), remote unchanged -- the constitution gitlink's own SHA staying correct does not save it"
 else
-    bad "J24 R10 B1: a .gitmodules url rewrite was not refused before publishing (rc=$J_RC out=$J_OUT detail=$J24_DETAIL; see $WORK/j24.json)"
+    bad "J24 R10/R12 B1: a .gitmodules url rewrite was not refused before publishing (rc=$J_RC out=$J_OUT detail=$J24_DETAIL; see $WORK/j24.json)"
 fi
 j_mutant B1_drop_gitmodules_check \
-    'if [ -n "$GITMODULES_REWRITE" ]; then
-        not_migrated_after_write "wiring" "out-of-scope-diff" "$GITMODULES_REWRITE"' \
+    'if ! cmp -s "$OLD_GITMODULES" "$STAGED_GITMODULES"; then
+        GITMODULES_OLD_SHA=$(git -C "$WORKDIR" hash-object "$OLD_GITMODULES" 2>/dev/null)
+        GITMODULES_NEW_SHA=$(git -C "$WORKDIR" hash-object "$STAGED_GITMODULES" 2>/dev/null)
+        not_migrated_after_write "wiring" "out-of-scope-diff" "gitmodules-rewrite blob-changed old=${GITMODULES_OLD_SHA:-unknown} new=${GITMODULES_NEW_SHA:-unknown}"
+    fi' \
     'if false; then
-        not_migrated_after_write "wiring" "out-of-scope-diff" "$GITMODULES_REWRITE"'
+        GITMODULES_OLD_SHA=$(git -C "$WORKDIR" hash-object "$OLD_GITMODULES" 2>/dev/null)
+        GITMODULES_NEW_SHA=$(git -C "$WORKDIR" hash-object "$STAGED_GITMODULES" 2>/dev/null)
+        not_migrated_after_write "wiring" "out-of-scope-diff" "gitmodules-rewrite blob-changed old=${GITMODULES_OLD_SHA:-unknown} new=${GITMODULES_NEW_SHA:-unknown}"
+    fi'
 build_r3_fixture "$I_ROOT/j24m" "$J24_HOOK"
 j_run "$WORK/jmut_B1_drop_gitmodules_check.sh" "$I_ROOT/j24m" fixture/section_j24m "$WORK/j24m.json"
 J24M_PUBLISHED_GITMODULES=$(git -C "$I_ROOT/j24m/consumer.git" show refs/heads/main:.gitmodules 2>/dev/null)
@@ -2864,6 +2892,198 @@ if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRA
     ok "J28 guard-viability: without the per-remote tree-delta check the select-one-parent evil merge's reversion reaches origin and the record says MIGRATED -- J28/R10-I2's fix is what catches it"
 else
     bad "J28 guard-viability: the dropped-check mutant did not reproduce the reversion (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT origin-product=[$J28M_ORIGIN_PRODUCT])"
+fi
+
+# =============================================================================
+# J24b, J29, J30 -- T177 Round 13 (round-12 independent review of the
+# round-11 remediation): R12-B1 (BLOCKING, a shadow `.gitmodules` section
+# with the SAME path bypasses the per-key check), R12-M1 (MINOR, the
+# `path` half of the B1 check had no test), R12-I1 (IMPORTANT, regression:
+# the Round 11 ancestor-guard skips BOTH a diverged remote AND a
+# branch-less remote outright, letting a commit published to only one
+# mirror leak onto another). Reproduces the reviewer's own adv_a1.sh /
+# adv_c1.sh / adv_b1.sh repros exactly.
+# =============================================================================
+
+# --- J24b: MINOR R12-M1 -- the `path` half of the B1/B1(R12) check, never
+# separately exercised before now (J24 only ever rewrote `url`). The
+# byte-identity fix makes this trivially symmetric with J24 (there is no
+# longer a per-FIELD distinction to miss), but the reviewer's own finding
+# was precisely that NOTHING in this suite proved that -- add the case.
+J24B_HOOK="$WORK/j24b_gitmodules_path_rewrite_hook.sh"
+cat > "$J24B_HOOK" <<'EOF'
+#!/usr/bin/env bash
+set -e
+cd "$PROJECT_ROOT"
+git config -f .gitmodules submodule.constitution.path constitution-moved
+EOF
+build_r3_fixture "$I_ROOT/j24b" "$J24B_HOOK"
+J24B_REMOTE_BEFORE=$(git -C "$I_ROOT/j24b/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j24b" fixture/section_j24b "$WORK/j24b.json"
+J24B_DETAIL=$(jfield "$WORK/j24b.json" detail)
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+    && echo "$J24B_DETAIL" | grep -q 'gitmodules-rewrite blob-changed' \
+    && [ "$J24B_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j24b/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J24b R12 M1: a hook that rewrites the staged .gitmodules' submodule.constitution.path (never url) is refused BEFORE commit/push by the SAME byte-identity check, remote unchanged"
+else
+    bad "J24b R12 M1: a .gitmodules path rewrite was not refused before publishing (rc=$J_RC out=$J_OUT detail=$J24B_DETAIL; see $WORK/j24b.json)"
+fi
+# Guard-viability reuses the EXACT mutant J24 already built (B1_drop_
+# gitmodules_check) -- the byte-identity check has no per-field branch
+# left to drop separately; disabling it wholesale is the only mutation
+# that exists, and it must reproduce the leak for a PATH rewrite exactly
+# as it does for a url rewrite.
+build_r3_fixture "$I_ROOT/j24bm" "$J24B_HOOK"
+J24BM_REMOTE_BEFORE=$(git -C "$I_ROOT/j24bm/consumer.git" rev-parse refs/heads/main)
+j_run "$WORK/jmut_B1_drop_gitmodules_check.sh" "$I_ROOT/j24bm" fixture/section_j24bm "$WORK/j24bm.json"
+J24BM_REMOTE_AFTER=$(git -C "$I_ROOT/j24bm/consumer.git" rev-parse refs/heads/main)
+J24BM_PUBLISHED_PATH=$(git -C "$I_ROOT/j24bm/consumer.git" show refs/heads/main:.gitmodules 2>/dev/null | grep -c 'constitution-moved')
+# Same J20/J25/J26/J27 precedent: the vulnerability is the PUBLICATION
+# itself (irreversible, never force-pushed) -- a rewritten `path` also
+# makes the real "constitution" checkout directory mismatch the gitlink
+# tree entry's own expected location, which step 9's post-push verify
+# may independently flag AFTER the fact (too late by then); rc/outcome
+# is therefore not asserted here, exactly like J25/J26/J27's own style.
+if [ "$J24BM_REMOTE_BEFORE" != "$J24BM_REMOTE_AFTER" ] && [ "$J24BM_PUBLISHED_PATH" -ge 1 ]; then
+    ok "J24b guard-viability: without the .gitmodules integrity check the rewritten path is published verbatim (remote moved) -- the same check that catches a url rewrite (J24) also catches a path rewrite (J24b), reviewer's M1 gap closed"
+else
+    bad "J24b guard-viability: the dropped-check mutant did not reproduce the path-rewrite publication (rc=$J_RC out=$J_OUT remote-moved=$([ "$J24BM_REMOTE_BEFORE" != "$J24BM_REMOTE_AFTER" ] && echo yes || echo no) published-count=$J24BM_PUBLISHED_PATH)"
+fi
+
+# --- J29: BLOCKING R12-B1 -- a hook that leaves the EXISTING "constitution"
+# section byte-for-byte UNTOUCHED and simply APPENDS a brand-new section
+# (a DIFFERENT submodule name) declaring the SAME path, with a host-local
+# url. The Round 10 per-key check iterated only sections already present
+# in pre-migration HEAD, so a section absent from HEAD -- this one -- was
+# never inspected at all; `git config -f` appends new sections at the
+# end of the file, which is exactly the ordering `git submodule init`
+# resolves for a same-path collision on a fresh clone. Reproduces the
+# reviewer's own adv_a1.sh repro exactly.
+J29_HOOK="$WORK/j29_shadow_section_hook.sh"
+cat > "$J29_HOOK" <<'EOF'
+#!/usr/bin/env bash
+set -e
+cd "$PROJECT_ROOT"
+git config -f .gitmodules submodule.zz-shadow.path constitution
+git config -f .gitmodules submodule.zz-shadow.url "$CONST_DIR/../.git/modules/constitution"
+EOF
+build_r3_fixture "$I_ROOT/j29" "$J29_HOOK"
+J29_REMOTE_BEFORE=$(git -C "$I_ROOT/j29/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j29" fixture/section_j29 "$WORK/j29.json"
+J29_DETAIL=$(jfield "$WORK/j29.json" detail)
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+    && echo "$J29_DETAIL" | grep -q 'gitmodules-rewrite blob-changed' \
+    && [ "$J29_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j29/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J29 R12 B1: a NEW shadow .gitmodules section declaring the EXISTING 'constitution' path with a host-local url is refused BEFORE commit/push (the whole-file byte-identity check sees it even though the pre-existing 'constitution' section itself is untouched), remote unchanged"
+else
+    bad "J29 R12 B1: a shadow .gitmodules section was not refused before publishing (rc=$J_RC out=$J_OUT detail=$J29_DETAIL; see $WORK/j29.json)"
+fi
+build_r3_fixture "$I_ROOT/j29m" "$J29_HOOK"
+j_run "$WORK/jmut_B1_drop_gitmodules_check.sh" "$I_ROOT/j29m" fixture/section_j29m "$WORK/j29m.json"
+J29M_PUBLISHED_GITMODULES=$(git -C "$I_ROOT/j29m/consumer.git" show refs/heads/main:.gitmodules 2>/dev/null)
+# End-to-end evidence matching the reviewer's own adv_a1.sh: a fresh
+# clone's `git submodule init` genuinely REGISTERS the shadow section for
+# path 'constitution' (git's own last-section-wins resolution for a
+# same-path collision -- `submodule.constitution.url` itself stays the
+# ORIGINAL trusted value; it is the SEPARATE "zz-shadow" name that wins
+# the init registration FOR that path, which is the actual vulnerability
+# -- checking `submodule.constitution.url` alone would never see it).
+J29M_FRESH_CLONE="$WORK/j29m_fresh_clone"
+rm -rf "$J29M_FRESH_CLONE"
+git clone -q "$I_ROOT/j29m/consumer.git" "$J29M_FRESH_CLONE" >/dev/null 2>&1
+J29M_INIT_OUT=$(git -C "$J29M_FRESH_CLONE" -c protocol.file.allow=always submodule init 2>&1)
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' \
+    && echo "$J29M_PUBLISHED_GITMODULES" | grep -q 'zz-shadow' \
+    && echo "$J29M_INIT_OUT" | grep -q "zz-shadow" \
+    && echo "$J29M_INIT_OUT" | grep -q "registered for path 'constitution'"; then
+    ok "J29 guard-viability: without the .gitmodules integrity check the shadow section is published verbatim, rc=0, recorded MIGRATED -- AND a fresh clone's 'submodule init' genuinely registers the host-local shadow section ('zz-shadow') for path 'constitution', not the original trusted section -- J29/R12-B1's fix is what catches it"
+else
+    bad "J29 guard-viability: the dropped-check mutant did not reproduce the shadow-section publication (rc=$J_RC out=$J_OUT published-gitmodules=[$J29M_PUBLISHED_GITMODULES] init-out=[$J29M_INIT_OUT])"
+fi
+
+# --- J30: IMPORTANT R12-I1 -- regression introduced by Round 11's own
+# ancestor-guard fix. With NO configured upstream (`@{u}` unset), a
+# product-code commit published to only ONE mirror, a SECOND mirror
+# diverges the remote `origin` with an unrelated commit, and a THIRD
+# mirror has no copy of $BRANCH at all. Round 11 unconditionally skips
+# BOTH the diverged `origin` (the canary that would have flagged the
+# out-of-scope path) and the branch-less mirror (nothing to diff against)
+# -- seeding the product commit onto the branch-less mirror irreversibly.
+# Reproduces the reviewer's own adv_b1.sh repro exactly; Round 9's own
+# per-commit walk refused this same fixture at preflight.
+build_r3_fixture "$I_ROOT/j30"
+git init --bare -q -b main "$I_ROOT/j30/mirrorA.git"
+git init --bare -q -b main "$I_ROOT/j30/mirrorB.git"
+git -C "$I_ROOT/j30/checkout" remote add mirrorA "$I_ROOT/j30/mirrorA.git"
+git -C "$I_ROOT/j30/checkout" remote add mirrorB "$I_ROOT/j30/mirrorB.git"
+git -C "$I_ROOT/j30/checkout" push -q mirrorA main
+echo "/* product change published only to mirrorA, J30 */" >> "$I_ROOT/j30/checkout/src/product.c"
+git -C "$I_ROOT/j30/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -am "P: product change on mirrorA only"
+git -C "$I_ROOT/j30/checkout" push -q mirrorA main
+J30_P=$(git -C "$I_ROOT/j30/checkout" rev-parse HEAD)
+J30_ORIGIN_CLONE=$(mktemp -d)
+git clone -q "$I_ROOT/j30/consumer.git" "$J30_ORIGIN_CLONE" >/dev/null 2>&1
+git -C "$J30_ORIGIN_CLONE" -c user.name=q -c user.email=q@example.invalid commit -q --allow-empty -m "Q: unrelated concurrent push to origin"
+git -C "$J30_ORIGIN_CLONE" push -q origin main
+rm -rf "$J30_ORIGIN_CLONE"
+git -C "$I_ROOT/j30/checkout" branch --unset-upstream 2>/dev/null || true
+J30_ORIGIN_BEFORE=$(git -C "$I_ROOT/j30/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j30" fixture/section_j30 "$WORK/j30.json"
+J30_MIRRORB_MAIN=$(git -C "$I_ROOT/j30/mirrorB.git" rev-parse -q --verify refs/heads/main 2>/dev/null || echo ABSENT)
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (preflight: divergent-branches)' \
+    && [ "$J30_MIRRORB_MAIN" = "ABSENT" ] \
+    && [ "$J30_ORIGIN_BEFORE" = "$(git -C "$I_ROOT/j30/consumer.git" rev-parse refs/heads/main)" ]; then
+    ok "J30 R12 I1: with no @{u}, a diverged origin, and a product commit published to only ONE mirror, the branch-less second mirror is refused seeding (never created) and origin is untouched -- rc=1, divergent-branches, matching Round 9's own original correct refusal of this exact fixture"
+else
+    bad "J30 R12 I1: the diverged-remote + branch-less-mirror fixture was not refused cleanly (rc=$J_RC out=$J_OUT mirrorB-main=$J30_MIRRORB_MAIN origin-before=$J30_ORIGIN_BEFORE origin-after=$(git -C "$I_ROOT/j30/consumer.git" rev-parse refs/heads/main))"
+fi
+# Guard-viability: restore Round 11's unconditional ancestor-guard skip
+# (both the branch-less-remote AND the diverged-remote cases) -- the
+# EXACT regression this round fixes. With BOTH restored, the product
+# commit P (never reviewed, never on origin) reaches mirrorB irreversibly.
+j_mutant I1_restore_unconditional_ancestor_skip \
+    '        if [ -z "$UPSTREAM" ]; then
+            not_migrated "preflight" "divergent-branches" "remote-$r-has-no-$BRANCH-and-no-upstream-to-verify-seed-content-against"
+        fi
+        TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
+        check_remote_scope "$r"
+        continue
+    fi' \
+    '        continue
+    fi' \
+    '        MERGE_BASE=$(git -C "$WORKDIR" merge-base "$RREF" "$LOCAL_HEAD" 2>/dev/null)
+        if [ -n "$MERGE_BASE" ]; then
+            TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$MERGE_BASE" "$LOCAL_HEAD" 2>/dev/null)
+        else
+            TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
+        fi
+        check_remote_scope "$r"
+        continue
+    fi' \
+    '        continue
+    fi'
+build_r3_fixture "$I_ROOT/j30m"
+git init --bare -q -b main "$I_ROOT/j30m/mirrorA.git"
+git init --bare -q -b main "$I_ROOT/j30m/mirrorB.git"
+git -C "$I_ROOT/j30m/checkout" remote add mirrorA "$I_ROOT/j30m/mirrorA.git"
+git -C "$I_ROOT/j30m/checkout" remote add mirrorB "$I_ROOT/j30m/mirrorB.git"
+git -C "$I_ROOT/j30m/checkout" push -q mirrorA main
+echo "/* product change published only to mirrorA, J30m */" >> "$I_ROOT/j30m/checkout/src/product.c"
+git -C "$I_ROOT/j30m/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -am "P: product change on mirrorA only"
+git -C "$I_ROOT/j30m/checkout" push -q mirrorA main
+J30M_P=$(git -C "$I_ROOT/j30m/checkout" rev-parse HEAD)
+J30M_ORIGIN_CLONE=$(mktemp -d)
+git clone -q "$I_ROOT/j30m/consumer.git" "$J30M_ORIGIN_CLONE" >/dev/null 2>&1
+git -C "$J30M_ORIGIN_CLONE" -c user.name=q -c user.email=q@example.invalid commit -q --allow-empty -m "Q: unrelated concurrent push to origin"
+git -C "$J30M_ORIGIN_CLONE" push -q origin main
+rm -rf "$J30M_ORIGIN_CLONE"
+git -C "$I_ROOT/j30m/checkout" branch --unset-upstream 2>/dev/null || true
+j_run "$WORK/jmut_I1_restore_unconditional_ancestor_skip.sh" "$I_ROOT/j30m" fixture/section_j30m "$WORK/j30m.json"
+J30M_MIRRORB_LEAK=$(git -C "$I_ROOT/j30m/mirrorB.git" merge-base --is-ancestor "$J30M_P" refs/heads/main 2>/dev/null && echo LEAKED || echo clean)
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J30M_MIRRORB_LEAK" = "LEAKED" ]; then
+    ok "J30 guard-viability: with Round 11's unconditional ancestor-guard skip restored (both branch-less and diverged cases), the product commit published to only mirrorA leaks onto the branch-less mirrorB -- J30/R12-I1's fix is what catches it"
+else
+    bad "J30 guard-viability: the restored-unconditional-skip mutant did not reproduce the leak (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT mirrorB-leak=$J30M_MIRRORB_LEAK)"
 fi
 
 rm -rf "$I_ROOT" 2>/dev/null || true

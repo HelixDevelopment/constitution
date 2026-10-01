@@ -620,19 +620,55 @@ fi
 # LOCAL_HEAD lacks just as much as the reverse, and refusing on it here
 # would wrongly intercept, with the WRONG reason, a scenario this tool
 # is specifically designed to let reach the real, natural push-rejection
-# at step 8 instead. Skipped entirely for a non-ancestor remote -- the
-# per-path scope check below only ever runs for a remote this push could
-# actually, content-wise, land on.
-for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
-    RREF="refs/remotes/$r/$BRANCH"
-    if ! git -C "$WORKDIR" rev-parse -q --verify "$RREF" >/dev/null 2>&1; then
-        continue
-    fi
-    if ! git -C "$WORKDIR" merge-base --is-ancestor "$RREF" "$LOCAL_HEAD" 2>/dev/null; then
-        continue
-    fi
-    TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$RREF" "$LOCAL_HEAD" 2>/dev/null)
-    [ -z "$TREE_DIFF" ] && continue
+# at step 8 instead.
+#
+# T177 Round 12 fix (R12-I1 IMPORTANT, regression Round 11 introduced
+# while fixing the comment above): "skipped entirely for a non-ancestor
+# remote" was WRONG -- it protects only the C4g shape (the remote is
+# simply AHEAD, racing with a commit of its own; this push could never
+# fast-forward there regardless of content). Round 9's per-commit walk
+# used a DIVERGED remote's own content as a canary that caught a commit
+# published to only ONE other mirror and nowhere else; skipping every
+# non-ancestor remote outright removed that canary, and the SAME
+# unconditional `continue` ALSO covered a remote with NO copy of $BRANCH
+# at all -- a push to THAT remote is not a fast-forward refusal either,
+# it CREATES the branch and delivers the FULL history in one shot.
+# Reproduced live (R12 review, adv_b1): no `@{u}`, origin diverged with
+# someone else's unrelated commit, a product-code commit published to
+# ONLY one mirror -- Round 11 skipped both the diverged origin (the
+# canary) and the branch-less second mirror (nothing to compare), and
+# seeded that product commit onto the second mirror irreversibly; Round
+# 9's own per-commit walk refused this exact fixture at preflight,
+# naming the offending path.
+#
+# Fixed per remote, not by skipping: a remote whose ref IS an ancestor of
+# $LOCAL_HEAD keeps the original tree-diff-against-the-remote's-own-tip
+# comparison (the fast, common case). A remote that EXISTS but has
+# DIVERGED compares against the MERGE-BASE of the remote and $LOCAL_HEAD
+# instead of the remote's own tip -- the paths $LOCAL_HEAD itself changed
+# since that merge-base, i.e. content THIS checkout would newly deliver,
+# independent of whatever unrelated history the remote raced ahead with.
+# When $LOCAL_HEAD is itself an ancestor of the (diverged) remote -- the
+# C4g shape, the remote simply ahead, never a true divergence -- the
+# merge-base IS $LOCAL_HEAD and this correctly yields an empty diff,
+# falling through to the real `git push` for its natural non-fast-
+# forward rejection, exactly as Round 10 intended; when the two histories
+# share no common ancestor at all, every path $LOCAL_HEAD carries is
+# content that remote has never seen. A remote with NO copy of $BRANCH at
+# all is treated the same way as the no-common-ancestor case -- there is
+# no remote tip, and no merge-base, to diff against, so every path
+# $LOCAL_HEAD carries is newly delivered in full; with no $UPSTREAM
+# configured at all there is nothing to verify that full delivery
+# against, so seeding it is refused UNCONDITIONALLY (§11.4.101
+# conservative-safe default on an unresolvable trust signal), never
+# merely on the first out-of-scope path found.
+check_remote_scope() {
+    # $1=remote name; $TREE_DIFF is set by the caller immediately before
+    # this is invoked. Factored out of the single ancestor-case branch
+    # below (T177 Round 12, R12-I1) because the SAME per-path scope check
+    # now runs from three different TREE_DIFF-computation strategies.
+    r=$1
+    [ -z "$TREE_DIFF" ] && return 0
     OLD_IFS=$IFS
     IFS='
 '
@@ -653,6 +689,37 @@ for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
         fi
     done
     IFS=$OLD_IFS
+}
+for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
+    RREF="refs/remotes/$r/$BRANCH"
+    if ! git -C "$WORKDIR" rev-parse -q --verify "$RREF" >/dev/null 2>&1; then
+        # Branch-less remote (R12-I1): no tip to diff against at all --
+        # pushing "$BRANCH":"$BRANCH" here CREATES the branch, delivering
+        # every path $LOCAL_HEAD carries in one shot. Refused outright
+        # with no $UPSTREAM to verify against; otherwise every path is
+        # checked exactly like a newly-delivered out-of-scope path below.
+        if [ -z "$UPSTREAM" ]; then
+            not_migrated "preflight" "divergent-branches" "remote-$r-has-no-$BRANCH-and-no-upstream-to-verify-seed-content-against"
+        fi
+        TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
+        check_remote_scope "$r"
+        continue
+    fi
+    if ! git -C "$WORKDIR" merge-base --is-ancestor "$RREF" "$LOCAL_HEAD" 2>/dev/null; then
+        # Diverged remote (R12-I1): compare against the merge-base, not
+        # the remote's own current tip -- see the block comment above.
+        MERGE_BASE=$(git -C "$WORKDIR" merge-base "$RREF" "$LOCAL_HEAD" 2>/dev/null)
+        if [ -n "$MERGE_BASE" ]; then
+            TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$MERGE_BASE" "$LOCAL_HEAD" 2>/dev/null)
+        else
+            TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
+        fi
+        check_remote_scope "$r"
+        continue
+    fi
+    TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$RREF" "$LOCAL_HEAD" 2>/dev/null)
+    [ -z "$TREE_DIFF" ] && continue
+    check_remote_scope "$r"
 done
 
 if [ "$APPLY" -eq 0 ]; then
@@ -1207,20 +1274,38 @@ if bad:
     # §11.4.113) -- reproduced live (R10 review, adv3): rc=0, MIGRATED,
     # with the published `.gitmodules` carrying a bare host path.
     #
-    # A migration never needs to change ANY pre-existing submodule
-    # section's `url` or `path` -- no hook in this codebase writes
-    # `.gitmodules` at all (verified directly: `post_update_hook.sh` and
-    # every other hook under `scripts/` never touch it). Every section
-    # present in the PRE-MIGRATION HEAD's `.gitmodules` (identified by
-    # SECTION NAME, the same identity `git config` itself tracks) is
-    # therefore asserted, positively, to carry the EXACT SAME `url` and
-    # `path` values in the now-STAGED `.gitmodules` -- never trusted by
-    # "no diff entry showed up" alone (R10-I1's own lesson, generalised to
-    # this file). A NEW section absent from HEAD is a separate question
-    # this check does not reach -- the gitlink/symlink scans above already
-    # cover a newly-declared gitlink path (J19), and nothing in this
-    # codebase's own documented change-scope legitimately introduces a
-    # brand-new submodule section via a migration.
+    # T177 Round 12 fix (R12-B1 BLOCKING, closes the R10-B1 gap for good):
+    # the Round 10 check above asserted equality only PER (name, url|path)
+    # KEY already present in the PRE-MIGRATION HEAD's `.gitmodules` -- a
+    # hook could leave that EXISTING section byte-for-byte untouched and
+    # simply APPEND a brand-NEW section (a different submodule NAME)
+    # declaring the SAME path (`git config -f .gitmodules submodule.
+    # zz-shadow.path constitution; git config -f .gitmodules submodule.
+    # zz-shadow.url <host-local-path>`) -- the per-KEY loop never iterates
+    # a section that was never present in `old` at all, so this sailed
+    # through untouched. Reproduced live (R12 review, adv_a1): `git
+    # config -f` appends new sections at the END of the file, and that
+    # end-of-file ordering is EXACTLY what `git submodule init` resolves
+    # for a same-path collision on a fresh clone -- the shadow section
+    # won ("zz-shadow (<host-local-path>) registered for path
+    # 'constitution'"), published irreversibly, rc=0, recorded MIGRATED.
+    #
+    # The per-KEY equality check is replaced with the stronger invariant
+    # the R10-B1 comment above already stated but did not enforce: no
+    # hook in this codebase legitimately writes `.gitmodules` AT ALL
+    # (re-verified directly this round: every hook under `scripts/`,
+    # `post_update_hook.sh` included, still never touches this file; the
+    # only writers anywhere in this tree are test fixtures/mutants
+    # constructing a FIXTURE consumer, never anything this tool would run
+    # against a real one). The staged `.gitmodules` blob is therefore
+    # asserted BYTE-IDENTICAL to the PRE-MIGRATION HEAD's -- not per-key,
+    # the WHOLE FILE -- which closes the shadow-section bypass (a NEW
+    # section changes the file's bytes regardless of which existing
+    # section it leaves alone) and every OTHER key the old url/path-only
+    # parser never inspected at all (`branch`, `update`, `shallow`,
+    # `ignore`, `fetchRecurseSubmodules`, a renamed/reordered section, a
+    # duplicate key, a stray comment, trailing whitespace -- anything).
+    # The url/path parsing this replaces is no longer needed.
     OLD_GITMODULES="$MIGRATE_SCRATCH/gitmodules.old"
     STAGED_GITMODULES="$MIGRATE_SCRATCH/gitmodules.staged"
     if ! git -C "$WORKDIR" show "$LOCAL_HEAD:.gitmodules" >"$OLD_GITMODULES" 2>/dev/null; then
@@ -1229,53 +1314,10 @@ if bad:
     if ! git -C "$WORKDIR" show :.gitmodules >"$STAGED_GITMODULES" 2>/dev/null; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "gitmodules-scan-failed: could not read staged .gitmodules"
     fi
-    GITMODULES_REWRITE=$(python3 - "$OLD_GITMODULES" "$STAGED_GITMODULES" <<'PYEOF'
-import subprocess
-import sys
-
-
-def entries(path):
-    out = subprocess.run(
-        ["git", "config", "-f", path, "--get-regexp", r"^submodule\..*\.(url|path)$"],
-        capture_output=True, text=True,
-    )
-    if out.returncode not in (0, 1):
-        return None
-    d = {}
-    for line in out.stdout.splitlines():
-        if not line.strip():
-            continue
-        key, _, val = line.partition(" ")
-        d[key] = val
-    return d
-
-
-old = entries(sys.argv[1])
-new = entries(sys.argv[2])
-if old is None or new is None:
-    print("UNREADABLE")
-    sys.exit(0)
-sections = set()
-for key in old:
-    if key.endswith(".url"):
-        sections.add(key[len("submodule."):-len(".url")])
-    elif key.endswith(".path"):
-        sections.add(key[len("submodule."):-len(".path")])
-bad = []
-for section in sorted(sections):
-    for field in ("url", "path"):
-        key = "submodule.%s.%s" % (section, field)
-        if key in old and old.get(key) != new.get(key):
-            bad.append("%s old=%s new=%s" % (key, old.get(key), new.get(key)))
-if bad:
-    print("gitmodules-rewrite " + " ".join(bad))
-PYEOF
-)
-    if [ "$GITMODULES_REWRITE" = "UNREADABLE" ]; then
-        not_migrated_after_write "wiring" "out-of-scope-diff" "gitmodules-scan-failed"
-    fi
-    if [ -n "$GITMODULES_REWRITE" ]; then
-        not_migrated_after_write "wiring" "out-of-scope-diff" "$GITMODULES_REWRITE"
+    if ! cmp -s "$OLD_GITMODULES" "$STAGED_GITMODULES"; then
+        GITMODULES_OLD_SHA=$(git -C "$WORKDIR" hash-object "$OLD_GITMODULES" 2>/dev/null)
+        GITMODULES_NEW_SHA=$(git -C "$WORKDIR" hash-object "$STAGED_GITMODULES" 2>/dev/null)
+        not_migrated_after_write "wiring" "out-of-scope-diff" "gitmodules-rewrite blob-changed old=${GITMODULES_OLD_SHA:-unknown} new=${GITMODULES_NEW_SHA:-unknown}"
     fi
 
     # --- Step 6: review (CA-024) -- absent or non-GO => review-no-go.
