@@ -89,8 +89,25 @@ expect() {  # NAME OUTFILE WANT(e.g. "changed=1 noise_explained=0 not_explained=
 # verifier FAIL a real fraction of genuinely-GREEN runs; a FAIL on a
 # deviation proven, by this SAME run's own noise floor, to occur even with
 # timers OFF was testing something other than FR-002/T-A01's own claim).
-expect_skip() {  # NAME OUTFILE WANT(e.g. "changed=1 noise_explained=1 not_explained=0")
-  local got kind; got="$(classify "$1" "$2" | tr '\n' ' ')"
+expect_skip() {  # NAME OUTFILE WANT(e.g. "changed=1 noise_explained=1 not_explained=0") [PRECOMPUTED_RC]
+  # T048 round 12 (R12-M1): an OPTIONAL 4th argument lets a caller holding
+  # an ALREADY-PRODUCED (rc, outfile) pair it did NOT just obtain from
+  # classify() -- e.g. the M-SKIP2PASS mutant's own already-captured run,
+  # below -- feed it through this SAME check without classify() launching
+  # a SECOND, fresh golden-test run (classify() always re-runs $GT_GOLDEN
+  # against $TMP/ev_$1, so pointing it at an unrelated NAME with no such
+  # evidence dir -- the bug this very parameter replaces -- produces a
+  # DIFFERENT run's result, not the fed-in one, and silently mismatches via
+  # the catch-all `*)` branch below for a reason having nothing to do with
+  # the fed-in content's own kind marker). With no 4th argument the
+  # behaviour is BYTE-IDENTICAL to before this round (classify() still
+  # does the one real run); existing callers (C2) are unaffected.
+  local got kind
+  if [ $# -ge 4 ]; then
+    got="rc=$4 $(grep -m1 '^NOISE-FLOOR:' "$2" | sed 's/ (noise floor.*//') "
+  else
+    got="$(classify "$1" "$2" | tr '\n' ' ')"
+  fi
   # T048 round 11 (R10-I2, verbatim finding): rc=0 plus a matching
   # NOISE-FLOOR line does NOT distinguish a genuine SKIP from a mutant that
   # silently turns the SKIP branch into an unconditional `chk ... "1"`
@@ -188,6 +205,28 @@ if [ -n "$SKIP2PASS_ANCHOR" ] \
     ok "(M-SKIP2PASS) mutant reports rc=0 with the FR-002/T-A01 marker=PASS, not SKIP -- the SAME rc and the SAME NOISE-FLOOR line as a genuine SKIP, which is exactly why the OLD (rc+NOISE-FLOOR-only) expect_skip() could not have caught this: the kind-check strengthening above is genuinely load-bearing"
   else
     bad "(M-SKIP2PASS) BLIND: mutant rc=$MUT_RC kind=$MUT_KIND (expected rc=0 kind=PASS to prove the pre-round-11 check was blind to this mutation)"
+  fi
+  # T048 round 12 (R12-M1): the two checks above only assert the MUTANT's
+  # own raw rc+marker shape -- neither of them actually FEEDS that output
+  # through THIS FILE's own expect_skip() (the round-11, R10-I2 kind-check
+  # strengthening this whole case exists to protect), so a LATER regression
+  # of expect_skip()'s kind-check back to its pre-round-11 (rc+NOISE-FLOOR-
+  # only) form would leave every OTHER call in this file green (every other
+  # call's genuine kind really IS SKIP) and go completely undetected here --
+  # measured, not assumed: before the 4th-argument fix above, neutering
+  # expect_skip()'s own kind check back to its pre-round-11 form left THIS
+  # exact call still reporting "ok" (it never reached the real check at
+  # all -- classify() silently re-ran the golden test against a
+  # nonexistent evidence dir instead of reading $MUT_OUT, a SEPARATE bug
+  # this fix's 4th-argument parameter also closes). Run in a SUBSHELL so a
+  # correctly-detected (expected) "NOT ok" from expect_skip() itself never
+  # pollutes this file's own $fail -- what this meta-assertion requires is
+  # that expect_skip() itself flags the mutant, not that nothing flags it.
+  SELFGUARD_OUT="$( expect_skip SKIP2PASS_SELFGUARD "$MUT_OUT" "changed=1 noise_explained=1 not_explained=0" "$MUT_RC" )"
+  if printf '%s\n' "$SELFGUARD_OUT" | grep -q '^NOT ok'; then
+    ok "(M-SKIP2PASS self-guard, R12-M1) expect_skip() itself, fed the SAME mutant output, genuinely reports NOT ok -- the kind-check strengthening is exercised against exactly the mutation it was added to catch, closing the round-12 tautology finding (the two checks above alone never called expect_skip() at all)"
+  else
+    bad "(M-SKIP2PASS self-guard, R12-M1) BLIND: expect_skip() itself was fooled by the mutant (reported '$SELFGUARD_OUT' instead of NOT ok) -- the kind-check it should be exercising is not load-bearing here"
   fi
 else
   bad "(M-SKIP2PASS) could not construct the mutation (anchor not found)"

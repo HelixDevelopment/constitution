@@ -131,9 +131,52 @@
 #   This is NOT a blanket loophole: only the exact, checked-in, defect-tied gate ids on the registry
 #   are ever excluded; any other gate's deviation is still handled exactly as before (noise-floor
 #   SKIP if fully explained, FAIL otherwise).
+#
+# SUMMARY-TAIL + EXIT-CODE CASCADE (T048 round 12, R12-I1): the KNOWN-FLAKY REGISTRY above only
+#   excludes a registered gate's OWN verdict line; the round-11 reviewer proved it does not reach
+#   the two DERIVED surfaces the real pre_build_verification.sh also moves the moment ANY single
+#   gate's status flips -- (1) that member's own EXIT CODE (0 on $ERRORS==0, else 1), and (2) the
+#   final summary-verdict BLOCK: the SUCCESS branch's one-time banner
+#   "  \xe2\x9c\x93 ALL MANDATORY CHECKS PASSED" followed by dozens of informational
+#   "\xe2\x9c\x93 ..." lines, wholesale REPLACED in the FAILURE branch by
+#   "  \xe2\x9c\x97 PRE-BUILD VERIFICATION FAILED" + a short error count (verified at
+#   device/rockchip/rk3588/tests/pre_build_verification.sh:51121 and :51477, each occurring
+#   EXACTLY ONCE in that file). On a parent tree that is ALREADY red (constant exit=1 + constant
+#   FAILED banner everywhere) neither surface ever moves and the gap is invisible; the FIRST green
+#   tree with a registered flake confined to exactly one member reproduces the R10-B1 FC1-side
+#   false FAIL on these two surfaces, unchanged by round 11's own fix.
+#   Fix (this round): (a) EXIT CODE -- _fc_registry_flip_ids() (below) answers "does ANY registered
+#   gate's own recorded line genuinely differ between these two EXACT members" (computed from the
+#   RAW, unfiltered extracted logs, independent of _fc_filter_known_flaky()'s own output files); when
+#   it does, an exit-code divergence neither trivially equal nor noise-floor-explained is SKIPped as
+#   registry-explained, mirroring (never replacing) the noise-floor elif immediately above it. (b)
+#   SUMMARY TAIL -- the tail printed AFTER either one-time banner line is a DETERMINISTIC function of
+#   that SAME exit/commit-result bit (the banner line is the LAST thing either branch of the real
+#   script's single terminal if/else prints, verified above) and therefore carries ZERO additional
+#   per-gate information once the exit code is already accounted for; both extracted+filtered verdict
+#   sets are TRUNCATED at (and excluding) the first line matching SUMMARY_TAIL_RE below -- a FULL-LINE
+#   anchor against the real, unique banner text (consumer-overridable, Env
+#   FC_TIMER_GOLDEN_SUMMARY_TAIL_RE=<ERE>, per S11.4.35) -- BEFORE the strict/noise-floor comparison,
+#   never after. This is NOT a blanket loophole either: truncation only removes the trailing,
+#   provably-redundant banner block; every PER-GATE check line (registered or not) is printed strictly
+#   BEFORE that banner in the real script and is therefore NEVER truncated, so an unregistered gate
+#   failing in the SAME member as a registered flake is still caught by the (untruncated, unfiltered-
+#   for-its-own-id) verdict-set comparison below -- it is simply no longer ALSO drowned in hundreds of
+#   now-irrelevant summary-tail diff lines.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$HERE/../../../.." && pwd)"
+# T048 round 12 (R12-M2): FC_TIMER_GOLDEN_ROOT overrides the parent-repo-
+# root default (measured, not assumed, S11.4.6: the default is derived from
+# "$0"'s OWN location, which is CORRECT when this file runs in place but
+# WRONG for a copy run by a mutation-testing harness from a temp directory
+# -- found running this round's OWN (M-I1b) mutation guard, which ran a
+# mutated copy exercising the R12-M2 defect_doc-exists check for the first
+# time; every OTHER existing use of $ROOT was either EVIDENCE_DIR, always
+# overridden explicitly by every mutated-copy caller to date, or an INFO-
+# only git-HEAD comparison, so this was latent and undetected until now). A
+# mutated-copy regression test MUST pass FC_TIMER_GOLDEN_ROOT explicitly
+# whenever its fixture content references a real, registered gate id.
+ROOT="${FC_TIMER_GOLDEN_ROOT:-$(cd "$HERE/../../../.." && pwd)}"
 EVIDENCE_DIR="${FC_TIMER_GOLDEN_EVIDENCE_DIR:-$ROOT/qa-results/fastcycle/us1/red/T015}"
 MAX_WINDOW_S="${FC_TIMER_GOLDEN_MAX_WINDOW_S:-3600}"
 if ! printf '%s' "$MAX_WINDOW_S" | grep -qE '^[1-9][0-9]*$'; then
@@ -148,6 +191,15 @@ fi
 # with no registry yet behaves exactly like round 9.
 KNOWN_FLAKY_TSV="${FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV:-$HERE/known_flaky_gates.tsv}"
 
+# T048 round 12 (R12-I1): the real pre_build_verification.sh's ONE-TIME terminal summary banner
+# (device/rockchip/rk3588/tests/pre_build_verification.sh:51121,:51477 -- each occurring exactly
+# once, verified at the time of this fix) -- see the SUMMARY-TAIL + EXIT-CODE CASCADE note above.
+# A full-line anchor (never a substring match, S11.4.201(7)(a)) against the post-extract_verdicts
+# (ANSI-stripped, trimmed, timing-suffix-stripped) form of either banner line. Consumer DATA per
+# S11.4.35: a project whose own commit-path script prints a differently-worded terminal banner
+# overrides this.
+SUMMARY_TAIL_RE="${FC_TIMER_GOLDEN_SUMMARY_TAIL_RE:-^(✓ ALL MANDATORY CHECKS PASSED|✗ PRE-BUILD VERIFICATION FAILED)$}"
+
 TMP="$(mktemp -d)"
 cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT
@@ -157,6 +209,72 @@ trap 'cleanup; exit 143' TERM
 FAIL=0; N=0; SKIPPED=0
 chk() { N=$((N + 1)); if [ "$2" = "1" ]; then echo "PASS[$N]: $1"; else echo "FAIL[$N]: $1"; FAIL=$((FAIL + 1)); fi; }
 skip() { N=$((N + 1)); SKIPPED=$((SKIPPED + 1)); echo "SKIP[$N]: $1"; }
+
+# T048 round 12 (R12-M2): KNOWN_FLAKY_TSV's own header text claims "each
+# entry tied to a tracked defect", but nothing used to verify that -- a row
+# with an EMPTY reason/defect_doc, or one citing a defect_doc that does not
+# exist, was honoured exactly like a real, documented row (reproduced by the
+# round-12 reviewer, fixed this round). A permanent gate-exclusion is an
+# allow-with-known-debt path; S11.4.271 (rostered authoriser + MANDATORY
+# UNELAPSED EXPIRY + a tracked item) and S11.4.248(A) (flaky-test quarantine
+# with a stabilisation deadline) both expect exactly this shape. This narrow,
+# internal test-tooling registry implements the PART both anchors share --
+# a non-empty reason, an EXISTING defect_doc, and a non-elapsed ISO expiry
+# date (closed format YYYY-MM-DD; Env FC_TIMER_GOLDEN_TODAY=<date> overrides
+# "today" for deterministic testing) -- never the full rostered-authoriser or
+# live tracked-item-open-query machinery those anchors also require (S11.4.6
+# honest boundary: this file has no DB access and does not claim to check
+# whether a cited tracked item is still open, only that a date has not
+# elapsed). A row failing ANY of these three checks is REFUSED -- treated
+# exactly as though that gate id were never registered at all, never
+# silently honoured -- and the refusal is reported (never a silent drop).
+# Resolved ONCE into a validated, header-preserving subset file every other
+# helper in this section reads INSTEAD OF $KNOWN_FLAKY_TSV directly, so the
+# EXISTING simple column-1 awk logic in _fc_filter_known_flaky() and
+# _fc_known_flaky_hits() (and _fc_registry_flip_ids() below) needs no
+# file-existence/date logic of its own.
+KNOWN_FLAKY_TSV_VALID="$TMP/known_flaky_valid.tsv"
+_fc_build_valid_known_flaky_tsv() {
+  printf 'gate_id\treason\tdefect_doc\texpires\n' > "$KNOWN_FLAKY_TSV_VALID"
+  [ -s "$KNOWN_FLAKY_TSV" ] || return 0
+  local today="${FC_TIMER_GOLDEN_TODAY:-$(date -u +%F)}" gid reason doc expires
+  # MEASURED (never assumed, S11.4.6): `IFS=$'\t' read -r a b c d` COALESCES
+  # a run of adjacent TABs into ONE delimiter and strips the field between
+  # them, because TAB is classified as "IFS white space" for bash `read`
+  # regardless of which characters IFS is actually set to -- a genuinely
+  # EMPTY middle field (the exact R12-M2 "empty reason" shape) silently
+  # SHIFTS every later field left by one (verified: piping
+  # `printf 'a\t\tc\td\n'` through `IFS=$'\t' read -r f1 f2 f3 f4` gives
+  # f1=a f2=c f3=d f4=(empty), NOT the f2=(empty) f3=c f4=d an honest split
+  # requires). `awk -F'\t'` does NOT coalesce (confirmed on the SAME input:
+  # f1=a f2=(empty) f3=c f4=d), so the TAB->awk split happens there, then is
+  # re-joined on a NON-whitespace delimiter (ASCII Unit Separator, \x1f)
+  # that `read` does not coalesce either (confirmed the same way) before
+  # bash ever field-splits it -- a S11.4.201(7)(c) "the path is part of the
+  # instrument" instance, found by actually running this fix's own tests,
+  # not assumed.
+  while IFS=$'\x1f' read -r gid reason doc expires; do
+    [ -n "$gid" ] || continue
+    if [ -z "$reason" ]; then
+      echo "WARN: known_flaky_gates.tsv row '$gid' has an EMPTY reason -- refused (treated as unregistered), never silently honored (T048 round 12, R12-M2)"
+      continue
+    fi
+    if [ -z "$doc" ] || [ ! -f "$ROOT/$doc" ]; then
+      echo "WARN: known_flaky_gates.tsv row '$gid' has defect_doc='$doc', which does not exist at ${ROOT}/${doc} -- refused (treated as unregistered), never silently honored (T048 round 12, R12-M2)"
+      continue
+    fi
+    if ! printf '%s' "$expires" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'; then
+      echo "WARN: known_flaky_gates.tsv row '$gid' has expires='$expires', not a YYYY-MM-DD date -- refused (treated as unregistered), never silently honored (T048 round 12, R12-M2)"
+      continue
+    fi
+    if [ "$expires" \< "$today" ]; then
+      echo "WARN: known_flaky_gates.tsv row '$gid' expired on $expires (today is $today) -- refused (treated as unregistered) until its expiry is renewed (T048 round 12, R12-M2)"
+      continue
+    fi
+    printf '%s\t%s\t%s\t%s\n' "$gid" "$reason" "$doc" "$expires" >> "$KNOWN_FLAKY_TSV_VALID"
+  done < <(awk -F'\t' 'BEGIN { OFS="\x1f" } NR > 1 { print $1, $2, $3, $4 }' "$KNOWN_FLAKY_TSV")
+}
+_fc_build_valid_known_flaky_tsv
 
 # _mf_get KEY MANIFEST -- the value of KEY. Prints nothing, returns 1, when
 # KEY is absent OR present more than once (an ambiguous manifest is malformed,
@@ -515,18 +633,21 @@ extract_verdicts() {
 # _fc_filter_known_flaky IN OUT -- copies IN to OUT, dropping any verdict
 # line whose leading "<GATE-ID>: " token (a WARN:/ERROR: prefix is stripped
 # first, matching VERDICT_RE) is an EXACT match for a gate id registered in
-# KNOWN_FLAKY_TSV. No registry file, or an empty one, means OUT is an exact
-# copy of IN -- never a FATAL (T048 round 11, R10-B1).
+# KNOWN_FLAKY_TSV_VALID (T048 round 12, R12-M2: the VALIDATED subset --
+# non-empty reason, existing defect_doc, non-elapsed expiry -- see the note
+# above KNOWN_FLAKY_TSV_VALID's own definition near the top of this file;
+# never the raw $KNOWN_FLAKY_TSV). No registry file, or an empty one, means
+# OUT is an exact copy of IN -- never a FATAL (T048 round 11, R10-B1).
 _fc_filter_known_flaky() {
   local in="$1" out="$2"
-  if [ -s "$KNOWN_FLAKY_TSV" ]; then
+  if [ -s "$KNOWN_FLAKY_TSV_VALID" ]; then
     awk -F'\t' '
       FNR == NR { if (FNR > 1 && $1 != "") ids[$1] = 1; next }
       { line = $0; gid = line
         sub(/^WARN: /, "", gid); sub(/^ERROR: /, "", gid)
         sub(/:.*/, "", gid)
         if (!(gid in ids)) print line }
-    ' "$KNOWN_FLAKY_TSV" "$in" > "$out"
+    ' "$KNOWN_FLAKY_TSV_VALID" "$in" > "$out"
   else
     cp "$in" "$out"
   fi
@@ -537,14 +658,69 @@ _fc_filter_known_flaky() {
 # IN. Used only for the honest INFO/PASS annotation below -- never for the
 # filtering decision itself, which _fc_filter_known_flaky alone makes.
 _fc_known_flaky_hits() {
-  [ -s "$KNOWN_FLAKY_TSV" ] || return 0
+  [ -s "$KNOWN_FLAKY_TSV_VALID" ] || return 0
   awk -F'\t' '
     FNR == NR { if (FNR > 1 && $1 != "") ids[$1] = 1; next }
     { gid = $0
       sub(/^WARN: /, "", gid); sub(/^ERROR: /, "", gid)
       sub(/:.*/, "", gid)
       if (gid in ids) print gid }
-  ' "$KNOWN_FLAKY_TSV" "$1" | sort -u
+  ' "$KNOWN_FLAKY_TSV_VALID" "$1" | sort -u
+}
+
+# _fc_registry_lines_for_id FILE ID -- prints every line in FILE (a raw,
+# UNFILTERED extracted verdict file) whose leading gate-id token (the same
+# WARN:/ERROR:-stripped, colon-truncated extraction _fc_filter_known_flaky
+# and _fc_known_flaky_hits already use) exactly equals ID. (T048 round 12,
+# R12-I1.)
+_fc_registry_lines_for_id() {
+  awk -v id="$2" '
+    { gid = $0
+      sub(/^WARN: /, "", gid); sub(/^ERROR: /, "", gid)
+      sub(/:.*/, "", gid)
+      if (gid == id) print }
+  ' "$1"
+}
+
+# _fc_registry_flip_ids FILE_A FILE_B -- prints a comma-joined, de-duplicated
+# list of every KNOWN_FLAKY_TSV-registered gate id whose OWN recorded line(s)
+# in FILE_A genuinely differ (by exact text -- present-vs-absent, a different
+# verdict sign, or any other change) from its own recorded line(s) in FILE_B.
+# Empty when the registry is missing/empty, or when every registered id that
+# appears in either file is byte-identical between the two. Used ONLY to
+# explain a DERIVED consequence (a member's exit code; see R12-I1 below) of a
+# registered gate's own already-excluded flip -- it never substitutes for
+# _fc_filter_known_flaky()'s own line-level exclusion, and an id this
+# function reports as unchanged contributes nothing to any explanation.
+_fc_registry_flip_ids() {
+  [ -s "$KNOWN_FLAKY_TSV_VALID" ] || return 0
+  local id a b out=""
+  while IFS= read -r id; do
+    [ -n "$id" ] || continue
+    a="$(_fc_registry_lines_for_id "$1" "$id")"
+    b="$(_fc_registry_lines_for_id "$2" "$id")"
+    [ "$a" = "$b" ] && continue
+    case ",$out," in *",$id,"*) ;; *) out="${out:+$out,}$id" ;; esac
+  done < <(awk -F'\t' 'FNR > 1 && $1 != "" { print $1 }' "$KNOWN_FLAKY_TSV_VALID")
+  printf '%s' "$out"
+}
+
+# _fc_truncate_before_summary_tail IN OUT -- copies IN to OUT up to (not
+# including) the FIRST line that exactly matches SUMMARY_TAIL_RE. No match
+# means OUT is an exact copy of IN (T048 round 12, R12-I1 -- see the
+# SUMMARY-TAIL + EXIT-CODE CASCADE note near the top of this file). Resolved
+# via grep -nE + head, never a dynamic awk ERE, so a multi-alternative regex
+# with '|' cannot fall victim to the S11.4.201(7)(c) dialect footgun class.
+_fc_truncate_before_summary_tail() {
+  local in="$1" out="$2" ln
+  ln="$(grep -nE -- "$SUMMARY_TAIL_RE" "$in" 2>/dev/null | head -n1 | cut -d: -f1)"
+  if [ -n "$ln" ] && [ "$ln" -gt 1 ]; then
+    head -n "$((ln - 1))" "$in" > "$out"
+  elif [ "$ln" = 1 ]; then
+    : > "$out"
+  else
+    cp "$in" "$out"
+  fi
 }
 
 # ============================================================================
@@ -673,10 +849,19 @@ if [ "$TRIPLET_STATE" = valid ]; then
   # lands on the EXACT SAME value FC1 recorded -- the same "same-direction,
   # exact-match" rule _fc_classify_against() applies to verdict lines,
   # applied here to a single scalar.
+  # T048 round 12 (R12-I1): computed from the RAW, unfiltered extracted logs
+  # BEFORE the known-flaky filtering below (independent of it, and of
+  # _FCF_HITS, which is computed from the SAME two raw files further down)
+  # -- "does ANY registered gate's own recorded status genuinely differ
+  # between these exact two members". See the SUMMARY-TAIL + EXIT-CODE
+  # CASCADE note near the top of this file.
+  _FC_EXIT_FLIP_IDS="$(_fc_registry_flip_ids "$TMP/baseline_1.txt" "$TMP/with_timers.txt")"
   if [ "$_ex0" = "$_ex1" ]; then
     chk "FR-002 commit result: with-timers exit status ($_ex1) equals without-timers exit status ($_ex0) (noise-floor member FC0b exited $_exn)" "1"
   elif [ "$_exn" != "$_ex0" ] && [ "$_exn" = "$_ex1" ]; then
     skip "FR-002 commit result: with-timers exit status ($_ex1) differs from without-timers exit status ($_ex0), but this SAME run's own noise-floor member FC0b ALSO exited $_exn -- matching FC1, differing from FC0a -- so the exit-code divergence occurs even with timers OFF and cannot be attributed to fc_timer; this comparison is inconclusive, never a FR-002 counter-example"
+  elif [ -n "$_FC_EXIT_FLIP_IDS" ]; then
+    skip "FR-002 commit result (registry-explained, T048 round 12 R12-I1): a known-flaky registered gate's own recorded status differs between these two exact members (known_flaky_gates.tsv: $_FC_EXIT_FLIP_IDS), so with-timers exit status ($_ex1) differing from without-timers exit status ($_ex0) is attributable to that ALREADY-EXCLUDED flake, never a FR-002 counter-example on its own; any OTHER, unregistered cause in the SAME run is still caught independently by the verdict-set check below, which this skip never replaces"
   else
     chk "FR-002 commit result: with-timers exit status ($_ex1) equals without-timers exit status ($_ex0) (noise-floor member FC0b exited $_exn) -- MISMATCH, not explained by this run's own noise floor" "0"
   fi
@@ -693,6 +878,21 @@ if [ "$TRIPLET_STATE" = valid ]; then
   _FCF_HITS="$( { _fc_known_flaky_hits "$TMP/baseline_1.txt"; _fc_known_flaky_hits "$TMP/with_timers.txt"; } | sort -u | tr '\n' ',' | sed 's/,$//')"
   if [ -n "$_FCF_HITS" ]; then
     echo "INFO: excluded known-flaky registered gate line(s) from the FR-002/T-A01 comparison (known_flaky_gates.tsv, each entry tied to a tracked defect): $_FCF_HITS"
+  fi
+
+  # T048 round 12 (R12-I1): truncate the post-summary-banner tail (see the
+  # SUMMARY-TAIL + EXIT-CODE CASCADE note near the top of this file) from
+  # BOTH sides, AFTER the known-flaky filter above, BEFORE the strict/
+  # noise-floor comparison below. In-place on the SAME *_fcf.txt files the
+  # rest of this block already uses, so no downstream reference changes.
+  cp "$TMP/baseline_1_fcf.txt" "$TMP/baseline_1_fcf_pretrunc.txt"
+  cp "$TMP/with_timers_fcf.txt" "$TMP/with_timers_fcf_pretrunc.txt"
+  _fc_truncate_before_summary_tail "$TMP/baseline_1_fcf_pretrunc.txt" "$TMP/baseline_1_fcf.txt"
+  _fc_truncate_before_summary_tail "$TMP/with_timers_fcf_pretrunc.txt" "$TMP/with_timers_fcf.txt"
+  _FCF_TRUNC_B="$(( $(wc -l < "$TMP/baseline_1_fcf_pretrunc.txt") - $(wc -l < "$TMP/baseline_1_fcf.txt") ))"
+  _FCF_TRUNC_W="$(( $(wc -l < "$TMP/with_timers_fcf_pretrunc.txt") - $(wc -l < "$TMP/with_timers_fcf.txt") ))"
+  if [ "$_FCF_TRUNC_B" -gt 0 ] || [ "$_FCF_TRUNC_W" -gt 0 ]; then
+    echo "INFO: excluded the post-summary-banner tail ($_FCF_TRUNC_B without-timers line(s), $_FCF_TRUNC_W with-timers line(s)) from the FR-002/T-A01 comparison -- that tail is a deterministic function of the member's own exit/commit-result bit, already checked above, carrying zero additional per-gate information"
   fi
 
   if cmp -s "$TMP/baseline_1_fcf.txt" "$TMP/with_timers_fcf.txt"; then
@@ -718,6 +918,13 @@ if [ "$TRIPLET_STATE" = valid ]; then
     # was already excluded above; this classifies whatever remains.
     extract_verdicts "$NOISE_LOG" "$TMP/noise.txt"
     _fc_filter_known_flaky "$TMP/noise.txt" "$TMP/noise_fcf.txt"
+    # T048 round 12 (R12-I1): the SAME summary-tail truncation applied to the
+    # real pair above, applied here too -- otherwise the noise floor's own
+    # multiset match could be inflated (or, in principle, falsely
+    # "explain" something) by the wholly-redundant tail text rather than by
+    # a genuine same-direction per-gate deviation.
+    cp "$TMP/noise_fcf.txt" "$TMP/noise_fcf_pretrunc.txt"
+    _fc_truncate_before_summary_tail "$TMP/noise_fcf_pretrunc.txt" "$TMP/noise_fcf.txt"
     DIFF_NOISE="$(diff "$TMP/baseline_1_fcf.txt" "$TMP/noise_fcf.txt" 2>/dev/null || true)"
     printf '%s\n' "$DIFF_REAL"  | sed -n 's/^< //p' > "$TMP/real_removed.txt"
     printf '%s\n' "$DIFF_REAL"  | sed -n 's/^> //p' > "$TMP/real_added.txt"

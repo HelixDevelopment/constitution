@@ -110,7 +110,15 @@ triplet() {
 # content.
 # =============================================================================
 REG_TSV="$TMP/custom_known_flaky.tsv"
-printf 'gate_id\treason\tdefect_doc\nCM-FLAKY-TEST-GATE\tsynthetic test-only flaky gate\tdocs/requests/fake.md\n' > "$REG_TSV"
+# T048 round 12 (R12-M2): the golden test now REFUSES any row whose
+# defect_doc does not exist (resolved relative to the parent repo root) or
+# whose expires date is missing/elapsed -- so this test-local row needs a
+# REAL, already-existing doc path (never "docs/requests/fake.md", which
+# never existed) and a non-elapsed expires column. The doc chosen is a
+# stand-in ONLY because it is guaranteed to exist on this tree -- this row
+# is not actually about that defect; see R12-M2's cases further below for
+# the dedicated empty-reason/missing-doc/elapsed-expiry refusal coverage.
+printf 'gate_id\treason\tdefect_doc\texpires\nCM-FLAKY-TEST-GATE\tsynthetic test-only flaky gate\tdocs/requests/t048_round4_defect1_spk512_bridge_report.md\t2099-01-01\n' > "$REG_TSV"
 
 B_BASE='  ✓ CM-ONE: first
   ✗ CM-TWO: second'
