@@ -300,10 +300,13 @@ else
     bad "D2 B1 degraded-probe recorded: enumerate.sh did not write --out at all despite a PARTIAL (not total) failure -- real local-source hits are still real data and must still be written"
 fi
 
-# D3: a genuine 404 (org/group absent) must STILL be treated as a normal
-# negative, never degraded -- the control-needle half of this fix (the
-# false-positive guard, §11.4.201(1)): a fix for B1 that also makes a
-# REAL absence look "degraded" would itself be a new false-positive bug.
+# D3 (re-specified T177 Round 3 finding 10): a 404 on one of this
+# project's OWN configured GitHub owning orgs is NOT a normal negative --
+# CA-002's "a missing group is fine" reasoning belongs to GitLab GROUPS,
+# not to the configured `consumers.github_orgs` list, where a 404 means the
+# configured name is wrong (mistyped, renamed, hidden from the token, or a
+# user account rather than an org). The previous D3 asserted exit 0 for
+# exactly this fixture, locking the WRONG behaviour in as correct.
 D_FAKEBIN_404=$(mktemp -d)
 cat > "$D_FAKEBIN_404/gh" <<'EOF'
 #!/bin/sh
@@ -312,16 +315,42 @@ exit 1
 EOF
 chmod +x "$D_FAKEBIN_404/gh"
 D3_OUT=$(PATH="$D_FAKEBIN_404:$PATH" run_tool --config "$CFG" --out "$WORK/notfound_consumers.json"); D3_RC=$?
-# T177 Round 2 m-R2-1 fix: `rc != 5` alone would also pass on rc 1, 3 or 4
-# -- none of which is the correct outcome here. Confirmed live (control
-# needle, §11.4.199 exact reproduction) that this EXACT fixture (a gh that
-# 404s on every call, real glab + real local sources otherwise reachable)
-# genuinely exits 0 on this host today; assert that specific value.
-if [ "$D3_RC" -eq 0 ]; then
-    ok "D3 B1 real-404-not-degraded: a gh that genuinely 404s on every call exits 0 (real glab/local sources still reachable, needles satisfied) -- a real confirmed-absent org is still a normal negative, never a false 'unreachable'"
+D3_REASON=$(python3 -c "
+import json
+d = json.load(open('$WORK/notfound_consumers.json'))
+print(','.join(sorted({e.get('reason', '') for e in d.get('source_reachability', {}).get('github_degraded') or []})))
+" 2>/dev/null)
+if [ "$D3_RC" -eq 5 ] && [ "$D3_REASON" = "repo-list-org-not-found" ]; then
+    ok "D3 R3 finding 10: a 404 on a CONFIGURED GitHub owning org's repo list is recorded degraded (repo-list-org-not-found) and enumerate.sh exits 5 -- never folded into 'zero repos, all fine'"
 else
-    bad "D3 B1 real-404-not-degraded: expected rc=0 for a genuinely-404ing gh with otherwise-healthy sources, got rc=$D3_RC -- the 404-vs-error distinction regressed (or real glab/local-source reachability changed)"
+    bad "D3 R3 finding 10: a configured GitHub org 404 was not surfaced as degraded (rc=$D3_RC reasons='$D3_REASON')"
 fi
+# D3b: negative control (§11.4.201(1)) -- a 404 where absence IS expected
+# (a repo's `contents/constitution` path: the repo exists, it simply is
+# not a consumer) stays a normal negative: repo-list succeeds, every
+# per-repo probe 404s, and the run exits 0 with NO github degraded entry
+# (real glab + real local sources otherwise reachable, as before).
+D_FAKEBIN_404B=$(mktemp -d)
+cat > "$D_FAKEBIN_404B/gh" <<'EOF'
+#!/bin/sh
+case "$*" in
+    *"orgs/"*"/repos"*) echo "d177r3-not-a-consumer-repo"; exit 0 ;;
+    *) echo "gh: Not Found (HTTP 404)" >&2; exit 1 ;;
+esac
+EOF
+chmod +x "$D_FAKEBIN_404B/gh"
+D3B_OUT=$(PATH="$D_FAKEBIN_404B:$PATH" run_tool --config "$CFG" --out "$WORK/notfound_contents_consumers.json"); D3B_RC=$?
+D3B_GH_DEGRADED=$(python3 -c "
+import json
+d = json.load(open('$WORK/notfound_contents_consumers.json'))
+print(len(d.get('source_reachability', {}).get('github_degraded') or []))
+" 2>/dev/null)
+if [ "$D3B_RC" -eq 0 ] && [ "$D3B_GH_DEGRADED" = "0" ]; then
+    ok "D3b R3 finding 10 negative control: a per-repo contents/constitution 404 (a real non-consumer repo) is still a normal negative -- exit 0, no github degraded entry"
+else
+    bad "D3b R3 finding 10 negative control: a genuine per-repo 404 was wrongly flagged (rc=$D3B_RC github_degraded=$D3B_GH_DEGRADED out=$D3B_OUT)"
+fi
+rm -rf "$D_FAKEBIN_404B" 2>/dev/null || true
 rm -rf "$D_FAKEBIN" "$D_FAKEBIN_404" 2>/dev/null || true
 
 # =============================================================================
@@ -454,6 +483,48 @@ if echo "$D678" | grep -q '^D8=True$'; then
     ok "D8 negative control (§11.4.201(1)): a genuinely well-shaped EMPTY group-list is still correctly treated as zero hits with NO degraded entry -- the D6/D7 fix does not false-positive on a real empty result"
 else
     bad "D8 negative control (§11.4.201(1)): FAILED -- a genuinely empty result was wrongly flagged degraded"
+fi
+
+# =============================================================================
+# D9/D10 -- T177 Round 3 minors m1/m2, hermetic (a fake `gh` on PATH, the
+# module imported in-process; no network):
+#  D9  an EMPTY GitHub repo answers contents/ with HTTP 409 "Git Repository
+#      is empty" -- a confirmed absence (CA-001 probes non-empty repos
+#      only), never a degraded probe;
+#  D10 an org whose ONLY repo has a numeric name (`2048`) must list that
+#      repo -- the old json.loads() attempt parsed "2048" as an integer and
+#      returned an EMPTY list.
+# =============================================================================
+D910_BIN=$(mktemp -d)
+cat > "$D910_BIN/gh" <<'EOF'
+#!/bin/sh
+case "$*" in
+    *"orgs/"*"/repos"*) echo "2048"; exit 0 ;;
+    *"contents/constitution"*) echo "gh: Git Repository is empty. (HTTP 409)" >&2; exit 1 ;;
+    *) exit 1 ;;
+esac
+EOF
+chmod +x "$D910_BIN/gh"
+D910=$(PATH="$D910_BIN:$PATH" python3 - "$FC/consumers/_enumerate_impl.py" <<'PYEOF'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("_enumerate_impl", sys.argv[1])
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+print("D9=%s" % (mod.gh_probe_submodule("d177r3-org", "empty-repo") == (False, "ok")))
+print("D10=%s" % (mod.gh_repo_list("d177r3-org") == (["2048"], "ok")))
+PYEOF
+)
+echo "$D910"
+rm -rf "$D910_BIN" 2>/dev/null || true
+if echo "$D910" | grep -q '^D9=True$'; then
+    ok "D9 R3 m1: an empty repo's HTTP 409 contents answer is a confirmed absence, never a degraded probe"
+else
+    bad "D9 R3 m1: an empty repo's HTTP 409 was not treated as a confirmed absence"
+fi
+if echo "$D910" | grep -q '^D10=True$'; then
+    ok "D10 R3 m2: an org whose only repo is named '2048' lists that repo (no numeric-JSON-parse drop)"
+else
+    bad "D10 R3 m2: a numeric repo name was dropped from the org's repo list"
 fi
 
 # Archive this run's stdout as the RED evidence per Test Discipline.

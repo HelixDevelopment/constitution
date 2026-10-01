@@ -87,6 +87,15 @@ if [ ! -d "$WORKDIR" ]; then
     echo "migrate.sh: --workdir $WORKDIR does not exist" >&2
     exit 2
 fi
+# T177 Round 3 (new finding N1): canonicalise $WORKDIR to an ABSOLUTE path
+# once, up front. Step 5 runs the hook as `cd "$WORKDIR" && PROJECT_ROOT=
+# "$WORKDIR" ...` -- with a RELATIVE --workdir that PROJECT_ROOT is then
+# resolved a SECOND time relative to the already-changed cwd (a path like
+# f2/checkout/f2/checkout), so the hook wrote nowhere real and failed,
+# recorded as a spurious NOT-MIGRATED (post-update-hook:
+# consumer-gates-red) for every relative-path invocation (reproduced live
+# 2026-10-01 with a stub hook writing $PROJECT_ROOT/.mcp.json).
+WORKDIR=$(cd "$WORKDIR" && pwd)
 
 # T177 Round 2 R2-I1 fix: every tool-OWN transient file (fetch/push/hook/
 # gates stderr+log captures) MUST live OUTSIDE $WORKDIR -- writing them
@@ -127,15 +136,22 @@ write_out() {
     # additional informational fields) carrying the per-remote
     # success/failure breakdown CA-025's "remaining remotes... proceed"
     # clause calls for.
-    python3 - "$OUT" "$PROJECT" "$1" "$2" "$3" "$4" "${5:-}" "${6:-}" "${7:-}" "${8:-}" <<'PYEOF'
+    # $9=detail_or_empty (T177 Round 3, finding 1/CA-019): free-text context
+    # for a refusal (e.g. WHICH path was out of scope) lives in its own
+    # `detail` field, so `not_migrated_reason` stays EXACTLY the closed-set
+    # DEC-25 form `audit.py summary` validates -- never "out-of-scope-diff
+    # (.mcp.json)", which no closed-set reason matches.
+    python3 - "$OUT" "$PROJECT" "$1" "$2" "$3" "$4" "${5:-}" "${6:-}" "${7:-}" "${8:-}" "${9:-}" <<'PYEOF'
 import json, sys
-out, project, outcome, reason, commit, data_change, push_results, review_ref, verification_json, backup_marker_json = sys.argv[1:11]
+out, project, outcome, reason, commit, data_change, push_results, review_ref, verification_json, backup_marker_json, detail = sys.argv[1:12]
 doc = {
     "schema": "consumer-migration/v1",
     "project_id": project,
     "outcome": outcome,
     "data_change": "NONE" if data_change in ("", "NONE") else data_change.split(","),
 }
+if detail:
+    doc["detail"] = detail
 if reason:
     doc["not_migrated_reason"] = reason
 if commit:
@@ -160,7 +176,7 @@ PYEOF
 }
 
 not_migrated() {
-    step=$1; reason=$2
+    step=$1; reason=$2; detail=${3:-}
     # DEC-25 step 1 / data-model.md #13.3: a dirty working tree is recorded
     # exactly "NOT-MIGRATED (dirty-local)" -- the ONE reason with no
     # "<step>: " prefix; every other reason uses the general
@@ -174,8 +190,8 @@ not_migrated() {
     else
         FULL="NOT-MIGRATED ($step: $reason)"
     fi
-    write_out "NOT-MIGRATED" "$FULL" "" "NONE"
-    echo "$FULL"
+    write_out "NOT-MIGRATED" "$FULL" "" "NONE" "" "" "" "" "$detail"
+    if [ -n "$detail" ]; then echo "$FULL [$detail]"; else echo "$FULL"; fi
     exit 1
 }
 
@@ -197,12 +213,12 @@ restore_staged_gitlink() {
 }
 
 not_migrated_after_write() {
-    step=$1; reason=$2
+    step=$1; reason=$2; detail=${3:-}
     restore_staged_gitlink
     RESIDUE=$(git -C "$WORKDIR" status --porcelain=v1 2>/dev/null | awk '{print $2}' | tr '\n' ',' | sed 's/,$//')
     FULL="NOT-MIGRATED ($step: $reason)"
-    write_out "NOT-MIGRATED" "$FULL" "" "${RESIDUE:-NONE}"
-    echo "$FULL"
+    write_out "NOT-MIGRATED" "$FULL" "" "${RESIDUE:-NONE}" "" "" "" "" "$detail"
+    if [ -n "$detail" ]; then echo "$FULL [$detail]"; else echo "$FULL"; fi
     if [ -n "$RESIDUE" ]; then
         echo "migrate.sh: WARNING -- $WORKDIR has real residue after this refusal that could not be fully restored: $RESIDUE" >&2
     fi
@@ -299,14 +315,55 @@ if [ -n "$UPSTREAM" ]; then
         AHEAD_BEHIND=$(git -C "$WORKDIR" rev-list --left-right --count "$LOCAL_HEAD...$UPSTREAM_HEAD" 2>/dev/null)
         BEHIND=$(echo "$AHEAD_BEHIND" | awk '{print $2}')
         if [ -n "$BEHIND" ] && [ "$BEHIND" != "0" ]; then
-            not_migrated "preflight" "divergent-branches"
+            not_migrated "preflight" "divergent-branches" "local-behind-$UPSTREAM-by-$BEHIND"
         fi
     fi
 fi
 
+# T177 Round 3 finding 4 (CA-022 "never product code"): the preflight above
+# only ever checked whether the consumer is BEHIND its upstream -- never
+# whether it is AHEAD with UNPUBLISHED local commits. Step 8 pushes
+# "$BRANCH":"$BRANCH", which publishes EVERY commit between the remote's
+# tip and the migration commit -- reproduced live: an unpushed local
+# commit touching src/product.c was pushed to the remote alongside the
+# migration commit, irreversibly, and the record said MIGRATED. Checked
+# here, before any write, against EVERY remote that already carries this
+# branch (a remote with NO such branch yet is a mirror being seeded --
+# CA-025's "every configured remote" -- and receives only history that
+# is already published elsewhere, which the per-remote check below
+# guarantees). A branch with NO published counterpart on ANY remote has
+# nothing to anchor "unpublished" against at all and is refused the same
+# way (§11.4.201 conservative-safe default: pushing it would publish an
+# entire never-published branch). Reason `divergent-branches` is the
+# closed-set reason (data-model #13.3) closest in meaning ("local and
+# remote histories differ"); the exact cause is carried in `detail`.
+PUBLISHED_REFS=0
+for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
+    RREF="refs/remotes/$r/$BRANCH"
+    if git -C "$WORKDIR" rev-parse -q --verify "$RREF" >/dev/null 2>&1; then
+        PUBLISHED_REFS=$((PUBLISHED_REFS + 1))
+        AHEAD=$(git -C "$WORKDIR" rev-list --count "$RREF..$LOCAL_HEAD" 2>/dev/null)
+        if [ -z "$AHEAD" ]; then
+            echo "migrate.sh: could not measure unpublished commits against $RREF" >&2
+            exit 4
+        fi
+        if [ "$AHEAD" != "0" ]; then
+            not_migrated "preflight" "divergent-branches" "local-ahead-of-$r/$BRANCH-by-$AHEAD-unpublished-commit(s)"
+        fi
+    fi
+done
+if [ "$PUBLISHED_REFS" -eq 0 ]; then
+    not_migrated "preflight" "divergent-branches" "branch-$BRANCH-has-no-published-counterpart-on-any-remote"
+fi
+
 if [ "$APPLY" -eq 0 ]; then
+    # T177 Round 3 finding 1(b): a dry run is NOT a migration outcome --
+    # data-model #13.3's closed reason set has no `dry-run`, and CA-028
+    # says a dry run produces "the planned diff and preflight verdict
+    # only". Recorded with its own outcome value so `audit.py summary`
+    # can never count it toward SC-010 coverage.
     echo "DRY-RUN: preflight passed for $PROJECT at $WORKDIR (branch=$BRANCH); pass --apply to migrate"
-    write_out "NOT-MIGRATED" "NOT-MIGRATED (preflight: dry-run)" "" "NONE"
+    write_out "DRY-RUN" "" "" "NONE" "" "" "" "" "preflight-passed"
     exit 1
 fi
 
@@ -363,12 +420,22 @@ if [ -z "$COMMON_DIR_ABS" ] || [ "$GIT_DIR_ABS" != "$COMMON_DIR_ABS" ]; then
 fi
 
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-BACKUP_DIR="$WORKDIR/../.fastcycle_migrate_backup_${STAMP}"
-if ! cp -al "$GIT_DIR_ABS" "$BACKUP_DIR" 2>/tmp/migrate_backup_err.$$; then
-    R=$(cat /tmp/migrate_backup_err.$$ 2>/dev/null); rm -f /tmp/migrate_backup_err.$$
-    not_migrated "backup" "backup-failed"
+# T177 Round 3 (minor m4, reproduced live 2026-10-01): a bare
+# ".fastcycle_migrate_backup_${STAMP}" name collides when two migrations
+# under the same parent start in the same second -- `cp -al src EXISTING`
+# then silently nests the second backup INSIDE the first as `.git/`, and
+# the recorded hash covers a mixture of both. A unique per-run container
+# (mktemp -d, same volume as $WORKDIR so the hardlinks stay valid) closes
+# the window; the hardlinked mirror lives at <container>/git.
+BACKUP_PARENT=$(cd "$WORKDIR/.." && pwd)
+BACKUP_CONTAINER=$(mktemp -d "$BACKUP_PARENT/.fastcycle_migrate_backup_${STAMP}.XXXXXX" 2>/dev/null)
+if [ -z "$BACKUP_CONTAINER" ] || [ ! -d "$BACKUP_CONTAINER" ]; then
+    not_migrated "backup" "backup-failed" "could-not-create-backup-container"
 fi
-rm -f /tmp/migrate_backup_err.$$
+BACKUP_DIR="$BACKUP_CONTAINER/git"
+if ! cp -al "$GIT_DIR_ABS" "$BACKUP_DIR" 2>"$MIGRATE_SCRATCH/migrate_backup.err"; then
+    not_migrated "backup" "backup-failed" "hardlink-copy-failed"
+fi
 BACKUP_HASH=$(find "$BACKUP_DIR" -type f -print0 2>/dev/null | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | awk '{print $1}')
 echo "backup: $BACKUP_DIR (hash=$BACKUP_HASH)"
 # T177 Round 2 R2-I4: data-model.md #13.3's `backup_marker` field
@@ -394,8 +461,14 @@ BACKUP_MARKER_JSON=$(python3 -c "import json,sys; print(json.dumps({'path': sys.
 # path below at the ls-tree/submodule-update/allow-list steps), then
 # read THAT section's url -- the section name itself is never examined.
 GITMODULES="$WORKDIR/.gitmodules"
+# T177 Round 3 finding 1 (CA-019 closed reason set): the free-text reasons
+# below previously went straight into `not_migrated_reason`, matching NO
+# closed-set reason. A consumer with no constitution submodule cannot be
+# migrated by a gitlink bump at all -- `outside-migration-scope`; a target
+# commit that cannot be resolved remotely -- `unreachable`. The exact cause
+# lives in `detail`.
 if [ ! -f "$GITMODULES" ]; then
-    not_migrated "gitlink-bump" "no .gitmodules (not a submodule consumer)"
+    not_migrated "gitlink-bump" "outside-migration-scope" "no-.gitmodules-not-a-submodule-consumer"
 fi
 CONST_SECTION=""
 PATH_ENTRIES=$(git config -f "$GITMODULES" --get-regexp '^submodule\..*\.path$' 2>/dev/null)
@@ -419,14 +492,14 @@ if [ -n "$CONST_SECTION" ]; then
     SUB_URL=$(git config -f "$GITMODULES" --get "submodule.$CONST_SECTION.url" 2>/dev/null)
 fi
 if [ -z "$SUB_URL" ]; then
-    not_migrated "gitlink-bump" "no constitution submodule entry in .gitmodules"
+    not_migrated "gitlink-bump" "outside-migration-scope" "no-constitution-path-entry-in-.gitmodules"
 fi
 NEW_SHA=$(git ls-remote "$SUB_URL" HEAD 2>/dev/null | awk '{print $1}')
 if [ -z "$NEW_SHA" ]; then
     NEW_SHA=$(git ls-remote "$SUB_URL" refs/heads/main 2>/dev/null | awk '{print $1}')
 fi
 if [ -z "$NEW_SHA" ]; then
-    not_migrated "gitlink-bump" "could not resolve the target constitution commit via git ls-remote"
+    not_migrated "gitlink-bump" "unreachable" "git-ls-remote-resolved-no-target-commit"
 fi
 OLD_SHA=$(git -C "$WORKDIR" ls-tree HEAD constitution 2>/dev/null | awk '{print $3}')
 # T177 Round 1 I4 fix: a consumer already at the migration target has
@@ -443,7 +516,11 @@ if [ "$OLD_SHA" = "$NEW_SHA" ]; then
     echo "migrate.sh: $PROJECT already at $NEW_SHA -- no bump needed, proceeding to verify only"
 else
     if ! git -C "$WORKDIR" update-index --add --cacheinfo "160000,$NEW_SHA,constitution" 2>&1; then
-        not_migrated "gitlink-bump" "git update-index failed"
+        # No closed-set reason fits a local git failure (data-model #13.3
+        # vocabulary gap, T177 Round 3 new finding N2 -- recorded, never
+        # forced into a misleading closed reason); `audit.py summary` reports
+        # it as a non-conforming record, never counts it toward coverage.
+        not_migrated "gitlink-bump" "local-git-error" "git-update-index-failed"
     fi
 fi
 
@@ -453,7 +530,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     for f in $STAGED; do
         case "$f" in
             constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*) : ;;
-            *) not_migrated_after_write "wiring" "out-of-scope-diff ($f)" ;;
+            *) not_migrated_after_write "wiring" "out-of-scope-diff" "path=$f" ;;
         esac
     done
 
@@ -495,7 +572,14 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         # the caller dir, not $WORKDIR). CONST_DIR is set explicitly too, for
         # defense-in-depth, even though the hook's own SCRIPT_DIR-derived
         # default already resolves correctly once cwd is right.
-        if ! ( cd "$WORKDIR" && PROJECT_ROOT="$WORKDIR" CONST_DIR="$WORKDIR/constitution" sh "$HOOK" ) >"$MIGRATE_SCRATCH/migrate_hook.log" 2>&1; then
+        #
+        # T177 Round 3 finding 9: the REAL post_update_hook.sh is a BASH
+        # script (`#!/usr/bin/env bash`, `WARNINGS+=(...)` array appends,
+        # `local`) -- running it as `sh "$HOOK"` only worked where /bin/sh
+        # happens to accept bash syntax; on a POSIX /bin/sh (dash) every
+        # migration would fail with a cryptic post-update-hook refusal. It
+        # is invoked with bash explicitly, never sh.
+        if ! ( cd "$WORKDIR" && PROJECT_ROOT="$WORKDIR" CONST_DIR="$WORKDIR/constitution" bash "$HOOK" ) >"$MIGRATE_SCRATCH/migrate_hook.log" 2>&1; then
             not_migrated_after_write "post-update-hook" "consumer-gates-red"
         fi
     fi
@@ -542,6 +626,22 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # genuinely inside the allow-list is staged here so it lands in the
     # SAME commit as the gitlink bump, converging to a real MIGRATED state
     # instead of leaving honest-but-permanent residue behind forever.
+    #
+    # T177 Round 3 finding 2 (design decision, documented): the REAL
+    # post_update_hook.sh writes exactly two tracked-tree artefacts into the
+    # consumer -- `$PROJECT_ROOT/.mcp.json` (MCP server registration) and
+    # `$PROJECT_ROOT/skills/` (constitution skill wiring) -- plus
+    # `.git/hooks/` (never part of the working tree). Both are the
+    # consumer's "development-process tooling/config (mechanisms wired by
+    # reference only)" that CA-022 explicitly permits a migration to touch,
+    # and they are the very output DEC-25 step 5 exists to produce -- so
+    # they are LEGITIMATE migration output, staged and committed in the
+    # SAME migration commit, never left as residue and never refused. Before
+    # this round both were outside the allow-list, so every migration whose
+    # target carried the real hook was refused `out-of-scope-diff` with the
+    # hook's files left behind (reproduced live 2026-10-01). Anything ELSE
+    # the hook or gates write is still refused, with the residue measured
+    # and reported honestly by not_migrated_after_write().
     POST_HOOK_STATUS=$(git -C "$WORKDIR" status --porcelain=v1 2>/dev/null)
     if [ -n "$POST_HOOK_STATUS" ]; then
         OLD_IFS=$IFS
@@ -550,10 +650,10 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         for line in $POST_HOOK_STATUS; do
             f=${line#???}
             case "$f" in
-                constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*) : ;;
+                constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) : ;;
                 *)
                     IFS=$OLD_IFS
-                    not_migrated_after_write "wiring" "out-of-scope-diff ($f)"
+                    not_migrated_after_write "wiring" "out-of-scope-diff" "path=$f"
                     ;;
             esac
         done
@@ -562,6 +662,8 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         [ -d "$WORKDIR/.claude" ] && git -C "$WORKDIR" add -A -- .claude 2>/dev/null
         [ -d "$WORKDIR/scripts/hooks" ] && git -C "$WORKDIR" add -A -- scripts/hooks 2>/dev/null
         [ -d "$WORKDIR/config/fastcycle" ] && git -C "$WORKDIR" add -A -- config/fastcycle 2>/dev/null
+        [ -e "$WORKDIR/.mcp.json" ] && git -C "$WORKDIR" add -A -- .mcp.json 2>/dev/null
+        [ -d "$WORKDIR/skills" ] && git -C "$WORKDIR" add -A -- skills 2>/dev/null
         :
     fi
 
@@ -638,16 +740,19 @@ PYEOF
     # "required iff MIGRATED") -- the record's OWN `review_id` where
     # present (a real ReviewVerdictRecord, review_record.py's schema),
     # else the --review-ref path itself (a hand-authored test fixture).
+    # (T177 Round 3: the path is passed as argv, never interpolated into
+    # Python source text -- a path containing a quote broke the old form.)
     REVIEW_REF_ID=$(python3 -c "
-import json
+import json, sys
+path = sys.argv[1]
 try:
-    with open('$REVIEW_REF', encoding='utf-8') as fh:
+    with open(path, encoding='utf-8') as fh:
         d = json.load(fh)
     rid = d.get('review_id')
-    print(rid if rid else '$REVIEW_REF')
+    print(rid if rid else path)
 except Exception:
-    print('$REVIEW_REF')
-" 2>/dev/null)
+    print(path)
+" "$REVIEW_REF" 2>/dev/null)
 
     # --- Step 7: commit via the consumer's own wrapper, or plain git if its
     # CLAUDE.md explicitly permits it (this tool's discovery marker).
@@ -671,9 +776,20 @@ except Exception:
         -c user.name=fastcycle-migrate \
         -c user.email=fastcycle-migrate@example.invalid \
         commit -q -m "$COMMIT_MSG" 2>&1; then
-        not_migrated_after_write "commit" "git commit failed"
+        not_migrated_after_write "commit" "local-git-error" "git-commit-failed"
     fi
     NEW_COMMIT=$(git -C "$WORKDIR" rev-parse HEAD)
+    # T177 Round 3 finding 4, defence in depth at the push seam: the ONLY
+    # commit this migration may publish is its own. The preflight already
+    # refuses unpublished local commits before any write; this re-asserts
+    # the same invariant immediately before the irreversible push.
+    PUSH_SET_SIZE=$(git -C "$WORKDIR" rev-list --count "$LOCAL_HEAD..$NEW_COMMIT" 2>/dev/null)
+    if [ "$PUSH_SET_SIZE" != "1" ]; then
+        FULL="NOT-MIGRATED (push: out-of-scope-diff)"
+        write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "$(current_data_change)" "" "" "" "" "refused-before-push: $PUSH_SET_SIZE commit(s) between pre-migration HEAD and the migration commit, expected exactly 1"
+        echo "$FULL (refused before push: push set size=$PUSH_SET_SIZE, expected 1)"
+        exit 1
+    fi
 
     # --- Step 8: fast-forward push. T177 Round 1 I2 fix: EVERY configured
     # remote is attempted, even after an earlier one rejects (CA-025:
@@ -805,20 +921,37 @@ V2_PERSIST="${OUT%.json}.verify2.json"
 cp -f "$V1" "$V1_PERSIST" 2>/dev/null || V1_PERSIST=""
 cp -f "$V2" "$V2_PERSIST" 2>/dev/null || V2_PERSIST=""
 rm -rf "$VERIFY_SCRATCH"
-if [ "$V1_RC" -ne 0 ] || [ "$V2_RC" -ne 0 ] || [ "$OVERALL1" != "CLEAN" ] || [ "$OVERALL2" != "CLEAN" ] || [ -z "$HASH1" ] || [ "$HASH1" != "$HASH2" ] || [ "$TIPS_OK" -ne 1 ]; then
+# T177 Round 3 finding 8: the record carries the persisted reports'
+# CONTENT ADDRESS (sha256 of the exact bytes repo_verify.py wrote), never
+# merely a path that could later be overwritten or deleted unnoticed; a
+# report that could not be persisted means the MIGRATED claim would cite
+# no surviving evidence (§11.4.262), so it is refused below.
+V1_SHA=""; V2_SHA=""
+[ -n "$V1_PERSIST" ] && V1_SHA=$(sha256sum "$V1_PERSIST" 2>/dev/null | awk '{print $1}')
+[ -n "$V2_PERSIST" ] && V2_SHA=$(sha256sum "$V2_PERSIST" 2>/dev/null | awk '{print $1}')
+VERIFY_FAIL=""
+[ "$V1_RC" -ne 0 ] && VERIFY_FAIL="$VERIFY_FAIL v1_rc=$V1_RC"
+[ "$V2_RC" -ne 0 ] && VERIFY_FAIL="$VERIFY_FAIL v2_rc=$V2_RC"
+[ "$OVERALL1" != "CLEAN" ] && VERIFY_FAIL="$VERIFY_FAIL overall1=$OVERALL1"
+[ "$OVERALL2" != "CLEAN" ] && VERIFY_FAIL="$VERIFY_FAIL overall2=$OVERALL2"
+[ -z "$HASH1" ] && VERIFY_FAIL="$VERIFY_FAIL hash1-empty"
+[ "$HASH1" != "$HASH2" ] && VERIFY_FAIL="$VERIFY_FAIL hash1!=hash2"
+[ "$TIPS_OK" -ne 1 ] && VERIFY_FAIL="$VERIFY_FAIL tips-mismatch:$TIPS_DETAIL"
+{ [ -z "$V1_SHA" ] || [ -z "$V2_SHA" ]; } && VERIFY_FAIL="$VERIFY_FAIL evidence-not-persisted"
+if [ -n "$VERIFY_FAIL" ]; then
     FULL="NOT-MIGRATED (verify: verification-not-clean)"
-    write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "$(current_data_change)"
-    echo "$FULL (v1_rc=$V1_RC overall1=$OVERALL1 v2_rc=$V2_RC overall2=$OVERALL2 hash1=$HASH1 hash2=$HASH2 tips_ok=$TIPS_OK$TIPS_DETAIL)"
+    write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "$(current_data_change)" "" "" "" "" "${VERIFY_FAIL# }"
+    echo "$FULL (${VERIFY_FAIL# })"
     exit 1
 fi
 
 VERIFICATION_JSON=$(python3 -c "
 import json, sys
 print(json.dumps([
-    {'path': sys.argv[1], 'overall': sys.argv[2], 'body_hash': sys.argv[3]},
-    {'path': sys.argv[4], 'overall': sys.argv[5], 'body_hash': sys.argv[6]},
+    {'path': sys.argv[1], 'overall': sys.argv[2], 'body_hash': sys.argv[3], 'content_address': 'sha256:' + sys.argv[4]},
+    {'path': sys.argv[5], 'overall': sys.argv[6], 'body_hash': sys.argv[7], 'content_address': 'sha256:' + sys.argv[8]},
 ]))
-" "$V1_PERSIST" "$OVERALL1" "$HASH1" "$V2_PERSIST" "$OVERALL2" "$HASH2")
+" "$V1_PERSIST" "$OVERALL1" "$HASH1" "$V1_SHA" "$V2_PERSIST" "$OVERALL2" "$HASH2" "$V2_SHA")
 
 echo "MIGRATED: $PROJECT commit=$NEW_COMMIT (verified CLEAN x2, body_hash=$HASH1)"
 write_out "MIGRATED" "" "$NEW_COMMIT" "$(current_data_change)" "" "$REVIEW_REF_ID" "$VERIFICATION_JSON" "$BACKUP_MARKER_JSON"

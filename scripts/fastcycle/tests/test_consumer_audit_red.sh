@@ -343,10 +343,12 @@ else
     bad "D2 B4 unknown-id rejected: an out-of-set project_id was not correctly rejected/reported (see $WORK/d_summary2.json)"
 fi
 
-# --- D2b/D2c: T177 Round 2 R2-I6(b) -- duplicate-record resolution by
-# REAL MTIME (most-recent-write-wins), never by lexicographic FILENAME
-# order; and a MIGRATED claim carrying NO genuine double-verify evidence
-# is never silently counted. Reviewer's exact repro: an alphabetically
+# --- D2b/D2c: T177 Round 2 R2-I6(b), re-specified in Round 3 (finding 1):
+# duplicate records are resolved by CONTENT VALIDITY, never by file
+# metadata (Round 2 used mtime; Round 3 replaces that -- see audit.py's
+# cmd_summary and Section E below): an INVALID record (here a bare MIGRATED
+# claim carrying NO genuine double-verify evidence) never counts and never
+# overrides a VALID one, whatever its name or mtime. Reviewer's exact repro: an alphabetically
 # LATER `z_stale.json {"outcome":"MIGRATED"}` (no verification field at
 # all) must NOT override a genuinely NEWER, honest `a_new.json`
 # NOT-MIGRATED record for the SAME project_id.
@@ -375,9 +377,9 @@ reasons = d.get('not_migrated_by_reason', {})
 ok = d.get('migrated') == 0 and sum(reasons.values()) == 1 and 'NOT-MIGRATED (dirty-local)' in reasons
 sys.exit(0 if ok else 1)
 " 2>/dev/null; then
-    ok "D2b R2-I6(b) mtime-wins dedup: the genuinely MORE RECENT record (a_new.json, NOT-MIGRATED) is the one counted for HelixDevelopment/ota, never the alphabetically-later-but-chronologically-STALE z_stale.json's bare MIGRATED claim"
+    ok "D2b R2-I6(b)/R3 finding 1 dedup: the VALID record (a_new.json, NOT-MIGRATED (dirty-local)) is the one counted for HelixDevelopment/ota, never z_stale.json's evidence-free bare MIGRATED claim"
 else
-    bad "D2b R2-I6(b) mtime-wins dedup: summary did not resolve the duplicate by real recency (rc=$D2B_RC out=$D2B_OUT; see $WORK/d_summary3.json)"
+    bad "D2b R2-I6(b)/R3 finding 1 dedup: summary let an invalid record override or join a valid one (rc=$D2B_RC out=$D2B_OUT; see $WORK/d_summary3.json)"
 fi
 
 D_MIGDIR4="$WORK/d_migrations4"
@@ -390,8 +392,11 @@ D2C_OUT=$(run_tool summary --consumers "$CONSUMERS3" --audits "$WORK/d_audits_em
 if python3 -c "
 import json, sys
 d = json.load(open('$WORK/d_summary4.json'))
-reasons = d.get('not_migrated_by_reason', {})
-ok = d.get('migrated') == 0 and reasons.get('record-missing-verification-evidence') == 1
+# T177 Round 3 finding 1: an invalid record is reported in its OWN
+# invalid_records_by_class bucket and is NOT counted toward coverage
+# (Round 2 filed it under not_migrated_by_reason, which counted it).
+inv = d.get('invalid_records_by_class', {})
+ok = d.get('migrated') == 0 and inv.get('record-missing-verification-evidence') == 1 and d.get('coverage') == 0.0 and not d.get('not_migrated_by_reason')
 sys.exit(0 if ok else 1)
 " 2>/dev/null; then
     ok "D2c R2-I6(b) verification-required: a bare {\"outcome\":\"MIGRATED\"} record with NO 'verification' field is never counted as a real migration -- reported as record-missing-verification-evidence instead"
@@ -527,6 +532,83 @@ sys.exit(0 if paths == expected else 1)
     fi
 else
     echo "NOTE: D6 I9 all-checkouts-audited SKIPPED -- fewer than 3 of the expected /mnt/track{2,3,4}/helix_skills checkouts are present on this host ($D6_CHECKOUTS_PRESENT/3); not a test failure, a host-topology precondition"
+fi
+
+# =============================================================================
+# Section E -- T177 Round 3 finding 1: `summary` must never report full
+# coverage for an incomplete or meaningless input. The reviewer's three
+# repros, at the reviewer's own scale (19 projects): (a) records carrying
+# only {"project_id": ...}; (b) records from migrate.sh's own default dry
+# run; (c) a consumers file written by a DEGRADED enumeration. Plus a
+# conflicting-records case and a negative control (§11.4.201(1)).
+# =============================================================================
+E_DIR="$WORK/e_summary"
+mkdir -p "$E_DIR/aud"
+python3 - "$E_DIR" <<'PYEOF'
+import json, os, sys
+d = sys.argv[1]
+ids = ["e-org/p%02d" % i for i in range(19)]
+projects = [{"project_id": i} for i in ids]
+reach_ok = {"github_degraded": [], "gitlab_degraded": []}
+reach_bad = {"github_degraded": [{"org": "e-org", "reason": "repo-list-error"}], "gitlab_degraded": []}
+json.dump({"schema": "consumers/v1", "projects": projects, "source_reachability": reach_ok}, open(os.path.join(d, "cons_ok.json"), "w"))
+json.dump({"schema": "consumers/v1", "projects": projects, "source_reachability": reach_bad}, open(os.path.join(d, "cons_degraded.json"), "w"))
+VER = [{"path": "v1.json", "overall": "CLEAN", "body_hash": "h"}, {"path": "v2.json", "overall": "CLEAN", "body_hash": "h"}]
+sets = {
+    "ids_only": lambda i: {"project_id": i},
+    "dry_run_legacy": lambda i: {"project_id": i, "outcome": "NOT-MIGRATED", "not_migrated_reason": "NOT-MIGRATED (preflight: dry-run)", "data_change": "NONE"},
+    "dry_run_new": lambda i: {"project_id": i, "outcome": "DRY-RUN", "data_change": "NONE"},
+    "nonconforming": lambda i: {"project_id": i, "outcome": "NOT-MIGRATED", "not_migrated_reason": "NOT-MIGRATED (gitlink-bump: local-git-error)", "data_change": "NONE"},
+    "valid": lambda i: {"project_id": i, "outcome": "NOT-MIGRATED", "not_migrated_reason": "NOT-MIGRATED (dirty-local)", "data_change": "NONE"},
+}
+for name, mk in sets.items():
+    os.makedirs(os.path.join(d, name), exist_ok=True)
+    for i in ids:
+        json.dump(mk(i), open(os.path.join(d, name, i.replace("/", "__") + ".json"), "w"))
+# conflict: all valid, but p00 ALSO has a second, DIFFERENT valid record
+os.makedirs(os.path.join(d, "conflict"), exist_ok=True)
+for i in ids:
+    json.dump(sets["valid"](i), open(os.path.join(d, "conflict", i.replace("/", "__") + ".json"), "w"))
+json.dump({"project_id": ids[0], "outcome": "MIGRATED", "commit": "c0ffee", "data_change": "NONE", "verification": VER},
+          open(os.path.join(d, "conflict", "zz_second_record.json"), "w"))
+PYEOF
+e_summary() {
+    # $1=consumers-file $2=migrations-subdir $3=label -> sets E_RC; writes $E_DIR/$3.json
+    run_tool summary --consumers "$E_DIR/$1" --audits "$E_DIR/aud" --migrations "$E_DIR/$2" --out "$E_DIR/$3.json" >/dev/null 2>&1
+    E_RC=$?
+}
+e_field() {
+    python3 -c "import json,sys; print(json.dumps(json.load(open('$E_DIR/$1.json')).get('$2')))" 2>/dev/null
+}
+for case in ids_only dry_run_legacy dry_run_new nonconforming; do
+    e_summary cons_ok.json "$case" "$case"
+    if [ "$E_RC" -ne 0 ] && [ "$(e_field "$case" coverage)" = "0.0" ]; then
+        ok "E1 R3 finding 1 ($case): 19 records of this kind give coverage 0.0 and a non-zero exit -- never counted as 19/19"
+    else
+        bad "E1 R3 finding 1 ($case): summary counted invalid records toward coverage (rc=$E_RC coverage=$(e_field "$case" coverage); see $E_DIR/$case.json)"
+    fi
+done
+e_summary cons_degraded.json valid degraded
+if [ "$E_RC" -ne 0 ] && [ "$(e_field degraded coverage_trusted)" = "false" ] && [ "$(e_field degraded enumeration_reachability)" = '"degraded"' ]; then
+    ok "E2 R3 finding 1(c): a consumers file from a DEGRADED enumeration is refused (exit non-zero, coverage_trusted=false) even with 19/19 valid records"
+else
+    bad "E2 R3 finding 1(c): a degraded consumers file was trusted (rc=$E_RC; see $E_DIR/degraded.json)"
+fi
+e_summary cons_ok.json conflict conflict
+if [ "$E_RC" -ne 0 ] && python3 -c "
+import json, sys
+d = json.load(open('$E_DIR/conflict.json'))
+sys.exit(0 if 'e-org/p00' in (d.get('conflicting_records') or {}) and 'e-org/p00' in d.get('uncovered_ids', []) and d.get('coverage_trusted') is False else 1)
+" 2>/dev/null; then
+    ok "E3 R3 finding 1 conflict: two VALID but DIFFERENT records for one project are reported as conflicting, that project is not covered, and the run exits non-zero"
+else
+    bad "E3 R3 finding 1 conflict: conflicting records were silently resolved (rc=$E_RC; see $E_DIR/conflict.json)"
+fi
+e_summary cons_ok.json valid valid
+if [ "$E_RC" -eq 0 ] && [ "$(e_field valid coverage)" = "1.0" ] && [ "$(e_field valid coverage_trusted)" = "true" ]; then
+    ok "E4 negative control (§11.4.201(1)): a COMPLETE enumeration with 19 valid closed-set records gives coverage 1.0, trusted, exit 0 -- the new checks do not refuse a genuinely complete run"
+else
+    bad "E4 negative control: a genuinely complete, valid input was refused (rc=$E_RC; see $E_DIR/valid.json)"
 fi
 
 # Archive this run's stdout as the RED evidence per Test Discipline.

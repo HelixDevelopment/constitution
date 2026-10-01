@@ -34,10 +34,12 @@ into "zero hits" -- that is exactly the false-null this constitution
 forbids. Every such failure is recorded, per org (and per repo for the
 submodule probe), in the output doc's `source_reachability` block, and
 the run exits loudly (5) rather than reporting a quietly-undercounted
-project set as if it were complete. Only a REAL HTTP 404 (the org/group/
-repo genuinely does not exist) is treated as a normal negative and folded
-into an empty/absent result, exactly as CA-002 already treats a missing
-GitLab group.
+project set as if it were complete. A REAL HTTP 404 is a normal negative
+ONLY where absence is expected: a GitLab group (CA-002) or a repo's
+`contents/constitution` path; an empty GitHub repo's HTTP 409 is likewise
+a confirmed absence. A 404 on one of this project's OWN configured GitHub
+owning orgs is NOT -- it means the configured name is wrong and is
+recorded degraded as `repo-list-org-not-found` (T177 Round 3 finding 10).
 
 Exit codes (contract "Exit codes"): 0 ok; 1 --determinism-check mismatch;
 2 usage/config error; 3 needle failure (CA-004); 4 all sources
@@ -92,58 +94,47 @@ def load_config(path):
 
 
 HTTP_404_RE = re.compile(r"HTTP 404\b")
+HTTP_409_EMPTY_RE = re.compile(r"HTTP 409\b.*[Rr]epository is empty|[Rr]epository is empty.*HTTP 409\b")
 
 
-def gh_json(args, timeout=GH_TIMEOUT_S):
-    """Returns (parsed_out_or_None, status) where status is one of
-    "ok" (the call succeeded, out may legitimately be None for a
-    non-JSON/empty body), "http_404" (a genuine, confirmed-absent 404 --
-    a normal negative, never an error) or "error" (auth failure, rate
-    limit, network error, timeout, or any other non-404 failure -- MUST
-    NOT be read as "zero results", §11.4.201(6))."""
-    try:
-        proc = subprocess.run(
-            ["gh"] + args, capture_output=True, text=True, timeout=timeout,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return None, "error"
-    if proc.returncode != 0:
-        if HTTP_404_RE.search(proc.stderr or ""):
-            return None, "http_404"
-        return None, "error"
-    try:
-        return json.loads(proc.stdout), "ok"
-    except ValueError:
-        return None, "ok"
+# (T177 Round 3: the former gh_json() helper is removed -- its only
+# caller, gh_repo_list(), now parses `--jq` line output directly.)
 
 
 def gh_repo_list(org):
     """Returns (repos_or_None, status). status="ok" means repos is a
     real (possibly empty) list that MAY be trusted as complete for this
-    org; status="error" means the call genuinely failed (auth/rate-
-    limit/network/malformed) and repos MUST NOT be treated as zero --
-    the caller records this org as degraded, never silently drops it
-    (§11.4.201(6), T177 Round 1 B1)."""
-    out, status = gh_json(["api", "orgs/%s/repos" % org, "--paginate", "--jq", ".[].name"])
-    if status == "http_404":
-        return [], "ok"  # org genuinely does not exist -- a normal negative
-    if status != "ok":
-        return None, status
-    if out is None:
-        # --jq streams newline-delimited scalars, not a JSON array; re-run raw.
-        try:
-            proc = subprocess.run(
-                ["gh", "api", "orgs/%s/repos" % org, "--paginate", "--jq", ".[].name"],
-                capture_output=True, text=True, timeout=120,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            return None, "error"
-        if proc.returncode != 0:
-            if HTTP_404_RE.search(proc.stderr or ""):
-                return [], "ok"
-            return None, "error"
-        return [line for line in proc.stdout.splitlines() if line], "ok"
-    return [], "ok"
+    org; any other status means the call genuinely failed and repos MUST
+    NOT be treated as zero -- the caller records this org as degraded,
+    never silently drops it (§11.4.201(6), T177 Round 1 B1).
+
+    T177 Round 3 finding 10: an HTTP 404 on a CONFIGURED GitHub owning
+    org's repo list is NOT a normal negative. CA-002's "a missing group is
+    fine" reasoning belongs to GitLab GROUPS, where most configured names
+    genuinely have no GitLab presence; the `consumers.github_orgs` list is
+    this project's OWN declaration of where its consumers live, so a 404
+    there means the configured name is wrong (mistyped, renamed, hidden
+    from this token, or a USER account rather than an org) and the run
+    MUST say so -- status "org-not-found", degraded, exit 5 -- never fold
+    it into "zero repos, all fine".
+
+    T177 Round 3 minor m2: the `--jq .[].name` output is newline-delimited
+    TEXT, always parsed as lines. The prior code first tried json.loads()
+    on it and, when that happened to succeed -- an org whose ONLY repo has
+    a numeric name such as `2048` parses as the JSON integer 2048 --
+    returned an EMPTY list, silently dropping that repo."""
+    try:
+        proc = subprocess.run(
+            ["gh", "api", "orgs/%s/repos" % org, "--paginate", "--jq", ".[].name"],
+            capture_output=True, text=True, timeout=120,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None, "error"
+    if proc.returncode != 0:
+        if HTTP_404_RE.search(proc.stderr or ""):
+            return None, "org-not-found"
+        return None, "error"
+    return [line.strip() for line in proc.stdout.splitlines() if line.strip()], "ok"
 
 
 def gh_probe_submodule(org, repo):
@@ -161,6 +152,14 @@ def gh_probe_submodule(org, repo):
         return None, "error"
     if proc.returncode != 0:
         if HTTP_404_RE.search(proc.stderr or ""):
+            return False, "ok"
+        # T177 Round 3 minor m1: GitHub answers the contents API for an
+        # EMPTY repository (no commits at all) with HTTP 409 "Git
+        # Repository is empty" -- such a repo genuinely has no
+        # `constitution` entry (CA-001 probes non-empty repos only), so this
+        # is a confirmed absence, never a degraded probe that would make
+        # every run exit 5 the day any configured org gains an empty repo.
+        if HTTP_409_EMPTY_RE.search(proc.stderr or ""):
             return False, "ok"
         return None, "error"
     try:
@@ -204,8 +203,7 @@ def source1_github(orgs):
 
 
 def glab_json(args, timeout=GH_TIMEOUT_S):
-    """Returns (parsed_out_or_None, status), the GitLab analogue of
-    gh_json() -- a genuine HTTP 404 (group/project absent) is a normal
+    """Returns (parsed_out_or_None, status) -- a genuine HTTP 404 (group/project absent) is a normal
     negative ("ok", empty), any OTHER failure (auth/rate-limit/network)
     is "error" and MUST be surfaced, never silently folded into "no
     hits" (§11.4.201(6), T177 Round 1 B1).

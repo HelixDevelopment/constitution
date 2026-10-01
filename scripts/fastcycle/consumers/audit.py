@@ -63,6 +63,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -104,9 +105,9 @@ def sh(args, cwd=None, timeout=20):
 def measure_behind(const_root, gitlink):
     if not gitlink:
         return None
-    exists = sh(["git", "-C", const_root, "cat-file", "-e", gitlink])
-    # cat-file -e prints nothing on success; sh() returns "" (falsy-looking
-    # but not None) on success, None on failure/timeout.
+    # cat-file -e prints nothing and exits 0 iff the object exists (T177
+    # Round 3 minor: a leftover duplicate `exists = sh(...)` call whose
+    # result was never read is removed).
     proc = subprocess.run(["git", "-C", const_root, "cat-file", "-e", gitlink], capture_output=True, timeout=20)
     if proc.returncode != 0:
         return None
@@ -374,6 +375,64 @@ def cmd_audit(args):
     sys.exit(0)
 
 
+# data-model.md #13.3 closed vocabulary (CA-019). A NOT-MIGRATED record is
+# counted toward SC-010 coverage ONLY when its reason is EXACTLY one of
+# these DEC-25 forms -- T177 Round 3 finding 1.
+MIGRATION_STEPS = (
+    "preflight", "backup", "fetch", "gitlink-bump", "post-update-hook",
+    "consumer-gates", "wiring", "review", "commit", "push", "verify",
+)
+MIGRATION_REASONS = (
+    "dirty-local", "unreachable", "divergent-branches", "no-write-access",
+    "outside-migration-scope", "operator-blocked", "backup-failed",
+    "consumer-gates-red", "out-of-scope-diff", "no-commit-wrapper",
+    "review-no-go", "remote-rejected", "non-fast-forward",
+    "verification-not-clean",
+)
+_REASON_RE = re.compile(r"^NOT-MIGRATED \(([a-z-]+): ([a-z-]+)\)$")
+
+
+def classify_migration_record(rec):
+    """Returns (valid: bool, key: str). A VALID record is one this summary
+    may count toward coverage; key is "MIGRATED" or the exact closed-set
+    not_migrated_reason. An INVALID record is never counted; key names why:
+
+      record-missing-verification-evidence -- MIGRATED with no genuine
+          double-CLEAN, equal-body_hash verification pair (#13.3
+          "verification ... required iff MIGRATED");
+      nonconforming-reason -- NOT-MIGRATED whose reason is not EXACTLY a
+          closed-set DEC-25 form (e.g. the reviewer's repro records that
+          carried only {"project_id": ...} and were previously counted as
+          not-migrated with reason "UNKNOWN");
+      dry-run-only -- a dry run (CA-028: "planned diff and preflight
+          verdict only") is not a migration outcome at all; migrate.sh
+          writes outcome DRY-RUN, and the legacy "NOT-MIGRATED (preflight:
+          dry-run)" form older runs wrote is classified the same way;
+      missing-or-unknown-outcome -- anything else.
+    """
+    outcome = rec.get("outcome")
+    if outcome == "MIGRATED":
+        v = rec.get("verification")
+        if (isinstance(v, list) and len(v) == 2 and all(isinstance(e, dict) for e in v)
+                and all(e.get("overall") == "CLEAN" for e in v)
+                and v[0].get("body_hash") and v[0].get("body_hash") == v[1].get("body_hash")):
+            return True, "MIGRATED"
+        return False, "record-missing-verification-evidence"
+    if outcome == "DRY-RUN":
+        return False, "dry-run-only"
+    if outcome == "NOT-MIGRATED":
+        reason = rec.get("not_migrated_reason")
+        if reason == "NOT-MIGRATED (preflight: dry-run)":
+            return False, "dry-run-only"
+        if reason == "NOT-MIGRATED (dirty-local)":
+            return True, reason
+        m = _REASON_RE.match(reason or "")
+        if m and m.group(1) in MIGRATION_STEPS and m.group(2) in MIGRATION_REASONS and m.group(2) != "dirty-local":
+            return True, reason
+        return False, "nonconforming-reason"
+    return False, "missing-or-unknown-outcome"
+
+
 def cmd_summary(args):
     with open(args.consumers, "r", encoding="utf-8") as fh:
         consumers_doc = json.load(fh)
@@ -382,38 +441,51 @@ def cmd_summary(args):
     audit_files = glob.glob(os.path.join(args.audits, "*.json"))
     migration_files = glob.glob(os.path.join(args.migrations, "*.json")) if args.migrations and os.path.isdir(args.migrations) else []
 
-    # T177 Round 1 B4 fix: coverage MUST be counted by DISTINCT
-    # enumerated project_id, never by raw FILE count -- the prior code
-    # counted one unit per migration-record FILE and one unit per
-    # audit-record FILE, so N duplicate copies of a single project's
-    # record (a stray re-run leftover, a defect that writes the same id
-    # twice) inflated the numerator by N, and `coverage` could read 1.0
-    # on a directory holding only copies of ONE real record (reproduced
-    # live: 19 copies of one migration record + 19 empty audit files
-    # gave coverage=1.0 exit=0). `outcome_by_id` is keyed by project_id,
-    # so a duplicate file for the SAME id contributes exactly once; a
-    # record naming a project_id OUTSIDE the enumerated set is rejected
-    # and reported, never silently counted.
+    # T177 Round 3 finding 1(c): a consumers file written by a DEGRADED
+    # enumeration (enumerate.sh exit 5 -- some orgs/repos could not be
+    # probed) holds a project set that is real but INCOMPLETE. Its
+    # `projects` list is therefore NOT a trustworthy SC-010 denominator:
+    # 19/19 over a set that silently lost projects is a false 1.0. The
+    # previous code never read `source_reachability` at all. A degraded
+    # file now makes the summary refuse (coverage_trusted=false, exit 1),
+    # naming every degraded probe; a file with NO source_reachability
+    # block at all (hand-written, or pre-B1) is recorded as "unrecorded"
+    # and likewise never trusted as complete -- the absence of a
+    # reachability record is not evidence of reachability (§11.4.201(6)).
+    reach = consumers_doc.get("source_reachability")
+    if isinstance(reach, dict):
+        degraded = list(reach.get("github_degraded") or []) + list(reach.get("gitlab_degraded") or [])
+        enumeration_reachability = "degraded" if degraded else "complete"
+    else:
+        degraded = []
+        enumeration_reachability = "unrecorded"
+
+    # T177 Round 1 B4: counted by DISTINCT enumerated project_id, never by
+    # file count; out-of-set ids are reported, never counted.
     #
-    # T177 Round 2 R2-I6(b) fix: duplicate resolution now picks by real
-    # file MTIME (oldest processed first, so the dict assignment for a
-    # repeated id naturally keeps the MOST RECENT write), never
-    # lexicographic FILENAME order -- reproduced live: a hand-written
-    # stale `z_stale.json {"outcome":"MIGRATED"}` (alphabetically last,
-    # so filename-order picked it) silently overrode a genuinely newer,
-    # honest `a_new.json` NOT-MIGRATED record. ALSO: a MIGRATED claim
-    # with no genuine double-verify evidence embedded (data-model.md
-    # #13.3: "verification ... required iff MIGRATED") is untrustworthy
-    # on its face and is never silently counted as a real migration --
-    # closes the exact exploit a hand-crafted `{"outcome":"MIGRATED"}`
-    # with no other fields previously sailed through as coverage=1.0.
-    outcome_by_id = {}
+    # T177 Round 3 finding 1 (supersedes Round 2's mtime-wins rule): only
+    # VALID records (classify_migration_record) count. Duplicate files for
+    # one project are resolved by CONTENT, never by file metadata: if every
+    # valid record for a project agrees on (outcome, reason, commit) it
+    # counts once; if two valid records DISAGREE the project is reported in
+    # `conflicting_records` and is NOT covered -- mtime and filename order
+    # are both properties of the copy, not of the migration (a `cp`, a
+    # checkout, or a `touch` reorders them), so neither can decide which
+    # claim is true. Invalid records never count and never override a
+    # valid one; they are listed in `invalid_records_by_class`.
+    valid_by_id = {}
+    invalid_by_id = {}
     unknown_ids_seen = set()
-    for mf in sorted(migration_files, key=lambda p: (os.path.getmtime(p), p)):
+    unreadable = []
+    for mf in sorted(migration_files):
         try:
             with open(mf, "r", encoding="utf-8") as fh:
                 rec = json.load(fh)
         except (OSError, ValueError):
+            unreadable.append(os.path.basename(mf))
+            continue
+        if not isinstance(rec, dict):
+            unreadable.append(os.path.basename(mf))
             continue
         pid = rec.get("project_id")
         if not pid:
@@ -421,23 +493,30 @@ def cmd_summary(args):
         if pid not in known_ids:
             unknown_ids_seen.add(pid)
             continue
-        if rec.get("outcome") == "MIGRATED":
-            verification = rec.get("verification")
-            if isinstance(verification, list) and len(verification) == 2:
-                outcome_by_id[pid] = "MIGRATED"
-            else:
-                outcome_by_id[pid] = "record-missing-verification-evidence"
+        valid, key = classify_migration_record(rec)
+        if valid:
+            valid_by_id.setdefault(pid, set()).add((key, rec.get("commit") or ""))
         else:
-            outcome_by_id[pid] = rec.get("not_migrated_reason", "UNKNOWN")
+            invalid_by_id.setdefault(pid, []).append(key)
 
-    migrated_ids = {pid for pid, outcome in outcome_by_id.items() if outcome == "MIGRATED"}
-    migrated = len(migrated_ids)
+    migrated = 0
     not_migrated_by_reason = {}
-    for pid, outcome in outcome_by_id.items():
-        if outcome == "MIGRATED":
+    conflicting = {}
+    for pid, sigs in valid_by_id.items():
+        if len(sigs) > 1:
+            conflicting[pid] = sorted("%s@%s" % (k, c or "-") for k, c in sigs)
             continue
-        not_migrated_by_reason[outcome] = not_migrated_by_reason.get(outcome, 0) + 1
-    not_migrated_total = sum(not_migrated_by_reason.values())
+        key = next(iter(sigs))[0]
+        if key == "MIGRATED":
+            migrated += 1
+        else:
+            not_migrated_by_reason[key] = not_migrated_by_reason.get(key, 0) + 1
+    covered = migrated + sum(not_migrated_by_reason.values())
+
+    invalid_records_by_class = {}
+    for pid, keys in invalid_by_id.items():
+        for k in keys:
+            invalid_records_by_class[k] = invalid_records_by_class.get(k, 0) + 1
 
     # `audited` likewise counts DISTINCT enumerated ids with a real
     # report on disk, never raw file count (the same B4 defect class).
@@ -448,11 +527,13 @@ def cmd_summary(args):
                 arec = json.load(fh)
         except (OSError, ValueError):
             continue
-        apid = arec.get("project_id")
+        apid = arec.get("project_id") if isinstance(arec, dict) else None
         if apid in known_ids:
             audited_ids.add(apid)
 
-    coverage = (migrated + not_migrated_total) / len(projects) if projects else 0.0
+    coverage = covered / len(projects) if projects else 0.0
+    uncovered = sorted(known_ids - {pid for pid in valid_by_id if pid not in conflicting})
+    coverage_trusted = enumeration_reachability == "complete" and not conflicting
 
     doc = {
         "schema": "summary/v1",
@@ -461,11 +542,32 @@ def cmd_summary(args):
         "migrated": migrated,
         "not_migrated_by_reason": not_migrated_by_reason,
         "coverage": coverage,
+        "coverage_trusted": coverage_trusted,
+        "enumeration_reachability": enumeration_reachability,
+        "uncovered_ids": uncovered,
     }
+    if degraded:
+        doc["enumeration_degraded"] = degraded
+    if conflicting:
+        doc["conflicting_records"] = conflicting
+    if invalid_records_by_class:
+        doc["invalid_records_by_class"] = invalid_records_by_class
+    if unreadable:
+        doc["unreadable_record_files"] = sorted(unreadable)
     if unknown_ids_seen:
         doc["unknown_ids_ignored"] = sorted(unknown_ids_seen)
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(doc, fh, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    if not coverage_trusted:
+        why = []
+        if enumeration_reachability == "degraded":
+            why.append("the consumers file comes from a DEGRADED enumeration (%d probe(s) failed) -- its project set is incomplete" % len(degraded))
+        elif enumeration_reachability == "unrecorded":
+            why.append("the consumers file carries no source_reachability block -- completeness of its project set is unknown")
+        if conflicting:
+            why.append("%d project(s) have conflicting valid records: %s" % (len(conflicting), ", ".join(sorted(conflicting))))
+        print("audit.py summary: coverage NOT trusted: %s" % "; ".join(why), file=sys.stderr)
+        sys.exit(1)
     sys.exit(0 if coverage == 1.0 else 1)
 
 

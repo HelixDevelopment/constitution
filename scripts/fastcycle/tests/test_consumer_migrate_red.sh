@@ -611,6 +611,11 @@ git -C "$D_MAIN" commit -q -m "initial worktree-fixture consumer state"
 git -C "$D_MAIN" remote add origin "$D_BARE"
 git -C "$D_MAIN" push -q origin main
 git -C "$D_MAIN" branch wt-branch
+# T177 Round 3: wt-branch is PUBLISHED to origin so the worktree passes the
+# new finding-4 preflight (a branch with no published counterpart on any
+# remote is refused as divergent-branches before any write) and reaches
+# the backup step this section exists to exercise.
+git -C "$D_MAIN" push -q origin wt-branch
 D_WT_BUILD_RC=0
 git -C "$D_MAIN" worktree add -q "$D_WT" wt-branch >"$WORK/d_worktree_add.log" 2>&1 || D_WT_BUILD_RC=$?
 if [ "$D_WT_BUILD_RC" -ne 0 ] || [ ! -f "$D_WT/.git" ]; then
@@ -965,9 +970,16 @@ mkdir -p "$H_MC_WORK/scripts"
 # The hook stub: writes its OWN real `pwd` to a marker path OUTSIDE the
 # checkout tree (so it is never mistaken for migrate.sh's own residue,
 # and survives independent of $WORKDIR's own post-migration state).
+# T177 Round 3 finding 5(c): the stub ALSO records the PROJECT_ROOT and
+# CONST_DIR it was handed -- H1 previously checked only `pwd`, so dropping
+# the explicit PROJECT_ROOT=/CONST_DIR= assignments from migrate.sh's hook
+# call survived the whole suite (the real hook defaults PROJECT_ROOT to
+# pwd, so a correct cwd alone does not prove the variables are passed).
 cat > "$H_MC_WORK/scripts/post_update_hook.sh" <<EOF
 #!/bin/sh
 pwd > "$WORK/h_hook_pwd_marker.txt"
+printf '%s\n' "\${PROJECT_ROOT:-UNSET}" > "$WORK/h_hook_project_root_marker.txt"
+printf '%s\n' "\${CONST_DIR:-UNSET}" > "$WORK/h_hook_const_dir_marker.txt"
 exit 0
 EOF
 chmod +x "$H_MC_WORK/scripts/post_update_hook.sh"
@@ -1020,6 +1032,13 @@ if [ "$H_RC" -eq 0 ] && echo "$H_OUT" | grep -q 'MIGRATED' && [ -f "$WORK/h_hook
 else
     bad "H1 B2 hook-cwd: the hook did not run against \$WORKDIR (rc=$H_RC out=$H_OUT marker=$(cat "$WORK/h_hook_pwd_marker.txt" 2>/dev/null || echo ABSENT) expected=$H_ROOT/checkout)"
 fi
+H1B_PR=$(cat "$WORK/h_hook_project_root_marker.txt" 2>/dev/null || echo ABSENT)
+H1B_CD=$(cat "$WORK/h_hook_const_dir_marker.txt" 2>/dev/null || echo ABSENT)
+if [ "$H1B_PR" = "$H_ROOT/checkout" ] && [ "$H1B_CD" = "$H_ROOT/checkout/constitution" ]; then
+    ok "H1b R3 finding 5(c): the hook received PROJECT_ROOT=\$WORKDIR and CONST_DIR=\$WORKDIR/constitution explicitly (not merely a correct cwd)"
+else
+    bad "H1b R3 finding 5(c): the hook did not receive PROJECT_ROOT/CONST_DIR explicitly (PROJECT_ROOT=$H1B_PR CONST_DIR=$H1B_CD expected $H_ROOT/checkout and $H_ROOT/checkout/constitution)"
+fi
 
 # --- H2/H3: I5 -- a "Consumer gates: <script>" marker line names a
 # genuinely-discovered, genuinely-run consumer gate script; a failing
@@ -1061,7 +1080,6 @@ rm -rf "$H2_WORK"
 git clone -q --no-hardlinks "$H2_BARE" "$H_ROOT/checkout2" >/dev/null 2>&1
 git -C "$H_ROOT/checkout2" config user.name fastcycle-fixture
 git -C "$H_ROOT/checkout2" config user.email fixture@example.invalid
-H2_HASH_BEFORE=$(tree_hash "$H_ROOT/checkout2")
 H2_REVIEW_REF=$(make_review_ref "fixture/section_h2_failing_gate" "$H_NEW_SHA" "$(git -C "$H_ROOT/checkout2" rev-parse HEAD)")
 H2_OUT=$(run_tool --config "$CFG" --project "fixture/section_h2_failing_gate" \
     --workdir "$H_ROOT/checkout2" --out "$WORK/h2_migration.json" --apply --review-ref "$H2_REVIEW_REF"); H2_RC=$?
@@ -1070,11 +1088,19 @@ if [ "$H2_RC" -eq 1 ] && echo "$H2_OUT" | grep -q 'NOT-MIGRATED (consumer-gates:
 else
     bad "H2 I5 consumer-gates discovery: a declared, genuinely-failing consumer gate did NOT block the migration (rc=$H2_RC out=$H2_OUT)"
 fi
-H2_HASH_AFTER_GITLINK=$(git -C "$H_ROOT/checkout2" ls-tree HEAD constitution 2>/dev/null | awk '{print $3}')
-if [ "$H2_HASH_AFTER_GITLINK" = "$H_OLD_SHA" ]; then
-    ok "H3 I1 restore-on-gate-failure: the consumer-gates refusal genuinely restored the gitlink to its pre-migration value ($H_OLD_SHA), never left staged/committed"
+# --- H3: T177 Round 3 finding 5(e) -- the former H3 compared `ls-tree HEAD`
+# (which cannot change before step 7's commit, so it could never fail) and
+# computed an H2_HASH_BEFORE it never compared (shellcheck SC2034). It is
+# replaced by a check that CAN fail: after the refusal the checkout's
+# `git status --porcelain` must be EMPTY and the record's data_change must
+# be exactly "NONE" -- a restore that left the bumped gitlink staged (or
+# any other residue) makes status non-empty and fails here.
+H3_STATUS=$(git -C "$H_ROOT/checkout2" status --porcelain=v1 2>/dev/null)
+H3_DC=$(python3 -c "import json; print(json.load(open('$WORK/h2_migration.json')).get('data_change'))" 2>/dev/null)
+if [ -z "$H3_STATUS" ] && [ "$H3_DC" = "NONE" ]; then
+    ok "H3 I1 restore-on-gate-failure: after the consumer-gates refusal the checkout is genuinely clean (empty git status) and the record's data_change is NONE"
 else
-    bad "H3 I1 restore-on-gate-failure: the gitlink was NOT restored after the consumer-gates refusal (got $H2_HASH_AFTER_GITLINK, expected $H_OLD_SHA)"
+    bad "H3 I1 restore-on-gate-failure: residue after the consumer-gates refusal (status='$H3_STATUS' data_change=$H3_DC)"
 fi
 # --- H3b: I2 -- H3 alone is TAUTOLOGICAL: `ls-tree HEAD` can never change
 # for a migration refused BEFORE `git commit` ever runs (the consumer-
@@ -1093,6 +1119,324 @@ if [ "$H2_INDEX_SHA" = "$H_OLD_SHA" ]; then
 else
     bad "H3b I2 restore-on-gate-failure (index): the index still holds a gitlink SHA different from the pre-migration value (got $H2_INDEX_SHA, expected $H_OLD_SHA) -- restore_staged_gitlink() did not genuinely run"
 fi
+# --- H3c: T177 Round 3 finding 6 (fixed by Round 2's scratch isolation,
+# regression-guarded here): a SECOND run on the SAME checkout after a
+# consumer-gates refusal must reach the gates again, never be stuck on
+# dirty-local because of the tool's OWN leftover log file.
+H3C_OUT=$(run_tool --config "$CFG" --project "fixture/section_h2_failing_gate" \
+    --workdir "$H_ROOT/checkout2" --out "$WORK/h2c_migration.json" --apply --review-ref "$H2_REVIEW_REF"); H3C_RC=$?
+if [ "$H3C_RC" -eq 1 ] && echo "$H3C_OUT" | grep -q 'NOT-MIGRATED (consumer-gates: consumer-gates-red)'; then
+    ok "H3c R3 finding 6: a re-run after a gates refusal reaches the gates again (no self-inflicted dirty-local from the tool's own log files)"
+else
+    bad "H3c R3 finding 6: a re-run after a gates refusal did not reach the gates again (rc=$H3C_RC out=$H3C_OUT)"
+fi
+
+# =============================================================================
+# Section I -- T177 Round 3 regressions (independent Opus round-2 review,
+# findings 2, 3, 4, 5, 9 + new findings N1/m4). Every subsection builds a
+# FRESH mini-constitution + consumer via build_r3_fixture(), so no state
+# leaks between them. All fixtures are local bare repos (no network).
+# =============================================================================
+build_r3_fixture() {
+    # $1=root $2=hook-source-file-or-empty -> sets R3_OLD/R3_NEW; the
+    # consumer checkout is $1/checkout, its bare remote $1/consumer.git.
+    _r=$1; _hook=${2:-}
+    mkdir -p "$_r"
+    git init --bare -q -b main "$_r/mc.git"
+    _w=$(mktemp -d)
+    git init -q -b main "$_w" >/dev/null
+    git -C "$_w" config user.name fastcycle-fixture
+    git -C "$_w" config user.email fixture@example.invalid
+    echo "old constitution state (Section I)" > "$_w/CLAUDE.md"
+    git -C "$_w" add CLAUDE.md
+    git -C "$_w" commit -q -m old
+    git -C "$_w" remote add origin "$_r/mc.git"
+    git -C "$_w" push -q origin main
+    R3_OLD=$(git -C "$_w" rev-parse HEAD)
+    echo "new constitution state (Section I target)" >> "$_w/CLAUDE.md"
+    if [ -n "$_hook" ]; then
+        mkdir -p "$_w/scripts"
+        cp "$_hook" "$_w/scripts/post_update_hook.sh"
+        chmod +x "$_w/scripts/post_update_hook.sh"
+        git -C "$_w" add scripts/post_update_hook.sh
+    fi
+    git -C "$_w" add CLAUDE.md
+    git -C "$_w" commit -q -m new
+    git -C "$_w" push -q origin main
+    R3_NEW=$(git -C "$_w" rev-parse HEAD)
+    rm -rf "$_w"
+    git init --bare -q -b main "$_r/consumer.git"
+    _w=$(mktemp -d)
+    git init -q -b main "$_w" >/dev/null
+    git -C "$_w" config user.name fastcycle-fixture
+    git -C "$_w" config user.email fixture@example.invalid
+    printf '## INHERITED FROM constitution/CLAUDE.md\n\nFixture consumer (T168 Section I, T177 Round 3).\n\n## Commit Policy\n\nCommit wrapper: none (plain git permitted)\n' > "$_w/CLAUDE.md"
+    mkdir -p "$_w/src"
+    echo 'int main(void) { return 0; }' > "$_w/src/product.c"
+    printf '[submodule "constitution"]\n\tpath = constitution\n\turl = %s\n' "$_r/mc.git" > "$_w/.gitmodules"
+    git -C "$_w" add CLAUDE.md .gitmodules src/product.c
+    git -C "$_w" update-index --add --cacheinfo 160000,"$R3_OLD",constitution
+    git -C "$_w" commit -q -m "initial Section I consumer state"
+    git -C "$_w" remote add origin "$_r/consumer.git"
+    git -C "$_w" push -q origin main
+    rm -rf "$_w"
+    git clone -q --no-hardlinks "$_r/consumer.git" "$_r/checkout" >/dev/null 2>&1
+    git -C "$_r/checkout" config user.name fastcycle-fixture
+    git -C "$_r/checkout" config user.email fixture@example.invalid
+}
+I_ROOT=$(mktemp -d)
+
+# --- I1/I2: finding 4 -- an UNPUBLISHED local commit touching product code
+# must never be pushed alongside the migration (CA-022). Reviewer's repro:
+# a local commit to src/product.c, then migrate --apply.
+build_r3_fixture "$I_ROOT/i1"
+echo "/* unrelated local product edit */" >> "$I_ROOT/i1/checkout/src/product.c"
+git -C "$I_ROOT/i1/checkout" commit -q -am "unrelated unpushed product change"
+I1_REMOTE_BEFORE=$(git -C "$I_ROOT/i1/consumer.git" rev-parse refs/heads/main)
+I1_REF=$(make_review_ref "fixture/section_i1" "$R3_NEW" "$(git -C "$I_ROOT/i1/checkout" rev-parse HEAD)")
+I1_OUT=$(run_tool --config "$CFG" --project "fixture/section_i1" --workdir "$I_ROOT/i1/checkout" \
+    --out "$WORK/i1_migration.json" --apply --review-ref "$I1_REF"); I1_RC=$?
+I1_REMOTE_AFTER=$(git -C "$I_ROOT/i1/consumer.git" rev-parse refs/heads/main)
+if [ "$I1_RC" -eq 1 ] && echo "$I1_OUT" | grep -q 'NOT-MIGRATED (preflight: divergent-branches)' \
+    && [ "$I1_REMOTE_BEFORE" = "$I1_REMOTE_AFTER" ]; then
+    ok "I1 R3 finding 4: an unpublished local product commit makes migrate.sh refuse at preflight (divergent-branches) and the remote tip is unchanged -- nothing unrelated was published"
+else
+    bad "I1 R3 finding 4: unpublished local product commit was not refused at preflight, or the remote moved (rc=$I1_RC out=$I1_OUT before=$I1_REMOTE_BEFORE after=$I1_REMOTE_AFTER)"
+fi
+if python3 -c "
+import json, sys
+d = json.load(open('$WORK/i1_migration.json'))
+sys.exit(0 if d.get('not_migrated_reason') == 'NOT-MIGRATED (preflight: divergent-branches)' and 'unpublished' in d.get('detail', '') and d.get('data_change') == 'NONE' else 1)
+" 2>/dev/null; then
+    ok "I2 R3 finding 4 record: the refusal record carries the closed-set reason, a detail naming the unpublished commit(s), and data_change NONE"
+else
+    bad "I2 R3 finding 4 record: unexpected refusal record (see $WORK/i1_migration.json)"
+fi
+
+# --- I3: finding 4 defence in depth at the push seam -- a hook that
+# itself creates a commit (so the push set would be 2 commits, not 1) is
+# refused before ANY push, and the remote is unchanged.
+I3_HOOK="$WORK/i3_committing_hook.sh"
+cat > "$I3_HOOK" <<'EOF'
+#!/usr/bin/env bash
+# A PATHSPEC commit (--only semantics): commits ONLY src/product.c and
+# leaves the staged gitlink bump in the index, so the migration's own
+# commit still lands and the push set is genuinely 2 commits.
+cd "$PROJECT_ROOT" && echo "/* sneaked in by a hook */" >> src/product.c \
+  && git -c user.name=h -c user.email=h@example.invalid commit -q -m "hook-made product commit" -- src/product.c
+EOF
+build_r3_fixture "$I_ROOT/i3" "$I3_HOOK"
+I3_REMOTE_BEFORE=$(git -C "$I_ROOT/i3/consumer.git" rev-parse refs/heads/main)
+I3_REF=$(make_review_ref "fixture/section_i3" "$R3_NEW" "$(git -C "$I_ROOT/i3/checkout" rev-parse HEAD)")
+I3_OUT=$(run_tool --config "$CFG" --project "fixture/section_i3" --workdir "$I_ROOT/i3/checkout" \
+    --out "$WORK/i3_migration.json" --apply --review-ref "$I3_REF"); I3_RC=$?
+I3_REMOTE_AFTER=$(git -C "$I_ROOT/i3/consumer.git" rev-parse refs/heads/main)
+if [ "$I3_RC" -eq 1 ] && echo "$I3_OUT" | grep -q 'NOT-MIGRATED (push: out-of-scope-diff)' && [ "$I3_REMOTE_BEFORE" = "$I3_REMOTE_AFTER" ]; then
+    ok "I3 R3 finding 4 push-seam defence: a hook-created extra commit is never published (refused, remote tip unchanged)"
+else
+    bad "I3 R3 finding 4 push-seam defence: a hook-created extra commit reached the remote or was not refused (rc=$I3_RC out=$I3_OUT before=$I3_REMOTE_BEFORE after=$I3_REMOTE_AFTER)"
+fi
+
+# --- I4/I5/I6: findings 2 + 9 -- a hook shaped like the REAL
+# post_update_hook.sh (bash-only syntax; writes .mcp.json + skills/ into
+# PROJECT_ROOT) converges to MIGRATED, its two artefacts land IN the
+# migration commit, the tree is clean afterwards, and the hook ran under
+# bash. Also invoked with a RELATIVE --workdir (new finding N1: a relative
+# workdir made PROJECT_ROOT resolve twice and the hook wrote nowhere).
+I4_HOOK="$WORK/i4_real_shaped_hook.sh"
+cat > "$I4_HOOK" <<EOF
+#!/usr/bin/env bash
+WARNINGS=()
+WARNINGS+=("bash-only array append, as in the real hook")
+readlink /proc/\$\$/exe > "$WORK/i4_hook_interpreter.txt"
+printf '{"mcpServers":{}}\n' > "\$PROJECT_ROOT/.mcp.json"
+mkdir -p "\$PROJECT_ROOT/skills"
+echo "skill wiring" > "\$PROJECT_ROOT/skills/example.md"
+EOF
+build_r3_fixture "$I_ROOT/i4" "$I4_HOOK"
+I4_REF=$(make_review_ref "fixture/section_i4" "$R3_NEW" "$(git -C "$I_ROOT/i4/checkout" rev-parse HEAD)")
+I4_OUT=$(cd "$I_ROOT/i4" && run_tool --config "$CFG" --project "fixture/section_i4" --workdir "checkout" \
+    --out "$WORK/i4_migration.json" --apply --review-ref "$I4_REF"); I4_RC=$?
+I4_FILES=$(git -C "$I_ROOT/i4/checkout" show --name-only --format= HEAD 2>/dev/null | LC_ALL=C sort | tr '\n' ' ')
+I4_STATUS=$(git -C "$I_ROOT/i4/checkout" status --porcelain=v1 2>/dev/null)
+if [ "$I4_RC" -eq 0 ] && echo "$I4_OUT" | grep -q '^MIGRATED' \
+    && [ "$I4_FILES" = ".mcp.json constitution skills/example.md " ] && [ -z "$I4_STATUS" ]; then
+    ok "I4 R3 finding 2: the real hook's .mcp.json + skills/ output is staged INTO the migration commit (files: $I4_FILES), the record is MIGRATED and the tree is clean -- no untracked residue left after commit+push"
+else
+    bad "I4 R3 finding 2: hook output was not committed with the migration, or residue remains (rc=$I4_RC out=$I4_OUT commit-files='$I4_FILES' status='$I4_STATUS')"
+fi
+I4_INTERP=$(basename "$(cat "$WORK/i4_hook_interpreter.txt" 2>/dev/null || echo ABSENT)")
+# Compared against the host's REAL bash binary (resolved, since a distro
+# may name it bash5 etc.); on this host /bin/sh resolves to a DIFFERENT
+# binary (sh5), so an `sh "$HOOK"` mutation is distinguishable here.
+I4_BASH=$(basename "$(readlink -f "$(command -v bash)")")
+if [ "$I4_INTERP" = "$I4_BASH" ]; then
+    ok "I5 R3 finding 9: post_update_hook.sh ran under bash ($I4_INTERP), never sh"
+else
+    bad "I5 R3 finding 9: post_update_hook.sh ran under '$I4_INTERP', expected bash"
+fi
+if python3 -c "
+import json, sys
+d = json.load(open('$WORK/i4_migration.json'))
+v = d.get('verification') or []
+ok = (d.get('outcome') == 'MIGRATED' and d.get('data_change') == 'NONE' and len(v) == 2
+      and all(e.get('content_address', '').startswith('sha256:') and len(e['content_address']) == 71 for e in v)
+      and d.get('backup_marker', {}).get('content_address', '').startswith('sha256:'))
+sys.exit(0 if ok else 1)
+" 2>/dev/null; then
+    ok "I6 R3 finding 8: the MIGRATED record carries both verification reports' content addresses and the backup marker's content address"
+else
+    bad "I6 R3 finding 8: the MIGRATED record lacks verification/backup content addresses (see $WORK/i4_migration.json)"
+fi
+
+# --- I7: finding 5(b) -- a hook writing a file OUTSIDE the CA-022
+# allow-list is refused out-of-scope-diff, and the record's data_change
+# NAMES the real residue (never a hard-coded NONE).
+I7_HOOK="$WORK/i7_out_of_scope_hook.sh"
+cat > "$I7_HOOK" <<'EOF'
+#!/usr/bin/env bash
+echo "not dev tooling" > "$PROJECT_ROOT/HOOK_WROTE_HERE"
+EOF
+build_r3_fixture "$I_ROOT/i7" "$I7_HOOK"
+I7_REF=$(make_review_ref "fixture/section_i7" "$R3_NEW" "$(git -C "$I_ROOT/i7/checkout" rev-parse HEAD)")
+I7_OUT=$(run_tool --config "$CFG" --project "fixture/section_i7" --workdir "$I_ROOT/i7/checkout" \
+    --out "$WORK/i7_migration.json" --apply --review-ref "$I7_REF"); I7_RC=$?
+if [ "$I7_RC" -eq 1 ] && echo "$I7_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' && python3 -c "
+import json, sys
+d = json.load(open('$WORK/i7_migration.json'))
+sys.exit(0 if d.get('not_migrated_reason') == 'NOT-MIGRATED (wiring: out-of-scope-diff)' and d.get('data_change') == ['HOOK_WROTE_HERE'] and d.get('detail') == 'path=HOOK_WROTE_HERE' else 1)
+" 2>/dev/null; then
+    ok "I7 R3 finding 5(b): an out-of-allow-list hook artefact is refused with the closed-set reason, and data_change names the real residue (HOOK_WROTE_HERE)"
+else
+    bad "I7 R3 finding 5(b): out-of-scope hook artefact not refused honestly (rc=$I7_RC out=$I7_OUT; see $WORK/i7_migration.json)"
+fi
+
+# --- I8: finding 5(a) -- a review record bound to the right project and
+# base but the WRONG target_commit is refused review-no-go.
+build_r3_fixture "$I_ROOT/i8"
+I8_REF=$(make_review_ref "fixture/section_i8" "$R3_OLD" "$(git -C "$I_ROOT/i8/checkout" rev-parse HEAD)")
+I8_OUT=$(run_tool --config "$CFG" --project "fixture/section_i8" --workdir "$I_ROOT/i8/checkout" \
+    --out "$WORK/i8_migration.json" --apply --review-ref "$I8_REF"); I8_RC=$?
+if [ "$I8_RC" -eq 1 ] && echo "$I8_OUT" | grep -q 'NOT-MIGRATED (review: review-no-go)'; then
+    ok "I8 R3 finding 5(a): a review record whose target_commit names a DIFFERENT constitution commit is refused review-no-go"
+else
+    bad "I8 R3 finding 5(a): a review record bound to the wrong target_commit was accepted (rc=$I8_RC out=$I8_OUT)"
+fi
+
+# --- I9..I12: finding 3 -- the step-9 VERIFY DECISION itself (not merely
+# tool availability). A stub verifier (FASTCYCLE_VERIFY_TOOL_OVERRIDE, the
+# documented test-only hook) writes a CONTROLLED report, so each clause of
+# the decision is exercised in isolation: (I9) NOT_CLEAN with identical
+# body_hash and rc=1; (I10) CLEAN x2 but differing body_hash; (I11) CLEAN
+# x2, identical hash, but rc=1. Each MUST be NOT-MIGRATED. One checkout is
+# reused: the first run commits+pushes, later runs take the already-at-
+# target path, which runs the SAME step-9 decision.
+I9_STUB="$WORK/i9_stub_verify.py"
+cat > "$I9_STUB" <<'EOF'
+import json, os, sys
+mode = os.environ["FC_STUB_VERIFY_MODE"]
+out = sys.argv[sys.argv.index("--out") + 1]
+counter = out + ".n"
+n = 0
+if os.path.exists(os.environ["FC_STUB_COUNTER"]):
+    n = int(open(os.environ["FC_STUB_COUNTER"]).read() or 0)
+open(os.environ["FC_STUB_COUNTER"], "w").write(str(n + 1))
+if mode == "not-clean":
+    json.dump({"overall": "NOT_CLEAN", "body_hash": "same"}, open(out, "w")); sys.exit(1)
+if mode == "hash-differs":
+    json.dump({"overall": "CLEAN", "body_hash": "h%d" % n}, open(out, "w")); sys.exit(0)
+if mode == "rc-nonzero":
+    json.dump({"overall": "CLEAN", "body_hash": "same"}, open(out, "w")); sys.exit(1)
+json.dump({"overall": "CLEAN", "body_hash": "same"}, open(out, "w")); sys.exit(0)
+EOF
+build_r3_fixture "$I_ROOT/i9"
+I9_REF=$(make_review_ref "fixture/section_i9" "$R3_NEW" "$(git -C "$I_ROOT/i9/checkout" rev-parse HEAD)")
+i9_run() {
+    # $1=mode $2=label -> runs migrate.sh ($3 = tool path, default $TOOL)
+    _tool=${3:-$TOOL}
+    rm -f "$WORK/i9_counter"
+    FC_STUB_VERIFY_MODE=$1 FC_STUB_COUNTER="$WORK/i9_counter" FASTCYCLE_VERIFY_TOOL_OVERRIDE="$I9_STUB" \
+        sh "$_tool" --config "$CFG" --project "fixture/section_i9" --workdir "$I_ROOT/i9/checkout" \
+        --out "$WORK/i9_$2.json" --apply --review-ref "$I9_REF" 2>&1
+}
+for mode in not-clean hash-differs rc-nonzero; do
+    I9_OUT=$(i9_run "$mode" "$mode"); I9_RC=$?
+    if [ "$I9_RC" -eq 1 ] && echo "$I9_OUT" | grep -q 'NOT-MIGRATED (verify: verification-not-clean)'; then
+        ok "I9 R3 finding 3 verify decision ($mode): migrate.sh refuses MIGRATED when the verifier reports $mode"
+    else
+        bad "I9 R3 finding 3 verify decision ($mode): migrate.sh did not refuse (rc=$I9_RC out=$I9_OUT)"
+    fi
+done
+I9_OUT=$(i9_run clean clean); I9_RC=$?
+if [ "$I9_RC" -eq 0 ] && echo "$I9_OUT" | grep -q '^MIGRATED'; then
+    ok "I10 R3 finding 3 negative control (§11.4.201(1)): the same stub reporting CLEAN x2 with rc=0 and equal hashes yields MIGRATED -- the decision is not a refuse-everything gate"
+else
+    bad "I10 R3 finding 3 negative control: a genuinely clean stub verify did not yield MIGRATED (rc=$I9_RC out=$I9_OUT)"
+fi
+# I11: guard-viability (in-suite, on a scratch copy -- never the tracked
+# file): the reviewer's EXACT mutation, reducing the decision to
+# hash-only (`[ -z "$HASH1" ] || [ "$HASH1" != "$HASH2" ]`), must turn the
+# not-clean case into a (wrong) MIGRATED -- proving I9 is what catches it.
+I11_SCRATCH="$WORK/i11_migrate_hash_only.sh"
+python3 - "$TOOL" "$I11_SCRATCH" <<'PYEOF'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+s = open(src, encoding="utf-8").read()
+drop = [
+    '[ "$V1_RC" -ne 0 ] && VERIFY_FAIL="$VERIFY_FAIL v1_rc=$V1_RC"\n',
+    '[ "$V2_RC" -ne 0 ] && VERIFY_FAIL="$VERIFY_FAIL v2_rc=$V2_RC"\n',
+    '[ "$OVERALL1" != "CLEAN" ] && VERIFY_FAIL="$VERIFY_FAIL overall1=$OVERALL1"\n',
+    '[ "$OVERALL2" != "CLEAN" ] && VERIFY_FAIL="$VERIFY_FAIL overall2=$OVERALL2"\n',
+]
+for d in drop:
+    if s.count(d) != 1:
+        sys.exit(2)
+    s = s.replace(d, "")
+open(dst, "w", encoding="utf-8").write(s)
+PYEOF
+I11_BUILD_RC=$?
+I11_OUT=$(i9_run not-clean mutant "$I11_SCRATCH"); I11_RC=$?
+if [ "$I11_BUILD_RC" -eq 0 ] && [ "$I11_RC" -eq 0 ] && echo "$I11_OUT" | grep -q '^MIGRATED'; then
+    ok "I11 R3 finding 3 guard-viability: the reviewer's hash-only mutation of the step-9 decision wrongly reports MIGRATED on a NOT_CLEAN verify -- exactly what I9 refuses, so I9 is load-bearing"
+else
+    bad "I11 R3 finding 3 guard-viability: the hash-only mutant did not behave as the reviewer reproduced (build_rc=$I11_BUILD_RC rc=$I11_RC out=$I11_OUT) -- re-derive the mutation anchors"
+fi
+
+# --- I12: new finding m4 -- two runs started in the SAME second under the
+# same parent must get DISTINCT backup containers, never one nested inside
+# the other (reproduced live: `cp -al src EXISTING` nested the 2nd backup
+# as .git/ inside the 1st).
+# A stub `date` on PATH pins the timestamp so the "same second" collision
+# is DETERMINISTIC (the pre-fix code collided every time under it).
+build_r3_fixture "$I_ROOT/i12"
+I12_BIN="$WORK/i12_fixed_date_bin"
+mkdir -p "$I12_BIN"
+printf '#!/bin/sh\necho 20260101T000000Z\n' > "$I12_BIN/date"
+chmod +x "$I12_BIN/date"
+PATH="$I12_BIN:$PATH" run_tool --config "$CFG" --project "fixture/section_i12" --workdir "$I_ROOT/i12/checkout" --out "$WORK/i12a.json" --apply >/dev/null 2>&1
+PATH="$I12_BIN:$PATH" run_tool --config "$CFG" --project "fixture/section_i12" --workdir "$I_ROOT/i12/checkout" --out "$WORK/i12b.json" --apply >/dev/null 2>&1
+I12_N=$(find "$I_ROOT/i12" -maxdepth 1 -name '.fastcycle_migrate_backup_*' | wc -l)
+I12_NESTED=$(find "$I_ROOT/i12"/.fastcycle_migrate_backup_* -mindepth 1 -name .git 2>/dev/null | wc -l)
+if [ "$I12_N" -eq 2 ] && [ "$I12_NESTED" -eq 0 ]; then
+    ok "I12 R3 m4: two back-to-back runs produced 2 distinct backup containers, none nested in another"
+else
+    bad "I12 R3 m4: backup containers collided or nested (containers=$I12_N nested=$I12_NESTED)"
+fi
+
+# --- I13: finding 1(b) -- a dry run is recorded with outcome DRY-RUN,
+# never as a NOT-MIGRATED record with a reason outside the closed set.
+build_r3_fixture "$I_ROOT/i13"
+run_tool --config "$CFG" --project "fixture/section_i13" --workdir "$I_ROOT/i13/checkout" --out "$WORK/i13.json" >/dev/null 2>&1
+if python3 -c "
+import json, sys
+d = json.load(open('$WORK/i13.json'))
+sys.exit(0 if d.get('outcome') == 'DRY-RUN' and 'not_migrated_reason' not in d else 1)
+" 2>/dev/null; then
+    ok "I13 R3 finding 1(b): a dry run writes outcome DRY-RUN with no not_migrated_reason (never a counted NOT-MIGRATED record)"
+else
+    bad "I13 R3 finding 1(b): dry-run record shape is wrong (see $WORK/i13.json)"
+fi
+rm -rf "$I_ROOT" 2>/dev/null || true
 
 rm -rf "$H_ROOT" 2>/dev/null || true
 
