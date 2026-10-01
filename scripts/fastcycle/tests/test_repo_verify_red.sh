@@ -2153,4 +2153,85 @@ else
   not_ok "paired mutation (round-5 env strip): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r5m4.err")"
 fi
 
+# --- I6-1 (round 6): a .gitmodules path written as "subA/" (trailing slash) or "./subA" MUST
+# still be reported SUBMODULE_UNMAPPED -- real git does NOT treat either form as equivalent to
+# the bare "subA" (`git submodule status` fails with "no submodule mapping found in .gitmodules
+# for path 'subA'", and a fresh `clone --recurse-submodules` leaves it an EMPTY directory), but the
+# round-5 _walk() normalized the DECLARED side before comparing it against the tree's gitlinks,
+# letting such a path silently "match" and read CLEAN -- the same false-CLEAN class as I5-2.
+for variant in slash dot; do
+  I61="$TMP/rv_i61_noncanonical_$variant"
+  build_good_clean "$I61"
+  case "$variant" in
+    slash) decl="subA/" ;;
+    dot) decl="./subA" ;;
+  esac
+  git -C "$I61/parent" config -f .gitmodules submodule.subA.path "$decl"
+  git -C "$I61/parent" add .gitmodules
+  git -C "$I61/parent" commit -qm "I6-1: non-canonical .gitmodules path ($decl)"
+  git -C "$I61/parent" push -q origin main
+  git -C "$I61/parent" push -q mirror main
+  asha=$(git -C "$I61/parent" ls-tree HEAD -- subA | awk '{print $3}')
+  run_tool "$I61/parent" "$TMP/i61_$variant.json"; i61rc=$?
+  i61_over=$(report_field "$TMP/i61_$variant.json" 'd.get("overall")' 2>/dev/null)
+  i61_rs=$(report_field "$TMP/i61_$variant.json" "next((r['reasons'] for r in d['repos'] if r['path']=='subA'), None)" 2>/dev/null)
+  if [ -n "$asha" ] && [ "$i61rc" -eq 1 ] && [ "$i61_over" = "NOT_CLEAN" ] && [ "$i61_rs" = "['SUBMODULE_UNMAPPED']" ]; then
+    ok "rv_i61_noncanonical_$variant (I6-1): a .gitmodules path declared with a non-canonical form (variant=$variant) no longer silently matches the tree gitlink -- reported NOT_CLEAN/SUBMODULE_UNMAPPED, matching real git's own 'no submodule mapping found' behaviour"
+  else
+    not_ok "rv_i61_noncanonical_$variant (I6-1): sha='$asha' rc=$i61rc overall=$i61_over reasons=$i61_rs"
+  fi
+done
+printf '%s' '    declared = set(list_gitmodules(repo_path, timeout_s))' >"$TMP/r6m1_old.txt"
+printf '%s' '    declared = set(_norm_tree_path(p) for p in list_gitmodules(repo_path, timeout_s))  # MUTANT: restore round-5 normalization' >"$TMP/r6m1_new.txt"
+if mk_mutant mutant_r6m1 "$TMP/r6m1_old.txt" "$TMP/r6m1_new.txt" 2>"$TMP/mutant_r6m1.err"; then
+  python3 "$TMP/mutant_r6m1/verify/repo_verify.py" --recursive --root "$TMP/rv_i61_noncanonical_slash/parent" --out "$TMP/i61_mut.json" \
+    >"$TMP/i61_mut.out" 2>"$TMP/i61_mut.err"; i61m_rc=$?
+  i61m_over=$(report_field "$TMP/i61_mut.json" 'd.get("overall")' 2>/dev/null)
+  if [ "$i61m_rc" -eq 0 ] && [ "$i61m_over" = "CLEAN" ]; then
+    ok "paired mutation CAUGHT (I6-1): restoring the normalized comparison flips the SAME non-canonical-path fixture back to a false rc=0 CLEAN -- the exact-string comparison is genuinely load-bearing"
+  else
+    not_ok "paired mutation (I6-1): expected the mutant to reproduce the false CLEAN (rc=0), got rc=$i61m_rc overall=$i61m_over"
+  fi
+else
+  not_ok "paired mutation (I6-1): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r6m1.err")"
+fi
+
+# --- I6-2 (round 6, test-only gap -- NO production defect): a SINGLE-LINE push-rejection message
+# containing a credentialed URL (the shape a wrapper storing "the last stderr line" would most
+# plausibly produce) was never exercised by any I5-1 fixture; a mutant widening the safe-character
+# allow-list to also admit '@'/':'/'/ ' survives the suite without this case.
+write_push_log_oneline() {  # write_push_log_oneline <repo> <message>
+  python3 - "$(real_gitdir "$1")/fastcycle_push_log.json" "$2" <<'PY'
+import json, sys
+path, msg = sys.argv[1], sys.argv[2]
+json.dump({"remotes": {"origin": {"result": "REJECTED", "message": msg}}}, open(path, "w"))
+PY
+}
+I62="$TMP/rv_i62_push_log_oneline"
+build_push_log_fixture "$I62"
+i62_tok="ghp_SUPERSECRET123"
+write_push_log_oneline "$I62/repo" "failed to push some refs to https://user:$i62_tok@github.com/org/repo.git"
+python3 "$TOOL" --recursive --root "$I62/repo" --out "$TMP/i62.json" --md "$TMP/i62.md" \
+  >"$TMP/i62.out" 2>"$TMP/i62.err"; i62rc=$?
+i62_lp=$(report_field "$TMP/i62.json" 'd["repos"][0]["remotes"][0]["last_push_result"]' 2>/dev/null)
+if [ "$i62rc" -eq 1 ] && [ "$i62_lp" = "REJECTED(unrecognised; raw message withheld)" ] \
+   && ! grep -q "$i62_tok" "$TMP/i62.json" "$TMP/i62.md" "$TMP/i62.out" "$TMP/i62.err"; then
+  ok "rv_i62_push_log_oneline (I6-2): a single-line credentialed-URL push-rejection message (the shape a 'last stderr line' wrapper would most plausibly produce) also renders a fixed category, token in none of json/md/stdout/stderr"
+else
+  not_ok "rv_i62_push_log_oneline (I6-2): rc=$i62rc last_push=$i62_lp token-leak-check failed"
+fi
+printf '%s' "_PUSH_MSG_SAFE_RE = re.compile(r\"^[A-Za-z0-9 .,()_'-]{0,120}\$\")" >"$TMP/r6m2_old.txt"
+printf '%s' "_PUSH_MSG_SAFE_RE = re.compile(r\"^[A-Za-z0-9 .,()_'@:/-]{0,120}\$\")  # MUTANT: widen allow-list to admit URL characters" >"$TMP/r6m2_new.txt"
+if mk_mutant mutant_r6m2 "$TMP/r6m2_old.txt" "$TMP/r6m2_new.txt" 2>"$TMP/mutant_r6m2.err"; then
+  python3 "$TMP/mutant_r6m2/verify/repo_verify.py" --recursive --root "$I62/repo" --out "$TMP/i62_mut.json" \
+    >"$TMP/i62_mut.out" 2>"$TMP/i62_mut.err"
+  if grep -q "$i62_tok" "$TMP/i62_mut.json"; then
+    ok "paired mutation CAUGHT (I6-2): widening the push-message allow-list to admit URL characters leaks the token on the SAME single-line fixture -- the strict allow-list is genuinely load-bearing for this shape too"
+  else
+    not_ok "paired mutation (I6-2): the widened-allow-list mutant did NOT leak the token -- the fixture does not exercise the vector"
+  fi
+else
+  not_ok "paired mutation (I6-2): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r6m2.err")"
+fi
+
 [ "$fail" -eq 0 ] && exit 0 || exit 1

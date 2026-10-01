@@ -1133,7 +1133,14 @@ def _walk(repo_path, relpath, out_list, timeout_s, is_submodule=False, parent_gi
                                  required_remotes, scratch_objdir)
     out_list.append(result)
     parent_head = result["head"]
-    declared = set(_norm_tree_path(p) for p in list_gitmodules(repo_path, timeout_s))
+    # T158 round 6, finding I6-1: compare EXACTLY as .gitmodules declares it, never normalized --
+    # real git does NOT accept a trailing-slash or "./"-prefixed submodule.<name>.path value as
+    # equivalent to its bare form (`git submodule status` on a "subA/"-declared path fails with
+    # "no submodule mapping found in .gitmodules for path 'subA'", and a fresh
+    # `clone --recurse-submodules` leaves it an EMPTY directory) -- normalizing the declared side
+    # before this comparison let such a path silently "match" the tree's gitlink and read CLEAN,
+    # exactly the false-CLEAN class this check exists to catch (SUBMODULE_UNMAPPED, §11.4.233(G)).
+    declared = set(list_gitmodules(repo_path, timeout_s))
     for link_rel, link_sha in sorted(tree_gitlinks(repo_path, parent_head, timeout_s).items()):
         if link_rel not in declared:  # I5-2: in the tree, unmapped by .gitmodules
             out_list.append(_unmapped_result(_join_rel(relpath, link_rel), link_sha))
