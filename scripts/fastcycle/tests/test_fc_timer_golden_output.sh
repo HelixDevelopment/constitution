@@ -98,15 +98,39 @@
 #                                    triplet exists (default: the newest prebuild_full_run_*.log by
 #                                    mtime). Single-log checks only -- this log is never paired with
 #                                    anything.
+#   Env FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=<path> : checked-in known-flaky-gate registry (T048 round 11,
+#                                    R10-B1; default $HERE/known_flaky_gates.tsv). A registered gate's
+#                                    verdict line is excluded from BOTH sides of the real FR-002/T-A01
+#                                    comparison before it runs -- see the KNOWN-FLAKY REGISTRY note
+#                                    below. A missing or empty file means no exclusions, never a
+#                                    FATAL.
 #
-# NOISE FLOOR (diagnostic only): when the FC0a-vs-FC1 comparison mismatches, every changed line --
+# NOISE FLOOR: when the FC0a-vs-FC1 comparison mismatches, every changed line --
 #   removed (present without timers only) AND added (present with timers only; T048 round-5 R5-I3,
 #   the pre-fix classifier was blind to added lines) -- is checked against the SAME-direction
 #   change in FC0a-vs-FC0b. A line that also changes between two timer-free members of the same
 #   run is pre-existing noise. A line that does not is reported as "not explained by this ONE noise
 #   sample", never as "fc_timer-attributable": one noise pair cannot separate a timer effect from a
-#   rare flake (T048 round-5 m4). The classification NEVER changes the strict byte-for-byte
-#   FR-002/T-A01 verdict.
+#   rare flake (T048 round-5 m4). T048 round 8/9 (R8-B1) made this classification LOAD-BEARING, not
+#   diagnostic-only as this comment used to (wrongly) claim: a mismatch FULLY explained by this run's
+#   own noise floor (not_explained=0) is an honest SKIP of the comparison (rc=0), never the
+#   unconditional FAIL this file printed before round 8. (Round 11, R10-M1: the stale "NEVER changes
+#   the strict verdict" claim above was corrected to match that fact.)
+#
+# KNOWN-FLAKY REGISTRY (T048 round 11, R10-B1): a flaky, fc_timer-UNRELATED parent-repo gate can land
+#   in ANY member -- FC0a, FC0b, or FC1 (round 8's own table shows all three) -- but the noise floor
+#   above can only explain a deviation confined to a change the SAME-direction FC0a-vs-FC0b noise
+#   pair also shows; the SAME real flake landing in FC1 instead (never touching FC0a or FC0b) still
+#   produced an unconditional FAIL even after round 8/9's fix (reproduced by the round-10 reviewer,
+#   fixed this round). Before any comparison runs, every verdict line whose leading "<GATE-ID>: "
+#   token (a WARN:/ERROR: prefix is stripped first) EXACTLY matches a gate id registered in
+#   known_flaky_gates.tsv (Env FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=<path>, default
+#   $HERE/known_flaky_gates.tsv; consumer DATA per S11.4.35, every entry tied to a tracked defect
+#   report) is EXCLUDED from BOTH sides of the comparison entirely -- its own verdict is simply not
+#   considered, so the REST of the comparison decides pass/fail, exactly as for every other gate.
+#   This is NOT a blanket loophole: only the exact, checked-in, defect-tied gate ids on the registry
+#   are ever excluded; any other gate's deviation is still handled exactly as before (noise-floor
+#   SKIP if fully explained, FAIL otherwise).
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
@@ -116,6 +140,13 @@ if ! printf '%s' "$MAX_WINDOW_S" | grep -qE '^[1-9][0-9]*$'; then
   echo "FATAL: FC_TIMER_GOLDEN_MAX_WINDOW_S='$MAX_WINDOW_S' is not a positive integer"
   exit 2
 fi
+
+# T048 round 11 (R10-B1): checked-in known-flaky-gate registry, consumer DATA
+# per S11.4.35. Every entry MUST be tied to a tracked defect report -- this is
+# NOT a general-purpose "ignore any gate that failed once" escape hatch. A
+# missing or empty file means no exclusions (never a FATAL): a fresh checkout
+# with no registry yet behaves exactly like round 9.
+KNOWN_FLAKY_TSV="${FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV:-$HERE/known_flaky_gates.tsv}"
 
 TMP="$(mktemp -d)"
 cleanup() { rm -rf "$TMP"; }
@@ -221,7 +252,7 @@ _fc_ranges_overlap() {
 # actually checked.
 validate_triplet() {
   local mf="$1" dir fmt run_id mode prefix s f span m log sha want_sha timing want_timing tsv rows recount
-  local ex ms mf_ep absent=0
+  local ex ms mf_ep absent=0 concurrency_mode
   dir="$(dirname -- "$mf")"
   TRIPLET_STATE=invalid
   fmt="$(_mf_get format "$mf")" || fmt=""
@@ -232,6 +263,27 @@ validate_triplet() {
     TRIPLET_REASON="malformed manifest $mf (format='$fmt' run_id='$run_id' mode='$mode')"
     return
   fi
+  # T048 round 11 (R10-M4): `concurrency` is read and validated against its
+  # own closed set {concurrent, sequential} HERE, once, before anything
+  # downstream relies on its value. Round 10's own code read the raw
+  # manifest value TWICE independently and never validated it: a MISSING
+  # key (duplicated, so _mf_get returns empty) or a GARBLED value made the
+  # per-member-isolation refusal below never fire (empty/garbage != sequential
+  # is true, so the "concurrent-without-isolation" refusal was skipped) AND
+  # made the sequential-tree-changed refusal never fire either (empty/garbage
+  # != sequential), letting a tree-changed capture with an unreadable
+  # concurrency value sail through to TRIPLET_STATE=valid printing the false
+  # "all three members ran concurrently" claim on a value that was never
+  # actually proven concurrent. A conservative-safe REFUSE on an unresolvable
+  # value (S11.4.101/S11.4.201) closes this.
+  concurrency_mode="$(_mf_get concurrency "$mf")" || concurrency_mode=""
+  case "$concurrency_mode" in
+    concurrent|sequential) : ;;
+    *)
+      TRIPLET_REASON="manifest $mf has concurrency='$concurrency_mode', not one of the closed set {concurrent, sequential}"
+      return
+      ;;
+  esac
   # Round 7 (R6-I1/M3): the manifest is bound to its own filename, and the
   # member TSV paths are bound to run_id+prefix+member below.
   prefix="$(_mf_get prefix "$mf")" || prefix=""
@@ -330,17 +382,19 @@ validate_triplet() {
     TRIPLET_REASON="triplet $run_id is a stand-in capture (mode=$mode) -- never FR-002 evidence"
     return
   fi
-  if [ "$(_mf_get concurrency "$mf")" != sequential ] && [ "$(_mf_get tmpdir_isolation "$mf")" != per-member ]; then
+  if [ "$concurrency_mode" != sequential ] && [ "$(_mf_get tmpdir_isolation "$mf")" != per-member ]; then
     TRIPLET_STATE=refused
     TRIPLET_REASON="triplet $run_id ran its members concurrently WITHOUT per-member TMPDIR isolation (no tmpdir_isolation=per-member) -- concurrent members sharing one TMPDIR were measured to clobber each other's fixed \${TMPDIR}/<name> evidence dirs (T048 round 7, R6-B1), and the identical FC0a/FC0b twins collide identically, so neither the comparison nor its noise floor is trustworthy; re-capture with the current harness"
     return
   fi
   NOISE_LOG="$dir/$(_mf_get member.FC0b.log "$mf")"
   WITH_TIMERS_LOG="$dir/$(_mf_get member.FC1.log "$mf")"
-  local hs he ss se concurrency_mode
+  local hs he ss se
   hs="$(_mf_get tree_head_start "$mf")"; he="$(_mf_get tree_head_end "$mf")"
   ss="$(_mf_get tree_status_sha256_start "$mf")"; se="$(_mf_get tree_status_sha256_end "$mf")"
-  concurrency_mode="$(_mf_get concurrency "$mf")"
+  # concurrency_mode was already read + validated against its closed set
+  # {concurrent, sequential} above (T048 round 11, R10-M4) -- never re-read
+  # here, so there is exactly one source of truth for it in this function.
   # T048 round 8 (finding R8-M2, Minor, defense-in-depth): a manifest
   # CLAIMING concurrency=sequential is cheaply cross-checked against its
   # own recorded per-member epochs -- the harness is the trusted producer
@@ -458,6 +512,41 @@ extract_verdicts() {
     > "$2"
 }
 
+# _fc_filter_known_flaky IN OUT -- copies IN to OUT, dropping any verdict
+# line whose leading "<GATE-ID>: " token (a WARN:/ERROR: prefix is stripped
+# first, matching VERDICT_RE) is an EXACT match for a gate id registered in
+# KNOWN_FLAKY_TSV. No registry file, or an empty one, means OUT is an exact
+# copy of IN -- never a FATAL (T048 round 11, R10-B1).
+_fc_filter_known_flaky() {
+  local in="$1" out="$2"
+  if [ -s "$KNOWN_FLAKY_TSV" ]; then
+    awk -F'\t' '
+      FNR == NR { if (FNR > 1 && $1 != "") ids[$1] = 1; next }
+      { line = $0; gid = line
+        sub(/^WARN: /, "", gid); sub(/^ERROR: /, "", gid)
+        sub(/:.*/, "", gid)
+        if (!(gid in ids)) print line }
+    ' "$KNOWN_FLAKY_TSV" "$in" > "$out"
+  else
+    cp "$in" "$out"
+  fi
+}
+
+# _fc_known_flaky_hits IN -- prints (one per line, de-duplicated) the
+# registered gate id of every line _fc_filter_known_flaky would remove from
+# IN. Used only for the honest INFO/PASS annotation below -- never for the
+# filtering decision itself, which _fc_filter_known_flaky alone makes.
+_fc_known_flaky_hits() {
+  [ -s "$KNOWN_FLAKY_TSV" ] || return 0
+  awk -F'\t' '
+    FNR == NR { if (FNR > 1 && $1 != "") ids[$1] = 1; next }
+    { gid = $0
+      sub(/^WARN: /, "", gid); sub(/^ERROR: /, "", gid)
+      sub(/:.*/, "", gid)
+      if (gid in ids) print gid }
+  ' "$KNOWN_FLAKY_TSV" "$1" | sort -u
+}
+
 # ============================================================================
 # (a) + (b): real baseline capture + determinism of the extraction mechanism
 # ============================================================================
@@ -573,11 +662,47 @@ if [ "$TRIPLET_STATE" = valid ]; then
   # member exit status IS pre_build_verification.sh's commit result.
   _ex0="$(_mf_get member.FC0a.exit "$MANIFEST")"; _ex1="$(_mf_get member.FC1.exit "$MANIFEST")"
   _exn="$(_mf_get member.FC0b.exit "$MANIFEST")"
-  chk "FR-002 commit result: with-timers exit status ($_ex1) equals without-timers exit status ($_ex0) (noise-floor member FC0b exited $_exn)" "$([ "$_ex0" = "$_ex1" ] && echo 1 || echo 0)"
-  if cmp -s "$TMP/baseline_1.txt" "$TMP/with_timers.txt"; then
-    chk "FR-002/T-A01: with-timers verdict set is IDENTICAL to the without-timers verdict set, byte-for-byte after stripping timing suffixes ($TRIPLET_REASON)" "1"
+  # T048 round 11 (R10-I1): this exit-status check had no noise-floor
+  # treatment at all, so a flaky gate affecting only FC0a's exit status --
+  # the exact R8-B1 mechanism, applied to a member's own exit code instead
+  # of a verdict LINE -- still produced a hard FAIL even on a run the
+  # verdict-set check below correctly SKIPs as fully noise-explained.
+  # Mirrors the SAME "explained by this run's own FC0a-vs-FC0b noise floor"
+  # discipline the verdict-set comparison uses: the exit-code divergence is
+  # noise-explained only when FC0b's exit ALSO differs from FC0a's AND
+  # lands on the EXACT SAME value FC1 recorded -- the same "same-direction,
+  # exact-match" rule _fc_classify_against() applies to verdict lines,
+  # applied here to a single scalar.
+  if [ "$_ex0" = "$_ex1" ]; then
+    chk "FR-002 commit result: with-timers exit status ($_ex1) equals without-timers exit status ($_ex0) (noise-floor member FC0b exited $_exn)" "1"
+  elif [ "$_exn" != "$_ex0" ] && [ "$_exn" = "$_ex1" ]; then
+    skip "FR-002 commit result: with-timers exit status ($_ex1) differs from without-timers exit status ($_ex0), but this SAME run's own noise-floor member FC0b ALSO exited $_exn -- matching FC1, differing from FC0a -- so the exit-code divergence occurs even with timers OFF and cannot be attributed to fc_timer; this comparison is inconclusive, never a FR-002 counter-example"
   else
-    DIFF_REAL="$(diff "$TMP/baseline_1.txt" "$TMP/with_timers.txt" 2>/dev/null || true)"
+    chk "FR-002 commit result: with-timers exit status ($_ex1) equals without-timers exit status ($_ex0) (noise-floor member FC0b exited $_exn) -- MISMATCH, not explained by this run's own noise floor" "0"
+  fi
+
+  # T048 round 11 (R10-B1): exclude every KNOWN-FLAKY registered gate's
+  # verdict line from BOTH sides before any comparison -- see the KNOWN-FLAKY
+  # REGISTRY note near the top of this file. Filtering happens BEFORE the
+  # strict byte-for-byte comparison, never after, so it is symmetric: a
+  # registered gate's line disappears whether it landed in FC0a, FC0b or
+  # FC1 -- unlike the noise floor below, which can only explain a deviation
+  # the SAME-direction FC0a-vs-FC0b pair also shows.
+  _fc_filter_known_flaky "$TMP/baseline_1.txt" "$TMP/baseline_1_fcf.txt"
+  _fc_filter_known_flaky "$TMP/with_timers.txt" "$TMP/with_timers_fcf.txt"
+  _FCF_HITS="$( { _fc_known_flaky_hits "$TMP/baseline_1.txt"; _fc_known_flaky_hits "$TMP/with_timers.txt"; } | sort -u | tr '\n' ',' | sed 's/,$//')"
+  if [ -n "$_FCF_HITS" ]; then
+    echo "INFO: excluded known-flaky registered gate line(s) from the FR-002/T-A01 comparison (known_flaky_gates.tsv, each entry tied to a tracked defect): $_FCF_HITS"
+  fi
+
+  if cmp -s "$TMP/baseline_1_fcf.txt" "$TMP/with_timers_fcf.txt"; then
+    if [ -n "$_FCF_HITS" ]; then
+      chk "FR-002/T-A01: with-timers verdict set is IDENTICAL to the without-timers verdict set, byte-for-byte after stripping timing suffixes AND excluding known-flaky registered gate line(s) ($_FCF_HITS; $TRIPLET_REASON)" "1"
+    else
+      chk "FR-002/T-A01: with-timers verdict set is IDENTICAL to the without-timers verdict set, byte-for-byte after stripping timing suffixes ($TRIPLET_REASON)" "1"
+    fi
+  else
+    DIFF_REAL="$(diff "$TMP/baseline_1_fcf.txt" "$TMP/with_timers_fcf.txt" 2>/dev/null || true)"
     DIFF_REAL_LINES="$(printf '%s\n' "$DIFF_REAL" | grep -c '^[<>]' || true)"
 
     # Noise-floor classification -- round 8 (R8-B1): computed BEFORE the
@@ -588,9 +713,12 @@ if [ "$TRIPLET_STATE" = valid ]; then
     # parent-repo gate flipping in exactly ONE timers-OFF member made the
     # verifier FAIL a sizeable fraction of genuinely-GREEN runs). Both
     # directions are classified (R5-I3), each against the SAME direction in
-    # FC0a-vs-FC0b.
+    # FC0a-vs-FC0b. Round 11 (R10-B1): the noise floor itself is also
+    # computed on the FILTERED files -- a registered gate's own deviation
+    # was already excluded above; this classifies whatever remains.
     extract_verdicts "$NOISE_LOG" "$TMP/noise.txt"
-    DIFF_NOISE="$(diff "$TMP/baseline_1.txt" "$TMP/noise.txt" 2>/dev/null || true)"
+    _fc_filter_known_flaky "$TMP/noise.txt" "$TMP/noise_fcf.txt"
+    DIFF_NOISE="$(diff "$TMP/baseline_1_fcf.txt" "$TMP/noise_fcf.txt" 2>/dev/null || true)"
     printf '%s\n' "$DIFF_REAL"  | sed -n 's/^< //p' > "$TMP/real_removed.txt"
     printf '%s\n' "$DIFF_REAL"  | sed -n 's/^> //p' > "$TMP/real_added.txt"
     printf '%s\n' "$DIFF_NOISE" | sed -n 's/^< //p' > "$TMP/noise_removed.txt"

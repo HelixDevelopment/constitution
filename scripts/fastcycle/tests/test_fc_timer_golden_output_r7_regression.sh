@@ -232,7 +232,14 @@ if mutate M2a "if ! printf '%s' \"\$ex\" | grep -qE '^[0-9]+\$'; then" 'if false
 fi
 
 echo "=== (M-M2b) commit-result comparison neutralised ==="
-if mutate M2b '"$([ "$_ex0" = "$_ex1" ] && echo 1 || echo 0)"' '"1"'; then
+# T048 round 11 (R10-I1) rewrote the unconditional "$([ "$_ex0" = "$_ex1" ]
+# && echo 1 || echo 0)" chk-argument expression into an if/elif/else block
+# with its own noise-floor treatment. The EQUIVALENT neutralisation of the
+# SAME comparison is now forcing the if-condition itself to always be true
+# (always take the "exit codes match" branch), regardless of the real
+# exit codes -- same intent as the original mutation: without the real
+# commit-result comparison, an exit mismatch passes (rc=0).
+if mutate M2b 'if [ "$_ex0" = "$_ex1" ]; then' 'if true; then'; then
   mrun M2b "$TMP/mM2b.out" "$TMP/r7b"; rc=$?
   [ "$rc" = 0 ] && ok "(M-M2b) without it the exit mismatch passes (rc=0) -- (R7b) is load-bearing" || bad "(M-M2b) BLIND: rc=$rc"
 fi
@@ -256,7 +263,11 @@ if mutate M4 '{ if (n[$0] > 0) { n[$0]--; e++ } else u++ }' '{ if (n[$0] > 0) { 
 fi
 
 echo "=== (M-iso) isolation refusal removed ==="
-if mutate iso '  if [ "$(_mf_get concurrency "$mf")" != sequential ] && [ "$(_mf_get tmpdir_isolation "$mf")" != per-member ]; then' '  if false; then'; then
+# T048 round 11 (R10-M4) renamed the raw "$(_mf_get concurrency "$mf")" read
+# on this line to the already-validated "$concurrency_mode" variable (read
+# and closed-set-checked once, earlier in the function) -- same condition,
+# same intent, updated anchor.
+if mutate iso '  if [ "$concurrency_mode" != sequential ] && [ "$(_mf_get tmpdir_isolation "$mf")" != per-member ]; then' '  if false; then'; then
   mrun iso "$TMP/miso.out" "$TMP/r10a"
   has "$TMP/miso.out" "IDENTICAL" && ok "(M-iso) the mutant compares the non-isolated concurrent triplet -- (R10a) is load-bearing" || bad "(M-iso) BLIND"
 fi

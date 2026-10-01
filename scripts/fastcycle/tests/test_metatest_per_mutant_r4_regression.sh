@@ -586,16 +586,60 @@ D_ARM_LINE="builtin trap '_mt_exit_final' EXIT"
 # syntax forms one at a time, every line that so much as MENTIONS the bare
 # token in a non-read position is a candidate violation, and
 # check_run_complete_placement() below accepts ONLY the two known-good
-# literal shapes -- closing the entire evasion CLASS at once.) Comment-only
-# lines (first non-blank char '#') are skipped. A line whose ONLY
-# occurrence(s) of the token are value-reads is NEVER flagged here, however
-# many there are -- reading the flag can never set it early.
+# literal shapes.) Comment-only lines (first non-blank char '#') are
+# skipped. A line whose ONLY occurrence(s) of the token are value-reads is
+# NEVER flagged here, however many there are -- reading the flag can never
+# set it early.
+#
+# HONEST SCOPE BOUNDARY (T048 round 11, finding R10-M2, S11.4.6): the
+# round-8 comment above (since corrected) claimed this "clos[ed] the entire
+# evasion CLASS at once" -- that overclaim is FALSE. A LINE-BASED text
+# scanner, by construction, cannot see a write whose TOKEN NAME is split
+# across physical lines OR built at runtime. Measured this round, each
+# confirmed by actually running bash and re-checking against the real
+# check_run_complete_placement() on HEAD: a BACKSLASH LINE CONTINUATION
+# (`  _fc_mut_run\` + newline + `_complete=1`, plain bash syntax, no eval)
+# split the literal token across two physical lines, so NEITHER line
+# contained the whole token -- this is the ONE variant this function now
+# closes, by joining a continued logical line before scanning (below).
+# THREE further variants remain OPEN and are NOT closed by this scanner,
+# because the WRITE TARGET's name is constructed at runtime rather than
+# appearing as source text at all: `eval "_fc_mut_run""_complete=1"`
+# (string concatenation fed to eval), `_n=_fc_mut_run;
+# printf -v "${_n}_complete" %s 1` (a printf -v target built from a
+# variable), and `declare -n _rr="_fc_mut_""run_complete"; _rr=1`
+# (nameref target built from concatenation). Closing those would require
+# actually interpreting bash (tracing eval/printf -v/declare -n argument
+# values), not scanning its source text -- out of scope for this gate.
+# They remain a documented, honestly-tracked residual gap, not a silent
+# claim of completeness.
 _rc_bare_token_lines() {
   awk '
-    { l=$0; t=l; sub(/^[ \t]+/, "", t); if (substr(t,1,1)=="#") next
-      work=l
+    function is_comment(s) { t = s; sub(/^[ \t]+/, "", t); return substr(t, 1, 1) == "#" }
+    {
+      line = $0
+      if (buf == "") { start = NR; buf_is_comment = is_comment(line) }
+      cont = 0
+      if (!buf_is_comment) {
+        # T048 round 11 (R10-M2): join a genuine backslash LINE CONTINUATION
+        # (an ODD number of trailing backslashes -- an even count is an
+        # escaped literal backslash, never a continuation) with the next
+        # physical line before the token test runs, so a write split across
+        # two lines ("  _fc_mut_run\" / "_complete=1") is reconstructed into
+        # ONE logical line ("  _fc_mut_run_complete=1") and still matches.
+        # Comment lines are NEVER joined even if they end in a literal
+        # backslash -- bash does not continue comments across lines.
+        n = 0
+        while (substr(line, length(line) - n, 1) == "\\") n++
+        if (n % 2 == 1) cont = 1
+      }
+      if (cont) { buf = buf substr(line, 1, length(line) - 1); next }
+      buf = buf line
+      logical = buf; was_comment = buf_is_comment; buf = ""
+      if (was_comment) next
+      work = logical
       gsub(/\$\{?_fc_mut_run_complete/, "", work)
-      if (work ~ /(^|[^A-Za-z0-9_])_fc_mut_run_complete([^A-Za-z0-9_]|$)/) print NR ":" l
+      if (work ~ /(^|[^A-Za-z0-9_])_fc_mut_run_complete([^A-Za-z0-9_]|$)/) print start ":" logical
     }' "$1"
 }
 
@@ -788,6 +832,59 @@ do
     failx
   fi
 done
+
+# =============================================================================
+# (D4) T048 ROUND 11 (finding R10-M2): a write split across TWO physical
+# lines via a backslash LINE CONTINUATION -- plain bash syntax, no eval --
+# evaded every prior round's scanner, because neither physical line alone
+# contains the whole bare token. Inserted as the EXACT TWO-LINE sequence
+# the round-10 reviewer's own repro used, directly after the early
+# EXIT-trap arm point (the ORIGINAL correctly-placed line is KEPT, exactly
+# as (D2)/(D3) do), and it MUST now be REJECTED by the continuation-joining
+# fix in _rc_bare_token_lines() above.
+# =============================================================================
+echo
+echo "=== (D4) R10-M2: a write split across a backslash LINE CONTINUATION ==="
+D4_FILE="$TMP/mt_r10m2_variant.sh"
+awk -v arm="$D_ARM_LINE" '{ print } $0==arm { print "  _fc_mut_run\\"; print "_complete=1" }' "$MT" > "$D4_FILE"
+if [ "$(grep -cxF -- '  _fc_mut_run\' "$D4_FILE" || true)" != 1 ] || [ "$(grep -cxF -- '_complete=1' "$D4_FILE" || true)" != 1 ]; then
+  echo "NOT ok (D4) SKIPPED: could not construct the continuation variant (anchor changed)"
+  failx
+else
+  D4_RESULT="$(check_run_complete_placement "$D4_FILE")"
+  if [ "$D4_RESULT" != "OK" ]; then
+    echo "ok (D4) backslash-continuation variant REJECTED: $D4_RESULT (neither physical"
+    echo "   line alone contains the whole token -- a per-physical-line scanner would be"
+    echo "   blind to this; the continuation-join fix is what catches it)"
+  else
+    echo "NOT ok (D4) BLIND: the backslash-continuation variant still reports OK"
+    failx
+  fi
+
+  echo "=== (D4-mut) guard-viability: a per-physical-line scan (the pre-round-11 shape," \
+       "no continuation-joining) is demonstrably BLIND to this SAME fixture ==="
+  _rc_bare_token_lines_PRE_R11() {
+    awk '
+      { l=$0; t=l; sub(/^[ \t]+/, "", t); if (substr(t,1,1)=="#") next
+        work=l
+        gsub(/\$\{?_fc_mut_run_complete/, "", work)
+        if (work ~ /(^|[^A-Za-z0-9_])_fc_mut_run_complete([^A-Za-z0-9_]|$)/) print NR ":" l
+      }' "$1"
+  }
+  D4_OLD_N="$(_rc_bare_token_lines_PRE_R11 "$D4_FILE" | wc -l | tr -d ' ')"
+  D4_NEW_N="$(_rc_bare_token_lines "$D4_FILE" | wc -l | tr -d ' ')"
+  if [ "$D4_NEW_N" -eq "$((D4_OLD_N + 1))" ]; then
+    echo "ok (D4-mut) the pre-round-11 per-physical-line scanner flagged $D4_OLD_N line(s)" \
+         "on this EXACT fixture -- blind to the 2-line continuation, since neither physical" \
+         "line alone contains the whole token -- while the current continuation-joining" \
+         "scanner flags $D4_NEW_N, exactly one MORE (the reconstructed logical line);" \
+         "the join fix is genuinely load-bearing"
+  else
+    echo "NOT ok (D4-mut) BLIND: pre-round-11 scanner found $D4_OLD_N, current scanner found" \
+         "$D4_NEW_N (expected current == pre-round-11 + 1)"
+    failx
+  fi
+fi
 
 # =============================================================================
 # (E) T048 ROUND 5 ADDITION (finding m9, 2026-09-30): "The NUL-safe loop has

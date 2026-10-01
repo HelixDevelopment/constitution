@@ -90,9 +90,26 @@ expect() {  # NAME OUTFILE WANT(e.g. "changed=1 noise_explained=0 not_explained=
 # deviation proven, by this SAME run's own noise floor, to occur even with
 # timers OFF was testing something other than FR-002/T-A01's own claim).
 expect_skip() {  # NAME OUTFILE WANT(e.g. "changed=1 noise_explained=1 not_explained=0")
-  local got; got="$(classify "$1" "$2" | tr '\n' ' ')"
+  local got kind; got="$(classify "$1" "$2" | tr '\n' ' ')"
+  # T048 round 11 (R10-I2, verbatim finding): rc=0 plus a matching
+  # NOISE-FLOOR line does NOT distinguish a genuine SKIP from a mutant that
+  # silently turns the SKIP branch into an unconditional `chk ... "1"`
+  # (false PASS) -- both give rc=0 AND print the IDENTICAL NOISE-FLOOR
+  # line, since that line is computed and echoed BEFORE the pass/skip/fail
+  # decision. The reviewer's own mutant (M-SKIP2PASS below) survived every
+  # round-4/5/7/8 suite under the OLD version of this function, which
+  # checked only those two things. The FR-002/T-A01 verdict line's own
+  # PASS[.../SKIP[.../FAIL[... marker is the only thing that tells a real
+  # SKIP apart from a false PASS, so it is now checked explicitly.
+  kind="$(grep -oE '^(PASS|FAIL|SKIP)\[[0-9]+\]: FR-002/T-A01' "$2" | sed -E 's/^(PASS|FAIL|SKIP)\[.*/\1/' | head -n1)"
   case "$got" in
-    "rc=0 NOISE-FLOOR: $3 ") ok "($1) $3, fully noise-explained -> SKIP not FAIL (rc=0, R8-B1)" ;;
+    "rc=0 NOISE-FLOOR: $3 ")
+      if [ "$kind" = SKIP ]; then
+        ok "($1) $3, fully noise-explained -> SKIP not FAIL (rc=0, R8-B1), FR-002/T-A01 line's own marker is genuinely SKIP[ (R10-I2)"
+      else
+        bad "($1) rc=0 and NOISE-FLOOR matches, but the FR-002/T-A01 line's own marker is '$kind', not SKIP -- a PASS here would silently overclaim fc_timer causes zero change from one noisy sample (R10-I2)"
+      fi
+      ;;
     *) bad "($1) want 'rc=0 NOISE-FLOOR: $3', got '$got'" ;;
   esac
 }
@@ -155,6 +172,25 @@ fi
 echo "=== (M-dir) classify removed lines against the ADDED noise side ==="
 if mutate DIR '    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_removed.txt"' '    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_added.txt"'; then
   expect_flip DIR C4 "changed=1 noise_explained=0 not_explained=1"
+fi
+
+echo "=== (M-SKIP2PASS) R10-I2: the reviewer's own mutant -- force the C2 SKIP branch into an unconditional PASS ==="
+# Extracted at RUN TIME from the real file (never hand-transcribed) so this
+# anchor cannot silently desynchronise from the real source's exact wording.
+SKIP2PASS_ANCHOR="$(grep -F 'skip "FR-002/T-A01: with-timers verdict set differs from the without-timers verdict set' "$REAL_GOLDEN")"
+if [ -n "$SKIP2PASS_ANCHOR" ] \
+   && mutate SKIP2PASS "$SKIP2PASS_ANCHOR" '      chk "FR-002/T-A01: MUTANT forced PASS instead of honest SKIP" "1"'; then
+  MUT_OUT="$TMP/mut_skip2pass_c2.out"
+  GT_GOLDEN="$TMP/golden_SKIP2PASS.sh" gt_golden "$MUT_OUT" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_C2"
+  MUT_RC=$?
+  MUT_KIND="$(grep -oE '^(PASS|FAIL|SKIP)\[[0-9]+\]: FR-002/T-A01' "$MUT_OUT" | sed -E 's/^(PASS|FAIL|SKIP)\[.*/\1/' | head -n1)"
+  if [ "$MUT_RC" = 0 ] && [ "$MUT_KIND" = PASS ]; then
+    ok "(M-SKIP2PASS) mutant reports rc=0 with the FR-002/T-A01 marker=PASS, not SKIP -- the SAME rc and the SAME NOISE-FLOOR line as a genuine SKIP, which is exactly why the OLD (rc+NOISE-FLOOR-only) expect_skip() could not have caught this: the kind-check strengthening above is genuinely load-bearing"
+  else
+    bad "(M-SKIP2PASS) BLIND: mutant rc=$MUT_RC kind=$MUT_KIND (expected rc=0 kind=PASS to prove the pre-round-11 check was blind to this mutation)"
+  fi
+else
+  bad "(M-SKIP2PASS) could not construct the mutation (anchor not found)"
 fi
 
 echo
