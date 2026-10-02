@@ -101,6 +101,33 @@ _CHDIR_LINE = re.compile(
 # un-split "<ppid> clone(...) = <cpid>" line -- the resumed-line
 # alternative is matched defensively for hosts/loads where strace splits
 # the entry and exit across lines.
+#
+# T085 Round 3 m4 (MINOR, investigated, NOT independently reproduced by
+# either this round's reviewer or this fix -- honestly documented per
+# §11.4.6 rather than silently claimed closed): on a host/load where
+# strace genuinely splits a clone/fork/vfork/clone3 entry and exit across
+# TWO lines (the "<... resumed>)= <child>" form above), the CHILD's own
+# early syscalls can, under real kernel-scheduling preemption, be logged
+# to this file BEFORE its parent's completing "<... resumed>" line --
+# i.e. file order is not guaranteed to match "parent's fork call
+# completes, then the child's own syscalls begin" whenever strace's own
+# entry/exit lines for that ONE clone are split. In that specific
+# interleaving, this parser (a strict single top-to-bottom pass) would
+# not yet have `cwd_by_pid[child_pid]` populated when it reaches the
+# child's own early lines, and `cwd_for()` falls back to `start_cwd` --
+# which is only WRONG if the real parent had ALREADY `chdir()`'d away
+# from `start_cwd` before forking that child. A fix closing this
+# completely would need either a PID-topology pre-pass (cheap, but only
+# gives parent-child identity, not a parent's cwd AT THE LOGICAL MOMENT
+# of fork, since a parent's own later chdir()s must still resolve in
+# this-pid's-own file-order relative to ITS OWN later syscalls) or a
+# full two-pass per-pid timeline reconstruction -- both carry real
+# regression risk to the ALREADY-correct same-pid-ordering guarantee
+# this module depends on elsewhere, for a race NEITHER this fix nor the
+# T085 Round 3 review's own investigation could reproduce on this host.
+# Left as an honestly-documented, tracked, not-yet-closed edge case
+# (never silently claimed fixed) rather than risk a same-day structural
+# rewrite of path-resolution ordering with unverified correctness.
 _FORK_LINE = re.compile(
     r'^(?:(?P<pid>\d+)\s+)?'
     r'(?:(?:clone|clone3|fork|vfork)\(.*|<\.\.\.\s*(?:clone|clone3|fork|vfork)\s+resumed>.*)'
