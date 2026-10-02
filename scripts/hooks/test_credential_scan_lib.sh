@@ -188,7 +188,7 @@ assert_clean "(j) keyword=...must_not_leak... (test-fixture sentinel marker)" "$
   printf 'AKIA01234567'                # first half of the AKIA+16-char run -- split
   printf '89ABCDEF'                    # across two printf args so no SINGLE source
                                         # line carries the full token contiguously
-                                        # (CM-SECRET-SCAN-SELF-EXEMPT); embedded in blob
+                                        # (SECRET-SCAN-SELF-EXEMPT-NOTE); embedded in blob
   printf 'moreImageBytesHere+/=='      # trailing base64 image bytes
   printf '\n'
 } > "$WORK/good_k_base64_image.txt"
@@ -241,11 +241,12 @@ Service login for the AVR test account:
 EOF
 assert_caught "(1) email+password adjacency (lowercase TLD)" "$WORK/bad_1_email_pw.txt"
 
-# CM-SECRET-SCAN-SELF-EXEMPT: built via printf so this file's own source
+# SECRET-SCAN-SELF-EXEMPT-NOTE: built via printf so this file's own source
 # bytes never carry "api_key=" immediately followed by a quote, nor the full
 # AKIA+16-char token contiguously, on one physical line (the precheck pack's
 # secret-scan would otherwise flag this GOLDEN-BAD fixture as a real leak in
-# its OWN source -- see CONTINUATION.md for the forensic).
+# its OWN source -- see the parent project's docs/CONTINUATION.md, ADDENDUM
+# 136, for the forensic; this submodule has no CONTINUATION.md of its own).
 { printf 'export api_key'
   printf '=AKIA12345678'
   printf '90ABCDEF\n'
@@ -258,7 +259,7 @@ db:
 EOF
 assert_caught "(3) keyword-anchored password: assignment" "$WORK/bad_3_password.txt"
 
-# CM-SECRET-SCAN-SELF-EXEMPT: built via printf so no single physical source
+# SECRET-SCAN-SELF-EXEMPT-NOTE: built via printf so no single physical source
 # line carries the full "-----BEGIN ... PRIVATE KEY-----" marker contiguously.
 { printf -- '-----BEGIN '
   printf 'OPENSSH PRIVATE KEY'
@@ -559,7 +560,7 @@ EOF
 assert_clean "(20) keyword = System.getenv( / os.Getenv( (env-lookup call value)" \
              "$WORK/good_20_env_lookup.kts"
 
-# CM-SECRET-SCAN-SELF-EXEMPT: built via printf so "keyPassword = " and its
+# SECRET-SCAN-SELF-EXEMPT-NOTE: built via printf so "keyPassword = " and its
 # quoted value never share one physical source line.
 { printf 'signingConfigs {\n'
   printf '    create("release") {\n'
@@ -659,7 +660,7 @@ EOF
 assert_clean "(25) accessor/method CALL in value position (obj.optString) — clean (no false positive)" \
               "$WORK/good_25_accessor_call.kt"
 
-# CM-SECRET-SCAN-SELF-EXEMPT: built via printf so "password = " and its
+# SECRET-SCAN-SELF-EXEMPT-NOTE: built via printf so "password = " and its
 # quoted value never share one physical source line.
 { printf 'password = '
   printf '"objDotOptStringLooksLikeACall"\n'
@@ -667,7 +668,7 @@ assert_clean "(25) accessor/method CALL in value position (obj.optString) — cl
 assert_caught "(25-bad-1) quoted literal that merely LOOKS like a call (strip must be \$-anchored past the quote)" \
               "$WORK/bad_25_quoted_lookalike.kt"
 
-# CM-SECRET-SCAN-SELF-EXEMPT: built via printf so "api_key  = " and its
+# SECRET-SCAN-SELF-EXEMPT-NOTE: built via printf so "api_key  = " and its
 # quoted AKIA-shaped value never share one physical source line, and the
 # AKIA+16-char token itself is split across two printf args.
 { printf 'password = obj.optString("password", "")\n'
