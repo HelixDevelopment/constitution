@@ -142,6 +142,111 @@ check("U7c hunk-context-correct", hunks[0][1] == "write_out() {")
 check("U7d hunk-added-lines-correct", hunks[0][2] == ["if [ -z \"$x\" ]; then", "  return 1", "fi"])
 check("U7e hunk-removed-lines-empty", hunks[0][3] == [])
 
+# U8: normalize_symbol no-generic-fallback regression (R1-review-I2
+# remediation) -- every one of these non-keyword, non-definition tokens
+# was, before this fix, silently accepted as a fake per-hunk "symbol" by
+# the OLD generic-identifier fallback; none of them is a control-flow
+# keyword, so the prior denylist could never have caught them. Each MUST
+# now coarsen to the FILE-level fallback.
+check("U8a echo-is-not-a-symbol", m.normalize_symbol("f.sh", "echo hi") == "FILE:f.sh")
+check("U8b import-is-not-a-symbol", m.normalize_symbol("f.py", "import os") == "FILE:f.py")
+check("U8c heredoc-marker-is-not-a-symbol", m.normalize_symbol("f.sh", "PYEOF") == "FILE:f.sh")
+check("U8d trap-is-not-a-symbol", m.normalize_symbol("f.sh", "trap 'cleanup' EXIT") == "FILE:f.sh")
+check("U8e git-is-not-a-symbol", m.normalize_symbol("f.sh", "git add f.sh") == "FILE:f.sh")
+check("U8f printf-is-not-a-symbol", m.normalize_symbol("f.sh", "printf '%s\\n' x") == "FILE:f.sh")
+check("U8g sys-exit-is-not-a-symbol", m.normalize_symbol("f.py", "sys.exit(1)") == "FILE:f.py")
+check("U8h bare-condition-line-is-not-a-symbol", m.normalize_symbol("f.sh", 'if [ -n "$ALREADY_AT_TARGET" ]; then') == "FILE:f.sh")
+# ... but a genuine definition line in each newly-added language IS still
+# attributed correctly (the fix removes the FALSE-POSITIVE fallback, it
+# does not regress real, explicit definition-boundary detection).
+check("U8i go-func-context", m.normalize_symbol("f.go", "func Compute(x int) int {") == "f.go::Compute")
+check("U8j go-method-context", m.normalize_symbol("f.go", "func (r *Receiver) Compute() {") == "f.go::Compute")
+check("U8k rust-fn-context", m.normalize_symbol("f.rs", "fn compute(x: i32) -> i32 {") == "f.rs::compute")
+check("U8l rust-pub-fn-context", m.normalize_symbol("f.rs", "pub fn compute() {") == "f.rs::compute")
+check("U8m js-function-context", m.normalize_symbol("f.js", "function compute(x) {") == "f.js::compute")
+check("U8n js-export-async-function-context", m.normalize_symbol("f.js", "export async function compute() {") == "f.js::compute")
+
+# U9: extract_round -- direct pinning (R1-review-IMPORTANT-1 remediation
+# half 1). Previously only exercised indirectly via item_token_regex's
+# own round-suffix-stripping behaviour (U4e), which a reviewer-authored
+# mutation disabling ROUND_SCOPE_RE happened to still catch BY ACCIDENT
+# through that unrelated path -- these cases pin the function's own
+# return value directly so that coverage is no longer accidental.
+check("U9a scope-suffix-round-parsed-as-int", m.extract_round("fix(fastcycle/T048-r22): dedicated suite") == 22)
+check("U9b freetext-round-parsed-as-int", m.extract_round("fix(fastcycle/T048): round 11 -- remediate independent round-10 review") == 11)
+check("U9c scope-suffix-takes-priority-over-freetext", m.extract_round("fix(x/T048-r5): round 11 text also present") == 5)
+check("U9d no-round-info-is-none", m.extract_round("fix(x/T048): no round information here") == None)
+
+# U10: classify_hunk exact refactor-ratio BOUNDARY (R1-review-IMPORTANT-1
+# remediation half 2, closes the M3 mutation: ">=" vs ">" at the ratio
+# comparison). 5 added lines (1 opens a branch) vs 4 removed lines, ratio
+# 0.8 -> 4 == 0.8*5 EXACTLY: the inclusive "refactor-shaped" boundary.
+added_boundary = ["if [ -n \"$y\" ]; then", "  echo new1", "  echo new2", "  echo new3", "fi"]
+removed_boundary = ["old1", "old2", "old3", "old4"]
+ok_b, net_b, ta_b, td_b = m.classify_hunk(added_boundary, removed_boundary, 0.8)
+check("U10a exact-ratio-boundary-is-refactor-shaped-not-flagged", ok_b is False and ta_b == 5 and td_b == 4)
+# One fewer removed line (3 of 4, ratio now 3/5=0.6 < 0.8) must flag.
+removed_below_boundary = ["old1", "old2", "old3"]
+ok_c, net_c, ta_c, td_c = m.classify_hunk(added_boundary, removed_below_boundary, 0.8)
+check("U10b below-ratio-boundary-flags", ok_c is True)
+
+# U11: count_branch_tokens case-insensitivity (R1-review-IMPORTANT-1
+# remediation half 3, closes the M5 mutation: dropping re.IGNORECASE from
+# BRANCH_TOKEN_RE). Shell/bash keywords are case-sensitive in real code,
+# but several real ecosystems this tool also targets (SQL dialects
+# embedded in migrations, some DSLs) use uppercase keywords -- and more
+# to the point, this is the exact behaviour the mutation would silently
+# discard, so it must be independently pinned regardless of how often
+# real code exercises it.
+check("U11a uppercase-IF-counts", m.count_branch_tokens(["IF cond; then"]) == 1)
+check("U11b uppercase-ELIF-counts", m.count_branch_tokens(["ELIF other; then"]) == 1)
+check("U11c mixed-case-Except-counts", m.count_branch_tokens(["Except ValueError:"]) == 1)
+
+# U12: list_commits' own `git log` INVOCATION CONTRACT, pinned directly
+# (R1-review-IMPORTANT-1 remediation, closes the M1 mutation: swapping
+# "--topo-order" for "--date-order" survived every prior test because
+# none of them asserted the ordering CONTRACT itself -- only its observed
+# effect on specific fixture histories, which a real-git-history
+# fixture cannot reliably discriminate (git's own default/date/topo
+# traversal orders are empirically IDENTICAL on every linear and even
+# simple-merge history this suite's own authors constructed while trying
+# to build one -- they provably diverge only on specific interleaved-
+# parallel-branch date patterns whose exact behaviour is a git-
+# implementation detail, not something a portable regression fixture
+# should depend on). Monkeypatching subprocess.run to CAPTURE the real
+# argv `list_commits` passes to `git` -- never actually invoking git --
+# pins the CONTRACT deterministically, immune to git-version differences
+# AND immune to the "this particular history happens not to show the
+# bug" trap a fixture-only test would be exposed to.
+class _FakeCompleted:
+    def __init__(self):
+        self.returncode = 0
+        self.stdout = ""
+        self.stderr = ""
+
+captured_argv = {}
+
+def _fake_run(args, **kwargs):
+    captured_argv["args"] = args
+    return _FakeCompleted()
+
+_real_run = m.subprocess.run
+m.subprocess.run = _fake_run
+try:
+    m.list_commits("/irrelevant/repo", item="T999")
+finally:
+    m.subprocess.run = _real_run
+
+check("U12a git-log-uses-topo-order", "--topo-order" in captured_argv.get("args", []))
+check("U12b git-log-uses-reverse", "--reverse" in captured_argv.get("args", []))
+check("U12c git-log-excludes-merges", "--no-merges" in captured_argv.get("args", []))
+# --date-order and bare topo-order are not interchangeable in git's own
+# contract (date-order is fundamentally timestamp-sorted with ancestry
+# only as a tie-break; topo-order never consults timestamps except among
+# commits with no ordering constraint at all) -- assert the CHOSEN flag
+# is genuinely topo-order, not merely "some order flag is present".
+check("U12d git-log-does-not-use-date-order", "--date-order" not in captured_argv.get("args", []))
+
 for name, cond in results:
     print(("ok " if cond else "NOT ok ") + name)
 sys.exit(0 if all(c for _, c in results) else 1)
@@ -534,6 +639,107 @@ chk "I5: FILE-level fallback exits 1 (finding present)" "$([ "$rc5" = 1 ] && ech
 chk "I5: FILE-level fallback flags exactly one symbol" "$([ "$n5" = 1 ] && echo 1)"
 sym5=$("$PY" -c "import json; print(json.load(open('$TMP/i5.json'))['findings'][0]['symbol'])" 2>/dev/null)
 chk "I5: FILE-level fallback symbol name starts with FILE:" "$(printf '%s' "$sym5" | grep -q '^FILE:' && echo 1)"
+
+# --- I7: exact-tipping-commit (R1-review-IMPORTANT-1 remediation, closes
+#         the M4 mutation: `hits[-1]` instead of `hits[min_branch_commits
+#         - 1]`). With exactly 3 qualifying commits (I1's own fixture)
+#         "the 3rd" and "the last" are the SAME commit, so no assertion
+#         on I1 alone can distinguish the correct "fires at the FIRST
+#         crossing of the threshold" semantics from the mutated "fires at
+#         the LAST qualifying commit, however many more land after the
+#         threshold" semantics. This fixture adds a 4th qualifying commit
+#         and asserts fired_at_commit is the 3RD one's real sha, captured
+#         independently by this test as each commit is made -- never the
+#         4th/last. ---
+R7="$TMP/repo_exact_tipping_commit"
+mkrepo "$R7"
+cat > "$R7/f.sh" <<'EOF'
+#!/bin/sh
+compute() {
+  echo base
+}
+EOF
+git -C "$R7" add f.sh
+git -C "$R7" commit -q -m "feat(x/T210): initial compute()"
+
+cat > "$R7/f.sh" <<'EOF'
+#!/bin/sh
+compute() {
+  if [ -n "$A" ]; then
+    echo a
+  fi
+  echo base
+}
+EOF
+git -C "$R7" add f.sh
+git -C "$R7" commit -q -m "fix(x/T210-r1): add A"
+
+cat > "$R7/f.sh" <<'EOF'
+#!/bin/sh
+compute() {
+  if [ -n "$A" ]; then
+    echo a
+  fi
+  if [ -n "$B" ]; then
+    echo b
+  fi
+  echo base
+}
+EOF
+git -C "$R7" add f.sh
+git -C "$R7" commit -q -m "fix(x/T210-r2): add B"
+
+cat > "$R7/f.sh" <<'EOF'
+#!/bin/sh
+compute() {
+  if [ -n "$A" ]; then
+    echo a
+  fi
+  if [ -n "$B" ]; then
+    echo b
+  fi
+  if [ -n "$C" ]; then
+    echo c
+  fi
+  echo base
+}
+EOF
+git -C "$R7" add f.sh
+git -C "$R7" commit -q -m "fix(x/T210-r3): add C -- this is the 3RD qualifying commit, the one that MUST be reported"
+SHA_R3="$(git -C "$R7" rev-parse HEAD)"
+
+cat > "$R7/f.sh" <<'EOF'
+#!/bin/sh
+compute() {
+  if [ -n "$A" ]; then
+    echo a
+  fi
+  if [ -n "$B" ]; then
+    echo b
+  fi
+  if [ -n "$C" ]; then
+    echo c
+  fi
+  if [ -n "$D" ]; then
+    echo d
+  fi
+  echo base
+}
+EOF
+git -C "$R7" add f.sh
+git -C "$R7" commit -q -m "fix(x/T210-r4): add D -- a 4TH qualifying commit; MUST NOT be reported as fired_at_commit"
+SHA_R4="$(git -C "$R7" rev-parse HEAD)"
+
+run_tool "$R7" "T210" "" "$TMP/i7.json"
+rc7=$?
+chk "I7: exact-tipping-commit exits 1 (finding present)" "$([ "$rc7" = 1 ] && echo 1)"
+qc7=$("$PY" -c "import json; print(json.load(open('$TMP/i7.json'))['findings'][0]['qualifying_commit_count'])" 2>/dev/null)
+chk "I7: exact-tipping-commit has 4 qualifying commits total" "$([ "$qc7" = 4 ] && echo 1)"
+fired7=$("$PY" -c "import json; print(json.load(open('$TMP/i7.json'))['findings'][0]['fired_at_commit'])" 2>/dev/null)
+chk "I7: fired_at_commit is the 3RD qualifying commit's real sha" "$([ "$fired7" = "$SHA_R3" ] && echo 1)"
+chk "I7: fired_at_commit is NOT the 4th/last qualifying commit's sha" "$([ "$fired7" != "$SHA_R4" ] && echo 1)"
+round7=$("$PY" -c "import json; print(json.load(open('$TMP/i7.json'))['findings'][0]['fired_at_round'])" 2>/dev/null)
+chk "I7: fired_at_round is 3 (the 3rd commit's own -r3 round), not 4" "$([ "$round7" = 3 ] && echo 1)"
 
 # --- I6: usage error -- neither --item/--range/--path given. ---
 R6="$TMP/repo_usage_error"

@@ -187,38 +187,54 @@ BRANCH_TOKEN_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Conventional-Commits TYPE(scope): description -- captures type and the
+# Conventional-Commits TYPE(scope)!: description -- captures type and the
 # free-text description (the part after the FIRST ": ") so both the
-# message-shape checks below can inspect each independently.
+# message-shape checks below can inspect each independently. The
+# optional `!` (R1-review-M5 fix: Conventional Commits' own
+# breaking-change marker, e.g. "refactor!: ..." or "refactor(x)!: ...")
+# is matched and discarded here so `type` still resolves to the bare
+# "refactor" the caller compares against REFRACTOR_TYPES -- a
+# `refactor!:`-shaped subject was NOT excluded before this fix because
+# the trailing "!" made the whole regex fail to match at all, silently
+# falling through to the off-convention "treat as not-a-removal" default
+# (see message_is_removal's own docstring) for exactly the class of
+# commit most likely to be a genuine, deliberate rewrite.
 CONVENTIONAL_COMMIT_RE = re.compile(
-    r"^(?P<type>[a-zA-Z]+)(?:\([^)]*\))?\s*:\s*(?P<description>.*)$"
+    r"^(?P<type>[a-zA-Z]+)(?:\([^)]*\))?!?\s*:\s*(?P<description>.*)$"
 )
 
 REFRACTOR_TYPES = {"refactor", "revert"}
-REFRACTOR_LEAD_VERBS = ("remove", "replace", "delete", "revert", "refactor")
-
-# Shell/generic control-flow KEYWORDS that git's own hunk-context
-# heuristic frequently surfaces as the "context" line for a hunk located
-# just after a closing/continuing control-flow token (e.g. a hunk whose
-# preceding top-level-indented line is a bare "fi"/"done"/"else" in a
-# shell script) -- MEASURED on this repo's own real history while
-# calibrating this tool (a literal real-world false-match: a hunk inside
-# scripts/fastcycle/consumers/migrate.sh whose context git reported as
-# the single word "fi" was, before this fix, treated as a real symbol
-# named "fi", silently merging UNRELATED patches to different functions
-# that merely both happen to follow an `if` block into one spurious
-# "symbol"). A context line whose FULL (not merely leading) token is one
-# of these keywords carries NO real symbol information and is treated
-# exactly like an empty context -- coarsened to the FILE-level fallback,
-# never silently accepted as a function name (S11.4.201(7)(a): match
-# STRUCTURE, not a token that merely LOOKS like an identifier).
-_CONTROL_FLOW_KEYWORDS = frozenset(
-    {
-        "if", "fi", "then", "elif", "else", "for", "while", "until",
-        "do", "done", "case", "esac", "in", "try", "except", "finally",
-        "end", "begin", "function", "{", "}",
-    }
+# R1-review-M5 fix: widened from {remove, replace, delete, revert,
+# refactor} per the round-1 independent reviewer's own suggestion -- a
+# commit whose STATED intent is one of these verbs is, like "remove"/
+# "replace"/"delete", a removal/rewrite rather than a compensating patch,
+# even though its diff may otherwise superficially qualify.
+REFRACTOR_LEAD_VERBS = (
+    "remove", "replace", "delete", "revert", "refactor",
+    "drop", "simplify", "rewrite", "consolidate",
 )
+
+# HISTORICAL NOTE (superseded by the DEFINITION-PATTERN-ONLY design in
+# normalize_symbol() below, R1-review-I2 fix): an EARLIER revision of
+# this tool accepted "the first identifier-shaped token in the context
+# line" as a fallback symbol name whenever no explicit def/class/func
+# pattern matched, denylisting only bare shell control-flow keywords
+# (git's hunk-context heuristic had surfaced a literal "fi" as context
+# for one real migrate.sh hunk, briefly treated as a symbol named "fi").
+# A round-1 independent review (constitution 11.4.194(6)(d) reviewer-
+# authored-mutation discipline) measured that the SAME generic fallback
+# ALSO accepted many non-keyword tokens with zero real attribution value
+# across this repo's own real history -- "echo" (56 hunks), "import"
+# (32), "PYEOF" (14), "trap", "git", "cat", "rm", "cp", "EOF", "printf",
+# "sys.exit", "HERE" -- none of which a bare-keyword denylist could ever
+# catch, since none of them IS a control-flow keyword. The fix removes
+# the generic fallback entirely rather than trying to enumerate an
+# unbounded denylist of "words git's heuristic sometimes surfaces that
+# aren't real symbols": normalize_symbol() now accepts ONLY lines
+# matching an explicit function/class/def DEFINITION pattern (shell,
+# python, go, rust, javascript/typescript) and coarsens every other
+# context -- bare keyword or arbitrary token alike -- to the FILE-level
+# fallback. See normalize_symbol()'s own docstring for the live detail.
 
 # Round-number extraction: prefer an explicit "-r<N>" scope suffix (e.g.
 # "T048-r22"), else fall back to free-text "round <N>" (e.g. "T048):
@@ -283,18 +299,40 @@ def normalize_symbol(file_path, context):
     m = re.match(r"^class\s+([A-Za-z_][\w]*)", context)
     if m:
         return "{}::{}".format(file_path, m.group(1))
-    # generic fallback: first identifier-shaped token in the context line
-    # -- rejected when the FULL context line is nothing but a bare
-    # control-flow keyword (see _CONTROL_FLOW_KEYWORDS above): that is
-    # not a symbol name, it is git's heuristic surfacing the nearest
-    # enclosing block token, which carries no real attribution value and
-    # must coarsen to FILE-level rather than be accepted as a fake
-    # "symbol".
-    if context.strip().lower().rstrip("(){};:") in _CONTROL_FLOW_KEYWORDS:
-        return "FILE:{}".format(file_path)
-    m = re.match(r"^([A-Za-z_][\w.:-]{1,80})", context)
-    if m and m.group(1).lower() not in _CONTROL_FLOW_KEYWORDS:
+    # go: "func name(" / "func (recv Type) name("
+    m = re.match(r"^func\s+(?:\([^)]*\)\s*)?([A-Za-z_][\w]*)\s*\(", context)
+    if m:
         return "{}::{}".format(file_path, m.group(1))
+    # rust: "fn name("
+    m = re.match(r"^(?:pub\s+)?fn\s+([A-Za-z_][\w]*)\s*[<(]", context)
+    if m:
+        return "{}::{}".format(file_path, m.group(1))
+    # javascript/typescript: "function name(" / "async function name("
+    m = re.match(r"^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_][\w]*)\s*\(", context)
+    if m:
+        return "{}::{}".format(file_path, m.group(1))
+    # NO GENERIC FALLBACK (R1-review-I2, round 1 independent review
+    # finding, LIVE-REPRODUCED against this repo's own real T177/T048/
+    # T085 history): a prior revision accepted "the first identifier-
+    # shaped token in the context line" whenever none of the DEFINITION
+    # patterns above matched. git's own hunk-context heuristic frequently
+    # surfaces a plain top-level-indented line NEAR a hunk as "context"
+    # even when that line is NOT a function/class/def boundary at all
+    # (its OWN builtin pattern for unrecognised languages, and even for
+    # shell/python when no real def/class line precedes a hunk closely
+    # enough) -- MEASURED on this repo's real history: "echo" (56 hunks),
+    # "import" (32), "PYEOF" (14), plus "trap"/"git"/"cat"/"rm"/"cp"/
+    # "EOF"/"printf"/"sys.exit"/"HERE" were all silently accepted as fake
+    # per-hunk "symbol" names by the old generic-token fallback -- not
+    # control-flow keywords (so the _CONTROL_FLOW_KEYWORDS denylist above
+    # never caught them), just arbitrary nearby tokens with zero real
+    # attribution value. A context line that is not recognised as a
+    # genuine definition boundary by one of the explicit patterns above
+    # now ALWAYS coarsens to the FILE-level fallback (the design brief's
+    # own explicitly-sanctioned coarser mode) rather than inventing a
+    # fake per-line symbol -- never silently wrong, honestly coarse
+    # instead (S11.4.6 / S11.4.201(7)(a): match STRUCTURE, never an
+    # arbitrary token that merely LOOKS like an identifier).
     return "FILE:{}".format(file_path)
 
 
@@ -405,7 +443,18 @@ def parse_diff_hunks(diff_text):
 def count_branch_tokens(lines):
     """Count how many of `lines` (already stripped of their leading
     diff +/- marker) open a conditional branch per BRANCH_TOKEN_RE,
-    ignoring blank lines -- a pure, independently testable counter."""
+    ignoring blank lines -- a pure, independently testable counter.
+
+    HONEST LIMITATION (R1-review-M4, never silently hidden): BRANCH_TOKEN_RE
+    matches against line CONTENT only, with no awareness of whether that
+    content is CODE, a comment, a docstring, or markdown prose -- a prose
+    sentence beginning "If the caller passes..." or "Except where
+    noted..." matches the same way a real `if`/`except` statement does.
+    This tool is designed for, and calibrated against, code files
+    (shell/python/go/rust/js); running it against a predominantly-prose
+    file (a `.md` doc, a changelog) can over-count. No per-file-type
+    scoping is applied in this revision -- tracked as a known, documented
+    gap rather than a silent blind spot."""
     n = 0
     for raw in lines:
         stripped = raw.strip()
@@ -439,10 +488,30 @@ def list_commits(repo, item=None, rev_range=None, path=None):
     this, not this function) -- this function itself tolerates any
     combination (e.g. item AND rev_range together narrows both ways,
     exactly like the design brief's "a tracked workable-item id (or a
-    commit range / a file path)" three-selector contract)."""
+    commit range / a file path)" three-selector contract).
+
+    ORDERING (R1-review-IMPORTANT-1 remediation, half of the "fired at
+    round N" pinning fix): `--topo-order` is EXPLICIT here, not left to
+    git's own ambiguous default. Without it, plain `git log` sorts
+    primarily by commit TIMESTAMP -- which a rebase, an amended commit,
+    a different author/committer timezone, or a cherry-pick can put out
+    of true DAG/ancestry order relative to when a commit actually
+    *landed* on the branch. `--topo-order` instead guarantees a parent is
+    never listed after its children (dates used only as a tie-breaker
+    among commits with no ordering constraint between them), matching
+    this tool's actual intent -- "the Nth commit under this item, in the
+    order they landed" -- and makes that intent immune to timestamp
+    manipulation a date-sorted traversal would be vulnerable to. `git log`
+    (bare) and `--date-order` are both still fundamentally TIMESTAMP-
+    sorted and are NOT equivalent to `--topo-order` on a history
+    containing any such manipulation (measured against this repo's own
+    real, independently-reviewed T177 history, where swapping this flag
+    genuinely changed which commit a real tower reported as its 3rd
+    qualifying one)."""
     git_args = [
         "log",
         "--no-merges",
+        "--topo-order",
         "--reverse",
         "--format=%H%x01%s",
     ]
@@ -463,17 +532,6 @@ def list_commits(repo, item=None, rev_range=None, path=None):
         pattern = item_token_regex(item)
         commits = [c for c in commits if pattern.search(c["subject"])]
     return commits
-
-
-def commit_touched_paths(repo, sha, path_filter=None):
-    """Return the list of file paths this commit's own diff touches,
-    restricted to `path_filter` (a single path or glob-free directory
-    prefix) when given."""
-    git_args = ["show", "--format=", "--name-only", sha]
-    if path_filter:
-        git_args.extend(["--", path_filter])
-    out = run_git(repo, git_args)
-    return [line for line in out.splitlines() if line.strip()]
 
 
 def commit_diff(repo, sha, path_filter=None):

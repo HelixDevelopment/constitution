@@ -54,13 +54,21 @@ round N+1 has to re-discover it by hand.
   line (git's built-in "which function is this hunk inside" heuristic,
   already proven on this very codebase -- a real `git diff -U0` run
   against `migrate.sh` correctly reported `write_out() {` /
-  `not_migrated() {` as hunk context) is normalized to `<file>::<symbol>`.
-  When git reports no usable context (or, as discovered while calibrating
-  this tool against `migrate.sh`'s real history, a *bare shell
-  control-flow keyword* like `fi`/`if`/`for`/`while`/`done` -- which is
-  NOT a real symbol name and was, before a fix, briefly treated as one),
-  the hunk coarsens to the explicitly-sanctioned **`FILE:<path>`**
-  fallback.
+  `not_migrated() {` as hunk context) is normalized to `<file>::<symbol>`
+  **only when that context line itself matches an explicit function/
+  class/def DEFINITION pattern** (shell `name() {`, python `def name(` /
+  `class Name`, go `func name(`, rust `fn name(`, javascript/typescript
+  `function name(`). Every other context -- empty, a bare control-flow
+  keyword like `fi`/`if`/`for`/`while`/`done`, OR (round 1 independent
+  review finding R1-review-I2, measured on this repo's own real T177/
+  T048/T085 history) an arbitrary non-keyword token git's heuristic
+  happened to surface nearby (`echo`, `import`, `PYEOF`, `trap`, and
+  others were all silently accepted as fake symbol names by an earlier
+  revision's generic fallback) -- coarsens to the explicitly-sanctioned
+  **`FILE:<path>`** fallback. There is deliberately no "accept the first
+  identifier-shaped token" fallback any more: a context line not matching
+  a real definition boundary carries no attribution value, and inventing
+  a fake per-line symbol from it was worse than honestly coarsening.
 
 ## How a commit qualifies as "branch-adding" for a symbol
 
@@ -142,7 +150,20 @@ on this tool's verdict alone).
 **False positives (may over-flag)**:
 - git's own function-context heuristic is itself a best-effort regex
   guess for most languages; an occasional hunk can be mis-attributed to
-  an unrelated nearby symbol, inflating that symbol's count.
+  an unrelated nearby symbol, inflating that symbol's count. **Round 1
+  independent review fix (R1-review-I2)**: an earlier revision also
+  accepted *any* identifier-shaped token in a non-definition context line
+  as a fake symbol name -- measured against this repo's own real history,
+  the most common such "symbol" was literally `echo` (56 hunks), plus
+  `import`, `PYEOF`, `trap`, `git`, `cat`, `rm`, `cp`, `EOF`, `printf`,
+  `sys.exit`, `HERE`. Fixed: `normalize_symbol()` now accepts ONLY lines
+  matching an explicit function/class/def DEFINITION pattern (shell,
+  python, go, rust, javascript/typescript); every other context coarsens
+  to the `FILE:` fallback instead of inventing a fake per-line symbol.
+  This is a *reduction* in false-positive symbol noise, not a complete
+  elimination of mis-attribution -- git's heuristic can still occasionally
+  attribute a hunk to the wrong *real* definition line when hunks are
+  closely nested.
 - Two *independently legitimate* features landing 3+ `if`-adding commits
   on the same symbol under one item (not actually compensating for the
   same root defect, just three separate well-reasoned features) will
@@ -151,6 +172,17 @@ on this tool's verdict alone).
   features that happen to touch the same function". **This is why the
   tool's output is a recommendation to *investigate*, never a verdict
   that the code is wrong.**
+- **Regression-test accretion (named by round 1 independent review,
+  MINOR-1)**: a dedicated per-round regression-test file (this project's
+  own convention: `test_X_rN_regression.sh`) that legitimately grows a
+  new test case each round looks, from git-history shape alone, exactly
+  like a tower -- each round's commit genuinely adds a new conditional
+  branch (a new test case), under the same item, to the same file. This
+  is NOT a defect pattern (the file's whole *purpose* is to accrete), but
+  `tower_detector` cannot currently distinguish it from a real tower; see
+  the retrospective table below, which reports every such flag found on
+  this session's own real history honestly rather than omitting the
+  inconvenient ones.
 
 ## Recommended response to a flag (S11.4.250 / S11.4.102)
 
@@ -177,18 +209,32 @@ on this tool's verdict alone).
 ## Retrospective validation against this session's own real towers
 
 Run read-only against this repository's own already-landed history
-(never rewriting it), on the eve of writing this tool:
+(never rewriting it). Re-run and table updated after the round 1
+independent review's R1-review-I2 symbol-attribution fix (below) -- the
+numbers here are the POST-FIX ones, reported honestly including every
+flag the tool genuinely produces, not a curated subset:
 
-| Item | Flagged symbol | Qualifying commits | Fired at round | Real human diagnosis round | Rounds earlier |
+| Item | Flagged symbol | Qualifying commits | Fired at round | Real human diagnosis round | Rounds earlier / reading |
 |---|---|---|---|---|---|
 | T177 | `FILE:scripts/fastcycle/consumers/migrate.sh` | 8 | **round 3** (commit `05b6239`) | round 19-20 | **~16-17 rounds earlier** |
-| T048 | `FILE:scripts/fastcycle/tests/test_fc_timer_golden_output.sh` | 8 | **round 9** (commit `6b384e4`) | round 20-21 | **~11-12 rounds earlier** |
+| T048 | `FILE:scripts/fastcycle/tests/test_fc_timer_golden_output.sh` | 9 | **round 7** (commit `c512992`) | round 20-21 | **~13-14 rounds earlier** |
 | T048 | `...test_fc_timer_golden_output.sh::validate_triplet` | 3 | round 11 (commit `e2c92dd`) | round 20-21 | ~9-10 rounds earlier |
-| T085 | `scripts/fastcycle/gates/catchset_compare.py::compute_comparison` | 3 | round 3 (commit `b50e685`) | round 3-4 (R4-B1) | roughly concurrent -- T085's own review cadence was already fast (5 rounds total at calibration time), so this tool's signal lands at/just-before the real diagnosis rather than dramatically ahead |
+| T048 | `FILE:...test_metatest_per_mutant_r4_regression.sh` | 5 | round 7 (commit `c512992`) | n/a | **regression-test-accretion class** (see Honest limitations) -- a dedicated per-round regression file, flagged by shape, not a real tower |
+| T048 | `FILE:...test_fc_timer_golden_output_r4_regression.sh` | 3 | round 13 (commit `df091b6`) | n/a | regression-test-accretion class |
+| T048 | `FILE:...tests/lib/golden_triplet_fixture.sh` | 3 | round 19 (commit `c48356b`) | n/a | regression-test-accretion class |
+| T048 | `FILE:...test_fc_timer_golden_output_r7_regression.sh` | 3 | round 19 (commit `c48356b`) | n/a | regression-test-accretion class |
+| T085 | `scripts/fastcycle/gates/catchset_compare.py::compute_comparison` | 3 | round 3 (commit `b50e685`) | round 3-4 (R4-B1) | roughly concurrent -- T085's own review cadence was already fast, so this tool's signal lands at/just-before the real diagnosis rather than dramatically ahead |
+| T085 | `FILE:...test_catchset_compare_seed_independence_r2_regression.sh` | 3 | round 5 (commit `10b7a06`) | n/a | regression-test-accretion class |
+| T085 | `FILE:...test_review_record_backfill_evidence_r2_regression.sh` | 3 | round 5 (commit `10b7a06`) | n/a | regression-test-accretion class |
 
-Honest reading (S11.4.6): T085's result is reported faithfully as
-"roughly concurrent", not inflated to match the larger T177/T048 numbers
--- the retrospective evidence is what it is, not what would make the best
-story. The commands used to produce this table are reproducible read-only
-git-log/git-show invocations against this repository's own history; no
-file was modified to produce them.
+Honest reading (S11.4.6): T085's genuine-defect result is reported
+faithfully as "roughly concurrent", not inflated to match the larger
+T177/T048 numbers. The four `_rN_regression.sh`/`golden_triplet_fixture.sh`
+flags under T048 and the two under T085 are the regression-test-accretion
+false-positive class named above -- included here for honesty rather than
+silently dropped because they don't fit the "early detection" success
+story; a human/agent reviewing a real flag on a dedicated regression-test
+file should recognise this class and not treat it as a tower without
+checking. The commands used to produce this table are reproducible
+read-only `git-log`/`git-show` invocations against this repository's own
+history; no file was modified to produce them.
