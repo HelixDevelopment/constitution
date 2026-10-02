@@ -340,14 +340,47 @@ if [ -f "$EXPORTER" ]; then
         echo "   contains the mtime-only freshness comparison ([ \"\$md\" -nt"
         echo "   \"\$html\" ]) -- the 'BEFORE state' premise is a measured fact"
         echo "   about this script's real source, never an assumption"
-        if grep -qE 'sha256|md5sum|content.hash|content_hash' "$EXPORTER" 2>/dev/null; then
-            bad "B1b unexpected: the real exporter ALSO already contains a"
-            echo "    content-hash reference -- re-check whether T-C12's key"
-            echo "    mechanism has already been partially wired into it"
+        # Fix-forward note (2026-10-03, §11.4.6/§11.4.201 -- documented, never
+        # silently patched around, mirroring render_keys.py's own module
+        # docstring's "Fix-forward note on test_render_keys_red.sh" precedent):
+        # as originally authored, this block asserted the exporter contains NO
+        # sha256/md5/content-hash reference anywhere -- correct for T062's own
+        # "BEFORE T-C12's wiring lands" scope, but T081 (the SEPARATE, later
+        # task that wires render_keys.py INTO this exporter's own freshness
+        # decision -- see render_keys.py's own module docstring, "T080 scope
+        # note") has since landed, and its wiring genuinely, intentionally
+        # introduces `sha256sum "${BASH_SOURCE[0]}"` (the exporter-version
+        # proxy) into the exporter's own text. A bare "no hash reference
+        # anywhere" assertion would therefore permanently FAIL from T081
+        # onward, DESPITE the exporter being exactly correct -- the defect
+        # class §11.4.201 names a false-positive refusal. The precise,
+        # distinguishing signal is the NAMED function `render_key_is_fresh`
+        # (T081's own public entry point, documented in
+        # `scripts/testing/sync_all_markdown_exports.sh`'s own "T-C12/T081
+        # render-key freshness gate" section) -- its presence means the hash
+        # reference IS the documented T081 wiring, not a surprise; its absence
+        # means this is still the pre-T081 state, where the ORIGINAL "no hash
+        # reference at all" assertion remains the correct check. Either branch
+        # is a genuine PASS; only a hash reference with NEITHER signal present
+        # (an undocumented, unexplained addition) is the real "unexpected"
+        # case this control needle exists to catch.
+        if grep -q 'render_key_is_fresh()' "$EXPORTER" 2>/dev/null; then
+            ok "B1b confirmed (post-T081): the real exporter's own text"
+            echo "    contains a content-hash reference (sha256sum) AND the"
+            echo "    named render_key_is_fresh() wiring entry point -- this IS"
+            echo "    T081's documented, intentional freshness-gate wiring"
+            echo "    landing on top of T062's own mtime-only BEFORE state,"
+            echo "    never an unexplained surprise"
+        elif grep -qE 'sha256|md5sum|content.hash|content_hash' "$EXPORTER" 2>/dev/null; then
+            bad "B1b unexpected: the real exporter contains a content-hash"
+            echo "    reference with NO render_key_is_fresh() wiring entry"
+            echo "    point -- this is neither T062's pre-T081 BEFORE state nor"
+            echo "    T081's documented wiring; re-check what changed"
         else
-            ok "B1b confirmed: the real exporter's classify loop contains NO"
-            echo "    sha256/md5/content-hash reference anywhere -- today's"
-            echo "    freshness decision is provably mtime-only, end to end"
+            ok "B1b confirmed (pre-T081): the real exporter's classify loop"
+            echo "    contains NO sha256/md5/content-hash reference anywhere --"
+            echo "    today's freshness decision is provably mtime-only, end"
+            echo "    to end (T081's wiring has not landed on this checkout)"
         fi
     else
         bad "B1 mechanism self-check FAILED: the real exporter's text does"
