@@ -679,9 +679,24 @@ chk "real bare-suffix content ('... Keep-alive period 20s') is NOT corrupted by 
 #   codes are equal -> PASS.
 #
 #   FC0a == FC0b but FC1 differs (verdict set OR exit code) -> FAIL: this
-#   is the ONLY shape that constitutes real evidence of an fc_timer-caused
-#   difference, because it is the one shape this run's own timer-free
-#   noise floor rules out as pre-existing noise.
+#   is the one shape this run's OWN timer-free noise floor rules out as
+#   pre-existing noise -- it is NOT, by itself, proof that fc_timer
+#   instrumentation CAUSED the difference (T048 round 22, R22-M2, honest
+#   correction: the prior wording here claimed this was "the ONLY shape
+#   that constitutes real evidence of an fc_timer-caused difference",
+#   which overclaims). Real captured counter-examples: (1) the defect-2
+#   report's triplet 20261001T184603Z had both twins fail IDENTICALLY
+#   because they shared TMPDIR, with FC1 passing -- a shared-state defect
+#   the per-member TMPDIR isolation check above exists to rule out; (2) a
+#   re-extracted r4_concurrent_*_20260930T160808Z triplet had matching
+#   twins (clean noise floor) while FC1 differed on two gates for reasons
+#   UNRELATED to fc_timer. Per-member TMPDIR isolation covers only ONE
+#   class of with/without-timers shared state; it is not a guarantee that
+#   every remaining FC1-vs-twins difference is fc_timer's doing. Failing
+#   is the SAFE direction when the noise floor is clean and FC1 still
+#   differs (never silently passed as "probably unrelated"); blaming
+#   fc_timer for the difference without debugging the differing gate
+#   FIRST is not -- the FAIL message below says so explicitly.
 #
 # No known-flaky exclusion, no Failed:-N parsing, no summary-tail
 # truncation, no registry accounting, no digit bound, no member-internal
@@ -733,7 +748,7 @@ if [ "$TRIPLET_STATE" = valid ]; then
     else
       DIFF_REAL="$(diff "$TMP/baseline_1.txt" "$TMP/with_timers.txt" 2>/dev/null || true)"
       DIFF_REAL_LINES="$(printf '%s\n' "$DIFF_REAL" | grep -c '^[<>]' || true)"
-      chk "FR-002/T-A01: with-timers verdict set is IDENTICAL to the without-timers verdict set, byte-for-byte after stripping timing suffixes ($TRIPLET_REASON) -- MISMATCH, $DIFF_REAL_LINES differing line(s), diff below" "0"
+      chk "FR-002/T-A01: with-timers verdict set is IDENTICAL to the without-timers verdict set, byte-for-byte after stripping timing suffixes ($TRIPLET_REASON) -- MISMATCH, $DIFF_REAL_LINES differing line(s), diff below. The noise floor was clean (FC0a==FC0b), so this difference is real and must not be ignored -- but a clean noise floor does NOT by itself prove fc_timer caused it (T048 R22-M2): DEBUG THE DIFFERING GATE(S) NAMED IN THE DIFF FIRST before attributing this to fc_timer instrumentation" "0"
       printf '%s\n' "$DIFF_REAL" | head -n 60
     fi
   fi
