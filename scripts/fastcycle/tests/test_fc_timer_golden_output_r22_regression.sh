@@ -181,15 +181,25 @@ fi
 # fixture to a wrong FAIL, proving the harness is not blind.
 # =========================================================================
 
+# The grep -F patterns and replacement literals below are deliberately
+# single-quoted so their embedded $TMP/$_ex0/$_exn/$_ex1 tokens stay
+# UN-expanded here -- they are verbatim text to be matched against, or
+# written into, the TARGET mutated copy of the golden test, never variables
+# of THIS script. shellcheck's SC2016 ("expressions don't expand in single
+# quotes") is an info-level false-positive for this intentional case.
+# shellcheck disable=SC2016
 ANCHOR_CLEAN="$(grep -F -- 'if cmp -s "$TMP/baseline_1.txt" "$TMP/fc0b.txt" && [ "$_ex0" = "$_exn" ]; then' "$REAL_GOLDEN")"
 ANCHOR_SKIPCALL="$(grep -F -- 'skip "FR-002/T-A01: FC0a and FC0b (both WITHOUT timers' "$REAL_GOLDEN")"
+# shellcheck disable=SC2016
 ANCHOR_EXITCOND="$(grep -F -- 'if [ "$_ex0" = "$_ex1" ]; then' "$REAL_GOLDEN")"
 
 if [ -z "$ANCHOR_CLEAN" ] || [ -z "$ANCHOR_SKIPCALL" ] || [ -z "$ANCHOR_EXITCOND" ]; then
   bad "(mutation setup) one or more anchors could not be resolved from $REAL_GOLDEN -- ANCHOR_CLEAN='$ANCHOR_CLEAN' ANCHOR_SKIPCALL(len)=${#ANCHOR_SKIPCALL} ANCHOR_EXITCOND='$ANCHOR_EXITCOND'"
 else
   REPL_MA='  if true; then  # MUTANT MA (T048 R22-I1): always treat the FC0a/FC0b noise floor as clean, bypassing the real cmp+exit comparison'
+  # shellcheck disable=SC2016
   REPL_MB='  if cmp -s "$TMP/baseline_1.txt" "$TMP/fc0b.txt"; then  # MUTANT MB (T048 R22-I1): drop the exit-code half of the twin comparison'
+  # shellcheck disable=SC2016
   REPL_MD='  if [ "$_ex0" = "$_exn" ]; then  # MUTANT MD (T048 R22-I1): drop the verdict-set half of the twin comparison'
   REPL_MC="$(printf '%s' "$ANCHOR_SKIPCALL" | sed 's/^\( *\)skip /\1chk /')"
   REPL_MC="${REPL_MC} \"1\"  # MUTANT MC (T048 R22-I1): turn the twin-disagreement SKIP into a PASS"
