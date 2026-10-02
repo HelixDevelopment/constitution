@@ -293,7 +293,14 @@ _GIT_SAFE_ARGS = (
 # git-lfs's own documented extension mechanism, `lfs.extension.<name>.clean`, makes that TRUSTED
 # driver read and execute a command named in the repository's own LOCAL, untracked config -- removed
 # from trust here for the identical reason) in --root and every initialised submodule beneath it
-# (index gitlinks AND .gitmodules paths, recursively), using the FULL
+# (index gitlinks AND .gitmodules paths, recursively -- T177 Round 25 (R24-M1): migrate.sh's own
+# sibling discovery REMOVED its equivalent .gitmodules-only branch in its Round 24 commit, with
+# cited evidence it was dead code for migrate.sh's OWN specific, narrow call pattern (a single
+# hardcoded "constitution" submodule, always reached via an index gitlink). That evidence does
+# NOT generalise to this tool: repo_verify.py is a general-purpose, standalone verifier any caller
+# may point at an arbitrary --root with an arbitrary submodule layout, so the .gitmodules branch
+# stays here deliberately -- this is a DISCLOSED, intentional divergence between the two sibling
+# discoveries, not an inconsistency), using the FULL
 # effective config (`--show-scope --includes`; never `--local`, which is blind to include.path/
 # includeIf and --worktree definitions -- the exact R22-B1 gap). Each such driver NAME is then
 # neutralised on every git call this tool makes: smudge=cat, clean=cat, process= (empty: no

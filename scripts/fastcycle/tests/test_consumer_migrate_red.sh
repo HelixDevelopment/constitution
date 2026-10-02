@@ -375,32 +375,56 @@ fi
 # --- C4i: T177 Round 21 R20-M2 -- C4's blacklist is necessarily incomplete
 # (R20's own review: "a blacklist missing several real force-push shapes").
 # Per the reviewer's own suggested replacement, assert POSITIVELY instead:
-# the tool's source contains EXACTLY ONE line that invokes `git ... push`,
-# and that line is of the one known-safe shape this architecture actually
-# uses -- `git -C "$FC_BARE" [...] push "$url" "$NEW_COMMIT":"refs/heads/
-# $BRANCH"` (push-by-COMMIT-ID, never a branch name or `HEAD`, so moving
-# the local branch after verification cannot change what gets published --
-# see Round 15's half-2 fix). A blacklist can only catch bypass SHAPES its
-# author already enumerated (C4b/C4c/C4d exist because the original
-# blacklist missed two); a positive, single-known-shape assertion cannot be
-# bypassed by any shape never thought of, including a FUTURE one C4's regex
-# would also miss. This check does not replace C4 (a defense-in-depth
-# pair, not a swap -- C4 still catches a force-push/reset/stash/clean
-# ANYWHERE in the source, not only on the one push line this check
-# inspects) and is NOT self-vacuous: it independently fails if a second
-# push line is ever added (e.g. a future convenience branch-name push)
-# even if neither line's own text matches C4's blacklist pattern.
+# the tool's source contains EXACTLY ONE line that invokes `git ... push`
+# addressing a REMOTE (a configured consumer URL, never a literal path this
+# tool itself owns), and that line is of the one known-safe shape this
+# architecture actually uses -- `git -C "$FC_BARE" [...] push "$url"
+# "$NEW_COMMIT":"refs/heads/$BRANCH"` (push-by-COMMIT-ID, never a branch
+# name or `HEAD`, so moving the local branch after verification cannot
+# change what gets published -- see Round 15's half-2 fix). A blacklist can
+# only catch bypass SHAPES its author already enumerated (C4b/C4c/C4d exist
+# because the original blacklist missed two); a positive, single-known-
+# shape assertion cannot be bypassed by any shape never thought of,
+# including a FUTURE one C4's regex would also miss. This check does not
+# replace C4 (a defense-in-depth pair, not a swap -- C4 still catches a
+# force-push/reset/stash/clean ANYWHERE in the source, not only on the one
+# push line this check inspects) and is NOT self-vacuous: it independently
+# fails if a second REMOTE-ADDRESSED push line is ever added (e.g. a future
+# convenience branch-name push) even if neither line's own text matches
+# C4's blacklist pattern.
+#
+# T177 Round 25 (R24-B2 remediation introduced two NEW, LEGITIMATE,
+# INTERNAL-ONLY push lines -- the hop-2 submodule transfer and the step-9
+# sync transfer, both now PUSHING from a trusted, tool-owned bare repo
+# INTO a tool-owned LOCAL path, instead of FETCHING into that path's own
+# untrusted config context, per that fix's own forensic comment). This
+# check is EXTENDED, never weakened, to classify every push line into
+# exactly one of two closed shapes rather than requiring a literal count
+# of one: the ORIGINAL external/remote shape above (still EXACTLY one, and
+# still the ONLY line that can ever reach a consumer-configured remote),
+# and a NEW internal-only shape -- `push ... -- "$WORKDIR"[/constitution]
+# "$NEW_SHA:refs/fc-import/..."` or `"$NEW_COMMIT:refs/fc-import/..."`
+# (SHA-pinned, like the external shape; the destination is a LITERAL,
+# hardcoded `$WORKDIR`/`$WORKDIR/constitution` path this tool itself
+# resolved, NEVER `$url`/`$r`/any remote-derived variable; the target ref
+# is confined to the `refs/fc-import/` namespace, NEVER `refs/heads/*` or
+# `HEAD`, so it can never move the submodule's or $WORKDIR's own checked-
+# out branch). A push line matching NEITHER shape, or more than one
+# EXTERNAL-shape line, still fails this check exactly as before.
 if [ -f "$TOOL" ]; then
     PUSH_LINES=$(grep -nE 'git[[:space:]].*[[:space:]]push[[:space:]]' "$TOOL" | grep -v '^\s*[0-9]*:\s*#')
     PUSH_LINE_COUNT=$(printf '%s\n' "$PUSH_LINES" | grep -c . || true)
-    KNOWN_SAFE_RE='push[[:space:]]+"\$url"[[:space:]]+"\$NEW_COMMIT":"refs/heads/\$BRANCH"'
-    if [ "$PUSH_LINE_COUNT" -eq 1 ] && printf '%s\n' "$PUSH_LINES" | grep -qE -- "$KNOWN_SAFE_RE"; then
-        ok "C4i R20-M2 positive push-shape: $TOOL contains exactly one 'git push' invocation, of the known-safe push-by-commit-id shape"
+    EXTERNAL_SAFE_RE='push[[:space:]]+"\$url"[[:space:]]+"\$NEW_COMMIT":"refs/heads/\$BRANCH"'
+    INTERNAL_SAFE_RE='push[[:space:]].*--[[:space:]]+"\$WORKDIR(/constitution)?"[[:space:]]+"\$NEW_(SHA|COMMIT):refs/fc-import/[A-Za-z0-9_-]+"'
+    EXTERNAL_COUNT=$(printf '%s\n' "$PUSH_LINES" | grep -cE -- "$EXTERNAL_SAFE_RE" || true)
+    INTERNAL_COUNT=$(printf '%s\n' "$PUSH_LINES" | grep -cE -- "$INTERNAL_SAFE_RE" || true)
+    if [ "$EXTERNAL_COUNT" -eq 1 ] && [ "$((EXTERNAL_COUNT + INTERNAL_COUNT))" -eq "$PUSH_LINE_COUNT" ]; then
+        ok "C4i R20-M2/R24-B2 positive push-shape: $TOOL contains exactly one REMOTE-addressed 'git push' (the known-safe push-by-commit-id shape to \$url) and $INTERNAL_COUNT internal-only push(es), each SHA-pinned into refs/fc-import/* against a literal \$WORKDIR path -- every push line classified into one of the two closed safe shapes, none left over"
     else
-        bad "C4i R20-M2 positive push-shape: $TOOL does not contain exactly one known-safe push invocation (count=$PUSH_LINE_COUNT) -- any other shape, or more than one push line, is refused by this check regardless of whether C4's blacklist also catches it"
+        bad "C4i R20-M2/R24-B2 positive push-shape: $TOOL's push lines do not classify cleanly (total=$PUSH_LINE_COUNT external=$EXTERNAL_COUNT internal=$INTERNAL_COUNT) -- expected exactly 1 external + the rest internal-safe, with none left unclassified"
     fi
 else
-    bad "C4i R20-M2 positive push-shape: $TOOL is absent -- cannot grep its source"
+    bad "C4i R20-M2/R24-B2 positive push-shape: $TOOL is absent -- cannot grep its source"
 fi
 
 # --- C4j: C4i guard-viability -- prove the positive check genuinely fires
@@ -2591,6 +2615,220 @@ if [ "$J_MUT_OK" -eq 1 ] && [ -f "$K_LFS_MARKER" ]; then
     ok "K-lfs-extension guard-viability: with TRUSTED_SCOPES reverted to trust global/system (the Round 23 pre-fix value), the SAME git-lfs-style global-driver/local-extension shape FIRES again -- K-lfs-extension's fix is genuinely load-bearing, not decoration"
 else
     bad "K-lfs-extension guard-viability: reverting TRUSTED_SCOPES did not reproduce the global-driver firing (mut_ok=$J_MUT_OK marker=$([ -f "$K_LFS_MARKER" ] && echo FIRED || echo absent))"
+fi
+
+# --- K-protocol-allowlist: T177 Round 25 (R24-B1 BLOCKING, independent
+# review, live-reproduced): Round 24 installed `protocol.allow=never`
+# process-wide, believing (and FALSELY claiming in its own comment) that
+# known-safe protocols (http/https/git/ssh) "keep their own built-in
+# `always` default UNCHANGED by this". `protocol.allow` is actually a
+# BLANKET fallback for EVERY protocol with no more specific
+# `protocol.<name>.allow` of its own -- confirmed live by the independent
+# Round 24 reviewer AND re-confirmed here: left as Round 24 shipped it,
+# migrate.sh could no longer reach ANY real ssh/https production remote
+# at all. Closed by adding an explicit `protocol.{http,https,git,ssh,
+# file}.allow=always` allow-list alongside the `never` fallback. This arm
+# extracts the REAL, CURRENT override block from $TOOL's own source (the
+# `fc_gcc_add` calls between its function definition and the
+# `GIT_CONFIG_COUNT=$FC_GCC_N; export GIT_CONFIG_COUNT` line that installs
+# them -- never a hand-copied reconstruction that could silently drift
+# from the real tool) and sources it in an isolated harness, then proves:
+# (a) an ssh:// AND an https:// URL to a reserved, guaranteed-nonexistent
+# host (RFC 2606 `.invalid`) fail with a NETWORK-LEVEL error (DNS/
+# connection), never "transport '<proto>' not allowed" -- proving the
+# POLICY permits the attempt even though the host itself is unreachable;
+# (b) `ext::` remains refused -- proving the exotic-protocol hardening
+# was not accidentally widened along with the fix.
+K_PROTO_EXTRACT="$WORK/k_proto_block.sh"
+awk '/^FC_GCC_N=\$FC_CALLER_GCC$/{f=1} f{print} f && /^GIT_CONFIG_COUNT=\$FC_GCC_N; export GIT_CONFIG_COUNT$/{exit}' "$TOOL" > "$K_PROTO_EXTRACT"
+K_PROTO_LINES=$(wc -l < "$K_PROTO_EXTRACT" | tr -d ' ')
+if [ "$K_PROTO_LINES" -lt 5 ]; then
+    bad "K-protocol-allowlist: extraction of \$TOOL's fc_gcc_add override block found only $K_PROTO_LINES line(s) -- anchor drift, cannot run this arm"
+else
+    K_PROTO_HARNESS="$WORK/k_proto_harness.sh"
+    {
+        printf '%s\n' '#!/bin/sh' 'set -u' 'FC_CALLER_GCC=0'
+        cat "$K_PROTO_EXTRACT"
+        printf '%s\n' \
+            'ssh_err=$(git -c protocol.file.allow=always ls-remote ssh://nonexistent.invalid.bogus.example/x.git HEAD 2>&1 1>/dev/null)' \
+            'https_err=$(git -c protocol.file.allow=always ls-remote https://nonexistent.invalid.bogus.example/x.git HEAD 2>&1 1>/dev/null)' \
+            'ext_err=$(git -c protocol.file.allow=always ls-remote "ext::sh -c true" HEAD 2>&1 1>/dev/null)' \
+            'printf "SSH_ERR=%s\nHTTPS_ERR=%s\nEXT_ERR=%s\n" "$ssh_err" "$https_err" "$ext_err"'
+    } > "$K_PROTO_HARNESS"
+    K_PROTO_OUT=$(sh "$K_PROTO_HARNESS" 2>&1)
+    K_PROTO_SSH_BLOCKED=no; K_PROTO_HTTPS_BLOCKED=no; K_PROTO_EXT_BLOCKED=no
+    echo "$K_PROTO_OUT" | grep -q "SSH_ERR=.*transport 'ssh' not allowed" && K_PROTO_SSH_BLOCKED=yes
+    echo "$K_PROTO_OUT" | grep -q "HTTPS_ERR=.*transport 'https' not allowed" && K_PROTO_HTTPS_BLOCKED=yes
+    echo "$K_PROTO_OUT" | grep -q "EXT_ERR=.*transport 'ext' not allowed" && K_PROTO_EXT_BLOCKED=yes
+    if [ "$K_PROTO_SSH_BLOCKED" = no ] && [ "$K_PROTO_HTTPS_BLOCKED" = no ] && [ "$K_PROTO_EXT_BLOCKED" = yes ]; then
+        ok "K-protocol-allowlist (T177 Round 25, R24-B1): under \$TOOL's OWN real process-wide override block, ssh:// and https:// fail with a network-level error (not 'transport not allowed'), while ext:: remains refused -- the allow-list fix genuinely restores the protocols this tool needs without reopening the exotic-protocol hardening"
+    else
+        bad "K-protocol-allowlist: ssh-blocked=$K_PROTO_SSH_BLOCKED https-blocked=$K_PROTO_HTTPS_BLOCKED ext-blocked=$K_PROTO_EXT_BLOCKED (expected no/no/yes) -- output: $K_PROTO_OUT"
+    fi
+fi
+# K-protocol-allowlist guard-viability: with the 4 new allow-list lines
+# removed (reverting to the exact Round 24 pre-fix override set), ssh://
+# and https:// DO get refused again -- proving the allow-list lines, not
+# some other mechanism, are what K-protocol-allowlist's PASS depends on.
+j_mutant K_protocol_allowlist_removed \
+    'fc_gcc_add protocol.http.allow always
+fc_gcc_add protocol.https.allow always
+fc_gcc_add protocol.git.allow always
+fc_gcc_add protocol.ssh.allow always
+fc_gcc_add protocol.file.allow always' \
+    '# MUTATED_FOR_TEST: allow-list removed, reverting to the Round 24 pre-fix override set
+fc_gcc_add protocol.file.allow always'
+if [ "$J_MUT_OK" -eq 1 ] && [ "$K_PROTO_LINES" -ge 5 ]; then
+    K_PROTO_MUT_EXTRACT="$WORK/k_proto_block_mut.sh"
+    awk '/^FC_GCC_N=\$FC_CALLER_GCC$/{f=1} f{print} f && /^GIT_CONFIG_COUNT=\$FC_GCC_N; export GIT_CONFIG_COUNT$/{exit}' "$WORK/jmut_K_protocol_allowlist_removed.sh" > "$K_PROTO_MUT_EXTRACT"
+    K_PROTO_MUT_HARNESS="$WORK/k_proto_mut_harness.sh"
+    {
+        printf '%s\n' '#!/bin/sh' 'set -u' 'FC_CALLER_GCC=0'
+        cat "$K_PROTO_MUT_EXTRACT"
+        printf '%s\n' \
+            'ssh_err=$(git -c protocol.file.allow=always ls-remote ssh://nonexistent.invalid.bogus.example/x.git HEAD 2>&1 1>/dev/null)' \
+            'printf "SSH_ERR=%s\n" "$ssh_err"'
+    } > "$K_PROTO_MUT_HARNESS"
+    K_PROTO_MUT_OUT=$(sh "$K_PROTO_MUT_HARNESS" 2>&1)
+    if echo "$K_PROTO_MUT_OUT" | grep -q "SSH_ERR=.*transport 'ssh' not allowed"; then
+        ok "K-protocol-allowlist guard-viability: with the allow-list lines removed (the Round 24 pre-fix override set), ssh:// is refused again ('transport not allowed') -- K-protocol-allowlist's fix is genuinely load-bearing, not decoration"
+    else
+        bad "K-protocol-allowlist guard-viability: removing the allow-list lines did not reproduce the ssh refusal -- output: $K_PROTO_MUT_OUT"
+    fi
+else
+    bad "K-protocol-allowlist guard-viability: mutant anchor not unique/absent or extraction too short (mut_ok=$J_MUT_OK lines=$K_PROTO_LINES)"
+fi
+
+# --- K-insteadof-redirect: T177 Round 25 (R24-B2 BLOCKING, independent
+# review, live-reproduced): hop 2 of the item-2a two-hop fetch, and the
+# step-9 sync fetch, used to be `-C`'d INTO the submodule's/$WORKDIR's OWN
+# repository to pull FROM a trusted scratch bare repo by explicit local
+# path -- but git resolves `url.*.insteadOf` rewriting against the config
+# of whichever repository the command is `-C`'d INTO, regardless of how
+# explicit the far side's path is, and MIGRATE_SCRATCH's own prefix
+# (`${TMPDIR:-/tmp}/fastcycle_migrate_scratch.`) is PREDICTABLE even
+# though its mktemp suffix is not -- an attacker needs only a PREFIX-
+# matching `insteadOf` rule, never the exact random path, to redirect
+# either hop. Closed by inverting the data-flow direction: PUSH from the
+# trusted scratch repo (the `-C` target, whose config is fresh/empty)
+# INTO the submodule/$WORKDIR, never a fetch into the untrusted side.
+# This arm plants a prefix-matching `insteadOf` hijack in BOTH the
+# submodule's own local config (targeting hop 2) and $WORKDIR's own local
+# config (targeting the sync fetch), each redirecting the real scratch
+# prefix to a GARBAGE path that does not exist -- so if EITHER call were
+# still fetch-based (pre-fix), the redirect would make that fetch fail
+# outright (confirmed by a standalone repro: the exact pre-fix fetch
+# shape against a real-prefixed scratch path produced "does not appear to
+# be a git repository" once redirected).
+K_ISF_ROOT="$K_ROOT/k_isf"
+build_r3_fixture "$K_ISF_ROOT"
+git -C "$K_ISF_ROOT/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+K_ISF_PREFIX="${TMPDIR:-/tmp}/fastcycle_migrate_scratch."
+K_ISF_GARBAGE="$K_ISF_ROOT/totally-garbage-nonexistent-"
+git -C "$K_ISF_ROOT/checkout/constitution" config "url.$K_ISF_GARBAGE.insteadOf" "$K_ISF_PREFIX"
+git -C "$K_ISF_ROOT/checkout" config "url.$K_ISF_GARBAGE.insteadOf" "$K_ISF_PREFIX"
+j_run "$TOOL" "$K_ISF_ROOT" fixture/section_k_isf "$WORK/k_isf.json"
+K_ISF_GITLINK=$(k_gitlink "$K_ISF_ROOT")
+K_ISF_CONTENT_OK=no
+if [ "$(git -C "$K_ISF_ROOT/checkout/constitution" hash-object --no-filters CLAUDE.md 2>/dev/null)" = "$(git -C "$K_ISF_ROOT/checkout/constitution" rev-parse "$R3_NEW:CLAUDE.md" 2>/dev/null)" ]; then
+    K_ISF_CONTENT_OK=yes
+fi
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$K_ISF_GITLINK" = "$R3_NEW" ] && [ "$K_ISF_CONTENT_OK" = yes ]; then
+    ok "K-insteadof-redirect (T177 Round 25, R24-B2): a PREFIX-matching \`url.*.insteadOf\` hijack planted in BOTH the submodule's and \$WORKDIR's own local config, targeting the real, predictable MIGRATE_SCRATCH prefix, does NOT redirect either the hop-2 transfer or the step-9 sync transfer -- MIGRATED, gitlink=\$R3_NEW, checked-out content byte-identical to \$R3_NEW's blob"
+else
+    bad "K-insteadof-redirect: rc=$J_RC out=$J_OUT gitlink=$K_ISF_GITLINK expected=$R3_NEW content-ok=$K_ISF_CONTENT_OK"
+fi
+# K-insteadof-redirect guard-viability: with BOTH hop-2 and the sync fetch
+# reverted to their pre-Round-25 fetch-INTO-the-untrusted-side shape, the
+# SAME prefix-matching insteadOf hijack DOES break the migration (the
+# redirected fetch fails outright) -- proving the push-based inversion,
+# not some other mechanism, is what K-insteadof-redirect's PASS depends on.
+# NOTE: the replacement strings below deliberately carry NO inline `#`
+# comment -- the anchors are PARTIAL lines (the original `if ! <cmd>;
+# then` continues past them on the SAME physical line), so a trailing
+# `# ...` here would swallow that `; then` into the comment and break the
+# mutant's shell syntax (caught live while authoring this arm: the first
+# attempt produced exactly that syntax error).
+j_mutant K_insteadof_fetch_shape \
+    'git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR/constitution" "$NEW_SHA:refs/fc-import/migrate" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
+    'git -C "$WORKDIR/constitution" -c protocol.file.allow=always fetch -q -- "$FC_SUB_FETCH_BARE" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
+    'git -C "$FC_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR" "$NEW_COMMIT:refs/fc-import/migrate-sync" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1' \
+    'git -C "$WORKDIR" -c protocol.file.allow=always fetch -q "$FC_BARE" "$NEW_COMMIT" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1'
+K_ISF_M_ROOT="$K_ROOT/km_isf"
+build_r3_fixture "$K_ISF_M_ROOT"
+git -C "$K_ISF_M_ROOT/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+git -C "$K_ISF_M_ROOT/checkout/constitution" config "url.$K_ISF_GARBAGE.insteadOf" "$K_ISF_PREFIX"
+git -C "$K_ISF_M_ROOT/checkout" config "url.$K_ISF_GARBAGE.insteadOf" "$K_ISF_PREFIX"
+j_run "$WORK/jmut_K_insteadof_fetch_shape.sh" "$K_ISF_M_ROOT" fixture/section_km_isf "$WORK/km_isf.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -ne 0 ] && ! echo "$J_OUT" | grep -q '^MIGRATED'; then
+    ok "K-insteadof-redirect guard-viability: with hop 2 and the sync fetch reverted to their pre-Round-25 fetch-into-the-untrusted-side shape, the SAME prefix-matching insteadOf hijack breaks the migration (rc=$J_RC, not MIGRATED) -- the push-based fix is genuinely load-bearing, not decoration"
+else
+    bad "K-insteadof-redirect guard-viability: reverting to the fetch-into-untrusted shape did not reproduce the hijack breaking the migration (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+
+# --- K-submodule-url-hijack: T177 Round 25 (R24-I1 IMPORTANT, independent
+# review, live-reproduced): a LOCAL `submodule.<name>.url` entry in
+# $WORKDIR's own config overrode `.gitmodules`'s own declared URL for the
+# FIRST-TIME clone `fc_submodule_update_init_filtered()` performs on a
+# never-before-initialised submodule -- the common real-world case. Closed
+# by pinning `-c submodule.<name>.url=$SUB_URL` (the SAME trusted,
+# `.gitmodules`-resolved URL step 4 already established) at the same
+# highest-precedence scope as the existing `update=checkout` override.
+# This arm builds a fixture whose submodule is deliberately left
+# UNINITIALISED (build_r3_fixture's own clone never initialises it --
+# the exact scenario this finding needs), plants a local
+# `submodule.constitution.url` override pointing at a SEPARATE attacker
+# bare repository with recognisably different content, then runs a real
+# migration and confirms the submodule's checked-out content and
+# `remote.origin.url` both come from the TRUSTED `.gitmodules` URL, never
+# the attacker's.
+K_SUI_ROOT="$K_ROOT/k_sui"
+build_r3_fixture "$K_SUI_ROOT"
+K_SUI_ATTACKER="$K_ROOT/k_sui_attacker.git"
+git init --bare -q -b main "$K_SUI_ATTACKER"
+K_SUI_AW=$(mktemp -d)
+git init -q -b main "$K_SUI_AW" >/dev/null
+git -C "$K_SUI_AW" config user.name fastcycle-fixture
+git -C "$K_SUI_AW" config user.email fixture@example.invalid
+echo "ATTACKER-CONTROLLED CONTENT -- this must never be checked out" > "$K_SUI_AW/CLAUDE.md"
+git -C "$K_SUI_AW" add CLAUDE.md
+git -C "$K_SUI_AW" commit -q -m attacker
+git -C "$K_SUI_AW" remote add origin "$K_SUI_ATTACKER"
+git -C "$K_SUI_AW" push -q origin main
+rm -rf "$K_SUI_AW"
+git -C "$K_SUI_ROOT/checkout" config submodule.constitution.url "$K_SUI_ATTACKER"
+j_run "$TOOL" "$K_SUI_ROOT" fixture/section_k_sui "$WORK/k_sui.json"
+K_SUI_GITLINK=$(k_gitlink "$K_SUI_ROOT")
+K_SUI_URL_OK=no
+if [ "$(git -C "$K_SUI_ROOT/checkout/constitution" config --get remote.origin.url 2>/dev/null)" = "$K_SUI_ROOT/mc.git" ]; then
+    K_SUI_URL_OK=yes
+fi
+K_SUI_CONTENT_OK=no
+if [ -f "$K_SUI_ROOT/checkout/constitution/CLAUDE.md" ] && ! grep -q "ATTACKER-CONTROLLED" "$K_SUI_ROOT/checkout/constitution/CLAUDE.md" 2>/dev/null \
+    && [ "$(git -C "$K_SUI_ROOT/checkout/constitution" hash-object --no-filters CLAUDE.md 2>/dev/null)" = "$(git -C "$K_SUI_ROOT/checkout/constitution" rev-parse "$R3_NEW:CLAUDE.md" 2>/dev/null)" ]; then
+    K_SUI_CONTENT_OK=yes
+fi
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$K_SUI_GITLINK" = "$R3_NEW" ] && [ "$K_SUI_URL_OK" = yes ] && [ "$K_SUI_CONTENT_OK" = yes ]; then
+    ok "K-submodule-url-hijack (T177 Round 25, R24-I1): a LOCAL submodule.constitution.url override pointing at an attacker repository does NOT redirect the first-time clone -- MIGRATED, the submodule's own remote.origin.url is the TRUSTED .gitmodules URL, and the checked-out content is \$R3_NEW's real blob, never the attacker's content"
+else
+    bad "K-submodule-url-hijack: rc=$J_RC out=$J_OUT gitlink=$K_SUI_GITLINK expected=$R3_NEW url-ok=$K_SUI_URL_OK content-ok=$K_SUI_CONTENT_OK"
+fi
+# K-submodule-url-hijack guard-viability: with the `-c submodule.<name>.
+# url=$SUB_URL` pin removed, the SAME local override DOES redirect the
+# first-time clone to the attacker's repository -- proving the pin, not
+# some other mechanism, is what K-submodule-url-hijack's PASS depends on.
+j_mutant K_submodule_url_unpinned \
+    ' -c "submodule.$3.update=checkout" -c "submodule.$3.url=$SUB_URL" submodule update --init --no-fetch "$3"' \
+    ' -c "submodule.$3.update=checkout" submodule update --init --no-fetch "$3"  # MUTATED_FOR_TEST'
+K_SUI_M_ROOT="$K_ROOT/km_sui"
+build_r3_fixture "$K_SUI_M_ROOT"
+git -C "$K_SUI_M_ROOT/checkout" config submodule.constitution.url "$K_SUI_ATTACKER"
+j_run "$WORK/jmut_K_submodule_url_unpinned.sh" "$K_SUI_M_ROOT" fixture/section_km_sui "$WORK/km_sui.json"
+K_SUI_M_URL=$(git -C "$K_SUI_M_ROOT/checkout/constitution" config --get remote.origin.url 2>/dev/null)
+if [ "$J_MUT_OK" -eq 1 ] && [ "$K_SUI_M_URL" = "$K_SUI_ATTACKER" ]; then
+    ok "K-submodule-url-hijack guard-viability: with the submodule.<name>.url pin removed, the SAME local override redirects the first-time clone to the attacker repository (remote.origin.url=\$K_SUI_ATTACKER) -- K-submodule-url-hijack's fix is genuinely load-bearing, not decoration"
+else
+    bad "K-submodule-url-hijack guard-viability: removing the url pin did not reproduce the hijack (mut_ok=$J_MUT_OK remote.origin.url=$K_SUI_M_URL expected=$K_SUI_ATTACKER)"
 fi
 
 # K-verify-wiring: repo_verify.py strips inherited GIT_CONFIG_* by design,

@@ -633,22 +633,57 @@ fi
 # $REMOTES_LIST, `-C "$FC_BARE"`, item 2f). Combined with the process-
 # wide `protocol.allow=never`/`protocol.ext.allow=never`/`core.
 # alternateRefsCommand=true` overrides installed near the top of this
-# file (item 2e), the claim is NOW accurate, for the REAL reason: every
-# remaining git call this tool makes that could trigger a transport
+# file (item 2e), Round 24 claimed the "NOW accurate" reasoning below --
+# TWO parts of which were THEMSELVES FALSE, independently found by the
+# Round 24 review and corrected the SAME round (T177 Round 25, see the
+# cited call sites' own comments for the full forensic record of each):
+#
+#   (B1) `protocol.allow=never` is a BLANKET fallback covering EVERY
+#   protocol with no MORE SPECIFIC `protocol.<name>.allow` of its own --
+#   INCLUDING http/https/git/ssh, which have NO policy of their own
+#   unless one is explicitly set. Round 24's claim that those "keep their
+#   own built-in `always` default UNCHANGED by this" was a false
+#   §11.4.6 claim: left as shipped, it made migrate.sh unable to publish
+#   to ANY real ssh/https production remote -- live-reproduced both the
+#   break (an `https://`/`ssh://` ls-remote under the installed
+#   environment failed "transport '<proto>' not allowed") and the fix
+#   (an explicit `protocol.{http,https,git,ssh,file}.allow=always`
+#   allow-list alongside the `never` fallback restores every protocol
+#   this tool actually needs while still denying anything NOT listed).
+#
+#   (B2) hop 2 of the item-2a two-hop fetch, and the step-9 sync fetch,
+#   were `-C`'d INTO the submodule's/`$WORKDIR`'s OWN repository to fetch
+#   FROM a trusted scratch repo by explicit local path -- but git resolves
+#   `url.*.insteadOf` rewriting against the config of whichever repository
+#   the command is `-C`'d INTO, regardless of how explicit the far side's
+#   path is. Round 24's claim that "insteadOf/sshCommand are never
+#   consulted for EITHER hop" was false for hop 2, and the SAME gap
+#   existed in the step-9 sync fetch; live-reproduced that a local
+#   `url.*.insteadOf` rule redirected exactly this call shape to an
+#   unrelated repository. Both are fixed by INVERTING the data-flow
+#   direction: PUSH from the trusted scratch repo (now the `-C` target,
+#   whose own config is fresh/empty) INTO the submodule/`$WORKDIR`, to a
+#   dedicated non-colliding ref, rather than fetching INTO the untrusted
+#   repository's own config context.
+#
+# With BOTH corrected, the claim is NOW accurate, for the REAL reason:
+# every remaining git call this tool makes that could trigger a transport
 # (fetch/push/ls-remote) operates EITHER against `$FC_BARE`/a dedicated
-# scratch bare repo (both tool-owned, consumer-config-free, addressed by
-# explicit URL/path, never by remote name) OR as a plain LOCAL-PATH-only
-# fetch/checkout with no transport to hijack at all -- never as a call
-# that resolves `remote.<name>.*`/`url.*.insteadOf`/`core.sshCommand`/
-# `credential.helper` from $WORKDIR's or the submodule's OWN local
-# config. `core.sshCommand` and `credential.helper` specifically were
-# NEVER separately neutralised and remain so (there is nothing left to
-# neutralise them AGAINST: no remaining $WORKDIR-context call uses an
-# ssh:// or credential-requiring transport). The SEPARATE, narrower,
-# already-disclosed residual below (REMOTES_LIST's own name/URL PAIRS
-# still originate from $WORKDIR's untrusted config, so an attacker-added
-# remote entry is still fetched FROM) is UNCHANGED by this round and
-# stays open, tracked as its own §11.4.197 follow-up.
+# scratch bare repo as the `-C` TARGET (both tool-owned, consumer-
+# config-free, with every far-side path/URL addressed explicitly, never
+# by remote name) OR as a plain LOCAL-PATH-only checkout with no
+# transport to hijack at all -- never as a call `-C`'d into $WORKDIR's or
+# the submodule's OWN local config while resolving `remote.<name>.*`/
+# `url.*.insteadOf`/`core.sshCommand`/`credential.helper` from that SAME
+# untrusted context. `core.sshCommand` and `credential.helper`
+# specifically remain unneutralised, correctly so: no remaining call is
+# EVER `-C`'d into $WORKDIR's/the submodule's own config while initiating
+# a network-reaching transport, so there is nothing left for those two
+# keys to steer. The SEPARATE, narrower, already-disclosed residual below
+# (REMOTES_LIST's own name/URL PAIRS still originate from $WORKDIR's
+# untrusted config, so an attacker-added remote entry is still fetched
+# FROM) is UNCHANGED by this round and stays open, tracked as its own
+# §11.4.197 follow-up.
 #
 # T177 Rounds 22-23 (R21-I1 + R22-B1/B2, all live-reproduced): clean/
 # smudge/process filter drivers (`.gitattributes` / `.git/info/attributes`
@@ -737,32 +772,64 @@ fc_gcc_add gpg.x509.program false
 fc_gcc_add advice.graftFileDeprecated false
 # T177 Round 24 (transport-executable hardening, see this file's own
 # "Scope, stated narrowly" header comment above for the honest boundary
-# this closes and the one it still does NOT): installed process-wide, the
-# same way as every override above, so it reaches every git transport
-# call this tool makes against ANY repository ($WORKDIR, $FC_BARE, the
-# constitution submodule) -- never only one call site a future edit could
-# silently outgrow. `protocol.ext.allow=never`: `ext::` transport already
-# defaults to `never` on stock git (confirmed: "fatal: transport 'ext'
-# not allowed" with no override at all), but a repository-local override
-# could raise it; pinning it here, at the HIGHEST-precedence scope this
-# tool controls, removes that as a variable. `protocol.allow=never`: the
-# FALLBACK policy for any protocol with no MORE SPECIFIC
-# `protocol.<name>.allow` of its own (git's own documented behaviour,
-# confirmed live: known-safe protocols -- http/https/git/ssh -- keep
-# their own built-in `always` default UNCHANGED by this, and `file`
-# remains governed solely by the `protocol.file.allow=always` this tool
-# already passes per-call; only an obscure/future transport with no
-# dedicated policy is newly denied). `core.alternateRefsCommand=true`:
-# the SAME hooksPath-style neutralisation as every override above --
-# pre-empts a hostile value with a literal no-op command BEFORE any
-# attacker-set one could ever be consulted (confirmed live: a fetch still
-# exits 0 and transfers the expected objects with this set). `gc.auto=0`
-# and `maintenance.auto=false`: belt-and-braces against an unexpected
+# this closes and the one it still does NOT); T177 Round 25 (R24-B1
+# BLOCKING correction -- the Round 24 text here made a FALSE §11.4.6
+# claim, withdrawn): installed process-wide, the same way as every
+# override above, so it reaches every git transport call this tool makes
+# against ANY repository ($WORKDIR, $FC_BARE, the constitution
+# submodule) -- never only one call site a future edit could silently
+# outgrow.
+#
+# `protocol.allow=never` IS a blanket fallback for EVERY protocol,
+# INCLUDING http/https/git/ssh -- Round 24's claim that those "keep their
+# own built-in `always` default UNCHANGED by this" was false and is
+# withdrawn; live-reproduced by the independent Round 24 reviewer AND
+# re-confirmed here: `git -c protocol.allow=never ls-remote
+# https://github.com/...` and the SAME for an `ssh://`/`git@` URL both
+# fail with "fatal: transport '<proto>' not allowed" even though NO
+# protocol-specific override names them -- `git help -c`'s own
+# `protocol.allow` entry is unambiguous on a second, careful reading
+# ("a user defined default policy for ALL protocols which don't
+# explicitly have a policy of their own"), and ssh/http/https/git have
+# NO policy of their own unless ONE IS SET. Left as Round 24 shipped it,
+# this setting made migrate.sh unable to publish to ANY real ssh/https
+# production remote -- precisely the tool's own primary job, and exactly
+# the class of regression the §11.4/§11.4.1 anti-bluff covenant forbids
+# shipping un-caught (no fixture in the Round 24 test suite used a
+# non-file URL, so nothing caught it).
+#
+# FIXED here by EXPLICITLY allow-listing every protocol this tool
+# genuinely needs (http, https, git, ssh, file -- a real constitution/
+# consumer URL may legitimately be any of these) alongside the
+# `protocol.allow=never` fallback, so the net effect is DENY-BY-DEFAULT
+# for anything NOT on this list (`ext` and any future/unlisted
+# transport) while every protocol this tool actually uses keeps working.
+# Live-reproduced post-fix: an `https://` AND an `ssh://`/`git@` ls-remote
+# against a real public repository both succeed with this exact override
+# set installed, while `ext::` remains refused.
+# `protocol.ext.allow=never`: `ext::` transport already defaults to
+# `never` on stock git (confirmed: "fatal: transport 'ext' not allowed"
+# with no override at all), but a repository-local override could raise
+# it; pinning it here, at the HIGHEST-precedence scope this tool
+# controls, removes that as a variable -- and it is NOT on the allow-list
+# above, so it stays refused even with `protocol.allow=never` otherwise
+# wide open to every listed protocol.
+# `core.alternateRefsCommand=true`: the SAME hooksPath-style
+# neutralisation as every override above -- pre-empts a hostile value
+# with a literal no-op command BEFORE any attacker-set one could ever be
+# consulted (confirmed live: a fetch still exits 0 and transfers the
+# expected objects with this set). `gc.auto=0` and
+# `maintenance.auto=false`: belt-and-braces against an unexpected
 # background git process spawning mid-migration -- not directly part of
 # the transport-executable class above, but cheap, and flagged by the
 # research this round is based on as worth adding alongside.
 fc_gcc_add protocol.ext.allow never
 fc_gcc_add protocol.allow never
+fc_gcc_add protocol.http.allow always
+fc_gcc_add protocol.https.allow always
+fc_gcc_add protocol.git.allow always
+fc_gcc_add protocol.ssh.allow always
+fc_gcc_add protocol.file.allow always
 fc_gcc_add core.alternateRefsCommand true
 fc_gcc_add gc.auto 0
 fc_gcc_add maintenance.auto false
@@ -951,9 +1018,11 @@ not_migrated() {
 #     purely-local `lfs.extension.<name>.clean` key fired an arbitrary
 #     command during this tool's own `git add` of a stat-dirty file.
 #     Untrusted is therefore now every scope except `command` (this
-#     tool's own overrides, re-discovered and re-installed idempotently
-#     on every call so they are never themselves mistaken for a hostile
-#     driver). DISCLOSED, ACCEPTED COST: a real git-lfs consumer's
+#     tool's own overrides, re-discovered and re-installed additively on
+#     every call -- see this function's own trailing comment below for
+#     why "idempotently" is the wrong word here -- so they are never
+#     themselves mistaken for a hostile driver). DISCLOSED, ACCEPTED
+#     COST: a real git-lfs consumer's
 #     LFS-tracked file may now report as locally-modified during this
 #     tool's OWN internal `status`/`add` reads (the real `git-lfs clean`
 #     never runs there, only its neutralised `cat` stand-in) -- a
@@ -1166,7 +1235,38 @@ fc_submodule_update_init_filtered() {
     # control needle: without the `-c` override, the SAME `--no-fetch`
     # call still ran the hijacked custom-update command, proving
     # `--no-fetch` alone is not what closes (1)).
-    git -C "$1" -c protocol.file.allow=always -c init.templateDir= -c "submodule.$3.update=checkout" submodule update --init --no-fetch "$3" || return $?
+    # T177 Round 25 (R24-I1 IMPORTANT, independent-review-found, live-
+    # reproduced): a LOCAL `submodule.<name>.url` entry in $WORKDIR's own
+    # config overrides `.gitmodules`'s own declared URL for the FIRST-TIME
+    # clone this call performs on a never-before-initialised submodule --
+    # confirmed live: with a local `submodule.constitution.url` pointed
+    # at an attacker repository, this exact call (unmodified) cloned FROM
+    # the attacker's repository, not the one `.gitmodules` declares. Step
+    # 4's own NAME/PATH identity claim (I23-1's comment above, "this tool
+    # never targets a submodule by any other name/path than...") stands
+    # UNCHANGED by this finding -- it is specifically about WHICH
+    # submodule this tool ever operates on ("constitution", always), and
+    # step 4 resolves $SUB_URL by reading `.gitmodules` as a FILE
+    # (`git config -f "$GITMODULES" ...`), which does not merge in local
+    # overrides at all. What this finding shows is a SEPARATE code path
+    # (`submodule update --init`'s own INTERNAL url resolution, which DOES
+    # consult local config) not yet inheriting that same guarantee -- a
+    # gap in propagating an already-correct value, not a flaw in how that
+    # value was derived. Closed by pinning `-c submodule.<name>.url=
+    # $SUB_URL` -- the SAME trusted, `.gitmodules`-resolved URL step 4
+    # already established (a script-global variable, confirmed set at
+    # every call site of this function)
+    # -- at the same highest-precedence scope as the `update=checkout`
+    # override above; live-reproduced post-fix: the SAME hijacked local
+    # override is ignored and the clone correctly targets $SUB_URL. Fails
+    # closed (refuses, nothing run) if $SUB_URL is somehow unset at call
+    # time -- never silently proceeds with an unpinned, attacker-steerable
+    # URL lookup.
+    if [ -z "${SUB_URL:-}" ]; then
+        echo "migrate.sh: fc_submodule_update_init_filtered called before \$SUB_URL was resolved -- refusing to update a submodule with no trusted URL to pin" >&2
+        return 1
+    fi
+    git -C "$1" -c protocol.file.allow=always -c init.templateDir= -c "submodule.$3.update=checkout" -c "submodule.$3.url=$SUB_URL" submodule update --init --no-fetch "$3" || return $?
     fc_neutralize_repo_filters || return 1
 }
 
@@ -1848,31 +1948,53 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # trigger. TWO-HOP fetch instead: hop 1 fetches $SUB_URL (the
     # TRUSTED, .gitmodules-declared constitution URL resolved at step 4
     # -- never the submodule's own remote-by-name) into a FRESH, tool-
-    # owned, consumer-config-free scratch bare repository; hop 2
-    # completes the transfer into the submodule's own object store
-    # addressing that scratch repo by its EXPLICIT LOCAL PATH, never by
-    # remote name -- so `remote.origin.uploadpack`/`insteadOf`/
-    # `sshCommand` are never consulted for EITHER hop. Live-reproduced
-    # against a hijacked `remote.origin.uploadpack`: the hijacked command
-    # does not fire, and the target commit's objects transfer correctly.
-    # The same by-SHA-then-bare-refspec fallback the single-hop call used
-    # is kept for hop 1 (a server may refuse fetching an un-advertised
-    # SHA directly; a plain URL fetch with no refspec still pulls the
-    # remote's default branch, confirmed live to bring in a SHA reachable
-    # from it); hop 2 always succeeds by SHA since hop 1 already landed
-    # that exact object in the scratch repo's own store.
+    # owned, consumer-config-free scratch bare repository.
+    # T177 Round 25 (R24-B2 BLOCKING correction -- the Round 24 claim
+    # "insteadOf/sshCommand are never consulted for EITHER hop" was FALSE
+    # for hop 2 and is withdrawn): git resolves `url.*.insteadOf`
+    # rewriting (and every other local-config-driven transport setting)
+    # against the config of the repository the command is `-C`'d INTO,
+    # regardless of whether the far side is addressed by an explicit
+    # literal path -- live-reproduced by the independent Round 24
+    # reviewer AND re-confirmed here: a `url.<attacker-path>.insteadOf
+    # <trusted-path>` rule in the SUBMODULE's own local config silently
+    # redirected a `git -C <submodule> fetch -- <trusted-path> <sha>`
+    # call to the attacker's path (confirmed: an un-advertised SHA that
+    # exists ONLY in the trusted repo produced "not our ref" when
+    # resolved against an unrelated attacker repo, proving the redirect
+    # fired). Hop 2 is FIXED by inverting the data-flow direction: instead
+    # of fetching FROM the trusted scratch repo INTO the submodule
+    # (`-C <submodule>`, consulting the SUBMODULE's own untrusted
+    # config), this now PUSHES FROM the trusted scratch repo INTO the
+    # submodule (`-C "$FC_SUB_FETCH_BARE"`, consulting that FRESH repo's
+    # own config, which has no `url.*`/`remote.*` entries at all) to a
+    # dedicated, non-colliding ref (`refs/fc-import/migrate`, never the
+    # submodule's own checked-out branch, so git's `receive.
+    # denyCurrentBranch=refuse` default never fires) -- live-reproduced
+    # against the SAME hijacked-insteadOf fixture: the push succeeds, the
+    # object lands correctly in the submodule's own object store, and the
+    # redirect is never consulted (the config read is the TRUSTED repo's
+    # own, empty one). The temporary ref is deleted immediately after;
+    # `fc_checkout_submodule_filtered()` below checks out the raw SHA
+    # directly and needs no ref to point at it.
     FC_SUB_FETCH_BARE="$MIGRATE_SCRATCH/sub_fetch.git"
     rm -rf "$FC_SUB_FETCH_BARE"
     if ! git init --bare -q "$FC_SUB_FETCH_BARE" 2>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
+    # The same by-SHA-then-bare-refspec fallback the single-hop call this
+    # replaced used is kept here (a server may refuse fetching an
+    # un-advertised SHA directly; a plain URL fetch with no refspec still
+    # pulls the remote's default branch, confirmed live to bring in a SHA
+    # reachable from it).
     if ! git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always fetch -q -- "$SUB_URL" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1 \
         && ! git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always fetch -q -- "$SUB_URL" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
-    if ! git -C "$WORKDIR/constitution" -c protocol.file.allow=always fetch -q -- "$FC_SUB_FETCH_BARE" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
+    if ! git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR/constitution" "$NEW_SHA:refs/fc-import/migrate" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
+    git -C "$WORKDIR/constitution" update-ref -d refs/fc-import/migrate 2>/dev/null || true
     if ! fc_checkout_submodule_filtered "$WORKDIR/constitution" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-checkout-failed"
     fi
@@ -2208,17 +2330,27 @@ while i + 1 < len(data):
     # re-asserted directly (defense in depth, independent of whatever the
     # submodule's own nested checkout happens to be at this exact moment)
     # rather than relying on `git add constitution` to read it back.
-    # T177 Round 24 (transport-executable closure, item 2c): this is the
-    # "step-9 sync fetch" -- its source is already $FC_BARE by explicit
-    # local path (never a remote name, so `remote.<r>.*` was never in
-    # scope here), and it is now ADDITIONALLY protocol-restricted by the
-    # process-wide `protocol.allow=never`/`protocol.ext.allow=never`/
+    # T177 Round 24 (transport-executable closure, item 2c), corrected
+    # T177 Round 25 (R24-B2 BLOCKING, the SAME class as hop 2 above --
+    # see this file's own "T177 Round 25 (R24-B2..." comment there for
+    # the full forensic record): this is the "step-9 sync fetch". A plain
+    # `fetch -C "$WORKDIR"` would consult $WORKDIR's OWN local config for
+    # `url.*.insteadOf` resolution even though the source is an explicit
+    # local path -- the exact Round 24 overclaim withdrawn above. Fixed
+    # identically: PUSH from `$FC_BARE` (the trusted, `-C`'d, config-free
+    # side) INTO $WORKDIR, to a dedicated non-colliding ref, never a
+    # fetch INTO $WORKDIR's own untrusted config context. It is also
+    # protocol-restricted by the process-wide `protocol.allow=never` +
+    # explicit protocol allow-list + `protocol.ext.allow=never` +
     # `core.alternateRefsCommand=true` overrides installed near the top
     # of this file (every git call this process makes inherits them,
-    # this one included, with no per-call `-c` needed).
-    if ! git -C "$WORKDIR" -c protocol.file.allow=always fetch -q "$FC_BARE" "$NEW_COMMIT" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1; then
-        echo "migrate.sh: WARNING -- published commit $NEW_COMMIT could not be fetched back into \$WORKDIR for sync; the push itself already succeeded on every configured remote" >&2
+    # this one included, with no per-call `-c` needed beyond the
+    # `protocol.file.allow=always` already shown for clarity/consistency
+    # with every other call site touching a local path).
+    if ! git -C "$FC_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR" "$NEW_COMMIT:refs/fc-import/migrate-sync" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1; then
+        echo "migrate.sh: WARNING -- published commit $NEW_COMMIT could not be transferred back into \$WORKDIR for sync; the push itself already succeeded on every configured remote" >&2
     fi
+    git -C "$WORKDIR" update-ref -d refs/fc-import/migrate-sync 2>/dev/null || true
     git -C "$WORKDIR" update-ref "refs/heads/$BRANCH" "$NEW_COMMIT" 2>/dev/null
     fc_checkout_submodule_filtered "$WORKDIR/constitution" "$NEW_SHA" 2>/dev/null || true
     git -C "$WORKDIR" update-index --add --cacheinfo "160000,$NEW_SHA,constitution" 2>/dev/null
