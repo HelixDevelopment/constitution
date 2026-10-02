@@ -666,24 +666,67 @@ fi
 #   dedicated non-colliding ref, rather than fetching INTO the untrusted
 #   repository's own config context.
 #
-# With BOTH corrected, the claim is NOW accurate, for the REAL reason:
-# every remaining git call this tool makes that could trigger a transport
-# (fetch/push/ls-remote) operates EITHER against `$FC_BARE`/a dedicated
-# scratch bare repo as the `-C` TARGET (both tool-owned, consumer-
-# config-free, with every far-side path/URL addressed explicitly, never
-# by remote name) OR as a plain LOCAL-PATH-only checkout with no
-# transport to hijack at all -- never as a call `-C`'d into $WORKDIR's or
-# the submodule's OWN local config while resolving `remote.<name>.*`/
+# T177 Round 25 ALSO claimed "with BOTH corrected, the claim is NOW
+# accurate" (the push-into-untrusted-repo mechanism for hop 2 and the
+# step-9 sync, described above as the fix for B2) -- that claim was ITSELF
+# FALSE and is withdrawn here, independently found by the Round 25 review
+# (R25-B1, live-reproduced): pushing INTO $WORKDIR's/the submodule's own
+# repository spawns git's `receive-pack` AS A CHILD PROCESS operating on
+# that SAME untrusted repository, and git's `local_repo_env` mechanism
+# STRIPS `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n` (among
+# other vars) from that child's environment for a cross-repository local
+# transport -- so this tool's own `fc_gcc_add`-installed overrides (the
+# hook-neutralisation, the protocol allow-list, everything in the `FC_GCC_*`
+# block) do NOT reach `receive-pack`, and the untrusted repository's OWN
+# `pre-receive`/`update`/`reference-transaction`/`post-receive`/
+# `post-update` hooks fire for real. Live-reproduced (6 hook invocations
+# observed across both call sites, matching the `K-receive-hooks`
+# regression test added this round) and fixed in T177 Round 26 by
+# replacing BOTH the hop-2 submodule transfer and the step-9 sync-fetch
+# transfer with `fc_transfer_objects_into()` (defined above, after
+# `fc_checkout_submodule_filtered()`): `git rev-list --objects` +
+# `git pack-objects --stdout` FROM the trusted source (`$FC_SUB_FETCH_BARE`
+# / `$FC_BARE`), piped into `git index-pack --stdin --fix-thin` `-C`'d INTO
+# the untrusted destination. `index-pack` is a pure object-transfer
+# primitive -- it takes no URL/remote argument (so `insteadOf`/
+# `core.sshCommand`/`credential.helper` have nothing to resolve against)
+# and invokes NO `receive-pack` (so no receive-side hook of ANY kind fires,
+# confirmed live: the SAME `K-receive-hooks` fixture that caught the
+# Round-25 regression stays green against this mechanism). The transferred
+# object is then reached by a direct `git checkout`/`update-ref` on its raw
+# SHA -- both work once the object exists in the local object database,
+# with no ref required to point at it first.
+#
+# With this corrected (and the submodule-section-name keying bug from
+# R25-I1 -- `fc_submodule_update_init_filtered()` pinning its config
+# overrides by `$CONST_SECTION`, the actual `.gitmodules` section name,
+# rather than `$3`, the submodule path, which only coincided with the
+# section name by chance in every fixture used through Round 25 -- fixed
+# the same round), the claim is accurate for the REAL reason: every
+# remaining git call this tool makes that could trigger a transport
+# (fetch/push/ls-remote) OR a receive-side hook operates EITHER against
+# `$FC_BARE`/a dedicated scratch bare repo as the `-C` TARGET (both
+# tool-owned, consumer-config-free, with every far-side path/URL addressed
+# explicitly, never by remote name) OR as a pure object-transfer
+# (`pack-objects`/`index-pack`, no URL, no receive-pack) OR as a plain
+# LOCAL-PATH-only checkout/update-ref with no transport and no hook to
+# hijack at all -- never as a call `-C`'d into $WORKDIR's or the
+# submodule's OWN local config while resolving `remote.<name>.*`/
 # `url.*.insteadOf`/`core.sshCommand`/`credential.helper` from that SAME
-# untrusted context. `core.sshCommand` and `credential.helper`
-# specifically remain unneutralised, correctly so: no remaining call is
-# EVER `-C`'d into $WORKDIR's/the submodule's own config while initiating
-# a network-reaching transport, so there is nothing left for those two
-# keys to steer. The SEPARATE, narrower, already-disclosed residual below
-# (REMOTES_LIST's own name/URL PAIRS still originate from $WORKDIR's
-# untrusted config, so an attacker-added remote entry is still fetched
-# FROM) is UNCHANGED by this round and stays open, tracked as its own
-# §11.4.197 follow-up.
+# untrusted context, and never as a push INTO that same untrusted context
+# either. `core.sshCommand` and `credential.helper` specifically remain
+# unneutralised, correctly so: no remaining call is EVER `-C`'d into
+# $WORKDIR's/the submodule's own config while initiating a network-reaching
+# transport, so there is nothing left for those two keys to steer. The
+# SEPARATE, narrower, already-disclosed residual below (REMOTES_LIST's own
+# name/URL PAIRS still originate from $WORKDIR's untrusted config, so an
+# attacker-added remote entry is still fetched FROM) is UNCHANGED by this
+# round and stays open, tracked as its own §11.4.197 follow-up. Also
+# honestly undisclosed until now: partial-clone lazy fetch
+# (`extensions.partialClone`/a configured promisor remote in $WORKDIR) has
+# NOT been tested against any of the above call sites by this tool's own
+# authors or either independent review to date -- a residual investigation
+# gap, not a claim of safety, tracked as its own §11.4.197 follow-up.
 #
 # T177 Rounds 22-23 (R21-I1 + R22-B1/B2, all live-reproduced): clean/
 # smudge/process filter drivers (`.gitattributes` / `.git/info/attributes`
@@ -823,6 +866,18 @@ fc_gcc_add advice.graftFileDeprecated false
 # background git process spawning mid-migration -- not directly part of
 # the transport-executable class above, but cheap, and flagged by the
 # research this round is based on as worth adding alongside.
+# T177 Round 26 (R25-M2, disclosure): the allow-list above is deliberately
+# NARROW, not "every protocol a git remote could conceivably use" --
+# confirmed live, this process-wide `protocol.allow=never` fallback
+# refuses every git remote-helper transport with no entry above (`hg::`,
+# `persistent-https://`, `fd::`, and -- by the SAME documented mechanism,
+# not separately tested -- `codecommit::`/`gcrypt::`/any other remote
+# helper). This tool's own stated scope is the constitution submodule
+# over http(s)/git/ssh/file; a consumer whose configured remotes use a
+# different remote-helper transport cannot migrate through this tool
+# until that protocol is explicitly added here -- an intentional scope
+# boundary, not an oversight, and the correct direction to extend in if a
+# real consumer ever needs one.
 fc_gcc_add protocol.ext.allow never
 fc_gcc_add protocol.allow never
 fc_gcc_add protocol.http.allow always
@@ -1206,6 +1261,54 @@ fc_checkout_submodule_filtered() {
     git -C "$1" -c advice.detachedHead=false checkout -q "$2"
 }
 
+# fc_transfer_objects_into: $1 = TRUSTED source repo (-C'd for rev-list/
+# pack-objects), $2 = SHA to transfer (with its full history), $3 =
+# UNTRUSTED destination repo (-C'd for index-pack ONLY), $4 = a short
+# label used to namespace this call's own scratch filenames (so two
+# concurrent-in-the-same-run transfers never collide). T177 Round 26
+# (R25-B1 BLOCKING, independent-review-found, live-reproduced):
+# supersedes a `push -C <trusted> -- <untrusted> <sha>:refs/fc-import/...`
+# shape (introduced in Round 25 to fix R24-B2's insteadOf gap) that
+# itself turned out to run `git-receive-pack` INSIDE the untrusted
+# destination -- and git's OWN local-transport code strips
+# `local_repo_env` (which includes GIT_CONFIG_COUNT/KEY_n/VALUE_n) before
+# spawning that receive-pack CHILD, specifically because it is about to
+# operate on a DIFFERENT repository than the parent push process. This
+# tool's process-wide `core.hooksPath=/dev/null` (and every other
+# GIT_CONFIG_COUNT-based override) therefore NEVER reached that
+# receive-pack child -- live-reproduced: the destination's own untracked
+# `.git/hooks/pre-receive` (and `update`/`reference-transaction`/
+# `post-receive`/`post-update`) fired, genuine arbitrary code execution
+# from the destination's own untrusted local hooks, a REGRESSION the
+# push-based fix introduced while closing a DIFFERENT hole. Fixed here by
+# transferring OBJECTS ONLY, via `pack-objects`/`index-pack` -- pure
+# local object-store manipulation; `receive-pack`, and therefore every
+# receive-side hook, is never invoked at all (confirmed live: neither
+# pre-receive nor reference-transaction fired under this shape, on the
+# SAME fixture where both fired under the push-based one). `url.*.
+# insteadOf` is irrelevant to either git subcommand here -- neither takes
+# a URL/remote argument at all, so there is nothing for it to rewrite.
+# This function transfers objects ONLY; it does NOT update any ref --
+# every call site already has its own, pre-existing, correct way to
+# finalise (a raw-SHA `checkout`, or a direct `update-ref` on the
+# destination, both unaffected by whether a temporary ref ever pointed
+# at the transferred commit).
+fc_transfer_objects_into() {
+    # T177 Round 26 own-defect, found by this round's own regression run
+    # (never shipped): `git index-pack` has NO `-q`/`--quiet` option at
+    # all (confirmed: `git index-pack -h`'s usage line lists only `-v`)
+    # -- passing one is a hard usage error, rc=129, turning every
+    # migration through this path into NOT-MIGRATED. Also confirmed live:
+    # `index-pack` prints its one-line "pack <sha>" summary to STDOUT
+    # even without `-v`, which must be discarded here rather than
+    # leaking into migrate.sh's own stdout.
+    _fto_objs="$MIGRATE_SCRATCH/transfer_objects_$4.txt"
+    _fto_pack="$MIGRATE_SCRATCH/transfer_pack_$4.pack"
+    git -C "$1" rev-list --objects "$2" > "$_fto_objs" 2>/dev/null || return 1
+    git -C "$1" pack-objects --stdout --quiet < "$_fto_objs" > "$_fto_pack" 2>/dev/null || return 1
+    git -C "$3" -c protocol.file.allow=always index-pack --stdin --fix-thin < "$_fto_pack" >/dev/null 2>/dev/null || return 1
+}
+
 # fc_submodule_update_init_filtered: $1 = parent working dir, $3 =
 # submodule name. ($2, the submodule dir, is kept for call-site
 # compatibility; discovery now walks every repository under $WORKDIR.)
@@ -1262,11 +1365,34 @@ fc_submodule_update_init_filtered() {
     # closed (refuses, nothing run) if $SUB_URL is somehow unset at call
     # time -- never silently proceeds with an unpinned, attacker-steerable
     # URL lookup.
-    if [ -z "${SUB_URL:-}" ]; then
-        echo "migrate.sh: fc_submodule_update_init_filtered called before \$SUB_URL was resolved -- refusing to update a submodule with no trusted URL to pin" >&2
+    # T177 Round 26 (R25-I1 IMPORTANT, independent-review-found, live-
+    # reproduced): `submodule.<NAME>.*` keys are addressed by the
+    # `.gitmodules` SECTION NAME, never by the submodule's PATH -- this
+    # function's own `$3` is always the literal PATH "constitution" (step
+    # 4 resolves it that way on purpose, to support a consumer whose
+    # section is named something else, e.g. `[submodule "const"]` with
+    # `path = constitution`). Pinning `-c "submodule.$3.update=..."` /
+    # `-c "submodule.$3.url=..."` therefore pinned a NAME THAT DOES NOT
+    # EXIST for exactly that consumer shape, leaving BOTH the R24-I1 url
+    # pin and the R24 item-2b update=checkout pin silently inert --
+    # live-reproduced: with a `[submodule "const"]`/`path = constitution`
+    # consumer, a local `submodule.const.url` hijack redirected the clone
+    # (not-migrated, residue left behind) and a local `submodule.const.
+    # update=!<cmd>` hijack executed the attacker's command, for the
+    # IDENTICAL reason -- `$3`="constitution" pinned a nonexistent
+    # "submodule.constitution.*" key while the REAL lookup key was
+    # "submodule.const.*". Fixed by keying both overrides on
+    # $CONST_SECTION (the step-4-resolved, `.gitmodules`-derived SECTION
+    # NAME -- the SAME trust basis as $SUB_URL, resolved once, never
+    # reassigned, confirmed non-empty at every call site of this
+    # function) instead of $3. $3 (the PATH) remains the correct
+    # positional argument to `submodule update --init -- <path>` itself
+    # (git's own `update [<path>...]` form takes paths, never names).
+    if [ -z "${SUB_URL:-}" ] || [ -z "${CONST_SECTION:-}" ]; then
+        echo "migrate.sh: fc_submodule_update_init_filtered called before \$SUB_URL/\$CONST_SECTION was resolved -- refusing to update a submodule with no trusted URL/section to pin" >&2
         return 1
     fi
-    git -C "$1" -c protocol.file.allow=always -c init.templateDir= -c "submodule.$3.update=checkout" -c "submodule.$3.url=$SUB_URL" submodule update --init --no-fetch "$3" || return $?
+    git -C "$1" -c protocol.file.allow=always -c init.templateDir= -c "submodule.$CONST_SECTION.update=checkout" -c "submodule.$CONST_SECTION.url=$SUB_URL" submodule update --init --no-fetch -- "$3" || return $?
     fc_neutralize_repo_filters || return 1
 }
 
@@ -1962,21 +2088,25 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # call to the attacker's path (confirmed: an un-advertised SHA that
     # exists ONLY in the trusted repo produced "not our ref" when
     # resolved against an unrelated attacker repo, proving the redirect
-    # fired). Hop 2 is FIXED by inverting the data-flow direction: instead
-    # of fetching FROM the trusted scratch repo INTO the submodule
-    # (`-C <submodule>`, consulting the SUBMODULE's own untrusted
-    # config), this now PUSHES FROM the trusted scratch repo INTO the
-    # submodule (`-C "$FC_SUB_FETCH_BARE"`, consulting that FRESH repo's
-    # own config, which has no `url.*`/`remote.*` entries at all) to a
-    # dedicated, non-colliding ref (`refs/fc-import/migrate`, never the
-    # submodule's own checked-out branch, so git's `receive.
-    # denyCurrentBranch=refuse` default never fires) -- live-reproduced
-    # against the SAME hijacked-insteadOf fixture: the push succeeds, the
-    # object lands correctly in the submodule's own object store, and the
-    # redirect is never consulted (the config read is the TRUSTED repo's
-    # own, empty one). The temporary ref is deleted immediately after;
-    # `fc_checkout_submodule_filtered()` below checks out the raw SHA
-    # directly and needs no ref to point at it.
+    # fired).
+    # T177 Round 25 tried inverting the data-flow direction with a PUSH
+    # from the trusted scratch repo INTO the submodule, which does close
+    # the insteadOf gap (confirmed) -- but T177 Round 26 (R25-B1
+    # BLOCKING, independent-review-found, live-reproduced) found that
+    # shape spawns `git-receive-pack` INSIDE the submodule as a git-
+    # internal child, which git's own local-transport code starts with
+    # `local_repo_env` STRIPPED (GIT_CONFIG_COUNT/KEY_n/VALUE_n included)
+    # -- so this tool's own `core.hooksPath=/dev/null` override never
+    # reached that child, and the submodule's own untracked receive-side
+    # hooks (pre-receive/update/reference-transaction/post-receive/post-
+    # update) fired for real. Hop 2 is now fixed a THIRD way, via
+    # `fc_transfer_objects_into()` (see its own header comment for the
+    # full forensic record): `pack-objects`/`index-pack` transfer the
+    # OBJECTS ONLY, with no `receive-pack` and therefore no receive-side
+    # hook ever invoked, and no URL/remote argument for `insteadOf` to
+    # rewrite either. `fc_checkout_submodule_filtered()` below checks out
+    # the raw SHA directly and needs no ref pointing at it, so no
+    # temporary ref is created or needs cleanup.
     FC_SUB_FETCH_BARE="$MIGRATE_SCRATCH/sub_fetch.git"
     rm -rf "$FC_SUB_FETCH_BARE"
     if ! git init --bare -q "$FC_SUB_FETCH_BARE" 2>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"; then
@@ -1991,10 +2121,9 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         && ! git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always fetch -q -- "$SUB_URL" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
-    if ! git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR/constitution" "$NEW_SHA:refs/fc-import/migrate" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
+    if ! fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
-    git -C "$WORKDIR/constitution" update-ref -d refs/fc-import/migrate 2>/dev/null || true
     if ! fc_checkout_submodule_filtered "$WORKDIR/constitution" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-checkout-failed"
     fi
@@ -2331,26 +2460,39 @@ while i + 1 < len(data):
     # submodule's own nested checkout happens to be at this exact moment)
     # rather than relying on `git add constitution` to read it back.
     # T177 Round 24 (transport-executable closure, item 2c), corrected
-    # T177 Round 25 (R24-B2 BLOCKING, the SAME class as hop 2 above --
-    # see this file's own "T177 Round 25 (R24-B2..." comment there for
-    # the full forensic record): this is the "step-9 sync fetch". A plain
-    # `fetch -C "$WORKDIR"` would consult $WORKDIR's OWN local config for
-    # `url.*.insteadOf` resolution even though the source is an explicit
-    # local path -- the exact Round 24 overclaim withdrawn above. Fixed
-    # identically: PUSH from `$FC_BARE` (the trusted, `-C`'d, config-free
-    # side) INTO $WORKDIR, to a dedicated non-colliding ref, never a
-    # fetch INTO $WORKDIR's own untrusted config context. It is also
-    # protocol-restricted by the process-wide `protocol.allow=never` +
-    # explicit protocol allow-list + `protocol.ext.allow=never` +
-    # `core.alternateRefsCommand=true` overrides installed near the top
-    # of this file (every git call this process makes inherits them,
-    # this one included, with no per-call `-c` needed beyond the
-    # `protocol.file.allow=always` already shown for clarity/consistency
-    # with every other call site touching a local path).
-    if ! git -C "$FC_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR" "$NEW_COMMIT:refs/fc-import/migrate-sync" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1; then
+    # T177 Round 25 (R24-B2 BLOCKING, PUSH-based fix), corrected AGAIN
+    # T177 Round 26 (R25-B1 BLOCKING, the SAME regression as hop 2 above
+    # -- see `fc_transfer_objects_into()`'s own header comment for the
+    # full forensic record of why a push-based transfer into an
+    # untrusted repo runs that repo's own receive-side hooks): this is
+    # the "step-9 sync fetch". A plain `fetch -C "$WORKDIR"` would
+    # consult $WORKDIR's OWN local config for `url.*.insteadOf`
+    # resolution even though the source is an explicit local path (the
+    # Round 24 overclaim); a `push -C $FC_BARE -- $WORKDIR ...` avoids
+    # that but spawns `receive-pack` INSIDE $WORKDIR with this tool's own
+    # `core.hooksPath=/dev/null` override stripped from that child's
+    # environment, so $WORKDIR's own untracked hooks fire for real (the
+    # Round 25 overclaim). Fixed a THIRD way: `fc_transfer_objects_into()`
+    # transfers the OBJECTS ONLY via `pack-objects`/`index-pack` -- no
+    # `receive-pack`, no receive-side hook ever invoked, and no URL/
+    # remote argument for `insteadOf` to rewrite. The immediately
+    # following `update-ref "refs/heads/$BRANCH" "$NEW_COMMIT"` is a
+    # DIRECT, explicit top-level call this script makes itself (never
+    # spawned through git's own local-transport machinery), so it
+    # correctly inherits this tool's own GIT_CONFIG_COUNT-based overrides
+    # (including `core.hooksPath=/dev/null`) exactly like every other
+    # direct git call in this file -- live-reproduced: neither `pre-
+    # receive` nor `reference-transaction` fires under this shape. This
+    # call is also protocol-restricted by the process-wide
+    # `protocol.allow=never` + explicit protocol allow-list +
+    # `protocol.ext.allow=never` + `core.alternateRefsCommand=true`
+    # overrides installed near the top of this file (every git call this
+    # process makes inherits them), with no per-call `-c` needed beyond
+    # the `protocol.file.allow=always` already shown for clarity/
+    # consistency with every other call site touching a local path.
+    if ! fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"; then
         echo "migrate.sh: WARNING -- published commit $NEW_COMMIT could not be transferred back into \$WORKDIR for sync; the push itself already succeeded on every configured remote" >&2
     fi
-    git -C "$WORKDIR" update-ref -d refs/fc-import/migrate-sync 2>/dev/null || true
     git -C "$WORKDIR" update-ref "refs/heads/$BRANCH" "$NEW_COMMIT" 2>/dev/null
     fc_checkout_submodule_filtered "$WORKDIR/constitution" "$NEW_SHA" 2>/dev/null || true
     git -C "$WORKDIR" update-index --add --cacheinfo "160000,$NEW_SHA,constitution" 2>/dev/null

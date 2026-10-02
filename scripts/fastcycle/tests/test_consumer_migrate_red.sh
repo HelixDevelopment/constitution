@@ -393,45 +393,52 @@ fi
 # convenience branch-name push) even if neither line's own text matches
 # C4's blacklist pattern.
 #
-# T177 Round 25 (R24-B2 remediation introduced two NEW, LEGITIMATE,
-# INTERNAL-ONLY push lines -- the hop-2 submodule transfer and the step-9
-# sync transfer, both now PUSHING from a trusted, tool-owned bare repo
-# INTO a tool-owned LOCAL path, instead of FETCHING into that path's own
-# untrusted config context, per that fix's own forensic comment). This
-# check is EXTENDED, never weakened, to classify every push line into
-# exactly one of two closed shapes rather than requiring a literal count
-# of one: the ORIGINAL external/remote shape above (still EXACTLY one, and
-# still the ONLY line that can ever reach a consumer-configured remote),
-# and a NEW internal-only shape -- `push ... -- "$WORKDIR"[/constitution]
-# "$NEW_SHA:refs/fc-import/..."` or `"$NEW_COMMIT:refs/fc-import/..."`
-# (SHA-pinned, like the external shape; the destination is a LITERAL,
-# hardcoded `$WORKDIR`/`$WORKDIR/constitution` path this tool itself
-# resolved, NEVER `$url`/`$r`/any remote-derived variable; the target ref
-# is confined to the `refs/fc-import/` namespace, NEVER `refs/heads/*` or
-# `HEAD`, so it can never move the submodule's or $WORKDIR's own checked-
-# out branch). A push line matching NEITHER shape, or more than one
-# EXTERNAL-shape line, still fails this check exactly as before.
+# T177 Round 25 tried fixing R24-B2 (insteadOf still redirecting hop 2/
+# the sync fetch) by PUSHING from a trusted bare repo INTO a tool-owned
+# local path, which briefly introduced a second, "internal-only" push
+# shape here -- and this check was extended (R24-B2 remediation) to
+# classify push lines into two closed shapes instead of requiring a
+# literal count of one. T177 Round 26 (R25-B1 BLOCKING + R25-I2
+# IMPORTANT, independent-review-found) found that push-based transfer
+# itself spawns `receive-pack` inside the untrusted destination with this
+# tool's own hook-neutralising override stripped from that child's
+# environment -- a regression -- AND that the two-shape classification
+# above had gone STALE the moment the external-shape variable was renamed
+# (`KNOWN_SAFE_RE` -> `EXTERNAL_SAFE_RE`), leaving C4j (below) testing an
+# EMPTY, always-matching pattern -- a bluff gate that printed `ok`
+# unconditionally regardless of what C4i's real logic would have done.
+# Round 26 replaces hop 2 and the sync fetch with `fc_transfer_objects_
+# into()` (`pack-objects`/`index-pack`, no `receive-pack`, no push at
+# all -- see that function's own header comment), which REMOVES the
+# internal-only push shape from the source ENTIRELY rather than trying to
+# make its classification safe. This check is therefore REVERTED to its
+# original, simpler Round 21 form -- EXACTLY one push line in the whole
+# tool, of the one known-safe shape -- which is once again literally true
+# of the current source, and which a two-shape classifier can no longer
+# go stale by renaming one of its two halves.
 if [ -f "$TOOL" ]; then
     PUSH_LINES=$(grep -nE 'git[[:space:]].*[[:space:]]push[[:space:]]' "$TOOL" | grep -v '^\s*[0-9]*:\s*#')
     PUSH_LINE_COUNT=$(printf '%s\n' "$PUSH_LINES" | grep -c . || true)
-    EXTERNAL_SAFE_RE='push[[:space:]]+"\$url"[[:space:]]+"\$NEW_COMMIT":"refs/heads/\$BRANCH"'
-    INTERNAL_SAFE_RE='push[[:space:]].*--[[:space:]]+"\$WORKDIR(/constitution)?"[[:space:]]+"\$NEW_(SHA|COMMIT):refs/fc-import/[A-Za-z0-9_-]+"'
-    EXTERNAL_COUNT=$(printf '%s\n' "$PUSH_LINES" | grep -cE -- "$EXTERNAL_SAFE_RE" || true)
-    INTERNAL_COUNT=$(printf '%s\n' "$PUSH_LINES" | grep -cE -- "$INTERNAL_SAFE_RE" || true)
-    if [ "$EXTERNAL_COUNT" -eq 1 ] && [ "$((EXTERNAL_COUNT + INTERNAL_COUNT))" -eq "$PUSH_LINE_COUNT" ]; then
-        ok "C4i R20-M2/R24-B2 positive push-shape: $TOOL contains exactly one REMOTE-addressed 'git push' (the known-safe push-by-commit-id shape to \$url) and $INTERNAL_COUNT internal-only push(es), each SHA-pinned into refs/fc-import/* against a literal \$WORKDIR path -- every push line classified into one of the two closed safe shapes, none left over"
+    KNOWN_SAFE_RE='push[[:space:]]+"\$url"[[:space:]]+"\$NEW_COMMIT":"refs/heads/\$BRANCH"'
+    if [ "$PUSH_LINE_COUNT" -eq 1 ] && printf '%s\n' "$PUSH_LINES" | grep -qE -- "$KNOWN_SAFE_RE"; then
+        ok "C4i R20-M2 positive push-shape: $TOOL contains exactly one 'git push' invocation, of the known-safe push-by-commit-id shape"
     else
-        bad "C4i R20-M2/R24-B2 positive push-shape: $TOOL's push lines do not classify cleanly (total=$PUSH_LINE_COUNT external=$EXTERNAL_COUNT internal=$INTERNAL_COUNT) -- expected exactly 1 external + the rest internal-safe, with none left unclassified"
+        bad "C4i R20-M2 positive push-shape: $TOOL does not contain exactly one known-safe push invocation (count=$PUSH_LINE_COUNT) -- any other shape, or more than one push line, is refused by this check regardless of whether C4's blacklist also catches it"
     fi
 else
-    bad "C4i R20-M2/R24-B2 positive push-shape: $TOOL is absent -- cannot grep its source"
+    bad "C4i R20-M2 positive push-shape: $TOOL is absent -- cannot grep its source"
 fi
 
 # --- C4j: C4i guard-viability -- prove the positive check genuinely fires
 # on a scratch copy whose push line is widened to a branch-name shape (the
 # exact class C4i exists to catch and C4's blacklist alone would miss,
 # since neither 'push "$r" "$BRANCH":"$BRANCH"' nor an added second push
-# line matches any force/reset/stash/clean pattern).
+# line matches any force/reset/stash/clean pattern). T177 Round 26
+# (R25-I2): this mutant now re-reads $KNOWN_SAFE_RE (restored above) at
+# assertion time rather than a variable a prior rename had emptied out --
+# if this still silently passed on an empty pattern, that would itself be
+# caught by the negative branch below never firing on genuinely-widened
+# text, which this fixture's own `cmp` guard already confirms changed.
 C4J_SCRATCH="$WORK/c4j_migrate.sh"
 cp "$TOOL" "$C4J_SCRATCH"
 sed -i 's|push "\$url" "\$NEW_COMMIT":"refs/heads/\$BRANCH"|push "$url" "$BRANCH":"refs/heads/$BRANCH"|' "$C4J_SCRATCH"
@@ -2743,6 +2750,12 @@ fi
 # SAME prefix-matching insteadOf hijack DOES break the migration (the
 # redirected fetch fails outright) -- proving the push-based inversion,
 # not some other mechanism, is what K-insteadof-redirect's PASS depends on.
+# T177 Round 26: re-anchored from the Round 25 push-based shape (removed
+# entirely, see fc_transfer_objects_into()'s own header comment) to the
+# CURRENT fc_transfer_objects_into() calls, reverting each to the
+# original pre-Round-25 fetch-into-the-untrusted-side shape -- the SAME
+# vulnerable shape this test's own golden-path arm proves is no longer
+# present in the real tool.
 # NOTE: the replacement strings below deliberately carry NO inline `#`
 # comment -- the anchors are PARTIAL lines (the original `if ! <cmd>;
 # then` continues past them on the SAME physical line), so a trailing
@@ -2750,9 +2763,9 @@ fi
 # mutant's shell syntax (caught live while authoring this arm: the first
 # attempt produced exactly that syntax error).
 j_mutant K_insteadof_fetch_shape \
-    'git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR/constitution" "$NEW_SHA:refs/fc-import/migrate" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
+    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
     'git -C "$WORKDIR/constitution" -c protocol.file.allow=always fetch -q -- "$FC_SUB_FETCH_BARE" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
-    'git -C "$FC_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR" "$NEW_COMMIT:refs/fc-import/migrate-sync" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1' \
+    'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
     'git -C "$WORKDIR" -c protocol.file.allow=always fetch -q "$FC_BARE" "$NEW_COMMIT" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1'
 K_ISF_M_ROOT="$K_ROOT/km_isf"
 build_r3_fixture "$K_ISF_M_ROOT"
@@ -2817,9 +2830,13 @@ fi
 # url=$SUB_URL` pin removed, the SAME local override DOES redirect the
 # first-time clone to the attacker's repository -- proving the pin, not
 # some other mechanism, is what K-submodule-url-hijack's PASS depends on.
+# T177 Round 26 (R25-I1 remediation re-keyed both pins from $3 (the
+# submodule PATH) to $CONST_SECTION (the .gitmodules SECTION NAME) --
+# re-anchored accordingly; no inline comment in the replacement, same
+# reason as the note above this block's sibling arm.
 j_mutant K_submodule_url_unpinned \
-    ' -c "submodule.$3.update=checkout" -c "submodule.$3.url=$SUB_URL" submodule update --init --no-fetch "$3"' \
-    ' -c "submodule.$3.update=checkout" submodule update --init --no-fetch "$3"  # MUTATED_FOR_TEST'
+    ' -c "submodule.$CONST_SECTION.update=checkout" -c "submodule.$CONST_SECTION.url=$SUB_URL" submodule update --init --no-fetch -- "$3"' \
+    ' -c "submodule.$CONST_SECTION.update=checkout" submodule update --init --no-fetch -- "$3"'
 K_SUI_M_ROOT="$K_ROOT/km_sui"
 build_r3_fixture "$K_SUI_M_ROOT"
 git -C "$K_SUI_M_ROOT/checkout" config submodule.constitution.url "$K_SUI_ATTACKER"
@@ -2829,6 +2846,189 @@ if [ "$J_MUT_OK" -eq 1 ] && [ "$K_SUI_M_URL" = "$K_SUI_ATTACKER" ]; then
     ok "K-submodule-url-hijack guard-viability: with the submodule.<name>.url pin removed, the SAME local override redirects the first-time clone to the attacker repository (remote.origin.url=\$K_SUI_ATTACKER) -- K-submodule-url-hijack's fix is genuinely load-bearing, not decoration"
 else
     bad "K-submodule-url-hijack guard-viability: removing the url pin did not reproduce the hijack (mut_ok=$J_MUT_OK remote.origin.url=$K_SUI_M_URL expected=$K_SUI_ATTACKER)"
+fi
+
+# --- K-submodule-noncanonical-section: T177 Round 26 (R25-I1 IMPORTANT,
+# independent review, live-reproduced): `submodule.<NAME>.*` keys are
+# addressed by the `.gitmodules` SECTION NAME, never by the submodule's
+# PATH -- `fc_submodule_update_init_filtered()`'s own `$3` is always the
+# literal PATH "constitution", but step 4 deliberately supports a
+# consumer whose SECTION is named something else (`[submodule "const"]`
+# with `path = constitution`). Pinning by `$3` therefore pinned a name
+# that does not exist for exactly that consumer shape, leaving BOTH the
+# url pin and the update=checkout pin silently inert. This arm builds
+# such a non-default-section consumer directly (bypassing build_r3_
+# fixture, which always names its section "constitution") and proves
+# both local overrides, keyed on the REAL section name, are rejected.
+K_NCS_ROOT="$K_ROOT/k_ncs"
+mkdir -p "$K_NCS_ROOT"
+git init -q --bare -b main "$K_NCS_ROOT/mc.git"
+K_NCS_W=$(mktemp -d)
+git init -q -b main "$K_NCS_W" >/dev/null
+git -C "$K_NCS_W" config user.name fastcycle-fixture
+git -C "$K_NCS_W" config user.email fixture@example.invalid
+echo "old constitution state (K-ncs)" > "$K_NCS_W/CLAUDE.md"
+git -C "$K_NCS_W" add CLAUDE.md
+git -C "$K_NCS_W" commit -q -m old
+git -C "$K_NCS_W" remote add origin "$K_NCS_ROOT/mc.git"
+git -C "$K_NCS_W" push -q origin main
+K_NCS_OLD=$(git -C "$K_NCS_W" rev-parse HEAD)
+echo "new constitution state (K-ncs target)" >> "$K_NCS_W/CLAUDE.md"
+git -C "$K_NCS_W" add CLAUDE.md
+git -C "$K_NCS_W" commit -q -m new
+git -C "$K_NCS_W" push -q origin main
+K_NCS_NEW=$(git -C "$K_NCS_W" rev-parse HEAD)
+rm -rf "$K_NCS_W"
+git init -q --bare -b main "$K_NCS_ROOT/consumer.git"
+K_NCS_CW=$(mktemp -d)
+git init -q -b main "$K_NCS_CW" >/dev/null
+git -C "$K_NCS_CW" config user.name fastcycle-fixture
+git -C "$K_NCS_CW" config user.email fixture@example.invalid
+printf '## INHERITED FROM constitution/CLAUDE.md\n\nFixture consumer (K-submodule-noncanonical-section).\n\n## Commit Policy\n\nCommit wrapper: none (plain git permitted)\n' > "$K_NCS_CW/CLAUDE.md"
+mkdir -p "$K_NCS_CW/src"
+echo 'int main(void) { return 0; }' > "$K_NCS_CW/src/product.c"
+# The NON-DEFAULT section name: "const", not "constitution".
+printf '[submodule "const"]\n\tpath = constitution\n\turl = %s\n' "$K_NCS_ROOT/mc.git" > "$K_NCS_CW/.gitmodules"
+git -C "$K_NCS_CW" add CLAUDE.md .gitmodules src/product.c
+git -C "$K_NCS_CW" update-index --add --cacheinfo 160000,"$K_NCS_OLD",constitution
+git -C "$K_NCS_CW" commit -q -m "initial K-ncs consumer state"
+git -C "$K_NCS_CW" remote add origin "$K_NCS_ROOT/consumer.git"
+git -C "$K_NCS_CW" push -q origin main
+rm -rf "$K_NCS_CW"
+git clone -q --no-hardlinks "$K_NCS_ROOT/consumer.git" "$K_NCS_ROOT/checkout" >/dev/null 2>&1
+git -C "$K_NCS_ROOT/checkout" config user.name fastcycle-fixture
+git -C "$K_NCS_ROOT/checkout" config user.email fixture@example.invalid
+K_NCS_ATTACKER="$K_ROOT/k_ncs_attacker.git"
+git init --bare -q -b main "$K_NCS_ATTACKER"
+K_NCS_AW=$(mktemp -d)
+git init -q -b main "$K_NCS_AW" >/dev/null
+git -C "$K_NCS_AW" config user.name fastcycle-fixture
+git -C "$K_NCS_AW" config user.email fixture@example.invalid
+echo "ATTACKER-CONTROLLED CONTENT (K-ncs) -- must never be checked out" > "$K_NCS_AW/CLAUDE.md"
+git -C "$K_NCS_AW" add CLAUDE.md
+git -C "$K_NCS_AW" commit -q -m attacker
+git -C "$K_NCS_AW" remote add origin "$K_NCS_ATTACKER"
+git -C "$K_NCS_AW" push -q origin main
+rm -rf "$K_NCS_AW"
+# The attacker-controlled local overrides, keyed by the REAL section name.
+K_NCS_MARKER="$K_ROOT/k_ncs_update_cmd_fired"
+rm -f "$K_NCS_MARKER"
+git -C "$K_NCS_ROOT/checkout" config submodule.const.url "$K_NCS_ATTACKER"
+git -C "$K_NCS_ROOT/checkout" config submodule.const.update "!touch $K_NCS_MARKER; true"
+# NOTE: j_run() binds its review-ref to $R3_NEW (the LAST build_r3_fixture
+# target), which this fixture does not use (it is NOT build_r3_fixture-
+# built, so it has its own distinct target $K_NCS_NEW) -- a plain j_run
+# call here would bind a review-ref to the WRONG commit and refuse with
+# "review: review-no-go" regardless of this arm's own real outcome
+# (caught live while authoring this arm). Built inline instead, exactly
+# matching j_run()'s own body with $K_NCS_NEW substituted for $R3_NEW.
+K_NCS_REF=$(make_review_ref "fixture/section_k_ncs" "$K_NCS_NEW" "$(git -C "$K_NCS_ROOT/checkout" rev-parse HEAD)")
+J_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$TOOL" --config "$CFG" --project fixture/section_k_ncs --workdir "$K_NCS_ROOT/checkout" --out "$WORK/k_ncs.json" --apply --review-ref "$K_NCS_REF" 2>&1)
+J_RC=$?
+K_NCS_GITLINK=$(k_gitlink "$K_NCS_ROOT")
+K_NCS_URL_OK=no
+if [ "$(git -C "$K_NCS_ROOT/checkout/constitution" config --get remote.origin.url 2>/dev/null)" = "$K_NCS_ROOT/mc.git" ]; then
+    K_NCS_URL_OK=yes
+fi
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$K_NCS_GITLINK" = "$K_NCS_NEW" ] \
+    && [ "$K_NCS_URL_OK" = yes ] && [ ! -f "$K_NCS_MARKER" ]; then
+    ok "K-submodule-noncanonical-section (T177 Round 26, R25-I1): for a [submodule \"const\"]/path=constitution consumer, local submodule.const.url and submodule.const.update hijacks are BOTH rejected -- MIGRATED, gitlink=\$K_NCS_NEW, remote.origin.url is the TRUSTED .gitmodules URL, the attacker's update command never ran"
+else
+    bad "K-submodule-noncanonical-section: rc=$J_RC out=$J_OUT gitlink=$K_NCS_GITLINK expected=$K_NCS_NEW url-ok=$K_NCS_URL_OK update-cmd-fired=$([ -f "$K_NCS_MARKER" ] && echo yes || echo no)"
+fi
+# K-submodule-noncanonical-section guard-viability: reverting to the
+# $3-keyed (PATH, not SECTION) pins re-opens BOTH hijacks for this
+# non-default-section consumer shape.
+j_mutant K_ncs_wrong_key \
+    '-c "submodule.$CONST_SECTION.update=checkout" -c "submodule.$CONST_SECTION.url=$SUB_URL" submodule update --init --no-fetch -- "$3"' \
+    '-c "submodule.$3.update=checkout" -c "submodule.$3.url=$SUB_URL" submodule update --init --no-fetch -- "$3"'
+K_NCS_M_ROOT="$K_ROOT/km_ncs"
+mkdir -p "$K_NCS_M_ROOT"
+git clone -q --no-hardlinks "$K_NCS_ROOT/consumer.git" "$K_NCS_M_ROOT/checkout" >/dev/null 2>&1
+git -C "$K_NCS_M_ROOT/checkout" config user.name fastcycle-fixture
+git -C "$K_NCS_M_ROOT/checkout" config user.email fixture@example.invalid
+K_NCS_M_MARKER="$K_ROOT/km_ncs_update_cmd_fired"
+rm -f "$K_NCS_M_MARKER"
+git -C "$K_NCS_M_ROOT/checkout" config submodule.const.url "$K_NCS_ATTACKER"
+git -C "$K_NCS_M_ROOT/checkout" config submodule.const.update "!touch $K_NCS_M_MARKER; true"
+# Same inline-ref reasoning as the golden-path arm above.
+K_NCS_M_REF=$(make_review_ref "fixture/section_km_ncs" "$K_NCS_NEW" "$(git -C "$K_NCS_M_ROOT/checkout" rev-parse HEAD)")
+J_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_K_ncs_wrong_key.sh" --config "$CFG" --project fixture/section_km_ncs --workdir "$K_NCS_M_ROOT/checkout" --out "$WORK/km_ncs.json" --apply --review-ref "$K_NCS_M_REF" 2>&1)
+J_RC=$?
+K_NCS_M_URL=$(git -C "$K_NCS_M_ROOT/checkout/constitution" config --get remote.origin.url 2>/dev/null)
+if [ "$J_MUT_OK" -eq 1 ] && { [ "$K_NCS_M_URL" = "$K_NCS_ATTACKER" ] || [ -f "$K_NCS_M_MARKER" ]; }; then
+    ok "K-submodule-noncanonical-section guard-viability: re-keying the pins by \$3 (PATH) instead of \$CONST_SECTION re-opens the hijack for a non-default-section consumer (remote.origin.url=$K_NCS_M_URL update-cmd-fired=$([ -f "$K_NCS_M_MARKER" ] && echo yes || echo no)) -- the \$CONST_SECTION keying is genuinely load-bearing, not decoration"
+else
+    bad "K-submodule-noncanonical-section guard-viability: re-keying by \$3 did not reproduce either hijack (mut_ok=$J_MUT_OK remote.origin.url=$K_NCS_M_URL update-cmd-fired=$([ -f "$K_NCS_M_MARKER" ] && echo yes || echo no))"
+fi
+
+# --- K-receive-hooks: T177 Round 26 (R25-B1 BLOCKING, independent
+# review, live-reproduced): Round 25 fixed R24-B2's insteadOf gap by
+# inverting hop 2 and the step-9 sync fetch into a PUSH from the trusted
+# scratch repo INTO the submodule/$WORKDIR. That push spawns `git-
+# receive-pack` INSIDE the untrusted destination as a git-internal
+# child process, and git's own local-transport code STRIPS
+# `local_repo_env` (GIT_CONFIG_COUNT/KEY_n/VALUE_n included) before
+# spawning it -- so this tool's process-wide `core.hooksPath=/dev/null`
+# override never reached that child, and the destination's own
+# untracked receive-side hooks fired for real: genuine arbitrary code
+# execution from local, attacker-reachable config, a REGRESSION the
+# push-based fix introduced while closing a different hole. Closed by
+# `fc_transfer_objects_into()` (pack-objects/index-pack, no receive-pack,
+# no hook ever invoked -- see that function's own header comment). This
+# arm plants `pre-receive` AND `reference-transaction` hooks in BOTH the
+# submodule's and $WORKDIR's own `.git/hooks/`, each touching a
+# distinguishable marker, and proves neither fires during a real
+# migration.
+K_RH_ROOT="$K_ROOT/k_rh"
+build_r3_fixture "$K_RH_ROOT"
+git -C "$K_RH_ROOT/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+K_RH_SUB_HOOKS=$(git -C "$K_RH_ROOT/checkout/constitution" rev-parse --absolute-git-dir)/hooks
+K_RH_PARENT_HOOKS=$(git -C "$K_RH_ROOT/checkout" rev-parse --absolute-git-dir)/hooks
+mkdir -p "$K_RH_SUB_HOOKS" "$K_RH_PARENT_HOOKS"
+K_RH_MARKER="$K_ROOT/k_rh.marker"
+rm -f "$K_RH_MARKER"
+for _rhdir in "$K_RH_SUB_HOOKS" "$K_RH_PARENT_HOOKS"; do
+    for _rhhook in pre-receive reference-transaction; do
+        printf '#!/bin/sh\necho "%s:%s" >> "%s"\nexit 0\n' "$(basename "$(dirname "$(dirname "$_rhdir")")")" "$_rhhook" "$K_RH_MARKER" > "$_rhdir/$_rhhook"
+        chmod +x "$_rhdir/$_rhhook"
+    done
+done
+j_run "$TOOL" "$K_RH_ROOT" fixture/section_k_rh "$WORK/k_rh.json"
+K_RH_GITLINK=$(k_gitlink "$K_RH_ROOT")
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$K_RH_GITLINK" = "$R3_NEW" ] && [ ! -f "$K_RH_MARKER" ]; then
+    ok "K-receive-hooks (T177 Round 26, R25-B1): pre-receive and reference-transaction hooks planted in BOTH the submodule's and \$WORKDIR's own .git/hooks do NOT fire during a real migration -- MIGRATED, gitlink=\$R3_NEW, no hook marker written"
+else
+    bad "K-receive-hooks: rc=$J_RC out=$J_OUT gitlink=$K_RH_GITLINK expected=$R3_NEW marker=$([ -f "$K_RH_MARKER" ] && cat "$K_RH_MARKER" | tr '\n' ',' || echo absent)"
+fi
+# K-receive-hooks guard-viability: with hop 2 and the sync fetch reverted
+# to the Round 25 push-based shape, the SAME planted hooks DO fire --
+# proving fc_transfer_objects_into()'s object-only transfer, not some
+# other mechanism, is what K-receive-hooks's PASS depends on.
+j_mutant K_receive_hooks_push_shape \
+    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
+    'git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR/constitution" "$NEW_SHA:refs/fc-import/migrate" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
+    'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
+    'git -C "$FC_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR" "$NEW_COMMIT:refs/fc-import/migrate-sync" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1'
+K_RH_M_ROOT="$K_ROOT/km_rh"
+build_r3_fixture "$K_RH_M_ROOT"
+git -C "$K_RH_M_ROOT/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+K_RH_M_SUB_HOOKS=$(git -C "$K_RH_M_ROOT/checkout/constitution" rev-parse --absolute-git-dir)/hooks
+K_RH_M_PARENT_HOOKS=$(git -C "$K_RH_M_ROOT/checkout" rev-parse --absolute-git-dir)/hooks
+mkdir -p "$K_RH_M_SUB_HOOKS" "$K_RH_M_PARENT_HOOKS"
+K_RH_M_MARKER="$K_ROOT/km_rh.marker"
+rm -f "$K_RH_M_MARKER"
+for _rhdir in "$K_RH_M_SUB_HOOKS" "$K_RH_M_PARENT_HOOKS"; do
+    for _rhhook in pre-receive reference-transaction; do
+        printf '#!/bin/sh\necho fired >> "%s"\nexit 0\n' "$K_RH_M_MARKER" > "$_rhdir/$_rhhook"
+        chmod +x "$_rhdir/$_rhhook"
+    done
+done
+j_run "$WORK/jmut_K_receive_hooks_push_shape.sh" "$K_RH_M_ROOT" fixture/section_km_rh "$WORK/km_rh.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ -f "$K_RH_M_MARKER" ]; then
+    ok "K-receive-hooks guard-viability: with hop 2 and the sync fetch reverted to the Round 25 push-based shape, the SAME planted receive-side hooks FIRE ([$(tr '\n' ',' < "$K_RH_M_MARKER")]) -- K-receive-hooks's fix is genuinely load-bearing, not decoration"
+else
+    bad "K-receive-hooks guard-viability: reverting to the push-based shape did not reproduce the hooks firing (mut_ok=$J_MUT_OK marker=$([ -f "$K_RH_M_MARKER" ] && echo present || echo absent))"
 fi
 
 # K-verify-wiring: repo_verify.py strips inherited GIT_CONFIG_* by design,
