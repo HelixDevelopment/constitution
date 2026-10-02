@@ -511,14 +511,18 @@ printf '' > "$R5/f.sh"
 git -C "$R5" add f.sh
 git -C "$R5" commit -q -m "feat(x/T205): empty file"
 
+# shellcheck disable=SC2016 # literal $A/$B/$C: written AS TEXT into the
+# fixture's own f.sh, intentionally never expanded by THIS script.
 printf 'if [ -n "$A" ]; then echo a; fi\n' > "$R5/f.sh"
 git -C "$R5" add f.sh
 git -C "$R5" commit -q -m "fix(x/T205-r1): add top-level A branch"
 
+# shellcheck disable=SC2016 # same intentional literal-text shape as above.
 printf 'if [ -n "$A" ]; then echo a; fi\nif [ -n "$B" ]; then echo b; fi\n' > "$R5/f.sh"
 git -C "$R5" add f.sh
 git -C "$R5" commit -q -m "fix(x/T205-r2): add top-level B branch"
 
+# shellcheck disable=SC2016 # same intentional literal-text shape as above.
 printf 'if [ -n "$A" ]; then echo a; fi\nif [ -n "$B" ]; then echo b; fi\nif [ -n "$C" ]; then echo c; fi\n' > "$R5/f.sh"
 git -C "$R5" add f.sh
 git -C "$R5" commit -q -m "fix(x/T205-r3): add top-level C branch"
