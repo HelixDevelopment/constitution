@@ -108,9 +108,21 @@ import argparse
 import hashlib
 import json
 import os
-import shutil
 import sys
-import time
+
+# ---------------------------------------------------------------------------
+# T085 Round 3 R3-B3: wiring to the shared atomic_backup_and_replace()
+# primitive (identical import-by-path pattern to gates/batch_bisect.py's
+# own fc_common wiring -- this file lives one directory deeper, under
+# gates/lib/, so the relative hop to scripts/fastcycle/lib/ is "../../lib"
+# rather than batch_bisect.py's "../lib"; constitution/scripts/fastcycle
+# has no __init__.py anywhere, matching this tree's existing flat-script
+# layout).
+# ---------------------------------------------------------------------------
+_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "lib")
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+import fc_common  # noqa: E402  (path-inserted import, see above)
 
 EXIT_OK = 0
 EXIT_FINDING = 1
@@ -282,9 +294,26 @@ def build_result(fast_path, full_path):
 def apply_force_full(map_path, drifting_gate_ids):
     """Sets gates.<gate_id>.force_full = true for every drifting gate id
     present in the map (data-model.md Section 3's `force_full` field,
-    read by affected_set.py's future consumer). C-006: a hardlinked
-    backup (SS9.2) is taken BEFORE any write; falls back to a real copy
-    if hardlinking is unsupported (e.g. across filesystem boundaries).
+    read by affected_set.py's future consumer). C-006 / section 9.2: a
+    backup is taken BEFORE any write.
+
+    T085 Round 3 R3-B3 (BLOCKING, reproduced live): the pre-fix version
+    below did `os.link(map_path, backup_path)` and THEN
+    `open(map_path, "w")` on the SAME path -- since a hardlink makes
+    `backup_path` and `map_path` the SAME inode, writing map_path IN
+    PLACE silently overwrote the "backup" too. Reproduced on a drifting
+    gate map: the map and its `.bak-*` shared one inode (confirmed by
+    st_ino), and the "backup" held the POST-write `force_full:true`
+    content -- the pre-op bytes were already gone. Fixed by delegating
+    to the ONE shared primitive, `fc_common.atomic_backup_and_replace()`
+    (section 11.4.227 reuse-not-reinvention), which NEVER truncates
+    map_path in place -- the new content lands in a fresh temp file in
+    the same directory, then is atomically os.replace()'d over
+    map_path, leaving the hardlinked backup pointing at the untouched
+    OLD inode. See that function's own docstring for the full guarantee
+    list (unique backup names across repeated applies, preserved mode
+    bits, symlink-aware).
+
     Returns (updated_ids, unknown_ids, backup_path_or_None)."""
     with open(map_path, "r", encoding="utf-8") as fh:
         gate_map = json.load(fh)
@@ -302,15 +331,8 @@ def apply_force_full(map_path, drifting_gate_ids):
     if not updated:
         return updated, unknown, None
 
-    backup_path = "%s.bak-%d-%d" % (map_path, int(time.time()), os.getpid())
-    try:
-        os.link(map_path, backup_path)
-    except OSError:
-        shutil.copy2(map_path, backup_path)
-
-    with open(map_path, "w", encoding="utf-8") as fh:
-        fh.write(canonical_json(gate_map))
-        fh.write("\n")
+    new_text = canonical_json(gate_map) + "\n"
+    backup_path = fc_common.atomic_backup_and_replace(map_path, new_text, backup_tag="bak")
 
     return updated, unknown, backup_path
 
