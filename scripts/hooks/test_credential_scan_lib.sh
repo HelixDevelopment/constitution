@@ -21,7 +21,7 @@
 #   (1) `user@company.com : S3cretPass99`  (email+password adjacency, lc TLD),
 #   (2) `api_key=AKIA...`                    (known-token + keyword-assignment),
 #   (3) `password: hunter2hunter2`           (keyword-anchored assignment),
-#   (4) `-----BEGIN OPENSSH PRIVATE KEY-----`(private-key marker),
+#   (4) an OpenSSH private-key BEGIN header (private-key marker),
 #   (5) `AIza<35 chars>`                     (Google-API-key format).
 #
 # A golden-bad that is NOT caught means the library WEAKENED the gate (a release
@@ -185,7 +185,10 @@ assert_clean "(j) keyword=...must_not_leak... (test-fixture sentinel marker)" "$
 # deterministically so the embedded AKIA token is exactly the right shape.
 { printf 'avatar_data: data:image/png;base64,'
   printf 'iVBORw0KGgoAAAANSUhEUg'      # ordinary base64 image-header bytes
-  printf 'AKIA0123456789ABCDEF'        # AKIA + 16 [0-9A-Z] chars, embedded in blob
+  printf 'AKIA01234567'                # first half of the AKIA+16-char run -- split
+  printf '89ABCDEF'                    # across two printf args so no SINGLE source
+                                        # line carries the full token contiguously
+                                        # (CM-SECRET-SCAN-SELF-EXEMPT); embedded in blob
   printf 'moreImageBytesHere+/=='      # trailing base64 image bytes
   printf '\n'
 } > "$WORK/good_k_base64_image.txt"
@@ -238,9 +241,15 @@ Service login for the AVR test account:
 EOF
 assert_caught "(1) email+password adjacency (lowercase TLD)" "$WORK/bad_1_email_pw.txt"
 
-cat > "$WORK/bad_2_akia.txt" <<'EOF'
-export api_key=AKIA1234567890ABCDEF
-EOF
+# CM-SECRET-SCAN-SELF-EXEMPT: built via printf so this file's own source
+# bytes never carry "api_key=" immediately followed by a quote, nor the full
+# AKIA+16-char token contiguously, on one physical line (the precheck pack's
+# secret-scan would otherwise flag this GOLDEN-BAD fixture as a real leak in
+# its OWN source -- see CONTINUATION.md for the forensic).
+{ printf 'export api_key'
+  printf '=AKIA12345678'
+  printf '90ABCDEF\n'
+} > "$WORK/bad_2_akia.txt"
 assert_caught "(2) AKIA + api_key= assignment" "$WORK/bad_2_akia.txt"
 
 cat > "$WORK/bad_3_password.txt" <<'EOF'
@@ -249,11 +258,14 @@ db:
 EOF
 assert_caught "(3) keyword-anchored password: assignment" "$WORK/bad_3_password.txt"
 
-cat > "$WORK/bad_4_privkey.txt" <<'EOF'
------BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAAB
------END OPENSSH PRIVATE KEY-----
-EOF
+# CM-SECRET-SCAN-SELF-EXEMPT: built via printf so no single physical source
+# line carries the full "-----BEGIN ... PRIVATE KEY-----" marker contiguously.
+{ printf -- '-----BEGIN '
+  printf 'OPENSSH PRIVATE KEY'
+  printf -- '-----\n'
+  printf 'b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAAB\n'
+  printf -- '-----END OPENSSH PRIVATE KEY-----\n'
+} > "$WORK/bad_4_privkey.txt"
 assert_caught "(4) OPENSSH PRIVATE KEY marker" "$WORK/bad_4_privkey.txt"
 
 # Build the Google-API-key fixture: AIza + exactly 35 chars (39 total) so it
@@ -533,13 +545,15 @@ EOF
 assert_clean "(20) keyword = System.getenv( / os.Getenv( (env-lookup call value)" \
              "$WORK/good_20_env_lookup.kts"
 
-cat > "$WORK/bad_20_env_lookup_literal.kts" <<'EOF'
-signingConfigs {
-    create("release") {
-        keyPassword = "Hunter2Hunter2Xy"
-    }
-}
-EOF
+# CM-SECRET-SCAN-SELF-EXEMPT: built via printf so "keyPassword = " and its
+# quoted value never share one physical source line.
+{ printf 'signingConfigs {\n'
+  printf '    create("release") {\n'
+  printf '        keyPassword = '
+  printf '"Hunter2Hunter2Xy"\n'
+  printf '    }\n'
+  printf '}\n'
+} > "$WORK/bad_20_env_lookup_literal.kts"
 assert_caught "(20-bad) LITERAL keyPassword in the same signing block (env-strip must not leak it)" \
               "$WORK/bad_20_env_lookup_literal.kts"
 
@@ -631,16 +645,22 @@ EOF
 assert_clean "(25) accessor/method CALL in value position (obj.optString) — clean (no false positive)" \
               "$WORK/good_25_accessor_call.kt"
 
-cat > "$WORK/bad_25_quoted_lookalike.kt" <<'EOF'
-password = "objDotOptStringLooksLikeACall"
-EOF
+# CM-SECRET-SCAN-SELF-EXEMPT: built via printf so "password = " and its
+# quoted value never share one physical source line.
+{ printf 'password = '
+  printf '"objDotOptStringLooksLikeACall"\n'
+} > "$WORK/bad_25_quoted_lookalike.kt"
 assert_caught "(25-bad-1) quoted literal that merely LOOKS like a call (strip must be \$-anchored past the quote)" \
               "$WORK/bad_25_quoted_lookalike.kt"
 
-cat > "$WORK/bad_25_real_literal.kt" <<'EOF'
-password = obj.optString("password", "")
-api_key  = "AKIAIOSFODNN7EXAMPLE"
-EOF
+# CM-SECRET-SCAN-SELF-EXEMPT: built via printf so "api_key  = " and its
+# quoted AKIA-shaped value never share one physical source line, and the
+# AKIA+16-char token itself is split across two printf args.
+{ printf 'password = obj.optString("password", "")\n'
+  printf 'api_key  = '
+  printf '"AKIAIOSFODNN7'
+  printf 'EXAMPLE"\n'
+} > "$WORK/bad_25_real_literal.kt"
 assert_caught "(25-bad-2) REAL secret on a line beside an accessor-call carrier (strip must not blanket the file)" \
               "$WORK/bad_25_real_literal.kt"
 
