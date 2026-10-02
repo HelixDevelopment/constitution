@@ -1,4 +1,10 @@
 #!/bin/bash
+# File-wide: this harness uses the standard `cond && ok "..." || bad "..."`
+# control-needle idiom throughout (ok/bad are print-only reporters that
+# always return 0, so the || branch never spuriously fires) plus a handful
+# of literal sed/grep anchor strings inside single quotes (intentionally
+# non-expanding). Each instance reviewed; all genuinely intentional.
+# shellcheck disable=SC2015,SC2016,SC1091
 # T048 round-7 regression guard for test_fc_timer_golden_output.sh: the
 # round-6 independent review's R6-I1, R6-I3, R6-M1..M4 and the R6-B1 isolation
 # refusal. (spec 004-fast-dev-cycles T015/T048.)
