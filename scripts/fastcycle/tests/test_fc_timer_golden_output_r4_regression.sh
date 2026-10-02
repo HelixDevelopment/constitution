@@ -182,24 +182,40 @@ expect_flip() {
 echo "=== (M5) round-5 reviewer's M5: invert the classifier's grep -qxF test ==="
 # (anchor updated in round 7: R6-M4 replaced the per-line grep -qxF set
 # match with a multiset awk match; the mutation still inverts the match test.)
+# T048 round 14 (m5): hoisted into their own narrowly-scoped assignments --
+# a `# shellcheck disable` placed directly above an `if ...; then ... fi`
+# compound command suppresses that code for the WHOLE if-block body, wider
+# than the single literal line that actually needs it.
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
-if mutate M5 '{ if (n[$0] > 0) { n[$0]--; e++ } else u++ }' '{ if (!(n[$0] > 0)) { e++ } else u++ }'; then
+_M5_ANCHOR='{ if (n[$0] > 0) { n[$0]--; e++ } else u++ }'
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
+_M5_REPL='{ if (!(n[$0] > 0)) { e++ } else u++ }'
+if mutate M5 "$_M5_ANCHOR" "$_M5_REPL"; then
   expect_flip M5 C1 "changed=1 noise_explained=0 not_explained=1"
   expect_flip M5 C2 "changed=1 noise_explained=1 not_explained=0"
 fi
 
 echo "=== (M-R5I3) pre-R5-I3 shape: added lines never classified ==="
+# T048 round 14 (m5): hoisted (only the anchor needs SC2016 -- the repl
+# ('    :') has no '$' at all).
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
-if mutate R5I3 '    _fc_classify_against "$TMP/real_added.txt" "$TMP/noise_added.txt"' '    :'; then
+_R5I3_ANCHOR='    _fc_classify_against "$TMP/real_added.txt" "$TMP/noise_added.txt"'
+if mutate R5I3 "$_R5I3_ANCHOR" '    :'; then
   expect_flip R5I3 C1 "changed=1 noise_explained=0 not_explained=1"
 fi
 
 echo "=== (M-dir) classify removed lines against the ADDED noise side ==="
+# T048 round 14 (m5): hoisted into their own narrowly-scoped assignments.
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
-if mutate DIR '    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_removed.txt"' '    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_added.txt"'; then
+_DIR_ANCHOR='    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_removed.txt"'
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
+_DIR_REPL='    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_added.txt"'
+if mutate DIR "$_DIR_ANCHOR" "$_DIR_REPL"; then
   expect_flip DIR C4 "changed=1 noise_explained=0 not_explained=1"
 fi
 
@@ -235,10 +251,16 @@ if [ -n "$SKIP2PASS_ANCHOR" ] \
   # pollutes this file's own $fail -- what this meta-assertion requires is
   # that expect_skip() itself flags the mutant, not that nothing flags it.
   SELFGUARD_OUT="$( expect_skip SKIP2PASS_SELFGUARD "$MUT_OUT" "changed=1 noise_explained=1 not_explained=0" "$MUT_RC" )"
-  if printf '%s\n' "$SELFGUARD_OUT" | grep -q '^NOT ok'; then
-    ok "(M-SKIP2PASS self-guard, R12-M1) expect_skip() itself, fed the SAME mutant output, genuinely reports NOT ok -- the kind-check strengthening is exercised against exactly the mutation it was added to catch, closing the round-12 tautology finding (the two checks above alone never called expect_skip() at all)"
+  # T048 round 14 (m5): asserts the SPECIFIC kind-check message text
+  # (line 131's "is '$kind', not SKIP" branch, with kind=PASS here) --
+  # not merely any '^NOT ok' line -- so this self-guard genuinely proves
+  # the KIND-CHECK itself fired, rather than, say, the generic catch-all
+  # `*)` format-mismatch branch (line 134) producing an equally-matching
+  # but unrelated "NOT ok" for the wrong reason.
+  if printf '%s\n' "$SELFGUARD_OUT" | grep -q "is 'PASS', not SKIP"; then
+    ok "(M-SKIP2PASS self-guard, R12-M1) expect_skip() itself, fed the SAME mutant output, genuinely reports NOT ok VIA THE KIND-CHECK BRANCH (marker is 'PASS', not SKIP) -- the kind-check strengthening is exercised against exactly the mutation it was added to catch, closing the round-12 tautology finding (the two checks above alone never called expect_skip() at all)"
   else
-    bad "(M-SKIP2PASS self-guard, R12-M1) BLIND: expect_skip() itself was fooled by the mutant (reported '$SELFGUARD_OUT' instead of NOT ok) -- the kind-check it should be exercising is not load-bearing here"
+    bad "(M-SKIP2PASS self-guard, R12-M1) BLIND: expect_skip() itself was fooled by the mutant, or flagged it via the WRONG branch (reported '$SELFGUARD_OUT', wanted the kind-check's \"is 'PASS', not SKIP\" text) -- the kind-check it should be exercising is not load-bearing here"
   fi
 else
   bad "(M-SKIP2PASS) could not construct the mutation (anchor not found)"

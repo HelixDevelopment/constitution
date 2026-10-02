@@ -230,9 +230,17 @@ s=open(sys.argv[1]).read(); s=s.replace(os.environ["ANCHOR"],os.environ["REPL"],
 mrun() { GT_GOLDEN="$TMP/golden_$1.sh" gt_golden "$2" FC_TIMER_GOLDEN_EVIDENCE_DIR="$3"; }
 
 echo "=== (M-E) guard-viability: loosen the exit noise-floor elif to accept ANY FC0b divergence (drop the exact-match-to-FC1 requirement) -- (E2) must wrongly flip to SKIP ==="
+# T048 round 14 (m5): hoisted into their own narrowly-scoped assignments --
+# a `# shellcheck disable` placed directly above an `if ...; then ... fi`
+# compound command suppresses that code for the WHOLE if-block body, wider
+# than the single literal line that actually needs it.
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
-if mutate E 'elif [ "$_exn" != "$_ex0" ] && [ "$_exn" = "$_ex1" ]; then' 'elif [ "$_exn" != "$_ex0" ]; then'; then
+_ME_ANCHOR='elif [ "$_exn" != "$_ex0" ] && [ "$_exn" = "$_ex1" ]; then'
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
+_ME_REPL='elif [ "$_exn" != "$_ex0" ]; then'
+if mutate E "$_ME_ANCHOR" "$_ME_REPL"; then
   GT_GOLDEN="$TMP/golden_E.sh" gt_golden "$TMP/me2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/e2"
   if grep -qE '^SKIP\[[0-9]+\]: FR-002 commit result' "$TMP/me2.out"; then
     ok "(M-E) without the exact-match-to-FC1 requirement, the mutant WRONGLY treats (E2)'s unrelated FC0b divergence as noise-explained -- the exact-match discipline is genuinely load-bearing"
@@ -300,9 +308,14 @@ echo "=== (M-Q6) guard-viability: drop the FC0b-vs-FC1 overlap term -- (Q6) must
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
 Q6_ANCHOR="$(grep -F '_fc_ranges_overlap "$_ep_b_s" "$_ep_b_f" "$_ep_1_s" "$_ep_1_f"; then' "$REAL_GOLDEN")"
+# T048 round 14 (m5): hoisted into its own narrowly-scoped assignment -- a
+# `# shellcheck disable` placed directly above an `if ...; then ... fi`
+# compound command suppresses that code for the WHOLE if-block body, wider
+# than the single literal substitution that actually needs it.
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
-if [ -n "$Q6_ANCHOR" ] && mutate Q6 "$Q6_ANCHOR" "$(printf '%s' "$Q6_ANCHOR" | sed -E 's/\|\| _fc_ranges_overlap.*\$_ep_1_f"/|| false/')"; then
+Q6_REPL="$(printf '%s' "$Q6_ANCHOR" | sed -E 's/\|\| _fc_ranges_overlap.*\$_ep_1_f"/|| false/')"
+if [ -n "$Q6_ANCHOR" ] && mutate Q6 "$Q6_ANCHOR" "$Q6_REPL"; then
   mrun Q6 "$TMP/mq6.out" "$TMP/q6"
   if has "$TMP/mq6.out" "IDENTICAL" && ! has "$TMP/mq6.out" "contradicts its own recorded timing"; then
     ok "(M-Q6) without the FC0b-vs-FC1 overlap term, the mutant WRONGLY accepts (Q6)'s forged-overlapping manifest -- that term is genuinely load-bearing"
@@ -317,9 +330,12 @@ echo "=== (M-Q7) guard-viability: drop the FC0a-vs-FC1 overlap term -- (Q7) must
 # intentional literal grep -F / sed anchor pattern with an embedded escaped single quote -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC1003,SC2016
 Q7_ANCHOR="$(grep -F '_fc_ranges_overlap "$_ep_a_s" "$_ep_a_f" "$_ep_1_s" "$_ep_1_f" \' "$REAL_GOLDEN")"
+# T048 round 14 (m5): hoisted into its own narrowly-scoped assignment (see
+# the Q6_REPL comment above for why).
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
-if [ -n "$Q7_ANCHOR" ] && mutate Q7 "$Q7_ANCHOR" "$(printf '%s' "$Q7_ANCHOR" | sed -E 's/\|\| _fc_ranges_overlap.*\$_ep_1_f" \\/|| false \\/')"; then
+Q7_REPL="$(printf '%s' "$Q7_ANCHOR" | sed -E 's/\|\| _fc_ranges_overlap.*\$_ep_1_f" \\/|| false \\/')"
+if [ -n "$Q7_ANCHOR" ] && mutate Q7 "$Q7_ANCHOR" "$Q7_REPL"; then
   mrun Q7 "$TMP/mq7.out" "$TMP/q7"
   if has "$TMP/mq7.out" "IDENTICAL" && ! has "$TMP/mq7.out" "contradicts its own recorded timing"; then
     ok "(M-Q7) without the FC0a-vs-FC1 overlap term, the mutant WRONGLY accepts (Q7)'s forged-overlapping manifest -- that term is genuinely load-bearing"

@@ -123,6 +123,16 @@ UNREG_BAD='  CM-UNREG: genuinely unrelated gate...   ✗ ERROR: real unregistere
 # each occurring exactly once in that file at the time of this fix.
 GOK='  ✓ ALL MANDATORY CHECKS PASSED'
 GFAIL='  ✗ PRE-BUILD VERIFICATION FAILED'
+# T048 round 14 (R14-I1): the real "  Failed:       N" summary line
+# (pre_build_verification.sh:51115), prints strictly BEFORE either banner.
+# BASE alone always contributes exactly 1 (CM-TWO, always failing) to every
+# member below; these constants are the content-accurate totals for each
+# fixture's own BASE+SPK[+UNREG] combination, required since round 14's
+# exact-accounting mechanism reads this line directly rather than any
+# any-registered-line-differs heuristic.
+FAILED1='  Failed:       1'
+FAILED2='  Failed:       2'
+FAILED3='  Failed:       3'
 
 # =============================================================================
 # R12-I1: the real-registry, green-tree, exit+summary-tail cascade.
@@ -130,10 +140,13 @@ GFAIL='  ✗ PRE-BUILD VERIFICATION FAILED'
 echo "=== (A2) R12-I1 exact repro: registered flake confined to FC1 on a GREEN tree, flipping FC1's exit 0->1 AND the real summary banner -- overall PASS expected, not the pre-fix FAIL ==="
 triplet A2 1 "$BASE
 $SPK_OK
+$FAILED1
 $GOK" "$BASE
 $SPK_OK
+$FAILED1
 $GOK" "$BASE
 $SPK_BAD
+$FAILED2
 $GFAIL"
 set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
 gt_golden "$TMP/a2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2"; A2_RC=$?
@@ -148,10 +161,13 @@ fi
 echo "=== (A2mirror) R12-I1 mirror direction: registered flake confined to FC0a instead of FC1 -- still symmetric, overall PASS ==="
 triplet A2mirror 2 "$BASE
 $SPK_BAD
+$FAILED2
 $GFAIL" "$BASE
 $SPK_OK
+$FAILED1
 $GOK" "$BASE
 $SPK_OK
+$FAILED1
 $GOK"
 set_key "$MF" member.FC0a.exit 1; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 0
 gt_golden "$TMP/a2m.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2mirror"; A2M_RC=$?
@@ -164,9 +180,12 @@ fi
 
 echo "=== (A2b) exit-code-only effect: registered flake flips FC1's exit, but NEITHER log carries a summary banner at all (no truncation possible) -- still overall PASS via the exit-code elif alone ==="
 triplet A2b 3 "$BASE
-$SPK_OK" "$BASE
-$SPK_OK" "$BASE
-$SPK_BAD"
+$SPK_OK
+$FAILED1" "$BASE
+$SPK_OK
+$FAILED1" "$BASE
+$SPK_BAD
+$FAILED2"
 set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
 gt_golden "$TMP/a2b.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2b"; A2B_RC=$?
 if [ "$A2B_RC" = 0 ] && grep -qE '^SKIP\[[0-9]+\]: FR-002 commit result \(registry-explained' "$TMP/a2b.out" \
@@ -180,12 +199,15 @@ echo "=== (A2mix) NON-LOOPHOLE control: registered flake in FC1 AND a GENUINE un
 triplet A2mix 4 "$BASE
 $SPK_OK
 $UNREG_OK
+$FAILED1
 $GOK" "$BASE
 $SPK_OK
 $UNREG_OK
+$FAILED1
 $GOK" "$BASE
 $SPK_BAD
 $UNREG_BAD
+$FAILED3
 $GFAIL"
 set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
 gt_golden "$TMP/a2mix.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2mix"; A2MIX_RC=$?
@@ -254,7 +276,11 @@ s=open(sys.argv[1]).read(); s=s.replace(os.environ["ANCHOR"],os.environ["REPL"],
 mrun() { local name="$1" envassigns="$2" outfile="$3"; GT_GOLDEN="$TMP/golden_$name.sh" gt_golden "$outfile" $envassigns; }
 
 echo "=== (M-I1a) guard-viability: strip the NEW registry-explained exit-code elif -- (A2) must reproduce the pre-round-13 hard FAIL on check [12], flipping the OVERALL result to FAIL ==="
-if mutate I1a "  elif [ -n \"\$_FC_EXIT_FLIP_IDS\" ]; then" "  elif false; then  # MUTANT: R12-I1 registry-explained elif disabled"; then
+# T048 round 14: the round-13 elif anchor "_FC_EXIT_FLIP_IDS" was replaced by
+# round 14's exact-accounting "_FC_EXIT_EXPLAINED" (see R14-I1 above) -- the
+# mutation's INTENT (prove the gating elif is load-bearing for (A2)) is
+# unchanged, only the anchor text tracking the code it targets.
+if mutate I1a "  elif [ \"\$_FC_EXIT_EXPLAINED\" = 1 ]; then" "  elif false; then  # MUTANT: R14-I1 registry-explained elif disabled"; then
   mrun I1a "FC_TIMER_GOLDEN_EVIDENCE_DIR=$TMP/ev_A2 FC_TIMER_GOLDEN_ROOT=$ROOT FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=$HERE/known_flaky_gates.tsv" "$TMP/mi1a.out"
   MI1A_RC=$?
   if [ "$MI1A_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: FR-002 commit result:.*MISMATCH, not explained' "$TMP/mi1a.out"; then
@@ -267,9 +293,17 @@ else
 fi
 
 echo "=== (M-I1b) guard-viability: strip the NEW summary-tail truncation for the with-timers side -- (A2) must reproduce the pre-round-13 hard FAIL on check [13], flipping the OVERALL result to FAIL even though check [12] independently SKIPs ==="
+# T048 round 14 (m5): hoisted into their own narrowly-scoped assignments --
+# a `# shellcheck disable` placed directly above an `if ...; then ... fi`
+# compound command suppresses that code for the WHOLE if-block body, wider
+# than the single literal line that actually needs it.
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
-if mutate I1b '_fc_truncate_before_summary_tail "$TMP/with_timers_fcf_pretrunc.txt" "$TMP/with_timers_fcf.txt"' 'cp "$TMP/with_timers_fcf_pretrunc.txt" "$TMP/with_timers_fcf.txt"  # MUTANT: R12-I1 truncation disabled on this side'; then
+_I1B_ANCHOR='_fc_truncate_before_summary_tail "$TMP/with_timers_fcf_pretrunc.txt" "$TMP/with_timers_fcf.txt"'
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
+_I1B_REPL='cp "$TMP/with_timers_fcf_pretrunc.txt" "$TMP/with_timers_fcf.txt"  # MUTANT: R12-I1 truncation disabled on this side'
+if mutate I1b "$_I1B_ANCHOR" "$_I1B_REPL"; then
   mrun I1b "FC_TIMER_GOLDEN_EVIDENCE_DIR=$TMP/ev_A2 FC_TIMER_GOLDEN_ROOT=$ROOT FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=$HERE/known_flaky_gates.tsv" "$TMP/mi1b.out"
   MI1B_RC=$?
   if [ "$MI1B_RC" = 1 ] && grep -qE '^SKIP\[[0-9]+\]: FR-002 commit result \(registry-explained' "$TMP/mi1b.out" \
@@ -290,14 +324,19 @@ fi
 # =============================================================================
 STUB_DOC_ABS="$TMP/stub_defect_doc.md"
 : > "$STUB_DOC_ABS"
-# A defect_doc path is resolved relative to $ROOT inside the golden test;
-# symlink a real $ROOT-relative path to this test's own stub so the
-# "doc exists" check can be satisfied by a path this test file owns, not by
-# reusing an unrelated real doc as a stand-in.
-STUB_DOC_REL="docs/requests/.t048_r12_regression_stub_$$_defect_doc.md"
-mkdir -p "$ROOT/$(dirname "$STUB_DOC_REL")"
-cp "$STUB_DOC_ABS" "$ROOT/$STUB_DOC_REL"
-trap 'rm -rf "$TMP"; rm -f "$ROOT/$STUB_DOC_REL"' EXIT
+# A defect_doc path is resolved relative to $ROOT inside the golden test. T048
+# round 14 (m2): this USED to copy the stub into the REAL $ROOT's live
+# docs/requests/ tree (a concurrent commit_all.sh's `git add -A` could pick
+# it up, and a SIGKILL of this test left it behind permanently) -- the
+# golden test's own FC_TIMER_GOLDEN_ROOT override (added for a different
+# purpose, R12-M2) makes that unnecessary: a FAKE root entirely under $TMP,
+# cleaned up by the SAME trap that already removes $TMP, never touches the
+# live tree at all. (The old comment calling this a "symlink" was also
+# wrong -- it always `cp`'d, never symlinked; corrected here.)
+FAKE_ROOT="$TMP/fake_root_m2"
+STUB_DOC_REL="docs/requests/.t048_r12_regression_stub_defect_doc.md"
+mkdir -p "$FAKE_ROOT/$(dirname "$STUB_DOC_REL")"
+cp "$STUB_DOC_ABS" "$FAKE_ROOT/$STUB_DOC_REL"
 
 B_BASE='  ✓ CM-ONE: first
   ✗ CM-TWO: second'
@@ -308,7 +347,7 @@ GOOD_TSV="$TMP/good.tsv"
 printf 'gate_id\treason\tdefect_doc\texpires\nCM-FLAKY-TEST-GATE\tsynthetic test-only flaky gate\t%s\t2099-01-01\n' "$STUB_DOC_REL" > "$GOOD_TSV"
 triplet M2good 7 "$B_BASE" "$B_BASE" "$B_BASE
 $B_FLAKY_LINE"
-gt_golden "$TMP/m2good.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$GOOD_TSV"; M2G_RC=$?
+gt_golden "$TMP/m2good.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$GOOD_TSV" FC_TIMER_GOLDEN_ROOT="$FAKE_ROOT"; M2G_RC=$?
 if [ "$M2G_RC" = 0 ] && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01.*excluding known-flaky' "$TMP/m2good.out" && ! has "$TMP/m2good.out" "WARN: known_flaky_gates.tsv row"; then
   ok "(M2-good) a fully valid row is honoured with no refusal WARNs"
 else
@@ -318,7 +357,7 @@ fi
 echo "=== (M2-empty-reason) a row with an EMPTY reason is refused (treated as unregistered) ==="
 BAD_REASON_TSV="$TMP/bad_reason.tsv"
 printf 'gate_id\treason\tdefect_doc\texpires\nCM-FLAKY-TEST-GATE\t\t%s\t2099-01-01\n' "$STUB_DOC_REL" > "$BAD_REASON_TSV"
-gt_golden "$TMP/m2er.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$BAD_REASON_TSV"; M2ER_RC=$?
+gt_golden "$TMP/m2er.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$BAD_REASON_TSV" FC_TIMER_GOLDEN_ROOT="$FAKE_ROOT"; M2ER_RC=$?
 if [ "$M2ER_RC" = 1 ] && has "$TMP/m2er.out" "EMPTY reason" && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/m2er.out"; then
   ok "(M2-empty-reason) an empty-reason row is refused -- the gate's line is NOT excluded, so the unregistered-looking deviation still FAILs"
 else
@@ -328,7 +367,7 @@ fi
 echo "=== (M2-missing-doc) a row whose defect_doc does NOT exist is refused ==="
 BAD_DOC_TSV="$TMP/bad_doc.tsv"
 printf 'gate_id\treason\tdefect_doc\texpires\nCM-FLAKY-TEST-GATE\tsynthetic test-only flaky gate\tdocs/requests/does-not-exist-%s.md\t2099-01-01\n' "$$" > "$BAD_DOC_TSV"
-gt_golden "$TMP/m2md.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$BAD_DOC_TSV"; M2MD_RC=$?
+gt_golden "$TMP/m2md.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$BAD_DOC_TSV" FC_TIMER_GOLDEN_ROOT="$FAKE_ROOT"; M2MD_RC=$?
 if [ "$M2MD_RC" = 1 ] && has "$TMP/m2md.out" "does not exist" && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/m2md.out"; then
   ok "(M2-missing-doc) a row citing a nonexistent defect_doc is refused"
 else
@@ -338,7 +377,7 @@ fi
 echo "=== (M2-malformed-expiry) a row with a non-date expires value is refused ==="
 BAD_EXP_TSV="$TMP/bad_exp.tsv"
 printf 'gate_id\treason\tdefect_doc\texpires\nCM-FLAKY-TEST-GATE\tsynthetic test-only flaky gate\t%s\tnot-a-date\n' "$STUB_DOC_REL" > "$BAD_EXP_TSV"
-gt_golden "$TMP/m2me.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$BAD_EXP_TSV"; M2ME_RC=$?
+gt_golden "$TMP/m2me.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$BAD_EXP_TSV" FC_TIMER_GOLDEN_ROOT="$FAKE_ROOT"; M2ME_RC=$?
 if [ "$M2ME_RC" = 1 ] && has "$TMP/m2me.out" "not a YYYY-MM-DD date" && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/m2me.out"; then
   ok "(M2-malformed-expiry) a row with a non-ISO-date expires value is refused"
 else
@@ -348,7 +387,7 @@ fi
 echo "=== (M2-elapsed-expiry) a row whose expires date is in the PAST is refused ==="
 ELAPSED_TSV="$TMP/elapsed.tsv"
 printf 'gate_id\treason\tdefect_doc\texpires\nCM-FLAKY-TEST-GATE\tsynthetic test-only flaky gate\t%s\t2000-01-01\n' "$STUB_DOC_REL" > "$ELAPSED_TSV"
-gt_golden "$TMP/m2ee.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$ELAPSED_TSV"; M2EE_RC=$?
+gt_golden "$TMP/m2ee.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$ELAPSED_TSV" FC_TIMER_GOLDEN_ROOT="$FAKE_ROOT"; M2EE_RC=$?
 if [ "$M2EE_RC" = 1 ] && has "$TMP/m2ee.out" "expired on 2000-01-01" && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/m2ee.out"; then
   ok "(M2-elapsed-expiry) a row whose expires date has already elapsed is refused"
 else
@@ -359,7 +398,7 @@ echo "=== (M2-future-boundary) a row whose expires date is TODAY is still honour
 TODAY_TSV="$TMP/today.tsv"
 TODAY_ISO="$(date -u +%F)"
 printf 'gate_id\treason\tdefect_doc\texpires\nCM-FLAKY-TEST-GATE\tsynthetic test-only flaky gate\t%s\t%s\n' "$STUB_DOC_REL" "$TODAY_ISO" > "$TODAY_TSV"
-gt_golden "$TMP/m2tb.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$TODAY_TSV"; M2TB_RC=$?
+gt_golden "$TMP/m2tb.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2good" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$TODAY_TSV" FC_TIMER_GOLDEN_ROOT="$FAKE_ROOT"; M2TB_RC=$?
 if [ "$M2TB_RC" = 0 ] && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01.*excluding known-flaky' "$TMP/m2tb.out"; then
   ok "(M2-future-boundary) an expires date equal to today is still honoured (inclusive)"
 else
@@ -367,10 +406,13 @@ else
 fi
 
 echo "=== (M-M2) guard-viability: disable the empty-reason refusal (single-line anchor; a multi-line anchor here was MEASURED to make grep -cF's control needle report 2 'hits' for a 2-line sequence that occurs only ONCE contiguously -- GNU grep -F with an embedded newline in its pattern argument matches each LINE of the pattern as a separate alternative, summing per-line match counts, rather than requiring the exact multi-line sequence; a genuine S11.4.201(7)(c) 'the path is part of the instrument' footgun, found by running this, not assumed -- so every mutate() anchor in this file stays single-line) -- (M2-empty-reason)'s fixture must reproduce the pre-round-13 false exclusion ==="
+# T048 round 14 (m5): hoisted (only the anchor needs SC2016 -- the repl has
+# no '$' at all).
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
-if mutate M2 '    if [ -z "$reason" ]; then' '    if false; then  # MUTANT: R12-M2 empty-reason refusal disabled'; then
-  mrun M2 "FC_TIMER_GOLDEN_EVIDENCE_DIR=$TMP/ev_M2good FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=$BAD_REASON_TSV FC_TIMER_GOLDEN_ROOT=$ROOT" "$TMP/mm2.out"
+_M2_ANCHOR='    if [ -z "$reason" ]; then'
+if mutate M2 "$_M2_ANCHOR" '    if false; then  # MUTANT: R12-M2 empty-reason refusal disabled'; then
+  mrun M2 "FC_TIMER_GOLDEN_EVIDENCE_DIR=$TMP/ev_M2good FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=$BAD_REASON_TSV FC_TIMER_GOLDEN_ROOT=$FAKE_ROOT" "$TMP/mm2.out"
   MM2_RC=$?
   if [ "$MM2_RC" = 0 ] && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01.*excluding known-flaky' "$TMP/mm2.out"; then
     ok "(M-M2) without the empty-reason refusal, the empty-reason row is WRONGLY honoured again (rc=0, excluded) -- the validation is genuinely load-bearing"
