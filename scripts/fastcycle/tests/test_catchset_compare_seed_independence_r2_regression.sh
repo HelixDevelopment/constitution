@@ -244,14 +244,13 @@ else
         --corpus "$SCRATCH/corpus.json" --old "$SCRATCH/old_manifest.json" --new "$SCRATCH/new_manifest.json" \
         --workdir "$SCRATCH/workdir/r1d" --out "$SCRATCH/r1d_out.json" >/dev/null 2>&1
     if [ -f "$SCRATCH/r1d_out.json" ]; then
-        R1D_OUT=$(python3 -c "
+        if R1D_OUT=$(python3 -c "
 import json, sys
 d = json.load(open(sys.argv[1]))
 per_defect_ids = [e.get('defect_id') for e in d.get('per_defect', [])]
 print('per_defect_ids=%r' % (per_defect_ids,))
 sys.exit(0 if 'D1' in per_defect_ids else 1)
-" "$SCRATCH/r1d_out.json")
-        if [ "$?" -eq 0 ]; then
+" "$SCRATCH/r1d_out.json"); then
             ok "R1d: with the exclusion removed, D1 WRONGLY appears in per_defect again -- proving R1c genuinely catches this regression, it is not a tautology ($R1D_OUT)"
         else
             bad "R1d FAILED: expected D1 to wrongly reappear in per_defect under the mutated copy, got: $R1D_OUT"

@@ -186,6 +186,11 @@ done
 # than all four as before).
 _RK_TEST_OWNED_TWINS=" $FIXDIR/rk_unchanged_today/source.html $FIXDIR/rk_unchanged_today/source.pdf $FIXDIR/rk_unchanged_today/source.docx $FIXDIR/rk_changed_all_four/source.html $FIXDIR/rk_changed_all_four/source.pdf $FIXDIR/rk_changed_all_four/source.docx "
 
+# Invoked indirectly via cleanup(), itself invoked via `trap cleanup EXIT`
+# below -- shellcheck's static call-graph cannot trace a bareword trap
+# handler back to this definition (same reasoning as cleanup()'s own
+# disable comment below).
+# shellcheck disable=SC2329
 _rk_restore_or_warn() {
     f="$1"
     snap="$2"
