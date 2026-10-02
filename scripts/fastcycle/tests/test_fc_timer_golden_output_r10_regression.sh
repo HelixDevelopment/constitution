@@ -94,20 +94,6 @@ _force_tree_change() {
   set_key "$mf" tree_status_sha256_end "1111111111111111111111111111111111111111111111111111111111111111"
 }
 
-# triplet NAME FC0a-text FC0b-text FC1-text [EVIDENCE-DIR-ENV-VAR] -- real
-# harness capture + promotion, with its OWN known-flaky registry env var
-# left unset here (callers set FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV themselves
-# via gt_golden's own VAR=VALUE arguments, exactly like
-# FC_TIMER_GOLDEN_EVIDENCE_DIR already is).
-triplet() {
-  local name="$1" fix="$TMP/fix_$1" out="$TMP/ev_$1" runid="2026100${2}T000000Z"
-  printf '%s\n' "$3" | gt_member_text "$fix" FC0a
-  printf '%s\n' "$4" | gt_member_text "$fix" FC0b
-  printf '%s\n' "$5" | gt_member_text "$fix" FC1
-  gt_capture "$fix" "$out" t "$runid" || { bad "($name) harness failed: $(tail -n 3 "$out/.capture.log")"; return 1; }
-  gt_promote "$out/t_${runid}.triplet"
-}
-
 # =============================================================================
 # R10-M3 + R10-M4: validate_triplet() overlap-pair + closed-set coverage.
 # =============================================================================
