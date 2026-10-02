@@ -48,7 +48,6 @@ wip_caps:
   device_flash_queue: UNMEASURED    # T-A09
 EOF
 ORIGINAL_CONTENT=$(cat "$THRESH")
-ORIGINAL_INODE=$(stat -c '%i' "$THRESH" 2>/dev/null || stat -f '%i' "$THRESH")
 
 METRICS="$SCRATCH/metrics.json"
 cat > "$METRICS" <<'EOF'

@@ -45,7 +45,6 @@ set -u
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
-REPO_ROOT=$(cd "$FC/../../.." && pwd)
 TOOL="$FC/gates/io_trace.sh"
 BUILD_MAP_PY="$FC/gates/lib/io_trace_build_map.py"
 
