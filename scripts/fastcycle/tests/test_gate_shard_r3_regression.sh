@@ -130,8 +130,7 @@ run_plan() {
 # =============================================================================
 echo "-- Section A: REAL gate_runner_shard.py plan -- protected-path isolation --"
 
-run_plan "$SHARD_TOOL" "$WORK/plan_real"
-if [ $? -ne 0 ]; then
+if ! run_plan "$SHARD_TOOL" "$WORK/plan_real"; then
     bad "real tool 'plan' invocation failed: $(cat "$WORK/plan.stderr")"
 else
     ok "real tool 'plan' invocation succeeded"
@@ -171,7 +170,7 @@ echo "-- Section B: mutation-flip proof (M3c -- protected clusters treated as or
 
 MUT_M3C="$WORK/gate_runner_shard_mut_m3c.py"
 cp "$SHARD_TOOL" "$MUT_M3C"
-python3 - "$MUT_M3C" <<'PYEOF'
+if ! python3 - "$MUT_M3C" <<'PYEOF'
 import sys
 path = sys.argv[1]
 with open(path) as f:
@@ -192,7 +191,7 @@ text = text.replace(target, replacement)
 with open(path, "w") as f:
     f.write(text)
 PYEOF
-if [ $? -ne 0 ]; then
+then
     bad "B0: mutation setup could not uniquely locate the normal/protected split in a fresh copy"
 else
     ok "B0: M3c mutation setup uniquely located and applied in a scratch copy"
@@ -247,7 +246,7 @@ cat > "$WORK/manifest_timed.json" <<'EOF'
 ]}
 EOF
 
-C_OUT=$(sh "$RUNNER_SH" --mode shard --manifest "$WORK/manifest_timed.json" --n-shards 2 2>"$WORK/c.stderr")
+sh "$RUNNER_SH" --mode shard --manifest "$WORK/manifest_timed.json" --n-shards 2 >/dev/null 2>"$WORK/c.stderr"
 C_RC=$?
 
 if [ "$C_RC" -eq 0 ]; then

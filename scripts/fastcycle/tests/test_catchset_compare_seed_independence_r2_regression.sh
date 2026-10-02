@@ -250,7 +250,7 @@ cp "$TOOL" "$MUT_R3I2"
 # directory (os.path.dirname(os.path.abspath(__file__))) -- give the
 # mutated copy the same sibling so that import still resolves.
 cp "$FC/gates/gate_audit.py" "$SCRATCH/gate_audit.py"
-python3 - "$MUT_R3I2" <<'PYEOF'
+if ! python3 - "$MUT_R3I2" <<'PYEOF'
 import sys
 path = sys.argv[1]
 with open(path) as f:
@@ -267,7 +267,7 @@ lines[i + 1] = ""
 with open(path, "w") as f:
     f.writelines(lines)
 PYEOF
-if [ $? -ne 0 ]; then
+then
     bad "R4 mutation setup: could not uniquely locate the R3-I2 fix lines in a fresh copy"
 else
     ok "R4 mutation setup: R3-I2 fix lines uniquely located and stripped in a scratch copy"

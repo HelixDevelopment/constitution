@@ -267,7 +267,7 @@ mkdir -p "$MUT_M1_ROOT/gates" "$MUT_M1_ROOT/lib"
 cp "$FC/lib/fc_common.py" "$MUT_M1_ROOT/lib/fc_common.py"
 MUT_M1="$MUT_M1_ROOT/gates/batch_bisect.py"
 cp "$TOOL" "$MUT_M1"
-python3 - "$MUT_M1" <<'PYEOF'
+if ! python3 - "$MUT_M1" <<'PYEOF'
 import sys
 path = sys.argv[1]
 with open(path) as f:
@@ -287,7 +287,7 @@ text = text.replace(target, replacement)
 with open(path, "w") as f:
     f.write(text)
 PYEOF
-if [ $? -ne 0 ]; then
+then
     bad "C2 mutation setup: could not uniquely locate the dst_real check"
 else
     ok "C2 mutation setup: dst_real check uniquely located and stripped in a scratch copy"

@@ -148,6 +148,9 @@ for d in rk_unchanged_today rk_changed_all_four rk_stale_key_caught rk_touched_i
     done
 done
 
+# Invoked indirectly via `trap cleanup EXIT` below -- shellcheck's static
+# call-graph cannot trace a bareword trap handler back to this definition.
+# shellcheck disable=SC2329
 cleanup() {
     [ -f "$_BACKUP_DIR/changed_all_four.orig.md" ] && cp "$_BACKUP_DIR/changed_all_four.orig.md" "$FIXDIR/rk_changed_all_four/source.md" 2>/dev/null
     [ -f "$_BACKUP_DIR/stale_key_caught.orig.md" ] && cp "$_BACKUP_DIR/stale_key_caught.orig.md" "$FIXDIR/rk_stale_key_caught/source.md" 2>/dev/null
@@ -256,6 +259,11 @@ fi
 
 # --- B1: today's freshness mechanism IS mtime-only, measured from the
 #     real exporter's own source text, not assumed from reading the plan.
+# The grep patterns below are intentionally single-quoted: they search for
+# the LITERAL text `-nt "$html"` / `-nt "$pdf"` as it appears in the
+# exporter's own source (with $html/$pdf unset here under `set -u`,
+# double-quoting would abort this script on an unbound variable).
+# shellcheck disable=SC2016
 if [ -f "$EXPORTER" ]; then
     if grep -q '\-nt "\$html"' "$EXPORTER" 2>/dev/null || grep -q '\-nt "\$pdf"' "$EXPORTER" 2>/dev/null; then
         ok "B1 mechanism self-check: the real exporter's own text genuinely"
