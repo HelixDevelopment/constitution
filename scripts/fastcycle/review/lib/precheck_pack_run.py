@@ -24,20 +24,43 @@ fabricated; every PASS/FAIL is either a real subprocess invocation
 against real files under --clean-checkout, or an honestly-narrow,
 clearly-labelled "not yet wired" result, never an invented finding):
 
-  - parse: for every *.sh file found under --clean-checkout, runs the
-    real `sh -n` / `bash -n` (interpreter chosen from the file's own
-    shebang line) and reports any real syntax error.
-  - shellcheck: for every *.sh file, runs the real `shellcheck -f json1`
-    (dialect from the shebang) and reports every real finding shellcheck
-    emits, at ANY severity including "info" -- matching this project's
-    own review_record.py fixtures, which already treat a bare shellcheck
-    rule id (e.g. "SC2086") as a machine-findable "mechanical" finding
-    regardless of severity. Honest gap: if the `shellcheck` binary is
-    absent from PATH, this check PASSes with evidence naming the gap
-    (11.4.3 honest skip) rather than silently fabricating a clean scan.
+  - parse, shellcheck, secret-scan -- BATCH-SCOPED when the batch's own
+    data confidently establishes a per-file changed-set, else an honest
+    whole-checkout fallback (fix applied post-T078 landing; see
+    _batch_scoped_files() below for the full derivation + its safety
+    invariants). Root cause of the pre-fix defect: these three checks
+    unconditionally walked the ENTIRE --clean-checkout tree, so on a real
+    multi-hundred-thousand-file repo (this project's own constitution
+    checkout) ANY batch -- no matter how clean its own changes were --
+    inherited every pre-existing, unrelated repo-wide parse error /
+    shellcheck finding / secret-scan hit and reported all_pass=false,
+    making all_pass=true structurally unachievable (live-confirmed: a
+    genuinely clean 2-file batch still got all_pass=false purely from
+    949 unrelated pre-existing shellcheck findings + 11 unrelated
+    pre-existing secret-scan hits elsewhere in the tree). The fix scopes
+    these three checks to exactly the files the ReviewBatch's own slices
+    declare changed -- NEVER by narrowing the check logic itself, and
+    NEVER by suppressing a real finding IN one of the batch's own
+    changed files (an in-scope defect still FAILs the check exactly as
+    before); only unrelated, out-of-batch-scope pre-existing content
+    stops being counted. Each check's own `evidence.scope` field records
+    honestly whether it ran "batch" (scoped) or "whole-checkout"
+    (fallback), plus `evidence.scope_note` naming why.
+  - parse: for every *.sh file in scope, runs the real `sh -n` /
+    `bash -n` (interpreter chosen from the file's own shebang line) and
+    reports any real syntax error.
+  - shellcheck: for every *.sh file in scope, runs the real
+    `shellcheck -f json1` (dialect from the shebang) and reports every
+    real finding shellcheck emits, at ANY severity including "info" --
+    matching this project's own review_record.py fixtures, which already
+    treat a bare shellcheck rule id (e.g. "SC2086") as a machine-findable
+    "mechanical" finding regardless of severity. Honest gap: if the
+    `shellcheck` binary is absent from PATH, this check PASSes with
+    evidence naming the gap (11.4.3 honest skip) rather than silently
+    fabricating a clean scan.
   - secret-scan: a real, self-contained regex scan (AWS access-key-id
     shape, PEM private-key headers, an inline api-key/secret/password/
-    token assignment shape) over every file under --clean-checkout.
+    token assignment shape) over every file in scope.
     HONEST GAP: this is a small, documented pattern set, not a claim of
     exhaustive secret-detection coverage.
   - affected-gates / touched-gate-mutations / doc-sync /
@@ -103,6 +126,11 @@ SECRET_PATTERNS = (
     (re.compile(r"(?i)(?:api[_-]?key|secret|password|token)\s*[:=]\s*['\"][A-Za-z0-9/+_=-]{12,}['\"]"),
      "inline-credential-assignment"),
 )
+
+# Matches build_batch()'s real, deterministic review/slicer.py blast_radius
+# string verbatim: "%d changed path(s) in this slice: %s" %
+# (len(paths), ", ".join(paths)). See _paths_from_slice().
+_BLAST_RADIUS_RE = re.compile(r"^(\d+) changed path\(s\) in this slice: (.+)$")
 
 
 def _canon(obj):
@@ -185,12 +213,127 @@ def _have(binary):
 
 
 # ---------------------------------------------------------------------------
+# Batch-scoping for parse / shellcheck / secret-scan (module docstring's
+# "root cause" note). Real data only (constitution 11.4.6): a per-file
+# changed-set is derived from the ReviewBatch's OWN slices; when it cannot
+# be confidently established, the caller falls back to the honest
+# whole-checkout scan (never a guessed PARTIAL scope, and never dropping a
+# genuinely in-scope file from scanning).
+# ---------------------------------------------------------------------------
+def _paths_from_slice(slice_obj):
+    """Best-effort, format-matched extraction of ONE slice's own changed-file
+    list. Two sources, in priority order, both real (never a guessed regex
+    over arbitrary prose):
+
+      1. An explicit structured context_pack.changed_paths list -- a
+         forward-compatible extension point. Not emitted by the current
+         review/slicer.py, but honoured verbatim when present (a future
+         producer may add it without requiring another change here).
+      2. review/slicer.py's build_batch() own real, deterministic
+         blast_radius string: "<N> changed path(s) in this slice: <p1>,
+         <p2>, ...". Parsed ONLY when the string's own declared count N
+         equals the number of ", "-separated segments -- a cheap
+         round-trip sanity check that refuses an AMBIGUOUS split (e.g. a
+         path that itself contains the literal ", ") rather than silently
+         mis-splitting one real path into two bogus ones and under-scoping
+         the real one out of every check.
+
+    Returns (paths: list[str] | None, resolved: bool). resolved=False means
+    this ONE slice's changed-file set could not be confidently established
+    from real data -- the caller (_batch_scoped_files) then falls back to
+    whole-checkout scanning for the WHOLE batch, never a partial scope
+    (constitution 11.4.6: never guess)."""
+    if not isinstance(slice_obj, dict):
+        return None, False
+    cp = slice_obj.get("context_pack")
+    if not isinstance(cp, dict):
+        return None, False
+
+    explicit = cp.get("changed_paths")
+    if isinstance(explicit, list) and explicit and all(isinstance(p, str) and p for p in explicit):
+        return list(explicit), True
+
+    blast_radius = cp.get("blast_radius")
+    if not isinstance(blast_radius, str):
+        return None, False
+    m = _BLAST_RADIUS_RE.match(blast_radius)
+    if not m:
+        return None, False
+    declared_count = int(m.group(1))
+    segments = m.group(2).split(", ")
+    if len(segments) != declared_count or not all(segments):
+        return None, False
+    return segments, True
+
+
+def _batch_scoped_files(batch, root):
+    """Derives the REAL set of files this batch changed, confidently, from
+    --batch's own slices (see _paths_from_slice). Returns (files, note):
+    `files` is a sorted list of EXISTING absolute paths under `root` the
+    batch declares changed, or None when the batch's own data cannot
+    confidently establish a per-file scope -- the honest signal to the
+    caller to fall back to the current whole-checkout scan (never a
+    guessed partial one). `note` is a short, human-readable evidence
+    string naming why, either way (constitution 11.4.6: honest gap named,
+    never silently implied complete)."""
+    slices = batch.get("slices")
+    if not isinstance(slices, list) or not slices:
+        return None, "batch carries no slices -- cannot derive a per-file scope"
+
+    declared = set()
+    for sl in slices:
+        paths, resolved = _paths_from_slice(sl)
+        if not resolved:
+            return None, ("a slice's context_pack does not carry a confidently-parseable "
+                           "changed-file list (neither an explicit changed_paths list nor a "
+                           "slicer.py-shaped blast_radius string)")
+        declared.update(paths)
+
+    root_abs = os.path.abspath(root)
+    existing = []
+    for p in sorted(declared):
+        candidate = os.path.normpath(os.path.join(root_abs, p))
+        # 11.4.6: never trust a declared path that escapes --clean-checkout
+        # (a corrupted/malicious batch.json must not widen scope outward).
+        if candidate != root_abs and not candidate.startswith(root_abs + os.sep):
+            return None, "a declared changed path (%r) resolves outside --clean-checkout" % p
+        if os.path.isfile(candidate):
+            existing.append(candidate)
+        # A declared path absent from this checkout is honoured as a real
+        # deletion/rename -- never a reason to distrust the whole batch --
+        # there is simply nothing on disk to scan for that one entry.
+
+    if not existing:
+        # Every declared path was absent from this checkout: far more likely
+        # a base-path mismatch (the batch's "path" fields are relative to a
+        # different root than --clean-checkout) than an all-deletions batch.
+        # An artificially EMPTY scope would silently under-scan every real
+        # file in the checkout, so this is treated as unresolved -- fall
+        # back to the honest whole-checkout scan rather than a confidently
+        # wrong empty one.
+        return None, ("batch declared %d changed path(s) but none exist under "
+                       "--clean-checkout (likely path-base mismatch)" % len(declared))
+
+    return sorted(set(existing)), ("batch-scoped: %d file(s) from %d slice(s)"
+                                    % (len(existing), len(slices)))
+
+
+def _scope_fragment(scoped_files, scope_note):
+    frag = {"scope": "batch" if scoped_files is not None else "whole-checkout"}
+    if scope_note:
+        frag["scope_note"] = scope_note
+    return frag
+
+
+# ---------------------------------------------------------------------------
 # The 10 DEC-33 checks (CHECK_ORDER), each returning
 # {"check": ..., "verdict": "PASS"|"FAIL", "evidence": {...}}.
 # ---------------------------------------------------------------------------
-def check_parse(root):
+def check_parse(root, scoped_files, scope_note):
+    candidates = (sorted(p for p in scoped_files if p.endswith(".sh"))
+                  if scoped_files is not None else _find_shell_scripts(root))
     failures = []
-    for path in _find_shell_scripts(root):
+    for path in candidates:
         interp = _shebang_interpreter(path)
         rel = _relpath(path, root)
         try:
@@ -211,17 +354,21 @@ def check_parse(root):
             failures.append({"file": rel, "message": text})
     verdict = "FAIL" if failures else "PASS"
     evidence = {"tool": "bash -n / sh -n"}
+    evidence.update(_scope_fragment(scoped_files, scope_note))
     if failures:
         evidence["failures"] = failures
     return {"check": "parse", "verdict": verdict, "evidence": evidence}
 
 
-def check_shellcheck(root):
+def check_shellcheck(root, scoped_files, scope_note):
     if not _have("shellcheck"):
-        return {"check": "shellcheck", "verdict": "PASS",
-                "evidence": {"skipped": "shellcheck not found on PATH (11.4.3 honest skip)"}}
+        evidence = {"skipped": "shellcheck not found on PATH (11.4.3 honest skip)"}
+        evidence.update(_scope_fragment(scoped_files, scope_note))
+        return {"check": "shellcheck", "verdict": "PASS", "evidence": evidence}
+    candidates = (sorted(p for p in scoped_files if p.endswith(".sh"))
+                  if scoped_files is not None else _find_shell_scripts(root))
     findings = []
-    for path in _find_shell_scripts(root):
+    for path in candidates:
         interp = _shebang_interpreter(path)
         rel = _relpath(path, root)
         try:
@@ -255,26 +402,33 @@ def check_shellcheck(root):
             })
     verdict = "FAIL" if findings else "PASS"
     evidence = {"findings": findings} if findings else {}
+    evidence.update(_scope_fragment(scoped_files, scope_note))
     return {"check": "shellcheck", "verdict": verdict, "evidence": evidence}
 
 
-def check_secret_scan(root):
+def check_secret_scan(root, scoped_files, scope_note):
+    if scoped_files is not None:
+        candidates = sorted(scoped_files)
+    else:
+        candidates = []
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = sorted(d for d in dirnames if d not in _SKIP_DIRS)
+            for fn in sorted(filenames):
+                candidates.append(os.path.join(dirpath, fn))
     hits = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if d not in _SKIP_DIRS)
-        for fn in sorted(filenames):
-            path = os.path.join(dirpath, fn)
-            rel = _relpath(path, root)
-            try:
-                with open(path, "r", encoding="utf-8", errors="replace") as fh:
-                    for lineno, line in enumerate(fh, start=1):
-                        for pattern, label in SECRET_PATTERNS:
-                            if pattern.search(line):
-                                hits.append({"file": rel, "line": lineno, "pattern": label})
-            except OSError:
-                continue
+    for path in candidates:
+        rel = _relpath(path, root)
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                for lineno, line in enumerate(fh, start=1):
+                    for pattern, label in SECRET_PATTERNS:
+                        if pattern.search(line):
+                            hits.append({"file": rel, "line": lineno, "pattern": label})
+        except OSError:
+            continue
     verdict = "FAIL" if hits else "PASS"
     evidence = {"hits": hits} if hits else {}
+    evidence.update(_scope_fragment(scoped_files, scope_note))
     return {"check": "secret-scan", "verdict": verdict, "evidence": evidence}
 
 
@@ -326,12 +480,13 @@ def check_blast_radius(batch):
 
 
 def run_checks(batch, root):
+    scoped_files, scope_note = _batch_scoped_files(batch, root)
     by_name = {
-        "parse": lambda: check_parse(root),
-        "shellcheck": lambda: check_shellcheck(root),
+        "parse": lambda: check_parse(root, scoped_files, scope_note),
+        "shellcheck": lambda: check_shellcheck(root, scoped_files, scope_note),
         "affected-gates": check_affected_gates,
         "touched-gate-mutations": check_touched_gate_mutations,
-        "secret-scan": lambda: check_secret_scan(root),
+        "secret-scan": lambda: check_secret_scan(root, scoped_files, scope_note),
         "doc-sync": check_doc_sync,
         "closure-evidence-class": check_closure_evidence_class,
         "sibling-search": lambda: check_sibling_search(batch),
