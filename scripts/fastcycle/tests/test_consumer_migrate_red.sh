@@ -1969,16 +1969,42 @@ J11_REMOTE_BEFORE=$(git -C "$I_ROOT/j11/consumer.git" rev-parse refs/heads/main)
 J11_SAVED_PATH=$PATH; PATH="$J11_BIN:$PATH"
 j_run "$TOOL" "$I_ROOT/j11" fixture/section_j11 "$WORK/j11.json"
 PATH=$J11_SAVED_PATH
-if [ "$J_RC" -eq 1 ] && [ "$(jfield "$WORK/j11.json" detail)" = "symlink-scan-failed" ] \
+# T177 Round 19: scan_symlinks_raw now prints a specific
+# "integrity-verification-failed: unreadable-object ..." detail on a
+# failed cat-file read (rather than nothing), which the caller surfaces
+# in place of the old generic fallback -- the detail check below is
+# updated to the new, more specific message; the refusal + remote-
+# unchanged invariant this test actually exists to prove is unchanged.
+J11_DETAIL=$(jfield "$WORK/j11.json" detail)
+if [ "$J_RC" -eq 1 ] && echo "$J11_DETAIL" | grep -q '^integrity-verification-failed: unreadable-object type=blob oid=' \
     && [ "$J11_REMOTE_BEFORE" = "$(git -C "$I_ROOT/j11/consumer.git" rev-parse refs/heads/main)" ]; then
-    ok "J11 R6 B1: a failed 'git cat-file blob' inside the symlink scanner refuses the migration (symlink-scan-failed), remote unchanged -- a failed blob read is no longer decoded as a clean/empty target"
+    ok "J11 R6 B1: a failed 'git cat-file blob' inside the symlink scanner refuses the migration (detail=$J11_DETAIL), remote unchanged -- a failed blob read is no longer decoded as a clean/empty target"
 else
-    bad "J11 R6 B1: a failed cat-file read inside the scanner did not refuse (rc=$J_RC out=$J_OUT; see $WORK/j11.json)"
+    bad "J11 R6 B1: a failed cat-file read inside the scanner did not refuse (rc=$J_RC out=$J_OUT detail=$J11_DETAIL; see $WORK/j11.json)"
 fi
 j_mutant B1_ignore_catfile_rc \
     'cat = subprocess.run(["git", "-C", workdir, "cat-file", "blob", blob],
                          capture_output=True)
     if cat.returncode != 0:
+        print("integrity-verification-failed: unreadable-object type=blob oid=%s" % blob)
+        sys.exit(3)
+    # T177 Round 19 (R18-B1): `cat-file` does NOT re-hash what it reads --
+    # a loose object file whose on-disk bytes were overwritten to belong
+    # to a DIFFERENT object is returned here VERBATIM under the requested
+    # `blob` id (reproduced live: planting a different blob at this id
+    # made this exact call return the wrong target string with rc=0).
+    # Independently re-derive the hash of blob from the bytes just read
+    # and refuse the instant it disagrees with `blob` -- the decision
+    # below (absolute / escaping target) is never made over content
+    # nobody verified.
+    rehash = subprocess.run(["git", "-C", workdir, "hash-object", "-t", "blob", "--stdin"],
+                            input=cat.stdout, capture_output=True)
+    if rehash.returncode != 0:
+        print("integrity-verification-failed: hash-object-failed oid=%s" % blob)
+        sys.exit(3)
+    recomputed = rehash.stdout.decode().strip()
+    if recomputed != blob:
+        print("integrity-verification-failed: MISMATCH type=blob requested-oid=%s recomputed-oid=%s path=%s" % (blob, recomputed, rel))
         sys.exit(3)
     target = cat.stdout.decode("utf-8", "surrogateescape")' \
     'target = subprocess.run(["git", "-C", workdir, "cat-file", "blob", blob],
@@ -2273,7 +2299,11 @@ fi
 # match, same disabling shape (force the per-path loop's own early-exit
 # condition permanently true).
 j_mutant I6_no_per_remote_scope_check \
-    'TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$RREF" "$LOCAL_HEAD" 2>/dev/null)
+    'RREF_SHA=$(git -C "$WORKDIR" rev-parse -q --verify "$RREF" 2>/dev/null)
+    TREE_DIFF=$(verified_diffnames "$RREF_SHA" "$LOCAL_HEAD")
+    TREE_DIFF_RC=$?
+    [ "$TREE_DIFF_RC" -eq 0 ] \
+        || not_migrated "preflight" "divergent-branches" "remote-$r-tree-diff-verification-failed: $TREE_DIFF"
     [ -z "$TREE_DIFF" ] || check_remote_scope "$r"' \
     'TREE_DIFF=""
     [ -z "$TREE_DIFF" ] || check_remote_scope "$r"' \
@@ -2495,7 +2525,11 @@ fi
 # disable that new check's own per-path loop instead, same disabling shape
 # as J17's updated mutant above.
 j_mutant I3_drop_cc_flag \
-    'TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$RREF" "$LOCAL_HEAD" 2>/dev/null)
+    'RREF_SHA=$(git -C "$WORKDIR" rev-parse -q --verify "$RREF" 2>/dev/null)
+    TREE_DIFF=$(verified_diffnames "$RREF_SHA" "$LOCAL_HEAD")
+    TREE_DIFF_RC=$?
+    [ "$TREE_DIFF_RC" -eq 0 ] \
+        || not_migrated "preflight" "divergent-branches" "remote-$r-tree-diff-verification-failed: $TREE_DIFF"
     [ -z "$TREE_DIFF" ] || check_remote_scope "$r"' \
     'TREE_DIFF=""
     [ -z "$TREE_DIFF" ] || check_remote_scope "$r"' \
@@ -2914,7 +2948,11 @@ else
     bad "J28 R10 I2: a select-one-parent evil merge was not refused (cc-out=[$J28_CC_OUT] rc=$J_RC out=$J_OUT; origin before=$J28_ORIGIN_BEFORE after=$(git -C "$I_ROOT/j28/consumer.git" rev-parse refs/heads/main))"
 fi
 j_mutant I2_drop_tree_delta_check \
-    'TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$RREF" "$LOCAL_HEAD" 2>/dev/null)
+    'RREF_SHA=$(git -C "$WORKDIR" rev-parse -q --verify "$RREF" 2>/dev/null)
+    TREE_DIFF=$(verified_diffnames "$RREF_SHA" "$LOCAL_HEAD")
+    TREE_DIFF_RC=$?
+    [ "$TREE_DIFF_RC" -eq 0 ] \
+        || not_migrated "preflight" "divergent-branches" "remote-$r-tree-diff-verification-failed: $TREE_DIFF"
     [ -z "$TREE_DIFF" ] || check_remote_scope "$r"' \
     'TREE_DIFF=""
     [ -z "$TREE_DIFF" ] || check_remote_scope "$r"'
@@ -3104,7 +3142,10 @@ j_mutant I1_restore_unconditional_ancestor_skip \
     '        if [ -z "$UPSTREAM" ]; then
             not_migrated "preflight" "divergent-branches" "remote-$r-has-no-$BRANCH-and-no-upstream-to-verify-seed-content-against"
         fi
-        TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
+        TREE_DIFF=$(verified_nametree "$LOCAL_HEAD")
+        TREE_DIFF_RC=$?
+        [ "$TREE_DIFF_RC" -eq 0 ] \
+            || not_migrated "preflight" "divergent-branches" "remote-$r-tree-enumeration-verification-failed: $TREE_DIFF"
         check_remote_scope "$r"
         check_remote_commits "$r" ""
         continue
@@ -3113,10 +3154,13 @@ j_mutant I1_restore_unconditional_ancestor_skip \
     fi' \
     '        MERGE_BASE=$(git -C "$WORKDIR" merge-base "$RREF" "$LOCAL_HEAD" 2>/dev/null)
         if [ -n "$MERGE_BASE" ]; then
-            TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$MERGE_BASE" "$LOCAL_HEAD" 2>/dev/null)
+            TREE_DIFF=$(verified_diffnames "$MERGE_BASE" "$LOCAL_HEAD")
         else
-            TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
+            TREE_DIFF=$(verified_nametree "$LOCAL_HEAD")
         fi
+        TREE_DIFF_RC=$?
+        [ "$TREE_DIFF_RC" -eq 0 ] \
+            || not_migrated "preflight" "divergent-branches" "remote-$r-tree-diff-verification-failed: $TREE_DIFF"
         check_remote_scope "$r"
         check_remote_commits "$r" "$RREF"
         continue
@@ -3160,10 +3204,13 @@ fi
 j_mutant M1_drop_diverged_path \
     '        MERGE_BASE=$(git -C "$WORKDIR" merge-base "$RREF" "$LOCAL_HEAD" 2>/dev/null)
         if [ -n "$MERGE_BASE" ]; then
-            TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$MERGE_BASE" "$LOCAL_HEAD" 2>/dev/null)
+            TREE_DIFF=$(verified_diffnames "$MERGE_BASE" "$LOCAL_HEAD")
         else
-            TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
+            TREE_DIFF=$(verified_nametree "$LOCAL_HEAD")
         fi
+        TREE_DIFF_RC=$?
+        [ "$TREE_DIFF_RC" -eq 0 ] \
+            || not_migrated "preflight" "divergent-branches" "remote-$r-tree-diff-verification-failed: $TREE_DIFF"
         check_remote_scope "$r"
         check_remote_commits "$r" "$RREF"
         continue' \
@@ -3175,7 +3222,10 @@ j_mutant M1_drop_branchless_path \
     '        if [ -z "$UPSTREAM" ]; then
             not_migrated "preflight" "divergent-branches" "remote-$r-has-no-$BRANCH-and-no-upstream-to-verify-seed-content-against"
         fi
-        TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
+        TREE_DIFF=$(verified_nametree "$LOCAL_HEAD")
+        TREE_DIFF_RC=$?
+        [ "$TREE_DIFF_RC" -eq 0 ] \
+            || not_migrated "preflight" "divergent-branches" "remote-$r-tree-enumeration-verification-failed: $TREE_DIFF"
         check_remote_scope "$r"
         check_remote_commits "$r" ""
         continue' \
@@ -3598,9 +3648,42 @@ R16_NOREPLACE_CFG_A='fc_gcc_add core.useReplaceRefs false'
 R16_NOREPLACE_CFG_B=': # MUTATED_FOR_TEST: core.useReplaceRefs=false dropped'
 R16_NOREPLACE_ENV_A='GIT_NO_REPLACE_OBJECTS=1; export GIT_NO_REPLACE_OBJECTS'
 R16_NOREPLACE_ENV_B=': # MUTATED_FOR_TEST: GIT_NO_REPLACE_OBJECTS dropped'
+# T177 Round 19: GIT_VERIFY (the R18-B1 content-hash fix) independently
+# defeats every one of replace-refs/grafts/forged-commit-graph too, but by
+# TWO DIFFERENT mechanisms depending on which git command the original
+# round-16 switch actually neutralised:
+#   * replace-refs (R16_NOREPLACE, J36/J36b): `cat-file` IS affected by an
+#     active replace ref -- GIT_VERIFY would read the SUBSTITUTED bytes
+#     just like plain git, and it is specifically the re-hash check
+#     (`if recomputed != oid:` / scan_symlinks_raw's own `!= blob`) that
+#     then refuses, because substituted content, by construction, hashes
+#     to something OTHER than the id requested. Composed into R16_NOREPLACE
+#     below (GV_BLOB_OFF for J36, GV_OBJ_OFF for J36b) so that mutant keeps
+#     isolating ONLY the original replace-ref switches, exactly as
+#     ENV_ONLY/CFG_ONLY already isolate each other.
+#   * grafts / commit-graph (R16_NOGRAFT, R16_NOCOMMITGRAPH, J36c/J36d):
+#     `cat-file` is NEVER affected by either mechanism at all (grafts only
+#     rewrite `rev-list`'s traversal; the commit-graph cache is only
+#     consulted by `diff-tree -c`'s own lookup) -- GIT_VERIFY's
+#     `cmd_parents`/`cmd_diffcommit` read the real commit/tree objects
+#     directly via `cat-file` and parse them itself, so they are
+#     STRUCTURALLY immune regardless of GIT_GRAFT_FILE/core.commitGraph,
+#     with no hash-mismatch involved at all (the bytes read ARE correct;
+#     grafts/the forged graph just never gets consulted in the first
+#     place). J36c/J36d's own guard-viability assertions below are updated
+#     to this new, strictly-stronger reality (§11.4.6 -- not left asserting
+#     a leak that can no longer reproduce).
+# Neither case is a weakening of any round-10-18 protection: removing a
+# round-16 switch alone can no longer reproduce either class of leak.
+GV_BLOB_ON='    if recomputed != blob:'
+GV_BLOB_OFF='    if False: # MUTATED_FOR_TEST: T177 R19 blob content-hash check dropped'
+GV_OBJ_ON='    if recomputed != oid:'
+GV_OBJ_OFF='    if False: # MUTATED_FOR_TEST: T177 R19 commit/tree content-hash check dropped'
 # NOREPLACE: BOTH replace-ref switches dropped, everything else from rounds
-# 10-16 (hook disabling, verify_final_commit, every scanner) left intact.
-j_mutant R16_NOREPLACE "$R16_NOREPLACE_CFG_A" "$R16_NOREPLACE_CFG_B" "$R16_NOREPLACE_ENV_A" "$R16_NOREPLACE_ENV_B"
+# 10-16 (hook disabling, verify_final_commit, every scanner) left intact,
+# PLUS both Round 19 content-hash checks (J36 reaches scan_symlinks_raw's
+# own; J36b reaches GIT_VERIFY's, via verify_final_commit's tree walk).
+j_mutant R16_NOREPLACE "$R16_NOREPLACE_CFG_A" "$R16_NOREPLACE_CFG_B" "$R16_NOREPLACE_ENV_A" "$R16_NOREPLACE_ENV_B" "$GV_BLOB_ON" "$GV_BLOB_OFF" "$GV_OBJ_ON" "$GV_OBJ_OFF"
 R16_NOREPLACE_OK=$J_MUT_OK
 j_mutant R16_NOREPLACE_ENV_ONLY "$R16_NOREPLACE_ENV_A" "$R16_NOREPLACE_ENV_B"
 R16_NOREPLACE_ENV_ONLY_OK=$J_MUT_OK
@@ -3818,10 +3901,27 @@ for _v in j36c_g j36c_gm; do
             bad "J36c grafts: the graft-faked history was not refused (x=$_x rc=$J_RC out=$J_OUT detail=$_detail x-on-main=$_x_on_main)"
         fi
     else
-        if [ "$R16_NOGRAFT_OK" -eq 1 ] && [ -n "$_x" ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$_x_on_main" = "YES" ]; then
-            ok "J36c guard-viability: with ONLY GIT_GRAFT_FILE=/dev/null removed (both replace-ref switches still set -- they do not cover grafts) the graft fakes check 2 and PUSH_SET_SIZE: rc=0 MIGRATED and X's unreviewed product code is in the remote main's history"
+        # T177 Round 19 (own-defect, found while running the full regression
+        # suite): removing GIT_GRAFT_FILE=/dev/null no longer reproduces this
+        # leak at all -- VFC_PARENTS now reads the migration commit's parent
+        # list via GIT_VERIFY's `cmd_parents`, which parses the commit
+        # object's OWN "parent " header lines directly from `git cat-file
+        # commit <oid>` and NEVER calls `rev-list --parents` (the ONLY git
+        # command grafts actually rewrite) -- so it is structurally graft-
+        # blind REGARDLESS of GIT_GRAFT_FILE, independent of the Round 19
+        # content-hash check too (a raw-header parse, not a hash compare).
+        # The mutant therefore behaves IDENTICALLY to the non-mutant control
+        # above: it has NO switch left that can reproduce the graft leak at
+        # all. This is a strict strengthening (an attack that needed exactly
+        # one switch removed before Round 19 now needs that AND a structural
+        # change to migrate.sh's own commit-reading code), never a
+        # weakening -- asserted here as the new, stronger, defense-in-depth
+        # reality rather than left as a stale "leak reproduces" expectation.
+        if [ "$R16_NOGRAFT_OK" -eq 1 ] && [ -n "$_x" ] && [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (push: out-of-scope-diff)' \
+            && [ "$_x_on_main" = "no" ]; then
+            ok "J36c defense-in-depth (T177 Round 19): with ONLY GIT_GRAFT_FILE=/dev/null removed, the graft-faked parent no longer fools the push -- GIT_VERIFY's cmd_parents reads the commit's real 'parent' header directly and is structurally graft-blind, independent of GIT_GRAFT_FILE; X still never reaches main"
         else
-            bad "J36c guard-viability: the no-graft mutant did not reproduce the graft leak (mut_ok=$R16_NOGRAFT_OK x=$_x rc=$J_RC out=$J_OUT x-on-main=$_x_on_main)"
+            bad "J36c defense-in-depth: removing only GIT_GRAFT_FILE=/dev/null unexpectedly let the graft leak through (mut_ok=$R16_NOGRAFT_OK x=$_x rc=$J_RC out=$J_OUT x-on-main=$_x_on_main)"
         fi
     fi
 done
@@ -3871,11 +3971,24 @@ for _v in j36d j36dm; do
             bad "J36d forged commit-graph: not refused naming X (forged=$_forged blind=[$_blind] real=[$_real] rc=$J_RC out=$J_OUT detail=$_detail)"
         fi
     else
-        if [ "$R16_NOCOMMITGRAPH_OK" -eq 1 ] && [ "$_forged" -eq 1 ] && [ -z "$_blind" ] \
-            && ! echo "$J_OUT" | grep -q 'NOT-MIGRATED (preflight: divergent-branches)'; then
-            ok "J36d guard-viability: with ONLY core.commitGraph=false removed the forged graph blinds the per-commit walk -- preflight passes and the run proceeds to commit/push ($(echo "$J_OUT" | tail -1 | cut -c1-60)); unlike a replace ref the graph also steers pack-objects, so the remote then rejects for missing objects -- the walk's verdict, not the remote, was the defense"
+        # T177 Round 19 (own-defect, found while running the full regression
+        # suite): removing core.commitGraph=false no longer reproduces this
+        # leak either -- check_remote_commits' CRC_PATHS now comes from
+        # GIT_VERIFY's `cmd_diffcommit`, which reads commit/tree objects via
+        # `git cat-file` and computes X's own diff from THOSE verified bytes
+        # directly -- it never calls `diff-tree -c` (the ONLY command the
+        # forged commit-graph blinds) at all, so it is structurally immune
+        # to a forged graph regardless of core.commitGraph. The mutant now
+        # behaves IDENTICALLY to the non-mutant control above: no switch
+        # left can reproduce this leak. A strict strengthening (same
+        # reasoning as J36c's sibling comment above), asserted here as the
+        # new reality instead of a stale "preflight passes, leak reproduces"
+        # expectation.
+        if [ "$R16_NOCOMMITGRAPH_OK" -eq 1 ] && [ "$_forged" -eq 1 ] && [ -z "$_blind" ] && [ "$J_RC" -eq 1 ] \
+            && [ "$_detail" = "remote-origin-would-newly-receive-commit-$J35_X-touching-out-of-scope-path-src/product.c" ]; then
+            ok "J36d defense-in-depth (T177 Round 19): with ONLY core.commitGraph=false removed, the forged graph no longer blinds the per-commit walk -- GIT_VERIFY's cmd_diffcommit reads X's commit/tree objects directly via cat-file and never calls diff-tree -c at all, structurally immune to the forged graph; refused naming X and src/product.c exactly as the non-mutant control"
         else
-            bad "J36d guard-viability: the no-commit-graph mutant was still refused at preflight (mut_ok=$R16_NOCOMMITGRAPH_OK forged=$_forged blind=[$_blind] rc=$J_RC out=$J_OUT)"
+            bad "J36d defense-in-depth: removing only core.commitGraph=false unexpectedly let the forged-graph leak through (mut_ok=$R16_NOCOMMITGRAPH_OK forged=$_forged blind=[$_blind] rc=$J_RC out=$J_OUT detail=$_detail)"
         fi
     fi
 done
@@ -3989,6 +4102,309 @@ if [ "$R16_SHARED_ALLOWLIST_OK" -eq 1 ] && ! echo "$J39B_DETAIL" | grep -q 'woul
     ok "J39 R16 M2 (per-remote tree check): the same single edit stops check_remote_scope from refusing J30a's src/product.c (detail=${J39B_DETAIL:-none}) -- it too consumes the shared definition"
 else
     bad "J39 R16 M2 (per-remote tree check): the shared-list edit did not reach check_remote_scope (mut_ok=$R16_SHARED_ALLOWLIST_OK rc=$J_RC out=$J_OUT detail=$J39B_DETAIL)"
+fi
+
+# =============================================================================
+# J40-J43 -- T177 Round 19 (R18-B1 data-integrity hardening + M-1/M-2/M-3/
+# M-4 minors): migrate.sh's own header comment used to document an honest,
+# unaddressed gap -- "git cat-file does not re-hash what it reads ... the
+# push then sends the SAME tampered bytes" -- which this round closes with
+# GIT_VERIFY. J40/J41 reproduce the gap end to end through a REAL migrate.sh
+# run (never merely asserting against the GIT_VERIFY module in isolation)
+# and prove the fix detects + refuses it; J42 proves M-1 (the duplicated
+# post-gitlink-bump allow-list is now unified); J43 proves M-4 (a genuinely
+# shallow consumer clone completes a real migration end to end).
+# =============================================================================
+
+# --- J40: EXPLICIT single-object read (scan_symlinks_raw's own `cat-file
+# blob <id>`). Constructed via the standard "pre-plant before write"
+# technique: git's object-writing primitive SKIPS writing an object whose
+# computed hash already has an on-disk file under it, trusting that file
+# unconditionally (verified live against real git 2.50.1 before this
+# fixture was written: `git hash-object -w` on content A, then planting
+# A's own loose-object bytes under a DIFFERENT, precomputed hash B, then
+# `git add` of content that legitimately hashes to B reuses the existing
+# (A's) bytes rather than writing B's real content). Planting a DIFFERENT,
+# evil blob's compressed bytes under the hash a CLEAN, in-repo-relative
+# symlink target string will produce, BEFORE the hook creates that
+# symlink, makes an entirely ordinary `git add`/`git commit` commit a
+# symlink entry whose recorded id is correct (matches what git itself
+# computes for the real target string) while its ON-DISK bytes are the
+# evil ones -- exactly the documented gap.
+J40_HOOK="$WORK/j40_tampered_symlink_hook.sh"
+cat > "$J40_HOOK" <<'EOF'
+#!/usr/bin/env bash
+mkdir -p "$PROJECT_ROOT/skills"
+ln -s "legit/looking/relative/target.txt" "$PROJECT_ROOT/skills/evil_link"
+EOF
+build_r3_fixture "$I_ROOT/j40" "$J40_HOOK"
+J40_TARGET="legit/looking/relative/target.txt"
+J40_INTENDED_HASH=$(printf '%s' "$J40_TARGET" | git -C "$I_ROOT/j40/checkout" hash-object -t blob --stdin)
+J40_EVIL_HASH=$(printf '%s' "evil/sneaky/substituted/target.txt" | git -C "$I_ROOT/j40/checkout" hash-object -w -t blob --stdin)
+J40_PREFIX=$(printf '%s' "$J40_INTENDED_HASH" | cut -c1-2)
+J40_SUFFIX=$(printf '%s' "$J40_INTENDED_HASH" | cut -c3-)
+J40_EVIL_PREFIX=$(printf '%s' "$J40_EVIL_HASH" | cut -c1-2)
+J40_EVIL_SUFFIX=$(printf '%s' "$J40_EVIL_HASH" | cut -c3-)
+J40_INTENDED_PATH="$I_ROOT/j40/checkout/.git/objects/$J40_PREFIX/$J40_SUFFIX"
+J40_EVIL_PATH="$I_ROOT/j40/checkout/.git/objects/$J40_EVIL_PREFIX/$J40_EVIL_SUFFIX"
+mkdir -p "$(dirname "$J40_INTENDED_PATH")"
+cp "$J40_EVIL_PATH" "$J40_INTENDED_PATH"
+chmod 444 "$J40_INTENDED_PATH"
+J40_REMOTE_BEFORE=$(git -C "$I_ROOT/j40/consumer.git" rev-parse refs/heads/main)
+J40_HEAD_BEFORE=$(git -C "$I_ROOT/j40/checkout" rev-parse HEAD)
+j_run "$TOOL" "$I_ROOT/j40" fixture/section_j40 "$WORK/j40.json"
+J40_REMOTE_AFTER=$(git -C "$I_ROOT/j40/consumer.git" rev-parse refs/heads/main)
+J40_HEAD_AFTER=$(git -C "$I_ROOT/j40/checkout" rev-parse HEAD)
+J40_DETAIL=$(jfield "$WORK/j40.json" detail)
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+    && echo "$J40_DETAIL" | grep -q "MISMATCH type=blob requested-oid=$J40_INTENDED_HASH recomputed-oid=$J40_EVIL_HASH" \
+    && [ "$J40_REMOTE_BEFORE" = "$J40_REMOTE_AFTER" ] && [ "$J40_HEAD_BEFORE" = "$J40_HEAD_AFTER" ]; then
+    ok "J40 R18-B1 (explicit single-object read): a pre-planted tampered object store (an evil blob planted under the exact hash a clean symlink target string would produce) is detected and refused before any write is committed -- no local commit, remote tip unchanged (detail=$J40_DETAIL)"
+else
+    bad "J40 R18-B1: the tampered object was not detected/refused (rc=$J_RC out=$J_OUT detail=$J40_DETAIL remote $J40_REMOTE_BEFORE->$J40_REMOTE_AFTER head $J40_HEAD_BEFORE->$J40_HEAD_AFTER)"
+fi
+j_mutant R18B1_drop_blob_rehash "$GV_BLOB_ON" "$GV_BLOB_OFF"
+build_r3_fixture "$I_ROOT/j40m" "$J40_HOOK"
+J40_TARGET_M="legit/looking/relative/target.txt"
+J40M_INTENDED_HASH=$(printf '%s' "$J40_TARGET_M" | git -C "$I_ROOT/j40m/checkout" hash-object -t blob --stdin)
+J40M_EVIL_HASH=$(printf '%s' "evil/sneaky/substituted/target.txt" | git -C "$I_ROOT/j40m/checkout" hash-object -w -t blob --stdin)
+J40M_PREFIX=$(printf '%s' "$J40M_INTENDED_HASH" | cut -c1-2)
+J40M_SUFFIX=$(printf '%s' "$J40M_INTENDED_HASH" | cut -c3-)
+J40M_EVIL_PREFIX=$(printf '%s' "$J40M_EVIL_HASH" | cut -c1-2)
+J40M_EVIL_SUFFIX=$(printf '%s' "$J40M_EVIL_HASH" | cut -c3-)
+J40M_INTENDED_PATH="$I_ROOT/j40m/checkout/.git/objects/$J40M_PREFIX/$J40M_SUFFIX"
+J40M_EVIL_PATH="$I_ROOT/j40m/checkout/.git/objects/$J40M_EVIL_PREFIX/$J40M_EVIL_SUFFIX"
+mkdir -p "$(dirname "$J40M_INTENDED_PATH")"
+cp "$J40M_EVIL_PATH" "$J40M_INTENDED_PATH"
+chmod 444 "$J40M_INTENDED_PATH"
+j_run "$WORK/jmut_R18B1_drop_blob_rehash.sh" "$I_ROOT/j40m" fixture/section_j40m "$WORK/j40m.json"
+# Own-finding while building this guard-viability mutant (measured live):
+# a committed symlink entry whose OWN tree-level mode/oid is correct but
+# whose underlying blob bytes are tampered is NOT a complete silent
+# remote-publication leak for THIS attack shape -- `git push` itself
+# independently re-derives each object's identity while packing and
+# reports "fatal: missing blob object <id>" / "missing necessary objects"
+# before the remote ever sees it (reproduced standalone before this fix
+# was written: identical error on a from-scratch repo). This is EXACTLY
+# the honest boundary migrate.sh's own header already documents ("the
+# push then sends the SAME tampered bytes, which the remote hashes to a
+# different id and rejects for missing objects") -- so without
+# scan_symlinks_raw's own re-hash, the tamper is NOT caught at step 5
+# (before any write) but IS still caught later, at the push transport
+# itself, independent of this tool's own code. The mutant's real,
+# achievable effect is therefore a WASTED local commit (residue,
+# backup-restore churn) that an EARLIER refusal would have avoided --
+# checked below on the LOCAL checkout (the remote is correctly untouched
+# either way).
+J40M_LOCAL_LINK=$(git -C "$I_ROOT/j40m/checkout" cat-file -p "HEAD:skills/evil_link" 2>/dev/null)
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -qi 'NOT-MIGRATED (push: remote-rejected)' \
+    && [ "$J40M_LOCAL_LINK" = "evil/sneaky/substituted/target.txt" ]; then
+    ok "J40 defense-in-depth: removing ONLY scan_symlinks_raw's own blob-hash re-verification lets the tampered object store PAST step 5 -- the evil target is committed LOCALLY (which an earlier refusal would have avoided) -- but git's own push transport independently refuses to send the mismatched object ('missing blob object'), so the remote is still never corrupted either way; J40/the R18-B1 blob fix is what would have avoided the wasted local commit"
+else
+    bad "J40 defense-in-depth: removing only the blob rehash did not reproduce the expected later-catch (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT local-link=$J40M_LOCAL_LINK)"
+fi
+
+# --- J41: INTERNAL GIT-WALK read (verify_final_commit's own tree-delta
+# comparison, now routed through GIT_VERIFY). Constructed the same
+# "pre-plant before write" way, one level up: a tree object's hash is
+# learned in advance (in an ISOLATED scratch repo, touching nothing in
+# the real checkout) for content a migration hook will legitimately
+# write, then the REAL checkout's object store is pre-planted at that
+# exact hash with a DIFFERENT (the OLD, pre-migration) tree's bytes --
+# so the migration's own real `git commit` reuses the pre-planted bytes
+# under its own correctly-computed tree hash, reproducing live (measured
+# before this fixture was written) the exact class migrate.sh's header
+# documents: real `git diff-tree` between the two commits silently
+# reports NO CHANGE for a path that genuinely changed.
+build_r3_fixture "$I_ROOT/j41"
+mkdir -p "$I_ROOT/j41/checkout/.claude/sub"
+echo "before" > "$I_ROOT/j41/checkout/.claude/sub/evil.txt"
+git -C "$I_ROOT/j41/checkout" add .claude
+git -C "$I_ROOT/j41/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -m "seed .claude/sub tree"
+git -C "$I_ROOT/j41/checkout" push -q origin main
+J41_OLD_SUB=$(git -C "$I_ROOT/j41/checkout" rev-parse HEAD:.claude/sub)
+J41_OLD_PREFIX=$(printf '%s' "$J41_OLD_SUB" | cut -c1-2)
+J41_OLD_SUFFIX=$(printf '%s' "$J41_OLD_SUB" | cut -c3-)
+J41_OLD_PATH="$I_ROOT/j41/checkout/.git/objects/$J41_OLD_PREFIX/$J41_OLD_SUFFIX"
+J41_CALC=$(mktemp -d)
+git init -q "$J41_CALC" >/dev/null
+git -C "$J41_CALC" config user.email t@t.com
+git -C "$J41_CALC" config user.name t
+mkdir -p "$J41_CALC/sub"
+echo "after" > "$J41_CALC/sub/evil.txt"
+git -C "$J41_CALC" add sub
+J41_CALC_ROOT=$(git -C "$J41_CALC" write-tree)
+J41_NEW_SUB=$(git -C "$J41_CALC" ls-tree "$J41_CALC_ROOT" sub | awk '{print $3}')
+rm -rf "$J41_CALC"
+J41_NEW_PREFIX=$(printf '%s' "$J41_NEW_SUB" | cut -c1-2)
+J41_NEW_SUFFIX=$(printf '%s' "$J41_NEW_SUB" | cut -c3-)
+J41_NEW_PATH="$I_ROOT/j41/checkout/.git/objects/$J41_NEW_PREFIX/$J41_NEW_SUFFIX"
+mkdir -p "$(dirname "$J41_NEW_PATH")"
+cp "$J41_OLD_PATH" "$J41_NEW_PATH"
+chmod 444 "$J41_NEW_PATH"
+J41_HOOK="$WORK/j41_tampered_tree_hook.sh"
+cat > "$J41_HOOK" <<'EOF'
+#!/usr/bin/env bash
+mkdir -p "$PROJECT_ROOT/.claude/sub"
+echo after > "$PROJECT_ROOT/.claude/sub/evil.txt"
+EOF
+rm -rf "$I_ROOT/j41/mc.git"
+git init --bare -q -b main "$I_ROOT/j41/mc.git"
+J41_CW=$(mktemp -d)
+git init -q -b main "$J41_CW" >/dev/null
+git -C "$J41_CW" config user.name fastcycle-fixture
+git -C "$J41_CW" config user.email fixture@example.invalid
+echo "old constitution state (Section I)" > "$J41_CW/CLAUDE.md"
+git -C "$J41_CW" add CLAUDE.md
+git -C "$J41_CW" commit -q -m old
+git -C "$J41_CW" remote add origin "$I_ROOT/j41/mc.git"
+git -C "$J41_CW" push -q origin main
+R3_OLD=$(git -C "$J41_CW" rev-parse HEAD)
+echo "new constitution state (Section I target)" >> "$J41_CW/CLAUDE.md"
+mkdir -p "$J41_CW/scripts"
+cp "$J41_HOOK" "$J41_CW/scripts/post_update_hook.sh"
+chmod +x "$J41_CW/scripts/post_update_hook.sh"
+git -C "$J41_CW" add scripts/post_update_hook.sh CLAUDE.md
+git -C "$J41_CW" commit -q -m new
+git -C "$J41_CW" push -q origin main
+R3_NEW=$(git -C "$J41_CW" rev-parse HEAD)
+rm -rf "$J41_CW"
+J41_REMOTE_BEFORE=$(git -C "$I_ROOT/j41/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j41" fixture/section_j41 "$WORK/j41.json"
+J41_REMOTE_AFTER=$(git -C "$I_ROOT/j41/consumer.git" rev-parse refs/heads/main)
+J41_DETAIL=$(jfield "$WORK/j41.json" detail)
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (push: out-of-scope-diff)' \
+    && echo "$J41_DETAIL" | grep -q "MISMATCH type=tree requested-oid=$J41_NEW_SUB recomputed-oid=$J41_OLD_SUB" \
+    && [ "$J41_REMOTE_BEFORE" = "$J41_REMOTE_AFTER" ]; then
+    ok "J41 R18-B1 (internal git-walk read): a pre-planted tampered INTERMEDIATE TREE object -- reachable only through git's own internal commit-to-commit traversal, and reproduced to silently fool real diff-tree before this fixture was written -- is detected and refused before any push; the local (tampered) commit is recorded honestly, never pushed, remote tip unchanged (detail=$J41_DETAIL)"
+else
+    bad "J41 R18-B1: the tampered tree was not detected/refused (rc=$J_RC out=$J_OUT detail=$J41_DETAIL remote $J41_REMOTE_BEFORE->$J41_REMOTE_AFTER)"
+fi
+j_mutant R18B1_drop_tree_rehash "$GV_OBJ_ON" "$GV_OBJ_OFF"
+build_r3_fixture "$I_ROOT/j41m"
+mkdir -p "$I_ROOT/j41m/checkout/.claude/sub"
+echo "before" > "$I_ROOT/j41m/checkout/.claude/sub/evil.txt"
+git -C "$I_ROOT/j41m/checkout" add .claude
+git -C "$I_ROOT/j41m/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -m "seed .claude/sub tree"
+git -C "$I_ROOT/j41m/checkout" push -q origin main
+J41M_OLD_SUB=$(git -C "$I_ROOT/j41m/checkout" rev-parse HEAD:.claude/sub)
+J41M_OLD_PREFIX=$(printf '%s' "$J41M_OLD_SUB" | cut -c1-2)
+J41M_OLD_SUFFIX=$(printf '%s' "$J41M_OLD_SUB" | cut -c3-)
+J41M_OLD_PATH="$I_ROOT/j41m/checkout/.git/objects/$J41M_OLD_PREFIX/$J41M_OLD_SUFFIX"
+cp "$J41M_OLD_PATH" "$I_ROOT/j41m/checkout/.git/objects/$J41_NEW_PREFIX/$J41_NEW_SUFFIX" 2>/dev/null || {
+    mkdir -p "$I_ROOT/j41m/checkout/.git/objects/$J41_NEW_PREFIX"
+    cp "$J41M_OLD_PATH" "$I_ROOT/j41m/checkout/.git/objects/$J41_NEW_PREFIX/$J41_NEW_SUFFIX"
+}
+chmod 444 "$I_ROOT/j41m/checkout/.git/objects/$J41_NEW_PREFIX/$J41_NEW_SUFFIX"
+rm -rf "$I_ROOT/j41m/mc.git"
+git init --bare -q -b main "$I_ROOT/j41m/mc.git"
+J41M_CW=$(mktemp -d)
+git init -q -b main "$J41M_CW" >/dev/null
+git -C "$J41M_CW" config user.name fastcycle-fixture
+git -C "$J41M_CW" config user.email fixture@example.invalid
+echo "old constitution state (Section I)" > "$J41M_CW/CLAUDE.md"
+git -C "$J41M_CW" add CLAUDE.md
+git -C "$J41M_CW" commit -q -m old
+git -C "$J41M_CW" remote add origin "$I_ROOT/j41m/mc.git"
+git -C "$J41M_CW" push -q origin main
+R3_OLD=$(git -C "$J41M_CW" rev-parse HEAD)
+echo "new constitution state (Section I target)" >> "$J41M_CW/CLAUDE.md"
+mkdir -p "$J41M_CW/scripts"
+cp "$J41_HOOK" "$J41M_CW/scripts/post_update_hook.sh"
+chmod +x "$J41M_CW/scripts/post_update_hook.sh"
+git -C "$J41M_CW" add scripts/post_update_hook.sh CLAUDE.md
+git -C "$J41M_CW" commit -q -m new
+git -C "$J41M_CW" push -q origin main
+R3_NEW=$(git -C "$J41M_CW" rev-parse HEAD)
+rm -rf "$J41M_CW"
+j_run "$WORK/jmut_R18B1_drop_tree_rehash.sh" "$I_ROOT/j41m" fixture/section_j41m "$WORK/j41m.json"
+# Own-finding while building this guard-viability mutant (measured live,
+# the SAME class as J40's own finding immediately above): a committed
+# tree entry whose recorded oid is correct but whose underlying on-disk
+# bytes are tampered is NOT a complete silent remote-publication leak
+# either -- `git push` independently re-derives object identity while
+# packing and refuses to send the mismatched tree, so the remote is never
+# corrupted even with GIT_VERIFY's re-verification removed. Checked on
+# the LOCAL checkout (the honest, achievable effect: a wasted local
+# commit carrying the tampered content, which an earlier refusal would
+# have avoided); the remote is confirmed untouched either way.
+# Read the WORKING-TREE file directly, never a git-resolved `HEAD:path`
+# lookup: the committed "sub" TREE is the tampered object, so git's OWN
+# path resolution through it is fooled the SAME way (confirmed live: it
+# reads back the OLD content) -- exactly the defect class this fixture
+# exists to demonstrate. The working-tree file the hook wrote is the
+# ONLY read path here that is not itself subject to the tamper.
+J41M_LOCAL=$(cat "$I_ROOT/j41m/checkout/.claude/sub/evil.txt" 2>/dev/null)
+J41M_REMOTE_UNCHANGED=$(git -C "$I_ROOT/j41m/consumer.git" rev-parse refs/heads/main 2>/dev/null)
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -qi 'NOT-MIGRATED (push: remote-rejected)' \
+    && [ "$J41M_LOCAL" = "after" ]; then
+    ok "J41 defense-in-depth: removing ONLY GIT_VERIFY's commit/tree re-verification lets the tampered intermediate tree PAST verify_final_commit -- the evil content is committed LOCALLY (which an earlier refusal would have avoided) -- but git's own push transport independently refuses to send the mismatched tree object, so the remote (main=$J41M_REMOTE_UNCHANGED) is still never corrupted; J41/the R18-B1 tree fix is what would have avoided the wasted local commit"
+else
+    bad "J41 defense-in-depth: removing only the tree rehash did not reproduce the expected later-catch (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT local=[$J41M_LOCAL])"
+fi
+
+# --- J42 (M-1): the post-gitlink-bump staged-set check carried its OWN
+# inline allow-list copy, missed by rounds 15/17's de-duplication sweeps
+# (it runs before either check_remote_scope/check_remote_commits is even
+# defined in the file). A hook that stages a path OUTSIDE the shared
+# allow-list directly (its own `git add`, independent of migrate.sh's
+# own auto-stage block) proves this call site genuinely refuses an
+# out-of-scope staged path, and that widening ONLY the ONE shared
+# ca022_post_hook_path_ok definition now reaches it too.
+J42_HOOK="$WORK/j42_stage_outside_allowlist_hook.sh"
+cat > "$J42_HOOK" <<'EOF'
+#!/usr/bin/env bash
+set -e
+mkdir -p "$PROJECT_ROOT/docs"
+echo "extra" > "$PROJECT_ROOT/docs/extra.txt"
+cd "$PROJECT_ROOT" && git add docs/extra.txt
+EOF
+build_r3_fixture "$I_ROOT/j42" "$J42_HOOK"
+J42_REMOTE_BEFORE=$(git -C "$I_ROOT/j42/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j42" fixture/section_j42 "$WORK/j42.json"
+J42_DETAIL=$(jfield "$WORK/j42.json" detail)
+J42_REMOTE_AFTER=$(git -C "$I_ROOT/j42/consumer.git" rev-parse refs/heads/main)
+if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+    && echo "$J42_DETAIL" | grep -q 'path=docs/extra.txt' \
+    && [ "$J42_REMOTE_BEFORE" = "$J42_REMOTE_AFTER" ]; then
+    ok "J42 M-1: the post-gitlink-bump staged-set check refuses a hook-staged path outside the allow-list (docs/extra.txt), remote unchanged"
+else
+    bad "J42 M-1: the staged-set check did not refuse the out-of-scope path (rc=$J_RC out=$J_OUT detail=$J42_DETAIL)"
+fi
+j_mutant M1_widen_shared_allowlist \
+    'constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) return 0 ;;' \
+    'constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*|docs/*) return 0 ;;'
+build_r3_fixture "$I_ROOT/j42m" "$J42_HOOK"
+j_run "$WORK/jmut_M1_widen_shared_allowlist.sh" "$I_ROOT/j42m" fixture/section_j42m "$WORK/j42m.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED'; then
+    ok "J42 M-1 guard-viability: widening ONLY the shared ca022_post_hook_path_ok definition (adding docs/*) lets the SAME fixture through -- the post-gitlink-bump staged-set check has no private copy left to drift"
+else
+    bad "J42 M-1 guard-viability: the shared-list widening did not reach the post-gitlink-bump check (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+
+# --- J43 (M-4): a genuinely SHALLOW (--depth 1) consumer clone completes
+# a real migration end to end. Own-finding while building this fixture,
+# measured live: `git clone --depth 1 <local-path>` silently IGNORES
+# --depth for local (hardlink-optimized) clones ("warning: --depth is
+# ignored in local clones; use file:// instead.") -- an EXPLICIT file://
+# URL is required to force the transport that actually honours --depth,
+# confirmed below via --is-shallow-repository.
+build_r3_fixture "$I_ROOT/j43"
+rm -rf "$I_ROOT/j43/checkout"
+git clone -q --depth 1 --branch main --single-branch "file://$I_ROOT/j43/consumer.git" "$I_ROOT/j43/checkout" >/dev/null 2>&1
+git -C "$I_ROOT/j43/checkout" config user.name fastcycle-fixture
+git -C "$I_ROOT/j43/checkout" config user.email fixture@example.invalid
+J43_IS_SHALLOW=$(git -C "$I_ROOT/j43/checkout" rev-parse --is-shallow-repository)
+J43_LOG_COUNT=$(git -C "$I_ROOT/j43/checkout" rev-list --count HEAD)
+J43_REMOTE_BEFORE=$(git -C "$I_ROOT/j43/consumer.git" rev-parse refs/heads/main)
+j_run "$TOOL" "$I_ROOT/j43" fixture/section_j43 "$WORK/j43.json"
+J43_REMOTE_AFTER=$(git -C "$I_ROOT/j43/consumer.git" rev-parse refs/heads/main)
+if [ "$J43_IS_SHALLOW" = "true" ] && [ "$J43_LOG_COUNT" = "1" ] \
+    && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' \
+    && [ "$J43_REMOTE_AFTER" != "$J43_REMOTE_BEFORE" ]; then
+    ok "J43 M-4: a genuinely shallow (--depth 1, is-shallow-repository=true, 1 local commit) consumer checkout completes a real migration successfully end to end; remote main advances"
+else
+    bad "J43 M-4: a shallow consumer checkout did NOT complete the migration (shallow=$J43_IS_SHALLOW count=$J43_LOG_COUNT rc=$J_RC out=$J_OUT remote $J43_REMOTE_BEFORE->$J43_REMOTE_AFTER)"
 fi
 
 rm -rf "$I_ROOT" 2>/dev/null || true

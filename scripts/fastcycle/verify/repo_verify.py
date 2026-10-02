@@ -235,8 +235,21 @@ _GIT_LOCAL_ENV_VARS = (
 )
 
 
-# T177 Round 17 (R16-I1 IMPORTANT + R16-B1 BLOCKING): a VERIFIER must neither execute
-# repository-config-driven programs nor read substituted objects. The strip above removes
+# T177 Round 17 (R16-I1 IMPORTANT + R16-B1 BLOCKING; wording corrected T177 Round 19,
+# M-2 -- the line above overclaimed "neither execute repository-config-driven programs
+# nor read substituted objects"; stated narrowly, mirroring migrate.sh's own R16-M1
+# correction for the SAME class of overclaim: this strip + the explicit `-c` overrides
+# below stop git's OWN hook mechanism (`.git/hooks/*`, `core.hooksPath`), a configured
+# fsmonitor, `refs/replace/*` substitution, and commit-graph-cached parsing from running
+# during this tool's own git calls. They do NOT neutralise every repository-config-driven
+# executable this tool's calls can reach: clean/smudge filter drivers (`.gitattributes` /
+# `.git/info/attributes` + `filter.<name>.*`) have no global off switch and still run
+# during this tool's OWN `worktree_status()` `git status` call (RV-002), and the
+# push-transport-adjacent executables (`core.sshCommand`, `credential.helper`,
+# `remote.<r>.uploadpack`, `url.*.insteadOf` -> `ext::`) are left alone and still run
+# during this tool's `git fetch` calls (verify_remote/self_check) -- left alone because a
+# consumer may legitimately rely on them to reach its own remotes, and because this tool
+# never writes through them (read-only `fetch`, never `push`). The strip above removes
 # GIT_CONFIG_COUNT/GIT_CONFIG_PARAMETERS/GIT_NO_REPLACE_OBJECTS/GIT_GRAFT_FILE from every
 # subprocess -- for a legitimate reason (they are on git's own `--local-env-vars` list, and an
 # inherited copy belongs to whatever repository the CALLER was operating on, not necessarily the

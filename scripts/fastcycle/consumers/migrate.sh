@@ -173,6 +173,367 @@ if [ -z "$MIGRATE_SCRATCH" ] || [ ! -d "$MIGRATE_SCRATCH" ]; then
 fi
 trap 'rm -rf "$MIGRATE_SCRATCH"' EXIT INT TERM
 
+# T177 Round 19 (R18-B1, data-integrity hardening): migrate.sh's own
+# documented honest gap above ("Object-store tampering ... is NOT
+# defended: `git cat-file` does not re-hash what it reads") is closed
+# here for every security-relevant read this tool performs via git's
+# OWN internal commit/tree traversal (`diff-tree`, `ls-tree -r`,
+# `<ref>:<path>` resolution, `rev-list --parents`) -- the companion fix
+# for the single-blob case (the symlink-target read) lives directly
+# inside scan_symlinks_raw below. Reproduced live before this fix
+# (constitution/scripts/fastcycle round-19 forensics): overwriting ONE
+# committed tree object's on-disk bytes with a DIFFERENT, older tree
+# object's bytes made real `git diff-tree` silently report NO CHANGE for
+# a path that genuinely differed between the two commits being compared
+# -- exactly the shape that would let a tampered local object store
+# smuggle an out-of-scope change past the CA-022 scope checks below
+# while every git-native read kept reporting "clean". GIT_VERIFY below
+# re-derives every commit/tree object's hash from the bytes `git
+# cat-file` actually returns and refuses (nonzero exit, naming the
+# mismatched object id) the instant the recomputed hash disagrees with
+# the id requested -- see its own header comment for the full design and
+# its documented (narrower) honest boundary.
+GIT_VERIFY="$MIGRATE_SCRATCH/git_verify.py"
+cat >"$GIT_VERIFY" <<'FC_GIT_VERIFY_PY_EOF'
+#!/usr/bin/env python3
+"""
+git_verify.py -- T177 Round 19 data-integrity hardening for migrate.sh.
+
+migrate.sh's own documented honest gap (its header comment, "Object-store
+tampering ... is NOT defended: `git cat-file` does not re-hash what it
+reads") is closed here for every REMAINING security-relevant read this
+tool performs via git's internal commit/tree traversal (`diff-tree`,
+`ls-tree -r`, `<ref>:<path>` resolution, `rev-list --parents`): every
+commit/tree object this module visits is read with `git cat-file <type>
+<oid>` and INDEPENDENTLY re-hashed with `git hash-object -t <type>
+--stdin` before its content is trusted for anything -- exactly mirroring
+scan_symlinks_raw's own fix (migrate.sh, same round) for the single-blob
+case. A mismatch means the on-disk bytes under that object id are NOT
+what that id claims; this module refuses immediately (nonzero exit, one
+line on stdout naming the exact object id and the mismatch) rather than
+silently computing a result over content nobody verified.
+
+Convention matched to this tool's own scan_symlinks_raw/scan_gitlinks_raw:
+success writes its result to stdout and exits 0; ANY integrity failure
+(unreadable object, or a hash mismatch) writes ONE line to stdout naming
+the failure and exits 3 -- callers capture output+rc together
+(`R=$(... 2>&1); RC=$?`) and refuse the whole migration on rc!=0, never
+trusting partial output from a failed run.
+
+Honest boundary (documented, not claimed covered): this module verifies
+every COMMIT and TREE object its own walk visits. It does NOT re-verify
+the content of a LEAF BLOB a tree lists (a regular file's content) --
+the single leaf-blob read this tool makes a security decision from (a
+symlink target) is fixed directly inside scan_symlinks_raw itself with
+the SAME mechanism, so the full commit->tree->...->blob chain is covered
+end to end by the two fixes together. REF resolution (`rev-parse
+refs/heads/<b>`) is also out of scope -- a ref is a mutable pointer, not
+a content-addressed object, so there is no hash to verify it against.
+Deep ancestry walks (`rev-list --count <range>`) are out of scope too --
+verifying every commit transitively reachable in an open-ended range is
+impractical for this tool's realistic per-migration-batch usage pattern,
+and the commit-graph-forgery class that would otherwise make such a walk
+unreliable is ALREADY defeated structurally by this tool's existing
+`core.commitGraph=false` override (migrate.sh, applied to every git
+process this script launches) -- this module's remaining job is the
+narrower "loose object whose bytes don't hash to their own name" class,
+which it closes for every commit/tree this tool's SHORT, per-check walks
+(a handful of commits/trees per invocation, never a full-history scan)
+actually visit.
+"""
+import subprocess
+import sys
+
+_CACHE = {}
+
+
+def run_git(workdir, *args, input_bytes=None):
+    return subprocess.run(
+        ["git", "-C", workdir, *args], capture_output=True, input=input_bytes
+    )
+
+
+def fail(msg):
+    raise RuntimeError(msg)
+
+
+def verify_object(workdir, type_, oid):
+    key = (type_, oid)
+    if key in _CACHE:
+        return _CACHE[key]
+    cat = run_git(workdir, "cat-file", type_, oid)
+    if cat.returncode != 0:
+        fail(
+            "unreadable-object type=%s oid=%s stderr=%s"
+            % (type_, oid, cat.stderr.decode("utf-8", "replace").strip())
+        )
+    content = cat.stdout
+    hashed = run_git(workdir, "hash-object", "-t", type_, "--stdin", input_bytes=content)
+    if hashed.returncode != 0:
+        fail("hash-object-failed type=%s oid=%s" % (type_, oid))
+    recomputed = hashed.stdout.decode().strip()
+    if recomputed != oid:
+        fail(
+            "MISMATCH type=%s requested-oid=%s recomputed-oid=%s -- on-disk "
+            "bytes under this object id do NOT hash to it" % (type_, oid, recomputed)
+        )
+    _CACHE[key] = content
+    return content
+
+
+def hash_len(workdir):
+    out = run_git(workdir, "rev-parse", "--show-object-format")
+    fmt = out.stdout.decode().strip() if out.returncode == 0 and out.stdout.strip() else "sha1"
+    return 32 if fmt == "sha256" else 20
+
+
+def parse_tree(raw, hlen):
+    entries = []
+    i, n = 0, len(raw)
+    while i < n:
+        sp = raw.index(b" ", i)
+        mode = raw[i:sp].decode()
+        nul = raw.index(b"\x00", sp + 1)
+        name = raw[sp + 1 : nul].decode("utf-8", "surrogateescape")
+        oid_hex = raw[nul + 1 : nul + 1 + hlen].hex()
+        i = nul + 1 + hlen
+        entries.append((mode, name, oid_hex))
+    return entries
+
+
+def parse_commit(raw):
+    text = raw.decode("utf-8", "surrogateescape")
+    head = text.split("\n\n", 1)[0]
+    tree_oid = None
+    parents = []
+    for line in head.split("\n"):
+        if line.startswith("tree "):
+            tree_oid = line[5:].strip()
+        elif line.startswith("parent "):
+            parents.append(line[7:].strip())
+    if tree_oid is None:
+        fail("commit-missing-tree-header")
+    return tree_oid, parents
+
+
+def read_tree_verified(workdir, tree_oid, hlen):
+    return parse_tree(verify_object(workdir, "tree", tree_oid), hlen)
+
+
+def commit_tree_and_parents(workdir, commit_oid):
+    return parse_commit(verify_object(workdir, "commit", commit_oid))
+
+
+def is_tree_mode(mode):
+    return mode in ("40000", "040000")
+
+
+def recursive_tree_entries(workdir, tree_oid, hlen, prefix=""):
+    for mode, name, oid in read_tree_verified(workdir, tree_oid, hlen):
+        path = prefix + name
+        if is_tree_mode(mode):
+            yield from recursive_tree_entries(workdir, oid, hlen, path + "/")
+        else:
+            yield (path, mode, oid)
+
+
+def tree_diff_verified(workdir, old_tree, new_tree, hlen, prefix=""):
+    """Yields (path, old_mode|None, old_oid|None, new_mode|None, new_oid|None).
+
+    Recurses ONLY where an entry's (mode, oid) pair actually differs
+    between the two VERIFIED tree listings -- an identical-oid subtree is
+    never opened, mirroring the scope a real diff-tree walk visits -- but,
+    unlike diff-tree, every tree/commit object this walk DOES open is
+    independently re-hashed before its listing is trusted (the fix for
+    the documented gap: a tampered intermediate tree object can make
+    git's OWN diff-tree silently report "no change" for a path that
+    really did change -- reproduced and closed by this walk)."""
+    old_entries = {
+        n: (m, o) for m, n, o in (read_tree_verified(workdir, old_tree, hlen) if old_tree else [])
+    }
+    new_entries = {
+        n: (m, o) for m, n, o in (read_tree_verified(workdir, new_tree, hlen) if new_tree else [])
+    }
+    for name in sorted(set(old_entries) | set(new_entries)):
+        old = old_entries.get(name)
+        new = new_entries.get(name)
+        if old == new:
+            continue
+        old_mode, old_oid = old if old else (None, None)
+        new_mode, new_oid = new if new else (None, None)
+        path = prefix + name
+        old_is_tree = old is not None and is_tree_mode(old_mode)
+        new_is_tree = new is not None and is_tree_mode(new_mode)
+        if old_is_tree and new_is_tree:
+            yield from tree_diff_verified(workdir, old_oid, new_oid, hlen, path + "/")
+        elif old_is_tree and not new_is_tree:
+            for p, m, o in recursive_tree_entries(workdir, old_oid, hlen, path + "/"):
+                yield (p, m, o, None, None)
+            if new is not None:
+                yield (path, None, None, new_mode, new_oid)
+        elif new_is_tree and not old_is_tree:
+            if old is not None:
+                yield (path, old_mode, old_oid, None, None)
+            for p, m, o in recursive_tree_entries(workdir, new_oid, hlen, path + "/"):
+                yield (p, None, None, m, o)
+        else:
+            yield (path, old_mode, old_oid, new_mode, new_oid)
+
+
+def emit_raw(hlen, old_mode, old_oid, new_mode, new_oid, path, out):
+    zero = "0" * (hlen * 2)
+    om = old_mode if old_mode else "000000"
+    nm = new_mode if new_mode else "000000"
+    osha = old_oid if old_oid else zero
+    nsha = new_oid if new_oid else zero
+    status = "M" if (old_oid and new_oid) else ("A" if new_oid else "D")
+    out.write((":%s %s %s %s %s" % (om, nm, osha, nsha, status)).encode())
+    out.write(b"\x00")
+    out.write(path.encode("utf-8", "surrogateescape"))
+    out.write(b"\x00")
+
+
+def resolve_path(workdir, tree_oid, path, hlen):
+    """Walks tree_oid down `path`'s components, verifying every tree
+    object opened along the way. Returns (mode, oid) of the final entry,
+    or None if the path is genuinely absent (confirmed by a fully
+    verified walk -- never git's own possibly-fooled <ref>:<path>)."""
+    if path == "":
+        return ("040000", tree_oid)
+    parts = path.split("/")
+    cur = tree_oid
+    for idx, part in enumerate(parts):
+        entries = {n: (m, o) for m, n, o in read_tree_verified(workdir, cur, hlen)}
+        if part not in entries:
+            return None
+        mode, oid = entries[part]
+        if idx == len(parts) - 1:
+            return (mode, oid)
+        if not is_tree_mode(mode):
+            return None
+        cur = oid
+    return None
+
+
+def cmd_cat(workdir, argv):
+    type_, oid = argv[0], argv[1]
+    sys.stdout.buffer.write(verify_object(workdir, type_, oid))
+
+
+def cmd_resolve(workdir, hlen, argv):
+    commit, path = argv[0], argv[1]
+    tree_oid, _ = commit_tree_and_parents(workdir, commit)
+    res = resolve_path(workdir, tree_oid, path, hlen)
+    if res is not None:
+        print("%s %s" % res)
+
+
+def cmd_nametree(workdir, hlen, argv):
+    commit = argv[0]
+    tree_oid, _ = commit_tree_and_parents(workdir, commit)
+    for p, m, o in recursive_tree_entries(workdir, tree_oid, hlen):
+        print(p)
+
+
+def cmd_diffnames(workdir, hlen, argv):
+    old_c, new_c = argv[0], argv[1]
+    old_tree, _ = commit_tree_and_parents(workdir, old_c)
+    new_tree, _ = commit_tree_and_parents(workdir, new_c)
+    for path, om, oo, nm, no in tree_diff_verified(workdir, old_tree, new_tree, hlen):
+        print(path)
+
+
+def cmd_diff(workdir, hlen, argv):
+    old_c, new_c = argv[0], argv[1]
+    old_tree, _ = commit_tree_and_parents(workdir, old_c)
+    new_tree, _ = commit_tree_and_parents(workdir, new_c)
+    out = sys.stdout.buffer
+    for path, om, oo, nm, no in tree_diff_verified(workdir, old_tree, new_tree, hlen):
+        emit_raw(hlen, om, oo, nm, no, path, out)
+
+
+def cmd_diffcommit(workdir, hlen, argv):
+    """Verified equivalent of
+    `git diff-tree --root -r -c --name-only --no-commit-id --no-renames
+    <commit>` -- a root commit's own diff is every leaf path in its tree
+    (diff against the empty tree); a non-merge commit's own diff is the
+    verified tree-diff against its one parent; a MERGE commit's own
+    diff (matching `-c`'s combined-diff semantics, confirmed empirically
+    against real git and already independently documented by this
+    tool's own round-9/round-10 forensics) is the INTERSECTION of the
+    per-parent verified tree-diffs -- a path differing from only ONE
+    parent (the merge resolution simply kept the OTHER parent's content
+    in full) is correctly excluded, exactly as `-c` excludes it."""
+    c = argv[0]
+    tree_oid, parents = commit_tree_and_parents(workdir, c)
+    if not parents:
+        paths = sorted(p for p, m, o in recursive_tree_entries(workdir, tree_oid, hlen))
+    else:
+        per_parent = []
+        for p in parents:
+            p_tree, _ = commit_tree_and_parents(workdir, p)
+            changed = set(
+                path for path, om, oo, nm, no in tree_diff_verified(workdir, p_tree, tree_oid, hlen)
+            )
+            per_parent.append(changed)
+        paths = sorted(set.intersection(*per_parent)) if per_parent else []
+    for p in paths:
+        print(p)
+
+
+def cmd_parents(workdir, argv):
+    """Verified equivalent of `git rev-list --parents -n 1 <commit>` --
+    prints "<commit> <parent1> [<parent2> ...]" (space-separated, no
+    parents => just "<commit>"), reading the commit's parent list from
+    an independently re-hashed commit object, never from git's own
+    (possibly commit-graph-cached, though that cache is already globally
+    disabled by this tool) traversal."""
+    commit = argv[0]
+    _, parents = commit_tree_and_parents(workdir, commit)
+    print((" ".join([commit] + parents)))
+
+
+def main(argv):
+    cmd = argv[1]
+    workdir = argv[2]
+    rest = argv[3:]
+    if cmd == "cat":
+        cmd_cat(workdir, rest)
+        return 0
+    if cmd == "parents":
+        cmd_parents(workdir, rest)
+        return 0
+    hlen = hash_len(workdir)
+    if cmd == "resolve":
+        cmd_resolve(workdir, hlen, rest)
+    elif cmd == "nametree":
+        cmd_nametree(workdir, hlen, rest)
+    elif cmd == "diffnames":
+        cmd_diffnames(workdir, hlen, rest)
+    elif cmd == "diff":
+        cmd_diff(workdir, hlen, rest)
+    elif cmd == "diffcommit":
+        cmd_diffcommit(workdir, hlen, rest)
+    else:
+        fail("unknown-subcommand=%s" % cmd)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv))
+    except RuntimeError as exc:
+        sys.stdout.write("integrity-verification-failed: %s\n" % exc)
+        sys.exit(3)
+    except (IndexError, ValueError) as exc:
+        sys.stdout.write("integrity-verification-failed: malformed-object-or-args (%s)\n" % exc)
+        sys.exit(3)
+FC_GIT_VERIFY_PY_EOF
+if [ ! -s "$GIT_VERIFY" ]; then
+    echo "migrate.sh: could not write the integrity-verification helper to scratch" >&2
+    exit 4
+fi
+
 # T177 Round 15 (R14-B1 BLOCKING, half 1 of 2): every git command THIS tool
 # runs executes with git hooks DISABLED. The step-5 post_update_hook.sh --
 # the adversary every round has defended against -- legitimately writes
@@ -280,6 +641,25 @@ FC_CALLER_NRO=${GIT_NO_REPLACE_OBJECTS:-}
 FC_CALLER_GRAFT_SET=0
 [ -n "${GIT_GRAFT_FILE+x}" ] && FC_CALLER_GRAFT_SET=1
 FC_CALLER_GRAFT=${GIT_GRAFT_FILE:-}
+# T177 Round 19 (M-3): a caller-inherited GIT_CONFIG_PARAMETERS can
+# OUTRANK every override `fc_gcc_add` installs below for the SAME key on
+# any git call that does not also pass its own explicit `-c` for that
+# key (empirically confirmed: `GIT_CONFIG_PARAMETERS` wins over
+# `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n` for an
+# identically-named key, on real git) -- an inherited
+# `core.hooksPath=<somewhere-real>` would silently re-enable hooks for
+# every one of this tool's OWN git calls that relies on the
+# GIT_CONFIG_COUNT block alone (commit/push already pass `-c
+# core.hooksPath=/dev/null` explicitly too and so are unaffected, but
+# every OTHER call in this file -- status, fetch, diff, ls-tree, the
+# python-side git subprocess calls inside scan_symlinks_raw/
+# scan_gitlinks_raw/GIT_VERIFY, etc -- is not). Captured here exactly
+# like GIT_NO_REPLACE_OBJECTS/GIT_GRAFT_FILE above and restored in
+# run_with_caller_git_env below; cleared (never silently trusted)
+# for the duration of every git call THIS tool makes.
+FC_CALLER_GCP_SET=0
+[ -n "${GIT_CONFIG_PARAMETERS+x}" ] && FC_CALLER_GCP_SET=1
+FC_CALLER_GCP=${GIT_CONFIG_PARAMETERS:-}
 FC_GCC_N=$FC_CALLER_GCC
 fc_gcc_add() {
     # $1=key $2=value -> appended at index FC_GCC_N (>= the caller's own
@@ -304,10 +684,15 @@ fc_gcc_add advice.graftFileDeprecated false
 GIT_CONFIG_COUNT=$FC_GCC_N; export GIT_CONFIG_COUNT
 GIT_NO_REPLACE_OBJECTS=1; export GIT_NO_REPLACE_OBJECTS
 GIT_GRAFT_FILE=/dev/null; export GIT_GRAFT_FILE
+unset GIT_CONFIG_PARAMETERS
 run_with_caller_git_env() {
     # Runs "$@" in a subshell with the caller's ORIGINAL GIT_CONFIG_COUNT,
-    # GIT_NO_REPLACE_OBJECTS and GIT_GRAFT_FILE restored (extra
-    # GIT_CONFIG_KEY_<n>/VALUE_<n> beyond the count are ignored by git).
+    # GIT_NO_REPLACE_OBJECTS, GIT_GRAFT_FILE and GIT_CONFIG_PARAMETERS
+    # restored (extra GIT_CONFIG_KEY_<n>/VALUE_<n> beyond the count are
+    # ignored by git) -- the post-update hook and the consumer's own
+    # gates are the CONSUMER's own processes, not this tool's, so they
+    # run under the environment the caller actually had, never this
+    # tool's own protective overrides.
     (
         if [ "$FC_CALLER_GCC_SET" -eq 1 ]; then
             GIT_CONFIG_COUNT=$FC_CALLER_GCC; export GIT_CONFIG_COUNT
@@ -323,6 +708,11 @@ run_with_caller_git_env() {
             GIT_GRAFT_FILE=$FC_CALLER_GRAFT; export GIT_GRAFT_FILE
         else
             unset GIT_GRAFT_FILE
+        fi
+        if [ "$FC_CALLER_GCP_SET" -eq 1 ]; then
+            GIT_CONFIG_PARAMETERS=$FC_CALLER_GCP; export GIT_CONFIG_PARAMETERS
+        else
+            unset GIT_CONFIG_PARAMETERS
         fi
         "$@"
     )
@@ -568,6 +958,25 @@ while i + 1 < len(data):
     cat = subprocess.run(["git", "-C", workdir, "cat-file", "blob", blob],
                          capture_output=True)
     if cat.returncode != 0:
+        print("integrity-verification-failed: unreadable-object type=blob oid=%s" % blob)
+        sys.exit(3)
+    # T177 Round 19 (R18-B1): `cat-file` does NOT re-hash what it reads --
+    # a loose object file whose on-disk bytes were overwritten to belong
+    # to a DIFFERENT object is returned here VERBATIM under the requested
+    # `blob` id (reproduced live: planting a different blob at this id
+    # made this exact call return the wrong target string with rc=0).
+    # Independently re-derive the hash of blob from the bytes just read
+    # and refuse the instant it disagrees with `blob` -- the decision
+    # below (absolute / escaping target) is never made over content
+    # nobody verified.
+    rehash = subprocess.run(["git", "-C", workdir, "hash-object", "-t", "blob", "--stdin"],
+                            input=cat.stdout, capture_output=True)
+    if rehash.returncode != 0:
+        print("integrity-verification-failed: hash-object-failed oid=%s" % blob)
+        sys.exit(3)
+    recomputed = rehash.stdout.decode().strip()
+    if recomputed != blob:
+        print("integrity-verification-failed: MISMATCH type=blob requested-oid=%s recomputed-oid=%s path=%s" % (blob, recomputed, rel))
         sys.exit(3)
     target = cat.stdout.decode("utf-8", "surrogateescape")
     if target.startswith("/"):
@@ -654,10 +1063,22 @@ refuse_final_commit() {
 verify_final_commit() {
     VFC_BRANCH_TIP=$(git -C "$WORKDIR" rev-parse -q --verify "refs/heads/$BRANCH" 2>/dev/null)
     [ "$VFC_BRANCH_TIP" = "$NEW_COMMIT" ] || refuse_final_commit "branch-$BRANCH-tip=${VFC_BRANCH_TIP:-unreadable} != migration-commit"
-    VFC_PARENTS=$(git -C "$WORKDIR" rev-list --parents -n 1 "$NEW_COMMIT" 2>/dev/null)
+    # T177 Round 19 (R18-B1): every read below that previously trusted
+    # git's OWN internal commit/tree traversal (rev-list --parents,
+    # diff-tree, <ref>:<path> resolution, ls-tree) now goes through
+    # GIT_VERIFY instead, which independently re-hashes every commit/tree
+    # object it opens before trusting its content for this invariant
+    # (its own header comment has the full design + reproduced-live
+    # evidence of the gap this closes: a single tampered intermediate
+    # tree object made real `git diff-tree` silently report NO CHANGE for
+    # a path that genuinely changed between $LOCAL_HEAD and $NEW_COMMIT).
+    VFC_PARENTS=$(python3 "$GIT_VERIFY" parents "$WORKDIR" "$NEW_COMMIT" 2>&1)
+    VFC_PARENTS_RC=$?
+    [ "$VFC_PARENTS_RC" -eq 0 ] || refuse_final_commit "committed-parents-verification-failed: $VFC_PARENTS"
     [ "$VFC_PARENTS" = "$NEW_COMMIT $LOCAL_HEAD" ] || refuse_final_commit "parents-not-exactly-pre-migration-HEAD got=[${VFC_PARENTS#"$NEW_COMMIT"}] expected=[ $LOCAL_HEAD]"
-    VFC_PATHS=$(git -C "$WORKDIR" diff-tree -r --name-only --no-commit-id --no-renames "$LOCAL_HEAD" "$NEW_COMMIT" 2>/dev/null) \
-        || refuse_final_commit "committed-path-enumeration-failed"
+    VFC_PATHS=$(python3 "$GIT_VERIFY" diffnames "$WORKDIR" "$LOCAL_HEAD" "$NEW_COMMIT" 2>&1)
+    VFC_PATHS_RC=$?
+    [ "$VFC_PATHS_RC" -eq 0 ] || refuse_final_commit "committed-path-enumeration-failed: $VFC_PATHS"
     OLD_IFS=$IFS
     IFS='
 '
@@ -668,20 +1089,41 @@ verify_final_commit() {
         fi
     done
     IFS=$OLD_IFS
-    VFC_GM_OLD=$(git -C "$WORKDIR" rev-parse -q --verify "$LOCAL_HEAD:.gitmodules" 2>/dev/null)
-    VFC_GM_NEW=$(git -C "$WORKDIR" rev-parse -q --verify "$NEW_COMMIT:.gitmodules" 2>/dev/null)
-    if [ -z "$VFC_GM_OLD" ] || [ "$VFC_GM_OLD" != "$VFC_GM_NEW" ]; then
+    VFC_GM_OLD_LINE=$(python3 "$GIT_VERIFY" resolve "$WORKDIR" "$LOCAL_HEAD" .gitmodules 2>&1)
+    VFC_GM_OLD_RC=$?
+    [ "$VFC_GM_OLD_RC" -eq 0 ] || refuse_final_commit "committed-gitmodules-verification-failed: $VFC_GM_OLD_LINE"
+    VFC_GM_NEW_LINE=$(python3 "$GIT_VERIFY" resolve "$WORKDIR" "$NEW_COMMIT" .gitmodules 2>&1)
+    VFC_GM_NEW_RC=$?
+    [ "$VFC_GM_NEW_RC" -eq 0 ] || refuse_final_commit "committed-gitmodules-verification-failed: $VFC_GM_NEW_LINE"
+    VFC_GM_OLD=${VFC_GM_OLD_LINE#* }
+    VFC_GM_NEW=${VFC_GM_NEW_LINE#* }
+    if [ -z "$VFC_GM_OLD_LINE" ] || [ "$VFC_GM_OLD" != "$VFC_GM_NEW" ]; then
         refuse_final_commit "committed-gitmodules-blob-changed old=${VFC_GM_OLD:-unreadable} new=${VFC_GM_NEW:-absent}"
     fi
-    VFC_CONST=$(git -C "$WORKDIR" ls-tree "$NEW_COMMIT" constitution 2>/dev/null)
-    VFC_CONST_EXPECTED=$(printf '160000 commit %s\tconstitution' "$NEW_SHA")
-    [ "$VFC_CONST" = "$VFC_CONST_EXPECTED" ] || refuse_final_commit "committed-constitution-entry=[${VFC_CONST:-absent}] expected-target=$NEW_SHA"
+    VFC_CONST_LINE=$(python3 "$GIT_VERIFY" resolve "$WORKDIR" "$NEW_COMMIT" constitution 2>&1)
+    VFC_CONST_RC=$?
+    [ "$VFC_CONST_RC" -eq 0 ] || refuse_final_commit "committed-constitution-verification-failed: $VFC_CONST_LINE"
+    VFC_CONST_MODE=${VFC_CONST_LINE% *}
+    VFC_CONST_OID=${VFC_CONST_LINE#* }
+    if [ -z "$VFC_CONST_LINE" ] || [ "$VFC_CONST_MODE" != "160000" ] || [ "$VFC_CONST_OID" != "$NEW_SHA" ]; then
+        refuse_final_commit "committed-constitution-entry=[${VFC_CONST_LINE:-absent}] expected-target=$NEW_SHA"
+    fi
     VFC_RAW="$MIGRATE_SCRATCH/final_commit_diff.raw"
-    git -C "$WORKDIR" diff-tree -r --raw --no-abbrev -z --no-renames "$LOCAL_HEAD" "$NEW_COMMIT" >"$VFC_RAW" 2>/dev/null \
-        || refuse_final_commit "committed-raw-diff-failed"
-    VFC_GITLINK=$(scan_gitlinks_raw "$VFC_RAW" 2>/dev/null) || refuse_final_commit "committed-gitlink-scan-failed"
+    VFC_RAW_ERRFILE="$MIGRATE_SCRATCH/final_commit_diff.err"
+    python3 "$GIT_VERIFY" diff "$WORKDIR" "$LOCAL_HEAD" "$NEW_COMMIT" >"$VFC_RAW" 2>"$VFC_RAW_ERRFILE"
+    VFC_RAW_RC=$?
+    if [ "$VFC_RAW_RC" -ne 0 ]; then
+        # On failure GIT_VERIFY writes its one-line detail to ITS OWN
+        # stdout (redirected above into $VFC_RAW, never left mixed with a
+        # genuine binary diff stream since nothing is written there
+        # before the exception that produces it); $VFC_RAW_ERRFILE is the
+        # separate, ordinary stderr channel for anything else.
+        VFC_RAW_DETAIL=$(cat "$VFC_RAW" "$VFC_RAW_ERRFILE" 2>/dev/null)
+        refuse_final_commit "committed-raw-diff-verification-failed: ${VFC_RAW_DETAIL:-unknown}"
+    fi
+    VFC_GITLINK=$(scan_gitlinks_raw "$VFC_RAW" 2>/dev/null) || refuse_final_commit "${VFC_GITLINK:-committed-gitlink-scan-failed}"
     [ -z "$VFC_GITLINK" ] || refuse_final_commit "committed-$VFC_GITLINK"
-    VFC_SYMLINK=$(scan_symlinks_raw "$VFC_RAW" 2>/dev/null) || refuse_final_commit "committed-symlink-scan-failed"
+    VFC_SYMLINK=$(scan_symlinks_raw "$VFC_RAW" 2>/dev/null) || refuse_final_commit "${VFC_SYMLINK:-committed-symlink-scan-failed}"
     [ -z "$VFC_SYMLINK" ] || refuse_final_commit "committed-$VFC_SYMLINK"
 }
 
@@ -969,6 +1411,39 @@ fi
 # against, so seeding it is refused UNCONDITIONALLY (§11.4.101
 # conservative-safe default on an unresolvable trust signal), never
 # merely on the first out-of-scope path found.
+# T177 Round 19 (R18-B1): verified replacements for `git rev-parse -q
+# --verify <ref>:<path>` / `git ls-tree -r --name-only <commit>` / `git
+# diff --name-only <A> <B>` wherever the result feeds a CA-022 scope
+# decision below -- the SAME GIT_VERIFY walk verify_final_commit uses,
+# independently re-hashing every commit/tree object opened along the way
+# before its content is trusted (see GIT_VERIFY's own header comment for
+# the full design + reproduced-live evidence of the gap this closes).
+#
+# These three helpers deliberately do NOT call not_migrated themselves:
+# every one of them is invoked as `VAR=$(helper ...)` by its caller below
+# so its STDOUT can be captured, and a shell function's own `exit` (which
+# is exactly what not_migrated does, via write_out) inside a `$(...)`
+# command substitution only terminates that SUBSHELL -- never the whole
+# script. Each helper instead PRINTS GIT_VERIFY's raw output (the result
+# on success, its one-line integrity-failure detail on failure) and
+# RETURNS GIT_VERIFY's own exit status; the caller checks that status in
+# the TOP-LEVEL script flow (never itself inside another `$(...)`), where
+# calling not_migrated genuinely refuses the whole preflight.
+verified_resolve_one() {
+    # $1=commit $2=path
+    python3 "$GIT_VERIFY" resolve "$WORKDIR" "$1" "$2" 2>&1
+    return $?
+}
+verified_nametree() {
+    # $1=commit
+    python3 "$GIT_VERIFY" nametree "$WORKDIR" "$1" 2>&1
+    return $?
+}
+verified_diffnames() {
+    # $1=old-commit $2=new-commit
+    python3 "$GIT_VERIFY" diffnames "$WORKDIR" "$1" "$2" 2>&1
+    return $?
+}
 check_remote_scope() {
     # $1=remote name; $TREE_DIFF is set by the caller immediately before
     # this is invoked. Factored out of the single ancestor-case branch
@@ -983,8 +1458,37 @@ check_remote_scope() {
         ca022_post_hook_path_ok "$f" && continue
         TD_OK=0
         if [ -n "$UPSTREAM" ]; then
-            TD_LOCAL=$(git -C "$WORKDIR" rev-parse -q --verify "$LOCAL_HEAD:$f" 2>/dev/null)
-            TD_UPSTREAM=$(git -C "$WORKDIR" rev-parse -q --verify "$UPSTREAM:$f" 2>/dev/null)
+            TD_LOCAL_LINE=$(verified_resolve_one "$LOCAL_HEAD" "$f")
+            TD_LOCAL_RC=$?
+            if [ "$TD_LOCAL_RC" -ne 0 ]; then
+                IFS=$OLD_IFS
+                not_migrated "preflight" "divergent-branches" "remote-$r-content-verification-failed: $TD_LOCAL_LINE"
+            fi
+            # T177 Round 19 fix (own-defect, found while running the full
+            # regression suite): GIT_VERIFY identity-checks its OWN output
+            # against the EXACT id it was asked to read -- passing a REF
+            # NAME ($UPSTREAM, e.g. "origin/main") instead of a resolved
+            # SHA made every call here report a false MISMATCH (the
+            # commit's real hash can never equal the literal string
+            # "origin/main"). Ref resolution is explicitly OUT OF SCOPE
+            # for GIT_VERIFY (a ref is a mutable pointer, not a
+            # content-addressed object -- see its own header comment);
+            # $UPSTREAM_HEAD (already resolved via plain `rev-parse`
+            # above, before any write) is the correct SHA to pass.
+            TD_UPSTREAM_LINE=$(verified_resolve_one "$UPSTREAM_HEAD" "$f")
+            TD_UPSTREAM_RC=$?
+            if [ "$TD_UPSTREAM_RC" -ne 0 ]; then
+                IFS=$OLD_IFS
+                not_migrated "preflight" "divergent-branches" "remote-$r-content-verification-failed: $TD_UPSTREAM_LINE"
+            fi
+            # Each verified-resolve line is "<mode> <oid>" (empty if the
+            # path is genuinely absent at that commit); strip the mode to
+            # compare oids exactly like the original `rev-parse <ref>:<f>`
+            # byte-for-byte string compare -- including the ORIGINAL's own
+            # "both absent compares equal" case (a path deleted on both
+            # sides delivers nothing new, so it is NOT out-of-scope).
+            TD_LOCAL=${TD_LOCAL_LINE#* }
+            TD_UPSTREAM=${TD_UPSTREAM_LINE#* }
             [ "$TD_LOCAL" = "$TD_UPSTREAM" ] && TD_OK=1
         fi
         if [ "$TD_OK" -ne 1 ]; then
@@ -1042,8 +1546,17 @@ check_remote_commits() {
         not_migrated "preflight" "divergent-branches" "remote-$r-newly-delivered-commit-walk-failed"
     fi
     for c in $CRC_LIST; do
-        CRC_PATHS=$(git -C "$WORKDIR" diff-tree --root -r -c --name-only --no-commit-id --no-renames "$c" 2>/dev/null) \
-            || not_migrated "preflight" "divergent-branches" "remote-$r-newly-delivered-commit-$c-diff-failed"
+        # T177 Round 19 (R18-B1): verified replacement for `diff-tree
+        # --root -r -c --name-only` (the EXPLICIT example this round's
+        # mandate names for the per-commit walk) -- GIT_VERIFY re-derives
+        # the hash of every commit/tree object $c's own diff touches
+        # (this commit + ALL its parents) before the combined-diff path
+        # set is trusted; see its `cmd_diffcommit` docstring for the -c
+        # intersection semantics, confirmed empirically against real git.
+        CRC_PATHS=$(python3 "$GIT_VERIFY" diffcommit "$WORKDIR" "$c" 2>&1)
+        CRC_PATHS_RC=$?
+        [ "$CRC_PATHS_RC" -eq 0 ] \
+            || not_migrated "preflight" "divergent-branches" "remote-$r-newly-delivered-commit-$c-diff-verification-failed: $CRC_PATHS"
         OLD_IFS=$IFS
         IFS='
 '
@@ -1066,7 +1579,10 @@ for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
         if [ -z "$UPSTREAM" ]; then
             not_migrated "preflight" "divergent-branches" "remote-$r-has-no-$BRANCH-and-no-upstream-to-verify-seed-content-against"
         fi
-        TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
+        TREE_DIFF=$(verified_nametree "$LOCAL_HEAD")
+        TREE_DIFF_RC=$?
+        [ "$TREE_DIFF_RC" -eq 0 ] \
+            || not_migrated "preflight" "divergent-branches" "remote-$r-tree-enumeration-verification-failed: $TREE_DIFF"
         check_remote_scope "$r"
         check_remote_commits "$r" ""
         continue
@@ -1076,10 +1592,13 @@ for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
         # the remote's own current tip -- see the block comment above.
         MERGE_BASE=$(git -C "$WORKDIR" merge-base "$RREF" "$LOCAL_HEAD" 2>/dev/null)
         if [ -n "$MERGE_BASE" ]; then
-            TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$MERGE_BASE" "$LOCAL_HEAD" 2>/dev/null)
+            TREE_DIFF=$(verified_diffnames "$MERGE_BASE" "$LOCAL_HEAD")
         else
-            TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
+            TREE_DIFF=$(verified_nametree "$LOCAL_HEAD")
         fi
+        TREE_DIFF_RC=$?
+        [ "$TREE_DIFF_RC" -eq 0 ] \
+            || not_migrated "preflight" "divergent-branches" "remote-$r-tree-diff-verification-failed: $TREE_DIFF"
         check_remote_scope "$r"
         check_remote_commits "$r" "$RREF"
         continue
@@ -1087,7 +1606,22 @@ for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
     # Ancestor remote: an EMPTY tree diff no longer short-circuits the
     # remote (R14-I1) -- net-zero intermediate history is exactly the case
     # whose tree diff is empty, so the per-commit walk always runs.
-    TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$RREF" "$LOCAL_HEAD" 2>/dev/null)
+    # T177 Round 19 fix (own-defect, found while running the full
+    # regression suite): $RREF is a REF NAME ("refs/remotes/<r>/<branch>"),
+    # not a content-addressed object id -- GIT_VERIFY identity-checks its
+    # own output against the EXACT id requested, so passing the ref name
+    # directly made every call here report a false MISMATCH (see the
+    # identical fix + comment on the $UPSTREAM/$UPSTREAM_HEAD case in
+    # check_remote_scope above). Resolved to its SHA via plain `rev-parse`
+    # first (ref resolution is out of GIT_VERIFY's scope by design); this
+    # remote is already confirmed reachable (`rev-parse -q --verify`
+    # succeeded above) and its own ancestor, so the resolution here cannot
+    # itself be the genuinely-absent case.
+    RREF_SHA=$(git -C "$WORKDIR" rev-parse -q --verify "$RREF" 2>/dev/null)
+    TREE_DIFF=$(verified_diffnames "$RREF_SHA" "$LOCAL_HEAD")
+    TREE_DIFF_RC=$?
+    [ "$TREE_DIFF_RC" -eq 0 ] \
+        || not_migrated "preflight" "divergent-branches" "remote-$r-tree-diff-verification-failed: $TREE_DIFF"
     [ -z "$TREE_DIFF" ] || check_remote_scope "$r"
     check_remote_commits "$r" "$RREF"
 done
@@ -1262,12 +1796,17 @@ fi
 
 if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # CA-022 change scope: everything staged must be inside the allow-list.
+    # T177 Round 19 (M-1): this call site carried its OWN inline copy of
+    # the allow-list (missing `.mcp.json`/`skills/*`, both already in
+    # `ca022_post_hook_path_ok`'s own case arms) -- missed by Round 15's
+    # (R14-B1) de-duplication and Round 17's (R16-M2) follow-up sweep of
+    # check_remote_scope/check_remote_commits, because this one runs
+    # BEFORE either of those is even defined in the file and so was never
+    # inspected by that pass. Unified here: every consumer of the
+    # allow-list now calls the ONE shared definition.
     STAGED=$(git -C "$WORKDIR" diff --cached --name-only 2>/dev/null)
     for f in $STAGED; do
-        case "$f" in
-            constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*) : ;;
-            *) not_migrated_after_write "wiring" "out-of-scope-diff" "path=$f" ;;
-        esac
+        ca022_post_hook_path_ok "$f" || not_migrated_after_write "wiring" "out-of-scope-diff" "path=$f"
     done
 
     # --- Step 5: materialize the new content + run post_update_hook.sh /
@@ -1462,7 +2001,11 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     if [ "$SYMLINK_RC" -ne 0 ]; then
         # The scanner itself could not run: refuse rather than publish
         # content nobody inspected (§11.4.201 conservative-safe default).
-        not_migrated_after_write "wiring" "out-of-scope-diff" "symlink-scan-failed"
+        # T177 Round 19: a hash-mismatch is reported BY scan_symlinks_raw
+        # itself to its own stdout (captured above into $SYMLINK_VIOLATION
+        # regardless of its exit code) -- surface that specific detail
+        # here rather than the generic fallback whenever it is present.
+        not_migrated_after_write "wiring" "out-of-scope-diff" "${SYMLINK_VIOLATION:-symlink-scan-failed}"
     fi
     if [ -n "$SYMLINK_VIOLATION" ]; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "$SYMLINK_VIOLATION"
@@ -1525,7 +2068,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     GITLINK_VIOLATION=$(scan_gitlinks_raw "$SYMLINK_DIFF" 2>/dev/null)
     GITLINK_RC=$?
     if [ "$GITLINK_RC" -ne 0 ]; then
-        not_migrated_after_write "wiring" "out-of-scope-diff" "gitlink-scan-failed"
+        not_migrated_after_write "wiring" "out-of-scope-diff" "${GITLINK_VIOLATION:-gitlink-scan-failed}"
     fi
     if [ -n "$GITLINK_VIOLATION" ]; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "$GITLINK_VIOLATION"
