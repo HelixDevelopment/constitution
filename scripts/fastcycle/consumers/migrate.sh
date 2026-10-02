@@ -931,6 +931,9 @@ except Exception:
 # NEW_COMMIT`) -- both inputs share git's `--raw -z` record format. Each
 # reads the raw diff from the file named by $1; prints a violation line (or
 # nothing) and exits non-zero only when the scan itself could not run.
+# The embedded Python source below is intentionally single-quoted (it must
+# NOT be shell-expanded): it is raw Python, not an interpolated string.
+# shellcheck disable=SC2016
 scan_symlinks_raw() {
     python3 -c '
 import os, posixpath, subprocess, sys
