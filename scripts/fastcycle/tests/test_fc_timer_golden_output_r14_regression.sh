@@ -1,58 +1,41 @@
 #!/bin/bash
-# T048 round-14 independent review findings regression guard for
+# T048 round-14 independent review finding R14-I2 regression guard for
 # test_fc_timer_golden_output.sh (round-15 remediation).
-#
-# R14-I1 (Important, verbatim finding): round 13's exit-code elif
-# (_fc_registry_flip_ids()) answered "does ANY registered gate's own
-# recorded line genuinely differ between these two exact members" -- but
-# never checked that the registered flip(s) actually ACCOUNT FOR the full
-# $ERRORS delta, in magnitude OR direction. The round-14 reviewer's own
-# ADV1 fixture (a member carrying BOTH the registered flake AND a genuine,
-# unrelated OK/FAIL-style regression) produced a false overall PASS: ANY
-# registered-line difference, of ANY magnitude in EITHER direction,
-# unconditionally explained away the whole exit-code divergence.
 #
 # R14-I2 (Important, pre-existing, surfaced by this review): VERDICT_RE
 # never matched the ~640-per-real-run "<GATE-ID>: ... OK" / "... FAIL[:]"
 # direct-ERRORS-increment lines, nor the real "WARNING:" text log_warn()
 # prints (the old pattern's "WARN:" literal never occurs in the shipped
 # script). FR-002/T-A01's "verdict set is IDENTICAL" claim silently excluded
-# both shapes from the comparison.
+# both shapes from the comparison. Fix (round 15): VERDICT_RE now also
+# matches the real OK/FAIL-style shape (word-bounded, "... " + OK/FAIL) and
+# "WARNING:" -- a mechanism that is NOT part of the S11.4.250 heuristic
+# tower T048 round 21 removes (VERDICT_RE is the base verdict-line
+# EXTRACTION regex, used by every check in the golden test, not an
+# explain-away layer) -- so this coverage remains load-bearing and is kept.
 #
-# Fix (round 15): (R14-I2) VERDICT_RE now also matches the real OK/FAIL-
-# style shape (word-bounded, "... " + OK/FAIL) and "WARNING:". (R14-I1) the
-# exit-code elif reads the real "  Failed:       N" summary line from BOTH
-# raw members (_fc_failed_count()) and the registered gate(s)' own NET
-# failing-class delta (_fc_registry_failcount_delta()), and SKIPs as
-# registry-explained ONLY when the two are EXACTLY equal (same sign, same
-# magnitude) AND nonzero -- an unresolvable "Failed:" line, or any mismatch,
-# falls straight through to the existing hard FAIL.
+# T048 ROUND 21 (R20-I1, S11.4.124): R14-I1's own finding -- the
+# "registered gate's recorded line genuinely differs" exit-code elif and
+# its exact-accounting Failed:-N-delta fix -- is REMOVED along with the
+# rest of the registry-accounting cascade it belongs to (see the ROUND-21
+# ARCHITECTURE note in test_fc_timer_golden_output.sh). This file's own
+# ADV1/ADV1-ctl/ADV2/M-I1-delta cases, which tested ONLY that removed
+# mechanism, are removed with it, in this same commit, citing this note
+# (git history: `git log -- scripts/fastcycle/tests/
+# test_fc_timer_golden_output_r14_regression.sh` shows their original
+# round-14/15 landing for anyone auditing the removal). What remains below
+# (ADV3/ADV4/M-I2-verdictre) is R14-I2's own, independent, still-relevant
+# coverage of VERDICT_RE's extraction correctness.
 #
 # HOW THIS FILE TESTS: every case runs the REAL harness (with a stand-in
 # pre-build, lib/golden_triplet_fixture.sh) and the REAL golden test end to
-# end, exactly like the r4/r7/r8/r10/r12 regression files. Mutations are
+# end, exactly like the r5/r7/r8/r10 regression files. Mutations are
 # applied to a COPY of the real golden test (never the live file) via the
 # SAME content-anchored mutate()/mrun() pattern those files use, with the
 # exact anchor text extracted at RUN TIME from the real file via `grep -F`
 # (never hand-transcribed).
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
-# T048 round 19 (R18-I2): ROOT MUST honour a caller-supplied
-# FC_TIMER_GOLDEN_ROOT override, falling back to the test-file-relative
-# parent-repo path ONLY when none is supplied. Before round 19 this line
-# UNCONDITIONALLY recomputed ROOT from "$HERE/../../../..", and every mrun()
-# below then passed FC_TIMER_GOLDEN_ROOT=$ROOT explicitly to the mutated
-# golden copy -- silently OVERWRITING any caller override. Run outside the
-# real parent tree (a `git archive` extraction / a bare constitution
-# worktree), that derived ROOT has no docs/requests/ defect docs, so the
-# known-flaky registry's own defect_doc validation refused EVERY row and
-# every registry-dependent mutant reported "registry delta=0" -- a
-# location-dependent false FAIL (S11.4.201(1)) that had nothing to do with
-# the code under test. The non-mutant gt_golden() runs were never affected
-# (they inherit the caller's environment unchanged), which is exactly why
-# only the mrun()-based cases (M-I1b here in r12, M-I1-delta in r14,
-# M-I1/M-M3 in r16) ever showed it.
-ROOT="${FC_TIMER_GOLDEN_ROOT:-$(cd "$HERE/../../../.." && pwd)}"
 # (not a shellcheck directive -- plain comment) precheck's shellcheck invocation runs
 # without -x; this harness sources its sibling lib file via a runtime-computed $HERE
 # path shellcheck cannot statically follow without -x regardless of the source= line
@@ -75,20 +58,6 @@ for f in "$GT_HARNESS" "$REAL_GOLDEN"; do
   # shellcheck disable=SC2015
   [ -f "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
 done
-
-# T048 round 19 (R18-I2) control needle: every defect_doc the REAL known-
-# flaky registry names MUST resolve under the ROOT this file will hand to
-# the golden test. Without this, an unresolvable ROOT shows up only
-# indirectly -- as a mysterious "registry delta=0" in some LATER mutant --
-# instead of being named here, at its actual cause.
-while IFS=$'\t' read -r _gid _reason _doc _exp; do
-  [ "$_gid" = gate_id ] && continue
-  [ -n "$_gid" ] || continue
-  # shellcheck disable=SC2015
-  [ -n "$_doc" ] && [ -f "$ROOT/$_doc" ] && ok "control needle: registry row $_gid defect_doc resolves under ROOT=$ROOT" \
-    || bad "control needle: registry row $_gid defect_doc '$_doc' does NOT resolve under ROOT=$ROOT -- set FC_TIMER_GOLDEN_ROOT to a tree containing it (every registry-dependent case below would otherwise report a location artifact, not a real result)"
-done < "$HERE/known_flaky_gates.tsv"
-
 
 # triplet NAME SEQ FC0a-text FC0b-text FC1-text -- real harness capture +
 # promotion. SEQ is a small distinguishing digit so each case's run_id is
@@ -119,8 +88,6 @@ triplet() {
 # line) so each fixture's own "  Failed:       N" value is simple to
 # compute by inspection.
 CBASE='  ✓ CM-ONE: clean baseline gate'
-SPK_OK='  CM-SPK512-BRIDGE-SECLABEL-SHELL: SPK-512 toggle text...   ✓ ok'
-SPK_BAD='  CM-SPK512-BRIDGE-SECLABEL-SHELL: SPK-512 toggle text...   ✗ ERROR: broken'
 # Real OK/FAIL-style shape (R14-I2): every echo -n check-description prompt
 # in the real script ends in "... "; the verdict echo that follows prints
 # immediately after with no intervening output, so the captured line is
@@ -135,95 +102,6 @@ OKSTYLE_BAD='  CM-OKSTYLE: genuine unrelated OK/FAIL-style gate...   FAIL: genui
 # WARN:" accidentally contained the OLD pattern's "WARN:" literal, making
 # the mutation below falsely appear to leave this case unaffected).
 WARNSTYLE_FC1_ONLY='  ⚠ WARNING: CM-ADV-FLAGGED: appears only in FC1, never in FC0a/FC0b'
-# An unrelated, unregistered ✗ ERROR: gate for the direction-mismatch case.
-UNREL_BAD='  CM-ADV2-UNREL: genuinely unrelated new failure...   ✗ ERROR: new regression'
-GOK='  ✓ ALL MANDATORY CHECKS PASSED'
-GFAIL='  ✗ PRE-BUILD VERIFICATION FAILED'
-FAILED0='  Failed:       0'
-FAILED1='  Failed:       1'
-FAILED2='  Failed:       2'
-
-# =============================================================================
-# R14-I1: exact-accounting exit-code explanation.
-# =============================================================================
-echo "=== (ADV1) R14-I1 exact repro (reviewer's own fixture): a registered flake AND a genuine, unrelated OK/FAIL-style regression BOTH confined to FC1 -- overall FAIL required, not the pre-round-15 false PASS ==="
-triplet ADV1 1 "$CBASE
-$SPK_OK
-$OKSTYLE_OK
-$FAILED0
-$GOK" "$CBASE
-$SPK_OK
-$OKSTYLE_OK
-$FAILED0
-$GOK" "$CBASE
-$SPK_BAD
-$OKSTYLE_BAD
-$FAILED2
-$GFAIL" "0 0 1"
-gt_golden "$TMP/adv1.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_ADV1"; ADV1_RC=$?
-if [ "$ADV1_RC" = 1 ] \
-   && grep -qE '^FAIL\[[0-9]+\]: FR-002 commit result:.*MISMATCH, not explained' "$TMP/adv1.out" \
-   && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/adv1.out" \
-   && has "$TMP/adv1.out" "CM-OKSTYLE"; then
-  ok "(ADV1) overall FAIL (rc=1): the registered flake's delta (1) does NOT fully account for the real Failed:-delta (2), so the exit-code check correctly hard-FAILs, AND the now-visible OK/FAIL-style regression is independently caught by the verdict-set check -- the round-14 false PASS is closed"
-else
-  bad "(ADV1) BLIND: rc=$ADV1_RC; $(grep -E 'commit result|FR-002/T-A01' "$TMP/adv1.out" | head -5)"
-fi
-
-echo "=== (ADV1-ctl) non-regression control: the SAME genuine OK/FAIL-style regression with NO registered flake present at all -- must ALSO FAIL, unaffected by either new mechanism ==="
-triplet ADV1ctl 2 "$CBASE
-$SPK_OK
-$OKSTYLE_OK
-$FAILED0
-$GOK" "$CBASE
-$SPK_OK
-$OKSTYLE_OK
-$FAILED0
-$GOK" "$CBASE
-$SPK_OK
-$OKSTYLE_BAD
-$FAILED1
-$GFAIL" "0 0 1"
-gt_golden "$TMP/adv1ctl.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_ADV1ctl"; ADV1CTL_RC=$?
-if [ "$ADV1CTL_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/adv1ctl.out" && has "$TMP/adv1ctl.out" "CM-OKSTYLE"; then
-  ok "(ADV1-ctl) overall FAIL (rc=1): a genuine regression with no registry involvement at all is caught exactly as before -- the S11.4.201(1) false-positive guard"
-else
-  bad "(ADV1-ctl) BLIND: rc=$ADV1CTL_RC; $(grep -E 'commit result|FR-002/T-A01' "$TMP/adv1ctl.out" | head -5)"
-fi
-
-echo "=== (ADV2) R14-I1 direction/magnitude probe (reviewer's own fixture, made internally coherent T048 round 16 R16-M1: FC0a/FC0b now exit 1 to match their own 'Failed: 1' line, never 0): the registered gate SELF-HEALS (FAIL->OK, delta=-1) while an UNRELATED new failure appears in the SAME member (delta=+1) -- net Failed: delta is 0, so NOTHING can explain a genuine exit divergence; must still be overall rejected ==="
-triplet ADV2 3 "$CBASE
-$SPK_BAD
-$FAILED1" "$CBASE
-$SPK_BAD
-$FAILED1" "$CBASE
-$SPK_OK
-$UNREL_BAD
-$FAILED1" "1 1 1"
-# T048 round 16 (R16-M1 live finding): the round-15 fixture set ALL THREE
-# exits to 0/0/1 even though EVERY member's own "Failed: 1" line requires
-# exit 1 (pre_build_verification.sh exits 0 iff Failed==0) -- FC0a and
-# FC0b were internally INCONSISTENT. With consistent exits (1/1/1, since
-# FC1's own self-heal+new-failure net Failed count is ALSO 1), _ex0 and
-# _ex1 are now EQUAL (both 1): the exit-code check [12] correctly PASSES
-# trivially (there is no genuine exit DIVERGENCE to explain -- consistent
-# with this fixture's own point, since the net Failed: delta really is 0
-# and nothing differs at the exit-code level either); the SEPARATE
-# verdict-set check [13] is what still catches CM-ADV2-UNREL (the real,
-# unrelated new failure) once the known-flaky filter removes the SPK
-# lines from both sides, which is what keeps the OVERALL result correctly
-# rejected -- re-verified below to still demonstrate this fixture's
-# original point (a registered self-heal masking an unrelated new
-# failure is correctly rejected), now via the check that actually sees it.
-gt_golden "$TMP/adv2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_ADV2"; ADV2_RC=$?
-if [ "$ADV2_RC" = 1 ] \
-   && grep -qE '^PASS\[[0-9]+\]: FR-002 commit result: with-timers exit status \(1\) equals without-timers exit status \(1\)' "$TMP/adv2.out" \
-   && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/adv2.out" \
-   && has "$TMP/adv2.out" "CM-ADV2-UNREL"; then
-  ok "(ADV2) overall rejected (rc=1): with internally-consistent inputs there is no genuine exit-code divergence left to explain (check [exit] correctly PASSes trivially, exit 1 == exit 1), but the SEPARATE verdict-set check still catches the unrelated new failure (CM-ADV2-UNREL) once the known-flaky filter removes the self-healed SPK lines -- a registered gate's self-heal masking an unrelated new failure is still never treated as making the run clean"
-else
-  bad "(ADV2) BLIND: rc=$ADV2_RC; $(grep -E 'commit result|FR-002/T-A01' "$TMP/adv2.out" | head -5)"
-fi
 
 mutate() {
   local name="$1" anchor="$2" repl="$3" hits
@@ -245,37 +123,7 @@ s=open(sys.argv[1]).read(); s=s.replace(os.environ["ANCHOR"],os.environ["REPL"],
 # shellcheck disable=SC2086
 mrun() { local name="$1" envassigns="$2" outfile="$3"; GT_GOLDEN="$TMP/golden_$name.sh" gt_golden "$outfile" $envassigns; }
 
-echo "=== (M-I1-delta) guard-viability: drop the exact-accounting delta check, reverting to round-13's any-registered-line-differs heuristic -- (ADV1) must reproduce the round-14 false PASS ==="
-# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
-# shellcheck disable=SC2016
-ANCHOR_I1='  elif [ "$_FC_EXIT_EXPLAINED" = 1 ]; then'
-# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
-# shellcheck disable=SC2016
-REPL_I1='  elif [ -n "$_FC_EXIT_FLIP_IDS" ]; then  # MUTANT: R14-I1 exact-accounting dropped, reverted to any-flip-suffices'
-if mutate I1delta "$ANCHOR_I1" "$REPL_I1"; then
-  mrun I1delta "FC_TIMER_GOLDEN_EVIDENCE_DIR=$TMP/ev_ADV1 FC_TIMER_GOLDEN_ROOT=$ROOT FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=$HERE/known_flaky_gates.tsv" "$TMP/mi1delta.out"
-  MI1D_RC=$?
-  # (ADV1) ALSO carries a genuine, unrelated OK/FAIL-style regression that
-  # the SEPARATE, I2-fixed verdict-set check (check [13]) catches
-  # independently of this mutation -- exactly the round-12 "not a blanket
-  # loophole" design (A2mix) this round's fix preserves. So the OVERALL rc
-  # does NOT flip back to 0 even when the exit-code elif alone is reverted
-  # to the vulnerable any-flip-suffices form; the mutation's load-bearing
-  # effect is checked at the SPECIFIC check [12] level instead -- it must
-  # WRONGLY become a SKIP (registry-"explained") rather than the correct
-  # hard FAIL.
-  if [ "$MI1D_RC" = 1 ] && grep -qE '^SKIP\[[0-9]+\]: FR-002 commit result' "$TMP/mi1delta.out"; then
-    ok "(M-I1-delta) without the exact-accounting delta check, check [exit] on (ADV1) WRONGLY flips to SKIP (registry-'explained') even though the real Failed:-delta (2) does not match the registered gate's own delta (1) -- the delta check is genuinely load-bearing (overall rc stays 1 only because the SEPARATE, I2-fixed verdict-set check independently catches the same regression, confirming this is the SAME non-blanket-loophole design as A2mix, not a coincidence hiding a blind mutation)"
-  else
-    bad "(M-I1-delta) BLIND: rc=$MI1D_RC; $(grep -E 'commit result|FR-002/T-A01' "$TMP/mi1delta.out" | head -5)"
-  fi
-else
-  bad "(M-I1-delta) could not construct the mutation (anchor not found)"
-fi
 
-# =============================================================================
-# R14-I2: OK/FAIL-style + WARNING: verdict-set blind spot.
-# =============================================================================
 echo "=== (ADV3) R14-I2 exact repro: an OK/FAIL-style gate flips OK->FAIL in FC1 only, exit codes held EQUAL (isolating the verdict-SET check from the exit-code check) -- check [verdict-set] must FAIL, not silently PASS ==="
 triplet ADV3 4 "$CBASE
 $OKSTYLE_OK" "$CBASE
@@ -324,5 +172,5 @@ else
 fi
 
 echo
-if [ "$fail" = 0 ]; then echo "=== T048 ROUND-14 FINDINGS REGRESSION GUARD (R14-I1/I2): ALL CHECKS PASS ==="; else echo "=== T048 ROUND-14 FINDINGS REGRESSION GUARD (R14-I1/I2): FAILURES ABOVE ==="; fi
+if [ "$fail" = 0 ]; then echo "=== T048 ROUND-14 FINDINGS REGRESSION GUARD (R14-I2): ALL CHECKS PASS ==="; else echo "=== T048 ROUND-14 FINDINGS REGRESSION GUARD (R14-I2): FAILURES ABOVE ==="; fi
 exit "$fail"

@@ -6,8 +6,18 @@
 # non-expanding). Each instance reviewed; all genuinely intentional.
 # shellcheck disable=SC2015,SC2016,SC1091
 # T048 round-7 regression guard for test_fc_timer_golden_output.sh: the
-# round-6 independent review's R6-I1, R6-I3, R6-M1..M4 and the R6-B1 isolation
+# round-6 independent review's R6-I1, R6-I3, R6-M1..M3 and the R6-B1 isolation
 # refusal. (spec 004-fast-dev-cycles T015/T048.)
+#
+# T048 ROUND 21 (R20-I1, S11.4.124): R6-M4 (the noise-floor multiset
+# classifier, _fc_classify_against()) is REMOVED along with the rest of the
+# noise-floor/registry-accounting cascade it belongs to -- see the
+# ROUND-21 ARCHITECTURE note in test_fc_timer_golden_output.sh. This file's
+# own (R9)/(M-M4) cases, which tested ONLY that removed mechanism, are
+# removed with it, in this same commit. (M-M2a)/(M-M2a2) are similarly
+# trimmed: the round-19 member-internal-consistency rule they tested as a
+# SECOND independent catch is also removed; (M-M2a) is rewritten to prove
+# validate_triplet()'s own exit-integer check is now the SOLE defense.
 #
 # HOW THIS FILE TESTS: like the round-5 guard, every case runs the REAL harness
 # (capture_fc_timer_triplet.sh, stand-in pre-build from
@@ -32,8 +42,6 @@
 #       manifest window -> FAIL.
 #  (R8) R6-M3: all three TSV paths identical / not bound to run+member -> FAIL;
 #       a TSV deleted after capture -> PASS that says it was NOT re-counted.
-#  (R9) R6-M4: multiset noise classification (a line removed twice on the
-#       real side, once in the noise floor -> 1 explained + 1 not explained).
 #  (R10) R6-B1: a CONCURRENT triplet without tmpdir_isolation=per-member is
 #       refused (SKIP); a SEQUENTIAL one without the key is still compared.
 #  (R10c) T048 round 8, R8-M1: a CONCURRENT triplet whose tmpdir_isolation
@@ -173,16 +181,6 @@ gt_golden "$TMP/r8b.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/r8b"; rc=$?
 [ "$rc" = 0 ] && has "$TMP/r8b.out" "no longer on disk, NOT re-counted" && ! has "$TMP/r8b.out" "re-counted on disk" \
   && ok "(R8b) a deleted TSV is reported manifest-recorded, NOT re-counted" || bad "(R8b) rc=$rc; $(grep -E 'provenance' "$TMP/r8b.out" | head -2)"
 
-echo "=== (R9) R6-M4: noise classification is a MULTISET match ==="
-R9F="$TMP/fix_r9"
-printf '  ✓ CM-A: dup\n  ✓ CM-A: dup\n  ✓ CM-B: keep\n' | gt_member_text "$R9F" FC0a
-printf '  ✓ CM-A: dup\n  ✓ CM-B: keep\n' | gt_member_text "$R9F" FC0b
-printf '  ✓ CM-B: keep\n' | gt_member_text "$R9F" FC1
-capture "$TMP/r9" "$R9F" 20261001T150000Z
-gt_golden "$TMP/r9.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/r9"; rc=$?
-[ "$rc" = 1 ] && has "$TMP/r9.out" "NOISE-FLOOR: changed=2 noise_explained=1 not_explained=1" \
-  && ok "(R9) a line removed twice vs once in the noise floor counts 1 explained + 1 not" || bad "(R9) rc=$rc; $(grep NOISE-FLOOR "$TMP/r9.out")"
-
 echo "=== (R10) R6-B1: concurrent triplets need per-member TMPDIR isolation ==="
 capture "$TMP/r10a" "$SAME" 20261001T160000Z
 sed -i '/^tmpdir_isolation=/d' "$TMP/r10a/t_20261001T160000Z.triplet"
@@ -237,37 +235,23 @@ if mutate M1 'if [ "$span" -gt "$MAX_WINDOW_S" ]; then' 'if [ "$span" -ge "$MAX_
 fi
 
 echo "=== (M-M2a) member exit integer check removed ==="
-# T048 round 19 (R18-I1): since round 19 a killed member (exit=MISSING) is
-# caught by TWO independent checks -- this triplet-validation integer check
-# AND the now-unconditional member-internal consistency rule 1 ("exit code
-# MUST be 0 or 1") in section (d). Removing only the integer check
-# therefore no longer flips the overall result; what it MUST still do is
-# remove this check's OWN refusal (proving it is load-bearing for its own
-# verdict), with the round-19 rule visibly taking over. (M-M2a2) then
-# removes BOTH and proves the killed member passes -- so neither check is
-# decoration.
+# T048 round 21 (R20-I1/S11.4.124): the round-19 member-internal
+# consistency rule this mutation used to prove as a SECOND, independent
+# catch (_fc_check_member_consistency(), section (d)) is REMOVED along
+# with the rest of the registry-accounting/consistency cascade -- see the
+# ROUND-21 ARCHITECTURE note in test_fc_timer_golden_output.sh. The
+# validate_triplet() exit-integer check this mutation targets is NOT
+# removed (it is part of triplet VALIDATION, not the removed FR-002
+# comparison cascade), but it is now the SOLE defense against a killed
+# member (exit=MISSING) reaching the comparison at all -- so removing it
+# must now flip (R7a)'s overall result to PASS (rc=0), not merely drop its
+# own named refusal line while a backstop catches it.
 if mutate M2a "if ! printf '%s' \"\$ex\" | grep -qE '^[0-9]+\$'; then" 'if false; then'; then
   mrun M2a "$TMP/mM2a.out" "$TMP/r7a"; rc=$?
-  if [ "$rc" = 1 ] && ! has "$TMP/mM2a.out" "member FC0b recorded exit='MISSING'" \
-     && grep -qE "^FAIL\[[0-9]+\]: T048 round-16 member-internal consistency \(FC0b\): exit code \(MISSING\) is neither 0 nor 1" "$TMP/mM2a.out"; then
-    ok "(M-M2a) without the integer check its own refusal disappears, and the round-19 consistency rule 1 independently catches the killed member -- (R7a)'s integer check is load-bearing for its own verdict"
+  if [ "$rc" = 0 ] && ! has "$TMP/mM2a.out" "member FC0b recorded exit='MISSING'"; then
+    ok "(M-M2a) without the integer check, the killed member (exit=MISSING) WRONGLY passes (rc=0) -- validate_triplet()'s exit-integer check is the SOLE, genuinely load-bearing defense for (R7a) in the round-21 architecture"
   else
     bad "(M-M2a) BLIND: rc=$rc; $(grep -E 'MISSING|FAIL' "$TMP/mM2a.out" | head -3)"
-  fi
-  CONS_ANCHOR='    local label="$1" ex="$2" failed="$3"'
-  if [ "$(grep -cF -- "$CONS_ANCHOR" "$TMP/golden_M2a.sh")" = 1 ]; then
-    ANCHOR="$CONS_ANCHOR" python3 -c '
-import os,sys
-a=os.environ["ANCHOR"]; s=open(sys.argv[1]).read(); s=s.replace(a, a+"\n    return 0  # MUTANT: round-19 consistency check neutralised", 1); open(sys.argv[2],"w").write(s)
-' "$TMP/golden_M2a.sh" "$TMP/golden_M2a2.sh"
-    mrun M2a2 "$TMP/mM2a2.out" "$TMP/r7a"; rc=$?
-    if [ "$rc" = 0 ]; then
-      ok "(M-M2a2) with BOTH the integer check and the round-19 consistency check removed, the killed member passes (rc=0) -- the two checks are the only things catching it"
-    else
-      bad "(M-M2a2) BLIND: rc=$rc"
-    fi
-  else
-    bad "(M-M2a2) control needle: consistency anchor not found exactly once"
   fi
 fi
 
@@ -294,12 +278,6 @@ echo "=== (M-M3) TSV path binding removed ==="
 if mutate M3 '      */"${run_id}_${prefix}_${m}"/prebuild_sections.tsv) : ;;' '      *) : ;;'; then
   mrun M3 "$TMP/mM3.out" "$TMP/r8a"; rc=$?
   [ "$rc" = 0 ] && ok "(M-M3) without the binding the shared /nonexistent path passes (rc=0) -- (R8a) is load-bearing" || bad "(M-M3) BLIND: rc=$rc"
-fi
-
-echo "=== (M-M4) multiset match degraded to a set match ==="
-if mutate M4 '{ if (n[$0] > 0) { n[$0]--; e++ } else u++ }' '{ if (n[$0] > 0) { e++ } else u++ }'; then
-  mrun M4 "$TMP/mM4.out" "$TMP/r9"
-  has "$TMP/mM4.out" "noise_explained=2 not_explained=0" && ok "(M-M4) the set-based mutant over-explains (2/0) -- (R9) is load-bearing" || bad "(M-M4) BLIND: $(grep NOISE-FLOOR "$TMP/mM4.out")"
 fi
 
 echo "=== (M-iso) isolation refusal removed ==="
