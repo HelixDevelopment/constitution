@@ -41,6 +41,7 @@ import json
 import difflib
 import os
 import re
+import shutil
 import signal
 import stat
 import subprocess
@@ -97,6 +98,40 @@ SCHEMA_RE = re.compile(r"[A-Za-z0-9._-]+/v[0-9]+")
 SAFE_EXCEPTIONS = (TypeError, ValueError, OSError, OverflowError)
 
 
+def safe_killpg(pgid, sig):
+    """Section 11.4.263 MANDATORY guard: NEVER signal pgid <= 1
+    (killpg(1, sig) == kill(-1, sig) == signal every process in the
+    caller's own session -- the forced-logout class of incident that
+    anchor exists to prevent). Returns True if the signal was actually
+    sent, False if refused or the process group was already gone.
+
+    T085 Round 3 R3-I1: the ONE shared primitive every "kill a traced/
+    gated subprocess's WHOLE process group" call site in this tool
+    family now uses -- originally authored in
+    gates/lib/io_trace_build_map.py (T085 Round 2 B-R2-3), promoted here
+    (section 11.4.227 reuse-not-reinvention) when
+    gates/batch_bisect.py's run_gate_on_tree() needed the IDENTICAL
+    guard for the SAME class of fix (a gate script that backgrounds a
+    detached grandchild must never be allowed to leave it running after
+    the gate's own run is considered complete, on EITHER a timeout OR a
+    normal return). io_trace_build_map.py keeps its own
+    `_safe_killpg` name as a thin alias to this function (so its
+    existing §11.4.263 unit test, which calls `mod._safe_killpg(...)`
+    directly by that name, is unaffected) -- this is the single
+    underlying implementation both now share."""
+    if not isinstance(pgid, int) or pgid <= 1:
+        sys.stderr.write(
+            "fc_common: REFUSING os.killpg(pgid=%r) -- pgid must be an "
+            "int > 1 (section 11.4.263)\n" % (pgid,)
+        )
+        return False
+    try:
+        os.killpg(pgid, sig)
+        return True
+    except ProcessLookupError:
+        return False
+
+
 def is_strict_nonneg_int(v):
     """True iff `v` is a genuine, non-negative JSON integer.
 
@@ -129,6 +164,125 @@ def canon(obj):
 def body_hash_of(doc):
     body = {k: v for k, v in doc.items() if k not in EXCLUDED}
     return hashlib.sha256(canon(body).encode("utf-8")).hexdigest()
+
+
+# T085 Round 3 R3-B3: a process-wide monotonic counter so two
+# atomic_backup_and_replace() calls landing within the SAME wall-clock
+# millisecond (possible on a fast host / in a tight test loop) still get
+# distinct backup_path names -- timestamp+pid alone is not guaranteed
+# unique across rapid successive calls from one process.
+_ATOMIC_BACKUP_COUNTER = 0
+
+
+def atomic_backup_and_replace(target_path, new_text, backup_tag="bak"):
+    """The ONE shared primitive, for every "hardlink the pre-op bytes,
+    then atomically replace the live file's content" site in this tool
+    family, that replaces the hardlink-then-truncate-in-place anti-
+    pattern (`os.link(target, backup)` followed by `open(target, "w")`)
+    which silently DESTROYS the backup it just took: `os.link()` makes
+    `backup` and `target` the SAME inode, so writing THROUGH `target` in
+    place rewrites the bytes `backup` also sees. Confirmed as a real,
+    reproduced bug at TWO independent call sites before this helper
+    existed:
+      - constitution/scripts/fastcycle/gates/batch_bisect.py's
+        `cmd_wip_caps()` --apply path (T085 Round 2 B-R2-5, fixed by
+        hand with the SAME write-temp-then-os.replace() pattern this
+        function now generalises).
+      - constitution/scripts/fastcycle/gates/lib/backstop_compare.py's
+        `apply_force_full()` (T085 Round 3 R3-B3: reproduced live on a
+        drifting gate map -- the map and its `.bak-*` shared one inode,
+        and the "backup" held the POST-write content, the pre-op bytes
+        gone -- an un-fixed sibling of B-R2-5 in a file the Round 2
+        remediation itself had touched, in-scope, and never searched
+        for this exact pattern in).
+    A full repository search (`grep -rn "os\\.link(" --include=*.py`,
+    T085 Round 3) confirmed these were the ONLY two first-party call
+    sites of this anti-pattern anywhere in this tree; both now route
+    through this ONE function so the bug class cannot recur a third
+    time in a third call site (section 11.4.227 reuse-not-reinvention;
+    section 11.4.250 heuristic-tower -- one shared primitive, not two
+    independently-maintained hand-fixes that can drift apart again).
+
+    Guarantees:
+      1. `backup_path`'s bytes are -- and STAY -- `target_path`'s
+         content EXACTLY as it was immediately before this call (never
+         an empty/truncated/new-content copy): achieved by NEVER
+         truncating `target_path` (or its resolved real path, see (4))
+         in place. The new content always lands in a FRESH temp file in
+         the SAME directory (`tempfile.mkstemp()`, so `os.replace()`
+         stays on one filesystem and is genuinely atomic), which is
+         then `os.replace()`'d over the live path -- the hardlinked
+         `backup_path` keeps pointing at the OLD inode, completely
+         untouched by that replace.
+      2. `backup_path` is UNIQUE per call (millisecond timestamp + pid +
+         a monotonic in-process counter) -- a SECOND call against the
+         SAME `target_path` (e.g. a second `--apply` run) NEVER collides
+         with, and is never silently skipped in favour of, a prior
+         call's backup path (the `batch_bisect.py` pre-fix behaviour:
+         a fixed, non-unique backup filename made `os.link()` raise
+         `FileExistsError` on the second run, which was then silently
+         swallowed -- the SECOND run's pre-op bytes were never captured
+         at all, while the report still named the stale first-run
+         `backup_path` as if it covered them).
+      3. `target_path`'s ORIGINAL mode bits are preserved on the
+         replacement file -- `tempfile.mkstemp()` defaults to mode
+         0600, so without this, every apply would silently TIGHTEN
+         `target_path`'s permissions (e.g. 0644 -> 0600) as a side
+         effect of nothing but taking a backup.
+      4. If `target_path` is itself a SYMLINK, the write targets the
+         symlink's RESOLVED real path instead of the symlink itself --
+         `target_path` stays a symlink pointing at the (now-updated)
+         real file, rather than being silently replaced by a plain
+         regular file (what a bare `os.replace()` on a symlink path
+         would do: replace the symlink entry itself, breaking whatever
+         it was intentionally pointing at).
+      5. Falls back to a real byte-for-byte copy (`shutil.copy2`) for
+         the backup when hardlinking is unsupported (e.g. the backup
+         would land on a different filesystem) -- the existing
+         documented section 9.2 fallback, unchanged by this helper.
+
+    Returns `backup_path`. Raises `OSError` on a genuine I/O failure --
+    this function never silently swallows a write failure; the fresh
+    temp file is removed on that path so no stray `.atomic_backup_write.*`
+    file is left behind."""
+    global _ATOMIC_BACKUP_COUNTER
+
+    real_target = os.path.realpath(target_path) if os.path.islink(target_path) else target_path
+    out_dir = os.path.dirname(os.path.abspath(real_target)) or "."
+
+    _ATOMIC_BACKUP_COUNTER += 1
+    backup_path = "%s.%s-%d-%d-%d" % (
+        real_target,
+        backup_tag,
+        int(time.time() * 1000),
+        os.getpid(),
+        _ATOMIC_BACKUP_COUNTER,
+    )
+    try:
+        os.link(real_target, backup_path)
+    except OSError:
+        shutil.copy2(real_target, backup_path)
+
+    try:
+        orig_mode = stat.S_IMODE(os.stat(real_target).st_mode)
+    except OSError:
+        orig_mode = None
+
+    fd, tmp_path = tempfile.mkstemp(dir=out_dir, prefix=".atomic_backup_write.")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(new_text)
+        if orig_mode is not None:
+            os.chmod(tmp_path, orig_mode)
+        os.replace(tmp_path, real_target)
+    except OSError:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+    return backup_path
 
 
 def _nofollow_opener(path, flags):
