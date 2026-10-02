@@ -2258,4 +2258,99 @@ else
   not_ok "paired mutation (I6-2): mutation anchor text not found -- source moved: $(cat "$TMP/mutant_r6m2.err")"
 fi
 
+
+# --- rv_r23_filters: T177 Round 23 (independent T177 Round 22 review, R22-B1/B2) --
+# `--neutralize-repo-filters` (opt-in; migrate.sh passes it to both step-9 verifications). A clean
+# driver fires on this tool's OWN recursive `git status` reads, and git's per-submodule status
+# recursion reaches drivers defined in a SUBMODULE's own config -- the module header's disclosed
+# boundary. Fixture: parent + submodule; the submodule carries three hostile CLEAN drivers, one per
+# config source `git config --local` alone cannot see all of: plain local, include.path, --worktree.
+# Every driver appends its tag to a marker file and otherwise acts as an identity filter. A clean
+# driver runs only for a stat-dirty entry (measured), so each run first backdates the files.
+R23=$TMP/rv_r23; rm -rf "$R23"; mkdir -p "$R23"
+R23M=$R23/marker
+# The generated driver script's own \$1 (its tag argument) is deliberately literal here.
+# shellcheck disable=SC2016
+printf '#!/bin/sh\necho "$1" >> "%s"\ncat\n' "$R23M" >"$R23/drv.sh"; chmod +x "$R23/drv.sh"
+git init -q -b main --bare "$R23/subr.git"; git init -q -b main --bare "$R23/parr.git"
+git init -q -b main "$R23/sub"
+( cd "$R23/sub" && git config user.email a@a && git config user.name a \
+  && echo v1 >f.txt && echo g >g.txt && echo h >h.txt && git add . && git commit -qm 1 && git push -q "$R23/subr.git" main )
+git init -q -b main "$R23/par"
+( cd "$R23/par" && git config user.email a@a && git config user.name a \
+  && git -c protocol.file.allow=always submodule add -q "$R23/subr.git" sub && git commit -qm p \
+  && git push -q "$R23/parr.git" main && git remote add origin "$R23/parr.git" && git fetch -q origin \
+  && git branch -q -u origin/main ) >/dev/null 2>&1
+R23G=$(git -C "$R23/par/sub" rev-parse --absolute-git-dir); mkdir -p "$R23G/info"
+printf 'f.txt filter=loc\ng.txt filter=inc\nh.txt filter=wt\n' >"$R23G/info/attributes"
+git -C "$R23/par/sub" config filter.loc.clean "$R23/drv.sh LOCALCLEAN"
+printf '[filter "inc"]\n\tclean = %s/drv.sh INCLUDECLEAN\n' "$R23" >"$R23/inc.cfg"
+git -C "$R23/par/sub" config include.path "$R23/inc.cfg"
+git -C "$R23/par/sub" config extensions.worktreeConfig true
+git -C "$R23/par/sub" config --worktree filter.wt.clean "$R23/drv.sh WORKTREECLEAN"
+r23_dirty() { touch -d "$1" "$R23/par/sub/f.txt" "$R23/par/sub/g.txt" "$R23/par/sub/h.txt"; rm -f "$R23M"; }
+r23_marker() { if [ -f "$R23M" ]; then sort -u "$R23M" | tr '\n' ' '; else echo none; fi; }
+# (1) control needle -- without the flag the instrument MUST see all three fire (else blind fixture)
+r23_dirty 2001-01-01
+python3 "$TOOL" --recursive --root "$R23/par" --out "$TMP/r23_ctl.json" >/dev/null 2>&1
+R23_CTL=$(r23_marker)
+case "$R23_CTL" in
+  *INCLUDECLEAN*LOCALCLEAN*WORKTREECLEAN*)
+    ok "rv_r23_control (R22-B2 needle): WITHOUT --neutralize-repo-filters, all three submodule clean drivers (local, include.path, --worktree) fire during this tool's own recursive status reads -- the fixture genuinely exercises the vector" ;;
+  *) not_ok "rv_r23_control: expected LOCALCLEAN+INCLUDECLEAN+WORKTREECLEAN to fire without the flag, got [$R23_CTL] -- fixture is blind" ;;
+esac
+# (2) golden -- with the flag none fire, and the verdict is unaffected
+r23_dirty 2002-01-01
+python3 "$TOOL" --recursive --neutralize-repo-filters --root "$R23/par" --out "$TMP/r23_on.json" >/dev/null 2>"$TMP/r23_on.err"; r23rc=$?
+R23_ON_OVERALL=$(report_field "$TMP/r23_on.json" 'd.get("overall")' 2>/dev/null)
+if [ "$r23rc" -eq 0 ] && [ "$R23_ON_OVERALL" = "CLEAN" ] && [ ! -f "$R23M" ]; then
+  ok "rv_r23_neutralized (R22-B1/B2): WITH --neutralize-repo-filters, none of the three hostile clean drivers runs and the verdict is still rc=0/CLEAN"
+else
+  not_ok "rv_r23_neutralized: rc=$r23rc overall=$R23_ON_OVERALL marker=[$(r23_marker)] err=$(head -c 300 "$TMP/r23_on.err")"
+fi
+# (3) fail-closed -- an effective config that cannot be read is BLIND (4), never "no drivers"
+if chmod 000 "$R23/inc.cfg" && [ ! -r "$R23/inc.cfg" ]; then
+  r23_dirty 2003-01-01
+  python3 "$TOOL" --recursive --neutralize-repo-filters --root "$R23/par" --out "$TMP/r23_fc.json" >/dev/null 2>"$TMP/r23_fc.err"; r23fc=$?
+  if [ "$r23fc" -eq 4 ] && grep -q "filter-driver discovery could not complete" "$TMP/r23_fc.err" && [ ! -f "$R23M" ]; then
+    ok "rv_r23_fail_closed: unreadable included config makes discovery fail -> BLIND rc=4, nothing executed"
+  else
+    not_ok "rv_r23_fail_closed: rc=$r23fc err=$(head -c 300 "$TMP/r23_fc.err") marker=[$(r23_marker)]"
+  fi
+  chmod 644 "$R23/inc.cfg"
+else
+  echo "SKIP rv_r23_fail_closed: chmod 000 did not make the file unreadable (privileged user?) -- fail-closed arm not exercisable here"
+  chmod 644 "$R23/inc.cfg" 2>/dev/null
+fi
+# (4) paired mutations, each removing ONE Round 23 mechanism, each must re-open its shape
+r23_mut() {  # r23_mut <name> <old> <new> <expected-tag> <description>
+  printf '%s' "$2" >"$TMP/$1_old.txt"; printf '%s' "$3" >"$TMP/$1_new.txt"
+  if mk_mutant "$1" "$TMP/$1_old.txt" "$TMP/$1_new.txt" 2>"$TMP/$1.err"; then
+    r23_dirty 2004-01-01
+    python3 "$TMP/$1/verify/repo_verify.py" --recursive --neutralize-repo-filters --root "$R23/par" --out "$TMP/$1.json" >/dev/null 2>&1
+    case "$(r23_marker)" in
+      *"$4"*) ok "paired mutation CAUGHT ($1): $5 -- [$(r23_marker)] fires again" ;;
+      *) not_ok "paired mutation ($1): $5, yet [$4] did not fire ([$(r23_marker)]) -- the arm cannot see its own mechanism" ;;
+    esac
+  else
+    not_ok "paired mutation ($1): anchor not found -- source moved: $(cat "$TMP/$1.err")"
+  fi
+}
+r23_mut mutant_r23_local \
+  '        rc, out, err = _run(["git", "config", "--show-scope", "--includes", "--null",' \
+  '        rc, out, err = _run(["git", "config", "--local", "--show-scope", "--null",' \
+  INCLUDECLEAN "discovery narrowed back to \`git config --local\` (the Round 22 shape) -- include.path"
+r23_mut mutant_r23_local_wt \
+  '        rc, out, err = _run(["git", "config", "--show-scope", "--includes", "--null",' \
+  '        rc, out, err = _run(["git", "config", "--local", "--show-scope", "--null",' \
+  WORKTREECLEAN "discovery narrowed back to \`git config --local\` -- --worktree"
+r23_mut mutant_r23_no_clean \
+  '            if var.lower() in ("clean", "smudge", "process") and name not in names:' \
+  '            if var.lower() in ("smudge", "process") and name not in names:  # MUTANT (R22-I1 shape)' \
+  LOCALCLEAN "\`clean\` dropped from the discovered driver variables (the reviewer's R22-I1 mutation)"
+r23_mut mutant_r23_no_inject \
+  '    if _FILTER_OVERRIDES:' \
+  '    if False:  # MUTANT: overrides discovered but never injected into the subprocess env' \
+  LOCALCLEAN "overrides discovered but never injected after the env strip"
+
 [ "$fail" -eq 0 ] && exit 0 || exit 1

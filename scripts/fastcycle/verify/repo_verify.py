@@ -243,8 +243,10 @@ _GIT_LOCAL_ENV_VARS = (
 # fsmonitor, `refs/replace/*` substitution, and commit-graph-cached parsing from running
 # during this tool's own git calls. They do NOT neutralise every repository-config-driven
 # executable this tool's calls can reach: clean/smudge filter drivers (`.gitattributes` /
-# `.git/info/attributes` + `filter.<name>.*`) have no global off switch and still run
-# during this tool's OWN `worktree_status()` `git status` call (RV-002), and the
+# `.git/info/attributes` + `filter.<name>.*`) have no global off switch and, BY DEFAULT, still
+# run during this tool's OWN `worktree_status()` `git status` call (RV-002) -- T177 Round 23
+# adds the opt-in `--neutralize-repo-filters` (see _FILTER_OVERRIDES below), which migrate.sh
+# passes; a standalone caller that omits it keeps this disclosed boundary -- and the
 # push-transport-adjacent executables (`core.sshCommand`, `credential.helper`,
 # `remote.<r>.uploadpack`, `url.*.insteadOf` -> `ext::`) are left alone and still run
 # during this tool's `git fetch` calls (verify_remote/self_check) -- left alone because a
@@ -280,6 +282,87 @@ _GIT_SAFE_ARGS = (
 )
 
 
+# T177 Round 23 (R22-B2 -- the filter-driver half of the honest boundary stated just above, closed
+# OPT-IN for callers that need it): `--neutralize-repo-filters` makes this tool discover, before ANY
+# other git read, every filter driver whose clean/smudge/process key is defined at an UNTRUSTED
+# config scope (everything except global/system -- operator-owned -- and command) in --root and every
+# initialised submodule beneath it (index gitlinks AND .gitmodules paths, recursively), using the FULL
+# effective config (`--show-scope --includes`; never `--local`, which is blind to include.path/
+# includeIf and --worktree definitions -- the exact R22-B1 gap). Each such driver NAME is then
+# neutralised on every git call this tool makes: smudge=cat, clean=cat, process= (empty: no
+# long-running filter), required=false. The overrides are injected into each subprocess
+# environment as GIT_CONFIG_COUNT/KEY_n/VALUE_n AFTER the inherited-variable strip in _run() (the
+# same placement GIT_GRAFT_FILE already uses: this tool's OWN override, never an inherited one),
+# rather than as `-c` flags -- a driver name is attacker-chosen and may contain `=`, which a
+# `-c key=value` argument splits at, so only the KEY_n/VALUE_n pair addresses every legal name
+# exactly. git propagates these to the child processes it spawns (the per-submodule `status`
+# recursion included -- measured). Discovery that cannot complete makes the run BLIND (4), never
+# "no drivers". Default OFF: a standalone caller keeps exactly the behaviour, and the disclosed
+# boundary, documented above.
+_FILTER_OVERRIDES = []
+
+
+class FilterDiscoveryError(Exception):
+    """Filter-driver discovery could not complete -- never treated as 'no drivers found'."""
+
+
+def discover_untrusted_filter_drivers(root, timeout_s):
+    """Return the ordered list of filter-driver names (bytes-safe str) needing neutralisation."""
+    trusted = {"global", "system", "command"}
+    repos, seen, queue = [], set(), [root]
+    while queue:
+        d = queue.pop(0)
+        real = os.path.realpath(d)
+        if real in seen or not os.path.exists(os.path.join(d, ".git")):
+            continue
+        seen.add(real)
+        repos.append(d)
+        rc, out, err = _run(["git", "ls-files", "--stage", "-z"], d, timeout_s)
+        if rc != 0:
+            raise FilterDiscoveryError("ls-files rc=%s in %s: %s" % (rc, d, err.strip()))
+        rels = [rec.split("\t", 1)[1] for rec in out.split("\0")
+                if rec.startswith("160000 ") and "\t" in rec]
+        gm = os.path.join(d, ".gitmodules")
+        if os.path.isfile(gm):
+            rc, out, err = _run(["git", "config", "--file", gm, "--null", "--get-regexp",
+                                 r"^submodule\..*\.path$"], d, timeout_s)
+            if rc not in (0, 1):
+                raise FilterDiscoveryError("reading .gitmodules rc=%s in %s" % (rc, d))
+            rels += [rec.partition("\n")[2] for rec in out.split("\0") if rec]
+        for rel in rels:
+            if not rel or rel.startswith("/") or ".." in rel.split("/"):
+                continue
+            queue.append(os.path.join(d, rel))
+    names = []
+    for d in repos:
+        rc, out, err = _run(["git", "config", "--show-scope", "--includes", "--null",
+                             "--get-regexp", r"^filter\."], d, timeout_s)
+        if rc == 1:
+            continue
+        if rc != 0:
+            raise FilterDiscoveryError("config rc=%s in %s: %s" % (rc, d, err.strip()))
+        toks = out.split("\0")
+        if toks and toks[-1] == "":
+            toks.pop()
+        if len(toks) % 2:
+            raise FilterDiscoveryError("unparseable config listing in %s" % d)
+        for scope, kv in zip(toks[0::2], toks[1::2]):
+            key = kv.partition("\n")[0]
+            if scope in trusted or not key.startswith("filter.") or key.count(".") < 2:
+                continue
+            name, var = key[len("filter."):].rsplit(".", 1)
+            if var.lower() in ("clean", "smudge", "process") and name not in names:
+                names.append(name)
+    return names
+
+
+def install_filter_overrides(names):
+    del _FILTER_OVERRIDES[:]
+    for name in names:
+        for var, val in (("smudge", "cat"), ("clean", "cat"), ("process", ""), ("required", "false")):
+            _FILTER_OVERRIDES.append(("filter.%s.%s" % (name, var), val))
+
+
 def _run(args, cwd, timeout_s, extra_env=None):
     """Run a git subprocess; return (rc, stdout, stderr). Never raises on a nonzero exit; a
     timeout or spawn failure is reported as rc=None so callers can tell it apart from a real,
@@ -300,6 +383,11 @@ def _run(args, cwd, timeout_s, extra_env=None):
     for _k in _GIT_LOCAL_ENV_VARS:
         env.pop(_k, None)
     env["GIT_GRAFT_FILE"] = os.devnull
+    if _FILTER_OVERRIDES:
+        for _i, (_key, _val) in enumerate(_FILTER_OVERRIDES):
+            env["GIT_CONFIG_KEY_%d" % _i] = _key
+            env["GIT_CONFIG_VALUE_%d" % _i] = _val
+        env["GIT_CONFIG_COUNT"] = str(len(_FILTER_OVERRIDES))
     if args and args[0] == "git":
         args = [args[0], *_GIT_SAFE_ARGS, *args[1:]]
     if extra_env:
@@ -1418,6 +1506,7 @@ def main(argv):
     p.add_argument("--md")
     p.add_argument("--determinism-check", action="store_true")
     p.add_argument("--timeout-per-remote", type=int, default=DEFAULT_TIMEOUT_S)
+    p.add_argument("--neutralize-repo-filters", action="store_true")
     try:
         a = p.parse_args(argv)
     except SystemExit as se:
@@ -1450,6 +1539,14 @@ def main(argv):
     except RemotesConfigError as exc:
         print("repo_verify: %s" % exc, file=sys.stderr)
         return 2
+
+    if a.neutralize_repo_filters:
+        try:
+            install_filter_overrides(discover_untrusted_filter_drivers(a.root, 15))
+        except (FilterDiscoveryError, OSError) as exc:
+            print("repo_verify: BLIND -- filter-driver discovery could not complete (%s); refusing to "
+                  "run git reads that could execute one" % exc, file=sys.stderr)
+            return 4
 
     try:
         if a.determinism_check:

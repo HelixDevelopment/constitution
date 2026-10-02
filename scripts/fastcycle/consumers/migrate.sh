@@ -615,44 +615,46 @@ fi
 # remote configuration, set up by this tool from the consumer's URLs,
 # never from $WORKDIR's own potentially-adversarial `.git/config`.
 #
-# T177 Round 22 (R21-I1, live-reproduced): clean/smudge/process filter
-# drivers (`.gitattributes` / `.git/info/attributes` + `filter.<name>.*`)
-# were PREVIOUSLY an un-neutralised gap in this scope -- unlike hooks,
-# filters have no single global off-switch (`core.hooksPath=/dev/null`'s
-# own analogue does not exist for `filter.*`), and this tool's submodule-
-# advance materialisation (fc_checkout_submodule_filtered below) DOES
-# invoke them: a `filter.<name>.smudge` driver configured purely in the
-# constitution submodule's own LOCAL, untracked `.git/config` (paired
-# with a matching local `.gitattributes`/`.git/info/attributes` entry --
-# no tracked-content change needed) fired an arbitrary command during
-# this tool's own `checkout`/`submodule update --init` of that checkout,
-# confirmed by direct, minimal, from-scratch reproduction (fires with no
-# override; does not fire once the discovered driver key is overridden).
-# It did NOT corrupt the published commit (the gitlink write below is an
-# unconditional `cacheinfo` write, never derived from this checkout's
-# filtered tree -- CA-019..028 held throughout) but it WAS genuine code
-# execution on the host running migrate.sh, squarely inside this file's
-# own stated threat model ("don't trust $WORKDIR's own git config").
-# CLOSED by fc_checkout_submodule_filtered() (defined below, alongside
-# restore_submodule()): every `filter.*.{smudge,clean,process}` key the
-# submodule's OWN local config ACTUALLY declares is discovered (never a
-# name guessed or assumed in advance -- the attacker picks it) and
-# overridden, for the scope of that one invocation only, to the literal,
-# harmless, no-shell-metacharacter identity command `cat` via the SAME
-# GIT_CONFIG_COUNT/KEY_n/VALUE_n environment-override mechanism already
-# used above (env-based config overrides always outrank a repository's
-# own local config file, confirmed by direct experiment, and -- unlike a
-# `-c key=value` flag built via POSIX-sh string interpolation of an
-# attacker-chosen git-config subsection name, which may legally contain
-# spaces/dots/arbitrary bytes -- never risks re-opening an injection
-# class of its own). Applied identically everywhere this tool
-# materializes that submodule's own working tree: restore_submodule()'s
-# rollback, all three `submodule update --init` call sites (a submodule
-# already initialised but drifted from its parent-recorded SHA is ALSO
-# live-reproduced to invoke its own local filter config internally, the
-# SAME vector at a different call shape), and both other direct
-# `checkout` calls (the step-5 advance-to-$NEW_SHA and the step-9
-# best-effort post-publish re-sync).
+# T177 Rounds 22-23 (R21-I1 + R22-B1/B2, all live-reproduced): clean/
+# smudge/process filter drivers (`.gitattributes` / `.git/info/attributes`
+# + `filter.<name>.*`) were an un-neutralised gap in this scope. Unlike
+# hooks they have no global off switch (no `core.hooksPath=/dev/null`
+# analogue exists for `filter.*`), and a driver defined only in
+# $WORKDIR's own untracked config -- no tracked-content change needed --
+# ran an arbitrary command during this tool's own git calls. None of
+# these corrupted the published commit (the gitlink below is an
+# unconditional `cacheinfo` write in $FC_BARE, never derived from a
+# filtered tree, so CA-019..028 held throughout), but each WAS genuine
+# code execution on the host running migrate.sh, inside this file's own
+# stated threat model ("don't trust $WORKDIR's own git config").
+#
+#   R21-I1: a submodule-local smudge driver fired during this tool's
+#           submodule checkout.
+#   Round 22 (commit 9073277) wrapped the checkout / `submodule update
+#           --init` call sites with a `git config --local` discovery and
+#           CLAIMED the class closed. The independent Round 22 review
+#           (NO-GO) disproved that: `--local` is blind to `include.path`/
+#           `includeIf` and `--worktree` definitions (R22-B1, the fix was
+#           a measured no-op against them), and a CLEAN driver fires on
+#           READS -- this tool's own `status` calls and repo_verify.py's
+#           -- which no checkout wrapper reaches (R22-B2). That claim was
+#           an overclaim and is withdrawn here.
+#   Round 23 replaces it with fc_neutralize_repo_filters() (defined
+#           below, before restore_submodule()): full-effective-config
+#           discovery across $WORKDIR AND every initialised submodule,
+#           installed PROCESS-WIDE before this tool's first git read and
+#           re-established before each operation that can bring new
+#           repositories/config into reach, failing closed. See that
+#           function's own comment for the mechanism, the measured
+#           behaviours it relies on, and its exact scope boundary
+#           (consumer hook/gates run under the caller's environment by
+#           design; repo_verify.py receives the equivalent protection via
+#           its own --neutralize-repo-filters flag).
+#
+# Honest residual (not claimed closed): drivers defined at GLOBAL/SYSTEM
+# scope are deliberately left running -- operator-owned, the same trust
+# boundary this file already draws for GIT_CONFIG_GLOBAL/SYSTEM (and the
+# one that keeps a host's own git-lfs working).
 FC_CALLER_GCC_SET=0
 [ -n "${GIT_CONFIG_COUNT+x}" ] && FC_CALLER_GCC_SET=1
 FC_CALLER_GCC=${GIT_CONFIG_COUNT:-0}
@@ -811,102 +813,205 @@ not_migrated() {
     exit 1
 }
 
-# T177 Round 22 (R21-I1 fix -- see migrate.sh's own "T177 Round 22
-# (R21-I1, live-reproduced)" header comment above for the full forensic
-# rationale): every place this tool materializes the constitution
-# submodule's OWN working tree against a target SHA MUST go through this
-# ONE discovery+override core, never a bare `git checkout`/`submodule
-# update --init` -- a bare call trusts that checkout's own invocation to
-# NEVER invoke a hostile local `filter.<name>.{smudge,clean,process}`
-# driver, which a tampered $WORKDIR can configure with no tracked-content
-# change at all. fc_submodule_filter_exec: $1 = the directory whose OWN
-# LOCAL git config is inspected for filter drivers (always
-# $WORKDIR/constitution -- NEVER $WORKDIR itself, a different repository
-# with no such drivers in scope here); "$@" (after shift) = the full
-# `git ...` command line to run (its own `-C` target may legitimately
-# differ from $1 -- `submodule update --init` below is invoked
-# `-C $WORKDIR`, not `-C $WORKDIR/constitution`, even though it is
-# $WORKDIR/constitution's local config being neutralised for that call).
-# Discovery+override-building runs in python3, never POSIX-sh string
-# interpolation, because the ATTACKER controls the driver NAME -- a git
-# config subsection that may legally contain spaces/dots/arbitrary bytes
-# -- and feeding that name through sh word-splitting/quoting to build a
-# `-c key=value` argument would reopen exactly the injection class this
-# fix exists to close; python3's subprocess argv lists and
-# GIT_CONFIG_KEY_n/VALUE_n *values* (never shell tokens, never env-var
-# NAMES) carry it safely however it is spelled. A submodule directory
-# that is not yet a git repository at all (a fresh consumer clone whose
-# submodule has never been initialised) is handled by discovering
-# nothing (`git ... config --local` fails with "not a git repository",
-# a non-zero exit this function treats identically to "no drivers
-# configured") -- the wrapped command then runs with zero added
-# overrides, never worse than before this fix existed; this matches
-# direct experiment showing first-init itself is not exposed (there is
-# no pre-existing local config for an attacker to have tampered with
-# yet). Exits with the wrapped git command's own exit status.
-fc_submodule_filter_exec() {
-    _fcfe_dir=$1
-    shift
-    # FC_GCC_N (never GIT_CONFIG_COUNT directly -- shellcheck SC2030/2031,
-    # this file's own run_with_caller_git_env() reassigns GIT_CONFIG_COUNT
-    # inside a subshell lexically earlier in the file, which would make a
-    # direct read here look potentially stale even though that subshell's
-    # change can never actually escape it) already equals the script's
-    # real, final, top-level GIT_CONFIG_COUNT (set once at line ~664 and
-    # never reassigned anywhere else at this scope).
-    python3 - "$_fcfe_dir" "$FC_GCC_N" "$@" <<'PYEOF'
+# T177 Round 23 (R22-B1/B2/I1/M3 remediation; supersedes the Round 22
+# per-call `fc_submodule_filter_exec`, which the independent Round 22
+# review proved a NO-OP against two variants of the SAME threat and blind
+# to a third -- see this file's own "T177 Round 22/23" header comment for
+# the forensic record). fc_neutralize_repo_filters() is the ONE mechanism
+# every git call this tool makes against $WORKDIR relies on for filter
+# safety. It:
+#
+#  1. ENUMERATES every repository a git call of this tool can reach in
+#     $WORKDIR: $WORKDIR itself plus every INITIALISED submodule,
+#     recursively -- taken from BOTH each repository's own index gitlinks
+#     (`git ls-files --stage -z`, mode 160000 -- what `git status`'s own
+#     submodule recursion actually walks, mapped or not) AND its
+#     `.gitmodules` paths. Neither read executes anything.
+#  2. DISCOVERS, per repository, every filter driver whose
+#     clean/smudge/process key is defined at an UNTRUSTED scope, from the
+#     FULL effective config git itself would use (`git config
+#     --show-scope --includes --get-regexp '^filter\.'`) -- never
+#     `--local` alone, which R22-B1 proved blind to `include.path`/
+#     `includeIf` (reported by git as scope `local`) and `--worktree`
+#     (scope `worktree`) definitions. Untrusted = every scope except
+#     `global`/`system` (operator-owned, deliberately left untouched --
+#     see this file's env-sanitization header; this also keeps a host's
+#     own git-lfs working) and `command` (this tool's own overrides).
+#  3. INSTALLS, process-wide, for every such driver NAME, all four of
+#     filter.<name>.{smudge,clean}=cat, .process= (empty: no long-running
+#     filter at all) and .required=false -- via the SAME exported
+#     GIT_CONFIG_KEY_n/VALUE_n mechanism as the hooksPath/fsmonitor/gpg
+#     overrides above, so it reaches EVERY later git call this process and
+#     its non-sanitising children make, including the child `git status`
+#     git itself spawns inside each submodule (confirmed by direct
+#     experiment: a parent-level env override of a SUBMODULE's own local
+#     clean driver stops it firing during the parent's recursive status).
+#     R22-B2: a clean driver fires on READS (`status`, `diff`, `add`), not
+#     only on checkout -- installing once, process-wide, covers the
+#     step-1 dirty check, the post-hook enumeration, the step-9 `add -A`
+#     and every checkout/`submodule update --init` alike, rather than
+#     wrapping an enumerated list of call sites that a future edit can
+#     silently outgrow. Which override does the work, MEASURED: an EMPTY
+#     `process` is by itself the primary neutraliser -- once a driver has
+#     a process key git never consults its clean/smudge commands, and an
+#     empty process runs nothing (with ONLY process emptied, a hostile
+#     clean driver did not fire on status and a hostile smudge driver did
+#     not fire on checkout, content passed through intact).
+#     smudge/clean=`cat` is an independent SECOND layer (with the process
+#     override removed it alone still kept every arm inert -- test K
+#     layer-independence). R22-M3: `process=cat` (the Round 22 value)
+#     instead breaks git's own long-running-filter handshake for a
+#     `required` driver; empty process + `required=false` leaves it fully
+#     inert and the checkout succeeds with the real content.
+#  4. FAILS CLOSED: any discovery or enumeration read that does not
+#     complete normally returns non-zero, and every caller treats that as
+#     "could not establish filter safety" -- never as "no drivers"
+#     (R22's false-null note: an unreadable config is NOT evidence of an
+#     absent driver). Callers refuse rather than run git unprotected.
+#
+# Driver names are attacker-chosen bytes (a git-config subsection may
+# legally contain spaces, quotes, `=`, non-UTF-8). They are carried
+# ONLY as GIT_CONFIG_KEY_n *values*, emitted by python3 through
+# shlex.quote and assigned in this shell by `eval` of single-quoted
+# literals -- never interpolated into a `-c key=value` argument (which
+# splits at the FIRST `=` and so cannot address a subsection containing
+# one) and never used as a variable name; the index n is generated here.
+# Re-run before every operation that can bring a NEW repository or new
+# config into reach (each submodule materialisation, and after the
+# consumer's own post-update hook) -- idempotent, cheap, and duplicates
+# are harmless (the last identical override wins identically).
+#
+# SCOPE BOUNDARY, stated exactly: this protects git calls made BY THIS
+# PROCESS (and by children that inherit its environment) against
+# $WORKDIR and the repositories nested in it. The consumer's own
+# post-update hook and gates deliberately run under the CALLER's original
+# git environment (run_with_caller_git_env) -- they are the consumer's
+# own code, already arbitrary code by design, not a vector this tool can
+# or should neutralise. repo_verify.py strips inherited GIT_CONFIG_*
+# for its own documented reasons, so it receives the equivalent
+# protection via its own `--neutralize-repo-filters` flag (passed by
+# this tool at both step-9 verifications), not via this environment.
+fc_neutralize_repo_filters() {
+    _fcnr_out=$(python3 - "$WORKDIR" "$FC_GCC_N" <<'PYEOF'
 import os
+import shlex
 import subprocess
 import sys
 
-sub_dir, base_n = sys.argv[1], int(sys.argv[2])
-cmd = sys.argv[3:]
+root, base_n = sys.argv[1], int(sys.argv[2])
+TRUSTED_SCOPES = {b"global", b"system", b"command"}
+DRIVER_VARS = {b"clean", b"smudge", b"process"}
 
-keys = []
-disc = subprocess.run(
-    ["git", "-C", sub_dir, "config", "--local", "--null",
-     "--get-regexp", r"^filter\..*\.(clean|smudge|process)$"],
-    capture_output=True,
-)
-if disc.returncode == 0 and disc.stdout:
-    for record in disc.stdout.split(b"\x00"):
-        if not record:
+
+def fail(msg):
+    sys.stderr.write("migrate.sh: filter-driver discovery could not complete (%s) -- refusing to run git against it unprotected\n" % msg)
+    sys.exit(3)
+
+
+def git(args, cwd):
+    try:
+        return subprocess.run(["git"] + args, cwd=cwd, capture_output=True)
+    except OSError as exc:
+        fail("cannot run git: %s" % exc)
+
+
+def is_repo(d):
+    return os.path.exists(os.path.join(d, ".git"))
+
+
+def nested_paths(d):
+    out = []
+    p = git(["ls-files", "--stage", "-z"], d)
+    if p.returncode != 0:
+        fail("ls-files rc=%d in %s" % (p.returncode, d))
+    for rec in p.stdout.split(b"\0"):
+        if rec.startswith(b"160000 ") and b"\t" in rec:
+            out.append(rec.split(b"\t", 1)[1])
+    gm = os.path.join(d, ".gitmodules")
+    if os.path.isfile(gm):
+        p = git(["config", "--file", gm, "--null", "--get-regexp", r"^submodule\..*\.path$"], d)
+        if p.returncode not in (0, 1):
+            fail("reading .gitmodules rc=%d in %s" % (p.returncode, d))
+        for rec in p.stdout.split(b"\0"):
+            if rec:
+                out.append(rec.partition(b"\n")[2])
+    return out
+
+
+repos, seen, queue = [], set(), [root]
+while queue:
+    d = queue.pop(0)
+    real = os.path.realpath(d)
+    if real in seen or not is_repo(d):
+        continue
+    seen.add(real)
+    repos.append(d)
+    for rel in nested_paths(d):
+        parts = rel.split(b"/")
+        if not rel or rel.startswith(b"/") or b".." in parts:
             continue
-        key, _, _value = record.partition(b"\n")
-        if key and key not in keys:
-            keys.append(key)
+        queue.append(os.path.join(d, os.fsdecode(rel)))
 
-env = dict(os.environ)
+names = []
+for d in repos:
+    p = git(["config", "--show-scope", "--includes", "--null", "--get-regexp", r"^filter\."], d)
+    if p.returncode == 1:
+        continue
+    if p.returncode != 0:
+        fail("config rc=%d in %s: %s" % (p.returncode, d, p.stderr.decode("utf-8", "replace").strip()))
+    toks = p.stdout.split(b"\0")
+    if toks and toks[-1] == b"":
+        toks.pop()
+    if len(toks) % 2:
+        fail("unparseable config listing in %s" % d)
+    for scope, kv in zip(toks[0::2], toks[1::2]):
+        key = kv.partition(b"\n")[0]
+        if scope in TRUSTED_SCOPES:
+            continue
+        if not key.startswith(b"filter.") or key.count(b".") < 2:
+            continue
+        name, var = key[len(b"filter."):].rsplit(b".", 1)
+        if var.lower() in DRIVER_VARS and name not in names:
+            names.append(name)
+
 n = base_n
-for key in keys:
-    env["GIT_CONFIG_KEY_%d" % n] = key.decode("utf-8", "surrogateescape")
-    env["GIT_CONFIG_VALUE_%d" % n] = "cat"
-    n += 1
-env["GIT_CONFIG_COUNT"] = str(n)
-
-sys.exit(subprocess.run(cmd, env=env).returncode)
+lines = []
+for name in names:
+    sub = os.fsdecode(name)
+    for var, val in (("smudge", "cat"), ("clean", "cat"), ("process", ""), ("required", "false")):
+        lines.append("GIT_CONFIG_KEY_%d=%s; GIT_CONFIG_VALUE_%d=%s; export GIT_CONFIG_KEY_%d GIT_CONFIG_VALUE_%d"
+                     % (n, shlex.quote("filter.%s.%s" % (sub, var)), n, shlex.quote(val), n, n))
+        n += 1
+lines.append("FC_GCC_N=%d" % n)
+sys.stdout.buffer.write(("\n".join(lines) + "\n").encode("utf-8", "surrogateescape"))
 PYEOF
+    ) || return 1
+    eval "$_fcnr_out" || return 1
+    GIT_CONFIG_COUNT=$FC_GCC_N; export GIT_CONFIG_COUNT
 }
 
-# fc_checkout_submodule_filtered: $1 = submodule working dir (also the
-# `git -C` target), $2 = target SHA. The filter-safe replacement for a
-# bare `git -C "$1" checkout -q "$2"` against the constitution
-# submodule's own nested checkout.
+# fc_checkout_submodule_filtered: $1 = submodule working dir (the `git -C`
+# target), $2 = target SHA. Re-establishes filter safety first (the
+# submodule may have been initialised, or its config changed, since the
+# last discovery) and REFUSES to check out (non-zero, nothing run) if
+# that cannot be established -- never a bare checkout as a fallback.
 fc_checkout_submodule_filtered() {
-    fc_submodule_filter_exec "$1" git -C "$1" -c advice.detachedHead=false checkout -q "$2"
+    fc_neutralize_repo_filters || return 1
+    git -C "$1" -c advice.detachedHead=false checkout -q "$2"
 }
 
-# fc_submodule_update_init_filtered: $1 = parent working dir (the
-# `git -C` target `submodule update` itself runs against), $2 =
-# submodule working dir (whose own local config is inspected for filter
-# drivers), $3 = submodule name as recorded in .gitmodules. An
-# ALREADY-initialised submodule whose working tree has drifted from the
-# PARENT's recorded SHA is live-reproduced to invoke its own local
-# filter config internally during `submodule update --init`'s own
-# re-checkout -- the SAME vector as a direct `checkout`, at a different
-# call shape, closed here identically.
+# fc_submodule_update_init_filtered: $1 = parent working dir, $3 =
+# submodule name. ($2, the submodule dir, is kept for call-site
+# compatibility; discovery now walks every repository under $WORKDIR.)
+# Discovery runs BEFORE the update (an already-initialised but drifted
+# submodule is re-checked-out inside `submodule update --init` against
+# its own existing local config -- live-reproduced, Round 22) and AGAIN
+# after it (a submodule initialised by this very call is a new repository
+# whose config the next git call would otherwise reach undiscovered).
 fc_submodule_update_init_filtered() {
-    fc_submodule_filter_exec "$2" git -C "$1" -c protocol.file.allow=always -c init.templateDir= submodule update --init "$3"
+    fc_neutralize_repo_filters || return 1
+    git -C "$1" -c protocol.file.allow=always -c init.templateDir= submodule update --init "$3" || return $?
+    fc_neutralize_repo_filters || return 1
 }
 
 # T177 Round 21: the ONLY write this tool ever makes to $WORKDIR's own git
@@ -930,7 +1035,16 @@ restore_submodule() {
 not_migrated_after_write() {
     step=$1; reason=$2; detail=${3:-}
     restore_submodule
-    RESIDUE=$(git -C "$WORKDIR" status --porcelain=v1 2>/dev/null | awk '{print $2}' | tr '\n' ',' | sed 's/,$//')
+    # T177 Round 23: this refusal path is reachable precisely BECAUSE
+    # filter-driver safety could not be (re-)established -- in that case
+    # the residue read below would be an unprotected `status` (a clean
+    # driver fires on reads). Never run it then; report the residue as
+    # honestly undetermined instead of reading it unsafely or claiming NONE.
+    if fc_neutralize_repo_filters; then
+        RESIDUE=$(git -C "$WORKDIR" status --porcelain=v1 2>/dev/null | awk '{print $2}' | tr '\n' ',' | sed 's/,$//')
+    else
+        RESIDUE="UNDETERMINED-filter-driver-safety-not-established"
+    fi
     FULL="NOT-MIGRATED ($step: $reason)"
     write_out "NOT-MIGRATED" "$FULL" "" "${RESIDUE:-NONE}" "" "" "" "" "$detail"
     if [ -n "$detail" ]; then echo "$FULL [$detail]"; else echo "$FULL"; fi
@@ -951,6 +1065,12 @@ not_migrated_after_write() {
 # helper -- includes the push-failure and step-9 verify-failure/MIGRATED
 # paths, none of which previously re-measured reality before writing.
 current_data_change() {
+    # T177 Round 23: same filter-safety precondition as
+    # not_migrated_after_write() -- never an unprotected residue read.
+    if ! fc_neutralize_repo_filters; then
+        echo "UNDETERMINED-filter-driver-safety-not-established"
+        return 0
+    fi
     git -C "$WORKDIR" status --porcelain=v1 2>/dev/null | awk '{print $2}' | tr '\n' ',' | sed 's/,$//'
 }
 
@@ -1170,6 +1290,16 @@ fi
 
 if [ ! -d "$WORKDIR/.git" ] && [ ! -f "$WORKDIR/.git" ]; then
     echo "migrate.sh: $WORKDIR is not a git checkout" >&2
+    exit 4
+fi
+# T177 Round 23 (R22-B2): the step-1 `status` below is the FIRST git call
+# that can run a $WORKDIR filter driver (a clean driver fires on reads,
+# and status recurses into every initialised submodule) -- neutralise
+# BEFORE it, process-wide. A discovery that cannot complete is a refusal,
+# mirroring the adjacent "could not determine working-tree cleanliness"
+# precedent (exit 4, before any write), never an unprotected status.
+if ! fc_neutralize_repo_filters; then
+    echo "migrate.sh: could not establish filter-driver safety for $WORKDIR -- refusing before any git read that could execute one" >&2
     exit 4
 fi
 DIRTY=$(git -C "$WORKDIR" status --porcelain=v1 2>&1)
@@ -1526,6 +1656,12 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # one call site whose output feeds a real publish) mirroring
     # `fc_bare_assert_no_alternates` -- belt-and-braces, never trust a
     # single layer.
+    # T177 Round 23: established explicitly first so a discovery failure is
+    # reported as what it is, not folded into the fetch/unreachable label
+    # below (the wrapper re-checks internally as defense in depth).
+    if ! fc_neutralize_repo_filters; then
+        not_migrated_after_write "wiring" "local-git-error" "filter-driver-discovery-failed"
+    fi
     if ! fc_submodule_update_init_filtered "$WORKDIR" "$WORKDIR/constitution" constitution >"$MIGRATE_SCRATCH/migrate_submodule_update.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable"
     fi
@@ -1609,6 +1745,12 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # independent of whether `git status` happens to report it -- T177
     # Round 10's R10-I1 "positive invariant, not a diff-filter special
     # case" lesson, now applied to the committed-SHA check itself).
+    # T177 Round 23: the consumer's own hook/gates (run above under the
+    # CALLER's git environment) may have created repositories or written
+    # config -- re-establish filter safety before this tool's own next read.
+    if ! fc_neutralize_repo_filters; then
+        not_migrated_after_write "wiring" "local-git-error" "filter-driver-discovery-failed"
+    fi
     POST_HOOK_STATUS=$(git -C "$WORKDIR" status --porcelain=v1 --untracked-files=all 2>&1)
     POST_HOOK_STATUS_RC=$?
     if [ "$POST_HOOK_STATUS_RC" -ne 0 ]; then
@@ -1940,9 +2082,9 @@ if [ -z "$VERIFY_SCRATCH" ] || [ ! -d "$VERIFY_SCRATCH" ]; then
 fi
 V1="$VERIFY_SCRATCH/verify1.json"
 V2="$VERIFY_SCRATCH/verify2.json"
-python3 "$VERIFY_TOOL" --recursive --root "$WORKDIR" --out "$V1" >"$VERIFY_SCRATCH/verify1.log" 2>&1
+python3 "$VERIFY_TOOL" --recursive --neutralize-repo-filters --root "$WORKDIR" --out "$V1" >"$VERIFY_SCRATCH/verify1.log" 2>&1
 V1_RC=$?
-python3 "$VERIFY_TOOL" --recursive --root "$WORKDIR" --out "$V2" >"$VERIFY_SCRATCH/verify2.log" 2>&1
+python3 "$VERIFY_TOOL" --recursive --neutralize-repo-filters --root "$WORKDIR" --out "$V2" >"$VERIFY_SCRATCH/verify2.log" 2>&1
 V2_RC=$?
 OVERALL1=$(python3 -c "import json; print(json.load(open('$V1')).get('overall',''))" 2>/dev/null)
 OVERALL2=$(python3 -c "import json; print(json.load(open('$V2')).get('overall',''))" 2>/dev/null)

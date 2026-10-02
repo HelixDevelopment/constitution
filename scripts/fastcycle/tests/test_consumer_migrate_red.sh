@@ -2362,9 +2362,12 @@ fi
 # threat shape, DOES fire during this tool's own submodule checkout --
 # proving K1's fix is the genuine, load-bearing cause of the marker's
 # absence above, never a coincidence of some other unrelated defense.
+# T177 Round 23: re-anchored to the Round 23 install loop (the Round 22
+# per-call `for key in keys:` loop no longer exists) -- same intent: no
+# discovered driver is ever overridden.
 j_mutant K1_no_filter_override \
-    'for key in keys:' \
-    'for key in []:  # MUTATED_FOR_TEST: filter-driver override disabled'
+    'for name in names:' \
+    'for name in []:  # MUTATED_FOR_TEST: filter-driver override disabled'
 build_r3_fixture "$K_ROOT/k1m"
 git -C "$K_ROOT/k1m/checkout" -c protocol.file.allow=always submodule update --init -q constitution
 K1M_SUB="$K_ROOT/k1m/checkout/constitution"
@@ -2380,6 +2383,246 @@ if [ "$J_MUT_OK" -eq 1 ] && [ -f "$K1M_MARKER" ]; then
     ok "K1 guard-viability: with the discovered-filter-override loop disabled (reverting to this fix's pre-Round-22 behaviour), the SAME hostile smudge driver DOES fire during this tool's own submodule checkout -- K1's fix is genuinely load-bearing, not decoration"
 else
     bad "K1 guard-viability: disabling the filter-override loop did not reproduce the smudge-driver firing (mut_ok=$J_MUT_OK marker-exists=$([ -f "$K1M_MARKER" ] && echo yes || echo no))"
+fi
+
+# --- K2-K7: T177 Round 23 (independent Round 22 review NO-GO: R22-B1,
+# R22-B2, R22-I1, R22-M2, R22-M3). Round 22's K1 armed ONLY a direct
+# submodule-local SMUDGE driver (with clean deliberately set to `cat`), so
+# it could not see a clean driver firing on READS (B2), nor a driver
+# defined via include.path / --worktree config that `git config --local`
+# discovery never sees (B1); the reviewer's own regex mutation
+# `(clean|smudge|process)` -> `(smudge|process)` survived at 84/0 (I1).
+# Each arm below reproduces one shape end to end against the REAL tool,
+# and each is paired with a mutant proving its OWN mechanism is the
+# load-bearing cause (never a coincidence of a neighbouring defense).
+#
+# k_fixture $1=root $2=mode $3=marker: build_r3_fixture + a pre-initialised
+# submodule (as a real already-cloned consumer has) + the mode's tampering.
+# Every driver is a script that appends its tag to the marker, then acts
+# as an identity filter -- so a fire is recorded but content is preserved.
+# CLAUDE.md (the file whose content differs between R3_OLD/R3_NEW) is the
+# attribute target; its mtime is backdated so a CLEAN driver genuinely has
+# to run on the very next `status` (a clean filter runs only for a
+# stat-dirty entry -- measured; without this a clean arm would be blind).
+k_fixture() {
+    _kr=$1; _km=$2; _kmk=$3
+    build_r3_fixture "$_kr"
+    git -C "$_kr/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+    _ks="$_kr/checkout/constitution"
+    _kg=$(git -C "$_ks" rev-parse --absolute-git-dir)
+    _kpg=$(git -C "$_kr/checkout" rev-parse --absolute-git-dir)
+    mkdir -p "$_kg/info" "$_kpg/info"
+    _kd="$_kr/k_drv.sh"
+    printf '#!/bin/sh\necho "$1" >> "%s"\ncat\n' "$_kmk" > "$_kd"
+    chmod +x "$_kd"
+    rm -f "$_kmk"
+    case "$_km" in
+        clean)
+            # B2: clean drivers in BOTH the submodule's and the PARENT's own
+            # local config -- the step-1 dirty check reads the parent and
+            # recurses into the submodule.
+            echo "CLAUDE.md filter=kc" > "$_kg/info/attributes"
+            git -C "$_ks" config filter.kc.clean "$_kd SUBCLEAN"
+            echo "CLAUDE.md filter=kp" > "$_kpg/info/attributes"
+            git -C "$_kr/checkout" config filter.kp.clean "$_kd PARENTCLEAN"
+            touch -d 2001-01-01 "$_kr/checkout/CLAUDE.md" "$_ks/CLAUDE.md" ;;
+        include)
+            # B1(a): the driver lives in a file pulled in by include.path --
+            # git reports it as scope `local`, `git config --local` never
+            # prints it.
+            echo "CLAUDE.md filter=ki" > "$_kg/info/attributes"
+            printf '[filter "ki"]\n\tsmudge = %s INCSMUDGE\n\tclean = %s INCCLEAN\n' "$_kd" "$_kd" > "$_kr/k_include.cfg"
+            git -C "$_ks" config include.path "$_kr/k_include.cfg"
+            touch -d 2001-01-01 "$_ks/CLAUDE.md" ;;
+        worktree)
+            # B1(b): the driver lives in per-worktree config (scope
+            # `worktree`), also invisible to `git config --local`.
+            echo "CLAUDE.md filter=kw" > "$_kg/info/attributes"
+            git -C "$_ks" config extensions.worktreeConfig true
+            git -C "$_ks" config --worktree filter.kw.smudge "$_kd WTSMUDGE"
+            git -C "$_ks" config --worktree filter.kw.clean "$_kd WTCLEAN"
+            touch -d 2001-01-01 "$_ks/CLAUDE.md" ;;
+        process)
+            # M3: a long-running `process` driver marked required -- the
+            # Round 22 override (process=cat) broke git's own handshake and
+            # made the checkout exit 128.
+            echo "CLAUDE.md filter=kq" > "$_kg/info/attributes"
+            git -C "$_ks" config filter.kq.process "$_kd PROCESS"
+            git -C "$_ks" config filter.kq.required true ;;
+        unreadable)
+            # Fail-closed: the include target cannot be read, so the
+            # effective config cannot be established at all.
+            printf '[filter "ku"]\n\tsmudge = %s UNRSMUDGE\n' "$_kd" > "$_kr/k_unreadable.cfg"
+            git -C "$_ks" config include.path "$_kr/k_unreadable.cfg"
+            echo "CLAUDE.md filter=ku" > "$_kg/info/attributes"
+            chmod 000 "$_kr/k_unreadable.cfg" ;;
+    esac
+}
+k_marker() { if [ -f "$1" ]; then sort -u "$1" | tr '\n' ' '; else echo none; fi; }
+k_gitlink() { git -C "$1/checkout" ls-tree HEAD constitution 2>/dev/null | awk '{print $3}'; }
+
+for _kmode in clean include worktree; do
+    k_fixture "$K_ROOT/k_$_kmode" "$_kmode" "$K_ROOT/k_${_kmode}.marker"
+    j_run "$TOOL" "$K_ROOT/k_$_kmode" "fixture/section_k_$_kmode" "$WORK/k_$_kmode.json"
+    if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ ! -f "$K_ROOT/k_${_kmode}.marker" ] \
+        && [ "$(k_gitlink "$K_ROOT/k_$_kmode")" = "$R3_NEW" ]; then
+        ok "K-$_kmode (T177 Round 23): a hostile $_kmode-shaped filter driver in \$WORKDIR's own untracked config never executes during a real migration (MIGRATED, gitlink=\$R3_NEW, marker never written)"
+    else
+        bad "K-$_kmode: rc=$J_RC out=$J_OUT marker=[$(k_marker "$K_ROOT/k_${_kmode}.marker")] gitlink=$(k_gitlink "$K_ROOT/k_$_kmode") expected=$R3_NEW"
+    fi
+done
+
+# K-process: the M3 shape migrates cleanly with the REAL content checked out.
+k_fixture "$K_ROOT/k_process" process "$K_ROOT/k_process.marker"
+j_run "$TOOL" "$K_ROOT/k_process" fixture/section_k_process "$WORK/k_process.json"
+K_PROC_CONTENT_OK=no
+if [ "$(git -C "$K_ROOT/k_process/checkout/constitution" hash-object --no-filters CLAUDE.md 2>/dev/null)" = "$(git -C "$K_ROOT/k_process/checkout/constitution" rev-parse "$R3_NEW:CLAUDE.md" 2>/dev/null)" ]; then
+    K_PROC_CONTENT_OK=yes
+fi
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ ! -f "$K_ROOT/k_process.marker" ] && [ "$K_PROC_CONTENT_OK" = yes ]; then
+    ok "K-process (R22-M3): a required long-running process driver is fully inert (process emptied, required=false) -- MIGRATED, the attacker's process command never runs, and the checked-out CLAUDE.md is byte-identical to \$R3_NEW's blob"
+else
+    bad "K-process: rc=$J_RC out=$J_OUT marker=[$(k_marker "$K_ROOT/k_process.marker")] content-matches-blob=$K_PROC_CONTENT_OK"
+fi
+
+# K-unreadable: discovery that cannot complete REFUSES before any write --
+# never "no drivers found" (R22's false-null note).
+k_fixture "$K_ROOT/k_unr" unreadable "$K_ROOT/k_unr.marker"
+if [ -r "$K_ROOT/k_unr/k_unreadable.cfg" ]; then
+    echo "SKIP: K-unreadable -- chmod 000 did not make the include target unreadable (running as a privileged user?); fail-closed arm not exercisable here"
+else
+    K_UNR_BEFORE=$(git -C "$K_ROOT/k_unr/consumer.git" rev-parse refs/heads/main)
+    j_run "$TOOL" "$K_ROOT/k_unr" fixture/section_k_unr "$WORK/k_unr.json"
+    if [ "$J_RC" -eq 4 ] && echo "$J_OUT" | grep -q 'could not establish filter-driver safety' \
+        && [ "$K_UNR_BEFORE" = "$(git -C "$K_ROOT/k_unr/consumer.git" rev-parse refs/heads/main)" ] \
+        && [ ! -f "$K_ROOT/k_unr.marker" ]; then
+        ok "K-unreadable (fail-closed): an effective config that cannot be read is a refusal before any write (rc=4, remote unchanged) -- never treated as 'no drivers'"
+    else
+        bad "K-unreadable: expected a fail-closed rc=4 refusal (rc=$J_RC out=$J_OUT marker=[$(k_marker "$K_ROOT/k_unr.marker")])"
+    fi
+    chmod 644 "$K_ROOT/k_unr/k_unreadable.cfg" 2>/dev/null || true
+fi
+
+# K-verify-wiring: repo_verify.py strips inherited GIT_CONFIG_* by design,
+# so the process-wide override never reaches it; migrate.sh must pass
+# --neutralize-repo-filters to BOTH step-9 verifications. Proven at
+# runtime by a recording stub verifier (its own argv), not by grepping
+# migrate.sh's source.
+K_RSTUB="$WORK/k_recording_verify.py"
+cat > "$K_RSTUB" <<'EOF'
+import json, os, sys
+with open(os.environ["FC_K_ARGV_LOG"], "a") as fh:
+    fh.write(" ".join(sys.argv[1:]) + "\n")
+out = sys.argv[sys.argv.index("--out") + 1]
+json.dump({"overall": "CLEAN", "body_hash": "same"}, open(out, "w"))
+sys.exit(0)
+EOF
+k_verify_run() {
+    # $1=tool $2=fixture-root $3=project $4=argv-log
+    rm -f "$4"
+    build_r3_fixture "$2"
+    _kvref=$(make_review_ref "$3" "$R3_NEW" "$(git -C "$2/checkout" rev-parse HEAD)")
+    FC_K_ARGV_LOG="$4" FASTCYCLE_VERIFY_TOOL_OVERRIDE="$K_RSTUB" sh "$1" --config "$CFG" --project "$3" \
+        --workdir "$2/checkout" --out "$WORK/$(basename "$2").json" --apply --review-ref "$_kvref" >/dev/null 2>&1
+}
+k_verify_run "$TOOL" "$K_ROOT/k_vw" fixture/section_k_vw "$WORK/k_vw.argv"
+K_VW_N=$(grep -c -- '--neutralize-repo-filters' "$WORK/k_vw.argv" 2>/dev/null || true)
+K_VW_TOTAL=$(wc -l < "$WORK/k_vw.argv" 2>/dev/null || echo 0)
+if [ "$K_VW_TOTAL" -eq 2 ] && [ "$K_VW_N" -eq 2 ]; then
+    ok "K-verify-wiring: both step-9 verifications were invoked with --neutralize-repo-filters (recorded from the verifier's own argv at runtime)"
+else
+    bad "K-verify-wiring: expected 2 verifier invocations both carrying --neutralize-repo-filters, got total=$K_VW_TOTAL flagged=$K_VW_N"
+fi
+
+# --- K2-K7 guard-viability: each mutant removes exactly ONE Round 23
+# mechanism and must re-open exactly the shape that mechanism closes.
+# R22-I1, the reviewer's OWN surviving mutation, reproduced verbatim:
+# drop `clean` from the discovered driver variables.
+k_mutant_expect_fire() {
+    # $1=label $2=mode $3=description -> runs mutant $WORK/jmut_$1.sh
+    if [ "$J_MUT_OK" -ne 1 ]; then
+        bad "K guard-viability $1: mutant anchor not unique/absent -- could not build"
+        return
+    fi
+    k_fixture "$K_ROOT/km_$1" "$2" "$K_ROOT/km_$1.marker"
+    j_run "$WORK/jmut_$1.sh" "$K_ROOT/km_$1" "fixture/section_km_$1" "$WORK/km_$1.json"
+    if [ -f "$K_ROOT/km_$1.marker" ]; then
+        ok "K guard-viability $1: $3 -- the hostile driver FIRES again ([$(k_marker "$K_ROOT/km_$1.marker")]); that mechanism is load-bearing"
+    else
+        bad "K guard-viability $1: $3, yet nothing fired (rc=$J_RC out=$J_OUT) -- this arm cannot see its own mechanism"
+    fi
+}
+j_mutant K_drop_clean_var \
+    'DRIVER_VARS = {b"clean", b"smudge", b"process"}' \
+    'DRIVER_VARS = {b"smudge", b"process"}  # MUTATED_FOR_TEST (R22-I1 reviewer mutation)'
+k_mutant_expect_fire K_drop_clean_var clean "with \`clean\` dropped from the discovered driver variables (the reviewer's own R22-I1 mutation)"
+j_mutant K_local_only \
+    'p = git(["config", "--show-scope", "--includes", "--null", "--get-regexp", r"^filter\."], d)' \
+    'p = git(["config", "--local", "--show-scope", "--null", "--get-regexp", r"^filter\."], d)  # MUTATED_FOR_TEST'
+k_mutant_expect_fire K_local_only include "with discovery narrowed back to \`git config --local\` (the Round 22 shape), an include.path-defined driver"
+j_mutant K_local_only_wt \
+    'p = git(["config", "--show-scope", "--includes", "--null", "--get-regexp", r"^filter\."], d)' \
+    'p = git(["config", "--local", "--show-scope", "--null", "--get-regexp", r"^filter\."], d)  # MUTATED_FOR_TEST'
+k_mutant_expect_fire K_local_only_wt worktree "with discovery narrowed back to \`git config --local\`, a --worktree-defined driver"
+j_mutant K_no_early_install \
+    'if ! fc_neutralize_repo_filters; then
+    echo "migrate.sh: could not establish filter-driver safety for $WORKDIR' \
+    'if false; then  # MUTATED_FOR_TEST: no install before the step-1 read
+    echo "migrate.sh: could not establish filter-driver safety for $WORKDIR'
+k_mutant_expect_fire K_no_early_install clean "with the install before the step-1 dirty check removed (later installs still present), the step-1 status read"
+# R22-M2: pin the override VALUE. Measured (not assumed) while building
+# this arm: `filter.<name>.process=` (EMPTY) by ITSELF disables the whole
+# driver -- with process set, git never consults clean/smudge, and an
+# empty process runs nothing (an attacker clean driver did not fire with
+# ONLY process emptied; nor did a smudge driver, content passed through
+# intact). So the process value is the PRIMARY, load-bearing neutraliser
+# and smudge/clean=`cat` is an independent SECOND layer. Two arms pin both:
+#  (a) an EXECUTING process value must be caught by the golden oracle;
+j_mutant K_process_value_exec \
+    '("smudge", "cat"), ("clean", "cat"), ("process", ""), ("required", "false")' \
+    "(\"smudge\", \"cat\"), (\"clean\", \"cat\"), (\"process\", \"$K_ROOT/km_K_process_value_exec/k_drv.sh VALUEMUT\"), (\"required\", \"false\")"
+k_mutant_expect_fire K_process_value_exec clean "with the process override VALUE replaced by a command (instead of empty)"
+#  (b) with the process override REMOVED entirely, the `cat` layer alone
+#      must still keep every hostile driver inert -- proving the second
+#      layer is real and independent, not decoration riding on the first.
+j_mutant K_cat_layer_alone \
+    '("smudge", "cat"), ("clean", "cat"), ("process", ""), ("required", "false")' \
+    '("smudge", "cat"), ("clean", "cat"), ("required", "false")'
+k_fixture "$K_ROOT/km_K_cat_layer_alone" clean "$K_ROOT/km_K_cat_layer_alone.marker"
+j_run "$WORK/jmut_K_cat_layer_alone.sh" "$K_ROOT/km_K_cat_layer_alone" fixture/section_km_K_cat_layer_alone "$WORK/km_K_cat_layer_alone.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ ! -f "$K_ROOT/km_K_cat_layer_alone.marker" ]; then
+    ok "K layer-independence: with the empty-process override REMOVED, the smudge/clean=\`cat\` layer alone still keeps the clean-shape drivers inert (MIGRATED, marker never written) -- the second layer is real, not decoration"
+else
+    bad "K layer-independence: without the process override the cat layer did not hold (mut_ok=$J_MUT_OK rc=$J_RC marker=[$(k_marker "$K_ROOT/km_K_cat_layer_alone.marker")] out=$J_OUT)"
+fi
+# R22-M3: process emptied (not `cat`) is what keeps a required long-running
+# driver from breaking the checkout.
+j_mutant K_process_cat \
+    '("smudge", "cat"), ("clean", "cat"), ("process", ""), ("required", "false")' \
+    '("smudge", "cat"), ("clean", "cat"), ("process", "cat"), ("required", "false")'
+k_fixture "$K_ROOT/km_K_process_cat" process "$K_ROOT/km_K_process_cat.marker"
+j_run "$WORK/jmut_K_process_cat.sh" "$K_ROOT/km_K_process_cat" fixture/section_km_K_process_cat "$WORK/km_K_process_cat.json"
+# Measured: the broken handshake surfaces at this tool's FIRST git read
+# that needs the driver (the step-1 status, reported dirty-local because
+# git's own handshake error lands in that read's output), not only at the
+# checkout -- the assertion is the mechanism (the run no longer succeeds
+# and the attacker's process command still never runs), not one symptom.
+if [ "$J_MUT_OK" -eq 1 ] && [ "$J_RC" -ne 0 ] && ! echo "$J_OUT" | grep -q '^MIGRATED' && [ ! -f "$K_ROOT/km_K_process_cat.marker" ]; then
+    ok "K guard-viability (R22-M3): with process overridden to \`cat\` (the Round 22 value), git's long-running-filter handshake breaks and the migration no longer succeeds (rc=$J_RC) while the attacker command still never runs -- emptying process is what makes K-process pass"
+else
+    bad "K guard-viability (R22-M3): process=cat did not reproduce the checkout failure (mut_ok=$J_MUT_OK rc=$J_RC out=$J_OUT)"
+fi
+j_mutant K_no_verify_flag \
+    'python3 "$VERIFY_TOOL" --recursive --neutralize-repo-filters --root "$WORKDIR" --out "$V1"' \
+    'python3 "$VERIFY_TOOL" --recursive --root "$WORKDIR" --out "$V1"' \
+    'python3 "$VERIFY_TOOL" --recursive --neutralize-repo-filters --root "$WORKDIR" --out "$V2"' \
+    'python3 "$VERIFY_TOOL" --recursive --root "$WORKDIR" --out "$V2"'
+k_verify_run "$WORK/jmut_K_no_verify_flag.sh" "$K_ROOT/km_vw" fixture/section_km_vw "$WORK/km_vw.argv"
+K_MVW_N=$(grep -c -- '--neutralize-repo-filters' "$WORK/km_vw.argv" 2>/dev/null || true)
+if [ "$J_MUT_OK" -eq 1 ] && [ "${K_MVW_N:-0}" -eq 0 ] && [ -s "$WORK/km_vw.argv" ]; then
+    ok "K guard-viability (verify wiring): with the flag dropped from both verify invocations, the recording stub sees the verifier run WITHOUT it -- K-verify-wiring observes the real argv, not a constant"
+else
+    bad "K guard-viability (verify wiring): mutant did not change the recorded argv as expected (mut_ok=$J_MUT_OK flagged=$K_MVW_N)"
 fi
 
 rm -rf "$K_ROOT" 2>/dev/null || true
