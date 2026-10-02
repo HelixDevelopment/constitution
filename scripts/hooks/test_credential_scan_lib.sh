@@ -905,6 +905,30 @@ EOF
 assert_caught "(26-neg-9) #21 two-hump floor survives the widening (still caught)" \
               "$WORK/bad_26_symbol_floor.go"
 
+# (27) §11.4.201 carrier-strip #27: a double-quoted shell variable reference
+# immediately after a `user.email=...@example.invalid` git-identity flag is not
+# a password. Forensic FP: constitution/scripts/fastcycle/consumers/migrate.sh
+# `git -c user.email=fastcycle-migrate@example.invalid commit-tree "$NEW_TREE"
+# -p "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/committree.err"` -- both the complete
+# `"$NEW_TREE"`/`"$LOCAL_HEAD"` tokens AND the 48-char-window-TRUNCATED
+# `2>"$MI` fragment of the later redirect must all be recognised as shell
+# references, never password-shaped.
+cat > "$WORK/good_27_shell_var_ref.sh" <<'EOF'
+NEW_COMMIT=$(printf '%s' "$COMMIT_MSG" | git -C "$FC_BARE" -c user.name=fastcycle-migrate -c user.email=fastcycle-migrate@example.invalid commit-tree "$NEW_TREE" -p "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/committree.err")
+EOF
+assert_clean "(27) email + adjacent shell variable references (incl. a window-truncated redirect)" \
+             "$WORK/good_27_shell_var_ref.sh"
+
+# (27-neg) FALSIFYING CONTROL: a real password containing a literal `$`
+# character, immediately adjacent to an email, must still be CAUGHT -- carrier-
+# strip #27 only exempts a token that IS ENTIRELY a shell-reference shape, never
+# a genuine secret that merely contains a `$`.
+cat > "$WORK/bad_27_dollar_password.txt" <<'EOF'
+leaked credential: admin@example.com : P@ss$w0rd!123
+EOF
+assert_caught "(27-neg) real password containing a literal \$ survives the shell-var-ref strip (still caught)" \
+              "$WORK/bad_27_dollar_password.txt"
+
 echo ""
 echo "== RESULT: ${pass} passed, ${fail} failed =="
 [ "$fail" -eq 0 ]

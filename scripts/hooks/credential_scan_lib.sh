@@ -511,6 +511,41 @@ HELIX_CRED_ADJACENCY_AWK='
       if (tnm ~ /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z][A-Za-z]+$/) continue
       if (t ~ /^[-+0-9(). _]+$/) continue
       if (t ~ /\.(md|html|pdf|docx|sh|txt|json|ya?ml|xml|png|jpe?g|gif|svg|log|go|py|kt|java|cpp|ts|js|tsv|csv|db|c|h)$/) continue
+      # §11.4.201 carrier-strip #27 (SHELL-VARIABLE-REFERENCE token). A git
+      # `-c user.email=<name>@example.invalid` identity flag (the RFC 2606
+      # reserved documentation TLD the git-fixture helpers use for
+      # throwaway test/tool commits, never a real credential) is frequently
+      # followed, within the adjacency window, by a double-quoted shell
+      # variable reference such as `"$NEW_TREE"` or `"$LOCAL_HEAD"` — the
+      # token is ALL-CAPS-with-underscores (hasLetter) wrapped in `"` with a
+      # literal `$` sigil, and `$` is itself one of the hasSpec characters, so
+      # the heuristic misreads an ordinary shell interpolation as a
+      # password-shaped token immediately after an "email". FORENSIC
+      # (2026-10-02, MEASURED): `constitution/scripts/fastcycle/consumers/
+      # migrate.sh`, its `git -c user.email=fastcycle-migrate@example.invalid
+      # commit-tree "$NEW_TREE" -p "$LOCAL_HEAD"` line tripped exactly this
+      # way. A shell variable reference is never a credential value — skip a
+      # token that is ENTIRELY an (optionally fd-redirect-prefixed, optionally
+      # double-quoted) `$NAME` form (bare `$`, `${...}`, and quoted variants
+      # all reduce to this shape once markup/quote stripping above has run).
+      # The leading `[0-9]*>>?` tolerates a shell fd-redirect operator
+      # (`2>"$LOG"`, `>>"$OUT"`) immediately preceding the variable — common
+      # throughout this codebase and, UNMEASURED but genuinely possible given
+      # the fixed-width 48-char adjacency window above, the token MAY be
+      # TRUNCATED mid-identifier (`2>"$MI` for a real `2>"$MIGRATE_SCRATCH/..`
+      # redirect) — FORENSIC (2026-10-02, MEASURED): the SAME migrate.sh line
+      # continues ` 2>"$MIGRATE_SCRATCH/committree.err")`, and the window cut
+      # it to the token `2>"$MI`, which the FIRST version of this fix (no
+      # redirect-prefix tolerance) still missed. A real password never takes
+      # this `[redirect]["]$IDENT` shape (a digit-prefixed `$` sigil is not a
+      # credential character sequence any known leak format uses), so this
+      # is NOT a weakening of the heuristic for genuine secrets — a real
+      # password containing a literal `$` character survives this check
+      # unless its WHOLE token (partial-or-truncated included) is this exact
+      # shell-reference shape, which a genuine secret value never is. Proven
+      # by golden-good scenario (f) + golden-bad (real email+password
+      # containing a `$`) in test_credential_scan_lib.sh (§11.4.107(10)).
+      if (t ~ /^([0-9]*>>?)?"?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?$/) continue
       # §11.4.201 carrier-strip #5: a Markdown-emphasized plain WORD (**BROWSERS**,
       # *note*, `code`) is prose emphasis in a doc, NOT a password. The ** / * / `
       # emphasis runs make the "hasSpec" test below read an ordinary word as
