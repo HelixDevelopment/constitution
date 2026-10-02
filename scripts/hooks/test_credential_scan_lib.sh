@@ -344,7 +344,11 @@ printf '%s\n' "$_SK_KEY" >> "$WORK/bad_8_sk_boundary.txt"
 # of the instrument).
 _sk_c=32
 while [ "$_sk_c" -le 126 ]; do
-    _sk_ch=$(printf "\\$(printf '%03o' "$_sk_c")")
+    # SC2059 fix: the dynamic \NNN octal-escape text is now passed as %b's
+    # ARGUMENT (which backslash-escape-expands it), not as the format
+    # string itself (was `printf "\\$(printf '%03o' "$_sk_c")"`); confirmed
+    # byte-identical output for every value 32..126 before landing.
+    _sk_ch=$(printf '%b' "\\$(printf '%03o' "$_sk_c")")
     case "$_sk_ch" in
         [0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz])
             _sk_c=$((_sk_c + 1)); continue ;;
@@ -356,6 +360,12 @@ done
 # stays a REAL tab: an editor that re-indents a fixture file silently converts an
 # in-heredoc tab into spaces, degrading this form into the already-covered space
 # form — a silent class-coverage loss the suite could not see (§11.4.201(6)).
+# shellcheck disable=SC2129  # intentional: form 35/36/37 each individually
+# append to the SAME file rather than one grouped `{ ...; } >> file` block,
+# so each form keeps its own preceding narrative comment directly attached
+# to the statement it explains -- merging into one brace group would
+# detach the per-form rationale from its form, which is the whole point of
+# this section's form-by-form documentation style.
 printf '\t%s\n' "$_SK_KEY" >> "$WORK/bad_8_sk_boundary.txt"
 # form 36 — C0 control byte (0x01). Non-printable, so outside the generated sweep;
 # it is neither [:punct:] nor [:space:] in ANY locale, making it the form that
@@ -521,6 +531,10 @@ assert_caught "(19-bad-3) lib basename, pattern assigned but no scanner defined"
 
 # golden-BAD 4: PARTIAL forgery — one oracle defined, the other missing.
 { echo '#!/bin/sh'; echo 'assert_clean() { :; }'
+  # shellcheck disable=SC2016  # intentional: the single-quoted '"$1"' text
+  # is NOT meant to expand in THIS shell -- it is literal generated-script
+  # source being written to $WORK/x19d/..., where it becomes a REAL
+  # positional-parameter reference when that generated forged script runs.
   printf '  %s "$1"\n' "$_x19_fn"; printf '%s\n' "$_x19_secret"; } \
   > "$WORK/x19d/test_credential_scan_lib.sh"
 assert_caught "(19-bad-4) suite basename, assert_caught definition missing" \
