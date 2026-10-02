@@ -173,6 +173,61 @@ if [ -z "$MIGRATE_SCRATCH" ] || [ ! -d "$MIGRATE_SCRATCH" ]; then
 fi
 trap 'rm -rf "$MIGRATE_SCRATCH"' EXIT INT TERM
 
+# T177 Round 15 (R14-B1 BLOCKING, half 1 of 2): every git command THIS tool
+# runs executes with git hooks DISABLED. The step-5 post_update_hook.sh --
+# the adversary every round has defended against -- legitimately writes
+# `$PROJECT_ROOT/.git/hooks/` (its own STEP 4 `install_hooks`), and
+# `.git/hooks/` never appears in `git status`, so no residue check can see
+# a hook it installed; the consumer's own pre-existing hooks /
+# `core.hooksPath` are a second route needing no post-update hook at all.
+# A `pre-commit` hook fires DURING this tool's own `git commit` and its
+# index edits land IN the commit, AFTER every staged-content scan already
+# passed (reproduced live, round-14 review S1: a shadow `.gitmodules`
+# section + product code published, rc=0, MIGRATED); `post-commit` (an
+# `--amend`), `pre-push` (a side-channel push of other refs) and
+# `reference-transaction` fire at the same seams. `core.hooksPath=/dev/null`
+# (a path under which no hook file can exist) disables EVERY hook, not
+# only the pre-commit/commit-msg/pre-push subset `--no-verify` skips, and
+# `core.fsmonitor=false` stops a configured fsmonitor program (another
+# repository-config-driven executable) from running during this tool's own
+# status/diff/add calls. Exported as environment-scoped config
+# (GIT_CONFIG_COUNT, git >= 2.31) so it reaches EVERY git invocation this
+# tool makes -- including the ones repo_verify.py makes during step 9 --
+# and overrides anything the hook writes into `.git/config`; the commit and
+# push calls additionally pass it explicitly with `-c`. The post-update
+# hook and the consumer's own gates are run with the CALLER's original git
+# environment restored (run_with_caller_git_env), never with this override
+# -- they are the consumer's own processes, not this tool's.
+#
+# This half is NECESSARY, NOT SUFFICIENT: the load-bearing half is the
+# positive post-commit re-verification of the commit's own FINAL tree
+# (verify_final_commit, step 7), which does not care HOW a commit came to
+# hold whatever it holds.
+FC_CALLER_GCC_SET=0
+[ -n "${GIT_CONFIG_COUNT+x}" ] && FC_CALLER_GCC_SET=1
+FC_CALLER_GCC=${GIT_CONFIG_COUNT:-0}
+case "$FC_CALLER_GCC" in
+    ''|*[!0-9]*) echo "migrate.sh: inherited GIT_CONFIG_COUNT=$FC_CALLER_GCC is not a number -- refusing to guess how to extend it" >&2; exit 4 ;;
+esac
+FC_GCC_K1=$FC_CALLER_GCC
+FC_GCC_K2=$((FC_CALLER_GCC + 1))
+eval "GIT_CONFIG_KEY_$FC_GCC_K1=core.hooksPath; GIT_CONFIG_VALUE_$FC_GCC_K1=/dev/null; export GIT_CONFIG_KEY_$FC_GCC_K1 GIT_CONFIG_VALUE_$FC_GCC_K1"
+eval "GIT_CONFIG_KEY_$FC_GCC_K2=core.fsmonitor; GIT_CONFIG_VALUE_$FC_GCC_K2=false; export GIT_CONFIG_KEY_$FC_GCC_K2 GIT_CONFIG_VALUE_$FC_GCC_K2"
+GIT_CONFIG_COUNT=$((FC_CALLER_GCC + 2)); export GIT_CONFIG_COUNT
+run_with_caller_git_env() {
+    # Runs "$@" in a subshell with the caller's ORIGINAL GIT_CONFIG_COUNT
+    # restored (extra GIT_CONFIG_KEY_<n>/VALUE_<n> beyond the count are
+    # ignored by git).
+    (
+        if [ "$FC_CALLER_GCC_SET" -eq 1 ]; then
+            GIT_CONFIG_COUNT=$FC_CALLER_GCC; export GIT_CONFIG_COUNT
+        else
+            unset GIT_CONFIG_COUNT
+        fi
+        "$@"
+    )
+}
+
 write_out() {
     # $1=outcome $2=reason_or_empty $3=commit_or_empty $4=data_change(NONE|list)
     # $5=push_results_or_empty -- comma-separated "remote:status" entries.
@@ -376,6 +431,156 @@ except Exception:
 " "$REVIEW_REF" 2>/dev/null)
     [ -n "$REVIEW_REF_ID" ] || return 1
     return 0
+}
+
+# T177 Round 15 (R14-B1): the symlink (mode 120000) and gitlink (mode 160000)
+# scanners, factored out of the step-5 staged-index checks UNCHANGED so the
+# SAME code runs twice: once against the STAGED index before commit (step
+# 5, `git diff --cached --raw`) and once against the FINAL COMMITTED tree
+# before push (verify_final_commit, `git diff-tree --raw LOCAL_HEAD
+# NEW_COMMIT`) -- both inputs share git's `--raw -z` record format. Each
+# reads the raw diff from the file named by $1; prints a violation line (or
+# nothing) and exits non-zero only when the scan itself could not run.
+scan_symlinks_raw() {
+    python3 -c '
+import os, posixpath, subprocess, sys
+workdir = sys.argv[1]
+data = sys.stdin.buffer.read().split(b"\0")
+i = 0
+bad = []
+while i + 1 < len(data):
+    meta, path = data[i], data[i + 1]
+    i += 2
+    if not meta.startswith(b":"):
+        continue
+    fields = meta[1:].split()
+    if len(fields) < 4 or fields[1] != b"120000":
+        continue
+    blob = fields[3].decode()
+    rel = path.decode("utf-8", "surrogateescape")
+    # T177 Round 6 (round-6 BLOCKING B1): this subprocess returncode was
+    # previously never checked at all -- a FAILED blob read decoded its
+    # empty stdout as target="", which normalizes to "inside the repo"
+    # (clean) via posixpath.normpath, silently clearing a blob the scanner
+    # never actually inspected (reproduced live under a cat-file-failing
+    # shim: an absolute-path symlink was published, rc=0). A failed read
+    # is an UNKNOWN target, never a clean one -- the scanner fails loud.
+    cat = subprocess.run(["git", "-C", workdir, "cat-file", "blob", blob],
+                         capture_output=True)
+    if cat.returncode != 0:
+        sys.exit(3)
+    target = cat.stdout.decode("utf-8", "surrogateescape")
+    if target.startswith("/"):
+        bad.append("path=%s target-is-absolute" % rel)
+        continue
+    resolved = posixpath.normpath(posixpath.join(posixpath.dirname(rel), target))
+    if resolved == ".." or resolved.startswith("../") or resolved.startswith("/"):
+        bad.append("path=%s target-escapes-repository" % rel)
+if bad:
+    print("host-specific-symlink " + " ".join(bad))
+' "$WORKDIR" <"$1"
+}
+scan_gitlinks_raw() {
+    python3 -c '
+import sys
+data = sys.stdin.buffer.read().split(b"\0")
+i = 0
+bad = []
+while i + 1 < len(data):
+    meta, path = data[i], data[i + 1]
+    i += 2
+    if not meta.startswith(b":"):
+        continue
+    fields = meta[1:].split()
+    if len(fields) < 4 or fields[1] != b"160000":
+        continue
+    rel = path.decode("utf-8", "surrogateescape")
+    if rel == "constitution":
+        continue
+    bad.append("path=%s" % rel)
+if bad:
+    print("unexpected-gitlink " + " ".join(bad))
+' <"$1"
+}
+
+# T177 Round 15 (R14-B1): the CA-022 allow-list for a migration's own
+# output -- the step-5 post-hook working-tree check and the step-7 final
+# committed-tree re-verification (verify_final_commit) both call THIS one
+# definition, so the two can never drift apart. (Previously the list lived
+# inline in the step-5 `case` only.) Returns 0 iff path $1 is allowed.
+ca022_post_hook_path_ok() {
+    case "$1" in
+        constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) return 0 ;;
+    esac
+    return 1
+}
+
+# T177 Round 15 (R14-B1 BLOCKING, half 2 of 2 -- THE LOAD-BEARING PART):
+# positive re-verification of the migration commit's own FINAL tree, run
+# AFTER the commit exists and BEFORE any push (the point of no return --
+# no force-push ever, §11.4.113). Every content check before this point
+# inspects the STAGED INDEX; anything that changed the commit between that
+# scan and now -- a hook that fired despite half 1, a post-commit amend, a
+# background process the post-update hook left running, a future bug in
+# this tool itself -- would otherwise be published with only the
+# commit-COUNT check (PUSH_SET_SIZE) standing in the way, which a
+# same-count rewrite satisfies trivially. This does not care HOW the
+# commit came to hold what it holds: it re-derives every invariant this
+# tool's design depends on directly from the committed objects. Refuses
+# (refuse_final_commit: NOT-MIGRATED (push: out-of-scope-diff), the local
+# commit named, never pushed anywhere, never rolled back -- CA-019) on:
+#   1. local refs/heads/$BRANCH != the commit about to be pushed;
+#   2. parents != exactly [$LOCAL_HEAD] (an amend onto a different parent,
+#      or a merge commit smuggling a second parent's history);
+#   3. any path in `diff-tree LOCAL_HEAD NEW_COMMIT` outside the CA-022
+#      allow-list (the SAME list the step-5 working-tree check enforces);
+#   4. NEW_COMMIT:.gitmodules blob != LOCAL_HEAD:.gitmodules blob (R12-B1's
+#      whole-file byte-identity, re-asserted on the committed tree);
+#   5. the committed "constitution" entry != `160000 commit $NEW_SHA`
+#      (R10-I1's positive gitlink invariant, re-asserted on the tree);
+#   6. any NEW/changed mode-160000 entry other than "constitution", or any
+#      mode-120000 entry whose target is absolute / escapes the repository
+#      (the SAME scan_gitlinks_raw / scan_symlinks_raw code as step 5).
+# Any read that fails refuses too (§11.4.201) -- an unreadable invariant is
+# never a passed one.
+refuse_final_commit() {
+    FULL="NOT-MIGRATED (push: out-of-scope-diff)"
+    write_out "NOT-MIGRATED" "$FULL" "$NEW_COMMIT" "$(current_data_change)" "" "" "" "" "refused-before-push: final-tree-verification: $1; local commit $NEW_COMMIT NOT pushed to any remote"
+    echo "$FULL [refused-before-push: final-tree-verification: $1]"
+    exit 1
+}
+verify_final_commit() {
+    VFC_BRANCH_TIP=$(git -C "$WORKDIR" rev-parse -q --verify "refs/heads/$BRANCH" 2>/dev/null)
+    [ "$VFC_BRANCH_TIP" = "$NEW_COMMIT" ] || refuse_final_commit "branch-$BRANCH-tip=${VFC_BRANCH_TIP:-unreadable} != migration-commit"
+    VFC_PARENTS=$(git -C "$WORKDIR" rev-list --parents -n 1 "$NEW_COMMIT" 2>/dev/null)
+    [ "$VFC_PARENTS" = "$NEW_COMMIT $LOCAL_HEAD" ] || refuse_final_commit "parents-not-exactly-pre-migration-HEAD got=[${VFC_PARENTS#"$NEW_COMMIT"}] expected=[ $LOCAL_HEAD]"
+    VFC_PATHS=$(git -C "$WORKDIR" diff-tree -r --name-only --no-commit-id --no-renames "$LOCAL_HEAD" "$NEW_COMMIT" 2>/dev/null) \
+        || refuse_final_commit "committed-path-enumeration-failed"
+    OLD_IFS=$IFS
+    IFS='
+'
+    for f in $VFC_PATHS; do
+        if ! ca022_post_hook_path_ok "$f"; then
+            IFS=$OLD_IFS
+            refuse_final_commit "committed-out-of-scope-path=$f"
+        fi
+    done
+    IFS=$OLD_IFS
+    VFC_GM_OLD=$(git -C "$WORKDIR" rev-parse -q --verify "$LOCAL_HEAD:.gitmodules" 2>/dev/null)
+    VFC_GM_NEW=$(git -C "$WORKDIR" rev-parse -q --verify "$NEW_COMMIT:.gitmodules" 2>/dev/null)
+    if [ -z "$VFC_GM_OLD" ] || [ "$VFC_GM_OLD" != "$VFC_GM_NEW" ]; then
+        refuse_final_commit "committed-gitmodules-blob-changed old=${VFC_GM_OLD:-unreadable} new=${VFC_GM_NEW:-absent}"
+    fi
+    VFC_CONST=$(git -C "$WORKDIR" ls-tree "$NEW_COMMIT" constitution 2>/dev/null)
+    VFC_CONST_EXPECTED=$(printf '160000 commit %s\tconstitution' "$NEW_SHA")
+    [ "$VFC_CONST" = "$VFC_CONST_EXPECTED" ] || refuse_final_commit "committed-constitution-entry=[${VFC_CONST:-absent}] expected-target=$NEW_SHA"
+    VFC_RAW="$MIGRATE_SCRATCH/final_commit_diff.raw"
+    git -C "$WORKDIR" diff-tree -r --raw --no-abbrev -z --no-renames "$LOCAL_HEAD" "$NEW_COMMIT" >"$VFC_RAW" 2>/dev/null \
+        || refuse_final_commit "committed-raw-diff-failed"
+    VFC_GITLINK=$(scan_gitlinks_raw "$VFC_RAW" 2>/dev/null) || refuse_final_commit "committed-gitlink-scan-failed"
+    [ -z "$VFC_GITLINK" ] || refuse_final_commit "committed-$VFC_GITLINK"
+    VFC_SYMLINK=$(scan_symlinks_raw "$VFC_RAW" 2>/dev/null) || refuse_final_commit "committed-symlink-scan-failed"
+    [ -z "$VFC_SYMLINK" ] || refuse_final_commit "committed-$VFC_SYMLINK"
 }
 
 # --- Step 1: preflight (CA-020) -- no write below this point until it passes.
@@ -690,6 +895,70 @@ check_remote_scope() {
     done
     IFS=$OLD_IFS
 }
+# T177 Round 15 fix (R14-I1 IMPORTANT, pre-existing since Round 10): the
+# TREE comparison above compares FINAL states only, so it is structurally
+# blind to INTERMEDIATE history -- a commit X adding unreviewed product
+# code followed by a commit Y reverting it nets to an EMPTY tree diff, and
+# if X and Y were published to only ONE mirror (never to this checkout's
+# trusted upstream), pushing "$BRANCH" to every other remote delivers X's
+# full content in that remote's history even though no final tree shows
+# it (reproduced live, round-14 review S4: rc=0, MIGRATED, origin then
+# contains X). Round 9's per-commit walk would have caught it; Round 10
+# replaced the walk with the tree comparison because a per-commit diff in
+# ANY mode cannot see a merge RESOLUTION that selects one parent's content
+# in full (the select-one-parent evil merge, J28). Neither invariant
+# subsumes the other, so BOTH are now required -- composed, never one
+# replacing the other: check_remote_scope (the tree, run first, its
+# refusal detail unchanged) AND check_remote_commits (each commit, below);
+# a refusal from EITHER refuses the migration.
+#
+# For remote $1, every commit that pushing "$BRANCH" would NEWLY DELIVER
+# ($LOCAL_HEAD's history minus what that remote's own copy of $BRANCH --
+# $2, empty for a branch-less remote, whose push delivers the FULL history
+# -- already holds) must EITHER (a) be an ancestor of this checkout's own
+# tracked $UPSTREAM (already-reviewed content catching a lagging remote
+# up -- excluded directly by `--not $UPSTREAM`), OR (b) touch ONLY CA-022
+# allow-listed paths in its OWN individual diff, never the net tree diff.
+# A merge commit's "own" diff is `diff-tree -c`: the paths its result
+# differs from EVERY parent in, i.e. what the merge itself introduced
+# (each parent's own commits are walked individually anyway; the
+# select-one-parent resolution `-c` cannot see is exactly what the tree
+# check above exists for -- the reason both run). Commits are walked
+# oldest-first (`--reverse`) so a refusal names the commit that FIRST
+# introduced the out-of-scope path (X), not a later one that reverted it
+# (Y). A walk or diff that cannot run refuses (§11.4.201 conservative-safe
+# default), never skips.
+check_remote_commits() {
+    r=$1; CRC_REMOTE_REF=$2
+    if [ -n "$UPSTREAM" ] && [ -n "$CRC_REMOTE_REF" ]; then
+        CRC_LIST=$(git -C "$WORKDIR" rev-list --reverse "$LOCAL_HEAD" --not "$UPSTREAM" "$CRC_REMOTE_REF" 2>/dev/null) || CRC_LIST="__FAILED__"
+    elif [ -n "$UPSTREAM" ]; then
+        CRC_LIST=$(git -C "$WORKDIR" rev-list --reverse "$LOCAL_HEAD" --not "$UPSTREAM" 2>/dev/null) || CRC_LIST="__FAILED__"
+    elif [ -n "$CRC_REMOTE_REF" ]; then
+        CRC_LIST=$(git -C "$WORKDIR" rev-list --reverse "$LOCAL_HEAD" --not "$CRC_REMOTE_REF" 2>/dev/null) || CRC_LIST="__FAILED__"
+    else
+        CRC_LIST=$(git -C "$WORKDIR" rev-list --reverse "$LOCAL_HEAD" 2>/dev/null) || CRC_LIST="__FAILED__"
+    fi
+    if [ "$CRC_LIST" = "__FAILED__" ]; then
+        not_migrated "preflight" "divergent-branches" "remote-$r-newly-delivered-commit-walk-failed"
+    fi
+    for c in $CRC_LIST; do
+        CRC_PATHS=$(git -C "$WORKDIR" diff-tree --root -r -c --name-only --no-commit-id --no-renames "$c" 2>/dev/null) \
+            || not_migrated "preflight" "divergent-branches" "remote-$r-newly-delivered-commit-$c-diff-failed"
+        OLD_IFS=$IFS
+        IFS='
+'
+        for f in $CRC_PATHS; do
+            case "$f" in
+                constitution|.gitmodules|.mcp.json) continue ;;
+                .claude/*|scripts/hooks/*|config/fastcycle/*|skills/*) continue ;;
+            esac
+            IFS=$OLD_IFS
+            not_migrated "preflight" "divergent-branches" "remote-$r-would-newly-receive-commit-$c-touching-out-of-scope-path-$f"
+        done
+        IFS=$OLD_IFS
+    done
+}
 for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
     RREF="refs/remotes/$r/$BRANCH"
     if ! git -C "$WORKDIR" rev-parse -q --verify "$RREF" >/dev/null 2>&1; then
@@ -703,6 +972,7 @@ for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
         fi
         TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
         check_remote_scope "$r"
+        check_remote_commits "$r" ""
         continue
     fi
     if ! git -C "$WORKDIR" merge-base --is-ancestor "$RREF" "$LOCAL_HEAD" 2>/dev/null; then
@@ -715,11 +985,15 @@ for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
             TREE_DIFF=$(git -C "$WORKDIR" ls-tree -r --name-only "$LOCAL_HEAD" 2>/dev/null)
         fi
         check_remote_scope "$r"
+        check_remote_commits "$r" "$RREF"
         continue
     fi
+    # Ancestor remote: an EMPTY tree diff no longer short-circuits the
+    # remote (R14-I1) -- net-zero intermediate history is exactly the case
+    # whose tree diff is empty, so the per-commit walk always runs.
     TREE_DIFF=$(git -C "$WORKDIR" diff --name-only "$RREF" "$LOCAL_HEAD" 2>/dev/null)
-    [ -z "$TREE_DIFF" ] && continue
-    check_remote_scope "$r"
+    [ -z "$TREE_DIFF" ] || check_remote_scope "$r"
+    check_remote_commits "$r" "$RREF"
 done
 
 if [ "$APPLY" -eq 0 ]; then
@@ -945,7 +1219,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         # happens to accept bash syntax; on a POSIX /bin/sh (dash) every
         # migration would fail with a cryptic post-update-hook refusal. It
         # is invoked with bash explicitly, never sh.
-        if ! ( cd "$WORKDIR" && PROJECT_ROOT="$WORKDIR" CONST_DIR="$WORKDIR/constitution" bash "$HOOK" ) >"$MIGRATE_SCRATCH/migrate_hook.log" 2>&1; then
+        if ! run_with_caller_git_env sh -c 'cd "$1" && PROJECT_ROOT="$1" CONST_DIR="$1/constitution" bash "$2"' fc-hook "$WORKDIR" "$HOOK" >"$MIGRATE_SCRATCH/migrate_hook.log" 2>&1; then
             not_migrated_after_write "post-update-hook" "consumer-gates-red"
         fi
     fi
@@ -968,7 +1242,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         if [ ! -f "$WORKDIR/$GATES_SCRIPT" ]; then
             not_migrated_after_write "consumer-gates" "consumer-gates-red"
         fi
-        if ! ( cd "$WORKDIR" && sh "$GATES_SCRIPT" ) >"$MIGRATE_SCRATCH/migrate_gates.log" 2>&1; then
+        if ! run_with_caller_git_env sh -c 'cd "$1" && sh "$2"' fc-gates "$WORKDIR" "$GATES_SCRIPT" >"$MIGRATE_SCRATCH/migrate_gates.log" 2>&1; then
             not_migrated_after_write "consumer-gates" "consumer-gates-red"
         fi
     fi
@@ -1015,13 +1289,10 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
 '
         for line in $POST_HOOK_STATUS; do
             f=${line#???}
-            case "$f" in
-                constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) : ;;
-                *)
-                    IFS=$OLD_IFS
-                    not_migrated_after_write "wiring" "out-of-scope-diff" "path=$f"
-                    ;;
-            esac
+            if ! ca022_post_hook_path_ok "$f"; then
+                IFS=$OLD_IFS
+                not_migrated_after_write "wiring" "out-of-scope-diff" "path=$f"
+            fi
         done
         IFS=$OLD_IFS
         git -C "$WORKDIR" add -A -- constitution .gitmodules 2>/dev/null || true
@@ -1086,43 +1357,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     if ! git -C "$WORKDIR" diff --cached --raw --no-abbrev -z --no-renames --diff-filter=AMT >"$SYMLINK_DIFF" 2>/dev/null; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "symlink-scan-failed"
     fi
-    SYMLINK_VIOLATION=$(python3 -c '
-import os, posixpath, subprocess, sys
-workdir = sys.argv[1]
-data = sys.stdin.buffer.read().split(b"\0")
-i = 0
-bad = []
-while i + 1 < len(data):
-    meta, path = data[i], data[i + 1]
-    i += 2
-    if not meta.startswith(b":"):
-        continue
-    fields = meta[1:].split()
-    if len(fields) < 4 or fields[1] != b"120000":
-        continue
-    blob = fields[3].decode()
-    rel = path.decode("utf-8", "surrogateescape")
-    # T177 Round 6 (round-6 BLOCKING B1): this subprocess returncode was
-    # previously never checked at all -- a FAILED blob read decoded its
-    # empty stdout as target="", which normalizes to "inside the repo"
-    # (clean) via posixpath.normpath, silently clearing a blob the scanner
-    # never actually inspected (reproduced live under a cat-file-failing
-    # shim: an absolute-path symlink was published, rc=0). A failed read
-    # is an UNKNOWN target, never a clean one -- the scanner fails loud.
-    cat = subprocess.run(["git", "-C", workdir, "cat-file", "blob", blob],
-                         capture_output=True)
-    if cat.returncode != 0:
-        sys.exit(3)
-    target = cat.stdout.decode("utf-8", "surrogateescape")
-    if target.startswith("/"):
-        bad.append("path=%s target-is-absolute" % rel)
-        continue
-    resolved = posixpath.normpath(posixpath.join(posixpath.dirname(rel), target))
-    if resolved == ".." or resolved.startswith("../") or resolved.startswith("/"):
-        bad.append("path=%s target-escapes-repository" % rel)
-if bad:
-    print("host-specific-symlink " + " ".join(bad))
-' "$WORKDIR" <"$SYMLINK_DIFF" 2>/dev/null)
+    SYMLINK_VIOLATION=$(scan_symlinks_raw "$SYMLINK_DIFF" 2>/dev/null)
     SYMLINK_RC=$?
     if [ "$SYMLINK_RC" -ne 0 ]; then
         # The scanner itself could not run: refuse rather than publish
@@ -1187,26 +1422,7 @@ if bad:
     # therefore simply skipped here (verified exhaustively, unconditionally,
     # immediately below instead); every OTHER staged 160000 path remains
     # refused outright, exactly as round 9 left it.
-    GITLINK_VIOLATION=$(python3 -c '
-import sys
-data = sys.stdin.buffer.read().split(b"\0")
-i = 0
-bad = []
-while i + 1 < len(data):
-    meta, path = data[i], data[i + 1]
-    i += 2
-    if not meta.startswith(b":"):
-        continue
-    fields = meta[1:].split()
-    if len(fields) < 4 or fields[1] != b"160000":
-        continue
-    rel = path.decode("utf-8", "surrogateescape")
-    if rel == "constitution":
-        continue
-    bad.append("path=%s" % rel)
-if bad:
-    print("unexpected-gitlink " + " ".join(bad))
-' <"$SYMLINK_DIFF" 2>/dev/null)
+    GITLINK_VIOLATION=$(scan_gitlinks_raw "$SYMLINK_DIFF" 2>/dev/null)
     GITLINK_RC=$?
     if [ "$GITLINK_RC" -ne 0 ]; then
         not_migrated_after_write "wiring" "out-of-scope-diff" "gitlink-scan-failed"
@@ -1375,7 +1591,9 @@ if bad:
     # email-shaped string, a pre-existing false positive found live while
     # committing this same file (T175, 2026-09-30), fixed at the source text
     # per §11.4.201 rather than by touching the shared scanner.
-    if ! git -C "$WORKDIR" \
+    # T177 Round 15 (R14-B1, half 1): hooks disabled explicitly on the
+    # commit itself, on top of the environment-scoped override above.
+    if ! git -C "$WORKDIR" -c core.hooksPath=/dev/null \
         -c user.name=fastcycle-migrate \
         -c user.email=fastcycle-migrate@example.invalid \
         commit -q -m "$COMMIT_MSG" 2>&1; then
@@ -1401,6 +1619,10 @@ if bad:
         echo "$FULL (refused before push: push set size=$PUSH_SET_SIZE, expected 1)"
         exit 1
     fi
+    # T177 Round 15 (R14-B1, half 2 -- load-bearing): re-verify the FINAL
+    # committed tree itself before the point of no return. See
+    # verify_final_commit's own header for the invariant list.
+    verify_final_commit
 
     # --- Step 8: fast-forward push. T177 Round 1 I2 fix: EVERY configured
     # remote is attempted, even after an earlier one rejects (CA-025:
@@ -1418,8 +1640,17 @@ if bad:
     REMOTES=$(git -C "$WORKDIR" remote 2>/dev/null)
     PUSH_FAILURES=""
     PUSH_OK_REMOTES=""
+    # T177 Round 15 (R14-B1): hooks disabled explicitly on every push (a
+    # `pre-push` hook could run its own side-channel push of other refs),
+    # and the push sends the EXACT object verify_final_commit just
+    # verified ("$NEW_COMMIT", by id) rather than whatever "$BRANCH"
+    # happens to point at by the time each push runs -- a process moving
+    # the local branch after verification can never change what is
+    # published. Still a plain fast-forward update of refs/heads/$BRANCH
+    # (no `+`, no force -- §11.4.113): a non-fast-forward is still
+    # rejected by git itself.
     for r in $REMOTES; do
-        if ! git -C "$WORKDIR" push "$r" "$BRANCH":"$BRANCH" 2>"$MIGRATE_SCRATCH/migrate_push.err"; then
+        if ! git -C "$WORKDIR" -c core.hooksPath=/dev/null push "$r" "$NEW_COMMIT":"refs/heads/$BRANCH" 2>"$MIGRATE_SCRATCH/migrate_push.err"; then
             REASON="remote-rejected"
             if grep -qi 'non-fast-forward\|fetch first' "$MIGRATE_SCRATCH/migrate_push.err" 2>/dev/null; then
                 REASON="non-fast-forward"
