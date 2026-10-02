@@ -599,21 +599,56 @@ fi
 # consumer's own processes, not this tool's.
 #
 # Scope, stated narrowly (T177 Round 17, R16-M1 -- the earlier wording
-# "stops side-channel pushes" overclaimed): this stops git's OWN hook
-# mechanism (`.git/hooks/*`, `core.hooksPath`) and a configured fsmonitor
-# from running during this tool's own git calls against $WORKDIR, and
-# forces `commit.gpgSign`/`push.gpgSign`/`tag.gpgSign` false with the three
-# `gpg.*program` keys pointed at `false` (defense in depth, now mostly
-# moot for the publish path itself since $FC_BARE never carries a
-# consumer-set `gpg.program` to begin with). It does NOT neutralise every
-# repository-config-driven executable in $WORKDIR: the push-transport
-# executables (`core.sshCommand`, `credential.helper`,
-# `remote.<r>.receivepack`, `url.*.insteadOf` -> `ext::`) are left alone
-# -- none of those is reached by this tool's OWN reads of $WORKDIR any
-# more (filesystem reads only, never a git-object read of $WORKDIR), and
-# the push transport itself now only ever runs against $FC_BARE's OWN
-# remote configuration, set up by this tool from the consumer's URLs,
-# never from $WORKDIR's own potentially-adversarial `.git/config`.
+# "stops side-channel pushes" overclaimed; T177 Round 24 corrects a
+# SECOND overclaim this same paragraph made -- see below): this stops
+# git's OWN hook mechanism (`.git/hooks/*`, `core.hooksPath`) and a
+# configured fsmonitor from running during this tool's own git calls
+# against $WORKDIR, and forces `commit.gpgSign`/`push.gpgSign`/
+# `tag.gpgSign` false with the three `gpg.*program` keys pointed at
+# `false` (defense in depth, now mostly moot for the publish path itself
+# since $FC_BARE never carries a consumer-set `gpg.program` to begin
+# with).
+#
+# T177 Round 24 (MANDATORY CORRECTION -- the claim this paragraph
+# previously made here, "none of those [push-transport executables] is
+# reached by this tool's OWN reads of $WORKDIR any more", was FALSE and
+# is withdrawn): that sentence reasoned from the PUSH path alone (which
+# genuinely was, and remains, $FC_BARE-only) and did not account for the
+# submodule-advance FETCH path, which until this round ran BY REMOTE NAME
+# against the submodule's own and $WORKDIR's own local config. Live-
+# reproduced, each closed this round (see the cited call sites' own
+# comments for the full forensic record of each): `remote.origin.
+# uploadpack` ran a LOCAL command during the submodule's own `fetch -q
+# origin ...` (closed: a two-hop fetch via a fresh, tool-owned scratch
+# bare repo, item 2a); `submodule.<name>.update=!<cmd>` ran a LOCAL
+# command during `submodule update --init` on a never-before-initialised
+# submodule (closed: `--no-fetch` + an explicit `-c submodule.<name>.
+# update=checkout` override, item 2b); a bare `ls-remote "$SUB_URL"` with
+# no `-C` inherited the CALLER's cwd, letting a local `url.*.insteadOf`
+# silently redirect it if migrate.sh is ever invoked from inside
+# $WORKDIR (closed: `-C "$FC_BARE"`, item 2d); the CA-026 tips-equal
+# check resolved each remote BY NAME against $WORKDIR's own config,
+# reaching `remote.<r>.uploadpack` even for an otherwise-legitimate
+# remote (closed: resolved by EXPLICIT URL from the already-trusted
+# $REMOTES_LIST, `-C "$FC_BARE"`, item 2f). Combined with the process-
+# wide `protocol.allow=never`/`protocol.ext.allow=never`/`core.
+# alternateRefsCommand=true` overrides installed near the top of this
+# file (item 2e), the claim is NOW accurate, for the REAL reason: every
+# remaining git call this tool makes that could trigger a transport
+# (fetch/push/ls-remote) operates EITHER against `$FC_BARE`/a dedicated
+# scratch bare repo (both tool-owned, consumer-config-free, addressed by
+# explicit URL/path, never by remote name) OR as a plain LOCAL-PATH-only
+# fetch/checkout with no transport to hijack at all -- never as a call
+# that resolves `remote.<name>.*`/`url.*.insteadOf`/`core.sshCommand`/
+# `credential.helper` from $WORKDIR's or the submodule's OWN local
+# config. `core.sshCommand` and `credential.helper` specifically were
+# NEVER separately neutralised and remain so (there is nothing left to
+# neutralise them AGAINST: no remaining $WORKDIR-context call uses an
+# ssh:// or credential-requiring transport). The SEPARATE, narrower,
+# already-disclosed residual below (REMOTES_LIST's own name/URL PAIRS
+# still originate from $WORKDIR's untrusted config, so an attacker-added
+# remote entry is still fetched FROM) is UNCHANGED by this round and
+# stays open, tracked as its own §11.4.197 follow-up.
 #
 # T177 Rounds 22-23 (R21-I1 + R22-B1/B2, all live-reproduced): clean/
 # smudge/process filter drivers (`.gitattributes` / `.git/info/attributes`
@@ -700,6 +735,37 @@ fc_gcc_add gpg.x509.program false
 # print its deprecation hint to stderr on EVERY command -- which the step-1
 # `status --porcelain=v1 2>&1` dirty check then reads as a dirty tree.
 fc_gcc_add advice.graftFileDeprecated false
+# T177 Round 24 (transport-executable hardening, see this file's own
+# "Scope, stated narrowly" header comment above for the honest boundary
+# this closes and the one it still does NOT): installed process-wide, the
+# same way as every override above, so it reaches every git transport
+# call this tool makes against ANY repository ($WORKDIR, $FC_BARE, the
+# constitution submodule) -- never only one call site a future edit could
+# silently outgrow. `protocol.ext.allow=never`: `ext::` transport already
+# defaults to `never` on stock git (confirmed: "fatal: transport 'ext'
+# not allowed" with no override at all), but a repository-local override
+# could raise it; pinning it here, at the HIGHEST-precedence scope this
+# tool controls, removes that as a variable. `protocol.allow=never`: the
+# FALLBACK policy for any protocol with no MORE SPECIFIC
+# `protocol.<name>.allow` of its own (git's own documented behaviour,
+# confirmed live: known-safe protocols -- http/https/git/ssh -- keep
+# their own built-in `always` default UNCHANGED by this, and `file`
+# remains governed solely by the `protocol.file.allow=always` this tool
+# already passes per-call; only an obscure/future transport with no
+# dedicated policy is newly denied). `core.alternateRefsCommand=true`:
+# the SAME hooksPath-style neutralisation as every override above --
+# pre-empts a hostile value with a literal no-op command BEFORE any
+# attacker-set one could ever be consulted (confirmed live: a fetch still
+# exits 0 and transfers the expected objects with this set). `gc.auto=0`
+# and `maintenance.auto=false`: belt-and-braces against an unexpected
+# background git process spawning mid-migration -- not directly part of
+# the transport-executable class above, but cheap, and flagged by the
+# research this round is based on as worth adding alongside.
+fc_gcc_add protocol.ext.allow never
+fc_gcc_add protocol.allow never
+fc_gcc_add core.alternateRefsCommand true
+fc_gcc_add gc.auto 0
+fc_gcc_add maintenance.auto false
 GIT_CONFIG_COUNT=$FC_GCC_N; export GIT_CONFIG_COUNT
 GIT_NO_REPLACE_OBJECTS=1; export GIT_NO_REPLACE_OBJECTS
 GIT_GRAFT_FILE=/dev/null; export GIT_GRAFT_FILE
@@ -760,6 +826,24 @@ write_out() {
     # `detail` field, so `not_migrated_reason` stays EXACTLY the closed-set
     # DEC-25 form `audit.py summary` validates -- never "out-of-scope-diff
     # (.mcp.json)", which no closed-set reason matches.
+    # DATA-MODEL NOTE (T177 Round 24, R23 Minor finding): `data_change`
+    # also takes the sentinel single-element form `["UNDETERMINED-
+    # <reason>"]` (e.g. `UNDETERMINED-filter-driver-safety-not-
+    # established`, emitted by not_migrated_after_write()'s own residue
+    # measurement below when filter safety could not be re-established to
+    # SAFELY re-measure $WORKDIR's real residue at all) -- a THIRD case
+    # distinct from both the literal string `"NONE"` (genuinely nothing
+    # left behind) and an actual comma-separated changed-path list
+    # (something concrete left behind). `audit.py` does not special-case
+    # this value at all: `data_change` is NOT read anywhere by `audit.py`
+    # (confirmed: `classify_migration_record()` and `cmd_summary()` never
+    # reference the field; it is accepted free text, recorded for a
+    # HUMAN reader, not machine-classified). `data_change.split(",")`
+    # below turns it into the one-element list `["UNDETERMINED-..."]`
+    # exactly like any other single-entry residue would be. A consumer
+    # reading this field SHOULD treat an `UNDETERMINED-` prefix as "the
+    # real residue is unknown, not merely non-empty" -- recorded here as
+    # the data-model note this field's shape previously lacked.
     python3 - "$OUT" "$PROJECT" "$1" "$2" "$3" "$4" "${5:-}" "${6:-}" "${7:-}" "${8:-}" "${9:-}" <<'PYEOF'
 import json, sys
 out, project, outcome, reason, commit, data_change, push_results, review_ref, verification_json, backup_marker_json, detail = sys.argv[1:12]
@@ -823,20 +907,62 @@ not_migrated() {
 #
 #  1. ENUMERATES every repository a git call of this tool can reach in
 #     $WORKDIR: $WORKDIR itself plus every INITIALISED submodule,
-#     recursively -- taken from BOTH each repository's own index gitlinks
+#     recursively -- taken from each repository's own index gitlinks
 #     (`git ls-files --stage -z`, mode 160000 -- what `git status`'s own
-#     submodule recursion actually walks, mapped or not) AND its
-#     `.gitmodules` paths. Neither read executes anything.
+#     submodule recursion actually walks, mapped or not). Neither read
+#     executes anything. T177 Round 24 (I23-1, independent-review-found
+#     coverage gap, investigated and resolved per §11.4.124): an earlier
+#     version of this enumeration ALSO consulted each repository's own
+#     `.gitmodules` paths, to catch a submodule declared there but
+#     missing its own index gitlink. That branch is REMOVED here, with
+#     cited evidence it was dead code for every git call this tool
+#     actually makes: live-reproduced (`git rm --cached` a submodule,
+#     leaving its `.gitmodules` entry, `.git`, and working tree intact)
+#     that `git status` on the PARENT repo does NOT recurse into, and
+#     therefore cannot invoke a filter driver inside, a submodule path
+#     that is on disk and `.gitmodules`-declared but absent from the
+#     index -- git's own submodule recursion is driven by the INDEX
+#     gitlink, never by `.gitmodules` alone. `submodule update --init`
+#     requires the SAME index gitlink to operate on an existing checkout,
+#     and this tool never targets a submodule by any other name/path than
+#     the one its own step-4 `.gitmodules` URL lookup resolves. No fixture
+#     in this tool's test suite could make the removed branch load-
+#     bearing (confirmed: a mutation truncating it before the
+#     `.gitmodules` read changed no test outcome), consistent with it
+#     defending against a git behaviour that does not occur.
 #  2. DISCOVERS, per repository, every filter driver whose
-#     clean/smudge/process key is defined at an UNTRUSTED scope, from the
-#     FULL effective config git itself would use (`git config
-#     --show-scope --includes --get-regexp '^filter\.'`) -- never
-#     `--local` alone, which R22-B1 proved blind to `include.path`/
-#     `includeIf` (reported by git as scope `local`) and `--worktree`
-#     (scope `worktree`) definitions. Untrusted = every scope except
-#     `global`/`system` (operator-owned, deliberately left untouched --
-#     see this file's env-sanitization header; this also keeps a host's
-#     own git-lfs working) and `command` (this tool's own overrides).
+#     clean/smudge/process key is defined at ANY scope, from the FULL
+#     effective config git itself would use (`git config --show-scope
+#     --includes --get-regexp '^filter\.'`) -- never `--local` alone,
+#     which R22-B1 proved blind to `include.path`/`includeIf` (reported
+#     by git as scope `local`) and `--worktree` (scope `worktree`)
+#     definitions. T177 Round 24 (R23-B1, independent-review-found,
+#     live-reproduced): Round 23 trusted (left un-neutralised) every
+#     driver defined at GLOBAL or SYSTEM scope, reasoned as operator-
+#     owned and needed to keep a host's own `git lfs install` working.
+#     That is an overclaim: a standard `git lfs install` places
+#     `filter.lfs.{clean,smudge}` at GLOBAL scope, and git-lfs's own,
+#     well-documented extension mechanism (`lfs.extension.<name>.clean`)
+#     makes that TRUSTED driver read and EXECUTE a command named in the
+#     repository's own LOCAL, untracked, attacker-reachable config -- no
+#     `filter.*` entry anywhere in local scope, so Round 23's discovery
+#     never even looked at the driver that actually ran the command.
+#     Reproduced live: a global `filter.<name>.clean` wrapper plus a
+#     purely-local `lfs.extension.<name>.clean` key fired an arbitrary
+#     command during this tool's own `git add` of a stat-dirty file.
+#     Untrusted is therefore now every scope except `command` (this
+#     tool's own overrides, re-discovered and re-installed idempotently
+#     on every call so they are never themselves mistaken for a hostile
+#     driver). DISCLOSED, ACCEPTED COST: a real git-lfs consumer's
+#     LFS-tracked file may now report as locally-modified during this
+#     tool's OWN internal `status`/`add` reads (the real `git-lfs clean`
+#     never runs there, only its neutralised `cat` stand-in) -- a
+#     fail-safe refusal, never code execution, and it never affects the
+#     PUBLISHED content (the $FC_BARE architecture above never derives
+#     the migration tree from a filtered read of $WORKDIR). Operator-
+#     owned global/system config stays otherwise untouched (GIT_CONFIG_
+#     GLOBAL/SYSTEM are not unset -- see this file's env-sanitization
+#     header); only its `filter.*` driver keys are neutralised.
 #  3. INSTALLS, process-wide, for every such driver NAME, all four of
 #     filter.<name>.{smudge,clean}=cat, .process= (empty: no long-running
 #     filter at all) and .required=false -- via the SAME exported
@@ -878,8 +1004,14 @@ not_migrated() {
 # one) and never used as a variable name; the index n is generated here.
 # Re-run before every operation that can bring a NEW repository or new
 # config into reach (each submodule materialisation, and after the
-# consumer's own post-update hook) -- idempotent, cheap, and duplicates
-# are harmless (the last identical override wins identically).
+# consumer's own post-update hook). T177 Round 24 (R23 Minor finding,
+# wording corrected): this is ADDITIVE, not idempotent -- each call
+# appends a FRESH set of GIT_CONFIG_KEY_n/VALUE_n entries on top of the
+# running GIT_CONFIG_COUNT rather than replacing the previous set, so N
+# re-runs over an unchanged driver set leave N copies of its override
+# installed, not one. Safe regardless: re-discovering and re-overriding
+# an already-neutralised driver is cheap, and duplicate identical
+# overrides are harmless (the last one read still wins identically).
 #
 # SCOPE BOUNDARY, stated exactly: this protects git calls made BY THIS
 # PROCESS (and by children that inherit its environment) against
@@ -899,7 +1031,10 @@ import subprocess
 import sys
 
 root, base_n = sys.argv[1], int(sys.argv[2])
-TRUSTED_SCOPES = {b"global", b"system", b"command"}
+# T177 Round 24 (R23-B1 closure): `command` is the ONLY trusted scope --
+# see this function's caller's own header comment, bullet 2, for the full
+# forensic record of why `global`/`system` were removed from this set.
+TRUSTED_SCOPES = {b"command"}
 DRIVER_VARS = {b"clean", b"smudge", b"process"}
 
 
@@ -920,6 +1055,16 @@ def is_repo(d):
 
 
 def nested_paths(d):
+    # T177 Round 24 (I23-1, removed with cited evidence -- see this
+    # function's caller's own header comment for the full forensic
+    # record): a prior version ALSO read `.gitmodules` here, to catch a
+    # submodule declared there but missing its own index gitlink. Git's
+    # own submodule recursion (what this discovery exists to mirror) is
+    # driven EXCLUSIVELY by the index gitlink below -- live-reproduced
+    # that `git status` does not descend into, and therefore cannot run a
+    # filter driver inside, a `.gitmodules`-declared path with no index
+    # entry, even when that path has its own `.git` and working tree on
+    # disk. Removed as dead code this tool's git calls never exercise.
     out = []
     p = git(["ls-files", "--stage", "-z"], d)
     if p.returncode != 0:
@@ -927,14 +1072,6 @@ def nested_paths(d):
     for rec in p.stdout.split(b"\0"):
         if rec.startswith(b"160000 ") and b"\t" in rec:
             out.append(rec.split(b"\t", 1)[1])
-    gm = os.path.join(d, ".gitmodules")
-    if os.path.isfile(gm):
-        p = git(["config", "--file", gm, "--null", "--get-regexp", r"^submodule\..*\.path$"], d)
-        if p.returncode not in (0, 1):
-            fail("reading .gitmodules rc=%d in %s" % (p.returncode, d))
-        for rec in p.stdout.split(b"\0"):
-            if rec:
-                out.append(rec.partition(b"\n")[2])
     return out
 
 
@@ -1010,7 +1147,26 @@ fc_checkout_submodule_filtered() {
 # whose config the next git call would otherwise reach undiscovered).
 fc_submodule_update_init_filtered() {
     fc_neutralize_repo_filters || return 1
-    git -C "$1" -c protocol.file.allow=always -c init.templateDir= submodule update --init "$3" || return $?
+    # T177 Round 24 (transport-executable closure): `--no-fetch` + an
+    # explicit `-c submodule.<name>.update=checkout` override, live-
+    # reproduced as necessary AND sufficient against two distinct local-
+    # config hijacks of this exact call shape. (1) `submodule.<name>.
+    # update` set to a `!<command>` custom-command form in $WORKDIR's own
+    # local config runs that command instead of a checkout -- confirmed
+    # live on a NEVER-BEFORE-INITIALISED submodule (the common real-world
+    # case this call handles): the `-c` override at this, the highest
+    # config precedence this tool controls, is read instead of the
+    # hijacked local value and the submodule is checked out normally. (2)
+    # for an ALREADY-initialised, drifted submodule needing new objects,
+    # `--no-fetch` stops this call from running its OWN, potentially
+    # config-hijacked fetch at all (the submodule's content-bearing fetch
+    # is this tool's OWN, protocol-restricted two-hop fetch below, never
+    # this one) -- confirmed live: `--no-fetch` does NOT prevent the
+    # first-time clone a never-initialised submodule still needs (a
+    # control needle: without the `-c` override, the SAME `--no-fetch`
+    # call still ran the hijacked custom-update command, proving
+    # `--no-fetch` alone is not what closes (1)).
+    git -C "$1" -c protocol.file.allow=always -c init.templateDir= -c "submodule.$3.update=checkout" submodule update --init --no-fetch "$3" || return $?
     fc_neutralize_repo_filters || return 1
 }
 
@@ -1598,9 +1754,21 @@ fi
 # constitution URL) local-path-capable URL already carries, for
 # consistency and to remain correct if a future round narrows the
 # default local-path policy.
-NEW_SHA=$(git -c protocol.file.allow=always ls-remote "$SUB_URL" HEAD 2>/dev/null | awk '{print $1}')
+# T177 Round 24 (transport-executable closure, item 2d): `-C "$FC_BARE"`
+# pins this call's config/cwd context to the fresh, tool-owned, consumer-
+# config-free bare repo -- a bare `git ls-remote <url>` with no `-C` runs
+# in WHATEVER directory this process's cwd happens to be, and if a caller
+# ever invokes migrate.sh with cwd inside (or at) $WORKDIR, git's own
+# repo auto-discovery would then read `url.*.insteadOf`/transport config
+# from $WORKDIR's own local `.git/config` even though $SUB_URL is an
+# explicit, literal URL string -- live-reproduced: an `insteadOf`
+# rewrite in that local config silently redirected an identical bare
+# ls-remote call to a different repository's tip. $FC_BARE already
+# exists at this point (created above) and performs no write for a
+# read-only ls-remote.
+NEW_SHA=$(git -C "$FC_BARE" -c protocol.file.allow=always ls-remote "$SUB_URL" HEAD 2>/dev/null | awk '{print $1}')
 if [ -z "$NEW_SHA" ]; then
-    NEW_SHA=$(git -c protocol.file.allow=always ls-remote "$SUB_URL" refs/heads/main 2>/dev/null | awk '{print $1}')
+    NEW_SHA=$(git -C "$FC_BARE" -c protocol.file.allow=always ls-remote "$SUB_URL" refs/heads/main 2>/dev/null | awk '{print $1}')
 fi
 if [ -z "$NEW_SHA" ]; then
     not_migrated "gitlink-bump" "unreachable" "git-ls-remote-resolved-no-target-commit"
@@ -1670,8 +1838,39 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         echo "migrate.sh: the constitution submodule's own checkout unexpectedly has an objects/info/alternates file -- refusing rather than trust object resolution that could be silently satisfied by a foreign store" >&2
         not_migrated_after_write "wiring" "out-of-scope-diff" "constitution-submodule-has-alternates-file"
     fi
-    if ! git -C "$WORKDIR/constitution" -c protocol.file.allow=always fetch -q origin "$NEW_SHA" >"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1 \
-        && ! git -C "$WORKDIR/constitution" -c protocol.file.allow=always fetch -q origin >"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
+    # T177 Round 24 (transport-executable closure, item 2a; supersedes a
+    # single-hop `git -C "$WORKDIR/constitution" fetch -q origin ...`
+    # that ran BY REMOTE NAME against the submodule's own local config).
+    # Live-reproduced: that single-hop shape runs whatever LOCAL,
+    # untracked `remote.origin.uploadpack` the submodule's own `.git/
+    # config` names -- for a plain file-transport remote this is a LOCAL
+    # command, genuine code execution needing no network/ssh step to
+    # trigger. TWO-HOP fetch instead: hop 1 fetches $SUB_URL (the
+    # TRUSTED, .gitmodules-declared constitution URL resolved at step 4
+    # -- never the submodule's own remote-by-name) into a FRESH, tool-
+    # owned, consumer-config-free scratch bare repository; hop 2
+    # completes the transfer into the submodule's own object store
+    # addressing that scratch repo by its EXPLICIT LOCAL PATH, never by
+    # remote name -- so `remote.origin.uploadpack`/`insteadOf`/
+    # `sshCommand` are never consulted for EITHER hop. Live-reproduced
+    # against a hijacked `remote.origin.uploadpack`: the hijacked command
+    # does not fire, and the target commit's objects transfer correctly.
+    # The same by-SHA-then-bare-refspec fallback the single-hop call used
+    # is kept for hop 1 (a server may refuse fetching an un-advertised
+    # SHA directly; a plain URL fetch with no refspec still pulls the
+    # remote's default branch, confirmed live to bring in a SHA reachable
+    # from it); hop 2 always succeeds by SHA since hop 1 already landed
+    # that exact object in the scratch repo's own store.
+    FC_SUB_FETCH_BARE="$MIGRATE_SCRATCH/sub_fetch.git"
+    rm -rf "$FC_SUB_FETCH_BARE"
+    if ! git init --bare -q "$FC_SUB_FETCH_BARE" 2>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"; then
+        not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
+    fi
+    if ! git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always fetch -q -- "$SUB_URL" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1 \
+        && ! git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always fetch -q -- "$SUB_URL" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
+        not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
+    fi
+    if ! git -C "$WORKDIR/constitution" -c protocol.file.allow=always fetch -q -- "$FC_SUB_FETCH_BARE" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
     if ! fc_checkout_submodule_filtered "$WORKDIR/constitution" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
@@ -2009,6 +2208,14 @@ while i + 1 < len(data):
     # re-asserted directly (defense in depth, independent of whatever the
     # submodule's own nested checkout happens to be at this exact moment)
     # rather than relying on `git add constitution` to read it back.
+    # T177 Round 24 (transport-executable closure, item 2c): this is the
+    # "step-9 sync fetch" -- its source is already $FC_BARE by explicit
+    # local path (never a remote name, so `remote.<r>.*` was never in
+    # scope here), and it is now ADDITIONALLY protocol-restricted by the
+    # process-wide `protocol.allow=never`/`protocol.ext.allow=never`/
+    # `core.alternateRefsCommand=true` overrides installed near the top
+    # of this file (every git call this process makes inherits them,
+    # this one included, with no per-call `-c` needed).
     if ! git -C "$WORKDIR" -c protocol.file.allow=always fetch -q "$FC_BARE" "$NEW_COMMIT" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1; then
         echo "migrate.sh: WARNING -- published commit $NEW_COMMIT could not be fetched back into \$WORKDIR for sync; the push itself already succeeded on every configured remote" >&2
     fi
@@ -2097,15 +2304,43 @@ HASH2=$(python3 -c "import json; print(json.load(open('$V2')).get('body_hash',''
 # own tip may legitimately be unreadable for reasons unrelated to this
 # migration -- an empty ls-remote result is skipped, never treated as a
 # mismatch).
+# T177 Round 24 (transport-executable closure, item 2f; investigated and
+# confirmed genuinely exploitable -- not merely reasoned about): the
+# ORIGINAL form resolved each remote BY NAME (`git -C "$WORKDIR" remote`
+# then `ls-remote "$r"`), which reads $WORKDIR's own local
+# `remote.<r>.*` config for EVERY call -- live-reproduced that a LOCAL
+# `remote.<name>.uploadpack` override runs its named LOCAL program during
+# this exact call shape, even for an otherwise-legitimate remote name,
+# over a plain file-transport URL, with no ssh/network step needed. This
+# is a DIFFERENT, more severe exposure than the already-disclosed
+# "REMOTES_LIST itself comes from $WORKDIR's own config" residual (the
+# fc_publish.py fetch_sweep header comment above): that one is about
+# FETCHING CONTENT from a URL an attacker chose; this one is LOCAL code
+# execution triggered by a hijacked config KEY on a remote whose NAME and
+# URL may be entirely legitimate. Closed by reusing $REMOTES_LIST (the
+# SAME name+url pairs step 8's push already resolved, read once, early)
+# and ls-remoting each explicit URL `-C "$FC_BARE"` -- never addressing
+# a remote by NAME against $WORKDIR, so `remote.<r>.*` is never consulted
+# for this check at all.
 TIPS_OK=1
 TIPS_DETAIL=""
-for r in $(git -C "$WORKDIR" remote 2>/dev/null); do
-    RTIP=$(git -C "$WORKDIR" -c protocol.file.allow=always ls-remote "$r" "refs/heads/$BRANCH" 2>/dev/null | awk '{print $1}')
+OLD_IFS=$IFS
+IFS='
+'
+# shellcheck disable=SC2013  # intentional: IFS is newline-only above, so
+# this command-substitution word-splitting is line-splitting (same
+# pattern as the step-8 REMOTES_LIST loop above).
+for _rline in $(cat "$REMOTES_LIST")
+do
+    r=${_rline%% *}
+    url=${_rline#* }
+    RTIP=$(git -C "$FC_BARE" -c protocol.file.allow=always ls-remote "$url" "refs/heads/$BRANCH" 2>/dev/null | awk '{print $1}')
     if [ -n "$RTIP" ] && [ "$RTIP" != "$NEW_COMMIT" ]; then
         TIPS_OK=0
         TIPS_DETAIL="$TIPS_DETAIL $r:$RTIP"
     fi
 done
+IFS=$OLD_IFS
 
 # T177 Round 2 R2-I4 fix: verify output is COPIED to a durable location
 # beside $OUT before the scratch copy is deleted (§11.4.262: every PASS

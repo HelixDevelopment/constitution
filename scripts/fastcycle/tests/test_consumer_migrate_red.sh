@@ -2503,6 +2503,96 @@ else
     chmod 644 "$K_ROOT/k_unr/k_unreadable.cfg" 2>/dev/null || true
 fi
 
+# --- K-lfs-extension: T177 Round 24 (R23-B1, independent review,
+# live-reproduced): a filter driver defined at GLOBAL/SYSTEM scope --
+# e.g. the driver a standard `git lfs install` places there -- was,
+# before this round, TRUSTED and left un-neutralised (Round 23's own
+# stated reasoning: operator-owned, and needed to keep a host's own
+# git-lfs working). That reasoning did not anticipate that a TRUSTED
+# driver's own BEHAVIOUR can be steered by UNTRUSTED, repository-LOCAL
+# configuration: git-lfs's real, documented extension mechanism
+# (`lfs.extension.<name>.clean`) makes its GLOBAL-scope `filter.lfs.
+# clean` driver read and EXECUTE a command named in the repository's own
+# LOCAL, untracked config -- no `filter.*` entry anywhere in local scope
+# at all, so Round 23's discovery (which trusted global/system) never
+# even inspected the driver that actually ran the attacker's command.
+# Closed by widening TRUSTED_SCOPES to `command`-only (both migrate.sh's
+# own copy and repo_verify.py's sibling discovery) -- every scope's
+# filter driver is now neutralised. This arm simulates "the host already
+# has git-lfs installed globally" via a SCRATCH GIT_CONFIG_GLOBAL file
+# (never this shell's/host's own real global config), with the
+# attacker-controlled piece confined entirely to the submodule's own
+# LOCAL, untracked config + local attributes -- exactly the real
+# git-lfs threat shape, and the DISCLOSED, ACCEPTED cost (a real LFS
+# consumer's own tracked files may report locally-modified during this
+# tool's internal reads) this closure's own header comment documents.
+K_LFS_GLOBALCFG="$K_ROOT/k_lfs_globalcfg"
+: > "$K_LFS_GLOBALCFG"
+K_LFS_DRV="$K_ROOT/k_lfs_drv.sh"
+cat > "$K_LFS_DRV" <<'EOF'
+#!/bin/sh
+# git-lfs's REAL lfs.extension.<name>.clean mechanism, reproduced: a
+# GLOBAL-scope, operator-trusted driver that reads and executes a LOCAL,
+# repo-owned command -- resolved from THIS PROCESS's own cwd, which git
+# sets to the top of whichever working tree (parent or submodule) it is
+# currently operating on when it invokes a filter command.
+EXT_CMD=$(git config --local --get lfs.extension.evilext.clean 2>/dev/null || true)
+if [ -n "$EXT_CMD" ]; then
+    eval "$EXT_CMD"
+fi
+cat
+EOF
+chmod +x "$K_LFS_DRV"
+git config --file "$K_LFS_GLOBALCFG" filter.kglfs.clean "$K_LFS_DRV"
+git config --file "$K_LFS_GLOBALCFG" filter.kglfs.smudge cat
+git config --file "$K_LFS_GLOBALCFG" filter.kglfs.required true
+K_LFS_MARKER="$K_ROOT/k_lfs.marker"
+k_lfs_fixture() {
+    # $1=root -> a fresh fixture with the submodule's OWN local
+    # attributes pointing CLAUDE.md at the GLOBAL "kglfs" driver, plus a
+    # LOCAL, non-filter attacker key that driver's own script reads --
+    # NO filter.* entry anywhere in $WORKDIR's or the submodule's local
+    # config, the exact Round 23 "operator-owned, leave it alone" shape.
+    _klr=$1
+    build_r3_fixture "$_klr"
+    git -C "$_klr/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+    _kls="$_klr/checkout/constitution"
+    _klg=$(git -C "$_kls" rev-parse --absolute-git-dir)
+    mkdir -p "$_klg/info"
+    echo "CLAUDE.md filter=kglfs" > "$_klg/info/attributes"
+    git -C "$_kls" config lfs.extension.evilext.clean "touch $K_LFS_MARKER"
+    touch -d 2001-01-01 "$_kls/CLAUDE.md"
+}
+k_lfs_fixture "$K_ROOT/k_lfs"
+rm -f "$K_LFS_MARKER"
+GIT_CONFIG_GLOBAL="$K_LFS_GLOBALCFG" j_run "$TOOL" "$K_ROOT/k_lfs" fixture/section_k_lfs "$WORK/k_lfs.json"
+K_LFS_GITLINK=$(k_gitlink "$K_ROOT/k_lfs")
+K_LFS_CONTENT_OK=no
+if [ "$(git -C "$K_ROOT/k_lfs/checkout/constitution" hash-object --no-filters CLAUDE.md 2>/dev/null)" = "$(git -C "$K_ROOT/k_lfs/checkout/constitution" rev-parse "$R3_NEW:CLAUDE.md" 2>/dev/null)" ]; then
+    K_LFS_CONTENT_OK=yes
+fi
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ ! -f "$K_LFS_MARKER" ] \
+    && [ "$K_LFS_GITLINK" = "$R3_NEW" ] && [ "$K_LFS_CONTENT_OK" = yes ]; then
+    ok "K-lfs-extension (T177 Round 24, R23-B1): a GLOBAL-scope filter driver's own git-lfs-style local-extension mechanism (lfs.extension.<name>.clean, no filter.* entry anywhere in local scope) does NOT execute during a real migration -- MIGRATED, gitlink=\$R3_NEW, checked-out content byte-identical to \$R3_NEW's blob, the attacker's local-extension command never ran"
+else
+    bad "K-lfs-extension: rc=$J_RC out=$J_OUT marker=$([ -f "$K_LFS_MARKER" ] && echo FIRED || echo absent) gitlink=$K_LFS_GITLINK expected=$R3_NEW content-ok=$K_LFS_CONTENT_OK"
+fi
+# K-lfs-extension guard-viability: with TRUSTED_SCOPES reverted to its
+# pre-Round-24 value (global/system trusted again, the Round 23 shape),
+# the SAME global-driver/local-extension shape DOES fire -- proving this
+# fix, not some other layer, is what K-lfs-extension's PASS depends on.
+j_mutant K_lfs_global_trusted \
+    'TRUSTED_SCOPES = {b"command"}' \
+    'TRUSTED_SCOPES = {b"command", b"global", b"system"}  # MUTATED_FOR_TEST (Round 23 pre-fix value)'
+k_lfs_fixture "$K_ROOT/km_K_lfs_global_trusted"
+rm -f "$K_LFS_MARKER"
+GIT_CONFIG_GLOBAL="$K_LFS_GLOBALCFG" j_run "$WORK/jmut_K_lfs_global_trusted.sh" "$K_ROOT/km_K_lfs_global_trusted" fixture/section_km_K_lfs_global_trusted "$WORK/km_K_lfs_global_trusted.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ -f "$K_LFS_MARKER" ]; then
+    ok "K-lfs-extension guard-viability: with TRUSTED_SCOPES reverted to trust global/system (the Round 23 pre-fix value), the SAME git-lfs-style global-driver/local-extension shape FIRES again -- K-lfs-extension's fix is genuinely load-bearing, not decoration"
+else
+    bad "K-lfs-extension guard-viability: reverting TRUSTED_SCOPES did not reproduce the global-driver firing (mut_ok=$J_MUT_OK marker=$([ -f "$K_LFS_MARKER" ] && echo FIRED || echo absent))"
+fi
+
 # K-verify-wiring: repo_verify.py strips inherited GIT_CONFIG_* by design,
 # so the process-wide override never reaches it; migrate.sh must pass
 # --neutralize-repo-filters to BOTH step-9 verifications. Proven at

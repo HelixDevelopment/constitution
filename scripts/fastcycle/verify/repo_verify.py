@@ -285,8 +285,15 @@ _GIT_SAFE_ARGS = (
 # T177 Round 23 (R22-B2 -- the filter-driver half of the honest boundary stated just above, closed
 # OPT-IN for callers that need it): `--neutralize-repo-filters` makes this tool discover, before ANY
 # other git read, every filter driver whose clean/smudge/process key is defined at an UNTRUSTED
-# config scope (everything except global/system -- operator-owned -- and command) in --root and every
-# initialised submodule beneath it (index gitlinks AND .gitmodules paths, recursively), using the FULL
+# config scope (everything except command -- this tool's own overrides; T177 Round 24 (R23-B1,
+# migrate.sh's own sibling copy of this discovery -- see migrate.sh's "T177 Round 24" header comment
+# for the full forensic record): `global`/`system` were PREVIOUSLY also trusted here, reasoned as
+# operator-owned and needed to keep a host's own `git lfs install` working -- live-reproduced as an
+# overclaim: a standard `git lfs install` places `filter.lfs.{clean,smudge}` at GLOBAL scope, and
+# git-lfs's own documented extension mechanism, `lfs.extension.<name>.clean`, makes that TRUSTED
+# driver read and execute a command named in the repository's own LOCAL, untracked config -- removed
+# from trust here for the identical reason) in --root and every initialised submodule beneath it
+# (index gitlinks AND .gitmodules paths, recursively), using the FULL
 # effective config (`--show-scope --includes`; never `--local`, which is blind to include.path/
 # includeIf and --worktree definitions -- the exact R22-B1 gap). Each such driver NAME is then
 # neutralised on every git call this tool makes: smudge=cat, clean=cat, process= (empty: no
@@ -308,7 +315,8 @@ class FilterDiscoveryError(Exception):
 
 def discover_untrusted_filter_drivers(root, timeout_s):
     """Return the ordered list of filter-driver names (bytes-safe str) needing neutralisation."""
-    trusted = {"global", "system", "command"}
+    # T177 Round 24 (R23-B1 closure, migrate.sh's sibling fix): `command` is the ONLY trusted scope.
+    trusted = {"command"}
     repos, seen, queue = [], set(), [root]
     while queue:
         d = queue.pop(0)
