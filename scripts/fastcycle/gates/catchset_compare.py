@@ -774,6 +774,21 @@ def compute_comparison(cfg, root, old_path, new_path, corpus, workdir,
     per_defect = []
     old_missed = []
     for did in seed_conflicts:
+        # T085 Round 3 R3-I2 (IMPORTANT): the pre-fix version below
+        # recorded a seed_conflict ONLY in named_defects_detail, which
+        # `superset` (computed from `len(named_defects) == 0` alone)
+        # never consults -- so a detected seed_conflict NEVER changed the
+        # reported verdict: Round 2's EXACT repro (NEW manifest
+        # redeclares an EXISTING defect_id with a no-op patch) still
+        # produced rc=0, superset:true, lost:0 after the Round 2 fix
+        # "landed" -- the detail entry existed but was cosmetic. Fixed
+        # by also appending `did` into `named_defects` (the SAME pattern
+        # the BLIND-verdict branch just below already uses for a
+        # defect_id), so superset genuinely goes false and the exit code
+        # (EXIT_FINDING) genuinely reflects the conflict, matching
+        # every OTHER named-defect class in this function.
+        if did not in named_defects:
+            named_defects.append(did)
         named_defects_detail.append({
             "defect_id": did,
             "reason": "seed_conflict",

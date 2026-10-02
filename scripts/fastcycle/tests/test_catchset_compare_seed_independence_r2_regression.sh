@@ -141,6 +141,35 @@ else
     bad "R1 (I-R2-9 legacy-mode core repro) FAILED: no seed_conflict finding for D1 (rc=$RC1): $OUT1"
 fi
 
+# T085 Round 3 R3-I2 (IMPORTANT): a seed_conflict finding MUST change the
+# reported VERDICT, not merely populate a detail list no caller
+# consults. The pre-R3-I2 version produced rc=0, superset:true, lost:0,
+# per_defect:[] for this EXACT scenario -- the detail entry existed, but
+# `superset`/`named_defects`/the process exit code were computed from
+# `named_defects` alone, which the pre-fix code never appended `did`
+# into. Assert all three here (exit code, `superset`, `named_defects`
+# membership) -- not merely that a detail entry exists.
+if [ -f "$SCRATCH/r1_out.json" ]; then
+    R1_VERDICT_OUT=$(python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+superset = d.get('superset')
+named = d.get('named_defects', [])
+lost = d.get('counts', {}).get('lost')
+print('superset=%r named_defects=%r lost=%r' % (superset, named, lost))
+ok = (superset is False) and ('D1' in named) and (lost is not None and lost >= 1)
+sys.exit(0 if ok else 1)
+" "$SCRATCH/r1_out.json")
+    R1_VERDICT_RC=$?
+    if [ "$R1_VERDICT_RC" -eq 0 ] && [ "$RC1" -eq 1 ]; then
+        ok "R1b (R3-I2): the seed_conflict genuinely FLIPS the verdict -- rc=$RC1 (EXIT_FINDING), superset=false, D1 in named_defects ($R1_VERDICT_OUT)"
+    else
+        bad "R1b (R3-I2) FAILED: seed_conflict detected but the VERDICT did not change -- rc=$RC1 (expected 1), $R1_VERDICT_OUT"
+    fi
+else
+    bad "R1b (R3-I2) FAILED: $SCRATCH/r1_out.json was not written"
+fi
+
 # -----------------------------------------------------------------------
 # R2 (I-R2-9's own repro, --seed-manifest mode): the SAME old/new manifests
 # (whose own seed_defects conflict as above) are given an INDEPENDENT
@@ -204,6 +233,60 @@ sys.exit(0 if (ok and ok2) else 1)
     ok "R3 (I-R2-9 timeout core repro): a gate that hangs past its timeout reports the defect as BLIND (defect_blind finding), never a silent MISSED"
 else
     bad "R3 (I-R2-9 timeout core repro) FAILED (rc=$RC3): $OUT3"
+fi
+
+# -----------------------------------------------------------------------
+# R4 (T085 Round 3 R3-I2 mutation-flip proof): on a scratch copy of the
+# real source, strip the EXACT fix line this round added
+# (`named_defects.append(did)` inside the seed_conflicts loop) and
+# confirm R1b's own verdict-change assertion now FAILS to hold -- proving
+# this guard is genuinely load-bearing, not tautological (§11.4.115(F)).
+# -----------------------------------------------------------------------
+echo "-- R4: mutation-flip proof (seed_conflict verdict-flip line stripped) --"
+
+MUT_R3I2="$SCRATCH/catchset_compare_mut_r3i2.py"
+cp "$TOOL" "$MUT_R3I2"
+# catchset_compare.py resolves its sibling gate_audit.py via its OWN
+# directory (os.path.dirname(os.path.abspath(__file__))) -- give the
+# mutated copy the same sibling so that import still resolves.
+cp "$FC/gates/gate_audit.py" "$SCRATCH/gate_audit.py"
+python3 - "$MUT_R3I2" <<'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path) as f:
+    lines = f.readlines()
+target_if = '        if did not in named_defects:\n'
+target_append = '            named_defects.append(did)\n'
+hits = [i for i in range(len(lines) - 1) if lines[i] == target_if and lines[i + 1] == target_append]
+if len(hits) != 1:
+    sys.stderr.write("expected exactly 1 occurrence of the R3-I2 fix lines, found %d\n" % len(hits))
+    sys.exit(1)
+i = hits[0]
+lines[i] = "        pass  # T085-R3-I2-MUTATION: verdict-flip stripped\n"
+lines[i + 1] = ""
+with open(path, "w") as f:
+    f.writelines(lines)
+PYEOF
+if [ $? -ne 0 ]; then
+    bad "R4 mutation setup: could not uniquely locate the R3-I2 fix lines in a fresh copy"
+else
+    ok "R4 mutation setup: R3-I2 fix lines uniquely located and stripped in a scratch copy"
+
+    MUT_OUT=$(python3 "$MUT_R3I2" compare --config "$SCRATCH/fastcycle.yaml" \
+        --corpus "$SCRATCH/corpus.json" --old "$SCRATCH/old_manifest.json" --new "$SCRATCH/new_manifest.json" \
+        --workdir "$SCRATCH/workdir/r4" --out "$SCRATCH/r4_out.json" 2>&1)
+    MUT_RC=$?
+
+    if [ "$MUT_RC" -eq 0 ] && [ -f "$SCRATCH/r4_out.json" ]; then
+        MUT_SUPERSET=$(python3 -c "import json; print(json.load(open('$SCRATCH/r4_out.json')).get('superset'))")
+        if [ "$MUT_SUPERSET" = "True" ]; then
+            ok "R4: mutation-flip -- with the R3-I2 fix lines stripped, this EXACT scenario reverts to rc=0 superset=True (the pre-R3-I2 bug), confirming R1b's guard is genuinely load-bearing"
+        else
+            bad "R4: mutation-flip FAILED -- stripping the fix lines did not revert superset to True (got $MUT_SUPERSET); the test cannot distinguish fixed from broken"
+        fi
+    else
+        bad "R4: mutated tool invocation failed unexpectedly (rc=$MUT_RC): $MUT_OUT"
+    fi
 fi
 
 echo ""
