@@ -29,16 +29,20 @@
 # _fc_exit_explained() (defined near _fc_registry_failcount_delta() in the
 # golden script) -- see the DEDICATED, ISOLATED unit-level checks below
 # (M-I2-unit / M-I2-mutant) for WHY this had to be tested in isolation
-# rather than through a three-member golden-triplet fixture: once R16-I1's
-# member-internal-consistency precondition holds for both members whose
-# Failed count is resolvable, a differing-exit-but-delta==0 scenario (the
-# ONLY shape that could ever exploit this clause's removal) becomes
-# PROVABLY UNREACHABLE through the full harness (consistency forces
-# exit = (Failed != 0), so N0 == N1 forces _ex0 == _ex1, which never even
-# reaches this elif) -- X3 below demonstrates that directly: it remains a
-# valid R16-I1 fixture (an internally-inconsistent member), but it can no
-# longer distinguish the `!= 0` clause's own presence or absence, because
-# R16-I1's hard FAIL fires first and unconditionally either way.
+# rather than through a three-member golden-triplet fixture. CORRECTED in
+# round 19 (R18-M1): this header used to say that, once R16-I1's member-
+# internal-consistency precondition holds, a differing-exit-but-delta==0
+# scenario is "PROVABLY UNREACHABLE through the full harness". That was
+# FALSE -- consistency compares Failed counts as strings while the delta is
+# 64-bit-wrapping bash arithmetic, and the round-18 reviewer's ADVE fixture
+# (Failed: 2^64 vs Failed: 0) reached this clause end to end. Round 19
+# bounds the count to 9 significant digits; ADVE is now a permanent end-to-
+# end fixture in test_fc_timer_golden_output_r18_regression.sh, with
+# mutants proving the digit bound and this clause are EACH independently
+# sufficient. The unit-level checks below are kept as additional coverage.
+# X3 below remains a valid R16-I1 fixture (an internally-inconsistent
+# member), but it cannot distinguish the `!= 0` clause's presence or
+# absence, because R16-I1's hard FAIL fires first either way.
 #
 # R16-M1 (Minor): round 14's m3 (ISO-date validation) and m4 (header-less-
 # registry handling) fixes shipped with NO test/mutation guard anywhere;
@@ -87,7 +91,22 @@
 # (never hand-transcribed).
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$HERE/../../../.." && pwd)"
+# T048 round 19 (R18-I2): ROOT MUST honour a caller-supplied
+# FC_TIMER_GOLDEN_ROOT override, falling back to the test-file-relative
+# parent-repo path ONLY when none is supplied. Before round 19 this line
+# UNCONDITIONALLY recomputed ROOT from "$HERE/../../../..", and every mrun()
+# below then passed FC_TIMER_GOLDEN_ROOT=$ROOT explicitly to the mutated
+# golden copy -- silently OVERWRITING any caller override. Run outside the
+# real parent tree (a `git archive` extraction / a bare constitution
+# worktree), that derived ROOT has no docs/requests/ defect docs, so the
+# known-flaky registry's own defect_doc validation refused EVERY row and
+# every registry-dependent mutant reported "registry delta=0" -- a
+# location-dependent false FAIL (S11.4.201(1)) that had nothing to do with
+# the code under test. The non-mutant gt_golden() runs were never affected
+# (they inherit the caller's environment unchanged), which is exactly why
+# only the mrun()-based cases (M-I1b here in r12, M-I1-delta in r14,
+# M-I1/M-M3 in r16) ever showed it.
+ROOT="${FC_TIMER_GOLDEN_ROOT:-$(cd "$HERE/../../../.." && pwd)}"
 # (not a shellcheck directive -- plain comment) precheck's shellcheck invocation runs
 # without -x; this harness sources its sibling lib file via a runtime-computed $HERE
 # path shellcheck cannot statically follow without -x regardless of the source= line
@@ -112,7 +131,19 @@ for f in "$GT_HARNESS" "$REAL_GOLDEN" "$KNOWN_FLAKY_TSV_REAL"; do
   [ -e "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
 done
 
-set_key() { sed -i "s|^$2=.*|$2=$3|" "$1"; }
+# T048 round 19 (R18-I2) control needle: every defect_doc the REAL known-
+# flaky registry names MUST resolve under the ROOT this file will hand to
+# the golden test. Without this, an unresolvable ROOT shows up only
+# indirectly -- as a mysterious "registry delta=0" in some LATER mutant --
+# instead of being named here, at its actual cause.
+while IFS=$'\t' read -r _gid _reason _doc _exp; do
+  [ "$_gid" = gate_id ] && continue
+  [ -n "$_gid" ] || continue
+  # shellcheck disable=SC2015
+  [ -n "$_doc" ] && [ -f "$ROOT/$_doc" ] && ok "control needle: registry row $_gid defect_doc resolves under ROOT=$ROOT" \
+    || bad "control needle: registry row $_gid defect_doc '$_doc' does NOT resolve under ROOT=$ROOT -- set FC_TIMER_GOLDEN_ROOT to a tree containing it (every registry-dependent case below would otherwise report a location artifact, not a real result)"
+done < "$HERE/known_flaky_gates.tsv"
+
 
 # triplet NAME SEQ FC0a-text FC0b-text FC1-text -- real harness capture +
 # promotion. SEQ is a small distinguishing digit so each case's run_id is
@@ -123,9 +154,19 @@ triplet() {
   printf '%s\n' "$3" | gt_member_text "$fix" FC0a
   printf '%s\n' "$4" | gt_member_text "$fix" FC0b
   printf '%s\n' "$5" | gt_member_text "$fix" FC1
+  # T048 round 19 (R18-I1): optional 6th arg "E0a E0b E1" -- each member's
+  # REAL stand-in exit code (lib/golden_triplet_fixture.sh gt_member_exit),
+  # so the harness records it itself and the stand-in's automatic Failed: N
+  # line agrees with it. Replaces the pre-round-19 post-capture
+  # `set_key member.X.exit` manifest edits, which left a member's own log
+  # contradicting its recorded exit once that log gained a summary line.
+  if [ -n "${6:-}" ]; then
+    # shellcheck disable=SC2086
+    set -- "$1" "$2" "$3" "$4" "$5" $6
+    gt_member_exit "$fix" FC0a "$6"; gt_member_exit "$fix" FC0b "$7"; gt_member_exit "$fix" FC1 "$8"
+  fi
   gt_capture "$fix" "$out" t "$runid" || { bad "($name) harness failed: $(tail -n 3 "$out/.capture.log")"; return 1; }
   gt_promote "$out/t_${runid}.triplet"
-  MF="$out/t_${runid}.triplet"
 }
 
 CBASE='  ✓ CM-ONE: clean baseline gate'
@@ -149,8 +190,7 @@ $FAILED0
 $GOK" "$CBASE
 $SPK_OK
 $FAILED0
-$GOK"
-set_key "$MF" member.FC0a.exit 1; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 2
+$GOK" "1 0 2"
 gt_golden "$TMP/x1.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_X1"; X1_RC=$?
 if [ "$X1_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: T048 round-16 member-internal consistency \(FC1\): exit code \(2\) is neither 0 nor 1' "$TMP/x1.out"; then
   ok "(X1) overall FAIL (rc=1): FC1's own exit code (2) is neither 0 nor 1 and is correctly hard-FAILed by name, BEFORE the exact-accounting elif ever gets a chance to (wrongly) explain away the registered flake's own, separate, genuinely-explained divergence"
@@ -168,8 +208,7 @@ $FAILED0
 $GOK" "$CBASE
 $SPK_OK
 $FAILED0
-$GOK"
-set_key "$MF" member.FC0a.exit 1; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
+$GOK" "1 0 1"
 gt_golden "$TMP/x2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_X2"; X2_RC=$?
 if [ "$X2_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: T048 round-16 member-internal consistency \(FC1\): exit code \(1\) with Failed: 0' "$TMP/x2.out"; then
   ok "(X2) overall FAIL (rc=1): FC1 reports Failed:0 but exits 1 -- internally inconsistent regardless of what FC0a's exit code happens to equal; the pre-round-16 'exit (1) equals (1), trivially PASS' branch never got the chance to hide it"
@@ -187,8 +226,7 @@ $FAILED0
 $GOK" "$CBASE
 $SPK_OK
 $FAILED0
-$GOK"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
+$GOK" "0 0 1"
 gt_golden "$TMP/x3.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_X3"; X3_RC=$?
 if [ "$X3_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: T048 round-16 member-internal consistency \(FC1\): exit code \(1\) with Failed: 0' "$TMP/x3.out"; then
   ok "(X3) overall FAIL (rc=1): FC1's Failed:0/exit:1 inconsistency is hard-FAILed by the NEW member-consistency check -- correct, and consistent with the pre-round-16 behaviour (which also correctly FAILed this exact fixture via the OLD cascade's own final else, now redundantly)"
@@ -215,11 +253,15 @@ mrun() { local name="$1" envassigns="$2" outfile="$3"; GT_GOLDEN="$TMP/golden_$n
 echo "=== (M-I1) guard-viability: disable the new member-internal-consistency check entirely -- (X1)/(X2) must reproduce the pre-round-16 false PASS ==="
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
-ANCHOR_I1='    [ -n "$failed" ] || return 0'
+# T048 round 19 (R18-I1): the pre-round-19 early return this anchor used
+# to target no longer exists; the function's first statement (its `local`
+# line) is the stable anchor now, and inserting `return 0` right after it
+# disables the whole check, exactly as before.
+ANCHOR_I1='    local label="$1" ex="$2" failed="$3"'
 # intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
 # shellcheck disable=SC2016
-REPL_I1='    return 0  # MUTANT: R16-I1 member-consistency check disabled entirely
-    [ -n "$failed" ] || return 0'
+REPL_I1='    local label="$1" ex="$2" failed="$3"
+    return 0  # MUTANT: R16-I1 member-consistency check disabled entirely'
 if mutate I1 "$ANCHOR_I1" "$REPL_I1"; then
   mrun I1 "FC_TIMER_GOLDEN_EVIDENCE_DIR=$TMP/ev_X1 FC_TIMER_GOLDEN_ROOT=$ROOT FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=$KNOWN_FLAKY_TSV_REAL" "$TMP/mi1_x1.out"
   MI1_X1_RC=$?
@@ -237,9 +279,9 @@ fi
 
 # =============================================================================
 # R16-I2: the exact-accounting elif's own "!= 0" requirement, tested in
-# ISOLATION via _fc_exit_explained() -- see the file header for why an
-# end-to-end triplet can no longer isolate this clause once (M-I1) above
-# shows the member-consistency check is in place and load-bearing.
+# ISOLATION via _fc_exit_explained(). (Round 19, R18-M1: the end-to-end
+# counterpart is ADVE in test_fc_timer_golden_output_r18_regression.sh --
+# see the corrected file header above.)
 # =============================================================================
 DUMMY_LOG="$TMP/dummy_for_source.log"
 printf 'dummy, never a real pre_build evidence log -- only used so sourcing the golden script does not hit its own "no evidence log found" FATAL before reaching the function definitions this section calls directly\n' > "$DUMMY_LOG"
@@ -308,8 +350,7 @@ $FAILED1
 $GFAIL" "$CBASE
 $R16GATE_OK
 $FAILED0
-$GOK"
-set_key "$MF" member.FC0a.exit 1; set_key "$MF" member.FC0b.exit 1; set_key "$MF" member.FC1.exit 0
+$GOK" "1 1 0"
 gt_golden "$TMP/m4.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M4" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$REG_M4"; M4_RC=$?
 if [ "$M4_RC" = 0 ] && has "$TMP/m4.out" "CM-R16TESTGATE" && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01.*excluding known-flaky' "$TMP/m4.out"; then
   ok "(M4) overall PASS (rc=0): the header-less registry's ONLY row is correctly resolved (NOT mistaken for a header) and correctly excludes the self-healed gate"
@@ -329,8 +370,7 @@ $FAILED1
 $GFAIL" "$CBASE
 $R16GATE_OK
 $FAILED0
-$GOK"
-set_key "$MF" member.FC0a.exit 1; set_key "$MF" member.FC0b.exit 1; set_key "$MF" member.FC1.exit 0
+$GOK" "1 1 0"
 gt_golden "$TMP/m3.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M3" FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV="$REG_M3"; M3_RC=$?
 if [ "$M3_RC" = 1 ] && grep -qE "^WARN: known_flaky_gates\.tsv row 'CM-R16TESTGATE' has expires='2099-02-30', not a YYYY-MM-DD date" "$TMP/m3.out"; then
   ok "(M3) overall FAIL (rc=1): the calendrically-impossible expiry is refused (not merely shape-checked), so the row is treated as unregistered and the real divergence surfaces -- never silently masked"
@@ -445,8 +485,7 @@ $GOK" "$CBASE
   Failed:       08
 $GOK" "$CBASE
   Failed:       01
-$GFAIL"
-set_key "$MF" member.FC0a.exit 1; set_key "$MF" member.FC0b.exit 1; set_key "$MF" member.FC1.exit 1
+$GFAIL" "1 1 1"
 gt_golden "$TMP/m2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_M2"; M2_RC=$?
 M2_N="$(sed -nE 's/^SUMMARY: [0-9]+ pass \/ [0-9]+ fail \/ [0-9]+ skip of ([0-9]+) assertions.*/\1/p' "$TMP/m2.out")"
 if [ "$M2_RC" = 0 ] && grep -qE '^PASS\[[0-9]+\]: FR-002 commit result:' "$TMP/m2.out" \

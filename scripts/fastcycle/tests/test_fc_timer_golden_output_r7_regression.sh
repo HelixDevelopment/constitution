@@ -139,8 +139,13 @@ set_key "$TMP/r7a/t_20261001T100000Z.triplet" member.FC0b.exit MISSING
 gt_golden "$TMP/r7a.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/r7a"; rc=$?
 [ "$rc" = 1 ] && has "$TMP/r7a.out" "member FC0b recorded exit='MISSING'" \
   && ok "(R7a) a killed member (exit=MISSING) is a FAIL" || bad "(R7a) rc=$rc; $(grep -E 'FAIL' "$TMP/r7a.out" | head -2)"
-capture "$TMP/r7b" "$SAME" 20261001T110000Z
-set_key "$TMP/r7b/t_20261001T110000Z.triplet" member.FC1.exit 0
+# T048 round 19 (R18-I1): the member exit codes below are the stand-in's
+# REAL exit codes (gt_member_exit, written into a private copy of the
+# shared fixture BEFORE capture), no longer post-capture manifest edits --
+# the stand-in now prints a realistic "Failed: N" summary line consistent
+# with its own exit code, which a manifest-only exit edit would contradict.
+cp -r "$SAME" "$TMP/fix_r7b"; gt_member_exit "$TMP/fix_r7b" FC1 0
+capture "$TMP/r7b" "$TMP/fix_r7b" 20261001T110000Z
 gt_golden "$TMP/r7b.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/r7b"; rc=$?
 [ "$rc" = 1 ] && has "$TMP/r7b.out" "FAIL" && has "$TMP/r7b.out" "commit result: with-timers exit status (0) equals without-timers exit status (1)" \
   && ok "(R7b) FC1 exit 0 vs FC0a exit 1 with identical verdicts is a FAIL (commit result differs)" || bad "(R7b) rc=$rc; $(grep -E 'commit result' "$TMP/r7b.out" | head -2)"
@@ -226,9 +231,38 @@ if mutate M1 'if [ "$span" -gt "$MAX_WINDOW_S" ]; then' 'if [ "$span" -ge "$MAX_
 fi
 
 echo "=== (M-M2a) member exit integer check removed ==="
+# T048 round 19 (R18-I1): since round 19 a killed member (exit=MISSING) is
+# caught by TWO independent checks -- this triplet-validation integer check
+# AND the now-unconditional member-internal consistency rule 1 ("exit code
+# MUST be 0 or 1") in section (d). Removing only the integer check
+# therefore no longer flips the overall result; what it MUST still do is
+# remove this check's OWN refusal (proving it is load-bearing for its own
+# verdict), with the round-19 rule visibly taking over. (M-M2a2) then
+# removes BOTH and proves the killed member passes -- so neither check is
+# decoration.
 if mutate M2a "if ! printf '%s' \"\$ex\" | grep -qE '^[0-9]+\$'; then" 'if false; then'; then
   mrun M2a "$TMP/mM2a.out" "$TMP/r7a"; rc=$?
-  [ "$rc" = 0 ] && ok "(M-M2a) without the check the killed member passes (rc=0) -- (R7a) is load-bearing" || bad "(M-M2a) BLIND: rc=$rc"
+  if [ "$rc" = 1 ] && ! has "$TMP/mM2a.out" "member FC0b recorded exit='MISSING'" \
+     && grep -qE "^FAIL\[[0-9]+\]: T048 round-16 member-internal consistency \(FC0b\): exit code \(MISSING\) is neither 0 nor 1" "$TMP/mM2a.out"; then
+    ok "(M-M2a) without the integer check its own refusal disappears, and the round-19 consistency rule 1 independently catches the killed member -- (R7a)'s integer check is load-bearing for its own verdict"
+  else
+    bad "(M-M2a) BLIND: rc=$rc; $(grep -E 'MISSING|FAIL' "$TMP/mM2a.out" | head -3)"
+  fi
+  CONS_ANCHOR='    local label="$1" ex="$2" failed="$3"'
+  if [ "$(grep -cF -- "$CONS_ANCHOR" "$TMP/golden_M2a.sh")" = 1 ]; then
+    ANCHOR="$CONS_ANCHOR" python3 -c '
+import os,sys
+a=os.environ["ANCHOR"]; s=open(sys.argv[1]).read(); s=s.replace(a, a+"\n    return 0  # MUTANT: round-19 consistency check neutralised", 1); open(sys.argv[2],"w").write(s)
+' "$TMP/golden_M2a.sh" "$TMP/golden_M2a2.sh"
+    mrun M2a2 "$TMP/mM2a2.out" "$TMP/r7a"; rc=$?
+    if [ "$rc" = 0 ]; then
+      ok "(M-M2a2) with BOTH the integer check and the round-19 consistency check removed, the killed member passes (rc=0) -- the two checks are the only things catching it"
+    else
+      bad "(M-M2a2) BLIND: rc=$rc"
+    fi
+  else
+    bad "(M-M2a2) control needle: consistency anchor not found exactly once"
+  fi
 fi
 
 echo "=== (M-M2b) commit-result comparison neutralised ==="

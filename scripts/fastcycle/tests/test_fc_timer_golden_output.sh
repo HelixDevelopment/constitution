@@ -790,11 +790,27 @@ extract_verdicts() {
 # and any future one) inherits an already-decimal-safe value, never a
 # `10#$N` base-forcing discipline each call site would otherwise have to
 # remember.
+# T048 round 19 (R18-M1): the count is ALSO bounded to at most 9
+# SIGNIFICANT digits (any number of leading zeros, then 1-9 digits); a
+# longer count is unresolvable, exactly like a missing or duplicated line.
+# Before round 19 the pattern accepted [0-9]+ of any length, but every
+# caller does bash $((...)) arithmetic on the value, and bash arithmetic is
+# signed 64-bit and WRAPS silently -- MEASURED (round-18 reviewer, ADVE/
+# ADVF): "Failed: 18446744073709551616" (2^64) is nonzero as a string but
+# 0 arithmetically, and 2^64+1 becomes 1, so a nonsensical count still
+# produced a "successfully computed" delta and could be explained away
+# (ADVF reached rc=0 on unmutated code). 9 digits (< 10^9) cannot overflow
+# any subtraction of two such counts, and is many orders of magnitude above
+# any real ERRORS total.
 _fc_failed_count() {
   local hits raw
   hits="$(sed -E 's/\x1b\[[0-9;]*m//g' "$1" 2>/dev/null | grep -cE '^[[:space:]]*Failed:[[:space:]]+[0-9]+[[:space:]]*$' || true)"
   [ "${hits:-0}" = "1" ] || return 1
-  raw="$(sed -E 's/\x1b\[[0-9;]*m//g' "$1" | sed -nE 's/^[[:space:]]*Failed:[[:space:]]+([0-9]+)[[:space:]]*$/\1/p')"
+  # Uniqueness is judged on ANY-length counts (above), so an over-long
+  # duplicate can never be silently ignored in favour of a short one; the
+  # single line found must THEN fit the 9-significant-digit bound (below).
+  raw="$(sed -E 's/\x1b\[[0-9;]*m//g' "$1" | sed -nE 's/^[[:space:]]*Failed:[[:space:]]+(0*[0-9]{1,9})[[:space:]]*$/\1/p')"
+  [ -n "$raw" ] || return 1
   printf '%s' "$raw" | sed -E 's/^0+([0-9])/\1/'
 }
 
@@ -916,22 +932,23 @@ _fc_registry_failcount_delta() {
 # NEVER a registry explanation, because there was no real divergence to
 # explain in the first place (round-15's own golden_mutNZ.sh reviewer
 # mutation, which drops only this "!= 0" requirement, reproduces exactly
-# that false explanation). Deliberately ISOLATED into its own, directly-
-# callable function (round 16, R16-I2) rather than left inline: once the
-# member-internal-consistency precondition below (_fc_check_member_
-# consistency, R16-I1) holds for both members whose Failed count is
-# resolvable, a differing-exit-but-delta==0 scenario becomes structurally
-# UNREACHABLE through the full three-member golden-triplet harness (proof:
-# consistency forces exit = (Failed != 0), so N0 == N1 forces _ex0 == _ex1,
-# contradicting the "exits differ" precondition this elif is reached
-# under) -- so this clause's own removal can no longer be demonstrated via
-# an end-to-end triplet fixture once R16-I1 ships alongside it, ONLY via a
-# DIRECT call to this function in isolation (see the dedicated chk()
-# assertions near the bottom of this file). The clause is kept regardless
-# (defense-in-depth, matching round 15's original intent, option (a) of
-# the round-16 ruling) since a future change to the consistency check's own
-# scope could make this clause reachable again, and it costs nothing to
-# retain.
+# that false explanation). Isolated into its own, directly-callable
+# function (round 16, R16-I2) so the clause can be unit-tested on its own.
+# CORRECTED in round 19 (R18-M1): round 17 claimed that, once the member-
+# internal-consistency precondition below holds, a differing-exit-but-
+# delta==0 scenario is "structurally UNREACHABLE" through the full three-
+# member harness. That claim was FALSE: consistency compares Failed counts
+# as STRINGS, but the delta is bash $((...)) arithmetic, which wraps at 64
+# bits -- the round-18 reviewer's ADVE fixture ("Failed: 18446744073709551616"
+# in FC0a/FC0b, exit 1; "Failed: 0" in FC1, exit 0) reached this function
+# with N0 != N1 as strings and delta == 0 arithmetically, and dropping ONLY
+# the "!= 0" clause turned a real rc=1 into rc=0 end to end. Round 19 bounds
+# _fc_failed_count() to 9 significant digits, which removes that wrap path,
+# so with BOTH defenses in place no known end-to-end path reaches this
+# clause with delta == 0 -- but that is now stated as "no known path", not
+# proved unreachable, and test_fc_timer_golden_output_r18_regression.sh
+# keeps ADVE as a permanent end-to-end fixture whose mutants show each
+# defense (the digit bound, and this clause) is independently sufficient.
 _fc_exit_explained() {
   local n0="$1" n1="$2" reg="$3" delta
   [ -n "$n0" ] && [ -n "$n1" ] || { printf 0; return 0; }
@@ -1140,19 +1157,58 @@ if [ "$TRIPLET_STATE" = valid ]; then
   # any of them.
   _fc_check_member_consistency() {
     # $1 = member label (for the chk() message only), $2 = real exit code,
-    # $3 = real "Failed: N" count (may be empty when unresolvable -- the
-    # conservative-safe default is to say nothing about an unresolvable
-    # member here, exactly like every OTHER use of an unresolvable Failed
-    # count in this file; it is NOT read as "Failed: 0").
+    # $3 = real "Failed: N" count (empty when unresolvable: absent, or
+    # present more than once -- see _fc_failed_count()).
+    #
+    # T048 round 19 (R18-I1): the three rules run in a FIXED order and the
+    # first one is UNCONDITIONAL. Before round 19 this function opened with
+    # `[ -n "$failed" ] || return 0`, documented as "the conservative-safe
+    # default" -- but saying nothing about an unresolvable member is the
+    # PERMISSIVE choice here, not the conservative one (S11.4.201(4)): the
+    # exits-equal PASS branch below then accepted that member completely
+    # unchecked. Reproduced end to end by the round-18 reviewer (all rc=0,
+    # overall PASS): ADVA (FC1's Failed: line removed), ADVB (FC1 prints
+    # Failed: 0 twice -- ambiguous), ADVG (a genuine crash-before-summary:
+    # full verdict lines, no Failed: line, no banner, exit 1) and ADVC (all
+    # three members exit 2 with no Failed: line, which the exits-equal
+    # branch reported as "exit (2) equals (2)" PASS -- contradicting this
+    # very function's own "ANY other exit code is itself a hard FAIL").
+    #
+    # Rule 1 (always): exit code MUST be 0 or 1. pre_build_verification.sh
+    # has exactly two top-level exits (`exit 0` at :51475, `exit 1` at
+    # :51483); anything else is a crash or a signal.
+    #
+    # Rule 2 (Failed: unresolvable): a NONZERO exit with no readable count
+    # is itself a hard FAIL -- an unexplained nonzero exit with nothing to
+    # account for it is exactly the ambiguous, unaccounted-for signal this
+    # file exists to refuse (S11.4.101/S11.4.201: refuse on an unresolvable
+    # signal, never pass it). An EXIT-0 member with an unresolvable count is
+    # deliberately NOT failed here. The real script prints "Failed:" at
+    # :51115, on straight-line top-level code strictly before its only
+    # `exit 0`, so a genuine exit-0 run always carries one -- but the
+    # stand-in fixtures of the r4..r12 regression suites (A2same,
+    # A2negctrl, ...) legitimately omit the summary block on exit-0 members
+    # while exercising unrelated mechanisms, and an exit-0 member with no
+    # count cannot by itself hide a failure: the exit-code comparison and
+    # the verdict-set comparison below still see every one of its lines.
+    # Tightening this is tracked as a follow-up, not silently invented here.
+    #
+    # Rule 3 (Failed: resolvable): exit 0 iff Failed == 0.
     local label="$1" ex="$2" failed="$3"
-    [ -n "$failed" ] || return 0
     case "$ex" in
       0 | 1) ;;
       *)
-        chk "T048 round-16 member-internal consistency ($label): exit code ($ex) is neither 0 nor 1 -- pre_build_verification.sh exits 0 iff Failed==0, 1 otherwise, so ANY other exit code is itself a hard FAIL, never explained by any registry/noise-floor accounting below (Failed: $failed)" "0"
+        chk "T048 round-16 member-internal consistency ($label): exit code ($ex) is neither 0 nor 1 -- pre_build_verification.sh exits 0 iff Failed==0, 1 otherwise, so ANY other exit code is itself a hard FAIL, never explained by any registry/noise-floor accounting below (Failed: ${failed:-unreadable})" "0"
         return 1
         ;;
     esac
+    if [ -z "$failed" ]; then
+      if [ "$ex" != 0 ]; then
+        chk "T048 round-19 member-internal consistency ($label): exit code ($ex) is nonzero but the 'Failed: N' count is unreadable (missing, or printed more than once) -- an unexplained nonzero exit with no failure count to account for it is a hard FAIL, never passed or explained by any registry/noise-floor accounting below" "0"
+        return 1
+      fi
+      return 0
+    fi
     if [ "$failed" = 0 ] && [ "$ex" != 0 ]; then
       chk "T048 round-16 member-internal consistency ($label): exit code ($ex) with Failed: $failed -- a member reporting Failed: 0 MUST exit 0, never explained by any registry/noise-floor accounting below" "0"
       return 1

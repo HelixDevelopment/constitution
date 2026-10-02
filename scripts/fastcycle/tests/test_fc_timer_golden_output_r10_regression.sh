@@ -194,10 +194,13 @@ fi
 # R10-I1: exit-code noise floor.
 # =============================================================================
 echo "=== (E1) R10-I1 exact reproduction: FC0a stays 1, FC0b and FC1 BOTH exit 0 -- exit mismatch fully explained, SKIP not FAIL ==="
-capture "$TMP/e1" "$SAME" 20261010T000000Z t
-E1MF="$TMP/e1/t_20261010T000000Z.triplet"
-set_key "$E1MF" member.FC0b.exit 0
-set_key "$E1MF" member.FC1.exit 0
+# T048 round 19 (R18-I1): the member exit codes below are the stand-in's
+# REAL exit codes (gt_member_exit, written into a private copy of the
+# shared fixture BEFORE capture), no longer post-capture manifest edits --
+# the stand-in now prints a realistic "Failed: N" summary line consistent
+# with its own exit code, which a manifest-only exit edit would contradict.
+cp -r "$SAME" "$TMP/fix_e1"; gt_member_exit "$TMP/fix_e1" FC0b 0; gt_member_exit "$TMP/fix_e1" FC1 0
+capture "$TMP/e1" "$TMP/fix_e1" 20261010T000000Z t
 gt_golden "$TMP/e1.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/e1"; rc=$?
 if [ "$rc" = 0 ] && has "$TMP/e1.out" "IDENTICAL" \
    && grep -qE "^SKIP\[[0-9]+\]: FR-002 commit result: with-timers exit status \(0\) differs from without-timers exit status \(1\), but this SAME run's own noise-floor member FC0b ALSO exited 0" "$TMP/e1.out"; then
@@ -207,10 +210,8 @@ else
 fi
 
 echo "=== (E2) exact-match discipline: FC0b diverges too, but to a DIFFERENT value than FC1 -- NOT noise-explained, still FAILs ==="
-capture "$TMP/e2" "$SAME" 20261010T010000Z t
-E2MF="$TMP/e2/t_20261010T010000Z.triplet"
-set_key "$E2MF" member.FC0b.exit 2
-set_key "$E2MF" member.FC1.exit 0
+cp -r "$SAME" "$TMP/fix_e2"; gt_member_exit "$TMP/fix_e2" FC0b 2; gt_member_exit "$TMP/fix_e2" FC1 0
+capture "$TMP/e2" "$TMP/fix_e2" 20261010T010000Z t
 gt_golden "$TMP/e2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/e2"; rc=$?
 if [ "$rc" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: FR-002 commit result: with-timers exit status \(0\) equals without-timers exit status \(1\) \(noise-floor member FC0b exited 2\) -- MISMATCH, not explained' "$TMP/e2.out"; then
   ok "(E2) FC0b diverging to a DIFFERENT value than FC1 is NOT treated as noise-explained -- the exact-match requirement is enforced, still FAILs"

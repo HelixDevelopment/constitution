@@ -37,7 +37,22 @@
 # (never hand-transcribed).
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$HERE/../../../.." && pwd)"
+# T048 round 19 (R18-I2): ROOT MUST honour a caller-supplied
+# FC_TIMER_GOLDEN_ROOT override, falling back to the test-file-relative
+# parent-repo path ONLY when none is supplied. Before round 19 this line
+# UNCONDITIONALLY recomputed ROOT from "$HERE/../../../..", and every mrun()
+# below then passed FC_TIMER_GOLDEN_ROOT=$ROOT explicitly to the mutated
+# golden copy -- silently OVERWRITING any caller override. Run outside the
+# real parent tree (a `git archive` extraction / a bare constitution
+# worktree), that derived ROOT has no docs/requests/ defect docs, so the
+# known-flaky registry's own defect_doc validation refused EVERY row and
+# every registry-dependent mutant reported "registry delta=0" -- a
+# location-dependent false FAIL (S11.4.201(1)) that had nothing to do with
+# the code under test. The non-mutant gt_golden() runs were never affected
+# (they inherit the caller's environment unchanged), which is exactly why
+# only the mrun()-based cases (M-I1b here in r12, M-I1-delta in r14,
+# M-I1/M-M3 in r16) ever showed it.
+ROOT="${FC_TIMER_GOLDEN_ROOT:-$(cd "$HERE/../../../.." && pwd)}"
 # (not a shellcheck directive -- plain comment) precheck's shellcheck invocation runs
 # without -x; this harness sources its sibling lib file via a runtime-computed $HERE
 # path shellcheck cannot statically follow without -x regardless of the source= line
@@ -61,7 +76,19 @@ for f in "$GT_HARNESS" "$REAL_GOLDEN"; do
   [ -f "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
 done
 
-set_key() { sed -i "s|^$2=.*|$2=$3|" "$1"; }
+# T048 round 19 (R18-I2) control needle: every defect_doc the REAL known-
+# flaky registry names MUST resolve under the ROOT this file will hand to
+# the golden test. Without this, an unresolvable ROOT shows up only
+# indirectly -- as a mysterious "registry delta=0" in some LATER mutant --
+# instead of being named here, at its actual cause.
+while IFS=$'\t' read -r _gid _reason _doc _exp; do
+  [ "$_gid" = gate_id ] && continue
+  [ -n "$_gid" ] || continue
+  # shellcheck disable=SC2015
+  [ -n "$_doc" ] && [ -f "$ROOT/$_doc" ] && ok "control needle: registry row $_gid defect_doc resolves under ROOT=$ROOT" \
+    || bad "control needle: registry row $_gid defect_doc '$_doc' does NOT resolve under ROOT=$ROOT -- set FC_TIMER_GOLDEN_ROOT to a tree containing it (every registry-dependent case below would otherwise report a location artifact, not a real result)"
+done < "$HERE/known_flaky_gates.tsv"
+
 
 # triplet NAME SEQ FC0a-text FC0b-text FC1-text -- real harness capture +
 # promotion. SEQ is a small distinguishing digit so each case's run_id is
@@ -72,9 +99,19 @@ triplet() {
   printf '%s\n' "$3" | gt_member_text "$fix" FC0a
   printf '%s\n' "$4" | gt_member_text "$fix" FC0b
   printf '%s\n' "$5" | gt_member_text "$fix" FC1
+  # T048 round 19 (R18-I1): optional 6th arg "E0a E0b E1" -- each member's
+  # REAL stand-in exit code (lib/golden_triplet_fixture.sh gt_member_exit),
+  # so the harness records it itself and the stand-in's automatic Failed: N
+  # line agrees with it. Replaces the pre-round-19 post-capture
+  # `set_key member.X.exit` manifest edits, which left a member's own log
+  # contradicting its recorded exit once that log gained a summary line.
+  if [ -n "${6:-}" ]; then
+    # shellcheck disable=SC2086
+    set -- "$1" "$2" "$3" "$4" "$5" $6
+    gt_member_exit "$fix" FC0a "$6"; gt_member_exit "$fix" FC0b "$7"; gt_member_exit "$fix" FC1 "$8"
+  fi
   gt_capture "$fix" "$out" t "$runid" || { bad "($name) harness failed: $(tail -n 3 "$out/.capture.log")"; return 1; }
   gt_promote "$out/t_${runid}.triplet"
-  MF="$out/t_${runid}.triplet"
 }
 
 # A CLEAN baseline (no pre-existing failure) -- deliberately NOT the older
@@ -122,8 +159,7 @@ $GOK" "$CBASE
 $SPK_BAD
 $OKSTYLE_BAD
 $FAILED2
-$GFAIL"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
+$GFAIL" "0 0 1"
 gt_golden "$TMP/adv1.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_ADV1"; ADV1_RC=$?
 if [ "$ADV1_RC" = 1 ] \
    && grep -qE '^FAIL\[[0-9]+\]: FR-002 commit result:.*MISMATCH, not explained' "$TMP/adv1.out" \
@@ -147,8 +183,7 @@ $GOK" "$CBASE
 $SPK_OK
 $OKSTYLE_BAD
 $FAILED1
-$GFAIL"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
+$GFAIL" "0 0 1"
 gt_golden "$TMP/adv1ctl.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_ADV1ctl"; ADV1CTL_RC=$?
 if [ "$ADV1CTL_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/adv1ctl.out" && has "$TMP/adv1ctl.out" "CM-OKSTYLE"; then
   ok "(ADV1-ctl) overall FAIL (rc=1): a genuine regression with no registry involvement at all is caught exactly as before -- the S11.4.201(1) false-positive guard"
@@ -164,7 +199,7 @@ $SPK_BAD
 $FAILED1" "$CBASE
 $SPK_OK
 $UNREL_BAD
-$FAILED1"
+$FAILED1" "1 1 1"
 # T048 round 16 (R16-M1 live finding): the round-15 fixture set ALL THREE
 # exits to 0/0/1 even though EVERY member's own "Failed: 1" line requires
 # exit 1 (pre_build_verification.sh exits 0 iff Failed==0) -- FC0a and
@@ -180,7 +215,6 @@ $FAILED1"
 # rejected -- re-verified below to still demonstrate this fixture's
 # original point (a registered self-heal masking an unrelated new
 # failure is correctly rejected), now via the check that actually sees it.
-set_key "$MF" member.FC0a.exit 1; set_key "$MF" member.FC0b.exit 1; set_key "$MF" member.FC1.exit 1
 gt_golden "$TMP/adv2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_ADV2"; ADV2_RC=$?
 if [ "$ADV2_RC" = 1 ] \
    && grep -qE '^PASS\[[0-9]+\]: FR-002 commit result: with-timers exit status \(1\) equals without-timers exit status \(1\)' "$TMP/adv2.out" \
@@ -246,8 +280,7 @@ echo "=== (ADV3) R14-I2 exact repro: an OK/FAIL-style gate flips OK->FAIL in FC1
 triplet ADV3 4 "$CBASE
 $OKSTYLE_OK" "$CBASE
 $OKSTYLE_OK" "$CBASE
-$OKSTYLE_BAD"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 0
+$OKSTYLE_BAD" "0 0 0"
 gt_golden "$TMP/adv3.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_ADV3"; ADV3_RC=$?
 if [ "$ADV3_RC" = 1 ] \
    && grep -qE '^PASS\[[0-9]+\]: FR-002 commit result:' "$TMP/adv3.out" \
@@ -260,8 +293,7 @@ fi
 
 echo "=== (ADV4) R14-I2 WARNING: shape: a log_warn()-style line appears ONLY in FC1, exit codes held EQUAL -- check [verdict-set] must FAIL, not silently PASS ==="
 triplet ADV4 5 "$CBASE" "$CBASE" "$CBASE
-$WARNSTYLE_FC1_ONLY"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 0
+$WARNSTYLE_FC1_ONLY" "0 0 0"
 gt_golden "$TMP/adv4.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_ADV4"; ADV4_RC=$?
 if [ "$ADV4_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/adv4.out" && has "$TMP/adv4.out" "CM-ADV-FLAGGED"; then
   ok "(ADV4) overall FAIL (rc=1): a WARNING:-only difference (never matched by the pre-round-15 literal 'WARN:') is now genuinely caught by the verdict-set check"

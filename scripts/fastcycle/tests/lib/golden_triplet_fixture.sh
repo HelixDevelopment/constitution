@@ -18,6 +18,25 @@
 # about its timer setting. It also echoes the FC_TIMING it saw, so a test can
 # confirm the harness passed the right value.
 #
+# T048 round 19 (R18-I1) -- realistic summary block. The real
+# pre_build_verification.sh prints "  Failed:       N" (:51115) on straight-
+# line top-level code BEFORE its only two exits (`exit 0` iff N==0, else
+# `exit 1`), so every real member log carries exactly one such line. Since
+# round 19 the golden test hard-FAILs a member whose exit is nonzero while
+# its Failed: count is unreadable (that is exactly what a crash-before-
+# summary looks like), so the stand-in now mirrors the real script:
+#   * it exits with the code in $GT_FIX/<member>.exit when that file exists,
+#     1 otherwise (the pre-round-19 constant), so a fixture states a member's
+#     exit code BEFORE capture and the harness records it for real, instead
+#     of a post-hoc manifest edit that the member's own log contradicts;
+#   * when the fixture text has NO full-line "Failed: N" line of its own, it
+#     appends one consistent with that exit code (0 for exit 0, else 1).
+#     A fixture that carries its own Failed: line(s) is printed verbatim --
+#     including deliberately missing/duplicated/inconsistent ones -- and
+#     $GT_FIX/<member>.nosummary suppresses the auto line entirely (used to
+#     model a crash before the summary block, e.g. the round-18 ADVA/ADVG
+#     fixtures).
+#
 # Provides: gt_init, gt_member_text, gt_capture, gt_promote, gt_golden
 
 GT_TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,6 +52,11 @@ gt_init() {
 m="${FC_TIMER_RUN_ID##*_}"
 [ -n "${GT_FIX_SLEEP:-}" ] && sleep "$GT_FIX_SLEEP"
 cat "$GT_FIX/$m.txt"
+gt_exit=1
+[ -f "$GT_FIX/$m.exit" ] && gt_exit="$(cat "$GT_FIX/$m.exit")"
+if [ ! -f "$GT_FIX/$m.nosummary" ] && ! grep -qE '^[[:space:]]*Failed:[[:space:]]+[0-9]+[[:space:]]*$' "$GT_FIX/$m.txt"; then
+  if [ "$gt_exit" = 0 ]; then echo "  Failed:       0"; else echo "  Failed:       1"; fi
+fi
 echo "stand-in member=$m FC_TIMING=${FC_TIMING-unset}"
 echo "stand-in member=$m TMPDIR=${TMPDIR-unset}"
 # GT_FIX_COLLIDE=<seconds> reproduces the round-7 R6-B1 mechanism: a sub-test
@@ -53,12 +77,20 @@ if [ "$rows" -gt 0 ]; then
   printf 'section\tms\n' > "$d/prebuild_sections.tsv"
   i=0; while [ "$i" -lt "$rows" ]; do printf 'S%s\t1\n' "$i" >> "$d/prebuild_sections.tsv"; i=$((i + 1)); done
 fi
-exit 1
+exit "$gt_exit"
 EOF
 }
 
 # gt_member_text FIXDIR MEMBER < text -- the verdict output MEMBER will print.
 gt_member_text() { mkdir -p "$1"; cat > "$1/$2.txt"; }
+
+# gt_member_exit FIXDIR MEMBER CODE -- the exit code MEMBER's stand-in run
+# will really return (default 1). See the round-19 note at the top.
+gt_member_exit() { mkdir -p "$1"; printf '%s\n' "$3" > "$1/$2.exit"; }
+
+# gt_member_nosummary FIXDIR MEMBER -- suppress the stand-in's automatic
+# "Failed: N" line for MEMBER (models a crash before the summary block).
+gt_member_nosummary() { mkdir -p "$1"; : > "$1/$2.nosummary"; }
 
 # gt_capture FIXDIR OUTDIR PREFIX RUNID [harness-args...] -- runs the harness;
 # its stdout+stderr go to OUTDIR/.capture.log; returns its exit code.

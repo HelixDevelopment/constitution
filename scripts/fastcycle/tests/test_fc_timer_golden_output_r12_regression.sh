@@ -69,7 +69,22 @@
 # hand-transcribed).
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$HERE/../../../.." && pwd)"
+# T048 round 19 (R18-I2): ROOT MUST honour a caller-supplied
+# FC_TIMER_GOLDEN_ROOT override, falling back to the test-file-relative
+# parent-repo path ONLY when none is supplied. Before round 19 this line
+# UNCONDITIONALLY recomputed ROOT from "$HERE/../../../..", and every mrun()
+# below then passed FC_TIMER_GOLDEN_ROOT=$ROOT explicitly to the mutated
+# golden copy -- silently OVERWRITING any caller override. Run outside the
+# real parent tree (a `git archive` extraction / a bare constitution
+# worktree), that derived ROOT has no docs/requests/ defect docs, so the
+# known-flaky registry's own defect_doc validation refused EVERY row and
+# every registry-dependent mutant reported "registry delta=0" -- a
+# location-dependent false FAIL (S11.4.201(1)) that had nothing to do with
+# the code under test. The non-mutant gt_golden() runs were never affected
+# (they inherit the caller's environment unchanged), which is exactly why
+# only the mrun()-based cases (M-I1b here in r12, M-I1-delta in r14,
+# M-I1/M-M3 in r16) ever showed it.
+ROOT="${FC_TIMER_GOLDEN_ROOT:-$(cd "$HERE/../../../.." && pwd)}"
 # shellcheck source=lib/golden_triplet_fixture.sh
 # (not a shellcheck directive -- plain comment) precheck's shellcheck invocation runs
 # without -x; this harness sources its sibling lib file via a runtime-computed $HERE
@@ -93,20 +108,69 @@ for f in "$GT_HARNESS" "$REAL_GOLDEN"; do
   [ -f "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
 done
 
-set_key() { sed -i "s|^$2=.*|$2=$3|" "$1"; }
+# T048 round 19 (R18-I2) control needle: every defect_doc the REAL known-
+# flaky registry names MUST resolve under the ROOT this file will hand to
+# the golden test. Without this, an unresolvable ROOT shows up only
+# indirectly -- as a mysterious "registry delta=0" in some LATER mutant --
+# instead of being named here, at its actual cause.
+while IFS=$'\t' read -r _gid _reason _doc _exp; do
+  [ "$_gid" = gate_id ] && continue
+  [ -n "$_gid" ] || continue
+  # shellcheck disable=SC2015
+  [ -n "$_doc" ] && [ -f "$ROOT/$_doc" ] && ok "control needle: registry row $_gid defect_doc resolves under ROOT=$ROOT" \
+    || bad "control needle: registry row $_gid defect_doc '$_doc' does NOT resolve under ROOT=$ROOT -- set FC_TIMER_GOLDEN_ROOT to a tree containing it (every registry-dependent case below would otherwise report a location artifact, not a real result)"
+done < "$HERE/known_flaky_gates.tsv"
+
 
 # triplet NAME SEQ FC0a-text FC0b-text FC1-text -- real harness capture +
 # promotion. SEQ is a small distinguishing digit so each case's run_id is
 # unique (YYYYMMDDTHHMMSSZ format the manifest format requires).
+# fixture_selfcheck TEXT -- T048 round 19 (R18-M4): a member text that
+# carries its OWN explicit "Failed: N" line must agree with itself: N must
+# equal the number of failing-verdict (cross-mark) lines in that SAME text,
+# excluding the failure banner (which the real script prints after the
+# count, not as a gate). This removes, at the root, the drift risk of the
+# hand-typed shared constants (BASE_GREEN / FAILED0/1/2) the A2 family
+# composes: a constant edited out of step with the verdict lines it is
+# paired with is now refused at fixture-construction time, by name, instead
+# of surfacing later as an unexplained member-internal-consistency FAIL in
+# the golden output. Prints the mismatch and returns 1; texts without
+# exactly one explicit Failed: line are not checked (nothing to agree with).
+fixture_selfcheck() {
+  local n crosses
+  [ "$(printf '%s\n' "$1" | grep -cE '^[[:space:]]*Failed:[[:space:]]+[0-9]+[[:space:]]*$' || true)" = 1 ] || return 0
+  n="$(printf '%s\n' "$1" | sed -nE 's/^[[:space:]]*Failed:[[:space:]]+([0-9]+)[[:space:]]*$/\1/p')"
+  crosses="$(printf '%s\n' "$1" | grep -F '✗' | grep -cvxF -- "$GFAIL" || true)"
+  [ "$n" = "$crosses" ] && return 0
+  echo "Failed: $n but $crosses failing-verdict line(s)"
+  return 1
+}
+
 triplet() {
-  local name="$1" fix="$TMP/fix_$1" out="$TMP/ev_$1" runid
+  local name="$1" fix="$TMP/fix_$1" out="$TMP/ev_$1" runid _m _txt _why
+  for _m in 3 4 5; do
+    eval "_txt=\${$_m}"
+    if ! _why="$(fixture_selfcheck "$_txt")"; then
+      bad "($name) fixture self-check: member text #$((_m - 2)) is internally inconsistent -- $_why"
+    fi
+  done
   runid="202612$(printf '%02d' "$2")T000000Z"
   printf '%s\n' "$3" | gt_member_text "$fix" FC0a
   printf '%s\n' "$4" | gt_member_text "$fix" FC0b
   printf '%s\n' "$5" | gt_member_text "$fix" FC1
+  # T048 round 19 (R18-I1): optional 6th arg "E0a E0b E1" -- each member's
+  # REAL stand-in exit code (lib/golden_triplet_fixture.sh gt_member_exit),
+  # so the harness records it itself and the stand-in's automatic Failed: N
+  # line agrees with it. Replaces the pre-round-19 post-capture
+  # `set_key member.X.exit` manifest edits, which left a member's own log
+  # contradicting its recorded exit once that log gained a summary line.
+  if [ -n "${6:-}" ]; then
+    # shellcheck disable=SC2086
+    set -- "$1" "$2" "$3" "$4" "$5" $6
+    gt_member_exit "$fix" FC0a "$6"; gt_member_exit "$fix" FC0b "$7"; gt_member_exit "$fix" FC1 "$8"
+  fi
   gt_capture "$fix" "$out" t "$runid" || { bad "($name) harness failed: $(tail -n 3 "$out/.capture.log")"; return 1; }
   gt_promote "$out/t_${runid}.triplet"
-  MF="$out/t_${runid}.triplet"
 }
 
 BASE='  ✓ CM-ONE: first
@@ -125,54 +189,70 @@ GOK='  ✓ ALL MANDATORY CHECKS PASSED'
 GFAIL='  ✗ PRE-BUILD VERIFICATION FAILED'
 # T048 round 14 (R14-I1): the real "  Failed:       N" summary line
 # (pre_build_verification.sh:51115), prints strictly BEFORE either banner.
-# $BASE alone always contributes exactly 1 (CM-TWO, always failing); FAILED1/
-# FAILED2 below are used ONLY by A2negctrl/A2same's $BASE-paired members
-# (neither of which carries an explicit Failed: line in its own content, so
-# T048 round 14's exact-accounting mechanism never reads these two values --
-# they are kept purely as the content-accurate historical record of what
-# $BASE+SPK[+UNREG] totals to, for any future fixture that still wants a
-# deliberately-inconsistent-with-its-own-exit-code member, e.g. to exercise
-# a hard-coded exit value independent of Failed count).
+# Which fixtures read which constant (CORRECTED in round 19, R18-M2 -- the
+# round-17 follow-up's comment here had it backwards, claiming FAILED1/
+# FAILED2 were used "ONLY by A2negctrl/A2same" and "never read"):
+#   * FAILED0 -- the GREEN members of A2, A2mirror, A2b and A2mix.
+#   * FAILED1 -- the flaking member of A2 (FC1), A2mirror (FC0a) and A2b
+#     (FC1); it IS read by the exact-accounting mechanism in all three.
+#   * FAILED2 -- A2mix's FC1 (registered flake + genuine UNREG failure).
+#   * A2negctrl and A2same use NONE of these: they carry no explicit
+#     Failed: line, so the stand-in's automatic summary line (consistent
+#     with each member's real exit code, see lib/golden_triplet_fixture.sh,
+#     round 19) is what they print.
 FAILED1='  Failed:       1'
 FAILED2='  Failed:       2'
 # T048 round 17 follow-up (member-internal consistency, R16-I1): A2/
 # A2mirror/A2b/A2mix USED to pair $BASE (CM-TWO ALWAYS-FAILING, above) with
-# a $FAILED1/2/3 line while ALSO hardcoding their "GREEN"/baseline members'
-# exit to 0 -- a self-contradictory input (claims a nonzero Failed count,
-# hardcodes an exit-0 member) that went undetected from round 13 (this
-# file's origin) through round 16, because no check compared a member's
-# own exit code against its own Failed count until round 16/17's
-# _fc_check_member_consistency landed (T048 round-17 commit fix(fastcycle/
-# T048): round 17 -- remediate independent round-16 review). That NEW
-# check is CORRECT (pre_build_verification.sh really does exit 0 iff
-# Failed==0, confirmed against device/rockchip/rk3588/tests/
-# pre_build_verification.sh:51115/:51121/:51477, the same lines GOK/GFAIL
-# above already cite) and now correctly hard-FAILs FC0a/FC0b in every one
-# of those four fixtures (verified directly: a true pre-round-17 worktree
-# at the parent commit of round 17's own change runs this exact file with
-# only ONE failure -- M-I1b, below, whose OWN failure turned out to share
-# this SAME root cause and is also resolved by this fix -- never
-# A2/A2mirror/A2b; only the POST-round-17 core script newly hard-FAILs
-# them). What was stale here is the FIXTURE DATA, not the round-16/17
-# check: the "GREEN tree" baseline members (FC0a/FC0b) are supposed to be
-# genuinely green (Failed:0) per their own documented intent ("registered
-# flake confined to FC1 on a GREEN tree"), not merely "SPK-512 passes
-# while an unrelated CM-TWO silently fails underneath". BASE_GREEN below
-# is $BASE with CM-TWO's verdict flipped to passing, used ONLY by
-# A2/A2mirror/A2b/A2mix (grep-verified: $BASE itself is used ONLY by the
-# A2-family triplets in this file, never elsewhere, so introducing a
-# green sibling here cannot affect anything outside this section), and
-# FAILED0 is the matching "Failed: 0" total; restoring the fixtures'
-# documented intent while leaving the round-12/13/14 mechanisms actually
-# under test (the exit-code registry-explained elif + the summary-tail
-# truncation) completely unchanged: a genuinely green baseline (Failed:0,
-# exit 0) diverging to Failed:1/exit 1 purely via the registered SPK-512
-# flake (or to Failed:2/exit 1 when A2mix's additional genuine UNREG
-# failure is also present) is exactly the scenario those mechanisms were
-# written to explain, and it is now also member-internally consistent.
+# a $FAILED1/2 line while ALSO giving their "GREEN" baseline members exit 0
+# -- a self-contradictory input (a nonzero Failed count with an exit-0
+# member) that went undetected from round 13 through round 16, because no
+# check compared a member's own exit code against its own Failed count
+# until round 17's _fc_check_member_consistency. That check is CORRECT
+# (pre_build_verification.sh exits 0 iff Failed==0) and correctly
+# hard-FAILed FC0a/FC0b in A2, A2mirror and A2b once it landed; what was
+# stale was the FIXTURE DATA. BASE_GREEN below is $BASE with CM-TWO's
+# verdict flipped to passing (used only by A2/A2mirror/A2b/A2mix) and
+# FAILED0 is the matching "Failed: 0".
+#
+# CORRECTED in round 19 (R18-I2): the round-17 follow-up ALSO claimed that
+# this same data fix "also resolved" M-I1b below, which it said had been
+# failing since before round 17 with the same root cause. That causal claim
+# was FALSE. M-I1b never failed in the real parent tree at any of those
+# commits; it failed ONLY when this file ran OUTSIDE the parent tree,
+# because ROOT (and therefore the FC_TIMER_GOLDEN_ROOT every mrun() passed
+# to the mutated golden copy) was computed from "$HERE/../../../.." and
+# silently overrode any caller-supplied FC_TIMER_GOLDEN_ROOT -- so the
+# registry's defect_doc did not resolve, every registry row was refused,
+# and the mutant's registry delta read 0. The follow-up's "16/1 before,
+# 17/0 after" observation was an artifact of WHERE each run happened, not
+# of the data fix. Round 19 makes ROOT honour FC_TIMER_GOLDEN_ROOT (see its
+# definition near the top of this file) and adds a control needle that
+# fails loudly when the registry's defect docs do not resolve under ROOT;
+# M-I1b now passes in BOTH layouts for its real reason (registry delta 1 ==
+# Failed delta 1, so check [12] SKIPs; the untruncated summary tail then
+# FAILs check [13]).
 BASE_GREEN='  ✓ CM-ONE: first
   ✓ CM-TWO: second'
 FAILED0='  Failed:       0'
+
+echo "=== (M4-selfcheck) T048 round 19 (R18-M4): the fixture self-check refuses a drifted constant and accepts a consistent one ==="
+if _w="$(fixture_selfcheck "$BASE_GREEN
+$SPK_BAD
+$FAILED0
+$GFAIL")"; then
+  bad "(M4-selfcheck) BLIND: a 'Failed: 0' text with one failing verdict line was accepted"
+else
+  ok "(M4-selfcheck) a 'Failed: 0' text with one failing verdict line is refused ($_w)"
+fi
+if fixture_selfcheck "$BASE_GREEN
+$SPK_BAD
+$FAILED1
+$GFAIL" > /dev/null; then
+  ok "(M4-selfcheck-ctl) a consistent text (one failing verdict line, Failed: 1, banner excluded) is accepted -- the check is not hard-coded to refuse"
+else
+  bad "(M4-selfcheck-ctl) a consistent text was wrongly refused"
+fi
 
 # =============================================================================
 # R12-I1: the real-registry, green-tree, exit+summary-tail cascade.
@@ -187,8 +267,7 @@ $FAILED0
 $GOK" "$BASE_GREEN
 $SPK_BAD
 $FAILED1
-$GFAIL"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
+$GFAIL" "0 0 1"
 gt_golden "$TMP/a2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2"; A2_RC=$?
 if [ "$A2_RC" = 0 ] && grep -qE '^SKIP\[[0-9]+\]: FR-002 commit result \(registry-explained' "$TMP/a2.out" \
    && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01.*excluding known-flaky' "$TMP/a2.out" \
@@ -208,14 +287,38 @@ $FAILED0
 $GOK" "$BASE_GREEN
 $SPK_OK
 $FAILED0
-$GOK"
-set_key "$MF" member.FC0a.exit 1; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 0
+$GOK" "1 0 0"
 gt_golden "$TMP/a2m.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2mirror"; A2M_RC=$?
-if [ "$A2M_RC" = 0 ] && grep -qE '^SKIP\[[0-9]+\]: FR-002 commit result' "$TMP/a2m.out" \
+# T048 round 19 (R18-M3): this fixture's exit divergence (FC0a 1 vs FC1 0)
+# is resolved by the NOISE-FLOOR branch (FC0b also exits 0, matching FC1),
+# NOT by the registry-explained branch -- the old ok-message implied the
+# latter. The check now pins the branch that actually fires; the registry-
+# explained branch in this NEGATIVE-delta direction is exercised end to end
+# by (A2mirror-reg) below.
+if [ "$A2M_RC" = 0 ] && grep -qE "^SKIP\[[0-9]+\]: FR-002 commit result: with-timers exit status \(0\) differs from without-timers exit status \(1\), but this SAME run's own noise-floor member FC0b ALSO exited 0" "$TMP/a2m.out" \
    && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01' "$TMP/a2m.out"; then
-  ok "(A2mirror) overall PASS (rc=0): the SAME flake confined to FC0a instead of FC1 is handled symmetrically"
+  ok "(A2mirror) overall PASS (rc=0): the SAME flake confined to FC0a instead of FC1 -- the exit divergence is resolved by the NOISE-FLOOR branch (FC0b also exited 0, matching FC1), and the verdict set PASSes once the registered line is excluded"
 else
   bad "(A2mirror) rc=$A2M_RC; $(grep -E 'FR-002' "$TMP/a2m.out" | head -5)"
+fi
+
+echo "=== (A2mirror-reg) T048 round 19 (R18-M3): registered flake in FC0a AND FC0b, FC1 green -- the noise floor cannot explain it (FC0b matches FC0a), so ONLY the registry-explained branch, in the NEGATIVE-delta direction, can: overall PASS ==="
+triplet A2mirrorreg 7 "$BASE_GREEN
+$SPK_BAD
+$FAILED1
+$GFAIL" "$BASE_GREEN
+$SPK_BAD
+$FAILED1
+$GFAIL" "$BASE_GREEN
+$SPK_OK
+$FAILED0
+$GOK" "1 1 0"
+gt_golden "$TMP/a2mr.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2mirrorreg"; A2MR_RC=$?
+if [ "$A2MR_RC" = 0 ] && grep -qE '^SKIP\[[0-9]+\]: FR-002 commit result \(registry-explained.*delta=-1\)' "$TMP/a2mr.out" \
+   && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01' "$TMP/a2mr.out"; then
+  ok "(A2mirror-reg) overall PASS (rc=0): a registered flake recovering in FC1 (Failed 1 -> 0, registry delta -1) is registry-explained end to end in the negative direction"
+else
+  bad "(A2mirror-reg) rc=$A2MR_RC; $(grep -E 'FR-002' "$TMP/a2mr.out" | head -5)"
 fi
 
 echo "=== (A2b) exit-code-only effect: registered flake flips FC1's exit, but NEITHER log carries a summary banner at all (no truncation possible) -- still overall PASS via the exit-code elif alone ==="
@@ -225,8 +328,7 @@ $FAILED0" "$BASE_GREEN
 $SPK_OK
 $FAILED0" "$BASE_GREEN
 $SPK_BAD
-$FAILED1"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
+$FAILED1" "0 0 1"
 gt_golden "$TMP/a2b.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2b"; A2B_RC=$?
 if [ "$A2B_RC" = 0 ] && grep -qE '^SKIP\[[0-9]+\]: FR-002 commit result \(registry-explained' "$TMP/a2b.out" \
    && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01' "$TMP/a2b.out" && ! has "$TMP/a2b.out" "excluded the post-summary-banner tail"; then
@@ -248,11 +350,14 @@ $GOK" "$BASE_GREEN
 $SPK_BAD
 $UNREG_BAD
 $FAILED2
-$GFAIL"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
+$GFAIL" "0 0 1"
 gt_golden "$TMP/a2mix.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2mix"; A2MIX_RC=$?
-if [ "$A2MIX_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/a2mix.out" && has "$TMP/a2mix.out" "CM-UNREG"; then
-  ok "(A2mix) overall FAIL (rc=1): the registered flake's exit-code divergence is registry-explained, but the verdict-set check still catches the GENUINE unregistered failure -- not a blanket loophole"
+# T048 round 19 (R18-M3): the old ok-message said the exit divergence "is
+# registry-explained"; it is NOT (delta 2 != registry delta 1), and the
+# check below now pins the commit-result FAIL that actually fires.
+if [ "$A2MIX_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/a2mix.out" && has "$TMP/a2mix.out" "CM-UNREG" \
+   && grep -qE '^FAIL\[[0-9]+\]: FR-002 commit result: .*MISMATCH.*Failed: 0 -> 2 \(delta=2\), registry delta=1' "$TMP/a2mix.out"; then
+  ok "(A2mix) overall FAIL (rc=1): check [12] hard-FAILs because the Failed delta (0 -> 2) does NOT equal the registry delta (1) -- round-14 exact accounting refuses to explain it -- and the verdict-set check independently catches the GENUINE unregistered CM-UNREG failure; not a blanket loophole"
 else
   bad "(A2mix) BLIND: rc=$A2MIX_RC; $(grep -E 'FR-002|NOISE-FLOOR' "$TMP/a2mix.out" | head -5)"
 fi
@@ -264,8 +369,7 @@ $GOK" "$BASE
 $SPK_OK
 $GOK" "$BASE
 $SPK_OK
-$GFAIL"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
+$GFAIL" "0 0 1"
 gt_golden "$TMP/a2nc.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2negctrl"; A2NC_RC=$?
 if [ "$A2NC_RC" = 1 ] && grep -qE "^FAIL\[[0-9]+\]: FR-002 commit result: with-timers exit status \(1\) equals without-timers exit status \(0\).*MISMATCH, not explained" "$TMP/a2nc.out"; then
   ok "(A2negctrl) check [12] correctly hard-FAILs (rc=1): an identical registered-gate line between FC0a/FC1 is NOT treated as an explanation for an unrelated exit divergence -- the registry-explained elif is not a blanket exit-code exemption"
@@ -277,8 +381,7 @@ echo "=== (A2same) backward-compat control: identical exits (0/0/0), identical b
 triplet A2same 6 "$BASE
 $GOK" "$BASE
 $GOK" "$BASE
-$GOK"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 0
+$GOK" "0 0 0"
 gt_golden "$TMP/a2same.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2same"; A2S_RC=$?
 if [ "$A2S_RC" = 0 ] && grep -qE '^PASS\[[0-9]+\]: FR-002 commit result:' "$TMP/a2same.out" \
    && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01:' "$TMP/a2same.out" && ! has "$TMP/a2same.out" "registry-explained"; then
@@ -354,6 +457,19 @@ if mutate I1b "$_I1B_ANCHOR" "$_I1B_REPL"; then
   fi
 else
   bad "(M-I1b) could not construct the mutation (anchor not found)"
+fi
+
+echo "=== (M-A2mirror-reg) guard-viability (T048 round 19, R18-M3): drop the registry-explained elif -- (A2mirror-reg) must flip to an unexplained hard FAIL ==="
+# shellcheck disable=SC2016
+if mutate A2MR 'elif [ "$_FC_EXIT_EXPLAINED" = 1 ]; then' 'elif false; then  # MUTANT: registry-explained branch removed'; then
+  mrun A2MR "FC_TIMER_GOLDEN_EVIDENCE_DIR=$TMP/ev_A2mirrorreg FC_TIMER_GOLDEN_ROOT=$ROOT FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=$HERE/known_flaky_gates.tsv" "$TMP/ma2mr.out"; MA2MR_RC=$?
+  if [ "$MA2MR_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: FR-002 commit result: .*MISMATCH' "$TMP/ma2mr.out"; then
+    ok "(M-A2mirror-reg) without the registry-explained branch, (A2mirror-reg) hard-FAILs (rc=1) -- that branch, not the noise floor, is what resolves the negative-delta direction end to end"
+  else
+    bad "(M-A2mirror-reg) BLIND: rc=$MA2MR_RC; $(grep -E 'commit result' "$TMP/ma2mr.out" | head -3)"
+  fi
+else
+  bad "(M-A2mirror-reg) could not construct the mutation (anchor not found)"
 fi
 
 # =============================================================================
