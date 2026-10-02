@@ -176,6 +176,18 @@ check("U9a scope-suffix-round-parsed-as-int", m.extract_round("fix(fastcycle/T04
 check("U9b freetext-round-parsed-as-int", m.extract_round("fix(fastcycle/T048): round 11 -- remediate independent round-10 review") == 11)
 check("U9c scope-suffix-takes-priority-over-freetext", m.extract_round("fix(x/T048-r5): round 11 text also present") == 5)
 check("U9d no-round-info-is-none", m.extract_round("fix(x/T048): no round information here") == None)
+# Round 3 independent review (MINOR-R3-1): ROUND_TEXT_RE's re.IGNORECASE
+# was unpinned -- real T177 history capitalises "Round" (e.g. "T177
+# Round 21", "T177 Round 19"), which this exact case previously had NO
+# dedicated test for (U9b used lowercase "round"). Dropping re.IGNORECASE
+# from ROUND_TEXT_RE survived the full suite before this fix: all 5 real
+# T177 findings' fired_at_round silently fell back from the real integer
+# to the honest-but-less-informative "sequential-index-3" string (the
+# NUMBER happened to coincide for T177's own data, but the PROVENANCE
+# label changed, and on a different item the number itself could differ)
+# -- a reporting-field regression a caller reading fired_at_round would
+# not notice from the number alone.
+check("U9e capitalized-freetext-round-parsed-as-int", m.extract_round("fix(x): T177 Round 21 -- close R21-I1") == 21)
 
 # U10: classify_hunk exact refactor-ratio BOUNDARY (R1-review-IMPORTANT-1
 # remediation half 2, closes the M3 mutation: ">=" vs ">" at the ratio

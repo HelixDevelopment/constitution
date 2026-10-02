@@ -102,8 +102,9 @@ SYMBOL BOUNDARIES (coarser FILE fallback per the design brief's explicit
 permission; REVISED after the round 1 independent review's IMPORTANT-2
 finding -- this paragraph previously described the pre-fix, generic-
 fallback design and is corrected here, S11.4.6, round 2 review NEW-4):
-this tool uses `git diff -U0`'s own per-hunk FUNCTION CONTEXT line (the
-text git prints after the second `@@` on a hunk header, e.g.
+this tool uses `git show -U0`'s own per-hunk FUNCTION CONTEXT line (the
+real invocation this tool makes, see commit_diff() below; the text git
+prints after the second `@@` on a hunk header, e.g.
 "@@ -63 +90,13 @@ write_out() {") as the symbol name ONLY when that
 context line ALSO matches an explicit function/class/def DEFINITION
 pattern (shell, python, go, rust, javascript/typescript -- see
@@ -111,7 +112,7 @@ normalize_symbol() below for the exact patterns). git's context
 detection itself was VERIFIED empirically against this repo's real
 history before relying on it at all (git emits real function-name
 context for this repo's own shell scripts, e.g. "write_out() {" /
-"not_migrated() {", confirmed via a real `git diff -U0` run; this is
+"not_migrated() {", confirmed via a real `git show -U0` run; this is
 git's own builtin xfuncname heuristic, not reinvented here) -- but its
 raw output is NOT trusted verbatim as a symbol name: an EARLIER revision
 did exactly that (accepting "the first identifier-shaped token" in ANY
@@ -545,7 +546,8 @@ def list_commits(repo, item=None, rev_range=None, path=None):
     "--date-order", REMOVING `--reverse` entirely rather than merely
     substituting a traversal mode) is what moved T177's observed finding
     from round 3 to round 11 -- a real, correctly-caught regression (see
-    U12 below), but its CAUSE was the lost `--reverse` (processing
+    test_tower_detector_red.sh's U12 cases), but its CAUSE was the lost
+    `--reverse` (processing
     newest-first instead of oldest-first), not a topo-vs-date ordering
     divergence; round 2 review could not reproduce any such divergence on
     this repo's own real histories, and this paragraph's earlier claim
