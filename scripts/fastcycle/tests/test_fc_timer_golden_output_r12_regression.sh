@@ -125,28 +125,68 @@ GOK='  ✓ ALL MANDATORY CHECKS PASSED'
 GFAIL='  ✗ PRE-BUILD VERIFICATION FAILED'
 # T048 round 14 (R14-I1): the real "  Failed:       N" summary line
 # (pre_build_verification.sh:51115), prints strictly BEFORE either banner.
-# BASE alone always contributes exactly 1 (CM-TWO, always failing) to every
-# member below; these constants are the content-accurate totals for each
-# fixture's own BASE+SPK[+UNREG] combination, required since round 14's
-# exact-accounting mechanism reads this line directly rather than any
-# any-registered-line-differs heuristic.
+# $BASE alone always contributes exactly 1 (CM-TWO, always failing); FAILED1/
+# FAILED2 below are used ONLY by A2negctrl/A2same's $BASE-paired members
+# (neither of which carries an explicit Failed: line in its own content, so
+# T048 round 14's exact-accounting mechanism never reads these two values --
+# they are kept purely as the content-accurate historical record of what
+# $BASE+SPK[+UNREG] totals to, for any future fixture that still wants a
+# deliberately-inconsistent-with-its-own-exit-code member, e.g. to exercise
+# a hard-coded exit value independent of Failed count).
 FAILED1='  Failed:       1'
 FAILED2='  Failed:       2'
-FAILED3='  Failed:       3'
+# T048 round 17 follow-up (member-internal consistency, R16-I1): A2/
+# A2mirror/A2b/A2mix USED to pair $BASE (CM-TWO ALWAYS-FAILING, above) with
+# a $FAILED1/2/3 line while ALSO hardcoding their "GREEN"/baseline members'
+# exit to 0 -- a self-contradictory input (claims a nonzero Failed count,
+# hardcodes an exit-0 member) that went undetected from round 13 (this
+# file's origin) through round 16, because no check compared a member's
+# own exit code against its own Failed count until round 16/17's
+# _fc_check_member_consistency landed (T048 round-17 commit fix(fastcycle/
+# T048): round 17 -- remediate independent round-16 review). That NEW
+# check is CORRECT (pre_build_verification.sh really does exit 0 iff
+# Failed==0, confirmed against device/rockchip/rk3588/tests/
+# pre_build_verification.sh:51115/:51121/:51477, the same lines GOK/GFAIL
+# above already cite) and now correctly hard-FAILs FC0a/FC0b in every one
+# of those four fixtures (verified directly: a true pre-round-17 worktree
+# at the parent commit of round 17's own change runs this exact file with
+# only ONE failure -- M-I1b, below, whose OWN failure turned out to share
+# this SAME root cause and is also resolved by this fix -- never
+# A2/A2mirror/A2b; only the POST-round-17 core script newly hard-FAILs
+# them). What was stale here is the FIXTURE DATA, not the round-16/17
+# check: the "GREEN tree" baseline members (FC0a/FC0b) are supposed to be
+# genuinely green (Failed:0) per their own documented intent ("registered
+# flake confined to FC1 on a GREEN tree"), not merely "SPK-512 passes
+# while an unrelated CM-TWO silently fails underneath". BASE_GREEN below
+# is $BASE with CM-TWO's verdict flipped to passing, used ONLY by
+# A2/A2mirror/A2b/A2mix (grep-verified: $BASE itself is used ONLY by the
+# A2-family triplets in this file, never elsewhere, so introducing a
+# green sibling here cannot affect anything outside this section), and
+# FAILED0 is the matching "Failed: 0" total; restoring the fixtures'
+# documented intent while leaving the round-12/13/14 mechanisms actually
+# under test (the exit-code registry-explained elif + the summary-tail
+# truncation) completely unchanged: a genuinely green baseline (Failed:0,
+# exit 0) diverging to Failed:1/exit 1 purely via the registered SPK-512
+# flake (or to Failed:2/exit 1 when A2mix's additional genuine UNREG
+# failure is also present) is exactly the scenario those mechanisms were
+# written to explain, and it is now also member-internally consistent.
+BASE_GREEN='  ✓ CM-ONE: first
+  ✓ CM-TWO: second'
+FAILED0='  Failed:       0'
 
 # =============================================================================
 # R12-I1: the real-registry, green-tree, exit+summary-tail cascade.
 # =============================================================================
 echo "=== (A2) R12-I1 exact repro: registered flake confined to FC1 on a GREEN tree, flipping FC1's exit 0->1 AND the real summary banner -- overall PASS expected, not the pre-fix FAIL ==="
-triplet A2 1 "$BASE
+triplet A2 1 "$BASE_GREEN
 $SPK_OK
-$FAILED1
-$GOK" "$BASE
+$FAILED0
+$GOK" "$BASE_GREEN
 $SPK_OK
-$FAILED1
-$GOK" "$BASE
+$FAILED0
+$GOK" "$BASE_GREEN
 $SPK_BAD
-$FAILED2
+$FAILED1
 $GFAIL"
 set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
 gt_golden "$TMP/a2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2"; A2_RC=$?
@@ -159,15 +199,15 @@ else
 fi
 
 echo "=== (A2mirror) R12-I1 mirror direction: registered flake confined to FC0a instead of FC1 -- still symmetric, overall PASS ==="
-triplet A2mirror 2 "$BASE
+triplet A2mirror 2 "$BASE_GREEN
 $SPK_BAD
-$FAILED2
-$GFAIL" "$BASE
-$SPK_OK
 $FAILED1
-$GOK" "$BASE
+$GFAIL" "$BASE_GREEN
 $SPK_OK
-$FAILED1
+$FAILED0
+$GOK" "$BASE_GREEN
+$SPK_OK
+$FAILED0
 $GOK"
 set_key "$MF" member.FC0a.exit 1; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 0
 gt_golden "$TMP/a2m.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2mirror"; A2M_RC=$?
@@ -179,13 +219,13 @@ else
 fi
 
 echo "=== (A2b) exit-code-only effect: registered flake flips FC1's exit, but NEITHER log carries a summary banner at all (no truncation possible) -- still overall PASS via the exit-code elif alone ==="
-triplet A2b 3 "$BASE
+triplet A2b 3 "$BASE_GREEN
 $SPK_OK
-$FAILED1" "$BASE
+$FAILED0" "$BASE_GREEN
 $SPK_OK
-$FAILED1" "$BASE
+$FAILED0" "$BASE_GREEN
 $SPK_BAD
-$FAILED2"
+$FAILED1"
 set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
 gt_golden "$TMP/a2b.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2b"; A2B_RC=$?
 if [ "$A2B_RC" = 0 ] && grep -qE '^SKIP\[[0-9]+\]: FR-002 commit result \(registry-explained' "$TMP/a2b.out" \
@@ -196,18 +236,18 @@ else
 fi
 
 echo "=== (A2mix) NON-LOOPHOLE control: registered flake in FC1 AND a GENUINE unregistered failure ALSO confined to FC1 -- overall FAIL still required (point 3 of the round-12 ruling) ==="
-triplet A2mix 4 "$BASE
+triplet A2mix 4 "$BASE_GREEN
 $SPK_OK
 $UNREG_OK
-$FAILED1
-$GOK" "$BASE
+$FAILED0
+$GOK" "$BASE_GREEN
 $SPK_OK
 $UNREG_OK
-$FAILED1
-$GOK" "$BASE
+$FAILED0
+$GOK" "$BASE_GREEN
 $SPK_BAD
 $UNREG_BAD
-$FAILED3
+$FAILED2
 $GFAIL"
 set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
 gt_golden "$TMP/a2mix.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_A2mix"; A2MIX_RC=$?
