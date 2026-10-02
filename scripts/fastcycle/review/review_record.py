@@ -581,7 +581,7 @@ def _gate_latest_per_batch(records):
     return latest
 
 
-def _backfill_source_evidence_traceable(rec):
+def _backfill_source_evidence_traceable(rec, records_root):
     """T085 Round 2 I-R2-8: a `source: "backfill"` record's `source_evidence`
     field is REQUIRED by data-model.md #10.1 to "name the REAL document this
     row was reconstructed from" -- but nothing previously VERIFIED that claim
@@ -592,14 +592,47 @@ def _backfill_source_evidence_traceable(rec):
     opus/xhigh/GO/zero-findings shape, passed `_gate_batch_qualifies()` and
     made `cmd_gate` report rc=0 COVERED for the change it named.
 
-    This function is the AUTHORITATIVE check: `source_evidence` MUST resolve
-    to a REAL, EXISTING, READABLE file on disk (absolute, or relative to the
-    gate command's OWN invoking cwd -- the only anchor available without a
-    new --root flag) -- never a free-text claim taken on faith. A live
-    (non-backfill) record is NEVER subject to this check (its own producer-
-    side machinery, `cmd_record`, already establishes its evidence directly
-    from a real --verdict-file/--precheck at RECORD time; this function only
-    closes the gap unique to the backfill path)."""
+    T085 Round 3 R3-I4 (IMPORTANT): the ORIGINAL I-R2-8 fix above only half
+    closed this gap, in two concrete, reproduced ways:
+      (a) `os.path.isfile(evidence) or os.path.isfile(os.path.join(
+          os.getcwd(), evidence))` accepted ANY file that happens to exist
+          on disk -- including a forged row citing an unrelated system file
+          such as `/etc/hostname` -- as "traceable evidence", which it
+          plainly is not.
+      (b) relative evidence paths resolved against `os.getcwd()`, the gate
+          COMMAND's OWN ambient invoking directory -- never a property of
+          the record being checked -- so the SAME record's coverage
+          verdict was NON-DETERMINISTIC: COVERED when `cmd_gate` happened
+          to be invoked from a directory containing a same-named file,
+          UNCOVERED when invoked from elsewhere, for the exact same input.
+
+    This function is the AUTHORITATIVE check, fixed both ways:
+      - `source_evidence` is resolved against `records_root` -- the
+        caller's OWN `--records` directory, a FIXED, REQUIRED, explicitly
+        caller-supplied anchor that is a property of the GATE INVOCATION,
+        never of the ambient process cwd a record happens to be checked
+        from. An absolute `source_evidence` is used as-is; a relative one
+        is joined to `records_root`. `os.getcwd()` is never consulted.
+      - the resolved path MUST be a REAL, EXISTING, READABLE, NON-EMPTY
+        file that is CONTAINED WITHIN `records_root`'s own directory tree
+        (`os.path.commonpath` containment, never a bare prefix-string
+        compare -- §11.4.201(7)(a) match-structure-not-substring
+        discipline, so `.../recordsX/file` can never be mistaken for being
+        inside `.../records/`) -- this project's own review-record corpus
+        under --records is the one "recognized evidence-producing
+        location" this tool can verify without inventing an undocumented
+        evidence-type taxonomy (no data-model.md / contracts file in this
+        checkout defines a broader evidence-root convention for this
+        field, confirmed absent per §11.4.6 -- never guessed). A citation
+        reaching OUTSIDE that tree (e.g. `/etc/hostname`, or any other
+        unrelated file genuinely present on disk) is refused, closing the
+        EXACT forgery class the Round 3 review demonstrated.
+
+    A live (non-backfill) record is NEVER subject to this check (its own
+    producer-side machinery, `cmd_record`, already establishes its
+    evidence directly from a real --verdict-file/--precheck at RECORD
+    time; this function only closes the gap unique to the backfill
+    path)."""
     if rec.get("source") != "backfill":
         return True
     evidence = rec.get("source_evidence")
@@ -607,10 +640,27 @@ def _backfill_source_evidence_traceable(rec):
         return False
     if evidence.strip().upper() in ("UNKNOWN", "N/A", "TBD"):
         return False
-    return os.path.isfile(evidence) or os.path.isfile(os.path.join(os.getcwd(), evidence))
+    evidence = evidence.strip()
+    root_abs = os.path.abspath(records_root)
+    resolved = evidence if os.path.isabs(evidence) else os.path.join(root_abs, evidence)
+    resolved = os.path.abspath(resolved)
+    if not os.path.isfile(resolved):
+        return False
+    try:
+        if os.path.getsize(resolved) == 0:
+            return False
+    except OSError:
+        return False
+    try:
+        common = os.path.commonpath([root_abs, resolved])
+    except ValueError:
+        # Different drives/roots (e.g. on a platform where this can
+        # happen) -- structurally cannot be contained.
+        return False
+    return common == root_abs
 
 
-def _gate_batch_qualifies(rec):
+def _gate_batch_qualifies(rec, records_root):
     """RB-006 "a zero-finding GO at the designated tier and effort" -- re-derived
     from the record's OWN verdict/findings/model_tier/effort fields, never from a
     stored derived flag (mirrors B1's own reasoning for first_round_go: a summary
@@ -618,20 +668,43 @@ def _gate_batch_qualifies(rec):
     of truth). effort=="?" (the honest 11.4.231(F.2) capability-gap token) never
     equals DESIGNATED_EFFORT, so it never qualifies, matching RB-004's own note.
 
-    T085 Round 2 I-R2-8: a backfill-sourced record ALSO requires its
-    source_evidence to be independently verified traceable (see
-    `_backfill_source_evidence_traceable()` above) before it may count as
-    genuine coverage -- a fabricated/placeholder-cited backfill row no
-    longer qualifies, however GO/zero-finding/correctly-tiered it claims to
-    be."""
+    T085 Round 2 I-R2-8 / Round 3 R3-I4: the ORIGINAL Round 2 finding named
+    TWO gaps -- "`gate` never checks `source=="live"`, and never checks
+    `precheck_used`" -- and only the first half (the `source=="backfill"`
+    evidence-traceability check below) was ever actually fixed; this round
+    closes the still-open second half too:
+      - `source` is now validated against the CLOSED set of legitimate
+        values this tool's own `record`/`backfill` subcommands ever write
+        (`"live"`, `"backfill"`) -- a record with any OTHER value (missing,
+        forged, or a typo) NEVER qualifies, the conservative-safe default
+        on an unrecognised/unresolvable value (§11.4.201(4)).
+      - a LIVE record now ALSO requires `precheck_used is True` -- `cmd_record`
+        already derives this field honestly (True only when a readable
+        precheck.json genuinely existed and was consulted at RECORD time);
+        a review whose own record admits no precheck was ever consulted no
+        longer counts as qualifying coverage, mirroring the SAME standard
+        already applied to a backfill row's source_evidence.
+      - a BACKFILL record's source_evidence is independently verified
+        traceable, deterministically, against the FIXED `records_root`
+        anchor (see `_backfill_source_evidence_traceable()` above) -- a
+        fabricated/placeholder-cited/out-of-tree-cited backfill row no
+        longer qualifies, however GO/zero-finding/correctly-tiered it
+        claims to be."""
     findings = rec.get("findings")
-    return (
+    base_ok = (
         rec.get("verdict") == "GO"
         and isinstance(findings, list) and len(findings) == 0
         and rec.get("model_tier") == DESIGNATED_TIER
         and rec.get("effort") == DESIGNATED_EFFORT
-        and _backfill_source_evidence_traceable(rec)
     )
+    if not base_ok:
+        return False
+    source = rec.get("source")
+    if source == "live":
+        return rec.get("precheck_used") is True
+    if source == "backfill":
+        return _backfill_source_evidence_traceable(rec, records_root)
+    return False
 
 
 def cmd_gate(a):
@@ -656,7 +729,7 @@ def cmd_gate(a):
         covered_by = None
         for bid, rec in sorted(latest_by_batch.items()):
             change_ids = rec.get("change_ids")
-            if isinstance(change_ids, list) and change in change_ids and _gate_batch_qualifies(rec):
+            if isinstance(change_ids, list) and change in change_ids and _gate_batch_qualifies(rec, a.records):
                 covered_by = (bid, rec.get("round"))
                 break
         if covered_by is None:
