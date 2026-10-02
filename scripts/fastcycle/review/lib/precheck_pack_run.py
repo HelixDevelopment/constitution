@@ -76,26 +76,53 @@ clearly-labelled "not yet wired" result, never an invented finding):
     {"gates": []}, {}, {"items": []}, {"markers": []}) -- never a
     fabricated non-empty finding, and the gap is named here rather than
     silently implied complete.
-  - sibling-search / blast-radius: real, not fabricated -- both are
-    copied verbatim from the ReviewBatch's own first slice
-    context_pack.sibling_search_ref / .blast_radius (produced by
-    review/slicer.py from the real change set), falling back to the
-    honest literal "UNMEASURED" only when the batch carries neither
-    field. Fixed (T085 round-3 independent review): the verdict now
-    tracks FIELD PRESENCE, never a hardcoded PASS -- PASS only when the
-    slice's own context_pack genuinely carries the field (any non-None
-    value, including a hand-authored fixture literally spelling the word
-    "UNMEASURED" as its real field content -- that is still a value the
-    batch's own data supplied, not this tool's own absence-fallback);
-    FAIL when precheck_pack_run.py itself had to manufacture the
-    "UNMEASURED" evidence literal because the field was genuinely absent
-    from every slice. Root-cause (11.4.201(6) false-null): both checks
-    previously returned a hardcoded "verdict": "PASS" regardless of
-    whether evidence.ref/evidence.scope held a real value or this tool's
-    own synthetic "UNMEASURED" fallback -- a genuinely unmeasured
-    sibling-search/blast-radius silently satisfied all_pass, which is
-    exactly the condition review_dispatch_guard-class consumers rely on
-    "all_pass == true" to mean genuinely checked, not silently skipped.
+  - blast-radius: real, not fabricated -- copied verbatim from the
+    ReviewBatch's own slices' context_pack.blast_radius (produced by
+    review/slicer.py from the real change set; genuinely computed there
+    -- a real changed-path count + listing -- never slicer.py's own
+    "UNMEASURED" placeholder, which only sibling_search_ref uses). T085
+    Round 3: the verdict tracks batch-wide FIELD PRESENCE, never a
+    hardcoded PASS. T085 Round 6 (R5-I2 IMPORTANT): a value that is
+    PRESENT but is the literal string "UNMEASURED" is now ALSO treated
+    as equivalent to missing (FAIL) -- see check_sibling_search()'s own
+    docstring below for the full recurrence this closes; this clause
+    applies to blast_radius purely for defensive consistency (the real
+    slicer.py never actually emits that literal for this field).
+  - sibling-search: T085 Round 6 (R5-I2 IMPORTANT) REWRITE -- this check
+    no longer merely reads whatever sibling_search_ref placeholder a
+    slice's own context_pack happens to declare. root cause (T085 Round
+    5 independent review, a RECURRENCE of the Round 3 false-null this
+    project had already fixed once): "The new check fails only when the
+    field is MISSING. The production review/slicer.py fills it with the
+    literal value 'UNMEASURED'. All 11 slices of [a real, otherwise-
+    clean] all_pass:true pack carried 'UNMEASURED', and the check still
+    reported PASS." review/slicer.py's own module docstring already
+    honestly documents WHY it can never measure this itself: it has no
+    --clean-checkout parameter at all and therefore structurally cannot
+    search a real tree for anything -- "UNMEASURED ... this revision
+    integrates no sibling-search tool" was never a placeholder slicer.py
+    could ever outgrow on its own. precheck_pack_run.py, unlike
+    slicer.py, DOES receive `root` (--clean-checkout) -- so the genuine
+    measurement is wired in HERE instead: for every slice whose
+    changed-path set _paths_from_slice() can confidently establish, this
+    check performs a REAL, bounded, deterministic (never network/LLM)
+    filesystem search of `root` for other files sharing the same
+    basename STEM (filename without its final extension) in a DIFFERENT
+    directory -- a literal, defensible reading of "sibling": a file that
+    may carry the identical defect pattern this slice's own change
+    addresses, or a paired implementation/test counterpart, consistent
+    with this check's placement alongside already-fixed-markers in the
+    SAME anti-recurrence check suite. PASS requires every slice to have
+    been genuinely searched (finding zero or more candidates -- both
+    honest, valid outcomes); a slice whose changed-path set cannot be
+    confidently established is honestly FAIL, naming which slice (never
+    a silently-skipped slice reported as though it were searched). The
+    batch's own declared sibling_search_ref (when present) is carried
+    through as additional context in the evidence but is NEVER itself
+    the basis of the verdict -- the EXACT shape (a field merely being
+    PRESENT, even with "UNMEASURED" as its literal content) that let the
+    Round 5 bluff recur is structurally impossible here, because nothing
+    about the verdict depends on that field's value at all anymore.
 
 Output (C-002): canonical JSON, `schema: "precheck/v1"`, `body_hash` =
 sha256 of the canonical body excluding `run_meta` (this file's own tiny
@@ -506,46 +533,55 @@ def _all_slice_field_values(batch, field):
 
 
 def _batch_wide_field_check(batch, field, check_name, evidence_key):
-    """T085 Round 5 (sibling-search/blast-radius recurrence): the ONE
-    shared batch-WIDE presence check both check_sibling_search() and
-    check_blast_radius() below now use, closing a RECURRENCE of the
-    SAME "false-PASS-on-unmeasured" bug class the T085 Round 3 fix
-    (commit 9313143) closed for the single-slice case.
+    """T085 Round 5 (blast-radius recurrence; sibling-search was REWRITTEN
+    at T085 Round 6 to genuinely MEASURE rather than read a declared
+    field -- see check_sibling_search() below, which no longer uses this
+    helper at all): the batch-WIDE presence check check_blast_radius()
+    uses, closing a RECURRENCE of the SAME "false-PASS-on-unmeasured" bug
+    class the T085 Round 3 fix (commit 9313143) closed for the
+    single-slice case.
 
     The Round 3 fix made the verdict track FIELD PRESENCE instead of a
     hardcoded PASS -- but it read that presence via `_first_slice_field()`,
     which returns the FIRST slice that happens to carry `field` and says
     NOTHING about every OTHER slice in a multi-slice ReviewBatch.
     Reproduced live (T085 Round 5): a 2-slice batch where slice 0 carries
-    `sibling_search_ref` and slice 1 does NOT still reports
-    check_sibling_search()=PASS -- slice 1 was NEVER measured, yet the
-    batch-wide verdict claims it was, the IDENTICAL "unmeasured but
-    claims PASS" shape the Round 3 fix was meant to close everywhere, not
-    merely for a batch's first slice.
+    the field and slice 1 does NOT still reported PASS -- slice 1 was
+    NEVER measured, yet the batch-wide verdict claimed it was.
+
+    T085 Round 6 (R5-I2 IMPORTANT): "present" alone is no longer
+    sufficient -- a value that IS present but is the literal string
+    "UNMEASURED" is now ALSO treated as equivalent to missing (FAIL).
+    Root cause this closes (reproduced live, Round 5 independent review):
+    "The new check fails only when the field is MISSING. The production
+    [producer] fills it with the literal value 'UNMEASURED' ... and the
+    check still reports PASS" -- a genuinely-never-measured field is
+    indistinguishable, FROM THE CONSUMING CHECK'S OWN POINT OF VIEW, from
+    one this tool's own absence-fallback manufactured; treating ONLY
+    "key absent from the dict" as the unmeasured signal missed the
+    producer's OWN, equally-unmeasured, sentinel value.
 
     Fixed: PASS requires EVERY slice to genuinely carry `field` (sampled
-    via `_all_slice_field_values()`, never merely the first); a batch
+    via `_all_slice_field_values()`, never merely the first) with a value
+    that is NEITHER absent NOR the literal string "UNMEASURED"; a batch
     with zero slices is likewise FAIL (there is nothing to have measured
     -- the conservative-safe default per 11.4.201(4), never a vacuous
-    PASS-by-absence); ANY single missing slice makes the WHOLE
-    batch-wide check FAIL, citing exactly which slice indices were never
-    measured.
+    PASS-by-absence); ANY single missing-or-"UNMEASURED" slice makes the
+    WHOLE batch-wide check FAIL, citing exactly which slice indices.
 
     Backward-compatible with every single-slice fixture this project's
-    own test corpus ships (test_precheck_sibling_blast_radius_honest_
-    verdict_red.sh Sections A/B/C, test_precheck_pack_build_red.sh's
-    B1/B3/B4/C1): "every slice carries the field" trivially reduces to
-    "the one slice carries the field" when there is exactly one, so
-    those fixtures' verdicts are UNCHANGED by this fix."""
+    own test corpus ships that carries a GENUINE (non-"UNMEASURED")
+    value: "every slice carries a real value" trivially reduces to "the
+    one slice carries a real value" when there is exactly one."""
     values = _all_slice_field_values(batch, field)
-    missing = [idx for idx, v in values if v is _MISSING]
-    if not values or missing:
+    unmeasured = [idx for idx, v in values if v is _MISSING or v == "UNMEASURED"]
+    if not values or unmeasured:
         evidence = {evidence_key: "UNMEASURED"}
         if not values:
             evidence["reason"] = "batch carries zero slices -- nothing was measured"
         else:
-            evidence["missing_slice_indices"] = missing
-            evidence["measured_slice_count"] = len(values) - len(missing)
+            evidence["unmeasured_slice_indices"] = unmeasured
+            evidence["measured_slice_count"] = len(values) - len(unmeasured)
             evidence["total_slice_count"] = len(values)
         return {"check": check_name, "verdict": "FAIL", "evidence": evidence}
     present_values = [v for _, v in values]
@@ -561,21 +597,83 @@ def _batch_wide_field_check(batch, field, check_name, evidence_key):
     return {"check": check_name, "verdict": "PASS", "evidence": evidence}
 
 
-def check_sibling_search(batch):
-    # T085 round-3 fix: verdict tracks FIELD PRESENCE (11.4.201(6) false-null
-    # fix), never a hardcoded PASS -- see module docstring's per-check
-    # breakdown for the full rationale. T085 Round 5: presence is now
-    # required across EVERY slice in the batch, not merely the first (see
-    # _batch_wide_field_check()'s own docstring for the full recurrence
-    # this closes). A genuinely-absent field on ANY slice is honestly
-    # FAIL; a value present on every slice -- even one whose real value
-    # happens to be the literal string "UNMEASURED" (a hand-authored
-    # fixture's own real data, not this tool's fallback) -- is PASS.
-    return _batch_wide_field_check(batch, "sibling_search_ref", "sibling-search", "ref")
+_SIBLING_SEARCH_SKIP_DIRS = _SKIP_DIRS
+
+
+def _stem_index(root):
+    """Builds a `{basename-stem: [(dirpath, filename), ...]}` index of
+    EVERY file under `root` in ONE pass -- the efficiency fix that makes
+    check_sibling_search() below practical: naively re-walking `root`
+    once PER changed path, in a batch that may declare many changed
+    paths across many slices, would multiply an already real (hundreds-
+    to-thousands of files) tree walk by the changed-path count. One
+    `os.walk()`, one dict built from it, reused for every slice's every
+    changed path in a single check_sibling_search() call."""
+    index = {}
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames if d not in _SIBLING_SEARCH_SKIP_DIRS)
+        for fn in filenames:
+            stem = os.path.splitext(fn)[0]
+            index.setdefault(stem, []).append((dirpath, fn))
+    return index
+
+
+def check_sibling_search(batch, root):
+    """T085 Round 6 (R5-I2 IMPORTANT) REWRITE -- see the module
+    docstring's "sibling-search" paragraph for the full root-cause +
+    rationale. This check no longer reads any field the batch declares;
+    it PERFORMS a real, bounded, deterministic sibling search against
+    `root` for every slice whose changed-path set _paths_from_slice()
+    can confidently establish, and the verdict depends ONLY on whether
+    that search was genuinely performed -- never on what, if anything,
+    the batch's own context_pack happens to say about it."""
+    slices = batch.get("slices")
+    if not isinstance(slices, list) or not slices:
+        return {"check": "sibling-search", "verdict": "FAIL",
+                "evidence": {"reason": "batch carries zero slices -- nothing was searched"}}
+
+    root_abs = os.path.abspath(root)
+    index = _stem_index(root_abs)
+
+    per_slice = []
+    unresolved = []
+    for idx, sl in enumerate(slices):
+        paths, resolved = _paths_from_slice(sl)
+        if not resolved:
+            unresolved.append(idx)
+            continue
+        siblings_for_slice = {}
+        for p in paths:
+            stem = os.path.splitext(os.path.basename(p))[0]
+            own_dir = os.path.normpath(os.path.dirname(os.path.join(root_abs, p)))
+            found = sorted(
+                _relpath(os.path.join(dirpath, fn), root_abs)
+                for dirpath, fn in index.get(stem, [])
+                if os.path.normpath(dirpath) != own_dir
+            )
+            if found:
+                siblings_for_slice[p] = found
+        per_slice.append({
+            "slice_index": idx,
+            "changed_path_count": len(paths),
+            "siblings_found": siblings_for_slice,
+        })
+
+    if unresolved:
+        return {"check": "sibling-search", "verdict": "FAIL", "evidence": {
+            "reason": ("slice(s) with no confidently-parseable changed-file list "
+                       "(neither an explicit changed_paths list nor a slicer.py-shaped "
+                       "blast_radius string) -- cannot search what was never named"),
+            "unresolved_slice_indices": unresolved,
+        }}
+
+    return {"check": "sibling-search", "verdict": "PASS", "evidence": {
+        "searched_slice_count": len(per_slice),
+        "results": per_slice,
+    }}
 
 
 def check_blast_radius(batch):
-    # See check_sibling_search()'s comment -- identical fix, same rationale.
     return _batch_wide_field_check(batch, "blast_radius", "blast-radius", "scope")
 
 
@@ -589,7 +687,7 @@ def run_checks(batch, root):
         "secret-scan": lambda: check_secret_scan(root, scoped_files, scope_note),
         "doc-sync": check_doc_sync,
         "closure-evidence-class": check_closure_evidence_class,
-        "sibling-search": lambda: check_sibling_search(batch),
+        "sibling-search": lambda: check_sibling_search(batch, root),
         "blast-radius": lambda: check_blast_radius(batch),
         "already-fixed-markers": check_already_fixed_markers,
     }

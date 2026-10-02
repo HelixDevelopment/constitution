@@ -179,6 +179,23 @@ def safe_killpg(pgid, sig):
 DEVICE_REACHING_BINARIES = (
     "adb", "fastboot", "upgrade_tool", "rkdeveloptool", "uhubctl",
     "tuya_control", "tuya-cli",
+    # T085 Round 6 (R5-B1 BLOCKING, defense-in-depth SECONDARY layer):
+    # the Round 5 reviewer's `systemd-run --user` escape reaches a
+    # device-mutating capability indirectly, via the real host-side
+    # systemd --user manager, rather than by naming a device-reaching
+    # binary directly -- stubbing these names closes the bare-PATH-
+    # lookup shape of that same escape class exactly as the entries
+    # above already do for `adb` et al. This is explicitly SECONDARY
+    # (per this module's own documented "sandbox the ACTION, not merely
+    # the lookup" principle, and per io_trace_build_map.py's own
+    # classify_device_mutating() honest boundary): the PRIMARY defense
+    # is hiding the real D-Bus session/system bus SOCKET PATHS
+    # themselves (see DEVICE_SANDBOX_HIDE_PATHS / _dbus_hide_paths()
+    # below), which closes the escape regardless of what name, absolute
+    # path, or split-string construction a script uses to reach it --
+    # exactly as network-namespace isolation already does for `adb`
+    # reached via an absolute path the PATH-stub alone could never see.
+    "systemd-run", "dbus-send", "busctl", "gdbus",
 )
 
 _DEVICE_SANDBOX_STUB_TEMPLATE = (
@@ -248,7 +265,54 @@ def device_sandbox_env(sandbox_bin_dir, allowlist=DEVICE_SANDBOX_ENV_ALLOWLIST, 
     return env
 
 
-DEVICE_SANDBOX_HIDE_PATHS = ("/dev/bus/usb",)
+def _dbus_hide_paths():
+    """T085 Round 6 (R5-B1 BLOCKING, PRIMARY defense): the real D-Bus
+    session/system bus SOCKET PATHS this sandbox additionally hides,
+    closing the escape the Round 5 reviewer reproduced live against the
+    committed code: `/run/user/<uid>/bus` (the well-known path a D-Bus
+    client -- `systemd-run --user`, `dbus-send`, `busctl`, or any other
+    program linking libdbus/sd-bus -- connects to whenever
+    DBUS_SESSION_BUS_ADDRESS is unset, which device_sandbox_env()'s own
+    ALLOWLIST already guarantees it always is inside this sandbox) stays
+    FULLY reachable by a traced script even with this sandbox's network
+    namespace fully isolated -- D-Bus is a local AF_UNIX socket, never a
+    TCP connection, so --unshare-net (this sandbox's original, and
+    still-necessary, defense against the adb-over-TCP escape) can never
+    touch it; only hiding the mount namespace's VIEW of this exact
+    filesystem path closes it. A script that reaches this socket can ask
+    the REAL host-side `systemd --user` manager -- a process that lives
+    entirely OUTSIDE every one of this sandbox's namespaces -- to run an
+    arbitrary command with full, completely unsandboxed host network and
+    USB access. Reproduced live, pre-fix: `systemd-run --user --wait
+    --pipe -- /bin/true` genuinely dispatched and completed a real
+    host-side transient unit (confirmed via its own "Running as unit:
+    ...", "Finished with result: success" output) from inside a sandbox
+    whose OWN `/proc/net/dev` showed only an isolated loopback -- and a
+    probe launched that way read the REAL host's `/proc/net/dev`
+    (`eno1`, `wlp70s0` with live traffic counters), proving the command
+    ran entirely outside this process's own namespaces.
+
+    `$XDG_RUNTIME_DIR/bus` is included too, in case a host's runtime
+    directory is not the standard `/run/user/<uid>` path this function
+    also always includes unconditionally (never guessed from
+    XDG_RUNTIME_DIR alone -- a script that unsets/forges that variable
+    before connecting must not thereby un-hide the real bus).
+    `/run/dbus/system_bus_socket` (the SYSTEM bus) is hidden for the
+    identical reason, even though abusing it ordinarily requires
+    elevated privilege this sandboxed process does not have -- defense-
+    in-depth, never assumed unreachable without being checked (section
+    11.4.201)."""
+    uid = os.getuid()
+    paths = ["/run/user/%d/bus" % uid, "/run/dbus/system_bus_socket"]
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime_dir:
+        candidate = os.path.join(runtime_dir, "bus")
+        if candidate not in paths:
+            paths.append(candidate)
+    return tuple(paths)
+
+
+DEVICE_SANDBOX_HIDE_PATHS = ("/dev/bus/usb",) + _dbus_hide_paths()
 
 
 class DeviceSandboxUnavailable(RuntimeError):
@@ -269,27 +333,65 @@ _device_sandbox_available_cache = None  # None = not probed yet this process
 def device_sandbox_namespace_available(force_probe=False):
     """Returns True only if a REAL, LIVE self-test confirms this host's
     unprivileged user+network namespace isolation genuinely cuts off
-    loopback TCP connectivity -- NEVER inferred from `unshare`'s mere
-    presence on PATH, nor from a bare `unshare --net true` rc==0 (which
+    loopback TCP connectivity -- NEVER inferred from `bwrap`'s mere
+    presence on PATH, nor from a bare `bwrap ... true` rc==0 (which
     proves only that namespace CREATION succeeded, not that
     connectivity is genuinely severed -- section 11.4.201 forbids
     trusting a proxy signal for a safety-critical condition, and a bare
     exit-code check here could not even distinguish "the probe ran and
-    confirmed isolation" from "unshare itself failed before the probe
-    ever ran", since util-linux tools commonly share the same nonzero
-    exit code for unrelated failures).
+    confirmed isolation" from "bwrap itself failed before the probe
+    ever ran").
+
+    T085 Round 6 (R5-B1 BLOCKING, section 11.4.201(7)(c) "the path is
+    part of the instrument"): this self-test now probes via `bwrap`
+    (bubblewrap) with EXACTLY the flags wrap_device_sandbox_argv() below
+    actually uses (--unshare-user --unshare-net --disable-userns), never
+    a plain `unshare` invocation that proves only a DIFFERENT mechanism
+    works -- a self-test that validates a mechanism other than the one
+    that actually runs in production is not a validation of production
+    at all. The underlying primitive changed FROM `unshare
+    --map-root-user --net --mount` TO `bwrap` because the Round 5
+    reviewer independently reproduced, against the COMMITTED raw-unshare
+    code, that the sandboxed process -- being root inside its own,
+    unprivileged user namespace -- could simply `umount /dev/bus/usb`
+    (or re-`unshare --map-root-user --mount` a FRESH nested user+mount
+    namespace, which this module's own research for this fix confirmed,
+    empirically, ALSO regains a full capability set regardless of any
+    attempt to drop capabilities from the outer process's own bounding
+    set first -- a `setpriv --bounding-set=-sys_admin` mitigation tried
+    during this fix's own research was proven, live, insufficient
+    against exactly that nested-re-unshare bypass) and thereby reveal
+    the real, un-hidden device node underneath. `bwrap`'s own
+    `--disable-userns` flag is the correct, purpose-built, widely-used
+    (it is Flatpak's own unprivileged-sandboxing backend) kernel-level
+    primitive for exactly this threat: once applied, this module's own
+    research confirmed a nested `unshare --map-root-user --mount`
+    attempted FROM INSIDE the sandbox fails outright (`unshare: unshare
+    failed: No space left on device` -- ENOSPC, the kernel's own refusal
+    when a user namespace's own `max_user_namespaces` limit, which
+    `--disable-userns` sets to 0 for the sandbox's namespace, is
+    exhausted), closing the bypass at the kernel level rather than by
+    capability bookkeeping this module would otherwise have to get
+    exactly right on every host.
 
     The self-test: bind a REAL TCP listener on an ephemeral loopback
-    port in THIS process, then spawn `unshare --map-root-user --net
-    --mount` wrapping a second process that attempts to connect to that
-    EXACT port and prints an unambiguous, prefixed marker string
-    ("DEVICE_SANDBOX_PROBE:BLOCKED" or "...CONNECTED") to its own
-    stdout -- never relying on exit code alone. Isolation is confirmed
-    held ONLY when that exact "BLOCKED" marker is observed; any other
-    outcome (unshare missing/failed, the probe crashed, a timeout, the
-    "CONNECTED" marker, unparseable output) is honestly reported as
-    unavailable. Cached per-process (module-level) after the first call
-    unless `force_probe=True`.
+    port in THIS process, then spawn the sandboxed-mechanism process
+    (`bwrap --bind / / --dev-bind /dev /dev --proc /proc --unshare-user
+    --unshare-net --disable-userns`) wrapping a second process that
+    attempts to connect to that EXACT port and prints an unambiguous,
+    prefixed marker string ("DEVICE_SANDBOX_PROBE:BLOCKED" or
+    "...CONNECTED") to its own stdout -- never relying on exit code
+    alone. Isolation is confirmed held ONLY when that exact "BLOCKED"
+    marker is observed; any other outcome (bwrap missing/failed, the
+    probe crashed, a timeout, the "CONNECTED" marker, unparseable
+    output) is honestly reported as unavailable. A genuine positive/
+    negative CONTROL pair for this exact probe (the identical probe
+    succeeds -- prints "CONNECTED" -- when `--unshare-net` is omitted,
+    and fails -- prints "BLOCKED" -- only when it is present) was
+    verified during this fix's own research, confirming the probe
+    genuinely measures network isolation rather than some unrelated
+    bwrap failure mode. Cached per-process (module-level) after the
+    first call unless `force_probe=True`.
 
     Test-only escape hatch: `FC_DEVICE_SANDBOX_TEST_FORCE_UNAVAILABLE=1`
     forces this function to return False WITHOUT ever actually probing
@@ -307,7 +409,7 @@ def device_sandbox_namespace_available(force_probe=False):
     if _device_sandbox_available_cache is not None and not force_probe:
         return _device_sandbox_available_cache
 
-    if shutil.which("unshare") is None:
+    if shutil.which("bwrap") is None:
         _device_sandbox_available_cache = False
         return False
 
@@ -330,8 +432,7 @@ def device_sandbox_namespace_available(force_probe=False):
         ) % port
         try:
             probe = subprocess.run(
-                ["unshare", "--map-root-user", "--net", "--mount",
-                 "--", sys.executable, "-c", probe_py],
+                _BWRAP_BASE_ARGV + ["--", sys.executable, "-c", probe_py],
                 timeout=10, env={"PATH": _DEVICE_SANDBOX_SAFE_PATH},
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
             )
@@ -345,16 +446,85 @@ def device_sandbox_namespace_available(force_probe=False):
     return result
 
 
+# T085 Round 6 (R5-B1): the exact `bwrap` flag set every real sandboxed
+# invocation uses, shared between device_sandbox_namespace_available()'s
+# own self-test and wrap_device_sandbox_argv() below, so the self-test
+# genuinely proves what production runs (section 11.4.201(7)(c)) --
+# never two independently-maintained flag lists that could silently
+# drift apart. `--bind / /` + `--dev-bind /dev /dev` + `--proc /proc`
+# give the sandboxed process the SAME overall filesystem view it would
+# otherwise have (this sandbox hides only specific, named paths, never
+# the whole tree -- the traced scripts under --sections-dir need normal
+# access to the rest of the real checkout); `--unshare-user` creates the
+# fresh, unprivileged user namespace `--disable-userns` then locks;
+# `--unshare-net` is this sandbox's original, still-necessary defense
+# against a real or absolute-path `adb`/`fastboot`/etc. reaching the
+# real adb server over TCP; `--disable-userns` is the R5-B1 fix itself
+# (see device_sandbox_namespace_available()'s own docstring for the
+# full rationale and the nested-re-unshare bypass this specific flag
+# closes, which a capability-bounding-set-only mitigation this module's
+# own research tried and proved insufficient against).
+_BWRAP_BASE_ARGV = [
+    "bwrap",
+    "--bind", "/", "/",
+    "--dev-bind", "/dev", "/dev",
+    "--proc", "/proc",
+    "--unshare-user",
+    "--unshare-net",
+    "--disable-userns",
+]
+
+_hide_source_scratch = None  # lazily created, process-lifetime; see _hide_sources()
+
+
+def _hide_sources():
+    """Returns (empty_dir_path, empty_file_path) -- two permanently-empty
+    bind-mount SOURCES this sandbox reuses for every hidden path, created
+    ONCE per process (never per-call: wrap_device_sandbox_argv() may run
+    once per traced script, hundreds of times in a single build-map
+    pass). A bind-mount source is read at mount-setup time only, never
+    mutated by the mount itself, so safely reusing the same two sources
+    across every call and every hidden path is correct: an empty
+    DIRECTORY source for a hidden path that is itself a directory (e.g.
+    `/dev/bus/usb`), an empty REGULAR FILE source for anything else
+    (e.g. `/run/user/<uid>/bus`, a UNIX-domain socket special file --
+    `mount --bind`/bwrap's own `--bind` require the source and
+    destination to be the SAME type; bind-mounting a directory onto a
+    socket path fails outright, which this split exists to avoid)."""
+    global _hide_source_scratch
+    if _hide_source_scratch is None:
+        _hide_source_scratch = tempfile.mkdtemp(prefix="fc-device-sandbox-hide-src-")
+    empty_dir = os.path.join(_hide_source_scratch, "empty-dir")
+    if not os.path.isdir(empty_dir):
+        os.mkdir(empty_dir)
+    empty_file = os.path.join(_hide_source_scratch, "empty-file")
+    if not os.path.isfile(empty_file):
+        with open(empty_file, "w", encoding="utf-8"):
+            pass
+    return empty_dir, empty_file
+
+
 def wrap_device_sandbox_argv(cmd, hide_paths=DEVICE_SANDBOX_HIDE_PATHS):
     """Returns a NEW argv list that, when subprocess.Popen'd, runs `cmd`
-    (a list) inside a fresh unprivileged user+network+mount namespace,
-    with every EXISTING path in `hide_paths` bind-mounted over by an
-    empty, freshly-created temp directory BEFORE `cmd` itself starts (a
+    (a list) inside a fresh `bwrap` (bubblewrap) unprivileged
+    user+network+mount-namespace sandbox (see _BWRAP_BASE_ARGV above),
+    with every EXISTING path in `hide_paths` bound over by a permanently-
+    empty source (a directory for a directory target, a regular file for
+    anything else -- see _hide_sources()) BEFORE `cmd` itself starts (a
     path that does not exist on this host is silently skipped, never an
-    error -- not every host has /dev/bus/usb; a bind-mount failure for
-    an existing path is also never fatal to the whole sandbox --
-    `|| true` -- since network isolation, this primitive's PRIMARY
-    guarantee, does not depend on it).
+    error -- not every host has /dev/bus/usb or a D-Bus session bus).
+
+    T085 Round 6 (R5-B1 BLOCKING): this function's underlying mechanism
+    changed from raw `unshare --map-root-user --net --mount` to `bwrap`
+    specifically for its `--disable-userns` flag -- see
+    device_sandbox_namespace_available()'s own extensively-documented
+    rationale for the exact two bypasses (the D-Bus/systemd-user escape,
+    and the sandboxed process re-unsharing a nested user+mount namespace
+    to regain the capability needed to `umount` a hidden path) this
+    closes, and why a capability-BOUNDING-SET-only mitigation
+    (`setpriv --bounding-set=-sys_admin`) this module's own research
+    tried first was proven, empirically, insufficient on its own against
+    the nested-re-unshare bypass specifically.
 
     Raises DeviceSandboxUnavailable if device_sandbox_namespace_available()
     returns False -- callers MUST NOT catch this and silently degrade to
@@ -366,28 +536,31 @@ def wrap_device_sandbox_argv(cmd, hide_paths=DEVICE_SANDBOX_HIDE_PATHS):
     itself (an existing caller's own start_new_session=True / env= /
     timeout / process-group-kill handling, e.g.
     io_trace_build_map.py's retrace(), needs NO changes of its own:
-    `unshare`'s own pid becomes the group leader, and `_safe_killpg()`
-    already kills the WHOLE group, including every process `unshare`
-    itself went on to exec/fork)."""
+    `bwrap`'s own pid becomes the group leader, and `_safe_killpg()`
+    already kills the WHOLE group, including every process `bwrap`
+    itself went on to exec/fork; `fc_common.run_gate_reaped()`'s cgroup-
+    based reaping, when available, reaches this same subtree even more
+    robustly -- cgroup membership is inherited across every one of
+    `bwrap`'s own namespace operations exactly as it is across any other
+    fork())."""
     if not device_sandbox_namespace_available():
         raise DeviceSandboxUnavailable(
-            "device namespace sandbox unavailable on this host (unshare "
+            "device namespace sandbox unavailable on this host (bwrap "
             "missing, unprivileged user namespaces disabled, or the "
             "live loopback-isolation self-test did not confirm "
             "connectivity is severed) -- refusing to run inside a "
             "sandbox that cannot be proven to isolate network/mount "
             "access; see fc_common.device_sandbox_namespace_available()"
         )
-    hide_sh_parts = [
-        'if [ -e %s ]; then d=$(mktemp -d); mount --bind "$d" %s 2>/dev/null || true; fi'
-        % (shlex.quote(p), shlex.quote(p))
-        for p in hide_paths
-    ]
-    inner_sh = "; ".join(hide_sh_parts + ['exec "$@"'])
-    return [
-        "unshare", "--map-root-user", "--net", "--mount", "--",
-        "sh", "-c", inner_sh, "device-sandbox-inner",
-    ] + list(cmd)
+    empty_dir, empty_file = _hide_sources()
+    bwrap_argv = list(_BWRAP_BASE_ARGV)
+    for p in hide_paths:
+        if not os.path.exists(p):
+            continue
+        src = empty_dir if os.path.isdir(p) else empty_file
+        bwrap_argv += ["--bind", src, p]
+    bwrap_argv.append("--")
+    return bwrap_argv + list(cmd)
 
 
 # ---------------------------------------------------------------------------
@@ -581,6 +754,54 @@ def run_gate_reaped(cmd, timeout_s, env=None, cwd=None, text=True):
     mechanism genuinely ran for THIS call -- see cgroup_runner_available()
     for how that is decided, honestly, never assumed.
 
+    T085 Round 6 (R5-I1 IMPORTANT, 2026-10-02): the Round 5 reviewer
+    reproduced, 5/5 runs, that an IMMEDIATELY-detaching
+    `(setsid sh -c "sleep 2; touch M" &); exit 0` grandchild (no head
+    start, unlike this project's own regression fixtures) still leaked
+    its marker file even under the cgroup mechanism above. Root cause,
+    independently reproduced here BEFORE this fix (see
+    test_fc_common_run_gate_reaped_r6_regression.sh's own Section A):
+    this function used `proc.communicate(timeout=timeout_s)` to BOTH
+    detect "the direct child is done" AND drain its stdout/stderr PIPEs
+    in one step -- but a grandchild that is forked WITHOUT explicitly
+    redirecting the fds it inherited from its parent (the ordinary,
+    naive way a shell backgrounds a job) keeps its own copy of the
+    stdout/stderr PIPE's write end open. `communicate()` cannot return
+    until EVERY holder of that write end closes it -- so the "normal
+    completion" path did not reap promptly at all; it silently BLOCKED
+    for the grandchild's ENTIRE natural lifetime (measured: 2.034s for a
+    `sleep 2` grandchild, vs 0.279s when the SAME grandchild redirected
+    its own fds to /dev/null) and only THEN, after the grandchild had
+    already finished on its own and done whatever it was going to do,
+    called safe_killpg()/cgroup.kill -- far too late to prevent anything.
+    The author's own pre-existing regression fixture
+    (test_fc_common_run_gate_reaped_r5_regression.sh) happened to redirect
+    its helper's fds to `/dev/null` when backgrounding it, which sidesteps
+    this exact blocking behaviour and is why that fixture passed while
+    the reviewer's own, more realistic (no explicit redirection) repro
+    did not -- this is a SHELL-INSTRUMENT-class footgun (section
+    11.4.201(12) family: an inherited pipe write-end blocking the reader
+    until a detached descendant's own natural completion, the same shape
+    as the already-documented `$(...)`-command-substitution case, here
+    manifesting through `subprocess.Popen(stdout=PIPE)` +
+    `.communicate()` instead).
+
+    Fixed: stdout/stderr are now captured via TEMPORARY FILES, never a
+    PIPE -- a file write never requires a "reader" to drain it, so no
+    descendant holding an inherited fd to it can ever block anything.
+    Direct-child completion is detected via `proc.wait(timeout=timeout_s)`
+    (which waits ONLY for the directly-launched process, never for any
+    fd any descendant happens to hold open), and reaping
+    (safe_killpg()/cgroup.kill) now runs IMMEDIATELY the instant that
+    wait() call returns or raises -- BEFORE this function does anything
+    else, including reading the captured output -- closing the race the
+    Round 5 reviewer's exact immediately-detaching repro exploited.
+    Verified, 20/20 repeated runs, against the reviewer's EXACT
+    reproduction string (see the paired regression test); the timeout
+    path's documented empty-stdout/stderr contract is preserved
+    UNCHANGED (captured partial file content is deliberately never read
+    on that path, matching every pre-existing caller's expectation).
+
     Honest boundary (section 11.4.6): cgroup availability is verified
     ONCE per process (cgroup_runner_available(), cached) via its own
     real self-test, not re-verified on every individual call -- a
@@ -614,62 +835,85 @@ def run_gate_reaped(cmd, timeout_s, env=None, cwd=None, text=True):
 
     mechanism = "cgroup" if use_cgroup else "process-group"
 
+    # T085 Round 6 (R5-I1): tempfiles, never PIPE -- see the docstring
+    # above for the exact blocking failure mode this closes. Opened
+    # BEFORE Popen() (they must exist as real fds to hand to the child);
+    # always closed in `finally`, on every return path including the
+    # OSError-could-not-launch path.
+    out_mode = "w+" if text else "w+b"
+    out_f = tempfile.TemporaryFile(mode=out_mode)
+    err_f = tempfile.TemporaryFile(mode=out_mode)
     try:
-        proc = subprocess.Popen(
-            launch_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=text, start_new_session=True, env=env, cwd=cwd,
-        )
-    except OSError as exc:
+        try:
+            proc = subprocess.Popen(
+                launch_cmd, stdout=out_f, stderr=err_f,
+                start_new_session=True, env=env, cwd=cwd,
+            )
+        except OSError as exc:
+            if cgroup_path is not None:
+                try:
+                    os.rmdir(cgroup_path)
+                except OSError:
+                    pass
+            return GateRunResult(None, empty, empty, False, exc, mechanism)
+
+        timed_out = False
+        try:
+            proc.wait(timeout=timeout_s)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+        # T085 Round 6 (R5-I1): reap IMMEDIATELY on direct-child exit (or
+        # timeout) -- the very next statement after proc.wait() settles,
+        # BEFORE any output is ever read -- never gated on draining a
+        # pipe a detached grandchild might still be holding open (the
+        # exact ordering that was the bug: the pre-fix code could not
+        # even REACH this reaping step until long after a leaking
+        # grandchild had already finished on its own).
+        safe_killpg(proc.pid, signal.SIGKILL)
         if cgroup_path is not None:
+            # The PRIMARY cleanup: kills every member regardless of
+            # session/process-group, including a setsid()-detached
+            # grandchild the killpg() calls above cannot reach.
+            try:
+                with open(os.path.join(cgroup_path, _CGROUP_KILL_FILENAME), "w", encoding="utf-8") as fh:
+                    fh.write("1")
+            except OSError:
+                pass
+            # Best-effort drain before rmdir -- a cgroup that still has a
+            # member (a process resisting SIGKILL, vanishingly rare) simply
+            # fails rmdir (EBUSY) and is left for later reclaim; never
+            # treated as fatal to this function's own result.
+            for _ in range(20):
+                try:
+                    with open(os.path.join(cgroup_path, _CGROUP_PROCS_FILENAME), encoding="utf-8") as fh:
+                        if not fh.read().strip():
+                            break
+                except OSError:
+                    break
+                time.sleep(0.05)
             try:
                 os.rmdir(cgroup_path)
             except OSError:
                 pass
-        return GateRunResult(None, empty, empty, False, exc, mechanism)
 
-    timed_out = False
-    try:
-        stdout, stderr = proc.communicate(timeout=timeout_s)
-    except subprocess.TimeoutExpired:
-        timed_out = True
-        stdout, stderr = empty, empty
-        safe_killpg(proc.pid, signal.SIGKILL)
-        try:
-            proc.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            pass
-    else:
-        # Kill the WHOLE process group even on this NORMAL return path
-        # (T085 Round 3 R3-I1 pattern) -- closes the ordinary,
-        # non-setsid case; a group that is already empty simply raises
-        # ProcessLookupError, swallowed inside safe_killpg().
-        safe_killpg(proc.pid, signal.SIGKILL)
-
-    if cgroup_path is not None:
-        # The PRIMARY cleanup: kills every member regardless of
-        # session/process-group, including a setsid()-detached
-        # grandchild the killpg() calls above cannot reach.
-        try:
-            with open(os.path.join(cgroup_path, _CGROUP_KILL_FILENAME), "w", encoding="utf-8") as fh:
-                fh.write("1")
-        except OSError:
-            pass
-        # Best-effort drain before rmdir -- a cgroup that still has a
-        # member (a process resisting SIGKILL, vanishingly rare) simply
-        # fails rmdir (EBUSY) and is left for later reclaim; never
-        # treated as fatal to this function's own result.
-        for _ in range(20):
-            try:
-                with open(os.path.join(cgroup_path, _CGROUP_PROCS_FILENAME), encoding="utf-8") as fh:
-                    if not fh.read().strip():
-                        break
-            except OSError:
-                break
-            time.sleep(0.05)
-        try:
-            os.rmdir(cgroup_path)
-        except OSError:
-            pass
+        # T085 Round 6 (R5-I1): output is read ONLY now, AFTER reaping is
+        # fully complete -- and, on the timeout path, deliberately NEVER
+        # read at all (stdout/stderr stay `empty`), preserving this
+        # function's pre-existing, documented timeout contract exactly
+        # (every existing caller already expects empty stdout/stderr on
+        # timeout; reading whatever partial bytes a killed process
+        # happened to have flushed to its tempfile so far would be a
+        # scope change beyond this round's fix).
+        if timed_out:
+            stdout, stderr = empty, empty
+        else:
+            out_f.seek(0)
+            stdout = out_f.read()
+            err_f.seek(0)
+            stderr = err_f.read()
+    finally:
+        out_f.close()
+        err_f.close()
 
     return GateRunResult(
         None if timed_out else proc.returncode,

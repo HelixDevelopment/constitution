@@ -116,17 +116,25 @@ else
     echo "   ($(cat "$TMP/a.err" 2>/dev/null))"
 fi
 
-if grep -q '"missing_slice_indices": \[1\]' "$TMP/a_out.json" 2>/dev/null \
-    || python3 -c "
+# T085 Round 6 (R5-I2): check_sibling_search() was REWRITTEN to
+# genuinely MEASURE (search `root`) rather than read a declared field --
+# its own evidence key for "this slice could not even be resolved" is
+# now `unresolved_slice_indices` (a DIFFERENT, more precise concept:
+# "there was nothing parseable to search for", distinct from
+# check_blast_radius()'s still-field-reading `unmeasured_slice_indices`,
+# renamed from `missing_slice_indices` at the same round to also cover a
+# PRESENT-but-literally-"UNMEASURED" value, never only a genuinely
+# absent key -- see _batch_wide_field_check()'s own docstring).
+if python3 -c "
 import json
 d = json.load(open('$TMP/a_out.json'))
 checks = {c['check']: c for c in d['checks']}
-assert checks['sibling-search']['evidence'].get('missing_slice_indices') == [1]
-assert checks['blast-radius']['evidence'].get('missing_slice_indices') == [1]
+assert checks['sibling-search']['evidence'].get('unresolved_slice_indices') == [1]
+assert checks['blast-radius']['evidence'].get('unmeasured_slice_indices') == [1]
 " 2>/dev/null; then
-    ok "A2: the FAIL evidence names the EXACT unmeasured slice index (1), not merely a bare FAIL verdict -- an actionable, pinpoint finding (section 11.4.4)"
+    ok "A2: the FAIL evidence names the EXACT unmeasured/unresolved slice index (1), not merely a bare FAIL verdict -- an actionable, pinpoint finding (section 11.4.4)"
 else
-    bad "A2: the FAIL evidence did not cite the specific unmeasured slice index"
+    bad "A2: the FAIL evidence did not cite the specific unmeasured/unresolved slice index"
 fi
 
 # =============================================================================
@@ -186,21 +194,44 @@ mkdir -p "$SCRATCH/lib"
 cp "$PRECHECK" "$SCRATCH/precheck_pack.sh"
 cp "$RUN_PY" "$SCRATCH/lib/precheck_pack_run.py"
 
+# T085 Round 6 (R5-I2): check_sibling_search() was REWRITTEN from a
+# field-reading check into a genuine-measurement one that is INHERENTLY
+# multi-slice-aware (it iterates every slice by construction). The
+# meaningful guard-viability mutation for THIS file's own question
+# ("is multi-slice coverage genuinely load-bearing for sibling-search")
+# is therefore the ORIGINAL Round-3/4-era bug this file was written
+# against: first-slice-ONLY sampling via _first_slice_field() (which
+# remains present in precheck_pack_run.py, unused by production code,
+# specifically so this class of mutation stays constructible) -- NOT a
+# revert to the Round-5 multi-slice-aware _batch_wide_field_check(),
+# which would NOT reproduce this bug (it already checks every slice).
 python3 - "$SCRATCH/lib/precheck_pack_run.py" <<'PYEOF'
-import sys
+import re, sys
 p = sys.argv[1]
 with open(p, encoding="utf-8") as fh:
     c = fh.read()
 
-old = 'return _batch_wide_field_check(batch, "sibling_search_ref", "sibling-search", "ref")'
-new = (
-    'ref = _first_slice_field(batch, "sibling_search_ref")\n'
-    '    return {"check": "sibling-search", "verdict": "PASS" if ref is not None else "FAIL",\n'
-    '            "evidence": {"ref": ref if ref is not None else "UNMEASURED"}}'
+m = re.search(
+    r"\ndef check_sibling_search\(batch, root\):.*?\n\n\ndef check_blast_radius\(batch\):",
+    c, re.DOTALL,
 )
-if c.count(old) != 1:
-    sys.exit("mutate: check_sibling_search call-site did not match exactly once (count=%d)" % c.count(old))
-c = c.replace(old, new, 1)
+if m is None:
+    sys.exit("mutate: check_sibling_search function body not found (source shape changed)")
+if c.count(m.group(0)) != 1:
+    sys.exit("mutate: check_sibling_search function body did not match exactly once (count=%d)" % c.count(m.group(0)))
+
+new_fn = (
+    "\ndef check_sibling_search(batch, root):\n"
+    "    # GUARD-VIABILITY MUTATION: reverted to the ORIGINAL Round-3/4-era\n"
+    "    # bug -- first-slice-ONLY sampling via _first_slice_field() (root\n"
+    "    # accepted per the real call site's signature, deliberately unused).\n"
+    "    ref = _first_slice_field(batch, \"sibling_search_ref\")\n"
+    "    return {\"check\": \"sibling-search\", \"verdict\": \"PASS\" if ref is not None else \"FAIL\",\n"
+    "            \"evidence\": {\"ref\": ref if ref is not None else \"UNMEASURED\"}}\n"
+    "\n\n"
+    "def check_blast_radius(batch):"
+)
+c = c.replace(m.group(0), new_fn, 1)
 
 with open(p, "w", encoding="utf-8") as fh:
     fh.write(c)
