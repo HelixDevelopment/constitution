@@ -2014,6 +2014,9 @@ j_mutant J8_no_at_target_review \
         # T177 Round 6 (round-6 MINOR M1)'
 build_r3_fixture "$I_ROOT/j8m"
 J8M_FIRST_REF=$(make_review_ref "fixture/section_j8m" "$R3_NEW" "$(git -C "$I_ROOT/j8m/checkout" rev-parse HEAD)")
+# shellcheck disable=SC2034  # J8M_FIRST_OUT captured for ad-hoc
+# diagnostic inspection if J8M_FIRST_RC's assertion below ever fails;
+# only the rc is asserted.
 J8M_FIRST_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_J8_no_at_target_review.sh" --config "$CFG" --project "fixture/section_j8m" --workdir "$I_ROOT/j8m/checkout" --out "$WORK/j8m_1.json" --apply --review-ref "$J8M_FIRST_REF" 2>&1); J8M_FIRST_RC=$?
 git clone -q --no-hardlinks "$I_ROOT/j8m/consumer.git" "$I_ROOT/j8m/checkout2" >/dev/null 2>&1
 git -C "$I_ROOT/j8m/checkout2" config user.name fastcycle-fixture
@@ -2050,7 +2053,7 @@ build_r3_fixture "$I_ROOT/j9" "$J9_HOOK"
 j_run "$TOOL" "$I_ROOT/j9" fixture/section_j9 "$WORK/j9.json"
 J9_PUBLISHED_GITLINK=$(git -C "$I_ROOT/j9/consumer.git" ls-tree refs/heads/main constitution 2>/dev/null | awk '{print $3}')
 if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$J9_PUBLISHED_GITLINK" = "$R3_NEW" ] \
-    && [ -d "$I_ROOT/j9/checkout/constitution/.git" -o -f "$I_ROOT/j9/checkout/constitution/.git" ]; then
+    && { [ -d "$I_ROOT/j9/checkout/constitution/.git" ] || [ -f "$I_ROOT/j9/checkout/constitution/.git" ]; }; then
     ok "J9 constitution-gitlink invariant: a hook that deletes the whole submodule checkout directory has NO effect on the published result -- the gitlink is published at exactly \$NEW_SHA ($R3_NEW), and \$WORKDIR self-heals (submodule re-materialized by the post-publish sync)"
 else
     bad "J9 constitution-gitlink invariant: a deleted submodule checkout affected the published gitlink (rc=$J_RC out=$J_OUT published=$J9_PUBLISHED_GITLINK expected=$R3_NEW)"
@@ -2130,7 +2133,6 @@ j10_build_decoy_parent_fixture() {
     git -C "$1/checkout" fetch -q --all
 }
 j10_build_decoy_parent_fixture "$I_ROOT/j10"
-J10_LOCAL_HEAD=$(git -C "$I_ROOT/j10/checkout" rev-parse HEAD)
 j_run "$TOOL" "$I_ROOT/j10" fixture/section_j10 "$WORK/j10.json"
 # X's secret is REVERTED by Y, so the FINAL published TREE never shows it
 # (the wrong oracle here -- see J11's identical lesson below); the real

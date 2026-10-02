@@ -1637,6 +1637,10 @@ while i + 1 < len(data):
     OLD_IFS=$IFS
     IFS='
 '
+    # shellcheck disable=SC2013  # intentional: IFS is set to newline-only
+    # immediately above, so command substitution word-splitting here IS
+    # line-splitting, not word-splitting; REMOTES_LIST lines never embed
+    # control characters this needs to survive.
     for _rline in $(cat "$REMOTES_LIST")
     do
         r=${_rline%% *}
