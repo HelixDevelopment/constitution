@@ -723,8 +723,19 @@ VERDICT_RE='(✓|✗|WARN:|ERROR:|WARNING:|\.\.\.[[:space:]]+(OK|FAIL)([^A-Za-z0
 # 'WARNING:' (log_warn() increments WARNINGS, never ERRORS, so a WARN line can never move the real
 # script's "Failed: N" count or exit code) and the OK half (never a failure). Used by
 # _fc_registry_failcount_delta() below to classify a registered gate's own line as failing or not,
-# from the SAME raw extracted files VERDICT_RE already produced.
-FAIL_CLASS_RE='(✗|ERROR:|\.\.\.[[:space:]]+FAIL([^A-Za-z0-9]|$))'
+# from the SAME raw extracted files VERDICT_RE already produced. T048 round 16 (R16-M3): anchored to
+# the VERDICT-TOKEN POSITION -- immediately after the "<description>... " check-description-prompt
+# prefix every real check line uses (the SAME "\.\.\.[[:space:]]+" anchor VERDICT_RE's own OK/FAIL
+# alternative already uses) -- never a bare substring match anywhere in the line
+# (S11.4.201(7)(a)). The pre-round-16 unanchored form matched '✗'/'ERROR:' at ANY position, so a
+# registered gate's own PASSING message whose detail text happened to CONTAIN the substring
+# 'ERROR:' or '✗' (e.g. "...   ✓ ok (no ERROR: found, previously a ✗ issue)") would be misclassified
+# as failing -- a carrier false-match, never observed in the two gates registered today (MEASURED,
+# not assumed, S11.4.6: every real/fixture ✗/ERROR:/FAIL verdict line used anywhere in this file's
+# own regression suites, T048 rounds 4-16, places the token immediately after "... ", confirmed by
+# direct grep across every *_r*_regression.sh fixture constant), bounded conservative-only (a false
+# FAIL, never a false explanation, per the round-16 review) but now closed at the source instead.
+FAIL_CLASS_RE='\.\.\.[[:space:]]+(✗|ERROR:|FAIL([^A-Za-z0-9]|$))'
 
 # extract_verdicts <log> <out> : one stable verdict line per matched input line, ANSI-stripped,
 # leading/trailing whitespace trimmed, any trailing BRACKET/PAREN-WRAPPED "[N.NNs]"/"(N.NNs)"/
@@ -751,12 +762,40 @@ extract_verdicts() {
 # or occurs more than once in LOG (ambiguous -- never resolved by picking one,
 # mirroring _mf_get()'s own discipline); callers (T048 round 14, R14-I1) treat an
 # unresolvable count as "cannot explain", the conservative-safe default
-# (S11.4.101/S11.4.201), never as zero.
+# (S11.4.101/S11.4.201), never as zero. T048 round 16 (R16-M2): the printed
+# value is ALSO stripped of any leading zero(s) (down to a single "0", never
+# an empty string) BEFORE it reaches the caller -- a literal "08" is SHAPE-
+# valid per the capture group's own [0-9]+ above, but every caller does bash
+# arithmetic on this value (e.g. "$((n1 - n0))"), and bash's $((...)) treats
+# ANY numeral beginning with "0" (other than the single digit "0" itself) as
+# an OCTAL literal, so "08" fails that ONE arithmetic expansion with "value
+# too great for base" -- MEASURED, not assumed (S11.4.6), and precisely
+# characterized (never overstated): when that failing expansion sits inside
+# an enclosing `if`/compound construct (as every real caller's does), bash
+# does NOT merely skip that one assignment and continue on the NEXT line --
+# it silently abandons the REST of that ENTIRE enclosing compound block and
+# resumes execution at the first statement AFTER its closing `fi`, with no
+# further checks in between ever running (confirmed live with `bash -x` on
+# this exact file: tracing a real triplet carrying an unstripped "08" jumps
+# directly from the failing "$((...))" line to this script's own final
+# "SUMMARY: ..." echo, skipping EVERY downstream check -- member-
+# consistency, exit-code, verdict-set -- between them). The net effect is
+# worse than a hard crash: the run reports a FALSE PASS (rc=0, a truncated
+# "N pass / 0 fail" SUMMARY with fewer assertions than a clean run would
+# have recorded) precisely BECAUSE the checks that would have caught a real
+# problem never executed -- exactly the silent-skip-as-false-PASS shape the
+# anti-bluff covenant forbids. The real pre_build_verification.sh prints
+# $ERRORS with no leading zeros today, so this has NO live impact -- it is
+# fixed at THIS single source so every caller (today's one arithmetic site
+# and any future one) inherits an already-decimal-safe value, never a
+# `10#$N` base-forcing discipline each call site would otherwise have to
+# remember.
 _fc_failed_count() {
-  local hits
+  local hits raw
   hits="$(sed -E 's/\x1b\[[0-9;]*m//g' "$1" 2>/dev/null | grep -cE '^[[:space:]]*Failed:[[:space:]]+[0-9]+[[:space:]]*$' || true)"
   [ "${hits:-0}" = "1" ] || return 1
-  sed -E 's/\x1b\[[0-9;]*m//g' "$1" | sed -nE 's/^[[:space:]]*Failed:[[:space:]]+([0-9]+)[[:space:]]*$/\1/p'
+  raw="$(sed -E 's/\x1b\[[0-9;]*m//g' "$1" | sed -nE 's/^[[:space:]]*Failed:[[:space:]]+([0-9]+)[[:space:]]*$/\1/p')"
+  printf '%s' "$raw" | sed -E 's/^0+([0-9])/\1/'
 }
 
 # _fc_filter_known_flaky IN OUT -- copies IN to OUT, dropping any verdict
@@ -865,6 +904,39 @@ _fc_registry_failcount_delta() {
     delta=$((delta + b_fail - a_fail))
   done < <(awk -F'\t' 'FNR > 1 && $1 != "" { print $1 }' "$KNOWN_FLAKY_TSV_VALID")
   printf '%s' "$delta"
+}
+
+# _fc_exit_explained N0 N1 REG_DELTA -- prints "1" if (and only if) the
+# member Failed-count delta (N1 - N0, both already decimal-safe per
+# _fc_failed_count()'s own R16-M2 fix) is BOTH resolvable AND NONZERO AND
+# EXACTLY equal to REG_DELTA; "0" otherwise (including when either N0 or N1
+# is unresolvable/empty -- the conservative-safe default, S11.4.101/
+# S11.4.201, never silently treated as zero). T048 round 14 (R14-I1) /
+# round 16 (R16-I2): the delta MUST be nonzero -- a genuine 0==0 "match" is
+# NEVER a registry explanation, because there was no real divergence to
+# explain in the first place (round-15's own golden_mutNZ.sh reviewer
+# mutation, which drops only this "!= 0" requirement, reproduces exactly
+# that false explanation). Deliberately ISOLATED into its own, directly-
+# callable function (round 16, R16-I2) rather than left inline: once the
+# member-internal-consistency precondition below (_fc_check_member_
+# consistency, R16-I1) holds for both members whose Failed count is
+# resolvable, a differing-exit-but-delta==0 scenario becomes structurally
+# UNREACHABLE through the full three-member golden-triplet harness (proof:
+# consistency forces exit = (Failed != 0), so N0 == N1 forces _ex0 == _ex1,
+# contradicting the "exits differ" precondition this elif is reached
+# under) -- so this clause's own removal can no longer be demonstrated via
+# an end-to-end triplet fixture once R16-I1 ships alongside it, ONLY via a
+# DIRECT call to this function in isolation (see the dedicated chk()
+# assertions near the bottom of this file). The clause is kept regardless
+# (defense-in-depth, matching round 15's original intent, option (a) of
+# the round-16 ruling) since a future change to the consistency check's own
+# scope could make this clause reachable again, and it costs nothing to
+# retain.
+_fc_exit_explained() {
+  local n0="$1" n1="$2" reg="$3" delta
+  [ -n "$n0" ] && [ -n "$n1" ] || { printf 0; return 0; }
+  delta=$((n1 - n0))
+  if [ "$delta" != 0 ] && [ "$delta" = "$reg" ]; then printf 1; else printf 0; fi
 }
 
 # _fc_truncate_before_summary_tail IN OUT -- copies IN to OUT up to (not
@@ -1027,15 +1099,74 @@ if [ "$TRIPLET_STATE" = valid ]; then
   _FC_EXIT_FLIP_IDS="$(_fc_registry_flip_ids "$TMP/baseline_1.txt" "$TMP/with_timers.txt")"
   _FC_FAILED_N0="$(_fc_failed_count "$BASELINE_LOG")" || _FC_FAILED_N0=""
   _FC_FAILED_N1="$(_fc_failed_count "$WITH_TIMERS_LOG")" || _FC_FAILED_N1=""
+  # T048 round 16 (R16-I1): FC0b's own "Failed: N" count, needed below
+  # ONLY by the new member-internal-consistency precondition -- the
+  # pre-round-16 code never read it at all.
+  _FC_FAILED_Nn="$(_fc_failed_count "$NOISE_LOG")" || _FC_FAILED_Nn=""
   _FC_REG_DELTA="$(_fc_registry_failcount_delta "$TMP/baseline_1.txt" "$TMP/with_timers.txt")"
-  _FC_EXIT_EXPLAINED=0
   _FC_N_DELTA=""
   if [ -n "$_FC_FAILED_N0" ] && [ -n "$_FC_FAILED_N1" ]; then
     _FC_N_DELTA=$((_FC_FAILED_N1 - _FC_FAILED_N0))
-    if [ "$_FC_N_DELTA" != 0 ] && [ "$_FC_N_DELTA" = "$_FC_REG_DELTA" ]; then
-      _FC_EXIT_EXPLAINED=1
-    fi
   fi
+  _FC_EXIT_EXPLAINED="$(_fc_exit_explained "$_FC_FAILED_N0" "$_FC_FAILED_N1" "$_FC_REG_DELTA")"
+
+  # T048 round 16 (R16-I1): MEMBER-INTERNAL EXIT/FAILED CONSISTENCY,
+  # checked BEFORE any of the exit-code branches below. What every branch
+  # below actually checks is whether a DIVERGENCE BETWEEN two members'
+  # exit codes is explained; none of them ever asked whether a SINGLE
+  # member's own exit code is even internally consistent with that SAME
+  # member's own "Failed: N" count in the first place. The real
+  # pre_build_verification.sh (pre_build_verification.sh:51468-51483)
+  # exits 0 if and only if ERRORS==0, and a nonzero code (1, by
+  # construction) otherwise -- but `set -euo pipefail` exposes a SECOND,
+  # unrelated way a member can still exit nonzero: a nounset bug inside
+  # fc_timer_end() itself, called strictly AFTER the "Failed:" line and the
+  # terminal banner are already printed, can escape an `|| true` guard
+  # (MEASURED, not assumed, S11.4.6: `set -euo pipefail; f(){ echo
+  # "$nope"; }; f || true` exits 1, confirmed live) -- so "Failed: 0"
+  # printed correctly does NOT by itself prove the member's own exit code
+  # was 0. Reproduced end to end (round-16 reviewer's X1/X2): a registered
+  # flake's exit-code divergence in ONE member, exactly-accounted-for by
+  # the registry delta below, silently masked a SECOND, genuinely
+  # unexplained inconsistency in ANOTHER member whose own Failed:/exit
+  # pair this file never cross-checked -- the exact-accounting comparison
+  # below answers "is the DIFFERENCE between two members explained", never
+  # "is EACH member's own number internally consistent", and a member
+  # failing THAT is not a divergence between members at all; it is a
+  # single corrupted data point silently feeding every comparison below
+  # it. Any violation is a hard FAIL naming the member, its real exit
+  # code, and its real Failed count -- never absorbed into any SKIP/PASS
+  # branch that follows, which is why this runs unconditionally, before
+  # any of them.
+  _fc_check_member_consistency() {
+    # $1 = member label (for the chk() message only), $2 = real exit code,
+    # $3 = real "Failed: N" count (may be empty when unresolvable -- the
+    # conservative-safe default is to say nothing about an unresolvable
+    # member here, exactly like every OTHER use of an unresolvable Failed
+    # count in this file; it is NOT read as "Failed: 0").
+    local label="$1" ex="$2" failed="$3"
+    [ -n "$failed" ] || return 0
+    case "$ex" in
+      0 | 1) ;;
+      *)
+        chk "T048 round-16 member-internal consistency ($label): exit code ($ex) is neither 0 nor 1 -- pre_build_verification.sh exits 0 iff Failed==0, 1 otherwise, so ANY other exit code is itself a hard FAIL, never explained by any registry/noise-floor accounting below (Failed: $failed)" "0"
+        return 1
+        ;;
+    esac
+    if [ "$failed" = 0 ] && [ "$ex" != 0 ]; then
+      chk "T048 round-16 member-internal consistency ($label): exit code ($ex) with Failed: $failed -- a member reporting Failed: 0 MUST exit 0, never explained by any registry/noise-floor accounting below" "0"
+      return 1
+    fi
+    if [ "$failed" != 0 ] && [ "$ex" != 1 ]; then
+      chk "T048 round-16 member-internal consistency ($label): exit code ($ex) with Failed: $failed -- a member reporting a nonzero Failed count MUST exit nonzero (exactly 1), never explained by any registry/noise-floor accounting below" "0"
+      return 1
+    fi
+    return 0
+  }
+  _fc_check_member_consistency FC0a "$_ex0" "$_FC_FAILED_N0"
+  _fc_check_member_consistency FC0b "$_exn" "$_FC_FAILED_Nn"
+  _fc_check_member_consistency FC1 "$_ex1" "$_FC_FAILED_N1"
+
   if [ "$_ex0" = "$_ex1" ]; then
     chk "FR-002 commit result: with-timers exit status ($_ex1) equals without-timers exit status ($_ex0) (noise-floor member FC0b exited $_exn)" "1"
   elif [ "$_exn" != "$_ex0" ] && [ "$_exn" = "$_ex1" ]; then

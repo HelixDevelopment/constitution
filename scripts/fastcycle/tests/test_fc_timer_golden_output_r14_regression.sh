@@ -156,7 +156,7 @@ else
   bad "(ADV1-ctl) BLIND: rc=$ADV1CTL_RC; $(grep -E 'commit result|FR-002/T-A01' "$TMP/adv1ctl.out" | head -5)"
 fi
 
-echo "=== (ADV2) R14-I1 direction/magnitude probe (reviewer's own fixture, made internally coherent): the registered gate SELF-HEALS (FAIL->OK, delta=-1) while an UNRELATED new failure appears in the SAME member (delta=+1) -- net Failed: delta is 0, so NOTHING can explain a genuine exit divergence; must still hard-FAIL ==="
+echo "=== (ADV2) R14-I1 direction/magnitude probe (reviewer's own fixture, made internally coherent T048 round 16 R16-M1: FC0a/FC0b now exit 1 to match their own 'Failed: 1' line, never 0): the registered gate SELF-HEALS (FAIL->OK, delta=-1) while an UNRELATED new failure appears in the SAME member (delta=+1) -- net Failed: delta is 0, so NOTHING can explain a genuine exit divergence; must still be overall rejected ==="
 triplet ADV2 3 "$CBASE
 $SPK_BAD
 $FAILED1" "$CBASE
@@ -165,10 +165,28 @@ $FAILED1" "$CBASE
 $SPK_OK
 $UNREL_BAD
 $FAILED1"
-set_key "$MF" member.FC0a.exit 0; set_key "$MF" member.FC0b.exit 0; set_key "$MF" member.FC1.exit 1
+# T048 round 16 (R16-M1 live finding): the round-15 fixture set ALL THREE
+# exits to 0/0/1 even though EVERY member's own "Failed: 1" line requires
+# exit 1 (pre_build_verification.sh exits 0 iff Failed==0) -- FC0a and
+# FC0b were internally INCONSISTENT. With consistent exits (1/1/1, since
+# FC1's own self-heal+new-failure net Failed count is ALSO 1), _ex0 and
+# _ex1 are now EQUAL (both 1): the exit-code check [12] correctly PASSES
+# trivially (there is no genuine exit DIVERGENCE to explain -- consistent
+# with this fixture's own point, since the net Failed: delta really is 0
+# and nothing differs at the exit-code level either); the SEPARATE
+# verdict-set check [13] is what still catches CM-ADV2-UNREL (the real,
+# unrelated new failure) once the known-flaky filter removes the SPK
+# lines from both sides, which is what keeps the OVERALL result correctly
+# rejected -- re-verified below to still demonstrate this fixture's
+# original point (a registered self-heal masking an unrelated new
+# failure is correctly rejected), now via the check that actually sees it.
+set_key "$MF" member.FC0a.exit 1; set_key "$MF" member.FC0b.exit 1; set_key "$MF" member.FC1.exit 1
 gt_golden "$TMP/adv2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/ev_ADV2"; ADV2_RC=$?
-if [ "$ADV2_RC" = 1 ] && grep -qE '^FAIL\[[0-9]+\]: FR-002 commit result:.*MISMATCH, not explained' "$TMP/adv2.out"; then
-  ok "(ADV2) check [exit] correctly hard-FAILs (rc=1): a registered gate's own direction/magnitude is checked, not merely 'did something change' -- a self-heal masking an unrelated new failure (net Failed: delta 0) is never treated as explaining a genuine exit divergence"
+if [ "$ADV2_RC" = 1 ] \
+   && grep -qE '^PASS\[[0-9]+\]: FR-002 commit result: with-timers exit status \(1\) equals without-timers exit status \(1\)' "$TMP/adv2.out" \
+   && grep -qE '^FAIL\[[0-9]+\]: FR-002/T-A01' "$TMP/adv2.out" \
+   && has "$TMP/adv2.out" "CM-ADV2-UNREL"; then
+  ok "(ADV2) overall rejected (rc=1): with internally-consistent inputs there is no genuine exit-code divergence left to explain (check [exit] correctly PASSes trivially, exit 1 == exit 1), but the SEPARATE verdict-set check still catches the unrelated new failure (CM-ADV2-UNREL) once the known-flaky filter removes the self-healed SPK lines -- a registered gate's self-heal masking an unrelated new failure is still never treated as making the run clean"
 else
   bad "(ADV2) BLIND: rc=$ADV2_RC; $(grep -E 'commit result|FR-002/T-A01' "$TMP/adv2.out" | head -5)"
 fi
