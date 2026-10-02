@@ -117,8 +117,9 @@ s=open(sys.argv[1]).read(); s=s.replace(os.environ["ANCHOR"],os.environ["REPL"],
 # attacker-controlled) so more than one env var can be passed through.
 # Routing through the library's own gt_golden() FUNCTION (never a bare
 # `GT_GOLDEN=... env ... bash "$GT_GOLDEN"` one-liner, which measurably does
-# NOT apply the override -- see r12_regression.sh's own mrun() comment for
-# the full explanation) is what actually works.
+# NOT apply the override -- this was originally explained at length in
+# r12_regression.sh's own mrun() comment, removed T048 round 21 along with
+# the rest of that file, S11.4.124) is what actually works.
 # intentional word-splitting -- $envassigns is a caller-supplied multi-assignment prefix string (e.g. 'A=1 B=2') that MUST split into separate env assignments, quoting it would break that
 # shellcheck disable=SC2086
 mrun() { local name="$1" envassigns="$2" outfile="$3"; GT_GOLDEN="$TMP/golden_$name.sh" gt_golden "$outfile" $envassigns; }
