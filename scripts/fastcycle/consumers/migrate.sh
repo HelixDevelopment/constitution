@@ -191,38 +191,138 @@ trap 'rm -rf "$MIGRATE_SCRATCH"' EXIT INT TERM
 # `core.fsmonitor=false` stops a configured fsmonitor program (another
 # repository-config-driven executable) from running during this tool's own
 # status/diff/add calls. Exported as environment-scoped config
-# (GIT_CONFIG_COUNT, git >= 2.31) so it reaches EVERY git invocation this
-# tool makes -- including the ones repo_verify.py makes during step 9 --
-# and overrides anything the hook writes into `.git/config`; the commit and
-# push calls additionally pass it explicitly with `-c`. The post-update
-# hook and the consumer's own gates are run with the CALLER's original git
-# environment restored (run_with_caller_git_env), never with this override
-# -- they are the consumer's own processes, not this tool's.
+# (GIT_CONFIG_COUNT, git >= 2.31) so it reaches every git invocation THIS
+# script launches (directly, or via the python scanners it runs) and
+# overrides anything the hook writes into `.git/config`; the commit and
+# push calls additionally pass hooksPath explicitly with `-c`. It does NOT
+# reach repo_verify.py's step-9 git calls through the environment: that
+# tool deliberately strips GIT_CONFIG_COUNT/GIT_CONFIG_PARAMETERS (and the
+# other repository-locating variables) from its own subprocesses, so it
+# passes the same overrides itself, explicitly, on every git command line
+# it builds (T177 Round 17, R16-I1 -- see repo_verify._GIT_SAFE_ARGS). The
+# post-update hook and the consumer's own gates are run with the CALLER's
+# original git environment restored (run_with_caller_git_env), never with
+# this override -- they are the consumer's own processes, not this tool's.
+#
+# Scope, stated narrowly (T177 Round 17, R16-M1 -- the earlier wording
+# "stops side-channel pushes" overclaimed): this stops git's OWN hook
+# mechanism (`.git/hooks/*`, `core.hooksPath`) and a configured fsmonitor
+# from running during this tool's own git calls, and (R16-M1) signing --
+# `commit.gpgSign`/`push.gpgSign`/`tag.gpgSign` are forced false and the
+# three `gpg.*program` keys pointed at `false`, so a hook-set `gpg.program`
+# never runs during the migration commit (reproduced live in round 16:
+# such a program published a side-channel ref mid-commit). It does NOT
+# neutralise every repository-config-driven executable: clean/smudge
+# filter drivers (`.gitattributes` / `.git/info/attributes` +
+# `filter.<name>.*`) have no global off switch, and the push-transport
+# executables (`core.sshCommand`, `credential.helper`,
+# `remote.<r>.receivepack`, `url.*.insteadOf` -> `ext::`) are left alone
+# because a consumer may legitimately rely on them to reach its own
+# remotes. None of those is an escalation -- the post-update hook already
+# runs arbitrary code with the caller's credentials and can push directly
+# -- and what the TOOL ITSELF publishes is guarded by verify_final_commit
+# below, not by this half.
+#
+# T177 Round 17 (R16-B1 BLOCKING): this tool's reads of COMMITTED content
+# must see the REAL objects -- the objects `git push` actually sends.
+# git transparently substitutes `refs/replace/*` targets on every read
+# (cat-file, ls-tree, diff-tree, rev-parse <commit>:<path>, rev-list), but
+# `pack-objects` ignores them during a push; `refs/replace/*` lives under
+# `.git/` and never shows in `git status`. A post-update hook (or a process
+# it leaves behind) that runs `git replace <evil> <harmless>` therefore made
+# BOTH the step-5 scanners and verify_final_commit inspect the harmless
+# stand-in while the remote received the original (reproduced live in
+# round 16, twice: a host-absolute symlink, and an amended-in product file,
+# each published rc=0 MIGRATED, CLEAN x2). Disabled here for every git
+# process this script launches, two independent ways: GIT_NO_REPLACE_OBJECTS
+# (any value disables substitution; git checks only that it is set) and
+# `core.useReplaceRefs=false` in the same environment-scoped config block.
+# Two SIBLING mechanisms, investigated live on git 2.50.1 before this
+# change, are NOT covered by either switch and are disabled separately:
+#   * grafts (`.git/info/grafts`, deprecated but still honoured): a graft
+#     line rewrote a commit's parents for rev-list/--parents/--count while
+#     both replace switches were set; it faked check 2 and PUSH_SET_SIZE
+#     (exactly 1 commit, parent == pre-migration HEAD) over a real history
+#     carrying an unreviewed commit. GIT_GRAFT_FILE=/dev/null is honoured
+#     and points git at a file no unprivileged process can give content.
+#   * a forged commit-graph (`.git/objects/info/commit-graph`, rewritable
+#     by the repo owner, its trailing checksum recomputable): a graph whose
+#     tree OID for commit N was patched to a clean tree made
+#     `diff-tree -c <N>` (the per-commit walk) and `git log` report NO
+#     change while the real commit object carried the change.
+#     `core.commitGraph=false` makes git parse the commit objects instead.
+# Shallow boundaries (`.git/shallow`) were checked too and are left alone:
+# they can only REMOVE parents, never invent one, so check 2's exact-parent
+# equality fails closed under them, and a genuinely shallow consumer clone
+# needs them. Object-store tampering (a loose object file whose bytes do
+# not hash to its name, or an `objects/info/alternates` store) is NOT
+# defended: `git cat-file` does not re-hash what it reads (verified live),
+# but the push then sends the SAME tampered bytes, which the remote hashes
+# to a different id and rejects for missing objects -- it can only land
+# when the attacker has ALREADY published the real objects by a direct
+# push, the side channel this tool cannot close. Tracked as an open gap in
+# docs/scripts/consumer_migrate.md, not claimed covered.
 #
 # This half is NECESSARY, NOT SUFFICIENT: the load-bearing half is the
 # positive post-commit re-verification of the commit's own FINAL tree
 # (verify_final_commit, step 7), which does not care HOW a commit came to
-# hold whatever it holds.
+# hold whatever it holds -- provided it reads the real objects, which is
+# what the replace/graft/commit-graph overrides above guarantee.
 FC_CALLER_GCC_SET=0
 [ -n "${GIT_CONFIG_COUNT+x}" ] && FC_CALLER_GCC_SET=1
 FC_CALLER_GCC=${GIT_CONFIG_COUNT:-0}
 case "$FC_CALLER_GCC" in
     ''|*[!0-9]*) echo "migrate.sh: inherited GIT_CONFIG_COUNT=$FC_CALLER_GCC is not a number -- refusing to guess how to extend it" >&2; exit 4 ;;
 esac
-FC_GCC_K1=$FC_CALLER_GCC
-FC_GCC_K2=$((FC_CALLER_GCC + 1))
-eval "GIT_CONFIG_KEY_$FC_GCC_K1=core.hooksPath; GIT_CONFIG_VALUE_$FC_GCC_K1=/dev/null; export GIT_CONFIG_KEY_$FC_GCC_K1 GIT_CONFIG_VALUE_$FC_GCC_K1"
-eval "GIT_CONFIG_KEY_$FC_GCC_K2=core.fsmonitor; GIT_CONFIG_VALUE_$FC_GCC_K2=false; export GIT_CONFIG_KEY_$FC_GCC_K2 GIT_CONFIG_VALUE_$FC_GCC_K2"
-GIT_CONFIG_COUNT=$((FC_CALLER_GCC + 2)); export GIT_CONFIG_COUNT
+FC_CALLER_NRO_SET=0
+[ -n "${GIT_NO_REPLACE_OBJECTS+x}" ] && FC_CALLER_NRO_SET=1
+FC_CALLER_NRO=${GIT_NO_REPLACE_OBJECTS:-}
+FC_CALLER_GRAFT_SET=0
+[ -n "${GIT_GRAFT_FILE+x}" ] && FC_CALLER_GRAFT_SET=1
+FC_CALLER_GRAFT=${GIT_GRAFT_FILE:-}
+FC_GCC_N=$FC_CALLER_GCC
+fc_gcc_add() {
+    # $1=key $2=value -> appended at index FC_GCC_N (>= the caller's own
+    # count, so it is read after, and wins over, every caller entry).
+    eval "GIT_CONFIG_KEY_$FC_GCC_N=\$1; GIT_CONFIG_VALUE_$FC_GCC_N=\$2; export GIT_CONFIG_KEY_$FC_GCC_N GIT_CONFIG_VALUE_$FC_GCC_N"
+    FC_GCC_N=$((FC_GCC_N + 1))
+}
+fc_gcc_add core.hooksPath /dev/null
+fc_gcc_add core.fsmonitor false
+fc_gcc_add core.useReplaceRefs false
+fc_gcc_add core.commitGraph false
+fc_gcc_add commit.gpgSign false
+fc_gcc_add push.gpgSign false
+fc_gcc_add tag.gpgSign false
+fc_gcc_add gpg.program false
+fc_gcc_add gpg.ssh.program false
+fc_gcc_add gpg.x509.program false
+# GIT_GRAFT_FILE=/dev/null (below) makes git believe a graft file is in use and
+# print its deprecation hint to stderr on EVERY command -- which the step-1
+# `status --porcelain=v1 2>&1` dirty check then reads as a dirty tree.
+fc_gcc_add advice.graftFileDeprecated false
+GIT_CONFIG_COUNT=$FC_GCC_N; export GIT_CONFIG_COUNT
+GIT_NO_REPLACE_OBJECTS=1; export GIT_NO_REPLACE_OBJECTS
+GIT_GRAFT_FILE=/dev/null; export GIT_GRAFT_FILE
 run_with_caller_git_env() {
-    # Runs "$@" in a subshell with the caller's ORIGINAL GIT_CONFIG_COUNT
-    # restored (extra GIT_CONFIG_KEY_<n>/VALUE_<n> beyond the count are
-    # ignored by git).
+    # Runs "$@" in a subshell with the caller's ORIGINAL GIT_CONFIG_COUNT,
+    # GIT_NO_REPLACE_OBJECTS and GIT_GRAFT_FILE restored (extra
+    # GIT_CONFIG_KEY_<n>/VALUE_<n> beyond the count are ignored by git).
     (
         if [ "$FC_CALLER_GCC_SET" -eq 1 ]; then
             GIT_CONFIG_COUNT=$FC_CALLER_GCC; export GIT_CONFIG_COUNT
         else
             unset GIT_CONFIG_COUNT
+        fi
+        if [ "$FC_CALLER_NRO_SET" -eq 1 ]; then
+            GIT_NO_REPLACE_OBJECTS=$FC_CALLER_NRO; export GIT_NO_REPLACE_OBJECTS
+        else
+            unset GIT_NO_REPLACE_OBJECTS
+        fi
+        if [ "$FC_CALLER_GRAFT_SET" -eq 1 ]; then
+            GIT_GRAFT_FILE=$FC_CALLER_GRAFT; export GIT_GRAFT_FILE
+        else
+            unset GIT_GRAFT_FILE
         fi
         "$@"
     )
@@ -504,10 +604,12 @@ if bad:
 }
 
 # T177 Round 15 (R14-B1): the CA-022 allow-list for a migration's own
-# output -- the step-5 post-hook working-tree check and the step-7 final
-# committed-tree re-verification (verify_final_commit) both call THIS one
-# definition, so the two can never drift apart. (Previously the list lived
-# inline in the step-5 `case` only.) Returns 0 iff path $1 is allowed.
+# output. EVERY consumer of the list calls THIS one definition: the step-5
+# post-hook working-tree check, the step-7 final committed-tree
+# re-verification (verify_final_commit), and -- T177 Round 17, R16-M2,
+# which found both still carrying their own inline copy -- the preflight
+# per-remote tree check (check_remote_scope) and per-commit walk
+# (check_remote_commits). Returns 0 iff path $1 is allowed.
 ca022_post_hook_path_ok() {
     case "$1" in
         constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) return 0 ;;
@@ -878,10 +980,7 @@ check_remote_scope() {
     IFS='
 '
     for f in $TREE_DIFF; do
-        case "$f" in
-            constitution|.gitmodules|.mcp.json) continue ;;
-            .claude/*|scripts/hooks/*|config/fastcycle/*|skills/*) continue ;;
-        esac
+        ca022_post_hook_path_ok "$f" && continue
         TD_OK=0
         if [ -n "$UPSTREAM" ]; then
             TD_LOCAL=$(git -C "$WORKDIR" rev-parse -q --verify "$LOCAL_HEAD:$f" 2>/dev/null)
@@ -949,10 +1048,7 @@ check_remote_commits() {
         IFS='
 '
         for f in $CRC_PATHS; do
-            case "$f" in
-                constitution|.gitmodules|.mcp.json) continue ;;
-                .claude/*|scripts/hooks/*|config/fastcycle/*|skills/*) continue ;;
-            esac
+            ca022_post_hook_path_ok "$f" && continue
             IFS=$OLD_IFS
             not_migrated "preflight" "divergent-branches" "remote-$r-would-newly-receive-commit-$c-touching-out-of-scope-path-$f"
         done

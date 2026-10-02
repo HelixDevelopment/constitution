@@ -1384,6 +1384,17 @@ fi
 # against the CURRENT (I-N2-fixed) source, WITHOUT touching any text another check's own anchor
 # greps for -- is still caught at the BEHAVIOUR layer regardless (11.4.115(F)/11.4.194(6)(d):
 # "a guard never observed FAILing on the genuinely-broken artifact is unvalidated instrumentation").
+#
+# T177 Round 17 (R16-I1): repo_verify.py now runs EVERY git call with `-c core.hooksPath=/dev/null`
+# (a verifier must not execute repository-config-driven programs), which -- correctly -- also
+# silences this test's own reference-transaction hook. Left as the observer, the hook made (1)
+# pass VACUOUSLY (an empty log because the instrument was blinded, not because no ref was written)
+# and (2) fail. The observer is therefore GIT_TRACE_REFS, git's own ref-database trace: an
+# environment variable repo_verify.py neither strips nor can disable with `-c`, which logs every
+# ref transaction's members ("<n>: <refname> <old> -> <new>") whatever the hook configuration. The
+# hook stays installed as a SECOND assertion: it must now never fire at all (hooks disabled).
+I3_TX_ENTRIES='refs/debug\.c:[0-9]+[[:space:]]+[0-9]+: refs/'
+i3n_tx_count() { if [ -f "$1" ]; then grep -cE "$I3_TX_ENTRIES" "$1"; else echo 0; fi; return 0; }
 I3="$TMP/rv_i3n_reftx_proof"
 mk_repo "$I3/repo"
 echo one >"$I3/repo/f.txt"; git -C "$I3/repo" add -A; git -C "$I3/repo" commit -qm c1
@@ -1415,16 +1426,28 @@ HOOK
 chmod +x "$I3/repo/.git/hooks/reference-transaction"
 
 # (1) THE FIX, real tool, normal run: the hook must record ZERO ref transactions of ANY kind.
+# Control needle (11.4.201(7)(b)): the SAME trace path, on the SAME repo, MUST see a real ref
+# transaction when one happens -- otherwise a zero below would prove nothing.
+rm -f "$I3/trace_needle.log"
+GIT_TRACE_REFS="$I3/trace_needle.log" git -C "$I3/repo" -c core.hooksPath=/dev/null update-ref refs/fastcycle_i3n_needle/x HEAD
+GIT_TRACE_REFS="$I3/trace_needle.log" git -C "$I3/repo" -c core.hooksPath=/dev/null update-ref -d refs/fastcycle_i3n_needle/x
+if [ "$(i3n_tx_count "$I3/trace_needle.log")" -ge 2 ]; then
+  ok "rv_i3n_reftx_proof: observer control needle -- GIT_TRACE_REFS records both members of a real create+delete (with hooks disabled), so a zero count below is evidence, not blindness"
+else
+  not_ok "rv_i3n_reftx_proof: observer control needle -- GIT_TRACE_REFS did not record a known create+delete; the observer is blind: $(cat "$I3/trace_needle.log" 2>/dev/null | tail -5)"
+fi
 export REFTX_LOG="$I3/reftx_fixed.log"
-rm -f "$REFTX_LOG"
-python3 "$TOOL" --recursive --root "$I3/repo" --out "$TMP/i3n_fixed.json" >"$TMP/i3n_fixed.out" 2>"$TMP/i3n_fixed.err"
+rm -f "$REFTX_LOG" "$I3/trace_fixed.log"
+GIT_TRACE_REFS="$I3/trace_fixed.log" python3 "$TOOL" --recursive --root "$I3/repo" --out "$TMP/i3n_fixed.json" >"$TMP/i3n_fixed.out" 2>"$TMP/i3n_fixed.err"
 I3N_FIXED_RC=$?
 unset REFTX_LOG
 I3N_FIXED_OVERALL=$(report_field "$TMP/i3n_fixed.json" 'd.get("overall")' 2>/dev/null)
-if [ "$I3N_FIXED_RC" -eq 1 ] && [ "$I3N_FIXED_OVERALL" = "NOT_CLEAN" ] && [ ! -s "$I3/reftx_fixed.log" ]; then
-  ok "rv_i3n_reftx_proof (fixed tool, I-N3): the real tool correctly reports rc=1/NOT_CLEAN/REMOTE_AHEAD for this genuine new-object-transfer fixture (matching rv_i1_proof's own fixture semantics), AND the reference-transaction hook recorded ZERO ref transactions -- a BEHAVIOURAL guarantee (not a source-text match) that no ref of any kind, including a create-then-immediately-delete, was ever written (a wrong-verdict run proving an empty log for the wrong reason is excluded by the verdict check)"
+I3N_FIXED_TX=$(i3n_tx_count "$I3/trace_fixed.log")
+if [ "$I3N_FIXED_RC" -eq 1 ] && [ "$I3N_FIXED_OVERALL" = "NOT_CLEAN" ] && [ "$I3N_FIXED_TX" = "0" ] && [ -s "$I3/trace_fixed.log" ] \
+    && [ ! -s "$I3/reftx_fixed.log" ]; then
+  ok "rv_i3n_reftx_proof (fixed tool, I-N3): the real tool correctly reports rc=1/NOT_CLEAN/REMOTE_AHEAD for this genuine new-object-transfer fixture (matching rv_i1_proof's own fixture semantics), AND GIT_TRACE_REFS (non-empty, so it genuinely ran) recorded ZERO ref-transaction members -- a BEHAVIOURAL guarantee (not a source-text match) that no ref of any kind, including a create-then-immediately-delete, was ever written; and the installed reference-transaction hook never fired (R17: hooks disabled inside the verifier)"
 else
-  not_ok "rv_i3n_reftx_proof (fixed tool, I-N3): expected rc=1/NOT_CLEAN and zero reference-transaction hook firings, got rc=$I3N_FIXED_RC overall=$I3N_FIXED_OVERALL log: $(cat "$I3/reftx_fixed.log" 2>/dev/null)"
+  not_ok "rv_i3n_reftx_proof (fixed tool, I-N3): expected rc=1/NOT_CLEAN, zero traced ref-transaction members and a silent hook, got rc=$I3N_FIXED_RC overall=$I3N_FIXED_OVERALL traced=$I3N_FIXED_TX hook-log: $(cat "$I3/reftx_fixed.log" 2>/dev/null)"
 fi
 
 # (2) MUTANT: restore the OLD colon-refspec fetch-then-delete pattern, built fresh against the
@@ -1458,21 +1481,22 @@ cat >"$MUTMARK3/i3n_new.txt" <<'EOF'
 EOF
 if mk_mutant "mutant_i3n" "$MUTMARK3/i3n_old.txt" "$MUTMARK3/i3n_new.txt" 2>"$TMP/mutant_i3n.err"; then
   export REFTX_LOG="$I3/reftx_mutant.log"
-  rm -f "$REFTX_LOG"
-  python3 "$TMP/mutant_i3n/verify/repo_verify.py" --recursive --root "$I3/repo" --out "$TMP/i3n_mutant.json" >"$TMP/i3n_mutant.out" 2>>"$TMP/mutant_i3n.err"
+  rm -f "$REFTX_LOG" "$I3/trace_mutant.log"
+  GIT_TRACE_REFS="$I3/trace_mutant.log" python3 "$TMP/mutant_i3n/verify/repo_verify.py" --recursive --root "$I3/repo" --out "$TMP/i3n_mutant.json" >"$TMP/i3n_mutant.out" 2>>"$TMP/mutant_i3n.err"
   unset REFTX_LOG
+  I3N_MUT_TX=$(i3n_tx_count "$I3/trace_mutant.log")
   git -C "$I3/repo" for-each-ref 'refs/fastcycle_verify_mutant_i3n/*' --format='%(refname)' | while read -r stray; do
     git -C "$I3/repo" update-ref -d "$stray" 2>/dev/null || true
   done
-  if [ -s "$I3/reftx_mutant.log" ]; then
-    ok "paired mutation CAUGHT (I-N3): the reference-transaction hook recorded >=1 real ref transaction when the OLD colon-refspec fetch-then-delete pattern is restored -- caught at the BEHAVIOUR level (the hook fires on both the create and the delete), proving round 2's I1 regression guard is no longer enforced ONLY by a source-text anchor match"
+  if [ "$I3N_MUT_TX" -ge 1 ]; then
+    ok "paired mutation CAUGHT (I-N3): GIT_TRACE_REFS recorded $I3N_MUT_TX real ref-transaction member(s) when the OLD colon-refspec fetch-then-delete pattern is restored -- caught at the BEHAVIOUR level (both the create and the delete are traced, hooks disabled or not), proving round 2's I1 regression guard is no longer enforced ONLY by a source-text anchor match"
   else
-    not_ok "paired mutation (I-N3): expected the reference-transaction hook to record >=1 transaction for the restored colon-refspec pattern, got none: $(cat "$TMP/mutant_i3n.err" 2>/dev/null)"
+    not_ok "paired mutation (I-N3): expected GIT_TRACE_REFS to record >=1 ref-transaction member for the restored colon-refspec pattern, got none: $(cat "$TMP/mutant_i3n.err" 2>/dev/null)"
   fi
 else
   not_ok "paired mutation (I-N3): mutation anchor text not found -- source moved, update this test's anchor: $(cat "$TMP/mutant_i3n.err")"
 fi
-rm -f "$I3/reftx_fixed.log" "$I3/reftx_mutant.log"
+rm -f "$I3/reftx_fixed.log" "$I3/reftx_mutant.log" "$I3/trace_needle.log" "$I3/trace_fixed.log" "$I3/trace_mutant.log"
 
 # --------------------------------------------------------------------------- redact_url (I-N1)
 # The round-2 "fix" for the query-string/fragment leak (MINOR block above, already re-confirmed

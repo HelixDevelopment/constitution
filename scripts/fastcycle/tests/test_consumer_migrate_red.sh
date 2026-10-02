@@ -565,7 +565,7 @@ rm -rf "$C4G_ROOT" 2>/dev/null || true
 # otherwise-migratable target. A disposable clone of ca_bad_dirty_local's
 # own REMOTE (never pushed to -- only its LOCAL checkout is dirty, so the
 # remote is still genuinely at OLD_SHA) is used, so this exercises the
-# real gitlink-bump -> review path; GOOD_REMOTE is already at NEW_SHA by
+# real gitlink-bump -> review path; the good consumer's remote is already at NEW_SHA by
 # this point in the file (C3's own real migration already pushed it),
 # which would take the ALREADY_AT_TARGET/verify-only shortcut and never
 # reach the review check at all -- a test-construction bug found live
@@ -751,7 +751,7 @@ rm -rf "$E_ROOT" 2>/dev/null || true
 # works when driven directly, never that migrate.sh's OWN step 9 runs
 # it); (2) an already-at-target consumer converges to MIGRATED instead of
 # looping forever on a spurious "git commit failed" (I4). A dedicated
-# mini-constitution + consumer fixture is built fresh here (GOOD_REMOTE
+# mini-constitution + consumer fixture is built fresh here (the good consumer's remote
 # is already advanced by C3's own successful migration by this point in
 # the file, so it can no longer exercise a genuine commit+push+verify
 # path).
@@ -3263,7 +3263,12 @@ fi
 # the environment-scoped override, the commit's -c, the push's -c);
 # "NOFINAL" removes half 2 only (verify_final_commit; hooks stay
 # disabled); "BOTH" removes both -- the pre-round-15 tool.
-B1_NOHOOKS_PAIRS_1='GIT_CONFIG_COUNT=$((FC_CALLER_GCC + 2)); export GIT_CONFIG_COUNT'
+# (T177 Round 17: the environment block is now built by fc_gcc_add; this
+# mutant drops ONLY the two hook/fsmonitor entries, leaving the round-17
+# replace-ref / graft / commit-graph / signing overrides in place, so it
+# still removes exactly half 1 and nothing else.)
+B1_NOHOOKS_PAIRS_1='fc_gcc_add core.hooksPath /dev/null
+fc_gcc_add core.fsmonitor false'
 B1_NOHOOKS_PAIRS_2=': # MUTATED_FOR_TEST: environment-scoped hook disabling dropped'
 B1_NOHOOKS_PAIRS_3='    if ! git -C "$WORKDIR" -c core.hooksPath=/dev/null \
         -c user.name=fastcycle-migrate \'
@@ -3579,6 +3584,412 @@ fi
 # still refused by the tree-level half with the per-commit walk present,
 # and J28's tree-only mutant (per-commit walk still in place) still leaks,
 # so the new walk neither replaces nor weakens Round 10's tree check.
+
+# =============================================================================
+# J36-J39 -- T177 Round 17 (round-16 independent review of 432f417/4feb6ab:
+# R16-B1 BLOCKING replace refs blind both defense layers, R16-I1 IMPORTANT
+# the hooks-disabled override never reached repo_verify.py, R16-M1 MINOR
+# gpg.program side channel, R16-M2 MINOR allow-list still duplicated).
+# Every fixture is paired with a mutant proving the specific fix is
+# load-bearing. Sibling mechanisms found while fixing B1 (grafts, a forged
+# commit-graph) get their own fixture + mutant.
+# =============================================================================
+R16_NOREPLACE_CFG_A='fc_gcc_add core.useReplaceRefs false'
+R16_NOREPLACE_CFG_B=': # MUTATED_FOR_TEST: core.useReplaceRefs=false dropped'
+R16_NOREPLACE_ENV_A='GIT_NO_REPLACE_OBJECTS=1; export GIT_NO_REPLACE_OBJECTS'
+R16_NOREPLACE_ENV_B=': # MUTATED_FOR_TEST: GIT_NO_REPLACE_OBJECTS dropped'
+# NOREPLACE: BOTH replace-ref switches dropped, everything else from rounds
+# 10-16 (hook disabling, verify_final_commit, every scanner) left intact.
+j_mutant R16_NOREPLACE "$R16_NOREPLACE_CFG_A" "$R16_NOREPLACE_CFG_B" "$R16_NOREPLACE_ENV_A" "$R16_NOREPLACE_ENV_B"
+R16_NOREPLACE_OK=$J_MUT_OK
+j_mutant R16_NOREPLACE_ENV_ONLY "$R16_NOREPLACE_ENV_A" "$R16_NOREPLACE_ENV_B"
+R16_NOREPLACE_ENV_ONLY_OK=$J_MUT_OK
+j_mutant R16_NOREPLACE_CFG_ONLY "$R16_NOREPLACE_CFG_A" "$R16_NOREPLACE_CFG_B"
+R16_NOREPLACE_CFG_ONLY_OK=$J_MUT_OK
+j_mutant R16_NOGRAFT 'GIT_GRAFT_FILE=/dev/null; export GIT_GRAFT_FILE' ': # MUTATED_FOR_TEST: GIT_GRAFT_FILE=/dev/null dropped'
+R16_NOGRAFT_OK=$J_MUT_OK
+j_mutant R16_NOCOMMITGRAPH 'fc_gcc_add core.commitGraph false' ': # MUTATED_FOR_TEST: core.commitGraph=false dropped'
+R16_NOCOMMITGRAPH_OK=$J_MUT_OK
+j_mutant R16_NOGPG \
+    'fc_gcc_add commit.gpgSign false' ': # MUTATED_FOR_TEST: commit.gpgSign dropped' \
+    'fc_gcc_add push.gpgSign false' ': # MUTATED_FOR_TEST: push.gpgSign dropped' \
+    'fc_gcc_add tag.gpgSign false' ': # MUTATED_FOR_TEST: tag.gpgSign dropped' \
+    'fc_gcc_add gpg.program false' ': # MUTATED_FOR_TEST: gpg.program dropped' \
+    'fc_gcc_add gpg.ssh.program false' ': # MUTATED_FOR_TEST: gpg.ssh.program dropped' \
+    'fc_gcc_add gpg.x509.program false' ': # MUTATED_FOR_TEST: gpg.x509.program dropped'
+R16_NOGPG_OK=$J_MUT_OK
+# M2: widen ONLY the shared allow-list function (no other edit). Before
+# Round 17 the two preflight checks carried their own inline lists and
+# were untouched by such an edit; now they must move with it.
+j_mutant R16_SHARED_ALLOWLIST_SRC \
+    'constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*) return 0 ;;' \
+    'constitution|.gitmodules|.claude/*|scripts/hooks/*|config/fastcycle/*|.mcp.json|skills/*|src/*) return 0 ;;'
+R16_SHARED_ALLOWLIST_OK=$J_MUT_OK
+
+# --- J36: R16-B1 repro 1, the reviewer's EXACT live hook: create a
+# host-absolute symlink .claude/evil (mtime backdated so the index entry is
+# not racy), then `git replace` its blob with a harmless relative target.
+J36_HOOK="$WORK/j36_symlink_replace_hook.sh"
+cat > "$J36_HOOK" <<'EOF'
+#!/usr/bin/env bash
+set -e
+cd "$PROJECT_ROOT"
+mkdir -p .claude
+ln -s /etc/evil-host-path .claude/evil; touch -h -d 2020-01-01 .claude/evil
+real=$(printf '/etc/evil-host-path' | git hash-object -w --stdin)
+fake=$(printf 'harmless-relative' | git hash-object -w --stdin)
+git replace "$real" "$fake"
+EOF
+# Control (no replace ref): the SAME symlink, no substitution.
+J36C_HOOK="$WORK/j36_symlink_control_hook.sh"
+cat > "$J36C_HOOK" <<'EOF'
+#!/usr/bin/env bash
+set -e
+cd "$PROJECT_ROOT"
+mkdir -p .claude
+ln -s /etc/evil-host-path .claude/evil; touch -h -d 2020-01-01 .claude/evil
+EOF
+j36_remote_target() {
+    # $1=bare remote -> prints the published .claude/evil blob content (real
+    # objects: a bare remote carries no replace refs, and --no-replace-objects
+    # makes that explicit) or ABSENT
+    _o=$(git -C "$1" --no-replace-objects rev-parse -q --verify refs/heads/main:.claude/evil 2>/dev/null) || { echo ABSENT; return; }
+    git -C "$1" --no-replace-objects cat-file blob "$_o" 2>/dev/null
+}
+for _v in j36 j36c; do
+    if [ "$_v" = j36 ]; then _h=$J36_HOOK; else _h=$J36C_HOOK; fi
+    build_r3_fixture "$I_ROOT/$_v" "$_h"
+    _before=$(git -C "$I_ROOT/$_v/consumer.git" rev-parse refs/heads/main)
+    j_run "$TOOL" "$I_ROOT/$_v" "fixture/section_$_v" "$WORK/$_v.json"
+    _detail=$(jfield "$WORK/$_v.json" detail)
+    _replaced=$(git -C "$I_ROOT/$_v/checkout" for-each-ref --format=x refs/replace/ | wc -l | tr -d ' ')
+    if [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (wiring: out-of-scope-diff)' \
+        && [ "$_detail" = "host-specific-symlink path=.claude/evil target-is-absolute" ] \
+        && [ "$(j36_remote_target "$I_ROOT/$_v/consumer.git")" = "ABSENT" ] \
+        && [ "$_before" = "$(git -C "$I_ROOT/$_v/consumer.git" rev-parse refs/heads/main)" ] \
+        && { [ "$_v" = j36c ] || [ "$_replaced" -ge 1 ]; }; then
+        if [ "$_v" = j36 ]; then
+            ok "J36 R16 B1(repro 1): with a refs/replace/ entry substituting the symlink blob (present: $_replaced), the step-5 scanner still reads the REAL host-absolute target and refuses before any write is committed -- remote unchanged"
+        else
+            ok "J36 control: the same host-absolute symlink with NO replace ref is refused identically (the scanner is sound; J36 is specifically the replace-ref blind spot)"
+        fi
+    else
+        bad "$_v R16 B1: the host-absolute symlink was not refused (rc=$J_RC out=$J_OUT detail=$_detail replace-refs=$_replaced remote=$(j36_remote_target "$I_ROOT/$_v/consumer.git"))"
+    fi
+done
+# J36m: ONLY the replace-ref protection removed -> the reviewer's leak.
+build_r3_fixture "$I_ROOT/j36m" "$J36_HOOK"
+j_run "$WORK/jmut_R16_NOREPLACE.sh" "$I_ROOT/j36m" fixture/section_j36m "$WORK/j36m.json"
+J36M_TARGET=$(j36_remote_target "$I_ROOT/j36m/consumer.git")
+J36M_MODE=$(git -C "$I_ROOT/j36m/consumer.git" ls-tree refs/heads/main .claude/evil 2>/dev/null | cut -c1-6)
+if [ "$R16_NOREPLACE_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED.*verified CLEAN x2' \
+    && [ "$J36M_MODE" = "120000" ] && [ "$J36M_TARGET" = "/etc/evil-host-path" ]; then
+    ok "J36 guard-viability: with ONLY the replace-ref switches removed (hook disabling + verify_final_commit + every scanner intact) the reviewer's repro 1 leaks -- rc=0 MIGRATED CLEAN x2, the remote holds a mode-120000 .claude/evil -> /etc/evil-host-path; BOTH layers were blind through the shared scanner"
+else
+    bad "J36 guard-viability: the no-replace mutant did not reproduce the symlink leak (mut_ok=$R16_NOREPLACE_OK rc=$J_RC out=$J_OUT mode=$J36M_MODE target=$J36M_TARGET)"
+fi
+# J36x / J36y: the two switches are INDEPENDENT -- either one alone holds.
+for _m in ENV_ONLY CFG_ONLY; do
+    if [ "$_m" = ENV_ONLY ]; then _mok=$R16_NOREPLACE_ENV_ONLY_OK; else _mok=$R16_NOREPLACE_CFG_ONLY_OK; fi
+    build_r3_fixture "$I_ROOT/j36_$_m" "$J36_HOOK"
+    j_run "$WORK/jmut_R16_NOREPLACE_$_m.sh" "$I_ROOT/j36_$_m" "fixture/section_j36_$_m" "$WORK/j36_$_m.json"
+    _detail=$(jfield "$WORK/j36_$_m.json" detail)
+    if [ "$_mok" -eq 1 ] && [ "$J_RC" -eq 1 ] && [ "$_detail" = "host-specific-symlink path=.claude/evil target-is-absolute" ] \
+        && [ "$(j36_remote_target "$I_ROOT/j36_$_m/consumer.git")" = "ABSENT" ]; then
+        ok "J36 independence ($_m dropped): the remaining replace-ref switch ALONE still makes the scanner read the real blob and refuse -- the two switches are independent layers, not one"
+    else
+        bad "J36 independence ($_m dropped): the remaining switch did not hold on its own (mut_ok=$_mok rc=$J_RC out=$J_OUT detail=$_detail)"
+    fi
+done
+
+# --- J36b: R16-B1 repro 2, the J33 threat class plus one command: a `git`
+# wrapper amends product code into the tool's own commit and then
+# `git replace`s the evil tree with the clean one. Only verify_final_commit
+# can catch this (the scanners ran before the amend).
+J36B_REAL_GIT=$(command -v git)
+J36B_BIN="$WORK/j36b_bin"
+mkdir -p "$J36B_BIN"
+cat > "$J36B_BIN/git" <<EOF
+#!/bin/sh
+REAL="$J36B_REAL_GIT"
+sub=""; dir=""; expect=""
+for a in "\$@"; do
+    if [ -n "\$expect" ]; then [ "\$expect" = C ] && dir=\$a; expect=""; continue; fi
+    case "\$a" in -C) expect=C ;; -c) expect=c ;; -*) : ;; *) sub=\$a; break ;; esac
+done
+if [ "\$sub" = commit ] && [ -n "\$dir" ] && [ -n "\${J36B_MARK:-}" ] && [ ! -e "\$J36B_MARK" ]; then
+    "\$REAL" "\$@" || exit \$?
+    : > "\$J36B_MARK"
+    clean_tree=\$("\$REAL" -C "\$dir" rev-parse HEAD^{tree})
+    echo "/* injected after commit, hidden by replace ref (J36b) */" >> "\$dir/src/product.c"
+    "\$REAL" -C "\$dir" add src/product.c
+    "\$REAL" -C "\$dir" -c core.hooksPath=/dev/null -c user.name=x -c user.email=x@example.invalid commit -q --amend --no-edit
+    evil_tree=\$("\$REAL" -C "\$dir" rev-parse HEAD^{tree})
+    "\$REAL" -C "\$dir" replace "\$evil_tree" "\$clean_tree"
+    "\$REAL" -C "\$dir" checkout -q HEAD -- src/product.c 2>/dev/null
+    exit 0
+fi
+exec "\$REAL" "\$@"
+EOF
+chmod +x "$J36B_BIN/git"
+for _v in j36b j36bm; do
+    if [ "$_v" = j36b ]; then _t=$TOOL; else _t="$WORK/jmut_R16_NOREPLACE.sh"; fi
+    build_r3_fixture "$I_ROOT/$_v"
+    _before=$(git -C "$I_ROOT/$_v/consumer.git" rev-parse refs/heads/main)
+    J36B_SAVED_PATH=$PATH; PATH="$J36B_BIN:$PATH"; export J36B_MARK="$WORK/$_v.mark"; rm -f "$J36B_MARK"
+    j_run "$_t" "$I_ROOT/$_v" "fixture/section_$_v" "$WORK/$_v.json"
+    PATH=$J36B_SAVED_PATH; _fired=0; [ -e "$J36B_MARK" ] && _fired=1; unset J36B_MARK
+    _detail=$(jfield "$WORK/$_v.json" detail)
+    _pub=$(git -C "$I_ROOT/$_v/consumer.git" --no-replace-objects show refs/heads/main:src/product.c 2>/dev/null)
+    if [ "$_v" = j36b ]; then
+        if [ "$_fired" -eq 1 ] && [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (push: out-of-scope-diff)' \
+            && echo "$_detail" | grep -q 'refused-before-push: final-tree-verification: committed-out-of-scope-path=src/product.c' \
+            && [ "$_before" = "$(git -C "$I_ROOT/$_v/consumer.git" rev-parse refs/heads/main)" ]; then
+            ok "J36b R16 B1(repro 2): an amend whose evil tree is hidden behind a refs/replace/ entry is still refused at the final-tree seam (verify_final_commit reads the REAL tree), before any push -- remote unchanged"
+        else
+            bad "J36b R16 B1(repro 2): the replace-ref-hidden amend was not refused at the final-tree seam (fired=$_fired rc=$J_RC out=$J_OUT detail=$_detail)"
+        fi
+    else
+        # Publication is the leak. (The reviewer saw rc=0 MIGRATED CLEAN x2;
+        # since Round 17 repo_verify.py reads real objects too, so step 9 --
+        # AFTER the push -- may now flag the checkout NOT_CLEAN. Either way
+        # the injected code is already on the remote: too late to matter.)
+        if [ "$R16_NOREPLACE_OK" -eq 1 ] && [ "$_fired" -eq 1 ] && ! echo "$_detail" | grep -q 'final-tree-verification' \
+            && echo "$_pub" | grep -q 'hidden by replace ref (J36b)'; then
+            ok "J36b guard-viability: with ONLY migrate.sh's replace-ref switches removed the reviewer's repro 2 leaks -- verify_final_commit passes the stand-in tree and the remote's src/product.c carries the injected code (push sends real objects); outcome '$(echo "$J_OUT" | tail -1 | cut -c1-70)' (step 9, which now reads real objects, can only notice after the push)"
+        else
+            bad "J36b guard-viability: the no-replace mutant did not reproduce the amend leak (mut_ok=$R16_NOREPLACE_OK fired=$_fired rc=$J_RC out=$J_OUT product=[$_pub])"
+        fi
+    fi
+done
+
+# --- J36c: SIBLING of B1 (found while fixing it, verified live on git
+# 2.50.1: NOT disabled by either replace-ref switch) -- grafts. A wrapper
+# rewrites the tool's commit N (parent L) as N' on top of an evil commit X
+# (adds product code; N' reverts it -- net-zero tree), side-pushes X to a
+# scratch ref (the attacker's own direct push, which no tool can stop), and
+# writes `.git/info/grafts` "N' L". With grafts honoured, check 2 sees
+# parent == L and PUSH_SET_SIZE == 1 over a real history that carries X.
+cat > "$J36B_BIN/git" <<EOF
+#!/bin/sh
+REAL="$J36B_REAL_GIT"
+sub=""; dir=""; expect=""
+for a in "\$@"; do
+    if [ -n "\$expect" ]; then [ "\$expect" = C ] && dir=\$a; expect=""; continue; fi
+    case "\$a" in -C) expect=C ;; -c) expect=c ;; -*) : ;; *) sub=\$a; break ;; esac
+done
+if [ "\$sub" = commit ] && [ -n "\$dir" ] && [ -n "\${J36C_MARK:-}" ] && [ ! -e "\$J36C_MARK" ]; then
+    "\$REAL" "\$@" || exit \$?
+    : > "\$J36C_MARK"
+    G="\$REAL -C \$dir -c core.hooksPath=/dev/null -c user.name=x -c user.email=x@example.invalid"
+    n=\$(\$G rev-parse HEAD); l=\$(\$G rev-parse HEAD~1); ntree=\$(\$G rev-parse HEAD^{tree})
+    echo "/* unreviewed product code carried in history only (J36c) */" >> "\$dir/src/product.c"
+    blob=\$(\$G hash-object -w "\$dir/src/product.c")
+    \$G checkout -q HEAD -- src/product.c
+    tidx="\$dir/.git/j36c.index"
+    GIT_INDEX_FILE="\$tidx" \$G read-tree "\$ntree"
+    GIT_INDEX_FILE="\$tidx" \$G update-index --cacheinfo "100644,\$blob,src/product.c"
+    xtree=\$(GIT_INDEX_FILE="\$tidx" \$G write-tree); rm -f "\$tidx"
+    x=\$(\$G commit-tree "\$xtree" -p "\$l" -m "X: unreviewed product code (J36c)")
+    np=\$(\$G commit-tree "\$ntree" -p "\$x" -m "chore(fastcycle): migration commit rewritten (J36c)")
+    \$G update-ref HEAD "\$np"
+    \$G push -q origin "\$x:refs/heads/j36c-side" >/dev/null 2>&1
+    printf '%s %s\n' "\$np" "\$l" > "\$dir/.git/info/grafts"
+    printf '%s\n' "\$x" > "\$J36C_MARK"
+    exit 0
+fi
+exec "\$REAL" "\$@"
+EOF
+chmod +x "$J36B_BIN/git"
+for _v in j36c_g j36c_gm; do
+    if [ "$_v" = j36c_g ]; then _t=$TOOL; else _t="$WORK/jmut_R16_NOGRAFT.sh"; fi
+    build_r3_fixture "$I_ROOT/$_v"
+    _before=$(git -C "$I_ROOT/$_v/consumer.git" rev-parse refs/heads/main)
+    J36B_SAVED_PATH=$PATH; PATH="$J36B_BIN:$PATH"; export J36C_MARK="$WORK/$_v.mark"; rm -f "$J36C_MARK"
+    j_run "$_t" "$I_ROOT/$_v" "fixture/section_$_v" "$WORK/$_v.json"
+    PATH=$J36B_SAVED_PATH; _x=$(cat "$J36C_MARK" 2>/dev/null); unset J36C_MARK
+    _detail=$(jfield "$WORK/$_v.json" detail)
+    _x_on_main=$( [ -n "$_x" ] && git -C "$I_ROOT/$_v/consumer.git" merge-base --is-ancestor "$_x" refs/heads/main 2>/dev/null && echo YES || echo no)
+    if [ "$_v" = j36c_g ]; then
+        if [ -n "$_x" ] && [ "$J_RC" -eq 1 ] && echo "$J_OUT" | grep -q 'NOT-MIGRATED (push: out-of-scope-diff)' \
+            && [ "$_x_on_main" = "no" ] && [ "$_before" = "$(git -C "$I_ROOT/$_v/consumer.git" rev-parse refs/heads/main)" ]; then
+            ok "J36c R16 B1 sibling (grafts): a .git/info/grafts line faking the migration commit's parent is ignored (GIT_GRAFT_FILE=/dev/null) -- the real extra commit X is seen and the push is refused before the point of no return ($_detail); X never reaches main"
+        else
+            bad "J36c grafts: the graft-faked history was not refused (x=$_x rc=$J_RC out=$J_OUT detail=$_detail x-on-main=$_x_on_main)"
+        fi
+    else
+        if [ "$R16_NOGRAFT_OK" -eq 1 ] && [ -n "$_x" ] && [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$_x_on_main" = "YES" ]; then
+            ok "J36c guard-viability: with ONLY GIT_GRAFT_FILE=/dev/null removed (both replace-ref switches still set -- they do not cover grafts) the graft fakes check 2 and PUSH_SET_SIZE: rc=0 MIGRATED and X's unreviewed product code is in the remote main's history"
+        else
+            bad "J36c guard-viability: the no-graft mutant did not reproduce the graft leak (mut_ok=$R16_NOGRAFT_OK x=$_x rc=$J_RC out=$J_OUT x-on-main=$_x_on_main)"
+        fi
+    fi
+done
+
+# --- J36d: SIBLING of B1 -- a forged commit-graph (verified live: NOT
+# disabled by either replace-ref switch). The J35 net-zero history (X adds
+# unreviewed product code, Y reverts it; published to mirrorA only), plus a
+# `.git/objects/info/commit-graph` whose tree field for X is patched to X's
+# parent's tree (trailing checksum recomputed). `diff-tree -c X` -- the
+# per-commit walk -- then reports no change for X or Y.
+j36d_forge_graph() {
+    # $1=checkout $2=commit -> rewrite $2's tree in the commit-graph to its parent's tree
+    git -C "$1" commit-graph write --reachable >/dev/null 2>&1 || return 1
+    _cg="$1/.git/objects/info/commit-graph"; chmod u+w "$_cg" 2>/dev/null
+    python3 - "$_cg" "$(git -C "$1" -c core.commitGraph=false rev-parse "$2")" "$(git -C "$1" -c core.commitGraph=false rev-parse "$2~1^{tree}")" <<'PYEOF'
+import hashlib, struct, sys
+p, child, tree = sys.argv[1], bytes.fromhex(sys.argv[2]), bytes.fromhex(sys.argv[3])
+d = bytearray(open(p, "rb").read())
+if d[:4] != b"CGPH" or d[5] != 1:
+    sys.exit(3)
+chunks = {}
+for i in range(d[6] + 1):
+    chunks[bytes(d[8 + 12 * i:12 + 12 * i])] = struct.unpack(">Q", d[12 + 12 * i:20 + 12 * i])[0]
+n = struct.unpack(">I", d[chunks[b"OIDF"] + 1020:chunks[b"OIDF"] + 1024])[0]
+oidl, cdat = chunks[b"OIDL"], chunks[b"CDAT"]
+oids = [bytes(d[oidl + 20 * i:oidl + 20 * i + 20]) for i in range(n)]
+rec = cdat + 36 * oids.index(child)
+d[rec:rec + 20] = tree
+d[-20:] = hashlib.sha1(bytes(d[:-20])).digest()
+open(p, "wb").write(d)
+PYEOF
+}
+for _v in j36d j36dm; do
+    if [ "$_v" = j36d ]; then _t=$TOOL; else _t="$WORK/jmut_R16_NOCOMMITGRAPH.sh"; fi
+    build_j35_fixture "$I_ROOT/$_v"
+    _forged=0; j36d_forge_graph "$I_ROOT/$_v/checkout" "$J35_X" && _forged=1
+    # Proof the forgery is live before the tool runs: the default reader sees nothing in X.
+    _blind=$(git -C "$I_ROOT/$_v/checkout" diff-tree --root -r -c --name-only --no-commit-id "$J35_X" 2>/dev/null)
+    _real=$(git -C "$I_ROOT/$_v/checkout" -c core.commitGraph=false diff-tree --root -r -c --name-only --no-commit-id "$J35_X" 2>/dev/null)
+    j_run "$_t" "$I_ROOT/$_v" "fixture/section_$_v" "$WORK/$_v.json"
+    _detail=$(jfield "$WORK/$_v.json" detail)
+    if [ "$_v" = j36d ]; then
+        if [ "$_forged" -eq 1 ] && [ -z "$_blind" ] && [ "$_real" = "src/product.c" ] && [ "$J_RC" -eq 1 ] \
+            && [ "$_detail" = "remote-origin-would-newly-receive-commit-$J35_X-touching-out-of-scope-path-src/product.c" ]; then
+            ok "J36d R16 B1 sibling (forged commit-graph): with a graph that makes 'diff-tree -c X' report nothing (confirmed before the run), the per-commit walk still parses the real commit (core.commitGraph=false) and refuses naming X and src/product.c"
+        else
+            bad "J36d forged commit-graph: not refused naming X (forged=$_forged blind=[$_blind] real=[$_real] rc=$J_RC out=$J_OUT detail=$_detail)"
+        fi
+    else
+        if [ "$R16_NOCOMMITGRAPH_OK" -eq 1 ] && [ "$_forged" -eq 1 ] && [ -z "$_blind" ] \
+            && ! echo "$J_OUT" | grep -q 'NOT-MIGRATED (preflight: divergent-branches)'; then
+            ok "J36d guard-viability: with ONLY core.commitGraph=false removed the forged graph blinds the per-commit walk -- preflight passes and the run proceeds to commit/push ($(echo "$J_OUT" | tail -1 | cut -c1-60)); unlike a replace ref the graph also steers pack-objects, so the remote then rejects for missing objects -- the walk's verdict, not the remote, was the defense"
+        else
+            bad "J36d guard-viability: the no-commit-graph mutant was still refused at preflight (mut_ok=$R16_NOCOMMITGRAPH_OK forged=$_forged blind=[$_blind] rc=$J_RC out=$J_OUT)"
+        fi
+    fi
+done
+
+# --- J37: R16-I1, the reviewer's EXACT live check: the post-update hook
+# sets `core.fsmonitor` to a program that logs and exits. It ran 4 times
+# inside repo_verify.py's own `git status` during step 9 (GIT_CONFIG_COUNT
+# stripped there). repo_verify.py now passes the overrides explicitly.
+J37_HOOK="$WORK/j37_fsmonitor_hook.sh"
+cat > "$J37_HOOK" <<'EOF'
+#!/usr/bin/env bash
+set -e
+cd "$PROJECT_ROOT"
+M="$PROJECT_ROOT/../fsmon.marker"
+printf '#!/bin/sh\necho "fsmonitor ran: ppid-cmd=$(tr "\\\\0" " " </proc/$PPID/cmdline)" >> "%s"\nexit 1\n' "$M" > .git/fsmon.sh
+chmod +x .git/fsmon.sh
+git config core.fsmonitor "$PROJECT_ROOT/.git/fsmon.sh"
+EOF
+# Mutant: a scratch copy of repo_verify.py WITHOUT the explicit-flag
+# injection (migrate.sh's own environment block untouched), with the
+# sibling lib/ reachable the way the real file resolves it.
+J37_MUT_DIR="$WORK/rv_mut"
+mkdir -p "$J37_MUT_DIR/verify"
+ln -sfn "$FC/lib" "$J37_MUT_DIR/lib"
+J37_MUT_OK=0
+python3 - "$VERIFY_TOOL" "$J37_MUT_DIR/verify/repo_verify.py" <<'PYEOF' && J37_MUT_OK=1
+import sys
+s = open(sys.argv[1], encoding="utf-8").read()
+a = '        args = [args[0], *_GIT_SAFE_ARGS, *args[1:]]\n'
+if s.count(a) != 1:
+    sys.exit(2)
+open(sys.argv[2], "w", encoding="utf-8").write(s.replace(a, '        pass  # MUTATED_FOR_TEST: explicit -c overrides dropped\n'))
+PYEOF
+build_r3_fixture "$I_ROOT/j37" "$J37_HOOK"
+j_run "$TOOL" "$I_ROOT/j37" fixture/section_j37 "$WORK/j37.json"
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED.*verified CLEAN x2' \
+    && [ "$(git -C "$I_ROOT/j37/checkout" config core.fsmonitor)" = "$I_ROOT/j37/checkout/.git/fsmon.sh" ] \
+    && [ ! -e "$I_ROOT/j37/fsmon.marker" ]; then
+    ok "J37 R16 I1: a hook-configured core.fsmonitor (genuinely set) NEVER runs -- not during migrate.sh's own git calls and not during repo_verify.py's step-9 status calls -- MIGRATED, CLEAN x2"
+else
+    bad "J37 R16 I1: the hook-configured fsmonitor ran (rc=$J_RC out=$J_OUT marker=$(head -c 300 "$I_ROOT/j37/fsmon.marker" 2>/dev/null))"
+fi
+build_r3_fixture "$I_ROOT/j37m" "$J37_HOOK"
+_ref=$(make_review_ref fixture/section_j37m "$R3_NEW" "$(git -C "$I_ROOT/j37m/checkout" rev-parse HEAD)")
+J_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$J37_MUT_DIR/verify/repo_verify.py" sh "$TOOL" --config "$CFG" --project fixture/section_j37m --workdir "$I_ROOT/j37m/checkout" --out "$WORK/j37m.json" --apply --review-ref "$_ref" 2>&1)
+J_RC=$?
+if [ "$J37_MUT_OK" -eq 1 ] && [ -e "$I_ROOT/j37m/fsmon.marker" ] \
+    && grep -q 'ppid-cmd=git .*status --porcelain=v1 -z --untracked-files=all --ignore-submodules=none' "$I_ROOT/j37m/fsmon.marker"; then
+    ok "J37 guard-viability: with ONLY repo_verify.py's explicit -c injection removed (migrate.sh's environment block intact) the fsmonitor program runs inside the verifier's own step-9 'git status' ($(wc -l <"$I_ROOT/j37m/fsmon.marker" | tr -d ' ') invocation(s)) -- the environment override alone never reached it"
+else
+    bad "J37 guard-viability: the verifier mutant did not reproduce the step-9 fsmonitor run (mut_ok=$J37_MUT_OK rc=$J_RC marker=$(head -c 300 "$I_ROOT/j37m/fsmon.marker" 2>/dev/null))"
+fi
+
+# --- J38: R16-M1, the reviewer's EXACT live check: the hook sets
+# commit.gpgSign=true and a gpg.program that side-pushes refs/heads/leak-gpg
+# mid-commit (and exits 1).
+J38_HOOK="$WORK/j38_gpg_hook.sh"
+cat > "$J38_HOOK" <<'EOF'
+#!/usr/bin/env bash
+set -e
+cd "$PROJECT_ROOT"
+cat > .git/gpg.sh <<GEOF
+#!/bin/sh
+echo "gpg.program ran during commit" >> "$PROJECT_ROOT/../gpg.marker"
+cd "$PROJECT_ROOT" && c=\$(git commit-tree "HEAD^{tree}" -p HEAD -m SIDE-CHANNEL-VIA-GPG) && git -c core.hooksPath=/dev/null push -q origin "\$c:refs/heads/leak-gpg" >/dev/null 2>&1
+exit 1
+GEOF
+chmod +x .git/gpg.sh
+git config commit.gpgsign true
+git config gpg.program "$PROJECT_ROOT/.git/gpg.sh"
+EOF
+for _v in j38 j38m; do
+    if [ "$_v" = j38 ]; then _t=$TOOL; else _t="$WORK/jmut_R16_NOGPG.sh"; fi
+    build_r3_fixture "$I_ROOT/$_v" "$J38_HOOK"
+    j_run "$_t" "$I_ROOT/$_v" "fixture/section_$_v" "$WORK/$_v.json"
+    _leak=$(git -C "$I_ROOT/$_v/consumer.git" rev-parse -q --verify refs/heads/leak-gpg 2>/dev/null || echo ABSENT)
+    if [ "$_v" = j38 ]; then
+        _sig=$(git -C "$I_ROOT/$_v/consumer.git" cat-file commit refs/heads/main 2>/dev/null | grep -c '^gpgsig')
+        if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$_leak" = "ABSENT" ] \
+            && [ ! -e "$I_ROOT/$_v/gpg.marker" ] && [ "$_sig" = "0" ]; then
+            ok "J38 R16 M1: a hook-set commit.gpgSign=true + gpg.program never runs during the migration commit (signing forced off) -- no side-channel ref, MIGRATED, migration commit unsigned (documented behaviour change)"
+        else
+            bad "J38 R16 M1: the hook-set gpg.program influenced the run (rc=$J_RC out=$J_OUT leak=$_leak marker=$([ -e "$I_ROOT/$_v/gpg.marker" ] && echo present || echo absent) sig=$_sig)"
+        fi
+    else
+        if [ "$R16_NOGPG_OK" -eq 1 ] && [ "$_leak" != "ABSENT" ] && [ -e "$I_ROOT/$_v/gpg.marker" ]; then
+            ok "J38 guard-viability: with ONLY the signing overrides removed the hook-set gpg.program runs during the tool's own commit and publishes refs/heads/leak-gpg (rc=$J_RC) -- hook disabling alone never covered it"
+        else
+            bad "J38 guard-viability: the no-gpg mutant did not reproduce the gpg side channel (mut_ok=$R16_NOGPG_OK rc=$J_RC out=$J_OUT leak=$_leak)"
+        fi
+    fi
+done
+
+# --- J39: R16-M2 -- the preflight checks now consume the SHARED allow-list.
+# Widening ONLY ca022_post_hook_path_ok (to admit src/*) must flow into
+# BOTH check_remote_commits (J35's net-zero history now passes) and
+# check_remote_scope (J30a's diverged-remote product path now passes).
+build_j35_fixture "$I_ROOT/j39a"
+j_run "$WORK/jmut_R16_SHARED_ALLOWLIST_SRC.sh" "$I_ROOT/j39a" fixture/section_j39a "$WORK/j39a.json"
+J39A_DETAIL=$(jfield "$WORK/j39a.json" detail)
+J39A_X_ON_ORIGIN=$(git -C "$I_ROOT/j39a/consumer.git" merge-base --is-ancestor "$J35_X" refs/heads/main 2>/dev/null && echo YES || echo no)
+if [ "$R16_SHARED_ALLOWLIST_OK" -eq 1 ] && [ "$J_RC" -eq 0 ] && [ "$J39A_X_ON_ORIGIN" = "YES" ]; then
+    ok "J39 R16 M2 (per-commit walk): widening ONLY the shared allow-list function lets J35's X through check_remote_commits (rc=0, X on origin) -- the walk has no private copy left to drift"
+else
+    bad "J39 R16 M2 (per-commit walk): the shared-list edit did not reach check_remote_commits (mut_ok=$R16_SHARED_ALLOWLIST_OK rc=$J_RC out=$J_OUT detail=$J39A_DETAIL x-on-origin=$J39A_X_ON_ORIGIN)"
+fi
+build_j30a_fixture "$I_ROOT/j39b"
+j_run "$WORK/jmut_R16_SHARED_ALLOWLIST_SRC.sh" "$I_ROOT/j39b" fixture/section_j39b "$WORK/j39b.json"
+J39B_DETAIL=$(jfield "$WORK/j39b.json" detail)
+if [ "$R16_SHARED_ALLOWLIST_OK" -eq 1 ] && ! echo "$J39B_DETAIL" | grep -q 'would-newly-receive-out-of-scope-path-src/product.c'; then
+    ok "J39 R16 M2 (per-remote tree check): the same single edit stops check_remote_scope from refusing J30a's src/product.c (detail=${J39B_DETAIL:-none}) -- it too consumes the shared definition"
+else
+    bad "J39 R16 M2 (per-remote tree check): the shared-list edit did not reach check_remote_scope (mut_ok=$R16_SHARED_ALLOWLIST_OK rc=$J_RC out=$J_OUT detail=$J39B_DETAIL)"
+fi
 
 rm -rf "$I_ROOT" 2>/dev/null || true
 

@@ -235,6 +235,38 @@ _GIT_LOCAL_ENV_VARS = (
 )
 
 
+# T177 Round 17 (R16-I1 IMPORTANT + R16-B1 BLOCKING): a VERIFIER must neither execute
+# repository-config-driven programs nor read substituted objects. The strip above removes
+# GIT_CONFIG_COUNT/GIT_CONFIG_PARAMETERS/GIT_NO_REPLACE_OBJECTS/GIT_GRAFT_FILE from every
+# subprocess -- for a legitimate reason (they are on git's own `--local-env-vars` list, and an
+# inherited copy belongs to whatever repository the CALLER was operating on, not necessarily the
+# one this tool is reading) -- which means an override a caller exported through the environment
+# (migrate.sh's hooks-disabled block) never reached these calls: measured live in round 16, a
+# hook-set `core.fsmonitor` program ran 4 times inside this tool's own `git status` during
+# migrate.sh's step-9 double verification, and a lying fsmonitor can report a dirty tree clean.
+# Rather than weaken the strip, the overrides are passed EXPLICITLY on every git command line
+# this tool builds (`git -c k=v ...`, the highest-precedence config scope, which no repository
+# or global config can override and which git propagates to the child git processes it spawns,
+# e.g. submodule recursion). An explicit per-invocation flag cannot be silently defeated by any
+# future environment-sanitisation step the way an inherited variable can:
+#   core.hooksPath=/dev/null   no hook (status/fetch/update-ref can fire post-index-change,
+#                              reference-transaction, ...) runs during verification;
+#   core.fsmonitor=false       no fsmonitor program can answer "nothing changed";
+#   core.useReplaceRefs=false  `refs/replace/*` substitution is off (R16-B1: a replace ref made
+#                              every read return a stand-in object while a push sends the real one);
+#   core.commitGraph=false     commit objects are parsed directly, never from a (forgeable)
+#                              commit-graph file's cached tree/parent fields.
+# Grafts are not controllable by `-c` (and are NOT disabled by core.useReplaceRefs -- verified on
+# git 2.50.1), so GIT_GRAFT_FILE=/dev/null is set in the subprocess environment AFTER the strip
+# (advice.graftFileDeprecated=false: a set GIT_GRAFT_FILE otherwise prints git's deprecation hint
+# to stderr on every command).
+_GIT_SAFE_ARGS = (
+    "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
+    "-c", "core.useReplaceRefs=false", "-c", "core.commitGraph=false",
+    "-c", "advice.graftFileDeprecated=false",
+)
+
+
 def _run(args, cwd, timeout_s, extra_env=None):
     """Run a git subprocess; return (rc, stdout, stderr). Never raises on a nonzero exit; a
     timeout or spawn failure is reported as rc=None so callers can tell it apart from a real,
@@ -254,6 +286,9 @@ def _run(args, cwd, timeout_s, extra_env=None):
     env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
     for _k in _GIT_LOCAL_ENV_VARS:
         env.pop(_k, None)
+    env["GIT_GRAFT_FILE"] = os.devnull
+    if args and args[0] == "git":
+        args = [args[0], *_GIT_SAFE_ARGS, *args[1:]]
     if extra_env:
         env.update(extra_env)
     try:
