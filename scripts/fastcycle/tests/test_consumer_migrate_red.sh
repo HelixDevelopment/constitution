@@ -1598,15 +1598,31 @@ fi
 #  RETIRED, mechanism genuinely gone, attack class STRUCTURALLY
 #  eliminated (not merely re-scanned differently) -- cited individually,
 #  replaced by the single stronger invariant J9 below:
-#   - J19/J20/J25/J26/J27/J28 (declared-but-host-only / deleted / reverted
-#     / type-changed / merge-smuggled constitution gitlink): the
-#     published "constitution" entry is now an UNCONDITIONAL, externally-
-#     resolved cacheinfo write (step 7, "160000,$NEW_SHA,constitution")
-#     that never reads $WORKDIR's own index/working-tree state for this
-#     path AT ALL -- there is no longer any WORKDIR-side state for a hook
-#     to manipulate that the build would ever consult. J9 below proves
-#     this positively (delete/revert/retype the submodule checkout; the
-#     published gitlink is still exactly $NEW_SHA every time).
+#   - J20/J25/J26/J27 (declared-but-host-only / deleted / reverted /
+#     type-changed constitution gitlink): the published "constitution"
+#     entry is now an UNCONDITIONAL, externally-resolved cacheinfo write
+#     (step 7, "160000,$NEW_SHA,constitution") that never reads
+#     $WORKDIR's own index/working-tree state for this path AT ALL --
+#     there is no longer any WORKDIR-side state for a hook to manipulate
+#     that the build would ever consult. J9 below proves this positively
+#     (delete/revert/retype the submodule checkout; the published gitlink
+#     is still exactly $NEW_SHA every time).
+#     (T177 Round 22, R21-M1 correction: J19 and J28 were WRONGLY grouped
+#     into this list in an earlier draft of this disposition record --
+#     spot-checked against the pre-Round-21 fixture bodies and neither is
+#     about the constitution gitlink at all. J19's hook targets a
+#     DIFFERENT path, `skills/evil`, via a `.gitmodules`-declaration
+#     trick (append a `[submodule "skills/evil"]` section naming a
+#     host-only commit as an already-"declared" gitlink); that exact
+#     mechanism is retired not by J9 but by J5's own blanket
+#     .gitmodules-immutability rule above -- ANY hook-staged change to
+#     `.gitmodules`, including an appended section, is refused before
+#     commit/push regardless of what it declares, so there is no
+#     "declared" carve-out left for J19's attack to exploit. J28 is a
+#     "select-one-parent evil merge" on `src/product.c` and belongs ONLY
+#     in the per-remote-scope-walk category immediately below, where it
+#     is correctly listed -- its earlier appearance here was a duplicate,
+#     not a second genuine disposition.)
 #
 #  RETIRED, mechanism genuinely gone -- the per-remote tree/commit scope
 #  walk this exploit shape and its siblings depended on no longer exists
@@ -2290,6 +2306,83 @@ rm -rf "$I_ROOT" 2>/dev/null || true
 rm -rf "$H_ROOT" 2>/dev/null || true
 
 rm -rf "$F_ROOT" 2>/dev/null || true
+
+# =============================================================================
+# Section K -- T177 Round 22 (R21-I1, independent-review live-reproduced
+# IMPORTANT finding): a `filter.<name>.{smudge,clean,process}` driver
+# configured purely in the constitution submodule's own LOCAL, untracked
+# `.git/config` (paired with a matching local `.gitattributes`/
+# `.git/info/attributes` entry -- NO tracked-content change needed)
+# executes an ARBITRARY COMMAND the moment this tool materializes that
+# submodule's own working tree via `checkout` (or an internal re-checkout
+# inside `submodule update --init`, on an already-initialised, drifted
+# submodule) -- genuine code execution on the host running migrate.sh,
+# squarely inside this tool's own stated threat model ("don't trust
+# $WORKDIR's own git config"). Closed by fc_checkout_submodule_filtered /
+# fc_submodule_update_init_filtered / fc_submodule_filter_exec (see
+# migrate.sh's own "T177 Round 22 (R21-I1, live-reproduced)" header
+# comment for the full forensic rationale). K1 reproduces the reviewer's
+# EXACT threat shape against a REAL `$TOOL` run end to end (golden-path
+# migration, not a standalone unit probe) and proves the fix does not
+# merely avoid crashing but genuinely prevents the command from ever
+# running, while migration itself still completes correctly.
+K_ROOT=$(mktemp -d)
+build_r3_fixture "$K_ROOT/k1"
+# Pre-initialise the submodule at R3_OLD -- exactly what a real
+# consumer's ALREADY-cloned checkout would already have on disk before
+# this tool ever runs (build_r3_fixture's own `git clone` of the
+# consumer repo never initialises a declared submodule).
+git -C "$K_ROOT/k1/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+K1_SUB="$K_ROOT/k1/checkout/constitution"
+if [ "$(git -C "$K1_SUB" rev-parse HEAD 2>/dev/null)" != "$R3_OLD" ]; then
+    bad "K1 fixture setup: pre-initialised submodule HEAD is not \$R3_OLD -- fixture construction bug, not the invariant under test"
+fi
+# Tamper with the ALREADY-initialised submodule's own LOCAL config +
+# attributes -- exactly the reviewer's threat shape: no tracked-content
+# change anywhere, purely local and untracked.
+K1_MARKER="$K_ROOT/k1_pwned_marker"
+rm -f "$K1_MARKER"
+git -C "$K1_SUB" config filter.k1evil.smudge "sh -c 'touch $K1_MARKER; cat'"
+git -C "$K1_SUB" config filter.k1evil.clean "cat"
+K1_SUB_GITDIR=$(git -C "$K1_SUB" rev-parse --absolute-git-dir)
+mkdir -p "$K1_SUB_GITDIR/info"
+echo "CLAUDE.md filter=k1evil" > "$K1_SUB_GITDIR/info/attributes"
+j_run "$TOOL" "$K_ROOT/k1" fixture/section_k1 "$WORK/k1.json"
+K1_GITLINK_AFTER=$(git -C "$K_ROOT/k1/checkout" ls-tree HEAD constitution 2>/dev/null | awk '{print $3}')
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ ! -f "$K1_MARKER" ] \
+    && [ "$K1_GITLINK_AFTER" = "$R3_NEW" ]; then
+    ok "K1 filter-driver safety (T177 Round 22, R21-I1): a hostile filter.<name>.smudge driver configured purely in the already-initialised constitution submodule's own LOCAL, untracked git config (+matching local attributes, no tracked-content change) does NOT execute during this tool's own checkout of that submodule -- migration still completes correctly (MIGRATED, gitlink bumped to \$R3_NEW), the marker command never ran"
+else
+    bad "K1 filter-driver safety: rc=$J_RC out=$J_OUT marker-exists=$([ -f "$K1_MARKER" ] && echo yes || echo no) gitlink-after=$K1_GITLINK_AFTER expected=$R3_NEW"
+fi
+# K1 guard-viability: with ONLY the discovered-filter-override loop
+# disabled (the mechanism this fix adds -- every OTHER defense in this
+# file, including the hooksPath/fsmonitor/gpg env overrides above it,
+# stays fully enabled), the SAME hostile smudge driver, against the SAME
+# threat shape, DOES fire during this tool's own submodule checkout --
+# proving K1's fix is the genuine, load-bearing cause of the marker's
+# absence above, never a coincidence of some other unrelated defense.
+j_mutant K1_no_filter_override \
+    'for key in keys:' \
+    'for key in []:  # MUTATED_FOR_TEST: filter-driver override disabled'
+build_r3_fixture "$K_ROOT/k1m"
+git -C "$K_ROOT/k1m/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+K1M_SUB="$K_ROOT/k1m/checkout/constitution"
+K1M_MARKER="$K_ROOT/k1m_pwned_marker"
+rm -f "$K1M_MARKER"
+git -C "$K1M_SUB" config filter.k1evil.smudge "sh -c 'touch $K1M_MARKER; cat'"
+git -C "$K1M_SUB" config filter.k1evil.clean "cat"
+K1M_SUB_GITDIR=$(git -C "$K1M_SUB" rev-parse --absolute-git-dir)
+mkdir -p "$K1M_SUB_GITDIR/info"
+echo "CLAUDE.md filter=k1evil" > "$K1M_SUB_GITDIR/info/attributes"
+j_run "$WORK/jmut_K1_no_filter_override.sh" "$K_ROOT/k1m" fixture/section_k1m "$WORK/k1m.json"
+if [ "$J_MUT_OK" -eq 1 ] && [ -f "$K1M_MARKER" ]; then
+    ok "K1 guard-viability: with the discovered-filter-override loop disabled (reverting to this fix's pre-Round-22 behaviour), the SAME hostile smudge driver DOES fire during this tool's own submodule checkout -- K1's fix is genuinely load-bearing, not decoration"
+else
+    bad "K1 guard-viability: disabling the filter-override loop did not reproduce the smudge-driver firing (mut_ok=$J_MUT_OK marker-exists=$([ -f "$K1M_MARKER" ] && echo yes || echo no))"
+fi
+
+rm -rf "$K_ROOT" 2>/dev/null || true
 
 # Archive this run's stdout as the RED evidence per Test Discipline.
 {

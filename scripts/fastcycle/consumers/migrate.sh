@@ -606,16 +606,53 @@ fi
 # `gpg.*program` keys pointed at `false` (defense in depth, now mostly
 # moot for the publish path itself since $FC_BARE never carries a
 # consumer-set `gpg.program` to begin with). It does NOT neutralise every
-# repository-config-driven executable in $WORKDIR: clean/smudge filter
+# repository-config-driven executable in $WORKDIR: the push-transport
+# executables (`core.sshCommand`, `credential.helper`,
+# `remote.<r>.receivepack`, `url.*.insteadOf` -> `ext::`) are left alone
+# -- none of those is reached by this tool's OWN reads of $WORKDIR any
+# more (filesystem reads only, never a git-object read of $WORKDIR), and
+# the push transport itself now only ever runs against $FC_BARE's OWN
+# remote configuration, set up by this tool from the consumer's URLs,
+# never from $WORKDIR's own potentially-adversarial `.git/config`.
+#
+# T177 Round 22 (R21-I1, live-reproduced): clean/smudge/process filter
 # drivers (`.gitattributes` / `.git/info/attributes` + `filter.<name>.*`)
-# have no global off switch, and the push-transport executables
-# (`core.sshCommand`, `credential.helper`, `remote.<r>.receivepack`,
-# `url.*.insteadOf` -> `ext::`) are left alone -- none of those is reached
-# by this tool's OWN reads of $WORKDIR any more (filesystem reads only,
-# never a git-object read of $WORKDIR), and the push transport itself now
-# only ever runs against $FC_BARE's OWN remote configuration, set up by
-# this tool from the consumer's URLs, never from $WORKDIR's own
-# potentially-adversarial `.git/config`.
+# were PREVIOUSLY an un-neutralised gap in this scope -- unlike hooks,
+# filters have no single global off-switch (`core.hooksPath=/dev/null`'s
+# own analogue does not exist for `filter.*`), and this tool's submodule-
+# advance materialisation (fc_checkout_submodule_filtered below) DOES
+# invoke them: a `filter.<name>.smudge` driver configured purely in the
+# constitution submodule's own LOCAL, untracked `.git/config` (paired
+# with a matching local `.gitattributes`/`.git/info/attributes` entry --
+# no tracked-content change needed) fired an arbitrary command during
+# this tool's own `checkout`/`submodule update --init` of that checkout,
+# confirmed by direct, minimal, from-scratch reproduction (fires with no
+# override; does not fire once the discovered driver key is overridden).
+# It did NOT corrupt the published commit (the gitlink write below is an
+# unconditional `cacheinfo` write, never derived from this checkout's
+# filtered tree -- CA-019..028 held throughout) but it WAS genuine code
+# execution on the host running migrate.sh, squarely inside this file's
+# own stated threat model ("don't trust $WORKDIR's own git config").
+# CLOSED by fc_checkout_submodule_filtered() (defined below, alongside
+# restore_submodule()): every `filter.*.{smudge,clean,process}` key the
+# submodule's OWN local config ACTUALLY declares is discovered (never a
+# name guessed or assumed in advance -- the attacker picks it) and
+# overridden, for the scope of that one invocation only, to the literal,
+# harmless, no-shell-metacharacter identity command `cat` via the SAME
+# GIT_CONFIG_COUNT/KEY_n/VALUE_n environment-override mechanism already
+# used above (env-based config overrides always outrank a repository's
+# own local config file, confirmed by direct experiment, and -- unlike a
+# `-c key=value` flag built via POSIX-sh string interpolation of an
+# attacker-chosen git-config subsection name, which may legally contain
+# spaces/dots/arbitrary bytes -- never risks re-opening an injection
+# class of its own). Applied identically everywhere this tool
+# materializes that submodule's own working tree: restore_submodule()'s
+# rollback, all three `submodule update --init` call sites (a submodule
+# already initialised but drifted from its parent-recorded SHA is ALSO
+# live-reproduced to invoke its own local filter config internally, the
+# SAME vector at a different call shape), and both other direct
+# `checkout` calls (the step-5 advance-to-$NEW_SHA and the step-9
+# best-effort post-publish re-sync).
 FC_CALLER_GCC_SET=0
 [ -n "${GIT_CONFIG_COUNT+x}" ] && FC_CALLER_GCC_SET=1
 FC_CALLER_GCC=${GIT_CONFIG_COUNT:-0}
@@ -774,6 +811,104 @@ not_migrated() {
     exit 1
 }
 
+# T177 Round 22 (R21-I1 fix -- see migrate.sh's own "T177 Round 22
+# (R21-I1, live-reproduced)" header comment above for the full forensic
+# rationale): every place this tool materializes the constitution
+# submodule's OWN working tree against a target SHA MUST go through this
+# ONE discovery+override core, never a bare `git checkout`/`submodule
+# update --init` -- a bare call trusts that checkout's own invocation to
+# NEVER invoke a hostile local `filter.<name>.{smudge,clean,process}`
+# driver, which a tampered $WORKDIR can configure with no tracked-content
+# change at all. fc_submodule_filter_exec: $1 = the directory whose OWN
+# LOCAL git config is inspected for filter drivers (always
+# $WORKDIR/constitution -- NEVER $WORKDIR itself, a different repository
+# with no such drivers in scope here); "$@" (after shift) = the full
+# `git ...` command line to run (its own `-C` target may legitimately
+# differ from $1 -- `submodule update --init` below is invoked
+# `-C $WORKDIR`, not `-C $WORKDIR/constitution`, even though it is
+# $WORKDIR/constitution's local config being neutralised for that call).
+# Discovery+override-building runs in python3, never POSIX-sh string
+# interpolation, because the ATTACKER controls the driver NAME -- a git
+# config subsection that may legally contain spaces/dots/arbitrary bytes
+# -- and feeding that name through sh word-splitting/quoting to build a
+# `-c key=value` argument would reopen exactly the injection class this
+# fix exists to close; python3's subprocess argv lists and
+# GIT_CONFIG_KEY_n/VALUE_n *values* (never shell tokens, never env-var
+# NAMES) carry it safely however it is spelled. A submodule directory
+# that is not yet a git repository at all (a fresh consumer clone whose
+# submodule has never been initialised) is handled by discovering
+# nothing (`git ... config --local` fails with "not a git repository",
+# a non-zero exit this function treats identically to "no drivers
+# configured") -- the wrapped command then runs with zero added
+# overrides, never worse than before this fix existed; this matches
+# direct experiment showing first-init itself is not exposed (there is
+# no pre-existing local config for an attacker to have tampered with
+# yet). Exits with the wrapped git command's own exit status.
+fc_submodule_filter_exec() {
+    _fcfe_dir=$1
+    shift
+    # FC_GCC_N (never GIT_CONFIG_COUNT directly -- shellcheck SC2030/2031,
+    # this file's own run_with_caller_git_env() reassigns GIT_CONFIG_COUNT
+    # inside a subshell lexically earlier in the file, which would make a
+    # direct read here look potentially stale even though that subshell's
+    # change can never actually escape it) already equals the script's
+    # real, final, top-level GIT_CONFIG_COUNT (set once at line ~664 and
+    # never reassigned anywhere else at this scope).
+    python3 - "$_fcfe_dir" "$FC_GCC_N" "$@" <<'PYEOF'
+import os
+import subprocess
+import sys
+
+sub_dir, base_n = sys.argv[1], int(sys.argv[2])
+cmd = sys.argv[3:]
+
+keys = []
+disc = subprocess.run(
+    ["git", "-C", sub_dir, "config", "--local", "--null",
+     "--get-regexp", r"^filter\..*\.(clean|smudge|process)$"],
+    capture_output=True,
+)
+if disc.returncode == 0 and disc.stdout:
+    for record in disc.stdout.split(b"\x00"):
+        if not record:
+            continue
+        key, _, _value = record.partition(b"\n")
+        if key and key not in keys:
+            keys.append(key)
+
+env = dict(os.environ)
+n = base_n
+for key in keys:
+    env["GIT_CONFIG_KEY_%d" % n] = key.decode("utf-8", "surrogateescape")
+    env["GIT_CONFIG_VALUE_%d" % n] = "cat"
+    n += 1
+env["GIT_CONFIG_COUNT"] = str(n)
+
+sys.exit(subprocess.run(cmd, env=env).returncode)
+PYEOF
+}
+
+# fc_checkout_submodule_filtered: $1 = submodule working dir (also the
+# `git -C` target), $2 = target SHA. The filter-safe replacement for a
+# bare `git -C "$1" checkout -q "$2"` against the constitution
+# submodule's own nested checkout.
+fc_checkout_submodule_filtered() {
+    fc_submodule_filter_exec "$1" git -C "$1" -c advice.detachedHead=false checkout -q "$2"
+}
+
+# fc_submodule_update_init_filtered: $1 = parent working dir (the
+# `git -C` target `submodule update` itself runs against), $2 =
+# submodule working dir (whose own local config is inspected for filter
+# drivers), $3 = submodule name as recorded in .gitmodules. An
+# ALREADY-initialised submodule whose working tree has drifted from the
+# PARENT's recorded SHA is live-reproduced to invoke its own local
+# filter config internally during `submodule update --init`'s own
+# re-checkout -- the SAME vector as a direct `checkout`, at a different
+# call shape, closed here identically.
+fc_submodule_update_init_filtered() {
+    fc_submodule_filter_exec "$2" git -C "$1" -c protocol.file.allow=always -c init.templateDir= submodule update --init "$3"
+}
+
 # T177 Round 21: the ONLY write this tool ever makes to $WORKDIR's own git
 # state before a confirmed-safe publish is advancing the ALREADY-CHECKED-
 # OUT constitution SUBMODULE's own nested repo to the target SHA (so the
@@ -783,11 +918,13 @@ not_migrated() {
 # already fully built and verified in $FC_BARE). restore_submodule()
 # reverts that one sub-step back to the pre-migration SHA (replaces the
 # prior restore_staged_gitlink(), which undid a PARENT-index staging this
-# design no longer performs).
+# design no longer performs). T177 Round 22: routed through
+# fc_checkout_submodule_filtered (see above) rather than a bare
+# `checkout`, same as every other submodule-materializing call site.
 restore_submodule() {
     [ -d "$WORKDIR/constitution/.git" ] || [ -f "$WORKDIR/constitution/.git" ] || return 0
     [ -n "${OLD_SHA:-}" ] || return 0
-    git -C "$WORKDIR/constitution" -c advice.detachedHead=false checkout -q "$OLD_SHA" 2>/dev/null || true
+    fc_checkout_submodule_filtered "$WORKDIR/constitution" "$OLD_SHA" 2>/dev/null || true
 }
 
 not_migrated_after_write() {
@@ -1389,7 +1526,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
     # one call site whose output feeds a real publish) mirroring
     # `fc_bare_assert_no_alternates` -- belt-and-braces, never trust a
     # single layer.
-    if ! git -C "$WORKDIR" -c protocol.file.allow=always -c init.templateDir= submodule update --init constitution >"$MIGRATE_SCRATCH/migrate_submodule_update.err" 2>&1; then
+    if ! fc_submodule_update_init_filtered "$WORKDIR" "$WORKDIR/constitution" constitution >"$MIGRATE_SCRATCH/migrate_submodule_update.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable"
     fi
     SUB_GITDIR=$(git -C "$WORKDIR/constitution" rev-parse --absolute-git-dir 2>/dev/null)
@@ -1401,7 +1538,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         && ! git -C "$WORKDIR/constitution" -c protocol.file.allow=always fetch -q origin >"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
-    if ! git -C "$WORKDIR/constitution" -c advice.detachedHead=false checkout -q "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
+    if ! fc_checkout_submodule_filtered "$WORKDIR/constitution" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-checkout-failed"
     fi
 
@@ -1734,7 +1871,7 @@ while i + 1 < len(data):
         echo "migrate.sh: WARNING -- published commit $NEW_COMMIT could not be fetched back into \$WORKDIR for sync; the push itself already succeeded on every configured remote" >&2
     fi
     git -C "$WORKDIR" update-ref "refs/heads/$BRANCH" "$NEW_COMMIT" 2>/dev/null
-    git -C "$WORKDIR/constitution" -c advice.detachedHead=false checkout -q "$NEW_SHA" 2>/dev/null || true
+    fc_checkout_submodule_filtered "$WORKDIR/constitution" "$NEW_SHA" 2>/dev/null || true
     git -C "$WORKDIR" update-index --add --cacheinfo "160000,$NEW_SHA,constitution" 2>/dev/null
     if [ -s "$HARVEST_PATHS" ]; then
         while IFS= read -r _hp; do
@@ -1746,7 +1883,7 @@ while i + 1 < len(data):
     if [ -n "$SYNC_RESIDUE" ]; then
         echo "migrate.sh: WARNING -- \$WORKDIR still shows local changes after syncing to the published commit $NEW_COMMIT ($SYNC_RESIDUE); the push itself already succeeded on every configured remote -- re-run 'git checkout $BRANCH' manually in \$WORKDIR" >&2
     fi
-    git -C "$WORKDIR" -c protocol.file.allow=always -c init.templateDir= submodule update --init constitution >/dev/null 2>&1 || true
+    fc_submodule_update_init_filtered "$WORKDIR" "$WORKDIR/constitution" constitution >/dev/null 2>&1 || true
 else
     # Already at target: still ensure the submodule is genuinely checked
     # out before verify (CA-026) runs -- a consumer whose gitlink is
@@ -1777,7 +1914,7 @@ else
         fi
         not_migrated "review" "review-no-go" "already-at-target-verify-only-path-still-requires-a-bound-GO-review"
     fi
-    git -C "$WORKDIR" -c protocol.file.allow=always -c init.templateDir= submodule update --init constitution >/dev/null 2>&1 || true
+    fc_submodule_update_init_filtered "$WORKDIR" "$WORKDIR/constitution" constitution >/dev/null 2>&1 || true
     NEW_COMMIT="$LOCAL_HEAD"
 fi
 
