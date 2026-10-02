@@ -202,6 +202,51 @@ check("U11a uppercase-IF-counts", m.count_branch_tokens(["IF cond; then"]) == 1)
 check("U11b uppercase-ELIF-counts", m.count_branch_tokens(["ELIF other; then"]) == 1)
 check("U11c mixed-case-Except-counts", m.count_branch_tokens(["Except ValueError:"]) == 1)
 
+# U13: round-2-review NEW-2 remediation -- the MINOR-5 fixes (breaking-
+# change "!" marker, widened REFRACTOR_LEAD_VERBS) and the rust generic-
+# fn pattern were shipped with ZERO pinning tests; the round 2 reviewer's
+# own adversarial mutations O1-O4 (removing "!?" from
+# CONVENTIONAL_COMMIT_RE, removing "drop"/"consolidate" from
+# REFRACTOR_LEAD_VERBS, narrowing the rust pattern to drop generic-fn
+# support) all SURVIVED as a direct result. These pin each one.
+# NOTE: message_is_removal() alone cannot isolate the "!" handling --
+# the word "refactor" is BOTH a Conventional-Commits TYPE and a
+# REFRACTOR_LEAD_VERB, so even a regex that fails to match "refactor!:
+# ..." at all falls through to the off-convention default (whole subject
+# as "description") and STILL returns True via the lead-verb-prefix
+# check alone, masking a broken "!" regex entirely (a reviewer-style
+# adversarial mutation stripping "!?" from CONVENTIONAL_COMMIT_RE
+# genuinely SURVIVED this exact pair before being caught by the direct
+# parse_commit_subject() pinning below). parse_commit_subject() is
+# tested DIRECTLY instead, isolating the regex's own (type, description)
+# split from the lead-verb fallback coincidence.
+check("U13a0 parse-breaking-change-bang-type", m.parse_commit_subject("refactor!: rewrite the whole thing") == ("refactor", "rewrite the whole thing"))
+check("U13b0 parse-breaking-change-bang-with-scope-type", m.parse_commit_subject("refactor(parser)!: rewrite the whole thing") == ("refactor", "rewrite the whole thing"))
+check("U13a breaking-change-bang-refactor-excluded", m.message_is_removal("refactor!: rewrite the whole thing") is True)
+check("U13b breaking-change-bang-with-scope-excluded", m.message_is_removal("refactor(parser)!: rewrite the whole thing") is True)
+# Isolating case: a TYPE that is NOT also a REFRACTOR_LEAD_VERB prefix,
+# so a broken "!" regex cannot hide behind the lead-verb fallback -- a
+# hypothetical "chore!: ..." subject is off-convention for THIS repo's
+# actual history (chore is never a removal-signalling type), so this
+# does not assert message_is_removal's overall verdict, only that the
+# TYPE itself is parsed correctly as "chore" (never "chore!" nor a
+# total parse failure).
+check("U13c0 parse-breaking-change-bang-non-refactor-type", m.parse_commit_subject("chore!: bump a dependency") == ("chore", "bump a dependency"))
+check("U13c lead-verb-drop-excluded", m.message_is_removal("fix(x): drop the obsolete special case") is True)
+check("U13d lead-verb-simplify-excluded", m.message_is_removal("fix(x): simplify the comparison logic") is True)
+check("U13e lead-verb-rewrite-excluded", m.message_is_removal("fix(x): rewrite the validator") is True)
+check("U13f lead-verb-consolidate-excluded", m.message_is_removal("fix(x): consolidate the three branches into one") is True)
+check("U13g rust-generic-fn-context", m.normalize_symbol("f.rs", "fn compute<T: Clone>(x: T) -> T {") == "f.rs::compute")
+check("U13h rust-pub-generic-fn-context", m.normalize_symbol("f.rs", "pub fn compute<T>() {") == "f.rs::compute")
+
+# U14: round-2-review NEW-5 remediation -- the shell definition regex's
+# trailing brace was OPTIONAL ("\\{?"), so a bare CALL-SITE context line
+# (invoking a function, not defining it) was silently accepted as a fake
+# symbol. The brace is now REQUIRED.
+check("U14a bare-call-site-is-not-a-symbol", m.normalize_symbol("f.sh", "main()") == "FILE:f.sh")
+check("U14b bare-call-site-with-args-is-not-a-symbol", m.normalize_symbol("f.sh", "setup() # invoked here, not defined") == "FILE:f.sh")
+check("U14c real-def-with-brace-still-a-symbol", m.normalize_symbol("f.sh", "main() {") == "f.sh::main")
+
 # U12: list_commits' own `git log` INVOCATION CONTRACT, pinned directly
 # (R1-review-IMPORTANT-1 remediation, closes the M1 mutation: swapping
 # "--topo-order" for "--date-order" survived every prior test because

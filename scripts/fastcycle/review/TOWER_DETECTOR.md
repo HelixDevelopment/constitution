@@ -82,13 +82,16 @@ neither condition alone is a reliable signal):
    lines `< 0.8 x` added lines) -- a hunk that deletes almost as much as
    it adds is the "remove the old special case, add a different one"
    *replace* shape, not the "layer another special case on top" shape.
-2. **Message shape**: the commit's own Conventional-Commits type is not
-   `refactor`/`revert`, and its description does not start with
-   `remove`/`replace`/`delete`/`revert`/`refactor` -- a commit whose
-   *stated intent* is removal/refactor is excluded even when its diff
-   superficially matches, since S11.4.250's whole point is distinguishing
-   "fixed the primitive and removed the cascade" from "added another
-   layer".
+2. **Message shape**: the commit's own Conventional-Commits type
+   (optionally carrying a trailing `!` breaking-change marker, e.g.
+   `refactor!:` or `refactor(x)!:` -- matched and discarded, round 2
+   independent review NEW-4 doc-sync fix) is not `refactor`/`revert`,
+   and its description does not start with `remove`/`replace`/`delete`/
+   `revert`/`refactor`/`drop`/`simplify`/`rewrite`/`consolidate` -- a
+   commit whose *stated intent* is removal/rewrite is excluded even when
+   its diff superficially matches, since S11.4.250's whole point is
+   distinguishing "fixed the primitive and removed the cascade" from
+   "added another layer".
 
 A symbol accumulating `>= 3` (default; `--min-branch-commits`) such
 qualifying commits under the requested item/range/path is **flagged**.
@@ -146,6 +149,26 @@ on this tool's verdict alone).
   project whose convention puts the item id only in the commit body would
   see every one of its commits read as item-less by `--item` (never
   crashing; simply excluded, same as "zero matching commits").
+- A branch opened with a guard combinator (`&&`/`||`) rather than a bare
+  `if`/`elif`/`case`/`except`/`catch` keyword, or control flow expressed
+  via `while`/`switch`/`when` (deliberately scoped OUT by the design
+  brief's own enumerated keyword list, not merely overlooked) is never
+  counted as branch-adding.
+- `--no-merges` means a tower built entirely inside a sequence of
+  merge-conflict RESOLUTIONS (the compensating logic lands only in merge
+  commits, never a plain commit) is invisible to this tool.
+- `normalize_symbol()`'s DEFINITION patterns require a same-line opening
+  brace/paren shape (e.g. shell `name() {` on one line); a next-line-
+  brace style (`name()` then `{` on the following line), `async def`,
+  `pub async fn`, `pub(crate) fn`, a Go generic (`func F[T any](`), or
+  `export default function` all safely coarsen to `FILE:` rather than
+  being attributed to their real symbol (round 2 independent review,
+  IMPORTANT-2 follow-up measurement) -- a false negative at the symbol-
+  granularity layer, never a fake symbol; the FILE-level aggregate still
+  sees the hunk.
+- The `diff --git a/(.+) b/(.+)` path-extraction regex in
+  `parse_diff_hunks()` could mis-split a path containing the literal
+  substring `" b/"` -- an edge case not currently guarded against.
 
 **False positives (may over-flag)**:
 - git's own function-context heuristic is itself a best-effort regex
@@ -172,6 +195,16 @@ on this tool's verdict alone).
   features that happen to touch the same function". **This is why the
   tool's output is a recommendation to *investigate*, never a verdict
   that the code is wrong.**
+- **Prose counts as a branch (MINOR-4)**: `BRANCH_TOKEN_RE` matches line
+  CONTENT only, with no awareness of code vs. comment vs. docstring vs.
+  markdown prose -- a sentence beginning "If the caller passes..." or
+  "Except where noted..." matches the same way a real `if`/`except`
+  statement does. This tool is calibrated against code files (shell/
+  python/go/rust/js); running it against a predominantly-prose file (a
+  `.md` doc, a changelog) can over-count. No per-file-type scoping is
+  applied -- a known, documented gap, not a silent blind spot (this
+  bullet is the doc-side half of that documentation; see
+  `count_branch_tokens()`'s own docstring for the code-side half).
 - **Regression-test accretion (named by round 1 independent review,
   MINOR-1)**: a dedicated per-round regression-test file (this project's
   own convention: `test_X_rN_regression.sh`) that legitimately grows a
@@ -214,9 +247,20 @@ independent review's R1-review-I2 symbol-attribution fix (below) -- the
 numbers here are the POST-FIX ones, reported honestly including every
 flag the tool genuinely produces, not a curated subset:
 
+This table is **UNRESTRICTED** (`--item <ID>` only, no `--path` filter)
+for ALL THREE items (round 2 independent review NEW-1 fix: an earlier
+revision reported T177 through a `--path`-restricted query showing only
+1 of its 5 real findings, while T048/T085 were already shown
+unrestricted -- an inconsistency corrected here by running every item
+the same way and reporting every finding each produces):
+
 | Item | Flagged symbol | Qualifying commits | Fired at round | Real human diagnosis round | Rounds earlier / reading |
 |---|---|---|---|---|---|
 | T177 | `FILE:scripts/fastcycle/consumers/migrate.sh` | 8 | **round 3** (commit `05b6239`) | round 19-20 | **~16-17 rounds earlier** |
+| T177 | `scripts/fastcycle/consumers/audit.py::cmd_summary` | 6 | round 3 (commit `05b6239`) | n/a | genuine finding, not independently diagnosed by a human reviewer this session (audit.py was not the file the T177 tower diagnosis centred on) -- not scored against a human baseline |
+| T177 | `FILE:...test_consumer_audit_red.sh` | 7 | round 3 (commit `05b6239`) | n/a | regression/test-support file; see Honest limitations |
+| T177 | `FILE:...test_consumer_enumerate_red.sh` | 3 | round 3 (commit `05b6239`) | n/a | regression/test-support file; see Honest limitations |
+| T177 | `FILE:...test_consumer_migrate_red.sh` | 12 | round 3 (commit `05b6239`) | n/a | regression/test-support file; see Honest limitations |
 | T048 | `FILE:scripts/fastcycle/tests/test_fc_timer_golden_output.sh` | 9 | **round 7** (commit `c512992`) | round 20-21 | **~13-14 rounds earlier** |
 | T048 | `...test_fc_timer_golden_output.sh::validate_triplet` | 3 | round 11 (commit `e2c92dd`) | round 20-21 | ~9-10 rounds earlier |
 | T048 | `FILE:...test_metatest_per_mutant_r4_regression.sh` | 5 | round 7 (commit `c512992`) | n/a | **regression-test-accretion class** (see Honest limitations) -- a dedicated per-round regression file, flagged by shape, not a real tower |
@@ -227,14 +271,26 @@ flag the tool genuinely produces, not a curated subset:
 | T085 | `FILE:...test_catchset_compare_seed_independence_r2_regression.sh` | 3 | round 5 (commit `10b7a06`) | n/a | regression-test-accretion class |
 | T085 | `FILE:...test_review_record_backfill_evidence_r2_regression.sh` | 3 | round 5 (commit `10b7a06`) | n/a | regression-test-accretion class |
 
+**14 real findings total** across the three items (5 for T177, 6 for
+T048, 3 for T085) -- stated as an exact count here specifically because
+an earlier revision of this doc, and this session's own CONTINUATION.md
+addendum, both mis-stated it as "10" (round 2 independent review NEW-1,
+second half: a genuine arithmetic/transcription error, corrected here
+rather than silently left for a reader to re-derive).
+
 Honest reading (S11.4.6): T085's genuine-defect result is reported
 faithfully as "roughly concurrent", not inflated to match the larger
-T177/T048 numbers. The four `_rN_regression.sh`/`golden_triplet_fixture.sh`
-flags under T048 and the two under T085 are the regression-test-accretion
-false-positive class named above -- included here for honesty rather than
-silently dropped because they don't fit the "early detection" success
-story; a human/agent reviewing a real flag on a dedicated regression-test
-file should recognise this class and not treat it as a tower without
-checking. The commands used to produce this table are reproducible
-read-only `git-log`/`git-show` invocations against this repository's own
-history; no file was modified to produce them.
+T177/T048 numbers. The regression/test-support-file flags under all
+three items are the regression-test-accretion false-positive class named
+above -- included here for honesty rather than silently dropped because
+they don't fit the "early detection" success story; a human/agent
+reviewing a real flag on a dedicated test-support file should recognise
+this class and not treat it as a tower without checking. `audit.py::
+cmd_summary` is a genuine, real finding this tool produces on real
+history, but it was never the subject of this session's own T177 tower
+diagnosis (that diagnosis centred on `migrate.sh`), so it has no human
+baseline to compare against and is reported here without a "rounds
+earlier" claim, never a fabricated one. The commands used to produce
+this table are reproducible read-only `git-log`/`git-show` invocations
+against this repository's own history; no file was modified to produce
+them.

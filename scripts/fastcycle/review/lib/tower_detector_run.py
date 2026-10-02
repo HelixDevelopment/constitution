@@ -74,17 +74,23 @@ branch-adding FOR THAT SYMBOL iff BOTH of:
       special case, add a different one in its place" refactors, not of
       "layer another special case on top of what is already there").
 
-  (2) MESSAGE SHAPE -- the commit's own Conventional-Commits TYPE is NOT
-      in REFRACTOR_VERBS = {"refactor", "revert"}, AND the commit's
+  (2) MESSAGE SHAPE -- the commit's own Conventional-Commits TYPE
+      (optionally carrying a trailing `!` breaking-change marker, e.g.
+      "refactor!:" or "refactor(x)!:" -- matched and discarded by
+      CONVENTIONAL_COMMIT_RE so `type` still resolves to the bare
+      "refactor" this check compares against REFRACTOR_TYPES, round 1
+      independent review R1-review-M5 fix) is NOT in
+      REFRACTOR_TYPES = {"refactor", "revert"}, AND the commit's
       description (the text after the first ": ") does not itself START
-      with one of the explicit de-weighting verbs {"remove", "replace",
-      "delete", "revert", "refactor"} (matching real history in this
-      very repo, e.g. "chore(fastcycle/T048-r21): remove obsolete
+      with one of the explicit de-weighting verbs in REFRACTOR_LEAD_VERBS
+      = {"remove", "replace", "delete", "revert", "refactor", "drop",
+      "simplify", "rewrite", "consolidate"} (matching real history in
+      this very repo, e.g. "chore(fastcycle/T048-r21): remove obsolete
       member-consistency ... regression suite" -- a commit whose stated
-      intent is REMOVAL is excluded from the compensating-patch count
-      even when its line-level diff shape would otherwise qualify, since
-      S11.4.250's whole point is distinguishing "fixed the primitive and
-      removed the cascade" from "added another layer").
+      intent is REMOVAL/REWRITE is excluded from the compensating-patch
+      count even when its line-level diff shape would otherwise qualify,
+      since S11.4.250's whole point is distinguishing "fixed the
+      primitive and removed the cascade" from "added another layer").
 
 Both conditions are independently greppable/testable (see
 test_branch_token_re() and test_message_is_removal() in the paired test
@@ -93,18 +99,30 @@ brief asked for ("based on real, grep-able, testable patterns, not
 vibes").
 
 SYMBOL BOUNDARIES (coarser FILE fallback per the design brief's explicit
-permission): this tool uses `git diff -U0`'s own per-hunk FUNCTION
-CONTEXT line (the text git prints after the second `@@` on a hunk
-header, e.g. "@@ -63 +90,13 @@ write_out() {") as the symbol name when
-git's own context detector found one -- VERIFIED empirically against this
-repo's real history before relying on it (git emits real function-name
+permission; REVISED after the round 1 independent review's IMPORTANT-2
+finding -- this paragraph previously described the pre-fix, generic-
+fallback design and is corrected here, S11.4.6, round 2 review NEW-4):
+this tool uses `git diff -U0`'s own per-hunk FUNCTION CONTEXT line (the
+text git prints after the second `@@` on a hunk header, e.g.
+"@@ -63 +90,13 @@ write_out() {") as the symbol name ONLY when that
+context line ALSO matches an explicit function/class/def DEFINITION
+pattern (shell, python, go, rust, javascript/typescript -- see
+normalize_symbol() below for the exact patterns). git's context
+detection itself was VERIFIED empirically against this repo's real
+history before relying on it at all (git emits real function-name
 context for this repo's own shell scripts, e.g. "write_out() {" /
 "not_migrated() {", confirmed via a real `git diff -U0` run; this is
-git's own builtin xfuncname heuristic, not reinvented here). When a
-hunk's context line is empty (git could not determine one for that
-hunk), this tool coarsens to the FILE-level fallback the design brief
-explicitly sanctions: `FILE:<path>`. normalize_symbol() below performs
-this reduction deterministically and is independently unit-testable.
+git's own builtin xfuncname heuristic, not reinvented here) -- but its
+raw output is NOT trusted verbatim as a symbol name: an EARLIER revision
+did exactly that (accepting "the first identifier-shaped token" in ANY
+context line), and round 1 independent review measured real false
+symbols on this repo's own history as a direct result (`echo`, `import`,
+`PYEOF`, and others -- see normalize_symbol()'s own docstring for the
+full account). When a hunk's context line is empty, OR present but not
+definition-shaped, this tool coarsens to the FILE-level fallback the
+design brief explicitly sanctions: `FILE:<path>`. normalize_symbol()
+below performs this reduction deterministically and is independently
+unit-testable.
 
 EXIT CODES: 0 = ran cleanly, zero symbols flagged. 1 = ran cleanly, >= 1
 symbol flagged (an ADVISORY non-zero per this project's own house
@@ -288,8 +306,18 @@ def normalize_symbol(file_path, context):
     context = (context or "").strip()
     if not context:
         return "FILE:{}".format(file_path)
-    # shell: "name() {" / "function name() {"
-    m = re.match(r"^(?:function\s+)?([A-Za-z_][\w]*)\s*\(\)\s*\{?", context)
+    # shell: "name() {" / "function name() {" -- the trailing "{" is
+    # REQUIRED (round 2 independent review NEW-5 fix, never optional):
+    # an earlier revision made it optional ("\{?"), which meant a bare
+    # CALL-SITE context line like "main()" or "setup()" (invoking the
+    # function, not defining it) would match and be accepted as a fake
+    # symbol -- 0 occurrences measured on this repo's own real history,
+    # but the gap was real and the fix is cheap+safe. A next-line-brace
+    # shell style ("name()\n{") now safely coarsens to FILE: instead of
+    # being accepted (a false negative, strictly preferable to the fake-
+    # symbol false positive this requirement closes -- this repo's own
+    # real shell style is same-line "name() {", confirmed empirically).
+    m = re.match(r"^(?:function\s+)?([A-Za-z_][\w]*)\s*\(\)\s*\{", context)
     if m:
         return "{}::{}".format(file_path, m.group(1))
     # python: "def name(" / "class Name"
@@ -324,9 +352,11 @@ def normalize_symbol(file_path, context):
     # "import" (32), "PYEOF" (14), plus "trap"/"git"/"cat"/"rm"/"cp"/
     # "EOF"/"printf"/"sys.exit"/"HERE" were all silently accepted as fake
     # per-hunk "symbol" names by the old generic-token fallback -- not
-    # control-flow keywords (so the _CONTROL_FLOW_KEYWORDS denylist above
-    # never caught them), just arbitrary nearby tokens with zero real
-    # attribution value. A context line that is not recognised as a
+    # control-flow keywords (so the EARLIER revision's control-flow-
+    # keyword denylist, since REMOVED as superseded -- see the historical
+    # note near REFRACTOR_LEAD_VERBS above -- never caught them), just
+    # arbitrary nearby tokens with zero real attribution value. A context
+    # line that is not recognised as a
     # genuine definition boundary by one of the explicit patterns above
     # now ALWAYS coarsens to the FILE-level fallback (the design brief's
     # own explicitly-sanctioned coarser mode) rather than inventing a
@@ -491,23 +521,44 @@ def list_commits(repo, item=None, rev_range=None, path=None):
     commit range / a file path)" three-selector contract).
 
     ORDERING (R1-review-IMPORTANT-1 remediation, half of the "fired at
-    round N" pinning fix): `--topo-order` is EXPLICIT here, not left to
-    git's own ambiguous default. Without it, plain `git log` sorts
-    primarily by commit TIMESTAMP -- which a rebase, an amended commit,
-    a different author/committer timezone, or a cherry-pick can put out
-    of true DAG/ancestry order relative to when a commit actually
-    *landed* on the branch. `--topo-order` instead guarantees a parent is
-    never listed after its children (dates used only as a tie-breaker
-    among commits with no ordering constraint between them), matching
-    this tool's actual intent -- "the Nth commit under this item, in the
-    order they landed" -- and makes that intent immune to timestamp
-    manipulation a date-sorted traversal would be vulnerable to. `git log`
-    (bare) and `--date-order` are both still fundamentally TIMESTAMP-
-    sorted and are NOT equivalent to `--topo-order` on a history
-    containing any such manipulation (measured against this repo's own
-    real, independently-reviewed T177 history, where swapping this flag
-    genuinely changed which commit a real tower reported as its 3rd
-    qualifying one)."""
+    round N" pinning fix; CORRECTED by round 2 independent review NEW-3,
+    S11.4.6 -- this paragraph previously overstated what was actually
+    measured, see below): `--topo-order` is EXPLICIT here, not left to
+    git's own bare default. On a strictly linear, single-branch history
+    (this project's own T177/T048/T085 item sequences, all independently
+    re-confirmed byte-identical under git's bare default, `--date-order`,
+    and `--topo-order` by round 2's own review), the three traversal
+    modes coincide exactly -- there is no ambiguity to resolve, because a
+    linear chain's ancestry fully determines the order regardless of
+    timestamps. `--topo-order` is chosen anyway as the semantically
+    CORRECT, defensive choice for the general case this tool is not
+    limited to: a history containing a merge, where two commits with no
+    ancestry relationship between them CAN be interleaved differently by
+    raw TIMESTAMP (git's bare default and `--date-order`) versus by
+    DAG/ancestry structure (`--topo-order`, parent never listed after its
+    children; dates used only as a tie-break among commits with no
+    ordering constraint at all) -- the latter matches this tool's actual
+    intent, "the Nth commit under this item, in the order they landed on
+    the branch", and is immune to a rebase/amend/cherry-pick/timezone
+    difference putting raw timestamps out of true ancestry order. The
+    round 1 reviewer's own M1 mutation ("--reverse" replaced wholesale by
+    "--date-order", REMOVING `--reverse` entirely rather than merely
+    substituting a traversal mode) is what moved T177's observed finding
+    from round 3 to round 11 -- a real, correctly-caught regression (see
+    U12 below), but its CAUSE was the lost `--reverse` (processing
+    newest-first instead of oldest-first), not a topo-vs-date ordering
+    divergence; round 2 review could not reproduce any such divergence on
+    this repo's own real histories, and this paragraph's earlier claim
+    that it could was INACCURATE and has been corrected here. An
+    interleaved-parallel-branch history where topo-order and date-order
+    genuinely diverge CAN, in principle, make `--topo-order` report a
+    LATER tipping commit than date-order would (grouping one branch's
+    commits together rather than strictly by timestamp) -- a real,
+    acknowledged tradeoff against this tool's own "flag early" goal in
+    that specific scenario, accepted here because ancestry-correctness
+    (immunity to timestamp manipulation) is judged the more important
+    property for a tool whose entire purpose is an accurate commit-order
+    narrative, not merely the earliest possible flag by any ordering."""
     git_args = [
         "log",
         "--no-merges",
