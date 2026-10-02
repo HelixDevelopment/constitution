@@ -148,8 +148,13 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import sys
 import tempfile
+
+# T085 Round 5 (R4-I1): content-hash evidence binding (see
+# _evidence_hash_verified() below for the full rationale).
+_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 
 SCHEMA = "review-record/v1"  # contracts/review-batch-and-precheck.md "Output schemas" (hyphen, not underscore)
 DESIGNATED_TIER = "opus"
@@ -170,6 +175,17 @@ def _canon(obj):
 def _body_hash_of(doc):
     body = {k: v for k, v in doc.items() if k not in _EXCLUDED}
     return hashlib.sha256(_canon(body).encode("utf-8")).hexdigest()
+
+
+def _sha256_file(path):
+    """sha256 of `path`'s raw bytes. Raises OSError on any read failure --
+    callers are expected to treat that as "evidence unreadable", never
+    silently absorbed into a fabricated hash (constitution 11.4.6)."""
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _write_record(body, out_path):
@@ -371,12 +387,68 @@ def cmd_record(a):
     precheck_path = a.precheck or os.path.join(os.path.dirname(os.path.abspath(a.batch)), "precheck.json")
     precheck_doc = None
     precheck_used = False
+    precheck_evidence = None
+    precheck_evidence_sha256 = None
     if os.path.exists(precheck_path):
         precheck_doc, err = _load_json(precheck_path, "--precheck")
         if err:
             print("review_record: %s" % err, file=sys.stderr)
             return 2
         precheck_used = True
+        # T085 Round 5 (R4-I1): "gate trusts any .json file under
+        # --records" -- a hand-written record could previously set
+        # `precheck_used: true` with no verifiable artifact behind it at
+        # all, and `review_record gate` had no way to tell that apart
+        # from a genuine one. This project's explicit, documented
+        # decision (per the Round 4 reviewer's own recommendation): a
+        # live record's precheck claim is trusted ONLY when the actual
+        # consulted precheck document is ARCHIVED, content-addressed,
+        # alongside the record itself (so it persists and is
+        # independently re-hashable later, exactly like a backfill
+        # row's cited evidence must be) -- never on the boolean field's
+        # say-so alone. The archive name is the precheck's OWN content
+        # sha256, so re-recording an IDENTICAL precheck never writes a
+        # duplicate, and the hash this record pins is, by construction,
+        # exactly the content that landed on disk.
+        #
+        # Archive extension is deliberately `.precheck-evidence` -- NOT
+        # `.json` -- even though its CONTENT is valid JSON: this archive
+        # lands in the SAME directory as --out (the records directory
+        # `review_record gate` later walks recursively for every
+        # `*.json` file, treating each as a ReviewVerdictRecord). A
+        # `.json`-suffixed archive was reproduced, live, to make `gate`
+        # choke on it ("missing required field(s): batch_id, round,
+        # ...") and refuse EVERY record in that directory (rc=4 BLIND)
+        # -- the archive's own extension must therefore fall outside
+        # `_gate_collect_records()`'s `*.json` filter by construction,
+        # never by a second, independently-maintained exclusion list
+        # that could drift out of sync with it.
+        try:
+            precheck_sha256 = _sha256_file(precheck_path)
+        except OSError as exc:
+            print("review_record: could not hash --precheck %s: %s" % (precheck_path, exc), file=sys.stderr)
+            return 2
+        records_root = os.path.dirname(os.path.abspath(a.out)) or "."
+        archive_name = "%s.precheck-evidence" % precheck_sha256
+        archive_path = os.path.join(records_root, archive_name)
+        if not os.path.isfile(archive_path):
+            try:
+                with open(precheck_path, "rb") as fh:
+                    precheck_bytes = fh.read()
+                fd, tmp = tempfile.mkstemp(dir=records_root, prefix=".review_record_precheck.")
+                try:
+                    with os.fdopen(fd, "wb") as fh:
+                        fh.write(precheck_bytes)
+                    os.replace(tmp, archive_path)
+                except BaseException:
+                    if os.path.exists(tmp):
+                        os.unlink(tmp)
+                    raise
+            except OSError as exc:
+                print("review_record: could not archive --precheck alongside --out: %s" % exc, file=sys.stderr)
+                return 2
+        precheck_evidence = archive_name
+        precheck_evidence_sha256 = precheck_sha256
     markers = already_fixed_markers(precheck_doc)
 
     findings_out = []
@@ -430,6 +502,13 @@ def cmd_record(a):
         "reviewer_mutations": reviewer_mutations,
         "source": "live",
         "precheck_used": precheck_used,
+        # T085 Round 5 (R4-I1): content-hash-bound reference to the
+        # ARCHIVED precheck document (see above) -- None/absent when no
+        # precheck was consulted (precheck_used is False), in which case
+        # `review_record gate`'s own verifier already refuses on
+        # precheck_used alone, before these fields are ever consulted.
+        "precheck_evidence": precheck_evidence,
+        "precheck_evidence_sha256": precheck_evidence_sha256,
     }
     return _write_record(body, a.out)
 
@@ -442,7 +521,32 @@ def cmd_backfill(a):
     (data-model.md #10.1). `source_evidence` is REQUIRED and MUST name the real document this row
     was reconstructed from -- there is no field-omission path that lets a backfilled row exist
     without citing where it came from (constitution 11.4.6: never fabricate a historical
-    sequence)."""
+    sequence).
+
+    T085 Round 5 (R4-I1): `source_evidence` is now ALSO independently
+    hash-checked HERE, at authoring time -- but `backfill` itself
+    REMAINS a non-refusing producer (constitution 11.4.240 producer !=
+    verifier: a prior round's own explicit, tested design decision --
+    "backfill itself is legal, the GATE consultation is what must
+    refuse it" -- preserved unchanged by this fix). When `source_evidence`
+    resolves (against `--records-root`, default: `--out`'s own
+    containing directory) to a REAL, readable, non-empty, in-tree,
+    non-self-citing file, its CURRENT content sha256 is captured and
+    stored as `source_evidence_sha256` -- a content-hash PIN that
+    `review_record gate`'s own independent verifier
+    (_evidence_hash_verified()) re-derives and re-compares every time it
+    later re-checks this record, so a later COVERED verdict cannot be
+    satisfied by silently swapping the cited file's content out from
+    under it. When the citation does NOT resolve this way (missing,
+    out-of-tree, self-citing, unreadable, or a free-text placeholder),
+    `source_evidence_sha256` is honestly recorded as "UNKNOWN" and the
+    record is STILL WRITTEN (never refused here) -- `gate`'s own
+    _evidence_hash_verified() then correctly, deterministically, never
+    qualifies such a record as coverage (an "UNKNOWN" hash never matches
+    the required 64-lowercase-hex-char shape), which is exactly how the
+    T085 Round 2 I-R2-8 / Round 3 R3-I4 forgery-refusal behaviour is
+    achieved, entirely at the VERIFIER layer, never by making the
+    producer self-police its own acceptance."""
     spec, err = _load_json(a.input, "--input")
     if err:
         print("review_record: %s" % err, file=sys.stderr)
@@ -456,6 +560,35 @@ def cmd_backfill(a):
     if missing:
         print("review_record: --input missing required key(s): %s" % ", ".join(missing), file=sys.stderr)
         return 2
+
+    source_evidence_raw = spec["source_evidence"]
+    if not isinstance(source_evidence_raw, str) or not source_evidence_raw.strip():
+        print("review_record: --input 'source_evidence' must be a non-empty string", file=sys.stderr)
+        return 2
+    source_evidence = source_evidence_raw.strip()
+
+    # Best-effort, NEVER-refusing hash capture (see this function's own
+    # docstring for why a failure here is honestly recorded, not fatal).
+    source_evidence_sha256 = "UNKNOWN"
+    records_root = a.records_root or os.path.dirname(os.path.abspath(a.out)) or "."
+    out_real = os.path.realpath(os.path.abspath(a.out))
+    root_real = os.path.realpath(records_root)
+    resolved = source_evidence if os.path.isabs(source_evidence) else os.path.join(root_real, source_evidence)
+    resolved_real = os.path.realpath(resolved)
+    try:
+        common = os.path.commonpath([root_real, resolved_real])
+    except ValueError:
+        common = None
+    if (
+        common == root_real
+        and resolved_real != out_real
+        and os.path.isfile(resolved_real)
+    ):
+        try:
+            if os.path.getsize(resolved_real) > 0:
+                source_evidence_sha256 = _sha256_file(resolved_real)
+        except OSError:
+            pass  # stays "UNKNOWN" -- an unreadable citation never qualifies at gate time
 
     verdict = spec["verdict"]
     if verdict not in ("GO", "NO-GO"):
@@ -518,7 +651,12 @@ def cmd_backfill(a):
         "first_round_go": (round_n == 1 and verdict == "GO" and len(findings_out) == 0),
         "reviewer_mutations": spec.get("reviewer_mutations") if isinstance(spec.get("reviewer_mutations"), list) else "UNKNOWN",
         "source": "backfill",
-        "source_evidence": spec["source_evidence"],
+        "source_evidence": source_evidence,
+        # T085 Round 5 (R4-I1): content-hash pin, captured at authoring
+        # time (see this function's own docstring); independently
+        # re-verified by _evidence_hash_verified() every time
+        # `review_record gate` later re-checks this record.
+        "source_evidence_sha256": source_evidence_sha256,
     }
     return _write_record(body, a.out)
 
@@ -534,10 +672,18 @@ _GATE_REQUIRED_FIELDS = ("batch_id", "round", "verdict", "findings", "model_tier
 
 def _gate_collect_records(records_dir):
     """Walks --records recursively for every *.json file, parses each as a
-    ReviewVerdictRecord, and returns the list. Returns None (caller exits 4) on
-    the FIRST file that fails to parse / is not an object / is missing a required
-    field / carries a non-integer round -- a corrupt record file means no honest
-    coverage verdict is possible, never a silent skip (module docstring, C-001)."""
+    ReviewVerdictRecord, and returns a list of (doc, path) pairs -- `path`
+    (T085 Round 5 R4-I1) is now tracked alongside each parsed `doc` so a
+    LATER self-citation check (a record naming ITS OWN file as its proof
+    of evidence) can compare an evidence citation against the record's
+    own real, on-disk identity; previously only `doc` was kept and a
+    record's own path was discarded the instant it was parsed, making a
+    self-citing row structurally undetectable.
+
+    Returns None (caller exits 4) on the FIRST file that fails to parse /
+    is not an object / is missing a required field / carries a non-integer
+    round -- a corrupt record file means no honest coverage verdict is
+    possible, never a silent skip (module docstring, C-001)."""
     records = []
     for dirpath, _dirnames, filenames in sorted(os.walk(records_dir)):
         for fn in sorted(filenames):
@@ -561,106 +707,130 @@ def _gate_collect_records(records_dir):
                 print("review_record: gate refused -- %s has a non-integer round %r" % (path, rnd),
                       file=sys.stderr)
                 return None
-            records.append(doc)
+            records.append((doc, path))
     return records
 
 
 def _gate_latest_per_batch(records):
     """RB-006 "that batch's ... latest record": groups by batch_id, keeps the
-    highest-round record per batch; a genuine round tie (malformed input --
-    review_id/round should be unique per batch) breaks deterministically on the
-    lexically-greatest review_id (C-003: never dict/insertion-order-dependent)."""
+    highest-round (doc, path) pair per batch; a genuine round tie (malformed
+    input -- review_id/round should be unique per batch) breaks
+    deterministically on the lexically-greatest review_id (C-003: never
+    dict/insertion-order-dependent). `records` is a list of (doc, path)
+    pairs (T085 Round 5 R4-I1, see _gate_collect_records() above)."""
     latest = {}
-    for rec in records:
+    for rec, path in records:
         bid = rec["batch_id"]
         cur = latest.get(bid)
-        if cur is None or rec["round"] > cur["round"] or (
-                rec["round"] == cur["round"]
-                and str(rec.get("review_id", "")) > str(cur.get("review_id", ""))):
-            latest[bid] = rec
+        cur_rec = cur[0] if cur is not None else None
+        if cur_rec is None or rec["round"] > cur_rec["round"] or (
+                rec["round"] == cur_rec["round"]
+                and str(rec.get("review_id", "")) > str(cur_rec.get("review_id", ""))):
+            latest[bid] = (rec, path)
     return latest
 
 
-def _backfill_source_evidence_traceable(rec, records_root):
-    """T085 Round 2 I-R2-8: a `source: "backfill"` record's `source_evidence`
-    field is REQUIRED by data-model.md #10.1 to "name the REAL document this
-    row was reconstructed from" -- but nothing previously VERIFIED that claim
-    at gate-consultation time, so a hand-authored backfill row citing a vague
-    free-text placeholder (e.g. `source_evidence: "none really"`) was accepted
-    as genuine review coverage identically to a row backed by a real document.
-    Reproduced live before this fix (§11.4.199): such a row, with a claimed
-    opus/xhigh/GO/zero-findings shape, passed `_gate_batch_qualifies()` and
-    made `cmd_gate` report rc=0 COVERED for the change it named.
+def _evidence_hash_verified(evidence, evidence_sha256, record_own_path, records_root):
+    """T085 Round 5 (R4-I1, BLOCKING+IMPORTANT): the ONE shared evidence-
+    citation verifier for BOTH a backfill record's `source_evidence` and
+    a live record's `precheck_evidence` (section 11.4.227 reuse-not-
+    reinvention -- previously this logic existed only for backfill rows,
+    and lived inline in _backfill_source_evidence_traceable()).
 
-    T085 Round 3 R3-I4 (IMPORTANT): the ORIGINAL I-R2-8 fix above only half
-    closed this gap, in two concrete, reproduced ways:
-      (a) `os.path.isfile(evidence) or os.path.isfile(os.path.join(
-          os.getcwd(), evidence))` accepted ANY file that happens to exist
-          on disk -- including a forged row citing an unrelated system file
-          such as `/etc/hostname` -- as "traceable evidence", which it
-          plainly is not.
-      (b) relative evidence paths resolved against `os.getcwd()`, the gate
-          COMMAND's OWN ambient invoking directory -- never a property of
-          the record being checked -- so the SAME record's coverage
-          verdict was NON-DETERMINISTIC: COVERED when `cmd_gate` happened
-          to be invoked from a directory containing a same-named file,
-          UNCOVERED when invoked from elsewhere, for the exact same input.
-
-    This function is the AUTHORITATIVE check, fixed both ways:
-      - `source_evidence` is resolved against `records_root` -- the
-        caller's OWN `--records` directory, a FIXED, REQUIRED, explicitly
-        caller-supplied anchor that is a property of the GATE INVOCATION,
-        never of the ambient process cwd a record happens to be checked
-        from. An absolute `source_evidence` is used as-is; a relative one
-        is joined to `records_root`. `os.getcwd()` is never consulted.
-      - the resolved path MUST be a REAL, EXISTING, READABLE, NON-EMPTY
-        file that is CONTAINED WITHIN `records_root`'s own directory tree
-        (`os.path.commonpath` containment, never a bare prefix-string
-        compare -- §11.4.201(7)(a) match-structure-not-substring
-        discipline, so `.../recordsX/file` can never be mistaken for being
-        inside `.../records/`) -- this project's own review-record corpus
-        under --records is the one "recognized evidence-producing
-        location" this tool can verify without inventing an undocumented
-        evidence-type taxonomy (no data-model.md / contracts file in this
-        checkout defines a broader evidence-root convention for this
-        field, confirmed absent per §11.4.6 -- never guessed). A citation
-        reaching OUTSIDE that tree (e.g. `/etc/hostname`, or any other
-        unrelated file genuinely present on disk) is refused, closing the
-        EXACT forgery class the Round 3 review demonstrated.
-
-    A live (non-backfill) record is NEVER subject to this check (its own
-    producer-side machinery, `cmd_record`, already establishes its
-    evidence directly from a real --verdict-file/--precheck at RECORD
-    time; this function only closes the gap unique to the backfill
-    path)."""
-    if rec.get("source") != "backfill":
-        return True
-    evidence = rec.get("source_evidence")
+    T085 Round 4 independent review reproduced THREE concrete forgeries
+    the T085 Round 2/3 version of this check (the prior
+    _backfill_source_evidence_traceable(), realpath-containment only, no
+    content hash, no self-citation check) could not catch, all against
+    the committed code:
+      (a) a SYMLINK inside --records pointing at /etc/hostname --
+          `os.path.abspath()` never follows symlinks, so the (correct)
+          containment check only ever saw the symlink's OWN in-tree
+          path, never where it actually resolves to.
+      (b) a SYMLINKED DIRECTORY inside --records (e.g. pointing at
+          /etc) -- the identical gap, one level up: an ancestor
+          directory component being a symlink was likewise invisible to
+          abspath-only containment.
+      (c) a backfill row that cites ITS OWN record file as its evidence
+          -- trivially "real, non-empty, in-tree", yet proves nothing
+          (circular: the record is its own only witness).
+    Fixed, together, below:
+      - containment now resolves via `os.path.realpath()` on BOTH the
+        evidence path and `records_root` (never `os.path.abspath()`
+        alone) -- realpath follows EVERY symlink at EVERY path
+        component, so a symlink (file or an ancestor directory) that
+        ultimately resolves outside records_root is caught regardless
+        of how many levels of indirection it hides behind. Closes (a)
+        and (b) with ONE fix (the containment check becomes "is the
+        REAL final target inside the REAL root", not merely "does the
+        in-tree-looking path string look contained").
+      - `record_own_path` (now threaded through from
+        _gate_collect_records(), see that function's own docstring) is
+        realpath-resolved and compared against the evidence's own
+        resolved realpath -- a record whose evidence resolves to ITSELF
+        is refused outright. Closes (c).
+      - CONTENT-HASH BINDING (the Round 4 reviewer's own explicit "before
+        Round 5" recommendation (3), beyond what Round 2/3 ever
+        attempted): `evidence_sha256` -- a 64-lowercase-hex-char field
+        recorded AT THE TIME the citing record was authored (see
+        cmd_backfill()'s new validation, and cmd_record()'s new
+        precheck-archival step, both below) -- MUST be present,
+        well-formed, and MUST match the CITED FILE'S CURRENT content
+        hash, independently recomputed HERE, every time this function
+        runs. This closes a FOURTH forgery class neither Round 2 nor
+        Round 3 nor the plain realpath-containment fix above addresses
+        on its own: a citation that was genuinely valid WHEN AUTHORED
+        (a real, in-tree, non-self-citing file) whose content is LATER
+        swapped out from under it -- the containment+self-citation
+        checks alone would still pass such a record forever, silently
+        trusting whatever bytes now happen to live at that path.
+    A record with NO `evidence_sha256` at all (every pre-T085-Round-5
+    record in this project's own corpus, authored before this field
+    existed) is REFUSED -- a deliberate, STRICTER-than-before posture
+    (the Round 4 reviewer's own recommended default: "refuse them unless
+    explicitly flagged"), never a silent grandfather-and-trust. Existing
+    records must be RE-AUTHORED (re-run through the now-hash-capturing
+    cmd_backfill/cmd_record) to qualify again."""
     if not isinstance(evidence, str) or not evidence.strip():
         return False
     if evidence.strip().upper() in ("UNKNOWN", "N/A", "TBD"):
         return False
     evidence = evidence.strip()
-    root_abs = os.path.abspath(records_root)
-    resolved = evidence if os.path.isabs(evidence) else os.path.join(root_abs, evidence)
-    resolved = os.path.abspath(resolved)
-    if not os.path.isfile(resolved):
+    if not isinstance(evidence_sha256, str) or not _HASH_RE.fullmatch(evidence_sha256):
         return False
+
+    root_real = os.path.realpath(records_root)
+    resolved = evidence if os.path.isabs(evidence) else os.path.join(root_real, evidence)
+    resolved_real = os.path.realpath(resolved)
+
     try:
-        if os.path.getsize(resolved) == 0:
-            return False
-    except OSError:
-        return False
-    try:
-        common = os.path.commonpath([root_abs, resolved])
+        common = os.path.commonpath([root_real, resolved_real])
     except ValueError:
         # Different drives/roots (e.g. on a platform where this can
         # happen) -- structurally cannot be contained.
         return False
-    return common == root_abs
+    if common != root_real:
+        return False
+
+    if record_own_path is not None:
+        try:
+            own_real = os.path.realpath(record_own_path)
+        except OSError:
+            own_real = None
+        if own_real is not None and own_real == resolved_real:
+            return False  # self-citation refused
+
+    if not os.path.isfile(resolved_real):
+        return False
+    try:
+        if os.path.getsize(resolved_real) == 0:
+            return False
+        actual_sha256 = _sha256_file(resolved_real)
+    except OSError:
+        return False
+    return actual_sha256 == evidence_sha256
 
 
-def _gate_batch_qualifies(rec, records_root):
+def _gate_batch_qualifies(rec, record_path, records_root):
     """RB-006 "a zero-finding GO at the designated tier and effort" -- re-derived
     from the record's OWN verdict/findings/model_tier/effort fields, never from a
     stored derived flag (mirrors B1's own reasoning for first_round_go: a summary
@@ -668,28 +838,31 @@ def _gate_batch_qualifies(rec, records_root):
     of truth). effort=="?" (the honest 11.4.231(F.2) capability-gap token) never
     equals DESIGNATED_EFFORT, so it never qualifies, matching RB-004's own note.
 
-    T085 Round 2 I-R2-8 / Round 3 R3-I4: the ORIGINAL Round 2 finding named
-    TWO gaps -- "`gate` never checks `source=="live"`, and never checks
-    `precheck_used`" -- and only the first half (the `source=="backfill"`
-    evidence-traceability check below) was ever actually fixed; this round
-    closes the still-open second half too:
-      - `source` is now validated against the CLOSED set of legitimate
-        values this tool's own `record`/`backfill` subcommands ever write
+    T085 Round 2 I-R2-8 / Round 3 R3-I4 / Round 5 R4-I1: the ORIGINAL Round 2
+    finding named TWO gaps -- "`gate` never checks `source=="live"`, and
+    never checks `precheck_used`":
+      - `source` is validated against the CLOSED set of legitimate values
+        this tool's own `record`/`backfill` subcommands ever write
         (`"live"`, `"backfill"`) -- a record with any OTHER value (missing,
         forged, or a typo) NEVER qualifies, the conservative-safe default
         on an unrecognised/unresolvable value (§11.4.201(4)).
-      - a LIVE record now ALSO requires `precheck_used is True` -- `cmd_record`
-        already derives this field honestly (True only when a readable
-        precheck.json genuinely existed and was consulted at RECORD time);
-        a review whose own record admits no precheck was ever consulted no
-        longer counts as qualifying coverage, mirroring the SAME standard
-        already applied to a backfill row's source_evidence.
-      - a BACKFILL record's source_evidence is independently verified
-        traceable, deterministically, against the FIXED `records_root`
-        anchor (see `_backfill_source_evidence_traceable()` above) -- a
-        fabricated/placeholder-cited/out-of-tree-cited backfill row no
-        longer qualifies, however GO/zero-finding/correctly-tiered it
-        claims to be."""
+      - a LIVE record requires `precheck_used is True` AND (T085 Round 5
+        R4-I1, closing "gate trusts any .json file under --records") an
+        independently hash-verified `precheck_evidence` /
+        `precheck_evidence_sha256` pair pointing at the ACTUAL precheck
+        document `cmd_record` archived at record time (see cmd_record()'s
+        own new precheck-archival step) -- a hand-written record that
+        merely SETS `precheck_used: true` with no genuine, verifiable
+        precheck artifact behind it no longer qualifies. This is this
+        project's explicit, documented decision (per the Round 4
+        reviewer's own recommendation) that a live record's precheck
+        claim is trusted ONLY when independently verifiable, never on the
+        boolean field's say-so alone.
+      - a BACKFILL record's source_evidence is independently hash-verified
+        via the SAME shared `_evidence_hash_verified()` primitive (section
+        11.4.227) -- a fabricated/placeholder-cited/out-of-tree-cited/
+        self-citing/content-swapped backfill row no longer qualifies,
+        however GO/zero-finding/correctly-tiered it claims to be."""
     findings = rec.get("findings")
     base_ok = (
         rec.get("verdict") == "GO"
@@ -701,9 +874,17 @@ def _gate_batch_qualifies(rec, records_root):
         return False
     source = rec.get("source")
     if source == "live":
-        return rec.get("precheck_used") is True
+        if rec.get("precheck_used") is not True:
+            return False
+        return _evidence_hash_verified(
+            rec.get("precheck_evidence"), rec.get("precheck_evidence_sha256"),
+            record_path, records_root,
+        )
     if source == "backfill":
-        return _backfill_source_evidence_traceable(rec, records_root)
+        return _evidence_hash_verified(
+            rec.get("source_evidence"), rec.get("source_evidence_sha256"),
+            record_path, records_root,
+        )
     return False
 
 
@@ -727,9 +908,9 @@ def cmd_gate(a):
     uncovered = []
     for change in targets:
         covered_by = None
-        for bid, rec in sorted(latest_by_batch.items()):
+        for bid, (rec, record_path) in sorted(latest_by_batch.items()):
             change_ids = rec.get("change_ids")
-            if isinstance(change_ids, list) and change in change_ids and _gate_batch_qualifies(rec, a.records):
+            if isinstance(change_ids, list) and change in change_ids and _gate_batch_qualifies(rec, record_path, a.records):
                 covered_by = (bid, rec.get("round"))
                 break
         if covered_by is None:
@@ -763,6 +944,15 @@ def main(argv):
     b = sub.add_parser("backfill")
     b.add_argument("--input", required=True)
     b.add_argument("--out", required=True)
+    b.add_argument(
+        "--records-root",
+        help=(
+            "T085 Round 5 (R4-I1): directory 'source_evidence' is resolved "
+            "and containment-checked against (default: --out's own "
+            "containing directory, the one place-of-record this command "
+            "genuinely knows about)."
+        ),
+    )
 
     g = sub.add_parser("gate")
     g.add_argument("--change", required=True)

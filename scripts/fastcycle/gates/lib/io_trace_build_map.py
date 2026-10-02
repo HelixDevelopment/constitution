@@ -80,6 +80,44 @@ an empty/fabricated reads-writes set; it is recorded with its real
 `trace_status` and the run continues to the next script (one hung/failing
 script never aborts the whole build-map pass).
 
+T085 Round 5 remediation (2026-10-02, R4-B1 BLOCKING + R4-I2 recurrence
++ shared-primitive mandate): the Round 3 PATH/env-only sandbox above was
+independently reproduced bypassable TWO ways by the Round 4 reviewer
+against the committed code -- (1) an absolute-path invocation built
+from a NON-"adb"-named environment variable (e.g. "$ANDROID_HOME/
+platform-tools/a""db", split so the literal string "adb" never appears
+contiguous anywhere the classifier or the OLD env-key-contains-"adb"
+DENYLIST could see), and (2) a raw TCP socket connecting DIRECTLY to
+the real adb server's 127.0.0.1:5037, with no adb binary involved at
+all. Both printed real device serials when reproduced against the real
+host adb server before this fix. Per the Round 4 reviewer's explicit
+"before Round 5" recommendation, this is fixed with a SHARED,
+namespace-based primitive in fc_common.py
+(fc_common.wrap_device_sandbox_argv / device_sandbox_env /
+device_sandbox_namespace_available -- see that module's own extensive
+docstrings) rather than another narrow patch here: every retrace()
+call, in default (non---allow-device-scripts) mode, now ALSO runs
+inside a fresh, unprivileged Linux user+network+mount namespace
+(unshare --map-root-user --net --mount) with /dev/bus/usb (when
+present) bind-mounted over by an empty directory. Network isolation
+makes the underlying ACTION -- not merely the lookup -- impossible:
+connecting to 127.0.0.1:ANY-PORT inside the namespace fails with
+ENETUNREACH regardless of which binary, real absolute-path or
+otherwise, attempts it; this holds EVEN IF a future caller somehow
+fails to strip an ANDROID_HOME-style variable from its own env
+(defense-in-depth, independently verified in testing). The PATH-stub
+(this file, still here) and the ALLOWLISTED environment
+(fc_common.device_sandbox_env(), replacing the OLD denylist-based
+`_sandboxed_env()` below, now a thin alias) remain as additional,
+layered defenses -- each closes a DIFFERENT bypass class, matching
+this file's own "sandbox the ACTION, not merely the lookup" principle.
+FAIL-CLOSED: if the namespace-isolation precondition cannot be PROVEN
+on this host (fc_common.device_sandbox_namespace_available() returns
+False -- unshare missing, unprivileged user namespaces disabled, or
+the live self-test did not hold), main() REFUSES to run in default
+(sandboxed) mode at all -- it NEVER silently falls back to the weaker
+PATH/env-only sandbox that this exact round proved bypassable.
+
 Usage: io_trace_build_map.py --sections-dir <dir> --db <sqlite-path>
                               --tool <path-to-io_trace.sh>
                               [--per-script-timeout SECONDS]
@@ -87,7 +125,10 @@ Usage: io_trace_build_map.py --sections-dir <dir> --db <sqlite-path>
 Exit codes: 0 the pass completed (regardless of individual per-script
 trace/error/timeout outcomes -- those are reported, not fatal); 2 usage
 error (missing --sections-dir/--db/--tool, or --sections-dir does not
-exist); 4 BLIND (the sqlite DB could not be opened/created).
+exist); 4 BLIND (the sqlite DB could not be opened/created, OR -- T085
+Round 5 -- the namespace-based device sandbox's safety precondition
+could not be proven on this host in default mode; see
+--allow-device-scripts to explicitly opt out of sandboxing entirely).
 """
 import argparse
 import hashlib
@@ -301,70 +342,21 @@ def classify_device_mutating(script_text):
 # opted in to real device-script tracing (the documented purpose of that
 # flag) and the sandbox is correctly NOT applied -- sandboxing an
 # explicit, deliberate device-tracing run would just break the flag.
-_DEVICE_REACHING_BINARIES = (
-    "adb", "fastboot", "upgrade_tool", "rkdeveloptool", "uhubctl",
-    "tuya_control", "tuya-cli",
-)
-
-_SANDBOX_STUB_TEMPLATE = (
-    "#!/bin/sh\n"
-    "# T085 Round 3 R3-B1 device-safety sandbox stub -- NEVER forwards to\n"
-    "# the real binary, NEVER touches a device.\n"
-    "echo \"io_trace_build_map: BLOCKED invocation of '%s' (args: $*) -- \"\\\n"
-    "\"device-mutating binaries are never reachable while build-map traces \"\\\n"
-    "\"a script without --allow-device-scripts (T085 Round 3 R3-B1 sandbox, \"\\\n"
-    "\"section 11.4.252/11.4.263)\" >&2\n"
-    "exit 97\n"
-)
-
-
-def _build_device_sandbox(sandbox_dir):
-    """Populates `sandbox_dir` with a stub executable for every binary in
-    _DEVICE_REACHING_BINARIES. Each stub writes an honest refusal message
-    to stderr and exits 97 -- it never execs, never forwards args, and
-    never performs any device action of any kind. Idempotent (safe to
-    call once per build-map run). Returns sandbox_dir."""
-    os.makedirs(sandbox_dir, exist_ok=True)
-    for name in _DEVICE_REACHING_BINARIES:
-        stub_path = os.path.join(sandbox_dir, name)
-        with open(stub_path, "w") as fh:
-            fh.write(_SANDBOX_STUB_TEMPLATE % name)
-        os.chmod(stub_path, 0o755)
-    return sandbox_dir
-
-
-def _sandboxed_env(sandbox_dir):
-    """Returns a FRESH env dict (a copy, never a mutation of os.environ
-    itself -- the parent harness process's own environment, and every
-    OTHER subprocess's, is completely untouched) for a traced child
-    process in which every device-reaching binary name resolves ONLY to
-    `sandbox_dir`'s stub, regardless of how the traced script spells the
-    lookup:
-      - a bare command name resolved via PATH search (sandbox_dir is
-        prepended to PATH, so it is found FIRST, before any real system
-        adb/fastboot/etc -- every other PATH entry, and therefore every
-        ordinary non-device utility a benign script legitimately needs,
-        is left fully intact and resolves exactly as before);
-      - a variable such as `${ADB}` whose OWN default also resolves via
-        PATH (covered by the PATH change above); AND, as defense-in-
-        depth against an ABSOLUTE real-adb path that might otherwise be
-        inherited from the environment this harness itself was launched
-        in, every env var whose NAME contains "adb" (case-insensitively
-        -- covers this corpus's ADB/REC_ADB/ADB_BIN_NAME/
-        ADB_TUNE_ADB_BIN_NAME naming conventions) is force-set to the
-        stub's own absolute path."""
-    env = dict(os.environ)
-    env["PATH"] = sandbox_dir + os.pathsep + env.get("PATH", "")
-    stub_adb = os.path.join(sandbox_dir, "adb")
-    for key in list(env.keys()):
-        if "adb" in key.lower():
-            env[key] = stub_adb
-    # Force-set even when the parent process never had an ADB-named var
-    # at all -- this is the EXACT variable this project's own
-    # scripts/testing/lib/api_capture.sh default-assigns
-    # (`ADB="${ADB:-adb}"`).
-    env["ADB"] = stub_adb
-    return env
+# T085 Round 5 (R4-B1): `_DEVICE_REACHING_BINARIES` / `_build_device_sandbox`
+# / `_sandboxed_env` are now thin aliases to the ONE shared implementation
+# in fc_common.py (section 11.4.227 reuse-not-reinvention -- the Round 4
+# reviewer's explicit "ONE shared primitive ... not more patches"
+# mandate). Kept under this module's own original names, as plain
+# aliases, so nothing else in this file (or any existing caller) needs
+# to change. `_sandboxed_env` (OLD denylist-based: copy-the-whole-
+# environment-and-subtract-"adb"-named-keys) is REPLACED, not merely
+# aliased, by fc_common.device_sandbox_env (ALLOWLIST-based, built from
+# scratch -- see that function's own docstring for exactly why the OLD
+# denylist shape is what let ANDROID_HOME survive untouched and enabled
+# R4-B1's absolute-path bypass).
+_DEVICE_REACHING_BINARIES = fc_common.DEVICE_REACHING_BINARIES
+_build_device_sandbox = fc_common.build_device_sandbox_bin_dir
+_sandboxed_env = fc_common.device_sandbox_env
 
 
 # T085 Round 3 R3-I1: `_safe_killpg` is now a thin alias to the ONE
@@ -462,7 +454,7 @@ def upsert(conn, script_path, sha256, trace_status, reads, writes):
     )
 
 
-def retrace(tool, script_path, timeout_s, env=None):
+def retrace(tool, script_path, timeout_s, env=None, use_namespace_sandbox=False):
     """Runs `<tool> trace <script_path>` (gates/io_trace.sh's own `trace`
     subcommand -- the single source of truth for the strace invocation,
     never re-implemented here) with a bounded timeout. Returns
@@ -485,6 +477,27 @@ def retrace(tool, script_path, timeout_s, env=None):
     matching subprocess.Popen's own documented default and this
     function's pre-Round-3 behaviour exactly.
 
+    `use_namespace_sandbox`: T085 Round 5 (R4-B1 BLOCKING) -- when True
+    (main()'s default, no-opt-out mode; see module docstring), the traced
+    argv is wrapped via fc_common.wrap_device_sandbox_argv() so it runs
+    inside a fresh, unprivileged Linux user+network+mount namespace in
+    ADDITION to the PATH-stub + allowlisted-`env` layers above -- this is
+    the PRIMARY defense against the Round 4 reviewer's two reproduced
+    bypasses (an absolute-path invocation built from an un-denylisted
+    env var; a raw socket connecting directly to the real adb server),
+    neither of which the PATH/env-only sandbox alone could ever stop,
+    since both act on a REAL binary/socket reachable by NAME or address
+    rather than through a lookup this process's own env/PATH controls.
+    main() has already confirmed (ONCE, before any retrace() call --
+    fc_common.device_sandbox_namespace_available()) that this host can
+    actually provide the isolation before ever passing
+    use_namespace_sandbox=True, so wrap_device_sandbox_argv() below is
+    not expected to raise DeviceSandboxUnavailable in normal operation;
+    if it somehow does (a TOCTOU loss of the precondition mid-run), that
+    is treated exactly like any other OSError from this function's own
+    Popen() call just below -- an honest "error" trace_status, never a
+    silently-unsandboxed fallback execution.
+
     T085 Round 2 B-R2-3: the traced process runs in its OWN process group
     (start_new_session=True) so that, on timeout, the ENTIRE group -- not
     merely the direct `sh` child -- is killed via `os.killpg()` (guarded by
@@ -501,54 +514,43 @@ def retrace(tool, script_path, timeout_s, env=None):
     timeout) left that grandchild running, untouched, in the SAME
     process group -- reproduced live: the orphan's own marker file was
     written 4s AFTER retrace() had already returned. Fixed: the WHOLE
-    group is now killed on every return path, not only the timeout one
-    (see the inline comment at the unconditional _safe_killpg() call
-    below for why this is safe even though proc's own pid has, by then,
-    already been reaped by communicate())."""
-    try:
-        proc = subprocess.Popen(
-            ["sh", tool, "trace", script_path],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            start_new_session=True,
-            env=env,
-        )
-    except OSError as exc:
-        sys.stderr.write(f"io_trace_build_map: {script_path}: retrace raised: {exc}\n")
-        return "error", [], []
+    group is now killed on every return path, not only the timeout one.
 
-    try:
-        stdout, _stderr = proc.communicate(timeout=timeout_s)
-    except subprocess.TimeoutExpired:
-        _safe_killpg(proc.pid, signal.SIGKILL)
+    T085 Round 5 (R4-I2, defense-in-depth): the Round 3 fix above STILL
+    could not reach a grandchild that calls setsid() (a brand-new
+    session + process group, invisible to killpg()) -- confirmed, this
+    exact class of gap, as still open at BOTH of the Round 3 "fixed"
+    sites (this module and batch_bisect.py). This function now delegates
+    its whole launch/timeout/reap lifecycle to the ONE shared primitive,
+    fc_common.run_gate_reaped() (section 11.4.227), which reaps via a
+    Linux cgroup v2 scope when available (cgroup membership is immune to
+    setsid()/exec(), unlike process-GROUP membership) and falls back,
+    honestly, to the SAME process-group-only mechanism this function
+    used before otherwise. This composes cleanly with
+    use_namespace_sandbox=True: Linux namespaces (network/mount) and
+    cgroups are orthogonal kernel mechanisms -- `unshare`'s own process,
+    and everything it goes on to exec/fork inside the new namespaces,
+    remains a member of whatever cgroup it was moved into, so
+    cgroup.kill reaches it exactly the same as an un-sandboxed
+    invocation."""
+    cmd = ["sh", tool, "trace", script_path]
+    if use_namespace_sandbox:
         try:
-            proc.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            pass  # group refused to die within the reap grace window; report timeout regardless
+            cmd = fc_common.wrap_device_sandbox_argv(cmd)
+        except fc_common.DeviceSandboxUnavailable as exc:
+            sys.stderr.write(f"io_trace_build_map: {script_path}: retrace raised: {exc}\n")
+            return "error", [], []
+
+    result = fc_common.run_gate_reaped(cmd, timeout_s=timeout_s, env=env)
+    if result.timed_out:
         return "timeout", [], []
-    except Exception as exc:  # noqa: BLE001 - report, never crash the whole pass
-        sys.stderr.write(f"io_trace_build_map: {script_path}: retrace raised: {exc}\n")
-        _safe_killpg(proc.pid, signal.SIGKILL)
+    if result.error is not None:
+        sys.stderr.write(f"io_trace_build_map: {script_path}: retrace raised: {result.error}\n")
         return "error", [], []
-
-    # T085 Round 3 R3-I1: kill the WHOLE process group even on this
-    # NORMAL (non-timeout) return path -- start_new_session=True made
-    # proc.pid both the pid AND the pgid of this entire group, so any
-    # detached grandchild the traced script backgrounded is still a
-    # member of this SAME group even though the direct `sh` child above
-    # has already exited. Safe to call unconditionally: POSIX never
-    # reuses a process group id while ANY process remains a member of
-    # it, so this can never race an unrelated new process reusing
-    # proc.pid's number even though proc's OWN pid has already been
-    # reaped by communicate() above; a group that is already fully empty
-    # (the common case -- no backgrounded grandchild) simply raises
-    # ProcessLookupError, caught and silently ignored inside
-    # _safe_killpg().
-    _safe_killpg(proc.pid, signal.SIGKILL)
-
-    if proc.returncode != 0:
+    if result.returncode != 0:
         return "error", [], []
     try:
-        parsed = json.loads(stdout.strip().splitlines()[-1]) if stdout.strip() else None
+        parsed = json.loads(result.stdout.strip().splitlines()[-1]) if result.stdout.strip() else None
     except (json.JSONDecodeError, IndexError):
         parsed = None
     if not isinstance(parsed, dict) or "reads" not in parsed or "writes" not in parsed:
@@ -591,25 +593,61 @@ def main(argv):
     timeout_count = 0
     skipped_device = 0
 
-    # T085 Round 3 R3-B1 (BLOCKING, PRIMARY defense): build the device-
-    # reaching-binary sandbox ONCE per build-map run, UNLESS the operator
-    # explicitly opted into real device-script tracing via
+    # T085 Round 3 R3-B1 / Round 5 R4-B1 (BLOCKING, PRIMARY defense): build
+    # the device-reaching-binary sandbox ONCE per build-map run, UNLESS
+    # the operator explicitly opted into real device-script tracing via
     # --allow-device-scripts -- see _build_device_sandbox()/
-    # _sandboxed_env()'s own module-level comment for why this is the
-    # PRIMARY safety mechanism (never the classify_device_mutating()
-    # deny-list above, which is SECONDARY, defense-in-depth only, and can
-    # never be structurally complete). `sandbox_env` is passed to EVERY
-    # retrace() call below regardless of what classify_device_mutating()
-    # decided for that particular script -- so even a script the
-    # classifier wrongly lets through (a confirmed, real, measured
-    # 675/1244 false-negative rate on this project's own corpus) can
-    # never reach a real device-mutating binary.
+    # _sandboxed_env()'s own module-level comment for why this is one
+    # LAYER of defense (never the classify_device_mutating() deny-list
+    # above, which is SECONDARY, defense-in-depth only, and can never be
+    # structurally complete). `sandbox_env` is passed to EVERY retrace()
+    # call below regardless of what classify_device_mutating() decided
+    # for that particular script -- so even a script the classifier
+    # wrongly lets through (a confirmed, real, measured 675/1244
+    # false-negative rate on this project's own corpus) can never reach
+    # a real device-mutating binary.
+    #
+    # T085 Round 5 (R4-B1): the PATH-stub + allowlisted-env layers above
+    # are no longer sufficient on their own -- the Round 4 reviewer
+    # reproduced TWO bypasses (absolute-path-via-unlisted-env-var; raw
+    # socket to the real adb server) that act on a REAL binary/socket by
+    # NAME or ADDRESS, neither reachable only "through a lookup". The
+    # PRIMARY defense is now the namespace-based sandbox
+    # (fc_common.wrap_device_sandbox_argv, applied inside retrace() via
+    # `use_namespace_sandbox=True` below) which isolates the underlying
+    # ACTION (network/mount access), not merely the lookup. Its safety
+    # PRECONDITION -- that this host can actually provide that isolation
+    # -- is confirmed EXACTLY ONCE here, before any script is ever
+    # retraced, via a REAL, LIVE self-test
+    # (fc_common.device_sandbox_namespace_available() -- never inferred
+    # from `unshare`'s mere presence on PATH). If that precondition does
+    # NOT hold, this run REFUSES to proceed in default (sandboxed) mode
+    # at all -- it NEVER silently falls back to the PATH/env-only
+    # sandbox this exact round proved bypassable (§11.4.201(4): the
+    # conservative-safe default on an unresolvable safety signal).
     sandbox_dir = None
     sandbox_env = None
+    use_namespace_sandbox = False
     if not args.allow_device_scripts:
+        if not fc_common.device_sandbox_namespace_available():
+            sys.stderr.write(
+                "io_trace_build_map: REFUSING to run in default (sandboxed) "
+                "mode -- the namespace-based device sandbox's safety "
+                "precondition could not be confirmed on this host (unshare "
+                "missing, unprivileged user namespaces disabled, or the "
+                "live loopback-isolation self-test did not hold). This is a "
+                "fail-closed refusal (§11.4.201(4)): the PATH/env-only "
+                "sandbox alone was independently proven bypassable (T085 "
+                "Round 4 R4-B1) and is never used as a silent fallback. "
+                "Either fix the host's namespace-isolation support, or "
+                "re-run with --allow-device-scripts to explicitly opt out "
+                "of sandboxing entirely (never done automatically).\n"
+            )
+            return EXIT_BLIND
         sandbox_dir = tempfile.mkdtemp(prefix="fastcycle-device-sandbox-")
         _build_device_sandbox(sandbox_dir)
         sandbox_env = _sandboxed_env(sandbox_dir)
+        use_namespace_sandbox = True
 
     try:
         for script_path in scripts:
@@ -661,7 +699,8 @@ def main(argv):
                 continue
             retraced += 1
             status, reads, writes = retrace(
-                args.tool, script_path, args.per_script_timeout, env=sandbox_env
+                args.tool, script_path, args.per_script_timeout, env=sandbox_env,
+                use_namespace_sandbox=use_namespace_sandbox,
             )
             upsert(conn, script_path, digest, status, reads, writes)
             if status == "ok":

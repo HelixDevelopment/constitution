@@ -155,13 +155,23 @@ else
 fi
 
 # -----------------------------------------------------------------------
-# R3 (negative control): a LIVE (non-backfill) record is never subject to
-# the BACKFILL source_evidence file-existence check -- the fix does not
-# over-reject live, producer-established coverage. T085 Round 3 R3-I4
-# (the "precheck_used" half of the original Round 2 finding): a LIVE
-# record now ALSO requires `precheck_used: true` -- this fixture states
-# it explicitly (genuinely qualifying), proving the fix does not
-# over-reject a live record that DID consult a precheck.
+# R3 (T085 Round 5 R4-I1 core repro, updated from its original Round 2/3
+# shape -- see the inline note below for exactly what changed and why):
+# a HAND-WRITTEN live record carrying only `precheck_used:true` with NO
+# archived, hash-verifiable precheck evidence behind it is now correctly
+# REFUSED as coverage -- this is the EXACT "gate trusts any .json file
+# under --records" forgery the Round 4 independent review demonstrated:
+# "a hand-written 'live' record with precheck_used: true and no evidence
+# at all, since `gate` trusts any .json file under --records." Prior
+# rounds' own version of this fixture (identical shape) was treated as a
+# legitimate "negative control" expected to COVER -- under T085 Round 5
+# that is now understood to BE the forgery class itself, and this
+# project's explicit, documented decision (per the Round 4 reviewer's
+# own recommendation) is to refuse it: a live record's precheck claim is
+# trusted ONLY when independently verifiable against an archived,
+# content-hash-pinned precheck document (see review_record.py's
+# cmd_record()/`_evidence_hash_verified()`), never on the boolean
+# field's say-so alone.
 # -----------------------------------------------------------------------
 cat > "$SCRATCH/records/live.json" <<'EOF'
 {"review_id":"R2-LIVE-1","batch_id":"BATCH-R2-LIVE","round":1,"verdict":"GO",
@@ -170,10 +180,37 @@ cat > "$SCRATCH/records/live.json" <<'EOF'
 EOF
 OUT3=$(python3 "$TOOL" gate --change CH-R2-LIVE --records "$SCRATCH/records" 2>&1)
 RC3=$?
-if [ "$RC3" -eq 0 ] && echo "$OUT3" | grep -q "^COVERED CH-R2-LIVE"; then
-    ok "R3 negative control: a LIVE record with precheck_used:true is never over-rejected by the backfill-only source_evidence check"
+if [ "$RC3" -eq 1 ] && echo "$OUT3" | grep -q "^UNCOVERED CH-R2-LIVE"; then
+    ok "R3 (T085 Round 5 R4-I1): a hand-written live record with precheck_used:true and NO archived/hash-verifiable evidence is correctly REFUSED -- closes 'gate trusts any .json file under --records'"
 else
-    bad "R3 negative control FAILED: expected COVERED/exit 0, got rc=$RC3: $OUT3"
+    bad "R3 (T085 Round 5 R4-I1) FAILED: expected UNCOVERED/exit 1 for an unbacked hand-written live record, got rc=$RC3: $OUT3"
+fi
+
+# -----------------------------------------------------------------------
+# R3b (the TRUE negative control this file's original R3 was meant to
+# be): a GENUINE live record, produced via the REAL `record` CLI against
+# a REAL --precheck file, correctly counts as coverage -- proving the
+# T085 Round 5 fix does not over-reject legitimate, producer-established
+# live coverage, it only refuses the UNBACKED hand-written shape above.
+# -----------------------------------------------------------------------
+cat > "$SCRATCH/batch_r3b.json" <<'EOF'
+{"batch_id": "BATCH-R2-LIVE-REAL", "changes": ["CH-R2-LIVE-REAL"]}
+EOF
+cat > "$SCRATCH/verdict_r3b.json" <<'EOF'
+{"verdict": "GO", "round": 1, "findings": []}
+EOF
+cat > "$SCRATCH/precheck_r3b.json" <<'EOF'
+{"evidence": {"markers": []}}
+EOF
+python3 "$TOOL" record --batch "$SCRATCH/batch_r3b.json" --round 1 \
+    --verdict-file "$SCRATCH/verdict_r3b.json" --precheck "$SCRATCH/precheck_r3b.json" \
+    --tier opus --effort xhigh --out "$SCRATCH/records/live_real.json" >/dev/null 2>&1
+OUT3B=$(python3 "$TOOL" gate --change CH-R2-LIVE-REAL --records "$SCRATCH/records" 2>&1)
+RC3B=$?
+if [ "$RC3B" -eq 0 ] && echo "$OUT3B" | grep -q "^COVERED CH-R2-LIVE-REAL"; then
+    ok "R3b (true negative control): a GENUINE live record produced via the real 'record' CLI with a real --precheck file correctly counts as coverage -- the fix does not over-reject legitimate coverage"
+else
+    bad "R3b (true negative control) FAILED: expected COVERED/exit 0, got rc=$RC3B: $OUT3B"
 fi
 
 # -----------------------------------------------------------------------

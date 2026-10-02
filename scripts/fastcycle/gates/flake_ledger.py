@@ -173,6 +173,16 @@ import subprocess
 import sys
 import time
 
+# ---------------------------------------------------------------------------
+# T085 Round 5 (R4-I2): wiring to the shared fc_common.run_gate_reaped()
+# primitive (identical import-by-path pattern to gate_audit.py's own
+# fc_common wiring).
+# ---------------------------------------------------------------------------
+_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+import fc_common  # noqa: E402  (path-inserted import, see above)
+
 VALID_VERDICTS = {"PASS", "FAIL"}
 DEFAULT_OWNER = "UNASSIGNED"
 DEFAULT_DEADLINE_DAYS = 14
@@ -349,23 +359,30 @@ def _purge_cache(cache_dir, gate):
             f"flake_ledger.py check: cache-purge interop skipped -- verdict_cache.py not found at {tool}\n"
         )
         return
+    # T085 Round 5 (R4-I2): via the shared reaped runner -- see
+    # fc_common.py's own section header for why bare subprocess.run()
+    # leaves a descendant (incl. a setsid()-detached one) unreaped.
     try:
-        proc = subprocess.run(
+        result = fc_common.run_gate_reaped(
             [sys.executable, tool, "purge", "--cache-dir", cache_dir, "--gate", gate],
-            capture_output=True,
-            text=True,
-            timeout=30,
+            timeout_s=30,
         )
     except Exception as exc:  # noqa: BLE001 - report, never crash `check`
         sys.stderr.write(f"flake_ledger.py check: cache-purge interop failed to run: {exc}\n")
         return
-    if proc.returncode != 0:
+    if result.error is not None:
+        sys.stderr.write(f"flake_ledger.py check: cache-purge interop failed to run: {result.error}\n")
+        return
+    if result.timed_out:
+        sys.stderr.write("flake_ledger.py check: cache-purge interop timed out\n")
+        return
+    if result.returncode != 0:
         sys.stderr.write(
-            f"flake_ledger.py check: verdict_cache.py purge exited {proc.returncode} "
-            f"for gate={gate}: {proc.stderr.strip()}\n"
+            f"flake_ledger.py check: verdict_cache.py purge exited {result.returncode} "
+            f"for gate={gate}: {(result.stderr or '').strip()}\n"
         )
     else:
-        sys.stderr.write(f"flake_ledger.py check: cache-purge interop: {proc.stdout.strip()}\n")
+        sys.stderr.write(f"flake_ledger.py check: cache-purge interop: {(result.stdout or '').strip()}\n")
 
 
 def cmd_check(argv):

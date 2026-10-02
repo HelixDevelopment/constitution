@@ -171,6 +171,97 @@ else
 fi
 
 # -----------------------------------------------------------------------
+# R1c (T085 Round 5, Minor finding 3): the docstring's own claim --
+# "such a defect_id is now excluded from per-defect execution ... rather
+# than silently resolved by 'new wins'" -- was previously PINNED by
+# nothing beyond the seed_conflict/named_defects/verdict checks above
+# (R1/R1b), none of which observe whether D1 was ever actually PASSED to
+# run_defect_against_config() at all. Confirmed (T085 Round 5): deleting
+# the `seed_defects.pop(did, None)` line that performs this exclusion
+# still passes R1/R1b/every other check in this file unchanged (the
+# verdict-flip comes entirely from named_defects.append(did) inside the
+# seed_conflicts loop, a SEPARATE code path) -- "excluded from per-defect
+# execution" was an unpinned claim. Fixed by asserting directly on
+# `per_defect` (the per-defect-execution record `run_defect_against_config()`
+# appends, once per executed defect_id, INSIDE the seed_defects loop
+# `.pop()` prevents D1 from ever reaching): D1 must NOT appear there.
+if [ -f "$SCRATCH/r1_out.json" ]; then
+    R1C_OUT=$(python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+per_defect_ids = [e.get('defect_id') for e in d.get('per_defect', [])]
+print('per_defect_ids=%r' % (per_defect_ids,))
+sys.exit(0 if 'D1' not in per_defect_ids else 1)
+" "$SCRATCH/r1_out.json")
+    R1C_RC=$?
+    if [ "$R1C_RC" -eq 0 ]; then
+        ok "R1c (T085 Round 5, Minor-3): D1 (the conflicting defect_id) does NOT appear in per_defect -- genuinely EXCLUDED from per-defect execution, not merely from the reported verdict ($R1C_OUT)"
+    else
+        bad "R1c (T085 Round 5, Minor-3) FAILED: D1 WAS found in per_defect -- it was executed despite the seed_conflict, the exclusion claim is false: $R1C_OUT"
+    fi
+else
+    bad "R1c (T085 Round 5, Minor-3) FAILED: $SCRATCH/r1_out.json was not written"
+fi
+
+# -----------------------------------------------------------------------
+# R1d (guard-viability, 11.4.115(F)): a scratch copy with JUST the
+# `seed_defects.pop(did, None)` exclusion line removed must make R1c's
+# OWN check above WRONGLY pass (D1 appearing in per_defect) -- proving
+# R1c genuinely catches a regression to "excluded in name only", not a
+# tautology.
+# -----------------------------------------------------------------------
+# catchset_compare.py resolves its sibling gate_audit.py via its OWN
+# directory, and (T085 Round 5) gate_audit.py in turn resolves
+# fc_common.py via ITS OWN directory's "../lib" -- the scratch copy
+# needs the SAME nested gates/+lib/ shape the real tree has, or BOTH
+# imports fail before the mutation under test is ever exercised.
+SCRATCH_MUT="$SCRATCH/scratch_mutated_r1d"
+mkdir -p "$SCRATCH_MUT/gates"
+cp "$TOOL" "$SCRATCH_MUT/gates/catchset_compare.py"
+cp "$FC/gates/gate_audit.py" "$SCRATCH_MUT/gates/gate_audit.py"
+ln -s "$FC/lib" "$SCRATCH_MUT/lib" 2>/dev/null
+
+python3 - "$SCRATCH_MUT/gates/catchset_compare.py" <<'PYEOF'
+import sys
+p = sys.argv[1]
+with open(p, encoding="utf-8") as fh:
+    c = fh.read()
+old = "        for did in seed_conflicts:\n            seed_defects.pop(did, None)\n"
+new = "        for did in seed_conflicts:\n            pass  # GUARD-VIABILITY MUTATION: exclusion removed, D1 still executed\n"
+if c.count(old) != 1:
+    sys.exit("mutate: exclusion loop source did not match exactly once (count=%d)" % c.count(old))
+c = c.replace(old, new, 1)
+with open(p, "w", encoding="utf-8") as fh:
+    fh.write(c)
+PYEOF
+MUTATE_RC=$?
+
+if [ "$MUTATE_RC" -ne 0 ]; then
+    bad "R1d setup: could not apply the exclusion-removal mutation -- the source shape must have changed; this guard needs updating to match"
+else
+    ok "R1d setup: scratch copy mutated -- the seed_defects.pop() exclusion removed, every other line untouched"
+    python3 "$SCRATCH_MUT/gates/catchset_compare.py" compare --config "$SCRATCH/fastcycle.yaml" \
+        --corpus "$SCRATCH/corpus.json" --old "$SCRATCH/old_manifest.json" --new "$SCRATCH/new_manifest.json" \
+        --workdir "$SCRATCH/workdir/r1d" --out "$SCRATCH/r1d_out.json" >/dev/null 2>&1
+    if [ -f "$SCRATCH/r1d_out.json" ]; then
+        R1D_OUT=$(python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+per_defect_ids = [e.get('defect_id') for e in d.get('per_defect', [])]
+print('per_defect_ids=%r' % (per_defect_ids,))
+sys.exit(0 if 'D1' in per_defect_ids else 1)
+" "$SCRATCH/r1d_out.json")
+        if [ "$?" -eq 0 ]; then
+            ok "R1d: with the exclusion removed, D1 WRONGLY appears in per_defect again -- proving R1c genuinely catches this regression, it is not a tautology ($R1D_OUT)"
+        else
+            bad "R1d FAILED: expected D1 to wrongly reappear in per_defect under the mutated copy, got: $R1D_OUT"
+        fi
+    else
+        bad "R1d FAILED: $SCRATCH/r1d_out.json was not written by the mutated copy"
+    fi
+fi
+
+# -----------------------------------------------------------------------
 # R2 (I-R2-9's own repro, --seed-manifest mode): the SAME old/new manifests
 # (whose own seed_defects conflict as above) are given an INDEPENDENT
 # --seed-manifest naming the REAL catching patch -- the manifests' own
@@ -244,12 +335,18 @@ fi
 # -----------------------------------------------------------------------
 echo "-- R4: mutation-flip proof (seed_conflict verdict-flip line stripped) --"
 
-MUT_R3I2="$SCRATCH/catchset_compare_mut_r3i2.py"
+MUT_DIR_R3I2="$SCRATCH/scratch_mutated_r4/gates"
+mkdir -p "$MUT_DIR_R3I2"
+MUT_R3I2="$MUT_DIR_R3I2/catchset_compare_mut_r3i2.py"
 cp "$TOOL" "$MUT_R3I2"
 # catchset_compare.py resolves its sibling gate_audit.py via its OWN
-# directory (os.path.dirname(os.path.abspath(__file__))) -- give the
-# mutated copy the same sibling so that import still resolves.
-cp "$FC/gates/gate_audit.py" "$SCRATCH/gate_audit.py"
+# directory (os.path.dirname(os.path.abspath(__file__))), and (T085
+# Round 5) gate_audit.py in turn resolves fc_common.py via ITS OWN
+# directory's "../lib" -- give the mutated copy the SAME nested
+# gates/+lib/ shape the real tree has, or BOTH imports fail before the
+# mutation under test is ever exercised.
+cp "$FC/gates/gate_audit.py" "$MUT_DIR_R3I2/gate_audit.py"
+ln -s "$FC/lib" "$(dirname "$MUT_DIR_R3I2")/lib" 2>/dev/null
 if ! python3 - "$MUT_R3I2" <<'PYEOF'
 import sys
 path = sys.argv[1]

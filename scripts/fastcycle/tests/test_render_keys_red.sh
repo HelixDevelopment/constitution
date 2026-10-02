@@ -148,6 +148,67 @@ for d in rk_unchanged_today rk_changed_all_four rk_stale_key_caught rk_touched_i
     done
 done
 
+# T085 Round 5 (Minor finding 6): the R3-I3 snapshot-and-restore above
+# closed the "restore discards a concurrent track's work" hazard for
+# `git checkout --`, but introduced a NARROWER version of the SAME
+# hazard class: restoring from a snapshot captured AT TEST START, at
+# cleanup time (potentially minutes later), unconditionally overwrites
+# whatever is CURRENTLY on disk -- including a DIFFERENT track's edit to
+# that EXACT file made DURING this test's own run window, between the
+# snapshot and the restore. Reproduced via first-hand analysis of a real
+# `git stash`-class incident on this exact shared working tree
+# (2026-10-02): a destructive restore-from-an-earlier-state operation,
+# run without first checking what changed in the meantime, can silently
+# discard another agent's genuinely new, uncommitted work.
+#
+# Fixed for the TWO fixture directories this test's own code NEVER
+# writes a twin into (rk_stale_key_caught/, rk_touched_identical/ --
+# Sections C3/C4 above only ever call `render_keys.py check`, a
+# READ-ONLY staleness query, never `store`/a real re-render; confirmed
+# by direct inspection of this file's own Section C3/C4 code): for
+# those files, this test's OWN snapshot is the ONLY change that could
+# ever legitimately happen to them during this run, so if the CURRENT
+# content differs from BOTH the snapshot AND is genuinely needed to
+# restore (i.e. it changed at all), that change can ONLY be a
+# concurrent, external edit -- restoring would ALWAYS discard it, never
+# this test's own work. _rk_restore_or_warn() therefore REFUSES to
+# overwrite those two directories' twins when their current content no
+# longer matches the snapshot, loudly warning instead and leaving the
+# concurrent edit in place.
+#
+# For rk_unchanged_today/ and rk_changed_all_four/ (Sections C1/C2,
+# which DO legitimately re-render real twin content as part of this
+# test's own intended work), restoring unconditionally remains the
+# correct behaviour -- a change there is normally THIS test's own
+# render, and this fix does not attempt to disambiguate that from a
+# same-window concurrent edit (an HONEST, narrower residual risk,
+# scoped to exactly the two directories that still carry it, rather
+# than all four as before).
+_RK_TEST_OWNED_TWINS=" $FIXDIR/rk_unchanged_today/source.html $FIXDIR/rk_unchanged_today/source.pdf $FIXDIR/rk_unchanged_today/source.docx $FIXDIR/rk_changed_all_four/source.html $FIXDIR/rk_changed_all_four/source.pdf $FIXDIR/rk_changed_all_four/source.docx "
+
+_rk_restore_or_warn() {
+    f="$1"
+    snap="$2"
+    [ -f "$snap" ] || return 0
+    case "$_RK_TEST_OWNED_TWINS" in
+        *" $f "*)
+            cp "$snap" "$f" 2>/dev/null
+            ;;
+        *)
+            if cmp -s "$snap" "$f" 2>/dev/null; then
+                : # already matches the pre-test snapshot -- nothing to restore
+            else
+                echo "WARNING: $f changed during this test's run, but this" >&2
+                echo "   test's own code NEVER writes a twin into this" >&2
+                echo "   directory -- the change can only be a CONCURRENT" >&2
+                echo "   edit from elsewhere. Leaving it AS-IS (refusing to" >&2
+                echo "   restore from the pre-test snapshot), never silently" >&2
+                echo "   discarding it (T085 Round 5, Minor finding 6)." >&2
+            fi
+            ;;
+    esac
+}
+
 # Invoked indirectly via `trap cleanup EXIT` below -- shellcheck's static
 # call-graph cannot trace a bareword trap handler back to this definition.
 # shellcheck disable=SC2329
@@ -166,8 +227,12 @@ cleanup() {
                     # `git checkout --` (R3-I3 fix: this can never
                     # discard a concurrent track's uncommitted edit,
                     # because it restores the file to the state it was
-                    # ALREADY in, not to git HEAD).
-                    [ -f "$snap" ] && cp "$snap" "$f" 2>/dev/null
+                    # ALREADY in, not to git HEAD). T085 Round 5: for the
+                    # two directories this test never itself renders
+                    # into, a same-window concurrent edit is detected
+                    # and left alone instead of overwritten -- see
+                    # _rk_restore_or_warn()'s own comment above.
+                    _rk_restore_or_warn "$f" "$snap"
                     ;;
                 *)
                     # No snapshot was captured because the file did NOT

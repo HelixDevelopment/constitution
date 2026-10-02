@@ -41,13 +41,16 @@ import json
 import difflib
 import os
 import re
+import shlex
 import shutil
 import signal
+import socket
 import stat
 import subprocess
 import sys
 import tempfile
 import time
+import uuid
 
 # C-002: body_hash covers the canonical doc EXCLUDING run_meta (and body_hash itself, which it fills in).
 # schema and BLIND ARE hashed. Reserved keys may not appear in a caller-supplied body.
@@ -132,6 +135,548 @@ def safe_killpg(pgid, sig):
         return False
 
 
+# ---------------------------------------------------------------------------
+# T085 Round 5: namespace-based device sandbox (section 11.4.227 shared
+# primitive -- the FIRST of the Round 4 reviewer's four "build these as
+# shared primitives, not more patches" recommendations). Closes R4-B1
+# (BLOCKING): the PATH/env-only sandbox io_trace_build_map.py built at
+# T085 Round 3 (R3-B1) was independently reproduced, by the Round 4
+# reviewer, as bypassable TWO ways against the committed code:
+#   (1) an absolute-path invocation built from a NON-"adb"-named
+#       environment variable (e.g. "$ANDROID_HOME/platform-tools/a""db",
+#       the command-name text split so neither "adb" nor the full
+#       command ever appears as a contiguous substring anywhere the
+#       classifier or the env-key-contains-"adb" DENYLIST could see);
+#   (2) a raw TCP socket connecting DIRECTLY to the real adb server's
+#       127.0.0.1:5037, with no adb binary involved at all -- a pure
+#       network action no PATH/env manipulation can ever observe or
+#       stop.
+# Neither bypass is closed by restricting WHAT NAME can be found
+# (PATH/env); both are closed by making the underlying ACTION itself
+# impossible: a fresh, UNPRIVILEGED Linux user+network+mount namespace
+# (`unshare --map-root-user --net --mount`, empirically confirmed
+# working WITHOUT root on this host -- CONFIG_USER_NS unprivileged user
+# namespaces) gives the sandboxed process its own loopback interface
+# (DOWN by default, no routes configured) -- connecting to
+# 127.0.0.1:ANY-PORT from inside it fails with ENETUNREACH regardless of
+# which binary, real absolute-path or otherwise, attempts it -- plus its
+# own private mount namespace with /dev/bus/usb (when present on this
+# host) bind-mounted over by an empty directory, closing direct-USB
+# device-node access for a tool that bypasses the TCP adb-server
+# protocol entirely (fastboot's USB transport). This is LAYERED ON TOP
+# OF, never instead of, the pre-existing PATH-stub (closes bare command
+# names) and the new ALLOWLISTED environment (closes the specific
+# ANDROID_HOME-style absolute-path construction even before network
+# isolation would) -- three independent layers, each closing a DIFFERENT
+# bypass class, matching this project's own documented "sandbox the
+# ACTION, not merely the lookup" principle (io_trace_build_map.py's
+# T085 Round 3 R3-B1 remediation note, which this module's own
+# device_sandbox_namespace_available() self-test below extends from "a
+# fake binary in the way" to "the underlying syscall path is actually
+# severed").
+# ---------------------------------------------------------------------------
+
+DEVICE_REACHING_BINARIES = (
+    "adb", "fastboot", "upgrade_tool", "rkdeveloptool", "uhubctl",
+    "tuya_control", "tuya-cli",
+)
+
+_DEVICE_SANDBOX_STUB_TEMPLATE = (
+    "#!/bin/sh\n"
+    "echo \"device-sandbox: BLOCKED invocation of '%s' (args: $*) -- \"\\\n"
+    "\"device-mutating binaries are never reachable inside this sandbox \"\\\n"
+    "\"(section 11.4.252/11.4.263)\" >&2\n"
+    "exit 97\n"
+)
+
+
+def build_device_sandbox_bin_dir(sandbox_dir, binaries=DEVICE_REACHING_BINARIES):
+    """Populates `sandbox_dir` with a stub executable for every name in
+    `binaries`. Each stub writes an honest refusal message to stderr and
+    exits 97 -- it never execs, never forwards args, and never performs
+    any device action of any kind. Idempotent. Returns sandbox_dir.
+
+    Shared (section 11.4.227) promotion of the per-tool stub-writer
+    originally authored, under a leading-underscore private name, in
+    gates/lib/io_trace_build_map.py (T085 Round 3 R3-B1) -- this is now
+    the ONE implementation every "deny PATH access to a device-reaching
+    binary name" call site in this tool family uses."""
+    os.makedirs(sandbox_dir, exist_ok=True)
+    for name in binaries:
+        stub_path = os.path.join(sandbox_dir, name)
+        with open(stub_path, "w") as fh:
+            fh.write(_DEVICE_SANDBOX_STUB_TEMPLATE % name)
+        os.chmod(stub_path, 0o755)
+    return sandbox_dir
+
+
+# T085 Round 5 R4-B1: an ALLOWLIST, never a denylist -- the pre-fix
+# io_trace_build_map.py `_sandboxed_env()` started from a COPY of the
+# FULL inherited environment and subtracted only names CONTAINING "adb";
+# ANDROID_HOME contains no such substring and therefore survived
+# untouched, letting "$ANDROID_HOME/platform-tools/a""db" resolve to the
+# REAL binary. This list is deliberately small and the env below is
+# built FROM SCRATCH every call -- any variable not named here
+# (ANDROID_HOME, ANDROID_SDK_ROOT, ANDROID_ADB_SERVER_PORT, or anything
+# else the calling shell happens to have set) is simply never present in
+# the sandboxed child's environment at all, regardless of its name.
+DEVICE_SANDBOX_ENV_ALLOWLIST = (
+    "HOME", "LANG", "LANGUAGE", "LC_ALL", "LC_CTYPE", "TMPDIR", "TERM",
+    "USER", "LOGNAME", "SHELL", "PWD",
+)
+# Standard system dirs so coreutils/util-linux (mount, mktemp, cat, sh,
+# ...) resolve normally inside the sandbox; the sandbox's own stub dir
+# is ALWAYS prepended ahead of these by device_sandbox_env() below, so a
+# bare `adb` (or any other DEVICE_REACHING_BINARIES name) resolves to
+# the stub FIRST, never a real system-installed one.
+_DEVICE_SANDBOX_SAFE_PATH = "/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
+
+
+def device_sandbox_env(sandbox_bin_dir, allowlist=DEVICE_SANDBOX_ENV_ALLOWLIST, base_env=None):
+    """Returns a FRESH env dict (never a mutation of, nor built by
+    subtracting entries from, the caller's own environment) containing
+    ONLY the `allowlist` names that are present in `base_env` (default:
+    os.environ), plus PATH forced to `sandbox_bin_dir` + the standard
+    system dirs, plus ADB forced to the stub's own absolute path (kept
+    as additional defense-in-depth for this corpus's
+    `ADB="${ADB:-adb}"` idiom, even though the allowlist alone already
+    denies ANDROID_HOME and every other non-allowlisted variable)."""
+    src = os.environ if base_env is None else base_env
+    env = {k: src[k] for k in allowlist if k in src}
+    env["PATH"] = sandbox_bin_dir + os.pathsep + _DEVICE_SANDBOX_SAFE_PATH
+    env["ADB"] = os.path.join(sandbox_bin_dir, "adb")
+    return env
+
+
+DEVICE_SANDBOX_HIDE_PATHS = ("/dev/bus/usb",)
+
+
+class DeviceSandboxUnavailable(RuntimeError):
+    """Raised by wrap_device_sandbox_argv() when the namespace-isolation
+    precondition this sandbox depends on could not be PROVEN on this
+    host (unshare missing, unprivileged user namespaces disabled, or the
+    live connect-is-refused self-test below did not hold). Callers MUST
+    treat this as a fail-closed signal -- refuse to run the command at
+    all in default (sandboxed) mode, NEVER silently fall back to a
+    weaker PATH/env-only sandbox without saying so (section
+    11.4.201(4): the conservative-safe default on an unresolvable safety
+    signal)."""
+
+
+_device_sandbox_available_cache = None  # None = not probed yet this process
+
+
+def device_sandbox_namespace_available(force_probe=False):
+    """Returns True only if a REAL, LIVE self-test confirms this host's
+    unprivileged user+network namespace isolation genuinely cuts off
+    loopback TCP connectivity -- NEVER inferred from `unshare`'s mere
+    presence on PATH, nor from a bare `unshare --net true` rc==0 (which
+    proves only that namespace CREATION succeeded, not that
+    connectivity is genuinely severed -- section 11.4.201 forbids
+    trusting a proxy signal for a safety-critical condition, and a bare
+    exit-code check here could not even distinguish "the probe ran and
+    confirmed isolation" from "unshare itself failed before the probe
+    ever ran", since util-linux tools commonly share the same nonzero
+    exit code for unrelated failures).
+
+    The self-test: bind a REAL TCP listener on an ephemeral loopback
+    port in THIS process, then spawn `unshare --map-root-user --net
+    --mount` wrapping a second process that attempts to connect to that
+    EXACT port and prints an unambiguous, prefixed marker string
+    ("DEVICE_SANDBOX_PROBE:BLOCKED" or "...CONNECTED") to its own
+    stdout -- never relying on exit code alone. Isolation is confirmed
+    held ONLY when that exact "BLOCKED" marker is observed; any other
+    outcome (unshare missing/failed, the probe crashed, a timeout, the
+    "CONNECTED" marker, unparseable output) is honestly reported as
+    unavailable. Cached per-process (module-level) after the first call
+    unless `force_probe=True`.
+
+    Test-only escape hatch: `FC_DEVICE_SANDBOX_TEST_FORCE_UNAVAILABLE=1`
+    forces this function to return False WITHOUT ever actually probing
+    the host, letting a test exercise main()'s fail-closed refusal path
+    deterministically (disabling unprivileged user namespaces for real
+    would require a host-wide, root-level sysctl change this project's
+    own §12 host-safety mandate forbids doing as a side effect of a
+    single test run). This is checked BEFORE the cache (so it always
+    takes effect the instant it is set) and is never read by any
+    production code path -- only this function's own regression tests
+    set it."""
+    if os.environ.get("FC_DEVICE_SANDBOX_TEST_FORCE_UNAVAILABLE") == "1":
+        return False
+    global _device_sandbox_available_cache
+    if _device_sandbox_available_cache is not None and not force_probe:
+        return _device_sandbox_available_cache
+
+    if shutil.which("unshare") is None:
+        _device_sandbox_available_cache = False
+        return False
+
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    result = False
+    try:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        port = listener.getsockname()[1]
+        probe_py = (
+            "import socket,sys\n"
+            "s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n"
+            "s.settimeout(2)\n"
+            "try:\n"
+            "    s.connect(('127.0.0.1', %d))\n"
+            "    print('DEVICE_SANDBOX_PROBE:CONNECTED')\n"
+            "except OSError as e:\n"
+            "    print('DEVICE_SANDBOX_PROBE:BLOCKED:' + str(e))\n"
+        ) % port
+        try:
+            probe = subprocess.run(
+                ["unshare", "--map-root-user", "--net", "--mount",
+                 "--", sys.executable, "-c", probe_py],
+                timeout=10, env={"PATH": _DEVICE_SANDBOX_SAFE_PATH},
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            )
+            result = "DEVICE_SANDBOX_PROBE:BLOCKED:" in (probe.stdout or "")
+        except (OSError, subprocess.TimeoutExpired):
+            result = False
+    finally:
+        listener.close()
+
+    _device_sandbox_available_cache = result
+    return result
+
+
+def wrap_device_sandbox_argv(cmd, hide_paths=DEVICE_SANDBOX_HIDE_PATHS):
+    """Returns a NEW argv list that, when subprocess.Popen'd, runs `cmd`
+    (a list) inside a fresh unprivileged user+network+mount namespace,
+    with every EXISTING path in `hide_paths` bind-mounted over by an
+    empty, freshly-created temp directory BEFORE `cmd` itself starts (a
+    path that does not exist on this host is silently skipped, never an
+    error -- not every host has /dev/bus/usb; a bind-mount failure for
+    an existing path is also never fatal to the whole sandbox --
+    `|| true` -- since network isolation, this primitive's PRIMARY
+    guarantee, does not depend on it).
+
+    Raises DeviceSandboxUnavailable if device_sandbox_namespace_available()
+    returns False -- callers MUST NOT catch this and silently degrade to
+    a weaker sandbox; see that function's and DeviceSandboxUnavailable's
+    own docstrings.
+
+    Deliberately changes ONLY how `cmd` is isolated -- the returned argv
+    is still a plain list the caller Popen()s exactly as it would `cmd`
+    itself (an existing caller's own start_new_session=True / env= /
+    timeout / process-group-kill handling, e.g.
+    io_trace_build_map.py's retrace(), needs NO changes of its own:
+    `unshare`'s own pid becomes the group leader, and `_safe_killpg()`
+    already kills the WHOLE group, including every process `unshare`
+    itself went on to exec/fork)."""
+    if not device_sandbox_namespace_available():
+        raise DeviceSandboxUnavailable(
+            "device namespace sandbox unavailable on this host (unshare "
+            "missing, unprivileged user namespaces disabled, or the "
+            "live loopback-isolation self-test did not confirm "
+            "connectivity is severed) -- refusing to run inside a "
+            "sandbox that cannot be proven to isolate network/mount "
+            "access; see fc_common.device_sandbox_namespace_available()"
+        )
+    hide_sh_parts = [
+        'if [ -e %s ]; then d=$(mktemp -d); mount --bind "$d" %s 2>/dev/null || true; fi'
+        % (shlex.quote(p), shlex.quote(p))
+        for p in hide_paths
+    ]
+    inner_sh = "; ".join(hide_sh_parts + ['exec "$@"'])
+    return [
+        "unshare", "--map-root-user", "--net", "--mount", "--",
+        "sh", "-c", inner_sh, "device-sandbox-inner",
+    ] + list(cmd)
+
+
+# ---------------------------------------------------------------------------
+# T085 Round 5: ONE shared, cgroup-reaping gate runner (section 11.4.227
+# shared primitive -- the SECOND of the Round 4 reviewer's four "build
+# these as shared primitives, not more patches" recommendations). Closes
+# R4-I2 (IMPORTANT): "the orphaned-child-process fix was applied only at
+# the two places Round 3 named" (io_trace_build_map.py's retrace(),
+# batch_bisect.py's run_gate_on_tree()) -- seven OTHER gate-execution
+# sites (gate_audit.run_gate, gate_runner_shard run-shard,
+# catchset_compare x2, flake_ledger, gate_runner_order, backstop_run)
+# each independently ran a bare `subprocess.run(cmd, timeout=...)` with
+# NO process isolation at all, so even a direct, non-timeout-path child
+# process could leave a backgrounded grandchild running past the gate's
+# own return. WORSE, the review also found a gap at BOTH of the
+# "already-fixed" sites: a grandchild that calls `setsid()` escapes a
+# process-GROUP-only kill entirely (setsid() creates a brand-new
+# session and process group, detaching the grandchild from the one
+# start_new_session=True + killpg() can still reach) -- reproduced live
+# in batch_bisect ("wrote its marker 2.5s after the call had already
+# returned PASS").
+#
+# Fixed with a Linux cgroup v2 "scope" per gate invocation: unlike
+# process-GROUP membership, cgroup membership is INHERITED by every
+# fork() and is UNCHANGED by setsid()/exec() -- a process can leave its
+# process group via setsid() but can never leave its cgroup except by
+# an explicit, privileged move. Writing "1" to a cgroup's `cgroup.kill`
+# file (Linux 5.14+) therefore kills EVERY process still a member of it
+# -- confirmed, empirically, to close EXACTLY this gap (a setsid()'d
+# grandchild backgrounded inside a cgroup-scoped gate was killed before
+# its own 3s sleep completed; the identical script OUTSIDE a cgroup, or
+# cleaned up only via killpg(), survives). This is the PRIMARY
+# mechanism; the pre-existing start_new_session=True + killpg() cleanup
+# is KEPT as a secondary, defense-in-depth layer (closes the ordinary,
+# non-setsid case even faster, and remains the FULL mechanism on a host
+# without cgroup v2 delegation -- see the honestly-reported `mechanism`
+# field below, never silently claimed stronger than it is).
+# ---------------------------------------------------------------------------
+
+_CGROUP_KILL_FILENAME = "cgroup.kill"
+_CGROUP_PROCS_FILENAME = "cgroup.procs"
+
+
+def _own_cgroup_v2_base():
+    """Returns the absolute path of THIS process's own cgroup v2
+    directory under the unified hierarchy (/sys/fs/cgroup/<path from
+    /proc/self/cgroup>), or None if cgroup v2 is not mounted, this
+    process is on the v1 (multi-hierarchy) layout instead, or its own
+    cgroup line could not be parsed. Read FRESH every call, never
+    cached -- a long-lived process's own cgroup CAN change (e.g. an
+    external supervisor moves it), and every caller of this function
+    must always target the CURRENT, real location."""
+    try:
+        with open("/proc/self/cgroup", "r", encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return None
+    # cgroup v2 unified hierarchy: exactly one line, "0::<path>" (empty
+    # middle field). A v1/hybrid host reports multiple numbered lines
+    # with non-empty controller-name middle fields instead -- this
+    # function deliberately returns None for that layout rather than
+    # guessing at a v1 equivalent (cgroup.kill is a v2-only interface
+    # file; this primitive does not attempt a v1 fallback).
+    for line in lines:
+        parts = line.split(":", 2)
+        if len(parts) == 3 and parts[0] == "0" and parts[1] == "":
+            return os.path.normpath("/sys/fs/cgroup" + parts[2])
+    return None
+
+
+_cgroup_runner_available_cache = None
+
+
+def cgroup_runner_available(force_probe=False):
+    """Returns True only if a REAL, LIVE self-test confirms this
+    process can create a writable cgroup v2 child directory under its
+    own delegated subtree, move a genuine child process into it via
+    `cgroup.procs`, and actually kill that process via `cgroup.kill` --
+    NEVER inferred from the mere presence of a cgroup v2 mount or a
+    writable-looking parent directory (section 11.4.201: a safety-
+    relevant capability is measured, never assumed from a proxy
+    signal). Cached per-process unless `force_probe=True`.
+
+    Test-only escape hatch:
+    FC_CGROUP_RUNNER_TEST_FORCE_UNAVAILABLE=1 forces this function to
+    return False WITHOUT ever probing, letting a test exercise
+    run_gate_reaped()'s process-group-only fallback path
+    deterministically (mirrors device_sandbox_namespace_available()'s
+    identical, already-reviewed pattern) -- never read by any
+    production code path."""
+    if os.environ.get("FC_CGROUP_RUNNER_TEST_FORCE_UNAVAILABLE") == "1":
+        return False
+    global _cgroup_runner_available_cache
+    if _cgroup_runner_available_cache is not None and not force_probe:
+        return _cgroup_runner_available_cache
+
+    base = _own_cgroup_v2_base()
+    if base is None or not os.path.isdir(base):
+        _cgroup_runner_available_cache = False
+        return False
+
+    probe_dir = os.path.join(base, "fc-cgroup-probe-%d-%s" % (os.getpid(), uuid.uuid4().hex[:8]))
+    try:
+        os.mkdir(probe_dir)
+    except OSError:
+        _cgroup_runner_available_cache = False
+        return False
+
+    result = False
+    try:
+        kill_file = os.path.join(probe_dir, _CGROUP_KILL_FILENAME)
+        procs_file = os.path.join(probe_dir, _CGROUP_PROCS_FILENAME)
+        if os.access(kill_file, os.W_OK) and os.access(procs_file, os.W_OK):
+            marker_dir = tempfile.mkdtemp(prefix="fc-cgroup-probe-marker-")
+            try:
+                marker = os.path.join(marker_dir, "survived")
+                proc = subprocess.Popen([
+                    "sh", "-c",
+                    "echo $$ > %s; sleep 5; echo survived > %s"
+                    % (shlex.quote(procs_file), shlex.quote(marker)),
+                ])
+                deadline = time.monotonic() + 3
+                present = False
+                while time.monotonic() < deadline:
+                    try:
+                        with open(procs_file, encoding="utf-8") as fh:
+                            if str(proc.pid) in fh.read().split():
+                                present = True
+                                break
+                    except OSError:
+                        pass
+                    time.sleep(0.05)
+                if present:
+                    with open(kill_file, "w", encoding="utf-8") as fh:
+                        fh.write("1")
+                    try:
+                        proc.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        proc.wait(timeout=5)
+                    time.sleep(0.2)
+                    result = not os.path.exists(marker)
+                else:
+                    proc.kill()
+                    proc.wait(timeout=5)
+            finally:
+                shutil.rmtree(marker_dir, ignore_errors=True)
+    finally:
+        try:
+            os.rmdir(probe_dir)
+        except OSError:
+            pass
+
+    _cgroup_runner_available_cache = result
+    return result
+
+
+class GateRunResult:
+    """Return shape of run_gate_reaped() below. `mechanism` is ALWAYS
+    the mechanism that GENUINELY ran for this call -- "cgroup" or
+    "process-group" -- never claimed stronger than what actually
+    applied (section 11.4.6)."""
+    __slots__ = ("returncode", "stdout", "stderr", "timed_out", "error", "mechanism")
+
+    def __init__(self, returncode, stdout, stderr, timed_out, error, mechanism):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        self.timed_out = timed_out
+        self.error = error
+        self.mechanism = mechanism
+
+
+def run_gate_reaped(cmd, timeout_s, env=None, cwd=None, text=True):
+    """THE shared gate-execution primitive (section 11.4.227 -- the
+    Round 4 reviewer's explicit "ONE shared gate runner ... used at
+    EVERY gate-execution site" recommendation). Runs `cmd` (a list) with
+    a bounded timeout and reaps EVERY descendant process on return --
+    normal OR timeout -- including a setsid()-detached grandchild a
+    process-group-only kill cannot reach (see this module's own section
+    header above for the full R4-I2 rationale).
+
+    Returns a GateRunResult:
+      - normal completion: returncode=int, stdout/stderr captured,
+        timed_out=False, error=None.
+      - timeout: returncode=None, stdout/stderr empty, timed_out=True,
+        error=None.
+      - could not even launch (OSError): returncode=None, stdout/stderr
+        empty, timed_out=False, error=the exception.
+    `.mechanism` ("cgroup" or "process-group") reports which reaping
+    mechanism genuinely ran for THIS call -- see cgroup_runner_available()
+    for how that is decided, honestly, never assumed.
+
+    Honest boundary (section 11.4.6): cgroup availability is verified
+    ONCE per process (cgroup_runner_available(), cached) via its own
+    real self-test, not re-verified on every individual call -- a
+    per-call re-verification would add real latency to every gate
+    invocation across a suite that can run hundreds of them for a
+    guarantee cgroup_runner_available() already measured for the whole
+    process's lifetime on this host."""
+    empty = "" if text else b""
+    use_cgroup = cgroup_runner_available()
+    cgroup_path = None
+    launch_cmd = list(cmd)
+
+    if use_cgroup:
+        base = _own_cgroup_v2_base()
+        candidate = os.path.join(base, "fc-gate-%d-%s" % (os.getpid(), uuid.uuid4().hex[:8]))
+        try:
+            os.mkdir(candidate)
+        except OSError:
+            # TOCTOU loss of the precondition between the process-wide
+            # self-test and this specific call -- fall back honestly
+            # rather than raise; `mechanism` below reports the truth.
+            use_cgroup = False
+        else:
+            cgroup_path = candidate
+            procs_file = os.path.join(cgroup_path, _CGROUP_PROCS_FILENAME)
+            launch_cmd = [
+                "sh", "-c",
+                'echo $$ > %s 2>/dev/null; exec "$@"' % shlex.quote(procs_file),
+                "gate-cgroup-inner",
+            ] + list(cmd)
+
+    mechanism = "cgroup" if use_cgroup else "process-group"
+
+    try:
+        proc = subprocess.Popen(
+            launch_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=text, start_new_session=True, env=env, cwd=cwd,
+        )
+    except OSError as exc:
+        if cgroup_path is not None:
+            try:
+                os.rmdir(cgroup_path)
+            except OSError:
+                pass
+        return GateRunResult(None, empty, empty, False, exc, mechanism)
+
+    timed_out = False
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        stdout, stderr = empty, empty
+        safe_killpg(proc.pid, signal.SIGKILL)
+        try:
+            proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+    else:
+        # Kill the WHOLE process group even on this NORMAL return path
+        # (T085 Round 3 R3-I1 pattern) -- closes the ordinary,
+        # non-setsid case; a group that is already empty simply raises
+        # ProcessLookupError, swallowed inside safe_killpg().
+        safe_killpg(proc.pid, signal.SIGKILL)
+
+    if cgroup_path is not None:
+        # The PRIMARY cleanup: kills every member regardless of
+        # session/process-group, including a setsid()-detached
+        # grandchild the killpg() calls above cannot reach.
+        try:
+            with open(os.path.join(cgroup_path, _CGROUP_KILL_FILENAME), "w", encoding="utf-8") as fh:
+                fh.write("1")
+        except OSError:
+            pass
+        # Best-effort drain before rmdir -- a cgroup that still has a
+        # member (a process resisting SIGKILL, vanishingly rare) simply
+        # fails rmdir (EBUSY) and is left for later reclaim; never
+        # treated as fatal to this function's own result.
+        for _ in range(20):
+            try:
+                with open(os.path.join(cgroup_path, _CGROUP_PROCS_FILENAME), encoding="utf-8") as fh:
+                    if not fh.read().strip():
+                        break
+            except OSError:
+                break
+            time.sleep(0.05)
+        try:
+            os.rmdir(cgroup_path)
+        except OSError:
+            pass
+
+    return GateRunResult(
+        None if timed_out else proc.returncode,
+        stdout, stderr, timed_out, None, mechanism,
+    )
+
+
 def is_strict_nonneg_int(v):
     """True iff `v` is a genuine, non-negative JSON integer.
 
@@ -172,6 +717,15 @@ def body_hash_of(doc):
 # distinct backup_path names -- timestamp+pid alone is not guaranteed
 # unique across rapid successive calls from one process.
 _ATOMIC_BACKUP_COUNTER = 0
+# T085 Round 5 (Minor finding 1): bounded retry count for the
+# O_CREAT|O_EXCL-guarded backup-path collision loop below -- a genuine
+# collision (the SAME timestamp+pid+counter already in use, e.g. a
+# leftover from a prior crashed run, or an adversarial pre-planted
+# symlink at that exact name) is retried with a freshly bumped counter
+# rather than ever falling through to a copy that could clobber an
+# existing symlink's target; bounded so a persistently hostile/broken
+# directory cannot hang this function forever.
+_ATOMIC_BACKUP_MAX_RETRIES = 8
 
 
 def atomic_backup_and_replace(target_path, new_text, backup_tag="bak"):
@@ -241,43 +795,132 @@ def atomic_backup_and_replace(target_path, new_text, backup_tag="bak"):
          would land on a different filesystem) -- the existing
          documented section 9.2 fallback, unchanged by this helper.
 
+    T085 Round 5 (Minor finding 1): the fallback-copy step above used to
+    run unconditionally whenever `os.link()` raised ANY `OSError` --
+    including `FileExistsError`, which it conflated with "hardlinking is
+    unsupported here" even though it actually means "something is
+    ALREADY sitting at `backup_path`". Demonstrated (frozen clock):
+    `shutil.copy2(src, dst)` on a `dst` that is ALREADY a symlink does
+    not replace the symlink entry -- it opens `dst` for writing, which
+    FOLLOWS the symlink and overwrites whatever it points at. Closed,
+    together with two related gaps the same review named:
+      - `backup_path` is now created via `os.open(..., O_CREAT|O_EXCL)`
+        (never silently overwritten, never followed if it is a
+        symlink); on a genuine collision the attempt is retried with a
+        freshly bumped counter (bounded, `_ATOMIC_BACKUP_MAX_RETRIES`)
+        rather than ever falling through to a copy that could clobber
+        an unrelated existing path.
+      - the new content is now `fh.flush()` + `os.fsync()`'d before
+        `os.replace()`, and the containing directory is ALSO fsync'd
+        after the replace -- durability-complete temp-then-rename
+        (section 11.4.205(6)), not merely atomic-looking.
+      - on ANY failure after the backup was taken, the (now-unneeded)
+        backup is best-effort removed too (never masking the real
+        exception) -- `target_path` itself is NEVER touched before
+        `os.replace()` succeeds, so a failed call leaves nothing new
+        behind, backup included.
+      - the original file's owner (uid/gid) is ALSO best-effort
+        preserved on the replacement (silently ignored when this
+        process lacks the privilege to chown, e.g. not running as
+        root) -- HONEST RESIDUAL (section 11.4.6): extended attributes
+        (xattrs) are NOT preserved by this helper; none of this
+        project's own call sites write xattr-bearing files, and adding
+        full xattr copy support is out of this fix's scope.
+
     Returns `backup_path`. Raises `OSError` on a genuine I/O failure --
     this function never silently swallows a write failure; the fresh
-    temp file is removed on that path so no stray `.atomic_backup_write.*`
-    file is left behind."""
+    temp file (and, per the above, an unneeded backup) is removed on
+    that path so no stray file is left behind."""
     global _ATOMIC_BACKUP_COUNTER
 
     real_target = os.path.realpath(target_path) if os.path.islink(target_path) else target_path
     out_dir = os.path.dirname(os.path.abspath(real_target)) or "."
 
-    _ATOMIC_BACKUP_COUNTER += 1
-    backup_path = "%s.%s-%d-%d-%d" % (
-        real_target,
-        backup_tag,
-        int(time.time() * 1000),
-        os.getpid(),
-        _ATOMIC_BACKUP_COUNTER,
-    )
     try:
-        os.link(real_target, backup_path)
+        with open(real_target, "rb") as fh:
+            orig_bytes = fh.read()
     except OSError:
-        shutil.copy2(real_target, backup_path)
+        orig_bytes = None  # target does not exist yet / unreadable -- hardlink/copy below will raise honestly
+
+    backup_path = None
+    last_exc = None
+    for _attempt in range(_ATOMIC_BACKUP_MAX_RETRIES):
+        _ATOMIC_BACKUP_COUNTER += 1
+        candidate = "%s.%s-%d-%d-%d" % (
+            real_target, backup_tag, int(time.time() * 1000), os.getpid(), _ATOMIC_BACKUP_COUNTER,
+        )
+        try:
+            os.link(real_target, candidate)
+            backup_path = candidate
+            break
+        except FileExistsError as exc:
+            last_exc = exc
+            continue  # genuine name collision -- retry with a freshly bumped counter, never fall through to copy
+        except OSError:
+            # Hardlinking genuinely unsupported here (e.g. cross-filesystem) -- fall back to a
+            # real byte-for-byte copy, but via the SAME O_CREAT|O_EXCL-guarded path so an
+            # existing symlink/file at `candidate` is refused rather than followed/overwritten.
+            try:
+                fd = os.open(candidate, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+            except FileExistsError as exc2:
+                last_exc = exc2
+                continue
+            try:
+                with os.fdopen(fd, "wb") as bfh:
+                    bfh.write(orig_bytes if orig_bytes is not None else b"")
+                    bfh.flush()
+                    os.fsync(bfh.fileno())
+                shutil.copystat(real_target, candidate)
+            except OSError:
+                try:
+                    os.unlink(candidate)
+                except OSError:
+                    pass
+                raise
+            backup_path = candidate
+            break
+    if backup_path is None:
+        raise OSError(
+            "atomic_backup_and_replace: could not create a unique backup path after "
+            "%d attempts (last error: %s)" % (_ATOMIC_BACKUP_MAX_RETRIES, last_exc)
+        )
 
     try:
-        orig_mode = stat.S_IMODE(os.stat(real_target).st_mode)
+        orig_stat = os.stat(real_target)
+        orig_mode = stat.S_IMODE(orig_stat.st_mode)
     except OSError:
+        orig_stat = None
         orig_mode = None
 
     fd, tmp_path = tempfile.mkstemp(dir=out_dir, prefix=".atomic_backup_write.")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(new_text)
+            fh.flush()
+            os.fsync(fh.fileno())
         if orig_mode is not None:
             os.chmod(tmp_path, orig_mode)
+        if orig_stat is not None:
+            try:
+                os.chown(tmp_path, orig_stat.st_uid, orig_stat.st_gid)
+            except OSError:
+                pass  # not running with chown privilege -- best-effort only
         os.replace(tmp_path, real_target)
+        try:
+            dir_fd = os.open(out_dir, os.O_DIRECTORY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except OSError:
+            pass  # directory fsync is a durability nicety, never fatal to a successful replace
     except OSError:
         try:
             os.unlink(tmp_path)
+        except OSError:
+            pass
+        try:
+            os.unlink(backup_path)  # the backup is now unneeded -- best-effort cleanup, never masks the real error
         except OSError:
             pass
         raise

@@ -108,6 +108,15 @@ import subprocess
 import sys
 import time
 
+# ---------------------------------------------------------------------------
+# T085 Round 5 (R4-I2): wiring to the shared fc_common.run_gate_reaped()
+# primitive.
+# ---------------------------------------------------------------------------
+_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "lib")
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+import fc_common  # noqa: E402  (path-inserted import, see above)
+
 EXIT_OK = 0
 EXIT_FINDING = 1
 EXIT_USAGE = 2
@@ -257,19 +266,15 @@ def run_gate(gate_id, script_path, evidence_dir):
     start = time.monotonic()
     rc = None
     out = ""
-    try:
-        proc = subprocess.run(
-            ["sh", script_path],
-            capture_output=True,
-            text=True,
-            timeout=GATE_TIMEOUT_SECONDS,
-        )
-        rc = proc.returncode
-        out = (proc.stdout or "") + (proc.stderr or "")
-    except subprocess.TimeoutExpired:
+    # T085 Round 5 (R4-I2): via the shared reaped runner.
+    result = fc_common.run_gate_reaped(["sh", script_path], timeout_s=GATE_TIMEOUT_SECONDS)
+    if result.timed_out:
         out = "gate_runner_order: %s timed out after %ss\n" % (script_path, GATE_TIMEOUT_SECONDS)
-    except OSError as exc:
-        out = "gate_runner_order: could not execute %s: %s\n" % (script_path, exc)
+    elif result.error is not None:
+        out = "gate_runner_order: could not execute %s: %s\n" % (script_path, result.error)
+    else:
+        rc = result.returncode
+        out = (result.stdout or "") + (result.stderr or "")
     duration_ms = int((time.monotonic() - start) * 1000)
     with open(evidence_path, "w", encoding="utf-8") as fh:
         fh.write(out)

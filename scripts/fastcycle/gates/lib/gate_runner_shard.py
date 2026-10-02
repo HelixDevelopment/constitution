@@ -131,6 +131,16 @@ import os
 import subprocess
 import sys
 
+# ---------------------------------------------------------------------------
+# T085 Round 5 (R4-I2): wiring to the shared fc_common.run_gate_reaped()
+# primitive -- this file is this project's T071 PRODUCTION shard lane,
+# the Round 4 reviewer's own explicit "the production shard lane" naming.
+# ---------------------------------------------------------------------------
+_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "lib")
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+import fc_common  # noqa: E402  (path-inserted import, see above)
+
 EXIT_OK = 0
 EXIT_USAGE = 2
 
@@ -346,13 +356,19 @@ def cmd_run_shard(a):
                             "sibling _shared/gates/-relative resolution): %s" % g["script"]
             continue
         cmd = ["sh", script_path] + [str(x) for x in g.get("args", [])]
-        try:
-            proc = subprocess.run(cmd, capture_output=True, timeout=GATE_TIMEOUT_SECONDS)
-            verdicts[name] = "PASS" if proc.returncode == 0 else "FAIL"
-        except subprocess.TimeoutExpired:
+        # T085 Round 5 (R4-I2): via the shared reaped runner -- the
+        # T071 "strictly after" serial-shard guarantee depends on every
+        # gate's descendants, including a setsid()-detached one, being
+        # genuinely gone before the NEXT gate (or the protected serial
+        # shard) starts; a bare subprocess.run() with no process
+        # isolation (the pre-fix state here) cannot provide that.
+        result = fc_common.run_gate_reaped(cmd, timeout_s=GATE_TIMEOUT_SECONDS, text=False)
+        if result.timed_out:
             errors[name] = "gate run timed out after %ss" % GATE_TIMEOUT_SECONDS
-        except OSError as exc:
-            errors[name] = "gate run failed: %s" % exc
+        elif result.error is not None:
+            errors[name] = "gate run failed: %s" % result.error
+        else:
+            verdicts[name] = "PASS" if result.returncode == 0 else "FAIL"
 
     result_doc = {
         "shard": shard_doc.get("shard"),

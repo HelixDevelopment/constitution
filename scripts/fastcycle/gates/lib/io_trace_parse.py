@@ -125,9 +125,23 @@ _CHDIR_LINE = re.compile(
 # regression risk to the ALREADY-correct same-pid-ordering guarantee
 # this module depends on elsewhere, for a race NEITHER this fix nor the
 # T085 Round 3 review's own investigation could reproduce on this host.
-# Left as an honestly-documented, tracked, not-yet-closed edge case
-# (never silently claimed fixed) rather than risk a same-day structural
-# rewrite of path-resolution ordering with unverified correctness.
+# Left as an honestly-documented, NOT-yet-closed edge case (never silently
+# claimed fixed) rather than risk a same-day structural rewrite of
+# path-resolution ordering with unverified correctness.
+#
+# T085 Round 5 (Minor finding, R4 Process#5): "tracked" above was a bare
+# claim with no filed item behind it -- this project's own ATM-NNN
+# tracker DB (docs/workable_items.db) has a SINGLE designated writer
+# process (never written directly by an ad-hoc tool invocation mid-fix,
+# per this project's own single-writer custody convention), so this
+# comment instead names the EXACT, fileable item precisely enough that
+# the designated tracker-writer process can create it without
+# re-deriving the investigation: Type=Task, title "io_trace_parse.py
+# m4: clone/fork entry/exit split-line race can mis-resolve a forked
+# child's cwd when the parent has chdir()'d since start_cwd", body =
+# this comment block verbatim (module: gates/lib/io_trace_parse.py,
+# function: _FORK_LINE / cwd_for(), investigated-not-reproduced per
+# T085 Round 3 m4 + Round 4's own re-confirmation it remains untracked).
 _FORK_LINE = re.compile(
     r'^(?:(?P<pid>\d+)\s+)?'
     r'(?:(?:clone|clone3|fork|vfork)\(.*|<\.\.\.\s*(?:clone|clone3|fork|vfork)\s+resumed>.*)'

@@ -132,6 +132,17 @@ import subprocess
 import sys
 import tempfile
 
+# ---------------------------------------------------------------------------
+# T085 Round 5 (R4-I2): wiring to the shared fc_common.run_gate_reaped()
+# primitive (identical import-by-path pattern to batch_bisect.py's own
+# fc_common wiring -- constitution/scripts/fastcycle has no __init__.py
+# anywhere, matching this tree's existing flat-script layout).
+# ---------------------------------------------------------------------------
+_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+import fc_common  # noqa: E402  (path-inserted import, see above)
+
 SCHEMA_TRANSFER = "mutation-transfer-record/v1"
 
 EXIT_OK = 0
@@ -284,15 +295,22 @@ def run_gate(script_path, target_path):
     """Executes `<script_path> <target_path>`; returns True on PASS
     (exit 0), False on FAIL/anything else (matching the toy gates' own
     `sh gate.sh <target>` -> exit 0 PASS / 1 FAIL convention -- the same
-    convention the RED test's own verdict_map() bash helper uses)."""
-    try:
-        proc = subprocess.run(
-            ["sh", script_path, target_path], capture_output=True, text=True, timeout=15
+    convention the RED test's own verdict_map() bash helper uses).
+
+    T085 Round 5 (R4-I2): now runs via the shared
+    fc_common.run_gate_reaped() primitive -- every descendant process a
+    gate script spawns, INCLUDING one that detaches via setsid(), is
+    reaped on return (previously a bare `subprocess.run(...,
+    timeout=15)` with no process isolation at all, the weakest of the
+    nine sites the Round 4 review named)."""
+    result = fc_common.run_gate_reaped(["sh", script_path, target_path], timeout_s=15)
+    if result.error is not None or result.timed_out:
+        sys.stderr.write(
+            f"gate_audit: running {script_path} against {target_path} "
+            f"raised/timed-out: error={result.error} timed_out={result.timed_out}\n"
         )
-    except Exception as exc:  # noqa: BLE001 - report, never crash the run
-        sys.stderr.write(f"gate_audit: running {script_path} against {target_path} raised: {exc}\n")
         return None
-    return proc.returncode == 0
+    return result.returncode == 0
 
 
 def discover_paired_mutation(cfg, root, workdir, gate_script):

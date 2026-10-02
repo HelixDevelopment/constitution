@@ -328,43 +328,29 @@ def run_gate_on_tree(gate_path, tree_dir):
     (b) applied NO cleanup at all on a normal (non-timeout) return --
     the SAME class of bug io_trace_build_map.py's retrace() had
     (T085 Round 2 B-R2-3 only fixed its timeout path; Round 3 R3-I1
-    closed its normal-return path too). Fixed identically here: the gate
-    now runs in its own session/process group
-    (start_new_session=True, so proc.pid IS the pgid), and
-    fc_common.safe_killpg() -- the SAME shared §11.4.263-guarded
-    primitive io_trace_build_map.py now also uses (section 11.4.227
-    reuse-not-reinvention) -- is called to kill the WHOLE group on
-    EVERY return path: timeout, a genuine OSError, AND a normal
-    (non-timeout) completion. See io_trace_build_map.retrace()'s own
-    docstring for why calling safe_killpg() after the direct child has
-    already been reaped is still safe (POSIX never reuses a process
-    group id while any member remains alive in it)."""
-    try:
-        proc = subprocess.Popen(
-            [gate_path, tree_dir], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, start_new_session=True,
-        )
-    except OSError:
+    closed its normal-return path too). Fixed with
+    start_new_session=True + fc_common.safe_killpg() on EVERY return
+    path.
+
+    T085 Round 4 R4-I2 (BLOCKING recurrence): the Round 3 fix above was
+    STILL incomplete -- a grandchild that calls setsid() leaves the
+    gate's own process group entirely (a brand-new session + group),
+    so killpg() cannot reach it; reproduced live, this exact function:
+    "it wrote its marker 2.5s after the call had already returned
+    PASS". Fixed via the ONE shared primitive,
+    fc_common.run_gate_reaped() (section 11.4.227) -- a Linux cgroup v2
+    scope per invocation, whose membership is INHERITED by every
+    fork() and UNCHANGED by setsid()/exec() (unlike process-GROUP
+    membership), so cgroup.kill genuinely reaches a setsid()-detached
+    grandchild too. Falls back, honestly (result.mechanism reports
+    which), to the pre-existing process-group-only mechanism on a host
+    without cgroup v2 delegation."""
+    result = fc_common.run_gate_reaped([gate_path, tree_dir], timeout_s=GATE_TIMEOUT_SECONDS)
+    if result.error is not None:
         return "FAIL", -1
-
-    try:
-        proc.communicate(timeout=GATE_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired:
-        fc_common.safe_killpg(proc.pid, signal.SIGKILL)
-        try:
-            proc.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            pass
+    if result.timed_out:
         return "FAIL", -1
-
-    # T085 Round 3 R3-I1: kill the WHOLE process group even on this
-    # NORMAL (non-timeout) return path -- a gate script that backgrounds
-    # a detached grandchild and then itself exits cleanly must not be
-    # allowed to leave that grandchild running after this function
-    # returns.
-    fc_common.safe_killpg(proc.pid, signal.SIGKILL)
-
-    return ("PASS" if proc.returncode == 0 else "FAIL"), proc.returncode
+    return ("PASS" if result.returncode == 0 else "FAIL"), result.returncode
 
 
 class GateRunner(object):

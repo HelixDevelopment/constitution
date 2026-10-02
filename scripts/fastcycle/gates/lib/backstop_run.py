@@ -108,6 +108,19 @@ import subprocess
 import sys
 import time
 
+# ---------------------------------------------------------------------------
+# T085 Round 5 (R4-I2): wiring to the shared fc_common.run_gate_reaped()
+# primitive. run_gate() below is called CONCURRENTLY from a
+# ThreadPoolExecutor (run_direct()) -- run_gate_reaped() is safe under
+# that: it carries no shared mutable state across calls other than the
+# module-level cgroup-availability cache (set once, read thereafter) and
+# a globally-unique per-call cgroup/temp directory name.
+# ---------------------------------------------------------------------------
+_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "lib")
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+import fc_common  # noqa: E402  (path-inserted import, see above)
+
 EXIT_OK = 0
 EXIT_FINDING = 1
 EXIT_USAGE = 2
@@ -205,17 +218,18 @@ def clamp_jobs(requested, host_guard_path):
     guessed cap (SS11.4.6). Returns (clamped_n, reason)."""
     if not host_guard_path or not os.path.isfile(host_guard_path):
         return 1, "host_guard.sh not found at %s -- serialising (safest default)" % host_guard_path
-    try:
-        proc = subprocess.run(
-            ["sh", host_guard_path, str(requested), "--kind", "jobs"],
-            capture_output=True, text=True, timeout=30,
+    # T085 Round 5 (R4-I2): via the shared reaped runner.
+    result = fc_common.run_gate_reaped(
+        ["sh", host_guard_path, str(requested), "--kind", "jobs"], timeout_s=30,
+    )
+    if result.error is not None or result.timed_out:
+        return 1, "host_guard.sh could not run (%s) -- serialising (safest default)" % (
+            result.error if result.error is not None else "timed out"
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return 1, "host_guard.sh could not run (%s) -- serialising (safest default)" % exc
 
     n = None
     reason = None
-    for line in proc.stdout.splitlines():
+    for line in (result.stdout or "").splitlines():
         if line.startswith("N="):
             n = line[len("N="):].strip()
         elif line.startswith("REASON="):
@@ -235,15 +249,18 @@ def run_gate(gid, script, evidence_dir):
             "evidence": None,
             "duration_ms": 0,
         }
-    try:
-        proc = subprocess.run(
-            ["sh", script], capture_output=True, text=True, timeout=GATE_TIMEOUT_S
-        )
-        rc = proc.returncode
-        captured = (proc.stdout or "") + (proc.stderr or "")
-    except (OSError, subprocess.TimeoutExpired) as exc:
+    # T085 Round 5 (R4-I2): via the shared reaped runner -- "backstop_run"
+    # (named explicitly by the Round 4 review) is run CONCURRENTLY across
+    # multiple gates by a ThreadPoolExecutor; run_gate_reaped() is safe
+    # under that (see this module's own import-site comment).
+    result = fc_common.run_gate_reaped(["sh", script], timeout_s=GATE_TIMEOUT_S)
+    if result.timed_out or result.error is not None:
         rc = None
-        captured = "backstop_run: could not execute %s: %s\n" % (script, exc)
+        reason = result.error if result.error is not None else "timed out after %ss" % GATE_TIMEOUT_S
+        captured = "backstop_run: could not execute %s: %s\n" % (script, reason)
+    else:
+        rc = result.returncode
+        captured = (result.stdout or "") + (result.stderr or "")
     duration_ms = int((time.monotonic() - start) * 1000)
 
     if rc is None:

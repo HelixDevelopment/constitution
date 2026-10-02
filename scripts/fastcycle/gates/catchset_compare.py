@@ -141,6 +141,17 @@ import gate_audit as _gate_audit  # noqa: E402 -- sibling module, single source 
 # truth for "can this gate body ever fail" (FAIL_SIGNAL_RE) and the
 # `<script> <target>` execution convention (run_gate), never duplicated.
 
+# T085 Round 5 (R4-I2): wiring to the shared fc_common.run_gate_reaped()
+# primitive, for this file's OWN two direct subprocess.run() call sites
+# (gate_script_sane()'s `sh -n` parse check, write_evidence()'s real
+# gate-script execution) -- `gate_audit.run_gate()` already covers the
+# baseline_execution_check() call at line ~515 below by virtue of
+# gate_audit.py's own T085 Round 5 fix.
+_LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+import fc_common  # noqa: E402  (path-inserted import, see above)
+
 
 def canonical_json(obj):
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -474,14 +485,19 @@ def gate_script_sane(script_path):
     baseline_execution_check())."""
     if not os.path.isfile(script_path):
         return False, f"script not found: {script_path}"
-    try:
-        proc = subprocess.run(
-            ["sh", "-n", script_path], capture_output=True, text=True, timeout=10
-        )
-    except Exception as exc:  # noqa: BLE001 - report, never crash the run
-        return False, f"sh -n failed to run: {exc}"
-    if proc.returncode != 0:
-        return False, f"sh -n parse error: {proc.stderr.strip()}"
+    # T085 Round 5 (R4-I2): via the shared reaped runner -- `sh -n`
+    # never itself forks/execs anything (a pure syntax parse), so this
+    # site carries no realistic descendant-leak risk on its own, but is
+    # wired through the ONE shared primitive for consistency with every
+    # other gate-execution site per the Round 4 reviewer's explicit
+    # mandate.
+    result = fc_common.run_gate_reaped(["sh", "-n", script_path], timeout_s=10)
+    if result.error is not None:
+        return False, f"sh -n failed to run: {result.error}"
+    if result.timed_out:
+        return False, "sh -n timed out"
+    if result.returncode != 0:
+        return False, f"sh -n parse error: {(result.stderr or '').strip()}"
     return True, ""
 
 
@@ -523,11 +539,20 @@ def write_evidence(workdir, defect_id, gate_id, script, target):
     """CS-007: captures the FAIL gate's real stdout+stderr to a
     content-addressed evidence file under workdir/evidence/. Returns the
     workdir-relative path (never a bare gate id/defect id as 'evidence')."""
+    # T085 Round 5 (R4-I2): via the shared reaped runner -- this
+    # executes the REAL gate script, the genuine descendant-leak risk
+    # site the Round 4 review named ("catchset_compare x2").
     try:
-        proc = subprocess.run(
-            ["sh", script, target], capture_output=True, text=True, timeout=15
-        )
-        payload = f"gate={gate_id} defect={defect_id} rc={proc.returncode}\n--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}\n"
+        result = fc_common.run_gate_reaped(["sh", script, target], timeout_s=15)
+        if result.error is not None:
+            payload = f"gate={gate_id} defect={defect_id} evidence capture raised: {result.error}\n"
+        elif result.timed_out:
+            payload = f"gate={gate_id} defect={defect_id} evidence capture timed out\n"
+        else:
+            payload = (
+                f"gate={gate_id} defect={defect_id} rc={result.returncode}\n"
+                f"--- stdout ---\n{result.stdout}\n--- stderr ---\n{result.stderr}\n"
+            )
     except Exception as exc:  # noqa: BLE001 - never crash the comparison over an evidence-capture failure
         payload = f"gate={gate_id} defect={defect_id} evidence capture raised: {exc}\n"
     digest = hashlib.sha256(payload.encode("utf-8", errors="replace")).hexdigest()

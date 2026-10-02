@@ -481,25 +481,102 @@ def _first_slice_field(batch, field):
     return None
 
 
+_MISSING = object()  # sentinel: distinguishes "field absent" from any real JSON value (incl. null)
+
+
+def _all_slice_field_values(batch, field):
+    """T085 Round 5: returns [(slice_index, value_or_MISSING), ...] for
+    EVERY slice in `batch` -- unlike `_first_slice_field()` above, which
+    samples only the FIRST slice that happens to carry `field` and
+    silently says nothing about the rest. A slice entry that is not a
+    dict, or whose context_pack is not a dict, or that genuinely lacks
+    `field`, is recorded as `_MISSING` for that slice -- never skipped,
+    never silently merged into "the batch has it somewhere"."""
+    slices = batch.get("slices")
+    if not isinstance(slices, list):
+        return []
+    out = []
+    for idx, s in enumerate(slices):
+        cp = s.get("context_pack") if isinstance(s, dict) else None
+        if isinstance(cp, dict) and field in cp:
+            out.append((idx, cp[field]))
+        else:
+            out.append((idx, _MISSING))
+    return out
+
+
+def _batch_wide_field_check(batch, field, check_name, evidence_key):
+    """T085 Round 5 (sibling-search/blast-radius recurrence): the ONE
+    shared batch-WIDE presence check both check_sibling_search() and
+    check_blast_radius() below now use, closing a RECURRENCE of the
+    SAME "false-PASS-on-unmeasured" bug class the T085 Round 3 fix
+    (commit 9313143) closed for the single-slice case.
+
+    The Round 3 fix made the verdict track FIELD PRESENCE instead of a
+    hardcoded PASS -- but it read that presence via `_first_slice_field()`,
+    which returns the FIRST slice that happens to carry `field` and says
+    NOTHING about every OTHER slice in a multi-slice ReviewBatch.
+    Reproduced live (T085 Round 5): a 2-slice batch where slice 0 carries
+    `sibling_search_ref` and slice 1 does NOT still reports
+    check_sibling_search()=PASS -- slice 1 was NEVER measured, yet the
+    batch-wide verdict claims it was, the IDENTICAL "unmeasured but
+    claims PASS" shape the Round 3 fix was meant to close everywhere, not
+    merely for a batch's first slice.
+
+    Fixed: PASS requires EVERY slice to genuinely carry `field` (sampled
+    via `_all_slice_field_values()`, never merely the first); a batch
+    with zero slices is likewise FAIL (there is nothing to have measured
+    -- the conservative-safe default per 11.4.201(4), never a vacuous
+    PASS-by-absence); ANY single missing slice makes the WHOLE
+    batch-wide check FAIL, citing exactly which slice indices were never
+    measured.
+
+    Backward-compatible with every single-slice fixture this project's
+    own test corpus ships (test_precheck_sibling_blast_radius_honest_
+    verdict_red.sh Sections A/B/C, test_precheck_pack_build_red.sh's
+    B1/B3/B4/C1): "every slice carries the field" trivially reduces to
+    "the one slice carries the field" when there is exactly one, so
+    those fixtures' verdicts are UNCHANGED by this fix."""
+    values = _all_slice_field_values(batch, field)
+    missing = [idx for idx, v in values if v is _MISSING]
+    if not values or missing:
+        evidence = {evidence_key: "UNMEASURED"}
+        if not values:
+            evidence["reason"] = "batch carries zero slices -- nothing was measured"
+        else:
+            evidence["missing_slice_indices"] = missing
+            evidence["measured_slice_count"] = len(values) - len(missing)
+            evidence["total_slice_count"] = len(values)
+        return {"check": check_name, "verdict": "FAIL", "evidence": evidence}
+    present_values = [v for _, v in values]
+    # Preserve the EXACT pre-existing singular-key evidence shape for the
+    # common (and every currently-fixtured) single-slice case -- no
+    # consumer of this project's own corpus reads anything beyond the
+    # verdict string, but keeping the shape stable avoids an unforced
+    # evidence-schema change for the case every existing test exercises.
+    evidence = {evidence_key: present_values[0]} if len(present_values) == 1 else {
+        evidence_key: present_values[0],
+        evidence_key + "s_by_slice": present_values,
+    }
+    return {"check": check_name, "verdict": "PASS", "evidence": evidence}
+
+
 def check_sibling_search(batch):
     # T085 round-3 fix: verdict tracks FIELD PRESENCE (11.4.201(6) false-null
     # fix), never a hardcoded PASS -- see module docstring's per-check
-    # breakdown for the full rationale. A genuinely-absent field (ref is
-    # None) is honestly FAIL; a present field -- even one whose real value
+    # breakdown for the full rationale. T085 Round 5: presence is now
+    # required across EVERY slice in the batch, not merely the first (see
+    # _batch_wide_field_check()'s own docstring for the full recurrence
+    # this closes). A genuinely-absent field on ANY slice is honestly
+    # FAIL; a value present on every slice -- even one whose real value
     # happens to be the literal string "UNMEASURED" (a hand-authored
     # fixture's own real data, not this tool's fallback) -- is PASS.
-    ref = _first_slice_field(batch, "sibling_search_ref")
-    verdict = "PASS" if ref is not None else "FAIL"
-    return {"check": "sibling-search", "verdict": verdict,
-            "evidence": {"ref": ref if ref is not None else "UNMEASURED"}}
+    return _batch_wide_field_check(batch, "sibling_search_ref", "sibling-search", "ref")
 
 
 def check_blast_radius(batch):
     # See check_sibling_search()'s comment -- identical fix, same rationale.
-    scope = _first_slice_field(batch, "blast_radius")
-    verdict = "PASS" if scope is not None else "FAIL"
-    return {"check": "blast-radius", "verdict": verdict,
-            "evidence": {"scope": scope if scope is not None else "UNMEASURED"}}
+    return _batch_wide_field_check(batch, "blast_radius", "blast-radius", "scope")
 
 
 def run_checks(batch, root):
