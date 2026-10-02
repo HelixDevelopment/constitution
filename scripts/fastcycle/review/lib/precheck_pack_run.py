@@ -81,7 +81,21 @@ clearly-labelled "not yet wired" result, never an invented finding):
     context_pack.sibling_search_ref / .blast_radius (produced by
     review/slicer.py from the real change set), falling back to the
     honest literal "UNMEASURED" only when the batch carries neither
-    field.
+    field. Fixed (T085 round-3 independent review): the verdict now
+    tracks FIELD PRESENCE, never a hardcoded PASS -- PASS only when the
+    slice's own context_pack genuinely carries the field (any non-None
+    value, including a hand-authored fixture literally spelling the word
+    "UNMEASURED" as its real field content -- that is still a value the
+    batch's own data supplied, not this tool's own absence-fallback);
+    FAIL when precheck_pack_run.py itself had to manufacture the
+    "UNMEASURED" evidence literal because the field was genuinely absent
+    from every slice. Root-cause (11.4.201(6) false-null): both checks
+    previously returned a hardcoded "verdict": "PASS" regardless of
+    whether evidence.ref/evidence.scope held a real value or this tool's
+    own synthetic "UNMEASURED" fallback -- a genuinely unmeasured
+    sibling-search/blast-radius silently satisfied all_pass, which is
+    exactly the condition review_dispatch_guard-class consumers rely on
+    "all_pass == true" to mean genuinely checked, not silently skipped.
 
 Output (C-002): canonical JSON, `schema: "precheck/v1"`, `body_hash` =
 sha256 of the canonical body excluding `run_meta` (this file's own tiny
@@ -468,14 +482,23 @@ def _first_slice_field(batch, field):
 
 
 def check_sibling_search(batch):
+    # T085 round-3 fix: verdict tracks FIELD PRESENCE (11.4.201(6) false-null
+    # fix), never a hardcoded PASS -- see module docstring's per-check
+    # breakdown for the full rationale. A genuinely-absent field (ref is
+    # None) is honestly FAIL; a present field -- even one whose real value
+    # happens to be the literal string "UNMEASURED" (a hand-authored
+    # fixture's own real data, not this tool's fallback) -- is PASS.
     ref = _first_slice_field(batch, "sibling_search_ref")
-    return {"check": "sibling-search", "verdict": "PASS",
+    verdict = "PASS" if ref is not None else "FAIL"
+    return {"check": "sibling-search", "verdict": verdict,
             "evidence": {"ref": ref if ref is not None else "UNMEASURED"}}
 
 
 def check_blast_radius(batch):
+    # See check_sibling_search()'s comment -- identical fix, same rationale.
     scope = _first_slice_field(batch, "blast_radius")
-    return {"check": "blast-radius", "verdict": "PASS",
+    verdict = "PASS" if scope is not None else "FAIL"
+    return {"check": "blast-radius", "verdict": verdict,
             "evidence": {"scope": scope if scope is not None else "UNMEASURED"}}
 
 
