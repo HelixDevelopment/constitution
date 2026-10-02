@@ -1,4 +1,12 @@
 #!/bin/sh
+# File-wide: this harness embeds dozens of literal shell/sed/python patch
+# anchors and mutation snippets as single-quoted text (compared/injected
+# byte-for-byte, never meant to expand) and a handful of escaped-quote
+# literals inside those patterns, many spanning multiple physical lines --
+# per-line disable comments would corrupt those multi-line literals. Each
+# instance was reviewed (T177 Round 15 remediation); all are genuinely
+# intentional non-expansion.
+# shellcheck disable=SC2016,SC1003
 # =============================================================================
 # T168 RED test (SpecKit-004 "fast-dev-cycles", Phase 10 / User Story 8;
 # plan.md T-G05; FR-025, SC-010).
@@ -137,7 +145,6 @@ fi
 
 MANIFEST="$FIXWORK/manifest.json"
 GOOD_CHECKOUT=$(python3 -c "import json; print(json.load(open('$MANIFEST'))['fixtures']['ca_good_migrate']['checkout'])")
-GOOD_REMOTE=$(python3 -c "import json; print(json.load(open('$MANIFEST'))['fixtures']['ca_good_migrate']['remote'])")
 DIRTY_CHECKOUT=$(python3 -c "import json; print(json.load(open('$MANIFEST'))['fixtures']['ca_bad_dirty_local']['checkout'])")
 DIRTY_REMOTE=$(python3 -c "import json; print(json.load(open('$MANIFEST'))['fixtures']['ca_bad_dirty_local']['remote'])")
 REJECT_CHECKOUT=$(python3 -c "import json; print(json.load(open('$MANIFEST'))['fixtures']['ca_bad_rejecting_remote']['checkout'])")
@@ -3066,7 +3073,6 @@ git -C "$I_ROOT/j30/checkout" push -q mirrorA main
 echo "/* product change published only to mirrorA, J30 */" >> "$I_ROOT/j30/checkout/src/product.c"
 git -C "$I_ROOT/j30/checkout" -c user.name=f -c user.email=f@example.invalid commit -q -am "P: product change on mirrorA only"
 git -C "$I_ROOT/j30/checkout" push -q mirrorA main
-J30_P=$(git -C "$I_ROOT/j30/checkout" rev-parse HEAD)
 J30_ORIGIN_CLONE=$(mktemp -d)
 git clone -q "$I_ROOT/j30/consumer.git" "$J30_ORIGIN_CLONE" >/dev/null 2>&1
 git -C "$J30_ORIGIN_CLONE" -c user.name=q -c user.email=q@example.invalid commit -q --allow-empty -m "Q: unrelated concurrent push to origin"

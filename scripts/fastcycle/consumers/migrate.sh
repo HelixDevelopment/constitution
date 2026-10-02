@@ -1219,6 +1219,8 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         # happens to accept bash syntax; on a POSIX /bin/sh (dash) every
         # migration would fail with a cryptic post-update-hook refusal. It
         # is invoked with bash explicitly, never sh.
+        # sh -c '...' receives WORKDIR/HOOK as its OWN $1/$2 -- deliberately not expanded by this shell
+        # shellcheck disable=SC2016
         if ! run_with_caller_git_env sh -c 'cd "$1" && PROJECT_ROOT="$1" CONST_DIR="$1/constitution" bash "$2"' fc-hook "$WORKDIR" "$HOOK" >"$MIGRATE_SCRATCH/migrate_hook.log" 2>&1; then
             not_migrated_after_write "post-update-hook" "consumer-gates-red"
         fi
@@ -1242,6 +1244,8 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         if [ ! -f "$WORKDIR/$GATES_SCRIPT" ]; then
             not_migrated_after_write "consumer-gates" "consumer-gates-red"
         fi
+        # sh -c '...' receives WORKDIR/GATES_SCRIPT as its OWN $1/$2 -- deliberately not expanded by this shell
+        # shellcheck disable=SC2016
         if ! run_with_caller_git_env sh -c 'cd "$1" && sh "$2"' fc-gates "$WORKDIR" "$GATES_SCRIPT" >"$MIGRATE_SCRATCH/migrate_gates.log" 2>&1; then
             not_migrated_after_write "consumer-gates" "consumer-gates-red"
         fi

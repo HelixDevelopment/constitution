@@ -43,6 +43,10 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/golden_triplet_fixture.sh
+# (not a shellcheck directive -- plain comment) precheck's shellcheck invocation runs
+# without -x; this harness sources its sibling lib file via a runtime-computed $HERE
+# path shellcheck cannot statically follow without -x regardless of the source= line
+# shellcheck disable=SC1091
 . "$HERE/lib/golden_triplet_fixture.sh"
 REAL_GOLDEN="$GT_GOLDEN"
 
@@ -132,6 +136,8 @@ expect_skip() {  # NAME OUTFILE WANT(e.g. "changed=1 noise_explained=1 not_expla
 }
 
 for f in "$GT_HARNESS" "$REAL_GOLDEN"; do
+  # intentional ok/bad control-needle idiom; ok()/bad() are print-only reporters that always return 0, so the || branch never spuriously fires
+  # shellcheck disable=SC2015
   [ -f "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
 done
 
@@ -176,17 +182,23 @@ expect_flip() {
 echo "=== (M5) round-5 reviewer's M5: invert the classifier's grep -qxF test ==="
 # (anchor updated in round 7: R6-M4 replaced the per-line grep -qxF set
 # match with a multiset awk match; the mutation still inverts the match test.)
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
 if mutate M5 '{ if (n[$0] > 0) { n[$0]--; e++ } else u++ }' '{ if (!(n[$0] > 0)) { e++ } else u++ }'; then
   expect_flip M5 C1 "changed=1 noise_explained=0 not_explained=1"
   expect_flip M5 C2 "changed=1 noise_explained=1 not_explained=0"
 fi
 
 echo "=== (M-R5I3) pre-R5-I3 shape: added lines never classified ==="
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
 if mutate R5I3 '    _fc_classify_against "$TMP/real_added.txt" "$TMP/noise_added.txt"' '    :'; then
   expect_flip R5I3 C1 "changed=1 noise_explained=0 not_explained=1"
 fi
 
 echo "=== (M-dir) classify removed lines against the ADDED noise side ==="
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
 if mutate DIR '    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_removed.txt"' '    _fc_classify_against "$TMP/real_removed.txt" "$TMP/noise_added.txt"'; then
   expect_flip DIR C4 "changed=1 noise_explained=0 not_explained=1"
 fi

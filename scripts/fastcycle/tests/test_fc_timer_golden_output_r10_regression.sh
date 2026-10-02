@@ -56,6 +56,10 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/golden_triplet_fixture.sh
+# (not a shellcheck directive -- plain comment) precheck's shellcheck invocation runs
+# without -x; this harness sources its sibling lib file via a runtime-computed $HERE
+# path shellcheck cannot statically follow without -x regardless of the source= line
+# shellcheck disable=SC1091
 . "$HERE/lib/golden_triplet_fixture.sh"
 REAL_GOLDEN="$GT_GOLDEN"
 
@@ -68,6 +72,8 @@ trap 'rm -rf "$TMP"' EXIT
 gt_init "$TMP/work"
 
 for f in "$GT_HARNESS" "$REAL_GOLDEN"; do
+  # intentional ok/bad control-needle idiom; ok()/bad() are print-only reporters that always return 0, so the || branch never spuriously fires
+  # shellcheck disable=SC2015
   [ -f "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
 done
 
@@ -224,6 +230,8 @@ s=open(sys.argv[1]).read(); s=s.replace(os.environ["ANCHOR"],os.environ["REPL"],
 mrun() { GT_GOLDEN="$TMP/golden_$1.sh" gt_golden "$2" FC_TIMER_GOLDEN_EVIDENCE_DIR="$3"; }
 
 echo "=== (M-E) guard-viability: loosen the exit noise-floor elif to accept ANY FC0b divergence (drop the exact-match-to-FC1 requirement) -- (E2) must wrongly flip to SKIP ==="
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
 if mutate E 'elif [ "$_exn" != "$_ex0" ] && [ "$_exn" = "$_ex1" ]; then' 'elif [ "$_exn" != "$_ex0" ]; then'; then
   GT_GOLDEN="$TMP/golden_E.sh" gt_golden "$TMP/me2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/e2"
   if grep -qE '^SKIP\[[0-9]+\]: FR-002 commit result' "$TMP/me2.out"; then
@@ -234,6 +242,8 @@ if mutate E 'elif [ "$_exn" != "$_ex0" ] && [ "$_exn" = "$_ex1" ]; then' 'elif [
 fi
 
 echo "=== (M-E1) guard-viability: disable the noise-floor SKIP branch entirely (force it to FAIL) -- (E1) must wrongly flip to FAIL ==="
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
 ELIF_SKIP_ANCHOR="$(grep -F 'skip "FR-002 commit result: with-timers exit status ($_ex1) differs from without-timers exit status ($_ex0)' "$REAL_GOLDEN" | sed -E 's/^[[:space:]]+//')"
 if [ -n "$ELIF_SKIP_ANCHOR" ] && mutate E1 "$ELIF_SKIP_ANCHOR" 'chk "FR-002 commit result: MUTANT forced FAIL instead of honest SKIP" "0"'; then
   GT_GOLDEN="$TMP/golden_E1.sh" gt_golden "$TMP/me1.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/e1"
@@ -287,7 +297,11 @@ else
 fi
 
 echo "=== (M-Q6) guard-viability: drop the FC0b-vs-FC1 overlap term -- (Q6) must wrongly be accepted ==="
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
 Q6_ANCHOR="$(grep -F '_fc_ranges_overlap "$_ep_b_s" "$_ep_b_f" "$_ep_1_s" "$_ep_1_f"; then' "$REAL_GOLDEN")"
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
 if [ -n "$Q6_ANCHOR" ] && mutate Q6 "$Q6_ANCHOR" "$(printf '%s' "$Q6_ANCHOR" | sed -E 's/\|\| _fc_ranges_overlap.*\$_ep_1_f"/|| false/')"; then
   mrun Q6 "$TMP/mq6.out" "$TMP/q6"
   if has "$TMP/mq6.out" "IDENTICAL" && ! has "$TMP/mq6.out" "contradicts its own recorded timing"; then
@@ -300,7 +314,11 @@ else
 fi
 
 echo "=== (M-Q7) guard-viability: drop the FC0a-vs-FC1 overlap term -- (Q7) must wrongly be accepted ==="
+# intentional literal grep -F / sed anchor pattern with an embedded escaped single quote -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC1003,SC2016
 Q7_ANCHOR="$(grep -F '_fc_ranges_overlap "$_ep_a_s" "$_ep_a_f" "$_ep_1_s" "$_ep_1_f" \' "$REAL_GOLDEN")"
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
 if [ -n "$Q7_ANCHOR" ] && mutate Q7 "$Q7_ANCHOR" "$(printf '%s' "$Q7_ANCHOR" | sed -E 's/\|\| _fc_ranges_overlap.*\$_ep_1_f" \\/|| false \\/')"; then
   mrun Q7 "$TMP/mq7.out" "$TMP/q7"
   if has "$TMP/mq7.out" "IDENTICAL" && ! has "$TMP/mq7.out" "contradicts its own recorded timing"; then

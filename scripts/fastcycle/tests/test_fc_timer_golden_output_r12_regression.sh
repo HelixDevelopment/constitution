@@ -71,6 +71,10 @@ set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
 # shellcheck source=lib/golden_triplet_fixture.sh
+# (not a shellcheck directive -- plain comment) precheck's shellcheck invocation runs
+# without -x; this harness sources its sibling lib file via a runtime-computed $HERE
+# path shellcheck cannot statically follow without -x regardless of the source= line
+# shellcheck disable=SC1091
 . "$HERE/lib/golden_triplet_fixture.sh"
 REAL_GOLDEN="$GT_GOLDEN"
 
@@ -84,6 +88,8 @@ trap 'rm -rf "$TMP"' EXIT
 gt_init "$TMP/work"
 
 for f in "$GT_HARNESS" "$REAL_GOLDEN"; do
+  # intentional ok/bad control-needle idiom; ok()/bad() are print-only reporters that always return 0, so the || branch never spuriously fires
+  # shellcheck disable=SC2015
   [ -f "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
 done
 
@@ -93,7 +99,8 @@ set_key() { sed -i "s|^$2=.*|$2=$3|" "$1"; }
 # promotion. SEQ is a small distinguishing digit so each case's run_id is
 # unique (YYYYMMDDTHHMMSSZ format the manifest format requires).
 triplet() {
-  local name="$1" fix="$TMP/fix_$1" out="$TMP/ev_$1" runid="202612$(printf '%02d' "$2")T000000Z"
+  local name="$1" fix="$TMP/fix_$1" out="$TMP/ev_$1" runid
+  runid="202612$(printf '%02d' "$2")T000000Z"
   printf '%s\n' "$3" | gt_member_text "$fix" FC0a
   printf '%s\n' "$4" | gt_member_text "$fix" FC0b
   printf '%s\n' "$5" | gt_member_text "$fix" FC1
@@ -242,6 +249,8 @@ s=open(sys.argv[1]).read(); s=s.replace(os.environ["ANCHOR"],os.environ["REPL"],
 # prefix assignment before a FUNCTION call persists as a real (if
 # call-scoped) variable for the function's OWN body, which reads
 # "$GT_GOLDEN" dynamically when IT executes, after the assignment landed.
+# intentional word-splitting -- $envassigns is a caller-supplied multi-assignment prefix string (e.g. 'A=1 B=2') that MUST split into separate env assignments, quoting it would break that
+# shellcheck disable=SC2086
 mrun() { local name="$1" envassigns="$2" outfile="$3"; GT_GOLDEN="$TMP/golden_$name.sh" gt_golden "$outfile" $envassigns; }
 
 echo "=== (M-I1a) guard-viability: strip the NEW registry-explained exit-code elif -- (A2) must reproduce the pre-round-13 hard FAIL on check [12], flipping the OVERALL result to FAIL ==="
@@ -258,6 +267,8 @@ else
 fi
 
 echo "=== (M-I1b) guard-viability: strip the NEW summary-tail truncation for the with-timers side -- (A2) must reproduce the pre-round-13 hard FAIL on check [13], flipping the OVERALL result to FAIL even though check [12] independently SKIPs ==="
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
 if mutate I1b '_fc_truncate_before_summary_tail "$TMP/with_timers_fcf_pretrunc.txt" "$TMP/with_timers_fcf.txt"' 'cp "$TMP/with_timers_fcf_pretrunc.txt" "$TMP/with_timers_fcf.txt"  # MUTANT: R12-I1 truncation disabled on this side'; then
   mrun I1b "FC_TIMER_GOLDEN_EVIDENCE_DIR=$TMP/ev_A2 FC_TIMER_GOLDEN_ROOT=$ROOT FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=$HERE/known_flaky_gates.tsv" "$TMP/mi1b.out"
   MI1B_RC=$?
@@ -356,6 +367,8 @@ else
 fi
 
 echo "=== (M-M2) guard-viability: disable the empty-reason refusal (single-line anchor; a multi-line anchor here was MEASURED to make grep -cF's control needle report 2 'hits' for a 2-line sequence that occurs only ONCE contiguously -- GNU grep -F with an embedded newline in its pattern argument matches each LINE of the pattern as a separate alternative, summing per-line match counts, rather than requiring the exact multi-line sequence; a genuine S11.4.201(7)(c) 'the path is part of the instrument' footgun, found by running this, not assumed -- so every mutate() anchor in this file stays single-line) -- (M2-empty-reason)'s fixture must reproduce the pre-round-13 false exclusion ==="
+# intentional literal grep -F / sed anchor pattern -- the string must NOT expand, that is the point of the mutation anchor
+# shellcheck disable=SC2016
 if mutate M2 '    if [ -z "$reason" ]; then' '    if false; then  # MUTANT: R12-M2 empty-reason refusal disabled'; then
   mrun M2 "FC_TIMER_GOLDEN_EVIDENCE_DIR=$TMP/ev_M2good FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV=$BAD_REASON_TSV FC_TIMER_GOLDEN_ROOT=$ROOT" "$TMP/mm2.out"
   MM2_RC=$?
