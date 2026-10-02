@@ -105,24 +105,45 @@ cp "$FIXDIR/rk_stale_key_caught/source.md" "$_BACKUP_DIR/stale_key_caught.orig.m
 # --porcelain` reported them ` D <path>` after a run, requiring a manual
 # `git checkout --` to restore -- exactly the T085 Round 1 I8 finding's
 # repro). This test's OWN rendering work (if any) into these same paths is
-# still cleaned up -- the fix is which RESTORE MECHANISM is used, not
-# whether cleanup runs: a file that was ALREADY GIT-TRACKED before this
-# test touched anything is restored via `git checkout --` (its real,
-# committed bytes), never deleted; a file that was genuinely untracked
-# (this test's own fresh render) is still `rm -f`'d exactly as before.
-# The tracked/untracked determination is made ONCE, before any test work
-# runs, so a mid-run change in tracked-ness never confuses cleanup.
-_RENDER_KEYS_GIT_ROOT=$(cd "$FIXDIR" && git rev-parse --show-toplevel 2>/dev/null || true)
-_render_keys_is_tracked() {
-    [ -n "$_RENDER_KEYS_GIT_ROOT" ] || return 1
-    ( cd "$_RENDER_KEYS_GIT_ROOT" && git ls-files --error-unmatch "$1" ) >/dev/null 2>&1
-}
-_RK_TRACKED_TWINS=""
+# still cleaned up.
+#
+# T085 Round 3 R3-I3 (IMPORTANT): the I8(a) fix above restored a TRACKED
+# twin via `git checkout -- "$f"` -- but that restores the file to its
+# COMMITTED-AT-HEAD bytes, discarding ANY uncommitted edit, including a
+# DIFFERENT, concurrently-running track's own legitimate, not-yet-
+# committed work on that exact tracked file. Confirmed live on this
+# checkout (2026-10-02): 4 of these exact 12 twins --
+# rk_stale_key_caught/source.{docx,pdf} and
+# rk_touched_identical/source.{docx,pdf} -- were concurrently modified
+# and uncommitted at the moment this fix was written; a run of the
+# pre-R3-I3 cleanup() would have silently discarded that other track's
+# work via `git checkout --`, even though THIS test's own render work
+# (Section C/D below) never touches rk_stale_key_caught/ or
+# rk_touched_identical/ at all -- `git checkout --` was applied
+# UNCONDITIONALLY to every tracked twin in all 4 directories, regardless
+# of whether this specific run ever wrote to that specific file.
+#
+# Fixed: a CAPTURED-CONTENT snapshot-and-restore, never `git checkout --`.
+# Every twin file that EXISTS on disk right now (before this test does
+# ANY work) has its CURRENT, real, de-facto bytes -- whatever they
+# genuinely are at this exact moment, including any OTHER track's
+# uncommitted edits -- copied into $_BACKUP_DIR. On cleanup, each such
+# file is restored FROM THAT SNAPSHOT (a plain `cp`, never a `git`
+# operation that could reach into history and discard concurrent work).
+# A file that did NOT exist before this test started (this test's own
+# fresh, first-time render of a twin that was absent) has no snapshot to
+# restore from and is instead `rm -f`'d, exactly as the untracked case
+# always was -- this test never leaves behind output it itself created
+# from nothing, and never touches anything that already existed before
+# it ran beyond putting it back exactly as found.
+_RK_SNAPSHOT_FILES=""
 for d in rk_unchanged_today rk_changed_all_four rk_stale_key_caught rk_touched_identical; do
     for ext in html pdf docx; do
         f="$FIXDIR/$d/source.$ext"
-        if _render_keys_is_tracked "$f"; then
-            _RK_TRACKED_TWINS="$_RK_TRACKED_TWINS $f"
+        if [ -f "$f" ]; then
+            snap="$_BACKUP_DIR/twin__${d}__source.${ext}"
+            cp "$f" "$snap" 2>/dev/null
+            _RK_SNAPSHOT_FILES="$_RK_SNAPSHOT_FILES $f"
         fi
     done
 done
@@ -130,26 +151,34 @@ done
 cleanup() {
     [ -f "$_BACKUP_DIR/changed_all_four.orig.md" ] && cp "$_BACKUP_DIR/changed_all_four.orig.md" "$FIXDIR/rk_changed_all_four/source.md" 2>/dev/null
     [ -f "$_BACKUP_DIR/stale_key_caught.orig.md" ] && cp "$_BACKUP_DIR/stale_key_caught.orig.md" "$FIXDIR/rk_stale_key_caught/source.md" 2>/dev/null
-    rm -rf "$_BACKUP_DIR" 2>/dev/null
     for d in rk_unchanged_today rk_changed_all_four rk_stale_key_caught rk_touched_identical; do
         for ext in html pdf docx; do
             f="$FIXDIR/$d/source.$ext"
-            case " $_RK_TRACKED_TWINS " in
+            snap="$_BACKUP_DIR/twin__${d}__source.${ext}"
+            case " $_RK_SNAPSHOT_FILES " in
                 *" $f "*)
-                    # Tracked BEFORE this run -- restore its real committed
-                    # bytes, NEVER delete (I8(a) fix).
-                    if [ -n "$_RENDER_KEYS_GIT_ROOT" ]; then
-                        ( cd "$_RENDER_KEYS_GIT_ROOT" && git checkout -- "$f" ) 2>/dev/null
-                    fi
+                    # A real, pre-existing snapshot of this EXACT file's
+                    # own bytes as they stood immediately before this
+                    # test ran -- restore from it directly, NEVER via
+                    # `git checkout --` (R3-I3 fix: this can never
+                    # discard a concurrent track's uncommitted edit,
+                    # because it restores the file to the state it was
+                    # ALREADY in, not to git HEAD).
+                    [ -f "$snap" ] && cp "$snap" "$f" 2>/dev/null
                     ;;
                 *)
-                    # Genuinely untracked (this test's own fresh render) --
-                    # safe to remove, exactly as before.
+                    # No snapshot was captured because the file did NOT
+                    # exist before this test started -- this test's own
+                    # fresh render of a file that was genuinely absent.
+                    # Safe to remove; there is nothing pre-existing
+                    # (from this test, a concurrent track, or git HEAD)
+                    # that removing it could discard.
                     rm -f "$f" 2>/dev/null
                     ;;
             esac
         done
     done
+    rm -rf "$_BACKUP_DIR" 2>/dev/null
 }
 trap cleanup EXIT
 
