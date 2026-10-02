@@ -143,6 +143,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -269,6 +270,7 @@ def build_tree(base_tree_dir, patches_dir, changes):
         if os.path.isfile(src):
             shutil.copy2(src, os.path.join(tmp, entry))
     tmp_real = os.path.realpath(tmp)
+    patches_dir_real = os.path.realpath(patches_dir)
     for ch in changes:
         src = os.path.join(patches_dir, ch["patch"])
         dst = os.path.join(tmp, ch["target_file"])
@@ -285,6 +287,23 @@ def build_tree(base_tree_dir, patches_dir, changes):
                 "disposable tree %r -- refusing to write (T085 Round 2 "
                 "B-R2-5(a))" % (ch.get("change_id"), ch["target_file"], dst_real, tmp_real)
             )
+        # T085 Round 3 m5 (MINOR): the pre-fix version above checked
+        # ONLY the write-side target_file for containment -- a change's
+        # `patch` field (the READ side, joined onto patches_dir) was
+        # never checked at all, so a `patch` value such as
+        # `"../../../../etc/passwd"` (or any path escaping patches_dir)
+        # would be happily shutil.copy2()'d into the disposable tree,
+        # copying an arbitrary readable file from anywhere the process
+        # can read. Mirrors the SAME realpath-containment check above,
+        # applied to the read side.
+        src_real = os.path.realpath(src)
+        if src_real != patches_dir_real and not src_real.startswith(patches_dir_real + os.sep):
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise TargetPathEscapeError(
+                "change %r patch %r resolves to %r, OUTSIDE patches_dir "
+                "%r -- refusing to read (T085 Round 3 m5)"
+                % (ch.get("change_id"), ch["patch"], src_real, patches_dir_real)
+            )
         shutil.copy2(src, dst)
     return tmp
 
@@ -300,14 +319,51 @@ def run_gate_on_tree(gate_path, tree_dir):
     """Runs --gate against tree_dir; returns ("PASS"|"FAIL", raw_rc). A
     gate that exceeds GATE_TIMEOUT_SECONDS is treated as FAIL (a timed-out
     gate cannot have genuinely validated the tree -- it is never silently
-    read as PASS) with raw_rc -1, distinguishable from a real exit code."""
+    read as PASS) with raw_rc -1, distinguishable from a real exit code.
+
+    T085 Round 3 R3-I1 (IMPORTANT): the pre-fix `subprocess.run(...,
+    timeout=...)` above (a) never put the gate in its OWN process group,
+    so even ITS OWN timeout path could only kill the direct `gate_path`
+    child, never a backgrounded grandchild the gate script spawned, and
+    (b) applied NO cleanup at all on a normal (non-timeout) return --
+    the SAME class of bug io_trace_build_map.py's retrace() had
+    (T085 Round 2 B-R2-3 only fixed its timeout path; Round 3 R3-I1
+    closed its normal-return path too). Fixed identically here: the gate
+    now runs in its own session/process group
+    (start_new_session=True, so proc.pid IS the pgid), and
+    fc_common.safe_killpg() -- the SAME shared §11.4.263-guarded
+    primitive io_trace_build_map.py now also uses (section 11.4.227
+    reuse-not-reinvention) -- is called to kill the WHOLE group on
+    EVERY return path: timeout, a genuine OSError, AND a normal
+    (non-timeout) completion. See io_trace_build_map.retrace()'s own
+    docstring for why calling safe_killpg() after the direct child has
+    already been reaped is still safe (POSIX never reuses a process
+    group id while any member remains alive in it)."""
     try:
-        proc = subprocess.run(
-            [gate_path, tree_dir], capture_output=True, text=True,
-            timeout=GATE_TIMEOUT_SECONDS,
+        proc = subprocess.Popen(
+            [gate_path, tree_dir], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, start_new_session=True,
         )
-    except subprocess.TimeoutExpired:
+    except OSError:
         return "FAIL", -1
+
+    try:
+        proc.communicate(timeout=GATE_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        fc_common.safe_killpg(proc.pid, signal.SIGKILL)
+        try:
+            proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        return "FAIL", -1
+
+    # T085 Round 3 R3-I1: kill the WHOLE process group even on this
+    # NORMAL (non-timeout) return path -- a gate script that backgrounds
+    # a detached grandchild and then itself exits cleanly must not be
+    # allowed to leave that grandchild running after this function
+    # returns.
+    fc_common.safe_killpg(proc.pid, signal.SIGKILL)
+
     return ("PASS" if proc.returncode == 0 else "FAIL"), proc.returncode
 
 
@@ -659,37 +715,37 @@ def cmd_wip_caps(args):
         )
 
     if args.apply:
-        # §9.2 hardlinked pre-op backup before any destructive rewrite.
-        backup_path = args.thresholds + ".pre-wip-caps.bak"
-        try:
-            os.link(args.thresholds, backup_path)
-        except FileExistsError:
-            pass
-        except OSError:
-            shutil.copy2(args.thresholds, backup_path)
-        # T085 Round 2 B-R2-5: NEVER open(args.thresholds, "w") after the
-        # hardlink above -- os.link() makes backup_path the SAME inode as
-        # args.thresholds, so truncating-and-writing args.thresholds in
-        # place silently overwrites the "backup" too (reproduced live:
-        # the .bak shared inode with the new content, the pre-change bytes
-        # were gone). Fixed via the SAME write-temp-then-rename pattern
-        # write_result() already uses above: the new content lands in a
-        # fresh temp file in the same directory, then os.replace() atomically
-        # repoints the args.thresholds directory entry at that NEW inode --
-        # the hardlinked backup_path entry keeps pointing at the OLD,
-        # untouched inode, genuinely preserving the pre-change bytes.
-        out_dir = os.path.dirname(os.path.abspath(args.thresholds)) or "."
-        fd, tmp_path = tempfile.mkstemp(dir=out_dir, prefix=".batch_bisect_wip_caps.")
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                fh.write(new_text)
-            os.replace(tmp_path, args.thresholds)
-        except OSError:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        # §9.2 pre-op backup + atomic rewrite, via the ONE shared primitive
+        # every "hardlink-backup-then-replace-the-live-file" call site in
+        # this tool family now uses (fc_common.atomic_backup_and_replace(),
+        # T085 Round 3 R3-B3). This single call closes THREE issues the
+        # hand-rolled version above had:
+        #   - T085 Round 2 B-R2-5 (the original hardlink-then-truncate-in-
+        #     place bug: os.link() makes backup_path the SAME inode as
+        #     args.thresholds, so writing args.thresholds in place silently
+        #     overwrote the "backup" too) -- already fixed by hand here,
+        #     now delegated to the shared primitive instead of a second,
+        #     independently-maintained copy of the same fix.
+        #   - T085 Round 3 m2 (MINOR): the pre-fix `backup_path` here was a
+        #     FIXED name (args.thresholds + ".pre-wip-caps.bak"), so a
+        #     SECOND --apply run hit `FileExistsError` on the hardlink and
+        #     silently `pass`ed -- the second run's pre-op bytes were NEVER
+        #     backed up at all, while `report["backup_path"]` still named
+        #     the stale first-run path as if it covered them. The shared
+        #     primitive's backup_path is unique per call (timestamp+pid+
+        #     counter), so every apply genuinely captures its own pre-op
+        #     bytes, never silently skipped.
+        #   - T085 Round 3 m3 (MINOR): `tempfile.mkstemp()` defaults to
+        #     mode 0600, so the pre-fix `os.replace(tmp_path, ...)` would
+        #     silently TIGHTEN args.thresholds's permissions (e.g. 0644 ->
+        #     0600) on every apply, and would replace a symlink target
+        #     with a plain regular file if args.thresholds were itself a
+        #     symlink. The shared primitive preserves the original mode
+        #     bits and resolves a symlink to its real path before writing,
+        #     so the symlink itself is never replaced.
+        backup_path = fc_common.atomic_backup_and_replace(
+            args.thresholds, new_text, backup_tag="pre-wip-caps.bak"
+        )
         report["backup_path"] = backup_path
         print("batch_bisect wip-caps: wrote %s (backup: %s)" % (args.thresholds, backup_path))
     else:

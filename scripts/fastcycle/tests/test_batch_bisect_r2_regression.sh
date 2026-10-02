@@ -54,11 +54,27 @@ cat > "$METRICS" <<'EOF'
 {"queues": {"per_track": {"median_wip": 4}, "review_queue": {"median_wip": 2}, "device_flash_queue": {"median_wip": 1}}}
 EOF
 
-D1_OUT=$(python3 "$TOOL" wip-caps --thresholds "$THRESH" --metrics "$METRICS" --apply 2>&1)
+D1_OUT=$(python3 "$TOOL" wip-caps --thresholds "$THRESH" --metrics "$METRICS" --apply 2>"$SCRATCH/d1.stderr")
 D1_RC=$?
-BACKUP_PATH="$THRESH.pre-wip-caps.bak"
+# T085 Round 3 R3-B3 (via the shared fc_common.atomic_backup_and_replace()
+# helper, m2 fix): backup_path is no longer a FIXED filename
+# ("$THRESH.pre-wip-caps.bak") -- it is unique per call (timestamp+pid+
+# counter), specifically so a SECOND --apply run never collides with /
+# silently skips a prior run's backup (see Section D2 below). Read the
+# REAL backup_path back from the tool's own JSON report, never assume a
+# literal filename.
+BACKUP_PATH=$(printf '%s\n' "$D1_OUT" | python3 -c '
+import json, sys
+text = sys.stdin.read()
+try:
+    start = text.index("{")
+    doc = json.loads(text[start:])
+    print(doc.get("backup_path", ""))
+except (ValueError, json.JSONDecodeError):
+    pass
+')
 
-if [ "$D1_RC" -eq 0 ] && [ -f "$BACKUP_PATH" ]; then
+if [ "$D1_RC" -eq 0 ] && [ -n "$BACKUP_PATH" ] && [ -f "$BACKUP_PATH" ]; then
     ok "D1: wip-caps --apply exited 0 and wrote a backup file"
 else
     bad "D1: wip-caps --apply exited $D1_RC or backup missing: $D1_OUT"
@@ -86,6 +102,77 @@ if echo "$NEW_CONTENT" | grep -q "per_track: 4" && echo "$NEW_CONTENT" | grep -q
     ok "D4: thresholds.yaml genuinely updated with the new per-queue WIP caps from --metrics"
 else
     bad "D4: thresholds.yaml was not correctly updated with the new caps: $NEW_CONTENT"
+fi
+
+# T085 Round 3 m2 (MINOR, shared with R3-B3's fix): a SECOND --apply run
+# must get its OWN genuine backup of the state immediately before THAT
+# run -- never silently reuse/skip because a fixed backup filename from
+# the first run already exists (the pre-fix `FileExistsError: pass`
+# bug). Update the metrics so the second apply writes genuinely
+# different content, then apply a second time.
+AFTER_FIRST_APPLY_CONTENT=$(cat "$THRESH")
+cat > "$METRICS" <<'EOF'
+{"queues": {"per_track": {"median_wip": 9}, "review_queue": {"median_wip": 8}, "device_flash_queue": {"median_wip": 7}}}
+EOF
+D5_OUT=$(python3 "$TOOL" wip-caps --thresholds "$THRESH" --metrics "$METRICS" --apply 2>"$SCRATCH/d5.stderr")
+D5_RC=$?
+BACKUP_PATH_2=$(printf '%s\n' "$D5_OUT" | python3 -c '
+import json, sys
+text = sys.stdin.read()
+try:
+    start = text.index("{")
+    doc = json.loads(text[start:])
+    print(doc.get("backup_path", ""))
+except (ValueError, json.JSONDecodeError):
+    pass
+')
+
+if [ "$D5_RC" -eq 0 ] && [ -n "$BACKUP_PATH_2" ] && [ -f "$BACKUP_PATH_2" ] && [ "$BACKUP_PATH_2" != "$BACKUP_PATH" ]; then
+    ok "D5: a SECOND wip-caps --apply produces a genuinely DISTINCT backup_path ($BACKUP_PATH_2 != $BACKUP_PATH) -- never collides with / silently skips the first run's backup"
+else
+    bad "D5: second --apply's backup_path ($BACKUP_PATH_2) is missing, unwritten, or identical to the first run's ($BACKUP_PATH) -- the m2 bug"
+fi
+
+BACKUP_2_CONTENT=$(cat "$BACKUP_PATH_2" 2>/dev/null)
+if [ "$BACKUP_2_CONTENT" = "$AFTER_FIRST_APPLY_CONTENT" ]; then
+    ok "D6: the SECOND backup's bytes equal the state immediately BEFORE the second apply (the first apply's own result) -- genuinely captured, not a stale/empty/overwritten copy"
+else
+    bad "D6: the second backup's content does not match the pre-second-apply state -- the m2 bug (second run's pre-op bytes never genuinely backed up)"
+fi
+
+# T085 Round 3 m3 (MINOR): --apply must preserve thresholds.yaml's
+# ORIGINAL mode bits across the rewrite -- tempfile.mkstemp() defaults
+# to 0600, so a bare os.replace(tmp_path, args.thresholds) would
+# silently tighten a pre-existing 0644 file to 0600 on every apply.
+chmod 644 "$THRESH"
+D7_MODE_BEFORE=$(stat -c '%a' "$THRESH" 2>/dev/null || stat -f '%OLp' "$THRESH")
+python3 "$TOOL" wip-caps --thresholds "$THRESH" --metrics "$METRICS" --apply >/dev/null 2>"$SCRATCH/d7.stderr"
+D7_MODE_AFTER=$(stat -c '%a' "$THRESH" 2>/dev/null || stat -f '%OLp' "$THRESH")
+if [ "$D7_MODE_BEFORE" = "$D7_MODE_AFTER" ]; then
+    ok "D7: thresholds.yaml's mode bits ($D7_MODE_BEFORE) are preserved across --apply, never silently tightened to mkstemp's default 0600"
+else
+    bad "D7: thresholds.yaml's mode changed from $D7_MODE_BEFORE to $D7_MODE_AFTER across --apply -- the m3 bug"
+fi
+
+# T085 Round 3 m3 (MINOR, continued): if thresholds.yaml is itself a
+# SYMLINK, --apply must write through it (the symlink stays a symlink
+# pointing at the now-updated real file), never replace the symlink
+# itself with a plain regular file.
+REAL_THRESH="$SCRATCH/real_thresholds.yaml"
+cp "$THRESH" "$REAL_THRESH"
+SYMLINK_THRESH="$SCRATCH/symlink_thresholds.yaml"
+ln -s "$REAL_THRESH" "$SYMLINK_THRESH"
+python3 "$TOOL" wip-caps --thresholds "$SYMLINK_THRESH" --metrics "$METRICS" --apply >/dev/null 2>"$SCRATCH/d8.stderr"
+D8_RC=$?
+if [ "$D8_RC" -eq 0 ] && [ -L "$SYMLINK_THRESH" ] && [ "$(readlink "$SYMLINK_THRESH")" = "$REAL_THRESH" ]; then
+    ok "D8: --apply against a SYMLINK --thresholds path leaves the symlink intact, still pointing at the real file (never replaced by a regular file)"
+else
+    bad "D8: --apply against a symlink --thresholds path broke the symlink (rc=$D8_RC, is_symlink=$([ -L "$SYMLINK_THRESH" ] && echo yes || echo no)) -- the m3 symlink bug"
+fi
+if [ -f "$REAL_THRESH" ] && grep -q "per_track: 9" "$REAL_THRESH" 2>/dev/null; then
+    ok "D9: the symlink's REAL target file was genuinely updated with the new caps (write-through-symlink worked, not a no-op)"
+else
+    bad "D9: the symlink's real target file was not updated with the new caps"
 fi
 
 # =============================================================================
