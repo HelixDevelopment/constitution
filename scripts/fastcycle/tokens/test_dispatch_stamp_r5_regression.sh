@@ -549,43 +549,96 @@ elif kind == "env_bare_varname":
 elif kind == "env_key_only":
     OLD = ENV_OLD
     NEW = '        if grep -q \'HELIX_RELEASE_PREFIX=\' "$parent_root/.env" 2>/dev/null; then\n'
-elif kind == "basename_substring":
-    # I-1 (round-5 independent Opus-xhigh review, 2026-10-03): the B1
-    # basename gate's EXACT-match test ("root_base = constitution") is
-    # loosened to a case-insensitive SUBSTRING/near-miss match, so a
-    # directory whose basename merely CONTAINS "constitution" as a
-    # substring (e.g. "HelixConstitution") incorrectly becomes a widen
-    # candidate (D10's negative-control proof this MUST NOT happen).
-    OLD = BASENAME_OLD
-    NEW = '    if printf \'%s\' "$root_base" | grep -qi \'constitution\'; then\n'
 elif kind == "basename_insert_before":
     # I-1 residual gap (round-6 independent Opus-xhigh review,
-    # 2026-10-03, verbatim finding): D10's "basename_substring" kind
-    # above is LINE-EDITING -- it REPLACES the gate line's own text, so
-    # it can only ever discriminate a CASE-INSENSITIVE loosening of that
-    # same line (D10's fixture "HelixConstitution" has a capital "C").
-    # A LINE-PRESERVING attack -- a NEW normalization statement INSERTED
-    # immediately before the existing, UNTOUCHED exact-match gate
-    # line -- is a genuinely DIFFERENT mutation shape: the gate line
-    # itself is never edited, only a prior statement is added that
-    # silently rewrites $root_base to the literal "constitution" before
-    # the (still textually unchanged) exact-match test ever runs, for
-    # ANY basename that is a case-SENSITIVE substring/prefix/suffix
-    # match (not merely a case-insensitive one). This kind therefore
-    # requires its OWN fixture (D11, a lowercase near-miss basename)
-    # to discriminate -- D10's capitalized fixture cannot see it, since
-    # a case-sensitive `*constitution*` glob never matches "HelixConstitution".
+    # 2026-10-03, verbatim finding), SUPERSEDED round-7 (independent
+    # Opus-xhigh review, 2026-10-03): round-6's companion
+    # "basename_substring" kind (a case-insensitive SUBSTRING loosening,
+    # implemented by LINE-EDITING the gate line itself via a replaced
+    # `grep -qi` test) was REMOVED this round -- its D10 caller is gone,
+    # replaced by the table-driven near-miss sweep below, whose
+    # "basename_insert_casefold" kind (same elif-chain, further down)
+    # covers the SAME case-insensitive-substring class via a STRICTLY
+    # MORE GENERAL mechanism (nocasematch) that also closes the
+    # case-fold-EXACT gap ("Constitution"/"CONSTITUTION") the old
+    # line-editing kind could never represent. Keeping the old kind
+    # defined with no caller would itself be exactly the round-6-
+    # reviewer-flagged "dead code" class this same round's M2 finding
+    # fixes elsewhere in this file -- so it is deleted, not merely
+    # orphaned.
+    #
+    # This kind (basename_insert_before) remains as the table-driven
+    # sweep's SUBSTRING-class representative (the LINE-PRESERVING
+    # attack shape: a NEW case-SENSITIVE normalization statement
+    # INSERTED immediately before the existing, UNTOUCHED exact-match
+    # gate line, rather than editing that line's own text -- the gate
+    # line itself is never edited, only a prior statement silently
+    # rewrites $root_base to the literal "constitution" before the
+    # still-textually-unchanged exact-match test ever runs, for ANY
+    # basename that is a case-SENSITIVE substring/prefix/suffix match).
     #
     # This kind's own setup self-check is NOT brittle by the SAME text-
-    # pin mechanism D10's reviewer flagged in the general critique: `OLD`
-    # (the untouched gate line) is PRESERVED VERBATIM inside `NEW` (as
-    # its trailing line), so the generic `src.count(OLD) != 1` guard
-    # above still correctly validates the PRE-mutation source (where OLD
-    # is genuinely unique) before this kind's insertion-shaped NEW value
-    # is ever written -- it does not rely on OLD's absence afterwards.
+    # pin mechanism the round-5 reviewer flagged in the general
+    # critique: `OLD` (the untouched gate line) is PRESERVED VERBATIM
+    # inside `NEW` (as its trailing line), so the generic
+    # `src.count(OLD) != 1` guard above still correctly validates the
+    # PRE-mutation source (where OLD is genuinely unique) before this
+    # kind's insertion-shaped NEW value is ever written -- it does not
+    # rely on OLD's absence afterwards. The same self-check property
+    # holds for every "basename_insert_*" kind below, by the identical
+    # construction (OLD preserved verbatim as NEW's trailing line).
     OLD = BASENAME_OLD
     NEW = (
         '    case "$root_base" in *constitution*) root_base=constitution ;; esac\n'
+        + BASENAME_OLD
+    )
+elif kind == "basename_insert_prefix":
+    # I-1 residual gap (round-7 independent Opus-xhigh review,
+    # 2026-10-03, verbatim finding): neither the substring-class kind
+    # above nor the case-fold-class kind below discriminates a PREFIX
+    # loosening -- a basename that merely STARTS WITH "constitution"
+    # followed by one-or-more further characters (e.g.
+    # "constitution-fork", "constitution.bak"), case-SENSITIVE, never
+    # case-folded. This is the table-driven sweep's PREFIX-class
+    # representative.
+    OLD = BASENAME_OLD
+    NEW = (
+        '    case "$root_base" in constitution?*) root_base=constitution ;; esac\n'
+        + BASENAME_OLD
+    )
+elif kind == "basename_insert_suffix":
+    # I-1 residual gap (round-7 independent Opus-xhigh review,
+    # 2026-10-03, verbatim finding): a basename that merely ENDS WITH
+    # "constitution" (e.g. "my-constitution"), case-SENSITIVE, is a
+    # genuinely distinct attack shape from both the substring kind above
+    # (which also matches it, but does not ISOLATE the suffix-only
+    # shape) and the prefix kind above (which does NOT match it, since
+    # the string does not START with "constitution"). This is the
+    # table-driven sweep's SUFFIX-class representative, via a case-
+    # sensitive extended-regex end-anchor.
+    OLD = BASENAME_OLD
+    NEW = (
+        '    if [[ "$root_base" =~ constitution$ ]]; then root_base=constitution; fi\n'
+        + BASENAME_OLD
+    )
+elif kind == "basename_insert_casefold":
+    # I-1 residual gap (round-7 independent Opus-xhigh review,
+    # 2026-10-03, verbatim finding): a case-INSENSITIVE loosening via
+    # `shopt -s nocasematch` rather than a line-edited `grep -qi` call
+    # (the round-5/D10 mechanism this kind supersedes, see the removal
+    # note on "basename_insert_before" above) -- this is STRICTLY MORE
+    # GENERAL than a mere case-insensitive-substring loosening: it also
+    # fires on a basename that is an EXACT case-fold match for
+    # "constitution" (e.g. "Constitution", "CONSTITUTION"), since an
+    # exact match is trivially also a substring match of itself. This
+    # single kind is therefore the table-driven sweep's CASE-FOLD-class
+    # representative, covering BOTH the case-insensitive-substring shape
+    # (round-5/D10's original fixture, "HelixConstitution") AND the
+    # case-fold-exact shape (round-6-reviewer-named mD gap,
+    # "Constitution" / "CONSTITUTION") with one mechanism.
+    OLD = BASENAME_OLD
+    NEW = (
+        '    shopt -s nocasematch; [[ $root_base == *constitution* ]] && root_base=constitution; shopt -u nocasematch\n'
         + BASENAME_OLD
     )
 else:
@@ -928,174 +981,176 @@ else
     fi
   fi
 fi
-# D10 (I-1, round-5 independent Opus-xhigh review, 2026-10-03, verbatim
-# finding: "a mutation loosening [the B1 basename gate's EXACT match] to a
-# SUBSTRING match ... survives the ENTIRE existing r5-regression suite
-# completely undetected -- because the existing D-series fixtures never
-# test a directory whose basename CONTAINS 'constitution' as a substring
-# without being an exact match."). D4 above already proves the EXACT-match
-# gate refuses a basename that does NOT overlap "constitution" AT ALL
-# ("other_dir") -- but a substring-match mutant would ALSO correctly
-# refuse "other_dir" (it contains no "constitution" substring either), so
-# D4 cannot discriminate this specific loosening. This fixture is
-# genuinely different: a directory basename that is a NEAR-MISS
-# substring/case match for "constitution" (capitalized "HelixConstitution",
-# the exact pre-existing standalone-layout example this file's own
-# `.env.example` / Usage: header already document -- see release_prefix.sh
-# lines 64-76 -- never an invented name), sitting under a parent whose
-# `.env` carries a VALID, non-empty HELIX_RELEASE_PREFIX= assignment (the
-# kind of evidence that WOULD correctly widen a genuine `constitution/`
-# checkout). The real, EXACT-match-gated code must still correctly print
-# the basename-derived "helix_constitution" (never widening to the
-# parent's unrelated prefix), while a case-insensitive-substring-match
-# mutant of the SAME gate incorrectly widens to the parent's value.
+# SWEEP (I-1 full remediation, round-7 independent Opus-xhigh review,
+# 2026-10-03): D10 + D11 above (now REMOVED, replaced entirely by this one
+# table-driven sweep) each closed exactly ONE near-miss basename shape the
+# round-5/round-6 reviewers anticipated, with ONE matching mutant apiece.
+# The SAME round-7 review additionally reproduced TWO further line-
+# preserving mutants that survive ALL of D10+D11 combined, UNDETECTED
+# (47/0, confirmed live before writing this sweep, §11.4.199):
+#   mC (PREFIX):    `case "$root_base" in constitution?*) ...` widens on
+#                    any basename STARTING WITH "constitution" plus 1+
+#                    further characters (e.g. "constitution-fork",
+#                    "constitution.bak").
+#   mD (CASE-FOLD): `root_base="$(... tr upper lower ...)"` applied
+#                    BEFORE the still-exact-match gate widens on any
+#                    basename that is an EXACT case-fold match for
+#                    "constitution" (e.g. "Constitution", "CONSTITUTION").
+# Per §11.4.194(6)(d) (reviewer-authored mutations are necessary, never
+# sufficient, on their own) and §11.4.201(1) (a guard is proven only
+# against BOTH a golden-TRUE AND a golden-FALSE-with-carrier fixture),
+# this sweep replaces the two standalone, single-shape D10/D11 cases with
+# ONE TABLE-DRIVEN near-miss matrix spanning all FOUR attack classes the
+# B1 basename gate's exact '=' comparison must resist -- SUBSTRING,
+# PREFIX, SUFFIX, and CASE-FOLD -- plus two pure real-code safety rows
+# (TRUNCATION, trailing WHITESPACE) that NO representative mutant below
+# is expected to widen on, proving the mutants themselves are not
+# over-broad (a mutant that widened on "constitutio" or "constitution "
+# too would itself be a defective, overly-permissive negative control).
+#
+# Each row pins exactly ONE basename to, at most, ONE class-
+# representative mutation kind (defined in the SAME shared $MUT_GEN
+# generator used by every other case above -- never re-implemented,
+# §11.4.240 producer != verifier) that MUST widen against it, while the
+# REAL, unmutated code MUST NOT widen against ANY row. The table's
+# "expect" column is the real basename-derived snake_case fallback each
+# name genuinely resolves to -- VERIFIED LIVE (§11.4.6, never guessed)
+# before writing these expectations, including the two rows where a
+# capitalized or whitespace-padded name HAPPENS to snake-case to the
+# literal string "constitution" too (never confused with an actual
+# widen below, since a widen is distinguished by the DIFFERENT sentinel
+# value "wrong_widen", not by this coincidental string collision):
+#
+#   row (basename)       expect               representative kind       attack class (what it closes)
+#   my-constitution       my_constitution      basename_insert_suffix    SUFFIX (subsumes former D11)
+#   xconstitutionx         xconstitutionx       basename_insert_before    SUBSTRING (isolates it uniquely --
+#                                                                          not a prefix, not a suffix match)
+#   HelixConstitution      helix_constitution   basename_insert_casefold  CASE-FOLD (subsumes former D10)
+#   constitution-fork      constitution_fork    basename_insert_prefix    PREFIX (closes mC)
+#   constitution.bak       constitution_bak     basename_insert_prefix    PREFIX (different separator)
+#   Constitution           constitution         basename_insert_casefold  CASE-FOLD (closes mD)
+#   CONSTITUTION           constitution         basename_insert_casefold  CASE-FOLD (closes mD, all-caps)
+#   constitutio            constitutio          (none)                    TRUNCATION safety only
+#   "constitution "        constitution         (none)                    trailing-WHITESPACE safety only
 echo
-echo "-- D10 (I-1): near-miss basename substring match ('HelixConstitution', not exactly 'constitution') with a valid parent .env does NOT widen --"
-D10_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_i1_basename_substring_fixture.XXXXXX")"
-D10_PARENT="$D10_ROOT/parent_near_miss_basename"
-D10_DIR="$D10_PARENT/HelixConstitution"
-mkdir -p "$D10_DIR/scripts"
-cp "$RELEASE_PREFIX" "$D10_DIR/scripts/release_prefix.sh"
-(
-  cd "$D10_DIR" \
-    && git init -q \
-    && git config user.email "r5-d10-fixture@example.invalid" \
-    && git config user.name "r5-d10-fixture"
-) >/dev/null 2>&1
-printf 'HELIX_RELEASE_PREFIX=wrong_widen\n' > "$D10_PARENT/.env"
-cleanup_d10_fixture() { rm -rf "$D10_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d10_fixture' EXIT
+echo "-- SWEEP (I-1 full remediation): table-driven near-miss basename matrix -- SUBSTRING / PREFIX / SUFFIX / CASE-FOLD attack classes, plus truncation + trailing-whitespace safety rows -- none widen on the real code, each class's representative mutant DOES widen on at least one row of that class --"
+SWEEP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_i1_sweep_fixture.XXXXXX")"
+cleanup_sweep_fixture() { rm -rf "$SWEEP_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_sweep_fixture' EXIT
 
-if [ ! -d "$D10_DIR/.git" ] || [ ! -f "$D10_PARENT/.env" ]; then
-  bad "D10 fixture setup failed -- cannot run the near-miss-basename-substring case"
-else
-  D10_TOPLEVEL="$(cd "$D10_DIR" && git rev-parse --show-toplevel 2>/dev/null || true)"
-  D10_TOPLEVEL_BASE="$(basename "$D10_TOPLEVEL" 2>/dev/null || true)"
-  if [ "$D10_TOPLEVEL_BASE" = "HelixConstitution" ]; then
-    ok "D10 fixture precondition is genuinely real: the examined directory's own git toplevel basename is 'HelixConstitution' -- a genuine near-miss substring/case match for 'constitution' (NOT an exact match), not assumed"
-  else
-    bad "D10 fixture is NOT genuinely near-miss-named (toplevel basename='$D10_TOPLEVEL_BASE') -- re-investigate before trusting case D10's result below"
-  fi
-  D10_RESULT="$(cd "$D10_DIR" && bash scripts/release_prefix.sh)"
-  printf '  near-miss-basename-substring fixture result: %s\n' "$D10_RESULT"
-  if [ "$D10_RESULT" = "helix_constitution" ]; then
-    ok "I-1: a directory whose basename is a near-miss SUBSTRING/case match for 'constitution' ('HelixConstitution', never the complete exact value 'constitution') correctly does NOT widen even though its parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env -- stays basename-derived 'helix_constitution' (proves the real gate's exact-string '=' comparison is genuinely load-bearing, not a substring/prefix match a sloppier implementation could pass)"
-  else
-    bad "I-1 regression: got '$D10_RESULT', want 'helix_constitution' -- the near-miss-basename-substring false-widen bug has returned"
+SWEEP_NAME=(
+  "my-constitution"
+  "xconstitutionx"
+  "HelixConstitution"
+  "constitution-fork"
+  "constitution.bak"
+  "Constitution"
+  "CONSTITUTION"
+  "constitutio"
+  "constitution "
+)
+SWEEP_EXPECT=(
+  "my_constitution"
+  "xconstitutionx"
+  "helix_constitution"
+  "constitution_fork"
+  "constitution_bak"
+  "constitution"
+  "constitution"
+  "constitutio"
+  "constitution"
+)
+SWEEP_KIND=(
+  "basename_insert_suffix"
+  "basename_insert_before"
+  "basename_insert_casefold"
+  "basename_insert_prefix"
+  "basename_insert_prefix"
+  "basename_insert_casefold"
+  "basename_insert_casefold"
+  ""
+  ""
+)
+SWEEP_CLASS=(
+  "SUFFIX (subsumes the former D11 case)"
+  "SUBSTRING (isolates it uniquely -- not a prefix, not a suffix match)"
+  "CASE-FOLD (subsumes the former D10 case)"
+  "PREFIX (closes mC)"
+  "PREFIX (belt-and-suspenders, a different separator)"
+  "CASE-FOLD (closes mD)"
+  "CASE-FOLD (closes mD's class more thoroughly -- all-caps)"
+  "none -- TRUNCATION real-code safety row only"
+  "none -- trailing-WHITESPACE real-code safety row only"
+)
+
+SWEEP_ROW_COUNT=${#SWEEP_NAME[@]}
+SWEEP_I=0
+while [ "$SWEEP_I" -lt "$SWEEP_ROW_COUNT" ]; do
+  SWEEP_ROW_NAME="${SWEEP_NAME[$SWEEP_I]}"
+  SWEEP_ROW_EXPECT="${SWEEP_EXPECT[$SWEEP_I]}"
+  SWEEP_ROW_KIND="${SWEEP_KIND[$SWEEP_I]}"
+  SWEEP_ROW_CLASS="${SWEEP_CLASS[$SWEEP_I]}"
+
+  SWEEP_ROW_PARENT="$SWEEP_ROOT/row_${SWEEP_I}_parent"
+  SWEEP_ROW_DIR="$SWEEP_ROW_PARENT/$SWEEP_ROW_NAME"
+  mkdir -p "$SWEEP_ROW_DIR/scripts"
+  cp "$RELEASE_PREFIX" "$SWEEP_ROW_DIR/scripts/release_prefix.sh"
+  (
+    cd "$SWEEP_ROW_DIR" \
+      && git init -q \
+      && git config user.email "r7-sweep-fixture@example.invalid" \
+      && git config user.name "r7-sweep-fixture"
+  ) >/dev/null 2>&1
+  printf 'HELIX_RELEASE_PREFIX=wrong_widen\n' > "$SWEEP_ROW_PARENT/.env"
+
+  echo
+  echo "-- SWEEP row $((SWEEP_I + 1))/$SWEEP_ROW_COUNT: '$SWEEP_ROW_NAME' -- $SWEEP_ROW_CLASS --"
+
+  if [ ! -d "$SWEEP_ROW_DIR/.git" ] || [ ! -f "$SWEEP_ROW_PARENT/.env" ]; then
+    bad "SWEEP row '$SWEEP_ROW_NAME' fixture setup failed -- cannot run this case"
+    SWEEP_I=$((SWEEP_I + 1))
+    continue
   fi
 
-  D10_MUT="$D10_ROOT/release_prefix_mut_basename_substring.sh"
-  D10_MUT_SETUP_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$D10_MUT" basename_substring 2>&1)"
-  D10_MUT_SETUP_RC=$?
-  if [ "$D10_MUT_SETUP_RC" -ne 0 ] || [ ! -f "$D10_MUT" ]; then
-    bad "D10 mutation-discrimination setup failed (rc=$D10_MUT_SETUP_RC err=$D10_MUT_SETUP_ERR) -- cannot prove D10's negative control is discriminating; investigate before trusting the D10 result above as a genuine regression guard"
+  SWEEP_ROW_TOPLEVEL="$(cd "$SWEEP_ROW_DIR" && git rev-parse --show-toplevel 2>/dev/null || true)"
+  SWEEP_ROW_TOPLEVEL_BASE="$(basename "$SWEEP_ROW_TOPLEVEL" 2>/dev/null || true)"
+  if [ "$SWEEP_ROW_TOPLEVEL_BASE" = "$SWEEP_ROW_NAME" ]; then
+    ok "SWEEP row '$SWEEP_ROW_NAME' fixture precondition is genuinely real: the examined directory's own git toplevel basename is literally '$SWEEP_ROW_TOPLEVEL_BASE' -- not assumed"
   else
-    cp "$D10_MUT" "$D10_DIR/scripts/release_prefix.sh"
-    D10_MUT_RESULT="$(cd "$D10_DIR" && bash scripts/release_prefix.sh)"
-    cp "$RELEASE_PREFIX" "$D10_DIR/scripts/release_prefix.sh"   # restore the real, unmutated file
-    printf '  mutated (exact-match loosened to substring match) result: %s\n' "$D10_MUT_RESULT"
-    if [ "$D10_MUT_RESULT" = "wrong_widen" ]; then
-      ok "D10 mutation-discrimination: the SAME near-miss-basename fixture, run against a copy with ONLY the basename gate's exact '=' comparison loosened to a case-insensitive substring match (the exact I-1 reviewer-named mutation shape), DOES incorrectly widen to the parent's unrelated prefix ('$D10_MUT_RESULT') -- proving D10's negative control above is genuinely load-bearing, not vacuously true"
+    bad "SWEEP row '$SWEEP_ROW_NAME' fixture is NOT genuinely named as intended (toplevel basename='$SWEEP_ROW_TOPLEVEL_BASE') -- re-investigate before trusting this row's result below"
+  fi
+
+  SWEEP_ROW_RESULT="$(cd "$SWEEP_ROW_DIR" && bash scripts/release_prefix.sh)"
+  printf '  real-code result: %s (want %s)\n' "$SWEEP_ROW_RESULT" "$SWEEP_ROW_EXPECT"
+  if [ "$SWEEP_ROW_RESULT" = "$SWEEP_ROW_EXPECT" ]; then
+    ok "SWEEP row '$SWEEP_ROW_NAME' ($SWEEP_ROW_CLASS): the real, unmutated basename gate correctly does NOT widen -- stays basename-derived '$SWEEP_ROW_RESULT', even though the parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env"
+  else
+    bad "SWEEP row '$SWEEP_ROW_NAME' regression: got '$SWEEP_ROW_RESULT', want '$SWEEP_ROW_EXPECT' -- this near-miss basename false-widen bug has returned"
+  fi
+
+  if [ -z "$SWEEP_ROW_KIND" ]; then
+    ok "SWEEP row '$SWEEP_ROW_NAME': no attack-class mutant applies to this row by design (a pure real-code safety check -- $SWEEP_ROW_CLASS) -- mutation-discrimination intentionally skipped for this row"
+  else
+    SWEEP_ROW_MUT="$SWEEP_ROW_PARENT/release_prefix_mut_${SWEEP_I}.sh"
+    SWEEP_ROW_MUT_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$SWEEP_ROW_MUT" "$SWEEP_ROW_KIND" 2>&1)"
+    SWEEP_ROW_MUT_RC=$?
+    if [ "$SWEEP_ROW_MUT_RC" -ne 0 ] || [ ! -f "$SWEEP_ROW_MUT" ]; then
+      bad "SWEEP row '$SWEEP_ROW_NAME' mutation-discrimination setup failed (kind=$SWEEP_ROW_KIND rc=$SWEEP_ROW_MUT_RC err=$SWEEP_ROW_MUT_ERR) -- cannot prove this row's negative control is discriminating; investigate before trusting this row's real-code result above as a genuine regression guard"
     else
-      bad "D10 mutation-discrimination FAILED: the mutated (substring-match-shaped) copy did NOT widen against the SAME near-miss-basename fixture ('$D10_MUT_RESULT') -- D10's negative control above cannot be trusted as a real regression guard against this specific loosening"
+      cp "$SWEEP_ROW_MUT" "$SWEEP_ROW_DIR/scripts/release_prefix.sh"
+      SWEEP_ROW_MUT_RESULT="$(cd "$SWEEP_ROW_DIR" && bash scripts/release_prefix.sh)"
+      cp "$RELEASE_PREFIX" "$SWEEP_ROW_DIR/scripts/release_prefix.sh"   # restore the real, unmutated file
+      printf '  mutated (%s, kind=%s) result: %s (want wrong_widen)\n' "$SWEEP_ROW_CLASS" "$SWEEP_ROW_KIND" "$SWEEP_ROW_MUT_RESULT"
+      if [ "$SWEEP_ROW_MUT_RESULT" = "wrong_widen" ]; then
+        ok "SWEEP row '$SWEEP_ROW_NAME' mutation-discrimination: the SAME fixture, run against a copy with ONLY the $SWEEP_ROW_CLASS attack applied (kind=$SWEEP_ROW_KIND), DOES incorrectly widen to the parent's unrelated prefix ('$SWEEP_ROW_MUT_RESULT') -- proving this row's negative control is genuinely load-bearing for the $SWEEP_ROW_CLASS attack class, not vacuously true"
+      else
+        bad "SWEEP row '$SWEEP_ROW_NAME' mutation-discrimination FAILED: the $SWEEP_ROW_CLASS-mutated copy (kind=$SWEEP_ROW_KIND) did NOT widen against the SAME fixture ('$SWEEP_ROW_MUT_RESULT') -- this row's negative control cannot be trusted as a real regression guard against this attack class"
+      fi
     fi
   fi
-fi
-# D11 (I-1 residual, round-6 independent Opus-xhigh review, 2026-10-03,
-# verbatim finding): D10 above proves the B1 basename gate's EXACT-match
-# comparison resists a CASE-INSENSITIVE substring loosening (its fixture
-# "HelixConstitution" has a capital "C", so it can ONLY discriminate
-# case-insensitive mutants -- see the "basename_insert_before" kind's own
-# comment above for the full citation). D10 CANNOT discriminate a
-# case-SENSITIVE substring/prefix/suffix loosening, because its own
-# fixture's basename never contains a LOWERCASE "constitution" substring
-# for such a mutant to match against in the first place -- the case-
-# sensitive attack shape is simply never exercised by D10's fixture at
-# all. This fixture closes that gap with a LOWERCASE near-miss basename
-# ("my-constitution" -- a genuine
-# case-sensitive SUFFIX match for "constitution", never the complete
-# exact value "constitution" itself, one of the two reviewer-suggested
-# shapes) under a parent carrying a VALID, non-empty
-# HELIX_RELEASE_PREFIX= .env (the kind of evidence that WOULD correctly
-# widen a genuine `constitution/` checkout). The real, exact-match-gated
-# code must still print the basename-derived "my_constitution" (never
-# widening to the parent's unrelated prefix), while the LINE-PRESERVING
-# "basename_insert_before" mutant of the SAME gate (which inserts a
-# normalization statement BEFORE the untouched exact-match line rather
-# than editing that line's own text -- the shape D10's
-# "basename_substring" kind cannot represent) incorrectly widens.
-echo
-echo "-- D11 (I-1 residual): lowercase near-miss basename substring/suffix match ('my-constitution', not exactly 'constitution', case-SENSITIVE) with a valid parent .env does NOT widen --"
-MUT_GEN="$(mktemp "${TMPDIR:-/tmp}/mutate_release_prefix_d11.XXXXXX.py")"
-cat > "$MUT_GEN" <<'PYEOF'
-import sys
-src_path, dst_path, kind = sys.argv[1], sys.argv[2], sys.argv[3]
-src = open(src_path, encoding="utf-8").read()
-BASENAME_OLD = '    if [ "$root_base" = "constitution" ]; then\n'
-if kind == "basename_insert_before":
-    OLD = BASENAME_OLD
-    NEW = (
-        '    case "$root_base" in *constitution*) root_base=constitution ;; esac\n'
-        + BASENAME_OLD
-    )
-else:
-    sys.stderr.write("mutate_release_prefix_d11.py: unknown kind %r\n" % kind)
-    sys.exit(2)
-if src.count(OLD) != 1:
-    sys.stderr.write("MUTATION_SETUP_FAILED matches=%d\n" % src.count(OLD))
-    sys.exit(2)
-open(dst_path, "w", encoding="utf-8").write(src.replace(OLD, NEW, 1))
-PYEOF
-D11_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_i1_residual_lowercase_substring_fixture.XXXXXX")"
-D11_PARENT="$D11_ROOT/parent_lowercase_substring"
-D11_DIR="$D11_PARENT/my-constitution"
-mkdir -p "$D11_DIR/scripts"
-cp "$RELEASE_PREFIX" "$D11_DIR/scripts/release_prefix.sh"
-(
-  cd "$D11_DIR" \
-    && git init -q \
-    && git config user.email "r6-d11-fixture@example.invalid" \
-    && git config user.name "r6-d11-fixture"
-) >/dev/null 2>&1
-printf 'HELIX_RELEASE_PREFIX=wrong_widen\n' > "$D11_PARENT/.env"
-cleanup_d11_fixture() { rm -rf "$D11_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d10_fixture; cleanup_d11_fixture' EXIT
 
-if [ ! -d "$D11_DIR/.git" ] || [ ! -f "$D11_PARENT/.env" ]; then
-  bad "D11 fixture setup failed -- cannot run the lowercase-near-miss-basename-substring case"
-else
-  D11_TOPLEVEL="$(cd "$D11_DIR" && git rev-parse --show-toplevel 2>/dev/null || true)"
-  D11_TOPLEVEL_BASE="$(basename "$D11_TOPLEVEL" 2>/dev/null || true)"
-  if [ "$D11_TOPLEVEL_BASE" = "my-constitution" ]; then
-    ok "D11 fixture precondition is genuinely real: the examined directory's own git toplevel basename is 'my-constitution' -- a genuine lowercase, case-SENSITIVE substring/suffix match for 'constitution' (NOT an exact match), not assumed"
-  else
-    bad "D11 fixture is NOT genuinely lowercase-near-miss-named (toplevel basename='$D11_TOPLEVEL_BASE') -- re-investigate before trusting case D11's result below"
-  fi
-  D11_RESULT="$(cd "$D11_DIR" && bash scripts/release_prefix.sh)"
-  printf '  lowercase-near-miss-basename-substring fixture result: %s\n' "$D11_RESULT"
-  if [ "$D11_RESULT" = "my_constitution" ]; then
-    ok "I-1 residual: a directory whose basename is a LOWERCASE, case-sensitive substring/suffix match for 'constitution' ('my-constitution', never the complete exact value 'constitution') correctly does NOT widen even though its parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env -- stays basename-derived 'my_constitution' (proves the real gate's exact-string '=' comparison resists a case-SENSITIVE near-miss too, not only the case-insensitive one D10 covers)"
-  else
-    bad "I-1 residual regression: got '$D11_RESULT', want 'my_constitution' -- the lowercase-near-miss-basename-substring false-widen bug has returned"
-  fi
-
-  D11_MUT="$D11_ROOT/release_prefix_mut_basename_insert_before.sh"
-  D11_MUT_SETUP_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$D11_MUT" basename_insert_before 2>&1)"
-  D11_MUT_SETUP_RC=$?
-  if [ "$D11_MUT_SETUP_RC" -ne 0 ] || [ ! -f "$D11_MUT" ]; then
-    bad "D11 mutation-discrimination setup failed (rc=$D11_MUT_SETUP_RC err=$D11_MUT_SETUP_ERR) -- cannot prove D11's negative control is discriminating; investigate before trusting the D11 result above as a genuine regression guard"
-  else
-    cp "$D11_MUT" "$D11_DIR/scripts/release_prefix.sh"
-    D11_MUT_RESULT="$(cd "$D11_DIR" && bash scripts/release_prefix.sh)"
-    cp "$RELEASE_PREFIX" "$D11_DIR/scripts/release_prefix.sh"   # restore the real, unmutated file
-    printf '  mutated (LINE-PRESERVING insert-before-the-untouched-gate-line) result: %s\n' "$D11_MUT_RESULT"
-    if [ "$D11_MUT_RESULT" = "wrong_widen" ]; then
-      ok "D11 mutation-discrimination: the SAME lowercase near-miss-basename fixture, run against a copy with a case-normalization statement INSERTED immediately before the basename gate's own exact-match line (that line's text left completely UNTOUCHED -- the exact round-6 reviewer-reproduced line-preserving attack shape D10's line-EDITING mutant cannot represent), DOES incorrectly widen to the parent's unrelated prefix ('$D11_MUT_RESULT') -- proving D11's negative control is genuinely load-bearing against this distinct attack shape, not vacuously true"
-    else
-      bad "D11 mutation-discrimination FAILED: the line-preserving-insert-shaped copy did NOT widen against the SAME lowercase near-miss-basename fixture ('$D11_MUT_RESULT') -- D11's negative control above cannot be trusted as a real regression guard against this specific line-preserving attack shape"
-    fi
-  fi
-fi
+  SWEEP_I=$((SWEEP_I + 1))
+done
 rm -f "$MUT_GEN"
 
 # D4 (B1): the "mismatched-sibling-name-with-matching-.gitmodules-path"
@@ -1126,7 +1181,7 @@ cat > "$D4_PARENT/.gitmodules" <<'GITMODULES_D4_EOF'
 GITMODULES_D4_EOF
 printf 'HELIX_RELEASE_PREFIX=should_not_widen_wrong_sibling\n' > "$D4_PARENT/.env"
 cleanup_d4_fixture() { rm -rf "$D4_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d10_fixture; cleanup_d11_fixture; cleanup_d4_fixture' EXIT
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_sweep_fixture; cleanup_d4_fixture' EXIT
 
 if [ ! -d "$D4_OTHER_DIR/.git" ] || [ ! -f "$D4_PARENT/.gitmodules" ] || [ ! -f "$D4_PARENT/.env" ]; then
   bad "D4 fixture setup failed -- cannot run the mismatched-sibling-name case"
@@ -1168,7 +1223,7 @@ cp "$RELEASE_PREFIX" "$D5_CONSTITUTION/scripts/release_prefix.sh"
 printf 'HELIX_RELEASE_PREFIX=should_not_widen_unreadable\n' > "$D5_PARENT/.env"
 chmod 000 "$D5_PARENT/.env"
 cleanup_d5_fixture() { chmod 644 "$D5_PARENT/.env" 2>/dev/null || true; rm -rf "$D5_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d10_fixture; cleanup_d11_fixture; cleanup_d4_fixture; cleanup_d5_fixture' EXIT
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_sweep_fixture; cleanup_d4_fixture; cleanup_d5_fixture' EXIT
 
 if [ ! -d "$D5_CONSTITUTION/.git" ] || [ ! -e "$D5_PARENT/.env" ]; then
   bad "D5 fixture setup failed -- cannot run the unreadable-parent-.env case"
@@ -1236,7 +1291,7 @@ echo "-- E2 (M1): readable-but-not-searchable HELIX_PROJECT_ROOT (chmod 444) war
 E2_NOSEARCH_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_r5_m1_nosearch_fixture.XXXXXX")"
 chmod 444 "$E2_NOSEARCH_ROOT"
 cleanup_e2_fixture() { chmod 755 "$E2_NOSEARCH_ROOT" 2>/dev/null || true; rm -rf "$E2_NOSEARCH_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d10_fixture; cleanup_d11_fixture; cleanup_d4_fixture; cleanup_d5_fixture; cleanup_e2_fixture' EXIT
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_sweep_fixture; cleanup_d4_fixture; cleanup_d5_fixture; cleanup_e2_fixture' EXIT
 if [ ! -d "$E2_NOSEARCH_ROOT" ]; then
   bad "E2 fixture setup failed -- '$E2_NOSEARCH_ROOT' missing, cannot run the M1 readable-but-not-searchable case"
 else

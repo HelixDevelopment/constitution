@@ -1589,26 +1589,34 @@ sys.stdout.write(cond.replace(marker, "", 1))
         # EITHER a genuinely non-ATM checkout OR a BLIND needle -- both
         # satisfy that branch's own "$DERIVED_DEFAULT_PREFIX != ATM"
         # guard) DOES assign a non-"ATM-9999" sentinel value in both of
-        # those cases. The variable stays genuinely unset in TWO distinct
-        # "setup/precondition failed" bad() branches, neither of which
-        # ever touches ATM_STILL_WORKS at all: (a) the PART D fixture file
-        # itself ($PARENT_FIX) is missing entirely (F3's "precondition
-        # missing" bad() branch), OR (b) the fixture IS present and IS
-        # determined to be an ATM-prefixed checkout, but F3's own
-        # backward-compat ingest run against it then fails outright
-        # (rc != 0 or no DB produced -- F3's separate "setup failed"
-        # bad() branch). M-4a residual correction (round-6 independent
-        # Opus-xhigh review, 2026-10-03): the prior version of this comment named
-        # ONLY case (a) and so still overstated it -- both are distinct
-        # file-not-found/setup-failure conditions, neither is "skipped or
-        # BLIND-hard-failed". Staying unset below still faithfully mirrors
-        # those two real paths, and is
-        # harmless for the other two synthetic states this block tests
-        # (BLIND and genuinely-non-ATM) precisely because the condition's
-        # own "${ATM_STILL_WORKS-}" fallback treats unset identically to
-        # any sentinel value that is not literally "ATM-9999" -- so this
-        # correction changes only the comment's accuracy, not the test's
-        # behaviour.
+        # those cases. M-4a residual correction (round-6 independent
+        # Opus-xhigh review, 2026-10-03): an intermediate version of this
+        # comment named only TWO such unset paths and still overstated
+        # it. M-4a residual correction (round-7 independent Opus-xhigh
+        # review, 2026-10-03, verbatim finding): there are MORE than two
+        # -- this block's own outer preconditions (the EXTRAPFX fixture
+        # files missing, checked above near this file's own
+        # "fixture(s) missing" bad() branch; TRANSCRIPT_INGEST itself
+        # missing, checked above near this file's own "PART F UNMET:
+        # transcript_ingest.py absent" bad() branch) ALSO never reach
+        # F3, and therefore ALSO never touch ATM_STILL_WORKS -- without
+        # this generalization, every future upstream precondition this
+        # block gains would again require another enumeration fix here.
+        # Generalizing once, honestly, instead of re-counting every
+        # round: ATM_STILL_WORKS stays genuinely unset on EVERY path
+        # where F3 never assigns it a value -- any upstream fixture or
+        # tool this block depends on being missing, the PART D fixture
+        # ($PARENT_FIX) being missing, or F3's own backward-compat
+        # ingest run against it failing outright (rc != 0 or no DB
+        # produced). Staying unset below still faithfully mirrors every
+        # one of those real paths, and is harmless for the other two
+        # synthetic states this block tests (BLIND and genuinely-non-
+        # ATM) precisely because the condition's own
+        # "${ATM_STILL_WORKS-}" fallback treats unset identically to any
+        # sentinel value that is not literally "ATM-9999" -- so this
+        # correction changes only the comment's accuracy (and its
+        # resilience to needing a re-fix every round), never the test's
+        # actual behaviour.
         _partf_run_cond() {
             local cond="$1" rc_f1="$2" unconf="$3" conf="$4" derived="$5" blind="$6"
             (
