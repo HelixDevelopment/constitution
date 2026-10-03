@@ -79,6 +79,64 @@
 #       `event_type != items_status` comparison and asserting the
 #       golden-good Fixed case flips from PASS to FAIL.
 #
+# S12-REMEDIATION ROUND-3 REVIEW (2026-10-03) -- a THIRD independent
+# (Opus-xhigh) review of the F5/F6/F13 follow-ups (commit 03c73c6) found two
+# further tracked follow-up findings against review_rounds_stage(), fixed
+# below as checks 14-15:
+#   M1 (check 14) -- an inverted review-record round is correctly EXCLUDED
+#       from summed_review_duration_ms (F13, already landed), but with ZERO
+#       trace anywhere else in the record -- a record with one good round
+#       plus one corrupt/inverted round was indistinguishable, on
+#       data_quality_flags alone, from a record with just the one good
+#       round. Fix: review_rounds_stage() now also returns whether ANY
+#       round's span was inverted; build_record_for_item() surfaces this as
+#       the new REVIEW_SPAN_INVERTED data_quality_flags entry.
+#   M2 (check 15) -- a PRE-EXISTING bug, independent of F5/F6/F13/M1: when
+#       the ONLY review-record round present has an inverted span,
+#       review_rounds_stage()'s `elapsed` field (the min-start/max-end
+#       span) computes NEGATIVE with no indication anything is wrong (no
+#       sign check exists anywhere in measured_stage(), the shared builder
+#       that computes it). Fix: the negative value is reported AS-IS
+#       (CT-004: never invent/clamp a corrected number) and flagged as the
+#       new REVIEW_ELAPSED_NEGATIVE data_quality_flags entry.
+#
+# S12-REMEDIATION ROUND-4 REVIEW (2026-10-03) -- a FOURTH independent
+# (Opus-xhigh) review of the M1/M2 fix (round-3, above) found this file's
+# OWN test coverage of that fix was incomplete, not the production fix
+# itself -- fixed below as check 16 and paired mutations #5-7:
+#   IMPORTANT-1 (check 14's new REVIEW_ELAPSED_NEGATIVE-absent assertion) --
+#       check 14's F13 fixture (one good round + one inverted round) is the
+#       ONLY fixture exercising both M1 and M2 together, yet check 14 only
+#       ever asserted REVIEW_SPAN_INVERTED -- it never asserted anything
+#       about REVIEW_ELAPSED_NEGATIVE on that SAME fixture. A reviewer-
+#       authored mutant keying review_elapsed_negative off the SAME
+#       any_inverted_round boolean M1 already tracks (instead of the real
+#       `stage["elapsed"] < 0` sign check) therefore survived undetected:
+#       it WRONGLY sets REVIEW_ELAPSED_NEGATIVE=True on this fixture even
+#       though the fixture's real elapsed is POSITIVE (10800000). Fix:
+#       check 14 now also asserts REVIEW_ELAPSED_NEGATIVE is ABSENT (and
+#       elapsed==10800000) on this fixture; paired mutation #5 reproduces
+#       the reviewer's exact mutant and confirms check 14's new assertion
+#       catches it.
+#   MINOR-1 (check 16, zero-length-span boundary) -- M1's inversion test
+#       (`e_dt < s_dt`) and M2's elapsed-sign test (`stage["elapsed"] < 0`)
+#       both use STRICT '<', but no fixture anywhere in this file exercised
+#       the s_dt == e_dt boundary (a review round legitimately logged with
+#       identical start/end timestamps) -- so two off-by-one mutants
+#       widening either check to '<=' both survived undetected, each
+#       WRONGLY firing its flag at exactly that boundary. Fix: check 16
+#       adds a zero-length-round fixture asserting BOTH flags absent and
+#       elapsed==0; paired mutations #6 (elapsed<=0) and #7 (e_dt<=s_dt)
+#       each independently confirm check 16 catches its own boundary
+#       mutant.
+#   MINOR-3 (PRE-EXISTING, out of scope for this round) -- compute_medians()
+#       and build_record_for_item()'s own `total_elapsed` aggregate still
+#       incorporate a negative review_rounds `elapsed` into their sums with
+#       no exclusion or surfacing at the aggregate level, even though the
+#       PER-RECORD flag (M2's REVIEW_ELAPSED_NEGATIVE) now correctly marks
+#       it. Tracked, not fixed here -- outside the M1/M2 diff this round's
+#       independent review was scoped to.
+#
 # §11.4.224 TDD: every assertion below is RED-before/GREEN-after its fix --
 # RED_MODE=1 asserts the documented PRE-FIX bluff/dead-variable behaviour
 # (mirrors the §11.4.115 polarity-switch convention used throughout this
@@ -109,7 +167,12 @@ TMP="$(mktemp -d)"
 # ModuleNotFoundError before it ever reaches the mutated logic.
 MUT="$FC/cycle/.s12_fix_red_mutation_tmp.$$.py"
 MUT2="$FC/cycle/.s12_fix_red_mutation2_tmp.$$.py"
-trap 'rm -rf "$TMP"; rm -f "$MUT" "$MUT2"' EXIT
+MUT3="$FC/cycle/.s12_fix_red_mutation3_tmp.$$.py"
+MUT4="$FC/cycle/.s12_fix_red_mutation4_tmp.$$.py"
+MUT5="$FC/cycle/.s12_fix_red_mutation5_tmp.$$.py"
+MUT6="$FC/cycle/.s12_fix_red_mutation6_tmp.$$.py"
+MUT7="$FC/cycle/.s12_fix_red_mutation7_tmp.$$.py"
+trap 'rm -rf "$TMP"; rm -f "$MUT" "$MUT2" "$MUT3" "$MUT4" "$MUT5" "$MUT6" "$MUT7"' EXIT
 
 if [ ! -f "$CYCLE_REPORT" ]; then
   echo "NOT ok cycle_report.py absent at $CYCLE_REPORT -- cannot test"
@@ -1038,6 +1101,213 @@ else
 fi
 
 echo
+echo "=== check 14 (S12-remediation round-3 review, M1): an inverted review-record span is excluded from summed_review_duration_ms (F13, correct) but left with ZERO trace in data_quality_flags -- a good round + a corrupt/inverted round is indistinguishable from just one good round ==="
+# Reuses check 13's EXACT fixture (F13FX/F13DIR/F13OUT, already generated
+# above: round_a 10:00->12:00 [+2h, valid], round_b 15:00->13:00 [inverted,
+# a reviewer data-entry error]) -- this IS the reviewer's own
+# "good+inverted-round-mix" reproduction. check 13 already proves
+# summed_review_duration_ms correctly excludes round_b's negative duration;
+# this check proves the record's data_quality_flags now carry a trace of
+# WHY the sum looks the way it does (M1 fix: REVIEW_SPAN_INVERTED), rather
+# than silently matching a hypothetical single-good-round record
+# byte-for-byte on this field.
+if [ -f "$F13OUT" ]; then
+  M1_RESULT="$(python3 -c "
+import json
+r = json.load(open('$F13OUT'))['records'][0]
+rr = next(s for s in r['stages'] if s['stage'] == 'review_rounds')
+print('%s|%s|%s' % (
+    'REVIEW_SPAN_INVERTED' in r.get('data_quality_flags', []),
+    'REVIEW_ELAPSED_NEGATIVE' in r.get('data_quality_flags', []),
+    rr.get('elapsed')))
+" 2>&1)"
+  IFS='|' read -r M1_RESULT M1_HAS_NEG_FLAG M1_ELAPSED <<< "$M1_RESULT"
+  if [ "$RED_MODE" = "1" ]; then
+    if [ "$M1_RESULT" = "False" ] && [ "$M1_HAS_NEG_FLAG" = "False" ]; then
+      echo "ok (RED_MODE=1) check 14 (M1): REVIEW_SPAN_INVERTED is absent from"
+      echo "   data_quality_flags on the pre-fix binary -- the inverted round"
+      echo "   (round_b_inverted.json) is excluded from the sum with ZERO trace"
+      echo "   anywhere in the record, exactly the gap this round's fix closes."
+      echo "   REVIEW_ELAPSED_NEGATIVE is ALSO absent pre-fix (neither flag"
+      echo "   exists before the M1/M2 commit)"
+    else
+      echo "NOT ok (RED_MODE=1) check 14 (M1): REVIEW_SPAN_INVERTED is already"
+      echo "     present -- fix already applied, the pre-fix gap is no longer"
+      echo "     reproducible against this binary (span_inverted=$M1_RESULT"
+      echo "     elapsed_negative=$M1_HAS_NEG_FLAG)"
+      failx
+    fi
+  else
+    if [ "$M1_RESULT" = "True" ] && [ "$M1_HAS_NEG_FLAG" = "False" ] \
+       && [ "$M1_ELAPSED" = "10800000" ]; then
+      echo "ok check 14 (M1): REVIEW_SPAN_INVERTED is present in"
+      echo "   data_quality_flags alongside check 13's unchanged"
+      echo "   summed_review_duration_ms=7200000 -- an inverted round is now"
+      echo "   surfaced as a trace in the record, never silently swallowed."
+      echo "   IMPORTANT-1 (S12-remediation round-4 review): elapsed=10800000"
+      echo "   is POSITIVE on this good-round+inverted-round fixture (the min-"
+      echo "   start/max-end span still legitimately includes round a's good"
+      echo "   data) -- REVIEW_ELAPSED_NEGATIVE is therefore correctly ABSENT;"
+      echo "   a reviewer-authored mutant (review_elapsed_negative =="
+      echo "   any_inverted_round, i.e. keying the elapsed-sign flag off the"
+      echo "   SAME boolean M1 tracks instead of the real stage['elapsed'] < 0"
+      echo "   sign check) would WRONGLY set REVIEW_ELAPSED_NEGATIVE=True here"
+      echo "   even though elapsed is positive -- this assertion is what"
+      echo "   catches that mutant (see paired mutation #5 below)"
+    else
+      echo "NOT ok check 14 (M1) FAILED: expected REVIEW_SPAN_INVERTED=True,"
+      echo "     REVIEW_ELAPSED_NEGATIVE=False, elapsed=10800000, got"
+      echo "     span_inverted=$M1_RESULT elapsed_negative=$M1_HAS_NEG_FLAG"
+      echo "     elapsed=$M1_ELAPSED"
+      failx
+    fi
+  fi
+else
+  echo "NOT ok check 14 (M1): F13OUT missing -- check 13's invocation must"
+  echo "     succeed first (see check 13's own failure above)"
+  failx
+fi
+
+echo
+echo "=== check 15 (S12-remediation round-3 review, M2, PRE-EXISTING bug): a SOLE inverted review-record round makes the review_rounds stage's own 'elapsed' field NEGATIVE, with no flag -- reproduced + flagged, independent of the F13/M1 summed_review_duration_ms work above ==="
+# PRE-EXISTING bug, present before and untouched by F1/F2/F5/F6/F13/check-14
+# above: when the ONLY review-record round present has an inverted span
+# (end before start), review_rounds_stage()'s min-start/max-end selection
+# (F1, untouched by this round) has nothing else to compete against, so
+# best_start == that round's (later) start and best_end == that round's
+# (earlier) end -- measured_stage() computes elapsed_s = end - start
+# unconditionally (no sign check anywhere in that shared builder), so
+# `elapsed` comes out NEGATIVE. CT-004 (never invent/alter a genuine
+# measurement) means the honest fix is NOT to silently clamp this to zero
+# -- it is to report the real (negative) number AND flag it, exactly the
+# same "report truthfully, add a flag" pattern this module already uses
+# for every data_quality_flags entry (DATE_ONLY_RESOLUTION, STATUS_DESYNC,
+# etc.) -- never inventing a "corrected" value in place of what the
+# evidence says.
+M2DIR="$TMP/m2_review_records"
+mkdir -p "$M2DIR"
+cat > "$M2DIR/round_sole_inverted.json" <<'JSON'
+{"schema":"review-record/v1","item_id":"ATM-90510","started_at":"2026-10-02T15:00:00Z","ended_at":"2026-10-02T13:00:00Z","tokens":500}
+JSON
+M2FX="$TMP/m2_tracker_export.json"
+cat > "$M2FX" <<'JSON'
+{"item": {"atm_id": "ATM-90510", "type": "Task", "status": "Fixed (→ Fixed.md)"},
+ "item_history": [
+   {"event_type": "Opened", "by": "User", "on_date": "2026-10-02", "created_at": "2026-10-02T08:00:00Z"},
+   {"event_type": "Fixed", "by": "AI", "on_date": "2026-10-02", "created_at": "2026-10-02T19:00:00Z"}
+ ]}
+JSON
+M2OUT="$TMP/m2_out.json"
+python3 "$CYCLE_REPORT" --as-of 2026-10-03 --tracker-export "$M2FX" \
+  --review-records-dir "$M2DIR" --out "$M2OUT" >"$TMP/m2.err" 2>&1
+if [ -f "$M2OUT" ]; then
+  M2_RESULT="$(python3 -c "
+import json
+r = json.load(open('$M2OUT'))['records'][0]
+rr = next(s for s in r['stages'] if s['stage'] == 'review_rounds')
+print('%s|%s|%s' % (
+    rr.get('elapsed'),
+    'REVIEW_ELAPSED_NEGATIVE' in r.get('data_quality_flags', []),
+    'REVIEW_SPAN_INVERTED' in r.get('data_quality_flags', [])))
+" 2>&1)"
+  IFS='|' read -r M2_ELAPSED M2_HAS_NEG_FLAG M2_HAS_INVERTED_FLAG <<< "$M2_RESULT"
+  if [ "$RED_MODE" = "1" ]; then
+    if [ "$M2_ELAPSED" = "-7200000" ] && [ "$M2_HAS_NEG_FLAG" = "False" ]; then
+      echo "ok (RED_MODE=1) check 15 (M2): elapsed=-7200000 (the sole inverted"
+      echo "   round's negative span, a PRE-EXISTING bug) with NO"
+      echo "   REVIEW_ELAPSED_NEGATIVE flag on the pre-fix binary -- exactly"
+      echo "   the silent-negative-number gap this round's fix closes"
+    else
+      echo "NOT ok (RED_MODE=1) check 15 (M2): expected elapsed=-7200000 and no"
+      echo "     REVIEW_ELAPSED_NEGATIVE flag, got elapsed=$M2_ELAPSED"
+      echo "     has_flag=$M2_HAS_NEG_FLAG -- fix already present or"
+      echo "     reproduction assumption wrong"
+      failx
+    fi
+  else
+    if [ "$M2_ELAPSED" = "-7200000" ] && [ "$M2_HAS_NEG_FLAG" = "True" ] \
+       && [ "$M2_HAS_INVERTED_FLAG" = "True" ]; then
+      echo "ok check 15 (M2): elapsed=-7200000 is reported AS-IS (CT-004: never"
+      echo "   clamp/invent a corrected value) WITH the REVIEW_ELAPSED_NEGATIVE"
+      echo "   flag present -- a downstream consumer now sees the anomaly"
+      echo "   rather than a silently-wrong number; REVIEW_SPAN_INVERTED is"
+      echo "   ALSO present (correctly -- the sole round IS an inverted span,"
+      echo "   so both facts are independently true and both flags are"
+      echo "   expected together)"
+    else
+      echo "NOT ok check 15 (M2) FAILED: expected elapsed=-7200000,"
+      echo "     REVIEW_ELAPSED_NEGATIVE=True, REVIEW_SPAN_INVERTED=True, got"
+      echo "     elapsed=$M2_ELAPSED REVIEW_ELAPSED_NEGATIVE=$M2_HAS_NEG_FLAG"
+      echo "     REVIEW_SPAN_INVERTED=$M2_HAS_INVERTED_FLAG"
+      failx
+    fi
+  fi
+else
+  echo "NOT ok check 15 (M2): invocation failed -- $(cat "$TMP/m2.err" 2>/dev/null)"
+  failx
+fi
+
+echo
+echo "=== check 16 (S12-remediation round-4 review, MINOR-1): a ZERO-LENGTH review-record round (start == end) is NEITHER an inversion NOR a negative-elapsed measurement -- the M1/M2 guards' own '<' boundary must not misfire at equality ==="
+# M1's inversion test is 'e_dt < s_dt' and M2's elapsed-sign test is
+# 'stage[\"elapsed\"] < 0' -- STRICT '<', deliberately, not '<='. A round
+# whose started_at exactly equals its ended_at (a legitimate edge case --
+# e.g. a review logged with identical start/end timestamps) has e_dt == s_dt
+# (not e_dt < s_dt: no inversion) and elapsed == 0 (not elapsed < 0: not
+# negative). A reviewer-authored off-by-one mutant widening either test to
+# '<=' would misfire at this EXACT boundary -- this check's own fixture is
+# what proves check 14/15's existing golden-good fixtures (which use
+# STRICTLY ordered timestamps, never equal ones) cannot already catch that
+# boundary class, and paired mutations #6/#7 below prove this new fixture
+# genuinely does, independently of each other.
+ZLDIR="$TMP/zl_review_records"
+mkdir -p "$ZLDIR"
+cat > "$ZLDIR/round_zero.json" <<'JSON'
+{"schema":"review-record/v1","item_id":"ATM-90520","started_at":"2026-10-02T10:00:00Z","ended_at":"2026-10-02T10:00:00Z","tokens":50}
+JSON
+ZLFX="$TMP/zl_tracker_export.json"
+cat > "$ZLFX" <<'JSON'
+{"item": {"atm_id": "ATM-90520", "type": "Task", "status": "Fixed (→ Fixed.md)"},
+ "item_history": [
+   {"event_type": "Opened", "by": "User", "on_date": "2026-10-02", "created_at": "2026-10-02T08:00:00Z"},
+   {"event_type": "Fixed", "by": "AI", "on_date": "2026-10-02", "created_at": "2026-10-02T19:00:00Z"}
+ ]}
+JSON
+ZLOUT="$TMP/zl_out.json"
+python3 "$CYCLE_REPORT" --as-of 2026-10-03 --tracker-export "$ZLFX" \
+  --review-records-dir "$ZLDIR" --out "$ZLOUT" >"$TMP/zl.err" 2>&1
+if [ -f "$ZLOUT" ]; then
+  ZL_RESULT="$(python3 -c "
+import json
+r = json.load(open('$ZLOUT'))['records'][0]
+rr = next(s for s in r['stages'] if s['stage'] == 'review_rounds')
+print('%s|%s|%s' % (
+    rr.get('elapsed'),
+    'REVIEW_SPAN_INVERTED' in r.get('data_quality_flags', []),
+    'REVIEW_ELAPSED_NEGATIVE' in r.get('data_quality_flags', [])))
+" 2>&1)"
+  IFS='|' read -r ZL_ELAPSED ZL_HAS_INVERTED_FLAG ZL_HAS_NEG_FLAG <<< "$ZL_RESULT"
+  if [ "$ZL_ELAPSED" = "0" ] && [ "$ZL_HAS_INVERTED_FLAG" = "False" ] \
+     && [ "$ZL_HAS_NEG_FLAG" = "False" ]; then
+    echo "ok check 16 (MINOR-1): elapsed=0 with BOTH REVIEW_SPAN_INVERTED and"
+    echo "   REVIEW_ELAPSED_NEGATIVE absent on a zero-length round (start =="
+    echo "   end) -- the strict '<' boundary in both M1's inversion test and"
+    echo "   M2's elapsed-sign test correctly treats equality as neither an"
+    echo "   inversion nor a negative measurement (CT-004: elapsed is"
+    echo "   reported as the real, honest 0 it is)"
+  else
+    echo "NOT ok check 16 (MINOR-1) FAILED: expected elapsed=0,"
+    echo "     REVIEW_SPAN_INVERTED=False, REVIEW_ELAPSED_NEGATIVE=False, got"
+    echo "     elapsed=$ZL_ELAPSED REVIEW_SPAN_INVERTED=$ZL_HAS_INVERTED_FLAG"
+    echo "     REVIEW_ELAPSED_NEGATIVE=$ZL_HAS_NEG_FLAG"
+    failx
+  fi
+else
+  echo "NOT ok check 16 (MINOR-1): invocation failed -- $(cat "$TMP/zl.err" 2>/dev/null)"
+  failx
+fi
+
+echo
 echo "=== check 8/8: pre-existing T023 fixture suite + full suite still GREEN (no regression) ==="
 if bash "$FC/tests/test_cycle_report_red.sh" >"$TMP/preexisting.out" 2>&1; then
   echo "ok test_cycle_report_red.sh (T023 contract suite) still exits 0 after this fix"
@@ -1186,6 +1456,364 @@ print(rr.get('summed_review_duration_ms'))
     else
       echo "NOT ok paired mutation #2: mutated binary invocation failed --"
       echo "     $(cat "$TMP/mutation2.err" 2>/dev/null)"
+      failx
+    fi
+  fi
+fi
+
+echo
+echo "=== §1.1 paired mutation #3 (M1 fix): genuinely removing the e_dt < s_dt inversion-detection guard flips check 14's golden-good result from PASS to FAIL ==="
+# Mechanically removes ONLY the M1 guard added this round (the fix-commit's
+# own revert, §11.4.115(F)/§11.4.227's canonical mutation class) and asserts
+# check 14's fixture (F13FX/F13DIR, reused) flips REVIEW_SPAN_INVERTED from
+# present (True, the fixed behaviour) to absent (False, the pre-fix gap) --
+# proving check 14 genuinely discriminates on this guard and is not a
+# tautology.
+if [ "$RED_MODE" = "1" ]; then
+  echo "skip (RED_MODE=1): this mutation is itself defined relative to the FIXED"
+  echo "   function; it is only meaningful run against the fixed binary"
+else
+  cp "$CYCLE_REPORT" "$MUT3"
+  python3 - "$MUT3" <<'PYEOF'
+import sys
+
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+old = (
+    "                if e_dt < s_dt:\n"
+    "                    any_inverted_round = True\n"
+)
+if old not in src:
+    raise SystemExit("mutation setup FAILED -- M1 guard marker not found "
+                      "(source drifted from the fix this test expects?)")
+new = (
+    "                if e_dt < s_dt:\n"
+    "                    pass  # MUTATED (§1.1 paired mutation #3): M1 guard removed\n"
+)
+new_src = src.replace(old, new, 1)
+if new_src == src:
+    raise SystemExit("mutation did not change the source")
+open(path, "w", encoding="utf-8").write(new_src)
+PYEOF
+  if [ $? != 0 ]; then
+    echo "NOT ok paired mutation #3 setup FAILED -- could not mechanically mutate"
+    echo "     review_rounds_stage's e_dt < s_dt guard (marker not found --"
+    echo "     source drifted?)"
+    failx
+  else
+    MUT3OUT="$TMP/mutation3_out.json"
+    python3 "$MUT3" --as-of 2026-10-03 --tracker-export "$F13FX" \
+      --review-records-dir "$F13DIR" --out "$MUT3OUT" >"$TMP/mutation3.err" 2>&1
+    if [ -f "$MUT3OUT" ]; then
+      MUT3_HAS_INVERTED="$(python3 -c "
+import json
+r = json.load(open('$MUT3OUT'))['records'][0]
+print('REVIEW_SPAN_INVERTED' in r.get('data_quality_flags', []))
+" 2>&1)"
+      if [ "$MUT3_HAS_INVERTED" = "False" ]; then
+        echo "ok paired mutation #3: removing the e_dt < s_dt guard flips"
+        echo "   REVIEW_SPAN_INVERTED from present (fixed) back to absent (the"
+        echo "   pre-fix gap, exactly check 14's RED_MODE=1 reproduction) --"
+        echo "   check 14 genuinely discriminates, it is not a tautology"
+      else
+        echo "NOT ok paired mutation #3: the mutated (guard-removed) binary did"
+        echo "     NOT flip REVIEW_SPAN_INVERTED back to absent (got"
+        echo "     '$MUT3_HAS_INVERTED') -- mutation is a refused tautology"
+        echo "     (§11.4.115(F))"
+        failx
+      fi
+    else
+      echo "NOT ok paired mutation #3: mutated binary invocation failed --"
+      echo "     $(cat "$TMP/mutation3.err" 2>/dev/null)"
+      failx
+    fi
+  fi
+fi
+
+echo
+echo "=== §1.1 paired mutation #4 (M2 fix): genuinely removing the elapsed<0 flag-detection guard flips check 15's golden-good result from PASS to FAIL ==="
+# Mechanically removes ONLY the M2 flag-computation guard added this round
+# (the fix-commit's own revert, §11.4.115(F)/§11.4.227's canonical mutation
+# class) and asserts check 15's fixture (M2FX/M2DIR, reused) flips
+# REVIEW_ELAPSED_NEGATIVE from present (True, the fixed behaviour) to absent
+# (False, the pre-fix gap) WHILE the underlying elapsed value itself stays
+# UNCHANGED (-7200000) -- proving this mutation targets ONLY the flag
+# computation, never the measurement itself (CT-004 is never touched by
+# this guard), and that check 15 genuinely discriminates on it, not a
+# tautology.
+if [ "$RED_MODE" = "1" ]; then
+  echo "skip (RED_MODE=1): this mutation is itself defined relative to the FIXED"
+  echo "   function; it is only meaningful run against the fixed binary"
+else
+  cp "$CYCLE_REPORT" "$MUT4"
+  python3 - "$MUT4" <<'PYEOF'
+import sys
+
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+old = '    review_elapsed_negative = stage["elapsed"] < 0\n'
+if old not in src:
+    raise SystemExit("mutation setup FAILED -- M2 guard marker not found "
+                      "(source drifted from the fix this test expects?)")
+new = (
+    "    review_elapsed_negative = False  "
+    "# MUTATED (§1.1 paired mutation #4): M2 guard removed\n"
+)
+new_src = src.replace(old, new, 1)
+if new_src == src:
+    raise SystemExit("mutation did not change the source")
+open(path, "w", encoding="utf-8").write(new_src)
+PYEOF
+  if [ $? != 0 ]; then
+    echo "NOT ok paired mutation #4 setup FAILED -- could not mechanically mutate"
+    echo "     review_rounds_stage's elapsed<0 flag guard (marker not found --"
+    echo "     source drifted?)"
+    failx
+  else
+    MUT4OUT="$TMP/mutation4_out.json"
+    python3 "$MUT4" --as-of 2026-10-03 --tracker-export "$M2FX" \
+      --review-records-dir "$M2DIR" --out "$MUT4OUT" >"$TMP/mutation4.err" 2>&1
+    if [ -f "$MUT4OUT" ]; then
+      MUT4_RESULT="$(python3 -c "
+import json
+r = json.load(open('$MUT4OUT'))['records'][0]
+rr = next(s for s in r['stages'] if s['stage'] == 'review_rounds')
+print('%s|%s' % (rr.get('elapsed'), 'REVIEW_ELAPSED_NEGATIVE' in r.get('data_quality_flags', [])))
+" 2>&1)"
+      IFS='|' read -r MUT4_ELAPSED MUT4_HAS_FLAG <<< "$MUT4_RESULT"
+      if [ "$MUT4_ELAPSED" = "-7200000" ] && [ "$MUT4_HAS_FLAG" = "False" ]; then
+        echo "ok paired mutation #4: removing the elapsed<0 flag guard flips"
+        echo "   REVIEW_ELAPSED_NEGATIVE from present (fixed) back to absent (the"
+        echo "   pre-fix gap, exactly check 15's RED_MODE=1 reproduction), while"
+        echo "   elapsed itself stays -7200000 (UNCHANGED -- this mutation"
+        echo "   targets ONLY the flag, never the measurement) -- check 15"
+        echo "   genuinely discriminates, it is not a tautology"
+      else
+        echo "NOT ok paired mutation #4: expected elapsed=-7200000 and"
+        echo "     REVIEW_ELAPSED_NEGATIVE=False, got elapsed=$MUT4_ELAPSED"
+        echo "     REVIEW_ELAPSED_NEGATIVE=$MUT4_HAS_FLAG -- mutation is a"
+        echo "     refused tautology (§11.4.115(F))"
+        failx
+      fi
+    else
+      echo "NOT ok paired mutation #4: mutated binary invocation failed --"
+      echo "     $(cat "$TMP/mutation4.err" 2>/dev/null)"
+      failx
+    fi
+  fi
+fi
+
+echo
+echo "=== §1.1 paired mutation #5 (S12-remediation round-4 review, IMPORTANT-1): genuinely replacing the real elapsed<0 sign check with the reviewer's exact mutant (keying review_elapsed_negative off any_inverted_round instead) flips check 14's golden-good result from PASS to FAIL ==="
+# Reproduces the INDEPENDENT reviewer's own exact mutant verbatim: on check
+# 14's F13FX/F13DIR fixture (one good round + one inverted round), this
+# mutant sets review_elapsed_negative = any_inverted_round (True, since the
+# fixture DOES contain an inverted round) even though the fixture's real
+# stage['elapsed'] is POSITIVE (10800000) -- check 14's own golden-good
+# assertion (REVIEW_ELAPSED_NEGATIVE absent, added this round) must flip
+# from PASS to FAIL against this mutant, proving it genuinely discriminates
+# on the real sign check and is not merely re-testing the M1
+# any_inverted_round boolean under a different name.
+if [ "$RED_MODE" = "1" ]; then
+  echo "skip (RED_MODE=1): this mutation is itself defined relative to the FIXED"
+  echo "   function; it is only meaningful run against the fixed binary"
+else
+  cp "$CYCLE_REPORT" "$MUT5"
+  python3 - "$MUT5" <<'PYEOF'
+import sys
+
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+old = '    review_elapsed_negative = stage["elapsed"] < 0\n'
+if old not in src:
+    raise SystemExit("mutation setup FAILED -- M2 guard marker not found "
+                      "(source drifted from the fix this test expects?)")
+new = (
+    "    review_elapsed_negative = any_inverted_round  "
+    "# MUTATED (§1.1 paired mutation #5, reviewer's exact mutant)\n"
+)
+new_src = src.replace(old, new, 1)
+if new_src == src:
+    raise SystemExit("mutation did not change the source")
+open(path, "w", encoding="utf-8").write(new_src)
+PYEOF
+  if [ $? != 0 ]; then
+    echo "NOT ok paired mutation #5 setup FAILED -- could not mechanically mutate"
+    echo "     review_rounds_stage's elapsed<0 sign-check guard (marker not"
+    echo "     found -- source drifted?)"
+    failx
+  else
+    MUT5OUT="$TMP/mutation5_out.json"
+    python3 "$MUT5" --as-of 2026-10-03 --tracker-export "$F13FX" \
+      --review-records-dir "$F13DIR" --out "$MUT5OUT" >"$TMP/mutation5.err" 2>&1
+    if [ -f "$MUT5OUT" ]; then
+      MUT5_RESULT="$(python3 -c "
+import json
+r = json.load(open('$MUT5OUT'))['records'][0]
+rr = next(s for s in r['stages'] if s['stage'] == 'review_rounds')
+print('%s|%s' % (rr.get('elapsed'), 'REVIEW_ELAPSED_NEGATIVE' in r.get('data_quality_flags', [])))
+" 2>&1)"
+      IFS='|' read -r MUT5_ELAPSED MUT5_HAS_FLAG <<< "$MUT5_RESULT"
+      if [ "$MUT5_ELAPSED" = "10800000" ] && [ "$MUT5_HAS_FLAG" = "True" ]; then
+        echo "ok paired mutation #5: keying review_elapsed_negative off"
+        echo "   any_inverted_round instead of the real stage['elapsed'] < 0"
+        echo "   sign check flips REVIEW_ELAPSED_NEGATIVE from absent (fixed,"
+        echo "   check 14's golden-good assertion) to WRONGLY present, even"
+        echo "   though elapsed stays 10800000 (POSITIVE, UNCHANGED) -- check"
+        echo "   14's new REVIEW_ELAPSED_NEGATIVE-absent assertion genuinely"
+        echo "   discriminates on the real sign check, it is not a tautology"
+      else
+        echo "NOT ok paired mutation #5: expected elapsed=10800000 and"
+        echo "     REVIEW_ELAPSED_NEGATIVE=True, got elapsed=$MUT5_ELAPSED"
+        echo "     REVIEW_ELAPSED_NEGATIVE=$MUT5_HAS_FLAG -- mutation is a"
+        echo "     refused tautology (§11.4.115(F))"
+        failx
+      fi
+    else
+      echo "NOT ok paired mutation #5: mutated binary invocation failed --"
+      echo "     $(cat "$TMP/mutation5.err" 2>/dev/null)"
+      failx
+    fi
+  fi
+fi
+
+echo
+echo "=== §1.1 paired mutation #6 (S12-remediation round-4 review, MINOR-1): widening the elapsed<0 sign check to elapsed<=0 flips check 16's zero-length golden-good result from PASS to FAIL ==="
+# Mechanically widens ONLY the strict '<' in M2's elapsed-sign check to '<='
+# and asserts check 16's zero-length fixture (ZLFX/ZLDIR, elapsed == 0
+# exactly) flips REVIEW_ELAPSED_NEGATIVE from absent (fixed, correct: 0 is
+# not negative) to WRONGLY present -- proving check 16's own assertion
+# genuinely exercises the strict-inequality boundary, independently of
+# mutation #7 below (which targets the OTHER '<' in the SAME fixture).
+if [ "$RED_MODE" = "1" ]; then
+  echo "skip (RED_MODE=1): this mutation is itself defined relative to the FIXED"
+  echo "   function; it is only meaningful run against the fixed binary"
+else
+  cp "$CYCLE_REPORT" "$MUT6"
+  python3 - "$MUT6" <<'PYEOF'
+import sys
+
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+old = '    review_elapsed_negative = stage["elapsed"] < 0\n'
+if old not in src:
+    raise SystemExit("mutation setup FAILED -- M2 guard marker not found "
+                      "(source drifted from the fix this test expects?)")
+new = (
+    "    review_elapsed_negative = stage[\"elapsed\"] <= 0  "
+    "# MUTATED (§1.1 paired mutation #6)\n"
+)
+new_src = src.replace(old, new, 1)
+if new_src == src:
+    raise SystemExit("mutation did not change the source")
+open(path, "w", encoding="utf-8").write(new_src)
+PYEOF
+  if [ $? != 0 ]; then
+    echo "NOT ok paired mutation #6 setup FAILED -- could not mechanically mutate"
+    echo "     review_rounds_stage's elapsed<0 sign-check guard (marker not"
+    echo "     found -- source drifted?)"
+    failx
+  else
+    MUT6OUT="$TMP/mutation6_out.json"
+    python3 "$MUT6" --as-of 2026-10-03 --tracker-export "$ZLFX" \
+      --review-records-dir "$ZLDIR" --out "$MUT6OUT" >"$TMP/mutation6.err" 2>&1
+    if [ -f "$MUT6OUT" ]; then
+      MUT6_RESULT="$(python3 -c "
+import json
+r = json.load(open('$MUT6OUT'))['records'][0]
+rr = next(s for s in r['stages'] if s['stage'] == 'review_rounds')
+print('%s|%s' % (rr.get('elapsed'), 'REVIEW_ELAPSED_NEGATIVE' in r.get('data_quality_flags', [])))
+" 2>&1)"
+      IFS='|' read -r MUT6_ELAPSED MUT6_HAS_FLAG <<< "$MUT6_RESULT"
+      if [ "$MUT6_ELAPSED" = "0" ] && [ "$MUT6_HAS_FLAG" = "True" ]; then
+        echo "ok paired mutation #6: widening elapsed<0 to elapsed<=0 flips"
+        echo "   REVIEW_ELAPSED_NEGATIVE from absent (fixed, correct at the"
+        echo "   zero-length boundary) to WRONGLY present on elapsed=0 -- check"
+        echo "   16 genuinely discriminates on the strict '<', it is not a"
+        echo "   tautology"
+      else
+        echo "NOT ok paired mutation #6: expected elapsed=0 and"
+        echo "     REVIEW_ELAPSED_NEGATIVE=True, got elapsed=$MUT6_ELAPSED"
+        echo "     REVIEW_ELAPSED_NEGATIVE=$MUT6_HAS_FLAG -- mutation is a"
+        echo "     refused tautology (§11.4.115(F))"
+        failx
+      fi
+    else
+      echo "NOT ok paired mutation #6: mutated binary invocation failed --"
+      echo "     $(cat "$TMP/mutation6.err" 2>/dev/null)"
+      failx
+    fi
+  fi
+fi
+
+echo
+echo "=== §1.1 paired mutation #7 (S12-remediation round-4 review, MINOR-1): widening the e_dt < s_dt inversion check to e_dt <= s_dt flips check 16's zero-length golden-good result from PASS to FAIL ==="
+# Mechanically widens ONLY the strict '<' in M1's inversion-detection check
+# to '<=' and asserts check 16's zero-length fixture (ZLFX/ZLDIR, s_dt ==
+# e_dt exactly) flips REVIEW_SPAN_INVERTED from absent (fixed, correct:
+# equal timestamps are not an inversion) to WRONGLY present -- proving
+# check 16's own assertion genuinely exercises this SEPARATE strict-
+# inequality boundary, independently of mutation #6 above.
+if [ "$RED_MODE" = "1" ]; then
+  echo "skip (RED_MODE=1): this mutation is itself defined relative to the FIXED"
+  echo "   function; it is only meaningful run against the fixed binary"
+else
+  cp "$CYCLE_REPORT" "$MUT7"
+  python3 - "$MUT7" <<'PYEOF'
+import sys
+
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+old = (
+    "                if e_dt < s_dt:\n"
+    "                    any_inverted_round = True\n"
+)
+if old not in src:
+    raise SystemExit("mutation setup FAILED -- M1 guard marker not found "
+                      "(source drifted from the fix this test expects?)")
+new = (
+    "                if e_dt <= s_dt:  "
+    "# MUTATED (§1.1 paired mutation #7)\n"
+    "                    any_inverted_round = True\n"
+)
+new_src = src.replace(old, new, 1)
+if new_src == src:
+    raise SystemExit("mutation did not change the source")
+open(path, "w", encoding="utf-8").write(new_src)
+PYEOF
+  if [ $? != 0 ]; then
+    echo "NOT ok paired mutation #7 setup FAILED -- could not mechanically mutate"
+    echo "     review_rounds_stage's e_dt < s_dt inversion-detection guard"
+    echo "     (marker not found -- source drifted?)"
+    failx
+  else
+    MUT7OUT="$TMP/mutation7_out.json"
+    python3 "$MUT7" --as-of 2026-10-03 --tracker-export "$ZLFX" \
+      --review-records-dir "$ZLDIR" --out "$MUT7OUT" >"$TMP/mutation7.err" 2>&1
+    if [ -f "$MUT7OUT" ]; then
+      MUT7_RESULT="$(python3 -c "
+import json
+r = json.load(open('$MUT7OUT'))['records'][0]
+rr = next(s for s in r['stages'] if s['stage'] == 'review_rounds')
+print('%s|%s' % (rr.get('elapsed'), 'REVIEW_SPAN_INVERTED' in r.get('data_quality_flags', [])))
+" 2>&1)"
+      IFS='|' read -r MUT7_ELAPSED MUT7_HAS_FLAG <<< "$MUT7_RESULT"
+      if [ "$MUT7_ELAPSED" = "0" ] && [ "$MUT7_HAS_FLAG" = "True" ]; then
+        echo "ok paired mutation #7: widening e_dt < s_dt to e_dt <= s_dt flips"
+        echo "   REVIEW_SPAN_INVERTED from absent (fixed, correct at the zero-"
+        echo "   length boundary) to WRONGLY present when s_dt == e_dt -- check"
+        echo "   16 genuinely discriminates on this SEPARATE strict '<', it is"
+        echo "   not a tautology"
+      else
+        echo "NOT ok paired mutation #7: expected elapsed=0 and"
+        echo "     REVIEW_SPAN_INVERTED=True, got elapsed=$MUT7_ELAPSED"
+        echo "     REVIEW_SPAN_INVERTED=$MUT7_HAS_FLAG -- mutation is a refused"
+        echo "     tautology (§11.4.115(F))"
+        failx
+      fi
+    else
+      echo "NOT ok paired mutation #7: mutated binary invocation failed --"
+      echo "     $(cat "$TMP/mutation7.err" 2>/dev/null)"
       failx
     fi
   fi

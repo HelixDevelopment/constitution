@@ -109,7 +109,11 @@ Contract-clause coverage in THIS implementation (honest boundary, §11.4.6):
                              status-defining item_history event),
                              COMMIT_ATTRIBUTION_BY_GREP (a matched commit
                              subject names >=2 distinct item ids),
-                             DUPLICATE_HISTORY_ROWS (exact-duplicate rows).
+                             DUPLICATE_HISTORY_ROWS (exact-duplicate rows),
+                             REVIEW_SPAN_INVERTED (a review-record round's
+                             end instant precedes its own start instant),
+                             REVIEW_ELAPSED_NEGATIVE (the review_rounds
+                             stage's own `elapsed` field computed negative).
                              NOT implemented: BULK_WRITE (tied to the CT-001
                              bulk-import path above) and
                              REOPEN_WITHOUT_PRIOR_CLOSURE (would need the full
@@ -796,13 +800,56 @@ def review_rounds_stage(records_dir, item_id, repo_root=None):
       min-start/max-end span-evidence attribution (F1, above) and its
       tokens still contribute to the token total (F2, above) -- both are
       PRE-EXISTING behaviour this fix deliberately leaves untouched, not a
-      new defect this fix introduces or masks."""
+      new defect this fix introduces or masks.
+
+    S12-remediation round-3 review (2026-10-03), two FURTHER findings against
+    this same function (M1, M2 below) -- this function now returns a 3-tuple
+    `(stage_or_None, review_span_inverted, review_elapsed_negative)` instead
+    of a bare `stage_or_None`, so the two new booleans below can be threaded
+    up to build_record_for_item()'s `data_quality_flags` list (the SAME
+    flag-adding mechanism used by flag_date_only_resolution() et al., per
+    this module's established "report truthfully, add a flag, never invent
+    a corrected value" convention -- CT-004):
+      M1 (REVIEW_SPAN_INVERTED) -- the F13 fix above correctly EXCLUDES an
+      inverted round's negative duration from summed_review_duration_ms, but
+      does so with ZERO trace anywhere in the record: a record with one good
+      round plus one corrupt/inverted round is, on data_quality_flags alone,
+      indistinguishable from a record with just the one good round. Fix:
+      `review_span_inverted` is set True the moment ANY round's `e_dt` is
+      found earlier than its own `s_dt` (the same per-record test the F13
+      guard already performs), independently of whether that round happens
+      to also win the min-start/max-end competition for `elapsed` (M1 is
+      SCOPED to "did an inversion occur at all", not to the `elapsed` field).
+      M2 (REVIEW_ELAPSED_NEGATIVE) -- a PRE-EXISTING bug, present before and
+      untouched by F1/F2/F5/F6/F13/M1 above: when the ONLY round with a
+      parseable (start, end) pair is itself inverted, it has nothing else to
+      compete against in the F1 min-start/max-end selection, so
+      `best_start == that round's (later) start` and
+      `best_end == that round's (earlier) end` -- measured_stage() computes
+      `elapsed_s = end - start` with NO sign check anywhere in that shared
+      builder (confirmed directly against its own source immediately below
+      this function), so the stage's `elapsed` field comes out NEGATIVE with
+      no indication anything is wrong. Fix: `review_elapsed_negative` is set
+      True when the built stage's own `elapsed` is < 0. Per this module's
+      CT-004 convention (never invent/alter a genuine measurement to make it
+      look sane), the negative `elapsed` value itself is reported AS-IS --
+      NOT clamped to zero -- because a flagged negative number a downstream
+      consumer can see and reason about is strictly more honest than a
+      silently-zeroed value that hides the fact a reviewer-entered span was
+      corrupt; this mirrors the identical choice this module already makes
+      for an un-timeable round (contributes nothing, never a silently
+      corrected number) rather than inventing a value that never happened."""
     if not records_dir or not os.path.isdir(records_dir):
-        return None
+        return None, False, False
     best_start_iso, best_start_dt, best_start_evidence = None, None, None
     best_end_iso, best_end_dt, best_end_evidence = None, None, None
     summed_duration_ms = 0
     total_tokens, any_tokens = 0, False
+    # M1 fix (2026-10-03): set True the moment ANY round's (end - start) is
+    # negative, independently of the F13 summed_duration_ms exclusion below
+    # -- this is a SEPARATE trace of "did an inversion occur at all",
+    # threaded up to data_quality_flags so it is never silently invisible.
+    any_inverted_round = False
     for dirpath, dirnames, filenames in os.walk(records_dir):
         dirnames.sort()  # F1: deterministic traversal order
         for fn in sorted(filenames):
@@ -875,8 +922,22 @@ def review_rounds_stage(records_dir, item_id, repo_root=None):
                 # defect this round introduces or silently masks.
                 if e_dt >= s_dt:
                     summed_duration_ms += to_ms((e_dt - s_dt).total_seconds())
+                # M1 fix (2026-10-03): a SEPARATE, standalone test for the
+                # SAME inversion condition F13 immediately above excludes
+                # from the sum -- deliberately NOT an `else:` of the `if`
+                # directly above (the paired §1.1 mutation for F13, below,
+                # mechanically deletes that `if` guard's own two lines in
+                # isolation; coupling this check to it via `else:` would
+                # leave a dangling `else:` with no `if`, a SyntaxError that
+                # has nothing to do with what that mutation is testing).
+                # Record that an inversion occurred so the caller can surface
+                # it as a data_quality_flags trace, never silently
+                # indistinguishable from "no inverted round was ever
+                # present".
+                if e_dt < s_dt:
+                    any_inverted_round = True
     if best_start_iso is None:
-        return None
+        return None, False, False
     stage = measured_stage(
         "review_rounds", best_start_iso, "registry_ts", best_end_iso, "registry_ts",
         start_evidence=best_start_evidence, end_evidence=best_end_evidence,
@@ -885,7 +946,14 @@ def review_rounds_stage(records_dir, item_id, repo_root=None):
     # inter-round gaps) -- the sum of each individual round's own measured
     # duration, i.e. the actual review-time figure.
     stage["summed_review_duration_ms"] = summed_duration_ms
-    return stage
+    # M2 fix (2026-10-03): measured_stage() computes elapsed_s = end - start
+    # with no sign check -- when the SOLE round with a parseable span is
+    # itself inverted, best_start/best_end both come from that one round and
+    # `elapsed` comes out negative. CT-004: the negative value is reported
+    # AS-IS (never clamped/invented) -- this flag is the caller's ONLY signal
+    # that something is wrong with the measurement it is looking at.
+    review_elapsed_negative = stage["elapsed"] < 0
+    return stage, any_inverted_round, review_elapsed_negative
 
 
 def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_files_present,
@@ -974,7 +1042,16 @@ def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_f
     # review_record.py is now genuinely read when the caller opts in via
     # --review-records-dir; see review_rounds_stage's own docstring for why
     # this is an explicit opt-in rather than a guessed default directory.
-    review_stage = review_rounds_stage(review_records_dir, item_id, repo_root=repo_root)
+    #
+    # S12-remediation round-3 review (2026-10-03, M1/M2): review_rounds_stage
+    # now returns a 3-tuple -- the two extra booleans are threaded through
+    # this function's OWN return value (the SAME pattern already used for
+    # `multi_item_commit` above, which build_record_for_item() turns into the
+    # COMMIT_ATTRIBUTION_BY_GREP flag) so build_record_for_item() can turn
+    # them into REVIEW_SPAN_INVERTED / REVIEW_ELAPSED_NEGATIVE data_quality_
+    # flags entries.
+    review_stage, review_span_inverted, review_elapsed_negative = review_rounds_stage(
+        review_records_dir, item_id, repo_root=repo_root)
     if review_stage is not None:
         stages["review_rounds"] = review_stage
 
@@ -986,16 +1063,18 @@ def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_f
         if stage not in stages:
             stages[stage] = unmeasured_stage(stage, item_id)
 
-    return [stages[s] for s in STAGES], multi_item_commit
+    return ([stages[s] for s in STAGES], multi_item_commit,
+            review_span_inverted, review_elapsed_negative)
 
 
 def build_record_for_item(item_id, item_type, item_status, history,
                            selection_reason, window, git_log_entries=None,
                            evidence_files_present=None, repo_root=None,
                            review_records_dir=None):
-    stages, multi_item_commit = reconstruct_from_evidence(
-        item_id, history, git_log_entries, evidence_files_present, repo_root=repo_root,
-        review_records_dir=review_records_dir)
+    stages, multi_item_commit, review_span_inverted, review_elapsed_negative = (
+        reconstruct_from_evidence(
+            item_id, history, git_log_entries, evidence_files_present, repo_root=repo_root,
+            review_records_dir=review_records_dir))
 
     flags = []
     if history:
@@ -1011,6 +1090,18 @@ def build_record_for_item(item_id, item_type, item_status, history,
             flags.append("STATUS_DESYNC")
     if multi_item_commit:
         flags.append("COMMIT_ATTRIBUTION_BY_GREP")
+    # S12-remediation round-3 review (2026-10-03, M1): a review-record round
+    # with an inverted (end before start) span is correctly EXCLUDED from
+    # summed_review_duration_ms (F13) but was otherwise untraceable anywhere
+    # in the record -- see review_rounds_stage()'s own docstring for M1/M2.
+    if review_span_inverted:
+        flags.append("REVIEW_SPAN_INVERTED")
+    # (M2) the review_rounds stage's own `elapsed` field computed negative
+    # (a sole inverted round, with nothing else to compete against in the
+    # min-start/max-end selection) -- CT-004: the negative value is left
+    # as-is in the stage, this flag is the only signal something is wrong.
+    if review_elapsed_negative:
+        flags.append("REVIEW_ELAPSED_NEGATIVE")
 
     all_measured = all(s["elapsed"] != "UNMEASURED" for s in stages)
     total_elapsed = sum(s["elapsed"] for s in stages) if all_measured else "UNMEASURED"
