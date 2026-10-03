@@ -11,7 +11,20 @@ or averages a gap away (CT-004, data-model.md V-CR-2).
 Invocation (production shape, per the contract):
     cycle_report.py --config <cfg> --as-of <YYYY-MM-DD> --window-days <N> \\
         [--min-per-type 5] [--include-reopened] [--hand-verified <file>] \\
+        [--review-records-dir <dir>] \\
         --out <report.json> [--md <report.md>] [--determinism-check]
+
+    --review-records-dir <dir>  Opt-in directory to recursively scan for
+                                 T034 review_record.py output (schema
+                                 review-record/v1) to measure the
+                                 review_rounds stage. No default -- the
+                                 contract names no single canonical
+                                 directory for these records (they are
+                                 written to whatever --out the reviewer
+                                 chose), so this flag is never guessed
+                                 (S11.4.6). Honoured in every invocation
+                                 mode below (--item/--tracker-export/
+                                 --window-json/full-sampling), not test-only.
 
 Additional TEST-ONLY input modes (documented here, NOT part of the contract's
 own Invocation grammar -- added because select_sample.py/T043 and
@@ -162,25 +175,85 @@ ITEM_TYPES = ("Bug", "Feature", "Task")
 CLOSURE_EVENTS = ("Fixed", "Implemented", "Completed")
 STATUS_DEFINING_EVENTS = ("Reopened", "Fixed", "Implemented", "Completed", "Obsolete")
 
+# ATM-1055 fix: item_history.event_type stores the SHORT closure-event name
+# ("Fixed"), while items.status stores the LONG §11.4.33 closed-set form
+# ("Fixed (-> Fixed.md)") -- the SAME canonical mapping the Go tracker tool
+# already establishes (parse.go normalizeStatus / crud.go's closeStatusMap --
+# the "fixed"/"implemented"/"completed"/"obsolete" closure table, verified
+# 2026-10-03 directly against
+# scripts/workable-items/cmd/workable-items/{parse,crud}.go). A bare
+# `event_type != items_status` string comparison (the pre-fix bug) therefore
+# flags STATUS_DESYNC on every single correctly-closed item -- confirmed
+# live against ATM-1025/ATM-343 (both "Fixed" events, both the canonical
+# "Fixed (-> Fixed.md)" column value). "Reopened" carries no "(-> Fixed.md)"
+# suffix and maps to itself.
+#
+# CITATION CORRECTION (S12-remediation round, F4.1, 2026-10-03): an earlier
+# revision of this comment ALSO cited "the T044 column<->body guard (sync.go
+# statusColumnBodyDesyncs)" as treating this SAME event->status mapping as
+# authoritative. That citation was WRONG, confirmed directly against
+# scripts/workable-items/cmd/workable-items/sync.go: statusColumnBodyDesyncs
+# compares the item body's "**Status:**" line against the items.status
+# COLUMN -- it carries NO item_history.event_type -> items.status mapping
+# at all, so it cannot be "treating this mapping as authoritative". The
+# mapping this module mirrors is crud.go's closeStatusMap ONLY (cited above);
+# the T044 guard is an unrelated, orthogonal consistency check.
+CLOSURE_EVENT_TO_STATUS = {
+    "Reopened": "Reopened",
+    "Fixed": "Fixed (→ Fixed.md)",
+    "Implemented": "Implemented (→ Fixed.md)",
+    "Completed": "Completed (→ Fixed.md)",
+    "Obsolete": "Obsolete (→ Fixed.md)",
+}
+
 # R1-style default instrument-name mapping (CT-002's default mapping) -- one
-# template per stage, `{item_id}` filled in at use. The `build` stage's
-# template is verified byte-for-byte against research: this repository's own
-# docs/build/resources/builds.tsv is keyed by an opaque `build_id`
-# (hash+timestamp), NOT by item id (confirmed 2026-09-28: zero rows mention
-# any ATM-* id) -- there genuinely is no per-item build instrument yet, which
-# is exactly the gap this template names.
+# template per stage, `{item_id}` filled in at use. Updated 2026-10-03 after
+# directly re-verifying, against the live repository, which of T-A04/T-A06/
+# T-A08's tools have landed and whether each produces any REAL item-keyed
+# data yet (never assumed from the task ids alone, S11.4.6) -- a tool having
+# LANDED is not the same as an item-id JOIN existing or being POPULATED.
 INSTRUMENT_TEMPLATES = {
-    "intake": "docs/requests/agent_registry.jsonl session-to-item mapping row for {item_id} (T-A06 intake phase, not yet wired)",
-    "investigation": "docs/requests/agent_registry.jsonl session-to-item mapping row for {item_id} (T-A06 investigation phase, not yet wired)",
-    "implementation": "transcript usage ingest output keyed to {item_id} (T-A06 session-to-item join, not yet wired)",
-    "test_authoring": "transcript usage ingest output keyed to {item_id} (T-A06 test-authoring phase, not yet wired)",
-    "gate_runs": "per-gate-run duration log keyed to candidate fingerprint for {item_id} (T-C0x gate timing, not yet wired)",
+    # intake/investigation: T-A06's docs/requests/agent_registry.jsonl DOES
+    # carry real ATM-id-keyed Agent/Task dispatch rows now (71 real rows
+    # confirmed 2026-10-03), but every row carries only a dispatch
+    # timestamp + item id -- no field distinguishes an "intake" dispatch
+    # from an "investigation" one, so splitting this ONE undifferentiated
+    # signal into two independent per-stage elapsed values would itself be
+    # invention (CT-004): the stage-level discriminator genuinely does not
+    # exist yet.
+    "intake": "docs/requests/agent_registry.jsonl session-to-item mapping row for {item_id} (T-A06 landed + item-keyed rows exist, but no intake-vs-investigation-vs-implementation-vs-test_authoring discriminator field exists on a dispatch row)",
+    "investigation": "docs/requests/agent_registry.jsonl session-to-item mapping row for {item_id} (T-A06 landed + item-keyed rows exist, but no stage discriminator -- see intake)",
+    # implementation/test_authoring: T038 (transcript_ingest.py) landed and
+    # DOES item-attribute subagent-dispatch records when run, but its output
+    # table (transcript_usage_events, in the WS1 usage_telemetry.db) does
+    # not exist on disk yet -- confirmed 2026-10-03 via a live `sqlite3
+    # .tables` query: `ingest` has never been run against a real transcript
+    # in this repository, so there are zero rows to read, not merely an
+    # unwired join.
+    "implementation": "transcript usage ingest output (transcript_usage_events table) keyed to {item_id} (T038 landed, but the table does not exist on disk -- `ingest` has never been run against a real transcript in this repository)",
+    "test_authoring": "transcript usage ingest output (transcript_usage_events table) keyed to {item_id} (T038 landed, but the table does not exist on disk -- see implementation)",
+    # S12-remediation fix (F3): the PRE-fix text claimed "T-C0x gate timing
+    # tooling not found in this repository" -- FALSE, verified 2026-10-03:
+    # fc_timer.sh (T028) landed in the same commit as this file, is sourced
+    # by pre_build_verification.sh and commit_all.sh, and produces REAL
+    # per-gate-run TSVs at qa-results/fastcycle/<run-id>/prebuild_sections.tsv
+    # (columns run_id/candidate_fingerprint/id/start_ns/end_ns/duration_ms/
+    # verdict/checks/fails/warns/extra) keyed by candidate_fingerprint. The
+    # instrument and its data genuinely exist; the real blocker is that no
+    # fingerprint-to-item join exists yet to attribute a gate run to
+    # {item_id} -- the same class of gap this module's commit_push stage
+    # closes via git-subject grep, not yet applied here.
+    "gate_runs": "per-gate-run duration log keyed to candidate fingerprint for {item_id} (fc_timer.sh (T028) landed and produces real per-gate-run TSVs at qa-results/fastcycle/<run-id>/prebuild_sections.tsv keyed by candidate_fingerprint -- the instrument and data genuinely exist; the blocker is specifically that no fingerprint-to-item join exists yet to attribute a gate run to {item_id})",
     "build": "per-item build-log/builds.tsv row keyed to {item_id} (R1's instrument table; contract CT-002 default mapping)",
-    "review_rounds": "review-round record (T-A04) keyed to {item_id}",
-    "fix_rounds": "fix-round record keyed to {item_id} (no per-item fix-round log wired yet)",
+    # review_rounds: T034 (review_record.py) landed and its review-record/v1
+    # JSON documents are now genuinely read (see review_rounds_stage, below)
+    # when --review-records-dir is supplied -- this default text is what a
+    # caller sees when no matching, fully-timestamped record is found.
+    "review_rounds": "review-round record (T034 review_record.py, schema review-record/v1) keyed to {item_id} -- none found under --review-records-dir (or the flag was not supplied / every matching record's started_at/ended_at is the honest \"UNKNOWN\" placeholder)",
+    "fix_rounds": "fix-round record keyed to {item_id} (review_record.py (T034) records REVIEW rounds, not a distinct FIX-round-between-reviews instrument; no per-item fix-round log exists)",
     "commit_push": "git log author/committer timestamp for a commit whose subject references {item_id}",
-    "deployment": "docs/build/resources/builds.tsv deploy row keyed to {item_id} (T-A08 build/deploy/QA events, not yet wired)",
-    "manual_qa_wait": "item_history/manual-qa sign-off event keyed to {item_id} (T-A08, not yet wired)",
+    "deployment": "docs/build/resources/builds.tsv deploy row keyed to {item_id} (T040's build_deploy_qa_events.py landed as a validate+join core explicitly OUT OF SCOPE for item-id emission into builds.tsv -- confirmed 2026-10-03: builds.tsv itself still carries zero ATM-id rows)",
+    "manual_qa_wait": "item_history/manual-qa sign-off event keyed to {item_id} (T040 landed but does not emit a QA-sign-off-to-item join -- see deployment)",
 }
 
 ITEM_ID_RE = re.compile(r"[A-Z]{2,5}-[0-9]{1,5}")
@@ -456,12 +529,58 @@ def flag_reopen_without_prior_closure(history):
     return False
 
 
+#   S12-remediation fix (F4.2, 2026-10-03): the CLOSED-SET terminal-status
+#   TEXT forms (the four closure events' long §11.4.33 column values) --
+#   used to recognise "items_status currently claims the item is DONE"
+#   independently of which closure event produced that text. Deliberately
+#   EXCLUDES "Reopened" (a non-terminal, still-open form).
+CLOSED_STATUS_FORMS = frozenset(
+    CLOSURE_EVENT_TO_STATUS[_e] for _e in ("Fixed", "Implemented", "Completed", "Obsolete"))
+
+
 def flag_status_desync(items_status, history):
+    """ATM-1055 fix: compares items_status against the §11.4.33 CANONICAL
+    column-form of the latest status-defining event (CLOSURE_EVENT_TO_STATUS),
+    never the bare event_type string. A direct `event_type != items_status`
+    comparison flags STATUS_DESYNC on essentially every correctly-closed item
+    (event_type="Fixed" vs items.status="Fixed (-> Fixed.md)" are, by design,
+    never byte-identical) -- confirmed live against ATM-1025 and ATM-343.
+
+    S12-remediation fix (F4.2, 2026-10-03): the above mapping alone still
+    false-flagged every REOPENED-THEN-PROGRESSING item (ATM-353: events
+    Reopened -> Updated, items.status="Ready for testing") -- the latest
+    STATUS_DEFINING_EVENT resolves to the Reopened row (CLOSURE_EVENT_TO_STATUS
+    maps "Reopened" -> "Reopened"), but a correctly-progressing item's status
+    has since moved on to an ordinary NON-TERMINAL value ("Ready for testing"/
+    "In progress"/"In testing"/"Queued"/...) that has no entry in
+    CLOSURE_EVENT_TO_STATUS at all -- there is nothing wrong here: the item
+    reopened and is progressing toward resolution again, it has not yet
+    re-claimed to be done. Fix: when the latest status-defining event is
+    "Reopened", a desync is flagged ONLY if items_status is ITSELF one of
+    the CLOSED_STATUS_FORMS (i.e. the item claims to be done again with NO
+    new closure event in the history to justify it -- a genuine desync,
+    distinct from ordinary post-reopen progress). A NON-terminal
+    items_status after a Reopened event is honest, un-fabricated progress
+    and is NOT flagged.
+
+    This does NOT suppress a genuine desync: an item whose LATEST
+    status-defining event is a real closure (Fixed/Implemented/Completed/
+    Obsolete) but whose items_status disagrees -- e.g. ATM-789 (Fixed, no
+    Reopened event, status="Ready for testing") or the 58 SPK bulk-import
+    rows (Fixed/Completed, status="Queued") -- is UNAFFECTED by this clause
+    (event_type != "Reopened" there) and remains flagged exactly as before;
+    confirmed live 2026-10-03: DB-wide sweep count unchanged at 59 for those
+    two classes, only ATM-353 (the Reopened-then-progressing pattern) drops
+    out, 60 -> 59."""
     last_status_event = next(
         (r for r in reversed(history) if r["event_type"] in STATUS_DEFINING_EVENTS), None)
     if last_status_event is None or items_status is None:
         return False
-    return last_status_event["event_type"] != items_status
+    event_type = last_status_event["event_type"]
+    expected_status = CLOSURE_EVENT_TO_STATUS.get(event_type, event_type)
+    if event_type == "Reopened" and items_status not in CLOSED_STATUS_FORMS:
+        return False
+    return expected_status != items_status
 
 
 def latest_closure_event(history):
@@ -585,7 +704,104 @@ def commit_push_stage(repo_root, item_id):
 # ---------------------------------------------------------------------------
 
 
-def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_files_present, repo_root=None):
+def review_rounds_stage(records_dir, item_id, repo_root=None):
+    """ATM-1055-batch fix (S12): genuinely reads T034's landed review_record.py
+    output (schema `review-record/v1`) instead of hardcoding UNMEASURED.
+    Recursively scans `records_dir` for *.json documents whose `item_id`
+    matches, using ONLY entries whose `started_at`/`ended_at` are BOTH real,
+    parseable instants -- never the literal "UNKNOWN" placeholder
+    review_record.py itself emits for an un-timestamped round (CT-004: no
+    invention). A corrupt/unrelated/non-JSON file anywhere under the tree is
+    silently skipped, never crashes the whole report. `records_dir` is an
+    explicit, caller-supplied opt-in (--review-records-dir) -- the contract
+    names no single canonical default directory for these records (they are
+    written to whatever `--out` the reviewer chose), so this function never
+    guesses a repo-wide scan location (S11.4.6).
+
+    Returns a StageMeasurement dict, or None when records_dir is falsy (the
+    caller falls back to unmeasured_stage with the honest INSTRUMENT_TEMPLATES
+    text).
+
+    S12-remediation fixes (2026-10-03):
+      F1 (evidence-path attribution + determinism) -- the PRE-fix version
+      kept a SINGLE shared `evidence_path` variable overwritten by whichever
+      valid record os.walk visited LAST, then used that ONE path for BOTH
+      start_evidence and end_evidence -- but the real minimum-start and
+      maximum-end instants can come from DIFFERENT files (repro: round 1 =
+      10:00-11:00 in rr/a/r1.json, round 2 = 14:00-15:00 in rr/z/r2.json;
+      pre-fix output cited end=15:00Z with evidence_path=rr/a/r1.json, which
+      is WRONG -- that instant actually comes from r2.json). Fix: the
+      earliest start and latest end are tracked INDEPENDENTLY, each with its
+      OWN evidence file, via a running best-so-far comparison (never a
+      shared "last visited" variable). `dirnames` is also sorted in-place
+      during the os.walk traversal so the scan order -- and therefore which
+      record wins a start/end TIE -- is deterministic rather than
+      filesystem-dependent (os.walk's default `dirnames` order is otherwise
+      unspecified).
+      F2 (token overclaim) -- the PRE-fix version added a record's `tokens`
+      field UNCONDITIONALLY, even for records whose start/end timestamps
+      were the honest "UNKNOWN" placeholder (or otherwise unparseable) and
+      therefore contributed NOTHING to the elapsed-time computation (repro:
+      a 3rd record with UNKNOWN/UNKNOWN timestamps and tokens=99999 raised
+      the reported total by the full 99999 even though the elapsed span only
+      ever came from the first two valid records). Fix: a record's tokens
+      are added ONLY inside the SAME branch that validated its start/end
+      timestamps -- a record with no valid timed span contributes NEITHER
+      to elapsed time NOR to the token total (CT-004: a round that cannot be
+      timed is not counted as having happened within this measured span)."""
+    if not records_dir or not os.path.isdir(records_dir):
+        return None
+    best_start_iso, best_start_dt, best_start_evidence = None, None, None
+    best_end_iso, best_end_dt, best_end_evidence = None, None, None
+    total_tokens, any_tokens = 0, False
+    for dirpath, dirnames, filenames in os.walk(records_dir):
+        dirnames.sort()  # F1: deterministic traversal order
+        for fn in sorted(filenames):
+            if not fn.endswith(".json"):
+                continue
+            path = os.path.join(dirpath, fn)
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    doc = json.load(fh)
+            except (OSError, ValueError):
+                continue
+            if not isinstance(doc, dict) or doc.get("schema") != "review-record/v1":
+                continue
+            if doc.get("item_id") != item_id:
+                continue
+            s, e = doc.get("started_at"), doc.get("ended_at")
+            if isinstance(s, str) and s != "UNKNOWN" and isinstance(e, str) and e != "UNKNOWN":
+                try:
+                    s_dt = parse_iso(s)
+                    e_dt = parse_iso(e)
+                except (ValueError, TypeError):
+                    continue
+                if repo_root and path.startswith(repo_root):
+                    evidence_path = os.path.relpath(path, repo_root)
+                else:
+                    evidence_path = path
+                # F1: track the MINIMUM start and MAXIMUM end independently,
+                # each with its OWN evidence file, never a shared variable.
+                if best_start_dt is None or s_dt < best_start_dt:
+                    best_start_iso, best_start_dt, best_start_evidence = s, s_dt, evidence_path
+                if best_end_dt is None or e_dt > best_end_dt:
+                    best_end_iso, best_end_dt, best_end_evidence = e, e_dt, evidence_path
+                # F2: tokens are added ONLY here, inside the branch that just
+                # validated this record's timed span -- never unconditionally.
+                tok = doc.get("tokens")
+                if isinstance(tok, int):
+                    total_tokens += tok
+                    any_tokens = True
+    if best_start_iso is None:
+        return None
+    return measured_stage(
+        "review_rounds", best_start_iso, "registry_ts", best_end_iso, "registry_ts",
+        start_evidence=best_start_evidence, end_evidence=best_end_evidence,
+        tokens=total_tokens if any_tokens else None)
+
+
+def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_files_present,
+                               repo_root=None, review_records_dir=None):
     """The shared reconstruction algorithm used by --item (live DB) and
     Shape-B --tracker-export fixtures. `git_log_entries` may be a literal
     list of {sha, author_date, committer_date, message} (fixture-supplied,
@@ -616,22 +832,68 @@ def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_f
     else:
         stages["commit_push"] = unmeasured_stage("commit_push", item_id)
 
-    # build: no per-item build-log/builds.tsv join exists in this repo yet
+    # build: no per-item build-log/builds.tsv JOIN exists in this repo yet
     # (verified 2026-09-28 against docs/build/resources/builds.tsv: keyed by
     # an opaque build_id, zero rows mention any item id) -- always
     # UNMEASURED for the live-DB path; for Shape-B fixtures, a real
     # path-pattern scan of evidence_files_present is attempted first.
+    #
+    # ATM-1055-batch fix (S12, defect 3): `build_found` was computed and then
+    # genuinely never consumed (git history: introduced + never touched since
+    # commit 7c2e1d5, T041's original landing) -- `stages["build"]` was
+    # hardcoded to `unmeasured_stage(...)` regardless of its value, so the
+    # comment's own "attempted first" promise was never fulfilled. The
+    # detection result is now wired into the output's missing_instrument text
+    # instead of being silently discarded: a caller can see WHETHER a
+    # build-evidence file was found at all, which is real, non-fabricated,
+    # newly-surfaced information the dead variable was computing and
+    # throwing away.
+    #
+    # S12-remediation fix (F11.3, 2026-10-03): the PRE-fix build_found text
+    # (and this comment) claimed "a SINGLE file mtime cannot derive a
+    # two-sided elapsed value without inventing one" as THE reason the stage
+    # stays UNMEASURED -- true ONLY for the Shape-B evidence_files_present
+    # mtime checked above, but FALSE as a description of builds.tsv itself:
+    # R1 Finding 2 confirms docs/build/resources/builds.tsv rows DO carry a
+    # real two-sided start_ts/end_ts span plus a short-sha build_id (e.g.
+    # "26a274387d2-20260728T062804Z 06:28:04-06:49:46"). The REAL blocker is
+    # the SAME class of gap as the gate_runs stage above: no
+    # build_id-to-item join exists yet to attribute a builds.tsv row to
+    # {item_id} -- the stage correctly STAYS UNMEASURED, but for the
+    # accurate reason.
     build_found = False
+    build_evidence_path = None
     for f in (evidence_files_present or []):
         path = f.get("path", "")
         if re.search(r"build", path, re.I) and "builds.tsv" in path.lower():
             build_found = True
+            build_evidence_path = path
             break
-    stages["build"] = unmeasured_stage("build", item_id)
+    build_stage = unmeasured_stage("build", item_id)
+    if build_found:
+        build_stage["missing_instrument"] = (
+            "per-item build-log/builds.tsv row keyed to %s: a build-evidence "
+            "file (%s) was found among evidence_files_present. "
+            "docs/build/resources/builds.tsv rows DO carry a real two-sided "
+            "start_ts/end_ts span plus a short-sha build_id (R1 Finding 2) -- "
+            "the real blocker is the SAME class of gap as the gate_runs "
+            "stage: no build_id-to-item join exists yet to attribute a "
+            "builds.tsv row to %s -- correctly UNMEASURED, not merely "
+            "unattempted." % (item_id, build_evidence_path, item_id))
+    stages["build"] = build_stage
 
-    # Every other stage: no wired instrument in this repository pass
-    # (T-A04/T-A06/T-A08/T-C0x all not yet implemented) -- honestly
-    # UNMEASURED. Documented per-stage in INSTRUMENT_TEMPLATES.
+    # review_rounds: ATM-1055-batch fix (S12, defect 2) -- T034's
+    # review_record.py is now genuinely read when the caller opts in via
+    # --review-records-dir; see review_rounds_stage's own docstring for why
+    # this is an explicit opt-in rather than a guessed default directory.
+    review_stage = review_rounds_stage(review_records_dir, item_id, repo_root=repo_root)
+    if review_stage is not None:
+        stages["review_rounds"] = review_stage
+
+    # Every other stage: no wired instrument in this repository pass for
+    # ANY item -- confirmed directly, live, 2026-10-03 (see the per-stage
+    # INSTRUMENT_TEMPLATES text above for which tool has landed vs. which
+    # join/data genuinely does not exist yet) -- honestly UNMEASURED.
     for stage in STAGES:
         if stage not in stages:
             stages[stage] = unmeasured_stage(stage, item_id)
@@ -641,9 +903,11 @@ def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_f
 
 def build_record_for_item(item_id, item_type, item_status, history,
                            selection_reason, window, git_log_entries=None,
-                           evidence_files_present=None, repo_root=None):
+                           evidence_files_present=None, repo_root=None,
+                           review_records_dir=None):
     stages, multi_item_commit = reconstruct_from_evidence(
-        item_id, history, git_log_entries, evidence_files_present, repo_root=repo_root)
+        item_id, history, git_log_entries, evidence_files_present, repo_root=repo_root,
+        review_records_dir=review_records_dir)
 
     flags = []
     if history:
@@ -867,6 +1131,11 @@ def build_arg_parser():
     p.add_argument("--md")
     p.add_argument("--determinism-check", action="store_true")
     p.add_argument("--bulk-threshold", type=int, default=10)
+    # ATM-1055-batch fix (S12, defect 2): explicit opt-in directory to scan
+    # for T034 review_record.py output (schema review-record/v1) to measure
+    # the review_rounds stage -- no default (the contract names no single
+    # canonical directory for these records, S11.4.6 never-guess).
+    p.add_argument("--review-records-dir")
     # test-only extensions
     p.add_argument("--item")
     p.add_argument("--tracker-export")
@@ -957,7 +1226,7 @@ def main(argv):
                 item_id, item_row["type"] if item_row else "Task",
                 item_row["status"] if item_row else None,
                 history, "sampled-%s" % (item_row["type"].lower() if item_row else "task"),
-                window, repo_root=repo_root))
+                window, repo_root=repo_root, review_records_dir=args.review_records_dir))
         strata = compute_strata(records, args.min_per_type)
         body = {
             "as_of": args.as_of, "window": window, "strata": strata, "excluded": [],
@@ -1011,6 +1280,7 @@ def main(argv):
                 "sampled-%s" % item["type"].lower(), window,
                 git_log_entries=git_log_entries,
                 evidence_files_present=fx.get("evidence_files_present"),
+                repo_root=repo_root, review_records_dir=args.review_records_dir,
             )
         records = [record]
         strata = compute_strata(records, args.min_per_type)
@@ -1041,7 +1311,8 @@ def main(argv):
         history = db_item_history(conn, args.item)
         record = build_record_for_item(
             args.item, item_row["type"], item_row["status"], history,
-            "sampled-%s" % item_row["type"].lower(), window, repo_root=repo_root)
+            "sampled-%s" % item_row["type"].lower(), window, repo_root=repo_root,
+            review_records_dir=args.review_records_dir)
         records = [record]
         strata = compute_strata(records, args.min_per_type)
         body = {
@@ -1142,7 +1413,8 @@ def main(argv):
         records.append(build_record_for_item(
             atm_id, item_row["type"] if item_row else "Task",
             item_row["status"] if item_row else None, history,
-            selection_reason, window, repo_root=repo_root))
+            selection_reason, window, repo_root=repo_root,
+            review_records_dir=args.review_records_dir))
 
     strata = compute_strata(records, args.min_per_type)
     body = {

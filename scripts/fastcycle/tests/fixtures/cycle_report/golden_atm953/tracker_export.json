@@ -36,7 +36,8 @@
       "build": "corroborated only indirectly by the deployment commit's subject line (post_build PASSED) -- no per-item build-log or builds.tsv row for ATM-953 specifically was found in this pass",
       "commit_push": "the single corroborating commit f1abb59e (but it is a multi-item commit -- see data_quality_observation_not_fabricated / COMMIT_ATTRIBUTION_BY_GREP caveat above)",
       "deployment": "the same commit's subject line states \"all 3 devices flashed+verified\""
-    }
+    },
+    "stage_count_consistency_note_2026-10-03": "The two lists directly above are keyed on CITABLE SOURCE IN THIS FIXTURE (8 stages have none, 3 have partial source) -- a DIFFERENT axis from how many of the 11 data-model.md stages cycle_report.py's own code can EVER measure regardless of input. Confirmed directly against cycle/cycle_report.py (S12-remediation round, 2026-10-03): 9 stages are ALWAYS UNMEASURED by the tool -- intake, investigation, implementation, test_authoring, gate_runs, build, fix_rounds, deployment, manual_qa_wait (build included: the F11.3 fix corrected its missing_instrument wording, it did NOT give it an elapsed-time instrument) -- while only commit_push (git-log grep, always attempted) and review_rounds (T034 review-record/v1, opt-in via --review-records-dir) can EVER be measured. 'build' therefore sits in THIS fixture's 'partial citable source' bucket (it has a corroborating commit subject line) while ALSO being one of the tool's 9 always-unmeasured stages -- the two counts (8 vs 9) are not in conflict, they are counting different things, and this note exists so a future reader does not read them as a contradiction."
   },
   "expected_ct009_needle_default": {
     "known_present": { "atm_id": "ATM-953", "event_type": "Fixed", "on_date": "2026-07-28" },
