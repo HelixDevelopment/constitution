@@ -655,14 +655,18 @@ chk "real bare-suffix content ('... Keep-alive period 20s') is NOT corrupted by 
 # t048_round4_defect3_cbg_critic_ignored_report.md) -- are now genuinely
 # fixed at their own source, each proven via a reverted-mutation stress
 # test matching its defect report's own measured flake rate, and both rows
-# are removed from known_flaky_gates.tsv (now an empty, header-only
-# registry -- the FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV env var, the registry
-# loader, its defect-doc/expiry validation and its verdict-line filter are
-# ALL REMOVED along with the rest of this cascade: with no remaining
-# registered gate, the mechanism has no consumer, and a consumer-less
-# mechanism is exactly the dead code S11.4.124 forbids keeping "just in
-# case". A genuinely new, independently-confirmed flake would need this
-# designed fresh against whatever it actually needs, never resurrected
+# are removed from known_flaky_gates.tsv, which this same round DELETED
+# entirely [T048 round-23 review R23-M2: an earlier revision of this
+# comment called the file "now an empty, header-only registry", but the
+# SAME round-22 commit that edited this comment block (M3) deleted it --
+# it does not exist on disk, empty or otherwise] -- the
+# FC_TIMER_GOLDEN_KNOWN_FLAKY_TSV env var, the registry loader, its
+# defect-doc/expiry validation and its verdict-line filter are ALL REMOVED
+# along with the rest of this cascade: with no remaining registered gate,
+# the mechanism has no consumer, and a consumer-less mechanism is exactly
+# the dead code S11.4.124 forbids keeping "just in case". A genuinely new,
+# independently-confirmed flake would need this designed fresh against
+# whatever it actually needs, never resurrected
 # unread). With the primitive fixed, the whole explain-away cascade is
 # deleted and replaced with the strict rule the round-20 reviewer
 # prescribed:
