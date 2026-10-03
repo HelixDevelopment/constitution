@@ -3470,6 +3470,14 @@ else
     # commit's own loose object (R28-Important-B coverage: the
     # destination-side `cat-file -e` ordering bug, which fired on a
     # MISSING COMMIT regardless of which promisor spelling was used).
+    # $3 = optional `corrupt_commit` -- when given instead, OVERWRITES the
+    # base commit's own loose object with garbage bytes rather than
+    # deleting it (R29-independent-review-Important coverage: a PRESENT-
+    # BUT-CORRUPT object makes `rev-list --objects --missing=print` fail
+    # OUTRIGHT -- rc=128, empty stdout, no `?`-prefixed line at all --
+    # which is a DIFFERENT failure shape than "missing", invisible to the
+    # bare `grep '^?'` check and distinguishable only by the probe's own
+    # exit status).
     k_pcl_build_dest() {
         git clone -q --no-hardlinks "$K_PCL_ROOT/mc.git" "$1/dest" >/dev/null 2>&1
         git -C "$1/dest" config user.name fastcycle-fixture
@@ -3490,6 +3498,10 @@ else
             _pclcobjdir=$(echo "$K_PCL_OLD" | cut -c1-2)
             _pclcobjfile=$(echo "$K_PCL_OLD" | cut -c3-)
             rm -f "$1/dest/.git/objects/$_pclcobjdir/$_pclcobjfile"
+        elif [ "${3:-}" = "corrupt_commit" ]; then
+            _pclcobjdir=$(echo "$K_PCL_OLD" | cut -c1-2)
+            _pclcobjfile=$(echo "$K_PCL_OLD" | cut -c3-)
+            head -c 100 /dev/urandom > "$1/dest/.git/objects/$_pclcobjdir/$_pclcobjfile"
         fi
         git -C "$1/dest" remote set-url origin "ssh://evilhost/repo"
         case "$2" in
@@ -3593,24 +3605,56 @@ $(k_pcl_check_one "spelling=$_k_pcl_spell" "$_k_pcl_r" "$K_PCL_EXTRACT")"
     else
         bad "K-partial-clone-lazy-fetch guard-viability 1: neutralising the missing-objects detection did not reproduce the attacker command firing (mut_ok=$J_MUT_OK result=$K_PCL_NG_RESULT)"
     fi
-    # T177 Round 29 self-caught-then-SELF-CORRECTED non-finding (disclosed
-    # honestly, not silently dropped -- see `fc_transfer_objects_into()`'s
-    # own header comment for the full account): a planned second
-    # guard-viability mutant here was meant to prove the `_fto_missing=
-    # $(...)` exit-status capture independently load-bearing, using a
-    # reproduction that appended `^{commit}` to the probed SHA. That
-    # reproduction does NOT match the real call below (which passes the
-    # BARE `$_fto_base`, no `^{commit}` suffix), and live-reproduced
-    # against the REAL call shape, `git rev-list --objects --missing=
-    # print <bare-sha>` NEVER fails outright for a well-formed SHA -- it
-    # reports an unresolvable starting commit via the SAME `?`-prefixed
-    # line the guard-viability-1 mutant above already proves load-bearing,
-    # exit 0, even against a totally empty destination. No mutation of
-    # the exit-status capture was found that reopens a reachable
-    # vulnerability distinct from guard-viability-1's own coverage, so
-    # none is asserted here -- a test claiming to prove a mutation
-    # reopens an unreachable condition would itself be exactly the kind
-    # of bluff this file's own covenant forbids.
+    # T177 Round 30 (independent-review-found Important, WRONG self-
+    # correction from Round 29 corrected here): Round 29's own comment
+    # here claimed NO mutation of the `_fto_missing=$(...)` exit-status
+    # capture reopens a reachable vulnerability -- an independent review
+    # of Round 29 found that claim FALSE and this round's own author
+    # re-verified it live before accepting it: a base commit that is
+    # PRESENT BUT CORRUPT (not deleted) makes `rev-list --objects
+    # --missing=print` fail OUTRIGHT (rc=128, empty stdout -- no
+    # `?`-prefixed line for guard-viability-1's own detection to catch,
+    # since the walk never produces one), a DIFFERENT failure shape than
+    # "missing" that only the exit-status capture -- not the `grep '^?'`
+    # check -- can see. k_pcl_check_one() is NOT reused here: a corrupt
+    # destination legitimately makes the REAL code fail CLOSED (FTO_RC=1,
+    # the unbounded path's own `index-pack` also cannot proceed against an
+    # already-corrupt object store) rather than succeed -- the security
+    # property under test is "the attacker's command never runs", not
+    # "the transfer succeeds", so this check asserts PWNED-absence only,
+    # independent of FTO_RC.
+    K_PCL_CB_ROOT="$K_ROOT/k_pcl_corrupt_base"
+    mkdir -p "$K_PCL_CB_ROOT"
+    k_pcl_build_dest "$K_PCL_CB_ROOT" true corrupt_commit
+    rm -f "$K_PCL_CB_ROOT/PWNED"
+    K_PCL_CB_OUT=$(k_pcl_harness "$K_PCL_EXTRACT" "$K_PCL_CB_ROOT")
+    if [ ! -f "$K_PCL_CB_ROOT/PWNED" ]; then
+        ok "K-partial-clone-lazy-fetch-corrupt-base (T177 Round 30, independent-review Important): with the base commit's own object PRESENT BUT CORRUPT (not deleted) in a promisor-configured destination, fc_transfer_objects_into() never runs the attacker's command, whether or not the transfer itself succeeds against the already-corrupt object store (out=$K_PCL_CB_OUT)"
+    else
+        bad "K-partial-clone-lazy-fetch-corrupt-base: attacker command fired against a corrupt-base destination (out=$K_PCL_CB_OUT)"
+    fi
+    # Guard-viability 2: neutralise ONLY the exit-status propagation of
+    # the `_fto_missing=$(...)` assignment (keep its STDOUT-capturing
+    # behaviour identical -- still empty on this fixture -- but discard
+    # its own exit code via `|| true`, reproducing exactly the gap an
+    # independent Round-29 review found and this round's own author
+    # re-verified live) and re-run against the SAME corrupt-base fixture
+    # -- proving the exit-status capture, DISTINCT from guard-viability-1's
+    # own missing-objects detection, is independently load-bearing.
+    j_mutant K_pcl_ignore_exit_status \
+        '&& _fto_missing=$(GIT_NO_LAZY_FETCH=1 git -C "$3" rev-list --objects --missing=print "$_fto_base" 2>/dev/null) \' \
+        '&& { _fto_missing=$(GIT_NO_LAZY_FETCH=1 git -C "$3" rev-list --objects --missing=print "$_fto_base" 2>/dev/null) || true; } \'
+    awk '/^fc_transfer_objects_into\(\) \{$/{f=1} /^fc_submodule_update_init_filtered\(\) \{$/{f=0} f' "$WORK/jmut_K_pcl_ignore_exit_status.sh" > "$WORK/k_pcl_functions_ignorestatus.sh"
+    K_PCL_IS_ROOT="$K_ROOT/km_pcl_ignorestatus"
+    mkdir -p "$K_PCL_IS_ROOT"
+    k_pcl_build_dest "$K_PCL_IS_ROOT" true corrupt_commit
+    rm -f "$K_PCL_IS_ROOT/PWNED"
+    K_PCL_IS_OUT=$(k_pcl_harness "$WORK/k_pcl_functions_ignorestatus.sh" "$K_PCL_IS_ROOT")
+    if [ "$J_MUT_OK" -eq 1 ] && [ -f "$K_PCL_IS_ROOT/PWNED" ]; then
+        ok "K-partial-clone-lazy-fetch guard-viability 2 (T177 Round 30): discarding rev-list's own exit status (keeping its stdout capture identical) reproduces the attacker's command firing against a corrupt-base destination -- the exit-status check is independently load-bearing, distinct from guard-viability-1's missing-objects detection"
+    else
+        bad "K-partial-clone-lazy-fetch guard-viability 2: discarding rev-list's own exit status did not reproduce the attacker command firing (mut_ok=$J_MUT_OK out=$K_PCL_IS_OUT pwned=$([ -f "$K_PCL_IS_ROOT/PWNED" ] && echo present || echo absent))"
+    fi
 fi
 # K-verify-wiring: repo_verify.py strips inherited GIT_CONFIG_* by design,
 # so the process-wide override never reaches it; migrate.sh must pass

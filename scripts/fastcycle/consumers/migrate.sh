@@ -1599,51 +1599,70 @@ fc_transfer_objects_into() {
     # valueless `promisor` key, and `partialclonefilter`-only -- every one
     # of which must take the unbounded path and never fire the attacker's
     # command), `K-partial-clone-lazy-fetch-ordering` (the base-commit-
-    # missing shape alone, independent of any promisor spelling), and a
-    # dedicated guard-viability mutant neutralising the missing-objects
-    # detection itself (so it never recognises ANY missing object,
-    # re-run against a promisor=yes destination) -- each independently
-    # proven load-bearing against a real fixture. Honest residual, NOT
-    # separately tested this round: `GIT_NO_LAZY_FETCH=1`'s own distinct
-    # protective value for the OTHER git calls this tool makes against
-    # `$WORKDIR` (outside this function, where the proof above does not
-    # apply) has no dedicated regression coverage of its own in this
-    # file -- disclosed here rather than silently claimed, tracked as a
-    # candidate future-round item, never conflated with the coverage this
-    # paragraph actually ships.
-    # T177 Round 29 self-caught-then-SELF-CORRECTED non-finding (found,
-    # "fixed", then DISPROVEN by this round's own author before shipping
-    # -- disclosed honestly rather than silently dropped, per this file's
-    # own anti-bluff discipline): a first draft of this comment claimed
-    # `rev-list --objects --missing=print "$_fto_base"` could FAIL
-    # OUTRIGHT (rc != 0, empty stdout) when `$_fto_base` cannot be
-    # resolved as a starting point at all, silently misclassifying that
-    # failure as "proven zero missing" via the bare `grep '^?'` check
-    # alone -- and "fixed" it by capturing the probe's own exit status via
-    # the `_fto_missing=$(...)` assignment below. A dedicated guard-
-    # viability mutant written to PROVE that fix load-bearing instead
-    # DISPROVED the premise: the reproduction behind it had appended
-    # `^{commit}` to the probed SHA (`"$_fto_base^{commit}"`), which DOES
-    # fail outright when unresolvable -- but the REAL call below passes
-    # the BARE `$_fto_base` with no such suffix, and live-reproduced
-    # against a genuinely-missing commit object (and separately against a
-    # totally EMPTY destination repository with zero objects) git's own
-    # `rev-list --objects --missing=print <bare-sha>` NEVER fails outright
-    # for a well-formed SHA -- it reports the unresolvable starting point
-    # itself via the SAME `?`-prefixed line the bare `grep '^?'` check
-    # already catches, exit 0. `$_fto_base` is ALSO always either empty
-    # (refused by the `[ -n "$_fto_base" ]` guard above) or a genuine,
-    # well-formed SHA obtained from `git rev-parse`/a known gitlink at
-    # both real call sites below -- never an arbitrary or malformed
-    # string a caller could influence. No reachable failure mode in this
-    # file's own actual usage was found where `_fto_missing`'s exit-status
-    # capture changes the outcome from the bare `grep '^?'` check alone.
-    # The capture is KEPT as harmless, zero-cost defensive hygiene (never
-    # silently swallow a command's exit status) but is NOT claimed to
-    # close a reproduced gap, and carries NO dedicated guard-viability
-    # test of its own -- a test asserting a mutation reopens an
-    # unreachable condition would itself be exactly the kind of bluff
-    # this file's own covenant forbids.
+    # missing shape alone, independent of any promisor spelling),
+    # `K-partial-clone-lazy-fetch-corrupt-base` (the base-commit-CORRUPT
+    # shape, NEW this round, see below), and TWO dedicated guard-viability
+    # mutants -- one neutralising the missing-objects detection itself (so
+    # it never recognises ANY missing object, re-run against a
+    # promisor=yes destination), one neutralising ONLY the exit-status
+    # capture below (re-run against the corrupt-base fixture, where that
+    # capture is the one that matters) -- each independently proven
+    # load-bearing against a real fixture. Honest residual, NOT separately
+    # tested this round: `GIT_NO_LAZY_FETCH=1`'s own distinct protective
+    # value for the OTHER git calls this tool makes against `$WORKDIR`
+    # (outside this function, where the proof above does not apply) has
+    # no dedicated regression coverage of its own in this file --
+    # disclosed here rather than silently claimed, tracked as a candidate
+    # future-round item, never conflated with the coverage this paragraph
+    # actually ships. SECOND honest residual (independent-reviewer-raised,
+    # NOT reproduced or disproven by this round -- disclosed as an open
+    # question, never silently assumed either way): a destination that is
+    # BOTH shallow-cloned AND configured as a partial clone may let the
+    # `rev-list --objects --missing=print` walk stop at the shallow
+    # boundary while the actual thin pack's own deltas reference objects
+    # beyond it -- if so, the missing-objects proof below would not see
+    # them as missing, and `GIT_NO_LAZY_FETCH` would be the only remaining
+    # defense for that specific combination, which this file's own
+    # "no longer depends on the host's git honouring it" framing would not
+    # cover. This needs its own dedicated reproduction before it can be
+    # called either a real gap or a non-issue -- tracked as a candidate
+    # follow-up, not fixed or dismissed here.
+    # T177 Round 29 WRONG self-correction, FOUND WRONG and FIXED FOR REAL
+    # by an independent Round-29 review, re-verified live by this round's
+    # own author before accepting it (never trusted on the reviewer's say-
+    # so alone -- the author's OWN track record this round was already one
+    # self-correction deep, so this one was checked especially hard): a
+    # Round 29 draft comment here claimed `rev-list --objects --missing=
+    # print "$_fto_base"` NEVER fails outright for a well-formed SHA, based
+    # on testing only a MISSING base-commit object (deleted entirely) --
+    # true for that one failure class, but the comment over-generalised it
+    # to "no reachable failure mode", which is FALSE: a base-commit object
+    # that is PRESENT BUT CORRUPT (unreadable bytes, not absent -- a
+    # realistic state for an attacker-writable destination, no network/
+    # lazy-fetch involved to produce it) makes `rev-list` fail OUTRIGHT
+    # (confirmed live: `error: unable to unpack <sha> header` / `fatal:
+    # loose object <sha> ... is corrupt`, exit 128, empty stdout) -- a
+    # DIFFERENT failure shape than "missing", which the bare `grep '^?'`
+    # check cannot see at all (empty stdout contains no `?`-prefixed line
+    # to find or miss). Re-reproduced end-to-end against the REAL,
+    # unmodified Round 29 code: combined with the SAME genuinely-missing
+    # blob this arm has used since Round 28 (so the resulting thin pack
+    # genuinely needs an external delta base to resolve), a destination
+    # with its base commit corrupted (not deleted) and a promisor remote
+    # pointed at an attacker `core.sshCommand` -- the REAL code (exit
+    # status captured) correctly falls back to the unbounded path and
+    # fires NO attacker command; a mutant dropping ONLY the exit-status
+    # propagation (`_fto_missing=$(cmd) || true`, discarding `cmd`'s own
+    # exit code while still capturing its, here empty, stdout) wrongly
+    # takes the bounded/thin path and the SAME attacker command FIRES.
+    # `_fto_missing=$(...)`'s exit-status capture is therefore genuinely
+    # load-bearing for this distinct (corrupt-not-missing) failure class,
+    # exactly the opposite of what the withdrawn Round 29 comment claimed
+    # -- "correct by construction for every partial-clone config spelling"
+    # is corrected here too: the proof below is correct by construction
+    # for every config spelling PROVIDED its own command exit status is
+    # genuinely honoured end to end, which it now is, checked by its own
+    # dedicated guard-viability test rather than merely asserted.
     _fto_pack="$MIGRATE_SCRATCH/transfer_pack_$4.pack"
     _fto_base=${5:-}
     _fto_bounded=0
