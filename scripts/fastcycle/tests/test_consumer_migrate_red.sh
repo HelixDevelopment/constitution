@@ -2971,6 +2971,118 @@ else
     bad "K-submodule-noncanonical-section guard-viability: re-keying by \$3 did not reproduce either hijack (mut_ok=$J_MUT_OK remote.origin.url=$K_NCS_M_URL update-cmd-fired=$([ -f "$K_NCS_M_MARKER" ] && echo yes || echo no))"
 fi
 
+# --- K-submodule-equals-section: T177 Round 28 (R27-M-1, Minor,
+# independent-review-requested end-to-end coverage): R26-I2's own fix
+# (routing the submodule pins through fc_gcc_add/GIT_CONFIG_KEY_n instead
+# of `-c`, closing the `=`-splitting gap `-c` left open for a section name
+# containing `=`) was verified ONLY indirectly -- via the generic
+# K_submodule_url_unpinned/K_ncs_wrong_key mutants' own anchor-text
+# matching, never by an end-to-end fixture whose `.gitmodules` section
+# name ACTUALLY contains `=`. This arm closes that gap directly: a
+# `[submodule "c=x"]`/`path = constitution` consumer, local
+# `submodule.c=x.url`/`.update` hijacks planted, proves BOTH are rejected
+# end to end through a real migration.
+K_ES_ROOT="$K_ROOT/k_es"
+mkdir -p "$K_ES_ROOT"
+git init -q --bare -b main "$K_ES_ROOT/mc.git"
+K_ES_W=$(mktemp -d)
+git init -q -b main "$K_ES_W" >/dev/null
+git -C "$K_ES_W" config user.name fastcycle-fixture
+git -C "$K_ES_W" config user.email fixture@example.invalid
+echo "old constitution state (K-es)" > "$K_ES_W/CLAUDE.md"
+git -C "$K_ES_W" add CLAUDE.md
+git -C "$K_ES_W" commit -q -m old
+git -C "$K_ES_W" remote add origin "$K_ES_ROOT/mc.git"
+git -C "$K_ES_W" push -q origin main
+K_ES_OLD=$(git -C "$K_ES_W" rev-parse HEAD)
+echo "new constitution state (K-es target)" >> "$K_ES_W/CLAUDE.md"
+git -C "$K_ES_W" add CLAUDE.md
+git -C "$K_ES_W" commit -q -m new
+git -C "$K_ES_W" push -q origin main
+K_ES_NEW=$(git -C "$K_ES_W" rev-parse HEAD)
+rm -rf "$K_ES_W"
+git init -q --bare -b main "$K_ES_ROOT/consumer.git"
+K_ES_CW=$(mktemp -d)
+git init -q -b main "$K_ES_CW" >/dev/null
+git -C "$K_ES_CW" config user.name fastcycle-fixture
+git -C "$K_ES_CW" config user.email fixture@example.invalid
+printf '## INHERITED FROM constitution/CLAUDE.md\n\nFixture consumer (K-submodule-equals-section).\n\n## Commit Policy\n\nCommit wrapper: none (plain git permitted)\n' > "$K_ES_CW/CLAUDE.md"
+mkdir -p "$K_ES_CW/src"
+echo 'int main(void) { return 0; }' > "$K_ES_CW/src/product.c"
+# The section name genuinely contains '=' -- legal in git config syntax,
+# the exact character R26-I2's own `-c "submodule.$CONST_SECTION...=..."`
+# form mis-split on.
+printf '[submodule "c=x"]\n\tpath = constitution\n\turl = %s\n' "$K_ES_ROOT/mc.git" > "$K_ES_CW/.gitmodules"
+git -C "$K_ES_CW" add CLAUDE.md .gitmodules src/product.c
+git -C "$K_ES_CW" update-index --add --cacheinfo 160000,"$K_ES_OLD",constitution
+git -C "$K_ES_CW" commit -q -m "initial K-es consumer state"
+git -C "$K_ES_CW" remote add origin "$K_ES_ROOT/consumer.git"
+git -C "$K_ES_CW" push -q origin main
+rm -rf "$K_ES_CW"
+git clone -q --no-hardlinks "$K_ES_ROOT/consumer.git" "$K_ES_ROOT/checkout" >/dev/null 2>&1
+git -C "$K_ES_ROOT/checkout" config user.name fastcycle-fixture
+git -C "$K_ES_ROOT/checkout" config user.email fixture@example.invalid
+K_ES_ATTACKER="$K_ROOT/k_es_attacker.git"
+git init --bare -q -b main "$K_ES_ATTACKER"
+K_ES_AW=$(mktemp -d)
+git init -q -b main "$K_ES_AW" >/dev/null
+git -C "$K_ES_AW" config user.name fastcycle-fixture
+git -C "$K_ES_AW" config user.email fixture@example.invalid
+echo "ATTACKER-CONTROLLED CONTENT (K-es) -- must never be checked out" > "$K_ES_AW/CLAUDE.md"
+git -C "$K_ES_AW" add CLAUDE.md
+git -C "$K_ES_AW" commit -q -m attacker
+git -C "$K_ES_AW" remote add origin "$K_ES_ATTACKER"
+git -C "$K_ES_AW" push -q origin main
+rm -rf "$K_ES_AW"
+K_ES_MARKER="$K_ROOT/k_es_update_cmd_fired"
+rm -f "$K_ES_MARKER"
+git -C "$K_ES_ROOT/checkout" config submodule.c=x.url "$K_ES_ATTACKER"
+git -C "$K_ES_ROOT/checkout" config submodule.c=x.update "!touch $K_ES_MARKER; true"
+# Same inline-ref reasoning as K-submodule-noncanonical-section above --
+# j_run()'s own review-ref binds to the stale global $R3_NEW.
+K_ES_REF=$(make_review_ref "fixture/section_k_es" "$K_ES_NEW" "$(git -C "$K_ES_ROOT/checkout" rev-parse HEAD)")
+J_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$TOOL" --config "$CFG" --project fixture/section_k_es --workdir "$K_ES_ROOT/checkout" --out "$WORK/k_es.json" --apply --review-ref "$K_ES_REF" 2>&1)
+J_RC=$?
+K_ES_GITLINK=$(k_gitlink "$K_ES_ROOT")
+K_ES_URL_OK=no
+if [ "$(git -C "$K_ES_ROOT/checkout/constitution" config --get remote.origin.url 2>/dev/null)" = "$K_ES_ROOT/mc.git" ]; then
+    K_ES_URL_OK=yes
+fi
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$K_ES_GITLINK" = "$K_ES_NEW" ] \
+    && [ "$K_ES_URL_OK" = yes ] && [ ! -f "$K_ES_MARKER" ]; then
+    ok "K-submodule-equals-section (T177 Round 28, R27-M-1): for a [submodule \"c=x\"]/path=constitution consumer, local submodule.c=x.url and submodule.c=x.update hijacks are BOTH rejected end to end -- MIGRATED, gitlink=\$K_ES_NEW, remote.origin.url is the TRUSTED .gitmodules URL, the attacker's update command never ran"
+else
+    bad "K-submodule-equals-section: rc=$J_RC out=$J_OUT gitlink=$K_ES_GITLINK expected=$K_ES_NEW url-ok=$K_ES_URL_OK update-cmd-fired=$([ -f "$K_ES_MARKER" ] && echo yes || echo no)"
+fi
+# K-submodule-equals-section guard-viability: reverting ONLY the fc_gcc_add
+# form back to the OLD, Round-26-pre-fix `-c "submodule.$CONST_SECTION...
+# =..."` shape re-opens BOTH hijacks for this `=`-containing section name
+# -- doubly broken under the old mechanism (wrong key AND mis-split).
+j_mutant K_es_old_c_form \
+    'fc_gcc_add "submodule.$CONST_SECTION.update" checkout
+    fc_gcc_add "submodule.$CONST_SECTION.url" "$SUB_URL"
+    GIT_CONFIG_COUNT=$FC_GCC_N; export GIT_CONFIG_COUNT
+    git -C "$1" -c protocol.file.allow=always -c init.templateDir= submodule update --init --no-fetch -- "$3" || return $?' \
+    'git -C "$1" -c protocol.file.allow=always -c init.templateDir= -c "submodule.$CONST_SECTION.update=checkout" -c "submodule.$CONST_SECTION.url=$SUB_URL" submodule update --init --no-fetch -- "$3" || return $?'
+K_ES_M_ROOT="$K_ROOT/km_es"
+mkdir -p "$K_ES_M_ROOT"
+git clone -q --no-hardlinks "$K_ES_ROOT/consumer.git" "$K_ES_M_ROOT/checkout" >/dev/null 2>&1
+git -C "$K_ES_M_ROOT/checkout" config user.name fastcycle-fixture
+git -C "$K_ES_M_ROOT/checkout" config user.email fixture@example.invalid
+K_ES_M_MARKER="$K_ROOT/km_es_update_cmd_fired"
+rm -f "$K_ES_M_MARKER"
+git -C "$K_ES_M_ROOT/checkout" config submodule.c=x.url "$K_ES_ATTACKER"
+git -C "$K_ES_M_ROOT/checkout" config submodule.c=x.update "!touch $K_ES_M_MARKER; true"
+K_ES_M_REF=$(make_review_ref "fixture/section_km_es" "$K_ES_NEW" "$(git -C "$K_ES_M_ROOT/checkout" rev-parse HEAD)")
+J_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_K_es_old_c_form.sh" --config "$CFG" --project fixture/section_km_es --workdir "$K_ES_M_ROOT/checkout" --out "$WORK/km_es.json" --apply --review-ref "$K_ES_M_REF" 2>&1)
+J_RC=$?
+K_ES_M_URL=$(git -C "$K_ES_M_ROOT/checkout/constitution" config --get remote.origin.url 2>/dev/null)
+if [ "$J_MUT_OK" -eq 1 ] && { [ "$K_ES_M_URL" = "$K_ES_ATTACKER" ] || [ -f "$K_ES_M_MARKER" ]; }; then
+    ok "K-submodule-equals-section guard-viability: reverting to the OLD, pre-R26-I2 \`-c\` form re-opens the hijack for an \`=\`-containing section name (remote.origin.url=$K_ES_M_URL update-cmd-fired=$([ -f "$K_ES_M_MARKER" ] && echo yes || echo no)) -- the fc_gcc_add-based fix is genuinely load-bearing for this exact character, not decoration"
+else
+    bad "K-submodule-equals-section guard-viability: reverting to the old -c form did not reproduce either hijack (mut_ok=$J_MUT_OK remote.origin.url=$K_ES_M_URL update-cmd-fired=$([ -f "$K_ES_M_MARKER" ] && echo yes || echo no))"
+fi
+
 # --- K-receive-hooks: T177 Round 26 (R25-B1 BLOCKING, independent
 # review, live-reproduced): Round 25 fixed R24-B2's insteadOf gap by
 # inverting hop 2 and the step-9 sync fetch into a PUSH from the trusted
@@ -3095,6 +3207,19 @@ printf '[submodule "constitution"]\n\tpath = constitution\n\turl = %s\n' "$K_BT_
 git -C "$K_BT_CW" add CLAUDE.md .gitmodules src/product.c
 git -C "$K_BT_CW" update-index --add --cacheinfo 160000,"$K_BT_OLD",constitution
 git -C "$K_BT_CW" commit -q -m "initial K-bt consumer state"
+# Give the CONSUMER itself (not merely the submodule) a deep history too
+# -- the K-bounded-transfer-sync-hop arm below needs $LOCAL_HEAD to have
+# real ancestry so an unbounded sync-fetch transfer is measurably larger
+# than a bounded one at the TOP-LEVEL $WORKDIR object-store level, the
+# same way the submodule-side fixture above does for the submodule.
+K_BT_CN=1
+while [ "$K_BT_CN" -le 15 ]; do
+    head -c 2048 /dev/urandom | base64 >> "$K_BT_CW/src/growth.txt"
+    git -C "$K_BT_CW" add src/growth.txt
+    git -C "$K_BT_CW" commit -q -m "k-bt consumer commit $K_BT_CN"
+    K_BT_CN=$((K_BT_CN + 1))
+done
+K_BT_CONSUMER_FULL_OBJS=$(git -C "$K_BT_CW" rev-list --objects HEAD | wc -l)
 git -C "$K_BT_CW" remote add origin "$K_BT_ROOT/consumer.git"
 git -C "$K_BT_CW" push -q origin main
 rm -rf "$K_BT_CW"
@@ -3150,6 +3275,23 @@ mkdir -p "$K_BT_M_ROOT"
 git clone -q --no-hardlinks "$K_BT_ROOT/consumer_pristine.git" "$K_BT_M_ROOT/checkout" >/dev/null 2>&1
 git -C "$K_BT_M_ROOT/checkout" config user.name fastcycle-fixture
 git -C "$K_BT_M_ROOT/checkout" config user.email fixture@example.invalid
+# T177 Round 28 (self-caught, §11.4.199 applied to test-authoring):
+# "consumer_pristine.git" is NOT actually immutable once ANY arm clones
+# from it -- this arm's own migration below completes successfully (its
+# own mutant only touches fc_transfer_objects_into()'s boundedness, not
+# whether the migration itself succeeds) and PUSHES its result back to
+# whatever `origin` the clone inherited, which defaults to "consumer_
+# pristine.git" itself -- silently advancing it for every LATER arm that
+# also clones from it (caught live while authoring the K-bounded-
+# transfer-sync-hop arms below: they inherited THIS arm's own already-
+# migrated gitlink instead of the true pristine $K_BT_OLD state, and
+# refused NOT-MIGRATED (dirty-local)). Fixed the same way for every
+# consumer of "consumer_pristine.git": repoint `origin` to a FRESH,
+# per-arm-dedicated bare repo immediately after cloning, so nothing this
+# arm pushes ever reaches the shared pristine snapshot.
+git init -q --bare -b main "$K_BT_M_ROOT/consumer_for_this_arm.git"
+git -C "$K_BT_M_ROOT/checkout" remote set-url origin "$K_BT_M_ROOT/consumer_for_this_arm.git"
+git -C "$K_BT_M_ROOT/checkout" push -q origin main
 git -C "$K_BT_M_ROOT/checkout" -c protocol.file.allow=always submodule update --init -q constitution
 git -C "$K_BT_M_ROOT/checkout/constitution" checkout -q "$K_BT_OLD"
 K_BT_M_BEFORE=$(git -C "$K_BT_M_ROOT/checkout/constitution" count-objects -v | awk '/^count:/{c=$2} /^in-pack:/{p=$2} END{print c+p}')
@@ -3168,6 +3310,241 @@ else
     bad "K-bounded-transfer guard-viability: dropping the \$5 argument did not reproduce unbounded growth (mut_ok=$J_MUT_OK growth=$K_BT_M_GROWTH)"
 fi
 
+# --- K-bounded-transfer-sync-hop: T177 Round 28 (R27-Important-2,
+# independent-review-found): K-bounded-transfer above measures ONLY the
+# SUBMODULE destination's own object-store growth -- it never looks at
+# $WORKDIR's own top-level `.git`, which is exactly what the STEP-9 SYNC
+# hop (`fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync
+# "$LOCAL_HEAD"`) writes into, and its own guard-viability mutant drops
+# the `$5` argument from BOTH call sites at once, so it cannot distinguish
+# whether the submodule hop or the sync hop is responsible for the
+# measured difference -- independently confirmed by re-running the suite
+# with ONLY the sync call's `"$LOCAL_HEAD"` argument removed: the existing
+# K-bounded-transfer golden-path arm still PASSED (it never looks at the
+# right directory to notice). This arm closes that gap directly: it
+# clones a FRESH checkout from the K-bounded-transfer fixture's own
+# pristine (pre-migration) consumer snapshot -- which already carries a
+# 15-commit-deep CONSUMER history (not merely a deep submodule history)
+# -- and measures `$WORKDIR`'s OWN top-level `git count-objects` growth
+# across a real migration, with a mutant touching ONLY the sync call's
+# `$5` argument.
+K_BTS_ROOT="$K_ROOT/k_bts"
+mkdir -p "$K_BTS_ROOT"
+git clone -q --no-hardlinks "$K_BT_ROOT/consumer_pristine.git" "$K_BTS_ROOT/checkout" >/dev/null 2>&1
+git -C "$K_BTS_ROOT/checkout" config user.name fastcycle-fixture
+git -C "$K_BTS_ROOT/checkout" config user.email fixture@example.invalid
+# Same consumer_pristine.git immutability fix as K_BT_M_ROOT above --
+# repoint origin to a fresh, dedicated bare repo before this arm's own
+# migration can push back into the shared pristine snapshot.
+git init -q --bare -b main "$K_BTS_ROOT/consumer_for_this_arm.git"
+git -C "$K_BTS_ROOT/checkout" remote set-url origin "$K_BTS_ROOT/consumer_for_this_arm.git"
+git -C "$K_BTS_ROOT/checkout" push -q origin main
+git -C "$K_BTS_ROOT/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+git -C "$K_BTS_ROOT/checkout/constitution" checkout -q "$K_BT_OLD"
+K_BTS_BEFORE=$(git -C "$K_BTS_ROOT/checkout" count-objects -v | awk '/^count:/{c=$2} /^in-pack:/{p=$2} END{print c+p}')
+K_BTS_REF=$(make_review_ref "fixture/section_k_bts" "$K_BT_NEW" "$(git -C "$K_BTS_ROOT/checkout" rev-parse HEAD)")
+J_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$TOOL" --config "$CFG" --project fixture/section_k_bts --workdir "$K_BTS_ROOT/checkout" --out "$WORK/k_bts.json" --apply --review-ref "$K_BTS_REF" 2>&1)
+J_RC=$?
+K_BTS_AFTER=$(git -C "$K_BTS_ROOT/checkout" count-objects -v | awk '/^count:/{c=$2} /^in-pack:/{p=$2} END{print c+p}')
+K_BTS_GROWTH=$((K_BTS_AFTER - K_BTS_BEFORE))
+K_BTS_GITLINK=$(k_gitlink "$K_BTS_ROOT")
+# Bounded growth at the TOP level includes the real new commit/tree/blob
+# PLUS whatever the submodule hop itself contributes (already proven
+# small by K-bounded-transfer above) -- generously allowed up to 20; the
+# consumer's own full history is $K_BT_CONSUMER_FULL_OBJS objects (~45+),
+# never close to that ceiling for this fixture shape.
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$K_BTS_GITLINK" = "$K_BT_NEW" ] \
+    && [ "$K_BTS_GROWTH" -ge 0 ] && [ "$K_BTS_GROWTH" -le 20 ]; then
+    ok "K-bounded-transfer-sync-hop (T177 Round 28, R27-Important-2): the step-9 SYNC hop, measured at \$WORKDIR's OWN top-level object count (not merely the submodule's), grows by only $K_BTS_GROWTH against a 15-commit-deep CONSUMER history ($K_BT_CONSUMER_FULL_OBJS total objects) -- the sync hop's own bound is independently proven, not merely assumed from the submodule hop's"
+else
+    bad "K-bounded-transfer-sync-hop: rc=$J_RC out=$J_OUT gitlink=$K_BTS_GITLINK expected=$K_BT_NEW growth=$K_BTS_GROWTH consumer-full-history-objects=$K_BT_CONSUMER_FULL_OBJS"
+fi
+# K-bounded-transfer-sync-hop guard-viability: with ONLY the sync call's
+# `"$LOCAL_HEAD"` argument dropped (the submodule hop's own `"$OLD_SHA"`
+# argument left INTACT), the SAME migration grows $WORKDIR's own
+# top-level object count by roughly the consumer's FULL history instead
+# -- proving the sync hop's OWN `$5` argument, independent of the
+# submodule hop's, is what keeps this specific growth small.
+j_mutant K_bts_sync_unbounded \
+    'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
+    'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"'
+K_BTS_M_ROOT="$K_ROOT/km_bts"
+mkdir -p "$K_BTS_M_ROOT"
+git clone -q --no-hardlinks "$K_BT_ROOT/consumer_pristine.git" "$K_BTS_M_ROOT/checkout" >/dev/null 2>&1
+git -C "$K_BTS_M_ROOT/checkout" config user.name fastcycle-fixture
+git -C "$K_BTS_M_ROOT/checkout" config user.email fixture@example.invalid
+# Same consumer_pristine.git immutability fix as the arms above.
+git init -q --bare -b main "$K_BTS_M_ROOT/consumer_for_this_arm.git"
+git -C "$K_BTS_M_ROOT/checkout" remote set-url origin "$K_BTS_M_ROOT/consumer_for_this_arm.git"
+git -C "$K_BTS_M_ROOT/checkout" push -q origin main
+git -C "$K_BTS_M_ROOT/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+git -C "$K_BTS_M_ROOT/checkout/constitution" checkout -q "$K_BT_OLD"
+K_BTS_M_BEFORE=$(git -C "$K_BTS_M_ROOT/checkout" count-objects -v | awk '/^count:/{c=$2} /^in-pack:/{p=$2} END{print c+p}')
+K_BTS_M_REF=$(make_review_ref "fixture/section_km_bts" "$K_BT_NEW" "$(git -C "$K_BTS_M_ROOT/checkout" rev-parse HEAD)")
+J_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_K_bts_sync_unbounded.sh" --config "$CFG" --project fixture/section_km_bts --workdir "$K_BTS_M_ROOT/checkout" --out "$WORK/km_bts.json" --apply --review-ref "$K_BTS_M_REF" 2>&1)
+J_RC=$?
+K_BTS_M_AFTER=$(git -C "$K_BTS_M_ROOT/checkout" count-objects -v | awk '/^count:/{c=$2} /^in-pack:/{p=$2} END{print c+p}')
+K_BTS_M_GROWTH=$((K_BTS_M_AFTER - K_BTS_M_BEFORE))
+if [ "$J_MUT_OK" -eq 1 ] && [ "$K_BTS_M_GROWTH" -gt 20 ]; then
+    ok "K-bounded-transfer-sync-hop guard-viability: with ONLY the sync call's \$5 argument dropped (submodule hop's own \$5 left intact), the SAME migration grows \$WORKDIR's own top-level object count by $K_BTS_M_GROWTH (vs the bounded arm's $K_BTS_GROWTH) -- the sync hop's OWN \$5 boundary is independently load-bearing"
+else
+    bad "K-bounded-transfer-sync-hop guard-viability: dropping only the sync call's \$5 argument did not reproduce unbounded growth at the top level (mut_ok=$J_MUT_OK growth=$K_BTS_M_GROWTH)"
+fi
+
+# --- K-partial-clone-lazy-fetch: T177 Round 28 (R27-Important-1,
+# independent-review-found, live-reproduced -- a FALSE SAFETY CLAIM this
+# round's own predecessor comment made, withdrawn in migrate.sh's own
+# header): `git index-pack --fix-thin`, given a THIN pack whose one delta
+# base is an object the DESTINATION is MISSING (the defining property of
+# a partial clone), attempts to resolve that missing base via a LAZY
+# FETCH through the destination's own untrusted promisor-remote config --
+# live-reproduced (by the independent reviewer, and independently
+# RE-reproduced by this round's own author with a REALISTIC fixture: a
+# 50 KB, genuinely delta-compressible blob, commit+tree present, ONLY the
+# blob itself filtered-missing -- the actual `--filter=blob:none` shape,
+# never a corrupted/incomplete object store): an attacker `core.
+# sshCommand` configured as the submodule's promisor remote fires DURING
+# `index-pack --fix-thin` alone, no checkout/status/diff involved.
+#
+# This arm tests `fc_transfer_objects_into()` + `fc_is_partial_clone()`
+# IN ISOLATION (extracted from `$TOOL`'s own real source via the SAME
+# awk-anchor technique the K-protocol-allowlist arm above uses -- never a
+# hand-copied reconstruction that could drift) rather than via a full
+# end-to-end `$TOOL` invocation. This is a DELIBERATE, self-caught
+# correction while authoring this arm (§11.4.102 systematic-debugging
+# applied to test design, not production code): a full end-to-end run
+# against this exact fixture ALSO reaches `repo_verify.py --recursive`'s
+# OWN remote-reachability check (its CA-026 double-verify step), which
+# this round's author INDEPENDENTLY DISCOVERED performs its OWN real
+# `ls-remote`-equivalent contact against EVERY repo's configured remote
+# -- confirmed live, with a SEPARATE, minimal reproduction (no partial-
+# clone, no missing object, no thin pack involved at all: a PLAIN, fully-
+# materialised repo with nothing but an untrusted `core.sshCommand`
+# remote) -- regardless of `GIT_NO_LAZY_FETCH`, regardless of this round's
+# `fc_is_partial_clone()` fix, because that check is NOT a lazy-fetch at
+# all, it is a DELIBERATE remote-contact `repo_verify.py` performs BY
+# DESIGN to compute its own `equal`/`unpushed` fields. A full end-to-end
+# run against this fixture would therefore ALWAYS fire the attacker's
+# command via THAT separate mechanism, making "PWNED absent" an
+# impossible, dishonest assertion for an end-to-end test of this fixture
+# shape -- conflating a genuinely-fixed finding (Important-1, THIS
+# function) with a DIFFERENT, NOT-YET-FIXED one (repo_verify.py's own
+# remote-reachability check, which this round's author's authorization
+# does NOT extend to rewriting -- `repo_verify.py` changes are scoped to
+# `--neutralize-repo-filters` flag plumbing only, never its remote-check
+# logic) would have been exactly the §11.4/§11.4.1 anti-bluff violation
+# this file's own covenant exists to prevent. That SEPARATE finding is
+# disclosed honestly in this round's own commit message and CONTINUATION
+# addendum as an open, OUT-OF-SCOPE residual, tracked as its own
+# §11.4.197 follow-up -- never silently absorbed, never worked around
+# without disclosure, and never left for a future round to re-discover
+# from scratch.
+K_PCL_EXTRACT="$WORK/k_pcl_functions.sh"
+awk '/^fc_is_partial_clone\(\) \{$/{f=1} /^fc_submodule_update_init_filtered\(\) \{$/{f=0} f' "$TOOL" > "$K_PCL_EXTRACT"
+K_PCL_EXTRACT_LINES=$(wc -l < "$K_PCL_EXTRACT" | tr -d ' ')
+if [ "$K_PCL_EXTRACT_LINES" -lt 10 ]; then
+    bad "K-partial-clone-lazy-fetch: extraction of \$TOOL's fc_is_partial_clone/fc_transfer_objects_into found only $K_PCL_EXTRACT_LINES line(s) -- anchor drift, cannot run this arm"
+else
+    K_PCL_ROOT="$K_ROOT/k_pcl"
+    mkdir -p "$K_PCL_ROOT"
+    git init -q --bare -b main "$K_PCL_ROOT/mc.git"
+    K_PCL_W=$(mktemp -d)
+    git init -q -b main "$K_PCL_W" >/dev/null
+    git -C "$K_PCL_W" config user.name fastcycle-fixture
+    git -C "$K_PCL_W" config user.email fixture@example.invalid
+    head -c 51200 /dev/urandom | base64 > "$K_PCL_W/blob.txt"
+    git -C "$K_PCL_W" add blob.txt
+    git -C "$K_PCL_W" commit -q -m k-pcl-old
+    K_PCL_OLD=$(git -C "$K_PCL_W" rev-parse HEAD)
+    K_PCL_BLOB_OLD=$(git -C "$K_PCL_W" rev-parse "$K_PCL_OLD:blob.txt")
+    sed -i '1s/^/CHANGED_LINE\n/' "$K_PCL_W/blob.txt"
+    git -C "$K_PCL_W" add blob.txt
+    git -C "$K_PCL_W" commit -q -m k-pcl-new
+    K_PCL_NEW=$(git -C "$K_PCL_W" rev-parse HEAD)
+    git -C "$K_PCL_W" remote add origin "$K_PCL_ROOT/mc.git"
+    git -C "$K_PCL_W" push -q origin main
+    rm -rf "$K_PCL_W"
+    k_pcl_build_dest() {
+        # $1 = root dir for this arm's own destination (never shared, so
+        # each gets its own genuinely-missing-blob repo + attacker marker).
+        # A plain `git clone` + commit-checked-out, NOT `submodule update
+        # --init` -- this arm tests fc_transfer_objects_into() DIRECTLY,
+        # it needs only a destination repository, never a parent consumer.
+        git clone -q --no-hardlinks "$K_PCL_ROOT/mc.git" "$1/dest" >/dev/null 2>&1
+        git -C "$1/dest" config user.name fastcycle-fixture
+        git -C "$1/dest" config user.email fixture@example.invalid
+        git -C "$1/dest" checkout -q "$K_PCL_OLD"
+        # A plain clone leaves small histories entirely LOOSE (confirmed
+        # live, no repack/unpack round-trip needed or safe here -- an
+        # earlier attempt at this arm used repack+unpack-objects to force
+        # a single pack before surgically deleting the blob, and that
+        # dance was found, live, to ALSO silently lose the COMMIT object
+        # itself on some runs, producing a fixture more broken than a
+        # real partial clone ever is; a plain clone's own loose storage
+        # needs no such repacking at all).
+        _pclobjdir=$(echo "$K_PCL_BLOB_OLD" | cut -c1-2)
+        _pclobjfile=$(echo "$K_PCL_BLOB_OLD" | cut -c3-)
+        rm -f "$1/dest/.git/objects/$_pclobjdir/$_pclobjfile"
+        git -C "$1/dest" config extensions.partialClone origin
+        git -C "$1/dest" remote set-url origin "ssh://evilhost/repo"
+        git -C "$1/dest" config remote.origin.promisor true
+        git -C "$1/dest" config remote.origin.partialclonefilter blob:none
+        cat > "$1/evil_ssh.sh" <<SSHEOF
+#!/bin/sh
+touch "$1/PWNED"
+exit 1
+SSHEOF
+        chmod +x "$1/evil_ssh.sh"
+        git -C "$1/dest" config core.sshCommand "$1/evil_ssh.sh"
+    }
+    k_pcl_harness() {
+        # $1 = extracted-functions script path, $2 = dest root -> runs
+        # fc_transfer_objects_into() directly against a fresh fetch of
+        # $K_PCL_NEW from the TRUSTED source, writing into $2/dest.
+        {
+            printf '%s\n' '#!/bin/sh' 'set -u'
+            cat "$1"
+            printf '%s\n' \
+                "MIGRATE_SCRATCH=\$(mktemp -d)" \
+                "git init -q --bare \"\$MIGRATE_SCRATCH/src_fetch.git\"" \
+                "git -C \"\$MIGRATE_SCRATCH/src_fetch.git\" fetch -q -- \"$K_PCL_ROOT/mc.git\" \"$K_PCL_NEW\"" \
+                "fc_transfer_objects_into \"\$MIGRATE_SCRATCH/src_fetch.git\" \"$K_PCL_NEW\" \"$2/dest\" t \"$K_PCL_OLD\"" \
+                'echo "FTO_RC=$?"'
+        } > "$WORK/k_pcl_run_$(basename "$2").sh"
+        sh "$WORK/k_pcl_run_$(basename "$2").sh" 2>&1
+    }
+    k_pcl_build_dest "$K_PCL_ROOT"
+    rm -f "$K_PCL_ROOT/PWNED"
+    K_PCL_OUT=$(k_pcl_harness "$K_PCL_EXTRACT" "$K_PCL_ROOT")
+    if echo "$K_PCL_OUT" | grep -q 'FTO_RC=0' \
+        && git -C "$K_PCL_ROOT/dest" cat-file -e "$K_PCL_NEW^{commit}" \
+        && [ ! -f "$K_PCL_ROOT/PWNED" ]; then
+        ok "K-partial-clone-lazy-fetch (T177 Round 28, R27-Important-1): fc_transfer_objects_into(), tested directly against a partial-clone destination with a missing blob and an attacker promisor sshCommand, transfers the target commit successfully WITHOUT running the attacker's command"
+    else
+        bad "K-partial-clone-lazy-fetch: out=$K_PCL_OUT marker=$([ -f "$K_PCL_ROOT/PWNED" ] && echo present || echo absent)"
+    fi
+    # K-partial-clone-lazy-fetch guard-viability: with ONLY fc_is_partial_
+    # clone()'s own call site disabled (GIT_NO_LAZY_FETCH left INTACT,
+    # since this arm's whole point is proving the STRUCTURAL detection is
+    # independently load-bearing, not merely redundant with the env-var).
+    # This mutant is applied to $TOOL's real source (same as every other
+    # j_mutant in this file) and THEN extracted via the same awk anchors,
+    # so the test exercises the mutated function body byte-for-byte.
+    j_mutant K_pcl_no_detection \
+        '&& ! fc_is_partial_clone "$3"; then' \
+        '; then'
+    awk '/^fc_is_partial_clone\(\) \{$/{f=1} /^fc_submodule_update_init_filtered\(\) \{$/{f=0} f' "$WORK/jmut_K_pcl_no_detection.sh" > "$WORK/k_pcl_functions_mutant.sh"
+    K_PCL_M_ROOT="$K_ROOT/km_pcl"
+    mkdir -p "$K_PCL_M_ROOT"
+    k_pcl_build_dest "$K_PCL_M_ROOT"
+    rm -f "$K_PCL_M_ROOT/PWNED"
+    K_PCL_M_OUT=$(k_pcl_harness "$WORK/k_pcl_functions_mutant.sh" "$K_PCL_M_ROOT")
+    if [ "$J_MUT_OK" -eq 1 ] && [ -f "$K_PCL_M_ROOT/PWNED" ]; then
+        ok "K-partial-clone-lazy-fetch guard-viability: with the fc_is_partial_clone() detection disabled (GIT_NO_LAZY_FETCH left intact), the SAME trap fires the attacker's command during fc_transfer_objects_into() alone -- the structural detection is independently load-bearing, not merely redundant with the env-var kill-switch"
+    else
+        bad "K-partial-clone-lazy-fetch guard-viability: disabling the detection did not reproduce the attacker command firing (mut_ok=$J_MUT_OK marker=$([ -f "$K_PCL_M_ROOT/PWNED" ] && echo present || echo absent) out=$K_PCL_M_OUT)"
+    fi
+fi
 # K-verify-wiring: repo_verify.py strips inherited GIT_CONFIG_* by design,
 # so the process-wide override never reaches it; migrate.sh must pass
 # --neutralize-repo-filters to BOTH step-9 verifications. Proven at

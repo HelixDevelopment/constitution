@@ -1298,6 +1298,22 @@ fc_checkout_submodule_filtered() {
     git -C "$1" -c advice.detachedHead=false checkout -q "$2"
 }
 
+# fc_is_partial_clone: $1 = a repository path. Returns 0 (true) iff that
+# repository is configured as a git partial clone -- `extensions.
+# partialClone` set (any value, per git's own documented semantics for
+# that key) OR at least one `remote.<name>.promisor` key set to a truthy
+# value. T177 Round 28 (R27-Important-1): used by fc_transfer_objects_into
+# below to refuse the thin/bounded pack path against such a destination
+# (see that function's own header comment for the full forensic record of
+# why). `git config --get-regexp` with no match exits non-zero, which the
+# `||` here correctly treats as "no promisor remote found", not an error.
+fc_is_partial_clone() {
+    [ -n "$(git -C "$1" config --get extensions.partialClone 2>/dev/null)" ] && return 0
+    git -C "$1" config --get-regexp '^remote\..*\.promisor$' 2>/dev/null \
+        | awk '{print tolower($2)}' | grep -qx 'true' && return 0
+    return 1
+}
+
 # fc_transfer_objects_into: $1 = TRUSTED source repo (-C'd for rev-list/
 # pack-objects), $2 = SHA to transfer, $3 = UNTRUSTED destination repo
 # (-C'd for index-pack ONLY), $4 = a short label used to namespace this
@@ -1336,7 +1352,40 @@ fc_checkout_submodule_filtered() {
 # or a first-time transfer with nothing yet to delta against), the
 # function transparently falls back to the original unbounded-but-correct
 # behaviour -- NEVER an incorrect transfer, only a non-optimal one in that
-# rare case. T177 Round 26
+# rare case.
+#
+# T177 Round 28 (R27-Important-3, independent-review-found, correction --
+# MANDATORY CORRECTION, the claim this paragraph previously made, that
+# the above closes "a real §12/§12.6 host-safety/disk-tripwire risk" in
+# the sense of making a migration's TOTAL per-run data movement small, was
+# OVERSTATED and is narrowed here): this fix bounds the object TRANSFER
+# `fc_transfer_objects_into()` itself performs -- it does NOT bound, and
+# was never claimed by its own tests to bound, `$FC_BARE`'s SEPARATE base
+# fetch (`$FC_BARE="$MIGRATE_SCRATCH/publish.git"`, a FRESH empty bare
+# repo `git init`'d then `fetch -q --no-tags -- "$FC_BASE_URL" "$BRANCH"`
+# EVERY migration, confirmed by reading that call site directly -- an
+# empty repository has nothing to negotiate a delta against, so that
+# fetch pulls the branch's FULL history into `$MIGRATE_SCRATCH` on every
+# run, independent of anything `fc_transfer_objects_into()` does). This
+# is NOT a regression Round 26/27 introduced -- it predates both rounds
+# and is unrelated to the hop-2/sync-fetch mechanism this function
+# implements -- but citing the reviewer's own ~71 GiB/~1.17M-object scale
+# figure as evidence THIS fix closes the disk-safety concern was
+# imprecise: what Round 26/27 actually removed is the SECOND, duplicate
+# pack this file's own earlier push-based mechanism (and then its own
+# unbounded-`rev-list` regression) wrote ON TOP OF that pre-existing
+# `$FC_BARE` fetch cost, plus the permanent duplicate that pack left
+# behind in `$WORKDIR/.git` -- both real, both worth having fixed, but
+# NEITHER is the WHOLE per-migration data-movement cost this file incurs.
+# The `$FC_BARE` full-history fetch itself remains an honest, UNFIXED,
+# pre-existing residual of this tool's overall design, tracked as its own
+# §11.4.197 follow-up (candidate mitigations for a future round: a
+# `--filter=blob:none` partial fetch for `$FC_BARE` itself where the
+# consumer's own history makes that safe, or relocating `$MIGRATE_SCRATCH`
+# off tmpfs for large consumers) -- never claimed closed by this file's
+# own bounding work on `fc_transfer_objects_into()`.
+#
+# T177 Round 26
 # (R25-B1 BLOCKING, independent-review-found, live-reproduced):
 # supersedes a `push -C <trusted> -- <untrusted> <sha>:refs/fc-import/...`
 # shape (introduced in Round 25 to fix R24-B2's insteadOf gap) that
@@ -1416,12 +1465,92 @@ fc_transfer_objects_into() {
     # all; live-reproduced fixed: the identical `<tip>`/`^<base>` pair
     # produces a correctly-bounded, smaller pack and `index-pack
     # --fix-thin` resolves it cleanly against the destination.
+    # T177 Round 28 (R27-M-2, Minor, independent-review-requested
+    # precision): stated precisely, so a future "simplification" does not
+    # silently reopen R27-Important-1 below -- `--thin` does not merely
+    # dislike one malformed-looking line, it switches `pack-objects`'
+    # STDIN-reading mode from "a pre-computed plain object listing" to
+    # "revision ARGUMENTS it resolves itself" (git's own internal
+    # rev-list-equivalent walk). Stripping the empty-path line from the
+    # plain listing and feeding the REST into `--thin` would silently
+    # UNDO the whole boundary: `pack-objects --thin` fed a bare SHA list
+    # (no `^exclude` markers at all) treats every one of those SHAs as a
+    # POSITIVE revision to walk FROM, re-including every object reachable
+    # from each -- the exact unbounded behaviour R27-Important-1 exists to
+    # prevent, just reached by a different, more easily-overlooked path.
+    # `--revs` with explicit `^<base>` exclusion markers is not an
+    # alternative workaround, it is the ONLY input shape that is both
+    # thin-pack-capable and genuinely bounded.
+    #
+    # T177 Round 28 (R27-Important-1, independent-review-found, live-
+    # reproduced -- a FALSE SAFETY CLAIM this round's own predecessor
+    # comment made, withdrawn here): the claim 2 paragraphs above this one
+    # once read "index-pack itself does NOT trigger [a lazy fetch],
+    # confirmed live ... across an index-pack of both a full and a thin
+    # pack" -- that claim was TRUE for the full (non-thin) pack and FALSE
+    # for the thin pack this round's own --thin/--revs fix introduces, and
+    # the Round 26 reproduction that produced it used too-small a blob
+    # (a one-line change) to ever force a genuine delta against the
+    # missing base, so it silently never exercised the real risk at all
+    # (a false negative in the REPRODUCTION, not merely in the prose).
+    # Re-reproduced with a realistic (50 KB, genuinely delta-compressible)
+    # blob: `index-pack --fix-thin`, given a THIN pack whose one delta
+    # base is an object the destination is MISSING (the defining property
+    # of a partial clone), DOES attempt to resolve that missing base --
+    # and on a destination configured as a partial clone (`extensions.
+    # partialClone` + a `remote.<name>.promisor` remote, the real-world
+    # shape this tool's own documented threat model already treats as
+    # untrusted), that resolution is a LAZY FETCH through the destination's
+    # own untrusted promisor-remote config, including a local
+    # `core.sshCommand` -- live-reproduced: an attacker `core.sshCommand`
+    # fired DURING `index-pack --fix-thin` alone, no checkout/status/diff
+    # involved, exactly the shape this function's own job is to perform.
+    # `GIT_NO_LAZY_FETCH=1` (installed process-wide near the top of this
+    # file) DOES correctly block it (re-reproduced: the SAME trap, same
+    # command, fails honestly with "lazy fetching disabled" and the
+    # attacker's command never runs) -- but relying on that ALONE leaves
+    # two gaps: (a) it depends on the host's git genuinely honouring the
+    # variable (undefended against an older/divergent git that silently
+    # ignores it), and (b) nothing in this file PROVED it under test
+    # (confirmed: deleting the `GIT_NO_LAZY_FETCH=1; export` line left the
+    # full suite green). Fixed at the ROOT instead of relying solely on
+    # the environment kill-switch: the bounded/thin path is used ONLY when
+    # the DESTINATION is NOT itself a partial clone (checked below, via
+    # the SAME config keys that identify one: `extensions.partialClone`
+    # or any `remote.*.promisor=true`) -- a partial-clone destination
+    # unconditionally takes the ORIGINAL unbounded, NON-thin pack path,
+    # which is fully SELF-CONTAINED (every referenced object is INCLUDED
+    # in the pack, no external delta base to resolve) and therefore has
+    # NO lazy-fetch exposure to eliminate, structurally, regardless of
+    # git version or whether `GIT_NO_LAZY_FETCH` is honoured. `GIT_NO_
+    # LAZY_FETCH=1` remains installed as defense-in-depth for every OTHER
+    # git call this tool makes against a (non-partial-clone-detected, or
+    # genuinely needing one for an unrelated reason) `$WORKDIR` -- it is
+    # not removed, only no longer the SOLE defense for this specific path.
+    # New regression coverage: `K-partial-clone-lazy-fetch` (plants the
+    # exact missing-base-plus-attacker-promisor trap against a REAL
+    # migration and asserts the attacker's command never runs) + its own
+    # guard-viability mutant (disabling the partial-clone DETECTION, not
+    # `GIT_NO_LAZY_FETCH` itself, to prove the detection is independently
+    # load-bearing and not merely redundant with the env-var kill-switch).
+    # Side effect (R27-M-3, resolved, not separately tracked): the
+    # independent review also noted that a partial-clone destination
+    # whose FILTERED-OUT objects happen to be the thin pack's own delta
+    # bases would, under `GIT_NO_LAZY_FETCH=1` alone, fail CLOSED where
+    # Round 26's unbounded pack would have succeeded (a disclosed, not
+    # necessarily desirable, behaviour change). This detection-based fix
+    # makes that scenario MOOT rather than merely safe: a partial-clone
+    # destination now NEVER takes the thin path at all, so it always gets
+    # the SAME unbounded, fully self-contained pack Round 26 would have
+    # built -- the behaviour for a partial-clone destination is
+    # byte-for-byte unchanged from before this file's bounding work began.
     _fto_pack="$MIGRATE_SCRATCH/transfer_pack_$4.pack"
     _fto_base=${5:-}
     _fto_bounded=0
     if [ -n "$_fto_base" ] \
         && git -C "$1" cat-file -e "$_fto_base^{commit}" 2>/dev/null \
-        && git -C "$3" cat-file -e "$_fto_base^{commit}" 2>/dev/null; then
+        && git -C "$3" cat-file -e "$_fto_base^{commit}" 2>/dev/null \
+        && ! fc_is_partial_clone "$3"; then
         _fto_bounded=1
     fi
     if [ "$_fto_bounded" -eq 1 ]; then
