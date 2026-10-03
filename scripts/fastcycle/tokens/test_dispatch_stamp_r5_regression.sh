@@ -466,29 +466,88 @@ fi
 # substitution mutated COPY of release_prefix.sh (never a hand-written
 # reimplementation, §11.4.240 producer != verifier), reverting ONE of the
 # two B1 evidence-tightenings back to its pre-fix permissive shape:
-#   env         -- the `.env` content-verification (_hrp_from_env_file)
-#                  reverted to a bare file-existence check.
-#   gitmodules  -- the anchored `path = constitution` exact-value grep
-#                  reverted to a bare unanchored substring grep.
+#   env                -- the `.env` content-verification
+#                         (_hrp_from_env_file) reverted to a bare
+#                         file-existence check.
+#   gitmodules         -- the anchored `path = constitution` exact-value
+#                         grep reverted to a bare unanchored substring
+#                         grep.
+#
+# I-A (round-3 independent Opus-xhigh review, 2026-10-03, verbatim):
+# "4 reviewer-authored (S11.4.194(6)(d)) mutations of the B1 guard
+# survive the r5 suite's existing fixtures: dropping the .gitmodules
+# regex's trailing $, dropping its leading anchor, and two ways of
+# loosening the HELIX_RELEASE_PREFIX evidence check (bare
+# grep-for-the-var-name; grep-for-key-only). The SOURCE fix itself
+# resists all four when tested directly -- only the regression suite's
+# OWN negative-control coverage has gaps." The four additional kinds
+# below close exactly those four coverage gaps -- release_prefix.sh
+# ITSELF is unchanged by this round (the review confirms it already
+# resists all four):
+#   gitmodules_trailing -- the SAME anchored `path = constitution` grep
+#                         with ONLY its trailing `$` end-of-line anchor
+#                         dropped (kept `^` + the literal prefix), so a
+#                         value that STARTS with "constitution" but has
+#                         a non-whitespace suffix (e.g.
+#                         "constitution-extra") incorrectly matches.
+#   gitmodules_leading  -- the SAME anchored grep with ONLY its leading
+#                         `^` start-of-line anchor dropped (kept the
+#                         trailing `$`), so "path = constitution" found
+#                         as a MID-LINE substring (e.g. a key literally
+#                         named "notpath") incorrectly matches.
+#   env_bare_varname    -- the `_hrp_from_env_file()` call replaced with
+#                         a bare, unanchored `grep -q
+#                         'HELIX_RELEASE_PREFIX'` -- matches the var
+#                         NAME appearing ANYWHERE in the file (e.g.
+#                         inside a comment that never assigns it).
+#   env_key_only        -- the `_hrp_from_env_file()` call replaced with
+#                         a bare, unanchored `grep -q
+#                         'HELIX_RELEASE_PREFIX='` -- matches the
+#                         literal "KEY=" substring ANYWHERE in the file
+#                         (e.g. inside a comment documenting a disabled
+#                         assignment), never verifying it is a real,
+#                         non-commented, line-start assignment.
 MUT_GEN="$(mktemp "${TMPDIR:-/tmp}/mutate_release_prefix.XXXXXX.py")"
 cat > "$MUT_GEN" <<'PYEOF'
 import sys
 src_path, dst_path, kind = sys.argv[1], sys.argv[2], sys.argv[3]
 src = open(src_path, encoding="utf-8").read()
+ENV_OLD = '        if [ -n "$(_hrp_from_env_file "$parent_root/.env")" ]; then\n'
+GITMODULES_OLD = (
+    '        elif [ -f "$parent_root/.gitmodules" ] \\\n'
+    "             && grep -Eq '^[[:space:]]*path[[:space:]]*=[[:space:]]*constitution[[:space:]]*$' \\\n"
+    '                  "$parent_root/.gitmodules" 2>/dev/null; then\n'
+)
 if kind == "env":
-    OLD = '        if [ -n "$(_hrp_from_env_file "$parent_root/.env")" ]; then\n'
+    OLD = ENV_OLD
     NEW = '        if [ -f "$parent_root/.env" ]; then\n'
 elif kind == "gitmodules":
-    OLD = (
-        '        elif [ -f "$parent_root/.gitmodules" ] \\\n'
-        "             && grep -Eq '^[[:space:]]*path[[:space:]]*=[[:space:]]*constitution[[:space:]]*$' \\\n"
-        '                  "$parent_root/.gitmodules" 2>/dev/null; then\n'
-    )
+    OLD = GITMODULES_OLD
     NEW = (
         '        elif [ -f "$parent_root/.gitmodules" ] \\\n'
         "             && grep -q 'constitution' \\\n"
         '                  "$parent_root/.gitmodules" 2>/dev/null; then\n'
     )
+elif kind == "gitmodules_trailing":
+    OLD = GITMODULES_OLD
+    NEW = (
+        '        elif [ -f "$parent_root/.gitmodules" ] \\\n'
+        "             && grep -Eq '^[[:space:]]*path[[:space:]]*=[[:space:]]*constitution[[:space:]]*' \\\n"
+        '                  "$parent_root/.gitmodules" 2>/dev/null; then\n'
+    )
+elif kind == "gitmodules_leading":
+    OLD = GITMODULES_OLD
+    NEW = (
+        '        elif [ -f "$parent_root/.gitmodules" ] \\\n'
+        "             && grep -Eq '[[:space:]]*path[[:space:]]*=[[:space:]]*constitution[[:space:]]*$' \\\n"
+        '                  "$parent_root/.gitmodules" 2>/dev/null; then\n'
+    )
+elif kind == "env_bare_varname":
+    OLD = ENV_OLD
+    NEW = '        if grep -q \'HELIX_RELEASE_PREFIX\' "$parent_root/.env" 2>/dev/null; then\n'
+elif kind == "env_key_only":
+    OLD = ENV_OLD
+    NEW = '        if grep -q \'HELIX_RELEASE_PREFIX=\' "$parent_root/.env" 2>/dev/null; then\n'
 else:
     sys.stderr.write("mutate_release_prefix.py: unknown kind %r\n" % kind)
     sys.exit(2)
@@ -600,6 +659,235 @@ else
     fi
   fi
 fi
+
+# D6 (I-A, round-3 independent Opus-xhigh review, 2026-10-03): the
+# .gitmodules anchored grep's TRAILING `$` anchor, dropped in isolation
+# (keeping the leading `^` + literal-prefix portion intact) -- a value
+# that STARTS with the literal word "constitution" but carries a
+# non-whitespace SUFFIX (e.g. "constitution-extra", never the complete
+# exact value "constitution") must NOT be treated as widening evidence.
+# D3 above already proves the FULLY-unanchored substring-grep mutation
+# is caught; this is the narrower, specifically-trailing-anchor-only
+# loosening the reviewer separately named, which D3's own fixture
+# ("other/constitution-utils", failing even the LEADING anchor) cannot
+# discriminate -- a genuinely different, previously-uncovered mutation
+# shape.
+echo
+echo "-- D6 (I-A): .gitmodules entry value starting with 'constitution' but carrying a non-whitespace suffix does NOT widen (trailing-anchor-drop mutation) --"
+D6_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_ia_gitmodules_trailing_fixture.XXXXXX")"
+D6_PARENT="$D6_ROOT/parent_trailing_gitmodules"
+D6_CONSTITUTION="$D6_PARENT/constitution"
+mkdir -p "$D6_CONSTITUTION/scripts"
+cp "$RELEASE_PREFIX" "$D6_CONSTITUTION/scripts/release_prefix.sh"
+(
+  cd "$D6_CONSTITUTION" \
+    && git init -q \
+    && git config user.email "r5-d6-fixture@example.invalid" \
+    && git config user.name "r5-d6-fixture"
+) >/dev/null 2>&1
+cat > "$D6_PARENT/.gitmodules" <<'GITMODULES_D6_EOF'
+[submodule "other"]
+	path = constitution-extra
+	url = git@example.invalid:org/constitution-extra.git
+GITMODULES_D6_EOF
+cleanup_d6_fixture() { rm -rf "$D6_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture' EXIT
+
+if [ ! -d "$D6_CONSTITUTION/.git" ] || [ ! -f "$D6_PARENT/.gitmodules" ]; then
+  bad "D6 fixture setup failed -- cannot run the .gitmodules-trailing-suffix case"
+else
+  D6_RESULT="$(cd "$D6_CONSTITUTION" && bash scripts/release_prefix.sh)"
+  printf '  .gitmodules-trailing-suffix fixture result: %s\n' "$D6_RESULT"
+  if [ "$D6_RESULT" = "constitution" ]; then
+    ok "I-A: a .gitmodules entry whose value STARTS with 'constitution' but carries a non-whitespace suffix ('constitution-extra', never the complete exact value 'constitution') correctly does NOT widen -- stays 'constitution' (proves the real grep's trailing \$ end-anchor is genuinely load-bearing, not merely the leading \$^ one D3 already covers)"
+  else
+    bad "I-A regression: got '$D6_RESULT', want 'constitution' -- the .gitmodules trailing-suffix false-widen bug has returned"
+  fi
+
+  D6_MUT="$D6_ROOT/release_prefix_mut_gitmodules_trailing.sh"
+  D6_MUT_SETUP_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$D6_MUT" gitmodules_trailing 2>&1)"
+  D6_MUT_SETUP_RC=$?
+  if [ "$D6_MUT_SETUP_RC" -ne 0 ] || [ ! -f "$D6_MUT" ]; then
+    bad "D6 mutation-discrimination setup failed (rc=$D6_MUT_SETUP_RC err=$D6_MUT_SETUP_ERR) -- cannot prove D6's negative control is discriminating; investigate before trusting the D6 result above as a genuine regression guard"
+  else
+    cp "$D6_MUT" "$D6_CONSTITUTION/scripts/release_prefix.sh"
+    D6_MUT_RESULT="$(cd "$D6_CONSTITUTION" && bash scripts/release_prefix.sh)"
+    cp "$RELEASE_PREFIX" "$D6_CONSTITUTION/scripts/release_prefix.sh"   # restore the real, unmutated file
+    printf '  mutated (trailing \$ anchor dropped) result: %s\n' "$D6_MUT_RESULT"
+    if [ "$D6_MUT_RESULT" != "constitution" ]; then
+      ok "D6 mutation-discrimination: the SAME .gitmodules-trailing-suffix fixture, run against a copy with ONLY the anchored grep's trailing \$ end-anchor dropped (the exact I-A reviewer-named mutation shape), DOES incorrectly widen ('$D6_MUT_RESULT') -- proving D6's negative control above is genuinely load-bearing, not vacuously true"
+    else
+      bad "D6 mutation-discrimination FAILED: the mutated (trailing-\$-dropped) copy did NOT widen against the SAME .gitmodules-trailing-suffix fixture ('$D6_MUT_RESULT') -- D6's negative control above cannot be trusted as a real regression guard against this specific loosening"
+    fi
+  fi
+fi
+
+# D7 (I-A, round-3 independent Opus-xhigh review, 2026-10-03): the
+# .gitmodules anchored grep's LEADING `^` anchor, dropped in isolation
+# (keeping the trailing `$` portion intact) -- "path = constitution"
+# appearing as a MID-LINE substring of a DIFFERENT key (e.g. a line
+# whose real key is "notpath", not "path") must NOT be treated as
+# widening evidence. A genuinely different mutation shape than D3/D6
+# above: without the `^` anchor, grep -E searches for the pattern
+# ANYWHERE on the line, so "notpath = constitution" (the literal
+# substring "path = constitution" embedded starting at offset 3) would
+# incorrectly match.
+echo
+echo "-- D7 (I-A): .gitmodules entry whose real key merely ENDS WITH 'path' (not literally 'path') does NOT widen (leading-anchor-drop mutation) --"
+D7_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_ia_gitmodules_leading_fixture.XXXXXX")"
+D7_PARENT="$D7_ROOT/parent_leading_gitmodules"
+D7_CONSTITUTION="$D7_PARENT/constitution"
+mkdir -p "$D7_CONSTITUTION/scripts"
+cp "$RELEASE_PREFIX" "$D7_CONSTITUTION/scripts/release_prefix.sh"
+(
+  cd "$D7_CONSTITUTION" \
+    && git init -q \
+    && git config user.email "r5-d7-fixture@example.invalid" \
+    && git config user.name "r5-d7-fixture"
+) >/dev/null 2>&1
+cat > "$D7_PARENT/.gitmodules" <<'GITMODULES_D7_EOF'
+[submodule "weird"]
+	notpath = constitution
+GITMODULES_D7_EOF
+cleanup_d7_fixture() { rm -rf "$D7_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture' EXIT
+
+if [ ! -d "$D7_CONSTITUTION/.git" ] || [ ! -f "$D7_PARENT/.gitmodules" ]; then
+  bad "D7 fixture setup failed -- cannot run the .gitmodules-mid-line-substring case"
+else
+  D7_RESULT="$(cd "$D7_CONSTITUTION" && bash scripts/release_prefix.sh)"
+  printf '  .gitmodules-mid-line-substring fixture result: %s\n' "$D7_RESULT"
+  if [ "$D7_RESULT" = "constitution" ]; then
+    ok "I-A: a .gitmodules line whose real key is 'notpath' (NOT the literal key 'path') correctly does NOT widen even though 'path = constitution' appears as a mid-line substring -- stays 'constitution' (proves the real grep's leading ^ start-anchor is genuinely load-bearing)"
+  else
+    bad "I-A regression: got '$D7_RESULT', want 'constitution' -- the .gitmodules mid-line-substring false-widen bug has returned"
+  fi
+
+  D7_MUT="$D7_ROOT/release_prefix_mut_gitmodules_leading.sh"
+  D7_MUT_SETUP_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$D7_MUT" gitmodules_leading 2>&1)"
+  D7_MUT_SETUP_RC=$?
+  if [ "$D7_MUT_SETUP_RC" -ne 0 ] || [ ! -f "$D7_MUT" ]; then
+    bad "D7 mutation-discrimination setup failed (rc=$D7_MUT_SETUP_RC err=$D7_MUT_SETUP_ERR) -- cannot prove D7's negative control is discriminating; investigate before trusting the D7 result above as a genuine regression guard"
+  else
+    cp "$D7_MUT" "$D7_CONSTITUTION/scripts/release_prefix.sh"
+    D7_MUT_RESULT="$(cd "$D7_CONSTITUTION" && bash scripts/release_prefix.sh)"
+    cp "$RELEASE_PREFIX" "$D7_CONSTITUTION/scripts/release_prefix.sh"   # restore the real, unmutated file
+    printf '  mutated (leading ^ anchor dropped) result: %s\n' "$D7_MUT_RESULT"
+    if [ "$D7_MUT_RESULT" != "constitution" ]; then
+      ok "D7 mutation-discrimination: the SAME .gitmodules-mid-line-substring fixture, run against a copy with ONLY the anchored grep's leading ^ start-anchor dropped (the exact I-A reviewer-named mutation shape), DOES incorrectly widen ('$D7_MUT_RESULT') -- proving D7's negative control above is genuinely load-bearing, not vacuously true"
+    else
+      bad "D7 mutation-discrimination FAILED: the mutated (leading-^-dropped) copy did NOT widen against the SAME .gitmodules-mid-line-substring fixture ('$D7_MUT_RESULT') -- D7's negative control above cannot be trusted as a real regression guard against this specific loosening"
+    fi
+  fi
+fi
+
+# D8 (I-A, round-3 independent Opus-xhigh review, 2026-10-03): the `.env`
+# evidence check's call to the real `_hrp_from_env_file()` parser,
+# replaced with a BARE, UNANCHORED `grep -q 'HELIX_RELEASE_PREFIX'` --
+# matching the var NAME appearing anywhere in the file, including inside
+# a comment that documents the variable without ever assigning it (no
+# `=` adjacent at all) -- must NOT be treated as widening evidence.
+echo
+echo "-- D8 (I-A): .env mentioning the variable NAME in prose (no '=' at all) does NOT widen (bare-grep-for-var-name mutation) --"
+D8_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_ia_env_bare_varname_fixture.XXXXXX")"
+D8_PARENT="$D8_ROOT/parent_bare_varname_env"
+D8_CONSTITUTION="$D8_PARENT/constitution"
+mkdir -p "$D8_CONSTITUTION/scripts"
+cp "$RELEASE_PREFIX" "$D8_CONSTITUTION/scripts/release_prefix.sh"
+(
+  cd "$D8_CONSTITUTION" \
+    && git init -q \
+    && git config user.email "r5-d8-fixture@example.invalid" \
+    && git config user.name "r5-d8-fixture"
+) >/dev/null 2>&1
+printf '# This project does not set HELIX_RELEASE_PREFIX, see docs\nOTHER_VAR=value\n' > "$D8_PARENT/.env"
+cleanup_d8_fixture() { rm -rf "$D8_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture' EXIT
+
+if [ ! -d "$D8_CONSTITUTION/.git" ] || [ ! -f "$D8_PARENT/.env" ]; then
+  bad "D8 fixture setup failed -- cannot run the bare-grep-for-var-name case"
+else
+  D8_RESULT="$(cd "$D8_CONSTITUTION" && bash scripts/release_prefix.sh)"
+  printf '  bare-grep-for-var-name fixture result: %s\n' "$D8_RESULT"
+  if [ "$D8_RESULT" = "constitution" ]; then
+    ok "I-A: a parent .env that merely MENTIONS 'HELIX_RELEASE_PREFIX' in prose (a comment, never a real assignment, no '=' adjacent at all) correctly does NOT widen -- stays 'constitution' (proves the real check calls the full _hrp_from_env_file() parser, never a bare var-name grep)"
+  else
+    bad "I-A regression: got '$D8_RESULT', want 'constitution' -- the .env bare-var-name-mention false-widen bug has returned"
+  fi
+
+  D8_MUT="$D8_ROOT/release_prefix_mut_env_bare_varname.sh"
+  D8_MUT_SETUP_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$D8_MUT" env_bare_varname 2>&1)"
+  D8_MUT_SETUP_RC=$?
+  if [ "$D8_MUT_SETUP_RC" -ne 0 ] || [ ! -f "$D8_MUT" ]; then
+    bad "D8 mutation-discrimination setup failed (rc=$D8_MUT_SETUP_RC err=$D8_MUT_SETUP_ERR) -- cannot prove D8's negative control is discriminating; investigate before trusting the D8 result above as a genuine regression guard"
+  else
+    cp "$D8_MUT" "$D8_CONSTITUTION/scripts/release_prefix.sh"
+    D8_MUT_RESULT="$(cd "$D8_CONSTITUTION" && bash scripts/release_prefix.sh)"
+    cp "$RELEASE_PREFIX" "$D8_CONSTITUTION/scripts/release_prefix.sh"   # restore the real, unmutated file
+    printf '  mutated (bare grep-for-var-name) result: %s\n' "$D8_MUT_RESULT"
+    if [ "$D8_MUT_RESULT" != "constitution" ]; then
+      ok "D8 mutation-discrimination: the SAME bare-grep-for-var-name fixture, run against a copy with the _hrp_from_env_file() call reverted to a bare, unanchored 'grep -q HELIX_RELEASE_PREFIX' (the exact I-A reviewer-named mutation shape), DOES incorrectly widen ('$D8_MUT_RESULT') -- proving D8's negative control above is genuinely load-bearing, not vacuously true"
+    else
+      bad "D8 mutation-discrimination FAILED: the mutated (bare-var-name-grep-shaped) copy did NOT widen against the SAME fixture ('$D8_MUT_RESULT') -- D8's negative control above cannot be trusted as a real regression guard against this specific loosening"
+    fi
+  fi
+fi
+
+# D9 (I-A, round-3 independent Opus-xhigh review, 2026-10-03): the `.env`
+# evidence check's call to the real `_hrp_from_env_file()` parser,
+# replaced with a BARE, UNANCHORED `grep -q 'HELIX_RELEASE_PREFIX='` --
+# matching the literal "KEY=" substring appearing anywhere in the file,
+# including inside a comment documenting a DISABLED assignment (never a
+# real, non-commented, line-start assignment) -- must NOT be treated as
+# widening evidence. A genuinely different mutation shape than D8 above
+# (D8's fixture carries no '=' at all, so it cannot discriminate this
+# "grep-for-key-only" shape, which specifically requires a '=' to be
+# present to even have a chance of matching).
+echo
+echo "-- D9 (I-A): .env with a commented-out 'KEY=value' assignment does NOT widen (grep-for-key-only mutation) --"
+D9_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_ia_env_key_only_fixture.XXXXXX")"
+D9_PARENT="$D9_ROOT/parent_key_only_env"
+D9_CONSTITUTION="$D9_PARENT/constitution"
+mkdir -p "$D9_CONSTITUTION/scripts"
+cp "$RELEASE_PREFIX" "$D9_CONSTITUTION/scripts/release_prefix.sh"
+(
+  cd "$D9_CONSTITUTION" \
+    && git init -q \
+    && git config user.email "r5-d9-fixture@example.invalid" \
+    && git config user.name "r5-d9-fixture"
+) >/dev/null 2>&1
+printf '# old config: HELIX_RELEASE_PREFIX=disabled_value\nOTHER_VAR=value\n' > "$D9_PARENT/.env"
+cleanup_d9_fixture() { rm -rf "$D9_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture' EXIT
+
+if [ ! -d "$D9_CONSTITUTION/.git" ] || [ ! -f "$D9_PARENT/.env" ]; then
+  bad "D9 fixture setup failed -- cannot run the grep-for-key-only case"
+else
+  D9_RESULT="$(cd "$D9_CONSTITUTION" && bash scripts/release_prefix.sh)"
+  printf '  grep-for-key-only fixture result: %s\n' "$D9_RESULT"
+  if [ "$D9_RESULT" = "constitution" ]; then
+    ok "I-A: a parent .env whose ONLY 'HELIX_RELEASE_PREFIX=' occurrence is inside a comment documenting a DISABLED assignment ('# old config: HELIX_RELEASE_PREFIX=disabled_value', never a real line-start assignment) correctly does NOT widen -- stays 'constitution' (proves the real check calls the full _hrp_from_env_file() parser, never a bare key-only grep)"
+  else
+    bad "I-A regression: got '$D9_RESULT', want 'constitution' -- the .env commented-out-key-only false-widen bug has returned"
+  fi
+
+  D9_MUT="$D9_ROOT/release_prefix_mut_env_key_only.sh"
+  D9_MUT_SETUP_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$D9_MUT" env_key_only 2>&1)"
+  D9_MUT_SETUP_RC=$?
+  if [ "$D9_MUT_SETUP_RC" -ne 0 ] || [ ! -f "$D9_MUT" ]; then
+    bad "D9 mutation-discrimination setup failed (rc=$D9_MUT_SETUP_RC err=$D9_MUT_SETUP_ERR) -- cannot prove D9's negative control is discriminating; investigate before trusting the D9 result above as a genuine regression guard"
+  else
+    cp "$D9_MUT" "$D9_CONSTITUTION/scripts/release_prefix.sh"
+    D9_MUT_RESULT="$(cd "$D9_CONSTITUTION" && bash scripts/release_prefix.sh)"
+    cp "$RELEASE_PREFIX" "$D9_CONSTITUTION/scripts/release_prefix.sh"   # restore the real, unmutated file
+    printf '  mutated (grep-for-key-only) result: %s\n' "$D9_MUT_RESULT"
+    if [ "$D9_MUT_RESULT" != "constitution" ]; then
+      ok "D9 mutation-discrimination: the SAME grep-for-key-only fixture, run against a copy with the _hrp_from_env_file() call reverted to a bare, unanchored 'grep -q HELIX_RELEASE_PREFIX=' (the exact I-A reviewer-named mutation shape), DOES incorrectly widen ('$D9_MUT_RESULT') -- proving D9's negative control above is genuinely load-bearing, not vacuously true"
+    else
+      bad "D9 mutation-discrimination FAILED: the mutated (key-only-grep-shaped) copy did NOT widen against the SAME fixture ('$D9_MUT_RESULT') -- D9's negative control above cannot be trusted as a real regression guard against this specific loosening"
+    fi
+  fi
+fi
 rm -f "$MUT_GEN"
 
 # D4 (B1): the "mismatched-sibling-name-with-matching-.gitmodules-path"
@@ -630,7 +918,7 @@ cat > "$D4_PARENT/.gitmodules" <<'GITMODULES_D4_EOF'
 GITMODULES_D4_EOF
 printf 'HELIX_RELEASE_PREFIX=should_not_widen_wrong_sibling\n' > "$D4_PARENT/.env"
 cleanup_d4_fixture() { rm -rf "$D4_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d4_fixture' EXIT
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d4_fixture' EXIT
 
 if [ ! -d "$D4_OTHER_DIR/.git" ] || [ ! -f "$D4_PARENT/.gitmodules" ] || [ ! -f "$D4_PARENT/.env" ]; then
   bad "D4 fixture setup failed -- cannot run the mismatched-sibling-name case"
@@ -672,7 +960,7 @@ cp "$RELEASE_PREFIX" "$D5_CONSTITUTION/scripts/release_prefix.sh"
 printf 'HELIX_RELEASE_PREFIX=should_not_widen_unreadable\n' > "$D5_PARENT/.env"
 chmod 000 "$D5_PARENT/.env"
 cleanup_d5_fixture() { chmod 644 "$D5_PARENT/.env" 2>/dev/null || true; rm -rf "$D5_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d4_fixture; cleanup_d5_fixture' EXIT
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d4_fixture; cleanup_d5_fixture' EXIT
 
 if [ ! -d "$D5_CONSTITUTION/.git" ] || [ ! -e "$D5_PARENT/.env" ]; then
   bad "D5 fixture setup failed -- cannot run the unreadable-parent-.env case"
@@ -740,7 +1028,7 @@ echo "-- E2 (M1): readable-but-not-searchable HELIX_PROJECT_ROOT (chmod 444) war
 E2_NOSEARCH_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_r5_m1_nosearch_fixture.XXXXXX")"
 chmod 444 "$E2_NOSEARCH_ROOT"
 cleanup_e2_fixture() { chmod 755 "$E2_NOSEARCH_ROOT" 2>/dev/null || true; rm -rf "$E2_NOSEARCH_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d4_fixture; cleanup_d5_fixture; cleanup_e2_fixture' EXIT
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d4_fixture; cleanup_d5_fixture; cleanup_e2_fixture' EXIT
 if [ ! -d "$E2_NOSEARCH_ROOT" ]; then
   bad "E2 fixture setup failed -- '$E2_NOSEARCH_ROOT' missing, cannot run the M1 readable-but-not-searchable case"
 else

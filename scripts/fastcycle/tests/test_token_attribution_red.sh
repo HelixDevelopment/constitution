@@ -86,6 +86,33 @@
 # =============================================================================
 set -u
 
+# M-d (round-3 independent Opus-xhigh review, 2026-10-03, verbatim
+# finding: "the I2(d) cross-check's REPO_ROOT resolution assumes a fixed
+# four-level directory layout, matching a pre-existing assumption already
+# in this file at HEAD; breaks the same way a standalone (non-nested)
+# constitution clone would."). CONFIRMED, and honestly documented here
+# (never silently left implicit, §11.4.6): $REPO_ROOT below is a FIXED
+# "four levels up from this file's own directory" computation -- this
+# file's own location (constitution/scripts/fastcycle/tests/) assumes the
+# EMBEDDED layout (constitution/ nested two levels under a consuming
+# project's root), NOT the git-based, layout-adaptive resolution
+# release_prefix.sh's OWN `_hrp_project_root()` uses (which this exact
+# fixed-arithmetic shape was the very defect S8 fixed there -- see that
+# function's own header). This is a PRE-EXISTING, FILE-WIDE assumption
+# that predates this round's diff -- EVERY use of $REPO_ROOT in this file
+# ($FC below, $WRITER, $SETTINGS_JSON, the PART D/F4/F5 fixture paths,
+# etc.) already depends on it, confirmed at HEAD before this finding was
+# raised -- so a standalone (non-nested) constitution clone running this
+# whole test file would already resolve $REPO_ROOT one level too high,
+# independent of the I2(d) cross-check this review session added. The
+# I2(d) cross-check (search below for "_CROSSCHECK_ROOT") therefore
+# inherits exactly this SAME pre-existing limitation, never a NEW,
+# independent risk of its own -- fixing it properly would mean reworking
+# this entire file's project-root resolution to the SAME git-based
+# heuristic release_prefix.sh itself now uses, well beyond this Minor,
+# test-instrumentation finding's scope; tracked here, in-source, as the
+# known, pre-existing, whole-file boundary this cross-check's own
+# correctness is conditioned on.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd -P)"
 REPO_ROOT="$(cd "$HERE/../../../.." && pwd -P)"
 FC="$REPO_ROOT/constitution/scripts/fastcycle"
@@ -130,6 +157,19 @@ needle_check() {
 # distinguishable from a real PASS in the SUMMARY pass=$PASS count while
 # never being misreported as a FAIL either.
 skip() { echo "SKIP: $1"; }
+
+# note <text> -- M-b remediation (round-3 independent Opus-xhigh review,
+# 2026-10-03, verbatim finding: "two non-assertion informational lines are
+# counted via ok() rather than a neutral skip/echo, mildly inflating the
+# suite's pass count."). Distinct from BOTH ok()/PASS and skip()/SKIP: a
+# purely narrative/contextual statement that verifies nothing new (the
+# real verification already happened in an earlier ok()/bad() call) is
+# neither a genuine assertion outcome (ok()/bad()) NOR an honestly-skipped
+# check (skip() — nothing here was skipped either). Deliberately NOT
+# counted into $PASS or $FAIL, mirroring skip()'s own convention, so an
+# informational line can never mildly inflate the pass count the way
+# counting it via ok() did before this fix.
+note() { echo "NOTE: $1"; }
 
 # skip_prefix_mismatch <reason> -- I2 remediation (T048/US1 S10, round-4
 # independent Opus-xhigh review, 2026-10-03, finding I2(b)): every skip()
@@ -241,6 +281,45 @@ skip_prefix_mismatch() {
 # block to match, or this needle will silently drift from the real
 # mechanism it exists to describe -- tracked here, in-source, as the
 # known risk rather than left implicit.
+#
+# M-c remediation (round-3 independent Opus-xhigh review, 2026-10-03,
+# verbatim finding: "the M2 're-implement vs call the real function'
+# trade-off missed a safer option: the sites gated at D/F3/F7/G1 depend on
+# transcript_ingest.py's `_fc_default_item_prefix()`, which CAN be
+# imported with stdin redirected (no side effect), unlike dispatch_stamp.sh
+# which was the only option considered."). CORRECT, and HONESTLY
+# documented here (never silently left out, §11.4.6): unlike
+# `dispatch_stamp.sh` (a flat script with an UNCONDITIONAL stdin read as
+# its very first statement, M2's own blocker above), `transcript_ingest.py`
+# has its OWN Python-level `_fc_derive_key_prefix(seed)` function
+# (identical derivation rule, a SECOND independent re-implementation
+# dispatch_stamp.sh's own bash copy, by this codebase's documented
+# single-self-contained-file-per-tool convention) that could genuinely be
+# invoked via `python3 -c "from transcript_ingest import
+# _fc_derive_key_prefix; ..."` with stdin redirected from /dev/null --
+# `import transcript_ingest` consumes no stdin at all (confirmed by
+# reading its source: the only module-level code that runs on import is
+# `ITEM_TAG_RE = _build_item_tag_re()`, which spawns a `release_prefix.sh`
+# subprocess but never touches stdin), so the M2 blocker genuinely does
+# NOT apply to this alternative. NOT adopted this round, for a reason M2's
+# own analysis did not need to weigh: `_fc_default_item_prefix()`'s module-
+# level import ALSO independently re-resolves `HELIX_RELEASE_PREFIX` via
+# its own subprocess call to `release_prefix.sh` (see that module's own
+# HERMETICITY NOTE), which would run ALONGSIDE this needle's own already-
+# separate `$_RP_SCRIPT_FOR_NEEDLE` resolution above -- two independent
+# subprocess calls to the SAME script per needle-computation where one
+# genuinely safer-looking swap might otherwise silently introduce, rather
+# than reduce, the risk of the two diverging under some future edit to
+# either resolution path's own env-handling. Given this file's own
+# PRODUCER != VERIFIER discipline already treats this needle as
+# harness-only detection logic structurally independent of the real
+# mechanism under test (never a preview of, nor substitute for, either
+# tool's own implementation -- confirmed unaffected either way by this
+# finding), and given the zero-regression-risk bar this round's fix batch
+# holds itself to, this safer alternative is TRACKED here in-source as a
+# genuine, investigated option for a FUTURE round to adopt -- never
+# silently dismissed, and never claimed as a closed investigation when
+# the broader one-subprocess-vs-two trade-off was not yet weighed.
 # I2 remediation (T048/US1 S10, round-4 independent Opus-xhigh review,
 # 2026-10-03): this control needle previously (a) resolved
 # release_prefix.sh via an absolute $REPO_ROOT-based guess rather than
@@ -273,7 +352,11 @@ skip_prefix_mismatch() {
 #       bare grep of this project's own $REPO_ROOT/.env
 #       HELIX_RELEASE_PREFIX= assignment, bypassing release_prefix.sh's
 #       OWN parsing entirely -- and FAILs (never skips) if the two
-#       genuinely disagree.
+#       genuinely disagree. M-d (round-3 review): this $REPO_ROOT
+#       inherits the SAME pre-existing, file-wide fixed-four-level-layout
+#       assumption this whole file already depends on (see this file's
+#       own $REPO_ROOT definition near the top for the full account) --
+#       never a new, independent risk this cross-check introduces.
 _RP_SCRIPT_FOR_NEEDLE="$(dirname "$TRANSCRIPT_INGEST")/../../release_prefix.sh"
 DERIVED_DEFAULT_PREFIX_BLIND=0
 _DERIVED_BASE=""
@@ -351,9 +434,19 @@ echo "-- control-needle: this checkout's own unconfigured default item-tag prefi
 if [ "$DERIVED_DEFAULT_PREFIX_BLIND" -eq 1 ]; then
     : # already reported as a hard FAIL by the "control-needle BLIND" bad() above; no further ok()/bad() here
 elif [ "$DERIVED_DEFAULT_PREFIX" = "ATM" ]; then
-    ok "control-needle: this is an ATM-prefixed checkout -- PART D / F3 / F7's hardcoded item=ATM-9999 fixtures are meaningful here and will be exercised for real below"
+    # M-b remediation (round-3 independent Opus-xhigh review, 2026-10-03,
+    # verbatim finding: "two non-assertion informational lines are counted
+    # via ok() rather than a neutral skip/echo, mildly inflating the
+    # suite's pass count."). This line and its "else" sibling below verify
+    # NOTHING new -- the real verification (ATM-prefixed vs not, blind vs
+    # not) already happened in the needle-resolution + cross-check ok()/
+    # bad() calls above; these two are purely forward-looking narration
+    # about which branch PART D/F3/F7 will take below. note(), never ok(),
+    # so they can never mildly inflate $PASS the way counting them as a
+    # genuine assertion outcome did before this fix.
+    note "this is an ATM-prefixed checkout -- PART D / F3 / F7's hardcoded item=ATM-9999 fixtures are meaningful here and will be exercised for real below"
 else
-    ok "control-needle: this is a NON-ATM-prefixed checkout (derived='$DERIVED_DEFAULT_PREFIX') -- PART D / F3 / F7's ATM-9999-specific ingest assertions will be honestly SKIPPED below via skip_prefix_mismatch() (§11.4.3), never misreported as a FAIL for a purely environmental reason"
+    note "this is a NON-ATM-prefixed checkout (derived='$DERIVED_DEFAULT_PREFIX') -- PART D / F3 / F7's ATM-9999-specific ingest assertions will be honestly SKIPPED below via skip_prefix_mismatch() (§11.4.3), never misreported as a FAIL for a purely environmental reason"
 fi
 
 echo "=== pre-flight: report which of the two guarded tools currently exist ==="
@@ -1358,14 +1451,132 @@ else
         # project-prefix-independent conditions are unaffected either
         # way, so a non-ATM checkout's "PART F HOLDS" verdict still
         # means exactly what it says for the mechanism F1/F2 prove.
+        #
+        # M-a remediation (round-3 independent Opus-xhigh review,
+        # 2026-10-03, verbatim: "the attribution suite's 'PART F HOLDS'
+        # aggregate records a PASS even when the control-needle is
+        # BLIND, because its skip-bypass condition doesn't also require
+        # DERIVED_DEFAULT_PREFIX_BLIND=0."). The bypass above reads
+        # "$DERIVED_DEFAULT_PREFIX != ATM" as proof of a legitimately
+        # non-ATM-prefixed checkout -- but a BLIND needle (the control-
+        # needle resolution above failed/errored/produced empty output,
+        # already separately reported as a hard FAIL via the
+        # "control-needle BLIND" bad() call) ALSO falls back to the
+        # neutral "WIT" value for $DERIVED_DEFAULT_PREFIX (see the
+        # DERIVED_DEFAULT_PREFIX_BLIND=1 branch above), which likewise
+        # satisfies "!= ATM" -- so a run whose environment could not be
+        # verified at all would ALSO satisfy this bypass and record a
+        # spurious "PART F HOLDS" PASS, exactly the BLIND-vs-genuinely-
+        # non-ATM conflation skip_prefix_mismatch() exists elsewhere in
+        # this file to prevent (see its own header comment). Fixed: the
+        # bypass now ALSO requires $DERIVED_DEFAULT_PREFIX_BLIND -eq 0,
+        # so a BLIND run correctly falls through to the "bad" branch
+        # below instead of a false PASS (the needle's own "control-
+        # needle BLIND" bad() call above already names the real cause).
         if [ "$RC_F1" -eq 0 ] && [ -z "${UNCONFIGURED_ITEM-UNSET}" ] && [ "${CONFIGURED_ITEM-}" = "SPK-4321" ] \
-            && { [ "${ATM_STILL_WORKS-}" = "ATM-9999" ] || [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; }; then
+            && { [ "${ATM_STILL_WORKS-}" = "ATM-9999" ] \
+                 || { [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ] && [ "${DERIVED_DEFAULT_PREFIX_BLIND:-0}" -eq 0 ]; }; }; then
             ok "PART F HOLDS: transcript_ingest.py's item= tag prefix is genuinely CONFIGURABLE via the SAME FC_DISPATCH_EXTRA_ITEM_PREFIXES/FC_DISPATCH_ITEM_ID_RE mechanism dispatch_stamp.sh already exposes -- unconfigured default stays ATM-only (matching, not byte-identical to, the pre-fix hardcode's accepted-id set), a configured extra prefix (SPK) is genuinely extracted, and the default ATM- extraction is preserved additively under that same configured environment (F3's own ATM-9999 re-attribution check is honestly skipped on a non-ATM-prefixed checkout, derived='$DERIVED_DEFAULT_PREFIX', rather than gating this aggregate)"
         else
-            bad "PART F UNMET: decoupling fix did not take full effect — unconfigured_item='${UNCONFIGURED_ITEM-<F1-never-ran>}' (want empty) configured_item='${CONFIGURED_ITEM-<F2-never-ran>}' (want SPK-4321) atm_still_works='${ATM_STILL_WORKS-<F3-never-ran>}' (want ATM-9999, or a skip on a non-ATM checkout)"
+            bad "PART F UNMET: decoupling fix did not take full effect — unconfigured_item='${UNCONFIGURED_ITEM-<F1-never-ran>}' (want empty) configured_item='${CONFIGURED_ITEM-<F2-never-ran>}' (want SPK-4321) atm_still_works='${ATM_STILL_WORKS-<F3-never-ran>}' (want ATM-9999, or a skip on a non-ATM checkout) derived_default_prefix_blind='${DERIVED_DEFAULT_PREFIX_BLIND:-0}' (want 0 when relying on the non-ATM bypass)"
         fi
     else
         bad "PART F UNMET: transcript_ingest.py absent — the item= tag prefix decoupling fix is unverified"
+    fi
+fi
+
+# PART F-NEEDLE-AGGREGATE mutation-discrimination (M-a remediation, round-3
+# independent Opus-xhigh review, 2026-10-03, verbatim finding: "the
+# attribution suite's 'PART F HOLDS' aggregate records a PASS even when the
+# control-needle is BLIND, because its skip-bypass condition doesn't also
+# require DERIVED_DEFAULT_PREFIX_BLIND=0."). Proves the fix just above is
+# genuinely load-bearing (§11.4.194(6)(d) reviewer-authored mutation,
+# §11.4.115 RED-before-GREEN) by extracting the EXACT, byte-for-byte "PART
+# F HOLDS" condition text from THIS SAME FILE at run time (never a
+# hand-copied re-implementation, §11.4.240 producer != verifier) and
+# `eval`-ing it twice under a synthetic BLIND-needle state ($RC_F1=0,
+# $UNCONFIGURED_ITEM empty, $CONFIGURED_ITEM=SPK-4321 -- i.e. F1/F2
+# genuinely passed on their own merits -- $ATM_STILL_WORKS unset, exactly
+# as it stays when F3's own code never runs its real check,
+# $DERIVED_DEFAULT_PREFIX=WIT -- the real blind-fallback literal value --
+# and $DERIVED_DEFAULT_PREFIX_BLIND=1):
+#   (a) the REAL, CURRENT (fixed) condition text -- MUST evaluate FALSE
+#       (take the "else"/bad branch), since a BLIND run is NOT a
+#       legitimately-non-ATM checkout;
+#   (b) the SAME text with ONLY the newly-added "&& DERIVED_DEFAULT_
+#       PREFIX_BLIND -eq 0" clause reverted (the exact pre-fix shape) --
+#       MUST evaluate TRUE (take the ok()/PASS branch), proving this
+#       negative control is genuinely discriminating, not vacuously true
+#       (mirrors the gitmodules/env mutation-discrimination pattern this
+#       same batch's test_dispatch_stamp_r5_regression.sh already uses).
+# A THIRD, golden-FALSE check (§11.4.201(1) false-positive guard) confirms
+# the fix does NOT also break the legitimate bypass: under a GENUINELY
+# non-ATM, NON-blind synthetic state ($DERIVED_DEFAULT_PREFIX=OCT,
+# $DERIVED_DEFAULT_PREFIX_BLIND=0), the fixed condition MUST still
+# evaluate TRUE (the real, intended skip-bypass still works).
+echo
+echo "-- PART F-NEEDLE-AGGREGATE (M-a): the 'PART F HOLDS' aggregate's BLIND-awareness is genuinely load-bearing --"
+_PARTF_COND_ANCHOR_START='^        if \[ "\$RC_F1" -eq 0 \] && \[ -z "\${UNCONFIGURED_ITEM-UNSET}" \]'
+_PARTF_COND_ANCHOR_END='^.*; }; }; then$'
+_PARTF_SELF="${BASH_SOURCE[0]:-$0}"
+_PARTF_COND_OCCURRENCES="$(grep -cE "$_PARTF_COND_ANCHOR_START" "$_PARTF_SELF" 2>/dev/null || echo 0)"
+if [ "${_PARTF_COND_OCCURRENCES:-0}" -ne 1 ]; then
+    bad "PART F-NEEDLE-AGGREGATE setup failed: the 'PART F HOLDS' condition's anchor text was found $_PARTF_COND_OCCURRENCES time(s) in this file (want exactly 1) -- cannot safely extract it for mutation-discrimination; the condition text this file's own PART F block uses may have drifted, investigate before trusting this guard"
+else
+    _PARTF_FIXED_COND="$(sed -n "/${_PARTF_COND_ANCHOR_START}/,/${_PARTF_COND_ANCHOR_END}/p" "$_PARTF_SELF")"
+    _PARTF_BLIND_MARKER=' && [ "${DERIVED_DEFAULT_PREFIX_BLIND:-0}" -eq 0 ]'
+    _PARTF_MUTATED_COND="$(python3 -c '
+import sys
+cond, marker = sys.argv[1], sys.argv[2]
+if cond.count(marker) != 1:
+    sys.stderr.write("MUTATION_SETUP_FAILED marker_count=%d\n" % cond.count(marker))
+    sys.exit(2)
+sys.stdout.write(cond.replace(marker, "", 1))
+' "$_PARTF_FIXED_COND" "$_PARTF_BLIND_MARKER" 2>&1)"
+    _PARTF_MUT_RC=$?
+    if [ "$_PARTF_MUT_RC" -ne 0 ] || [ -z "$_PARTF_MUTATED_COND" ]; then
+        bad "PART F-NEEDLE-AGGREGATE setup failed: could not build the pre-fix-shaped mutated condition (rc=$_PARTF_MUT_RC out='$_PARTF_MUTATED_COND') -- the BLIND-awareness clause's exact text may have drifted from what this mutation generator expects"
+    else
+        # NOTE: ATM_STILL_WORKS is deliberately left genuinely UNSET in
+        # every synthetic run below (never set to "", which the
+        # condition's own "${ATM_STILL_WORKS-}" single-dash fallback
+        # treats identically to unset for THIS comparison -- but staying
+        # genuinely unset most faithfully mirrors F3's real code path,
+        # which never assigns the variable at all when its own check is
+        # skipped or BLIND-hard-failed).
+        _partf_run_cond() {
+            local cond="$1" rc_f1="$2" unconf="$3" conf="$4" derived="$5" blind="$6"
+            (
+                RC_F1="$rc_f1"
+                UNCONFIGURED_ITEM="$unconf"
+                CONFIGURED_ITEM="$conf"
+                unset ATM_STILL_WORKS 2>/dev/null || true
+                DERIVED_DEFAULT_PREFIX="$derived"
+                DERIVED_DEFAULT_PREFIX_BLIND="$blind"
+                eval "$cond"$'\n  echo TOOK_TRUE\nelse\n  echo TOOK_FALSE\nfi'
+            )
+        }
+        _PARTF_FIXED_BLIND_RESULT="$(_partf_run_cond "$_PARTF_FIXED_COND" 0 "" "SPK-4321" "WIT" 1)"
+        _PARTF_MUT_BLIND_RESULT="$(_partf_run_cond "$_PARTF_MUTATED_COND" 0 "" "SPK-4321" "WIT" 1)"
+        _PARTF_FIXED_LEGIT_RESULT="$(_partf_run_cond "$_PARTF_FIXED_COND" 0 "" "SPK-4321" "OCT" 0)"
+        printf '  fixed condition under synthetic BLIND state:        %s (want TOOK_FALSE)\n' "$_PARTF_FIXED_BLIND_RESULT"
+        printf '  pre-fix-shaped condition under the SAME BLIND state: %s (want TOOK_TRUE, proving genuine discrimination)\n' "$_PARTF_MUT_BLIND_RESULT"
+        printf '  fixed condition under a genuinely non-ATM, non-BLIND state: %s (want TOOK_TRUE, the legitimate bypass must still work)\n' "$_PARTF_FIXED_LEGIT_RESULT"
+        if [ "$_PARTF_FIXED_BLIND_RESULT" = "TOOK_FALSE" ]; then
+            ok "M-a: the FIXED 'PART F HOLDS' condition correctly does NOT take the PASS branch under a synthetic BLIND-needle state (DERIVED_DEFAULT_PREFIX_BLIND=1, DERIVED_DEFAULT_PREFIX='WIT') -- a BLIND run is no longer silently conflated with a legitimately non-ATM checkout"
+        else
+            bad "M-a regression: the fixed 'PART F HOLDS' condition took the PASS branch under a synthetic BLIND-needle state ('$_PARTF_FIXED_BLIND_RESULT') -- the BLIND-vs-non-ATM conflation bug has returned"
+        fi
+        if [ "$_PARTF_MUT_BLIND_RESULT" = "TOOK_TRUE" ]; then
+            ok "M-a mutation-discrimination: the SAME synthetic BLIND state, evaluated against the condition with ONLY the DERIVED_DEFAULT_PREFIX_BLIND check reverted (the exact pre-fix shape), DOES take the PASS branch -- proving M-a's fix above is genuinely load-bearing, not vacuously true"
+        else
+            bad "M-a mutation-discrimination FAILED: the pre-fix-shaped condition did NOT take the PASS branch under the SAME synthetic BLIND state ('$_PARTF_MUT_BLIND_RESULT') -- this negative control cannot be trusted as a real regression guard for the BLIND-conflation defect"
+        fi
+        if [ "$_PARTF_FIXED_LEGIT_RESULT" = "TOOK_TRUE" ]; then
+            ok "M-a false-positive guard (§11.4.201(1)): the FIXED condition still correctly takes the PASS branch for a GENUINELY non-ATM, non-BLIND checkout (DERIVED_DEFAULT_PREFIX='OCT', BLIND=0) -- the BLIND-awareness fix does not also break the legitimate skip-bypass it must preserve"
+        else
+            bad "M-a false-positive guard FAILED: the fixed condition did NOT take the PASS branch for a genuinely non-ATM, non-BLIND checkout ('$_PARTF_FIXED_LEGIT_RESULT') -- the M-a fix has over-tightened the bypass and broken the legitimate non-ATM-checkout case"
+        fi
     fi
 fi
 
