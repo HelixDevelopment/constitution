@@ -11,13 +11,21 @@
 # survived the WHOLE existing battery (r5/r7/r8/r10/r14) with 0 NOT ok.
 #
 # This file closes that gap: six fixtures exercising every branch of the
-# round-21 3-rule comparison (lines 708-757 of the real golden test as of
-# T048 round-23 [T048 round-23 review N1: a prior revision of this
-# citation, "lines ~693-751", drifted after round 22's own edits to the
-# file -- re-measured directly against the real file rather than
-# hand-retyped, same discipline as this file's own run-time `grep -F`
-# anchor extraction below], "if [ "$TRIPLET_STATE" = valid ]" through its
-# closing "fi"), each
+# round-21 3-rule comparison -- identified by its ANCHOR TEXT,
+# "if [ "$TRIPLET_STATE" = valid ]" through its closing "fi", never by a
+# hand-maintained line-number range [T048 round-23 review N1 + round-24
+# review M1: TWO successive hand-typed line-range citations in this SAME
+# comment ("lines ~693-751", then "lines 708-757") each drifted the very
+# next time an UNRELATED comment edit shifted lines earlier in the file
+# (round-22's own edits, then round-23's OWN M2 fix four lines above this
+# one) -- a hand-counted line number in a comment is exactly the kind of
+# derived fact this project's own §11.4.6 no-guessing/never-hand-retyped
+# discipline exists to replace with something that cannot silently go
+# stale. This comment no longer cites a line range at all: the block's
+# real boundaries are located the SAME way this file's own mutate()/
+# mrun() pattern already locates every other anchor below -- via
+# `grep -F` against the real file's content at RUN TIME, never a number
+# typed here], each
 # asserting the exact SKIP/PASS/FAIL marker on the FR-002 line, paired with
 # MA-MD as PERMANENT mutations (guard-viability: each mutation must make the
 # golden test wrongly flip to a different marker on its adversarial
