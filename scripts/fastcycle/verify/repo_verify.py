@@ -531,7 +531,13 @@ def list_remotes(repo_path, timeout_s=10):
 
 
 def _remote_url(repo_path, name, timeout_s=10):
-    rc, out, _err = _run(["git", "remote", "get-url", name], repo_path, timeout_s)
+    """SECURITY (reviewer BLOCKING-1 class, defence-in-depth): `name` is a configured remote NAME,
+    but a remote section can be named almost anything by directly editing `.git/config` (confirmed
+    live: `[remote "--evil"]` is accepted and listed by `git remote`, bypassing `git remote add`'s
+    own name validation) -- `--` before `name` stops git from ever parsing a dash-leading name as
+    an option to `get-url` itself, the same end-of-options discipline `_remote_head_tip`/
+    `verify_remote`/`_pointer_fetchable` now apply to the `url` argument."""
+    rc, out, _err = _run(["git", "remote", "get-url", "--", name], repo_path, timeout_s)
     return out.strip() if rc == 0 else None
 
 
@@ -544,7 +550,9 @@ def _push_urls(repo_path, name, timeout_s=10):
     yields exactly one entry, identical to `_remote_url`'s own result, letting the caller skip
     the redundant extra check cheaply). Returns [] if the remote cannot be resolved at all (never
     raises -- an unresolvable remote is already reported via the ordinary fetch-URL check)."""
-    rc, out, _err = _run(["git", "remote", "get-url", "--push", "--all", name], repo_path, timeout_s)
+    # SECURITY (reviewer BLOCKING-1 class, defence-in-depth): `--` before `name`, see `_remote_url`'s
+    # own docstring for why a configured remote NAME is not necessarily option-injection-safe text.
+    rc, out, _err = _run(["git", "remote", "get-url", "--push", "--all", "--", name], repo_path, timeout_s)
     if rc != 0:
         return []
     return sorted(set(l.strip() for l in out.splitlines() if l.strip()))
@@ -819,9 +827,23 @@ def _remote_head_tip(repo_path, url, isolated_dir, branch, timeout_s):
     against -- see `_isolated_contact_dir`'s own module-level comment for the full forensic record.
     `cwd=repo_path` is still passed on every call (preserved for relative-URL resolution, the SAME
     `_pointer_fetchable` finding #9 reason), decoupled from WHICH config applies via the explicit
-    `--git-dir` override."""
+    `--git-dir` override.
+
+    SECURITY (independently discovered by this round's own dispatched Opus/xhigh reviewer,
+    BLOCKING-1, confirmed live by both the reviewer and independently re-confirmed here before
+    fixing): the `--git-dir` isolation above closes the repo-local CONFIG vector but does nothing
+    about ARGV OPTION INJECTION -- `url` is attacker-controlled free text (read verbatim from the
+    verified repository's own `remote.<name>.url`), and git parses ANY argument beginning with `-`
+    in a positional "repository" slot as a COMMAND-LINE OPTION, not a URL. A `url` value of
+    `--upload-pack=<attacker command>` is NOT neutralised by `--git-dir` at all (this is argv
+    parsing, happening before git ever consults ANY config file) and, confirmed live, re-fires
+    local command execution exactly like the ORIGINAL core.sshCommand vulnerability this function
+    was written to close -- a different mechanism, the SAME severity. FIXED by a literal `--`
+    (git's own universal end-of-options marker) immediately before `url` on every call below,
+    confirmed live to leave every legitimate (non-dash-leading) URL fully functional while making
+    git refuse to interpret ANY `url` value as an option, structurally, regardless of its content."""
     if branch:
-        rc, out, _err = _run(["git", "--git-dir", isolated_dir, "ls-remote", url,
+        rc, out, _err = _run(["git", "--git-dir", isolated_dir, "ls-remote", "--", url,
                                "refs/heads/%s" % branch], repo_path, timeout_s)
         if rc == 0:
             want = "refs/heads/%s" % branch
@@ -830,7 +852,7 @@ def _remote_head_tip(repo_path, url, isolated_dir, branch, timeout_s):
                 if len(parts) == 2 and parts[1] == want and _SHA_RE.match(parts[0]):
                     return parts[0], None
 
-    rc, out, err = _run(["git", "--git-dir", isolated_dir, "ls-remote", "--heads", url],
+    rc, out, err = _run(["git", "--git-dir", isolated_dir, "ls-remote", "--heads", "--", url],
                          repo_path, timeout_s)
     if rc != 0:
         return None, (err.strip() or ("git ls-remote exit %s" % rc))
@@ -842,8 +864,8 @@ def _remote_head_tip(repo_path, url, isolated_dir, branch, timeout_s):
     if len(heads) == 1:
         return heads[0][1], None
 
-    rc2, out2, _err2 = _run(["git", "--git-dir", isolated_dir, "ls-remote", "--symref", url, "HEAD"],
-                             repo_path, timeout_s)
+    rc2, out2, _err2 = _run(["git", "--git-dir", isolated_dir, "ls-remote", "--symref", "--", url,
+                              "HEAD"], repo_path, timeout_s)
     if rc2 == 0:
         for line in out2.splitlines():
             line = line.strip()
@@ -1103,9 +1125,17 @@ def verify_remote(repo_path, url, local_tip, branch, timeout_s, push_log_entry,
         # merge-base --is-ancestor` below only ever need commit objects, never trees/blobs, so this
         # costs nothing in correctness (the SAME reasoning `_pointer_fetchable`'s own docstring
         # already states for its own, narrower, `--depth=1` use of this flag).
+        #
+        # SECURITY (reviewer BLOCKING-1, see `_remote_head_tip`'s own docstring for the full
+        # forensic record): `--` immediately before `url` -- `--git-dir` isolation alone does NOT
+        # stop git from parsing a dash-leading `url` value (e.g. `--upload-pack=<cmd>`) as a
+        # command-line OPTION rather than a URL, which fires local command execution regardless of
+        # which repo-local config does or does not apply. `--` is git's own universal end-of-
+        # options marker and makes this structurally impossible, confirmed live against both a
+        # legitimate URL (still fetches correctly) and an `--upload-pack=` payload (now refused).
         fetched, _fout, _ferr = _run(
             ["git", "--git-dir", isolated_dir, "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
-             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", url, tip],
+             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", "--", url, tip],
             repo_path, timeout_s, extra_env=extra_env)
         unpushed = "UNKNOWN"
         if fetched == 0:
@@ -1229,9 +1259,16 @@ def _pointer_fetchable(repo_path, sha, remote_names, reachable_map, timeout_s):
             if rc0 != 0:
                 any_inconclusive = True
                 continue
+            # SECURITY (reviewer BLOCKING-1 class, pre-existing in THIS function too -- found while
+            # auditing every other `url`-positional git call in this module for the same option-
+            # injection vector `_remote_head_tip`/`verify_remote` were just fixed for; `--git-dir`
+            # isolation already made this probe config-naive, but never stopped git from parsing a
+            # dash-leading `url` -- e.g. `--upload-pack=<cmd>` -- as a command-line option instead
+            # of a URL): `--` immediately before `url` closes this the same way.
             rc, _out, err = _run(
                 ["git", "-c", "gc.auto=0", "--git-dir=" + probe_dir, "fetch", "--no-tags", "-q",
-                 "--recurse-submodules=no", "--no-write-fetch-head", "--depth=1", "--filter=tree:0", url, "%s:refs/probe" % sha],
+                 "--recurse-submodules=no", "--no-write-fetch-head", "--depth=1", "--filter=tree:0",
+                 "--", url, "%s:refs/probe" % sha],
                 repo_path, timeout_s)
             if rc == 0:
                 return "FETCHABLE"

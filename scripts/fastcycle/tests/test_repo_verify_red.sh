@@ -1140,12 +1140,12 @@ fi
 # artifact is unvalidated instrumentation).
 cat >"$MUTMARK/ca026_old.txt" <<'EOF'
     if branch:
-        rc, out, _err = _run(["git", "--git-dir", isolated_dir, "ls-remote", url,
+        rc, out, _err = _run(["git", "--git-dir", isolated_dir, "ls-remote", "--", url,
                                "refs/heads/%s" % branch], repo_path, timeout_s)
 EOF
 cat >"$MUTMARK/ca026_new.txt" <<'EOF'
     if branch:
-        rc, out, _err = _run(["git", "ls-remote", url,  # PAIRED MUTATION (CA-026: drop --git-dir isolation)
+        rc, out, _err = _run(["git", "ls-remote", "--", url,  # PAIRED MUTATION (CA-026: drop --git-dir isolation)
                                "refs/heads/%s" % branch], repo_path, timeout_s)
 EOF
 if mk_mutant "mutant_ca026" "$MUTMARK/ca026_old.txt" "$MUTMARK/ca026_new.txt" 2>"$TMP/mutant_ca026.err"; then
@@ -1160,6 +1160,89 @@ else
   not_ok "paired mutation (CA-026): mutation anchor text not found in repo_verify.py -- source moved, update this test's anchor: $(cat "$TMP/mutant_ca026.err")"
 fi
 rm -f "$CA26_MARKER"
+
+# ---------------------------------------------- rv_ca026_optioninjection_rce (CA-026 remediation, round 2)
+# BLOCKING-1 (independently discovered by this round's own dispatched Opus/xhigh reviewer, agent
+# a0f792f6aac6e902e, confirmed live by that reviewer AND independently re-confirmed here before
+# fixing): the `--git-dir` isolation fix above closes the repo-local CONFIG vector (core.sshCommand
+# etc) but does NOT stop git from parsing a `url` value that BEGINS WITH A DASH as a COMMAND-LINE
+# OPTION rather than a positional repository/URL argument -- this is argv parsing, which happens
+# BEFORE git ever consults any config file, so `--git-dir` isolation is irrelevant to it. A
+# `remote.<name>.url` of `--upload-pack=<attacker command>` makes `git ls-remote`/`git fetch`
+# locally execute that attacker command when the PARSED OPTION ends up resolving via the LOCAL
+# upload-pack invocation path -- a DIFFERENT mechanism than core.sshCommand, the SAME severity, and
+# newly reachable ONLY because this round's own CA-026 fix switched the fetch-URL check from a
+# trusted configured remote NAME to a literal (and therefore attacker-controlled) URL string.
+OI26="$TMP/rv_ca026_optioninjection_rce"
+mkdir -p "$OI26"
+mk_repo "$OI26/victim"
+echo hello >"$OI26/victim/f.txt"
+git -C "$OI26/victim" add -A; git -C "$OI26/victim" commit -qm init
+OI26_MARKER="$OI26/pwned.txt"
+rm -f "$OI26_MARKER"
+cat >"$OI26/evil_uploadpack.sh" <<EOF
+#!/bin/sh
+echo PWNED_OPTIONINJECTION >"$OI26_MARKER"
+exit 1
+EOF
+chmod +x "$OI26/evil_uploadpack.sh"
+# `git remote add` validates/rejects its own URL argument as a CLI option when it begins with a
+# dash (confirmed live: "error: unknown option `upload-pack=...'") -- the REAL attack surface is a
+# directly-edited `.git/config` (or a maliciously-crafted repository an operator clones/pulls),
+# which git's `remote`/`ls-remote`/`fetch` commands read back and use with NO such validation.
+# Reproduced the realistic way: add a harmless placeholder remote via the normal CLI, then
+# overwrite its URL directly via `git config` (bypassing `remote add`'s own CLI-argument check,
+# exactly as an attacker-controlled config file would).
+git -C "$OI26/victim" remote add origin "https://example.invalid/placeholder.git"
+git -C "$OI26/victim" config remote.origin.url "--upload-pack=$OI26/evil_uploadpack.sh"
+
+# Control check (11.4.6/11.4.199): confirm the fixture's own remote URL genuinely reads back
+# dash-leading verbatim (git's config layer does not itself reject or mangle it) BEFORE trusting
+# any assertion about repo_verify's own handling of it.
+OI26_READBACK=$(git -C "$OI26/victim" remote get-url -- origin 2>/dev/null)
+if [ "$OI26_READBACK" = "--upload-pack=$OI26/evil_uploadpack.sh" ]; then
+  ok "rv_ca026_optioninjection_rce: control check -- the dash-leading remote URL reads back verbatim via 'git remote get-url', confirming the fixture is genuinely reachable through this tool's own _remote_url() config read"
+else
+  not_ok "rv_ca026_optioninjection_rce: control check FAILED -- remote URL readback was '$OI26_READBACK', expected the literal dash-leading value; fixture setup is broken"
+fi
+
+# (1) THE FIX, real tool: the attacker's upload-pack command MUST NEVER fire.
+timeout 20 python3 "$TOOL" --recursive --root "$OI26/victim" --timeout-per-remote 5 --out "$TMP/oi26_fixed.json" >"$TMP/oi26_fixed.out" 2>"$TMP/oi26_fixed.err"
+OI26_FIXED_RC=$?
+OI26_FIXED_OVERALL=$(report_field "$TMP/oi26_fixed.json" 'd.get("overall")' 2>/dev/null)
+if [ "$OI26_FIXED_RC" -eq 4 ] && [ "$OI26_FIXED_OVERALL" = "UNVERIFIED" ] && [ ! -f "$OI26_MARKER" ]; then
+  ok "rv_ca026_optioninjection_rce (fixed tool, CA-026 round 2): a dash-leading '--upload-pack=' remote URL reports honestly UNVERIFIED/REMOTE_UNREACHABLE (exit 4) WITHOUT ever firing the attacker's command -- closes reviewer finding BLOCKING-1"
+else
+  not_ok "rv_ca026_optioninjection_rce (fixed tool, CA-026 round 2): expected rc=4/UNVERIFIED with the marker ABSENT, got rc=$OI26_FIXED_RC overall=$OI26_FIXED_OVERALL marker_exists=$([ -f "$OI26_MARKER" ] && echo yes || echo no)"
+fi
+
+# (2) GUARD-VIABILITY MUTANT: revert the SAME _remote_head_tip first ls-remote call to drop ONLY
+# the `--` end-of-options marker (keeping `--git-dir` isolation intact) -- the marker MUST
+# reappear, proving this fixture is genuinely a DIFFERENT vulnerability than the sshCommand one
+# above (that mutation drops `--git-dir`; this one drops only `--`) and that the `--` fix is
+# independently load-bearing, not redundant with the isolation fix.
+cat >"$MUTMARK/ca026_oi_old.txt" <<'EOF'
+    if branch:
+        rc, out, _err = _run(["git", "--git-dir", isolated_dir, "ls-remote", "--", url,
+                               "refs/heads/%s" % branch], repo_path, timeout_s)
+EOF
+cat >"$MUTMARK/ca026_oi_new.txt" <<'EOF'
+    if branch:
+        rc, out, _err = _run(["git", "--git-dir", isolated_dir, "ls-remote", url,  # PAIRED MUTATION (CA-026 round 2: drop the -- end-of-options marker only)
+                               "refs/heads/%s" % branch], repo_path, timeout_s)
+EOF
+if mk_mutant "mutant_ca026_oi" "$MUTMARK/ca026_oi_old.txt" "$MUTMARK/ca026_oi_new.txt" 2>"$TMP/mutant_ca026_oi.err"; then
+  rm -f "$OI26_MARKER"
+  timeout 20 python3 "$TMP/mutant_ca026_oi/verify/repo_verify.py" --recursive --root "$OI26/victim" --timeout-per-remote 5 --out "$TMP/oi26_mutant.json" >"$TMP/oi26_mutant.out" 2>>"$TMP/mutant_ca026_oi.err"
+  if [ -f "$OI26_MARKER" ]; then
+    ok "paired mutation CAUGHT (CA-026 round 2, BLOCKING-1): dropping ONLY the '--' end-of-options marker (keeping --git-dir isolation) makes the SAME fixture fire the attacker's upload-pack command again (marker present) -- confirms the fixture and the '--' fix are BOTH genuinely load-bearing, independently of the --git-dir isolation fix"
+  else
+    not_ok "paired mutation (CA-026 round 2): expected dropping only the '--' marker to re-fire the attacker's command on this fixture, but the marker never appeared -- the mutation may not be load-bearing, or the fixture no longer exercises this code path"
+  fi
+else
+  not_ok "paired mutation (CA-026 round 2): mutation anchor text not found in repo_verify.py -- source moved, update this test's anchor: $(cat "$TMP/mutant_ca026_oi.err")"
+fi
+rm -f "$OI26_MARKER"
 
 # ------------------------------------------------------------------------------------ I1 (IMPORTANT)
 # verify_remote() no longer requests ANY destination ref for its live-tip fetch (a bare-SHA fetch,
@@ -1210,7 +1293,7 @@ fi
 cat >"$MUTMARK2/i1_old.txt" <<'EOF'
         fetched, _fout, _ferr = _run(
             ["git", "--git-dir", isolated_dir, "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
-             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", url, tip],
+             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", "--", url, tip],
             repo_path, timeout_s, extra_env=extra_env)
         unpushed = "UNKNOWN"
         if fetched == 0:
@@ -1441,7 +1524,7 @@ fi
 cat >"$MUTMARK3/i2n_old.txt" <<'EOF'
         fetched, _fout, _ferr = _run(
             ["git", "--git-dir", isolated_dir, "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
-             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", url, tip],
+             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", "--", url, tip],
             repo_path, timeout_s, extra_env=extra_env)
         unpushed = "UNKNOWN"
 EOF
@@ -1557,7 +1640,7 @@ fi
 cat >"$MUTMARK3/i3n_old.txt" <<'EOF'
         fetched, _fout, _ferr = _run(
             ["git", "--git-dir", isolated_dir, "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
-             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", url, tip],
+             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", "--", url, tip],
             repo_path, timeout_s, extra_env=extra_env)
         unpushed = "UNKNOWN"
         if fetched == 0:
@@ -1570,7 +1653,7 @@ cat >"$MUTMARK3/i3n_new.txt" <<'EOF'
         i3n_tmp_ref = "refs/fastcycle_verify_mutant_i3n/%s" % re.sub(r"[^A-Za-z0-9_.-]", "_", out_name)
         fetched, _fout, _ferr = _run(
             ["git", "--git-dir", isolated_dir, "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
-             "--no-write-fetch-head", "--recurse-submodules=no", url, "%s:%s" % (tip, i3n_tmp_ref)],
+             "--no-write-fetch-head", "--recurse-submodules=no", "--", url, "%s:%s" % (tip, i3n_tmp_ref)],
             repo_path, timeout_s, extra_env=extra_env)
         unpushed = "UNKNOWN"
         if fetched == 0:
