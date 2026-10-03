@@ -763,18 +763,18 @@ python3 - "$TOOL" "$MUTDIR/verify/repo_verify.py" <<'PY'
 import sys
 src, dst = sys.argv[1], sys.argv[2]
 s = open(src, encoding="utf-8").read()
-old = '''    if tip is None:
-        return {
-            "name": out_name, "url_redacted": url_redacted, "remote_tip": "UNREACHABLE",
-            "local_tip": local_tip, "equal": False, "last_push_result": last_push_str,
-            "_unpushed": "UNKNOWN", "_reachable": False, "_detail": err,
-        }, "REMOTE_UNREACHABLE"'''
-new = '''    if tip is None:
-        return {
-            "name": out_name, "url_redacted": url_redacted, "remote_tip": "UNREACHABLE",
-            "local_tip": local_tip, "equal": True, "last_push_result": last_push_str,
-            "_unpushed": "UNKNOWN", "_reachable": False, "_detail": err,
-        }, None  # PAIRED MUTATION (contract: "map UNREACHABLE to equal=true")'''
+old = '''        if tip is None:
+            return {
+                "name": out_name, "url_redacted": url_redacted, "remote_tip": "UNREACHABLE",
+                "local_tip": local_tip, "equal": False, "last_push_result": last_push_str,
+                "_unpushed": "UNKNOWN", "_reachable": False, "_detail": err,
+            }, "REMOTE_UNREACHABLE"'''
+new = '''        if tip is None:
+            return {
+                "name": out_name, "url_redacted": url_redacted, "remote_tip": "UNREACHABLE",
+                "local_tip": local_tip, "equal": True, "last_push_result": last_push_str,
+                "_unpushed": "UNKNOWN", "_reachable": False, "_detail": err,
+            }, None  # PAIRED MUTATION (contract: "map UNREACHABLE to equal=true")'''
 if old not in s:
     print("MUTATION_ANCHOR_MISSING", file=sys.stderr)
     sys.exit(1)
@@ -830,13 +830,14 @@ else
 fi
 
 # ---- T-G06 (plan's own specified mutation): ignore remote tips entirely -> lagging fixture FAILs
+# CA-026 remediation (this round): the anchor is now the single `_remote_head_tip(...)` call line
+# alone (it moved inside `verify_remote`'s own `with _isolated_contact_dir(...)` block and is no
+# longer textually adjacent to `last_push_str = ...`) -- the one call site, confirmed unique.
 cat >"$MUTMARK/ignoretips_old.txt" <<'EOF'
-    last_push_str = _push_result_str(push_log_entry)
-    tip, err = _remote_head_tip(repo_path, git_target, branch, timeout_s)
+        tip, err = _remote_head_tip(repo_path, url, isolated_dir, branch, timeout_s)
 EOF
 cat >"$MUTMARK/ignoretips_new.txt" <<'EOF'
-    last_push_str = _push_result_str(push_log_entry)
-    tip, err = local_tip, None  # PAIRED MUTATION (T-G06: ignore remote tips entirely)
+        tip, err = local_tip, None  # PAIRED MUTATION (T-G06: ignore remote tips entirely)
 EOF
 if mk_mutant "mutant_ignoretips" "$MUTMARK/ignoretips_old.txt" "$MUTMARK/ignoretips_new.txt" 2>"$TMP/mutant_ignoretips.err"; then
   python3 "$TMP/mutant_ignoretips/verify/repo_verify.py" --recursive --root "$L/repo" --out "$TMP/mutant_ignoretips.json" >"$TMP/mutant_ignoretips.out" 2>>"$TMP/mutant_ignoretips.err"
@@ -1033,12 +1034,25 @@ fi
 
 # -------------------------------------------------- rv_bad_pointer_probe_config_not_inherited (B1, repro b)
 # A submodule's remote origin uses a repo-LOCAL `core.sshCommand` (never an ambient env var) that
-# resolves the ssh:// url fine for the ORDINARY ls-remote/fetch checks (run with cwd=the submodule
-# itself, so its own repo-local config genuinely applies) -- but the pointer-probe's fetch targets a
-# FRESH, config-naive scratch bare repo via `--git-dir=<probe>`, which does NOT inherit that
-# repo-local setting, so the probe falls back to the real system `ssh` binary trying to resolve the
-# (deliberately unresolvable) hostname "fakehost" -- a config-driven failure, never a definitive
-# "not our ref" rejection, and B1 requires this maps to UNVERIFIED too.
+# resolves the ssh:// url fine for a PLAIN, uninstrumented git command run from the submodule's own
+# directory (the control check below, unaffected by anything in repo_verify.py).
+#
+# SECURITY (CA-026 remediation, this round) -- this fixture's OWN premise changed, disclosed
+# honestly rather than silently re-asserted: BEFORE this round, the ORDINARY fetch-URL check
+# (`verify_remote`) ran with `cwd`=the submodule itself and NO `--git-dir` override, so it
+# INHERITED the submodule's repo-local `core.sshCommand` -- succeeding (`equal: True`) -- while
+# only the pointer-probe's own, already-isolated scratch repo failed to resolve the SAME url. That
+# divergence -- the ordinary check silently trusting an untrusted repo-local transport override --
+# IS the exact vulnerability this round's CA-026 fix closes (see `_isolated_contact_dir`'s own
+# module-level comment for the full forensic record): a malicious `core.sshCommand` could make the
+# ordinary check execute arbitrary attacker-controlled code. Post-fix, NEITHER the ordinary check
+# NOR the pointer-probe inherits this repo-local setting any more -- both now run with an explicit
+# `--git-dir` pointed at a fresh, config-naive bare repository, so BOTH fall back to the real
+# system `ssh` binary trying to resolve the (deliberately unresolvable) hostname "fakehost" -- a
+# config-driven failure, never a definitive "not our ref" rejection, and B1 still requires this
+# maps to UNVERIFIED, now via EITHER check hitting it. The pre-fix assertion `equal: True` for this
+# fixture is therefore INTENTIONALLY, SECURELY no longer true: an un-isolated "success" on an
+# untrusted repo-local transport override was the defect, not a feature to keep pinned.
 PPC="$TMP/rv_bad_pointer_probe_config_not_inherited"
 mkdir -p "$PPC"
 mk_repo "$PPC/sub_src"
@@ -1083,11 +1097,69 @@ PPCSUB_STATUS=$(report_field "$TMP/ppc.json" 'next(r["status"] for r in d["repos
 PPCSUB_REASONS=$(report_field "$TMP/ppc.json" 'next(r["reasons"] for r in d["repos"] if r["path"]=="sub")' 2>/dev/null)
 PPCSUB_EQUAL=$(report_field "$TMP/ppc.json" 'next(rm["equal"] for r in d["repos"] if r["path"]=="sub" for rm in r["remotes"] if rm["name"]=="origin")' 2>/dev/null)
 if [ "$PPCRC" -eq 4 ] && [ "$PPCOVERALL" = "UNVERIFIED" ] && [ "$PPCSUB_STATUS" = "UNVERIFIED" ] \
-   && [ "$PPCSUB_REASONS" = "['REMOTE_UNREACHABLE']" ] && [ "$PPCSUB_EQUAL" = "True" ]; then
-  ok "rv_bad_pointer_probe_config_not_inherited (B1 repro b): the ordinary fetch-URL check succeeds (equal=True, inherited repo-local core.sshCommand) while the pointer-probe's own config-naive scratch repo cannot resolve the SAME url -- maps to UNVERIFIED/REMOTE_UNREACHABLE, exit 4 -- NEVER POINTER_UNFETCHABLE/NOT_CLEAN"
+   && [ "$PPCSUB_REASONS" = "['REMOTE_UNREACHABLE']" ] && [ "$PPCSUB_EQUAL" = "False" ]; then
+  ok "rv_bad_pointer_probe_config_not_inherited (B1 repro b, CA-026-updated): post-CA026-fix, the ordinary fetch-URL check no longer inherits the submodule's repo-local core.sshCommand either (equal=False) -- BOTH it and the pointer-probe's own config-naive scratch repo now fail to resolve the SAME url the SAME config-driven way -- maps to UNVERIFIED/REMOTE_UNREACHABLE, exit 4 -- NEVER POINTER_UNFETCHABLE/NOT_CLEAN, and NEVER a silently-inherited-untrusted-config 'equal: True' either"
 else
   not_ok "rv_bad_pointer_probe_config_not_inherited: rc=$PPCRC overall=$PPCOVERALL sub.status=$PPCSUB_STATUS sub.reasons=$PPCSUB_REASONS sub.origin.equal=$PPCSUB_EQUAL"
 fi
+
+# ---------------------------------------------- rv_ca026_sshcommand_rce (CA-026 remediation, this round)
+# Independent re-confirmation (§11.4.199 exact reproduction) of a finding another T177 Round 28
+# agent independently discovered and disclosed, out-of-scope for that round's own authorization: a
+# PLAIN, fully-materialised repository -- NO partial clone, NO missing object, NO thin pack
+# involved at all -- with nothing but an untrusted `core.sshCommand` remote configured, fired that
+# attacker's command via `repo_verify.py --recursive`'s own CA-026 "double-verify" remote-
+# reachability check (`verify_remote`/`_remote_head_tip`). Confirmed live, independently, BEFORE
+# writing the fix below (11.4.6/11.4.115: never trust a report without reproducing it first).
+CA26="$TMP/rv_ca026_sshcommand_rce"
+mkdir -p "$CA26"
+mk_repo "$CA26/victim"
+echo hello >"$CA26/victim/f.txt"
+git -C "$CA26/victim" add -A; git -C "$CA26/victim" commit -qm init
+CA26_MARKER="$CA26/pwned.txt"
+rm -f "$CA26_MARKER"
+git -C "$CA26/victim" config core.sshCommand "sh -c 'echo PWNED >\"$CA26_MARKER\"; exit 1' --"
+git -C "$CA26/victim" remote add origin "ssh://ca026-attacker-does-not-need-to-exist.invalid/repo.git"
+
+# (1) THE FIX, real tool: core.sshCommand MUST NEVER fire, and the remote is honestly reported
+# UNVERIFIED/REMOTE_UNREACHABLE (fail-SAFE, never a silently-trusted CLEAN).
+timeout 20 python3 "$TOOL" --recursive --root "$CA26/victim" --timeout-per-remote 5 --out "$TMP/ca026_fixed.json" >"$TMP/ca026_fixed.out" 2>"$TMP/ca026_fixed.err"
+CA26_FIXED_RC=$?
+CA26_FIXED_OVERALL=$(report_field "$TMP/ca026_fixed.json" 'd.get("overall")' 2>/dev/null)
+if [ "$CA26_FIXED_RC" -eq 4 ] && [ "$CA26_FIXED_OVERALL" = "UNVERIFIED" ] && [ ! -f "$CA26_MARKER" ]; then
+  ok "rv_ca026_sshcommand_rce (fixed tool, CA-026): a PLAIN, fully-materialised repo with nothing but an untrusted core.sshCommand remote reports honestly UNVERIFIED/REMOTE_UNREACHABLE (exit 4) WITHOUT ever firing the attacker's command -- independent re-confirmation of the disclosed finding, now CLOSED"
+else
+  not_ok "rv_ca026_sshcommand_rce (fixed tool, CA-026): expected rc=4/UNVERIFIED with the marker ABSENT, got rc=$CA26_FIXED_RC overall=$CA26_FIXED_OVERALL marker_exists=$([ -f "$CA26_MARKER" ] && echo yes || echo no)"
+fi
+
+# (2) GUARD-VIABILITY MUTANT: revert _remote_head_tip's FIRST ls-remote call (the earliest one this
+# fixture's non-detached `main` branch reaches) back to its pre-fix shape -- no `--git-dir`
+# isolation, so git auto-discovers repo_path's own untrusted local config again -- the marker MUST
+# reappear, proving this fixture genuinely exercises the vulnerable code path and the isolation fix
+# is genuinely load-bearing (11.4.115(F): a guard never observed FAILing on the genuinely-broken
+# artifact is unvalidated instrumentation).
+cat >"$MUTMARK/ca026_old.txt" <<'EOF'
+    if branch:
+        rc, out, _err = _run(["git", "--git-dir", isolated_dir, "ls-remote", url,
+                               "refs/heads/%s" % branch], repo_path, timeout_s)
+EOF
+cat >"$MUTMARK/ca026_new.txt" <<'EOF'
+    if branch:
+        rc, out, _err = _run(["git", "ls-remote", url,  # PAIRED MUTATION (CA-026: drop --git-dir isolation)
+                               "refs/heads/%s" % branch], repo_path, timeout_s)
+EOF
+if mk_mutant "mutant_ca026" "$MUTMARK/ca026_old.txt" "$MUTMARK/ca026_new.txt" 2>"$TMP/mutant_ca026.err"; then
+  rm -f "$CA26_MARKER"
+  timeout 20 python3 "$TMP/mutant_ca026/verify/repo_verify.py" --recursive --root "$CA26/victim" --timeout-per-remote 5 --out "$TMP/ca026_mutant.json" >"$TMP/ca026_mutant.out" 2>>"$TMP/mutant_ca026.err"
+  if [ -f "$CA26_MARKER" ]; then
+    ok "paired mutation CAUGHT (CA-026): reverting _remote_head_tip's first ls-remote call to drop --git-dir isolation makes the SAME fixture fire the attacker's core.sshCommand again (marker present) -- confirms the fixture and the isolation fix are both genuinely load-bearing"
+  else
+    not_ok "paired mutation (CA-026): expected dropping --git-dir isolation to re-fire the attacker's command on this fixture, but the marker never appeared -- the mutation may not be load-bearing, or the fixture no longer exercises this code path"
+  fi
+else
+  not_ok "paired mutation (CA-026): mutation anchor text not found in repo_verify.py -- source moved, update this test's anchor: $(cat "$TMP/mutant_ca026.err")"
+fi
+rm -f "$CA26_MARKER"
 
 # ------------------------------------------------------------------------------------ I1 (IMPORTANT)
 # verify_remote() no longer requests ANY destination ref for its live-tip fetch (a bare-SHA fetch,
@@ -1125,30 +1197,39 @@ fi
 # (1) MUTANT: restore the pre-round-2 colon-refspec form, with its ref-delete removed entirely (the
 # SAME shape finding #6's own original defect had -- a ref written into the real repo's refs,
 # pointing at an object that only the redirected scratch object directory holds).
+#
+# CA-026 remediation (this round): since CA-026, this fetch's "current" git-dir is the throwaway
+# `_isolated_contact_dir` (`--git-dir isolated_dir`), never `repo_path` -- removed unconditionally
+# in that dir's own `finally:` regardless of what refspec shape targets it, which means a
+# colon-refspec mutation against ONLY that call, with the isolation otherwise intact, can no longer
+# leave anything observable in `$I1/repo` at all (the dangling ref would live in `isolated_dir`,
+# already gone by the time this test inspects anything). To keep this a genuinely LOAD-BEARING
+# regression check rather than a now-vacuous one, the mutation below reverts BOTH independent
+# safeguards together (drops `--git-dir isolated_dir` back to the pre-CA026 shape AND restores the
+# colon-refspec), faithfully reproducing the full historical vulnerable shape this test documents.
 cat >"$MUTMARK2/i1_old.txt" <<'EOF'
-    equal = (tip == local_tip)
-    fetched, _fout, _ferr = _run(
-        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         "--recurse-submodules=no", git_target, tip], repo_path, timeout_s, extra_env=extra_env)
-    unpushed = "UNKNOWN"
-    if fetched == 0:
-        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,
-                              extra_env=extra_env)
-        if rc == 0 and out.strip().isdigit():
-            unpushed = int(out.strip())
+        fetched, _fout, _ferr = _run(
+            ["git", "--git-dir", isolated_dir, "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
+             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", url, tip],
+            repo_path, timeout_s, extra_env=extra_env)
+        unpushed = "UNKNOWN"
+        if fetched == 0:
+            rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,
+                                  extra_env=extra_env)
+            if rc == 0 and out.strip().isdigit():
+                unpushed = int(out.strip())
 EOF
 cat >"$MUTMARK2/i1_new.txt" <<'EOF'
-    equal = (tip == local_tip)
-    tmp_ref = "refs/fastcycle_verify_mutant_i1/%s" % re.sub(r"[^A-Za-z0-9_.-]", "_", out_name)
-    fetched, _fout, _ferr = _run(
-        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         "--recurse-submodules=no", git_target, "%s:%s" % (tip, tmp_ref)], repo_path, timeout_s, extra_env=extra_env)
-    unpushed = "UNKNOWN"
-    if fetched == 0:
-        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tmp_ref], repo_path, timeout_s,
-                              extra_env=extra_env)
-        if rc == 0 and out.strip().isdigit():
-            unpushed = int(out.strip())
+        tmp_ref = "refs/fastcycle_verify_mutant_i1/%s" % re.sub(r"[^A-Za-z0-9_.-]", "_", out_name)
+        fetched, _fout, _ferr = _run(
+            ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
+             "--recurse-submodules=no", url, "%s:%s" % (tip, tmp_ref)], repo_path, timeout_s, extra_env=extra_env)
+        unpushed = "UNKNOWN"
+        if fetched == 0:
+            rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tmp_ref], repo_path, timeout_s,
+                                  extra_env=extra_env)
+            if rc == 0 and out.strip().isdigit():
+                unpushed = int(out.strip())
 EOF
 if mk_mutant "mutant_i1" "$MUTMARK2/i1_old.txt" "$MUTMARK2/i1_new.txt" 2>"$TMP/mutant_i1.err"; then
   python3 "$TMP/mutant_i1/verify/repo_verify.py" --recursive --root "$I1/repo" --out "$TMP/mutant_i1.json" >"$TMP/mutant_i1.out" 2>>"$TMP/mutant_i1.err"
@@ -1344,28 +1425,41 @@ fi
 
 # (2) MUTANT: drop the --recurse-submodules=no flag -- the submodule's real git-dir MUST then get
 # written to (proving the fixture and the fix are both genuinely load-bearing, 11.4.115(F)).
+# CA-026 remediation (this round): anchor updated for the `--git-dir isolated_dir` + `--filter=
+# tree:0` + literal `url` call shape. IMPORTANT, empirically CONFIRMED (11.4.6/11.4.199, never
+# guessed): dropping ONLY `--recurse-submodules=no` while LEAVING `--git-dir isolated_dir` intact no
+# longer mutates the submodule's real git-dir at all -- measured live, both arms stayed byte-
+# identical. This is a genuine, confirmed (not assumed) STRUCTURAL side-effect of the CA-026 fix:
+# git's on-demand submodule recursion needs the FETCHING repository's OWN `.gitmodules`/submodule
+# config to know a given path is a submodule worth recursing into at all, and the isolated,
+# throwaway `_isolated_contact_dir` has none -- so on-demand recursion cannot trigger via this
+# fetch regardless of the flag, an ADDITIONAL, incidental hardening the CA-026 fix was not
+# specifically designed to provide but genuinely does. To keep this a genuinely LOAD-BEARING
+# regression check rather than a now-vacuous one, the mutation below reverts BOTH independent
+# safeguards together (drops `--git-dir isolated_dir` back to the pre-CA026 shape AND drops
+# `--recurse-submodules=no`), faithfully reproducing the full historical vulnerable combination.
 cat >"$MUTMARK3/i2n_old.txt" <<'EOF'
-    equal = (tip == local_tip)
-    fetched, _fout, _ferr = _run(
-        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         "--recurse-submodules=no", git_target, tip], repo_path, timeout_s, extra_env=extra_env)
-    unpushed = "UNKNOWN"
+        fetched, _fout, _ferr = _run(
+            ["git", "--git-dir", isolated_dir, "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
+             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", url, tip],
+            repo_path, timeout_s, extra_env=extra_env)
+        unpushed = "UNKNOWN"
 EOF
 cat >"$MUTMARK3/i2n_new.txt" <<'EOF'
-    equal = (tip == local_tip)
-    fetched, _fout, _ferr = _run(
-        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         git_target, tip], repo_path, timeout_s, extra_env=extra_env)  # PAIRED MUTATION (I-N2: drop --recurse-submodules=no)
-    unpushed = "UNKNOWN"
+        fetched, _fout, _ferr = _run(
+            ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
+             "--no-write-fetch-head", url, tip],
+            repo_path, timeout_s, extra_env=extra_env)  # PAIRED MUTATION (I-N2: drop --git-dir isolation AND --recurse-submodules=no together)
+        unpushed = "UNKNOWN"
 EOF
 if mk_mutant "mutant_i2n" "$MUTMARK3/i2n_old.txt" "$MUTMARK3/i2n_new.txt" 2>"$TMP/mutant_i2n.err"; then
   python3 "$TMP/mutant_i2n/verify/repo_verify.py" --recursive --root "$I2P/parent" --out "$TMP/i2n_mutant.json" >"$TMP/i2n_mutant.out" 2>>"$TMP/mutant_i2n.err"
   I2N_MUT_TREEHASH=$(tree_hash "$I2P_SUB_GITDIR")
   I2N_MUT_REFS=$(git -C "$I2P/parent/sub" for-each-ref)
   if [ "$I2N_MUT_TREEHASH" != "$I2P_SUB_BEFORE_TREEHASH" ] || [ "$I2N_MUT_REFS" != "$I2P_SUB_BEFORE_REFS" ]; then
-    ok "paired mutation CAUGHT (I-N2): dropping --recurse-submodules=no lets git's default on-demand recursion write into the submodule's REAL git-dir (refs and/or whole-tree-hash changed) on the SAME rv_i2n_submodule_fetch_redirect fixture -- confirms the fixture and the fix are both genuinely load-bearing"
+    ok "paired mutation CAUGHT (I-N2, CA-026-updated): dropping BOTH the --git-dir isolation AND --recurse-submodules=no together lets git's default on-demand recursion write into the submodule's REAL git-dir (refs and/or whole-tree-hash changed) on the SAME rv_i2n_submodule_fetch_redirect fixture -- confirms the fixture and the combined fix are both genuinely load-bearing"
   else
-    not_ok "paired mutation (I-N2): expected dropping --recurse-submodules=no to mutate the submodule's real git-dir on this fixture, but it stayed byte-identical -- either the mutation is not load-bearing in this git version, or the fixture no longer exercises the on-demand-recursion precondition"
+    not_ok "paired mutation (I-N2): expected dropping --git-dir isolation + --recurse-submodules=no together to mutate the submodule's real git-dir on this fixture, but it stayed byte-identical -- either the mutation is not load-bearing in this git version, or the fixture no longer exercises the on-demand-recursion precondition"
   fi
 else
   not_ok "paired mutation (I-N2): mutation anchor text not found in repo_verify.py -- source moved, update this test's anchor: $(cat "$TMP/mutant_i2n.err")"
@@ -1453,31 +1547,38 @@ fi
 # (2) MUTANT: restore the OLD colon-refspec fetch-then-delete pattern, built fresh against the
 # CURRENT (I-N2-fixed) source -- the reference-transaction hook MUST still catch it even though
 # this mutant's own text was never checked against any OTHER test's source-text anchor.
+#
+# CA-026 remediation (this round): anchor updated for the `--git-dir isolated_dir` + `--filter=
+# tree:0` + literal `url` call shape; `--git-dir isolated_dir` is DELIBERATELY KEPT (not reverted,
+# unlike the I1/I-N2 mutations above) because this test's own observer, `GIT_TRACE_REFS`, is a
+# PROCESS-WIDE environment variable that traces every ref transaction ANYWHERE this process's git
+# subprocesses touch -- including inside `isolated_dir` -- so the colon-refspec reversion alone
+# remains genuinely load-bearing here without also needing to revert the isolation itself.
 cat >"$MUTMARK3/i3n_old.txt" <<'EOF'
-    equal = (tip == local_tip)
-    fetched, _fout, _ferr = _run(
-        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         "--recurse-submodules=no", git_target, tip], repo_path, timeout_s, extra_env=extra_env)
-    unpushed = "UNKNOWN"
-    if fetched == 0:
-        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,
-                              extra_env=extra_env)
-        if rc == 0 and out.strip().isdigit():
-            unpushed = int(out.strip())
+        fetched, _fout, _ferr = _run(
+            ["git", "--git-dir", isolated_dir, "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
+             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", url, tip],
+            repo_path, timeout_s, extra_env=extra_env)
+        unpushed = "UNKNOWN"
+        if fetched == 0:
+            rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,
+                                  extra_env=extra_env)
+            if rc == 0 and out.strip().isdigit():
+                unpushed = int(out.strip())
 EOF
 cat >"$MUTMARK3/i3n_new.txt" <<'EOF'
-    equal = (tip == local_tip)
-    i3n_tmp_ref = "refs/fastcycle_verify_mutant_i3n/%s" % re.sub(r"[^A-Za-z0-9_.-]", "_", out_name)
-    fetched, _fout, _ferr = _run(
-        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         "--recurse-submodules=no", git_target, "%s:%s" % (tip, i3n_tmp_ref)], repo_path, timeout_s, extra_env=extra_env)
-    unpushed = "UNKNOWN"
-    if fetched == 0:
-        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % i3n_tmp_ref], repo_path, timeout_s,
-                              extra_env=extra_env)
-        if rc == 0 and out.strip().isdigit():
-            unpushed = int(out.strip())
-    _run(["git", "update-ref", "-d", i3n_tmp_ref], repo_path, timeout_s)
+        i3n_tmp_ref = "refs/fastcycle_verify_mutant_i3n/%s" % re.sub(r"[^A-Za-z0-9_.-]", "_", out_name)
+        fetched, _fout, _ferr = _run(
+            ["git", "--git-dir", isolated_dir, "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
+             "--no-write-fetch-head", "--recurse-submodules=no", url, "%s:%s" % (tip, i3n_tmp_ref)],
+            repo_path, timeout_s, extra_env=extra_env)
+        unpushed = "UNKNOWN"
+        if fetched == 0:
+            rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % i3n_tmp_ref], repo_path, timeout_s,
+                                  extra_env=extra_env)
+            if rc == 0 and out.strip().isdigit():
+                unpushed = int(out.strip())
+        _run(["git", "--git-dir", isolated_dir, "update-ref", "-d", i3n_tmp_ref], repo_path, timeout_s)
 EOF
 if mk_mutant "mutant_i3n" "$MUTMARK3/i3n_old.txt" "$MUTMARK3/i3n_new.txt" 2>"$TMP/mutant_i3n.err"; then
   export REFTX_LOG="$I3/reftx_mutant.log"

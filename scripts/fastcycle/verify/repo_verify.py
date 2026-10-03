@@ -132,6 +132,7 @@ Stdlib only (matches lib/fc_common.py's own convention); imports canon/body_hash
 from the sibling lib/fc_common.py (C-002), same wiring pattern as plan_struct_check.py.
 """
 import argparse
+import contextlib
 import difflib
 import json
 import os
@@ -279,6 +280,26 @@ _GIT_SAFE_ARGS = (
     "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
     "-c", "core.useReplaceRefs=false", "-c", "core.commitGraph=false",
     "-c", "advice.graftFileDeprecated=false",
+    # SECURITY (T177 Round 28 disclosure -> CA-026 remediation, this round): defence-in-depth
+    # addition, mirroring migrate.sh's OWN identically-named/identically-valued override
+    # (see its "T177 Round 24 (transport-executable hardening)" header comment) -- `protocol.
+    # allow=never` is a blanket DENY-BY-DEFAULT fallback for EVERY git transport, including any
+    # remote-helper this tool has no reason to ever use (`ext::`, `hg::`, `fd::`, etc. -- closes
+    # the `url.*.insteadOf -> ext::` rewrite vector this module's own docstring already names),
+    # with http/https/git/ssh/file explicitly re-allowed (the transports a real consumer/
+    # constitution remote legitimately uses; this tool, like migrate.sh, has no reason to refuse
+    # them). Honest boundary (11.4.6), stated explicitly because it is easy to overclaim here (see
+    # migrate.sh's own R24/R25 correction of an identical overclaim): `protocol.allow=never` does
+    # NOT, and cannot, neutralise `core.sshCommand`/`credential.helper`/`remote.<name>.uploadpack`
+    # -- those are LOCAL-CODE-EXECUTION config for an ALREADY-ALLOWED transport (ssh/https remain
+    # allowed above), not a transport selector `protocol.allow` governs at all. THAT class is
+    # closed instead by `_isolated_contact_dir()` below (see `verify_remote`'s own docstring for
+    # the full forensic record) -- this allow-list is an ADDITIONAL, narrower layer, never a
+    # substitute for it.
+    "-c", "protocol.ext.allow=never", "-c", "protocol.allow=never",
+    "-c", "protocol.http.allow=always", "-c", "protocol.https.allow=always",
+    "-c", "protocol.git.allow=always", "-c", "protocol.ssh.allow=always",
+    "-c", "protocol.file.allow=always",
 )
 
 
@@ -544,6 +565,91 @@ def _git_objects_dir(repo_path, timeout_s=10):
     return d if os.path.isabs(d) else os.path.join(repo_path, d)
 
 
+# SECURITY (independently discovered + confirmed live during T177 Round 28, disclosed in that
+# round's own commit message/test suite as a separate, OUT-OF-SCOPE finding per that round's own
+# authorization scope; remediated here as its own, standalone, non-T177-round-numbered fix): this
+# module's `verify_remote`/`_remote_head_tip` previously ran EVERY `ls-remote`/`fetch` against a
+# CONFIGURED REMOTE NAME (or, for the push-URL check, a literal URL) with `cwd=repo_path` and NO
+# `--git-dir` override -- meaning git auto-discovers `repo_path`'s OWN `.git` directory for every
+# such call and reads its, possibly UNTRUSTED, repo-local config (`core.sshCommand`,
+# `credential.helper`, `remote.<name>.uploadpack`, `url.*.insteadOf`). `core.sshCommand` /
+# `credential.helper` / `remote.<name>.uploadpack` are LOCAL-CODE-EXECUTION mechanisms, not merely
+# a "where does this push go" concern -- the module docstring's existing "left alone ... because
+# this tool never writes through them (read-only fetch, never push)" reasoning addressed a
+# different risk (data exfiltration via an attacker-controlled push destination) and does not
+# apply here: a malicious LOCAL config value fires an ARBITRARY COMMAND the moment git's ssh/http
+# transport is invoked for THAT repository, regardless of whether the git operation triggering it
+# is a read or a write. Independently reproduced here with the SAME minimal fixture the discovering
+# round described: a PLAIN, fully-materialised repository (no partial clone, no missing object, no
+# thin pack involved at all) with nothing but an untrusted `core.sshCommand` remote configured --
+# `repo_verify.py --recursive` against it fired the attacker's command, confirmed live before this
+# fix and confirmed it no longer does so after (see this round's own test suite / commit message
+# for the exact before/after repro).
+#
+# The `_GIT_SAFE_ARGS` `protocol.allow=never` addition above does NOT close this: it restricts
+# WHICH TRANSPORT may be used, and this tool, like migrate.sh, legitimately needs ssh/https/git/
+# file all to remain allowed -- `protocol.allow` has no mechanism to distinguish a TRUSTED ssh
+# remote from one whose LOCAL config happens to run an attacker's command when ssh transport is
+# used, because that distinction is not a protocol-selection question at all.
+#
+# FIXED by the SAME isolation pattern `_pointer_fetchable`'s own probe already established and
+# disclosed in its own docstring (the `--git-dir=<fresh, empty, throwaway bare repo>` pattern): a
+# bare repository whose OWN `--git-dir` carries NONE of ANY OTHER repository's repo-local config
+# -- only global/system config applies (the SAME operator-owned trust boundary this file already
+# draws for `discover_untrusted_filter_drivers` and `_pointer_fetchable`'s own probe) -- so a
+# malicious LOCAL `core.sshCommand`/`credential.helper`/`remote.<name>.uploadpack`/`url.*.
+# insteadOf` set in the repository BEING VERIFIED can never reach a git invocation whose
+# `--git-dir` points elsewhere, structurally, not by convention or caller discipline.
+#
+# This isolated repository is deliberately NEVER seeded with an object-store alternates link or a
+# ref pointing at `repo_path`'s own `local_tip` -- an EARLIER draft of this fix did exactly that,
+# purely as a fetch-negotiation-efficiency aid (so the subsequent remote-contact `fetch` could
+# negotiate incrementally instead of re-transferring a remote's whole history every verify run),
+# but `git update-ref` IS a ref transaction, and this tool's own I-N3 regression guard
+# (`rv_i3n_reftx_proof`, T158 remediation round 3) asserts ZERO ref transactions of ANY KIND occur
+# anywhere this process's git subprocesses touch for the ENTIRE duration of a run -- confirmed
+# live: `GIT_TRACE_REFS`, a process-wide environment variable this tool neither sets nor can
+# disable with `-c`, traced that seed `update-ref` even though it targeted this THROWAWAY,
+# never-persisted directory, not `repo_path`. Rather than carve an exception into I-N3's own
+# "anywhere, not just repo_path" guarantee, the seeding was DROPPED: `real_objects_dir`/`local_tip`
+# are accepted but unused, kept as named parameters so a future negotiation-efficiency mechanism
+# that does NOT write a ref (e.g. a server-side `--negotiation-tip`-style flag, if one existed for
+# this use) has an obvious place to attach without touching every call site again. Honest boundary
+# (11.4.6): this fetch therefore CANNOT negotiate incrementally against `repo_path`'s own history
+# any more and may transfer more than the minimal delta on a repository with substantial remote
+# history -- a disclosed, bounded, real performance cost of the CA-026 security fix, mitigated
+# (not eliminated) by `--filter=tree:0` below (commits only, no trees/blobs).
+#
+# Honest boundary (11.4.6), the SAME one `_pointer_fetchable`'s own probe already discloses: a
+# remote that genuinely NEEDS a repo-local `url.*.insteadOf`/`core.sshCommand` override to be
+# REACHED AT ALL (a legitimate use) now reports REMOTE_UNREACHABLE/UNVERIFIED instead of silently
+# trusting that local config -- a fail-SAFE direction (11.4.201's conservative-safe-default-on-an-
+# unresolvable-signal), never a fail-OPEN one; this module never falls back to the un-isolated,
+# vulnerable call shape to "still succeed" for such a remote.
+@contextlib.contextmanager
+def _isolated_contact_dir(real_objects_dir=None, local_tip=None, timeout_s=10):
+    """Yield the path of a fresh, empty, throwaway BARE repository for the duration of the `with`
+    block, removed afterwards; `None` if it could not be set up at all (git-init failure -- an
+    extremely narrow case in practice, the same class `_git_objects_dir`'s own docstring notes).
+    `real_objects_dir`/`local_tip` are accepted but intentionally UNUSED -- see the module-level
+    comment immediately above for why (a negotiation-efficiency seed-ref was tried and reverted: it
+    is itself a ref transaction, which this tool's own I-N3 regression guard proves must never
+    happen anywhere, not only in `repo_path`)."""
+    del real_objects_dir, local_tip
+    d = tempfile.mkdtemp(prefix="fc_repo_verify_isolated_contact_")
+    try:
+        # `cwd=None` (never `repo_path` or any other repository under `--root`): matches this
+        # file's OWN established convention for a fresh, unrelated init (`self_check`'s synthetic
+        # repo uses the identical `cwd=None` shape) -- `git init --bare <new-dir>` does not read
+        # the config of whatever repository happens to occupy the process's current working
+        # directory, but passing `None` here removes that as a variable entirely rather than
+        # relying on that being true.
+        rc, _out, _err = _run(["git", "init", "-q", "--bare", d], None, timeout_s)
+        yield d if rc == 0 else None
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 AMBIGUOUS_URL_PLACEHOLDER = "REDACTED_AMBIGUOUS_URL"
 
 
@@ -699,15 +805,24 @@ def _strip_query_fragment(s):
     return s[:cut]
 
 
-def _remote_head_tip(repo_path, remote, branch, timeout_s):
+def _remote_head_tip(repo_path, url, isolated_dir, branch, timeout_s):
     """RV-004: resolve the remote's live tip. Prefers the LOCAL branch name (the contract's
     literal `git ls-remote <remote> refs/heads/<branch>`) when known; falls back to the remote's
     sole head, then its own `--symref HEAD` resolution, for a detached checkout (the normal
     submodule state) or a remote whose own HEAD symref is stale (e.g. a freshly `git init
     --bare`'d repo still defaulting to `refs/heads/master` before anything was ever pushed
-    there -- a real, measured case, not a hypothetical one)."""
+    there -- a real, measured case, not a hypothetical one).
+
+    SECURITY (CA-026 remediation, this round): `url` is ALWAYS the literal remote URL (never a
+    configured remote NAME resolved against `repo_path`'s own config), and `isolated_dir` is the
+    `--git-dir` of the throwaway, config-naive bare repository every `ls-remote` call below runs
+    against -- see `_isolated_contact_dir`'s own module-level comment for the full forensic record.
+    `cwd=repo_path` is still passed on every call (preserved for relative-URL resolution, the SAME
+    `_pointer_fetchable` finding #9 reason), decoupled from WHICH config applies via the explicit
+    `--git-dir` override."""
     if branch:
-        rc, out, _err = _run(["git", "ls-remote", remote, "refs/heads/%s" % branch], repo_path, timeout_s)
+        rc, out, _err = _run(["git", "--git-dir", isolated_dir, "ls-remote", url,
+                               "refs/heads/%s" % branch], repo_path, timeout_s)
         if rc == 0:
             want = "refs/heads/%s" % branch
             for line in out.splitlines():
@@ -715,7 +830,8 @@ def _remote_head_tip(repo_path, remote, branch, timeout_s):
                 if len(parts) == 2 and parts[1] == want and _SHA_RE.match(parts[0]):
                     return parts[0], None
 
-    rc, out, err = _run(["git", "ls-remote", "--heads", remote], repo_path, timeout_s)
+    rc, out, err = _run(["git", "--git-dir", isolated_dir, "ls-remote", "--heads", url],
+                         repo_path, timeout_s)
     if rc != 0:
         return None, (err.strip() or ("git ls-remote exit %s" % rc))
     heads = []
@@ -726,7 +842,8 @@ def _remote_head_tip(repo_path, remote, branch, timeout_s):
     if len(heads) == 1:
         return heads[0][1], None
 
-    rc2, out2, _err2 = _run(["git", "ls-remote", "--symref", remote, "HEAD"], repo_path, timeout_s)
+    rc2, out2, _err2 = _run(["git", "--git-dir", isolated_dir, "ls-remote", "--symref", url, "HEAD"],
+                             repo_path, timeout_s)
     if rc2 == 0:
         for line in out2.splitlines():
             line = line.strip()
@@ -858,20 +975,28 @@ def read_push_log(repo_path):
     return remotes if isinstance(remotes, dict) else {}
 
 
-def verify_remote(repo_path, git_target, local_tip, branch, timeout_s, push_log_entry,
+def verify_remote(repo_path, url, local_tip, branch, timeout_s, push_log_entry,
                    out_name, url_redacted, scratch_objdir, real_objects_dir):
     """One RemoteResult (+ its internal-only "_unpushed"/"_reachable") and the reason code it
     contributes to the owning repo's `reasons`, or None if the remote is clean.
 
-    `git_target` is whatever git accepts in a remote-name position: a CONFIGURED remote NAME for
-    the ordinary fetch-URL check, or a literal PUSH URL string for the push-destination check
-    (T158 remediation round 1, finding #3) -- git itself accepts a bare URL anywhere a configured
-    remote name is valid, so this one function serves both without caring which it was given.
+    SECURITY (CA-026 remediation, this round -- see `_isolated_contact_dir`'s own module-level
+    comment, immediately above `_git_objects_dir`, for the full forensic record): `url` is ALWAYS
+    the literal remote URL to contact -- NEVER a configured remote NAME resolved against
+    `repo_path`'s own config -- for BOTH the ordinary fetch-URL check and the push-destination
+    check (T158 remediation round 1, finding #3; previously only the push-URL check passed a
+    literal URL here, the fetch-URL check passed a configured NAME -- the caller in
+    `verify_single_repo` now resolves that NAME to its URL via the SAME `_remote_url()` safe,
+    non-executing config read the push-URL check already used, before calling this function).
+    Every `ls-remote`/`fetch` this function (and `_remote_head_tip`) makes runs with an explicit
+    `--git-dir` pointed at a fresh, throwaway, config-naive bare repository (`_isolated_contact_
+    dir`) so `repo_path`'s own repo-local config can never reach these calls regardless of whether
+    `url` names a trusted or an untrusted remote -- structurally, not by caller discipline.
     `push_log_entry` is the caller's OWN `push_log.get(<base remote name>)` lookup (REJECTED /
     ACCEPTED / UNKNOWN describe the whole push ATTEMPT of that configured remote; the fetch-URL
     check and the push-URL check of the SAME configured remote share this one entry). `out_name`
     / `url_redacted` are supplied by the caller (never re-derived here) so a push-URL check can be
-    labelled and redacted independently of the underlying `git_target` it actually queries.
+    labelled and redacted independently of the underlying `url` it actually queries.
 
     `scratch_objdir` / `real_objects_dir`: the RV-009 object-store redirect (T158 remediation
     round 1, finding #6 -- see module docstring). The live-tip fetch below is the ONE git
@@ -887,17 +1012,19 @@ def verify_remote(repo_path, git_target, local_tip, branch, timeout_s, push_log_
     round 1's own finding-#6 fix): the PREVIOUS form fetched `<tip>:<tmp_ref>` -- an explicit
     colon-refspec -- which git ALWAYS writes into the "current" repository's OWN refs namespace
     regardless of GIT_OBJECT_DIRECTORY (that env var redirects only where OBJECTS land, never
-    where REFS land); since `repo_path` itself (never a separate scratch repo) was, and still is,
-    the "current" repository here (needed so a CONFIGURED REMOTE NAME resolves against
-    `repo_path`'s own `.git/config` -- a literal URL would lose repo-local `core.sshCommand` /
-    `http.*` / `url.*.insteadOf` / credential-helper config the SAME way `_pointer_fetchable`'s
-    own probe already documents as a bounded limitation, see its docstring), a temp ref was
-    written into `repo_path`'s real refs/ tree pointing at an object that existed ONLY in the
-    redirected scratch object directory. A process killed between that fetch and the
-    (best-effort, non-signal-safe) cleanup left `repo_path` holding a ref to an object its OWN
-    object store does not have -- reproduced live (round 2 review): `git for-each-ref` fails with
-    "missing object" and `git fsck`/`git gc` both fail outright on the survivor, strictly WORSE
-    than the pre-finding-#6 behaviour (a harmless ref to a real, already-local object).
+    where REFS land); `repo_path` itself (never a separate scratch repo) was the "current"
+    repository for this fetch at the time of round 2's fix -- a temp ref was written into
+    `repo_path`'s real refs/ tree pointing at an object that existed ONLY in the redirected scratch
+    object directory. A process killed between that fetch and the (best-effort, non-signal-safe)
+    cleanup left `repo_path` holding a ref to an object its OWN object store does not have --
+    reproduced live (round 2 review): `git for-each-ref` fails with "missing object" and `git
+    fsck`/`git gc` both fail outright on the survivor, strictly WORSE than the pre-finding-#6
+    behaviour (a harmless ref to a real, already-local object). (CA-026 remediation, this round:
+    the fetch's "current" repository is now the throwaway `_isolated_contact_dir`, never
+    `repo_path` at all, which independently also eliminates this specific ref-namespace -- but the
+    object-level fix immediately below stays the primary defence, since round 2's own finding
+    concerned the OBJECT STORE write, and the isolated git-dir change is a SECURITY fix for a
+    different class of defect, not a re-litigation of this one.)
 
     FIXED by never requesting a destination ref at all: `git fetch <remote> <sha>` (a BARE
     revision, no `:<ref>` suffix) fetches the object into whichever object store
@@ -944,33 +1071,57 @@ def verify_remote(repo_path, git_target, local_tip, branch, timeout_s, push_log_
         extra_env = {"GIT_OBJECT_DIRECTORY": scratch_objdir,
                      "GIT_ALTERNATE_OBJECT_DIRECTORIES": real_objects_dir}
     last_push_str = _push_result_str(push_log_entry)
-    tip, err = _remote_head_tip(repo_path, git_target, branch, timeout_s)
-    if tip is None:
-        return {
-            "name": out_name, "url_redacted": url_redacted, "remote_tip": "UNREACHABLE",
-            "local_tip": local_tip, "equal": False, "last_push_result": last_push_str,
-            "_unpushed": "UNKNOWN", "_reachable": False, "_detail": err,
-        }, "REMOTE_UNREACHABLE"
+    # CA-026 remediation (this round): every remote-contact call below runs with its `--git-dir`
+    # pointed at this throwaway, config-naive bare repository -- see `_isolated_contact_dir`'s own
+    # module-level comment for the full forensic record, the honest boundary, and WHY it is never
+    # seeded with an alternates link or a ref (a tried-and-reverted negotiation-efficiency aid that
+    # turned out to itself be a ref transaction, which this tool's own I-N3 regression guard proves
+    # must never happen anywhere).
+    with _isolated_contact_dir(real_objects_dir=real_objects_dir, local_tip=local_tip,
+                                timeout_s=timeout_s) as isolated_dir:
+        if isolated_dir is None:
+            return {
+                "name": out_name, "url_redacted": url_redacted, "remote_tip": "UNREACHABLE",
+                "local_tip": local_tip, "equal": False, "last_push_result": last_push_str,
+                "_unpushed": "UNKNOWN", "_reachable": False,
+                "_detail": "could not set up an isolated contact directory",
+            }, "REMOTE_UNREACHABLE"
 
-    equal = (tip == local_tip)
-    fetched, _fout, _ferr = _run(
-        ["git", "-c", "gc.auto=0", "fetch", "--no-tags", "-q", "--no-write-fetch-head",
-         "--recurse-submodules=no", git_target, tip], repo_path, timeout_s, extra_env=extra_env)
-    unpushed = "UNKNOWN"
-    if fetched == 0:
-        rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,
-                              extra_env=extra_env)
-        if rc == 0 and out.strip().isdigit():
-            unpushed = int(out.strip())
+        tip, err = _remote_head_tip(repo_path, url, isolated_dir, branch, timeout_s)
+        if tip is None:
+            return {
+                "name": out_name, "url_redacted": url_redacted, "remote_tip": "UNREACHABLE",
+                "local_tip": local_tip, "equal": False, "last_push_result": last_push_str,
+                "_unpushed": "UNKNOWN", "_reachable": False, "_detail": err,
+            }, "REMOTE_UNREACHABLE"
 
-    if fetched != 0 or unpushed == "UNKNOWN":
-        # Tip was named by ls-remote but its object could not be obtained/verified locally --
-        # RV-006: "the count is reported UNKNOWN => UNVERIFIED", never a silent 0.
-        return {
-            "name": out_name, "url_redacted": url_redacted, "remote_tip": tip,
-            "local_tip": local_tip, "equal": equal, "last_push_result": last_push_str,
-            "_unpushed": "UNKNOWN", "_reachable": True,
-        }, "REMOTE_UNREACHABLE"
+        equal = (tip == local_tip)
+        # `--filter=tree:0` (no `--depth`, since the unpushed-count/ancestor computations below
+        # need full commit-graph depth -- only `_pointer_fetchable`'s narrower SHA-existence probe
+        # can afford `--depth=1`): bounds the bandwidth cost of this fetch now that it targets an
+        # isolated repository instead of `repo_path` itself -- `git rev-list --count`/`git
+        # merge-base --is-ancestor` below only ever need commit objects, never trees/blobs, so this
+        # costs nothing in correctness (the SAME reasoning `_pointer_fetchable`'s own docstring
+        # already states for its own, narrower, `--depth=1` use of this flag).
+        fetched, _fout, _ferr = _run(
+            ["git", "--git-dir", isolated_dir, "-c", "gc.auto=0", "fetch", "--no-tags", "-q",
+             "--no-write-fetch-head", "--recurse-submodules=no", "--filter=tree:0", url, tip],
+            repo_path, timeout_s, extra_env=extra_env)
+        unpushed = "UNKNOWN"
+        if fetched == 0:
+            rc, out, _err = _run(["git", "rev-list", "--count", "%s..HEAD" % tip], repo_path, timeout_s,
+                                  extra_env=extra_env)
+            if rc == 0 and out.strip().isdigit():
+                unpushed = int(out.strip())
+
+        if fetched != 0 or unpushed == "UNKNOWN":
+            # Tip was named by ls-remote but its object could not be obtained/verified locally --
+            # RV-006: "the count is reported UNKNOWN => UNVERIFIED", never a silent 0.
+            return {
+                "name": out_name, "url_redacted": url_redacted, "remote_tip": tip,
+                "local_tip": local_tip, "equal": equal, "last_push_result": last_push_str,
+                "_unpushed": "UNKNOWN", "_reachable": True,
+            }, "REMOTE_UNREACHABLE"
 
     if last_push_str.startswith("REJECTED"):
         reason = "REMOTE_REJECTED_LAST_PUSH"  # RV-005: overrides even a coincidentally-equal tip
@@ -1144,7 +1295,23 @@ def verify_single_repo(repo_path, relpath, timeout_s, is_submodule, parent_gitli
         for remote in remote_names:
             url = _remote_url(repo_path, remote, timeout_s)
             redacted = redact_url(url)
-            rr, reason = verify_remote(repo_path, remote, head, branch, timeout_s,
+            if url is None:
+                # SECURITY (CA-026 remediation, this round): `verify_remote` now requires a
+                # literal URL -- it never resolves a configured remote NAME against `repo_path`'s
+                # own config at all (see its own docstring) -- so a remote whose URL this safe,
+                # non-executing `_remote_url()` config read could not even obtain is unreachable
+                # by construction, matching `_pointer_fetchable`'s own identical `if not url:`
+                # handling rather than falling back to the pre-fix, vulnerable by-name call shape.
+                unpushed_map[remote] = "UNKNOWN"
+                reachable_map[remote] = False
+                remotes_out.append({
+                    "name": remote, "url_redacted": redacted, "remote_tip": "UNREACHABLE",
+                    "local_tip": head, "equal": False,
+                    "last_push_result": _push_result_str(push_log.get(remote)),
+                })
+                saw_unreachable = True
+                continue
+            rr, reason = verify_remote(repo_path, url, head, branch, timeout_s,
                                         push_log.get(remote), remote, redacted,
                                         scratch_objdir, real_objects_dir)
             unpushed_map[remote] = rr.pop("_unpushed")
