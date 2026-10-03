@@ -100,8 +100,13 @@ set -u
 # fixed-arithmetic shape was the very defect S8 fixed there -- see that
 # function's own header). This is a PRE-EXISTING, FILE-WIDE assumption
 # that predates this round's diff -- EVERY use of $REPO_ROOT in this file
-# ($FC below, $WRITER, $SETTINGS_JSON, the PART D/F4/F5 fixture paths,
-# etc.) already depends on it, confirmed at HEAD before this finding was
+# ($FC below, $WRITER, $SETTINGS_JSON, _CROSSCHECK_ROOT, the PART A
+# payload-construction calls, the PART B/C LEGACY fixture paths, and the
+# S8 I1 proof further below -- note the PART D/F4/F5 fixture paths are
+# NOT in this list: those derive from $FIX, which is itself $HERE-based
+# [see the very next line below], not $REPO_ROOT-based; corrected per
+# M-4b, round-5 independent Opus-xhigh review, 2026-10-03) already
+# depends on it, confirmed at HEAD before this finding was
 # raised -- so a standalone (non-nested) constitution clone running this
 # whole test file would already resolve $REPO_ROOT one level too high,
 # independent of the I2(d) cross-check this review session added. The
@@ -298,10 +303,16 @@ skip_prefix_mismatch() {
 # invoked via `python3 -c "from transcript_ingest import
 # _fc_derive_key_prefix; ..."` with stdin redirected from /dev/null --
 # `import transcript_ingest` consumes no stdin at all (confirmed by
-# reading its source: the only module-level code that runs on import is
-# `ITEM_TAG_RE = _build_item_tag_re()`, which spawns a `release_prefix.sh`
-# subprocess but never touches stdin), so the M2 blocker genuinely does
-# NOT apply to this alternative. NOT adopted this round, for a reason M2's
+# reading its source: the module-level code that runs on import includes
+# `_env_db = os.environ.get("FC_TELEMETRY_DB")` plus its paired `Path(...)
+# .resolve()` fallback (an env read and a path resolve, transcript_ingest.py's
+# own DEFAULT_DB computation) and `ITEM_TAG_RE = _build_item_tag_re()` (which
+# spawns a `release_prefix.sh` subprocess) -- M-4c correction, round-5
+# independent Opus-xhigh review, 2026-10-03: this note previously named
+# `ITEM_TAG_RE = _build_item_tag_re()` as "the only" such code, which
+# understated it; NONE of this module-level code touches stdin), so the M2
+# blocker genuinely does NOT apply to this alternative. NOT adopted this round,
+# for a reason M2's
 # own analysis did not need to weigh: `_fc_default_item_prefix()`'s module-
 # level import ALSO independently re-resolves `HELIX_RELEASE_PREFIX` via
 # its own subprocess call to `release_prefix.sh` (see that module's own
@@ -1519,7 +1530,23 @@ echo "-- PART F-NEEDLE-AGGREGATE (M-a): the 'PART F HOLDS' aggregate's BLIND-awa
 _PARTF_COND_ANCHOR_START='^        if \[ "\$RC_F1" -eq 0 \] && \[ -z "\${UNCONFIGURED_ITEM-UNSET}" \]'
 _PARTF_COND_ANCHOR_END='^.*; }; }; then$'
 _PARTF_SELF="${BASH_SOURCE[0]:-$0}"
-_PARTF_COND_OCCURRENCES="$(grep -cE "$_PARTF_COND_ANCHOR_START" "$_PARTF_SELF" 2>/dev/null || echo 0)"
+# M-1 (round-5 independent Opus-xhigh review, 2026-10-03): `grep -cE ... ||
+# echo 0` is a doubled-output footgun on a ZERO-match, readable-file run --
+# `grep -c` already prints "0" (and exits 1) on no match, so the trailing
+# `|| echo 0` fires TOO, yielding a two-line "0\n0" captured value that
+# then fails the numeric `[ ... -ne 1 ]` test below with a bash "integer
+# expression expected" error (captured in-session: `grep -cE
+# 'definitely_not_present' /etc/hostname 2>/dev/null || echo 0` -> "0\n0"),
+# masking this check's own clean, accurate "anchor text drifted" diagnostic
+# behind a different, less precise downstream error. Fixed with `| head
+# -1`: this makes the LAST command in the pipeline `head` (whose own exit
+# status is 0 whether or not grep matched), so no `||` fallback is needed
+# at all -- `grep -c` already emits exactly one numeric line on any
+# readable file regardless of match count, and `${_PARTF_COND_OCCURRENCES
+# :-0}` below still covers the genuinely-absent-file case (verified
+# in-session: both the zero-match and a real-match run now yield a single
+# clean numeric line with exit status 0).
+_PARTF_COND_OCCURRENCES="$(grep -cE "$_PARTF_COND_ANCHOR_START" "$_PARTF_SELF" 2>/dev/null | head -1)"
 if [ "${_PARTF_COND_OCCURRENCES:-0}" -ne 1 ]; then
     bad "PART F-NEEDLE-AGGREGATE setup failed: the 'PART F HOLDS' condition's anchor text was found $_PARTF_COND_OCCURRENCES time(s) in this file (want exactly 1) -- cannot safely extract it for mutation-discrimination; the condition text this file's own PART F block uses may have drifted, investigate before trusting this guard"
 else
@@ -1540,10 +1567,29 @@ sys.stdout.write(cond.replace(marker, "", 1))
         # NOTE: ATM_STILL_WORKS is deliberately left genuinely UNSET in
         # every synthetic run below (never set to "", which the
         # condition's own "${ATM_STILL_WORKS-}" single-dash fallback
-        # treats identically to unset for THIS comparison -- but staying
-        # genuinely unset most faithfully mirrors F3's real code path,
-        # which never assigns the variable at all when its own check is
-        # skipped or BLIND-hard-failed).
+        # treats identically to unset for THIS comparison).
+        #
+        # M-4a correction (round-5 independent Opus-xhigh review,
+        # 2026-10-03): this NOTE previously claimed F3's real code path
+        # "never assigns the variable at all when its own check is
+        # skipped or BLIND-hard-failed" -- that overstated it. F3's real
+        # skip branch (see this file's own "ATM_STILL_WORKS=
+        # SKIPPED-non-atm-checkout" assignment above, which runs on
+        # EITHER a genuinely non-ATM checkout OR a BLIND needle -- both
+        # satisfy that branch's own "$DERIVED_DEFAULT_PREFIX != ATM"
+        # guard) DOES assign a non-"ATM-9999" sentinel value in both of
+        # those cases. The variable stays genuinely unset ONLY when the
+        # PART D fixture file itself ($PARENT_FIX) is missing entirely
+        # (F3's separate "precondition missing" bad() branch, which never
+        # touches ATM_STILL_WORKS at all) -- a distinct, file-not-found
+        # condition, not "skipped or BLIND-hard-failed". Staying unset
+        # below still faithfully mirrors that one real path, and is
+        # harmless for the other two synthetic states this block tests
+        # (BLIND and genuinely-non-ATM) precisely because the condition's
+        # own "${ATM_STILL_WORKS-}" fallback treats unset identically to
+        # any sentinel value that is not literally "ATM-9999" -- so this
+        # correction changes only the comment's accuracy, not the test's
+        # behaviour.
         _partf_run_cond() {
             local cond="$1" rc_f1="$2" unconf="$3" conf="$4" derived="$5" blind="$6"
             (

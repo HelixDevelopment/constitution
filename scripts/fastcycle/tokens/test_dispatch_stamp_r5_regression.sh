@@ -518,6 +518,7 @@ GITMODULES_OLD = (
     "             && grep -Eq '^[[:space:]]*path[[:space:]]*=[[:space:]]*constitution[[:space:]]*$' \\\n"
     '                  "$parent_root/.gitmodules" 2>/dev/null; then\n'
 )
+BASENAME_OLD = '    if [ "$root_base" = "constitution" ]; then\n'
 if kind == "env":
     OLD = ENV_OLD
     NEW = '        if [ -f "$parent_root/.env" ]; then\n'
@@ -548,6 +549,15 @@ elif kind == "env_bare_varname":
 elif kind == "env_key_only":
     OLD = ENV_OLD
     NEW = '        if grep -q \'HELIX_RELEASE_PREFIX=\' "$parent_root/.env" 2>/dev/null; then\n'
+elif kind == "basename_substring":
+    # I-1 (round-5 independent Opus-xhigh review, 2026-10-03): the B1
+    # basename gate's EXACT-match test ("root_base = constitution") is
+    # loosened to a case-insensitive SUBSTRING/near-miss match, so a
+    # directory whose basename merely CONTAINS "constitution" as a
+    # substring (e.g. "HelixConstitution") incorrectly becomes a widen
+    # candidate (D10's negative-control proof this MUST NOT happen).
+    OLD = BASENAME_OLD
+    NEW = '    if printf \'%s\' "$root_base" | grep -qi \'constitution\'; then\n'
 else:
     sys.stderr.write("mutate_release_prefix.py: unknown kind %r\n" % kind)
     sys.exit(2)
@@ -699,7 +709,7 @@ else
   D6_RESULT="$(cd "$D6_CONSTITUTION" && bash scripts/release_prefix.sh)"
   printf '  .gitmodules-trailing-suffix fixture result: %s\n' "$D6_RESULT"
   if [ "$D6_RESULT" = "constitution" ]; then
-    ok "I-A: a .gitmodules entry whose value STARTS with 'constitution' but carries a non-whitespace suffix ('constitution-extra', never the complete exact value 'constitution') correctly does NOT widen -- stays 'constitution' (proves the real grep's trailing \$ end-anchor is genuinely load-bearing, not merely the leading \$^ one D3 already covers)"
+    ok "I-A: a .gitmodules entry whose value STARTS with 'constitution' but carries a non-whitespace suffix ('constitution-extra', never the complete exact value 'constitution') correctly does NOT widen -- stays 'constitution' (proves the real grep's trailing \$ end-anchor is genuinely load-bearing, not merely the leading ^ one D3 already covers)"
   else
     bad "I-A regression: got '$D6_RESULT', want 'constitution' -- the .gitmodules trailing-suffix false-widen bug has returned"
   fi
@@ -888,6 +898,79 @@ else
     fi
   fi
 fi
+# D10 (I-1, round-5 independent Opus-xhigh review, 2026-10-03, verbatim
+# finding: "a mutation loosening [the B1 basename gate's EXACT match] to a
+# SUBSTRING match ... survives the ENTIRE existing r5-regression suite
+# completely undetected -- because the existing D-series fixtures never
+# test a directory whose basename CONTAINS 'constitution' as a substring
+# without being an exact match."). D4 above already proves the EXACT-match
+# gate refuses a basename that does NOT overlap "constitution" AT ALL
+# ("other_dir") -- but a substring-match mutant would ALSO correctly
+# refuse "other_dir" (it contains no "constitution" substring either), so
+# D4 cannot discriminate this specific loosening. This fixture is
+# genuinely different: a directory basename that is a NEAR-MISS
+# substring/case match for "constitution" (capitalized "HelixConstitution",
+# the exact pre-existing standalone-layout example this file's own
+# `.env.example` / Usage: header already document -- see release_prefix.sh
+# lines 64-76 -- never an invented name), sitting under a parent whose
+# `.env` carries a VALID, non-empty HELIX_RELEASE_PREFIX= assignment (the
+# kind of evidence that WOULD correctly widen a genuine `constitution/`
+# checkout). The real, EXACT-match-gated code must still correctly print
+# the basename-derived "helix_constitution" (never widening to the
+# parent's unrelated prefix), while a case-insensitive-substring-match
+# mutant of the SAME gate incorrectly widens to the parent's value.
+echo
+echo "-- D10 (I-1): near-miss basename substring match ('HelixConstitution', not exactly 'constitution') with a valid parent .env does NOT widen --"
+D10_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_i1_basename_substring_fixture.XXXXXX")"
+D10_PARENT="$D10_ROOT/parent_near_miss_basename"
+D10_DIR="$D10_PARENT/HelixConstitution"
+mkdir -p "$D10_DIR/scripts"
+cp "$RELEASE_PREFIX" "$D10_DIR/scripts/release_prefix.sh"
+(
+  cd "$D10_DIR" \
+    && git init -q \
+    && git config user.email "r5-d10-fixture@example.invalid" \
+    && git config user.name "r5-d10-fixture"
+) >/dev/null 2>&1
+printf 'HELIX_RELEASE_PREFIX=wrong_widen\n' > "$D10_PARENT/.env"
+cleanup_d10_fixture() { rm -rf "$D10_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d10_fixture' EXIT
+
+if [ ! -d "$D10_DIR/.git" ] || [ ! -f "$D10_PARENT/.env" ]; then
+  bad "D10 fixture setup failed -- cannot run the near-miss-basename-substring case"
+else
+  D10_TOPLEVEL="$(cd "$D10_DIR" && git rev-parse --show-toplevel 2>/dev/null || true)"
+  D10_TOPLEVEL_BASE="$(basename "$D10_TOPLEVEL" 2>/dev/null || true)"
+  if [ "$D10_TOPLEVEL_BASE" = "HelixConstitution" ]; then
+    ok "D10 fixture precondition is genuinely real: the examined directory's own git toplevel basename is 'HelixConstitution' -- a genuine near-miss substring/case match for 'constitution' (NOT an exact match), not assumed"
+  else
+    bad "D10 fixture is NOT genuinely near-miss-named (toplevel basename='$D10_TOPLEVEL_BASE') -- re-investigate before trusting case D10's result below"
+  fi
+  D10_RESULT="$(cd "$D10_DIR" && bash scripts/release_prefix.sh)"
+  printf '  near-miss-basename-substring fixture result: %s\n' "$D10_RESULT"
+  if [ "$D10_RESULT" = "helix_constitution" ]; then
+    ok "I-1: a directory whose basename is a near-miss SUBSTRING/case match for 'constitution' ('HelixConstitution', never the complete exact value 'constitution') correctly does NOT widen even though its parent carries a valid, non-empty HELIX_RELEASE_PREFIX= .env -- stays basename-derived 'helix_constitution' (proves the real gate's exact-string '=' comparison is genuinely load-bearing, not a substring/prefix match a sloppier implementation could pass)"
+  else
+    bad "I-1 regression: got '$D10_RESULT', want 'helix_constitution' -- the near-miss-basename-substring false-widen bug has returned"
+  fi
+
+  D10_MUT="$D10_ROOT/release_prefix_mut_basename_substring.sh"
+  D10_MUT_SETUP_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$D10_MUT" basename_substring 2>&1)"
+  D10_MUT_SETUP_RC=$?
+  if [ "$D10_MUT_SETUP_RC" -ne 0 ] || [ ! -f "$D10_MUT" ]; then
+    bad "D10 mutation-discrimination setup failed (rc=$D10_MUT_SETUP_RC err=$D10_MUT_SETUP_ERR) -- cannot prove D10's negative control is discriminating; investigate before trusting the D10 result above as a genuine regression guard"
+  else
+    cp "$D10_MUT" "$D10_DIR/scripts/release_prefix.sh"
+    D10_MUT_RESULT="$(cd "$D10_DIR" && bash scripts/release_prefix.sh)"
+    cp "$RELEASE_PREFIX" "$D10_DIR/scripts/release_prefix.sh"   # restore the real, unmutated file
+    printf '  mutated (exact-match loosened to substring match) result: %s\n' "$D10_MUT_RESULT"
+    if [ "$D10_MUT_RESULT" = "wrong_widen" ]; then
+      ok "D10 mutation-discrimination: the SAME near-miss-basename fixture, run against a copy with ONLY the basename gate's exact '=' comparison loosened to a case-insensitive substring match (the exact I-1 reviewer-named mutation shape), DOES incorrectly widen to the parent's unrelated prefix ('$D10_MUT_RESULT') -- proving D10's negative control above is genuinely load-bearing, not vacuously true"
+    else
+      bad "D10 mutation-discrimination FAILED: the mutated (substring-match-shaped) copy did NOT widen against the SAME near-miss-basename fixture ('$D10_MUT_RESULT') -- D10's negative control above cannot be trusted as a real regression guard against this specific loosening"
+    fi
+  fi
+fi
 rm -f "$MUT_GEN"
 
 # D4 (B1): the "mismatched-sibling-name-with-matching-.gitmodules-path"
@@ -918,7 +1001,7 @@ cat > "$D4_PARENT/.gitmodules" <<'GITMODULES_D4_EOF'
 GITMODULES_D4_EOF
 printf 'HELIX_RELEASE_PREFIX=should_not_widen_wrong_sibling\n' > "$D4_PARENT/.env"
 cleanup_d4_fixture() { rm -rf "$D4_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d4_fixture' EXIT
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d10_fixture; cleanup_d4_fixture' EXIT
 
 if [ ! -d "$D4_OTHER_DIR/.git" ] || [ ! -f "$D4_PARENT/.gitmodules" ] || [ ! -f "$D4_PARENT/.env" ]; then
   bad "D4 fixture setup failed -- cannot run the mismatched-sibling-name case"
@@ -960,7 +1043,7 @@ cp "$RELEASE_PREFIX" "$D5_CONSTITUTION/scripts/release_prefix.sh"
 printf 'HELIX_RELEASE_PREFIX=should_not_widen_unreadable\n' > "$D5_PARENT/.env"
 chmod 000 "$D5_PARENT/.env"
 cleanup_d5_fixture() { chmod 644 "$D5_PARENT/.env" 2>/dev/null || true; rm -rf "$D5_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d4_fixture; cleanup_d5_fixture' EXIT
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d10_fixture; cleanup_d4_fixture; cleanup_d5_fixture' EXIT
 
 if [ ! -d "$D5_CONSTITUTION/.git" ] || [ ! -e "$D5_PARENT/.env" ]; then
   bad "D5 fixture setup failed -- cannot run the unreadable-parent-.env case"
@@ -1028,7 +1111,7 @@ echo "-- E2 (M1): readable-but-not-searchable HELIX_PROJECT_ROOT (chmod 444) war
 E2_NOSEARCH_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_r5_m1_nosearch_fixture.XXXXXX")"
 chmod 444 "$E2_NOSEARCH_ROOT"
 cleanup_e2_fixture() { chmod 755 "$E2_NOSEARCH_ROOT" 2>/dev/null || true; rm -rf "$E2_NOSEARCH_ROOT"; }
-trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d4_fixture; cleanup_d5_fixture; cleanup_e2_fixture' EXIT
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_d10_fixture; cleanup_d4_fixture; cleanup_d5_fixture; cleanup_e2_fixture' EXIT
 if [ ! -d "$E2_NOSEARCH_ROOT" ]; then
   bad "E2 fixture setup failed -- '$E2_NOSEARCH_ROOT' missing, cannot run the M1 readable-but-not-searchable case"
 else
