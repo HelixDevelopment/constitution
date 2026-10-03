@@ -122,6 +122,43 @@ Output (C-002): canonical JSON (UTF-8, sorted keys, no insignificant
         and, for `record`, `precheck_used` (bool: whether a readable
         precheck.json was actually consulted).
 
+Finding-layer (constitution 11.4.235(D), added 2026-10-03): each entry in
+        `findings` MAY additionally carry `finding_layer`, one of the
+        closed set {"source-defect", "test-instrumentation", "process-doc"}
+        -- a DIFFERENT axis entirely from the pre-existing per-finding
+        `class` {"mechanical","judgment","false-positive"} (see
+        classify_finding() above); the two are computed independently and
+        neither influences the other. Set it on a raw finding object (the
+        same `findings` array in --verdict-file for `record`, or --input
+        for `backfill` -- this tool has no separate per-finding CLI flag
+        for ANY attribute, severity/rule/file/line included, so none is
+        invented for finding_layer either). OPTIONAL and purely additive:
+        a finding naming no "finding_layer" (every record written before
+        this field existed, and every caller that has not yet adopted it)
+        emits no "finding_layer" key at all and behaves EXACTLY as before.
+        A value outside the closed set is a usage error (exit 2, --out NOT
+        written) -- never silently coerced, dropped, or defaulted.
+
+        Honest limits of what this tool enforces (constitution 11.4.6 --
+        state the gap, never silently claim it is closed): this tool
+        RECORDS whatever "finding_layer" value it is given, verbatim, once
+        that value is a genuine member of FINDING_LAYERS (or is absent/
+        null). It does NOT enforce, and callers MUST NOT assume it
+        enforces: (a) that "finding_layer" is MANDATORY on every finding
+        -- it remains fully optional at this tool's layer; (b) WHO may set
+        it -- this tool has no mechanism to distinguish a value supplied
+        by the independent reviewer (the constitution 11.4.235(D)-mandated
+        author) from one supplied by the change's own producer, so a
+        producer-asserted "finding_layer" is recorded exactly as readily
+        as a reviewer-asserted one; (c) the 11.4.235(D) "a finding that
+        cannot be decidably classified defaults to source-defect" rule --
+        this tool never infers or defaults a value on the caller's
+        behalf; an absent "finding_layer" is recorded as absent, not
+        silently promoted to "source-defect". All three are OWED,
+        TRACKED enforcement gaps (constitution 11.4.197) one layer above
+        this tool (the review-authoring/review-gate seam that calls it),
+        never claimed as already closed here.
+
 Honesty (constitution 11.4.6): no field is ever invented. A `record`
 invocation given no --item/--started-at/--ended-at/--tokens/
 --reviewer-mutations/--substrate-evidence records the honest literal
@@ -159,6 +196,27 @@ _HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 SCHEMA = "review-record/v1"  # contracts/review-batch-and-precheck.md "Output schemas" (hyphen, not underscore)
 DESIGNATED_TIER = "opus"
 DESIGNATED_EFFORT = "xhigh"
+# Constitution 11.4.235(D) FINDING-LAYER CLASSIFIER (added 2026-10-03): an
+# OPTIONAL, per-finding closed-set classification, DISTINCT from the
+# pre-existing "class" field above (T-A04 mechanical|judgment|false-positive
+# -- a different axis entirely; see classify_finding() below, which this
+# field never touches and is never touched by). A finding carrying NO
+# "finding_layer" key is unaffected (backward-compatible: every record
+# authored before this field existed, and every caller that has not yet
+# adopted it, behaves exactly as before -- constitution 11.4.6, "clause (D)
+# applies prospectively; recorded verdicts are never rewritten or
+# reclassified"). A finding carrying a "finding_layer" value outside this
+# closed set is a usage error (exit 2), never silently coerced or dropped.
+#
+# Honest scope (constitution 11.4.6): this tool RECORDS whatever value it
+# is given -- it does NOT enforce "finding_layer is mandatory", does NOT
+# distinguish a reviewer-supplied value from a producer-supplied one
+# (there is no "reviewer-only may set it" check at this layer), and does
+# NOT apply the 11.4.235(D) "undecidable -> defaults to source-defect"
+# rule on the caller's behalf (an absent value stays absent, never
+# auto-promoted). Those are tracked §11.4.197 enforcement gaps owed at the
+# calling review-gate seam, not claimed as shipped here.
+FINDING_LAYERS = ("source-defect", "test-instrumentation", "process-doc")
 # C-002: body_hash covers the canonical doc EXCLUDING run_meta (and body_hash
 # itself, which it fills in) -- mirrors constitution/scripts/fastcycle/lib/
 # fc_common.py's EXCLUDED tuple (this tool does not import fc_common: it
@@ -300,6 +358,38 @@ def classify_finding(finding, markers):
     if isinstance(rule, str) and rule.strip():
         return "mechanical"
     return "judgment"
+
+
+def _validated_finding_layer(finding, label):
+    """Constitution 11.4.235(D): read the OPTIONAL per-finding
+    "finding_layer" key from a raw finding object (this tool's existing
+    calling convention -- every other per-finding attribute, severity/
+    rule/file/line, likewise arrives embedded on the finding object inside
+    --verdict-file's/--input's "findings" array; there is no separate
+    per-finding CLI flag anywhere in this tool, so none is invented for
+    this field either).
+
+    Returns (value, None) on success -- value is None when the key is
+    absent or explicitly null (backward-compatible: a finding predating
+    this field, or a caller that has not adopted it, is NEVER an error),
+    else the validated string from the closed set FINDING_LAYERS.
+
+    Returns (None, <error message>) when "finding_layer" is PRESENT but is
+    not a member of FINDING_LAYERS -- callers MUST propagate this as a
+    usage error (exit 2, never silently coerced/dropped/defaulted;
+    constitution 11.4.6 -- this tool RECORDS the reviewer's classification
+    verbatim, it never invents one)."""
+    if not isinstance(finding, dict) or "finding_layer" not in finding:
+        return None, None
+    value = finding.get("finding_layer")
+    if value is None:
+        return None, None
+    if isinstance(value, str) and value in FINDING_LAYERS:
+        return value, None
+    return None, (
+        "%s: 'finding_layer' must be one of %s, or absent/null, got %r"
+        % (label, ", ".join(FINDING_LAYERS), value)
+    )
 
 
 def _derive_item_id(batch):
@@ -456,11 +546,23 @@ def cmd_record(a):
         if not isinstance(finding, dict) or "id" not in finding:
             print("review_record: malformed finding entry (missing 'id'): %r" % (finding,), file=sys.stderr)
             return 2
-        findings_out.append({
+        # 11.4.235(D): validated BEFORE classify_finding() is even called --
+        # the two are independently computed from disjoint input keys
+        # ("finding_layer" vs "rule"/"file"/"line") and neither influences
+        # the other's result.
+        finding_layer, err = _validated_finding_layer(
+            finding, "--verdict-file finding %r" % (finding.get("id"),))
+        if err:
+            print("review_record: %s" % err, file=sys.stderr)
+            return 2
+        out_finding = {
             "id": finding["id"],
             "severity": finding.get("severity", "UNKNOWN"),
             "class": classify_finding(finding, markers),
-        })
+        }
+        if finding_layer is not None:
+            out_finding["finding_layer"] = finding_layer
+        findings_out.append(out_finding)
     findings_out.sort(key=lambda f: f["id"])  # C-002: arrays sorted by identity field
 
     tokens = _parse_optional_json(a.tokens, "--tokens")
@@ -609,14 +711,40 @@ def cmd_backfill(a):
         if not isinstance(finding, dict) or "id" not in finding:
             print("review_record: malformed backfill finding entry (missing 'id'): %r" % (finding,), file=sys.stderr)
             return 2
-        findings_out.append({
+        # 11.4.235(D): same optional, validated, independent field as
+        # cmd_record() above -- a backfilled row's "finding_layer" is
+        # whatever --input's author could genuinely establish (absent is
+        # never an error) or an invalid value refused outright.
+        #
+        # Retroactivity boundary (M1, non-enforced -- documentation only,
+        # no behavioural change): per constitution 11.4.235(D), "clause
+        # (D) applies prospectively; recorded verdicts are never rewritten
+        # or reclassified". A backfilled "finding_layer" value MUST come
+        # from that historical review round's OWN genuinely-recorded
+        # evidence (a real finding classification the reviewer actually
+        # made at the time), and MUST NOT be assigned, after the fact, to
+        # a round that predates 11.4.235(D)'s 2026-10-03 landing date --
+        # doing so would be a retroactive reclassification the clause
+        # forbids, not an honest backfill of what was already decided.
+        # This tool has no mechanism to check a round's date against the
+        # clause's landing date, so this boundary is the --input author's
+        # obligation, not one this function enforces.
+        finding_layer, err = _validated_finding_layer(
+            finding, "--input finding %r" % (finding.get("id"),))
+        if err:
+            print("review_record: %s" % err, file=sys.stderr)
+            return 2
+        out_finding = {
             "id": finding["id"],
             "severity": finding.get("severity", "UNKNOWN"),
             # Never re-run the live classifier here: no machine ReviewBatch/PreCheckReport/
             # verdict-file input exists for a backfilled historical round, so "class" is
             # whatever --input's author could genuinely establish, or "UNKNOWN" (11.4.6).
             "class": finding.get("class", "UNKNOWN"),
-        })
+        }
+        if finding_layer is not None:
+            out_finding["finding_layer"] = finding_layer
+        findings_out.append(out_finding)
     findings_out.sort(key=lambda f: f["id"])
 
     def opt(key):
