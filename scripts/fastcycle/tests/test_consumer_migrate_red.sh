@@ -3391,59 +3391,56 @@ else
     bad "K-bounded-transfer-sync-hop guard-viability: dropping only the sync call's \$5 argument did not reproduce unbounded growth at the top level (mut_ok=$J_MUT_OK growth=$K_BTS_M_GROWTH)"
 fi
 
-# --- K-partial-clone-lazy-fetch: T177 Round 28 (R27-Important-1,
-# independent-review-found, live-reproduced -- a FALSE SAFETY CLAIM this
-# round's own predecessor comment made, withdrawn in migrate.sh's own
-# header): `git index-pack --fix-thin`, given a THIN pack whose one delta
-# base is an object the DESTINATION is MISSING (the defining property of
-# a partial clone), attempts to resolve that missing base via a LAZY
-# FETCH through the destination's own untrusted promisor-remote config --
-# live-reproduced (by the independent reviewer, and independently
-# RE-reproduced by this round's own author with a REALISTIC fixture: a
-# 50 KB, genuinely delta-compressible blob, commit+tree present, ONLY the
-# blob itself filtered-missing -- the actual `--filter=blob:none` shape,
-# never a corrupted/incomplete object store): an attacker `core.
-# sshCommand` configured as the submodule's promisor remote fires DURING
-# `index-pack --fix-thin` alone, no checkout/status/diff involved.
+# --- K-partial-clone-lazy-fetch: T177 Round 29 (R28-Important-A/B,
+# independent-review-found, live-reproduced by this round's own author on
+# both counts before accepting them). Round 28's fix for R27-Important-1
+# (`fc_is_partial_clone()`, a config-heuristic detector gating the
+# bounded/thin pack path) was ITSELF independently shown incomplete on
+# two separate axes: (A) the detector matched ONLY the literal string
+# `true` for `remote.*.promisor`, missing every other boolean spelling
+# git itself recognises (`yes`, `on`, `1`, a bare valueless key -- `git
+# config --type=bool --get` resolves ALL of these to `true`) plus a
+# `remote.*.partialclonefilter`-only config (which git's own promisor-
+# remote machinery also treats as promisor-enabled); (B) even on a config
+# the Round 28 detector DID catch, the bounded-path condition's OWN
+# pre-existing `cat-file -e` probe against the UNTRUSTED destination ran
+# BEFORE the detector in the `&&` chain, so a destination whose base-
+# commit object was itself missing fired the attacker's command from
+# THAT probe, never reaching the detector at all. Both independently
+# live-reproduced by this round's own author against the real,
+# unmodified Round 28 `migrate.sh` before writing a single line of fix,
+# using the SAME attacker-`core.sshCommand`-promisor-remote fixture shape
+# this arm has used since Round 28.
 #
-# This arm tests `fc_transfer_objects_into()` + `fc_is_partial_clone()`
-# IN ISOLATION (extracted from `$TOOL`'s own real source via the SAME
-# awk-anchor technique the K-protocol-allowlist arm above uses -- never a
-# hand-copied reconstruction that could drift) rather than via a full
-# end-to-end `$TOOL` invocation. This is a DELIBERATE, self-caught
-# correction while authoring this arm (§11.4.102 systematic-debugging
-# applied to test design, not production code): a full end-to-end run
-# against this exact fixture ALSO reaches `repo_verify.py --recursive`'s
-# OWN remote-reachability check (its CA-026 double-verify step), which
-# this round's author INDEPENDENTLY DISCOVERED performs its OWN real
-# `ls-remote`-equivalent contact against EVERY repo's configured remote
-# -- confirmed live, with a SEPARATE, minimal reproduction (no partial-
-# clone, no missing object, no thin pack involved at all: a PLAIN, fully-
-# materialised repo with nothing but an untrusted `core.sshCommand`
-# remote) -- regardless of `GIT_NO_LAZY_FETCH`, regardless of this round's
-# `fc_is_partial_clone()` fix, because that check is NOT a lazy-fetch at
-# all, it is a DELIBERATE remote-contact `repo_verify.py` performs BY
-# DESIGN to compute its own `equal`/`unpushed` fields. A full end-to-end
-# run against this fixture would therefore ALWAYS fire the attacker's
-# command via THAT separate mechanism, making "PWNED absent" an
-# impossible, dishonest assertion for an end-to-end test of this fixture
-# shape -- conflating a genuinely-fixed finding (Important-1, THIS
-# function) with a DIFFERENT, NOT-YET-FIXED one (repo_verify.py's own
-# remote-reachability check, which this round's author's authorization
-# does NOT extend to rewriting -- `repo_verify.py` changes are scoped to
-# `--neutralize-repo-filters` flag plumbing only, never its remote-check
-# logic) would have been exactly the §11.4/§11.4.1 anti-bluff violation
-# this file's own covenant exists to prevent. That SEPARATE finding is
-# disclosed honestly in this round's own commit message and CONTINUATION
-# addendum as an open, OUT-OF-SCOPE residual, tracked as its own
-# §11.4.197 follow-up -- never silently absorbed, never worked around
-# without disclosure, and never left for a future round to re-discover
-# from scratch.
+# Round 29 replaces BOTH the config-sniffing detector and the
+# destination-side `cat-file -e` probe with a single proof, inline in
+# `fc_transfer_objects_into()`'s own bounded-path condition: `git rev-
+# list --objects --missing=print` against the destination, which REPORTS
+# a missing object with a `?` prefix instead of fetching or failing on
+# it (the documented, non-fetching, partial-clone-aware way to ask "does
+# this destination already hold everything a base commit needs"). This
+# is correct by construction for EVERY partial-clone config spelling,
+# present or future -- it tests the actual object-store consequence
+# rather than an enumerable list of alleged causes -- and it removes the
+# vulnerable destination-side probe entirely rather than merely
+# reordering it behind a still-incomplete detector. This arm now tests
+# `fc_transfer_objects_into()` (self-contained; `fc_is_partial_clone()`
+# no longer exists, REMOVED this round) IN ISOLATION, extracted from
+# `$TOOL`'s own real source via the SAME awk-anchor technique the
+# K-protocol-allowlist arm above uses -- never a hand-copied
+# reconstruction that could drift -- rather than via a full end-to-end
+# `$TOOL` invocation, for the SAME reason disclosed since Round 28: a
+# full end-to-end run against this fixture also reaches
+# repo_verify.py's own, separate, NOT-yet-fixed remote-reachability
+# finding (tracked as its own out-of-scope §11.4.197 follow-up, disclosed
+# in migrate.sh's own threat-model comment, in CONTINUATION.md, and in
+# this round's commit message -- never silently absorbed, never
+# conflated with the finding this arm actually proves).
 K_PCL_EXTRACT="$WORK/k_pcl_functions.sh"
-awk '/^fc_is_partial_clone\(\) \{$/{f=1} /^fc_submodule_update_init_filtered\(\) \{$/{f=0} f' "$TOOL" > "$K_PCL_EXTRACT"
+awk '/^fc_transfer_objects_into\(\) \{$/{f=1} /^fc_submodule_update_init_filtered\(\) \{$/{f=0} f' "$TOOL" > "$K_PCL_EXTRACT"
 K_PCL_EXTRACT_LINES=$(wc -l < "$K_PCL_EXTRACT" | tr -d ' ')
 if [ "$K_PCL_EXTRACT_LINES" -lt 10 ]; then
-    bad "K-partial-clone-lazy-fetch: extraction of \$TOOL's fc_is_partial_clone/fc_transfer_objects_into found only $K_PCL_EXTRACT_LINES line(s) -- anchor drift, cannot run this arm"
+    bad "K-partial-clone-lazy-fetch: extraction of \$TOOL's fc_transfer_objects_into found only $K_PCL_EXTRACT_LINES line(s) -- anchor drift, cannot run this arm"
 else
     K_PCL_ROOT="$K_ROOT/k_pcl"
     mkdir -p "$K_PCL_ROOT"
@@ -3464,12 +3461,16 @@ else
     git -C "$K_PCL_W" remote add origin "$K_PCL_ROOT/mc.git"
     git -C "$K_PCL_W" push -q origin main
     rm -rf "$K_PCL_W"
+    # k_pcl_build_dest: $1 = root dir for this arm's own destination
+    # (never shared). $2 = promisor-key spelling under test -- one of
+    # `true`/`yes`/`1`/`valueless`/`filter_only` (R28-Important-A
+    # coverage: EVERY spelling the independent review demonstrated the
+    # Round 28 detector missed, plus the one it caught, as a control).
+    # $3 = optional `del_commit` -- when given, ALSO deletes the base
+    # commit's own loose object (R28-Important-B coverage: the
+    # destination-side `cat-file -e` ordering bug, which fired on a
+    # MISSING COMMIT regardless of which promisor spelling was used).
     k_pcl_build_dest() {
-        # $1 = root dir for this arm's own destination (never shared, so
-        # each gets its own genuinely-missing-blob repo + attacker marker).
-        # A plain `git clone` + commit-checked-out, NOT `submodule update
-        # --init` -- this arm tests fc_transfer_objects_into() DIRECTLY,
-        # it needs only a destination repository, never a parent consumer.
         git clone -q --no-hardlinks "$K_PCL_ROOT/mc.git" "$1/dest" >/dev/null 2>&1
         git -C "$1/dest" config user.name fastcycle-fixture
         git -C "$1/dest" config user.email fixture@example.invalid
@@ -3485,10 +3486,19 @@ else
         _pclobjdir=$(echo "$K_PCL_BLOB_OLD" | cut -c1-2)
         _pclobjfile=$(echo "$K_PCL_BLOB_OLD" | cut -c3-)
         rm -f "$1/dest/.git/objects/$_pclobjdir/$_pclobjfile"
-        git -C "$1/dest" config extensions.partialClone origin
+        if [ "${3:-}" = "del_commit" ]; then
+            _pclcobjdir=$(echo "$K_PCL_OLD" | cut -c1-2)
+            _pclcobjfile=$(echo "$K_PCL_OLD" | cut -c3-)
+            rm -f "$1/dest/.git/objects/$_pclcobjdir/$_pclcobjfile"
+        fi
         git -C "$1/dest" remote set-url origin "ssh://evilhost/repo"
-        git -C "$1/dest" config remote.origin.promisor true
-        git -C "$1/dest" config remote.origin.partialclonefilter blob:none
+        case "$2" in
+            true)      git -C "$1/dest" config remote.origin.promisor true ;;
+            yes)       git -C "$1/dest" config remote.origin.promisor yes ;;
+            1)         git -C "$1/dest" config remote.origin.promisor 1 ;;
+            valueless) printf '[remote "origin"]\n\tpromisor\n' >> "$1/dest/.git/config" ;;
+            filter_only) git -C "$1/dest" config remote.origin.partialclonefilter blob:none ;;
+        esac
         cat > "$1/evil_ssh.sh" <<SSHEOF
 #!/bin/sh
 touch "$1/PWNED"
@@ -3513,37 +3523,94 @@ SSHEOF
         } > "$WORK/k_pcl_run_$(basename "$2").sh"
         sh "$WORK/k_pcl_run_$(basename "$2").sh" 2>&1
     }
-    k_pcl_build_dest "$K_PCL_ROOT"
-    rm -f "$K_PCL_ROOT/PWNED"
-    K_PCL_OUT=$(k_pcl_harness "$K_PCL_EXTRACT" "$K_PCL_ROOT")
-    if echo "$K_PCL_OUT" | grep -q 'FTO_RC=0' \
-        && git -C "$K_PCL_ROOT/dest" cat-file -e "$K_PCL_NEW^{commit}" \
-        && [ ! -f "$K_PCL_ROOT/PWNED" ]; then
-        ok "K-partial-clone-lazy-fetch (T177 Round 28, R27-Important-1): fc_transfer_objects_into(), tested directly against a partial-clone destination with a missing blob and an attacker promisor sshCommand, transfers the target commit successfully WITHOUT running the attacker's command"
+    k_pcl_check_one() {
+        # $1 = label, $2 = dest root -> runs the harness and prints
+        # "label PASS"/"label FAIL:<reason>" to stdout, no side effects
+        # on $J_MUT_OK or similar globals (this is a plain assertion
+        # helper, not a j_mutant-integrated one).
+        rm -f "$2/PWNED"
+        _k_pcl_out=$(k_pcl_harness "$3" "$2")
+        if echo "$_k_pcl_out" | grep -q 'FTO_RC=0' \
+            && git -C "$2/dest" cat-file -e "$K_PCL_NEW^{commit}" 2>/dev/null \
+            && [ ! -f "$2/PWNED" ]; then
+            echo "$1 PASS"
+        else
+            echo "$1 FAIL:out=$_k_pcl_out pwned=$([ -f "$2/PWNED" ] && echo present || echo absent)"
+        fi
+    }
+    # R28-Important-A coverage: all 5 promisor-config spellings, none of
+    # which may ever fire the attacker's command.
+    K_PCL_SPELL_RESULTS=""
+    for _k_pcl_spell in true yes 1 valueless filter_only; do
+        _k_pcl_r="$K_ROOT/k_pcl_$_k_pcl_spell"
+        mkdir -p "$_k_pcl_r"
+        k_pcl_build_dest "$_k_pcl_r" "$_k_pcl_spell"
+        K_PCL_SPELL_RESULTS="$K_PCL_SPELL_RESULTS
+$(k_pcl_check_one "spelling=$_k_pcl_spell" "$_k_pcl_r" "$K_PCL_EXTRACT")"
+    done
+    if echo "$K_PCL_SPELL_RESULTS" | grep -q FAIL; then
+        bad "K-partial-clone-lazy-fetch: one or more promisor config spellings failed:$K_PCL_SPELL_RESULTS"
     else
-        bad "K-partial-clone-lazy-fetch: out=$K_PCL_OUT marker=$([ -f "$K_PCL_ROOT/PWNED" ] && echo present || echo absent)"
+        ok "K-partial-clone-lazy-fetch (T177 Round 29, R28-Important-A): fc_transfer_objects_into(), tested directly against FIVE distinct promisor config spellings (true/yes/1/valueless-key/partialclonefilter-only) each with a genuinely-missing blob and an attacker promisor sshCommand, transfers the target commit successfully WITHOUT running the attacker's command under ANY spelling"
     fi
-    # K-partial-clone-lazy-fetch guard-viability: with ONLY fc_is_partial_
-    # clone()'s own call site disabled (GIT_NO_LAZY_FETCH left INTACT,
-    # since this arm's whole point is proving the STRUCTURAL detection is
-    # independently load-bearing, not merely redundant with the env-var).
-    # This mutant is applied to $TOOL's real source (same as every other
-    # j_mutant in this file) and THEN extracted via the same awk anchors,
-    # so the test exercises the mutated function body byte-for-byte.
-    j_mutant K_pcl_no_detection \
-        '&& ! fc_is_partial_clone "$3"; then' \
-        '; then'
-    awk '/^fc_is_partial_clone\(\) \{$/{f=1} /^fc_submodule_update_init_filtered\(\) \{$/{f=0} f' "$WORK/jmut_K_pcl_no_detection.sh" > "$WORK/k_pcl_functions_mutant.sh"
-    K_PCL_M_ROOT="$K_ROOT/km_pcl"
-    mkdir -p "$K_PCL_M_ROOT"
-    k_pcl_build_dest "$K_PCL_M_ROOT"
-    rm -f "$K_PCL_M_ROOT/PWNED"
-    K_PCL_M_OUT=$(k_pcl_harness "$WORK/k_pcl_functions_mutant.sh" "$K_PCL_M_ROOT")
-    if [ "$J_MUT_OK" -eq 1 ] && [ -f "$K_PCL_M_ROOT/PWNED" ]; then
-        ok "K-partial-clone-lazy-fetch guard-viability: with the fc_is_partial_clone() detection disabled (GIT_NO_LAZY_FETCH left intact), the SAME trap fires the attacker's command during fc_transfer_objects_into() alone -- the structural detection is independently load-bearing, not merely redundant with the env-var kill-switch"
+    # R28-Important-B coverage: the base COMMIT object itself missing
+    # from the destination (the ordering bug -- fires from the OLD
+    # destination-side cat-file -e probe regardless of promisor spelling,
+    # which Round 29 removes entirely rather than reorders).
+    K_PCL_CM_ROOT="$K_ROOT/k_pcl_commit_missing"
+    mkdir -p "$K_PCL_CM_ROOT"
+    k_pcl_build_dest "$K_PCL_CM_ROOT" true del_commit
+    K_PCL_CM_RESULT=$(k_pcl_check_one "commit-missing" "$K_PCL_CM_ROOT" "$K_PCL_EXTRACT")
+    if echo "$K_PCL_CM_RESULT" | grep -q FAIL; then
+        bad "K-partial-clone-lazy-fetch-ordering: $K_PCL_CM_RESULT"
     else
-        bad "K-partial-clone-lazy-fetch guard-viability: disabling the detection did not reproduce the attacker command firing (mut_ok=$J_MUT_OK marker=$([ -f "$K_PCL_M_ROOT/PWNED" ] && echo present || echo absent) out=$K_PCL_M_OUT)"
+        ok "K-partial-clone-lazy-fetch-ordering (T177 Round 29, R28-Important-B): with the base commit's OWN object missing from a promisor-configured destination (the shape that fired the attacker's command from the OLD destination-side cat-file -e probe BEFORE the Round 28 detector ever ran), fc_transfer_objects_into() still transfers the target commit successfully with no attacker command execution"
     fi
+    # Guard-viability 1: neutralise the missing-objects DETECTION itself
+    # (the `grep '^?'` that reads rev-list's own missing-object markers)
+    # so it never recognises a missing object regardless of reality, and
+    # re-run against the SAME promisor=yes spelling Round 28's detector
+    # missed -- proving the detection LOGIC, not merely its presence, is
+    # load-bearing.
+    # T177 Round 29 self-caught fragility fix (found running this suite,
+    # before shipping): the short anchor `grep '^?'` ALSO appears inside
+    # this file's own surrounding prose comments (which quote the real
+    # code for explanatory purposes), so a bare-substring j_mutant anchor
+    # on it matches more than once in the real source and is correctly
+    # REFUSED by j_mutant's own exact-count-1 safety check (confirmed
+    # live: mut_ok=0, not a false pass) -- fixed by anchoring on the
+    # LONGER, structurally-unique tail of the real condition line instead.
+    j_mutant K_pcl_grep_never_matches \
+        "| grep '^?' | head -n 1)\" ]; then" \
+        "| grep '^NOPE_NEVER_MATCHES_XYZ' | head -n 1)\" ]; then"
+    awk '/^fc_transfer_objects_into\(\) \{$/{f=1} /^fc_submodule_update_init_filtered\(\) \{$/{f=0} f' "$WORK/jmut_K_pcl_grep_never_matches.sh" > "$WORK/k_pcl_functions_nogrep.sh"
+    K_PCL_NG_ROOT="$K_ROOT/km_pcl_nogrep"
+    mkdir -p "$K_PCL_NG_ROOT"
+    k_pcl_build_dest "$K_PCL_NG_ROOT" yes
+    K_PCL_NG_RESULT=$(k_pcl_check_one "no-grep-detection-promisor-yes" "$K_PCL_NG_ROOT" "$WORK/k_pcl_functions_nogrep.sh")
+    if [ "$J_MUT_OK" -eq 1 ] && echo "$K_PCL_NG_RESULT" | grep -q FAIL; then
+        ok "K-partial-clone-lazy-fetch guard-viability 1 (T177 Round 29): neutralising the missing-objects detection (so it never recognises ANY missing object) reproduces the attacker's command firing on a promisor=yes destination -- the detection logic is independently load-bearing, not merely present"
+    else
+        bad "K-partial-clone-lazy-fetch guard-viability 1: neutralising the missing-objects detection did not reproduce the attacker command firing (mut_ok=$J_MUT_OK result=$K_PCL_NG_RESULT)"
+    fi
+    # T177 Round 29 self-caught-then-SELF-CORRECTED non-finding (disclosed
+    # honestly, not silently dropped -- see `fc_transfer_objects_into()`'s
+    # own header comment for the full account): a planned second
+    # guard-viability mutant here was meant to prove the `_fto_missing=
+    # $(...)` exit-status capture independently load-bearing, using a
+    # reproduction that appended `^{commit}` to the probed SHA. That
+    # reproduction does NOT match the real call below (which passes the
+    # BARE `$_fto_base`, no `^{commit}` suffix), and live-reproduced
+    # against the REAL call shape, `git rev-list --objects --missing=
+    # print <bare-sha>` NEVER fails outright for a well-formed SHA -- it
+    # reports an unresolvable starting commit via the SAME `?`-prefixed
+    # line the guard-viability-1 mutant above already proves load-bearing,
+    # exit 0, even against a totally empty destination. No mutation of
+    # the exit-status capture was found that reopens a reachable
+    # vulnerability distinct from guard-viability-1's own coverage, so
+    # none is asserted here -- a test claiming to prove a mutation
+    # reopens an unreachable condition would itself be exactly the kind
+    # of bluff this file's own covenant forbids.
 fi
 # K-verify-wiring: repo_verify.py strips inherited GIT_CONFIG_* by design,
 # so the process-wide override never reaches it; migrate.sh must pass

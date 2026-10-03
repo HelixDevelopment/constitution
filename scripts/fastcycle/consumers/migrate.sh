@@ -762,7 +762,36 @@ fi
 #           behaviours it relies on, and its exact scope boundary
 #           (consumer hook/gates run under the caller's environment by
 #           design; repo_verify.py receives the equivalent protection via
-#           its own --neutralize-repo-filters flag).
+#           its own --neutralize-repo-filters flag for FILTER-class
+#           config ONLY -- see the T177 Round 28 honest residual below,
+#           corrected the same round: that equivalence does NOT extend to
+#           repo_verify.py's own separate remote-reachability check).
+#
+# T177 Round 28 (independent-review-discovered, NOT closed by this file,
+# tracked as its own out-of-scope follow-up): repo_verify.py's own
+# recursive double-verify step performs a DELIBERATE remote-reachability
+# contact (an `ls-remote`-equivalent) against every repo's configured
+# remote to compute its own equal/unpushed report fields. This is a
+# documented, intentional repo_verify.py boundary (its own header
+# discloses that transport executables -- core.sshCommand, credential.
+# helper, uploadpack, insteadOf -- are left alone and still run during
+# its own `git fetch` calls), NOT a lazy-fetch and NOT something
+# GIT_NO_LAZY_FETCH or --neutralize-repo-filters touches. Live-
+# reproduced: a PLAIN, fully-materialised repo (no partial clone, no
+# missing object, no thin pack) with nothing but an untrusted
+# core.sshCommand remote fires that remote's command when repo_verify.py
+# --recursive runs against it. Step 9 of this file always runs
+# repo_verify.py against $WORKDIR and its submodules, so this file's own
+# threat model ("do not trust $WORKDIR's own git config") does NOT fully
+# hold end-to-end while this repo_verify.py boundary stands -- a far
+# easier precondition to reach than any partial-clone trap above (no
+# missing object or filter configuration needed at all, only a writable
+# $WORKDIR). Out of this file's own authorised scope (migrate.sh /
+# --neutralize-repo-filters flag plumbing only, never a rewrite of
+# repo_verify.py's own remote-check logic) -- disclosed here, in the
+# commit history, and in CONTINUATION.md as its own high-severity,
+# separately-tracked §11.4.197 item, never silently absorbed or left for
+# a future round to re-discover from scratch.
 #
 # Honest residual (not claimed closed): drivers defined at GLOBAL/SYSTEM
 # scope are deliberately left running -- operator-owned, the same trust
@@ -1298,21 +1327,42 @@ fc_checkout_submodule_filtered() {
     git -C "$1" -c advice.detachedHead=false checkout -q "$2"
 }
 
-# fc_is_partial_clone: $1 = a repository path. Returns 0 (true) iff that
-# repository is configured as a git partial clone -- `extensions.
-# partialClone` set (any value, per git's own documented semantics for
-# that key) OR at least one `remote.<name>.promisor` key set to a truthy
-# value. T177 Round 28 (R27-Important-1): used by fc_transfer_objects_into
-# below to refuse the thin/bounded pack path against such a destination
-# (see that function's own header comment for the full forensic record of
-# why). `git config --get-regexp` with no match exits non-zero, which the
-# `||` here correctly treats as "no promisor remote found", not an error.
-fc_is_partial_clone() {
-    [ -n "$(git -C "$1" config --get extensions.partialClone 2>/dev/null)" ] && return 0
-    git -C "$1" config --get-regexp '^remote\..*\.promisor$' 2>/dev/null \
-        | awk '{print tolower($2)}' | grep -qx 'true' && return 0
-    return 1
-}
+# T177 Round 29 (R28-Important-A/B, independent-review-found, live-
+# reproduced by this round's own author on both counts): `fc_is_partial_
+# clone()` (the Round 28 fix for R27-Important-1, REMOVED here, superseded
+# by the proof-based check inside fc_transfer_objects_into() below) was a
+# CONFIG-HEURISTIC detector and was independently shown INCOMPLETE on two
+# separate axes -- (A) `remote.<name>.promisor` accepts every boolean
+# spelling git itself recognises (`yes`, `on`, `1`, a bare valueless key --
+# confirmed live: `git config --type=bool --get` resolves ALL of these to
+# `true`), while the Round 28 check matched only the literal string
+# `true`; a destination configured `promisor=yes`/`1`/valueless (or with
+# ONLY `remote.*.partialclonefilter` set, which git's own promisor-remote
+# machinery also treats as promisor-enabled) was NOT-DETECTED and still
+# fired the attacker's core.sshCommand via the thin-pack lazy-fetch path
+# -- (B) even on a config the Round 28 check DID detect, the bounded-path
+# condition's OWN pre-existing `cat-file -e "$3"` base-presence probe ran
+# BEFORE `fc_is_partial_clone()` in the `&&` chain, so a destination whose
+# base-commit object was itself missing fired the attacker's command from
+# THAT probe, never reaching the detection at all -- live-reproduced:
+# identical fixture, `cat-file -e` alone (no fc_is_partial_clone()
+# involved) triggered the attacker's command. Both share one root cause:
+# detecting "is this configured as a partial clone" by ENUMERATING config
+# spellings is a losing, open-ended game against an attacker-influenced
+# destination, and it does not even need to be tried, because the real
+# question fc_transfer_objects_into() needs answered is narrower and
+# directly provable -- "does the destination already hold every object
+# the planned thin pack would need to resolve against" -- which git
+# itself can answer WITHOUT risking a fetch, via `rev-list --objects
+# --missing=print` (a documented partial-clone-aware walk that REPORTS a
+# missing object with a `?` prefix instead of fetching or failing on it).
+# Replaced BOTH the config-sniffing helper and the destination-side
+# `cat-file -e` probe with exactly that proof, inline in the bounded-path
+# condition below -- it is correct by construction for EVERY present and
+# future partial-clone config spelling (it tests the actual consequence,
+# never the alleged cause), and it removes the vulnerable early probe
+# entirely rather than merely reordering it after a still-incomplete
+# detector.
 
 # fc_transfer_objects_into: $1 = TRUSTED source repo (-C'd for rev-list/
 # pack-objects), $2 = SHA to transfer, $3 = UNTRUSTED destination repo
@@ -1513,44 +1563,94 @@ fc_transfer_objects_into() {
     # variable (undefended against an older/divergent git that silently
     # ignores it), and (b) nothing in this file PROVED it under test
     # (confirmed: deleting the `GIT_NO_LAZY_FETCH=1; export` line left the
-    # full suite green). Fixed at the ROOT instead of relying solely on
-    # the environment kill-switch: the bounded/thin path is used ONLY when
-    # the DESTINATION is NOT itself a partial clone (checked below, via
-    # the SAME config keys that identify one: `extensions.partialClone`
-    # or any `remote.*.promisor=true`) -- a partial-clone destination
-    # unconditionally takes the ORIGINAL unbounded, NON-thin pack path,
-    # which is fully SELF-CONTAINED (every referenced object is INCLUDED
-    # in the pack, no external delta base to resolve) and therefore has
-    # NO lazy-fetch exposure to eliminate, structurally, regardless of
-    # git version or whether `GIT_NO_LAZY_FETCH` is honoured. `GIT_NO_
-    # LAZY_FETCH=1` remains installed as defense-in-depth for every OTHER
-    # git call this tool makes against a (non-partial-clone-detected, or
-    # genuinely needing one for an unrelated reason) `$WORKDIR` -- it is
-    # not removed, only no longer the SOLE defense for this specific path.
-    # New regression coverage: `K-partial-clone-lazy-fetch` (plants the
-    # exact missing-base-plus-attacker-promisor trap against a REAL
-    # migration and asserts the attacker's command never runs) + its own
-    # guard-viability mutant (disabling the partial-clone DETECTION, not
-    # `GIT_NO_LAZY_FETCH` itself, to prove the detection is independently
-    # load-bearing and not merely redundant with the env-var kill-switch).
-    # Side effect (R27-M-3, resolved, not separately tracked): the
-    # independent review also noted that a partial-clone destination
-    # whose FILTERED-OUT objects happen to be the thin pack's own delta
-    # bases would, under `GIT_NO_LAZY_FETCH=1` alone, fail CLOSED where
-    # Round 26's unbounded pack would have succeeded (a disclosed, not
-    # necessarily desirable, behaviour change). This detection-based fix
-    # makes that scenario MOOT rather than merely safe: a partial-clone
-    # destination now NEVER takes the thin path at all, so it always gets
-    # the SAME unbounded, fully self-contained pack Round 26 would have
-    # built -- the behaviour for a partial-clone destination is
-    # byte-for-byte unchanged from before this file's bounding work began.
+    # full suite green). The Round 28 fix for this (a `fc_is_partial_
+    # clone()` config-sniffing detector gating the bounded path) was
+    # ITSELF independently found incomplete on two counts and is REMOVED,
+    # replaced below with a proof rather than a detector -- see the
+    # T177 Round 29 comment above `fc_transfer_objects_into()`'s own
+    # removed `fc_is_partial_clone()` helper for the full forensic record
+    # (R28-Important-A: the config detector missed every promisor boolean
+    # spelling besides the literal string `true`, plus `partialclonefilter
+    # `-only configs; R28-Important-B: the OLD condition's own `cat-file
+    # -e` probe against the UNTRUSTED destination ran BEFORE the detector
+    # in the `&&` chain, so a destination with a missing base-commit
+    # object fired the attacker's command from that probe alone, never
+    # reaching the detector). Fixed at the ROOT a second time: the bounded
+    # path is used ONLY when `git -C "$3" rev-list --objects --missing=
+    # print "$_fto_base"` (a documented partial-clone-aware walk that
+    # REPORTS a missing object with a leading `?` instead of fetching or
+    # failing on it -- itself run with `GIT_NO_LAZY_FETCH=1` forced as
+    # additional defense-in-depth, though `--missing=print`'s own job is
+    # to never need it) finds ZERO missing objects reachable from `$5` in
+    # the destination -- this is correct by construction for EVERY
+    # partial-clone config spelling, present or future, because it tests
+    # the actual object-store consequence rather than an enumerable list
+    # of alleged causes, and it never touches the destination's object
+    # store in a way that can itself trigger a fetch (that is precisely
+    # what `--missing=print` is documented to avoid). `GIT_NO_LAZY_FETCH=1`
+    # remains installed process-wide as defense-in-depth for every OTHER
+    # git call this tool makes against `$WORKDIR` -- it is not removed,
+    # only no longer the SOLE defense for this specific path, and no
+    # longer something this path's own correctness depends on the host's
+    # git genuinely honouring.
+    # New regression coverage: `K-partial-clone-lazy-fetch` (isolated
+    # test of this exact condition against FIVE partial-clone config
+    # spellings -- `promisor=true`, `promisor=yes`, `promisor=1`, a
+    # valueless `promisor` key, and `partialclonefilter`-only -- every one
+    # of which must take the unbounded path and never fire the attacker's
+    # command), `K-partial-clone-lazy-fetch-ordering` (the base-commit-
+    # missing shape alone, independent of any promisor spelling), and a
+    # dedicated guard-viability mutant neutralising the missing-objects
+    # detection itself (so it never recognises ANY missing object,
+    # re-run against a promisor=yes destination) -- each independently
+    # proven load-bearing against a real fixture. Honest residual, NOT
+    # separately tested this round: `GIT_NO_LAZY_FETCH=1`'s own distinct
+    # protective value for the OTHER git calls this tool makes against
+    # `$WORKDIR` (outside this function, where the proof above does not
+    # apply) has no dedicated regression coverage of its own in this
+    # file -- disclosed here rather than silently claimed, tracked as a
+    # candidate future-round item, never conflated with the coverage this
+    # paragraph actually ships.
+    # T177 Round 29 self-caught-then-SELF-CORRECTED non-finding (found,
+    # "fixed", then DISPROVEN by this round's own author before shipping
+    # -- disclosed honestly rather than silently dropped, per this file's
+    # own anti-bluff discipline): a first draft of this comment claimed
+    # `rev-list --objects --missing=print "$_fto_base"` could FAIL
+    # OUTRIGHT (rc != 0, empty stdout) when `$_fto_base` cannot be
+    # resolved as a starting point at all, silently misclassifying that
+    # failure as "proven zero missing" via the bare `grep '^?'` check
+    # alone -- and "fixed" it by capturing the probe's own exit status via
+    # the `_fto_missing=$(...)` assignment below. A dedicated guard-
+    # viability mutant written to PROVE that fix load-bearing instead
+    # DISPROVED the premise: the reproduction behind it had appended
+    # `^{commit}` to the probed SHA (`"$_fto_base^{commit}"`), which DOES
+    # fail outright when unresolvable -- but the REAL call below passes
+    # the BARE `$_fto_base` with no such suffix, and live-reproduced
+    # against a genuinely-missing commit object (and separately against a
+    # totally EMPTY destination repository with zero objects) git's own
+    # `rev-list --objects --missing=print <bare-sha>` NEVER fails outright
+    # for a well-formed SHA -- it reports the unresolvable starting point
+    # itself via the SAME `?`-prefixed line the bare `grep '^?'` check
+    # already catches, exit 0. `$_fto_base` is ALSO always either empty
+    # (refused by the `[ -n "$_fto_base" ]` guard above) or a genuine,
+    # well-formed SHA obtained from `git rev-parse`/a known gitlink at
+    # both real call sites below -- never an arbitrary or malformed
+    # string a caller could influence. No reachable failure mode in this
+    # file's own actual usage was found where `_fto_missing`'s exit-status
+    # capture changes the outcome from the bare `grep '^?'` check alone.
+    # The capture is KEPT as harmless, zero-cost defensive hygiene (never
+    # silently swallow a command's exit status) but is NOT claimed to
+    # close a reproduced gap, and carries NO dedicated guard-viability
+    # test of its own -- a test asserting a mutation reopens an
+    # unreachable condition would itself be exactly the kind of bluff
+    # this file's own covenant forbids.
     _fto_pack="$MIGRATE_SCRATCH/transfer_pack_$4.pack"
     _fto_base=${5:-}
     _fto_bounded=0
     if [ -n "$_fto_base" ] \
         && git -C "$1" cat-file -e "$_fto_base^{commit}" 2>/dev/null \
-        && git -C "$3" cat-file -e "$_fto_base^{commit}" 2>/dev/null \
-        && ! fc_is_partial_clone "$3"; then
+        && _fto_missing=$(GIT_NO_LAZY_FETCH=1 git -C "$3" rev-list --objects --missing=print "$_fto_base" 2>/dev/null) \
+        && [ -z "$(printf '%s\n' "$_fto_missing" | grep '^?' | head -n 1)" ]; then
         _fto_bounded=1
     fi
     if [ "$_fto_bounded" -eq 1 ]; then
