@@ -451,7 +451,7 @@ Universal CLAUDE.md</h1>
 <tbody>
 <tr>
 <td>Revision</td>
-<td>71</td>
+<td>73</td>
 </tr>
 <tr>
 <td>Created</td>
@@ -459,7 +459,7 @@ Universal CLAUDE.md</h1>
 </tr>
 <tr>
 <td>Last modified</td>
-<td>2026-09-26T14:40:00Z</td>
+<td>2026-10-03T20:53:21Z</td>
 </tr>
 <tr>
 <td>Status</td>
@@ -467,12 +467,68 @@ Universal CLAUDE.md</h1>
 </tr>
 <tr>
 <td>Status summary</td>
-<td>Amendment of 2026-09-26 — MODEL-SUBSTRATE CORRECTION (operator
-mandate 2026-09-26, <code>CRITICAL</code>, verbatim: &quot;Main model to use
-is Sonet, reviews and other heavy stuff have to be done by Opus instead
-of Fable!!! Fix this permanently on all levels!&quot;): §11.4.209 (code
-review) and §11.4.211 (merge-conflict resolution) re-pinned to Opus at
-xhigh ALWAYS — Fable not permitted in any role, the 2026-09-15
+<td>Amendment of 2026-10-04 (round 2, fix-forward on the independent
+Opus-xhigh review of 5fd59fa: NO-GO, 0 Blocking / 2 Important / 6 Minor)
+— §11.4.230(D) corrected in place: (D.3) §11.4.236 mandated validation
+is now AT MINIMUM source-GO + §11.4.235(A) pre/post-build gates PLUS
+every operator-declared QA-deploy-seam blocker (§11.4.236) and any
+touched §11.4.239 critical-invariant scenarios; (D.1)/(D.3)/(D.4)
+re-keyed from &quot;trunk&quot; to the increment&#39;s own INTEGRATION BRANCH, a QA
+build MAY be cut from a feat/product/flavor branch and for feat/ IS the
+§11.4.195(B) live-manual-QA vehicle (removes the trunk↔︎§11.4.195(B)
+circularity; product/flavor lines now covered); (D.3) builds coalesce
+(in-flight build covers prior increments) and a periodic interval must
+carry a recorded justification; (D.2) toggle-expiry extensions only via
+a §11.4.271 waiver; heading + preamble now name clause (D);
+next-clause-letter (E) note added; CM-QA-BUILD-CADENCE-DECLARED +
+CM-INCREMENT-DELIVERED-NOT-SPEC-WITHHELD contracts amended for
+coalescing (the latter not flagged by the review, aligned for the same
+false-positive reason); ledger rows OWED-GATE-107..110 formatting
+aligned. Constitution-submodule .html/.pdf/.docx twins NOT regenerated
+this round either (honestly stale per §11.4.106(E)); main-repo mirror
+twins regenerated in the paired main-repo commit. Prior round: Amendment
+of 2026-10-04 — §11.4.230 EXTENDED in place with clause (D) INCREMENTAL
+DELIVERY GRANULARITY + DECLARED QA-BUILD CADENCE (operator mandate
+2026-10-04, <code>CRITICAL</code>: faster initial dev releases for every
+inheriting project — ship each already-source-proven-correct
+phase/story/task increment as it clears its own §11.4.235(A)/(D) bar
+instead of withholding delivery until the whole spec is done; (D.1)
+delivery unit = the increment; (D.2) incomplete spec stays safe via
+complete vertical slices or LATENT paths — release toggles permitted not
+mandated, each tracked with an expiry; (D.3) consumer-declared QA-build
+cadence
+<code>per-increment</code>/<code>periodic</code>/<code>whichever-first</code>,
+default <code>per-increment</code>, each build a §11.4.235(B) cycle
+boundary passing §11.4.236 on its own fingerprint, deliverable form =
+consumer DATA; (D.4) background hardening never gates the next
+increment, except shared-code source-defects and §11.4.129; (D.5)
+tracker/doc sync is a hand-off precondition, citing
+§11.4.106(F)/§11.4.229/§11.4.202/§11.4.208/§11.4.210/§11.4.197; (D.6)
+manual-QA finds on increment builds are still §11.4.238 coverage
+escapes). Extension, not a new anchor (§11.4.227 audit: §11.4.230(A)
+overlaps validation with ONE candidate&#39;s build, §11.4.235(A)/(D) define
+per-slice build-ELIGIBILITY; neither obliged an eligible increment to be
+DELIVERED, set a cadence, kept an incomplete spec safe, or bound
+hand-off to tracker truth). Research grounding cited in-text (DORA small
+batches, Hodgson feature toggles, branch-by-abstraction, SAFe
+develop-on-cadence, GitHub Next Continuous AI preview), with the honest
+note that no published methodology combining these was found.
+Recommended gates CM-INCREMENT-DELIVERED-NOT-SPEC-WITHHELD /
+CM-QA-BUILD-CADENCE-DECLARED / CM-RELEASE-TOGGLE-TRACKED-EXPIRY /
+CM-QA-HANDOFF-TRACKER-IN-SYNC registered as tracked deferrals
+OWED-GATE-107..110 (gate-code NOT claimed shipped). Clause text
+byte-identical across Constitution.md + the 4 mirrors (§11.4.157);
+§11.4.230 remains exactly one block-start per file (§11.4.227(B)).
+Generated twins: constitution-submodule twins NOT regenerated (honestly
+stale per §11.4.106(E), as in e44f22f); main-repo twins regenerated in
+e4c7b056eec. (The 2026-10-03 §11.4.235(D) amendment did not update this
+header; it is recorded in its own commit e44f22f.) Prior round:
+Amendment of 2026-09-26 — MODEL-SUBSTRATE CORRECTION (operator mandate
+2026-09-26, <code>CRITICAL</code>, verbatim: &quot;Main model to use is
+Sonet, reviews and other heavy stuff have to be done by Opus instead of
+Fable!!! Fix this permanently on all levels!&quot;): §11.4.209 (code review)
+and §11.4.211 (merge-conflict resolution) re-pinned to Opus at xhigh
+ALWAYS — Fable not permitted in any role, the 2026-09-15
 Fable-escalation clause removed, no fallback model (genuine
 Opus-unavailability BLOCKS and is tracked); §11.4.231 ladder is now
 <code>sonnet &lt; opus</code> with Sonnet the default working tier, NEW
@@ -3312,8 +3368,9 @@ hatch — no <code>--tracker-may-lag</code>,
 <code>Constitution.md</code> §11.4.229.</p>
 <p><strong>§11.4.230 — Parallelized-pipeline methodology: build↔︎validate
 overlap + affected-stages-only re-run + parallel multi-device
-testing/recording + fan-out-subagents-always (research-derived,
-2026-07-26).</strong></p>
+testing/recording + fan-out-subagents-always + incremental delivery
+granularity with a declared QA-build cadence (research-derived,
+2026-07-26; clause (D) added 2026-10-04).</strong></p>
 <p>Forensic motivation (genericised): the sequential pipeline shape —
 build FULLY completes → THEN validation begins → on ANY discovery,
 restart the WHOLE cycle from scratch → all devices tested one-at-a-time
@@ -3327,13 +3384,14 @@ N; §11.4.89 already backgrounds long tests; §11.4.103 already mandates
 ≥3 auto-backfilled parallel streams; §11.4.119 already partitions shared
 hardware by single-owner; §11.4.128/§11.4.144 already mandate always-on
 recording + availability-following. §11.4.230 BINDS those into one
-operating discipline and adds the three invariants they did not each
+operating discipline and adds the four invariants they did not each
 state on their own: (A) the build↔︎validate CONCURRENCY seam +
 affected-stages-only re-run-on-discovery, (B) all-devices-concurrent +
 worker-pool recording/processing, (C) fan-out-subagents as the standing
-default. It is the parallelization capstone the way §11.4.103 is the
-continuous-parallel-stream capstone — a strengthening bind, never a
-weakening.</p>
+default, (D) incremental delivery granularity + a declared QA-build
+cadence (added 2026-10-04). It is the parallelization capstone the way
+§11.4.103 is the continuous-parallel-stream capstone — a strengthening
+bind, never a weakening.</p>
 <p><strong>(A) PIPELINE-OVERLAP PARALLELIZATION.</strong>
 Validation/verification work MUST run CONCURRENTLY WITH the build
 wherever a validation stage does NOT depend on the build&#39;s own
@@ -3426,6 +3484,245 @@ may not both drive one exclusive device); (6) critical-state sequencing
 maximum USEFUL parallel throughput, never agent count; fan-out that
 exceeds a host-safety ceiling or contends a single resource is a
 violation, not compliance.</p>
+<p><strong>(D) INCREMENTAL DELIVERY GRANULARITY + DECLARED QA-BUILD
+CADENCE — a long-running spec/feature ships every already-proven-correct
+increment as it clears its own bar, never withholding delivery until the
+WHOLE spec/feature is done (operator mandate, 2026-10-04,
+<code>CRITICAL</code>; research-derived; added 2026-10-04).</strong>
+Verbatim operator mandate (2026-10-04): &quot;All work we do, especially
+SpecKit specs, gets incorporated right away. Fully deterministic
+validation/verification tests of all supported test types relying on
+machine-produced evidence get incorporated too, aiming to cover
+everything critical. All intensive testing (gates, checks, fixing,
+polishing) keeps running in BACKGROUND continuously until fully done. IN
+PARALLEL we keep building specs one by one, phase by phase, story by
+story, task by task. We get fast delivery results and AS SOON AS
+POSSIBLE builds that can be handed to QA teams for manual testing RIGHT
+AWAY, while in parallel all testing/fixing/polishing/improvement
+continues exactly as it would anyway. We do NOT wait for all of that to
+finish first — that can take days [...]. QA reports discovered issues;
+background agents keep working until everything is absolutely flawless.
+As background work progresses and fixes/improvements land in the main
+codebase, we keep producing REGULAR builds periodically delivered to QA
+teams for ongoing full manual testing. It is critical that background
+agents keep ALL workable items, documentation, and other materials in
+sync so nothing ever goes out of date.&quot; Forensic anchor (genericised,
+FACT): in one consuming project a multi-phase spec had RED tests drafted
+for every phase and many source slices independently reviewed to a
+source-correctness GO, yet nothing reached QA for days, because delivery
+was implicitly held at the WHOLE-SPEC boundary while ONE slice&#39;s
+iterate-to-GO review loop ran past forty rounds — the finished, proven
+work of every other slice sat undelivered. The GAP this clause closes,
+stated precisely so it is not restated elsewhere (§11.4.227): clause (A)
+overlaps validation with the build of ONE candidate; §11.4.235(A) makes
+a batch build-eligible on source-correctness alone; §11.4.235(D) makes
+that eligibility PER SLICE inside a batched review — but none of them
+obliges an ELIGIBLE increment to actually be DELIVERED before the rest
+of its spec completes, none sets a delivery CADENCE, none says how an
+incomplete spec stays safe to ship, and none binds the hand-off to
+tracker truth. Build-eligibility that is never exercised is the same
+withheld delivery under a different name. ALL of the following hold:</p>
+<p><strong>(D.1) THE DELIVERY UNIT IS THE INCREMENT, NOT THE
+SPEC.</strong> A spec / feature / epic decomposed into phases / stories
+/ tasks (vertical, independently testable slices per the §11.4.148
+SLICING extension — Small + Testable) MUST integrate each increment into
+its INTEGRATION BRANCH — the trunk for <code>main</code>-targeted work,
+or the <code>feat/</code> / <code>product/</code> / <code>flavor/</code>
+branch (§11.4.195) the increment actually lives on for branch-scoped
+work — and make it part of the next QA deliverable (D.3) cut from that
+branch, the moment THAT increment holds its OWN source-correctness GO
+per §11.4.235(A)/(D). When an increment exists on MULTIPLE coexisting
+integration branches — for example both a <code>product/*</code> AND a
+<code>flavor/*</code> branch per §11.4.195(A) — EACH branch is
+independently obligated under (D.3)&#39;s own per-branch cadence: the
+increment&#39;s delivery obligation is evaluated separately per branch it
+lives on, never as a single ambiguous &quot;the branch&quot;. A QA build MAY be
+cut from a <code>feat/</code> / <code>product/</code> /
+<code>flavor/</code> branch. For a <code>feat/</code> branch that QA
+build IS the live-manual-testing vehicle §11.4.195(B) requires BEFORE
+the branch may merge to trunk, so the feature-branch QA build is the
+PRECURSOR to trunk-landing, never a consequence of it; a
+<code>product/</code> / <code>flavor/</code> line, which never merges to
+trunk the standard way (§11.4.195(C)), receives its cadence builds from
+its own branch. Clause (D) relaxes neither §11.4.195(B) (no
+<code>feat/</code> merge to trunk before live manual QA) nor
+§11.4.195(C), and a later merge of the branch to trunk still follows
+§11.4.195 / §11.4.188. Withholding an already-build-eligible increment
+solely because OTHER increments of the same spec are unfinished, or
+because its own or another increment&#39;s <code>test-instrumentation</code>
+/ <code>process-doc</code> loops (§11.4.235(D)) are still open, is a
+§11.4.230(D) violation. An increment WITHOUT its own source-correctness
+GO is not deliverable — incremental delivery is never a licence to ship
+unreviewed or unproven work.</p>
+<p><strong>(D.2) INCOMPLETE-SPEC, SAFE DELIVERABLE.</strong> Shipping an
+increment while its spec is incomplete MUST leave the deliverable
+correct on every path a user or QA tester can reach: EITHER the
+increment is a complete, independently valuable vertical slice, OR the
+unfinished surface is LATENT — unreachable by construction, behind a
+release toggle (P. Hodgson, &quot;Feature Toggles&quot;, martinfowler.com, 2017:
+&quot;Release Toggles allow incomplete and un-tested codepaths to be shipped
+to production as latent code which may never be turned on&quot;), or behind
+branch-by-abstraction (trunkbaseddevelopment.com: a technique &quot;to effect
+a &#39;longer to complete&#39; change in the trunk&quot;). A toggle is a PERMITTED
+mechanism, never a mandated one (consistent with §11.4.265&#39;s own
+statement that it mandates none), and it is inventory with a carrying
+cost (Hodgson: &quot;Savvy teams view their Feature Toggles as inventory
+which comes with a carrying cost&quot;): every release toggle carries a
+tracked §11.4.197 removal item and a consumer-declared expiry
+(§11.4.35), and a toggle past its expiry is a §11.4.261 finding. A
+toggle that needs to outlive its expiry — for example because its latent
+path&#39;s (D.4) hardening loop legitimately runs many rounds — is extended
+ONLY through a §11.4.271 waiver (rostered non-producer authoriser, a new
+unelapsed expiry, a named tracked item), never by a silent expiry edit,
+by enabling the still-unproven path, or by deleting finished work. A
+latent path is NOT an advertised capability (§11.4.266) until it is
+enabled and proven.</p>
+<p><strong>(D.3) A DECLARED QA-BUILD CADENCE, NOT A ONE-SHOT.</strong>
+Every project declares as DATA (§11.4.35) its QA-build trigger:
+<code>per-increment</code> (each build-eligible increment landing on its
+integration branch, D.1), <code>periodic</code> (a fixed interval — the
+release-train pattern; SAFe&#39;s &quot;Develop on Cadence. Release on Demand&quot;
+separates the development rhythm from the release decision), or
+<code>whichever-first</code>; a project that declares nothing gets
+<code>per-increment</code>, the safe default (§11.4.101). A
+<code>periodic</code> or <code>whichever-first</code> interval MUST be
+recorded as DATA together with its written justification (§11.4.35) and
+stated in every QA hand-off record (D.5), so an interval long enough to
+defeat this clause is visible rather than silent; this clause sets no
+numeric maximum — any such cap is an operator decision (§11.4.66).
+Whenever an integration branch (D.1) holds build-eligible content not
+yet in a QA build cut from that branch and the declared trigger has
+fired, a QA deliverable MUST be cut from that branch and handed to QA
+for ongoing manual testing (§11.4.185). Builds COALESCE: a QA build
+already in flight covers every increment that had landed on its branch
+before that build started, and increments landing WHILE it is in flight
+roll into the NEXT build rather than each demanding a fresh one — the
+obligation is that eligible content never waits past the next build, not
+one build per increment. A build that FAILS, or is REFUSED at §11.4.236,
+covers NOTHING — its increments roll into the next build. &quot;Completed&quot; in
+this clause and in its two amended gate contracts (D&#39;s recommended
+gates, below) means HANDED TO QA: a build provides coverage only once it
+has genuinely been handed to QA for manual testing, never merely once
+the build process itself exits successfully. Each such deliverable is a
+§11.4.235(B) cycle boundary with its own monotonic version increment
+(§11.4.151), passing §11.4.236 readiness on its own candidate
+fingerprint, and built once then promoted (§11.4.264). The §11.4.236
+&quot;mandated validation&quot; for a cadence build is AT MINIMUM the
+source-correctness GO plus the pre/post-build gates of §11.4.235(A),
+PLUS every operator-declared blocker bound to the QA-deploy seam per
+§11.4.236 and any §11.4.239 critical-invariant scenarios the increment
+touches — NOT the open background-hardening backlog, which by
+§11.4.235(A) never gates a build. &quot;Deliverable&quot; is project-defined DATA
+(§11.4.35): a binary, a container, a device image — or, for a
+dev-tooling / governance feature, the feature&#39;s own demonstrable,
+testable state at a fingerprinted commit; no artifact form is implied by
+this clause.</p>
+<p><strong>(D.4) CONTINUOUS BACKGROUND HARDENING THAT NEVER BLOCKS THE
+NEXT INCREMENT.</strong> Test-instrumentation hardening, gate / check /
+mutation authoring, polishing, and the fixes for QA-reported findings on
+ALREADY-delivered increments run as standing background streams
+(§11.4.103 / §11.4.192 / clause (C)), each a tracked item (§11.4.197)
+driven to its own zero-finding GO (§11.4.134 — not relaxed), landing on
+its integration branch (D.1) as it reaches GO and riding the NEXT
+cadence build cut from that branch. They never gate a LATER increment&#39;s
+build-eligibility, with two exceptions that follow from existing anchors
+rather than relax them: an open <code>source-defect</code> finding
+(§11.4.235(D)) in code the later increment touches or depends on is a
+<code>source-defect</code> of that later increment too; and a huge
+blocker still triggers §11.4.129 STOP → fix-all → full restart.</p>
+<p><strong>(D.5) NEVER-STALE TRACKING IS A PRECONDITION OF EVERY
+HAND-OFF, NOT AN AFTERTHOUGHT.</strong> With many increments and many
+background streams in flight at once, the existing sync machinery —
+§11.4.106(F) write-seam doc/DB sync, §11.4.229 live tracker, §11.4.202 /
+§11.4.208 / §11.4.210 intake and request history, §11.4.148 item
+integrity, §11.4.197 completion — applies at EVERY increment landing and
+EVERY cadence build (cited, not restated). Each QA hand-off records the
+deliverable&#39;s fingerprint and the exact set of tracked items it
+contains; a hand-off whose tracker or documents disagree with the
+deliverable (an item marked done whose fix is not in that build, or a
+fix in the build that no item records) is a §11.4 PASS-bluff at the
+delivery layer.</p>
+<p><strong>(D.6) QA FINDINGS ON EARLY INCREMENTS ARE STILL COVERAGE
+ESCAPES.</strong> Earlier, more frequent QA builds surface defects
+earlier; they do NOT make manual QA the discovery mechanism. Every
+defect manual QA finds on an increment build triggers the §11.4.238(C)
+coverage-escape audit and a new automated check, exactly as for a
+release candidate.</p>
+<p><strong>(D) honest boundary, research grounding, and gates.</strong>
+Honest boundary (§11.4.6): clause (D) changes WHEN and HOW OFTEN
+proven-correct work reaches QA; it does NOT change what gates a release
+candidate. It does not weaken §11.4.129 (huge-blocker full restart),
+§11.4.40 (full-suite retest before a release TAG — a cadence QA build is
+not a tag), §11.4.185 (manual-QA-final terminal gate for a release),
+§11.4.236 (readiness verdict per candidate), §11.4.264 / §11.4.265
+(build once and promote; progressive delivery), §11.4.134 (every finding
+of every layer still driven to GO), or §11.4.235(D)&#39;s conservative-safe
+default (an unclassifiable finding is a <code>source-defect</code> and
+does block). It does not prove any increment correct — that stays
+§11.4.108 / §11.4.235. Research grounding, stated honestly: DORA&#39;s
+&quot;Working in small batches&quot; capability (dora.dev) — &quot;break them down into
+work units that can be completed independently and in short timeframes&quot;,
+with dark launching / feature toggles named as the way to deploy
+incomplete features hidden from users; Hodgson&#39;s toggle taxonomy and
+toggle-as-inventory discipline (quoted in D.2); branch-by-abstraction
+(quoted in D.2); SAFe&#39;s &quot;Develop on Cadence. Release on Demand&quot; (D.3);
+and GitHub Next&#39;s 2026 &quot;Continuous AI&quot; / Agentic Workflows technical
+preview, which its principal researcher calls &quot;the agentic evolution of
+continuous integration&quot; — scheduled or event-triggered agent loops for
+recurring work such as CI-failure investigation and documentation-drift
+fixing, cited here only as industry direction for (D.4)/(D.5), not as an
+adopted mechanism. No single published methodology was found that
+combines per-increment QA delivery with continuously running agent
+hardening streams; that composition is this clause&#39;s own synthesis, not
+a claim of prior art. Classification: universal (§11.4.17) — consumers
+supply the cadence trigger, interval, toggle mechanism and expiry
+policy, and the deliverable form as DATA per §11.4.35. Composes
+§11.4.101 / §11.4.103 / §11.4.106(F) / §11.4.129 / §11.4.134 / §11.4.148
+/ §11.4.151 / §11.4.185 / §11.4.188 / §11.4.192 / §11.4.195 / §11.4.197
+/ §11.4.202 / §11.4.208 / §11.4.210 / §11.4.229 / §11.4.235(A)(B)(D) /
+§11.4.236 / §11.4.238 / §11.4.239 / §11.4.261 / §11.4.264 / §11.4.265 /
+§11.4.266 / §11.4.271. Recommended gates
+<code>CM-INCREMENT-DELIVERED-NOT-SPEC-WITHHELD</code> (FAIL: an
+increment holding its source-correctness GO is absent from every
+completed-and-handed-to-QA or in-flight QA build from its integration
+branch (D.1) after the declared trigger fired while no build from that
+branch is in flight — coalescing per (D.3) so an increment waiting on an
+in-flight build&#39;s successor is never a FAIL, and a build that FAILED or
+was REFUSED at §11.4.236 counts as NEITHER completed NOR in-flight so it
+provides no coverage and the increment rolls to the next build; FAIL,
+the §11.4.201(1) dual guard: an increment WITHOUT that GO appears in a
+QA build) + <code>CM-QA-BUILD-CADENCE-DECLARED</code> (FAIL: an
+integration branch (D.1) holds build-eligible content that no
+completed-and-handed-to-QA or in-flight QA build from that branch
+covers, the declared trigger has fired, and no QA build from that branch
+is in flight; coalescing per (D.3) — a build in flight covers every
+increment that landed before it started and later increments roll into
+the NEXT build, so an in-flight build is never a FAIL and the gate never
+demands one build per increment; a build that FAILED or was REFUSED at
+§11.4.236 covers NOTHING and does not satisfy this gate; FAIL also: a
+<code>periodic</code> / <code>whichever-first</code> interval with no
+recorded justification; an absent declaration resolves to
+<code>per-increment</code>, never to &quot;no cadence&quot;) +
+<code>CM-RELEASE-TOGGLE-TRACKED-EXPIRY</code> (FAIL: a release toggle
+with no tracked removal item or no expiry, or past its expiry) +
+<code>CM-QA-HANDOFF-TRACKER-IN-SYNC</code> (FAIL: a hand-off record
+whose item set disagrees with the deliverable&#39;s contents) + paired §1.1
+mutations (withhold an eligible increment until spec completion; ship an
+increment lacking its GO; delete the cadence declaration and assert a
+&quot;no cadence&quot; reading; add a toggle with no expiry; mark an item done
+whose fix is absent from the build → each gate MUST FAIL; golden-FALSE:
+an increment shipped on the first trigger after its GO, behind a tracked
+unexpired toggle, with a matching hand-off record → none fires).
+Gate-code = separate work item, NOT claimed shipped (§11.4.6 /
+§11.4.227); the four gates are registered as tracked deferrals in
+<code>constitution/scripts/gates/gate_ledger_deferrals.tsv</code>. No
+escape hatch — no <code>--withhold-until-spec-complete</code>,
+<code>--hardening-gates-next-increment</code>,
+<code>--no-qa-cadence</code>, <code>--untracked-release-toggle</code>,
+<code>--stale-tracker-at-handoff</code>,
+<code>--manual-qa-as-discovery</code> flag.</p>
+<p><em>(Process note for future extenders: §11.4.230&#39;s next free clause
+letter is (E); never reuse (A)–(D).)</em></p>
 <p>Classification: universal (§11.4.17) — a platform-neutral
 parallelization discipline reusable by ANY project that builds an
 artifact, validates it across multiple targets, and records device
@@ -4289,6 +4586,52 @@ new cycle&#39;s work still targeting the QA-deployed version id is a
 §11.4.235(B) violation.</p>
 <p><strong>(C) STANDING DEFAULT</strong>
 (§11.4.126/§11.4.230/§11.4.103), never a per-request opt-in.</p>
+<p><strong>(D) FINDING-LAYER CLASSIFIER — the decidable split clause (A)
+relies on, mandatory at every §11.4.125/§11.4.142/§11.4.194 review
+verdict (added 2026-10-03; research-derived from the §11.4.230
+four-agent audit of this project&#39;s own SpecKit-004 T048 remediation
+saga).</strong> Every finding a code-review verdict records
+(§11.4.115(F) machine-written) MUST carry exactly one
+<code>finding_layer</code> from the closed set
+<code>{source-defect | test-instrumentation | process-doc}</code> (a
+field DISTINCT from any other per-finding classification the review
+record already carries — e.g. this project&#39;s own
+<code>review_record.py</code> pre-existing <code>&quot;class&quot;</code> field
+<code>{mechanical | judgment | false-positive}</code> is a different
+axis and is unaffected): <code>source-defect</code> — the finding shows
+the SHIPPED artifact&#39;s own behaviour wrong, unsafe or exploitable as it
+will actually run, OR invalidates the evidence that proves THIS batch&#39;s
+fixes correct (their §11.4.115 RED→GREEN guard, §11.4.108 runtime
+signature, or covering test per §11.4.125(6) — a proving guard that
+cannot fail or whose reviewer-authored mutation survives per
+§11.4.194(6)(d) means the source is NOT proven-correct);
+<code>test-instrumentation</code> — the finding concerns only
+future-regression coverage, mutation-guard robustness or detection
+completeness of a guard/gate/meta-test whose protected behaviour was
+ALREADY proven, with no production decision path shown wrong and no
+proof-of-this-batch evidence invalidated; <code>process-doc</code> —
+labels, comments, citations or prose with no behavioural effect. The
+layer is recorded by the REVIEWER (§11.4.240/§11.4.249
+producer≠verifier) — the producer MAY contest it only via a fresh review
+round and MUST NOT lower it unilaterally. A finding that cannot be
+decidably classified defaults to <code>source-defect</code> (the
+conservative-safe default per §11.4.201(4); secondarily §11.4.101
+safe-reversible). §11.4.134 is NOT relaxed: every finding of every layer
+is still driven to a zero-finding, zero-warning GO in its own loop;
+clause (D) decides only which GO is the build GO-signal — a batch/slice
+is BUILD-ELIGIBLE when its <code>source-defect</code> findings reach
+that GO, while outstanding
+<code>test-instrumentation</code>/<code>process-doc</code> findings
+continue as their own tracked §11.4.197 item on a §11.4.230(A)/§11.4.103
+parallel stream. A BATCHED review (one review spanning many
+slices/files) MUST record its verdict PER SLICE/FILE, never one
+undifferentiated batch verdict, so one slice&#39;s unresolved
+<code>test-instrumentation</code> loop cannot withhold build-eligibility
+from the other slices. Clause (D) applies prospectively; recorded
+verdicts are never rewritten or reclassified (§11.4.6/§11.4.268). Honest
+boundary (§11.4.6): this clause does not make classification easy or
+infallible — it makes it a required, recorded, reviewer-owned decision
+instead of an implicit one.</p>
 <p><strong>Honest boundary (§11.4.6):</strong> relocates the
 TEST-INSTRUMENTATION re-review + gate/check hardening OFF the build
 critical path; does NOT weaken any substantive gate. The
@@ -4300,7 +4643,10 @@ un-weakened; §11.4.129/§11.4.40 un-weakened. &quot;Test-side work is
 parallel, never a build gate&quot; is bounded to future-regression
 instrumentation — a check that proves the SHIPPED artifact wrong is a
 source/artifact-correctness gate (§11.4.108 L1-2), stays on the critical
-path.</p>
+path. Clause (D) supplies the mandatory classification mechanism this
+boundary&#39;s own test presupposes — a review that never classifies its
+findings has not actually applied this honest boundary, it has merely
+stated it.</p>
 <p>Classification: universal (§11.4.17). Propagation gate
 <code>CM-COVENANT-114-235-PROPAGATION</code> (literal
 <code>11.4.235</code>) + recommended
@@ -4310,8 +4656,28 @@ with NO source-review GO — the §11.4.201(1) dual-assertion guard) +
 <code>CM-VERSION-INCREMENT-ON-DEPLOY</code> (FAIL: new-artifact deploy
 shares a version id; FAIL: work of the cycle opened by a manual-QA
 deploy still targets the QA-deployed version id — the clause-(B)
-cycle-boundary increment skipped) + paired §1.1 mutations; gate-code =
-separate work item (§11.4.6/§11.4.227).</p>
+cycle-boundary increment skipped) + paired §1.1 mutations.
+<code>CM-BUILD-ON-SOURCE-PROVEN-NOT-TEST-SIDE</code> is IMPLEMENTED
+(<code>constitution/scripts/gates/cm_build_on_source_proven_not_test_side.sh</code>
++ its paired <code>_mutation_test.sh</code>), as is
+<code>CM-VERSION-INCREMENT-ON-DEPLOY</code>
+(<code>constitution/scripts/gates/cm_version_increment_on_deploy.sh</code>
++ its paired mutation test) — the prior &quot;gate-code = separate work item&quot;
+disclaimer for those two was stale and is corrected here. NEW
+recommended gate <code>CM-REVIEW-FINDING-CLASS-RECORDED</code> for
+clause (D) (FAIL: a batched-review verdict covering more than one
+slice/file with no per-slice verdict or no per-finding
+<code>finding_layer</code> recorded; FAIL: a slice marked build-eligible
+while any <code>source-defect</code> finding in it has not reached GO;
+FAIL: a <code>finding_layer</code> lowered by the producer without a
+fresh review round) + paired §1.1 mutation — gate-code = separate work
+item, NOT claimed shipped (§11.4.6/§11.4.227), registered as a tracked
+deferral in
+<code>constitution/scripts/gates/gate_ledger_deferrals.tsv</code>; it
+binds ADDITIVELY by computing whether the existing
+<code>source_review_go</code> marker may be written, never by modifying
+<code>cm_build_on_source_proven_not_test_side.sh</code>&#39;s own tested
+logic.</p>
 <p>Non-compliance is a release blocker. No escape hatch — no
 <code>--build-behind-test-hardening</code>,
 <code>--test-side-gates-the-build</code>,
