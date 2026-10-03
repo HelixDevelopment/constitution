@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>tower_detector -- git-history &quot;patch-tower&quot; (S11.4.250
+heuristic-tower) detector</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="tower_detector----git-history-patch-tower-s114250-heuristic-tower-detector">tower_detector
+-- git-history &quot;patch-tower&quot; (S11.4.250 heuristic-tower) detector</h1>
+<p>Companion doc (S11.4.18 script-documentation mandate) for:</p>
+<ul>
+<li><code>scripts/fastcycle/review/tower_detector.sh</code> (sh
+dispatcher)</li>
+<li><code>scripts/fastcycle/review/lib/tower_detector_run.py</code> (the
+real implementation -- its own module docstring is the authoritative
+design reference; this doc is a reader-facing summary + the explicit
+false-positive/false-negative boundary + the recommended human/agent
+response to a flag)</li>
+<li><code>scripts/fastcycle/tests/test_tower_detector_red.sh</code>
+(TDD-first RED/GREEN suite, unit +
+golden-good/golden-bad/negative-control integration cases)</li>
+</ul>
+<h2 id="what-it-detects">What it detects</h2>
+<p>This project&#39;s own research finding
+(<code>docs/research/fast_dev_cycles_acceleration_2026-10/FINDINGS.md</code>,
+S6, shortlist item 4) names the mechanism directly:</p>
+<blockquote>
+<p>A git-history tower detector flags any symbol with 3+ branch-adding
+commits under one item in a cycle -- mechanically triggers S11.4.250
+before the 3rd patch round.</p>
+</blockquote>
+<p>Three tracked SpecKit-004 stories in this very repository&#39;s history
+demonstrate the failure mode this tool exists to catch early:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>File</th>
+<th>Real diagnosis round</th>
+<th>Compensating layers before diagnosis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T177</td>
+<td><code>scripts/fastcycle/consumers/migrate.sh</code></td>
+<td>round 19-20 (data-integrity hardening commit
+<code>7322d08</code>)</td>
+<td>~8 rounds of successive narrow patches</td>
+</tr>
+<tr>
+<td>T048</td>
+<td><code>scripts/fastcycle/tests/test_fc_timer_golden_output.sh</code></td>
+<td>round 20-21 (architectural rewrite, commit
+<code>b348b40</code>)</td>
+<td>7 enumerated layers (noise-floor classification -&gt; known-flaky
+registry -&gt; exit-code noise floor -&gt; summary-tail truncation -&gt;
+registry exact-accounting -&gt; nonzero-delta clause -&gt; unconditional
+ordering + digit bound), file grew 461 -&gt; 1352 lines</td>
+</tr>
+<tr>
+<td>T085</td>
+<td>several shared primitives</td>
+<td>round 3-4 (R4-B1 BLOCKING finding)</td>
+<td>fewer rounds -- this item moved fast already</td>
+</tr>
+</tbody>
+</table>
+<p>In every one of the first two cases, an independent reviewer
+eventually diagnosed a <strong>S11.4.250 &quot;heuristic-tower&quot;
+pattern</strong> -- many successive, narrow, special-case-adding commits
+compensating for ONE unfixed root defect, instead of a genuine
+architectural fix -- and told the fixer to stop patching and rebuild
+properly. The diagnosis came late because nothing <em>mechanically</em>
+watched for the pattern; it took a human reading the whole file&#39;s
+history to notice the shape. <code>tower_detector</code> makes that
+observation automatic and early: it walks a tracked item&#39;s own commit
+history and flags the exact moment a <strong>3rd qualifying
+branch-adding commit</strong> lands on the same symbol, so the S11.4.250
+response (stop, invoke <code>superpowers:systematic-debugging</code> /
+S11.4.102 root-cause investigation on the real underlying defect) can
+happen <em>before</em> review round N+1 has to re-discover it by
+hand.</p>
+<h2 id="how-it-decides-item-and-symbol-real-not-invented">How it decides
+&quot;item&quot; and &quot;symbol&quot; (real, not invented)</h2>
+<ul>
+<li><strong>Item grouping</strong>: this repository&#39;s own commit-message
+convention (verified against real <code>git log</code> output before
+writing this tool, not assumed) names a SpecKit task id
+(<code>T048</code>, <code>T085</code>, <code>T177</code>, ...) or, in a
+main-repo checkout, an S11.4.54 <code>ATM-NNN</code> id, as a literal
+token somewhere in the subject line -- sometimes as a
+Conventional-Commits scope suffix (<code>T085-r5</code>), sometimes as
+free text (<code>T048): round 11</code>). <code>tower_detector</code>
+matches the requested item id as a plain <strong>word-boundary
+token</strong> anywhere in the subject, which is robust to both real
+forms this repo&#39;s own history actually uses.</li>
+<li><strong>Symbol boundary</strong>: <code>git diff -U0</code>&#39;s own
+per-hunk function-context line (git&#39;s built-in &quot;which function is this
+hunk inside&quot; heuristic, already proven on this very codebase -- a real
+<code>git diff -U0</code> run against <code>migrate.sh</code> correctly
+reported <code>write_out() {</code> / <code>not_migrated() {</code> as
+hunk context) is normalized to <code>&lt;file&gt;::&lt;symbol&gt;</code>
+<strong>only when that context line itself matches an explicit function/
+class/def DEFINITION pattern</strong> (shell <code>name() {</code>,
+python <code>def name(</code> / <code>class Name</code>, go
+<code>func name(</code>, rust <code>fn name(</code>,
+javascript/typescript <code>function name(</code>). Every other context
+-- empty, a bare control-flow keyword like
+<code>fi</code>/<code>if</code>/<code>for</code>/<code>while</code>/<code>done</code>,
+OR (round 1 independent review finding R1-review-I2, measured on this
+repo&#39;s own real T177/ T048/T085 history) an arbitrary non-keyword token
+git&#39;s heuristic happened to surface nearby (<code>echo</code>,
+<code>import</code>, <code>PYEOF</code>, <code>trap</code>, and others
+were all silently accepted as fake symbol names by an earlier revision&#39;s
+generic fallback) -- coarsens to the explicitly-sanctioned
+<strong><code>FILE:&lt;path&gt;</code></strong> fallback. There is
+deliberately no &quot;accept the first identifier-shaped token&quot; fallback any
+more: a context line not matching a real definition boundary carries no
+attribution value, and inventing a fake per-line symbol from it was
+worse than honestly coarsening.</li>
+</ul>
+<h2 id="how-a-commit-qualifies-as-branch-adding-for-a-symbol">How a
+commit qualifies as &quot;branch-adding&quot; for a symbol</h2>
+<p><strong>Both</strong> conditions below must hold (AND-NOT structure,
+by design -- neither condition alone is a reliable signal):</p>
+<ol type="1">
+<li><strong>Diff shape</strong>: the net count of added-minus-removed
+lines opening a conditional branch (<code>if</code> / <code>elif</code>
+/ <code>else if</code> / <code>case ... in</code> / <code>except</code>
+/ <code>catch</code>) in that symbol&#39;s hunk(s) is <code>&gt;= 1</code>,
+<strong>and</strong> the hunk does not delete roughly as much as it adds
+(default: deleted lines <code>&lt; 0.8 x</code> added lines) -- a hunk
+that deletes almost as much as it adds is the &quot;remove the old special
+case, add a different one&quot; <em>replace</em> shape, not the &quot;layer
+another special case on top&quot; shape.</li>
+<li><strong>Message shape</strong>: the commit&#39;s own
+Conventional-Commits type (optionally carrying a trailing <code>!</code>
+breaking-change marker, e.g. <code>refactor!:</code> or
+<code>refactor(x)!:</code> -- matched and discarded, round 2 independent
+review NEW-4 doc-sync fix) is not
+<code>refactor</code>/<code>revert</code>, and its description does not
+start with <code>remove</code>/<code>replace</code>/<code>delete</code>/
+<code>revert</code>/<code>refactor</code>/<code>drop</code>/<code>simplify</code>/<code>rewrite</code>/<code>consolidate</code>
+-- a commit whose <em>stated intent</em> is removal/rewrite is excluded
+even when its diff superficially matches, since S11.4.250&#39;s whole point
+is distinguishing &quot;fixed the primitive and removed the cascade&quot; from
+&quot;added another layer&quot;.</li>
+</ol>
+<p>A symbol accumulating <code>&gt;= 3</code> (default;
+<code>--min-branch-commits</code>) such qualifying commits under the
+requested item/range/path is <strong>flagged</strong>.</p>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># By tracked workable-item id (word-boundary token match on commit subjects):</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">scripts/fastcycle/review/tower_detector.sh</span> <span class="at">--item</span> T085 <span class="at">--out</span> report.json</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Narrowed to one file/symbol-space:</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">scripts/fastcycle/review/tower_detector.sh</span> <span class="at">--item</span> T177 <span class="dt">\</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">--path</span> scripts/fastcycle/consumers/migrate.sh <span class="at">--out</span> report.json</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># By an explicit commit range instead of (or together with) an item:</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="ex">scripts/fastcycle/review/tower_detector.sh</span> <span class="at">--range</span> v1.0..HEAD <span class="at">--out</span> report.json</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Tunable threshold / refactor-ratio:</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="ex">scripts/fastcycle/review/tower_detector.sh</span> <span class="at">--item</span> T048 <span class="dt">\</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">--min-branch-commits</span> 2 <span class="at">--refractor-ratio</span> 0.6 <span class="at">--out</span> report.json</span></code></pre></div>
+<p>Exit codes: <code>0</code> zero findings; <code>1</code> &gt;= 1
+finding (<strong>advisory</strong>, see below); <code>2</code> usage
+error (no <code>--item</code>/<code>--range</code>/<code>--path</code>
+given, or a bad
+<code>--min-branch-commits</code>/<code>--refractor-ratio</code> value);
+<code>3</code> a genuine git command failure (bad <code>--range</code>,
+not a repository); <code>4</code> (dispatcher-only) no
+<code>python3</code>/<code>python</code> interpreter found on
+<code>PATH</code>.</p>
+<h2 id="advisory-only----never-a-gate-s114269">ADVISORY ONLY -- never a
+gate (S11.4.269)</h2>
+<p>This tool&#39;s non-zero exit on a finding is informational, matching
+this project&#39;s own house convention for precheck-style tools (e.g.
+<code>review/precheck_pack.sh</code>: &quot;1 any check FAILs&quot;). <strong>It
+is not wired into any build, review, or dispatch gate.</strong> Per
+S11.4.269, a mechanical signal like this one must never auto-gate or
+block on its own judgment -- it can be wrong in both directions (see
+&quot;Honest limitations&quot; below), so it <em>informs</em>, it never
+<em>decides</em>. If a future change wires this tool into a gate
+sequence or a review-dispatch guard, that wiring MUST remain
+advisory-only (surface the finding, never refuse a build/commit/dispatch
+on this tool&#39;s verdict alone).</p>
+<h2 id="honest-limitations-false-positive--false-negative-boundary-s1146">Honest
+limitations (false-positive / false-negative boundary, S11.4.6)</h2>
+<p><strong>False negatives (will miss)</strong>:</p>
+<ul>
+<li>A bare early-return/guard-clause addition with <em>no</em> branch
+keyword on the same added line (e.g. a lone <code>return 1</code> whose
+guarding <code>if</code> was added in an <em>earlier</em> commit) is not
+detected -- only the enumerated branch-opener keyword set is matched, by
+design (the primary signal the research brief named), not arbitrary
+control-flow changes.</li>
+<li>A tower spread across <em>symbols</em> git&#39;s own context heuristic
+attributes inconsistently (nested blocks sometimes misattributed to the
+wrong enclosing function) may split what is really one tower&#39;s commit
+count across two reported symbols, delaying the threshold.</li>
+<li>Item-token matching reads commit <strong>subjects</strong> only, not
+bodies -- a project whose convention puts the item id only in the commit
+body would see every one of its commits read as item-less by
+<code>--item</code> (never crashing; simply excluded, same as &quot;zero
+matching commits&quot;).</li>
+<li>A branch opened with a guard combinator
+(<code>&amp;&amp;</code>/<code>||</code>) rather than a bare
+<code>if</code>/<code>elif</code>/<code>case</code>/<code>except</code>/<code>catch</code>
+keyword, or control flow expressed via
+<code>while</code>/<code>switch</code>/<code>when</code> (deliberately
+scoped OUT by the design brief&#39;s own enumerated keyword list, not merely
+overlooked) is never counted as branch-adding.</li>
+<li><code>--no-merges</code> means a tower built entirely inside a
+sequence of merge-conflict RESOLUTIONS (the compensating logic lands
+only in merge commits, never a plain commit) is invisible to this
+tool.</li>
+<li><code>normalize_symbol()</code>&#39;s DEFINITION patterns require a
+same-line opening brace/paren shape (e.g. shell <code>name() {</code> on
+one line); a next-line- brace style (<code>name()</code> then
+<code>{</code> on the following line), <code>async def</code>,
+<code>pub async fn</code>, <code>pub(crate) fn</code>, a Go generic
+(<code>func F[T any](</code>), or <code>export default function</code>
+all safely coarsen to <code>FILE:</code> rather than being attributed to
+their real symbol (round 2 independent review, IMPORTANT-2 follow-up
+measurement) -- a false negative at the symbol- granularity layer, never
+a fake symbol; the FILE-level aggregate still sees the hunk.</li>
+<li>The <code>diff --git a/(.+) b/(.+)</code> path-extraction regex in
+<code>parse_diff_hunks()</code> could mis-split a path containing the
+literal substring <code>&quot; b/&quot;</code> -- an edge case not currently
+guarded against.</li>
+</ul>
+<p><strong>False positives (may over-flag)</strong>:</p>
+<ul>
+<li>git&#39;s own function-context heuristic is itself a best-effort regex
+guess for most languages; an occasional hunk can be mis-attributed to an
+unrelated nearby symbol, inflating that symbol&#39;s count. <strong>Round 1
+independent review fix (R1-review-I2)</strong>: an earlier revision also
+accepted <em>any</em> identifier-shaped token in a non-definition
+context line as a fake symbol name -- measured against this repo&#39;s own
+real history, the most common such &quot;symbol&quot; was literally
+<code>echo</code> (56 hunks), plus <code>import</code>,
+<code>PYEOF</code>, <code>trap</code>, <code>git</code>,
+<code>cat</code>, <code>rm</code>, <code>cp</code>, <code>EOF</code>,
+<code>printf</code>, <code>sys.exit</code>, <code>HERE</code>. Fixed:
+<code>normalize_symbol()</code> now accepts ONLY lines matching an
+explicit function/class/def DEFINITION pattern (shell, python, go, rust,
+javascript/typescript); every other context coarsens to the
+<code>FILE:</code> fallback instead of inventing a fake per-line symbol.
+This is a <em>reduction</em> in false-positive symbol noise, not a
+complete elimination of mis-attribution -- git&#39;s heuristic can still
+occasionally attribute a hunk to the wrong <em>real</em> definition line
+when hunks are closely nested.</li>
+<li>Two <em>independently legitimate</em> features landing 3+
+<code>if</code>-adding commits on the same symbol under one item (not
+actually compensating for the same root defect, just three separate
+well-reasoned features) will still be flagged -- the tool has no way to
+distinguish &quot;three compensating patches for one bug&quot; from &quot;three
+unrelated, well-designed features that happen to touch the same
+function&quot;. <strong>This is why the tool&#39;s output is a recommendation to
+<em>investigate</em>, never a verdict that the code is
+wrong.</strong></li>
+<li><strong>Prose counts as a branch (MINOR-4)</strong>:
+<code>BRANCH_TOKEN_RE</code> matches line CONTENT only, with no
+awareness of code vs. comment vs. docstring vs. markdown prose -- a
+sentence beginning &quot;If the caller passes...&quot; or &quot;Except where noted...&quot;
+matches the same way a real <code>if</code>/<code>except</code>
+statement does. This tool is calibrated against code files (shell/
+python/go/rust/js); running it against a predominantly-prose file (a
+<code>.md</code> doc, a changelog) can over-count. No per-file-type
+scoping is applied -- a known, documented gap, not a silent blind spot
+(this bullet is the doc-side half of that documentation; see
+<code>count_branch_tokens()</code>&#39;s own docstring for the code-side
+half).</li>
+<li><strong>Regression-test accretion (named by round 1 independent
+review, MINOR-1)</strong>: a dedicated per-round regression-test file
+(this project&#39;s own convention: <code>test_X_rN_regression.sh</code>)
+that legitimately grows a new test case each round looks, from
+git-history shape alone, exactly like a tower -- each round&#39;s commit
+genuinely adds a new conditional branch (a new test case), under the
+same item, to the same file. This is NOT a defect pattern (the file&#39;s
+whole <em>purpose</em> is to accrete), but <code>tower_detector</code>
+cannot currently distinguish it from a real tower; see the retrospective
+table below, which reports every such flag found on this session&#39;s own
+real history honestly rather than omitting the inconvenient ones.</li>
+</ul>
+<h2 id="recommended-response-to-a-flag-s114250--s114102">Recommended
+response to a flag (S11.4.250 / S11.4.102)</h2>
+<ol type="1">
+<li>Read the finding&#39;s <code>qualifying_commits</code> and
+<code>all_touches</code> evidence trail -- do not act on the count
+alone.</li>
+<li>If the pattern IS a real tower (each commit really is &quot;another layer
+compensating for the same unfixed thing&quot;): <strong>stop</strong> before
+writing a 4th patch. Invoke
+<code>superpowers:systematic-debugging</code> (S11.4.102) on the
+symbol&#39;s real underlying defect. Per commit <code>b348b40</code>&#39;s own
+demonstrated remedy on <code>test_fc_timer_golden_output.sh</code>: fix
+the primitive at its source, then <em>delete</em> the whole compensating
+cascade and replace it with the simple rule that was actually needed --
+S11.4.124 applies to the removal (git-history evidence citing the fix,
+never a silent delete).</li>
+<li>If the pattern is NOT a real tower (three legitimate, independent
+changes that happen to share a symbol): record that judgment (e.g. in
+the commit message of the next change to that symbol, or in a review
+note) so a human/agent re-running this tool later understands why the
+flag was knowingly accepted -- this tool does not provide a suppression
+mechanism of its own (no per-symbol allowlist), by design, since
+S11.4.269 forbids treating its signal as authoritative in either
+direction.</li>
+</ol>
+<h2 id="retrospective-validation-against-this-sessions-own-real-towers">Retrospective
+validation against this session&#39;s own real towers</h2>
+<p>Run read-only against this repository&#39;s own already-landed history
+(never rewriting it). Re-run and table updated after the round 1
+independent review&#39;s R1-review-I2 symbol-attribution fix (below) -- the
+numbers here are the POST-FIX ones, reported honestly including every
+flag the tool genuinely produces, not a curated subset:</p>
+<p>This table is <strong>UNRESTRICTED</strong>
+(<code>--item &lt;ID&gt;</code> only, no <code>--path</code> filter) for
+ALL THREE items (round 2 independent review NEW-1 fix: an earlier
+revision reported T177 through a <code>--path</code>-restricted query
+showing only 1 of its 5 real findings, while T048/T085 were already
+shown unrestricted -- an inconsistency corrected here by running every
+item the same way and reporting every finding each produces):</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Flagged symbol</th>
+<th>Qualifying commits</th>
+<th>Fired at round</th>
+<th>Real human diagnosis round</th>
+<th>Rounds earlier / reading</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T177</td>
+<td><code>FILE:scripts/fastcycle/consumers/migrate.sh</code></td>
+<td>8</td>
+<td><strong>round 3</strong> (commit <code>05b6239</code>)</td>
+<td>round 19-20</td>
+<td><strong>~16-17 rounds earlier</strong></td>
+</tr>
+<tr>
+<td>T177</td>
+<td><code>scripts/fastcycle/consumers/audit.py::cmd_summary</code></td>
+<td>6</td>
+<td>round 3 (commit <code>05b6239</code>)</td>
+<td>n/a</td>
+<td>genuine finding, not independently diagnosed by a human reviewer
+this session (audit.py was not the file the T177 tower diagnosis centred
+on) -- not scored against a human baseline</td>
+</tr>
+<tr>
+<td>T177</td>
+<td><code>FILE:...test_consumer_audit_red.sh</code></td>
+<td>7</td>
+<td>round 3 (commit <code>05b6239</code>)</td>
+<td>n/a</td>
+<td>regression/test-support file; see Honest limitations</td>
+</tr>
+<tr>
+<td>T177</td>
+<td><code>FILE:...test_consumer_enumerate_red.sh</code></td>
+<td>3</td>
+<td>round 3 (commit <code>05b6239</code>)</td>
+<td>n/a</td>
+<td>regression/test-support file; see Honest limitations</td>
+</tr>
+<tr>
+<td>T177</td>
+<td><code>FILE:...test_consumer_migrate_red.sh</code></td>
+<td>12</td>
+<td>round 3 (commit <code>05b6239</code>)</td>
+<td>n/a</td>
+<td>regression/test-support file; see Honest limitations</td>
+</tr>
+<tr>
+<td>T048</td>
+<td><code>FILE:scripts/fastcycle/tests/test_fc_timer_golden_output.sh</code></td>
+<td>9</td>
+<td><strong>round 7</strong> (commit <code>c512992</code>)</td>
+<td>round 20-21</td>
+<td><strong>~13-14 rounds earlier</strong></td>
+</tr>
+<tr>
+<td>T048</td>
+<td><code>...test_fc_timer_golden_output.sh::validate_triplet</code></td>
+<td>3</td>
+<td>round 11 (commit <code>e2c92dd</code>)</td>
+<td>round 20-21</td>
+<td>~9-10 rounds earlier</td>
+</tr>
+<tr>
+<td>T048</td>
+<td><code>FILE:...test_metatest_per_mutant_r4_regression.sh</code></td>
+<td>5</td>
+<td>round 7 (commit <code>c512992</code>)</td>
+<td>n/a</td>
+<td><strong>regression-test-accretion class</strong> (see Honest
+limitations) -- a dedicated per-round regression file, flagged by shape,
+not a real tower</td>
+</tr>
+<tr>
+<td>T048</td>
+<td><code>FILE:...test_fc_timer_golden_output_r4_regression.sh</code></td>
+<td>3</td>
+<td>round 13 (commit <code>df091b6</code>)</td>
+<td>n/a</td>
+<td>regression-test-accretion class</td>
+</tr>
+<tr>
+<td>T048</td>
+<td><code>FILE:...tests/lib/golden_triplet_fixture.sh</code></td>
+<td>3</td>
+<td>round 19 (commit <code>c48356b</code>)</td>
+<td>n/a</td>
+<td>regression-test-accretion class</td>
+</tr>
+<tr>
+<td>T048</td>
+<td><code>FILE:...test_fc_timer_golden_output_r7_regression.sh</code></td>
+<td>3</td>
+<td>round 19 (commit <code>c48356b</code>)</td>
+<td>n/a</td>
+<td>regression-test-accretion class</td>
+</tr>
+<tr>
+<td>T085</td>
+<td><code>scripts/fastcycle/gates/catchset_compare.py::compute_comparison</code></td>
+<td>3</td>
+<td>round 3 (commit <code>b50e685</code>)</td>
+<td>round 3-4 (R4-B1)</td>
+<td>roughly concurrent -- T085&#39;s own review cadence was already fast, so
+this tool&#39;s signal lands at/just-before the real diagnosis rather than
+dramatically ahead</td>
+</tr>
+<tr>
+<td>T085</td>
+<td><code>FILE:...test_catchset_compare_seed_independence_r2_regression.sh</code></td>
+<td>3</td>
+<td>round 5 (commit <code>10b7a06</code>)</td>
+<td>n/a</td>
+<td>regression-test-accretion class</td>
+</tr>
+<tr>
+<td>T085</td>
+<td><code>FILE:...test_review_record_backfill_evidence_r2_regression.sh</code></td>
+<td>3</td>
+<td>round 5 (commit <code>10b7a06</code>)</td>
+<td>n/a</td>
+<td>regression-test-accretion class</td>
+</tr>
+</tbody>
+</table>
+<p><strong>14 real findings total</strong> across the three items (5 for
+T177, 6 for T048, 3 for T085) -- stated as an exact count here
+specifically because an earlier revision of this doc, and this session&#39;s
+own CONTINUATION.md addendum, both mis-stated it as &quot;10&quot; (round 2
+independent review NEW-1, second half: a genuine
+arithmetic/transcription error, corrected here rather than silently left
+for a reader to re-derive).</p>
+<p>Honest reading (S11.4.6): T085&#39;s genuine-defect result is reported
+faithfully as &quot;roughly concurrent&quot;, not inflated to match the larger
+T177/T048 numbers. The regression/test-support-file flags under all
+three items are the regression-test-accretion false-positive class named
+above -- included here for honesty rather than silently dropped because
+they don&#39;t fit the &quot;early detection&quot; success story; a human/agent
+reviewing a real flag on a dedicated test-support file should recognise
+this class and not treat it as a tower without checking.
+<code>audit.py:: cmd_summary</code> is a genuine, real finding this tool
+produces on real history, but it was never the subject of this session&#39;s
+own T177 tower diagnosis (that diagnosis centred on
+<code>migrate.sh</code>), so it has no human baseline to compare against
+and is reported here without a &quot;rounds earlier&quot; claim, never a
+fabricated one. The commands used to produce this table are reproducible
+read-only <code>git-log</code>/<code>git-show</code> invocations against
+this repository&#39;s own history; no file was modified to produce them.</p>
+</body>
+</html>
