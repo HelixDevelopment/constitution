@@ -58,6 +58,22 @@
 
 XR_STREAM_CAP=${XR_STREAM_CAP:-65536}     # bytes kept on disk per stream
 
+# T048 round-36 independent review (critical_blocker_gate.sh, R36-I1):
+# exec_record_lookup() below is called by critical_blocker_gate.sh's
+# execution-record reconciliation branch to decide command_NOT_IN_RECORDER
+# vs a genuine recorder hit -- a verdict-feeding call. Its bare `grep` was
+# reproduced live: a PATH-prepended fake `grep` flips a real REFUSE
+# (command never ran) into a false ALLOW. Resolved absolute-path once here,
+# the same primitive-hardening pattern critical_blocker_gate.sh already
+# applies to its own external-command call sites. Full closed-set
+# export-f-shadow coverage (critical_blocker_gate.sh's
+# _cbg_refuse_on_env_func_tamper) is NOT replicated in this smaller,
+# narrower-scope file -- tracked as a follow-up, not claimed here.
+if [ -x /usr/bin/grep ]; then _XR_BIN_GREP=/usr/bin/grep
+elif [ -x /bin/grep ]; then _XR_BIN_GREP=/bin/grep
+else _XR_BIN_GREP=grep
+fi
+
 _xr_now()  { date -u +%Y-%m-%dT%H:%M:%SZ; }
 _xr_ms()   { date +%s%N 2>/dev/null || printf '0'; }
 _xr_sha()  { sha256sum "$1" 2>/dev/null | cut -d' ' -f1; }
@@ -169,9 +185,9 @@ exec_record_lookup() {  # <recorder_path> <command>
     # CONTROL NEEDLE, same query class, same file: a key every recorder row
     # carries. If the reader cannot see THAT, it cannot see anything, and the
     # miss below would be an artefact of the instrument.
-    _xr_needle=$(grep -c '"command"' "$_xr_lrec" 2>/dev/null); _xr_needle=${_xr_needle:-0}
+    _xr_needle=$("$_XR_BIN_GREP" -c '"command"' "$_xr_lrec" 2>/dev/null); _xr_needle=${_xr_needle:-0}
     [ "$_xr_needle" -gt 0 ] || return 3
-    if grep -qF "\"command\":\"$_xr_lcmd\"" "$_xr_lrec" 2>/dev/null; then return 0; fi
+    if "$_XR_BIN_GREP" -qF "\"command\":\"$_xr_lcmd\"" "$_xr_lrec" 2>/dev/null; then return 0; fi
     return 1
 }
 
