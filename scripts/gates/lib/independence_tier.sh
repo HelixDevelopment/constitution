@@ -46,6 +46,25 @@
 
 ITIER_NEEDLE_PATH=${ITIER_NEEDLE_PATH:-/etc/passwd}
 
+# T048 round-37 independent review (R36-B3): `stat`/`id` were called bare,
+# resolved via $PATH -- a PATH-prepended fake `stat` (e.g. `echo 0`) made
+# this file's own boundary predicate measure a fabricated owner uid, turning
+# a REFUSE (independence_tier_NOT_IN_SET on an unsupported `capability`
+# claim) into a false ALLOW; `export -f stat` reproduced the same mask and
+# was not caught because these two names were absent from the companion
+# closed-set guard in critical_blocker_gate.sh. Hardened via the SAME
+# absolute-path primitive every other external command in the sibling gate
+# file already uses; `stat`/`id` are additionally added to that gate's
+# closed-set guard so the export-f variant is caught there.
+if [ -x /usr/bin/stat ]; then _ITIER_BIN_STAT=/usr/bin/stat
+elif [ -x /bin/stat ]; then _ITIER_BIN_STAT=/bin/stat
+else _ITIER_BIN_STAT=stat
+fi
+if [ -x /usr/bin/id ]; then _ITIER_BIN_ID=/usr/bin/id
+elif [ -x /bin/id ]; then _ITIER_BIN_ID=/bin/id
+else _ITIER_BIN_ID=id
+fi
+
 _itier_tripwire() {   # record that the capability path was ENTERED
     [ -n "${CBG_CAPABILITY_TRIPWIRE:-}" ] || return 0
     : > "$CBG_CAPABILITY_TRIPWIRE" 2>/dev/null || true
@@ -58,9 +77,9 @@ _itier_boundary_raw() {  # <path>
     _itier_p="${1:-}"
     [ -n "$_itier_p" ] || return 2
     [ -e "$_itier_p" ] || return 2
-    _itier_owner=$(stat -c '%u' "$_itier_p" 2>/dev/null) || return 2
+    _itier_owner=$("$_ITIER_BIN_STAT" -c '%u' "$_itier_p" 2>/dev/null) || return 2
     [ -n "$_itier_owner" ] || return 2
-    _itier_me=$(id -u 2>/dev/null) || return 2
+    _itier_me=$("$_ITIER_BIN_ID" -u 2>/dev/null) || return 2
     # BOTH halves are required. Owned-by-another-uid but world-writable is not a
     # boundary; owned-by-me but chmod 444 is not one either (I can chmod it back).
     if [ "$_itier_owner" != "$_itier_me" ] && [ ! -w "$_itier_p" ]; then
@@ -78,7 +97,7 @@ itier_detect_boundary() {  # <store_path> -> rc 0 present / 1 absent / 3 BLIND
     _itier_needle_rc=$?
     if [ "$_itier_needle_rc" -ne 0 ]; then
         printf '[itier] BLIND detector could not see a KNOWN-PRESENT boundary at needle=%s (raw rc=%s, uid=%s) — refusing to report an absence, because a broken detector and a boundary-less host look identical from here (§11.4.201(7)(b))\n' \
-            "$ITIER_NEEDLE_PATH" "$_itier_needle_rc" "$(id -u 2>/dev/null)" >&2
+            "$ITIER_NEEDLE_PATH" "$_itier_needle_rc" "$("$_ITIER_BIN_ID" -u 2>/dev/null)" >&2
         return 3
     fi
     # (2) the SUBJECT — only now is an absence meaningful.
@@ -155,10 +174,10 @@ _itier_selftest() {
     #      decoration for that dimension (§11.4.201/§11.4.107(10): a golden-FALSE
     #      set must contain a decoy the mutation actually defeats).
     _itier_decoy=''
-    _itier_uid=$(id -u 2>/dev/null)
+    _itier_uid=$("$_ITIER_BIN_ID" -u 2>/dev/null)
     for _itier_c in /tmp /var/tmp /dev/shm; do
         [ -d "$_itier_c" ] || continue
-        _itier_co=$(stat -c '%u' "$_itier_c" 2>/dev/null) || continue
+        _itier_co=$("$_ITIER_BIN_STAT" -c '%u' "$_itier_c" 2>/dev/null) || continue
         [ -n "$_itier_co" ] || continue
         if [ "$_itier_co" != "$_itier_uid" ] && [ -w "$_itier_c" ]; then
             _itier_decoy="$_itier_c"; break
