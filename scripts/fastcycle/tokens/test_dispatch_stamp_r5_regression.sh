@@ -347,6 +347,428 @@ else
   fi
 fi
 
+# D. UNREGISTERED-NESTED-CONSTITUTION layout (N1, independent Opus-xhigh
+# review of S8's own round-2 fix, follow-up polish round, 2026-10-03):
+# `constitution/` may have its OWN `.git` (so neither case 1's
+# `--show-superproject-working-tree` NOR a registered-gitlink check ever
+# fires) while still being genuinely NESTED two levels under an intended
+# parent project -- the parent just never ran a formal `git submodule
+# add`. Before this fix, `_hrp_project_root()`'s case 2
+# (`--show-toplevel`) returned constitution's OWN root unconditionally
+# in this shape, silently degrading the resolved prefix to
+# snake_case("constitution") exactly like the pre-S8 defect this file's
+# cases A/B/C already guard -- just via a DIFFERENT precondition (no
+# superproject relationship at all, vs. a wrong-toplevel git boundary).
+#
+# A fresh scratch fixture is built here: a PARENT directory carrying its
+# OWN `.env` (the real evidence the fix looks for) containing a NESTED
+# `constitution/` directory that is its OWN, independently-`git init`'d
+# repository (never a registered submodule of the parent -- confirmed by
+# a control needle below, mirroring case C's own standalone-fixture
+# control-needle discipline) with a real COPY of release_prefix.sh under
+# test (never a reimplementation, §11.4.240 producer != verifier).
+echo
+echo "-- D. UNREGISTERED-NESTED-CONSTITUTION layout: a parent project's own .env / .gitmodules evidence is preferred over the narrower nested-repo toplevel --"
+D_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_unregistered_nested_fixture.XXXXXX")"
+D_PARENT="$D_ROOT/parent_project"
+D_CONSTITUTION="$D_PARENT/constitution"
+mkdir -p "$D_CONSTITUTION/scripts"
+cp "$RELEASE_PREFIX" "$D_CONSTITUTION/scripts/release_prefix.sh"
+(
+  cd "$D_CONSTITUTION" \
+    && git init -q \
+    && git config user.email "r5-d-fixture@example.invalid" \
+    && git config user.name "r5-d-fixture"
+) >/dev/null 2>&1
+printf 'HELIX_RELEASE_PREFIX=parent_project_r5_expected\n' > "$D_PARENT/.env"
+cleanup_d_fixture() { rm -rf "$D_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture' EXIT
+
+if [ ! -d "$D_CONSTITUTION/.git" ] || [ ! -f "$D_PARENT/.env" ] || [ ! -f "$D_CONSTITUTION/scripts/release_prefix.sh" ]; then
+  bad "D fixture setup failed -- $D_CONSTITUTION missing .git, or $D_PARENT missing .env, or scripts/release_prefix.sh missing, cannot run case D"
+else
+  # control needle: this nested constitution/ is genuinely UNREGISTERED
+  # -- it is its own git toplevel (same class as case C's standalone
+  # check) AND, unlike case C, it is genuinely nested two levels under a
+  # real parent directory that is NOT itself a git repository at all
+  # (the parent was never `git init`'d) -- never assumed.
+  D_TOPLEVEL="$(cd "$D_CONSTITUTION" && git rev-parse --show-toplevel 2>/dev/null || true)"
+  D_SUPERPROJECT="$(cd "$D_CONSTITUTION" && git rev-parse --show-superproject-working-tree 2>/dev/null || true)"
+  D_TOPLEVEL_REAL="$(cd "$D_TOPLEVEL" 2>/dev/null && pwd || true)"
+  D_CONSTITUTION_REAL="$(cd "$D_CONSTITUTION" && pwd)"
+  D_PARENT_REAL="$(cd "$D_PARENT" && pwd)"
+  if [ -z "$D_SUPERPROJECT" ] && [ -n "$D_TOPLEVEL_REAL" ] && [ "$D_TOPLEVEL_REAL" = "$D_CONSTITUTION_REAL" ] && [ "$D_TOPLEVEL_REAL" != "$D_PARENT_REAL" ]; then
+    ok "D fixture precondition is genuinely real: constitution/ has no superproject ('$D_SUPERPROJECT'), its own git toplevel is itself ('$D_TOPLEVEL_REAL'), and that differs from the real parent directory ('$D_PARENT_REAL') that carries the .env evidence -- the unregistered-nested scenario is real on this fixture, not assumed"
+  else
+    bad "D fixture is NOT genuinely unregistered-nested (superproject='$D_SUPERPROJECT' toplevel='$D_TOPLEVEL_REAL' constitution='$D_CONSTITUTION_REAL' parent='$D_PARENT_REAL') -- this case's premise does not hold, re-investigate before trusting case D's result below"
+  fi
+
+  D_RESULT="$(cd "$D_CONSTITUTION" && bash scripts/release_prefix.sh)"
+  printf '  unregistered-nested fixture result: %s\n' "$D_RESULT"
+  if [ "$D_RESULT" = "parent_project_r5_expected" ]; then
+    ok "N1: an unregistered nested constitution/ repo resolves the REAL parent project's .env prefix ('parent_project_r5_expected') via the new .env-evidence heuristic, rather than silently degrading to its own basename-derived prefix ('constitution')"
+  else
+    bad "N1 regression: got '$D_RESULT', want 'parent_project_r5_expected' -- the unregistered-nested-constitution heuristic has regressed (pre-fix behaviour returns the nested repo's own snake_case basename, 'constitution', confirmed live before landing this fix)"
+  fi
+
+  # D-negative-control (§11.4.201(1) false-positive guard): remove the
+  # .env evidence and confirm a GENUINELY standalone nested repo (no
+  # evidence of an intended parent at all) is NOT falsely widened --
+  # it must still resolve to its own root, exactly as case C's
+  # standalone layout does.
+  rm -f "$D_PARENT/.env"
+  D_NEGCTRL_RESULT="$(cd "$D_CONSTITUTION" && bash scripts/release_prefix.sh)"
+  printf '  negative-control (no parent evidence) result: %s\n' "$D_NEGCTRL_RESULT"
+  if [ "$D_NEGCTRL_RESULT" = "constitution" ]; then
+    ok "negative control: with NO parent-project evidence at all, the heuristic correctly does NOT widen -- still resolves to the nested repo's own standalone prefix ('constitution'), proving N1's fix is not a false-positive-prone over-widening"
+  else
+    bad "negative-control regression: got '$D_NEGCTRL_RESULT', want 'constitution' -- N1's heuristic is now falsely widening even without real parent-project evidence, a new false-positive this fix must not introduce"
+  fi
+
+  # D-gitmodules-variant: the SAME scenario but with a `.gitmodules`
+  # entry naming "constitution" as a submodule path instead of a `.env`
+  # file -- the task's OTHER named evidence source -- and no `.env` at
+  # all, so a successful resolve here proves the `.gitmodules` branch
+  # is independently load-bearing, not merely redundant with the `.env`
+  # branch already proven above.
+  cat > "$D_PARENT/.gitmodules" <<'GITMODULES_EOF'
+[submodule "constitution"]
+	path = constitution
+	url = git@example.invalid:org/constitution.git
+GITMODULES_EOF
+  D_GITMODULES_RESULT="$(cd "$D_CONSTITUTION" && bash scripts/release_prefix.sh)"
+  printf '  .gitmodules-only evidence result: %s\n' "$D_GITMODULES_RESULT"
+  if [ "$D_GITMODULES_RESULT" = "parent_project" ]; then
+    ok "N1 .gitmodules branch: with ONLY a .gitmodules entry naming 'constitution' as a submodule path (no .env), the heuristic still prefers the real parent directory, deriving its snake_case basename ('parent_project') -- the .gitmodules evidence path is independently load-bearing"
+  else
+    bad "N1 .gitmodules branch regression: got '$D_GITMODULES_RESULT', want 'parent_project' -- the .gitmodules-entry evidence path is not taking effect"
+  fi
+fi
+
+# D2-D5 -- B1 remediation (round-4 independent Opus-xhigh review, 2026-10-03,
+# finding B1 + I3): the N1 widen heuristic above was found too permissive on
+# BOTH its evidence branches -- it treated ANY readable `.env` (even one
+# carrying NO `HELIX_RELEASE_PREFIX=` assignment at all) as sufficient
+# evidence, and treated ANY `.gitmodules` entry naming "constitution" as
+# sufficient even when the directory being examined is NOT itself named
+# "constitution". Each scenario below is one of the reviewer's OWN named
+# adversarial reproductions (§11.4.199 exact-reproduction-sequence),
+# proven to NOT widen against the FIXED release_prefix.sh, each paired
+# (D2/D3) with a mutation-discrimination proof (§11.4.194(6)(d)) that the
+# SAME fixture WOULD incorrectly widen if the corresponding fix were
+# reverted to its pre-B1 permissive shape -- demonstrating these negative
+# controls are genuinely load-bearing, not vacuously true (the exact I3
+# finding: a reviewer-loosened `.gitmodules` grep stayed undetected by the
+# pre-existing suite because nothing exercised the substring-collision or
+# irrelevant-content shapes).
+#
+# mutate_release_prefix.py <src> <dst> <kind> -- generates an exact-text-
+# substitution mutated COPY of release_prefix.sh (never a hand-written
+# reimplementation, §11.4.240 producer != verifier), reverting ONE of the
+# two B1 evidence-tightenings back to its pre-fix permissive shape:
+#   env         -- the `.env` content-verification (_hrp_from_env_file)
+#                  reverted to a bare file-existence check.
+#   gitmodules  -- the anchored `path = constitution` exact-value grep
+#                  reverted to a bare unanchored substring grep.
+MUT_GEN="$(mktemp "${TMPDIR:-/tmp}/mutate_release_prefix.XXXXXX.py")"
+cat > "$MUT_GEN" <<'PYEOF'
+import sys
+src_path, dst_path, kind = sys.argv[1], sys.argv[2], sys.argv[3]
+src = open(src_path, encoding="utf-8").read()
+if kind == "env":
+    OLD = '        if [ -n "$(_hrp_from_env_file "$parent_root/.env")" ]; then\n'
+    NEW = '        if [ -f "$parent_root/.env" ]; then\n'
+elif kind == "gitmodules":
+    OLD = (
+        '        elif [ -f "$parent_root/.gitmodules" ] \\\n'
+        "             && grep -Eq '^[[:space:]]*path[[:space:]]*=[[:space:]]*constitution[[:space:]]*$' \\\n"
+        '                  "$parent_root/.gitmodules" 2>/dev/null; then\n'
+    )
+    NEW = (
+        '        elif [ -f "$parent_root/.gitmodules" ] \\\n'
+        "             && grep -q 'constitution' \\\n"
+        '                  "$parent_root/.gitmodules" 2>/dev/null; then\n'
+    )
+else:
+    sys.stderr.write("mutate_release_prefix.py: unknown kind %r\n" % kind)
+    sys.exit(2)
+if src.count(OLD) != 1:
+    sys.stderr.write("MUTATION_SETUP_FAILED matches=%d\n" % src.count(OLD))
+    sys.exit(2)
+open(dst_path, "w", encoding="utf-8").write(src.replace(OLD, NEW, 1))
+PYEOF
+
+# D2 (B1): a readable parent `.env` with CONTENT IRRELEVANT to
+# HELIX_RELEASE_PREFIX (e.g. an unrelated API_KEY=... line, exactly the
+# reviewer's reported shape) must NOT be treated as widening evidence.
+echo
+echo "-- D2 (B1): content-irrelevant parent .env does NOT widen --"
+D2_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_b1_irrelevant_env_fixture.XXXXXX")"
+D2_PARENT="$D2_ROOT/parent_irrelevant_env"
+D2_CONSTITUTION="$D2_PARENT/constitution"
+mkdir -p "$D2_CONSTITUTION/scripts"
+cp "$RELEASE_PREFIX" "$D2_CONSTITUTION/scripts/release_prefix.sh"
+(
+  cd "$D2_CONSTITUTION" \
+    && git init -q \
+    && git config user.email "r5-d2-fixture@example.invalid" \
+    && git config user.name "r5-d2-fixture"
+) >/dev/null 2>&1
+printf 'API_KEY=unrelated_content_no_release_prefix_here\n' > "$D2_PARENT/.env"
+cleanup_d2_fixture() { rm -rf "$D2_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture' EXIT
+
+if [ ! -d "$D2_CONSTITUTION/.git" ] || [ ! -f "$D2_PARENT/.env" ]; then
+  bad "D2 fixture setup failed -- cannot run the content-irrelevant-.env case"
+else
+  D2_RESULT="$(cd "$D2_CONSTITUTION" && bash scripts/release_prefix.sh)"
+  printf '  content-irrelevant-.env fixture result: %s\n' "$D2_RESULT"
+  if [ "$D2_RESULT" = "constitution" ]; then
+    ok "B1: a parent .env with NO HELIX_RELEASE_PREFIX= assignment (file exists, content irrelevant) correctly does NOT widen -- stays 'constitution' (the pre-B1-fix bug treated ANY readable .env, regardless of content, as sufficient evidence)"
+  else
+    bad "B1 regression: got '$D2_RESULT', want 'constitution' -- the content-irrelevant-.env false-widen bug has returned"
+  fi
+
+  D2_MUT="$D2_ROOT/release_prefix_mut_env.sh"
+  D2_MUT_SETUP_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$D2_MUT" env 2>&1)"
+  D2_MUT_SETUP_RC=$?
+  if [ "$D2_MUT_SETUP_RC" -ne 0 ] || [ ! -f "$D2_MUT" ]; then
+    bad "D2 mutation-discrimination setup failed (rc=$D2_MUT_SETUP_RC err=$D2_MUT_SETUP_ERR) -- cannot prove D2's negative control is discriminating; investigate before trusting the D2 result above as a genuine regression guard"
+  else
+    cp "$D2_MUT" "$D2_CONSTITUTION/scripts/release_prefix.sh"
+    D2_MUT_RESULT="$(cd "$D2_CONSTITUTION" && bash scripts/release_prefix.sh)"
+    cp "$RELEASE_PREFIX" "$D2_CONSTITUTION/scripts/release_prefix.sh"   # restore the real, unmutated file
+    printf '  mutated (content-check reverted to bare existence) result: %s\n' "$D2_MUT_RESULT"
+    if [ "$D2_MUT_RESULT" != "constitution" ]; then
+      ok "D2 mutation-discrimination: the SAME content-irrelevant-.env fixture, run against a copy with the .env evidence check reverted to a bare file-existence test (the exact pre-B1-fix shape), DOES incorrectly widen ('$D2_MUT_RESULT') -- proving D2's negative control above is genuinely load-bearing, not vacuously true"
+    else
+      bad "D2 mutation-discrimination FAILED: the mutated (pre-B1-fix-shaped) copy did NOT widen against the SAME content-irrelevant-.env fixture ('$D2_MUT_RESULT') -- D2's negative control above cannot be trusted as a real regression guard against this specific loosening"
+    fi
+  fi
+fi
+
+# D3 (B1/I3): a `.gitmodules` entry naming "constitution" only as a
+# SUBSTRING of a DIFFERENT path (e.g. `path = other/constitution-utils`,
+# never the complete value "constitution") must NOT be treated as
+# widening evidence -- the exact I3 reviewer-loosened-grep collision.
+echo
+echo "-- D3 (B1/I3): .gitmodules entry mentioning 'constitution' only as a substring of a different path does NOT widen --"
+D3_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_b1_gitmodules_substring_fixture.XXXXXX")"
+D3_PARENT="$D3_ROOT/parent_substring_gitmodules"
+D3_CONSTITUTION="$D3_PARENT/constitution"
+mkdir -p "$D3_CONSTITUTION/scripts"
+cp "$RELEASE_PREFIX" "$D3_CONSTITUTION/scripts/release_prefix.sh"
+(
+  cd "$D3_CONSTITUTION" \
+    && git init -q \
+    && git config user.email "r5-d3-fixture@example.invalid" \
+    && git config user.name "r5-d3-fixture"
+) >/dev/null 2>&1
+cat > "$D3_PARENT/.gitmodules" <<'GITMODULES_D3_EOF'
+[submodule "other"]
+	path = other/constitution-utils
+	url = git@example.invalid:org/constitution-utils.git
+GITMODULES_D3_EOF
+cleanup_d3_fixture() { rm -rf "$D3_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture' EXIT
+
+if [ ! -d "$D3_CONSTITUTION/.git" ] || [ ! -f "$D3_PARENT/.gitmodules" ]; then
+  bad "D3 fixture setup failed -- cannot run the .gitmodules-substring case"
+else
+  D3_RESULT="$(cd "$D3_CONSTITUTION" && bash scripts/release_prefix.sh)"
+  printf '  .gitmodules-substring-only fixture result: %s\n' "$D3_RESULT"
+  if [ "$D3_RESULT" = "constitution" ]; then
+    ok "B1/I3: a .gitmodules entry naming 'constitution' only as a substring of a different path ('other/constitution-utils', never the exact value 'constitution') correctly does NOT widen -- stays 'constitution' (proves the real grep is value-anchored, not a substring match)"
+  else
+    bad "B1/I3 regression: got '$D3_RESULT', want 'constitution' -- the .gitmodules substring-collision false-widen bug has returned"
+  fi
+
+  D3_MUT="$D3_ROOT/release_prefix_mut_gitmodules.sh"
+  D3_MUT_SETUP_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$D3_MUT" gitmodules 2>&1)"
+  D3_MUT_SETUP_RC=$?
+  if [ "$D3_MUT_SETUP_RC" -ne 0 ] || [ ! -f "$D3_MUT" ]; then
+    bad "D3 mutation-discrimination setup failed (rc=$D3_MUT_SETUP_RC err=$D3_MUT_SETUP_ERR) -- cannot prove D3's negative control is discriminating; investigate before trusting the D3 result above as a genuine regression guard"
+  else
+    cp "$D3_MUT" "$D3_CONSTITUTION/scripts/release_prefix.sh"
+    D3_MUT_RESULT="$(cd "$D3_CONSTITUTION" && bash scripts/release_prefix.sh)"
+    cp "$RELEASE_PREFIX" "$D3_CONSTITUTION/scripts/release_prefix.sh"   # restore the real, unmutated file
+    printf '  mutated (anchored grep reverted to bare substring match) result: %s\n' "$D3_MUT_RESULT"
+    if [ "$D3_MUT_RESULT" != "constitution" ]; then
+      ok "D3 mutation-discrimination: the SAME .gitmodules-substring fixture, run against a copy with the anchored exact-value grep reverted to a bare unanchored 'grep -q constitution' (the exact I3 reviewer-mutation shape), DOES incorrectly widen ('$D3_MUT_RESULT') -- proving D3's negative control above is genuinely load-bearing, not vacuously true"
+    else
+      bad "D3 mutation-discrimination FAILED: the mutated (I3-reviewer-loosened-shaped) copy did NOT widen against the SAME .gitmodules-substring fixture ('$D3_MUT_RESULT') -- D3's negative control above cannot be trusted as a real regression guard against this specific loosening"
+    fi
+  fi
+fi
+rm -f "$MUT_GEN"
+
+# D4 (B1): the "mismatched-sibling-name-with-matching-.gitmodules-path"
+# case -- the directory being examined is NOT itself named "constitution"
+# at all (basename "other_dir"), even though the parent's .gitmodules
+# carries a LEGITIMATE, exact-value-matching `path = constitution` entry
+# (the kind of entry that WOULD correctly widen a genuine constitution/
+# checkout per case D above). B1's basename gate must refuse to widen
+# here regardless of how valid that evidence looks in isolation, because
+# the entry describes a DIFFERENT, sibling directory -- not this one.
+echo
+echo "-- D4 (B1): mismatched sibling name ('other_dir', not 'constitution') with an otherwise-valid parent .gitmodules entry does NOT widen --"
+D4_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_b1_mismatched_name_fixture.XXXXXX")"
+D4_PARENT="$D4_ROOT/parent_mismatched_name"
+D4_OTHER_DIR="$D4_PARENT/other_dir"
+mkdir -p "$D4_OTHER_DIR/scripts"
+cp "$RELEASE_PREFIX" "$D4_OTHER_DIR/scripts/release_prefix.sh"
+(
+  cd "$D4_OTHER_DIR" \
+    && git init -q \
+    && git config user.email "r5-d4-fixture@example.invalid" \
+    && git config user.name "r5-d4-fixture"
+) >/dev/null 2>&1
+cat > "$D4_PARENT/.gitmodules" <<'GITMODULES_D4_EOF'
+[submodule "constitution"]
+	path = constitution
+	url = git@example.invalid:org/constitution.git
+GITMODULES_D4_EOF
+printf 'HELIX_RELEASE_PREFIX=should_not_widen_wrong_sibling\n' > "$D4_PARENT/.env"
+cleanup_d4_fixture() { rm -rf "$D4_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d4_fixture' EXIT
+
+if [ ! -d "$D4_OTHER_DIR/.git" ] || [ ! -f "$D4_PARENT/.gitmodules" ] || [ ! -f "$D4_PARENT/.env" ]; then
+  bad "D4 fixture setup failed -- cannot run the mismatched-sibling-name case"
+else
+  D4_TOPLEVEL="$(cd "$D4_OTHER_DIR" && git rev-parse --show-toplevel 2>/dev/null || true)"
+  D4_TOPLEVEL_BASE="$(basename "$D4_TOPLEVEL" 2>/dev/null || true)"
+  if [ "$D4_TOPLEVEL_BASE" = "other_dir" ]; then
+    ok "D4 fixture precondition is genuinely real: the examined directory's own git toplevel basename is 'other_dir', NOT 'constitution' -- the mismatched-name scenario is real on this fixture, not assumed"
+  else
+    bad "D4 fixture is NOT genuinely mismatched-named (toplevel basename='$D4_TOPLEVEL_BASE') -- re-investigate before trusting case D4's result below"
+  fi
+  D4_RESULT="$(cd "$D4_OTHER_DIR" && bash scripts/release_prefix.sh)"
+  printf '  mismatched-sibling-name fixture result: %s\n' "$D4_RESULT"
+  if [ "$D4_RESULT" = "other_dir" ]; then
+    ok "B1: a directory NOT named 'constitution' (basename 'other_dir') correctly does NOT widen even though its parent carries an otherwise-valid, exact-matching .gitmodules 'path = constitution' entry AND a valid HELIX_RELEASE_PREFIX .env -- stays 'other_dir' (the basename gate refuses to treat this sibling's own evidence as applying to a DIFFERENT directory)"
+  else
+    bad "B1 regression: got '$D4_RESULT', want 'other_dir' -- the mismatched-sibling-name false-widen bug has returned"
+  fi
+fi
+
+# D5 (B1): the "unreadable-parent-.env" case -- a parent .env that DOES
+# carry a genuine HELIX_RELEASE_PREFIX= assignment but is UNREADABLE
+# (chmod 000) must NOT be treated as widening evidence (an unreadable
+# file can never be verified to contain anything, so it must be treated
+# identically to no evidence at all -- never silently trusted).
+echo
+echo "-- D5 (B1): unreadable parent .env (chmod 000, dir genuinely named 'constitution') does NOT widen --"
+D5_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_b1_unreadable_env_fixture.XXXXXX")"
+D5_PARENT="$D5_ROOT/parent_unreadable_env"
+D5_CONSTITUTION="$D5_PARENT/constitution"
+mkdir -p "$D5_CONSTITUTION/scripts"
+cp "$RELEASE_PREFIX" "$D5_CONSTITUTION/scripts/release_prefix.sh"
+(
+  cd "$D5_CONSTITUTION" \
+    && git init -q \
+    && git config user.email "r5-d5-fixture@example.invalid" \
+    && git config user.name "r5-d5-fixture"
+) >/dev/null 2>&1
+printf 'HELIX_RELEASE_PREFIX=should_not_widen_unreadable\n' > "$D5_PARENT/.env"
+chmod 000 "$D5_PARENT/.env"
+cleanup_d5_fixture() { chmod 644 "$D5_PARENT/.env" 2>/dev/null || true; rm -rf "$D5_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d4_fixture; cleanup_d5_fixture' EXIT
+
+if [ ! -d "$D5_CONSTITUTION/.git" ] || [ ! -e "$D5_PARENT/.env" ]; then
+  bad "D5 fixture setup failed -- cannot run the unreadable-parent-.env case"
+else
+  if [ -r "$D5_PARENT/.env" ]; then
+    bad "D5 fixture precondition failed: '$D5_PARENT/.env' is unexpectedly READABLE despite chmod 000 (running as root?) -- cannot genuinely exercise the unreadable-file case on this host"
+  else
+    ok "D5 fixture precondition: '$D5_PARENT/.env' is genuinely unreadable (chmod 000, confirmed via [ -r ])"
+  fi
+  D5_RESULT="$(cd "$D5_CONSTITUTION" && bash scripts/release_prefix.sh)"
+  printf '  unreadable-parent-.env fixture result: %s\n' "$D5_RESULT"
+  if [ "$D5_RESULT" = "constitution" ]; then
+    ok "B1: an unreadable parent .env (chmod 000) -- even one that genuinely contains a HELIX_RELEASE_PREFIX= assignment -- correctly does NOT widen, since it cannot be verified to contain anything -- stays 'constitution'"
+  else
+    bad "B1 regression: got '$D5_RESULT', want 'constitution' -- the unreadable-.env false-widen bug has returned"
+  fi
+fi
+
+# E. invalid HELIX_PROJECT_ROOT override (N2, same independent review,
+# 2026-10-03): an explicit-but-INVALID HELIX_PROJECT_ROOT (a path that
+# does not exist / is not readable) MUST print a clear stderr warning
+# naming the invalid path, and MUST still correctly fall through to the
+# next resolution tier on stdout (a WARNING, never a hard failure, per
+# §11.4.6 -- an explicit override silently ignored is as much a guess
+# as inventing one).
+echo
+echo "-- E. invalid HELIX_PROJECT_ROOT override: warns on stderr, falls through correctly on stdout --"
+E_INVALID_ROOT="/nonexistent/path/hrp_r5_e_fixture_$$"
+if [ -e "$E_INVALID_ROOT" ]; then
+  bad "E fixture precondition failed: '$E_INVALID_ROOT' unexpectedly exists on this host -- cannot exercise the invalid-override case"
+else
+  ok "E fixture precondition: '$E_INVALID_ROOT' genuinely does not exist"
+  E_STDERR_FILE="$(mktemp "${TMPDIR:-/tmp}/hrp_r5_e_stderr.XXXXXX")"
+  E_STDOUT="$(HELIX_PROJECT_ROOT="$E_INVALID_ROOT" bash "$RELEASE_PREFIX" 2>"$E_STDERR_FILE")"
+  E_RC=$?
+  E_STDERR="$(cat "$E_STDERR_FILE" 2>/dev/null)"
+  rm -f "$E_STDERR_FILE"
+  printf '  stdout: %s\n' "$E_STDOUT"
+  printf '  stderr: %s\n' "$E_STDERR"
+  printf '  exit:   %s\n' "$E_RC"
+  if printf '%s' "$E_STDERR" | grep -Fq "$E_INVALID_ROOT"; then
+    ok "N2: an invalid HELIX_PROJECT_ROOT override prints a stderr WARNING naming the specific invalid path ('$E_INVALID_ROOT'), rather than silently falling through with no indication the caller's explicit override was ignored"
+  else
+    bad "N2 regression: no stderr warning naming the invalid path ('$E_INVALID_ROOT') was printed (captured stderr: '$E_STDERR') -- the invalid-override warning has regressed"
+  fi
+  if [ "$E_RC" -eq 0 ] && [ -n "$E_STDOUT" ] && [ "$E_STDOUT" != "$E_INVALID_ROOT" ]; then
+    ok "N2: resolution still correctly falls through to the next tier on stdout (got '$E_STDOUT', exit $E_RC) despite the invalid override -- a WARNING, never a hard failure, for this non-critical path-resolution tool"
+  else
+    bad "N2 regression: resolution did not correctly fall through after the invalid override (stdout='$E_STDOUT' exit=$E_RC)"
+  fi
+fi
+
+# E2. readable-but-not-searchable HELIX_PROJECT_ROOT (M1, round-4
+# independent Opus-xhigh review, 2026-10-03): a directory that IS a
+# directory and IS readable (`-d`/`-r` both true) but is NOT searchable
+# (chmod 444, no executable bit) previously passed the pre-M1-fix
+# validation, then the subsequent `cd` into it failed -- producing an
+# exit-1 with EMPTY stdout instead of the SAME documented
+# warn-and-fall-through contract every other invalid-override shape
+# (case E above) already gets. M1 added an `-x` check alongside `-d`/
+# `-r`; this case proves it fires and the resolution still falls through
+# correctly on stdout.
+echo
+echo "-- E2 (M1): readable-but-not-searchable HELIX_PROJECT_ROOT (chmod 444) warns on stderr, falls through correctly on stdout --"
+E2_NOSEARCH_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_r5_m1_nosearch_fixture.XXXXXX")"
+chmod 444 "$E2_NOSEARCH_ROOT"
+cleanup_e2_fixture() { chmod 755 "$E2_NOSEARCH_ROOT" 2>/dev/null || true; rm -rf "$E2_NOSEARCH_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d4_fixture; cleanup_d5_fixture; cleanup_e2_fixture' EXIT
+if [ ! -d "$E2_NOSEARCH_ROOT" ]; then
+  bad "E2 fixture setup failed -- '$E2_NOSEARCH_ROOT' missing, cannot run the M1 readable-but-not-searchable case"
+else
+  if [ -x "$E2_NOSEARCH_ROOT" ]; then
+    bad "E2 fixture precondition failed: '$E2_NOSEARCH_ROOT' is unexpectedly SEARCHABLE despite chmod 444 (running as root?) -- cannot genuinely exercise the not-searchable case on this host"
+  else
+    ok "E2 fixture precondition: '$E2_NOSEARCH_ROOT' is genuinely a directory ([ -d ]), readable ([ -r ]), but NOT searchable ([ -x ] fails, confirmed live)"
+  fi
+  E2_STDERR_FILE="$(mktemp "${TMPDIR:-/tmp}/hrp_r5_e2_stderr.XXXXXX")"
+  E2_STDOUT="$(HELIX_PROJECT_ROOT="$E2_NOSEARCH_ROOT" bash "$RELEASE_PREFIX" 2>"$E2_STDERR_FILE")"
+  E2_RC=$?
+  E2_STDERR="$(cat "$E2_STDERR_FILE" 2>/dev/null)"
+  rm -f "$E2_STDERR_FILE"
+  printf '  stdout: %s\n' "$E2_STDOUT"
+  printf '  stderr: %s\n' "$E2_STDERR"
+  printf '  exit:   %s\n' "$E2_RC"
+  if printf '%s' "$E2_STDERR" | grep -Fq "$E2_NOSEARCH_ROOT"; then
+    ok "M1: a readable-but-not-searchable HELIX_PROJECT_ROOT override prints a stderr WARNING naming the specific path ('$E2_NOSEARCH_ROOT'), rather than silently crashing or producing empty output with no indication of why"
+  else
+    bad "M1 regression: no stderr warning naming the not-searchable path ('$E2_NOSEARCH_ROOT') was printed (captured stderr: '$E2_STDERR') -- the not-searchable-override warning has regressed"
+  fi
+  if [ "$E2_RC" -eq 0 ] && [ -n "$E2_STDOUT" ] && [ "$E2_STDOUT" != "$E2_NOSEARCH_ROOT" ]; then
+    ok "M1: resolution still correctly falls through to the next tier on stdout (got '$E2_STDOUT', exit $E2_RC) despite the readable-but-not-searchable override -- the SAME warn-and-fall-through contract as every other invalid-override shape, never the pre-M1-fix empty-stdout/exit-1 crash"
+  else
+    bad "M1 regression: resolution did not correctly fall through after the readable-but-not-searchable override (stdout='$E2_STDOUT' exit=$E2_RC) -- the pre-M1-fix empty-output bug has returned"
+  fi
+fi
+
 echo
 echo "  total: PASS=$PASS FAIL=$FAIL"
 if [ "$FAIL" -gt 0 ]; then

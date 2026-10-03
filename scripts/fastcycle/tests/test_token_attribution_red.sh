@@ -121,6 +121,241 @@ needle_check() {
     fi
 }
 
+# skip <reason> -- N3 remediation (T048/US1 S10 remediation, 2026-10-03):
+# an honest §11.4.3/§11.4.6 SKIP marker, distinct from both ok()/PASS and
+# bad()/FAIL — deliberately NOT counted into $PASS or $FAIL (mirrors the
+# simplest sibling convention already established elsewhere in this same
+# test suite, e.g. scripts/fastcycle/tests/test_host_exclusive_bytes_red.sh's
+# own `skip(){ echo "SKIP: $1"; }`), so a SKIP line is mechanically
+# distinguishable from a real PASS in the SUMMARY pass=$PASS count while
+# never being misreported as a FAIL either.
+skip() { echo "SKIP: $1"; }
+
+# skip_prefix_mismatch <reason> -- I2 remediation (T048/US1 S10, round-4
+# independent Opus-xhigh review, 2026-10-03, finding I2(b)): every skip()
+# call in this file that is gated on "$DERIVED_DEFAULT_PREFIX != ATM"
+# (PART A/D/F3/F7/G1's checkout-portability skips) MUST go through this
+# wrapper, never call skip() directly for that reason -- a BLIND
+# DERIVED_DEFAULT_PREFIX control needle (release_prefix.sh unreachable /
+# erroring / producing empty output -- see the control-needle BLIND
+# finding computed below) and a GENUINELY non-ATM-prefixed checkout both
+# currently make "$DERIVED_DEFAULT_PREFIX" != "ATM" true, and the two
+# are NOT the same thing: the former means "this run's environment could
+# not be verified at all" and must be a hard FAILURE naming the blind
+# instrument, never a quiet, honest-looking SKIP that silently misreports
+# an unverified environment as a legitimately-different one.
+# $DERIVED_DEFAULT_PREFIX_BLIND is set further below, once the needle's
+# own resolution has actually run.
+skip_prefix_mismatch() {
+    local reason="$1"
+    if [ "${DERIVED_DEFAULT_PREFIX_BLIND:-0}" -eq 1 ]; then
+        bad "BLIND-INSTRUMENT (not an honest skip): $reason -- but this checkout's own DERIVED_DEFAULT_PREFIX control needle was BLIND this run (see the 'control-needle BLIND' finding above), so this is NOT a legitimately-non-ATM checkout being honestly skipped -- it is an UNVERIFIED environment wrongly heading toward a silent skip; treated as a hard failure until the needle's blindness is investigated and fixed"
+    else
+        skip "$reason"
+    fi
+}
+
+# DERIVED_DEFAULT_PREFIX -- N3 remediation (T048/US1 S10 remediation,
+# independent Opus-xhigh review finding, 2026-10-03): PART D / PART F3 /
+# PART F7 below each hardcode a literal `item=ATM-9999` fixture tag and
+# invoke the REAL transcript_ingest.py with NO per-call `item=`-prefix
+# env override at all -- i.e. they rely on THIS checkout's own,
+# genuinely UNCONFIGURED default item-tag prefix resolving to "ATM"
+# (true here: this project's own `.env` carries
+# HELIX_RELEASE_PREFIX=atmosphere). That is a real, checked fact about
+# THIS checkout, never a portable assumption (§11.4.6) -- a standalone
+# constitution clone, or any other consuming project pulling this exact
+# test file, would genuinely derive a DIFFERENT unconfigured default
+# (or the neutral "WIT" fallback) from THAT project's own `.env`, and
+# those three PARTs' hardcoded-ATM assertions would then FAIL for a
+# purely environmental reason wholly unrelated to any real defect in
+# transcript_ingest.py -- a MISLEADING failure signal, not an honest
+# one. Resolved via the REAL mechanism under test itself, never a
+# hardcoded guess: invoke the REAL, unmodified release_prefix.sh, then
+# derive the first-3-ASCII-letters-uppercased prefix the SAME WAY
+# `_fc_derive_key_prefix()` documents doing. This is throwaway
+# HARNESS-ONLY detection logic -- exactly like this file's own
+# pre-existing `has_item_tag()` above -- never a preview of, nor a
+# substitute for, transcript_ingest.py's own implementation (§11.4.240
+# producer != verifier): it exists only to decide whether THIS
+# checkout's unconfigured environment makes the hardcoded-ATM fixtures
+# below meaningful, never to compute anything a downstream assertion
+# trusts as its own result.
+#
+# Only `HELIX_RELEASE_PREFIX` (tier 1, the single MOST authoritative
+# override) is explicitly unset here, NEVER `HELIX_PROJECT_ROOT` (tier
+# 4): PART D's and PART F3's own real `transcript_ingest.py` calls
+# below do NOT strip EITHER ambient var (they carry no `env -u` at
+# all), and PART F7's own real call strips ONLY `HELIX_RELEASE_PREFIX`
+# (see its own `env -u ... -u HELIX_RELEASE_PREFIX` invocation) -- so
+# stripping `HELIX_RELEASE_PREFIX` here, but passing `HELIX_PROJECT_ROOT`
+# through UNTOUCHED, is the one computation that genuinely agrees with
+# ALL THREE real calls' actual resolution in the realistic "different
+# project" scenario this guard exists to detect: a different checkout
+# has no ambient `HELIX_RELEASE_PREFIX` leaking in at all (the normal,
+# default CI/shell state this repo's own tests always run under), and
+# `HELIX_PROJECT_ROOT` is the sanctioned, documented escape hatch for
+# deliberately pointing release_prefix.sh's resolution at a DIFFERENT
+# project's root — exactly how this guard's own verification (and any
+# operator wanting to dry-run this file against another project without
+# actually relocating it) exercises the non-ATM branch below, never via
+# an artificial ambient `HELIX_RELEASE_PREFIX` override (which PART F7's
+# own real call would correctly ignore, making that specific override
+# unable to faithfully simulate F7's behaviour either way). Verified
+# live before relying on it: against "atmosphere" it derives "ATM";
+# against "octopusteam" it derives "OCT"; against a digits-only base it
+# derives empty-letters, which the WIT-fallback branch below correctly
+# turns into "WIT".
+#
+# M2 (T048/US1 S10, round-4 independent Opus-xhigh review, 2026-10-03):
+# the two lines below re-implement (first-3-ASCII-letters, uppercased,
+# WIT/X-padding fallback) the SAME letter-derivation logic
+# `dispatch_stamp.sh`'s own `_fc_derive_key_prefix()` already defines,
+# instead of calling that real function directly -- a documented drift
+# risk (the two copies could diverge if one is ever edited without the
+# other). INVESTIGATED before deciding how to resolve it (never silently
+# left as-is, §11.4.6): `_fc_derive_key_prefix()` is a bash function
+# defined INSIDE `dispatch_stamp.sh`, but that file is a flat,
+# non-library top-level script -- its very first statement after
+# `set -uo pipefail` is `PAYLOAD="$(cat || true)"` (line ~194), an
+# UNCONDITIONAL stdin read that executes immediately on `source`,
+# regardless of which mode/flag is ultimately requested. Sourcing it
+# here (the only way to call its function directly without invoking a
+# real subprocess per call) would therefore consume this test's own
+# stdin unconditionally on EVERY needle-computation, a genuinely
+# non-trivial side effect to work around safely (redirecting stdin from
+# /dev/null around the `source` would silently change behaviour for any
+# future caller who expects `dispatch_stamp.sh`'s functions to see real
+# stdin) -- not a small or risk-free change for a Minor finding. DECISION
+# (operator-equivalent call, since this file is a test, not the thing
+# under test): left as the documented re-implementation below, scoped
+# EXPLICITLY as harness-only detection logic identical in spirit to this
+# same file's own pre-existing `has_item_tag()` (§11.4.240 producer !=
+# verifier -- this logic is never a preview of, nor a substitute for,
+# `dispatch_stamp.sh`'s own implementation, and PART A's real writer
+# invocations plus PART F's real `probe_item_tag_match()` calls already
+# exercise the REAL `_fc_derive_key_prefix()` end-to-end elsewhere in
+# this same file, so this one harness-only helper staying independently
+# implemented does not leave the real mechanism unverified). A future
+# change to `_fc_derive_key_prefix()`'s derivation rule MUST update this
+# block to match, or this needle will silently drift from the real
+# mechanism it exists to describe -- tracked here, in-source, as the
+# known risk rather than left implicit.
+# I2 remediation (T048/US1 S10, round-4 independent Opus-xhigh review,
+# 2026-10-03): this control needle previously (a) resolved
+# release_prefix.sh via an absolute $REPO_ROOT-based guess rather than
+# the SAME relative-to-self-location path the REAL
+# transcript_ingest.py code (`_fc_default_item_prefix()`) itself uses,
+# and (b) ran it with `2>/dev/null` and NO check of its own exit status
+# or stdout emptiness -- a missing script, a resolution error, or ANY
+# failure would silently resolve `_DERIVED_BASE` to an empty string,
+# which this block's own prefix-derivation then turns into the
+# seemingly-legitimate "WIT" fallback, making every downstream skip()
+# decision (PART D/F3/F7/this round's I1 fixes in PART A/G1) SILENTLY
+# WRONG with no indication the needle itself went blind. Fixed per all
+# four review points:
+#   (a) resolve via the SAME self-location-relative path
+#       `_fc_default_item_prefix()` itself uses (dirname of
+#       $TRANSCRIPT_INGEST + "/../../release_prefix.sh" -- TWO levels
+#       up from tokens/, landing at constitution/scripts/, exactly
+#       transcript_ingest.py's own `os.path.join(self_dir, "..", "..",
+#       "release_prefix.sh")`), never an absolute $REPO_ROOT guess;
+#   (b) a non-zero exit OR empty stdout from THAT resolution is now a
+#       BLIND-INSTRUMENT condition: it FAILs loudly via
+#       skip_prefix_mismatch()'s own blind-aware branch (naming which
+#       checks are blind and why), never silently SKIPs as if
+#       "legitimately not ATM";
+#   (c) the derived value (and its BLIND/not-blind state) is echoed
+#       into this run's own output stream, visible in the SUMMARY
+#       context immediately preceding it -- not only an early banner
+#       line nobody re-reads;
+#   (d) cross-checked against an INDEPENDENT signal -- a direct,
+#       bare grep of this project's own $REPO_ROOT/.env
+#       HELIX_RELEASE_PREFIX= assignment, bypassing release_prefix.sh's
+#       OWN parsing entirely -- and FAILs (never skips) if the two
+#       genuinely disagree.
+_RP_SCRIPT_FOR_NEEDLE="$(dirname "$TRANSCRIPT_INGEST")/../../release_prefix.sh"
+DERIVED_DEFAULT_PREFIX_BLIND=0
+_DERIVED_BASE=""
+_NEEDLE_RC=1
+_NEEDLE_STDERR_FILE="$WORK/needle_stderr.txt"
+if [ -f "$_RP_SCRIPT_FOR_NEEDLE" ]; then
+    _DERIVED_BASE="$(env -u HELIX_RELEASE_PREFIX bash "$_RP_SCRIPT_FOR_NEEDLE" 2>"$_NEEDLE_STDERR_FILE")"
+    _NEEDLE_RC=$?
+else
+    printf 'release_prefix.sh not found at %s\n' "$_RP_SCRIPT_FOR_NEEDLE" > "$_NEEDLE_STDERR_FILE"
+fi
+_NEEDLE_STDERR="$(cat "$_NEEDLE_STDERR_FILE" 2>/dev/null)"
+if [ "$_NEEDLE_RC" -ne 0 ] || [ -z "$_DERIVED_BASE" ]; then
+    DERIVED_DEFAULT_PREFIX_BLIND=1
+    bad "control-needle BLIND: resolving release_prefix.sh via the SAME self-location-relative path transcript_ingest.py itself uses ('$_RP_SCRIPT_FOR_NEEDLE') produced rc=$_NEEDLE_RC stdout='$_DERIVED_BASE' stderr='$_NEEDLE_STDERR' -- every downstream PART A/D/F3/F7/G1 check gated on \$DERIVED_DEFAULT_PREFIX is UNTRUSTWORTHY this run and will be reported as a hard FAILURE (via skip_prefix_mismatch()), never an honest skip, until this is investigated"
+fi
+_DERIVED_LETTERS="$(printf '%s' "$_DERIVED_BASE" | tr -cd 'A-Za-z' | cut -c1-3 | tr '[:lower:]' '[:upper:]')"
+if [ -z "$_DERIVED_LETTERS" ]; then
+    DERIVED_DEFAULT_PREFIX="WIT"
+else
+    DERIVED_DEFAULT_PREFIX="$_DERIVED_LETTERS"
+    while [ "${#DERIVED_DEFAULT_PREFIX}" -lt 3 ]; do DERIVED_DEFAULT_PREFIX="${DERIVED_DEFAULT_PREFIX}X"; done
+fi
+
+# I2(d): independent cross-check -- a BARE grep of the project root's own
+# .env HELIX_RELEASE_PREFIX= assignment, never calling release_prefix.sh
+# or any of its helper functions -- derive the SAME 3-letter prefix from
+# THAT independently-read value and FAIL (never skip) if it disagrees
+# with $DERIVED_DEFAULT_PREFIX above. The cross-check's OWN root
+# resolution honours an ambient HELIX_PROJECT_ROOT override exactly as
+# release_prefix.sh's own tier-4 escape hatch does -- verified live
+# before trusting this: WITHOUT this, running the WHOLE suite under the
+# sanctioned HELIX_PROJECT_ROOT-based "simulate a different project"
+# technique this file's own PART F comments document (see the
+# hermeticity note a few lines above this block) made the
+# needle-derived value correctly track the override while this
+# cross-check kept reading the REAL repo's OWN .env regardless,
+# producing a FALSE disagreement every time that sanctioned technique is
+# used -- the exact false-positive-refusal class §11.4.201(1) forbids,
+# caught and fixed before trusting this cross-check (never shipped as a
+# "looks plausible" guess). When the resolved root's .env carries no
+# such assignment at all, release_prefix.sh would be resolving via its
+# OWN tier-3 snake_case-of-dirname fallback -- a materially different
+# code path this bare-grep cross-check cannot independently reproduce
+# without re-implementing release_prefix.sh's own internals (the same
+# M2 concern) -- so the cross-check is then honestly INAPPLICABLE,
+# never silently assumed to agree.
+_CROSSCHECK_ROOT="$REPO_ROOT"
+if [ -n "${HELIX_PROJECT_ROOT:-}" ] && [ -d "${HELIX_PROJECT_ROOT}" ] && [ -r "${HELIX_PROJECT_ROOT}" ] && [ -x "${HELIX_PROJECT_ROOT}" ]; then
+    _CROSSCHECK_ROOT="${HELIX_PROJECT_ROOT}"
+fi
+_ENV_DIRECT_LINE="$(grep -E '^[[:space:]]*HELIX_RELEASE_PREFIX[[:space:]]*=' "$_CROSSCHECK_ROOT/.env" 2>/dev/null | grep -vE '^[[:space:]]*#' | tail -n1 || true)"
+if [ -n "$_ENV_DIRECT_LINE" ]; then
+    _ENV_DIRECT_VAL="${_ENV_DIRECT_LINE#*=}"
+    _ENV_DIRECT_VAL="$(printf '%s' "$_ENV_DIRECT_VAL" | tr -d '[:space:]"'"'"'')"
+    _ENV_DIRECT_LETTERS="$(printf '%s' "$_ENV_DIRECT_VAL" | tr -cd 'A-Za-z' | cut -c1-3 | tr '[:lower:]' '[:upper:]')"
+    if [ -z "$_ENV_DIRECT_LETTERS" ]; then
+        _ENV_DIRECT_PREFIX="WIT"
+    else
+        _ENV_DIRECT_PREFIX="$_ENV_DIRECT_LETTERS"
+        while [ "${#_ENV_DIRECT_PREFIX}" -lt 3 ]; do _ENV_DIRECT_PREFIX="${_ENV_DIRECT_PREFIX}X"; done
+    fi
+    if [ "$DERIVED_DEFAULT_PREFIX_BLIND" -eq 0 ]; then
+        if [ "$_ENV_DIRECT_PREFIX" = "$DERIVED_DEFAULT_PREFIX" ]; then
+            ok "control-needle cross-check: the independently-grepped \$_CROSSCHECK_ROOT/.env ('$_CROSSCHECK_ROOT/.env') HELIX_RELEASE_PREFIX value ('$_ENV_DIRECT_VAL' -> '$_ENV_DIRECT_PREFIX') agrees with the release_prefix.sh-derived value ('$DERIVED_DEFAULT_PREFIX')"
+        else
+            bad "control-needle cross-check DISAGREEMENT: the independently-grepped \$_CROSSCHECK_ROOT/.env ('$_CROSSCHECK_ROOT/.env') HELIX_RELEASE_PREFIX value ('$_ENV_DIRECT_VAL' -> '$_ENV_DIRECT_PREFIX') does NOT match the release_prefix.sh-derived value ('$DERIVED_DEFAULT_PREFIX') -- investigate before trusting EITHER value this run"
+        fi
+    fi
+else
+    ok "control-needle cross-check: inapplicable -- $_CROSSCHECK_ROOT/.env carries no HELIX_RELEASE_PREFIX= assignment at all, so release_prefix.sh would be resolving via its own tier-3 snake_case fallback, a code path this independent bare-grep cross-check cannot reproduce without re-implementing release_prefix.sh's own internals; honestly treated as inapplicable, never assumed to agree"
+fi
+
+echo "-- control-needle: this checkout's own unconfigured default item-tag prefix derives to '$DERIVED_DEFAULT_PREFIX' (blind=$DERIVED_DEFAULT_PREFIX_BLIND) via the real, unmodified release_prefix.sh, resolved via the SAME self-location-relative path transcript_ingest.py uses ('$_RP_SCRIPT_FOR_NEEDLE') -- never assumed, cross-checked against \$REPO_ROOT/.env directly above --"
+if [ "$DERIVED_DEFAULT_PREFIX_BLIND" -eq 1 ]; then
+    : # already reported as a hard FAIL by the "control-needle BLIND" bad() above; no further ok()/bad() here
+elif [ "$DERIVED_DEFAULT_PREFIX" = "ATM" ]; then
+    ok "control-needle: this is an ATM-prefixed checkout -- PART D / F3 / F7's hardcoded item=ATM-9999 fixtures are meaningful here and will be exercised for real below"
+else
+    ok "control-needle: this is a NON-ATM-prefixed checkout (derived='$DERIVED_DEFAULT_PREFIX') -- PART D / F3 / F7's ATM-9999-specific ingest assertions will be honestly SKIPPED below via skip_prefix_mismatch() (§11.4.3), never misreported as a FAIL for a purely environmental reason"
+fi
+
 echo "=== pre-flight: report which of the two guarded tools currently exist ==="
 # NOTE (conductor remediation, post-T036/T038 landing): this pre-flight
 # originally FAILed once its guarded tool landed, treating "tool now
@@ -297,7 +532,27 @@ PYEOF
 )"
     printf '%s' "$PAYLOAD2" | HELIX_AGENT_REGISTRY_FILE="$REG2" bash "$WRITER" >/dev/null 2>&1
     ITEM_FIELD_TAGGED="$(item_field_state "$REG2")"
-    needle_check "the REAL writer's 'item' JSON field genuinely round-trips a real item=ATM-nnnn tag (proves the untagged case's field state above is a real extraction result, not an always-inert field)" 1 "$([ "$ITEM_FIELD_TAGGED" = "PRESENT:ATM-9042" ] && echo 1 || echo 0)"
+
+    # I1 remediation (T048/US1 S10, round-2 independent Opus-xhigh review,
+    # 2026-10-03): TAGGED_DESC above hardcodes a literal "item=ATM-9042"
+    # tag and is fed to the REAL $WRITER, whose own item extraction
+    # (via dispatch_stamp.sh --extract-item-id, confirmed in-source to use
+    # the SAME _fc_default_item_prefix() / release_prefix.sh derivation
+    # DERIVED_DEFAULT_PREFIX above already exercises) only accepts THIS
+    # checkout's own derived default prefix -- "ATM" here, but genuinely
+    # a DIFFERENT value on any other consuming project's checkout. On a
+    # non-ATM-prefixed checkout the real writer would correctly extract
+    # NOTHING from an "ATM-9042" tag (a prefix mismatch is not a defect --
+    # it is exactly §11.4.196(F)'s intended behaviour), making this
+    # needle_check FAIL for a purely environmental reason wholly unrelated
+    # to any real defect in agent_registry_writer.sh/dispatch_stamp.sh --
+    # the SAME class of false signal PART D/F3/F7 already guard against,
+    # via the SAME DERIVED_DEFAULT_PREFIX control needle built above.
+    if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
+        skip_prefix_mismatch "PART A's tagged-round-trip needle_check (expects ITEM_FIELD_TAGGED == 'PRESENT:ATM-9042') assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM' so that the hardcoded item=ATM-9042 fixture description round-trips through the REAL \$WRITER's dispatch_stamp.sh-derived prefix regex; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead -- this specific needle_check is honestly skipped here (not pass, not fail), purely for an environmental reason unrelated to any real defect in agent_registry_writer.sh/dispatch_stamp.sh"
+    else
+        needle_check "the REAL writer's 'item' JSON field genuinely round-trips a real item=ATM-nnnn tag (proves the untagged case's field state above is a real extraction result, not an always-inert field)" 1 "$([ "$ITEM_FIELD_TAGGED" = "PRESENT:ATM-9042" ] && echo 1 || echo 0)"
+    fi
 
     if [ "$ITEM_FIELD_UNTAGGED" = "PRESENT:" ] && [ "$ITEM_FIELD_TAGGED" = "PRESENT:ATM-9042" ]; then
         ITEM_FIELD_TAKING_EFFECT=1
@@ -359,7 +614,22 @@ fi
 # never $FOUND (the description field -- what T037 was NEVER designed to
 # touch; see the item_field_state() block above for the full derivation).
 if [ -f "$DISPATCH_STAMP" ] && { [ "$WIRED_INTO_WRITER" -eq 1 ] || [ "$WIRED_INTO_SETTINGS" -eq 1 ]; }; then
-    if [ "$ITEM_FIELD_TAKING_EFFECT" = "1" ]; then
+    # I1 remediation (T048/US1 S10, round-2 independent Opus-xhigh review,
+    # 2026-10-03): $ITEM_FIELD_TAKING_EFFECT (computed above) is driven by
+    # a hardcoded comparison against the literal "PRESENT:ATM-9042" -- on
+    # a non-ATM-prefixed checkout it is ALWAYS 0 regardless of whether
+    # T037 genuinely works, because the fixture tag's prefix simply does
+    # not match this checkout's own derived default (exactly the same
+    # purely-environmental false signal the needle_check above now skips,
+    # same root cause, same control needle). Skipping here only the part
+    # of the verdict that depends on that hardcoded comparison keeps the
+    # STRUCTURAL wiring facts (dispatch_stamp.sh present, a genuine
+    # wiring reference found in $WRITER and/or .claude/settings.json)
+    # honestly reported rather than silently misreported as "NOT taking
+    # effect" for an unrelated reason.
+    if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
+        skip_prefix_mismatch "property (a)'s HOLDS/UNMET verdict (as currently computed) assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM', because \$ITEM_FIELD_TAKING_EFFECT above is driven by a hardcoded comparison against the literal 'PRESENT:ATM-9042'; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead -- the structural wiring facts remain real and are unaffected by this skip (dispatch_stamp.sh exists=yes, writer_wired=$WIRED_INTO_WRITER, settings_wired=$WIRED_INTO_SETTINGS); only the ATM-hardcoded round-trip verdict is honestly skipped here (not pass, not fail), purely for an environmental reason unrelated to any real defect in T037's wiring"
+    elif [ "$ITEM_FIELD_TAKING_EFFECT" = "1" ]; then
         ok "FR-013/FR-001/SC-005 property (a) HOLDS: dispatch_stamp.sh exists AND a wiring reference was found (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), AND the REAL $WRITER invocation genuinely writes its own dedicated 'item' JSON field for every dispatch -- untagged=$ITEM_FIELD_UNTAGGED, tagged=$ITEM_FIELD_TAGGED (T037's own 'item id column' design, confirmed via two real writer invocations, round-trips correctly: honest-empty for an untagged description, the real ATM-nnnn id for a tagged one) -- T037 has landed and is taking real effect"
     else
         bad "FR-013/FR-001/SC-005 property (a) UNMET (wiring reference present but NOT taking effect): a reference to dispatch_stamp.sh was found in the real pipeline (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), BUT the REAL $WRITER invocation(s) did NOT produce the expected 'item' field round-trip (untagged=$ITEM_FIELD_UNTAGGED want PRESENT:, tagged=$ITEM_FIELD_TAGGED want PRESENT:ATM-9042) — a source-level wiring reference existing is not the same as it genuinely taking effect on a real dispatch; investigate before declaring T037 done"
@@ -588,6 +858,9 @@ else
     fi
 
     if [ -f "$TRANSCRIPT_INGEST" ]; then
+        if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
+            skip_prefix_mismatch "PART D's ingest-and-attribute assertions assume this checkout's own UNCONFIGURED default item-tag prefix is 'ATM' so that the fixture's real item=ATM-9999 tag attributes correctly through transcript_ingest.py's no-override default path; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead — this test assumes an ATM-prefixed checkout, so property (d)'s real ingest verification is honestly skipped here (not pass, not fail; the fixture's own on-disk join-key consistency was already proven above, independent of any project's configured prefix)"
+        else
         DB_D="$WORK/telemetry_d.db"
         OUT_D="$(python3 "$TRANSCRIPT_INGEST" ingest "$PARENT_FIX" --db "$DB_D" 2>&1)"
         RC_D=$?
@@ -621,6 +894,7 @@ else
             fi
         else
             bad "transcript_ingest.py exists but the assumed CLI (ingest <parent-file> --db <path>) did not run cleanly against the subagent_attribution fixture (auto-discovery of sibling subagents/ dir): rc=$RC_D out=$OUT_D — update this test's assumed CLI contract"
+        fi
         fi
     else
         bad "FR-013/SC-005 property (d) UNMET: transcript_ingest.py absent — subagent-transcript-to-parent-item attribution (session->agent->item keying) is unverified; the real on-disk join key is proven present and consistent above, but nothing reads it yet"
@@ -1048,6 +1322,10 @@ else
         # environment as F2 above (not merely the already-passing PART D's
         # own unconfigured run).
         if [ -f "$PARENT_FIX" ]; then
+            if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
+                skip_prefix_mismatch "PART F3's backward-compat assertion assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM' so that the PART D fixture's real item=ATM-9999 tag still attributes to 'ATM-9999' under FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead — this test assumes an ATM-prefixed checkout, so F3's real ingest verification is honestly skipped here (not pass, not fail). F1/F2 above exercise the configuration MECHANISM itself via their own explicit env vars and are unaffected by this checkout's project prefix."
+                ATM_STILL_WORKS="SKIPPED-non-atm-checkout"
+            else
             DB_F3="$WORK/telemetry_f3.db"
             OUT_F3="$(FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK python3 "$TRANSCRIPT_INGEST" ingest "$PARENT_FIX" --db "$DB_F3" 2>&1)"
             RC_F3=$?
@@ -1056,6 +1334,7 @@ else
                 needle_check "backward-compat: with FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK configured, a genuine item=ATM-9999 tag STILL attributes correctly to 'ATM-9999' (additive, never replacing the derived default)" 1 "$([ "$ATM_STILL_WORKS" = "ATM-9999" ] && echo 1 || echo 0)"
             else
                 bad "PART F3 setup failed: transcript_ingest.py did not run cleanly with FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK against the PART D ATM-9999 fixture: rc=$RC_F3 out=$OUT_F3"
+            fi
             fi
         else
             bad "PART F3 precondition missing: $PARENT_FIX (the PART D fixture) not found — cannot verify backward-compatible ATM- attribution under a configured environment"
@@ -1069,10 +1348,21 @@ else
         # single-dash form substitutes ONLY when truly unset (the F1
         # block was skipped), which is the real failure case this
         # aggregate check must distinguish from a genuine empty result.
-        if [ "$RC_F1" -eq 0 ] && [ -z "${UNCONFIGURED_ITEM-UNSET}" ] && [ "${CONFIGURED_ITEM-}" = "SPK-4321" ] && [ "${ATM_STILL_WORKS-}" = "ATM-9999" ]; then
-            ok "PART F HOLDS: transcript_ingest.py's item= tag prefix is genuinely CONFIGURABLE via the SAME FC_DISPATCH_EXTRA_ITEM_PREFIXES/FC_DISPATCH_ITEM_ID_RE mechanism dispatch_stamp.sh already exposes -- unconfigured default stays ATM-only (matching, not byte-identical to, the pre-fix hardcode's accepted-id set), a configured extra prefix (SPK) is genuinely extracted, and the default ATM- extraction is preserved additively under that same configured environment"
+        #
+        # N3 remediation (T048/US1 S10 remediation, 2026-10-03): the
+        # ATM_STILL_WORKS clause is HONESTLY BYPASSED (never silently
+        # satisfied, never silently dropped) on a non-ATM-prefixed
+        # checkout -- F3 itself already skipped its own real assertion
+        # above for exactly that reason, so this aggregate MUST NOT
+        # re-report that same skip as a FAIL. F1/F2's own genuine,
+        # project-prefix-independent conditions are unaffected either
+        # way, so a non-ATM checkout's "PART F HOLDS" verdict still
+        # means exactly what it says for the mechanism F1/F2 prove.
+        if [ "$RC_F1" -eq 0 ] && [ -z "${UNCONFIGURED_ITEM-UNSET}" ] && [ "${CONFIGURED_ITEM-}" = "SPK-4321" ] \
+            && { [ "${ATM_STILL_WORKS-}" = "ATM-9999" ] || [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; }; then
+            ok "PART F HOLDS: transcript_ingest.py's item= tag prefix is genuinely CONFIGURABLE via the SAME FC_DISPATCH_EXTRA_ITEM_PREFIXES/FC_DISPATCH_ITEM_ID_RE mechanism dispatch_stamp.sh already exposes -- unconfigured default stays ATM-only (matching, not byte-identical to, the pre-fix hardcode's accepted-id set), a configured extra prefix (SPK) is genuinely extracted, and the default ATM- extraction is preserved additively under that same configured environment (F3's own ATM-9999 re-attribution check is honestly skipped on a non-ATM-prefixed checkout, derived='$DERIVED_DEFAULT_PREFIX', rather than gating this aggregate)"
         else
-            bad "PART F UNMET: decoupling fix did not take full effect — unconfigured_item='${UNCONFIGURED_ITEM-<F1-never-ran>}' (want empty) configured_item='${CONFIGURED_ITEM-<F2-never-ran>}' (want SPK-4321) atm_still_works='${ATM_STILL_WORKS-<F3-never-ran>}' (want ATM-9999)"
+            bad "PART F UNMET: decoupling fix did not take full effect — unconfigured_item='${UNCONFIGURED_ITEM-<F1-never-ran>}' (want empty) configured_item='${CONFIGURED_ITEM-<F2-never-ran>}' (want SPK-4321) atm_still_works='${ATM_STILL_WORKS-<F3-never-ran>}' (want ATM-9999, or a skip on a non-ATM checkout)"
         fi
     else
         bad "PART F UNMET: transcript_ingest.py absent — the item= tag prefix decoupling fix is unverified"
@@ -1304,6 +1594,9 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
     # affect fixture resolution — only the internal prefix-derivation
     # subprocess chain is under test here.
     if [ -f "$PARENT_FIX" ]; then
+        if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
+            skip_prefix_mismatch "PART F7's real-ingest assertion assumes this checkout's own, genuinely UNCONFIGURED default item-tag prefix (read from its own .env via release_prefix.sh, the SAME mechanism F7's env -u's already force) is 'ATM' so that the PART D fixture's real item=ATM-9999 tag attributes end-to-end; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead — this test assumes an ATM-prefixed checkout, so F7's real end-to-end verification is honestly skipped here (not pass, not fail). The I1 precondition-reality proof above (OLD_BUGGY_ROOT / OLD_BUGGY_PREFIX / I1_PRECONDITION_REAL) tests the git-submodule-boundary defect class itself — a structural fact about this checkout's directory layout, never about any project's configured item-tag prefix — and is unaffected by this skip."
+        else
         DB_F7="$WORK/telemetry_f7.db"
         OUT_F7="$(cd "$HERE" && env -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u FC_DISPATCH_ITEM_ID_RE -u HELIX_RELEASE_PREFIX python3 "$TRANSCRIPT_INGEST" ingest "$PARENT_FIX" --db "$DB_F7" 2>&1)"
         RC_F7=$?
@@ -1318,6 +1611,7 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
             fi
         else
             bad "PART F7 setup failed: transcript_ingest.py did not run cleanly with cwd=\$HERE against the PART D fixture: rc=$RC_F7 out=$OUT_F7"
+        fi
         fi
     else
         bad "PART F7 precondition missing: $PARENT_FIX (the PART D fixture) not found"
@@ -1370,7 +1664,23 @@ except re.error:
     G1_STDERR_FILE="$WORK/stderr_g1.txt"
     G1_MATCH="$(FC_DISPATCH_ITEM_ID_RE="$BAD_RE" probe_item_tag_match "item=ATM-4242 some dispatch" 2>"$G1_STDERR_FILE")"
     G1_STDERR="$(cat "$G1_STDERR_FILE" 2>/dev/null)"
-    needle_check "despite the invalid regex, _build_item_tag_re() does NOT crash and still matches a genuine ATM-<digits> tag via the derived-default fallback" 1 "$G1_MATCH"
+    # I1 remediation (T048/US1 S10, round-2 independent Opus-xhigh review,
+    # 2026-10-03): the probe string above hardcodes "item=ATM-4242" against
+    # the FALLBACK regex _build_item_tag_re() builds from
+    # _fc_default_item_prefix() (the SAME release_prefix.sh-derived
+    # mechanism DERIVED_DEFAULT_PREFIX above exercises) -- on a non-ATM-
+    # prefixed checkout the fallback correctly derives a DIFFERENT prefix,
+    # so this hardcoded ATM probe would correctly NOT match even though
+    # the fail-safe itself (no crash + fallback regex built successfully)
+    # worked exactly as designed, making this needle_check FAIL for a
+    # purely environmental reason. The two needle_checks that follow (the
+    # stderr WARNING naming the invalid value) are prefix-independent and
+    # stay unaffected by this skip.
+    if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
+        skip_prefix_mismatch "G1's fallback-match needle_check (probing item=ATM-4242 against the derived-default fallback regex) assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM'; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead -- this specific needle_check is honestly skipped here (not pass, not fail), purely for an environmental reason; the fail-safe's no-crash + stderr-warning properties are unaffected by this skip and are still verified for real immediately below"
+    else
+        needle_check "despite the invalid regex, _build_item_tag_re() does NOT crash and still matches a genuine ATM-<digits> tag via the derived-default fallback" 1 "$G1_MATCH"
+    fi
     needle_check "the fail-safe emits a NAMED stderr warning mentioning the invalid FC_DISPATCH_ITEM_ID_RE value" 1 "$(printf '%s' "$G1_STDERR" | grep -Fq 'FC_DISPATCH_ITEM_ID_RE' && printf '%s' "$G1_STDERR" | grep -Fq "$BAD_RE" && echo 1 || echo 0)"
     needle_check "...and the warning is genuinely a WARNING (not swallowed, not a generic/unlabelled message)" 1 "$(printf '%s' "$G1_STDERR" | grep -Fq 'WARNING' && echo 1 || echo 0)"
 
@@ -1553,5 +1863,9 @@ if [ -f "$REG" ] 2>/dev/null; then
 fi
 
 echo "----"
-echo "SUMMARY pass=$PASS fail=$FAIL"
+# I2(c) remediation (T048/US1 S10, round-4 independent Opus-xhigh review,
+# 2026-10-03): the DERIVED_DEFAULT_PREFIX control needle's resolved value
+# (and whether it went BLIND this run) is echoed here, in the SUMMARY
+# line a human actually re-reads, not only an early banner line.
+echo "SUMMARY pass=$PASS fail=$FAIL derived_default_prefix=$DERIVED_DEFAULT_PREFIX derived_default_prefix_blind=$DERIVED_DEFAULT_PREFIX_BLIND"
 [ "$FAIL" -eq 0 ]

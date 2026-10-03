@@ -104,11 +104,88 @@ set -euo pipefail
 #      of the above -- an explicit operator/CI escape hatch for a layout
 #      none of (1)-(3) can resolve correctly (§11.4.6: an EXPLICIT override
 #      the caller opted into, never a silent guess).
+#
+# FIX (round 3, independent Opus-xhigh review of SpecKit-004 T048/US1
+# slice S8, 2026-10-03 -- two MINOR findings, follow-up polish round,
+# N1/N2; neither has a measured real-world instance, both are tracked
+# edge-case hardening):
+#   N1 -- an UNREGISTERED nested `constitution/` repo (has its own
+#     `.git` but is NOT a registered gitlink/submodule in any parent
+#     project) previously fell straight through case 2 above
+#     (`--show-toplevel`), silently treating it as genuinely STANDALONE
+#     and returning constitution's OWN root even when it is really
+#     nested two levels under an intended parent project (the exact
+#     embedded-layout shape case 1/round-2 was built for, just without
+#     a formal `git submodule add` registration). Fixed: when case 2
+#     resolves to this file's OWN repo root (not a real submodule, since
+#     case 1 already failed), check whether the directory TWO levels
+#     above this file's own location (`$self_dir/../..`, the real
+#     embedded-layout parent-project root) carries REAL evidence of
+#     being that intended parent -- its own `.env` file, or a
+#     `.gitmodules` entry naming "constitution" as a submodule path --
+#     and PREFER that directory over the narrower `--show-toplevel`
+#     result when it does. `HELIX_PROJECT_ROOT` (case 4) remains the
+#     manual escape hatch for any layout this heuristic still misses.
+#   N2 -- an explicit-but-INVALID `HELIX_PROJECT_ROOT` override (set to a
+#     path that is not an existing, readable directory) was previously
+#     silently skipped, falling through to the next tier with NO
+#     indication the caller's own explicit override was ignored (§11.4.6:
+#     "a directed error, never a guess" -- silently ignoring an explicit
+#     override is neither). Fixed: an invalid override now prints a
+#     clear stderr warning naming the invalid path before falling
+#     through -- a WARNING, not a hard failure, since graceful
+#     degradation to the next resolution tier remains the correct
+#     behaviour for this non-critical path-resolution tool.
+#
+# FIX (round 4, independent Opus-xhigh review of SpecKit-004 T048/US1
+# slice S8, 2026-10-03 -- one BLOCKING finding B1 + one MINOR finding M1):
+#   B1 -- N1's widen-to-parent evidence check was too permissive: it
+#     treated ANY readable `.env` file in the parent (even one with NO
+#     `HELIX_RELEASE_PREFIX` assignment at all, e.g. one holding only
+#     `API_KEY=x`) as sufficient evidence to widen, and treated ANY
+#     `.gitmodules` entry naming `path = constitution` as sufficient even
+#     when `root` (the directory N1's own heuristic is deciding whether
+#     to widen AWAY FROM -- see the `root=...--show-toplevel` call
+#     immediately below) is NOT itself named "constitution" at all (e.g.
+#     a clone named "HelixConstitution" sitting under an unrelated parent
+#     "workspace/" that merely happens to carry SOME `.env`). Concretely
+#     reproduced and now fixed: (a) a clone named "HelixConstitution"
+#     under "workspace/", with "workspace/.env" holding unrelated
+#     content, no longer widens -- stays "helix_constitution"; (b) a
+#     readable-but-content-irrelevant parent `.env` (no
+#     `HELIX_RELEASE_PREFIX=` line) no longer widens; (c) an unreadable
+#     (chmod 000) parent `.env` no longer widens. Fixed by: (1) requiring
+#     `basename "$root"` to be LITERALLY "constitution" before EITHER
+#     evidence branch is even consulted -- the widen heuristic exists
+#     ONLY for "is this genuinely the constitution/ submodule, just
+#     nested-but-unregistered", so a directory not even named
+#     "constitution" is never a candidate for it, regardless of what its
+#     parent contains; (2) the `.env` branch now calls the SAME
+#     `_hrp_from_env_file()` this file's own tier-2 resolution already
+#     uses (never re-implemented, never sourced -- §11.4.10) to verify
+#     the parent's `.env` genuinely CONTAINS a `HELIX_RELEASE_PREFIX=`
+#     assignment, not merely that the file exists and is readable. The
+#     `.gitmodules` branch's `path = constitution` anchoring is unchanged
+#     (already exact-value-anchored, confirmed by re-reading it before
+#     this fix) and is now gated behind the SAME basename check.
+#   M1 -- `HELIX_PROJECT_ROOT` validation checked `-d` (is a directory)
+#     and `-r` (is readable) but not `-x` (is searchable/enterable). A
+#     directory that is readable-but-not-searchable (`chmod 444`)
+#     previously passed validation, then the subsequent `cd` into it
+#     failed, producing an exit-1 with EMPTY stdout instead of the
+#     documented warn-and-fall-through contract every OTHER invalid-
+#     override shape already gets. Fixed: `-x` is now checked alongside
+#     `-d`/`-r`; on failure, the SAME warn-and-fall-through behaviour as
+#     every other invalid-HELIX_PROJECT_ROOT shape.
 _hrp_project_root() {
-  local self_dir root
+  local self_dir root root_base parent_root evidence
   self_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-  if [ -n "${HELIX_PROJECT_ROOT:-}" ] && [ -d "${HELIX_PROJECT_ROOT}" ]; then
-    (cd "$HELIX_PROJECT_ROOT" && pwd); return 0
+  if [ -n "${HELIX_PROJECT_ROOT:-}" ]; then
+    if [ -d "${HELIX_PROJECT_ROOT}" ] && [ -r "${HELIX_PROJECT_ROOT}" ] && [ -x "${HELIX_PROJECT_ROOT}" ]; then
+      (cd "$HELIX_PROJECT_ROOT" && pwd); return 0
+    else
+      echo "release_prefix.sh: WARNING: HELIX_PROJECT_ROOT='${HELIX_PROJECT_ROOT}' is set but is not an existing, readable, and searchable (executable-bit) directory -- ignoring this explicit override and falling through to the next resolution tier (§11.4.6: a directed error, never a silent guess)" >&2
+    fi
   fi
   if root="$(git -C "$self_dir" rev-parse --show-superproject-working-tree 2>/dev/null)" \
      && [ -n "$root" ]; then
@@ -116,6 +193,34 @@ _hrp_project_root() {
   fi
   if root="$(git -C "$self_dir" rev-parse --show-toplevel 2>/dev/null)" \
      && [ -n "$root" ]; then
+    # N1 (round 3) + B1 (round 4): `root` here is constitution's OWN git
+    # toplevel (case 1 above already failed, so this is NOT a registered
+    # submodule). Widening is considered ONLY when `root` ITSELF is
+    # literally named "constitution" -- B1's first gate, consulted BEFORE
+    # either evidence branch below.
+    root_base="$(basename "$root")"
+    if [ "$root_base" = "constitution" ]; then
+      # If the real embedded-layout parent two levels up carries evidence
+      # of being the intended project root, prefer it.
+      parent_root="$(cd "$self_dir/../.." 2>/dev/null && pwd)"
+      if [ -n "$parent_root" ] && [ "$parent_root" != "$root" ]; then
+        evidence=0
+        # B1: content-verified -- the parent's `.env` must genuinely
+        # contain a `HELIX_RELEASE_PREFIX=` assignment, parsed via the
+        # SAME `_hrp_from_env_file()` tier-2 already uses below --
+        # file-existence alone is no longer sufficient.
+        if [ -n "$(_hrp_from_env_file "$parent_root/.env")" ]; then
+          evidence=1
+        elif [ -f "$parent_root/.gitmodules" ] \
+             && grep -Eq '^[[:space:]]*path[[:space:]]*=[[:space:]]*constitution[[:space:]]*$' \
+                  "$parent_root/.gitmodules" 2>/dev/null; then
+          evidence=1
+        fi
+        if [ "$evidence" -eq 1 ]; then
+          printf '%s' "$parent_root"; return 0
+        fi
+      fi
+    fi
     printf '%s' "$root"; return 0
   fi
   (cd "$self_dir/.." && pwd)
