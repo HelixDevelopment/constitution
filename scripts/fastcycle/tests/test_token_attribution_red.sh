@@ -1548,7 +1548,18 @@ _PARTF_SELF="${BASH_SOURCE[0]:-$0}"
 # clean numeric line with exit status 0).
 _PARTF_COND_OCCURRENCES="$(grep -cE "$_PARTF_COND_ANCHOR_START" "$_PARTF_SELF" 2>/dev/null | head -1)"
 if [ "${_PARTF_COND_OCCURRENCES:-0}" -ne 1 ]; then
-    bad "PART F-NEEDLE-AGGREGATE setup failed: the 'PART F HOLDS' condition's anchor text was found $_PARTF_COND_OCCURRENCES time(s) in this file (want exactly 1) -- cannot safely extract it for mutation-discrimination; the condition text this file's own PART F block uses may have drifted, investigate before trusting this guard"
+    # M-1 residual (round-6 independent Opus-xhigh review, 2026-10-03):
+    # the message below MUST use the SAME defaulted
+    # "${_PARTF_COND_OCCURRENCES:-0}" value as the numeric test above, not
+    # the bare, possibly-EMPTY $_PARTF_COND_OCCURRENCES -- a genuine grep
+    # ERROR (e.g. $_PARTF_SELF unreadable) yields an EMPTY captured value
+    # (grep's stdout is silenced by `2>/dev/null` on this file-not-found-
+    # or-similar class of failure, and `head -1` on empty input emits
+    # nothing), which the bare variable would print as "found  time(s)"
+    # (no number at all) -- indistinguishable from a genuine zero-match
+    # count in the diagnostic output. Including the defaulted "0" makes
+    # the message unambiguous in both cases.
+    bad "PART F-NEEDLE-AGGREGATE setup failed: the 'PART F HOLDS' condition's anchor text was found ${_PARTF_COND_OCCURRENCES:-0} time(s) in this file (want exactly 1) -- cannot safely extract it for mutation-discrimination; the condition text this file's own PART F block uses may have drifted, investigate before trusting this guard"
 else
     _PARTF_FIXED_COND="$(sed -n "/${_PARTF_COND_ANCHOR_START}/,/${_PARTF_COND_ANCHOR_END}/p" "$_PARTF_SELF")"
     _PARTF_BLIND_MARKER=' && [ "${DERIVED_DEFAULT_PREFIX_BLIND:-0}" -eq 0 ]'
@@ -1578,12 +1589,20 @@ sys.stdout.write(cond.replace(marker, "", 1))
         # EITHER a genuinely non-ATM checkout OR a BLIND needle -- both
         # satisfy that branch's own "$DERIVED_DEFAULT_PREFIX != ATM"
         # guard) DOES assign a non-"ATM-9999" sentinel value in both of
-        # those cases. The variable stays genuinely unset ONLY when the
-        # PART D fixture file itself ($PARENT_FIX) is missing entirely
-        # (F3's separate "precondition missing" bad() branch, which never
-        # touches ATM_STILL_WORKS at all) -- a distinct, file-not-found
-        # condition, not "skipped or BLIND-hard-failed". Staying unset
-        # below still faithfully mirrors that one real path, and is
+        # those cases. The variable stays genuinely unset in TWO distinct
+        # "setup/precondition failed" bad() branches, neither of which
+        # ever touches ATM_STILL_WORKS at all: (a) the PART D fixture file
+        # itself ($PARENT_FIX) is missing entirely (F3's "precondition
+        # missing" bad() branch), OR (b) the fixture IS present and IS
+        # determined to be an ATM-prefixed checkout, but F3's own
+        # backward-compat ingest run against it then fails outright
+        # (rc != 0 or no DB produced -- F3's separate "setup failed"
+        # bad() branch). M-4a residual correction (round-6 independent
+        # Opus-xhigh review, 2026-10-03): the prior version of this comment named
+        # ONLY case (a) and so still overstated it -- both are distinct
+        # file-not-found/setup-failure conditions, neither is "skipped or
+        # BLIND-hard-failed". Staying unset below still faithfully mirrors
+        # those two real paths, and is
         # harmless for the other two synthetic states this block tests
         # (BLIND and genuinely-non-ATM) precisely because the condition's
         # own "${ATM_STILL_WORKS-}" fallback treats unset identically to
