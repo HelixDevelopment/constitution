@@ -792,6 +792,15 @@ FC_CALLER_GRAFT=${GIT_GRAFT_FILE:-}
 FC_CALLER_GCP_SET=0
 [ -n "${GIT_CONFIG_PARAMETERS+x}" ] && FC_CALLER_GCP_SET=1
 FC_CALLER_GCP=${GIT_CONFIG_PARAMETERS:-}
+# T177 Round 26 (independent-review-verified partial-clone hardening, see
+# `fc_transfer_objects_into()`'s own header comment for the full honest
+# residual this addresses and does NOT fully close): captured and
+# restored exactly like GIT_NO_REPLACE_OBJECTS/GIT_GRAFT_FILE above, so
+# this tool's own protective override never leaks into the consumer's own
+# hook/gates processes below.
+FC_CALLER_GNLF_SET=0
+[ -n "${GIT_NO_LAZY_FETCH+x}" ] && FC_CALLER_GNLF_SET=1
+FC_CALLER_GNLF=${GIT_NO_LAZY_FETCH:-}
 FC_GCC_N=$FC_CALLER_GCC
 fc_gcc_add() {
     # $1=key $2=value -> appended at index FC_GCC_N (>= the caller's own
@@ -892,11 +901,34 @@ GIT_CONFIG_COUNT=$FC_GCC_N; export GIT_CONFIG_COUNT
 GIT_NO_REPLACE_OBJECTS=1; export GIT_NO_REPLACE_OBJECTS
 GIT_GRAFT_FILE=/dev/null; export GIT_GRAFT_FILE
 unset GIT_CONFIG_PARAMETERS
+# T177 Round 26 (partial-clone lazy-fetch hardening, independent-review-
+# verified on git 2.50.1): a partial-clone $WORKDIR (extensions.
+# partialClone + a configured promisor remote) can need a blob/tree this
+# tool's own checkout/status/diff calls touch but that clone never
+# fetched -- git answers that NEED with a LAZY FETCH through the
+# consumer's own, UNTRUSTED promisor-remote config (including a local
+# `core.sshCommand`), which this file otherwise never reaches at all
+# (`index-pack` itself does NOT trigger one, confirmed live: this exact
+# trap, armed, produced zero lazy-fetch calls across an `index-pack` of
+# both a full and a thin pack). `GIT_NO_LAZY_FETCH=1` is git's own
+# documented kill-switch for this mechanism process-wide; live-
+# reproduced, both directions: with a missing blob + an attacker
+# `core.sshCommand` configured as the repo's promisor remote, an ordinary
+# checkout of that path fires the attacker's command WITHOUT this set,
+# and genuinely does NOT fire it WITH this set (the checkout then fails
+# honestly instead -- the correct fail-closed outcome: a migration that
+# truly needs a promisor-missing object was never going to succeed
+# safely regardless). Honest residual, NOT fully closed by this: this
+# tool has not itself been run end-to-end against a genuinely partial-
+# clone $WORKDIR to confirm no OTHER step still needs a lazy fetch this
+# kill-switch would then correctly refuse rather than silently route
+# around -- tracked as its own §11.4.197 follow-up.
+GIT_NO_LAZY_FETCH=1; export GIT_NO_LAZY_FETCH
 run_with_caller_git_env() {
     # Runs "$@" in a subshell with the caller's ORIGINAL GIT_CONFIG_COUNT,
-    # GIT_NO_REPLACE_OBJECTS, GIT_GRAFT_FILE and GIT_CONFIG_PARAMETERS
-    # restored (extra GIT_CONFIG_KEY_<n>/VALUE_<n> beyond the count are
-    # ignored by git) -- the post-update hook and the consumer's own
+    # GIT_NO_REPLACE_OBJECTS, GIT_GRAFT_FILE, GIT_CONFIG_PARAMETERS and
+    # GIT_NO_LAZY_FETCH restored (extra GIT_CONFIG_KEY_<n>/VALUE_<n> beyond
+    # the count are ignored by git) -- the post-update hook and the consumer's own
     # gates are the CONSUMER's own processes, not this tool's, so they
     # run under the environment the caller actually had, never this
     # tool's own protective overrides.
@@ -920,6 +952,11 @@ run_with_caller_git_env() {
             GIT_CONFIG_PARAMETERS=$FC_CALLER_GCP; export GIT_CONFIG_PARAMETERS
         else
             unset GIT_CONFIG_PARAMETERS
+        fi
+        if [ "$FC_CALLER_GNLF_SET" -eq 1 ]; then
+            GIT_NO_LAZY_FETCH=$FC_CALLER_GNLF; export GIT_NO_LAZY_FETCH
+        else
+            unset GIT_NO_LAZY_FETCH
         fi
         "$@"
     )
@@ -1262,10 +1299,44 @@ fc_checkout_submodule_filtered() {
 }
 
 # fc_transfer_objects_into: $1 = TRUSTED source repo (-C'd for rev-list/
-# pack-objects), $2 = SHA to transfer (with its full history), $3 =
-# UNTRUSTED destination repo (-C'd for index-pack ONLY), $4 = a short
-# label used to namespace this call's own scratch filenames (so two
-# concurrent-in-the-same-run transfers never collide). T177 Round 26
+# pack-objects), $2 = SHA to transfer, $3 = UNTRUSTED destination repo
+# (-C'd for index-pack ONLY), $4 = a short label used to namespace this
+# call's own scratch filenames (so two concurrent-in-the-same-run
+# transfers never collide), $5 = OPTIONAL base commit already known
+# present in BOTH $1 and $3 -- when given and genuinely verified present
+# in both, only the objects reachable from $2 but NOT from $5 are
+# transferred (a thin, bounded delta); omitted, or not actually resolvable
+# in EITHER repo, falls back to transferring $2's FULL reachable history
+# (correct in every case, merely unbounded). T177 Round 27 (R26-I1
+# IMPORTANT, independent-review-found, live-reproduced -- a REGRESSION
+# this tool's own Round 26 introduced): with no $5, every call packed
+# EVERY object reachable from $2, not merely what the destination was
+# missing -- live-reproduced on a 31-commit fixture where the destination
+# already held all but the last commit: the unbounded walk still listed
+# 93 objects (3 genuinely needed) and wrote a full-size duplicate pack
+# into the destination's OWN object store (which this tool's own
+# `gc.auto=0`/`maintenance.auto=false` then never reclaims). At this
+# repository's real scale (reviewer-measured: ~1.17M objects reachable
+# from HEAD, ~71 GiB of packs) the step-9 sync call would therefore write
+# roughly the WHOLE history as one pack into `$MIGRATE_SCRATCH` (tmpfs by
+# default) on EVERY migration, then permanently duplicate it into
+# `$WORKDIR/.git` -- a real §12/§12.6 host-safety/disk-tripwire risk the
+# push-based mechanism this function replaced did NOT have (a real `push`
+# negotiates with the far side and sends only missing objects). Fixed by
+# the optional `$5` boundary: both call sites below now pass a base commit
+# ALREADY PROVEN present in the destination by an earlier step in this
+# tool's own flow (the submodule hop's prior gitlink SHA; the sync's own
+# pre-migration `$LOCAL_HEAD`) -- presence is independently RE-VERIFIED
+# here, in BOTH repos, via `cat-file -e`, before it is trusted as a
+# boundary (never assumed from the caller's claim alone); genuinely
+# present in both, `--not "$5"` bounds the `rev-list` walk and
+# `pack-objects --thin` is safe to use (the destination can resolve any
+# thin delta against `$5`'s own, already-present objects via `index-pack
+# --fix-thin`); genuinely absent from either (a divergent/rebased history,
+# or a first-time transfer with nothing yet to delta against), the
+# function transparently falls back to the original unbounded-but-correct
+# behaviour -- NEVER an incorrect transfer, only a non-optimal one in that
+# rare case. T177 Round 26
 # (R25-B1 BLOCKING, independent-review-found, live-reproduced):
 # supersedes a `push -C <trusted> -- <untrusted> <sha>:refs/fc-import/...`
 # shape (introduced in Round 25 to fix R24-B2's insteadOf gap) that
@@ -1293,6 +1364,30 @@ fc_checkout_submodule_filtered() {
 # finalise (a raw-SHA `checkout`, or a direct `update-ref` on the
 # destination, both unaffected by whether a temporary ref ever pointed
 # at the transferred commit).
+# T177 Round 27 (R26-M-a, Minor, independent-review-found): every one of
+# the three commands below previously redirected ITS OWN stderr to
+# `/dev/null`, so a caller's `fc_transfer_objects_into ... 2>>errfile`
+# (both real call sites do this) captured NOTHING on a genuine failure --
+# an empty diagnostic file instead of the real git error. Fixed by letting
+# each command's stderr flow to the caller's own redirect as normal;
+# `index-pack`'s STDOUT summary line is still discarded explicitly (the
+# Round 26 own-defect fix above), since that is noise on this tool's own
+# stdout regardless of success or failure, never diagnostic information a
+# caller would want captured.
+# T177 Round 27 (R26-M-b, Minor, independent-review-disclosed, not fixed):
+# no ref ever points at the transferred objects between this function's
+# `index-pack` and the caller's own later `checkout`/`update-ref` --
+# unlike the Round 25 push-based mechanism this replaced, which held a
+# temporary `refs/fc-import/*` ref for that window. A concurrent `git gc`/
+# repack run OUTSIDE this tool (this tool's own `gc.auto=0`/
+# `maintenance.auto=false` only cover git invocations ITS OWN process
+# tree makes) could, in principle, prune the just-transferred objects
+# before the caller's own next step reaches them. Assessed as very-low-
+# risk (the window is a handful of git invocations wide, and an external
+# gc racing a live migration this precisely is itself an unusual
+# condition) and disclosed here rather than fixed, per the independent
+# reviewer's own recommendation -- tracked as an honest residual, not a
+# release blocker.
 fc_transfer_objects_into() {
     # T177 Round 26 own-defect, found by this round's own regression run
     # (never shipped): `git index-pack` has NO `-q`/`--quiet` option at
@@ -1302,11 +1397,42 @@ fc_transfer_objects_into() {
     # `index-pack` prints its one-line "pack <sha>" summary to STDOUT
     # even without `-v`, which must be discarded here rather than
     # leaking into migrate.sh's own stdout.
-    _fto_objs="$MIGRATE_SCRATCH/transfer_objects_$4.txt"
+    # T177 Round 27 own-defect, found by THIS round's own regression run
+    # (never shipped): `git pack-objects --thin`, fed the SAME plain
+    # `<sha>[ <path>]` object listing `rev-list --objects` produces (the
+    # shape the unbounded branch below has always used, and still uses),
+    # hard-fails `fatal: bad revision '<sha> '` on the FIRST tree object
+    # whose path annotation is the empty string (the repository's own
+    # root tree, always present) -- live-reproduced in isolation:
+    # identical input, `pack-objects --stdout --quiet` (no `--thin`)
+    # succeeds while `--stdout --quiet --thin` on the SAME file fails
+    # every time, confirming `--thin` genuinely changes how plain
+    # object-listing stdin is parsed, not a one-off fixture quirk. The
+    # correct, documented way to build a thin pack from boundary-bounded
+    # input is `pack-objects --thin --revs`, fed REVISION ARGUMENTS
+    # (`<tip>` / `^<base>`) directly rather than a pre-expanded object
+    # list -- `--revs` makes pack-objects perform its OWN internal
+    # rev-list-equivalent walk, which does not hit this parsing path at
+    # all; live-reproduced fixed: the identical `<tip>`/`^<base>` pair
+    # produces a correctly-bounded, smaller pack and `index-pack
+    # --fix-thin` resolves it cleanly against the destination.
     _fto_pack="$MIGRATE_SCRATCH/transfer_pack_$4.pack"
-    git -C "$1" rev-list --objects "$2" > "$_fto_objs" 2>/dev/null || return 1
-    git -C "$1" pack-objects --stdout --quiet < "$_fto_objs" > "$_fto_pack" 2>/dev/null || return 1
-    git -C "$3" -c protocol.file.allow=always index-pack --stdin --fix-thin < "$_fto_pack" >/dev/null 2>/dev/null || return 1
+    _fto_base=${5:-}
+    _fto_bounded=0
+    if [ -n "$_fto_base" ] \
+        && git -C "$1" cat-file -e "$_fto_base^{commit}" 2>/dev/null \
+        && git -C "$3" cat-file -e "$_fto_base^{commit}" 2>/dev/null; then
+        _fto_bounded=1
+    fi
+    if [ "$_fto_bounded" -eq 1 ]; then
+        printf '%s\n^%s\n' "$2" "$_fto_base" \
+            | git -C "$1" pack-objects --stdout --quiet --thin --revs > "$_fto_pack" || return 1
+    else
+        _fto_objs="$MIGRATE_SCRATCH/transfer_objects_$4.txt"
+        git -C "$1" rev-list --objects "$2" > "$_fto_objs" || return 1
+        git -C "$1" pack-objects --stdout --quiet < "$_fto_objs" > "$_fto_pack" || return 1
+    fi
+    git -C "$3" -c protocol.file.allow=always index-pack --stdin --fix-thin < "$_fto_pack" >/dev/null || return 1
 }
 
 # fc_submodule_update_init_filtered: $1 = parent working dir, $3 =
@@ -1392,7 +1518,65 @@ fc_submodule_update_init_filtered() {
         echo "migrate.sh: fc_submodule_update_init_filtered called before \$SUB_URL/\$CONST_SECTION was resolved -- refusing to update a submodule with no trusted URL/section to pin" >&2
         return 1
     fi
-    git -C "$1" -c protocol.file.allow=always -c init.templateDir= -c "submodule.$CONST_SECTION.update=checkout" -c "submodule.$CONST_SECTION.url=$SUB_URL" submodule update --init --no-fetch -- "$3" || return $?
+    # T177 Round 27 (R26-I2 IMPORTANT, independent-review-found, live-
+    # reproduced -- a gap LEFT OPEN by the R25-I1 fix above, in the exact
+    # same class it claimed to close): `git -c "submodule.$CONST_SECTION.
+    # update=checkout"` is a SINGLE string git's own `-c` parser splits at
+    # the FIRST `=` it contains -- a `.gitmodules` section name that
+    # itself contains an `=` (a legal, if unusual, git config section
+    # name) shifts that split point, so the key actually WRITTEN is never
+    # `submodule.<section>.update` at all. Live-reproduced directly: with
+    # `CONST_SECTION='c=x'`, `git -c "submodule.$CONST_SECTION.update=
+    # checkout" config --get-regexp 'submodule\.'` set `submodule.c` to
+    # the garbage value `x.update=checkout` -- `submodule.c=x.update`, the
+    # INTENDED key, was never set at all, so BOTH overrides this function
+    # exists to install were silently inert for exactly that
+    # `.gitmodules` shape, and a local `submodule.c=x.update=!<cmd>`/
+    # `submodule.c=x.url=<attacker>` hijack reopened for real (confirmed:
+    # the attacker's planted command executed end to end against this
+    # exact call shape, unmodified). Fixed by routing BOTH
+    # section-keyed overrides through the SAME `fc_gcc_add`/
+    # `GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n` mechanism every OTHER
+    # process-wide override in this file already uses, rather than `-c`:
+    # each key/value pair is read as a WHOLE, un-split environment
+    # variable (confirmed live: the SAME `CONST_SECTION='c=x'` fixture,
+    # read back with `GIT_CONFIG_KEY_0="submodule.$CONST_SECTION.update"
+    # GIT_CONFIG_VALUE_0=checkout`, correctly sets the key
+    # `submodule.c=x.update`, and a planted local hijack for that exact
+    # key is correctly shadowed) -- this mechanism has no `=`-splitting
+    # ambiguity for ANY character `$CONST_SECTION` could legally contain,
+    # so it is not a narrower allow-listed fix, it removes the whole
+    # parsing-ambiguity class. `fc_gcc_add` APPENDS at the next free index
+    # and re-exports `GIT_CONFIG_COUNT` -- deliberately NOT a fresh,
+    # command-scoped `GIT_CONFIG_COUNT=2`/`=4` (a self-caught near-miss
+    # while authoring this fix: that shape would have REPLACED, not
+    # extended, the process-wide `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_n` set
+    # this file's own preamble already installed -- silently dropping
+    # `core.hooksPath=/dev/null`, every `gpg.*`/`protocol.*` override, and
+    # everything else `fc_gcc_add` had already added, for this ONE git
+    # call only). Calling `fc_gcc_add` again on a later invocation of this
+    # function (it runs up to three times per migration) harmlessly
+    # re-adds the SAME two keys at new, later indices -- the LAST entry
+    # for a given key wins, per `fc_gcc_add`'s own documented contract,
+    # so a repeat add is idempotent in effect, only a small, bounded
+    # index-count footprint, never a correctness risk. `protocol.file.
+    # allow`/`init.templateDir` keep their existing `-c` form (their keys
+    # are static literals with no attacker-influenced content, so there
+    # is no `=`-splitting ambiguity to close for either of them).
+    # T177 Round 27 (R26-M-c, Minor, independent-review-disclosed, not
+    # fixed): a SEPARATE, unrelated parsing step -- the step-4 discovery
+    # of `$CONST_SECTION` itself from `.gitmodules` (`${line%% *}`-style
+    # splitting on the FIRST space) -- breaks for a section name
+    # containing a literal space (e.g. `[submodule "my const"]`). This is
+    # FAIL-CLOSED, not a hijack: the consumer's migration simply refuses
+    # (`not-migrated`) rather than resolving the wrong section, so it is a
+    # usability gap, never a security one; disclosed here per the
+    # independent reviewer's own finding, tracked as an honest residual,
+    # not a release blocker.
+    fc_gcc_add "submodule.$CONST_SECTION.update" checkout
+    fc_gcc_add "submodule.$CONST_SECTION.url" "$SUB_URL"
+    GIT_CONFIG_COUNT=$FC_GCC_N; export GIT_CONFIG_COUNT
+    git -C "$1" -c protocol.file.allow=always -c init.templateDir= submodule update --init --no-fetch -- "$3" || return $?
     fc_neutralize_repo_filters || return 1
 }
 
@@ -2121,7 +2305,7 @@ if [ "$ALREADY_AT_TARGET" -ne 1 ]; then
         && ! git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always fetch -q -- "$SUB_URL" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
-    if ! fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"; then
+    if ! fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"; then
         not_migrated_after_write "fetch" "unreachable" "constitution-submodule-fetch-failed"
     fi
     if ! fc_checkout_submodule_filtered "$WORKDIR/constitution" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1; then
@@ -2490,7 +2674,7 @@ while i + 1 < len(data):
     # process makes inherits them), with no per-call `-c` needed beyond
     # the `protocol.file.allow=always` already shown for clarity/
     # consistency with every other call site touching a local path.
-    if ! fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"; then
+    if ! fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"; then
         echo "migrate.sh: WARNING -- published commit $NEW_COMMIT could not be transferred back into \$WORKDIR for sync; the push itself already succeeded on every configured remote" >&2
     fi
     git -C "$WORKDIR" update-ref "refs/heads/$BRANCH" "$NEW_COMMIT" 2>/dev/null

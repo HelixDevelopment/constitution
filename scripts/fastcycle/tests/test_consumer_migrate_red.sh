@@ -2763,9 +2763,9 @@ fi
 # mutant's shell syntax (caught live while authoring this arm: the first
 # attempt produced exactly that syntax error).
 j_mutant K_insteadof_fetch_shape \
-    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
+    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
     'git -C "$WORKDIR/constitution" -c protocol.file.allow=always fetch -q -- "$FC_SUB_FETCH_BARE" "$NEW_SHA" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
-    'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
+    'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
     'git -C "$WORKDIR" -c protocol.file.allow=always fetch -q "$FC_BARE" "$NEW_COMMIT" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1'
 K_ISF_M_ROOT="$K_ROOT/km_isf"
 build_r3_fixture "$K_ISF_M_ROOT"
@@ -2832,11 +2832,15 @@ fi
 # some other mechanism, is what K-submodule-url-hijack's PASS depends on.
 # T177 Round 26 (R25-I1 remediation re-keyed both pins from $3 (the
 # submodule PATH) to $CONST_SECTION (the .gitmodules SECTION NAME) --
-# re-anchored accordingly; no inline comment in the replacement, same
-# reason as the note above this block's sibling arm.
+# re-anchored accordingly. T177 Round 27 (R26-I2 remediation routed both
+# pins through fc_gcc_add/GIT_CONFIG_KEY_n instead of `-c`, closing the
+# `=`-splitting gap `-c` left open for a section name containing `=` --
+# re-anchored a SECOND time: the url pin is now its own, separate
+# fc_gcc_add statement, removed by this mutant while the update pin
+# stays, same intent as before (remove ONLY the url pin).
 j_mutant K_submodule_url_unpinned \
-    ' -c "submodule.$CONST_SECTION.update=checkout" -c "submodule.$CONST_SECTION.url=$SUB_URL" submodule update --init --no-fetch -- "$3"' \
-    ' -c "submodule.$CONST_SECTION.update=checkout" submodule update --init --no-fetch -- "$3"'
+    'fc_gcc_add "submodule.$CONST_SECTION.url" "$SUB_URL"' \
+    ':'
 K_SUI_M_ROOT="$K_ROOT/km_sui"
 build_r3_fixture "$K_SUI_M_ROOT"
 git -C "$K_SUI_M_ROOT/checkout" config submodule.constitution.url "$K_SUI_ATTACKER"
@@ -2938,10 +2942,15 @@ else
 fi
 # K-submodule-noncanonical-section guard-viability: reverting to the
 # $3-keyed (PATH, not SECTION) pins re-opens BOTH hijacks for this
-# non-default-section consumer shape.
+# non-default-section consumer shape. T177 Round 27 (R26-I2 remediation
+# routed both pins through fc_gcc_add/GIT_CONFIG_KEY_n instead of `-c` --
+# re-anchored accordingly, same two-statement shape as the sibling
+# K_submodule_url_unpinned arm above.
 j_mutant K_ncs_wrong_key \
-    '-c "submodule.$CONST_SECTION.update=checkout" -c "submodule.$CONST_SECTION.url=$SUB_URL" submodule update --init --no-fetch -- "$3"' \
-    '-c "submodule.$3.update=checkout" -c "submodule.$3.url=$SUB_URL" submodule update --init --no-fetch -- "$3"'
+    'fc_gcc_add "submodule.$CONST_SECTION.update" checkout' \
+    'fc_gcc_add "submodule.$3.update" checkout' \
+    'fc_gcc_add "submodule.$CONST_SECTION.url" "$SUB_URL"' \
+    'fc_gcc_add "submodule.$3.url" "$SUB_URL"'
 K_NCS_M_ROOT="$K_ROOT/km_ncs"
 mkdir -p "$K_NCS_M_ROOT"
 git clone -q --no-hardlinks "$K_NCS_ROOT/consumer.git" "$K_NCS_M_ROOT/checkout" >/dev/null 2>&1
@@ -3006,9 +3015,9 @@ fi
 # proving fc_transfer_objects_into()'s object-only transfer, not some
 # other mechanism, is what K-receive-hooks's PASS depends on.
 j_mutant K_receive_hooks_push_shape \
-    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
+    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
     'git -C "$FC_SUB_FETCH_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR/constitution" "$NEW_SHA:refs/fc-import/migrate" >>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err" 2>&1' \
-    'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
+    'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
     'git -C "$FC_BARE" -c protocol.file.allow=always push -q -- "$WORKDIR" "$NEW_COMMIT:refs/fc-import/migrate-sync" >"$MIGRATE_SCRATCH/migrate_sync_fetch.err" 2>&1'
 K_RH_M_ROOT="$K_ROOT/km_rh"
 build_r3_fixture "$K_RH_M_ROOT"
@@ -3029,6 +3038,134 @@ if [ "$J_MUT_OK" -eq 1 ] && [ -f "$K_RH_M_MARKER" ]; then
     ok "K-receive-hooks guard-viability: with hop 2 and the sync fetch reverted to the Round 25 push-based shape, the SAME planted receive-side hooks FIRE ([$(tr '\n' ',' < "$K_RH_M_MARKER")]) -- K-receive-hooks's fix is genuinely load-bearing, not decoration"
 else
     bad "K-receive-hooks guard-viability: reverting to the push-based shape did not reproduce the hooks firing (mut_ok=$J_MUT_OK marker=$([ -f "$K_RH_M_MARKER" ] && echo present || echo absent))"
+fi
+
+# --- K-bounded-transfer: T177 Round 27 (R26-I1 IMPORTANT, independent
+# review, live-reproduced -- a REGRESSION Round 26's own
+# fc_transfer_objects_into() introduced): with no bound, every hop-2/
+# step-9 call packed EVERY object reachable from the target commit, not
+# merely what the destination was missing -- at this repository's real
+# scale the reviewer measured this would write roughly the repository's
+# ENTIRE ~71 GiB history into tmpfs scratch space on every single
+# migration, then permanently duplicate it into the destination's own
+# object store (this tool's own `gc.auto=0` never reclaims it). Closed by
+# the optional `$5` base-commit boundary on `fc_transfer_objects_into()`.
+# This arm builds a trusted upstream with a LONG history (15 commits,
+# each growing a tracked blob so the full-history object count is large
+# and unambiguous), checks out the submodule at the SECOND-TO-LAST
+# commit (so the destination already holds the bulk of the history
+# before migrate.sh ever runs), migrates to the TIP (one commit ahead),
+# and measures the DESTINATION's own `git count-objects` growth across
+# the real migration -- asserting it is SMALL (bounded to roughly the
+# one new commit's own objects), never anywhere close to the full
+# upstream history's object count.
+K_BT_ROOT="$K_ROOT/k_bt"
+mkdir -p "$K_BT_ROOT"
+git init -q --bare -b main "$K_BT_ROOT/mc.git"
+K_BT_W=$(mktemp -d)
+git init -q -b main "$K_BT_W" >/dev/null
+git -C "$K_BT_W" config user.name fastcycle-fixture
+git -C "$K_BT_W" config user.email fixture@example.invalid
+git -C "$K_BT_W" remote add origin "$K_BT_ROOT/mc.git"
+K_BT_N=1
+while [ "$K_BT_N" -le 15 ]; do
+    # ~2KB of growth per commit so the full-history pack is unambiguously
+    # larger than a one-commit delta, never relying on a borderline size.
+    head -c 2048 /dev/urandom | base64 >> "$K_BT_W/blob.txt"
+    git -C "$K_BT_W" add blob.txt
+    git -C "$K_BT_W" commit -q -m "k-bt commit $K_BT_N"
+    if [ "$K_BT_N" -eq 14 ]; then
+        K_BT_OLD=$(git -C "$K_BT_W" rev-parse HEAD)
+    fi
+    K_BT_N=$((K_BT_N + 1))
+done
+git -C "$K_BT_W" push -q origin main
+K_BT_NEW=$(git -C "$K_BT_W" rev-parse HEAD)
+K_BT_FULL_OBJS=$(git -C "$K_BT_W" rev-list --objects HEAD | wc -l)
+rm -rf "$K_BT_W"
+git init -q --bare -b main "$K_BT_ROOT/consumer.git"
+K_BT_CW=$(mktemp -d)
+git init -q -b main "$K_BT_CW" >/dev/null
+git -C "$K_BT_CW" config user.name fastcycle-fixture
+git -C "$K_BT_CW" config user.email fixture@example.invalid
+printf '## INHERITED FROM constitution/CLAUDE.md\n\nFixture consumer (K-bounded-transfer).\n\n## Commit Policy\n\nCommit wrapper: none (plain git permitted)\n' > "$K_BT_CW/CLAUDE.md"
+mkdir -p "$K_BT_CW/src"
+echo 'int main(void) { return 0; }' > "$K_BT_CW/src/product.c"
+printf '[submodule "constitution"]\n\tpath = constitution\n\turl = %s\n' "$K_BT_ROOT/mc.git" > "$K_BT_CW/.gitmodules"
+git -C "$K_BT_CW" add CLAUDE.md .gitmodules src/product.c
+git -C "$K_BT_CW" update-index --add --cacheinfo 160000,"$K_BT_OLD",constitution
+git -C "$K_BT_CW" commit -q -m "initial K-bt consumer state"
+git -C "$K_BT_CW" remote add origin "$K_BT_ROOT/consumer.git"
+git -C "$K_BT_CW" push -q origin main
+rm -rf "$K_BT_CW"
+# A PRISTINE, pre-migration snapshot of consumer.git for the mutant arm
+# below -- the golden-path arm's own migration (just below) pushes a
+# migrated commit back onto "$K_BT_ROOT/consumer.git" itself, so cloning
+# the mutant's checkout from the SAME, by-then-already-migrated repo
+# would hand it a submodule gitlink of $K_BT_NEW instead of $K_BT_OLD,
+# and the subsequent forced checkout to $K_BT_OLD would then report a
+# genuine (test-authoring, not migrate.sh) dirty-local mismatch (caught
+# live while authoring this arm: the mutant run refused NOT-MIGRATED
+# (dirty-local) before ever reaching fc_transfer_objects_into() at all).
+git clone -q --mirror "$K_BT_ROOT/consumer.git" "$K_BT_ROOT/consumer_pristine.git" >/dev/null 2>&1
+git clone -q --no-hardlinks "$K_BT_ROOT/consumer.git" "$K_BT_ROOT/checkout" >/dev/null 2>&1
+git -C "$K_BT_ROOT/checkout" config user.name fastcycle-fixture
+git -C "$K_BT_ROOT/checkout" config user.email fixture@example.invalid
+# Pre-initialise the submodule at $K_BT_OLD myself (mirroring exactly
+# what fc_submodule_update_init_filtered() would do on first run) so the
+# object-count BASELINE below is measured BEFORE migrate.sh's own hop-2
+# transfer, not conflated with its initial-clone cost.
+git -C "$K_BT_ROOT/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+git -C "$K_BT_ROOT/checkout/constitution" checkout -q "$K_BT_OLD"
+K_BT_BEFORE=$(git -C "$K_BT_ROOT/checkout/constitution" count-objects -v | awk '/^count:/{c=$2} /^in-pack:/{p=$2} END{print c+p}')
+K_BT_REF=$(make_review_ref "fixture/section_k_bt" "$K_BT_NEW" "$(git -C "$K_BT_ROOT/checkout" rev-parse HEAD)")
+J_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$TOOL" --config "$CFG" --project fixture/section_k_bt --workdir "$K_BT_ROOT/checkout" --out "$WORK/k_bt.json" --apply --review-ref "$K_BT_REF" 2>&1)
+J_RC=$?
+K_BT_AFTER=$(git -C "$K_BT_ROOT/checkout/constitution" count-objects -v | awk '/^count:/{c=$2} /^in-pack:/{p=$2} END{print c+p}')
+K_BT_GROWTH=$((K_BT_AFTER - K_BT_BEFORE))
+K_BT_GITLINK=$(k_gitlink "$K_BT_ROOT")
+# Bounded growth = at most a handful of objects (one commit: a commit +
+# a tree + a blob, generously allowed up to 10); the full history is
+# $K_BT_FULL_OBJS objects (~45+) -- the two are never close for this
+# fixture shape, so a bounded-vs-unbounded transfer is unambiguous.
+if [ "$J_RC" -eq 0 ] && echo "$J_OUT" | grep -q '^MIGRATED' && [ "$K_BT_GITLINK" = "$K_BT_NEW" ] \
+    && [ "$K_BT_GROWTH" -ge 0 ] && [ "$K_BT_GROWTH" -le 10 ]; then
+    ok "K-bounded-transfer (T177 Round 27, R26-I1): migrating ONE commit ahead on a 15-commit-deep upstream ($K_BT_FULL_OBJS total objects) grows the destination's own object count by only $K_BT_GROWTH -- the transfer is genuinely bounded to the real delta, not the full history"
+else
+    bad "K-bounded-transfer: rc=$J_RC out=$J_OUT gitlink=$K_BT_GITLINK expected=$K_BT_NEW growth=$K_BT_GROWTH full-history-objects=$K_BT_FULL_OBJS"
+fi
+# K-bounded-transfer guard-viability: with the `$5` base-commit argument
+# dropped from BOTH fc_transfer_objects_into() call sites (reverting to
+# Round 26's own unbounded shape), the SAME one-commit-ahead migration
+# grows the destination's object count by roughly the FULL upstream
+# history instead -- proving the `$5` boundary, not some other mechanism,
+# is what keeps K-bounded-transfer's growth small.
+j_mutant K_bt_unbounded \
+    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule "$OLD_SHA" 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
+    'fc_transfer_objects_into "$FC_SUB_FETCH_BARE" "$NEW_SHA" "$WORKDIR/constitution" submodule 2>>"$MIGRATE_SCRATCH/migrate_submodule_fetch.err"' \
+    'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"' \
+    'fc_transfer_objects_into "$FC_BARE" "$NEW_COMMIT" "$WORKDIR" sync 2>"$MIGRATE_SCRATCH/migrate_sync_fetch.err"'
+K_BT_M_ROOT="$K_ROOT/km_bt"
+mkdir -p "$K_BT_M_ROOT"
+git clone -q --no-hardlinks "$K_BT_ROOT/consumer_pristine.git" "$K_BT_M_ROOT/checkout" >/dev/null 2>&1
+git -C "$K_BT_M_ROOT/checkout" config user.name fastcycle-fixture
+git -C "$K_BT_M_ROOT/checkout" config user.email fixture@example.invalid
+git -C "$K_BT_M_ROOT/checkout" -c protocol.file.allow=always submodule update --init -q constitution
+git -C "$K_BT_M_ROOT/checkout/constitution" checkout -q "$K_BT_OLD"
+K_BT_M_BEFORE=$(git -C "$K_BT_M_ROOT/checkout/constitution" count-objects -v | awk '/^count:/{c=$2} /^in-pack:/{p=$2} END{print c+p}')
+K_BT_M_REF=$(make_review_ref "fixture/section_km_bt" "$K_BT_NEW" "$(git -C "$K_BT_M_ROOT/checkout" rev-parse HEAD)")
+J_OUT=$(FASTCYCLE_VERIFY_TOOL_OVERRIDE="$VERIFY_TOOL" sh "$WORK/jmut_K_bt_unbounded.sh" --config "$CFG" --project fixture/section_km_bt --workdir "$K_BT_M_ROOT/checkout" --out "$WORK/km_bt.json" --apply --review-ref "$K_BT_M_REF" 2>&1)
+J_RC=$?
+K_BT_M_AFTER=$(git -C "$K_BT_M_ROOT/checkout/constitution" count-objects -v | awk '/^count:/{c=$2} /^in-pack:/{p=$2} END{print c+p}')
+K_BT_M_GROWTH=$((K_BT_M_AFTER - K_BT_M_BEFORE))
+# The unbounded shape re-packs the FULL history (plus the fresh scratch
+# bare's own duplicate of it); generously require only that growth
+# clearly exceeds the bounded arm's 10-object ceiling, never pinned to
+# an exact count.
+if [ "$J_MUT_OK" -eq 1 ] && [ "$K_BT_M_GROWTH" -gt 10 ]; then
+    ok "K-bounded-transfer guard-viability: with the \$5 base-commit argument dropped (Round 26's own unbounded shape), the SAME one-commit-ahead migration grows the destination's object count by $K_BT_M_GROWTH (vs the bounded arm's $K_BT_GROWTH) -- the \$5 boundary is genuinely load-bearing, not decoration"
+else
+    bad "K-bounded-transfer guard-viability: dropping the \$5 argument did not reproduce unbounded growth (mut_ok=$J_MUT_OK growth=$K_BT_M_GROWTH)"
 fi
 
 # K-verify-wiring: repo_verify.py strips inherited GIT_CONFIG_* by design,
