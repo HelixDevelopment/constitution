@@ -748,11 +748,60 @@ def review_rounds_stage(records_dir, item_id, repo_root=None):
       are added ONLY inside the SAME branch that validated its start/end
       timestamps -- a record with no valid timed span contributes NEITHER
       to elapsed time NOR to the token total (CT-004: a round that cannot be
-      timed is not counted as having happened within this measured span)."""
+      timed is not counted as having happened within this measured span).
+
+    S12-remediation follow-up round (2026-10-03), further fixes found
+    against this same function:
+      F5 (elapsed-time semantics) -- the returned stage's `elapsed` field is
+      the OVERALL WALL-CLOCK SPAN from the earliest round's start to the
+      latest round's end. This is DELIBERATE and matches this module's own
+      established convention for every OTHER multi-occurrence stage --
+      commit_push_stage() likewise spans the earliest commit's author_date
+      to the latest commit's committer_date across potentially many
+      commits, and that span likewise includes any gap time between
+      commits. `elapsed` therefore INCLUDES any gap between review rounds
+      (e.g. fix-time between Round N's review ending and Round N+1's review
+      starting) -- it is the wall-clock duration of the review_rounds
+      STAGE, not "time spent reviewing". A caller wanting the latter reads
+      the separate `summed_review_duration_ms` field added below: the SUM
+      of each individual round's own (end - start) duration, which is the
+      actual measured review-time figure. Both are genuine, non-invented
+      (CT-004) measurements of two DIFFERENT things; neither replaces the
+      other. Also: `time_source="registry_ts"` honestly describes these as
+      REVIEWER-ENTERED timestamps -- review_record.py's `--started-at`/
+      `--ended-at` CLI flags, filled in by whoever ran the review -- never
+      automatically-instrumented clock readings (confirmed directly against
+      review_record.py's own argparse definitions, 2026-10-03).
+
+    S12-remediation round (2026-10-03), fix found against the F5 field added
+    above:
+      F13 (inverted-span corruption of summed_review_duration_ms) --
+      review_record.py's own `--started-at`/`--ended-at` flags carry NO
+      end->=start validation (confirmed against its argparse definitions,
+      same as F5's note immediately above), so a reviewer-entered record
+      with an INVERTED span (end before start -- a data-entry error) is
+      structurally possible. The PRE-fix `summed_review_duration_ms`
+      accumulation added every record's (end - start) UNCONDITIONALLY,
+      including a negative duration from an inverted record, which could
+      silently CANCEL OUT a real positive duration from another round
+      (repro: round a 10:00->12:00 [+2h], round b 15:00->13:00 [inverted,
+      -2h] -> pre-fix summed_review_duration_ms reported 0, hiding the real
+      2h review that genuinely happened). Fix: an inverted round's duration
+      is excluded from this sum entirely (never added, never subtracted),
+      matching this SAME function's existing UNKNOWN-timestamp exclusion
+      precedent -- an un-timeable round contributes NOTHING to a duration
+      total (CT-004). This fix is scoped STRICTLY to the
+      summed_review_duration_ms accumulation: an inverted record's own
+      instants still compete normally for the `elapsed` field's overall
+      min-start/max-end span-evidence attribution (F1, above) and its
+      tokens still contribute to the token total (F2, above) -- both are
+      PRE-EXISTING behaviour this fix deliberately leaves untouched, not a
+      new defect this fix introduces or masks."""
     if not records_dir or not os.path.isdir(records_dir):
         return None
     best_start_iso, best_start_dt, best_start_evidence = None, None, None
     best_end_iso, best_end_dt, best_end_evidence = None, None, None
+    summed_duration_ms = 0
     total_tokens, any_tokens = 0, False
     for dirpath, dirnames, filenames in os.walk(records_dir):
         dirnames.sort()  # F1: deterministic traversal order
@@ -792,12 +841,51 @@ def review_rounds_stage(records_dir, item_id, repo_root=None):
                 if isinstance(tok, int):
                     total_tokens += tok
                     any_tokens = True
+                # F5: this record's OWN (end - start) duration is summed
+                # independently of the min-start/max-end span tracked above
+                # -- see this function's docstring for why `elapsed` (the
+                # span) and `summed_review_duration_ms` (this sum) measure
+                # two different things.
+                #
+                # S12-remediation fix (F13, 2026-10-03): review_record.py's
+                # own --started-at/--ended-at CLI flags (confirmed directly
+                # against its argparse definitions, F5's docstring note
+                # above) carry NO end->=start validation -- a reviewer-
+                # entered record with an INVERTED span (end before start, a
+                # data-entry error) is therefore structurally possible, and
+                # the PRE-fix unconditional `+=` let its NEGATIVE duration
+                # silently cancel out a real positive duration from another
+                # round (repro: round a 10:00->12:00 [+2h], round b
+                # 15:00->13:00 [inverted, -2h] -> pre-fix summed_duration_ms
+                # reported 0, hiding the real 2h review that happened).
+                # Fix: an inverted round's duration is treated as UNTIMED and
+                # EXCLUDED from this sum entirely -- never added, never
+                # subtracted -- matching this SAME function's existing
+                # UNKNOWN-timestamp precedent (an un-timeable round
+                # contributes NOTHING to a duration total, CT-004: no
+                # invented/corrupted measurement). This guard touches ONLY
+                # the summed_review_duration_ms accumulation: the record's
+                # own `best_start`/`best_end` span-evidence attribution
+                # (F1, above) and its `tokens` contribution (F2, above) are
+                # DELIBERATELY left untouched by this fix -- that is
+                # PRE-EXISTING behaviour of this function (an inverted
+                # record's own start/end instants still compete normally for
+                # the overall `elapsed` span's min-start/max-end, exactly as
+                # any other validly-parsed timestamp pair would), not a new
+                # defect this round introduces or silently masks.
+                if e_dt >= s_dt:
+                    summed_duration_ms += to_ms((e_dt - s_dt).total_seconds())
     if best_start_iso is None:
         return None
-    return measured_stage(
+    stage = measured_stage(
         "review_rounds", best_start_iso, "registry_ts", best_end_iso, "registry_ts",
         start_evidence=best_start_evidence, end_evidence=best_end_evidence,
         tokens=total_tokens if any_tokens else None)
+    # F5: a field DISTINCT from `elapsed` (the overall span, which includes
+    # inter-round gaps) -- the sum of each individual round's own measured
+    # duration, i.e. the actual review-time figure.
+    stage["summed_review_duration_ms"] = summed_duration_ms
+    return stage
 
 
 def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_files_present,
@@ -1153,6 +1241,27 @@ def main(argv):
     args = build_arg_parser().parse_args(argv)
 
     if not require_as_of(args.as_of):
+        return 2
+
+    # F6 fix (S12-remediation follow-up round, 2026-10-03): a mistyped or
+    # nonexistent --review-records-dir path previously fell straight through
+    # to review_rounds_stage()'s own `not os.path.isdir(records_dir)` guard,
+    # which returns None -- indistinguishable, to the caller, from the
+    # legitimate "this is a real, existing, but genuinely-empty directory"
+    # state (no review records exist yet). A blind/broken instrument (a path
+    # that does not exist at all) must never be read as the SAME honest
+    # "zero records found" result a real empty directory produces
+    # (S11.4.201(6)) -- refuse closed rather than silently degrade. A
+    # genuinely-empty EXISTING directory is unaffected (os.path.isdir is
+    # True for it) and still correctly falls through to UNMEASURED.
+    if args.review_records_dir is not None and not os.path.isdir(args.review_records_dir):
+        print(
+            "cycle_report: --review-records-dir path does not exist (or is "
+            "not a directory): %r -- refusing rather than silently treating "
+            "a likely operator typo/mistyped path the SAME as a genuinely-"
+            "empty-but-valid directory (S11.4.201(6): a blind instrument and "
+            "a clean artifact must never return the identical quiet result)"
+            % args.review_records_dir, file=sys.stderr)
         return 2
 
     repo_root = os.path.abspath(args.repo_root) if args.repo_root else default_repo_root()
