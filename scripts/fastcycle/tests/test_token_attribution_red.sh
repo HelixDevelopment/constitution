@@ -961,6 +961,586 @@ print(','.join(hits) if hits else 'CLEAN')
     fi
 fi
 
+# =============================================================================
+# PART F — decoupling: transcript_ingest.py's item=<prefix>-<digits> tagging
+#          is CONFIGURABLE, not hardcoded to the literal "ATM-" prefix
+#          (§11.4.28/§11.4.177; T048 S9 independent-review remediation,
+#          2026-10-03). The reviewer found this file's own ITEM_TAG_RE
+#          hard-coded "ATM-" verbatim -- a project-literal leak inside this
+#          project-agnostic constitution-submodule engine (a DIFFERENT
+#          consuming project whose item-id prefix is not "ATM" would get
+#          ZERO item/token attribution, silently). The fix reuses the SAME
+#          configurable mechanism `tokens/dispatch_stamp.sh` (T036) already
+#          established on this SAME field: `FC_DISPATCH_ITEM_ID_RE` (full
+#          override) and `FC_DISPATCH_EXTRA_ITEM_PREFIXES` (additive) env
+#          vars, with the DEFAULT prefix derived (never hardcoded) via
+#          `scripts/release_prefix.sh` -- for THIS checkout the derived
+#          default is "ATM" (release prefix "atmosphere"), so the default
+#          (unconfigured) behaviour matches the old hardcode's set of
+#          accepted ids for every existing caller (the built regex itself
+#          is NOT byte-identical -- it wraps the derived prefix in a
+#          non-capturing group, `(?:ATM)-[0-9]+`, vs the old bare literal
+#          `ATM-[0-9]+`; corrected per T048 S9 independent review finding
+#          M2, 2026-10-03 -- this comment previously overstated it).
+# =============================================================================
+echo "=== PART F: item= tag prefix is configurable (not hardcoded 'ATM-') ==="
+
+# F-needle (§11.4.273(b)/C-004): prove this test's own detection of "which
+# mechanism name" transcript_ingest.py and dispatch_stamp.sh agree on is not
+# a fabrication -- both files MUST literally mention the SAME env var names.
+DISPATCH_STAMP_MENTIONS_EXTRA="$(grep -c 'FC_DISPATCH_EXTRA_ITEM_PREFIXES' "$DISPATCH_STAMP" 2>/dev/null || echo 0)"
+INGEST_MENTIONS_EXTRA="$(grep -c 'FC_DISPATCH_EXTRA_ITEM_PREFIXES' "$TRANSCRIPT_INGEST" 2>/dev/null || echo 0)"
+needle_check "dispatch_stamp.sh (T036) genuinely defines the FC_DISPATCH_EXTRA_ITEM_PREFIXES mechanism (control needle: the real file, not an invented name)" 1 "$([ "${DISPATCH_STAMP_MENTIONS_EXTRA:-0}" -gt 0 ] && echo 1 || echo 0)"
+needle_check "a FABRICATED, distinct env-var name is NOT present in dispatch_stamp.sh" 0 "$(grep -c 'FC_DISPATCH_SOME_NAME_THAT_DOES_NOT_EXIST' "$DISPATCH_STAMP" 2>/dev/null | grep -qv '^0$' && echo 1 || echo 0)"
+
+EXTRAPFX_FIX="$FIX/extra_prefix_attribution/parent_session.jsonl"
+EXTRAPFX_SUB="$FIX/extra_prefix_attribution/parent_session/subagents/agent-fixturet020extrapfx01.jsonl"
+if [ ! -f "$EXTRAPFX_FIX" ] || [ ! -f "$EXTRAPFX_SUB" ]; then
+    bad "fixture(s) missing: $EXTRAPFX_FIX / $EXTRAPFX_SUB"
+else
+    needle_check "the extra_prefix_attribution fixture's dispatch carries the real item=SPK-4321 tag" 1 "$(grep -Fq 'item=SPK-4321' "$EXTRAPFX_FIX" && echo 1 || echo 0)"
+    needle_check "the fixture does NOT fabricate an item=ATM-4321 tag instead" 0 "$(grep -Fq 'item=ATM-4321' "$EXTRAPFX_FIX" && echo 1 || echo 0)"
+
+    if [ -f "$TRANSCRIPT_INGEST" ]; then
+        # --- F1: NEGATIVE CONTROL (T048 S9 independent review finding M2,
+        # 2026-10-03 -- relabelled; this case was mislabeled "RED" below,
+        # but it is a negative control, not a RED fixture: it passes BOTH
+        # before T048's decoupling fix (the old hardcode never matched a
+        # non-ATM prefix either) AND after it (the new, configurable
+        # default stays ATM-only when unconfigured) -- it never transitions
+        # from FAIL to PASS across the fix, which is what "RED" would mean
+        # here. Its genuine job is proving the default prefix alternation
+        # does NOT silently widen on its own (the §11.4.6 "never silently
+        # widen the default" guarantee) -- today's (post-fix) code MUST
+        # still refuse the unconfigured SPK- tag by default. Run WITHOUT
+        # FC_DISPATCH_EXTRA_ITEM_PREFIXES set at all (unset, not merely
+        # empty) so no ambient value from the invoking shell leaks in.
+        DB_F1="$WORK/telemetry_f1.db"
+        OUT_F1="$(env -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u FC_DISPATCH_ITEM_ID_RE python3 "$TRANSCRIPT_INGEST" ingest "$EXTRAPFX_FIX" --db "$DB_F1" 2>&1)"
+        RC_F1=$?
+        if [ "$RC_F1" -eq 0 ] && [ -f "$DB_F1" ]; then
+            UNCONFIGURED_ITEM="$(sqlite3 -noheader "$DB_F1" "SELECT item_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_extrapfx_sub_a1';")"
+            needle_check "DEFAULT (unconfigured) behaviour: the SPK-4321 subagent row is NOT item-attributed (item_id empty/NULL) — the default prefix alternation never silently widens, and this MATCHES this project's pre-fix behaviour for every existing ATM-only caller in the SET OF IDS IT ACCEPTS (though the built regex itself is not byte-identical -- see transcript_ingest.py's own ITEM_TAG_RE DECOUPLING FIX comment)" 1 "$([ -z "$UNCONFIGURED_ITEM" ] && echo 1 || echo 0)"
+        else
+            bad "PART F1 setup failed: transcript_ingest.py did not run cleanly unconfigured against the extra_prefix_attribution fixture: rc=$RC_F1 out=$OUT_F1"
+        fi
+
+        # --- F2: GREEN — with FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK configured
+        # (the SAME mechanism dispatch_stamp.sh already exposes, never an
+        # invented one), the SAME fixture's SPK-4321 tag IS extracted.
+        DB_F2="$WORK/telemetry_f2.db"
+        OUT_F2="$(FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK python3 "$TRANSCRIPT_INGEST" ingest "$EXTRAPFX_FIX" --db "$DB_F2" 2>&1)"
+        RC_F2=$?
+        if [ "$RC_F2" -eq 0 ] && [ -f "$DB_F2" ]; then
+            CONFIGURED_ITEM="$(sqlite3 -noheader "$DB_F2" "SELECT item_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_extrapfx_sub_a1';")"
+            needle_check "CONFIGURED (FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK) behaviour: the SPK-4321 subagent row IS item-attributed to 'SPK-4321' (the real tagged value, not a fabricated one)" 1 "$([ "$CONFIGURED_ITEM" = "SPK-4321" ] && echo 1 || echo 0)"
+            needle_check "CONFIGURED behaviour: item_id is NOT a fabricated, distinct value" 0 "$([ "$CONFIGURED_ITEM" = "ATM-0000-fabricated" ] && echo 1 || echo 0)"
+        else
+            bad "PART F2 setup failed: transcript_ingest.py did not run cleanly with FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK against the extra_prefix_attribution fixture: rc=$RC_F2 out=$OUT_F2"
+        fi
+
+        # --- F3: backward-compatibility — the pre-existing PART D fixture
+        # (a genuine item=ATM-9999 tag) MUST STILL attribute correctly even
+        # with FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK configured (additive,
+        # never replacing the derived default) -- this is the "default
+        # ATM- ids still correctly extracted" half of the task's required
+        # backward-compatibility proof, exercised under the SAME configured
+        # environment as F2 above (not merely the already-passing PART D's
+        # own unconfigured run).
+        if [ -f "$PARENT_FIX" ]; then
+            DB_F3="$WORK/telemetry_f3.db"
+            OUT_F3="$(FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK python3 "$TRANSCRIPT_INGEST" ingest "$PARENT_FIX" --db "$DB_F3" 2>&1)"
+            RC_F3=$?
+            if [ "$RC_F3" -eq 0 ] && [ -f "$DB_F3" ]; then
+                ATM_STILL_WORKS="$(sqlite3 -noheader "$DB_F3" "SELECT item_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_sub_a1';")"
+                needle_check "backward-compat: with FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK configured, a genuine item=ATM-9999 tag STILL attributes correctly to 'ATM-9999' (additive, never replacing the derived default)" 1 "$([ "$ATM_STILL_WORKS" = "ATM-9999" ] && echo 1 || echo 0)"
+            else
+                bad "PART F3 setup failed: transcript_ingest.py did not run cleanly with FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK against the PART D ATM-9999 fixture: rc=$RC_F3 out=$OUT_F3"
+            fi
+        else
+            bad "PART F3 precondition missing: $PARENT_FIX (the PART D fixture) not found — cannot verify backward-compatible ATM- attribution under a configured environment"
+        fi
+
+        # NOTE: the `${VAR-x}` single-dash form (never `${VAR:-x}`) is
+        # deliberate here -- `:-` substitutes on EITHER unset OR a
+        # legitimately-empty value, which would misreport
+        # $UNCONFIGURED_ITEM's correct, intentional empty-string result
+        # (NULL item_id, cast to "" by sqlite3) as "F1 never ran". The
+        # single-dash form substitutes ONLY when truly unset (the F1
+        # block was skipped), which is the real failure case this
+        # aggregate check must distinguish from a genuine empty result.
+        if [ "$RC_F1" -eq 0 ] && [ -z "${UNCONFIGURED_ITEM-UNSET}" ] && [ "${CONFIGURED_ITEM-}" = "SPK-4321" ] && [ "${ATM_STILL_WORKS-}" = "ATM-9999" ]; then
+            ok "PART F HOLDS: transcript_ingest.py's item= tag prefix is genuinely CONFIGURABLE via the SAME FC_DISPATCH_EXTRA_ITEM_PREFIXES/FC_DISPATCH_ITEM_ID_RE mechanism dispatch_stamp.sh already exposes -- unconfigured default stays ATM-only (matching, not byte-identical to, the pre-fix hardcode's accepted-id set), a configured extra prefix (SPK) is genuinely extracted, and the default ATM- extraction is preserved additively under that same configured environment"
+        else
+            bad "PART F UNMET: decoupling fix did not take full effect — unconfigured_item='${UNCONFIGURED_ITEM-<F1-never-ran>}' (want empty) configured_item='${CONFIGURED_ITEM-<F2-never-ran>}' (want SPK-4321) atm_still_works='${ATM_STILL_WORKS-<F3-never-ran>}' (want ATM-9999)"
+        fi
+    else
+        bad "PART F UNMET: transcript_ingest.py absent — the item= tag prefix decoupling fix is unverified"
+    fi
+fi
+
+# =============================================================================
+# PART F4-F7 — T048 S9 remediation round (independent Opus-xhigh review
+#          finding I2, 2026-10-03): the PART F block above only ever
+#          exercised the ADDITIVE FC_DISPATCH_EXTRA_ITEM_PREFIXES tier with
+#          the DEFAULT prefix fixed at "ATM" (this checkout's own real
+#          value). It never exercised: (1) a DIFFERENT project deriving its
+#          OWN default prefix from a DIFFERENT HELIX_RELEASE_PREFIX; (2) the
+#          FC_DISPATCH_ITEM_ID_RE FULL-OVERRIDE tier taking genuine priority
+#          over everything else; (3) the neutral "WIT" fallback; and (4,
+#          "most important" per the reviewer) an ingest run whose PROCESS
+#          cwd is itself INSIDE constitution/ — the exact precondition the
+#          sibling S8 fix (release_prefix.sh's own cwd-anchoring, see that
+#          file's header) exists to close, and the one scenario that would
+#          have caught I1 (this file's own dependence on S8 having already
+#          landed) before it ever reached review.
+# =============================================================================
+echo "=== PART F4-F7: prefix derivation under a different project, full-override priority, WIT fallback, and cwd-independence ==="
+
+# probe_item_tag_match <test-string> -- genuinely imports and calls the
+# REAL _build_item_tag_re() (never a harness reimplementation of the
+# 3-tier priority logic -- the function's OWN docstring explicitly invites
+# exactly this: "so a test can call it directly after monkeypatching
+# os.environ"), rebuilding it FRESH against WHATEVER env vars are
+# currently exported in the invoking shell (real subprocess call through
+# to the real release_prefix.sh when relevant -- nothing here is mocked),
+# and prints 1 if the freshly-built regex matches <test-string>, else 0.
+probe_item_tag_match() {
+    python3 - "$(dirname "$TRANSCRIPT_INGEST")" "$1" <<'PYEOF'
+import sys
+sys.path.insert(0, sys.argv[1])
+import transcript_ingest as ti
+re_obj = ti._build_item_tag_re()
+print(1 if re_obj.search(sys.argv[2]) else 0)
+PYEOF
+}
+
+if [ -f "$TRANSCRIPT_INGEST" ]; then
+    # =========================================================================
+    # F4 — a DIFFERENT project (HELIX_RELEASE_PREFIX != "atmosphere") derives
+    #      ITS OWN 3-letter default prefix, never the hardcoded "ATM".
+    # =========================================================================
+    echo "--- F4: a different project's HELIX_RELEASE_PREFIX derives its OWN default prefix ---"
+    # F4-positive: under HELIX_RELEASE_PREFIX=octopusteam (a fabricated,
+    # non-"atmosphere" project name, never resembling this project's real
+    # prefix by coincidence), the REAL _build_item_tag_re() -- which calls
+    # the REAL _fc_default_item_prefix() -> a REAL subprocess invocation of
+    # the REAL, unmodified release_prefix.sh with that env var set (case 1
+    # of release_prefix.sh's own resolution order: env is authoritative) --
+    # must derive "OCT" (first 3 ASCII letters of "octopusteam", uppercased)
+    # and match an item=OCT-5555 tag.
+    F4_OCT_MATCH="$(HELIX_RELEASE_PREFIX=octopusteam probe_item_tag_match "item=OCT-5555 some dispatch")"
+    needle_check "a DIFFERENT project (HELIX_RELEASE_PREFIX=octopusteam) derives its OWN 'OCT' default prefix and matches item=OCT-5555 — never hardcoded 'ATM'" 1 "$F4_OCT_MATCH"
+    # F4-negative (same configured environment, the real distinguishing
+    # proof -- a prefix match here would mean "OCT" silently ALSO still
+    # accepted "ATM", i.e. the derivation did not genuinely change):
+    F4_ATM_MATCH="$(HELIX_RELEASE_PREFIX=octopusteam probe_item_tag_match "item=ATM-5555 some dispatch")"
+    needle_check "...and that SAME configured environment does NOT also match item=ATM-5555 — the derived prefix genuinely changed, it did not widen" 0 "$F4_ATM_MATCH"
+
+    # F4-integration: the SAME fact demonstrated end-to-end through the
+    # REAL ingest CLI + a REAL sqlite3 query against the produced DB,
+    # reusing the pre-existing PART D fixture ($PARENT_FIX, a real
+    # item=ATM-9999 dispatch) rather than a new fixture: under a different
+    # project's HELIX_RELEASE_PREFIX, that SAME ATM-9999-tagged dispatch
+    # must NOT be item-attributed (the derived default is "OCT" for this
+    # run, not "ATM").
+    if [ -f "$PARENT_FIX" ]; then
+        DB_F4="$WORK/telemetry_f4.db"
+        OUT_F4="$(HELIX_RELEASE_PREFIX=octopusteam env -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u FC_DISPATCH_ITEM_ID_RE python3 "$TRANSCRIPT_INGEST" ingest "$PARENT_FIX" --db "$DB_F4" 2>&1)"
+        RC_F4=$?
+        if [ "$RC_F4" -eq 0 ] && [ -f "$DB_F4" ]; then
+            F4_DB_ITEM="$(sqlite3 -noheader "$DB_F4" "SELECT item_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_sub_a1';")"
+            needle_check "end-to-end (real ingest CLI + real DB query): under HELIX_RELEASE_PREFIX=octopusteam, the PART D fixture's real item=ATM-9999 tag is NOT attributed (item_id empty/NULL) — confirms F4's regex-level finding at the full-pipeline level, not merely in isolation" 1 "$([ -z "$F4_DB_ITEM" ] && echo 1 || echo 0)"
+            if [ "$F4_OCT_MATCH" = "1" ] && [ "$F4_ATM_MATCH" = "0" ] && [ -z "$F4_DB_ITEM" ]; then
+                ok "PART F4 HOLDS: transcript_ingest.py's default item-tag prefix is genuinely RE-DERIVED per the configured project's own HELIX_RELEASE_PREFIX (here: 'OCT' for a fabricated 'octopusteam' project), both at the regex-construction level AND end-to-end through the real ingest CLI — never a hardcoded 'ATM' silently surviving under a different project's configuration"
+            else
+                bad "PART F4 UNMET: oct_match=$F4_OCT_MATCH (want 1) atm_match=$F4_ATM_MATCH (want 0) db_item='$F4_DB_ITEM' (want empty) — the default prefix is not genuinely re-derived per project"
+            fi
+        else
+            bad "PART F4 integration setup failed: transcript_ingest.py did not run cleanly with HELIX_RELEASE_PREFIX=octopusteam against the PART D fixture: rc=$RC_F4 out=$OUT_F4"
+        fi
+    else
+        bad "PART F4 integration precondition missing: $PARENT_FIX (the PART D fixture) not found"
+    fi
+
+    # =========================================================================
+    # F5 — FC_DISPATCH_ITEM_ID_RE (the FULL-OVERRIDE tier) takes genuine
+    #      PRIORITY over BOTH the additive FC_DISPATCH_EXTRA_ITEM_PREFIXES
+    #      tier AND the derived-default tier, even when ALL THREE are
+    #      configured simultaneously (the hardest, most realistic
+    #      competing-configuration case).
+    # =========================================================================
+    echo "--- F5: FC_DISPATCH_ITEM_ID_RE full override takes priority over the additive AND default tiers ---"
+    # All three tiers configured AT ONCE: HELIX_RELEASE_PREFIX (would derive
+    # a default), FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK (additive), AND
+    # FC_DISPATCH_ITEM_ID_RE=XYZ-[0-9]+ (the override under test). If the
+    # override genuinely wins, ONLY "XYZ-" ids are ever extracted.
+    F5_XYZ_MATCH="$(HELIX_RELEASE_PREFIX=zzzproject FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+' probe_item_tag_match "item=XYZ-9876 some dispatch")"
+    F5_SPK_MATCH="$(HELIX_RELEASE_PREFIX=zzzproject FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+' probe_item_tag_match "item=SPK-9876 some dispatch")"
+    F5_ATM_MATCH="$(HELIX_RELEASE_PREFIX=zzzproject FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+' probe_item_tag_match "item=ATM-9876 some dispatch")"
+    needle_check "override (XYZ-[0-9]+) matches its OWN pattern (item=XYZ-9876) even with the additive AND default tiers simultaneously configured" 1 "$F5_XYZ_MATCH"
+    needle_check "...and does NOT match the ADDITIVE tier's own SPK- prefix (the override REPLACES the whole alternation, never merges with it)" 0 "$F5_SPK_MATCH"
+    needle_check "...and does NOT match the DERIVED-DEFAULT tier's ATM- prefix either (the override wins over the default too)" 0 "$F5_ATM_MATCH"
+
+    # F5-integration: the SAME three-way-competing configuration run
+    # through the REAL ingest CLI against the pre-existing extra_prefix
+    # fixture ($EXTRAPFX_FIX, a real item=SPK-4321 dispatch) — if the
+    # override genuinely takes full precedence end-to-end, that real
+    # SPK-4321 tag must NOT be attributed despite FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK
+    # being simultaneously configured.
+    if [ -f "$EXTRAPFX_FIX" ]; then
+        DB_F5="$WORK/telemetry_f5.db"
+        OUT_F5="$(HELIX_RELEASE_PREFIX=zzzproject FC_DISPATCH_EXTRA_ITEM_PREFIXES=SPK FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+' python3 "$TRANSCRIPT_INGEST" ingest "$EXTRAPFX_FIX" --db "$DB_F5" 2>&1)"
+        RC_F5=$?
+        if [ "$RC_F5" -eq 0 ] && [ -f "$DB_F5" ]; then
+            F5_DB_ITEM="$(sqlite3 -noheader "$DB_F5" "SELECT item_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_extrapfx_sub_a1';")"
+            needle_check "end-to-end (real ingest CLI + real DB query): with the override AND the additive tier BOTH configured, the real item=SPK-4321 dispatch is NOT attributed — the override's precedence holds through the full pipeline, not merely at the regex-construction level" 1 "$([ -z "$F5_DB_ITEM" ] && echo 1 || echo 0)"
+            if [ "$F5_XYZ_MATCH" = "1" ] && [ "$F5_SPK_MATCH" = "0" ] && [ "$F5_ATM_MATCH" = "0" ] && [ -z "$F5_DB_ITEM" ]; then
+                ok "PART F5 HOLDS: FC_DISPATCH_ITEM_ID_RE genuinely takes FULL PRIORITY over both FC_DISPATCH_EXTRA_ITEM_PREFIXES and the derived default, even when all three are configured at once, both at the regex-construction level AND end-to-end through the real ingest CLI"
+            else
+                bad "PART F5 UNMET: xyz_match=$F5_XYZ_MATCH (want 1) spk_match=$F5_SPK_MATCH (want 0) atm_match=$F5_ATM_MATCH (want 0) db_item='$F5_DB_ITEM' (want empty) — the override tier does not genuinely take full priority"
+            fi
+        else
+            bad "PART F5 integration setup failed: transcript_ingest.py did not run cleanly with all three tiers configured against the extra_prefix_attribution fixture: rc=$RC_F5 out=$OUT_F5"
+        fi
+    else
+        bad "PART F5 integration precondition missing: $EXTRAPFX_FIX not found"
+    fi
+
+    # =========================================================================
+    # F6 — the neutral "WIT" fallback: when the resolved HELIX_RELEASE_PREFIX
+    #      value genuinely has NO ASCII letters at all (a project configured
+    #      with a digits-only release prefix), _fc_derive_key_prefix()'s own
+    #      documented no-letters branch returns "WIT", never a crash and
+    #      never a silent re-use of "ATM".
+    # =========================================================================
+    echo "--- F6: the neutral 'WIT' fallback when no prefix letters can be resolved at all ---"
+    # NOTE: `env -u` cannot invoke a bash FUNCTION (it is an external
+    # command, not a shell builtin, so `env ... probe_item_tag_match` would
+    # try -- and fail -- to exec a binary of that name on $PATH; the
+    # `env: 'probe_item_tag_match': No such file or directory` failure
+    # mode is exactly this). The plain `VAR=value funcname` prefix-
+    # assignment form (used throughout F4/F5 above) is used here instead --
+    # it still ONLY affects the single command it prefixes, never leaking
+    # into this shell's own environment, and no FC_DISPATCH_* var is set
+    # anywhere earlier in this script's own process (every prior use was
+    # itself this SAME non-persistent prefix-assignment form), so an
+    # explicit `-u` unset is unnecessary here.
+    F6_WIT_MATCH="$(HELIX_RELEASE_PREFIX=7042 probe_item_tag_match "item=WIT-6666 some dispatch")"
+    F6_ATM_MATCH="$(HELIX_RELEASE_PREFIX=7042 probe_item_tag_match "item=ATM-6666 some dispatch")"
+    needle_check "HELIX_RELEASE_PREFIX=7042 (digits-only, no ASCII letters) derives the neutral 'WIT' fallback and matches item=WIT-6666" 1 "$F6_WIT_MATCH"
+    needle_check "...and that SAME environment does NOT match item=ATM-6666 (the fallback is genuinely 'WIT', not a disguised 'ATM')" 0 "$F6_ATM_MATCH"
+
+    # F6-integration: the SAME digits-only-prefix environment run through
+    # the REAL ingest CLI against the pre-existing PART D fixture
+    # (item=ATM-9999) — confirms end-to-end that the WIT-fallback
+    # environment does NOT accidentally still attribute the ATM-9999 tag.
+    if [ -f "$PARENT_FIX" ]; then
+        DB_F6="$WORK/telemetry_f6.db"
+        OUT_F6="$(HELIX_RELEASE_PREFIX=7042 env -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u FC_DISPATCH_ITEM_ID_RE python3 "$TRANSCRIPT_INGEST" ingest "$PARENT_FIX" --db "$DB_F6" 2>&1)"
+        RC_F6=$?
+        if [ "$RC_F6" -eq 0 ] && [ -f "$DB_F6" ]; then
+            F6_DB_ITEM="$(sqlite3 -noheader "$DB_F6" "SELECT item_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_sub_a1';")"
+            needle_check "end-to-end (real ingest CLI + real DB query): under the digits-only HELIX_RELEASE_PREFIX=7042, the PART D fixture's real item=ATM-9999 tag is NOT attributed (item_id empty/NULL)" 1 "$([ -z "$F6_DB_ITEM" ] && echo 1 || echo 0)"
+            if [ "$F6_WIT_MATCH" = "1" ] && [ "$F6_ATM_MATCH" = "0" ] && [ -z "$F6_DB_ITEM" ]; then
+                ok "PART F6 HOLDS: a digits-only HELIX_RELEASE_PREFIX genuinely derives the neutral 'WIT' fallback (never 'ATM', never a crash), both at the regex-construction level AND end-to-end through the real ingest CLI"
+            else
+                bad "PART F6 UNMET: wit_match=$F6_WIT_MATCH (want 1) atm_match=$F6_ATM_MATCH (want 0) db_item='$F6_DB_ITEM' (want empty) — the WIT fallback does not genuinely take effect"
+            fi
+        else
+            bad "PART F6 integration setup failed: transcript_ingest.py did not run cleanly with HELIX_RELEASE_PREFIX=7042 against the PART D fixture: rc=$RC_F6 out=$OUT_F6"
+        fi
+    else
+        bad "PART F6 integration precondition missing: $PARENT_FIX (the PART D fixture) not found"
+    fi
+
+    # =========================================================================
+    # F7 — "MOST IMPORTANT" (reviewer's own wording): an ingest run whose
+    #      PROCESS cwd is itself INSIDE constitution/ — the EXACT scenario
+    #      this file's own sibling S8 fix (release_prefix.sh's cwd-
+    #      anchoring, see that file's header for the full forensic history)
+    #      exists to close, and the one scenario that would have caught
+    #      this file's I1 cross-dependency on S8 BEFORE it ever reached
+    #      review, had it existed then.
+    # =========================================================================
+    echo "--- F7: ingest run with process cwd INSIDE constitution/ still resolves the real 'ATM' prefix (the I1 cross-dependency scenario) ---"
+
+    # F7-proof (§11.4.199/§11.4.6 — concrete, never merely asserted): before
+    # trusting the real assertion below as a genuine regression guard for
+    # the I1 defect class, demonstrate -- with REAL git commands run from
+    # the SAME cwd this PART's real assertion uses, right now, on the real
+    # repository -- that the PRECONDITION the original bug depended on is
+    # REAL and reproducible at this exact location TODAY. This replicates
+    # ONLY the OLD (pre-S8), now-replaced PRIMARY mechanism release_prefix.sh's
+    # own header documents in full ("git rev-parse --show-toplevel" with NO
+    # `-C` anchor, operated on the CALLER's ambient cwd) -- HARNESS-ONLY, a
+    # faithful historical replica for proof purposes, never a preview of
+    # production code and never used to compute anything this test trusts
+    # downstream (exactly like has_item_tag()'s own documented role above).
+    OLD_BUGGY_ROOT="$(cd "$HERE" && git rev-parse --show-toplevel 2>/dev/null)"
+    OLD_BUGGY_PREFIX=""
+    if [ -n "$OLD_BUGGY_ROOT" ]; then
+        OLD_BUGGY_PREFIX="$(basename "$OLD_BUGGY_ROOT" \
+            | sed -E 's/([a-z0-9])([A-Z])/\1_\2/g; s/[^A-Za-z0-9]+/_/g' \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/_+/_/g; s/^_//; s/_$//')"
+    fi
+    needle_check "PROOF the I1 precondition is still real at this exact cwd: the OLD, pre-S8, un-anchored 'git rev-parse --show-toplevel' genuinely returns the WRONG (constitution-submodule-own) root from inside \$HERE, not the real atmosphere project root" 1 "$([ "$OLD_BUGGY_ROOT" = "$REPO_ROOT/constitution" ] && echo 1 || echo 0)"
+    needle_check "PROOF continued: that wrong root's own snake_case name ('${OLD_BUGGY_PREFIX:-<empty>}') is genuinely 'constitution', a real, non-coincidental divergence from the real project's 'atmosphere' prefix (never a false alarm)" 1 "$([ "$OLD_BUGGY_PREFIX" = "constitution" ] && echo 1 || echo 0)"
+    I1_PRECONDITION_REAL=0
+    if [ "$OLD_BUGGY_ROOT" = "$REPO_ROOT/constitution" ] && [ "$OLD_BUGGY_PREFIX" = "constitution" ]; then
+        I1_PRECONDITION_REAL=1
+        ok "control fact established: a release_prefix.sh built on the OLD, un-anchored primary mechanism would derive 'constitution' (hence the WRONG item-tag prefix 'CON') from exactly the cwd (\$HERE) the real assertion below uses — proving that assertion is a genuine, non-vacuous regression guard for the I1 defect class, not a test of an already-impossible precondition"
+    else
+        bad "cannot establish the I1 precondition fact at this cwd (old_root='$OLD_BUGGY_ROOT' old_prefix='$OLD_BUGGY_PREFIX') — investigate before trusting the real assertion below as a genuine regression guard"
+    fi
+
+    # F7-real: the REAL, UNMODIFIED transcript_ingest.py, invoked with its
+    # OWN PROCESS cwd actually set to $HERE (inside constitution/scripts/
+    # fastcycle/tests/ — the exact I1 scenario), against the pre-existing
+    # PART D fixture (item=ATM-9999), with NO env override of any kind
+    # (the unconfigured default path only, §11.4.6: never silently widen).
+    # $PARENT_FIX is passed as an ABSOLUTE path, so the cwd change cannot
+    # affect fixture resolution — only the internal prefix-derivation
+    # subprocess chain is under test here.
+    if [ -f "$PARENT_FIX" ]; then
+        DB_F7="$WORK/telemetry_f7.db"
+        OUT_F7="$(cd "$HERE" && env -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u FC_DISPATCH_ITEM_ID_RE -u HELIX_RELEASE_PREFIX python3 "$TRANSCRIPT_INGEST" ingest "$PARENT_FIX" --db "$DB_F7" 2>&1)"
+        RC_F7=$?
+        if [ "$RC_F7" -eq 0 ] && [ -f "$DB_F7" ]; then
+            DIR_DEP_ITEM="$(sqlite3 -noheader "$DB_F7" "SELECT item_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_sub_a1';")"
+            needle_check "ingest run with process cwd=\$HERE (inside constitution/) STILL correctly attributes item=ATM-9999 — the real atmosphere project prefix" 1 "$([ "$DIR_DEP_ITEM" = "ATM-9999" ] && echo 1 || echo 0)"
+            needle_check "...and is NOT the OLD-buggy-mechanism's would-be WRONG prefix ('CON-9999')" 0 "$([ "$DIR_DEP_ITEM" = "CON-9999" ] && echo 1 || echo 0)"
+            if [ "$I1_PRECONDITION_REAL" = "1" ] && [ "$DIR_DEP_ITEM" = "ATM-9999" ]; then
+                ok "PART F7 HOLDS (the reviewer's 'most important' case): running transcript_ingest.py with its process cwd set INSIDE constitution/ (\$HERE) still correctly derives the real project's 'ATM' prefix and attributes item=ATM-9999, end-to-end through the real ingest CLI — the directory-dependence defect class I1 flagged (now closed by S8's release_prefix.sh fix) is proven closed for THIS tool, not merely assumed from S8 landing elsewhere"
+            else
+                bad "PART F7 UNMET: i1_precondition_real=$I1_PRECONDITION_REAL (want 1) dir_dep_item='$DIR_DEP_ITEM' (want ATM-9999) — the directory-dependence defect is NOT proven closed end-to-end for this tool; investigate release_prefix.sh's cwd-anchoring (or its invocation here) before trusting any other property in this file that depends on the derived default prefix"
+            fi
+        else
+            bad "PART F7 setup failed: transcript_ingest.py did not run cleanly with cwd=\$HERE against the PART D fixture: rc=$RC_F7 out=$OUT_F7"
+        fi
+    else
+        bad "PART F7 precondition missing: $PARENT_FIX (the PART D fixture) not found"
+    fi
+else
+    bad "PART F4-F7 UNMET: transcript_ingest.py absent — the configurable-prefix mechanism's different-project/full-override/WIT-fallback/cwd-independence properties are unverified"
+fi
+
+# =============================================================================
+# PART G1-G2 -- T048 S9 THIRD remediation round (second independent Opus-
+#          xhigh review, 2026-10-03, finding N1): the first remediation
+#          round added FAIL-SAFE handling (warn + fall back, never crash)
+#          to `_build_item_tag_re()` and `_fc_default_item_prefix()`, but
+#          NOTHING in this suite actually exercised those two new fail-
+#          safe code paths -- they were reviewer-confirmed by hand only.
+#          G1 covers the invalid-FC_DISPATCH_ITEM_ID_RE path;
+#          G2 covers the missing/unreachable-release_prefix.sh path.
+# =============================================================================
+echo "=== PART G1-G2: T048 S9 THIRD review remediation -- fail-safe path tests (N1) ==="
+
+if [ -f "$TRANSCRIPT_INGEST" ]; then
+    # =========================================================================
+    # G1 -- FC_DISPATCH_ITEM_ID_RE is an INVALID regex (an unclosed bracket
+    #      expression, "ATM-[0-9"): _build_item_tag_re()'s own documented
+    #      FAIL-SAFE (its re.compile(...) try/except) must (a) emit a named
+    #      stderr warning naming the invalid value and (b) fall back to the
+    #      derived-default-prefix regex ONLY, never crash the whole module.
+    # =========================================================================
+    echo "--- G1: invalid FC_DISPATCH_ITEM_ID_RE triggers the named warning + derived-default fallback ---"
+
+    # G1-precondition proof (§11.4.199/§11.4.6, the same discipline PART F7
+    # uses for its OLD_BUGGY replica): confirm, with the REAL stdlib `re`
+    # module, OUTSIDE any try/except, that this EXACT invalid value
+    # genuinely raises re.error when substituted into the EXACT construction
+    # transcript_ingest.py itself uses (`"(?:^|\s)item=(%s|\?)" % value_re`)
+    # -- never an assumed-broken fixture; HARNESS-ONLY proof the value is a
+    # genuine defect trigger, never trusted downstream by itself (exactly
+    # like has_item_tag()'s documented role).
+    BAD_RE='ATM-[0-9'
+    G1_RAISES="$(python3 -c "
+import re
+try:
+    re.compile(r'(?:^|\s)item=(%s|\?)' % '$BAD_RE')
+    print(0)
+except re.error:
+    print(1)
+" 2>/dev/null)"
+    needle_check "PROOF the configured value genuinely raises re.error when compiled directly (never an assumed-broken fixture)" 1 "$G1_RAISES"
+
+    G1_STDERR_FILE="$WORK/stderr_g1.txt"
+    G1_MATCH="$(FC_DISPATCH_ITEM_ID_RE="$BAD_RE" probe_item_tag_match "item=ATM-4242 some dispatch" 2>"$G1_STDERR_FILE")"
+    G1_STDERR="$(cat "$G1_STDERR_FILE" 2>/dev/null)"
+    needle_check "despite the invalid regex, _build_item_tag_re() does NOT crash and still matches a genuine ATM-<digits> tag via the derived-default fallback" 1 "$G1_MATCH"
+    needle_check "the fail-safe emits a NAMED stderr warning mentioning the invalid FC_DISPATCH_ITEM_ID_RE value" 1 "$(printf '%s' "$G1_STDERR" | grep -Fq 'FC_DISPATCH_ITEM_ID_RE' && printf '%s' "$G1_STDERR" | grep -Fq "$BAD_RE" && echo 1 || echo 0)"
+    needle_check "...and the warning is genuinely a WARNING (not swallowed, not a generic/unlabelled message)" 1 "$(printf '%s' "$G1_STDERR" | grep -Fq 'WARNING' && echo 1 || echo 0)"
+
+    # G1-discrimination (control-needle rigor, §11.4.194(6)(d) reviewer-
+    # authored-mutation discipline): prove the needle_checks above are NOT
+    # vacuously true by demonstrating what happens WITHOUT the try/except
+    # fail-safe -- a scratch COPY of the real module with ONLY the exact
+    # try/except text (never a hand-written reimplementation) removed, run
+    # as a REAL subprocess against the SAME invalid value: it MUST crash
+    # with an unhandled re.error (never silently "still work"). This proves
+    # the fail-safe the needle_checks above exercise is genuinely load-
+    # bearing, not decoration -- a future edit that deletes the real
+    # try/except would make a REAL rerun of the needle_checks above fail,
+    # because they would then observe the SAME crash this control-needle
+    # deliberately reproduces on a throwaway copy.
+    G1_MUT_GEN="$WORK/g1_mutate.py"
+    cat > "$G1_MUT_GEN" <<'PYEOF'
+import sys
+src_path, dst_path = sys.argv[1], sys.argv[2]
+src = open(src_path, encoding="utf-8").read()
+OLD = (
+    '    try:\n'
+    '        return re.compile(r"(?:^|\\s)item=(%s|\\?)" % value_re)\n'
+    '    except re.error as exc:\n'
+    '        print(\n'
+    '            "transcript_ingest: WARNING: the configured item-tag pattern "\n'
+    '            "(FC_DISPATCH_ITEM_ID_RE=%r FC_DISPATCH_EXTRA_ITEM_PREFIXES=%r) "\n'
+    '            "is not a valid regex (%s) -- falling back to the derived "\n'
+    '            "default prefix only for this run; item attribution via the "\n'
+    '            "misconfigured value is LOST until the env var is fixed"\n'
+    '            % (override, os.environ.get("FC_DISPATCH_EXTRA_ITEM_PREFIXES", ""), exc),\n'
+    '            file=sys.stderr,\n'
+    '        )\n'
+    '        fallback_prefix = _fc_default_item_prefix()\n'
+    '        return re.compile(r"(?:^|\\s)item=((?:%s)-[0-9]+|\\?)" % fallback_prefix)\n'
+)
+NEW = '    return re.compile(r"(?:^|\\s)item=(%s|\\?)" % value_re)\n'
+if src.count(OLD) != 1:
+    sys.stderr.write("MUTATION_SETUP_FAILED matches=%d\n" % src.count(OLD))
+    sys.exit(2)
+open(dst_path, "w", encoding="utf-8").write(src.replace(OLD, NEW, 1))
+PYEOF
+    MUT_G1="$WORK/transcript_ingest_mut_g1.py"
+    MUT_G1_SETUP_ERR="$(python3 "$G1_MUT_GEN" "$TRANSCRIPT_INGEST" "$MUT_G1" 2>&1)"
+    MUT_G1_SETUP_RC=$?
+    if [ "$MUT_G1_SETUP_RC" -eq 0 ] && [ -f "$MUT_G1" ]; then
+        # NOTE: the exception's printed CLASS NAME is Python-version-
+        # dependent (e.g. CPython 3.13 renamed the concrete class backing
+        # `re.error` to `re.PatternError`, with `re.error` kept as an
+        # alias) -- so this classifies the caught exception via `isinstance
+        # (..., re.error)` (the alias, stable across versions) rather than
+        # grepping a traceback for a literal class-name string, which would
+        # itself be a §11.4.201(7) wrong-layer/version-fragile instrument.
+        # NOTE: the mutated module's own module-level statement
+        # `ITEM_TAG_RE = _build_item_tag_re()` runs DURING
+        # `spec.loader.exec_module(mod)` (import time), BEFORE this
+        # driver's own explicit `mod._build_item_tag_re()` call ever
+        # executes -- so the try/except below wraps `exec_module` itself,
+        # not merely the later explicit call, to actually observe the
+        # real crash point rather than one that (with the fail-safe
+        # genuinely removed) never gets reached a second time.
+        G1_MUT_OUT="$(cd "$(dirname "$MUT_G1")" && FC_DISPATCH_ITEM_ID_RE="$BAD_RE" python3 -c "
+import importlib.util, re, sys
+spec = importlib.util.spec_from_file_location('transcript_ingest_mut_g1', '$MUT_G1')
+mod = importlib.util.module_from_spec(spec)
+try:
+    spec.loader.exec_module(mod)
+    mod._build_item_tag_re()
+    print('NO_CRASH')
+except re.error as exc:
+    print('CRASHED_WITH_RE_ERROR: %r' % exc)
+    sys.exit(1)
+except Exception as exc:
+    print('CRASHED_WITH_OTHER: %r' % exc)
+    sys.exit(1)
+" 2>&1)"
+        MUT_G1_RC=$?
+        needle_check "control-needle: the SAME invalid value against a mutated copy with the fail-safe try/except REMOVED genuinely CRASHES (non-zero exit) -- proving the real file's try/except is load-bearing, not decoration" 1 "$([ "$MUT_G1_RC" -ne 0 ] && echo 1 || echo 0)"
+        needle_check "...and the crash is specifically the unhandled re.error this fail-safe exists to catch (never a different, coincidental failure)" 1 "$(printf '%s' "$G1_MUT_OUT" | grep -Fq 'CRASHED_WITH_RE_ERROR' && echo 1 || echo 0)"
+    else
+        bad "G1 mutation-discrimination setup failed (rc=$MUT_G1_SETUP_RC err=$MUT_G1_SETUP_ERR) -- cannot prove the fail-safe is load-bearing; investigate before trusting the G1 needle_checks above as a genuine regression guard"
+    fi
+
+    # =========================================================================
+    # G2 -- release_prefix.sh is MISSING/UNREACHABLE: the reviewer's own
+    #      "scratch copy of the tree" technique -- a byte-identical copy of
+    #      transcript_ingest.py relocated so its self-relative resolution of
+    #      release_prefix.sh (self_dir/../../release_prefix.sh) genuinely
+    #      finds nothing. _fc_default_item_prefix()'s own documented
+    #      FAIL-SAFE must (a) emit a named stderr warning naming the
+    #      unreachable path and (b) fall back to the neutral "WIT" prefix.
+    # =========================================================================
+    echo "--- G2: missing/unreachable release_prefix.sh triggers the named warning + 'WIT' fallback ---"
+
+    SCRATCH_G2="$WORK/scratch_g2/constitution/scripts/fastcycle/tokens"
+    mkdir -p "$SCRATCH_G2"
+    cp "$TRANSCRIPT_INGEST" "$SCRATCH_G2/transcript_ingest.py"
+    needle_check "G2 precondition: the scratch copy is byte-identical to the real, unmodified transcript_ingest.py (never a harness reimplementation -- only the FILESYSTEM location is manipulated)" 1 "$(cmp -s "$TRANSCRIPT_INGEST" "$SCRATCH_G2/transcript_ingest.py" && echo 1 || echo 0)"
+    needle_check "G2 precondition: the scratch tree genuinely lacks release_prefix.sh at the exact relative path _fc_default_item_prefix() resolves (self_dir/../../release_prefix.sh)" 1 "$([ ! -f "$WORK/scratch_g2/constitution/scripts/release_prefix.sh" ] && echo 1 || echo 0)"
+
+    G2_STDERR_FILE="$WORK/stderr_g2.txt"
+    G2_WIT_MATCH="$(cd "$WORK" && env -u FC_DISPATCH_ITEM_ID_RE -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u HELIX_RELEASE_PREFIX python3 -c "
+import sys
+sys.path.insert(0, '$SCRATCH_G2')
+import transcript_ingest as ti
+re_obj = ti._build_item_tag_re()
+print(1 if re_obj.search('item=WIT-7777 some dispatch') else 0)
+" 2>"$G2_STDERR_FILE")"
+    G2_ATM_MATCH="$(cd "$WORK" && env -u FC_DISPATCH_ITEM_ID_RE -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u HELIX_RELEASE_PREFIX python3 -c "
+import sys
+sys.path.insert(0, '$SCRATCH_G2')
+import transcript_ingest as ti
+re_obj = ti._build_item_tag_re()
+print(1 if re_obj.search('item=ATM-7777 some dispatch') else 0)
+" 2>/dev/null)"
+    G2_STDERR="$(cat "$G2_STDERR_FILE" 2>/dev/null)"
+    needle_check "the fail-safe emits a NAMED stderr warning naming the missing script's resolved path" 1 "$(printf '%s' "$G2_STDERR" | grep -Fq 'WARNING' && printf '%s' "$G2_STDERR" | grep -Fq 'scratch_g2' && printf '%s' "$G2_STDERR" | grep -Fq 'release_prefix.sh' && echo 1 || echo 0)"
+    needle_check "...and explicitly says the script was not found" 1 "$(printf '%s' "$G2_STDERR" | grep -Fq 'not found' && echo 1 || echo 0)"
+    needle_check "missing release_prefix.sh falls back to the neutral item=WIT-<digits> tag" 1 "$G2_WIT_MATCH"
+    needle_check "...and does NOT match item=ATM-<digits> either (this real project's own prefix is NOT silently reused when release_prefix.sh is unreachable)" 0 "$G2_ATM_MATCH"
+
+    # G2-discrimination (control-needle rigor): a SECOND scratch copy with
+    # ONLY the warning's print(...) call removed (the fallback-to-WIT
+    # BEHAVIOUR is deliberately left intact, isolating the diagnostic from
+    # the functional fallback) proves the needle_checks above genuinely
+    # depend on that print existing -- behaviour unchanged, diagnostic gone,
+    # and the SAME stderr-content needle_checks correctly flip to FAIL
+    # against it, proving they are not vacuously true.
+    G2_MUT_GEN="$WORK/g2_mutate.py"
+    cat > "$G2_MUT_GEN" <<'PYEOF'
+import sys
+src_path, dst_path = sys.argv[1], sys.argv[2]
+src = open(src_path, encoding="utf-8").read()
+OLD = (
+    '    else:\n'
+    '        print(\n'
+    '            "transcript_ingest: WARNING: %s not found -- falling back to "\n'
+    '            "the neutral \'WIT\' item-tag prefix for this run" % rp_script,\n'
+    '            file=sys.stderr,\n'
+    '        )\n'
+)
+NEW = '    else:\n        pass\n'
+if src.count(OLD) != 1:
+    sys.stderr.write("MUTATION_SETUP_FAILED matches=%d\n" % src.count(OLD))
+    sys.exit(2)
+open(dst_path, "w", encoding="utf-8").write(src.replace(OLD, NEW, 1))
+PYEOF
+    SCRATCH_G2B="$WORK/scratch_g2b/constitution/scripts/fastcycle/tokens"
+    mkdir -p "$SCRATCH_G2B"
+    MUT_G2_SETUP_ERR="$(python3 "$G2_MUT_GEN" "$TRANSCRIPT_INGEST" "$SCRATCH_G2B/transcript_ingest.py" 2>&1)"
+    MUT_G2_SETUP_RC=$?
+    if [ "$MUT_G2_SETUP_RC" -eq 0 ] && [ -f "$SCRATCH_G2B/transcript_ingest.py" ]; then
+        G2_MUT_STDERR_FILE="$WORK/stderr_g2_mut.txt"
+        G2_MUT_WIT_MATCH="$(cd "$WORK" && env -u FC_DISPATCH_ITEM_ID_RE -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u HELIX_RELEASE_PREFIX python3 -c "
+import sys
+sys.path.insert(0, '$SCRATCH_G2B')
+import transcript_ingest as ti
+re_obj = ti._build_item_tag_re()
+print(1 if re_obj.search('item=WIT-8888 some dispatch') else 0)
+" 2>"$G2_MUT_STDERR_FILE")"
+        G2_MUT_STDERR="$(cat "$G2_MUT_STDERR_FILE" 2>/dev/null)"
+        needle_check "control-needle: with the diagnostic print REMOVED but the fallback BEHAVIOUR intact, the functional fallback to WIT still holds (proves this mutation isolates the diagnostic, not the behaviour)" 1 "$G2_MUT_WIT_MATCH"
+        needle_check "control-needle: ...but the SAME stderr-content check this PART's needle_checks use now correctly reports the warning ABSENT -- proving those needle_checks are not vacuously true" 0 "$(printf '%s' "$G2_MUT_STDERR" | grep -Fq 'not found' && echo 1 || echo 0)"
+    else
+        bad "G2 mutation-discrimination setup failed (rc=$MUT_G2_SETUP_RC err=$MUT_G2_SETUP_ERR) -- cannot prove the warning-presence needle_checks are discriminating; investigate before trusting the G2 needle_checks above as a genuine regression guard"
+    fi
+else
+    bad "PART G1-G2 UNMET: transcript_ingest.py absent -- the two fail-safe code paths (invalid FC_DISPATCH_ITEM_ID_RE, missing release_prefix.sh) are unverified"
+fi
+
 # ---- final control-needle on the shared grep mechanism itself -------------
 # (§11.4.201(7)(b)): every conclusion above rests on grep seeing real bytes in
 # real files; prove it can, one more time, on a KNOWN-present literal.

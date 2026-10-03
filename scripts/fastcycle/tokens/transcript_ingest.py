@@ -31,10 +31,13 @@ dispatch's `tool_use` block) — a SIBLING top-level key to `message`, not
 nested under it, carrying dispatch bookkeeping (`agentId`, `description`,
 `resolvedModel`, `outputFile`, ...) rather than conversational content. Even
 there, this module extracts ONLY the narrow, regex-matched
-`item=ATM-<digits>` (or the honest `item=?`) token from `description` — the
-SAME `item=(ATM-[0-9]+|\\?)` convention `tokens/dispatch_stamp.sh` (T036)
-already established on this SAME field — and NEVER persists the raw
-`description` string itself.
+`item=<prefix>-<digits>` (or the honest `item=?`) token from `description`
+— the SAME configurable `item=(<prefix1>|<prefix2>|...)-[0-9]+|\\?`
+convention `tokens/dispatch_stamp.sh` (T036) already established on this
+SAME field (default prefix derived per-checkout via `release_prefix.sh`,
+e.g. "ATM" for this checkout — never hardcoded, see the ITEM_TAG_RE
+DECOUPLING FIX comment below) — and NEVER persists the raw `description`
+string itself.
 
 =============================================================================
 SCHEMA DECISION (documented per task instruction) — a NEW table, not new
@@ -173,14 +176,16 @@ renames, or deletes the source transcript file(s) (read-only on
 transcripts, matching plan.md T-A06's own "Rollback: ... the ingest is
 read-only on transcripts").
 
-Dependencies: Python stdlib only (argparse, hashlib, json, os, re, sqlite3,
-sys), matching every sibling `$FC` tool's own convention.
+Dependencies: Python stdlib only (argparse, hashlib, json, os, re,
+subprocess, sqlite3, sys), matching every sibling `$FC` tool's own
+convention.
 """
 import argparse
 import hashlib
 import json
 import os
 import re
+import subprocess
 import sqlite3
 import sys
 from pathlib import Path
@@ -252,12 +257,234 @@ CORE_FIELDS = (
 UNMEASURED = "UNMEASURED"
 MEASURED = "measured"
 
-# The same item=<ATM-nnnn>|? convention tokens/dispatch_stamp.sh (T036)
-# already established on this SAME `description` field (its own ITEM_RE,
-# POSIX form: '(^|[[:space:]])item=(ATM-[0-9]+|\\?)'). Reused here for
+# The same item=<prefix-nnnn>|? convention tokens/dispatch_stamp.sh (T036)
+# already established on this SAME `description` field. Reused here for
 # consistency, applied ONLY to `toolUseResult.description` (never to
 # `message["content"]`).
-ITEM_TAG_RE = re.compile(r"(?:^|\s)item=(ATM-[0-9]+|\?)")
+#
+# DECOUPLING FIX (§11.4.28/§11.4.177, independent review finding on this
+# file, 2026-10-03): this REGEX used to hardcode the literal prefix
+# "ATM-" verbatim, meaning any OTHER project consuming this
+# project-agnostic constitution submodule whose item-id prefix is not
+# "ATM" would get ZERO item/token attribution from this tool, silently
+# (a project-literal leak inside a supposedly project-agnostic engine).
+# dispatch_stamp.sh (T036) already solved this EXACT problem for its own
+# identical hardcode via a configurable, non-guessed prefix resolution
+# (its own header comment's "DECOUPLING" section) -- the SAME mechanism
+# is reused here verbatim (never a second, divergent one, §11.4.227):
+#   1. `FC_DISPATCH_ITEM_ID_RE` (env, highest priority) -- if set, this
+#      value REPLACES the whole `item=` value alternation verbatim (e.g.
+#      "ATM-[0-9]+|SPK-[0-9]+"), the consuming project's own explicit,
+#      unvalidated choice (§11.4.6: an operator-supplied value is
+#      trusted, never second-guessed).
+#
+#      DIALECT NOTE (T048 S9 independent review finding M1, 2026-10-03):
+#      this SAME env var is ALSO consumed by `dispatch_stamp.sh` (T036)
+#      via bash's `[[ VALUE =~ RE ]]`, which evaluates RE as a POSIX
+#      Extended Regular Expression (ERE), whereas THIS module compiles it
+#      as a Python `re` pattern (PCRE-like) -- the two dialects agree for
+#      every simple `PREFIX-[0-9]+|PREFIX2-[0-9]+` value a caller is
+#      expected to configure, but genuinely DIVERGE for a value using
+#      POSIX-only syntax a caller might reasonably assume is portable
+#      shell-regex, e.g. a POSIX bracket-expression class
+#      (`[[:digit:]]`, valid ERE, NOT valid inside a Python character
+#      class the same way) or POSIX-only backreference/interval quirks.
+#      A value relying on such syntax will therefore match differently
+#      -- or fail to compile here at all (now handled gracefully, never
+#      a crash -- see `_build_item_tag_re()`'s own try/except below) --
+#      between the two tools even though both read the identical env
+#      var. No automatic POSIX-to-Python translation is implemented
+#      (the common, documented subset below is sufficient for every
+#      configuration this module's own tests exercise); a caller relying
+#      on POSIX-only syntax should verify both tools independently
+#      before depending on it.
+#   2. Else, the DEFAULT prefix is DERIVED (never hardcoded) via
+#      `_fc_default_item_prefix()` below -- the SAME release-prefix-based
+#      derivation `dispatch_stamp.sh`'s own `_fc_default_item_prefix()`
+#      uses, so for THIS checkout (release prefix "atmosphere") the
+#      derived default is "ATM" -- SEMANTICALLY identical to the old
+#      hardcoded behaviour for every existing caller that does not
+#      configure an extra prefix (same set of ids matched/extracted), but
+#      NOT byte-identical: the built regex wraps the derived prefix in a
+#      non-capturing alternation group, `(?:ATM)-[0-9]+`, whereas the old
+#      hardcode was the bare literal `ATM-[0-9]+` (T048 S9 independent
+#      review finding M2, 2026-10-03 -- the prior wording here overstated
+#      this). A DIFFERENT consuming project derives ITS OWN correct
+#      prefix automatically, with no source edit to this file.
+#   3. `FC_DISPATCH_EXTRA_ITEM_PREFIXES` (env, additive, comma/pipe/
+#      space-separated) -- extra accepted prefixes ADDED to the derived
+#      default from (2) -- never a source edit, and never silently
+#      widening the DEFAULT (which stays exactly the derived prefix, e.g.
+#      "ATM", for an unconfigured checkout).
+#
+# HERMETICITY NOTE (mirrors dispatch_stamp.sh's own identical note): this
+# reads `constitution/scripts/release_prefix.sh` once per process (via a
+# `bash` subprocess) UNLESS `FC_DISPATCH_ITEM_ID_RE` is set -- a
+# deliberate, narrow widening of this module's own "stdlib only, no
+# ambient state" convention, exactly as `dispatch_stamp.sh` already
+# discloses for its identical dependency; it resolves identically on
+# every invocation of a given checkout.
+
+
+def _fc_derive_key_prefix(seed):
+    """Mirror `dispatch_stamp.sh`'s `_fc_derive_key_prefix()`: the first 3
+    ASCII letters of `seed`, uppercased; padded with 'X' if fewer than 3;
+    the neutral "WIT" fallback if `seed` has no ASCII letters at all.
+    Kept as a literal, independent re-derivation -- matching the
+    established sibling convention that each of these small `$FC` tools
+    is a single self-contained file, not a shared-lib import."""
+    letters = "".join(c for c in seed if c.isascii() and c.isalpha())[:3].upper()
+    if not letters:
+        return "WIT"
+    return letters.ljust(3, "X")
+
+
+def _fc_default_item_prefix():
+    """Resolve the SAME base release prefix `scripts/release_prefix.sh` /
+    `dispatch_stamp.sh`'s own `_fc_default_item_prefix()` already use
+    (HELIX_RELEASE_PREFIX env -> its .env entry -> snake_case(project
+    root dir name)), then derive the 3-letter ticket key from it. Falls
+    back to the neutral "WIT" prefix (via `_fc_derive_key_prefix()`'s own
+    no-letters branch -- never a second, divergent fallback mechanism)
+    ONLY if `release_prefix.sh` is genuinely unreachable or errors
+    (should not happen inside a checked-out constitution submodule --
+    kept as a defensive non-crash default, never a silent guess about a
+    DIFFERENT project's real prefix). NOTE this is a DIFFERENT "WIT"
+    path than the legitimate, by-design one: a resolved base string with
+    no ASCII letters at all (e.g. HELIX_RELEASE_PREFIX set to a
+    digits-only value) also derives "WIT" via `_fc_derive_key_prefix()`,
+    with NO warning -- that is a genuine, successfully-resolved value
+    that simply has no letters to take, not an error.
+
+    M1 remediation (T048 S9 independent review, 2026-10-03): the
+    genuinely-erroring paths below (script missing / unreadable / times
+    out / cannot be spawned / exits non-zero) previously fell back to
+    "WIT" with NO diagnostic whatsoever -- attribution loss from a real
+    failure was silent and undebuggable. Fixed: each erroring path now
+    prints a named stderr warning before falling back, so the loss is
+    at least visible (§11.4.6 -- never a silent guess).
+
+    N2 remediation (T048 S9 SECOND independent review, 2026-10-03): the
+    non-zero-exit warning below used to say "falling back to ... 'WIT'"
+    UNCONDITIONALLY -- but a non-zero exit from `release_prefix.sh` does
+    NOT always mean 'WIT': `base` is taken from `proc.stdout` regardless
+    of `proc.returncode` (the script's own stdout contract is honoured
+    even on a non-zero exit, exactly like the healthy returncode==0
+    path), so a script that exits non-zero while STILL printing a
+    usable value to stdout (e.g. exits 3 after printing "atmosphere")
+    derives its prefix from THAT stdout ("ATM" here), never "WIT" --
+    the prior wording was wrong in that case. Fixed: the message now
+    checks whether `base` actually has any ASCII letters to derive a
+    prefix from (the SAME real condition `_fc_derive_key_prefix()`'s own
+    no-letters branch checks, never a second, divergent predicate) and
+    reports accurately which of the two genuinely different outcomes
+    this run hit."""
+    self_dir = os.path.dirname(os.path.abspath(__file__))
+    rp_script = os.path.normpath(os.path.join(self_dir, "..", "..", "release_prefix.sh"))
+    base = ""
+    if os.path.isfile(rp_script):
+        try:
+            proc = subprocess.run(
+                ["bash", rp_script],
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+            base = proc.stdout.strip()
+            if proc.returncode != 0:
+                base_has_letters = any(c.isascii() and c.isalpha() for c in base)
+                if base_has_letters:
+                    print(
+                        "transcript_ingest: WARNING: %s exited %d (stderr=%r) -- "
+                        "it still printed usable output to stdout, so the "
+                        "item-tag prefix is derived from that captured output "
+                        "(NOT a 'WIT' fallback)" % (rp_script, proc.returncode, proc.stderr.strip()),
+                        file=sys.stderr,
+                    )
+                else:
+                    print(
+                        "transcript_ingest: WARNING: %s exited %d (stderr=%r) -- "
+                        "its stdout had no usable letters either, falling back "
+                        "to the neutral 'WIT' item-tag prefix for this run"
+                        % (rp_script, proc.returncode, proc.stderr.strip()),
+                        file=sys.stderr,
+                    )
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            print(
+                "transcript_ingest: WARNING: could not run %s (%s: %s) -- "
+                "falling back to the neutral 'WIT' item-tag prefix for "
+                "this run" % (rp_script, type(exc).__name__, exc),
+                file=sys.stderr,
+            )
+            base = ""
+    else:
+        print(
+            "transcript_ingest: WARNING: %s not found -- falling back to "
+            "the neutral 'WIT' item-tag prefix for this run" % rp_script,
+            file=sys.stderr,
+        )
+    return _fc_derive_key_prefix(base)
+
+
+def _build_item_tag_re():
+    """Build the `item=<prefix>-<digits>|?` regex per the 3-tier priority
+    documented above. Split out as its own function (never inlined at
+    import time without a name) so a test can call it directly after
+    monkeypatching `os.environ`, without needing a subprocess per
+    invocation of this whole file.
+
+    NOTE (`tok.upper()`, T048 S9 review finding M1): Python's `str.upper()`
+    is Unicode-aware (e.g. it uppercases non-ASCII letters per Unicode
+    casing rules), whereas bash's `tr '[:lower:]' '[:upper:]'` (used by
+    `dispatch_stamp.sh`'s own sibling derivation, and by
+    `release_prefix.sh`'s `_hrp_snake_case`) is byte-oriented and
+    LOCALE-dependent for anything outside the POSIX "C" locale's plain
+    ASCII a-z range. For the plain-ASCII prefixes this module's own tests
+    configure (and that `release_prefix.sh`/`dispatch_stamp.sh` are
+    documented to derive), both behave identically; a caller configuring
+    a non-ASCII `FC_DISPATCH_EXTRA_ITEM_PREFIXES` token could observe the
+    two tools disagree depending on the invoking shell's locale. Not
+    fixed here (no such token is used, documented, or tested anywhere in
+    this project) -- recorded as an honest, narrow limitation per §11.4.6
+    rather than silently assumed safe.
+
+    FAIL-SAFE (T048 S9 review finding M1): an invalid `FC_DISPATCH_ITEM_ID_RE`
+    -- or, in principle, an `FC_DISPATCH_EXTRA_ITEM_PREFIXES` token
+    containing regex metacharacters -- used to raise an unhandled
+    `re.error` at `re.compile()` time, crashing THIS WHOLE MODULE (and
+    every importer, e.g. `context/dispatch_prefix.py`) at import, whereas
+    bash's `[[ VALUE =~ RE ]]` would simply fail to MATCH on the SAME
+    misconfigured value, never crash the shell. Fixed: the compile is
+    wrapped; a genuinely-invalid value is reported to stderr by name
+    (never silently swallowed) and the build retries once using ONLY the
+    safely-derived default prefix, so a misconfiguration costs this run's
+    item attribution (visibly) rather than the whole ingest run."""
+    override = os.environ.get("FC_DISPATCH_ITEM_ID_RE", "")
+    if override:
+        value_re = override
+    else:
+        prefixes = [_fc_default_item_prefix()]
+        extra = os.environ.get("FC_DISPATCH_EXTRA_ITEM_PREFIXES", "")
+        if extra:
+            for tok in re.split(r"[,|\s]+", extra.strip()):
+                if tok:
+                    prefixes.append(tok.upper())
+        value_re = "(?:%s)-[0-9]+" % "|".join(prefixes)
+    try:
+        return re.compile(r"(?:^|\s)item=(%s|\?)" % value_re)
+    except re.error as exc:
+        print(
+            "transcript_ingest: WARNING: the configured item-tag pattern "
+            "(FC_DISPATCH_ITEM_ID_RE=%r FC_DISPATCH_EXTRA_ITEM_PREFIXES=%r) "
+            "is not a valid regex (%s) -- falling back to the derived "
+            "default prefix only for this run; item attribution via the "
+            "misconfigured value is LOST until the env var is fixed"
+            % (override, os.environ.get("FC_DISPATCH_EXTRA_ITEM_PREFIXES", ""), exc),
+            file=sys.stderr,
+        )
+        fallback_prefix = _fc_default_item_prefix()
+        return re.compile(r"(?:^|\s)item=((?:%s)-[0-9]+|\?)" % fallback_prefix)
+
+
+ITEM_TAG_RE = _build_item_tag_re()
 
 
 def open_db(path):
@@ -330,11 +557,17 @@ def build_dispatch_map(files):
     """Pass 1 — scan every file for a `toolUseResult` object (present on
     the tool-RESULT "user" record following an Agent/Task dispatch's
     tool_use block; a SIBLING top-level key to `message`, never read from
-    inside it). Returns {agent_id: {"item_id": <ATM-nnnn or None>,
-    "session_id": <the dispatching record's own sessionId, or None>}}.
+    inside it). Returns {agent_id: {"item_id": <the configured item-id
+    prefix>-<digits>, or None>, "session_id": <the dispatching record's own
+    sessionId, or None>}} — the prefix is "ATM" for THIS checkout's
+    unconfigured default (derived from `release_prefix.sh`, never
+    hardcoded; see ITEM_TAG_RE above), and may differ for a different
+    consuming project or under FC_DISPATCH_EXTRA_ITEM_PREFIXES /
+    FC_DISPATCH_ITEM_ID_RE.
 
     Reads ONLY `toolUseResult["agentId"]` and, from `toolUseResult
-    ["description"]`, the narrow regex-matched item=<ATM-nnnn>|? token —
+    ["description"]`, the narrow regex-matched item=<prefix>-<digits>|?
+    token —
     the raw description string itself is NEVER stored."""
     dispatch_map = {}
     for filepath in files:
