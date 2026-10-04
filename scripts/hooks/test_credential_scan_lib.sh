@@ -964,6 +964,94 @@ EOF
 assert_caught "(27-neg) real password containing a literal \$ survives the shell-var-ref strip (still caught)" \
               "$WORK/bad_27_dollar_password.txt"
 
+# (o) §11.4.201 carrier-strip #29: a markdown-backtick-wrapped filename
+# (`` `scripts/commit_all.sh` ``) within the POST-EMAIL 48-char adjacency
+# window (the scanner only examines the 48 chars immediately AFTER the first
+# email match on the line, §11.4.201 carrier-strip #6) must not read as
+# password-shaped merely because the trailing backtick defeats the
+# recognised-extension end-anchor. Forensic FP: docs/requests/history.md,
+# "note: `scripts/commit_all.sh` hardcodes a stale ... Co-Authored-By: Claude
+# Sonnet 5 <noreply@anthropic.com> ..." line. NOTE (2026-10-04, fix-forward on
+# an independent Opus-xhigh review, §11.4.194(6)(b)): the FIRST version of
+# this fixture placed the email AFTER the backtick-filename, so the filename
+# never fell inside the post-email window and this assertion passed
+# VACUOUSLY (clean with or without carrier-strip #29 in place) — a counted
+# PASS that never actually exercised the exemption it claimed to prove. This
+# version puts the email FIRST so the filename is genuinely inside the
+# window; EMPIRICALLY VERIFIED (not merely asserted, §11.4.6) to flip HIT
+# when carrier-strip #29 is reverted in a scratch copy and stay CLEAN with it
+# in place.
+cat > "$WORK/good_o_backtick_filename.txt" <<'EOF'
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com> note: `scripts/commit_all.sh` hardcodes a stale line.
+EOF
+assert_clean "(o) markdown-backtick-wrapped filename within the post-email adjacency window (recognised-extension end-anchor must survive the backtick)" \
+             "$WORK/good_o_backtick_filename.txt"
+
+# (o-neg) FALSIFYING CONTROL: a real password adjacent to an email, with NO
+# recognised-extension suffix at all, must still be CAUGHT -- carrier-strip
+# #29 only tolerates a trailing backtick at the position the existing
+# extension end-anchor already sits; it must not blanket-exempt an arbitrary
+# backtick-wrapped token.
+cat > "$WORK/bad_o_backtick_realpw.txt" <<'EOF'
+leaked credential: admin@example.com : `Hunter2Hunter2!`
+EOF
+assert_caught "(o-neg) real backtick-wrapped password with no recognised-extension suffix survives the filename strip (still caught)" \
+              "$WORK/bad_o_backtick_realpw.txt"
+
+# (p) §11.4.201 carrier-strip #28: a markdown-backtick-wrapped shell variable
+# reference (`` `"$COMMIT_MSG"` ``) within the POST-EMAIL 48-char adjacency
+# window must not read as password-shaped. Forensic FP: docs/requests/
+# history.md, "sat on the same physical line as `\"$COMMIT_MSG\"`, which the
+# line-scoped adjacency heuristic misread as a password next to an email"
+# (the real triggering email was a separate `user.email=...@example.invalid`
+# git flag earlier in the same report). NOTE (2026-10-04, fix-forward on an
+# independent Opus-xhigh review, §11.4.194(6)(b)): the FIRST version of this
+# fixture put `"$NEW_TREE"` between the email and the backtick-wrapped
+# token, pushing the latter past the 48-char window, so this assertion
+# passed VACUOUSLY (clean with or without carrier-strip #28 in place). This
+# version shortens the gap so the backtick-wrapped token is genuinely inside
+# the window; EMPIRICALLY VERIFIED to flip HIT when carrier-strip #28 is
+# reverted in a scratch copy and stay CLEAN with it in place.
+cat > "$WORK/good_p_backtick_shellvar.sh" <<'EOF'
+git -c user.email=fastcycle-migrate@example.invalid commit-tree as `"$COMMIT_MSG"` which the heuristic misread.
+EOF
+assert_clean "(p) markdown-backtick-wrapped shell-variable-reference token within the post-email adjacency window (still recognised as a reference, not a password)" \
+             "$WORK/good_p_backtick_shellvar.sh"
+
+# (p-neg) FALSIFYING CONTROL: a real email+password leak, backtick-wrapped,
+# containing a literal `$` character, must still be CAUGHT -- carrier-strip
+# #28 only exempts a token that reduces ENTIRELY to the `$NAME` shape once its
+# wrapping backtick(s) are stripped, never a genuine secret that merely
+# contains a `$` inside otherwise-password-shaped text.
+cat > "$WORK/bad_p_backtick_dollar_password.txt" <<'EOF'
+leaked credential: admin@example.com : `P@ss$w0rd!123`
+EOF
+assert_caught "(p-neg) real backtick-wrapped password containing a literal \$ survives the markdown shell-var-ref strip (still caught)" \
+              "$WORK/bad_p_backtick_dollar_password.txt"
+
+# (q) §11.4.201 carrier-strip #30: a git identity-key value (`user.name=` /
+# `user.email=`) is never itself a credential. Forensic FP:
+# docs/requests/history.md quotes a selftest-isolation bug report listing the
+# git-config keys an un-isolated scratch repo picked up, including a
+# markdown-backtick-wrapped `` `user.name=custody_sweep selftest` `` bullet
+# within the adjacency window of an unrelated `user.email=...@example.invalid`
+# line earlier in the same prose paragraph.
+cat > "$WORK/good_q_git_identity_key.txt" <<'EOF'
+contamination observed: user.email=custody-sweep-selftest@example.invalid and `user.name=custody_sweep selftest` were both written to the victim repo config.
+EOF
+assert_clean "(q) git identity-key value (user.name= / user.email=) adjacent to an email is not password-shaped" \
+             "$WORK/good_q_git_identity_key.txt"
+
+# (q-neg) FALSIFYING CONTROL: a user.name value carrying a DIGIT must still be
+# CAUGHT -- carrier-strip #30 restricts the exempted value to letters,
+# underscore, dot and hyphen ONLY, explicitly excluding every digit, so a
+# credential smuggled into user.name= with a digit present still survives.
+cat > "$WORK/bad_q_git_identity_key_digit.txt" <<'EOF'
+contamination observed: user.email=custody-sweep-selftest@example.invalid and `user.name=hunter2hunter2` were both written to the victim repo config.
+EOF
+assert_caught "(q-neg) user.name value carrying a digit survives the git-identity-key strip (still caught)" \
+              "$WORK/bad_q_git_identity_key_digit.txt"
+
 echo ""
 echo "== RESULT: ${pass} passed, ${fail} failed =="
 [ "$fail" -eq 0 ]
