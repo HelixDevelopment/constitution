@@ -385,7 +385,7 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 <tbody>
 <tr>
 <td>Revision</td>
-<td>1</td>
+<td>2</td>
 </tr>
 <tr>
 <td>Created</td>
@@ -393,7 +393,7 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 </tr>
 <tr>
 <td>Last modified</td>
-<td>2026-05-21</td>
+<td>2026-10-05T09:59:56Z</td>
 </tr>
 <tr>
 <td>Status</td>
@@ -404,7 +404,17 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 <td>Operator-readable digest derived from <code>Status.md</code> per
 §11.4.53. Tracks the most-recent codegraph npm version, the date of the
 last update + sync run, and the running PASS/FAIL totals across all
-consuming projects&#39; validate runs.</td>
+consuming projects&#39; validate runs. R2 (2026-10-05, currency check): the
+&quot;Current state&quot; table&#39;s placeholders were stale — <code>Status.md</code>
+has carried real entries since 2026-05-21 — populated from the live
+ledger; &quot;Recent significant events&quot; filled in, including the §11.4.275
+EXTENSION history backfilled into <code>Status.md</code> the same day;
+the <code>### Semgrep SAST</code> section is flagged as describing a
+REPEALED mandate (§11.4.166 was repealed by operator decision
+2026-06-22, one day after that section&#39;s own &quot;Last Checked: 2026-06-21&quot;
+dates) and is CodeGraph-unrelated content that does not belong in this
+doc — left in place as a historical record per §11.4.11, not removed,
+since removal was outside this currency check&#39;s scope.</td>
 </tr>
 <tr>
 <td>Issues</td>
@@ -443,22 +453,29 @@ manually-curated.</td>
 </tr>
 <tr>
 <td>Last-observed installed version</td>
-<td><code>(populated on first codegraph_update.sh run)</code></td>
+<td><code>1.6.0</code> (upgrade to <code>1.6.1</code> has repeatedly
+FAILED the post-update verification per §107/§11.4, see 2026-09-29
+entries in <code>Status.md</code>)</td>
 <td><code>Status.md</code> ledger</td>
 </tr>
 <tr>
 <td>Last update timestamp (UTC)</td>
-<td><code>(populated on first run)</code></td>
+<td><code>2026-09-01T17:18:59Z</code> (last SUCCESSFUL version check at
+<code>1.6.0</code>; the 2026-09-29 <code>1.6.1</code> attempts all
+failed and rolled back)</td>
 <td><code>Status.md</code> ledger</td>
 </tr>
 <tr>
 <td>Last sync timestamp (UTC)</td>
-<td><code>(populated on first run)</code></td>
+<td>not tracked as a distinct event class in <code>Status.md</code> to
+date — the ledger records npm-version checks/updates only; no separate
+<code>codegraph_sync.sh</code> entry has been appended</td>
 <td><code>Status.md</code> ledger</td>
 </tr>
 <tr>
 <td>Last validate result</td>
-<td><code>(populated on first run)</code></td>
+<td>not tracked as a distinct event class in <code>Status.md</code> to
+date</td>
 <td><code>Status.md</code> ledger</td>
 </tr>
 <tr>
@@ -547,7 +564,57 @@ manually-curated.</td>
 </tbody>
 </table>
 <h2 id="recent-significant-events">Recent significant events</h2>
-<p>(summarize Status.md&#39;s most-impactful events — typically last 10
-entries)</p>
+<p>(summary of <code>Status.md</code>&#39;s most-impactful recent entries,
+newest first; see <code>Status.md</code> itself for the full append-only
+ledger)</p>
+<ol type="1">
+<li><strong>2026-10-05 — §11.4.275 EXTENSION history
+backfilled.</strong> Two 2026-09-25 rounds of real CodeGraph/Lumen work
+(host-adaptive V8 heap budget fixing a bulk-index OOM; the §11.4.275(D)
+deterministic benchmark, recall 9/11; a heap-ceiling correction from an
+invented 64 GiB cap to the real §12.6 <code>MemTotal*60/100</code>
+bound; and CodeGraph&#39;s <code>.mcp.json</code> registration via a new
+<code>--no-watch</code>-hardened wrapper after a stray-daemon/DB-lock
+forensic incident) had landed in <code>Constitution.md</code> but were
+never appended to this ledger — now recorded, full detail + commit
+hashes in <code>Status.md</code>&#39;s <code>## 2026-10-05</code>
+entry.</li>
+<li><strong>2026-09-29 (×5, 14:46–15:27Z) — repeated
+<code>1.6.0 → 1.6.1</code> update FAILURES, all correctly
+caught.</strong> Every attempt&#39;s post-update version check reported a
+mismatch (npm exited 0 while the installed version stayed
+<code>1.6.0</code>) and <code>codegraph_update.sh</code> refused to
+report success — a working anti-bluff catch (§11.4 / §107 legend), not a
+tooling regression; <code>1.6.0</code> remains the last-known-good
+installed version.</li>
+<li><strong>2026-09-01 through 2026-08-31 — routine <code>1.6.0</code>
+version checks, all no-op</strong> (already at latest at time of
+check).</li>
+<li><strong>2026-07-17T14:46:51Z — codegraph updated
+<code>1.2.0 → 1.4.1</code></strong> via
+<code>npm install -g @colbymchenry/codegraph@1.4.1</code>, followed by a
+clean no-op check 11 minutes later.</li>
+<li><strong>2026-05-21T05:38–05:40Z — the ledger&#39;s founding
+incident.</strong> An <code>0.6.8 → 0.8.0</code> update was first caught
+as a bluff (npm exit 0, installed version <code>unknown</code>), then
+<code>0.8.0</code> was found genuinely non-functional on Node 25.x (a V8
+WASM JIT engine-range bug) and rolled back to <code>0.6.8</code>, with a
+follow-up HRD (<code>ENV-CODEGRAPH-NODE25</code>) opened to track when a
+later version becomes safe.</li>
+</ol>
+<p><strong>PASS/FAIL running total (from the ledger above, counted
+directly — <code>grep -c &quot;^## 2026-&quot; Status.md</code> = 51 event headers
+total, one of which is the non-numeric 2026-10-05 extension-history
+backfill entry, so 50 npm-version-check-class events;
+<code>grep -c &quot;FAILED\|rolled back&quot;</code> = 8):</strong> FAIL/rollback
+events = 3 at the 2026-05-21 founding incident (2 bluff-caught
+<code>FAILED</code> checks + 1 <code>rolled back</code> entry) + 5
+repeated <code>1.6.0 → 1.6.1</code> bluff-caught <code>FAILED</code>
+attempts (2026-09-29) = 8; successful update/no-op events = the
+remaining 42 of the 50 npm-event entries. This is a count of
+NPM-version-check outcomes only — it is NOT a <code>validate</code>-run
+PASS/FAIL total, since no distinct <code>validate</code> event class has
+been appended to the ledger to date (see &quot;Current state&quot; table
+above).</p>
 </body>
 </html>

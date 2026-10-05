@@ -385,7 +385,7 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 <tbody>
 <tr>
 <td>Revision</td>
-<td>2</td>
+<td>3</td>
 </tr>
 <tr>
 <td>Created</td>
@@ -393,7 +393,7 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 </tr>
 <tr>
 <td>Last modified</td>
-<td>2026-05-22</td>
+<td>2026-10-05T09:59:56Z</td>
 </tr>
 <tr>
 <td>Status</td>
@@ -409,7 +409,15 @@ CodeGraph. Per Universal §11.4.80 + §11.4.65 (multi-format export). Both
 <code>scripts/codegraph_sync.sh</code> append here automatically. R2
 (2026-05-22): replaced project-specific <code>§107</code> anchor
 references with the universal <code>§11.4</code> covenant anchor to keep
-this submodule fully decoupled per §11.4.28.</td>
+this submodule fully decoupled per §11.4.28. R3 (2026-10-05, currency
+check): backfilled the §11.4.275 EXTENSION history (both 2026-09-25
+rounds — the host-adaptive V8 heap-budget fix + §11.4.275(D) benchmark
+run, and the heap-ceiling correction + CodeGraph MCP wiring + the
+<code>serve --mcp</code> stray-daemon forensic incident) that had landed
+in <code>Constitution.md</code> but was never appended to this ledger;
+see the <code>## 2026-10-05</code> entry below. A handful of earlier
+<code>§107</code> legend entries (2026-09-29) pre-date R2&#39;s rename and
+are left verbatim as the historical record they are.</td>
 </tr>
 <tr>
 <td>Issues</td>
@@ -807,6 +815,69 @@ codegraph version check</h2>
 <li>before: <code>1.6.0</code></li>
 <li>target: <code>1.6.1</code></li>
 <li>after: <code>1.6.0</code> (mismatch — npm exit 0 was bluffing)</li>
+</ul>
+<h2 id="2026-10-05--114275-extension-history-backfilled-currency-check-events-below-occurred-2026-09-25-logged-here-retroactively-on-discovery-that-this-ledger-had-not-recorded-them">2026-10-05
+— §11.4.275 EXTENSION history backfilled (currency check; events below
+occurred 2026-09-25, logged here retroactively on discovery that this
+ledger had not recorded them)</h2>
+<p>Per <code>constitution/Constitution.md</code> §11.4.275&#39;s own two
+&quot;EXTENSION landed 2026-09-25&quot; blocks (cited verbatim below, not
+paraphrased from memory per §11.4.6):</p>
+<ul>
+<li><strong>§11.4.78 host-adaptive V8 heap budget + §11.4.275(D)
+benchmark run (round 1, 2026-09-25).</strong>
+<code>codegraph_safe.sh</code>&#39;s single writer entry now computes its
+Node.js heap budget from measured <code>MemAvailable</code> instead of
+inheriting V8&#39;s ~4 GiB stock default, closing a real bulk-index OOM
+crash (<code>rc=134</code>) on this repo&#39;s 584K-file/49M-edge tree —
+landed with 2 new regression tests + live
+<code>/proc/&lt;pid&gt;/environ</code> verification + a zero-regression
+full-suite comparison (commit
+<code>941841d3e7235a081e3199a4d3073b409d41753b</code>). The §11.4.275(D)
+deterministic benchmark ran via
+<code>constitution/scripts/lumen/lumen_verify.sh</code>: a pre-declared
+13-query golden set, N=3 byte-identical runs, recall 9/11 = 0.818, with
+the 2 failing/unsupported query classes
+(<code>.sh</code>/<code>.kt</code>, unindexed by Lumen&#39;s chunker —
+confirmed via direct <code>sqlite3</code> + Lumen&#39;s own source) reported
+honestly and tracked, never averaged away (commit
+<code>ac532a21df78a447c2aceec30f63476348e93077</code>,
+<code>docs/research/lumen_benchmark_20260925/RESULTS_v2.md</code>).</li>
+<li><strong>§11.4.78 heap ceiling correction + CodeGraph MCP wiring
+(round 2, 2026-09-25).</strong> The round-1 64 GiB heap cap is corrected
+— it was an INVENTED ceiling (~25% of this 251 GiB host&#39;s RAM), not a
+derivation of §12.6; fixed to <code>MemTotal * 60/100</code> computed
+fresh every run, the real unweakened §12.6 bound (commit
+<code>8a5f47ab2e0e7a05d1c1652ba5a3475751652062</code>, regression test
+U46). Separately: <code>.mcp.json</code> was found completely EMPTY —
+CodeGraph had ZERO agent-facing MCP presence in this repository despite
+its full query toolset. Fixed by registering <code>.mcp.json</code>&#39;s
+<code>codegraph</code> server against a new, tested, §11.4.177-decoupled
+wrapper
+(<code>constitution/scripts/codegraph/codegraph_mcp_serve.sh</code>)
+that resolves the SAME validated patched runner
+<code>codegraph_safe.sh</code> (never bare stock-on-PATH). A SEPARATE,
+more serious forensic incident surfaced while building this:
+<code>serve --mcp</code>&#39;s file watcher WRITES (auto-syncs) the database
+and the server daemonizes past its own parent&#39;s death — a manual test
+spawned a stray daemon that collided with an in-flight bulk
+<code>sync</code>, crashing it with &quot;database is locked&quot; (~85 minutes of
+progress lost); recovered via a targeted <code>REINDEX</code> (3 rows,
+confirmed non-corrupting) + a bulk <code>sync</code> resume. Durable
+fix: the wrapper now ALWAYS passes <code>--no-watch</code>, proven by a
+real init&#39;d scratch-project DB-mtime check (unchanged after a
+tracked-file edit with the server running). Six new regression tests
+landed (<code>tests/test_codegraph_mcp_serve.sh</code>), including the
+incident itself replayed as a repeatable test.</li>
+<li><strong>Honest boundary</strong> (carried from the anchor text,
+§11.4.6): <code>.mcp.json</code> registration takes effect on a fresh
+session — the session that landed it could not self-restart to verify
+the MCP tools are end-to-end callable from inside it; that check remains
+a tracked §11.4.197 follow-up, not claimed complete here. Gate-code for
+§11.4.78/§11.4.275&#39;s recommended <code>CM-*</code> mechanism gates
+remains owed (§11.4.227(A); see
+<code>docs/owed_gate_implementations.md</code> OWED-GATE-096 through
+OWED-GATE-105).</li>
 </ul>
 </body>
 </html>
