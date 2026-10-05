@@ -1141,6 +1141,26 @@ assert_clean '(u) HTML-entity-encoded quoted shell-variable reference adjacent t
 assert_caught "(u-neg) a real password wrapped in HTML-entity quotes adjacent to an email survives the entity-decode recovery (still caught)" \
               "$WORK/bad_u_real_password_quoted_entity.txt"
 
+# (v) §11.4.201 carrier-strip #34 (detector-1 implementation): a DOUBLY
+# HTML-entity-escaped closing tag (`&lt;/code&gt;` -- prose that literally
+# describes an HTML tag, re-escaped by the exporter, as opposed to a
+# markdown code-span the exporter rendered INTO a real `</code>` tag) must
+# decode to the same real tag carrier-strip #33 already blanks, not read as
+# password-shaped. Built via printf (split across two args).
+{ printf '<code>API_KEY=x'
+  printf '&lt;/code&gt;,\n'
+} > "$WORK/good_v_double_escaped_tag.txt"
+assert_clean "(v) doubly HTML-entity-escaped closing tag decodes to the real tag carrier-strip #33 already blanks (never a working credential)" \
+             "$WORK/good_v_double_escaped_tag.txt"
+
+# (v-neg) FALSIFYING CONTROL: a real secret already 8+ chars long BEFORE a
+# doubly-escaped closing tag must still be CAUGHT once decoded and blanked.
+{ printf 'api_key=hunter2hunter2Secret'
+  printf '&lt;/code&gt;\n'
+} > "$WORK/bad_v_real_secret_before_double_escaped_tag.txt"
+assert_caught "(v-neg) a real secret immediately followed by a doubly-entity-escaped HTML closing tag survives the decode+blank strip (still caught)" \
+              "$WORK/bad_v_real_secret_before_double_escaped_tag.txt"
+
 echo ""
 echo "== RESULT: ${pass} passed, ${fail} failed =="
 [ "$fail" -eq 0 ]

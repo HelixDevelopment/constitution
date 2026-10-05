@@ -882,10 +882,36 @@ helix_cred_detector1_real_hit_stream() {
   # secret would pass CLEAN at the pre-commit seam where the old raw `grep -Eiq`
   # caught it (§11.4.201(2) false negative — Fable review B2, proven). #8a stays
   # tight (it strips only whole placeholder-shaped tokens, `$`-anchored), so `-a`
-  # cannot weaken real-secret detection. #8b (data-URI blank) and #33 (HTML
-  # closing-tag blank) run first.
+  # cannot weaken real-secret detection. #34 (HTML-entity decode), #8b
+  # (data-URI blank) and #33 (HTML closing-tag blank) run first, IN THAT
+  # ORDER: entity-decode MUST precede the closing-tag blank, because a tag
+  # that only EXISTS as the entity-escaped form `&lt;/code&gt;` (prose that
+  # LITERALLY describes an HTML tag, as opposed to a markdown code-span the
+  # exporter rendered INTO a real tag — the #33 forensic case) is not a
+  # `</[A-Za-z]+>` shape until it is decoded; #33's blank alone cannot see it.
+  # FORENSIC (2026-10-05, measured, SAME DAY as #33/#34's own forensic FPs):
+  # a later status report quoting #33's own forensic text (which itself
+  # quotes the literal illustration `<code>API_KEY=x</code>,`) was captured
+  # into docs/requests/history.md by the §11.4.210 auto-capture hook, then
+  # the markdown-to-HTML export correctly entity-escaped those ALREADY-
+  # LITERAL angle brackets for safe HTML display (`&lt;code&gt;API_KEY=x
+  # &lt;/code&gt;,`) -- detector-1's extraction pipeline had no entity-decode
+  # stage of its own (only detector-2's awk program did, via carrier-strip
+  # #34), so the escaped tag was never recognised as a tag and the
+  # illustration again padded past the 8-char floor: the SAME #33 defect
+  # class, reached through a DIFFERENT rendering path. SAFETY identical to
+  # #34's own (decode-is-recovery, not a strip -- see #34's doc comment on
+  # HELIX_CRED_ADJACENCY_AWK above for the full argument, not duplicated
+  # here per §11.4.227 no-drift); sharing ONE conceptual carrier (#34) across
+  # BOTH detectors via two mechanical implementations (an awk gsub chain for
+  # the line-oriented detector-2, a sed substitution chain here for the
+  # stream-oriented detector-1) is itself the no-drift discipline applied to
+  # a cross-cutting carrier. Proven by golden-good scenario (v) + the (real
+  # secret immediately followed by a doubly-entity-escaped HTML closing tag)
+  # golden-bad falsifying control (v-neg) in test_credential_scan_lib.sh
+  # (§11.4.107(10)).
   _helix_cred_d1_matches="$(
-    sed -E "s#${HELIX_CRED_BASE64_IMAGE_CARRIER}# #g; s#${HELIX_CRED_HTML_CLOSE_TAG_CARRIER}# #g" 2>/dev/null \
+    sed -E "s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s#${HELIX_CRED_BASE64_IMAGE_CARRIER}# #g; s#${HELIX_CRED_HTML_CLOSE_TAG_CARRIER}# #g" 2>/dev/null \
       | grep -Eioa "$HELIX_CRED_VALUE_PATTERN" 2>/dev/null
   )"
   # No detector-1 match at all (after #8b) → not a real hit.
