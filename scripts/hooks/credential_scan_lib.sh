@@ -434,6 +434,18 @@ HELIX_CRED_ADJACENCY_AWK='
   # REAL condition; the org/repo "/" is still REQUIRED, so a genuine
   # git@<host>:<secret> with no slash is still scanned.
   gsub("git@[A-Za-z0-9.-]+(</[A-Za-z][A-Za-z0-9]*>)?:[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", " ", line)
+  # §11.4.201 carrier-strip #31: the `ssh://git@<host>/<org>/<repo>[.git]` URL
+  # FORM (slash after host, not the SCP-like colon the strip above covers) is
+  # the SAME git-remote-is-not-a-credential case, just a different URL shape.
+  # Forensic FP (2026-10-05, measured via the email-adjacency awk programs own
+  # debug instrumentation): `scripts/testing/test_commit_all_owned_cascade.sh` line
+  # 142, the quoted _submodule_org call on ssh://git@github.com/ATMOSphere1234321/repo.git
+  # — this projects real GitHub org "ATMOSphere1234321" (letters+digits)
+  # survived un-stripped and read as a password-shaped token adjacent to the
+  # git@ "email", REFUSING a legitimate commit. The org/repo "/" is still
+  # REQUIRED (mirrors the strip above), so a genuine `ssh://git@<host>/<secret>`
+  # with no second slash is still scanned.
+  gsub("ssh://git@[A-Za-z0-9.-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", " ", line)
   # §11.4.201 carrier-strip #2: a systemd user-instance unit name (form
   # user@<uid>.service / <name>@<N>.service) is email-SHAPED (local@digits.service,
   # ".service" reads as a TLD) but is NOT an email — it appears verbatim in every

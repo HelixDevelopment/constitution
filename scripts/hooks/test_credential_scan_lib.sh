@@ -1052,6 +1052,29 @@ EOF
 assert_caught "(q-neg) user.name value carrying a digit survives the git-identity-key strip (still caught)" \
               "$WORK/bad_q_git_identity_key_digit.txt"
 
+# (r) §11.4.201 carrier-strip #31: the `ssh://git@<host>/<org>/<repo>[.git]`
+# URL FORM (slash after host, not the SCP-like colon carrier-strip #1
+# covers) must not read its org/repo segment as a password-shaped token
+# adjacent to the git@ "email". Forensic FP (2026-10-05, measured): this
+# project's own real GitHub org "ATMOSphere1234321" (letters+digits) in
+# `scripts/testing/test_commit_all_owned_cascade.sh` line 142 survived
+# un-stripped and refused a legitimate commit.
+cat > "$WORK/good_r_ssh_url_git_remote.txt" <<'EOF'
+assert_eq "ssh://git@host/ORG/repo.git" "ATMOSphere1234321" "$(_submodule_org 'ssh://git@github.com/ATMOSphere1234321/repo.git')"
+EOF
+assert_clean "(r) ssh://git@<host>/<org>/<repo> URL-form git remote is not an email+password adjacency" \
+             "$WORK/good_r_ssh_url_git_remote.txt"
+
+# (r-neg) FALSIFYING CONTROL: carrier-strip #31 requires a SECOND "/" (the
+# org/repo split), exactly mirroring carrier-strip #1's own org/repo "/"
+# requirement -- a genuine `ssh://git@<host>/<secret>` with only ONE path
+# segment (no org/repo split) must still be CAUGHT.
+cat > "$WORK/bad_r_ssh_url_single_segment.txt" <<'EOF'
+leaked: ssh://git@example.com/hunter2hunter2
+EOF
+assert_caught "(r-neg) ssh://git@<host>/<secret> with no org/repo split survives the ssh-URL-form strip (still caught)" \
+              "$WORK/bad_r_ssh_url_single_segment.txt"
+
 echo ""
 echo "== RESULT: ${pass} passed, ${fail} failed =="
 [ "$fail" -eq 0 ]
