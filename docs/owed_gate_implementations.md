@@ -1,9 +1,11 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 5
-**Last modified:** 2026-09-28T18:09:28Z
+**Revision:** 6
+**Last modified:** 2026-10-05T09:59:56Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
+
+**R6 (2026-10-05, currency check):** this document had fallen 8 rows behind `gate_ledger_deferrals.tsv` — `OWED-GATE-106` (§11.4.235(D), registered 2026-10-03) and `OWED-GATE-107` through `OWED-GATE-110` (§11.4.230(D), registered 2026-10-04) were both already in the TSV but documented nowhere in this file; `OWED-GATE-111` through `OWED-GATE-113` (§11.4.276, registered the same session as this currency check) were likewise TSV-only. All 8 are now documented in Section A below (new `### §11.4.235(D)`, `### §11.4.230(D)`, and `### §11.4.276` subsections). Verified by direct diff against the live TSV (`grep -E "OWED-GATE-10[6-9]|OWED-GATE-11[0-3]"`), not assumed.
 
 ## Why this document exists
 
@@ -692,4 +694,45 @@ missing.
 - **OWED-GATE-105** — `CM-CODEGRAPH-STALL-WATCHDOG`
   - **Must assert:** asserts a long-running CodeGraph bulk operation emits a monotonic progress signal and a watchdog flags HUNG on no-advance past a declared no-progress budget — `kill -0`/process-alive is a necessary-not-sufficient pre-filter, never sufficient proof of progress (§11.4.201(6)–(7), §11.4.232(C))
   - **Blocked on:** no progress-heartbeat-plus-watchdog harness exists in-repo today (§11.4.232(C) cross-referenced by §11.4.275, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+
+### §11.4.235(D) (registered 2026-10-03 — added 2026-10-05, currency check: this row existed in `gate_ledger_deferrals.tsv` but was never documented here)
+
+- **OWED-GATE-106** — `CM-REVIEW-FINDING-CLASS-RECORDED`
+  - **Must assert:** asserts a batched-review verdict covering more than one slice/file records a per-slice verdict AND a per-finding `finding_layer` from the closed set `{source-defect|test-instrumentation|process-doc}`; FAILs if a slice is marked build-eligible while any `source-defect` finding in it has not reached GO, or if a `finding_layer` is lowered by the producer without a fresh review round; binds ADDITIVELY by computing whether the existing `source_review_go` marker (consumed by `cm_build_on_source_proven_not_test_side.sh`) may be written — never by modifying that gate's own tested logic
+  - **Blocked on:** no per-finding `finding_layer` recording/consuming harness exists in-repo yet (§11.4.235(D), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+
+### §11.4.230(D) (registered 2026-10-04 — added 2026-10-05, currency check: these four rows existed in `gate_ledger_deferrals.tsv` but were never documented here)
+
+- **OWED-GATE-107** — `CM-INCREMENT-DELIVERED-NOT-SPEC-WITHHELD`
+  - **Must assert:** asserts every increment holding its own source-correctness GO (§11.4.235(A)/(D)) appears in a completed-and-handed-to-QA or in-flight QA build from its integration branch once the declared trigger has fired (coalescing per (D.3): an in-flight build covers prior increments, later ones roll into the next build; a build that fails or is refused at §11.4.236 covers nothing and does not satisfy this gate), and that NO increment lacking that GO appears in any QA build (the §11.4.201(1) dual guard)
+  - **Blocked on:** no increment-to-QA-build membership harness exists in-repo (§11.4.230(D.1), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-108** — `CM-QA-BUILD-CADENCE-DECLARED`
+  - **Must assert:** asserts a consumer QA-build trigger `{per-increment|periodic|whichever-first}` resolves (absent declaration ⇒ `per-increment`, never "no cadence") and that no integration branch (D.1) holds build-eligible content past a fired trigger uncovered by any completed-and-handed-to-QA or in-flight QA build (the same (D.3) coalescing rule as OWED-GATE-107)
+  - **Blocked on:** no QA-build-cadence evaluation harness exists in-repo (§11.4.230(D.3), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-109** — `CM-RELEASE-TOGGLE-TRACKED-EXPIRY`
+  - **Must assert:** asserts every release toggle hiding an incomplete increment carries a tracked §11.4.197 removal item and a consumer-declared expiry, and FAILs on a toggle past its expiry
+  - **Blocked on:** no release-toggle inventory harness exists in-repo (§11.4.230(D.2), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-110** — `CM-QA-HANDOFF-TRACKER-IN-SYNC`
+  - **Must assert:** asserts each QA hand-off record names the deliverable fingerprint and an item set that matches the deliverable contents (no done-marked item whose fix is absent; no shipped fix without an item)
+  - **Blocked on:** no hand-off-record-vs-deliverable reconciliation harness exists in-repo (§11.4.230(D.5), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+
+### §11.4.276 (registered 2026-10-05 — landed the SAME session as this currency check, per the operator CRITICAL mandate on excessive review-round counts)
+
+- **OWED-GATE-111** — `CM-REVIEW-ROUND-BUDGET`
+  - **Must assert:** asserts every independently-reviewed work item has a declared round budget `R_max` in the closed range 5–7 (absent declaration resolves to 5) and a round count derived from its own review record; FAILs if a round `R_max`+1 is dispatched under the same approach with no recorded operator decision (§11.4.276(E)(3)), or if an item is closed without a GO verdict
+  - **Blocked on:** no review-round-counting harness exists in-repo yet (§11.4.276(A), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-112** — `CM-REVIEW-ROUND3-CONVERGENCE-ASSESSMENT`
+  - **Must assert:** asserts every review round ≥ 3 carries a recorded convergence classification (new-class / same-class-as-earlier / regression-introduced-by-a-fix / wrong-layer-evidence) per finding; FAILs if a structural-round trigger per (E)(1) is followed by a non-structural point-fix round, or if an adversarial/security review proceeds with no pre-round-1 declared scope/threat boundary
+  - **Blocked on:** no convergence-assessment recording/consuming harness exists in-repo yet (§11.4.276(E), gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.
+- **OWED-GATE-113** — `CM-FIX-GROUND-TRUTH-AND-CLASS-INVENTORY`
+  - **Must assert:** asserts a fix touching a declared external-system surface (build tool / compiler / interpreter / shell semantics / kernel / runtime / third-party library / protocol) carries a recorded ground-truth probe (authoritative source + real-composition-path fixture + behavioural model) before its first fix attempt, and a class-shaped finding's "closed" claim cites a control-needled whole-scope inventory artifact per §11.4.201(7)(b); FAILs on either absence
+  - **Blocked on:** no probe-record or class-inventory harness exists in-repo yet (§11.4.276(B)/(C), gate-code declared a separate work item)
   - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down only then.

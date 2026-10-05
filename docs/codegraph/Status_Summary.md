@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-05-21 |
-| Last modified | 2026-05-21 |
+| Last modified | 2026-10-05T09:59:56Z |
 | Status | active |
-| Status summary | Operator-readable digest derived from `Status.md` per §11.4.53. Tracks the most-recent codegraph npm version, the date of the last update + sync run, and the running PASS/FAIL totals across all consuming projects' validate runs. |
+| Status summary | Operator-readable digest derived from `Status.md` per §11.4.53. Tracks the most-recent codegraph npm version, the date of the last update + sync run, and the running PASS/FAIL totals across all consuming projects' validate runs. R2 (2026-10-05, currency check): the "Current state" table's placeholders were stale — `Status.md` has carried real entries since 2026-05-21 — populated from the live ledger; "Recent significant events" filled in, including the §11.4.275 EXTENSION history backfilled into `Status.md` the same day; the `### Semgrep SAST` section is flagged as describing a REPEALED mandate (§11.4.166 was repealed by operator decision 2026-06-22, one day after that section's own "Last Checked: 2026-06-21" dates) and is CodeGraph-unrelated content that does not belong in this doc — left in place as a historical record per §11.4.11, not removed, since removal was outside this currency check's scope. |
 | Issues | none |
 | Issues summary | — |
 | Fixed | (n/a — derived doc) |
@@ -17,10 +17,10 @@
 | Metric | Value | Source |
 |---|---|---|
 | codegraph package | `@colbymchenry/codegraph` | npm |
-| Last-observed installed version | `(populated on first codegraph_update.sh run)` | `Status.md` ledger |
-| Last update timestamp (UTC) | `(populated on first run)` | `Status.md` ledger |
-| Last sync timestamp (UTC) | `(populated on first run)` | `Status.md` ledger |
-| Last validate result | `(populated on first run)` | `Status.md` ledger |
+| Last-observed installed version | `1.6.0` (upgrade to `1.6.1` has repeatedly FAILED the post-update verification per §107/§11.4, see 2026-09-29 entries in `Status.md`) | `Status.md` ledger |
+| Last update timestamp (UTC) | `2026-09-01T17:18:59Z` (last SUCCESSFUL version check at `1.6.0`; the 2026-09-29 `1.6.1` attempts all failed and rolled back) | `Status.md` ledger |
+| Last sync timestamp (UTC) | not tracked as a distinct event class in `Status.md` to date — the ledger records npm-version checks/updates only; no separate `codegraph_sync.sh` entry has been appended | `Status.md` ledger |
+| Last validate result | not tracked as a distinct event class in `Status.md` to date | `Status.md` ledger |
 | Open CodeGraph HRDs | (per consuming project; see project's `docs/Issues.md`) | — |
 
 ## Cadence compliance (per §11.4.80)
@@ -46,4 +46,12 @@ Per-project cadence audit:
 
 ## Recent significant events
 
-(summarize Status.md's most-impactful events — typically last 10 entries)
+(summary of `Status.md`'s most-impactful recent entries, newest first; see `Status.md` itself for the full append-only ledger)
+
+1. **2026-10-05 — §11.4.275 EXTENSION history backfilled.** Two 2026-09-25 rounds of real CodeGraph/Lumen work (host-adaptive V8 heap budget fixing a bulk-index OOM; the §11.4.275(D) deterministic benchmark, recall 9/11; a heap-ceiling correction from an invented 64 GiB cap to the real §12.6 `MemTotal*60/100` bound; and CodeGraph's `.mcp.json` registration via a new `--no-watch`-hardened wrapper after a stray-daemon/DB-lock forensic incident) had landed in `Constitution.md` but were never appended to this ledger — now recorded, full detail + commit hashes in `Status.md`'s `## 2026-10-05` entry.
+2. **2026-09-29 (×5, 14:46–15:27Z) — repeated `1.6.0 → 1.6.1` update FAILURES, all correctly caught.** Every attempt's post-update version check reported a mismatch (npm exited 0 while the installed version stayed `1.6.0`) and `codegraph_update.sh` refused to report success — a working anti-bluff catch (§11.4 / §107 legend), not a tooling regression; `1.6.0` remains the last-known-good installed version.
+3. **2026-09-01 through 2026-08-31 — routine `1.6.0` version checks, all no-op** (already at latest at time of check).
+4. **2026-07-17T14:46:51Z — codegraph updated `1.2.0 → 1.4.1`** via `npm install -g @colbymchenry/codegraph@1.4.1`, followed by a clean no-op check 11 minutes later.
+5. **2026-05-21T05:38–05:40Z — the ledger's founding incident.** An `0.6.8 → 0.8.0` update was first caught as a bluff (npm exit 0, installed version `unknown`), then `0.8.0` was found genuinely non-functional on Node 25.x (a V8 WASM JIT engine-range bug) and rolled back to `0.6.8`, with a follow-up HRD (`ENV-CODEGRAPH-NODE25`) opened to track when a later version becomes safe.
+
+**PASS/FAIL running total (from the ledger above, counted directly — `grep -c "^## 2026-" Status.md` = 51 event headers total, one of which is the non-numeric 2026-10-05 extension-history backfill entry, so 50 npm-version-check-class events; `grep -c "FAILED\|rolled back"` = 8):** FAIL/rollback events = 3 at the 2026-05-21 founding incident (2 bluff-caught `FAILED` checks + 1 `rolled back` entry) + 5 repeated `1.6.0 → 1.6.1` bluff-caught `FAILED` attempts (2026-09-29) = 8; successful update/no-op events = the remaining 42 of the 50 npm-event entries. This is a count of NPM-version-check outcomes only — it is NOT a `validate`-run PASS/FAIL total, since no distinct `validate` event class has been appended to the ledger to date (see "Current state" table above).

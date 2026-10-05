@@ -1,5 +1,18 @@
 # Agent Guardrails — Anti-Forgetting Enforcement (§11.4.109)
 
+| Field | Value |
+|---|---|
+| Revision | 2 |
+| Created | 2026-06-03 |
+| Last modified | 2026-10-05T09:59:56Z |
+| Status | active |
+| Status summary | §11.4.44 revision header added retroactively (2026-10-05) — the file had none despite two prior meaningful commits: initial creation (1d9e5d6, 2026-06-03, the §11.4.109 anti-forgetting preamble + pre-action checklist) and a substantive addition (4ff4985, 2026-06-22, the "CodeGraph tool selection" + "Documented-exception escape hatch" + "Hostile third-party plugin hooks" sections). Revision numbered 2 to reflect that second real content change rather than restarting at 1. Content spot-checked for currency against this session's model-substrate amendments (the 2026-09-26/2026-10-04 §11.4.209/§11.4.211 Opus-xhigh-primary + Sonnet-fallback correction): this file names no model/alias/effort pin anywhere — the SUBAGENT CONSTITUTIONAL PREAMBLE's ten numbered rules cover emulator sourcing, anti-bluff, resource caps, no-sudo, no-force-push, no-hardcoding, pre-distribute test-execution, approved remotes, CONTINUATION maintenance, and no-guessing — so no content was stale against that amendment; only the header was missing. |
+| Issues | none |
+| Issues summary | — |
+| Fixed | §11.4.44 header gap (this revision). |
+| Fixed summary | — |
+| Continuation | — |
+
 **Classification:** universal (§11.4.17) — the preamble + checklist pattern is reusable
 across any HelixConstitution-consuming project; the §-clause numbers are Lava-specific
 examples and map to `CLAUDE.md`.

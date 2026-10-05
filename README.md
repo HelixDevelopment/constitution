@@ -2,14 +2,14 @@
 
 | Field | Value |
 |---|---|
-| Revision | 4 |
+| Revision | 5 |
 | Created | 2026-05-14 |
-| Last modified | 2026-07-23T10:55:33Z |
+| Last modified | 2026-10-05T09:58:19Z |
 | Status | active |
-| Status summary | Universal engineering constitution shared by every project that includes this repository as a Git submodule. R4 refresh (2026-07-23 — the §11.4.226/§11.4.227 reopen-root-cause-harvest round; prior R3 refresh = review Minor M3): the anchor corpus now extends through §11.4.227 (§11.4.226 evidence-class-at-closure + standing detection pressure; §11.4.227 governance-corpus self-custody; §11.4.225 scheduler-quota burst-throttling telemetry) plus the §12.11/§12.12 host-safety axes, with governance mirrored in lockstep across CLAUDE.md / AGENTS.md / QWEN.md / GEMINI.md (§11.4.157); the authoritative per-round history lives in Constitution.md's own header Status summary. The previous R2 blurb (Recent additions 2026-05-20: §11.4.73–78 ...) had been stale for roughly 150 anchors. |
+| Status summary | Universal engineering constitution shared by every project that includes this repository as a Git submodule. R5 refresh (2026-10-05 — closing a ~49-anchor staleness gap the prior R4 blurb had accumulated since 2026-07-23): the anchor corpus now extends through §11.4.276 (§11.4.276 review-round budget — every independently-reviewed work item converges within a declared budget of at most 7 rounds, landed 2026-10-05 off a direct operator CRITICAL mandate about excessive review-round counts; §11.4.268–§11.4.271 the speckit 002-anti-slop-enforcement tamper-evident-evidence / critic-advisory-only / dependency-existence-verdict / waiver-mechanism quartet; §11.4.257–§11.4.267 the 2026-08-15/2026-08-20 enterprise-quality + AI-curriculum harvest rounds; §11.4.230–§11.4.254 the parallelized-pipeline, nano-precision model-tier, anti-mess orchestration, and critical-invariant/producer-verifier-separation families) plus the §12.11/§12.12 host-safety axes, with governance mirrored in lockstep across CLAUDE.md / AGENTS.md / QWEN.md / GEMINI.md (§11.4.157); the authoritative per-round history lives in Constitution.md's own header Status summary — this README's own summary is a point-in-time pointer to that history, not a substitute for it, and is expected to go stale again between refreshes (consult Constitution.md's header for the true current state). The prior R4 blurb (anchor corpus "now extends through §11.4.227", written 2026-07-23) had itself gone stale by roughly 49 anchors before this refresh — the same staleness pattern R4 had flagged in its own predecessor (the R2 blurb, stale by ~150 anchors) recurring one cycle later; readers of this file should treat the Constitution.md header as authoritative whenever the two could plausibly have drifted. |
 | Issues | none |
 | Issues summary | — |
-| Fixed | initial creation (R1, 2026-05-14); README overhaul + recent-additions refresh (R2, 2026-05-20); revision-header + recent-anchor-coverage refresh (R3, 2026-07-23 — review Minor M3 of commit 698dd52). |
+| Fixed | initial creation (R1, 2026-05-14); README overhaul + recent-additions refresh (R2, 2026-05-20); revision-header + recent-anchor-coverage refresh (R3, 2026-07-23 — review Minor M3 of commit 698dd52); revision-header + recent-anchor-coverage refresh (R4, 2026-07-23 — the §11.4.226/§11.4.227 reopen-root-cause-harvest round); revision-header + recent-anchor-coverage refresh (R5, 2026-10-05 — closing the §11.4.227→§11.4.276 staleness gap). |
 | Fixed summary | — |
 | Continuation | — |
 
