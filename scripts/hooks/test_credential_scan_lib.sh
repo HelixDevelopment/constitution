@@ -1161,6 +1161,30 @@ assert_clean "(v) doubly HTML-entity-escaped closing tag decodes to the real tag
 assert_caught "(v-neg) a real secret immediately followed by a doubly-entity-escaped HTML closing tag survives the decode+blank strip (still caught)" \
               "$WORK/bad_v_real_secret_before_double_escaped_tag.txt"
 
+# (w) carrier-strip #35: a single decode pass only resolves ONE escaping
+# level -- a TRIPLY-escaped closing tag (`&amp;lt;/code&amp;gt;`, produced
+# when a report already containing the (v)-shape DOUBLY-escaped tag is
+# itself quoted into a LATER report and re-exported to HTML a second time)
+# must still decode to the real tag carrier-strip #33 blanks, within the
+# bounded 3-pass loop. Forensic FP (2026-10-05, measured against the real
+# live docs/requests/history.html ledger): exactly this shape, surviving as
+# `API_KEY=x&lt;/code&gt;,` after the single-pass #34 fix.
+{ printf '<code>API_KEY=x'
+  printf '&amp;lt;/code&amp;gt;,\n'
+} > "$WORK/good_w_triple_escaped_tag.txt"
+assert_clean "(w) triply HTML-entity-escaped closing tag decodes (within the bounded 3-pass loop) to the real tag carrier-strip #33 already blanks" \
+             "$WORK/good_w_triple_escaped_tag.txt"
+
+# (w-neg) FALSIFYING CONTROL: a real secret already 8+ chars long BEFORE a
+# triply-escaped closing tag must still be CAUGHT once decoded and blanked
+# -- the iterative loop recovers the real tag, it does not blank the secret
+# that precedes it.
+{ printf 'api_key=hunter2hunter2Secret'
+  printf '&amp;lt;/code&amp;gt;\n'
+} > "$WORK/bad_w_real_secret_before_triple_escaped_tag.txt"
+assert_caught "(w-neg) a real secret immediately followed by a triply-entity-escaped HTML closing tag survives the decode+blank strip (still caught)" \
+              "$WORK/bad_w_real_secret_before_triple_escaped_tag.txt"
+
 echo ""
 echo "== RESULT: ${pass} passed, ${fail} failed =="
 [ "$fail" -eq 0 ]

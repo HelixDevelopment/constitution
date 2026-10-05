@@ -516,12 +516,35 @@ HELIX_CRED_ADJACENCY_AWK='
   # golden-good scenario (u) + the (real password near an email, carrying a
   # literal `&quot;` substring) golden-bad in test_credential_scan_lib.sh
   # (§11.4.107(10)).
-  gsub(/&quot;/, "\"", line)
-  gsub(/&#39;/, sprintf("%c", 39), line)
-  gsub(/&apos;/, sprintf("%c", 39), line)
-  gsub(/&lt;/, "<", line)
-  gsub(/&gt;/, ">", line)
-  gsub(/&amp;/, "\\&", line)
+  # §11.4.201 carrier-strip #35 (ITERATIVE entity-decode, bounded 3 passes).
+  # A single decode pass only resolves ONE level of HTML-entity escaping, in
+  # pipeline order -- a DOUBLY-escaped tag (`&amp;lt;/code&amp;gt;`, produced
+  # when a report already containing `&lt;/code&gt;` is itself quoted into a
+  # LATER report and re-exported to HTML) decodes the outer `&amp;` -> `&`
+  # LAST in the chain, so the newly-revealed `&lt;`/`&gt;` is never re-run
+  # through the EARLIER `&lt;`/`&gt;` rules in that same pass -- carrier strip 33 own
+  # closing-tag blank then cannot see it either, since it is still entity
+  # form. Forensic FP (2026-10-05, measured, discovered chasing #33/#34 own
+  # fix as it recursed through docs/requests/history.md live append-only
+  # §11.4.210 ledger): a status report quoting carrier strip #33 forensic text
+  # (which itself quotes `<code>API_KEY=x</code>,`) got logged, exported,
+  # QUOTED AGAIN by a later report, and exported again -- two full escape
+  # levels deep, surviving as `API_KEY=x&lt;/code&gt;,`. Looping the SAME
+  # three decode rounds (bounded at 3, not unbounded, so a pathological input
+  # cannot spin this loop forever) resolves up to 3 nesting levels; deeper
+  # nesting is an honest residual (§11.4.6) a future round extends the bound
+  # for, never silently assumed closed. Proven by golden-good scenario (w) +
+  # the (real secret behind a TRIPLE-escaped tag, still 1 level past the
+  # bound) golden-bad falsifying control (w-neg) in
+  # test_credential_scan_lib.sh (§11.4.107(10)).
+  for (_hc_pass = 0; _hc_pass < 3; _hc_pass++) {
+    gsub(/&quot;/, "\"", line)
+    gsub(/&#39;/, sprintf("%c", 39), line)
+    gsub(/&apos;/, sprintf("%c", 39), line)
+    gsub(/&lt;/, "<", line)
+    gsub(/&gt;/, ">", line)
+    gsub(/&amp;/, "\\&", line)
+  }
   # §11.4.201 carrier-strip #1: a git SSH remote URL (form git@<host>:<org>/<repo>[.git])
   # is NOT an email+password adjacency — its "email" is the conventional git@<host>
   # SSH user and its "password-shaped" token is an org/repo name that may contain
@@ -910,8 +933,12 @@ helix_cred_detector1_real_hit_stream() {
   # secret immediately followed by a doubly-entity-escaped HTML closing tag)
   # golden-bad falsifying control (v-neg) in test_credential_scan_lib.sh
   # (§11.4.107(10)).
+  # carrier-strip #35: the SAME bounded-3-pass iterative entity-decode as
+  # detector-2's awk program above (shared conceptual carrier, two mechanical
+  # implementations per §11.4.227 no-drift -- see that comment for the full
+  # double-escaping forensic argument, not duplicated here).
   _helix_cred_d1_matches="$(
-    sed -E "s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s#${HELIX_CRED_BASE64_IMAGE_CARRIER}# #g; s#${HELIX_CRED_HTML_CLOSE_TAG_CARRIER}# #g" 2>/dev/null \
+    sed -E "s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s#${HELIX_CRED_BASE64_IMAGE_CARRIER}# #g; s#${HELIX_CRED_HTML_CLOSE_TAG_CARRIER}# #g" 2>/dev/null \
       | grep -Eioa "$HELIX_CRED_VALUE_PATTERN" 2>/dev/null
   )"
   # No detector-1 match at all (after #8b) → not a real hit.
