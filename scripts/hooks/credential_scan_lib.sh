@@ -246,6 +246,35 @@ HELIX_CRED_PLACEHOLDER_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-]?
 # (+ / =) and base64url (- _) alphabets. Proven by golden-good (k).
 HELIX_CRED_BASE64_IMAGE_CARRIER='data:image/[^;]*;base64,[A-Za-z0-9+/=_-]+'
 
+# §11.4.201 carrier-strip #33 (HTML-RENDERED keyword=value, closing tag
+# absorbed into the extracted value). Forensic FP (2026-10-05, measured):
+# docs/requests/history.html -- the §11.4.65 HTML twin of docs/requests/
+# history.md -- renders a markdown-backtick-wrapped illustration
+# `` `API_KEY=x` `` as `<code>API_KEY=x</code>,`. The keyword-value branch of
+# HELIX_CRED_VALUE_PATTERN requires 8+ non-space/non-quote characters after
+# the `=`; the bare markdown illustration (`x`, 1 char) never matches on its
+# own, but `<`/`>` are not excluded from the value char class, so the HTML
+# closing tag + trailing punctuation that immediately follows in the
+# RENDERED export (`</code>,`, 8 chars) pads the SAME illustration past the
+# 8-char floor: `API_KEY=x</code>,` reads as a real secret -- a §11.4.201(1)
+# FALSE-POSITIVE REFUSAL, itself a FAIL-bluff, that exists ONLY in the
+# rendered HTML twin and not in its own markdown source.
+#
+# SAFETY -- the whole HTML closing-tag region is BLANKED before detector-1
+# runs (the SAME mechanism #8b already uses for base64 data-URIs, mirrors
+# detector-2's own carrier-strip #22 "one optional HTML end tag" tolerance
+# for the SAME markdown-to-HTML rendering class). Blanking a closing tag can
+# only ever SHORTEN an extracted value, never lengthen one, so a genuine
+# secret long enough to be real on its own (8+ chars BEFORE the tag) still
+# matches and is STILL CAUGHT once the tag is removed
+# (`api_key=hunter2hunter2</code>` blanks to `api_key=hunter2hunter2 `, still
+# 14 chars, still flagged) -- only an illustration value SHORT ENOUGH that the
+# tag itself was the only thing padding it past the floor is exempted.
+# Proven by golden-good scenario (t) + the (real secret immediately followed
+# by an HTML closing tag) golden-bad falsifying control (t-neg) in
+# test_credential_scan_lib.sh (§11.4.107(10)).
+HELIX_CRED_HTML_CLOSE_TAG_CARRIER='</[A-Za-z][A-Za-z0-9]*>'
+
 # --- Detector 2: email-adjacency plaintext-credential heuristic --------------
 # The keyword-anchored detector-1 only sees a recognised secret KEYWORD followed
 # by a value; it CANNOT see a password committed as a bare token adjacent to an
@@ -412,9 +441,87 @@ HELIX_CRED_ACCESSOR_CALL_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-
 # makes them FAIL.
 HELIX_CRED_SYMBOL_REFERENCE_CARRIER='^[A-Za-z_.-]*([Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Tt][Oo][Kk][Ee][Nn]|[Kk][Ee][Yy])s?[[:space:]]*[:=][[:space:]]*&?[A-Z][a-z]*[A-Z][A-Za-z]*(Secret|Password|Passwd|Token|Key)s?(\{\})?[,;)}]?$'
 
+# §11.4.201 carrier-strip #32 (AKIA SELF-TEST GOLDEN-BAD PLACEHOLDER LITERAL).
+# Forensic FP (2026-10-04/05, measured): docs/requests/history.md — a §11.4.208
+# append-only operator-request-history ledger — captures, verbatim, a prior
+# subagent's forensic hand-back report DISCUSSING this very scanner's own AKIA
+# detector branch and quoting, as prose analysis, the EXACT literal value this
+# file's own documentation comments (above, lines 18/178/228/242/282/357-358/826)
+# already cite as THEIR chosen golden-bad placeholder example:
+# `AKIA1234567890123456`. The AKIA branch of HELIX_CRED_VALUE_PATTERN carries no
+# keyword gate (unlike the password/secret/api_key branches), so detector-1
+# extracts the bare token with no surrounding line context to strip against, and
+# no EXISTING carrier in this pipeline is shaped to recognise one SPECIFIC named
+# literal value (every other carrier here strips a SHAPE/CLASS). The value
+# therefore survived every carrier above as a false hit: a §11.4.201(1)
+# FALSE-POSITIVE REFUSAL, itself a FAIL-bluff — refusing the very ledger entry
+# that documents this scanner's own test fixtures.
+#
+# SAFETY — NAME-anchored on the EXACT literal, start-to-end, never a shape or
+# prefix match (the narrowest carrier in this file, by design): the sixteen
+# characters after `AKIA` are PURELY SEQUENTIAL ascending digits
+# (1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6) — a form no genuine AWS-issued access-key ID
+# ever takes (real AWS key-id suffixes are base32-like pseudo-random over
+# [0-9A-Z], never a monotonic digit run, and this project's OWN other AKIA
+# golden-bad fixtures — `AKIA1234567890ABCDEF`, `AKIAIOSFODNN7...`,
+# `AKIAQ7X2M4B8N1V5C3Z9` in test_credential_scan_lib.sh — are all letter-mixed
+# and therefore untouched by this anchor). The regex is a bare `^…$` literal
+# string match with no alternation and no wildcard: a DIFFERENT 16-character
+# AKIA-shaped suffix — including one built from the SAME ten digits in a
+# different order, or carrying even a single letter, or a single digit removed
+# or added — does NOT match and is STILL CAUGHT (golden-bad falsifying
+# control). This cannot create a blind spot for a real key: it exempts exactly
+# one named constant, never a pattern class. Proven by golden-good scenario (s)
+# + the (real, non-sequential 16-char AKIA suffix) golden-bad falsifying
+# control (s-neg) in test_credential_scan_lib.sh (§11.4.107(10)).
+HELIX_CRED_AKIA_PLACEHOLDER_CARRIER='^AKIA1234567890123456$'
+
 HELIX_CRED_ADJACENCY_AWK='
 {
   line = $0
+  # §11.4.201 carrier-strip #34 (HTML-ENTITY-ENCODED quote/punctuation
+  # RECOVERY). The §11.4.65 HTML export of a markdown doc entity-encodes
+  # literal punctuation (`"` -> `&quot;`, `'"'"'` -> `&#39;` / `&apos;`,
+  # `<` -> `&lt;`, `>` -> `&gt;`, `&` -> `&amp;`), so a shell fragment that
+  # reads as a quoted variable reference in its OWN markdown source
+  # (`"$NEW_TREE"`, exempted by carrier-strip #27s `"` end-anchor) renders as
+  # `&quot;$NEW_TREE&quot;` in the HTML twin. The adjacency-window tokenizer
+  # below splits on `;` (among other delimiters), so the CLOSING `&quot;`
+  # fragments separate into their own tokens while the OPENING `&quot;`
+  # immediately before `$NEW_TREE` has no delimiter between it and the
+  # variable name in that split segment, so it glues on as `$NEW_TREE&quot`
+  # -- a shape carrier-strip #27s end-anchor does not recognise (it expects a
+  # literal `"`, not a five-character HTML entity), so the SAME shell-variable
+  # reference that is correctly exempted in markdown reads as password-shaped
+  # in HTML: a §11.4.201(1) FALSE-POSITIVE REFUSAL, itself a FAIL-bluff, that
+  # exists ONLY in the rendered export. FORENSIC (2026-10-05, measured):
+  # docs/requests/history.html quoting `git -c user.email=fastcycle-migrate@
+  # example.invalid commit-tree &quot;$NEW_TREE&quot; ...` (itself a prior
+  # subagent hand-back discussing carrier-strip #27s own forensic origin).
+  #
+  # SAFETY -- this is RECOVERY, not a strip: each entity is decoded back to
+  # the LITERAL character it represents (the real condition this whole
+  # pipeline already asserts for raw markdown), so every carrier above and
+  # below runs on the SAME text it would see in the un-rendered source --
+  # nothing is blanked or made more permissive, the pipeline is simply shown
+  # the real quote mark its own markdown source always had. A real password
+  # that happens to be spelled with the literal five-character substring
+  # `&quot;` (vanishingly unlikely, and already handled identically in the
+  # markdown source since the entity decodes to the SAME shape a markdown
+  # leak already has) is unaffected -- no detection narrows. `&amp;` decodes
+  # LAST (via the `\&`-escaped gsub replacement, so a literal ampersand is
+  # inserted rather than gsubs own matched-text substitution) so a
+  # doubly-escaped `&amp;quot;` (a literal ampersand followed by literal text
+  # `quot;` in the source) does not spuriously decode into a quote. Proven by
+  # golden-good scenario (u) + the (real password near an email, carrying a
+  # literal `&quot;` substring) golden-bad in test_credential_scan_lib.sh
+  # (§11.4.107(10)).
+  gsub(/&quot;/, "\"", line)
+  gsub(/&#39;/, sprintf("%c", 39), line)
+  gsub(/&apos;/, sprintf("%c", 39), line)
+  gsub(/&lt;/, "<", line)
+  gsub(/&gt;/, ">", line)
+  gsub(/&amp;/, "\\&", line)
   # §11.4.201 carrier-strip #1: a git SSH remote URL (form git@<host>:<org>/<repo>[.git])
   # is NOT an email+password adjacency — its "email" is the conventional git@<host>
   # SSH user and its "password-shaped" token is an org/repo name that may contain
@@ -775,9 +882,10 @@ helix_cred_detector1_real_hit_stream() {
   # secret would pass CLEAN at the pre-commit seam where the old raw `grep -Eiq`
   # caught it (§11.4.201(2) false negative — Fable review B2, proven). #8a stays
   # tight (it strips only whole placeholder-shaped tokens, `$`-anchored), so `-a`
-  # cannot weaken real-secret detection. #8b (data-URI blank) runs first.
+  # cannot weaken real-secret detection. #8b (data-URI blank) and #33 (HTML
+  # closing-tag blank) run first.
   _helix_cred_d1_matches="$(
-    sed -E "s#${HELIX_CRED_BASE64_IMAGE_CARRIER}# #g" 2>/dev/null \
+    sed -E "s#${HELIX_CRED_BASE64_IMAGE_CARRIER}# #g; s#${HELIX_CRED_HTML_CLOSE_TAG_CARRIER}# #g" 2>/dev/null \
       | grep -Eioa "$HELIX_CRED_VALUE_PATTERN" 2>/dev/null
   )"
   # No detector-1 match at all (after #8b) → not a real hit.
@@ -798,7 +906,8 @@ helix_cred_detector1_real_hit_stream() {
       | grep -Eiv "$HELIX_CRED_ENV_LOOKUP_CARRIER" 2>/dev/null \
       | grep -Eiv "$HELIX_CRED_ACCESSOR_CALL_CARRIER" 2>/dev/null \
       | grep -Ev  "$HELIX_CRED_SYMBOL_REFERENCE_CARRIER" 2>/dev/null \
-      | grep -Eiv "$HELIX_CRED_FALLBACK_PLACEHOLDER_CARRIER" 2>/dev/null || true
+      | grep -Eiv "$HELIX_CRED_FALLBACK_PLACEHOLDER_CARRIER" 2>/dev/null \
+      | grep -Ev  "$HELIX_CRED_AKIA_PLACEHOLDER_CARRIER" 2>/dev/null || true
   )"
   case "$_helix_cred_d1_survivors" in
     *[![:space:]]*) return 0 ;;   # a real (non-placeholder) secret survived

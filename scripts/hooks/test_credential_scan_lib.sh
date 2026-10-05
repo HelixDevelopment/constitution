@@ -1075,6 +1075,72 @@ EOF
 assert_caught "(r-neg) ssh://git@<host>/<secret> with no org/repo split survives the ssh-URL-form strip (still caught)" \
               "$WORK/bad_r_ssh_url_single_segment.txt"
 
+# (s) §11.4.201 carrier-strip #32: this scanner's own documented golden-bad
+# AKIA placeholder literal (`AKIA1234567890123456` -- the same value already
+# cited throughout this scanner's own doc comments and quoted, as prose
+# discussing this very detector, inside docs/requests/history.md's §11.4.208
+# ledger) must not itself be flagged as a real hit. Built via printf (split
+# across two args, mirroring the (2)/bad_2_akia.txt self-exempt technique
+# above) so this test file's OWN source never carries the literal token
+# contiguous on one physical line.
+{ printf 'The documented golden-bad placeholder value is `AKIA'
+  printf '1234567890123456`, quoted here as prose.\n'
+} > "$WORK/good_s_akia_doc_placeholder.txt"
+assert_clean "(s) this scanner's own documented AKIA placeholder literal, quoted in prose (never a working credential)" \
+             "$WORK/good_s_akia_doc_placeholder.txt"
+
+# (s-neg) FALSIFYING CONTROL: carrier-strip #32 is anchored on the EXACT
+# sequential-digit literal only -- a DIFFERENT, non-sequential 16-char AKIA
+# suffix (a realistic key shape) must still be CAUGHT.
+{ printf 'leaked: AKIA'
+  printf '9Q2X7M4B8N1V5C3Z\n'
+} > "$WORK/bad_s_akia_real_shape.txt"
+assert_caught "(s-neg) a different, non-sequential 16-char AKIA suffix survives the exact-literal strip (still caught)" \
+              "$WORK/bad_s_akia_real_shape.txt"
+
+# (t) §11.4.201 carrier-strip #33: an HTML-rendered markdown illustration
+# (`` `API_KEY=x` `` -> `<code>API_KEY=x</code>,`) whose closing tag +
+# trailing punctuation pads the 1-char value past detector-1's 8-char floor
+# must not itself be flagged as a real hit. Built via printf (split across
+# two args) so this test file's OWN source never carries the keyword=value
+# plus absorbed closing-tag shape contiguous on one physical line.
+{ printf '<code>API_KEY=x'
+  printf '</code>,\n'
+} > "$WORK/good_t_html_tag_absorbed.txt"
+assert_clean "(t) HTML-rendered keyword=value whose closing tag pads a short markdown illustration past the detector floor (never a working credential)" \
+             "$WORK/good_t_html_tag_absorbed.txt"
+
+# (t-neg) FALSIFYING CONTROL: carrier-strip #33 only BLANKS the closing tag
+# before extraction -- a genuine secret already 8+ chars long BEFORE the tag
+# must still be CAUGHT once the tag is removed.
+{ printf 'api_key=hunter2hunter2Secret'
+  printf '</code>\n'
+} > "$WORK/bad_t_real_secret_before_tag.txt"
+assert_caught "(t-neg) a real secret immediately followed by an HTML closing tag survives the tag-blank strip (still caught)" \
+              "$WORK/bad_t_real_secret_before_tag.txt"
+
+# (u) §11.4.201 carrier-strip #34: an HTML-entity-encoded quoted shell
+# variable reference (`&quot;$NAME&quot;`, the rendered form of a markdown
+# `"$NAME"` carrier-strip #27 already exempts) adjacent to an email must
+# decode to the SAME shape its markdown source already exempts, not read as
+# password-shaped. Built via printf (split across two args, mirroring the
+# (s)/(s-neg) self-exempt technique above).
+{ printf 'git -c user.email=fastcycle-migrate@example.invalid commit-tree &quot;$NEW_TREE&quot; '
+  printf '...\n'
+} > "$WORK/good_u_html_entity_quoted_var.txt"
+assert_clean '(u) HTML-entity-encoded quoted shell-variable reference adjacent to an email decodes to the same shape its markdown source already exempts' \
+             "$WORK/good_u_html_entity_quoted_var.txt"
+
+# (u-neg) FALSIFYING CONTROL: carrier-strip #34 only RECOVERS the literal
+# punctuation an entity represents -- a genuine password wrapped in the SAME
+# HTML-entity quotes, adjacent to an email, must still be CAUGHT once
+# decoded (it is not a `$NAME` shell-variable reference).
+{ printf 'user@company.com : &quot;Hunter2Secret'
+  printf '99&quot;\n'
+} > "$WORK/bad_u_real_password_quoted_entity.txt"
+assert_caught "(u-neg) a real password wrapped in HTML-entity quotes adjacent to an email survives the entity-decode recovery (still caught)" \
+              "$WORK/bad_u_real_password_quoted_entity.txt"
+
 echo ""
 echo "== RESULT: ${pass} passed, ${fail} failed =="
 [ "$fail" -eq 0 ]
