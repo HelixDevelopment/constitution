@@ -156,3 +156,24 @@ CM-COVENANT-114-232-PROPAGATION	11.4.232
 # (§11.4.201(7)(b)).
 CM-COVENANT-114-275-PROPAGATION	11.4.275
 CM-COVENANT-114-276-PROPAGATION	11.4.276
+#
+# --- §11.4.157 lockstep-gap remediation, 2026-10-05 ---------------------------
+# §11.4.272 / §11.4.273 / §11.4.274 landed in Constitution.md on 2026-09-07/08
+# with no corresponding compact carrier block in CLAUDE.md / AGENTS.md /
+# QWEN.md / GEMINI.md and no registered propagation gate — a genuine
+# §11.4.157 lockstep violation discovered ahead of the helixconstitution-v69
+# tag. The compact blocks were authored (matching the §11.4.275/§11.4.276
+# compact-paragraph convention) and landed byte-identically across all four
+# mirrors BEFORE these rows were added. CONFIRMED BEFORE each row below
+# landed, by the same T029 procedure used for Batch 3/BOB-237: run through
+# this very engine against a scratch one-row data pack over
+# /mnt/track1/atmosphere-t1 (the main-repo root, using the repo's own
+# config/covenant_propagation_exclusions.tsv) each returned rc=0 with 4
+# single-block-PRESENT (AGENTS/CLAUDE/GEMINI/QWEN), 145 POINTER-INHERITANCE-
+# SKIP, 0 MISSING/DUPLICATED, 0 DIVERGENT. Control needle: the already-
+# registered anchor 271 through the identical path (root + exclusions)
+# returned the SAME 4 PRESENT / 145 SKIP / 0 MISSING / rc=0, proving the
+# instrument was not blind (§11.4.201(7)(b)).
+CM-COVENANT-114-272-PROPAGATION	11.4.272
+CM-COVENANT-114-273-PROPAGATION	11.4.273
+CM-COVENANT-114-274-PROPAGATION	11.4.274
