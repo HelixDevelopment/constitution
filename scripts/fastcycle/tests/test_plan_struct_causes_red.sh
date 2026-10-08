@@ -308,18 +308,39 @@ field() {
 # a quiet "none" (R2-04).
 #
 # DIVERGENCE_ALLOWLIST: research.md §2.1 has not yet been synced to register v2 for these rows
-# (plan.md Revision 4: "tracked as a mechanical sync follow-up"). Each entry names its tracking
-# state; when research.md is synced the entry becomes stale and this check fails until it is
-# removed. tracking: pending conductor registration (no tracked item id exists yet).
+# (plan.md Revision 4: "tracked as a mechanical sync follow-up"). Each entry names the tracked
+# workable item that owns the sync -- ATM-1129 ("SpecKit-004 research.md sync: 2.1 rows RC-11/RC-42
+# UNDETERMINED vs plan.md CONFIRMED"). The id is not trusted as prose (R3-03): every value must be
+# an `ATM-<n>` id that resolves to an `## ATM-<n> ` heading in the consuming project's
+# docs/Issues.md (the third argument), else the check fails. When research.md is synced the entry
+# becomes stale and this check fails until it is removed.
 cat > "$TMP/divergence.py" <<'PY'
 import re, sys
 ALLOWLIST = {
-    "RC-11": "tracking: pending conductor registration",
-    "RC-42": "tracking: pending conductor registration",
+    "RC-11": "ATM-1129",
+    "RC-42": "ATM-1129",
 }
 CLASSES = ("CONFIRMED", "REFUTED", "UNDETERMINED")
 plan_path, research_path = sys.argv[1], sys.argv[2]
+issues_path = sys.argv[3] if len(sys.argv) > 3 else None
 problems = []
+# R3-03: every allowlist entry must name a tracked item that exists in the tracker.
+if not issues_path:
+    problems.append("no docs/Issues.md given: the allowlist's tracking ids cannot be resolved")
+else:
+    try:
+        issue_heads = set(re.findall(r"(?m)^## (ATM-[0-9]+)\b", open(issues_path, encoding="utf-8").read()))
+    except (OSError, UnicodeDecodeError) as exc:
+        issue_heads = None
+        problems.append("cannot read %s: %s" % (issues_path, exc))
+    if issue_heads is not None:
+        if not issue_heads:
+            problems.append("%s has no '## ATM-<n>' heading at all -- the tracker read is blind" % issues_path)
+        for rid, track in sorted(ALLOWLIST.items()):
+            if not re.fullmatch(r"ATM-[0-9]+", track):
+                problems.append("allowlist entry %s: tracking %r is not an ATM-<n> id" % (rid, track))
+            elif track not in issue_heads:
+                problems.append("allowlist entry %s: tracking id %s is not an open item in %s" % (rid, track, issues_path))
 research = {}
 for l in open(research_path, encoding="utf-8"):
     c = l.split("|")
@@ -367,7 +388,8 @@ for p in problems:
     print("PROBLEM " + p)
 sys.exit(1 if problems else 0)
 PY
-divergence_check() { python3 "$TMP/divergence.py" "$1" "$2"; }
+ISSUES_LIVE="$ROOT/docs/Issues.md"
+divergence_check() { python3 "$TMP/divergence.py" "$1" "$2" "${3:-$ISSUES_LIVE}"; }
 
 # --- (2) Fixture self-check: all four fixtures + their `expected` files exist ---
 for fx in golden-good golden-bad-no-class golden-bad-orphan golden-bad-count-mismatch; do
@@ -652,6 +674,38 @@ PY
       echo "NOT ok (7b) divergence check PASSED with an unreadable plan.md"; failx
     else
       echo "ok (7b) divergence check fails when plan.md cannot be read"
+    fi
+    # R3-03: the allowlist's tracking ids must resolve in the tracker. (i) an Issues.md copy
+    # without the ATM-1129 heading; (ii) an unreadable Issues.md; (iii) an Issues.md with no item
+    # heading at all (a blind tracker read); (iv) the pre-R3-03 prose value ("tracking: pending
+    # conductor registration") restored in a mutated copy of the checker. Each must fail.
+    if [ -f "$ISSUES_LIVE" ] && grep -q '^## ATM-1129 ' "$ISSUES_LIVE"; then
+      echo "ok (7b) R3-03 control needle: $ISSUES_LIVE carries the '## ATM-1129 ' heading"
+      grep -v '^## ATM-1129 ' "$ISSUES_LIVE" > "$TMP/div/issues_no1129.md"
+      printf '# Issues\n\nno item headings here\n' > "$TMP/div/issues_blind.md"
+      for _case in "issues_no1129.md:is not an open item" "no_such_issues.md:cannot read" \
+                   "issues_blind.md:has no '## ATM-<n>' heading"; do
+        _i=${_case%%:*}; _want=${_case#*:}
+        if divergence_check "$TMP/div/plan_same.md" "$TMP/div/research_same.md" "$TMP/div/$_i" > "$TMP/div/out.txt" 2>&1; then
+          echo "NOT ok (7b) R3-03 divergence check PASSED with tracker $_i -- it cannot see '$_want'"; failx
+        elif grep -qF -- "$_want" "$TMP/div/out.txt"; then
+          echo "ok (7b) R3-03 divergence check fails with tracker $_i, naming '$_want'"
+        else
+          echo "NOT ok (7b) R3-03 divergence check failed with tracker $_i but did not name '$_want': $(tr '\n' ' ' < "$TMP/div/out.txt")"; failx
+        fi
+      done
+      sed 's/"RC-11": "ATM-1129",/"RC-11": "tracking: pending conductor registration",/' "$TMP/divergence.py" > "$TMP/div/divergence_prose.py"
+      if cmp -s "$TMP/divergence.py" "$TMP/div/divergence_prose.py"; then
+        echo "NOT ok (7b) R3-03 could not build the prose-tracking mutant (target text absent)"; failx
+      elif python3 "$TMP/div/divergence_prose.py" "$TMP/div/plan_same.md" "$TMP/div/research_same.md" "$ISSUES_LIVE" > "$TMP/div/out.txt" 2>&1; then
+        echo "NOT ok (7b) R3-03 a prose tracking value passed the divergence check"; failx
+      elif grep -qF "is not an ATM-<n> id" "$TMP/div/out.txt"; then
+        echo "ok (7b) R3-03 a prose tracking value fails the divergence check"
+      else
+        echo "NOT ok (7b) R3-03 prose mutant failed for another reason: $(tr '\n' ' ' < "$TMP/div/out.txt")"; failx
+      fi
+    else
+      echo "NOT ok (7b) R3-03 control needle: $ISSUES_LIVE absent or has no '## ATM-1129 ' heading"; failx
     fi
   fi
 fi

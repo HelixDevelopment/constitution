@@ -3,7 +3,9 @@
 #           round-1). Each mutation re-introduces one real defect into a COPY of
 #           scripts/commit_all.sh -- the reviewer's MA / MB / MG verbatim in intent, plus the
 #           fixer's own for every new fix (exit flush, env leak, source-only suppression,
-#           dry-run network read-back, aggregate-rc push result) -- runs the UNMODIFIED test
+#           dry-run network read-back, aggregate-rc push result) and the round-3 reviewer's
+#           CN1..CN4 (child exit flush, ls-remote bound, UNKNOWN tip, tips on a failed push)
+#           verbatim in intent -- runs the UNMODIFIED test
 #           against that copy (FC_COMMIT_STAGE_COMMIT_ALL), and requires a non-zero exit AND a
 #           "NOT ok" line naming the expected scenario: a mutant killed for an unrelated reason
 #           does not count.
@@ -105,6 +107,28 @@ rmut MXm6 "J: rc=" \
 # Fixer MX-env: the detached child no longer receives the run binding (rows land elsewhere).
 rmut MXenv "B: the default (detached) push path never wrote" \
   'nohup env FC_TIMER_TSV="${FC_TIMER_TSV:-}" FC_TIMER_RUN_ID="${FC_TIMER_RUN_ID:-}"' 'nohup env FC_TIMER_RUN_ID="${FC_TIMER_RUN_ID:-}"'
+
+# Round-3 reviewer CN1: the detached child no longer installs its exit flush.
+rmut CN1 "L: the detached child died mid-frame" \
+  '        if [ -f "$_fc_lib" ]; then
+            . "$_fc_lib"
+            fc_timer_install_exit_flush
+        fi' '        if [ -f "$_fc_lib" ]; then
+            . "$_fc_lib"
+        fi'
+# Round-3 reviewer CN2: the ls-remote read-back is no longer time-bounded.
+rmut CN2 "N: elapsed" \
+  'tip="$(timeout "${FC_LS_REMOTE_TIMEOUT_S:-15}" git -C "$AOSP_ROOT" ls-remote' \
+  'tip="$(git -C "$AOSP_ROOT" ls-remote'
+# Round-3 reviewer CN3: an UNKNOWN (unreachable) tip is recorded result=ok.
+rmut CN3 "M: unreachable upstream row" \
+  '*) if [ -n "$local_tip" ] && [ "$tip" = "$local_tip" ]; then result=ok; else result=tip_mismatch; fi ;;' \
+  '*) if [ "$tip" = UNKNOWN ] || { [ -n "$local_tip" ] && [ "$tip" = "$local_tip" ]; }; then result=ok; else result=tip_mismatch; fi ;;'
+# Round-3 reviewer CN4: the detached child records per-remote tips only when the push succeeded.
+rmut CN4 "M: a FAILED detached push recorded no per-remote rows" \
+  '        _fc_record_remote_tips "$_br" post-push
+        exit "$_rc"' '        [ "$_rc" -eq 0 ] && _fc_record_remote_tips "$_br" post-push
+        exit "$_rc"'
 
 echo
 if [ "$fail" = 0 ]; then echo "=== COMMIT STAGE TIMER MUTATIONS: ALL KILLED ==="; else echo "=== COMMIT STAGE TIMER MUTATIONS: SURVIVORS ABOVE ==="; fi

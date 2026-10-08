@@ -323,19 +323,26 @@ fi
 # Each check drives the REAL tool through its real CLI against a small git repository built here,
 # with exact expected citation sets per source. The same harness is re-run in Step E against
 # mutated copies of the tool; a mutation that leaves every check green is an unguarded behaviour.
+#
+# Error-site coverage is DERIVED, not listed by hand (R3-02, the class of R1 F4 / R2-03 / R3-02:
+# reviewer mutants that disable an error path kept surviving because the fixture list was written
+# one finding at a time). The tool phrases every BLIND error through `_site("E_CODE", ...)`; the
+# harness records every "[E_CODE]" it OBSERVES across all its runs, and Step D2 below enumerates
+# every `_site(...)` call in the tool's source with an AST walk and fails if any code was not
+# observed by a fixture. A new error site added without a fixture therefore fails this test.
 FX_ROOT="$TMP/fx"
 mkdir -p "$FX_ROOT"
 python3 - "$FX_ROOT" > "$TMP/fx_build.out" 2>&1 <<'PY'
-import os, sqlite3, subprocess, sys, json
+import hashlib, os, sqlite3, subprocess, sys, json, shutil
 root = sys.argv[1]
 repo = os.path.join(root, "repo")
 os.makedirs(repo)
 env = dict(os.environ, GIT_AUTHOR_NAME="fx", GIT_AUTHOR_EMAIL="fx@example.invalid",
            GIT_COMMITTER_NAME="fx", GIT_COMMITTER_EMAIL="fx@example.invalid",
            GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null")
-def git(*a, date="2026-01-01T00:00:00"):
+def git(*a, date="2026-01-01T00:00:00", r=repo):
     e = dict(env, GIT_AUTHOR_DATE=date, GIT_COMMITTER_DATE=date)
-    return subprocess.run(["git", "-C", repo] + list(a), env=e, check=True, capture_output=True, text=True).stdout
+    return subprocess.run(["git", "-C", r] + list(a), env=e, check=True, capture_output=True, text=True).stdout
 git("init", "-q", "-b", "main")
 def commit(msg, date="2026-01-01T00:00:00"):
     git("commit", "-q", "--allow-empty", "-m", msg, date=date)
@@ -360,6 +367,20 @@ commit("fix(ATM-1): tidy\n\nalso noted against ATM-7 per 11.4.26\nand more prose
 commit("docs(ATM-1/§11.4.27): diary for ATM-1, and ATM-8 follow-up per 11.4.28")
 # R2-01: a section-signed citation of an id the fixture index does not have.
 commit("fix(ATM-1): cite unindexed per §11.4.34")
+# R3-02 Y4: a JOINT scope naming two items rescues nothing (11.4.60 is credited to neither).
+commit("fix(ATM-1/ATM-9/§11.4.60): joint scope names two items")
+# R3-02 Y3b: a multi-owner commit (trailer names ATM-9) whose SUBJECT line names only ATM-1: the
+# subject line credits 11.4.61 and the scope rescue must not count it a second time.
+commit("fix(ATM-1/§11.4.61): subject names only this item\n\nRefs: ATM-9")
+# R3-02 Y10: a section-signed unindexed id on ANOTHER item's line of a multi-owner commit is that
+# item's, so it is not counted in unindexed_section_signed.
+commit("fix(ATM-1): joint with ATM-12\n\nATM-12 note per §11.4.35")
+# R3-06: "§2.1 rows K/L" / "§2.1 row M" are another document's table rows, never citations.
+commit("fix(ATM-1): per §11.4.62, see the inventory §2.1 rows K/L and §2.1 row M")
+# R3-07: a line naming this item AND another, in a commit only this item owns, is credited (sized).
+commit("fix(ATM-1): tidy two\n\nATM-1 with ATM-7 per 11.4.63")
+# R3-06 positive control: a real constitution citation of §2.1 is still a citation.
+commit("fix(ATM-14): per Constitution §2.1 multi-upstream")
 os.makedirs(os.path.join(repo, "docs", "issues", "ATM-1"))
 with open(os.path.join(repo, "docs", "issues", "ATM-1", "Reopens.md"), "w", encoding="utf-8") as fh:
     fh.write("reopened per §11.4.30\n")
@@ -374,6 +395,8 @@ db.executemany("INSERT INTO items VALUES (?,?,?,?,?,?)", [
     ("ATM-1", "Fixed", "closed per 11.4.40", None, None, None),
     ("ATM-5", "Issues", "open per 11.4.41", None, None, None),
     ("ATM-6", None, "unknown location per 11.4.42", None, None, None),
+    # R3-02 Y8: a lower-case id in the DB is the same item (the tool matches ignoring case).
+    ("atm-11", "Fixed", "closed per 11.4.61", None, None, None),
 ])
 db.commit(); db.close()
 rev = os.path.join(root, "reviews"); os.makedirs(rev)
@@ -405,24 +428,54 @@ json.dump({"schema": "review-record/v1", "item_id": "ATM-1", "substrate_evidence
 os.chmod(unread, 0)
 symd = os.path.join(root, "reviews_symlinkdir"); os.makedirs(symd)
 os.symlink(rev, os.path.join(symd, "linked"))
-ids = ["7.1", "9.1", "9.2", "11.4", "11.4.1", "11.4.5", "11.4.6", "11.4.13", "11.4.20", "11.4.21", "11.4.22",
-       "11.4.23", "11.4.24", "11.4.25", "11.4.26", "11.4.27", "11.4.28", "11.4.30", "11.4.31", "11.4.32",
-       "11.4.33", "11.4.40", "11.4.41", "11.4.42", "11.4.50", "11.4.51", "11.4.52",
+# R3-02 Y6/Y16: a record file that exists but cannot be read (a dangling symlink named x.json).
+dangrev = os.path.join(root, "reviews_dangling"); os.makedirs(dangrev)
+os.symlink(os.path.join(dangrev, "no_such_target.json"), os.path.join(dangrev, "x.json"))
+ids = ["2.1", "7.1", "9.1", "9.2", "11.4", "11.4.1", "11.4.5", "11.4.6", "11.4.13", "11.4.20", "11.4.21",
+       "11.4.22", "11.4.23", "11.4.24", "11.4.25", "11.4.26", "11.4.27", "11.4.28", "11.4.30", "11.4.31",
+       "11.4.32", "11.4.33", "11.4.40", "11.4.41", "11.4.42", "11.4.50", "11.4.51", "11.4.52",
+       "11.4.60", "11.4.61", "11.4.62", "11.4.63", "11.4.64",
        "11.4.77", "11.4.99", "11.4.108", "11.4.143", "11.4.200"]
-with open(os.path.join(root, "index.yaml"), "w") as fh:
-    fh.write("generated_from:\n  source: docs/Constitution.md\nanchors:\n"
-             + "".join("- id: '%s'\n  title: t\n" % i for i in ids))
 # R2-01: the constitution the index was generated from. One heading uses the bare `### 7.1 Title`
-# form (no section sign) -- the real Constitution.md's `### 1.1` / `### 2.1` headings use it.
+# form (no section sign) -- the real Constitution.md's `### 1.1` / `### 2.1` headings use it. One
+# anchor (11.4.64) is opened only in BOLD form, as 27 of the real index's ids are (R3-04): the
+# heading cross-check cannot see it, so it is counted in index_ids_not_heading_form.
 def constitution_text(extra=""):
-    return "# Constitution\n\n" + "".join(
-        ("### %s Title\n\nbody\n\n" if i == "7.1" else "### §%s — Title\n\nbody\n\n") % i for i in ids) + extra
-open(os.path.join(repo, "docs", "Constitution.md"), "w", encoding="utf-8").write(constitution_text())
+    out = "# Constitution\n\n"
+    for i in ids:
+        if i == "7.1":
+            out += "### %s Title\n\nbody\n\n" % i
+        elif i == "11.4.64":
+            out += "**§%s — Bold-only anchor**\n\nbody\n\n" % i
+        else:
+            out += "### §%s — Title\n\nbody\n\n" % i
+    return out + extra
+const = constitution_text()
+open(os.path.join(repo, "docs", "Constitution.md"), "w", encoding="utf-8").write(const)
+sha = hashlib.sha256(const.encode("utf-8")).hexdigest()
+def index_text(gen=True, with_sha=True, id_list=ids):
+    head = ""
+    if gen:
+        head = "generated_from:\n  source: docs/Constitution.md\n" + ("  source_sha256: %s\n" % sha if with_sha else "")
+    return head + "anchors:\n" + "".join("- id: '%s'\n  title: t\n" % i for i in id_list)
+open(os.path.join(root, "index.yaml"), "w").write(index_text())
+# R3-02 Y14: an index that records no generated_from block (and no --constitution is given).
+open(os.path.join(root, "index_nogen.yaml"), "w").write(index_text(gen=False))
+# R3-04: an index without the source checksum, and one with zero ids (E_INDEX_EMPTY).
+open(os.path.join(root, "index_nosha.yaml"), "w").write(index_text(with_sha=False))
+open(os.path.join(root, "index_empty.yaml"), "w").write(index_text(id_list=[]))
 # A later Constitution.md that gained an anchor the (now stale) index does not have.
 open(os.path.join(root, "constitution_new.md"), "w", encoding="utf-8").write(
     constitution_text("### §11.4.34 — Added after the index was generated\n\nbody\n"))
+# R3-04 (the reviewer's probe): a bold-form anchor appended -- every heading is unchanged, so only
+# the checksum can see that the index is stale.
+open(os.path.join(root, "constitution_bold_added.md"), "w", encoding="utf-8").write(
+    constitution_text("**§11.4.299 — Added in bold form after the index**\n\nbody\n"))
+# An extractor control-needle failure: a Constitution.md with no numbered heading at all.
+open(os.path.join(root, "constitution_noheads.md"), "w", encoding="utf-8").write("# Constitution\n\nno anchors\n")
+# A directory that is not a git working tree (E_REPO_NOT_GIT).
+os.makedirs(os.path.join(root, "not_a_repo"))
 # A copy of the repository whose ROOT commit object is deleted: `git log` fails part-way (F3).
-import shutil
 broken = os.path.join(root, "repo_broken")
 shutil.copytree(repo, broken)
 obj = os.path.join(broken, ".git", "objects", root_sha[:2], root_sha[2:])
@@ -437,27 +490,58 @@ c = sqlite3.connect(os.path.join(baddb, "docs", "workable_items.db")); c.execute
 dangl = os.path.join(root, "repo_diary_dangling"); shutil.copytree(repo, dangl)
 os.unlink(os.path.join(dangl, "docs", "issues", "ATM-1", "Reopens.md"))
 os.symlink(os.path.join(dangl, "no_such_target"), os.path.join(dangl, "docs", "issues", "ATM-1", "Reopens.md"))
+# R3-02 E_GIT_RUN: a commit message that is not valid UTF-8 -- git log's output cannot be decoded.
+# `git commit` re-encodes a non-UTF-8 message, so the raw commit object is written directly.
+badutf = os.path.join(root, "repo_badutf8"); shutil.copytree(repo, badutf)
+tree = git("rev-parse", "HEAD^{tree}", r=badutf).strip()
+parent = git("rev-parse", "HEAD", r=badutf).strip()
+raw = ("tree %s\nparent %s\nauthor fx <fx@example.invalid> 1767225600 +0000\n"
+       "committer fx <fx@example.invalid> 1767225600 +0000\n\n" % (tree, parent)).encode() + b"fix(ATM-1): raw \xff\xfe bytes\n"
+newc = subprocess.run(["git", "-C", badutf, "hash-object", "-t", "commit", "-w", "--stdin"], input=raw,
+                      env=env, check=True, capture_output=True).stdout.decode().strip()
+git("update-ref", "HEAD", newc, r=badutf)
+# R3-02 Y17 (E_DIARY_LIST): docs/issues exists but cannot be listed (it is a regular file).
+issfile = os.path.join(root, "repo_issues_file"); shutil.copytree(repo, issfile)
+shutil.rmtree(os.path.join(issfile, "docs", "issues"))
+open(os.path.join(issfile, "docs", "issues"), "w").write("not a directory\n")
+# R3-02 Y7 (E_DIARY_AMBIGUOUS): two diary directories differing only in case.
+amb = os.path.join(root, "repo_diary_ambiguous"); shutil.copytree(repo, amb)
+os.makedirs(os.path.join(amb, "docs", "issues", "atm-1"))
+open(os.path.join(amb, "docs", "issues", "atm-1", "Reopens.md"), "w").write("other per §11.4.31\n")
+# R3-02 E_FIXED_READ: docs/Fixed.md exists but cannot be read (it is a directory).
+fixdir = os.path.join(root, "repo_fixed_dir"); shutil.copytree(repo, fixdir)
+os.unlink(os.path.join(fixdir, "docs", "Fixed.md")); os.makedirs(os.path.join(fixdir, "docs", "Fixed.md"))
+# R3-02 E_DB_OPEN: docs/workable_items.db exists (lexists) but cannot be opened (dangling symlink).
+dbdang = os.path.join(root, "repo_db_dangling"); shutil.copytree(repo, dbdang)
+os.unlink(os.path.join(dbdang, "docs", "workable_items.db"))
+os.symlink(os.path.join(dbdang, "no_such.db"), os.path.join(dbdang, "docs", "workable_items.db"))
 print("built")
 PY
 if [ "$(tail -n 1 "$TMP/fx_build.out")" = "built" ]; then ok "Step D fixture repository built"
 else bad "Step D fixture repository could not be built: $(cat "$TMP/fx_build.out")"; fi
 
 cat > "$TMP/harness.py" <<'PY'
-# Behaviour harness: argv = <impl> <fixture root>. Prints PASS:/FAIL: lines; exit = FAIL count (capped).
-import json, os, subprocess, sys
+# Behaviour harness: argv = <impl> <fixture root>. Prints PASS:/FAIL: lines, then one
+# "OBSERVED-CODES:" line (every [E_CODE] seen in any run's source_errors or stderr) and one
+# "UNEXERCISED-CODES:" line (codes this environment cannot exercise, with the reason).
+# Exit = FAIL count (capped).
+import json, os, re, subprocess, sys
 impl, fx = sys.argv[1], sys.argv[2]
 repo, index, rev = os.path.join(fx, "repo"), os.path.join(fx, "index.yaml"), os.path.join(fx, "reviews")
 out = os.path.join(fx, "h_out.json")
 fails = 0
+observed = set()
+unexercised = {}
+CODE_RE = re.compile(r"\[(E_[A-Z][A-Z_]*)\]")
 def check(cond, label):
     global fails
     print(("PASS: " if cond else "FAIL: ") + label)
     if not cond:
         fails += 1
-def run(*extra, item="ATM-1", r=repo, review=rev, extra_kw=None):
+def run(*extra, item="ATM-1", r=repo, review=rev, extra_kw=None, idx=None):
     if os.path.exists(out):
         os.unlink(out)
-    argv = ["python3", impl, "--item-id", item, "--repo", r, "--anchor-index", index, "--out", out]
+    argv = ["python3", impl, "--item-id", item, "--repo", r, "--anchor-index", idx or index, "--out", out]
     if review is not None:
         argv += ["--review-records", review]
     p = subprocess.run(argv + list(extra) + list(extra_kw or []), capture_output=True, text=True)
@@ -467,6 +551,9 @@ def run(*extra, item="ATM-1", r=repo, review=rev, extra_kw=None):
             doc = json.load(open(out, encoding="utf-8"))
         except ValueError:
             doc = None
+    observed.update(CODE_RE.findall(p.stderr))
+    for e in (doc or {}).get("source_errors") or []:
+        observed.update(CODE_RE.findall(e))
     return p.returncode, doc, p.stderr
 def by_source(doc, src):
     return sorted({c["anchor_id"] for c in (doc or {}).get("citations", []) if c.get("source") == src})
@@ -474,22 +561,30 @@ def by_source(doc, src):
 rc, doc, err = run()
 check(rc == 0 and doc is not None, "D0 clean run exits 0 and writes --out (rc=%s err=%s)" % (rc, err.strip()[-200:]))
 commit = by_source(doc, "commit")
-check(commit == sorted(["11.4.108", "9.1", "9.2", "11.4.6", "11.4.5", "11.4.99", "11.4.25", "11.4.27"]),
-      "D1 commit citations exact (F1/F2/A1/A2, R2-03 N4/N5, R2-06 scope rescue): %s" % commit)
+check(commit == sorted(["11.4.108", "9.1", "9.2", "11.4.6", "11.4.5", "11.4.99", "11.4.25", "11.4.27",
+                        "11.4.61", "11.4.62", "11.4.63"]),
+      "D1 commit citations exact (F1/F2/A1/A2, R2-03 N4/N5, R2-06 scope rescue, R3-06, R3-07): %s" % commit)
 check("9.2" in commit, "D1h R2-03 N5: '§ 9.2' (section sign + one space) IS a citation")
 check("11.4.27" in commit and "11.4.28" not in commit,
       "D1i R2-06: the scope 'docs(ATM-1/§11.4.27)' is credited; the rest of a multi-item subject is not")
 check("11.4.26" not in commit, "D1j R2-07: a single-owner commit's line naming ONLY another item is not credited")
+check("11.4.60" not in commit, "D1n R3-02 Y4: a joint scope 'fix(ATM-1/ATM-9/§11.4.60)' rescues nothing")
+check("2.1" not in commit, "D1o R3-06: '§2.1 rows K/L' / '§2.1 row M' (another document's table rows) are not citations")
 cs = (doc or {}).get("commit_stats", {})
-check(cs.get("multi_owner_anchors_dropped") == 3 and cs.get("scope_rescued") == 1
-      and cs.get("single_owner_foreign_line_anchors_dropped") == 1,
-      "D1k R2-06/R2-07: dropped anchors are counted, never silent (commit_stats=%s)" % cs)
+check(cs.get("multi_owner_anchors_dropped") == 4 and cs.get("scope_rescued") == 1
+      and cs.get("single_owner_foreign_line_anchors_dropped") == 1
+      and cs.get("single_owner_mixed_line_anchors_credited") == 1,
+      "D1k R2-06/R2-07/R3-07, R3-02 Y3b: dropped/rescued/mixed anchors are counted exactly, never silent (commit_stats=%s)" % cs)
 un = (doc or {}).get("unindexed_section_signed") or {}
 check(un.get("distinct") == ["11.4.34"] and un.get("occurrences") == 1 and un.get("in_constitution_headings") == [],
-      "D1l R2-01: a section-signed id absent from the index is counted, not dropped silently (%s)" % un)
+      "D1l R2-01, R3-02 Y10: a section-signed id absent from the index is counted (another item's line is not) (%s)" % un)
+rows = (doc or {}).get("document_row_refs_rejected") or {}
+check(rows == {"occurrences": 2, "distinct": ["2.1"]}, "D1p R3-06: the two table-row references are counted (%s)" % rows)
 ic = (doc or {}).get("index_check") or {}
-check(ic.get("status") == "ok" and ic.get("headings_missing_from_index") == [] and ic.get("headings", 0) >= 1,
-      "D1m R2-01: the index covers every Constitution.md anchor heading (%s)" % ic)
+check(ic.get("status") == "ok" and ic.get("headings_missing_from_index") == [] and ic.get("headings", 0) >= 1
+      and ic.get("index_ids_not_heading_form") == 1
+      and ic.get("index_source_sha256") and ic.get("index_source_sha256") == ic.get("constitution_sha256"),
+      "D1m R2-01/R3-04: headings covered, checksum equal, one bold-only id counted (%s)" % ic)
 check("7.1" not in commit, "D1a F1: bare two-segment '7.1' (channel layout) is not a citation")
 check("9.1" in commit, "D1b F1: '§9.1' (section-sign spelling) IS a citation")
 check("11.4.13" not in commit and "11.4.1" not in commit, "D1c F2: anchors on a multi-item subject line / another item's line are not credited")
@@ -506,6 +601,10 @@ st = (doc or {}).get("source_status", {})
 check(st == {"commit": "ok", "diary": "ok", "review": "ok", "closure": "ok"}, "D5 source_status all ok: %s" % st)
 check(doc is not None and not doc.get("BLIND"), "D5a clean run is not BLIND")
 
+rc, doc, _ = run(item="ATM-14", review=None)
+check(rc == 0 and by_source(doc, "commit") == ["2.1"],
+      "D1q R3-06 positive control: 'per Constitution §2.1 multi-upstream' IS a citation (rc=%s %s)" % (rc, by_source(doc, "commit")))
+
 rc, doc, err = run("--as-of", "2029-12-31")
 check(rc == 0 and "11.4.99" not in by_source(doc, "commit") and "11.4.108" in by_source(doc, "commit")
       and "11.4.25" in by_source(doc, "commit"),
@@ -515,26 +614,77 @@ rc, doc, _ = run(item="ATM-5", review=None)
 check(rc == 0 and by_source(doc, "closure") == [], "D7 A3: an open (Issues) DB row is not closure evidence: %s" % by_source(doc, "closure"))
 rc, doc, _ = run(item="ATM-6", review=None)
 check(rc == 0 and by_source(doc, "closure") == [], "D8 F12: a NULL-location DB row is not closure evidence: %s" % by_source(doc, "closure"))
+rc, doc, _ = run(item="ATM-11", review=None)
+check(rc == 0 and by_source(doc, "closure") == ["11.4.61"],
+      "D8a R3-02 Y8: a DB row stored as 'atm-11' is ATM-11's closure evidence (rc=%s %s)" % (rc, by_source(doc, "closure")))
 
 rc, doc, _ = run(review=None)
 check(rc == 0 and (doc or {}).get("source_status", {}).get("review") == "not_supplied",
       "D9 no --review-records: rc 0 and review status explicitly 'not_supplied' (rc=%s status=%s)" % (rc, (doc or {}).get("source_status")))
 
-for label, kw in (("F3 git log fails part-way (root object deleted)", {"r": os.path.join(fx, "repo_broken")}),
-                  ("F3 DB query fails (no items table)", {"r": os.path.join(fx, "repo_baddb")}),
-                  ("F10 diary not valid UTF-8", {"r": os.path.join(fx, "repo_undecodable")}),
-                  ("F3/F10 corrupt review record", {"review": os.path.join(fx, "reviews_corrupt")}),
-                  ("F3 --review-records path does not exist", {"review": os.path.join(fx, "no_such_dir")}),
-                  ("R2-03 N10 review file is valid JSON but not an object", {"review": os.path.join(fx, "reviews_nonobject")}),
-                  ("R2-03 N12 diary path is a dangling symlink", {"r": os.path.join(fx, "repo_diary_dangling")}),
-                  ("R2-02(d) case-variant .JSON review record", {"review": os.path.join(fx, "reviews_caps")}),
-                  ("R2-02(b) symlinked review subdirectory", {"review": os.path.join(fx, "reviews_symlinkdir")}),
-                  ("R2-01 Constitution.md cannot be read", {"extra": ["--constitution", os.path.join(fx, "no_such.md")]})):
+# D10: one case per error site. Each case names the error CODE it must produce; Step D2 checks that
+# the set of codes observed here covers every _site() call in the tool's source.
+#   (code, label, run kwargs, writes --out?)
+ERROR_CASES = [
+    ("E_GIT_EXIT", "F3 git log fails part-way (root object deleted)", {"r": os.path.join(fx, "repo_broken")}, True),
+    ("E_GIT_RUN", "git log output is not valid UTF-8", {"r": os.path.join(fx, "repo_badutf8")}, True),
+    ("E_DB_QUERY", "F3 DB query fails (no items table)", {"r": os.path.join(fx, "repo_baddb")}, True),
+    ("E_DB_OPEN", "DB exists but cannot be opened (dangling symlink)", {"r": os.path.join(fx, "repo_db_dangling")}, True),
+    ("E_DIARY_READ", "F10 diary not valid UTF-8", {"r": os.path.join(fx, "repo_undecodable")}, True),
+    ("E_DIARY_READ", "R2-03 N12 diary path is a dangling symlink", {"r": os.path.join(fx, "repo_diary_dangling")}, True),
+    ("E_DIARY_LIST", "Y17 docs/issues exists but cannot be listed", {"r": os.path.join(fx, "repo_issues_file")}, True),
+    ("E_DIARY_AMBIGUOUS", "Y7 two diary directories differing only in case", {"r": os.path.join(fx, "repo_diary_ambiguous")}, True),
+    ("E_FIXED_READ", "docs/Fixed.md exists but cannot be read", {"r": os.path.join(fx, "repo_fixed_dir")}, True),
+    ("E_REVIEW_JSON", "F3/F10 corrupt review record", {"review": os.path.join(fx, "reviews_corrupt")}, True),
+    ("E_REVIEW_NOT_DIR", "F3 --review-records path does not exist", {"review": os.path.join(fx, "no_such_dir")}, True),
+    ("E_REVIEW_NOT_OBJECT", "R2-03 N10 review file is valid JSON but not an object", {"review": os.path.join(fx, "reviews_nonobject")}, True),
+    ("E_REVIEW_CASE_EXT", "R2-02(d) case-variant .JSON review record", {"review": os.path.join(fx, "reviews_caps")}, True),
+    ("E_REVIEW_SYMLINK_DIR", "R2-02(b) symlinked review subdirectory", {"review": os.path.join(fx, "reviews_symlinkdir")}, True),
+    ("E_REVIEW_READ", "Y6/Y16 review record x.json is a dangling symlink", {"review": os.path.join(fx, "reviews_dangling")}, True),
+    ("E_INDEX_CONSTITUTION_READ", "R2-01 Constitution.md cannot be read", {"extra": ["--constitution", os.path.join(fx, "no_such.md")]}, True),
+    ("E_INDEX_NO_CONSTITUTION", "Y14 no --constitution and no generated_from.source", {"idx": os.path.join(fx, "index_nogen.yaml")}, True),
+    ("E_INDEX_BLIND_EXTRACTOR", "Constitution.md with no anchor heading (extractor control needle)",
+     {"extra": ["--constitution", os.path.join(fx, "constitution_noheads.md")]}, True),
+    ("E_INDEX_STALE_HEADINGS", "R2-01 a heading the index lacks", {"extra": ["--constitution", os.path.join(fx, "constitution_new.md")]}, True),
+    ("E_INDEX_SHA_MISMATCH", "R3-04 a bold-form anchor added after the index (headings unchanged)",
+     {"extra": ["--constitution", os.path.join(fx, "constitution_bold_added.md")]}, True),
+    ("E_INDEX_NO_SHA", "R3-04 the index records no source checksum", {"idx": os.path.join(fx, "index_nosha.yaml")}, True),
+    ("E_REPO_NOT_GIT", "--repo is not a git working tree", {"r": os.path.join(fx, "not_a_repo")}, False),
+    ("E_INDEX_READ", "--anchor-index cannot be read", {"idx": os.path.join(fx, "no_such_index.yaml")}, False),
+    ("E_INDEX_EMPTY", "--anchor-index has zero ids", {"idx": os.path.join(fx, "index_empty.yaml")}, False),
+]
+for code, label, kw, writes in ERROR_CASES:
     kw = dict(kw)
     rc, doc, err = run(extra_kw=kw.pop("extra", None), **kw)
     errs = (doc or {}).get("source_errors") or []
-    check(rc == 4 and doc is not None and doc.get("BLIND") is True and len(errs) >= 1,
-          "D10 %s: exit 4, --out marked BLIND with source_errors (rc=%s doc=%s errors=%s)" % (label, rc, doc is not None, errs))
+    if writes:
+        hit = any(("[%s]" % code) in e for e in errs)
+        check(rc == 4 and doc is not None and doc.get("BLIND") is True and hit,
+              "D10 %s %s: exit 4, --out BLIND, source_errors names it (rc=%s doc=%s errors=%s)"
+              % (code, label, rc, doc is not None, [e[:90] for e in errs]))
+    else:
+        check(rc == 4 and doc is None and ("[%s]" % code) in err,
+              "D10 %s %s: exit 4, nothing written, stderr names it (rc=%s err=%s)" % (code, label, rc, err.strip()[-160:]))
+
+# R2-02(b) / E_REVIEW_WALK: an unreadable review subdirectory is a source error (BLIND).
+ur = os.path.join(fx, "reviews_unreadable")
+if os.access(os.path.join(ur, "sub"), os.R_OK):
+    unexercised["E_REVIEW_WALK"] = "this user can read a mode-000 directory (root?)"
+    print("SKIP: D17 R2-02(b) cannot be exercised -- this user can read a mode-000 directory (root?)")
+else:
+    rc, doc, _ = run(review=ur)
+    errs = (doc or {}).get("source_errors") or []
+    check(rc == 4 and doc is not None and doc.get("BLIND") is True
+          and (doc.get("source_status") or {}).get("review") == "error"
+          and any("[E_REVIEW_WALK]" in e for e in errs),
+          "D17 E_REVIEW_WALK R2-02(b): an unreadable review subdirectory -> BLIND exit 4 (rc=%s status=%s)" % (rc, (doc or {}).get("source_status")))
+
+# R3-04 probe detail: the bold-added copy keeps every heading, so ONLY the checksum sees staleness.
+rc, doc, _ = run("--constitution", os.path.join(fx, "constitution_bold_added.md"))
+ic = (doc or {}).get("index_check") or {}
+check(ic.get("status") == "stale" and ic.get("headings_missing_from_index") == []
+      and ic.get("index_source_sha256") != ic.get("constitution_sha256"),
+      "D18 R3-04: a changed Constitution.md with unchanged headings is 'stale', never 'ok' (%s)" % ic)
 
 for bad_id in ("", "  "):
     rc, doc, _ = run(item=bad_id)
@@ -569,20 +719,12 @@ rc, doc, _ = run(item="atm-1")
 check(rc == 0 and doc is not None and doc.get("item_id") == "ATM-1" and pairs(doc) == pairs(clean),
       "D16 R2-02(c): --item-id atm-1 == ATM-1 across commit/diary/review/closure (rc=%s item=%s)" % (rc, (doc or {}).get("item_id")))
 
-# R2-02(b): an unreadable review subdirectory is a source error (BLIND), never "0 records".
-ur = os.path.join(fx, "reviews_unreadable")
-if os.access(os.path.join(ur, "sub"), os.R_OK):
-    print("SKIP: D17 R2-02(b) cannot be exercised -- this user can read a mode-000 directory (root?)")
-else:
-    rc, doc, _ = run(review=ur)
-    check(rc == 4 and doc is not None and doc.get("BLIND") is True
-          and (doc.get("source_status") or {}).get("review") == "error",
-          "D17 R2-02(b): an unreadable review subdirectory -> BLIND exit 4 (rc=%s status=%s)" % (rc, (doc or {}).get("source_status")))
-
 rc, doc, err = run("--determinism-check")
 rc2, doc2, _ = run()
 check(rc == 0 and doc is not None and doc2 is not None and doc.get("body_hash") == doc2.get("body_hash"),
       "D12 --determinism-check exits 0 and its body equals a plain run's body")
+print("OBSERVED-CODES: " + ",".join(sorted(observed)))
+print("UNEXERCISED-CODES: " + ",".join("%s=%s" % kv for kv in sorted(unexercised.items())))
 sys.exit(min(fails, 100))
 PY
 
@@ -591,6 +733,150 @@ HRC=$?
 sed 's/^/  /' "$TMP/harness_real.out"
 if [ "$HRC" -eq 0 ]; then ok "Step D behaviour checks: all pass against the real tool"
 else bad "Step D behaviour checks: $HRC check(s) failed against the real tool (see lines above)"; fi
+
+# --- Step D2: error-site coverage, derived from the tool's own source (R3-02) ---
+# The inventory is an AST walk over anchor_citations.py: every `_site("E_CODE", ...)` call is an
+# error site. It must (1) agree with an independent plain-text count of `_site("E_` (control
+# needle: the two instruments must see the same sites); (2) contain only unique codes; (3) be the
+# ONLY way an error reaches SourceError / a `bad` list / check_index's error list / a `return 4`
+# (an error phrased without _site would be invisible to this inventory); and (4) be covered: every
+# code must be OBSERVED by a Step D fixture, unless it is listed in UNREACHABLE below with the reason
+# no fixture can reach it. A stale UNREACHABLE entry (the code is gone, or a fixture now reaches it)
+# fails too.
+cat > "$TMP/sitecheck.py" <<'PY'
+import ast, re, sys
+impl, harness_out = sys.argv[1], sys.argv[2]
+UNREACHABLE = {
+    # validate_repo() has just run `git rev-parse --is-inside-work-tree` successfully in the same
+    # directory, so `git rev-parse --show-toplevel` failing needs git to change state between two
+    # calls; no fixture can arrange that.
+    "E_REPO_TOPLEVEL": "needs git to fail between two consecutive rev-parse calls",
+    # The catch-all for an exception the tool does not classify; reaching it means a defect.
+    "E_INTERNAL": "reaching it requires a defect in the tool",
+}
+src = open(impl, encoding="utf-8").read()
+tree = ast.parse(src)
+problems = []
+def is_site(node):
+    return (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_site")
+sites = []
+for node in ast.walk(tree):
+    if is_site(node):
+        a0 = node.args[0] if node.args else None
+        if not (isinstance(a0, ast.Constant) and isinstance(a0.value, str) and re.fullmatch(r"E_[A-Z][A-Z_]*", a0.value)):
+            problems.append("line %d: _site() without a literal E_CODE first argument" % node.lineno)
+            continue
+        sites.append((a0.value, node.lineno))
+codes = [c for c, _ in sites]
+text_count = len(re.findall(r'_site\("E_[A-Z][A-Z_]*"', src))
+if text_count != len(sites):
+    problems.append("control needle: AST sees %d _site() calls, plain text sees %d" % (len(sites), text_count))
+if "E_DIARY_READ" not in codes:
+    problems.append("control needle: the known site E_DIARY_READ is not in the inventory -- the walk is blind")
+for c in sorted(set(codes)):
+    if codes.count(c) > 1:
+        problems.append("code %s is used at %d sites (lines %s): one fixture would cover several sites"
+                        % (c, codes.count(c), ",".join(str(l) for cc, l in sites if cc == c)))
+# (3) every error path goes through _site.
+funcs = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+# collect() and the run() nested in it only RE-RAISE errors already phrased by a site (pass-through).
+passthrough = {id(n) for n in ast.walk(funcs["collect"]) if isinstance(n, ast.FunctionDef)}
+def site_or_site_name(arg, fn):
+    if is_site(arg):
+        return True
+    if isinstance(arg, ast.Name):  # every assignment to this name in `fn` must be a _site() (or None)
+        vals = []
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Assign):
+                for t in n.targets:
+                    if isinstance(t, ast.Name) and t.id == arg.id:
+                        vals.append(n.value)
+                    elif isinstance(t, ast.Tuple) and isinstance(n.value, ast.Tuple):
+                        for te, ve in zip(t.elts, n.value.elts):
+                            if isinstance(te, ast.Name) and te.id == arg.id:
+                                vals.append(ve)
+        return bool(vals) and all(is_site(v) or (isinstance(v, ast.Constant) and v.value is None) for v in vals)
+    return False
+def is_bad_join(arg):  # "; ".join(bad): every element of `bad` is itself checked below
+    return (isinstance(arg, ast.Call) and isinstance(arg.func, ast.Attribute) and arg.func.attr == "join"
+            and len(arg.args) == 1 and isinstance(arg.args[0], ast.Name) and arg.args[0].id == "bad")
+for fname, fn in funcs.items():
+    for n in ast.walk(fn):
+        if isinstance(n, ast.Raise) and isinstance(n.exc, ast.Call) and getattr(n.exc.func, "id", None) == "SourceError":
+            a0 = n.exc.args[0] if n.exc.args else None
+            if not (site_or_site_name(a0, fn) or is_bad_join(a0)):
+                problems.append("line %d (%s): SourceError raised without _site()" % (n.lineno, fname))
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "append"
+                and isinstance(n.func.value, ast.Name) and n.func.value.id in ("bad", "errors") and id(fn) not in passthrough):
+            if not (n.args and is_site(n.args[0])):
+                problems.append("line %d (%s): %s.append() of an error not phrased by _site()" % (n.lineno, fname, n.func.value.id))
+        if fname == "check_index" and isinstance(n, ast.Return) and isinstance(n.value, ast.Tuple) and len(n.value.elts) == 3:
+            e = n.value.elts[2]
+            ok_list = isinstance(e, ast.List) and all(is_site(x) for x in e.elts)
+            if not (ok_list or (isinstance(e, ast.Name) and e.id == "errors")):
+                problems.append("line %d (check_index): error list not built from _site()" % n.lineno)
+        if fname == "load_live_anchor_ids" and isinstance(n, ast.Return) and isinstance(n.value, ast.Tuple):
+            e = n.value.elts[1]
+            if not (is_site(e) or (isinstance(e, ast.Constant) and e.value is None)):
+                problems.append("line %d (load_live_anchor_ids): error not phrased by _site()" % n.lineno)
+    if fname in ("_main_impl", "main"):
+        for blk in ast.walk(fn):
+            body = getattr(blk, "body", None)
+            if not isinstance(body, list):
+                continue
+            for i, st in enumerate(body):
+                if isinstance(st, ast.Return) and isinstance(st.value, ast.Constant) and st.value.value == 4:
+                    prev = body[i - 1] if i else None
+                    good = (isinstance(prev, ast.Expr) and isinstance(prev.value, ast.Call)
+                            and getattr(prev.value.func, "id", None) == "print"
+                            and any(is_site(x) or (isinstance(x, ast.Name) and x.id == "err")
+                                    for a in prev.value.args for x in ast.walk(a)))
+                    if not good:
+                        problems.append("line %d (%s): `return 4` not preceded by a print of a _site() error" % (st.lineno, fname))
+# (4) coverage, from the harness's own observation of real runs.
+observed, unexercised = set(), {}
+for line in open(harness_out, encoding="utf-8"):
+    line = line.strip()
+    if line.startswith("OBSERVED-CODES:"):
+        observed = {c for c in line.split(":", 1)[1].strip().split(",") if c}
+    elif line.startswith("UNEXERCISED-CODES:"):
+        for kv in line.split(":", 1)[1].strip().split(","):
+            if "=" in kv:
+                k, v = kv.split("=", 1)
+                unexercised[k] = v
+inv = set(codes)
+for c in sorted(inv - observed - set(UNREACHABLE) - set(unexercised)):
+    problems.append("error site %s has no fixture: no Step D run observed it" % c)
+for c in sorted(observed - inv):
+    problems.append("observed code %s is not in the source inventory" % c)
+for c in sorted(set(UNREACHABLE) - inv):
+    problems.append("STALE UNREACHABLE entry %s: no such site in the source" % c)
+for c in sorted(set(UNREACHABLE) & observed):
+    problems.append("STALE UNREACHABLE entry %s: a fixture reaches it -- remove the entry" % c)
+print("inventory=%d observed=%d unreachable=%d unexercised=%s" % (len(inv), len(observed & inv), len(UNREACHABLE), sorted(unexercised)))
+for p in problems:
+    print("PROBLEM " + p)
+sys.exit(1 if problems else 0)
+PY
+if python3 "$TMP/sitecheck.py" "$IMPL" "$TMP/harness_real.out" > "$TMP/sitecheck.out" 2>&1; then
+  ok "Step D2 R3-02 error-site coverage derived from source: $(head -n 1 "$TMP/sitecheck.out")"
+else
+  bad "Step D2 R3-02 error-site coverage: $(tr '\n' ' ' < "$TMP/sitecheck.out")"
+fi
+if grep -q '^  UNEXERCISED-CODES: .' "$TMP/harness_real.out"; then
+  echo "SKIP: Step D2 codes this environment cannot exercise: $(grep '^  UNEXERCISED-CODES:' "$TMP/harness_real.out")"
+fi
+# The coverage check must itself be able to fail (paired mutations of the INPUT it checks).
+sitecheck_mut() { # sitecheck_mut <name> <want> <old> <new>  -- mutate a COPY of the tool, expect a named problem
+  if python3 "$TMP/mutate.py" "$IMPL" "$TMP/site_mut.py" "$3" "$4" > "$TMP/site_mut_apply.out" 2>&1; then
+    if python3 "$TMP/sitecheck.py" "$TMP/site_mut.py" "$TMP/harness_real.out" > "$TMP/site_mut.out" 2>&1; then
+      bad "Step D2 mutation $1 SURVIVED: the coverage check passed"
+    elif grep -qF -- "$2" "$TMP/site_mut.out"; then ok "Step D2 mutation $1 caught ('$2')"
+    else bad "Step D2 mutation $1 failed for another reason: $(tr '\n' ' ' < "$TMP/site_mut.out")"; fi
+  else
+    bad "Step D2 mutation $1 could not be applied: $(cat "$TMP/site_mut_apply.out")"
+  fi
+}
 
 # --- Step E: paired mutations (R8 F4: A1-A5 adopted verbatim, plus this round's own) ---
 # Each mutation is a one-place source substitution applied to a COPY of the tool under $TMP (never
@@ -625,7 +911,7 @@ mutate A1_no_ownership_gate "        if not owners:${NL}            stats[\"body
 mutate A2_truncating_tokenizer '_NUMERIC_RUN_RE = re.compile(r"(?<![0-9])[0-9]+(?:\.[0-9]+)*(?![0-9])")' '_NUMERIC_RUN_RE = re.compile(r"[0-9]{1,2}(?:\.[0-9]{1,3}){1,3}")'
 mutate A3_open_rows_are_closure "        if loc not in _CLOSED_LOCATIONS:${NL}            continue" "        if False:${NL}            continue"
 mutate A4_ignore_as_of '    if as_of:' '    if False:'
-mutate A5_fixed_md_unfiltered 'for a in _anchors_in(text, live_ids, drops)]  # closure/Fixed.md' 'for a in _extract_tokens(text)]  # closure/Fixed.md'
+mutate A5_fixed_md_unfiltered 'for a in _anchors_in(text, live_ids, tally)]  # closure/Fixed.md' 'for a in _extract_tokens(text)]  # closure/Fixed.md'
 mutate M6_two_segment_without_section_sign '    return _SECTION_SIGN_RE.search(text[max(0, start - 2):start]) is not None' '    return True'
 mutate M7_multi_owner_scans_whole_message '        if len(owners) > 1:' '        if False:'
 mutate M8_source_error_exits_zero '    rc = _emit(body, run_meta, a.out, code=4 if source_errors else 0)' '    rc = _emit(body, run_meta, a.out, code=0)'
@@ -639,11 +925,11 @@ mutate N1_fixed_md_bare_id_heading_not_owned '    if bracket_re.search(line) or 
 mutate N2_blind_run_drops_partial_citations '            citations.extend(exc.partial)' '            pass'
 mutate N4_as_of_cutoff_at_midnight '        args.append("--until=%sT23:59:59" % as_of)' '        args.append("--until=%sT00:00:00" % as_of)'
 mutate N5_section_sign_window_one_char '    return _SECTION_SIGN_RE.search(text[max(0, start - 2):start]) is not None' '    return _SECTION_SIGN_RE.search(text[max(0, start - 1):start]) is not None'
-mutate N10_non_object_review_skipped '            bad.append("%s: not a JSON object" % path)' '            pass'
+mutate N10_non_object_review_skipped '            bad.append(_site("E_REVIEW_NOT_OBJECT", "%s: not a JSON object" % path))' '            pass'
 mutate N12_diary_isfile_not_lexists '    if not os.path.lexists(diary_path):' '    if not os.path.isfile(diary_path):'
 # This round's own mutations, one per R2-01/R2-02/R2-06/R2-07 behaviour.
 mutate X1_index_check_ignores_missing_headings '    missing = sorted(heads - set(live_ids))' '    missing = []'
-mutate X2_unindexed_section_sign_not_counted '        elif signed and drops is not None:' '        elif False:'
+mutate X2_unindexed_section_sign_not_counted '        elif signed and tally is not None:' '        elif False:'
 mutate X3_repo_subdir_not_normalised '        return collect(a.item_id, repo_top, live_ids, sources, as_of=as_of,' '        return collect(a.item_id, a.repo, live_ids, sources, as_of=as_of,'
 mutate X4_unreadable_review_dir_ignored '    for dirpath, dirnames, filenames in os.walk(review_records_dir, onerror=walk_errors.append):' '    for dirpath, dirnames, filenames in os.walk(review_records_dir):'
 mutate X5_item_id_not_normalised '    item_key = item_id.upper()  # R2-02(c): the ONE normalisation every source uses' '    item_key = item_id'
@@ -653,6 +939,58 @@ mutate X8_symlinked_review_dir_ignored '            if os.path.islink(os.path.jo
 mutate X9_no_scope_rescue '            if scope_ok and not subject_line_credited:' '            if False:'
 mutate X10_multi_owner_loss_not_sized '            stats["multi_owner_anchors_dropped"] += total - credited' '            stats["multi_owner_anchors_dropped"] += 0'
 mutate X11_single_owner_foreign_lines_credited '            if line_ids and item_key not in line_ids:' '            if False:'
+# R3-02: the round-3 reviewer's surviving mutations Y3b, Y4, Y6, Y7, Y8, Y10, Y14, Y16, Y17, adopted.
+# Texts are the reviewer's, except where this round's source edit moved the target (Y6, Y14, Y17:
+# the error text is now phrased by _site(); the mutated BEHAVIOUR is unchanged).
+mutate Y3b_scope_rescue_even_if_subject_credited 'subject_line_credited = subject_line_credited or idx == 0' 'subject_line_credited = False'
+mutate Y4_scope_rescue_any_scope_naming_item 'family_re.findall(scope_m.group(1))} == {item_key}' 'family_re.findall(scope_m.group(1))} >= {item_key}'
+mutate Y6_unreadable_record_file_skipped "        if err:${NL}            bad.append(_site(\"E_REVIEW_READ\"" "        if err:${NL}            continue${NL}            bad.append(_site(\"E_REVIEW_READ\""
+mutate Y7_ambiguous_diary_first_pick "    if len(matches) > 1:${NL}        raise SourceError" "    if len(matches) > 99:${NL}        raise SourceError"
+mutate Y8_db_case_sensitive 'FROM items WHERE upper(atm_id) = ?' 'FROM items WHERE atm_id = ?'
+mutate Y10_foreign_line_drops_counted '                    total += len(_anchors_in(line, live_ids))' '                    total += len(_anchors_in(line, live_ids, tally))'
+mutate Y14_index_check_skipped_when_no_constitution '        return res, None, [_site("E_INDEX_NO_CONSTITUTION",' '        return res, None, [] and [_site("E_INDEX_NO_CONSTITUTION",'
+mutate Y16_dangling_symlink_json_ignored "            if fn.endswith(\".json\"):${NL}                paths.append(path)" "            if fn.endswith(\".json\") and os.path.exists(path):${NL}                paths.append(path)"
+mutate Y17_diary_dir_listing_error_ok "    except OSError as exc:${NL}        raise SourceError(_site(\"E_DIARY_LIST\"" "    except OSError as exc:${NL}        return []${NL}        raise SourceError(_site(\"E_DIARY_LIST\""
+# This round's own mutations: R3-04 checksum, R3-06 table-row rule, R3-07 sizing, every other
+# error site the reviewer listed as uncovered (E_FIXED_READ, E_DB_OPEN), and the new sites.
+mutate Z1_sha_mismatch_ignored '    elif index_sha256 != sha:' '    elif False:'
+mutate Z2_missing_sha_accepted "    if not index_sha256:${NL}        errors.append(" "    if False:${NL}        errors.append("
+mutate Z3_bold_only_ids_not_counted '    res["index_ids_not_heading_form"] = len(set(live_ids) - heads)' '    res["index_ids_not_heading_form"] = 0'
+mutate Z4_table_row_rule_removed '        if token.count(".") == 1 and _TABLE_ROW_AFTER_RE.match(' '        if False and _TABLE_ROW_AFTER_RE.match('
+mutate Z5_table_row_rule_any_word '_TABLE_ROW_AFTER_RE = re.compile(r"^[ \t]+rows?\b", re.I)' '_TABLE_ROW_AFTER_RE = re.compile(r"^[ \t]+\w", re.I)'
+mutate Z6_table_rows_not_counted '                tally.row_refs.append(token)' '                pass'
+mutate Z7_mixed_lines_not_sized '                stats["single_owner_mixed_line_anchors_credited"] += len(got)' '                stats["single_owner_mixed_line_anchors_credited"] += 0'
+mutate Z8_fixed_md_unreadable_is_empty "    if err:${NL}        raise SourceError(_site(\"E_FIXED_READ\"" "    if err:${NL}        return []${NL}        raise SourceError(_site(\"E_FIXED_READ\""
+mutate Z9_db_open_error_is_empty "        raise SourceError(_site(\"E_DB_OPEN\"," "        return []${NL}        raise SourceError(_site(\"E_DB_OPEN\","
+mutate Z10_git_decode_error_ignored '        failed, stdout = _site("E_GIT_RUN", "git log could not run: %s" % result), ""' '        failed, stdout = None, ""'
+mutate Z11_index_status_ok_on_sha_mismatch '        res["status"] = "stale" if (missing or index_sha256) else "error"' '        res["status"] = "ok"'
+mutate Z12_index_blind_extractor_ignored '    if not heads or not (heads & set(live_ids)):' '    if False:'
+
+# R3-02 Step D2 paired mutations: the coverage check must fail when the SOURCE gains an error site
+# without a fixture, phrases an error without _site(), reuses a code, or when a fixture is lost.
+sitecheck_mut MC1_new_site_without_fixture 'E_UNFIXTURED_NEW has no fixture' \
+  '        raise SourceError(_site("E_DIARY_AMBIGUOUS",' \
+  "        raise SourceError(_site(\"E_UNFIXTURED_NEW\", \"x\"))${NL}        raise SourceError(_site(\"E_DIARY_AMBIGUOUS\","
+sitecheck_mut MC2_raise_without_site 'SourceError raised without _site()' \
+  '        raise SourceError(_site("E_FIXED_READ", "cannot read %s" % err))' '        raise SourceError("cannot read %s" % err)'
+sitecheck_mut MC3_bad_append_without_site 'bad.append() of an error not phrased by _site()' \
+  '            bad.append(_site("E_REVIEW_JSON", "%s: not valid JSON (%s)" % (path, exc)))' '            bad.append("%s: not valid JSON (%s)" % (path, exc))'
+sitecheck_mut MC4_duplicate_code 'code E_DB_QUERY is used at 2 sites' \
+  '        raise SourceError(_site("E_DB_OPEN",' '        raise SourceError(_site("E_DB_QUERY",'
+sitecheck_mut MC5_return4_without_site 'not preceded by a print of a _site() error' \
+  '        print("anchor_citations: BLIND -- %s" % _site("E_REPO_NOT_GIT", "--repo %r is not a readable git "' \
+  '        print("anchor_citations: BLIND -- %s" % ("--repo %r is not a readable git "'
+sitecheck_mut MC6_index_error_without_site 'error list not built from _site()' \
+  '        return res, None, [_site("E_INDEX_CONSTITUTION_READ", "anchor-index: cannot read Constitution.md %s" % err)]' \
+  '        return res, None, ["anchor-index: cannot read Constitution.md %s" % err]'
+# A lost fixture: the same check fed a harness transcript with one observed code removed.
+sed 's/^\(OBSERVED-CODES: .*\)E_DIARY_LIST,/\1/' "$TMP/harness_real.out" > "$TMP/harness_lost.out"
+if cmp -s "$TMP/harness_real.out" "$TMP/harness_lost.out"; then
+  bad "Step D2 mutation MC7_lost_fixture could not be applied (E_DIARY_LIST not in the observed list)"
+elif python3 "$TMP/sitecheck.py" "$IMPL" "$TMP/harness_lost.out" > "$TMP/site_lost.out" 2>&1; then
+  bad "Step D2 mutation MC7_lost_fixture SURVIVED: a site no fixture observes passed"
+elif grep -qF 'E_DIARY_LIST has no fixture' "$TMP/site_lost.out"; then ok "Step D2 mutation MC7_lost_fixture caught"
+else bad "Step D2 mutation MC7_lost_fixture failed for another reason: $(tr '\n' ' ' < "$TMP/site_lost.out")"; fi
 
 # R8 F17: the self-check must be able to fail. The A2 truncating tokenizer, on its own, must make the
 # tool refuse with exit 3 (self-check) on the fixture -- and the SAME mutant with the self-check

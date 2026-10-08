@@ -24,6 +24,10 @@
 #       without the basename check accepts it (the check is load-bearing)
 #   D7  R2-M2: a decoy manifest key `memberXFC0aXlog=` (regex-metachar near miss) must not
 #       collide with `member.FC0a.log` -> the triplet stays valid (rc 0)
+#   D8  round-3 m-g: a stderr line containing '...' (varying text) between a gate prompt and
+#       its displaced verdict -> still paired with the GATE prompt, no false MISMATCH (rc 0)
+#   D8b the same shape with a real OK->FAIL flip -> FAIL, and the diff names the gate
+#   M-shape   mutant golden whose pending prompt is replaced by ANY '...' line -> D8 FAILs
 #   M-pair    mutant golden without the pairing step -> D1 PASSES again (pairing load-bearing)
 #   M-counter mutant golden without the counter comparison -> D2 PASSES again
 # Usage: bash test_fc_timer_golden_output_r1restart_regression.sh   (exit 0 = all ok)
@@ -157,6 +161,53 @@ triplet D7 8 "$G1" "$G1" "$G1" "1 1 1"
 echo "memberXFC0aXlog=decoy.log" >> "$(cat "$TMP/mf_D7")"
 rc="$(judge D7)"
 [ "$rc" = 0 ] && grep -q "verdict set is IDENTICAL" "$TMP/out_D7" && ok "(D7) decoy key ignored, triplet valid (rc=0)" || bad "(D7) decoy key broke parsing: rc=$rc $(grep -E '^FAIL' "$TMP/out_D7" | head -1)"
+
+echo "=== D8 (round-3 m-g): a stderr line containing '...' never takes over the pending prompt ==="
+# A gate's prompt, then a stderr line that itself contains '...' (curl's own ellipsis), then the
+# displaced verdict. The stderr TEXT differs between members (it does between real runs); the
+# verdict does not. Attributing the verdict to the stderr line (the round-2 behaviour) both
+# loses the gate's identity AND manufactures a false MISMATCH out of noise text.
+P2='  CM-DISP2: gate with a chatty network probe...'
+triplet D8 9 "$G1
+$P2
+curl: (6) could not resolve host mirror-a... retrying
+OK
+$F58" "$G1
+$P2
+curl: (6) could not resolve host mirror-a... retrying
+OK
+$F58" "$G1
+$P2
+curl: (7) failed to connect to mirror-b... retrying
+OK
+$F58" "1 1 1"
+triplet D8b 10 "$G1
+$P2
+curl: (6) could not resolve host mirror-a... retrying
+OK
+$F58" "$G1
+$P2
+curl: (6) could not resolve host mirror-a... retrying
+OK
+$F58" "$G1
+$P2
+curl: (6) could not resolve host mirror-a... retrying
+FAIL
+$F58" "1 1 1"
+rc="$(judge D8)"
+[ "$rc" = 0 ] && grep -q "verdict set is IDENTICAL" "$TMP/out_D8" \
+  && ok "(D8) varying '...' stderr text between prompt and verdict -> verdict still paired with the GATE prompt, no false MISMATCH (rc=0)" \
+  || bad "(D8) the '...' stderr line took over the prompt (rc=$rc): $(grep -E '^(FAIL|[<>])' "$TMP/out_D8" | head -4 | tr '\n' ' ')"
+rc="$(judge D8b)"
+[ "$rc" = 1 ] && grep -q "MISMATCH" "$TMP/out_D8b" && grep -qF -- "CM-DISP2: gate with a chatty network probe... FAIL" "$TMP/out_D8b" \
+  && ok "(D8b) a real OK->FAIL flip behind a '...' stderr line -> FAIL, and the diff names the GATE (CM-DISP2), not the stderr text" \
+  || bad "(D8b) rc=$rc; flip not attributed to CM-DISP2: $(grep -E '^[<>]' "$TMP/out_D8b" | head -3 | tr '\n' ' ')"
+# M-shape: replacing the pending prompt with ANY '...' line again (the round-2 rule) -> D8 false MISMATCH returns.
+if mutate shape '      else if (index($0, "...") > 0 && $0 ~ pre) prompt = substr($0, 1, index($0, "...") + 2)' '      else if (index($0, "...") > 0) prompt = substr($0, 1, index($0, "...") + 2)'; then
+  rc="$(judge D8 "$TMP/golden_shape.sh")"
+  [ "$rc" = 1 ] && ok "(M-shape) without the gate-prompt shape rule the '...' stderr line steals the verdict and D8 FAILs -- the rule is load-bearing" \
+    || bad "(M-shape) mutant still passes D8 (rc=$rc)"
+fi
 
 echo "=== M-pair / M-counter: each new channel is load-bearing ==="
 if mutate pair '    | _pair_displaced_verdicts \' '    | cat \'; then

@@ -527,7 +527,14 @@ VERDICT_RE='(✓|✗|WARN:|ERROR:|WARNING:|\.\.\.[[:space:]]+(OK|FAIL)([^A-Za-z0
 _pair_displaced_verdicts() {
   # VERDICT_RE is handed over through ENVIRON, never `awk -v`: -v assignments are
   # escape-processed, which turned its `\.\.\.` into `...` (any three characters).
-  VRE="$VERDICT_RE" awk 'BEGIN { vre = ENVIRON["VRE"] }
+  # T048 restart round-3 m-g: only a GATE-PROMPT-shaped line -- indented `<ID>: <text>...`, the
+  # shape of all 640 same-line verdict prompts in the real 20261002T195009Z FC0b log -- opens or
+  # replaces the pending prompt. Before, ANY line containing `...` did, so a stderr line that
+  # itself carries an ellipsis (`curl: (6) could not resolve host x... retrying`, written between
+  # the prompt and its displaced verdict) stole the verdict: the gate's identity was lost and
+  # run-to-run variation in that stderr TEXT became a false verdict MISMATCH. A displaced verdict
+  # with no gate-shaped prompt open stays an ORPHAN-VERDICT (fail-closed, never dropped).
+  VRE="$VERDICT_RE" awk 'BEGIN { vre = ENVIRON["VRE"]; pre = "^[[:space:]]+[^[:space:]]+:[[:space:]]" }
 
     /^[[:space:]]*(OK|FAIL)([^A-Za-z0-9]|$)/ {
       v = $0; sub(/^[[:space:]]+/, "", v)
@@ -536,7 +543,7 @@ _pair_displaced_verdicts() {
     }
     {
       if ($0 ~ vre) prompt = ""
-      else if (index($0, "...") > 0) prompt = substr($0, 1, index($0, "...") + 2)
+      else if (index($0, "...") > 0 && $0 ~ pre) prompt = substr($0, 1, index($0, "...") + 2)
       print
     }'
 }

@@ -277,7 +277,8 @@ echo "=== T041 contract check 2/4: empty window -> 'no data in window [from, to]
 EW_OUT="$TMP/empty_window.json"
 EW_ERR="$TMP/empty_window.err"
 if [ -f "$CYCLE_REPORT" ]; then
-  python3 "$CYCLE_REPORT" --as-of 2026-09-28 \
+  # --as-of equals window.to: --window-json refuses a mismatch (V3-7, R5-C16).
+  python3 "$CYCLE_REPORT" --as-of 2020-01-02 \
     --window-json "$FIXDIR/empty_window/window.json" \
     --out "$EW_OUT" >"$EW_ERR" 2>&1
   EW_RC=$?
@@ -1250,6 +1251,318 @@ else
   failx
 fi
 
+echo
+echo "=== R5-C15 (V3-1/V3-2/V3-8 class, round 3): GENERATED boundary matrix -- every cell vs an independent oracle ==="
+# build_asof_scenario.py matrix-full|matrix-cut: cells generated from
+# declarative tables (window events x bounds x {-1, 0, +1} day x on_date shape;
+# commit author/committer at cutoff-1s/cutoff/cutoff+1s x {Z, +05:00}; review
+# rounds ending/starting at those instants + one straddling the cutoff; first-
+# vs-latest closure and classifier-population variants; the derived needle).
+# manifest.json carries RAW facts only. The oracle below is this test's own
+# small re-statement of the rules (no tool import); a meta-check fails if any
+# manifest cell got no assertion or a cell the test expects is missing.
+CMX="$TMP/cmx"
+cmx_ok=1
+for m in matrix-full matrix-cut; do
+  python3 "$FIXDIR/build_asof_scenario.py" "$CMX/$m" "$m" >"$TMP/cmx_build_$m.err" 2>&1 \
+    || { echo "NOT ok R5-C15 matrix build ($m) failed: $(tail -2 "$TMP/cmx_build_$m.err")"; failx; cmx_ok=0; }
+done
+if [ "$cmx_ok" = 1 ]; then
+  for m in matrix-full matrix-cut; do
+    python3 "$CYCLE_REPORT" --config x --as-of 2026-05-20 --window-days 30 --min-per-type 1000 --bulk-threshold 3 \
+      --db-path "$CMX/$m/db.sqlite" --repo-root "$CMX/$m/repo" --review-records-dir "$CMX/$m/repo/review_records" \
+      --out "$TMP/cmx_$m.json" >"$TMP/cmx_$m.err" 2>&1 \
+      || { echo "NOT ok R5-C15 cycle_report on $m rc=$? -- $(tail -2 "$TMP/cmx_$m.err")"; failx; }
+  done
+  c15="$(python3 - "$CMX/matrix-full/manifest.json" "$TMP/cmx_matrix-full.json" "$TMP/cmx_matrix-cut.json" <<'PYEOF'
+import datetime, json, os, sys
+
+def load(p):
+    try:
+        return json.load(open(p))
+    except Exception as e:
+        print("missing output %s: %s" % (p, e))
+        raise SystemExit
+
+man, full, cut = (load(p) for p in sys.argv[1:4])
+AS_OF = man["as_of"]
+FROM = (datetime.date.fromisoformat(AS_OF) - datetime.timedelta(days=man["window_days"])).isoformat()
+THRESH = man["bulk_threshold"]
+CLOSE = ("Fixed", "Implemented", "Completed")
+
+# ---- independent reference oracle ------------------------------------------
+def day(s):
+    return (s or "")[:10]
+
+def inst(s):  # an ISO instant with offset ("Z" accepted), or tracker "YYYY-MM-DD HH:MM:SS" (UTC)
+    s = s.replace("Z", "+00:00")
+    if "T" not in s:
+        s = s.replace(" ", "T") + "+00:00"
+    return datetime.datetime.fromisoformat(s)
+
+CUTOFF = inst(man["cutoff"])
+items, order = {}, []
+for c in man["cells"]:
+    for it in c["items"]:
+        items[it["atm_id"]] = it
+        order += [(it["atm_id"], r) for r in it["rows"]]
+cut_rows = {i: [r for r in it["rows"] if day(r["on_date"]) <= AS_OF] for i, it in items.items()}
+
+def in_win(r, closure):
+    hit = r["event_type"] in CLOSE if closure else r["event_type"] == "Reopened"
+    return hit and FROM <= day(r["on_date"]) <= AS_OF
+
+def closed(i):
+    return any(in_win(r, True) for r in cut_rows[i])
+
+def reopened(i):
+    return any(in_win(r, False) for r in cut_rows[i])
+
+def last_closure(i):
+    cl = [r for r in cut_rows[i] if r["event_type"] in CLOSE]
+    return cl[-1] if cl else None
+
+def retro(i):
+    op = next((r for r in cut_rows[i] if r["event_type"] == "Opened"), None)
+    cl = last_closure(i)
+    return bool(op and cl) and 0 <= (inst(cl["created_at"]) - inst(op["created_at"])).total_seconds() < 60
+
+cands = sorted(i for i in items if closed(i) or reopened(i))
+groups = {}
+for i in cands:
+    cl = last_closure(i)
+    if cl and cl["evidence_path"]:
+        groups.setdefault((os.path.dirname(cl["evidence_path"]), cl["on_date"]), []).append(i)
+bulk = {i for g in groups.values() if len(g) >= THRESH for i in g}
+
+def expect(i):
+    if i not in cands:
+        return None
+    excl = "bulk" if i in bulk else ("retro" if retro(i) else None)
+    reason = "reopened-in-window" if reopened(i) else \
+        ("listed-excluded-" if excl else "sampled-") + items[i]["type"].lower()
+    return (reason, excl)
+
+def expect_commit(it):
+    vis = [c for c in it["commits"] if inst(c["author_date"]) < CUTOFF and inst(c["committer_date"]) < CUTOFF]
+    if not vis:
+        return None
+    return (min(inst(c["author_date"]) for c in vis), max(inst(c["committer_date"]) for c in vis))
+
+def expect_review(it):
+    vis = [r for r in it["rounds"] if inst(r["started_at"]) < CUTOFF and inst(r["ended_at"]) < CUTOFF]
+    if not vis:
+        return None
+    return (min(inst(r["started_at"]) for r in vis), max(inst(r["ended_at"]) for r in vis),
+            sum(r["tokens"] for r in vis), any(inst(r["ended_at"]) < inst(r["started_at"]) for r in vis))
+
+needle_rows = [(day(r["on_date"]), k, i, r) for k, (i, r) in enumerate(order)
+               if r["event_type"] in CLOSE and day(r["on_date"]) <= AS_OF]
+_, _, n_id, n_row = max(needle_rows)
+want_needle = ("derived-at-as-of", n_id, n_row["event_type"], n_row["on_date"])
+
+# ---- the tool's view --------------------------------------------------------
+def excl_kind(rec):
+    if not rec["excluded"]:
+        return None
+    r = rec.get("exclusion_reason") or ""
+    return "bulk" if r.startswith("bulk-import-cluster") else "retro" if r.startswith("retroactive") else "other:" + r
+
+def stage(rec, name):
+    return next(s for s in rec["stages"] if s["stage"] == name)
+
+def got_span(st):
+    if st.get("elapsed") == "UNMEASURED":
+        return None
+    return (inst(st["start"]["value"]), inst(st["end"]["value"]))
+
+def assert_cells(cells, doc):
+    recs = {r["item_id"]: r for r in doc.get("records", [])}
+    asserted, p = set(), []
+    for c in cells:
+        cid = c["cell_id"]
+        if cid == "rule/needle_derived":
+            n = doc.get("run_meta", {}).get("needle", {})
+            got = (n.get("source"), n.get("present_id"), n.get("present_event"), n.get("present_on_date"))
+            if got != want_needle:
+                p.append("%s: tool=%s oracle=%s" % (cid, got, want_needle))
+            asserted.add(cid)
+            continue
+        if c["kind"] not in ("window", "commit", "review", "rule") or not c["items"]:
+            continue
+        for it in c["items"]:
+            i = it["atm_id"]
+            r = recs.get(i)
+            got = (r["selection_reason"], excl_kind(r)) if r else None
+            if got != expect(i):
+                p.append("%s %s membership tool=%s oracle=%s" % (cid, i, got, expect(i)))
+                continue
+            if c["kind"] == "commit":
+                g, w = got_span(stage(r, "commit_push")), expect_commit(it)
+                if g != w:
+                    p.append("%s %s commit_push tool=%s oracle=%s" % (cid, i, g, w))
+            if c["kind"] == "review":
+                st, w = stage(r, "review_rounds"), expect_review(it)
+                g = None if st.get("elapsed") == "UNMEASURED" else \
+                    got_span(st) + (st.get("tokens"), "REVIEW_SPAN_INVERTED" in r["data_quality_flags"])
+                if g != w:
+                    p.append("%s %s review_rounds tool=%s oracle=%s" % (cid, i, g, w))
+        asserted.add(cid)
+    return asserted, p
+
+def meta(cells, asserted):
+    ids = [c["cell_id"] for c in cells]
+    want = {"window/%s/%s/%+d/%s" % (e, b, o, f) for e in ("closure", "reopened") for b in ("from", "to")
+            for o in (-1, 0, 1) for f in ("date", "datetime")}
+    want |= {"commit/%s/%+ds/%s" % (w, o, z) for w in ("author", "committer") for o in (-1, 0, 1)
+             for z in ("Z", "+05:00")}
+    want |= {"review/%s/%+ds" % (w, o) for w in ("end", "start") for o in (-1, 0, 1)} | {"review/straddle"}
+    want |= {"rule/" + r for r in ("retro_terminal_not_first", "retro_terminal_is_retro", "bulk_latest_shared",
+                                   "bulk_first_shared", "pop_retro_reopen_only", "pop_bulk_reopen_only",
+                                   "needle_derived")}
+    p = []
+    if len(ids) != len(set(ids)):
+        p.append("duplicate cell ids")
+    if set(ids) != want:
+        p.append("manifest != expected matrix: missing %s extra %s" % (sorted(want - set(ids)), sorted(set(ids) - want)))
+    if set(ids) - asserted:
+        p.append("cells with NO assertion: %s" % sorted(set(ids) - asserted))
+    return p
+
+problems = []
+for label, doc in (("full", full), ("cut", cut)):
+    a, p = assert_cells(man["cells"], doc)
+    problems += ["%s: %s" % (label, x) for x in p + meta(man["cells"], a)]
+if sorted(e["item_id"] for e in full.get("excluded", [])) != sorted(i for i in cands if expect(i)[1]):
+    problems.append("excluded[]=%s" % [e["item_id"] for e in full.get("excluded", [])])
+if full.get("body_hash") != cut.get("body_hash"):
+    problems.append("matrix full vs cut body_hash differ (rows/commits/rounds after the cutoff leak)")
+# control needles: the meta-check sees a phantom cell; the comparison sees a corrupted span.
+phantom = man["cells"] + [{"cell_id": "phantom/x", "kind": "phantom", "dims": {}, "items": []}]
+if not any("NO assertion" in x for x in meta(phantom, assert_cells(phantom, full)[0])):
+    problems.append("control: meta-check did not report a cell with no assertion")
+bad = json.loads(json.dumps(full))
+for r in bad.get("records", []):
+    for s in r["stages"]:
+        if s["stage"] in ("commit_push", "review_rounds") and isinstance(s.get("end"), dict):
+            s["end"]["value"] = "2000-01-01T00:00:00+00:00"
+if not assert_cells(man["cells"], bad)[1]:
+    problems.append("control: per-cell comparison accepted corrupted commit/review spans")
+n_vis = sum(1 for c in man["cells"] if c["kind"] == "commit" for it in c["items"]
+            if len([x for x in it["commits"] if inst(x["author_date"]) < CUTOFF and inst(x["committer_date"]) < CUTOFF]) == 2)
+print("PASS %d cells (%d of 12 commit cells see their cell commit)" % (len(man["cells"]), n_vis) if not problems
+      else " | ".join(problems))
+PYEOF
+)"
+  case "$c15" in
+    PASS*) echo "ok R5-C15 boundary matrix ${c15#PASS }: membership, exclusion, commit_push and review_rounds"
+           echo "   spans, the derived needle and excluded[] all match the oracle in full and cut; full==cut; controls fire" ;;
+    *) echo "NOT ok R5-C15 $c15"; failx ;;
+  esac
+fi
+
+echo
+echo "=== R5-C16 (V3-7): --window-json cuts and labels at the same bound -- a window.to != --as-of is refused ==="
+printf '{"window": {"from": "2026-06-24", "to": "2026-08-10"}}\n' > "$TMP/r5_win_0810.json"
+rm -f "$TMP/r5_wj_mismatch.json"
+wj_bad=$(r5_run wj_mismatch full --as-of 2026-08-23 --min-per-type 2 --bulk-threshold 3 --window-json "$TMP/r5_win_0810.json")
+wj_good=$(r5_run wj_match full --as-of 2026-08-10 --min-per-type 2 --bulk-threshold 3 --window-json "$TMP/r5_win_0810.json")
+c16="$(python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+ids = sorted(r['item_id'] for r in d['records'])
+print(d['as_of'] == d['window']['to'] == '2026-08-10' and 'ATM-277' not in ids and 'ATM-310' not in ids)
+" "$TMP/r5_wj_match.json" 2>&1)"
+if [ "$wj_bad" = 2 ] && [ ! -f "$TMP/r5_wj_mismatch.json" ] && grep -q 'differs from --as-of' "$TMP/r5_wj_mismatch.err" \
+   && [ "$wj_good" = 0 ] && [ "$c16" = True ]; then
+  echo "ok R5-C16 window.to 08-10 with --as-of 08-23 exits 2 and writes nothing; with --as-of 08-10 the body is"
+  echo "   labelled 08-10 and cut there (ATM-277 08-20 and ATM-310 08-23 absent)"
+else
+  echo "NOT ok R5-C16 mismatch rc=$wj_bad (want 2, no out) match rc=$wj_good body=$c16 -- $(tail -1 "$TMP/r5_wj_mismatch.err")"
+  failx
+fi
+
+echo
+echo "=== R5-C17 (V3-4): a missing or broken sibling (fc_common / select_sample / reopen_rate) is BLIND exit 4, never 1 ==="
+CR_SRC="$(cd "$(dirname "$CYCLE_REPORT")/.." && pwd)"
+c17=""
+for target in lib/fc_common.py cycle/select_sample.py closure/reopen_rate.py; do
+  for breakage in missing syntax; do
+    BT="$TMP/c17_$(basename "$target" .py)_$breakage"
+    mkdir -p "$BT" && cp -r "$CR_SRC/lib" "$CR_SRC/cycle" "$CR_SRC/closure" "$BT/"
+    rm -rf "${BT:?}/lib/__pycache__" "${BT:?}/cycle/__pycache__" "${BT:?}/closure/__pycache__"
+    if [ "$breakage" = missing ]; then rm -f "${BT:?}/$target"; else printf 'def broken(:\n' > "$BT/$target"; fi
+    for dc in "" --determinism-check; do
+      rm -f "$TMP/c17.json"
+      python3 "$BT/cycle/cycle_report.py" "${R5_NEEDLE[@]}" --db-path "$R5S/full/db.sqlite" --repo-root "$R5S/full/repo" \
+        --config x "${R5_COMMON[@]}" $dc --out "$TMP/c17.json" >"$TMP/c17.err" 2>&1
+      rc=$?
+      if [ "$rc" != 4 ] || [ -f "$TMP/c17.json" ] || ! grep -q 'BLIND' "$TMP/c17.err"; then
+        c17="$c17 [$target $breakage${dc:+ $dc}: rc=$rc out=$([ -f "$TMP/c17.json" ] && echo yes || echo no) $(tail -1 "$TMP/c17.err")]"
+      fi
+    done
+  done
+done
+if [ -z "$c17" ]; then
+  echo "ok R5-C17 each of 3 siblings missing or with a SyntaxError: exit 4 + BLIND message + no --out, plain and"
+  echo "   --determinism-check (12 runs)"
+else
+  echo "NOT ok R5-C17$c17"
+  failx
+fi
+
+echo
+echo "=== R5-C18 (V3-3): the operator decision's other setting (EXCLUDED_ROWS_COUNT_TOWARD_N = True) through cycle_report ==="
+VT="$TMP/c18_variant"
+mkdir -p "$VT" && cp -r "$CR_SRC/lib" "$CR_SRC/cycle" "$CR_SRC/closure" "$VT/"
+if python3 - "$VT/cycle/select_sample.py" <<'PYEOF'
+import sys
+p = sys.argv[1]; t = open(p).read()
+old = "EXCLUDED_ROWS_COUNT_TOWARD_N = False"
+if t.count(old) != 1:
+    raise SystemExit("anchor count %d" % t.count(old))
+open(p, "w").write(t.replace(old, "EXCLUDED_ROWS_COUNT_TOWARD_N = True"))
+PYEOF
+then
+  python3 "$VT/cycle/cycle_report.py" "${R5_NEEDLE[@]}" --db-path "$R5S/full/db.sqlite" --repo-root "$R5S/full/repo" \
+    --config x "${R5_COMMON[@]}" --out "$TMP/r5_true.json" >"$TMP/r5_true.err" 2>&1
+  c18="$(python3 - "$TMP/r5_true.json" <<'PYEOF'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception as e:
+    print("no report: %s" % e); raise SystemExit
+p = []
+# Most-recent 2 rows usable or not: Task {603, 602} both bulk, Feature {700} retroactive.
+want = {"Bug": (2, 2, False), "Task": (0, 2, True), "Feature": (0, 1, True)}
+got = {t: (v["n"], v["n_selected"], v["below_required"]) for t, v in d["strata"].items()}
+if got != want:
+    p.append("strata (n, n_selected, below)=%s want %s" % (got, want))
+recs = {r["item_id"]: (r["selection_reason"], r["excluded"]) for r in d["records"]}
+want_r = {"ATM-277": ("sampled-bug", False), "ATM-310": ("sampled-bug", False),
+          "ATM-300": ("reopened-in-window", False), "ATM-800": ("reopened-in-window", False),
+          "ATM-602": ("sampled-task", True), "ATM-603": ("sampled-task", True), "ATM-700": ("sampled-feature", True)}
+if recs != want_r:
+    p.append("records=%s want %s" % (recs, want_r))
+if [e["item_id"] for e in d["excluded"]] != ["ATM-601", "ATM-602", "ATM-603", "ATM-700"]:
+    p.append("excluded=%s (every excluded window candidate, sampled or not)" % [e["item_id"] for e in d["excluded"]])
+if d.get("selection_rule", {}).get("excluded_rows_count_toward_n") is not True:
+    p.append("selection_rule=%s" % d.get("selection_rule"))
+if d["medians_excluded_records"] != ["ATM-602", "ATM-603", "ATM-700"]:
+    p.append("medians_excluded_records=%s" % d["medians_excluded_records"])
+print("PASS" if not p else " | ".join(p))
+PYEOF
+)"
+  if [ "$c18" = PASS ]; then
+    echo "ok R5-C18 True: Task n 0 of 2 selected (both bulk) -> below_required; excluded[] still lists 601/602/603/700;"
+    echo "   sampled excluded rows kept out of medians; the rule applied is stated"
+  else
+    echo "NOT ok R5-C18 $c18 -- $(tail -1 "$TMP/r5_true.err")"; failx
+  fi
+else
+  echo "NOT ok R5-C18 could not build the True variant (anchor drifted)"; failx
+fi
+
 # ---------------------------------------------------------------------------
 # R5 paired mutations (§1.1). Each mutant is a COPY of lib/ closure/ cycle/
 # under $TMP (V2-6: never inside the source tree; the tools' sibling imports
@@ -1340,6 +1653,50 @@ PYEOF
   r5_mutant V2_2_record_exclusion_dropped "$CR" '        "excluded": exclusion_reason is not None,' '        "excluded": False,'
   r5_mutant V2_7_hash_over_live_fields "$CR" 'doc["body_hash"] = body_hash_of(frozen_projection(doc))' 'doc["body_hash"] = body_hash_of(doc)'
   r5_mutant V2_8_needle_never_derived "$SS" 'if default_date <= as_of:' 'if True:'
+  # Round 3 reviewer mutations (V2_sampling.md round 3, verbatim diffs from the
+  # reviewer's own mutant trees) -- the window-boundary / first-vs-latest /
+  # classifier-population / derived-needle class, killed by R5-C15 (the
+  # generated boundary matrix + its independent oracle).
+  r5_mutant R3_closed_from_exclusive "$SS" 'return any(r["event_type"] in CLOSURE_EVENTS and frm <= (r.get("on_date") or "")[:10] <= to' 'return any(r["event_type"] in CLOSURE_EVENTS and frm < (r.get("on_date") or "")[:10] <= to'
+  r5_mutant R3_sql_discovery_from_strict "$SS" '"AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?",' '"AND substr(ih.on_date, 1, 10) > ? AND substr(ih.on_date, 1, 10) <= ?",'
+  r5_mutant R3_reopen_to_exclusive "$SS" 'window["from"] <= (r.get("on_date") or "")[:10] <= window["to"]' 'window["from"] <= (r.get("on_date") or "")[:10] < window["to"]'
+  r5_mutant R3_sql_reopen_to_strict "$SS" "\"WHERE ih.event_type = 'Reopened' AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?\"," "\"WHERE ih.event_type = 'Reopened' AND substr(ih.on_date, 1, 10) >= ? AND substr(ih.on_date, 1, 10) < ?\","
+  r5_mutant R3_retro_first_closure "$SS" 'closed = next((r for r in reversed(history) if r["event_type"] in CLOSURE_EVENTS), None)' 'closed = next((r for r in history if r["event_type"] in CLOSURE_EVENTS), None)'
+  r5_mutant R3_bulk_uses_first_closure "$SS" 'closure = latest_closure_event(hist)' 'closure = next((r for r in hist if r["event_type"] in CLOSURE_EVENTS), None)'
+  r5_mutant R3_exclusion_per_candidate_only_closed "$SS" 'exclusion_by_id = classify_exclusions(history_by_id, set(type_of), bulk_threshold)' 'exclusion_by_id = classify_exclusions(history_by_id, set().union(*by_type.values()) if by_type else set(), bulk_threshold); exclusion_by_id.update({i: None for i in type_of if i not in exclusion_by_id})'
+  r5_mutant R3_needle_derived_strict "$SS" "AND substr(on_date, 1, 10) <= ? \"" "AND substr(on_date, 1, 10) < ? \""
+  # Own (round 3): the rest of the bound class, and the V3-4 guard.
+  r5_mutant R3_sql_closure_to_strict "$SS" '"AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?",' '"AND substr(ih.on_date, 1, 10) >= ? AND substr(ih.on_date, 1, 10) < ?",'
+  r5_mutant R3_closed_to_exclusive "$SS" 'frm <= (r.get("on_date") or "")[:10] <= to' 'frm <= (r.get("on_date") or "")[:10] < to'
+  r5_mutant R3_sql_reopen_from_strict "$SS" "\"WHERE ih.event_type = 'Reopened' AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?\"," "\"WHERE ih.event_type = 'Reopened' AND substr(ih.on_date, 1, 10) > ? AND substr(ih.on_date, 1, 10) <= ?\","
+  r5_mutant R3_sql_closure_raw_on_date "$SS" '"AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?",' '"AND ih.on_date BETWEEN ? AND ?",'
+  r5_mutant R3_sql_reopen_raw_on_date "$SS" "AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?\",
+        (frm, to),
+    )
+    return cur.fetchall()
+
+
+def window_for" "AND ih.on_date BETWEEN ? AND ?\",
+        (frm, to),
+    )
+    return cur.fetchall()
+
+
+def window_for"
+  r5_mutant R3_cutoff_raw_on_date "$SS" 'r["on_date"][:10] <= as_of]' 'r["on_date"] <= as_of]'
+  r5_mutant R3_bulk_threshold_strict "$SS" 'if ekey is not None and len(members) >= bulk_threshold:' 'if ekey is not None and len(members) > bulk_threshold:'
+  r5_mutant R3_window_from_off_by_one "$SS" 'datetime.timedelta(days=window_days)).isoformat(),' 'datetime.timedelta(days=window_days - 1)).isoformat(),'
+  # (select_sample's own __main__ BLIND guard is not reachable through
+  # cycle_report -- it re-raises to cycle_report's loader -- so that mutation is
+  # paired with test_select_sample_r5_regression.sh S11 only.)
+  # Round 3 reviewer mutation on this file (verbatim), and own: the rest of
+  # the instant-cutoff class (R5-C15 commit/review cells), V3-7 and V3-4.
+  r5_mutant R3_cutoff_committer_strict "$CR" 'return parse_iso(author_iso) >= cutoff_end or parse_iso(committer_iso) >= cutoff_end' 'return parse_iso(author_iso) >= cutoff_end or parse_iso(committer_iso) > cutoff_end'
+  r5_mutant R3_cutoff_author_strict "$CR" 'return parse_iso(author_iso) >= cutoff_end or parse_iso(committer_iso) >= cutoff_end' 'return parse_iso(author_iso) > cutoff_end or parse_iso(committer_iso) >= cutoff_end'
+  r5_mutant R3_review_start_strict "$CR" 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):' 'if cutoff_end is not None and (s_dt > cutoff_end or e_dt >= cutoff_end):'
+  r5_mutant R3_review_end_strict "$CR" 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):' 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt > cutoff_end):'
+  r5_mutant R3_window_json_mismatch_allowed "$CR" 'if args.as_of != as_of:' 'if False:'
+  r5_mutant R3_loader_blind_import_error_only "$CR" 'except Exception as exc:  # noqa: BLE001 -- FileNotFoundError, SyntaxError, a failing import inside it' 'except ImportError as exc:  # mutant'
 fi
 
 exit $fail

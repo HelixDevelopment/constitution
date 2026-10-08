@@ -150,8 +150,11 @@ d["body_hash"] = hashlib.sha256(json.dumps(body, sort_keys=True, separators=(","
 json.dump(d, open(p, "w"))
 PY
 gate CH-B1C
-if [ "$RC_A" -eq 1 ] && printf '%s\n' "$OUT_A" | grep -q "body_hash" && uncovered CH-B1C && printf '%s\n' "$G_OUT" | grep -q "evidence"; then
-  ok "B1-C: an edited record is refused (body_hash), and an edited record with a re-computed body_hash is still refused (verdict re-derived from the reviewer's archived evidence)"
+# V3 round 3 (record as pointer): a tampered record is INADMISSIBLE -- the gate
+# refuses the whole run (exit 4) naming it, never a quiet UNCOVERED.
+if [ "$RC_A" -eq 4 ] && printf '%s\n' "$OUT_A" | grep -q "r1.json: record body_hash" \
+   && [ "$G_RC" -eq 4 ] && printf '%s\n' "$G_OUT" | grep -q "r1.json: record fields disagree with the reviewer's archived verdict evidence"; then
+  ok "B1-C: an edited record is inadmissible (exit 4, body_hash), and with a re-computed body_hash still inadmissible (verdict re-derived from the reviewer's archived evidence)"
 else bad "B1-C: rcA=$RC_A outA=$OUT_A rc=$G_RC out=$G_OUT"; fi
 
 # --- B1 probe D: high-blast seams need capability independence -------------
@@ -199,8 +202,8 @@ d["body_hash"] = hashlib.sha256(json.dumps(body, sort_keys=True, separators=(","
 json.dump(d, open(p, "w"))
 PY2
 gate CH-B1E
-if uncovered CH-B1E && printf '%s\n' "$G_OUT" | grep -q "evidence round"; then
-  ok "B1-E: a record whose round was edited away from the reviewer's archived round is refused"
+if [ "$G_RC" -eq 4 ] && printf '%s\n' "$G_OUT" | grep -q "r1.json: verdict evidence round"; then
+  ok "B1-E: a record whose round was edited away from the reviewer's archived round is inadmissible (exit 4)"
 else bad "B1-E: rc=$G_RC out=$G_OUT"; fi
 
 # --- B1 probe G: reviewer self-report disagrees with --tier/--effort -------
@@ -372,7 +375,7 @@ d["body_hash"] = hashlib.sha256(json.dumps(body, sort_keys=True, separators=(","
 json.dump(d, open(p, "w"))
 PY2
 gate CH-BF2
-if uncovered CH-BF2; then ok "BF2: a genuine live record relabelled source=backfill is not coverage, even with intact live evidence"
+if [ "$G_RC" -eq 4 ] && printf '%s\n' "$G_OUT" | grep -q "live-only"; then ok "BF2: a genuine live record relabelled source=backfill is inadmissible (exit 4: a backfill row never carries live evidence)"
 else bad "BF2: rc=$G_RC out=$G_OUT"; fi
 
 echo ""

@@ -28,6 +28,8 @@
 #         precheck/v1), RR_SLICES (JSON list for batch "slices", default []),
 #         RR_SLICE_VERDICTS (JSON for verdict "slice_verdicts", default
 #         unset), RR_REVIEWER_MODEL/RR_REVIEWER_EFFORT (default opus/xhigh),
+#         RR_NO_PRECHECK=1 (write no precheck.json and pass no --precheck, so
+#         the record honestly says precheck_used=false),
 #         RR_NO_REVIEWER=1 (omit the reviewer block entirely).
 #       Review binding (T048 round 2, V3 F1): the generated verdict.json also
 #       carries the reviewer's own binding {batch_id, change_ids, round,
@@ -36,7 +38,8 @@
 #       override the bound values, RR_V_NO_ROUND=1 omits "round",
 #       RR_CHANGES (JSON list) overrides the batch's "changes" (default
 #       [CHANGE]; the bound change_ids default to the same list),
-#       RR_BATCH_HEAD sets batch.json "review_head", RR_PRECHECK_BATCH
+#       RR_BATCH_HEAD / RR_BATCH_BASE set batch.json "review_head" /
+#       "review_base", RR_PRECHECK_BATCH
 #       overrides the precheck's batch_id, RR_VERDICT_FROM=<file> copies an
 #       existing reviewer verdict file verbatim instead of generating one
 #       (a replay probe).
@@ -76,6 +79,8 @@ changes = json.loads(env["RR_CHANGES"]) if "RR_CHANGES" in env else [change]
 bdoc = {"batch_id": batch, "changes": changes, "slices": slices}
 if "RR_BATCH_HEAD" in env:
     bdoc["review_head"] = env["RR_BATCH_HEAD"]
+if "RR_BATCH_BASE" in env:
+    bdoc["review_base"] = env["RR_BATCH_BASE"]
 with open(os.path.join(d, "batch.json"), "w", encoding="utf-8") as fh:
     json.dump(bdoc, fh)
 pre = {"batch_id": env.get("RR_PRECHECK_BATCH", batch),
@@ -111,8 +116,13 @@ PY
   if [ "${RR_SKIP_LEDGER:-0}" != "1" ]; then
     rr_ledger_row "$dispatch" opus xhigh
   fi
+  local pre=(--precheck "$d/precheck.json")
+  if [ "${RR_NO_PRECHECK:-0}" = "1" ]; then
+    rm -f "$d/precheck.json"
+    pre=()
+  fi
   python3 "$RR_TOOL" record --batch "$d/batch.json" --round "$round" \
-    --verdict-file "$d/verdict.json" --precheck "$d/precheck.json" \
+    --verdict-file "$d/verdict.json" "${pre[@]}" \
     --tier opus --effort xhigh --producer-id "${RR_PRODUCER-PRODUCER-MAIN}" \
     --out "$out" "$@" >"$d/record.out" 2>"$d/record.err"
   # shellcheck disable=SC2034  # RR_RC is consumed by the sourcing test

@@ -108,6 +108,16 @@ mutate MX4 "set -e abort with an open frame" \
   return 0
 }'
 
+# Round-3 reviewer RN2: fc_timer_reset no longer re-mints the source timestamp.
+mutate RN2 "RN2: fc_timer_reset re-mints" \
+  '  _FC_TIMER_ROWS_WRITTEN=0
+  _FC_TIMER_SOURCE_TS="$(date -u +%Y%m%dT%H%M%SZ)"
+  return 0' '  _FC_TIMER_ROWS_WRITTEN=0
+  return 0'
+# Round-3 reviewer RN4: a non-numeric --rc maps to 0 (WARN) instead of 255 (FAIL).
+mutate RN4 "RN4: fc_timer_close_all --rc abc" \
+  '    _fc_timer_is_uint "$rc" || rc=255' '    _fc_timer_is_uint "$rc" || rc=0'
+
 echo
 if [ "$fail" = 0 ]; then echo "=== fc_timer MUTATIONS: ALL KILLED ==="; else echo "=== fc_timer MUTATIONS: SURVIVORS ABOVE ==="; fi
 exit "$fail"

@@ -44,9 +44,15 @@
 # `record` subcommand (captured 2026-10-03, before this field existed)
 # against the project's own golden-good fixture -- not a hand-authored
 # stand-in. Its one finding carries no "finding_layer" key at all. Test
-# 1 below proves this genuine pre-existing file still loads/validates
-# via the SAME code path `gate` already uses (_gate_collect_records),
-# unedited by this change, exactly as before.
+# 1 below proves this genuine pre-existing file still PARSES through the
+# SAME code path `gate` uses (_gate_collect_records) -- no parse or
+# required-field error. Since T048 restart round 3 (V3, record as pointer)
+# `gate` additionally ADMITS a live record only through the reviewer's
+# archived verdict evidence, which this pre-R7 record predates, so the
+# fixture's honest gate outcome is "inadmissible" (exit 4, naming the
+# missing verdict_evidence) -- never a parse failure. 1b proves the same
+# backward compatibility at the DECISION layer with a genuine record whose
+# finding carries no finding_layer.
 #
 # §11.4.199: every check is a real invocation of the real tool.
 #
@@ -117,13 +123,33 @@ RC1=$?
 # R7 M-b (2026-10-08): the record is a NO-GO, so the only correct verdict is
 # rc==1 with an UNCOVERED line for its change -- "any rc other than 4" also
 # accepted a wrong rc 0 COVERED (or a rc 2 usage error) as a pass.
-if [ "$RC1" -eq 1 ] && echo "$OUT1" | grep -q "^UNCOVERED $CHANGE_ID" \
-    && ! echo "$OUT1" | grep -q "missing required field"; then
-    ok "1: pre-existing finding_layer-less record parses cleanly through gate and yields its honest verdict (rc=1 UNCOVERED, no parse/field error) -- backward compatible"
+if [ "$RC1" -eq 4 ] && echo "$OUT1" | grep -q "pre_existing.json: verdict_evidence missing" \
+    && ! echo "$OUT1" | grep -q "missing required field" && ! echo "$OUT1" | grep -q "cannot read/parse"; then
+    ok "1: pre-existing finding_layer-less record parses cleanly through gate (no parse/field error); its honest outcome is 'inadmissible: no reviewer evidence' (exit 4, V3 round 3)"
 else
-    bad "1 FAILED: pre-existing record triggered a parse/field error (rc=$RC1): $OUT1"
+    bad "1 FAILED: pre-existing record did not parse cleanly or was not refused for its missing evidence (rc=$RC1): $OUT1"
 fi
 rm -f "$SCRATCH/records/pre_existing.json" "$SCRATCH/records"/*.precheck-evidence
+
+# 1b: decision-layer backward compatibility -- a GENUINE record (real record
+# CLI, reviewer-authored, bound, ledger-backed) whose NO-GO finding names no
+# finding_layer is admitted and decided normally: UNCOVERED, rc 1.
+# shellcheck disable=SC2034 # RR_TOOL is consumed by the sourced lib/review_record_genuine.sh
+RR_TOOL="$TOOL"
+# shellcheck source=lib/review_record_genuine.sh
+# shellcheck disable=SC1091 # sourced helper is linted on its own; the precheck pack runs shellcheck without -x
+. "$HERE/lib/review_record_genuine.sh"
+RR_WORK="$SCRATCH/work1b"; mkdir -p "$RR_WORK" "$SCRATCH/rec1b"
+RR_LEDGER="$SCRATCH/ledger1b.jsonl"; : > "$RR_LEDGER"
+rr_genuine "$SCRATCH/rec1b/r1.json" BATCH-FL1B CH-FL1B 1 NO-GO '[{"id":"F1","severity":"MINOR"}]' D-FL1B
+OUT1B=$(python3 "$TOOL" gate --change CH-FL1B --records "$SCRATCH/rec1b" --dispatch-ledger "$RR_LEDGER" 2>&1)
+RC1B=$?
+HAS_LAYER=$(python3 -c 'import json,sys; print("finding_layer" in json.load(open(sys.argv[1]))["findings"][0])' "$SCRATCH/rec1b/r1.json" 2>/dev/null)
+if [ "$RR_RC" -eq 0 ] && [ "$HAS_LAYER" = "False" ] && [ "$RC1B" -eq 1 ] && echo "$OUT1B" | grep -q "^UNCOVERED CH-FL1B .*not a zero-finding GO"; then
+    ok "1b: a genuine record whose finding names no finding_layer is admitted and decided normally (UNCOVERED, rc=1) -- backward compatible"
+else
+    bad "1b FAILED: record rc=$RR_RC layer_present=$HAS_LAYER gate rc=$RC1B: $OUT1B"
+fi
 
 # -----------------------------------------------------------------------
 # Shared fresh-call fixture inputs (record subcommand).

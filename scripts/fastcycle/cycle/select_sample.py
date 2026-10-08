@@ -164,7 +164,8 @@ Exit codes (C-001's uniform 5-code table, same mapping cycle_report.py's own
 docstring already uses for this exact tool family): 0 selection written
 (including the C-001-consistent NO_DATA_IN_WINDOW state); 1 reserved for a
 --determinism-check mismatch (C-003); 2 usage/config error; 3 needle failed
-(C-004); 4 tracker DB unreadable (BLIND).
+(C-004); 4 BLIND -- the tracker DB is unreadable, the sibling lib/fc_common.py
+cannot be loaded (V3-4), or a --determinism-check run timed out.
 
 Side-effects: read-only on docs/workable_items.db (C-006); writes only
 --out (and --md if given). No git operations at all (unlike
@@ -188,7 +189,19 @@ import tempfile
 _LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
 if _LIB_DIR not in sys.path:
     sys.path.insert(0, _LIB_DIR)
-import fc_common  # noqa: E402  (path-inserted import, matches cycle_report.py's own convention)
+# V3-4 (T048 restart round 3): a missing/unreadable/broken sibling module is
+# BLIND (C-001 exit 4: no honest output is possible), never the uncaught
+# exception's exit 1 -- which C-001 reserves for a determinism mismatch. Run as
+# a script, this exits 4; loaded by cycle_report.py, the exception is re-raised
+# so cycle_report.py reports its own BLIND exit.
+try:
+    import fc_common  # noqa: E402  (path-inserted import, matches cycle_report.py's own convention)
+except Exception as _exc:  # noqa: BLE001 -- any load failure (ImportError, SyntaxError, ...) is BLIND
+    if __name__ == "__main__":
+        print("select_sample: BLIND: could not load lib/fc_common.py (%s: %s) -- no honest selection "
+              "is possible (C-001 exit 4)" % (type(_exc).__name__, _exc), file=sys.stderr)
+        sys.exit(4)
+    raise
 
 canon = fc_common.canon
 body_hash_of = fc_common.body_hash_of
@@ -287,6 +300,14 @@ def db_reopened_in_window(conn, frm, to):
         (frm, to),
     )
     return cur.fetchall()
+
+
+def window_for(as_of, window_days):
+    """THE analysis window, both tools (round 3: cycle_report.py carried its own
+    copy of this arithmetic): [as_of - window_days, as_of], calendar days,
+    both ends inclusive."""
+    return {"from": (datetime.date.fromisoformat(as_of) - datetime.timedelta(days=window_days)).isoformat(),
+            "to": as_of}
 
 
 def history_upto(history, as_of):
@@ -787,10 +808,7 @@ def main(argv):
 
     run_meta = {"host": os.uname().nodename if hasattr(os, "uname") else "unknown", "needle": needle}
 
-    window = {
-        "from": (datetime.date.fromisoformat(args.as_of) - datetime.timedelta(days=args.window_days)).isoformat(),
-        "to": args.as_of,
-    }
+    window = window_for(args.as_of, args.window_days)
 
     result = select_sample(conn, window, args.min_per_type, args.bulk_threshold)
 

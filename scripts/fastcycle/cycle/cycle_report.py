@@ -59,7 +59,10 @@ is computed by reopen_rate.py, see CT-006 below):
                               not a "trust me it's empty" shortcut: if the
                               window is not actually empty the tool proceeds
                               with real sampling instead of forcing
-                              NO_DATA_IN_WINDOW).
+                              NO_DATA_IN_WINDOW). window.to MUST equal
+                              --as-of: every rule cuts at window.to and the
+                              report is labelled as_of, so a mismatch is
+                              refused with exit 2 (V3-7).
     --db-path <file>         override the tracker DB path (else
                               <repo_root>/docs/workable_items.db).
     --repo-root <dir>        override the auto-detected repo root.
@@ -70,8 +73,12 @@ is computed by reopen_rate.py, see CT-006 below):
                               the as-of when the default postdates it).
 
 Exit codes (contract "Exit codes" table): 0 report written; 1 hand-verification
-mismatch or a structural violation of the tool's own output; 2 usage/config
-error; 3 needle failed; 4 tracker DB unreadable.
+mismatch or a structural violation of the tool's own output (or a
+--determinism-check mismatch); 2 usage/config error (including a --window-json
+window whose `to` is not --as-of, V3-7); 3 needle failed; 4 BLIND -- the
+tracker DB is unreadable, a sibling module (lib/fc_common.py,
+cycle/select_sample.py, closure/reopen_rate.py) cannot be loaded (V3-4), an
+item vanished mid-run, or a --determinism-check run timed out.
 
 Contract-clause coverage in THIS implementation (honest boundary, §11.4.6):
   CT-001 (sample)         -- FULL, delegated to select_sample.py (T048
@@ -117,7 +124,8 @@ Contract-clause coverage in THIS implementation (honest boundary, §11.4.6):
   CT-004 (no invention)  -- FULL. No interpolation, no averaging across items,
                              no zero for missing; medians exclude UNMEASURED
                              members and report n_measured/n_total.
-  CT-005 (quality flags) -- PARTIAL (only BULK_WRITE is missing). Implemented: DATE_ONLY_RESOLUTION
+  CT-005 (quality flags) -- PARTIAL (only BULK_WRITE is missing). Implemented:
+                             DATE_ONLY_RESOLUTION
                              (on_date's calendar date disagrees with
                              created_at's), RETROACTIVE_REGISTRATION (open to
                              terminal-closure db_write gap < 60s),
@@ -132,15 +140,14 @@ Contract-clause coverage in THIS implementation (honest boundary, §11.4.6):
                              stage's own `elapsed` field computed negative;
                              such a value is excluded from medians -- counted
                              as n_negative_excluded -- and makes the record's
-                             total_elapsed UNMEASURED, R5 M8).
-                             NOT implemented: BULK_WRITE (tied to the CT-001
-                             bulk-import path above) and
+                             total_elapsed UNMEASURED, R5 M8),
                              REOPEN_WITHOUT_PRIOR_CLOSURE (a Reopened row with
                              no earlier closure in the deduplicated as-of
                              history; flag_reopen_without_prior_closure).
-                             NOT implemented: BULK_WRITE (a bulk-import row is
-                             reported through `excluded`/`exclusion_reason`
-                             instead).
+                             NOT implemented: BULK_WRITE -- a bulk-import row
+                             is reported through `excluded`/`exclusion_reason`
+                             (the CT-001 bulk-import path above) instead of a
+                             flag.
   CT-006 (reopen denom.) -- DELEGATED. The block is closure/reopen_rate.py's
                              own derive_report(), imported in-process (one
                              implementation of the SC-004 metric, R5 I3),
@@ -194,7 +201,23 @@ import tempfile
 _LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
 if _LIB_DIR not in sys.path:
     sys.path.insert(0, _LIB_DIR)
-import fc_common  # noqa: E402  (path-inserted import, see above)
+
+
+def _blind_load_failure(what, exc):
+    """V3-4 (T048 restart round 3): a sibling module that cannot be loaded
+    (missing, unreadable, SyntaxError, or failing at its own import) is BLIND
+    -- C-001 exit 4, "no honest report is possible" -- never the uncaught
+    exception's exit 1, which this tool's exit table reserves for a hand-
+    verification mismatch / determinism finding. Nothing is written."""
+    print("cycle_report: BLIND: could not load %s (%s: %s) -- no honest report is possible "
+          "(C-001 exit 4)" % (what, type(exc).__name__, exc), file=sys.stderr)
+    raise SystemExit(4)
+
+
+try:
+    import fc_common  # noqa: E402  (path-inserted import, see above)
+except Exception as _exc:  # noqa: BLE001 -- any load failure is BLIND
+    _blind_load_failure("lib/fc_common.py", _exc)
 
 canon = fc_common.canon
 body_hash_of = fc_common.body_hash_of
@@ -205,14 +228,26 @@ body_hash_of = fc_common.body_hash_of
 # called in-process, so there is exactly ONE implementation of the metric
 # (R5 I3, T048 restart round 1: the previous inline copy had diverged -- it
 # divided every reopened record by the sampled closures and counted reopens
-# over all history). A missing sibling is a hard import error, never a silent
+# over all history). A missing or broken sibling is BLIND (exit 4, V3-4), never a silent
 # fallback to a second copy.
 import importlib.util  # noqa: E402
 
 _REOPEN_RATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "closure", "reopen_rate.py")
-_spec = importlib.util.spec_from_file_location("fc_reopen_rate", _REOPEN_RATE_PATH)
-reopen_rate = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(reopen_rate)
+
+
+def _load_sibling(name, path):
+    """Load a sibling tool by file path; any failure is BLIND (V3-4)."""
+    try:
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    except Exception as exc:  # noqa: BLE001 -- FileNotFoundError, SyntaxError, a failing import inside it
+        _blind_load_failure(os.path.relpath(path, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")),
+                            exc)
+
+
+reopen_rate = _load_sibling("fc_reopen_rate", _REOPEN_RATE_PATH)
 
 # CT-001 / as-of / needle: the sibling select_sample.py (T043) owns THE
 # implementation of every sampling-and-cutoff rule both tools apply (T048
@@ -220,11 +255,9 @@ _spec.loader.exec_module(reopen_rate)
 # this file used to carry its own history_upto, recency key, retroactive
 # rule, bulk clustering, window queries and needle, and its own stratum
 # count disagreed with select_sample's). Loaded by file path like
-# reopen_rate above; a missing sibling is a hard import error.
+# reopen_rate above; a missing or broken sibling is BLIND (exit 4, V3-4).
 _SS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "select_sample.py")
-_ss_spec = importlib.util.spec_from_file_location("fc_select_sample", _SS_PATH)
-select_sample = importlib.util.module_from_spec(_ss_spec)
-_ss_spec.loader.exec_module(select_sample)
+select_sample = _load_sibling("fc_select_sample", _SS_PATH)
 
 parse_iso = select_sample.parse_iso
 open_db_readonly = select_sample.open_db_readonly
@@ -371,8 +404,13 @@ def date_of(iso_or_dt):
 # exclusion classifier, closure_event, reopen_count, every CT-005 flag except
 # STATUS_DESYNC, the reopen block, commit_push, review_rounds -- reads only
 # cut data. Proven by tests/test_cycle_report_red.sh R5-C1 (synthetic full vs
-# cut, with boundary rows ON the as-of day and ON window.from, a rebased
-# commit, non-UTC commits) and R5-C8 (the reviewer's delete-the-future-rows
+# cut: a rebased commit, non-UTC commits), R5-C15 (the GENERATED boundary
+# matrix of fixtures/cycle_report/build_asof_scenario.py, round 3: a closure
+# and a Reopened row one day before / ON / one day after window.from and the
+# as-of day, in both on_date shapes; commit author and committer instants at
+# cutoff-1s / cutoff / cutoff+1s; review rounds ending or starting at those
+# instants and one straddling the cutoff -- every cell checked against an
+# independent oracle) and R5-C8 (the reviewer's delete-the-future-rows
 # experiment on a snapshot of the live DB, compared by body_hash).
 # Honest boundaries (S11.4.6):
 #   * the cutoff keys on item_history.on_date (the same field the window
@@ -1597,11 +1635,18 @@ def main(argv):
             wdoc = json.load(fh)
         window = {"from": wdoc["window"]["from"], "to": wdoc["window"]["to"]}
         as_of = window["to"]
+        # V3-7 (T048 restart round 3): the body is labelled with --as-of, and
+        # every rule cuts at window.to -- a report labelled as of one day but
+        # cut at another misstates what it measured. The two must agree; a
+        # mismatch is a usage error, refused before anything is written.
+        if args.as_of != as_of:
+            print("cycle_report: --window-json window.to (%s) differs from --as-of (%s): the report "
+                  "would be labelled as of %s but cut at %s -- refusing (pass --as-of %s)"
+                  % (as_of, args.as_of, args.as_of, as_of, as_of), file=sys.stderr)
+            return 2
     else:
         as_of = args.as_of
-        window = {"from": (datetime.date.fromisoformat(args.as_of) -
-                            datetime.timedelta(days=args.window_days)).isoformat(),
-                  "to": args.as_of}
+        window = select_sample.window_for(args.as_of, args.window_days)
 
     # CT-009: needle BEFORE any sampling (V2-8: derived at the as-of when the
     # default needle row postdates it -- select_sample.resolve_needle).
@@ -1625,7 +1670,7 @@ def main(argv):
         reopens = db_reopened_in_window(conn, window["from"], window["to"])
         type_of = {atm_id: itype for atm_id, itype in list(closures) + list(reopens)}
         if not type_of:
-            body = {"as_of": args.as_of, "window": window, "state": "NO_DATA_IN_WINDOW"}
+            body = {"as_of": as_of, "window": window, "state": "NO_DATA_IN_WINDOW"}
             return finish(args, body, run_meta,
                           "cycle_report: no data in window [%s, %s]" % (window["from"], window["to"]))
         rows_by_id = {}
@@ -1722,7 +1767,7 @@ def main(argv):
     full_hist = {atm_id: db_item_history(conn, atm_id) for atm_id in sorted(type_of)}
     sel = shared_selection(type_of, full_hist, window, as_of, min_n, bulk, take_all=False)
     if not sel["items"]:
-        body = {"as_of": args.as_of, "window": window, "state": "NO_DATA_IN_WINDOW"}
+        body = {"as_of": as_of, "window": window, "state": "NO_DATA_IN_WINDOW"}
         return finish(args, body, run_meta,
                       "cycle_report: no data in window [%s, %s]" % (window["from"], window["to"]))
 
@@ -1763,7 +1808,7 @@ def blind_missing_item(item_id):
 
 def report_body(args, window, records, sel, population, as_of):
     return {
-        "as_of": args.as_of, "window": window,
+        "as_of": as_of, "window": window,
         "selection_rule": select_sample.selection_rule(sel["take_all"]),
         "current_state_inputs": select_sample.CURRENT_STATE_INPUTS,
         "live_fields": LIVE_FIELDS,

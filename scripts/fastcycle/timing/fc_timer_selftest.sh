@@ -302,6 +302,24 @@ CA_BEFORE="$(fc_timer_rows_written)"
 CA_ERR="$(fc_timer_close_all --rc 1 2>&1 1>/dev/null)"
 chk "I2: fc_timer_close_all on an empty stack writes nothing and prints nothing" \
   "$([ "$(fc_timer_rows_written)" -eq "$CA_BEFORE" ] && [ -z "$CA_ERR" ] && echo 1 || echo 0)"
+# T048 restart round-3 (reviewer RN4): a NON-NUMERIC --rc is an unknown exit status -> 255 and
+# a FAIL row, never rc=0 / WARN (an unknown status must never read as a clean exit).
+fc_timer_start "nonnumeric-rc-open"
+fc_timer_close_all --rc "abc"
+chk "RN4: fc_timer_close_all --rc abc records FAIL with result=aborted;rc=255 (an unknown status is never a clean exit)" \
+  "$([ "$(tail -n1 "$TMP/g1b.tsv" | awk -F'\t' '{print $3":"$7":"$11}')" = "nonnumeric-rc-open:FAIL:result=aborted;rc=255" ] && echo 1 || echo 0)"
+# T048 restart round-3 (reviewer RN2): fc_timer_reset RE-MINTS the source timestamp, so two
+# resets one second apart in the SAME process yield two different auto run ids (same pid).
+_RN2_SAVE_TSV="$FC_TIMER_TSV"; _RN2_SAVE_RID="${FC_TIMER_RUN_ID-__unset__}"
+unset FC_TIMER_RUN_ID
+fc_timer_reset; RN2_A="$(fc_timer_run_id)"
+sleep 1.1
+fc_timer_reset; RN2_B="$(fc_timer_run_id)"
+chk "RN2: fc_timer_reset re-mints the run timestamp -- two resets 1 s apart give distinct auto run ids ($RN2_A vs $RN2_B)" \
+  "$([ -n "$RN2_A" ] && [ -n "$RN2_B" ] && [ "$RN2_A" != "$RN2_B" ] && echo 1 || echo 0)"
+export FC_TIMER_TSV="$_RN2_SAVE_TSV"
+[ "$_RN2_SAVE_RID" = "__unset__" ] || export FC_TIMER_RUN_ID="$_RN2_SAVE_RID"
+fc_timer_reset
 
 # ============================================================================
 # GROUP 2 -- real, isolated subprocess scenarios (each needs its own process: a distinct

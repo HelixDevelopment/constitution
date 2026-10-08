@@ -195,17 +195,36 @@ fi
 # cmd_record()/`_evidence_hash_verified()`), never on the boolean
 # field's say-so alone.
 # -----------------------------------------------------------------------
-cat > "$SCRATCH/records/live.json" <<'EOF'
+# V3 round 3 (record as pointer): such a record is now INADMISSIBLE -- the
+# whole run exits 4 naming it -- whether its body_hash is absent (R3) or
+# recomputed by the forger (R3r: then it fails on the missing evidence).
+# Each forged-record case runs in its OWN records dir so one inadmissible
+# record never masks the next case's own reason.
+mkdir -p "$SCRATCH/r3rec"
+cat > "$SCRATCH/r3rec/live.json" <<'EOF'
 {"review_id":"R2-LIVE-1","batch_id":"BATCH-R2-LIVE","round":1,"verdict":"GO",
  "model_tier":"opus","effort":"xhigh","change_ids":["CH-R2-LIVE"],"findings":[],
  "source":"live","precheck_used":true}
 EOF
-OUT3=$(python3 "$TOOL" gate --change CH-R2-LIVE --records "$SCRATCH/records" 2>&1)
+OUT3=$(python3 "$TOOL" gate --change CH-R2-LIVE --records "$SCRATCH/r3rec" 2>&1)
 RC3=$?
-if [ "$RC3" -eq 1 ] && echo "$OUT3" | grep -q "^UNCOVERED CH-R2-LIVE"; then
-    ok "R3 (T085 Round 5 R4-I1): a hand-written live record with precheck_used:true and NO archived/hash-verifiable evidence is correctly REFUSED -- closes 'gate trusts any .json file under --records'"
+if [ "$RC3" -eq 4 ] && echo "$OUT3" | grep -q "live.json: record body_hash"; then
+    ok "R3 (T085 Round 5 R4-I1): a hand-written live record with precheck_used:true and NO archived/hash-verifiable evidence is INADMISSIBLE (exit 4) -- closes 'gate trusts any .json file under --records'"
 else
-    bad "R3 (T085 Round 5 R4-I1) FAILED: expected UNCOVERED/exit 1 for an unbacked hand-written live record, got rc=$RC3: $OUT3"
+    bad "R3 (T085 Round 5 R4-I1) FAILED: expected exit 4 naming the record, got rc=$RC3: $OUT3"
+fi
+python3 - "$SCRATCH/r3rec/live.json" <<'PY'
+import hashlib, json, sys
+p = sys.argv[1]; d = json.load(open(p))
+d["body_hash"] = hashlib.sha256(json.dumps(d, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+json.dump(d, open(p, "w"))
+PY
+OUT3R=$(python3 "$TOOL" gate --change CH-R2-LIVE --records "$SCRATCH/r3rec" 2>&1)
+RC3R=$?
+if [ "$RC3R" -eq 4 ] && echo "$OUT3R" | grep -q "live.json: verdict_evidence missing"; then
+    ok "R3r: the same forgery with a correct body_hash is still inadmissible (no reviewer evidence to derive it from)"
+else
+    bad "R3r FAILED: expected exit 4 naming missing verdict_evidence, got rc=$RC3R: $OUT3R"
 fi
 
 # -----------------------------------------------------------------------
@@ -224,18 +243,24 @@ EOF
 cat > "$SCRATCH/precheck_r3b.json" <<'EOF'
 {"schema": "precheck/v1", "batch_id": "BATCH-R2-LIVE-REAL", "all_pass": true, "checks": []}
 EOF
+mkdir -p "$SCRATCH/r3brec"
 python3 "$TOOL" record --batch "$SCRATCH/batch_r3b.json" --round 1 \
     --verdict-file "$SCRATCH/verdict_r3b.json" --precheck "$SCRATCH/precheck_r3b.json" \
-    --tier opus --effort xhigh --producer-id PRODUCER-R3B --out "$SCRATCH/records/live_real.json" >/dev/null 2>&1
-OUT3B=$(python3 "$TOOL" gate --change CH-R2-LIVE-REAL --records "$SCRATCH/records" --dispatch-ledger "$RR_LEDGER" 2>&1)
+    --tier opus --effort xhigh --producer-id PRODUCER-R3B --out "$SCRATCH/r3brec/live_real.json" >/dev/null 2>&1
+OUT3B=$(python3 "$TOOL" gate --change CH-R2-LIVE-REAL --records "$SCRATCH/r3brec" --dispatch-ledger "$RR_LEDGER" 2>&1)
 RC3B=$?
-if [ "$RC3B" -eq 1 ] && echo "$OUT3B" | grep -q "^UNCOVERED CH-R2-LIVE-REAL .*reviewer identity"; then
-    ok "R3b (R7 B1): a producer-written verdict with no reviewer identity is NOT coverage, even through the real record CLI with a passing precheck"
+# V3 round 3: a verdict with neither a reviewer nor a review binding cannot be
+# placed (nothing authenticates which batch/changes/round it speaks for), so
+# it is inadmissible -- the reviewer-less-WITH-binding case (admitted, then
+# UNCOVERED "no reviewer identity") is B1-A in the r1 suite.
+if [ "$RC3B" -eq 4 ] && echo "$OUT3B" | grep -q "live_real.json: verdict evidence review binding missing"; then
+    ok "R3b (R7 B1): a producer-written verdict with no reviewer identity and no binding is inadmissible (exit 4), even through the real record CLI with a passing precheck"
 else
-    bad "R3b (R7 B1) FAILED: expected UNCOVERED naming reviewer identity, got rc=$RC3B: $OUT3B"
+    bad "R3b (R7 B1) FAILED: expected exit 4 naming the missing binding, got rc=$RC3B: $OUT3B"
 fi
-rr_genuine "$SCRATCH/records/live_genuine.json" BATCH-R2-LIVE-GEN CH-R2-LIVE-GEN 1 GO '[]' D-R3C
-OUT3C=$(python3 "$TOOL" gate --change CH-R2-LIVE-GEN --records "$SCRATCH/records" --dispatch-ledger "$RR_LEDGER" 2>&1)
+mkdir -p "$SCRATCH/r3crec"
+rr_genuine "$SCRATCH/r3crec/live_genuine.json" BATCH-R2-LIVE-GEN CH-R2-LIVE-GEN 1 GO '[]' D-R3C
+OUT3C=$(python3 "$TOOL" gate --change CH-R2-LIVE-GEN --records "$SCRATCH/r3crec" --dispatch-ledger "$RR_LEDGER" 2>&1)
 RC3C=$?
 if [ "$RC3C" -eq 0 ] && echo "$OUT3C" | grep -q "^COVERED CH-R2-LIVE-GEN "; then
     ok "R3c (true negative control): a genuine reviewer-authored live record is COVERED -- the fix does not over-reject legitimate coverage"
@@ -250,14 +275,13 @@ fi
 # missing/false) must NOT qualify as coverage, exactly like an untraced
 # backfill row does not.
 # -----------------------------------------------------------------------
-cat > "$SCRATCH/records/live_no_precheck.json" <<'EOF'
-{"review_id":"R3I4-LIVE-NOPRECHECK-1","batch_id":"BATCH-R3I4-LIVE-NOPRECHECK","round":1,"verdict":"GO",
- "model_tier":"opus","effort":"xhigh","change_ids":["CH-LIVE-NOPRECHECK"],"findings":[],
- "source":"live","precheck_used":false}
-EOF
-OUT6=$(python3 "$TOOL" gate --change CH-LIVE-NOPRECHECK --records "$SCRATCH/records" 2>&1)
+# V3 round 3: driven through the REAL record CLI with no precheck at all (a
+# hand-written record would now be inadmissible before this guard is reached).
+mkdir -p "$SCRATCH/r6rec"
+RR_NO_PRECHECK=1 rr_genuine "$SCRATCH/r6rec/live_no_precheck.json" BATCH-R3I4-LIVE-NOPRECHECK CH-LIVE-NOPRECHECK 1 GO '[]' D-R6
+OUT6=$(python3 "$TOOL" gate --change CH-LIVE-NOPRECHECK --records "$SCRATCH/r6rec" --dispatch-ledger "$RR_LEDGER" 2>&1)
 RC6=$?
-if [ "$RC6" -eq 1 ] && echo "$OUT6" | grep -q "^UNCOVERED CH-LIVE-NOPRECHECK"; then
+if [ "$RR_RC" -eq 0 ] && [ "$RC6" -eq 1 ] && echo "$OUT6" | grep -q "^UNCOVERED CH-LIVE-NOPRECHECK .*no precheck was consulted"; then
     ok "R6 (R3-I4 'precheck_used' half): a LIVE record whose own precheck_used==false (no precheck genuinely consulted) is correctly REFUSED as qualifying coverage -- closes the still-open second half of the original Round 2 finding"
 else
     bad "R6 (R3-I4 'precheck_used' half) FAILED: expected UNCOVERED/exit 1, got rc=$RC6: $OUT6"
@@ -268,17 +292,26 @@ fi
 # "live" nor "backfill" (missing, forged, or a typo) must NEVER qualify
 # -- the conservative-safe default on an unrecognised value.
 # -----------------------------------------------------------------------
-cat > "$SCRATCH/records/unknown_source.json" <<'EOF'
+# V3 round 3: body_hash recomputed (as a forger would) so the SOURCE guard is
+# the one that refuses -- inadmissible, exit 4, naming the unrecognised value.
+mkdir -p "$SCRATCH/r7rec"
+cat > "$SCRATCH/r7rec/unknown_source.json" <<'EOF'
 {"review_id":"R3I4-UNKSRC-1","batch_id":"BATCH-R3I4-UNKSRC","round":1,"verdict":"GO",
  "model_tier":"opus","effort":"xhigh","change_ids":["CH-UNKSRC"],"findings":[],
  "source":"imported-from-elsewhere","precheck_used":true,"source_evidence":"real_historical_review_notes.md"}
 EOF
-OUT7=$(python3 "$TOOL" gate --change CH-UNKSRC --records "$SCRATCH/records" 2>&1)
+python3 - "$SCRATCH/r7rec/unknown_source.json" <<'PY'
+import hashlib, json, sys
+p = sys.argv[1]; d = json.load(open(p))
+d["body_hash"] = hashlib.sha256(json.dumps(d, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+json.dump(d, open(p, "w"))
+PY
+OUT7=$(python3 "$TOOL" gate --change CH-UNKSRC --records "$SCRATCH/r7rec" 2>&1)
 RC7=$?
-if [ "$RC7" -eq 1 ] && echo "$OUT7" | grep -q "^UNCOVERED CH-UNKSRC"; then
-    ok "R7 (closed-set source guard): a record with an unrecognised source value never qualifies, regardless of how plausible its other fields look"
+if [ "$RC7" -eq 4 ] && echo "$OUT7" | grep -q "unrecognised record source 'imported-from-elsewhere'"; then
+    ok "R7 (closed-set source guard): a record with an unrecognised source value is inadmissible (exit 4), regardless of how plausible its other fields look"
 else
-    bad "R7 (closed-set source guard) FAILED: expected UNCOVERED/exit 1, got rc=$RC7: $OUT7"
+    bad "R7 (closed-set source guard) FAILED: expected exit 4 naming the source, got rc=$RC7: $OUT7"
 fi
 
 echo ""

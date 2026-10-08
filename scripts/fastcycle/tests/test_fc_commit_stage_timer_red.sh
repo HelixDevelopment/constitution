@@ -266,6 +266,51 @@ done
 [ "$k_ok" = 1 ] && ok "K: a remote whose read-back tip != the local branch tip is recorded FAIL result=tip_mismatch" \
   || bad "K: tip_mismatch rows wrong: $(awk -F'\t' 'NR>1 {print $3"|"$7"|"$11}' "$TMP/K/k.tsv" 2>/dev/null | tr '\n' ' ')"
 
+echo "=== L: the detached push child dies MID-FRAME -> its exit flush still records the open frame (round-3 CN1) ==="
+# push_all.sh is replaced by a stub that SIGTERMs its own parent -- the detached child -- while
+# the child's push:call_push_all frame is open. bash runs its EXIT trap on a fatal TERM, so only
+# the child's fc_timer_install_exit_flush can write that frame (result=aborted).
+P="$(scratch L)"; RID="t016_childdies_$$"
+printf '#!/bin/bash\nkill -TERM "$PPID"\nsleep 2\nexit 0\n' > "$P/scripts/push_all.sh"
+rc="$(run_ca "$P" "$RID" -m "child dies")"; T="$(tsv_of "$P" "$RID")"
+if wait_for_id "$T" push:call_push_all 60; then
+  lrow="$(awk -F'\t' 'NR>1 && $3=="push:call_push_all" {print $7"|"$11}' "$T")"
+  case "$lrow" in *"|result=aborted;rc="*) ok "L: rc=$rc; the killed child's open push:call_push_all frame was flushed ($lrow)" ;;
+    *) bad "L: push:call_push_all row is not an aborted flush: '$lrow'" ;; esac
+  [ "$(count_id "$T" push:github)" = 0 ] && ok "L: the child died before recording remote tips (no push:<remote> rows) -- the row above IS the flush" \
+    || bad "L: push:<remote> rows present -- the child did not die mid-frame, so L tested nothing"
+else
+  bad "L: the detached child died mid-frame and NO push:call_push_all row was written within 60s (exit flush missing)"
+fi
+
+echo "=== M: DEFAULT detached push where one remote is UNREACHABLE -> every remote still gets a row; the unreachable one is tip_mismatch, never ok (round-3 CN3, CN4) ==="
+P="$(scratch M)"; RID="t016_unreach_$$"
+git -C "$P" remote set-url upstream "$TMP/M/does-not-exist.git"
+rc="$(run_ca "$P" "$RID" -m "one remote unreachable")"; T="$(tsv_of "$P" "$RID")"
+HEADM="$(git -C "$P" rev-parse HEAD)"
+if wait_for_id "$T" push:upstream 90; then
+  cprow="$(awk -F'\t' 'NR>1 && $3=="push:call_push_all" {print $7}' "$T")"
+  mg="$(awk -F'\t' 'NR>1 && $3=="push:github" {print $7"|"$11}' "$T")"
+  mu="$(awk -F'\t' 'NR>1 && $3=="push:upstream" {print $7"|"$11}' "$T")"
+  [ "$cprow" = FAIL ] && ok "M: push_all.sh failed (push:call_push_all FAIL) -- the failure path is exercised" || bad "M: push:call_push_all verdict '$cprow' (want FAIL) -- the scenario did not fail the push"
+  case "$mg" in *"|remote=github;tip=$HEADM;result=ok") ok "M: reachable remote github -> result=ok with tip == HEAD" ;; *) bad "M: github row '$mg'" ;; esac
+  case "$mu" in "FAIL|remote=upstream;tip=UNKNOWN;local=$HEADM;result=tip_mismatch") ok "M: unreachable remote -> FAIL tip=UNKNOWN result=tip_mismatch (never ok)" ;;
+    *) bad "M: unreachable upstream row '$mu' (want FAIL|remote=upstream;tip=UNKNOWN;local=$HEADM;result=tip_mismatch)" ;; esac
+else
+  bad "M: a FAILED detached push recorded no per-remote rows within 90s (tips recorded only on success?)"
+fi
+
+echo "=== N: a remote whose read-back HANGS is bounded by FC_LS_REMOTE_TIMEOUT_S (round-3 CN2) ==="
+P="$(scratch N)"
+git -C "$P" config remote.upstream.uploadpack 'sleep 30; git-upload-pack'
+t0=$(date +%s)
+( cd "$P" && COMMIT_ALL_SOURCE_ONLY=1 FC_TIMING=1 FC_TIMER_TSV="$TMP/N/n.tsv" FC_LS_REMOTE_TIMEOUT_S=2 timeout 60 bash -c 'source scripts/commit_all.sh; set +e +u; _fc_record_remote_tips main post-push; exit 0' ) >/dev/null 2>&1
+el=$(( $(date +%s) - t0 ))
+nu="$(awk -F'\t' 'NR>1 && $3=="push:upstream" {print $11}' "$TMP/N/n.tsv" 2>/dev/null)"
+case "$nu" in "remote=upstream;tip=UNKNOWN;"*) n1=1 ;; *) n1=0 ;; esac
+[ "$el" -lt 20 ] && [ "$n1" = 1 ] && ok "N: the hanging remote's read-back gave up after ~2s (total ${el}s) and was recorded tip=UNKNOWN" \
+  || bad "N: elapsed ${el}s, upstream row '$nu' -- the ls-remote read-back is not bounded"
+
 echo "=== N5: a missing fc_timer.sh is loud, never silent (round-2 N5, kept) ==="
 N5="$TMP/n5"; mkdir -p "$N5/scripts/lib"; cp -- "$REAL_COMMIT_ALL" "$N5/scripts/commit_all.sh"; cp -- "$REAL_COMMON" "$N5/scripts/lib/common.sh"
 N5_OUT="$(cd "$N5" && COMMIT_ALL_SOURCE_ONLY=1 bash -c 'source scripts/commit_all.sh' 2>&1)"

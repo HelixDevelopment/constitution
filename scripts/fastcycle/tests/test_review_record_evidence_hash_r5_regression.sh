@@ -56,6 +56,12 @@ REC="$SCRATCH/records"; mkdir -p "$REC" "$SCRATCH/outside"
 RR_WORK="$SCRATCH/work"; mkdir -p "$RR_WORK"
 RR_LEDGER="$SCRATCH/ledger.jsonl"; : > "$RR_LEDGER"
 
+# V3 round 3 (record as pointer): a record whose evidence cannot be verified is
+# INADMISSIBLE -- the whole gate run exits 4 naming the record and the reason,
+# never a quiet UNCOVERED (the evidence is what places the record at all).
+inadmissible() { # inadmissible RECORD_BASENAME REASON_FRAGMENT
+    [ "$G_RC" -eq 4 ] && echo "$G_OUT" | grep -q "inadmissible record .*$1: .*$2"
+}
 gate() { # gate CHANGE -> G_RC, G_OUT
     G_OUT=$(python3 "$TOOL" gate --change "$1" --records "$REC" --dispatch-ledger "$RR_LEDGER" 2>&1)
     G_RC=$?
@@ -97,10 +103,10 @@ echo "-- 1: symlink inside --records pointing outside it --"
 ln -s "$SCRATCH/outside/$GENUINE_EV" "$REC/evil_symlink.verdict-evidence"
 cp "$SCRATCH/genuine.pristine" "$REC/genuine.json"; repoint "$REC/genuine.json" evil_symlink.verdict-evidence
 gate CH-R5
-if [ "$G_RC" -eq 1 ] && echo "$G_OUT" | grep -q "^UNCOVERED CH-R5 .*verdict_evidence"; then
-    ok "1: a symlink inside --records resolving outside it is REFUSED even with a correct content hash"
+if inadmissible genuine.json verdict_evidence; then
+    ok "1: a symlink inside --records resolving outside it is REFUSED (inadmissible, exit 4) even with a correct content hash"
 else
-    bad "1 FAILED: expected UNCOVERED naming verdict_evidence, got rc=$G_RC: $G_OUT"
+    bad "1 FAILED: expected exit 4 naming verdict_evidence, got rc=$G_RC: $G_OUT"
 fi
 rm -f "$REC/evil_symlink.verdict-evidence"
 
@@ -108,29 +114,29 @@ echo "-- 2: symlinked directory inside --records pointing outside it --"
 ln -s "$SCRATCH/outside" "$REC/evil_dir"
 cp "$SCRATCH/genuine.pristine" "$REC/genuine.json"; repoint "$REC/genuine.json" "evil_dir/$GENUINE_EV"
 gate CH-R5
-if [ "$G_RC" -eq 1 ] && echo "$G_OUT" | grep -q "^UNCOVERED CH-R5 .*verdict_evidence"; then
-    ok "2: a symlinked DIRECTORY inside --records resolving outside it is REFUSED"
+if inadmissible genuine.json verdict_evidence; then
+    ok "2: a symlinked DIRECTORY inside --records resolving outside it is REFUSED (exit 4)"
 else
-    bad "2 FAILED: expected UNCOVERED, got rc=$G_RC: $G_OUT"
+    bad "2 FAILED: expected exit 4, got rc=$G_RC: $G_OUT"
 fi
 rm -f "$REC/evil_dir"
 
 echo "-- 5: '..' path escape --"
 cp "$SCRATCH/genuine.pristine" "$REC/genuine.json"; repoint "$REC/genuine.json" "../outside/$GENUINE_EV"
 gate CH-R5
-if [ "$G_RC" -eq 1 ] && echo "$G_OUT" | grep -q "^UNCOVERED CH-R5 .*verdict_evidence"; then
-    ok "5: a '..' path escape is refused, even with a genuinely-matching content hash"
+if inadmissible genuine.json verdict_evidence; then
+    ok "5: a '..' path escape is refused (exit 4), even with a genuinely-matching content hash"
 else
-    bad "5 FAILED: expected UNCOVERED, got rc=$G_RC: $G_OUT"
+    bad "5 FAILED: expected exit 4, got rc=$G_RC: $G_OUT"
 fi
 
 echo "-- 3: self-citation --"
 cp "$SCRATCH/genuine.pristine" "$REC/genuine.json"; repoint "$REC/genuine.json" genuine.json
 gate CH-R5
-if [ "$G_RC" -eq 1 ] && echo "$G_OUT" | grep -q "^UNCOVERED CH-R5"; then
-    ok "3: a record citing its own file as evidence is refused (self-citation guard; a file can never carry its own content hash, so the hash guard refuses it too)"
+if inadmissible genuine.json verdict_evidence; then
+    ok "3: a record citing its own file as evidence is refused (exit 4; self-citation guard -- a file can never carry its own content hash, so the hash guard refuses it too)"
 else
-    bad "3 FAILED: expected UNCOVERED, got rc=$G_RC: $G_OUT"
+    bad "3 FAILED: expected exit 4, got rc=$G_RC: $G_OUT"
 fi
 
 # restore the genuine record + evidence for 7
@@ -144,10 +150,10 @@ cat > "$REC/forged_live.json" <<'EOF'
  "source":"live","precheck_used":true}
 EOF
 gate CH-R5LIVE
-if [ "$G_RC" -eq 1 ] && echo "$G_OUT" | grep -q "^UNCOVERED CH-R5LIVE"; then
-    ok "4: a hand-written live record (no evidence) is REFUSED"
+if inadmissible forged_live.json body_hash; then
+    ok "4: a hand-written live record (no evidence) is REFUSED (inadmissible, exit 4)"
 else
-    bad "4 FAILED: expected UNCOVERED/exit 1, got rc=$G_RC: $G_OUT"
+    bad "4 FAILED: expected exit 4 naming forged_live.json, got rc=$G_RC: $G_OUT"
 fi
 rm -f "$REC/forged_live.json"
 
@@ -159,8 +165,8 @@ p = sys.argv[1]; d = json.load(open(p)); d["swapped"] = True; json.dump(d, open(
 PY
 gate CH-R5
 if [ "$RC7A" -eq 0 ] && echo "$OUT7A" | grep -q "^COVERED CH-R5 " \
-    && [ "$G_RC" -eq 1 ] && echo "$G_OUT" | grep -q "^UNCOVERED CH-R5"; then
-    ok "7: content-hash binding detects a post-authoring swap of the reviewer's archived verdict -- COVERED before, UNCOVERED after"
+    && inadmissible genuine.json verdict_evidence; then
+    ok "7: content-hash binding detects a post-authoring swap of the reviewer's archived verdict -- COVERED before, inadmissible (exit 4) after"
 else
     bad "7 FAILED: before rc=$RC7A ($OUT7A), after rc=$G_RC ($G_OUT)"
 fi

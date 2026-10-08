@@ -18,8 +18,10 @@
 #       every row of the dispatch names the same designated model/effort -> m4
 #   P3  a reviewer NO-GO bypassed by another batch listing the same change:
 #       coverage is a function of EVERY batch that lists the change   -> F2
-#   T   the independence tier rated against the PRODUCER uid, never the uid
-#       running gate; unknown producer -> never "capability"        -> F3, N1, N2
+#   T   the independence tier: neither the PRODUCER uid nor the uid running
+#       gate may own/write/replace the evidence (revised V3 round 3, R3-F1:
+#       the round-2 version trusted the declared producer uid alone, so a
+#       single-uid producer passing a foreign uid got capability) -> F3, N1, N2
 #   S   remaining single-condition guards without an isolating case:
 #       precheck batch binding (N4), gate-side producer==reviewer (N11),
 #       record-vs-evidence consistency for layers/model/effort (m3: N6, N12).
@@ -64,6 +66,10 @@ gate() { # gate CHANGE [extra args] -> sets G_RC, G_OUT
 covered()   { [ "$G_RC" -eq 0 ] && printf '%s\n' "$G_OUT" | grep -q "^COVERED $1 "; }
 uncovered() { [ "$G_RC" -eq 1 ] && printf '%s\n' "$G_OUT" | grep -q "^UNCOVERED $1"; }
 has()       { printf '%s\n' "$G_OUT" | grep -q -- "$1"; }
+# V3 round 3 (record as pointer): a record whose copies disagree with the
+# reviewer's archived evidence is INADMISSIBLE -- the whole run exits 4 naming
+# it (never a quiet UNCOVERED that a later selection change could flip).
+inadmissible() { [ "$G_RC" -eq 4 ] && has "inadmissible record" && has "$1"; }
 
 # rehash REC_JSON PY_STMT: edit a record the way an attacker would (apply the
 # statement to dict `d`, then recompute body_hash so the integrity check
@@ -87,8 +93,10 @@ reforge() {
 import hashlib, json, os, sys
 p, stmt = sys.argv[1], sys.argv[2]
 d = json.load(open(p)); base = os.path.dirname(p)
-v = json.load(open(os.path.join(base, d["verdict_evidence"])))
+old = os.path.join(base, d["verdict_evidence"])
+v = json.load(open(old))
 exec(stmt)
+os.remove(old)  # a real forger leaves no orphaned original behind
 raw = json.dumps(v).encode()
 sha = hashlib.sha256(raw).hexdigest()
 open(os.path.join(base, sha + ".verdict-evidence"), "wb").write(raw)
@@ -125,14 +133,14 @@ fresh_case p1c
 rr_genuine "$REC/r1.json" B2 c2 1 GO "$NONE" D-P1C
 rehash "$REC/r1.json" 'd["batch_id"]="BX"; d["change_ids"]=["cX"]; d["review_id"]="REV-BX-1"'
 gate cX
-if uncovered cX && has "binding"; then ok "P1c: a re-hashed record re-pointed at BX/[cX] is refused from the reviewer's own binding"
+if inadmissible "binding"; then ok "P1c: a re-hashed record re-pointed at BX/[cX] is inadmissible from the reviewer's own binding (exit 4)"
 else bad "P1c: rc=$G_RC out=$G_OUT"; fi
 # P1d: widen the change set instead (B2 kept, cX added).
 fresh_case p1d
 rr_genuine "$REC/r1.json" B2 c2 1 GO "$NONE" D-P1D
 rehash "$REC/r1.json" 'd["change_ids"]=["c2","cX"]'
 gate cX
-if uncovered cX && has "binding"; then ok "P1d: adding cX to a genuine record's change_ids is refused (bound set is {c2})"
+if inadmissible "binding"; then ok "P1d: adding cX to a genuine record's change_ids is inadmissible (bound set is {c2})"
 else bad "P1d: rc=$G_RC out=$G_OUT"; fi
 
 # P1h: re-point ONLY the batch id (change set kept) -- the binding, not just
@@ -141,7 +149,7 @@ fresh_case p1h
 rr_genuine "$REC/r1.json" B2 c2 1 GO "$NONE" D-P1H
 rehash "$REC/r1.json" 'd["batch_id"]="BX"; d["review_id"]="REV-BX-1"'
 gate c2
-if uncovered c2 && has "binding"; then ok "P1h: a record re-pointed at another batch id (same changes) is refused from the reviewer's binding"
+if inadmissible "binding"; then ok "P1h: a record re-pointed at another batch id (same changes) is inadmissible from the reviewer's binding"
 else bad "P1h: rc=$G_RC out=$G_OUT"; fi
 
 # P1i: replay onto a batch with the SAME change set but another batch id.
@@ -182,14 +190,14 @@ fresh_case p1g3
 rr_genuine "$REC/r1.json" B-P1G3 c-p1g3 1 GO "$NONE" D-P1G3
 reforge "$REC/r1.json" 'v["review_head"]="4444444444444444444444444444444444444444"'
 gate c-p1g3
-if uncovered c-p1g3 && has "binding"; then ok "P1g3: evidence head differing from the record's review_head is refused"
+if inadmissible "binding"; then ok "P1g3: evidence head differing from the record's review_head is inadmissible"
 else bad "P1g3: rc=$G_RC out=$G_OUT"; fi
 
 fresh_case p1g4
 rr_genuine "$REC/r1.json" B-P1G4 c-p1g4 1 GO "$NONE" D-P1G4
 reforge "$REC/r1.json" 'v["review_base"]="5555555555555555555555555555555555555555"'
 gate c-p1g4
-if uncovered c-p1g4 && has "binding"; then ok "P1g4: evidence base differing from the record's review_base is refused"
+if inadmissible "binding"; then ok "P1g4: evidence base differing from the record's review_base is inadmissible"
 else bad "P1g4: rc=$G_RC out=$G_OUT"; fi
 
 # --- round mandatory (m1) and integer-only at gate time (N8) -----------------
@@ -202,13 +210,13 @@ fresh_case rnd2
 rr_genuine "$REC/r1.json" B-RND2 c-rnd2 1 GO "$NONE" D-RND2
 reforge "$REC/r1.json" 'del v["round"]'
 gate c-rnd2
-if uncovered c-rnd2 && has "round"; then ok "m1b: archived evidence with no 'round' is refused at gate time"
+if inadmissible "round"; then ok "m1b: archived evidence with no 'round' is inadmissible at gate time"
 else bad "m1b: rc=$G_RC out=$G_OUT"; fi
 fresh_case rnd3
 rr_genuine "$REC/r1.json" B-RND3 c-rnd3 1 GO "$NONE" D-RND3
 reforge "$REC/r1.json" 'v["round"]=True'
 gate c-rnd3
-if uncovered c-rnd3 && has "round"; then ok "N8: archived evidence with round=true (bool) is refused at gate time"
+if inadmissible "round must be an integer"; then ok "N8: archived evidence with round=true (bool) is inadmissible at gate time"
 else bad "N8: rc=$G_RC out=$G_OUT"; fi
 
 # --- P3: a NO-GO in one batch is not overridden by another batch (F2) -------
@@ -329,47 +337,53 @@ fresh_case n6
 rr_genuine "$REC/r1.json" B-N6 c-n6 1 GO "$NONE" D-N6
 rehash "$REC/r1.json" 'd["findings"]=[{"id":"FX","severity":"NIT","class":"judgment","finding_layer":"process-doc"}]'
 gate c-n6
-if uncovered c-n6 && has "disagree"; then ok "N6: a record whose findings/layers differ from the reviewer evidence is refused"
+if inadmissible "disagree"; then ok "N6: a record whose findings/layers differ from the reviewer evidence is inadmissible"
 else bad "N6: rc=$G_RC out=$G_OUT"; fi
 fresh_case n12
 rr_genuine "$REC/r1.json" B-N12 c-n12 1 GO "$NONE" D-N12
 rehash "$REC/r1.json" 'd["effort"]="?"; d["effort_capability_gap"]=True'
 gate c-n12
-if uncovered c-n12 && has "disagree"; then ok "N12: a record whose effort differs from the reviewer evidence is refused"
+if inadmissible "disagree"; then ok "N12: a record whose effort differs from the reviewer evidence is inadmissible"
 else bad "N12: rc=$G_RC out=$G_OUT"; fi
 
-# --- T: independence tier rated against the PRODUCER uid (F3, N1, N2) --------
+# --- T: independence tier (F3, N1, N2; revised V3 round 3, R3-F1) ----------
+# The tier needs THREE principals: neither the declared producer NOR the uid
+# running gate may own/write/replace the evidence. These in-process cases pass
+# an explicit runner uid (daemon) so the producer-side guards are isolated on
+# real files with real owners (this uid, $ME, is the THIRD principal here).
 if [ "$(id -u)" -eq 0 ]; then
   echo "NOTE: running as root -- tier cases SKIPPED (os modes cannot bound root)"
-elif ! NOBODY=$(python3 -c 'import pwd; print(pwd.getpwnam("nobody").pw_uid)' 2>/dev/null); then
-  echo "NOTE: no 'nobody' account on this host -- tier cases SKIPPED (no second uid to stand in for a producer)"
+elif ! NOBODY=$(python3 -c 'import pwd; print(pwd.getpwnam("nobody").pw_uid)' 2>/dev/null) \
+     || ! DAEMON=$(python3 -c 'import pwd; print(pwd.getpwnam("daemon").pw_uid)' 2>/dev/null); then
+  echo "NOTE: no 'nobody'/'daemon' account on this host -- tier cases SKIPPED (need two non-runner uids)"
 else
   ME=$(id -u)
   T="$S/tier"; mkdir -p "$T/ro" "$T/open"; chmod 755 "$S" "$T" "$T/ro"
   echo x > "$T/ro/f"; chmod 644 "$T/ro/f"
   echo x > "$T/ro/w"; chmod 666 "$T/ro/w"
   echo x > "$T/open/f"; chmod 644 "$T/open/f"; chmod 777 "$T/open"
-  TIER=$(python3 - "$RR_TOOL" "$T" "$NOBODY" "$ME" <<'PY'
+  TIER=$(python3 - "$RR_TOOL" "$T" "$NOBODY" "$ME" "$DAEMON" <<'PY'
 import importlib.util, sys
-tool, t, nobody, me = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+tool, t, nobody, me, daemon = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
 spec = importlib.util.spec_from_file_location("rr", tool)
 rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
 tier = rr._independence_tier
 print(" ".join([
-    tier([t + "/ro/f"], nobody),    # foreign-owned, not writable, parents safe
-    tier([t + "/ro/w"], nobody),    # mode 666: writable by the producer (N2)
-    tier([t + "/open/f"], nobody),  # parent dir 777: producer can replace it (N1)
-    tier([t + "/ro/f"], me),        # producer OWNS the evidence
-    tier([t + "/ro/f"], None),      # producer unknown
-    tier([t + "/ro/f"], 0),         # producer is root
-    tier(["/proc/self/cmdline"], me),  # producer-OWNED read-only file in a producer-owned read-only dir
+    tier([t + "/ro/f"], nobody, runner_uid=daemon),    # third-party owned, unwritable, parents safe
+    tier([t + "/ro/w"], nobody, runner_uid=daemon),    # mode 666: writable by the producer (N2)
+    tier([t + "/open/f"], nobody, runner_uid=daemon),  # parent dir 777: producer can replace it (N1)
+    tier([t + "/ro/f"], me, runner_uid=daemon),        # producer OWNS the evidence
+    tier([t + "/ro/f"], None, runner_uid=daemon),      # producer undeclared
+    tier([t + "/ro/f"], 0, runner_uid=daemon),         # producer is root
+    tier(["/proc/self/cmdline"], me, runner_uid=daemon),  # producer-OWNED read-only file in a producer-owned read-only dir
+    tier([t + "/ro/f"], nobody),                       # default runner = this uid, which OWNS the evidence
 ]))
 PY
 )
   chmod 700 "$T/open"
-  if [ "$TIER" = "capability instance instance instance instance instance instance" ]; then
-    ok "T: tier vs producer uid -- capability only for producer-foreign, producer-unwritable evidence in producer-unwritable dirs ($TIER)"
-  else bad "T: got '$TIER' want 'capability instance instance instance instance instance instance'"; fi
+  if [ "$TIER" = "capability instance instance instance instance instance instance instance" ]; then
+    ok "T: tier -- capability only when neither the producer nor the runner can own/write/replace the evidence ($TIER)"
+  else bad "T: got '$TIER' want 'capability instance instance instance instance instance instance instance'"; fi
   # control needle for the /proc case: the node really is producer-owned and
   # carries no write bit, as does its directory (so only ownership decides).
   PM=$(python3 -c 'import os; p=os.path.realpath("/proc/self/cmdline"); s=os.stat(p); d=os.stat(os.path.dirname(p)); print(s.st_uid, oct(s.st_mode & 0o222), d.st_uid, oct(d.st_mode & 0o222))')
@@ -378,12 +392,14 @@ PY
   # ACL: a POSIX ACL granting the producer write access must defeat capability.
   echo x > "$T/ro/acl"; chmod 644 "$T/ro/acl"
   if command -v setfacl >/dev/null 2>&1 && setfacl -m "u:$NOBODY:rw" "$T/ro/acl" 2>/dev/null; then
-    ACLT=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._independence_tier([sys.argv[2]], int(sys.argv[3])))' "$RR_TOOL" "$T/ro/acl" "$NOBODY")
-    ACLC=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._independence_tier([sys.argv[2]], int(sys.argv[3])))' "$RR_TOOL" "$T/ro/f" "$NOBODY")
+    ACLT=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._independence_tier([sys.argv[2]], int(sys.argv[3]), runner_uid=int(sys.argv[4])))' "$RR_TOOL" "$T/ro/acl" "$NOBODY" "$DAEMON")
+    ACLC=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._independence_tier([sys.argv[2]], int(sys.argv[3]), runner_uid=int(sys.argv[4])))' "$RR_TOOL" "$T/ro/f" "$NOBODY" "$DAEMON")
     if [ "$ACLT" = "instance" ] && [ "$ACLC" = "capability" ]; then ok "T-ACL: an ACL granting the producer write access defeats capability (control without ACL: capability)"
     else bad "T-ACL: acl=$ACLT control=$ACLC"; fi
   else echo "NOTE: setfacl absent or refused by this filesystem -- T-ACL SKIPPED"; fi
-  # CLI: release-tag passes only when the gate is told who the producer is.
+  # CLI (REVERSED in V3 round 3, R3-F1): on this single-uid host the uid running
+  # gate owns every evidence file, so NO declared --producer-uid -- a real
+  # foreign one, an unknown one, none, or its own -- may reach capability.
   fresh_case tcli
   chmod 755 "$CASE"
   rr_genuine "$REC/r1.json" B-T c-t 1 GO "$NONE" D-T
@@ -393,9 +409,9 @@ PY
   gate c-t --seam release-tag --producer-uid "$ME"
   chmod 755 "$CASE"; chmod -R u+w "$REC" "$RR_LEDGER"
   if [ "$RC_A" -eq 1 ] && printf '%s\n' "$OUT_A" | grep -q "achieved instance" \
-     && [ "$RC_B" -eq 0 ] && printf '%s\n' "$OUT_B" | grep -q "independence=capability" \
-     && uncovered c-t; then
-    ok "T-CLI: release-tag refuses with no --producer-uid, passes with a producer uid that cannot write the evidence, refuses when the producer owns it"
+     && [ "$RC_B" -eq 1 ] && printf '%s\n' "$OUT_B" | grep -q "achieved instance" \
+     && uncovered c-t && has "achieved instance"; then
+    ok "T-CLI: single-uid host -- release-tag refuses with no --producer-uid, with a foreign --producer-uid (the runner owns the evidence), and with its own uid"
   else bad "T-CLI: A rc=$RC_A $OUT_A | B rc=$RC_B $OUT_B | C rc=$G_RC $G_OUT"; fi
 fi
 
