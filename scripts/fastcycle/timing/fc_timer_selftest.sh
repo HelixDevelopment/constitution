@@ -20,7 +20,9 @@
 #        found (cannot even attempt the self-test).
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
-FC_TIMER="$HERE/fc_timer.sh"
+# FC_TIMER_SELFTEST_LIB: run this SAME selftest against a mutated copy of the library
+# (fc_timer_selftest_mutations.sh, the paired §1.1 mutation runner). Defaults to the real file.
+FC_TIMER="${FC_TIMER_SELFTEST_LIB:-$HERE/fc_timer.sh}"
 ROOT="$(cd "$HERE/../../../.." && pwd)"
 
 TMP="$(mktemp -d)"
@@ -223,6 +225,85 @@ fc_timer_end >/dev/null 2>&1
 chk "...and a correct retry (no --checks override) successfully pops it too" "$([ "$(fc_timer_stack_depth)" -eq 0 ] && echo 1 || echo 0)"
 
 # ============================================================================
+# GROUP 1b -- T048 restart round-1 R1-I1/R1-I5/R1-m4 (2026-10-08). Every check below runs
+# the REAL library with NO FC_TIMER_RUN_ID/FINGERPRINT pin, so memoisation itself is what
+# is exercised (the pinned checks in GROUP 1 can never see a memoisation defect -- R1-I5).
+# ============================================================================
+unset FC_TIMER_RUN_ID FC_TIMER_CANDIDATE_FINGERPRINT
+export FC_TIMER_TSV="$TMP/g1b.tsv"
+fc_timer_reset
+# R1-I1: every real caller reads the run id through a $(...) command substitution, i.e. in a
+# SUBSHELL whose memoisation can never reach the parent. Two such reads straddling a second
+# boundary, plus a row the PARENT writes afterwards, must all carry ONE run id.
+MEMO_A="$(fc_timer_run_id)"
+sleep 1.1
+MEMO_B="$(fc_timer_run_id)"
+fc_timer_start "memo-row"
+fc_timer_end
+MEMO_ROW="$(awk -F'\t' 'NR>1 {print $1}' "$TMP/g1b.tsv" | tail -n1)"
+chk "R1-I1: unpinned run id is identical across two \$(...) reads 1.1s apart and the parent's own row ('$MEMO_A' / '$MEMO_B' / '$MEMO_ROW')" \
+  "$([ -n "$MEMO_A" ] && [ "$MEMO_A" = "$MEMO_B" ] && [ "$MEMO_A" = "$MEMO_ROW" ] && echo 1 || echo 0)"
+
+# R1-I5 / reviewer mutation M3: the candidate fingerprint is resolved ONCE (fc_timer_init in
+# the caller's own shell) and never re-derived when HEAD later moves (commit_all.sh commits
+# mid-run). A throwaway repo makes HEAD move for real.
+FPREPO="$TMP/fprepo"
+mkdir -p "$FPREPO"
+git -C "$FPREPO" init -q 2>/dev/null
+git -C "$FPREPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m one 2>/dev/null
+FP_HEAD1="$(git -C "$FPREPO" rev-parse HEAD 2>/dev/null)"
+export FC_TIMER_REPO_ROOT="$FPREPO"
+fc_timer_reset
+fc_timer_init
+git -C "$FPREPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m two 2>/dev/null
+FP_HEAD2="$(git -C "$FPREPO" rev-parse HEAD 2>/dev/null)"
+fc_timer_start "fp-memo-row"
+fc_timer_end
+FP_ROW="$(awk -F'\t' 'NR>1 {print $2}' "$TMP/g1b.tsv" | tail -n1)"
+chk "M3: the fingerprint memoised by fc_timer_init survives a later HEAD move (row=$FP_ROW, init-time HEAD=$FP_HEAD1, moved HEAD=$FP_HEAD2)" \
+  "$([ -n "$FP_HEAD1" ] && [ "$FP_HEAD1" != "$FP_HEAD2" ] && [ "$FP_ROW" = "$FP_HEAD1" ] && echo 1 || echo 0)"
+unset FC_TIMER_REPO_ROOT
+
+# R1-I5 / reviewer mutation M4: the auto-tracked FAILS delta is computed against the fails
+# snapshot (never the checks one) and drives a FAIL verdict -- the path pre_build uses.
+fc_timer_reset
+TRK_C=10; TRK_F=1; TRK_W=4
+fc_timer_track TRK_C TRK_F TRK_W
+fc_timer_start "auto-fail-delta"
+TRK_C=$((TRK_C + 5)); TRK_F=$((TRK_F + 2)); TRK_W=$((TRK_W + 0))
+fc_timer_end
+FROW="$(tail -n1 "$TMP/g1b.tsv")"
+chk "M4: auto-tracked deltas checks=5 fails=2 warns=0 and verdict FAIL ($(awk -F'\t' '{print $8"/"$9"/"$10"/"$7}' <<<"$FROW"))" \
+  "$([ "$(awk -F'\t' '{print $8"/"$9"/"$10"/"$7}' <<<"$FROW")" = "5/2/0/FAIL" ] && echo 1 || echo 0)"
+fc_timer_track "" "" ""
+
+# R1-m4 / reviewer mutation M6: an --extra VALUE that happens to read "--min-ms" is a value,
+# never a flag -- the default gate threshold must still apply (an instant gate writes no row).
+G_BEFORE="$(fc_timer_rows_written)"
+fc_timer_gate_start "gate-extra-looks-like-flag"
+fc_timer_gate_end --extra "--min-ms"
+chk "M6: fc_timer_gate_end --extra '--min-ms' still applies the default >=1s threshold (no row for an instant gate)" \
+  "$([ "$(fc_timer_rows_written)" -eq "$G_BEFORE" ] && echo 1 || echo 0)"
+
+# R1-I2 (class fix): fc_timer_close_all closes EVERY open frame (innermost first) with an
+# aborted row carrying the exit status; FAIL for a nonzero status, WARN for a zero one.
+fc_timer_reset
+fc_timer_start "outer-open"
+fc_timer_start "inner-open"
+fc_timer_close_all --rc 3
+CA_IDS="$(tail -n2 "$TMP/g1b.tsv" | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+chk "I2: fc_timer_close_all --rc 3 writes inner then outer, both FAIL with result=aborted;rc=3 ($CA_IDS)" \
+  "$([ "$CA_IDS" = "inner-open:FAIL:result=aborted;rc=3 outer-open:FAIL:result=aborted;rc=3 " ] && [ "$(fc_timer_stack_depth)" -eq 0 ] && echo 1 || echo 0)"
+fc_timer_start "zero-rc-open"
+fc_timer_close_all --rc 0
+chk "I2: fc_timer_close_all --rc 0 on a still-open frame records WARN (a frame left open at a clean exit is a wiring bug, never a silent PASS)" \
+  "$([ "$(tail -n1 "$TMP/g1b.tsv" | awk -F'\t' '{print $3":"$7":"$11}')" = "zero-rc-open:WARN:result=aborted;rc=0" ] && echo 1 || echo 0)"
+CA_BEFORE="$(fc_timer_rows_written)"
+CA_ERR="$(fc_timer_close_all --rc 1 2>&1 1>/dev/null)"
+chk "I2: fc_timer_close_all on an empty stack writes nothing and prints nothing" \
+  "$([ "$(fc_timer_rows_written)" -eq "$CA_BEFORE" ] && [ -z "$CA_ERR" ] && echo 1 || echo 0)"
+
+# ============================================================================
 # GROUP 2 -- real, isolated subprocess scenarios (each needs its own process: a distinct
 # FC_TIMING value, strict `set -euo pipefail`, direct execution, or a missing FC_TIMER_TSV).
 # ============================================================================
@@ -327,6 +408,74 @@ EOF
 RC=$(run_subprocess "$TMP/case_silent.sh")
 SILENT_OUT_BYTES="$(wc -c < "$TMP/sub.out" | tr -d ' ')"
 chk "a normal start/end (+gate) sequence writes ZERO bytes to stdout (golden-output safety)" "$([ "$SILENT_OUT_BYTES" -eq 0 ] && echo 1 || echo 0)"
+
+# --- R1-I2 class fix: fc_timer_install_exit_flush closes every frame left open when the
+# process exits (any `exit N`, any `set -e` abort), keeps the caller's PRIOR EXIT trap
+# running with the ORIGINAL status, and never changes the process exit status. ---
+cat > "$TMP/case_exitflush.sh" <<EOF
+set -euo pipefail
+export FC_TIMER_TSV="$TMP/exitflush.tsv"
+export FC_TIMER_RUN_ID="exitflush-run"
+source "$FC_TIMER"
+trap 'echo "old-trap-rc=\$?" > "$TMP/exitflush.oldtrap"' EXIT
+fc_timer_install_exit_flush
+fc_timer_install_exit_flush
+fc_timer_start "will-abort"
+false
+echo "NOT-REACHED"
+EOF
+RC=$(run_subprocess "$TMP/case_exitflush.sh")
+EF_ROWS="$(tail -n +2 "$TMP/exitflush.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+chk "I2: a set -e abort with an open frame -> exactly ONE aborted FAIL row (double install is idempotent) ($EF_ROWS)" \
+  "$([ "$EF_ROWS" = "will-abort:FAIL:result=aborted;rc=1 " ] && echo 1 || echo 0)"
+chk "I2: the caller's prior EXIT trap still ran and saw the ORIGINAL status 1 ($(cat "$TMP/exitflush.oldtrap" 2>/dev/null))" \
+  "$([ "$(cat "$TMP/exitflush.oldtrap" 2>/dev/null)" = "old-trap-rc=1" ] && echo 1 || echo 0)"
+chk "I2: the process exit status is unchanged by the flush (rc=$RC, want 1) and nothing after the abort ran" \
+  "$([ "$RC" -eq 1 ] && ! grep -q NOT-REACHED "$TMP/sub.out" && echo 1 || echo 0)"
+cat > "$TMP/case_exitflush_explicit.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/exitflush2.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush
+fc_timer_start "explicit-exit"
+fc_timer_start "explicit-exit-inner"
+exit 9
+EOF
+RC=$(run_subprocess "$TMP/case_exitflush_explicit.sh")
+EF2="$(tail -n +2 "$TMP/exitflush2.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s ", $3, $11}')"
+chk "I2: an explicit exit 9 with two open frames -> both rows, innermost first, rc=9, exit status 9 ($EF2 rc=$RC)" \
+  "$([ "$EF2" = "explicit-exit-inner:result=aborted;rc=9 explicit-exit:result=aborted;rc=9 " ] && [ "$RC" -eq 9 ] && echo 1 || echo 0)"
+cat > "$TMP/case_exitflush_off.sh" <<EOF
+set -u
+export FC_TIMING=0
+export FC_TIMER_TSV="$TMP/exitflush_off.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush
+fc_timer_start "off"
+exit 4
+EOF
+RC=$(run_subprocess "$TMP/case_exitflush_off.sh")
+chk "I2: FC_TIMING=0 -> the exit flush writes nothing (no TSV created) and the status is untouched (rc=$RC)" \
+  "$([ ! -e "$TMP/exitflush_off.tsv" ] && [ "$RC" -eq 4 ] && echo 1 || echo 0)"
+
+# --- reviewer mutation M2: a backward wall-clock step clamps the duration to 0, the row is
+# still written, and the raw start/end stamps are recorded unmodified. A real `date` shell
+# function shadows the binary (the library calls `date +%s%N` by name). ---
+cat > "$TMP/case_clockskew.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/clockskew.tsv"
+export FC_TIMER_RUN_ID="skew"
+export FC_TIMER_CANDIDATE_FINGERPRINT="skew"
+source "$FC_TIMER"
+# the library calls date inside \$(...) subshells, so the call counter lives in a file
+date() { local n; n="\$(cat "$TMP/skew.n" 2>/dev/null || echo 0)"; n=\$((n + 1)); echo "\$n" > "$TMP/skew.n"; if [ "\$n" = 1 ]; then echo 2000000000000000000; else echo 1999999999000000000; fi; }
+fc_timer_start "skewed"
+fc_timer_end
+EOF
+RC=$(run_subprocess "$TMP/case_clockskew.sh")
+SKEW="$(tail -n1 "$TMP/clockskew.tsv" 2>/dev/null | awk -F'\t' '{print $3":"$4":"$5":"$6}')"
+chk "M2: a backward clock step yields duration_ms 0 with the raw stamps kept ($SKEW)" \
+  "$([ "$SKEW" = "skewed:2000000000000000000:1999999999000000000:0" ] && echo 1 || echo 0)"
 
 # ============================================================================
 # GROUP 3 -- optional: shellcheck, only if the tool is genuinely present on PATH (honest

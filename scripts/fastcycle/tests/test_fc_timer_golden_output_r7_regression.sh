@@ -159,6 +159,10 @@ gt_golden "$TMP/r7a.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/r7a"; rc=$?
 # the stand-in now prints a realistic "Failed: N" summary line consistent
 # with its own exit code, which a manifest-only exit edit would contradict.
 cp -r "$SAME" "$TMP/fix_r7b"; gt_member_exit "$TMP/fix_r7b" FC1 0
+# T048 restart R2-B1: the golden test now also compares the summary counters. An identical
+# explicit "Failed: 1" line in all three members keeps the counter channel EQUAL, so this
+# fixture (and its M-M2b mutant) still isolates the EXIT-code channel alone.
+for _m in FC0a FC0b FC1; do printf '  Failed:       1\n' >> "$TMP/fix_r7b/$_m.txt"; done
 capture "$TMP/r7b" "$TMP/fix_r7b" 20261001T110000Z
 gt_golden "$TMP/r7b.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/r7b"; rc=$?
 [ "$rc" = 1 ] && has "$TMP/r7b.out" "FAIL" && has "$TMP/r7b.out" "commit result: with-timers exit status (0) equals without-timers exit status (1)" \

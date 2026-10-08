@@ -295,7 +295,15 @@ echo "=== (M-dupkey) duplicate keys silently resolved to the first value ==="
 if mutate dupkey '[ "${n:-0}" = 1 ] || return 1' '[ "${n:-0}" -ge 1 ] || return 1'; then
   # single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
   # shellcheck disable=SC2016
-  sed -i 's/sed -n "s\/^$1=\/\/p" "$2"/sed -n "s\/^$1=\/\/p" "$2" | head -n1/' "$TMP/golden_dupkey.sh"
+  # (T048 restart R2-M2: _mf_get now extracts with an exact-prefix awk, so the "first value
+  # wins" half of this mutant pipes THAT extraction through head -n1.)
+  python3 - "$TMP/golden_dupkey.sh" <<'PYEOF'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = 'awk -v k="$1=" ' + "'index($0, k) == 1 {print substr($0, length(k) + 1)}'" + ' "$2"'
+assert s.count(a) == 1
+open(p, "w").write(s.replace(a, a + " | head -n1", 1))
+PYEOF
   GT_GOLDEN="$TMP/golden_dupkey.sh" gt_golden "$TMP/m7.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s10"; rc=$?
   # ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
   # shellcheck disable=SC2015

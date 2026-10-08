@@ -62,6 +62,25 @@
 #   CAPTURE_TRIPLET_TSV_ROOT root under which fc_timer writes <run-id>/prebuild_sections.tsv
 #                            (default <repo>/qa-results/fastcycle, which is where
 #                            the real pre_build_verification.sh writes it)
+#   CAPTURE_TRIPLET_TREE_ROOT git work tree whose drift the manifest fingerprints (default:
+#                            this checkout). STAND-IN mode only -- a real capture refuses
+#                            the override (its drift record must describe the real tree);
+#                            this harness's own tests use it to drive real drift into a
+#                            scratch repo (T048 restart round-1 R1-I6).
+#
+# T048 restart round-1 (2026-10-08):
+#   R1-m1 tree drift fingerprint: the parent's tracked changes (-uno, submodules ignored, as
+#         before) PLUS the constitution submodule's own status INCLUDING untracked files (it
+#         holds fc_timer.sh and tests pre_build runs, and was invisible before) PLUS untracked
+#         files under the pre-build tests directory PLUS the pre-build script's own bytes.
+#   R1-m2 a member TSV already present at this run id (a killed earlier run, no manifest) is
+#         REFUSED before anything runs -- it used to be appended to, inflating tsv_rows or
+#         falsely failing a timers-OFF member.
+#   R1-m3 the manifest is reserved atomically (noclobber) before the members start and
+#         published with `ln` (fails if it exists) -- two same-second captures can no longer
+#         both pass the exists-check and overwrite one another.
+#   members run with cwd = this checkout's root: pre_build_verification.sh is cwd-dependent
+#   (measured: started elsewhere it aborts rc=2 in Section BN).
 #
 # Host safety (S12 / S12.11): a real (non-stand-in) capture calls
 # host_check_safety first and aborts on refusal.
@@ -116,6 +135,10 @@ if [ ! -f "$PREBUILD" ]; then
 fi
 MODE=real
 [ "$PREBUILD" = "$REAL_PREBUILD" ] || MODE=stand-in
+TREE_ROOT="${CAPTURE_TRIPLET_TREE_ROOT:-$ROOT}"
+if [ "$MODE" = real ] && [ "$TREE_ROOT" != "$ROOT" ]; then
+  echo "FATAL: CAPTURE_TRIPLET_TREE_ROOT is a stand-in-only override -- a real capture fingerprints this checkout" >&2; exit 2
+fi
 
 if [ "$MODE" = real ]; then
   HOST_SAFETY_LIB="$ROOT/scripts/lib/host_session_safety.sh"
@@ -137,13 +160,29 @@ if ! printf '%s' "$RUN_ID" | grep -qE '^[0-9]{8}T[0-9]{6}Z$'; then
 fi
 mkdir -p "$OUT_DIR" || { echo "FATAL: could not create $OUT_DIR" >&2; exit 2; }
 MANIFEST="$OUT_DIR/${PREFIX}_${RUN_ID}.triplet"
+RESERVE="$MANIFEST.reserve"
 if [ -e "$MANIFEST" ]; then
   echo "FATAL: $MANIFEST already exists -- refusing to overwrite evidence" >&2; exit 2
 fi
+# R1-m3: atomic reservation (noclobber create fails if another capture holds it).
+if ! ( set -o noclobber; echo "$$" > "$RESERVE" ) 2>/dev/null; then
+  echo "FATAL: $MANIFEST already exists or is being captured by another run ($RESERVE) -- refusing to overwrite evidence" >&2; exit 2
+fi
+_owns_reserve=1
 
-_tree_head() { git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo UNKNOWN; }
+_tree_head() { git -C "$TREE_ROOT" rev-parse HEAD 2>/dev/null || echo UNKNOWN; }
 _tree_status_sha() {
-  git -C "$ROOT" status --porcelain=v1 --ignore-submodules=all -uno 2>/dev/null | sha256sum | awk '{print $1}'
+  {
+    git -C "$TREE_ROOT" status --porcelain=v1 --ignore-submodules=all -uno
+    echo "--constitution--"
+    if [ -e "$TREE_ROOT/constitution/.git" ]; then
+      git -C "$TREE_ROOT/constitution" status --porcelain=v1 -unormal
+    fi
+    echo "--prebuild-tests-untracked--"
+    git -C "$TREE_ROOT" status --porcelain=v1 -unormal -- device/rockchip/rk3588/tests
+    echo "--prebuild-bytes--"
+    sha256sum < "$PREBUILD"
+  } 2>/dev/null | sha256sum | awk '{print $1}'
 }
 
 MEMBERS="FC0a FC0b FC1"
@@ -157,8 +196,17 @@ TREE_HEAD_START="$(_tree_head)"
 TREE_STATUS_START="$(_tree_status_sha)"
 STARTED_EPOCH="$(date -u +%s)"
 
-WORK="$(mktemp -d)" || { echo "FATAL: mktemp -d failed" >&2; exit 2; }
-trap 'rm -rf "$WORK"' EXIT
+# R1-m2: a member TSV already at this run id is a killed run's leftover -- refuse, never append.
+for m in $MEMBERS; do
+  _pre="$TSV_ROOT/${RUN_ID}_${PREFIX}_${m}/prebuild_sections.tsv"
+  if [ -e "$_pre" ]; then
+    rm -f -- "$RESERVE"
+    echo "FATAL: member TSV $_pre already exists (a killed earlier capture at run-id $RUN_ID?) -- refusing to append to it; pick a new run-id" >&2; exit 2
+  fi
+done
+
+WORK="$(mktemp -d)" || { rm -f -- "$RESERVE"; echo "FATAL: mktemp -d failed" >&2; exit 2; }
+trap 'rm -rf "$WORK"; [ "${_owns_reserve:-0}" = 1 ] && rm -f -- "$RESERVE"' EXIT
 
 # _run_member M -- runs one member, writing its log, and records its own
 # start/end/exit into $WORK/M.* (read back after all members finish).
@@ -169,8 +217,8 @@ _run_member() {
   log="$OUT_DIR/${PREFIX}_${m}_${RUN_ID}.log"
   mkdir -p "$WORK/tmp.$m" || { echo "FATAL: cannot create private TMPDIR for $m" >&2; echo 2 > "$WORK/$m.exit"; return; }
   date -u +%s > "$WORK/$m.started"
-  TMPDIR="$WORK/tmp.$m" FC_TIMING="$timing" FC_TIMER_RUN_ID="$fc_id" CAPTURE_TRIPLET_TSV_ROOT="$TSV_ROOT" \
-    bash "$PREBUILD" > "$log" 2>&1
+  ( cd "$ROOT" && TMPDIR="$WORK/tmp.$m" FC_TIMING="$timing" FC_TIMER_RUN_ID="$fc_id" CAPTURE_TRIPLET_TSV_ROOT="$TSV_ROOT" \
+    bash "$PREBUILD" > "$log" 2>&1 )
   echo "$?" > "$WORK/$m.exit"
   date -u +%s > "$WORK/$m.finished"
 }
@@ -223,8 +271,8 @@ TMP_MANIFEST="$MANIFEST.tmp.$$"
     echo "member.$m.tsv=$tsv"
     echo "member.$m.tsv_rows=$(_tsv_rows "$tsv")"
   done
-} > "$TMP_MANIFEST" && mv -f -- "$TMP_MANIFEST" "$MANIFEST" || {
-  rm -f -- "$TMP_MANIFEST"; echo "FATAL: could not write manifest $MANIFEST" >&2; exit 2; }
+} > "$TMP_MANIFEST" && ln -- "$TMP_MANIFEST" "$MANIFEST" && rm -f -- "$TMP_MANIFEST" || {
+  rm -f -- "$TMP_MANIFEST"; echo "FATAL: could not publish manifest $MANIFEST (it must not already exist)" >&2; exit 2; }
 
 echo "SUMMARY: triplet $RUN_ID captured in $((FINISHED_EPOCH - STARTED_EPOCH))s; manifest: $MANIFEST"
 cat "$MANIFEST"

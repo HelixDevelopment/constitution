@@ -301,6 +301,74 @@ field() {
   awk -F= -v k="$1" '$1==k {sub(k"=","");print;found=1} END{if(!found) print ""}' "$2" 2>/dev/null
 }
 
+# divergence_check <plan.md> <research.md>: exit 0 only when the set of RC rows whose plan.md
+# "Register v2" class differs from research.md §2.1's class is EXACTLY the allowlist below. Prints
+# one line per finding. Every way the instrument could fail to see (missing table, drifted
+# columns, unknown class, unknown RC id, short research table, a crash) is a nonzero exit, never
+# a quiet "none" (R2-04).
+#
+# DIVERGENCE_ALLOWLIST: research.md §2.1 has not yet been synced to register v2 for these rows
+# (plan.md Revision 4: "tracked as a mechanical sync follow-up"). Each entry names its tracking
+# state; when research.md is synced the entry becomes stale and this check fails until it is
+# removed. tracking: pending conductor registration (no tracked item id exists yet).
+cat > "$TMP/divergence.py" <<'PY'
+import re, sys
+ALLOWLIST = {
+    "RC-11": "tracking: pending conductor registration",
+    "RC-42": "tracking: pending conductor registration",
+}
+CLASSES = ("CONFIRMED", "REFUTED", "UNDETERMINED")
+plan_path, research_path = sys.argv[1], sys.argv[2]
+problems = []
+research = {}
+for l in open(research_path, encoding="utf-8"):
+    c = l.split("|")
+    if l.startswith("| RC-"):
+        if len(c) != 11:
+            problems.append("research.md malformed RC row: %s" % l[:60].rstrip())
+            continue
+        m = re.match(r"^\*\*([A-Z]+)\*\*", c[4].strip())
+        research[c[1].strip()] = m.group(1) if m else ""
+if len(research) != 46:
+    problems.append("research.md §2.1 read as %d RC rows, expected 46" % len(research))
+lines = open(plan_path, encoding="utf-8").read().split("\n")
+heads = [i for i, l in enumerate(lines)
+         if [x.strip() for x in l.split("|")][1:4] == ["RC", "Old class", "New class"]]
+if len(heads) != 1:
+    problems.append("expected exactly one '| RC | Old class | New class |' table in plan.md, found %d" % len(heads))
+divergent = {}
+rows = 0
+for l in (lines[heads[0] + 2:] if len(heads) == 1 else []):
+    if not l.startswith("|"):
+        break
+    c = [x.strip() for x in l.split("|")]
+    rows += 1
+    if len(c) < 5 or not re.fullmatch(r"RC-[0-9]{2}", c[1]):
+        problems.append("plan.md register-v2 malformed row: %s" % l[:60])
+        continue
+    new = c[3].strip("*").strip()
+    if new not in CLASSES:
+        problems.append("plan.md register-v2 %s: new class %r is not one of %s" % (c[1], new, "/".join(CLASSES)))
+        continue
+    if c[1] not in research:
+        problems.append("plan.md register-v2 names %s, which research.md §2.1 does not have" % c[1])
+        continue
+    if research[c[1]] != new:
+        divergent[c[1]] = "research.md=%s plan.md(register v2)=%s" % (research[c[1]], new)
+if len(heads) == 1 and rows == 0:
+    problems.append("plan.md register-v2 table has no rows")
+for rid in sorted(set(divergent) - set(ALLOWLIST)):
+    problems.append("UNEXPECTED divergence %s %s (not in the allowlist)" % (rid, divergent[rid]))
+for rid in sorted(set(ALLOWLIST) - set(divergent)):
+    problems.append("STALE allowlist entry %s: it no longer diverges -- remove it" % rid)
+for rid in sorted(set(divergent) & set(ALLOWLIST)):
+    print("allowlisted %s %s (%s)" % (rid, divergent[rid], ALLOWLIST[rid]))
+for p in problems:
+    print("PROBLEM " + p)
+sys.exit(1 if problems else 0)
+PY
+divergence_check() { python3 "$TMP/divergence.py" "$1" "$2"; }
+
 # --- (2) Fixture self-check: all four fixtures + their `expected` files exist ---
 for fx in golden-good golden-bad-no-class golden-bad-orphan golden-bad-count-mismatch; do
   for f in research.md expected; do
@@ -493,28 +561,20 @@ PY
   else
     echo "ok plan.md's RC-to-task coverage table: 46 rows, the same ids as research.md, every row names a task"
   fi
-  # Known cross-document divergence, REPORTED on every run (not a failure of this test): plan.md's
-  # T-A11 register v2 reclassifies rows that research.md §2.1/§2.2 still list under their old class.
-  # plan.md records the research.md update as a tracked follow-up; printing it keeps it visible.
-  python3 - "$PLAN_LIVE" "$RESEARCH_LIVE" <<'PY' 2>&1
-import re, sys
-research = {}
-for l in open(sys.argv[2], encoding="utf-8"):
-    c = l.split("|")
-    if l.startswith("| RC-") and len(c) == 11:
-        m = re.match(r"^\*\*([A-Z]+)\*\*", c[4].strip())
-        research[c[1].strip()] = m.group(1) if m else ""
-out = []
-for l in open(sys.argv[1], encoding="utf-8"):
-    c = l.split("|")
-    if l.startswith("| RC-") and len(c) >= 6 and c[3].strip().startswith("**"):
-        new = c[3].strip().strip("*")
-        rid = c[1].strip()
-        if rid in research and research[rid] != new:
-            out.append("%s research.md=%s plan.md(register v2)=%s" % (rid, research[rid], new))
-print("info KNOWN DIVERGENCE (tracked parent-doc follow-up, not a failure of this test): "
-      + ("; ".join(out) if out else "none"))
-PY
+  # Cross-document divergence (R2-04): plan.md's T-A11 "Register v2" table reclassifies rows that
+  # research.md §2.1 still lists under their old class. This used to be a print-only line that could
+  # never fail: a NEW divergence, a crash of the printer, or column drift that made it read "none"
+  # all passed. It is now a CHECK with an exact allowlist: the divergence set must equal
+  # DIVERGENCE_ALLOWLIST. Any other divergence, an allowlisted row that no longer diverges (a stale
+  # exemption), or any instrument error (table not found, malformed row, unknown class, unknown RC
+  # id, a research.md that does not read as 46 rows) fails this test. The checker itself is proven
+  # able to fail by the paired reproductions in (7b) below.
+  if divergence_check "$PLAN_LIVE" "$RESEARCH_LIVE" > "$TMP/divergence.out" 2>&1; then
+    echo "ok plan.md register v2 vs research.md divergence is exactly the allowlist: $(tr '\n' ' ' < "$TMP/divergence.out")"
+  else
+    echo "NOT ok plan.md register v2 vs research.md divergence check failed: $(tr '\n' ' ' < "$TMP/divergence.out")"
+    chk_neg=0
+  fi
 
   if [ "$chk_neg" -eq 1 ]; then
     echo "ok negative control confirmed: the CURRENT, real, live register at"
@@ -531,6 +591,68 @@ PY
     echo "NOT ok negative control FAILED -- the live register is not clean of"
     echo "     these three checks today; see the specific findings above"
     failx
+  fi
+fi
+
+# --- (7b) R2-04: the divergence check must be able to FAIL. Each case copies the live plan.md
+#          (or research.md) into $TMP, applies one change, and requires divergence_check to exit
+#          nonzero; the unchanged copies must exit 0 (golden pair). These are the reviewer's own
+#          reproductions (an injected RC-05 row; printer/column drift) plus a stale-allowlist case.
+if [ -f "$PLAN_LIVE" ] && [ -f "$RESEARCH_LIVE" ]; then
+  mkdir -p "$TMP/div"
+  python3 - "$PLAN_LIVE" "$RESEARCH_LIVE" "$TMP/div" > "$TMP/div_build.out" 2>&1 <<'PY'
+import os, sys
+plan, research, out = sys.argv[1], sys.argv[2], sys.argv[3]
+p = open(plan, encoding="utf-8").read()
+r = open(research, encoding="utf-8").read()
+def put(name, text):
+    open(os.path.join(out, name), "w", encoding="utf-8").write(text)
+put("plan_same.md", p)
+put("research_same.md", r)
+head = "| RC | Old class | New class |"
+assert p.count(head) == 1, "header occurs %d times" % p.count(head)
+r11 = next(l for l in p.split("\n") if l.startswith("| RC-11 |"))
+# (i) the reviewer's injection: a new register-v2 row that disagrees with research.md (RC-05 CONFIRMED there)
+put("plan_injected.md", p.replace(r11, r11 + "\n| RC-05 | CONFIRMED | **REFUTED** | injected | injected |", 1))
+# (ii) printer/column drift: the header renamed, so no register-v2 table is found
+put("plan_header_drift.md", p.replace(head, "| RC | Previous class | New class |", 1))
+# (iii) a register-v2 row whose class cell is not a class
+put("plan_bad_class.md", p.replace(r11, r11.replace("**CONFIRMED**", "**CONFIRMD**", 1), 1))
+# (iv) stale allowlist: research.md synced for RC-11, so RC-11 no longer diverges
+rl = next(l for l in r.split("\n") if l.startswith("| RC-11 |"))
+c = rl.split("|")
+assert c[4].strip().startswith("**UNDETERMINED**"), c[4]
+c[4] = c[4].replace("**UNDETERMINED**", "**CONFIRMED**", 1)
+put("research_synced.md", r.replace(rl, "|".join(c), 1))
+print("built")
+PY
+  if [ "$(tail -n 1 "$TMP/div_build.out")" != "built" ]; then
+    echo "NOT ok (7b) could not build the divergence reproductions: $(cat "$TMP/div_build.out")"; failx
+  else
+    if divergence_check "$TMP/div/plan_same.md" "$TMP/div/research_same.md" >/dev/null 2>&1; then
+      echo "ok (7b) golden: unchanged copies pass the divergence check"
+    else
+      echo "NOT ok (7b) golden: unchanged copies fail the divergence check"; failx
+    fi
+    for _case in "plan_injected.md:research_same.md:UNEXPECTED divergence RC-05" \
+                 "plan_header_drift.md:research_same.md:expected exactly one" \
+                 "plan_bad_class.md:research_same.md:is not one of" \
+                 "plan_same.md:research_synced.md:STALE allowlist entry RC-11"; do
+      _p=${_case%%:*}; _rest=${_case#*:}; _r=${_rest%%:*}; _want=${_rest#*:}
+      if divergence_check "$TMP/div/$_p" "$TMP/div/$_r" > "$TMP/div/out.txt" 2>&1; then
+        echo "NOT ok (7b) divergence check PASSED on $_p + $_r -- it cannot see '$_want'"; failx
+      elif grep -qF -- "$_want" "$TMP/div/out.txt"; then
+        echo "ok (7b) divergence check fails on $_p + $_r, naming '$_want'"
+      else
+        echo "NOT ok (7b) divergence check failed on $_p + $_r but did not name '$_want': $(tr '\n' ' ' < "$TMP/div/out.txt")"; failx
+      fi
+    done
+    # An instrument crash (unreadable plan.md) must also be a failure, never a quiet "none".
+    if divergence_check "$TMP/div/no_such_plan.md" "$TMP/div/research_same.md" >/dev/null 2>&1; then
+      echo "NOT ok (7b) divergence check PASSED with an unreadable plan.md"; failx
+    else
+      echo "ok (7b) divergence check fails when plan.md cannot be read"
+    fi
   fi
 fi
 
@@ -628,6 +750,11 @@ CASES = [
     ("v_post_a11_measured", ["| UNMEASURED | fixture evidence line one |=>| 7% of cycle | fixture evidence line one |",
                              "| UNMEASURED | fixture evidence line two |=>| 12% of cycle | fixture evidence line two |"],
      "--post-a11", 0, "", "measured_share"),
+    # R2-05 (adopted reviewer survivors Q1/Q7/Q9):
+    ("v_table_after_counts", ["| **Total** | **4** | |=>| **Total** | **4** | |\n\n### 2.3 Next section\n\n| Key | Value |\n|---|---|\n| alpha | beta |"],
+     "", 0, "", "§2.2 counts"),
+    ("v_confirmed_row_missing", ["| CONFIRMED | 2 | RC-01, RC-02 |\n=>"], "", 1, "no row for CONFIRMED", ""),
+    ("v_rows_header_renamed", ["| Class | Rows | Row ids |=>| Class | Count | Row ids |"], "", 1, "header must start", ""),
 ]
 for name, subs, args, rc, must, mustnot in CASES:
     text = good
@@ -644,7 +771,7 @@ PY
 mkdir -p "$TMP/variants"
 python3 "$TMP/variants.py" "$FX/golden-good/research.md" "$TMP/variants" > "$TMP/variants.tsv"
 VBUILD_RC=$?
-if [ "$VBUILD_RC" -eq 0 ] && [ "$(wc -l < "$TMP/variants.tsv")" -ge 15 ]; then
+if [ "$VBUILD_RC" -eq 0 ] && [ "$(wc -l < "$TMP/variants.tsv")" -ge 18 ]; then
   echo "ok (9) built $(wc -l < "$TMP/variants.tsv") single-defect variants of golden-good"
 else
   echo "NOT ok (9) could not build the variants: $(cat "$TMP/variants.tsv")"
@@ -749,6 +876,12 @@ mutate M8_duplicate_ids_unchecked '    for rid in sorted(dup_ids):' '    for rid
 mutate M9_row_ids_unchecked '        if counts["has_ids_column"] and listed is not None and sorted(listed) != sorted(actual_ids):' '        if False:'
 mutate M10_na_counts_as_measured '    return bool(share) and not _UNMEASURED_RE.match(share) and re.search(r"[0-9]", share) is not None' '    return bool(share) and not _UNMEASURED_RE.match(share)'
 mutate M11_lowercase_label_accepted '        label = cells[1].strip().strip("*").strip()' '        label = cells[1].strip().strip("*").strip().upper()'
+# R2-05: reviewer survivors adopted as paired mutations (Q1, Q7, Q9), each with its own variant in (9).
+NL='
+'
+mutate Q1_counts_section_never_ends "        if line.startswith(\"#\"):${NL}            break" "        if False:${NL}            break"
+mutate Q7_missing_confirmed_row_accepted "    for cls in CLASS_MEMBERS:${NL}        if cls not in seen:" "    for cls in CLASS_MEMBERS:${NL}        if cls not in seen and cls != \"CONFIRMED\":"
+mutate Q9_rows_header_unchecked 'header[1] != "Class" or header[2] != "Rows"' 'header[1] != "Class"'
 
 echo
 echo "=== T046 contract stub 1/4: invocation + output shape (SC-C-001, FR-002) ==="

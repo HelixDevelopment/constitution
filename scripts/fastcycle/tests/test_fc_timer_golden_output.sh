@@ -149,10 +149,14 @@ skip() { N=$((N + 1)); SKIPPED=$((SKIPPED + 1)); echo "SKIP[$N]: $1"; }
 # KEY is absent OR present more than once (an ambiguous manifest is malformed,
 # never resolved by picking one of the duplicates).
 _mf_get() {
+  # T048 restart round-1 R2-M2: the KEY is matched as an exact literal prefix "KEY=" (awk
+  # index()==1), never placed into a regex -- "member.FC0a.log" used to match the near-miss
+  # "memberXFC0aXlog=" too ('.' is a regex metachar), so a decoy line could make a real key
+  # look duplicated (or supply its value).
   local n
-  n="$(grep -c -- "^$1=" "$2" 2>/dev/null || true)"
+  n="$(awk -v k="$1=" 'index($0, k) == 1 {c++} END {print c+0}' "$2" 2>/dev/null)"
   [ "${n:-0}" = 1 ] || return 1
-  sed -n "s/^$1=//p" "$2"
+  awk -v k="$1=" 'index($0, k) == 1 {print substr($0, length(k) + 1)}' "$2"
 }
 
 # _tsv_rows PATH -- data rows (lines after the header) of a TSV, 0 if absent.
@@ -488,7 +492,8 @@ fi
 # external caller whose own script genuinely emits that literal), OR the real OK/FAIL-style shape
 # ~640-per-run direct `ERRORS=$((ERRORS+1))` sites print: every one of this script's 1614
 # `echo -n "...description... "` check-description prompts ends in a literal "... " (verified: ALL
-# 1614, by direct grep, not a subset), immediately followed (no intervening stdout output) by a
+# 1614 at the time, by direct grep; 1620 at 2e1eb2f4b63 -- the property holds, the count drifts),
+# immediately followed (no intervening stdout output) by a
 # bare `OK` or `FAIL` token, optionally followed by `:`/a space/end-of-line and trailing detail text
 # -- so "... " immediately followed by OK or FAIL, with the NEXT character (if any) NOT a letter or
 # digit (the word-boundary guard so "OKAY"/"FAILURE" could never false-match, even though neither
@@ -496,9 +501,13 @@ fi
 # exact pattern matches 640 lines in a real captured log (qa-results/fastcycle/us1/red/T015/
 # prebuild_with_timers_full_run_20260930T152954Z.log) -- precisely the round-14 reviewer's own cited
 # count, confirmed by an independent re-count against the SAME log, with zero false positives (a
-# "... OK Apps, Kodi, Codecs ..." SECTION-TITLE line, and two stderr-interleaving-corrupted bare
-# "OK" lines with no "... " precursor at all, are all correctly excluded). Banner/section lines
-# never carry any of these shapes.
+# "... OK Apps, Kodi, Codecs ..." SECTION-TITLE line is correctly excluded). CORRECTION (T048
+# restart round-1, R2-B1/R2-M5): the "stderr-interleaving-corrupted bare OK lines" this comment
+# used to call "correctly excluded" are NOT noise -- they are real verdicts whose gate wrote to
+# stderr between its prompt and its verdict, pushing the verdict onto the NEXT line. Excluding
+# them hid those gates' verdicts entirely (a displaced OK->FAIL flip passed the comparison). They
+# are now PAIRED with their prompt by _pair_displaced_verdicts below. Banner/section lines never
+# carry any of these shapes.
 VERDICT_RE='(✓|✗|WARN:|ERROR:|WARNING:|\.\.\.[[:space:]]+(OK|FAIL)([^A-Za-z0-9]|$))'
 
 # extract_verdicts <log> <out> : one stable verdict line per matched input line, ANSI-stripped,
@@ -508,12 +517,56 @@ VERDICT_RE='(✓|✗|WARN:|ERROR:|WARNING:|\.\.\.[[:space:]]+(OK|FAIL)([^A-Za-z0
 # wrapping requirement is deliberate, not incidental -- see the golden-good fixture comment
 # below for the real false-positive ("... Keep-alive period 20s", a bare unbracketed suffix
 # that is genuine check content, not a timing suffix) that a bare-suffix strip would corrupt.
+# _pair_displaced_verdicts (stdin -> stdout, ANSI already stripped): T048 restart round-1
+# R2-B1. A line that is ONLY a verdict token -- `OK`, `FAIL`, `OK (detail)`, `FAIL: x` -- is the
+# displaced verdict of the most recent `...` prompt line that did not itself carry a verdict
+# (stderr landed in between). It is re-joined as "<prompt up to and incl. '...'> <verdict line>",
+# which VERDICT_RE then matches like any same-line verdict. A bare verdict with no open prompt is
+# emitted as "ORPHAN-VERDICT: <line>" -- never dropped -- so it still enters the compared set
+# and the real-log self-check below can report it. Every other line passes through unchanged.
+_pair_displaced_verdicts() {
+  # VERDICT_RE is handed over through ENVIRON, never `awk -v`: -v assignments are
+  # escape-processed, which turned its `\.\.\.` into `...` (any three characters).
+  VRE="$VERDICT_RE" awk 'BEGIN { vre = ENVIRON["VRE"] }
+
+    /^[[:space:]]*(OK|FAIL)([^A-Za-z0-9]|$)/ {
+      v = $0; sub(/^[[:space:]]+/, "", v)
+      if (prompt != "") print prompt " " v; else print "ORPHAN-VERDICT: " v
+      prompt = ""; next
+    }
+    {
+      if ($0 ~ vre) prompt = ""
+      else if (index($0, "...") > 0) prompt = substr($0, 1, index($0, "...") + 2)
+      print
+    }'
+}
+
 extract_verdicts() {
   sed -E 's/\x1b\[[0-9;]*m//g' "$1" \
-    | grep -E "$VERDICT_RE" \
+    | _pair_displaced_verdicts \
+    | grep -E "$VERDICT_RE|^ORPHAN-VERDICT: " \
     | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' \
     | sed -E 's/[[:space:]]*[[(][0-9]+(\.[0-9]+)?[[:space:]]*(s|ms|sec)[])][[:space:]]*$//' \
     > "$2"
+}
+
+# extract_counters <log> <out> : T048 restart round-1 R2-B1, the SECOND, line-independent
+# channel. The pre-build summary block's own counters ("Total tests:", "Passed:", "Failed:",
+# "Warnings:", each a full line "<key>: <integer>"), last occurrence of each key, one sorted
+# "key=value" line per key; "NONE" when the log has none (a crash before the summary, or a
+# truncated log). On the real 20261002T195009Z triplet this channel DID show the FC0b noise
+# (Failed 59 vs 58) that the verdict comparison and the exit codes (all 1) could not. This is
+# an EQUALITY check across members, not the round-14..20 delta/registry accounting that round
+# 21 removed: no subtraction, no registry, no exception list.
+extract_counters() {
+  sed -E 's/\x1b\[[0-9;]*m//g' "$1" | awk '
+    /^[[:space:]]*(Total tests|Passed|Failed|Warnings):[[:space:]]+[0-9]+[[:space:]]*$/ {
+      line = $0; sub(/^[[:space:]]+/, "", line); sub(/[[:space:]]+$/, "", line)
+      key = line; sub(/:.*/, "", key)
+      val = line; sub(/^[^:]*:[[:space:]]+/, "", val)
+      last[key] = val
+    }
+    END { n = 0; for (k in last) { print k "=" last[k]; n++ } if (n == 0) print "NONE" }' | sort > "$2"
 }
 
 # T048 round 21 (R20-I1/S11.4.124): _fc_failed_count(),
@@ -530,13 +583,14 @@ extract_verdicts() {
 # ============================================================================
 if [ -n "$BASELINE_LOG" ]; then
   extract_verdicts "$BASELINE_LOG" "$TMP/baseline_1.txt"
-  extract_verdicts "$BASELINE_LOG" "$TMP/baseline_2.txt"
   BASELINE_LINES="$(wc -l < "$TMP/baseline_1.txt" | tr -d ' ')"
   chk "$BASELINE_LABEL verdict set captured from $BASELINE_LOG ($BASELINE_LINES verdict lines)" "$([ "$BASELINE_LINES" -gt 0 ] && echo 1 || echo 0)"
-
-  HASH_1="$(sha256sum "$TMP/baseline_1.txt" | awk '{print $1}')"
-  HASH_2="$(sha256sum "$TMP/baseline_2.txt" | awk '{print $1}')"
-  chk "verdict-set extraction is deterministic (two extractions of the same real log hash identically: $HASH_1)" "$([ "$HASH_1" = "$HASH_2" ] && [ -n "$HASH_1" ] && echo 1 || echo 0)"
+  # (b) used to extract the SAME file twice through a pure sed/grep pipeline and compare the
+  # hashes -- a check that cannot fail (T048 restart R2-M1), removed rather than counted as a
+  # PASS. In its place, a check that CAN fail: every displaced bare verdict in this real log
+  # was paired with a prompt (an ORPHAN means a verdict shape the pairing does not cover).
+  _orph="$(grep -c '^ORPHAN-VERDICT: ' "$TMP/baseline_1.txt" || true)"
+  chk "every displaced bare verdict in the real baseline was paired with its prompt (${_orph:-0} orphan(s))" "$([ "${_orph:-0}" = 0 ] && echo 1 || echo 0)"
 
   # Persist the baseline for future re-use / comparison once T029 lands (this file is evidence,
   # not a fixture the pass/fail logic below depends on).
@@ -626,6 +680,41 @@ extract_verdicts "$TMP/bt3_input.txt" "$TMP/bt3_output.txt"
 BT3_OUTPUT="$(cat "$TMP/bt3_output.txt")"
 BT3_EXPECTED="$(printf '%s' "$BT3_LINE" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
 chk "real bare-suffix content ('... Keep-alive period 20s') is NOT corrupted by suffix-stripping" "$([ "$BT3_OUTPUT" = "$BT3_EXPECTED" ] && echo 1 || echo 0)"
+
+# T048 restart R2-B1 (class enumeration): one control needle per verdict SHAPE a real
+# pre_build log contains -- each shape below was taken from the real 20261002T195009Z FC0a log
+# (ANSI stripped). Every one must come out of extract_verdicts exactly as listed, so a shape the
+# extractor silently drops (the displaced-verdict blind spot) is a FAIL here, not a hidden gap.
+cat > "$TMP/shapes_in.txt" <<'SHAPES'
+  ✓ CM-SHAPE-1: tick verdict line
+  ✗ ERROR: CM-SHAPE-2: cross verdict line
+  ⚠ WARNING: CM-SHAPE-3: warning verdict line
+WARN: CM-SHAPE-4: bare WARN verdict line
+  CM-SHAPE-5: same-line prompt... OK
+  CM-SHAPE-6: same-line prompt with detail... FAIL (2/3 invariants)
+  CM-SHAPE-7: displaced bare verdict... grep: warning: stray \ before -
+OK
+  CM-SHAPE-8: displaced verdict with detail after two stderr lines... grep: warning: stray \ before x
+grep: warning: stray \ before x
+OK (4/4 invariants)
+  CM-SHAPE-9: prompt then tick on the same line...   ✓ CM-SHAPE-9: tick after prompt
+── Section CN-PROBE — not a verdict ──
+SHAPES
+cat > "$TMP/shapes_want.txt" <<'SHAPES'
+✓ CM-SHAPE-1: tick verdict line
+✗ ERROR: CM-SHAPE-2: cross verdict line
+⚠ WARNING: CM-SHAPE-3: warning verdict line
+WARN: CM-SHAPE-4: bare WARN verdict line
+CM-SHAPE-5: same-line prompt... OK
+CM-SHAPE-6: same-line prompt with detail... FAIL (2/3 invariants)
+CM-SHAPE-7: displaced bare verdict... OK
+CM-SHAPE-8: displaced verdict with detail after two stderr lines... OK (4/4 invariants)
+CM-SHAPE-9: prompt then tick on the same line...   ✓ CM-SHAPE-9: tick after prompt
+SHAPES
+extract_verdicts "$TMP/shapes_in.txt" "$TMP/shapes_out.txt"
+chk "every real verdict shape (9: tick, cross, warning, WARN, same-line OK/FAIL, displaced bare OK, displaced OK-with-detail, prompt+tick) is extracted exactly; a non-verdict banner is not" \
+  "$(cmp -s "$TMP/shapes_want.txt" "$TMP/shapes_out.txt" && echo 1 || echo 0)"
+cmp -s "$TMP/shapes_want.txt" "$TMP/shapes_out.txt" || diff "$TMP/shapes_want.txt" "$TMP/shapes_out.txt" | head -n 20
 
 # ============================================================================
 # (d) the REAL FR-002/T-A01 comparison: FC0a (without timers) vs FC0b
@@ -724,17 +813,34 @@ if [ "$TRIPLET_STATE" = valid ]; then
   _exn="$(_mf_get member.FC0b.exit "$MANIFEST")"
   _ex1="$(_mf_get member.FC1.exit "$MANIFEST")"
 
+  # ---- T048 restart R2-B1: the line-independent summary-counter channel ----
+  extract_counters "$BASELINE_LOG" "$TMP/counters_FC0a.txt"
+  extract_counters "$NOISE_LOG" "$TMP/counters_FC0b.txt"
+  extract_counters "$WITH_TIMERS_LOG" "$TMP/counters_FC1.txt"
+  _COUNTERS_READABLE=1
+  for _m in FC0a FC0b FC1; do
+    if [ "$(cat "$TMP/counters_$_m.txt")" = NONE ]; then
+      _COUNTERS_READABLE=0
+      chk "member $_m has no readable summary counters (Total tests/Passed/Failed/Warnings) -- a crash before the summary or a truncated log; its result can never be 'equal by absence'" "0"
+    fi
+  done
+  _COUNTERS_EQUAL_0B=1; cmp -s "$TMP/counters_FC0a.txt" "$TMP/counters_FC0b.txt" || _COUNTERS_EQUAL_0B=0
+  _COUNTERS_EQUAL_01=1; cmp -s "$TMP/counters_FC0a.txt" "$TMP/counters_FC1.txt" || _COUNTERS_EQUAL_01=0
+
   # ---- FC0a vs FC0b: is THIS run's own noise floor clean? -----------------
-  if cmp -s "$TMP/baseline_1.txt" "$TMP/fc0b.txt" && [ "$_ex0" = "$_exn" ]; then
+  # Clean = identical verdict set AND identical exit code AND identical summary counters.
+  if cmp -s "$TMP/baseline_1.txt" "$TMP/fc0b.txt" && [ "$_ex0" = "$_exn" ] && [ "$_COUNTERS_EQUAL_0B" = 1 ]; then
     _FC0_CLEAN=1
   else
     _FC0_CLEAN=0
   fi
 
-  if [ "$_FC0_CLEAN" -eq 0 ]; then
+  if [ "$_COUNTERS_READABLE" = 0 ]; then
+    : # already FAILed above -- no conclusion is drawn from a member with no summary
+  elif [ "$_FC0_CLEAN" -eq 0 ]; then
     DIFF_FC0="$(diff "$TMP/baseline_1.txt" "$TMP/fc0b.txt" 2>/dev/null || true)"
     DIFF_FC0_LINES="$(printf '%s\n' "$DIFF_FC0" | grep -c '^[<>]' || true)"
-    skip "FR-002/T-A01: FC0a and FC0b (both WITHOUT timers, same run) disagree -- verdict set $([ -n "$DIFF_FC0" ] && echo "$DIFF_FC0_LINES differing line(s)" || echo identical), exit FC0a=$_ex0 vs FC0b=$_exn -- this run's OWN noise floor is not clean, so no conclusion can be drawn about fc_timer; re-capture ($TRIPLET_REASON)"
+    skip "FR-002/T-A01: FC0a and FC0b (both WITHOUT timers, same run) disagree -- verdict set $([ -n "$DIFF_FC0" ] && echo "$DIFF_FC0_LINES differing line(s)" || echo identical), exit FC0a=$_ex0 vs FC0b=$_exn, summary counters $([ "$_COUNTERS_EQUAL_0B" = 1 ] && echo identical || echo "FC0a[$(tr '\n' ' ' < "$TMP/counters_FC0a.txt")] vs FC0b[$(tr '\n' ' ' < "$TMP/counters_FC0b.txt")]") -- this run's OWN noise floor is not clean, so no conclusion can be drawn about fc_timer; re-capture ($TRIPLET_REASON)"
     [ -n "$DIFF_FC0" ] && printf '%s\n' "$DIFF_FC0" | head -n 60
   else
     # FC0a == FC0b: this run's own noise floor is clean. The ONLY question
@@ -745,6 +851,12 @@ if [ "$TRIPLET_STATE" = valid ]; then
       chk "FR-002 commit result: with-timers exit status ($_ex1) equals without-timers exit status ($_ex0) (noise-floor member FC0b also exited $_exn)" "1"
     else
       chk "FR-002 commit result: with-timers exit status ($_ex1) equals without-timers exit status ($_ex0) (noise-floor member FC0b exited $_exn) -- MISMATCH" "0"
+    fi
+
+    if [ "$_COUNTERS_EQUAL_01" = 1 ]; then
+      chk "FR-002 summary counters identical with vs without timers ($(tr '\n' ' ' < "$TMP/counters_FC1.txt"))" "1"
+    else
+      chk "FR-002 summary counters identical with vs without timers -- MISMATCH: FC0a[$(tr '\n' ' ' < "$TMP/counters_FC0a.txt")] vs FC1[$(tr '\n' ' ' < "$TMP/counters_FC1.txt")] (a verdict changed that the line-based set could not see -- find the gate before blaming fc_timer)" "0"
     fi
 
     if cmp -s "$TMP/baseline_1.txt" "$TMP/with_timers.txt"; then

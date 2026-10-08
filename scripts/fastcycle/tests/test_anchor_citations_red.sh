@@ -19,9 +19,11 @@
 #                artefacts are scanned for <ID>) -- ALWAYS supplied explicitly by the caller, NEVER
 #                guessed (this constitution submodule's own git history is a DIFFERENT repository and
 #                does not contain the consuming project's ATM-NNN commits; §11.4.6/§11.4.28).
-#   Output     : canonical JSON per C-002 (schema "anchor_citations/v2" since R8; v2 adds
+#   Output     : canonical JSON per C-002 (schema "anchor_citations/v3" since round 2; v2 added
 #                source_status / source_errors / commit_stats / review_stats, and a failed source
-#                makes the run exit 4 with "BLIND": true), body containing at least:
+#                makes the run exit 4 with "BLIND": true; v3 adds index_check (Constitution.md
+#                headings vs the index -- a stale index is BLIND) and unindexed_section_signed),
+#                body containing at least:
 #                {"item_id": "<ID>",
 #                 "citations": [{"anchor_id": "<id>", "source": "commit"|"diary"|"review"|"closure",
 #                                "evidence": "<commit sha | file path>"}, ...],
@@ -119,7 +121,7 @@ else
 fi
 
 TMP=$(mktemp -d) || { echo "BLIND: mktemp failed" >&2; exit 4; }
-trap 'rm -rf "$TMP"' EXIT
+trap 'chmod -R u+rwx "$TMP" 2>/dev/null; rm -rf "$TMP"' EXIT
 
 # --- Step A: self-validate the control-needle DESIGN, live, independent of anchor_citations.py ---
 # Live anchor ids from --anchor-index (never a frozen copy: a future anchor addition/removal is
@@ -226,10 +228,40 @@ fi
 
 # --- Step C: once T039 lands, exercise the real tool end-to-end against the SAME control needle ---
 OUT="$TMP/anchor_citations.out.json"
-if ! python3 "$IMPL" --item-id "$ITEM_ID" --repo "$REPO_ROOT" --anchor-index "$ANCHOR_INDEX" --out "$OUT" 2>"$TMP/impl.err"; then
-  bad "anchor_citations.py exited nonzero for --item-id $ITEM_ID: $(cat "$TMP/impl.err")"
+python3 "$IMPL" --item-id "$ITEM_ID" --repo "$REPO_ROOT" --anchor-index "$ANCHOR_INDEX" --out "$OUT" 2>"$TMP/impl.err"
+IMPL_RC=$?
+# R2-01: the real index may be stale against the real Constitution.md (a heading generated after
+# the index, or a heading form the generator does not recognise). An INDEPENDENT instrument (grep,
+# not the tool) lists Constitution.md's numbered headings absent from the index; the tool must exit
+# 4 and name exactly that set when it is non-empty, and exit 0 only when it is empty. Control
+# needle: the same grep must find G1's anchor heading, or its "nothing missing" proves nothing.
+CONSTITUTION_MD="$REPO_ROOT/constitution/Constitution.md"
+grep -E '^#{1,6}[[:space:]]+(\*\*)?(§ ?)?[0-9]{1,2}(\.[0-9]{1,3}){1,3}(\.[A-Z])?([^0-9A-Za-z.]|$)' "$CONSTITUTION_MD" \
+  | sed -E 's/^#{1,6}[[:space:]]+(\*\*)?(§ ?)?([0-9]{1,2}(\.[0-9]{1,3}){1,3}(\.[A-Z])?).*/\3/' | LC_ALL=C sort -u > "$TMP/heading_ids.txt"
+if grep -qx -- "$G1_ANCHOR" "$TMP/heading_ids.txt"; then
+  ok "R2-01 control needle: the independent heading grep sees $G1_ANCHOR in $CONSTITUTION_MD ($(wc -l < "$TMP/heading_ids.txt" | tr -d ' ') heading ids)"
 else
-  ok "anchor_citations.py ran to completion for --item-id $ITEM_ID"
+  bad "R2-01 control needle: the independent heading grep cannot see $G1_ANCHOR in $CONSTITUTION_MD -- the stale-index check below proves nothing"
+fi
+LC_ALL=C comm -23 "$TMP/heading_ids.txt" "$TMP/live_anchor_ids.txt" | paste -sd, - > "$TMP/heading_missing.txt"
+HEADING_MISSING=$(cat "$TMP/heading_missing.txt")
+echo "info Constitution.md anchor headings missing from $ANCHOR_INDEX_REL (independent grep): ${HEADING_MISSING:-none}"
+if [ -n "$HEADING_MISSING" ]; then
+  if [ "$IMPL_RC" -eq 4 ] && python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1], encoding='utf-8'))
+ic = d.get('index_check') or {}
+sys.exit(0 if d.get('BLIND') is True and ic.get('status') == 'stale'
+         and ','.join(ic.get('headings_missing_from_index') or []) == sys.argv[2] else 1)
+" "$OUT" "$HEADING_MISSING" 2>/dev/null; then
+    ok "R2-01 real data: the stale index is reported -- exit 4, BLIND, index_check names exactly $HEADING_MISSING (regenerate the index; see report)"
+  else
+    bad "R2-01 real data: the index lacks $HEADING_MISSING but the tool did not report it (rc=$IMPL_RC): $(cat "$TMP/impl.err")"
+  fi
+elif [ "$IMPL_RC" -eq 0 ]; then
+  ok "anchor_citations.py ran to completion for --item-id $ITEM_ID (index covers every Constitution.md heading)"
+else
+  bad "anchor_citations.py exited $IMPL_RC for --item-id $ITEM_ID with a complete index: $(cat "$TMP/impl.err")"
 fi
 if [ -f "$OUT" ]; then
   python3 -c "
@@ -317,13 +349,25 @@ commit("fix(ATM-1): boundary decoys 111.4.200 and 11.4.2000")
 commit("fix(ATM-10): unrelated per §11.4.77")
 commit("chore: misc per 11.4.5\n\nRefs: ATM-1")
 commit("fix(ATM-1): late per §11.4.99", date="2030-01-01T00:00:00")
+# R2-03 N4: a commit at NOON on the --as-of day (an --until of T00:00:00 would drop it).
+commit("fix(ATM-1): noon commit per §11.4.25", date="2029-12-31T12:00:00")
+# R2-03 N5: a two-segment id written with a section sign and ONE space.
+commit("fix(ATM-1): spaced section sign per § 9.2")
+# R2-07: a single-owner commit whose body line names ONLY another item -> not credited.
+commit("fix(ATM-1): tidy\n\nalso noted against ATM-7 per 11.4.26\nand more prose here")
+# R2-06: a multi-owner commit whose conventional-commit scope names only ATM-1 -> the scope's
+# anchor is credited (rescued); the rest of the multi-item subject line is dropped and counted.
+commit("docs(ATM-1/§11.4.27): diary for ATM-1, and ATM-8 follow-up per 11.4.28")
+# R2-01: a section-signed citation of an id the fixture index does not have.
+commit("fix(ATM-1): cite unindexed per §11.4.34")
 os.makedirs(os.path.join(repo, "docs", "issues", "ATM-1"))
 with open(os.path.join(repo, "docs", "issues", "ATM-1", "Reopens.md"), "w", encoding="utf-8") as fh:
     fh.write("reopened per §11.4.30\n")
 with open(os.path.join(repo, "docs", "Fixed.md"), "w", encoding="utf-8") as fh:
     fh.write("# Fixed\n\n## [ATM-1] first fix\ncites 11.4.20, release 1.2.1\n### Root cause\ncites 11.4.21\n"
              "## [ATM-3] other\nmentions ATM-1 and 11.4.22\n# Later part\n## [ATM-1] reopened and re-fixed\n"
-             "cites 11.4.23\n# Appendix\nstray 11.4.24\n")
+             "cites 11.4.23\n## ATM-1 — bare-id owning heading (R2-03 N1)\ncites 11.4.31\n"
+             "# Appendix\nstray 11.4.24\n")
 db = sqlite3.connect(os.path.join(repo, "docs", "workable_items.db"))
 db.execute("CREATE TABLE items (atm_id TEXT, current_location TEXT, description TEXT, closure_criteria TEXT, body_md TEXT, forensic_anchor TEXT)")
 db.executemany("INSERT INTO items VALUES (?,?,?,?,?,?)", [
@@ -338,13 +382,45 @@ json.dump({"schema": "review-record/v1", "item_id": "ATM-1", "substrate_evidence
           open(os.path.join(rev, "rec1.json"), "w"))
 json.dump({"schema": "other/v1", "item_id": "ATM-1", "substrate_evidence": "foreign 11.4.52"},
           open(os.path.join(rev, "foreign.json"), "w"))
+# R2-02(c)/(d): a record whose item_id differs only in case, and a dotfile record (cycle_report.py's
+# os.walk reads dotfiles; so must this tool).
+json.dump({"schema": "review-record/v1", "item_id": "atm-1", "substrate_evidence": "lower-case id per 11.4.32"},
+          open(os.path.join(rev, "rec_lower.json"), "w"))
+json.dump({"schema": "review-record/v1", "item_id": "ATM-1", "substrate_evidence": "dotfile per 11.4.33"},
+          open(os.path.join(rev, ".dot.json"), "w"))
 badrev = os.path.join(root, "reviews_corrupt"); os.makedirs(badrev)
 open(os.path.join(badrev, "trunc.json"), "w").write('{"schema": "review-record/v1", "item_id": "ATM-1", "substr')
-ids = ["7.1", "9.1", "11.4", "11.4.1", "11.4.5", "11.4.6", "11.4.13", "11.4.20", "11.4.21", "11.4.22",
-       "11.4.23", "11.4.24", "11.4.30", "11.4.40", "11.4.41", "11.4.42", "11.4.50", "11.4.51", "11.4.52",
+# R2-03 N10: a review file that is valid JSON but not an object.
+nonobj = os.path.join(root, "reviews_nonobject"); os.makedirs(nonobj)
+open(os.path.join(nonobj, "list.json"), "w").write("[1, 2]")
+# R2-02(d): a case-variant extension -- cycle_report.py's os.walk would not read it either, so it is
+# reported, never silently skipped.
+caps = os.path.join(root, "reviews_caps"); os.makedirs(caps)
+json.dump({"schema": "review-record/v1", "item_id": "ATM-1", "substrate_evidence": "caps per 11.4.33"},
+          open(os.path.join(caps, "REC.JSON"), "w"))
+# R2-02(b): an unreadable review subdirectory, and a symlinked one (os.walk does not follow it).
+unread = os.path.join(root, "reviews_unreadable", "sub"); os.makedirs(unread)
+json.dump({"schema": "review-record/v1", "item_id": "ATM-1", "substrate_evidence": "hidden per 11.4.33"},
+          open(os.path.join(unread, "rec.json"), "w"))
+os.chmod(unread, 0)
+symd = os.path.join(root, "reviews_symlinkdir"); os.makedirs(symd)
+os.symlink(rev, os.path.join(symd, "linked"))
+ids = ["7.1", "9.1", "9.2", "11.4", "11.4.1", "11.4.5", "11.4.6", "11.4.13", "11.4.20", "11.4.21", "11.4.22",
+       "11.4.23", "11.4.24", "11.4.25", "11.4.26", "11.4.27", "11.4.28", "11.4.30", "11.4.31", "11.4.32",
+       "11.4.33", "11.4.40", "11.4.41", "11.4.42", "11.4.50", "11.4.51", "11.4.52",
        "11.4.77", "11.4.99", "11.4.108", "11.4.143", "11.4.200"]
 with open(os.path.join(root, "index.yaml"), "w") as fh:
-    fh.write("anchors:\n" + "".join("- id: '%s'\n  title: t\n" % i for i in ids))
+    fh.write("generated_from:\n  source: docs/Constitution.md\nanchors:\n"
+             + "".join("- id: '%s'\n  title: t\n" % i for i in ids))
+# R2-01: the constitution the index was generated from. One heading uses the bare `### 7.1 Title`
+# form (no section sign) -- the real Constitution.md's `### 1.1` / `### 2.1` headings use it.
+def constitution_text(extra=""):
+    return "# Constitution\n\n" + "".join(
+        ("### %s Title\n\nbody\n\n" if i == "7.1" else "### §%s — Title\n\nbody\n\n") % i for i in ids) + extra
+open(os.path.join(repo, "docs", "Constitution.md"), "w", encoding="utf-8").write(constitution_text())
+# A later Constitution.md that gained an anchor the (now stale) index does not have.
+open(os.path.join(root, "constitution_new.md"), "w", encoding="utf-8").write(
+    constitution_text("### §11.4.34 — Added after the index was generated\n\nbody\n"))
 # A copy of the repository whose ROOT commit object is deleted: `git log` fails part-way (F3).
 import shutil
 broken = os.path.join(root, "repo_broken")
@@ -357,6 +433,10 @@ open(os.path.join(undec, "docs", "issues", "ATM-1", "Reopens.md"), "wb").write(b
 baddb = os.path.join(root, "repo_baddb"); shutil.copytree(repo, baddb)
 os.unlink(os.path.join(baddb, "docs", "workable_items.db"))
 c = sqlite3.connect(os.path.join(baddb, "docs", "workable_items.db")); c.execute("CREATE TABLE other (x)"); c.commit(); c.close()
+# R2-03 N12: a diary path that EXISTS as a dangling symlink -- present but unreadable, never "absent".
+dangl = os.path.join(root, "repo_diary_dangling"); shutil.copytree(repo, dangl)
+os.unlink(os.path.join(dangl, "docs", "issues", "ATM-1", "Reopens.md"))
+os.symlink(os.path.join(dangl, "no_such_target"), os.path.join(dangl, "docs", "issues", "ATM-1", "Reopens.md"))
 print("built")
 PY
 if [ "$(tail -n 1 "$TMP/fx_build.out")" = "built" ]; then ok "Step D fixture repository built"
@@ -374,13 +454,13 @@ def check(cond, label):
     print(("PASS: " if cond else "FAIL: ") + label)
     if not cond:
         fails += 1
-def run(*extra, item="ATM-1", r=repo, review=rev):
+def run(*extra, item="ATM-1", r=repo, review=rev, extra_kw=None):
     if os.path.exists(out):
         os.unlink(out)
     argv = ["python3", impl, "--item-id", item, "--repo", r, "--anchor-index", index, "--out", out]
     if review is not None:
         argv += ["--review-records", review]
-    p = subprocess.run(argv + list(extra), capture_output=True, text=True)
+    p = subprocess.run(argv + list(extra) + list(extra_kw or []), capture_output=True, text=True)
     doc = None
     if os.path.exists(out):
         try:
@@ -394,8 +474,22 @@ def by_source(doc, src):
 rc, doc, err = run()
 check(rc == 0 and doc is not None, "D0 clean run exits 0 and writes --out (rc=%s err=%s)" % (rc, err.strip()[-200:]))
 commit = by_source(doc, "commit")
-check(commit == sorted(["11.4.108", "9.1", "11.4.6", "11.4.5", "11.4.99"]),
-      "D1 commit citations exact (F1/F2/A1/A2): %s" % commit)
+check(commit == sorted(["11.4.108", "9.1", "9.2", "11.4.6", "11.4.5", "11.4.99", "11.4.25", "11.4.27"]),
+      "D1 commit citations exact (F1/F2/A1/A2, R2-03 N4/N5, R2-06 scope rescue): %s" % commit)
+check("9.2" in commit, "D1h R2-03 N5: '§ 9.2' (section sign + one space) IS a citation")
+check("11.4.27" in commit and "11.4.28" not in commit,
+      "D1i R2-06: the scope 'docs(ATM-1/§11.4.27)' is credited; the rest of a multi-item subject is not")
+check("11.4.26" not in commit, "D1j R2-07: a single-owner commit's line naming ONLY another item is not credited")
+cs = (doc or {}).get("commit_stats", {})
+check(cs.get("multi_owner_anchors_dropped") == 3 and cs.get("scope_rescued") == 1
+      and cs.get("single_owner_foreign_line_anchors_dropped") == 1,
+      "D1k R2-06/R2-07: dropped anchors are counted, never silent (commit_stats=%s)" % cs)
+un = (doc or {}).get("unindexed_section_signed") or {}
+check(un.get("distinct") == ["11.4.34"] and un.get("occurrences") == 1 and un.get("in_constitution_headings") == [],
+      "D1l R2-01: a section-signed id absent from the index is counted, not dropped silently (%s)" % un)
+ic = (doc or {}).get("index_check") or {}
+check(ic.get("status") == "ok" and ic.get("headings_missing_from_index") == [] and ic.get("headings", 0) >= 1,
+      "D1m R2-01: the index covers every Constitution.md anchor heading (%s)" % ic)
 check("7.1" not in commit, "D1a F1: bare two-segment '7.1' (channel layout) is not a citation")
 check("9.1" in commit, "D1b F1: '§9.1' (section-sign spelling) IS a citation")
 check("11.4.13" not in commit and "11.4.1" not in commit, "D1c F2: anchors on a multi-item subject line / another item's line are not credited")
@@ -404,16 +498,18 @@ check("11.4.143" not in commit, "D1e A1: a body-only mention never attributes th
 check("11.4.200" not in commit, "D1f A2: digit-boundary decoys 111.4.200 / 11.4.2000 never yield 11.4.200")
 check("11.4.77" not in commit, "D1g: ATM-10 is not ATM-1")
 check(by_source(doc, "diary") == ["11.4.30"], "D2 diary citations exact: %s" % by_source(doc, "diary"))
-check(by_source(doc, "review") == ["11.4.50", "11.4.51"], "D3 review citations exact (F10 schema check, F14 dict mutations): %s" % by_source(doc, "review"))
-check(by_source(doc, "closure") == sorted(["11.4.20", "11.4.21", "11.4.23", "11.4.40"]),
-      "D4 closure citations exact (F11 every owning section, level-1 boundary; A5 filter): %s" % by_source(doc, "closure"))
+check(by_source(doc, "review") == ["11.4.32", "11.4.33", "11.4.50", "11.4.51"],
+      "D3 review citations exact (F10 schema check, F14 dict mutations, R2-02 case-variant item_id + dotfile record): %s" % by_source(doc, "review"))
+check(by_source(doc, "closure") == sorted(["11.4.20", "11.4.21", "11.4.23", "11.4.31", "11.4.40"]),
+      "D4 closure citations exact (F11 every owning section, level-1 boundary; A5 filter; R2-03 N1 bare-id heading): %s" % by_source(doc, "closure"))
 st = (doc or {}).get("source_status", {})
 check(st == {"commit": "ok", "diary": "ok", "review": "ok", "closure": "ok"}, "D5 source_status all ok: %s" % st)
 check(doc is not None and not doc.get("BLIND"), "D5a clean run is not BLIND")
 
 rc, doc, err = run("--as-of", "2029-12-31")
-check(rc == 0 and "11.4.99" not in by_source(doc, "commit") and "11.4.108" in by_source(doc, "commit"),
-      "D6 A4: --as-of excludes the 2030 commit only (rc=%s commit=%s)" % (rc, by_source(doc, "commit")))
+check(rc == 0 and "11.4.99" not in by_source(doc, "commit") and "11.4.108" in by_source(doc, "commit")
+      and "11.4.25" in by_source(doc, "commit"),
+      "D6 A4/N4: --as-of excludes the 2030 commit only, and keeps the noon commit ON the as-of day (rc=%s commit=%s)" % (rc, by_source(doc, "commit")))
 
 rc, doc, _ = run(item="ATM-5", review=None)
 check(rc == 0 and by_source(doc, "closure") == [], "D7 A3: an open (Issues) DB row is not closure evidence: %s" % by_source(doc, "closure"))
@@ -428,8 +524,14 @@ for label, kw in (("F3 git log fails part-way (root object deleted)", {"r": os.p
                   ("F3 DB query fails (no items table)", {"r": os.path.join(fx, "repo_baddb")}),
                   ("F10 diary not valid UTF-8", {"r": os.path.join(fx, "repo_undecodable")}),
                   ("F3/F10 corrupt review record", {"review": os.path.join(fx, "reviews_corrupt")}),
-                  ("F3 --review-records path does not exist", {"review": os.path.join(fx, "no_such_dir")})):
-    rc, doc, err = run(**kw)
+                  ("F3 --review-records path does not exist", {"review": os.path.join(fx, "no_such_dir")}),
+                  ("R2-03 N10 review file is valid JSON but not an object", {"review": os.path.join(fx, "reviews_nonobject")}),
+                  ("R2-03 N12 diary path is a dangling symlink", {"r": os.path.join(fx, "repo_diary_dangling")}),
+                  ("R2-02(d) case-variant .JSON review record", {"review": os.path.join(fx, "reviews_caps")}),
+                  ("R2-02(b) symlinked review subdirectory", {"review": os.path.join(fx, "reviews_symlinkdir")}),
+                  ("R2-01 Constitution.md cannot be read", {"extra": ["--constitution", os.path.join(fx, "no_such.md")]})):
+    kw = dict(kw)
+    rc, doc, err = run(extra_kw=kw.pop("extra", None), **kw)
     errs = (doc or {}).get("source_errors") or []
     check(rc == 4 and doc is not None and doc.get("BLIND") is True and len(errs) >= 1,
           "D10 %s: exit 4, --out marked BLIND with source_errors (rc=%s doc=%s errors=%s)" % (label, rc, doc is not None, errs))
@@ -437,6 +539,45 @@ for label, kw in (("F3 git log fails part-way (root object deleted)", {"r": os.p
 for bad_id in ("", "  "):
     rc, doc, _ = run(item=bad_id)
     check(rc == 2 and doc is None, "D11 F13: --item-id %r is a usage error, exit 2, nothing written (rc=%s)" % (bad_id, rc))
+
+# R2-03 N2: a BLIND run keeps the citations it read completely before the failure.
+_, clean, _ = run()
+clean_commit = set(by_source(clean, "commit"))
+rc, doc, _ = run(r=os.path.join(fx, "repo_broken"))
+part = set(by_source(doc, "commit"))
+check(rc == 4 and part and part <= clean_commit,
+      "D13 N2: the broken-repo BLIND run keeps its partial commit citations (rc=%s partial=%s)" % (rc, sorted(part)))
+
+# R2-01: a Constitution.md newer than the index (it gained 11.4.34) makes the run BLIND, naming the id.
+rc, doc, _ = run("--constitution", os.path.join(fx, "constitution_new.md"))
+ic = (doc or {}).get("index_check") or {}
+un = (doc or {}).get("unindexed_section_signed") or {}
+check(rc == 4 and doc is not None and doc.get("BLIND") is True and ic.get("status") == "stale"
+      and ic.get("headings_missing_from_index") == ["11.4.34"] and un.get("in_constitution_headings") == ["11.4.34"]
+      and "11.4.108" in by_source(doc, "commit"),
+      "D14 R2-01: an index missing a real Constitution.md heading -> BLIND exit 4, the id named (rc=%s index_check=%s unindexed=%s)" % (rc, ic, un))
+
+# R2-02(a): --repo given as a subdirectory of the work tree is normalised to the work-tree top.
+rc, doc, _ = run(r=os.path.join(repo, "docs"))
+def pairs(d):
+    return sorted((c["anchor_id"], c["source"], c["evidence"]) for c in (d or {}).get("citations", []))
+check(rc == 0 and pairs(doc) == pairs(clean) and pairs(doc),
+      "D15 R2-02(a): --repo <work-tree>/docs gives the same citations as the work-tree top (rc=%s)" % rc)
+
+# R2-02(c): the item id is normalised ONCE; a case variant reads every source identically.
+rc, doc, _ = run(item="atm-1")
+check(rc == 0 and doc is not None and doc.get("item_id") == "ATM-1" and pairs(doc) == pairs(clean),
+      "D16 R2-02(c): --item-id atm-1 == ATM-1 across commit/diary/review/closure (rc=%s item=%s)" % (rc, (doc or {}).get("item_id")))
+
+# R2-02(b): an unreadable review subdirectory is a source error (BLIND), never "0 records".
+ur = os.path.join(fx, "reviews_unreadable")
+if os.access(os.path.join(ur, "sub"), os.R_OK):
+    print("SKIP: D17 R2-02(b) cannot be exercised -- this user can read a mode-000 directory (root?)")
+else:
+    rc, doc, _ = run(review=ur)
+    check(rc == 4 and doc is not None and doc.get("BLIND") is True
+          and (doc.get("source_status") or {}).get("review") == "error",
+          "D17 R2-02(b): an unreadable review subdirectory -> BLIND exit 4 (rc=%s status=%s)" % (rc, (doc or {}).get("source_status")))
 
 rc, doc, err = run("--determinism-check")
 rc2, doc2, _ = run()
@@ -484,7 +625,7 @@ mutate A1_no_ownership_gate "        if not owners:${NL}            stats[\"body
 mutate A2_truncating_tokenizer '_NUMERIC_RUN_RE = re.compile(r"(?<![0-9])[0-9]+(?:\.[0-9]+)*(?![0-9])")' '_NUMERIC_RUN_RE = re.compile(r"[0-9]{1,2}(?:\.[0-9]{1,3}){1,3}")'
 mutate A3_open_rows_are_closure "        if loc not in _CLOSED_LOCATIONS:${NL}            continue" "        if False:${NL}            continue"
 mutate A4_ignore_as_of '    if as_of:' '    if False:'
-mutate A5_fixed_md_unfiltered 'for a in _filter_live(_extract_tokens(text), live_ids)]  # closure/Fixed.md' 'for a in _extract_tokens(text)]  # closure/Fixed.md'
+mutate A5_fixed_md_unfiltered 'for a in _anchors_in(text, live_ids, drops)]  # closure/Fixed.md' 'for a in _extract_tokens(text)]  # closure/Fixed.md'
 mutate M6_two_segment_without_section_sign '    return _SECTION_SIGN_RE.search(text[max(0, start - 2):start]) is not None' '    return True'
 mutate M7_multi_owner_scans_whole_message '        if len(owners) > 1:' '        if False:'
 mutate M8_source_error_exits_zero '    rc = _emit(body, run_meta, a.out, code=4 if source_errors else 0)' '    rc = _emit(body, run_meta, a.out, code=0)'
@@ -492,7 +633,26 @@ mutate M9_fixed_md_first_section_only "                sections.append(section)$
 mutate M10_null_location_closed '_CLOSED_LOCATIONS = ("fixed",)' '_CLOSED_LOCATIONS = ("fixed", "")'
 mutate M11_empty_item_id_accepted '    if not item_id or item_id != item_id.strip() or any(ch.isspace() for ch in item_id):' '    if False:'
 mutate M12_review_schema_unchecked '        if doc.get("schema") != _REVIEW_SCHEMA:' '        if False:'
-mutate M13_diary_lossy_decode '    text, err = _read_text_strict(path)  # diary' '    text, err = open(path, encoding="utf-8", errors="replace").read(), None  # diary'
+mutate M13_diary_lossy_decode '    text, err = _read_text_strict(diary_path)  # diary' '    text, err = open(diary_path, encoding="utf-8", errors="replace").read(), None  # diary'
+# R2-03: the reviewer's surviving mutations N1, N2, N4, N5, N10, N12, adopted as paired mutations.
+mutate N1_fixed_md_bare_id_heading_not_owned '    if bracket_re.search(line) or bare_re.match(line):' '    if bracket_re.search(line):'
+mutate N2_blind_run_drops_partial_citations '            citations.extend(exc.partial)' '            pass'
+mutate N4_as_of_cutoff_at_midnight '        args.append("--until=%sT23:59:59" % as_of)' '        args.append("--until=%sT00:00:00" % as_of)'
+mutate N5_section_sign_window_one_char '    return _SECTION_SIGN_RE.search(text[max(0, start - 2):start]) is not None' '    return _SECTION_SIGN_RE.search(text[max(0, start - 1):start]) is not None'
+mutate N10_non_object_review_skipped '            bad.append("%s: not a JSON object" % path)' '            pass'
+mutate N12_diary_isfile_not_lexists '    if not os.path.lexists(diary_path):' '    if not os.path.isfile(diary_path):'
+# This round's own mutations, one per R2-01/R2-02/R2-06/R2-07 behaviour.
+mutate X1_index_check_ignores_missing_headings '    missing = sorted(heads - set(live_ids))' '    missing = []'
+mutate X2_unindexed_section_sign_not_counted '        elif signed and drops is not None:' '        elif False:'
+mutate X3_repo_subdir_not_normalised '        return collect(a.item_id, repo_top, live_ids, sources, as_of=as_of,' '        return collect(a.item_id, a.repo, live_ids, sources, as_of=as_of,'
+mutate X4_unreadable_review_dir_ignored '    for dirpath, dirnames, filenames in os.walk(review_records_dir, onerror=walk_errors.append):' '    for dirpath, dirnames, filenames in os.walk(review_records_dir):'
+mutate X5_item_id_not_normalised '    item_key = item_id.upper()  # R2-02(c): the ONE normalisation every source uses' '    item_key = item_id'
+mutate X6_dotfile_records_skipped '        for fn in sorted(filenames):' '        for fn in sorted(f for f in filenames if not f.startswith(".")):'
+mutate X7_case_variant_json_ignored '            elif fn.lower().endswith(".json"):' '            elif False:'
+mutate X8_symlinked_review_dir_ignored '            if os.path.islink(os.path.join(dirpath, d)):' '            if False:'
+mutate X9_no_scope_rescue '            if scope_ok and not subject_line_credited:' '            if False:'
+mutate X10_multi_owner_loss_not_sized '            stats["multi_owner_anchors_dropped"] += total - credited' '            stats["multi_owner_anchors_dropped"] += 0'
+mutate X11_single_owner_foreign_lines_credited '            if line_ids and item_key not in line_ids:' '            if False:'
 
 # R8 F17: the self-check must be able to fail. The A2 truncating tokenizer, on its own, must make the
 # tool refuse with exit 3 (self-check) on the fixture -- and the SAME mutant with the self-check
