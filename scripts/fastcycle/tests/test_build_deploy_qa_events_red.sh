@@ -316,6 +316,26 @@ else
         check_class golden-bad-time-missing "a join with no deploy time is refused"
         check_class golden-bad-time-not-utc "a join whose deploy time carries a non-UTC offset is refused (the contract field is UTC)"
         check_class golden-bad-buildid-blank "a whitespace-only build_id is reported as UNKNOWN, never echoed as if it were an id"
+        # T048 restart round 3 (V4R3-7/8): every echoed value is ONE unambiguous
+        # token, and an invisible value is absent.
+        check_class golden-bad-time-trailing-junk "a deploy time with trailing garbage after the Z is refused (the WHOLE value must be an instant)"
+        check_class golden-bad-buildid-newline "a build_id carrying a newline is echoed escaped on the one output line (never a forged second line)"
+        check_class golden-bad-fp-invisible-both "fingerprints and target made only of an invisible format character (U+200B) are absent, never an identity match"
+        check_class golden-bad-fp-slash "a fingerprint containing '/' is quoted and escaped, so the build/deploy split of fingerprint_MISMATCH stays unambiguous"
+        check_class golden-bad-buildid-space-forge "a build_id containing a space and a forged reason token is echoed as one quoted token"
+        check_class golden-bad-verdict-json-string "a verdict that is the STRING \"5\" is echoed quoted, never as the bare 5 a numeric value prints"
+        # The forge fixture, read field by field exactly as a whitespace-splitting
+        # consumer would: no field may be the forged reason token, and exactly one
+        # deploy_time_INVALID field must be present.
+        FORGE_OUT=$(python3 "$TOOL" "$FIXDIR/golden-bad-buildid-space-forge/input" 2>/dev/null)
+        FORGED=$(printf '%s\n' "$FORGE_OUT" | awk '{ for (i = 1; i <= NF; i++) if ($i == "fingerprint_MISSING=build") c++ } END { print c + 0 }')
+        REAL=$(printf '%s\n' "$FORGE_OUT" | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /^deploy_time_INVALID=/) c++ } END { print c + 0 }')
+        NLINES=$(printf '%s\n' "$FORGE_OUT" | wc -l)
+        if [ "$FORGED" = 0 ] && [ "$REAL" = 1 ] && [ "$NLINES" = 1 ]; then
+            ok "space-forge: split on whitespace, the output carries no forged fingerprint_MISSING=build field and exactly one real reason ($FORGE_OUT)"
+        else
+            bad "space-forge: forged-fields=$FORGED real-reason-fields=$REAL lines=$NLINES output='$FORGE_OUT' -- a value forged a reason token"
+        fi
         if [ "$HRC" -eq 0 ]; then
             ok "harness exit status 0 (every fixture class as expected)"
         else
@@ -328,6 +348,7 @@ else
             case ${d##*/} in
                 golden-bad-fp-mismatch|golden-bad-fp-missing-both|golden-bad-fp-empty-both|golden-bad-fp-missing-deploy|golden-bad-target-missing|golden-bad-join-verdict-invalid) ;;
                 golden-bad-fp-whitespace-both|golden-bad-target-whitespace|golden-bad-time-invalid|golden-bad-time-missing|golden-bad-time-not-utc|golden-bad-buildid-blank) ;;
+                golden-bad-time-trailing-junk|golden-bad-buildid-newline|golden-bad-fp-invisible-both|golden-bad-fp-slash|golden-bad-buildid-space-forge|golden-bad-verdict-json-string) ;;
                 *) bad "unlisted fixture class ${d##*/} -- add it to the closed check list in this test" ;;
             esac
         done

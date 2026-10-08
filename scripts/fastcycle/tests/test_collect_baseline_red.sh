@@ -55,6 +55,9 @@ want() {
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+# private per-filesystem replay lock directory (never contend with another replay on this host)
+export FC_REPLAY_LOCK_DIR="$WORK/locks"
+mkdir -p "$FC_REPLAY_LOCK_DIR"
 
 # jget <json-file> <python-expr over d>: the JSON is read from the file; the
 # expression is always a literal written in THIS test file (never data), so the
@@ -326,6 +329,32 @@ PY
     ok "[C-V413] a sampled item id holding '/' and '..' is refused (exit 4, id named) and nothing is written for it"
   else
     bad "[C-V413] unsafe id: rc=$rc sampled=$INS escaped-file='$ESC' -- a DB item id was used as a path ($(tail -c 200 "$WORK/v413.stderr"))"
+  fi
+  # V4R3-13 (N12): a '/' alone, with no '..', must be refused as well (the '..'
+  # check above must not be the only thing standing between an id and a path).
+  DB3="$WORK/items_slash.db"
+  cp "$DB" "$DB3"
+  python3 - "$DB3" <<'PY'
+import sqlite3, sys
+c = sqlite3.connect(sys.argv[1])
+bad = "ATM-8/x"
+c.execute("INSERT INTO items VALUES (?, 'Bug')", (bad,))
+for ev, day in (("Opened", "2026-07-04"), ("Fixed", "2026-07-21")):
+    c.execute("INSERT INTO item_history (atm_id, event_type, by, on_date, reason, evidence_path, created_at) "
+              "VALUES (?, ?, 'test', ?, NULL, 'qa/x.md', ?)", (bad, ev, day, day + "T00:00:00Z"))
+c.commit()
+PY
+  OD3="$WORK/v413s/out"
+  mkdir -p "$WORK/v413s"
+  python3 "$CB" --as-of 2026-08-01 --window-days 30 --min-per-type 50 --repo-root "$REPO" \
+    --db-path "$DB3" --out-dir "$OD3" --select-sample-bin "$SS" --baseline-replay-bin "$BR" --skip-gate-replay \
+    >"$WORK/v413s.stdout" 2>"$WORK/v413s.stderr"; rc=$?
+  INS3="$(jget "$OD3/sample.json" '[i["item_id"] for i in d.get("items", []) if i["item_id"] == "ATM-8/x"]')"
+  if [ "$rc" = 4 ] && [ "$INS3" = '["ATM-8/x"]' ] && grep -q "not safe to use as output file names" "$WORK/v413s.stderr" \
+     && grep -qF "ATM-8/x" "$WORK/v413s.stderr" && [ ! -e "$OD3/freeze/ATM-8" ]; then
+    ok "[C-V413] a sampled item id holding a bare '/' (no '..') is refused too (exit 4, id named, nothing written)"
+  else
+    bad "[C-V413] bare-slash id: rc=$rc sampled=$INS3 -- an id with a path separator was used as a path ($(tail -c 200 "$WORK/v413s.stderr"))"
   fi
 fi
 
