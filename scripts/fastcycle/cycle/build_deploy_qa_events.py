@@ -44,9 +44,13 @@ Exit codes (kind=join):
        FINGERPRINT=<fingerprint>
        VERDICT=<verdict>
        DEPLOY_TARGET=<target_serial>
-  1  invalid verdict OR a fingerprint mismatch -> stdout EXACTLY one line
-     naming build_id and the specific offending reason
-     (verdict_INVALID=<v> or fingerprint_MISMATCH=<build-fp>/<deploy-fp>).
+  1  invalid verdict, a missing/empty fingerprint on either side, a fingerprint
+     mismatch, or a missing/empty deploy target_serial -> stdout EXACTLY one
+     line naming build_id and the specific offending reason, checked in this
+     order: verdict_INVALID=<v> | fingerprint_MISSING=<build|deploy|build,deploy>
+     | fingerprint_MISMATCH=<build-fp>/<deploy-fp> | target_serial_MISSING.
+     (T048 restart round 1, R6-F1: a join whose two fingerprints are both
+     absent or both "" used to pass as an identity match.)
 
 This tool is the pure, fixture-testable validate+join core. T040's own
 emitter wiring into docs/build/resources/builds.tsv, scripts/flash.sh's
@@ -76,6 +80,12 @@ def _build_id_of(rec):
     if isinstance(bid, str) and bid != "":
         return bid
     return "UNKNOWN"
+
+
+def _present(value):
+    """A join key is present only as a non-empty string (None, "", a number or a
+    list are all 'absent' for identity purposes)."""
+    return isinstance(value, str) and value != ""
 
 
 def handle_build_event(rec):
@@ -109,10 +119,30 @@ def handle_join(rec):
         print(f"REFUSE build_id={build_id} verdict_INVALID={shown}")
         return 1
 
+    # T048 restart round 1 (R6-F1): the identity check below is the whole point of
+    # the join (S11.4.200), so it must be able to FAIL on missing data. Comparing
+    # `build_fp != deploy_fp` alone passed when BOTH sides were absent (None ==
+    # None) or BOTH were "" -- an identity check with no identity to check. A
+    # fingerprint is only an identity when it is a non-empty string; anything else
+    # is refused and the missing side(s) are named (S11.4.201(5)).
+    missing = [side for side, fp in (("build", build_fp), ("deploy", deploy_fp))
+               if not _present(fp)]
+    if missing:
+        print(f"REFUSE build_id={build_id} fingerprint_MISSING={','.join(missing)}")
+        return 1
+
     if build_fp != deploy_fp:
-        bfp = build_fp if build_fp is not None else ""
-        dfp = deploy_fp if deploy_fp is not None else ""
-        print(f"REFUSE build_id={build_id} fingerprint_MISMATCH={bfp}/{dfp}")
+        print(f"REFUSE build_id={build_id} fingerprint_MISMATCH={build_fp}/{deploy_fp}")
+        return 1
+
+    # A deploy record that names no target is not evidence of a deploy anywhere
+    # (it printed DEPLOY_TARGET=None before this check existed). `status` is
+    # deliberately NOT validated: it is the resource-sampler lifecycle field the
+    # golden-bad fixture proves must never drive the verdict, and its real
+    # producers emit values outside the docstring's list (critical_blocker_gate.sh
+    # writes status="QA_GATE"), so a closed-set check on it would refuse real data.
+    if not _present(target_serial):
+        print(f"REFUSE build_id={build_id} target_serial_MISSING")
         return 1
 
     print("KIND=join")

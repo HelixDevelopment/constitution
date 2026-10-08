@@ -19,7 +19,9 @@
 #                artefacts are scanned for <ID>) -- ALWAYS supplied explicitly by the caller, NEVER
 #                guessed (this constitution submodule's own git history is a DIFFERENT repository and
 #                does not contain the consuming project's ATM-NNN commits; §11.4.6/§11.4.28).
-#   Output     : canonical JSON per C-002 (schema "anchor_citations/v1"), body containing at least:
+#   Output     : canonical JSON per C-002 (schema "anchor_citations/v2" since R8; v2 adds
+#                source_status / source_errors / commit_stats / review_stats, and a failed source
+#                makes the run exit 4 with "BLIND": true), body containing at least:
 #                {"item_id": "<ID>",
 #                 "citations": [{"anchor_id": "<id>", "source": "commit"|"diary"|"review"|"closure",
 #                                "evidence": "<commit sha | file path>"}, ...],
@@ -255,6 +257,258 @@ print('OK')
   fi
 else
   bad "anchor_citations.py did not write --out $OUT"
+fi
+
+# Real-data invariant (R8 F1): on the REAL ATM-277 history, every two-segment anchor id the tool
+# reports from the commit source (e.g. "7.1", "9.2", "11.4") must be backed by a `§<id>` spelling
+# in that commit's own message. A bare "7.1" is overwhelmingly an audio channel layout ("5.1/7.1")
+# or a document section number, never a constitution citation. Independent instrument: reads the
+# commit message straight from git, not from the tool.
+if [ -f "$OUT" ]; then
+  python3 - "$OUT" "$REPO_ROOT" > "$TMP/twoseg.out" 2> "$TMP/twoseg.err" <<'PY'
+import json, re, subprocess, sys
+doc = json.load(open(sys.argv[1], encoding="utf-8"))
+bad = []
+checked = 0
+for c in doc.get("citations", []):
+    a = c.get("anchor_id", "")
+    if c.get("source") != "commit" or a.count(".") != 1:
+        continue
+    checked += 1
+    msg = subprocess.run(["git", "-C", sys.argv[2], "log", "-1", "--format=%B", c["evidence"]],
+                         capture_output=True, text=True, check=True).stdout
+    if not re.search(r"§ ?%s(?![0-9])" % re.escape(a), msg):
+        bad.append("%s via %s" % (a, c["evidence"][:12]))
+print("checked=%d bad=%s" % (checked, ",".join(bad)))
+sys.exit(1 if bad else 0)
+PY
+  TWOSEG_RC=$?
+  if [ "$TWOSEG_RC" -eq 0 ]; then ok "R8-F1 real data: every two-segment commit citation for $ITEM_ID is spelled with a section sign in its commit ($(cat "$TMP/twoseg.out"))"
+  else bad "R8-F1 real data: two-segment citation(s) with no section sign in the commit: $(cat "$TMP/twoseg.out") $(cat "$TMP/twoseg.err")"; fi
+fi
+
+# --- Step D: behaviour regression checks on a SYNTHETIC repository (R8 F1-F4, F10-F14, F17) ---
+# Each check drives the REAL tool through its real CLI against a small git repository built here,
+# with exact expected citation sets per source. The same harness is re-run in Step E against
+# mutated copies of the tool; a mutation that leaves every check green is an unguarded behaviour.
+FX_ROOT="$TMP/fx"
+mkdir -p "$FX_ROOT"
+python3 - "$FX_ROOT" > "$TMP/fx_build.out" 2>&1 <<'PY'
+import os, sqlite3, subprocess, sys, json
+root = sys.argv[1]
+repo = os.path.join(root, "repo")
+os.makedirs(repo)
+env = dict(os.environ, GIT_AUTHOR_NAME="fx", GIT_AUTHOR_EMAIL="fx@example.invalid",
+           GIT_COMMITTER_NAME="fx", GIT_COMMITTER_EMAIL="fx@example.invalid",
+           GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null")
+def git(*a, date="2026-01-01T00:00:00"):
+    e = dict(env, GIT_AUTHOR_DATE=date, GIT_COMMITTER_DATE=date)
+    return subprocess.run(["git", "-C", repo] + list(a), env=e, check=True, capture_output=True, text=True).stdout
+git("init", "-q", "-b", "main")
+def commit(msg, date="2026-01-01T00:00:00"):
+    git("commit", "-q", "--allow-empty", "-m", msg, date=date)
+    return git("rev-parse", "HEAD").strip()
+# Root commit: no item id at all (so deleting its object breaks `git log` part-way, F3).
+root_sha = commit("init: fixture root")
+commit("fix(ATM-1): repair widget per §11.4.108\n\nAlso a 5.1/7.1 channel layout, the §9.1 rule, and release 1.2.1.")
+commit("close ATM-2 widget, reopen ATM-1 (ATM-2 root cause per 11.4.13)\n\nATM-1: residual per 11.4.6\nATM-2 detail 11.4.1")
+commit("docs: digest\n\ntally ATM-1 x3 per 11.4.143")
+commit("fix(ATM-1): boundary decoys 111.4.200 and 11.4.2000")
+commit("fix(ATM-10): unrelated per §11.4.77")
+commit("chore: misc per 11.4.5\n\nRefs: ATM-1")
+commit("fix(ATM-1): late per §11.4.99", date="2030-01-01T00:00:00")
+os.makedirs(os.path.join(repo, "docs", "issues", "ATM-1"))
+with open(os.path.join(repo, "docs", "issues", "ATM-1", "Reopens.md"), "w", encoding="utf-8") as fh:
+    fh.write("reopened per §11.4.30\n")
+with open(os.path.join(repo, "docs", "Fixed.md"), "w", encoding="utf-8") as fh:
+    fh.write("# Fixed\n\n## [ATM-1] first fix\ncites 11.4.20, release 1.2.1\n### Root cause\ncites 11.4.21\n"
+             "## [ATM-3] other\nmentions ATM-1 and 11.4.22\n# Later part\n## [ATM-1] reopened and re-fixed\n"
+             "cites 11.4.23\n# Appendix\nstray 11.4.24\n")
+db = sqlite3.connect(os.path.join(repo, "docs", "workable_items.db"))
+db.execute("CREATE TABLE items (atm_id TEXT, current_location TEXT, description TEXT, closure_criteria TEXT, body_md TEXT, forensic_anchor TEXT)")
+db.executemany("INSERT INTO items VALUES (?,?,?,?,?,?)", [
+    ("ATM-1", "Fixed", "closed per 11.4.40", None, None, None),
+    ("ATM-5", "Issues", "open per 11.4.41", None, None, None),
+    ("ATM-6", None, "unknown location per 11.4.42", None, None, None),
+])
+db.commit(); db.close()
+rev = os.path.join(root, "reviews"); os.makedirs(rev)
+json.dump({"schema": "review-record/v1", "item_id": "ATM-1", "substrate_evidence": "per 11.4.50",
+           "reviewer_mutations": [{"note": "mutation per 11.4.51"}], "findings": []},
+          open(os.path.join(rev, "rec1.json"), "w"))
+json.dump({"schema": "other/v1", "item_id": "ATM-1", "substrate_evidence": "foreign 11.4.52"},
+          open(os.path.join(rev, "foreign.json"), "w"))
+badrev = os.path.join(root, "reviews_corrupt"); os.makedirs(badrev)
+open(os.path.join(badrev, "trunc.json"), "w").write('{"schema": "review-record/v1", "item_id": "ATM-1", "substr')
+ids = ["7.1", "9.1", "11.4", "11.4.1", "11.4.5", "11.4.6", "11.4.13", "11.4.20", "11.4.21", "11.4.22",
+       "11.4.23", "11.4.24", "11.4.30", "11.4.40", "11.4.41", "11.4.42", "11.4.50", "11.4.51", "11.4.52",
+       "11.4.77", "11.4.99", "11.4.108", "11.4.143", "11.4.200"]
+with open(os.path.join(root, "index.yaml"), "w") as fh:
+    fh.write("anchors:\n" + "".join("- id: '%s'\n  title: t\n" % i for i in ids))
+# A copy of the repository whose ROOT commit object is deleted: `git log` fails part-way (F3).
+import shutil
+broken = os.path.join(root, "repo_broken")
+shutil.copytree(repo, broken)
+obj = os.path.join(broken, ".git", "objects", root_sha[:2], root_sha[2:])
+os.unlink(obj)
+# A copy whose diary is not valid UTF-8 (F10) and one whose DB has no items table (F3).
+undec = os.path.join(root, "repo_undecodable"); shutil.copytree(repo, undec)
+open(os.path.join(undec, "docs", "issues", "ATM-1", "Reopens.md"), "wb").write(b"per \xff\xfe 11.4.30\n")
+baddb = os.path.join(root, "repo_baddb"); shutil.copytree(repo, baddb)
+os.unlink(os.path.join(baddb, "docs", "workable_items.db"))
+c = sqlite3.connect(os.path.join(baddb, "docs", "workable_items.db")); c.execute("CREATE TABLE other (x)"); c.commit(); c.close()
+print("built")
+PY
+if [ "$(tail -n 1 "$TMP/fx_build.out")" = "built" ]; then ok "Step D fixture repository built"
+else bad "Step D fixture repository could not be built: $(cat "$TMP/fx_build.out")"; fi
+
+cat > "$TMP/harness.py" <<'PY'
+# Behaviour harness: argv = <impl> <fixture root>. Prints PASS:/FAIL: lines; exit = FAIL count (capped).
+import json, os, subprocess, sys
+impl, fx = sys.argv[1], sys.argv[2]
+repo, index, rev = os.path.join(fx, "repo"), os.path.join(fx, "index.yaml"), os.path.join(fx, "reviews")
+out = os.path.join(fx, "h_out.json")
+fails = 0
+def check(cond, label):
+    global fails
+    print(("PASS: " if cond else "FAIL: ") + label)
+    if not cond:
+        fails += 1
+def run(*extra, item="ATM-1", r=repo, review=rev):
+    if os.path.exists(out):
+        os.unlink(out)
+    argv = ["python3", impl, "--item-id", item, "--repo", r, "--anchor-index", index, "--out", out]
+    if review is not None:
+        argv += ["--review-records", review]
+    p = subprocess.run(argv + list(extra), capture_output=True, text=True)
+    doc = None
+    if os.path.exists(out):
+        try:
+            doc = json.load(open(out, encoding="utf-8"))
+        except ValueError:
+            doc = None
+    return p.returncode, doc, p.stderr
+def by_source(doc, src):
+    return sorted({c["anchor_id"] for c in (doc or {}).get("citations", []) if c.get("source") == src})
+
+rc, doc, err = run()
+check(rc == 0 and doc is not None, "D0 clean run exits 0 and writes --out (rc=%s err=%s)" % (rc, err.strip()[-200:]))
+commit = by_source(doc, "commit")
+check(commit == sorted(["11.4.108", "9.1", "11.4.6", "11.4.5", "11.4.99"]),
+      "D1 commit citations exact (F1/F2/A1/A2): %s" % commit)
+check("7.1" not in commit, "D1a F1: bare two-segment '7.1' (channel layout) is not a citation")
+check("9.1" in commit, "D1b F1: '§9.1' (section-sign spelling) IS a citation")
+check("11.4.13" not in commit and "11.4.1" not in commit, "D1c F2: anchors on a multi-item subject line / another item's line are not credited")
+check("11.4.6" in commit, "D1d F2: a line naming only this item inside a multi-item commit is credited")
+check("11.4.143" not in commit, "D1e A1: a body-only mention never attributes the commit")
+check("11.4.200" not in commit, "D1f A2: digit-boundary decoys 111.4.200 / 11.4.2000 never yield 11.4.200")
+check("11.4.77" not in commit, "D1g: ATM-10 is not ATM-1")
+check(by_source(doc, "diary") == ["11.4.30"], "D2 diary citations exact: %s" % by_source(doc, "diary"))
+check(by_source(doc, "review") == ["11.4.50", "11.4.51"], "D3 review citations exact (F10 schema check, F14 dict mutations): %s" % by_source(doc, "review"))
+check(by_source(doc, "closure") == sorted(["11.4.20", "11.4.21", "11.4.23", "11.4.40"]),
+      "D4 closure citations exact (F11 every owning section, level-1 boundary; A5 filter): %s" % by_source(doc, "closure"))
+st = (doc or {}).get("source_status", {})
+check(st == {"commit": "ok", "diary": "ok", "review": "ok", "closure": "ok"}, "D5 source_status all ok: %s" % st)
+check(doc is not None and not doc.get("BLIND"), "D5a clean run is not BLIND")
+
+rc, doc, err = run("--as-of", "2029-12-31")
+check(rc == 0 and "11.4.99" not in by_source(doc, "commit") and "11.4.108" in by_source(doc, "commit"),
+      "D6 A4: --as-of excludes the 2030 commit only (rc=%s commit=%s)" % (rc, by_source(doc, "commit")))
+
+rc, doc, _ = run(item="ATM-5", review=None)
+check(rc == 0 and by_source(doc, "closure") == [], "D7 A3: an open (Issues) DB row is not closure evidence: %s" % by_source(doc, "closure"))
+rc, doc, _ = run(item="ATM-6", review=None)
+check(rc == 0 and by_source(doc, "closure") == [], "D8 F12: a NULL-location DB row is not closure evidence: %s" % by_source(doc, "closure"))
+
+rc, doc, _ = run(review=None)
+check(rc == 0 and (doc or {}).get("source_status", {}).get("review") == "not_supplied",
+      "D9 no --review-records: rc 0 and review status explicitly 'not_supplied' (rc=%s status=%s)" % (rc, (doc or {}).get("source_status")))
+
+for label, kw in (("F3 git log fails part-way (root object deleted)", {"r": os.path.join(fx, "repo_broken")}),
+                  ("F3 DB query fails (no items table)", {"r": os.path.join(fx, "repo_baddb")}),
+                  ("F10 diary not valid UTF-8", {"r": os.path.join(fx, "repo_undecodable")}),
+                  ("F3/F10 corrupt review record", {"review": os.path.join(fx, "reviews_corrupt")}),
+                  ("F3 --review-records path does not exist", {"review": os.path.join(fx, "no_such_dir")})):
+    rc, doc, err = run(**kw)
+    errs = (doc or {}).get("source_errors") or []
+    check(rc == 4 and doc is not None and doc.get("BLIND") is True and len(errs) >= 1,
+          "D10 %s: exit 4, --out marked BLIND with source_errors (rc=%s doc=%s errors=%s)" % (label, rc, doc is not None, errs))
+
+for bad_id in ("", "  "):
+    rc, doc, _ = run(item=bad_id)
+    check(rc == 2 and doc is None, "D11 F13: --item-id %r is a usage error, exit 2, nothing written (rc=%s)" % (bad_id, rc))
+
+rc, doc, err = run("--determinism-check")
+rc2, doc2, _ = run()
+check(rc == 0 and doc is not None and doc2 is not None and doc.get("body_hash") == doc2.get("body_hash"),
+      "D12 --determinism-check exits 0 and its body equals a plain run's body")
+sys.exit(min(fails, 100))
+PY
+
+python3 "$TMP/harness.py" "$IMPL" "$FX_ROOT" > "$TMP/harness_real.out" 2>&1
+HRC=$?
+sed 's/^/  /' "$TMP/harness_real.out"
+if [ "$HRC" -eq 0 ]; then ok "Step D behaviour checks: all pass against the real tool"
+else bad "Step D behaviour checks: $HRC check(s) failed against the real tool (see lines above)"; fi
+
+# --- Step E: paired mutations (R8 F4: A1-A5 adopted verbatim, plus this round's own) ---
+# Each mutation is a one-place source substitution applied to a COPY of the tool under $TMP (never
+# next to the real file). The substitution target must occur exactly once, so a mutation can never
+# silently become a no-op when the source moves. The Step D harness must then FAIL at least one check.
+MUT_DIR="$TMP/mut"
+mkdir -p "$MUT_DIR/context"
+ln -s "$HERE/../lib" "$MUT_DIR/lib"
+cat > "$TMP/mutate.py" <<'PY'
+import sys
+src, dst, old, new = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+text = open(src, encoding="utf-8").read()
+n = text.count(old)
+if n != 1:
+    print("target occurs %d times (must be exactly 1): %r" % (n, old)); sys.exit(2)
+open(dst, "w", encoding="utf-8").write(text.replace(old, new))
+PY
+mutate() { # mutate <name> <old> <new>
+  name=$1
+  if ! python3 "$TMP/mutate.py" "$IMPL" "$MUT_DIR/context/anchor_citations.py" "$2" "$3" > "$TMP/mut_apply.out" 2>&1; then
+    bad "mutation $name could not be applied: $(cat "$TMP/mut_apply.out")"
+    return
+  fi
+  python3 "$TMP/harness.py" "$MUT_DIR/context/anchor_citations.py" "$FX_ROOT" > "$TMP/mut_$name.out" 2>&1
+  n=$?
+  if [ "$n" -gt 0 ]; then ok "mutation $name caught ($n check(s) failed, first: $(grep -m1 '^FAIL' "$TMP/mut_$name.out" | cut -c1-120))"
+  else bad "mutation $name SURVIVED: every Step D check still passes"; fi
+}
+NL='
+'
+mutate A1_no_ownership_gate "        if not owners:${NL}            stats[\"body_only_skipped\"] += 1${NL}            continue" "        if not owners:${NL}            owners = {item_key}"
+mutate A2_truncating_tokenizer '_NUMERIC_RUN_RE = re.compile(r"(?<![0-9])[0-9]+(?:\.[0-9]+)*(?![0-9])")' '_NUMERIC_RUN_RE = re.compile(r"[0-9]{1,2}(?:\.[0-9]{1,3}){1,3}")'
+mutate A3_open_rows_are_closure "        if loc not in _CLOSED_LOCATIONS:${NL}            continue" "        if False:${NL}            continue"
+mutate A4_ignore_as_of '    if as_of:' '    if False:'
+mutate A5_fixed_md_unfiltered 'for a in _filter_live(_extract_tokens(text), live_ids)]  # closure/Fixed.md' 'for a in _extract_tokens(text)]  # closure/Fixed.md'
+mutate M6_two_segment_without_section_sign '    return _SECTION_SIGN_RE.search(text[max(0, start - 2):start]) is not None' '    return True'
+mutate M7_multi_owner_scans_whole_message '        if len(owners) > 1:' '        if False:'
+mutate M8_source_error_exits_zero '    rc = _emit(body, run_meta, a.out, code=4 if source_errors else 0)' '    rc = _emit(body, run_meta, a.out, code=0)'
+mutate M9_fixed_md_first_section_only "                sections.append(section)${NL}                section = None" "                sections.append(section)${NL}                break"
+mutate M10_null_location_closed '_CLOSED_LOCATIONS = ("fixed",)' '_CLOSED_LOCATIONS = ("fixed", "")'
+mutate M11_empty_item_id_accepted '    if not item_id or item_id != item_id.strip() or any(ch.isspace() for ch in item_id):' '    if False:'
+mutate M12_review_schema_unchecked '        if doc.get("schema") != _REVIEW_SCHEMA:' '        if False:'
+mutate M13_diary_lossy_decode '    text, err = _read_text_strict(path)  # diary' '    text, err = open(path, encoding="utf-8", errors="replace").read(), None  # diary'
+
+# R8 F17: the self-check must be able to fail. The A2 truncating tokenizer, on its own, must make the
+# tool refuse with exit 3 (self-check) on the fixture -- and the SAME mutant with the self-check
+# call removed must not, proving the exit 3 comes from the self-check and not from something else.
+if python3 "$TMP/mutate.py" "$IMPL" "$TMP/a2.py" '_NUMERIC_RUN_RE = re.compile(r"(?<![0-9])[0-9]+(?:\.[0-9]+)*(?![0-9])")' '_NUMERIC_RUN_RE = re.compile(r"[0-9]{1,2}(?:\.[0-9]{1,3}){1,3}")' >/dev/null 2>&1 \
+   && cp "$TMP/a2.py" "$MUT_DIR/context/anchor_citations.py"; then
+  python3 "$MUT_DIR/context/anchor_citations.py" --item-id ATM-1 --repo "$FX_ROOT/repo" --anchor-index "$FX_ROOT/index.yaml" --out "$TMP/a2.json" 2>"$TMP/a2.err"
+  A2RC=$?
+  if python3 "$TMP/mutate.py" "$TMP/a2.py" "$MUT_DIR/context/anchor_citations.py" '    self_check_err = _self_check(live_ids)' '    self_check_err = None' >/dev/null 2>&1; then
+    python3 "$MUT_DIR/context/anchor_citations.py" --item-id ATM-1 --repo "$FX_ROOT/repo" --anchor-index "$FX_ROOT/index.yaml" --out "$TMP/a2b.json" 2>/dev/null
+    A2NRC=$?
+  else A2NRC=x; fi
+  if [ "$A2RC" -eq 3 ] && [ "$A2NRC" != 3 ]; then ok "F17: self-check refuses the truncating tokenizer with exit 3 (and only the self-check does: rc without it=$A2NRC)"
+  else bad "F17: self-check did not catch the truncating tokenizer (rc=$A2RC, rc without self-check=$A2NRC): $(cat "$TMP/a2.err")"; fi
+else
+  bad "F17: could not build the A2 / self-check mutants"
 fi
 
 echo "SUMMARY pass=$PASS fail=$FAIL"

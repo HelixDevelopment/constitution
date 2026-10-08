@@ -26,16 +26,17 @@ documented per task instruction -- DEC-03's own text leaves three concrete
 mechanics unstated; each is resolved below citing the nearest settled
 precedent in THIS tree, never invented from nothing per S11.4.6)
 =============================================================================
-(1) "Bug >=5 (21 available)" -- per-type SELECTION size. Resolved by
-    following cycle_report.py's own already-reviewed CT-001 implementation
-    verbatim (`$FC/cycle/cycle_report.py:1061`,
-    `sorted(keep)[-args.min_per_type:] if len(keep) > args.min_per_type
-    else sorted(keep)`): a stratum with MORE than --min-per-type candidates
-    selects the --min-per-type MOST RECENT (ascending-sort, last N) by
-    atm_id; a stratum with FEWER selects ALL of them (flagged
-    `below_required`). This is the ONLY place in this tree DEC-03's
-    "N available" vs "N selected" distinction is already operationalised,
-    so this module reuses it rather than inventing a second reading.
+(1) "Bug >=5 (21 available)" -- per-type SELECTION size. A stratum with
+    MORE than --min-per-type candidates selects the --min-per-type MOST
+    RECENT candidates ranked by closure_recency_key() (the as-of latest
+    closure event's created_at, then its row id, then atm_id as the last
+    tie-breaker -- NEVER the atm_id string alone: the N2 fix, see that
+    function); a stratum with FEWER selects all of them. `below_required`
+    is computed on the USABLE count (`n_usable` = selected rows NOT
+    excluded_from_duration), never on `n_available` (R5 B2, T048 restart
+    round 1: a stratum of 5 selected rows of which 4 are bulk-import rows
+    has ONE usable row and is below the requirement -- "selected" is not
+    "usable", S11.4.201(9)).
 (2) "Bulk-import rows (P-04) and retroactive registrations... are excluded
     from duration statistics but listed" -- UNLIKE cycle_report.py's own
     CT-001 (which drops bulk rows from `selected` entirely into a separate
@@ -50,11 +51,9 @@ precedent in THIS tree, never invented from nothing per S11.4.6)
     tool's partial, differently-scoped convention). Bulk-import clustering
     reuses cycle_report.py's (dirname(evidence_path), on_date) key AND its
     default --bulk-threshold (10) verbatim, but NOT its clustering SCOPE:
-    cycle_report.py groups clusters PER-TYPE (its clustering dict is
-    re-initialised inside `for itype, ids in by_type.items():`,
-    `$FC/cycle/cycle_report.py:1040,1044` -- its `for itype, ids in
-    by_type.items():` loop and the `clusters = {}` dict it re-initialises
-    inside that loop, respectively), while this module groups
+    cycle_report.py groups clusters PER-TYPE (its full-sampling branch
+    re-initialises its `clusters = {}` dict inside its per-type
+    `for itype, ids in sorted(by_type.items()):` loop), while this module groups
     clusters ONCE over the CROSS-TYPE UNION `all_candidate_ids` -- a real,
     currently-undocumented-until-this-review divergence (T043 independent
     review, 2026-09-28), NOT reconciled here: verified directly against
@@ -74,6 +73,17 @@ precedent in THIS tree, never invented from nothing per S11.4.6)
     db_write-to-terminal-closure-db_write < 60s rule (scope-neutral: it
     runs per-candidate, not per-cluster, so no analogous divergence
     exists).
+(4) AS-OF CUTOFF (R5 B1, T048 restart round 1). Every item_history read
+    is cut at --as-of: rows whose on_date (calendar day) is AFTER --as-of
+    are invisible to ranking, bulk clustering and the retroactive rule
+    (history_upto()). The selection is therefore frozen: rows written to
+    the DB after the as-of date never change an as-of report (proved by the
+    delete-the-future-rows experiment in
+    tests/test_select_sample_r5_regression.sh). Honest boundary (S11.4.6):
+    the cutoff keys on on_date -- the same field the window query keys on;
+    a row BACKDATED after the fact (written later with an on_date <= as-of)
+    is still visible, because the tracker keeps no immutable ingestion log
+    to reconstruct "what the DB held on day X" by write time.
 (3) Reopened-in-window inclusion is UNCONDITIONAL (DEC-03: "plus every item
     reopened in the window") -- a reopened item is added to `items`
     regardless of whether its type-stratum already filled its N slots and
@@ -233,14 +243,28 @@ def db_reopened_in_window(conn, frm, to):
     return cur.fetchall()
 
 
-def db_item_history(conn, item_id):
+def history_upto(history, as_of):
+    """R5 B1 fix: the as-of cutoff. Keeps only rows whose on_date calendar
+    day is <= as_of (a full-timestamp on_date is compared on its first 10
+    chars, the same day-granular rule closure/reopen_rate.py's _day() uses).
+    A row with no on_date is dropped (it cannot be placed before the
+    cutoff; on_date is NOT NULL in the real schema, so this only guards
+    malformed fixtures)."""
+    return [r for r in history if r.get("on_date") and r["on_date"][:10] <= as_of]
+
+
+def db_item_history(conn, item_id, as_of):
+    """Every caller passes the as-of date: there is deliberately no
+    un-cut variant in this module (R5 B1 -- a frozen baseline must never
+    see an event dated after its own as-of)."""
     cur = conn.execute(
         "SELECT id, event_type, by, on_date, reason, evidence_path, created_at "
         "FROM item_history WHERE atm_id = ? ORDER BY id",
         (item_id,),
     )
     cols = ("id", "event_type", "by", "on_date", "reason", "evidence_path", "created_at")
-    return [dict(zip(cols, row)) for row in cur.fetchall()]
+    rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+    return history_upto(rows, as_of)
 
 
 def latest_closure_event(history):
@@ -309,21 +333,23 @@ def run_needle(conn, present_id, present_event, present_date, fabricated_id):
 # docstring point (2) for the full divergence + why this module keeps
 # rather than drops flagged rows).
 # ---------------------------------------------------------------------------
-def detect_bulk_import_clusters(conn, candidate_ids, bulk_threshold):
+def detect_bulk_import_clusters(history_by_id, candidate_ids, bulk_threshold):
     """Group candidates by (dirname(closure evidence_path), on_date) of
-    their LATEST closure event (matches cycle_report.py's own
+    their LATEST AS-OF closure event (matches cycle_report.py's own
     latest_closure_event convention). A cluster >= bulk_threshold flags
-    every member. Returns {atm_id: (dirname, on_date)} for flagged ids."""
+    every member. Returns {atm_id: (dirname, on_date)} for flagged ids.
+    R5 B1 fix: reads the caller's already as-of-cut `history_by_id` -- the
+    pre-fix version re-queried the DB un-cut, so a FUTURE re-closure that
+    happened to share a directory/date clustered in-window items into a
+    fake bulk cluster."""
     clusters = {}
-    per_id_key = {}
-    for atm_id in candidate_ids:
-        hist = db_item_history(conn, atm_id)
+    for atm_id in sorted(candidate_ids):
+        hist = history_by_id.get(atm_id, [])
         closure = latest_closure_event(hist)
         if closure and closure.get("evidence_path"):
             ekey = (os.path.dirname(closure["evidence_path"]), closure.get("on_date"))
         else:
             ekey = None
-        per_id_key[atm_id] = ekey
         clusters.setdefault(ekey, []).append(atm_id)
     flagged = {}
     for ekey, members in clusters.items():
@@ -352,6 +378,7 @@ def detect_retroactive_registration(history):
 # ---------------------------------------------------------------------------
 def select_sample(conn, window, min_per_type, bulk_threshold):
     frm, to = window["from"], window["to"]
+    as_of = to  # the window always ends on --as-of (main() builds it so)
     closures = db_closures_in_window(conn, frm, to)
     reopens = db_reopened_in_window(conn, frm, to)
 
@@ -373,9 +400,23 @@ def select_sample(conn, window, min_per_type, bulk_threshold):
     # up front, so both the recency-sort key below AND the per-item
     # exclusion-detection loop further down reuse it (never a stale/second
     # DB round-trip that could observe a different row set mid-selection).
-    history_by_id = {atm_id: db_item_history(conn, atm_id) for atm_id in all_candidate_ids}
+    history_by_id = {atm_id: db_item_history(conn, atm_id, as_of) for atm_id in all_candidate_ids}
 
-    bulk_flagged = detect_bulk_import_clusters(conn, all_candidate_ids, bulk_threshold)
+    bulk_flagged = detect_bulk_import_clusters(history_by_id, all_candidate_ids, bulk_threshold)
+
+    # Exclusion reason per candidate, computed ONCE before stratification so
+    # the strata's usable counts (R5 B2) and the items[] array agree by
+    # construction.
+    exclusion_by_id = {}
+    for atm_id in all_candidate_ids:
+        reason = None
+        if atm_id in bulk_flagged:
+            dirname, on_date = bulk_flagged[atm_id]
+            reason = "bulk-import-cluster (dir=%s, on_date=%s, threshold=%d)" % (
+                dirname, on_date, bulk_threshold)
+        elif detect_retroactive_registration(history_by_id[atm_id]):
+            reason = "retroactive-registration (Opened->closure db_write gap < 60s)"
+        exclusion_by_id[atm_id] = reason
 
     strata = {}
     selected_by_type = {}
@@ -391,10 +432,16 @@ def select_sample(conn, window, min_per_type, bulk_threshold):
             picked = ids[-min_per_type:]
         else:
             picked = list(ids)
+        # R5 B2 fix: "selected" is not "usable" -- a selected row that is
+        # excluded_from_duration (bulk import / retroactive registration)
+        # contributes nothing to the duration statistics this sample exists
+        # for, so the honesty flag is computed on the usable count.
+        n_usable = sum(1 for i in picked if exclusion_by_id[i] is None)
         strata[t] = {
             "n_available": n_available,
             "n_selected": len(picked),
-            "below_required": n_available < min_per_type,
+            "n_usable": n_usable,
+            "below_required": n_usable < min_per_type,
         }
         selected_by_type[t] = set(picked)
 
@@ -412,14 +459,7 @@ def select_sample(conn, window, min_per_type, bulk_threshold):
             itype = next(t for t in ITEM_TYPES if atm_id in selected_by_type[t])
             selection_reason = "sampled-%s" % itype.lower()
 
-        history = history_by_id[atm_id]
-        exclusion_reason = None
-        if atm_id in bulk_flagged:
-            dirname, on_date = bulk_flagged[atm_id]
-            exclusion_reason = "bulk-import-cluster (dir=%s, on_date=%s, threshold=%d)" % (
-                dirname, on_date, bulk_threshold)
-        elif detect_retroactive_registration(history):
-            exclusion_reason = "retroactive-registration (Opened->closure db_write gap < 60s)"
+        exclusion_reason = exclusion_by_id[atm_id]
 
         items.append({
             "item_id": atm_id,
@@ -471,7 +511,8 @@ def render_md(doc):
     for t in ITEM_TYPES:
         s = doc["strata"].get(t, {})
         flag = " (BELOW REQUIRED)" if s.get("below_required") else ""
-        lines.append("- %s: %d available, %d selected%s" % (t, s.get("n_available", 0), s.get("n_selected", 0), flag))
+        lines.append("- %s: %d available, %d selected, %d usable%s" % (
+            t, s.get("n_available", 0), s.get("n_selected", 0), s.get("n_usable", 0), flag))
     lines.append("- reopened-in-window: %d" % len(doc.get("reopened_in_window", [])))
     lines.append("")
     for it in doc.get("items", []):
@@ -498,6 +539,66 @@ def build_arg_parser():
     return p
 
 
+def _strip_flag_with_value(argv, flag):
+    """Remove `flag VALUE` and `flag=VALUE` occurrences from argv."""
+    out, skip = [], False
+    for a in argv:
+        if skip:
+            skip = False
+            continue
+        if a == flag:
+            skip = True
+            continue
+        if a.startswith(flag + "="):
+            continue
+        out.append(a)
+    return out
+
+
+def run_determinism_check(argv, args, repo_root):
+    """C-003: run the tool twice in fresh subprocesses and compare body_hash.
+    R5 M10 fixes: the caller's --out/--md are stripped from the inner runs
+    (previously --md was written twice, by both runs, and --out was never
+    written at all); on a deterministic verdict run 1's document is written
+    to the caller's --out (and --md rendered once). A child that exits 2/3/4
+    has its OWN code propagated (a usage error or a failed needle is not a
+    determinism finding); a timeout is BLIND (exit 4, C-001: no honest
+    verdict is possible) and says so -- it is not reported as an unreadable
+    DB."""
+    inner = _strip_flag_with_value(_strip_flag_with_value(
+        [a for a in argv if a != "--determinism-check"], "--out"), "--md")
+    runs, docs = [], []
+    with tempfile.TemporaryDirectory() as tmp:
+        for i in (1, 2):
+            out_i = os.path.join(tmp, "run%d.json" % i)
+            cmd = [sys.executable, os.path.abspath(__file__)] + inner + ["--out", out_i]
+            try:
+                proc = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True, timeout=120)
+            except subprocess.TimeoutExpired:
+                print("select_sample: BLIND: determinism-check run %d timed out after 120s -- "
+                      "no determinism verdict is possible (C-001 exit 4)" % i, file=sys.stderr)
+                return 4
+            if proc.returncode != 0 or not os.path.exists(out_i):
+                sys.stderr.write(proc.stderr)
+                print("select_sample: determinism-check run %d exited %d -- propagating it "
+                      "(no determinism verdict)" % (i, proc.returncode), file=sys.stderr)
+                return proc.returncode if proc.returncode in (2, 3, 4) else 4
+            with open(out_i, encoding="utf-8") as fh:
+                doc = json.load(fh)
+            runs.append(doc.get("body_hash"))
+            docs.append(doc)
+    if runs[0] is None or runs[0] != runs[1]:
+        print("select_sample: nondeterministic: run1=%s run2=%s" % (runs[0], runs[1]), file=sys.stderr)
+        return 1
+    body = {k: v for k, v in docs[0].items() if k not in ("schema", "body_hash", "run_meta")}
+    doc = write_report(args.out, body, docs[0].get("run_meta", {}))
+    if args.md:
+        with open(args.md, "w", encoding="utf-8") as fh:
+            fh.write(render_md(doc))
+    print("select_sample: deterministic (body_hash=%s)" % runs[0])
+    return 0
+
+
 def main(argv):
     args = build_arg_parser().parse_args(argv)
 
@@ -514,30 +615,7 @@ def main(argv):
     db_path = args.db_path or os.path.join(repo_root, "docs", "workable_items.db")
 
     if args.determinism_check:
-        inner = [a for a in argv if a != "--determinism-check"]
-        runs = []
-        with tempfile.TemporaryDirectory() as tmp:
-            for i in (1, 2):
-                out_i = os.path.join(tmp, "run%d.json" % i)
-                cmd = [sys.executable, os.path.abspath(__file__)] + inner + ["--out", out_i]
-                try:
-                    proc = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True, timeout=120)
-                except subprocess.TimeoutExpired:
-                    print("select_sample: determinism-check run %d timed out" % i, file=sys.stderr)
-                    return 4
-                if proc.returncode not in (0, 1) or not os.path.exists(out_i):
-                    sys.stderr.write(proc.stderr)
-                    print("select_sample: determinism-check run %d rc=%d, no honest verdict" % (i, proc.returncode),
-                          file=sys.stderr)
-                    return 4
-                with open(out_i, encoding="utf-8") as fh:
-                    doc = json.load(fh)
-                runs.append((proc.returncode, doc.get("body_hash")))
-        if runs[0] != runs[1]:
-            print("select_sample: nondeterministic: run1=%s run2=%s" % (runs[0], runs[1]), file=sys.stderr)
-            return 1
-        print("select_sample: deterministic (body_hash=%s)" % runs[0][1])
-        return 0
+        return run_determinism_check(argv, args, repo_root)
 
     conn = open_db_readonly(db_path)
     if conn is None:

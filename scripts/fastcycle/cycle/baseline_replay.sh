@@ -103,10 +103,12 @@
 # `git worktree list` shows three such worktrees today -- confirmed
 # disk-backed, same filesystem as the repo itself, NEVER tmpfs); a caller
 # pointing `--worktree-root` at a known-disk-backed `/tmp` on a DIFFERENT
-# host may still do so explicitly. `--min-free-kb` (default: 10 GiB =
-# 10485760 KiB; NO measured basis for this exact number -- the plan/
-# contract states none, matching fc_common.py's own honestly-undocumented
-# DETERMINISM_TIMEOUT_DEFAULT_S precedent -- operator-tunable) is checked
+# host may still do so explicitly. `--min-free-kb` (default:
+# DEFAULT_MIN_FREE_KB = 67 GiB = 70254592 KiB, derived from the two
+# measurements this file documents -- ~49 GiB superproject checkout + ~7.4
+# GiB submodules -- plus 10 GiB headroom; T048 restart round 1, R6-F10: the
+# earlier 10 GiB default was five times smaller than the checkout it guards;
+# operator-tunable for a different project) is checked
 # via `df -Pk` against the worktree-root's OWN filesystem immediately
 # before every `git worktree add`; insufficient free space REFUSES (exit
 # 4, BLIND -- "could not measure", never a silent skip of the check) with
@@ -143,8 +145,14 @@
 #   different `verdict_set`s, a real determinism defect (S11.4.50); 2
 #   usage/config error; 3 selfcheck (C-004 control needle) failed -- the
 #   verdict-classification instrument is not trustworthy this run,
-#   nothing else runs; 4 BLIND -- commit/tree unresolvable, worktree
-#   creation failed, disk pre-flight refused, tracker DB unreadable.
+#   nothing else runs; 4 BLIND -- git failed or commit/tree unresolvable,
+#   worktree/submodule creation failed, disk pre-flight refused, tracker DB
+#   present but unreadable, a gate run that could not be STARTED
+#   (HARNESS_ERROR; the report is still written), any replay-sample item that
+#   could not be measured for a harness reason (report still written), or
+#   --determinism-check runs that never completed (deterministic=null).
+#   Verdicts per run (closed set): PASS | FAIL | UNMEASURED | HARNESS_ERROR,
+#   see classify_run(); median_ms is over PASS runs only (R6-F9).
 #
 # =============================================================================
 # DETERMINISM (C-003; T024 RED-test contract stub 1/3) -- HONEST BOUNDARY,
@@ -165,9 +173,13 @@
 # classification, compared as a set, never merely as equal counts)".
 # `replay --determinism-check` therefore runs the SAME frozen
 # {commit, tree, gate-cmd} TWICE internally and compares ONLY the two
-# runs' `verdict_set` fields (never the timing fields) as sets; exit 0 =
-# same verdict set both times, exit 1 = genuinely differs (a real
-# determinism defect, S11.4.50), printing both verdict sets either way
+# runs' `verdict_set` fields (never the timing fields); exit 0 = both
+# invocations give one identical verdict per phase, exit 1 = genuinely
+# differs (a real determinism defect, S11.4.50) -- including a phase whose
+# verdict set holds MORE than one verdict inside a single invocation (a
+# within-run flake, T048 restart round 1 R6-F7), exit 4 = some run never
+# completed or never started (no determinism verdict, deterministic=null);
+# zero runs are refused (exit 2). Both verdict sets are printed either way
 # AND (as of T043 round-2 review finding N5) writing the same
 # `baseline-replay-determinism/v1` document to the mandatory `--out`
 # PATH every other subcommand already writes to.
@@ -180,12 +192,17 @@
 # `reset`/`stash`/`clean` against the repo the caller invoked this script
 # from. Worktree cleanup (`git worktree remove --force`, needed because
 # the replayed gate may leave scratch files inside its own checkout) is
-# unconditional (bash `trap ... EXIT`) -- this script never leaves an
-# orphan worktree behind, matching S11.4.14 (leave the target quiescent).
+# unconditional (bash `trap ... EXIT` plus explicit HUP/INT/QUIT/TERM
+# handlers) and FIRST stops the running gate / submodule process group
+# (_fc_kill_child, §11.4.263-guarded) -- this script never leaves an orphan
+# worktree or an orphan gate run behind, matching S11.4.14 (leave the target
+# quiescent). T048 restart round 1 (R6-F11): stopping the main script used to
+# leave every remaining scheduled gate run going as an orphan.
 #
 # HONEST BOUNDARY (S11.4.6): `--gate-cmd "CMD..."` is a single string this
-# script word-splits (unquoted expansion, shellcheck SC2086 explicitly
-# suppressed at each site with this rationale) into an argv array before
+# script word-splits on whitespace (parse_gate_cmd: `read -r -a`, with NO
+# pathname expansion -- T048 restart round 1 replaced the earlier unquoted
+# expansions, which also glob-expanded each word) into an argv array before
 # exec'ing it -- CMD and every one of its own arguments MUST NOT contain
 # embedded whitespace (e.g. a path with a space in it). This is a real,
 # stated limitation, not a silent one; every sibling $FC tool that accepts
@@ -237,47 +254,208 @@ now_ns() {
 }
 
 # ---------------------------------------------------------------------------
-# classify_verdict exit_code timed_out(0|1) -> prints PASS|FAIL|UNMEASURED
+# Disk floor default (T048 restart round 1, R6-F10). The DISK SAFETY section
+# above and the submodule comment in do_one_replay() document a full checkout of
+# this project at ~49 GiB plus ~7.4 GiB of submodules. The earlier 10 GiB
+# default was 5x below that, so the check passed with far too little room and
+# the checkout itself could exhaust the disk. Derivation: 49 GiB + 8 GiB
+# (7.4 rounded up) + 10 GiB headroom = 67 GiB = 67 * 1048576 KiB. Still a
+# caller-tunable flag: a different project passes its own measured size.
 # ---------------------------------------------------------------------------
-classify_verdict() {
-  local rc="$1" timed_out="$2"
-  if [ "$timed_out" = 1 ]; then printf 'UNMEASURED'; return; fi
-  if [ "$rc" = 0 ]; then printf 'PASS'; else printf 'FAIL'; fi
+DEFAULT_MIN_FREE_KB=70254592
+
+# ---------------------------------------------------------------------------
+# Child-process tracking (T048 restart round 1, R6-F11). Every long-running
+# child this script starts (a gate run, the submodule update) is launched as
+# `timeout ... &`. GNU timeout (without --foreground) puts itself in a NEW
+# process group whose id is its own pid, and the command it runs stays in that
+# group, so `$!` is both the timeout pid and the group id. _FC_CHILD_PGID holds
+# it while the child runs (a GLOBAL, never a function local: a signal handler
+# can fire after the launching function's locals are gone). _FC_REPLAY_PID is the
+# background subshell that runs do_one_replay() (see run_replay_isolated()).
+# ---------------------------------------------------------------------------
+_FC_CHILD_PGID=""
+_FC_REPLAY_PID=""
+
+# _fc_kill_child: stop the tracked child group, if any, and reap it.
+# §11.4.263: the id is used only when it is a decimal integer > 1 -- never 0, 1,
+# empty or anything a mock/default could produce (kill -- -1 would signal every
+# process of this user). TERM goes to the whole group first; timeout itself
+# answers TERM by escalating to KILL after its own --kill-after (5 s), and a
+# 10 s watchdog sends KILL to the group if even that does not happen. The
+# watchdog's output is sent to /dev/null and it is not run inside a command
+# substitution, so its orphaned `sleep` can never hold a pipe open (the
+# shell-instrument footgun recorded under §11.4.201(12)).
+_fc_kill_child() {
+  local pg="${_FC_CHILD_PGID:-}"
+  _FC_CHILD_PGID=""
+  case "$pg" in ''|*[!0-9]*) return 0 ;; esac
+  [ "$pg" -gt 1 ] || return 0
+  kill -s TERM -- "-$pg" 2>/dev/null || kill -s TERM "$pg" 2>/dev/null
+  ( sleep 10; kill -s KILL -- "-$pg" 2>/dev/null ) >/dev/null 2>&1 &
+  local dog=$!
+  wait "$pg" 2>/dev/null
+  kill -s KILL "$dog" 2>/dev/null
+  # Final sweep for anything left in the group (a gate child that ignored TERM
+  # after timeout itself was killed). Harmless when the group is already empty.
+  kill -s KILL -- "-$pg" 2>/dev/null
+  return 0
 }
 
 # ---------------------------------------------------------------------------
-# selfcheck: C-004 control needle for classify_verdict itself, against REAL
-# `true`/`false` invocations (never a hardcoded string-match on the
-# function's own source -- a genuine exit-code round-trip).
+# Verdicts (closed set, T048 restart round 1, R6-F8):
+#   PASS          the gate ran and exited 0
+#   FAIL          the gate ran and exited non-zero (including its OWN 124/126/127)
+#   UNMEASURED    the gate did not finish: killed by --timeout-s, or by a signal
+#   HARNESS_ERROR the gate never ran: cd into the worktree failed, the command was
+#                 not found / not executable (exec failed), or timeout(1) itself
+#                 failed (exit 125)
+# The earlier rule "rc 0 = PASS, anything else = FAIL" recorded a missing or
+# non-executable gate as a real gate FAIL with a real-looking median (the live
+# 126-in-6 ms case documented in collect_baseline.py) -- a §11.4.1 FAIL-bluff.
+# Whether the gate ran is now OBSERVED, not inferred from the exit code: the
+# launcher `exec`s the gate with `shopt -s execfail`, so a failed exec returns
+# to the launcher, which writes a marker file before exiting.
+#
+# classify_run RC MARKER DURATION_MS TIMEOUT_MS -> prints "VERDICT|reason"
+# A 124/137 counts as a timeout ONLY when the run lasted at least the timeout;
+# a gate that itself exits 124 quickly is a genuine FAIL.
+# ---------------------------------------------------------------------------
+classify_run() {
+  local rc="$1" mk="$2" dur="$3" tmo_ms="$4"
+  case "$mk" in
+    cd_failed|exec_failed) printf 'HARNESS_ERROR|%s' "$mk"; return 0 ;;
+  esac
+  if [ "$rc" = 125 ]; then printf 'HARNESS_ERROR|timeout(1) itself failed (exit 125)'; return 0; fi
+  if { [ "$rc" = 124 ] || [ "$rc" = 137 ]; } && [ "$dur" -ge "$tmo_ms" ]; then
+    printf 'UNMEASURED|timed out (exit %s after %sms, limit %sms)' "$rc" "$dur" "$tmo_ms"; return 0
+  fi
+  if [ "$rc" -ge 129 ]; then printf 'UNMEASURED|terminated by signal %s' "$((rc - 128))"; return 0; fi
+  if [ "$rc" = 0 ]; then printf 'PASS|exit 0'; else printf 'FAIL|exit %s' "$rc"; fi
+}
+
+# ---------------------------------------------------------------------------
+# run_gate_once CWD TIMEOUT_S LOG -- CMD...
+# Runs CMD once inside CWD, bounded by TIMEOUT_S, stdout+stderr to LOG, and sets
+# RG_START_NS RG_END_NS RG_DURATION_MS RG_RC RG_VERDICT RG_REASON. Returns 4 only
+# when the clock or a temp file cannot be obtained (BLIND).
+#
+# T043 round-4 finding B1 (kept): the gate is BACKGROUNDED and `wait`ed on, never
+# run as a foreground command, because bash defers a trapped signal until a
+# foreground command finishes; `wait` returns as soon as a trapped signal
+# arrives, so the HUP/QUIT/INT/TERM handlers run promptly.
+# T048 restart round 1 (R6-F11): the backgrounded command is `timeout` itself
+# (no wrapping subshell), so `$!` is the gate's process GROUP and the signal
+# handlers can stop the gate, not only the shell around it.
+# ---------------------------------------------------------------------------
+run_gate_once() {
+  local cwd="$1" tmo="$2" log="$3"
+  shift 3
+  [ "${1:-}" = -- ] && shift
+  local marker
+  marker="$(mktemp)" || { echo "baseline_replay: mktemp failed (TMPDIR unusable)" >&2; return 4; }
+  RG_START_NS="$(now_ns)" || { rm -f "$marker"; return 4; }
+  # shellcheck disable=SC2016 # $1/$2/$@ expand in the launcher bash, not here
+  timeout --kill-after=5 "${tmo}s" "$BASH" -c '
+m=$1
+cd -- "$2" || { printf cd_failed >"$m"; exit 127; }
+shift 2
+shopt -s execfail
+exec "$@"
+printf exec_failed >"$m"
+exit 127' fc-gate "$marker" "$cwd" "$@" >"$log" 2>&1 </dev/null &
+  _FC_CHILD_PGID=$!
+  wait "$_FC_CHILD_PGID"
+  RG_RC=$?
+  _FC_CHILD_PGID=""
+  RG_END_NS="$(now_ns)" || { rm -f "$marker"; return 4; }
+  RG_DURATION_MS=$(( (RG_END_NS - RG_START_NS) / 1000000 ))
+  [ "$RG_DURATION_MS" -ge 0 ] || RG_DURATION_MS=0
+  local mk=""
+  [ -s "$marker" ] && mk="$(cat "$marker")"
+  rm -f "$marker"
+  local cls
+  cls="$(classify_run "$RG_RC" "$mk" "$RG_DURATION_MS" "$((tmo * 1000))")"
+  RG_VERDICT="${cls%%|*}"
+  RG_REASON="${cls#*|}"
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# selfcheck: C-004 control needle for the verdict instrument. T048 restart
+# round 1 (R6-F20): it used to round-trip only the pure classifier on the exit
+# codes of `true`/`false`, so the real run path (background launch, timeout,
+# exec-failure detection) -- where F8 lived -- was never exercised. It now runs
+# REAL gates through run_gate_once() and checks each verdict:
+#   true -> PASS; false -> FAIL; a command that exits 127 itself -> FAIL;
+#   a command that does not exist -> HARNESS_ERROR; `sleep 5` under a 1 s
+#   timeout -> UNMEASURED.
+# Sets SC_CHECKS (one "name|ok|got|want" line per check); returns 0 iff all ok.
 # ---------------------------------------------------------------------------
 run_selfcheck() {
-  local ok=1
-  local rc_true rc_false
-  true; rc_true=$?
-  false; rc_false=$?
-  local v_true v_false
-  v_true=$(classify_verdict "$rc_true" 0)
-  v_false=$(classify_verdict "$rc_false" 0)
-  if [ "$v_true" != PASS ]; then
-    echo "baseline_replay: selfcheck FAILED: real 'true' (rc=$rc_true) classified '$v_true', expected PASS" >&2
-    ok=0
-  fi
-  if [ "$v_false" != FAIL ]; then
-    echo "baseline_replay: selfcheck FAILED: real 'false' (rc=$rc_false) classified '$v_false', expected FAIL" >&2
-    ok=0
-  fi
-  [ "$ok" = 1 ]
+  SC_CHECKS=""
+  local d all_ok=1
+  d="$(mktemp -d)" || { echo "baseline_replay: selfcheck: mktemp -d failed" >&2; return 1; }
+  _sc_one() { # name want timeout cmd...
+    local name="$1" want="$2" tmo="$3"
+    shift 3
+    if ! run_gate_once "$d" "$tmo" "$d/$name.log" -- "$@"; then
+      SC_CHECKS="${SC_CHECKS}${name}|false|BLIND|${want}"$'\n'; all_ok=0; return
+    fi
+    if [ "$RG_VERDICT" = "$want" ]; then
+      SC_CHECKS="${SC_CHECKS}${name}|true|${RG_VERDICT}|${want}"$'\n'
+    else
+      SC_CHECKS="${SC_CHECKS}${name}|false|${RG_VERDICT}|${want}"$'\n'
+      echo "baseline_replay: selfcheck FAILED: $name classified $RG_VERDICT ($RG_REASON), expected $want" >&2
+      all_ok=0
+    fi
+  }
+  _sc_one true_pass PASS 30 true
+  _sc_one false_fail FAIL 30 false
+  _sc_one own_exit_127_fail FAIL 30 "$BASH" -c 'exit 127'
+  _sc_one exec_failure_harness_error HARNESS_ERROR 30 fc-selfcheck-no-such-command-6b1f
+  _sc_one timeout_unmeasured UNMEASURED 1 sleep 5
+  rm -rf "$d"
+  unset -f _sc_one
+  [ "$all_ok" = 1 ]
 }
 
 # ---------------------------------------------------------------------------
-# git_subject_freeze repo_root item_id -> prints "SHA|TREE|AUTHOR_DATE|SUBJECT|COUNT"
-# or "UNMEASURED||||0" if no subject match exists. See FREEZE MECHANISM above.
+# git_subject_freeze REPO_ROOT ITEM_ID
+# Sets FZ_SHA FZ_TREE FZ_ADATE FZ_SUBJECT FZ_COUNT (FZ_SHA=UNMEASURED when no
+# subject matches) and returns 0; returns 4 with FZ_ERR set when git itself
+# fails. Runs in the CALLER's shell (never inside $(...)) so the globals survive.
+#
+# T048 restart round 1 fixes:
+#  - R6-F3: `git log ... 2>/dev/null || raw=""` turned "not a repository", "git
+#    missing" or a corrupt repo into "no commit found" with exit 0. Now the repo
+#    is checked first and a failing git log / rev-parse is BLIND (exit 4). Only a
+#    SUCCESSFUL git log with no subject match is UNMEASURED.
+#  - R6-F4: "latest by author date" compared %aI STRINGS, which order wrongly
+#    across timezone offsets (12:00+05:00 = 07:00Z sorts after 09:00+00:00). It
+#    now compares %at (epoch seconds). On an exact tie the commit git log lists
+#    first (the most recently committed) is kept.
+#  - R6-F19: the old `for line in $raw` loop word-split AND pathname-expanded
+#    every line; it is now a `read -r` loop over a here-string (no globbing).
+#  - `--grep` is given `-F`: the item id is a literal string, never a regex.
 # ---------------------------------------------------------------------------
 git_subject_freeze() {
   local root="$1" item_id="$2"
-  local raw
-  raw="$(git -C "$root" log --all -i --grep="$item_id" --pretty=format:'%H|%aI|%cI|%s' 2>/dev/null)" || raw=""
-  local best_sha="" best_date="" best_subject="" count=0
+  FZ_SHA=UNMEASURED; FZ_TREE=UNMEASURED; FZ_ADATE=""; FZ_SUBJECT=""; FZ_COUNT=0; FZ_ERR=""
+  if ! git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
+    FZ_ERR="not a git repository (or git unavailable): $root"
+    return 4
+  fi
+  local errf raw rc
+  errf="$(mktemp)" || { FZ_ERR="mktemp failed"; return 4; }
+  raw="$(git -C "$root" log --all -i -F --grep="$item_id" --pretty=format:'%H%x1f%at%x1f%aI%x1f%s' 2>"$errf")"
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    FZ_ERR="git log failed (exit $rc): $(head -c 500 "$errf")"
+    rm -f "$errf"
+    return 4
+  fi
+  rm -f "$errf"
   # T043 round-4 finding B2 (BLOCKING, agent ad5d869e28efdddbd, 2026-09-28):
   # a plain substring case-match (`*"$item_id"*`) makes ATM-95 match
   # ATM-953, ATM-103 match ATM-1038, etc. -- reproduced on this project's
@@ -290,48 +468,96 @@ git_subject_freeze() {
   # can never match inside ATM-1038 or ATM-953.
   local item_re
   item_re="$(printf '%s' "$item_id" | sed 's/[][\.^$*+?(){}|]/\\&/g')"
-  local IFS_OLD="$IFS"
-  IFS=$'\n'
-  local line
-  for line in $raw; do
-    IFS="$IFS_OLD"
-    local sha adate subject
-    sha="${line%%|*}"
-    local rest="${line#*|}"
-    adate="${rest%%|*}"
-    rest="${rest#*|}"
-    rest="${rest#*|}"  # discard committer date (%cD) field -- not used (only author date, matching cycle_report.py)
-    subject="${rest}"
-    if [[ "$subject" =~ (^|[^A-Za-z0-9-])${item_re}([^0-9]|$) ]]; then
-        count=$((count + 1))
-        if [ -z "$best_date" ] || [[ "$adate" > "$best_date" ]]; then
-          best_sha="$sha"; best_date="$adate"; best_subject="$subject"
-        fi
+  local best_at="" sha at adate subject
+  while IFS=$'\x1f' read -r sha at adate subject; do
+    [ -n "$sha" ] || continue
+    if ! isnum "$at"; then
+      FZ_ERR="git log returned a non-numeric author timestamp '$at' for $sha"
+      return 4
     fi
-    IFS=$'\n'
-  done
-  IFS="$IFS_OLD"
-  if [ -z "$best_sha" ]; then
-    printf 'UNMEASURED||||0'
-    return 0
+    if [[ "$subject" =~ (^|[^A-Za-z0-9-])${item_re}([^0-9]|$) ]]; then
+      FZ_COUNT=$((FZ_COUNT + 1))
+      if [ -z "$best_at" ] || [ "$at" -gt "$best_at" ]; then
+        best_at="$at"; FZ_SHA="$sha"; FZ_ADATE="$adate"; FZ_SUBJECT="$subject"
+      fi
+    fi
+  done <<<"$raw"
+  [ "$FZ_SHA" = UNMEASURED ] && return 0
+  FZ_TREE="$(git -C "$root" rev-parse --verify --quiet "${FZ_SHA}^{tree}" 2>/dev/null)"
+  if [ -z "$FZ_TREE" ]; then
+    FZ_ERR="cannot resolve the tree of $FZ_SHA (corrupt or partial object store)"
+    FZ_TREE=UNMEASURED
+    return 4
   fi
-  local tree
-  tree="$(git -C "$root" rev-parse "${best_sha}^{tree}" 2>/dev/null)" || tree="UNMEASURED"
-  printf '%s|%s|%s|%s|%d' "$best_sha" "$tree" "$best_date" "$best_subject" "$count"
+  return 0
 }
 
 # ---------------------------------------------------------------------------
 # emit_doc schema body_json out_path -- via fc_common.py (C-002).
+# T048 restart round 1 (R6-F12): emit_doc no longer reads FC_OUT. FC_OUT (set by
+# fc_common.py determinism-check) is honoured ONCE, at the top level, for the
+# subcommand's own --out (see the dispatch at the end of this file); before, every
+# internal emit honoured it, so replay-sample's internal per-item freeze wrote
+# into the caller's FC_OUT instead of its own temp file and every item was then
+# recorded as a harness error with exit 0.
 # ---------------------------------------------------------------------------
 emit_doc() {
   local schema="$1" body_json="$2" out_path="$3"
-  local effective_out="${FC_OUT:-$out_path}"
-  mkdir -p "$(dirname "$effective_out")" 2>/dev/null
+  mkdir -p "$(dirname "$out_path")" 2>/dev/null
   local run_meta
   run_meta="$(python3 -c 'import json,platform; print(json.dumps({"host": platform.node()}))')"
   python3 "$FC/lib/fc_common.py" emit --schema "$schema" --body-json "$body_json" \
-    --run-meta-json "$run_meta" --out "$effective_out"
+    --run-meta-json "$run_meta" --out "$out_path"
   return $?
+}
+
+# ---------------------------------------------------------------------------
+# freeze_to_body ITEM REPO_ROOT DB_PATH -> sets FZ_BODY (JSON) and returns 0, or
+# prints the reason and returns 4 (BLIND). T048 restart round 1 (R6-F5): every
+# value reaches Python through argv (a quoted heredoc is the program text), never
+# spliced into Python source -- a subject containing `\N` used to be a Python
+# SyntaxError (exit 2) and `\t` was silently turned into a TAB.
+# ---------------------------------------------------------------------------
+freeze_to_body() {
+  local item="$1" repo_root="$2" db_path="$3"
+  local item_type="UNKNOWN" item_type_note=""
+  if [ -f "$db_path" ]; then
+    # An existing but unreadable tracker DB is BLIND (header EXIT CODES row 4),
+    # never silently UNKNOWN; an item simply absent from a readable DB is UNKNOWN.
+    item_type="$(python3 - "$db_path" "$item" <<'PY' 2>/dev/null
+import sqlite3, sys
+try:
+    conn = sqlite3.connect('file:%s?mode=ro' % sys.argv[1], uri=True)
+    row = conn.execute('SELECT type FROM items WHERE atm_id = ? LIMIT 1', (sys.argv[2],)).fetchone()
+except Exception:
+    sys.exit(4)
+print(row[0] if row else 'UNKNOWN')
+PY
+)" || { echo "baseline_replay: BLIND: tracker DB $db_path exists but cannot be read" >&2; return 4; }
+  else
+    item_type_note="tracker DB not present at $db_path"
+  fi
+  if ! git_subject_freeze "$repo_root" "$item"; then
+    echo "baseline_replay: BLIND: freeze $item: $FZ_ERR" >&2
+    return 4
+  fi
+  FZ_BODY="$(python3 - "$item" "$item_type" "$item_type_note" "$FZ_SHA" "$FZ_TREE" "$FZ_ADATE" \
+      "$FZ_SUBJECT" "$FZ_COUNT" "$repo_root" <<'PY'
+import json, sys
+item, itype, inote, sha, tree, adate, subject, count, root = sys.argv[1:10]
+body = {"item_id": item, "item_type": itype, "candidate_commit_count": int(count)}
+if inote:
+    body["item_type_note"] = inote
+if sha == "UNMEASURED":
+    body.update(commit="UNMEASURED", tree="UNMEASURED",
+                missing_instrument="no git log commit whose SUBJECT line references %s was found "
+                                   "under --all (repo_root=%s)" % (item, root))
+else:
+    body.update(commit=sha, tree=tree, commit_author_date=adate, commit_subject=subject)
+print(json.dumps(body))
+PY
+)" || { echo "baseline_replay: BLIND: cannot assemble the freeze body for $item" >&2; return 4; }
+  return 0
 }
 
 # =============================================================================
@@ -341,59 +567,22 @@ cmd_freeze() {
   local item="" repo_root="" db_path="" out=""
   while [ $# -gt 0 ]; do
     case "$1" in
-      --item) item="$2"; shift 2 ;;
-      --repo-root) repo_root="$2"; shift 2 ;;
-      --db-path) db_path="$2"; shift 2 ;;
-      --out) out="$2"; shift 2 ;;
+      --item) [ $# -ge 2 ] || die "freeze: --item needs a value"; item="$2"; shift 2 ;;
+      --repo-root) [ $# -ge 2 ] || die "freeze: --repo-root needs a value"; repo_root="$2"; shift 2 ;;
+      --db-path) [ $# -ge 2 ] || die "freeze: --db-path needs a value"; db_path="$2"; shift 2 ;;
+      --out) [ $# -ge 2 ] || die "freeze: --out needs a value"; out="$2"; shift 2 ;;
       *) die "freeze: unknown argument: $1" ;;
     esac
   done
   [ -n "$item" ] || die "freeze: --item is required"
+  case "$item" in *$'\n'*|*$'\r'*) die "freeze: --item must be a single line" ;; esac
   [ -n "$out" ] || die "freeze: --out is required"
+  [ -n "$_FC_OUT_OVERRIDE" ] && out="$_FC_OUT_OVERRIDE"
   [ -n "$repo_root" ] || repo_root="$DEFAULT_REPO_ROOT"
   repo_root="$(cd "$repo_root" 2>/dev/null && pwd)" || blind "cannot resolve --repo-root"
   [ -n "$db_path" ] || db_path="$repo_root/docs/workable_items.db"
-
-  local item_type="UNKNOWN"
-  if [ -f "$db_path" ]; then
-    item_type="$(python3 -c "
-import sqlite3, sys
-try:
-    conn = sqlite3.connect('file:%s?mode=ro' % sys.argv[1], uri=True)
-    row = conn.execute('SELECT type FROM items WHERE atm_id = ? LIMIT 1', (sys.argv[2],)).fetchone()
-    print(row[0] if row else 'UNKNOWN')
-except Exception:
-    print('UNKNOWN')
-" "$db_path" "$item" 2>/dev/null)"
-  fi
-
-  local result sha tree adate subject count
-  result="$(git_subject_freeze "$repo_root" "$item")"
-  IFS='|' read -r sha tree adate subject count <<<"$result"
-
-  local body
-  if [ "$sha" = UNMEASURED ]; then
-    body="$(python3 -c "
-import json
-print(json.dumps({
-    'item_id': '$item', 'item_type': '$item_type',
-    'commit': 'UNMEASURED', 'tree': 'UNMEASURED',
-    'missing_instrument': 'no git log commit whose SUBJECT line references %s was found under --all (repo_root=$repo_root)' % '$item',
-    'candidate_commit_count': $count,
-}))
-")"
-  else
-    body="$(python3 -c "
-import json
-print(json.dumps({
-    'item_id': '$item', 'item_type': '$item_type',
-    'commit': '$sha', 'tree': '$tree',
-    'commit_author_date': '$adate', 'commit_subject': '''$subject''',
-    'candidate_commit_count': $count,
-}))
-")"
-  fi
-  emit_doc "baseline-replay-freeze/v1" "$body" "$out"
+  freeze_to_body "$item" "$repo_root" "$db_path" || return 4
+  emit_doc "baseline-replay-freeze/v1" "$FZ_BODY" "$out"
 }
 
 # =============================================================================
@@ -403,17 +592,29 @@ cmd_selfcheck() {
   local out=""
   while [ $# -gt 0 ]; do
     case "$1" in
-      --out) out="$2"; shift 2 ;;
+      --out) [ $# -ge 2 ] || die "selfcheck: --out needs a value"; out="$2"; shift 2 ;;
       *) die "selfcheck: unknown argument: $1" ;;
     esac
   done
   [ -n "$out" ] || die "selfcheck: --out is required"
-  if run_selfcheck; then
-    emit_doc "baseline-replay-selfcheck/v1" '{"result":"ok"}' "$out"
-    return $?
-  else
-    return 3
-  fi
+  [ -n "$_FC_OUT_OVERRIDE" ] && out="$_FC_OUT_OVERRIDE"
+  command -v timeout >/dev/null 2>&1 || blind "timeout(1) not found -- cannot bound a gate run"
+  local sc_rc=0
+  run_selfcheck || sc_rc=3
+  local body
+  body="$(python3 - "$SC_CHECKS" "$sc_rc" <<'PY'
+import json, sys
+checks = []
+for line in sys.argv[1].splitlines():
+    if not line:
+        continue
+    name, ok, got, want = line.split("|", 3)
+    checks.append({"name": name, "ok": ok == "true", "got": got, "want": want})
+print(json.dumps({"result": "ok" if sys.argv[2] == "0" else "FAILED", "checks": checks}))
+PY
+)"
+  [ "$sc_rc" = 0 ] || return 3
+  emit_doc "baseline-replay-selfcheck/v1" "$body" "$out"
 }
 
 # =============================================================================
@@ -507,11 +708,19 @@ _fc_submodule_reference_update() {
     if [ -n "$src_common" ] && [ -d "$src_common/modules/$name" ]; then
       ref_path="$src_common/modules/$name"
     fi
+    # T048 restart round 1 (R6-F15): `-c protocol.file.allow=never` alone does
+    # NOT hold against the environment -- measured: `GIT_ALLOW_PROTOCOL=file git
+    # -c protocol.file.allow=never submodule update --init` cloned a file://
+    # submodule (rc=0), because GIT_ALLOW_PROTOCOL, when set, REPLACES the whole
+    # protocol.*.allow policy. The env vars that can re-open a protocol are
+    # removed for this one call (never touching the caller's own environment).
     if [ -n "$ref_path" ]; then
-      git -c protocol.ext.allow=never -c protocol.file.allow=never \
+      env -u GIT_ALLOW_PROTOCOL -u GIT_PROTOCOL_FROM_USER -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT \
+        git -c protocol.ext.allow=never -c protocol.file.allow=never \
         -C "$tgt" submodule update --init --quiet --reference "$ref_path" -- "$path"
     else
-      git -c protocol.ext.allow=never -c protocol.file.allow=never \
+      env -u GIT_ALLOW_PROTOCOL -u GIT_PROTOCOL_FROM_USER -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT \
+        git -c protocol.ext.allow=never -c protocol.file.allow=never \
         -C "$tgt" submodule update --init --quiet -- "$path"
     fi
     rc=$?
@@ -600,6 +809,7 @@ do_one_replay() {
   # path.
   cleanup() {
     local rr="$1" wp="$2"
+    _fc_kill_child
     git -C "$rr" worktree remove --force "$wp" >/dev/null 2>&1
     rm -rf "$wp" 2>/dev/null
   }
@@ -629,21 +839,45 @@ do_one_replay() {
   # original buggy form) must not ALSO collaterally break this
   # DIFFERENT, unrelated fix by removing a variable this block secretly
   # depended on.
+  #
+  # T048 restart round 1 (R6-F11): (a) cleanup() now FIRST stops the tracked
+  # child process group (_fc_kill_child) -- before, a HUP to this subshell
+  # removed the worktree while the gate kept running inside the deleted
+  # directory; (b) INT and TERM get the same explicit handler (TERM is what the
+  # main shell forwards, see _fc_main_on_signal); (c) the handler first IGNORES
+  # every terminating signal, so a second signal that lands while cleanup() is
+  # still waiting for a slow-to-die gate cannot abort the cleanup half-way and
+  # leak the worktree (with a bare `exit 129` handler a second HUP inside the
+  # EXIT-trap cleanup exits the shell on the spot).
   local _sig_cleanup_cmd
-  printf -v _sig_cleanup_cmd 'cleanup %q %q; trap - EXIT HUP QUIT' "$repo_root" "$wt_path"
+  printf -v _sig_cleanup_cmd "trap '' HUP INT QUIT TERM; trap - EXIT; cleanup %q %q" "$repo_root" "$wt_path"
   trap "$_sig_cleanup_cmd; exit 129" HUP
+  trap "$_sig_cleanup_cmd; exit 130" INT
   trap "$_sig_cleanup_cmd; exit 131" QUIT
+  trap "$_sig_cleanup_cmd; exit 143" TERM
 
   if ! git -C "$repo_root" worktree add --detach --quiet "$wt_path" "$commit" >/dev/null 2>&1; then
     echo "baseline_replay: BLIND: git worktree add failed for commit $commit at $wt_path" >&2
     return 4
   fi
 
-  local actual_tree
-  actual_tree="$(git -C "$wt_path" rev-parse 'HEAD^{tree}' 2>/dev/null)"
-  if [ -n "$tree" ] && [ "$tree" != UNMEASURED ] && [ "$actual_tree" != "$tree" ]; then
-    echo "baseline_replay: BLIND: checked-out tree ($actual_tree) != frozen tree ($tree) for commit $commit" >&2
+  # T048 restart round 1 (R6-F3, same class): a failed rev-parse used to leave
+  # actual_tree empty and the report then carried an empty tree; a frozen tree of
+  # "UNMEASURED" silently switched the match check off. Now an unresolvable tree
+  # is BLIND, `--tree UNMEASURED` is refused by the argument parser, and the
+  # report says whether the tree was actually verified (tree_verified).
+  local actual_tree tree_verified=false
+  actual_tree="$(git -C "$wt_path" rev-parse --verify --quiet 'HEAD^{tree}' 2>/dev/null)"
+  if [ -z "$actual_tree" ]; then
+    echo "baseline_replay: BLIND: cannot resolve the checked-out tree for commit $commit at $wt_path" >&2
     return 4
+  fi
+  if [ -n "$tree" ]; then
+    if [ "$actual_tree" != "$tree" ]; then
+      echo "baseline_replay: BLIND: checked-out tree ($actual_tree) != frozen tree ($tree) for commit $commit" >&2
+      return 4
+    fi
+    tree_verified=true
   fi
 
   # T048 remediation (finding F9, BLOCKING, 2026-09-29 -- systematic-debugging
@@ -729,9 +963,12 @@ do_one_replay() {
   # "needs a network fetch", which is expected, cacheable, and correct.
   # Measured disk cost once fully cached: `du -sh` on all 28 direct
   # submodule paths in the MAIN checkout (which already recurses through
-  # their own nested content) is ~7.4 GiB total -- well inside the
-  # existing ~49 GiB-per-worktree / --min-free-kb 10 GiB headroom this
-  # script's DISK SAFETY section already budgets for.
+  # their own nested content) is ~7.4 GiB total, ON TOP OF the ~49 GiB
+  # superproject checkout. (An earlier version of this sentence called that
+  # "well inside the --min-free-kb 10 GiB headroom" -- false: 49 + 7.4 GiB is
+  # more than five times 10 GiB. T048 restart round 1, R6-F10 raised the
+  # default floor to DEFAULT_MIN_FREE_KB = 67 GiB, derived from these two
+  # measurements plus 10 GiB headroom.)
   #
   # T048 remediation, signal-safety hardening added AFTER independently
   # observing the multi-minute network-clone cost above IN THIS SAME
@@ -772,9 +1009,11 @@ do_one_replay() {
   # belt-and-braces defense-in-depth, not a bypass of an otherwise-open
   # hole: pin `ext`/`file` to `never` explicitly on THIS invocation only
   # (never touching the caller's global git config) so a future git
-  # version, a differently-configured host, or an ambient
-  # `GIT_ALLOW_PROTOCOL`/`GIT_CONFIG_*` environment override can never
-  # silently re-open it for this specific untrusted-content fetch. `file`
+  # version or a differently-configured host cannot re-open it. An ambient
+  # `GIT_ALLOW_PROTOCOL` / `GIT_CONFIG_*` environment override is NOT stopped
+  # by `-c` alone (an earlier version of this comment claimed it was; measured
+  # false, T048 restart round 1 R6-F15) -- those variables are removed with
+  # `env -u` on the call itself inside _fc_submodule_reference_update(). `file`
   # is denied too -- a crafted local-path submodule URL pointing at an
   # attacker-writable bare repo is the same class of risk as `ext::`, and
   # this project's own real submodules (confirmed via `.gitmodules`) are
@@ -840,15 +1079,22 @@ do_one_replay() {
   # `--reference` (not `--reference-if-able`) is deliberate: this git
   # version's `submodule update` does not recognise the `-if-able` form
   # at all (confirmed live: real exit 1, a usage error).
+  # T048 restart round 1 (R6-F11): `timeout` is backgrounded directly (no
+  # wrapping subshell), so `$!` is its process GROUP and a signal handler can
+  # stop the whole `git submodule--helper clone` tree via _fc_kill_child, not
+  # just the shell around it. The helper function is exported only for this one
+  # child and un-exported again, so the GATE never inherits it.
   export -f _fc_submodule_reference_update
   # the bash -c body is single-quoted on purpose: $1/$2 must expand in the child shell, not here
   # shellcheck disable=SC2016
-  ( timeout --kill-after=5 "${timeout_s}s" \
-      bash -c '_fc_submodule_reference_update "$1" "$2"' -- "$repo_root" "$wt_path" \
-  ) >/dev/null 2>&1 &
-  local submodule_pid=$!
-  wait "$submodule_pid"
+  timeout --kill-after=5 "${timeout_s}s" \
+      "$BASH" -c '_fc_submodule_reference_update "$1" "$2"' fc-submodule "$repo_root" "$wt_path" \
+      >/dev/null 2>&1 </dev/null &
+  _FC_CHILD_PGID=$!
+  wait "$_FC_CHILD_PGID"
   local submodule_rc=$?
+  _FC_CHILD_PGID=""
+  export -fn _fc_submodule_reference_update
   if [ "$submodule_rc" -ne 0 ]; then
     echo "baseline_replay: BLIND: git submodule update --init --recursive failed (exit $submodule_rc$( [ "$submodule_rc" = 124 ] || [ "$submodule_rc" = 137 ] && echo ", timed out after ${timeout_s}s")) for commit $commit at $wt_path (a frozen submodule SHA may be absent from the local object store, or a network fetch stalled -- refusing to run gate_cmd against a partially-checked-out tree)" >&2
     return 4
@@ -939,95 +1185,171 @@ do_one_replay() {
   # gate-cmd's combined stdout+stderr used to go straight to `/dev/null`
   # (a prior version of this line), so a future crash/hang/unexpected
   # nonzero exit had NO captured evidence to diagnose from without
-  # re-running the whole (multi-minute) replay by hand -- exactly the gap
-  # that made THIS finding (F9) itself slow to root-cause. Every run now
-  # gets its own real, persistent log file under $worktree_root (a
-  # sibling of $wt_path, so `cleanup()` -- which only removes $wt_path --
-  # never touches it), named uniquely per commit+phase+run_index so
-  # concurrent/successive do_one_replay calls for different items (e.g.
-  # cmd_replay_sample's per-item loop) can never collide or overwrite one
-  # another's evidence. The path is recorded in each run's own JSON row
-  # (captured-evidence citation per §11.4.5) so a FAIL/UNMEASURED verdict
-  # is diagnosable from the frozen report alone, without a re-run.
-  local run_log_dir="$worktree_root/replay-logs"
-  mkdir -p "$run_log_dir" 2>/dev/null || { echo "baseline_replay: cannot create run-log directory $run_log_dir" >&2; return 4; }
-  local commit_short="${commit:0:12}"
+  # re-running the whole (multi-minute) replay by hand. Every run gets its
+  # own persistent log file, recorded in its JSON row (captured-evidence
+  # citation per §11.4.5).
+  # T048 restart round 1 (R6-F6): the earlier name
+  # `${commit:0:12}_${phase}_${idx}.log` directly under replay-logs/ was NOT
+  # unique -- the two internal runs of --determinism-check, a re-run, and two
+  # sample items frozen to the same commit all wrote the same paths, so run 2
+  # overwrote run 1's evidence and the recorded log_path cited the wrong run
+  # (measured: run 1's cold_1.log contained run 2's output). Each do_one_replay
+  # call now creates its OWN fresh directory with mktemp -d (unique by
+  # construction, never reused), a sibling of $wt_path so cleanup() -- which
+  # only removes $wt_path -- never touches it. The directory is recorded as the
+  # report's log_dir.
+  mkdir -p "$worktree_root/replay-logs" 2>/dev/null || { echo "baseline_replay: cannot create run-log directory $worktree_root/replay-logs" >&2; return 4; }
+  local run_log_dir
+  run_log_dir="$(mktemp -d "$worktree_root/replay-logs/${commit:0:12}.XXXXXX")" || { echo "baseline_replay: cannot create a unique run-log directory under $worktree_root/replay-logs" >&2; return 4; }
 
-  local rows='[]'
-  local phase run_idx start_ns end_ns rc timed_out duration_ms verdict run_log
+  local rows='[]' harness_error=0
+  local phase run_idx n_runs run_log
   for phase in cold warm; do
-    local n_runs
     if [ "$phase" = cold ]; then n_runs="$cold_runs"; else n_runs="$warm_runs"; fi
     run_idx=1
-    while [ "$run_idx" -le "$n_runs" ]; do
-      start_ns="$(now_ns)" || return 4
-      timed_out=0
-      # T043 round-4 finding B1 continued: a plain FOREGROUND subshell
-      # here (no trailing `&` + explicit `wait`) makes bash DEFER any
-      # trapped signal -- including the `trap 'exit 129' HUP` registered
-      # above -- until this WHOLE foreground command finishes (documented
-      # bash behavior: "If bash is waiting for a command to complete and
-      # receives a signal for which a trap has been set, the trap will
-      # not be executed until the command completes"). That defers
-      # cleanup past the gate-cmd's own natural end, which -- for a
-      # SIGHUP-causing event like an SSH disconnect or a dying tmux
-      # server -- the parent process is unlikely to survive to see;
-      # independently reproduced: the gate-cmd's OWN process dies from
-      # SIGHUP's default disposition (not trapped there), the foreground
-      # wait unblocks, but the worktree still leaks because the ORIGINAL
-      # repro path (kill sent to the process group at t+1.5s of a t+5s
-      # gate-cmd) verified this genuinely happens. Fixed by BACKGROUNDING
-      # the gate-cmd subshell and using the `wait` BUILTIN explicitly --
-      # per POSIX, `wait` on a specific job returns immediately when a
-      # trapped signal is delivered, so the pending HUP trap runs
-      # (converting to `exit 129`, firing the EXIT-trap cleanup)
-      # WITHOUT waiting for the gate-cmd to finish on its own.
-      run_log="$run_log_dir/${commit_short}_${phase}_${run_idx}.log"
-      ( cd "$wt_path" && timeout --kill-after=5 "${timeout_s}s" "${gate_cmd[@]}" ) >"$run_log" 2>&1 &
-      local gate_pid=$!
-      wait "$gate_pid"
-      rc=$?
-      if [ "$rc" = 124 ] || [ "$rc" = 137 ]; then timed_out=1; fi
-      end_ns="$(now_ns)" || return 4
-      duration_ms=$(( (end_ns - start_ns) / 1000000 ))
-      [ "$duration_ms" -ge 0 ] || duration_ms=0
-      verdict="$(classify_verdict "$rc" "$timed_out")"
-      rows="$(python3 -c "
+    # A HARNESS_ERROR means the gate could not be started at all; repeating the
+    # same failed launch measures nothing, so the loop stops at the first one.
+    while [ "$run_idx" -le "$n_runs" ] && [ "$harness_error" = 0 ]; do
+      run_log="$run_log_dir/${phase}_${run_idx}.log"
+      run_gate_once "$wt_path" "$timeout_s" "$run_log" -- "${gate_cmd[@]}" || return 4
+      [ "$RG_VERDICT" = HARNESS_ERROR ] && harness_error=1
+      rows="$(python3 - "$rows" "$phase" "$run_idx" "$RG_START_NS" "$RG_END_NS" "$RG_DURATION_MS" \
+          "$RG_RC" "$RG_VERDICT" "$RG_REASON" "$run_log" <<'PY'
 import json, sys
-rows = json.loads(sys.argv[1])
-rows.append({'phase': sys.argv[2], 'run_index': int(sys.argv[3]), 'start_ns': int(sys.argv[4]),
-             'end_ns': int(sys.argv[5]), 'duration_ms': int(sys.argv[6]), 'exit_code': int(sys.argv[7]),
-             'verdict': sys.argv[8], 'log_path': sys.argv[9]})
+a = sys.argv
+rows = json.loads(a[1])
+rows.append({"phase": a[2], "run_index": int(a[3]), "start_ns": int(a[4]), "end_ns": int(a[5]),
+             "duration_ms": int(a[6]), "exit_code": int(a[7]), "verdict": a[8], "verdict_reason": a[9],
+             "log_path": a[10]})
 print(json.dumps(rows))
-" "$rows" "$phase" "$run_idx" "$start_ns" "$end_ns" "$duration_ms" "$rc" "$verdict" "$run_log")"
+PY
+)" || { echo "baseline_replay: cannot record run row" >&2; return 4; }
       run_idx=$((run_idx + 1))
     done
   done
 
   cleanup "$repo_root" "$wt_path"
-  trap - EXIT
+  trap - EXIT HUP INT QUIT TERM
 
-  python3 -c "
-import json, statistics
-rows = json.loads('''$rows''')
-def medians():
-    out = {}
-    for phase in ('cold', 'warm'):
-        vals = [r['duration_ms'] for r in rows if r['phase'] == phase and r['verdict'] != 'UNMEASURED']
-        out[phase] = int(round(statistics.median(vals))) if vals else 'UNMEASURED'
-    return out
-def verdict_sets():
-    out = {}
-    for phase in ('cold', 'warm'):
-        out[phase] = sorted(set(r['verdict'] for r in rows if r['phase'] == phase))
-    return out
+  # Report body. T048 restart round 1:
+  #  - R6-F5: every value is passed through argv; the program text is a quoted
+  #    heredoc, so no data is ever parsed as Python source.
+  #  - R6-F9: median_ms is computed over PASS runs ONLY. A FAIL may be a crash
+  #    that stopped part-way (the documented F9 forensic: 14 runs that all
+  #    crashed with exit 2 after 4-263 s), and UNMEASURED / HARNESS_ERROR runs
+  #    never completed; none of them is a measurement of how long the gate
+  #    takes. The per-verdict breakdown keeps the FAIL durations visible
+  #    (by_verdict) without letting them into the baseline.
+  python3 - "$rows" "$commit" "$actual_tree" "$tree_verified" "$cold_runs" "$warm_runs" \
+      "$min_free_kb" "$timeout_s" "$run_log_dir" "$harness_error" "${gate_cmd[@]}" <<'PY'
+import json, statistics, sys
+a = sys.argv
+rows = json.loads(a[1])
+commit, tree, tree_verified = a[2], a[3], a[4] == "true"
+cold_runs, warm_runs, min_free_kb, timeout_s = int(a[5]), int(a[6]), int(a[7]), int(a[8])
+log_dir, harness_error, gate_cmd = a[9], a[10] == "1", a[11:]
+def med(vals):
+    return int(round(statistics.median(vals))) if vals else "UNMEASURED"
+phases = ("cold", "warm")
+median_ms = {p: med([r["duration_ms"] for r in rows if r["phase"] == p and r["verdict"] == "PASS"])
+             for p in phases}
+by_verdict = {}
+for p in phases:
+    by_verdict[p] = {}
+    for v in sorted({r["verdict"] for r in rows if r["phase"] == p}):
+        d = [r["duration_ms"] for r in rows if r["phase"] == p and r["verdict"] == v]
+        by_verdict[p][v] = {"n_runs": len(d), "median_ms": med(d)}
+verdict_set = {p: sorted({r["verdict"] for r in rows if r["phase"] == p}) for p in phases}
 print(json.dumps({
-    'commit': '$commit', 'tree': '$actual_tree', 'gate_cmd': $(python3 -c "import json,sys; print(json.dumps(sys.argv[1:]))" "${gate_cmd[@]}"),
-    'cold_runs': $cold_runs, 'warm_runs': $warm_runs,
-    'cache_mechanism': 'none (T068 verdict_cache.py not landed in this tree, verified 2026-09-28)',
-    'runs': rows, 'median_ms': medians(), 'verdict_set': verdict_sets(),
+    "commit": commit, "tree": tree, "tree_verified": tree_verified, "gate_cmd": gate_cmd,
+    "cold_runs": cold_runs, "warm_runs": warm_runs, "min_free_kb": min_free_kb, "timeout_s": timeout_s,
+    "cache_mechanism": "none (T068 verdict_cache.py not landed in this tree, verified 2026-09-28)",
+    "median_basis": "PASS runs only (FAIL/UNMEASURED/HARNESS_ERROR excluded, see by_verdict)",
+    "log_dir": log_dir, "harness_error": harness_error,
+    "runs": rows, "median_ms": median_ms, "by_verdict": by_verdict, "verdict_set": verdict_set,
 }))
-"
+PY
+}
+
+# =============================================================================
+# run_replay_isolated BODY_FILE do_one_replay-args...
+# T048 restart round 1 (R6-F11a): do_one_replay used to run inside `$(...)`. A
+# TERM sent to the main script killed the main shell but NOT that
+# command-substitution subshell, which kept running EVERY remaining scheduled
+# gate run as an orphan (measured: a run started 8 s after the TERM; in
+# production up to 20 runs x 30 min). It now runs as a background job whose pid
+# the main shell holds (_FC_REPLAY_PID), its body is written to a file, and the
+# main shell's own signal handlers (_fc_main_on_signal) forward TERM to it and
+# wait for its cleanup. TERM is forwarded for every signal: a background job of
+# a non-interactive shell ignores INT and QUIT, and its TERM handler performs the
+# same cleanup.
+# =============================================================================
+run_replay_isolated() {
+  local body_file="$1"
+  shift
+  do_one_replay "$@" >"$body_file" &
+  _FC_REPLAY_PID=$!
+  wait "$_FC_REPLAY_PID"
+  local rc=$?
+  _FC_REPLAY_PID=""
+  return "$rc"
+}
+
+# invoked only from the trap strings installed by _fc_install_main_traps below
+# shellcheck disable=SC2329
+_fc_main_on_signal() {
+  trap '' HUP INT QUIT TERM
+  local code="$1" p="${_FC_REPLAY_PID:-}"
+  _fc_kill_child   # a selfcheck gate run happens in the main shell itself
+  case "$p" in ''|*[!0-9]*) p="" ;; esac
+  if [ -n "$p" ] && [ "$p" -gt 1 ]; then
+    kill -s TERM "$p" 2>/dev/null
+    wait "$p" 2>/dev/null
+  fi
+  exit "$code"
+}
+
+_fc_install_main_traps() {
+  trap '_fc_main_on_signal 129' HUP
+  trap '_fc_main_on_signal 130' INT
+  trap '_fc_main_on_signal 131' QUIT
+  trap '_fc_main_on_signal 143' TERM
+}
+
+# parse_gate_cmd STR -> sets GATE_ARGV. Word-splits on whitespace WITHOUT
+# pathname expansion (T048 restart round 1, R6-F19 class: the old unquoted
+# `$gate_cmd_str` expansions also glob-expanded every word against the caller's
+# cwd). HONEST BOUNDARY (unchanged): an argument cannot itself contain
+# whitespace.
+parse_gate_cmd() {
+  case "$1" in *$'\n'*|*$'\r'*) die "--gate-cmd must be a single line" ;; esac
+  GATE_ARGV=()
+  read -r -a GATE_ARGV <<<"$1"
+  [ "${#GATE_ARGV[@]}" -ge 1 ] || die "--gate-cmd must name a command"
+}
+
+# validate_run_counts COLD WARM TIMEOUT_S MIN_FREE_KB (T048 restart round 1:
+# R6-F7 zero runs, R6-F18 --timeout-s 0 which DISABLES timeout(1)).
+validate_run_counts() {
+  isnum "$1" || die "--cold-runs must be a non-negative integer"
+  isnum "$2" || die "--warm-runs must be a non-negative integer"
+  [ $(( $1 + $2 )) -ge 1 ] || die "--cold-runs + --warm-runs must be at least 1 (zero runs measure nothing)"
+  { isnum "$3" && [ "$3" -ge 1 ]; } || die "--timeout-s must be a positive integer (0 would disable the bound)"
+  isnum "$4" || die "--min-free-kb must be a non-negative integer"
+  command -v timeout >/dev/null 2>&1 || blind "timeout(1) not found -- cannot bound a gate run"
+}
+
+# body_field FILE EXPR -> prints a field of a JSON body file (data read from the
+# file, the expression is always a literal from this script).
+body_field() {
+  python3 - "$1" "$2" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+v = d
+for k in sys.argv[2].split("."):
+    v = v[k]
+print(json.dumps(v) if not isinstance(v, str) else v)
+PY
 }
 
 # =============================================================================
@@ -1035,31 +1357,38 @@ print(json.dumps({
 # =============================================================================
 cmd_replay() {
   local commit="" tree="" gate_cmd_str="" cold_runs=10 warm_runs=10
-  local repo_root="" worktree_root="" min_free_kb=10485760 timeout_s=1800 out=""
+  local repo_root="" worktree_root="" min_free_kb="$DEFAULT_MIN_FREE_KB" timeout_s=1800 out=""
   local determinism_check=0
   while [ $# -gt 0 ]; do
     case "$1" in
-      --commit) commit="$2"; shift 2 ;;
-      --tree) tree="$2"; shift 2 ;;
-      --gate-cmd) gate_cmd_str="$2"; shift 2 ;;
-      --cold-runs) cold_runs="$2"; shift 2 ;;
-      --warm-runs) warm_runs="$2"; shift 2 ;;
-      --repo-root) repo_root="$2"; shift 2 ;;
-      --worktree-root) worktree_root="$2"; shift 2 ;;
-      --min-free-kb) min_free_kb="$2"; shift 2 ;;
-      --timeout-s) timeout_s="$2"; shift 2 ;;
-      --out) out="$2"; shift 2 ;;
-      --determinism-check) determinism_check=1; shift ;;
+      --determinism-check) determinism_check=1; shift; continue ;;
+    esac
+    [ $# -ge 2 ] || die "replay: $1 needs a value"
+    case "$1" in
+      --commit) commit="$2" ;;
+      --tree) tree="$2" ;;
+      --gate-cmd) gate_cmd_str="$2" ;;
+      --cold-runs) cold_runs="$2" ;;
+      --warm-runs) warm_runs="$2" ;;
+      --repo-root) repo_root="$2" ;;
+      --worktree-root) worktree_root="$2" ;;
+      --min-free-kb) min_free_kb="$2" ;;
+      --timeout-s) timeout_s="$2" ;;
+      --out) out="$2" ;;
       *) die "replay: unknown argument: $1" ;;
     esac
+    shift 2
   done
   [ -n "$commit" ] || die "replay: --commit is required"
   [ -n "$gate_cmd_str" ] || die "replay: --gate-cmd is required"
   [ -n "$out" ] || die "replay: --out is required"
-  isnum "$cold_runs" || die "replay: --cold-runs must be a non-negative integer"
-  isnum "$warm_runs" || die "replay: --warm-runs must be a non-negative integer"
-  isnum "$min_free_kb" || die "replay: --min-free-kb must be a non-negative integer"
-  isnum "$timeout_s" || die "replay: --timeout-s must be a positive integer"
+  [ -n "$_FC_OUT_OVERRIDE" ] && out="$_FC_OUT_OVERRIDE"
+  # T048 restart round 1 (R6-F3 class): a freeze that could not resolve the tree
+  # must never switch the tree-match check off. Omit --tree to replay without a
+  # tree check (recorded as tree_verified=false); never pass UNMEASURED.
+  [ "$tree" = UNMEASURED ] && die "replay: --tree UNMEASURED refused -- the frozen tree was never resolved; omit --tree explicitly to replay without a tree check"
+  validate_run_counts "$cold_runs" "$warm_runs" "$timeout_s" "$min_free_kb"
+  parse_gate_cmd "$gate_cmd_str"
   [ -n "$repo_root" ] || repo_root="$DEFAULT_REPO_ROOT"
   repo_root="$(cd "$repo_root" 2>/dev/null && pwd)" || blind "cannot resolve --repo-root"
   [ -n "$worktree_root" ] || worktree_root="$repo_root/.fc_worktrees"
@@ -1068,103 +1397,88 @@ cmd_replay() {
   # mktemp/rev-parse/df/the gate's own `cd`, but against $repo_root for
   # `git -C "$repo_root" worktree add` -- two different base directories
   # for the SAME value, silently pointing at two different locations.
-  # Reproduced: from a cwd other than the repo, a relative
-  # --worktree-root with --tree omitted produced exit 0 + a false
-  # "cold":["FAIL"] verdict without the gate ever running against the
-  # real checkout -- a §11.4.1 FAIL-bluff in a measurement tool. Fixed
-  # the SAME way repo_root already is, two lines up: resolve to an
+  # Fixed the SAME way repo_root already is, two lines up: resolve to an
   # absolute, canonical path up front so every later consumer (mktemp,
-  # df, git -C, the gate's cd) agrees on the SAME directory, closing the
-  # root cause for the --tree-provided case too (caught by luck there
-  # via the tree-mismatch check, not by design).
+  # df, git -C, the gate's cd) agrees on the SAME directory.
   mkdir -p "$worktree_root" 2>/dev/null || die "replay: cannot create --worktree-root $worktree_root"
   worktree_root="$(cd "$worktree_root" 2>/dev/null && pwd)" || die "replay: cannot resolve --worktree-root $worktree_root to an absolute path"
 
+  _fc_install_main_traps
   run_selfcheck || return 3
 
+  local body1 body2
+  body1="$(mktemp)" || blind "mktemp failed"
+  run_replay_isolated "$body1" "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
+    "$timeout_s" "$cold_runs" "$warm_runs" "${GATE_ARGV[@]}" || { rm -f "$body1"; return 4; }
+
   if [ "$determinism_check" = 1 ]; then
-    # HONEST BOUNDARY / DESIGN FIX (S11.4.6, found by directly running the
-    # naive design against a real scratch repo before shipping it):
-    # `replay`'s report embeds REAL wall-clock timestamps
-    # (start_ns/end_ns/duration_ms/median_ms) in its hashed body -- that
-    # data is INHERENTLY non-deterministic between two separate
-    # invocations (real timing jitter), so delegating to fc_common.py's
-    # generic byte-identical-body_hash `determinism-check` (the pattern
-    # cycle_report.py/select_sample.py both use, correctly, for their own
-    # timing-free bodies) ALWAYS reports "nondeterministic" here, even
-    # when nothing is actually wrong -- verified directly: it did, on the
-    # very first real run against a real scratch repo, 2026-09-28. T024's
-    # own RED-test contract stub 1/3 says what THIS tool's determinism
-    # actually means: "two independent invocations ... MUST produce the
-    # SAME verdict SET (per-item PASS/FAIL/SKIP classification, compared
-    # as a set, never merely as equal counts)" -- so this flag runs
-    # `do_one_replay` TWICE directly and compares ONLY `verdict_set`
-    # (never the timing fields) between the two runs.
-    local body1 body2
-    # word-split --gate-cmd intentionally (see HONEST BOUNDARY note above the
-    # header's DETERMINISM section).
-    # shellcheck disable=SC2086
-    body1="$(do_one_replay "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
-      "$timeout_s" "$cold_runs" "$warm_runs" $gate_cmd_str)" || return 4
-    # shellcheck disable=SC2086
-    body2="$(do_one_replay "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
-      "$timeout_s" "$cold_runs" "$warm_runs" $gate_cmd_str)" || return 4
-    # `--out` is REQUIRED by this subcommand's own arg parsing above
-    # (`[ -n "$out" ] || die ...`) in EVERY mode, including
-    # --determinism-check -- but this branch, until T043 round-2 review
-    # finding N5, only ever printed the determinism result to stdout and
-    # silently never wrote it to $out, contradicting its own documented
-    # contract. Fixed: capture the result body + its own exit code (a
-    # command substitution preserves the substituted command's exit
-    # status in $?, read immediately below, before anything else can
-    # clobber it), still print it (matching the DETERMINISM section's own
-    # documented "printing both verdict sets either way"), AND now also
-    # persist it to $out via the same emit_doc envelope every other
-    # subcommand uses -- but return the DETERMINISM verdict's own exit
-    # code (0=same, 1=differs), never emit_doc's.
+    # DETERMINISM (C-003). `replay`'s report embeds real wall-clock timing, so
+    # a byte-identical body comparison can never pass (verified 2026-09-28);
+    # this flag replays the SAME frozen {commit, tree, gate-cmd} twice and
+    # compares the VERDICTS. T048 restart round 1 (R6-F7) tightened the rule:
+    #  - a phase whose verdict set holds more than one verdict inside ONE
+    #    invocation is itself non-deterministic (an alternating PASS/FAIL gate
+    #    with --cold-runs 2 gave {"cold":["FAIL","PASS"]} twice and used to be
+    #    reported deterministic);
+    #  - both phases are compared (a warm-only difference is a difference);
+    #  - a run that never completed (UNMEASURED) or never started
+    #    (HARNESS_ERROR) gives NO verdict: deterministic=null, exit 4 --
+    #    "could not measure, twice" is not "deterministic";
+    #  - zero runs are refused by validate_run_counts (a check over nothing
+    #    cannot fail).
+    body2="$(mktemp)" || blind "mktemp failed"
+    run_replay_isolated "$body2" "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
+      "$timeout_s" "$cold_runs" "$warm_runs" "${GATE_ARGV[@]}" || { rm -f "$body1" "$body2"; return 4; }
     local det_body det_rc emit_rc
-    det_body="$(python3 -c "
+    det_body="$(python3 - "$body1" "$body2" <<'PY'
 import json, sys
-b1, b2 = json.loads(sys.argv[1]), json.loads(sys.argv[2])
-vs1, vs2 = b1['verdict_set'], b2['verdict_set']
-same = all(set(vs1.get(p, [])) == set(vs2.get(p, [])) for p in ('cold', 'warm'))
-print(json.dumps({'run1_verdict_set': vs1, 'run2_verdict_set': vs2, 'deterministic': same}))
-sys.exit(0 if same else 1)
-" "$body1" "$body2")"
+b1, b2 = (json.load(open(p)) for p in sys.argv[1:3])
+phases = ("cold", "warm")
+vs1, vs2 = b1["verdict_set"], b2["verdict_set"]
+out = {"run1_verdict_set": vs1, "run2_verdict_set": vs2,
+       "run1_log_dir": b1["log_dir"], "run2_log_dir": b2["log_dir"]}
+unmeasurable = sorted({r["verdict"] for b in (b1, b2) for r in b["runs"]
+                       if r["verdict"] in ("UNMEASURED", "HARNESS_ERROR")})
+if unmeasurable:
+    out.update(deterministic=None,
+               reason="no determinism verdict: run(s) classified %s" % ",".join(unmeasurable))
+    print(json.dumps(out))
+    sys.exit(4)
+flaky = sorted({p for b in (b1, b2) for p in phases if len(b["verdict_set"].get(p, [])) > 1})
+differs = sorted({p for p in phases if vs1.get(p, []) != vs2.get(p, [])})
+det = not flaky and not differs
+out.update(deterministic=det, within_run_flaky_phases=flaky, differing_phases=differs)
+print(json.dumps(out))
+sys.exit(0 if det else 1)
+PY
+)"
     det_rc=$?
+    rm -f "$body1" "$body2"
     echo "$det_body"
-    # T043 round-3 review finding F3(c): every OTHER subcommand in this file
-    # lets `emit_doc`'s own exit code become its function's exit code
-    # implicitly (emit_doc is their LAST statement, no explicit `return`
-    # after it) -- so a --out write failure is already surfaced everywhere
-    # else. This branch is the one exception (it explicitly overrides with
-    # `return $det_rc` per its own documented design: the DETERMINISM
-    # comparison's own same/differs verdict is the primary semantic
-    # signal, not emit_doc's plumbing). Silently discarding emit_doc's
-    # failure entirely would still be wrong, though -- fixed to check it:
-    # a write failure is ALWAYS surfaced audibly on stderr (never silent),
-    # and additionally escalates the exit code when det_rc alone would
-    # otherwise have reported success (0) -- a caller must never see exit 0
-    # when the mandatory --out contract was not actually honored.
+    # T043 round-3 review finding F3(c): a --out write failure is always
+    # surfaced, and escalates a would-be exit 0 to 4 (a caller must never see
+    # exit 0 when the mandatory --out contract was not honoured).
     emit_doc "baseline-replay-determinism/v1" "$det_body" "$out"
     emit_rc=$?
     if [ "$emit_rc" != 0 ]; then
       echo "baseline_replay: WARNING: writing the --determinism-check result to --out ($out) failed (emit_doc exit $emit_rc) -- the determinism verdict printed above is still accurate, but the mandatory --out contract was not honored" >&2
-      if [ "$det_rc" = 0 ]; then
-        return 4
-      fi
+      [ "$det_rc" = 0 ] && return 4
     fi
-    return $det_rc
+    return "$det_rc"
   fi
 
-  local body
-  # word-split --gate-cmd intentionally (shell command string, matching
-  # host_guard.sh's own convention of accepting a single quoted invocation).
-  # shellcheck disable=SC2086
-  body="$(do_one_replay "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
-    "$timeout_s" "$cold_runs" "$warm_runs" $gate_cmd_str)" || return 4
-
-  emit_doc "baseline-replay/v1" "$body" "$out"
+  local body herr
+  body="$(cat "$body1")"
+  herr="$(body_field "$body1" harness_error)"
+  rm -f "$body1"
+  emit_doc "baseline-replay/v1" "$body" "$out" || return $?
+  # R6-F8: a gate that could not even be started is BLIND (exit 4), never a
+  # recorded "gate FAIL" with exit 0. The report is still written as evidence.
+  if [ "$herr" = true ]; then
+    echo "baseline_replay: BLIND: the gate command could not be started (HARNESS_ERROR, see the report's runs[].verdict_reason)" >&2
+    return 4
+  fi
+  return 0
 }
 
 # =============================================================================
@@ -1172,118 +1486,128 @@ sys.exit(0 if same else 1)
 # =============================================================================
 cmd_replay_sample() {
   local sample="" gate_cmd_str="" cold_runs=10 warm_runs=10
-  local repo_root="" worktree_root="" min_free_kb=10485760 timeout_s=1800 out=""
+  local repo_root="" worktree_root="" min_free_kb="$DEFAULT_MIN_FREE_KB" timeout_s=1800 out=""
   while [ $# -gt 0 ]; do
+    [ $# -ge 2 ] || die "replay-sample: $1 needs a value"
     case "$1" in
-      --sample) sample="$2"; shift 2 ;;
-      --gate-cmd) gate_cmd_str="$2"; shift 2 ;;
-      --cold-runs) cold_runs="$2"; shift 2 ;;
-      --warm-runs) warm_runs="$2"; shift 2 ;;
-      --repo-root) repo_root="$2"; shift 2 ;;
-      --worktree-root) worktree_root="$2"; shift 2 ;;
-      --min-free-kb) min_free_kb="$2"; shift 2 ;;
-      --timeout-s) timeout_s="$2"; shift 2 ;;
-      --out) out="$2"; shift 2 ;;
+      --sample) sample="$2" ;;
+      --gate-cmd) gate_cmd_str="$2" ;;
+      --cold-runs) cold_runs="$2" ;;
+      --warm-runs) warm_runs="$2" ;;
+      --repo-root) repo_root="$2" ;;
+      --worktree-root) worktree_root="$2" ;;
+      --min-free-kb) min_free_kb="$2" ;;
+      --timeout-s) timeout_s="$2" ;;
+      --out) out="$2" ;;
       *) die "replay-sample: unknown argument: $1" ;;
     esac
+    shift 2
   done
   [ -n "$sample" ] || die "replay-sample: --sample is required"
   [ -n "$gate_cmd_str" ] || die "replay-sample: --gate-cmd is required"
   [ -n "$out" ] || die "replay-sample: --out is required"
+  [ -n "$_FC_OUT_OVERRIDE" ] && out="$_FC_OUT_OVERRIDE"
+  validate_run_counts "$cold_runs" "$warm_runs" "$timeout_s" "$min_free_kb"
+  parse_gate_cmd "$gate_cmd_str"
   [ -f "$sample" ] || blind "--sample file not found: $sample"
   [ -n "$repo_root" ] || repo_root="$DEFAULT_REPO_ROOT"
   repo_root="$(cd "$repo_root" 2>/dev/null && pwd)" || blind "cannot resolve --repo-root"
   [ -n "$worktree_root" ] || worktree_root="$repo_root/.fc_worktrees"
-  # T043 round-4 finding B3 (BLOCKING, agent ad5d869e28efdddbd, 2026-09-28):
-  # a RELATIVE --worktree-root resolves against the CALLER's cwd for
-  # mktemp/rev-parse/df/the gate's own `cd`, but against $repo_root for
-  # `git -C "$repo_root" worktree add` -- two different base directories
-  # for the SAME value, silently pointing at two different locations.
-  # Reproduced: from a cwd other than the repo, a relative
-  # --worktree-root with --tree omitted produced exit 0 + a false
-  # "cold":["FAIL"] verdict without the gate ever running against the
-  # real checkout -- a §11.4.1 FAIL-bluff in a measurement tool. Fixed
-  # the SAME way repo_root already is, two lines up: resolve to an
-  # absolute, canonical path up front so every later consumer (mktemp,
-  # df, git -C, the gate's cd) agrees on the SAME directory, closing the
-  # root cause for the --tree-provided case too (caught by luck there
-  # via the tree-mismatch check, not by design).
-  mkdir -p "$worktree_root" 2>/dev/null || die "replay: cannot create --worktree-root $worktree_root"
-  worktree_root="$(cd "$worktree_root" 2>/dev/null && pwd)" || die "replay: cannot resolve --worktree-root $worktree_root to an absolute path"
+  # T043 round-4 finding B3: resolve --worktree-root to one absolute path up
+  # front (see cmd_replay).
+  mkdir -p "$worktree_root" 2>/dev/null || die "replay-sample: cannot create --worktree-root $worktree_root"
+  worktree_root="$(cd "$worktree_root" 2>/dev/null && pwd)" || die "replay-sample: cannot resolve --worktree-root $worktree_root to an absolute path"
+  local db_path="$repo_root/docs/workable_items.db"
 
+  _fc_install_main_traps
   run_selfcheck || return 3
 
-  local item_ids
-  item_ids="$(python3 -c "
-import json
-doc = json.load(open('$sample'))
-for it in doc.get('items', []):
-    print(it['item_id'])
-")" || blind "--sample is not a readable select_sample.py output doc"
+  # Item ids are read as NUL-separated DATA (R6-F5: the sample path used to be
+  # spliced into Python source, and ids were split on newlines).
+  local ids_file entries_file
+  ids_file="$(mktemp)" || blind "mktemp failed"
+  entries_file="$(mktemp)" || blind "mktemp failed"
+  python3 - "$sample" >"$ids_file" <<'PY' || { rm -f "$ids_file" "$entries_file"; blind "--sample is not a readable select_sample.py output doc (an object with an 'items' list of {item_id: <non-empty single-line string>})"; }
+import json, sys
+doc = json.load(open(sys.argv[1]))
+items = doc.get("items") if isinstance(doc, dict) else None
+if not isinstance(items, list):
+    sys.exit(4)
+for it in items:
+    iid = it.get("item_id") if isinstance(it, dict) else None
+    if not isinstance(iid, str) or not iid or "\n" in iid or "\r" in iid or "\0" in iid:
+        sys.exit(4)
+    sys.stdout.write(iid + "\0")
+PY
 
-  local items_json='[]'
-  local item_id
-  while IFS= read -r item_id; do
-    [ -n "$item_id" ] || continue
-    local freeze_out
-    freeze_out="$(mktemp)"
-    cmd_freeze --item "$item_id" --repo-root "$repo_root" --out "$freeze_out"
-    local freeze_rc=$?
-    local entry
-    if [ "$freeze_rc" != 0 ]; then
-      entry="$(python3 -c "import json; print(json.dumps({'item_id': '$item_id', 'skipped': True, 'skip_reason': 'freeze harness error rc=$freeze_rc'}))")"
+  local item_id n_harness=0
+  while IFS= read -r -d '' item_id; do
+    local entry_kind="" commit="" tree="" body_file="" reason=""
+    if ! freeze_to_body "$item_id" "$repo_root" "$db_path"; then
+      entry_kind=harness; reason="freeze BLIND: ${FZ_ERR:-tracker DB unreadable}"
+    elif [ "$FZ_SHA" = UNMEASURED ]; then
+      entry_kind=skipped; reason="freeze UNMEASURED (no subject-matching commit found)"
     else
-      local commit tree
-      commit="$(python3 -c "import json; print(json.load(open('$freeze_out'))['commit'])")"
-      tree="$(python3 -c "import json; print(json.load(open('$freeze_out'))['tree'])")"
-      if [ "$commit" = UNMEASURED ]; then
-        entry="$(python3 -c "import json; print(json.dumps({'item_id': '$item_id', 'skipped': True, 'skip_reason': 'freeze UNMEASURED (no subject-matching commit found)'}))")"
+      commit="$FZ_SHA"; tree="$FZ_TREE"
+      body_file="$(mktemp)" || blind "mktemp failed"
+      if run_replay_isolated "$body_file" "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
+           "$timeout_s" "$cold_runs" "$warm_runs" "${GATE_ARGV[@]}"; then
+        entry_kind=replayed
       else
-        local replay_out
-        replay_out="$(mktemp)"
-        local rbody
-        # word-split --gate-cmd intentionally (see cmd_replay's own comment
-        # on this pattern -- HONEST BOUNDARY: --gate-cmd must not itself
-        # contain an argument with embedded whitespace).
-        # shellcheck disable=SC2086
-        rbody="$(do_one_replay "$commit" "$tree" "$repo_root" "$worktree_root" "$min_free_kb" \
-          "$timeout_s" "$cold_runs" "$warm_runs" $gate_cmd_str)"
-        local replay_rc=$?
-        if [ "$replay_rc" != 0 ]; then
-          entry="$(python3 -c "import json; print(json.dumps({'item_id': '$item_id', 'commit': '$commit', 'tree': '$tree', 'skipped': True, 'skip_reason': 'replay harness error rc=$replay_rc'}))")"
-        else
-          entry="$(python3 -c "
-import json
-rbody = json.loads('''$rbody''')
-print(json.dumps({'item_id': '$item_id', 'skipped': False, 'skip_reason': None,
-                   'commit': rbody['commit'], 'tree': rbody['tree'],
-                   'median_ms': rbody['median_ms'], 'verdict_set': rbody['verdict_set']}))
-")"
-        fi
-        rm -f "$replay_out"
+        entry_kind=harness; reason="replay harness error rc=$?"
       fi
     fi
-    rm -f "$freeze_out"
-    items_json="$(python3 -c "
+    [ "$entry_kind" = harness ] && n_harness=$((n_harness + 1))
+    python3 - "$entry_kind" "$item_id" "$commit" "$tree" "$reason" "$body_file" >>"$entries_file" <<'PY' || blind "cannot record the replay-sample entry for an item"
 import json, sys
-items = json.loads(sys.argv[1])
-items.append(json.loads(sys.argv[2]))
-print(json.dumps(items))
-" "$items_json" "$entry")"
-  done <<<"$item_ids"
+kind, iid, commit, tree, reason, body_file = sys.argv[1:7]
+e = {"item_id": iid}
+if kind == "replayed":
+    b = json.load(open(body_file))
+    e.update(skipped=False, skip_reason=None, commit=b["commit"], tree=b["tree"],
+             tree_verified=b["tree_verified"], median_ms=b["median_ms"], verdict_set=b["verdict_set"],
+             log_dir=b["log_dir"], harness_error=b["harness_error"])
+else:
+    e.update(skipped=True, skip_reason=reason, harness_error=(kind == "harness"))
+    if commit:
+        e.update(commit=commit, tree=tree)
+print(json.dumps(e))
+PY
+    if [ "$entry_kind" = replayed ] && [ "$(body_field "$body_file" harness_error)" = true ]; then
+      n_harness=$((n_harness + 1))
+    fi
+    [ -n "$body_file" ] && rm -f "$body_file"
+  done <"$ids_file"
+  rm -f "$ids_file"
 
   local body
-  # word-split --gate-cmd intentionally (see cmd_replay's HONEST BOUNDARY note).
-  # shellcheck disable=SC2086
-  body="$(python3 -c "
-import json
-print(json.dumps({
-    'sample_path': '$sample', 'gate_cmd': $(python3 -c "import json,sys; print(json.dumps(sys.argv[1:]))" $gate_cmd_str),
-    'cold_runs': $cold_runs, 'warm_runs': $warm_runs, 'items': json.loads('''$items_json'''),
-}))
-")"
-  emit_doc "baseline-replay-sample/v1" "$body" "$out"
+  body="$(python3 - "$sample" "$cold_runs" "$warm_runs" "$entries_file" "${GATE_ARGV[@]}" <<'PY'
+import json, sys
+a = sys.argv
+items = [json.loads(l) for l in open(a[4]) if l.strip()]
+print(json.dumps({"sample_path": a[1], "gate_cmd": a[5:], "cold_runs": int(a[2]),
+                  "warm_runs": int(a[3]), "items": items}))
+PY
+)" || { rm -f "$entries_file"; blind "cannot assemble the replay-sample report"; }
+  rm -f "$entries_file"
+  emit_doc "baseline-replay-sample/v1" "$body" "$out" || return $?
+  # R6-F3/F8/F12 class: an item that could not be measured because the HARNESS
+  # failed (freeze BLIND, worktree/submodule failure, a gate that never started)
+  # is recorded per item AND makes the whole run exit 4, never exit 0.
+  if [ "$n_harness" -gt 0 ]; then
+    echo "baseline_replay: BLIND: $n_harness sample item(s) could not be measured because the harness failed (see items[].skip_reason / harness_error in the report)" >&2
+    return 4
+  fi
+  return 0
 }
+
+# T048 restart round 1 (R6-F12): FC_OUT (set by fc_common.py determinism-check
+# for the command it re-runs) redirects THIS invocation's top-level --out only.
+# It is captured once here and then removed from the environment, so no internal
+# emit and no child process -- in particular the replayed gate, which may itself
+# be an FC tool -- ever sees it.
+_FC_OUT_OVERRIDE="${FC_OUT:-}"
+unset FC_OUT
 
 case "$SUBCMD" in
   freeze) cmd_freeze "$@"; exit $? ;;

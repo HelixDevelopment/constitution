@@ -99,7 +99,7 @@ else
 fi
 
 # --- (2) Presence: baseline_replay.sh ---
-BASELINE_REPLAY="$FC/cycle/baseline_replay.sh"
+BASELINE_REPLAY="${FC_BR_UNDER_TEST:-$FC/cycle/baseline_replay.sh}"
 if [ -f "$BASELINE_REPLAY" ] && [ -x "$BASELINE_REPLAY" ]; then
   ok "cycle/baseline_replay.sh present and executable"
 else
@@ -143,10 +143,10 @@ SH
   DET_OUT="$TMP/det_good.json"
   bash "$BASELINE_REPLAY" replay --commit "$SCOMMIT" --tree "$STREE" \
     --gate-cmd "$TMP/gate_true.sh" --cold-runs 1 --warm-runs 1 \
-    --repo-root "$SREPO" --worktree-root "$WT" \
+    --repo-root "$SREPO" --worktree-root "$WT" --min-free-kb 0 \
     --out "$DET_OUT" --determinism-check >"$TMP/det_good.out" 2>&1
   GOOD_RC=$?
-  GOOD_DET="$(python3 -c "import json; print(json.load(open('$DET_OUT')).get('deterministic'))" 2>/dev/null)"
+  GOOD_DET="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("deterministic"))' "$DET_OUT" 2>/dev/null)"
   if [ "$GOOD_RC" = 0 ] && [ "$GOOD_DET" = True ]; then
     ok "replay --determinism-check: golden-GOOD (deterministic gate-cmd, exit 0, deterministic=True) -- $(cat "$TMP/det_good.out")"
   else
@@ -180,16 +180,16 @@ SH
   DET_OUT2="$TMP/det_bad.json"
   bash "$BASELINE_REPLAY" replay --commit "$SCOMMIT2" --tree "$STREE2" \
     --gate-cmd "$TMP/gate_flip.sh" --cold-runs 1 --warm-runs 1 \
-    --repo-root "$SREPO2" --worktree-root "$WT2" \
+    --repo-root "$SREPO2" --worktree-root "$WT2" --min-free-kb 0 \
     --out "$DET_OUT2" --determinism-check >"$TMP/det_bad.out" 2>&1
   BAD_RC=$?
-  BAD_DET="$(python3 -c "import json; print(json.load(open('$DET_OUT2')).get('deterministic'))" 2>/dev/null)"
-  BAD_DIFFERS="$(python3 -c "
-import json
-d = json.load(open('$DET_OUT2'))
-v1, v2 = d.get('run1_verdict_set'), d.get('run2_verdict_set')
+  BAD_DET="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("deterministic"))' "$DET_OUT2" 2>/dev/null)"
+  BAD_DIFFERS="$(python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1]))
+v1, v2 = d.get("run1_verdict_set"), d.get("run2_verdict_set")
 print(v1 != v2)
-" 2>/dev/null)"
+' "$DET_OUT2" 2>/dev/null)"
   if [ "$BAD_RC" = 1 ] && [ "$BAD_DET" = False ] && [ "$BAD_DIFFERS" = True ]; then
     ok "replay --determinism-check: golden-BAD control needle correctly detected a deliberately-injected determinism defect (exit 1, deterministic=False, verdict_sets genuinely differ) -- $(cat "$TMP/det_bad.out")"
   else
@@ -217,16 +217,16 @@ if [ -x "$SELECT_SAMPLE" ]; then
     --repo-root "$ROOT" --out "$OUT_B" >"$ERR_B" 2>&1
   RC_B=$?
   if [ "$RC_A" = 0 ] && [ "$RC_B" = 0 ] && [ -f "$OUT_A" ] && [ -f "$OUT_B" ]; then
-    SAME="$(python3 -c "
-import json
-a = json.load(open('$OUT_A'))
-b = json.load(open('$OUT_B'))
-ai = [x['item_id'] for x in a['items']]
-bi = [x['item_id'] for x in b['items']]
-print(a['body_hash'] == b['body_hash'] and ai == bi)
-" 2>/dev/null)"
+    SAME="$(python3 -c '
+import json, sys
+a = json.load(open(sys.argv[1]))
+b = json.load(open(sys.argv[2]))
+ai = [x["item_id"] for x in a["items"]]
+bi = [x["item_id"] for x in b["items"]]
+print(a["body_hash"] == b["body_hash"] and ai == bi)
+' "$OUT_A" "$OUT_B" 2>/dev/null)"
     if [ "$SAME" = True ]; then
-      ITEM_COUNT="$(python3 -c "import json; print(len(json.load(open('$OUT_A'))['items']))")"
+      ITEM_COUNT="$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["items"]))' "$OUT_A")"
       ok "select_sample.py: two independent invocations with identical frozen parameters (--as-of 2026-09-27 --window-days 90) produced the IDENTICAL item list ($ITEM_COUNT items, same order, same body_hash)"
     else
       bad "select_sample.py: two independent invocations with identical frozen parameters produced DIFFERENT item lists or body_hash -- a re-run-stability defect (SC-001/SC-004)"
@@ -287,11 +287,11 @@ if [ -x "$SELECT_SAMPLE" ]; then
     --repo-root "$ROOT" --out "$TMP/w60.json" >"$W60_OUT" 2>&1
   W60_RC=$?
   if [ "$W60_RC" = 0 ]; then
-    BUG_COUNT="$(python3 -c "
-import json
-d = json.load(open('$TMP/w60.json'))
-print(sum(1 for it in d['items'] if it['type'] == 'Bug'))
-" 2>/dev/null)"
+    BUG_COUNT="$(python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1]))
+print(sum(1 for it in d["items"] if it["type"] == "Bug"))
+' "$TMP/w60.json" 2>/dev/null)"
     if [ -n "$BUG_COUNT" ] && [ "$BUG_COUNT" -ge 1 ] 2>/dev/null; then
       MATCH_NOTE="matches"
       [ "$BUG_COUNT" != 5 ] && MATCH_NOTE="DIFFERS FROM (a live-data finding, not invented/reconciled)"

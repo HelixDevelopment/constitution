@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """collect_baseline.py - T045 baseline collection + freeze orchestrator
 (spec-004 "fast-dev-cycles", User Story 1, T045; plan.md T-A10; research.md
-DEC-03, DEC-36; contracts/common-conventions.md C-001..C-007). Not itself
-guarded by a dedicated RED test (T045 carries no [TDD]/[SUBAGENT]/[REVIEW]
-marker in tasks.md -- it is a data-COLLECTION task over already-reviewed
-tools, T043's select_sample.py/baseline_replay.sh and T038's
-transcript_ingest.py, never a new capability of its own).
+DEC-03, DEC-36; contracts/common-conventions.md C-001..C-007). Guarded by
+constitution/scripts/fastcycle/tests/test_collect_baseline_red.sh (added T048
+restart round 1, R6-F14: until then this module had no test at all, which is
+how F9/F12/F21/F22 below stayed open).
 
 Purpose: run the DEC-03 stratified sample selection, freeze every sample
 item's commit/tree (all items, cheap, read-only git log), run the DEC-36
@@ -59,7 +58,12 @@ DEC-36 compliance). A caller wanting a different (larger or smaller) run
 count passes --cold-runs/--warm-runs explicitly; this tool never invents a
 number the caller did not ask for.
 
-Per-type medians are computed by POOLING every RAW per-run duration_ms
+Per-type medians are computed by POOLING every RAW per-run duration_ms OF A
+PASS RUN (T048 restart round 1, R6-F9: a FAIL may be a crash part-way -- the
+F9 forensic in baseline_replay.sh records 14 runs that all crashed with exit 2
+after 4-263 s, and the 60 s plausibility floor below cannot tell such a crash
+from a completion; UNMEASURED/HARNESS_ERROR runs never completed at all; the
+excluded runs are counted per type as n_excluded_non_pass, never hidden)
 across every replayed item of that type (cold and warm kept separate) and
 taking ONE median over the pooled set -- a design judgment call (DEC-36's
 own text does not spell out item-median-then-aggregate vs pooled-raw;
@@ -100,9 +104,16 @@ action, never silently omitted.
 REOPEN BASELINE, matched denominators (S11.4.6; research.md U-29: "the raw
 ratio is not a rate")
 =============================================================================
-Per type: reopen_rate = |items reopened in [as_of - window_days, as_of]| /
-|items closed (Fixed/Implemented/Completed) in that SAME window| -- same
-window, same universe, for both numerator and denominator (a design
+Per type: reopen_rate = |items closed (Fixed/Implemented/Completed) in
+[as_of - window_days, as_of] AND reopened LATER within that same window| /
+|items closed in that window| -- the numerator is a SUBSET of the denominator,
+so the rate is a true fraction in [0, 1]. T048 restart round 1 (R6-F22): the
+numerator used to be every item reopened in the window, including items whose
+closure lay BEFORE the window (and so were never in the denominator); the rate
+could exceed 1 while the doc claimed matched_denominator=true. The raw count of
+items reopened in the window regardless of when they closed is still reported
+(reopened_in_window_any). Same window, same universe, for both numerator and
+denominator (a design
 judgment call this task's own text does not spell out numerically; this is
 the reading research.md U-29 and DEC-36's own "matched denominators" phrase
 most directly support: an UNMATCHED reading would divide a windowed
@@ -110,7 +121,9 @@ numerator by an all-time denominator or vice versa, which is exactly the
 "raw ratio is not a rate" mistake U-29 warns against). Reuses
 select_sample.py's own already-reviewed db_closures_in_window /
 db_reopened_in_window query shapes verbatim (S11.4.227 -- no divergent
-re-derivation of a settled pattern). A type with zero closures in the
+re-derivation of a settled pattern) for the denominator; the matched numerator
+is computed from the same item_history rows ordered by (on_date, id). A type
+with zero closures in the
 window reports its rate as UNMEASURED (division by zero is a real "no
 denominator" condition, never coerced to 0 or 1, S11.4.201(6)).
 
@@ -156,6 +169,7 @@ SCHEMA = "fastcycle-baseline/v1"
 # four-orders-of-magnitude discrepancy that must never be silently accepted
 # as valid replay data.
 DEFAULT_GATE_CMD = "bash device/rockchip/rk3588/tests/pre_build_verification.sh"
+REPLAY_FULL_RUNS = 10  # DEC-36: >=10 cold and >=10 warm per item
 DEFAULT_COLD_RUNS = 1
 DEFAULT_WARM_RUNS = 1
 MEASURED_PER_RUN_S = 1133.78  # 2026-09-28 t029_full ad hoc measurement, see module docstring
@@ -181,6 +195,18 @@ def atomic_write_json(doc, out_path):
         raise
 
 
+def child_env():
+    """Environment for every child tool. T048 restart round 1 (R6-F12): FC_OUT is
+    the fc_common.py determinism-check redirect for ONE command's own --out; if
+    this script runs under it, a child that honours FC_OUT (select_sample.py,
+    baseline_replay.sh) would write its document there instead of the path this
+    script passed, and every freeze/replay was then recorded as UNMEASURED with
+    exit 0. It is removed for the children."""
+    env = dict(os.environ)
+    env.pop("FC_OUT", None)
+    return env
+
+
 def run_select_sample(select_sample_bin, as_of, window_days, min_per_type, db_path, repo_root, out_json, out_md):
     cmd = [
         sys.executable, select_sample_bin,
@@ -189,7 +215,7 @@ def run_select_sample(select_sample_bin, as_of, window_days, min_per_type, db_pa
         "--db-path", db_path, "--repo-root", repo_root,
         "--out", out_json, "--md", out_md,
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True, env=child_env())
     if proc.returncode != 0:
         print("collect_baseline: select_sample.py failed rc=%d\n%s" % (proc.returncode, proc.stderr), file=sys.stderr)
         return None
@@ -198,18 +224,31 @@ def run_select_sample(select_sample_bin, as_of, window_days, min_per_type, db_pa
 
 
 def run_freeze(baseline_replay_bin, item_id, repo_root, db_path, out_path):
+    """Returns the freeze doc. A harness failure (non-zero rc, no doc, or a doc
+    whose commit was resolved without a tree) is marked harness_error=True with
+    the reason -- never confused with an honest 'no subject match' UNMEASURED
+    (T048 restart round 1, R6-F3/F12 class)."""
     cmd = [baseline_replay_bin, "freeze", "--item", item_id, "--repo-root", repo_root,
            "--db-path", db_path, "--out", out_path]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True, env=child_env())
     if proc.returncode != 0 or not os.path.isfile(out_path):
-        return {"item_id": item_id, "commit": "UNMEASURED", "tree": "UNMEASURED",
-                "freeze_harness_rc": proc.returncode, "freeze_harness_stderr": proc.stderr.strip()}
+        return {"item_id": item_id, "commit": "UNMEASURED", "tree": "UNMEASURED", "harness_error": True,
+                "reason": "freeze harness error rc=%d: %s" % (proc.returncode, proc.stderr.strip()[-1000:]),
+                "freeze_harness_rc": proc.returncode}
     with open(out_path) as fh:
-        return json.load(fh)
+        doc = json.load(fh)
+    commit, tree = doc.get("commit"), doc.get("tree")
+    if commit and commit != "UNMEASURED" and (not tree or tree == "UNMEASURED"):
+        doc["harness_error"] = True
+        doc["reason"] = "freeze harness error: commit %s resolved but its tree did not" % commit
+    else:
+        doc["harness_error"] = False
+        doc["reason"] = (doc.get("missing_instrument") or "") if commit == "UNMEASURED" else ""
+    return doc
 
 
 def run_replay(baseline_replay_bin, commit, tree, gate_cmd, cold_runs, warm_runs, repo_root, worktree_root,
-               timeout_s, out_path):
+               timeout_s, out_path, min_free_kb=None):
     cmd = [baseline_replay_bin, "replay", "--commit", commit, "--tree", tree,
            "--gate-cmd", gate_cmd, "--cold-runs", str(cold_runs), "--warm-runs", str(warm_runs),
            "--repo-root", repo_root, "--out", out_path]
@@ -217,14 +256,19 @@ def run_replay(baseline_replay_bin, commit, tree, gate_cmd, cold_runs, warm_runs
         cmd += ["--worktree-root", worktree_root]
     if timeout_s:
         cmd += ["--timeout-s", str(timeout_s)]
+    if min_free_kb is not None:
+        cmd += ["--min-free-kb", str(min_free_kb)]
     # A single replay run can genuinely take hours (cold_runs+warm_runs *
     # ~19 min each); no subprocess-level timeout is imposed here beyond
     # baseline_replay.sh's own --timeout-s PER GATE INVOCATION -- an
     # overall Python-side timeout would just re-introduce the exact
     # "silent truncation" this module's whole design exists to avoid.
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True, env=child_env())
     if proc.returncode != 0 or not os.path.isfile(out_path):
-        return {"skipped": True, "skip_reason": "replay harness rc=%d: %s" % (
+        # baseline_replay.sh exit 4 = BLIND (worktree/submodule failure, or a gate
+        # that could not even be started -- HARNESS_ERROR). Any non-zero exit
+        # means this item was NOT measured.
+        return {"skipped": True, "harness_error": True, "skip_reason": "replay harness error rc=%d: %s" % (
             proc.returncode, proc.stderr.strip()[-2000:])}
     with open(out_path) as fh:
         doc = json.load(fh)
@@ -266,6 +310,27 @@ def db_reopened_in_window(conn, frm, to):
     return cur.fetchall()
 
 
+def db_reopened_after_closure_in_window(conn, frm, to):
+    """Items with a closure event in [frm, to] followed (in (on_date, id) order)
+    by a Reopened event that is also in [frm, to] -- the numerator matched to the
+    db_closures_in_window denominator (R6-F22)."""
+    cur = conn.execute(
+        "SELECT ih.atm_id, i.type, ih.event_type FROM item_history ih "
+        "JOIN items i ON i.atm_id = ih.atm_id "
+        "WHERE ih.event_type IN ('Fixed','Implemented','Completed','Reopened') "
+        "AND ih.on_date BETWEEN ? AND ? ORDER BY ih.atm_id, ih.on_date, ih.id",
+        (frm, to),
+    )
+    closed_seen, out = set(), set()
+    for atm_id, itype, ev in cur.fetchall():
+        if ev == "Reopened":
+            if atm_id in closed_seen:
+                out.add((atm_id, itype))
+        else:
+            closed_seen.add(atm_id)
+    return sorted(out)
+
+
 def reopen_baseline(db_path, as_of, window_days):
     conn = open_db_readonly(db_path)
     if conn is None:
@@ -274,15 +339,18 @@ def reopen_baseline(db_path, as_of, window_days):
     frm_date = to_date - datetime.timedelta(days=window_days)
     frm, to = frm_date.isoformat(), to_date.isoformat()
     closures = db_closures_in_window(conn, frm, to)
-    reopens = db_reopened_in_window(conn, frm, to)
+    reopens_any = db_reopened_in_window(conn, frm, to)
+    matched = db_reopened_after_closure_in_window(conn, frm, to)
     conn.close()
     from collections import Counter
     closures_by_type = Counter(t for _id, t in closures)
-    reopens_by_type = Counter(t for _id, t in reopens)
-    out = {"window": {"from": frm, "to": to, "days": window_days}, "by_type": {}, "matched_denominator": True}
+    any_by_type = Counter(t for _id, t in reopens_any)
+    matched_by_type = Counter(t for _id, t in matched)
+    out = {"window": {"from": frm, "to": to, "days": window_days}, "by_type": {}, "matched_denominator": True,
+           "numerator_definition": "closed in the window AND reopened later within the same window"}
     for itype in ("Bug", "Feature", "Task"):
         n_closed = closures_by_type.get(itype, 0)
-        n_reopened = reopens_by_type.get(itype, 0)
+        n_reopened = matched_by_type.get(itype, 0)
         if n_closed == 0:
             rate = "UNMEASURED"
             reason = "zero closures of type %s in the window -- no denominator" % itype
@@ -291,12 +359,14 @@ def reopen_baseline(db_path, as_of, window_days):
             reason = None
         out["by_type"][itype] = {
             "closed_in_window": n_closed, "reopened_in_window": n_reopened,
+            "reopened_in_window_any": any_by_type.get(itype, 0),
             "reopen_rate": rate, "reason": reason,
         }
     total_closed = sum(closures_by_type.values())
-    total_reopened = sum(reopens_by_type.values())
+    total_reopened = sum(matched_by_type.values())
     out["overall"] = {
         "closed_in_window": total_closed, "reopened_in_window": total_reopened,
+        "reopened_in_window_any": sum(any_by_type.values()),
         "reopen_rate": round(total_reopened / total_closed, 6) if total_closed else "UNMEASURED",
     }
     return out
@@ -345,6 +415,9 @@ def main(argv):
                      help="freeze + reopen + token baseline only, no replay (fast dry run)")
     ap.add_argument("--worktree-root", default=None)
     ap.add_argument("--timeout-s", type=int, default=1800)
+    ap.add_argument("--min-free-kb", type=int, default=None,
+                     help="passed through to baseline_replay.sh replay (default: its own floor, sized "
+                          "for a full checkout of this project)")
     ap.add_argument("--plausible-floor-ms", type=int, default=60000,
                      help="a run duration below this is EXCLUDED from per-type medians and reported "
                           "as implausible rather than silently pooled (default 60000ms = 1 min, an "
@@ -353,6 +426,13 @@ def main(argv):
     ap.add_argument("--select-sample-bin", default=None)
     ap.add_argument("--baseline-replay-bin", default=None)
     a = ap.parse_args(argv)
+    # T048 restart round 1 (R6 class A, absence read as a valid result): a
+    # --fresh-execution-json path that does not exist used to be recorded silently
+    # as NOT_YET_RECORDED, hiding a typo'd path behind an honest-looking status.
+    if a.fresh_execution_json and not os.path.isfile(a.fresh_execution_json):
+        print("collect_baseline: --fresh-execution-json file not found: %s" % a.fresh_execution_json,
+              file=sys.stderr)
+        return 2
 
     repo_root = os.path.abspath(a.repo_root)
     db_path = a.db_path or os.path.join(repo_root, "docs", "workable_items.db")
@@ -368,21 +448,38 @@ def main(argv):
     if sample is None:
         return 4
     items = sample.get("items", [])
+    if sample.get("state") != "OK" or not items:
+        # Recorded in the doc (sample.state) and said aloud: a baseline over zero
+        # items is not silently presented as a measured one.
+        print("collect_baseline: WARNING: the sample has state=%r with %d item(s) -- the baseline below "
+              "measures nothing" % (sample.get("state"), len(items)), file=sys.stderr)
 
     # --- freeze every item (cheap, always full DEC-03 compliance) ---
     freeze_dir = os.path.join(a.out_dir, "freeze")
     os.makedirs(freeze_dir, exist_ok=True)
     freezes = {}
+    harness_errors = []
     for it in items:
         iid = it["item_id"]
         fpath = os.path.join(freeze_dir, "%s.json" % iid)
         freezes[iid] = run_freeze(baseline_replay_bin, iid, repo_root, db_path, fpath)
+        if freezes[iid].get("harness_error"):
+            harness_errors.append({"item_id": iid, "stage": "freeze", "reason": freezes[iid]["reason"]})
 
     # --- gate-window replay, reduced-scope subset (see module docstring) ---
+    eligible_ids = [it["item_id"] for it in items if not it.get("excluded_from_duration")]
     if a.replay_item_ids:
         replay_ids = [s.strip() for s in a.replay_item_ids.split(",") if s.strip()]
+        # T048 restart round 1 (R6-F21): an id that is not in this sample used to be
+        # dropped silently while still counted as "duration-eligible" in the note.
+        sample_ids = {it["item_id"] for it in items}
+        unknown = [i for i in replay_ids if i not in sample_ids]
+        if unknown:
+            print("collect_baseline: --replay-item-ids names id(s) not in this sample: %s" % ",".join(unknown),
+                  file=sys.stderr)
+            return 2
     else:
-        replay_ids = [it["item_id"] for it in items if not it.get("excluded_from_duration")]
+        replay_ids = list(eligible_ids)
 
     replay_dir = os.path.join(a.out_dir, "replay")
     os.makedirs(replay_dir, exist_ok=True)
@@ -403,16 +500,22 @@ def main(argv):
             per_item_replay.append({"item_id": iid, "type": itype, "replayed": False,
                                      "reason": "--skip-gate-replay"})
             continue
+        if fz.get("harness_error"):
+            per_item_replay.append({"item_id": iid, "type": itype, "replayed": False,
+                                     "reason": fz.get("reason")})
+            continue
         if not commit or commit == "UNMEASURED":
             per_item_replay.append({"item_id": iid, "type": itype, "replayed": False,
                                      "reason": "freeze UNMEASURED, no resolvable commit to replay"})
             continue
         rpath = os.path.join(replay_dir, "%s.json" % iid)
         rdoc = run_replay(baseline_replay_bin, commit, tree, a.gate_cmd, a.cold_runs, a.warm_runs,
-                           repo_root, a.worktree_root, a.timeout_s, rpath)
+                           repo_root, a.worktree_root, a.timeout_s, rpath, a.min_free_kb)
         if rdoc.get("skipped"):
             per_item_replay.append({"item_id": iid, "type": itype, "replayed": False,
                                      "reason": rdoc.get("skip_reason")})
+            if rdoc.get("harness_error"):
+                harness_errors.append({"item_id": iid, "stage": "replay", "reason": rdoc.get("skip_reason")})
             continue
         # PLAUSIBILITY CONTROL NEEDLE (S11.4.201/S11.4.273, added after the live
         # 2026-09-29 ATM-277 EACCES discovery documented above DEFAULT_GATE_CMD):
@@ -423,21 +526,22 @@ def main(argv):
         # measured ~1134s real run) so a genuinely fast future gate (once
         # US2's affected-set selection lands) is never falsely flagged.
         implausible_runs = [r for r in rdoc.get("runs", []) if r.get("duration_ms", 0) < a.plausible_floor_ms]
-        plausible_runs = [r for r in rdoc.get("runs", []) if r.get("duration_ms", 0) >= a.plausible_floor_ms]
         per_item_replay.append({
             "item_id": iid, "type": itype, "replayed": True,
             "commit": commit, "tree": tree,
+            # baseline_replay.sh's own median_ms is over PASS runs only (R6-F9)
             "median_ms": rdoc.get("median_ms"), "verdict_set": rdoc.get("verdict_set"),
             "implausible_run_count": len(implausible_runs),
             "implausible_runs": implausible_runs if implausible_runs else None,
         })
-        if implausible_runs and not plausible_runs:
-            continue  # every run for this item was implausible -- contributes nothing to any median
-        pool = by_type_pool.setdefault(itype, {"cold": [], "warm": []})
-        for run in plausible_runs:
-            if run.get("verdict") == "UNMEASURED":
-                continue
-            pool[run["phase"]].append(run["duration_ms"])
+        pool = by_type_pool.setdefault(itype, {"cold": [], "warm": [], "excluded": {"cold": 0, "warm": 0}})
+        for run in rdoc.get("runs", []):
+            # R6-F9: only a PASS run that is also plausibly long is a gate-speed
+            # measurement; every other run is counted as excluded, never pooled.
+            if run.get("verdict") == "PASS" and run.get("duration_ms", 0) >= a.plausible_floor_ms:
+                pool[run["phase"]].append(run["duration_ms"])
+            else:
+                pool["excluded"][run["phase"]] += 1
 
     per_type_medians = {}
     overall_pool = {"cold": [], "warm": []}
@@ -447,7 +551,7 @@ def main(argv):
             vals = pool[phase]
             overall_pool[phase].extend(vals)
             entry[phase] = {"median_ms": int(round(statistics.median(vals))) if vals else "UNMEASURED",
-                             "n_runs": len(vals)}
+                             "n_runs": len(vals), "n_excluded_non_pass": pool["excluded"][phase]}
         per_type_medians[itype] = entry
     overall_medians = {}
     for phase in ("cold", "warm"):
@@ -458,25 +562,43 @@ def main(argv):
     reopen = reopen_baseline(db_path, a.as_of, a.window_days)
     tokens = token_baseline(items, a.fresh_execution_json)
 
-    full_protocol_note = (
-        "DEC-36 mandates >=10 cold + >=10 warm gate-window replays per sample item. This run used "
-        "--cold-runs %d --warm-runs %d across %d of %d duration-eligible items (measured per-run "
-        "cost ~%.1f min, %s). A full-compliance run (>=10/>=10 across all %d duration-eligible items) "
-        "is extrapolated to cost ~%.1f hours and is TRACKED AS AN OWED FOLLOW-UP, never silently "
-        "treated as already satisfied." % (
-            a.cold_runs, a.warm_runs, len([r for r in per_item_replay if r.get("replayed")]),
-            len(replay_ids), MEASURED_PER_RUN_S / 60.0, a.gate_cmd, len(replay_ids),
-            (len(replay_ids) * 20 * MEASURED_PER_RUN_S) / 3600.0,
+    # R6-F21: the denominator is the sample's duration-eligible items (never the
+    # caller's --replay-item-ids list), and "owed follow-up" is said only when this
+    # run genuinely fell short of DEC-36 (fewer than 10/10 runs, or not every
+    # eligible item actually replayed).
+    n_replayed = len([r for r in per_item_replay if r.get("replayed")])
+    eligible_replayed = len([r for r in per_item_replay if r.get("replayed") and r["item_id"] in eligible_ids])
+    reduced = (a.cold_runs < REPLAY_FULL_RUNS or a.warm_runs < REPLAY_FULL_RUNS
+               or eligible_replayed < len(eligible_ids))
+    if reduced:
+        full_protocol_note = (
+            "DEC-36 mandates >=10 cold + >=10 warm gate-window replays per sample item. This run used "
+            "--cold-runs %d --warm-runs %d and replayed %d of %d duration-eligible items (measured per-run "
+            "cost ~%.1f min, %s). A full-compliance run (>=10/>=10 across all %d duration-eligible items) "
+            "is extrapolated to cost ~%.1f hours and is TRACKED AS AN OWED FOLLOW-UP, never silently "
+            "treated as already satisfied." % (
+                a.cold_runs, a.warm_runs, eligible_replayed, len(eligible_ids),
+                MEASURED_PER_RUN_S / 60.0, a.gate_cmd, len(eligible_ids),
+                (len(eligible_ids) * 2 * REPLAY_FULL_RUNS * MEASURED_PER_RUN_S) / 3600.0,
+            )
         )
-    )
+    else:
+        full_protocol_note = (
+            "DEC-36 protocol met: --cold-runs %d --warm-runs %d, every one of the %d duration-eligible "
+            "items replayed (%d items replayed in total)." % (
+                a.cold_runs, a.warm_runs, len(eligible_ids), n_replayed)
+        )
 
     doc = {
         "as_of": a.as_of, "window_days": a.window_days, "min_per_type": a.min_per_type,
         "gate_cmd": a.gate_cmd, "cold_runs_per_item": a.cold_runs, "warm_runs_per_item": a.warm_runs,
         "measured_full_run_seconds": MEASURED_PER_RUN_S,
-        "sample": {"total_items": len(items), "strata": sample.get("strata", {}),
+        "sample": {"total_items": len(items), "state": sample.get("state"), "strata": sample.get("strata", {}),
                    "sample_doc_path": sample_json_path},
-        "freeze": {iid: {"commit": fz.get("commit"), "tree": fz.get("tree")} for iid, fz in freezes.items()},
+        "freeze": {iid: {"commit": fz.get("commit"), "tree": fz.get("tree"),
+                         "harness_error": bool(fz.get("harness_error")), "reason": fz.get("reason", "")}
+                   for iid, fz in freezes.items()},
+        "harness_errors": harness_errors,
         "gate_window_replay": {
             "per_item": per_item_replay, "per_type_medians": per_type_medians,
             "overall_medians": overall_medians, "full_protocol_note": full_protocol_note,
@@ -513,6 +635,13 @@ def main(argv):
         fh.write("\n".join(md_lines) + "\n")
 
     print(json.dumps({"out": out_path, "schema": SCHEMA, "body_hash": doc["body_hash"]}))
+    # A run in which any item could not be measured because the HARNESS failed is
+    # BLIND (exit 4, C-001), even though the baseline doc is written as evidence.
+    if harness_errors:
+        print("collect_baseline: BLIND: %d harness error(s): %s" % (
+            len(harness_errors), "; ".join("%s %s" % (h["item_id"], h["stage"]) for h in harness_errors)),
+            file=sys.stderr)
+        return 4
     return 0
 
 

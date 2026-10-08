@@ -119,8 +119,17 @@ set -u
 # known, pre-existing, whole-file boundary this cross-check's own
 # correctness is conditioned on.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd -P)"
-REPO_ROOT="$(cd "$HERE/../../../.." && pwd -P)"
-FC="$REPO_ROOT/constitution/scripts/fastcycle"
+# T048 restart round-1 (R4-M4 / M-d, class "project layout literals in
+# constitution tests"): the paths below are no longer "four levels up". The
+# constitution scripts are found relative to this file; the consuming
+# project (whose writer, settings.json and legacy prototype PART A/B/C use)
+# is the git SUPERPROJECT of this constitution checkout. A standalone
+# constitution clone has no superproject: REPO_ROOT is then empty and the
+# consumer-dependent checks report an honest SKIP instead of a false
+# "missing" FAIL.
+FC="$(cd "$HERE/.." && pwd -P)"
+CONST_TOPLEVEL="$(git -C "$HERE" rev-parse --show-toplevel 2>/dev/null || true)"
+REPO_ROOT="$(git -C "$HERE" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
 FIX="$HERE/fixtures/transcript_ingest"
 DISPATCH_STAMP="$FC/tokens/dispatch_stamp.sh"
 TRANSCRIPT_INGEST="$FC/tokens/transcript_ingest.py"
@@ -420,7 +429,7 @@ if [ -n "${HELIX_PROJECT_ROOT:-}" ] && [ -d "${HELIX_PROJECT_ROOT}" ] && [ -r "$
     _CROSSCHECK_ROOT="${HELIX_PROJECT_ROOT}"
 fi
 _ENV_DIRECT_LINE="$(grep -E '^[[:space:]]*HELIX_RELEASE_PREFIX[[:space:]]*=' "$_CROSSCHECK_ROOT/.env" 2>/dev/null | grep -vE '^[[:space:]]*#' | tail -n1 || true)"
-if [ -n "$_ENV_DIRECT_LINE" ]; then
+if [ -n "$_ENV_DIRECT_LINE" ] && [ -n "$_CROSSCHECK_ROOT" ]; then
     _ENV_DIRECT_VAL="${_ENV_DIRECT_LINE#*=}"
     _ENV_DIRECT_VAL="$(printf '%s' "$_ENV_DIRECT_VAL" | tr -d '[:space:]"'"'"'')"
     _ENV_DIRECT_LETTERS="$(printf '%s' "$_ENV_DIRECT_VAL" | tr -cd 'A-Za-z' | cut -c1-3 | tr '[:lower:]' '[:upper:]')"
@@ -438,7 +447,8 @@ if [ -n "$_ENV_DIRECT_LINE" ]; then
         fi
     fi
 else
-    ok "control-needle cross-check: inapplicable -- $_CROSSCHECK_ROOT/.env carries no HELIX_RELEASE_PREFIX= assignment at all, so release_prefix.sh would be resolving via its own tier-3 snake_case fallback, a code path this independent bare-grep cross-check cannot reproduce without re-implementing release_prefix.sh's own internals; honestly treated as inapplicable, never assumed to agree"
+    # Not an assertion: nothing was compared (counted neither PASS nor FAIL).
+    note "control-needle cross-check: inapplicable -- $_CROSSCHECK_ROOT/.env carries no HELIX_RELEASE_PREFIX= assignment at all, so release_prefix.sh would be resolving via its own tier-3 snake_case fallback, a code path this independent bare-grep cross-check cannot reproduce without re-implementing release_prefix.sh's own internals; honestly treated as inapplicable, never assumed to agree"
 fi
 
 echo "-- control-needle: this checkout's own unconfigured default item-tag prefix derives to '$DERIVED_DEFAULT_PREFIX' (blind=$DERIVED_DEFAULT_PREFIX_BLIND) via the real, unmodified release_prefix.sh, resolved via the SAME self-location-relative path transcript_ingest.py uses ('$_RP_SCRIPT_FOR_NEEDLE') -- never assumed, cross-checked against \$REPO_ROOT/.env directly above --"
@@ -472,15 +482,18 @@ echo "=== pre-flight: report which of the two guarded tools currently exist ==="
 # probes (PART A/B/E genuinely exercise dispatch_stamp.sh/transcript_ingest.py
 # once present), so this pre-flight is purely informational going forward:
 # it reports presence/absence, it never fails on either state alone.
+# T048 restart round-1 (class "checks that cannot fail"): both branches of
+# each pre-flight used to call ok(), so they counted a PASS whatever the
+# state. They are informational only, hence note().
 if [ -f "$DISPATCH_STAMP" ]; then
-    ok "pre-flight: $DISPATCH_STAMP now exists (T036 landed) — exercised for real by property (a) below"
+    note "pre-flight: $DISPATCH_STAMP exists (T036 landed) — exercised for real by property (a) below"
 else
-    ok "pre-flight: $DISPATCH_STAMP absent (T036 not yet landed) — property (a) below exercises only the current writer"
+    note "pre-flight: $DISPATCH_STAMP absent — every property that needs it reports FAIL below"
 fi
 if [ -f "$TRANSCRIPT_INGEST" ]; then
-    ok "pre-flight: $TRANSCRIPT_INGEST now exists (T038 landed) — exercised for real by properties (b)/(e) below"
+    note "pre-flight: $TRANSCRIPT_INGEST exists (T038 landed) — exercised for real by properties (b)/(e) below"
 else
-    ok "pre-flight: $TRANSCRIPT_INGEST absent (T038 not yet landed) — properties (b)-(e) stay RED below"
+    note "pre-flight: $TRANSCRIPT_INGEST absent — properties (b)-(e) report FAIL below"
 fi
 
 # =============================================================================
@@ -511,6 +524,9 @@ needle_check "has_item_tag: absent-tag haystack contains no item= token at all" 
 # test_agent_registry_dispatch_writer_red.sh already uses against this exact
 # writer).
 REG="$WORK/agent_registry.jsonl"
+if [ -z "$REPO_ROOT" ]; then
+    skip "PART A: this constitution checkout has no superproject, so the consumer's agent_registry_writer.sh and .claude/settings.json do not exist here; property (a) is a property of the consuming project and is not checked in a standalone clone"
+else
 REAL_DESC='(T1/main - claude5 - sonnet - high) T018 RED test review_record'
 if [ ! -f "$WRITER" ]; then
     bad "PRECONDITION: $WRITER (scripts/hooks/agent_registry_writer.sh) is missing — cannot investigate property (a) at all"
@@ -616,7 +632,13 @@ if [ -f "$WRITER" ]; then
     # + write path is what proves the mechanism is truly connected, not
     # merely present-but-inert.
     REG2="$WORK/agent_registry_tagged.jsonl"
-    TAGGED_DESC="(T1/main - claude5 - sonnet - high) item=ATM-9042 T020 fixture control-needle dispatch"
+    # T048 restart round-1 (class "project literals in constitution tests"):
+    # the tag is built from this checkout's own derived prefix (the needle
+    # above, cross-checked against .env), so the round-trip is verified on
+    # every consumer instead of being skipped on non-ATM ones. A BLIND needle
+    # is already a hard FAIL above.
+    WANT_TAGGED="PRESENT:${DERIVED_DEFAULT_PREFIX}-9042"
+    TAGGED_DESC="(T1/main - claude5 - sonnet - high) item=${DERIVED_DEFAULT_PREFIX}-9042 T020 fixture control-needle dispatch"
     PAYLOAD2="$(python3 - "$TAGGED_DESC" "$REPO_ROOT" <<'PYEOF'
 import json, sys
 desc = sys.argv[1]
@@ -652,13 +674,9 @@ PYEOF
     # to any real defect in agent_registry_writer.sh/dispatch_stamp.sh --
     # the SAME class of false signal PART D/F3/F7 already guard against,
     # via the SAME DERIVED_DEFAULT_PREFIX control needle built above.
-    if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
-        skip_prefix_mismatch "PART A's tagged-round-trip needle_check (expects ITEM_FIELD_TAGGED == 'PRESENT:ATM-9042') assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM' so that the hardcoded item=ATM-9042 fixture description round-trips through the REAL \$WRITER's dispatch_stamp.sh-derived prefix regex; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead -- this specific needle_check is honestly skipped here (not pass, not fail), purely for an environmental reason unrelated to any real defect in agent_registry_writer.sh/dispatch_stamp.sh"
-    else
-        needle_check "the REAL writer's 'item' JSON field genuinely round-trips a real item=ATM-nnnn tag (proves the untagged case's field state above is a real extraction result, not an always-inert field)" 1 "$([ "$ITEM_FIELD_TAGGED" = "PRESENT:ATM-9042" ] && echo 1 || echo 0)"
-    fi
+    needle_check "the REAL writer's 'item' JSON field genuinely round-trips a real item=${DERIVED_DEFAULT_PREFIX}-9042 tag (proves the untagged case's field state above is a real extraction result, not an always-inert field)" 1 "$([ "$ITEM_FIELD_TAGGED" = "$WANT_TAGGED" ] && echo 1 || echo 0)"
 
-    if [ "$ITEM_FIELD_UNTAGGED" = "PRESENT:" ] && [ "$ITEM_FIELD_TAGGED" = "PRESENT:ATM-9042" ]; then
+    if [ "$ITEM_FIELD_UNTAGGED" = "PRESENT:" ] && [ "$ITEM_FIELD_TAGGED" = "$WANT_TAGGED" ]; then
         ITEM_FIELD_TAKING_EFFECT=1
     fi
 fi
@@ -707,17 +725,63 @@ WIRED_INTO_WRITER=0
 if [ -f "$WRITER" ] && grep -Fq "dispatch_stamp" "$WRITER" 2>/dev/null; then
     WIRED_INTO_WRITER=1
 fi
+# R4-I3 (T048 restart round-1): the settings.json half used to be a
+# substring grep for "dispatch_stamp", OR-ed with the writer grep, so a hook
+# entry pointing at a missing file (or at the wrong matcher) still counted
+# as wired. It is now checked by behaviour: settings.json is parsed as
+# JSON; on the PreToolUse entry whose matcher covers Agent, Task AND
+# TaskCreate, the hook command whose script argument resolves (after
+# expanding $CLAUDE_PROJECT_DIR) to the REAL dispatch_stamp.sh is found; and
+# that exact command string is executed with CLAUDE_PROJECT_DIR set, once
+# with an untagged dispatch (must exit 2) and once with an item=? dispatch
+# (must exit 0). Only that one command is run: other hooks on the matcher
+# (the registry writer) have side effects and are not touched.
 SETTINGS_JSON="$REPO_ROOT/.claude/settings.json"
 WIRED_INTO_SETTINGS=0
-if [ -f "$SETTINGS_JSON" ] && grep -Fq "dispatch_stamp" "$SETTINGS_JSON" 2>/dev/null; then
-    WIRED_INTO_SETTINGS=1
+SETTINGS_CMD="$(python3 - "$SETTINGS_JSON" "$REPO_ROOT" "$DISPATCH_STAMP" <<'PYEOF'
+import json, os, shlex, sys
+path, root, target = sys.argv[1], sys.argv[2], os.path.realpath(sys.argv[3])
+try:
+    hooks = json.load(open(path)).get("hooks", {}).get("PreToolUse", [])
+except (OSError, ValueError):
+    sys.exit(0)
+for entry in hooks:
+    matcher = set(str(entry.get("matcher", "")).split("|"))
+    if not {"Agent", "Task", "TaskCreate"} <= matcher:
+        continue
+    for h in entry.get("hooks", []):
+        cmd = h.get("command", "")
+        try:
+            words = shlex.split(cmd)
+        except ValueError:
+            continue
+        for w in words:
+            w = w.replace("${CLAUDE_PROJECT_DIR}", root).replace("$CLAUDE_PROJECT_DIR", root)
+            if os.path.isfile(w) and os.path.realpath(w) == target:
+                print(cmd)
+                sys.exit(0)
+PYEOF
+)"
+if [ -n "$SETTINGS_CMD" ]; then
+    SETTINGS_BAD_RC="$(printf '%s' '{"tool_name":"Agent","tool_input":{"description":"(T1/main - claude5 - sonnet - high) no item tag"}}' \
+        | CLAUDE_PROJECT_DIR="$REPO_ROOT" bash -c "$SETTINGS_CMD" >/dev/null 2>&1; echo $?)"
+    SETTINGS_GOOD_RC="$(printf '%s' '{"tool_name":"Agent","tool_input":{"description":"(T1/main - claude5 - sonnet - high) item=? honest"}}' \
+        | CLAUDE_PROJECT_DIR="$REPO_ROOT" bash -c "$SETTINGS_CMD" >/dev/null 2>&1; echo $?)"
+    if [ "$SETTINGS_BAD_RC" = 2 ] && [ "$SETTINGS_GOOD_RC" = 0 ]; then
+        WIRED_INTO_SETTINGS=1
+        ok "property (a) refusal half: the settings.json PreToolUse hook on Agent|Task|TaskCreate runs the real dispatch_stamp.sh and, executed as registered, blocks an untagged dispatch (exit 2) and allows item=? (exit 0)"
+    else
+        bad "property (a) refusal half: the registered hook command ('$SETTINGS_CMD') exited $SETTINGS_BAD_RC on an untagged dispatch (want 2) and $SETTINGS_GOOD_RC on item=? (want 0)"
+    fi
+else
+    bad "property (a) refusal half: no PreToolUse hook on a matcher covering Agent, Task and TaskCreate in $SETTINGS_JSON runs the real $DISPATCH_STAMP -- untagged dispatches are not refused"
 fi
 
 # F8 remediation (2026-09-29): verdict now driven by $ITEM_FIELD_TAKING_EFFECT
 # (the REAL writer row's "item" JSON field -- what T037 actually writes),
 # never $FOUND (the description field -- what T037 was NEVER designed to
 # touch; see the item_field_state() block above for the full derivation).
-if [ -f "$DISPATCH_STAMP" ] && { [ "$WIRED_INTO_WRITER" -eq 1 ] || [ "$WIRED_INTO_SETTINGS" -eq 1 ]; }; then
+if [ -f "$DISPATCH_STAMP" ] && [ "$WIRED_INTO_WRITER" -eq 1 ] && [ "$WIRED_INTO_SETTINGS" -eq 1 ]; then
     # I1 remediation (T048/US1 S10, round-2 independent Opus-xhigh review,
     # 2026-10-03): $ITEM_FIELD_TAKING_EFFECT (computed above) is driven by
     # a hardcoded comparison against the literal "PRESENT:ATM-9042" -- on
@@ -731,16 +795,15 @@ if [ -f "$DISPATCH_STAMP" ] && { [ "$WIRED_INTO_WRITER" -eq 1 ] || [ "$WIRED_INT
     # wiring reference found in $WRITER and/or .claude/settings.json)
     # honestly reported rather than silently misreported as "NOT taking
     # effect" for an unrelated reason.
-    if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
-        skip_prefix_mismatch "property (a)'s HOLDS/UNMET verdict (as currently computed) assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM', because \$ITEM_FIELD_TAKING_EFFECT above is driven by a hardcoded comparison against the literal 'PRESENT:ATM-9042'; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead -- the structural wiring facts remain real and are unaffected by this skip (dispatch_stamp.sh exists=yes, writer_wired=$WIRED_INTO_WRITER, settings_wired=$WIRED_INTO_SETTINGS); only the ATM-hardcoded round-trip verdict is honestly skipped here (not pass, not fail), purely for an environmental reason unrelated to any real defect in T037's wiring"
-    elif [ "$ITEM_FIELD_TAKING_EFFECT" = "1" ]; then
-        ok "FR-013/FR-001/SC-005 property (a) HOLDS: dispatch_stamp.sh exists AND a wiring reference was found (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), AND the REAL $WRITER invocation genuinely writes its own dedicated 'item' JSON field for every dispatch -- untagged=$ITEM_FIELD_UNTAGGED, tagged=$ITEM_FIELD_TAGGED (T037's own 'item id column' design, confirmed via two real writer invocations, round-trips correctly: honest-empty for an untagged description, the real ATM-nnnn id for a tagged one) -- T037 has landed and is taking real effect"
+    if [ "$ITEM_FIELD_TAKING_EFFECT" = "1" ]; then
+        ok "FR-013/FR-001/SC-005 property (a) HOLDS: dispatch_stamp.sh exists AND a wiring reference was found (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), AND the REAL $WRITER invocation genuinely writes its own dedicated 'item' JSON field for every dispatch -- untagged=$ITEM_FIELD_UNTAGGED, tagged=$ITEM_FIELD_TAGGED (T037's own 'item id column' design, confirmed via two real writer invocations, round-trips correctly: honest-empty for an untagged description, the real derived-prefix id for a tagged one) -- T037 has landed and is taking real effect"
     else
-        bad "FR-013/FR-001/SC-005 property (a) UNMET (wiring reference present but NOT taking effect): a reference to dispatch_stamp.sh was found in the real pipeline (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), BUT the REAL $WRITER invocation(s) did NOT produce the expected 'item' field round-trip (untagged=$ITEM_FIELD_UNTAGGED want PRESENT:, tagged=$ITEM_FIELD_TAGGED want PRESENT:ATM-9042) — a source-level wiring reference existing is not the same as it genuinely taking effect on a real dispatch; investigate before declaring T037 done"
+        bad "FR-013/FR-001/SC-005 property (a) UNMET (wiring reference present but NOT taking effect): a reference to dispatch_stamp.sh was found in the real pipeline (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), BUT the REAL $WRITER invocation(s) did NOT produce the expected 'item' field round-trip (untagged=$ITEM_FIELD_UNTAGGED want PRESENT:, tagged=$ITEM_FIELD_TAGGED want $WANT_TAGGED) — a source-level wiring reference existing is not the same as it genuinely taking effect on a real dispatch; investigate before declaring T037 done"
     fi
 else
     bad "FR-013/FR-001/SC-005 property (a) UNMET: dispatch_stamp.sh $([ -f "$DISPATCH_STAMP" ] && echo 'exists as a standalone, deliberately-unwired T036 artifact' || echo 'is absent (T036 not yet landed)') — T037 (wiring $DISPATCH_STAMP into \$WRITER's item-id column AND .claude/settings.json's PreToolUse hook list, tasks.md:121, still \`[ ]\` unchecked) has NOT landed (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS) — a dispatch is accepted and recorded with no item attribution whatsoever on the REAL pipeline (item field state=$ITEM_FIELD_UNTAGGED)"
 fi
+fi  # end of PART A (consumer superproject present)
 
 # =============================================================================
 # PART B — ingest: cache hits are counted, not dropped (plan T-A06 (2)(b))
@@ -756,7 +819,9 @@ else
     needle_check "cache_hits fixture does not fabricate an absent value (999999)"            0 "$(grep -Fq '999999' "$CACHE_FIX" && echo 1 || echo 0)"
     EXPECTED_CACHE_READ_SUM=1200
     EXPECTED_CACHE_CREATION_SUM=1200
-    ok "fixture computed (Python, deterministic): sum(cache_read_input_tokens)=$EXPECTED_CACHE_READ_SUM sum(cache_creation_input_tokens)=$EXPECTED_CACHE_CREATION_SUM across the fixture's 2 assistant turns (1 cold-cache write + 1 warm-cache read)"
+    # R4-M2: these are hand-derived literals, nothing was computed here, so
+    # this line is a note, not a PASS.
+    note "fixture expectation (hand-derived literals) (Python, deterministic): sum(cache_read_input_tokens)=$EXPECTED_CACHE_READ_SUM sum(cache_creation_input_tokens)=$EXPECTED_CACHE_CREATION_SUM across the fixture's 2 assistant turns (1 cold-cache write + 1 warm-cache read)"
 
     if [ -f "$TRANSCRIPT_INGEST" ]; then
         DB="$WORK/telemetry_b.db"
@@ -1367,9 +1432,9 @@ echo "=== PART F: item= tag prefix is configurable (not hardcoded 'ATM-') ==="
 # mechanism name" transcript_ingest.py and dispatch_stamp.sh agree on is not
 # a fabrication -- both files MUST literally mention the SAME env var names.
 DISPATCH_STAMP_MENTIONS_EXTRA="$(grep -c 'FC_DISPATCH_EXTRA_ITEM_PREFIXES' "$DISPATCH_STAMP" 2>/dev/null || echo 0)"
-# computed but never asserted: a test-coverage gap (reported as a review finding), left behavior-identical here
-# shellcheck disable=SC2034
-INGEST_MENTIONS_EXTRA="$(grep -c 'FC_DISPATCH_EXTRA_ITEM_PREFIXES' "$TRANSCRIPT_INGEST" 2>/dev/null || echo 0)"
+# R4-M1 (T048 restart round-1): a never-asserted INGEST_MENTIONS_EXTRA grep
+# was deleted here; the ingest side of the extra-prefix mechanism is proven
+# by behaviour in F2 below and in PART H (lowercase extra prefix).
 needle_check "dispatch_stamp.sh (T036) genuinely defines the FC_DISPATCH_EXTRA_ITEM_PREFIXES mechanism (control needle: the real file, not an invented name)" 1 "$([ "${DISPATCH_STAMP_MENTIONS_EXTRA:-0}" -gt 0 ] && echo 1 || echo 0)"
 needle_check "a FABRICATED, distinct env-var name is NOT present in dispatch_stamp.sh" 0 "$(grep -c 'FC_DISPATCH_SOME_NAME_THAT_DOES_NOT_EXIST' "$DISPATCH_STAMP" 2>/dev/null | grep -qv '^0$' && echo 1 || echo 0)"
 
@@ -1869,14 +1934,19 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
             | tr '[:upper:]' '[:lower:]' \
             | sed -E 's/_+/_/g; s/^_//; s/_$//')"
     fi
-    needle_check "PROOF the I1 precondition is still real at this exact cwd: the OLD, pre-S8, un-anchored 'git rev-parse --show-toplevel' genuinely returns the WRONG (constitution-submodule-own) root from inside \$HERE, not the real atmosphere project root" 1 "$([ "$OLD_BUGGY_ROOT" = "$REPO_ROOT/constitution" ] && echo 1 || echo 0)"
-    needle_check "PROOF continued: that wrong root's own snake_case name ('${OLD_BUGGY_PREFIX:-<empty>}') is genuinely 'constitution', a real, non-coincidental divergence from the real project's 'atmosphere' prefix (never a false alarm)" 1 "$([ "$OLD_BUGGY_PREFIX" = "constitution" ] && echo 1 || echo 0)"
     I1_PRECONDITION_REAL=0
-    if [ "$OLD_BUGGY_ROOT" = "$REPO_ROOT/constitution" ] && [ "$OLD_BUGGY_PREFIX" = "constitution" ]; then
-        I1_PRECONDITION_REAL=1
-        ok "control fact established: a release_prefix.sh built on the OLD, un-anchored primary mechanism would derive 'constitution' (hence the WRONG item-tag prefix 'CON') from exactly the cwd (\$HERE) the real assertion below uses — proving that assertion is a genuine, non-vacuous regression guard for the I1 defect class, not a test of an already-impossible precondition"
+    if [ -z "$REPO_ROOT" ]; then
+        skip "PART F7 I1 precondition: a standalone constitution clone has no superproject, so the embedded-layout cwd defect cannot occur here"
     else
-        bad "cannot establish the I1 precondition fact at this cwd (old_root='$OLD_BUGGY_ROOT' old_prefix='$OLD_BUGGY_PREFIX') — investigate before trusting the real assertion below as a genuine regression guard"
+        needle_check "PROOF the I1 precondition is still real at this exact cwd: the OLD, pre-S8, un-anchored 'git rev-parse --show-toplevel' genuinely returns the WRONG (constitution-submodule-own) root from inside \$HERE, not the real atmosphere project root" 1 "$([ "$OLD_BUGGY_ROOT" = "$CONST_TOPLEVEL" ] && echo 1 || echo 0)"
+        needle_check "PROOF continued: that wrong root's own snake_case name ('${OLD_BUGGY_PREFIX:-<empty>}') is genuinely 'constitution', a real, non-coincidental divergence from the real project's 'atmosphere' prefix (never a false alarm)" 1 "$([ "$OLD_BUGGY_PREFIX" = "constitution" ] && echo 1 || echo 0)"
+        I1_PRECONDITION_REAL=0
+        if [ "$OLD_BUGGY_ROOT" = "$CONST_TOPLEVEL" ] && [ "$OLD_BUGGY_PREFIX" = "constitution" ]; then
+            I1_PRECONDITION_REAL=1
+            ok "control fact established: a release_prefix.sh built on the OLD, un-anchored primary mechanism would derive 'constitution' (hence the WRONG item-tag prefix 'CON') from exactly the cwd (\$HERE) the real assertion below uses — proving that assertion is a genuine, non-vacuous regression guard for the I1 defect class, not a test of an already-impossible precondition"
+        else
+            bad "cannot establish the I1 precondition fact at this cwd (old_root='$OLD_BUGGY_ROOT' old_prefix='$OLD_BUGGY_PREFIX') — investigate before trusting the real assertion below as a genuine regression guard"
+        fi
     fi
 
     # F7-real: the REAL, UNMODIFIED transcript_ingest.py, invoked with its
@@ -1948,11 +2018,18 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
     # -- never an assumed-broken fixture; HARNESS-ONLY proof the value is a
     # genuine defect trigger, never trusted downstream by itself (exactly
     # like has_item_tag()'s documented role).
-    BAD_RE='ATM-[0-9'
-    G1_RAISES="$(python3 -c "
-import re
+    # T048 restart round-1: the value must be invalid INSIDE the real
+    # tool's own template (ITEM_TAG_TEMPLATE, read from the module, never
+    # re-typed here). 'ATM-[0-9' stopped being invalid once the template
+    # gained its right boundary '(?![A-Za-z0-9_])', whose ']' closes the
+    # stray '['; an unbalanced '(' is invalid in any surrounding text.
+    BAD_RE='ATM-('
+    G1_RAISES="$(cd "$WORK" && python3 -c "
+import re, sys
+sys.path.insert(0, '$(dirname "$TRANSCRIPT_INGEST")')
+import transcript_ingest as ti
 try:
-    re.compile(r'(?:^|\s)item=(%s|\?)' % '$BAD_RE')
+    re.compile(ti.ITEM_TAG_TEMPLATE % '$BAD_RE')
     print(0)
 except re.error:
     print(1)
@@ -2005,7 +2082,7 @@ src_path, dst_path = sys.argv[1], sys.argv[2]
 src = open(src_path, encoding="utf-8").read()
 OLD = (
     '    try:\n'
-    '        return re.compile(r"(?:^|\\s)item=(%s|\\?)" % value_re)\n'
+    '        return re.compile(ITEM_TAG_TEMPLATE % value_re)\n'
     '    except re.error as exc:\n'
     '        print(\n'
     '            "transcript_ingest: WARNING: the configured item-tag pattern "\n'
@@ -2017,9 +2094,9 @@ OLD = (
     '            file=sys.stderr,\n'
     '        )\n'
     '        fallback_prefix = _fc_default_item_prefix()\n'
-    '        return re.compile(r"(?:^|\\s)item=((?:%s)-[0-9]+|\\?)" % fallback_prefix)\n'
+    '        return re.compile(ITEM_TAG_TEMPLATE % ("(?:%s)-[0-9]+" % fallback_prefix))\n'
 )
-NEW = '    return re.compile(r"(?:^|\\s)item=(%s|\\?)" % value_re)\n'
+NEW = '    return re.compile(ITEM_TAG_TEMPLATE % value_re)\n'
 if src.count(OLD) != 1:
     sys.stderr.write("MUTATION_SETUP_FAILED matches=%d\n" % src.count(OLD))
     sys.exit(2)
@@ -2151,6 +2228,261 @@ print(1 if re_obj.search('item=WIT-8888 some dispatch') else 0)
     fi
 else
     bad "PART G1-G2 UNMET: transcript_ingest.py absent -- the two fail-safe code paths (invalid FC_DISPATCH_ITEM_ID_RE, missing release_prefix.sh) are unverified"
+fi
+
+# =============================================================================
+# PART H — T048 restart round-1 remediation (R3-F1/F2/F5, R4-I4): ingest
+#          behaviours driven through the REAL `transcript_ingest.py ingest`
+#          CLI on fixtures generated here, checked with sqlite3.
+# =============================================================================
+# Ground truth (re-derived 2026-10-08 from the 300 newest real transcripts on
+# this host, scratch scan, not trusted from the review): 12,028 msg ids
+# appear on more than one line; 1,357 of them carry DIFFERENT usage between
+# lines; the only field that differs is output_tokens; it never decreases
+# along the file, and the last line always carries the maximum. Control
+# needle: the same scan saw the 12,028 duplicates, so it can see them. The
+# fixtures below reproduce that shape (one msg id, several lines, growing
+# output_tokens).
+#
+# Every fixture uses the neutral item prefix QZT, configured through the
+# tool's own FC_DISPATCH_ITEM_ID_RE / FC_DISPATCH_EXTRA_ITEM_PREFIXES env vars,
+# so no case here depends on this checkout's own project prefix (§11.4.28).
+echo "=== PART H: streamed turns, re-ingest, tolerant decode, partial usage, dispatch conflicts, tag boundaries ==="
+
+if [ ! -f "$TRANSCRIPT_INGEST" ]; then
+    bad "PART H UNMET: transcript_ingest.py absent"
+else
+H_DIR="$WORK/part_h"
+mkdir -p "$H_DIR"
+python3 - "$H_DIR" <<'PYEOF'
+import json, os, sys
+d = sys.argv[1]
+
+def asst(msg_id, usage, agent=None, sess="h-sess", uuid=None):
+    rec = {"type": "assistant", "uuid": uuid or ("u-" + msg_id),
+           "timestamp": "2026-10-08T00:00:00Z",
+           "message": {"id": msg_id, "model": "fixture-model",
+                       "content": [{"type": "text", "text": "fixture"}]}}
+    if usage is not None:
+        rec["message"]["usage"] = usage
+    if agent:
+        rec["agentId"] = agent
+    else:
+        rec["sessionId"] = sess
+    return json.dumps(rec)
+
+def dispatch(agent, desc, sess="h-sess"):
+    return json.dumps({"type": "user", "sessionId": sess,
+                       "toolUseResult": {"agentId": agent, "description": desc}})
+
+def u(i, o, cr, cc):
+    return {"input_tokens": i, "output_tokens": o,
+            "cache_read_input_tokens": cr, "cache_creation_input_tokens": cc}
+
+def write(path, lines):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+
+# H1 streamed turn, in file order (the real shape): output 5 -> 40 -> 120.
+write(d + "/h1/stream.jsonl", [asst("msg_h1", u(3, n, 1000, 20)) for n in (5, 40, 120)])
+# H1b non-monotone order (never seen on real data; a true id collision).
+write(d + "/h1b/outoforder.jsonl", [asst("msg_h1b", u(3, n, 1000, 20)) for n in (120, 5)])
+# H1c re-ingest of a growing live transcript: first two lines, then three.
+write(d + "/h1c/grow.jsonl", [asst("msg_h1c", u(3, n, 1000, 20)) for n in (5, 40)])
+# H2 tolerant decode: valid line, a line with one invalid byte inside a
+# string (usage intact), and a tail line cut in the middle of a 2-byte
+# UTF-8 character (an interrupted write).
+os.makedirs(d + "/h2", exist_ok=True)
+good = asst("msg_h2a", u(1, 2, 3, 4)).encode("utf-8")
+bad_inner = asst("msg_h2b", u(5, 6, 7, 8)).replace('"fixture"', '"fixtureXX"', 1).encode("utf-8")
+bad_inner = bad_inner.replace(b"fixtureXX", b"fixture\xff\xfe", 1)
+cut = asst("msg_h2c", u(9, 9, 9, 9)).replace('"fixture"', '"fixéture"', 1).encode("utf-8")
+cut = cut[: cut.index(b"\xc3") + 1]
+with open(d + "/h2/trunc.jsonl", "wb") as fh:
+    fh.write(good + b"\n" + bad_inner + b"\n" + cut)
+# H3 partial usage block (input/output only) and an empty usage block.
+write(d + "/h3/partial.jsonl", [asst("msg_h3", {"input_tokens": 11, "output_tokens": 22}),
+                                asst("msg_h3e", {})])
+# H4 one agent dispatched twice with the SAME item, one with CONFLICTING
+# items, one honest item=?, and three tag-boundary cases.
+parent = d + "/h4/parent.jsonl"
+write(parent, [
+    dispatch("agsame", "(T1/main - a) item=QZT-41 first"),
+    dispatch("agsame", "(T1/main - a) item=QZT-41 resumed"),
+    dispatch("agconf", "(T1/main - a) item=QZT-51 first"),
+    dispatch("agconf", "(T1/main - a) item=QZT-52 resumed"),
+    dispatch("agq", "(T1/main - a) item=? honest unknown"),
+    dispatch("agfused", "(T1/main - a) xitem=QZT-61 fused"),
+    dispatch("agtail", "(T1/main - a) item=QZT-62x trailing garbage"),
+    dispatch("agcomma", "(T1/main - a) item=QZT-63, comma"),
+    dispatch("aglower", "(T1/main - a) item=QZT-64 lowercase-extra"),
+])
+for ag in ("agsame", "agconf", "agq", "agfused", "agtail", "agcomma", "aglower"):
+    write(d + "/h4/parent/subagents/agent-%s.jsonl" % ag, [asst("msg_h4_" + ag, u(1, 1, 1, 1), agent=ag)])
+PYEOF
+
+# h_ingest <fixture> <db> [env assignments...] -- the REAL CLI, ambient FC_*
+# and HELIX_RELEASE_PREFIX stripped so only the case's own env applies.
+h_ingest() {
+    local fx="$1" db="$2"; shift 2
+    env -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u FC_DISPATCH_ITEM_ID_RE -u HELIX_RELEASE_PREFIX \
+        "$@" python3 "$TRANSCRIPT_INGEST" ingest "$fx" --db "$db"
+}
+h_q() { sqlite3 -noheader "$1" "$2"; }
+
+# ---- H1: streamed turn keeps the FINAL (maximum) usage, not the first line --
+DB_H1="$WORK/h1.db"
+h_ingest "$H_DIR/h1/stream.jsonl" "$DB_H1" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >"$WORK/h1.out" 2>"$WORK/h1.err"
+RC_H1=$?
+needle_check "H1 control: the streamed-turn fixture really carries 3 lines for one msg id" 1 "$([ "$(grep -c '"msg_h1"' "$H_DIR/h1/stream.jsonl")" = 3 ] && echo 1 || echo 0)"
+H1_ROWS="$(h_q "$DB_H1" "SELECT COUNT(*) FROM transcript_usage_events WHERE msg_id='msg_h1';")"
+H1_OUT="$(h_q "$DB_H1" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_h1';")"
+H1_TOT="$(h_q "$DB_H1" "SELECT total_tokens FROM transcript_usage_events WHERE msg_id='msg_h1';")"
+if [ "$RC_H1" -eq 0 ] && [ "$H1_ROWS" = 1 ] && [ "$H1_OUT" = 120 ] && [ "$H1_TOT" = 1143 ]; then
+    ok "H1 (R3-F1): a streamed turn (output 5 -> 40 -> 120 on one msg id) lands as ONE row with output_tokens=120 and total=1143, not the first line's 5"
+else
+    bad "H1 (R3-F1): rc=$RC_H1 rows=$H1_ROWS output=$H1_OUT total=$H1_TOT (want rc=0 rows=1 output=120 total=1143) -- the first-line-wins undercount is back"
+fi
+# Any WARNING naming msg_h1 counts (not a specific wording), so a reworded
+# warning cannot make this check pass vacuously.
+if grep "WARNING" "$WORK/h1.err" | grep -q "msg_h1"; then
+    bad "H1: a normal growing stream printed a duplicate-usage warning ($(head -c 300 "$WORK/h1.err")) -- streaming growth is the expected shape, not an anomaly"
+else
+    ok "H1: a normal growing stream merges silently (no duplicate-usage warning on stderr)"
+fi
+
+# ---- H1b: out-of-order duplicate keeps the per-field max AND warns -----------
+DB_H1B="$WORK/h1b.db"
+h_ingest "$H_DIR/h1b/outoforder.jsonl" "$DB_H1B" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >/dev/null 2>"$WORK/h1b.err"
+H1B_OUT="$(h_q "$DB_H1B" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_h1b';")"
+if [ "$H1B_OUT" = 120 ]; then
+    ok "H1b (R3-F1/R4-M6): out-of-order duplicate (120 then 5) keeps output_tokens=120 -- neither first-line-wins nor last-line-wins"
+else
+    bad "H1b (R3-F1/R4-M6): output_tokens=$H1B_OUT (want 120) -- a duplicate line overwrote or hid the larger cumulative count"
+fi
+if grep -q "msg_h1b" "$WORK/h1b.err" && grep -q "WARNING" "$WORK/h1b.err"; then
+    ok "H1b (R4-I4 M5): a usage value that DECREASES on a later line is reported on stderr by msg id"
+else
+    bad "H1b (R4-I4 M5): no WARNING naming msg_h1b on stderr for a decreasing duplicate (stderr: $(head -c 300 "$WORK/h1b.err"))"
+fi
+
+# ---- H1c: re-ingesting a transcript that grew since the last run ------------
+DB_H1C="$WORK/h1c.db"
+h_ingest "$H_DIR/h1c/grow.jsonl" "$DB_H1C" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >/dev/null 2>&1
+H1C_FIRST="$(h_q "$DB_H1C" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_h1c';")"
+python3 -c "
+import json,sys
+p=sys.argv[1]
+line=open(p).read().splitlines()[-1]
+r=json.loads(line); r['message']['usage']['output_tokens']=120
+open(p,'a').write(json.dumps(r)+'\n')" "$H_DIR/h1c/grow.jsonl"
+h_ingest "$H_DIR/h1c/grow.jsonl" "$DB_H1C" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >/dev/null 2>&1
+H1C_SECOND="$(h_q "$DB_H1C" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_h1c';")"
+H1C_ROWS="$(h_q "$DB_H1C" "SELECT COUNT(*) FROM transcript_usage_events WHERE msg_id='msg_h1c';")"
+if [ "$H1C_FIRST" = 40 ] && [ "$H1C_SECOND" = 120 ] && [ "$H1C_ROWS" = 1 ]; then
+    ok "H1c: re-ingest after the live transcript grew updates the existing row (40 -> 120, still one row)"
+else
+    bad "H1c: first run output=$H1C_FIRST (want 40), second run output=$H1C_SECOND (want 120), rows=$H1C_ROWS (want 1) -- a second ingest froze the stale count"
+fi
+
+# ---- H2: invalid UTF-8 never discards the whole run ---------------------------
+DB_H2="$WORK/h2.db"
+h_ingest "$H_DIR/h2/trunc.jsonl" "$DB_H2" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >"$WORK/h2.out" 2>"$WORK/h2.err"
+RC_H2=$?
+needle_check "H2 control: the fixture really is invalid UTF-8 (strict decode fails)" 1 "$(python3 -c "import sys; open(sys.argv[1],'rb').read().decode('utf-8')" "$H_DIR/h2/trunc.jsonl" 2>/dev/null && echo 0 || echo 1)"
+H2_A="$(h_q "$DB_H2" "SELECT total_tokens FROM transcript_usage_events WHERE msg_id='msg_h2a';" 2>/dev/null)"
+H2_B="$(h_q "$DB_H2" "SELECT total_tokens FROM transcript_usage_events WHERE msg_id='msg_h2b';" 2>/dev/null)"
+H2_C="$(h_q "$DB_H2" "SELECT COUNT(*) FROM transcript_usage_events WHERE msg_id='msg_h2c';" 2>/dev/null)"
+if [ "$RC_H2" -eq 0 ] && [ "$H2_A" = 10 ] && [ "$H2_B" = 26 ] && [ "$H2_C" = 0 ]; then
+    ok "H2 (R3-F2): invalid UTF-8 (a bad byte inside a string, and a tail line cut mid-character) gives rc=0, keeps both valid turns (totals 10 and 26) and skips only the cut line"
+else
+    bad "H2 (R3-F2): rc=$RC_H2 msg_h2a.total=$H2_A (want 10) msg_h2b.total=$H2_B (want 26) msg_h2c.rows=$H2_C (want 0); stderr: $(head -c 300 "$WORK/h2.err")"
+fi
+# Class "absent evidence read as valid": a run that skipped lines must say
+# so in its own summary line, not only in scattered warnings.
+if grep -q "invalid_utf8_lines=2" "$WORK/h2.out" && grep -q "unparseable_lines=1" "$WORK/h2.out" && grep -q "unreadable_files=0" "$WORK/h2.out"; then
+    ok "H2: the summary line counts what was not read cleanly (invalid_utf8_lines=2 unparseable_lines=1 unreadable_files=0)"
+else
+    bad "H2: the summary line does not count skipped/repaired lines: $(cat "$WORK/h2.out")"
+fi
+H2U_DIR="$WORK/part_h/h2u"; mkdir -p "$H2U_DIR"
+cp "$H_DIR/h1/stream.jsonl" "$H2U_DIR/readable.jsonl"; cp "$H_DIR/h1/stream.jsonl" "$H2U_DIR/locked.jsonl"; chmod 000 "$H2U_DIR/locked.jsonl"
+if [ -r "$H2U_DIR/locked.jsonl" ]; then
+    skip "H2u: chmod 000 does not make the file unreadable for this user (running as root?), the unreadable-file count cannot be exercised"
+else
+    h_ingest "$H2U_DIR" "$WORK/h2u.db" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >"$WORK/h2u.out" 2>/dev/null
+    if grep -q "unreadable_files=1" "$WORK/h2u.out"; then
+        ok "H2u: an unreadable transcript is counted in the summary (unreadable_files=1), not silently dropped"
+    else
+        bad "H2u: an unreadable transcript is not counted in the summary: $(cat "$WORK/h2u.out")"
+    fi
+fi
+chmod 600 "$H2U_DIR/locked.jsonl" 2>/dev/null
+if grep -q "invalid UTF-8" "$WORK/h2.err"; then
+    ok "H2: the invalid-UTF-8 line is reported on stderr, not repaired silently"
+else
+    bad "H2: no 'invalid UTF-8' warning on stderr (stderr: $(head -c 300 "$WORK/h2.err"))"
+fi
+
+# ---- H3: a partial or empty usage block is not labelled measured -------------
+DB_H3="$WORK/h3.db"
+h_ingest "$H_DIR/h3/partial.jsonl" "$DB_H3" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >/dev/null 2>&1
+H3_ROW="$(h_q "$DB_H3" "SELECT usage_status||'|'||IFNULL(input_tokens,'N')||'|'||IFNULL(output_tokens,'N')||'|'||IFNULL(total_tokens,'N') FROM transcript_usage_events WHERE msg_id='msg_h3';")"
+H3_MI="$(h_q "$DB_H3" "SELECT missing_instrument FROM transcript_usage_events WHERE msg_id='msg_h3';")"
+H3E_ROW="$(h_q "$DB_H3" "SELECT usage_status||'|'||IFNULL(total_tokens,'N') FROM transcript_usage_events WHERE msg_id='msg_h3e';")"
+if [ "$H3_ROW" = "UNMEASURED|11|22|N" ] && printf '%s' "$H3_MI" | grep -q cache_read_input_tokens && printf '%s' "$H3_MI" | grep -q cache_creation_input_tokens && printf '%s' "$H3_MI" | grep -Fq "$H_DIR/h3/partial.jsonl"; then
+    ok "H3 (R3-F5/R4-M9/M10): a partial usage block is UNMEASURED with total NULL, keeps the two counts it has (11, 22), and missing_instrument names both absent fields and the source file"
+else
+    bad "H3 (R3-F5): row=$H3_ROW (want UNMEASURED|11|22|N) missing_instrument='$H3_MI' (want both cache field names and the file path)"
+fi
+if [ "$H3E_ROW" = "UNMEASURED|N" ]; then
+    ok "H3: an empty usage block {} is UNMEASURED with total NULL"
+else
+    bad "H3: empty usage block row=$H3E_ROW (want UNMEASURED|N)"
+fi
+
+# ---- H4: dispatch map, item=?, token boundaries, lowercase extra prefix -------
+DB_H4="$WORK/h4.db"
+h_ingest "$H_DIR/h4/parent.jsonl" "$DB_H4" FC_DISPATCH_EXTRA_ITEM_PREFIXES=qzt >"$WORK/h4.out" 2>"$WORK/h4.err"
+RC_H4=$?
+h4_item() { h_q "$DB_H4" "SELECT IFNULL(item_id,'NULL') FROM transcript_usage_events WHERE msg_id='msg_h4_$1';"; }
+needle_check "H4 control: all 7 subagent rows landed (rc=$RC_H4)" 1 "$([ "$RC_H4" -eq 0 ] && [ "$(h_q "$DB_H4" "SELECT COUNT(*) FROM transcript_usage_events WHERE agent_id IS NOT NULL;")" = 7 ] && echo 1 || echo 0)"
+H4_SAME="$(h4_item agsame)"; H4_CONF="$(h4_item agconf)"; H4_Q="$(h4_item agq)"
+H4_FUSED="$(h4_item agfused)"; H4_TAIL="$(h4_item agtail)"; H4_COMMA="$(h4_item agcomma)"; H4_LOWER="$(h4_item aglower)"
+if [ "$H4_SAME" = "QZT-41" ]; then
+    ok "H4 (R4-I4 M1): an agent dispatched twice with the SAME item stays attributed to QZT-41"
+else
+    bad "H4: agent dispatched twice with the same item gave item_id=$H4_SAME (want QZT-41)"
+fi
+if [ "$H4_CONF" = "NULL" ] && grep -q "agconf" "$WORK/h4.err" && grep -q "QZT-51" "$WORK/h4.err" && grep -q "QZT-52" "$WORK/h4.err"; then
+    ok "H4 (R4-I4 M1): an agent dispatched under two DIFFERENT items is left unattributed (NULL) and both ids are reported on stderr -- neither first-wins nor last-wins"
+else
+    bad "H4 (R4-I4 M1): conflicting dispatches gave item_id=$H4_CONF (want NULL) or no stderr warning naming agconf/QZT-51/QZT-52 (stderr: $(head -c 300 "$WORK/h4.err"))"
+fi
+if [ "$H4_Q" = "NULL" ]; then
+    ok "H4 (R4-I4 M3): an honest item=? dispatch gives item_id NULL, never the string '?'"
+else
+    bad "H4 (R4-I4 M3): item=? dispatch gave item_id=$H4_Q (want NULL)"
+fi
+if [ "$H4_FUSED" = "NULL" ] && [ "$H4_TAIL" = "NULL" ] && [ "$H4_COMMA" = "QZT-63" ]; then
+    ok "H4 (R4-I4 M2b, R3 boundary note): 'xitem=QZT-61' and 'item=QZT-62x' are not attributed; 'item=QZT-63,' is"
+else
+    bad "H4 boundaries: xitem=QZT-61 -> $H4_FUSED (want NULL), item=QZT-62x -> $H4_TAIL (want NULL), item=QZT-63, -> $H4_COMMA (want QZT-63)"
+fi
+if [ "$H4_LOWER" = "QZT-64" ]; then
+    ok "H4 (R4-I4 M13): FC_DISPATCH_EXTRA_ITEM_PREFIXES=qzt (lowercase) is upper-cased and attributes item=QZT-64"
+else
+    bad "H4 (R4-I4 M13): lowercase extra prefix gave item_id=$H4_LOWER (want QZT-64)"
+fi
+# Parity with dispatch_stamp.sh on the SAME env and description (both real tools).
+H4_DS="$(printf '%s' '{"tool_name":"Agent","tool_input":{"description":"(T1/main - a) item=QZT-64 lowercase-extra"}}' \
+    | env -u FC_DISPATCH_ITEM_ID_RE FC_DISPATCH_EXTRA_ITEM_PREFIXES=qzt bash "$DISPATCH_STAMP" --extract-item-id)"
+if [ "$H4_DS" = "$H4_LOWER" ] && [ -n "$H4_DS" ]; then
+    ok "H4: dispatch_stamp.sh --extract-item-id agrees with the ingest on the lowercase extra prefix ($H4_DS)"
+else
+    bad "H4: dispatch_stamp.sh extracted '$H4_DS' but the ingest attributed '$H4_LOWER' for the same description and env"
+fi
 fi
 
 # ---- final control-needle on the shared grep mechanism itself -------------

@@ -65,10 +65,17 @@
 #     always-exit-0 contract) —
 # so the enforcement (and the extraction helper) provably cannot bluff.
 #
-# HERMETICITY / DETERMINISM (§11.4.50): no ambient ENV state (CLAUDE_*,
-# CLAUDE_CONFIG_DIR, etc.) affects this tool at all — dispatch_stamp.sh
-# reads only stdin — so every case here is fully self-contained and
-# re-runnable regardless of which alias/track/session runs it.
+# HERMETICITY / DETERMINISM (§11.4.50): no session-scoped ENV state
+# (CLAUDE_*, CLAUDE_CONFIG_DIR, etc.) affects this tool. It DOES read three
+# configuration vars (FC_DISPATCH_ITEM_ID_RE, FC_DISPATCH_EXTRA_ITEM_PREFIXES
+# and, through release_prefix.sh, HELIX_RELEASE_PREFIX). T048 restart
+# round-1 (R4-I2 class: a constitution test must not depend on the checkout
+# it happens to run in): this suite now unsets the two FC_* vars and pins
+# HELIX_RELEASE_PREFIX to a fixture value whose derived ticket prefix is
+# "ATM", the prefix the static fixtures under tests/fixtures/dispatch_stamp/
+# use. Before this, the suite passed only on a checkout whose own .env
+# happened to derive "ATM", and false-FAILed on any other consumer. The
+# pinned value is a test fixture, not a claim about any real project.
 #
 # Reuse: the three base cases (golden-good / golden-bad / negative-control)
 # read their JSON payload AND expected GUARD-exit / EXTRACT-stdout directly
@@ -87,6 +94,9 @@
 # Exit 0 = all cases pass; exit 1 = one or more cases failed.
 
 set -uo pipefail
+
+unset FC_DISPATCH_ITEM_ID_RE FC_DISPATCH_EXTRA_ITEM_PREFIXES HELIX_PROJECT_ROOT 2>/dev/null || true
+export HELIX_RELEASE_PREFIX=atm_fixture_prefix
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 TOOL="$HERE/dispatch_stamp.sh"
@@ -114,17 +124,21 @@ run_guard() {
 # run_extract <name> <expected-stdout> <json-payload>
 #   Runs dispatch_stamp.sh --extract-item-id; compares BOTH stdout content
 #   AND exit code (which MUST always be 0, per the tool's own contract).
+#   The tool's contract is "stdout is the id, NO other output", so stderr
+#   must be empty too (T048 restart round-1, R3 minor note).
 run_extract() {
-  local name="$1" want="$2" payload="$3" got rc
-  got="$(printf '%s' "$payload" | bash "$TOOL" --extract-item-id)"
+  local name="$1" want="$2" payload="$3" got rc err
+  err="$(mktemp)"
+  got="$(printf '%s' "$payload" | bash "$TOOL" --extract-item-id 2>"$err")"
   rc=$?
-  if [ "$got" = "$want" ] && [ "$rc" -eq 0 ]; then
+  if [ "$got" = "$want" ] && [ "$rc" -eq 0 ] && [ ! -s "$err" ]; then
     printf '  PASS  %-64s (stdout="%s" exit=%s)\n' "$name" "$got" "$rc"
     PASS=$((PASS + 1))
   else
-    printf '  FAIL  %-64s (got stdout="%s" exit=%s, want stdout="%s" exit=0)\n' "$name" "$got" "$rc" "$want"
+    printf '  FAIL  %-64s (got stdout="%s" exit=%s stderr="%s", want stdout="%s" exit=0 stderr empty)\n' "$name" "$got" "$rc" "$(head -c 200 "$err")" "$want"
     FAIL=$((FAIL + 1))
   fi
+  rm -f "$err"
 }
 
 # run_guard_nojq / run_extract_nojq <name> <expected> <json-payload>
@@ -337,6 +351,44 @@ if [ "$NOJQ_AVAILABLE" -eq 1 ]; then
 else
   echo "SKIP: jq-absent-fallback cases skipped (see section 0 above)."
 fi
+
+# ===========================================================================
+# H. Prefix configuration and tag right boundary (T048 restart round-1,
+#    R3-F3: the FC_DISPATCH_EXTRA_ITEM_PREFIXES path had no behavioural
+#    coverage; R3 boundary note: 'item=ATM-12x' used to count as ATM-12).
+# ===========================================================================
+echo
+echo "-- H. extra prefixes, full override, right boundary --"
+SPK_PAYLOAD='{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=SPK-609 extra-prefix id"}}'
+run_guard "unconfigured: item=SPK-609 BLOCKED (default stays the derived prefix)" 2 "$SPK_PAYLOAD"
+run_extract "unconfigured: item=SPK-609 EXTRACT empty" '' "$SPK_PAYLOAD"
+# The extra prefixes are passed per case through env(1); the helpers above
+# inherit the environment, so each case exports and then unsets it.
+export FC_DISPATCH_EXTRA_ITEM_PREFIXES=spk
+run_guard "FC_DISPATCH_EXTRA_ITEM_PREFIXES=spk (lowercase): item=SPK-609 allowed" 0 "$SPK_PAYLOAD"
+run_extract "FC_DISPATCH_EXTRA_ITEM_PREFIXES=spk: EXTRACT SPK-609" 'SPK-609' "$SPK_PAYLOAD"
+run_extract "FC_DISPATCH_EXTRA_ITEM_PREFIXES=spk: the derived ATM prefix still works" 'ATM-2000' \
+  '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-2000 still default"}}'
+export FC_DISPATCH_EXTRA_ITEM_PREFIXES='foo|bar, spk'
+run_extract "FC_DISPATCH_EXTRA_ITEM_PREFIXES='foo|bar, spk' (mixed separators): EXTRACT SPK-609" 'SPK-609' "$SPK_PAYLOAD"
+run_extract "FC_DISPATCH_EXTRA_ITEM_PREFIXES='foo|bar, spk': EXTRACT BAR-7" 'BAR-7' \
+  '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=BAR-7 second token"}}'
+unset FC_DISPATCH_EXTRA_ITEM_PREFIXES
+export FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+'
+FC_DISPATCH_EXTRA_ITEM_PREFIXES=spk run_extract "FC_DISPATCH_ITEM_ID_RE wins over extra prefixes (SPK-609 not extracted)" '' "$SPK_PAYLOAD"
+run_extract "FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+': EXTRACT XYZ-5" 'XYZ-5' \
+  '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=XYZ-5 override"}}'
+unset FC_DISPATCH_ITEM_ID_RE
+run_guard "right boundary: 'item=ATM-12x' BLOCKED (not a whole token)" 2 \
+  '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12x trailing"}}'
+run_extract "right boundary: 'item=ATM-12x' EXTRACT empty" '' \
+  '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12x trailing"}}'
+run_guard "right boundary: 'item=?foo' BLOCKED (not the honest '?' token)" 2 \
+  '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=?foo"}}'
+run_extract "right boundary: 'item=ATM-12,' EXTRACT ATM-12 (punctuation ends a token)" 'ATM-12' \
+  '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12, next"}}'
+run_extract "right boundary: 'item=ATM-12' at end of string EXTRACT ATM-12" 'ATM-12' \
+  '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12"}}'
 
 echo
 echo "  total: PASS=$PASS FAIL=$FAIL"

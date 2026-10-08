@@ -114,8 +114,12 @@ cp "$PRE_EXISTING" "$SCRATCH/records/pre_existing.json"
 cp "$FX"/*.precheck-evidence "$SCRATCH/records/" 2>/dev/null || true
 OUT1=$(python3 "$TOOL" gate --change "$CHANGE_ID" --records "$SCRATCH/records" 2>&1)
 RC1=$?
-if [ "$RC1" != "4" ] && ! echo "$OUT1" | grep -q "missing required field"; then
-    ok "1: pre-existing finding_layer-less record parses cleanly through gate (rc=$RC1, no parse/field error) -- backward compatible"
+# R7 M-b (2026-10-08): the record is a NO-GO, so the only correct verdict is
+# rc==1 with an UNCOVERED line for its change -- "any rc other than 4" also
+# accepted a wrong rc 0 COVERED (or a rc 2 usage error) as a pass.
+if [ "$RC1" -eq 1 ] && echo "$OUT1" | grep -q "^UNCOVERED $CHANGE_ID" \
+    && ! echo "$OUT1" | grep -q "missing required field"; then
+    ok "1: pre-existing finding_layer-less record parses cleanly through gate and yields its honest verdict (rc=1 UNCOVERED, no parse/field error) -- backward compatible"
 else
     bad "1 FAILED: pre-existing record triggered a parse/field error (rc=$RC1): $OUT1"
 fi

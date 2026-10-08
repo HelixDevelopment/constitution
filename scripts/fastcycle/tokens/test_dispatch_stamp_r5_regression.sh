@@ -160,12 +160,21 @@ fi
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 TOOL="$HERE/dispatch_stamp.sh"
-REPO_ROOT="$(cd "$HERE/../../../.." && pwd)"
-RELEASE_PREFIX="$REPO_ROOT/constitution/scripts/release_prefix.sh"
+# T048 restart round-1 (R4-I2): every path is resolved from this file's own
+# location and from git, never as a fixed number of levels above it, and
+# the expected item id is built from the prefix this checkout actually
+# derives, never the literal ATM. Before this, the suite false-FAILed 4
+# cases on any consumer whose prefix is not ATM ("the CWD-dependent ...
+# defect has returned") and exited 1 at the precondition on a standalone
+# constitution clone.
+RELEASE_PREFIX="$(cd "$HERE/../.." && pwd)/release_prefix.sh"
+CONST_TOPLEVEL="$(git -C "$HERE" rev-parse --show-toplevel 2>/dev/null || true)"
+SUPERPROJECT="$(git -C "$HERE" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
 
 echo "T048/US1 S8 regression guard: release_prefix.sh / dispatch_stamp.sh CWD-independence"
 echo "tool:            $TOOL"
 echo "release_prefix:  $RELEASE_PREFIX"
+echo "superproject:    ${SUPERPROJECT:-<none: standalone constitution checkout>}"
 echo
 
 if [ ! -f "$TOOL" ] || [ ! -f "$RELEASE_PREFIX" ]; then
@@ -173,19 +182,39 @@ if [ ! -f "$TOOL" ] || [ ! -f "$RELEASE_PREFIX" ]; then
   exit 1
 fi
 
-# A well-formed, real-shaped dispatch payload carrying a genuine
-# item=ATM-9042 token immediately after the §11.4.182 label (the exact
-# reproduction the reviewer captured).
-PAYLOAD='{"tool_name":"Agent","tool_input":{"description":"(T1/main - claude5 - sonnet - high) item=ATM-9042 test"}}'
+# derive_ticket_prefix <release-prefix> -- the 3-letter ticket key. Used ONLY
+# to build this file's own payload/expectation; the assertions themselves
+# are made by running the real tools.
+derive_ticket_prefix() {
+  local letters
+  letters="$(printf '%s' "$1" | tr -cd 'A-Za-z' | cut -c1-3 | tr '[:lower:]' '[:upper:]')"
+  [ -z "$letters" ] && letters="WIT"
+  while [ "${#letters}" -lt 3 ]; do letters="${letters}X"; done
+  printf '%s' "$letters"
+}
 
-# The 4-directory table the reviewer's own reproduction used, verified live
-# as real, existing, reachable directories on this checkout before relying
-# on any of them (§11.4.273 control needle: no case silently no-ops because
-# its directory does not exist).
-DIR_ROOT="$REPO_ROOT"
-DIR_SUBMODULE="$REPO_ROOT/constitution"
-DIR_NESTED="$REPO_ROOT/constitution/scripts/fastcycle/tests"
+if [ -z "$SUPERPROJECT" ] || [ -z "$CONST_TOPLEVEL" ]; then
+  # A standalone constitution clone has no embedded layout: cases A/B (the
+  # 4-directory embedded matrix) do not apply. Not counted as PASS or FAIL.
+  echo "  SKIP  cases A/B: this constitution checkout is not a registered submodule of any superproject (superproject='${SUPERPROJECT}' toplevel='${CONST_TOPLEVEL}'), so the embedded-layout CWD matrix does not apply; cases C onward still run"
+else
+DIR_ROOT="$SUPERPROJECT"
+DIR_SUBMODULE="$CONST_TOPLEVEL"
+DIR_NESTED="$(cd "$HERE/../tests" && pwd)"
 DIR_NOGIT="/tmp"
+
+# Baseline prefix, read from the superproject root (the always-worked
+# baseline). Cases A/B then require the SAME answer from every directory.
+BASE_PREFIX="$(cd "$DIR_ROOT" && bash "$RELEASE_PREFIX" 2>/dev/null)"
+TICKET="$(derive_ticket_prefix "$BASE_PREFIX")"
+if [ -n "$BASE_PREFIX" ]; then
+  ok "baseline: release_prefix.sh resolves '$BASE_PREFIX' from the superproject root (ticket prefix '$TICKET')"
+else
+  bad "baseline: release_prefix.sh printed nothing from the superproject root '$DIR_ROOT' -- cases A/B cannot be trusted"
+fi
+
+PAYLOAD="{\"tool_name\":\"Agent\",\"tool_input\":{\"description\":\"(T1/main - claude5 - sonnet - high) item=${TICKET}-9042 test\"}}"
+UNTAGGED_PAYLOAD='{"tool_name":"Agent","tool_input":{"description":"(T1/main - claude5 - sonnet - high) no item tag at all"}}'
 
 echo "-- control needle: all 4 target directories genuinely exist --"
 for d in "$DIR_ROOT" "$DIR_SUBMODULE" "$DIR_NESTED" "$DIR_NOGIT"; do
@@ -196,8 +225,6 @@ for d in "$DIR_ROOT" "$DIR_SUBMODULE" "$DIR_NESTED" "$DIR_NOGIT"; do
   fi
 done
 
-# control needle: /tmp is genuinely outside any git repository (the
-# no-git-at-all case this table is supposed to exercise) -- never assumed.
 echo
 echo "-- control needle: /tmp is genuinely not inside a git repository --"
 if (cd "$DIR_NOGIT" && git rev-parse --show-toplevel >/dev/null 2>&1); then
@@ -206,68 +233,46 @@ else
   ok "/tmp genuinely has no git repository (git rev-parse --show-toplevel fails there, confirmed live)"
 fi
 
-# control needle: constitution/ is genuinely its OWN, nested git boundary
-# distinct from the superproject root -- the exact class-(1) defect
-# scenario -- never assumed.
 echo
 echo "-- control needle: constitution/ is genuinely its own, nested git toplevel, distinct from the superproject root --"
-SUBMODULE_TOPLEVEL="$(cd "$DIR_SUBMODULE" && git rev-parse --show-toplevel 2>/dev/null)"
-if [ -n "$SUBMODULE_TOPLEVEL" ] && [ "$SUBMODULE_TOPLEVEL" != "$DIR_ROOT" ]; then
-  ok "constitution/'s own 'git rev-parse --show-toplevel' ('$SUBMODULE_TOPLEVEL') genuinely differs from the superproject root ('$DIR_ROOT') -- the submodule-boundary scenario is real on this checkout, not assumed"
+if [ "$DIR_SUBMODULE" != "$DIR_ROOT" ]; then
+  ok "constitution's own git toplevel ('$DIR_SUBMODULE') differs from the superproject root ('$DIR_ROOT') -- the submodule-boundary scenario is real on this checkout"
 else
-  bad "constitution/'s own git-toplevel ('$SUBMODULE_TOPLEVEL') did not diverge from the superproject root ('$DIR_ROOT') -- this fixture's premise does not hold on this checkout; re-investigate before trusting the result below"
+  bad "constitution's own git toplevel ('$DIR_SUBMODULE') equals the superproject root -- this case's premise does not hold"
 fi
 
-# run_case <label> <dir> -- runs BOTH dispatch_stamp.sh --extract-item-id
-# AND plain dispatch_stamp.sh (GUARD mode) against the SAME real payload
-# from the given real cwd, returning "extracted|guard_exit".
+# run_case <payload> <dir> -- runs BOTH --extract-item-id and GUARD mode
+# against the payload from the given real cwd; prints "extracted|guard_exit".
 run_case() {
-  local dir="$2" id rc
-  id="$(cd "$dir" && printf '%s' "$PAYLOAD" | bash "$TOOL" --extract-item-id)"
-  (cd "$dir" && printf '%s' "$PAYLOAD" | bash "$TOOL" >/dev/null 2>&1)
+  local payload="$1" dir="$2" id rc
+  id="$(cd "$dir" && printf '%s' "$payload" | bash "$TOOL" --extract-item-id)"
+  (cd "$dir" && printf '%s' "$payload" | bash "$TOOL" >/dev/null 2>&1)
   rc=$?
   printf '%s|%s' "$id" "$rc"
 }
 
 echo
 echo "-- A. identical extraction + GUARD verdict across all 4 real invocation directories --"
-RESULT_ROOT="$(run_case "root" "$DIR_ROOT")"
-RESULT_SUBMODULE="$(run_case "constitution" "$DIR_SUBMODULE")"
-RESULT_NESTED="$(run_case "nested-under-submodule" "$DIR_NESTED")"
-RESULT_NOGIT="$(run_case "no-git (/tmp)" "$DIR_NOGIT")"
+WANT="${TICKET}-9042|0"
+WANT_UNTAGGED="|2"
+for pair in "repo root:$DIR_ROOT" "constitution/ (submodule toplevel):$DIR_SUBMODULE" "constitution/scripts/fastcycle/tests/:$DIR_NESTED" "/tmp (no git):$DIR_NOGIT"; do
+  label="${pair%%:*}"; dir="${pair#*:}"
+  got="$(run_case "$PAYLOAD" "$dir")"
+  if [ "$got" = "$WANT" ]; then
+    ok "$label: tagged dispatch extracted+guard = '$WANT'"
+  else
+    bad "$label: tagged dispatch got '$got', want '$WANT' -- the CWD-dependent prefix-resolution defect has returned"
+  fi
+  # R4-M3: the guard must also REFUSE an untagged dispatch from every
+  # directory (a cwd-dependent fail-open would allow it from some).
+  got="$(run_case "$UNTAGGED_PAYLOAD" "$dir")"
+  if [ "$got" = "$WANT_UNTAGGED" ]; then
+    ok "$label: untagged dispatch extracted+guard = '$WANT_UNTAGGED' (refused)"
+  else
+    bad "$label: untagged dispatch got '$got', want '$WANT_UNTAGGED' -- the guard fails open from this directory"
+  fi
+done
 
-printf '  repo root:                result=%s\n' "$RESULT_ROOT"
-printf '  constitution/:            result=%s\n' "$RESULT_SUBMODULE"
-printf '  constitution/.../tests/:  result=%s\n' "$RESULT_NESTED"
-printf '  /tmp:                     result=%s\n' "$RESULT_NOGIT"
-
-WANT="ATM-9042|0"
-if [ "$RESULT_ROOT" = "$WANT" ]; then
-  ok "repo root: extracted+guard = '$WANT' (the always-worked baseline)"
-else
-  bad "repo root: got '$RESULT_ROOT', want '$WANT'"
-fi
-if [ "$RESULT_SUBMODULE" = "$WANT" ]; then
-  ok "constitution/ (nested git-submodule toplevel): extracted+guard = '$WANT' (R5 fix: previously degraded to the submodule's own basename-derived prefix, BLOCKING a correctly-tagged dispatch)"
-else
-  bad "constitution/ (nested git-submodule toplevel): got '$RESULT_SUBMODULE', want '$WANT' -- the CWD-dependent submodule-boundary defect has returned"
-fi
-if [ "$RESULT_NESTED" = "$WANT" ]; then
-  ok "constitution/scripts/fastcycle/tests/ (nested further, same submodule): extracted+guard = '$WANT' (the exact directory T020's own test lives in)"
-else
-  bad "constitution/scripts/fastcycle/tests/: got '$RESULT_NESTED', want '$WANT' -- the CWD-dependent submodule-boundary defect has returned"
-fi
-if [ "$RESULT_NOGIT" = "$WANT" ]; then
-  ok "/tmp (no git repository at all): extracted+guard = '$WANT' (R5 fix: previously the one-level-short self-dir fallback also mis-resolved to 'constitution/')"
-else
-  bad "/tmp (no git repository at all): got '$RESULT_NOGIT', want '$WANT' -- the CWD-dependent no-git fallback defect has returned"
-fi
-
-# B. release_prefix.sh itself, called directly (not through dispatch_stamp.sh
-# at all), resolves IDENTICALLY from all 4 directories -- isolates the fix
-# to its actual owning file, independent of dispatch_stamp.sh's own
-# (already-correct, BASH_SOURCE-anchored) path-to-release_prefix.sh
-# resolution.
 echo
 echo "-- B. release_prefix.sh resolves the IDENTICAL prefix directly, from all 4 directories --"
 RP_ROOT="$(cd "$DIR_ROOT" && bash "$RELEASE_PREFIX")"
@@ -282,6 +287,7 @@ if [ -n "$RP_ROOT" ] && [ "$RP_ROOT" = "$RP_SUBMODULE" ] && [ "$RP_SUBMODULE" = 
   ok "release_prefix.sh prints the SAME non-empty prefix ('$RP_ROOT') from every one of the 4 real directories"
 else
   bad "release_prefix.sh prefix diverged by invocation directory: root='$RP_ROOT' constitution='$RP_SUBMODULE' nested='$RP_NESTED' nogit='$RP_NOGIT'"
+fi
 fi
 
 # C. STANDALONE layout (F1, S8 remediation round-2, independent Opus-xhigh
@@ -1147,7 +1153,9 @@ while [ "$SWEEP_I" -lt "$SWEEP_ROW_COUNT" ]; do
   fi
 
   if [ -z "$SWEEP_ROW_KIND" ]; then
-    ok "SWEEP row '$SWEEP_ROW_NAME': no attack-class mutant applies to this row by design (a pure real-code safety check -- $SWEEP_ROW_CLASS) -- mutation-discrimination intentionally skipped for this row"
+    # T048 restart round-1 (class "checks that cannot fail"): nothing is
+    # asserted in this branch, so it is a NOTE, not a counted PASS.
+    printf '  NOTE  %s\n' "SWEEP row '$SWEEP_ROW_NAME': no attack-class mutant applies to this row by design (a pure real-code safety check -- $SWEEP_ROW_CLASS) -- mutation-discrimination intentionally skipped for this row"
   else
     SWEEP_ROW_MUT="$SWEEP_ROW_PARENT/release_prefix_mut_${SWEEP_I}.sh"
     SWEEP_ROW_MUT_ERR="$(python3 "$MUT_GEN" "$RELEASE_PREFIX" "$SWEEP_ROW_MUT" "$SWEEP_ROW_KIND" 2>&1)"
@@ -1343,6 +1351,97 @@ else
     bad "M1 regression: resolution did not correctly fall through after the readable-but-not-searchable override (stdout='$E2_STDOUT' exit=$E2_RC) -- the pre-M1-fix empty-output bug has returned"
   fi
 fi
+
+# F. REGISTERED SUBMODULE AT A PATH OTHER THAN 'constitution', parent has NO
+# .env (T048 restart round-1, R4-I1). The superproject tier
+# (`git rev-parse --show-superproject-working-tree`) is release_prefix.sh's
+# PRIMARY mechanism; in every earlier fixture the parent's .env/.gitmodules
+# evidence gave the same answer, so deleting that tier changed nothing in
+# any suite. Here only that tier finds the parent: the copy lives at
+# vendor/constitution (path is not literally 'constitution', so the
+# .gitmodules evidence pattern does not match, and two levels up is
+# vendor/, not the parent) and the parent has no .env. The real code must
+# resolve the parent's own directory name; without the tier it resolves
+# 'constitution'. Both release_prefix.sh and dispatch_stamp.sh are
+# byte-identical copies run from /tmp.
+echo
+echo "-- F (R4-I1). registered submodule at vendor/constitution, parent without .env: the superproject tier alone finds the parent --"
+F_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_registered_submodule.XXXXXX")"
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
+cleanup_f_fixture() { rm -rf "$F_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_sweep_fixture; cleanup_d4_fixture; cleanup_d5_fixture; cleanup_e2_fixture; cleanup_f_fixture' EXIT
+F_SRC="$F_ROOT/const_src"
+F_PARENT="$F_ROOT/my_parent_proj"
+f_git() { env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE git -c user.email=r5f@example.invalid -c user.name=r5f -c protocol.file.allow=always -c init.defaultBranch=main "$@"; }
+mkdir -p "$F_SRC/scripts/fastcycle/tokens" "$F_PARENT"
+cp "$RELEASE_PREFIX" "$F_SRC/scripts/release_prefix.sh"
+cp "$TOOL" "$F_SRC/scripts/fastcycle/tokens/dispatch_stamp.sh"
+F_SETUP_OK=0
+if f_git -C "$F_SRC" init -q && f_git -C "$F_SRC" add -A && f_git -C "$F_SRC" commit -qm fixture \
+   && f_git -C "$F_PARENT" init -q && f_git -C "$F_PARENT" commit -q --allow-empty -m root \
+   && f_git -C "$F_PARENT" submodule add -q "$F_SRC" vendor/constitution >/dev/null 2>&1; then
+  F_SETUP_OK=1
+fi
+F_CONST="$F_PARENT/vendor/constitution"
+if [ "$F_SETUP_OK" -ne 1 ] || [ ! -f "$F_CONST/scripts/release_prefix.sh" ]; then
+  bad "case F setup failed (git init/submodule add) -- cannot run case F"
+else
+  F_SUPER="$(git -C "$F_CONST" rev-parse --show-superproject-working-tree 2>/dev/null)"
+  if [ "$(cd "$F_SUPER" 2>/dev/null && pwd -P)" = "$(cd "$F_PARENT" && pwd -P)" ] && [ ! -e "$F_PARENT/.env" ] \
+     && ! grep -Eq '^[[:space:]]*path[[:space:]]*=[[:space:]]*constitution[[:space:]]*$' "$F_PARENT/.gitmodules"; then
+    ok "case F fixture: vendor/constitution is a registered submodule of my_parent_proj, the parent has no .env, and .gitmodules has no 'path = constitution' line"
+  else
+    bad "case F fixture premise does not hold (superproject='$F_SUPER', .env present=$([ -e "$F_PARENT/.env" ] && echo yes || echo no))"
+  fi
+  if cmp -s "$RELEASE_PREFIX" "$F_CONST/scripts/release_prefix.sh" && cmp -s "$TOOL" "$F_CONST/scripts/fastcycle/tokens/dispatch_stamp.sh"; then
+    ok "case F fixture: both tools are byte-identical copies of the real files"
+  else
+    bad "case F fixture: the copies differ from the real files"
+  fi
+  F_RP="$(cd /tmp && bash "$F_CONST/scripts/release_prefix.sh" 2>/dev/null)"
+  if [ "$F_RP" = "my_parent_proj" ]; then
+    ok "case F: release_prefix.sh resolves the superproject's own name 'my_parent_proj' (not 'constitution')"
+  else
+    bad "case F: release_prefix.sh resolved '$F_RP', want 'my_parent_proj' -- the superproject tier is not being used"
+  fi
+  F_ID="$(cd /tmp && printf '%s' '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=MYP-7 registered submodule"}}' | bash "$F_CONST/scripts/fastcycle/tokens/dispatch_stamp.sh" --extract-item-id)"
+  if [ "$F_ID" = "MYP-7" ]; then
+    ok "case F: dispatch_stamp.sh in the registered submodule extracts item=MYP-7 (ticket prefix derived from the superproject)"
+  else
+    bad "case F: dispatch_stamp.sh extracted '$F_ID', want 'MYP-7'"
+  fi
+fi
+
+# G. .env parsing of the release prefix (T048 restart round-1, R4-M5): a
+# double-quoted value is unquoted, a single-quoted value is unquoted, and of
+# several assignments the LAST one wins. Run through a byte-identical copy in
+# a standalone fixture repo (the case C shape), one .env per sub-case.
+echo
+echo "-- G (R4-M5). .env value parsing: quotes stripped, last assignment wins --"
+G_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_env_parse.XXXXXX")"
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
+cleanup_g_fixture() { rm -rf "$G_ROOT"; }
+trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_sweep_fixture; cleanup_d4_fixture; cleanup_d5_fixture; cleanup_e2_fixture; cleanup_f_fixture; cleanup_g_fixture' EXIT
+g_case() {
+  local name="$1" envtext="$2" want="$3" dir got
+  dir="$G_ROOT/$name"
+  mkdir -p "$dir/scripts"
+  cp "$RELEASE_PREFIX" "$dir/scripts/release_prefix.sh"
+  f_git -C "$dir" init -q >/dev/null 2>&1
+  printf '%s\n' "$envtext" > "$dir/.env"
+  got="$(cd /tmp && bash "$dir/scripts/release_prefix.sh" 2>/dev/null)"
+  if [ "$got" = "$want" ]; then
+    ok "G $name: .env -> '$got'"
+  else
+    bad "G $name: .env gave '$got', want '$want'"
+  fi
+}
+g_case double_quoted 'HELIX_RELEASE_PREFIX="quoted_dq_value"' quoted_dq_value
+g_case single_quoted "HELIX_RELEASE_PREFIX='quoted_sq_value'" quoted_sq_value
+g_case last_wins "$(printf 'HELIX_RELEASE_PREFIX=first_value\nOTHER=x\nHELIX_RELEASE_PREFIX=second_value')" second_value
+g_case commented_last "$(printf 'HELIX_RELEASE_PREFIX=live_value\n# HELIX_RELEASE_PREFIX=commented_value')" live_value
 
 echo
 echo "  total: PASS=$PASS FAIL=$FAIL"

@@ -344,7 +344,13 @@ fi
 # or preceded by whitespace) — the honest '?' form is unconditionally
 # accepted (see header: no live-derivable value exists to cross-check it
 # against, unlike the sibling label guard's <effort> field).
-ITEM_RE="(^|[[:space:]])item=(${ITEM_VALUE_RE}|\\?)"
+# The tag must also END at a token boundary (T048 restart round-1, R3
+# boundary note): the next character is anything but a letter, digit or
+# underscore, or the string ends. Without it 'item=ATM-12x' was accepted as
+# ATM-12 and 'item=?foo' as the honest '?'. transcript_ingest.py's
+# ITEM_TAG_TEMPLATE carries the same boundary, so the two tools accept the
+# same set of tags. The capture group used below stays BASH_REMATCH[2].
+ITEM_RE="(^|[[:space:]])item=(${ITEM_VALUE_RE}|\\?)([^[:alnum:]_]|\$)"
 
 extract_item() {
   # Prints the captured item value (ATM-nnnn or literal '?') if ITEM_RE

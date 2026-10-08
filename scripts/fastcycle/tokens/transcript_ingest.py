@@ -91,9 +91,21 @@ project)
 The sibling R0 investigation `ingest_claude_transcript.py` (captured
 2026-07-08, same POC directory) found, from REAL captured transcripts, that
 Claude Code streams MULTIPLE JSONL lines per logical assistant turn (one
-per content block), each carrying an IDENTICAL cumulative `usage` block —
-so a per-LINE dedup key (line number, or a per-line `uuid`) would count one
-logical turn's tokens N times over. That script's own fix was to key on
+per content block), so a per-LINE dedup key (line number, or a per-line
+`uuid`) would count one logical turn's tokens N times over. That script
+also claimed each line carries an IDENTICAL cumulative `usage` block; that
+claim is FALSE (T048 restart review R3-F1, re-measured 2026-10-08 on the
+300 newest real transcripts of this host: 12,028 msg ids repeat across
+lines, 1,357 of them with DIFFERENT usage; only output_tokens differs, it
+never decreases along the file, and the last line always carries the
+maximum). Keeping the first-seen line undercounted output tokens (14.6x on
+one real subagent transcript). This module therefore MERGES every line of a
+msg id into one row by taking the per-field MAXIMUM of the four cumulative
+counters (see `merge_usage()`), within a run AND across runs (a live
+transcript re-ingested after it grew updates its existing row). A later
+value that is SMALLER than the stored one cannot come from streaming
+growth, so it is reported on stderr (see `upsert_row()`) while
+the maximum is still kept. That script's own fix was to key on
 `(sessionId, requestId)` instead of per-line identity; this module's own
 fixtures (and this task's README provenance capture, 2026-09-28) show every
 assistant record — even a usage-absent one — carrying a stable
@@ -108,8 +120,12 @@ never double-counts), falling back to `(source_file, lineno, uuid)` only
 for the (unobserved in this project's own captured schema) case of an
 assistant record with no `message["id"]` at all. NEVER derived from
 `message["content"]`, matching the credential-safety guarantee above.
-`INSERT OR IGNORE` (matching `usage_telemetry.py`'s own convention exactly)
-makes a second `ingest` of the identical input a true no-op.
+Because the merge is a per-field maximum, a second `ingest` of the
+identical input is still a true no-op (nothing grows, nothing is
+rewritten). The identity columns (source_file, lineno, agent_id, item_id,
+session_id, ...) stay those of the FIRST line that created the row: a
+forked subagent transcript can replay a parent's message id, and that
+replay must not re-attribute the parent's own turn to the subagent.
 
 =============================================================================
 "copy-on-ingest" (tasks.md T038 / plan.md T-A06 work item (3)) — design
@@ -469,7 +485,7 @@ def _build_item_tag_re():
                     prefixes.append(tok.upper())
         value_re = "(?:%s)-[0-9]+" % "|".join(prefixes)
     try:
-        return re.compile(r"(?:^|\s)item=(%s|\?)" % value_re)
+        return re.compile(ITEM_TAG_TEMPLATE % value_re)
     except re.error as exc:
         print(
             "transcript_ingest: WARNING: the configured item-tag pattern "
@@ -481,7 +497,16 @@ def _build_item_tag_re():
             file=sys.stderr,
         )
         fallback_prefix = _fc_default_item_prefix()
-        return re.compile(r"(?:^|\s)item=((?:%s)-[0-9]+|\?)" % fallback_prefix)
+        return re.compile(ITEM_TAG_TEMPLATE % ("(?:%s)-[0-9]+" % fallback_prefix))
+
+
+# The item tag is a whole token: whitespace or start-of-string on the left
+# (`xitem=ATM-1` is not a tag) and, on the right, anything but an ASCII
+# letter, digit or underscore (so `item=ATM-12x` and `item=?foo` are not
+# tags, while `item=ATM-12,` and `item=ATM-12)` are). T048 restart review
+# R3 boundary note. dispatch_stamp.sh's ITEM_RE carries the same right
+# boundary, so both tools accept exactly the same set of tags.
+ITEM_TAG_TEMPLATE = r"(?:^|\s)item=(%s|\?)(?![A-Za-z0-9_])"
 
 
 ITEM_TAG_RE = _build_item_tag_re()
@@ -525,18 +550,45 @@ def find_jsonl_files(path):
     return []
 
 
+# Per-pass counters of input that was not read cleanly. cmd_ingest() resets
+# them before its row pass and prints them in its summary line, so a run that
+# skipped a file or a line says so in its own result (T048 restart round-1,
+# class "absent evidence read as valid": these used to appear only as
+# scattered stderr warnings while the summary looked complete).
+READ_STATS = {"unreadable_files": 0, "unparseable_lines": 0, "invalid_utf8_lines": 0}
+
+
 def iter_records(filepath):
     """Yield (lineno, record_dict) for every parseable, non-blank JSONL
     line in filepath. A malformed line is logged to stderr and skipped —
     never crashes the whole ingest over one bad line (real transcripts can
-    carry a truncated tail line from an interrupted write)."""
+    carry a truncated tail line from an interrupted write).
+
+    The file is read as BYTES and each line is decoded on its own (T048
+    restart review R3-F2): a strict whole-file text decode raised
+    UnicodeDecodeError on a tail line cut inside a multi-byte character,
+    which aborted the run before the final commit and lost every valid row.
+    A line that is not valid UTF-8 is decoded with replacement characters
+    and reported on stderr; it is then parsed like any other line (a line
+    cut mid-character also fails JSON parsing and is skipped)."""
     try:
-        fh = open(filepath, "r", encoding="utf-8")
+        fh = open(filepath, "rb")
     except OSError as exc:
         print("transcript_ingest: WARNING: cannot open %s: %s" % (filepath, exc), file=sys.stderr)
+        READ_STATS["unreadable_files"] += 1
         return
     with fh:
-        for lineno, raw in enumerate(fh, start=1):
+        for lineno, raw_bytes in enumerate(fh, start=1):
+            try:
+                raw = raw_bytes.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                print(
+                    "transcript_ingest: WARNING: %s:%d: invalid UTF-8 (%s); decoded "
+                    "with replacement characters" % (filepath, lineno, exc),
+                    file=sys.stderr,
+                )
+                READ_STATS["invalid_utf8_lines"] += 1
+                raw = raw_bytes.decode("utf-8", errors="replace")
             line = raw.strip()
             if not line:
                 continue
@@ -547,6 +599,7 @@ def iter_records(filepath):
                     "transcript_ingest: WARNING: %s:%d: skipping unparseable line: %s"
                     % (filepath, lineno, exc), file=sys.stderr,
                 )
+                READ_STATS["unparseable_lines"] += 1
                 continue
             if not isinstance(rec, dict):
                 continue
@@ -568,8 +621,18 @@ def build_dispatch_map(files):
     Reads ONLY `toolUseResult["agentId"]` and, from `toolUseResult
     ["description"]`, the narrow regex-matched item=<prefix>-<digits>|?
     token —
-    the raw description string itself is NEVER stored."""
+    the raw description string itself is NEVER stored.
+
+    An agent id can be dispatched more than once (a resumed agent). If all
+    its tagged dispatches name the SAME item, that item is kept. If they
+    name DIFFERENT items, its turns cannot be split between them from this
+    data, so the item is set to None and both ids are reported on stderr
+    (T048 restart review R4-I4: neither first-seen nor last-seen is a
+    correct answer, and keeping either one silently misattributes tokens).
+    The same rule applies to a conflicting session id."""
     dispatch_map = {}
+    seen_items = {}
+    seen_sessions = {}
     for filepath in files:
         for _lineno, rec in iter_records(filepath):
             tur = rec.get("toolUseResult")
@@ -585,11 +648,24 @@ def build_dispatch_map(files):
                 if m and m.group(1) != "?":
                     item_id = m.group(1)
             session_id = rec.get("sessionId")
-            entry = dispatch_map.setdefault(agent_id, {"item_id": None, "session_id": None})
-            if item_id and not entry["item_id"]:
-                entry["item_id"] = item_id
-            if session_id and not entry["session_id"]:
-                entry["session_id"] = session_id
+            dispatch_map.setdefault(agent_id, {"item_id": None, "session_id": None})
+            if item_id:
+                seen_items.setdefault(agent_id, []).append(item_id)
+            if isinstance(session_id, str) and session_id:
+                seen_sessions.setdefault(agent_id, []).append(session_id)
+    for agent_id, entry in dispatch_map.items():
+        for key, seen in (("item_id", seen_items), ("session_id", seen_sessions)):
+            values = sorted(set(seen.get(agent_id, [])))
+            if len(values) == 1:
+                entry[key] = values[0]
+            elif len(values) > 1:
+                print(
+                    "transcript_ingest: WARNING: agent %s was dispatched under %d "
+                    "different %s values (%s); its turns are left unattributed "
+                    "(%s=NULL) rather than credited to one of them"
+                    % (agent_id, len(values), key, ", ".join(values), key),
+                    file=sys.stderr,
+                )
     return dispatch_map
 
 
@@ -600,6 +676,49 @@ def _int_or_none(value):
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def classify_usage(it, ot, crt, cct, ref, filepath, usage_block_present=True):
+    """Return (usage_status, missing_instrument, total_tokens) for the four
+    core counters. A turn is `measured` ONLY when all four counters are
+    present; otherwise it is UNMEASURED, total_tokens is None, and
+    missing_instrument names exactly which fields were absent (T048 restart
+    review R3-F5: a usage block present but lacking token fields used to be
+    labelled `measured` with a NULL total and no missing_instrument, which
+    downstream readers such as context/dispatch_prefix.py treat as an
+    impossible state). Counters that ARE present are still stored."""
+    values = dict(zip(CORE_FIELDS, (it, ot, cct, crt)))
+    absent = [name for name in CORE_FIELDS if values[name] is None]
+    if not absent:
+        return MEASURED, None, it + ot + crt + cct
+    if not usage_block_present:
+        what = 'no "usage" block present'
+    else:
+        what = "usage block lacks %s" % ", ".join("message.usage.%s" % n for n in absent)
+    return (UNMEASURED,
+            "message.usage (assistant record %s in %s: %s)" % (ref, filepath, what),
+            None)
+
+
+def merge_usage(stored, incoming):
+    """Merge two observations of the same msg id. Each core counter takes
+    the larger of the two known values (cumulative counters only grow while
+    a turn streams, see the module docstring). Returns (merged_counts,
+    decreased_fields): decreased_fields lists the counters where `incoming`
+    is SMALLER than `stored`, which streaming growth cannot produce."""
+    merged = {}
+    decreased = []
+    for name in CORE_FIELDS:
+        a, b = stored.get(name), incoming.get(name)
+        if a is None:
+            merged[name] = b
+        elif b is None:
+            merged[name] = a
+        else:
+            merged[name] = max(a, b)
+            if b < a:
+                decreased.append(name)
+    return merged, decreased
 
 
 def build_row(filepath, lineno, rec, dispatch_map):
@@ -640,24 +759,16 @@ def build_row(filepath, lineno, rec, dispatch_map):
         # (d): "a subagent transcript -> attributed to its parent item").
         session_id = rec.get("sessionId")
 
+    ref = msg_id or record_uuid or ("line %d" % lineno)
     if isinstance(usage, dict):
-        usage_status = MEASURED
-        missing_instrument = None
         it = _int_or_none(usage.get("input_tokens"))
         ot = _int_or_none(usage.get("output_tokens"))
         crt = _int_or_none(usage.get("cache_read_input_tokens"))
         cct = _int_or_none(usage.get("cache_creation_input_tokens"))
-        total = None
-        if None not in (it, ot, crt, cct):
-            total = it + ot + crt + cct
     else:
-        usage_status = UNMEASURED
-        it = ot = crt = cct = total = None
-        ref = msg_id or record_uuid or ("line %d" % lineno)
-        missing_instrument = (
-            'message.usage (assistant record %s in %s: no "usage" block present)'
-            % (ref, filepath)
-        )
+        it = ot = crt = cct = None
+    usage_status, missing_instrument, total = classify_usage(
+        it, ot, crt, cct, ref, filepath, usage_block_present=isinstance(usage, dict))
 
     if msg_id:
         row_hash = hashlib.sha256(("msgid:" + str(msg_id)).encode("utf-8")).hexdigest()
@@ -687,7 +798,7 @@ def build_row(filepath, lineno, rec, dispatch_map):
 
 
 INSERT_SQL = """
-INSERT OR IGNORE INTO transcript_usage_events
+INSERT INTO transcript_usage_events
     (row_hash, source_file, lineno, record_uuid, session_id, agent_id,
      item_id, ts, model, msg_id, usage_status, missing_instrument,
      input_tokens, output_tokens, cache_read_input_tokens,
@@ -699,43 +810,58 @@ VALUES
      :cache_creation_input_tokens, :total_tokens);
 """
 
+UPDATE_USAGE_SQL = """
+UPDATE transcript_usage_events SET
+    usage_status = :usage_status, missing_instrument = :missing_instrument,
+    input_tokens = :input_tokens, output_tokens = :output_tokens,
+    cache_read_input_tokens = :cache_read_input_tokens,
+    cache_creation_input_tokens = :cache_creation_input_tokens,
+    total_tokens = :total_tokens
+WHERE row_hash = :row_hash;
+"""
 
-_USAGE_COMPARE_COLS = (
-    "usage_status", "input_tokens", "output_tokens",
-    "cache_read_input_tokens", "cache_creation_input_tokens",
-)
+_STORED_COLS = ("source_file", "lineno", "record_uuid", "msg_id") + CORE_FIELDS
 
 
-def _warn_if_duplicate_usage_differs(conn, row):
-    """Review finding (T038 round-1 Opus-xhigh, IMPORTANT non-blocking):
-    row_hash is derived from message["id"] ALONE (see module docstring's
-    IDEMPOTENCY section) -- a deliberate, disclosed, evidenced choice, not
-    a defect. But that means a genuine msg_id collision carrying GENUINELY
-    DIFFERENT usage counts is silently dropped by INSERT OR IGNORE with no
-    signal at all. This is NOT a behavior change (the existing, first-seen
-    row is still kept, exactly as before) -- it only makes a genuine
-    divergence AUDIBLE via a stderr WARNING, so a caller investigating an
-    unexpected total has somewhere to look. The common, benign case (a
-    real transcript streaming multiple JSONL lines per logical turn, each
-    carrying an IDENTICAL cumulative usage block for the same msg_id --
-    see the module docstring's own cited prior investigation) never
-    triggers this: identical values print nothing."""
+def upsert_row(conn, row):
+    """Insert `row`, or merge it into the row already stored under the same
+    row_hash (per-field maximum, see merge_usage()). Returns one of
+    "new", "updated" (an existing row's counters grew) or "unchanged".
+    The identity columns of an existing row are never rewritten (module
+    docstring, IDEMPOTENCY section). A counter that DECREASES relative to
+    the stored row is reported on stderr; the maximum is still kept."""
     existing = conn.execute(
-        "SELECT %s FROM transcript_usage_events WHERE row_hash = ?"
-        % ", ".join(_USAGE_COMPARE_COLS),
+        "SELECT %s FROM transcript_usage_events WHERE row_hash = ?" % ", ".join(_STORED_COLS),
         (row["row_hash"],),
     ).fetchone()
     if existing is None:
-        return  # should not happen (we just observed a duplicate insert), but never crash over it
-    new_values = tuple(row[col] for col in _USAGE_COMPARE_COLS)
-    if tuple(existing) != new_values:
+        conn.execute(INSERT_SQL, row)
+        return "new"
+    stored = dict(zip(_STORED_COLS, existing))
+    merged, decreased = merge_usage(stored, row)
+    if decreased:
         print(
-            "transcript_ingest: WARNING: duplicate msg_id (%s) at %s:%d has DIFFERENT "
-            "usage than the already-ingested row -- kept the first-seen row, this one "
-            "was skipped (existing=%s new=%s)"
-            % (row["msg_id"], row["source_file"], row["lineno"], dict(zip(_USAGE_COMPARE_COLS, existing)), dict(zip(_USAGE_COMPARE_COLS, new_values))),
+            "transcript_ingest: WARNING: msg_id %s at %s:%d has SMALLER %s than the "
+            "row already stored from %s:%s (streaming only grows these counters; "
+            "the larger values are kept): stored=%s new=%s"
+            % (row["msg_id"], row["source_file"], row["lineno"], ", ".join(decreased),
+               stored["source_file"], stored["lineno"],
+               {n: stored[n] for n in decreased}, {n: row[n] for n in decreased}),
             file=sys.stderr,
         )
+    if all(merged[n] == stored[n] for n in CORE_FIELDS):
+        return "unchanged"
+    ref = stored["msg_id"] or stored["record_uuid"] or ("line %s" % stored["lineno"])
+    status, missing, total = classify_usage(
+        merged["input_tokens"], merged["output_tokens"],
+        merged["cache_read_input_tokens"], merged["cache_creation_input_tokens"],
+        ref, stored["source_file"],
+        usage_block_present=any(merged[n] is not None for n in CORE_FIELDS))
+    params = dict(merged)
+    params.update(row_hash=row["row_hash"], usage_status=status,
+                  missing_instrument=missing, total_tokens=total)
+    conn.execute(UPDATE_USAGE_SQL, params)
+    return "updated"
 
 
 def cmd_ingest(args):
@@ -755,28 +881,35 @@ def cmd_ingest(args):
 
     dispatch_map = build_dispatch_map(files)
 
-    n_assistant_turns = n_new = n_dup = n_measured = n_unmeasured = 0
+    for key in READ_STATS:
+        READ_STATS[key] = 0
+    n_assistant_turns = n_new = n_updated = n_unchanged = n_measured = n_unmeasured = 0
     for filepath in files:
         for lineno, rec in iter_records(filepath):
             row = build_row(filepath, lineno, rec, dispatch_map)
             if row is None:
                 continue
             n_assistant_turns += 1
-            cur = conn.execute(INSERT_SQL, row)
-            if cur.rowcount == 1:
+            outcome = upsert_row(conn, row)
+            if outcome == "new":
                 n_new += 1
                 if row["usage_status"] == MEASURED:
                     n_measured += 1
                 else:
                     n_unmeasured += 1
+            elif outcome == "updated":
+                n_updated += 1
             else:
-                n_dup += 1
-                _warn_if_duplicate_usage_differs(conn, row)
+                n_unchanged += 1
     conn.commit()
     print(
         "transcript_ingest: files=%d assistant_turns_read=%d new=%d "
-        "measured=%d unmeasured=%d duplicate_skipped=%d db=%s"
-        % (len(files), n_assistant_turns, n_new, n_measured, n_unmeasured, n_dup, args.db)
+        "measured=%d unmeasured=%d duplicate_merged_grew=%d "
+        "duplicate_unchanged=%d unreadable_files=%d unparseable_lines=%d "
+        "invalid_utf8_lines=%d db=%s"
+        % (len(files), n_assistant_turns, n_new, n_measured, n_unmeasured,
+           n_updated, n_unchanged, READ_STATS["unreadable_files"],
+           READ_STATS["unparseable_lines"], READ_STATS["invalid_utf8_lines"], args.db)
     )
     return 0
 

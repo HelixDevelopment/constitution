@@ -34,7 +34,7 @@ set -u
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
-REAL_SCRIPT="$FC/cycle/baseline_replay.sh"
+REAL_SCRIPT="${FC_BR_UNDER_TEST:-$FC/cycle/baseline_replay.sh}"
 
 fail=0
 failx() { fail=1; }
@@ -111,7 +111,7 @@ run_case() {
   bash "$script" replay \
     --commit "$SHA" --tree "$WRONG_TREE" \
     --repo-root "$REPO" --worktree-root "$wtroot" \
-    --gate-cmd true --cold-runs 1 --warm-runs 1 \
+    --min-free-kb 0 --gate-cmd true --cold-runs 1 --warm-runs 1 \
     --out "$WORK/out_${label}.json" >/dev/null 2>"$WORK/stderr_${label}.log"
   rc=$?
   after="$(git -C "$REPO" worktree list --porcelain | grep -c '^worktree ')"
@@ -162,6 +162,7 @@ path = sys.argv[1]
 src = open(path, encoding="utf-8").read()
 fixed_block = '''  cleanup() {
     local rr="$1" wp="$2"
+    _fc_kill_child
     git -C "$rr" worktree remove --force "$wp" >/dev/null 2>&1
     rm -rf "$wp" 2>/dev/null
   }
@@ -180,8 +181,24 @@ buggy_block = '''  local cleanup_done=0
 assert fixed_block in src, "mutation anchor (the fixed cleanup()/trap block) not found -- baseline_replay.sh has changed shape, update this mutation's anchor string"
 assert src.count(fixed_block) == 1, "mutation anchor is not unique in the file"
 src = src.replace(fixed_block, buggy_block, 1)
-# the success-path explicit call also needs reverting to match (no positional args)
-src = src.replace('cleanup "$repo_root" "$wt_path"\n  trap - EXIT', 'cleanup\n  trap - EXIT', 1)
+# the success-path explicit call also needs reverting to match (no positional args).
+# T048 restart round 1 (R6-F13 class): every anchor must match EXACTLY once --
+# a silently-unmatched str.replace is a mutation that changes less than it claims.
+succ = 'cleanup "$repo_root" "$wt_path"\n  trap - EXIT'
+assert src.count(succ) == 1, "success-path cleanup anchor matched %d times (need exactly 1)" % src.count(succ)
+src = src.replace(succ, 'cleanup\n  trap - EXIT', 1)
+# T048 restart round 1: do_one_replay now runs as a bare background job
+# (`do_one_replay "$@" >"$body_file" &`, run_replay_isolated, R6-F11). Measured on
+# bash 5.2: for an async FUNCTION call bash runs the subshell's EXIT trap while the
+# function's locals are still in scope, so the buggy form above would NOT leak in
+# that exact invocation context -- the %q fix is kept anyway so correctness never
+# hinges on how do_one_replay happens to be invoked. To keep this mutation a real
+# test of the %q fix, it also restores the invocation context the original bug
+# lived in: a `( ... )` subshell (as the old `$(...)` was), where the EXIT trap
+# fires only AFTER the function returned and its locals are gone.
+inv = 'do_one_replay "$@" >"$body_file" &'
+assert src.count(inv) == 1, "run_replay_isolated invocation anchor matched %d times (need exactly 1)" % src.count(inv)
+src = src.replace(inv, '( do_one_replay "$@" ) >"$body_file" &', 1)
 open(path, "w", encoding="utf-8").write(src)
 PYEOF
 _mutant_build_rc=$?

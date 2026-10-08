@@ -122,7 +122,9 @@ fi
 # The load-bearing check is content: does the directory hold any real *.py
 # file at all, and specifically cycle_report.py?
 CYCLE_DIR="$FC/cycle"
-CYCLE_REPORT="$FC/cycle/cycle_report.py"
+# CYCLE_REPORT_UNDER_TEST lets the R5 paired-mutation harness (end of this
+# file) re-run EVERY check below against a mutated copy of the tool.
+CYCLE_REPORT="${CYCLE_REPORT_UNDER_TEST:-$FC/cycle/cycle_report.py}"
 # NOTE (post-T036-review remediation, 2026-09-28, §11.4.1): T041 has since
 # LANDED and been independently reviewed GO (two rounds) -- these two
 # precondition checks are RETAINED (never deleted outright, they still have
@@ -381,17 +383,39 @@ fx = json.load(open('$FIXDIR/golden_atm953/tracker_export.json'))
 needle = fx['expected_ct009_needle_default']['known_present']
 fixed_row = next(r for r in fx['item_history'] if r['event_type'] == 'Fixed')
 ce = actual.get('closure_event') or {}
+cp = next(s for s in actual['stages'] if s['stage'] == 'commit_push')
 result = {
     'ok_item': actual['item_id'] == needle['atm_id'],
     'ok_event': ce.get('event_type') == needle['event_type'],
     'ok_date': ce.get('on_date') == needle['on_date'],
     'ok_evidence': ce.get('evidence_path') == fixed_row['evidence_path'],
-    'ok_flagged': len(actual.get('data_quality_flags', [])) > 0,
+    # R5 I7 (T048 restart round 1): the previous 'len(flags) > 0' could not
+    # tell WHICH flag fired. Exact set, hand-derived 2026-10-08 from the live
+    # DB + git: row 869 (Reopened)
+    # has on_date 07-28 but created_at 08-05 -> DATE_ONLY_RESOLUTION; commit
+    # f1abb59's subject names ATM-953 AND ATM-954 -> COMMIT_ATTRIBUTION_BY_GREP;
+    # every other CT-005 flag is absent (Opened->Fixed gap 2h16m, no duplicate
+    # rows, Fixed precedes Reopened, items.status 'Reopened' after a Reopened
+    # event is not a desync).
+    'ok_flagged': sorted(actual.get('data_quality_flags', [])) == ['COMMIT_ATTRIBUTION_BY_GREP', 'DATE_ONLY_RESOLUTION'],
+    # commit_push: the ONLY commit whose SUBJECT names ATM-953 is
+    # f1abb59eac85 (2026-07-28T14:28:49+05:00, author == committer); the
+    # other five --grep hits name it in the body only.
+    'ok_commit_push': {k: v for k, v in cp.items() if k != 'push_missing_instrument'} == {
+        'stage': 'commit_push',
+        'start': {'value': '2026-07-28T14:28:49+05:00', 'time_source': 'git_author',
+                  'evidence_path': 'git_log#f1abb59eac851e560a49b9fb4465297f84d66bae'},
+        'end': {'value': '2026-07-28T14:28:49+05:00', 'time_source': 'git_committer',
+                'evidence_path': 'git_log#f1abb59eac851e560a49b9fb4465297f84d66bae'},
+        'elapsed': 0, 'push_instant': 'UNMEASURED',
+    } and 'push' in cp.get('push_missing_instrument', ''),
+    'ok_reopen': actual.get('reopen_count') == 1 and actual.get('selection_reason') == 'reopened-in-window',
     'closure_event': ce,
     'flags': actual.get('data_quality_flags'),
+    'commit_push': cp,
 }
 json.dump(result, open('$GA_CHECK', 'w'))
-print(all(result[k] for k in ('ok_item', 'ok_event', 'ok_date', 'ok_evidence', 'ok_flagged')))
+print(all(result[k] for k in ('ok_item', 'ok_event', 'ok_date', 'ok_evidence', 'ok_flagged', 'ok_commit_push', 'ok_reopen')))
 " 2>&1)"
     if [ "$GA_ALL_OK" = "True" ]; then
       GA_EVIDENCE="$(python3 -c "import json; print(json.load(open('$GA_CHECK'))['closure_event']['evidence_path'])" 2>&1)"
@@ -399,8 +423,9 @@ print(all(result[k] for k in ('ok_item', 'ok_event', 'ok_date', 'ok_evidence', '
       echo "ok cycle_report.py --item ATM-953 (live tracker DB): closure_event"
       echo "   EXACTLY matches the fixture's expected_ct009_needle_default"
       echo "   (item_id=ATM-953, event_type=Fixed, on_date=2026-07-28,"
-      echo "   evidence_path=$GA_EVIDENCE), AND the item carries >=1 real CT-005"
-      echo "   data-quality flag ($GA_FLAGS) -- the Reopened row's on_date/"
+      echo "   evidence_path=$GA_EVIDENCE), the EXACT CT-005 flag set $GA_FLAGS,"
+      echo "   the exact commit_push stage (f1abb59, elapsed 0, push UNMEASURED) and"
+      echo "   reopen_count 1 -- the Reopened row's on_date/"
       echo "   created_at discrepancy documented in the fixture's"
       echo "   'data_quality_observation_not_fabricated' block is not silently"
       echo "   dropped. §11.4.6 honest boundary preserved: this does not assert a"
@@ -500,6 +525,44 @@ else
 fi
 
 echo
+echo "=== R5 I7 (T048 restart round 1): check 4/4 had no negative control on the RECONSTRUCTION path ==="
+# check 4/4's fixture is Shape A (pre-computed stages, no item_history), so
+# its "ZERO data-quality flags" assertion could never fail: Shape A had no
+# history to evaluate. This drives the Shape-B RECONSTRUCTION path (the same
+# flag code --item/full mode use) with a clean, fully consistent item ->
+# EXACTLY zero flags; then two single-defect variants of the SAME item must
+# raise EXACTLY their one flag (discrimination: the zero is not a blind zero).
+mk_shape_b() {  # $1 out, $2 status, $3 extra history row (json or empty)
+  cat > "$1" <<JSON
+{"item": {"atm_id": "ATM-90777", "type": "Task", "status": "$2"},
+ "item_history": [
+   {"event_type": "Opened", "by": "User", "on_date": "2026-08-01", "created_at": "2026-08-01T08:00:00Z"},
+   {"event_type": "Completed", "by": "AI", "on_date": "2026-08-02", "created_at": "2026-08-02T09:00:00Z", "evidence_path": "qa/x/y.log"}$3
+ ],
+ "git_log": [{"sha": "bbbbbbb2222222222222222222222222222222b", "author_date": "2026-08-02T08:00:00Z",
+              "committer_date": "2026-08-02T08:30:00Z", "message": "feat(ATM-90777): done"}]}
+JSON
+}
+mk_shape_b "$TMP/nb_clean.json" "Completed (→ Fixed.md)" ""
+mk_shape_b "$TMP/nb_dup.json" "Completed (→ Fixed.md)" ',
+   {"event_type": "Completed", "by": "AI", "on_date": "2026-08-02", "created_at": "2026-08-02T09:00:00Z", "evidence_path": "qa/x/y.log"}'
+mk_shape_b "$TMP/nb_desync.json" "Queued" ""
+nb_res=""
+for v in clean dup desync; do
+  python3 "$CYCLE_REPORT" --as-of 2026-09-28 --tracker-export "$TMP/nb_$v.json" \
+    --out "$TMP/nb_${v}_out.json" >"$TMP/nb_$v.err" 2>&1
+  nb_res="$nb_res $v=$(python3 -c "import json,sys; print(','.join(json.load(open(sys.argv[1]))['records'][0]['data_quality_flags']) or 'NONE')" "$TMP/nb_${v}_out.json" 2>/dev/null || echo ERR)"
+done
+if [ "$nb_res" = " clean=NONE dup=DUPLICATE_HISTORY_ROWS desync=STATUS_DESYNC" ]; then
+  ok_msg="ok R5 I7 Shape-B negative control: clean item -> zero flags; duplicate row -> exactly"
+  echo "$ok_msg"
+  echo "   DUPLICATE_HISTORY_ROWS; Queued status after a closure -> exactly STATUS_DESYNC"
+else
+  echo "NOT ok R5 I7 Shape-B negative control/discrimination: got$nb_res"
+  failx
+fi
+
+echo
 echo "=== N3 fix (T048 round-2 review): ct_determinism -- --determinism-check must ==="
 echo "=== hold on real production-mode data (C-003) ==="
 # Root cause verified directly (2026-09-30) BEFORE fixing: cycle_report.py's
@@ -535,43 +598,469 @@ if [ -f "$CYCLE_REPORT" ] && command -v sqlite3 >/dev/null 2>&1 && [ -f "$DB" ];
   fi
 
   # Self-validation control needle (§11.4.107(10)/§11.4.201(1)): prove the
-  # body_hash comparator is NOT a rubber-stamp that reports "equal" no
-  # matter what -- two genuinely DIFFERENT selection windows run directly
-  # (not through --determinism-check) MUST produce DIFFERENT body_hash
-  # values. If this needle failed (hashes equal despite different real
-  # content), check ct_determinism's PASS above would be worthless.
-  DIFFWIN_A="$TMP/ct_determinism_diffwin_a.json"
-  DIFFWIN_B="$TMP/ct_determinism_diffwin_b.json"
-  python3 "$CYCLE_REPORT" --config x --as-of 2026-09-28 --window-days 90 --out "$DIFFWIN_A" >/dev/null 2>&1
-  python3 "$CYCLE_REPORT" --config x --as-of 2026-09-28 --window-days 30 --out "$DIFFWIN_B" >/dev/null 2>&1
-  if [ -f "$DIFFWIN_A" ] && [ -f "$DIFFWIN_B" ]; then
-    DIFFWIN_DISTINCT="$(python3 -c "
-import json
-a = json.load(open('$DIFFWIN_A')).get('body_hash')
-b = json.load(open('$DIFFWIN_B')).get('body_hash')
-print(a != b)
-" 2>&1)"
-    if [ "$DIFFWIN_DISTINCT" = "True" ]; then
-      echo "ok control needle (ct_determinism comparator discrimination): two"
-      echo "   genuinely different windows (90d vs 30d) produce DIFFERENT"
-      echo "   body_hash values -- the body_hash mechanism checked by"
-      echo "   ct_determinism above is real content-sensitive, not a rubber stamp"
+  # body_hash comparator is content-sensitive. R5 I7 (T048 restart round 1):
+  # the previous needle compared a 90-day and a 30-day window, which differ
+  # trivially because window.from is itself part of the hashed body -- it
+  # could not show that the hash moves with CONTENT. Here the arguments are
+  # IDENTICAL and only the DB content differs: the synthetic scenario's
+  # "full" DB vs its "cut" DB (rows after 2026-08-23 removed), both read at
+  # as-of 2026-09-30, a date AFTER those rows -- so the bodies must differ.
+  SCEN="$TMP/scen"
+  for m in full cut; do
+    [ -d "$SCEN/$m" ] || python3 "$FIXDIR/build_asof_scenario.py" "$SCEN/$m" "$m" >/dev/null 2>&1
+    python3 "$CYCLE_REPORT" --config x --as-of 2026-09-30 --window-days 120 --min-per-type 2 \
+      --bulk-threshold 3 --needle-present-id ATM-953 --needle-fixed-on-date 2026-07-01 \
+      --db-path "$SCEN/$m/db.sqlite" --repo-root "$SCEN/$m/repo" --out "$TMP/content_$m.json" >/dev/null 2>&1
+  done
+  if [ -f "$TMP/content_full.json" ] && [ -f "$TMP/content_cut.json" ]; then
+    CONTENT_DISTINCT="$(python3 -c "
+import json, sys
+a = json.load(open(sys.argv[1])); b = json.load(open(sys.argv[2]))
+print(a['body_hash'] != b['body_hash'] and a['window'] == b['window'])
+" "$TMP/content_full.json" "$TMP/content_cut.json" 2>&1)"
+    if [ "$CONTENT_DISTINCT" = "True" ]; then
+      echo "ok control needle (ct_determinism comparator discrimination): identical"
+      echo "   arguments + identical window, different DB content -> DIFFERENT body_hash"
+      echo "   (the hash is content-sensitive, not merely window-sensitive)"
     else
       echo "NOT ok control needle (ct_determinism comparator discrimination) FAILED:"
-      echo "     a 90-day and a 30-day window produced the SAME body_hash --"
-      echo "     ct_determinism's PASS above cannot be trusted (comparator_result="
-      echo "     '$DIFFWIN_DISTINCT')"
+      echo "     different DB content under identical arguments gave '$CONTENT_DISTINCT'"
       failx
     fi
   else
     echo "NOT ok control needle (ct_determinism comparator discrimination) SKIPPED:"
-    echo "     one or both window invocations failed to produce output"
+    echo "     one or both scenario invocations failed to produce output"
     failx
   fi
 else
   echo "NOT ok ct_determinism SKIPPED: cycle_report.py/sqlite3/tracker DB not"
   echo "     available (see presence checks above)"
   failx
+fi
+
+# ===========================================================================
+# R5 regression checks (T048 restart round 1, docs/qa/t048_restart_round1_
+# 20261008/R5_cycle_report_sampling.md). Every check drives the REAL
+# cycle_report.py CLI against the deterministic synthetic scenario built by
+# fixtures/cycle_report/build_asof_scenario.py (its docstring lists every row
+# and commit), except R5-C8 which repeats the reviewer's own experiment on a
+# read-only snapshot of the live tracker DB.
+#
+# Hand-derived expectation for full-sampling mode, --as-of 2026-08-23
+# --window-days 60 (=> [2026-06-24, 2026-08-23]) --min-per-type 2
+# --bulk-threshold 3, only rows/commits dated <= as-of visible:
+#   Bug   keep {300,953,1002,800,277}; recency by as-of closure created_at
+#         300(06-30) < 953(07-01) < 1002(07-10) < 800(07-25) < 277(08-20)
+#         -> {ATM-800, ATM-277}
+#   Task  per-type cluster (qa/realbulk, 2026-07-20) = {601,602,603} >= 3 ->
+#         excluded[]; keep {501,502,503} -> by created_at 10:00/11:00/12:00
+#         -> {ATM-502, ATM-503}
+#   Feature {ATM-700}
+#   records = ATM-277, ATM-502, ATM-503, ATM-700, ATM-800
+#   ATM-277 commit_push = the ONE subject-match "fix ATM-277 part"
+#           08-20T09:00Z -> 09:30Z = 1800000 ms ("ATM-2770 ..." is a token-
+#           boundary trap, "chore: misc" names it only in the body, the
+#           09-20 follow-up is after as-of); reopen_count 0; flags []
+#   ATM-800 commit_push 07-25T09:00Z -> 09:20Z = 1200000 ms; reopen_count 1
+#           (the duplicate Reopened row is deduplicated); flags exactly
+#           [DUPLICATE_HISTORY_ROWS] -- NOT REOPEN_WITHOUT_PRIOR_CLOSURE
+#           (R5 M8: the duplicate row must not read as a second reopen)
+#   ATM-700 closure_event on_date 2026-08-01 (not the future 09-10 one);
+#           flags exactly [RETROACTIVE_REGISTRATION] (Opened->Implemented 20 s)
+#   reopen block = closure/reopen_rate.py's own derivation over the WINDOW
+#           population (every item closed or reopened in the window, as-of
+#           histories): Bug closed 5 / reopened 1 (ATM-800), Task closed 6 /
+#           reopened 0, Feature: ATM-700 excluded as retroactive -> overall
+#           reopened 1, closed 11, rate round(1/11, 6) = 0.090909,
+#           dedup_rows_removed 1, excluded_retroactive [ATM-700]
+#   medians.overall.commit_push = median(1800000, 1200000) = 1500000,
+#           n_measured 2, n_total 5
+#   instrument_gaps commit_push: ONE entry, text with the item id replaced by
+#           "{item_id}", items_affected [ATM-502, ATM-503, ATM-700]
+# ===========================================================================
+R5S="$TMP/r5"
+R5_NEEDLE=(--needle-present-id ATM-953 --needle-fixed-event Fixed --needle-fixed-on-date 2026-07-01)
+R5_COMMON=(--as-of 2026-08-23 --window-days 60 --min-per-type 2 --bulk-threshold 3)
+for m in full cut; do
+  python3 "$FIXDIR/build_asof_scenario.py" "$R5S/$m" "$m" >"$TMP/r5_build_$m.err" 2>&1 \
+    || { echo "NOT ok R5 fixture build ($m) failed: $(cat "$TMP/r5_build_$m.err")"; failx; }
+done
+r5_run() {  # $1 = output tag, $2 = scenario (full|cut), rest = extra args
+  local tag="$1" scen="$2"; shift 2
+  python3 "$CYCLE_REPORT" "${R5_NEEDLE[@]}" --db-path "$R5S/$scen/db.sqlite" \
+    --repo-root "$R5S/$scen/repo" --out "$TMP/r5_$tag.json" "$@" >"$TMP/r5_$tag.err" 2>&1
+  echo $?
+}
+
+echo
+echo "=== R5-C1 (B1): as-of freeze -- full vs cut scenario give the identical body (full-sampling AND --item) ==="
+rc_full=$(r5_run full full --config x "${R5_COMMON[@]}")
+rc_cut=$(r5_run cut cut --config x "${R5_COMMON[@]}")
+rc_ifull=$(r5_run item_full full --as-of 2026-08-23 --window-days 60 --item ATM-277)
+rc_icut=$(r5_run item_cut cut --as-of 2026-08-23 --window-days 60 --item ATM-277)
+c1="$(python3 - "$TMP" <<'PYEOF'
+import json, os, sys
+t = sys.argv[1]
+out = []
+for a, b in (("full", "cut"), ("item_full", "item_cut")):
+    pa, pb = (os.path.join(t, "r5_%s.json" % x) for x in (a, b))
+    if not (os.path.exists(pa) and os.path.exists(pb)):
+        out.append("%s/%s missing output" % (a, b))
+        continue
+    da, db = json.load(open(pa)), json.load(open(pb))
+    if da["body_hash"] != db["body_hash"]:
+        diff = [r["item_id"] for r in da.get("records", [])], [r["item_id"] for r in db.get("records", [])]
+        out.append("%s!=%s (records %s vs %s)" % (a, b, diff[0], diff[1]))
+print("SAME" if not out else "; ".join(out))
+PYEOF
+)"
+if [ "$rc_full$rc_cut$rc_ifull$rc_icut" = "0000" ] && [ "$c1" = "SAME" ]; then
+  echo "ok R5-C1 rows and commits dated after --as-of change nothing (full-sampling and --item bodies identical)"
+else
+  echo "NOT ok R5-C1 as-of leak: rc=$rc_full/$rc_cut/$rc_ifull/$rc_icut $c1"
+  failx
+fi
+
+echo
+echo "=== R5-C2 (B1 + I3 + I6 + M8 + gaps): exact hand-derived full-sampling report ==="
+c2="$(python3 - "$TMP/r5_full.json" <<'PYEOF'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception as e:
+    print("no report: %s" % e)
+    raise SystemExit
+p = []
+recs = {r["item_id"]: r for r in d.get("records", [])}
+if sorted(recs) != ["ATM-277", "ATM-502", "ATM-503", "ATM-700", "ATM-800"]:
+    p.append("records=%s" % sorted(recs))
+if sorted(e["item_id"] for e in d.get("excluded", [])) != ["ATM-601", "ATM-602", "ATM-603"]:
+    p.append("excluded=%s" % d.get("excluded"))
+def stage(r, name):
+    return next(s for s in r["stages"] if s["stage"] == name)
+def val(x):
+    return x.get("value") if isinstance(x, dict) else x
+want_cp = {"ATM-277": (1800000, "2026-08-20T09:00:00Z", "2026-08-20T09:30:00Z"),
+           "ATM-800": (1200000, "2026-07-25T09:00:00Z", "2026-07-25T09:20:00Z")}
+for iid, exp in want_cp.items():
+    r = recs.get(iid)
+    if not r:
+        continue
+    cp = stage(r, "commit_push")
+    got = (cp.get("elapsed"), val(cp.get("start")), val(cp.get("end")))
+    if got != exp:
+        p.append("%s commit_push=%s expected %s" % (iid, got, exp))
+want = {"ATM-277": (0, "sampled-bug", [], "2026-08-20"),
+        "ATM-800": (1, "reopened-in-window", ["DUPLICATE_HISTORY_ROWS"], "2026-07-25"),
+        "ATM-700": (0, "sampled-feature", ["RETROACTIVE_REGISTRATION"], "2026-08-01"),
+        "ATM-502": (0, "sampled-task", [], "2026-07-05")}
+for iid, exp in want.items():
+    r = recs.get(iid)
+    if not r:
+        continue
+    got = (r.get("reopen_count"), r.get("selection_reason"), r.get("data_quality_flags"),
+           (r.get("closure_event") or {}).get("on_date"))
+    if got != exp:
+        p.append("%s (reopen_count, selection_reason, flags, closure on_date)=%s expected %s" % (iid, got, exp))
+ro = d.get("reopen", {})
+want_ro = {"reopened": 1, "closed": 11, "rate": 0.090909, "dedup_rows_removed": 1}
+if {k: ro.get(k) for k in want_ro} != want_ro:
+    p.append("reopen=%s expected %s" % ({k: ro.get(k) for k in want_ro}, want_ro))
+if [e.get("item_id") for e in ro.get("excluded_retroactive", [])] != ["ATM-700"]:
+    p.append("reopen.excluded_retroactive=%s" % ro.get("excluded_retroactive"))
+if ro.get("window") != {"from": "2026-06-24", "to": "2026-08-23"}:
+    p.append("reopen.window=%s" % ro.get("window"))
+med = d.get("medians", {}).get("overall", {}).get("commit_push", {})
+if (med.get("value_ms"), med.get("n_measured"), med.get("n_total")) != (1500000, 2, 5):
+    p.append("medians.overall.commit_push=%s" % med)
+cp_gaps = [g for g in d.get("instrument_gaps", []) if g["stage"] == "commit_push"]
+if len(cp_gaps) != 1 or cp_gaps[0]["items_affected"] != ["ATM-502", "ATM-503", "ATM-700"] \
+        or "{item_id}" not in cp_gaps[0]["missing_instrument"] or "ATM-502" in cp_gaps[0]["missing_instrument"]:
+    p.append("instrument_gaps[commit_push]=%s" % cp_gaps)
+print("PASS" if not p else " | ".join(p))
+PYEOF
+)"
+if [ "$c2" = "PASS" ]; then
+  echo "ok R5-C2 report equals the hand-derived expectation (selection, excluded, commit_push spans,"
+  echo "   flags, reopen block from reopen_rate.py over the window population, medians, gaps)"
+else
+  echo "NOT ok R5-C2 $c2"
+  failx
+fi
+
+echo
+echo "=== R5-C3 (I4): CT-007 --hand-verified compares real figures and refuses an empty comparison ==="
+cat > "$TMP/hv_good.json" <<'JSON'
+[{"item_id": "ATM-277", "stage": "commit_push", "field": "elapsed", "expected_value": 1800000},
+ {"item_id": "ATM-800", "stage": "commit_push", "field": "elapsed", "expected_value": 1200000},
+ {"item_id": "ATM-502", "stage": "commit_push", "field": "elapsed", "expected_value": "UNMEASURED"}]
+JSON
+sed 's/1800000/1801000/' "$TMP/hv_good.json" > "$TMP/hv_bad.json"
+cat > "$TMP/hv_ghost.json" <<'JSON'
+[{"item_id": "ATM-1", "stage": "commit_push", "field": "elapsed", "expected_value": 1},
+ {"item_id": "ATM-2", "stage": "commit_push", "field": "elapsed", "expected_value": 2},
+ {"item_id": "ATM-3", "stage": "commit_push", "field": "elapsed", "expected_value": 3}]
+JSON
+python3 -c "
+import json, sys
+e = json.load(open(sys.argv[1])) + [{'item_id': 'ATM-4040', 'stage': 'commit_push', 'field': 'elapsed', 'expected_value': 1}]
+json.dump(e, open(sys.argv[2], 'w'))
+" "$TMP/hv_good.json" "$TMP/hv_partial.json"
+printf '{"window": {"from": "2026-06-24", "to": "2026-08-23"}}\n' > "$TMP/hv_window.json"
+hv_good=$(r5_run hv_good full --config x "${R5_COMMON[@]}" --hand-verified "$TMP/hv_good.json")
+hv_bad=$(r5_run hv_bad full --config x "${R5_COMMON[@]}" --hand-verified "$TMP/hv_bad.json")
+hv_ghost=$(r5_run hv_ghost full --config x "${R5_COMMON[@]}" --hand-verified "$TMP/hv_ghost.json")
+hv_partial=$(r5_run hv_partial full --config x "${R5_COMMON[@]}" --hand-verified "$TMP/hv_partial.json")
+hv_win=$(r5_run hv_win full --as-of 2026-08-23 --min-per-type 2 --window-json "$TMP/hv_window.json" --hand-verified "$TMP/hv_bad.json")
+if [ "$hv_good" = 0 ] && [ "$hv_bad" = 1 ] && grep -q 'ATM-277' "$TMP/r5_hv_bad.err" \
+   && grep -q 'commit_push' "$TMP/r5_hv_bad.err" && [ "$hv_ghost" = 1 ] && [ "$hv_partial" = 1 ] \
+   && grep -q 'ATM-4040 is not in this report' "$TMP/r5_hv_partial.err" && [ "$hv_win" = 1 ]; then
+  echo "ok R5-C3 golden-good exit 0; a 1 s mismatch exits 1 naming ATM-277/commit_push; three ids absent"
+  echo "   from the report exit 1 (no empty comparison passes); 3 good + 1 absent exits 1 naming the"
+  echo "   absent id; --window-json honours --hand-verified"
+else
+  echo "NOT ok R5-C3 rc good=$hv_good bad=$hv_bad ghost=$hv_ghost partial=$hv_partial window-json=$hv_win (want 0/1/1/1/1)"
+  echo "     bad.err: $(tail -2 "$TMP/r5_hv_bad.err")"
+  failx
+fi
+
+echo
+echo "=== R5-C4 (I5): a failed git call is UNMEASURED-with-reason, never read as 'no commit' ==="
+mkdir -p "$TMP/notarepo" "$TMP/fakegit"
+printf '#!/bin/sh\necho "fatal: simulated failure" >&2\nexit 1\n' > "$TMP/fakegit/git"
+chmod +x "$TMP/fakegit/git"
+python3 "$CYCLE_REPORT" "${R5_NEEDLE[@]}" --db-path "$R5S/full/db.sqlite" --repo-root "$TMP/notarepo" \
+  --as-of 2026-08-23 --item ATM-800 --out "$TMP/r5_norepo.json" >"$TMP/r5_norepo.err" 2>&1
+PATH="$TMP/fakegit:$PATH" python3 "$CYCLE_REPORT" "${R5_NEEDLE[@]}" --db-path "$R5S/full/db.sqlite" \
+  --repo-root "$R5S/full/repo" --as-of 2026-08-23 --item ATM-800 --out "$TMP/r5_fakegit.json" >"$TMP/r5_fakegit.err" 2>&1
+r5_run nocommit full --as-of 2026-08-23 --item ATM-953 >/dev/null
+c4="$(python3 - "$TMP" <<'PYEOF'
+import json, os, sys
+t = sys.argv[1]
+def cp(tag):
+    d = json.load(open(os.path.join(t, "r5_%s.json" % tag)))
+    return next(s for s in d["records"][0]["stages"] if s["stage"] == "commit_push")
+p = []
+try:
+    nr, fg, nc = cp("norepo"), cp("fakegit"), cp("nocommit")
+except Exception as e:
+    print("missing output: %s" % e)
+    raise SystemExit
+template = "git log author/committer timestamp for a commit whose subject references ATM-953"
+if nc.get("missing_instrument") != template or "instrument_error" in nc:
+    p.append("no-commit case changed: %s" % nc)
+for name, s in (("not-a-repo", nr), ("git-rc=1", fg)):
+    if s.get("elapsed") != "UNMEASURED" or not s.get("instrument_error") \
+            or "ATM-800" not in s.get("missing_instrument", "") \
+            or s.get("missing_instrument", "").startswith("git log author/committer timestamp for a commit"):
+        p.append("%s not distinguished: %s" % (name, s))
+if "rc=1" not in fg.get("instrument_error", ""):
+    p.append("fake-git rc not reported: %s" % fg.get("instrument_error"))
+print("PASS" if not p else " | ".join(p))
+PYEOF
+)"
+if [ "$c4" = "PASS" ]; then
+  echo "ok R5-C4 not-a-repo and git rc=1 each give UNMEASURED + instrument_error naming the failure;"
+  echo "   a real repo with no matching commit keeps the plain 'no commit' instrument text"
+else
+  echo "NOT ok R5-C4 $c4"
+  failx
+fi
+
+echo
+echo "=== R5-C5 (I6): Shape-B fixture git_log uses the SAME subject-only, token-boundary match as live mode ==="
+cat > "$TMP/r5_tok.json" <<'JSON'
+{"item": {"atm_id": "ATM-95", "type": "Bug", "status": "Fixed (→ Fixed.md)"},
+ "item_history": [
+   {"event_type": "Opened", "by": "User", "on_date": "2026-08-01", "created_at": "2026-08-01T08:00:00Z"},
+   {"event_type": "Fixed", "by": "AI", "on_date": "2026-08-02", "created_at": "2026-08-02T08:00:00Z"}],
+ "git_log": [
+   {"sha": "c1", "author_date": "2026-08-01T09:00:00Z", "committer_date": "2026-08-01T09:00:00Z", "message": "fix ATM-953 thing"},
+   {"sha": "c2", "author_date": "2026-08-01T11:00:00Z", "committer_date": "2026-08-05T11:00:00Z", "message": "chore: x\n\nrefs ATM-9512"},
+   {"sha": "c3", "author_date": "2026-07-01T11:00:00Z", "committer_date": "2026-07-01T11:00:00Z", "message": "docs: y\n\nbody-only ATM-95 mention"},
+   {"sha": "c4", "author_date": "2026-08-01T10:00:00Z", "committer_date": "2026-08-01T10:10:00Z", "message": "fix(ATM-95): real"}]}
+JSON
+python3 "$CYCLE_REPORT" --as-of 2026-09-28 --tracker-export "$TMP/r5_tok.json" --out "$TMP/r5_tok_out.json" >"$TMP/r5_tok.err" 2>&1
+c5="$(python3 -c "
+import json, sys
+s = next(x for x in json.load(open(sys.argv[1]))['records'][0]['stages'] if x['stage'] == 'commit_push')
+print((s.get('elapsed'), s['start']['evidence_path'], s['end']['evidence_path']) if isinstance(s.get('start'), dict) else s)
+" "$TMP/r5_tok_out.json" 2>&1)"
+if [ "$c5" = "(600000, 'git_log#c4', 'git_log#c4')" ]; then
+  echo "ok R5-C5 only 'fix(ATM-95): real' matches (ATM-953, ATM-9512 and a body-only mention do not): 600000 ms"
+else
+  echo "NOT ok R5-C5 fixture-path matching wrong: $c5"
+  failx
+fi
+
+echo
+echo "=== R5-C6 (M8 medians): a negative review_rounds elapsed is excluded from medians ==="
+mkdir -p "$TMP/r5_rr"
+printf '{"schema":"review-record/v1","item_id":"ATM-90810","started_at":"2026-09-02T15:00:00Z","ended_at":"2026-09-02T13:00:00Z","tokens":5}\n' > "$TMP/r5_rr/r.json"
+cat > "$TMP/r5_neg.json" <<'JSON'
+{"item": {"atm_id": "ATM-90810", "type": "Bug", "status": "Fixed (→ Fixed.md)"},
+ "item_history": [{"event_type": "Opened", "by": "User", "on_date": "2026-09-01", "created_at": "2026-09-01T08:00:00Z"},
+                  {"event_type": "Fixed", "by": "AI", "on_date": "2026-09-03", "created_at": "2026-09-03T08:00:00Z"}]}
+JSON
+python3 "$CYCLE_REPORT" --as-of 2026-09-28 --tracker-export "$TMP/r5_neg.json" --review-records-dir "$TMP/r5_rr" \
+  --out "$TMP/r5_neg_out.json" >"$TMP/r5_neg.err" 2>&1
+c6="$(python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+m = d['medians']['overall']['review_rounds']
+r = d['records'][0]
+st = next(s for s in r['stages'] if s['stage'] == 'review_rounds')
+print(st['elapsed'] < 0 and 'REVIEW_ELAPSED_NEGATIVE' in r['data_quality_flags']
+      and m['value_ms'] == 'UNMEASURED' and m['n_measured'] == 0 and m.get('n_negative_excluded') == 1)
+" "$TMP/r5_neg_out.json" 2>&1)"
+if [ "$c6" = "True" ]; then
+  echo "ok R5-C6 a flagged negative elapsed stays visible in its record but is not a median member"
+else
+  echo "NOT ok R5-C6 negative elapsed handling: $c6 -- $(tail -2 "$TMP/r5_neg.err")"
+  failx
+fi
+
+echo
+echo "=== R5-C6b (B1): review records dated after --as-of are invisible; the same records are visible to a later as-of ==="
+mkdir -p "$TMP/r5_rrc"
+printf '{"schema":"review-record/v1","item_id":"ATM-90820","started_at":"2026-09-01T10:00:00Z","ended_at":"2026-09-01T11:00:00Z","tokens":7}\n' > "$TMP/r5_rrc/a.json"
+printf '{"schema":"review-record/v1","item_id":"ATM-90820","started_at":"2026-09-30T10:00:00Z","ended_at":"2026-09-30T12:00:00Z","tokens":11}\n' > "$TMP/r5_rrc/b.json"
+sed 's/ATM-90810/ATM-90820/' "$TMP/r5_neg.json" > "$TMP/r5_rrc.json"
+for a in 2026-09-28 2026-10-01; do
+  python3 "$CYCLE_REPORT" --as-of "$a" --tracker-export "$TMP/r5_rrc.json" --review-records-dir "$TMP/r5_rrc" \
+    --out "$TMP/r5_rrc_$a.json" >"$TMP/r5_rrc_$a.err" 2>&1
+done
+c6b="$(python3 -c "
+import json, sys
+def rr(p):
+    st = next(s for s in json.load(open(p))['records'][0]['stages'] if s['stage'] == 'review_rounds')
+    return st.get('elapsed'), st.get('tokens')
+print(rr(sys.argv[1]), rr(sys.argv[2]))
+" "$TMP/r5_rrc_2026-09-28.json" "$TMP/r5_rrc_2026-10-01.json" 2>&1)"
+# as-of 09-28: only round a (1 h, 7 tokens). as-of 10-01: span 09-01T10:00Z ->
+# 09-30T12:00Z = 29 d 2 h = 2512800000 ms, tokens 7 + 11 = 18.
+if [ "$c6b" = "(3600000, 7) (2512800000, 18)" ]; then
+  echo "ok R5-C6b a review round dated after --as-of is ignored (1 h / 7 tokens) yet counted by a later as-of (29 d 2 h / 18 tokens)"
+else
+  echo "NOT ok R5-C6b review-record as-of cutoff: got $c6b, want (3600000, 7) (2512800000, 18)"
+  failx
+fi
+
+echo
+echo "=== R5-C7 (M10): --determinism-check writes --out and --md once ==="
+python3 "$CYCLE_REPORT" "${R5_NEEDLE[@]}" --db-path "$R5S/full/db.sqlite" --repo-root "$R5S/full/repo" \
+  --config x "${R5_COMMON[@]}" --determinism-check --out "$TMP/r5_dc.json" --md "$TMP/r5_dc.md" >"$TMP/r5_dc.out" 2>&1
+dc=$?
+if [ "$dc" = 0 ] && [ -f "$TMP/r5_dc.json" ] && [ -f "$TMP/r5_dc.md" ] && [ -f "$TMP/r5_full.json" ] && \
+   [ "$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['body_hash'])" "$TMP/r5_dc.json")" = \
+     "$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['body_hash'])" "$TMP/r5_full.json")" ]; then
+  echo "ok R5-C7 --determinism-check rc=0 and wrote --out (same body_hash as a plain run) and --md"
+else
+  echo "NOT ok R5-C7 --determinism-check rc=$dc out=$([ -f "$TMP/r5_dc.json" ] && echo yes || echo no) -- $(tail -2 "$TMP/r5_dc.out")"
+  failx
+fi
+
+echo
+echo "=== R5-C8 (B1, reviewer experiment): live snapshot vs snapshot with every row after 2026-08-23 deleted ==="
+# final_status and STATUS_DESYNC are CURRENT-state observations of items.status
+# (the tracker keeps no history of that column), so they are masked here --
+# see cycle_report.py's "AS-OF CUTOFF" docstring section. Every
+# history-derived field must be identical.
+if command -v sqlite3 >/dev/null 2>&1 && [ -f "$DB" ]; then
+  sqlite3 -readonly "$DB" ".backup '$TMP/r5_live_full.db'"
+  cp "$TMP/r5_live_full.db" "$TMP/r5_live_cut.db"
+  n_del="$(sqlite3 "$TMP/r5_live_cut.db" "DELETE FROM item_history WHERE on_date > '2026-08-23'; SELECT changes();")"
+  for v in full cut; do
+    python3 "$CYCLE_REPORT" --config x --as-of 2026-08-23 --window-days 90 --db-path "$TMP/r5_live_$v.db" \
+      --out "$TMP/r5_live_$v.json" >"$TMP/r5_live_$v.err" 2>&1
+  done
+  c8="$(python3 - "$TMP/r5_live_full.json" "$TMP/r5_live_cut.json" <<'PYEOF'
+import json, sys
+def norm(path):
+    d = json.load(open(path))
+    for k in ("body_hash", "run_meta", "schema"):
+        d.pop(k, None)
+    for r in d.get("records", []):
+        r.pop("final_status", None)
+        r["data_quality_flags"] = [f for f in r["data_quality_flags"] if f != "STATUS_DESYNC"]
+    return d
+try:
+    a, b = norm(sys.argv[1]), norm(sys.argv[2])
+except Exception as e:
+    print("missing output: %s" % e)
+    raise SystemExit
+if a == b:
+    print("SAME %d" % len(a.get("records", [])))
+else:
+    print("DIFF keys=%s" % [k for k in sorted(set(a) | set(b)) if a.get(k) != b.get(k)])
+PYEOF
+)"
+  case "$n_del:$c8" in
+    0:*|:*) echo "NOT ok R5-C8 control: no rows after 2026-08-23 in the snapshot -- experiment proves nothing"; failx ;;
+    *:SAME*) echo "ok R5-C8 deleted $n_del future rows; every history-derived field of the report is unchanged (${c8#SAME } records)" ;;
+    *) echo "NOT ok R5-C8 deleting $n_del future rows changed the as-of report: $c8"; failx ;;
+  esac
+else
+  echo "NOT ok R5-C8 sqlite3 / live tracker DB unavailable"
+  failx
+fi
+
+# ---------------------------------------------------------------------------
+# R5 paired mutations (§1.1). Each mutant = a copy of the REAL tool next to it
+# (lib/fc_common.py is imported __file__-relative) with ONE textual change;
+# this whole suite is re-run against it and MUST exit non-zero. M1 and M3 are
+# the reviewer's own mutations (same effect, re-anchored on the refactored
+# source); the rest are this fix's own.
+# ---------------------------------------------------------------------------
+if [ "${FC_R5_MUTANT:-0}" != 1 ]; then
+  echo
+  echo "=== R5 paired mutations ==="
+  REAL_CR="$FC/cycle/cycle_report.py"
+  R5_MUTS=()
+  trap 'rm -rf "$TMP"; rm -f "${R5_MUTS[@]}"' EXIT
+  r5_mutant() {  # name, old, new
+    local name="$1" mut="$FC/cycle/.r5_cr_mut_${1}.$$.py"
+    R5_MUTS+=("$mut")
+    if ! python3 - "$REAL_CR" "$mut" "$2" "$3" <<'PYEOF'
+import sys
+src, dst, old, new = sys.argv[1:5]
+text = open(src, encoding="utf-8").read()
+if text.count(old) != 1:
+    raise SystemExit("anchor found %d times (need 1): %r" % (text.count(old), old))
+open(dst, "w", encoding="utf-8").write(text.replace(old, new))
+PYEOF
+    then
+      echo "NOT ok mutation $name could not be applied (anchor drifted)"; failx; return
+    fi
+    if CYCLE_REPORT_UNDER_TEST="$mut" FC_R5_MUTANT=1 bash "$0" >"$TMP/r5_mut_$name.out" 2>&1; then
+      echo "NOT ok mutation $name SURVIVED (suite still exits 0)"; failx
+    else
+      echo "ok mutation $name killed ($(grep -c '^NOT ok' "$TMP/r5_mut_$name.out") failing check(s))"
+    fi
+  }
+  # M1 (reviewer): token-boundary subject match reverted to a substring test.
+  r5_mutant M1_subject_substring 'return item_re.search(subject) is not None' 'return item_id in subject'
+  # M3 (reviewer): check_hand_verified always returns 0.
+  r5_mutant M3_hand_verify_always_ok 'def check_hand_verified(records, hand_verified_path):
+' 'def check_hand_verified(records, hand_verified_path):
+    return 0, "mutant"
+'
+  r5_mutant asof_history_cutoff_dropped 'return [r for r in history if r.get("on_date") and r["on_date"][:10] <= as_of]' 'return list(history)'
+  r5_mutant asof_git_cutoff_dropped 'if cutoff_end is not None and _after_cutoff(ad, cd, cutoff_end):' 'if False:'
+  r5_mutant asof_review_cutoff_dropped 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):' 'if False:'
+  r5_mutant git_failure_read_as_no_commit 'return unmeasured_git_failure(item_id, err), False' 'return unmeasured_stage("commit_push", item_id), False'
+  r5_mutant fixture_whole_message 'subject = (g.get("message") or "").split("\n", 1)[0]' 'subject = g.get("message") or ""'
+  r5_mutant reopen_without_prior_raw_history 'for row in dedup_history(history):
+        if row["event_type"] in CLOSURE_EVENTS:
+            closed_yet = True' 'for row in history:
+        if row["event_type"] in CLOSURE_EVENTS:
+            closed_yet = True'
+  r5_mutant reopen_population_uncut 'for r in history_upto(history or [], as_of):' 'for r in history or []:'
+  r5_mutant reopen_dedup_hardcoded_zero 'block = dict(overall)' 'block = dict(overall, dedup_rows_removed=0)'
+  r5_mutant reopen_population_is_sample 'population = [(i, type_of[i], full_hist[i]) for i in type_of]' 'population = [(i, type_of[i], full_hist[i]) for i in selected]'
+  r5_mutant hand_verify_skips_absent 'mismatches.append("item %s is not in this report" % item_id)' 'continue'
+  r5_mutant gap_text_not_normalized 'text = mi.replace(r["item_id"], "{item_id}")' 'text = mi'
+  r5_mutant medians_keep_negative 'if s["elapsed"] >= 0:' 'if True:'
 fi
 
 exit $fail

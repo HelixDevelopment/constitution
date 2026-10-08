@@ -27,11 +27,10 @@ Invocation (production shape, per the contract):
                                  --window-json/full-sampling), not test-only.
 
 Additional TEST-ONLY input modes (documented here, NOT part of the contract's
-own Invocation grammar -- added because select_sample.py/T043 and
-reopen_rate.py/T-D06 do not exist yet, so there is no live sampling pipeline
-this tool can be driven through end-to-end; these flags let the tool be
-exercised deterministically against a single item without depending on
-not-yet-built siblings):
+own Invocation grammar; they let the tool be exercised deterministically
+against a single item or a fixed window -- select_sample.py (T043) and
+closure/reopen_rate.py (T-D06) now exist, and the reopen block in EVERY mode
+is computed by reopen_rate.py, see CT-006 below):
     --item <ItemId>          reconstruct ONE real item from the live tracker
                               DB (used e.g. for the CT-009 default needle item
                               ATM-953) instead of running full CT-001 sampling.
@@ -47,8 +46,11 @@ not-yet-built siblings):
                                     "evidence_files_deliberately_absent"
                                     (tests the reconstruction algorithm using
                                     the SAME detection rules as --item/full
-                                    mode, applied to a synthetic item that
-                                    does not exist in the live DB).
+                                    mode -- including the subject-only,
+                                    token-boundary commit match
+                                    subject_names_item() and the as-of
+                                    cutoff -- applied to a synthetic item
+                                    that does not exist in the live DB).
     --window-json <file>     take the analysis window's {from,to} from this
                               file's top-level "window" object instead of
                               deriving it from --as-of/--window-days, then run
@@ -79,9 +81,10 @@ Contract-clause coverage in THIS implementation (honest boundary, §11.4.6):
                              one evidence directory and one on_date" grouping
                              is implemented with a documented default
                              threshold (--bulk-threshold, default 10; the
-                             contract does not state a value) -- not
-                             exhaustively fixture-verified in this pass (no
-                             fixture in this task's scope exercises it).
+                             contract does not state a value); exercised by
+                             test_cycle_report_red.sh R5-C2 (a genuine
+                             per-type cluster of 3 at --bulk-threshold 3,
+                             and a FUTURE-dated cluster that must NOT count).
   CT-002 (stage set)      -- FULL. All 11 stages, fixed order, always present;
                              a stage with no source artefact is UNMEASURED +
                              missing_instrument naming the specific instrument
@@ -113,7 +116,10 @@ Contract-clause coverage in THIS implementation (honest boundary, §11.4.6):
                              REVIEW_SPAN_INVERTED (a review-record round's
                              end instant precedes its own start instant),
                              REVIEW_ELAPSED_NEGATIVE (the review_rounds
-                             stage's own `elapsed` field computed negative).
+                             stage's own `elapsed` field computed negative;
+                             such a value is excluded from medians -- counted
+                             as n_negative_excluded -- and makes the record's
+                             total_elapsed UNMEASURED, R5 M8).
                              NOT implemented: BULK_WRITE (tied to the CT-001
                              bulk-import path above) and
                              REOPEN_WITHOUT_PRIOR_CLOSURE (would need the full
@@ -121,18 +127,25 @@ Contract-clause coverage in THIS implementation (honest boundary, §11.4.6):
                              which this pass's --item/--tracker-export modes
                              do have -- implemented too, see
                              `_flag_reopen_without_prior_closure`).
-  CT-006 (reopen denom.) -- INLINE, not delegated. `$FC/closure/reopen_rate.py`
-                             (T-D06) does not exist in this tree yet, so this
-                             tool computes the SAME metric definition
-                             (reopened_distinct_items / closed_distinct_items
-                             over the record set actually produced this run)
-                             directly, rather than shelling out to a script
-                             that is not there. Documented here as an honest
-                             scope substitution, not a silent gap.
-  CT-007 (hand verify)   -- FULL for the compare logic; requires >=3 distinct
-                             item ids in the --hand-verified file (contract's
-                             own "FR-001 check" breadth requirement) else
-                             exit 2.
+  CT-006 (reopen denom.) -- DELEGATED. The block is closure/reopen_rate.py's
+                             own derive_report(), imported in-process (one
+                             implementation of the SC-004 metric, R5 I3),
+                             over the WINDOW population (every item closed
+                             or reopened in the window, as-of histories) in
+                             full/--window-json mode, and over the single
+                             item in --item/--tracker-export mode.
+  CT-007 (hand verify)   -- FULL, in every mode (incl. --window-json): the
+                             file must name >=3 distinct items (else exit 2);
+                             any entry whose item/stage/field is absent from
+                             the report, or whose value differs, exits 1
+                             naming it; fewer than 3 items actually compared
+                             exits 1 (R5 I4: nothing compared is not a pass).
+  AS-OF (all modes)      -- every history-derived field reads only rows dated
+                             <= --as-of (window.to in --window-json mode) and
+                             commits / review rounds before the end of that
+                             day; see the "AS-OF CUTOFF" block below for the
+                             two current-state exceptions (final_status,
+                             STATUS_DESYNC) and the backdating boundary.
   CT-008 (empty window)  -- FULL.
   CT-009 (needles)       -- FULL. Always runs first, against the live tracker
                              DB, before any sampling/reconstruction; failure
@@ -165,6 +178,21 @@ import fc_common  # noqa: E402  (path-inserted import, see above)
 
 canon = fc_common.canon
 body_hash_of = fc_common.body_hash_of
+
+# CT-006: the reopen block is computed by closure/reopen_rate.py -- "the single
+# owner of the SC-004 metric" (contract cycle-time-report-cli.md CT-006). It is
+# loaded by file path (this tree has no packages) and its derive_report() is
+# called in-process, so there is exactly ONE implementation of the metric
+# (R5 I3, T048 restart round 1: the previous inline copy had diverged -- it
+# divided every reopened record by the sampled closures and counted reopens
+# over all history). A missing sibling is a hard import error, never a silent
+# fallback to a second copy.
+import importlib.util  # noqa: E402
+
+_REOPEN_RATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "closure", "reopen_rate.py")
+_spec = importlib.util.spec_from_file_location("fc_reopen_rate", _REOPEN_RATE_PATH)
+reopen_rate = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(reopen_rate)
 
 SCHEMA = "cycle-report/v1"
 
@@ -303,6 +331,51 @@ def date_of(iso_or_dt):
 
 
 # ---------------------------------------------------------------------------
+# AS-OF CUTOFF (R5 B1, T048 restart round 1). A report "as of" day D must not
+# see anything dated after D, or a frozen baseline changes as the tracker and
+# the repository grow. The ONE choke point for item_history is history_upto();
+# git commits and review records use cutoff_end_of() (the first instant AFTER
+# D, 00:00 UTC of D+1). Every history-derived field -- stratum ranking, the
+# bulk-cluster key, closure_event, reopen_count, every CT-005 flag except
+# STATUS_DESYNC, the reopen block, commit_push, review_rounds -- reads only
+# cut data. Proven by tests/test_cycle_report_red.sh R5-C1 (synthetic full vs
+# cut) and R5-C8 (the reviewer's delete-the-future-rows experiment on a
+# snapshot of the live DB).
+# Honest boundaries (S11.4.6):
+#   * the cutoff keys on item_history.on_date (the same field the window
+#     query keys on); a row BACKDATED later (written after D with on_date <= D)
+#     is still visible -- the tracker has no immutable ingestion log;
+#   * `final_status` and STATUS_DESYNC compare items.status, a CURRENT-state
+#     column with no history, so they are current-state observations and are
+#     NOT frozen by --as-of (STATUS_DESYNC uses the item's FULL history so it
+#     stays a consistent current-state check rather than a false desync
+#     between today's status and a truncated history);
+#   * git commits are cut on BOTH author and committer date; a commit whose
+#     dates were rewritten (rebase) is cut on its rewritten dates.
+# ---------------------------------------------------------------------------
+def history_upto(history, as_of):
+    """Rows whose on_date calendar day is <= as_of (day-granular, the same rule
+    closure/reopen_rate.py's _day() applies). A row without on_date cannot be
+    placed before the cutoff and is dropped (on_date is NOT NULL in the real
+    schema; this only guards malformed fixtures)."""
+    return [r for r in history if r.get("on_date") and r["on_date"][:10] <= as_of]
+
+
+def cutoff_end_of(as_of):
+    """First instant after the as-of day (exclusive upper bound), UTC."""
+    return datetime.datetime.combine(
+        datetime.date.fromisoformat(as_of) + datetime.timedelta(days=1),
+        datetime.time(0, 0), tzinfo=datetime.timezone.utc)
+
+
+def _after_cutoff(author_iso, committer_iso, cutoff_end):
+    try:
+        return parse_iso(author_iso) >= cutoff_end or parse_iso(committer_iso) >= cutoff_end
+    except (ValueError, TypeError, AttributeError):
+        return True  # an unparseable instant cannot be shown to precede the cutoff
+
+
+# ---------------------------------------------------------------------------
 # StageMeasurement builders
 # ---------------------------------------------------------------------------
 def unmeasured_stage(stage, item_id):
@@ -412,7 +485,7 @@ def db_item_history(conn, item_id):
 def db_item_row(conn, item_id):
     cur = conn.execute(
         "SELECT atm_id, type, status, created_at, last_modified FROM items "
-        "WHERE atm_id = ? LIMIT 1",
+        "WHERE atm_id = ? ORDER BY current_location, representation LIMIT 1",
         (item_id,),
     )
     row = cur.fetchone()
@@ -522,8 +595,13 @@ def flag_duplicate_history_rows(history):
 
 
 def flag_reopen_without_prior_closure(history):
+    """R5 M8 fix: walks the DEDUPLICATED history -- an exact-duplicate
+    Reopened row (a retry re-insert, already reported as
+    DUPLICATE_HISTORY_ROWS) is not a second reopen and must not read as a
+    reopen-without-prior-closure. dedup_history() is defined below; it is
+    resolved at call time."""
     closed_yet = False
-    for row in history:
+    for row in dedup_history(history):
         if row["event_type"] in CLOSURE_EVENTS:
             closed_yet = True
         elif row["event_type"] == "Reopened":
@@ -647,10 +725,30 @@ def reopen_count(history):
 # git log -- subject-only item-id attribution (avoids false COMMIT_ATTRIBUTION
 # matches from body-only mentions; see module docstring / research notes)
 # ---------------------------------------------------------------------------
-def git_subject_matches(repo_root, item_id, timeout_s=60):
-    """Returns a sorted list of {sha, author_date, committer_date, subject}
-    dicts for every commit whose SUBJECT LINE (not full body) contains
-    item_id, earliest first. Git's own --grep matches the full message; this
+def subject_names_item(subject, item_id):
+    """THE item-to-commit match rule, shared by the live git path and the
+    Shape-B fixture path (R5 I6: the fixture path previously used a plain
+    substring test over the WHOLE message, so ATM-95 matched ATM-953 in a
+    subject and ATM-9512 in a body). Token boundary: item_id must be preceded
+    by start-of-string or a char that is not alnum/hyphen, and followed by
+    end-of-string or a non-digit (T043 round-4 finding B2)."""
+    item_re = re.compile(r"(?:^|[^A-Za-z0-9-])" + re.escape(item_id) + r"(?:[^0-9]|$)")
+    return item_re.search(subject) is not None
+
+
+def git_subject_matches(repo_root, item_id, cutoff_end=None, timeout_s=60):
+    """Returns ("ok", matches) or ("error", reason).
+
+    matches: a sorted list of {sha, author_date, committer_date, subject}
+    dicts for every commit whose SUBJECT LINE (not full body) names item_id
+    (subject_names_item), earliest first, dated before `cutoff_end` (R5 B1:
+    a commit made after the as-of day is invisible to an as-of report).
+
+    R5 I5 fix: a git failure (timeout, OSError, non-zero exit -- e.g. "not a
+    git repository") is returned as ("error", reason), NEVER as an empty
+    match list: "git could not be read" is not evidence that no commit
+    exists (S11.4.201(6)). Previously all three returned [] and produced the
+    same UNMEASURED text as a genuine no-match. Git's own --grep matches the full message; this
     filters to subject-only in Python (verified 2026-09-28: a %B-message
     grep for ATM-953 on this tree returns 3 commits, but only 1 of them
     actually names ATM-953 in its subject -- the other 2 match a body-only
@@ -662,33 +760,55 @@ def git_subject_matches(repo_root, item_id, timeout_s=60):
              "--pretty=format:%H|%ad|%cd|%s", "--date=iso-strict"],
             cwd=repo_root, capture_output=True, text=True, timeout=timeout_s,
         )
-    except (OSError, subprocess.TimeoutExpired):
-        return []
+    except subprocess.TimeoutExpired:
+        return "error", "git log timed out after %ds" % timeout_s
+    except OSError as exc:
+        return "error", "git log could not be started: %s" % exc
     if out.returncode != 0:
-        return []
+        err_lines = (out.stderr or "").strip().splitlines()
+        return "error", "git log rc=%d: %s" % (
+            out.returncode, err_lines[-1] if err_lines else "(no stderr)")
     # T043 round-4 finding B2 (BLOCKING, agent ad5d869e28efdddbd, 2026-09-28):
     # `item_id in subject` is a plain substring test, so ATM-103 matches
     # inside ATM-1038, ATM-95 matches inside ATM-953, etc. -- this function
     # was the ORIGINAL of the same bug reproduced independently in
     # baseline_replay.sh's git_subject_freeze() (fixed the same way there).
-    # Token-boundary regex: item_id must be bounded by a non-alnum-non-
-    # hyphen char (or string start) on the left and a non-digit char (or
-    # string end) on the right.
-    item_re = re.compile(r"(?:^|[^A-Za-z0-9-])" + re.escape(item_id) + r"(?:[^0-9]|$)")
+    # The token-boundary rule itself lives in subject_names_item().
     matches = []
     for line in out.stdout.splitlines():
         parts = line.split("|", 3)
         if len(parts) != 4:
             continue
         sha, ad, cd, subject = parts
-        if item_re.search(subject):
-            matches.append({"sha": sha, "author_date": ad, "committer_date": cd, "subject": subject})
-    matches.sort(key=lambda m: m["author_date"])
-    return matches
+        if not subject_names_item(subject, item_id):
+            continue
+        if cutoff_end is not None and _after_cutoff(ad, cd, cutoff_end):
+            continue
+        matches.append({"sha": sha, "author_date": ad, "committer_date": cd, "subject": subject})
+    matches.sort(key=lambda m: (m["author_date"], m["sha"]))
+    return "ok", matches
 
 
-def commit_push_stage(repo_root, item_id):
-    matches = git_subject_matches(repo_root, item_id)
+PUSH_MISSING_INSTRUMENT = (
+    "no instrument records the push instant: git log carries only author and "
+    "committer instants, so commit_push spans first-commit author_date -> "
+    "last-commit committer_date (all refs, --all) and a single commit can "
+    "measure 0 ms (R5 M9)")
+
+
+def unmeasured_git_failure(item_id, err):
+    """R5 I5: commit_push when git itself failed -- distinct from 'no commit
+    names this item'."""
+    st = unmeasured_stage("commit_push", item_id)
+    st["missing_instrument"] = (
+        "git log FAILED while looking for commits naming %s (%s) -- commit_push "
+        "could not be measured; this is NOT evidence that no commit exists" % (item_id, err))
+    st["instrument_error"] = err
+    return st
+
+
+def commit_push_from_matches(item_id, matches, subject_of):
+    """Shared commit_push builder for the live and fixture paths (R5 I6)."""
     if not matches:
         return unmeasured_stage("commit_push", item_id), False
     start_m, end_m = matches[0], matches[-1]
@@ -699,8 +819,18 @@ def commit_push_stage(repo_root, item_id):
         start_evidence="git_log#%s" % start_m["sha"],
         end_evidence="git_log#%s" % end_m["sha"],
     )
-    multi_item = any(len(set(ITEM_ID_RE.findall(m["subject"]))) >= 2 for m in matches)
+    stage["push_instant"] = "UNMEASURED"
+    stage["push_missing_instrument"] = PUSH_MISSING_INSTRUMENT
+    multi_item = any(len(set(ITEM_ID_RE.findall(subject_of(m)))) >= 2 for m in matches)
     return stage, multi_item
+
+
+def commit_push_stage(repo_root, item_id, cutoff_end=None):
+    status, payload = git_subject_matches(repo_root, item_id, cutoff_end)
+    if status != "ok":
+        err = payload
+        return unmeasured_git_failure(item_id, err), False
+    return commit_push_from_matches(item_id, payload, lambda m: m["subject"])
 
 
 # ---------------------------------------------------------------------------
@@ -708,7 +838,7 @@ def commit_push_stage(repo_root, item_id):
 # ---------------------------------------------------------------------------
 
 
-def review_rounds_stage(records_dir, item_id, repo_root=None):
+def review_rounds_stage(records_dir, item_id, repo_root=None, cutoff_end=None):
     """ATM-1055-batch fix (S12): genuinely reads T034's landed review_record.py
     output (schema `review-record/v1`) instead of hardcoding UNMEASURED.
     Recursively scans `records_dir` for *.json documents whose `item_id`
@@ -839,6 +969,10 @@ def review_rounds_stage(records_dir, item_id, repo_root=None):
       corrupt; this mirrors the identical choice this module already makes
       for an un-timeable round (contributes nothing, never a silently
       corrected number) rather than inventing a value that never happened."""
+    # R5 B1 (T048 restart round 1): a round that started or ended at/after
+    # `cutoff_end` (the instant after the as-of day) did not exist yet on the
+    # as-of day and is skipped -- the SAME as-of cutoff every other
+    # history-derived field applies.
     if not records_dir or not os.path.isdir(records_dir):
         return None, False, False
     best_start_iso, best_start_dt, best_start_evidence = None, None, None
@@ -871,6 +1005,8 @@ def review_rounds_stage(records_dir, item_id, repo_root=None):
                     s_dt = parse_iso(s)
                     e_dt = parse_iso(e)
                 except (ValueError, TypeError):
+                    continue
+                if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):
                     continue
                 if repo_root and path.startswith(repo_root):
                     evidence_path = os.path.relpath(path, repo_root)
@@ -956,35 +1092,40 @@ def review_rounds_stage(records_dir, item_id, repo_root=None):
     return stage, any_inverted_round, review_elapsed_negative
 
 
+def fixture_subject_matches(git_log_entries, item_id, cutoff_end=None):
+    """Shape-B fixture path: the SAME rules as git_subject_matches() -- the
+    subject is the first line of `message`, matched with subject_names_item(),
+    cut at the as-of instant (R5 I6)."""
+    matches = []
+    for g in git_log_entries:
+        subject = (g.get("message") or "").split("\n", 1)[0]
+        if not subject_names_item(subject, item_id):
+            continue
+        if cutoff_end is not None and _after_cutoff(g["author_date"], g["committer_date"], cutoff_end):
+            continue
+        matches.append(dict(g, subject=subject))
+    matches.sort(key=lambda m: (m["author_date"], m["sha"]))
+    return matches
+
+
 def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_files_present,
-                               repo_root=None, review_records_dir=None):
+                               repo_root=None, review_records_dir=None, cutoff_end=None):
     """The shared reconstruction algorithm used by --item (live DB) and
     Shape-B --tracker-export fixtures. `git_log_entries` may be a literal
     list of {sha, author_date, committer_date, message} (fixture-supplied,
     Shape B) OR None (meaning: look the item up live via git log, --item
-    mode)."""
+    mode). Both paths apply the same subject-only, token-boundary, as-of-cut
+    match rule (R5 I6)."""
     stages = {}
 
     # commit_push
     multi_item_commit = False
     if git_log_entries is not None:
-        subj_matches = [g for g in git_log_entries if item_id in g.get("message", "")]
-        if subj_matches:
-            subj_matches.sort(key=lambda g: g["author_date"])
-            start_m, end_m = subj_matches[0], subj_matches[-1]
-            stages["commit_push"] = measured_stage(
-                "commit_push",
-                start_m["author_date"], "git_author",
-                end_m["committer_date"], "git_committer",
-                start_evidence="git_log#%s" % start_m["sha"],
-                end_evidence="git_log#%s" % end_m["sha"],
-            )
-            multi_item_commit = any(
-                len(set(ITEM_ID_RE.findall(g.get("message", "")))) >= 2 for g in subj_matches)
-        else:
-            stages["commit_push"] = unmeasured_stage("commit_push", item_id)
+        stages["commit_push"], multi_item_commit = commit_push_from_matches(
+            item_id, fixture_subject_matches(git_log_entries, item_id, cutoff_end),
+            lambda m: m["subject"])
     elif repo_root:
-        stages["commit_push"], multi_item_commit = commit_push_stage(repo_root, item_id)
+        stages["commit_push"], multi_item_commit = commit_push_stage(repo_root, item_id, cutoff_end)
     else:
         stages["commit_push"] = unmeasured_stage("commit_push", item_id)
 
@@ -1051,7 +1192,7 @@ def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_f
     # them into REVIEW_SPAN_INVERTED / REVIEW_ELAPSED_NEGATIVE data_quality_
     # flags entries.
     review_stage, review_span_inverted, review_elapsed_negative = review_rounds_stage(
-        review_records_dir, item_id, repo_root=repo_root)
+        review_records_dir, item_id, repo_root=repo_root, cutoff_end=cutoff_end)
     if review_stage is not None:
         stages["review_rounds"] = review_stage
 
@@ -1067,27 +1208,47 @@ def reconstruct_from_evidence(item_id, item_history, git_log_entries, evidence_f
             review_span_inverted, review_elapsed_negative)
 
 
+def history_flags(item_status, full_history, as_of_history):
+    """CT-005 flags derivable from item_history. Every flag reads the AS-OF
+    history except STATUS_DESYNC, which compares the CURRENT items.status
+    column against the item's FULL history (both current-state -- comparing
+    today's status with a truncated history would invent a desync for every
+    item that moved after the as-of day; see the AS-OF CUTOFF note)."""
+    flags = []
+    if as_of_history:
+        if flag_date_only_resolution(as_of_history):
+            flags.append("DATE_ONLY_RESOLUTION")
+        if flag_retroactive_registration(as_of_history):
+            flags.append("RETROACTIVE_REGISTRATION")
+        if flag_duplicate_history_rows(as_of_history):
+            flags.append("DUPLICATE_HISTORY_ROWS")
+        if flag_reopen_without_prior_closure(as_of_history):
+            flags.append("REOPEN_WITHOUT_PRIOR_CLOSURE")
+    if full_history and flag_status_desync(item_status, full_history):
+        flags.append("STATUS_DESYNC")
+    return flags
+
+
+def reopened_in_window(history, window):
+    return any(r["event_type"] == "Reopened" and window["from"] <= (r.get("on_date") or "")[:10] <= window["to"]
+               for r in history)
+
+
 def build_record_for_item(item_id, item_type, item_status, history,
-                           selection_reason, window, git_log_entries=None,
+                           selection_reason, window, as_of, git_log_entries=None,
                            evidence_files_present=None, repo_root=None,
                            review_records_dir=None):
+    """`history` is the item's FULL item_history; this function applies the
+    as-of cutoff itself (history_upto), so no caller can hand it future rows
+    by accident (R5 B1)."""
+    cut = history_upto(history or [], as_of)
+    cutoff_end = cutoff_end_of(as_of)
     stages, multi_item_commit, review_span_inverted, review_elapsed_negative = (
         reconstruct_from_evidence(
-            item_id, history, git_log_entries, evidence_files_present, repo_root=repo_root,
-            review_records_dir=review_records_dir))
+            item_id, cut, git_log_entries, evidence_files_present, repo_root=repo_root,
+            review_records_dir=review_records_dir, cutoff_end=cutoff_end))
 
-    flags = []
-    if history:
-        if flag_date_only_resolution(history):
-            flags.append("DATE_ONLY_RESOLUTION")
-        if flag_retroactive_registration(history):
-            flags.append("RETROACTIVE_REGISTRATION")
-        if flag_duplicate_history_rows(history):
-            flags.append("DUPLICATE_HISTORY_ROWS")
-        if flag_reopen_without_prior_closure(history):
-            flags.append("REOPEN_WITHOUT_PRIOR_CLOSURE")
-        if flag_status_desync(item_status, history):
-            flags.append("STATUS_DESYNC")
+    flags = history_flags(item_status, history or [], cut)
     if multi_item_commit:
         flags.append("COMMIT_ATTRIBUTION_BY_GREP")
     # S12-remediation round-3 review (2026-10-03, M1): a review-record round
@@ -1103,13 +1264,14 @@ def build_record_for_item(item_id, item_type, item_status, history,
     if review_elapsed_negative:
         flags.append("REVIEW_ELAPSED_NEGATIVE")
 
-    all_measured = all(s["elapsed"] != "UNMEASURED" for s in stages)
-    total_elapsed = sum(s["elapsed"] for s in stages) if all_measured else "UNMEASURED"
+    total_elapsed = total_of(stages)
     token_stages = [s["tokens"] for s in stages if "tokens" in s]
     total_tokens = sum(token_stages) if token_stages else "UNMEASURED"
 
-    rc = reopen_count(history) if history else 0
-    if rc > 0:
+    rc = reopen_count(cut)
+    # R5 B1 / window scoping: "reopened-in-window" means a Reopened row INSIDE
+    # the window (CT-001), not a reopen anywhere in the item's past.
+    if reopened_in_window(dedup_history(cut), window):
         selection_reason = "reopened-in-window"
 
     record = {
@@ -1126,7 +1288,7 @@ def build_record_for_item(item_id, item_type, item_status, history,
         "reopen_count": rc,
         "data_quality_flags": sorted(set(flags)),
     }
-    closure = latest_closure_event(history) if history else None
+    closure = latest_closure_event(cut)
     if closure:
         record["closure_event"] = {
             "event_type": closure["event_type"],
@@ -1137,31 +1299,50 @@ def build_record_for_item(item_id, item_type, item_status, history,
     return record
 
 
+def total_of(stages):
+    """Record total: UNMEASURED unless every stage is measured AND
+    non-negative (R5 M8: a negative stage elapsed is already flagged
+    REVIEW_ELAPSED_NEGATIVE; summing it would silently shrink the total)."""
+    if all(isinstance(s["elapsed"], int) and s["elapsed"] >= 0 for s in stages):
+        return sum(s["elapsed"] for s in stages)
+    return "UNMEASURED"
+
+
 # ---------------------------------------------------------------------------
 # Aggregation (medians per type + overall)
 # ---------------------------------------------------------------------------
 def compute_medians(records):
+    # R5 M8: a NEGATIVE stage elapsed (only review_rounds can produce one --
+    # a sole inverted reviewer-entered round, flagged REVIEW_ELAPSED_NEGATIVE
+    # on its record) is not a duration; it is kept visible in its record but
+    # is not a median member, and the exclusion is counted, never silent.
     def stage_values(recs, stage):
         vals = []
         n_total = 0
+        n_negative = 0
         for r in recs:
             n_total += 1
             for s in r["stages"]:
                 if s["stage"] == stage:
                     if isinstance(s["elapsed"], int):
-                        vals.append(s["elapsed"])
+                        if s["elapsed"] >= 0:
+                            vals.append(s["elapsed"])
+                        else:
+                            n_negative += 1
                     break
-        return vals, n_total
+        return vals, n_total, n_negative
 
     def per_group(recs):
         out = {}
         for stage in STAGES:
-            vals, n_total = stage_values(recs, stage)
+            vals, n_total, n_negative = stage_values(recs, stage)
             out[stage] = {
                 "value_ms": int(round(statistics.median(vals))) if vals else "UNMEASURED",
                 "n_measured": len(vals),
                 "n_total": n_total,
             }
+            if n_negative:
+                out[stage]["n_negative_excluded"] = n_negative
         return out
 
     medians = {"overall": per_group(records)}
@@ -1180,58 +1361,109 @@ def compute_strata(records, min_per_type):
     return strata
 
 
-def compute_reopen_block(records, window):
-    """CT-006 inline: $FC/closure/reopen_rate.py (T-D06) does not exist yet
-    in this tree; this computes the identical metric definition directly
-    over the record set this run actually produced (an honest scope
-    substitution, documented in the module docstring)."""
-    closed = sum(1 for r in records if r.get("closure_event") is not None)
-    reopened = sum(1 for r in records if r["reopen_count"] > 0)
-    block = {"reopened": reopened, "closed": closed, "window": window, "dedup_rows_removed": 0}
-    if closed == 0:
-        block["rate"] = "RATE_NOT_COMPUTABLE"
-        block["reason"] = "no closed items in this record set"
-    else:
-        block["rate"] = round(reopened / closed, 6)
+def compute_reopen_block(population, window, as_of):
+    """CT-006: the reopen block is closure/reopen_rate.py's derive_report()
+    (the single owner of the SC-004 metric), called in-process -- never a
+    second copy (R5 I3, T048 restart round 1; the inline copy this replaces
+    divided every reopened RECORD -- reopens counted over the item's whole
+    history -- by the sampled closures, and hardcoded dedup_rows_removed=0).
+
+    `population` = [(atm_id, type, full_history)] -- the items whose closure
+    or Reopened event falls in the window (full-sampling / --window-json: the
+    whole window population, not just the sampled records; --item /
+    --tracker-export: the single reconstructed item). Histories are cut at
+    as-of first (R5 B1). Output: reopen_rate's own `overall` block
+    ({reopened, closed, window, dedup_rows_removed, rate | RATE_NOT_COMPUTABLE,
+    [excluded_retroactive], [mismatched_items]}) plus `by_type`, `population`
+    (item count) and, for RATE_NOT_COMPUTABLE, the `reason`."""
+    items, rows = [], []
+    for atm_id, itype, history in sorted(population, key=lambda p: p[0]):
+        items.append({"atm_id": atm_id, "type": itype})
+        for r in history_upto(history or [], as_of):
+            rows.append(dict(r, atm_id=atm_id))
+    _state, by_type, overall, _excluded = reopen_rate.derive_report(
+        items, rows, window["from"], window["to"])
+    block = dict(overall)
+    block["by_type"] = by_type
+    block["population"] = len(items)
+    if block.get("rate") == "RATE_NOT_COMPUTABLE":
+        if block.get("mismatched_items"):
+            block["reason"] = ("population mismatch: reopened in window but never closed: %s"
+                               % ", ".join(block["mismatched_items"]))
+        else:
+            block["reason"] = "no closed items in the population"
     return block
 
 
 def compute_instrument_gaps(records):
+    """One gap per (stage, instrument text with the item id replaced by the
+    literal "{item_id}"). R5 M8: the previous version keyed by stage only and
+    reused the FIRST item's id-bearing text for every affected item (its
+    computed `key` was never used); a stage whose items fail for DIFFERENT
+    reasons (e.g. a git failure vs no matching commit) now yields separate
+    gaps."""
     gaps = {}
     for r in records:
         for s in r["stages"]:
-            if s.get("missing_instrument"):
-                key = (s["stage"], s["missing_instrument"].split(" for ")[0] if " for " in s["missing_instrument"] else s["stage"])
-                gaps.setdefault(s["stage"], {"stage": s["stage"], "missing_instrument": s["missing_instrument"], "items_affected": []})
-                gaps[s["stage"]]["items_affected"].append(r["item_id"])
-    return sorted(gaps.values(), key=lambda g: g["stage"])
+            mi = s.get("missing_instrument")
+            if mi:
+                text = mi.replace(r["item_id"], "{item_id}")
+                g = gaps.setdefault((s["stage"], text), {
+                    "stage": s["stage"], "missing_instrument": text, "items_affected": []})
+                g["items_affected"].append(r["item_id"])
+    for g in gaps.values():
+        g["items_affected"] = sorted(set(g["items_affected"]))
+    return [gaps[k] for k in sorted(gaps)]
 
 
 # ---------------------------------------------------------------------------
 # --hand-verified (CT-007)
 # ---------------------------------------------------------------------------
 def check_hand_verified(records, hand_verified_path):
-    with open(hand_verified_path, encoding="utf-8") as fh:
-        entries = json.load(fh)
-    if not isinstance(entries, list):
-        return 2, "hand-verified file must be a JSON list"
-    distinct_items = {e.get("item_id") for e in entries if isinstance(e, dict)}
+    """CT-007. Returns (rc, message): 0 every listed figure matched; 1 any
+    mismatch; 2 unusable file. R5 I4 fix: an entry whose item is not in this
+    report, whose stage is absent, or whose field is missing is a MISMATCH
+    (exit 1) -- previously such entries were skipped and a file naming three
+    nonexistent items reported "all 3 entries matched" having compared
+    nothing. The >=3-distinct-items breadth rule (CT-007/FR-001) is applied
+    to the items actually COMPARED, not merely listed."""
+    try:
+        with open(hand_verified_path, encoding="utf-8") as fh:
+            entries = json.load(fh)
+    except (OSError, ValueError) as exc:
+        return 2, "hand-verified file unreadable: %s" % exc
+    if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+        return 2, "hand-verified file must be a JSON list of objects"
+    distinct_items = {e.get("item_id") for e in entries}
     if len(distinct_items) < 3:
         return 2, "hand-verified file must name >=3 distinct items (CT-007), found %d" % len(distinct_items)
     by_item = {r["item_id"]: r for r in records}
+    mismatches = []
+    compared_items = set()
     for e in entries:
         item_id, stage, field, expected = e.get("item_id"), e.get("stage"), e.get("field"), e.get("expected_value")
         rec = by_item.get(item_id)
         if rec is None:
+            mismatches.append("item %s is not in this report" % item_id)
             continue
         stage_rec = next((s for s in rec["stages"] if s["stage"] == stage), None)
         if stage_rec is None:
+            mismatches.append("item=%s stage=%s: no such stage" % (item_id, stage))
             continue
-        actual = stage_rec.get(field)
+        if field not in stage_rec:
+            mismatches.append("item=%s stage=%s field=%s: field absent" % (item_id, stage, field))
+            continue
+        actual = stage_rec[field]
         if actual != expected:
-            return 1, "hand-verification mismatch: item=%s stage=%s field=%s expected=%r actual=%r" % (
-                item_id, stage, field, expected, actual)
-    return 0, "hand-verification: all %d entries matched" % len(entries)
+            mismatches.append("item=%s stage=%s field=%s expected=%r actual=%r" % (
+                item_id, stage, field, expected, actual))
+            continue
+        compared_items.add(item_id)
+    if mismatches:
+        return 1, "hand-verification mismatch: " + "; ".join(mismatches)
+    if len(compared_items) < 3:
+        return 1, "hand-verification compared only %d distinct item(s) (CT-007 needs >=3)" % len(compared_items)
+    return 0, "hand-verification: all %d entries matched across %d items" % (len(entries), len(compared_items))
 
 
 # ---------------------------------------------------------------------------
@@ -1359,33 +1591,7 @@ def main(argv):
     db_path = args.db_path or os.path.join(repo_root, "docs", "workable_items.db")
 
     if args.determinism_check:
-        inner = [a for a in argv if a != "--determinism-check"]
-        runs = []
-        with tempfile.TemporaryDirectory() as tmp:
-            for i in (1, 2):
-                out_i = os.path.join(tmp, "run%d.json" % i)
-                cmd = [sys.executable, os.path.abspath(__file__)] + inner + ["--out", out_i]
-                # strip any user-supplied --out from inner (keep the last wins
-                # semantics of argparse: appending our own --out after inner
-                # ensures ours is authoritative regardless of duplication).
-                try:
-                    proc = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True, timeout=120)
-                except subprocess.TimeoutExpired:
-                    print("cycle_report: determinism-check run %d timed out" % i, file=sys.stderr)
-                    return 4
-                if proc.returncode not in (0, 1) or not os.path.exists(out_i):
-                    sys.stderr.write(proc.stderr)
-                    print("cycle_report: determinism-check run %d rc=%d, no honest verdict" % (i, proc.returncode),
-                          file=sys.stderr)
-                    return 4
-                with open(out_i, encoding="utf-8") as fh:
-                    doc = json.load(fh)
-                runs.append((proc.returncode, doc.get("body_hash")))
-        if runs[0] != runs[1]:
-            print("cycle_report: nondeterministic: run1=%s run2=%s" % (runs[0], runs[1]), file=sys.stderr)
-            return 1
-        print("cycle_report: deterministic (body_hash=%s)" % runs[0][1])
-        return 0
+        return run_determinism_check(argv, args, repo_root)
 
     conn = open_db_readonly(db_path)
     if conn is None:
@@ -1406,41 +1612,33 @@ def main(argv):
         with open(args.window_json, encoding="utf-8") as fh:
             wdoc = json.load(fh)
         window = {"from": wdoc["window"]["from"], "to": wdoc["window"]["to"]}
+        # The window's own end is this mode's as-of cutoff (the other modes
+        # derive window.to = --as-of, so the rule is the same everywhere).
+        as_of = window["to"]
         closures = db_closures_in_window(conn, window["from"], window["to"])
         reopens = db_reopened_in_window(conn, window["from"], window["to"])
         candidate_ids = {row[0] for row in closures} | {row[0] for row in reopens}
         if not candidate_ids:
             body = {"as_of": args.as_of, "window": window, "state": "NO_DATA_IN_WINDOW"}
-            doc = write_report(args.out, body, run_meta)
-            if args.md:
-                with open(args.md, "w", encoding="utf-8") as fh:
-                    fh.write(render_md(doc))
-            print("cycle_report: no data in window [%s, %s]" % (window["from"], window["to"]))
-            return 0
-        # non-empty: fall through to real per-item reconstruction below.
-        records = []
+            return finish(args, body, run_meta,
+                          "cycle_report: no data in window [%s, %s]" % (window["from"], window["to"]))
+        rows_by_id = {}
         for item_id in sorted(candidate_ids):
             item_row = db_item_row(conn, item_id)
-            history = db_item_history(conn, item_id)
-            records.append(build_record_for_item(
-                item_id, item_row["type"] if item_row else "Task",
-                item_row["status"] if item_row else None,
-                history, "sampled-%s" % (item_row["type"].lower() if item_row else "task"),
-                window, repo_root=repo_root, review_records_dir=args.review_records_dir))
-        strata = compute_strata(records, args.min_per_type)
-        body = {
-            "as_of": args.as_of, "window": window, "strata": strata, "excluded": [],
-            "records": sorted(records, key=lambda r: r["item_id"]),
-            "medians": compute_medians(records),
-            "reopen": compute_reopen_block(records, window),
-            "instrument_gaps": compute_instrument_gaps(records),
-        }
-        doc = write_report(args.out, body, run_meta)
-        if args.md:
-            with open(args.md, "w", encoding="utf-8") as fh:
-                fh.write(render_md(doc))
-        return 0
+            if item_row is None:
+                return blind_missing_item(item_id)
+            rows_by_id[item_id] = (item_row, db_item_history(conn, item_id))
+        records = [
+            build_record_for_item(
+                item_id, item_row["type"], item_row["status"], history,
+                "sampled-%s" % item_row["type"].lower(), window, as_of,
+                repo_root=repo_root, review_records_dir=args.review_records_dir)
+            for item_id, (item_row, history) in sorted(rows_by_id.items())]
+        population = [(i, r["type"], h) for i, (r, h) in rows_by_id.items()]
+        body = report_body(args, window, records, [], population, as_of)
+        return finish(args, body, run_meta, None, records)
 
+    as_of = args.as_of
     window = {"from": (datetime.date.fromisoformat(args.as_of) -
                         datetime.timedelta(days=args.window_days)).isoformat(),
               "to": args.as_of}
@@ -1449,27 +1647,32 @@ def main(argv):
     if args.tracker_export:
         with open(args.tracker_export, encoding="utf-8") as fh:
             fx = json.load(fh)
+        item = fx["item"]
+        history = fx.get("item_history", [])
         if "stages" in fx:
-            item = fx["item"]
             stages = [passthrough_stage(s) for s in fx["stages"]]
             # Preserve the contract's fixed stage order regardless of input order.
             by_stage = {s["stage"]: s for s in stages}
             stages = [by_stage[s] for s in STAGES]
-            all_measured = all(s["elapsed"] != "UNMEASURED" for s in stages)
-            total_elapsed = sum(s["elapsed"] for s in stages) if all_measured else "UNMEASURED"
             token_stages = [s["tokens"] for s in stages if "tokens" in s]
-            total_tokens = sum(token_stages) if token_stages else "UNMEASURED"
+            cut = history_upto(history, as_of)
+            # R5 I7: Shape A no longer hardcodes `data_quality_flags: []` --
+            # when the fixture supplies item_history the SAME flag code runs;
+            # when it supplies none, nothing was evaluated and the record says
+            # so (data_quality_flags_evaluated: false) instead of presenting an
+            # unevaluated empty list as "zero flags found".
             record = {
                 "item_id": item["atm_id"], "item_type": item["type"], "window": window,
                 "selection_reason": "sampled-%s" % item["type"].lower(),
                 "excluded": False, "exclusion_reason": None, "stages": stages,
-                "total_elapsed": total_elapsed, "total_tokens": total_tokens,
-                "final_status": item.get("status"), "reopen_count": 0,
-                "data_quality_flags": [],
+                "total_elapsed": total_of(stages),
+                "total_tokens": sum(token_stages) if token_stages else "UNMEASURED",
+                "final_status": item.get("status"), "reopen_count": reopen_count(cut),
+                "data_quality_flags": sorted(set(history_flags(item.get("status"), history, cut))),
             }
+            if not history:
+                record["data_quality_flags_evaluated"] = False
         else:
-            item = fx["item"]
-            history = fx.get("item_history", [])
             git_log_entries = [
                 {"sha": g["sha"], "author_date": g["author_date"],
                  "committer_date": g["committer_date"], "message": g.get("message", "")}
@@ -1477,30 +1680,14 @@ def main(argv):
             ]
             record = build_record_for_item(
                 item["atm_id"], item["type"], item.get("status"), history,
-                "sampled-%s" % item["type"].lower(), window,
+                "sampled-%s" % item["type"].lower(), window, as_of,
                 git_log_entries=git_log_entries,
                 evidence_files_present=fx.get("evidence_files_present"),
                 repo_root=repo_root, review_records_dir=args.review_records_dir,
             )
         records = [record]
-        strata = compute_strata(records, args.min_per_type)
-        body = {
-            "as_of": args.as_of, "window": window, "strata": strata, "excluded": [],
-            "records": records, "medians": compute_medians(records),
-            "reopen": compute_reopen_block(records, window),
-            "instrument_gaps": compute_instrument_gaps(records),
-        }
-        rc = 0
-        if args.hand_verified:
-            rc, msg = check_hand_verified(records, args.hand_verified)
-            print("cycle_report: %s" % msg, file=sys.stderr)
-            if rc != 0:
-                return rc
-        doc = write_report(args.out, body, run_meta)
-        if args.md:
-            with open(args.md, "w", encoding="utf-8") as fh:
-                fh.write(render_md(doc))
-        return 0
+        body = report_body(args, window, records, [], [(item["atm_id"], item["type"], history)], as_of)
+        return finish(args, body, run_meta, None, records)
 
     # --- Mode: --item (single real item, live DB) ---
     if args.item:
@@ -1511,27 +1698,11 @@ def main(argv):
         history = db_item_history(conn, args.item)
         record = build_record_for_item(
             args.item, item_row["type"], item_row["status"], history,
-            "sampled-%s" % item_row["type"].lower(), window, repo_root=repo_root,
+            "sampled-%s" % item_row["type"].lower(), window, as_of, repo_root=repo_root,
             review_records_dir=args.review_records_dir)
         records = [record]
-        strata = compute_strata(records, args.min_per_type)
-        body = {
-            "as_of": args.as_of, "window": window, "strata": strata, "excluded": [],
-            "records": records, "medians": compute_medians(records),
-            "reopen": compute_reopen_block(records, window),
-            "instrument_gaps": compute_instrument_gaps(records),
-        }
-        rc = 0
-        if args.hand_verified:
-            rc, msg = check_hand_verified(records, args.hand_verified)
-            print("cycle_report: %s" % msg, file=sys.stderr)
-            if rc != 0:
-                return rc
-        doc = write_report(args.out, body, run_meta)
-        if args.md:
-            with open(args.md, "w", encoding="utf-8") as fh:
-                fh.write(render_md(doc))
-        return 0
+        body = report_body(args, window, records, [], [(args.item, item_row["type"], history)], as_of)
+        return finish(args, body, run_meta, None, records)
 
     # --- Full production mode: CT-001 live sampling in [window.from, window.to] ---
     if not args.config:
@@ -1547,29 +1718,25 @@ def main(argv):
     for atm_id, itype in closures:
         by_type.setdefault(itype, set()).add(atm_id)
     reopened_ids = {atm_id for atm_id, _ in reopens}
+    type_of = {atm_id: itype for atm_id, itype in list(closures) + list(reopens)}
+
+    # Every candidate's FULL history is read once; the as-of cut is applied
+    # by history_upto() at each use (R5 B1).
+    full_hist = {atm_id: db_item_history(conn, atm_id) for atm_id in sorted(type_of)}
 
     selected = set()
     excluded = []
-    for itype, ids in by_type.items():
+    for itype, ids in sorted(by_type.items()):
         # CT-001 bulk-import exclusion (documented partial implementation --
         # see module docstring): group candidate closure rows by
-        # (evidence-dir, on_date); a cluster >= --bulk-threshold is excluded.
+        # (evidence-dir, on_date) of the AS-OF latest closure; a cluster >=
+        # --bulk-threshold is excluded. N3 fix (T048 round-2 review): `ids`
+        # is a set whose iteration order is PYTHONHASHSEED-dependent, so it
+        # is sorted before it seeds any ordering (determinism, C-003).
         clusters = {}
         hist_by_id = {}
-        # N3 fix (T048 round-2 review): `ids` is a Python `set` (built at
-        # `by_type.setdefault(itype, set()).add(atm_id)` above) whose
-        # iteration order is PYTHONHASHSEED-dependent for str elements
-        # (hash randomisation, on by default). Iterating it directly seeded
-        # `clusters`' dict-insertion order (and therefore every
-        # `members`/`excluded.append(...)` order downstream) with that same
-        # nondeterminism -- reproduced directly: two `--determinism-check`
-        # runs of the SAME command against the SAME DB state produced
-        # DIFFERENT `excluded[]` orderings and DIFFERENT body_hash values.
-        # `sorted()` here is a real ORDERING fix (not merely "stable"): it
-        # makes the base iteration -- and everything built from it --
-        # independent of the interpreter's hash seed.
         for atm_id in sorted(ids):
-            hist = db_item_history(conn, atm_id)
+            hist = history_upto(full_hist[atm_id], as_of)
             hist_by_id[atm_id] = hist
             closure = latest_closure_event(hist)
             if closure and closure.get("evidence_path"):
@@ -1586,53 +1753,137 @@ def main(argv):
             else:
                 keep.update(members)
         # N2 fix (T048 round-2 review): "most recent min_per_type" is a
-        # REAL-RECENCY selection (closure_recency_key, above) -- NOT a
-        # lexicographic atm_id string sort (the CT-001/DEC-03 bug this
-        # fixes; see closure_recency_key's own docstring for the measured
-        # ATM-1002/ATM-953 counter-example).
+        # REAL-RECENCY selection (closure_recency_key, above, over the AS-OF
+        # history) -- NOT a lexicographic atm_id string sort.
         keep_sorted = sorted(keep, key=lambda i: closure_recency_key(hist_by_id, i))
         recent = keep_sorted[-args.min_per_type:] if len(keep_sorted) > args.min_per_type else keep_sorted
         selected.update(recent)
     selected |= reopened_ids
+    excluded.sort(key=lambda e: e["item_id"])
 
     if not selected:
         body = {"as_of": args.as_of, "window": window, "state": "NO_DATA_IN_WINDOW"}
-        doc = write_report(args.out, body, run_meta)
-        if args.md:
-            with open(args.md, "w", encoding="utf-8") as fh:
-                fh.write(render_md(doc))
-        print("cycle_report: no data in window [%s, %s]" % (window["from"], window["to"]))
-        return 0
+        return finish(args, body, run_meta,
+                      "cycle_report: no data in window [%s, %s]" % (window["from"], window["to"]))
 
     records = []
     for atm_id in sorted(selected):
         item_row = db_item_row(conn, atm_id)
-        history = db_item_history(conn, atm_id)
+        if item_row is None:
+            return blind_missing_item(atm_id)
         selection_reason = "reopened-in-window" if atm_id in reopened_ids else \
-            "sampled-%s" % (item_row["type"].lower() if item_row else "task")
+            "sampled-%s" % item_row["type"].lower()
         records.append(build_record_for_item(
-            atm_id, item_row["type"] if item_row else "Task",
-            item_row["status"] if item_row else None, history,
-            selection_reason, window, repo_root=repo_root,
+            atm_id, item_row["type"], item_row["status"], full_hist[atm_id],
+            selection_reason, window, as_of, repo_root=repo_root,
             review_records_dir=args.review_records_dir))
 
-    strata = compute_strata(records, args.min_per_type)
-    body = {
-        "as_of": args.as_of, "window": window, "strata": strata, "excluded": excluded,
-        "records": records, "medians": compute_medians(records),
-        "reopen": compute_reopen_block(records, window),
+    population = [(i, type_of[i], full_hist[i]) for i in type_of]
+    body = report_body(args, window, records, excluded, population, as_of)
+    return finish(args, body, run_meta, None, records)
+
+
+def blind_missing_item(item_id):
+    """An id returned by the window query (which JOINs items) with no items
+    row by the time it is read: BLIND (C-001 exit 4) -- never a defaulted
+    "Task" type and a None status (the pre-fix behaviour, which invented a
+    type for an item it could not read)."""
+    print("cycle_report: BLIND: %s appeared in the window query but has no items row "
+          "(concurrent write?) -- no honest report is possible" % item_id, file=sys.stderr)
+    return 4
+
+
+def report_body(args, window, records, excluded, population, as_of):
+    return {
+        "as_of": args.as_of, "window": window,
+        "strata": compute_strata(records, args.min_per_type),
+        "excluded": excluded,
+        "records": sorted(records, key=lambda r: r["item_id"]),
+        "medians": compute_medians(records),
+        "reopen": compute_reopen_block(population, window, as_of),
         "instrument_gaps": compute_instrument_gaps(records),
     }
-    rc = 0
-    if args.hand_verified:
+
+
+def finish(args, body, run_meta, message, records=None):
+    """CT-007 is applied in EVERY mode that produces records (R5 I4: the
+    --window-json mode previously ignored --hand-verified), then the report
+    is written."""
+    if args.hand_verified and records is not None:
         rc, msg = check_hand_verified(records, args.hand_verified)
         print("cycle_report: %s" % msg, file=sys.stderr)
         if rc != 0:
             return rc
+    elif args.hand_verified:
+        print("cycle_report: --hand-verified given but the window is empty -- nothing "
+              "to compare (CT-007 needs >=3 items)", file=sys.stderr)
+        return 1
     doc = write_report(args.out, body, run_meta)
     if args.md:
         with open(args.md, "w", encoding="utf-8") as fh:
             fh.write(render_md(doc))
+    if message:
+        print(message)
+    return 0
+
+
+def _strip_flag_with_value(argv, flag):
+    """Remove `flag VALUE` and `flag=VALUE` occurrences from argv."""
+    out, skip = [], False
+    for a in argv:
+        if skip:
+            skip = False
+            continue
+        if a == flag:
+            skip = True
+            continue
+        if a.startswith(flag + "="):
+            continue
+        out.append(a)
+    return out
+
+
+def run_determinism_check(argv, args, repo_root):
+    """C-003: run twice in fresh subprocesses (each with its own hash seed)
+    and compare body_hash. R5 M10 fixes: the caller's --out/--md are stripped
+    from the inner runs (previously both runs wrote the caller's --md and
+    --out was never written); on a deterministic verdict run 1's document is
+    written to --out and --md rendered once. A child exiting 1/2/3/4 has its
+    own code propagated (a hand-verification mismatch, a usage error or a
+    failed needle is not a determinism finding); a timeout is BLIND (exit 4,
+    C-001 "no honest verdict is possible") and is reported as a timeout, not
+    as an unreadable DB."""
+    inner = _strip_flag_with_value(_strip_flag_with_value(
+        [a for a in argv if a != "--determinism-check"], "--out"), "--md")
+    hashes, docs = [], []
+    with tempfile.TemporaryDirectory() as tmp:
+        for i in (1, 2):
+            out_i = os.path.join(tmp, "run%d.json" % i)
+            cmd = [sys.executable, os.path.abspath(__file__)] + inner + ["--out", out_i]
+            try:
+                proc = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True, timeout=120)
+            except subprocess.TimeoutExpired:
+                print("cycle_report: BLIND: determinism-check run %d timed out after 120s -- "
+                      "no determinism verdict is possible (C-001 exit 4)" % i, file=sys.stderr)
+                return 4
+            if proc.returncode != 0 or not os.path.exists(out_i):
+                sys.stderr.write(proc.stderr)
+                print("cycle_report: determinism-check run %d exited %d -- propagating it "
+                      "(no determinism verdict)" % (i, proc.returncode), file=sys.stderr)
+                return proc.returncode if proc.returncode in (1, 2, 3, 4) else 4
+            with open(out_i, encoding="utf-8") as fh:
+                doc = json.load(fh)
+            hashes.append(doc.get("body_hash"))
+            docs.append(doc)
+    if hashes[0] is None or hashes[0] != hashes[1]:
+        print("cycle_report: nondeterministic: run1=%s run2=%s" % (hashes[0], hashes[1]), file=sys.stderr)
+        return 1
+    body = {k: v for k, v in docs[0].items() if k not in ("schema", "body_hash", "run_meta")}
+    doc = write_report(args.out, body, docs[0].get("run_meta", {}))
+    if args.md:
+        with open(args.md, "w", encoding="utf-8") as fh:
+            fh.write(render_md(doc))
+    print("cycle_report: deterministic (body_hash=%s)" % hashes[0])
     return 0
 
 

@@ -10,6 +10,16 @@
 # source_evidence="none really" was accepted (rc=0 COVERED).
 #
 # §11.4.199: every check is a real invocation of the real tool.
+#
+# Revised 2026-10-08 (T048 restart round 1, R7 B1): backfill rows record
+# history and are NEVER gate coverage, however well cited (R2 below now
+# asserts that). R3b previously asserted that a producer-written verdict
+# file ({"verdict":"GO"} with no reviewer identity) recorded via `record`
+# was COVERED -- that WAS the self-certification path R7 B1 reported; it
+# now asserts UNCOVERED, and R3c is the genuine negative control (a
+# reviewer-authored verdict with an authenticated dispatch). R5's
+# cwd-determinism check is re-pointed at that genuine live record, whose
+# verdict can actually change if resolution were cwd-anchored.
 # =============================================================================
 set -u
 
@@ -90,10 +100,10 @@ python3 "$TOOL" backfill --input "$SCRATCH/backfill_input_real.json" --out "$SCR
 
 OUT2=$(python3 "$TOOL" gate --change CH-R2-REAL --records "$SCRATCH/records" 2>&1)
 RC2=$?
-if [ "$RC2" -eq 0 ] && echo "$OUT2" | grep -q "^COVERED CH-R2-REAL"; then
-    ok "R2 golden-good: a backfill row whose source_evidence names a REAL, existing, non-empty file inside --records (given as a relative path) correctly counts as coverage"
+if [ "$RC2" -eq 1 ] && echo "$OUT2" | grep -q "^UNCOVERED CH-R2-REAL .*backfill"; then
+    ok "R2 (R7 B1): even a well-cited backfill row (real, in-tree, hash-pinned evidence) is history only -- never gate coverage"
 else
-    bad "R2 golden-good FAILED: expected COVERED/exit 0, got rc=$RC2: $OUT2"
+    bad "R2 (R7 B1) FAILED: expected UNCOVERED naming backfill, got rc=$RC2: $OUT2"
 fi
 
 # -----------------------------------------------------------------------
@@ -139,19 +149,29 @@ fi
 # the strongest form of the non-determinism this closes) and confirm the
 # verdict is IDENTICAL to R2's.
 # -----------------------------------------------------------------------
+RR_TOOL="$TOOL"
+# shellcheck source=lib/review_record_genuine.sh
+. "$HERE/lib/review_record_genuine.sh"
+RR_WORK="$SCRATCH/work"; mkdir -p "$RR_WORK"
+RR_LEDGER="$SCRATCH/ledger.jsonl"; : > "$RR_LEDGER"
+mkdir -p "$SCRATCH/live"
+rr_genuine "$SCRATCH/live/genuine.json" BATCH-R5-CWD CH-R5-CWD 1 GO '[]' D-R5-CWD
+LIVE_EV=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["verdict_evidence"])' "$SCRATCH/live/genuine.json")
+OUT2L=$(python3 "$TOOL" gate --change CH-R5-CWD --records "$SCRATCH/live" --dispatch-ledger "$RR_LEDGER" 2>&1)
+RC2L=$?
 DECOY_CWD="$SCRATCH/decoy_cwd"
 mkdir -p "$DECOY_CWD"
-# A decoy file with the SAME basename as the real evidence, but empty/
-# unrelated -- if resolution were still cwd-anchored, this decoy would
-# itself satisfy the pre-fix "any file that exists" check from THIS cwd.
-: > "$DECOY_CWD/real_historical_review_notes.md"
+# A decoy file with the SAME basename as the real archived verdict evidence
+# but forged content -- if resolution were cwd-anchored this decoy would be
+# what `gate` hashes from THIS cwd.
+echo '{"verdict":"GO","findings":[],"forged":true}' > "$DECOY_CWD/$LIVE_EV"
 
-OUT5=$(cd "$DECOY_CWD" && python3 "$TOOL" gate --change CH-R2-REAL --records "$SCRATCH/records" 2>&1)
+OUT5=$(cd "$DECOY_CWD" && python3 "$TOOL" gate --change CH-R5-CWD --records "$SCRATCH/live" --dispatch-ledger "$RR_LEDGER" 2>&1)
 RC5=$?
-if [ "$RC5" = "$RC2" ] && [ "$OUT5" = "$OUT2" ]; then
-    ok "R5 (R3-I4 part b): the SAME record's coverage verdict (rc=$RC5, '$OUT5') is IDENTICAL regardless of the gate command's own ambient cwd -- deterministic, never cwd-dependent"
+if [ "$RC2L" -eq 0 ] && [ "$RC5" = "$RC2L" ] && [ "$OUT5" = "$OUT2L" ]; then
+    ok "R5 (R3-I4 part b): a genuine live record's COVERED verdict (rc=$RC5) is IDENTICAL from a cwd holding a same-named forged decoy -- never cwd-dependent"
 else
-    bad "R5 (R3-I4 part b) FAILED: verdict changed when invoked from a different cwd -- R2 was rc=$RC2 '$OUT2', this run was rc=$RC5 '$OUT5'"
+    bad "R5 (R3-I4 part b) FAILED: own-dir rc=$RC2L '$OUT2L', decoy-cwd rc=$RC5 '$OUT5'"
 fi
 
 # -----------------------------------------------------------------------
@@ -187,11 +207,11 @@ else
 fi
 
 # -----------------------------------------------------------------------
-# R3b (the TRUE negative control this file's original R3 was meant to
-# be): a GENUINE live record, produced via the REAL `record` CLI against
-# a REAL --precheck file, correctly counts as coverage -- proving the
-# T085 Round 5 fix does not over-reject legitimate, producer-established
-# live coverage, it only refuses the UNBACKED hand-written shape above.
+# R3b (R7 B1 probe A, inverted from its pre-2026-10-08 shape): a verdict
+# file the PRODUCER wrote -- {"verdict":"GO"} with no reviewer identity --
+# run through the real `record` CLI with a real precheck is NOT coverage.
+# R3c is the genuine negative control: a reviewer-authored verdict whose
+# dispatch is in the ledger, precheck/v1 all_pass, distinct producer.
 # -----------------------------------------------------------------------
 cat > "$SCRATCH/batch_r3b.json" <<'EOF'
 {"batch_id": "BATCH-R2-LIVE-REAL", "changes": ["CH-R2-LIVE-REAL"]}
@@ -200,17 +220,25 @@ cat > "$SCRATCH/verdict_r3b.json" <<'EOF'
 {"verdict": "GO", "round": 1, "findings": []}
 EOF
 cat > "$SCRATCH/precheck_r3b.json" <<'EOF'
-{"evidence": {"markers": []}}
+{"schema": "precheck/v1", "batch_id": "BATCH-R2-LIVE-REAL", "all_pass": true, "checks": []}
 EOF
 python3 "$TOOL" record --batch "$SCRATCH/batch_r3b.json" --round 1 \
     --verdict-file "$SCRATCH/verdict_r3b.json" --precheck "$SCRATCH/precheck_r3b.json" \
-    --tier opus --effort xhigh --out "$SCRATCH/records/live_real.json" >/dev/null 2>&1
-OUT3B=$(python3 "$TOOL" gate --change CH-R2-LIVE-REAL --records "$SCRATCH/records" 2>&1)
+    --tier opus --effort xhigh --producer-id PRODUCER-R3B --out "$SCRATCH/records/live_real.json" >/dev/null 2>&1
+OUT3B=$(python3 "$TOOL" gate --change CH-R2-LIVE-REAL --records "$SCRATCH/records" --dispatch-ledger "$RR_LEDGER" 2>&1)
 RC3B=$?
-if [ "$RC3B" -eq 0 ] && echo "$OUT3B" | grep -q "^COVERED CH-R2-LIVE-REAL"; then
-    ok "R3b (true negative control): a GENUINE live record produced via the real 'record' CLI with a real --precheck file correctly counts as coverage -- the fix does not over-reject legitimate coverage"
+if [ "$RC3B" -eq 1 ] && echo "$OUT3B" | grep -q "^UNCOVERED CH-R2-LIVE-REAL .*reviewer identity"; then
+    ok "R3b (R7 B1): a producer-written verdict with no reviewer identity is NOT coverage, even through the real record CLI with a passing precheck"
 else
-    bad "R3b (true negative control) FAILED: expected COVERED/exit 0, got rc=$RC3B: $OUT3B"
+    bad "R3b (R7 B1) FAILED: expected UNCOVERED naming reviewer identity, got rc=$RC3B: $OUT3B"
+fi
+rr_genuine "$SCRATCH/records/live_genuine.json" BATCH-R2-LIVE-GEN CH-R2-LIVE-GEN 1 GO '[]' D-R3C
+OUT3C=$(python3 "$TOOL" gate --change CH-R2-LIVE-GEN --records "$SCRATCH/records" --dispatch-ledger "$RR_LEDGER" 2>&1)
+RC3C=$?
+if [ "$RC3C" -eq 0 ] && echo "$OUT3C" | grep -q "^COVERED CH-R2-LIVE-GEN "; then
+    ok "R3c (true negative control): a genuine reviewer-authored live record is COVERED -- the fix does not over-reject legitimate coverage"
+else
+    bad "R3c (true negative control) FAILED: expected COVERED/exit 0, got rc=$RC3C: $OUT3C"
 fi
 
 # -----------------------------------------------------------------------

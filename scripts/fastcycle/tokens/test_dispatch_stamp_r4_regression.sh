@@ -37,208 +37,94 @@
 # `${BASH_SOURCE[0]}/../../release_prefix.sh` (two levels up from
 # dispatch_stamp.sh's own containing directory, mirroring this real repo's
 # constitution/scripts/fastcycle/tokens/ -> constitution/scripts/ layout),
-# so placing an extracted copy of the relevant functions at the SAME
-# relative depth under a scratch root that deliberately has NO
-# release_prefix.sh at that ancestor level makes the lookup genuinely,
-# structurally fail -- the exact "a scratch copy of the relevant
-# script/PATH setup without it present" scenario the task's own
-# instructions name.
+# so placing a copy of the tool at the SAME relative depth under a
+# scratch root that deliberately has NO release_prefix.sh at that ancestor
+# level makes the lookup genuinely, structurally fail.
 #
-# Extraction discipline (§11.4.6/§11.4.115(F)): the payload is pulled LIVE
-# out of dispatch_stamp.sh via a content-anchored `awk` line range
-# (`_fc_derive_key_prefix()`'s own preceding "F13 fix" comment line through
-# the unique MODE-2 header comment immediately after `extract_item()`'s own
-# closing brace) -- never hand-simulated/copy-pasted logic. A control
-# needle fails loudly if a future structural edit removes either anchor.
+# T048 RESTART ROUND-1 REWRITE (§11.4.276(D), review class "tests that never
+# run the real artifact"): the earlier version of this file cut a line
+# range out of dispatch_stamp.sh with awk and ran the cut-out functions in a
+# generated wrapper. That is text extraction of the guarded logic, not the
+# real tool. This version copies dispatch_stamp.sh BYTE-FOR-BYTE (checked
+# with cmp) into a scratch tree at the same depth, with no
+# release_prefix.sh two levels up, and runs the copy exactly as the hook
+# does: JSON on stdin, GUARD mode and --extract-item-id mode. The fallback
+# prefix is observed through behaviour only: an 'item=WIT-42' tag is
+# accepted and extracted, and an 'item=ATM-42' tag (the removed hardcoded
+# literal) is refused.
 #
-# The assertion runs the extracted logic end-to-end through the REAL
-# `extract_item()` function (the same function dispatch_stamp.sh's own
-# GUARD and --extract-item-id modes both call), proving the fallback
-# genuinely produces a usable `WIT-<n>`-prefixed id match in this specific
-# unreachable-release-prefix scenario -- not merely that the 3-letter
-# prefix string itself is "WIT".
+# Paths are resolved from this file's own location, never from a fixed
+# number of levels above it, so the test also runs in a standalone
+# constitution clone (T048 restart R4-I2 class: no project-layout literal).
 set -u
 
-repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
-ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
-DS="$FC/tokens/dispatch_stamp.sh"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+DS="$HERE/dispatch_stamp.sh"
+RP_REAL="$HERE/../../release_prefix.sh"
 
 fail=0
 failx() { fail=1; }
+ok_line()  { echo "  ok    $1"; }
+bad_line() { echo "  FAIL  $1"; failx; }
 
 TMP="$(mktemp -d)" || { echo "  FAIL  mktemp -d failed"; exit 1; }
 trap 'rm -rf "$TMP"' EXIT
 
-# T048 round-5 minor m5: this file's own fixture depends on
-# _fc_default_item_prefix()'s WIT fallback actually running, but if the
-# CALLER's real shell environment happens to export either of the two vars
-# extract_item() consults FIRST (FC_DISPATCH_ITEM_ID_RE / its companion
-# FC_DISPATCH_EXTRA_ITEM_PREFIXES), those take precedence over the fallback
-# and this test can false-FAIL (reproduced: exporting
-# FC_DISPATCH_ITEM_ID_RE='ATM-[0-9]+' before running this file gives rc=1).
-# Never let an ambient copy leak into a fixture that does not intend to set
-# it -- this file's own scenarios below export neither.
-unset FC_DISPATCH_ITEM_ID_RE FC_DISPATCH_EXTRA_ITEM_PREFIXES 2>/dev/null || true
+# Ambient overrides would bypass the fallback this file exists to exercise
+# (round-5 minor m5); HELIX_RELEASE_PREFIX is irrelevant once release_prefix.sh
+# is absent, but is unset too so no environment value can reach the copy.
+unset FC_DISPATCH_ITEM_ID_RE FC_DISPATCH_EXTRA_ITEM_PREFIXES HELIX_RELEASE_PREFIX HELIX_PROJECT_ROOT 2>/dev/null || true
 
-echo "=== control needle: source file resolves ==="
-if [ -f "$DS" ]; then
-  echo "  ok    $DS resolves"
+echo "=== control needle: the real dispatch_stamp.sh and release_prefix.sh resolve ==="
+if [ -f "$DS" ]; then ok_line "$DS resolves"; else bad_line "$DS not found"; exit 1; fi
+if [ -f "$RP_REAL" ] && [ -n "$(bash "$RP_REAL" 2>/dev/null)" ]; then
+  ok_line "$RP_REAL resolves and prints a non-empty base -- in normal use the WIT fallback is unreachable, which is why this file forces it"
 else
-  echo "  FAIL  $DS not found"
-  failx
+  bad_line "$RP_REAL is missing or prints nothing -- the baseline this test contrasts against cannot be confirmed"
 fi
 
-# --- control needle: confirm the un-forced, real host environment DOES ---
-#     resolve release_prefix.sh today (this is exactly what makes the WIT
-#     branch otherwise unreachable, per R4-I2's own finding) -- so this
-#     test's later "genuinely unreachable" claim is contrasted against a
-#     verified "genuinely reachable" baseline, not an assumption.
-RP_REAL="$FC/../release_prefix.sh"
-RP_REAL_RESOLVED="$(cd "$(dirname "$RP_REAL")" 2>/dev/null && pwd)/$(basename "$RP_REAL")"
+SCRATCH_TOKENS="$TMP/unreachable/constitution/scripts/fastcycle/tokens"
+mkdir -p "$SCRATCH_TOKENS"
+cp "$DS" "$SCRATCH_TOKENS/dispatch_stamp.sh"
+COPY="$SCRATCH_TOKENS/dispatch_stamp.sh"
+
 echo
-echo "=== control needle: real release_prefix.sh resolves under a normal PATH (baseline the WIT fallback is unreachable against) ==="
-if [ -f "$RP_REAL_RESOLVED" ]; then
-  REAL_BASE="$(bash "$RP_REAL_RESOLVED" 2>/dev/null || true)"
-  if [ -n "$REAL_BASE" ]; then
-    echo "  ok    $RP_REAL_RESOLVED resolves and prints a non-empty base ('$REAL_BASE') --"
-    echo "        confirming the WIT fallback branch is genuinely unreachable in normal"
-    echo "        use today, exactly as R4-I2 found"
+echo "=== control needles: byte-identical copy, release_prefix.sh genuinely absent ==="
+if cmp -s "$DS" "$COPY"; then ok_line "the scratch copy is byte-identical to the real dispatch_stamp.sh"; else bad_line "the scratch copy differs from the real file"; fi
+if [ ! -e "$TMP/unreachable/constitution/scripts/release_prefix.sh" ]; then
+  ok_line "no release_prefix.sh exists at the path the copy resolves (self_dir/../../release_prefix.sh)"
+else
+  bad_line "a release_prefix.sh unexpectedly exists in the scratch tree"
+fi
+
+# run_copy <mode-arg-or-empty> <payload> -> prints "<stdout>|<exit>"
+run_copy() {
+  local mode="$1" payload="$2" out rc
+  if [ -n "$mode" ]; then
+    out="$(cd "$TMP" && printf '%s' "$payload" | bash "$COPY" "$mode" 2>/dev/null)"; rc=$?
   else
-    echo "  FAIL  $RP_REAL_RESOLVED resolved but printed nothing -- cannot confirm the"
-    echo "        baseline this test's own scratch scenario is contrasted against"
-    failx
+    out="$(cd "$TMP" && printf '%s' "$payload" | bash "$COPY" 2>/dev/null)"; rc=$?
   fi
-else
-  echo "  FAIL  $RP_REAL_RESOLVED not found -- cannot confirm the baseline this test's"
-  echo "        own scratch scenario is contrasted against"
-  failx
-fi
-
-# --- extract the fallback-relevant logic, content-anchored ---
-EXTRACT_START='# F13 fix (T048 round-2 review, §11.4.28/§11.4.177): the accepted ticket-id'
-EXTRACT_END="# MODE 2: --extract-item-id (ALWAYS exit 0; stdout is the id / '?' / empty,"
-PAYLOAD="$TMP/payload.sh"
+  printf '%s|%s' "$out" "$rc"
+}
+WIT_PAYLOAD='{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=WIT-42 fallback prefix"}}'
+ATM_PAYLOAD='{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-42 removed literal"}}'
 
 echo
-echo "=== control needle: extraction anchors found + unique in $DS ==="
-START_HITS="$(grep -cxF "$EXTRACT_START" "$DS" 2>/dev/null || true)"; : "${START_HITS:=0}"
-END_HITS="$(grep -cxF "$EXTRACT_END" "$DS" 2>/dev/null || true)"; : "${END_HITS:=0}"
-if [ "$START_HITS" != 1 ] || [ "$END_HITS" != 1 ]; then
-  echo "  FAIL  extraction anchors not exactly-once (start=$START_HITS, end=$END_HITS) --"
-  echo "        $DS's structure changed; this file's anchors need updating"
-  failx
-  PAYLOAD=""
-else
-  awk -v s="$EXTRACT_START" -v e="$EXTRACT_END" '$0==s,$0==e' "$DS" > "$PAYLOAD" 2>/dev/null
-  if [ -s "$PAYLOAD" ] \
-     && grep -qF '_fc_derive_key_prefix() {' "$PAYLOAD" \
-     && grep -qF '_fc_default_item_prefix() {' "$PAYLOAD" \
-     && grep -qF 'extract_item() {' "$PAYLOAD"; then
-    echo "  ok    extraction produced $(wc -l < "$PAYLOAD" | tr -d ' ') lines containing all 3"
-    echo "        expected functions (_fc_derive_key_prefix, _fc_default_item_prefix,"
-    echo "        extract_item)"
-  else
-    echo "  FAIL  extraction from $DS is incomplete -- the file's structure changed;"
-    echo "        this file's anchors need updating"
-    failx
-    PAYLOAD=""
-  fi
-fi
-
-if [ -z "${PAYLOAD:-}" ]; then
-  echo
-  echo "=== R4-I2 REGRESSION GUARD: SKIPPED -- extraction control needle failed above ==="
-  exit 1
-fi
-
-# --- build the scratch layout: a nested tree mirroring this real repo's ---
-#     constitution/scripts/fastcycle/tokens/ (dispatch_stamp.sh's own
-#     containing dir) depth under constitution/scripts/ (where
-#     release_prefix.sh normally lives), WITH NO release_prefix.sh
-#     anywhere in it -- a real, on-disk absence, never a mock/env
-#     override.
-SCRATCH_TOKENS_DIR="$TMP/unreachable_scenario/constitution/scripts/fastcycle/tokens"
-mkdir -p "$SCRATCH_TOKENS_DIR"
-SCRATCH_SCRIPT="$SCRATCH_TOKENS_DIR/dispatch_stamp_extract.sh"
-{
-  echo '#!/usr/bin/env bash'
-  echo 'set -u'
-  cat "$PAYLOAD"
-  # NOTE: the extracted payload's own top-level `if [ -n
-  # "${FC_DISPATCH_ITEM_ID_RE:-}" ]; then ... else ... fi` block (verbatim
-  # from the real source, included in this extraction range) already
-  # calls _fc_default_item_prefix() and sets ITEM_ALL_PREFIXES/
-  # ITEM_VALUE_RE/ITEM_RE as global vars AT PAYLOAD-LOAD TIME, exactly as
-  # the real dispatch_stamp.sh does at its own top level -- so
-  # extract_item() below is called with ITEM_RE already correctly
-  # reflecting this scratch scenario's own resolved fallback, never
-  # hand-recomputed here.
-  # echo writes this line verbatim into the generated scratch script, where $(...) must expand later
-  # the literal backslash-n is wanted: it lands verbatim inside the generated script's printf format (bash echo does not expand it)
-  # shellcheck disable=SC2016,SC2028
-  echo 'printf "PREFIX=%s\n" "$(_fc_default_item_prefix)"'
-  # echo writes this line verbatim into the generated scratch script, where $(...) must expand later
-  # the literal backslash-n is wanted: it lands verbatim inside the generated script's printf format (bash echo does not expand it)
-  # shellcheck disable=SC2016,SC2028
-  echo 'printf "EXTRACTED=%s\n" "$(extract_item "some dispatch text item=WIT-42 trailing")"'
-} > "$SCRATCH_SCRIPT"
-chmod +x "$SCRATCH_SCRIPT"
-
-echo
-echo "=== control needle: the scratch scenario's own release_prefix.sh ancestor path is genuinely absent ==="
-SCRATCH_RP_EXPECT="$TMP/unreachable_scenario/constitution/scripts/release_prefix.sh"
-if [ ! -e "$SCRATCH_RP_EXPECT" ]; then
-  echo "  ok    $SCRATCH_RP_EXPECT genuinely does not exist on disk -- this is a real"
-  echo "        filesystem absence, not a mocked/overridden lookup"
-else
-  echo "  FAIL  $SCRATCH_RP_EXPECT unexpectedly exists -- this scratch fixture's own"
-  echo "        setup is broken (the control needle this whole file depends on)"
-  failx
-fi
-
-echo
-echo "=== (R4-I2) real (fixed) _fc_default_item_prefix(): forced-unreachable release_prefix.sh correctly produces the neutral WIT fallback ==="
-SCRATCH_OUT="$TMP/scratch.out"
-SCRATCH_ERR="$TMP/scratch.err"
-"$SCRATCH_SCRIPT" >"$SCRATCH_OUT" 2>"$SCRATCH_ERR"
-SCRATCH_RC=$?
-GOT_PREFIX="$(sed -n 's/^PREFIX=//p' "$SCRATCH_OUT")"
-GOT_EXTRACTED="$(sed -n 's/^EXTRACTED=//p' "$SCRATCH_OUT")"
-if [ "$SCRATCH_RC" != 0 ]; then
-  echo "  FAIL  scratch script exited $SCRATCH_RC (wanted 0) -- $(cat "$SCRATCH_ERR" 2>/dev/null)"
-  failx
-elif [ "$GOT_PREFIX" != "WIT" ]; then
-  echo "  FAIL  _fc_default_item_prefix() returned '$GOT_PREFIX' (wanted 'WIT') when"
-  echo "        release_prefix.sh was genuinely unreachable -- $(cat "$SCRATCH_ERR" 2>/dev/null)"
-  failx
-else
-  echo "  ok    _fc_default_item_prefix() correctly returned the neutral 'WIT' prefix"
-  echo "        (never the removed project-specific 'ATM' literal, never a crash/empty"
-  echo "        value) when release_prefix.sh was genuinely, structurally unreachable"
-fi
-if [ "$GOT_EXTRACTED" = "WIT-42" ]; then
-  echo "  ok    the SAME fallback, driven end-to-end through the REAL extract_item()"
-  echo "        function dispatch_stamp.sh's own GUARD and --extract-item-id modes both"
-  echo "        call, correctly extracts a genuine 'WIT-42'-prefixed id from"
-  echo "        'item=WIT-42' -- the fallback is not merely a 3-letter string, it is a"
-  echo "        genuinely usable item-id prefix in this specific scenario"
-else
-  echo "  FAIL  extract_item() returned '$GOT_EXTRACTED' (wanted 'WIT-42') -- the WIT"
-  echo "        fallback prefix did not produce a usable item-id match"
-  failx
-fi
+echo "=== (R4-I2) the real tool, release_prefix.sh unreachable: neutral WIT fallback ==="
+GOT="$(run_copy --extract-item-id "$WIT_PAYLOAD")"
+if [ "$GOT" = "WIT-42|0" ]; then ok_line "--extract-item-id on item=WIT-42 -> 'WIT-42', exit 0"; else bad_line "--extract-item-id on item=WIT-42 gave '$GOT' (want 'WIT-42|0')"; fi
+GOT="$(run_copy "" "$WIT_PAYLOAD")"
+if [ "$GOT" = "|0" ]; then ok_line "GUARD allows item=WIT-42 (exit 0)"; else bad_line "GUARD on item=WIT-42 gave '$GOT' (want '|0')"; fi
+GOT="$(run_copy --extract-item-id "$ATM_PAYLOAD")"
+if [ "$GOT" = "|0" ]; then ok_line "--extract-item-id on item=ATM-42 -> empty (the old hardcoded 'ATM' fallback is gone)"; else bad_line "--extract-item-id on item=ATM-42 gave '$GOT' (want '|0') -- a project literal fallback has returned"; fi
+GOT="$(run_copy "" "$ATM_PAYLOAD")"
+if [ "$GOT" = "|2" ]; then ok_line "GUARD blocks item=ATM-42 (exit 2)"; else bad_line "GUARD on item=ATM-42 gave '$GOT' (want '|2')"; fi
 
 echo
 if [ "$fail" = 0 ]; then
-  echo "=== R4-I2 REGRESSION GUARD: ALL CHECKS PASS -- with release_prefix.sh forced"
-  echo "    genuinely, structurally unreachable, the real (fixed) _fc_default_item_prefix()"
-  echo "    correctly falls back to the neutral 'WIT' prefix and that fallback produces a"
-  echo "    genuinely usable 'WIT-<n>' item-id match through the real extract_item()"
-  echo "    logic -- this test genuinely distinguishes the R3-M1 fix from its absence,"
-  echo "    unlike Section G's by-design bypass. ==="
+  echo "=== R4-I2 REGRESSION GUARD: ALL CHECKS PASS (real tool, byte-identical copy, release_prefix.sh unreachable) ==="
 else
   echo "=== R4-I2 REGRESSION GUARD: FAILURES ABOVE -- see FAIL lines. ==="
 fi
-
 exit "$fail"

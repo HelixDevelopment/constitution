@@ -985,6 +985,55 @@ else
   failx
 fi
 
+# =============================================================================
+# (F) R7 M-c (T048 restart round 1, 2026-10-08): the selected run must be
+# BOUND to the current meta-test (RUN_COMPLETE metatest_sha256 == sha256 of
+# the real meta-test). Drives the WHOLE real test_metatest_per_mutant_red.sh
+# against a fixture archive via METATEST_ARCHIVE_DIR_OVERRIDE -- never an
+# extracted or re-implemented copy of the check.
+# =============================================================================
+echo
+echo "=== (F) R7 M-c: per-mutant TSV must be bound to the current meta-test ==="
+REAL_MT="$ROOT/scripts/testing/meta_test_false_positive_proof.sh"
+REAL_MT_SHA="$(sha256sum "$REAL_MT" 2>/dev/null | awk '{print $1}')"
+mk_bound_archive() { # mk_bound_archive DIR SHA_LINE
+  mkdir -p "$1/20260105T000000Z_run"
+  printf 'label\tstart_ns\tend_ns\tduration_ms\tgate\tcmd\tverdict\tchecks\tpass\tfail\tmutation_verdict\n' > "$1/20260105T000000Z_run/per_mutant.tsv"
+  printf 'M_F\t1\t2\t1\tgate.sh\tgate.sh\tPASS\t1\t1\t0\tKILLED\n' >> "$1/20260105T000000Z_run/per_mutant.tsv"
+  printf 'pass=1\nfail=0\nskip=0\nts=2026-01-05T00:00:00Z\n%s' "$2" > "$1/20260105T000000Z_run/RUN_COMPLETE"
+}
+if [ -z "$REAL_MT_SHA" ]; then
+  echo "NOT ok (F) control needle: cannot hash $REAL_MT"
+  failx
+else
+  mk_bound_archive "$TMP/f_bound" "metatest_sha256=$REAL_MT_SHA
+"
+  mk_bound_archive "$TMP/f_unbound" ""
+  mk_bound_archive "$TMP/f_stale" "metatest_sha256=0000000000000000000000000000000000000000000000000000000000000000
+"
+  F_BOUND="$(METATEST_ARCHIVE_DIR_OVERRIDE="$TMP/f_bound" bash "$RED" 2>&1)"
+  F_UNBOUND="$(METATEST_ARCHIVE_DIR_OVERRIDE="$TMP/f_unbound" bash "$RED" 2>&1)"
+  F_STALE="$(METATEST_ARCHIVE_DIR_OVERRIDE="$TMP/f_stale" bash "$RED" 2>&1)"
+  if printf '%s\n' "$F_BOUND" | grep -q "^ok selected run .* is bound to the current meta-test" \
+     && printf '%s\n' "$F_BOUND" | grep -q "^ok per-mutant TSV contains 1 row"; then
+    echo "ok (F1) a RUN_COMPLETE run bound to the current meta-test is accepted (negative control)"
+  else
+    echo "NOT ok (F1) bound run not accepted:"; printf '%s\n' "$F_BOUND" | grep -E "^(ok|NOT ok)" | sed 's/^/    /'
+    failx
+  fi
+  if printf '%s\n' "$F_UNBOUND" | grep -q "^NOT ok selected run .* is not bound" \
+     && ! printf '%s\n' "$F_UNBOUND" | grep -q "^ok per-mutant TSV contains"; then
+    echo "ok (F2) a run with no metatest_sha256 binding is refused (R7 M-c reviewer case: stale archived TSV)"
+  else
+    echo "NOT ok (F2) unbound run was not refused"; failx
+  fi
+  if printf '%s\n' "$F_STALE" | grep -q "^NOT ok selected run .* is not bound"; then
+    echo "ok (F3) a run bound to a DIFFERENT meta-test content is refused as stale"
+  else
+    echo "NOT ok (F3) stale-bound run was not refused"; failx
+  fi
+fi
+
 echo
 if [ "$fail" = 0 ]; then
   echo "=== R4-I1/R5-I1 REGRESSION GUARD: ALL CHECKS PASS -- the real (fixed)"

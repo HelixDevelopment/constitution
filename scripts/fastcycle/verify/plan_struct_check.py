@@ -444,9 +444,15 @@ gap named explicitly, never silently assumed covered):
       later subcommand's job -- `plan`, T159/T179) -- this file does NOT read plan.md at all.
   (c) class counts equal research.md §2.2                                -- FULL. An independent
       re-tally over every row's first-bold-token class is compared against §2.2's own stated
-      per-class "Rows" figure; a class named in the doc's own list with no §2.2 entry is silently
-      skipped from the comparison (nothing to disagree with), matching the RED test's own
-      register_audit instrument's identical behaviour for cross-fixture consistency.
+      per-class "Rows" figure, its Total row (against the number of parsed rows), and -- when
+      the table has a "Row ids" column -- each class's listed ids (as a multiset) against the
+      ids actually carrying that class. Nothing in §2.2 is ever silently skipped (R8 F6): a
+      missing "### 2.2" heading or table, a row whose label is not EXACTLY CONFIRMED / REFUTED /
+      UNDETERMINED / Total ("Confirmed" included), a non-integer Rows cell, a class or Total row
+      stated twice, and a class or Total with no row are each their own violation
+      (counts_table_missing / counts_row_malformed / counts_class_duplicate /
+      counts_class_missing / counts_total_missing). A §2.1 RC id appearing on more than one row
+      is `duplicate_row_id`.
   (d) settling_evidence required for UNDETERMINED                       -- PARTIAL. Implemented
       as a direct, low-risk reading of the contract's own words ("settling_evidence required for
       UNDETERMINED") against research.md's real "Settling evidence / what remains" column
@@ -476,8 +482,9 @@ gap named explicitly, never silently assumed covered):
       share is UNMEASURED until T-A11/T049") this clause is INACTIVE by construction, so no flag
       is needed to pass T025. An optional `--post-a11` boolean is added as a forward-compatible
       extension (never on by default, so every current invocation -- T025's included -- is
-      unaffected): when passed, a CONFIRMED row whose "Share of total cycle" cell is UNMEASURED
-      or blank is a violation. The contract's further exemption ("unless recorded as a named
+      unaffected): when passed, a CONFIRMED row whose "Share of total cycle" cell carries no
+      number -- blank, UNMEASURED, or a digit-free placeholder such as "n/a (instrument gap)"
+      (R8 F8) -- is a violation. The contract's further exemption ("unless recorded as a named
       permanent gap") names no concrete marker syntax anywhere in the contract or research.md,
       so no such exemption is recognised here -- an honest, deliberately narrower reading than
       the full future clause, to be corrected by whichever task actually re-runs this checker
@@ -503,7 +510,8 @@ Output (C-002): canonical JSON via fc_common.py's shared conventions, schema
 above: NOT validated as real filesystem paths in this pass), "measured_share" (the raw "Share of
 total cycle" cell text), "settling_evidence" (the raw "Settling evidence / what remains" cell
 text, or null if blank), "removed_or_measured_by" (the raw last-cell text, or null if blank)},
-...], "class_counts": {"stated": {...}, "actual": {...}}, "violations": [{"code", ...fields}]}.
+...], "class_counts": {"stated": {...}, "actual": {...}, "total_stated": <int|null>,
+"total_actual": <int>, "row_ids_checked": <bool>}, "violations": [{"code", ...fields}]}.
 Written on exit 0 AND exit 1 (a finding is still a real, inspectable verdict -- fc_common.py's
 own `emit --code 1` convention); NOT written on exit 2/3/4 (no honest verdict, C-001).
 
@@ -704,34 +712,89 @@ def parse_register_rows(text):
     return rows, malformed
 
 
-def parse_register_counts(text):
-    """Parse the §2.2 "Register counts" table's stated per-class Rows figure out of `text`.
+_COUNTS_SEPARATOR_RE = re.compile(r"^[-: ]+$")
+_COUNTS_LABEL_TOTAL = "Total"
 
-    Returns {class_name: int} for whichever of {CONFIRMED, REFUTED, UNDETERMINED} the table
-    states a row for (a class the table omits is simply absent from the returned dict -- no
-    entry to compare against, matching the RED test's own register_audit instrument). Section
-    boundaries: starts at a line beginning "### 2.2", ends at the next line beginning "### 2."
-    that is not itself "### 2.2" (i.e. "### 2.3" etc.) -- identical convention to register_audit.
+
+def parse_register_counts(text):
+    """Parse the §2.2 "Register counts" table out of `text` (R8 F6: never a silent skip).
+
+    The section starts at the line beginning "### 2.2" and ends at the next Markdown heading of
+    any level. Returns a dict:
+      "found"          -- True when the "### 2.2" heading exists.
+      "stated"         -- {class: int} for each class row read cleanly.
+      "ids"            -- {class: [ids listed in the Row ids cell]} (only when that column exists).
+      "total"          -- the Total row's stated figure, or None when there is no readable Total row.
+      "has_ids_column" -- True when the header names a third "Row ids" column.
+      "problems"       -- violation dicts for everything that could NOT be read: the heading or
+                          table missing (`counts_table_missing`), a row whose label is not exactly
+                          CONFIRMED / REFUTED / UNDETERMINED / Total or whose Rows cell is not a
+                          plain integer (`counts_row_malformed`), a class or Total row stated more
+                          than once (`counts_class_duplicate`), and a class or Total with no row
+                          at all (`counts_class_missing` / `counts_total_missing`).
+    A label differing only in case ("Confirmed") is malformed, never accepted and never skipped.
     """
-    stated = {}
-    in_22 = False
-    for line in text.splitlines():
-        if line.startswith("### 2.2"):
-            in_22 = True
-            continue
-        if in_22 and line.startswith("### 2.") and not line.startswith("### 2.2"):
+    res = {"found": False, "stated": {}, "ids": {}, "total": None, "has_ids_column": False,
+           "problems": []}
+    problems = res["problems"]
+    lines = text.splitlines()
+    start = next((i for i, l in enumerate(lines) if l.startswith("### 2.2")), None)
+    if start is None:
+        problems.append({"code": "counts_table_missing", "reason": "no '### 2.2' heading"})
+        return res
+    res["found"] = True
+    table = []
+    for line_no in range(start + 2, len(lines) + 1):
+        line = lines[line_no - 1]
+        if line.startswith("#"):
             break
-        if in_22 and line.startswith("|"):
-            parts = line.rstrip("\n").split("|")
-            if len(parts) >= 3:
-                key = parts[1].strip()
-                val = parts[2].strip().strip("*")
-                if key in CLASS_MEMBERS:
-                    try:
-                        stated[key] = int(val)
-                    except ValueError:
-                        pass  # non-numeric "Rows" cell: leave this class absent from `stated`
-    return stated
+        if line.startswith("|"):
+            table.append((line_no, line))
+    if not table:
+        problems.append({"code": "counts_table_missing", "reason": "no table rows under '### 2.2'"})
+        return res
+    header = [c.strip() for c in table[0][1].split("|")]
+    if len(header) < 4 or header[1] != "Class" or header[2] != "Rows":
+        problems.append({"code": "counts_row_malformed", "line_no": table[0][0], "line": table[0][1],
+                         "reason": "header must start '| Class | Rows |'"})
+        return res
+    res["has_ids_column"] = len(header) >= 5 and header[3] == "Row ids"
+    seen = set()
+    for line_no, line in table[1:]:
+        cells = line.split("|")
+        if len(cells) < 4:
+            problems.append({"code": "counts_row_malformed", "line_no": line_no, "line": line,
+                             "reason": "fewer than two cells"})
+            continue
+        if _COUNTS_SEPARATOR_RE.match(cells[1].strip() or "-") and _COUNTS_SEPARATOR_RE.match(cells[2].strip() or "-"):
+            continue  # the |---|---| separator row
+        label = cells[1].strip().strip("*").strip()
+        value = cells[2].strip().strip("*").strip()
+        if label not in CLASS_MEMBERS and label != _COUNTS_LABEL_TOTAL:
+            problems.append({"code": "counts_row_malformed", "line_no": line_no, "line": line,
+                             "reason": "label %r is not exactly one of %s or %s"
+                                       % (label, "/".join(CLASS_MEMBERS), _COUNTS_LABEL_TOTAL)})
+            continue
+        if not value.isdigit():
+            problems.append({"code": "counts_row_malformed", "line_no": line_no, "line": line,
+                             "reason": "Rows cell %r is not a plain integer" % value})
+            continue
+        if label in seen:
+            problems.append({"code": "counts_class_duplicate", "class": label})
+            continue
+        seen.add(label)
+        if label == _COUNTS_LABEL_TOTAL:
+            res["total"] = int(value)
+            continue
+        res["stated"][label] = int(value)
+        if res["has_ids_column"] and len(cells) >= 5:
+            res["ids"][label] = [x.strip() for x in cells[3].split(",") if x.strip()]
+    for cls in CLASS_MEMBERS:
+        if cls not in seen:
+            problems.append({"code": "counts_class_missing", "class": cls})
+    if _COUNTS_LABEL_TOTAL not in seen:
+        problems.append({"code": "counts_total_missing"})
+    return res
 
 
 def actual_counts(rows):
@@ -742,11 +805,23 @@ def actual_counts(rows):
     return counts
 
 
-def check_causes(rows, stated, post_a11, operator_causes):
+def _is_measured_share(share):
+    """A share counts as MEASURED only when it carries a number (R8 F8): "UNMEASURED", blank, and
+    digit-free placeholders such as "n/a (instrument gap)" are all unmeasured."""
+    return bool(share) and not _UNMEASURED_RE.match(share) and re.search(r"[0-9]", share) is not None
+
+
+def check_causes(rows, counts, post_a11, operator_causes):
     """Run every SC-C-001 check this file implements (see module docstring's Contract-clause
-    coverage section) over already-parsed rows/§2.2 counts. Returns (causes_out, violations)."""
+    coverage section) over already-parsed rows and the parsed §2.2 table (`counts`, from
+    parse_register_counts). Returns (causes_out, violations)."""
     causes_out = []
     violations = []
+
+    ids = [row["id"] for row in rows]
+    dup_ids = {rid for rid in ids if ids.count(rid) > 1}
+    for rid in sorted(dup_ids):
+        violations.append({"code": "duplicate_row_id", "row": rid})
 
     for row in rows:
         rid = row["id"]
@@ -765,10 +840,8 @@ def check_causes(rows, stated, post_a11, operator_causes):
 
         # (f) measured_share required for CONFIRMED once T-A11 has run (PARTIAL, opt-in --
         # see docstring; inactive unless --post-a11 was passed)
-        if post_a11 and row["class"] == "CONFIRMED":
-            share = row["share"]
-            if not share or _UNMEASURED_RE.match(share):
-                violations.append({"code": "measured_share_missing", "row": rid})
+        if post_a11 and row["class"] == "CONFIRMED" and not _is_measured_share(row["share"]):
+            violations.append({"code": "measured_share_missing", "row": rid})
 
         causes_out.append({
             "id": rid,
@@ -779,13 +852,26 @@ def check_causes(rows, stated, post_a11, operator_causes):
             "removed_or_measured_by": row["last"] or None,
         })
 
-    # (c) class counts equal research.md §2.2
+    # (c) class counts, Total and Row ids equal research.md §2.2. A class or Total whose §2.2 row
+    # could not be read is already a `counts_*` problem from parse_register_counts -- reported by
+    # the caller -- so it is never silently treated as "nothing to compare".
     actual = actual_counts(rows)
     for cls in CLASS_MEMBERS:
-        s = stated.get(cls)
+        s = counts["stated"].get(cls)
         a = actual.get(cls, 0)
         if s is not None and s != a:
             violations.append({"code": "count_mismatch", "class": cls, "stated": s, "actual": a})
+    if counts["total"] is not None and counts["total"] != len(rows):
+        violations.append({"code": "count_mismatch", "class": _COUNTS_LABEL_TOTAL,
+                           "stated": counts["total"], "actual": len(rows)})
+    for cls in CLASS_MEMBERS:
+        listed = counts["ids"].get(cls)
+        actual_ids = [row["id"] for row in rows if row["class"] == cls]
+        if counts["has_ids_column"] and listed is not None and sorted(listed) != sorted(actual_ids):
+            violations.append({"code": "count_ids_mismatch", "class": cls,
+                               "listed_not_in_class": sorted(set(listed) - set(actual_ids)),
+                               "in_class_not_listed": sorted(set(actual_ids) - set(listed)),
+                               "listed": listed})
 
     # (g) the six operator-listed causes must all be present ("configured list", PARTIAL, opt-in)
     if operator_causes:
@@ -816,6 +902,21 @@ def _violation_stderr_line(v):
         return "%s:stated=%d,actual=%d" % (v["class"], v["stated"], v["actual"])
     if code == "operator_causes_missing":
         return "operator-listed cause(s) not found in any row's Origin cell: %s" % ",".join(v["tokens"])
+    if code == "duplicate_row_id":
+        return "duplicate RC id in §2.1: %s" % v["row"]
+    if code == "count_ids_mismatch":
+        return "§2.2 %s row ids differ from §2.1: listed but not %s %s; %s but not listed %s" % (
+            v["class"], v["class"], v["listed_not_in_class"], v["class"], v["in_class_not_listed"])
+    if code == "counts_table_missing":
+        return "§2.2 register-counts table missing (%s)" % v["reason"]
+    if code == "counts_row_malformed":
+        return "§2.2 counts row malformed, line %d (%s): %s" % (v["line_no"], v["reason"], v["line"])
+    if code == "counts_class_duplicate":
+        return "§2.2 counts table has more than one row for %s" % v["class"]
+    if code == "counts_class_missing":
+        return "§2.2 counts table has no row for %s" % v["class"]
+    if code == "counts_total_missing":
+        return "§2.2 counts table has no Total row"
     return str(v)  # pragma: no cover - defensive, every emitted code is one of the above
 
 
@@ -838,6 +939,8 @@ _SELF_CHECK_DOC = (
     "| Class | Rows | Row ids |\n"
     "|---|---|---|\n"
     "| CONFIRMED | 2 | RC-NEEDLE-GOOD, RC-NEEDLE-BAD |\n"
+    "| REFUTED | 0 | |\n"
+    "| UNDETERMINED | 0 | |\n"
     "| **Total** | **2** | |\n"
 )
 
@@ -857,13 +960,29 @@ def self_check():
         return "self-check FAILED: the synthetic control-needle parser did not read RC-NEEDLE-BAD's last cell as blank (got %r)" % bad["last"]
     if not good["last"]:
         return "self-check FAILED: the synthetic control-needle parser wrongly read RC-NEEDLE-GOOD's last cell as blank"
-    _, violations = check_causes(rows, parse_register_counts(_SELF_CHECK_DOC), post_a11=False, operator_causes=None)
+    counts = parse_register_counts(_SELF_CHECK_DOC)
+    if counts["problems"]:
+        return "self-check FAILED: the synthetic §2.2 table did not read cleanly: %r" % counts["problems"]
+    _, violations = check_causes(rows, counts, post_a11=False, operator_causes=None)
     bad_flagged = any(v["code"] == "orphan_cause" and v["row"] == "RC-NEEDLE-BAD" for v in violations)
     good_flagged = any(v["code"] == "orphan_cause" and v["row"] == "RC-NEEDLE-GOOD" for v in violations)
     if not bad_flagged:
         return "self-check FAILED: known-orphan RC-NEEDLE-BAD was NOT flagged as orphan_cause"
     if good_flagged:
         return "self-check FAILED: known-non-orphan RC-NEEDLE-GOOD was WRONGLY flagged as orphan_cause (false positive, constitution 11.4.201(1))"
+    if any(v["code"].startswith("count") for v in violations):
+        return "self-check FAILED: the consistent synthetic §2.2 table was flagged: %r" % violations
+    # R8 F6 needles: the §2.2 count check must be able to fail. A wrong class count, a wrong Total
+    # and a label that is not exactly upper-case must each be reported, never skipped.
+    for label, old, new, code in (
+            ("wrong class count", "| CONFIRMED | 2 |", "| CONFIRMED | 3 |", "count_mismatch"),
+            ("wrong Total", "| **Total** | **2** |", "| **Total** | **3** |", "count_mismatch"),
+            ("lower-case label", "| CONFIRMED | 2 |", "| Confirmed | 2 |", "counts_row_malformed")):
+        doc = _SELF_CHECK_DOC.replace(old, new)
+        c = parse_register_counts(doc)
+        _, v2 = check_causes(rows, c, post_a11=False, operator_causes=None)
+        if not any(v["code"] == code for v in c["problems"] + v2):
+            return "self-check FAILED: a %s in §2.2 was NOT reported as %s" % (label, code)
     return None
 
 
@@ -901,12 +1020,11 @@ def cmd_causes(a):
               "(no honest register to check)" % a.doc, file=sys.stderr)
         return 4
 
-    stated = parse_register_counts(text)
-    causes_out, violations = check_causes(rows, stated, post_a11=a.post_a11, operator_causes=operator_causes)
-    # Malformed rows are a structural violation in their own right (see parse_register_rows /
-    # module docstring "Row parsing") -- never silently dropped, and reported ahead of the
-    # semantic per-row checks below since a parse failure precedes them in the pipeline.
-    violations = malformed + violations
+    counts = parse_register_counts(text)
+    causes_out, violations = check_causes(rows, counts, post_a11=a.post_a11, operator_causes=operator_causes)
+    # Malformed register rows and unreadable §2.2 table parts are structural violations in their
+    # own right (never silently dropped), reported ahead of the semantic checks they precede.
+    violations = malformed + counts["problems"] + violations
 
     for v in violations:
         print("plan_struct_check: %s" % _violation_stderr_line(v), file=sys.stderr)
@@ -914,7 +1032,9 @@ def cmd_causes(a):
     body = {
         "doc": a.doc,
         "causes": causes_out,
-        "class_counts": {"stated": stated, "actual": actual_counts(rows)},
+        "class_counts": {"stated": counts["stated"], "actual": actual_counts(rows),
+                         "total_stated": counts["total"], "total_actual": len(rows),
+                         "row_ids_checked": counts["has_ids_column"]},
         "violations": violations,
     }
     rc = 1 if violations else 0
