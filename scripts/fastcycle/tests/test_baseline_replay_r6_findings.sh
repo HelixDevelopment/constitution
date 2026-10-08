@@ -18,8 +18,9 @@
 #   B  wrong-commit selection -- F4 (lexical %aI compare across offsets).
 #   C  evidence integrity -- F5 (data interpolated into Python source), F6
 #      (per-run log names colliding), F9 (FAIL runs inside median_ms).
-#   D  host safety -- F10 (disk floor 5x below the checkout size), F11 (gate /
-#      submodule children surviving TERM/HUP).
+#   D  host safety -- F10 (disk floor 5x below the checkout size). F11 (gate /
+#      submodule children surviving TERM/HUP) moved, in round 3, into the stop
+#      matrix of test_baseline_replay_r2_findings.sh (case SM).
 #   E  unguarded fixes -- F14 (submodule reference update, host-tool compile +
 #      symlink guard, protocol pins, replay-sample), F15 (GIT_ALLOW_PROTOCOL),
 #      F20 (selfcheck never exercised the real run path).
@@ -48,13 +49,15 @@ want() { # want <tag>: is this case selected?
 
 WORK="$(mktemp -d)"
 HTTP_PID=""
-# Pids of test gate processes this file started; reaped at exit. Only ever a
-# validated integer > 1 whose /proc cmdline still names this run's own work dir
-# is signalled (§11.4.263: never a pgid/pid <= 1, never a stale reused pid).
-STRAY_PIDS=""
+# private per-filesystem replay lock directory (never contend with another replay on this host)
+export FC_REPLAY_LOCK_DIR="$WORK/locks"
+mkdir -p "$FC_REPLAY_LOCK_DIR"
+# The localhost http fixture server is reaped at exit. Only ever a validated
+# integer > 1 whose /proc cmdline still names this run's own work dir is
+# signalled (§11.4.263: never a pgid/pid <= 1, never a stale reused pid).
 cleanup_all() {
   local p
-  for p in $STRAY_PIDS $HTTP_PID; do
+  for p in $HTTP_PID; do
     case "$p" in ''|*[!0-9]*) continue ;; esac
     [ "$p" -gt 1 ] || continue
     if tr '\0' ' ' <"/proc/$p/cmdline" 2>/dev/null | grep -qF "$WORK"; then
@@ -95,41 +98,7 @@ mk_repo() {
 
 wt_count() { git -C "$1" worktree list --porcelain 2>/dev/null | grep -c '^worktree '; }
 
-# alive <pid>: running and not a zombie
-alive() {
-  local st
-  st="$(awk '{print $3}' "/proc/$1/stat" 2>/dev/null)" || return 1
-  [ -n "$st" ] && [ "$st" != Z ]
-}
-
-wait_for_lines() { # wait_for_lines <file> <n> <tenths>
-  local i=0
-  while [ "$i" -lt "$3" ]; do
-    [ -f "$1" ] && [ "$(wc -l <"$1")" -ge "$2" ] && return 0
-    sleep 0.1; i=$((i + 1))
-  done
-  return 1
-}
-
-wait_gone() { # wait_gone <pid> <tenths>
-  local i=0
-  while [ "$i" -lt "$2" ]; do
-    alive "$1" || return 0
-    sleep 0.1; i=$((i + 1))
-  done
-  return 1
-}
-
 # replay helper: R <repo> <wtroot> <out> [extra args...]
-# RBG: the same, but `exec`s the script so that, when the caller backgrounds it
-# with `RBG ... &`, $! is the SCRIPT's own main shell pid (a backgrounded shell
-# function would otherwise be a wrapper subshell of THIS test, and a signal sent
-# to $! would never reach the script at all).
-RBG() {
-  local repo="$1" wtr="$2" out="$3"; shift 3
-  exec bash "$SCRIPT" replay --commit "$(git -C "$repo" rev-parse HEAD)" \
-    --repo-root "$repo" --worktree-root "$wtr" --min-free-kb 0 --out "$out" "$@"
-}
 R() {
   local repo="$1" wtr="$2" out="$3"; shift 3
   bash "$SCRIPT" replay --commit "$(git -C "$repo" rev-parse HEAD)" \
@@ -415,98 +384,15 @@ if want F10; then
 fi
 
 # =============================================================================
-# F11: stopping the tool must stop the gate (and every later scheduled run).
+# F11 (stopping the tool must stop the gate and every later scheduled run): the
+# round-1 F11a/b/c cases lived here. T048 restart round 3 replaced the whole stop
+# subsystem with one supervisor (cycle/fc_supervisor.py) and these per-finding
+# signal cases with ONE stop matrix (test_baseline_replay_r2_findings.sh, case
+# SM: every signal x every target x every gate shape, default dispositions
+# restored and checked first). F11a = SM TERM-main-*, F11b = SM HUP-worker-*,
+# F11c = the second signal every SM row sends, plus the ignterm gate's own
+# "cwd deleted while alive" witness.
 # =============================================================================
-mk_sleep_gate() { # mk_sleep_gate <path> <pidfile> <callsfile> [ignore-term]
-  {
-    echo '#!/bin/bash'
-    [ "${4:-}" = ignore-term ] && echo "trap '' TERM"
-    echo "echo x >>\"$3\""
-    echo "echo \$\$ >\"$2\""
-    echo "exec -a \"r6-test-sleep $WORK\" sleep 30"
-  } >"$1"
-  chmod +x "$1"
-}
-
-child_bash_of() { # first bash child of <pid>
-  local c
-  # shellcheck disable=SC2013 # the children file is one space-separated line of pids
-  for c in $(cat "/proc/$1/task/$1/children" 2>/dev/null); do
-    [ "$(cat "/proc/$c/comm" 2>/dev/null)" = bash ] && { echo "$c"; return 0; }
-  done
-  return 1
-}
-
-if want F11a; then
-  REPO="$WORK/f11a"; mk_repo "$REPO"
-  mk_sleep_gate "$WORK/f11a_gate.sh" "$WORK/f11a.pid" "$WORK/f11a.calls"
-  RBG "$REPO" "$WORK/f11a_wt" "$WORK/f11a.json" --gate-cmd "$WORK/f11a_gate.sh" --cold-runs 3 --warm-runs 0 --timeout-s 60 >/dev/null 2>&1 &
-  MAIN=$!
-  if wait_for_lines "$WORK/f11a.calls" 1 100; then
-    GPID="$(cat "$WORK/f11a.pid")"; STRAY_PIDS="$STRAY_PIDS $GPID"
-    kill -TERM "$MAIN"
-    wait_gone "$MAIN" 200; wait "$MAIN" 2>/dev/null; mrc=$?
-    wait_gone "$GPID" 50
-    sleep 1.5
-    CALLS="$(wc -l <"$WORK/f11a.calls")"
-    if ! alive "$GPID" && [ "$CALLS" = 1 ] && [ "$(wt_count "$REPO")" = 1 ] && [ "$mrc" = 143 ]; then
-      ok "[R6-F11a] TERM to the main pid stops the running gate, starts no further scheduled run, removes the worktree (exit $mrc)"
-    else
-      bad "[R6-F11a] after TERM to the main pid: gate alive=$(alive "$GPID" && echo yes || echo no) gate-calls=$CALLS worktrees=$(wt_count "$REPO") main-rc=$mrc -- the replay kept running orphaned"
-    fi
-  else
-    bad "[R6-F11a] the gate never started (setup failure)"; kill -TERM "$MAIN" 2>/dev/null; wait "$MAIN" 2>/dev/null
-  fi
-fi
-
-if want F11b; then
-  REPO="$WORK/f11b"; mk_repo "$REPO"
-  mk_sleep_gate "$WORK/f11b_gate.sh" "$WORK/f11b.pid" "$WORK/f11b.calls"
-  RBG "$REPO" "$WORK/f11b_wt" "$WORK/f11b.json" --gate-cmd "$WORK/f11b_gate.sh" --cold-runs 1 --warm-runs 0 --timeout-s 60 >/dev/null 2>&1 &
-  MAIN=$!
-  if wait_for_lines "$WORK/f11b.calls" 1 100; then
-    GPID="$(cat "$WORK/f11b.pid")"; STRAY_PIDS="$STRAY_PIDS $GPID"
-    SUB="$(child_bash_of "$MAIN")"
-    case "$SUB" in ''|*[!0-9]*) SUB="" ;; esac
-    if [ -n "$SUB" ] && [ "$SUB" -gt 1 ]; then kill -HUP "$SUB"; fi
-    wait_gone "$GPID" 150
-    wait_gone "$MAIN" 150; wait "$MAIN" 2>/dev/null
-    if [ -n "$SUB" ] && ! alive "$GPID" && [ "$(wt_count "$REPO")" = 1 ]; then
-      ok "[R6-F11b] HUP to the replay subshell kills the gate before removing its worktree (no gate left running in a deleted cwd)"
-    else
-      bad "[R6-F11b] after HUP to the replay subshell ($SUB): gate alive=$(alive "$GPID" && echo yes || echo no) worktrees=$(wt_count "$REPO")"
-    fi
-  else
-    bad "[R6-F11b] the gate never started (setup failure)"; kill -TERM "$MAIN" 2>/dev/null; wait "$MAIN" 2>/dev/null
-  fi
-fi
-
-if want F11c; then
-  # A second HUP landing while the first HUP's cleanup is still waiting for a
-  # TERM-ignoring gate must not abort the cleanup half-way.
-  REPO="$WORK/f11c"; mk_repo "$REPO"
-  mk_sleep_gate "$WORK/f11c_gate.sh" "$WORK/f11c.pid" "$WORK/f11c.calls" ignore-term
-  RBG "$REPO" "$WORK/f11c_wt" "$WORK/f11c.json" --gate-cmd "$WORK/f11c_gate.sh" --cold-runs 1 --warm-runs 0 --timeout-s 60 >/dev/null 2>&1 &
-  MAIN=$!
-  if wait_for_lines "$WORK/f11c.calls" 1 100; then
-    GPID="$(cat "$WORK/f11c.pid")"; STRAY_PIDS="$STRAY_PIDS $GPID"
-    SUB="$(child_bash_of "$MAIN")"
-    case "$SUB" in ''|*[!0-9]*) SUB="" ;; esac
-    if [ -n "$SUB" ] && [ "$SUB" -gt 1 ]; then
-      kill -HUP "$SUB"; sleep 1; kill -HUP "$SUB" 2>/dev/null
-    fi
-    wait_gone "$GPID" 250
-    wait_gone "$MAIN" 250; wait "$MAIN" 2>/dev/null
-    LEFT="$(find "$WORK/f11c_wt" -maxdepth 1 -type d -name 'replay.*' 2>/dev/null | wc -l)"
-    if [ -n "$SUB" ] && ! alive "$GPID" && [ "$(wt_count "$REPO")" = 1 ] && [ "$LEFT" = 0 ]; then
-      ok "[R6-F11c] a second HUP during cleanup does not abort it (TERM-ignoring gate killed, worktree removed)"
-    else
-      bad "[R6-F11c] second HUP during cleanup: gate alive=$(alive "$GPID" && echo yes || echo no) worktrees=$(wt_count "$REPO") leftover-dirs=$LEFT"
-    fi
-  else
-    bad "[R6-F11c] the gate never started (setup failure)"; kill -TERM "$MAIN" 2>/dev/null; wait "$MAIN" 2>/dev/null
-  fi
-fi
 
 # =============================================================================
 # F12 + F14(replay-sample) + F5(replay-sample) + F6(cross-item): replay-sample

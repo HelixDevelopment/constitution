@@ -1,32 +1,65 @@
 #!/usr/bin/env bash
 # =============================================================================
 # test_baseline_replay_r2_findings.sh -- permanent regression guard for the
-# T048 restart ROUND-2 review of cycle/baseline_replay.sh
-# (docs/qa/t048_restart_round2_20261008/V4_baseline.md, findings V4-1, V4-2,
-# V4-4, V4-5, V4-8, V4-9, V4-10, V4-12 and the whitespace member of the V4-6
-# class).
+# T048 restart ROUND-2 and ROUND-3 reviews of cycle/baseline_replay.sh
+# (docs/qa/t048_restart_round2_20261008/V4_baseline.md,
+#  docs/qa/t048_restart_round3_20261008/V4_baseline.md).
 #
 # Every case drives the REAL script through its real CLI against small,
-# hermetic, throwaway git repos. Every case that stops the tool checks the
-# PROCESS TABLE after the tool exits: nothing the tool started may still be
-# running at the moment the tool's main pid is gone (a later sweep would hide a
-# tool that exits before its cleanup finished, V4-12/N4).
+# hermetic, throwaway git repos.
+#
+# ROUND 3 (structural, §11.4.276(E)): the per-finding signal cases of rounds 1-2
+# (V4-1, V4-12/N4, V4-12/N12, V4-9 here; R6-F11a/b/c in the r6 file; B1 in the
+# r4 file) are replaced by ONE stop matrix, case SM:
+#     signal  {TERM, INT, HUP, QUIT, KILL}
+#   x target  {main pid, supervisor (keeper), worker (the bash replay loop),
+#              main's process group, worker's process group}
+#   x gate    {quick (finishes in 0.2 s, many runs scheduled), never (sleep 600),
+#              ignterm (gate + its child ignore TERM/INT/HUP/QUIT and watch their
+#              own cwd), ownsess (a TERM-ignoring child in its own session with a
+#              cleared environment), nested (a nested `timeout`, its own process
+#              group), daemon (a double-forked setsid daemon)}
+# Every repo also carries a post-checkout hook that backgrounds a long sleep.
+# For every case: the tool is started through a launcher that RESTORES the
+# default disposition of HUP/INT/QUIT/TERM/PIPE (the caller of this suite may
+# have any of them ignored -- e.g. nohup, or an interactive shell that ignores
+# QUIT), and the target's /proc SigIgn is read before the signal is sent: an
+# ignored signal is never sent-and-counted as a pass. Then, with WALL-CLOCK
+# deadlines and gates that never end by themselves:
+#   - the main pid exits with 128+signal within the deadline (KILL to the main
+#     pid: the remaining tree must be gone within the deadline instead);
+#   - at that moment ZERO processes of the case remain (by argv: a path under
+#     the case directory or the case's exec -a marker), zero temp directories,
+#     the replay worktree is gone, every lock is free, every run-log directory
+#     carries INTERRUPTED, no further scheduled run started, and the
+#     ignterm gate never saw its cwd deleted while it was alive;
+#   - a TERM-honouring gate is stopped well inside the grace period (bounds the
+#     stop latency);
+#   - while the gate ran, no process other than the supervisor held a lock fd;
+#   - a non-KILL signal is sent a SECOND time 0.3 s later (a second signal must
+#     not cut a stop short).
+# Extra rows: the nohup variant (HUP must be detected as ignored and reported
+# SKIP-with-reason, never as a pass; the tool must keep running and still stop
+# cleanly on TERM), a selfcheck variant, and the double-KILL honest-boundary row.
 #
 # Defect classes (§11.4.276(C) inventory, see the fixer report):
-#   D  host safety: processes the tool started that outlive it (V4-1 nested
-#      process groups / sessions, V4-8 orphan watchdog sleep, V4-9 selfcheck
-#      without traps), and disk exhaustion (V4-4 no lock + the object store's
-#      filesystem never checked, V4-5 the refusal path never exercised).
-#   A  a value read as something it is not: V4-2 (a gate's own exit >=129
-#      recorded as "terminated by signal N"), whitespace-only ids read as ids.
-#   C  evidence integrity: V4-10 (per-run logs of one phase must be distinct).
-#   B  wrong-commit selection: the tie rule (N6) and the literal --grep (N10).
+#   D  host safety: processes / worktrees / temp dirs / locks the tool started
+#      that outlive it (the whole stop matrix), disk exhaustion (V4-4 lock incl.
+#      linked worktrees and the per-filesystem lock, V4-5 floors measured on the
+#      right filesystem, LOCKHOOK lock fd inherited by a hook, PERRUN a process
+#      one gate run leaves behind running into the next run).
+#   A  a value read as something it is not: V4-2, whitespace ids (WS).
+#   C  evidence integrity: V4-10.
+#   B  wrong-commit selection: N6, N10.
 #
 # Env:
 #   FC_BR_UNDER_TEST  path of the baseline_replay.sh to test (default: the real
 #                     file). The paired-mutation runner points this at a mutant.
 #   R2_ONLY           space-separated case tags to run (default: all).
+#   SM_SIGNALS SM_TARGETS SM_SHAPES SM_EXTRA   narrow the stop matrix.
 # Exit: 0 every selected case held; 1 any NOT ok.
+# Runtime: the full stop matrix takes ~10 minutes -- run it in the background
+# (§11.4.89).
 # =============================================================================
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -44,24 +77,35 @@ want() {
 }
 
 WORK="$(mktemp -d)"
-# Every process a case starts carries "r2t-$$" in its argv (exec -a or an
-# argument), so leftovers can be found and reaped by name. §11.4.263: only a
-# validated integer > 1 whose /proc cmdline still names this run's marker is
-# ever signalled.
-MARK="r2t-$$"
+# Private lock directory for the tool's per-filesystem lock, so this suite never
+# contends with an unrelated replay on the same host.
+export FC_REPLAY_LOCK_DIR="$WORK/locks"
+mkdir -p "$FC_REPLAY_LOCK_DIR"
+# Every process a non-matrix case starts carries the marker "r2t-$$-" (with the
+# trailing delimiter: "r2t-1234-" can never match the pid 12345's "r2t-12345-",
+# V4R3-11) as a WHOLE argv[0] prefix. §11.4.263: only a validated integer > 1 is
+# ever signalled, one pid at a time.
+MARK="r2t-$$-"
 HOLDER_PID=""
 
-# marker_pids <substring>: live (non-zombie) pids whose cmdline contains it,
-# excluding this shell.
-marker_pids() {
-  local p st
-  for p in /proc/[0-9]*; do
-    p="${p#/proc/}"
-    [ "$p" = "$$" ] && continue
-    st="$(awk '{print $3}' "/proc/$p/stat" 2>/dev/null)" || continue
-    [ -n "$st" ] && [ "$st" != Z ] || continue
-    tr '\0' ' ' <"/proc/$p/cmdline" 2>/dev/null | grep -qF -- "$1" && echo "$p"
-  done
+marker_pids() { # live pids whose argv[0] starts with $1 (exact argv element, never a substring of the whole line)
+  M="$1" python3 - <<'PY'
+import os
+m = os.environ["M"]
+me, pp = os.getpid(), os.getppid()
+for p in os.listdir("/proc"):
+    if not p.isdigit() or int(p) in (me, pp) or int(p) <= 1:
+        continue
+    try:
+        st = open("/proc/%s/stat" % p).read()
+        if st[st.rindex(") ") + 2:].split()[0] == "Z":
+            continue
+        argv0 = open("/proc/%s/cmdline" % p, "rb").read().split(b"\0")[0].decode(errors="replace")
+    except (OSError, ValueError, IndexError):
+        continue
+    if argv0.startswith(m):
+        print(p)
+PY
 }
 reap_marker() {
   local p
@@ -69,49 +113,6 @@ reap_marker() {
     case "$p" in ''|*[!0-9]*) continue ;; esac
     [ "$p" -gt 1 ] && kill -KILL "$p" 2>/dev/null
   done
-}
-# sess_pids: live pids whose session id is $SESS_WANT (stat fields read after
-# the last ') ' so a comm with spaces cannot shift them: state ppid pgrp session).
-sess_pids() {
-  local p s rest
-  for p in /proc/[0-9]*; do
-    p="${p#/proc/}"
-    s="$(cat "/proc/$p/stat" 2>/dev/null)" || continue
-    rest="${s##*) }"
-    # shellcheck disable=SC2086 # rest is space-separated stat fields, split on purpose
-    set -- $rest
-    [ "${1:-}" = Z ] && continue
-    [ "${4:-x}" = "$SESS_WANT" ] && echo "$p"
-  done
-}
-# descendants_of <pid>: live descendants (by ppid chain, which setsid does not
-# change), one per line as "pid cmdline".
-descendants_of() {
-  python3 - "$1" <<'PY2'
-import os, sys
-root = sys.argv[1]
-ppid, cmd = {}, {}
-for p in os.listdir("/proc"):
-    if not p.isdigit():
-        continue
-    try:
-        st = open("/proc/%s/stat" % p).read()
-        f = st[st.rindex(") ") + 2:].split()
-        if f[0] == "Z":
-            continue
-        ppid[p] = f[1]
-        cmd[p] = open("/proc/%s/cmdline" % p, "rb").read().replace(b"\0", b" ").decode(errors="replace").strip()
-    except (OSError, ValueError, IndexError):
-        pass
-out, todo = [], [root]
-while todo:
-    cur = todo.pop()
-    for c, pp in ppid.items():
-        if pp == cur:
-            out.append(c); todo.append(c)
-for c in out:
-    print(c, cmd.get(c, ""))
-PY2
 }
 cleanup_all() {
   reap_marker
@@ -142,11 +143,6 @@ mk_repo() {
   g -C "$1" add f.txt; g -C "$1" commit -q -m "base commit"
 }
 wt_count() { git -C "$1" worktree list --porcelain 2>/dev/null | grep -c '^worktree '; }
-alive() {
-  local st
-  st="$(awk '{print $3}' "/proc/$1/stat" 2>/dev/null)" || return 1
-  [ -n "$st" ] && [ "$st" != Z ]
-}
 wait_for_lines() { # <file> <n> <tenths>
   local i=0
   while [ "$i" -lt "$3" ]; do
@@ -155,67 +151,588 @@ wait_for_lines() { # <file> <n> <tenths>
   done
   return 1
 }
-wait_gone() { # <pid> <tenths>
-  local i=0
-  while [ "$i" -lt "$2" ]; do
-    alive "$1" || return 0
-    sleep 0.1; i=$((i + 1))
-  done
-  return 1
-}
-# RBGS: run the script as the leader of a NEW session (setsid; no fork here,
-# because the backgrounded subshell is not a process-group leader), so that $!
-# is the script's main pid AND its session id: after it exits, `sess_pids $!`
-# lists anything the script left behind in its own session (e.g. an orphaned
-# watchdog `sleep`, V4-8).
-RBGS() {
-  local repo="$1" wtr="$2" out="$3"; shift 3
-  exec setsid bash "$SCRIPT" replay --commit "$(git -C "$repo" rev-parse HEAD)" \
-    --repo-root "$repo" --worktree-root "$wtr" --min-free-kb 0 --out "$out" "$@"
-}
 R() {
   local repo="$1" wtr="$2" out="$3"; shift 3
   bash "$SCRIPT" replay --commit "$(git -C "$repo" rev-parse HEAD)" \
     --repo-root "$repo" --worktree-root "$wtr" --min-free-kb 0 --out "$out" "$@"
 }
-leftover_sess() { SESS_WANT="$1"; sess_pids | tr '\n' ' '; }
 
 [ -f "$SCRIPT" ] || { echo "NOT ok script under test not found: $SCRIPT"; exit 1; }
-command -v setsid >/dev/null 2>&1 || { echo "NOT ok setsid(1) not found -- the session checks cannot run"; exit 1; }
 
 # =============================================================================
-# V4-1: a gate that starts children in their OWN process group (a nested
-# `timeout`, as the real pre-build gate does 51 times) or their own SESSION
-# (`setsid`) must not leave them running after the tool is stopped.
+# SM: the stop matrix (round 3, structural). See the header.
 # =============================================================================
-if want V4-1; then
-  REPO="$WORK/v41"; mk_repo "$REPO"
-  T="$MARK-v41"
-  cat >"$WORK/v41_gate.sh" <<SH
-#!/bin/bash
-timeout 60 bash -c 'exec -a "$T-timeout-child" sleep 100' &
-setsid bash -c 'exec -a "$T-setsid-child" sleep 100' &
-echo x >>"$WORK/v41.calls"
-wait
-SH
-  chmod +x "$WORK/v41_gate.sh"
-  RBGS "$REPO" "$WORK/v41_wt" "$WORK/v41.json" --gate-cmd "$WORK/v41_gate.sh" --cold-runs 2 --warm-runs 0 --timeout-s 60 >/dev/null 2>&1 &
-  MAIN=$!
-  if wait_for_lines "$WORK/v41.calls" 1 100; then
-    sleep 0.5
-    BEFORE="$(marker_pids "$T" | wc -l)"
-    kill -TERM "$MAIN"
-    wait_gone "$MAIN" 250; wait "$MAIN" 2>/dev/null; mrc=$?
-    AFTER_PIDS="$(marker_pids "$T" | tr '\n' ' ')"
-    AFTER="$(marker_pids "$T" | wc -l)"
-    SESS_LEFT="$(leftover_sess "$MAIN")"
-    if [ "$BEFORE" -ge 3 ] && [ "$AFTER" = 0 ] && [ -z "$SESS_LEFT" ] && [ "$(wt_count "$REPO")" = 1 ] && [ "$mrc" = 143 ]; then
-      ok "[V4-1] TERM to the main pid stops the gate AND its nested-timeout and setsid children ($BEFORE -> 0 processes, exit $mrc)"
-    else
-      bad "[V4-1] after TERM: gate-descendant processes before=$BEFORE after=$AFTER ($AFTER_PIDS) session-leftovers='$SESS_LEFT' worktrees=$(wt_count "$REPO") main-rc=$mrc -- children of the gate outlived the tool"
-    fi
+if want SM; then
+  SM_OUT="$WORK/sm.out"
+  SCRIPT="$SCRIPT" WORK="$WORK" python3 - >"$SM_OUT" 2>&1 <<'PYSM'
+import os, shutil, signal, subprocess, sys, time
+
+SCRIPT, WORK = os.environ["SCRIPT"], os.environ["WORK"]
+GRACE = 2.0
+SIGS = os.environ.get("SM_SIGNALS", "TERM INT HUP QUIT KILL").split()
+TARGETS = os.environ.get("SM_TARGETS", "main supervisor worker main-group worker-group").split()
+SHAPES = os.environ.get("SM_SHAPES", "quick never ignterm ownsess nested daemon").split()
+EXTRA = os.environ.get("SM_EXTRA", "nohup selfcheck doublekill").split()
+HONOUR = {"quick", "never", "nested", "daemon"}     # every process honours TERM
+N = {"ok": 0, "bad": 0, "skip": 0}
+
+
+def ok(m):
+    N["ok"] += 1; print("ok [SM] " + m, flush=True)
+
+
+def bad(m):
+    N["bad"] += 1; print("NOT ok [SM] " + m, flush=True)
+
+
+def skip(m):
+    N["skip"] += 1; print("SKIP [SM] " + m, flush=True)
+
+
+TICK = 't() { bash -c \'exec -a "$0" sleep "$1"\' "fcsm-$FCSM_TOK-tick" "$1"; }\n'
+GATES = {
+    "quick": 'echo x >>"$FCSM_CASE/calls"\necho $$ >"$FCSM_CASE/started"\nexec -a "fcsm-$FCSM_TOK-quick" sleep 0.2\n',
+    "never": 'echo x >>"$FCSM_CASE/calls"\necho $$ >"$FCSM_CASE/started"\nexec -a "fcsm-$FCSM_TOK-never" sleep 600\n',
+    "ignterm": TICK + "trap '' TERM INT HUP QUIT\n"
+               'echo x >>"$FCSM_CASE/calls"\n'
+               '( while :; do [ -e "$PWD/f.txt" ] || echo cwd_gone >>"$FCSM_CASE/cwdgone"; t 0.05; done ) &\n'
+               'echo $$ >"$FCSM_CASE/started"\nwhile :; do t 0.2; done\n',
+    "ownsess": 'echo x >>"$FCSM_CASE/calls"\n'
+               'setsid -f env -i bash -c \'trap "" TERM INT HUP QUIT; exec -a "$0" sleep 600\' "fcsm-$FCSM_TOK-ownsess-child"\n'
+               'echo $$ >"$FCSM_CASE/started"\nexec -a "fcsm-$FCSM_TOK-ownsess-gate" sleep 600\n',
+    "nested": 'echo x >>"$FCSM_CASE/calls"\n'
+              'timeout 600 bash -c \'exec -a "$0" sleep 600\' "fcsm-$FCSM_TOK-nested" &\n'
+              'echo $$ >"$FCSM_CASE/started"\nwait\n',
+    "daemon": 'echo x >>"$FCSM_CASE/calls"\n'
+              '( setsid bash -c \'exec -a "$0" sleep 600\' "fcsm-$FCSM_TOK-daemon" & )\n'
+              'echo $$ >"$FCSM_CASE/started"\nexec -a "fcsm-$FCSM_TOK-daemongate" sleep 600\n',
+}
+HOOK = '#!/bin/bash\nbash -c \'exec -a "$0" sleep 600\' "fcsm-$FCSM_TOK-hook" &\nexit 0\n'
+
+
+def stat(pid):
+    try:
+        st = open("/proc/%d/stat" % pid).read()
+        f = st[st.rindex(") ") + 2:].split()
+        return f[0], int(f[1]), int(f[2])
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def alive(pid):
+    s = stat(pid)
+    return s is not None and s[0] != "Z"
+
+
+def children(pid):
+    out = []
+    try:
+        for tid in os.listdir("/proc/%d/task" % pid):
+            try:
+                out += [int(x) for x in open("/proc/%d/task/%s/children" % (pid, tid)).read().split()]
+            except (OSError, ValueError):
+                pass
+    except OSError:
+        pass
+    return out
+
+
+def comm(pid):
+    try:
+        return open("/proc/%d/comm" % pid).read().strip()
+    except OSError:
+        return ""
+
+
+def sigign(pid):
+    try:
+        for line in open("/proc/%d/status" % pid):
+            if line.startswith("SigIgn:"):
+                return int(line.split()[1], 16)
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def case_procs(case, tok):
+    pre, mk = case + "/", "fcsm-%s-" % tok
+    out = []
+    me = os.getpid()
+    for p in os.listdir("/proc"):
+        if not p.isdigit() or int(p) <= 1 or int(p) == me:
+            continue
+        pid = int(p)
+        s = stat(pid)
+        if s is None or s[0] == "Z":
+            continue
+        try:
+            argv = [a.decode(errors="replace") for a in open("/proc/%s/cmdline" % p, "rb").read().split(b"\0") if a]
+        except OSError:
+            continue
+        if any(a.startswith(pre) or a.startswith(mk) for a in argv):
+            out.append((pid, " ".join(argv)))   # full line: callers match on it; messages truncate
+    return out
+
+
+def lock_files(case, repo):
+    fs = [os.path.join(repo, ".git", "fc_baseline_replay.lock")]
+    ld = os.path.join(case, "locks")
+    if os.path.isdir(ld):
+        fs += [os.path.join(ld, f) for f in os.listdir(ld)]
+    return fs
+
+
+def lock_holders(case, tok, repo):
+    want = set(os.path.realpath(f) for f in lock_files(case, repo))
+    out = []
+    for pid, _ in case_procs(case, tok):
+        try:
+            for fd in os.listdir("/proc/%d/fd" % pid):
+                try:
+                    if os.path.realpath(os.readlink("/proc/%d/fd/%s" % (pid, fd))) in want:
+                        out.append(pid); break
+                except OSError:
+                    pass
+        except OSError:
+            pass
+    return out
+
+
+def locks_free(case, repo):
+    busy = []
+    for f in lock_files(case, repo):
+        if not os.path.exists(f):
+            continue
+        if subprocess.run(["flock", "-n", f, "true"]).returncode != 0:
+            busy.append(f)
+    return busy
+
+
+def force_clean(case, tok, repo):
+    for pid, _ in case_procs(case, tok):
+        try:
+            fd = os.pidfd_open(pid)
+            signal.pidfd_send_signal(fd, signal.SIGKILL)
+            os.close(fd)
+        except OSError:
+            pass
+    time.sleep(0.3)
+    subprocess.run(["git", "-C", repo, "worktree", "prune"], capture_output=True)
+
+
+def g(*a):
+    subprocess.run(["git", "-c", "user.email=t@t.t", "-c", "user.name=t"] + list(a), check=True,
+                   capture_output=True)
+
+
+SEQ = [0]
+
+
+def setup(name, shape):
+    SEQ[0] += 1
+    case = os.path.join(WORK, "sm", "%03d-%s" % (SEQ[0], name))
+    repo = os.path.join(case, "repo")
+    os.makedirs(os.path.join(case, "tmp"))
+    os.makedirs(os.path.join(case, "locks"))
+    g("init", "-q", repo)
+    open(os.path.join(repo, "f.txt"), "w").write("hello\n")
+    g("-C", repo, "add", "f.txt")
+    g("-C", repo, "commit", "-q", "-m", "base")
+    hook = os.path.join(repo, ".git", "hooks", "post-checkout")
+    open(hook, "w").write(HOOK)
+    os.chmod(hook, 0o755)
+    gate = os.path.join(case, "gate.sh")
+    if shape:
+        open(gate, "w").write("#!/bin/bash\n" + GATES[shape])
+        os.chmod(gate, 0o755)
+    tok = "%d.%d" % (os.getpid(), SEQ[0])
+    return case, repo, gate, tok
+
+
+def launch(case, repo, gate, tok, shape, nohup=False, subcmd="replay"):
+    wtr = os.path.join(case, "wt dir'q")   # a space and a quote in every worktree path
+    env = dict(os.environ)
+    env.update(TMPDIR=os.path.join(case, "tmp"), FC_REPLAY_LOCK_DIR=os.path.join(case, "locks"),
+               FC_BR_STOP_GRACE_S=str(int(GRACE)), FCSM_CASE=case, FCSM_TOK=tok)
+    env.pop("FC_OUT", None)
+    if subcmd == "replay":
+        head = subprocess.run(["git", "-C", repo, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        args = ["replay", "--commit", head, "--repo-root", repo, "--worktree-root", wtr, "--min-free-kb", "0",
+                "--min-free-kb-objects", "0", "--gate-cmd", gate, "--cold-runs", "400" if shape == "quick" else "3",
+                "--warm-runs", "0", "--timeout-s", "600", "--out", os.path.join(case, "out.json")]
+    else:
+        args = ["selfcheck", "--out", os.path.join(case, "out.json")]
+
+    def pre():
+        for s in (signal.SIGHUP, signal.SIGINT, signal.SIGQUIT, signal.SIGTERM, signal.SIGPIPE):
+            signal.signal(s, signal.SIG_DFL)
+        signal.pthread_sigmask(signal.SIG_SETMASK, [])
+        os.setsid()
+    argv = (["nohup"] if nohup else []) + ["bash", SCRIPT] + args
+    err = open(os.path.join(case, "main.err"), "w")
+    p = subprocess.Popen(argv, env=env, preexec_fn=pre, stdin=subprocess.DEVNULL, stdout=err, stderr=err)
+    return p, wtr
+
+
+def wait_file_lines(path, n, secs):
+    end = time.monotonic() + secs
+    while time.monotonic() < end:
+        try:
+            if len(open(path).read().splitlines()) >= n:
+                return True
+        except OSError:
+            pass
+        time.sleep(0.05)
+    return False
+
+
+def keeper_of(main):
+    k = [c for c in children(main) if comm(c) == "fc-keeper"]
+    return k[0] if k else None
+
+
+def worker_of(main):
+    base = keeper_of(main) or main
+    b = [c for c in children(base) if comm(c) == "bash"]
+    return b[0] if b else None
+
+
+def resolve(target, main):
+    """-> (kind, id, disposition-pid, label) or None. kind 'pid' or 'group'."""
+    if target == "main":
+        return ("pid", main, main, "main pid %d" % main)
+    if target == "supervisor":
+        k = keeper_of(main)
+        return ("pid", k, k, "supervisor (keeper) pid %d" % k) if k else None
+    if target == "worker":
+        w = worker_of(main)
+        return ("pid", w, w, "worker pid %d" % w) if w else None
+    if target == "main-group":
+        s = stat(main)
+        return ("group", s[2], main, "main's process group %d" % s[2]) if s else None
+    if target == "worker-group":
+        w = worker_of(main)
+        s = stat(w) if w else None
+        return ("group", s[2], w, "worker's process group %d" % s[2]) if s else None
+    return None
+
+
+def send(t, signo, case, tok):
+    kind, ident = t[0], t[1]
+    if not isinstance(ident, int) or ident <= 1:          # §11.4.263
+        return False
+    if kind == "group":
+        if ident == os.getpgrp():
+            return False
+        # the group must contain a process of THIS case (never a foreign group)
+        if not any(stat(p) and stat(p)[2] == ident for p, _ in case_procs(case, tok)):
+            return False
+        os.killpg(ident, signo)
+        return True
+    if ident not in [p for p, _ in case_procs(case, tok)]:
+        return False
+    fd = os.pidfd_open(ident)
+    try:
+        signal.pidfd_send_signal(fd, signo)
+    finally:
+        os.close(fd)
+    return True
+
+
+def count(path):
+    try:
+        return len(open(path).read().splitlines())
+    except OSError:
+        return 0
+
+
+def postcheck(case, repo, wtr, tok, n_at_sig, label, rc, want_rc, latency, lat_max, interrupted_expected=True):
+    """The common after-stop assertions. Returns a list of problems."""
+    probs = []
+    left = case_procs(case, tok)
+    if left:
+        probs.append("processes left: %s" % [(p, l[:140]) for p, l in left[:6]])
+    if rc != want_rc:
+        probs.append("main rc=%s want %s" % (rc, want_rc))
+    if latency is not None and latency > lat_max:
+        probs.append("stop took %.1fs > %.1fs" % (latency, lat_max))
+    tmpleft = os.listdir(os.path.join(case, "tmp"))
+    if tmpleft:
+        probs.append("temp entries left: %s" % tmpleft)
+    if os.path.isdir(wtr):
+        wts = [d for d in os.listdir(wtr) if d.startswith("replay.")]
+        if wts:
+            probs.append("worktree dirs left: %s" % wts)
+        ld = os.path.join(wtr, "replay-logs")
+        if interrupted_expected and os.path.isdir(ld):
+            noint = [d for d in os.listdir(ld) if not os.path.exists(os.path.join(ld, d, "INTERRUPTED"))]
+            if noint:
+                probs.append("log dirs without INTERRUPTED: %s" % noint)
+    wl = subprocess.run(["git", "-C", repo, "worktree", "list", "--porcelain"], capture_output=True, text=True).stdout
+    if wl.count("worktree ") != 1:
+        probs.append("git worktree list has %d entries" % wl.count("worktree "))
+    busy = locks_free(case, repo)
+    if busy:
+        probs.append("locks still held: %s" % busy)
+    if os.path.exists(os.path.join(case, "cwdgone")):
+        probs.append("the gate saw its worktree deleted while it was still running")
+    c1 = count(os.path.join(case, "calls"))
+    time.sleep(1.0)
+    c2 = count(os.path.join(case, "calls"))
+    if c2 != c1 or (n_at_sig is not None and c1 > n_at_sig + 1):
+        probs.append("scheduled runs kept starting: %s at the signal, %d at exit, %d a second later" % (n_at_sig, c1, c2))
+    if probs:
+        force_clean(case, tok, repo)
+    return probs
+
+
+def wait_main(p, secs):
+    end = time.monotonic() + secs
+    while time.monotonic() < end:
+        rc = p.poll()
+        if rc is not None:
+            return rc if rc >= 0 else 128 - rc
+        time.sleep(0.02)
+    return None
+
+
+def run_case(sig, target, shape, nohup=False):
+    name = "%s-%s-%s%s" % (sig, target, shape, "-nohup" if nohup else "")
+    signo = getattr(signal, "SIG" + sig)
+    case, repo, gate, tok = setup(name, shape)
+    p, wtr = launch(case, repo, gate, tok, shape, nohup=nohup)
+    started = wait_file_lines(os.path.join(case, "calls"), 2 if shape == "quick" else 1, 90) and \
+        wait_file_lines(os.path.join(case, "started"), 1, 30)
+    if not started:
+        bad("%s: the gate never started (setup failure) -- %s" % (name, open(os.path.join(case, "main.err")).read()[-300:]))
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    time.sleep(0.3)
+    main = p.pid
+    holders = lock_holders(case, tok, repo)
+    allowed = {main, keeper_of(main)}
+    if shape == "daemon":   # one case per signal is enough for the fd check
+        extra = [h for h in holders if h not in allowed]
+        if extra:
+            bad("%s: process(es) other than the supervisor hold the replay lock fd: %s" % (name, extra))
+        else:
+            ok("%s: only the supervisor holds the replay lock (holders %s)" % (name, holders))
+    t = resolve(target, main)
+    if t is None:
+        bad("%s: target %s not found in the tool's process tree" % (name, target))
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    ign = sigign(t[2])
+    if ign is None:
+        bad("%s: cannot read the disposition of %s" % (name, t[3]))
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    if signo != signal.SIGKILL and (ign >> (signo - 1)) & 1:
+        if nohup:
+            skip("%s: SIG%s is ignored at entry on %s (nohup) -- the signal cannot stop the tool; not counted as a pass"
+                 % (name, sig, t[3]))
+            send(t, signo, case, tok)
+            time.sleep(1.0)
+            if p.poll() is None and alive(int(open(os.path.join(case, "started")).read().split()[0])):
+                n0 = count(os.path.join(case, "calls"))
+                send(("pid", main, main, ""), signal.SIGTERM, case, tok)
+                rc = wait_main(p, GRACE + 15)
+                probs = postcheck(case, repo, wtr, tok, n0, name, rc, 143, None, 0)
+                if probs:
+                    bad("%s: after the ignored SIGHUP, TERM did not stop the tool cleanly: %s" % (name, "; ".join(probs)))
+                else:
+                    ok("%s: nohup respected (the tool kept running after SIGHUP), then TERM stopped it cleanly" % name)
+            else:
+                bad("%s: the tool died on a SIGHUP it should ignore under nohup (rc=%s)" % (name, p.poll()))
+                p.kill(); p.wait(); force_clean(case, tok, repo)
+            return
+        bad("%s: SIG%s is IGNORED on %s although the launcher restored the default -- the tool (not the caller) "
+            "made it ignorable; nothing sent" % (name, sig, t[3]))
+        p.kill(); p.wait(); force_clean(case, tok, repo)
+        return
+    if nohup and signo == signal.SIGHUP:
+        bad("%s: under nohup SIGHUP is NOT ignored on %s -- the instrument cannot tell an ignored disposition" % (name, t[3]))
+    n_at_sig = count(os.path.join(case, "calls"))
+    t0 = time.monotonic()
+    if not send(t, signo, case, tok):
+        bad("%s: refused to signal %s (guard)" % (name, t[3]))
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    if signo != signal.SIGKILL:
+        time.sleep(0.3)
+        tt = resolve(target, main)
+        if tt is not None and p.poll() is None:
+            try:
+                send(tt, signo, case, tok)
+            except OSError:
+                pass
+    main_dies = signo == signal.SIGKILL and target in ("main", "main-group")
+    lat_max = GRACE * 0.75 if shape in HONOUR else GRACE + 4.0
+    if main_dies:
+        rc = wait_main(p, 5)
+        end = time.monotonic() + GRACE + 15
+        while time.monotonic() < end and case_procs(case, tok):
+            time.sleep(0.05)
+        latency = time.monotonic() - t0
+    else:
+        rc = wait_main(p, GRACE + 15)
+        latency = time.monotonic() - t0
+        if rc is None:
+            bad("%s: the tool did not exit within %.0fs of SIG%s to %s" % (name, GRACE + 15, sig, t[3]))
+            p.kill(); p.wait(); force_clean(case, tok, repo); return
+    probs = postcheck(case, repo, wtr, tok, n_at_sig, name, rc, 128 + signo, latency, lat_max)
+    if probs:
+        bad("%s: %s" % (name, "; ".join(probs)))
+    else:
+        ok("%s: stopped in %.2fs, rc=%d, nothing left (processes, temp dir, worktree, locks), no further run" % (name, latency, rc))
+
+
+def selfcheck_case(sig, target):
+    name = "selfcheck-%s-%s" % (sig, target)
+    signo = getattr(signal, "SIG" + sig)
+    case, repo, gate, tok = setup(name, None)
+    p, wtr = launch(case, repo, gate, tok, None, subcmd="selfcheck")
+    end, seen = time.monotonic() + 60, False
+    while time.monotonic() < end and p.poll() is None:
+        if any(line.endswith(" sleep 5") for _, line in case_procs(case, tok)):
+            seen = True
+            break
+        time.sleep(0.02)
+    if not seen:
+        bad("%s: selfcheck's timeout check never seen running (setup failure)" % name)
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    t = resolve(target, p.pid)
+    if t is None:
+        bad("%s: target %s not found" % (name, target))
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    t0 = time.monotonic()
+    send(t, signo, case, tok)
+    if signo == signal.SIGKILL and target == "main":
+        rc = wait_main(p, 5)
+        end = time.monotonic() + GRACE + 15
+        while time.monotonic() < end and case_procs(case, tok):
+            time.sleep(0.05)
+    else:
+        rc = wait_main(p, GRACE + 15)
+    probs = postcheck(case, repo, wtr, tok, None, name, rc, 128 + signo, time.monotonic() - t0, GRACE + 4,
+                      interrupted_expected=False)
+    if probs:
+        bad("%s: %s" % (name, "; ".join(probs)))
+    else:
+        ok("%s: selfcheck stopped, rc=%s, nothing left" % (name, rc))
+
+
+def doublekill_case():
+    """Honest boundary: M and K SIGKILLed together. Nothing can process the ledger
+    (worktree + temp dir stay); the PDEATHSIG chain must still stop the worker, the
+    run supervisor and the gate, and no further scheduled run may start."""
+    name = "doublekill-main+supervisor-quick"
+    case, repo, gate, tok = setup(name, "quick")
+    p, wtr = launch(case, repo, gate, tok, "quick")
+    if not wait_file_lines(os.path.join(case, "calls"), 2, 90):
+        bad("%s: setup failure" % name); p.kill(); p.wait(); force_clean(case, tok, repo); return
+    k = keeper_of(p.pid)
+    if k is None:
+        bad("%s: no supervisor keeper process in the tool's tree" % name)
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    n0 = count(os.path.join(case, "calls"))
+    for pid in (p.pid, k):
+        fd = os.pidfd_open(pid); signal.pidfd_send_signal(fd, signal.SIGKILL); os.close(fd)
+    p.wait()
+    end = time.monotonic() + 3
+    while time.monotonic() < end and case_procs(case, tok):
+        time.sleep(0.05)
+    left = case_procs(case, tok)
+    c1 = count(os.path.join(case, "calls")); time.sleep(1.0); c2 = count(os.path.join(case, "calls"))
+    leaked = [d for d in os.listdir(os.path.join(case, "tmp"))]
+    force_clean(case, tok, repo)
+    if not left and c1 == c2 and c1 <= n0 + 1:
+        ok("%s: worker, run supervisor and gate died with their parents, no further run (honest boundary, "
+           "reported not hidden: temp dir %s and the worktree stay behind -- nothing alive can process the ledger)"
+           % (name, leaked))
+    else:
+        bad("%s: processes left %s / runs %d->%d->%d" % (name, [(p, l[:140]) for p, l in left[:6]], n0, c1, c2))
+
+
+for shape in SHAPES:
+    for sig in SIGS:
+        for target in TARGETS:
+            run_case(sig, target, shape)
+if "nohup" in EXTRA:
+    for target in TARGETS:
+        run_case("HUP", target, "never", nohup=True)
+    run_case("TERM", "main", "never", nohup=True)
+if "selfcheck" in EXTRA:
+    for sig in ("TERM", "HUP", "KILL"):
+        for target in ("main", "worker"):
+            selfcheck_case(sig, target)
+if "doublekill" in EXTRA:
+    doublekill_case()
+print("SMCOUNT %d %d %d" % (N["ok"], N["bad"], N["skip"]))
+PYSM
+  cat "$SM_OUT"
+  read -r _ smo smb sms < <(grep '^SMCOUNT ' "$SM_OUT" | tail -1)
+  if [ -z "${smo:-}" ]; then
+    bad "[SM] the stop-matrix runner crashed (no SMCOUNT line) -- see output above"
   else
-    bad "[V4-1] the gate never started (setup failure)"; kill -TERM "$MAIN" 2>/dev/null; wait "$MAIN" 2>/dev/null
+    PASS=$((PASS + smo)); FAIL=$((FAIL + smb))
+    echo "SM: $smo ok, $smb NOT ok, $sms SKIP (skips are never counted as passes)"
+  fi
+fi
+
+# =============================================================================
+# LOCKHOOK (V4R3-5): a post-checkout hook that backgrounds a long sleep must not
+# inherit the replay lock: a second replay right after the first must run (no
+# false "another replay is running" refusal, §11.4.201(1)), and the hook's
+# process must not outlive the replay.
+# =============================================================================
+if want LOCKHOOK; then
+  REPO="$WORK/lockhook"; mk_repo "$REPO"
+  printf '#!/bin/bash\nexec -a "%shook" sleep 20 &\nexit 0\n' "$MARK" >"$REPO/.git/hooks/post-checkout"
+  chmod +x "$REPO/.git/hooks/post-checkout"
+  R "$REPO" "$WORK/lockhook_wt" "$WORK/lh1.json" --min-free-kb-objects 0 --gate-cmd true --cold-runs 1 --warm-runs 0 >/dev/null 2>&1; rc1=$?
+  HOOKLEFT="$(marker_pids "${MARK}hook" | wc -l)"
+  R "$REPO" "$WORK/lockhook_wt" "$WORK/lh2.json" --min-free-kb-objects 0 --gate-cmd true --cold-runs 1 --warm-runs 0 >/dev/null 2>"$WORK/lh2.err"; rc2=$?
+  if [ "$rc1" = 0 ] && [ "$rc2" = 0 ] && [ "$HOOKLEFT" = 0 ]; then
+    ok "[LOCKHOOK] a hook's background process neither holds the replay lock (the next replay ran, rc=$rc2) nor outlives the replay"
+  else
+    bad "[LOCKHOOK] replay1 rc=$rc1, hook processes left after it=$HOOKLEFT, replay2 rc=$rc2 ($(head -c 200 "$WORK/lh2.err"))"
+  fi
+  reap_marker
+fi
+
+# =============================================================================
+# PERRUN (round 3): whatever one gate run leaves running is stopped BEFORE the
+# next run starts -- a background daemon of run 1 must not run (and skew the
+# timing of) run 2. Run 1 double-forks a setsid daemon; run 2 records whether
+# that daemon is still alive. (At the END of the tool the supervisor would stop
+# it anyway, so only a check made DURING run 2 can see a missing per-run sweep.)
+# =============================================================================
+if want PERRUN; then
+  REPO="$WORK/perrun"; mk_repo "$REPO"
+  cat >"$WORK/perrun_gate.sh" <<SH
+#!/bin/bash
+n=0
+[ -f "$WORK/perrun.ctr" ] && n=\$(cat "$WORK/perrun.ctr")
+n=\$((n + 1)); echo "\$n" >"$WORK/perrun.ctr"
+if [ "\$n" = 1 ]; then
+  ( setsid bash -c 'echo \$\$ >"$WORK/perrun.dpid"; exec -a "${MARK}perrun-daemon" sleep 60' & )
+  sleep 0.5
+  exit 0
+fi
+dp=\$(cat "$WORK/perrun.dpid" 2>/dev/null)
+state=dead
+if [ -n "\$dp" ] && [ -r "/proc/\$dp/cmdline" ] && [ "\$(cut -d ' ' -f 3 "/proc/\$dp/stat" 2>/dev/null)" != Z ] \\
+   && tr '\0' '\n' <"/proc/\$dp/cmdline" | head -1 | grep -qx "${MARK}perrun-daemon"; then
+  state=alive
+fi
+echo "\$state" >"$WORK/perrun.state"
+exit 0
+SH
+  chmod +x "$WORK/perrun_gate.sh"
+  R "$REPO" "$WORK/perrun_wt" "$WORK/perrun.json" --min-free-kb-objects 0 --gate-cmd "$WORK/perrun_gate.sh" --cold-runs 2 --warm-runs 0 >/dev/null 2>&1; rc=$?
+  ST="$(cat "$WORK/perrun.state" 2>/dev/null)"
+  DPID_SEEN="$( [ -s "$WORK/perrun.dpid" ] && echo yes || echo no)"
+  if [ "$rc" = 0 ] && [ "$DPID_SEEN" = yes ] && [ "$ST" = dead ] && [ -z "$(marker_pids "${MARK}perrun-daemon")" ]; then
+    ok "[PERRUN] a daemon left by gate run 1 is stopped before run 2 starts (run 2 saw it dead) and nothing outlives the replay"
+  else
+    bad "[PERRUN] rc=$rc daemon-started=$DPID_SEEN state-seen-by-run-2='$ST' -- a process one run left behind ran into the next run"
   fi
   reap_marker
 fi
@@ -248,8 +765,11 @@ if want V4-2; then
 fi
 
 # =============================================================================
-# V4-5: the disk-floor refusal itself. --min-free-kb above the real free space
-# must refuse with exit 4, print the real df numbers, and create no worktree.
+# V4-5 / V4-4 / V4R3-4: the disk-floor refusals. A `df` shim on PATH reports a
+# DIFFERENT free-space figure for the git object store than for the worktree
+# root, so each refusal must name the right filesystem AND that filesystem's
+# own number -- measuring the wrong one (V4R3-4: the object-store check pointed
+# at the worktree root) cannot pass.
 # =============================================================================
 if want V4-5; then
   REPO="$WORK/v45"; mk_repo "$REPO"
@@ -271,17 +791,46 @@ if want V4-5; then
   else
     bad "[V4-5] disk floor: rc=$rc available='$AVAIL' (df now $DF) required='$REQ' entries-under-worktree-root=$LEFT worktrees=$(wt_count "$REPO") report-written=$([ -e "$WORK/v45.json" ] && echo yes || echo no) -- the refusal path is broken ($(head -c 300 "$WORK/v45.err"))"
   fi
-  # the git object store's filesystem has its own floor (V4-4): submodule
-  # objects land under <git-common-dir>/worktrees/<n>/modules, not under
-  # --worktree-root.
-  bash "$SCRIPT" replay --commit "$(git -C "$REPO" rev-parse HEAD)" --repo-root "$REPO" \
-    --worktree-root "$WORK/v45_wt" --min-free-kb 0 --min-free-kb-objects "$HUGE" --gate-cmd true \
+  # df shim: the object store ($REPO/.git) reports 111KB free, everything else 999999999KB.
+  mkdir -p "$WORK/dfshim"
+  cat >"$WORK/dfshim/df" <<SH
+#!/bin/bash
+last="\${@: -1}"
+case "\$last" in
+  "$REPO/.git"|"$REPO/.git/"*) avail=111 ;;
+  *) avail=999999999 ;;
+esac
+echo "Filesystem 1024-blocks Used Available Capacity Mounted on"
+echo "shimfs 1000000000 1 \$avail 1% /"
+SH
+  chmod +x "$WORK/dfshim/df"
+  PATH="$WORK/dfshim:$PATH" bash "$SCRIPT" replay --commit "$(git -C "$REPO" rev-parse HEAD)" --repo-root "$REPO" \
+    --worktree-root "$WORK/v45_wt" --min-free-kb 1000 --min-free-kb-objects 1000 --gate-cmd true \
     --cold-runs 1 --warm-runs 0 --out "$WORK/v45b.json" >/dev/null 2>"$WORK/v45b.err"; rc=$?
   LEFT="$(find "$WORK/v45_wt" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)"
-  if [ "$rc" = 4 ] && grep -q "object store" "$WORK/v45b.err" && grep -q "${HUGE}KB required" "$WORK/v45b.err" && [ "$LEFT" = 0 ]; then
-    ok "[V4-4] the filesystem of the git object store is checked too (exit 4 when it is short, nothing created)"
+  if [ "$rc" = 4 ] && grep -q "object store $REPO/.git: 111KB available, 1000KB required" "$WORK/v45b.err" && [ "$LEFT" = 0 ]; then
+    ok "[V4-4] the object-store floor measures the object store's OWN filesystem (shim: 111KB there, 999999999KB elsewhere) and refuses naming it"
   else
-    bad "[V4-4] object-store floor: rc=$rc entries=$LEFT -- the filesystem that receives submodule objects is never checked ($(head -c 300 "$WORK/v45b.err"))"
+    bad "[V4-4] object-store floor: rc=$rc entries=$LEFT -- the refusal does not name the object store with its own free space ($(head -c 300 "$WORK/v45b.err"))"
+  fi
+  # and the converse: only the worktree root is short
+  cat >"$WORK/dfshim/df" <<SH
+#!/bin/bash
+last="\${@: -1}"
+case "\$last" in
+  "$WORK/v45_wt"|"$WORK/v45_wt/"*) avail=222 ;;
+  *) avail=999999999 ;;
+esac
+echo "Filesystem 1024-blocks Used Available Capacity Mounted on"
+echo "shimfs 1000000000 1 \$avail 1% /"
+SH
+  PATH="$WORK/dfshim:$PATH" bash "$SCRIPT" replay --commit "$(git -C "$REPO" rev-parse HEAD)" --repo-root "$REPO" \
+    --worktree-root "$WORK/v45_wt" --min-free-kb 1000 --min-free-kb-objects 1000 --gate-cmd true \
+    --cold-runs 1 --warm-runs 0 --out "$WORK/v45d.json" >/dev/null 2>"$WORK/v45d.err"; rc=$?
+  if [ "$rc" = 4 ] && grep -q "free disk at $WORK/v45_wt: 222KB available, 1000KB required" "$WORK/v45d.err"; then
+    ok "[V4-5] the worktree-root floor measures the worktree root's own filesystem (shim: 222KB there) and refuses naming it"
+  else
+    bad "[V4-5] worktree-root floor under the shim: rc=$rc ($(head -c 300 "$WORK/v45d.err"))"
   fi
   # control: the same replay with both floors at 0 runs
   bash "$SCRIPT" replay --commit "$(git -C "$REPO" rev-parse HEAD)" --repo-root "$REPO" \
@@ -295,13 +844,14 @@ if want V4-5; then
 fi
 
 # =============================================================================
-# V4-4: one replay at a time per repository (the free-space check is only
-# meaningful when nobody else is about to consume the same space).
+# V4-4: one replay at a time per repository -- also when --repo-root is a LINKED
+# worktree of that repository (V4R3-6: the lock lives in the COMMON git dir) --
+# and per filesystem (two different repositories on one filesystem).
 # =============================================================================
 if want V4-4; then
   REPO="$WORK/v44"; mk_repo "$REPO"
   LOCKF="$(git -C "$REPO" rev-parse --absolute-git-dir)/fc_baseline_replay.lock"
-  flock -n "$LOCKF" bash -c "echo held >'$WORK/v44.held'; exec -a '$MARK-lockholder' sleep 30" &
+  flock -n "$LOCKF" bash -c "echo held >'$WORK/v44.held'; exec -a '${MARK}lockholder' sleep 30" &
   HOLDER_PID=$!
   if wait_for_lines "$WORK/v44.held" 1 50; then
     bash "$SCRIPT" replay --commit "$(git -C "$REPO" rev-parse HEAD)" --repo-root "$REPO" \
@@ -313,8 +863,16 @@ if want V4-4; then
     else
       bad "[V4-4] concurrent replay: rc=$rc worktrees-created=$LEFT -- two replays can pass the free-space check together ($(head -c 300 "$WORK/v44.err"))"
     fi
-    # flock(1) runs its command as a child that inherits the locked fd: both
-    # the flock process and that child (named $MARK-lockholder) must go.
+    # the same repository through a LINKED worktree must hit the same lock
+    git -C "$REPO" worktree add -q --detach "$WORK/v44_linked" >/dev/null 2>&1
+    bash "$SCRIPT" replay --commit "$(git -C "$REPO" rev-parse HEAD)" --repo-root "$WORK/v44_linked" \
+      --worktree-root "$WORK/v44_wt" --min-free-kb 0 --gate-cmd true --cold-runs 1 --warm-runs 0 \
+      --out "$WORK/v44l.json" >/dev/null 2>"$WORK/v44l.err"; rc=$?
+    if [ "$rc" = 4 ] && grep -q "another baseline_replay" "$WORK/v44l.err" && [ ! -e "$WORK/v44l.json" ]; then
+      ok "[V4-4] a replay whose --repo-root is a LINKED worktree of the same repository is refused too (the lock is the common git dir's)"
+    else
+      bad "[V4-4] linked-worktree replay while the repository's lock is held: rc=$rc ($(head -c 300 "$WORK/v44l.err"))"
+    fi
     case "$HOLDER_PID" in ''|*[!0-9]*) ;; *) [ "$HOLDER_PID" -gt 1 ] && kill -KILL "$HOLDER_PID" 2>/dev/null ;; esac
     reap_marker
     wait "$HOLDER_PID" 2>/dev/null; HOLDER_PID=""
@@ -329,6 +887,30 @@ if want V4-4; then
   else
     bad "[V4-4] could not take the test lock (setup failure)"
   fi
+  # per filesystem: a DIFFERENT repository on the same filesystem is refused while
+  # the filesystem lock is held (the free-space check covers the filesystem, not
+  # the repository)
+  REPO2="$WORK/v44fs"; mk_repo "$REPO2"
+  DEV="$(stat -c %d "$WORK")"
+  FSLOCK="$FC_REPLAY_LOCK_DIR/fc_baseline_replay.fs-$DEV.lock"
+  : >"$FSLOCK"
+  flock -n "$FSLOCK" bash -c "echo held >'$WORK/v44fs.held'; exec -a '${MARK}fsholder' sleep 30" &
+  HOLDER_PID=$!
+  if wait_for_lines "$WORK/v44fs.held" 1 50; then
+    bash "$SCRIPT" replay --commit "$(git -C "$REPO2" rev-parse HEAD)" --repo-root "$REPO2" \
+      --worktree-root "$WORK/v44fs_wt" --min-free-kb 0 --gate-cmd true --cold-runs 1 --warm-runs 0 \
+      --out "$WORK/v44fs.json" >/dev/null 2>"$WORK/v44fs.err"; rc=$?
+    if [ "$rc" = 4 ] && grep -q "same filesystem" "$WORK/v44fs.err" && [ ! -e "$WORK/v44fs.json" ]; then
+      ok "[V4-4] a replay of a DIFFERENT repository on the same filesystem is refused while that filesystem's lock is held"
+    else
+      bad "[V4-4] per-filesystem lock: rc=$rc ($(head -c 300 "$WORK/v44fs.err"))"
+    fi
+  else
+    bad "[V4-4] could not take the filesystem test lock (setup failure)"
+  fi
+  case "$HOLDER_PID" in ''|*[!0-9]*) ;; *) [ "$HOLDER_PID" -gt 1 ] && kill -KILL "$HOLDER_PID" 2>/dev/null ;; esac
+  reap_marker
+  wait "$HOLDER_PID" 2>/dev/null; HOLDER_PID=""
 fi
 
 # =============================================================================
@@ -374,134 +956,6 @@ PY
 fi
 
 # =============================================================================
-# V4-12 (N4) + V4-8 + V4-9: TERM to the main pid while the gate IGNORES TERM.
-# When the main pid is gone, the gate must already be dead, the worktree gone,
-# nothing left in the tool's session (no orphan watchdog sleep), and no temp
-# file left in TMPDIR.
-# =============================================================================
-if want V4-12; then
-  REPO="$WORK/v412"; mk_repo "$REPO"
-  mkdir -p "$WORK/v412_tmp"
-  T="$MARK-v412"
-  {
-    echo '#!/bin/bash'
-    echo "trap '' TERM"
-    echo "echo x >>\"$WORK/v412.calls\""
-    echo "echo \$\$ >\"$WORK/v412.pid\""
-    echo "exec -a \"$T-gate\" sleep 30"
-  } >"$WORK/v412_gate.sh"
-  chmod +x "$WORK/v412_gate.sh"
-  TMPDIR="$WORK/v412_tmp" RBGS "$REPO" "$WORK/v412_wt" "$WORK/v412.json" --gate-cmd "$WORK/v412_gate.sh" --cold-runs 2 --warm-runs 0 --timeout-s 60 >/dev/null 2>&1 &
-  MAIN=$!
-  if wait_for_lines "$WORK/v412.calls" 1 100; then
-    GPID="$(cat "$WORK/v412.pid")"
-    kill -TERM "$MAIN"
-    wait_gone "$MAIN" 300; wait "$MAIN" 2>/dev/null; mrc=$?
-    # measured at the moment the main pid is gone -- no grace period
-    GA=no; alive "$GPID" && GA=yes
-    WTN="$(wt_count "$REPO")"
-    DIRS="$(find "$WORK/v412_wt" -maxdepth 1 -type d -name 'replay.*' 2>/dev/null | wc -l)"
-    SL="$(leftover_sess "$MAIN")"
-    TMPN="$(find "$WORK/v412_tmp" -mindepth 1 2>/dev/null | wc -l)"
-    CALLS="$(wc -l <"$WORK/v412.calls")"
-    if [ "$GA" = no ] && [ "$WTN" = 1 ] && [ "$DIRS" = 0 ] && [ -z "$SL" ] && [ "$TMPN" = 0 ] && [ "$CALLS" = 1 ] && [ "$mrc" = 143 ]; then
-      ok "[V4-12/N4] when the main pid exits, the TERM-ignoring gate is already dead, the worktree removed, nothing left in its session and no temp file left"
-    else
-      bad "[V4-12/N4] at main exit: gate alive=$GA worktrees=$WTN replay-dirs=$DIRS session-leftovers='$SL' tmp-entries=$TMPN gate-calls=$CALLS main-rc=$mrc -- the tool exited before its cleanup finished, or left processes/files behind"
-    fi
-  else
-    bad "[V4-12/N4] the gate never started (setup failure)"; kill -TERM "$MAIN" 2>/dev/null; wait "$MAIN" 2>/dev/null
-  fi
-  reap_marker
-fi
-
-# =============================================================================
-# V4-12 (N12): a SECOND signal to the replay subshell while its cleanup is still
-# waiting for a TERM-ignoring gate must not let it exit early: when the main pid
-# is gone, the gate must already be dead.
-# =============================================================================
-child_bash_of() {
-  local c
-  # shellcheck disable=SC2013 # the children file is one space-separated line of pids
-  for c in $(cat "/proc/$1/task/$1/children" 2>/dev/null); do
-    [ "$(cat "/proc/$c/comm" 2>/dev/null)" = bash ] && { echo "$c"; return 0; }
-  done
-  return 1
-}
-if want N12; then
-  REPO="$WORK/n12"; mk_repo "$REPO"
-  T="$MARK-n12"
-  {
-    echo '#!/bin/bash'
-    echo "trap '' TERM"
-    echo "echo x >>\"$WORK/n12.calls\""
-    echo "echo \$\$ >\"$WORK/n12.pid\""
-    echo "exec -a \"$T-gate\" sleep 30"
-  } >"$WORK/n12_gate.sh"
-  chmod +x "$WORK/n12_gate.sh"
-  RBGS "$REPO" "$WORK/n12_wt" "$WORK/n12.json" --gate-cmd "$WORK/n12_gate.sh" --cold-runs 1 --warm-runs 0 --timeout-s 60 >/dev/null 2>&1 &
-  MAIN=$!
-  if wait_for_lines "$WORK/n12.calls" 1 100; then
-    GPID="$(cat "$WORK/n12.pid")"
-    SUB="$(child_bash_of "$MAIN")"
-    case "$SUB" in ''|*[!0-9]*) SUB="" ;; esac
-    if [ -n "$SUB" ] && [ "$SUB" -gt 1 ]; then
-      kill -HUP "$SUB"; sleep 1; kill -HUP "$SUB" 2>/dev/null
-    fi
-    wait_gone "$MAIN" 300; wait "$MAIN" 2>/dev/null
-    GA=no; alive "$GPID" && GA=yes
-    if [ -n "$SUB" ] && [ "$GA" = no ] && [ "$(wt_count "$REPO")" = 1 ]; then
-      ok "[V4-12/N12] a second HUP during cleanup does not end it early: the gate is dead when the tool exits"
-    else
-      bad "[V4-12/N12] second HUP during cleanup: subshell=$SUB gate alive at tool exit=$GA worktrees=$(wt_count "$REPO") -- the cleanup was cut short and the gate outlived the tool"
-    fi
-  else
-    bad "[V4-12/N12] the gate never started (setup failure)"; kill -TERM "$MAIN" 2>/dev/null; wait "$MAIN" 2>/dev/null
-  fi
-  reap_marker
-fi
-
-# =============================================================================
-# V4-9: the selfcheck subcommand is stoppable too: TERM during its timeout
-# check leaves no process in its session and no temp file.
-# =============================================================================
-if want V4-9; then
-  # HUP as well as TERM: bash runs its EXIT trap on a default-disposition TERM but
-  # NOT on a default-disposition HUP, so only the HUP case can tell whether
-  # selfcheck installed its own handlers.
-  for SIG in TERM HUP; do
-    case "$SIG" in TERM) WANT_RC=143 ;; HUP) WANT_RC=129 ;; esac
-    TD="$WORK/v49_tmp_$SIG"; mkdir -p "$TD"
-    TMPDIR="$TD" setsid bash "$SCRIPT" selfcheck --out "$WORK/v49_$SIG.json" >/dev/null 2>&1 &
-    MAIN=$!
-    # wait for selfcheck's last check (`sleep 5` under a 1 s timeout) to be
-    # running, and signal at once: that sleep lives at most 1 s, so detection
-    # must be fast (two pgrep calls, not a /proc scan) for a leak to be visible.
-    i=0; SEEN=""
-    while [ "$i" -lt 400 ]; do
-      for c in $(pgrep -P "$MAIN" 2>/dev/null); do
-        for q in $(pgrep -P "$c" -x sleep 2>/dev/null); do
-          tr '\0' ' ' <"/proc/$q/cmdline" 2>/dev/null | grep -qx 'sleep 5 ' && SEEN="$q"
-        done
-      done
-      [ -n "$SEEN" ] && break
-      sleep 0.02; i=$((i + 1))
-    done
-    kill -s "$SIG" "$MAIN"
-    wait_gone "$MAIN" 150; wait "$MAIN" 2>/dev/null; mrc=$?
-    # first, before any slow scan: is the check's sleep still running?
-    SLEEP_LEFT=no; [ -n "$SEEN" ] && alive "$SEEN" && SLEEP_LEFT=yes
-    SL="$(leftover_sess "$MAIN")"
-    TMPN="$(find "$TD" -mindepth 1 2>/dev/null | wc -l)"
-    if [ -n "$SEEN" ] && [ "$SLEEP_LEFT" = no ] && [ -z "$SL" ] && [ "$TMPN" = 0 ] && [ "$mrc" = "$WANT_RC" ]; then
-      ok "[V4-9] SIG$SIG during selfcheck stops its running check (no leftover sleep, nothing left in the session, no temp file, exit $mrc)"
-    else
-      bad "[V4-9] selfcheck under SIG$SIG: check-seen=${SEEN:-none} sleep-left=$SLEEP_LEFT session-leftovers='$SL' tmp-entries=$TMPN rc=$mrc (want $WANT_RC)"
-    fi
-  done
-fi
-
-# =============================================================================
 # N6: on an exact author-time tie the first commit git log lists (the most
 # recently committed) is kept -- the documented rule.
 # =============================================================================
@@ -542,19 +996,26 @@ if want N10; then
 fi
 
 # =============================================================================
-# WS: whitespace-only / whitespace-carrying item ids are not ids (V4-6 class).
+# WS: whitespace-only / whitespace-carrying item ids are not ids (V4-6 class),
+# whatever the whitespace character (a space, a TAB -- V4R3-13 N11).
 # =============================================================================
 if want WS; then
   REPO="$WORK/ws"; mk_repo "$REPO"
   bash "$SCRIPT" freeze --item '   ' --repo-root "$REPO" --out "$WORK/ws1.json" >/dev/null 2>&1; rc1=$?
   bash "$SCRIPT" freeze --item 'ATM-1 ATM-2' --repo-root "$REPO" --out "$WORK/ws2.json" >/dev/null 2>&1; rc2=$?
-  python3 -c 'import json,sys; json.dump({"items":[{"item_id":" "}]}, open(sys.argv[1],"w"))' "$WORK/ws_sample.json"
-  bash "$SCRIPT" replay-sample --sample "$WORK/ws_sample.json" --gate-cmd true --cold-runs 1 --warm-runs 0 \
-    --repo-root "$REPO" --worktree-root "$WORK/ws_wt" --min-free-kb 0 --out "$WORK/ws3.json" >/dev/null 2>&1; rc3=$?
-  if [ "$rc1" = 2 ] && [ "$rc2" = 2 ] && [ "$rc3" = 4 ] && [ ! -e "$WORK/ws1.json" ] && [ ! -e "$WORK/ws3.json" ]; then
-    ok "[WS] whitespace-only / whitespace-carrying item ids are refused (freeze exit 2, replay-sample exit 4)"
+  WS_RC=""
+  for wid in ' ' $'ATM-1\tx' $'\t'; do
+    python3 -c 'import json,sys; json.dump({"items":[{"item_id":sys.argv[2]}]}, open(sys.argv[1],"w"))' "$WORK/ws_sample.json" "$wid"
+    rm -f "$WORK/ws3.json"
+    bash "$SCRIPT" replay-sample --sample "$WORK/ws_sample.json" --gate-cmd true --cold-runs 1 --warm-runs 0 \
+      --repo-root "$REPO" --worktree-root "$WORK/ws_wt" --min-free-kb 0 --out "$WORK/ws3.json" >/dev/null 2>&1; rc3=$?
+    [ -e "$WORK/ws3.json" ] && rc3="$rc3+written"
+    WS_RC="$WS_RC $rc3"
+  done
+  if [ "$rc1" = 2 ] && [ "$rc2" = 2 ] && [ "$WS_RC" = " 4 4 4" ] && [ ! -e "$WORK/ws1.json" ]; then
+    ok "[WS] whitespace-only / whitespace-carrying item ids (space, TAB) are refused (freeze exit 2, replay-sample exit 4)"
   else
-    bad "[WS] whitespace ids: freeze '   ' rc=$rc1, freeze 'ATM-1 ATM-2' rc=$rc2, replay-sample [' '] rc=$rc3 -- a blank id was searched as if it named an item"
+    bad "[WS] whitespace ids: freeze '   ' rc=$rc1, freeze 'ATM-1 ATM-2' rc=$rc2, replay-sample [' ', 'ATM-1<TAB>x', '<TAB>'] rc=$WS_RC -- a blank id was searched as if it named an item"
   fi
 fi
 

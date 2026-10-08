@@ -56,6 +56,13 @@ Exit codes (kind=join):
      V4-6: a whitespace-only value is absent too -- " " == " " is no identity --
      and the contract's `time` field is validated instead of ignored.)
 
+Value rendering (T048 restart round 3, V4R3-7/8): every value echoed on a REFUSE
+line is ONE unambiguous token (see _show: a plain token that is not valid JSON
+verbatim, anything else as its JSON encoding with spaces written as the JSON
+escape u0020 and '/' as the JSON escape of a slash), so no value can forge a field, a line, or a split point; and a value
+made only of whitespace, control or invisible format characters is absent (see
+_present).
+
 This tool is the pure, fixture-testable validate+join core. T040's own
 emitter wiring into docs/build/resources/builds.tsv, scripts/flash.sh's
 post-verify step, and scripts/lib/critical_blocker_gate.sh (plan.md T040,
@@ -74,29 +81,56 @@ import datetime
 import json
 import re
 import sys
+import unicodedata
 
 VALID_VERDICTS = {"ALLOW", "FAIL", "REFUSE"}
 
 
 def _present(value):
-    """A value is present only as a string holding something other than
-    whitespace: None, "", "   ", a number or a list are all 'absent'. T048 restart
-    round 2 (V4-6): the round-1 test `value != ""` let a whitespace-only
-    fingerprint pair (" " / " ") pass as an identity match. Every presence test in
-    this file goes through this one function (the class fix, not an instance)."""
-    return isinstance(value, str) and value.strip() != ""
+    """A value is present only as a string holding at least one VISIBLE character
+    (a letter, digit, punctuation mark or symbol -- Unicode categories L*, N*, P*,
+    S*): None, "", "   ", a number, a list, or a string made only of whitespace,
+    control or invisible FORMAT characters (U+200B ZERO WIDTH SPACE, U+FEFF, ...)
+    are all 'absent'. T048 restart round 2 (V4-6) stripped whitespace only; round
+    3 (V4R3-8): `str.strip()` keeps Cf characters, so a U+200B fingerprint on both
+    sides passed as an identity match. Every presence test in this file goes
+    through this one function (the class fix, not an instance)."""
+    return isinstance(value, str) and any(unicodedata.category(c)[0] in "LNPS" for c in value)
+
+
+# A value is echoed verbatim only if it is made of these characters: none of
+# them is whitespace, a reason separator ('=', ',', '/'), a quote or a backslash,
+# so a verbatim token can never be mistaken for, or merge with, another field.
+_PLAIN_RE = re.compile(r"[A-Za-z0-9._:+@~-]+")
+
+
+def _is_json(text):
+    try:
+        json.loads(text)
+    except ValueError:
+        return False
+    return True
 
 
 def _show(value):
-    """A record value as echoed on stdout: printable strings verbatim, None as "",
-    anything else (a newline-carrying or non-string value) as JSON -- so every
-    output stays the contract's EXACT one line per field (T048 restart round 2:
-    a value carrying a newline would otherwise forge an extra output line)."""
+    r"""A record value as ONE unambiguous token on the contract's one output line
+    (T048 restart round 3, V4R3-7): None -> "" (absent); a string of plain
+    characters that is NOT itself valid JSON -> verbatim; anything else (an
+    empty string, whitespace, '/', '=', ',', quotes, newlines, non-ASCII, a
+    string that reads as a JSON number/literal such as "5" or "true", any
+    non-string) -> its JSON encoding, ASCII-only, compact, with every space
+    written \u0020 and every '/' written \/ (both valid JSON escapes). So a
+    verbatim token is never valid JSON and every other rendering is: the two can
+    never collide. No rendering contains whitespace or a bare '/', so splitting
+    the line on whitespace, or a MISMATCH value on '/', is always unambiguous.
+    Round 2 echoed printable strings verbatim: build_id "x fingerprint_MISSING=build"
+    forged a second reason field, and fingerprint "a/b" vs "c" printed as the
+    ambiguous MISMATCH=a/b/c."""
     if value is None:
         return ""
-    if isinstance(value, str) and value.isprintable():
+    if isinstance(value, str) and _PLAIN_RE.fullmatch(value) and not _is_json(value):
         return value
-    return json.dumps(value)
+    return json.dumps(value, ensure_ascii=True, separators=(",", ":")).replace(" ", "\\u0020").replace("/", "\\/")
 
 
 def _build_id_of(rec):

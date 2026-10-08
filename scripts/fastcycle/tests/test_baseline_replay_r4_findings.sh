@@ -4,7 +4,8 @@
 # round-4 independent review's 3 BLOCKING findings (agent ad5d869e28efdddbd,
 # 2026-09-28), all against baseline_replay.sh / cycle_report.py:
 #
-#   B1: SIGHUP/SIGQUIT during a replay's gate-cmd leaked an orphan git
+#   B1 (now guarded by the round-3 stop matrix, see below):
+#       SIGHUP/SIGQUIT during a replay's gate-cmd leaked an orphan git
 #       worktree -- bash defers a trapped signal until the CURRENT
 #       FOREGROUND command finishes, so a plain (non-backgrounded)
 #       foreground subshell running the gate-cmd delayed the HUP/QUIT
@@ -46,6 +47,10 @@ SCRIPT_PATH="${FC_BR_UNDER_TEST:-$FC/cycle/baseline_replay.sh}"
 
 PASS=0
 FAIL=0
+# private per-filesystem replay lock directory (never contend with another replay on this host)
+FC_REPLAY_LOCK_DIR="$(mktemp -d)"
+export FC_REPLAY_LOCK_DIR
+trap 'rm -rf "$FC_REPLAY_LOCK_DIR"' EXIT
 ok()  { PASS=$((PASS+1)); echo "ok $*"; }
 bad() { FAIL=$((FAIL+1)); echo "NOT ok $*"; }
 
@@ -62,106 +67,15 @@ mk_scratch_repo() {
 }
 
 # =============================================================================
-# B1: SIGHUP/SIGQUIT must be handled PROMPTLY -- the gate stopped, the worktree
-# removed, the script gone -- not deferred until the gate finishes on its own.
-#
-# T048 restart round 1 (R6-F13): the earlier version of this block replayed a
-# `sleep 5` gate and only counted leftover worktrees 2 s later, and its paired
-# mutation anchored on a string that no longer existed in the script, so the
-# mutation silently changed only half of what it claimed (the `diff -q` "some
-# difference" check could not see that). Now (1) the gate runs 30 s, so a
-# deferred handler is observable as elapsed time; (2) the gate process itself
-# must be dead; (3) every mutation anchor must match EXACTLY ONCE or the
-# mutation is reported as broken.
+# B1 (SIGHUP/SIGQUIT handled PROMPTLY, gate stopped, no orphan worktree): the
+# round-4 case and its "gate back in the FOREGROUND" paired mutation lived here.
+# T048 restart round 3 replaced the stop subsystem with one supervisor and every
+# per-finding signal case with ONE stop matrix (test_baseline_replay_r2_findings.sh
+# case SM, wall-clock deadlines, gates that never end by themselves). The B1
+# mutation is kept as R3-M-FG in test_fastcycle_r6_mutations.sh: the worker's
+# long-running child back in the foreground -> every HUP/QUIT/TERM/INT to the
+# worker is deferred until the gate ends -> the matrix's deadline catches it.
 # =============================================================================
-sleep_gate() { # sleep_gate <path> <pidfile> -- a 30 s gate whose cmdline carries <path>
-    printf '#!/bin/bash\necho $$ >"%s"\nexec -a "r4-test-sleep %s" sleep 30\n' "$2" "$1" >"$1"
-    chmod +x "$1"
-}
-gate_alive() { # pid still running (not a zombie) AND still our gate (§11.4.263: never act on a reused pid)
-    case "$1" in ''|*[!0-9]*) return 1 ;; esac
-    [ "$1" -gt 1 ] || return 1
-    tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null | grep -q "r4-test-sleep" || return 1
-    [ "$(awk '{print $3}' "/proc/$1/stat" 2>/dev/null)" != Z ]
-}
-reap_gate() { gate_alive "$1" && kill -KILL "$1" 2>/dev/null; return 0; }
-
-# b1_case <script> <signal> -> sets B1_ELAPSED B1_LEFTOVER B1_WT B1_GATE_ALIVE
-b1_case() {
-    local script="$1" sig="$2" repo commit tree wtr out pidf
-    repo="$(mk_scratch_repo a init)"
-    commit="$(git -C "$repo" rev-parse HEAD)"; tree="$(git -C "$repo" rev-parse 'HEAD^{tree}')"
-    wtr="$repo/.fc_worktrees"; mkdir -p "$wtr"
-    out="$(mktemp)"; pidf="$repo/gate.pid"
-    sleep_gate "$repo/gate.sh" "$pidf"
-    local t0=$SECONDS
-    # a private TMPDIR: the mutant case below is ended by SIGKILL, which no trap
-    # can clean up after -- its temp files must not leak into the caller's TMPDIR
-    local td; td="$(mktemp -d)"
-    TMPDIR="$td" timeout -s "$sig" -k 25 1.5s bash "$script" replay --commit "$commit" --tree "$tree" \
-        --repo-root "$repo" --worktree-root "$wtr" --min-free-kb 0 \
-        --gate-cmd "$repo/gate.sh" --cold-runs 1 --warm-runs 0 --out "$out" >/dev/null 2>&1
-    B1_ELAPSED=$((SECONDS - t0))
-    sleep 0.5
-    B1_LEFTOVER="$(find "$wtr" -maxdepth 1 -type d -name 'replay.*' 2>/dev/null | wc -l)"
-    B1_WT="$(git -C "$repo" worktree list 2>/dev/null | wc -l)"
-    local gp; gp="$(cat "$pidf" 2>/dev/null)"
-    if gate_alive "$gp"; then B1_GATE_ALIVE=yes; else B1_GATE_ALIVE=no; fi
-    reap_gate "$gp"
-    git -C "$repo" worktree prune >/dev/null 2>&1
-    rm -rf "$repo" "$out" "$td"
-}
-
-for SIG in HUP QUIT; do
-    b1_case "$SCRIPT_PATH" "$SIG"
-    if [ "$B1_LEFTOVER" -eq 0 ] && [ "$B1_WT" -eq 1 ] && [ "$B1_GATE_ALIVE" = no ] && [ "$B1_ELAPSED" -le 15 ]; then
-        ok "B1 (SIG$SIG): handled promptly -- script gone in ${B1_ELAPSED}s, gate stopped, no orphan worktree (leftover=$B1_LEFTOVER count=$B1_WT)"
-    else
-        bad "B1 (SIG$SIG): elapsed=${B1_ELAPSED}s leftover=$B1_LEFTOVER worktrees=$B1_WT gate-alive=$B1_GATE_ALIVE"
-    fi
-done
-
-# =============================================================================
-# B1 paired mutation (§1.1): put the gate back into the FOREGROUND (no `&` +
-# `wait`). bash then defers every trapped signal until the 30 s gate ends on its
-# own, so this SAME check must fail on the SIGHUP case.
-# =============================================================================
-# The mutant lives in a throwaway replica (cycle/ + lib/) so the real tree is
-# never written and the script's own $FC/lib resolution still works.
-MUT_ROOT="$(mktemp -d)"
-cp -r "$(dirname "$SCRIPT_PATH")/../lib" "$MUT_ROOT/lib"
-mkdir -p "$MUT_ROOT/cycle"
-MUT_SCRIPT="$MUT_ROOT/cycle/baseline_replay.sh"
-python3 - "$SCRIPT_PATH" "$MUT_SCRIPT" << 'PYEOF'
-import sys
-# B1 mutation builder
-src_path, out_path = sys.argv[1], sys.argv[2]
-src = open(src_path).read()
-# (T048 restart round 2: the launch line now also closes fd 9, the replay lock)
-old = ("exit 127' fc-gate \"$marker\" \"$cwd\" \"$@\" >\"$log\" 2>&1 </dev/null 9>&- &\n"
-       "  _FC_CHILD_PGID=$!\n"
-       "  wait \"$_FC_CHILD_PGID\"\n"
-       "  RG_RC=$?\n")
-new = ("exit 127' fc-gate \"$marker\" \"$cwd\" \"$@\" >\"$log\" 2>&1 </dev/null 9>&-\n"
-       "  RG_RC=$?\n")
-n = src.count(old)
-if n != 1:
-    sys.stderr.write("B1 mutation anchor matched %d times (need exactly 1)\n" % n)
-    sys.exit(3)
-open(out_path, "w").write(src.replace(old, new, 1))
-PYEOF
-MUT_BUILD_RC=$?
-if [ "$MUT_BUILD_RC" -eq 0 ]; then
-    b1_case "$MUT_SCRIPT" HUP
-    if [ "$B1_ELAPSED" -gt 15 ] || [ "$B1_LEFTOVER" -gt 0 ] || [ "$B1_GATE_ALIVE" = yes ]; then
-        ok "B1 mutation check: a foreground gate DOES defer the SIGHUP handler (elapsed=${B1_ELAPSED}s leftover=$B1_LEFTOVER gate-alive=$B1_GATE_ALIVE) -- this test genuinely catches the regression"
-    else
-        bad "B1 mutation check: the foreground-gate mutant was handled promptly anyway (elapsed=${B1_ELAPSED}s) -- this test may be a bluff gate"
-    fi
-else
-    bad "B1 mutation check: the mutation anchor did not match exactly once -- the anchor has drifted, fix it"
-fi
-rm -rf "$MUT_ROOT"
 
 # =============================================================================
 # B2: token-boundary item-id matching (synthetic, deterministic -- an

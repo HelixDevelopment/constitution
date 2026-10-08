@@ -119,9 +119,13 @@
 # filesystem is checked too, against --min-free-kb-objects (default
 # DEFAULT_MIN_FREE_KB_OBJECTS = 18 GiB: ~7.4 GiB of submodule objects rounded up
 # to 8 + 10 GiB headroom). Both checks, the worktree add and every run happen
-# under an exclusive per-repository flock, so two replays can never both pass
-# the check and then together exhaust the disk; a second replay is refused
-# (exit 4) while the first runs.
+# under exclusive locks per repository AND per filesystem (T048 restart round 3,
+# V4R3-6: the round-2 per-repository lock let replays of two DIFFERENT
+# repositories on one filesystem both pass the check), so two replays by this
+# user can never both pass the check of one filesystem and then together
+# exhaust it; a second replay is refused (exit 4) while the first runs. HONEST
+# BOUNDARY: replays by different users (per-user lock directory) are not
+# serialised against each other.
 #
 # =============================================================================
 # COLD vs WARM (honest boundary, S11.4.6 -- stated per task instruction)
@@ -158,8 +162,11 @@
 #   worktree/submodule creation failed, disk pre-flight refused, tracker DB
 #   present but unreadable, a gate run that could not be STARTED
 #   (HARNESS_ERROR; the report is still written), any replay-sample item that
-#   could not be measured for a harness reason (report still written), or
-#   --determinism-check runs that never completed (deterministic=null).
+#   could not be measured for a harness reason (report still written),
+#   --determinism-check runs that never completed (deterministic=null), or
+#   another replay holding a lock; 128+N the tool was stopped by signal N (sent
+#   to the main pid, the supervisor, the worker or their process group) -- no
+#   report is written, the run-log directory is marked INTERRUPTED.
 #   Verdicts per run (closed set): PASS | FAIL | UNMEASURED | HARNESS_ERROR,
 #   see classify_run(); median_ms is over PASS runs only (R6-F9).
 #
@@ -201,20 +208,19 @@
 # `reset`/`stash`/`clean` against the repo the caller invoked this script
 # from. Worktree cleanup (`git worktree remove --force`, needed because
 # the replayed gate may leave scratch files inside its own checkout) is
-# unconditional (bash `trap ... EXIT` plus explicit HUP/INT/QUIT/TERM
-# handlers) and FIRST stops every process the running gate / submodule step
-# started (_fc_kill_child, §11.4.263-guarded) -- this script never leaves an
-# orphan worktree or an orphan gate run behind, matching S11.4.14 (leave the
-# target quiescent). T048 restart round 1 (R6-F11): stopping the main script
-# used to leave every remaining scheduled gate run going as an orphan. T048
-# restart round 2 (V4-1): killing the gate's process GROUP was not enough -- a
-# gate that itself runs `timeout ...` (the real pre-build gate does, 51 times)
-# puts that child in a group of its own, which survived. Each child now runs in
-# a SESSION of its own, carrying a per-run token in its environment, and the
-# cleanup stops every process of that session or carrying that token (see
-# _fc_child_pids for the one honest gap). One replay at a time per repository
-# (an flock on <git-common-dir>/fc_baseline_replay.lock, V4-4), and every temp
-# file lives in one private directory removed on every exit path (V4-9).
+# unconditional, and nothing the tool starts outlives it (S11.4.14, leave the
+# target quiescent). T048 restart round 3 (STRUCTURAL, V4R3-1..14): after three
+# rounds in which every added stop mechanism (traps, TERM forwarding, a session
+# and token per gate, a /proc environ scan, poll-then-KILL, an inherited lock
+# fd) brought new gaps -- the last one: a SIGKILL of the main pid left the run
+# loop executing every remaining scheduled run -- all of it is replaced by ONE
+# supervisor, cycle/fc_supervisor.py, which owns every descendant by
+# construction (child subreaper + PDEATHSIG chain + pidfd-only signalling) and
+# stops the whole tree whatever stopped the tool (see "PROCESS SUPERVISION"
+# below and the supervisor's docstring, which states its one honest boundary:
+# both supervisor processes SIGKILLed at the same moment). Replays are
+# serialised per repository AND per filesystem (see _fc_supervise), and every
+# temp file lives in one private directory the supervisor removes.
 #
 # HONEST BOUNDARY (S11.4.6): `--gate-cmd "CMD..."` is a single string this
 # script word-splits on whitespace (parse_gate_cmd: `read -r -a`, with NO
@@ -226,10 +232,11 @@
 # a shell command string (this is the first) will need the same note or a
 # genuine array-CLI redesign once a caller hits it.
 #
-# Dependencies: bash (arrays), git, python3 (stdlib only -- JSON assembly
-# + fc_common's canon/body_hash_of, matching every sibling $FC tool, and the
-# /proc scan in _fc_child_pids), coreutils `date`/`df`/`timeout`, util-linux
-# `setsid`/`flock`; Linux /proc.
+# Dependencies: bash (arrays), git, python3 >= 3.9 (stdlib only -- JSON
+# assembly + fc_common's canon/body_hash_of, matching every sibling $FC tool,
+# and the process supervisor, which needs os.pidfd_open / pidfd_send_signal:
+# Linux >= 5.3), coreutils `date`/`df`; Linux /proc with
+# /proc/<pid>/task/<tid>/children.
 set -u
 
 # --- resolve this script's own directory, independent of caller's cwd ---
@@ -260,6 +267,8 @@ EOF
 
 [ $# -ge 1 ] || usage
 SUBCMD=$1; shift
+ORIG_ARGS=("$@")
+SCRIPT_PATH="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
 
 # ---------------------------------------------------------------------------
 # now_ns -- date +%s%N, validated all-decimal (matches fc_timer.sh's own
@@ -287,165 +296,160 @@ DEFAULT_MIN_FREE_KB=70254592
 DEFAULT_MIN_FREE_KB_OBJECTS=18874368
 
 # ---------------------------------------------------------------------------
-# Private temp directory (T048 restart round 2, V4-9). Every temp file this
-# script creates lives under _FC_TMPDIR, which the main shell's EXIT trap removes
-# on every exit path (normal return, BLIND, and the signal handlers, which end in
-# `exit`). Before, a signal left body/ids/entries files behind in TMPDIR. The
-# gates never see this directory (their TMPDIR is the caller's).
+# PROCESS SUPERVISION (T048 restart round 3, STRUCTURAL -- replaces the round-1/2
+# traps, TERM forwarding, per-gate sessions, per-run tokens, /proc environ scan
+# and poll-then-KILL; docs/qa/t048_restart_round3_20261008/V4_baseline.md).
+#
+# `replay`, `replay-sample` and `selfcheck` never do their work in the process
+# the caller started. After the arguments are validated, _fc_supervise `exec`s
+# fc_supervisor.py (same pid): it takes the replay locks, creates the private
+# temp directory and runs THIS script again as the worker, under a keeper
+# process that owns every descendant by construction (PR_SET_CHILD_SUBREAPER,
+# pidfd-only signalling, PDEATHSIG chain -- see fc_supervisor.py's docstring for
+# the layout and its one honest boundary). Whatever stops the tool -- a signal
+# to the main pid, the supervisor, the worker or a process group, a SIGKILL of
+# the main pid, the worker's own exit -- the supervisor stops the whole tree,
+# then removes the worktrees / marks the run-log directories still listed in the
+# ledger, then removes the temp directory. The worker therefore has no cleanup
+# traps at all: a stop signal simply ends it (exit 128+N).
+#
+# Every long-running child of the worker (a gate run, `git worktree add` and its
+# hooks, the submodule update) runs under `fc_supervisor.py run`
+# (_fc_run_child), which bounds it with --timeout-s and stops whatever it left
+# running before it returns. It is started in the background and `wait`ed for,
+# so a stop signal to the worker is acted on at once (bash defers a trapped
+# signal only until the CURRENT foreground command ends; `wait` is interrupted).
 # ---------------------------------------------------------------------------
 _FC_TMPDIR=""
+_FC_SUPERVISOR="$SCRIPT_DIR/fc_supervisor.py"
+_FC_ENTRY_SIGIGN=0
 _fc_mktemp() { mktemp "$_FC_TMPDIR/f.XXXXXX"; }
-# invoked from the EXIT trap string installed at dispatch
-# shellcheck disable=SC2329
+# freeze only (it starts no child that could outlive it): a private temp dir
+# removed by the EXIT trap
+# shellcheck disable=SC2329 # invoked from the EXIT trap string installed in the dispatch
 _fc_rm_tmpdir() {
   case "$_FC_TMPDIR" in */fc_baseline_replay.*) rm -rf -- "$_FC_TMPDIR" ;; esac
   return 0
 }
 
-# ---------------------------------------------------------------------------
-# Child-process tracking. Every long-running child this script starts (a gate
-# run, the submodule update) is launched as
-#     FC_REPLAY_RUN_TOKEN=<token> setsid -w timeout --kill-after=5 ... &
-#  - setsid makes the child the leader of a NEW SESSION; in this non-interactive
-#    shell a background job is never a process-group leader, so setsid does not
-#    fork and `$!` is the timeout pid, which is also the session id and the
-#    process-group id (verified: ps shows pid = sid = pgid = $!);
-#  - everything the gate starts stays in that session -- including a nested
-#    `timeout` (new process GROUP, same session), which is what survived the
-#    round-1 group kill (T048 restart round 2, V4-1);
-#  - everything the gate starts inherits the token in its environment --
-#    including a child that calls setsid itself (new session, same environment).
-# _fc_child_pids lists the live members (session == sid OR token in environ) and
-# _fc_kill_child stops them. HONEST BOUNDARY (§11.4.6): a descendant that BOTH
-# starts a new session AND clears its environment is not found -- that would need
-# a cgroup (systemd-run --user --scope), which this script does not require.
-# _FC_CHILD_PGID / _FC_CHILD_TOKEN are GLOBALS, never function locals: a signal
-# handler can fire after the launching function's locals are gone.
-# _FC_REPLAY_PID is the background subshell that runs do_one_replay()
-# (see run_replay_isolated()).
-# ---------------------------------------------------------------------------
-_FC_CHILD_PGID=""
-_FC_CHILD_TOKEN=""
-_FC_REPLAY_PID=""
-# Set by _fc_kill_child when THIS harness delivered a signal to the tracked child
-# (V4-2: the only case in which a run may be recorded as stopped by a signal).
-_FC_HARNESS_SIGNALLED=""
+# FC_BR_STOP_GRACE_S: seconds between SIGTERM and SIGKILL when a stop has to end
+# a process (default 10).
+_FC_GRACE="${FC_BR_STOP_GRACE_S:-10}"
+isnum "$_FC_GRACE" || die "FC_BR_STOP_GRACE_S must be a non-negative integer"
 
-_fc_new_token() { printf 'fcbr.%s.%s.%s.%s' "$$" "${BASHPID:-0}" "$RANDOM$RANDOM" "$(date +%s%N 2>/dev/null)"; }
-
-# _fc_child_pids SID TOKEN: live (non-zombie) pids > 1 whose session id is SID or
-# whose environment holds FC_REPLAY_RUN_TOKEN=TOKEN, never this shell or the
-# scanner itself. Resolved from /proc stat + environ (§11.4.196(D): by real
-# identity, never a substring match on a command line). Unreadable entries
-# (another user's process, a process that just exited) are skipped.
-_fc_child_pids() {
-  python3 - "$1" "$2" "$$" "${BASHPID:-$$}" <<'PY'
-import os, sys
-sid, token, ex1, ex2 = sys.argv[1:5]
-want = ("FC_REPLAY_RUN_TOKEN=" + token).encode() if token else None
-skip = {ex1, ex2, str(os.getpid()), str(os.getppid())}
-for p in os.listdir("/proc"):
-    if not p.isdigit() or p in skip or int(p) <= 1:
-        continue
-    try:
-        st = open("/proc/%s/stat" % p).read()
-        f = st[st.rindex(") ") + 2:].split()
-    except (OSError, ValueError):
-        continue
-    if len(f) < 4 or f[0] == "Z":
-        continue
-    hit = f[3] == sid
-    if not hit and want:
-        try:
-            hit = want in open("/proc/%s/environ" % p, "rb").read().split(b"\0")
-        except OSError:
-            hit = False
-    if hit:
-        print(p)
-PY
-}
-
-# _fc_signal_pids SIG PID...: §11.4.263 -- only a decimal integer > 1 is ever
-# signalled, one pid at a time, never a process group, never 0 / 1 / -1 / empty.
-_fc_signal_pids() {
-  local sig="$1" p
-  shift
-  for p in "$@"; do
-    case "$p" in ''|*[!0-9]*) continue ;; esac
-    [ "$p" -gt 1 ] || continue
-    kill -s "$sig" "$p" 2>/dev/null
-  done
-  return 0
-}
-
-# _fc_kill_child: stop every process of the tracked child (its session or its
-# token), wait up to 10 s for them to exit after TERM (timeout itself escalates
-# the gate to KILL after its own --kill-after 5 s), KILL whatever is left, and
-# reap the timeout pid. There is no background watchdog any more: the round-1
-# `( sleep 10; ... ) &` left an orphaned `sleep 10` behind on every signal path
-# (V4-8). The poll is a foreground `sleep 0.2`.
-_fc_kill_child() {
-  local pg="${_FC_CHILD_PGID:-}" tok="${_FC_CHILD_TOKEN:-}"
-  _FC_CHILD_PGID=""
-  _FC_CHILD_TOKEN=""
-  case "$pg" in ''|*[!0-9]*) return 0 ;; esac
-  [ "$pg" -gt 1 ] || return 0
-  _FC_HARNESS_SIGNALLED=TERM
-  local pids i=0
-  # shellcheck disable=SC2046 # one pid per line, split on purpose
-  _fc_signal_pids TERM "$pg" $(_fc_child_pids "$pg" "$tok")
-  while [ "$i" -lt 50 ]; do
-    pids="$(_fc_child_pids "$pg" "$tok")"
-    [ -z "$pids" ] && break
-    sleep 0.2
-    i=$((i + 1))
-  done
-  pids="$(_fc_child_pids "$pg" "$tok")"
-  if [ -n "$pids" ]; then
-    _FC_HARNESS_SIGNALLED=KILL
-    # shellcheck disable=SC2086 # one pid per line, split on purpose
-    _fc_signal_pids KILL $pids
+# _fc_supervise REPO_ROOT WORKTREE_ROOT: in the process the caller started,
+# hand over to the supervisor (exec, never returns); in the worker, a no-op.
+# With a REPO_ROOT the supervisor takes two kinds of exclusive, non-blocking
+# locks (V4-4, V4R3-6):
+#  - per repository: <git-common-dir>/fc_baseline_replay.lock (the COMMON dir,
+#    so a linked worktree of the same repository is the same lock);
+#  - per filesystem: <lock-dir>/fc_baseline_replay.fs-<st_dev>.lock for the
+#    worktree root's filesystem and the object store's, so two DIFFERENT
+#    repositories cannot both pass the free-space checks of one filesystem.
+#    <lock-dir> is $FC_REPLAY_LOCK_DIR, else $XDG_RUNTIME_DIR, else /tmp -- per
+#    user (HONEST BOUNDARY §11.4.6: replays by different users, or with
+#    different lock dirs, are not serialised against each other).
+# The lock file descriptions are O_CLOEXEC in the supervisor: no worker, gate
+# or hook process ever holds them (V4R3-5).
+_FC_IS_WORKER=0
+_fc_supervise() {
+  # a SHELL variable, never the environment (the hand-off variables are unset by
+  # _fc_worker_init so that a gate which is itself an FC tool supervises itself)
+  [ "$_FC_IS_WORKER" = 1 ] && return 0
+  [ -f "$_FC_SUPERVISOR" ] || blind "the process supervisor $_FC_SUPERVISOR is missing -- refusing to run gates that could not be stopped completely"
+  command -v python3 >/dev/null 2>&1 || blind "python3 not found -- it runs the process supervisor"
+  local args=() common lockdir ign
+  if [ -n "$1" ]; then
+    common="$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+    { [ -n "$common" ] && [ -d "$common" ]; } || blind "cannot resolve the git directory of --repo-root $1"
+    lockdir="${FC_REPLAY_LOCK_DIR:-${XDG_RUNTIME_DIR:-/tmp}}"
+    args+=(--lock "$common/fc_baseline_replay.lock" --lock-dir "$lockdir" --lock-fs "$2" --lock-fs "$common")
   fi
-  wait "$pg" 2>/dev/null
-  return 0
+  # The signals the CALLER ignored (nohup, ...) stay ignored everywhere. Read from
+  # a CHILD (awk's own /proc/self), never /proc/$$: a non-interactive bash ignores
+  # SIGQUIT internally from startup (measured: SigIgn bit 3 set in bash's own
+  # status although its parent restored the default) while passing the caller's
+  # ORIGINAL dispositions to every program it execs -- reading bash's own mask
+  # made QUIT look "ignored by the caller" and the whole tool unstoppable by it.
+  ign="$(awk '/^SigIgn:/{print $2; exit}' /proc/self/status 2>/dev/null)"
+  case "$ign" in ''|*[!0-9a-fA-F]*) ign=0 ;; esac
+  export FC_BR_OUT_OVERRIDE="$_FC_OUT_OVERRIDE"
+  exec python3 -I "$_FC_SUPERVISOR" main --tmp-parent "${TMPDIR:-/tmp}" --entry-sigign "$ign" \
+    --grace "$_FC_GRACE" "${args[@]}" -- "$BASH" "$SCRIPT_PATH" "$SUBCMD" "${ORIG_ARGS[@]}"
+}
+
+# _fc_worker_init: in the worker, take over the supervisor's hand-off variables
+# (then remove them from the environment: a gate that is itself an FC tool must
+# start its OWN supervisor) and make every stop signal end the worker at once.
+_fc_worker_init() {
+  [ "${FC_BR_SUPERVISOR_PID:-}" = "$PPID" ] || blind "FC_BR_SUPERVISED is set but this process was not started by the supervisor (parent $PPID) -- refusing to run unsupervised"
+  _FC_TMPDIR="${FC_BR_TMPDIR:-}"
+  case "$_FC_TMPDIR" in */fc_baseline_replay.*) ;; *) blind "the supervisor's temp directory is missing" ;; esac
+  [ -d "$_FC_TMPDIR" ] || blind "the supervisor's temp directory $_FC_TMPDIR does not exist"
+  _FC_ENTRY_SIGIGN="${FC_BR_ENTRY_SIGIGN:-0}"
+  _FC_OUT_OVERRIDE="${FC_BR_OUT_OVERRIDE:-}"
+  unset FC_BR_SUPERVISED FC_BR_TMPDIR FC_BR_SUPERVISOR_PID FC_BR_ENTRY_SIGIGN FC_BR_OUT_OVERRIDE
+  _FC_IS_WORKER=1
+  trap 'exit 129' HUP
+  trap 'exit 130' INT
+  trap 'exit 131' QUIT
+  trap 'exit 143' TERM
+}
+
+# _fc_run_child LOG TIMEOUT_S MARKER CWD -- CMD...: run CMD in CWD under
+# `fc_supervisor.py run` (bounded by TIMEOUT_S; whatever CMD leaves running is
+# stopped before this returns), stdout+stderr to LOG, stdin /dev/null. Returns
+# CMD's exit code (124/137 on timeout, 125 if the run supervisor itself failed);
+# MARKER receives the outcome: exited | timed_out | cd_failed | exec_failed.
+_fc_run_child() {
+  local log="$1" tmo="$2" mk="$3" cwd="$4"
+  shift 4
+  [ "${1:-}" = -- ] && shift
+  python3 -I "$_FC_SUPERVISOR" run --timeout "$tmo" --kill-after 5 --grace "$_FC_GRACE" --marker "$mk" \
+    --cwd "$cwd" --entry-sigign "$_FC_ENTRY_SIGIGN" -- "$@" >"$log" 2>&1 </dev/null &
+  wait "$!"
+}
+
+# Ledger (see fc_supervisor.py): one file per worktree / run-log directory,
+# written BEFORE the thing it names is created, removed once it is cleaned up /
+# referenced by a report. _fc_ledger_add KIND FIELD... -> sets _FC_LEDGER_FILE.
+_fc_ledger_add() {
+  local kind="$1"
+  shift
+  _FC_LEDGER_FILE="$(mktemp "$_FC_TMPDIR/ledger.$kind.XXXXXX")" || return 1
+  printf '%s\0' "$@" >"$_FC_LEDGER_FILE" || return 1
 }
 
 # ---------------------------------------------------------------------------
 # Verdicts (closed set, T048 restart round 1, R6-F8):
 #   PASS          the gate ran and exited 0
 #   FAIL          the gate ran and exited non-zero (including its OWN 124/126/127)
-#   UNMEASURED    the gate did not finish: killed by --timeout-s, or by a signal
+#   UNMEASURED    the gate did not finish: killed by --timeout-s
 #   HARNESS_ERROR the gate never ran: cd into the worktree failed, the command was
-#                 not found / not executable (exec failed), or timeout(1) itself
-#                 failed (exit 125)
-# The earlier rule "rc 0 = PASS, anything else = FAIL" recorded a missing or
-# non-executable gate as a real gate FAIL with a real-looking median (the live
-# 126-in-6 ms case documented in collect_baseline.py) -- a §11.4.1 FAIL-bluff.
-# Whether the gate ran is now OBSERVED, not inferred from the exit code: the
-# launcher `exec`s the gate with `shopt -s execfail`, so a failed exec returns
-# to the launcher, which writes a marker file before exiting.
-#
-# classify_run RC MARKER DURATION_MS TIMEOUT_MS [HARNESS_SIGNAL] -> prints
-# "VERDICT|reason". A 124/137 counts as a timeout ONLY when the run lasted at
-# least the timeout; a gate that itself exits 124 quickly is a genuine FAIL.
+#                 not found / not executable (exec failed), or the run supervisor
+#                 itself failed or recorded no outcome
+# Whether the gate ran, and whether it timed out, is OBSERVED, never inferred from
+# the exit code: `fc_supervisor.py run` writes the outcome to a marker file
+# (exited | timed_out | cd_failed | exec_failed). T048 restart round 3: the
+# timeout used to be inferred from "exit 124/137 after at least the limit"; a
+# gate's own 124 or 137 can no longer be mistaken for a timeout (or vice versa).
 # T048 restart round 2 (V4-2): an exit status >= 129 does NOT say the gate was
-# killed -- the launcher `exec`s the gate, so "exited 128+N" and "killed by signal
-# N" give the same number. The round-1 rule turned a gate's own `exit 255` into
-# UNMEASURED "terminated by signal 127", and plain `replay` then exited 0 with the
-# real FAIL gone. A run is UNMEASURED-by-signal only when THIS harness sent the
-# signal (HARNESS_SIGNAL non-empty, set by _fc_kill_child); otherwise >= 129 is a
-# FAIL whose reason states the ambiguity and names no signal.
+# killed -- "exited 128+N" and "killed by signal N" give the same number -- so it
+# is a FAIL whose reason states the ambiguity and names no signal. (The round-2
+# "UNMEASURED | stopped by this harness" branch is gone, V4R3-9: a run the
+# harness stops is never classified -- the whole tool stops, the supervisor marks
+# the run-log directory INTERRUPTED, and no report is written.)
+#
+# classify_run RC MARKER TIMEOUT_MS -> prints "VERDICT|reason".
 # ---------------------------------------------------------------------------
 classify_run() {
-  local rc="$1" mk="$2" dur="$3" tmo_ms="$4" hsig="${5:-}"
+  local rc="$1" mk="$2" tmo_ms="$3"
   case "$mk" in
     cd_failed|exec_failed) printf 'HARNESS_ERROR|%s' "$mk"; return 0 ;;
+    timed_out) printf 'UNMEASURED|timed out (exit %s, limit %sms)' "$rc" "$tmo_ms"; return 0 ;;
+    exited) ;;
+    *) printf 'HARNESS_ERROR|the run supervisor recorded no outcome (exit %s, marker %s)' "$rc" "${mk:-empty}"; return 0 ;;
   esac
-  if [ "$rc" = 125 ]; then printf 'HARNESS_ERROR|timeout(1) itself failed (exit 125)'; return 0; fi
-  if { [ "$rc" = 124 ] || [ "$rc" = 137 ]; } && [ "$dur" -ge "$tmo_ms" ]; then
-    printf 'UNMEASURED|timed out (exit %s after %sms, limit %sms)' "$rc" "$dur" "$tmo_ms"; return 0
-  fi
-  if [ -n "$hsig" ]; then printf 'UNMEASURED|stopped by this harness (SIG%s, exit %s)' "$hsig" "$rc"; return 0; fi
   if [ "$rc" = 0 ]; then printf 'PASS|exit 0'; return 0; fi
   if [ "$rc" -ge 129 ]; then
     printf 'FAIL|exit %s (the gate exited %s itself, or was killed from outside this harness -- the status cannot tell which; this harness sent it nothing)' "$rc" "$rc"
@@ -456,20 +460,11 @@ classify_run() {
 
 # ---------------------------------------------------------------------------
 # run_gate_once CWD TIMEOUT_S LOG -- CMD...
-# Runs CMD once inside CWD, bounded by TIMEOUT_S, stdout+stderr to LOG, and sets
-# RG_START_NS RG_END_NS RG_DURATION_MS RG_RC RG_VERDICT RG_REASON. Returns 4 only
-# when the clock or a temp file cannot be obtained (BLIND).
-#
-# T043 round-4 finding B1 (kept): the gate is BACKGROUNDED and `wait`ed on, never
-# run as a foreground command, because bash defers a trapped signal until a
-# foreground command finishes; `wait` returns as soon as a trapped signal
-# arrives, so the HUP/QUIT/INT/TERM handlers run promptly.
-# T048 restart round 1 (R6-F11): the backgrounded command is `timeout` itself
-# (no wrapping subshell), so `$!` is the gate's process GROUP and the signal
-# handlers can stop the gate, not only the shell around it. T048 restart round 2
-# (V4-1): it is also a new SESSION with a per-run token (see "Child-process
-# tracking"), so the gate's own nested process groups are stopped as well. fd 9
-# (the replay lock) is closed for the gate.
+# Runs CMD once inside CWD under the run supervisor (_fc_run_child), bounded by
+# TIMEOUT_S, stdout+stderr to LOG, and sets RG_START_NS RG_END_NS RG_DURATION_MS
+# RG_RC RG_VERDICT RG_REASON. Returns 4 only when the clock or a temp file cannot
+# be obtained (BLIND). The measured duration includes the run supervisor's own
+# start-up (a Python process, tens of milliseconds) -- the same for every run.
 # ---------------------------------------------------------------------------
 run_gate_once() {
   local cwd="$1" tmo="$2" log="$3"
@@ -478,22 +473,8 @@ run_gate_once() {
   local marker
   marker="$(_fc_mktemp)" || { echo "baseline_replay: mktemp failed (temp directory unusable)" >&2; return 4; }
   RG_START_NS="$(now_ns)" || { rm -f "$marker"; return 4; }
-  _FC_HARNESS_SIGNALLED=""
-  _FC_CHILD_TOKEN="$(_fc_new_token)"
-  # shellcheck disable=SC2016 # $1/$2/$@ expand in the launcher bash, not here
-  FC_REPLAY_RUN_TOKEN="$_FC_CHILD_TOKEN" setsid -w timeout --kill-after=5 "${tmo}s" "$BASH" -c '
-m=$1
-cd -- "$2" || { printf cd_failed >"$m"; exit 127; }
-shift 2
-shopt -s execfail
-exec "$@"
-printf exec_failed >"$m"
-exit 127' fc-gate "$marker" "$cwd" "$@" >"$log" 2>&1 </dev/null 9>&- &
-  _FC_CHILD_PGID=$!
-  wait "$_FC_CHILD_PGID"
+  _fc_run_child "$log" "$tmo" "$marker" "$cwd" -- "$@"
   RG_RC=$?
-  _FC_CHILD_PGID=""
-  _FC_CHILD_TOKEN=""
   RG_END_NS="$(now_ns)" || { rm -f "$marker"; return 4; }
   RG_DURATION_MS=$(( (RG_END_NS - RG_START_NS) / 1000000 ))
   [ "$RG_DURATION_MS" -ge 0 ] || RG_DURATION_MS=0
@@ -501,7 +482,7 @@ exit 127' fc-gate "$marker" "$cwd" "$@" >"$log" 2>&1 </dev/null 9>&- &
   [ -s "$marker" ] && mk="$(cat "$marker")"
   rm -f "$marker"
   local cls
-  cls="$(classify_run "$RG_RC" "$mk" "$RG_DURATION_MS" "$((tmo * 1000))" "$_FC_HARNESS_SIGNALLED")"
+  cls="$(classify_run "$RG_RC" "$mk" "$((tmo * 1000))")"
   RG_VERDICT="${cls%%|*}"
   RG_REASON="${cls#*|}"
   return 0
@@ -515,6 +496,8 @@ exit 127' fc-gate "$marker" "$cwd" "$@" >"$log" 2>&1 </dev/null 9>&- &
 # REAL gates through run_gate_once() and checks each verdict:
 #   true -> PASS; false -> FAIL; a command that exits 127 itself -> FAIL;
 #   a command that exits 255 itself -> FAIL (V4-2: never "signal 127");
+#   a command that exits 124 itself, at once -> FAIL (round 3: a timeout is
+#   observed by the run supervisor, never inferred from the number 124);
 #   a command that does not exist -> HARNESS_ERROR; `sleep 5` under a 1 s
 #   timeout -> UNMEASURED.
 # Sets SC_CHECKS (one "name|ok|got|want" line per check); returns 0 iff all ok.
@@ -541,6 +524,7 @@ run_selfcheck() {
   _sc_one false_fail FAIL 30 false
   _sc_one own_exit_127_fail FAIL 30 "$BASH" -c 'exit 127'
   _sc_one own_exit_255_fail FAIL 30 "$BASH" -c 'exit 255'
+  _sc_one own_exit_124_fail FAIL 30 "$BASH" -c 'exit 124'
   _sc_one exec_failure_harness_error HARNESS_ERROR 30 fc-selfcheck-no-such-command-6b1f
   _sc_one timeout_unmeasured UNMEASURED 1 sleep 5
   rm -rf "$d"
@@ -730,11 +714,9 @@ cmd_selfcheck() {
   done
   [ -n "$out" ] || die "selfcheck: --out is required"
   [ -n "$_FC_OUT_OVERRIDE" ] && out="$_FC_OUT_OVERRIDE"
-  command -v timeout >/dev/null 2>&1 || blind "timeout(1) not found -- cannot bound a gate run"
-  command -v setsid >/dev/null 2>&1 || blind "setsid(1) not found -- cannot isolate a gate run so that it can be stopped completely"
-  # T048 restart round 2 (V4-9): selfcheck runs real gates too; a TERM during
-  # one must stop it (the same main-shell handlers as replay).
-  _fc_install_main_traps
+  # selfcheck runs real gates too: it runs under the process supervisor like
+  # replay (T048 restart round 2 V4-9 / round 3).
+  _fc_supervise "" ""
   local sc_rc=0
   run_selfcheck || sc_rc=3
   local body
@@ -878,9 +860,45 @@ _fc_submodule_reference_update() {
 # stdout (caller decides schema/out). Returns 0 on a successfully-measured
 # run (gate PASS/FAIL is data, not a harness failure), 4 on BLIND.
 # =============================================================================
-# printf %q pre-quotes the values into the trap string on purpose: it must expand NOW (repo_root/wt_path are function locals, out of scope when the trap fires) and %q makes it safe; function-level on purpose: a directive between the printf and the trap line would break the worktree-cleanup mutation tests' exact-text anchors
-# shellcheck disable=SC2064
+# do_one_replay wraps the body so that the worker removes its own worktree on
+# EVERY return path (success, and each BLIND `return 4`). T048 restart round 3:
+# this replaces the EXIT trap + printf-%q-quoted cleanup string of rounds 1-2 --
+# the worker no longer has traps, and the paths live in globals that outlive the
+# body (the round-2 "unbound variable in the trap" class cannot recur). A stop of
+# the tool never reaches this code: the supervisor removes the worktree from the
+# ledger instead.
+_FC_WT_REPO=""
+_FC_WT_PATH=""
+_FC_WT_LEDGER=""
+_FC_LOG_DIR=""
+_FC_LOG_LEDGER=""
+_fc_wt_cleanup() {
+  if [ -n "$_FC_WT_PATH" ]; then
+    git -C "$_FC_WT_REPO" worktree remove --force "$_FC_WT_PATH" >/dev/null 2>&1
+    rm -rf "$_FC_WT_PATH" 2>/dev/null
+    git -C "$_FC_WT_REPO" worktree prune >/dev/null 2>&1
+  fi
+  [ -n "$_FC_WT_LEDGER" ] && rm -f "$_FC_WT_LEDGER"
+  _FC_WT_PATH=""; _FC_WT_LEDGER=""
+  return 0
+}
 do_one_replay() {
+  _FC_WT_REPO=""; _FC_WT_PATH=""; _FC_WT_LEDGER=""; _FC_LOG_DIR=""; _FC_LOG_LEDGER=""
+  _do_one_replay_body "$@"
+  local rc=$?
+  _fc_wt_cleanup
+  if [ -n "$_FC_LOG_LEDGER" ]; then
+    # a log directory no report will reference (a BLIND return after the runs
+    # began) is marked as such, never left unexplained (V4R3-14)
+    if [ "$rc" != 0 ] && [ -d "$_FC_LOG_DIR" ]; then
+      printf 'No report references this run-log directory: the replay stopped with a harness error (BLIND, exit %s) before writing one. The logs are partial evidence.\n' "$rc" >"$_FC_LOG_DIR/INTERRUPTED" 2>/dev/null
+    fi
+    rm -f "$_FC_LOG_LEDGER"
+  fi
+  return "$rc"
+}
+
+_do_one_replay_body() {
   local commit="$1" tree="$2" repo_root="$3" worktree_root="$4" min_free_kb="$5"
   local timeout_s="$6" cold_runs="$7" warm_runs="$8" min_free_kb_objects="$9"
   shift 9
@@ -914,101 +932,27 @@ do_one_replay() {
   wt_path="$(mktemp -d "$worktree_root/replay.XXXXXX")" || { echo "baseline_replay: mktemp -d under $worktree_root failed" >&2; return 4; }
   rmdir "$wt_path" 2>/dev/null  # git worktree add requires the target NOT already exist
 
-  # `cleanup()` is invoked via the EXIT trap on EVERY path out of this
-  # function, including every early `return 4` BELOW THIS POINT (i.e.
-  # every `return 4` between this comment and the explicit `cleanup
-  # "$repo_root" "$wt_path"; trap - EXIT` success-path call further down
-  # this same function -- a SYMBOLIC reference, not a line-number literal,
-  # deliberately: a hardcoded citation here drifted stale once already
-  # (T043 round-3 review finding F2, 2026-09-28 -- an earlier version of
-  # this comment cited specific line numbers that were already wrong by
-  # the time of that review, off by exactly the number of lines an
-  # UNRELATED later edit to this same function had since added; a
-  # symbolic "below this point, until the explicit cleanup call" reference
-  # cannot go stale the same way). bash pops a function's
-  # `local` bindings as part of `return`, but the EXIT trap fires
-  # AFTERWARD in the (sub)shell that is exiting -- so any of
-  # do_one_replay's OWN `local` variables that cleanup() referenced
-  # (repo_root, wt_path, and a since-removed `cleanup_done` done-guard)
-  # were already gone by the time the trap-invoked cleanup() body tried to
-  # read them under `set -u`, crashing with "unbound variable" BEFORE the
-  # real `git worktree remove` / `rm -rf` below ever ran -- silently
-  # leaking the worktree on disk. Independently reproduced for both the
-  # done-guard and for $wt_path itself (a mismatched---tree run left an
-  # orphaned `replay.XXXXXX` worktree + directory behind).
-  #
-  # Fixed by passing the two paths cleanup() needs as EXPLICIT ARGUMENTS
-  # baked into the trap command STRING at `trap` REGISTRATION time via
-  # `printf %q` (shell-safe quoting for ANY byte a path can legally
-  # contain, including an embedded single quote -- a naive
-  # `"cleanup '$repo_root' '$wt_path'"` form, which this fix used at
-  # first, still leaks on a path containing `'`: the unescaped quote
-  # breaks the trap command's own quoting and the resulting parse error
-  # pre-empts cleanup() exactly like the original bug, independently
-  # reproduced and fixed per T043 round-2 review finding N1). `%q`
-  # expands immediately at `trap` REGISTRATION time (not at trap-fire
-  # time), so the fired trap command is a fully literal, correctly-quoted
-  # string with no variable lookups left to perform, and cleanup() no
-  # longer depends on do_one_replay's own local-variable lifetime at all,
-  # for ANY path value. This also makes cleanup() safely callable twice
-  # (once explicitly via `cleanup "$repo_root" "$wt_path"; trap - EXIT`
-  # on the success path, once via the EXIT trap on an early return):
-  # `git worktree remove --force` is a no-op (stderr already discarded)
-  # on an already-removed worktree, and `rm -rf` is a no-op on a missing
-  # path.
-  cleanup() {
-    local rr="$1" wp="$2"
-    _fc_kill_child
-    git -C "$rr" worktree remove --force "$wp" >/dev/null 2>&1
-    rm -rf "$wp" 2>/dev/null
-  }
-  local _cleanup_trap_cmd
-  printf -v _cleanup_trap_cmd 'cleanup %q %q' "$repo_root" "$wt_path"
-  trap "$_cleanup_trap_cmd" EXIT
-  # T043 round-4 finding B1 (BLOCKING, agent ad5d869e28efdddbd, 2026-09-28):
-  # bash does NOT run the EXIT trap when it dies from an un-handled SIGHUP
-  # or SIGQUIT (unlike SIGINT/SIGTERM, independently reproduced as already
-  # safe via bash's default disposition -- both correctly run the EXIT
-  # trap with no explicit handling needed). SIGHUP is the realistic case
-  # (an SSH disconnect, a tmux server dying, a closed terminal) and, per
-  # this script's own DISK SAFETY note, each orphan is a full checkout
-  # (~49 GB). Fixed by converting HUP/QUIT into an explicit `exit`, which
-  # DOES run the already-registered EXIT trap (standard 128+signal exit
-  # codes).
-  # Call cleanup() DIRECTLY inside the signal handler itself -- rather
-  # than `exit N` and relying on that subsequently triggering the EXIT
-  # trap -- so this fix has NO dependency on exactly when/whether bash
-  # gets around to running a deferred EXIT trap after a non-EXIT signal's
-  # own `exit`. `trap - EXIT HUP QUIT` first, so the handler cannot
-  # re-enter itself and cleanup() is never invoked twice concurrently.
-  # Computed independently from repo_root/wt_path directly (never by
-  # string-concatenating onto $_cleanup_trap_cmd above) so this block
-  # stays self-contained: mutating the EXIT-trap-registration block above
-  # (e.g. §1.1's own paired-mutation test, which reverts it to the
-  # original buggy form) must not ALSO collaterally break this
-  # DIFFERENT, unrelated fix by removing a variable this block secretly
-  # depended on.
-  #
-  # T048 restart round 1 (R6-F11): (a) cleanup() now FIRST stops the tracked
-  # child process group (_fc_kill_child) -- before, a HUP to this subshell
-  # removed the worktree while the gate kept running inside the deleted
-  # directory; (b) INT and TERM get the same explicit handler (TERM is what the
-  # main shell forwards, see _fc_main_on_signal); (c) the handler first IGNORES
-  # every terminating signal, so a second signal that lands while cleanup() is
-  # still waiting for a slow-to-die gate cannot abort the cleanup half-way and
-  # leak the worktree (with a bare `exit 129` handler a second HUP inside the
-  # EXIT-trap cleanup exits the shell on the spot).
-  local _sig_cleanup_cmd
-  printf -v _sig_cleanup_cmd "trap '' HUP INT QUIT TERM; trap - EXIT; cleanup %q %q" "$repo_root" "$wt_path"
-  trap "$_sig_cleanup_cmd; exit 129" HUP
-  trap "$_sig_cleanup_cmd; exit 130" INT
-  trap "$_sig_cleanup_cmd; exit 131" QUIT
-  trap "$_sig_cleanup_cmd; exit 143" TERM
-
-  if ! git -C "$repo_root" worktree add --detach --quiet "$wt_path" "$commit" >/dev/null 2>&1; then
-    echo "baseline_replay: BLIND: git worktree add failed for commit $commit at $wt_path" >&2
+  # Registered in the ledger BEFORE `git worktree add`, so a stop at any moment
+  # from here on is cleaned up by the supervisor (T048 restart round 3).
+  _FC_WT_REPO="$repo_root"
+  _FC_WT_PATH="$wt_path"
+  _fc_ledger_add wt "$repo_root" "$wt_path" || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
+  _FC_WT_LEDGER="$_FC_LEDGER_FILE"
+  # `git worktree add` runs the repository's post-checkout hook. It runs under
+  # the run supervisor, so a process the hook leaves running is stopped as soon
+  # as the add returns (V4R3-5's hook `sleep &` used to outlive the tool and
+  # hold the replay lock).
+  local _wa_log _wa_mk _wa_rc
+  _wa_log="$(_fc_mktemp)" || { echo "baseline_replay: BLIND: mktemp failed" >&2; return 4; }
+  _wa_mk="$(_fc_mktemp)" || { rm -f "$_wa_log"; echo "baseline_replay: BLIND: mktemp failed" >&2; return 4; }
+  _fc_run_child "$_wa_log" "$timeout_s" "$_wa_mk" "$repo_root" -- git -C "$repo_root" worktree add --detach --quiet "$wt_path" "$commit"
+  _wa_rc=$?
+  if [ "$_wa_rc" -ne 0 ]; then
+    echo "baseline_replay: BLIND: git worktree add failed for commit $commit at $wt_path (exit $_wa_rc, outcome $(cat "$_wa_mk" 2>/dev/null)): $(head -c 500 "$_wa_log" 2>/dev/null)" >&2
+    rm -f "$_wa_log" "$_wa_mk"
     return 4
   fi
+  rm -f "$_wa_log" "$_wa_mk"
 
   # T048 restart round 1 (R6-F3, same class): a failed rev-parse used to leave
   # actual_tree empty and the report then carried an empty tree; a frozen tree of
@@ -1228,32 +1172,26 @@ do_one_replay() {
   # `--reference` (not `--reference-if-able`) is deliberate: this git
   # version's `submodule update` does not recognise the `-if-able` form
   # at all (confirmed live: real exit 1, a usage error).
-  # T048 restart round 1 (R6-F11): `timeout` is backgrounded directly (no
-  # wrapping subshell), so `$!` is its process GROUP and a signal handler can
-  # stop the whole `git submodule--helper clone` tree via _fc_kill_child, not
-  # just the shell around it. The helper function is exported only for this one
-  # child and un-exported again, so the GATE never inherits it.
-  # T048 restart round 2 (V4-1): launched like a gate run -- its own session plus
-  # a per-run token -- so _fc_kill_child stops every `git submodule--helper` /
-  # `git index-pack` process of it, whatever process group git puts them in.
+  # T048 restart round 3: run under the run supervisor like a gate run -- every
+  # `git submodule--helper` / `git index-pack` process it starts is a descendant
+  # of it, whatever process group or session git puts them in, and is stopped
+  # with it. The helper function is exported only for this one child and
+  # un-exported again, so the GATE never inherits it.
   export -f _fc_submodule_reference_update
-  _FC_HARNESS_SIGNALLED=""
-  _FC_CHILD_TOKEN="$(_fc_new_token)"
+  local _sm_mk submodule_rc
+  _sm_mk="$(_fc_mktemp)" || { export -fn _fc_submodule_reference_update; echo "baseline_replay: BLIND: mktemp failed" >&2; return 4; }
   # the bash -c body is single-quoted on purpose: $1/$2 must expand in the child shell, not here
   # shellcheck disable=SC2016
-  FC_REPLAY_RUN_TOKEN="$_FC_CHILD_TOKEN" _FC_TMPDIR="$_FC_TMPDIR" setsid -w timeout --kill-after=5 "${timeout_s}s" \
-      "$BASH" -c '_fc_submodule_reference_update "$1" "$2"' fc-submodule "$repo_root" "$wt_path" \
-      >/dev/null 2>&1 </dev/null 9>&- &
-  _FC_CHILD_PGID=$!
-  wait "$_FC_CHILD_PGID"
-  local submodule_rc=$?
-  _FC_CHILD_PGID=""
-  _FC_CHILD_TOKEN=""
+  _fc_run_child /dev/null "$timeout_s" "$_sm_mk" "$repo_root" -- \
+      env _FC_TMPDIR="$_FC_TMPDIR" "$BASH" -c '_fc_submodule_reference_update "$1" "$2"' fc-submodule "$repo_root" "$wt_path"
+  submodule_rc=$?
   export -fn _fc_submodule_reference_update
   if [ "$submodule_rc" -ne 0 ]; then
-    echo "baseline_replay: BLIND: git submodule update --init --recursive failed (exit $submodule_rc$( [ "$submodule_rc" = 124 ] || [ "$submodule_rc" = 137 ] && echo ", timed out after ${timeout_s}s")) for commit $commit at $wt_path (a frozen submodule SHA may be absent from the local object store, or a network fetch stalled -- refusing to run gate_cmd against a partially-checked-out tree)" >&2
+    echo "baseline_replay: BLIND: git submodule update --init --recursive failed (exit $submodule_rc$( [ "$(cat "$_sm_mk" 2>/dev/null)" = timed_out ] && echo ", timed out after ${timeout_s}s")) for commit $commit at $wt_path (a frozen submodule SHA may be absent from the local object store, or a network fetch stalled -- refusing to run gate_cmd against a partially-checked-out tree)" >&2
+    rm -f "$_sm_mk"
     return 4
   fi
+  rm -f "$_sm_mk"
 
   # T048 remediation (finding F9 continued): after the submodule fix above,
   # a SECOND, DISTINCT missing-prerequisite class was independently
@@ -1350,12 +1288,17 @@ do_one_replay() {
   # overwrote run 1's evidence and the recorded log_path cited the wrong run
   # (measured: run 1's cold_1.log contained run 2's output). Each do_one_replay
   # call now creates its OWN fresh directory with mktemp -d (unique by
-  # construction, never reused), a sibling of $wt_path so cleanup() -- which
-  # only removes $wt_path -- never touches it. The directory is recorded as the
+  # construction, never reused), a sibling of $wt_path so the worktree removal
+  # never touches it. The directory is recorded as the
   # report's log_dir.
   mkdir -p "$worktree_root/replay-logs" 2>/dev/null || { echo "baseline_replay: cannot create run-log directory $worktree_root/replay-logs" >&2; return 4; }
   local run_log_dir
   run_log_dir="$(mktemp -d "$worktree_root/replay-logs/${commit:0:12}.XXXXXX")" || { echo "baseline_replay: cannot create a unique run-log directory under $worktree_root/replay-logs" >&2; return 4; }
+  # ledger: a stop before the report is written marks this directory INTERRUPTED
+  # (V4R3-14) instead of leaving unowned partial evidence behind
+  _FC_LOG_DIR="$run_log_dir"
+  _fc_ledger_add logs "$run_log_dir" || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
+  _FC_LOG_LEDGER="$_FC_LEDGER_FILE"
 
   local rows='[]' harness_error=0
   local phase run_idx n_runs run_log
@@ -1383,8 +1326,7 @@ PY
     done
   done
 
-  cleanup "$repo_root" "$wt_path"
-  trap - EXIT HUP INT QUIT TERM
+  _fc_wt_cleanup
 
   # Report body. T048 restart round 1:
   #  - R6-F5: every value is passed through argv; the program text is a quoted
@@ -1428,66 +1370,16 @@ PY
 }
 
 # =============================================================================
-# run_replay_isolated BODY_FILE do_one_replay-args...
-# T048 restart round 1 (R6-F11a): do_one_replay used to run inside `$(...)`. A
-# TERM sent to the main script killed the main shell but NOT that
-# command-substitution subshell, which kept running EVERY remaining scheduled
-# gate run as an orphan (measured: a run started 8 s after the TERM; in
-# production up to 20 runs x 30 min). It now runs as a background job whose pid
-# the main shell holds (_FC_REPLAY_PID), its body is written to a file, and the
-# main shell's own signal handlers (_fc_main_on_signal) forward TERM to it and
-# wait for its cleanup. TERM is forwarded for every signal: a background job of
-# a non-interactive shell ignores INT and QUIT, and its TERM handler performs the
-# same cleanup.
+# run_replay_isolated BODY_FILE do_one_replay-args... -- one replay, its report
+# body to BODY_FILE. T048 restart round 3: a plain call. The background job +
+# TERM forwarding of rounds 1-2 (R6-F11a) existed only so the main shell could
+# stop the replay; stopping is the supervisor's job now (the worker is a
+# descendant it owns), and a stop signal ends the worker itself at once.
 # =============================================================================
 run_replay_isolated() {
   local body_file="$1"
   shift
-  do_one_replay "$@" >"$body_file" &
-  _FC_REPLAY_PID=$!
-  wait "$_FC_REPLAY_PID"
-  local rc=$?
-  _FC_REPLAY_PID=""
-  return "$rc"
-}
-
-# invoked only from the trap strings installed by _fc_install_main_traps below
-# shellcheck disable=SC2329
-_fc_main_on_signal() {
-  trap '' HUP INT QUIT TERM
-  local code="$1" p="${_FC_REPLAY_PID:-}"
-  _fc_kill_child   # a selfcheck gate run happens in the main shell itself
-  case "$p" in ''|*[!0-9]*) p="" ;; esac
-  if [ -n "$p" ] && [ "$p" -gt 1 ]; then
-    kill -s TERM "$p" 2>/dev/null
-    wait "$p" 2>/dev/null
-  fi
-  exit "$code"
-}
-
-_fc_install_main_traps() {
-  trap '_fc_main_on_signal 129' HUP
-  trap '_fc_main_on_signal 130' INT
-  trap '_fc_main_on_signal 131' QUIT
-  trap '_fc_main_on_signal 143' TERM
-}
-
-# _fc_acquire_lock REPO_ROOT (T048 restart round 2, V4-4): one replay at a time
-# per repository. The free-space checks in do_one_replay() only mean something if
-# nobody else is about to consume the same space: two replays (a second agent,
-# replay-sample next to collect_baseline.py, ...) used to both pass the 67 GiB
-# check and then need ~2 x 57 GiB. An exclusive, non-blocking flock on
-# <git-common-dir>/fc_baseline_replay.lock is held on fd 9 for the whole
-# invocation (released when this process exits); a second invocation is refused
-# with exit 4. fd 9 is closed for every child (the gate never holds the lock).
-_fc_acquire_lock() {
-  local root="$1" common lockf
-  command -v flock >/dev/null 2>&1 || blind "flock(1) not found -- cannot serialise replays (refusing rather than racing another replay for disk)"
-  common="$(git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
-  { [ -n "$common" ] && [ -d "$common" ]; } || blind "cannot resolve the git directory of --repo-root $root"
-  lockf="$common/fc_baseline_replay.lock"
-  { exec 9>>"$lockf"; } 2>/dev/null || blind "cannot open the replay lock file $lockf"
-  flock -n 9 || blind "another baseline_replay replay is running against $root (lock $lockf is held) -- refusing: two replays would each pass the free-space check and together exhaust the disk"
+  do_one_replay "$@" >"$body_file"
 }
 
 # parse_gate_cmd STR -> sets GATE_ARGV. Word-splits on whitespace WITHOUT
@@ -1504,7 +1396,7 @@ parse_gate_cmd() {
 
 # validate_run_counts COLD WARM TIMEOUT_S MIN_FREE_KB MIN_FREE_KB_OBJECTS (T048
 # restart round 1: R6-F7 zero runs, R6-F18 --timeout-s 0 which DISABLES
-# timeout(1)).
+# the run supervisor's bound).
 validate_run_counts() {
   isnum "$1" || die "--cold-runs must be a non-negative integer"
   isnum "$2" || die "--warm-runs must be a non-negative integer"
@@ -1512,8 +1404,6 @@ validate_run_counts() {
   { isnum "$3" && [ "$3" -ge 1 ]; } || die "--timeout-s must be a positive integer (0 would disable the bound)"
   isnum "$4" || die "--min-free-kb must be a non-negative integer"
   isnum "$5" || die "--min-free-kb-objects must be a non-negative integer"
-  command -v timeout >/dev/null 2>&1 || blind "timeout(1) not found -- cannot bound a gate run"
-  command -v setsid >/dev/null 2>&1 || blind "setsid(1) not found -- cannot isolate a gate run so that it can be stopped completely"
 }
 
 # body_field FILE EXPR -> prints a field of a JSON body file (data read from the
@@ -1581,8 +1471,7 @@ cmd_replay() {
   mkdir -p "$worktree_root" 2>/dev/null || die "replay: cannot create --worktree-root $worktree_root"
   worktree_root="$(cd "$worktree_root" 2>/dev/null && pwd)" || die "replay: cannot resolve --worktree-root $worktree_root to an absolute path"
 
-  _fc_install_main_traps
-  _fc_acquire_lock "$repo_root"
+  _fc_supervise "$repo_root" "$worktree_root"   # the caller's process becomes the supervisor here
   run_selfcheck || return 3
 
   local body1 body2
@@ -1700,8 +1589,7 @@ cmd_replay_sample() {
   worktree_root="$(cd "$worktree_root" 2>/dev/null && pwd)" || die "replay-sample: cannot resolve --worktree-root $worktree_root to an absolute path"
   local db_path="$repo_root/docs/workable_items.db"
 
-  _fc_install_main_traps
-  _fc_acquire_lock "$repo_root"
+  _fc_supervise "$repo_root" "$worktree_root"   # the caller's process becomes the supervisor here
   run_selfcheck || return 3
 
   # Item ids are read as NUL-separated DATA (R6-F5: the sample path used to be
@@ -1789,14 +1677,21 @@ PY
 # for the command it re-runs) redirects THIS invocation's top-level --out only.
 # It is captured once here and then removed from the environment, so no internal
 # emit and no child process -- in particular the replayed gate, which may itself
-# be an FC tool -- ever sees it.
+# be an FC tool -- ever sees it. (Round 3: the supervisor hands it to the worker
+# as FC_BR_OUT_OVERRIDE, which the worker reads and unsets the same way.)
 _FC_OUT_OVERRIDE="${FC_OUT:-}"
 unset FC_OUT
 
-# T048 restart round 2 (V4-9): one private temp directory per invocation, removed
-# by the EXIT trap on every exit path (see _fc_rm_tmpdir).
-_FC_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/fc_baseline_replay.XXXXXX")" || { echo "baseline_replay: BLIND: cannot create a private temp directory under ${TMPDIR:-/tmp}" >&2; exit 4; }
-trap _fc_rm_tmpdir EXIT
+case "$SUBCMD" in
+  replay|replay-sample|selfcheck)
+    # the worker (started by the supervisor): take over the hand-off variables
+    [ "${FC_BR_SUPERVISED:-}" = 1 ] && _fc_worker_init ;;
+  freeze)
+    # T048 restart round 2 (V4-9): one private temp directory, removed by the EXIT
+    # trap (freeze starts no child that could outlive it)
+    _FC_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/fc_baseline_replay.XXXXXX")" || { echo "baseline_replay: BLIND: cannot create a private temp directory under ${TMPDIR:-/tmp}" >&2; exit 4; }
+    trap _fc_rm_tmpdir EXIT ;;
+esac
 
 case "$SUBCMD" in
   freeze) cmd_freeze "$@"; exit $? ;;

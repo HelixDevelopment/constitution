@@ -108,6 +108,9 @@ fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+# private per-filesystem replay lock directory (never contend with another replay on this host)
+export FC_REPLAY_LOCK_DIR="$TMP/locks"
+mkdir -p "$FC_REPLAY_LOCK_DIR"
 
 mk_scratch_repo() {
   local r

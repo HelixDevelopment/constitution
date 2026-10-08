@@ -1,0 +1,1 @@
+{"kind":"join","build":{"build_id":"x fingerprint_MISSING=build","status":"SUCCESS","verdict":"ALLOW","fingerprint":"fp-1"},"deploy":{"target_serial":"998fd36615e99484","fingerprint":"fp-1","time":"bad"}}
