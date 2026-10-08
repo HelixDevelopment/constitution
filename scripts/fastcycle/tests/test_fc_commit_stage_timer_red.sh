@@ -271,6 +271,7 @@ echo "=== L: the detached push child dies MID-FRAME -> its exit flush still reco
 # the child's push:call_push_all frame is open. bash runs its EXIT trap on a fatal TERM, so only
 # the child's fc_timer_install_exit_flush can write that frame (result=aborted).
 P="$(scratch L)"; RID="t016_childdies_$$"
+# shellcheck disable=SC2016  # literal $PPID is intended: it is expanded by the generated stub script, not by this shell
 printf '#!/bin/bash\nkill -TERM "$PPID"\nsleep 2\nexit 0\n' > "$P/scripts/push_all.sh"
 rc="$(run_ca "$P" "$RID" -m "child dies")"; T="$(tsv_of "$P" "$RID")"
 if wait_for_id "$T" push:call_push_all 60; then
