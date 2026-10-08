@@ -149,8 +149,10 @@ fi
 # the strongest form of the non-determinism this closes) and confirm the
 # verdict is IDENTICAL to R2's.
 # -----------------------------------------------------------------------
+# shellcheck disable=SC2034 # RR_TOOL is consumed by the sourced lib/review_record_genuine.sh
 RR_TOOL="$TOOL"
 # shellcheck source=lib/review_record_genuine.sh
+# shellcheck disable=SC1091 # sourced helper is linted on its own; the precheck pack runs shellcheck without -x
 . "$HERE/lib/review_record_genuine.sh"
 RR_WORK="$SCRATCH/work"; mkdir -p "$RR_WORK"
 RR_LEDGER="$SCRATCH/ledger.jsonl"; : > "$RR_LEDGER"

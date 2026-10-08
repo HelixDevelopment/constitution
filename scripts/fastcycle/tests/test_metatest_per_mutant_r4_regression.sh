@@ -201,7 +201,8 @@ if [ -n "$SEL_PAYLOAD" ]; then
     echo 'set -u'
     printf 'METATEST_ARCHIVE_DIR=%q\n' "$ARCHIVE"
     cat "$SEL_PAYLOAD"
-    echo 'printf "SELECTED=%s\n" "$METATEST_TSV"'
+    # shellcheck disable=SC2016 # literal text written verbatim into the fixture file (expanded later by the fixture, not here)
+    printf '%s\n' 'printf "SELECTED=%s\n" "$METATEST_TSV"'
   } > "$DRIVER_A"
   SELECTED_A="$(bash "$DRIVER_A" 2>"$TMP/driver_a.err" | sed -n 's/^SELECTED=//p')"
   if [ "$SELECTED_A" = "$OLDER_TSV" ]; then
@@ -226,7 +227,8 @@ if [ -n "$SEL_PAYLOAD_MUT" ]; then
     echo 'set -u'
     printf 'METATEST_ARCHIVE_DIR=%q\n' "$ARCHIVE"
     cat "$SEL_PAYLOAD_MUT"
-    echo 'printf "SELECTED=%s\n" "$METATEST_TSV"'
+    # shellcheck disable=SC2016 # literal text written verbatim into the fixture file (expanded later by the fixture, not here)
+    printf '%s\n' 'printf "SELECTED=%s\n" "$METATEST_TSV"'
   } > "$DRIVER_B"
   SELECTED_B="$(bash "$DRIVER_B" 2>"$TMP/driver_b.err" | sed -n 's/^SELECTED=//p')"
   if [ "$SELECTED_B" = "$NEWER_TSV" ]; then
@@ -297,7 +299,8 @@ if [ -n "$SEL_PAYLOAD" ]; then
     echo 'set -u'
     printf 'METATEST_ARCHIVE_DIR=%q\n' "$ARCHIVE3"
     cat "$SEL_PAYLOAD"
-    echo 'printf "SELECTED=%s\n" "$METATEST_TSV"'
+    # shellcheck disable=SC2016 # literal text written verbatim into the fixture file (expanded later by the fixture, not here)
+    printf '%s\n' 'printf "SELECTED=%s\n" "$METATEST_TSV"'
   } > "$DRIVER_A2"
   SELECTED_A2="$(bash "$DRIVER_A2" 2>"$TMP/driver_a2.err" | sed -n 's/^SELECTED=//p')"
   if [ "$SELECTED_A2" = "$OLDEST_TSV" ]; then
@@ -318,6 +321,7 @@ echo
 echo "=== (B2) guard-viability: the reviewer's OWN M3 mutation (the loop breaks on the FIRST RUN_COMPLETE dir even with no TSV) selects NOTHING on this exact fixture ==="
 SEL_PAYLOAD_M3=""
 if [ -n "$SEL_PAYLOAD" ]; then
+  # shellcheck disable=SC2016 # literal source line to match in the file under test, not to be expanded here
   IF_LINE='    if [ -n "$_mt_cand_tsv" ]; then'
   FI_LINE='    fi'
   IF_HITS="$(grep -cxF "$IF_LINE" "$SEL_PAYLOAD" 2>/dev/null || true)"; : "${IF_HITS:=0}"
@@ -348,7 +352,8 @@ if [ -n "$SEL_PAYLOAD_M3" ]; then
     echo 'set -u'
     printf 'METATEST_ARCHIVE_DIR=%q\n' "$ARCHIVE3"
     cat "$SEL_PAYLOAD_M3"
-    echo 'printf "SELECTED=%s\n" "$METATEST_TSV"'
+    # shellcheck disable=SC2016 # literal text written verbatim into the fixture file (expanded later by the fixture, not here)
+    printf '%s\n' 'printf "SELECTED=%s\n" "$METATEST_TSV"'
   } > "$DRIVER_B2"
   SELECTED_B2="$(bash "$DRIVER_B2" 2>"$TMP/driver_b2.err" | sed -n 's/^SELECTED=//p')"
   if [ -z "$SELECTED_B2" ]; then
@@ -457,8 +462,10 @@ run_writer_scenario() {
     echo 'set -u'
     cat "$payload"
     printf 'FC_TIMER_TSV=%q\n' "$wdir/per_mutant.tsv"
-    echo 'mkdir -p "$(dirname "$FC_TIMER_TSV")"'
-    echo ': > "$FC_TIMER_TSV"'
+    # shellcheck disable=SC2016 # literal text written verbatim into the fixture file (expanded later by the fixture, not here)
+    printf '%s\n' 'mkdir -p "$(dirname "$FC_TIMER_TSV")"'
+    # shellcheck disable=SC2016 # literal text written verbatim into the fixture file (expanded later by the fixture, not here)
+    printf '%s\n' ': > "$FC_TIMER_TSV"'
     echo 'PASS_COUNT=1; FAIL_COUNT=0; SKIP_COUNT=0'
     if [ "$mode" = "complete" ]; then
       # The literal final-line contract: this EXACT flag assignment,
@@ -694,6 +701,7 @@ check_run_complete_placement() {
   # Round 6: an exact shape match, never the old "*exit*" substring test
   # (which "_mt_exit_final" or any "...exit..." word would also satisfy).
   next_code_line="$(awk -v n="$flag_line" 'NR>n{ line=$0; gsub(/^[ \t]+/,"",line); if (line=="" || substr(line,1,1)=="#") next; print line; exit }' "$f")"
+  # shellcheck disable=SC2016 # literal regex over source text; $ and \$ are meant to reach grep unexpanded
   if printf '%s\n' "$next_code_line" | grep -qE '^if \[ "\$FAIL_COUNT" -gt 0 \]; then exit 1; fi$'; then
     printf 'OK\n'
   else
@@ -847,6 +855,7 @@ echo
 echo "=== (D4) R10-M2: a write split across a backslash LINE CONTINUATION ==="
 D4_FILE="$TMP/mt_r10m2_variant.sh"
 awk -v arm="$D_ARM_LINE" '{ print } $0==arm { print "  _fc_mut_run\\"; print "_complete=1" }' "$MT" > "$D4_FILE"
+# shellcheck disable=SC1003 # intentional literal trailing backslash in the fixed-string needle
 if [ "$(grep -cxF -- '  _fc_mut_run\' "$D4_FILE" || true)" != 1 ] || [ "$(grep -cxF -- '_complete=1' "$D4_FILE" || true)" != 1 ]; then
   echo "NOT ok (D4) SKIPPED: could not construct the continuation variant (anchor changed)"
   failx
@@ -917,7 +926,8 @@ if [ -n "$SEL_PAYLOAD" ]; then
     echo 'set -u'
     printf 'METATEST_ARCHIVE_DIR=%q\n' "$ARCHIVE_SPACE"
     cat "$SEL_PAYLOAD"
-    echo 'printf "SELECTED=%s\n" "$METATEST_TSV"'
+    # shellcheck disable=SC2016 # literal text written verbatim into the fixture file (expanded later by the fixture, not here)
+    printf '%s\n' 'printf "SELECTED=%s\n" "$METATEST_TSV"'
   } > "$DRIVER_E"
   SELECTED_E="$(bash "$DRIVER_E" 2>"$TMP/driver_e.err" | sed -n 's/^SELECTED=//p')"
   if [ "$SELECTED_E" = "$SPACE_TSV" ]; then
@@ -936,6 +946,7 @@ fi
 echo
 echo "=== (E-mut) guard-viability: reverting to the OLD word-splitting 'for \$(find)' form WRONGLY fails to select the space-bearing run-dir ==="
 WHILE_OPEN='  while IFS= read -r -d '"'"''"'"' _mt_cand_dir; do'
+# shellcheck disable=SC2016 # literal source line to match in the file under test, not to be expanded here
 WHILE_CLOSE='  done < <(find "$METATEST_ARCHIVE_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -rz)'
 OPEN_HITS="$(grep -cxF "$WHILE_OPEN" "$SEL_PAYLOAD" 2>/dev/null || true)"; : "${OPEN_HITS:=0}"
 CLOSE_HITS="$(grep -cxF "$WHILE_CLOSE" "$SEL_PAYLOAD" 2>/dev/null || true)"; : "${CLOSE_HITS:=0}"
@@ -946,6 +957,7 @@ if [ "$OPEN_HITS" != 1 ] || [ "$CLOSE_HITS" != 1 ]; then
   echo "     assertion's anchors need updating"
   failx
 else
+  # shellcheck disable=SC2016 # literal source line to match in the file under test, not to be expanded here
   FOR_OPEN='  for _mt_cand_dir in $(find "$METATEST_ARCHIVE_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -r); do'
   SEL_PAYLOAD_E_MUT="$TMP/selection_payload_m9_mutated.sh"
   awk -v wopen="$WHILE_OPEN" -v wclose="$WHILE_CLOSE" -v fopen="$FOR_OPEN" '
@@ -963,7 +975,8 @@ if [ -n "$SEL_PAYLOAD_E_MUT" ]; then
     echo 'set -u'
     printf 'METATEST_ARCHIVE_DIR=%q\n' "$ARCHIVE_SPACE"
     cat "$SEL_PAYLOAD_E_MUT"
-    echo 'printf "SELECTED=%s\n" "$METATEST_TSV"'
+    # shellcheck disable=SC2016 # literal text written verbatim into the fixture file (expanded later by the fixture, not here)
+    printf '%s\n' 'printf "SELECTED=%s\n" "$METATEST_TSV"'
   } > "$DRIVER_E_MUT"
   SELECTED_E_MUT="$(bash "$DRIVER_E_MUT" 2>"$TMP/driver_e_mut.err" | sed -n 's/^SELECTED=//p')"
   if [ "$SELECTED_E_MUT" != "$SPACE_TSV" ]; then

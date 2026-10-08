@@ -27,8 +27,10 @@
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 FC=$(cd "$HERE/.." && pwd)
+# shellcheck disable=SC2034 # RR_TOOL is consumed by the sourced lib/review_record_genuine.sh
 RR_TOOL="$FC/review/review_record.py"
 # shellcheck source=lib/review_record_genuine.sh
+# shellcheck disable=SC1091 # sourced helper is linted on its own; the precheck pack runs shellcheck without -x
 . "$HERE/lib/review_record_genuine.sh"
 
 FAIL=0; PASS=0
