@@ -184,8 +184,9 @@ src = src.replace(fixed_block, buggy_block, 1)
 src = src.replace('cleanup "$repo_root" "$wt_path"\n  trap - EXIT', 'cleanup\n  trap - EXIT', 1)
 open(path, "w", encoding="utf-8").write(src)
 PYEOF
+_mutant_build_rc=$?
 MUTANT_OUT="$WORK/mutant_case_output.log"
-if [ $? != 0 ]; then
+if [ "$_mutant_build_rc" != 0 ]; then
   echo "NOT ok mutation construction failed (see python traceback above) -- cannot verify this test catches the regression"
   failx
 else
@@ -245,6 +246,8 @@ assert src.count(qsafe_form) == 1, "N1 mutation anchor (the printf %%q trap-regi
 src = src.replace(qsafe_form, handquoted_form, 1)
 open(path, "w", encoding="utf-8").write(src)
 PYEOF
+# $? is the status of the python3 heredoc command immediately above
+# shellcheck disable=SC2181
 if [ $? != 0 ]; then
   echo "NOT ok N1-specific mutation construction failed -- cannot verify N1's fix is self-proven"
   failx

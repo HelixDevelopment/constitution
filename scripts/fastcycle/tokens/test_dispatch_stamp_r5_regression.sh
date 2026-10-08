@@ -318,6 +318,8 @@ cp "$RELEASE_PREFIX" "$STANDALONE_DIR/scripts/release_prefix.sh"
 ) >/dev/null 2>&1
 printf 'HELIX_RELEASE_PREFIX=helix_standalone_fixture_r5_expected\n' > "$STANDALONE_DIR/.env"
 
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_standalone_fixture() { rm -rf "$STANDALONE_ROOT"; }
 trap cleanup_standalone_fixture EXIT
 
@@ -381,6 +383,8 @@ cp "$RELEASE_PREFIX" "$D_CONSTITUTION/scripts/release_prefix.sh"
     && git config user.name "r5-d-fixture"
 ) >/dev/null 2>&1
 printf 'HELIX_RELEASE_PREFIX=parent_project_r5_expected\n' > "$D_PARENT/.env"
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_d_fixture() { rm -rf "$D_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture' EXIT
 
@@ -667,6 +671,8 @@ cp "$RELEASE_PREFIX" "$D2_CONSTITUTION/scripts/release_prefix.sh"
     && git config user.name "r5-d2-fixture"
 ) >/dev/null 2>&1
 printf 'API_KEY=unrelated_content_no_release_prefix_here\n' > "$D2_PARENT/.env"
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_d2_fixture() { rm -rf "$D2_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture' EXIT
 
@@ -721,6 +727,8 @@ cat > "$D3_PARENT/.gitmodules" <<'GITMODULES_D3_EOF'
 	path = other/constitution-utils
 	url = git@example.invalid:org/constitution-utils.git
 GITMODULES_D3_EOF
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_d3_fixture() { rm -rf "$D3_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture' EXIT
 
@@ -783,6 +791,8 @@ cat > "$D6_PARENT/.gitmodules" <<'GITMODULES_D6_EOF'
 	path = constitution-extra
 	url = git@example.invalid:org/constitution-extra.git
 GITMODULES_D6_EOF
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_d6_fixture() { rm -rf "$D6_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture' EXIT
 
@@ -842,6 +852,8 @@ cat > "$D7_PARENT/.gitmodules" <<'GITMODULES_D7_EOF'
 [submodule "weird"]
 	notpath = constitution
 GITMODULES_D7_EOF
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_d7_fixture() { rm -rf "$D7_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture' EXIT
 
@@ -894,6 +906,8 @@ cp "$RELEASE_PREFIX" "$D8_CONSTITUTION/scripts/release_prefix.sh"
     && git config user.name "r5-d8-fixture"
 ) >/dev/null 2>&1
 printf '# This project does not set HELIX_RELEASE_PREFIX, see docs\nOTHER_VAR=value\n' > "$D8_PARENT/.env"
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_d8_fixture() { rm -rf "$D8_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture' EXIT
 
@@ -950,6 +964,8 @@ cp "$RELEASE_PREFIX" "$D9_CONSTITUTION/scripts/release_prefix.sh"
     && git config user.name "r5-d9-fixture"
 ) >/dev/null 2>&1
 printf '# old config: HELIX_RELEASE_PREFIX=disabled_value\nOTHER_VAR=value\n' > "$D9_PARENT/.env"
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_d9_fixture() { rm -rf "$D9_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture' EXIT
 
@@ -1035,6 +1051,8 @@ fi
 echo
 echo "-- SWEEP (I-1 full remediation): table-driven near-miss basename matrix -- SUBSTRING / PREFIX / SUFFIX / CASE-FOLD attack classes, plus truncation + trailing-whitespace safety rows -- none widen on the real code, each class's representative mutant DOES widen on at least one row of that class --"
 SWEEP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_i1_sweep_fixture.XXXXXX")"
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_sweep_fixture() { rm -rf "$SWEEP_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_sweep_fixture' EXIT
 
@@ -1180,6 +1198,8 @@ cat > "$D4_PARENT/.gitmodules" <<'GITMODULES_D4_EOF'
 	url = git@example.invalid:org/constitution.git
 GITMODULES_D4_EOF
 printf 'HELIX_RELEASE_PREFIX=should_not_widen_wrong_sibling\n' > "$D4_PARENT/.env"
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_d4_fixture() { rm -rf "$D4_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_sweep_fixture; cleanup_d4_fixture' EXIT
 
@@ -1222,6 +1242,8 @@ cp "$RELEASE_PREFIX" "$D5_CONSTITUTION/scripts/release_prefix.sh"
 ) >/dev/null 2>&1
 printf 'HELIX_RELEASE_PREFIX=should_not_widen_unreadable\n' > "$D5_PARENT/.env"
 chmod 000 "$D5_PARENT/.env"
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_d5_fixture() { chmod 644 "$D5_PARENT/.env" 2>/dev/null || true; rm -rf "$D5_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_sweep_fixture; cleanup_d4_fixture; cleanup_d5_fixture' EXIT
 
@@ -1290,6 +1312,8 @@ echo
 echo "-- E2 (M1): readable-but-not-searchable HELIX_PROJECT_ROOT (chmod 444) warns on stderr, falls through correctly on stdout --"
 E2_NOSEARCH_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/hrp_r5_m1_nosearch_fixture.XXXXXX")"
 chmod 444 "$E2_NOSEARCH_ROOT"
+# invoked indirectly via the trap registered right after the definition
+# shellcheck disable=SC2329
 cleanup_e2_fixture() { chmod 755 "$E2_NOSEARCH_ROOT" 2>/dev/null || true; rm -rf "$E2_NOSEARCH_ROOT"; }
 trap 'cleanup_standalone_fixture; cleanup_d_fixture; cleanup_d2_fixture; cleanup_d3_fixture; cleanup_d6_fixture; cleanup_d7_fixture; cleanup_d8_fixture; cleanup_d9_fixture; cleanup_sweep_fixture; cleanup_d4_fixture; cleanup_d5_fixture; cleanup_e2_fixture' EXIT
 if [ ! -d "$E2_NOSEARCH_ROOT" ]; then

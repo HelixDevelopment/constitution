@@ -499,6 +499,8 @@ for fx in golden-good golden-bad-no-class golden-bad-orphan golden-bad-count-mis
     continue
   fi
   echo "ok $fx: causes subcommand real invocation matches"
+  # the single quotes inside the double-quoted string are literal display quotes around the expanded value
+  # shellcheck disable=SC2016
   echo "   fixtures/plan_struct_causes/$fx/expected exactly (exit=$GOT_RC${EXP_REST:+, stderr contains '$EXP_REST'}),"
   echo "   and wrote a non-empty --out JSON document"
 done

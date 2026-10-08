@@ -1367,6 +1367,8 @@ echo "=== PART F: item= tag prefix is configurable (not hardcoded 'ATM-') ==="
 # mechanism name" transcript_ingest.py and dispatch_stamp.sh agree on is not
 # a fabrication -- both files MUST literally mention the SAME env var names.
 DISPATCH_STAMP_MENTIONS_EXTRA="$(grep -c 'FC_DISPATCH_EXTRA_ITEM_PREFIXES' "$DISPATCH_STAMP" 2>/dev/null || echo 0)"
+# computed but never asserted: a test-coverage gap (reported as a review finding), left behavior-identical here
+# shellcheck disable=SC2034
 INGEST_MENTIONS_EXTRA="$(grep -c 'FC_DISPATCH_EXTRA_ITEM_PREFIXES' "$TRANSCRIPT_INGEST" 2>/dev/null || echo 0)"
 needle_check "dispatch_stamp.sh (T036) genuinely defines the FC_DISPATCH_EXTRA_ITEM_PREFIXES mechanism (control needle: the real file, not an invented name)" 1 "$([ "${DISPATCH_STAMP_MENTIONS_EXTRA:-0}" -gt 0 ] && echo 1 || echo 0)"
 needle_check "a FABRICATED, distinct env-var name is NOT present in dispatch_stamp.sh" 0 "$(grep -c 'FC_DISPATCH_SOME_NAME_THAT_DOES_NOT_EXIST' "$DISPATCH_STAMP" 2>/dev/null | grep -qv '^0$' && echo 1 || echo 0)"
@@ -1527,6 +1529,8 @@ fi
 # evaluate TRUE (the real, intended skip-bypass still works).
 echo
 echo "-- PART F-NEEDLE-AGGREGATE (M-a): the 'PART F HOLDS' aggregate's BLIND-awareness is genuinely load-bearing --"
+# single-quoted text is a literal regex/marker matched verbatim against this file's own source, never meant to expand
+# shellcheck disable=SC2016
 _PARTF_COND_ANCHOR_START='^        if \[ "\$RC_F1" -eq 0 \] && \[ -z "\${UNCONFIGURED_ITEM-UNSET}" \]'
 _PARTF_COND_ANCHOR_END='^.*; }; }; then$'
 _PARTF_SELF="${BASH_SOURCE[0]:-$0}"
@@ -1562,6 +1566,8 @@ if [ "${_PARTF_COND_OCCURRENCES:-0}" -ne 1 ]; then
     bad "PART F-NEEDLE-AGGREGATE setup failed: the 'PART F HOLDS' condition's anchor text was found ${_PARTF_COND_OCCURRENCES:-0} time(s) in this file (want exactly 1) -- cannot safely extract it for mutation-discrimination; the condition text this file's own PART F block uses may have drifted, investigate before trusting this guard"
 else
     _PARTF_FIXED_COND="$(sed -n "/${_PARTF_COND_ANCHOR_START}/,/${_PARTF_COND_ANCHOR_END}/p" "$_PARTF_SELF")"
+    # single-quoted text is a literal regex/marker matched verbatim against this file's own source, never meant to expand
+    # shellcheck disable=SC2016
     _PARTF_BLIND_MARKER=' && [ "${DERIVED_DEFAULT_PREFIX_BLIND:-0}" -eq 0 ]'
     _PARTF_MUTATED_COND="$(python3 -c '
 import sys
@@ -1624,7 +1630,11 @@ sys.stdout.write(cond.replace(marker, "", 1))
                 UNCONFIGURED_ITEM="$unconf"
                 CONFIGURED_ITEM="$conf"
                 unset ATM_STILL_WORKS 2>/dev/null || true
+                # intentional: the eval harness sets these only inside a subshell to evaluate the condition under a synthetic state; the real outer values are assigned separately above
+                # shellcheck disable=SC2030
                 DERIVED_DEFAULT_PREFIX="$derived"
+                # intentional: the eval harness sets these only inside a subshell to evaluate the condition under a synthetic state; the real outer values are assigned separately above
+                # shellcheck disable=SC2030
                 DERIVED_DEFAULT_PREFIX_BLIND="$blind"
                 eval "$cond"$'\n  echo TOOK_TRUE\nelse\n  echo TOOK_FALSE\nfi'
             )
@@ -1878,7 +1888,11 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
     # affect fixture resolution — only the internal prefix-derivation
     # subprocess chain is under test here.
     if [ -f "$PARENT_FIX" ]; then
+        # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+        # shellcheck disable=SC2031
         if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
+            # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+            # shellcheck disable=SC2031
             skip_prefix_mismatch "PART F7's real-ingest assertion assumes this checkout's own, genuinely UNCONFIGURED default item-tag prefix (read from its own .env via release_prefix.sh, the SAME mechanism F7's env -u's already force) is 'ATM' so that the PART D fixture's real item=ATM-9999 tag attributes end-to-end; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead — this test assumes an ATM-prefixed checkout, so F7's real end-to-end verification is honestly skipped here (not pass, not fail). The I1 precondition-reality proof above (OLD_BUGGY_ROOT / OLD_BUGGY_PREFIX / I1_PRECONDITION_REAL) tests the git-submodule-boundary defect class itself — a structural fact about this checkout's directory layout, never about any project's configured item-tag prefix — and is unaffected by this skip."
         else
         DB_F7="$WORK/telemetry_f7.db"
@@ -1960,7 +1974,11 @@ except re.error:
     # purely environmental reason. The two needle_checks that follow (the
     # stderr WARNING naming the invalid value) are prefix-independent and
     # stay unaffected by this skip.
+    # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+    # shellcheck disable=SC2031
     if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
+        # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+        # shellcheck disable=SC2031
         skip_prefix_mismatch "G1's fallback-match needle_check (probing item=ATM-4242 against the derived-default fallback regex) assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM'; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead -- this specific needle_check is honestly skipped here (not pass, not fail), purely for an environmental reason; the fail-safe's no-crash + stderr-warning properties are unaffected by this skip and are still verified for real immediately below"
     else
         needle_check "despite the invalid regex, _build_item_tag_re() does NOT crash and still matches a genuine ATM-<digits> tag via the derived-default fallback" 1 "$G1_MATCH"
@@ -2151,5 +2169,7 @@ echo "----"
 # 2026-10-03): the DERIVED_DEFAULT_PREFIX control needle's resolved value
 # (and whether it went BLIND this run) is echoed here, in the SUMMARY
 # line a human actually re-reads, not only an early banner line.
+# reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+# shellcheck disable=SC2031
 echo "SUMMARY pass=$PASS fail=$FAIL derived_default_prefix=$DERIVED_DEFAULT_PREFIX derived_default_prefix_blind=$DERIVED_DEFAULT_PREFIX_BLIND"
 [ "$FAIL" -eq 0 ]

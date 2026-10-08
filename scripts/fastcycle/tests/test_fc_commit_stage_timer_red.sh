@@ -581,16 +581,24 @@ else
   rm -f "$FC_ASSB_TSV" 2>/dev/null  # fc_timer.sh creates it fresh with the header
   trap 'rm -f "$FC_ASSB_TSV" 2>/dev/null || true' EXIT
   (
+    # read by the sourced commit_all.sh (do_push), not by this subshell
+    # shellcheck disable=SC2034
     COMMIT_ALL_SOURCE_ONLY=1
     # shellcheck disable=SC1090
     source "$COMMIT_ALL"
     set +e +u +o pipefail
+    # read by the sourced commit_all.sh (do_push), not by this subshell
+    # shellcheck disable=SC2034
     FC_TIMING=1
     FC_TIMER_RUN_ID="t016_assertion_b_$$"
     export FC_TIMER_RUN_ID
     FC_TIMER_TSV="$FC_ASSB_TSV"
     export FC_TIMER_TSV
+    # read by the sourced commit_all.sh (do_push), not by this subshell
+    # shellcheck disable=SC2034
     DRY_RUN=true
+    # read by the sourced commit_all.sh (do_push), not by this subshell
+    # shellcheck disable=SC2034
     NO_PUSH=false
     do_push >/dev/null 2>&1
   )

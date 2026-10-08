@@ -72,9 +72,8 @@ FAIL=0
 ok()  { PASS=$((PASS+1)); echo "ok $*"; }
 bad() { FAIL=$((FAIL+1)); echo "NOT ok $*"; }
 
-# legacy alias used by the pre-existing control-needle block below
-fail=0
-failx() { fail=1; FAIL=$((FAIL+1)); }
+# legacy failure helper used by the pre-existing control-needle block below
+failx() { FAIL=$((FAIL+1)); }
 
 # --- §11.4.273 control needle: prove the relative-path mechanism itself works ---
 KNOWN_PRESENT="$FC/lib/fc_common.py"
@@ -133,7 +132,7 @@ if [ -x "$BASELINE_REPLAY" ]; then
   # ASSERTION from this repo's tree size -- §11.4.107(10)/§11.4.201).
   SREPO="$(mk_scratch_repo a init)"
   SCOMMIT="$(git -C "$SREPO" rev-parse HEAD)"
-  STREE="$(git -C "$SREPO" rev-parse HEAD^{tree})"
+  STREE="$(git -C "$SREPO" rev-parse 'HEAD^{tree}')"
   WT="$TMP/wt_good"
   mkdir -p "$WT"
   cat > "$TMP/gate_true.sh" <<'SH'
@@ -163,7 +162,7 @@ SH
   # FAIL and is not a rubber-stamp that always reports "deterministic".
   SREPO2="$(mk_scratch_repo a init2)"
   SCOMMIT2="$(git -C "$SREPO2" rev-parse HEAD)"
-  STREE2="$(git -C "$SREPO2" rev-parse HEAD^{tree})"
+  STREE2="$(git -C "$SREPO2" rev-parse 'HEAD^{tree}')"
   WT2="$TMP/wt_bad"
   mkdir -p "$WT2"
   CTR="$TMP/gate_flip_counter"

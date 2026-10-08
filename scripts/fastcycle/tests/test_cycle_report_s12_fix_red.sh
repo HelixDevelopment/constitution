@@ -273,6 +273,8 @@ for PAIR in "Fixed:Fixed (→ Fixed.md)" "Implemented:Implemented (→ Fixed.md)
 JSON
   OUT="$TMP/golden_${EVT}_out.json"
   python3 "$CYCLE_REPORT" --as-of 2026-10-03 --tracker-export "$FX" --out "$OUT" >"$TMP/golden_${EVT}.err" 2>&1
+  # $? is the status of the command on the preceding line; no intervening command
+  # shellcheck disable=SC2181
   if [ $? != 0 ] || [ ! -f "$OUT" ]; then
     echo "NOT ok golden-good $EVT: invocation failed -- $(cat "$TMP/golden_${EVT}.err" 2>/dev/null)"
     failx
@@ -327,6 +329,8 @@ cat > "$BADFX" <<'JSON'
 JSON
 BADOUT="$TMP/golden_bad_out.json"
 python3 "$CYCLE_REPORT" --as-of 2026-10-03 --tracker-export "$BADFX" --out "$BADOUT" >"$TMP/golden_bad.err" 2>&1
+# $? is the status of the command on the preceding line; no intervening command
+# shellcheck disable=SC2181
 if [ $? = 0 ] && [ -f "$BADOUT" ]; then
   BAD_HAS_DESYNC="$(python3 -c "
 import json
@@ -1353,6 +1357,8 @@ if new_src == src:
     raise SystemExit("mutation did not change the source -- marker not found correctly")
 open(path, "w", encoding="utf-8").write(new_src)
 PYEOF
+  # $? is the status of the command on the preceding line; no intervening command
+  # shellcheck disable=SC2181
   if [ $? != 0 ]; then
     echo "NOT ok paired mutation setup FAILED -- could not mechanically mutate"
     echo "     flag_status_desync (marker not found -- source drifted?)"
@@ -1425,6 +1431,8 @@ if new_src == src:
     raise SystemExit("mutation did not change the source")
 open(path, "w", encoding="utf-8").write(new_src)
 PYEOF
+  # $? is the status of the command on the preceding line; no intervening command
+  # shellcheck disable=SC2181
   if [ $? != 0 ]; then
     echo "NOT ok paired mutation #2 setup FAILED -- could not mechanically mutate"
     echo "     review_rounds_stage's e_dt >= s_dt guard (marker not found --"
@@ -1495,6 +1503,8 @@ if new_src == src:
     raise SystemExit("mutation did not change the source")
 open(path, "w", encoding="utf-8").write(new_src)
 PYEOF
+  # $? is the status of the command on the preceding line; no intervening command
+  # shellcheck disable=SC2181
   if [ $? != 0 ]; then
     echo "NOT ok paired mutation #3 setup FAILED -- could not mechanically mutate"
     echo "     review_rounds_stage's e_dt < s_dt guard (marker not found --"
@@ -1564,6 +1574,8 @@ if new_src == src:
     raise SystemExit("mutation did not change the source")
 open(path, "w", encoding="utf-8").write(new_src)
 PYEOF
+  # $? is the status of the command on the preceding line; no intervening command
+  # shellcheck disable=SC2181
   if [ $? != 0 ]; then
     echo "NOT ok paired mutation #4 setup FAILED -- could not mechanically mutate"
     echo "     review_rounds_stage's elapsed<0 flag guard (marker not found --"
@@ -1637,6 +1649,8 @@ if new_src == src:
     raise SystemExit("mutation did not change the source")
 open(path, "w", encoding="utf-8").write(new_src)
 PYEOF
+  # $? is the status of the command on the preceding line; no intervening command
+  # shellcheck disable=SC2181
   if [ $? != 0 ]; then
     echo "NOT ok paired mutation #5 setup FAILED -- could not mechanically mutate"
     echo "     review_rounds_stage's elapsed<0 sign-check guard (marker not"
@@ -1708,6 +1722,8 @@ if new_src == src:
     raise SystemExit("mutation did not change the source")
 open(path, "w", encoding="utf-8").write(new_src)
 PYEOF
+  # $? is the status of the command on the preceding line; no intervening command
+  # shellcheck disable=SC2181
   if [ $? != 0 ]; then
     echo "NOT ok paired mutation #6 setup FAILED -- could not mechanically mutate"
     echo "     review_rounds_stage's elapsed<0 sign-check guard (marker not"
@@ -1781,6 +1797,8 @@ if new_src == src:
     raise SystemExit("mutation did not change the source")
 open(path, "w", encoding="utf-8").write(new_src)
 PYEOF
+  # $? is the status of the command on the preceding line; no intervening command
+  # shellcheck disable=SC2181
   if [ $? != 0 ]; then
     echo "NOT ok paired mutation #7 setup FAILED -- could not mechanically mutate"
     echo "     review_rounds_stage's e_dt < s_dt inversion-detection guard"

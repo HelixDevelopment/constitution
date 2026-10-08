@@ -196,6 +196,8 @@ _tsv_rows() {
 }
 
 TMP_MANIFEST="$MANIFEST.tmp.$$"
+# intended: the fatal-manifest message is exactly right when either the write or the mv fails (both mean the manifest was not written)
+# shellcheck disable=SC2015
 {
   echo "format=fc_timer_triplet/v1"
   echo "run_id=$RUN_ID"

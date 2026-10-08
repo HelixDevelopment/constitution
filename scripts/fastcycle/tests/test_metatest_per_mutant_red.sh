@@ -254,6 +254,8 @@ if [ ! -f "$target" ] || [ ! -f "$guard" ]; then
   failx
 else
   orig_md5=$(md5sum "$target" | awk '{print $1}')
+  # single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+  # shellcheck disable=SC2016
   sed -i 's/\[ "\$r" -gt 1 \] || return 0/[ "$r" -gt 0 ] || return 0/' "$target"
   mut_md5=$(md5sum "$target" | awk '{print $1}')
   if [ "$orig_md5" = "$mut_md5" ]; then
@@ -417,6 +419,8 @@ DRIVER_EXTRACT_TMP="$(mktemp -d)" || { echo "NOT ok mktemp failed (driver-path a
 if [ -n "$DRIVER_EXTRACT_TMP" ]; then
   d="$DRIVER_EXTRACT_TMP"
   : > "$d/payload.sh"
+  # two separate awk extractions appended in a fixed order; kept as individual appends so each function extraction stays independently readable
+  # shellcheck disable=SC2129
   awk '$0 ~ "^pass\\(\\) \\{", $0 ~ "^pass\\(\\) \\{"' "$MT" >> "$d/payload.sh"
   awk '$0 ~ "^fail\\(\\) \\{", $0 ~ "^fail\\(\\) \\{"' "$MT" >> "$d/payload.sh"
   awk '$0 ~ "^skip\\(\\) \\{", $0 ~ "^skip\\(\\) \\{"' "$MT" >> "$d/payload.sh"
@@ -452,12 +456,16 @@ GATEEOF
       cat "$d/payload.sh"
       echo "mutate_gate_direct M_T048N1_TEST1 \"$d/gate.sh\" 's/DETECT_ENABLED=1/DETECT_ENABLED=0/' 1"
       echo "mutate_gate_direct M_T048N1_TEST2 \"$d/gate.sh\" 's/DETECT_ENABLED=1/DETECT_ENABLED=0/' 1"
+      # single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+      # shellcheck disable=SC2016
       echo 'echo "__RETURN_TRAP__=[$(builtin trap -p RETURN)]"'
       echo '_fc_mut_start M_T048N1_INLINE'
       echo "echo ':' > \"$d/defs.sh\""
       echo ". \"$d/defs.sh\""
       echo 'fail "M_T048N1_INLINE surviving mutant (driver-path assertion)"'
       echo '_fc_mut_end'
+      # single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+      # shellcheck disable=SC2016
       echo 'echo "__FINAL__ PASS=$PASS_COUNT FAIL=$FAIL_COUNT"'
     } > "$d/driver.sh"
 

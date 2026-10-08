@@ -43,7 +43,6 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FC="$(cd "$HERE/.." && pwd)"
 SCRIPT_PATH="$FC/cycle/baseline_replay.sh"
-CYCLE_REPORT="$FC/cycle/cycle_report.py"
 
 PASS=0
 FAIL=0
@@ -67,7 +66,7 @@ mk_scratch_repo() {
 # =============================================================================
 REPO="$(mk_scratch_repo a init)"
 COMMIT="$(git -C "$REPO" rev-parse HEAD)"
-TREE="$(git -C "$REPO" rev-parse HEAD^{tree})"
+TREE="$(git -C "$REPO" rev-parse 'HEAD^{tree}')"
 WT_ROOT="$REPO/.fc_worktrees"
 mkdir -p "$WT_ROOT"
 OUT="$(mktemp)"
@@ -87,7 +86,7 @@ rm -rf "$REPO" "$OUT"
 # --- SIGQUIT sibling case ---
 REPO="$(mk_scratch_repo a init)"
 COMMIT="$(git -C "$REPO" rev-parse HEAD)"
-TREE="$(git -C "$REPO" rev-parse HEAD^{tree})"
+TREE="$(git -C "$REPO" rev-parse 'HEAD^{tree}')"
 WT_ROOT="$REPO/.fc_worktrees"
 mkdir -p "$WT_ROOT"
 OUT="$(mktemp)"
@@ -146,7 +145,7 @@ PYEOF
 if ! diff -q "$SCRIPT_PATH" "$MUT_SCRIPT" >/dev/null 2>&1; then
     REPO="$(mk_scratch_repo a init)"
     COMMIT="$(git -C "$REPO" rev-parse HEAD)"
-    TREE="$(git -C "$REPO" rev-parse HEAD^{tree})"
+    TREE="$(git -C "$REPO" rev-parse 'HEAD^{tree}')"
     WT_ROOT="$REPO/.fc_worktrees"
     mkdir -p "$WT_ROOT"
     OUT="$(mktemp)"

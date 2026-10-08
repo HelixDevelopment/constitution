@@ -44,6 +44,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/golden_triplet_fixture.sh
+# the sourced fixture lib exists (see the source= hint above); the precheck runs shellcheck without -x so it cannot follow it
+# shellcheck disable=SC1091
 . "$HERE/lib/golden_triplet_fixture.sh"
 REAL_GOLDEN="$GT_GOLDEN"
 
@@ -57,6 +59,8 @@ gt_init "$TMP/work"
 
 # control needle: both real files resolve
 for f in "$GT_HARNESS" "$REAL_GOLDEN"; do
+  # ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+  # shellcheck disable=SC2015
   [ -f "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
 done
 
@@ -126,6 +130,8 @@ else
   bad "(S3b) rc=$rc; $(grep -E 'FAIL|SKIP|INFO' "$TMP/s3b.out" | head -5)"
 fi
 gt_golden "$TMP/s3c.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s3" FC_TIMER_GOLDEN_MAX_WINDOW_S=abc; rc=$?
+# ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+# shellcheck disable=SC2015
 [ "$rc" = 2 ] && has "$TMP/s3c.out" "not a positive integer" \
   && ok "(S3c) a non-integer window is a FATAL usage error (exit 2), never silently defaulted" \
   || bad "(S3c) rc=$rc"
@@ -134,6 +140,8 @@ echo "=== (S4) m3: FC1 claims timers ON but its own TSV has no rows ==="
 S4F="$TMP/fix_s4"; cp -r "$SAME" "$S4F"; echo 0 > "$S4F/FC1.rows"
 capture "$TMP/s4" "$S4F" 20261001T020000Z
 gt_golden "$TMP/s4.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s4"; rc=$?
+# ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+# shellcheck disable=SC2015
 [ "$rc" = 1 ] && has "$TMP/s4.out" "claims timers ON but its own TSV" \
   && ok "(S4) timers-ON claim without TSV rows is a FAIL" || bad "(S4) rc=$rc; $(grep -E 'FAIL|SKIP' "$TMP/s4.out" | head -3)"
 
@@ -141,6 +149,8 @@ echo "=== (S5) m3: FC0b claims timers OFF but its own TSV has rows ==="
 S5F="$TMP/fix_s5"; cp -r "$SAME" "$S5F"; echo 3 > "$S5F/FC0b.rows"
 capture "$TMP/s5" "$S5F" 20261001T030000Z
 gt_golden "$TMP/s5.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s5"; rc=$?
+# ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+# shellcheck disable=SC2015
 [ "$rc" = 1 ] && has "$TMP/s5.out" "member FC0b claims timers OFF" \
   && ok "(S5) timers-OFF claim with TSV rows is a FAIL" || bad "(S5) rc=$rc; $(grep -E 'FAIL|SKIP' "$TMP/s5.out" | head -3)"
 
@@ -148,6 +158,8 @@ echo "=== (S6) m3: a member TSV re-counted on disk disagrees with the manifest =
 capture "$TMP/s6" "$SAME" 20261001T040000Z
 printf 'EXTRA\t1\n' >> "$TMP/s6/tsv/20261001T040000Z_t_FC1/prebuild_sections.tsv"
 gt_golden "$TMP/s6.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s6"; rc=$?
+# ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+# shellcheck disable=SC2015
 [ "$rc" = 1 ] && has "$TMP/s6.out" "has 3 data rows now, the manifest recorded 2" \
   && ok "(S6) TSV re-count mismatch is a FAIL" || bad "(S6) rc=$rc; $(grep -E 'FAIL|SKIP' "$TMP/s6.out" | head -3)"
 
@@ -155,6 +167,8 @@ echo "=== (S7) integrity: a member log edited after capture ==="
 capture "$TMP/s7" "$SAME" 20261001T050000Z
 echo "  ✓ CM-INJECTED: added later" >> "$TMP/s7/t_FC1_20261001T050000Z.log"
 gt_golden "$TMP/s7.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s7"; rc=$?
+# ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+# shellcheck disable=SC2015
 [ "$rc" = 1 ] && has "$TMP/s7.out" "does not match the manifest's" \
   && ok "(S7) edited member log is a FAIL" || bad "(S7) rc=$rc; $(grep -E 'FAIL|SKIP' "$TMP/s7.out" | head -3)"
 
@@ -172,9 +186,13 @@ echo "=== (S9) stand-in manifests are never FR-002 evidence ==="
 capture "$TMP/s9" "$SAME" 20261001T080000Z 0
 cp "$SAME/FC0a.txt" "$TMP/s9/prebuild_full_run_20261001T075900Z.log"   # single-log baseline so the run reaches its verdict
 gt_golden "$TMP/s9.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s9"; rc=$?
+# ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+# shellcheck disable=SC2015
 [ "$rc" = 0 ] && has "$TMP/s9.out" "no triplet manifest in" \
   && ok "(S9a) auto-discovery ignores a stand-in manifest" || bad "(S9a) rc=$rc; $(grep -E 'FAIL|SKIP|INFO' "$TMP/s9.out" | head -3)"
 gt_golden "$TMP/s9b.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s9" FC_TIMER_GOLDEN_TRIPLET="$TMP/s9/t_20261001T080000Z.triplet"; rc=$?
+# ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+# shellcheck disable=SC2015
 [ "$rc" = 0 ] && has "$TMP/s9b.out" "stand-in capture (mode=stand-in)" && ! has "$TMP/s9b.out" "IDENTICAL" \
   && ok "(S9b) a pinned stand-in is validated but its comparison is refused" || bad "(S9b) rc=$rc; $(grep -E 'FAIL|SKIP|INFO' "$TMP/s9b.out" | head -3)"
 
@@ -182,6 +200,8 @@ echo "=== (S10) a duplicated manifest key is malformed, never resolved by pickin
 capture "$TMP/s10" "$SAME" 20261001T090000Z
 echo "format=fc_timer_triplet/v1" >> "$TMP/s10/t_20261001T090000Z.triplet"
 gt_golden "$TMP/s10.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s10"; rc=$?
+# ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+# shellcheck disable=SC2015
 [ "$rc" = 1 ] && has "$TMP/s10.out" "malformed manifest" \
   && ok "(S10) duplicate key -> malformed -> FAIL" || bad "(S10) rc=$rc; $(grep -E 'FAIL|SKIP' "$TMP/s10.out" | head -3)"
 
@@ -204,34 +224,54 @@ s=open(sys.argv[1]).read(); s=s.replace(os.environ["ANCHOR"],os.environ["REPL"],
 }
 
 echo "=== (M-R5I2) reviewer's R5-I2 fix target removed: no window enforcement ==="
+# single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+# shellcheck disable=SC2016
 if mutate window 'if [ "$span" -gt "$MAX_WINDOW_S" ]; then' 'if false; then'; then
   GT_GOLDEN="$TMP/golden_window.sh" gt_golden "$TMP/m1.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s3"; rc=$?
+  # ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+  # shellcheck disable=SC2015
   [ "$rc" = 1 ] && has "$TMP/m1.out" "MISMATCH" \
     && ok "(M-R5I2) without the window check the out-of-window triplet IS compared (rc=1) -- (S3) is load-bearing" \
     || bad "(M-R5I2) BLIND: rc=$rc"
 fi
 
 echo "=== (M-m3a) timers-ON-without-rows refusal removed ==="
+# single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+# shellcheck disable=SC2016
 if mutate m3a 'if [ "$want_timing" = 1 ] && [ "$rows" -eq 0 ]; then' 'if false; then'; then
   GT_GOLDEN="$TMP/golden_m3a.sh" gt_golden "$TMP/m2.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s4"; rc=$?
+  # ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+  # shellcheck disable=SC2015
   [ "$rc" = 0 ] && ok "(M-m3a) without the check (S4) passes -- (S4) is load-bearing" || bad "(M-m3a) BLIND: rc=$rc"
 fi
 
 echo "=== (M-m3b) timers-OFF-with-rows refusal removed ==="
+# single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+# shellcheck disable=SC2016
 if mutate m3b 'if [ "$want_timing" = 0 ] && [ "$rows" -ne 0 ]; then' 'if false; then'; then
   GT_GOLDEN="$TMP/golden_m3b.sh" gt_golden "$TMP/m3.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s5"; rc=$?
+  # ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+  # shellcheck disable=SC2015
   [ "$rc" = 0 ] && ok "(M-m3b) without the check (S5) passes -- (S5) is load-bearing" || bad "(M-m3b) BLIND: rc=$rc"
 fi
 
 echo "=== (M-m3c) TSV re-count removed ==="
+# single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+# shellcheck disable=SC2016
 if mutate m3c 'if [ "$recount" != "$rows" ]; then' 'if false; then'; then
   GT_GOLDEN="$TMP/golden_m3c.sh" gt_golden "$TMP/m4.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s6"; rc=$?
+  # ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+  # shellcheck disable=SC2015
   [ "$rc" = 0 ] && ok "(M-m3c) without the re-count (S6) passes -- (S6) is load-bearing" || bad "(M-m3c) BLIND: rc=$rc"
 fi
 
 echo "=== (M-sha) log integrity check removed ==="
+# single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+# shellcheck disable=SC2016
 if mutate sha 'if [ "$sha" != "$want_sha" ]; then' 'if false; then'; then
   GT_GOLDEN="$TMP/golden_sha.sh" gt_golden "$TMP/m5.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s7"; rc=$?
+  # ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+  # shellcheck disable=SC2015
   has "$TMP/m5.out" "MISMATCH" && ! has "$TMP/m5.out" "does not match the manifest's" \
     && ok "(M-sha) without the sha check (S7)'s tamper goes unreported -- (S7) is load-bearing" || bad "(M-sha) BLIND: rc=$rc"
 fi
@@ -239,16 +279,26 @@ fi
 echo "=== (M-standin) auto-discovery accepts stand-in manifests ==="
 # (anchor updated in round 7: R6-I1 rewrote discovery so that only a
 # well-formed stand-in is skipped; the mutation still deletes that skip.)
+# single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+# shellcheck disable=SC2016
 if mutate standin '[ "$_mode" = stand-in ] && continue' ':'; then
   GT_GOLDEN="$TMP/golden_standin.sh" gt_golden "$TMP/m6.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s9"; rc=$?
+  # ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+  # shellcheck disable=SC2015
   ! has "$TMP/m6.out" "no triplet manifest in" \
     && ok "(M-standin) the mutant consumes the stand-in manifest -- (S9a) is load-bearing" || bad "(M-standin) BLIND: rc=$rc"
 fi
 
 echo "=== (M-dupkey) duplicate keys silently resolved to the first value ==="
+# single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+# shellcheck disable=SC2016
 if mutate dupkey '[ "${n:-0}" = 1 ] || return 1' '[ "${n:-0}" -ge 1 ] || return 1'; then
+  # single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+  # shellcheck disable=SC2016
   sed -i 's/sed -n "s\/^$1=\/\/p" "$2"/sed -n "s\/^$1=\/\/p" "$2" | head -n1/' "$TMP/golden_dupkey.sh"
   GT_GOLDEN="$TMP/golden_dupkey.sh" gt_golden "$TMP/m7.out" FC_TIMER_GOLDEN_EVIDENCE_DIR="$TMP/s10"; rc=$?
+  # ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+  # shellcheck disable=SC2015
   [ "$rc" = 0 ] && ok "(M-dupkey) without the exactly-once rule (S10) passes -- (S10) is load-bearing" || bad "(M-dupkey) BLIND: rc=$rc"
 fi
 

@@ -174,7 +174,13 @@ SCRATCH_SCRIPT="$SCRATCH_TOKENS_DIR/dispatch_stamp_extract.sh"
   # extract_item() below is called with ITEM_RE already correctly
   # reflecting this scratch scenario's own resolved fallback, never
   # hand-recomputed here.
+  # echo writes this line verbatim into the generated scratch script, where $(...) must expand later
+  # the literal backslash-n is wanted: it lands verbatim inside the generated script's printf format (bash echo does not expand it)
+  # shellcheck disable=SC2016,SC2028
   echo 'printf "PREFIX=%s\n" "$(_fc_default_item_prefix)"'
+  # echo writes this line verbatim into the generated scratch script, where $(...) must expand later
+  # the literal backslash-n is wanted: it lands verbatim inside the generated script's printf format (bash echo does not expand it)
+  # shellcheck disable=SC2016,SC2028
   echo 'printf "EXTRACTED=%s\n" "$(extract_item "some dispatch text item=WIT-42 trailing")"'
 } > "$SCRATCH_SCRIPT"
 chmod +x "$SCRATCH_SCRIPT"

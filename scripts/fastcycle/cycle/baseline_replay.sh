@@ -477,6 +477,8 @@ cmd_selfcheck() {
 #   then recursively SRC's own corresponding submodule directory).
 #   Returns the first non-zero exit encountered (or 0).
 # =============================================================================
+# invoked indirectly: exported with export -f and run via bash -c in a child shell below
+# shellcheck disable=SC2329
 _fc_submodule_reference_update() {
   local src="$1" tgt="$2"
   [ -f "$tgt/.gitmodules" ] || return 0
@@ -495,6 +497,8 @@ _fc_submodule_reference_update() {
   git -C "$tgt" config -f .gitmodules --get-regexp '^submodule\..*\.path$' >"$list_file" 2>/dev/null
 
   local key path name ref_path rc=0
+  # false positive: the loop only READS list_file via the redirect; rm -f merely unlinks it on early return, nothing is written through the pipeline
+  # shellcheck disable=SC2094
   while IFS=' ' read -r key path; do
     [ -n "$key" ] || continue
     name="${key#submodule.}"
@@ -529,6 +533,8 @@ _fc_submodule_reference_update() {
 # stdout (caller decides schema/out). Returns 0 on a successfully-measured
 # run (gate PASS/FAIL is data, not a harness failure), 4 on BLIND.
 # =============================================================================
+# printf %q pre-quotes the values into the trap string on purpose: it must expand NOW (repo_root/wt_path are function locals, out of scope when the trap fires) and %q makes it safe; function-level on purpose: a directive between the printf and the trap line would break the worktree-cleanup mutation tests' exact-text anchors
+# shellcheck disable=SC2064
 do_one_replay() {
   local commit="$1" tree="$2" repo_root="$3" worktree_root="$4" min_free_kb="$5"
   local timeout_s="$6" cold_runs="$7" warm_runs="$8"
@@ -835,6 +841,8 @@ do_one_replay() {
   # version's `submodule update` does not recognise the `-if-able` form
   # at all (confirmed live: real exit 1, a usage error).
   export -f _fc_submodule_reference_update
+  # the bash -c body is single-quoted on purpose: $1/$2 must expand in the child shell, not here
+  # shellcheck disable=SC2016
   ( timeout --kill-after=5 "${timeout_s}s" \
       bash -c '_fc_submodule_reference_update "$1" "$2"' -- "$repo_root" "$wt_path" \
   ) >/dev/null 2>&1 &
