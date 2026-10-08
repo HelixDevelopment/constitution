@@ -32,6 +32,7 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/golden_triplet_fixture.sh
+# shellcheck disable=SC1091  # the pre-check pack runs shellcheck without -x; the path is resolved at runtime via HERE
 . "$HERE/lib/golden_triplet_fixture.sh"
 REAL_GOLDEN="$GT_GOLDEN"
 
