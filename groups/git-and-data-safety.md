@@ -1,5 +1,102 @@
 # Git And Data Safety
 
+### 2.1 Multi-upstream push is the norm
+
+Every project hosted on multiple Git providers (GitHub primary,
+GitLab / GitFlic / GitVerse / Bitbucket / Gitea mirrors) MUST push every
+commit to ALL configured upstream remotes. A commit that lives on only
+one remote is a future operational risk: when that one provider has an
+outage, the project is unreachable.
+
+The constitution submodule itself ships an `install_upstreams.sh`
+helper (and an `Upstreams/` directory with one declaration script per
+remote). Running it from the submodule root configures all the remotes
+locally. Consuming projects SHOULD do the same for their own multi-
+remote topology.
+
+---
+
+## 3. Submodule changes propagate through submodule commits first
+
+When a change lands in any submodule of the project:
+
+1. **Commit inside the submodule first** (the submodule's own
+   `git add` + `git commit`), since the parent project's commit
+   wrapper does not commit submodule source — it only captures the
+   updated submodule pointer.
+2. **Push the submodule commit** to **all** remotes of that submodule.
+3. **Then** run the parent project's commit wrapper to capture the
+   updated submodule pointer in main and push main.
+
+Skipping step 1 produces parent commits / tags that point at old
+submodule HEADs without the actual source.
+
+---
+
+## 4. Every tag on the main repo MUST be mirrored on every owned submodule
+
+When a version tag is created on the main repo at a specific commit,
+the same tag MUST be created on **every owned submodule** at that
+submodule's currently-pointed-to HEAD, and pushed to **every remote**
+of every owned repo. Third-party submodules (libraries not under the
+project's control) are excluded. The consuming project's Constitution
+declares its owned-submodule set explicitly.
+
+---
+
+## 5. Changelog discipline and multi-format export
+
+Every tagged release MUST ship:
+
+1. A new `docs/changelogs/<tag>.md` entry describing user-visible
+   changes, developer-visible changes, and known caveats.
+2. Exports of that entry to `docs/changelogs/<tag>.{html,json,txt}`
+   so external tooling (release portals, ticketing systems, package
+   indices) can consume without needing a Markdown parser.
+3. An update to a cumulative `docs/changelogs/CHANGELOG.md` (reverse
+   chronological).
+
+The project SHOULD provide a script (`scripts/testing/export_changelog.sh
+<tag>` or equivalent) that wraps `pandoc` + `jq` + plain-text Markdown
+strip.
+
+---
+
+## 6. Documentation up to the nano-details
+
+Every new feature, fix, or infrastructure change MUST update:
+
+1. The project's CLAUDE.md / AGENTS.md Applied Fixes table (one row,
+   one commit, one release tag).
+2. `docs/guides/` for any user-visible or developer-reachable
+   behaviour change.
+3. Architecture diagrams, flowcharts, and any reference docs that
+   touch the changed subsystem.
+4. The per-version changelog (§5).
+
+Documentation drift after a fix is itself a Constitution violation:
+undocumented behaviour change is the same defect class as un-tested
+behaviour change.
+
+---
+
+## 7. Making false-success results literally impossible
+
+All validation output MUST satisfy the following invariants:
+
+1. Every gate reports concrete PASS / FAIL / SKIP with explicit
+   reason text. A gate that just says "ok" is non-compliant.
+2. Every SKIP reason MUST be mechanically distinguishable from a PASS.
+   Summary counters track them separately.
+3. FAILs are counted towards exit status. A script that hides FAILs
+   in logs and returns 0 is a bug.
+4. Meta-tests (§1.1) catch any gate that always PASSes regardless of
+   condition.
+5. Runtime results MUST be cross-referenced against host-side
+   evidence (capture rig, screen recording, log analyzer, or
+   equivalent) when the system's own introspection cannot directly
+   verify the behaviour.
+
 ### §9.1 Mandatory safety protocol for destructive operations
 
 Every destructive operation MUST execute, in strict order:

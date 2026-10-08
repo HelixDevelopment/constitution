@@ -1,5 +1,43 @@
 # Testing And Tdd
 
+### 1.1 False-positive immunity is an invariant
+
+A test that always returns PASS because its regex never matches, its
+input path is wrong, its assertion target does not exist, or its
+comparison is tautological is **worse than no test**. Every new gate
+MUST be paired with a mutation entry in the project's meta-test harness
+that:
+
+1. Temporarily breaks the assertion (sed out a line, rename a symbol, etc.).
+2. Re-runs the gate.
+3. Asserts the gate now reports FAIL.
+4. Restores the original.
+
+If the mutation round does not turn PASS → FAIL, the gate is a sham and
+must be rewritten.
+
+This is the **single most important rule in this Constitution.** Every
+subsequent §11.4.x clause is downstream of it.
+
+---
+
+## 2. Commit and push mechanics — single entrypoint, locked
+
+All commit and push work uses the project's official multi-remote
+commit wrapper (e.g. `scripts/commit_all.sh`) as the single
+entrypoint. Direct `git commit` / `git push` / `git add` on the main
+repo is prohibited in normal workflow. Exception: tag creation +
+tag-ref push is done via explicit `git tag -a` and
+`git push <remote> <tag>`.
+
+The commit and push wrappers MUST hold an advisory `flock` so two
+invocations cannot race against each other. Lock files self-clean on
+process exit via `trap`.
+
+When a contributor sees the "another commit/push wrapper is already
+running" error, they MUST NOT `rm -f` the lock unless they have just
+killed the owning process.
+
 ### §11.4.14 — Test playback cleanup mandate
 
 A test that completes (PASS, FAIL, or SKIP) MUST leave the target

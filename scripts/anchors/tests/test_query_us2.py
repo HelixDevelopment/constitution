@@ -54,13 +54,20 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         assert len(universal) + len(project_specific) + len(mixed) + len(unstated) == len(idx["anchors"])
         assert len(universal) > 0  # this project's constitution is overwhelmingly universal-scoped
         assert len(mixed) == 2, f"expected exactly 2 mixed-classified anchors (§11.4.23, §11.4.24), got {len(mixed)}"
-        assert len(universal) == 173, (
-            f"expected exactly 173 anchors whose source TEXT genuinely states "
+        # Re-measured 2026-10-08 (corpus + parser moved since 2026-09-26):
+        # universal 173 -> 174 = +1 §11.4.276 ("Classification: universal",
+        # landed 2026-10-05); an independent line grep of the corpus for a
+        # Classification line stating universal also reads 174. unstated
+        # 108 -> 110 = +2 for the bare-form anchors §1.1 and §2.1 (newly
+        # recognised by anchor_lib; their source states no Classification).
+        # 174 + 110 + 2 mixed = 286 = total anchors.
+        assert len(universal) == 174, (
+            f"expected exactly 174 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )
-        assert len(unstated) == 108, (
-            f"expected exactly 108 anchors with no Classification line at all "
+        assert len(unstated) == 110, (
+            f"expected exactly 110 anchors with no Classification line at all "
             f"(independently re-measured against the real corpus), got {len(unstated)}"
         )
 

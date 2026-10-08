@@ -1,16 +1,16 @@
 schema_version: 1
-generated_at: '2026-09-26T14:41:19.328355+00:00'
+generated_at: '2026-10-08T12:02:19.947837+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 488d213cf9a7e3aedd51d231f2d622f2143b83d0
-  source_sha256: d915a5c10f46041b5ba8020c685d845a6a3e3c5fca75384a1a807a98eed90c72
+  commit: 70ae9f819a8ff765c40080b30ee2881f295b5afd
+  source_sha256: 95117cf3d96e4bb144d4e4cfed4031392abd91e22d55c95e6eb5aed940238a4e
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
   anchor_count: 33
 - name: code-review-and-quality
   path: constitution/groups/code-review-and-quality.md
-  anchor_count: 11
+  anchor_count: 12
 - name: design-system-and-ui
   path: constitution/groups/design-system-and-ui.md
   anchor_count: 11
@@ -19,7 +19,7 @@ groups:
   anchor_count: 27
 - name: git-and-data-safety
   path: constitution/groups/git-and-data-safety.md
-  anchor_count: 23
+  anchor_count: 24
 - name: governance-and-constitution-meta
   path: constitution/groups/governance-and-constitution-meta.md
   anchor_count: 37
@@ -34,7 +34,7 @@ groups:
   anchor_count: 46
 - name: testing-and-tdd
   path: constitution/groups/testing-and-tdd.md
-  anchor_count: 39
+  anchor_count: 40
 - name: translation-and-localization
   path: constitution/groups/translation-and-localization.md
   anchor_count: 3
@@ -42,6 +42,24 @@ groups:
   path: constitution/groups/workable-items-and-tracking.md
   anchor_count: 19
 anchors:
+- id: '1.1'
+  title: False-positive immunity is an invariant
+  group: testing-and-tdd
+  location: constitution/groups/testing-and-tdd.md
+  classification: unstated
+  propagation_gate: null
+  binds_principle: []
+  cross_references:
+  - '11.4'
+- id: '2.1'
+  title: Multi-upstream push is the norm
+  group: git-and-data-safety
+  location: constitution/groups/git-and-data-safety.md
+  classification: unstated
+  propagation_gate: null
+  binds_principle: []
+  cross_references:
+  - '1.1'
 - id: '7.1'
   title: NO BLUFF — positive-evidence-only validation
   group: anti-bluff-and-evidence
@@ -2922,6 +2940,7 @@ anchors:
   - 11.4.125
   - 11.4.134
   - 11.4.17
+  - 11.4.276
   - 11.4.35
   - 11.4.4
   - 11.4.5
@@ -4904,9 +4923,10 @@ anchors:
   - 11.4.95
   - '12.10'
 - id: 11.4.209
-  title: — Code-review MUST run on the Opus model at xhigh effort, ALWAYS — no Fable,
-    no escalation tier, no fallback model (User mandate, 2026-09-26, supersedes 2026-09-15
-    and 2026-07-15)
+  title: — Code-review MUST run on the Opus model at xhigh effort as PRIMARY substrate,
+    with a genuine-unavailability Sonnet fallback — no Fable, no escalation tier (User
+    mandate, 2026-09-26, supersedes 2026-09-15 and 2026-07-15; amended 2026-10-04
+    to add the Sonnet-fallback clause)
   group: code-review-and-quality
   location: constitution/groups/code-review-and-quality.md
   classification: universal
@@ -4921,6 +4941,7 @@ anchors:
   - 11.4.134
   - 11.4.142
   - 11.4.17
+  - 11.4.183
   - 11.4.194
   - 11.4.196
   - 11.4.197
@@ -4965,8 +4986,9 @@ anchors:
   - 11.4.97
 - id: 11.4.211
   title: — Merge-conflict resolution during main→feature/product/flavor merges MUST
-    run on the Opus model at xhigh effort, ALWAYS — no Fable, no fallback model (User
-    mandate, 2026-07-16; amended 2026-09-26)
+    run on the Opus model at xhigh effort as PRIMARY substrate, with a genuine-unavailability
+    Sonnet fallback — no Fable (User mandate, 2026-07-16; amended 2026-09-26; amended
+    again 2026-10-04 to add the Sonnet-fallback clause)
   group: project-lifecycle-and-release
   location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
@@ -4978,12 +5000,14 @@ anchors:
   - 11.4.113
   - 11.4.167
   - 11.4.17
+  - 11.4.183
   - 11.4.188
   - 11.4.195
   - 11.4.196
   - 11.4.201
   - 11.4.209
   - 11.4.211
+  - 11.4.231
   - 11.4.37
   - 11.4.41
   - 11.4.5
@@ -5542,8 +5566,9 @@ anchors:
   - '12.10'
 - id: 11.4.230
   title: '— Parallelized-pipeline methodology: build↔validate overlap + affected-stages-only
-    re-run + parallel multi-device testing/recording + fan-out-subagents-always (research-derived,
-    2026-07-26)'
+    re-run + parallel multi-device testing/recording + fan-out-subagents-always +
+    incremental delivery granularity with a declared QA-build cadence (research-derived,
+    2026-07-26; clause (D) added 2026-10-04)'
   group: multi-track-and-parallelism
   location: constitution/groups/multi-track-and-parallelism.md
   classification: universal
@@ -5551,6 +5576,8 @@ anchors:
   binds_principle: []
   cross_references:
   - '1.1'
+  - '11.4'
+  - 11.4.101
   - 11.4.102
   - 11.4.103
   - 11.4.106
@@ -5569,24 +5596,46 @@ anchors:
   - 11.4.129
   - 11.4.130
   - 11.4.132
+  - 11.4.134
   - 11.4.142
   - 11.4.144
+  - 11.4.148
+  - 11.4.151
   - 11.4.17
   - 11.4.183
   - 11.4.185
   - 11.4.187
+  - 11.4.188
   - 11.4.189
   - 11.4.192
   - 11.4.194
+  - 11.4.195
+  - 11.4.197
   - 11.4.20
   - 11.4.200
+  - 11.4.201
+  - 11.4.202
+  - 11.4.208
+  - 11.4.210
+  - 11.4.227
+  - 11.4.229
   - 11.4.230
+  - 11.4.235
+  - 11.4.236
+  - 11.4.238
+  - 11.4.239
   - 11.4.24
+  - 11.4.261
+  - 11.4.264
+  - 11.4.265
+  - 11.4.266
+  - 11.4.271
   - 11.4.35
   - 11.4.40
   - 11.4.5
   - 11.4.58
   - 11.4.6
+  - 11.4.66
   - 11.4.69
   - 11.4.70
   - 11.4.88
@@ -5777,9 +5826,11 @@ anchors:
   binds_principle: []
   cross_references:
   - '1.1'
+  - 11.4.101
   - 11.4.103
   - 11.4.108
   - 11.4.110
+  - 11.4.115
   - 11.4.125
   - 11.4.126
   - 11.4.129
@@ -5789,12 +5840,16 @@ anchors:
   - 11.4.17
   - 11.4.185
   - 11.4.194
+  - 11.4.197
   - 11.4.200
   - 11.4.201
   - 11.4.209
   - 11.4.227
   - 11.4.230
   - 11.4.235
+  - 11.4.240
+  - 11.4.249
+  - 11.4.268
   - 11.4.4
   - 11.4.40
   - 11.4.6
@@ -6769,6 +6824,7 @@ anchors:
   - 11.4.249
   - 11.4.262
   - 11.4.267
+  - 11.4.276
   - 11.4.35
   - 11.4.6
   - 11.4.66
@@ -7012,6 +7068,50 @@ anchors:
   - 11.4.79
   - 11.4.80
   - 11.4.96
+  - 11.4.99
+- id: 11.4.276
+  title: '— Review-round budget: every independently-reviewed work item converges
+    within a declared budget of at most 7 rounds (5–7, consumer-declared), by front-loading
+    ground truth, class-exhaustive enumeration, real-path tests and a declared threat
+    boundary, with a binding methodology change at round 3 (User mandate, 2026-10-05)'
+  group: code-review-and-quality
+  location: constitution/groups/code-review-and-quality.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-276-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.101
+  - 11.4.102
+  - 11.4.115
+  - 11.4.125
+  - 11.4.126
+  - 11.4.134
+  - 11.4.142
+  - 11.4.148
+  - 11.4.17
+  - 11.4.194
+  - 11.4.197
+  - 11.4.199
+  - 11.4.201
+  - 11.4.209
+  - 11.4.214
+  - 11.4.224
+  - 11.4.226
+  - 11.4.227
+  - 11.4.235
+  - 11.4.238
+  - 11.4.240
+  - 11.4.246
+  - 11.4.250
+  - 11.4.262
+  - 11.4.267
+  - 11.4.271
+  - 11.4.276
+  - 11.4.35
+  - 11.4.6
+  - 11.4.66
+  - 11.4.97
   - 11.4.99
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
