@@ -13,10 +13,8 @@
 # round budget, per-slice verdicts, record body integrity, backfill rows,
 # seam/independence tier.
 #
-# Every case drives the REAL `review_record.py record` / `gate` CLI (or, for
-# the single capability-tier case, the real module's own main() in-process
-# with only os.geteuid substituted -- the one host condition a single-uid
-# test host cannot otherwise produce). Nothing here re-implements gate logic
+# Every case drives the REAL `review_record.py record` / `gate` CLI. Nothing
+# here re-implements gate logic
 # (constitution 11.4.276(D)). Each reviewer mutation M1..M4 from R7 B2 has a
 # dedicated scenario below in which EVERY other qualification condition
 # holds, so removing the one guarded condition flips the verdict; the paired
@@ -168,60 +166,22 @@ gate CH-B1D --seam bogus-seam
 if [ "$G_RC" -eq 2 ]; then ok "B1-D2: unknown --seam value is a usage error (2), never a silent ordinary seam"
 else bad "B1-D2: rc=$G_RC out=$G_OUT"; fi
 
-# capability tier: only producible on a host with a genuine uid boundary.
-# The real module's main() runs in-process with os.geteuid substituted and
-# every evidence path made read-only, so the owner and writability checks are
-# both genuinely exercised. Skipped honestly when running as root (root can
-# write anything, so os.access cannot prove a boundary).
-if [ "$(id -u)" -ne 0 ]; then
-  chmod -R a-w "$REC" "$RR_LEDGER"; chmod a-w "$CASE"
-  CAP_OUT=$(python3 - "$RR_TOOL" "$REC" "$RR_LEDGER" <<'PY'
-import importlib.util, io, os, sys, contextlib
-tool, rec, ledger = sys.argv[1:4]
-spec = importlib.util.spec_from_file_location("rr", tool)
-rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
-real = os.geteuid()
-os.geteuid = lambda: real + 1
-buf = io.StringIO()
-with contextlib.redirect_stdout(buf):
-    rc = rr.main(["gate", "--change", "CH-B1D", "--records", rec, "--dispatch-ledger", ledger, "--seam", "release-tag"])
-print("RC=%s %s" % (rc, buf.getvalue().strip()))
-PY
-)
-  chmod u+w "$CASE" "$RR_LEDGER"; chmod -R u+w "$REC"
-  if printf '%s\n' "$CAP_OUT" | grep -q "^RC=0 COVERED CH-B1D .*independence=capability"; then
-    ok "B1-D3: foreign-owned, non-writable evidence achieves 'capability' and passes the release-tag seam"
-  else bad "B1-D3: $CAP_OUT"; fi
-  # Same but the records dir left writable: the boundary is not real -> instance.
-  CAP_OUT=$(python3 - "$RR_TOOL" "$REC" "$RR_LEDGER" <<'PY'
-import importlib.util, io, os, sys, contextlib
-tool, rec, ledger = sys.argv[1:4]
-spec = importlib.util.spec_from_file_location("rr", tool)
-rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
-real = os.geteuid()
-os.geteuid = lambda: real + 1
-buf = io.StringIO()
-with contextlib.redirect_stdout(buf):
-    rc = rr.main(["gate", "--change", "CH-B1D", "--records", rec, "--dispatch-ledger", ledger, "--seam", "release-tag"])
-print("RC=%s %s" % (rc, buf.getvalue().strip()))
-PY
-)
-  if printf '%s\n' "$CAP_OUT" | grep -q "^RC=1 UNCOVERED CH-B1D"; then
-    ok "B1-D4: foreign owner but WRITABLE evidence is only 'instance' -> release-tag still refused"
-  else bad "B1-D4: $CAP_OUT"; fi
-else
-  echo "NOTE: running as root -- B1-D3/B1-D4 capability checks SKIPPED (os.access cannot prove a uid boundary for root)"
-fi
+# capability tier (B1-D3/B1-D4 removed, T048 round 2 V3 F3): the round-1 cases
+# substituted os.geteuid and asserted that evidence "foreign" to the uid
+# running gate achieves capability -- the defect itself (the producer is the
+# party that must not be able to write the evidence). The tier is now rated
+# against the declared PRODUCER uid; those cases live, on real files with
+# real owners and modes, in test_review_record_gate_authority_r2_regression.sh
+# (T and T-CLI).
 
-# --- B1 probe D5: same-owner read-only evidence is still only 'instance' ---
-# (no geteuid substitution: the real owner check must refuse capability for
-# files this uid owns, even when they are made read-only -- an owner can
-# always chmod them back).
+# --- B1 probe D5: producer-owned read-only evidence is still only 'instance' ---
+# (the real owner check must refuse capability for files the PRODUCER owns,
+# even when they are made read-only -- an owner can always chmod them back).
 if [ "$(id -u)" -ne 0 ]; then
   fresh_case b1d5
   rr_genuine "$REC/r1.json" B-B1D5 CH-B1D5 1 GO "$NONE" D-B1D5
   chmod -R a-w "$REC" "$RR_LEDGER"; chmod a-w "$CASE"
-  gate CH-B1D5 --seam release-tag
+  gate CH-B1D5 --seam release-tag --producer-uid "$(id -u)"
   chmod u+w "$CASE" "$RR_LEDGER"; chmod -R u+w "$REC"
   if uncovered CH-B1D5 && printf '%s\n' "$G_OUT" | grep -q "achieved instance"; then
     ok "B1-D5: read-only evidence OWNED by this uid is only 'instance' -> release-tag refused"

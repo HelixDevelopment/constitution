@@ -122,10 +122,39 @@ assistant record with no `message["id"]` at all. NEVER derived from
 `message["content"]`, matching the credential-safety guarantee above.
 Because the merge is a per-field maximum, a second `ingest` of the
 identical input is still a true no-op (nothing grows, nothing is
-rewritten). The identity columns (source_file, lineno, agent_id, item_id,
-session_id, ...) stay those of the FIRST line that created the row: a
-forked subagent transcript can replay a parent's message id, and that
-replay must not re-attribute the parent's own turn to the subagent.
+rewritten).
+
+OWNERSHIP OF A ROW (T048 restart round 2, V1-I2). A forked subagent
+transcript can REPLAY a parent's message id (its record then carries an
+`agentId`, the parent's own record does not). Measured on this host's 1,500
+newest sessions: 4 of 392 subagent files share a msg id with their parent,
+so the case is real but rare. The turn belongs to the parent. Two rules make
+that independent of how the input path is spelled and of run order:
+  1. Canonical read order (`find_jsonl_files()`): every path is resolved
+     with os.path.realpath, and parent transcripts are read before any
+     `.../subagents/*.jsonl` file, whatever the spelling (`sess.jsonl`,
+     `/abs/sess.jsonl`, `./dir/`). Before this, a relative parent path
+     sorted AFTER the absolute subagent paths, so the subagent's replay
+     created the row and the parent's own turn was credited to the
+     subagent and its item.
+  2. Ownership in `upsert_row()`: when a stored row came from a record WITH
+     an agentId and a record WITHOUT one arrives for the same msg id (the
+     subagent was ingested in an earlier run, its parent only now), the
+     row's identity columns are moved to the parent record
+     (summary `reattributed_to_parent`). In every other case the identity
+     columns of an existing row are never rewritten, except that a NULL
+     item_id / session_id of a row is filled in from a later record of the
+     SAME owner once its dispatch is known (summary `attribution_filled`).
+
+CONCURRENT RUNS (T048 restart round 2, V1-I1). The row pass runs inside one
+`BEGIN IMMEDIATE` transaction, so the read-merge-write of every row happens
+under the database write lock. A second ingest on the same DB waits for the
+first (up to FC_TELEMETRY_DB_LOCK_TIMEOUT_S seconds, default 600) and then
+merges against the committed rows. Before this, two overlapping runs could
+both read "no row", and the second INSERT failed with IntegrityError, which
+aborted that run and lost every row it had read. If the lock cannot be taken
+in time the run exits 1 with a message and writes nothing (an honest, whole
+failure; rerun it), never a traceback after a partial write.
 
 =============================================================================
 "copy-on-ingest" (tasks.md T038 / plan.md T-A06 work item (3)) — design
@@ -195,6 +224,25 @@ read-only on transcripts").
 Dependencies: Python stdlib only (argparse, hashlib, json, os, re,
 subprocess, sqlite3, sys), matching every sibling `$FC` tool's own
 convention.
+=============================================================================
+DEFERRALS LEDGER (T048 restart round 2, V1-M4 -- a deferral is honest only
+when it is written down and tracked; the conductor registers OWED items)
+=============================================================================
+Round-1 deferrals, now CLOSED in round 2:
+  - "file order" (fork-replay credit depended on ingest order and on how
+    the path was spelled): CLOSED -- canonical_order() + the ownership rule
+    in upsert_row(); guard: test_token_attribution_red.sh PART I2.
+  - the other two round-1 deferrals live in dispatch_stamp.sh (jq-less
+    first-"description" fail-open; silent WIT fallback): both CLOSED there.
+OWED (open, tracked by the conductor):
+  - OWED-TI-1: a dispatch conflict discovered in a LATER run does not clear
+    an item_id an earlier run already stored for that agent's turns (the
+    later run's NULL never overwrites a stored value; only a stored NULL is
+    filled). A full fix needs a re-derivation pass over stored rows.
+  - OWED-TI-2: FC_DISPATCH_ITEM_ID_RE is compiled by two regex engines (this
+    module and bash ERE in dispatch_stamp.sh); see the DIALECT NOTE. The
+    default and FC_DISPATCH_EXTRA_ITEM_PREFIXES paths are locale-pinned and
+    guarded (PART I4); a caller-supplied full pattern is not.
 """
 import argparse
 import hashlib
@@ -236,6 +284,28 @@ else:
         / "docs" / "research" / "tokens" / "ws1_token_waste_baseline" / "POC"
         / "usage_telemetry.db"
     )
+
+# Seconds a run waits for another ingest holding the write lock on the same
+# DB (V1-I1). A whole-directory ingest of a large transcript tree can take
+# minutes, so the default is generous; a value that cannot be parsed falls
+# back to the default with a warning rather than crashing.
+DEFAULT_LOCK_TIMEOUT_S = 600.0
+
+
+def _lock_timeout_s():
+    raw = os.environ.get("FC_TELEMETRY_DB_LOCK_TIMEOUT_S", "")
+    if not raw:
+        return DEFAULT_LOCK_TIMEOUT_S
+    try:
+        value = float(raw)
+        if value < 0:
+            raise ValueError("negative")
+        return value
+    except ValueError:
+        print("transcript_ingest: WARNING: FC_TELEMETRY_DB_LOCK_TIMEOUT_S=%r is not a "
+              "non-negative number; using %s" % (raw, DEFAULT_LOCK_TIMEOUT_S), file=sys.stderr)
+        return DEFAULT_LOCK_TIMEOUT_S
+
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS transcript_usage_events (
@@ -400,9 +470,12 @@ def _fc_default_item_prefix():
     base = ""
     if os.path.isfile(rp_script):
         try:
+            # LC_ALL=C: the same locale dispatch_stamp.sh pins for itself,
+            # so both tools derive the prefix from identical bytes (V1-M2).
             proc = subprocess.run(
                 ["bash", rp_script],
                 capture_output=True, text=True, timeout=10, check=False,
+                env=dict(os.environ, LC_ALL="C"),
             )
             base = proc.stdout.strip()
             if proc.returncode != 0:
@@ -438,6 +511,13 @@ def _fc_default_item_prefix():
             file=sys.stderr,
         )
     return _fc_derive_key_prefix(base)
+
+
+def _ascii_upper(text):
+    """Upper-case the ASCII letters a-z only; every other character is kept
+    as it is (the behaviour of `tr '[:lower:]' '[:upper:]'` under LC_ALL=C,
+    which dispatch_stamp.sh uses)."""
+    return "".join(chr(ord(c) - 32) if "a" <= c <= "z" else c for c in text)
 
 
 def _build_item_tag_re():
@@ -480,12 +560,16 @@ def _build_item_tag_re():
         prefixes = [_fc_default_item_prefix()]
         extra = os.environ.get("FC_DISPATCH_EXTRA_ITEM_PREFIXES", "")
         if extra:
-            for tok in re.split(r"[,|\s]+", extra.strip()):
+            # Split on exactly the separators dispatch_stamp.sh uses (',' and
+            # '|' turned into spaces, then bash word splitting on space, tab
+            # and newline) and upper-case ASCII letters only, as `tr` does
+            # under LC_ALL=C (V1-M2): str.upper() would turn 'ß' into 'SS'.
+            for tok in re.split(r"[,| \t\n]+", extra):
                 if tok:
-                    prefixes.append(tok.upper())
+                    prefixes.append(_ascii_upper(tok))
         value_re = "(?:%s)-[0-9]+" % "|".join(prefixes)
     try:
-        return re.compile(ITEM_TAG_TEMPLATE % value_re)
+        return re.compile(ITEM_TAG_TEMPLATE % value_re, re.ASCII)
     except re.error as exc:
         print(
             "transcript_ingest: WARNING: the configured item-tag pattern "
@@ -497,33 +581,68 @@ def _build_item_tag_re():
             file=sys.stderr,
         )
         fallback_prefix = _fc_default_item_prefix()
-        return re.compile(ITEM_TAG_TEMPLATE % ("(?:%s)-[0-9]+" % fallback_prefix))
+        return re.compile(ITEM_TAG_TEMPLATE % ("(?:%s)-[0-9]+" % fallback_prefix), re.ASCII)
 
 
-# The item tag is a whole token: whitespace or start-of-string on the left
-# (`xitem=ATM-1` is not a tag) and, on the right, anything but an ASCII
-# letter, digit or underscore (so `item=ATM-12x` and `item=?foo` are not
-# tags, while `item=ATM-12,` and `item=ATM-12)` are). T048 restart review
-# R3 boundary note. dispatch_stamp.sh's ITEM_RE carries the same right
-# boundary, so both tools accept exactly the same set of tags.
-ITEM_TAG_TEMPLATE = r"(?:^|\s)item=(%s|\?)(?![A-Za-z0-9_])"
+# The item tag is a whole token. Left: start of string or one ASCII
+# whitespace character (space, tab, newline, CR, FF, VT) -- `xitem=ATM-1`
+# is not a tag. Right: end of string or anything but an ASCII letter, digit
+# or underscore -- `item=ATM-12x`, `item=ATM-12_x` and `item=?foo` are not
+# tags, while `item=ATM-12,` and `item=ATM-12)` are. T048 restart review R3
+# boundary note.
+#
+# SAME TAG SET AS dispatch_stamp.sh, IN ANY CALLER LOCALE (V1-M2, T048
+# restart round 2): both classes are spelled out in ASCII and the pattern
+# is compiled with re.ASCII. dispatch_stamp.sh pins LC_ALL=C, where bash's
+# [[:space:]] is exactly that ASCII set and [[:alnum:]] is ASCII. Before
+# this, Python's `\s` also matched U+00A0, U+001C-U+001F, U+0085, U+2003
+# and U+3000, while bash's result changed with the caller's locale. The
+# guard is test_token_attribution_red.sh PART I4 (15 non-ASCII and boundary
+# cases, both tools, LC_ALL=C and LC_ALL=C.UTF-8). Not covered: a caller-
+# supplied FC_DISPATCH_ITEM_ID_RE is compiled by two different regex
+# engines (see the DIALECT NOTE above).
+ITEM_TAG_TEMPLATE = r"(?:^|[ \t\n\r\f\v])item=(%s|\?)(?![A-Za-z0-9_])"
 
 
 ITEM_TAG_RE = _build_item_tag_re()
 
 
 def open_db(path):
-    conn = sqlite3.connect(path)
+    # isolation_level=None: transactions are opened explicitly (BEGIN
+    # IMMEDIATE in cmd_ingest), never implicitly by the sqlite3 module.
+    conn = sqlite3.connect(path, timeout=_lock_timeout_s(), isolation_level=None)
     conn.execute(SCHEMA)
-    conn.commit()
     return conn
 
 
+def _is_subagent_transcript(path):
+    """True for a file inside a `subagents/` directory (the documented
+    "<parent_session_id>/subagents/agent-<agentId>.jsonl" convention)."""
+    return os.path.basename(os.path.dirname(path)) == "subagents"
+
+
+def canonical_order(paths):
+    """Resolve every path with os.path.realpath, drop duplicates, and order
+    them parent transcripts first, then subagent transcripts, each group by
+    resolved path. The order no longer depends on how the caller spelled the
+    path (V1-I2): a parent is always read before a subagent that may replay
+    its turns."""
+    is_sub = {}
+    for p in paths:
+        real = os.path.realpath(p)
+        # A symlinked transcript counts as a subagent transcript when either
+        # the path as given or its target sits in a `subagents/` directory.
+        is_sub[real] = (is_sub.get(real, False) or _is_subagent_transcript(real)
+                        or _is_subagent_transcript(os.path.abspath(p)))
+    return sorted(is_sub, key=lambda p: (is_sub[p], p))
+
+
 def find_jsonl_files(path):
-    """Given a file or directory, return the sorted list of .jsonl files to
-    read. A single parent-transcript file also auto-discovers a sibling
-    "<stem>/subagents/*.jsonl" directory beside it (the real, documented
-    on-disk convention: "<parent_session_id>.jsonl" alongside
+    """Given a file or directory, return the .jsonl files to read, as
+    resolved paths in canonical_order(). A single parent-transcript file
+    also auto-discovers a sibling "<stem>/subagents/*.jsonl" directory
+    beside it (the real, documented on-disk convention:
+    "<parent_session_id>.jsonl" alongside
     "<parent_session_id>/subagents/agent-<agentId>.jsonl"), so the common
     "just point me at the top-level transcript" case still attributes its
     subagents without requiring the caller to pass the parent directory
@@ -531,10 +650,10 @@ def find_jsonl_files(path):
     if os.path.isdir(path):
         out = []
         for root, _dirs, names in os.walk(path):
-            for name in sorted(names):
+            for name in names:
                 if name.endswith(".jsonl"):
                     out.append(os.path.join(root, name))
-        return sorted(out)
+        return canonical_order(out)
     if os.path.isfile(path):
         out = [path]
         stem_dir = os.path.join(
@@ -543,10 +662,10 @@ def find_jsonl_files(path):
         )
         subagents_dir = os.path.join(stem_dir, "subagents")
         if os.path.isdir(subagents_dir):
-            for name in sorted(os.listdir(subagents_dir)):
+            for name in os.listdir(subagents_dir):
                 if name.endswith(".jsonl"):
                     out.append(os.path.join(subagents_dir, name))
-        return sorted(set(out))
+        return canonical_order(out)
     return []
 
 
@@ -555,7 +674,8 @@ def find_jsonl_files(path):
 # skipped a file or a line says so in its own result (T048 restart round-1,
 # class "absent evidence read as valid": these used to appear only as
 # scattered stderr warnings while the summary looked complete).
-READ_STATS = {"unreadable_files": 0, "unparseable_lines": 0, "invalid_utf8_lines": 0}
+READ_STATS = {"unreadable_files": 0, "unparseable_lines": 0, "invalid_utf8_lines": 0,
+              "malformed_fields": 0}
 
 
 def iter_records(filepath):
@@ -670,12 +790,26 @@ def build_dispatch_map(files):
 
 
 def _int_or_none(value):
-    if value is None:
+    """A token counter is a JSON integer. Anything else (a string, a bool, a
+    float, a list) is treated as ABSENT, so the turn is UNMEASURED with the
+    field named in missing_instrument, never coerced (T048 restart round 2,
+    class "abort loses the whole run": a list here used to reach the SQL
+    binding; `True` used to count as 1)."""
+    if isinstance(value, bool) or not isinstance(value, int):
         return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+    return value
+
+
+def _text(value):
+    """An identity field (msg id, uuid, timestamp, model, session id) is a
+    JSON string. Anything else is stored as NULL and counted in the run's
+    summary (malformed_fields) instead of reaching the SQL binding, where a
+    list or object raised and aborted the whole run (T048 restart round 2,
+    same class as R3-F2 and V1-I1)."""
+    if value is None or isinstance(value, str):
+        return value
+    READ_STATS["malformed_fields"] += 1
+    return None
 
 
 def classify_usage(it, ot, crt, cct, ref, filepath, usage_block_present=True):
@@ -734,12 +868,12 @@ def build_row(filepath, lineno, rec, dispatch_map):
     if not isinstance(msg, dict):
         return None
 
-    model = msg.get("model")
-    msg_id = msg.get("id")
+    model = _text(msg.get("model"))
+    msg_id = _text(msg.get("id"))
     usage = msg.get("usage")
 
-    record_uuid = rec.get("uuid")
-    ts = rec.get("timestamp")
+    record_uuid = _text(rec.get("uuid"))
+    ts = _text(rec.get("timestamp"))
     top_agent_id = rec.get("agentId")  # present only on a SUBAGENT's own records
 
     if isinstance(top_agent_id, str) and top_agent_id:
@@ -750,14 +884,14 @@ def build_row(filepath, lineno, rec, dispatch_map):
         # captured schema (this task's README); prefer it if a future
         # transcript shape ever does carry one, else fall back to the
         # parent's sessionId resolved via the dispatch map.
-        session_id = rec.get("sessionId") or attribution["session_id"]
+        session_id = _text(rec.get("sessionId")) or attribution["session_id"]
     else:
         agent_id = None
         item_id = None  # this tool does not (yet) item-attribute a parent
         # session's own top-level turns — only a DISPATCHED subagent's
         # usage is attributed to an item (plan T-A06 / RED test property
         # (d): "a subagent transcript -> attributed to its parent item").
-        session_id = rec.get("sessionId")
+        session_id = _text(rec.get("sessionId"))
 
     ref = msg_id or record_uuid or ("line %d" % lineno)
     if isinstance(usage, dict):
@@ -810,8 +944,15 @@ VALUES
      :cache_creation_input_tokens, :total_tokens);
 """
 
-UPDATE_USAGE_SQL = """
+# The columns that say WHERE a row came from and WHO it is attributed to.
+_IDENTITY_COLS = ("source_file", "lineno", "record_uuid", "session_id",
+                  "agent_id", "item_id", "ts")
+
+UPDATE_ROW_SQL = """
 UPDATE transcript_usage_events SET
+    source_file = :source_file, lineno = :lineno, record_uuid = :record_uuid,
+    session_id = :session_id, agent_id = :agent_id, item_id = :item_id,
+    ts = :ts,
     usage_status = :usage_status, missing_instrument = :missing_instrument,
     input_tokens = :input_tokens, output_tokens = :output_tokens,
     cache_read_input_tokens = :cache_read_input_tokens,
@@ -820,23 +961,34 @@ UPDATE transcript_usage_events SET
 WHERE row_hash = :row_hash;
 """
 
-_STORED_COLS = ("source_file", "lineno", "record_uuid", "msg_id") + CORE_FIELDS
+_STORED_COLS = _IDENTITY_COLS + ("msg_id", "usage_status") + CORE_FIELDS
 
 
 def upsert_row(conn, row):
     """Insert `row`, or merge it into the row already stored under the same
-    row_hash (per-field maximum, see merge_usage()). Returns one of
-    "new", "updated" (an existing row's counters grew) or "unchanged".
-    The identity columns of an existing row are never rewritten (module
-    docstring, IDEMPOTENCY section). A counter that DECREASES relative to
-    the stored row is reported on stderr; the maximum is still kept."""
+    row_hash (per-field maximum, see merge_usage()). Must run inside the
+    caller's write transaction (cmd_ingest's BEGIN IMMEDIATE), so the read
+    below and the write after it cannot interleave with another ingest.
+
+    Returns (outcome, reattribution, final_status): outcome is "new",
+    "updated" (an existing row's counters grew) or "unchanged";
+    reattribution is None, "to_parent" or "filled" (see the module
+    docstring, OWNERSHIP OF A ROW); final_status is the row's usage_status
+    after this call.
+
+    The identity columns of an existing row are rewritten in exactly one
+    case: the stored row came from a record WITH an agentId (a subagent's)
+    and `row` comes from a record WITHOUT one (the parent's own turn). A
+    NULL item_id / session_id is filled from a later record of the SAME
+    owner. A counter that DECREASES relative to the stored row is reported
+    on stderr; the maximum is still kept."""
     existing = conn.execute(
         "SELECT %s FROM transcript_usage_events WHERE row_hash = ?" % ", ".join(_STORED_COLS),
         (row["row_hash"],),
     ).fetchone()
     if existing is None:
         conn.execute(INSERT_SQL, row)
-        return "new"
+        return "new", None, row["usage_status"]
     stored = dict(zip(_STORED_COLS, existing))
     merged, decreased = merge_usage(stored, row)
     if decreased:
@@ -849,19 +1001,31 @@ def upsert_row(conn, row):
                {n: stored[n] for n in decreased}, {n: row[n] for n in decreased}),
             file=sys.stderr,
         )
-    if all(merged[n] == stored[n] for n in CORE_FIELDS):
-        return "unchanged"
-    ref = stored["msg_id"] or stored["record_uuid"] or ("line %s" % stored["lineno"])
+    identity = {c: stored[c] for c in _IDENTITY_COLS}
+    reattribution = None
+    if stored["agent_id"] is not None and row["agent_id"] is None:
+        identity = {c: row[c] for c in _IDENTITY_COLS}
+        reattribution = "to_parent"
+    elif stored["agent_id"] == row["agent_id"]:
+        for col in ("item_id", "session_id"):
+            if identity[col] is None and row[col] is not None:
+                identity[col] = row[col]
+                reattribution = "filled"
+    grew = any(merged[n] != stored[n] for n in CORE_FIELDS)
+    if not grew and reattribution is None:
+        return "unchanged", None, stored["usage_status"]
+    ref = stored["msg_id"] or identity["record_uuid"] or ("line %s" % identity["lineno"])
     status, missing, total = classify_usage(
         merged["input_tokens"], merged["output_tokens"],
         merged["cache_read_input_tokens"], merged["cache_creation_input_tokens"],
-        ref, stored["source_file"],
+        ref, identity["source_file"],
         usage_block_present=any(merged[n] is not None for n in CORE_FIELDS))
     params = dict(merged)
+    params.update(identity)
     params.update(row_hash=row["row_hash"], usage_status=status,
                   missing_instrument=missing, total_tokens=total)
-    conn.execute(UPDATE_USAGE_SQL, params)
-    return "updated"
+    conn.execute(UPDATE_ROW_SQL, params)
+    return ("updated" if grew else "unchanged"), reattribution, status
 
 
 def cmd_ingest(args):
@@ -883,33 +1047,50 @@ def cmd_ingest(args):
 
     for key in READ_STATS:
         READ_STATS[key] = 0
-    n_assistant_turns = n_new = n_updated = n_unchanged = n_measured = n_unmeasured = 0
-    for filepath in files:
-        for lineno, rec in iter_records(filepath):
-            row = build_row(filepath, lineno, rec, dispatch_map)
-            if row is None:
-                continue
-            n_assistant_turns += 1
-            outcome = upsert_row(conn, row)
-            if outcome == "new":
-                n_new += 1
-                if row["usage_status"] == MEASURED:
-                    n_measured += 1
-                else:
-                    n_unmeasured += 1
-            elif outcome == "updated":
-                n_updated += 1
-            else:
-                n_unchanged += 1
-    conn.commit()
+    counts = dict.fromkeys(("turns", "new", "updated", "unchanged", "to_parent", "filled"), 0)
+    final_status = {}
+    # V1-I1: the whole row pass is one write transaction taken BEFORE the
+    # first read, so a concurrent ingest on the same DB waits here instead
+    # of reading a row this run is about to insert.
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+    except sqlite3.OperationalError as exc:
+        print("transcript_ingest: could not take the write lock on --db %s within %ss "
+              "(another ingest is probably running): %s -- nothing was written; rerun "
+              "it, or raise FC_TELEMETRY_DB_LOCK_TIMEOUT_S" % (args.db, _lock_timeout_s(), exc),
+              file=sys.stderr)
+        return 1
+    try:
+        for filepath in files:
+            for lineno, rec in iter_records(filepath):
+                row = build_row(filepath, lineno, rec, dispatch_map)
+                if row is None:
+                    continue
+                counts["turns"] += 1
+                outcome, reattribution, status = upsert_row(conn, row)
+                counts[outcome] += 1
+                if reattribution:
+                    counts[reattribution] += 1
+                final_status[row["row_hash"]] = status
+        conn.execute("COMMIT")
+    except BaseException:
+        conn.execute("ROLLBACK")
+        raise
+    # measured / unmeasured count the DISTINCT rows this run read, by their
+    # state after the run (V1-M1): a row inserted unmeasured and completed by
+    # a later line counts once, as measured, exactly as the DB holds it.
+    n_measured = sum(1 for st in final_status.values() if st == MEASURED)
     print(
-        "transcript_ingest: files=%d assistant_turns_read=%d new=%d "
+        "transcript_ingest: files=%d assistant_turns_read=%d rows=%d new=%d "
         "measured=%d unmeasured=%d duplicate_merged_grew=%d "
-        "duplicate_unchanged=%d unreadable_files=%d unparseable_lines=%d "
-        "invalid_utf8_lines=%d db=%s"
-        % (len(files), n_assistant_turns, n_new, n_measured, n_unmeasured,
-           n_updated, n_unchanged, READ_STATS["unreadable_files"],
-           READ_STATS["unparseable_lines"], READ_STATS["invalid_utf8_lines"], args.db)
+        "duplicate_unchanged=%d reattributed_to_parent=%d attribution_filled=%d "
+        "unreadable_files=%d unparseable_lines=%d invalid_utf8_lines=%d "
+        "malformed_fields=%d db=%s"
+        % (len(files), counts["turns"], len(final_status), counts["new"], n_measured,
+           len(final_status) - n_measured, counts["updated"], counts["unchanged"],
+           counts["to_parent"], counts["filled"], READ_STATS["unreadable_files"],
+           READ_STATS["unparseable_lines"], READ_STATS["invalid_utf8_lines"],
+           READ_STATS["malformed_fields"], args.db)
     )
     return 0
 

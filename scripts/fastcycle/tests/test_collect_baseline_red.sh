@@ -22,6 +22,14 @@
 #   C-HE   a harness failure (a gate that cannot start) makes the run exit 4
 #          (the baseline is still written, with the reason per item).
 #   C-FRESH a --fresh-execution-json path that does not exist is refused.
+#   C-V43  (round 2, V4-3) "DEC-36 protocol met" is written only when every
+#          duration-eligible item really has >= 10 measured (PASS) cold and warm
+#          runs: a run in which every gate run crashed, a sample of zero items, or
+#          a run with zero measured runs exits 4 and never claims the protocol.
+#   C-V411 (round 2, V4-11) the token baseline never claims a corpus search this
+#          tool did not perform.
+#   C-V413 (round 2, V4-13) an item id that could escape --out-dir as a path
+#          ('/', '..', NUL, whitespace) is refused before anything is written.
 #
 # Env: FC_CB_UNDER_TEST (collect_baseline.py path), FC_BR_UNDER_TEST
 # (baseline_replay.sh path) -- the paired-mutation runner points these at mutants.
@@ -118,7 +126,7 @@ run_cb() {
   local od="$1"; shift
   python3 "$CB" --as-of 2026-08-01 --window-days 30 --min-per-type 5 --repo-root "$REPO" \
     --db-path "$DB" --out-dir "$od" --select-sample-bin "$SS" --baseline-replay-bin "$BR" \
-    --worktree-root "$WORK/wt" --min-free-kb 0 --plausible-floor-ms 0 --timeout-s 60 "$@" \
+    --worktree-root "$WORK/wt" --min-free-kb 0 --min-free-kb-objects 0 --plausible-floor-ms 0 --timeout-s 60 "$@" \
     >"$od.stdout" 2>"$od.stderr"
   CB_RC=$?
 }
@@ -181,7 +189,9 @@ if want C-F21; then
   OD="$WORK/full"
   run_cb "$OD" --gate-cmd true --cold-runs 10 --warm-runs 10
   NOTE2="$(jget "$OD/baseline.json" 'd["gate_window_replay"]["full_protocol_note"]')"
-  case "$NOTE2" in *"OWED FOLLOW-UP"*) good2=0 ;; *) good2=1 ;; esac
+  # positive control for the V4-3 rule: a run in which every eligible item has
+  # 10/10 measured PASS runs is the one case that may say "protocol met"
+  case "$NOTE2" in *"OWED FOLLOW-UP"*) good2=0 ;; *"protocol met"*) good2=1 ;; *) good2=0 ;; esac
   if [ "$good1" = 1 ] && [ "$good2" = 1 ] && [ "$CB_RC" = 0 ]; then
     ok "[C-F21] the owed-follow-up note appears for a reduced run (1 of 6 items) and not for a full 10/10 run over every eligible item"
   else
@@ -220,6 +230,102 @@ if want C-FRESH; then
     ok "[C-FRESH] a --fresh-execution-json path that does not exist is refused (exit 2), not recorded as NOT_YET_RECORDED"
   else
     bad "[C-FRESH] missing --fresh-execution-json file: rc=$CB_RC -- a typo'd path hid behind an honest-looking status"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
+if want C-V43; then
+  OD="$WORK/allcrash"
+  run_cb "$OD" --gate-cmd false --cold-runs 10 --warm-runs 10
+  B="$OD/baseline.json"
+  NOTE="$(jget "$B" 'd["gate_window_replay"]["full_protocol_note"]')"
+  NR="$(jget "$B" 'd["gate_window_replay"]["overall_medians"]["cold"]["n_runs"] + d["gate_window_replay"]["overall_medians"]["warm"]["n_runs"]')"
+  case "$NOTE" in *"protocol met"*) met=1 ;; *) met=0 ;; esac
+  if [ "$CB_RC" = 4 ] && [ "$met" = 0 ] && [ "$NR" = 0 ] && [ -f "$B" ]; then
+    ok "[C-V43] every gate run crashed (10/10 x 6 items, 0 measured): exit 4, the note does not claim the protocol ('${NOTE:0:90}...')"
+  else
+    bad "[C-V43] all-crash run: rc=$CB_RC measured-runs=$NR note='$NOTE' -- 'protocol met' with nothing measured"
+  fi
+  # one item short of 10 PASS runs (ATM-954 crashes) with 10/10 requested: not met
+  OD="$WORK/onecrash"
+  run_cb "$OD" --gate-cmd "$GATE" --cold-runs 10 --warm-runs 10
+  NOTE="$(jget "$OD/baseline.json" 'd["gate_window_replay"]["full_protocol_note"]')"
+  case "$NOTE" in *"protocol met"*) met=1 ;; *) met=0 ;; esac
+  if [ "$CB_RC" = 0 ] && [ "$met" = 0 ] && case "$NOTE" in *ATM-954*) true ;; *) false ;; esac; then
+    ok "[C-V43] one item whose every run crashed (ATM-954): the protocol is NOT claimed met and the item is named"
+  else
+    bad "[C-V43] one all-crash item: rc=$CB_RC note='$NOTE' -- an item with zero measured runs was counted as replayed to protocol"
+  fi
+  # zero items in the sample: exit 4, never "met"
+  OD="$WORK/zeroitems"
+  run_cb "$OD" --gate-cmd true --cold-runs 10 --warm-runs 10 --as-of 2026-08-01 --window-days 1
+  NOTE="$(jget "$OD/baseline.json" 'd["gate_window_replay"]["full_protocol_note"]')"
+  NI="$(jget "$OD/baseline.json" 'd["sample"]["total_items"]')"
+  case "$NOTE" in *"protocol met"*) met=1 ;; *) met=0 ;; esac
+  if [ "$CB_RC" = 4 ] && [ "$NI" = 0 ] && [ "$met" = 0 ]; then
+    ok "[C-V43] a sample of zero items exits 4 and does not claim the protocol"
+  else
+    bad "[C-V43] zero-item sample: rc=$CB_RC items=$NI note='$NOTE'"
+  fi
+  # zero items under --skip-gate-replay too: a dry run over nothing is still
+  # UNMEASURED (exit 4), never an honest-looking dry run
+  OD="$WORK/zeroitems_dry"
+  run_cb "$OD" --skip-gate-replay --as-of 2026-08-01 --window-days 1
+  if [ "$CB_RC" = 4 ]; then
+    ok "[C-V43] a zero-item sample exits 4 even under --skip-gate-replay"
+  else
+    bad "[C-V43] zero-item sample under --skip-gate-replay: rc=$CB_RC -- a baseline of nothing exited as a successful dry run"
+  fi
+  # --skip-gate-replay: an honest dry run (exit 0), but never "protocol met"
+  OD="$WORK/dryrun"
+  run_cb "$OD" --gate-cmd true --cold-runs 10 --warm-runs 10 --skip-gate-replay
+  NOTE="$(jget "$OD/baseline.json" 'd["gate_window_replay"]["full_protocol_note"]')"
+  case "$NOTE" in *"protocol met"*) met=1 ;; *) met=0 ;; esac
+  if [ "$CB_RC" = 0 ] && [ "$met" = 0 ]; then
+    ok "[C-V43] --skip-gate-replay is a dry run (exit 0) whose note does not claim the protocol"
+  else
+    bad "[C-V43] --skip-gate-replay: rc=$CB_RC note='$NOTE'"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
+if want C-V411; then
+  OD="$WORK/tokens"
+  run_cb "$OD" --skip-gate-replay
+  RS="$(jget "$OD/baseline.json" 'sorted({i["reason"] for i in d["token_baseline"]["per_item"]})')"
+  case "$RS" in *"corpus search"*|*"found by direct"*) claim=1 ;; *) claim=0 ;; esac
+  if [ "$CB_RC" = 0 ] && [ "$claim" = 0 ] && case "$RS" in *"performs no"*) true ;; *) false ;; esac; then
+    ok "[C-V411] the token baseline states that this tool searched nothing, and claims no corpus search"
+  else
+    bad "[C-V411] token reasons=$RS (rc=$CB_RC) -- a corpus search this tool never ran is claimed for every item"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
+if want C-V413; then
+  DB2="$WORK/items_bad.db"
+  cp "$DB" "$DB2"
+  python3 - "$DB2" <<'PY'
+import sqlite3, sys
+c = sqlite3.connect(sys.argv[1])
+bad = "ATM-9/../../../escaped"
+c.execute("INSERT INTO items VALUES (?, 'Bug')", (bad,))
+for ev, day in (("Opened", "2026-07-04"), ("Fixed", "2026-07-21")):
+    c.execute("INSERT INTO item_history (atm_id, event_type, by, on_date, reason, evidence_path, created_at) "
+              "VALUES (?, ?, 'test', ?, NULL, 'qa/x.md', ?)", (bad, ev, day, day + "T00:00:00Z"))
+c.commit()
+PY
+  OD="$WORK/v413/out"
+  mkdir -p "$WORK/v413"
+  python3 "$CB" --as-of 2026-08-01 --window-days 30 --min-per-type 50 --repo-root "$REPO" \
+    --db-path "$DB2" --out-dir "$OD" --select-sample-bin "$SS" --baseline-replay-bin "$BR" --skip-gate-replay \
+    >"$WORK/v413.stdout" 2>"$WORK/v413.stderr"; rc=$?
+  INS="$(jget "$OD/sample.json" '[i["item_id"] for i in d.get("items", []) if "/" in i["item_id"]]')"
+  ESC="$(find "$WORK" -name 'escaped.json' 2>/dev/null | head -1)"
+  if [ "$rc" = 4 ] && [ "$INS" != "[]" ] && [ -z "$ESC" ] && grep -q "ATM-9/../../../escaped" "$WORK/v413.stderr"; then
+    ok "[C-V413] a sampled item id holding '/' and '..' is refused (exit 4, id named) and nothing is written for it"
+  else
+    bad "[C-V413] unsafe id: rc=$rc sampled=$INS escaped-file='$ESC' -- a DB item id was used as a path ($(tail -c 200 "$WORK/v413.stderr"))"
   fi
 fi
 

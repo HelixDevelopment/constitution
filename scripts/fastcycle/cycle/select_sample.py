@@ -26,17 +26,29 @@ documented per task instruction -- DEC-03's own text leaves three concrete
 mechanics unstated; each is resolved below citing the nearest settled
 precedent in THIS tree, never invented from nothing per S11.4.6)
 =============================================================================
-(1) "Bug >=5 (21 available)" -- per-type SELECTION size. A stratum with
-    MORE than --min-per-type candidates selects the --min-per-type MOST
-    RECENT candidates ranked by closure_recency_key() (the as-of latest
-    closure event's created_at, then its row id, then atm_id as the last
-    tie-breaker -- NEVER the atm_id string alone: the N2 fix, see that
-    function); a stratum with FEWER selects all of them. `below_required`
-    is computed on the USABLE count (`n_usable` = selected rows NOT
-    excluded_from_duration), never on `n_available` (R5 B2, T048 restart
-    round 1: a stratum of 5 selected rows of which 4 are bulk-import rows
-    has ONE usable row and is below the requirement -- "selected" is not
-    "usable", S11.4.201(9)).
+(1) "Bug >=5 (21 available)" -- per-type SELECTION size, in USABLE rows.
+    OPERATOR-DECISION-RECORDED (T048 restart round 2, V2-1): DEC-03 /
+    research.md is silent on whether a row "excluded from duration
+    statistics but listed" counts toward the >=5 quota. Clarification Q3
+    asks for >=5 items per type whose durations can be measured, and a
+    quota consumed by unusable rows starves the baseline (measured live,
+    as-of 2026-08-23 / 90 d / N=5 under the round-1 rule: Bug 1 usable of 5
+    selected while 27 usable existed; Task 0 of 5 while 22 existed), so the
+    rule implemented is: EXCLUDE FIRST, then take the most-recent N USABLE
+    rows. Candidates of a type are walked most-recent-first by
+    closure_recency_key() (the as-of latest closure event's created_at, then
+    its row id, then atm_id as the last tie-breaker -- never the atm_id
+    string alone: the N2 fix); a usable row is TAKEN until N are taken, an
+    excluded row encountered on the way is LISTED (it would have consumed
+    a slot under the other reading, so it stays visible); the walk stops at
+    the N-th usable row. The other reading is ONE constant away:
+    EXCLUDED_ROWS_COUNT_TOWARD_N = True restores "most-recent N rows, usable
+    or not". The chosen rule is echoed in every report
+    (`selection_rule`). `below_required` is computed on the USABLE count
+    (`n_usable`), never on `n_available` (R5 B2: "selected" is not "usable",
+    S11.4.201(9)). The SAME classifier (classify_exclusions) and the SAME
+    walk (select_from_histories) are imported by cycle_report.py -- one
+    implementation of "usable", never two copies (V2-2).
 (2) "Bulk-import rows (P-04) and retroactive registrations... are excluded
     from duration statistics but listed" -- UNLIKE cycle_report.py's own
     CT-001 (which drops bulk rows from `selected` entirely into a separate
@@ -49,30 +61,25 @@ precedent in THIS tree, never invented from nothing per S11.4.6)
     `exclusion_reason` on the item itself -- nothing is ever removed from
     `items` (S11.4.6: DEC-03's own words govern over a same-repo sibling
     tool's partial, differently-scoped convention). Bulk-import clustering
-    reuses cycle_report.py's (dirname(evidence_path), on_date) key AND its
-    default --bulk-threshold (10) verbatim, but NOT its clustering SCOPE:
-    cycle_report.py groups clusters PER-TYPE (its full-sampling branch
-    re-initialises its `clusters = {}` dict inside its per-type
-    `for itype, ids in sorted(by_type.items()):` loop), while this module groups
-    clusters ONCE over the CROSS-TYPE UNION `all_candidate_ids` -- a real,
-    currently-undocumented-until-this-review divergence (T043 independent
-    review, 2026-09-28), NOT reconciled here: verified directly against
-    the live DB that a real same-dated 8-item Task cluster combines under
-    this module's cross-type scoping with a same-dated 50-item Bug cluster
-    into one 58-item group clearing --bulk-threshold=10, where
-    cycle_report.py's per-type scoping would NOT flag that 8-item Task
-    cluster alone (8 < 10). Cross-type scoping is arguably the more
-    conservative choice for THIS module's purpose (it flags a superset of
-    what per-type scoping would, erring toward excluding-from-duration
-    rather than including a possible bulk-import row) but S11.4.6 forbids
-    calling it "exact" reuse of cycle_report.py's rule when the scope
-    differs; whether to align the two modules' scoping, or keep this
-    module's broader one deliberately, is an open S11.4.66 design decision
-    tracked as a follow-up, not settled by this docstring correction.
-    Retroactive-registration reuses cycle_report.py's exact Opened-
-    db_write-to-terminal-closure-db_write < 60s rule (scope-neutral: it
-    runs per-candidate, not per-cluster, so no analogous divergence
-    exists).
+    groups candidates by the (dirname(evidence_path), on_date) key of their
+    latest as-of closure with a default --bulk-threshold of 10, ONCE over the
+    CROSS-TYPE union of every window candidate (the contract's own wording,
+    "closure rows sharing one evidence directory and one on_date", names no
+    type). OPERATOR-DECISION-RECORDED (T048 restart round 2, V2-2): until
+    round 2 cycle_report.py clustered PER-TYPE with its own copy of this
+    code, so the two tools could disagree about which rows are usable
+    (measured live: a same-dated 8-item Task cluster joins a 50-item Bug
+    cluster cross-type but not per-type). There is now ONE classifier,
+    classify_exclusions() below, imported by cycle_report.py; the
+    cross-type scope was kept because it is the literal contract reading
+    and flags a superset (it errs toward excluding a possible bulk-import
+    row from duration statistics). The per-type reading is a one-line
+    change at classify_exclusions' call sites (pass one type's ids at a
+    time). The retroactive-registration rule (Opened db_write to terminal
+    closure db_write in [0, 60) s) is detect_retroactive_registration(),
+    also imported by cycle_report.py; closure/reopen_rate.py keeps its own
+    copy (another area's file) and is cross-checked against this one by
+    tests/test_select_sample_r5_regression.sh S7.
 (4) AS-OF CUTOFF (R5 B1, T048 restart round 1). Every item_history read
     is cut at --as-of: rows whose on_date (calendar day) is AFTER --as-of
     are invisible to ranking, bulk clustering and the retroactive rule
@@ -87,7 +94,26 @@ precedent in THIS tree, never invented from nothing per S11.4.6)
 (3) Reopened-in-window inclusion is UNCONDITIONAL (DEC-03: "plus every item
     reopened in the window") -- a reopened item is added to `items`
     regardless of whether its type-stratum already filled its N slots and
-    regardless of any bulk/retroactive flag it may also carry.
+    regardless of any bulk/retroactive flag it may also carry. "Reopened in
+    the window" is decided by reopened_in_window() on the as-of history
+    (one definition, also used by cycle_report.py); the window SQL query is
+    only the candidate-discovery step.
+(5) CURRENT-STATE INPUT (V2-7): items.type is read as it is TODAY. The
+    tracker keeps no history of an item's type (`workable-items update
+    --type` writes only a generic 'Updated' row), so a retype after the
+    as-of date moves an item between strata and is not frozen by --as-of.
+    Every report states this under `current_state_inputs`.
+(6) CT-009 NEEDLE AT THE AS-OF (V2-8): the default needle row (ATM-953
+    Fixed 2026-07-28) is a FUTURE row for any --as-of before 2026-07-28.
+    When no --needle-* flag is given and the default's date is after
+    --as-of, the needle is derived from the DB at the as-of: the most
+    recent closure row dated <= --as-of (resolve_needle()). If NO row at all
+    is dated <= --as-of (a window before the tracker began), the default row
+    is used as given (source "default-postdates-as-of": it proves the reader
+    sees the table and never feeds the report); if it is absent too the
+    needle fails and the tool exits 3. Explicit overrides are always
+    honoured as given. The needle actually used is recorded in
+    run_meta.needle.
 
 =============================================================================
 LIVE-DB VERIFICATION AGAINST research.md's CITED FIGURES (S11.4.6: verified
@@ -129,9 +155,10 @@ CLI
     select_sample.py --as-of YYYY-MM-DD --window-days N [--min-per-type 5]
         [--bulk-threshold 10] [--db-path PATH] [--repo-root DIR] --out PATH
         [--md PATH] [--determinism-check]
-        [--needle-present-id ATM-953] [--needle-fixed-event Fixed]
-        [--needle-fixed-on-date 2026-07-28]
-        [--needle-fabricated-id ATM-99999-NEGATIVE-CONTROL]
+        [--needle-present-id ID] [--needle-fixed-event EVENT]
+        [--needle-fixed-on-date YYYY-MM-DD] [--needle-fabricated-id ID]
+        (defaults: ATM-953 Fixed 2026-07-28 / ATM-99999-NEGATIVE-CONTROL;
+        derived at the as-of when the default postdates it -- point 6)
 
 Exit codes (C-001's uniform 5-code table, same mapping cycle_report.py's own
 docstring already uses for this exact tool family): 0 selection written
@@ -169,6 +196,25 @@ body_hash_of = fc_common.body_hash_of
 SCHEMA = "baseline-sample/v1"
 ITEM_TYPES = ("Bug", "Feature", "Task")
 CLOSURE_EVENTS = ("Fixed", "Implemented", "Completed")
+
+# OPERATOR-DECISION-RECORDED (T048 restart round 2, V2-1; module docstring
+# point 1): False = exclude first, then take the most-recent N USABLE rows
+# (excluded rows walked past are listed). True = the other DEC-03 reading,
+# "most-recent N rows, usable or not". Change this one line to switch.
+EXCLUDED_ROWS_COUNT_TOWARD_N = False
+
+# CT-009 default needle (module docstring point 6).
+DEFAULT_NEEDLE = ("ATM-953", "Fixed", "2026-07-28")
+DEFAULT_FABRICATED_ID = "ATM-99999-NEGATIVE-CONTROL"
+
+# V2-7: inputs read as they are TODAY, not as of --as-of (point 5).
+CURRENT_STATE_INPUTS = [{
+    "field": "items.type",
+    "used_for": "stratum assignment (strata keys, items[].type)",
+    "frozen_by_as_of": False,
+    "reason": "the tracker keeps no type history: `workable-items update --type` writes only a "
+              "generic 'Updated' row, so a retype after the as-of date moves an item between strata",
+}]
 
 
 def default_repo_root():
@@ -227,7 +273,7 @@ def db_closures_in_window(conn, frm, to):
         "SELECT DISTINCT ih.atm_id, i.type "
         "FROM item_history ih JOIN items i ON i.atm_id = ih.atm_id "
         "WHERE ih.event_type IN ('Fixed','Implemented','Completed') "
-        "AND ih.on_date BETWEEN ? AND ?",
+        "AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?",
         (frm, to),
     )
     return cur.fetchall()
@@ -237,20 +283,37 @@ def db_reopened_in_window(conn, frm, to):
     cur = conn.execute(
         "SELECT DISTINCT ih.atm_id, i.type "
         "FROM item_history ih JOIN items i ON i.atm_id = ih.atm_id "
-        "WHERE ih.event_type = 'Reopened' AND ih.on_date BETWEEN ? AND ?",
+        "WHERE ih.event_type = 'Reopened' AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?",
         (frm, to),
     )
     return cur.fetchall()
 
 
 def history_upto(history, as_of):
-    """R5 B1 fix: the as-of cutoff. Keeps only rows whose on_date calendar
-    day is <= as_of (a full-timestamp on_date is compared on its first 10
-    chars, the same day-granular rule closure/reopen_rate.py's _day() uses).
-    A row with no on_date is dropped (it cannot be placed before the
-    cutoff; on_date is NOT NULL in the real schema, so this only guards
-    malformed fixtures)."""
+    """R5 B1 fix: the as-of cutoff -- THE one implementation, also used by
+    cycle_report.py. Keeps only rows whose on_date calendar day is <= as_of
+    (a full-timestamp on_date is compared on its first 10 chars, the same
+    day-granular rule closure/reopen_rate.py's _day() and the window SQL
+    queries above use). A row dated ON the as-of day is kept (V2-4). A row
+    with no on_date is dropped (it cannot be placed before the cutoff;
+    on_date is NOT NULL in the real schema, so this only guards malformed
+    fixtures)."""
     return [r for r in history if r.get("on_date") and r["on_date"][:10] <= as_of]
+
+
+def closed_in_window(history, frm, to):
+    """THE "closed in the window" rule: a closure event whose on_date calendar
+    day lies in [frm, to], both ends inclusive."""
+    return any(r["event_type"] in CLOSURE_EVENTS and frm <= (r.get("on_date") or "")[:10] <= to
+               for r in history)
+
+
+def reopened_in_window(history, window):
+    """THE "reopened in the window" rule (both tools): a Reopened row whose
+    on_date calendar day lies in [window.from, window.to], both ends
+    inclusive (V2-4: a row ON window.from counts)."""
+    return any(r["event_type"] == "Reopened" and window["from"] <= (r.get("on_date") or "")[:10] <= window["to"]
+               for r in history)
 
 
 def db_item_history(conn, item_id, as_of):
@@ -306,6 +369,38 @@ def closure_recency_key(history_by_id, atm_id):
 # run_needle: a known-present closure event MUST be found, a fabricated id
 # MUST NOT.
 # ---------------------------------------------------------------------------
+def resolve_needle(conn, present_id, present_event, present_date, fabricated_id, as_of):
+    """V2-8 (module docstring point 6). Returns the needle to run. The CLI
+    passes None for every --needle-* flag the caller did not give."""
+    if any(v is not None for v in (present_id, present_event, present_date)):
+        d_id, d_ev, d_date = DEFAULT_NEEDLE
+        return {"source": "override", "present_id": present_id or d_id,
+                "present_event": present_event or d_ev, "present_on_date": present_date or d_date,
+                "fabricated_id": fabricated_id or DEFAULT_FABRICATED_ID}
+    d_id, d_ev, default_date = DEFAULT_NEEDLE
+    if default_date <= as_of:
+        return {"source": "default", "present_id": d_id, "present_event": d_ev,
+                "present_on_date": default_date,
+                "fabricated_id": fabricated_id or DEFAULT_FABRICATED_ID}
+    row = conn.execute(
+        "SELECT atm_id, event_type, on_date FROM item_history "
+        "WHERE event_type IN ('Fixed','Implemented','Completed') AND substr(on_date, 1, 10) <= ? "
+        "ORDER BY substr(on_date, 1, 10) DESC, id DESC LIMIT 1", (as_of,)).fetchone()
+    if row is None:
+        # Nothing at all is dated <= as-of (e.g. an empty window long before
+        # the tracker began): no as-of row can prove the reader sees data, so
+        # the default row is used as given -- it proves the reader sees the
+        # table, never contributes to the report, and run_needle() still fails
+        # closed (exit 3) if it is absent too.
+        return {"source": "default-postdates-as-of", "present_id": d_id, "present_event": d_ev,
+                "present_on_date": default_date,
+                "fabricated_id": fabricated_id or DEFAULT_FABRICATED_ID,
+                "why": "no closure row is dated <= --as-of %s to derive a needle from" % as_of}
+    return {"source": "derived-at-as-of", "present_id": row[0], "present_event": row[1],
+            "present_on_date": row[2], "fabricated_id": fabricated_id or DEFAULT_FABRICATED_ID,
+            "why": "default needle row %s %s/%s postdates --as-of %s" % (d_id, d_ev, default_date, as_of)}
+
+
 def run_needle(conn, present_id, present_event, present_date, fabricated_id):
     cur = conn.execute(
         "SELECT event_type, on_date FROM item_history WHERE atm_id = ? "
@@ -360,8 +455,10 @@ def detect_bulk_import_clusters(history_by_id, candidate_ids, bulk_threshold):
 
 
 def detect_retroactive_registration(history):
-    """Opened db_write -> terminal closure db_write gap in [0, 60) seconds
-    (identical rule to cycle_report.py's flag_retroactive_registration)."""
+    """Opened db_write -> terminal closure db_write gap in [0, 60) seconds.
+    THE one implementation in the cycle tools (cycle_report.py imports it as
+    its RETROACTIVE_REGISTRATION flag); a negative gap (closure row written
+    before the Opened row) is NOT a retroactive registration (V2-4)."""
     opened = next((r for r in history if r["event_type"] == "Opened"), None)
     closed = next((r for r in reversed(history) if r["event_type"] in CLOSURE_EVENTS), None)
     if not opened or not closed:
@@ -373,6 +470,89 @@ def detect_retroactive_registration(history):
     return 0 <= gap < 60
 
 
+RETROACTIVE_REASON = "retroactive-registration (Opened->closure db_write gap < 60s)"
+
+
+def classify_exclusions(history_by_id, candidate_ids, bulk_threshold):
+    """THE usable/excluded classifier (V2-2: imported by cycle_report.py,
+    never copied). `history_by_id` must already be cut at the as-of.
+    Returns {atm_id: exclusion_reason or None}; None = usable for duration
+    statistics."""
+    bulk_flagged = detect_bulk_import_clusters(history_by_id, candidate_ids, bulk_threshold)
+    exclusion_by_id = {}
+    for atm_id in sorted(candidate_ids):
+        reason = None
+        if atm_id in bulk_flagged:
+            dirname, on_date = bulk_flagged[atm_id]
+            reason = "bulk-import-cluster (dir=%s, on_date=%s, threshold=%d)" % (
+                dirname, on_date, bulk_threshold)
+        elif detect_retroactive_registration(history_by_id.get(atm_id, [])):
+            reason = RETROACTIVE_REASON
+        exclusion_by_id[atm_id] = reason
+    return exclusion_by_id
+
+
+def select_from_histories(by_type, history_by_id, exclusion_by_id, min_per_type, take_all=False):
+    """THE per-type selection walk and stratum count (V2-1/V2-2: imported by
+    cycle_report.py). `by_type` maps type -> ids with a closure event in the
+    window. Returns (strata, picked_by_type, listed_by_type).
+
+    take_all=False: module docstring point 1 (exclude first, most-recent N
+    usable, excluded rows walked past are listed; or the other reading when
+    EXCLUDED_ROWS_COUNT_TOWARD_N). take_all=True: every candidate is taken
+    (cycle_report.py's single-item and --window-json modes) and only the
+    counts are shared.
+
+    Every stratum count the two tools report comes from here:
+      n_available        candidates of the type with a closure in the window
+      n_usable_available of those, not excluded
+      n_selected         taken into the sample
+      n_usable           taken AND usable -- the honesty count
+      n_listed_excluded  excluded rows listed (not taken)
+      below_required     n_usable < min_per_type"""
+    strata, picked_by_type, listed_by_type = {}, {}, {}
+    for t in ITEM_TYPES:
+        # N2 fix: REAL-RECENCY order (closure_recency_key), never atm_id text.
+        ids = sorted(by_type.get(t, set()), key=lambda i: closure_recency_key(history_by_id, i))
+        n_available = len(ids)
+        picked, listed = [], []
+        if take_all:
+            picked = list(ids)
+        elif EXCLUDED_ROWS_COUNT_TOWARD_N:
+            picked = ids[-min_per_type:] if n_available > min_per_type else list(ids)
+        else:
+            for atm_id in reversed(ids):
+                if len(picked) >= min_per_type:
+                    break
+                if exclusion_by_id[atm_id] is None:
+                    picked.append(atm_id)
+                else:
+                    listed.append(atm_id)
+        n_usable = sum(1 for i in picked if exclusion_by_id[i] is None)
+        strata[t] = {
+            "n_available": n_available,
+            "n_usable_available": sum(1 for i in ids if exclusion_by_id[i] is None),
+            "n_selected": len(picked),
+            "n_usable": n_usable,
+            "n_listed_excluded": len(listed),
+            "below_required": n_usable < min_per_type,
+        }
+        picked_by_type[t] = picked
+        listed_by_type[t] = listed
+    return strata, picked_by_type, listed_by_type
+
+
+def selection_rule(take_all=False):
+    """The rule actually applied, echoed into every report (point 1)."""
+    if take_all:
+        return {"mode": "take-all-candidates", "excluded_rows_count_toward_n": None}
+    return {"mode": "most-recent-n-per-type",
+            "excluded_rows_count_toward_n": EXCLUDED_ROWS_COUNT_TOWARD_N,
+            "decision": "OPERATOR-DECISION-RECORDED (T048 restart round 2, V2-1): DEC-03 is silent; "
+                        "a quota eaten by unusable rows starves the baseline, so excluded rows are "
+                        "listed but do not count toward N"}
+
+
 # ---------------------------------------------------------------------------
 # Core selection (DEC-03)
 # ---------------------------------------------------------------------------
@@ -382,89 +562,58 @@ def select_sample(conn, window, min_per_type, bulk_threshold):
     closures = db_closures_in_window(conn, frm, to)
     reopens = db_reopened_in_window(conn, frm, to)
 
-    by_type = {}
-    for atm_id, itype in closures:
-        by_type.setdefault(itype, set()).add(atm_id)
-    reopened_ids = {atm_id for atm_id, _ in reopens}
-    reopened_type = {atm_id: itype for atm_id, itype in reopens}
-
-    all_candidate_ids = set()
-    for ids in by_type.values():
-        all_candidate_ids |= ids
-    all_candidate_ids |= reopened_ids
-
-    if not all_candidate_ids:
+    type_of = {atm_id: itype for atm_id, itype in list(closures) + list(reopens)}
+    if not type_of:
         return None  # NO_DATA_IN_WINDOW
+    # Every candidate's history is resolved ONCE, cut at the as-of, and every
+    # decision below (window membership, ranking, exclusion) reads only it.
+    history_by_id = {atm_id: db_item_history(conn, atm_id, as_of) for atm_id in type_of}
+    return select_population(type_of, history_by_id, window, min_per_type, bulk_threshold)
 
-    # N2 fix (T048 round-2 review): resolve every candidate's history ONCE,
-    # up front, so both the recency-sort key below AND the per-item
-    # exclusion-detection loop further down reuse it (never a stale/second
-    # DB round-trip that could observe a different row set mid-selection).
-    history_by_id = {atm_id: db_item_history(conn, atm_id, as_of) for atm_id in all_candidate_ids}
 
-    bulk_flagged = detect_bulk_import_clusters(history_by_id, all_candidate_ids, bulk_threshold)
+def select_population(type_of, history_by_id, window, min_per_type, bulk_threshold, take_all=False):
+    """THE DEC-03 selection over a candidate population (V2-2: cycle_report.py
+    calls this same function in every mode, so both tools report the same
+    items, exclusions and stratum counts for the same window).
 
-    # Exclusion reason per candidate, computed ONCE before stratification so
-    # the strata's usable counts (R5 B2) and the items[] array agree by
-    # construction.
-    exclusion_by_id = {}
-    for atm_id in all_candidate_ids:
-        reason = None
-        if atm_id in bulk_flagged:
-            dirname, on_date = bulk_flagged[atm_id]
-            reason = "bulk-import-cluster (dir=%s, on_date=%s, threshold=%d)" % (
-                dirname, on_date, bulk_threshold)
-        elif detect_retroactive_registration(history_by_id[atm_id]):
-            reason = "retroactive-registration (Opened->closure db_write gap < 60s)"
-        exclusion_by_id[atm_id] = reason
+    type_of: {atm_id: type} -- every candidate (the window SQL queries are
+    only the DISCOVERY step); history_by_id: {atm_id: history cut at the
+    as-of}. Window membership is re-decided on the cut history by the same
+    day-granular rules (closed_in_window / reopened_in_window).
 
-    strata = {}
-    selected_by_type = {}
+    Returns {strata, reopened_in_window, items, exclusion_by_id}."""
+    frm, to = window["from"], window["to"]
+    by_type = {}
+    for atm_id in sorted(type_of):
+        if closed_in_window(history_by_id.get(atm_id, []), frm, to):
+            by_type.setdefault(type_of[atm_id], set()).add(atm_id)
+    reopened_ids = {atm_id for atm_id in type_of
+                    if reopened_in_window(history_by_id.get(atm_id, []), window)}
+
+    exclusion_by_id = classify_exclusions(history_by_id, set(type_of), bulk_threshold)
+    strata, picked_by_type, listed_by_type = select_from_histories(
+        by_type, history_by_id, exclusion_by_id, min_per_type, take_all=take_all)
+
+    reason_by_id = {}
     for t in ITEM_TYPES:
-        # N2 fix (T048 round-2 review): "most recent min_per_type" is a
-        # REAL-RECENCY selection (closure_recency_key, above) -- NOT a
-        # lexicographic atm_id string sort (the CT-001/DEC-03 bug this
-        # fixes; see closure_recency_key's own docstring for the measured
-        # ATM-1002/ATM-953 counter-example).
-        ids = sorted(by_type.get(t, set()), key=lambda i: closure_recency_key(history_by_id, i))
-        n_available = len(ids)
-        if n_available > min_per_type:
-            picked = ids[-min_per_type:]
-        else:
-            picked = list(ids)
-        # R5 B2 fix: "selected" is not "usable" -- a selected row that is
-        # excluded_from_duration (bulk import / retroactive registration)
-        # contributes nothing to the duration statistics this sample exists
-        # for, so the honesty flag is computed on the usable count.
-        n_usable = sum(1 for i in picked if exclusion_by_id[i] is None)
-        strata[t] = {
-            "n_available": n_available,
-            "n_selected": len(picked),
-            "n_usable": n_usable,
-            "below_required": n_usable < min_per_type,
-        }
-        selected_by_type[t] = set(picked)
-
-    selected_ids = set()
-    for t in ITEM_TYPES:
-        selected_ids |= selected_by_type[t]
-    selected_ids |= reopened_ids
+        for atm_id in listed_by_type[t]:
+            reason_by_id[atm_id] = "listed-excluded-%s" % t.lower()
+        for atm_id in picked_by_type[t]:
+            reason_by_id[atm_id] = "sampled-%s" % t.lower()
+    for atm_id in reopened_ids:
+        reason_by_id[atm_id] = "reopened-in-window"
+    if take_all:
+        # every candidate is in the report, closure-in-window or not
+        for atm_id in type_of:
+            reason_by_id.setdefault(atm_id, "sampled-%s" % type_of[atm_id].lower())
 
     items = []
-    for atm_id in sorted(selected_ids):
-        if atm_id in reopened_ids:
-            itype = reopened_type[atm_id]
-            selection_reason = "reopened-in-window"
-        else:
-            itype = next(t for t in ITEM_TYPES if atm_id in selected_by_type[t])
-            selection_reason = "sampled-%s" % itype.lower()
-
+    for atm_id in sorted(reason_by_id):
         exclusion_reason = exclusion_by_id[atm_id]
-
         items.append({
             "item_id": atm_id,
-            "type": itype,
-            "selection_reason": selection_reason,
+            "type": type_of[atm_id],
+            "selection_reason": reason_by_id[atm_id],
             "excluded_from_duration": exclusion_reason is not None,
             "exclusion_reason": exclusion_reason,
         })
@@ -473,7 +622,10 @@ def select_sample(conn, window, min_per_type, bulk_threshold):
         "strata": strata,
         "reopened_in_window": sorted(reopened_ids),
         "items": items,
+        "exclusion_by_id": exclusion_by_id,
     }
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -511,8 +663,9 @@ def render_md(doc):
     for t in ITEM_TYPES:
         s = doc["strata"].get(t, {})
         flag = " (BELOW REQUIRED)" if s.get("below_required") else ""
-        lines.append("- %s: %d available, %d selected, %d usable%s" % (
-            t, s.get("n_available", 0), s.get("n_selected", 0), s.get("n_usable", 0), flag))
+        lines.append("- %s: %d available (%d usable), %d selected, %d usable, %d excluded listed%s" % (
+            t, s.get("n_available", 0), s.get("n_usable_available", 0), s.get("n_selected", 0),
+            s.get("n_usable", 0), s.get("n_listed_excluded", 0), flag))
     lines.append("- reopened-in-window: %d" % len(doc.get("reopened_in_window", [])))
     lines.append("")
     for it in doc.get("items", []):
@@ -532,10 +685,12 @@ def build_arg_parser():
     p.add_argument("--out", required=True)
     p.add_argument("--md")
     p.add_argument("--determinism-check", action="store_true")
-    p.add_argument("--needle-present-id", default="ATM-953")
-    p.add_argument("--needle-fixed-event", default="Fixed")
-    p.add_argument("--needle-fixed-on-date", default="2026-07-28")
-    p.add_argument("--needle-fabricated-id", default="ATM-99999-NEGATIVE-CONTROL")
+    # None = not given: resolve_needle() applies the default, or derives the
+    # needle at the as-of when the default postdates it (V2-8).
+    p.add_argument("--needle-present-id")
+    p.add_argument("--needle-fixed-event")
+    p.add_argument("--needle-fixed-on-date")
+    p.add_argument("--needle-fabricated-id")
     return p
 
 
@@ -622,13 +777,15 @@ def main(argv):
         print("select_sample: tracker DB unreadable at %s" % db_path, file=sys.stderr)
         return 4
 
-    ok, detail = run_needle(conn, args.needle_present_id, args.needle_fixed_event,
-                             args.needle_fixed_on_date, args.needle_fabricated_id)
-    print("select_sample: %s" % detail, file=sys.stderr)
+    needle = resolve_needle(conn, args.needle_present_id, args.needle_fixed_event,
+                            args.needle_fixed_on_date, args.needle_fabricated_id, args.as_of)
+    ok, detail = run_needle(conn, needle["present_id"], needle["present_event"],
+                            needle["present_on_date"], needle["fabricated_id"])
+    print("select_sample: %s (needle source: %s)" % (detail, needle["source"]), file=sys.stderr)
     if not ok:
         return 3
 
-    run_meta = {"host": os.uname().nodename if hasattr(os, "uname") else "unknown"}
+    run_meta = {"host": os.uname().nodename if hasattr(os, "uname") else "unknown", "needle": needle}
 
     window = {
         "from": (datetime.date.fromisoformat(args.as_of) - datetime.timedelta(days=args.window_days)).isoformat(),
@@ -642,6 +799,7 @@ def main(argv):
             "as_of": args.as_of, "window": window, "window_days": args.window_days,
             "min_per_type": args.min_per_type, "bulk_threshold": args.bulk_threshold,
             "state": "NO_DATA_IN_WINDOW",
+            "selection_rule": selection_rule(), "current_state_inputs": CURRENT_STATE_INPUTS,
         }
         doc = write_report(args.out, body, run_meta)
         if args.md:
@@ -654,6 +812,7 @@ def main(argv):
         "as_of": args.as_of, "window": window, "window_days": args.window_days,
         "min_per_type": args.min_per_type, "bulk_threshold": args.bulk_threshold,
         "state": "OK",
+        "selection_rule": selection_rule(), "current_state_inputs": CURRENT_STATE_INPUTS,
         "strata": result["strata"],
         "reopened_in_window": result["reopened_in_window"],
         "items": result["items"],

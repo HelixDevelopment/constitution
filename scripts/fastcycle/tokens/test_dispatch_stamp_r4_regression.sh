@@ -122,6 +122,45 @@ GOT="$(run_copy "" "$ATM_PAYLOAD")"
 if [ "$GOT" = "|2" ]; then ok_line "GUARD blocks item=ATM-42 (exit 2)"; else bad_line "GUARD on item=ATM-42 gave '$GOT' (want '|2')"; fi
 
 echo
+echo "=== (V1-M3, T048 restart round 2) the fallback is announced in GUARD mode, silent in EXTRACTION mode ==="
+# run_copy_err <copy> <mode-arg-or-empty> <payload> -> prints the stderr only
+run_copy_err() {
+  local copy="$1" mode="$2" payload="$3"
+  if [ -n "$mode" ]; then
+    (cd "$TMP" && { printf '%s' "$payload" | bash "$copy" "$mode" >/dev/null; } 2>&1)
+  else
+    (cd "$TMP" && { printf '%s' "$payload" | bash "$copy" >/dev/null; } 2>&1)
+  fi
+}
+ERR="$(run_copy_err "$COPY" "" "$WIT_PAYLOAD")"
+if printf '%s' "$ERR" | grep -q "NOTICE: release_prefix.sh not found" && printf '%s' "$ERR" | grep -Fq "prefix for this run is 'WIT'"; then
+  ok_line "GUARD mode (allowed dispatch) prints the fallback notice naming the missing script and 'WIT'"
+else
+  bad_line "GUARD mode printed no fallback notice (stderr: '$ERR')"
+fi
+ERR="$(run_copy_err "$COPY" "" "$ATM_PAYLOAD")"
+if printf '%s' "$ERR" | grep -q "NOTICE: release_prefix.sh not found" && printf '%s' "$ERR" | grep -Fq 'item=<WIT-nnnn>'; then
+  ok_line "GUARD mode (blocked dispatch) prints the notice and a refusal naming the resolved item=<WIT-nnnn>"
+else
+  bad_line "GUARD-mode block: stderr '$ERR' lacks the notice or item=<WIT-nnnn>"
+fi
+ERR="$(run_copy_err "$COPY" --extract-item-id "$WIT_PAYLOAD")"
+if [ -z "$ERR" ]; then ok_line "EXTRACTION mode stays silent on stderr (contract: stdout is the id, no other output)"; else bad_line "EXTRACTION mode wrote to stderr: '$ERR'"; fi
+# A release_prefix.sh that exists but exits non-zero with no output.
+FAILING="$TMP/failing/constitution/scripts"
+mkdir -p "$FAILING/fastcycle/tokens"
+cp "$DS" "$FAILING/fastcycle/tokens/dispatch_stamp.sh"
+printf '#!/usr/bin/env bash\nexit 3\n' > "$FAILING/release_prefix.sh"
+ERR="$(run_copy_err "$FAILING/fastcycle/tokens/dispatch_stamp.sh" "" "$WIT_PAYLOAD")"
+if printf '%s' "$ERR" | grep -q "NOTICE: release_prefix.sh (.*) exited 3"; then
+  ok_line "GUARD mode names a release_prefix.sh that exited 3"
+else
+  bad_line "GUARD mode with a failing release_prefix.sh printed '$ERR' (want a notice naming exit 3)"
+fi
+ERR="$(run_copy_err "$FAILING/fastcycle/tokens/dispatch_stamp.sh" --extract-item-id "$WIT_PAYLOAD")"
+if [ -z "$ERR" ]; then ok_line "EXTRACTION mode stays silent with a failing release_prefix.sh"; else bad_line "EXTRACTION mode wrote to stderr: '$ERR'"; fi
+
+echo
 if [ "$fail" = 0 ]; then
   echo "=== R4-I2 REGRESSION GUARD: ALL CHECKS PASS (real tool, byte-identical copy, release_prefix.sh unreachable) ==="
 else

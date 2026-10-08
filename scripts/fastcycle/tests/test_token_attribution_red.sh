@@ -527,6 +527,22 @@ REG="$WORK/agent_registry.jsonl"
 if [ -z "$REPO_ROOT" ]; then
     skip "PART A: this constitution checkout has no superproject, so the consumer's agent_registry_writer.sh and .claude/settings.json do not exist here; property (a) is a property of the consuming project and is not checked in a standalone clone"
 else
+# V1-M5 (T048 restart round 2): agent_registry_writer.sh falls back to a
+# HARDCODED repository path when "<its repo root>/docs/requests" is absent,
+# and then runs THAT repository's dispatch_stamp.sh, not the one under test
+# here -- PART A then stays green against a different copy. The writer's
+# own resolution rule is: repo root = two directories above the writer
+# (physical path), used only if it has docs/requests. Both halves are
+# checked before any writer verdict is trusted.
+WRITER_ROOT="$(cd "$(dirname "$WRITER")/../.." 2>/dev/null && pwd -P)"
+WRITER_STAMP="$WRITER_ROOT/constitution/scripts/fastcycle/tokens/dispatch_stamp.sh"
+if [ ! -d "$WRITER_ROOT/docs/requests" ]; then
+    bad "PART A precondition: $WRITER_ROOT/docs/requests does not exist, so the writer would fall back to its hardcoded repository and run that repository's dispatch_stamp.sh -- PART A would test a different copy; create docs/requests in the consumer under test"
+elif [ "$(realpath "$WRITER_STAMP" 2>/dev/null)" != "$(realpath "$DISPATCH_STAMP" 2>/dev/null)" ]; then
+    bad "PART A precondition: the writer will run $WRITER_STAMP, not the dispatch_stamp.sh under test ($DISPATCH_STAMP)"
+else
+    ok "PART A precondition: the writer resolves this consumer's root ($WRITER_ROOT, has docs/requests) and so runs the dispatch_stamp.sh under test"
+fi
 REAL_DESC='(T1/main - claude5 - sonnet - high) T018 RED test review_record'
 if [ ! -f "$WRITER" ]; then
     bad "PRECONDITION: $WRITER (scripts/hooks/agent_registry_writer.sh) is missing — cannot investigate property (a) at all"
@@ -2082,7 +2098,7 @@ src_path, dst_path = sys.argv[1], sys.argv[2]
 src = open(src_path, encoding="utf-8").read()
 OLD = (
     '    try:\n'
-    '        return re.compile(ITEM_TAG_TEMPLATE % value_re)\n'
+    '        return re.compile(ITEM_TAG_TEMPLATE % value_re, re.ASCII)\n'
     '    except re.error as exc:\n'
     '        print(\n'
     '            "transcript_ingest: WARNING: the configured item-tag pattern "\n'
@@ -2094,9 +2110,9 @@ OLD = (
     '            file=sys.stderr,\n'
     '        )\n'
     '        fallback_prefix = _fc_default_item_prefix()\n'
-    '        return re.compile(ITEM_TAG_TEMPLATE % ("(?:%s)-[0-9]+" % fallback_prefix))\n'
+    '        return re.compile(ITEM_TAG_TEMPLATE % ("(?:%s)-[0-9]+" % fallback_prefix), re.ASCII)\n'
 )
-NEW = '    return re.compile(ITEM_TAG_TEMPLATE % value_re)\n'
+NEW = '    return re.compile(ITEM_TAG_TEMPLATE % value_re, re.ASCII)\n'
 if src.count(OLD) != 1:
     sys.stderr.write("MUTATION_SETUP_FAILED matches=%d\n" % src.count(OLD))
     sys.exit(2)
@@ -2330,6 +2346,12 @@ h_ingest() {
         "$@" python3 "$TRANSCRIPT_INGEST" ingest "$fx" --db "$db"
 }
 h_q() { sqlite3 -noheader "$1" "$2"; }
+# h_sum <file> <key> -- the value of one whole `key=value` token of the
+# ingest summary line. V1-M6 (T048 restart round 2): these counts used to be
+# checked with `grep -q "key=2"`, which also passes on "key=20".
+h_sum() {
+    awk -v k="$2" '/^transcript_ingest: files=/ { for (i = 1; i <= NF; i++) if (index($i, k "=") == 1) print substr($i, length(k) + 2) }' "$1"
+}
 
 # ---- H1: streamed turn keeps the FINAL (maximum) usage, not the first line --
 DB_H1="$WORK/h1.db"
@@ -2401,7 +2423,7 @@ else
 fi
 # Class "absent evidence read as valid": a run that skipped lines must say
 # so in its own summary line, not only in scattered warnings.
-if grep -q "invalid_utf8_lines=2" "$WORK/h2.out" && grep -q "unparseable_lines=1" "$WORK/h2.out" && grep -q "unreadable_files=0" "$WORK/h2.out"; then
+if [ "$(h_sum "$WORK/h2.out" invalid_utf8_lines)" = 2 ] && [ "$(h_sum "$WORK/h2.out" unparseable_lines)" = 1 ] && [ "$(h_sum "$WORK/h2.out" unreadable_files)" = 0 ]; then
     ok "H2: the summary line counts what was not read cleanly (invalid_utf8_lines=2 unparseable_lines=1 unreadable_files=0)"
 else
     bad "H2: the summary line does not count skipped/repaired lines: $(cat "$WORK/h2.out")"
@@ -2412,7 +2434,7 @@ if [ -r "$H2U_DIR/locked.jsonl" ]; then
     skip "H2u: chmod 000 does not make the file unreadable for this user (running as root?), the unreadable-file count cannot be exercised"
 else
     h_ingest "$H2U_DIR" "$WORK/h2u.db" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >"$WORK/h2u.out" 2>/dev/null
-    if grep -q "unreadable_files=1" "$WORK/h2u.out"; then
+    if [ "$(h_sum "$WORK/h2u.out" unreadable_files)" = 1 ]; then
         ok "H2u: an unreadable transcript is counted in the summary (unreadable_files=1), not silently dropped"
     else
         bad "H2u: an unreadable transcript is not counted in the summary: $(cat "$WORK/h2u.out")"
@@ -2482,6 +2504,352 @@ if [ "$H4_DS" = "$H4_LOWER" ] && [ -n "$H4_DS" ]; then
     ok "H4: dispatch_stamp.sh --extract-item-id agrees with the ingest on the lowercase extra prefix ($H4_DS)"
 else
     bad "H4: dispatch_stamp.sh extracted '$H4_DS' but the ingest attributed '$H4_LOWER' for the same description and env"
+fi
+fi
+
+# =============================================================================
+# PART I — T048 restart round-2 remediation (V1-I1, V1-I2, V1-I3, V1-M1,
+#          V1-M2): concurrent ingest, path-spelling-independent attribution,
+#          merge/conflict/boundary branches, summary-vs-DB agreement, and the
+#          non-ASCII tag set. Every case drives the REAL `transcript_ingest.py
+#          ingest` CLI (and, for parity, the REAL dispatch_stamp.sh) on
+#          fixtures generated here; results are read back with sqlite3.
+# =============================================================================
+echo "=== PART I: concurrency, path spelling, merge branches, summary counts, non-ASCII tags ==="
+
+
+if [ ! -f "$TRANSCRIPT_INGEST" ]; then
+    bad "PART I UNMET: transcript_ingest.py absent"
+else
+I_DIR="$WORK/part_i"
+mkdir -p "$I_DIR"
+# I4 case table: (description, expected item). The descriptions put non-ASCII
+# characters on both sides of the tag; the expected values are the ASCII
+# token rule both tools document (left: start or an ASCII space/tab/newline/
+# CR/FF/VT; right: end or anything but an ASCII letter, digit or '_').
+python3 - "$I_DIR/i4_cases.json" <<'PYEOF'
+import json, sys
+cases = [
+    ("(T1/main - a) item=QZT-12é tail", "QZT-12"),
+    ("(T1/main - a) item=QZT-7 t", ""),
+    ("(T1/main - a)\u001citem=QZT-7 t", ""),
+    ("(T1/main - a)\u001fitem=QZT-7 t", ""),
+    ("(T1/main - a)\u0085item=QZT-7 t", ""),
+    ("(T1/main - a) item=QZT-7 t", ""),
+    ("(T1/main - a)　item=QZT-7 t", ""),
+    ("(T1/main - a)\titem=QZT-8 t", "QZT-8"),
+    ("(T1/main - a) item=QZT-9 tail", "QZT-9"),
+    ("(T1/main - a) item=QZT-10_x", ""),
+    ("(T1/main - a) item=QZT-١٢ t", ""),
+    ("(T1/main - a)\u000bitem=QZT-11 t", "QZT-11"),
+    ("(T1/main - a)\u000citem=QZT-14 t", "QZT-14"),
+    ("(T1/main - a) item=QßT-5 t", "QßT-5"),
+    ("(T1/main - a) item=QZT-13", "QZT-13"),
+]
+json.dump(cases, open(sys.argv[1], "w"))
+PYEOF
+python3 - "$I_DIR" <<'PYEOF'
+import json, os, sys
+d = sys.argv[1]
+
+def asst(msg_id, usage, agent=None, sess="i-sess", absent=False):
+    rec = {"type": "assistant", "uuid": "u-" + msg_id,
+           "timestamp": "2026-10-08T00:00:00Z",
+           "message": {"id": msg_id, "model": "fixture-model",
+                       "content": [{"type": "text", "text": "fixture"}]}}
+    if not absent:
+        rec["message"]["usage"] = usage
+    if agent:
+        rec["agentId"] = agent
+    else:
+        rec["sessionId"] = sess
+    return json.dumps(rec)
+
+def dispatch(agent, desc, sess="i-sess"):
+    return json.dumps({"type": "user", "sessionId": sess,
+                       "toolUseResult": {"agentId": agent, "description": desc}})
+
+def u(i, o, cr, cc):
+    return {"input_tokens": i, "output_tokens": o,
+            "cache_read_input_tokens": cr, "cache_creation_input_tokens": cc}
+
+def write(path, lines):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+
+# I1: a large file and a small one sharing msg_i1_000000; the small one
+# carries the larger output count.
+write(d + "/i1/big.jsonl", [asst("msg_i1_%06d" % k, u(1, 5, 1, 1)) for k in range(30000)])
+write(d + "/i1/small.jsonl", [asst("msg_i1_000000", u(1, 99, 1, 1))])
+
+# I2: the parent's own turns msg_i2_pa / msg_i2_pb and a dispatch of agfork
+# tagged QZT-77; the forked subagent transcript has its own turn msg_i2_sa and
+# REPLAYS msg_i2_pa (same counts) and msg_i2_pb (larger output, so the merge
+# UPDATE path runs on a replayed parent turn).
+write(d + "/i2/sess.jsonl", [
+    asst("msg_i2_pa", u(2, 3, 4, 5)),
+    asst("msg_i2_pb", u(2, 5, 4, 5)),
+    dispatch("agfork", "(T1/main - a) item=QZT-77 fork"),
+])
+write(d + "/i2/sess/subagents/agent-agfork.jsonl", [
+    asst("msg_i2_pa", u(2, 3, 4, 5), agent="agfork"),
+    asst("msg_i2_pb", u(2, 50, 4, 5), agent="agfork"),
+    asst("msg_i2_sa", u(1, 1, 1, 1), agent="agfork"),
+])
+
+# I3: merge branches.
+write(d + "/i3/fill.jsonl", [asst("msg_i3_fill", {"input_tokens": 1, "output_tokens": 2}),
+                             asst("msg_i3_fill", u(1, 5, 3, 4))])
+write(d + "/i3/status.jsonl", [asst("msg_i3_st", u(1, 5, 3, 4)),
+                               asst("msg_i3_st", {"input_tokens": 1, "output_tokens": 40})])
+write(d + "/i3/decr.jsonl", [
+    asst("msg_i3_di", u(10, 5, 10, 10)), asst("msg_i3_di", u(9, 5, 10, 10)),
+    asst("msg_i3_dr", u(10, 5, 10, 10)), asst("msg_i3_dr", u(10, 5, 9, 10)),
+    asst("msg_i3_dc", u(10, 5, 10, 10)), asst("msg_i3_dc", u(10, 5, 10, 9)),
+])
+write(d + "/i3/nousage.jsonl", [asst("msg_i3_nu", None, absent=True),
+                                asst("msg_i3_eu", {})])
+write(d + "/i3/summary.jsonl", [
+    asst("msg_i3_s1", {"input_tokens": 1, "output_tokens": 2}),
+    asst("msg_i3_s1", u(1, 2, 3, 4)),
+    asst("msg_i3_s2", {"input_tokens": 1}),
+    asst("msg_i3_s3", u(1, 1, 1, 1)),
+])
+write(d + "/i3/sessconf.jsonl", [
+    dispatch("agsess", "(T1/main - a) item=QZT-81 first", sess="sess-one"),
+    dispatch("agsess", "(T1/main - a) item=QZT-81 resumed", sess="sess-two"),
+])
+write(d + "/i3/sessconf/subagents/agent-agsess.jsonl", [asst("msg_i3_sess", u(1, 1, 1, 1), agent="agsess")])
+
+# I4: one dispatch plus one subagent turn per non-ASCII case.
+cases = json.load(open(d + "/i4_cases.json"))
+write(d + "/i4/parent.jsonl", [dispatch("agna%02d" % k, desc) for k, (desc, _w) in enumerate(cases)])
+for k in range(len(cases)):
+    write(d + "/i4/parent/subagents/agent-agna%02d.jsonl" % k, [asst("msg_i4_%02d" % k, u(1, 1, 1, 1), agent="agna%02d" % k)])
+PYEOF
+I_GEN_RC=$?
+needle_check "PART I fixtures were generated (rc=$I_GEN_RC)" 1 "$([ "$I_GEN_RC" -eq 0 ] && [ -f "$I_DIR/i4/parent.jsonl" ] && echo 1 || echo 0)"
+
+# i_ingest <fixture-or-dir> <db> [env assignments...] -- the REAL CLI with
+# ambient FC_* / HELIX_RELEASE_PREFIX stripped; the item prefix is the
+# neutral QZT, configured through the tool's own override variable.
+i_ingest() {
+    local fx="$1" db="$2"; shift 2
+    env -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u FC_DISPATCH_ITEM_ID_RE -u HELIX_RELEASE_PREFIX \
+        FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' "$@" python3 "$TRANSCRIPT_INGEST" ingest "$fx" --db "$db"
+}
+i_q() { sqlite3 -noheader "$1" "$2"; }
+# i_dump <db> -- every column of every row, ordered, as one text block.
+i_dump() { sqlite3 -noheader -separator '|' "$1" "SELECT * FROM transcript_usage_events ORDER BY msg_id, row_hash;"; }
+# i_counts <db> -- the counter/attribution columns only (identity columns
+# such as source_file depend on which concurrent run created a row first).
+i_counts() { sqlite3 -noheader -separator '|' "$1" "SELECT row_hash, msg_id, usage_status, IFNULL(input_tokens,'N'), IFNULL(output_tokens,'N'), IFNULL(cache_read_input_tokens,'N'), IFNULL(cache_creation_input_tokens,'N'), IFNULL(total_tokens,'N'), IFNULL(agent_id,'N'), IFNULL(item_id,'N'), IFNULL(session_id,'N') FROM transcript_usage_events ORDER BY row_hash;" | md5sum | cut -d' ' -f1; }
+
+# ---- I1 (V1-I1): two ingests on one DB at the same time --------------------
+# Barrier: run B is launched only once run A has an open write transaction
+# (its rollback journal or WAL file exists) and is still running, so B's
+# read-merge-write lands inside A's transaction window -- the exact window in
+# which the SELECT-then-INSERT code raised IntegrityError and lost B's rows.
+# Repeated 20 times; every trial must give rc=0 for both runs and the same
+# final DB as the two runs done one after the other.
+I1_REF="$WORK/i1_ref.db"
+i_ingest "$I_DIR/i1/big.jsonl" "$I1_REF" >/dev/null 2>&1
+i_ingest "$I_DIR/i1/small.jsonl" "$I1_REF" >/dev/null 2>&1
+I1_REF_SUM="$(i_counts "$I1_REF")"
+I1_REF_OUT="$(i_q "$I1_REF" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_i1_000000';")"
+I1_REF_ROWS="$(i_q "$I1_REF" "SELECT COUNT(*) FROM transcript_usage_events;")"
+needle_check "I1 control: the sequential reference holds 30000 rows and keeps B's larger count (rows=$I1_REF_ROWS out=$I1_REF_OUT)" 1 "$([ "$I1_REF_ROWS" = 30000 ] && [ "$I1_REF_OUT" = 99 ] && echo 1 || echo 0)"
+I1_TRIALS=20; I1_GOOD=0; I1_OVERLAP=0; I1_DETAIL=""
+for t in $(seq 1 "$I1_TRIALS"); do
+    db="$WORK/i1_t$t.db"; rm -f "$db" "$db-journal" "$db-wal" "$db-shm"
+    ( i_ingest "$I_DIR/i1/big.jsonl" "$db" >"$WORK/i1a_$t.out" 2>"$WORK/i1a_$t.err"; echo $? >"$WORK/i1a_$t.rc" ) &
+    apid=$!
+    n=0
+    while [ ! -e "$db-journal" ] && [ ! -e "$db-wal" ] && [ "$n" -lt 1000 ]; do sleep 0.005; n=$((n + 1)); done
+    overlap=0
+    if kill -0 "$apid" 2>/dev/null && { [ -e "$db-journal" ] || [ -e "$db-wal" ]; }; then overlap=1; fi
+    i_ingest "$I_DIR/i1/small.jsonl" "$db" >"$WORK/i1b_$t.out" 2>"$WORK/i1b_$t.err"
+    brc=$?
+    wait "$apid"
+    arc="$(cat "$WORK/i1a_$t.rc" 2>/dev/null)"
+    I1_OVERLAP=$((I1_OVERLAP + overlap))
+    if [ "$arc" = 0 ] && [ "$brc" = 0 ] && [ "$(i_counts "$db")" = "$I1_REF_SUM" ]; then
+        I1_GOOD=$((I1_GOOD + 1))
+    else
+        I1_DETAIL="$I1_DETAIL t$t:A=$arc,B=$brc,overlap=$overlap,err=$(tail -n1 "$WORK/i1b_$t.err" | head -c 120)"
+    fi
+    rm -f "$db"
+done
+needle_check "I1 control: B really started inside A's open write transaction in at least 15 of $I1_TRIALS trials (got $I1_OVERLAP)" 1 "$([ "$I1_OVERLAP" -ge 15 ] && echo 1 || echo 0)"
+if [ "$I1_GOOD" = "$I1_TRIALS" ]; then
+    ok "I1 (V1-I1): $I1_TRIALS/$I1_TRIALS concurrent ingest pairs on one DB gave rc=0 for both runs and the same final rows as running them one after the other (no IntegrityError, no lost run, B's larger count kept)"
+else
+    bad "I1 (V1-I1): only $I1_GOOD/$I1_TRIALS concurrent ingest pairs were clean:$I1_DETAIL"
+fi
+
+# ---- I2 (V1-I2): attribution does not depend on how the path is spelled ----
+DB_I2R="$WORK/i2_rel.db"; DB_I2A="$WORK/i2_abs.db"; DB_I2D="$WORK/i2_dir.db"
+( cd "$I_DIR/i2" && i_ingest sess.jsonl "$DB_I2R" >"$WORK/i2r.out" 2>"$WORK/i2r.err" )
+i_ingest "$I_DIR/i2/sess.jsonl" "$DB_I2A" >"$WORK/i2a.out" 2>"$WORK/i2a.err"
+( cd "$I_DIR" && i_ingest ./i2/ "$DB_I2D" >"$WORK/i2d.out" 2>"$WORK/i2d.err" )
+I2_ROWS="$(i_q "$DB_I2A" "SELECT COUNT(*) FROM transcript_usage_events;")"
+needle_check "I2 control: the absolute-path run stored the 3 distinct turns (rows=$I2_ROWS)" 1 "$([ "$I2_ROWS" = 3 ] && echo 1 || echo 0)"
+if [ -n "$(i_dump "$DB_I2A")" ] && [ "$(i_dump "$DB_I2R")" = "$(i_dump "$DB_I2A")" ] && [ "$(i_dump "$DB_I2D")" = "$(i_dump "$DB_I2A")" ]; then
+    ok "I2 (V1-I2): 'ingest sess.jsonl' (relative), 'ingest /abs/sess.jsonl' and 'ingest ./i2/' (directory) give byte-identical DB rows, source_file included"
+else
+    bad "I2 (V1-I2): the DB depends on how the path is spelled -- relative: $(i_dump "$DB_I2R" | tr '\n' ';' | head -c 400) || absolute: $(i_dump "$DB_I2A" | tr '\n' ';' | head -c 400)"
+fi
+i2_attr() { i_q "$1" "SELECT IFNULL(agent_id,'-')||'/'||IFNULL(item_id,'-')||'/'||IFNULL(session_id,'-')||'/'||output_tokens FROM transcript_usage_events WHERE msg_id='$2';"; }
+for db in "$DB_I2R" "$DB_I2A" "$DB_I2D"; do
+    PA="$(i2_attr "$db" msg_i2_pa)"; PB="$(i2_attr "$db" msg_i2_pb)"; SA="$(i2_attr "$db" msg_i2_sa)"
+    if [ "$PA" = "-/-/i-sess/3" ] && [ "$PB" = "-/-/i-sess/50" ] && [ "$SA" = "agfork/QZT-77/i-sess/1" ]; then
+        ok "I2 (V1-I2, N2): $(basename "$db"): the parent's own turns stay the parent's (pa=$PA, pb=$PB even though the replay grew pb), the subagent's own turn is the subagent's (sa=$SA)"
+    else
+        bad "I2 (V1-I2, N2): $(basename "$db"): pa=$PA (want -/-/i-sess/3) pb=$PB (want -/-/i-sess/50) sa=$SA (want agfork/QZT-77/i-sess/1) -- a replayed parent turn was credited to the subagent"
+    fi
+done
+# Canonical order: parent transcripts are read before subagent transcripts
+# in every spelling, so a single run never has to move a row back to its
+# parent (reattributed_to_parent=0) and sees the replay of pa as an
+# unchanged duplicate and the replay of pb as a grown one.
+for out in "$WORK/i2r.out" "$WORK/i2a.out" "$WORK/i2d.out"; do
+    S="new=$(h_sum "$out" new) grew=$(h_sum "$out" duplicate_merged_grew) unchanged=$(h_sum "$out" duplicate_unchanged) reattributed=$(h_sum "$out" reattributed_to_parent)"
+    if [ "$S" = "new=3 grew=1 unchanged=1 reattributed=0" ]; then
+        ok "I2 (V1-I2, N7): $(basename "$out"): parent read before its subagent ($S)"
+    else
+        bad "I2 (V1-I2, N7): $(basename "$out"): summary '$S' (want 'new=3 grew=1 unchanged=1 reattributed=0') -- the subagent transcript was read before its parent"
+    fi
+done
+# Across runs: the subagent transcript ingested ALONE first (its parent not
+# yet seen), then the parent. The parent's turns move back to the parent.
+DB_I2X="$WORK/i2_cross.db"
+i_ingest "$I_DIR/i2/sess/subagents/agent-agfork.jsonl" "$DB_I2X" >/dev/null 2>&1
+I2X_BEFORE="$(i2_attr "$DB_I2X" msg_i2_pa)"
+i_ingest "$I_DIR/i2/sess.jsonl" "$DB_I2X" >"$WORK/i2x.out" 2>"$WORK/i2x.err"
+I2X_PA="$(i2_attr "$DB_I2X" msg_i2_pa)"; I2X_PB="$(i2_attr "$DB_I2X" msg_i2_pb)"; I2X_SA="$(i2_attr "$DB_I2X" msg_i2_sa)"
+needle_check "I2 cross-run control: with only the subagent transcript ingested, the replayed parent turn is (necessarily) the subagent's ($I2X_BEFORE)" 1 "$([ "$I2X_BEFORE" = "agfork/-/-/3" ] && echo 1 || echo 0)"
+if [ "$I2X_PA" = "-/-/i-sess/3" ] && [ "$I2X_PB" = "-/-/i-sess/50" ] && [ "$I2X_SA" = "agfork/QZT-77/i-sess/1" ] && [ "$(h_sum "$WORK/i2x.out" reattributed_to_parent)" = 2 ] && [ "$(h_sum "$WORK/i2x.out" attribution_filled)" = 1 ]; then
+    ok "I2 (V1-I2): ingesting the parent after its subagent moves both replayed turns back to the parent (reattributed_to_parent=2) and fills the subagent turn's item/session from the dispatch now seen (attribution_filled=1)"
+else
+    bad "I2 (V1-I2): cross-run pa=$I2X_PA (want -/-/i-sess/3) pb=$I2X_PB (want -/-/i-sess/50) sa=$I2X_SA (want agfork/QZT-77/i-sess/1) summary: $(cat "$WORK/i2x.out")"
+fi
+
+# ---- I3 (V1-I3): merge branches ---------------------------------------------
+DB_I3="$WORK/i3.db"
+i_ingest "$I_DIR/i3/fill.jsonl" "$DB_I3" >/dev/null 2>&1
+I3_FILL="$(i_q "$DB_I3" "SELECT usage_status||'|'||IFNULL(cache_read_input_tokens,'N')||'|'||IFNULL(total_tokens,'N')||'|'||IFNULL(missing_instrument,'N') FROM transcript_usage_events WHERE msg_id='msg_i3_fill';")"
+if [ "$I3_FILL" = "measured|3|13|N" ]; then
+    ok "I3 (N3): a partial line then a full line of one msg id ends measured with the missing counters filled in (total 13)"
+else
+    bad "I3 (N3): partial-then-full gave '$I3_FILL' (want measured|3|13|N) -- a stored NULL counter was never filled by the later line"
+fi
+i_ingest "$I_DIR/i3/status.jsonl" "$DB_I3" >/dev/null 2>&1
+I3_ST="$(i_q "$DB_I3" "SELECT usage_status||'|'||IFNULL(output_tokens,'N')||'|'||IFNULL(total_tokens,'N')||'|'||IFNULL(missing_instrument,'N') FROM transcript_usage_events WHERE msg_id='msg_i3_st';")"
+if [ "$I3_ST" = "measured|40|48|N" ]; then
+    ok "I3 (N4): a full line then a partial line with a larger output count stays measured (output 40, total 48, no missing_instrument) -- the merged row's status comes from the merged counters, not from the incoming line"
+else
+    bad "I3 (N4): full-then-partial gave '$I3_ST' (want measured|40|48|N)"
+fi
+i_ingest "$I_DIR/i3/decr.jsonl" "$DB_I3" >/dev/null 2>"$WORK/i3d.err"
+I3_DEC_OK=1
+for pair in msg_i3_di:input_tokens msg_i3_dr:cache_read_input_tokens msg_i3_dc:cache_creation_input_tokens; do
+    m="${pair%%:*}"; f="${pair#*:}"
+    if ! grep "WARNING" "$WORK/i3d.err" | grep "msg_id $m " | grep -q "SMALLER $f"; then I3_DEC_OK=0; fi
+done
+if [ "$I3_DEC_OK" = 1 ]; then
+    ok "I3 (N23): a decrease of input_tokens, cache_read_input_tokens or cache_creation_input_tokens is each reported on stderr with its msg id and field name"
+else
+    bad "I3 (N23): not every decreasing counter was reported (stderr: $(head -c 400 "$WORK/i3d.err"))"
+fi
+i_ingest "$I_DIR/i3/nousage.jsonl" "$DB_I3" >/dev/null 2>&1
+I3_NU="$(i_q "$DB_I3" "SELECT usage_status||'|'||missing_instrument FROM transcript_usage_events WHERE msg_id='msg_i3_nu';")"
+I3_EU="$(i_q "$DB_I3" "SELECT usage_status||'|'||missing_instrument FROM transcript_usage_events WHERE msg_id='msg_i3_eu';")"
+if printf '%s' "$I3_NU" | grep -q '^UNMEASURED|.*: no "usage" block present)$' && printf '%s' "$I3_EU" | grep -q '^UNMEASURED|.*usage block lacks message.usage.input_tokens, message.usage.output_tokens, message.usage.cache_creation_input_tokens, message.usage.cache_read_input_tokens)$'; then
+    ok "I3 (N14): a turn with no usage block says 'no \"usage\" block present'; an empty usage block names all four absent fields"
+else
+    bad "I3 (N14): no-usage turn gave '$I3_NU'; empty-usage turn gave '$I3_EU'"
+fi
+i_ingest "$I_DIR/i3/sessconf.jsonl" "$DB_I3" >/dev/null 2>"$WORK/i3s.err"
+I3_SESS="$(i_q "$DB_I3" "SELECT IFNULL(item_id,'N')||'|'||IFNULL(session_id,'N') FROM transcript_usage_events WHERE msg_id='msg_i3_sess';")"
+if [ "$I3_SESS" = "QZT-81|N" ] && grep "agsess" "$WORK/i3s.err" | grep "session_id" | grep "sess-one" | grep -q "sess-two"; then
+    ok "I3 (N6): an agent dispatched from two different sessions keeps its (agreed) item, gets session_id NULL, and both sessions are named on stderr"
+else
+    bad "I3 (N6): session conflict gave '$I3_SESS' (want QZT-81|N) stderr: $(head -c 300 "$WORK/i3s.err")"
+fi
+
+# ---- I3 (V1-M1): the summary line agrees with the DB ------------------------
+DB_I3S="$WORK/i3s.db"
+i_ingest "$I_DIR/i3/summary.jsonl" "$DB_I3S" >"$WORK/i3sum.out" 2>/dev/null
+I3S_DBM="$(i_q "$DB_I3S" "SELECT COUNT(*) FROM transcript_usage_events WHERE usage_status='measured';")"
+I3S_DBU="$(i_q "$DB_I3S" "SELECT COUNT(*) FROM transcript_usage_events WHERE usage_status<>'measured';")"
+I3S_SUM="rows=$(h_sum "$WORK/i3sum.out" rows) measured=$(h_sum "$WORK/i3sum.out" measured) unmeasured=$(h_sum "$WORK/i3sum.out" unmeasured)"
+if [ "$I3S_DBM" = 2 ] && [ "$I3S_DBU" = 1 ] && [ "$I3S_SUM" = "rows=3 measured=2 unmeasured=1" ]; then
+    ok "I3 (V1-M1): the summary's measured/unmeasured counts are the rows' final states and match the DB (measured=2 unmeasured=1, one row merged from partial to measured)"
+else
+    bad "I3 (V1-M1): summary '$I3S_SUM' vs DB measured=$I3S_DBM unmeasured=$I3S_DBU (want rows=3 measured=2 unmeasured=1)"
+fi
+
+# ---- I4 (V1-M2): both tools accept the same tags, in any caller locale ------
+I4_LOCALES="C C.UTF-8"
+if ! locale -a 2>/dev/null | grep -qi '^c\.utf-\?8$'; then
+    I4_LOCALES="C"
+    skip "I4 (V1-M2): no C.UTF-8 locale on this host, only LC_ALL=C is exercised (the locale-independence half is not checked here)"
+fi
+I4_EXTRA="$(printf 'qzt,q\303\237t')"
+I4_FAIL=0; I4_DETAIL=""
+for loc in $I4_LOCALES; do
+    db="$WORK/i4_$loc.db"
+    env -u FC_DISPATCH_ITEM_ID_RE -u HELIX_RELEASE_PREFIX LC_ALL="$loc" FC_DISPATCH_EXTRA_ITEM_PREFIXES="$I4_EXTRA" \
+        python3 "$TRANSCRIPT_INGEST" ingest "$I_DIR/i4/parent.jsonl" --db "$db" >/dev/null 2>"$WORK/i4_$loc.err"
+done
+I4_N="$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$I_DIR/i4_cases.json")"
+for k in $(seq 0 $((I4_N - 1))); do
+    want="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[int(sys.argv[2])][1])' "$I_DIR/i4_cases.json" "$k")"
+    payload="$(python3 -c 'import json,sys; print(json.dumps({"tool_name":"Agent","tool_input":{"description":json.load(open(sys.argv[1]))[int(sys.argv[2])][0]}}))' "$I_DIR/i4_cases.json" "$k")"
+    kk="$(printf '%02d' "$k")"
+    for loc in $I4_LOCALES; do
+        got_i="$(i_q "$WORK/i4_$loc.db" "SELECT IFNULL(item_id,'') FROM transcript_usage_events WHERE msg_id='msg_i4_$kk';")"
+        got_d="$(printf '%s' "$payload" | env -u FC_DISPATCH_ITEM_ID_RE -u HELIX_RELEASE_PREFIX LC_ALL="$loc" FC_DISPATCH_EXTRA_ITEM_PREFIXES="$I4_EXTRA" bash "$DISPATCH_STAMP" --extract-item-id 2>/dev/null)"
+        if [ "$got_i" != "$want" ] || [ "$got_d" != "$want" ]; then
+            I4_FAIL=$((I4_FAIL + 1)); I4_DETAIL="$I4_DETAIL case$k/$loc:ingest='$got_i',stamp='$got_d',want='$want'"
+        fi
+    done
+done
+I4_ROWS_OK=1
+for loc in $I4_LOCALES; do [ "$(i_q "$WORK/i4_$loc.db" "SELECT COUNT(*) FROM transcript_usage_events;")" = 15 ] || I4_ROWS_OK=0; done
+needle_check "I4 control: the case table has 15 cases and the ingest stored one row per case in each locale ($I4_LOCALES)" 1 "$([ "$I4_N" = 15 ] && [ "$I4_ROWS_OK" = 1 ] && echo 1 || echo 0)"
+if [ "$I4_FAIL" = 0 ]; then
+    ok "I4 (V1-M2, N8, N9): on all $I4_N non-ASCII / boundary cases (NBSP, U+001C/U+001F/U+0085/U+2003/U+3000 before the tag, accented or NBSP after it, '_' after it, Arabic digits, VT/FF/TAB, a non-ASCII extra prefix) the ingest and dispatch_stamp.sh extract the same item, under LC_ALL=C and LC_ALL=C.UTF-8 alike"
+else
+    bad "I4 (V1-M2, N8, N9): $I4_FAIL disagreement(s):$I4_DETAIL"
+fi
+
+# ---- I5 (class "abort loses the whole run", third route): a record whose
+# identity fields are not strings, or whose counters are not integers. A
+# list in sessionId / uuid / timestamp / model / message.id used to reach
+# the SQL binding, raise, and roll back every row of the run; `true` used to
+# count as 1 token.
+python3 - "$I_DIR/i5.jsonl" <<'PYEOF'
+import json, sys
+u = {"input_tokens": 1, "output_tokens": 1, "cache_read_input_tokens": 1, "cache_creation_input_tokens": 1}
+rows = [
+    {"type": "assistant", "sessionId": "s", "uuid": "ok1", "timestamp": "t", "message": {"id": "msg_i5_ok", "model": "x", "usage": u}},
+    {"type": "assistant", "sessionId": {"n": 1}, "uuid": [1], "timestamp": {"x": 1}, "message": {"id": {"w": 1}, "model": ["m"], "usage": u}},
+    {"type": "assistant", "sessionId": "s", "uuid": "ok2", "timestamp": "t", "message": {"id": "msg_i5_types", "model": "x",
+     "usage": {"input_tokens": "7", "output_tokens": True, "cache_read_input_tokens": 1.9, "cache_creation_input_tokens": [1]}}},
+]
+open(sys.argv[1], "w").write("\n".join(json.dumps(r) for r in rows) + "\n")
+PYEOF
+DB_I5="$WORK/i5.db"
+i_ingest "$I_DIR/i5.jsonl" "$DB_I5" >"$WORK/i5.out" 2>"$WORK/i5.err"
+RC_I5=$?
+I5_ROWS="$(i_q "$DB_I5" "SELECT COUNT(*) FROM transcript_usage_events;" 2>/dev/null)"
+I5_TYPES="$(i_q "$DB_I5" "SELECT usage_status||'|'||IFNULL(input_tokens,'N')||'|'||IFNULL(output_tokens,'N')||'|'||IFNULL(total_tokens,'N') FROM transcript_usage_events WHERE msg_id='msg_i5_types';" 2>/dev/null)"
+if [ "$RC_I5" -eq 0 ] && [ "$I5_ROWS" = 3 ] && [ "$I5_TYPES" = "UNMEASURED|N|N|N" ] && [ "$(h_sum "$WORK/i5.out" malformed_fields)" = 5 ]; then
+    ok "I5: non-string identity fields and non-integer counters give rc=0, keep all 3 rows, mark the bad counters UNMEASURED (never 'true'=1) and count the 5 malformed fields in the summary"
+else
+    bad "I5: rc=$RC_I5 rows=$I5_ROWS (want 3) types-row='$I5_TYPES' (want UNMEASURED|N|N|N) malformed_fields=$(h_sum "$WORK/i5.out" malformed_fields) (want 5); stderr: $(tail -n1 "$WORK/i5.err" | head -c 200)"
 fi
 fi
 

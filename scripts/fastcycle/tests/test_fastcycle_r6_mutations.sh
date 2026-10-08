@@ -9,6 +9,11 @@
 #
 # R6-M1..M7 are the independent reviewer's own mutations (R6_baseline_replay.md),
 # re-expressed against the fixed code; R6-M8.. are the fixer's own.
+# T048 restart ROUND 2 (docs/qa/t048_restart_round2_20261008/V4_baseline.md):
+# V4-N3/N4/N5/N6/N10/N12 are the round-2 reviewer's mutations, applied VERBATIM
+# (same anchors, same replacements as the reviewer's own runner); R2-M1.. are the
+# round-2 fixer's own. They run against test_baseline_replay_r2_findings.sh, the
+# collect_baseline and build_deploy_qa_events suites.
 #
 # Instrument control (§11.4.273): before any mutant, the SAME harness runs a
 # representative case against an UNMUTATED replica and requires it to PASS --
@@ -35,6 +40,7 @@ T_R6 = "test_baseline_replay_r6_findings.sh"
 T_R4 = "test_baseline_replay_r4_findings.sh"
 T_CB = "test_collect_baseline_red.sh"
 T_BDQ = "test_build_deploy_qa_events_red.sh"
+T_R2 = "test_baseline_replay_r2_findings.sh"
 
 # (id, target file, [(old, new), ...], test file, filter-env, expected failing line prefix)
 MUTS = [
@@ -120,11 +126,81 @@ MUTS = [
     ("R6-M32", CB, [("    if a.fresh_execution_json and not os.path.isfile(a.fresh_execution_json):",
                      "    if False:")],
      T_CB, {"CB_ONLY": "C-FRESH"}, "NOT ok [C-FRESH]"),
+    # ---- round-2 reviewer mutations (verbatim) ----
+    ("V4-N3", BR, [('run_log="$run_log_dir/${phase}_${run_idx}.log"', 'run_log="$run_log_dir/${phase}.log"')],
+     T_R2, {"R2_ONLY": "V4-10"}, "NOT ok [V4-10]"),
+    ("V4-N4", BR, [('    kill -s TERM "$p" 2>/dev/null\n    wait "$p" 2>/dev/null\n', '    kill -s TERM "$p" 2>/dev/null\n')],
+     T_R2, {"R2_ONLY": "V4-12"}, "NOT ok [V4-12/N4]"),
+    ("V4-N5", BR, [('if [ "$free_kb" -lt "$min_free_kb" ]; then', 'if false; then')],
+     T_R2, {"R2_ONLY": "V4-5"}, "NOT ok [V4-5]"),
+    ("V4-N6", BR, [('[ -z "$best_at" ] || [ "$at" -gt "$best_at" ]', '[ -z "$best_at" ] || [ "$at" -ge "$best_at" ]')],
+     T_R2, {"R2_ONLY": "N6"}, "NOT ok [N6]"),
+    ("V4-N10", BR, [("log --all -i -F --grep=", "log --all -i --grep=")],
+     T_R2, {"R2_ONLY": "N10"}, "NOT ok [N10]"),
+    ("V4-N12", BR, [("printf -v _sig_cleanup_cmd \"trap '' HUP INT QUIT TERM; trap - EXIT; cleanup %q %q\"",
+                     "printf -v _sig_cleanup_cmd \"trap - EXIT; cleanup %q %q\"")],
+     T_R2, {"R2_ONLY": "N12"}, "NOT ok [V4-12/N12]"),
+    # ---- round-2 fixer mutations ----
+    # V4-1: no session -> the gate's nested-timeout child survives
+    ("R2-M1", BR, [('FC_REPLAY_RUN_TOKEN="$_FC_CHILD_TOKEN" setsid -w timeout --kill-after=5 "${tmo}s"',
+                    'timeout --kill-after=5 "${tmo}s"')],
+     T_R2, {"R2_ONLY": "V4-1"}, "NOT ok [V4-1]"),
+    # V4-1: no token match -> a child that called setsid itself survives
+    ("R2-M2", BR, [("    if not hit and want:", "    if False:")],
+     T_R2, {"R2_ONLY": "V4-1"}, "NOT ok [V4-1]"),
+    # V4-2: the round-1 rule (>= 129 = "terminated by signal") restored
+    ("R2-M3", BR, [("  if [ \"$rc\" = 0 ]; then printf 'PASS|exit 0'; return 0; fi",
+                    "  if [ \"$rc\" -ge 129 ]; then printf 'UNMEASURED|terminated by signal %s' \"$((rc - 128))\"; return 0; fi\n"
+                    "  if [ \"$rc\" = 0 ]; then printf 'PASS|exit 0'; return 0; fi")],
+     T_R2, {"R2_ONLY": "V4-2"}, "NOT ok [V4-2]"),
+    # V4-4: no lock
+    ("R2-M4", BR, [("  flock -n 9 || blind", "  true || blind")], T_R2, {"R2_ONLY": "V4-4"}, "NOT ok [V4-4]"),
+    # V4-4: the object store's filesystem never checked
+    ("R2-M5", BR, [('  if [ "$objects_free_kb" -lt "$min_free_kb_objects" ]; then', '  if false; then')],
+     T_R2, {"R2_ONLY": "V4-5"}, "NOT ok [V4-4]"),
+    # V4-8: a background watchdog sleep is back on the signal path
+    ("R2-M6", BR, [("  _FC_HARNESS_SIGNALLED=TERM\n", "  _FC_HARNESS_SIGNALLED=TERM\n  ( sleep 10 ) >/dev/null 2>&1 &\n")],
+     T_R2, {"R2_ONLY": "V4-12"}, "NOT ok [V4-12/N4]"),
+    # V4-9: the private temp directory is never removed
+    ("R2-M7", BR, [("trap _fc_rm_tmpdir EXIT\n", "\n")], T_R2, {"R2_ONLY": "V4-9"}, "NOT ok [V4-9]"),
+    # V4-9: selfcheck without signal handlers
+    ("R2-M8", BR, [("  # one must stop it (the same main-shell handlers as replay).\n  _fc_install_main_traps\n",
+                    "  # one must stop it (the same main-shell handlers as replay).\n")],
+     T_R2, {"R2_ONLY": "V4-9"}, "NOT ok [V4-9]"),
+    # V4-6 class in the freeze CLI: a whitespace-only id accepted
+    ("R2-M9", BR, [('  case "$item" in *[[:space:]]*) die', '  case "$item" in "#never") die')],
+     T_R2, {"R2_ONLY": "WS"}, "NOT ok [WS]"),
+    # V4-6: blank values count as present again (the reviewer's V4-N7 shape, one level up)
+    ("R2-M10", BDQ, [('    return isinstance(value, str) and value.strip() != ""', '    return isinstance(value, str) and value != ""')],
+     T_BDQ, {}, "FAIL: golden-bad-fp-whitespace-both"),
+    # V4-6: the deploy time field ignored again
+    ("R2-M11", BDQ, [("    if not _utc_instant_ok(deploy_time):", "    if False:")],
+     T_BDQ, {}, "FAIL: golden-bad-time-invalid"),
+    # V4-6: a non-UTC offset accepted
+    ("R2-M12", BDQ, [(r'(Z|\+00:00)")', r'(Z|[+-]\d{2}:\d{2})")')], T_BDQ, {}, "FAIL: golden-bad-time-not-utc"),
+    # V4-3: "met" with nothing measured
+    ("R2-M13", CB, [("    if overall_measured == 0:", "    if False:")], T_CB, {"CB_ONLY": "C-V43"}, "NOT ok [C-V43]"),
+    # V4-3: "met" although an item has no measured run
+    ("R2-M14", CB, [("            and not short):", "            ):")], T_CB, {"CB_ONLY": "C-V43"}, "NOT ok [C-V43]"),
+    # V4-3: zero items exit 0
+    ("R2-M15", CB, [("    if not items:\n        return (\"UNMEASURED: the sample holds zero items",
+                     "    if False:\n        return (\"UNMEASURED: the sample holds zero items")],
+     T_CB, {"CB_ONLY": "C-V43"}, "NOT ok [C-V43]"),
+    # V4-3 positive control: "met" can never be claimed
+    ("R2-M16", CB, [("    if (a.cold_runs >= REPLAY_FULL_RUNS", "    if (False and a.cold_runs >= REPLAY_FULL_RUNS")],
+     T_CB, {"CB_ONLY": "C-F21"}, "NOT ok [C-F21]"),
+    # V4-11: the corpus-search claim restored
+    ("R2-M17", CB, [("this tool performs no transcript search of its own", "zero attributable transcript records found by direct corpus search")],
+     T_CB, {"CB_ONLY": "C-V411"}, "NOT ok [C-V411]"),
+    # V4-13: unsafe ids used as paths again
+    ("R2-M18", CB, [("    if unsafe:\n", "    if False:\n")], T_CB, {"CB_ONLY": "C-V413"}, "NOT ok [C-V413]"),
 ]
 
 CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
             ("control-bdq", T_BDQ, {}, "PASS: golden-bad-fp-mismatch"),
-            ("control-cb-F22", T_CB, {"CB_ONLY": "C-F22"}, "ok [C-F22]")]
+            ("control-cb-F22", T_CB, {"CB_ONLY": "C-F22"}, "ok [C-F22]"),
+            ("control-r2-V4-10", T_R2, {"R2_ONLY": "V4-10"}, "ok [V4-10]"),
+            ("control-cb-V43", T_CB, {"CB_ONLY": "C-V43"}, "ok [C-V43]")]
 
 
 def replica():

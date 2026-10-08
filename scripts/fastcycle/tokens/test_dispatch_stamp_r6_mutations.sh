@@ -35,7 +35,14 @@
 # consumer files, the harness prints SKIP and exits 0 without claiming a
 # result (it can only prove kills it actually ran).
 #
-# Runtime: about 30 mutants x 5 suites; several minutes. Run it in the
+# Round 2 (T048 restart, §11.4.276(D)): the nine reviewer mutants that
+# survived round 1 (N2, N3, N4, N6, N7, N8, N9, N14, N23) are adopted
+# verbatim in intent, with anchors on the current code, plus this round's
+# own mutants L1-L13 for the round-2 fixes (concurrent ingest, ownership,
+# locale, jq-less reader, fail-closed guard, prefix notice, refusal text,
+# summary counts, malformed field types) and N7b (path spelling).
+#
+# Runtime: about 60 mutants x 5 suites, roughly 25 minutes. Run it in the
 # background (§11.4.89).
 #
 # Exit: 0 = every mutant killed (or SKIP); 1 = a mutant survived, a mutation
@@ -119,11 +126,11 @@ TI-M3 total excludes both cache fields	constitution/scripts/fastcycle/tokens/tra
 M7 total drops cache_creation	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'return MEASURED, None, it + ot + crt + cct'	'return MEASURED, None, it + ot + crt'
 TI-M5 first line wins (old INSERT OR IGNORE)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'            merged[name] = max(a, b)'	'            merged[name] = a'
 M6 last line wins (INSERT OR REPLACE)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'            merged[name] = max(a, b)'	'            merged[name] = b'
-H1c re-ingest never updates	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    if all(merged[n] == stored[n] for n in CORE_FIELDS):\n        return "unchanged"'	'    if True:\n        return "unchanged"'
+H1c re-ingest never updates	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    if not grew and reattribution is None:\n        return "unchanged"'	'    if True:\n        return "unchanged"'
 M5 silence the decreasing-duplicate warning	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    if decreased:\n        print('	'    if False:\n        print('
 M1 dispatch map first id wins on conflict	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'            if len(values) == 1:\n                entry[key] = values[0]\n            elif len(values) > 1:'	'            if values:\n                entry[key] = values[0]\n            if len(values) > 1:'
 M1b dispatch map last id wins on conflict	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'            if len(values) == 1:\n                entry[key] = values[0]\n            elif len(values) > 1:'	'            if values:\n                entry[key] = values[-1]\n            if len(values) > 1:'
-M2b drop the left tag boundary	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'ITEM_TAG_TEMPLATE = r"(?:^|\\s)item='	'ITEM_TAG_TEMPLATE = r"item='
+M2b drop the left tag boundary	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'ITEM_TAG_TEMPLATE = r"(?:^|[ \\t\\n\\r\\f\\v])item='	'ITEM_TAG_TEMPLATE = r"item='
 RB drop the right tag boundary (ingest)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'(%s|\\?)(?![A-Za-z0-9_])"'	'(%s|\\?)"'
 M3 accept item=? as an item id	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'if m and m.group(1) != "?":'	'if m:'
 M4 disable subagents/ discovery	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'        if os.path.isdir(subagents_dir):'	'        if False:'
@@ -131,9 +138,9 @@ M8 parent turns item-attributed	constitution/scripts/fastcycle/tokens/transcript
 M9 partial usage gets a total	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    if not absent:\n        return MEASURED, None, it + ot + crt + cct\n'	'    if not absent:\n        return MEASURED, None, it + ot + crt + cct\n    if it is not None and ot is not None:\n        return MEASURED, None, it + ot\n'
 F5 partial usage labelled measured	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    return (UNMEASURED,\n'	'    return (MEASURED,\n'
 M10 missing_instrument loses the file path	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'% (ref, filepath, what),'	'% (ref, "", what),'
-M11 ignore extra prefixes (ingest)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'for tok in re.split(r"[,|\\s]+", extra.strip()):'	'for tok in []:'
+M11 ignore extra prefixes (ingest)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'for tok in re.split(r"[,| \\t\\n]+", extra):'	'for tok in []:'
 M12 ignore the full override (ingest)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    if override:\n        value_re = override'	'    if False:\n        value_re = override'
-M13 no upper-case on extra prefixes (ingest)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'prefixes.append(tok.upper())'	'prefixes.append(tok)'
+M13 no upper-case on extra prefixes (ingest)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'prefixes.append(_ascii_upper(tok))'	'prefixes.append(tok)'
 F2 strict decode on invalid UTF-8	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'errors="replace")'	'errors="strict")'
 D1 guard always allows	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'FOUND="$(extract_item "$DESCRIPTION")"\nif [[ -n "$FOUND" ]]; then'	'FOUND="$(extract_item "$DESCRIPTION")"\nif true; then'
 D2 left boundary (^|.)	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'ITEM_RE="(^|[[:space:]])item='	'ITEM_RE="(^|.)item='
@@ -142,7 +149,7 @@ D3 release_prefix resolved via cwd git toplevel	constitution/scripts/fastcycle/t
 DS-M3 ignore extra prefixes (stamp)	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'[ -n "$_fc_p_upper" ] && ITEM_ALL_PREFIXES='	'[ -n "" ] && ITEM_ALL_PREFIXES='
 DS no upper-case on extra prefixes (stamp)	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'_fc_p_upper="$(printf \'%s\' "$_fc_p" | tr \'[:lower:]\' \'[:upper:]\')"'	'_fc_p_upper="$_fc_p"'
 DS-M5 fall back to .prompt instead of .subagent	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'DESCRIPTION="$(json_field .tool_input.subagent)"'	'DESCRIPTION="$(json_field .tool_input.prompt)"'
-DS restore the hardcoded ATM fallback	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'  else\n    _fc_derive_key_prefix ""\n  fi'	'  else\n    printf ATM\n  fi'
+DS restore the hardcoded ATM fallback	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'FC_DEFAULT_PREFIX="$(_fc_derive_key_prefix "$base")"'	'FC_DEFAULT_PREFIX="$(_fc_derive_key_prefix "${base:-ATM}")"'
 DS ignore the full override	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'if [ -n "${FC_DISPATCH_ITEM_ID_RE:-}" ]; then'	'if false; then'
 DS extract mode writes to stderr	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'  extract_item "$DESCRIPTION"\n  exit 0'	'  extract_item "$DESCRIPTION"\n  echo debug >&2\n  exit 0'
 R1 release_prefix keeps double quotes	constitution/scripts/release_prefix.sh	'    \\"*\\") val="${val#\\"}"; val="${val%\\"}" ;;'	'    \\"*\\") : ;;'
@@ -155,6 +162,29 @@ RS3 unparseable line not counted	constitution/scripts/fastcycle/tokens/transcrip
 W1 normal streaming growth warns	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    merged, decreased = merge_usage(stored, row)\n'	'    merged, decreased = merge_usage(stored, row)\n    decreased = decreased or [n for n in CORE_FIELDS if row[n] != stored[n]]\n'
 DS guard fails open from /tmp only	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'if [[ -n "$FOUND" ]]; then'	'if [[ -n "$FOUND" ]] || [ "$PWD" = /tmp ]; then'
 S1 settings.json hook points at a missing file	.claude/settings.json	'tokens/dispatch_stamp.sh\\"'	'tokens/dispatch_stamp.sh.disabled\\"'
+N2 merge rewrites identity on every update (V1-I3)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    if stored["agent_id"] is not None and row["agent_id"] is None:'	'    if True:'
+N3 merge never fills a missing counter (V1-I3)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'        if a is None:\n            merged[name] = b'	'        if a is None:\n            merged[name] = a'
+N4 merged row takes status/missing from the incoming line (V1-I3)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    params.update(row_hash=row["row_hash"], usage_status=status,\n                  missing_instrument=missing, total_tokens=total)'	'    params.update(row_hash=row["row_hash"], usage_status=row["usage_status"],\n                  missing_instrument=row["missing_instrument"], total_tokens=total)'
+N6 session conflict resolves to the first session (V1-I3)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'seen_sessions.setdefault(agent_id, []).append(session_id)'	'seen_sessions.setdefault(agent_id, [session_id])'
+N7 subagent transcripts read before parents (V1-I3)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'return sorted(is_sub, key=lambda p: (is_sub[p], p))'	'return sorted(is_sub, key=lambda p: (not is_sub[p], p))'
+N7b path spelling decides the order again (V1-I2)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'        real = os.path.realpath(p)'	'        real = p'
+N8 stamp right boundary accepts _ (V1-I3)	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'([^[:alnum:]_]|\\$)"'	'([^[:alnum:]]|\\$)"'
+N9 ingest right boundary accepts _ (V1-I3)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'(%s|\\?)(?![A-Za-z0-9_])"'	'(%s|\\?)(?![A-Za-z0-9])"'
+N14 missing_instrument ignores the no-usage-block case (V1-I3)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    if not usage_block_present:'	'    if False:'
+N23 decrease warning only for output_tokens (V1-I3)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'            if b < a:'	'            if b < a and name == "output_tokens":'
+L1 row pass under a DEFERRED transaction (V1-I1)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'conn.execute("BEGIN IMMEDIATE")'	'conn.execute("BEGIN")'
+L2 same-owner attribution never filled (V1-I2)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    elif stored["agent_id"] == row["agent_id"]:'	'    elif False:'
+L3 stamp locale not pinned (V1-M2)	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'export LC_ALL=C\n'	':\n'
+L4 ingest left boundary accepts non-ASCII spaces (V1-M2)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'r"(?:^|[ \\t\\n\\r\\f\\v])item='	'r"(?:^|[ \\t\\n\\r\\f\\v\\u00a0\\u2003])item='
+L5 ingest extra prefix upper-cased with str.upper (V1-M2)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'prefixes.append(_ascii_upper(tok))'	'prefixes.append(tok.upper())'
+L6 jq-less reader takes the key at any depth (V1-M4a)	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'if (cur_path() == want) val = STR'	'if (key[d] == substr(want, index(want, ".") + 1) || key[d] == want) val = STR'
+L7 guard fails open on an unparseable payload (V1-M4a)	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'if [[ "$PARSE_OK" -eq 0 ]]; then'	'if false; then'
+L8 jq parse error treated as an empty field (V1-M4a)	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'[ "$rc" -eq 0 ] || return 3'	'[ "$rc" -eq 0 ] || return 0'
+L9 prefix fallback silent in GUARD mode (V1-M3)	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'[ -n "$FC_PREFIX_NOTICE" ] && echo "$FC_PREFIX_NOTICE" >&2'	':'
+L10 refusal example hardcodes ATM (V1-M3)	constitution/scripts/fastcycle/tokens/dispatch_stamp.sh	'ITEM_EXAMPLE="item=${FC_DEFAULT_PREFIX}-1041"'	'ITEM_EXAMPLE="item=ATM-1041"'
+L11 summary keeps a row first status (V1-M1)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'final_status[row["row_hash"]] = status'	'final_status.setdefault(row["row_hash"], status)'
+L12 non-string identity fields reach the SQL binding (class: abort loses the run)	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    if value is None or isinstance(value, str):\n        return value\n    READ_STATS'	'    if True:\n        return value\n    READ_STATS'
+L13 a JSON true counts as 1 token	constitution/scripts/fastcycle/tokens/transcript_ingest.py	'    if isinstance(value, bool) or not isinstance(value, int):'	'    if not isinstance(value, int):'
 EOF
 
 cat > "$WORK/apply.py" <<'PYEOF'

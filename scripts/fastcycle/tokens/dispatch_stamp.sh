@@ -187,73 +187,168 @@
 #   printf '%s' "$json" | bash dispatch_stamp.sh                  # GUARD mode
 #   printf '%s' "$json" | bash dispatch_stamp.sh --extract-item-id # EXTRACTION mode
 #
+# DEFERRALS LEDGER (T048 restart round 2, V1-M4):
+#   CLOSED in round 2: (a) the jq-less fallback took the FIRST "description"
+#   key anywhere in the payload and failed OPEN on a nested one -- replaced by
+#   an exact-path JSON reader that fails closed (see json_field); (b) the
+#   release_prefix.sh fallback to "WIT" was silent -- GUARD mode now prints a
+#   notice (see _fc_resolve_default_prefix). (c) "file order" belongs to
+#   transcript_ingest.py and is closed there.
+#   OWED-DS-1: the test suites next to this file (test_dispatch_stamp*.sh,
+#   including the r6 mutation proof) are not invoked by any runner or gate;
+#   tests/run_all.sh globs tests/ only. Wiring them is the conductor's step.
+#
 # Classification: universal.
 
 set -uo pipefail
 
 PAYLOAD="$(cat || true)"
 
+# LOCALE (V1-M2, T048 restart round 2): every regex, character class and
+# `tr` below runs under LC_ALL=C, so the accepted tag set is the same for
+# every caller locale and equals transcript_ingest.py's (which spells the
+# same ASCII classes out and compiles with re.ASCII). Before this, bash's
+# [[:space:]] / [[:alnum:]] followed the caller's locale: `item=ATM-12é`
+# extracted ATM-12 under C but nothing under C.UTF-8, and U+2003 before the
+# tag counted as a separator under C.UTF-8 only.
+export LC_ALL=C
+
 # --------------------------------------------------------------------------
-# Extract a JSON string field WITHOUT requiring jq (prefer jq if present).
-# IDENTICAL extractor to guard-track-branch-label.sh / guard-work-track-
-# binding.sh (same leaf keys: tool_name, description, subagent) — kept as a
-# literal copy, matching the established sibling convention of each guard
-# hook being a single self-contained file rather than importing a shared lib.
+# json_field <path> -- print the STRING value at <path> (".tool_name",
+# ".tool_input.description", ".tool_input.subagent") of the payload.
+# Exit 0 with the value (empty if the path is absent or not a string), or
+# exit 3 if the payload is not empty and cannot be parsed as one JSON
+# object. jq is used when present.
+#
+# Without jq, a small JSON reader in awk walks the document and takes the
+# value at the exact path, as jq does (the last one if a key repeats). T048
+# restart round 2, V1-M4(a): the previous awk fallback took the FIRST
+# '"description"' key anywhere in the payload, so a nested
+# {"metadata":{"description":"item=ATM-1"}} placed before the real untagged
+# description was ALLOWED by the guard and extracted as ATM-1 (fail open);
+# jq refused it. A payload this reader cannot parse is reported as exit 3,
+# which the guard turns into a refusal (fail closed) and the extraction
+# mode into an empty result.
 # --------------------------------------------------------------------------
 json_field() {
-  local path="$1"
+  local path="$1" out rc
   if command -v jq >/dev/null 2>&1; then
-    printf '%s' "$PAYLOAD" | jq -r "$path // empty" 2>/dev/null || true
+    out="$(printf '%s' "$PAYLOAD" | jq -r "(if type == \"object\" then . else error(\"not an object\") end) | ($path | if type == \"string\" then . else empty end)" 2>/dev/null)"
+    rc=$?
+    [ "$rc" -eq 0 ] || return 3
+    printf '%s' "$out"
     return 0
   fi
-  local key
-  case "$path" in
-    .tool_name)               key="tool_name" ;;
-    .tool_input.description)  key="description" ;;
-    .tool_input.subagent)     key="subagent" ;;
-    *)                        key="${path##*.}" ;;
-  esac
-  printf '%s' "$PAYLOAD" | awk -v key="$key" '
-    BEGIN { RS="\0" }
-    {
-      s = $0
-      idx = index(s, "\"" key "\"")
-      if (idx == 0) { exit }
-      rest = substr(s, idx + length(key) + 2)
-      sub(/^[ \t\r\n]*:[ \t\r\n]*/, "", rest)
-      if (substr(rest, 1, 1) != "\"") { exit }
-      rest = substr(rest, 2)
+  printf '%s' "$PAYLOAD" | awk -v want="${path#.}" '
+    function hexval(h,   i, c, v) {
+      if (length(h) != 4) return -1
+      v = 0
+      for (i = 1; i <= 4; i++) {
+        c = index("0123456789abcdef", tolower(substr(h, i, 1)))
+        if (c == 0) return -1
+        v = v * 16 + c - 1
+      }
+      return v
+    }
+    function utf8(cp) {
+      if (cp < 128) return sprintf("%c", cp)
+      if (cp < 2048) return sprintf("%c%c", 192 + int(cp / 64), 128 + cp % 64)
+      if (cp < 65536) return sprintf("%c%c%c", 224 + int(cp / 4096), 128 + int(cp / 64) % 64, 128 + cp % 64)
+      return sprintf("%c%c%c%c", 240 + int(cp / 262144), 128 + int(cp / 4096) % 64, 128 + int(cp / 64) % 64, 128 + cp % 64)
+    }
+    # parse_string: s[pos] is the opening quote. Sets STR and moves pos past
+    # the closing quote; returns 0 on an invalid or unterminated string.
+    function parse_string(   c, out, cp, lo) {
+      pos++
       out = ""
-      i = 1
-      n = length(rest)
-      while (i <= n) {
-        c = substr(rest, i, 1)
+      while (pos <= n) {
+        c = substr(s, pos, 1)
+        if (c == "\"") { pos++; STR = out; return 1 }
+        if (c < " ") return 0
         if (c == "\\") {
-          nx = substr(rest, i+1, 1)
-          if (nx == "n") out = out "\n"
-          else if (nx == "t") out = out "\t"
-          else if (nx == "r") out = out "\r"
-          else if (nx == "\"") out = out "\""
-          else if (nx == "\\") out = out "\\"
-          else if (nx == "/") out = out "/"
-          else out = out nx
-          i += 2
+          c = substr(s, pos + 1, 1)
+          if (c == "n") out = out "\n"
+          else if (c == "t") out = out "\t"
+          else if (c == "r") out = out "\r"
+          else if (c == "b") out = out "\b"
+          else if (c == "f") out = out "\f"
+          else if (c == "\"" || c == "\\" || c == "/") out = out c
+          else if (c == "u") {
+            cp = hexval(substr(s, pos + 2, 4))
+            if (cp < 0) return 0
+            pos += 4
+            if (cp >= 55296 && cp < 56320 && substr(s, pos + 2, 2) == "\\u") {
+              lo = hexval(substr(s, pos + 4, 4))
+              if (lo >= 56320 && lo < 57344) { cp = 65536 + (cp - 55296) * 1024 + (lo - 56320); pos += 6 }
+            }
+            if (cp > 0) out = out utf8(cp)
+          } else return 0
+          pos += 2
           continue
         }
-        if (c == "\"") break
         out = out c
-        i += 1
+        pos++
       }
-      printf "%s", out
+      return 0
+    }
+    function skip_ws() { while (pos <= n && index(" \t\r\n", substr(s, pos, 1)) > 0) pos++ }
+    function cur_path(   j, p) {
+      p = ""
+      for (j = 1; j <= d; j++) p = p (j > 1 ? "." : "") (typ[j] == "o" ? key[j] : "[]")
+      return p
+    }
+    # value_done: a value was completed at the current depth.
+    function value_done() { need = (d == 0) ? "done" : "sep" }
+    { buf = buf $0 }
+    END {
+      s = buf; n = length(s); pos = 1; d = 0; need = "value"; val = ""
+      skip_ws()
+      if (pos > n) exit 0
+      if (substr(s, pos, 1) != "{") exit 3
+      while (1) {
+        skip_ws()
+        if (pos > n) break
+        c = substr(s, pos, 1)
+        if (need == "done") exit 3
+        if (need == "key" || need == "key_or_end") {
+          if (c == "}" && need == "key_or_end") { pos++; d--; value_done(); continue }
+          if (c != "\"") exit 3
+          if (!parse_string()) exit 3
+          key[d] = STR; need = "colon"; continue
+        }
+        if (need == "colon") { if (c != ":") exit 3; pos++; need = "value"; continue }
+        if (need == "sep") {
+          if (c == ",") { pos++; need = (typ[d] == "o") ? "key" : "value"; continue }
+          if ((c == "}" && typ[d] == "o") || (c == "]" && typ[d] == "a")) { pos++; d--; value_done(); continue }
+          exit 3
+        }
+        # need is "value" or "value_or_end"
+        if (c == "]" && need == "value_or_end") { pos++; d--; value_done(); continue }
+        if (c == "{") { pos++; d++; typ[d] = "o"; key[d] = ""; need = "key_or_end"; continue }
+        if (c == "[") { pos++; d++; typ[d] = "a"; need = "value_or_end"; continue }
+        if (c == "\"") {
+          if (!parse_string()) exit 3
+          if (cur_path() == want) val = STR
+          value_done(); continue
+        }
+        tok = ""
+        while (pos <= n && index("-+.0123456789eEtrufalsn", substr(s, pos, 1)) > 0) { tok = tok substr(s, pos, 1); pos++ }
+        if (tok != "true" && tok != "false" && tok != "null" && tok !~ /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?$/) exit 3
+        value_done()
+      }
+      if (need != "done") exit 3
+      printf "%s", val
     }
   '
 }
 
 # The item token lives on `description`; fall back to a `subagent` label if
-# present — identical fallback order to guard-track-branch-label.sh.
-DESCRIPTION="$(json_field .tool_input.description)"
-if [[ -z "$DESCRIPTION" ]]; then
-  DESCRIPTION="$(json_field .tool_input.subagent)"
+# present — identical fallback order to guard-track-branch-label.sh. A
+# payload that cannot be parsed (json_field exit 3) yields no description.
+PARSE_OK=1
+DESCRIPTION="$(json_field .tool_input.description)" || PARSE_OK=0
+if [[ "$PARSE_OK" -eq 1 && -z "$DESCRIPTION" ]]; then
+  DESCRIPTION="$(json_field .tool_input.subagent)" || PARSE_OK=0
 fi
 
 # F13 fix (T048 round-2 review, §11.4.28/§11.4.177): the accepted ticket-id
@@ -283,54 +378,61 @@ _fc_derive_key_prefix() {
   printf '%s' "$letters"
 }
 
-_fc_default_item_prefix() {
-  # Resolve the SAME base release prefix scripts/release_prefix.sh /
-  # prefix.go's resolveReleasePrefix() already use (HELIX_RELEASE_PREFIX env
-  # -> its .env entry -> snake_case(project root dir name)), then derive the
-  # 3-letter ticket key from it. Falls back to the NEUTRAL "WIT" prefix
-  # (via the SAME _fc_derive_key_prefix() no-letters branch every OTHER
-  # unresolvable-input case already uses -- never a second, divergent
-  # fallback mechanism) ONLY if release_prefix.sh is genuinely unreachable
-  # (should not happen inside a checked-out constitution submodule -- kept
-  # as a defensive non-crash default).
-  #
-  # T048 round-3 review finding R3-M1 (2026-09-30): this used to fall back
-  # to the LITERAL "ATM" -- a hardcoded project-specific guess about a
-  # DIFFERENT project's real prefix, landed inside this project-agnostic
-  # constitution submodule (a §11.4.28/§11.4.177 decoupling violation) --
-  # directly contradicting this very function's own header comment, which
-  # already said "never a silent guess about a DIFFERENT project's real
-  # prefix" one line above the guess. Fixed to reuse the neutral "WIT"
-  # fallback _fc_derive_key_prefix() already defines for exactly this
-  # "no real prefix could be derived" case, rather than inventing a
-  # second, ATMOSphere-specific one.
-  local self_path self_dir rp_script base
+# _fc_resolve_default_prefix -- sets FC_DEFAULT_PREFIX to the 3-letter key
+# derived from the project's release prefix (scripts/release_prefix.sh:
+# HELIX_RELEASE_PREFIX env -> its .env entry -> snake_case(project root
+# dir name)), and FC_PREFIX_NOTICE to a one-line explanation when that
+# resolution failed and the neutral "WIT" key (or a key derived from partial
+# output) is used instead. Runs in the current shell, never in $(...), so
+# both variables reach the caller.
+#
+# T048 round-3 review finding R3-M1 (2026-09-30): this used to fall back to
+# the LITERAL "ATM" -- a project-specific guess inside this project-agnostic
+# constitution submodule (§11.4.28/§11.4.177). The fallback is the neutral
+# "WIT" from _fc_derive_key_prefix().
+#
+# T048 restart round 2, V1-M3: the fallback used to be silent (release_
+# prefix.sh's stderr and exit status were discarded), while
+# transcript_ingest.py warns on the same failure. FC_PREFIX_NOTICE is now
+# printed on stderr in GUARD mode; EXTRACTION mode stays silent, because its
+# contract is "stdout is the id, no other output".
+_fc_resolve_default_prefix() {
+  local self_path self_dir rp_script="" base="" rc=0
+  FC_PREFIX_NOTICE=""
   # Pure bash parameter-expansion dirname (never the external `dirname`
   # command): the G-section AWK-fallback tests in test_dispatch_stamp.sh
-  # deliberately restrict PATH to only awk+cat, so any external command
-  # this function shells out to besides `bash "$rp_script"` itself would
-  # silently degrade to the WIT fallback there (harmless, but untested --
-  # this keeps prefix derivation genuinely exercised under that PATH too).
+  # restrict PATH to only awk+cat.
   self_path="${BASH_SOURCE[0]:-$0}"
   self_dir="${self_path%/*}"
   [ "$self_dir" = "$self_path" ] && self_dir="."
   if [ -n "$self_dir" ]; then
     rp_script="$(cd "$self_dir/../.." 2>/dev/null && pwd 2>/dev/null || true)/release_prefix.sh"
   fi
-  if [ -n "${rp_script:-}" ] && [ -f "$rp_script" ]; then
-    base="$(bash "$rp_script" 2>/dev/null || true)"
-  fi
-  if [ -n "${base:-}" ]; then
-    _fc_derive_key_prefix "$base"
+  if [ -n "$rp_script" ] && [ -f "$rp_script" ]; then
+    base="$(bash "$rp_script" 2>/dev/null)"
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+      FC_PREFIX_NOTICE="release_prefix.sh ($rp_script) exited $rc"
+    elif [ -z "$base" ]; then
+      FC_PREFIX_NOTICE="release_prefix.sh ($rp_script) printed nothing"
+    fi
   else
-    _fc_derive_key_prefix ""
+    FC_PREFIX_NOTICE="release_prefix.sh not found (looked for ${rp_script:-<unresolvable>})"
+  fi
+  FC_DEFAULT_PREFIX="$(_fc_derive_key_prefix "$base")"
+  if [ -n "$FC_PREFIX_NOTICE" ]; then
+    FC_PREFIX_NOTICE="dispatch_stamp: NOTICE: $FC_PREFIX_NOTICE -- the item-tag prefix for this run is '$FC_DEFAULT_PREFIX'"
   fi
 }
 
+FC_PREFIX_NOTICE=""
 if [ -n "${FC_DISPATCH_ITEM_ID_RE:-}" ]; then
   ITEM_VALUE_RE="$FC_DISPATCH_ITEM_ID_RE"
+  ITEM_FORM_LABEL="item=<an id matching FC_DISPATCH_ITEM_ID_RE='$FC_DISPATCH_ITEM_ID_RE'>"
+  ITEM_EXAMPLE="item=<id>"
 else
-  ITEM_ALL_PREFIXES="$(_fc_default_item_prefix)"
+  _fc_resolve_default_prefix
+  ITEM_ALL_PREFIXES="$FC_DEFAULT_PREFIX"
   if [ -n "${FC_DISPATCH_EXTRA_ITEM_PREFIXES:-}" ]; then
     for _fc_p in $(printf '%s' "$FC_DISPATCH_EXTRA_ITEM_PREFIXES" | tr ',|' '  '); do
       _fc_p_upper="$(printf '%s' "$_fc_p" | tr '[:lower:]' '[:upper:]')"
@@ -338,18 +440,22 @@ else
     done
   fi
   ITEM_VALUE_RE="(${ITEM_ALL_PREFIXES})-[0-9]+"
+  # V1-M3: the refusal names the RESOLVED prefix(es), never a project literal.
+  ITEM_FORM_LABEL="item=<${FC_DEFAULT_PREFIX}-nnnn> (accepted prefixes: ${ITEM_ALL_PREFIXES//|/, })"
+  ITEM_EXAMPLE="item=${FC_DEFAULT_PREFIX}-1041"
 fi
 
-# item=(<resolved-prefix(es)>-[0-9]+|\?) at a token boundary (start-of-string
-# or preceded by whitespace) — the honest '?' form is unconditionally
-# accepted (see header: no live-derivable value exists to cross-check it
-# against, unlike the sibling label guard's <effort> field).
-# The tag must also END at a token boundary (T048 restart round-1, R3
-# boundary note): the next character is anything but a letter, digit or
-# underscore, or the string ends. Without it 'item=ATM-12x' was accepted as
-# ATM-12 and 'item=?foo' as the honest '?'. transcript_ingest.py's
-# ITEM_TAG_TEMPLATE carries the same boundary, so the two tools accept the
-# same set of tags. The capture group used below stays BASH_REMATCH[2].
+# item=(<resolved-prefix(es)>-[0-9]+|\?) as a whole token -- the honest '?'
+# form is unconditionally accepted (see header: no live-derivable value
+# exists to cross-check it against, unlike the sibling label guard's
+# <effort> field). Left: start of string or one ASCII whitespace character.
+# Right (T048 restart round-1, R3 boundary note): end of string or anything
+# but an ASCII letter, digit or underscore, so 'item=ATM-12x', 'item=ATM-12_x'
+# and 'item=?foo' are not tags. Under LC_ALL=C (above) these classes are
+# exactly transcript_ingest.py's ITEM_TAG_TEMPLATE classes, so the two tools
+# accept the same set of tags in any caller locale; the shared guard is
+# test_token_attribution_red.sh PART I4. The capture group used below stays
+# BASH_REMATCH[2].
 ITEM_RE="(^|[[:space:]])item=(${ITEM_VALUE_RE}|\\?)([^[:alnum:]_]|\$)"
 
 extract_item() {
@@ -372,7 +478,21 @@ fi
 # ==========================================================================
 # MODE 1 (default): PreToolUse guard.
 # ==========================================================================
-TOOL_NAME="$(json_field .tool_name)"
+[ -n "$FC_PREFIX_NOTICE" ] && echo "$FC_PREFIX_NOTICE" >&2
+
+if [[ "$PARSE_OK" -eq 1 ]]; then
+  TOOL_NAME="$(json_field .tool_name)" || PARSE_OK=0
+fi
+if [[ "$PARSE_OK" -eq 0 ]]; then
+  # Fail closed: without a parsed tool_name this hook cannot tell an agent
+  # dispatch from any other tool, so it refuses rather than guessing.
+  {
+    echo "guardrails: BLOCKED — T036 dispatch-stamp: the hook payload could not be parsed as a JSON object"
+    echo "  parser: $(command -v jq >/dev/null 2>&1 && echo jq || echo 'built-in awk reader (jq not installed)')"
+    echo "  payload starts: $(printf '%s' "$PAYLOAD" | head -c 120)"
+  } >&2
+  exit 2
+fi
 
 # Only the agent-dispatching tools carry an item stamp. Anything else is
 # allowed untouched.
@@ -387,8 +507,8 @@ if [[ -n "$FOUND" ]]; then
 fi
 
 {
-  echo "guardrails: BLOCKED — T036 dispatch-stamp: item=<ATM-nnnn> required"
-  echo "Every ${TOOL_NAME} dispatch's description MUST carry an 'item=<ATM-nnnn>'"
+  echo "guardrails: BLOCKED — T036 dispatch-stamp: ${ITEM_FORM_LABEL} required"
+  echo "Every ${TOOL_NAME} dispatch's description MUST carry an '${ITEM_FORM_LABEL%% (*}'"
   echo "token (or the honest 'item=?' form when genuinely unknown) alongside its"
   echo "§11.4.182 (T<N>/<branch> - <alias>...) label."
   if [[ -z "$DESCRIPTION" ]]; then
@@ -397,7 +517,7 @@ fi
     echo "  Found: ${DESCRIPTION}"
   fi
   echo "  Recommended placement: immediately after the label, e.g.:"
-  echo "    (T1/main - claude5 - sonnet - high) item=ATM-1041 <task text>"
+  echo "    (T1/main - claude5 - sonnet - high) ${ITEM_EXAMPLE} <task text>"
   echo "  Honest-unknown form: item=?"
 } >&2
 exit 2

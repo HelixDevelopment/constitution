@@ -457,19 +457,28 @@ if [ -f "$CYCLE_REPORT" ]; then
   if [ "$NC_RC" = 0 ] && [ -f "$NC_OUT" ]; then
     NC_UNMEASURED_COUNT=$(grep -o "UNMEASURED" "$NC_OUT" | wc -l)
     NC_MISSING_INSTR_COUNT=$(grep -o "missing_instrument" "$NC_OUT" | wc -l)
-    NC_FLAG_COUNT="$(python3 -c "import json; print(len(json.load(open('$NC_OUT'))['records'][0]['data_quality_flags']))" 2>&1)"
-    if [ "$NC_UNMEASURED_COUNT" = 0 ] && [ "$NC_MISSING_INSTR_COUNT" = 0 ] && [ "$NC_FLAG_COUNT" = 0 ]; then
+    # V2-9 (T048 restart round 2): this Shape-A fixture carries NO
+    # item_history, so no data-quality flag was ever evaluated; asserting
+    # "zero flags" here could not fail. The honest observable is that the
+    # record SAYS it evaluated nothing (data_quality_flags_evaluated: false,
+    # with an empty list). Flag discrimination itself is proven on the
+    # reconstruction path by the R5 I7 Shape-B control below.
+    NC_FLAGS="$(python3 -c "
+import json, sys
+r = json.load(open(sys.argv[1]))['records'][0]
+print('%s|%s' % (r.get('data_quality_flags_evaluated'), len(r['data_quality_flags'])))
+" "$NC_OUT" 2>&1)"
+    if [ "$NC_UNMEASURED_COUNT" = 0 ] && [ "$NC_MISSING_INSTR_COUNT" = 0 ] && [ "$NC_FLAGS" = "False|0" ]; then
       echo "ok cycle_report.py --tracker-export negative_control_all_present: ZERO"
-      echo "   occurrences of UNMEASURED, ZERO missing_instrument fields, ZERO"
-      echo "   data-quality flags against a fully-populated 11-stage item --"
-      echo "   matches fixture's expected_unmeasured_count=0 exactly (the"
-      echo "   §11.4.201(1) false-positive guard: over-flagging present data is"
-      echo "   exactly as defective as under-flagging a genuine gap)."
+      echo "   occurrences of UNMEASURED and ZERO missing_instrument fields against a"
+      echo "   fully-populated 11-stage item (expected_unmeasured_count=0, the"
+      echo "   §11.4.201(1) false-positive guard); the fixture has no item_history, so"
+      echo "   the record states data_quality_flags_evaluated=false (never a"
+      echo "   presented-as-measured 'zero flags')."
     else
       echo "NOT ok cycle_report.py --tracker-export negative_control_all_present:"
-      echo "     over-flagged fully-present data (UNMEASURED=$NC_UNMEASURED_COUNT"
-      echo "     missing_instrument=$NC_MISSING_INSTR_COUNT flags=$NC_FLAG_COUNT, all"
-      echo "     must be 0)"
+      echo "     UNMEASURED=$NC_UNMEASURED_COUNT missing_instrument=$NC_MISSING_INSTR_COUNT"
+      echo "     (both must be 0); flags evaluated|count=$NC_FLAGS (must be False|0)"
       failx
     fi
   else
@@ -648,35 +657,47 @@ fi
 #
 # Hand-derived expectation for full-sampling mode, --as-of 2026-08-23
 # --window-days 60 (=> [2026-06-24, 2026-08-23]) --min-per-type 2
-# --bulk-threshold 3, only rows/commits dated <= as-of visible:
-#   Bug   keep {300,953,1002,800,277}; recency by as-of closure created_at
-#         300(06-30) < 953(07-01) < 1002(07-10) < 800(07-25) < 277(08-20)
-#         -> {ATM-800, ATM-277}
-#   Task  per-type cluster (qa/realbulk, 2026-07-20) = {601,602,603} >= 3 ->
-#         excluded[]; keep {501,502,503} -> by created_at 10:00/11:00/12:00
-#         -> {ATM-502, ATM-503}
-#   Feature {ATM-700}
-#   records = ATM-277, ATM-502, ATM-503, ATM-700, ATM-800
+# --bulk-threshold 3, only rows/commits dated <= as-of visible. Selection is
+# select_sample.py's (T048 restart round 2, V2-2: ONE classifier + ONE walk;
+# exclude first, then the most-recent 2 USABLE per type, excluded rows walked
+# past are listed):
+#   Bug   candidates by as-of closure created_at: 1003(06-25, highest row id)
+#         < 300(06-30) < 953(07-01) < 1002(07-10) < 800(07-25) < 277(08-20)
+#         < 310(08-23, ON the as-of day) -> sampled {ATM-310, ATM-277}
+#   Task  walked most-recent first: 603/602/601 (07-20, shared dir qa/realbulk
+#         -> bulk cluster of 3) listed-excluded; 504 (07-06 09:59, closure row
+#         written 60 s BEFORE its Opened row -> NOT retroactive) and 503
+#         (07-05 12:00) sampled
+#   Feature ATM-700 retroactive (20 s) -> listed-excluded
+#   reopened-in-window ATM-300 (06-24 = window.from) and ATM-800 (07-15)
+#   records = 277, 300, 310, 503, 504, 601, 602, 603, 700, 800; excluded[] =
+#         every excluded candidate = 601, 602, 603 (bulk), 700 (retroactive)
+#   strata n (= usable taken): Bug 2, Task 2, Feature 0 (below_required)
 #   ATM-277 commit_push = the ONE subject-match "fix ATM-277 part"
 #           08-20T09:00Z -> 09:30Z = 1800000 ms ("ATM-2770 ..." is a token-
 #           boundary trap, "chore: misc" names it only in the body, the
-#           09-20 follow-up is after as-of); reopen_count 0; flags []
-#   ATM-800 commit_push 07-25T09:00Z -> 09:20Z = 1200000 ms; reopen_count 1
-#           (the duplicate Reopened row is deduplicated); flags exactly
-#           [DUPLICATE_HISTORY_ROWS] -- NOT REOPEN_WITHOUT_PRIOR_CLOSURE
-#           (R5 M8: the duplicate row must not read as a second reopen)
+#           REBASED commit (author 08-22, committer 08-25) and the 09-20
+#           follow-up are after as-of); reopen_count 0; flags []
+#   ATM-310 commit_push 08-23T10:00Z -> 08-24T02:30+05:00 (= 08-23T21:30Z,
+#           inside the as-of day in UTC) = 41400000 ms
+#   ATM-800 commit_push earliest author 07-24T08:00Z -> latest COMMITTER
+#           07-25T11:00Z (from the earlier-authored commit) = 97200000 ms;
+#           reopen_count 1 (the duplicate Reopened row is deduplicated); flags
+#           exactly [DUPLICATE_HISTORY_ROWS] -- NOT REOPEN_WITHOUT_PRIOR_CLOSURE
+#   ATM-300 reopened-in-window (Reopened ON window.from), reopen_count 1, flags []
 #   ATM-700 closure_event on_date 2026-08-01 (not the future 09-10 one);
-#           flags exactly [RETROACTIVE_REGISTRATION] (Opened->Implemented 20 s)
+#           flags exactly [RETROACTIVE_REGISTRATION]; excluded true
 #   reopen block = closure/reopen_rate.py's own derivation over the WINDOW
-#           population (every item closed or reopened in the window, as-of
-#           histories): Bug closed 5 / reopened 1 (ATM-800), Task closed 6 /
-#           reopened 0, Feature: ATM-700 excluded as retroactive -> overall
-#           reopened 1, closed 11, rate round(1/11, 6) = 0.090909,
-#           dedup_rows_removed 1, excluded_retroactive [ATM-700]
-#   medians.overall.commit_push = median(1800000, 1200000) = 1500000,
-#           n_measured 2, n_total 5
+#           population (15 items, as-of histories): Bug closed 7 / reopened 2
+#           (300, 800), Task closed 7 / reopened 0, Feature ATM-700 excluded as
+#           retroactive -> overall reopened 2, closed 14, rate round(2/14, 6)
+#           = 0.142857, dedup_rows_removed 1, excluded_retroactive [ATM-700]
+#   medians over NON-excluded records only (277, 300, 310, 503, 504, 800):
+#           commit_push = median(1800000, 41400000, 97200000) = 41400000,
+#           n_measured 3, n_total 6; medians_excluded_records = 601, 602,
+#           603, 700
 #   instrument_gaps commit_push: ONE entry, text with the item id replaced by
-#           "{item_id}", items_affected [ATM-502, ATM-503, ATM-700]
+#           "{item_id}", items_affected [300, 503, 504, 601, 602, 603, 700]
 # ===========================================================================
 R5S="$TMP/r5"
 R5_NEEDLE=(--needle-present-id ATM-953 --needle-fixed-event Fixed --needle-fixed-on-date 2026-07-01)
@@ -698,11 +719,13 @@ rc_full=$(r5_run full full --config x "${R5_COMMON[@]}")
 rc_cut=$(r5_run cut cut --config x "${R5_COMMON[@]}")
 rc_ifull=$(r5_run item_full full --as-of 2026-08-23 --window-days 60 --item ATM-277)
 rc_icut=$(r5_run item_cut cut --as-of 2026-08-23 --window-days 60 --item ATM-277)
+rc_i3full=$(r5_run item310_full full --as-of 2026-08-23 --window-days 60 --item ATM-310)
+rc_i3cut=$(r5_run item310_cut cut --as-of 2026-08-23 --window-days 60 --item ATM-310)
 c1="$(python3 - "$TMP" <<'PYEOF'
 import json, os, sys
 t = sys.argv[1]
 out = []
-for a, b in (("full", "cut"), ("item_full", "item_cut")):
+for a, b in (("full", "cut"), ("item_full", "item_cut"), ("item310_full", "item310_cut")):
     pa, pb = (os.path.join(t, "r5_%s.json" % x) for x in (a, b))
     if not (os.path.exists(pa) and os.path.exists(pb)):
         out.append("%s/%s missing output" % (a, b))
@@ -714,10 +737,10 @@ for a, b in (("full", "cut"), ("item_full", "item_cut")):
 print("SAME" if not out else "; ".join(out))
 PYEOF
 )"
-if [ "$rc_full$rc_cut$rc_ifull$rc_icut" = "0000" ] && [ "$c1" = "SAME" ]; then
-  echo "ok R5-C1 rows and commits dated after --as-of change nothing (full-sampling and --item bodies identical)"
+if [ "$rc_full$rc_cut$rc_ifull$rc_icut$rc_i3full$rc_i3cut" = "000000" ] && [ "$c1" = "SAME" ]; then
+  echo "ok R5-C1 rows and commits dated after --as-of (incl. a rebased commit) change nothing (full-sampling and --item bodies identical)"
 else
-  echo "NOT ok R5-C1 as-of leak: rc=$rc_full/$rc_cut/$rc_ifull/$rc_icut $c1"
+  echo "NOT ok R5-C1 as-of leak: rc=$rc_full/$rc_cut/$rc_ifull/$rc_icut/$rc_i3full/$rc_i3cut $c1"
   failx
 fi
 
@@ -732,16 +755,22 @@ except Exception as e:
     raise SystemExit
 p = []
 recs = {r["item_id"]: r for r in d.get("records", [])}
-if sorted(recs) != ["ATM-277", "ATM-502", "ATM-503", "ATM-700", "ATM-800"]:
+if sorted(recs) != ["ATM-277", "ATM-300", "ATM-310", "ATM-503", "ATM-504",
+                    "ATM-601", "ATM-602", "ATM-603", "ATM-700", "ATM-800"]:
     p.append("records=%s" % sorted(recs))
-if sorted(e["item_id"] for e in d.get("excluded", [])) != ["ATM-601", "ATM-602", "ATM-603"]:
+if [e["item_id"] for e in d.get("excluded", [])] != ["ATM-601", "ATM-602", "ATM-603", "ATM-700"]:
     p.append("excluded=%s" % d.get("excluded"))
+want_strata = {"Bug": (2, False), "Task": (2, False), "Feature": (0, True)}
+got_strata = {t: (v.get("n"), v.get("below_required")) for t, v in d.get("strata", {}).items()}
+if got_strata != want_strata:
+    p.append("strata=%s expected %s" % (got_strata, want_strata))
 def stage(r, name):
     return next(s for s in r["stages"] if s["stage"] == name)
 def val(x):
     return x.get("value") if isinstance(x, dict) else x
 want_cp = {"ATM-277": (1800000, "2026-08-20T09:00:00Z", "2026-08-20T09:30:00Z"),
-           "ATM-800": (1200000, "2026-07-25T09:00:00Z", "2026-07-25T09:20:00Z")}
+           "ATM-310": (41400000, "2026-08-23T10:00:00Z", "2026-08-24T02:30:00+05:00"),
+           "ATM-800": (97200000, "2026-07-24T08:00:00Z", "2026-07-25T11:00:00Z")}
 for iid, exp in want_cp.items():
     r = recs.get(iid)
     if not r:
@@ -750,20 +779,25 @@ for iid, exp in want_cp.items():
     got = (cp.get("elapsed"), val(cp.get("start")), val(cp.get("end")))
     if got != exp:
         p.append("%s commit_push=%s expected %s" % (iid, got, exp))
-want = {"ATM-277": (0, "sampled-bug", [], "2026-08-20"),
-        "ATM-800": (1, "reopened-in-window", ["DUPLICATE_HISTORY_ROWS"], "2026-07-25"),
-        "ATM-700": (0, "sampled-feature", ["RETROACTIVE_REGISTRATION"], "2026-08-01"),
-        "ATM-502": (0, "sampled-task", [], "2026-07-05")}
+want = {"ATM-277": (0, "sampled-bug", [], "2026-08-20", False),
+        "ATM-310": (0, "sampled-bug", [], "2026-08-23", False),
+        "ATM-300": (1, "reopened-in-window", [], "2026-06-30", False),
+        "ATM-800": (1, "reopened-in-window", ["DUPLICATE_HISTORY_ROWS"], "2026-07-25", False),
+        "ATM-700": (0, "listed-excluded-feature", ["RETROACTIVE_REGISTRATION"], "2026-08-01", True),
+        "ATM-602": (0, "listed-excluded-task", [], "2026-07-20", True),
+        "ATM-504": (0, "sampled-task", [], "2026-07-06", False),
+        "ATM-503": (0, "sampled-task", [], "2026-07-05", False)}
 for iid, exp in want.items():
     r = recs.get(iid)
     if not r:
         continue
     got = (r.get("reopen_count"), r.get("selection_reason"), r.get("data_quality_flags"),
-           (r.get("closure_event") or {}).get("on_date"))
+           (r.get("closure_event") or {}).get("on_date"), r.get("excluded"))
     if got != exp:
-        p.append("%s (reopen_count, selection_reason, flags, closure on_date)=%s expected %s" % (iid, got, exp))
+        p.append("%s (reopen_count, selection_reason, flags, closure on_date, excluded)=%s expected %s"
+                 % (iid, got, exp))
 ro = d.get("reopen", {})
-want_ro = {"reopened": 1, "closed": 11, "rate": 0.090909, "dedup_rows_removed": 1}
+want_ro = {"reopened": 2, "closed": 14, "rate": 0.142857, "dedup_rows_removed": 1}
 if {k: ro.get(k) for k in want_ro} != want_ro:
     p.append("reopen=%s expected %s" % ({k: ro.get(k) for k in want_ro}, want_ro))
 if [e.get("item_id") for e in ro.get("excluded_retroactive", [])] != ["ATM-700"]:
@@ -771,18 +805,22 @@ if [e.get("item_id") for e in ro.get("excluded_retroactive", [])] != ["ATM-700"]
 if ro.get("window") != {"from": "2026-06-24", "to": "2026-08-23"}:
     p.append("reopen.window=%s" % ro.get("window"))
 med = d.get("medians", {}).get("overall", {}).get("commit_push", {})
-if (med.get("value_ms"), med.get("n_measured"), med.get("n_total")) != (1500000, 2, 5):
+if (med.get("value_ms"), med.get("n_measured"), med.get("n_total")) != (41400000, 3, 6):
     p.append("medians.overall.commit_push=%s" % med)
+if d.get("medians_excluded_records") != ["ATM-601", "ATM-602", "ATM-603", "ATM-700"]:
+    p.append("medians_excluded_records=%s" % d.get("medians_excluded_records"))
 cp_gaps = [g for g in d.get("instrument_gaps", []) if g["stage"] == "commit_push"]
-if len(cp_gaps) != 1 or cp_gaps[0]["items_affected"] != ["ATM-502", "ATM-503", "ATM-700"] \
-        or "{item_id}" not in cp_gaps[0]["missing_instrument"] or "ATM-502" in cp_gaps[0]["missing_instrument"]:
+if len(cp_gaps) != 1 or cp_gaps[0]["items_affected"] != ["ATM-300", "ATM-503", "ATM-504", "ATM-601",
+                                                         "ATM-602", "ATM-603", "ATM-700"] \
+        or "{item_id}" not in cp_gaps[0]["missing_instrument"] or "ATM-503" in cp_gaps[0]["missing_instrument"]:
     p.append("instrument_gaps[commit_push]=%s" % cp_gaps)
 print("PASS" if not p else " | ".join(p))
 PYEOF
 )"
 if [ "$c2" = "PASS" ]; then
-  echo "ok R5-C2 report equals the hand-derived expectation (selection, excluded, commit_push spans,"
-  echo "   flags, reopen block from reopen_rate.py over the window population, medians, gaps)"
+  echo "ok R5-C2 report equals the hand-derived expectation (shared selection, excluded, usable strata,"
+  echo "   commit_push spans incl. non-UTC/as-of-day/latest-committer, flags, reopen block from"
+  echo "   reopen_rate.py over the window population, medians over usable records, gaps)"
 else
   echo "NOT ok R5-C2 $c2"
   failx
@@ -792,8 +830,8 @@ echo
 echo "=== R5-C3 (I4): CT-007 --hand-verified compares real figures and refuses an empty comparison ==="
 cat > "$TMP/hv_good.json" <<'JSON'
 [{"item_id": "ATM-277", "stage": "commit_push", "field": "elapsed", "expected_value": 1800000},
- {"item_id": "ATM-800", "stage": "commit_push", "field": "elapsed", "expected_value": 1200000},
- {"item_id": "ATM-502", "stage": "commit_push", "field": "elapsed", "expected_value": "UNMEASURED"}]
+ {"item_id": "ATM-800", "stage": "commit_push", "field": "elapsed", "expected_value": 97200000},
+ {"item_id": "ATM-503", "stage": "commit_push", "field": "elapsed", "expected_value": "UNMEASURED"}]
 JSON
 sed 's/1800000/1801000/' "$TMP/hv_good.json" > "$TMP/hv_bad.json"
 cat > "$TMP/hv_ghost.json" <<'JSON'
@@ -961,11 +999,12 @@ else
 fi
 
 echo
-echo "=== R5-C8 (B1, reviewer experiment): live snapshot vs snapshot with every row after 2026-08-23 deleted ==="
-# final_status and STATUS_DESYNC are CURRENT-state observations of items.status
-# (the tracker keeps no history of that column), so they are masked here --
-# see cycle_report.py's "AS-OF CUTOFF" docstring section. Every
-# history-derived field must be identical.
+echo "=== R5-C8 (B1 + V2-7, reviewer experiment): live snapshot vs snapshot with every row after 2026-08-23 deleted ==="
+# V2-7 (T048 restart round 2): final_status and STATUS_DESYNC are CURRENT-state
+# observations of items.status; they are now EXCLUDED from body_hash (and named
+# in the report's live_fields block), so the frozen comparison is body_hash
+# itself -- no masking in the test. The masked full-body comparison is kept as
+# a second, independent view.
 if command -v sqlite3 >/dev/null 2>&1 && [ -f "$DB" ]; then
   sqlite3 -readonly "$DB" ".backup '$TMP/r5_live_full.db'"
   cp "$TMP/r5_live_full.db" "$TMP/r5_live_cut.db"
@@ -976,28 +1015,32 @@ if command -v sqlite3 >/dev/null 2>&1 && [ -f "$DB" ]; then
   done
   c8="$(python3 - "$TMP/r5_live_full.json" "$TMP/r5_live_cut.json" <<'PYEOF'
 import json, sys
-def norm(path):
-    d = json.load(open(path))
+try:
+    a, b = (json.load(open(p)) for p in sys.argv[1:3])
+except Exception as e:
+    print("missing output: %s" % e)
+    raise SystemExit
+def norm(d):
+    d = dict(d)
     for k in ("body_hash", "run_meta", "schema"):
         d.pop(k, None)
     for r in d.get("records", []):
         r.pop("final_status", None)
         r["data_quality_flags"] = [f for f in r["data_quality_flags"] if f != "STATUS_DESYNC"]
     return d
-try:
-    a, b = norm(sys.argv[1]), norm(sys.argv[2])
-except Exception as e:
-    print("missing output: %s" % e)
-    raise SystemExit
-if a == b:
-    print("SAME %d" % len(a.get("records", [])))
+if a["body_hash"] != b["body_hash"]:
+    print("DIFF body_hash %s vs %s" % (a["body_hash"][:8], b["body_hash"][:8]))
+elif norm(a) != norm(b):
+    print("DIFF keys=%s" % [k for k in sorted(set(a) | set(b)) if norm(a).get(k) != norm(b).get(k)])
+elif not a.get("live_fields", {}).get("excluded_from_body_hash"):
+    print("live_fields block missing: %s" % a.get("live_fields"))
 else:
-    print("DIFF keys=%s" % [k for k in sorted(set(a) | set(b)) if a.get(k) != b.get(k)])
+    print("SAME %d" % len(a.get("records", [])))
 PYEOF
 )"
   case "$n_del:$c8" in
     0:*|:*) echo "NOT ok R5-C8 control: no rows after 2026-08-23 in the snapshot -- experiment proves nothing"; failx ;;
-    *:SAME*) echo "ok R5-C8 deleted $n_del future rows; every history-derived field of the report is unchanged (${c8#SAME } records)" ;;
+    *:SAME*) echo "ok R5-C8 deleted $n_del future rows; body_hash (frozen part) and every history-derived field unchanged (${c8#SAME } records)" ;;
     *) echo "NOT ok R5-C8 deleting $n_del future rows changed the as-of report: $c8"; failx ;;
   esac
 else
@@ -1005,62 +1048,298 @@ else
   failx
 fi
 
+echo
+echo "=== R5-C9 (V2-3 + V2-4): --item boundaries -- non-UTC commits, latest committer instant, as-of day, window.from ==="
+r5_run i1002 full --as-of 2026-08-23 --window-days 60 --item ATM-1002 >/dev/null
+r5_run i310 full --as-of 2026-08-23 --window-days 60 --item ATM-310 >/dev/null
+r5_run i300 full --as-of 2026-08-23 --window-days 60 --item ATM-300 >/dev/null
+r5_run i800 full --as-of 2026-08-23 --window-days 60 --item ATM-800 >/dev/null
+c9="$(python3 - "$TMP" <<'PYEOF'
+import json, os, sys
+t = sys.argv[1]
+def rec(tag):
+    d = json.load(open(os.path.join(t, "r5_%s.json" % tag)))
+    return d, d["records"][0]
+def cp(r):
+    s = next(x for x in r["stages"] if x["stage"] == "commit_push")
+    v = lambda x: x.get("value") if isinstance(x, dict) else x
+    return (s.get("elapsed"), v(s.get("start")), v(s.get("end")))
+p = []
+try:
+    d1002, r1002 = rec("i1002"); d310, r310 = rec("i310"); d300, r300 = rec("i300"); d800, r800 = rec("i800")
+except Exception as e:
+    print("missing output: %s" % e)
+    raise SystemExit
+# tz-a author 09:00+05:00 (04:00Z) is the EARLIEST; tz-b committer 08:30+03:00
+# (05:30Z) is the LATEST: 1 h 30 m. Lexical ISO order gives -3000000.
+if cp(r1002) != (5400000, "2026-07-10T09:00:00+05:00", "2026-07-10T08:30:00+03:00"):
+    p.append("ATM-1002 commit_push=%s" % (cp(r1002),))
+if cp(r310) != (41400000, "2026-08-23T10:00:00Z", "2026-08-24T02:30:00+05:00"):
+    p.append("ATM-310 commit_push=%s" % (cp(r310),))
+if (r310.get("closure_event") or {}).get("on_date") != "2026-08-23" or d310["strata"]["Bug"]["n"] != 1:
+    p.append("ATM-310 (closed ON the as-of day) closure=%s strata.Bug.n=%s"
+             % (r310.get("closure_event"), d310["strata"]["Bug"]["n"]))
+if (r300.get("selection_reason"), r300.get("reopen_count")) != ("reopened-in-window", 1):
+    p.append("ATM-300 (Reopened ON window.from) selection/reopen=%s/%s"
+             % (r300.get("selection_reason"), r300.get("reopen_count")))
+if cp(r800) != (97200000, "2026-07-24T08:00:00Z", "2026-07-25T11:00:00Z"):
+    p.append("ATM-800 commit_push=%s (end must be the latest COMMITTER instant)" % (cp(r800),))
+print("PASS" if not p else " | ".join(p))
+PYEOF
+)"
+if [ "$c9" = "PASS" ]; then
+  echo "ok R5-C9 non-UTC commits ordered by instant (+5400000, not -3000000); end = latest committer instant;"
+  echo "   a closure and a commit ON the as-of day count; a Reopened row ON window.from counts"
+else
+  echo "NOT ok R5-C9 $c9"
+  failx
+fi
+
+echo
+echo "=== R5-C10 (V2-4): Shape-B -- unparseable commit instant dropped; review rounds on vs straddling the as-of day ==="
+mkdir -p "$TMP/r5_rrx"
+printf '{"schema":"review-record/v1","item_id":"ATM-90830","started_at":"2026-08-23T10:00:00Z","ended_at":"2026-08-23T11:00:00Z","tokens":3}\n' > "$TMP/r5_rrx/a.json"
+printf '{"schema":"review-record/v1","item_id":"ATM-90830","started_at":"2026-08-23T20:00:00Z","ended_at":"2026-08-24T02:00:00Z","tokens":5}\n' > "$TMP/r5_rrx/b.json"
+cat > "$TMP/r5_bnd.json" <<'JSON'
+{"item": {"atm_id": "ATM-90830", "type": "Bug", "status": "Fixed (→ Fixed.md)"},
+ "item_history": [{"event_type": "Opened", "by": "User", "on_date": "2026-08-01", "created_at": "2026-08-01T08:00:00Z"},
+                  {"event_type": "Fixed", "by": "AI", "on_date": "2026-08-23", "created_at": "2026-08-23T12:00:00Z"}],
+ "git_log": [
+   {"sha": "g1", "author_date": "2026-08-02T08:00:00Z", "committer_date": "2026-08-02T08:30:00Z", "message": "fix(ATM-90830): a"},
+   {"sha": "g2", "author_date": "not-a-date", "committer_date": "2026-08-02T09:00:00Z", "message": "fix(ATM-90830): b"}]}
+JSON
+python3 "$CYCLE_REPORT" --as-of 2026-08-23 --tracker-export "$TMP/r5_bnd.json" --review-records-dir "$TMP/r5_rrx" \
+  --out "$TMP/r5_bnd_out.json" >"$TMP/r5_bnd.err" 2>&1
+c10="$(python3 -c "
+import json, sys
+r = json.load(open(sys.argv[1]))['records'][0]
+st = {s['stage']: s for s in r['stages']}
+print((st['commit_push'].get('elapsed'), st['review_rounds'].get('elapsed'), st['review_rounds'].get('tokens')))
+" "$TMP/r5_bnd_out.json" 2>&1)"
+# commit_push: g2's author instant is unparseable -> cannot be shown to precede
+# the cutoff -> dropped -> g1 alone = 1800000. review_rounds: round a (on the
+# as-of day) = 3600000 / 3 tokens; round b ends after the as-of day -> invisible.
+if [ "$c10" = "(1800000, 3600000, 3)" ]; then
+  echo "ok R5-C10 unparseable instant dropped; a round ON the as-of day counts; a round straddling the cutoff does not"
+else
+  echo "NOT ok R5-C10 got $c10, want (1800000, 3600000, 3) -- $(tail -2 "$TMP/r5_bnd.err")"
+  failx
+fi
+
+echo
+echo "=== R5-C11 (V2-2 class): cycle_report and select_sample report ONE sample -- same items, exclusions, usable counts ==="
+# the select_sample.py BESIDE the cycle_report.py under test (the same tree --
+# a mutant run compares the mutant pair, never the mutant against the real tool)
+python3 "$(dirname "$CYCLE_REPORT")/select_sample.py" "${R5_NEEDLE[@]}" "${R5_COMMON[@]}" --db-path "$R5S/full/db.sqlite" \
+  --out "$TMP/r5_ss.json" >"$TMP/r5_ss.err" 2>&1
+printf '{"window": {"from": "2026-06-24", "to": "2026-08-23"}}\n' > "$TMP/r5_win.json"
+r5_run winjson full --as-of 2026-08-23 --min-per-type 2 --bulk-threshold 3 --window-json "$TMP/r5_win.json" >/dev/null
+c11="$(python3 - "$TMP/r5_full.json" "$TMP/r5_ss.json" "$TMP/r5_winjson.json" <<'PYEOF'
+import json, sys
+try:
+    cr, ss, wj = (json.load(open(p)) for p in sys.argv[1:4])
+except Exception as e:
+    print("missing output: %s" % e)
+    raise SystemExit
+p = []
+cr_recs = {r["item_id"]: (r["selection_reason"], r["excluded"], r["exclusion_reason"]) for r in cr["records"]}
+ss_items = {i["item_id"]: (i["selection_reason"], i["excluded_from_duration"], i["exclusion_reason"]) for i in ss["items"]}
+if cr_recs != ss_items:
+    p.append("records %s != items %s" % (cr_recs, ss_items))
+for t in ("Bug", "Feature", "Task"):
+    if (cr["strata"][t]["n"], cr["strata"][t]["below_required"]) != (ss["strata"][t]["n_usable"], ss["strata"][t]["below_required"]):
+        p.append("%s cycle_report n=%s select_sample n_usable=%s" % (t, cr["strata"][t], ss["strata"][t]))
+# --window-json takes EVERY candidate; n must still be the USABLE count
+# (Task 7 taken, 4 usable; Feature 1 taken, 0 usable) -- never a count of records.
+want_wj = {"Bug": (7, 7), "Task": (4, 7), "Feature": (0, 1)}
+got_wj = {t: (wj["strata"][t]["n"], wj["strata"][t]["n_selected"]) for t in want_wj}
+if got_wj != want_wj:
+    p.append("window-json strata (n, n_selected)=%s expected %s" % (got_wj, want_wj))
+print("PASS" if not p else " | ".join(p))
+PYEOF
+)"
+if [ "$c11" = "PASS" ]; then
+  echo "ok R5-C11 full-mode records == select_sample items (reason + exclusion), strata n == n_usable per type;"
+  echo "   --window-json (take-all) reports usable n, not a record count"
+else
+  echo "NOT ok R5-C11 $c11"
+  failx
+fi
+
+echo
+echo "=== R5-C12 (V2-7): a status change after the as-of moves final_status/STATUS_DESYNC but NOT body_hash ==="
+cp "$R5S/full/db.sqlite" "$TMP/r5_status.sqlite"
+sqlite3 "$TMP/r5_status.sqlite" "UPDATE items SET status='Queued' WHERE atm_id='ATM-277';"
+python3 "$CYCLE_REPORT" "${R5_NEEDLE[@]}" --db-path "$TMP/r5_status.sqlite" --repo-root "$R5S/full/repo" \
+  --config x "${R5_COMMON[@]}" --out "$TMP/r5_status.json" >"$TMP/r5_status.err" 2>&1
+c12="$(python3 - "$TMP/r5_full.json" "$TMP/r5_status.json" <<'PYEOF'
+import json, sys
+try:
+    a, b = (json.load(open(p)) for p in sys.argv[1:3])
+except Exception as e:
+    print("missing output: %s" % e)
+    raise SystemExit
+ra = next(r for r in a["records"] if r["item_id"] == "ATM-277")
+rb = next(r for r in b["records"] if r["item_id"] == "ATM-277")
+p = []
+if (ra["final_status"], rb["final_status"]) != ("Fixed (→ Fixed.md)", "Queued"):
+    p.append("final_status %r -> %r (the live value must be reported)" % (ra["final_status"], rb["final_status"]))
+if "STATUS_DESYNC" not in rb["data_quality_flags"] or "STATUS_DESYNC" in ra["data_quality_flags"]:
+    p.append("STATUS_DESYNC %s -> %s" % (ra["data_quality_flags"], rb["data_quality_flags"]))
+if a["body_hash"] != b["body_hash"]:
+    p.append("body_hash moved with a current-state field: %s vs %s" % (a["body_hash"][:8], b["body_hash"][:8]))
+lf = b.get("live_fields", {})
+if lf.get("paths") != ["records[].final_status", "records[].data_quality_flags[STATUS_DESYNC]"] \
+        or lf.get("frozen_by_as_of") is not False:
+    p.append("live_fields=%s" % lf)
+if not any(c.get("field") == "items.type" for c in b.get("current_state_inputs", [])):
+    p.append("current_state_inputs does not name items.type: %s" % b.get("current_state_inputs"))
+print("PASS" if not p else " | ".join(p))
+PYEOF
+)"
+if [ "$c12" = "PASS" ]; then
+  echo "ok R5-C12 live status reported (Queued + STATUS_DESYNC) while body_hash stays frozen; live_fields and items.type named"
+else
+  echo "NOT ok R5-C12 $c12"
+  failx
+fi
+
+echo
+echo "=== R5-C13 (V2-8): no needle overrides + an as-of before the default needle's date -> needle derived at the as-of ==="
+python3 "$CYCLE_REPORT" --db-path "$R5S/full/db.sqlite" --repo-root "$R5S/full/repo" --config x \
+  --as-of 2026-07-20 --window-days 60 --min-per-type 2 --bulk-threshold 3 --out "$TMP/r5_nd.json" >"$TMP/r5_nd.err" 2>&1
+nd_rc=$?
+python3 "$CYCLE_REPORT" --db-path "$R5S/full/db.sqlite" --repo-root "$R5S/full/repo" --config x \
+  "${R5_COMMON[@]}" --out "$TMP/r5_nd_default.json" >"$TMP/r5_nd_default.err" 2>&1
+nd_default_rc=$?
+nd="$(python3 -c "
+import json, sys
+n = json.load(open(sys.argv[1]))['run_meta']['needle']
+print('%s|%s' % (n['source'], n['present_on_date']))
+" "$TMP/r5_nd.json" 2>&1)"
+if [ "$nd_rc" = 0 ] && [ "${nd%%|*}" = "derived-at-as-of" ] && [[ "${nd#*|}" < "2026-07-21" ]] && [ "$nd_default_rc" = 3 ]; then
+  echo "ok R5-C13 as-of 07-20 derives the needle ($nd); as-of 08-23 keeps the default and fails closed when it is absent"
+else
+  echo "NOT ok R5-C13 rc=$nd_rc needle=$nd default_rc=$nd_default_rc -- $(tail -1 "$TMP/r5_nd.err")"
+  failx
+fi
+
+echo
+echo "=== R5-C14 (V2-5 / R8 C1+C2): review records -- only this item's, only schema review-record/v1 ==="
+mkdir -p "$TMP/r5_rr2"
+printf '{"schema":"review-record/v1","item_id":"ATM-90841","started_at":"2026-08-10T10:00:00Z","ended_at":"2026-08-10T11:00:00Z","tokens":1}\n' > "$TMP/r5_rr2/a.json"
+printf '{"schema":"review-record/v1","item_id":"ATM-90842","started_at":"2026-08-11T10:00:00Z","ended_at":"2026-08-11T14:00:00Z","tokens":10}\n' > "$TMP/r5_rr2/b.json"
+printf '{"item_id":"ATM-90841","started_at":"2026-08-12T10:00:00Z","ended_at":"2026-08-12T18:00:00Z","tokens":100}\n' > "$TMP/r5_rr2/c_noschema.json"
+printf '{"schema":"review-record/v0","item_id":"ATM-90841","started_at":"2026-08-13T10:00:00Z","ended_at":"2026-08-13T18:00:00Z","tokens":1000}\n' > "$TMP/r5_rr2/d_wrongschema.json"
+for i in 90841 90842; do
+  sed "s/ATM-90810/ATM-$i/" "$TMP/r5_neg.json" > "$TMP/r5_two_$i.json"
+  python3 "$CYCLE_REPORT" --as-of 2026-09-28 --tracker-export "$TMP/r5_two_$i.json" --review-records-dir "$TMP/r5_rr2" \
+    --out "$TMP/r5_two_${i}_out.json" >"$TMP/r5_two_$i.err" 2>&1
+done
+c14="$(python3 -c "
+import json, sys
+def rr(p):
+    st = next(s for s in json.load(open(p))['records'][0]['stages'] if s['stage'] == 'review_rounds')
+    return (st.get('elapsed'), st.get('tokens'))
+print(rr(sys.argv[1]), rr(sys.argv[2]))
+" "$TMP/r5_two_90841_out.json" "$TMP/r5_two_90842_out.json" 2>&1)"
+if [ "$c14" = "(3600000, 1) (14400000, 10)" ]; then
+  echo "ok R5-C14 two items each see ONLY their own review record; schema-less and wrong-schema records are ignored"
+else
+  echo "NOT ok R5-C14 got $c14, want (3600000, 1) (14400000, 10)"
+  failx
+fi
+
 # ---------------------------------------------------------------------------
-# R5 paired mutations (§1.1). Each mutant = a copy of the REAL tool next to it
-# (lib/fc_common.py is imported __file__-relative) with ONE textual change;
-# this whole suite is re-run against it and MUST exit non-zero. M1 and M3 are
-# the reviewer's own mutations (same effect, re-anchored on the refactored
-# source); the rest are this fix's own.
+# R5 paired mutations (§1.1). Each mutant is a COPY of lib/ closure/ cycle/
+# under $TMP (V2-6: never inside the source tree; the tools' sibling imports
+# are __file__-relative, so the copy is self-contained) with ONE textual
+# change in ONE file -- cycle_report.py, or select_sample.py where the rule now
+# lives (V2-2: one copy, so the mutation reaches both tools). This whole suite
+# is re-run against the copy and MUST exit non-zero. M1/M3 (round 1) and
+# CR_N1..CR_N7, R8-C1/C2 (round 2) are the reviewers' own mutations.
 # ---------------------------------------------------------------------------
 if [ "${FC_R5_MUTANT:-0}" != 1 ]; then
   echo
   echo "=== R5 paired mutations ==="
-  REAL_CR="$FC/cycle/cycle_report.py"
-  R5_MUTS=()
-  trap 'rm -rf "$TMP"; rm -f "${R5_MUTS[@]}"' EXIT
-  r5_mutant() {  # name, old, new
-    local name="$1" mut="$FC/cycle/.r5_cr_mut_${1}.$$.py"
-    R5_MUTS+=("$mut")
-    if ! python3 - "$REAL_CR" "$mut" "$2" "$3" <<'PYEOF'
+  # The mutant tree mirrors the repository layout under $TMP so the tools'
+  # __file__-relative defaults (repo root = 4 levels up -> docs/
+  # workable_items.db and git log) resolve to THIS repository through two
+  # symlinks; a bare copy would read no DB at all, and every mutant would be
+  # "killed" by an unreadable DB instead of by the mutation (a bluff kill).
+  mk_mutant_tree() {  # $1 root dir; prints the fastcycle dir inside it
+    local fcd="$1/constitution/scripts/fastcycle"
+    mkdir -p "$fcd"
+    cp -r "$FC/lib" "$FC/closure" "$FC/cycle" "$fcd/"
+    ln -s "$ROOT/docs" "$1/docs"
+    ln -s "$ROOT/.git" "$1/.git"
+    echo "$fcd"
+  }
+  r5_mutant() {  # name, file relative to $FC, old, new
+    local name="$1" rel="$2" root="$TMP/r5_mut_$1" tree
+    tree="$(mk_mutant_tree "$root")"
+    if ! python3 - "$tree/$rel" "$3" "$4" <<'PYEOF'
 import sys
-src, dst, old, new = sys.argv[1:5]
-text = open(src, encoding="utf-8").read()
+path, old, new = sys.argv[1:4]
+text = open(path, encoding="utf-8").read()
 if text.count(old) != 1:
     raise SystemExit("anchor found %d times (need 1): %r" % (text.count(old), old))
-open(dst, "w", encoding="utf-8").write(text.replace(old, new))
+open(path, "w", encoding="utf-8").write(text.replace(old, new))
 PYEOF
     then
       echo "NOT ok mutation $name could not be applied (anchor drifted)"; failx; return
     fi
-    if CYCLE_REPORT_UNDER_TEST="$mut" FC_R5_MUTANT=1 bash "$0" >"$TMP/r5_mut_$name.out" 2>&1; then
+    if CYCLE_REPORT_UNDER_TEST="$tree/cycle/cycle_report.py" FC_R5_MUTANT=1 bash "$0" >"$TMP/r5_mut_$name.out" 2>&1; then
       echo "NOT ok mutation $name SURVIVED (suite still exits 0)"; failx
     else
       echo "ok mutation $name killed ($(grep -c '^NOT ok' "$TMP/r5_mut_$name.out") failing check(s))"
     fi
+    rm -rf "$root"
   }
-  # M1 (reviewer): token-boundary subject match reverted to a substring test.
-  r5_mutant M1_subject_substring 'return item_re.search(subject) is not None' 'return item_id in subject'
-  # M3 (reviewer): check_hand_verified always returns 0.
-  r5_mutant M3_hand_verify_always_ok 'def check_hand_verified(records, hand_verified_path):
+  CR=cycle/cycle_report.py
+  SS=cycle/select_sample.py
+  # Round 1 reviewer mutations.
+  r5_mutant M1_subject_substring "$CR" 'return item_re.search(subject) is not None' 'return item_id in subject'
+  r5_mutant M3_hand_verify_always_ok "$CR" 'def check_hand_verified(records, hand_verified_path):
 ' 'def check_hand_verified(records, hand_verified_path):
     return 0, "mutant"
 '
-  r5_mutant asof_history_cutoff_dropped 'return [r for r in history if r.get("on_date") and r["on_date"][:10] <= as_of]' 'return list(history)'
-  r5_mutant asof_git_cutoff_dropped 'if cutoff_end is not None and _after_cutoff(ad, cd, cutoff_end):' 'if False:'
-  r5_mutant asof_review_cutoff_dropped 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):' 'if False:'
-  r5_mutant git_failure_read_as_no_commit 'return unmeasured_git_failure(item_id, err), False' 'return unmeasured_stage("commit_push", item_id), False'
-  r5_mutant fixture_whole_message 'subject = (g.get("message") or "").split("\n", 1)[0]' 'subject = g.get("message") or ""'
-  r5_mutant reopen_without_prior_raw_history 'for row in dedup_history(history):
+  # Round 2 reviewer mutations (V2, verbatim effect; CR_N1/CR_N6 live in the one shared copy).
+  r5_mutant CR_N1_asof_day_dropped "$SS" 'r["on_date"][:10] <= as_of]' 'r["on_date"][:10] < as_of]'
+  r5_mutant CR_N2_cutoff_days_0 "$CR" 'datetime.date.fromisoformat(as_of) + datetime.timedelta(days=1),' 'datetime.date.fromisoformat(as_of) + datetime.timedelta(days=0),'
+  r5_mutant CR_N3_rebased_commit_leaks "$CR" 'return parse_iso(author_iso) >= cutoff_end or parse_iso(committer_iso) >= cutoff_end' 'return parse_iso(author_iso) >= cutoff_end and parse_iso(committer_iso) >= cutoff_end'
+  r5_mutant CR_N4_unparseable_kept "$CR" 'return True  # an unparseable instant cannot be shown to precede the cutoff' 'return False'
+  r5_mutant CR_N5_review_cutoff_and "$CR" 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):' 'if cutoff_end is not None and (s_dt >= cutoff_end and e_dt >= cutoff_end):'
+  r5_mutant CR_N6_window_from_exclusive "$SS" 'r["event_type"] == "Reopened" and window["from"] <= (r.get("on_date") or "")[:10]' 'r["event_type"] == "Reopened" and window["from"] < (r.get("on_date") or "")[:10]'
+  r5_mutant CR_N7_end_is_first_commit "$CR" 'end_m = max(matches, key=lambda m: _instant_key(m["committer_date"], m["sha"]))' 'end_m = matches[0]'
+  r5_mutant R8_C1_schema_check_dropped "$CR" 'if not isinstance(doc, dict) or doc.get("schema") != "review-record/v1":' 'if not isinstance(doc, dict):'
+  r5_mutant R8_C2_item_filter_dropped "$CR" '            if doc.get("item_id") != item_id:
+                continue
+' ''
+  # Own (round 1).
+  r5_mutant asof_history_cutoff_dropped "$SS" 'return [r for r in history if r.get("on_date") and r["on_date"][:10] <= as_of]' 'return list(history)'
+  r5_mutant asof_git_cutoff_dropped "$CR" 'if cutoff_end is not None and _after_cutoff(ad, cd, cutoff_end):' 'if False:'
+  r5_mutant asof_review_cutoff_dropped "$CR" 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):' 'if False:'
+  r5_mutant git_failure_read_as_no_commit "$CR" 'return unmeasured_git_failure(item_id, err), False' 'return unmeasured_stage("commit_push", item_id), False'
+  r5_mutant fixture_whole_message "$CR" 'subject = (g.get("message") or "").split("\n", 1)[0]' 'subject = g.get("message") or ""'
+  r5_mutant reopen_without_prior_raw_history "$CR" 'for row in dedup_history(history):
         if row["event_type"] in CLOSURE_EVENTS:
             closed_yet = True' 'for row in history:
         if row["event_type"] in CLOSURE_EVENTS:
             closed_yet = True'
-  r5_mutant reopen_population_uncut 'for r in history_upto(history or [], as_of):' 'for r in history or []:'
-  r5_mutant reopen_dedup_hardcoded_zero 'block = dict(overall)' 'block = dict(overall, dedup_rows_removed=0)'
-  r5_mutant reopen_population_is_sample 'population = [(i, type_of[i], full_hist[i]) for i in type_of]' 'population = [(i, type_of[i], full_hist[i]) for i in selected]'
-  r5_mutant hand_verify_skips_absent 'mismatches.append("item %s is not in this report" % item_id)' 'continue'
-  r5_mutant gap_text_not_normalized 'text = mi.replace(r["item_id"], "{item_id}")' 'text = mi'
-  r5_mutant medians_keep_negative 'if s["elapsed"] >= 0:' 'if True:'
+  r5_mutant reopen_population_uncut "$CR" 'for r in history_upto(history or [], as_of):' 'for r in history or []:'
+  r5_mutant reopen_dedup_hardcoded_zero "$CR" 'block = dict(overall)' 'block = dict(overall, dedup_rows_removed=0)'
+  r5_mutant reopen_population_is_sample "$CR" 'population = [(i, type_of[i], full_hist[i]) for i in type_of]' 'population = [(i, type_of[i], full_hist[i]) for i in rows_by_id]'
+  r5_mutant hand_verify_skips_absent "$CR" 'mismatches.append("item %s is not in this report" % item_id)' 'continue'
+  r5_mutant gap_text_not_normalized "$CR" 'text = mi.replace(r["item_id"], "{item_id}")' 'text = mi'
+  r5_mutant medians_keep_negative "$CR" 'if s["elapsed"] >= 0:' 'if True:'
+  # Own (round 2).
+  r5_mutant V2_3_lexical_commit_order "$CR" 'return (0, parse_iso(iso).timestamp(), sha)' 'return (0, iso, sha)'
+  r5_mutant V2_2_strata_counts_records "$CR" '"n": sh["n_usable"]' '"n": sh["n_selected"]'
+  r5_mutant V2_2_medians_include_excluded "$CR" '    records = [r for r in records if not r.get("excluded")]' '    records = list(records)'
+  r5_mutant V2_2_record_exclusion_dropped "$CR" '        "excluded": exclusion_reason is not None,' '        "excluded": False,'
+  r5_mutant V2_7_hash_over_live_fields "$CR" 'doc["body_hash"] = body_hash_of(frozen_projection(doc))' 'doc["body_hash"] = body_hash_of(doc)'
+  r5_mutant V2_8_needle_never_derived "$SS" 'if default_date <= as_of:' 'if True:'
 fi
 
 exit $fail

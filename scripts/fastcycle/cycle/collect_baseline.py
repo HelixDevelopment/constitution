@@ -86,11 +86,13 @@ direct grep of the FULL shared transcript corpus
 (~/.claude-shared/projects/-mnt-track1-atmosphere-t1/, the single canonical
 store every claude1..5 alias project dir symlinks to -- confirmed via
 `readlink -f` + matching inode, 2026-09-29) for `item=(<any of the 20 sample
-IDs>)` returned ZERO matches. This tool therefore reports every sample
-item's recorded-usage token baseline as UNMEASURED with the instrument
-named (the item=-stamp convention postdates the item's own historical
-work), per the plan's own explicit fallback -- never a fabricated or
-estimated figure. The "one stated fresh re-execution of a representative
+IDs>)` returned ZERO matches. That search was a one-off MANUAL check of the
+2026-09-29 sample; this tool performs no search itself, so (T048 restart
+round 2, V4-11) each per-item reason states only that no attributable usage
+was supplied to the tool and that it searched nothing -- the 2026-09-29
+finding is not repeated for samples it never covered. Every sample item's
+recorded-usage token baseline is UNMEASURED, per the plan's own explicit
+fallback -- never a fabricated or estimated figure. The "one stated fresh re-execution of a representative
 sample item" is a SEPARATE, one-time manual step (a real Agent-tool dispatch
 carrying `item=<ID>` in its own description, ingested via
 transcript_ingest.py after it completes) that this tool cannot perform on
@@ -126,6 +128,18 @@ is computed from the same item_history rows ordered by (on_date, id). A type
 with zero closures in the
 window reports its rate as UNMEASURED (division by zero is a real "no
 denominator" condition, never coerced to 0 or 1, S11.4.201(6)).
+
+=============================================================================
+EXIT CODES (C-001)
+=============================================================================
+0 baseline written and something was measured (or an explicit
+--skip-gate-replay dry run); 2 usage error; 4 BLIND / UNMEASURED -- select_sample
+failed, a sample item id is unsafe as a file name (V4-13), any harness error
+(freeze/replay could not run), a sample of zero items, or a replay run in which
+NO gate run was measured (T048 restart round 2, V4-3). The baseline doc is still
+written as evidence in every exit-4 case after the sample was read, except the
+unsafe-id refusal. "DEC-36 protocol met" is written only when every
+duration-eligible item has >= 10 measured (PASS, plausible) cold AND warm runs.
 
 Dependencies: bash (baseline_replay.sh's own subprocess), python3 (stdlib
 only), git, sqlite3 (via python3's built-in sqlite3 module -- same
@@ -248,7 +262,7 @@ def run_freeze(baseline_replay_bin, item_id, repo_root, db_path, out_path):
 
 
 def run_replay(baseline_replay_bin, commit, tree, gate_cmd, cold_runs, warm_runs, repo_root, worktree_root,
-               timeout_s, out_path, min_free_kb=None):
+               timeout_s, out_path, min_free_kb=None, min_free_kb_objects=None):
     cmd = [baseline_replay_bin, "replay", "--commit", commit, "--tree", tree,
            "--gate-cmd", gate_cmd, "--cold-runs", str(cold_runs), "--warm-runs", str(warm_runs),
            "--repo-root", repo_root, "--out", out_path]
@@ -258,6 +272,8 @@ def run_replay(baseline_replay_bin, commit, tree, gate_cmd, cold_runs, warm_runs
         cmd += ["--timeout-s", str(timeout_s)]
     if min_free_kb is not None:
         cmd += ["--min-free-kb", str(min_free_kb)]
+    if min_free_kb_objects is not None:
+        cmd += ["--min-free-kb-objects", str(min_free_kb_objects)]
     # A single replay run can genuinely take hours (cold_runs+warm_runs *
     # ~19 min each); no subprocess-level timeout is imposed here beyond
     # baseline_replay.sh's own --timeout-s PER GATE INVOCATION -- an
@@ -373,14 +389,21 @@ def reopen_baseline(db_path, as_of, window_days):
 
 
 def token_baseline(sample_items, fresh_execution_json):
+    # T048 restart round 2 (V4-11): the reason used to say, for EVERY item of ANY
+    # sample, "zero attributable transcript records found by direct corpus search
+    # ... (2026-09-29)". That search was a one-off manual check for the 2026-09-29
+    # sample; this tool performs no search at all, so for any other sample the
+    # sentence claimed evidence that was never gathered (S11.4.6). The reason now
+    # says only what this tool actually did.
     per_item = []
     for it in sample_items:
         per_item.append({
             "item_id": it["item_id"], "type": it["type"],
             "recorded_usage_runs": "UNMEASURED",
-            "reason": ("item=<ATM-nnnn> dispatch-stamp convention (T036/T037) postdates this item's "
-                       "historical work; zero attributable transcript records found by direct corpus "
-                       "search of ~/.claude-shared/projects/-mnt-track1-atmosphere-t1/ (2026-09-29)"),
+            "reason": ("no recorded token usage attributable to this item was supplied to this tool, and "
+                       "this tool performs no transcript search of its own (attribution needs the "
+                       "item=<ID> dispatch stamp, T036/T037); a measured figure comes only from "
+                       "--fresh-execution-json"),
         })
     if fresh_execution_json and os.path.isfile(fresh_execution_json):
         with open(fresh_execution_json) as fh:
@@ -395,6 +418,69 @@ def token_baseline(sample_items, fresh_execution_json):
                        "--fresh-execution-json pointing at the recorded result"),
         }
     return {"per_item": per_item, "fresh_reexecution": fresh}
+
+
+def safe_item_id(iid):
+    """T048 restart round 2 (V4-13): item ids come from the tracker DB (input, not
+    trusted) and are used to build per-item output paths (freeze/<id>.json,
+    replay/<id>.json). An id holding a path separator, '..', NUL or whitespace
+    could write outside --out-dir (measured: 'ATM-9/../../../escaped' wrote
+    escaped.json next to the output directory) or names no item at all."""
+    if not isinstance(iid, str) or not iid.strip():
+        return False
+    if any(c in iid for c in ("/", "\\", "\0")) or any(c.isspace() for c in iid):
+        return False
+    return iid not in (".", "..") and ".." not in iid
+
+
+def protocol_assessment(a, items, eligible_ids, per_item_replay, overall_measured):
+    """T048 restart round 2 (V4-3): decide what the run may claim about DEC-36.
+    Returns (note, exit_code_or_None). The round-1 rule keyed "protocol met" on
+    the REQUESTED run counts and on items being replayed at all, never on runs
+    actually measured: a run in which every gate run crashed (0 measured, the F9
+    forensic shape) and a sample of zero items both printed "DEC-36 protocol met"
+    and exited 0. "Met" now requires >= REPLAY_FULL_RUNS measured (PASS, plausible)
+    cold AND warm runs for EVERY duration-eligible item."""
+    if not items:
+        return ("UNMEASURED: the sample holds zero items, so this baseline measures nothing; DEC-36 is "
+                "not met by this run.", 4)
+    if a.skip_gate_replay:
+        return ("Gate-window replay skipped (--skip-gate-replay): no gate run was measured in this "
+                "document; DEC-36 is not met by this run (dry run: freeze + reopen + token baseline only).",
+                None)
+    if overall_measured == 0:
+        return ("UNMEASURED: no gate run was measured -- 0 PASS runs at or above the plausibility floor "
+                "(%d ms) across %d replayed of %d duration-eligible items (every run crashed, failed, timed "
+                "out or was implausibly short, or nothing was replayed); DEC-36 is not met by this run." % (
+                    a.plausible_floor_ms, len([r for r in per_item_replay if r.get("replayed")]),
+                    len(eligible_ids)), 4)
+    replayed = {r["item_id"]: r for r in per_item_replay if r.get("replayed")}
+    short = []
+    for iid in eligible_ids:
+        r = replayed.get(iid)
+        if r is None:
+            short.append("%s (not replayed)" % iid)
+            continue
+        m = r.get("measured_runs", {})
+        if m.get("cold", 0) < REPLAY_FULL_RUNS or m.get("warm", 0) < REPLAY_FULL_RUNS:
+            short.append("%s (measured cold %d/%d, warm %d/%d)" % (
+                iid, m.get("cold", 0), REPLAY_FULL_RUNS, m.get("warm", 0), REPLAY_FULL_RUNS))
+    if (a.cold_runs >= REPLAY_FULL_RUNS and a.warm_runs >= REPLAY_FULL_RUNS and eligible_ids
+            and not short):
+        return ("DEC-36 protocol met: every one of the %d duration-eligible items has >= %d measured (PASS, "
+                "plausible) cold and >= %d measured warm runs (--cold-runs %d --warm-runs %d)." % (
+                    len(eligible_ids), REPLAY_FULL_RUNS, REPLAY_FULL_RUNS, a.cold_runs, a.warm_runs), None)
+    eligible_replayed = len([i for i in eligible_ids if i in replayed])
+    return (
+        "DEC-36 mandates >=10 cold + >=10 warm gate-window replays per sample item. This run used "
+        "--cold-runs %d --warm-runs %d and replayed %d of %d duration-eligible items (measured per-run "
+        "cost ~%.1f min, %s). Items short of %d measured runs per phase: %s. A full-compliance run "
+        "(>=10/>=10 measured across all %d duration-eligible items) is extrapolated to cost ~%.1f hours "
+        "and is TRACKED AS AN OWED FOLLOW-UP, never silently treated as already satisfied." % (
+            a.cold_runs, a.warm_runs, eligible_replayed, len(eligible_ids),
+            MEASURED_PER_RUN_S / 60.0, a.gate_cmd, REPLAY_FULL_RUNS, "; ".join(short) or "none",
+            len(eligible_ids), (len(eligible_ids) * 2 * REPLAY_FULL_RUNS * MEASURED_PER_RUN_S) / 3600.0),
+        None)
 
 
 def main(argv):
@@ -418,6 +504,9 @@ def main(argv):
     ap.add_argument("--min-free-kb", type=int, default=None,
                      help="passed through to baseline_replay.sh replay (default: its own floor, sized "
                           "for a full checkout of this project)")
+    ap.add_argument("--min-free-kb-objects", type=int, default=None,
+                     help="passed through to baseline_replay.sh replay (default: its own floor for the "
+                          "filesystem of the git object store)")
     ap.add_argument("--plausible-floor-ms", type=int, default=60000,
                      help="a run duration below this is EXCLUDED from per-type medians and reported "
                           "as implausible rather than silently pooled (default 60000ms = 1 min, an "
@@ -448,6 +537,13 @@ def main(argv):
     if sample is None:
         return 4
     items = sample.get("items", [])
+    unsafe = [it.get("item_id") if isinstance(it, dict) else it for it in items
+              if not isinstance(it, dict) or not safe_item_id(it.get("item_id"))]
+    if unsafe:
+        print("collect_baseline: BLIND: the sample holds item id(s) that are not safe to use as output file "
+              "names (a path separator, '..', NUL or whitespace): %r -- refusing before anything is written "
+              "for them" % (unsafe,), file=sys.stderr)
+        return 4
     if sample.get("state") != "OK" or not items:
         # Recorded in the doc (sample.state) and said aloud: a baseline over zero
         # items is not silently presented as a measured one.
@@ -510,7 +606,8 @@ def main(argv):
             continue
         rpath = os.path.join(replay_dir, "%s.json" % iid)
         rdoc = run_replay(baseline_replay_bin, commit, tree, a.gate_cmd, a.cold_runs, a.warm_runs,
-                           repo_root, a.worktree_root, a.timeout_s, rpath, a.min_free_kb)
+                           repo_root, a.worktree_root, a.timeout_s, rpath, a.min_free_kb,
+                           a.min_free_kb_objects)
         if rdoc.get("skipped"):
             per_item_replay.append({"item_id": iid, "type": itype, "replayed": False,
                                      "reason": rdoc.get("skip_reason")})
@@ -526,6 +623,10 @@ def main(argv):
         # measured ~1134s real run) so a genuinely fast future gate (once
         # US2's affected-set selection lands) is never falsely flagged.
         implausible_runs = [r for r in rdoc.get("runs", []) if r.get("duration_ms", 0) < a.plausible_floor_ms]
+        measured_runs = {ph: len([r for r in rdoc.get("runs", []) if r.get("phase") == ph
+                                  and r.get("verdict") == "PASS"
+                                  and r.get("duration_ms", 0) >= a.plausible_floor_ms])
+                         for ph in ("cold", "warm")}
         per_item_replay.append({
             "item_id": iid, "type": itype, "replayed": True,
             "commit": commit, "tree": tree,
@@ -533,6 +634,7 @@ def main(argv):
             "median_ms": rdoc.get("median_ms"), "verdict_set": rdoc.get("verdict_set"),
             "implausible_run_count": len(implausible_runs),
             "implausible_runs": implausible_runs if implausible_runs else None,
+            "measured_runs": measured_runs,
         })
         pool = by_type_pool.setdefault(itype, {"cold": [], "warm": [], "excluded": {"cold": 0, "warm": 0}})
         for run in rdoc.get("runs", []):
@@ -563,31 +665,12 @@ def main(argv):
     tokens = token_baseline(items, a.fresh_execution_json)
 
     # R6-F21: the denominator is the sample's duration-eligible items (never the
-    # caller's --replay-item-ids list), and "owed follow-up" is said only when this
-    # run genuinely fell short of DEC-36 (fewer than 10/10 runs, or not every
-    # eligible item actually replayed).
-    n_replayed = len([r for r in per_item_replay if r.get("replayed")])
-    eligible_replayed = len([r for r in per_item_replay if r.get("replayed") and r["item_id"] in eligible_ids])
-    reduced = (a.cold_runs < REPLAY_FULL_RUNS or a.warm_runs < REPLAY_FULL_RUNS
-               or eligible_replayed < len(eligible_ids))
-    if reduced:
-        full_protocol_note = (
-            "DEC-36 mandates >=10 cold + >=10 warm gate-window replays per sample item. This run used "
-            "--cold-runs %d --warm-runs %d and replayed %d of %d duration-eligible items (measured per-run "
-            "cost ~%.1f min, %s). A full-compliance run (>=10/>=10 across all %d duration-eligible items) "
-            "is extrapolated to cost ~%.1f hours and is TRACKED AS AN OWED FOLLOW-UP, never silently "
-            "treated as already satisfied." % (
-                a.cold_runs, a.warm_runs, eligible_replayed, len(eligible_ids),
-                MEASURED_PER_RUN_S / 60.0, a.gate_cmd, len(eligible_ids),
-                (len(eligible_ids) * 2 * REPLAY_FULL_RUNS * MEASURED_PER_RUN_S) / 3600.0,
-            )
-        )
-    else:
-        full_protocol_note = (
-            "DEC-36 protocol met: --cold-runs %d --warm-runs %d, every one of the %d duration-eligible "
-            "items replayed (%d items replayed in total)." % (
-                a.cold_runs, a.warm_runs, len(eligible_ids), n_replayed)
-        )
+    # caller's --replay-item-ids list). V4-3: what the note may claim, and whether
+    # the run is UNMEASURED (exit 4), is decided by protocol_assessment() from the
+    # runs actually measured.
+    overall_measured = overall_medians["cold"]["n_runs"] + overall_medians["warm"]["n_runs"]
+    full_protocol_note, unmeasured_rc = protocol_assessment(a, items, eligible_ids, per_item_replay,
+                                                            overall_measured)
 
     doc = {
         "as_of": a.as_of, "window_days": a.window_days, "min_per_type": a.min_per_type,
@@ -637,11 +720,15 @@ def main(argv):
     print(json.dumps({"out": out_path, "schema": SCHEMA, "body_hash": doc["body_hash"]}))
     # A run in which any item could not be measured because the HARNESS failed is
     # BLIND (exit 4, C-001), even though the baseline doc is written as evidence.
+    if unmeasured_rc is not None:
+        print("collect_baseline: %s" % full_protocol_note, file=sys.stderr)
     if harness_errors:
         print("collect_baseline: BLIND: %d harness error(s): %s" % (
             len(harness_errors), "; ".join("%s %s" % (h["item_id"], h["stage"]) for h in harness_errors)),
             file=sys.stderr)
         return 4
+    if unmeasured_rc is not None:
+        return unmeasured_rc
     return 0
 
 

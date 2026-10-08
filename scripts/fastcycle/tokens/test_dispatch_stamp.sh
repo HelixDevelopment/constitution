@@ -390,6 +390,79 @@ run_extract "right boundary: 'item=ATM-12,' EXTRACT ATM-12 (punctuation ends a t
 run_extract "right boundary: 'item=ATM-12' at end of string EXTRACT ATM-12" 'ATM-12' \
   '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12"}}'
 
+# ===========================================================================
+# I. T048 restart round 2 (V1-I3 N8, V1-M3, V1-M4(a)): '_' ends no tag;
+#    the refusal names the RESOLVED prefix; the jq-less reader takes the
+#    value at the exact path and fails closed on a payload it cannot parse.
+# ===========================================================================
+echo
+echo "-- I. underscore boundary, refusal text, exact-path parsing, fail-closed --"
+run_guard "right boundary: 'item=ATM-12_x' BLOCKED ('_' continues the token)" 2 \
+  '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12_x trailing"}}'
+run_extract "right boundary: 'item=ATM-12_x' EXTRACT empty" '' \
+  '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12_x trailing"}}'
+
+# check <name> <condition-exit-status>
+check() {
+  if [ "$2" -eq 0 ]; then printf '  PASS  %-64s\n' "$1"; PASS=$((PASS + 1));
+  else printf '  FAIL  %-64s %s\n' "$1" "${3:-}"; FAIL=$((FAIL + 1)); fi
+}
+UNTAGGED='{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12 no zeta tag"}}'
+ERR_Z="$(printf '%s' "$UNTAGGED" | HELIX_RELEASE_PREFIX=zeta bash "$TOOL" 2>&1 >/dev/null)"; RC_Z=$?
+check "V1-M3: zeta consumer blocks item=ATM-12 (exit 2)" "$([ "$RC_Z" = 2 ] && echo 0 || echo 1)" "rc=$RC_Z"
+check "V1-M3: refusal names the resolved form item=<ZET-nnnn>" "$(printf '%s' "$ERR_Z" | grep -Fq 'item=<ZET-nnnn>'; echo $?)" "stderr: $ERR_Z"
+check "V1-M3: refusal example uses the resolved prefix (item=ZET-1041)" "$(printf '%s' "$ERR_Z" | grep -Fq 'item=ZET-1041'; echo $?)" "stderr: $ERR_Z"
+check "V1-M3: refusal text carries no ATM-nnnn / ATM-1041 literal" "$(printf '%s' "$ERR_Z" | grep -Eq 'ATM-(nnnn|1041)' && echo 1 || echo 0)" "stderr: $ERR_Z"
+ERR_X="$(printf '%s' "$UNTAGGED" | HELIX_RELEASE_PREFIX=zeta FC_DISPATCH_EXTRA_ITEM_PREFIXES=spk bash "$TOOL" 2>&1 >/dev/null)"
+check "V1-M3: refusal lists every accepted prefix (ZET, SPK)" "$(printf '%s' "$ERR_X" | grep -Fq 'accepted prefixes: ZET, SPK'; echo $?)" "stderr: $ERR_X"
+ERR_O="$(printf '%s' "$UNTAGGED" | FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+' bash "$TOOL" 2>&1 >/dev/null)"
+check "V1-M3: with a full override the refusal quotes the configured pattern" "$(printf '%s' "$ERR_O" | grep -Fq "FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+'"; echo $?)" "stderr: $ERR_O"
+
+# V1-M4(a): a nested "description" placed BEFORE the real (untagged) one.
+NESTED_FIRST='{"tool_name":"Agent","tool_input":{"metadata":{"description":"item=ATM-1"},"description":"(T1/main - x) untagged real description"}}'
+NESTED_ONLY='{"tool_name":"Agent","tool_input":{"metadata":{"description":"item=ATM-1"}}}'
+DUP_KEY='{"tool_name":"Agent","tool_input":{"description":"item=ATM-5 first","description":"(T1/main - x) last one, untagged"}}'
+ESCAPED='{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) \"quoted\" \\\\ back é\tTAB item=ATM-77 😀 end"}}'
+ARRAYS='{"tool_name":"Agent","tool_input":{"tags":[{"description":"item=ATM-2"},[1,2.5e3,true,null]],"description":"(T1/main - x) item=ATM-3 real"}}'
+TOOL_NESTED='{"tool_input":{"meta":{"tool_name":"Read"},"description":"(T1/main - x) untagged"},"tool_name":"Agent"}'
+run_guard "jq: nested description before the real untagged one BLOCKED" 2 "$NESTED_FIRST"
+run_extract "jq: nested description before the real one EXTRACT empty" '' "$NESTED_FIRST"
+run_guard "jq: only a nested description BLOCKED" 2 "$NESTED_ONLY"
+run_extract "jq: duplicate key, last value wins (untagged) EXTRACT empty" '' "$DUP_KEY"
+run_extract "jq: escapes, \\u and a surrogate pair, tag extracted" 'ATM-77' "$ESCAPED"
+run_extract "jq: descriptions inside arrays ignored, real one ATM-3" 'ATM-3' "$ARRAYS"
+run_guard "jq: nested tool_name ignored, top-level Agent untagged BLOCKED" 2 "$TOOL_NESTED"
+for bad in '{"tool_name":"Agent","tool_input":{' '{"tool_name":"Read"' 'null' '42' '"hello"' '[1]' '{"tool_name":"Agent"} trailing'; do
+  run_guard "jq: unparseable/non-object payload '$bad' BLOCKED (fail closed)" 2 "$bad"
+done
+run_guard "jq: empty payload allowed (no tool named)" 0 ''
+if [ "$NOJQ_AVAILABLE" -eq 1 ]; then
+  # The jq-less reader is run WITHOUT the FC_DISPATCH_ITEM_ID_RE override
+  # here only where the case needs no prefix derivation; the helpers pin
+  # the override, as section G explains.
+  run_guard_nojq "awk: nested description before the real untagged one BLOCKED" 2 "$NESTED_FIRST"
+  run_extract_nojq "awk: nested description before the real one EXTRACT empty" '' "$NESTED_FIRST"
+  run_guard_nojq "awk: only a nested description BLOCKED" 2 "$NESTED_ONLY"
+  run_extract_nojq "awk: duplicate key, last value wins (untagged) EXTRACT empty" '' "$DUP_KEY"
+  run_extract_nojq "awk: escapes, \\u and a surrogate pair, tag extracted" 'ATM-77' "$ESCAPED"
+  run_extract_nojq "awk: descriptions inside arrays ignored, real one ATM-3" 'ATM-3' "$ARRAYS"
+  run_guard_nojq "awk: nested tool_name ignored, top-level Agent untagged BLOCKED" 2 "$TOOL_NESTED"
+  run_guard_nojq "awk: a tagged top-level description is ALLOWED" 0 \
+    '{"tool_name":"Agent","tool_input":{"metadata":{"x":[1,{"y":"z"}]},"description":"(T1/main - x) item=ATM-9 ok"}}'
+  run_guard_nojq "awk: a non-agent tool is ALLOWED" 0 '{"tool_name":"Read","tool_input":{"file_path":"/x"}}'
+  for bad in '{"tool_name":"Agent","tool_input":{' '{"tool_name":"Read"' 'null' '42' '"hello"' '[1]' '{"tool_name":"Agent"} trailing' '{"tool_name":"Agent","tool_input":{"description":"bad \q escape"}}'; do
+    run_guard_nojq "awk: unparseable/non-object payload '$bad' BLOCKED (fail closed)" 2 "$bad"
+    run_extract_nojq "awk: unparseable/non-object payload '$bad' EXTRACT empty" '' "$bad"
+  done
+  run_guard_nojq "awk: empty payload allowed (no tool named)" 0 ''
+  # The jq-less reader decodes the description to the same bytes jq does.
+  JQ_DESC="$(printf '%s' "$ESCAPED" | jq -r '.tool_input.description' 2>/dev/null)"
+  AWK_DESC="$(printf '%s' "$ESCAPED" | PATH="$NOJQ_BIN" FC_DISPATCH_ITEM_ID_RE='NOMATCH-[0-9]+' "$BASH_ABS" "$TOOL" 2>&1 >/dev/null | sed -n 's/^  Found: //p')"
+  if command -v jq >/dev/null 2>&1; then
+    check "awk reader decodes escapes to the same text as jq" "$([ -n "$JQ_DESC" ] && [ "$JQ_DESC" = "$AWK_DESC" ] && echo 0 || echo 1)" "jq='$JQ_DESC' awk='$AWK_DESC'"
+  fi
+fi
+
 echo
 echo "  total: PASS=$PASS FAIL=$FAIL"
 if [ "$FAIL" -gt 0 ]; then

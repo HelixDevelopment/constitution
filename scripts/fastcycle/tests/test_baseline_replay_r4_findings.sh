@@ -95,7 +95,10 @@ b1_case() {
     out="$(mktemp)"; pidf="$repo/gate.pid"
     sleep_gate "$repo/gate.sh" "$pidf"
     local t0=$SECONDS
-    timeout -s "$sig" -k 25 1.5s bash "$script" replay --commit "$commit" --tree "$tree" \
+    # a private TMPDIR: the mutant case below is ended by SIGKILL, which no trap
+    # can clean up after -- its temp files must not leak into the caller's TMPDIR
+    local td; td="$(mktemp -d)"
+    TMPDIR="$td" timeout -s "$sig" -k 25 1.5s bash "$script" replay --commit "$commit" --tree "$tree" \
         --repo-root "$repo" --worktree-root "$wtr" --min-free-kb 0 \
         --gate-cmd "$repo/gate.sh" --cold-runs 1 --warm-runs 0 --out "$out" >/dev/null 2>&1
     B1_ELAPSED=$((SECONDS - t0))
@@ -106,7 +109,7 @@ b1_case() {
     if gate_alive "$gp"; then B1_GATE_ALIVE=yes; else B1_GATE_ALIVE=no; fi
     reap_gate "$gp"
     git -C "$repo" worktree prune >/dev/null 2>&1
-    rm -rf "$repo" "$out"
+    rm -rf "$repo" "$out" "$td"
 }
 
 for SIG in HUP QUIT; do
@@ -134,11 +137,12 @@ import sys
 # B1 mutation builder
 src_path, out_path = sys.argv[1], sys.argv[2]
 src = open(src_path).read()
-old = ("exit 127' fc-gate \"$marker\" \"$cwd\" \"$@\" >\"$log\" 2>&1 </dev/null &\n"
+# (T048 restart round 2: the launch line now also closes fd 9, the replay lock)
+old = ("exit 127' fc-gate \"$marker\" \"$cwd\" \"$@\" >\"$log\" 2>&1 </dev/null 9>&- &\n"
        "  _FC_CHILD_PGID=$!\n"
        "  wait \"$_FC_CHILD_PGID\"\n"
        "  RG_RC=$?\n")
-new = ("exit 127' fc-gate \"$marker\" \"$cwd\" \"$@\" >\"$log\" 2>&1 </dev/null\n"
+new = ("exit 127' fc-gate \"$marker\" \"$cwd\" \"$@\" >\"$log\" 2>&1 </dev/null 9>&-\n"
        "  RG_RC=$?\n")
 n = src.count(old)
 if n != 1:

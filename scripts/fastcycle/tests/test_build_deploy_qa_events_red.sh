@@ -141,15 +141,21 @@
 #          FINGERPRINT=<fingerprint>
 #          VERDICT=<verdict>
 #          DEPLOY_TARGET=<target_serial>
-#     1  invalid verdict, a missing/empty fingerprint on either side, a
-#        fingerprint mismatch, or a missing/empty deploy target_serial ->
-#        stdout EXACTLY one line naming build_id and the specific offending
-#        reason, checked in this order: verdict_INVALID=<v> |
+#     1  invalid verdict, a missing/empty/blank fingerprint on either side, a
+#        fingerprint mismatch, a missing/empty/blank deploy target_serial, or a
+#        deploy time that is not an ISO 8601 UTC instant -> stdout EXACTLY one
+#        line naming build_id and the specific offending reason, checked in
+#        this order: verdict_INVALID=<v> |
 #        fingerprint_MISSING=<build|deploy|build,deploy> |
-#        fingerprint_MISMATCH=<build-fp>/<deploy-fp> | target_serial_MISSING
+#        fingerprint_MISMATCH=<build-fp>/<deploy-fp> | target_serial_MISSING |
+#        deploy_time_INVALID=<value read>
 #        (T048 restart round 1, R6-F1: both-absent / both-empty fingerprints
 #        used to pass as an identity match; fixtures golden-bad-fp-* and
-#        golden-bad-target-missing pin the refusal).
+#        golden-bad-target-missing pin the refusal. T048 restart round 2, V4-6:
+#        a whitespace-only value is "absent" too -- " " == " " is not an
+#        identity -- and the contract's `time` field is validated; fixtures
+#        golden-bad-*-whitespace*, golden-bad-time-* and
+#        golden-bad-buildid-blank pin it.)
 #   This tool is the pure, fixture-testable validate+join core. T040's own
 #   emitter wiring into docs/build/resources/builds.tsv, scripts/flash.sh's
 #   post-verify step, and scripts/lib/critical_blocker_gate.sh (plan.md T040,
@@ -303,6 +309,13 @@ else
         check_class golden-bad-fp-missing-deploy "a join whose deploy side has no fingerprint is refused"
         check_class golden-bad-target-missing "a join with no deploy target_serial is refused (DEPLOY_TARGET=None is not a deploy record)"
         check_class golden-bad-join-verdict-invalid "a join whose build verdict is the sampler status KILLED is refused"
+        # T048 restart round 2 (V4-6): blank values are absent; time is validated.
+        check_class golden-bad-fp-whitespace-both "a join whose fingerprints are whitespace-only on both sides is refused (\" \" == \" \" is not an identity match)"
+        check_class golden-bad-target-whitespace "a join whose deploy target_serial is whitespace-only is refused"
+        check_class golden-bad-time-invalid "a join whose deploy time is not a date is refused and the value read is named"
+        check_class golden-bad-time-missing "a join with no deploy time is refused"
+        check_class golden-bad-time-not-utc "a join whose deploy time carries a non-UTC offset is refused (the contract field is UTC)"
+        check_class golden-bad-buildid-blank "a whitespace-only build_id is reported as UNKNOWN, never echoed as if it were an id"
         if [ "$HRC" -eq 0 ]; then
             ok "harness exit status 0 (every fixture class as expected)"
         else
@@ -314,6 +327,7 @@ else
             [ -d "$d" ] || continue
             case ${d##*/} in
                 golden-bad-fp-mismatch|golden-bad-fp-missing-both|golden-bad-fp-empty-both|golden-bad-fp-missing-deploy|golden-bad-target-missing|golden-bad-join-verdict-invalid) ;;
+                golden-bad-fp-whitespace-both|golden-bad-target-whitespace|golden-bad-time-invalid|golden-bad-time-missing|golden-bad-time-not-utc|golden-bad-buildid-blank) ;;
                 *) bad "unlisted fixture class ${d##*/} -- add it to the closed check list in this test" ;;
             esac
         done

@@ -21,6 +21,22 @@
 #   R7-M4 gate picks the EARLIEST round instead of the latest
 #   R7-M5 record silently lowers source-defect to process-doc
 # Mutations O* are this fix's own, one per guarded condition of the class.
+# Mutations V3-N* are the round-2 reviewer's (V3) surviving non-equivalent
+# mutations, re-expressed against the round-2 code with identical semantics;
+# R2-* are the round-2 fix's own, one per new guarded condition. O12 is
+# re-targeted at the round-2 decision point (a backfill zero-finding GO is
+# neutral history, never coverage and never a block).
+#
+# Not listed (equivalent, recorded in the round-2 fixer report): V3 N3
+# (None path), N9 (self-citation: a file cannot contain its own hash), N14
+# (label regex: now findall + exactly-one), N15 (precheck_used: missing
+# evidence is refused anyway); the explicit 'round is None' message in
+# record (refused with exit 2 by the integer check / binding either way);
+# the 'root producer' and 'unknown producer' shortcuts in _independence_tier
+# (_writable_by already treats uid 0 as all-writable, and a non-int uid is
+# refused by the same clause -- they cannot change a tier on any host); the
+# read-once/O_NOFOLLOW evidence open (a TOCTOU race is not reproducible
+# deterministically in a test).
 #
 # Usage : bash test_review_record_gate_authority_mutations.sh [MUTATION_ID...]
 # Exit  : 0 control GREEN and every mutation KILLED; 1 otherwise; 2 setup error.
@@ -30,7 +46,7 @@ FC=$(cd "$HERE/.." && pwd)
 S=$(mktemp -d) || { echo "cannot create temp dir" >&2; exit 2; }
 trap 'chmod -R u+w "$S" 2>/dev/null; rm -rf "$S"' EXIT INT TERM
 
-SUITES="test_review_record_gate_authority_r1_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
+SUITES="test_review_record_gate_authority_r1_regression.sh test_review_record_gate_authority_r2_regression.sh test_review_record_red.sh test_review_record_finding_layer_red.sh test_review_record_evidence_hash_r5_regression.sh test_review_record_backfill_evidence_r2_regression.sh"
 
 build_mirror() { # build_mirror DIR
   mkdir -p "$1/review" "$1/tests/lib" "$1/tests/fixtures"
@@ -57,9 +73,9 @@ cat > "$MUTATIONS" <<'EOF'
 R7-M1	'if not (verdict == "GO" and len(findings) == 0):'	'if not (verdict == "GO"):'
 R7-M2	'if not (verdict == "GO" and len(findings) == 0):'	'if not (True and len(findings) == 0):'
 R7-M3	'    reviewer, err = _validated_reviewer(verdict_doc)\n'	'    if not raw_findings:\n        verdict = "GO"\n    reviewer, err = _validated_reviewer(verdict_doc)\n'
-R7-M4	'if cur is None or rec["round"] > cur[0]["round"]:'	'if cur is None or rec["round"] < cur[0]["round"]:'
+R7-M4	'members.sort(key=lambda rp: rp[0]["round"])'	'members.sort(key=lambda rp: -rp[0]["round"])'
 R7-M5	'    if isinstance(value, str) and value in FINDING_LAYERS:\n        return value, None'	'    if isinstance(value, str) and value in FINDING_LAYERS:\n        return ("process-doc" if value == "source-defect" else value), None'
-O1-ledger-label	'    if not label_ok:'	'    if False:'
+O1-ledger-label	'        if labels[0] != (model, effort):'	'        if False:'
 O2-body-hash	'if rec.get("body_hash") != _body_hash_of(rec):'	'if False:'
 O3-dispatch-reuse	'if len(ctx["dispatch_use"].get(reviewer["dispatch_id"], ())) > 1:'	'if False:'
 O4-precheck-all-pass	'if pre.get("all_pass") is not True:'	'if False:'
@@ -70,19 +86,46 @@ O8-record-round-budget	'    if a.round > budget:'	'    if False:'
 O9-bool-round	'if not isinstance(verdict_round, int) or isinstance(verdict_round, bool):'	'if not isinstance(verdict_round, int):'
 O10-seam-tier	'if ctx["seam"] in HIGH_BLAST_SEAMS and tier != "capability":'	'if False:'
 O11-producer-is-reviewer	'        if producer_id == reviewer["dispatch_id"]:'	'        if False:'
-O12-backfill-history	'    if source == "backfill":\n        return False, "backfill rows record history only and are never gate coverage"\n    if source != "live":'	'    if source not in ("live", "backfill"):'
+O12-backfill-history	'        if rec.get("source") == "backfill":'	'        if False:'
 O13-slice-coverage	'if set(got) != wanted or any(v != "GO" for v in got.values()):'	'if False:'
 O14-reviewer-required	'if err or reviewer is None:'	'if err:'
 O15-record-vs-evidence	'if (rec.get("verdict") != verdict or rec_layers != ev_layers'	'if (False'
-O16-owner-uid	'            if st.st_uid == euid:'	'            if False:'
-O17-hash-compare	'    return actual_sha256 == evidence_sha256'	'    return True'
-O18-containment	'    if common != root_real:\n        return False'	'    if False:\n        return False'
-O19-evidence-round	'if ev_round is not None and (isinstance(ev_round, bool) or ev_round != rec["round"]):'	'if False:'
+O16-owner-uid	'                if node_st.st_uid == producer_uid:'	'                if False:'
+O17-hash-compare	'    if not data or hashlib.sha256(data).hexdigest() != evidence_sha256:'	'    if not data:'
+O18-containment	'    if common != root_real:\n        return None, None'	'    if False:\n        return None, None'
+O19-evidence-round	'    if binding["round"] != rec["round"]:'	'    if False:'
 O20-gate-round-budget	'if rec["round"] > ctx["round_budget"]:'	'if False:'
 O21-producer-required	'if not isinstance(producer, str) or producer.strip() in ("", "UNKNOWN"):'	'if False:'
 O22-slice-go-source-defect	'            if layer is None or layer == "source-defect":'	'            if layer == "source-defect":'
 O23-reviewer-matches-cli	'        if reviewer["model"] != a.tier or reviewer["effort"] != a.effort:'	'        if False:'
 O24-designated-tier	'if not (reviewer["model"] == DESIGNATED_TIER and reviewer["effort"] == DESIGNATED_EFFORT):'	'if False:'
+V3-N1-tier-parent-writable	'                elif _writable_by(node_st, node, producer_uid, gids):'	'                elif False:'
+V3-N2-tier-file-writable	'                if child_st is None:\n                    if _writable_by(node_st, node, producer_uid, gids):'	'                if child_st is None:\n                    if False:'
+V3-N4-precheck-batch	'if _batch_key(pre.get("batch_id")) != _batch_key(rec.get("batch_id")):'	'if False:'
+V3-N6-record-layers	'if (rec.get("verdict") != verdict or rec_layers != ev_layers'	'if (rec.get("verdict") != verdict'
+V3-N8-binding-bool-round	'    if not isinstance(rnd, int) or isinstance(rnd, bool) or rnd < 1:'	'    if not isinstance(rnd, int) or rnd < 1:'
+V3-N11-gate-producer-is-reviewer	'    if producer == reviewer["dispatch_id"]:\n        return False'	'    if False:\n        return False'
+V3-N12-record-model-effort	'            or rec.get("model_tier") != reviewer["model"] or rec.get("effort") != reviewer["effort"]):'	'            or False):'
+R2-B1a-record-binding-batch	'        if (batch.get("batch_id") != binding["batch_id"] or not b_ok_changes'	'        if (not b_ok_changes'
+R2-B1b-record-binding-changes	'                or sorted(b_changes) != binding["change_ids"]):'	'                or False):'
+R2-B2-record-binding-commits	'            if key in batch and batch.get(key) != binding[key]:'	'            if False:'
+R2-B3-record-binding-required	'        binding, err = _validated_binding(verdict_doc)\n        if err:'	'        binding, err = _validated_binding(verdict_doc)\n        if False:'
+R2-B4-gate-binding-required	'    binding, err = _validated_binding(ev)\n    if err:\n        return False, "verdict evidence %s" % err'	'    binding, err = _validated_binding(ev)\n    if err:\n        binding = {"batch_id": rec["batch_id"], "change_ids": sorted(rec.get("change_ids") or []), "round": rec["round"], "review_base": rec.get("review_base"), "review_head": rec.get("review_head")}'
+R2-B5-gate-binding-batch	'    if (_batch_key(binding["batch_id"]) != _batch_key(rec["batch_id"])'	'    if (False'
+R2-B6-gate-binding-changes	'            or sorted(rec_changes) != binding["change_ids"]'	'            or False'
+R2-B7-gate-binding-head	'            or rec.get("review_head") != binding["review_head"]):'	'            or False):'
+R2-B8-gate-binding-base	'            or rec.get("review_base") != binding["review_base"]'	'            or False'
+R2-B9-commit-shape	'        if not isinstance(val, str) or not _COMMIT_RE.fullmatch(val):'	'        if not isinstance(val, str):'
+R2-C1-open-nogo-in-any-batch-blocks	'        elif not ok:\n            blockers.append'	'        elif False:\n            blockers.append'
+R2-C3-dropped-is-not-coverage	'        if ok and is_latest:\n            covering.append'	'        if ok:\n            covering.append'
+R2-C4-backfill-nogo-blocks	'            if not (rec.get("verdict") == "GO" and not rec.get("findings")):'	'            if False:'
+R2-L1-ledger-bad-events	'    if bad:\n        return "dispatch-ledger events'	'    if False:\n        return "dispatch-ledger events'
+R2-L2-ledger-dispatched-row	'    if "dispatched" not in events:'	'    if False:'
+R2-L3-ledger-latest-complete	'    if events[-1] != "complete":'	'    if False:'
+R2-L4-ledger-one-label	'        if len(labels) != 1:'	'        if False:'
+R2-T1-tier-sticky-exemption	'                    if not (node_st.st_mode & stat.S_ISVTX and child_st.st_uid != producer_uid):'	'                    if True:'
+R2-T2-tier-acl	'    return _has_acl(path)'	'    return False'
+R2-T3-tier-vs-runner-uid	'    gids = _uid_gids(producer_uid)\n'	'    producer_uid = os.geteuid() + 1\n    gids = _uid_gids(producer_uid)\n'
 EOF
 
 apply_mutation() { # apply_mutation FILE OLD_PYLIT NEW_PYLIT -> 0 applied, 1 marker miss

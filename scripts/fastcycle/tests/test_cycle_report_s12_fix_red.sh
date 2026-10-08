@@ -159,20 +159,29 @@ fail=0
 failx() { fail=1; }
 
 TMP="$(mktemp -d)"
-# MUT is declared here (not inside the mutation section below) so the single
-# EXIT trap can clean up BOTH temp paths -- it MUST live alongside the real
-# cycle_report.py (inside $FC/cycle/), never under $TMP, because
-# cycle_report.py resolves its sibling lib/fc_common.py import RELATIVE TO
-# __file__'s own directory; a copy placed anywhere else fails with
-# ModuleNotFoundError before it ever reaches the mutated logic.
-MUT="$FC/cycle/.s12_fix_red_mutation_tmp.$$.py"
-MUT2="$FC/cycle/.s12_fix_red_mutation2_tmp.$$.py"
-MUT3="$FC/cycle/.s12_fix_red_mutation3_tmp.$$.py"
-MUT4="$FC/cycle/.s12_fix_red_mutation4_tmp.$$.py"
-MUT5="$FC/cycle/.s12_fix_red_mutation5_tmp.$$.py"
-MUT6="$FC/cycle/.s12_fix_red_mutation6_tmp.$$.py"
-MUT7="$FC/cycle/.s12_fix_red_mutation7_tmp.$$.py"
-trap 'rm -rf "$TMP"; rm -f "$MUT" "$MUT2" "$MUT3" "$MUT4" "$MUT5" "$MUT6" "$MUT7"' EXIT
+# V2-6 (T048 restart round 2): mutant copies live under $TMP, never inside the
+# source tree (a SIGKILL used to leave .s12_fix_red_mutation*.py files in
+# cycle/, visible to any concurrent tree sweep). The tools resolve their
+# siblings (lib/fc_common.py, closure/reopen_rate.py, cycle/select_sample.py)
+# and their default repo root (docs/workable_items.db, git) RELATIVE TO
+# __file__, so the mutant tree mirrors the repository layout under $TMP and
+# links docs/ and .git back to this repository.
+MUTROOT="$TMP/mut_tree"
+MUTFC="$MUTROOT/constitution/scripts/fastcycle"
+mkdir -p "$MUTFC"
+cp -r "$FC/lib" "$FC/closure" "$FC/cycle" "$MUTFC/"
+ln -s "$ROOT/docs" "$MUTROOT/docs"
+ln -s "$ROOT/.git" "$MUTROOT/.git"
+MUT="$MUTFC/cycle/s12_mutation1.py"
+MUT2="$MUTFC/cycle/s12_mutation2.py"
+MUT3="$MUTFC/cycle/s12_mutation3.py"
+MUT4="$MUTFC/cycle/s12_mutation4.py"
+MUT5="$MUTFC/cycle/s12_mutation5.py"
+MUT6="$MUTFC/cycle/s12_mutation6.py"
+MUT7="$MUTFC/cycle/s12_mutation7.py"
+MUT8="$MUTFC/cycle/s12_mutation8.py"
+MUT9="$MUTFC/cycle/s12_mutation9.py"
+trap 'rm -rf "$TMP"' EXIT
 
 if [ ! -f "$CYCLE_REPORT" ]; then
   echo "NOT ok cycle_report.py absent at $CYCLE_REPORT -- cannot test"
@@ -189,7 +198,7 @@ else
 fi
 
 echo
-echo "=== check 1/8 (ATM-1055 fix): STATUS_DESYNC false-positive on a correctly-closed item ==="
+echo "=== check 1 (ATM-1055 fix): STATUS_DESYNC false-positive on a correctly-closed item ==="
 # Live-DB check against the two real items the independent review named
 # (ATM-1025, ATM-343 -- both real, currently-closed "Fixed" items). A
 # synthetic fixture pair (golden-good + golden-bad, below) backs up this
@@ -230,12 +239,12 @@ print('STATUS_DESYNC' in r.get('data_quality_flags', []))
     fi
   done
 else
-  echo "NOT ok check 1/8 SKIPPED: sqlite3 or tracker DB unavailable"
+  echo "NOT ok check 1 SKIPPED: sqlite3 or tracker DB unavailable"
   failx
 fi
 
 echo
-echo "=== check 1b/8: synthetic golden-good + golden-bad for every S11.4.33 closure event ==="
+echo "=== check 1b: synthetic golden-good + golden-bad for every S11.4.33 closure event ==="
 # Deterministic, DB-independent coverage of all 5 STATUS_DEFINING_EVENTS
 # (Fixed/Implemented/Completed/Obsolete/Reopened), proving the fix's mapping
 # is complete, not merely correct for the two live items checked above.
@@ -357,7 +366,7 @@ else
 fi
 
 echo
-echo "=== check 2/8 (defect 2): review_rounds genuinely wired to T034 review-record/v1 ==="
+echo "=== check 2 (defect 2): review_rounds genuinely wired to T034 review-record/v1 ==="
 RRDIR="$TMP/review_records"
 mkdir -p "$RRDIR"
 cat > "$RRDIR/round1.json" <<'JSON'
@@ -427,13 +436,13 @@ print(ok)
     fi
   fi
 else
-  echo "NOT ok check 2/8: one or both invocations failed to produce output"
+  echo "NOT ok check 2: one or both invocations failed to produce output"
   echo "     wired rc=$RC_WIRED stderr: $(cat "$TMP/rr_wired.err" 2>/dev/null)"
   failx
 fi
 
 echo
-echo "=== check 3/8 (defect 3): build_found is no longer a discarded dead variable ==="
+echo "=== check 3 (defect 3): build_found is no longer a discarded dead variable ==="
 BFX_FOUND="$TMP/build_found.json"
 cat > "$BFX_FOUND" <<'JSON'
 {"item": {"atm_id": "ATM-90101", "type": "Task", "status": "Fixed (→ Fixed.md)"},
@@ -493,12 +502,12 @@ print(both_unmeasured and distinct_messages and found_names_file)
     fi
   fi
 else
-  echo "NOT ok check 3/8: one or both invocations failed to produce output"
+  echo "NOT ok check 3: one or both invocations failed to produce output"
   failx
 fi
 
 echo
-echo "=== check 5/8 (S12-remediation F1): review_rounds evidence-path attribution + determinism ==="
+echo "=== check 5 (S12-remediation F1): review_rounds evidence-path attribution + determinism ==="
 # Three review-record/v1 files across 3 directories (a, b, z -- sorted order
 # a < b < z), deliberately crossing evidence-file boundaries for start vs
 # end, PLUS a start-timestamp tie between rr/a and rr/b to exercise
@@ -596,18 +605,18 @@ print(s1['start']['evidence_path'] == s1['end']['evidence_path'])
       echo "   rr/z/r_late.json -- a DIFFERENT file -- deterministically identical"
       echo "   across 3 repeated runs (dirnames.sort() fix)"
     else
-      echo "NOT ok check 5/8 FAILED (comparator result: '$F1_CHECK')"
+      echo "NOT ok check 5 FAILED (comparator result: '$F1_CHECK')"
       echo "     run1: $(cat "$F1_RUN1" 2>/dev/null)"
       failx
     fi
   fi
 else
-  echo "NOT ok check 5/8: one or more invocations failed to produce output"
+  echo "NOT ok check 5: one or more invocations failed to produce output"
   failx
 fi
 
 echo
-echo "=== check 6/8 (S12-remediation F2): review_rounds token total excludes UNKNOWN-timestamp records ==="
+echo "=== check 6 (S12-remediation F2): review_rounds token total excludes UNKNOWN-timestamp records ==="
 F2DIR="$TMP/f2_review_records"
 mkdir -p "$F2DIR"
 cat > "$F2DIR/good.json" <<'JSON'
@@ -627,7 +636,7 @@ JSON
 F2OUT="$TMP/f2_out.json"
 python3 "$CYCLE_REPORT" --as-of 2026-10-03 --tracker-export "$F2FX" \
   --review-records-dir "$F2DIR" --out "$F2OUT" >"$TMP/f2.err" 2>&1
-# F8-class fix: see check 5/8's identical comment above.
+# F8-class fix: see check 5's identical comment above.
 if [ "$RED_MODE" = "1" ] && [ ! -f "$F2OUT" ] \
    && grep -qi "unrecognized arguments" "$TMP/f2.err" 2>/dev/null; then
   echo "ok (RED_MODE=1): --review-records-dir is not yet a recognised flag on"
@@ -656,17 +665,17 @@ print(s.get('tokens'))
       echo "   tokens were correctly EXCLUDED (it contributed nothing to the elapsed"
       echo "   span either) -- only the one validly-timed record's tokens count"
     else
-      echo "NOT ok check 6/8 FAILED: expected tokens=1000, got '$F2_TOKENS'"
+      echo "NOT ok check 6 FAILED: expected tokens=1000, got '$F2_TOKENS'"
       failx
     fi
   fi
 else
-  echo "NOT ok check 6/8: invocation failed -- $(cat "$TMP/f2.err" 2>/dev/null)"
+  echo "NOT ok check 6: invocation failed -- $(cat "$TMP/f2.err" 2>/dev/null)"
   failx
 fi
 
 echo
-echo "=== check 7/8 (S12-remediation F4): Reopened-then-progressed is NOT a desync; genuine post-reopen desyncs still ARE ==="
+echo "=== check 7 (S12-remediation F4): Reopened-then-progressed is NOT a desync; genuine post-reopen desyncs still ARE ==="
 # (a) the ATM-353 pattern itself: Reopened -> Updated, status still
 #     non-terminal ("Ready for testing") -- ordinary progress, must NOT be
 #     flagged.
@@ -724,7 +733,7 @@ for CASE in a b c; do
   OUT="$TMP/f4_${CASE}_out.json"
   python3 "$CYCLE_REPORT" --as-of 2026-10-03 --tracker-export "$FX" --out "$OUT" >"$TMP/f4_${CASE}.err" 2>&1
   if [ ! -f "$OUT" ]; then
-    echo "NOT ok check 7/8 ($CASE): invocation failed -- $(cat "$TMP/f4_${CASE}.err" 2>/dev/null)"
+    echo "NOT ok check 7 ($CASE): invocation failed -- $(cat "$TMP/f4_${CASE}.err" 2>/dev/null)"
     failx
     continue
   fi
@@ -741,9 +750,9 @@ print('STATUS_DESYNC' in r.get('data_quality_flags', []))
     LABEL=""
   fi
   if [ "$HAS_DESYNC" = "$EXPECT" ]; then
-    echo "ok ${LABEL}check 7/8 ($CASE): STATUS_DESYNC=$HAS_DESYNC as expected"
+    echo "ok ${LABEL}check 7 ($CASE): STATUS_DESYNC=$HAS_DESYNC as expected"
   else
-    echo "NOT ok ${LABEL}check 7/8 ($CASE): expected STATUS_DESYNC=$EXPECT, got $HAS_DESYNC"
+    echo "NOT ok ${LABEL}check 7 ($CASE): expected STATUS_DESYNC=$EXPECT, got $HAS_DESYNC"
     failx
   fi
 done
@@ -1312,7 +1321,7 @@ else
 fi
 
 echo
-echo "=== check 8/8: pre-existing T023 fixture suite + full suite still GREEN (no regression) ==="
+echo "=== check 8: pre-existing T023 fixture suite + full suite still GREEN (no regression) ==="
 if bash "$FC/tests/test_cycle_report_red.sh" >"$TMP/preexisting.out" 2>&1; then
   echo "ok test_cycle_report_red.sh (T023 contract suite) still exits 0 after this fix"
 else
@@ -1835,6 +1844,85 @@ print('%s|%s' % (rr.get('elapsed'), 'REVIEW_SPAN_INVERTED' in r.get('data_qualit
       failx
     fi
   fi
+fi
+
+echo
+echo "=== check 17 (T048 restart round 2, V2-5 / R8 C1+C2): review_rounds reads ONLY this item's records and ONLY schema review-record/v1 ==="
+# Two items share one --review-records-dir: each must see only its own round.
+# A record naming the item but with NO schema, and one with a different
+# schema, sit beside them and must be ignored. Checks 2/5/12 used one item
+# and only valid records, so dropping either filter survived (R8 C1/C2).
+C17DIR="$TMP/c17_records"
+mkdir -p "$C17DIR"
+printf '{"schema":"review-record/v1","item_id":"ATM-90171","started_at":"2026-08-10T10:00:00Z","ended_at":"2026-08-10T11:00:00Z","tokens":1}\n' > "$C17DIR/a.json"
+printf '{"schema":"review-record/v1","item_id":"ATM-90172","started_at":"2026-08-11T10:00:00Z","ended_at":"2026-08-11T14:00:00Z","tokens":10}\n' > "$C17DIR/b.json"
+printf '{"item_id":"ATM-90171","started_at":"2026-08-12T10:00:00Z","ended_at":"2026-08-12T18:00:00Z","tokens":100}\n' > "$C17DIR/c_noschema.json"
+printf '{"schema":"review-record/v0","item_id":"ATM-90171","started_at":"2026-08-13T10:00:00Z","ended_at":"2026-08-13T18:00:00Z","tokens":1000}\n' > "$C17DIR/d_wrongschema.json"
+c17_fixture() {  # $1 item id, $2 out path
+  cat > "$2" <<JSON
+{"item": {"atm_id": "$1", "type": "Task", "status": "Completed (→ Fixed.md)"},
+ "item_history": [
+   {"event_type": "Opened", "by": "User", "on_date": "2026-08-09", "created_at": "2026-08-09T08:00:00Z"},
+   {"event_type": "Completed", "by": "AI", "on_date": "2026-08-14", "created_at": "2026-08-14T08:00:00Z"}]}
+JSON
+}
+c17_run() {  # $1 tool, $2 tag -> prints "(elapsed, tokens) (elapsed, tokens)"
+  local tool="$1" tag="$2" i
+  for i in 90171 90172; do
+    c17_fixture "ATM-$i" "$TMP/c17_$i.json"
+    python3 "$tool" --as-of 2026-09-28 --tracker-export "$TMP/c17_$i.json" --review-records-dir "$C17DIR" \
+      --out "$TMP/c17_${tag}_$i.out.json" >"$TMP/c17_${tag}_$i.err" 2>&1
+  done
+  python3 -c "
+import json, sys
+def rr(p):
+    st = next(s for s in json.load(open(p))['records'][0]['stages'] if s['stage'] == 'review_rounds')
+    return (st.get('elapsed'), st.get('tokens'))
+print(rr(sys.argv[1]), rr(sys.argv[2]))
+" "$TMP/c17_${tag}_90171.out.json" "$TMP/c17_${tag}_90172.out.json" 2>&1
+}
+C17_WANT="(3600000, 1) (14400000, 10)"
+C17_GOT="$(c17_run "$CYCLE_REPORT" real)"
+if [ "$C17_GOT" = "$C17_WANT" ]; then
+  echo "ok check 17: each item sees only its own review record; schema-less and wrong-schema records ignored"
+else
+  echo "NOT ok check 17: got '$C17_GOT', want '$C17_WANT'"
+  failx
+fi
+
+echo
+echo "=== §1.1 paired mutations #8 (R8 C1: schema check dropped) and #9 (R8 C2: item_id filter dropped) flip check 17 ==="
+if [ "$RED_MODE" = "1" ]; then
+  echo "skip (RED_MODE=1): these mutations are defined relative to the FIXED function"
+else
+  c17_mutant() {  # $1 number, $2 mutant path, $3 old text, $4 new text
+    cp "$CYCLE_REPORT" "$2"
+    if ! python3 - "$2" "$3" "$4" <<'PYEOF'
+import sys
+path, old, new = sys.argv[1:4]
+src = open(path, encoding="utf-8").read()
+if src.count(old) != 1:
+    raise SystemExit("mutation anchor found %d times (need 1)" % src.count(old))
+open(path, "w", encoding="utf-8").write(src.replace(old, new))
+PYEOF
+    then
+      echo "NOT ok paired mutation #$1 setup FAILED (anchor drifted)"
+      failx
+      return
+    fi
+    local got
+    got="$(c17_run "$2" "mut$1")"
+    if [ "$got" != "$C17_WANT" ]; then
+      echo "ok paired mutation #$1 killed: check 17 now reads '$got'"
+    else
+      echo "NOT ok paired mutation #$1 SURVIVED: check 17 still reads '$got'"
+      failx
+    fi
+  }
+  c17_mutant 8 "$MUT8" 'if not isinstance(doc, dict) or doc.get("schema") != "review-record/v1":' 'if not isinstance(doc, dict):'
+  c17_mutant 9 "$MUT9" '            if doc.get("item_id") != item_id:
+                continue
+' ''
 fi
 
 exit $fail
