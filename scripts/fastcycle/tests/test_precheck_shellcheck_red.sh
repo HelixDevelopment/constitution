@@ -15,7 +15,10 @@
 #   cgroup memory cap (systemd-run --user --scope MemoryMax) and only after a
 #   size cap. error/warning findings and the closed info set SC2086 SC2030
 #   SC2031 SC2162 SC2059 FAIL; every other finding is advisory (listed, never
-#   failing). Directives (line-start or trailing after code) are policed:
+#   failing). Directives are recognised in three layers (round 6 F1: every
+#   candidate listed; canonical forms -- incl. after ; & | ( ) and a backtick --
+#   policed; a parity re-lint fails a file whose non-canonical word shellcheck
+#   honoured anyway). Policed:
 #   disable=all / ranges / extended-analysis!=true / unknown keys FAIL; every
 #   `disable=` carries its justification on the SAME line (>= 16 letters,
 #   >= 3 distinct vowel-bearing non-placeholder words). Symlinked SCRIPT
@@ -56,6 +59,11 @@ cleanup() {
     rm -rf "$TMP"
 }
 trap cleanup EXIT INT TERM
+# Gate review round 6 (H6 flake): this suite's large-lint lock is PRIVATE to the run -- concurrent copies
+# of the suite (or a real gate run) never share it. Only honoured with PRECHECK_TEST_MODE=1, which the
+# pack records (tool.test_mode) and the dispatch verifier refuses, so a test-mode pack is never ready.
+export PRECHECK_TEST_MODE=1 PRECHECK_TEST_LOCK_DIR="$TMP/lockdir"
+mkdir -p "$PRECHECK_TEST_LOCK_DIR"
 GIT="git -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false"
 
 # The gate under test (MUT re-points this at a mutated scratch copy).
@@ -214,9 +222,9 @@ export HOME="$OLDHOME"; unset SHELLCHECK_OPTS XDG_CONFIG_HOME
 [ "$RC" -eq 1 ] && [ "$(rules)" = "['SC2086']" ] \
     && ok "E1 env scrub: SHELLCHECK_OPTS=--exclude, a HOME and an XDG shellcheckrc with disable=all cannot hide SC2086" \
     || bad "E1 env scrub: rc=$RC rules=$(rules)"
-E1T=$(sc '(e["tool"]["argv"][0], "MemoryMax=8192M" in e["tool"]["argv"], "MemorySwapMax=0" in e["tool"]["argv"], "--norc" in e["tool"]["argv"], e["tool"]["argv"][-1], bool(e["tool"]["version"]), e["tool"]["timeout_s"], e["tool"]["memory_cap_mib"], e["tool"]["max_lines"], d["provenance"]["shellcheck_version"] == e["tool"]["version"])')
-[ "$E1T" = "('systemd-run', True, True, True, '-', True, 60, 8192, 10000, True)" ] \
-    && ok "E1b evidence: systemd-run scope cap argv (MemoryMax=8192M, MemorySwapMax=0), --norc, stdin, version (also in provenance), 60 s budget and caps are recorded" \
+E1T=$(sc '(e["tool"]["argv"][0], "MemoryMax=8192M" in e["tool"]["argv"], "MemorySwapMax=0" in e["tool"]["argv"], "--norc" in e["tool"]["argv"], e["tool"]["argv"][-1], bool(e["tool"]["version"]), e["tool"]["timeout_s"], e["tool"]["memory_cap_mib"], e["tool"]["max_lines"], d["provenance"]["shellcheck_version"] == e["tool"]["version"], d["provenance"]["shellcheck_params"] == {"timeout_s": 60, "exception_timeout_s": 900, "memory_cap_mib": 8192, "max_lines": 10000}, e["tool"].get("test_mode"), e["tool"]["total_budget_s"])')
+[ "$E1T" = "('systemd-run', True, True, True, '-', True, 60, 8192, 10000, True, True, True, 3600)" ] \
+    && ok "E1b evidence: systemd-run scope cap argv (MemoryMax=8192M, MemorySwapMax=0), --norc, stdin, version + the exact shellcheck parameters in provenance (GR12), 60 s budget, caps, the 3600 s batch budget and TEST MODE are recorded" \
     || bad "E1b evidence: $E1T"
 
 new_case e2; base; wh pkg/a.sh '#!/bin/sh\necho $1\n'; wh pkg/.shellcheckrc 'disable=all\n'; wh .shellcheckrc 'disable=all\n'; head; gate
@@ -263,6 +271,15 @@ new_case x7b; base; wh pkg/posix.sh '#!/bin/sh\nf() { local x=1; echo "$x"; }\nf
 [ "$X7A" -eq 0 ] && [ "$RC" -eq 1 ] && [ "$(rules)" = "['SC3043']" ] \
     && ok "X7 dialect: '#!/system/bin/sh' (Android mksh, probed) is linted as ksh -- local/echo -n PASS -- while '#!/bin/sh' local FAILs (SC3043)" \
     || bad "X7 dialect: android rc=$X7A posix rc=$RC rules=$(rules)"
+new_case x7c; base; wh pkg/android2.sh '#!/system/bin/sh\necho hi |& cat\n'; head; gate
+[ "$RC" -eq 1 ] && [ "$(rules)" = "['SC2118']" ] \
+    && ok "X7c dialect (GR7): '#!/system/bin/sh' is linted as ksh -- 'echo hi |& cat' FAILs with SC2118 (bash would accept it)" \
+    || bad "X7c ksh dialect: rc=$RC rules=$(rules)"
+
+new_case x8; base; wh bin/s1 '#!/usr/bin/env -Sbash\necho $1\n'; wh bin/s2 '#!/usr/bin/env --split-string=bash -e\necho $1\n'; wh bin/s3 '#!/usr/bin/env -u LANG bash\necho $1\n'; head; gate
+[ "$RC" -eq 1 ] && [ "$(sc 'sorted({f["file"] for f in e.get("findings", [])})')" = "['bin/s1', 'bin/s2', 'bin/s3']" ] \
+    && ok "X8 (F7) extension-less 'env -Sbash', 'env --split-string=bash -e' and 'env -u LANG bash' shebangs are candidates and FAIL" \
+    || bad "X8 env options: rc=$RC $(sc 'e["counts"], e.get("findings")')"
 
 # =============================================================================
 # Y. symlinks
@@ -322,7 +339,7 @@ dcase d5 '# shellcheck disable=SC2086\necho $1\n'
     && ok "D5 disable= with NO justification FAILs (the finding itself is hidden -- the directive is what fails)" || bad "D5: rc=$RC viol=$(viol) rules=$(rules)"
 dcase d5a '# word splitting of the flag list is intended here\n# shellcheck disable=SC2086\necho $1\n'
 [ "$RC" -eq 1 ] && [ "$(viol)" = "D5" ] && ok "D5a a justification on the line ABOVE is NOT accepted" || bad "D5a: rc=$RC viol=$(viol)"
-for ph in x TODO noise ok '   ' 'ok ok ok ok ok ok' 'see above' 'intentionally intentionally intentionally' 'qwerty asdfgh' 'zxcvbnm qwrtpsd fghjklz xcvbnmq'; do
+for ph in x TODO noise ok '   ' 'ok ok ok ok ok ok' 'see above' 'raw user arg' 'intentionally intentionally intentionally' 'qwerty asdfgh' 'zxcvbnm qwrtpsd fghjklz xcvbnmq'; do
     dcase "d5p$(printf '%s' "$ph" | tr -c 'a-zA-Z' '_')" "# shellcheck disable=SC2086 # $ph\necho \$1\n"
     [ "$RC" -eq 1 ] && [ "$(viol)" = "D5" ] && ok "D5p weak justification '$ph' FAILs" || bad "D5p '$ph': rc=$RC viol=$(viol)"
 done
@@ -332,9 +349,45 @@ dcase d6 '# shellcheck disable=SC2086 # word splitting of the flag list is inten
 D6=$(sc '[(x["line"], x["justification"], x["violations"]) for x in e.get("directives", [])]')
 [ "$RC" -eq 0 ] && [ "$D6" = "[(2, 'word splitting of the flag list is intended here', [])]" ] \
     && ok "D6 a same-line real justification is accepted, honoured, and the directive is listed in evidence" || bad "D6: rc=$RC $D6"
+[ "$(sc '[(x["line"], x["codes"], x["file_scope"]) for x in e.get("blocking_rule_disabled", [])]')" = "[(2, ['SC2086'], True)]" ] \
+    && ok "D6b (F8) that directive disables a floor rule (SC2086) at file scope and is flagged blocking_rule_disabled" || bad "D6b: $(sc 'e.get("blocking_rule_disabled")')"
 dcase d7 'cat <<EOF\n# shellcheck disable=SC2086\nEOF\n'
 [ "$RC" -eq 1 ] && [ "$(viol)" = "D5" ] \
     && ok "D7 residual (stricter by design): a here-doc line SHAPED like an unjustified directive is policed too" || bad "D7: rc=$RC viol=$(viol)"
+# D8 (gate review round 6 F1, BLOCKING): shellcheck honours a directive right after ';' '(' '$(' a backtick
+# or ')' (probed live). Before the fix 'true;' + a hash-led 'shellcheck disable=all' + 'rm -rf $1/*' was a clean PASS.
+# (The '#' of that directive is spelled via HSH below so this file's own source never carries one.)
+HSH=$(printf '\043')
+dcase d8 'true;\0043 shellcheck disable=all # suppress every finding of this legacy block\nrm -rf $1/*\n'
+[ "$RC" -eq 1 ] && [ "$(viol)" = "D1" ] && ok "D8 (F1) 'true;${HSH} shellcheck disable=all' is recognised and FAILs (D1)" || bad "D8 operator-preceded directive: rc=$RC viol=$(viol) $(sc 'e.get("directives")')"
+dcase d8b 'case $1 in a)\0043 shellcheck disable=all # suppress every finding of this legacy block\n  rm -rf $1/* ;;\nesac\n'
+[ "$RC" -eq 1 ] && [ "$(viol)" = "D1" ] && ok "D8b (F1) 'a)${HSH} shellcheck disable=all' after a case pattern is recognised and FAILs (D1)" || bad "D8b: rc=$RC viol=$(viol)"
+D8U=$(python3 -I - "$REVIEW/lib" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+import precheck_pack_run as g
+H = chr(35)  # '#', kept out of this file's own source text
+out = []
+for pre in ("true;", "(", "x=$(", chr(96), "a)", "a&", "a|", "  ", ""):
+    d = g._police_directives([pre + H + " shellcheck disable=all # suppress all findings in this block"])
+    out.append(bool(d) and d[0]["canonical"] and any(v.startswith("D1") for v in d[0]["violations"]))
+for neg in ('echo "' + H + ' shellcheck disable=all"', "x='" + H + " shellcheck disable=all'", H + " SHELLCHECK disable=all"):
+    d = g._police_directives([neg])
+    out.append(bool(d) and not d[0]["canonical"] and not d[0]["violations"])
+print(all(out), out.count(False))
+PY
+)
+[ "$D8U" = "True 0" ] && ok "D8u (F1) the canonical recogniser polices a directive after ';' '(' '\$(' a backtick ')' '&' '|' blanks and line start, and leaves quoted / upper-case look-alikes (not honoured by shellcheck) to the parity oracle" \
+    || bad "D8u canonical recogniser: $D8U"
+dcase d9 'echo "\0043 shellcheck disable=all"\necho "$1"\n'
+[ "$RC" -eq 0 ] && [ "$(sc 'e.get("directive_parity_breaches"), [x["canonical"] for x in e.get("directives", [])]')" = "(None, [False])" ] \
+    && ok "D9 negative control (parity oracle): a quoted look-alike is listed as a non-canonical candidate, inert, no parity breach, PASS" \
+    || bad "D9 quoted look-alike: rc=$RC $(sc 'e.get("directive_parity_breaches"), e.get("directives"), e.get("errors")')"
+dcase d10 '\0043 shellcheck disable=SC2115 # the caller validates the prefix path before this point\nrm -rf "$1"/*\n'
+D10=$(sc 'e.get("blocking_rule_disabled")')
+[ "$RC" -eq 0 ] && [ "$D10" = "[{'codes': ['SC2115'], 'file': 'pkg/d.sh', 'file_scope': True, 'line': 2, 'text': '# shellcheck disable=SC2115 # the caller validates the prefix path before this point'}]" ] \
+    && ok "D10 (F8) a justified file-scope disable of a BLOCKING warning (SC2115, seen by the differential lint) is flagged blocking_rule_disabled in evidence" \
+    || bad "D10 blocking_rule_disabled: rc=$RC $D10"
 
 # =============================================================================
 # H. host-safety caps (B1) and tool failures
@@ -346,6 +399,9 @@ gate_run --shellcheck-max-lines 99999
 H1B=$RC; gate_run --shellcheck-memory-cap-mib 999999
 [ "$H1B" -eq 2 ] && [ "$RC" -eq 2 ] && ok "H1b a cap can be LOWERED per run, never raised (a higher --shellcheck-max-lines / --shellcheck-memory-cap-mib exits 2)" \
     || bad "H1b raising a cap: rc=$H1B/$RC"
+gate_run --shellcheck-timeout 601; H1C=$RC; gate_run --shellcheck-exception-timeout 1801
+[ "$H1C" -eq 2 ] && [ "$RC" -eq 2 ] && ok "H1c (F10) a timeout above its ceiling (601 s > 600, 1801 s > 1800) exits 2 -- one run cannot hold the host lock indefinitely" \
+    || bad "H1c timeout ceilings: rc=$H1C/$RC"
 
 new_case h2; base
 python3 -c 'import sys;open(sys.argv[1],"w").write("#!/bin/sh\n"+"".join("x%d=\"$1\"; echo \"$x%d\"\n"%(i,i) for i in range(3000)))' "$R/pkg_mem.sh"
@@ -374,7 +430,7 @@ PATH="$SCF2:$OLDPATH"; gate; PATH=$OLDPATH
 [ "$RC" -eq 1 ] && has_err "no json1 output" \
     && ok "H5b a shellcheck that exits 0 with NO output is BLIND (silence is not 'clean')" || bad "H5b silent tool: rc=$RC $(sc 'e.get("errors")')"
 
-LOCKP=$(python3 -c 'import os;b=os.environ.get("XDG_RUNTIME_DIR");b=b if b and os.path.isdir(b) else "/tmp";print(os.path.join(b,"helix-precheck-shellcheck-large-%d.lock"%os.getuid()))')
+LOCKP="$PRECHECK_TEST_LOCK_DIR/helix-precheck-shellcheck-large-$(id -u).lock"
 python3 -c 'import fcntl,sys,time;f=open(sys.argv[1],"a");fcntl.flock(f.fileno(),fcntl.LOCK_EX);open(sys.argv[2],"w").close();time.sleep(60)' "$LOCKP" "$TMP/holder.ready" &
 HOLDER_PID=$!
 i=0; while [ ! -f "$TMP/holder.ready" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
@@ -387,6 +443,27 @@ case "$H6E" in *"lock"*"still held"*) H6OK=1 ;; *) H6OK=0 ;; esac
 [ "$H6A" -eq 1 ] && [ "$H6OK" -eq 1 ] && [ "$RC" -eq 0 ] && [ "$(sc 'e["tool"]["lock"]')" = "$LOCKP" ] \
     && ok "H6 legacy-exception lints are serialised by the host-wide flock ($LOCKP): BLIND while another holder has it, PASS once released" \
     || bad "H6 lock: held rc=$H6A ($H6E) released rc=$RC $(sc 'e.get("errors"), e["tool"].get("lock")')"
+# H7 (GR8): a LARGE unlisted file (>= 5000 lines) is serialised by the same lock
+python3 -c 'import fcntl,sys,time;f=open(sys.argv[1],"a");fcntl.flock(f.fileno(),fcntl.LOCK_EX);open(sys.argv[2],"w").close();time.sleep(60)' "$LOCKP" "$TMP/holder2.ready" &
+HOLDER_PID=$!
+i=0; while [ ! -f "$TMP/holder2.ready" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
+new_case h7; base
+python3 -c 'import sys;open(sys.argv[1],"w").write("#!/bin/sh\n"+"echo \"x\"\n"*5000)' "$R/pkg_big.sh"
+head; gate --shellcheck-exception-timeout 0.5
+kill "$HOLDER_PID" 2>/dev/null; wait "$HOLDER_PID" 2>/dev/null; HOLDER_PID=""
+[ "$RC" -eq 1 ] && has_err "still held" \
+    && ok "H7 (GR8) a large (5000-line) unlisted lint also waits for the host-wide lock: BLIND while another holder has it" \
+    || bad "H7 large-file lock: rc=$RC $(sc 'e.get("errors")')"
+# H8 (GR1): a shellcheck whose exit code disagrees with its json (rc 0 + a finding) is a tool failure
+SCF3="$TMP/fakesc3"; mkdir -p "$SCF3"
+printf '#!/bin/sh\ncase "$*" in *--version*) echo "version: 9.9.9"; exit 0 ;; esac\ncat >/dev/null\necho "{\\"comments\\":[{\\"line\\":2,\\"endLine\\":2,\\"column\\":6,\\"endColumn\\":8,\\"level\\":\\"style\\",\\"code\\":2006,\\"message\\":\\"m\\"}]}"\nexit 0\n' >"$SCF3/shellcheck"; chmod +x "$SCF3/shellcheck"
+new_case h8; base; wh pkg/a.sh '#!/bin/sh\necho $1\n'; head
+PATH="$SCF3:$OLDPATH"; gate; PATH=$OLDPATH
+[ "$RC" -eq 1 ] && has_err "disagrees with its" \
+    && ok "H8 (GR1) a shellcheck exiting 0 while reporting a finding is BLIND (rc and output must agree)" || bad "H8 rc/json disagreement: rc=$RC $(sc 'e.get("errors")')"
+# H9: the private lock directory is honoured ONLY in test mode
+H9=$(env -u PRECHECK_TEST_MODE python3 -I -c 'import sys,os;sys.path.insert(0,sys.argv[1]);import precheck_pack_run as g;print(os.path.dirname(g._lock_path())!=os.environ["PRECHECK_TEST_LOCK_DIR"])' "$REVIEW/lib")
+[ "$H9" = "True" ] && ok "H9 without PRECHECK_TEST_MODE=1 the PRECHECK_TEST_LOCK_DIR override is ignored (the host-wide lock is used)" || bad "H9 lock override outside test mode: $H9"
 
 # =============================================================================
 # B. binding + gitlinks
@@ -438,6 +515,26 @@ mkbatch_unbound "$R.batch.json" pkg pkg/a.sh; OUT="$R.out.json"
 sh "$REVIEW/precheck_pack.sh" --batch "$R.batch.json" --clean-checkout "$R" --out "$OUT" >/dev/null 2>&1; RC=$?
 [ "$RC" -eq 1 ] && has_err "directories but not bound gitlinks" \
     && ok "B6 a declared DIRECTORY that is not a bound gitlink is refused (never silently skipped)" || bad "B6 dir: rc=$RC $(sc 'e.get("errors")')"
+# B7 (GR5): the checkout's git HEAD must BE the bound head -- same bytes on another commit are not enough
+new_case b7; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head
+TWIN=$(git -C "$R" commit-tree "$(git -C "$R" rev-parse "$HEADC^{tree}")" -p "$HEADC" -m twin </dev/null 2>/dev/null)
+git -C "$R" worktree add --detach --quiet "$R.co" "$TWIN" >/dev/null 2>&1
+mkraw "$R.raw.json"
+python3 "$GATE_DIR/lib/precheck_pack_build_run.py" bind --repo "$R" --base "$BASE" --head "$HEADC" \
+    --batch "$R.raw.json" --out "$R.batch.json" --rewrite-changes >"$R.bind.out" 2>&1
+gate_run
+[ -n "$TWIN" ] && [ "$RC" -eq 1 ] && has_err "checkout git HEAD is" \
+    && ok "B7 (GR5) a checkout at another commit with identical bytes (a same-tree twin of head) fails the binding" || bad "B7 checkout HEAD: twin=$TWIN rc=$RC $(sc 'e.get("errors")')"
+# B8 (GR10): every slice-declared path must be in the binding
+new_case b8; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head; gate_prepare
+python3 - "$R.batch.json" <<'PY'
+import json, sys
+b = json.load(open(sys.argv[1])); b["slices"][0]["context_pack"]["changed_paths"].append("README.md")
+json.dump(b, open(sys.argv[1], "w"))
+PY
+gate_run
+[ "$RC" -eq 1 ] && has_err "slice-declared paths are not all in the binding" \
+    && ok "B8 (GR10) a slice declaring a path the binding does not cover (README.md, unchanged) is refused" || bad "B8 slice paths: rc=$RC $(sc 'e.get("errors")')"
 
 # =============================================================================
 # L. legacy exceptions (canonical checked-in TSV, base-compared, per-rule ratchet)
@@ -541,6 +638,30 @@ lcase l21 "$TWO" "$(row ../vendor/big.sh vendored ATM-1234 SC2086=2 2026-10-09)"
 lcase l22 "$TWO" "$(row vendor/big.sh vendored ATM-1234 SC2086=1 2026-10-09)"
 [ "$RC" -eq 1 ] && [ "$(sc 'e["legacy_exceptions"][0]["verdict"]')" = "FAIL" ] \
     && ok "L22 a bound run uses the canonical head-tracked TSV even without --shellcheck-exceptions (the producer cannot skip it)" || bad "L22 rc=$RC $(sc 'e.get("legacy_exceptions")')"
+lcase2 l23 vendor/big.sh '# base\n' "${TWO}unused=1\n" "$(row vendor/big.sh vendored ATM-1234 SC2086=2 2026-10-09)" "$(row vendor/big.sh vendored ATM-1234 SC2086=2,SC2034=1 2026-10-09)"
+[ "$RC" -eq 1 ] && has_err "INCREASED versus the base TSV" && [ "$(sc 'e["exceptions_increase"][0]["raised"]')" = "{'SC2034': {'base': None, 'head': 1}}" ] \
+    && ok "L23 (GR3) a NEW pin key added to an existing row (SC2034=1) is an increase -- refused in a batch that also changes the script" \
+    || bad "L23 new pin key: rc=$RC $(sc 'e.get("exceptions_increase"), e.get("errors")')"
+L24BODY="$(i=0; while [ $i -lt 24 ]; do printf '# filler line %s\\n' $i; i=$((i+1)); done)# Generated by the fixture tool -- do not edit\n$TWO"
+lcase l24 "$L24BODY" "$(row vendor/big.sh generated ATM-1234 SC2086=2 2026-10-09)"
+[ "$RC" -eq 1 ] && has_err "generated-file marker in the first 20 lines" \
+    && ok "L24 (GR4) a generated-file marker BELOW line 20 does not back reason_class generated" || bad "L24 marker depth: rc=$RC $(sc 'e.get("errors")')"
+lcase l25 "$TWO" "$(row vendor/big.sh vendored ATM-1234 SC2086=2 2026-10-09)
+$(row vendor/big.sh vendored ATM-1234 SC2086=2 2026-10-09)"
+[ "$RC" -eq 1 ] && has_err "duplicate path" && ok "L25 (GR9) two rows for the same path are rejected => FAIL" || bad "L25 duplicate rows: rc=$RC $(sc 'e.get("errors")')"
+lcase2 l26 pkg/vendor '# base\n' "$TWO" "$(row pkg/vendor vendored ATM-1234 SC2086=2 2026-10-09)" "$(row pkg/vendor vendored ATM-1234 SC2086=2 2026-10-09)"
+[ "$RC" -eq 1 ] && has_err "vendored path component" \
+    && ok "L26 (GR11) a FILE named 'vendor' is not a vendored DIRECTORY -- reason_class vendored is not backed" || bad "L26 vendored filename: rc=$RC $(sc 'e.get("errors")')"
+# L27 (F9): moving a listed file together with its unchanged row is not an increase (rename map)
+new_case l27; mkdir -p "$R/config" "$R/vendor"; row vendor/old.sh vendored ATM-1234 SC2086=2 2026-10-09 >"$R/$TSV"
+printf '#!/bin/sh\n# a legacy vendored helper, moved as is\necho $1\necho $2\n' >"$R/vendor/old.sh"; base
+git -C "$R" mv vendor/old.sh vendor/new.sh >/dev/null 2>&1; row vendor/new.sh vendored ATM-1234 SC2086=2 2026-10-09 >"$R/$TSV"; head; gate
+[ "$RC" -eq 0 ] && [ "$(sc 'e.get("renames"), e.get("exceptions_increase"), e["legacy_exceptions"][0]["verdict"]')" = "({'vendor/new.sh': 'vendor/old.sh'}, None, 'PASS')" ] \
+    && ok "L27 (F9) renaming a listed file with its row unchanged is compared with the OLD path's base row -- not an increase, PASS" \
+    || bad "L27 rename: rc=$RC $(sc 'e.get("renames"), e.get("exceptions_increase"), e.get("errors"), e.get("legacy_exceptions")')"
+lcase l28 "$TWO" "$(row vendor/big.sh vendored ATM-1234 SC2086=2,DIR-FORBIDDEN=1 2026-10-09)"
+[ "$RC" -eq 1 ] && has_err "forbidden directives (D1-D4) may not be pinned" \
+    && ok "L28 (R3 tightened) a DIR-FORBIDDEN pin is refused -- a pinned disable=all could be moved to file scope invisibly" || bad "L28 DIR-FORBIDDEN pin: rc=$RC $(sc 'e.get("errors")')"
 
 # =============================================================================
 # MUT. own mutants: each removes ONE mechanism from a scratch copy of the gate;
@@ -555,11 +676,14 @@ mutant() { # <id> <old=>>new> <case function> [python expr that must hold after 
     if ! python3 - "$MUTROOT/lib/precheck_pack_run.py" "$edit" <<'PY'
 import sys
 p = sys.argv[1]; s = open(p).read()
-old, new = sys.argv[2].split("=>>", 1)
-new = new.replace("<NL>", "\n")  # a mutation spanning lines writes <NL> for the newline
-if s.count(old) != 1:
-    sys.exit("needle found %d times" % s.count(old))
-open(p, "w").write(s.replace(old, new))
+for edit in sys.argv[2].split("<AND>"):  # several edits = one mutant (e.g. two defence layers removed together)
+    old, new = edit.split("=>>", 1)
+    old = old.replace("<NL>", "\n")
+    new = new.replace("<NL>", "\n")  # a mutation spanning lines writes <NL> for the newline
+    if s.count(old) != 1:
+        sys.exit("needle found %d times" % s.count(old))
+    s = s.replace(old, new)
+open(p, "w").write(s)
 PY
     then bad "$id mutation setup: needle not found exactly once"; return; fi
     GATE_DIR="$MUTROOT"; $fn; GATE_DIR="$REVIEW"
@@ -604,7 +728,7 @@ m_b4() { new_case mb4; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head; gate_pre
 m_b6() { new_case mb6; mkdir -p "$R/pkg"; printf '#!/bin/sh\necho "fine"\n' >"$R/pkg/a.sh"; mkbatch_unbound "$R.batch.json" pkg pkg/a.sh; OUT="$R.out.json"
          sh "$GATE_DIR/precheck_pack.sh" --batch "$R.batch.json" --clean-checkout "$R" --out "$OUT" >/dev/null 2>&1; RC=$?; }
 mutant M1 '        if "disable" in keys and not _justification_ok(just):=>>        if False:' m_d5
-mutant M2 '                    if key == "disable" and code.strip().lower() == "all":=>>                    if False:' m_d1
+mutant M2 '                        if key == "disable" and code.lower() == "all":=>>                        if False:' m_d1
 mutant M3 '                    if _RANGE_RE.match(code.strip()):=>>                    if False:' m_d2
 mutant M4 '            if key == "extended-analysis" and val.strip().lower() != "true":=>>            if False:' m_d3
 mutant M5 '        return (st == "tracked" and _bytes_are_shell(blob)), st=>>        return False, st' m_x2
@@ -620,8 +744,12 @@ mutant M14 '        if len(clines) > max_lines or len(cdata) > max_bytes:=>>    
 mutant M15 '    cap_problem = _probe_cap(mem_cap)=>>    cap_problem = None' m_h3
 mutant M16 '    if proc.returncode not in (0, 1):  # 0 clean, 1 findings; anything else is a tool failure=>>    if False:' m_h5
 mutant M17 '    if not out.strip():  # json1 always prints {"comments":[...]}; silence is not "clean"=>>    if not out.strip():<NL>        out = "{\"comments\": []}"<NL>    if False:' m_h5b
-mutant M18 '        m0 = _DIRECTIVE_RE.search(raw)=>>        m0 = _DIRECTIVE_RE.match(raw)' m_d1t
-mutant M19 '_DIRECTIVE_RE = re.compile(r"(?:^|\s)#\s*shellcheck\s")=>>_DIRECTIVE_RE = re.compile(r"^#\s?shellcheck\s")' m_d1i
+# M18/M19 (rewritten for the round-6 recogniser): narrowing the CANONICAL recogniser (only at line start /
+# only the left context '^') stops the POLICING of the trailing / indented directive -- the parity oracle
+# still fails the file closed (defence in depth), which is exactly what the flip asserts.
+PARITY_ONLY='not e.get("directive_violations") and bool(e.get("directive_parity_breaches")) and c["verdict"] == "FAIL"'
+mutant M18 '    return list(_CANON_DIRECTIVE_RE.finditer(text))=>>    return [m for m in _CANON_DIRECTIVE_RE.finditer(text) if not text[:m.start()].strip()]' m_d1t "$PARITY_ONLY"
+mutant M19 '_CANON_DIRECTIVE_RE = re.compile(r"(?<![^\s;&|()`])#"=>>_CANON_DIRECTIVE_RE = re.compile(r"^#"' m_d1i "$PARITY_ONLY"
 mutant M20 '    return sum(len(w) for w in words) >= 16 and len(real) >= 3=>>    return sum(len(w) for w in words) >= 16 and len(real) >= 1' m_d5r
 mutant M21 '_SHELL_EXTS = (".sh", ".bash", ".ksh", ".dash")=>>_SHELL_EXTS = (".sh",)' m_x5
 mutant M22 '        if increase and not exc["tsv_only"]:=>>        if False:' m_l13
@@ -633,6 +761,52 @@ mutant M27 '        if data != blob:=>>        if False:' m_l16
 mutant M28 '        if anc.returncode != 0:=>>        if False:' m_b3
 mutant M29 '    if sorted(ids) != sorted(c for c in (batch.get("changes") or []) if isinstance(c, str)):=>>    if False:' m_b4
 mutant M30 '        if rel not in gitlink_paths:=>>        if False:' m_b6
+# --- gate review round 6: the reviewer's surviving mutants, adopted verbatim (F3), plus the F1 layers ---
+m_d8() { dcase "md8$1" 'true;\0043 shellcheck disable=all # suppress every finding of this legacy block\nrm -rf $1/*\n'; }
+m_d10() { dcase md10 '\0043 shellcheck disable=SC2115 # the caller validates the prefix path before this point\nrm -rf "$1"/*\n'; }
+m_x7c() { new_case mx7c; base; wh pkg/android2.sh '#!/system/bin/sh\necho hi |& cat\n'; head; gate; }
+m_x8() { new_case mx8; base; wh bin/s1 '#!/usr/bin/env -Sbash\necho $1\n'; head; gate; }
+m_h7() { python3 -c 'import fcntl,sys,time;f=open(sys.argv[1],"a");fcntl.flock(f.fileno(),fcntl.LOCK_EX);open(sys.argv[2],"w").close();time.sleep(60)' "$LOCKP" "$TMP/mh7.ready" &
+         HOLDER_PID=$!; i=0; while [ ! -f "$TMP/mh7.ready" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
+         new_case mh7; base; python3 -c 'import sys;open(sys.argv[1],"w").write("#!/bin/sh\n"+"echo \"x\"\n"*5000)' "$R/pkg_big.sh"; head
+         gate --shellcheck-exception-timeout 0.5; kill "$HOLDER_PID" 2>/dev/null; wait "$HOLDER_PID" 2>/dev/null; HOLDER_PID=""; rm -f "$TMP/mh7.ready"; }
+m_h8() { new_case mh8; base; wh pkg/a.sh '#!/bin/sh\necho "x"\n'; head; PATH="$SCF3:$OLDPATH"; gate; PATH=$OLDPATH; }
+m_b7() { new_case mb7; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head
+         TWIN=$(git -C "$R" commit-tree "$(git -C "$R" rev-parse "$HEADC^{tree}")" -p "$HEADC" -m twin </dev/null 2>/dev/null)
+         git -C "$R" worktree add --detach --quiet "$R.co" "$TWIN" >/dev/null 2>&1; mkraw "$R.raw.json"
+         python3 "$GATE_DIR/lib/precheck_pack_build_run.py" bind --repo "$R" --base "$BASE" --head "$HEADC" --batch "$R.raw.json" --out "$R.batch.json" --rewrite-changes >/dev/null 2>&1; gate_run; }
+m_b8() { new_case mb8; base; wh pkg/a.sh '#!/bin/sh\necho "a"\n'; head; gate_prepare
+         python3 -c 'import json,sys;b=json.load(open(sys.argv[1]));b["slices"][0]["context_pack"]["changed_paths"].append("README.md");json.dump(b,open(sys.argv[1],"w"))' "$R.batch.json"; gate_run; }
+m_l23() { lcase2 ml23 vendor/big.sh '# base\n' "${TWO}unused=1\n" "$(row vendor/big.sh vendored ATM-1234 SC2086=2 2026-10-09)" "$(row vendor/big.sh vendored ATM-1234 SC2086=2,SC2034=1 2026-10-09)"; }
+m_l24() { lcase ml24 "$L24BODY" "$(row vendor/big.sh generated ATM-1234 SC2086=2 2026-10-09)"; }
+m_l25() { lcase ml25 "$TWO" "$(row vendor/big.sh vendored ATM-1234 SC2086=2 2026-10-09)
+$(row vendor/big.sh vendored ATM-1234 SC2086=2 2026-10-09)"; }
+m_l26() { lcase2 ml26 pkg/vendor '# base\n' "$TWO" "$(row pkg/vendor vendored ATM-1234 SC2086=2 2026-10-09)" "$(row pkg/vendor vendored ATM-1234 SC2086=2 2026-10-09)"; }
+m_l27() { new_case ml27; mkdir -p "$R/config" "$R/vendor"; row vendor/old.sh vendored ATM-1234 SC2086=2 2026-10-09 >"$R/$TSV"
+          printf '#!/bin/sh\n# a legacy vendored helper, moved as is\necho $1\necho $2\n' >"$R/vendor/old.sh"; base
+          git -C "$R" mv vendor/old.sh vendor/new.sh >/dev/null 2>&1; row vendor/new.sh vendored ATM-1234 SC2086=2 2026-10-09 >"$R/$TSV"; head; gate; }
+m_e1p() { new_case me1p; base; wh pkg/a.sh '#!/bin/sh\necho "x"\n'; head; gate; }
+m_d5u() { dcase md5u '\0043 shellcheck disable=SC2086 # raw user arg\necho $1\n'; }
+mutant GR1 '    if (proc.returncode == 1) != bool(comments):  # rc and output must agree=>>    if False:' m_h8
+mutant GR2 '    return sum(len(w) for w in words) >= 16 and len(real) >= 3=>>    return sum(len(w) for w in words) >= 1 and len(real) >= 3' m_d5u
+mutant GR3 '                  if v > b["pinned_counts"].get(k, 0)}=>>                  if v > b["pinned_counts"].get(k, v)}' m_l23
+mutant GR4 'for x in clines[:20]):=>>for x in clines[:100000]):' m_l24
+mutant GR5 '    if ch != head_sha:=>>    if False:' m_b7
+mutant GR7 '        return "ksh"<NL>    return "sh"=>>        return "bash"<NL>    return "sh"' m_x7c
+mutant GR8 '    big = row is not None or len(clines) >= LARGE_LINES=>>    big = row is not None' m_h7
+mutant GR9 '        if rpath in rows:=>>        if False:' m_l25
+mutant GR10 '    if declared is not None and not set(declared) <= set(rels):=>>    if False:' m_b8
+mutant GR11 'set(rel.split("/")[:-1]) & set(_VENDORED_DIRS)=>>set(rel.split("/")) & set(_VENDORED_DIRS)' m_l26
+mutant GR12 '                      "shellcheck_params": ctx.get("shellcheck_params"),=>>                      "shellcheck_params": None,' m_e1p \
+    'd["provenance"]["shellcheck_params"] != {"timeout_s": 60, "exception_timeout_s": 900, "memory_cap_mib": 8192, "max_lines": 10000}'
+mutant M31 '_CANON_DIRECTIVE_RE = re.compile(r"(?<![^\s;&|()`])#"=>>_CANON_DIRECTIVE_RE = re.compile(r"^#"<AND>    if noncanon:=>>    if False:' 'm_d8 a'
+mutant M32 '    if noncanon:=>>    if False:<AND>_CANON_DIRECTIVE_RE = re.compile(r"(?<![^\s;&|()`])#"=>>_CANON_DIRECTIVE_RE = re.compile(r"(?<![^\s])#"' 'm_d8 b'
+mutant M33 '        bl = sorted(c for c in d["disable_codes"] if c in BLOCKING_INFO_RULES or c in suppressed_codes)=>>        bl = sorted(c for c in d["disable_codes"] if c in BLOCKING_INFO_RULES)' m_d10 \
+    'not e.get("blocking_rule_disabled")'
+mutant M34 '        name, rest = _env_program(rest)=>>        rest = [t for t in rest if not t.startswith("-") and "=" not in t]<NL>        name, rest = (os.path.basename(rest[0]), rest[1:]) if rest else ("", [])' m_x8
+m_l28() { lcase ml28 "$TWO" "$(row vendor/big.sh vendored ATM-1234 SC2086=2,DIR-FORBIDDEN=1 2026-10-09)"; }
+mutant M36 '        if key in _UNPINNABLE_KEYS:=>>        if False:' m_l28
+mutant M35 '            b = base_rows[renames[rel]]=>>            pass' m_l27 'bool(e.get("exceptions_increase"))'
 
 echo
 echo "== Summary: ok $PASS / NOT ok $FAIL =="
