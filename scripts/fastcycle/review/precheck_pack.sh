@@ -34,8 +34,14 @@
 # are serialised host-wide by an flock. --shellcheck-memory-cap-mib and
 # --shellcheck-max-lines may only LOWER the caps (a higher value exits 2).
 #
-# Directives are honoured by shellcheck but policed (line-start or trailing
-# after code): `disable=all`, range forms and `extended-analysis=` (other than
+# Directives are honoured by shellcheck but policed. Recognition is three
+# layers (gate review round 6, F1): every `#<blanks>shellcheck` CANDIDATE
+# anywhere is listed; CANONICAL directives (line start / after a blank, `;`,
+# `&`, `|`, `(`, `)`, a backtick -- the forms shellcheck honours) are policed;
+# a PARITY ORACLE re-lints with the non-canonical words neutralised and FAILs
+# the file closed if shellcheck honoured one anyway. A justified disable of a
+# floor rule is flagged blocking_rule_disabled in evidence.
+# Policed: `disable=all`, range forms and `extended-analysis=` (other than
 # true) FAIL, unknown keys FAIL, and every `disable=` line MUST carry its
 # justification on the SAME line, e.g.
 #     # shellcheck disable=SC2016 # literal mutation pattern, not an expansion

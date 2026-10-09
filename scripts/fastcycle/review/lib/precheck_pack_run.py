@@ -506,10 +506,22 @@ def check_parse(root, scoped_files, scope_note):
 # change the result; rc files near a candidate are only LISTED in evidence.
 # Version + full argv are evidence; the version is also pinned in provenance.
 #
-# Directives are honoured by shellcheck, but every `# shellcheck` directive in a
-# candidate -- at the start of a line (any indentation) OR trailing after code
-# (shellcheck honours `if x; then # shellcheck disable=...`) -- is policed
-# (closed rule set, all listed in evidence):
+# Directives are honoured by shellcheck. Recognition (gate review round 6, F1 --
+# the recurring "parity with shellcheck's parser" class, replaced structurally):
+#   candidates  every `#<blanks>shellcheck` (any case, any position) -- listed;
+#   canonical   the forms shellcheck 0.11 honours (probed 2026-10-09): `#` at the
+#               line start / after a blank, `;`, `&`, `|`, `(`, `)` or a backtick
+#               (so `true;# shellcheck`, `$(# shellcheck`, `a)# shellcheck`),
+#               lower-case only -- these are POLICED;
+#   parity      the file is re-linted with every NON-canonical `shellcheck` word
+#               neutralised (s -> x, equal length): if the findings change,
+#               shellcheck honoured a directive the recogniser missed -> the
+#               file FAILs closed (`directive_parity_breaches`). A second lint
+#               with EVERY directive neutralised yields the blocking findings
+#               the directives suppress; a canonical `disable=` of such a code
+#               or of a BLOCKING_INFO_RULES code is listed as
+#               `blocking_rule_disabled` (flagged, not refused).
+# Policed (closed rule set, all listed in evidence):
 #   D1 `disable=all` (any position in the list, any case)        -> FAIL
 #   D2 any range form (`SC1000-SC2999`, `1000-2999`) in a code list -> FAIL
 #   D3 `extended-analysis=` with any value other than `true`     -> FAIL
@@ -520,8 +532,9 @@ def check_parse(root, scoped_files, scope_note):
 #      hold >= 16 letters in words of >= 2 letters and >= 3 distinct words that
 #      each contain a vowel and are not placeholders (x, todo, noise, ok, ...).
 # Residuals: keyboard mash that contains vowels passes D5 -- whether a reason
-# is ADEQUATE is review territory; a string / here-doc line with a whitespace-
-# preceded `# shellcheck` is policed too (stricter, never laxer).
+# is ADEQUATE is review territory; a string / here-doc line with a canonically
+# placed `# shellcheck` is policed too (stricter, never laxer). DIR-FORBIDDEN
+# (D1-D4) cannot be pinned in a legacy row (a pinned disable=all could move).
 #
 # Legacy exceptions (ONE narrow exception; review finding I1): the canonical,
 # checked-in TSV CANONICAL_EXCEPTIONS_REL (rows {path, reason_class,
@@ -590,7 +603,23 @@ _SHELL_INTERPS = ("sh", "bash", "dash", "ksh", "mksh", "ash")
 _SHELL_NAME_RE = re.compile(r"^(sh|bash|dash|ksh|mksh|ash)(?:[0-9][0-9.]*)?$")
 _MULTICALL = ("busybox", "toybox")
 _MKSH_SHEBANG_PATHS = ("/system/bin/sh",)
-_DIRECTIVE_RE = re.compile(r"(?:^|\s)#\s*shellcheck\s")
+# Directive recognition (F1, gate review round 6) -- STRUCTURAL: three layers, never one regex alone.
+#  1. CANDIDATES (_DIRECTIVE_RE): an OVER-APPROXIMATION, independent of left context -- `#`, optional
+#     blanks, the word shellcheck (any case), then a blank or the end of the line, ANYWHERE in a line
+#     (after `;` `(` `$(` a backtick `)` `&` `|`, inside strings and here-docs, trailing). Every candidate
+#     is listed in evidence.
+#  2. CANONICAL directives (_CANON_DIRECTIVE_RE): the forms shellcheck 0.11 is known to honour (probed
+#     2026-10-09: line start / indented / after a blank, and right after `;` `&` `|` `(` `)` a backtick --
+#     `$(` included; lower-case only: `ShellCheck` / `SHELLCHECK` are NOT honoured). These are POLICED
+#     (D1-D5).
+#  3. PARITY ORACLE (shellcheck itself is the reference): the file is re-linted with every NON-canonical
+#     `shellcheck` word neutralised (s -> x, equal length, positions unchanged). If the findings differ,
+#     shellcheck honoured a directive the canonical recogniser did not see -> fails closed (directive
+#     parity breach). A recogniser gap can therefore never become a silent PASS, whatever the left context.
+_DIR_WS = r"[ \t\r\f\v]"
+_DIRECTIVE_RE = re.compile(r"#" + _DIR_WS + r"*shellcheck(?=" + _DIR_WS + r"|$)", re.I | re.A)
+_CANON_DIRECTIVE_RE = re.compile(r"(?<![^\s;&|()`])#" + _DIR_WS + r"*shellcheck(?=" + _DIR_WS + r"|$)", re.A)
+_DIRECTIVE_WORD_RE_B = re.compile(rb"shellcheck", re.I)
 _RC_NAMES = (".shellcheckrc", "shellcheckrc")
 _DIRECTIVE_KEYS = ("disable", "enable", "source", "source-path", "shell", "external-sources",
                    "extended-analysis")
@@ -605,6 +634,7 @@ _ITEM_RE = re.compile(r"^[A-Z][A-Z0-9]*-[0-9]+$")
 _PIN_DATE_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 _PIN_KEY_RE = re.compile(r"^(?:SC[0-9]+|DIR-FORBIDDEN|DIR-UNJUSTIFIED)$")
 _PARSE_PIN_RE = re.compile(r"^SC10[0-9]{2}$")
+_UNPINNABLE_KEYS = ("DIR-FORBIDDEN",)
 _GENERATED_RE = re.compile(r"(?i)(generated by|do not edit|auto-?generated)")
 _VENDORED_DIRS = ("vendor", "vendored", "third_party", "third-party", "external", "prebuilts")
 BLOCKING_LEVELS = ("error", "warning")
@@ -612,6 +642,13 @@ BLOCKING_INFO_RULES = ("SC2030", "SC2031", "SC2059", "SC2086", "SC2162")
 EXCLUDED_RULES = ("SC1090", "SC1091")
 DEFAULT_SC_TIMEOUT = 60
 DEFAULT_EXCEPTION_TIMEOUT = 900
+# F10: ceilings -- a per-run value may be lowered, never raised above these
+MAX_SC_TIMEOUT = 600
+MAX_EXCEPTION_TIMEOUT = 1800
+DEFAULT_TOTAL_BUDGET = 3600  # seconds of shellcheck wall time per batch (all lints together); then BLIND
+DETERMINISM_OVERHEAD_S = 600  # git, probe and version work on top of the lint budget per inner run
+# every lint and lock wait is clipped to the budget that remains, so one inner run is bounded by budget + overhead
+DETERMINISM_TIMEOUT_S = DEFAULT_TOTAL_BUDGET + DETERMINISM_OVERHEAD_S
 DEFAULT_MEM_CAP_MIB = 8192
 DEFAULT_MAX_LINES = 10000
 DEFAULT_MAX_BYTES = 2 * 1024 * 1024
@@ -778,12 +815,71 @@ def _interp_of(first_line):
         return ""
     name, rest = os.path.basename(toks[0]), toks[1:]
     if name == "env":
-        rest = [t for t in rest if not t.startswith("-") and "=" not in t]
-        name, rest = (os.path.basename(rest[0]), rest[1:]) if rest else ("", [])
+        name, rest = _env_program(rest)
     if name in _MULTICALL:
         name = os.path.basename(rest[0]) if rest else ""
     m = _SHELL_NAME_RE.match(name)
     return m.group(1) if m else name
+
+
+_ENV_ARG_SHORT = "uCP"          # env options that take the next word (or the rest of the word) as an argument
+_ENV_ARG_LONG = ("--unset", "--chdir")
+
+
+def _env_program(toks):
+    """F7: (program basename, its remaining words) after `env`'s own options: `-S STR` / `-SSTR` /
+    `--split-string[=]STR` (the split words are env words again), `-u NAME` / `-C DIR` / `-P PATH`
+    and their attached / `--long=` forms, other flags, `VAR=value` assignments and `--`."""
+    work, i = list(toks), 0
+    while i < len(work):
+        t = work[i]
+        if t == "--":
+            i += 1
+            break
+        if t == "-":  # a lone '-' is env's -i
+            i += 1
+            continue
+        if t.startswith("--split-string"):
+            if t.startswith("--split-string="):
+                work[i] = t.split("=", 1)[1]
+                if not work[i]:
+                    i += 1
+                continue
+            i += 1
+            continue
+        if t.startswith("--"):
+            if t in _ENV_ARG_LONG:
+                i += 2
+            else:
+                i += 1
+            continue
+        if t.startswith("-") and len(t) > 1:
+            j, consumed = 1, False
+            while j < len(t):
+                ch = t[j]
+                if ch == "S":
+                    rem = t[j + 1:]
+                    if rem:
+                        work[i] = rem  # the split string starts inside this word: re-read it
+                    else:
+                        i += 1
+                    consumed = True
+                    break
+                if ch in _ENV_ARG_SHORT:
+                    i += 1 if t[j + 1:] else 2
+                    consumed = True
+                    break
+                j += 1
+            if not consumed:
+                i += 1
+            continue
+        if "=" in t:
+            i += 1
+            continue
+        break
+    if i < len(work):
+        return os.path.basename(work[i]), work[i + 1:]
+    return "", []
 
 
 def _first_line(data):
@@ -909,7 +1005,21 @@ def _run_shellcheck(flag, data, timeout, mem_cap_mib):
     return comments, None, False, elapsed
 
 
+TEST_MODE_ENV = "PRECHECK_TEST_MODE"          # "1" only in this gate's own test suites
+TEST_LOCK_DIR_ENV = "PRECHECK_TEST_LOCK_DIR"  # honoured ONLY in test mode (a pack built so is never ready)
+
+
+def _test_mode():
+    return os.environ.get(TEST_MODE_ENV) == "1"
+
+
 def _lock_path():
+    """The host-wide lock (XDG_RUNTIME_DIR, which systemd-run --user needs anyway). A test suite may
+    point it at a PRIVATE directory -- only with PRECHECK_TEST_MODE=1, which the pack records
+    (evidence tool.test_mode) and the dispatch verifier refuses."""
+    test_dir = os.environ.get(TEST_LOCK_DIR_ENV)
+    if _test_mode() and test_dir and os.path.isdir(test_dir):
+        return os.path.join(test_dir, "helix-precheck-shellcheck-large-%d.lock" % os.getuid())
     base = os.environ.get("XDG_RUNTIME_DIR")
     if not (base and os.path.isdir(base)):
         base = "/tmp"
@@ -966,48 +1076,164 @@ def _justification_ok(text):
     return sum(len(w) for w in words) >= 16 and len(real) >= 3
 
 
+def _sc_code(code):
+    """'SC2086' / '2086' -> 'SC2086'; anything else (e.g. 'all') -> None."""
+    m = re.fullmatch(r"(?:SC)?([0-9]+)", code.strip(), re.I)
+    return "SC%d" % int(m.group(1)) if m else None
+
+
+def _canon_matches(text):
+    """The ONE canonical-directive recogniser, shared by the policing and the parity oracle."""
+    return list(_CANON_DIRECTIVE_RE.finditer(text))
+
+
 def _police_directives(lines):
-    """-> list of {line, text, keys, justification, violations[]} for every
-    `# shellcheck` directive occurrence (line start or trailing after code;
-    the first-line shebang excluded)."""
+    """-> list of {line, column, text, canonical, keys, justification, disable_codes, file_scope,
+    violations[]} for EVERY directive candidate (_DIRECTIVE_RE: an over-approximation -- any position in
+    any line, the first line included; several per line possible). Only a CANONICAL candidate
+    (_CANON_DIRECTIVE_RE at the same position: a form shellcheck honours) is policed (D1-D5); a
+    non-canonical one is listed and left to the parity oracle (_differential_lint), which fails the file
+    closed if shellcheck honours it after all. file_scope: the candidate is the first thing on its line
+    and no command precedes it (only blank / comment lines after the shebang) -- where shellcheck applies a
+    directive to the whole file."""
     out = []
+    seen_command = False
     for i, raw in enumerate(lines, start=1):
-        if i == 1 and raw.startswith("#!"):
-            continue
-        m0 = _DIRECTIVE_RE.search(raw)
-        if not m0:
-            continue
-        s = raw[m0.start():].strip().rstrip("\r")
-        body = s.split("shellcheck", 1)[1]
-        # The directive's own tokens end at the first ' #' (start of the same-line comment).
-        m = re.search(r"\s#", body)
-        tokens_part, just = (body[:m.start()], body[m.end():].strip()) if m else (body, "")
-        toks = tokens_part.split()
-        viol, keys = [], []
-        for t in toks:
-            key, eq, val = t.partition("=")
-            if not eq or not key or not val:
-                viol.append("D4 malformed directive token %r" % t)
-                continue
-            keys.append(key)
-            if key not in _DIRECTIVE_KEYS:
-                viol.append("D4 unknown directive key %r" % key)
-                continue
-            if key in ("disable", "enable"):
-                for code in val.split(","):
-                    if key == "disable" and code.strip().lower() == "all":
-                        viol.append("D1 disable=all")
-                    if _RANGE_RE.match(code.strip()):
-                        viol.append("D2 range form %r" % code)
-            if key == "extended-analysis" and val.strip().lower() != "true":
-                viol.append("D3 extended-analysis=%s switches off data-flow analysis" % val)
-        if not toks:
-            viol.append("D4 directive with no key=value token")
-        if "disable" in keys and not _justification_ok(just):
-            viol.append("D5 disable= without a same-line justification of real words (got %r)" % just)
-        out.append({"line": i, "text": raw.strip().rstrip("\r"), "keys": keys, "justification": just,
-                    "violations": viol})
+        line = raw.rstrip("\r")
+        canon = {m.start(): m for m in _canon_matches(line)}
+        cands = {m.start(): m for m in _DIRECTIVE_RE.finditer(line)}
+        cands.update(canon)  # a canonical directive is policed even if the candidate pattern were narrower
+        for start in sorted(cands):
+            m0 = cands[start]
+            canonical = start in canon
+            body = line[m0.end():]
+            # The directive's own tokens end at the first ' #' (start of the same-line comment).
+            m = re.search(r"\s#", body)
+            tokens_part, just = (body[:m.start()], body[m.end():].strip()) if m else (body, "")
+            toks = tokens_part.split()
+            viol, keys, codes = [], [], []
+            for t in toks:
+                key, eq, val = t.partition("=")
+                if not eq or not key or not val:
+                    viol.append("D4 malformed directive token %r" % t)
+                    continue
+                keys.append(key)
+                if key not in _DIRECTIVE_KEYS:
+                    viol.append("D4 unknown directive key %r" % key)
+                    continue
+                if key in ("disable", "enable"):
+                    for code in val.split(","):
+                        code = code.strip().strip("`()'\";&|")  # `# shellcheck disable=all` inside a backtick
+                        if key == "disable" and code.lower() == "all":
+                            viol.append("D1 disable=all")
+                        if _RANGE_RE.match(code.strip()):
+                            viol.append("D2 range form %r" % code)
+                        if key == "disable" and _sc_code(code):
+                            codes.append(_sc_code(code))
+                if key == "extended-analysis" and val.strip().lower() != "true":
+                    viol.append("D3 extended-analysis=%s switches off data-flow analysis" % val)
+            if not toks:
+                viol.append("D4 directive with no key=value token")
+            if "disable" in keys and not _justification_ok(just):
+                viol.append("D5 disable= without a same-line justification of real words (got %r)" % just)
+            out.append({"line": i, "column": m0.start() + 1, "text": line.strip(), "canonical": canonical,
+                        "keys": keys, "justification": just, "disable_codes": sorted(set(codes)),
+                        "file_scope": not seen_command and not line[:m0.start()].strip(),
+                        "violations": viol if canonical else []})
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            seen_command = True
     return out
+
+
+def _shellcheck_words(data):
+    """-> (offsets of every `shellcheck` word (any case), offsets of the CANONICAL directives' words) in
+    the raw bytes. A line is decoded byte-for-byte (latin-1), so str offsets ARE byte offsets."""
+    words, canon, off = [], [], 0
+    for line in data.split(b"\n"):
+        words.extend(off + m.start() for m in _DIRECTIVE_WORD_RE_B.finditer(line))
+        text = line.decode("latin-1")
+        canon.extend(off + m.end() - len("shellcheck") for m in _canon_matches(text))
+        off += len(line) + 1
+    return words, canon
+
+
+def _neutralise(data, offsets):
+    """Equal-length, inert copy: the first letter of each `shellcheck` word at `offsets` becomes x/X."""
+    ba = bytearray(data)
+    for o in offsets:
+        ba[o] = ord("x") if ba[o] == ord("s") else ord("X")
+    return bytes(ba)
+
+
+def _finding_keys(comments):
+    """Multiset of finding positions + codes + levels (messages excluded: a neutralised name changes them)."""
+    return sorted((c.get("line"), c.get("endLine"), c.get("column"), c.get("endColumn"), c.get("code"), c.get("level"))
+                  for c in comments)
+
+
+def _differential_lint(flag, cdata, lint):
+    """F1 + F8: the parity oracle. `lint(data)` -> (comments|None, error|None, timed_out). Returns
+    (comments, error, timed_out, facts): `comments` are the ORIGINAL file's findings; `facts` holds the
+    word counts, a parity `breach` (findings changed when the NON-canonical words were neutralised:
+    shellcheck honoured something the canonical recogniser did not see) and `suppressed_codes` (blocking
+    findings that appear only once the canonical directives are neutralised too -- what the file's
+    directives actually switch off). Extra lints run only when the file holds a `shellcheck` word."""
+    comments, err, timed_out = lint(cdata)
+    words, canon = _shellcheck_words(cdata)
+    facts = {"shellcheck_words": len(words), "canonical": len(canon)}
+    if err or not words:
+        return comments, err, timed_out, facts
+    base_keys = _finding_keys(comments)
+    canon_set = set(canon)
+    noncanon = [w for w in words if w not in canon_set]
+    if noncanon:
+        c1, e1, t1 = lint(_neutralise(cdata, noncanon))
+        if e1:
+            return None, "parity lint (non-canonical directive words neutralised): " + e1, t1, facts
+        if _finding_keys(c1) != base_keys:
+            changed = sorted(set(map(tuple, _finding_keys(c1))) ^ set(map(tuple, base_keys)))
+            facts["breach"] = {"lines": sorted({k[0] for k in changed if k[0] is not None}),
+                               "codes": sorted({"SC%s" % k[4] for k in changed})}
+    if canon:
+        c2, e2, t2 = lint(_neutralise(cdata, words))
+        if e2:
+            return None, "parity lint (every directive neutralised): " + e2, t2, facts
+        have = {}
+        for k in _finding_keys([c for c in comments if _blocking(c)]):
+            have[k] = have.get(k, 0) + 1
+        sup = set()
+        for c in c2:
+            if not _blocking(c):
+                continue
+            k = _finding_keys([c])[0]
+            if have.get(k, 0) > 0:
+                have[k] -= 1
+            else:
+                sup.add("SC%s" % c.get("code"))
+        facts["suppressed_codes"] = sorted(sup)
+    return comments, None, False, facts
+
+
+def _annotate_blocking(dirs, suppressed_codes):
+    """F8: every canonical directive that disables a floor (blocking) rule -- a BLOCKING_INFO_RULES code, or a
+    code the differential lint showed suppressing a blocking finding in this file -- is flagged
+    blocking_rule_disabled (listed in evidence for the reviewer; with file_scope it switches the floor off
+    for the whole file). Flagged, not refused: a justified D5 directive stays legal (operator decision
+    'Strict, with severity floor')."""
+    out = []
+    for d in dirs:
+        if not d.get("canonical"):
+            continue
+        bl = sorted(c for c in d["disable_codes"] if c in BLOCKING_INFO_RULES or c in suppressed_codes)
+        if bl:
+            d["blocking_rule_disabled"] = bl
+            out.append(d)
+    return out
+
+
+def _violation_key(v):
+    return "DIR-UNJUSTIFIED" if v.startswith("D5") else "DIR-FORBIDDEN"
 
 
 def _parse_pins(field):
@@ -1021,6 +1247,11 @@ def _parse_pins(field):
         if _PARSE_PIN_RE.match(key):
             raise ValueError("pinned_counts entry %r: SC10xx (parse-class) codes may not be pinned -- fix the "
                              "parse problem" % part)
+        if key in _UNPINNABLE_KEYS:
+            # a pinned forbidden directive (disable=all, a range, ...) could be swapped for another of the
+            # same class -- e.g. moved to file scope -- invisibly to a per-key count: never pinnable
+            raise ValueError("pinned_counts entry %r: forbidden directives (D1-D4) may not be pinned -- remove "
+                             "the directive" % part)
         pins[key] = int(val)
     return pins
 
@@ -1286,11 +1517,17 @@ def _resolve_exceptions(root, opts, bound, errors):
     return out
 
 
-def _exceptions_increase(rows, base_rows):
-    """-> [{path, kind: new-row|raised-pin, ...}] for every head row / pin above the base TSV."""
+def _exceptions_increase(rows, base_rows, renames=None):
+    """-> [{path, kind: new-row|raised-pin, ...}] for every head row / pin above the base TSV.
+    A pin KEY absent from the base row counts from 0 (a new key is an increase -- GR3). F9: a head row
+    for a file the batch RENAMED (renames {new: old}) is compared with the base row of the old path, so
+    moving a listed file with its row unchanged is not an increase."""
     inc = []
+    renames = renames or {}
     for rel, row in sorted(rows.items()):
         b = base_rows.get(rel)
+        if b is None and renames.get(rel) in base_rows:
+            b = base_rows[renames[rel]]
         if b is None:
             inc.append({"path": rel, "kind": "new-row", "pinned_counts": row["pinned_counts"]})
             continue
@@ -1325,15 +1562,18 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
     tool = {"version": version, "argv": _capped_argv(_shellcheck_argv("<dialect>"), "<empty dir>", mem_cap),
             "timeout_s": sc_timeout, "exception_timeout_s": ex_timeout, "memory_cap_mib": mem_cap,
             "max_lines": max_lines, "max_bytes": max_bytes, "large_lines": LARGE_LINES,
-            "lock": _lock_path(),
+            "lock": _lock_path(), "total_budget_s": DEFAULT_TOTAL_BUDGET,
             "severity_floor": {"blocking_levels": list(BLOCKING_LEVELS),
                                "blocking_info_rules": list(BLOCKING_INFO_RULES),
                                "excluded_rules": list(EXCLUDED_RULES)},
             "env_policy": "systemd-run scope (MemoryMax, MemorySwapMax=0) -> env -i PATH + HOME=XDG_CONFIG_HOME="
                           "<empty cwd> + LC_ALL/LANG=C.UTF-8; --norc; file on stdin"}
+    if _test_mode():
+        tool["test_mode"] = True  # a pack built so is never dispatch-ready (the verifier refuses it)
     ctx["shellcheck_params"] = {"timeout_s": sc_timeout, "exception_timeout_s": ex_timeout,
                                 "memory_cap_mib": mem_cap, "max_lines": max_lines}
-    errors, findings, advisory, directives, dir_viol = [], [], [], [], []
+    errors, findings, advisory, directives, dir_viol, blocking_disabled = [], [], [], [], [], []
+    parity_breaches = []
     exceptions_used, sym_refused, sym_ignored, dirs_refused = [], [], [], []
     files_linted = 0
     bound = None
@@ -1353,14 +1593,14 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
     exc = _resolve_exceptions(root, opts, bound, errors)
     ex_rows = exc["rows"]
     increase = []
+    renames = bound["renames"] if bound and bound["ok"] else {}
     if exc["base_rows"] is not None:
-        increase = _exceptions_increase(ex_rows, exc["base_rows"])
+        increase = _exceptions_increase(ex_rows, exc["base_rows"], renames)
         if increase and not exc["tsv_only"]:
             errors.append({"file": "<exceptions>", "message": "legacy exceptions INCREASED versus the base TSV (%s) "
                            "in a batch that also changes other files -- a new row or a raised pin is accepted only "
                            "in an explicit TSV-only batch" % ", ".join("%s %s" % (x["path"], x["kind"])
                                                                       for x in increase)})
-    renames = bound["renames"] if bound and bound["ok"] else {}
     gitlink_paths = {g["path"] for g in bound["gitlinks"]} if bound else set()
 
     def base_is_shell(rel):
@@ -1392,6 +1632,11 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                 errors.append({"file": rel, "message": "a legacy-exception row must cover a file tracked at the "
                                "batch base (got %s)" % bst})
 
+    budget_t0 = time.monotonic()
+
+    def remaining():
+        return DEFAULT_TOTAL_BUDGET - (time.monotonic() - budget_t0)
+
     pool = scoped_files if scoped_files is not None else _find_shell_scripts(root)
     for path in sorted(pool):
         rel = _relpath(path, root)
@@ -1404,12 +1649,18 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
             continue
         if not (path.endswith(_SHELL_EXTS) or b_shell or _is_shell_script(path)):
             continue
-        try:
-            with open(path, "rb") as fh:
-                cdata = fh.read()
-        except OSError as exc_:
-            errors.append({"file": rel, "message": "cannot read: %s" % exc_})
-            continue
+        hst_blob = bound["head_blobs"].get(rel) if bound_ok else None
+        if hst_blob is not None and hst_blob[0] == "tracked":
+            # F10: lint the VERIFIED head-blob bytes (the binding compared them with the checkout), never a
+            # second read of the checkout that could have changed in between
+            cdata = hst_blob[1]
+        else:
+            try:
+                with open(path, "rb") as fh:
+                    cdata = fh.read()
+            except OSError as exc_:
+                errors.append({"file": rel, "message": "cannot read: %s" % exc_})
+                continue
         if b"\0" in cdata:
             # shells mangle NUL bytes and shellcheck lints around them: a script
             # carrying one is refused outright (never a silent partial lint).
@@ -1435,15 +1686,39 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                 errors.append({"file": rel, "message": "legacy exception row not backed by evidence: " + why})
         big = row is not None or len(clines) >= LARGE_LINES
         timeout = ex_timeout if row else sc_timeout
+        flag = _shell_dialect(cdata)
+
+        def lint(data, _timeout=timeout, _flag=flag):
+            left = remaining()
+            if left <= 0:
+                return None, "the per-batch shellcheck time budget (%ss) is exhausted" % DEFAULT_TOTAL_BUDGET, True
+            t = min(_timeout, left)
+            com, er, to, _el = _run_shellcheck(_flag, data, t, mem_cap)
+            if to and t < _timeout:
+                er = "%s (clipped by the per-batch %ss budget)" % (er, DEFAULT_TOTAL_BUDGET)
+            return com, er, to
+
         # timings are deliberately NOT evidence: the body must stay deterministic (C-003)
         if big:
-            with _LargeLintLock(max(2 * ex_timeout, 1.0)) as lk:
+            with _LargeLintLock(max(min(2 * ex_timeout, remaining()), 1.0)) as lk:
                 if lk.error:
-                    comments, err, timed_out = None, lk.error, False
+                    comments, err, timed_out, facts = None, lk.error, False, {}
                 else:
-                    comments, err, timed_out, _el = _run_shellcheck(_shell_dialect(cdata), cdata, timeout, mem_cap)
+                    comments, err, timed_out, facts = _differential_lint(flag, cdata, lint)
         else:
-            comments, err, timed_out, _el = _run_shellcheck(_shell_dialect(cdata), cdata, timeout, mem_cap)
+            comments, err, timed_out, facts = _differential_lint(flag, cdata, lint)
+        if facts.get("breach"):
+            parity_breaches.append(dict(facts["breach"], file=rel,
+                                        noncanonical_candidates=[d["line"] for d in dirs if not d["canonical"]]))
+            err = err or ("directive parity breach: shellcheck honours a `shellcheck` word on line(s) %s that the "
+                          "gate's canonical directive recogniser did not parse (findings %s changed when the "
+                          "non-canonical words were neutralised) -- fails closed; write the directive in canonical "
+                          "form at the start of a line" % (facts["breach"]["lines"], facts["breach"]["codes"]))
+            timed_out = False
+        if err is None:
+            for d in _annotate_blocking(dirs, facts.get("suppressed_codes") or []):
+                blocking_disabled.append({"file": rel, "line": d["line"], "codes": d["blocking_rule_disabled"],
+                                          "file_scope": d["file_scope"], "text": d["text"]})
         files_linted += 1
         if row is None:
             for d in dirs:
@@ -1477,7 +1752,7 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                 advisory.append(_finding(rel, c, _line_text(clines, c.get("line"))))
         for d in dirs:
             for v in d["violations"]:
-                k = "DIR-UNJUSTIFIED" if v.startswith("D5") else "DIR-FORBIDDEN"
+                k = _violation_key(v)
                 counts[k] = counts.get(k, 0) + 1
         over = {k: {"now": v, "pinned": row["pinned_counts"].get(k)} for k, v in sorted(counts.items())
                 if v > row["pinned_counts"].get(k, 0)}
@@ -1570,6 +1845,7 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                             "base_ref": baseline["ref"] if baseline is not None else None}}
     for key, val in (("findings", findings), ("advisory_findings", advisory), ("errors", errors),
                      ("directives", directives), ("directive_violations", dir_viol),
+                     ("blocking_rule_disabled", blocking_disabled), ("directive_parity_breaches", parity_breaches),
                      ("legacy_exceptions", exceptions_used), ("exceptions_increase", increase),
                      ("symlinks_refused", sym_refused), ("symlinks_ignored", sym_ignored),
                      ("shellcheckrc_ignored_by_norc", rc_files), ("deleted", deleted),
@@ -1902,10 +2178,13 @@ def cmd_run(a):
         if not any(os.path.isabs(pth) for _pre, pth in _parse_baseline_specs([spec])):
             print("precheck_pack: --baseline-repo PATH must be absolute: %r" % spec, file=sys.stderr)
             return 2
-    for name in ("shellcheck_timeout", "shellcheck_exception_timeout"):
+    # F10: the timeouts may be set per run, but never above their ceilings (one run cannot hold the
+    # host-wide large-lint lock -- 2 x the exception timeout -- indefinitely)
+    for name, ceiling in (("shellcheck_timeout", MAX_SC_TIMEOUT), ("shellcheck_exception_timeout", MAX_EXCEPTION_TIMEOUT)):
         v = getattr(a, name)
-        if v is not None and v <= 0:
-            print("precheck_pack: --%s must be a positive number of seconds" % name.replace("_", "-"), file=sys.stderr)
+        if v is not None and not 0 < v <= ceiling:
+            print("precheck_pack: --%s must be a positive number of seconds <= %d" % (name.replace("_", "-"), ceiling),
+                  file=sys.stderr)
             return 2
     # B1: the host-safety caps may be LOWERED per run, never raised
     for name, ceiling in (("shellcheck_memory_cap_mib", DEFAULT_MEM_CAP_MIB), ("shellcheck_max_lines", DEFAULT_MAX_LINES)):
@@ -1974,7 +2253,7 @@ def cmd_run(a):
 # (never raw file bytes -- run_meta's wall-clock legitimately differs
 # between the two runs and must not be read as nondeterminism).
 # ---------------------------------------------------------------------------
-def run_determinism_check(argv, timeout_s=60):
+def run_determinism_check(argv, timeout_s=DETERMINISM_TIMEOUT_S):
     inner = [a for a in argv if a != "--determinism-check"]
     with tempfile.TemporaryDirectory() as tmp:
         hashes = []
