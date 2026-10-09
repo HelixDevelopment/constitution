@@ -69,6 +69,52 @@ nothing fabricated):
       must not print a possibly-stale marker before the cache is
       confirmed trustworthy).
 
+  bind --repo <r> --base <sha> --head <sha> --batch <in> --out <out>
+       [--kind commit|snapshot] [--rewrite-changes]
+      Writes a `binding` {schema, base_sha, head_sha, kind, paths:[{path,
+      change_id, status}]} into the batch (slicer.py's body_hash recomputed),
+      enumerating the changed paths NUL-safely and computing each change_id with
+      EXACTLY the argv the gate recomputes (lib/precheck_common.py, one shared
+      definition -- F13). By default the binding's change_ids must equal
+      batch.changes; --rewrite-changes replaces them (test fixtures only).
+
+  snapshot --repo <r> --paths-file <NUL- or newline-separated paths>
+      For UNCOMMITTED work: builds an UNREFERENCED commit object (no ref, no
+      branch, no working-tree or index change -- a temporary index file only)
+      whose tree is HEAD's tree with the listed paths replaced by their
+      working-tree bytes (absent => removed; symlinks refused), parent HEAD,
+      dates pinned to HEAD's so the same content yields the same sha. Prints
+      BASE_SHA=/HEAD_SHA=. The object is ordinary unreachable git data.
+
+  snapshot-manifest --repo <r> --base <sha> --head <sha> --paths-file <f> --out <f>
+      F15: (re)writes WORKTREE_SNAPSHOT_MD5.txt for a snapshot pack from the
+      frozen head object (never from the live tree, so it cannot drift).
+
+  present-paths --repo <r> --head <sha> --paths-file <f> [--extra <path>]...
+      NUL-separated subset of the paths that exist at head: the pathspec file
+      for the PARTIAL checkout of a --repo-root pack (`git checkout
+      --pathspec-from-file --pathspec-file-nul`, literal pathspecs). Exit 3
+      when none exists (an all-deletions batch: nothing to materialise).
+
+  verify --pack <precheck.json> [--pack <p2>]... [--expect-base <sha>
+         --expect-head <sha>] [--print-gate-version]
+      The dispatch-readiness verifier used by scripts/hooks/
+      review_dispatch_guard.sh and the builder cache: schema, genuine batch_id,
+      all_pass true, body_hash recomputed, gate_version == the CURRENT gate,
+      provenance base/head distinct, existing in provenance.repo, base an
+      ancestor of head (a root commit for the empty tree; head^1 == base for a
+      snapshot -- F5), head_sha_source == "batch-binding-verified", shellcheck
+      PASS in whole-file mode with binding state "bound"; and (F1) the batch
+      file recorded in provenance still exists with the recorded sha256,
+      carries the pack's batch_id, a valid body_hash and a binding equal to the
+      pack's base/head/kind, every bound change_id recomputes in the repo, and
+      the repo WORKING TREE still holds the head bytes of every bound path (a
+      pack whose code moved on is stale). Several --pack values = one review of
+      a cross-repo batch: each must be ready and they must cover DISTINCT repos.
+      Exit 0 ready; 1 not ready (reasons on stderr). Honest boundary: a
+      determined producer can forge a self-consistent pack AND batch; only a
+      signing key would authenticate it.
+
 Decoupling (11.4.28/11.4.177): this file carries no project literal
 beyond its own house-pattern paths; every repo/path/commit value is a
 caller-supplied argument.
@@ -79,8 +125,45 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 
 SCHEMA = "precheck/v1"
+BINDING_SCHEMA = "precheck-binding/v1"
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
+# F13: the diff argv, git env, canonical JSON, body_hash and gate_version are ONE
+# definition shared with the gate (lib/precheck_common.py) -- never a copy.
+from precheck_common import (CANONICAL_EXCEPTIONS_REL, EMPTY_TREE, _DIFF_PIN, _body_hash_of, _canon,  # noqa: E402
+                             _change_diff_argv, _git_env, gate_version as _gate_version)
+
+
+def _read_path_list(path):
+    """NUL-safe path list (F14): NUL-separated when the file holds a NUL byte,
+    else newline-separated; empty entries dropped; a newline inside a name is
+    only representable in the NUL form."""
+    with open(path, "rb") as fh:
+        raw = fh.read()
+    sep = b"\0" if b"\0" in raw else b"\n"
+    return [x.decode("utf-8", "surrogateescape") for x in raw.split(sep) if x != b"" and x.strip(b"\r\n")]
+
+
+def _changed_paths(repo, base, head):
+    """NUL-safe [(status, path)] of base..head (renames split into D + A)."""
+    p = subprocess.run(["git", "-C", repo] + _DIFF_PIN + ["diff", "-z", "--name-status", "--no-renames",
+                                                          "--no-textconv", "--no-ext-diff", base, head],
+                       capture_output=True, timeout=120, env=_git_env())
+    if p.returncode != 0:
+        raise RuntimeError("git diff --name-status failed: %s" % p.stderr.decode("utf-8", "replace").strip())
+    toks = p.stdout.split(b"\0")
+    out, i = [], 0
+    while i + 1 < len(toks):
+        st = toks[i].decode("utf-8", "replace")
+        if not st:
+            i += 1
+            continue
+        out.append((st, toks[i + 1].decode("utf-8", "surrogateescape")))
+        i += 2
+    return out
 
 
 def _write_bytes(path, data):
@@ -112,8 +195,7 @@ def cmd_prepare(a):
         print("precheck_pack_build: --repo is not a directory: %s" % a.repo, file=sys.stderr)
         return 2
     try:
-        with open(a.paths_file, encoding="utf-8") as fh:
-            paths = [ln.rstrip("\n") for ln in fh if ln.strip()]
+        paths = _read_path_list(a.paths_file)
     except OSError as exc:
         print("precheck_pack_build: cannot read --paths-file %s: %s" % (a.paths_file, exc), file=sys.stderr)
         return 2
@@ -128,10 +210,8 @@ def cmd_prepare(a):
     descriptor_paths = []
     for i, path in enumerate(paths, start=1):
         try:
-            proc = subprocess.run(
-                ["git", "-C", a.repo, "diff", "--no-color", a.base, a.head, "--", path],
-                capture_output=True, timeout=60,
-            )
+            proc = subprocess.run(_change_diff_argv(a.repo, a.base, a.head, path),
+                                  capture_output=True, timeout=60, env=_git_env())
         except (OSError, subprocess.TimeoutExpired) as exc:
             print("precheck_pack_build: real `git diff` for %r failed to run: %s" % (path, exc),
                   file=sys.stderr)
@@ -185,6 +265,29 @@ def cmd_prepare(a):
     return 0
 
 
+def _params_mismatch(doc, sc_timeout, sc_ex_timeout):
+    """M5: a cached pack is reusable only when it was built with the requested
+    shellcheck budgets (the cache key is the commit range; the budgets are not)."""
+    import precheck_pack_run as gate  # same directory; the gate's own defaults (never a copy)
+    sc = [c for c in (doc.get("checks") or []) if isinstance(c, dict) and c.get("check") == "shellcheck"]
+    tool = ((sc[0].get("evidence") or {}).get("tool") or {}) if len(sc) == 1 else {}
+    out = []
+    for label, want, key, default in (
+            ("--shellcheck-timeout", sc_timeout, "timeout_s", gate.DEFAULT_SC_TIMEOUT),
+            ("--shellcheck-exception-timeout", sc_ex_timeout, "exception_timeout_s", gate.DEFAULT_EXCEPTION_TIMEOUT),
+            ("memory cap (MiB)", None, "memory_cap_mib", gate.DEFAULT_MEM_CAP_MIB),
+            ("size cap (lines)", None, "max_lines", gate.DEFAULT_MAX_LINES)):
+        if want in (None, ""):
+            want = default
+        try:
+            same = float(tool.get(key)) == float(want)
+        except (TypeError, ValueError):
+            same = False
+        if not same:
+            out.append("cached pack was built with %s %r, %r requested" % (label, tool.get(key), want))
+    return out
+
+
 def cmd_emit(a):
     path = os.path.join(a.out_dir, "precheck.json")
     try:
@@ -211,11 +314,498 @@ def cmd_emit(a):
               % (path, all_pass), file=sys.stderr)
         return 3
 
+    if a.expect_base or a.expect_head:
+        # F-R2-9: a cached pack is reusable only when it is intact (body_hash), was
+        # produced by the CURRENT gate (gate_version) and is bound to the requested
+        # base/head. Verdict-outcome reasons (a FAIL is a legitimate cached result)
+        # do not invalidate the cache.
+        outcome = ("all_pass is not true", "shellcheck verdict is not PASS", "provenance.head_sha_source",
+                   "shellcheck binding")
+        stale = [x for x in pack_readiness(doc, a.expect_base, a.expect_head, deep=False)
+                 if not x.startswith(outcome)]
+        stale.extend(_params_mismatch(doc, a.expect_sc_timeout, a.expect_sc_exception_timeout))
+        if stale:
+            print("precheck_pack_build: cached pack at %s is stale/unbound: %s" % (path, "; ".join(stale)),
+                  file=sys.stderr)
+            return 3
+
     if not a.validate_only:
         print("PRECHECK-PACK: %s" % os.path.abspath(path))
         print("BATCH-ID: %s" % batch_id)
 
     return 0 if all_pass else 1
+
+
+def cmd_bind(a):
+    try:
+        with open(a.batch, encoding="utf-8") as fh:
+            batch = json.load(fh)
+    except (OSError, ValueError) as exc:
+        print("precheck_pack_build: cannot read --batch: %s" % exc, file=sys.stderr)
+        return 2
+    if not isinstance(batch, dict):
+        print("precheck_pack_build: --batch is not a JSON object", file=sys.stderr)
+        return 2
+    try:
+        changed = _changed_paths(a.repo, a.base, a.head)
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
+        print("precheck_pack_build: %s" % exc, file=sys.stderr)
+        return 2
+    if not changed:
+        print("precheck_pack_build: %s..%s changes no path -- nothing to bind" % (a.base, a.head), file=sys.stderr)
+        return 2
+    paths = []
+    for st, path in changed:
+        d = subprocess.run(_change_diff_argv(a.repo, a.base, a.head, path), capture_output=True,
+                           timeout=60, env=_git_env())
+        if d.returncode != 0:
+            print("precheck_pack_build: git diff for %r exited %d" % (path, d.returncode), file=sys.stderr)
+            return 2
+        paths.append({"path": path, "status": st, "change_id": "sha256:" + hashlib.sha256(d.stdout).hexdigest()})
+    ids = sorted(p["change_id"] for p in paths)
+    if a.rewrite_changes:
+        batch["changes"] = ids
+    elif ids != sorted(c for c in (batch.get("changes") or []) if isinstance(c, str)):
+        print("precheck_pack_build: the binding's change_ids differ from batch.changes (descriptors and "
+              "binding disagree)", file=sys.stderr)
+        return 2
+    batch["binding"] = {"schema": BINDING_SCHEMA, "base_sha": a.base, "head_sha": a.head,
+                        "kind": a.kind, "paths": paths}
+    if "body_hash" in batch:
+        batch["body_hash"] = _body_hash_of(batch)
+    _write_bytes(a.out, (_canon(batch) + "\n").encode("utf-8"))
+    print("BOUND %d path(s) %s..%s" % (len(paths), a.base, a.head))
+    return 0
+
+
+def _submodule_head(path):
+    """HEAD commit of the git repository whose toplevel IS `path`, else None."""
+    top = subprocess.run(["git", "-C", path, "rev-parse", "--show-toplevel"], capture_output=True, timeout=30,
+                         env=_git_env())
+    if top.returncode != 0 or os.path.realpath(top.stdout.decode("utf-8", "surrogateescape").strip()) != \
+            os.path.realpath(path):
+        return None
+    hd = subprocess.run(["git", "-C", path, "rev-parse", "--verify", "--quiet", "HEAD^{commit}"],
+                        capture_output=True, timeout=30, env=_git_env())
+    sha = hd.stdout.decode("ascii", "replace").strip()
+    return sha if hd.returncode == 0 and sha else None
+
+
+def cmd_snapshot(a):
+    env = _git_env()
+    def git(*args, **kw):
+        return subprocess.run(["git", "--literal-pathspecs", "-C", a.repo] + list(args), capture_output=True,
+                              timeout=120, env=kw.get("env", env), input=kw.get("input"))
+    try:
+        paths = _read_path_list(a.paths_file)
+    except OSError as exc:
+        print("precheck_pack_build: cannot read --paths-file: %s" % exc, file=sys.stderr)
+        return 2
+    if not paths:
+        print("precheck_pack_build: --paths-file names no path", file=sys.stderr)
+        return 2
+    hd = git("rev-parse", "--verify", "HEAD^{commit}")
+    if hd.returncode != 0:
+        print("precheck_pack_build: --repo has no HEAD commit", file=sys.stderr)
+        return 2
+    base = hd.stdout.decode().strip()
+    with tempfile.TemporaryDirectory() as td:
+        ienv = dict(env, GIT_INDEX_FILE=os.path.join(td, "index"))
+        if git("read-tree", base, env=ienv).returncode != 0:
+            print("precheck_pack_build: read-tree failed", file=sys.stderr)
+            return 2
+        for rel in paths:
+            full = os.path.join(a.repo, rel)
+            if os.path.islink(full):
+                print("precheck_pack_build: refusing to snapshot a symlink: %s" % rel, file=sys.stderr)
+                return 2
+            sub_head = _submodule_head(full) if os.path.isdir(full) else None
+            if sub_head:
+                # I4: an initialised submodule -> its checked-out commit as a gitlink
+                r = git("update-index", "--add", "--cacheinfo", "160000,%s,%s" % (sub_head, rel), env=ienv)
+            elif os.path.isfile(full):
+                ho = git("hash-object", "-w", "--no-filters", "--", rel)
+                if ho.returncode != 0:
+                    print("precheck_pack_build: hash-object failed for %s" % rel, file=sys.stderr)
+                    return 2
+                mode = "100755" if os.access(full, os.X_OK) else "100644"
+                r = git("update-index", "--add", "--cacheinfo", "%s,%s,%s" % (mode, ho.stdout.decode().strip(), rel),
+                        env=ienv)
+            elif not os.path.lexists(full):
+                r = git("update-index", "--force-remove", "--", rel, env=ienv)
+            else:
+                print("precheck_pack_build: not a regular file: %s" % rel, file=sys.stderr)
+                return 2
+            if r.returncode != 0:
+                print("precheck_pack_build: update-index failed for %s: %s" % (rel, r.stderr.decode().strip()),
+                      file=sys.stderr)
+                return 2
+        wt = git("write-tree", env=ienv)
+        if wt.returncode != 0:
+            print("precheck_pack_build: write-tree failed", file=sys.stderr)
+            return 2
+        tree = wt.stdout.decode().strip()
+    date = git("show", "-s", "--format=%ci", base).stdout.decode().strip()
+    cenv = dict(env, GIT_AUTHOR_NAME="precheck snapshot", GIT_AUTHOR_EMAIL="precheck-snapshot@invalid",
+                GIT_COMMITTER_NAME="precheck snapshot", GIT_COMMITTER_EMAIL="precheck-snapshot@invalid",
+                GIT_AUTHOR_DATE=date, GIT_COMMITTER_DATE=date)
+    ct = git("commit-tree", tree, "-p", base, "-m", "precheck snapshot of uncommitted work (unreferenced)",
+             env=cenv)
+    if ct.returncode != 0:
+        print("precheck_pack_build: commit-tree failed: %s" % ct.stderr.decode().strip(), file=sys.stderr)
+        return 2
+    print("BASE_SHA=%s" % base)
+    print("HEAD_SHA=%s" % ct.stdout.decode().strip())
+    return 0
+
+
+def _git_out(repo, args, timeout=60):
+    return subprocess.run(["git", "--literal-pathspecs", "-C", repo] + args, capture_output=True,
+                          timeout=timeout, env=_git_env())
+
+
+def _head_blob(repo, head, rel):
+    """-> ("tracked", bytes) | ("absent", None) | ("symlink", target bytes) |
+    ("gitlink", commit sha bytes) | ("error", None)."""
+    lt = _git_out(repo, ["ls-tree", "-z", head, "--", rel])
+    if lt.returncode != 0:
+        return "error", None
+    if not lt.stdout:
+        return "absent", None
+    meta = lt.stdout.split(b"\t", 1)[0].decode("ascii", "replace").split()
+    if len(meta) == 3 and meta[0] == "160000" and meta[1] == "commit":
+        return "gitlink", meta[2].encode("ascii")
+    if len(meta) != 3 or meta[1] != "blob":
+        return "error", None
+    cf = _git_out(repo, ["cat-file", "blob", meta[2]])
+    if cf.returncode != 0:
+        return "error", None
+    return ("symlink" if meta[0] == "120000" else "tracked"), cf.stdout
+
+
+def _gitlink_current(repo, rel, sha):
+    """I4: a submodule pointer "holds the head bytes" when the checked-out submodule
+    is at that commit (an initialised submodule) or, uninitialised (an empty
+    directory), when the repo index records that commit."""
+    full = os.path.join(repo, rel)
+    if os.path.islink(full) or not os.path.isdir(full):
+        return False
+    top = _git_out(full, ["rev-parse", "--show-toplevel"], 30)
+    if top.returncode == 0 and os.path.realpath(top.stdout.decode("utf-8", "surrogateescape").strip()) == \
+            os.path.realpath(full):
+        hd = _git_out(full, ["rev-parse", "--verify", "--quiet", "HEAD"], 30)
+        return hd.returncode == 0 and hd.stdout.decode("ascii", "replace").strip() == sha
+    ls = _git_out(repo, ["ls-files", "-s", "-z", "--", rel], 30)
+    meta = ls.stdout.split(b"\t", 1)[0].decode("ascii", "replace").split()
+    return ls.returncode == 0 and len(meta) == 3 and meta[0] == "160000" and meta[1] == sha
+
+
+def _batch_readiness(doc, base, head, repo):
+    """F1: the batch the pack was built from must still exist unchanged, carry the
+    pack's batch_id, be bound to the pack's base/head, have change_ids that
+    recompute in `repo`, and the repo working tree must still hold the head bytes
+    of every bound path (a pack whose code moved on is STALE)."""
+    r = []
+    p = doc.get("provenance") or {}
+    bpath, bsha = p.get("batch_path"), p.get("batch_sha256")
+    if not (isinstance(bpath, str) and os.path.isabs(bpath) and isinstance(bsha, str)):
+        return ["provenance does not record batch_path/batch_sha256 (pack predates F1 -- rebuild)"]
+    try:
+        with open(bpath, "rb") as fh:
+            raw = fh.read()
+    except OSError as exc:
+        return ["batch file %s is missing/unreadable: %s" % (bpath, exc)]
+    if hashlib.sha256(raw).hexdigest() != bsha:
+        r.append("batch file %s changed since the gate ran (sha256 mismatch)" % bpath)
+    try:
+        batch = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
+        return r + ["batch file %s does not parse: %s" % (bpath, exc)]
+    if not isinstance(batch, dict):
+        return r + ["batch file %s is not a JSON object" % bpath]
+    if batch.get("batch_id") != doc.get("batch_id"):
+        r.append("batch_id %r of the batch file != pack batch_id %r" % (batch.get("batch_id"), doc.get("batch_id")))
+    if "body_hash" in batch and batch.get("body_hash") != _body_hash_of(batch):
+        r.append("batch body_hash does not match the batch content")
+    bnd = batch.get("binding")
+    if not isinstance(bnd, dict):
+        return r + ["batch carries no binding"]
+    if bnd.get("base_sha") != base or bnd.get("head_sha") != head:
+        r.append("batch binding %s..%s != pack provenance %s..%s" % (bnd.get("base_sha"), bnd.get("head_sha"), base, head))
+    if bnd.get("kind") != p.get("kind"):
+        r.append("batch binding kind %r != pack provenance kind %r" % (bnd.get("kind"), p.get("kind")))
+    paths = bnd.get("paths")
+    if not isinstance(paths, list) or not paths:
+        return r + ["batch binding has no paths"]
+    if not (isinstance(repo, str) and os.path.isdir(repo)):
+        return r
+    stale = []
+    for e in paths:
+        if not (isinstance(e, dict) and isinstance(e.get("path"), str) and isinstance(e.get("change_id"), str)):
+            r.append("malformed binding entry %r" % (e,))
+            continue
+        rel = e["path"]
+        d = subprocess.run(_change_diff_argv(repo, base, head, rel), capture_output=True, timeout=60, env=_git_env())
+        if d.returncode != 0 or "sha256:" + hashlib.sha256(d.stdout).hexdigest() != e["change_id"]:
+            r.append("change_id of %r does not recompute in %s" % (rel, repo))
+        st, blob = _head_blob(repo, head, rel)
+        full = os.path.join(repo, rel)
+        try:
+            if st == "absent":
+                cur_ok = not os.path.lexists(full)
+            elif st == "symlink":
+                cur_ok = os.path.islink(full) and os.fsencode(os.readlink(full)) == blob
+            elif st == "gitlink":
+                cur_ok = _gitlink_current(repo, rel, blob.decode("ascii"))
+            elif st == "tracked":
+                if os.path.islink(full) or not os.path.isfile(full):
+                    cur_ok = False
+                else:
+                    with open(full, "rb") as fh:
+                        cur_ok = fh.read() == blob
+            else:
+                cur_ok = False
+        except OSError:
+            cur_ok = False
+        if not cur_ok:
+            stale.append(rel)
+    if stale:
+        r.append("working tree of %s diverges from the reviewed head for: %s (stale pack -- rebuild)"
+                 % (repo, ", ".join(stale)))
+    return r
+
+
+def cmd_snapshot_manifest(a):
+    """F15: writes WORKTREE_SNAPSHOT_MD5.txt for a --snapshot-paths pack -- one
+    line per snapshotted path: md5 of the working-tree bytes AS FROZEN (read
+    back from the head commit, so the manifest can never drift from the
+    reviewed object), the repo, the status at base (tracked-modified |
+    UNTRACKED-new | deleted) and the diff line count. Names are written as JSON
+    strings when they hold a character a plain line cannot carry."""
+    paths = _read_path_list(a.paths_file)
+    repo_name = os.path.basename(os.path.realpath(a.repo))
+    lines = ["# working-tree (uncommitted) snapshot frozen into unreferenced commit %s on base %s; "
+             "md5 of each snapshotted file as frozen" % (a.head, a.base)]
+    for rel in paths:
+        st_h, blob = _head_blob(a.repo, a.head, rel)
+        st_b, _bb = _head_blob(a.repo, a.base, rel)
+        status = ("deleted" if st_h == "absent" else ("UNTRACKED-new" if st_b == "absent" else "tracked-modified"))
+        md5 = hashlib.md5(blob).hexdigest() if blob is not None and st_h != "absent" else "-" * 32
+        d = subprocess.run(_change_diff_argv(a.repo, a.base, a.head, rel), capture_output=True, timeout=60,
+                           env=_git_env())
+        shown = rel if rel.isprintable() and "  " not in rel else json.dumps(rel, ensure_ascii=False)
+        lines.append("%s  %s  (repo=%s, %s, difflines=%d)" % (md5, shown, repo_name, status,
+                                                            _lines_changed_of(d.stdout)))
+    _write_bytes(a.out, ("\n".join(lines) + "\n").encode("utf-8", "surrogateescape"))
+    return 0
+
+
+def cmd_present_paths(a):
+    """NUL-separated list of the --paths-file entries (+ --extra) that EXIST at
+    --head in --repo (a path deleted at head cannot be checked out) -- the
+    pathspec file for the partial `git checkout` of a --repo-root pack.
+    NUL-safe end to end (a newline in a name is carried verbatim)."""
+    try:
+        paths = _read_path_list(a.paths_file) + list(a.extra or [])
+    except OSError as exc:
+        print("precheck_pack_build: cannot read --paths-file: %s" % exc, file=sys.stderr)
+        return 2
+    out, seen = [], set()
+    for path in paths:
+        if path in seen:
+            continue
+        seen.add(path)
+        lt = _git_out(a.repo, ["ls-tree", "-z", a.head, "--", path])
+        if lt.returncode != 0:
+            print("precheck_pack_build: git ls-tree failed for %r" % path, file=sys.stderr)
+            return 2
+        if lt.stdout:
+            out.append(path)
+    if not out:
+        print("precheck_pack_build: no changed path exists at head -- nothing to check out", file=sys.stderr)
+        return 3
+    sys.stdout.buffer.write(b"".join(x.encode("utf-8", "surrogateescape") + b"\0" for x in out))
+    return 0
+
+
+def _installed_shellcheck_version():
+    """The `shellcheck --version` of this host (a version probe, not a lint: no memory cap)."""
+    try:
+        with tempfile.TemporaryDirectory() as empty:
+            p = subprocess.run(["shellcheck", "--version"], capture_output=True, timeout=30, cwd=empty,
+                               env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": empty,
+                                    "LC_ALL": "C.UTF-8"})
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    for ln in p.stdout.decode("utf-8", "replace").splitlines():
+        if ln.lower().startswith("version:"):
+            return ln.split(":", 1)[1].strip()
+    return None
+
+
+def _blob_sha(repo, commit, rel):
+    """-> ("tracked", sha256 hex) | ("absent", None) | (other status, None)."""
+    if commit == EMPTY_TREE:
+        return "absent", None
+    st, blob = _head_blob(repo, commit, rel)
+    return st, (hashlib.sha256(blob).hexdigest() if st == "tracked" else None)
+
+
+def _exceptions_readiness(p, repo, base, head):
+    """I1: provenance.exceptions must record exactly the canonical TSV the bound head
+    (and base) carry -- a pack built with another exceptions file, or none while the
+    head tracks one, is not dispatch-ready."""
+    r = []
+    exc = p.get("exceptions")
+    hst, hsha = _blob_sha(repo, head, CANONICAL_EXCEPTIONS_REL)
+    bst, bsha = _blob_sha(repo, base, CANONICAL_EXCEPTIONS_REL)
+    if hst not in ("tracked", "absent") or bst not in ("tracked", "absent"):
+        return ["%s is not a regular file at base/head (%s/%s)" % (CANONICAL_EXCEPTIONS_REL, bst, hst)]
+    if hst == "absent":
+        if isinstance(exc, dict) and exc.get("head_blob_sha256"):
+            r.append("provenance.exceptions records a %s the head does not track" % CANONICAL_EXCEPTIONS_REL)
+        return r
+    if not (isinstance(exc, dict) and exc.get("path") == CANONICAL_EXCEPTIONS_REL and exc.get("bound") is True
+            and exc.get("head_blob_sha256") == hsha and exc.get("base_blob_sha256") == bsha):
+        r.append("provenance.exceptions %r does not record the canonical %s of head (sha256 %s) and base (%s) -- "
+                 "the pack was built with another exceptions file or none" % (exc, CANONICAL_EXCEPTIONS_REL, hsha, bsha))
+    return r
+
+
+def pack_readiness(doc, expect_base=None, expect_head=None, deep=True, allowed_roots=None):
+    """-> list of reasons the pack is NOT dispatch-ready ([] = ready). `deep`
+    adds the F1 batch/working-tree checks (the builder's cache check passes
+    deep=False: a cache hit is judged by content address, not by the tree).
+    `allowed_roots` (I3): when given, provenance.repo must BE one of them."""
+    import re as _re
+    r = []
+    if not isinstance(doc, dict):
+        return ["not a JSON object"]
+    if doc.get("schema") != SCHEMA:
+        r.append("schema %r != %r" % (doc.get("schema"), SCHEMA))
+    bid = doc.get("batch_id")
+    if not isinstance(bid, str) or not bid or bid == "UNKNOWN":
+        r.append("no genuine batch_id")
+    if doc.get("all_pass") is not True:
+        r.append("all_pass is not true")
+    try:
+        if doc.get("body_hash") != _body_hash_of(doc):
+            r.append("body_hash does not match the pack content")
+    except (TypeError, ValueError) as exc:
+        r.append("body not hashable: %s" % exc)
+    try:
+        gv = _gate_version()
+    except OSError as exc:
+        gv = None
+        r.append("cannot read the gate library: %s" % exc)
+    if gv and doc.get("gate_version") != gv:
+        r.append("gate_version %r is not the current gate (%s) -- rebuild the pack" % (doc.get("gate_version"), gv))
+    p = doc.get("provenance")
+    if not isinstance(p, dict):
+        r.append("no provenance")
+        p = {}
+    base = p.get("base_sha")
+    base = base[0] if isinstance(base, list) and len(base) == 1 else None
+    head = p.get("head_sha")
+    hexre = r"[0-9a-f]{40,64}"
+    if not (isinstance(base, str) and _re.fullmatch(hexre, base)):
+        r.append("provenance.base_sha is not exactly one commit sha")
+        base = None
+    if not (isinstance(head, str) and _re.fullmatch(hexre, head)):
+        r.append("provenance.head_sha missing")
+        head = None
+    if base and head and base == head:
+        r.append("provenance base == head")
+    if p.get("head_sha_source") != "batch-binding-verified":
+        r.append("provenance.head_sha_source is %r, not 'batch-binding-verified'" % p.get("head_sha_source"))
+    repo = p.get("repo")
+    repo_ok = isinstance(repo, str) and os.path.isabs(repo)
+    if repo_ok and base and head:
+        hc = _git_out(repo, ["cat-file", "-e", head + "^{commit}"], 30)
+        if hc.returncode != 0:
+            r.append("provenance commit %s does not exist in %s" % (head, repo))
+        if base == EMPTY_TREE:
+            par = _git_out(repo, ["rev-list", "--parents", "-n", "1", head], 30)
+            if par.returncode != 0 or len(par.stdout.split()) != 1:
+                r.append("base is the empty tree but head %s is not a root commit" % head)
+        else:
+            bc = _git_out(repo, ["cat-file", "-e", base + "^{commit}"], 30)
+            if bc.returncode != 0:
+                r.append("provenance commit %s does not exist in %s" % (base, repo))
+            elif _git_out(repo, ["merge-base", "--is-ancestor", base, head], 60).returncode != 0:
+                r.append("provenance base %s is not an ancestor of head %s (F5)" % (base, head))
+            if p.get("kind") == "snapshot":
+                par1 = _git_out(repo, ["rev-parse", "--verify", "--quiet", head + "^1"], 30)
+                if par1.stdout.decode("ascii", "replace").strip() != base:
+                    r.append("snapshot head %s is not exactly one commit on top of base %s (F5)" % (head, base))
+    elif not repo_ok:
+        r.append("provenance.repo is not an absolute repository path")
+    if allowed_roots and repo_ok and os.path.realpath(repo) not in {os.path.realpath(x) for x in allowed_roots}:
+        r.append("provenance.repo %s is outside the allowed repositories (%s) -- a pack from an unrelated repo "
+                 "cannot back this review (I3)" % (repo, ", ".join(allowed_roots)))
+    if repo_ok and base and head:
+        r.extend(_exceptions_readiness(p, repo, base, head))
+    want_v = _installed_shellcheck_version()
+    if want_v is None:
+        r.append("cannot read this host's shellcheck version to compare with provenance.shellcheck_version")
+    elif p.get("shellcheck_version") != want_v:
+        r.append("provenance.shellcheck_version %r != this host's shellcheck %r (M6: rebuild with the pinned linter)"
+                 % (p.get("shellcheck_version"), want_v))
+    if expect_base and base != expect_base:
+        r.append("pack base %s != expected %s" % (base, expect_base))
+    if expect_head and head != expect_head:
+        r.append("pack head %s != expected %s" % (head, expect_head))
+    sc = [c for c in (doc.get("checks") or []) if isinstance(c, dict) and c.get("check") == "shellcheck"]
+    if len(sc) != 1:
+        r.append("no single shellcheck check")
+    else:
+        ev = sc[0].get("evidence") or {}
+        b = ev.get("binding") or {}
+        if sc[0].get("verdict") != "PASS":
+            r.append("shellcheck verdict is not PASS")
+        if ev.get("mode") != "whole-file":
+            r.append("shellcheck did not run in whole-file mode (mode=%r)" % ev.get("mode"))
+        if b.get("state") != "bound":
+            r.append("shellcheck binding is %r, not 'bound'" % b.get("state"))
+    if deep and base and head and repo_ok:
+        r.extend(_batch_readiness(doc, base, head, repo))
+    return r
+
+
+def cmd_verify(a):
+    if a.print_gate_version:
+        print(_gate_version())
+        return 0
+    if not a.pack:
+        print("precheck_pack_build: verify needs --pack", file=sys.stderr)
+        return 2
+    if len(a.pack) > 1 and (a.expect_base or a.expect_head):
+        print("precheck_pack_build: --expect-base/--expect-head apply to a single --pack", file=sys.stderr)
+        return 2
+    reasons, repos, ids = [], {}, []
+    for path in a.pack:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError) as exc:
+            reasons.append("%s: cannot read pack: %s" % (path, exc))
+            continue
+        for x in pack_readiness(doc, a.expect_base, a.expect_head, allowed_roots=a.allowed_root):
+            reasons.append(("%s: %s" % (path, x)) if len(a.pack) > 1 else x)
+        repo = (doc.get("provenance") or {}).get("repo") if isinstance(doc, dict) else None
+        if isinstance(repo, str):
+            key = os.path.realpath(repo)
+            if key in repos:
+                reasons.append("packs %s and %s cover the same repo %s -- a cross-repo review carries ONE pack "
+                               "per repo" % (repos[key], path, repo))
+            repos[key] = path
+        ids.append(doc.get("batch_id") if isinstance(doc, dict) else None)
+    if reasons:
+        for x in reasons:
+            print("NOT-READY: %s" % x, file=sys.stderr)
+        return 1
+    print("READY %s" % " ".join(str(i) for i in ids))
+    return 0
 
 
 def main(argv):
@@ -234,7 +824,49 @@ def main(argv):
     pe = sub.add_parser("emit")
     pe.add_argument("--out-dir", required=True)
     pe.add_argument("--validate-only", action="store_true")
+    pe.add_argument("--expect-base")
+    pe.add_argument("--expect-head")
+    pe.add_argument("--expect-sc-timeout")
+    pe.add_argument("--expect-sc-exception-timeout")
     pe.set_defaults(func=cmd_emit)
+
+    pb = sub.add_parser("bind")
+    pb.add_argument("--repo", required=True)
+    pb.add_argument("--base", required=True)
+    pb.add_argument("--head", required=True)
+    pb.add_argument("--batch", required=True)
+    pb.add_argument("--out", required=True)
+    pb.add_argument("--rewrite-changes", action="store_true")
+    pb.add_argument("--kind", choices=("commit", "snapshot"), default="commit")
+    pb.set_defaults(func=cmd_bind)
+
+    ps = sub.add_parser("snapshot")
+    ps.add_argument("--repo", required=True)
+    ps.add_argument("--paths-file", required=True)
+    ps.set_defaults(func=cmd_snapshot)
+
+    psm = sub.add_parser("snapshot-manifest")
+    psm.add_argument("--repo", required=True)
+    psm.add_argument("--base", required=True)
+    psm.add_argument("--head", required=True)
+    psm.add_argument("--paths-file", required=True)
+    psm.add_argument("--out", required=True)
+    psm.set_defaults(func=cmd_snapshot_manifest)
+
+    psp = sub.add_parser("present-paths")
+    psp.add_argument("--repo", required=True)
+    psp.add_argument("--head", required=True)
+    psp.add_argument("--paths-file", required=True)
+    psp.add_argument("--extra", action="append", default=[])
+    psp.set_defaults(func=cmd_present_paths)
+
+    pv = sub.add_parser("verify")
+    pv.add_argument("--pack", action="append", default=[])
+    pv.add_argument("--expect-base")
+    pv.add_argument("--expect-head")
+    pv.add_argument("--print-gate-version", action="store_true")
+    pv.add_argument("--allowed-root", action="append", default=[])
+    pv.set_defaults(func=cmd_verify)
 
     try:
         a = p.parse_args(argv)
