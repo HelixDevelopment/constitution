@@ -672,6 +672,87 @@ def _exceptions_readiness(p, repo, base, head):
     return r
 
 
+_PARAM_KEYS = ("timeout_s", "exception_timeout_s", "memory_cap_mib", "max_lines")
+
+
+def _params_readiness(p, tool):
+    """GR12: provenance.shellcheck_params must be exactly the parameters the shellcheck evidence records, every
+    one inside the gate's ceilings; a pack linted in the gate's TEST MODE (a private lock directory) is never
+    dispatch-ready."""
+    import precheck_pack_run as gate  # same directory; the gate's own ceilings (never a copy)
+    r = []
+    if tool.get("test_mode"):
+        r.append("the pack was built in the gate's TEST MODE (PRECHECK_TEST_MODE: private lock directory) -- "
+                 "never dispatch-ready")
+    sp = p.get("shellcheck_params")
+    want = {k: tool.get(k) for k in _PARAM_KEYS}
+    if not isinstance(sp, dict) or sp != want:
+        r.append("provenance.shellcheck_params %r != the shellcheck evidence's tool parameters %r" % (sp, want))
+        return r
+    ceil = {"timeout_s": gate.MAX_SC_TIMEOUT, "exception_timeout_s": gate.MAX_EXCEPTION_TIMEOUT,
+            "memory_cap_mib": gate.DEFAULT_MEM_CAP_MIB, "max_lines": gate.DEFAULT_MAX_LINES}
+    for k in _PARAM_KEYS:
+        v = sp[k]
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 < v <= ceil[k]:
+            r.append("provenance.shellcheck_params.%s=%r is outside 0..%s" % (k, v, ceil[k]))
+    return r
+
+
+def _gitlink_bumps(repo, base, head):
+    """F2: every submodule pointer (mode 160000) that differs between base and head of `repo` -> list of
+    (path, old sha | None when added, new sha | None when removed). Read from git, never from the pack."""
+    d = _git_out(repo, ["-c", "core.quotePath=false", "diff", "--raw", "-z", "--no-renames", "--no-abbrev",
+                        "--no-textconv", "--no-ext-diff", base, head], 120)
+    if d.returncode != 0:
+        return None
+    toks = d.stdout.split(b"\0")
+    out, i = [], 0
+    while i + 1 < len(toks):
+        meta = toks[i].decode("ascii", "replace")
+        path = toks[i + 1].decode("utf-8", "surrogateescape")
+        i += 2
+        f = meta.lstrip(":").split()
+        if len(f) < 5:
+            continue
+        omode, nmode, osha, nsha = f[0], f[1], f[2], f[3]
+        if "160000" in (omode, nmode):
+            out.append((path, osha if omode == "160000" else None, nsha if nmode == "160000" else None))
+    return out
+
+
+def _copack_reasons(entries):
+    """F2: a pack whose range bumps a gitlink is backed only together with a co-cited pack whose repo IS that
+    submodule (realpath of <repo>/<path>) and whose base..head is exactly the old..new pointer (EMPTY_TREE
+    base for a newly added submodule) -- otherwise the submodule's own changes reach review with no precheck.
+    A removed submodule needs nothing. `entries` = [(pack path, doc)] of the readable packs."""
+    r = []
+    ranges = {}
+    for path, doc in entries:
+        p = (doc.get("provenance") or {}) if isinstance(doc, dict) else {}
+        repo, base = p.get("repo"), p.get("base_sha")
+        if isinstance(repo, str) and isinstance(base, list) and len(base) == 1:
+            ranges[os.path.realpath(repo)] = (base[0], p.get("head_sha"))
+    for path, doc in entries:
+        p = (doc.get("provenance") or {}) if isinstance(doc, dict) else {}
+        repo, base, head = p.get("repo"), p.get("base_sha"), p.get("head_sha")
+        if not (isinstance(repo, str) and isinstance(base, list) and len(base) == 1 and isinstance(head, str)):
+            continue
+        bumps = _gitlink_bumps(repo, base[0], head)
+        if bumps is None:
+            r.append("%s: cannot list the gitlink changes of %s..%s in %s -- failing closed" % (path, base[0], head, repo))
+            continue
+        for sub, old, new in bumps:
+            if new is None:
+                continue
+            want = (old or EMPTY_TREE, new)
+            got = ranges.get(os.path.realpath(os.path.join(repo, sub)))
+            if got != want:
+                r.append("%s: the range bumps submodule %r %s..%s, but no co-cited pack covers exactly that range "
+                         "of that submodule (got %s) -- a gitlink bump needs the submodule's own pack (F2)"
+                         % (path, sub, want[0], want[1], ("%s..%s" % got) if got else "none"))
+    return r
+
+
 def pack_readiness(doc, expect_base=None, expect_head=None, deep=True, allowed_roots=None):
     """-> list of reasons the pack is NOT dispatch-ready ([] = ready). `deep`
     adds the F1 batch/working-tree checks (the builder's cache check passes
@@ -767,6 +848,7 @@ def pack_readiness(doc, expect_base=None, expect_head=None, deep=True, allowed_r
             r.append("shellcheck did not run in whole-file mode (mode=%r)" % ev.get("mode"))
         if b.get("state") != "bound":
             r.append("shellcheck binding is %r, not 'bound'" % b.get("state"))
+        r.extend(_params_readiness(p, ev.get("tool") or {}))
     if deep and base and head and repo_ok:
         r.extend(_batch_readiness(doc, base, head, repo))
     return r
@@ -782,7 +864,7 @@ def cmd_verify(a):
     if len(a.pack) > 1 and (a.expect_base or a.expect_head):
         print("precheck_pack_build: --expect-base/--expect-head apply to a single --pack", file=sys.stderr)
         return 2
-    reasons, repos, ids = [], {}, []
+    reasons, repos, ids, entries = [], {}, [], []
     for path in a.pack:
         try:
             with open(path, encoding="utf-8") as fh:
@@ -800,6 +882,8 @@ def cmd_verify(a):
                                "per repo" % (repos[key], path, repo))
             repos[key] = path
         ids.append(doc.get("batch_id") if isinstance(doc, dict) else None)
+        entries.append((path, doc))
+    reasons.extend(_copack_reasons(entries))
     if reasons:
         for x in reasons:
             print("NOT-READY: %s" % x, file=sys.stderr)
