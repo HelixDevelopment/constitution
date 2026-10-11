@@ -13,9 +13,6 @@
 [submodule "submodules/helix_perf_cache"]
 	path = submodules/helix_perf_cache
 	url = git@github.com:HelixDevelopment/helix_perf_cache.git
-[submodule "design-toolkit"]
-	path = submodules/design-toolkit
-	url = git@github.com:vasic-digital/design-toolkit.git
 [submodule "submodules/docs_chain"]
 	path = submodules/docs_chain
 	url = git@github.com:vasic-digital/docs_chain.git
@@ -67,3 +64,6 @@
 [submodule "submodules/watch-skill"]
 	path = submodules/watch-skill
 	url = git@github.com:oxbshw/watch-skill.git
+[submodule "submodules/design-toolkit"]
+	path = submodules/design-toolkit
+	url = git@github.com:vasic-digital/design-toolkit.git
