@@ -15,8 +15,9 @@
 # Exit    : 0 all cases pass | 1 a case failed | 2 environment (no jq / go).
 # Side-effects: temp dir under $TMPDIR; starts + stops its OWN label-busd
 #           instances; never touches ~/.claude* or a real state dir.
-# Deps    : bash>=5, jq, go (first run builds the label-sync binaries), script(1)
-#           optional (tty banner case SKIPs without it).
+# Deps    : bash>=5, jq, go (first run builds the label-sync binaries), python3
+#           (byte-level output checker, control-needled before use), script(1)
+#           optional (tty cases SKIP without it).
 # Cross-refs: §11.4.182, §11.4.116, §11.4.224, §1.1, docs/label-sync/RENDERERS.md.
 # Classification: universal (§11.4.17).
 set -uo pipefail
@@ -26,6 +27,7 @@ RENDER="$(cd "${RENDER_DIR:-$HERE/..}" && pwd)"
 REAL_LS="$(cd "$HERE/../.." && pwd)"           # the real scripts/label-sync
 LCTL="$REAL_LS/labelctl.sh"
 command -v jq >/dev/null 2>&1 || { echo "test_render: jq missing" >&2; exit 2; }
+command -v python3 >/dev/null 2>&1 || { echo "test_render: python3 missing (byte checker)" >&2; exit 2; }
 
 TMPD="$(mktemp -d "${TMPDIR:-/tmp}/label_render_t.XXXXXX")" || exit 2
 BUSD_PIDS=()
@@ -40,7 +42,7 @@ export LABEL_SYNC_DIR="$TMPD/state"
 export LABEL_SYNC_LABELCTL="$LCTL"
 export LABEL_SYNC_CMD_MIN_INTERVAL=0
 export CLAUDE_CODE_SESSION_ID=""
-unset TMUX STY
+unset TMUX STY CLAUDE_CONFIG_DIR LABEL_SYNC_SHELL_ID LABEL_SYNC_PARENT_ID
 "$LCTL" --build >/dev/null || { echo "test_render: cannot build label-sync" >&2; exit 2; }
 
 PASS=0; FAIL=0
@@ -58,9 +60,48 @@ sl() { printf '%s' "$1" | bash "$RENDER/statusline.sh" 2>/dev/null; }   # status
 SJ() { printf '{"session_id":"%s","model":{"id":"claude-x","display_name":"X"},"workspace":{"current_dir":"/tmp"},"cwd":"/tmp"}' "$1"; }
 ent_field() { "$LCTL" get --id "$1" --json 2>/dev/null | jq -r ".$2 // empty"; }
 
+# Honest stub of the canonical labeler: like track_branch_label.sh, the ALIAS
+# comes ONLY from the CLAUDE_CONFIG_DIR basename `.claude-<alias>`, else `?`.
 STUB="$TMPD/stub_labeler.sh"
-printf '#!/usr/bin/env bash\necho "(T4/stubbr - claude7 - opus - high)"\n' >"$STUB"; chmod +x "$STUB"
+cat >"$STUB" <<'STUBEOF'
+#!/usr/bin/env bash
+a="?"; c="${CLAUDE_CONFIG_DIR:-}"; c="${c%/}"; c="${c##*/}"
+case "$c" in .claude-?*) a="${c#.claude-}" ;; esac
+echo "(T4/stubbr - $a - opus - high)"
+STUBEOF
+chmod +x "$STUB"
 export LABEL_SYNC_LABELER="$STUB"
+# A labeler that ALWAYS reports an alias (models a labeler deriving one without a
+# Claude alias env) — the shell integration must still NOT pin on it.
+ALWAYS7="$TMPD/always7_labeler.sh"
+printf '#!/usr/bin/env bash\necho "(T4/stubbr - claude7 - opus - high)"\n' >"$ALWAYS7"; chmod +x "$ALWAYS7"
+mkdir -p "$TMPD/cfg/.claude-claude7" "$TMPD/cfg/.claude-claude5"
+ent_bool() { "$LCTL" get --id "$1" --json 2>/dev/null | jq -r ".$2"; }
+
+# Byte-level output checker (python3 -I, reads a file): counts C0 (except LF when
+# --lines), DEL, C1, bidi controls and invalid UTF-8. --title strips exactly one
+# leading ESC]0; and one trailing BEL first. --cr drops CR (pty output).
+CHK="$TMPD/chk.py"
+cat >"$CHK" <<'CHKEOF'
+import sys
+a = sys.argv[1:]; f = a[-1]; b = open(f, 'rb').read()
+if '--cr' in a: b = b.replace(b'\r', b'')
+if '--title' in a:
+    if not (b.startswith(b'\x1b]0;') and b.endswith(b'\x07')): print('BADFRAME'); sys.exit(0)
+    b = b[4:-1]
+bad = 0
+try:
+    t = b.decode('utf-8')
+except UnicodeDecodeError:
+    print('INVALID_UTF8'); sys.exit(0)
+for ch in t:
+    o = ord(ch)
+    if ch == '\n' and '--lines' in a: continue
+    if o < 0x20 or o == 0x7f or 0x80 <= o <= 0x9f or o in (0x200e, 0x200f, 0x061c) or 0x202a <= o <= 0x202e or 0x2066 <= o <= 0x2069:
+        bad += 1
+print(bad)
+CHKEOF
+chk() { python3 -I "$CHK" "$@" 2>/dev/null; }
 
 for f in lib.sh statusline.sh title.sh shell-hook.sh shell-integration.bash shell-integration.zsh shell-integration.fish tmux-status.sh labelrun watch-labels.sh; do
   [ -f "$RENDER/$f" ] && ok "renderer present: $f" || bad "renderer present: $f" "missing $RENDER/$f"
@@ -89,7 +130,7 @@ rc=0; out="$(printf 'not json at all {{{' | bash "$RENDER/statusline.sh" 2>/dev/
 eq "A7 garbage stdin => rc 0" "0" "$rc"; has "A7b garbage stdin => still a ? label" "?" "$out"
 rc=0; out="$(bash "$RENDER/statusline.sh" </dev/null 2>/dev/null)" || rc=$?
 eq "A7c empty stdin => rc 0" "0" "$rc"
-out="$(LABEL_SYNC_DIR="$TMPD/nonexistent" LABEL_SYNC_STATUSLINE_DERIVE=1 LABEL_SYNC_STATUSLINE_CACHE_TTL=0 LABEL_SYNC_CACHE_DIR="$TMPD/cache" bash "$RENDER/statusline.sh" <<<"$(SJ S9)" 2>/dev/null)"
+out="$(CLAUDE_CONFIG_DIR="$TMPD/cfg/.claude-claude7" LABEL_SYNC_DIR="$TMPD/nonexistent" LABEL_SYNC_STATUSLINE_DERIVE=1 LABEL_SYNC_STATUSLINE_CACHE_TTL=0 LABEL_SYNC_CACHE_DIR="$TMPD/cache" bash "$RENDER/statusline.sh" <<<"$(SJ S9)" 2>/dev/null)"
 has "A8 state down + derive => labeler label" "(T4/stubbr - claude7 - opus - high)" "$out"; has "A8b derived marker" "[derived" "$out"
 # staleness: a session that stops heartbeating goes stale (TTL=1s, own daemon)
 kill "${BUSD_PIDS[0]}" 2>/dev/null; wait "${BUSD_PIDS[0]}" 2>/dev/null; BUSD_PIDS=()
@@ -184,7 +225,8 @@ ALLSTATE="$(cat "$LABEL_SYNC_DIR"/events.jsonl "$LABEL_SYNC_DIR"/snapshot.json "
 hasnt "C6 secret arg never recorded (token)" "TOPSECRET123" "$ALLSTATE"
 hasnt "C6b secret arg never recorded (password=)" "hunter2hunter2" "$ALLSTATE"
 hasnt "C6c env-prefix secret never recorded" "ENVSECRET999" "$ALLSTATE"
-has "C6d a hash is recorded (h=)" ":h=" "$CMDS"
+hasnt "C6d no digest of the command text is recorded (digest removed, finding 7)" ":h=" "$CMDS"
+eq "C12 plain terminal (no Claude alias env) registers following the active alias" "true" "$(ent_bool "$SHID2" follow_active)"
 running_cmds() { "$LCTL" list --json 2>/dev/null | jq -r '.entities | map(select(.kind=="command" and .state=="running")) | length' 2>/dev/null; }
 wait_for 6 bash -c "[ \"\$('$LCTL' list --json 2>/dev/null | jq -r '.entities | map(select(.kind==\"command\" and .state==\"running\")) | length')\" = 0 ]"
 eq "C7 finished commands (and the exit-time in-flight one) are not left running" "0" "$(running_cmds)"
@@ -226,11 +268,33 @@ echo "RC=\$r US=\$((t1-t0))"
 BEOF
 BOUT="$(bash "$BADDRV" 2>&1)"
 has "C9 unusable state: prompt hook rc 0" "RC=0" "$BOUT"
-BUS="$(printf '%s' "$BOUT" | sed -n 's/.*US=//p')"
+# median of 3 samples (§11.4.50): one fork can stall >100 ms on a loaded host
+BUS="$( { printf '%s\n' "$BOUT"; bash "$BADDRV" 2>&1; bash "$BADDRV" 2>&1; } | sed -n 's/.*US=//p' | sort -n | sed -n 2p)"
 [ -n "$BUS" ] && [ "$BUS" -lt 100000 ] && ok "C9b unusable state: prompt hook returns in ${BUS}us" || bad "C9b" "${BUS:-none}"
 # the helper reads command text from STDIN only (never argv)
 HOOKSRC="$(cat "$RENDER/shell-hook.sh" "$RENDER/shell-integration.bash" 2>/dev/null)"
 hasnt "C10 shell-integration never passes command text in argv (\$BASH_COMMAND not in a command line)" '--cmd "$BASH_COMMAND"' "$HOOKSRC"
+hasnt "C10b command text is never piped to the helper either" '| $__LS_SETSID "$__LS_HOOK" cmd-start' "$HOOKSRC"
+# C11: a REAL Claude alias env (CLAUDE_CONFIG_DIR=.../.claude-claude5) pins the shell
+BIND="$TMPD/bind.sh"
+cat >"$BIND" <<BEOF
+#!/usr/bin/env bash
+export LABEL_SYNC_DIR LABEL_SYNC_LABELCTL LABEL_SYNC_LABELER LABEL_SYNC_TITLE_SINK LABEL_SYNC_CMD_MIN_INTERVAL
+source "$RENDER/shell-integration.bash"
+echo "SHELL_ID=\$LABEL_SYNC_SHELL_ID"
+for i in \$(seq 100); do "\$LABEL_SYNC_LABELCTL" get --id "\$LABEL_SYNC_SHELL_ID" >/dev/null 2>&1 && break; sleep 0.05; done
+trap - EXIT
+BEOF
+SH5="$(CLAUDE_CONFIG_DIR="$TMPD/cfg/.claude-claude5" bash "$BIND" 2>/dev/null | sed -n 's/^SHELL_ID=//p')"
+"$LCTL" switch-alias --alias claude9 --model haiku --effort low >/dev/null
+eq "C11 real Claude alias env pins the shell (follow_active=false)" "false" "$(ent_bool "$SH5" follow_active)"
+has "C11b pinned shell keeps its own alias across switch-alias" "claude5" "$("$LCTL" label "$SH5" 2>/dev/null)"
+SH7="$(LABEL_SYNC_LABELER="$ALWAYS7" bash "$BIND" 2>/dev/null | sed -n 's/^SHELL_ID=//p')"
+"$LCTL" switch-alias --alias claude8 --model sonnet --effort low >/dev/null
+eq "C13 labeler alias WITHOUT a Claude alias env does not pin (follow_active=true)" "true" "$(ent_bool "$SH7" follow_active)"
+has "C13b that shell follows switch-alias" "claude8" "$("$LCTL" label "$SH7" 2>/dev/null)"
+HSTID="$(HOSTNAME='evil_host name' bash -c 'source "'"$RENDER"'/shell-integration.bash"; echo "$LABEL_SYNC_SHELL_ID"; trap - EXIT' 2>/dev/null)"
+[[ $HSTID =~ ^[A-Za-z0-9._:@/-]{1,160}$ ]] && ok "C14 shell id matches the CONTRACT id grammar even for a hostname with _ and space ($HSTID)" || bad "C14 shell id grammar" "$HSTID"
 
 # ───────────────────────── D. labelrun ─────────────────────────
 export LABEL_SYNC_DIR="$TMPD/state_run"; rm -rf "$LABEL_SYNC_DIR"
@@ -266,6 +330,29 @@ if command -v script >/dev/null 2>&1; then
   TTYOUT="$(script -qec "bash '$LR' --name bnr -- true" /dev/null 2>&1 | tr -d '\r')"
   has "D10 banner (label) printed on a tty" "claude3" "$TTYOUT"
 else echo "SKIP  D10 tty banner (script(1) not installed)"; fi
+# D12: SIGINT to labelrun ends the child. labelrun is started the way an
+# interactive shell starts a job (INT/QUIT at their defaults — a non-interactive
+# `&` would hand labelrun SIGINT already ignored, which no bash can trap); the
+# point under test is that labelrun's OWN `&` child must not inherit SIG_IGN.
+env --default-signal=INT,QUIT bash "$LR" --name intr -- sleep 4 &
+LRP=$!
+wait_for 5 pgrep -P "$LRP" >/dev/null
+t0="$(now_us)"; kill -INT "$LRP"; wait "$LRP"; RC=$?; t1="$(now_us)"
+DT_MS=$(( (t1 - t0) / 1000 ))
+eq "D12 SIGINT to labelrun => child ends, exit 130" "130" "$RC"
+[ "$DT_MS" -lt 1500 ] && ok "D12b SIGINT handled in ${DT_MS}ms < 1500ms (child did not ignore it)" || bad "D12b SIGINT latency" "${DT_MS}ms"
+# D13: a terminal Ctrl-C reaches the child exactly ONCE (no forwarded duplicate)
+CNT="$TMPD/intcount.sh"
+cat >"$CNT" <<'CEOF'
+#!/usr/bin/env bash
+n=0; trap 'n=$((n+1))' INT
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25; do sleep 0.1 || :; done
+echo "INTS=$n"
+CEOF
+if command -v script >/dev/null 2>&1; then
+  TTYO="$( { sleep 1; printf '\003'; sleep 3; } | script -qec "bash '$LR' -- bash '$CNT'" /dev/null 2>&1 | tr -d '\r')"
+  has "D13 tty Ctrl-C delivered to the child exactly once (trap active: INT not ignored)" "INTS=1" "$TTYO"
+else echo "SKIP  D13 tty Ctrl-C (script(1) not installed)"; fi
 # all runs ended in done
 LEFT="$("$LCTL" list --json | jq -r '.entities | map(select(.state=="running")) | length')"
 eq "D11 no entity left running after all runs" "0" "$LEFT"
@@ -290,6 +377,153 @@ eq "F2 tmux-status unknown pid => honest ?" "?" "$(bash "$RENDER/tmux-status.sh"
 "$LCTL" register --id wc --kind agent --track 7 --branch 'x#[fg=red]y' --alias claude5 --model opus --effort max --follow-active false >/dev/null
 WC="$(bash "$RENDER/tmux-status.sh" --entity wc 2>/dev/null)"
 eq "F3 tmux-status replaces # (tmux format injection) in the label" "(T7/x_[fg=red]y - claude5 - opus - max)" "$WC"
+
+# ───────────────────────── G. review findings: sanitising, secrets, traps ─────────────────────────
+# G0: control needles for the byte checker itself (§11.4.273) — it must SEE a C1
+# byte, a bidi control, an ESC and invalid UTF-8, and must pass clean text.
+printf 'clean é 日\n' >"$TMPD/n_good"; printf 'a\xc2\x9db' >"$TMPD/n_c1"; printf 'a\xe2\x80\xaeb' >"$TMPD/n_bidi"
+printf 'a\033b' >"$TMPD/n_esc"; printf 'a\xffb' >"$TMPD/n_inv"
+eq "G0 checker: clean text => 0" "0" "$(chk --lines "$TMPD/n_good")"
+eq "G0b checker sees C1 (c2 9d)" "1" "$(chk "$TMPD/n_c1")"; eq "G0c checker sees bidi" "1" "$(chk "$TMPD/n_bidi")"
+eq "G0d checker sees ESC" "1" "$(chk "$TMPD/n_esc")"; eq "G0e checker sees invalid UTF-8" "INVALID_UTF8" "$(chk "$TMPD/n_inv")"
+
+# G1: the shared sanitiser, exact bytes, under BOTH locales
+P=$'MARK\e]0;evil\aX\e]52;c;ZXZpbA==\a\e[31m\xc2\x9d\xc2\x9c\xc2\x80\xe2\x80\xaeY\xe2\x81\xa6\xe2\x80\x8fZ\x7f\xff\xfe\xc3END\xc3\xa9\xe6\x97\xa5\xc2\e\x9d\xc0\xaf\xed\xa0\x80OK'
+E=$'MARK]0;evilX]52;c;ZXZpbA==[31mYZEND\xc3\xa9\xe6\x97\xa5OK'
+for loc in C C.utf8; do
+  got="$(LC_ALL=$loc bash -c '. "$1/lib.sh"; ls_sanitize "$2"' _ "$RENDER" "$P" | od -An -tx1 | tr -d ' \n')"
+  eq "G1 [$loc] ls_sanitize strips C0/DEL/C1/bidi/invalid UTF-8, never joins bytes into a C1" "$(printf '%s' "$E" | od -An -tx1 | tr -d ' \n')" "$got"
+  n="$(LC_ALL=$loc bash -c '. "$1/lib.sh"; x="$(printf "a%.0s" $(seq 5000))"; ls_sanitize "$x" | wc -c' _ "$RENDER")"
+  eq "G1b [$loc] huge input capped at 512 bytes" "512" "$n"
+  LC_ALL=$loc bash -c '. "$1/lib.sh"; x=""; for i in $(seq 300); do x+=$'"'"'\xc3\xa9'"'"'; done; ls_sanitize "$x" 511' _ "$RENDER" >"$TMPD/g1c"
+  eq "G1c [$loc] cap lands on a character boundary (valid UTF-8, 510 bytes)" "0 510" "$(chk "$TMPD/g1c") $(wc -c <"$TMPD/g1c")"
+done
+
+# Hostile snapshot (defence in depth for old logs: the store sanitises on write,
+# so it is hand-written here). Label/alias carry ESC ]0;, ESC ]52;, CSI, C1, bidi, DEL, a NUL and 100k chars.
+HD="$TMPD/state_hostile"; mkdir -p "$HD"
+python3 -I - "$HD" <<'PYJ'
+import json, sys
+d = sys.argv[1]
+P = "MARK\u001b]0;evil\u0007X\u001b]52;c;ZXZpbA==\u0007\u001b[31m\u009d\u009c\u0080‮Y⁦‏Z\u007f\u0000END\nFORGED-ROW" + "W" * 100000
+e = {"id": "hostile1", "kind": "session", "session_id": "SH", "pid": 424242, "alias": P, "label": P, "state": "running"}
+json.dump({"seq": 7, "active": {"alias": P, "model": "m\u001bx", "effort": "e"}, "entities": [e]}, open(d + "/snapshot.json", "w"))
+open(d + "/seq", "w").write("7\n")
+PYJ
+HOST_LC="$TMPD/hostile_labeler.sh"
+printf '#!/usr/bin/env bash\nprintf "(T4/MARK\\033]0;x\\007\\302\\235\\342\\200\\256\\377\\376z - a - m - e)\\n"\n' >"$HOST_LC"; chmod +x "$HOST_LC"
+for loc in C C.utf8; do
+  LC_ALL=$loc LABEL_SYNC_DIR="$HD" bash "$RENDER/statusline.sh" <<<'{"session_id":"SH"}' >"$TMPD/g_sl" 2>/dev/null
+  eq "G2 [$loc] statusline: hostile snapshot label => no control/C1/bidi/invalid byte" "0" "$(chk --lines "$TMPD/g_sl")"
+  has "G2b [$loc] statusline still shows the label text" "MARK" "$(cat "$TMPD/g_sl")"
+  [ "$(wc -c <"$TMPD/g_sl")" -le 513 ] && ok "G2c [$loc] statusline output capped ($(wc -c <"$TMPD/g_sl") bytes)" || bad "G2c [$loc] cap" "$(wc -c <"$TMPD/g_sl")"
+  LC_ALL=$loc LABEL_SYNC_DIR="$TMPD/nonexistent" LABEL_SYNC_STATUSLINE_DERIVE=1 LABEL_SYNC_STATUSLINE_CACHE_TTL=0 LABEL_SYNC_LABELER="$HOST_LC" bash "$RENDER/statusline.sh" <<<'{"session_id":"SD"}' >"$TMPD/g_sld" 2>/dev/null
+  eq "G3 [$loc] statusline derived path: hostile labeler => clean" "0" "$(chk --lines "$TMPD/g_sld")"
+  has "G3b [$loc] derived label still shown" "MARK" "$(cat "$TMPD/g_sld")"
+  : >"$TMPD/g_t"; LC_ALL=$loc LABEL_SYNC_DIR="$HD" bash "$RENDER/title.sh" --entity hostile1 --sink "$TMPD/g_t"
+  eq "G4 [$loc] title.sh --entity: payload between ESC]0; and BEL is clean" "0" "$(chk --title "$TMPD/g_t")"
+  has "G4b [$loc] title carries the label text" "MARK" "$(cat "$TMPD/g_t")"
+  : >"$TMPD/g_t2"; LC_ALL=$loc bash "$RENDER/title.sh" --text "$P" --sink "$TMPD/g_t2"
+  eq "G4c [$loc] title.sh --text with raw C1/bidi/invalid bytes => clean" "0" "$(chk --title "$TMPD/g_t2")"
+  LC_ALL=$loc LABEL_SYNC_DIR="$HD" bash "$RENDER/tmux-status.sh" --entity hostile1 >"$TMPD/g_tm" 2>/dev/null
+  eq "G5 [$loc] tmux-status --entity => clean" "0" "$(chk --lines "$TMPD/g_tm")"; has "G5b [$loc] tmux label shown" "MARK" "$(cat "$TMPD/g_tm")"
+  LC_ALL=$loc LABEL_SYNC_DIR="$HD" bash "$RENDER/tmux-status.sh" --active >"$TMPD/g_tma" 2>/dev/null
+  eq "G5c [$loc] tmux-status --active => clean" "0" "$(chk --lines "$TMPD/g_tma")"
+  LC_ALL=$loc LABEL_SYNC_DIR="$HD" bash "$RENDER/watch-labels.sh" --once >"$TMPD/g_w" 2>/dev/null
+  eq "G6 [$loc] watch-labels => clean" "0" "$(chk --lines "$TMPD/g_w")"; has "G6b [$loc] watch shows the row" "hostile1" "$(cat "$TMPD/g_w")"
+  hasnt "G6c [$loc] an embedded newline cannot forge a table row" $'\nFORGED-ROW' "$(cat "$TMPD/g_w")"
+  GSH="$TMPD/g_shell.sh"
+  cat >"$GSH" <<GEOF
+#!/usr/bin/env bash
+export LABEL_SYNC_DIR="$HD" LABEL_SYNC_LABELCTL=/nonexistent LABEL_SYNC_TITLE_SINK="$TMPD/g_st"
+source "$RENDER/shell-integration.bash"
+LABEL_SYNC_SHELL_ID=hostile1
+__ls_precmd
+printf '%s' "\$__LS_SEG" >"$TMPD/g_seg"
+GEOF
+  : >"$TMPD/g_st"; LC_ALL=$loc bash "$GSH" 2>/dev/null
+  eq "G7 [$loc] shell integration title => clean" "0" "$(chk --title "$TMPD/g_st")"
+  eq "G7b [$loc] PS1 segment (__LS_SEG) => clean" "0" "$(chk "$TMPD/g_seg")"; has "G7c [$loc] segment shows label" "MARK" "$(cat "$TMPD/g_seg")"
+  LC_ALL=$loc LABEL_SYNC_DEBUG=1 LABEL_SYNC_DIR="$TMPD/g_hook" bash "$RENDER/shell-hook.sh" "$(printf 'op\033]0;evil\007\302\235x')" --id x 2>"$TMPD/g_hk" >/dev/null
+  eq "G8 [$loc] shell-hook diagnostics => clean" "0" "$(chk --lines "$TMPD/g_hk")"; has "G8b [$loc] diagnostic still printed" "unknown op" "$(cat "$TMPD/g_hk")"
+done
+if command -v script >/dev/null 2>&1; then
+  LABEL_SYNC_DIR="$TMPD/state_run" script -qec "bash '$LR' --name \"\$(printf 'bn\033]0;evil\007\302\235')\" -- true" /dev/null 2>&1 | grep -a '^labelrun:' >"$TMPD/g_bn"
+  eq "G9 labelrun tty banner => clean" "0" "$(chk --cr --lines "$TMPD/g_bn")"; has "G9b banner printed" "labelrun:" "$(cat "$TMPD/g_bn")"
+else echo "SKIP  G9 labelrun banner (script(1) not installed)"; fi
+
+# G10: argv0 recorded only when the shell resolves it; FAKE tokens typed as the
+# first word (unresolvable, or resolvable-but-token-shaped) never reach state.
+export LABEL_SYNC_DIR="$TMPD/state_sec"; rm -rf "$LABEL_SYNC_DIR"
+SEC="$TMPD/sec.sh"
+cat >"$SEC" <<'SEOF'
+#!/usr/bin/env bash
+export LABEL_SYNC_DIR LABEL_SYNC_LABELCTL LABEL_SYNC_LABELER LABEL_SYNC_CMD_MIN_INTERVAL
+source "$1/shell-integration.bash"
+for i in $(seq 100); do "$LABEL_SYNC_LABELCTL" get --id "$LABEL_SYNC_SHELL_ID" >/dev/null 2>&1 && break; sleep 0.05; done
+ghp_FAKEfnFAKEfnFAKEfnFAKE01234() { :; }
+knowncmd() { :; }
+__ls_precmd; hunter2hunter2 2>/dev/null
+__ls_precmd; ghp_FAKEFAKEFAKEFAKEFAKEFAKE0000000000 2>/dev/null
+__ls_precmd; AKIAFAKEFAKEFAKEFAKE 2>/dev/null
+__ls_precmd; glpat-FAKEFAKEFAKEFAKEFAKE 2>/dev/null
+__ls_precmd; xoxb-FAKE-0000-FAKEFAKE 2>/dev/null
+__ls_precmd; sk-FAKEFAKEFAKEFAKEFAKEFAKE 2>/dev/null
+__ls_precmd; 0123456789abcdef0123456789abcdef 2>/dev/null
+__ls_precmd; ghp_FAKEfnFAKEfnFAKEfnFAKE01234
+__ls_precmd; knowncmd
+__ls_precmd
+sleep 1.5
+SEOF
+bash "$SEC" "$RENDER" 2>/dev/null
+SECSTATE="$(cat "$LABEL_SYNC_DIR"/events.jsonl "$LABEL_SYNC_DIR"/snapshot.json "$LABEL_SYNC_DIR"/fold.json "$LABEL_SYNC_DIR"/base.json 2>/dev/null)"
+for tok in hunter2hunter2 ghp_FAKEFAKEFAKE AKIAFAKEFAKE glpat-FAKEFAKE xoxb-FAKE sk-FAKEFAKE 0123456789abcdef0123 ghp_FAKEfnFAKEfn; do
+  hasnt "G10 first-word FAKE secret '$tok' never recorded" "$tok" "$SECSTATE"
+done
+SECSRC="$("$LCTL" list --json 2>/dev/null | jq -r '.entities | map(select(.kind=="command")) | .[].source')"
+has "G10b positive control: a resolvable function IS recorded" "argv0=knowncmd" "$SECSRC"
+eq "G10c every secret-shaped first word recorded as argv0=?" "8" "$(printf '%s\n' "$SECSRC" | grep -c 'argv0=?$')"
+for tok in ghp_FAKEFAKEFAKEFAKEFAKE00 glpat-FAKEFAKEFAKE AKIAFAKEFAKEFAKEFAKE xoxp-FAKE sk-FAKEFAKEFAKE QUJDREVGR0hJSktMTU5PUFFSU1RVVldY1; do
+  bash "$RENDER/shell-hook.sh" cmd-start --id "bk-$RANDOM" --parent x --pid $$ --cwd /tmp --argv0 "$tok"
+done
+bash "$RENDER/shell-hook.sh" cmd-start --id bk-ls --parent x --pid $$ --cwd /tmp --argv0 /usr/bin/ls
+BKS="$("$LCTL" list --json 2>/dev/null | jq -r '.entities | map(select(.id|startswith("bk-"))) | .[].source')"
+eq "G11 shell-hook backstop redacts token-shaped argv0 even if passed (6 of 6)" "6" "$(printf '%s\n' "$BKS" | grep -c 'argv0=?$')"
+has "G11b backstop positive control: /usr/bin/ls recorded as basename" "argv0=ls" "$BKS"
+
+# G20-G23: trap/PROMPT_COMMAND hygiene, set -e / set -u safety
+TR="$TMPD/traps.sh"
+cat >"$TR" <<'TEOF'
+#!/usr/bin/env bash
+export LABEL_SYNC_DIR=/proc/nonexistent/x LABEL_SYNC_LABELCTL=/nonexistent LABEL_SYNC_CMD_MIN_INTERVAL=0
+F="$2"
+trap 'echo PREVDBG >>"$F"' DEBUG
+PROMPT_COMMAND='echo PREVPC >>"$F"'
+source "$1/shell-integration.bash"
+true lastarg1; echo "U1=$_"
+true lastarg2; echo "U2=$_"
+__ls_precmd
+true lastarg3; echo "U3=$_"
+eval "$PROMPT_COMMAND"
+trap - EXIT
+TEOF
+: >"$TMPD/tr_f"; TRO="$(bash "$TR" "$RENDER" "$TMPD/tr_f" 2>/dev/null)"
+has "G20 DEBUG trap preserves \$_ (first command of a cycle)" "U1=lastarg1" "$TRO"
+has "G20b DEBUG trap preserves \$_ (later command, early-return path)" "U2=lastarg2" "$TRO"
+has "G20c DEBUG trap preserves \$_ after a prompt cycle" "U3=lastarg3" "$TRO"
+has "G22 a pre-existing DEBUG trap still runs (chained, not dropped)" "PREVDBG" "$(cat "$TMPD/tr_f")"
+has "G23 a pre-existing PROMPT_COMMAND still runs (chained, not clobbered)" "PREVPC" "$(cat "$TMPD/tr_f")"
+TA="$(bash -c 'PROMPT_COMMAND=(prevpc_a); source "'"$RENDER"'/shell-integration.bash"; echo "${PROMPT_COMMAND[*]}"; trap - EXIT' 2>/dev/null)"
+eq "G23b array PROMPT_COMMAND keeps the previous element and appends ours" "prevpc_a __ls_precmd" "$TA"
+SE="$(bash -c 'set -eu; export LABEL_SYNC_DIR=/proc/nonexistent/x LABEL_SYNC_LABELCTL=/nonexistent; source "'"$RENDER"'/shell-integration.bash"; __ls_precmd; true x; false || :; __ls_precmd; echo SURVIVED; trap - EXIT' 2>/dev/null; echo "rc=$?")"
+has "G21 set -eu shell, missing seq file: hooks never end the shell" "SURVIVED" "$SE"; has "G21b set -eu shell exits 0" "rc=0" "$SE"
+SE2="$(bash -c 'set -eu; export LABEL_SYNC_DIR="'"$HD"'" LABEL_SYNC_LABELCTL=/nonexistent LABEL_SYNC_SHELL_ID=x; source "'"$RENDER"'/shell-integration.bash"; LABEL_SYNC_SHELL_ID=no-such-entity; __ls_precmd; echo SURVIVED2; trap - EXIT' 2>/dev/null)"
+has "G21c set -eu shell, label lookup finds nothing: hooks never end the shell" "SURVIVED2" "$SE2"
+
+# G30: no salt / nothing secret exported to children
+SALT="$(bash -c 'export LABEL_SYNC_DIR=/proc/nonexistent/x LABEL_SYNC_LABELCTL=/nonexistent; source "'"$RENDER"'/shell-integration.bash"; bash -c "echo \${LABEL_SYNC_SALT-unset}"; trap - EXIT' 2>/dev/null)"
+eq "G30 no LABEL_SYNC_SALT in any child's environment" "unset" "$SALT"
+hasnt "G30b no salt/digest code left in the integrations" "LABEL_SYNC_SALT" "$(cat "$RENDER"/shell-integration.* "$RENDER/shell-hook.sh")"
 
 echo "RESULT pass=$PASS fail=$FAIL"
 [ "$FAIL" -eq 0 ]
