@@ -15,12 +15,14 @@
 #           load-bearing tokens: events.jsonl snapshot.json active.json seq
 #           follow_active alias_switch 11.4.182
 #       (f) scripts/label-sync/prove_mutations.sh exists
-#   (2) RUNTIME (skipped with --structural-only or when `go` is absent — honest
-#       SKIP, never a false PASS):
+#   (2) RUNTIME (skipped ONLY with an explicit --structural-only; when `go` is
+#       absent the gate exits 2 "cannot determine" — never a PASS):
 #       (g) `go test -race ./...` inside scripts/label-sync exits 0
 #       (h) end-to-end smoke in a TEMP state dir: register a follower, switch
-#           the alias, and the entity's label MUST show the NEW alias; verify
-#           MUST exit 0.
+#           the alias, and the entity's label MUST show the NEW alias; a child
+#           of a PINNED session (claude3) MUST keep claude3 across the switch
+#           (derived binding, CONTRACT §4); an ESC/OSC-laden branch MUST print
+#           with no control byte; verify MUST exit 0.
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_label_sync_core.sh [--root <constitution-root>] [--structural-only] [--quiet]
@@ -36,7 +38,8 @@
 # ── Cross-references ─────────────────────────────────────────────────────────
 #   §11.4.182, §11.4.116, §11.4.233, §11.4.18, §1.1 (paired mutation), §11.4.201.
 # ── Exit codes ───────────────────────────────────────────────────────────────
-#   0 all checks PASS (runtime may SKIP) | 1 a check FAILed | 2 environment error.
+#   0 all checks PASS (runtime SKIPs only with --structural-only) | 1 a check
+#   FAILed | 2 cannot determine (go absent, environment error) — never a pass.
 # Classification: universal (§11.4.17).
 set -uo pipefail
 
@@ -54,6 +57,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -d "$root" ] || { echo "${GATE}: root not found: $root" >&2; exit 2; }
+for tool in grep find; do # a missing instrument is "cannot determine", never a FAIL/PASS
+  command -v "$tool" >/dev/null 2>&1 || { echo "⚠️  ${GATE}: CANNOT DETERMINE — required tool '$tool' absent (rc 2)"; exit 2; }
+done
 root="$(cd "$root" && pwd)"
 ls_dir="$root/scripts/label-sync"
 doc="$root/docs/label-sync"
@@ -80,8 +86,13 @@ for tok in events.jsonl snapshot.json active.json seq follow_active alias_switch
   need "CONTRACT.md names '$tok'" grep -qF -- "$tok" "$doc/CONTRACT.md"
 done
 
-if [ -n "$structural" ] || ! command -v go >/dev/null 2>&1; then
-  warn "⚠️  SKIP     runtime checks (--structural-only or go absent — honest skip, §11.4.3)"
+if [ -n "$structural" ]; then
+  warn "⚠️  SKIP     runtime checks (--structural-only requested — honest skip, §11.4.3)"
+elif ! command -v go >/dev/null 2>&1; then
+  echo "----------------------------------------------------------------------"
+  [ "$fail" -ne 0 ] && { echo "❌ ${GATE}: FAIL (structural) — runtime also undeterminable: go absent"; exit 1; }
+  echo "⚠️  ${GATE}: CANNOT DETERMINE — go toolchain absent, runtime checks could not run (rc 2, never a pass)"
+  exit 2
 else
   TMPD="$(mktemp -d "${TMPDIR:-/tmp}/cm_label_sync.XXXXXX")"
   trap 'rm -rf "$TMPD"' EXIT
@@ -98,10 +109,17 @@ else
      && bash "$L" switch-alias --alias claude2 --model sonnet --effort xhigh >/dev/null \
      && lbl="$(bash "$L" label gate-follower)" \
      && [ "$lbl" = "(T1/gate - claude2 - sonnet - xhigh)" ] \
+     && bash "$L" register --id gate-sess --kind session --session GS --track 1 --branch gate --alias claude3 --model opus --effort high --follow-active false >/dev/null \
+     && bash "$L" register --id gate-child --kind agent --parent gate-sess >/dev/null \
+     && bash "$L" switch-alias --alias claude4 --model m --effort e >/dev/null \
+     && clbl="$(bash "$L" label gate-child)" \
+     && [ "$clbl" = "(T1/gate - claude3 - opus - high)" ] \
+     && inj="$(bash "$L" register --id gate-inj --kind shell --branch "$(printf 'x\033]0;PWN\007y')" --alias a --follow-active false)" \
+     && ! printf '%s' "$inj" | LC_ALL=C grep -q "$(printf '\033')" \
      && bash "$L" verify >/dev/null; then
-    say "✅ PASS     e2e: alias switch relabelled follower -> $lbl ; verify OK"
+    say "✅ PASS     e2e: switch relabelled follower -> $lbl ; pinned-session child kept -> $clbl ; injection stripped ; verify OK"
   else
-    warn "❌ FAIL     e2e smoke (register/switch/label/verify) — got label: '${lbl:-<none>}'"; cat "$TMPD/build.log" 2>/dev/null | tail -5; fail=1
+    warn "❌ FAIL     e2e smoke (register/switch/label/binding/sanitise/verify) — follower: '${lbl:-<none>}' child: '${clbl:-<none>}'"; cat "$TMPD/build.log" 2>/dev/null | tail -5; fail=1
   fi
 fi
 

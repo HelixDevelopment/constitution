@@ -9,6 +9,8 @@
 #   (1) go.mod missing   (2) cmd/label-busd/main.go missing
 #   (3) internal/bus has no Go source   (4) labelctl.sh not executable
 #   (5) CONTRACT.md missing the `follow_active` token   (6) CONTRACT.md absent
+#   (7) go absent from PATH without --structural-only -> gate MUST exit 2
+#       (cannot determine), never 0   (8) grep absent -> gate MUST exit 2
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_label_sync_core_mutation_test.sh
 # ── Side-effects ─────────────────────────────────────────────────────────────
@@ -49,5 +51,22 @@ r="$TMP/m3"; build "$r"; rm "$r/scripts/label-sync/internal/bus/x.go"; expect fa
 r="$TMP/m4"; build "$r"; chmod -x "$r/scripts/label-sync/labelctl.sh"; expect fail "labelctl.sh not executable" "$r"
 r="$TMP/m5"; build "$r"; sed -i 's/follow_active//' "$r/docs/label-sync/CONTRACT.md"; expect fail "CONTRACT lacks follow_active" "$r"
 r="$TMP/m6"; build "$r"; rm "$r/docs/label-sync/CONTRACT.md"; expect fail "CONTRACT absent" "$r"
+# (7) go absent: PATH holding only the tools the gate needs, no go
+nogo="$TMP/nogo-bin"; mkdir -p "$nogo"
+for tool in bash grep find sed mktemp dirname cat tail rm; do
+  p="$(type -P "$tool")" && ln -s "$p" "$nogo/$tool"
+done
+r="$TMP/m7"; build "$r"
+PATH="$nogo" bash "$GATE" --root "$r" --quiet >/dev/null 2>&1; g=$?
+if [ "$g" -eq 2 ]; then echo "✅ META OK:   go absent — gate exited 2 (cannot determine) as required"
+else echo "❌ META FAIL: go absent — gate exited $g, wanted 2"; rc=1; fi
+# (8) grep absent: an absent instrument is not a FAIL and not a PASS
+nogrep="$TMP/nogrep-bin"; mkdir -p "$nogrep"
+for tool in bash find sed mktemp dirname cat tail rm; do
+  p="$(type -P "$tool")" && ln -s "$p" "$nogrep/$tool"
+done
+PATH="$nogrep" bash "$GATE" --root "$TMP/clean" --structural-only --quiet >/dev/null 2>&1; g=$?
+if [ "$g" -eq 2 ]; then echo "✅ META OK:   grep absent — gate exited 2 (cannot determine) as required"
+else echo "❌ META FAIL: grep absent — gate exited $g, wanted 2"; rc=1; fi
 [ "$rc" -eq 0 ] && echo "✅ META: all expectations held" || echo "❌ META: violations above"
 exit "$rc"
