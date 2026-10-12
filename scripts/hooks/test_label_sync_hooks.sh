@@ -709,6 +709,17 @@ sz="$(wc -c <"$MD2/history.md" | tr -d ' ')"
 check "F11 md twin points at the full text in the jsonl" grep -qi 'truncated' "$MD2/history.md"
 
 # =========================================================================
+echo "== 16. F11: SessionStart's own 'model' field wins over the transcript lookup; toolkit wrapper is zsh-safe =="
+rm -rf "$LABEL_SYNC_DIR"; export CLAUDE_CONFIG_DIR="$CFG1"
+SID="99999999-aaaa-bbbb-cccc-000000000009"; mk_cfg claude1 claude-opus-4-8 >/dev/null
+run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"startup","model":"claude-haiku-4-5"}')"
+eq "F11 SessionStart payload model (haiku) is used, not the transcript's (opus)" "$(field "session:$SID" model)" haiku
+run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"clear","model":{"id":"weird-object"}}')"
+eq "F11 a non-string payload model is ignored (falls back to the derived model)" "$(field "session:$SID" model)" opus
+check "F11 toolkit wrapper CODE (comments excluded) does not use 'declare -F' (a FLOAT typeset in zsh)" bash -c "! grep -v '^[[:space:]]*#' '$WRAPPER' | grep -q 'declare -F'"
+check "F11 control needle: the same comment-stripping instrument DOES see code lines (typeset -f)" bash -c "grep -v '^[[:space:]]*#' '$WRAPPER' | grep -q 'typeset -f'"
+
+# =========================================================================
 echo "----------------------------------------------------------------------"
 echo "label-sync hooks suite: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

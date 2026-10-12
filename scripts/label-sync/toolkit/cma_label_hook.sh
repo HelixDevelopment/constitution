@@ -100,8 +100,13 @@ _cma_label_pre_provider() {
 # wrapper. A function that already contains our pre-hook marker is left alone.
 _cma_label_wrap() {
   local name="$1" pre="$2" body
-  declare -F "$name" >/dev/null 2>&1 || return 0              # toolkit not loaded: nothing to wrap
-  body="$(declare -f "$name")"
+  # `typeset -f`, NOT `declare -F`: in zsh `declare -F` declares a FLOAT
+  # parameter (it would create a variable named after the function and
+  # succeed). `typeset -f NAME` prints the function in bash AND zsh, failing
+  # when it does not exist. (zsh itself is not installed on the reference
+  # host: the zsh path is UNCONFIRMED by execution.)
+  body="$(typeset -f "$name" 2>/dev/null)" || return 0         # toolkit not loaded: nothing to wrap
+  [ -n "$body" ] || return 0
   case "$body" in *"$pre"*) return 0 ;; esac                  # already wrapped
   eval "$(printf '%s\n' "$body" | sed "1s/^$name *()/_cma_label_orig_$name ()/")"
   eval "$name() { $pre \"\$@\"; _cma_label_orig_$name \"\$@\"; }"

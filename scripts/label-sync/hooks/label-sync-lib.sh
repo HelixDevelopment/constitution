@@ -279,6 +279,10 @@ ls_ensure_session() {
   if [ -n "$lab" ] && ls_parse_label "$lab"; then
     alias="$LS_L_ALIAS"; model="$LS_L_MODEL"; effort="$LS_L_EFFORT"; track="$LS_L_TRACK"; branch="$LS_L_BRANCH"
   fi
+  # SessionStart carries the live model itself (2.1.296 binary: {source,
+  # agent_type, model, session_title}); the session-start hook hands it over in
+  # LS_PAYLOAD_MODEL and it wins over the labeler's transcript lookup.
+  [ -n "${LS_PAYLOAD_MODEL:-}" ] && model="$(ls_model_short "$LS_PAYLOAD_MODEL")"
   local -a a=(register --id "$id" --kind session --session "$LS_SID" --cwd "$LS_CWD" --source "hook:label-sync-$src"
               --state running)
   if [ -n "$alias" ]; then a+=(--alias "$alias" --follow-active false); else a+=(--follow-active true); fi

@@ -12,7 +12,8 @@
 #           subtree (CONTRACT §4.3). The hook never writes active.json.
 #           Emits the live label as additionalContext so the model sees it.
 # Usage   : configured in settings.json hooks.SessionStart; reads the hook JSON on
-#           stdin ({session_id, cwd, source: startup|resume|clear|compact|fork}).
+#           stdin ({session_id, cwd, source: startup|resume|clear|compact|fork,
+#           model} — a string `model` wins over the transcript lookup).
 # Inputs  : stdin JSON; env CLAUDE_CONFIG_DIR (alias source), LABEL_SYNC_* (see
 #           label-sync-lib.sh).
 # Outputs : stdout: ONE JSON line {"hookSpecificOutput":{"hookEventName":
@@ -31,6 +32,7 @@ main() {
   ls_init || return 0
   ls_read_payload || return 0
   ls_have_bin || return 0
+  LS_PAYLOAD_MODEL="$LS_TOMODEL"            # SessionStart's own `model` (string only)
   ls_ensure_session "session-start" || return 0
   local lbl; lbl="$(ls_ctl label "$(ls_session_entity)")" || return 0
   [ -n "$lbl" ] || return 0
