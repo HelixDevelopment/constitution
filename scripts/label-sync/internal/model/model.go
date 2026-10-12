@@ -1,0 +1,98 @@
+// Package model holds the wire/data types of the label-sync system.
+// The authoritative description is docs/label-sync/CONTRACT.md.
+package model
+
+import "time"
+
+// Entity kinds.
+const (
+	KindSession  = "session"
+	KindAgent    = "agent"
+	KindSubagent = "subagent"
+	KindStream   = "stream"
+	KindShell    = "shell"
+	KindCommand  = "command"
+	KindFlow     = "flow"
+)
+
+// Entity states.
+const (
+	StateRunning = "running"
+	StateIdle    = "idle"
+	StateDone    = "done"
+	StateUnknown = "unknown"
+)
+
+// Event types.
+const (
+	EvRegister    = "register"
+	EvUpdate      = "update"
+	EvHeartbeat   = "heartbeat"
+	EvUnregister  = "unregister"
+	EvAliasSwitch = "alias_switch"
+	EvReap        = "reap"
+	EvReconcile   = "reconcile"
+)
+
+var kinds = map[string]bool{KindSession: true, KindAgent: true, KindSubagent: true,
+	KindStream: true, KindShell: true, KindCommand: true, KindFlow: true}
+
+var states = map[string]bool{StateRunning: true, StateIdle: true, StateDone: true, StateUnknown: true}
+
+// ValidKind reports whether k is a contract entity kind.
+func ValidKind(k string) bool { return kinds[k] }
+
+// ValidState reports whether s is a contract entity state.
+func ValidState(s string) bool { return states[s] }
+
+// Entity is one labelled thing (session, agent, shell, ...).
+// Label, State(rendered), Stale are COMPUTED at render time.
+type Entity struct {
+	ID           string    `json:"id"`
+	Kind         string    `json:"kind"`
+	ParentID     string    `json:"parent_id,omitempty"`
+	SessionID    string    `json:"session_id,omitempty"`
+	PID          int       `json:"pid,omitempty"`
+	Host         string    `json:"host,omitempty"`
+	Cwd          string    `json:"cwd,omitempty"`
+	Track        string    `json:"track,omitempty"`
+	Branch       string    `json:"branch,omitempty"`
+	Alias        string    `json:"alias,omitempty"`
+	Model        string    `json:"model,omitempty"`
+	Effort       string    `json:"effort,omitempty"`
+	FollowActive bool      `json:"follow_active"`
+	Source       string    `json:"source,omitempty"`
+	StartedAt    time.Time `json:"started_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Label        string    `json:"label,omitempty"`
+	State        string    `json:"state"`
+	Stale        bool      `json:"stale,omitempty"`
+}
+
+// Active is the operator's ACTIVE alias/model/effort context.
+type Active struct {
+	Alias      string    `json:"alias"`
+	Model      string    `json:"model"`
+	Effort     string    `json:"effort"`
+	SwitchedAt time.Time `json:"switched_at"`
+	Seq        uint64    `json:"seq"`
+}
+
+// Event is one line of events.jsonl.
+type Event struct {
+	Seq    uint64            `json:"seq"`
+	TS     time.Time         `json:"ts"`
+	Type   string            `json:"type"`
+	ID     string            `json:"id,omitempty"`
+	Entity *Entity           `json:"entity,omitempty"`
+	Patch  map[string]string `json:"patch,omitempty"`
+	Active *Active           `json:"active,omitempty"`
+}
+
+// Snapshot is snapshot.json: the rendered view consumers read.
+type Snapshot struct {
+	Seq         uint64    `json:"seq"`
+	GeneratedAt time.Time `json:"generated_at"`
+	Active      Active    `json:"active"`
+	Entities    []Entity  `json:"entities"`
+}
