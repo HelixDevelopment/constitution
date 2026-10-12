@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# scripts/label-sync/hooks/label-sync-agent-register.sh
+#
+# Purpose : Claude Code PreToolUse hook for matcher `Agent|Task`. Registers the
+#           about-to-run SUBAGENT as an entity whose label fields are parsed
+#           from the dispatch description's §11.4.182 label prefix
+#           `(T<N>/<branch> - <alias>[ - <model>[ - <effort>]]) ...`.
+#           It COMPOSES with — and never replaces — guard-track-branch-label.sh
+#           (the guard BLOCKS unlabelled / stale-alias dispatches; this hook
+#           NEVER blocks and prints nothing). To avoid phantom entities for a
+#           dispatch the guard is about to refuse, it registers ONLY when the
+#           description starts with a well-formed label whose alias does not
+#           provably contradict the live alias (same rule as the guard).
+#           A pending-correlation file lets SubagentStart/SubagentStop find the
+#           entity later.
+# Usage   : settings.json hooks.PreToolUse, matcher "Agent|Task"; stdin = hook JSON.
+# Inputs  : stdin JSON {tool_name, tool_use_id, tool_input:{description,
+#           subagent_type, model}}; env CLAUDE_CONFIG_DIR, LABEL_SYNC_*.
+# Outputs : none (stdout stays empty).
+# Exit    : ALWAYS 0 — it must never block a dispatch.
+# Side-effects: label-sync register event; $LABEL_SYNC_DIR/hooks/pending/<sid>/.
+# Deps    : bash, jq, labelctl.
+# Cross-refs: §11.4.182, §11.4.147 (agent registry), guard-track-branch-label.sh,
+#           CONTRACT §4.2 (children follow the session's follow flag).
+# Classification: universal (§11.4.17).
+set -u
+_d="${BASH_SOURCE[0]:-$0}"; _d="${_d%/*}"
+. "$_d/label-sync-lib.sh" 2>/dev/null || exit 0
+main() {
+  LS_EVENT=PreToolUse
+  ls_init || return 0
+  ls_read_payload || return 0
+  case "$LS_TOOL" in Agent|Task) ;; *) return 0 ;; esac
+  ls_parse_label "$LS_DESC" || return 0          # unlabelled: the guard blocks it
+  local live="" cb; cb="$(basename "${CLAUDE_CONFIG_DIR:-}")"
+  case "$cb" in .claude-?*) live="${cb#.claude-}" ;; esac
+  if [ -n "$LS_L_ALIAS" ] && [ -n "$live" ] && [ "$LS_L_ALIAS" != "$live" ]; then return 0; fi
+  ls_have_bin || return 0
+  local sid_ent pj follow parent
+  sid_ent="$(ls_session_entity)"
+  pj="$(ls_ctl get --id "$sid_ent" --json)" || pj=""
+  if [ -z "$pj" ]; then
+    ls_ensure_session "agent-register" || return 0
+    pj="$(ls_ctl get --id "$sid_ent" --json)" || return 0
+  fi
+  follow=false; [[ "$pj" == *'"follow_active":true'* ]] && follow=true
+  parent="$sid_ent"
+  ls_hookdir
+  if [ -n "$LS_AGENT_ID" ] && [ -f "$LS_HOOKSTATE/agentmap/$LS_AGENT_ID" ]; then
+    parent="$(cat "$LS_HOOKSTATE/agentmap/$LS_AGENT_ID")"
+  fi
+  local tuid="$LS_TUID"
+  [ -n "$tuid" ] || tuid="$(printf '%s%s' "$LS_DESC" "$(date +%s%N)" | sha1sum | cut -c1-16)"
+  local eid="subagent:$tuid" model="$LS_L_MODEL"
+  if [ -z "$model" ] && [ -n "$LS_TOOLMODEL" ]; then model="$(ls_model_short "$LS_TOOLMODEL")"; fi
+  local -a a=(register --id "$eid" --kind subagent --parent "$parent" --session "$LS_SID" --cwd "$LS_CWD"
+              --source "hook:label-sync-agent-register" --state running --follow-active "$follow")
+  [ -n "$LS_L_TRACK" ] && a+=(--track "$LS_L_TRACK")
+  [ -n "$LS_L_BRANCH" ] && a+=(--branch "$LS_L_BRANCH")
+  [ -n "$LS_L_ALIAS" ] && a+=(--alias "$LS_L_ALIAS")
+  [ -n "$model" ] && a+=(--model "$model")
+  [ -n "$LS_L_EFFORT" ] && a+=(--effort "$LS_L_EFFORT")
+  ls_ctl "${a[@]}" >/dev/null || return 0
+  mkdir -p "$LS_HOOKSTATE/pending/$LS_SID" 2>/dev/null
+  printf '%s\n%s\n' "$eid" "$LS_SUBTYPE" >"$LS_HOOKSTATE/pending/$LS_SID/$(date +%s%N)-$tuid" 2>/dev/null
+  return 0
+}
+ls_hook_run main
