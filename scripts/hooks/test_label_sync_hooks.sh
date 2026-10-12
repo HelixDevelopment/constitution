@@ -374,7 +374,7 @@ EOJ
 FIXREND="$T/fixture/render/statusline.sh"; mkdir -p "$(dirname "$FIXREND")"; printf '#!/usr/bin/env bash\necho x\n' >"$FIXREND"; chmod +x "$FIXREND"
 mkdir -p "$S/submodules"; ln -s "$CROOT" "$S/submodules/constitution"
 cp "$FIXREND" "$S/rendfix-statusline.sh"
-IA=(bash "$INSTALLER" --project-root "$S" --constitution-root "$S/submodules/constitution" --render-path "$S/rendfix-statusline.sh")
+IA=(bash "$INSTALLER" --project-root "$S" --constitution-root "$S/submodules/constitution" --render-path "$S/rendfix-statusline.sh" --force-statusline)
 sha0="$(sha256sum "$SETT" | cut -d' ' -f1)"
 "${IA[@]}" >"$T/dry.out" 2>&1; rc=$?
 eq "dry-run (default) exit 0" "$rc" 0
@@ -423,15 +423,15 @@ bash "$INSTALLER" --project-root "$T/fresh2" --render-path "$FIXREND" >/dev/null
 check "dry-run on a fresh project creates nothing" test ! -e "$T/fresh2"
 # existing different statusLine is preserved
 SL="$T/sl"; mkdir -p "$SL/.claude"; echo '{"statusLine":{"type":"command","command":"my-own-statusline"}}' >"$SL/.claude/settings.json"
-bash "$INSTALLER" --project-root "$SL" --render-path "$FIXREND" --apply >"$T/sl.out" 2>&1
+bash "$INSTALLER" --project-root "$SL" --render-path "$FIXREND" --force-statusline --apply >"$T/sl.out" 2>&1
 eq "existing foreign statusLine NOT clobbered" "$(jq -r .statusLine.command "$SL/.claude/settings.json")" my-own-statusline
 check "foreign statusLine reported honestly" grep -qi 'statusLine' "$T/sl.out"
 # missing renderer at apply time => clear message, exit 2, nothing written
 NR="$T/nr"; mkdir -p "$NR"
-bash "$INSTALLER" --project-root "$NR" --render-path "$T/does/not/exist.sh" --apply >"$T/nr.out" 2>&1; eq "missing renderer at --apply => exit 2" "$?" 2
+bash "$INSTALLER" --project-root "$NR" --render-path "$T/does/not/exist.sh" --force-statusline --apply >"$T/nr.out" 2>&1; eq "missing renderer at --apply => exit 2" "$?" 2
 check "missing renderer: clear message names the path" grep -q 'does/not/exist.sh' "$T/nr.out"
 check "missing renderer: nothing written" test ! -e "$NR/.claude/settings.json"
-bash "$INSTALLER" --project-root "$NR" --render-path "$T/does/not/exist.sh" >/dev/null 2>&1; eq "missing renderer in DRY-RUN is only a note (exit 0)" "$?" 0
+bash "$INSTALLER" --project-root "$NR" --render-path "$T/does/not/exist.sh" --force-statusline >/dev/null 2>&1; eq "missing renderer in DRY-RUN is only a note (exit 0)" "$?" 0
 bash "$INSTALLER" --project-root "$NR" --render-path "$T/does/not/exist.sh" --no-statusline --apply >/dev/null 2>&1; eq "--no-statusline wires hooks without the renderer (exit 0)" "$?" 0
 check "--no-statusline: hooks present, statusLine absent" bash -c "jq -e '.hooks.SessionStart and (.statusLine==null)' '$NR/.claude/settings.json' >/dev/null"
 # --home isolation (user scope)
@@ -750,6 +750,81 @@ BADC="$T/badcons"; mkdir -p "$BADC/.claude"; printf '{ broken' >"$BADC/.claude/s
 ( cd "$BADC" && CONST_DIR="$FC6" PROJECT_ROOT="$BADC" LABEL_SYNC_AUTOWIRE=apply bash "$FC6/scripts/post_update_hook.sh" ) >"$T/ph8.out" 2>&1; rc=$?
 check "F6 installer refusal inside step 4c is reported as a warning" grep -q 'install_label_sync.sh exited' "$T/ph8.out"
 check "F6 ...and the hook still reaches step 5 (step 4c never aborts the run)" grep -q 'STEP 5' "$T/ph8.out"
+
+# =========================================================================
+echo "== 18. F8/F5/F7: installer edge cases =="
+I8="$T/i8"; mkdir -p "$I8/.claude"; R8=(--render-path "$FIXREND")
+OLDCMD="FOO=1 BAR='x y' bash \"/old/place/scripts/label-sync/hooks/label-sync-prompt.sh\""
+jq -n --arg c "$OLDCMD" '{hooks:{UserPromptSubmit:[{hooks:[{type:"command",command:$c,timeout:30,async:true}]}]}}' >"$I8/.claude/settings.json"
+chmod 644 "$I8/.claude/settings.json"
+bash "$INSTALLER" --project-root "$I8" "${R8[@]}" --apply >"$T/i8.out" 2>&1; eq "F8 apply over an operator-customised entry: exit 0" "$?" 0
+P8="$(jq -c '[.hooks.UserPromptSubmit[].hooks[]|select(.command|test("label-sync-prompt"))]' "$I8/.claude/settings.json")"
+eq "F8 refreshed entry count stays 1" "$(printf '%s' "$P8" | jq length)" 1
+eq "F8 operator-set timeout (30) preserved on refresh" "$(printf '%s' "$P8" | jq -r '.[0].timeout')" 30
+eq "F8 operator extra key preserved on refresh" "$(printf '%s' "$P8" | jq -r '.[0].async')" true
+case "$(printf '%s' "$P8" | jq -r '.[0].command')" in "FOO=1 BAR='x y' bash \"$CROOT/scripts/label-sync/hooks/label-sync-prompt.sh\"") r=0 ;; *) r=1 ;; esac
+ok "F8 operator env prefix preserved, path refreshed (got: $(printf '%s' "$P8" | jq -r '.[0].command' | cut -c1-90))" $r
+eq "F8 file mode 0644 preserved (not silently tightened/loosened)" "$(stat -c %a "$I8/.claude/settings.json")" 644
+# symlinked settings.json stays a symlink; the TARGET is written
+I8S="$T/i8s"; mkdir -p "$I8S/.claude" "$T/i8real"; echo '{"env":{"Q":"1"}}' >"$T/i8real/settings.json"; chmod 640 "$T/i8real/settings.json"
+ln -s "$T/i8real/settings.json" "$I8S/.claude/settings.json"
+bash "$INSTALLER" --project-root "$I8S" "${R8[@]}" --apply >/dev/null 2>&1; eq "F8 symlinked settings: apply exit 0" "$?" 0
+check "F8 symlinked settings.json is STILL a symlink" test -L "$I8S/.claude/settings.json"
+check "F8 the symlink TARGET carries the wiring" jq -e '.hooks.SessionStart and .env.Q=="1"' "$T/i8real/settings.json"
+eq "F8 the symlink target's mode (0640) preserved" "$(stat -c %a "$T/i8real/settings.json")" 640
+# --with-model-switch when the script does not exist => rc 2, nothing written
+FCM="$T/i8const"; mkdir -p "$FCM/scripts/label-sync/hooks"; cp "$LS/hooks/"*.sh "$FCM/scripts/label-sync/hooks/"; rm -f "$FCM/scripts/label-sync/hooks/label-sync-model-switch.sh"
+I8M="$T/i8m"; mkdir -p "$I8M"
+bash "$INSTALLER" --project-root "$I8M" --constitution-root "$FCM" "${R8[@]}" --with-model-switch --apply >"$T/i8m.out" 2>&1; eq "F8 --with-model-switch with the script missing => exit 2" "$?" 2
+check "F8 --with-model-switch missing script: nothing written" test ! -e "$I8M/.claude/settings.json"
+# shell metacharacters in a path that ends up inside a hook command => refused
+for evil in 'a$(touch x)b' 'a`id`b' 'a"b' 'a\b'; do
+  EC="$T/evil/$evil"; mkdir -p "$EC/scripts/label-sync/hooks" 2>/dev/null; cp "$LS/hooks/"*.sh "$EC/scripts/label-sync/hooks/" 2>/dev/null
+  I8E="$T/i8e"; rm -rf "$I8E"; mkdir -p "$I8E"
+  bash "$INSTALLER" --project-root "$I8E" --constitution-root "$EC" "${R8[@]}" --apply >"$T/i8e.out" 2>&1; rc=$?
+  eq "F8 constitution path with shell metacharacter ($evil) => exit 2" "$rc" 2
+  check "F8 metacharacter path ($evil): nothing written" test ! -e "$I8E/.claude/settings.json"
+  check "F8 metacharacter path ($evil): refused FOR the metacharacter (not another precondition)" grep -q 'shell metacharacter' "$T/i8e.out"
+done
+# project-scope statusLine needs --force-statusline (it overrides every contributor's own)
+I8P="$T/i8p"; mkdir -p "$I8P"
+bash "$INSTALLER" --project-root "$I8P" "${R8[@]}" --apply >"$T/i8p.out" 2>&1; eq "F8 project scope without --force-statusline: exit 0" "$?" 0
+check "F8 project scope without --force-statusline: statusLine NOT written" jq -e '.statusLine==null and .hooks.SessionStart' "$I8P/.claude/settings.json"
+check "F8 project scope without --force-statusline: warns and names the flag" grep -q -- '--force-statusline' "$T/i8p.out"
+bash "$INSTALLER" --project-root "$I8P" "${R8[@]}" --force-statusline --apply >/dev/null 2>&1
+check "F8 project scope WITH --force-statusline: statusLine written" jq -e '.statusLine.command|test("statusline")' "$I8P/.claude/settings.json"
+# foreign statusLine survives --uninstall
+I8F="$T/i8f"; mkdir -p "$I8F/.claude"; echo '{"statusLine":{"type":"command","command":"my-own"}}' >"$I8F/.claude/settings.json"
+bash "$INSTALLER" --project-root "$I8F" "${R8[@]}" --apply >/dev/null 2>&1
+bash "$INSTALLER" --project-root "$I8F" "${R8[@]}" --uninstall --apply >/dev/null 2>&1
+eq "uninstall keeps a FOREIGN statusLine" "$(jq -r .statusLine.command "$I8F/.claude/settings.json")" my-own
+# the read-modify-write holds a lock: a held lock => exit 2, nothing written
+if [ -n "$have_flock" ]; then
+  I8L="$T/i8l"; mkdir -p "$I8L/.claude"; echo '{}' >"$I8L/.claude/settings.json"; shl="$(sha256sum "$I8L/.claude/settings.json" | cut -d' ' -f1)"
+  ( flock "$I8L/.claude" sleep 3 ) & LH=$!; sleep 0.3
+  LABEL_SYNC_INSTALL_LOCK_WAIT=1 bash "$INSTALLER" --project-root "$I8L" "${R8[@]}" --apply >"$T/i8l.out" 2>&1; eq "F8 settings dir locked by another writer => exit 2" "$?" 2
+  eq "F8 locked: settings untouched" "$(sha256sum "$I8L/.claude/settings.json" | cut -d' ' -f1)" "$shl"
+  wait "$LH" 2>/dev/null
+  bash "$INSTALLER" --project-root "$I8L" "${R8[@]}" --apply >/dev/null 2>&1; eq "F8 lock released => apply proceeds" "$?" 0
+fi
+# F5 both scopes: the other scope already carries label-sync hooks
+U5="$T/u5home"; mkdir -p "$U5"; bash "$INSTALLER" --scope user --home "$U5" "${R8[@]}" --apply >/dev/null 2>&1
+I5="$T/i5"; mkdir -p "$I5"
+bash "$INSTALLER" --project-root "$I5" "${R8[@]}" --home "$U5" >"$T/i5.out" 2>&1; eq "F5 dry-run with the other scope wired: exit 0" "$?" 0
+check "F5 dry-run WARNS that the user scope already carries label-sync hooks" grep -qi 'both scopes\|already carries label-sync' "$T/i5.out"
+bash "$INSTALLER" --project-root "$I5" "${R8[@]}" --home "$U5" --apply >"$T/i5a.out" 2>&1; eq "F5 --apply refused while the other scope is wired (exit 2)" "$?" 2
+check "F5 refused: nothing written" test ! -e "$I5/.claude/settings.json"
+bash "$INSTALLER" --project-root "$I5" "${R8[@]}" --home "$U5" --allow-both-scopes --apply >/dev/null 2>&1; eq "F5 --allow-both-scopes overrides (exit 0)" "$?" 0
+bash "$INSTALLER" --project-root "$I5" "${R8[@]}" --other-settings "$U5/.claude/settings.json" --scope user --settings "$T/i5other.json" --apply >"$T/i5b.out" 2>&1
+eq "F5 --other-settings names the other scope explicitly (refused when wired)" "$?" 2
+# F7 --request-ledger: opt-in path into settings env + warning when it would be committed
+I7="$T/i7"; mkdir -p "$I7"; git -C "$I7" init -q -b main
+bash "$INSTALLER" --project-root "$I7" "${R8[@]}" --request-ledger docs/requests/history.jsonl --apply >"$T/i7.out" 2>&1; eq "F7 --request-ledger apply exit 0" "$?" 0
+eq "F7 --request-ledger writes env.LABEL_SYNC_REQUEST_LEDGER" "$(jq -r .env.LABEL_SYNC_REQUEST_LEDGER "$I7/.claude/settings.json")" docs/requests/history.jsonl
+check "F7 warns: the ledger is inside a git work tree and NOT ignored (git add . would commit prompts)" grep -qi 'not git-ignored' "$T/i7.out"
+printf 'docs/requests/history.jsonl\n' >"$I7/.gitignore"
+bash "$INSTALLER" --project-root "$I7" "${R8[@]}" --request-ledger docs/requests/history.jsonl --apply >"$T/i7b.out" 2>&1
+check "F7 no tracking warning once the ledger path is git-ignored" bash -c "! grep -qi 'not git-ignored' '$T/i7b.out'"
 
 # =========================================================================
 echo "----------------------------------------------------------------------"

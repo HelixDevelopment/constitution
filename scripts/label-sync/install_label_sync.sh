@@ -26,7 +26,9 @@
 #                  [--scope project|user] [--project-root DIR]
 #                  [--home DIR | --config-dir DIR | --settings FILE]
 #                  [--constitution-root DIR] [--render-path FILE]
-#                  [--no-statusline] [--with-model-switch] [--uninstall] [--brief]
+#                  [--no-statusline] [--force-statusline] [--with-model-switch]
+#                  [--request-ledger PATH] [--other-settings FILE]... [--allow-both-scopes]
+#                  [--uninstall] [--brief]
 #   --scope project (default) target <project-root>/.claude/settings.json; hook
 #                   commands use `bash "$CLAUDE_PROJECT_DIR/<rel>/..."` when the
 #                   constitution lives inside the project (portable, tracked,
@@ -38,6 +40,21 @@
 #   --platform all  also reports the platforms this installer does NOT wire
 #                   (opencode / gemini / qwen: no Claude-style hook interface) —
 #                   an honest SKIP, never a pretended install.
+#   --force-statusline  in --scope project, wire the statusLine anyway. Without
+#                   it a PROJECT-scope statusLine is NOT written (warning): project
+#                   settings take precedence over every contributor's personal
+#                   statusLine. User scope never needs it.
+#   --request-ledger PATH  opt in to the §11.4.208 ledger: writes
+#                   env.LABEL_SYNC_REQUEST_LEDGER=PATH (relative = against the
+#                   project dir) and WARNS when PATH is inside a git work tree and
+#                   not git-ignored (a `git add .` wrapper would commit prompts).
+#   --other-settings FILE  the OTHER scope's settings file to check for already
+#                   wired label-sync hooks (default: for --scope project the user
+#                   settings <config-dir|home>/.claude/settings.json; for --scope
+#                   user <project-root>/.claude/settings{,.local}.json when
+#                   --project-root / CLAUDE_PROJECT_DIR is given). Wired in both
+#                   scopes, every hook fires TWICE: dry-run warns, --apply is
+#                   REFUSED (exit 2) unless --allow-both-scopes.
 #   --uninstall     remove our entries (and our statusLine) — the rollback; with
 #                   --apply it writes (with backup), else shows the diff.
 #   --brief         one-line plan instead of the full diff (used by post_update_hook.sh).
@@ -46,11 +63,20 @@
 # Outputs : stdout: diff / plan / verdict lines. stderr: refusals.
 # Exit    : 0 ok (incl. "already wired" and dry-run) | 1 refused: settings file is
 #           not valid JSON (or not an object) | 2 usage error or precondition
-#           unmet at --apply (statusLine renderer or a hook script missing,
-#           jq absent) — nothing written. 2 is never a pass.
-# Side-effects: ONLY with --apply: writes <settings>.label-sync.bak.<UTC-ts>[.n]
+#           unmet (statusLine renderer or a hook script missing at --apply —
+#           incl. label-sync-model-switch.sh with --with-model-switch; jq absent;
+#           a path with a shell metacharacter $ ` " \ newline that would be
+#           interpreted when the hook command runs; the other scope already
+#           wired at --apply; the settings dir locked by another writer for
+#           LABEL_SYNC_INSTALL_LOCK_WAIT s, default 10) — nothing written.
+#           2 is never a pass.
+# Side-effects: ONLY with --apply: takes an flock on the settings DIRECTORY for
+#           the whole read-modify-write, writes <settings>.label-sync.bak.<UTC-ts>[.n]
 #           (copy of the previous file) then atomically replaces the settings file
-#           (temp file in the same directory + mv). Never touches anything else.
+#           (temp file next to the REAL file + mv). A symlinked settings.json stays
+#           a symlink (its target is written); the file mode is preserved. On
+#           refresh an operator's `timeout`, extra keys and leading VAR=value
+#           command prefix on OUR entries are kept. Never touches anything else.
 # Deps    : bash, jq, diff, cp, mv, date, realpath.
 # Rollback: restore the backup (`cp <settings>.label-sync.bak.<ts> <settings>`) or
 #           run this script with --uninstall --apply.
@@ -64,6 +90,7 @@ CONST_ROOT="$(cd "$HERE/../.." && pwd -P)"
 
 apply=0; platform=claude; scope=project; project_root=""; home_override=""; cfg_dir=""; settings_file=""
 render_path=""; no_status=0; with_model=0; uninstall=0; brief=0
+force_sl=0; allow_both=0; req_ledger=""; req_set=0; other_files=()
 
 usage() { sed -n '/^# Usage/,/^# Inputs/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//' >&2; exit 2; }
 need_arg() { [ $# -ge 2 ] || usage; }
@@ -81,6 +108,10 @@ while [ $# -gt 0 ]; do
     --render-path) need_arg "$@"; render_path="$2"; shift 2 ;;
     --no-statusline) no_status=1; shift ;;
     --with-model-switch) with_model=1; shift ;;
+    --force-statusline) force_sl=1; shift ;;
+    --allow-both-scopes) allow_both=1; shift ;;
+    --request-ledger) need_arg "$@"; req_ledger="$2"; req_set=1; shift 2 ;;
+    --other-settings) need_arg "$@"; other_files+=("$2"); shift 2 ;;
     --uninstall) uninstall=1; shift ;;
     --brief) brief=1; shift ;;
     -h|--help) usage ;;
@@ -93,7 +124,23 @@ command -v jq >/dev/null 2>&1 || { echo "install_label_sync: jq is required" >&2
 
 [ -n "$render_path" ] || render_path="$CONST_ROOT/scripts/label-sync/render/statusline.sh"
 
+# ---- paths that end up INSIDE a hook command string ------------------------
+# The command is `bash "<path>/…"`: inside double quotes a $ ` " or \ in the
+# path would be INTERPRETED when Claude Code runs the hook (a constitution path
+# containing $(…) would execute it). Such a path is refused, never escaped.
+bad_path() { case "$1" in *'$'*|*'`'*|*'"'*|*'\'*|*$'\n'*) return 0 ;; esac; return 1; }
+if [ "$uninstall" = 0 ]; then
+  for _p in "$CONST_ROOT" "$render_path"; do
+    if bad_path "$_p"; then
+      echo "install_label_sync: REFUSED — path contains a shell metacharacter (\$ \` \" \\ or newline) that would be interpreted when the hook command runs: $_p — nothing written. Move/rename it." >&2
+      exit 2
+    fi
+  done
+  case "$req_ledger" in *$'\n'*) echo "install_label_sync: --request-ledger path contains a newline — refused" >&2; exit 2 ;; esac
+fi
+
 # ---- target settings file -------------------------------------------------
+pr_explicit=0; { [ -n "$project_root" ] || [ -n "${CLAUDE_PROJECT_DIR:-}" ]; } && pr_explicit=1
 [ -n "$project_root" ] || project_root="${CLAUDE_PROJECT_DIR:-$PWD}"
 if [ -n "$settings_file" ]; then target="$settings_file"
 elif [ "$scope" = project ]; then target="$project_root/.claude/settings.json"
@@ -134,6 +181,28 @@ spec="$(jq -nc \
     {event:"SessionEnd",       matcher:"*",          script:"label-sync-session-end.sh",     hook:h($se)} ]
   + (if $wm==1 then [ {event:"PostModelSwitch", matcher:"*", script:"label-sync-model-switch.sh", hook:h($ms)} ] else [] end)')"
 
+# ---- a symlinked settings file: the file actually WRITTEN is its target -----
+real="$target"
+if [ -L "$target" ]; then
+  real="$(readlink -f -- "$target" 2>/dev/null)" || real=""
+  [ -n "$real" ] || { echo "install_label_sync: cannot resolve the symlink $target — nothing written." >&2; exit 2; }
+fi
+
+# ---- --apply: serialise the whole read-modify-write ------------------------
+# flock on the settings DIRECTORY (an open directory fd; no lock file litter
+# next to a tracked settings.json). Held until this process exits.
+if [ "$apply" = 1 ]; then
+  sdir="$(dirname -- "$real")"
+  mkdir -p -- "$sdir" 2>/dev/null || { echo "install_label_sync: cannot create $sdir — nothing written." >&2; exit 2; }
+  if command -v flock >/dev/null 2>&1; then
+    { exec 8<"$sdir"; } 2>/dev/null || { echo "install_label_sync: cannot open $sdir for locking — nothing written." >&2; exit 2; }
+    if ! flock -w "${LABEL_SYNC_INSTALL_LOCK_WAIT:-10}" 8; then
+      echo "install_label_sync: REFUSED — $sdir is locked by another writer (waited ${LABEL_SYNC_INSTALL_LOCK_WAIT:-10} s); nothing written. Re-run when it is done." >&2
+      exit 2
+    fi
+  fi
+fi
+
 # ---- read + validate the current settings ---------------------------------
 if [ -e "$target" ]; then
   if ! jq -e 'type=="object"' "$target" >/dev/null 2>&1; then
@@ -143,6 +212,36 @@ if [ -e "$target" ]; then
   cur="$(jq . "$target")"
 else
   cur='{}'
+fi
+
+# ---- wired in BOTH scopes? (every hook would fire twice) --------------------
+if [ "$uninstall" = 0 ]; then
+  if [ "${#other_files[@]}" -eq 0 ]; then
+    if [ "$scope" = project ]; then
+      if [ -n "$cfg_dir" ]; then other_files=("$cfg_dir/settings.json")
+      elif [ -n "$home_override" ]; then other_files=("$home_override/.claude/settings.json")
+      elif [ -n "${CLAUDE_CONFIG_DIR:-}" ]; then other_files=("$CLAUDE_CONFIG_DIR/settings.json")
+      else other_files=("${HOME:-/tmp}/.claude/settings.json"); fi
+      other_files+=("${project_root%/}/.claude/settings.local.json")
+    elif [ "$pr_explicit" = 1 ]; then
+      other_files=("${project_root%/}/.claude/settings.json" "${project_root%/}/.claude/settings.local.json")
+    fi
+  fi
+  both=""; real_abs="$(readlink -f -- "$real" 2>/dev/null || printf '%s' "$real")"
+  for of in "${other_files[@]}"; do
+    [ -f "$of" ] || continue
+    [ "$(readlink -f -- "$of" 2>/dev/null)" = "$real_abs" ] && continue
+    if jq -e '[.. | objects | select(has("command")) | .command | strings | select(test("label-sync/hooks/label-sync-"))] | length > 0' "$of" >/dev/null 2>&1; then
+      both="$both $of"
+    fi
+  done
+  if [ -n "$both" ]; then
+    echo "WARNING: the other scope already carries label-sync hooks:$both — wired in BOTH scopes every hook fires twice (Claude Code de-duplicates only textually identical commands). The hooks are idempotent, but latency doubles. Remove one scope's entries (install_label_sync.sh --uninstall), or pass --allow-both-scopes."
+    if [ "$apply" = 1 ] && [ "$allow_both" = 0 ]; then
+      echo "install_label_sync: REFUSED (--apply) — label-sync hooks already wired in the other scope; pass --allow-both-scopes to wire both deliberately. Nothing written." >&2
+      exit 2
+    fi
+  fi
 fi
 
 # ---- the structural merge (install) / removal (uninstall) ------------------
@@ -162,12 +261,17 @@ reduce $spec[] as $s (.;
         else .hooks[$s.event][$gi].hooks += [$s.hook] end
     else
       reduce ($p[1:] | reverse)[] as $d (.; del(.hooks[$s.event][$d[0]].hooks[$d[1]]))
-      | .hooks[$s.event][$p[0][0]].hooks[$p[0][1]] = $s.hook
+      | .hooks[$s.event][$p[0][0]].hooks[$p[0][1]] |= ( . as $o | ($o + $s.hook)
+          | .timeout = ($o.timeout // $s.hook.timeout)
+          | .command = ( ( ($o.command // "")
+                           | ( capture("^(?<p>(?:[A-Za-z_][A-Za-z0-9_]*=(?:\u0027[^\u0027]*\u0027|\"[^\"]*\"|[^ \u0027\"]*) +)*)") | .p ) // "" )
+                         + $s.hook.command ) )
     end)
 | if $sl == null then . else
     ( if .statusLine == null then .statusLine = $sl
       elif (.statusLine == $sl) or (.statusLine|isanyours or ((.command // "")|contains("label-sync")) ) then .statusLine = $sl
-      else . end ) end'
+      else . end ) end
+| if $rl == null then . else .env = ((.env // {}) + {LABEL_SYNC_REQUEST_LEDGER: $rl}) end'
 uninstall_prog="$JQ_LIB"'
 (if .hooks then
    .hooks |= with_entries(
@@ -179,16 +283,31 @@ uninstall_prog="$JQ_LIB"'
 | (if (.statusLine != null) and ((.statusLine == $sl) or ((.statusLine.command // "")|contains("label-sync"))) then del(.statusLine) else . end)'
 
 sl_json="$(jq -nc --arg c "$(sl_cmd)" '{type:"command",command:$c}')"      # the entry WE would wire
-[ "$no_status" = 1 ] && [ "$uninstall" = 0 ] && sl_json='null'                  # --no-statusline: leave statusLine alone
+wire_sl=1
+[ "$no_status" = 1 ] && [ "$uninstall" = 0 ] && { sl_json='null'; wire_sl=0; }   # --no-statusline: leave statusLine alone
+if [ "$uninstall" = 0 ] && [ "$wire_sl" = 1 ] && [ "$scope" = project ] && [ "$force_sl" = 0 ]; then
+  sl_json='null'; wire_sl=0
+  echo "note: --scope project: statusLine NOT wired — a PROJECT-scope statusLine overrides every contributor's personal statusLine. Pass --force-statusline to wire it anyway, or wire it per user (--scope user)."
+fi
+rl_json='null'; [ "$req_set" = 1 ] && rl_json="$(jq -nc --arg r "$req_ledger" '$r')"
+
+# ---- --request-ledger: would the ledger be committed by `git add .`? --------
+if [ "$req_set" = 1 ] && [ "$uninstall" = 0 ]; then
+  case "$req_ledger" in /*) rl_abs="$req_ledger" ;; *) rl_abs="${project_root%/}/$req_ledger" ;; esac
+  rl_d="$(dirname -- "$rl_abs")"; while [ ! -d "$rl_d" ] && [ "$rl_d" != / ]; do rl_d="$(dirname -- "$rl_d")"; done
+  if git -C "$rl_d" rev-parse --is-inside-work-tree >/dev/null 2>&1 && ! git -C "$rl_d" check-ignore -q -- "$rl_abs" 2>/dev/null; then
+    echo "WARNING: the request ledger $rl_abs is inside a git work tree and NOT git-ignored — prompts (secret-redacted, otherwise verbatim) would be committed by any 'git add .' wrapper (§11.4.10). Add it to .gitignore, or choose a path outside the repository, unless committing them is intended (§11.4.208)."
+  fi
+fi
 
 if [ "$uninstall" = 1 ]; then
   new="$(printf '%s' "$cur" | jq --argjson sl "$sl_json" "$uninstall_prog")" || { echo "install_label_sync: jq merge failed" >&2; exit 2; }
 else
-  new="$(printf '%s' "$cur" | jq --argjson spec "$spec" --argjson sl "$sl_json" "$install_prog")" || { echo "install_label_sync: jq merge failed" >&2; exit 2; }
+  new="$(printf '%s' "$cur" | jq --argjson spec "$spec" --argjson sl "$sl_json" --argjson rl "$rl_json" "$install_prog")" || { echo "install_label_sync: jq merge failed" >&2; exit 2; }
 fi
 
 # ---- foreign statusLine note ----------------------------------------------
-if [ "$uninstall" = 0 ] && [ "$no_status" = 0 ]; then
+if [ "$uninstall" = 0 ] && [ "$wire_sl" = 1 ]; then
   if [ "$(printf '%s' "$cur" | jq '(.statusLine != null) and ((.statusLine.command // "")|contains("label-sync")|not)')" = true ]; then
     echo "note: existing statusLine in $target is not label-sync's — left untouched (preserve-everything rule); label-sync statusLine NOT wired."
   fi
@@ -215,7 +334,7 @@ if [ "$apply" = 0 ]; then
     diff -u --label "$target (current)" --label "$target (after)" <(printf '%s\n' "$cur") <(printf '%s\n' "$new")
     echo "label-sync: dry-run — nothing written. Re-run with --apply to write (a backup is made first)."
   fi
-  if [ "$uninstall" = 0 ] && [ "$no_status" = 0 ] && [ ! -f "$render_path" ]; then
+  if [ "$uninstall" = 0 ] && [ "$wire_sl" = 1 ] && [ ! -f "$render_path" ]; then
     echo "note: statusLine renderer not found: $render_path — --apply will refuse (exit 2) until it exists, or use --no-statusline."
   fi
   exit 0
@@ -223,25 +342,30 @@ fi
 
 # ---- apply: preconditions (assert the REAL conditions, §11.4.201) ----------
 if [ "$uninstall" = 0 ]; then
-  if [ "$no_status" = 0 ] && [ "$(printf '%s' "$new" | jq --argjson sl "$sl_json" '.statusLine == $sl')" = true ] && [ ! -f "$render_path" ]; then
+  if [ "$wire_sl" = 1 ] && [ "$(printf '%s' "$new" | jq --argjson sl "$sl_json" '.statusLine == $sl')" = true ] && [ ! -f "$render_path" ]; then
     echo "install_label_sync: statusLine renderer missing: $render_path — refusing to wire a statusLine that cannot run. Nothing written. (Provide it, or pass --no-statusline to wire the hooks only.)" >&2
     exit 2
   fi
-  for s in label-sync-session-start label-sync-prompt label-sync-agent-register label-sync-subagent-start label-sync-subagent-stop label-sync-stop label-sync-session-end; do
+  req_hooks="label-sync-session-start label-sync-prompt label-sync-agent-register label-sync-subagent-start label-sync-subagent-stop label-sync-stop label-sync-session-end"
+  [ "$with_model" = 1 ] && req_hooks="$req_hooks label-sync-model-switch"
+  for s in $req_hooks; do
     [ -f "$CONST_ROOT/scripts/label-sync/hooks/$s.sh" ] || { echo "install_label_sync: hook script missing: $CONST_ROOT/scripts/label-sync/hooks/$s.sh — nothing written." >&2; exit 2; }
   done
 fi
 
-mkdir -p "$(dirname "$target")" || { echo "install_label_sync: cannot create $(dirname "$target")" >&2; exit 2; }
+mkdir -p "$(dirname "$real")" || { echo "install_label_sync: cannot create $(dirname "$real")" >&2; exit 2; }
 if [ -e "$target" ]; then
   ts="$(date -u +%Y%m%dT%H%M%SZ)"; bak="$target.label-sync.bak.$ts"; n=0
   while [ -e "$bak" ]; do n=$((n + 1)); bak="$target.label-sync.bak.$ts.$n"; done
   cp -p "$target" "$bak" || { echo "install_label_sync: backup failed — nothing written." >&2; exit 2; }
   echo "backup: $bak"
 fi
-tmp="$(mktemp "$target.XXXXXX")" || { echo "install_label_sync: cannot create temp file" >&2; exit 2; }
+# temp file next to the REAL file (a symlink stays a symlink); `cp -p` first so
+# the replacement keeps the original mode/owner, then the content is truncated in.
+tmp="$(mktemp "$real.XXXXXX")" || { echo "install_label_sync: cannot create temp file" >&2; exit 2; }
+[ -e "$real" ] && cp -p -- "$real" "$tmp" 2>/dev/null
 printf '%s\n' "$new" >"$tmp"
 if ! jq -e 'type=="object"' "$tmp" >/dev/null 2>&1; then rm -f "${tmp:?}"; echo "install_label_sync: produced invalid JSON — aborted, target untouched." >&2; exit 2; fi
-mv "$tmp" "$target" || { rm -f "${tmp:?}"; echo "install_label_sync: could not replace $target" >&2; exit 2; }
+mv -- "$tmp" "$real" || { rm -f "${tmp:?}"; echo "install_label_sync: could not replace $real" >&2; exit 2; }
 echo "label-sync: $([ "$uninstall" = 1 ] && echo removed || echo wired) hooks in $target"
 exit 0
