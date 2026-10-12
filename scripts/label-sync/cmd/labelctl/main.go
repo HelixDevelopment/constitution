@@ -28,12 +28,12 @@ import (
 	"github.com/HelixDevelopment/HelixConstitution/scripts/label-sync/internal/state"
 )
 
-const usage = `usage: labelctl [--dir DIR] <command> [flags]
+const usage = `usage: labelctl [--dir DIR] [--lock-timeout D] <command> [flags]
 commands:
   register    --id ID --kind KIND [--parent P] [--session S] [--pid N|ppid] [--host H] [--cwd D]
               [--track N] [--branch B] [--alias A] [--model M] [--effort E]
               [--follow-active true|false] [--source S] [--state ST] [--derive [--config-dir D]]
-  update      --id ID [same field flags; only given flags are changed]
+  update      --id ID [same field flags; only given flags are changed] [--clear k1,k2]
   heartbeat   --id ID [--state ST]
   unregister  --id ID
   reap        --id ID
@@ -44,21 +44,62 @@ commands:
   watch       [--since N|now] [--interval-ms 100] [--text] [--socket]
   verify
   label       ID
+ids: ^[A-Za-z0-9._:@/-]{1,160}$ (others: exit 1). --lock-timeout / LABEL_SYNC_LOCK_TIMEOUT
+bounds the writer-lock wait (default 2s; timeout = exit 2).
 exit: 0 ok, 1 finding/invalid, 2 cannot determine (never a pass)`
+
+// cleanWriter strips terminal-control, bidi and invalid bytes from
+// everything labelctl prints (review finding 2): no input can drive the
+// operator's terminal through labelctl output, under any locale.
+type cleanWriter struct{ w io.Writer }
+
+func (c cleanWriter) Write(p []byte) (int, error) {
+	if _, err := io.WriteString(c.w, label.CleanText(string(p))); err != nil { // MUT:cleanout
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// rcFor maps a store error to an exit code: a busy lock is "cannot
+// determine" (2), everything else a finding (1).
+func rcFor(err error) int {
+	if errors.Is(err, state.ErrLockTimeout) {
+		return 2
+	}
+	return 1
+}
+
+func badID(errw io.Writer, id string) int {
+	fmt.Fprintf(errw, "labelctl: invalid id %q (want ^[A-Za-z0-9._:@/-]{1,160}$)\n", id)
+	return 1
+}
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
 func run(args []string, out, errw io.Writer) int {
+	out, errw = cleanWriter{out}, cleanWriter{errw}
 	opts := state.OptionsFromEnv()
-	for len(args) > 0 && (args[0] == "--dir" || strings.HasPrefix(args[0], "--dir=")) {
-		if args[0] == "--dir" {
+	for len(args) > 0 {
+		name, val, hasVal := strings.Cut(args[0], "=")
+		if name != "--dir" && name != "--lock-timeout" {
+			break
+		}
+		if !hasVal {
 			if len(args) < 2 {
 				fmt.Fprintln(errw, usage)
 				return 2
 			}
-			opts.Dir, args = args[1], args[2:]
+			val, args = args[1], args[2:]
 		} else {
-			opts.Dir, args = strings.TrimPrefix(args[0], "--dir="), args[1:]
+			args = args[1:]
+		}
+		if name == "--dir" {
+			opts.Dir = val
+		} else if d, ok := state.ParseDuration(val); ok && d > 0 {
+			opts.LockTimeout = d
+		} else {
+			fmt.Fprintf(errw, "labelctl: bad --lock-timeout %q\n", val)
+			return 2
 		}
 	}
 	if len(args) == 0 {
@@ -106,9 +147,9 @@ func run(args []string, out, errw io.Writer) int {
 		ev, err := st.Apply(model.Event{Type: model.EvAliasSwitch, Active: &model.Active{Alias: *al, Model: *mo, Effort: *ef}})
 		if err != nil {
 			fmt.Fprintf(errw, "labelctl: %v\n", err)
-			return 1
+			return rcFor(err)
 		}
-		fmt.Fprintf(out, "active alias=%s model=%s effort=%s seq=%d\n", orQ(ev.Active.Alias), orQ(*mo), orQ(*ef), ev.Seq)
+		fmt.Fprintf(out, "active alias=%s model=%s effort=%s seq=%d\n", orQ(ev.Active.Alias), orQ(ev.Active.Model), orQ(ev.Active.Effort), ev.Seq)
 		return 0
 	case "get", "label":
 		var id string
@@ -128,6 +169,9 @@ func run(args []string, out, errw io.Writer) int {
 				return rc
 			}
 			id, asJSON = *idf, *js
+		}
+		if !label.ValidID(id) {
+			return badID(errw, id)
 		}
 		snap, err := st.Snapshot()
 		if err != nil {
@@ -246,17 +290,20 @@ func apply(st *state.Store, ev model.Event, out, errw io.Writer) int {
 		fmt.Fprintln(errw, "labelctl: --id required")
 		return 2
 	}
+	if !label.ValidID(ev.ID) {
+		return badID(errw, ev.ID)
+	}
 	got, err := st.Apply(ev)
 	if err != nil {
 		fmt.Fprintf(errw, "labelctl: %v\n", err)
-		return 1
+		return rcFor(err)
 	}
 	fmt.Fprintf(out, "ok seq=%d\n", got.Seq)
 	return 0
 }
 
 type fieldFlags struct {
-	id, kind, parent, session, host, cwd, track, branch, alias, model, effort, source, stateF, follow, pid, cfgDir *string
+	id, kind, parent, session, host, cwd, track, branch, alias, model, effort, source, stateF, follow, pid, cfgDir, clear *string
 	derive                                                                                                         *bool
 }
 
@@ -279,6 +326,7 @@ func newFieldFlags(fs *flag.FlagSet) *fieldFlags {
 	f.pid = fs.String("pid", "", "process id, or 'ppid' for the caller's parent")
 	f.cfgDir = fs.String("config-dir", "", "CLAUDE_CONFIG_DIR to derive for (with --derive)")
 	f.derive = fs.Bool("derive", false, "fill unset fields via the canonical track_branch_label.sh")
+	f.clear = fs.String("clear", "", "update: comma-separated fields to CLEAR (parent session pid host cwd track branch alias model effort source)")
 	return f
 }
 
@@ -322,6 +370,14 @@ func cmdWrite(st *state.Store, cmd string, args []string, out, errw io.Writer) i
 		fmt.Fprintln(errw, "labelctl: --id required")
 		return 2
 	}
+	if !label.ValidID(*f.id) {
+		return badID(errw, *f.id)
+	}
+	for _, v := range []string{*f.parent, *f.session} {
+		if v != "" && !label.ValidID(v) {
+			return badID(errw, v)
+		}
+	}
 	pidStr := *f.pid
 	if pidStr == "ppid" {
 		pidStr = strconv.Itoa(os.Getppid())
@@ -330,6 +386,7 @@ func cmdWrite(st *state.Store, cmd string, args []string, out, errw io.Writer) i
 		"track": *f.track, "branch": *f.branch, "alias": *f.alias, "model": *f.model, "effort": *f.effort,
 		"source": *f.source, "state": *f.stateF, "follow_active": *f.follow, "pid": pidStr}
 	flagOf := map[string]string{"parent_id": "parent", "session_id": "session", "follow_active": "follow-active"}
+	derivedAlias := false
 	if *f.derive {
 		script := labeler()
 		if script == "" {
@@ -349,6 +406,7 @@ func cmdWrite(st *state.Store, cmd string, args []string, out, errw io.Writer) i
 			fmt.Fprintf(errw, "labelctl: --derive failed: %v\n", err)
 			return 2
 		}
+		derivedAlias = !set["alias"] && unq(d.Alias) != ""
 		for k, v := range map[string]string{"track": unq(d.Track), "branch": unq(d.Branch), "alias": unq(d.Alias), "model": unq(d.Model), "effort": unq(d.Effort)} {
 			if !set[k] && v != "" {
 				vals[k] = v
@@ -396,12 +454,12 @@ func cmdWrite(st *state.Store, cmd string, args []string, out, errw io.Writer) i
 				return 1
 			}
 			e.FollowActive = b
-		} else if *f.derive && e.Alias != "" {
-			// per-process truth: a derived alias that differs from the ACTIVE
-			// alias (or when none is active yet) keeps its own binding.
-			if snap, err := st.Snapshot(); err == nil {
-				e.FollowActive = snap.Active.Alias != "" && snap.Active.Alias == e.Alias
-			}
+		} else if derivedAlias {
+			// Process-bound truth (CONTRACT §4.2): an alias DERIVED from this
+			// process's CLAUDE_CONFIG_DIR pins the entity, so two terminals on
+			// two aliases each keep their own. No read of the active alias is
+			// needed, so there is no TOCTOU window.
+			e.FollowActive = false // MUT:derivepin
 		}
 		ev = model.Event{Type: model.EvRegister, Entity: &e}
 	} else {
@@ -409,6 +467,22 @@ func cmdWrite(st *state.Store, cmd string, args []string, out, errw io.Writer) i
 		for k := range vals {
 			if isSet(k) {
 				patch[k] = vals[k]
+			}
+		}
+		if *f.clear != "" {
+			clearable := map[string]string{"parent": "parent_id", "session": "session_id", "pid": "pid", "host": "host",
+				"cwd": "cwd", "track": "track", "branch": "branch", "alias": "alias", "model": "model", "effort": "effort", "source": "source"}
+			for _, k := range strings.Split(*f.clear, ",") {
+				key, ok := clearable[strings.TrimSpace(k)]
+				if !ok {
+					fmt.Fprintf(errw, "labelctl update: field %q cannot be cleared\n", k)
+					return 1
+				}
+				if _, dup := patch[key]; dup {
+					fmt.Fprintf(errw, "labelctl update: %q both set and cleared\n", k)
+					return 1
+				}
+				patch[key] = "" // MUT:clear
 			}
 		}
 		if len(patch) == 0 {
@@ -420,7 +494,7 @@ func cmdWrite(st *state.Store, cmd string, args []string, out, errw io.Writer) i
 	got, err := st.Apply(ev)
 	if err != nil {
 		fmt.Fprintf(errw, "labelctl: %v\n", err)
-		return 1
+		return rcFor(err)
 	}
 	snap, err := st.Snapshot()
 	if err != nil {
@@ -460,7 +534,7 @@ func cmdWatch(st *state.Store, args []string, out, errw io.Writer) int {
 	defer cancel()
 	var ch <-chan model.Event
 	if *useSock {
-		c, cl, err := bus.Dial(ctx, filepath.Join(st.Dir(), "bus.sock"), from)
+		c, cl, err := bus.Dial(ctx, bus.ResolveSocket(st.Dir()), from)
 		if err != nil {
 			fmt.Fprintf(errw, "labelctl: socket subscribe failed (is label-busd running?): %v\n", err)
 			return 2
