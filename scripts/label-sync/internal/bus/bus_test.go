@@ -13,7 +13,8 @@ import (
 
 type noPids struct{}
 
-func (noPids) Alive(int) bool { return false }
+func (noPids) Alive(int, string) bool { return false }
+func (noPids) Start(int) string        { return "" }
 
 func newStore(t *testing.T) *state.Store {
 	t.Helper()

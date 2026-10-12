@@ -17,7 +17,8 @@ import (
 
 type fakePids map[int]bool
 
-func (f fakePids) Alive(pid int) bool { return f[pid] }
+func (f fakePids) Alive(pid int, _ string) bool { return f[pid] }
+func (f fakePids) Start(int) string            { return "" }
 
 type clock struct {
 	mu sync.Mutex
@@ -388,7 +389,7 @@ func TestConcurrentWritersAcrossStores(t *testing.T) {
 		wg.Add(1)
 		go func(w int) {
 			defer wg.Done()
-			s, err := Open(Options{Dir: dir, Pids: fakePids{}, TTL: time.Hour})
+			s, err := Open(Options{Dir: dir, Pids: fakePids{}, TTL: time.Hour, LockTimeout: time.Minute})
 			if err != nil {
 				errs <- err
 				return
