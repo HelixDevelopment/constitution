@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/CONTRACT.md` |
-| Revision | 1 (2026-10-12) |
+| Revision | 2 (2026-10-12) — FIX-A: derived binding, sanitising, compaction, pid start-time, bounded lock, socket fallback |
 | Status | CORE implemented and tested on branch `feature/label-sync` (local, unpushed) |
 | Implements | §11.4.182 (label), §11.4.116 (event stream + atomic status snapshot), §11.4.233 (level-triggered reconcile) |
 | Code | `scripts/label-sync/` (Go, stdlib only) + `scripts/label-sync/labelctl.sh` |
@@ -14,24 +14,54 @@ this file is a defect — report it.
 
 ## 1. State directory
 
-`${LABEL_SYNC_DIR:-$HOME/.local/state/constitution-label-sync}` (mode 0700). All
-files 0600. Tests MUST set `LABEL_SYNC_DIR` to a temp dir.
+`${LABEL_SYNC_DIR:-$HOME/.local/state/constitution-label-sync}`. Every `Open`
+forces the directory to mode 0700 (even when it already existed) and REFUSES a
+directory owned by another uid. Files are 0600. Orphaned `.*.tmp-*` files (a
+writer killed mid-write) older than 60 s are removed at open; younger ones are
+left alone because a concurrent writer may own them. Tests MUST set
+`LABEL_SYNC_DIR` to a temp dir.
 
 | File | Writer | Semantics |
 |---|---|---|
-| `events.jsonl` | any (under flock) | Append-only SOURCE OF TRUTH. One JSON `Event` per line, `seq` strictly increasing. |
-| `fold.json` | any (under flock) | INTERNAL declared state (rebuildable from the log; do not read). |
-| `snapshot.json` | any (under flock) | Rendered view (§2.3) — what consumers read. Atomically replaced (write-temp-then-rename in the same dir + fsync). Never torn. |
+| `events.jsonl` | any (under flock) | Append-only SOURCE OF TRUTH from `base.json` onward. One JSON `Event` per line, `seq` strictly increasing. Compacted (§1.2). |
+| `base.json` | compaction (under flock) | Authoritative folded state at `seq = B`; the log holds `B+1..head`. Absent until the first compaction (B = 0). |
+| `fold.json` | any (under flock) | INTERNAL cache: declared state at head + `index{ino,off,events,base_seq}` locating it in `events.jsonl`, so readers parse only newer events. Rebuildable; do not read. |
+| `snapshot.json` | any (under flock) | Rendered view (§2.3) — what consumers read. Write-temp-fsync-rename + dir fsync. Never torn. |
 | `active.json` | any (under flock) | The operator's ACTIVE context `{alias, model, effort, switched_at, seq}`. Atomic. |
-| `seq` | any (under flock) | Decimal head sequence + `\n`. Written LAST, atomically: a reader that sees `N` can read a snapshot at `seq >= N`. |
-| `lock` | — | flock(2) target serialising writers. |
-| `busd.lock`, `busd.pid`, `bus.sock` | `label-busd` | Single-instance flock, pid, optional push socket (0600). Absent when the daemon is down. |
+| `seq` | any (under flock) | Decimal head sequence + `\n`. Written LAST: a reader that sees `N` can read a snapshot at `seq >= N` (enforced by a test that checks the files after every persist step). |
+| `lock` | — | flock(2) target serialising writers. Acquisition is bounded (§7). |
+| `compact.failed` | any | Present only while the last compaction failed AND the log is still over its bound; `verify` reports it. |
+| `busd.lock`, `busd.pid` | `label-busd` | Single-instance flock and pid. |
+| `bus.sock` / `bus.addr` | `label-busd` | Push socket (0600 from birth: created under umask 0177). When `<dir>/bus.sock` would exceed 100 bytes the socket lives in a 0700 private dir (`$XDG_RUNTIME_DIR/ls-<hash>/`, else `$TMPDIR/ls-<uid>-<hash>/`, else `/tmp/ls-<uid>-<hash>/`) and its path is recorded in `bus.addr`; clients use `bus.ResolveSocket(dir)`. |
+
+**`label-busd` leftovers.** A CLEAN shutdown (SIGINT/SIGTERM) removes
+`busd.pid`, `bus.sock`, `bus.addr` and an empty fallback dir. A `kill -9`
+leaves `busd.pid`, `bus.sock` (and `bus.addr`) behind: they are stale, not
+live — the next daemon replaces the stale socket (it first probes it; a LIVE
+socket makes it refuse) and rewrites the pid file; the flock on `busd.lock` is
+the only single-instance truth. Never treat `busd.pid` as proof a daemon runs.
 
 Crash safety: a torn final line of `events.jsonl` is tolerated by every reader
 and truncated away by the next writer (it was never acknowledged). A missing or
-corrupt `fold.json`/`snapshot.json` is rebuilt from the log. An event durably
-appended but not yet folded is caught up by readers and by the next writer.
-Corruption of a non-final log line is reported by `labelctl verify` (exit 1).
+corrupt `fold.json`/`snapshot.json` is rebuilt from `base.json` + log. An event
+durably appended but not yet folded is caught up by readers and by the next
+writer. Corruption of a non-final log line is reported by `labelctl verify`
+(exit 1) and blocks compaction (compaction never silently discards it).
+
+### 1.2 Compaction
+
+Under the writer lock, when the log holds more than `LABEL_SYNC_COMPACT_EVENTS`
+(default 5000) events or `LABEL_SYNC_COMPACT_BYTES` (default 2 MiB), all but the
+last 256 events are folded into `base.json`. Steps, each atomic + fsynced:
+(1) write `base.json` at seq B (log still complete); (2) replace
+`events.jsonl` by the tail `B+1..head`; (3) rewrite `fold.json`. A `kill -9`
+between any two steps is recoverable (a reader skips log events `<= B`; a read
+that raced the rotation is retried) — tested by injecting a crash at every
+step. `seq` never moves backwards. A legacy uncompacted log is compacted by the
+first write (one-time cost measured at ~0.1 s for 10k, ~1.1 s for 100k events).
+A subscriber whose `since` predates the horizon receives ONE synthetic
+`reconcile` event at seq B, then the retained tail: it must re-read
+`snapshot.json`.
 
 ## 2. Schemas
 
@@ -43,6 +73,7 @@ kind          string   session | agent | subagent | stream | shell | command | f
 parent_id     string   id of the parent entity ("" = root)
 session_id    string   Claude session id this belongs to ("" = unknown)
 pid           int      OS process id (0 = none/unknown); only meaningful on `host`
+pid_start     string   "<boot_id>:<starttime>" of pid, recorded by the store at register/pid change (§6)
 host          string   defaults to the registering host
 cwd           string
 track         string   digits only ("3"), "" = unknown ('?')
@@ -57,7 +88,18 @@ updated_at    RFC3339  last register/update/heartbeat/unregister
 label         string   COMPUTED (§5), always (T<N>/<branch> - <alias> - <model> - <effort>)
 state         string   running | idle | done | unknown (rendered; see §6)
 stale         bool     COMPUTED (§6); omitted when false
+binding       string   COMPUTED (§4): own | inherited:<ancestor id> | active | unknown
 ```
+
+**Ids** (`id`, `parent_id`, `session_id`) must match `^[A-Za-z0-9._:@/-]{1,160}$`;
+anything else is rejected (`labelctl` exit 1, store error). **Free text**
+(`track branch alias model effort source host cwd`, the active triple) is
+SANITISED before it is logged: C0 controls (incl. ESC, NUL, BEL), DEL, C1
+controls (U+0080–U+009F), bidi embeddings/overrides/isolates/marks and invalid
+UTF-8 bytes are removed; fields are capped at 128 runes (`host` 255, `cwd`
+4096). Rendering sanitises again (defence in depth for old logs) and every
+byte `labelctl` prints passes the same filter, so no field value can drive the
+operator's terminal (OSC title/clipboard, CSI, C1) under any locale.
 
 In `snapshot.json` the `alias/model/effort/track/branch` of an entity are the
 EFFECTIVE (rendered) values, i.e. already resolved per §4 — consumers never
@@ -69,8 +111,8 @@ re-implement resolution; they print `label`.
 
 | type | payload | effect |
 |---|---|---|
-| `register` | `entity` | create/replace entity; republishes the subtree if a non-following session (§4.3) |
-| `update` | `id`, `patch` (string map) | change only the keys given. Keys: `parent_id session_id pid host cwd track branch alias model effort follow_active source state kind` |
+| `register` | `entity` | create/replace entity (started_at kept). Writes ONLY that entity — bindings are derived (§4) |
+| `update` | `id`, `patch` (string map) | change only the keys given; an EMPTY value clears a field (`labelctl update --clear k1,k2`). Keys: `parent_id session_id pid pid_start host cwd track branch alias model effort follow_active source state kind` |
 | `heartbeat` | `id` [`patch`] | `updated_at=now`; `unknown`→`running` unless `state` given |
 | `unregister` | `id` | `state=done` (kept for retention, §6) |
 | `alias_switch` | `active{alias,model,effort}` | set `active.json` (§4) |
@@ -99,9 +141,24 @@ tests: well under 1 s with 20 ms polls).
 **Optional accelerator: `bus.sock`** (unix, 0600), served by `label-busd`.
 Protocol: client sends `{"since":N}\n` (`N=18446744073709551615` = "from now");
 server replies `{"hello":true,"seq":N}\n`, then streams Event JSON lines. The
-daemon fans out by polling `seq` every 50 ms. Go consumers use
-`internal/bus.Dial`; `labelctl watch --socket`. Absence of the socket is never
-an error for correctness; subscribers fall back to polling.
+daemon polls `seq` every 50 ms from ONE shared subscription (a hub with a
+1024-event ring) and fans out to every client, so log reads do not scale with
+the number of clients; a client more than 1024 events behind is disconnected
+and may resubscribe with its last seq. Go consumers use
+`bus.Dial(ctx, bus.ResolveSocket(dir), since)`; `labelctl watch --socket`.
+Absence of the socket is never an error for correctness; subscribers fall back
+to polling. `EventsSince` reads `events.jsonl` backwards from its end only as
+far as needed (a poller one event behind reads one chunk).
+
+**Staleness bound for file readers (bash `jq` on `snapshot.json`).** The
+`stale`/`state=unknown` fields in `snapshot.json` are computed when the file is
+written. With `label-busd` UP, a TTL expiry is published within its reconcile
+interval (1 s) + one poll. With `label-busd` DOWN, `snapshot.json` keeps showing
+an expired entity as live until the NEXT write by anyone — there is NO time
+bound. Readers needing live staleness without the daemon must use
+`labelctl get/list/label` (or Go `Store.Snapshot`), which compute it at read
+time. Writers reap past-retention `done` entities on every write, so the
+snapshot stays bounded even without the daemon.
 
 Bash example (all labels, live):
 
@@ -119,31 +176,48 @@ a switch never invents a model or effort (§11.4.6). The very next snapshot
 (same write transaction) re-renders every follower; there is no separate
 propagation step.
 
-### 4.2 Who follows
-Resolution of an entity's displayed `alias/model/effort`:
+### 4.2 Binding rule — DERIVED, never copied
 
-1. `follow_active == true` → the ACTIVE triple (its own stored alias/model/effort are ignored). If nothing is active yet: `? - ? - ?`.
-2. else, if the entity has its own `alias` → its own triple.
-3. else the nearest ancestor (by `parent_id`, max depth 32) that is non-following and has an alias → that ancestor's triple (per-process truth inherited by children).
-4. else unknown (`?`).
+An entity's displayed `alias/model/effort` is resolved at RENDER time:
 
-`track` and `branch`, when empty, are inherited from the nearest ancestor that
-has them (real data from the parent, not a guess).
+1. **Pinned** (`follow_active == false` AND own non-empty `alias`) → its own
+   triple (`binding: own`).
+2. Else its **nearest ancestor's binding, resolved by this same rule**
+   (`binding: inherited:<id>` when it ends at a pinned ancestor). The nearest
+   ancestor is the `parent_id` entity when it exists, else — for non-session
+   entities — the `kind=session` entity with the same `session_id`. Depth ≤ 32,
+   cycles tolerated.
+3. A **root** (no ancestor) that follows → the ACTIVE context
+   (`binding: active`); nothing active yet → `? - ? - ?`.
+4. A root that neither follows nor has an alias → unknown (`?`).
 
-**Defaults.** `labelctl register` sets `follow_active=true`, except that with
-`--derive` an entity whose derived alias DIFFERS from the active alias (or when
-no alias is active yet) is registered `follow_active=false`: its process env
-(`CLAUDE_CONFIG_DIR`) names another alias, and per-process truth wins. An
-entity whose derived alias equals the active alias follows, so an operator
-switch relabels it.
+Consequences: a child of a pinned session shows the session's alias whatever
+the child's own `follow_active`; a child of a FOLLOWING session follows the
+active context THROUGH the session (a following ancestor's stale stored alias
+never leaks); re-registering or updating a session changes every descendant
+immediately with NO write to them; two sessions pinned to different aliases
+never cross-contaminate through any number of `alias_switch` events (tested
+over randomised sequences). A child can still pin itself (own alias +
+`follow_active=false`).
 
-### 4.3 SessionStart under a different alias (subtree republish)
-When a `kind=session` entity is registered/updated with `follow_active=false`
-and an `alias`, EVERY entity in its subtree — same non-empty `session_id`, plus
-all `parent_id` descendants, transitively — is rewritten to `follow_active=false`
-with the session's alias/model/effort. Result: that whole subtree keeps showing
-the session's alias across later operator switches; unrelated sessions keep
-following. Re-registering the session under yet another alias republishes again.
+`track` and `branch`, when empty, are inherited along the same ancestor chain
+(real data from the parent, not a guess).
+
+**Defaults.** `labelctl register` sets `follow_active=true`. With `--derive`,
+an alias DERIVED from the process (the canonical labeler reads it from
+`CLAUDE_CONFIG_DIR`) PINS the entity (`follow_active=false`) unless
+`--follow-active` is given: per-process truth wins, so two terminals on
+different aliases each keep their own. Only alias-less roots follow the active
+context. No read of `active.json` happens during `register`, so there is no
+check-then-act window (the previous implementation's TOCTOU is gone).
+
+### 4.3 Session resumed under another alias
+
+Re-register (or `update --alias`) the session with the new alias: rule 4.2
+rebinds its whole subtree on the next render. Re-register it with
+`--follow-active true` (no alias) to make the subtree follow the active
+context again. Nothing else needs touching; there is no republish step and no
+child is ever left pinned by a past session binding.
 
 ## 5. Label computation
 
@@ -162,25 +236,40 @@ following. Re-registering the session under yet another alias republishes again.
 ## 6. Staleness and retention
 
 * TTL default 120 s (`LABEL_SYNC_TTL`, Go duration or seconds).
-* An entity is **stale** iff `state != done` AND `now - updated_at > TTL` AND no
-  provably alive local process (`host` empty or equal to this host, `pid>0`,
-  `kill(pid,0)` ok/EPERM). Remote-host and pid-less entities cannot be proven
-  alive and go stale on TTL alone. Stale entities render `state=unknown`,
-  `stale=true`; the label stays grammar-valid (text mode appends `[stale]`).
-  They are NEVER deleted by staleness. A `heartbeat` revives them.
-* `done` entities are removed by `label-busd` reconcile (`reap` event) after
-  `LABEL_SYNC_DONE_RETENTION` (default 300 s).
+* An entity is **stale** iff `state != done` AND `now - updated_at > TTL`
+  (strictly greater; age == TTL is not stale) AND no provably alive local
+  process. "Provably alive" (`host` empty or this host, `pid > 0`): on Linux
+  `/proc/<pid>/stat` exists AND, when `pid_start` was recorded, its starttime
+  (field 22) plus `/proc/sys/kernel/random/boot_id` equals `pid_start` — a
+  RECYCLED pid is not alive. Without `/proc`, `kill(pid,0) == nil` counts only
+  for entities with no recorded `pid_start`; EPERM never counts. Remote-host and
+  pid-less entities go stale on TTL alone. Stale entities render
+  `state=unknown`, `stale=true`; the label stays grammar-valid (text mode
+  appends `[stale]`). They are NEVER deleted by staleness. A `heartbeat` revives
+  them (and turns a declared `unknown` back to `running` unless it carries a
+  state).
+* `done` entities are reaped (`reap` event) after `LABEL_SYNC_DONE_RETENTION`
+  (default 300 s) by EVERY writer and by `label-busd`'s reconcile, so the
+  snapshot is bounded by (done rate × retention) even with the daemon down.
 * Reconcile is level-triggered and idempotent: when the rendered view differs
   from the published `snapshot.json` (an entity just went stale) it appends a
-  `reconcile` event so `seq` moves and watchers refresh.
-* Known limit (UNCONFIRMED mitigation): pid reuse can keep a dead entity
-  looking alive; heartbeat discipline bounds the effect.
+  `reconcile` event so `seq` moves and watchers refresh. Staleness bound for
+  file readers: §3.
 
 ## 7. CLI (`labelctl`) and exit codes
 
 `register update heartbeat unregister reap switch-alias get list snapshot watch
-verify label` — see `labelctl --help`. `register` prints the entity's rendered
-label on stdout. **Exit codes: 0 ok; 1 finding/invalid (unknown id, bad input,
-verify problem); 2 cannot determine (state dir unusable, labeler missing, no go
-toolchain, usage error). 2 is never a pass.** `labelctl.sh` builds the Go
+verify label` — see `labelctl --help`. Global flags before the command:
+`--dir D`, `--lock-timeout D` (env `LABEL_SYNC_LOCK_TIMEOUT`, default 2 s; Go
+duration or seconds). `register` prints the entity's rendered label on stdout.
+`update --clear k1,k2` clears fields (`parent session pid host cwd track branch
+alias model effort source`). Every printed byte is sanitised (§2.1).
+
+**Writer lock.** Writers wait at most the lock timeout (a blocking flock in a
+helper goroutine, so waiters are kernel-queued, not sleep-polled); on timeout
+the write is NOT performed and `labelctl` exits **2** with `state lock busy`.
+No child process is involved, so nothing is left behind. Readers never take
+the lock. Hooks should pass a short bound (e.g. `--lock-timeout 500ms`). **Exit codes: 0 ok; 1 finding/invalid (unknown id, invalid id, bad input,
+verify problem); 2 cannot determine (state dir unusable or foreign-owned, lock
+timeout, labeler missing, no go toolchain, usage error). 2 is never a pass.** `labelctl.sh` builds the Go
 binaries on demand and execs them (`labelctl.sh busd` runs the daemon).
