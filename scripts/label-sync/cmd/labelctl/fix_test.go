@@ -177,7 +177,19 @@ func TestLegacyLogOutputsSanitised(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{{"list", "--text"}, {"list", "--json"}, {"snapshot"}, {"watch", "--since", "0", "--max", "1"}, {"watch", "--since", "0", "--max", "1", "--text"}} {
-		rc, o, e := rawCtl(d, args...)
+		type res struct {
+			rc   int
+			o, e string
+		}
+		done := make(chan res, 1)
+		go func() { rc, o, e := rawCtl(d, args...); done <- res{rc, o, e} }()
+		var got res
+		select {
+		case got = <-done:
+		case <-time.After(10 * time.Second):
+			t.Fatalf("%v hung: a seq-less legacy log must still be watchable", args)
+		}
+		rc, o, e := got.rc, got.o, got.e
 		if dangerousOut(o) || dangerousOut(e) {
 			t.Fatalf("%v rc=%d leaks controls: %q %q", args, rc, o, e)
 		}
