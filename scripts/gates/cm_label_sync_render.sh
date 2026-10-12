@@ -13,12 +13,14 @@
 #           (Purpose / Usage / Exit)
 #       (c) every bash renderer passes `bash -n` (§11.4.67 parse-cleanliness —
 #           necessary, NOT sufficient: behaviour is (2))
-#       (d) shell-hook.sh states the secret policy (STDIN-only command text) and
-#           shell-integration.bash never passes $BASH_COMMAND as an argument
+#       (d) shell-hook.sh states the ARGV0-ONLY secret policy, and
+#           shell-integration.bash never passes $BASH_COMMAND as an argument nor
+#           pipes command text to the helper
 #       (e) docs/label-sync/RENDERERS.md exists and names the load-bearing tokens:
 #           statusLine OSC labelrun PROMPT_COMMAND status-right UNCONFIRMED
-#   (2) RUNTIME (skipped with --structural-only, or when jq/go is absent — an
-#       honest SKIP §11.4.3, never a false PASS):
+#   (2) RUNTIME (skipped ONLY with an explicit --structural-only, reported as
+#       "STRUCTURAL ONLY" — never as a full pass; when jq/go/python3 is absent
+#       the gate exits 2 CANNOT DETERMINE, never 0 — §11.4.3 / §11.4.201):
 #       (f) tests/test_render.sh exits 0 (statusline / title / shell integration /
 #           labelrun / watch / tmux-status behaviour against a temp state dir and
 #           a live label-busd; latency + prompt-overhead bounds asserted inside)
@@ -33,12 +35,14 @@
 #   Runtime check uses a temp LABEL_SYNC_DIR (removed on exit) and starts/stops
 #   its own label-busd. Never touches ~/.claude* or a real state dir.
 # ── Dependencies ─────────────────────────────────────────────────────────────
-#   bash, grep; jq + go for the runtime check.
+#   bash, grep; jq + go + python3 for the runtime check.
 # ── Cross-references ─────────────────────────────────────────────────────────
 #   §11.4.182, §11.4.116, §11.4.18, §11.4.67, §1.1 (paired mutation), §11.4.201,
 #   CM-LABEL-SYNC-CORE (the contract this renders).
 # ── Exit codes ───────────────────────────────────────────────────────────────
-#   0 all checks PASS (runtime may SKIP) | 1 a check FAILed | 2 environment error.
+#   0 all checks PASS (with --structural-only: structural checks only, said so)
+#   | 1 a check FAILed | 2 cannot determine (missing jq/go/python3, test env
+#   error, bad root) — 2 is never a pass.
 # Classification: universal (§11.4.17).
 set -uo pipefail
 
@@ -76,27 +80,40 @@ for f in $EXEC; do
   need "render/$f §11.4.18 header (Purpose/Usage/Exit)" hdr_ok "$r/$f"
 done
 for f in $BASHPARSE; do need "render/$f passes bash -n" bash -n "$r/$f"; done
-need "shell-hook.sh states STDIN-only secret policy" grep -q 'STDIN' "$r/shell-hook.sh"
-need "shell-integration.bash never passes \$BASH_COMMAND as an argument" bash -c "! grep -qE -- '--cmd[ =]|cmd-start[^|]*\"\\\$BASH_COMMAND\"' '$r/shell-integration.bash'"
+need "shell-hook.sh states the ARGV0-ONLY secret policy" grep -q 'ARGV0-ONLY' "$r/shell-hook.sh"
+need "shell-integration.bash never passes \$BASH_COMMAND as an argument" bash -c "! grep -qE -- '--cmd[ =]|cmd-start[^|]*\"\\\$BASH_COMMAND\"|--argv0 \"\\\$BASH_COMMAND\"' '$r/shell-integration.bash'"
+need "shell-integration.bash never pipes command text to the helper" bash -c "! grep -qE -- '\\| *\\\$__LS_SETSID +\"\\\$__LS_HOOK\" +cmd-start' '$r/shell-integration.bash'"
 need "docs/label-sync/RENDERERS.md present" test -f "$doc"
 for tok in statusLine OSC labelrun PROMPT_COMMAND status-right UNCONFIRMED; do
   need "RENDERERS.md names '$tok'" grep -qF -- "$tok" "$doc"
 done
 
-if [ -n "$structural" ] || ! command -v jq >/dev/null 2>&1 || ! command -v go >/dev/null 2>&1; then
-  warn "⚠️  SKIP     runtime checks (--structural-only or jq/go absent — honest skip, §11.4.3)"
+undet=""
+if [ -n "$structural" ]; then
+  warn "⚠️  SKIP     runtime checks (--structural-only requested)"
 else
-  TMPD="$(mktemp -d "${TMPDIR:-/tmp}/cm_label_render.XXXXXX")"
-  trap 'rm -rf "$TMPD"' EXIT
-  if TMPDIR="$TMPD" nice -n 10 bash "$r/tests/test_render.sh" >"$TMPD/render_test.log" 2>&1; then
-    say "✅ PASS     tests/test_render.sh: $(grep '^RESULT' "$TMPD/render_test.log")"
-    say "           $(grep '^METRIC' "$TMPD/render_test.log" | tr '\n' ' ')"
+  missing=""
+  for t in jq go python3; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done
+  if [ -n "$missing" ]; then
+    warn "❓ UNDET    runtime checks cannot run (missing:$missing) — CANNOT DETERMINE, never a pass"; undet=1
   else
-    warn "❌ FAIL     tests/test_render.sh — failing cases:"; grep -E '^FAIL' "$TMPD/render_test.log" | head -15; fail=1
+    TMPD="$(mktemp -d "${TMPDIR:-/tmp}/cm_label_render.XXXXXX")"
+    trap 'rm -rf "$TMPD"' EXIT
+    TMPDIR="$TMPD" nice -n 10 bash "$r/tests/test_render.sh" >"$TMPD/render_test.log" 2>&1; trc=$?
+    if [ "$trc" -eq 0 ]; then
+      say "✅ PASS     tests/test_render.sh: $(grep '^RESULT' "$TMPD/render_test.log")"
+      say "           $(grep '^METRIC' "$TMPD/render_test.log" | tr '\n' ' ')"
+    elif [ "$trc" -eq 2 ]; then
+      warn "❓ UNDET    tests/test_render.sh exit 2 (environment): $(tail -n 2 "$TMPD/render_test.log" | tr '\n' ' ')"; undet=1
+    else
+      warn "❌ FAIL     tests/test_render.sh (exit $trc) — failing cases:"; grep -E '^FAIL' "$TMPD/render_test.log" | head -15; fail=1
+    fi
   fi
 fi
 
 echo "----------------------------------------------------------------------"
 if [ "$fail" -ne 0 ]; then echo "❌ ${GATE}: FAIL"; exit 1; fi
+if [ -n "$undet" ]; then echo "❓ ${GATE}: CANNOT DETERMINE — structural checks passed, runtime did not run"; exit 2; fi
+if [ -n "$structural" ]; then echo "✅ ${GATE}: PASS (STRUCTURAL ONLY — runtime behaviour NOT verified)"; exit 0; fi
 echo "✅ ${GATE}: PASS — label-sync renderers present, documented and working"
 exit 0
