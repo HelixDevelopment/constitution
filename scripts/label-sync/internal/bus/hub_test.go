@@ -64,7 +64,7 @@ func TestHubFansOutFromOneSubscription(t *testing.T) {
 // clients find via bus.addr.
 func TestLongStateDirFallsBackToShortSocket(t *testing.T) {
 	base := t.TempDir()
-	long := filepath.Join(base, strings.Repeat("d", 150-len(base)))
+	long := filepath.Join(base, strings.Repeat("d", max(10, 150-len(base))))
 	if len(long) < 150 {
 		t.Fatalf("test dir too short: %d", len(long))
 	}
@@ -96,7 +96,11 @@ func TestLongStateDirFallsBackToShortSocket(t *testing.T) {
 	if got := ResolveSocket(long); got != p {
 		t.Fatalf("ResolveSocket = %q want %q", got, p)
 	}
-	short := t.TempDir()
+	short, err := os.MkdirTemp("/tmp", "lsb") // guaranteed short
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(short)
 	if got := ResolveSocket(short); got != filepath.Join(short, "bus.sock") {
 		t.Fatalf("default resolve %q", got)
 	}

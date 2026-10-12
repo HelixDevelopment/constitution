@@ -63,7 +63,8 @@ func store(t *testing.T, dir string) *state.Store {
 func TestSingleInstanceAndCleanShutdown(t *testing.T) {
 	dir := t.TempDir()
 	d := start(t, dir)
-	waitFor(t, "pidfile+socket", func() bool { return exists(filepath.Join(dir, "busd.pid")) && exists(filepath.Join(dir, "bus.sock")) })
+	waitFor(t, "pidfile+socket", func() bool { return exists(filepath.Join(dir, "busd.pid")) && exists(bus.ResolveSocket(dir)) })
+	sock := bus.ResolveSocket(dir)
 	var e2 bytes.Buffer
 	ctx2, c2 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer c2()
@@ -80,7 +81,7 @@ func TestSingleInstanceAndCleanShutdown(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("daemon did not shut down")
 	}
-	if exists(filepath.Join(dir, "busd.pid")) || exists(filepath.Join(dir, "bus.sock")) {
+	if exists(filepath.Join(dir, "busd.pid")) || exists(sock) || exists(filepath.Join(dir, bus.AddrFile)) {
 		t.Fatal("clean shutdown must remove busd.pid and bus.sock")
 	}
 	if !strings.Contains(d.log.String(), "clean shutdown") {
@@ -114,7 +115,7 @@ func TestSocketFanOutToSeveralClients(t *testing.T) {
 	dir := t.TempDir()
 	s := store(t, dir)
 	start(t, dir)
-	waitFor(t, "socket", func() bool { return exists(filepath.Join(dir, "bus.sock")) })
+	waitFor(t, "socket", func() bool { return exists(bus.ResolveSocket(dir)) })
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var chs []<-chan model.Event
@@ -144,7 +145,7 @@ func TestSocketFanOutToSeveralClients(t *testing.T) {
 func TestLongStateDirUsesRecordedShortSocket(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", "")
 	base := t.TempDir()
-	dir := filepath.Join(base, strings.Repeat("x", 150-len(base)))
+	dir := filepath.Join(base, strings.Repeat("x", max(10, 150-len(base))))
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}

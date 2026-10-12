@@ -132,7 +132,11 @@ func SocketPathFor(dir string) (path string, fallback bool, err error) {
 	if x := os.Getenv("XDG_RUNTIME_DIR"); x != "" && filepath.IsAbs(x) {
 		cands = append(cands, filepath.Join(x, "ls-"+h))
 	}
-	cands = append(cands, filepath.Join(os.TempDir(), fmt.Sprintf("ls-%d-%s", os.Getuid(), h)))
+	leaf := fmt.Sprintf("ls-%d-%s", os.Getuid(), h)
+	cands = append(cands, filepath.Join(os.TempDir(), leaf))
+	if os.TempDir() != "/tmp" { // $TMPDIR may itself be too long
+		cands = append(cands, filepath.Join("/tmp", leaf))
+	}
 	var last error
 	for _, d := range cands {
 		p := filepath.Join(d, "bus.sock")

@@ -3,7 +3,6 @@ package bus
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -91,7 +90,10 @@ func TestSubscribeSinceSkipsOld(t *testing.T) {
 
 func TestSocketFanOutAndLatency(t *testing.T) {
 	s := newStore(t)
-	sock := filepath.Join(t.TempDir(), "bus.sock")
+	sock, _, err := SocketPathFor(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	srvErr := make(chan error, 1)
@@ -148,7 +150,10 @@ func TestSocketFanOutAndLatency(t *testing.T) {
 
 func TestServeRefusesLiveSocketReplacesStale(t *testing.T) {
 	s := newStore(t)
-	sock := filepath.Join(t.TempDir(), "bus.sock")
+	sock, _, err := SocketPathFor(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	// stale: a plain file where the socket should be
 	if err := os.WriteFile(sock, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
