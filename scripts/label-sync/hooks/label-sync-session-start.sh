@@ -34,7 +34,7 @@ main() {
   ls_have_bin || return 0
   LS_PAYLOAD_MODEL="$LS_TOMODEL"            # SessionStart's own `model` (string only)
   ls_ensure_session "session-start" || return 0
-  local lbl; lbl="$(ls_ctl label "$(ls_session_entity)")" || return 0
+  local lbl="${LS_LABEL%%$'\n'*}"             # the label register printed
   [ -n "$lbl" ] || return 0
   ls_emit_context SessionStart "[label-sync] work-stream label of this session: $lbl (pinned to the alias this session runs under)"
 }

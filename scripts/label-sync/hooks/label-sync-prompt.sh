@@ -44,7 +44,7 @@ main() {
     if [ -n "${LS_PROMPT_BIG:-}" ]; then
       # large prompt: never a shell copy, never an argv (E2BIG at 128 KiB) —
       # jq streams it from the payload into the 0600 temp file.
-      if rha_prepare; then
+      if rha_prepare --tmp; then
         printf '%s' "$LS_PAYLOAD" | jq -j '(.prompt // .user_prompt // "") | if type=="string" then . else "" end' >"$RHA_TMP" 2>/dev/null
         rha_append_file "$LS_SID" "$RHA_TMP" "$track" "$alias" "$model" "$effort" "$LS_CWD" >/dev/null
       else
@@ -67,13 +67,16 @@ main() {
   [ -n "$alias" ] && u+=(--alias "$alias" --follow-active false)
   [ -n "$model" ] && u+=(--model "$model")
   [ -n "$effort" ] && u+=(--effort "$effort")
-  local rc=0
-  ls_ctl "${u[@]}" >/dev/null || rc=$?
+  # `update` (like `register`) prints the rendered EFFECTIVE label after the
+  # write — that is the additionalContext; no second `labelctl label` spawn.
+  local rc=0 eff
+  eff="$(ls_ctl "${u[@]}")" || rc=$?
   [ "$rc" -eq 2 ] && return 0          # lock busy / state unusable: no further waits
   if [ "$rc" -ne 0 ]; then
     ls_ensure_session "prompt" || return 0
+    eff="$LS_LABEL"
   fi
-  local eff; eff="$(ls_ctl label "$id")" || return 0
+  eff="${eff%%$'\n'*}"
   [ -n "$eff" ] || return 0
   ls_emit_context UserPromptSubmit "[label-sync] current work-stream label: $eff"
 }

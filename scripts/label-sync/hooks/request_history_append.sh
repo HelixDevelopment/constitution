@@ -78,7 +78,7 @@ _RHA_PL='
 use strict; use warnings;
 use Digest::SHA qw(sha256_hex);
 my ($pf,$ledger,$last,$md,$max,$win,$mdmax,$mdpmax,$cdir,$now,$acc,$tz,$sid,$tr,$al,$mo,$ef,$cwd)=@ARGV;
-my $p=do { local $/; open(my $fh,"<:raw",$pf) or exit 1; my $x=<$fh>; close $fh; defined $x ? $x : "" };
+my $p=do { local $/; my $fh; if ($pf ne "") { open($fh,"<:raw",$pf) or exit 1 } else { $fh=\*STDIN; binmode $fh } my $x=<$fh>; defined $x ? $x : "" };
 my $bytes=length($p); my $sha=sha256_hex($p);
 if ($last ne "" && open(my $lf,"<",$last)) { my $l=<$lf>; close $lf;
   if (defined $l && $l =~ /^(\d+) ([0-9a-f]{64})/) { exit 3 if $2 eq $sha && $now-$1 < $win; } }
@@ -150,34 +150,43 @@ rha_ledger_path() {
   case "$RHA_LEDGER" in /*) ;; *) RHA_LEDGER="${CLAUDE_PROJECT_DIR:-$PWD}/$RHA_LEDGER" ;; esac
   return 0
 }
-# rha_prepare : sets RHA_BASE (0700 state dir, '' if unusable) and RHA_TMP (a
-# fresh 0600 temp file in it). Returns 1 when no temp file could be made.
+# rha_prepare : sets RHA_BASE (the 0700 state dir, '' if unusable).
+# rha_prepare --tmp : additionally makes RHA_TMP, a fresh 0600 temp file in it
+# (only large prompts need one; small ones reach perl through a pipe).
 rha_prepare() {
   RHA_BASE="${LS_LEDGER_STATE:-${TMPDIR:-/tmp}/label-sync-ledger-${UID:-0}}"; RHA_TMP=""
-  ( umask 077; mkdir -p "$RHA_BASE/ledger-last" ) 2>/dev/null
+  [ -d "$RHA_BASE/ledger-last" ] || ( umask 077; mkdir -p "$RHA_BASE/ledger-last" ) 2>/dev/null
   [ -d "$RHA_BASE/ledger-last" ] && [ -O "$RHA_BASE" ] || { RHA_BASE=""; return 1; }
+  [ "${1:-}" = --tmp ] || return 0
   RHA_TMP="$RHA_BASE/.prompt.$$.$RANDOM"
   ( umask 077; : >"$RHA_TMP" ) 2>/dev/null || { RHA_TMP=""; return 1; }
   return 0
 }
 
 # rha_append sid prompt track alias model effort cwd — see the header for exits.
+# The text goes to perl through a PIPE (never an argv, never a temp file).
 rha_append() {
   [ -n "$2" ] || return 0
   rha_ledger_path || return 0
-  if ! rha_prepare; then rha_lost_row "$1" "$2" "$3" "$4" "$5" "$6" "$7" "no state dir for the 0600 temp file"; return $?; fi
-  printf '%s' "$2" >"$RHA_TMP" 2>/dev/null
-  rha_append_file "$1" "$RHA_TMP" "$3" "$4" "$5" "$6" "$7"
+  rha_prepare || true                 # no state dir => no dedupe/lock, still recorded
+  _rha_run "" "$1" "$3" "$4" "$5" "$6" "$7" "$2"
 }
 
-# rha_append_file sid prompt-file track alias model effort cwd — the core.
-# CONSUMES prompt-file (a 0600 file made by rha_prepare): it is removed.
+# rha_append_file sid prompt-file track alias model effort cwd — for a LARGE
+# prompt already streamed into RHA_TMP (rha_prepare --tmp). CONSUMES the file.
 rha_append_file() {
-  local sid="$1" pf="$2" track="$3" alias="$4" model="$5" effort="$6" cwd="$7"
+  local r=0
+  if ! rha_ledger_path; then rm -f -- "$2"; return 0; fi
+  if [ -s "$2" ]; then _rha_run "$2" "$1" "$3" "$4" "$5" "$6" "$7" ""; r=$?; fi
+  rm -f -- "$2"; return "$r"
+}
+
+# _rha_run prompt-file|'' sid track alias model effort cwd prompt-string — the
+# core: ONE perl process (under the state-dir flock when available).
+_rha_run() {
+  local pf="$1" sid="$2" track="$3" alias="$4" model="$5" effort="$6" cwd="$7"
   # sid names a dedupe-state FILE: only a safe id is used (review finding 3).
   [[ "$sid" =~ ^[A-Za-z0-9_-]{1,128}$ ]] || sid=""
-  if ! rha_ledger_path; then rm -f -- "$pf"; return 0; fi
-  [ -s "$pf" ] || { rm -f -- "$pf"; return 0; }    # empty prompt: nothing to record
   local ledger="$RHA_LEDGER" base="${RHA_BASE:-}" ldir="${RHA_LEDGER%/*}" last="" lock="" md=""
   [ -n "$base" ] && { last="$base/ledger-last/${sid:-nosession}"; lock="$base/ledger.lock"; }
   [ -d "$ldir" ] || mkdir -p "$ldir" 2>/dev/null
@@ -192,15 +201,14 @@ rha_append_file() {
   if ! command -v perl >/dev/null 2>&1; then
     rc=10; reason="no redactor (perl) available"
   elif [ -n "$lock" ] && command -v flock >/dev/null 2>&1; then
-    ( flock -w 3 9 || exit 4; exec perl -e "$_RHA_PL" "${args[@]}" ) 9>>"$lock" 2>/dev/null; rc=$?
+    printf '%s' "$8" | { flock -w 3 9 || exit 4; exec perl -e "$_RHA_PL" "${args[@]}"; } 9>>"$lock" 2>/dev/null; rc=$?
     reason="row builder exit $rc"
   else
-    perl -e "$_RHA_PL" "${args[@]}" 2>/dev/null; rc=$?; reason="row builder exit $rc"
+    printf '%s' "$8" | perl -e "$_RHA_PL" "${args[@]}" 2>/dev/null; rc=$?; reason="row builder exit $rc"
   fi
-  if [ "$rc" -eq 0 ] || [ "$rc" -eq 3 ]; then rm -f -- "$pf"; return 0; fi
+  if [ "$rc" -eq 0 ] || [ "$rc" -eq 3 ]; then return 0; fi
   local kind=lost; [ "$rc" -eq 10 ] && kind=withheld
-  RHA_KIND="$kind" rha_lost_row "$sid" "" "$track" "$alias" "$model" "$effort" "$cwd" "$reason" "$pf"
-  local r=$?; rm -f -- "$pf"; return "$r"
+  RHA_KIND="$kind" rha_lost_row "$sid" "$8" "$track" "$alias" "$model" "$effort" "$cwd" "$reason" "$pf"
 }
 
 # rha_lost_row sid prompt track alias model effort cwd reason [prompt-file]
@@ -234,7 +242,7 @@ if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
   [ -n "$IN" ] || exit 0
   eval "$(printf '%s' "$IN" | jq -r 'def s: if type=="string" then . else "" end; @sh "sid=\(.session_id // "" | s) track=\(.track // "" | s) alias=\(.alias // "" | s) model=\(.model // "" | s) effort=\(.effort // "" | s) cwd=\(.cwd // "" | s)"' 2>/dev/null)" || exit 0
   rha_ledger_path || exit 0
-  if ! rha_prepare; then
+  if ! rha_prepare --tmp; then
     rha_lost_row "${sid:-}" "$(printf '%s' "$IN" | jq -j '.prompt // "" | if type=="string" then . else "" end' 2>/dev/null)" "${track:-}" "${alias:-}" "${model:-}" "${effort:-}" "${cwd:-}" "no state dir for the 0600 temp file"
     exit $?
   fi

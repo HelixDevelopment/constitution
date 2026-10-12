@@ -720,6 +720,38 @@ check "F11 toolkit wrapper CODE (comments excluded) does not use 'declare -F' (a
 check "F11 control needle: the same comment-stripping instrument DOES see code lines (typeset -f)" bash -c "grep -v '^[[:space:]]*#' '$WRAPPER' | grep -q 'typeset -f'"
 
 # =========================================================================
+echo "== 17. F6: post_update_hook.sh in a WORKTREE / non-git consumer never aborts before step 4c =="
+FC6="$T/fakeconst6"; mkdir -p "$FC6/scripts/label-sync/hooks" "$FC6/scripts/hooks" "$FC6/scripts/label-sync/render"
+cp "$POSTHOOK" "$FC6/scripts/post_update_hook.sh"
+cp -r "$LS/hooks/." "$FC6/scripts/label-sync/hooks/"; cp "$INSTALLER" "$FC6/scripts/label-sync/install_label_sync.sh"
+cp "$FIXREND" "$FC6/scripts/label-sync/render/statusline.sh"; echo '# c' >"$FC6/Constitution.md"
+( cd "$FC6" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
+  && printf '#!/bin/sh\nexit 0\n' >scripts/hooks/post-merge && printf '#!/bin/sh\necho suite\n' >scripts/hooks/test_label_sync_hooks.sh \
+  && printf '#!/bin/sh\n' >scripts/hooks/guard-something.sh \
+  && echo '# touched' >>scripts/label-sync/hooks/label-sync-lib.sh && git add -A && git -c user.email=t@t -c user.name=t commit -q -m change )
+WTM="$T/wtmain"; mkdir -p "$WTM"
+( cd "$WTM" && git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init && git worktree add -q "$T/wtcons" -b wt ) >/dev/null 2>&1
+check "F6 fixture: the consumer is a worktree (.git is a FILE, no .git/hooks dir)" bash -c "[ -f '$T/wtcons/.git' ] && [ ! -d '$T/wtcons/.git/hooks' ]"
+HOOKS_DIR="$(cd "$T/wtcons" && git rev-parse --path-format=absolute --git-path hooks 2>/dev/null)"
+( cd "$T/wtcons" && CONST_DIR="$FC6" PROJECT_ROOT="$T/wtcons" LABEL_SYNC_AUTOWIRE=apply bash "$FC6/scripts/post_update_hook.sh" ) >"$T/ph6.out" 2>&1; rc=$?
+eq "F6 worktree consumer: post_update_hook exits 0" "$rc" 0
+check "F6 worktree consumer: step 4c ran" grep -q 'STEP 4c' "$T/ph6.out"
+check "F6 worktree consumer: the run reached step 5 and the summary" bash -c "grep -q 'STEP 5' '$T/ph6.out' && grep -q 'Post-update hook completed' '$T/ph6.out'"
+check "F6 worktree consumer: label-sync hooks were wired" jq -e '.hooks.SessionStart' "$T/wtcons/.claude/settings.json"
+check "F6 a real git hook name (post-merge) is installed into git's hooks path ($HOOKS_DIR)" test -x "$HOOKS_DIR/post-merge"
+check "F6 a NON-hook file (test_label_sync_hooks.sh) is NOT copied into the hooks dir" test ! -e "$HOOKS_DIR/test_label_sync_hooks.sh"
+check "F6 a NON-hook file (guard-*.sh) is NOT copied into the hooks dir" test ! -e "$HOOKS_DIR/guard-something.sh"
+NG="$T/nogit"; mkdir -p "$NG"
+( cd "$NG" && CONST_DIR="$FC6" PROJECT_ROOT="$NG" LABEL_SYNC_AUTOWIRE=apply bash "$FC6/scripts/post_update_hook.sh" ) >"$T/ph7.out" 2>&1; rc=$?
+eq "F6 non-git consumer: post_update_hook exits 0 (missing hooks dir is a warning, not an abort)" "$rc" 0
+check "F6 non-git consumer: step 4c still ran" grep -q 'STEP 4c' "$T/ph7.out"
+# step 4c itself never aborts the hook, even when the installer refuses
+BADC="$T/badcons"; mkdir -p "$BADC/.claude"; printf '{ broken' >"$BADC/.claude/settings.json"
+( cd "$BADC" && CONST_DIR="$FC6" PROJECT_ROOT="$BADC" LABEL_SYNC_AUTOWIRE=apply bash "$FC6/scripts/post_update_hook.sh" ) >"$T/ph8.out" 2>&1; rc=$?
+check "F6 installer refusal inside step 4c is reported as a warning" grep -q 'install_label_sync.sh exited' "$T/ph8.out"
+check "F6 ...and the hook still reaches step 5 (step 4c never aborts the run)" grep -q 'STEP 5' "$T/ph8.out"
+
+# =========================================================================
 echo "----------------------------------------------------------------------"
 echo "label-sync hooks suite: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

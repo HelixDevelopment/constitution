@@ -63,10 +63,20 @@ ls_init() {
 # detached background build (rate-limited) and returns 1: the hook then exits 0
 # silently — the next event re-asserts state (level-triggered), nothing is lost.
 # A STALE-but-present binary is still used (and a rebuild is kicked).
+# The staleness probe (a `find` over the Go sources, ~5 ms) runs at most once
+# per 60 s per binary dir: the last-check epoch lives in a stamp file read and
+# written with builtins only (no spawn on the hot path otherwise).
 ls_have_bin() {
   if [ -x "$LS_CTL_BIN" ]; then
-    if [ -n "$(find "$LS_DIR" \( -name '*.go' -o -name go.mod \) -newer "$LS_CTL_BIN" -print -quit 2>/dev/null)" ]; then
-      ls_kick_build
+    local stamp="$LS_BINDIR/.hook-stale-check" now last=0
+    printf -v now '%(%s)T' -1
+    [ -f "$stamp" ] && { IFS= read -r last <"$stamp"; } 2>/dev/null
+    case "$last" in ''|*[!0-9]*) last=0 ;; esac
+    if [ $((now - last)) -ge 60 ]; then
+      printf '%s\n' "$now" >"$stamp" 2>/dev/null
+      if [ -n "$(find "$LS_DIR" \( -name '*.go' -o -name go.mod \) -newer "$LS_CTL_BIN" -print -quit 2>/dev/null)" ]; then
+        ls_kick_build
+      fi
     fi
     return 0
   fi
@@ -291,7 +301,9 @@ ls_ensure_session() {
   [ -n "$model" ] && a+=(--model "$model")
   [ -n "$effort" ] && a+=(--effort "$effort")
   local pid; pid="$(ls_claude_pid)"; [ "$pid" -gt 0 ] 2>/dev/null && a+=(--pid "$pid")
-  ls_ctl "${a[@]}" >/dev/null || { ls_dbg "register session failed (source=$src)"; return 1; }
+  # register prints the rendered (effective) label after the write: kept in
+  # LS_LABEL so callers need no second `labelctl label` spawn.
+  LS_LABEL="$(ls_ctl "${a[@]}")" || { LS_LABEL=""; ls_dbg "register session failed (source=$src)"; return 1; }
   return 0
 }
 
