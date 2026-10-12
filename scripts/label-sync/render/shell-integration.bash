@@ -126,7 +126,7 @@ __ls_debug() {
 __ls_debug_body() {
   [ "$__ls_in_prompt" = 1 ] && return 0
   [ -n "$__ls_started" ] && return 0
-  [[ $BASH_COMMAND == __ls_* ]] && return 0
+  [[ $BASH_COMMAND == __ls_* || $BASH_COMMAND == *__LS_DBG_INSTALL* ]] && return 0
   [ -n "${COMP_LINE:-}" ] && return 0
   __ls_started=1
   [ "$((SECONDS - __ls_cmd_at))" -lt "$__LS_MIN" ] 2>/dev/null && return 0
@@ -145,25 +145,41 @@ __ls_exit() {
 }
 
 # --- install (idempotent; chains pre-existing traps / PROMPT_COMMAND) -------
-if [[ "$(declare -p PROMPT_COMMAND 2>/dev/null)" == "declare -a"* ]]; then
-  PROMPT_COMMAND+=(__ls_precmd)
-elif [ -n "${PROMPT_COMMAND:-}" ]; then
-  PROMPT_COMMAND="${PROMPT_COMMAND%;};__ls_precmd"
-else
-  PROMPT_COMMAND="__ls_precmd"
-fi
-# Build the trap string for SIG that runs <fn> first, then any pre-existing
-# handler. Computed in a function but INSTALLED at the top level of this file
-# (a trap installed from inside a function would be traced into functions).
-__ls_trapstr() { # <SIG> <our-function>
-  local sig="$1" fn="$2" prev p=""
-  prev="$(trap -p "$sig")"
+# __ls_trapstr SIG FN "TRAP -P OUTPUT": __ls_ts = FN, then any pre-existing handler.
+__ls_trapstr() {
+  local sig="$1" fn="$2" prev="${3%$'\n'}" p=""
+  __ls_ts="$fn"
   if [ -n "$prev" ]; then p="${prev#trap -- }"; p="${p% "$sig"}"; eval "p=$p"; fi
-  if [ -n "$p" ]; then printf '%s; %s' "$fn" "$p"; else printf '%s' "$fn"; fi
+  if [ -n "$p" ]; then __ls_ts="$fn; $p"; fi
+  return 0
 }
-__ls_ts="$(__ls_trapstr DEBUG '__ls_debug "$_"')"; trap "$__ls_ts" DEBUG
-__ls_ts="$(__ls_trapstr EXIT __ls_exit)"; trap "$__ls_ts" EXIT
-unset __ls_ts
+# DEBUG: bash unsets the DEBUG trap while a file is `source`d (unless `set -T`)
+# and a DEBUG trap set by the sourced file REPLACES the saved one — so a user's
+# DEBUG trap cannot even be read from here (measured: `trap -p DEBUG` prints
+# nothing), and installing ours here silently dropped it (review finding 6).
+# Interactive shells therefore install it at the FIRST PROMPT, from top-level
+# PROMPT_COMMAND code, where `trap -p DEBUG` sees the user's trap and chains it.
+# Non-interactive shells (scripts) install it now; a script's earlier DEBUG
+# trap is chained only under `set -T` (otherwise invisible — documented).
+__LS_DBG_INSTALL='__ls_tp="$(trap -p DEBUG)"; __ls_trapstr DEBUG "__ls_debug \"\$_\"" "$__ls_tp"; trap -- "$__ls_ts" DEBUG; unset __ls_tp __ls_ts __LS_DBG_INSTALL'
+__ls_pc=__ls_precmd
+if [[ $- == *i* ]]; then __ls_pc='eval "${__LS_DBG_INSTALL-}";__ls_precmd'; fi
+if [[ "$(declare -p PROMPT_COMMAND 2>/dev/null)" == "declare -a"* ]]; then
+  PROMPT_COMMAND+=("$__ls_pc")
+elif [ -n "${PROMPT_COMMAND:-}" ]; then
+  PROMPT_COMMAND="${PROMPT_COMMAND%;};$__ls_pc"
+else
+  PROMPT_COMMAND="$__ls_pc"
+fi
+unset __ls_pc
+if [[ $- != *i* ]]; then eval "$__LS_DBG_INSTALL"; fi
+# EXIT: `trap -p EXIT` is read at this file's top level through a private temp
+# file (no command substitution, no function), then chained the same way.
+__ls_tf="$(mktemp "${TMPDIR:-/tmp}/ls_trap.XXXXXX" 2>/dev/null)" || __ls_tf=""
+__ls_tp=""
+if [ -n "$__ls_tf" ]; then trap -p EXIT >"$__ls_tf" 2>/dev/null; IFS= read -r -d '' __ls_tp <"$__ls_tf" || :; rm -f -- "$__ls_tf"; fi
+__ls_trapstr EXIT __ls_exit "$__ls_tp"; trap "$__ls_ts" EXIT
+unset __ls_ts __ls_tp __ls_tf
 if [ -n "${LABEL_SYNC_PS1:-}" ]; then
   PS1='${__LS_SEG:+$__LS_SEG }'"$PS1"
 fi

@@ -352,6 +352,19 @@ CEOF
 if command -v script >/dev/null 2>&1; then
   TTYO="$( { sleep 1; printf '\003'; sleep 3; } | script -qec "bash '$LR' -- bash '$CNT'" /dev/null 2>&1 | tr -d '\r')"
   has "D13 tty Ctrl-C delivered to the child exactly once (trap active: INT not ignored)" "INTS=1" "$TTYO"
+  # D13b: the decision itself. Two near-simultaneous SIGINTs coalesce, so D13
+  # cannot see a duplicate; instead send `kill -INT <labelrun>` (NOT via the tty)
+  # while the child sits in the terminal's foreground group: labelrun must NOT
+  # forward it (the documented rule), so the child counts 0.
+  PIDF="$TMPD/d13b.pid"; rm -f "$PIDF"
+  CNT2="$TMPD/intcount2.sh"
+  printf '#!/usr/bin/env bash\necho "$PPID" >"%s"\nn=0; trap '"'"'n=$((n+1))'"'"' INT\nfor _ in $(seq 25); do sleep 0.1 || :; done\necho "INTS=$n"\n' "$PIDF" >"$CNT2"
+  ( wait_for 5 test -s "$PIDF"; lp="$(cat "$PIDF")"
+    case "$lp" in ''|*[!0-9]*) ;; *) [ "$lp" -gt 1 ] && grep -qa labelrun "/proc/$lp/cmdline" && kill -INT "$lp" ;; esac ) &
+  KP=$!
+  TTYO2="$( { sleep 4; } | script -qec "bash '$LR' -- bash '$CNT2'" /dev/null 2>&1 | tr -d '\r')"
+  wait "$KP" 2>/dev/null
+  has "D13b external SIGINT to labelrun is not duplicated onto a tty-foreground child" "INTS=0" "$TTYO2"
 else echo "SKIP  D13 tty Ctrl-C (script(1) not installed)"; fi
 # all runs ended in done
 LEFT="$("$LCTL" list --json | jq -r '.entities | map(select(.state=="running")) | length')"
@@ -497,7 +510,6 @@ cat >"$TR" <<'TEOF'
 #!/usr/bin/env bash
 export LABEL_SYNC_DIR=/proc/nonexistent/x LABEL_SYNC_LABELCTL=/nonexistent LABEL_SYNC_CMD_MIN_INTERVAL=0
 F="$2"
-trap 'echo PREVDBG >>"$F"' DEBUG
 PROMPT_COMMAND='echo PREVPC >>"$F"'
 source "$1/shell-integration.bash"
 true lastarg1; echo "U1=$_"
@@ -511,7 +523,19 @@ TEOF
 has "G20 DEBUG trap preserves \$_ (first command of a cycle)" "U1=lastarg1" "$TRO"
 has "G20b DEBUG trap preserves \$_ (later command, early-return path)" "U2=lastarg2" "$TRO"
 has "G20c DEBUG trap preserves \$_ after a prompt cycle" "U3=lastarg3" "$TRO"
-has "G22 a pre-existing DEBUG trap still runs (chained, not dropped)" "PREVDBG" "$(cat "$TMPD/tr_f")"
+# G22: a pre-existing DEBUG trap is chained. bash hides it inside `source`
+# unless `set -T` (script case), so an INTERACTIVE shell installs ours at the
+# first prompt (G22b, driven on a pty). Only lines written AFTER sourcing count.
+: >"$TMPD/tr_d"
+bash -c 'set -T; export LABEL_SYNC_DIR=/proc/nonexistent/x LABEL_SYNC_LABELCTL=/nonexistent; F="$2"; trap "echo PREVDBG >>\"\$F\"" DEBUG; source "$1/shell-integration.bash"; : >"$F"; true a; true b; trap - EXIT' _ "$RENDER" "$TMPD/tr_d" 2>/dev/null
+has "G22 script (set -T): a pre-existing DEBUG trap still runs (chained, not dropped)" "PREVDBG" "$(cat "$TMPD/tr_d")"
+if command -v script >/dev/null 2>&1; then
+  : >"$TMPD/tr_i"
+  printf 'export LABEL_SYNC_DIR=/proc/nonexistent/x LABEL_SYNC_LABELCTL=/nonexistent\ntrap '"'"'echo PREVDBG >>"%s"'"'"' DEBUG\nsource "%s/shell-integration.bash"\n: >"%s"\nPS1="P> "\n' "$TMPD/tr_i" "$RENDER" "$TMPD/tr_i" >"$TMPD/irc"
+  IOUT="$(printf 'true lastarg9\ntrap -p DEBUG\nexit\n' | script -qec "bash --noprofile --rcfile '$TMPD/irc' -i" /dev/null 2>&1 | tr -d '\r')"
+  has "G22b interactive bash: a DEBUG trap set before sourcing still runs after the first prompt" "PREVDBG" "$(cat "$TMPD/tr_i")"
+  has "G22c interactive bash: our hook is installed too (chained first)" "__ls_debug" "$IOUT"
+else echo "SKIP  G22b/G22c interactive DEBUG chaining (script(1) not installed)"; fi
 has "G23 a pre-existing PROMPT_COMMAND still runs (chained, not clobbered)" "PREVPC" "$(cat "$TMPD/tr_f")"
 TA="$(bash -c 'PROMPT_COMMAND=(prevpc_a); source "'"$RENDER"'/shell-integration.bash"; echo "${PROMPT_COMMAND[*]}"; trap - EXIT' 2>/dev/null)"
 eq "G23b array PROMPT_COMMAND keeps the previous element and appends ours" "prevpc_a __ls_precmd" "$TA"
