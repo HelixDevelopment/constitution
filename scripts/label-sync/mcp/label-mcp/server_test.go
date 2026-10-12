@@ -606,3 +606,33 @@ func TestBinaryStdio(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A client that pipelines dependent calls (register, switch, get — without waiting
+// for each answer) MUST see them applied in arrival order: JSON-RPC does not order
+// concurrent requests, but a shell script feeding stdin expects read-after-write.
+func TestPipelinedDependentCallsKeepArrivalOrder(t *testing.T) {
+	for i := 0; i < 40; i++ {
+		s, _ := newTestServer(t)
+		r := rpc(t, s,
+			call(1, "label_register", map[string]any{"id": "f", "kind": "agent", "track": "1", "branch": "b", "follow_active": true}),
+			call(2, "label_switch_alias", map[string]any{"alias": "claude2", "model": "sonnet", "effort": "xhigh"}),
+			call(3, "label_get", map[string]any{"id": "f"}),
+			call(4, "label_heartbeat", map[string]any{"id": "f", "state": "idle"}),
+			call(5, "label_get", map[string]any{"id": "f"}),
+			call(6, "label_done", map[string]any{"id": "f"}),
+			call(7, "label_get", map[string]any{"id": "f"}))
+		if len(r) != 7 {
+			t.Fatalf("iter %d: want 7 responses, got %d", i, len(r))
+		}
+		isErr, p, txt := toolResult(t, r[2])
+		if isErr || p["label"] != "(T1/b - claude2 - sonnet - xhigh)" {
+			t.Fatalf("iter %d: get after pipelined register+switch = isErr=%v %s", i, isErr, txt)
+		}
+		if _, p, _ := toolResult(t, r[4]); p["state"] != "idle" {
+			t.Fatalf("iter %d: get after heartbeat state=%v", i, p["state"])
+		}
+		if _, p, _ := toolResult(t, r[6]); p["state"] != "done" {
+			t.Fatalf("iter %d: get after done state=%v", i, p["state"])
+		}
+	}
+}

@@ -72,6 +72,63 @@ type server struct {
 	once  sync.Once
 	st    *state.Store
 	stErr error
+
+	// arrival-order scheduler (see sched)
+	smu      sync.Mutex
+	lastMut  chan struct{}
+	inflight map[chan struct{}]struct{}
+}
+
+// sched implements READ-AFTER-WRITE ordering for pipelined requests. A client
+// that writes register, switch and get to stdin without waiting for answers must
+// see them applied in arrival order. Rules: a MUTATING request (register,
+// heartbeat, done, switch_alias, any batch) starts only after EVERY earlier
+// request has finished; any other request starts after the latest earlier
+// mutation has finished and then runs concurrently with other reads. The
+// returned func MUST be called when the request completes.
+func (s *server) sched(mutating bool) (wait []chan struct{}, finish func()) {
+	done := make(chan struct{})
+	s.smu.Lock()
+	if s.inflight == nil {
+		s.inflight = map[chan struct{}]struct{}{}
+	}
+	if mutating {
+		for c := range s.inflight {
+			wait = append(wait, c)
+		}
+		s.lastMut = done
+	} else if s.lastMut != nil {
+		wait = append(wait, s.lastMut)
+	}
+	s.inflight[done] = struct{}{}
+	s.smu.Unlock()
+	return wait, func() {
+		s.smu.Lock()
+		delete(s.inflight, done)
+		s.smu.Unlock()
+		close(done)
+	}
+}
+
+// isMutating peeks at a raw request line (cheaply, without trusting it).
+func isMutating(raw []byte) bool {
+	if len(raw) > 0 && raw[0] == '[' {
+		return true
+	}
+	var p struct {
+		Method string `json:"method"`
+		Params struct {
+			Name string `json:"name"`
+		} `json:"params"`
+	}
+	if json.Unmarshal(raw, &p) != nil || p.Method != "tools/call" {
+		return false
+	}
+	switch p.Params.Name {
+	case "label_register", "label_heartbeat", "label_done", "label_switch_alias":
+		return true
+	}
+	return false
 }
 
 func newServer(o state.Options) *server { return &server{opts: o} }
@@ -128,9 +185,11 @@ func errResp(id json.RawMessage, code int, msg string) *response {
 }
 
 // Serve reads newline-delimited JSON-RPC from r and writes responses to w until
-// EOF. Requests EXECUTE concurrently (one goroutine each) but responses are
-// EMITTED in request order, so a client that pipelines sees deterministic output
-// and a slow call never corrupts framing. It returns nil on clean EOF after
+// EOF. Reads EXECUTE concurrently; mutations are ordered after everything that
+// arrived before them and reads after the latest mutation (see sched), so a
+// client that pipelines dependent calls gets read-after-write. Responses are
+// EMITTED in request order, so output is deterministic and a slow call never
+// corrupts framing. It returns nil on clean EOF after
 // every in-flight request has been answered.
 func (s *server) Serve(r io.Reader, w io.Writer) error {
 	slots := make(chan chan []byte, 4096)
@@ -163,7 +222,12 @@ func (s *server) Serve(r io.Reader, w io.Writer) error {
 			raw := append([]byte(nil), t...)
 			slot := make(chan []byte, 1)
 			slots <- slot
+			wait, finish := s.sched(isMutating(raw)) // registered in ARRIVAL order, before the goroutine starts
 			go func() {
+				defer finish()
+				for _, c := range wait {
+					<-c
+				}
 				var out []byte
 				s.handleLine(raw, func(v any) { out = enc(v) })
 				slot <- out
@@ -195,16 +259,9 @@ func (s *server) handleLine(raw []byte, write func(any)) {
 			write(errResp(nil, errInvalidRequest, "empty batch"))
 			return
 		}
-		out := make([]*response, len(items))
-		var wg sync.WaitGroup
-		for i, it := range items {
-			wg.Add(1)
-			go func(i int, it json.RawMessage) { defer wg.Done(); out[i] = s.handleOne(it) }(i, it)
-		}
-		wg.Wait()
-		var resp []*response
-		for _, x := range out {
-			if x != nil {
+		var resp []*response // in order: a batch is one barrier, its items run sequentially
+		for _, it := range items {
+			if x := s.handleOne(it); x != nil {
 				resp = append(resp, x)
 			}
 		}
