@@ -7,12 +7,15 @@
 #           §11.4.233); (2) appends the §11.4.208 per-prompt request-history
 #           ledger row EXACTLY ONCE via request_history_append.sh; (3) emits the
 #           live (effective) label as additionalContext so the model itself
-#           always sees its current track/alias/model/effort.
+#           always sees its current track/alias/model/effort — the session's OWN
+#           (pinned) binding, re-asserted in the single update.
 # Usage   : configured in settings.json hooks.UserPromptSubmit; stdin = hook JSON
 #           ({session_id, cwd, prompt}).
-# Inputs  : stdin JSON; env CLAUDE_CONFIG_DIR, CLAUDE_PROJECT_DIR (ledger path
-#           default <proj>/docs/requests/history.jsonl when that dir exists),
-#           LABEL_SYNC_REQUEST_LEDGER (explicit ledger path), LABEL_SYNC_*.
+# Inputs  : stdin JSON; env CLAUDE_CONFIG_DIR, LABEL_SYNC_REQUEST_LEDGER (the
+#           ledger path — OPT-IN, no ledger without it; relative => against
+#           CLAUDE_PROJECT_DIR), LABEL_SYNC_*. Large prompts (> 64 Ki chars) go
+#           from the payload to the ledger's 0600 temp file without ever being a
+#           shell variable or an argv (8 MiB: ~1.5 s on a loaded host).
 # Outputs : stdout: ONE JSON line with hookSpecificOutput.additionalContext
 #           ("[label-sync] current work-stream label: ...") or nothing.
 # Exit    : ALWAYS 0; never blocks the prompt; median < 150 ms.
@@ -36,8 +39,20 @@ main() {
     alias="$LS_L_ALIAS"; model="$LS_L_MODEL"; effort="$LS_L_EFFORT"; track="$LS_L_TRACK"; branch="$LS_L_BRANCH"
   fi
   # (2) ledger first: it needs no daemon/binary (zero-loss intake, §11.4.210)
-  if [ -n "$LS_PROMPT" ]; then
-    LS_LEDGER_STATE="${LS_HOOKSTATE:-}" rha_append "$LS_SID" "$LS_PROMPT" "$track" "$alias" "$model" "$effort" "$LS_CWD" >/dev/null 2>&1
+  if [ -n "${LABEL_SYNC_REQUEST_LEDGER:-}" ]; then
+    export LS_LEDGER_STATE="${LS_HOOKSTATE:-}"
+    if [ -n "${LS_PROMPT_BIG:-}" ]; then
+      # large prompt: never a shell copy, never an argv (E2BIG at 128 KiB) —
+      # jq streams it from the payload into the 0600 temp file.
+      if rha_prepare; then
+        printf '%s' "$LS_PAYLOAD" | jq -j '(.prompt // .user_prompt // "") | if type=="string" then . else "" end' >"$RHA_TMP" 2>/dev/null
+        rha_append_file "$LS_SID" "$RHA_TMP" "$track" "$alias" "$model" "$effort" "$LS_CWD" >/dev/null
+      else
+        rha_lost_row "$LS_SID" "" "$track" "$alias" "$model" "$effort" "$LS_CWD" "no state dir for the temp file" >/dev/null
+      fi
+    elif [ -n "$LS_PROMPT" ]; then
+      rha_append "$LS_SID" "$LS_PROMPT" "$track" "$alias" "$model" "$effort" "$LS_CWD" >/dev/null
+    fi
   fi
   ls_have_bin || return 0
   export CLAUDE_CODE_SESSION_ID="$LS_SID"

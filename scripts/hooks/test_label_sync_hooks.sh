@@ -161,7 +161,9 @@ run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"zzz"}')" CLAUDE_
 check "no ledger path invented when the project has no docs/requests dir" test ! -e "$T/none/docs/requests/history.jsonl"
 mkdir -p "$T/withreq/docs/requests"
 run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"zzz"}')" CLAUDE_PROJECT_DIR="$T/withreq"
-check "project with docs/requests gets history.jsonl by default" test -s "$T/withreq/docs/requests/history.jsonl"
+check "F7 an existing docs/requests dir does NOT auto-create a ledger (opt-in only)" test ! -e "$T/withreq/docs/requests/history.jsonl"
+run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"zzz rel"}')" CLAUDE_PROJECT_DIR="$T/withreq" LABEL_SYNC_REQUEST_LEDGER=docs/requests/opted.jsonl
+check "F7 a RELATIVE LABEL_SYNC_REQUEST_LEDGER resolves against CLAUDE_PROJECT_DIR" test -s "$T/withreq/docs/requests/opted.jsonl"
 export LABEL_SYNC_REQUEST_LEDGER="$LEDGER"
 
 # =========================================================================
@@ -264,7 +266,7 @@ echo "== 6c. markdown twin of the ledger (opt-in via marker) =="
 MDD="$T/mdproj/docs/requests"; mkdir -p "$MDD"
 printf '# history\n<!-- label-sync:request-history:insert -->\n## older\n' >"$MDD/history.md"
 export CLAUDE_CONFIG_DIR="$CFG1"
-run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"md twin probe"}')" CLAUDE_PROJECT_DIR="$T/mdproj" LABEL_SYNC_REQUEST_LEDGER=
+run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"md twin probe"}')" CLAUDE_PROJECT_DIR="$T/mdproj" LABEL_SYNC_REQUEST_LEDGER=docs/requests/history.jsonl
 check "md twin: block inserted right after the marker (newest first)" bash -c "awk '/insert -->/{f=1;next} f&&/md twin probe/{ok=1} f&&/## older/{exit} END{exit !ok}' '$MDD/history.md'"
 check "md twin: prior content preserved" grep -q '^## older' "$MDD/history.md"
 check "md twin: jsonl row also written" test -s "$MDD/history.jsonl"
@@ -629,6 +631,82 @@ eq "F5 double SessionEnd exit 0" "$RC" 0
 check "SessionEnd removes the session's pending dir" test ! -e "$PD"
 check "SessionEnd removes the session's agentmap entries" bash -c "! grep -rqx '$SID' '$AM' 2>/dev/null"
 eq "SessionEnd marks the never-started registration done" "$(field subagent:toolu_Z1 state)" done
+
+# =========================================================================
+echo "== 15. F2/F7/F11: ledger — large prompts never lost, secrets redacted, failures visible, twin bounded =="
+rm -rf "$LABEL_SYNC_DIR"; export CLAUDE_CONFIG_DIR="$CFG1"
+SID="77777777-aaaa-bbbb-cccc-000000000007"; mk_cfg claude1 claude-opus-4-8 >/dev/null
+LG="$T/f2/h.jsonl"; mkdir -p "$T/f2"
+sha_of() { sha256sum "$1" | cut -d' ' -f1; }
+for n in 131072 1048576 8388608; do
+  python3 -c "import sys;n=int(sys.argv[1]);open(sys.argv[2],'w').write(('abcdefghij'*(n//10+1))[:n])" "$n" "$T/f2/p$n.txt"
+  jq -nc --arg sid "$SID" --arg cwd "$PROJ" --rawfile p "$T/f2/p$n.txt" '{session_id:$sid,cwd:$cwd,hook_event_name:"UserPromptSubmit",prompt:$p}' >"$T/f2/j$n.json"
+  b0="$(wc -l <"$LG" 2>/dev/null || echo 0)"; b0="${b0// /}"
+  t0=$(date +%s%N)
+  cat "$T/f2/j$n.json" | env LABEL_SYNC_REQUEST_LEDGER="$LG" bash "$HK/label-sync-prompt.sh" >/dev/null 2>&1; rc=$?
+  t1=$(date +%s%N); ms=$(( (t1 - t0) / 1000000 ))
+  echo "   (prompt of $n bytes through the hook via a pipe: ${ms} ms)"
+  eq "F2 $n-byte prompt: hook exit 0" "$rc" 0
+  eq "F2 $n-byte prompt: exactly one NEW ledger row" "$(( $(wc -l <"$LG" | tr -d ' ') - b0 ))" 1
+  tail -n1 "$LG" | jq -j .prompt >"$T/f2/back$n.txt" 2>/dev/null
+  eq "F2 $n-byte prompt stored byte-identical (sha256)" "$(sha_of "$T/f2/back$n.txt")" "$(sha_of "$T/f2/p$n.txt")"
+  eq "F2 $n-byte prompt: prompt_bytes recorded" "$(tail -n1 "$LG" | jq -r .prompt_bytes)" "$n"
+  [ "$ms" -lt 4000 ]; ok "F2 $n-byte prompt handled within 4 s (hook timeout is 5 s; got ${ms} ms)" $?
+done
+check "F2 no prompt temp file left behind" bash -c "! find '$LABEL_SYNC_DIR' -name '.prompt.*' | grep -q ."
+# a failing row builder => a 'lost' row with sha256 + byte count, a counter, and stderr under LABEL_SYNC_DEBUG
+mkdir -p "$T/fakebin"; printf '#!/usr/bin/env bash\nexit 9\n' >"$T/fakebin/perl"; chmod +x "$T/fakebin/perl"
+printf 'lost probe text' >"$T/f2/lost.txt"
+LGL="$T/f2/lost.jsonl"
+jq -nc --arg sid "$SID" --rawfile p "$T/f2/lost.txt" '{session_id:$sid,prompt:$p}' \
+  | env PATH="$T/fakebin:$PATH" LABEL_SYNC_REQUEST_LEDGER="$LGL" LS_LEDGER_STATE="$T/f2st" LABEL_SYNC_DEBUG=1 bash "$HK/request_history_append.sh" 2>"$T/f2/lost.err"
+eq "F2 failing append => a 'lost' row is still appended" "$(jq -r .prompt_kind "$LGL" 2>/dev/null)" lost
+eq "F2 lost row carries the prompt sha256" "$(jq -r .prompt_sha256 "$LGL" 2>/dev/null)" "$(sha_of "$T/f2/lost.txt")"
+eq "F2 lost row carries the byte count" "$(jq -r .prompt_bytes "$LGL" 2>/dev/null)" 15
+eq "F2 lost row: failure counter incremented" "$(cat "$T/f2st/ledger-failures.count" 2>/dev/null)" 1
+check "F2 lost row: failure visible on stderr under LABEL_SYNC_DEBUG=1" grep -qi 'lost' "$T/f2/lost.err"
+check "F2 lost row: the prompt text itself is not in the lost row" bash -c "! grep -q 'lost probe text' '$LGL'"
+# no redactor available => the text is WITHHELD (never written unredacted), traced row + counter
+mkdir -p "$T/noperl"; for tl in jq sha256sum wc mkdir rm cat flock; do p_="$(command -v "$tl" 2>/dev/null)" && ln -sf "$p_" "$T/noperl/$tl"; done
+jq -nc --arg sid "$SID" '{session_id:$sid,prompt:"password=hunter3 withheld probe"}' \
+  | env PATH="$T/noperl" LABEL_SYNC_REQUEST_LEDGER="$T/f2/wh.jsonl" LS_LEDGER_STATE="$T/f2wh" "$BASH" "$HK/request_history_append.sh"
+eq "F7 no perl => row prompt_kind withheld" "$(jq -r .prompt_kind "$T/f2/wh.jsonl" 2>/dev/null)" withheld
+check "F7 withheld row never contains the unredacted text" bash -c "! grep -q hunter3 '$T/f2/wh.jsonl'"
+eq "F7 withheld counted as a ledger failure" "$(cat "$T/f2wh/ledger-failures.count" 2>/dev/null)" 1
+# oversize policy: above LABEL_SYNC_LEDGER_MAX_BYTES the text is not stored, a traced row is
+head -c 2000 "$T/f2/p131072.txt" >"$T/f2/big.txt"
+jq -nc --arg sid "$SID" --rawfile p "$T/f2/big.txt" '{session_id:$sid,prompt:$p}' \
+  | env LABEL_SYNC_REQUEST_LEDGER="$T/f2/over.jsonl" LS_LEDGER_STATE="$T/f2st" LABEL_SYNC_LEDGER_MAX_BYTES=1000 bash "$HK/request_history_append.sh"
+eq "F2 oversize prompt => row prompt_kind oversize" "$(jq -r .prompt_kind "$T/f2/over.jsonl" 2>/dev/null)" oversize
+eq "F2 oversize row: sha256 recorded" "$(jq -r .prompt_sha256 "$T/f2/over.jsonl" 2>/dev/null)" "$(sha_of "$T/f2/big.txt")"
+eq "F2 oversize row: no text stored" "$(jq -r '.prompt' "$T/f2/over.jsonl" 2>/dev/null)" null
+# F7 redaction before append
+SEC=$'deploy with ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij and glpat-abcdefghijklmnopqrst12\nslack xoxb-1234567890-abcdefghij aws AKIAABCDEFGHIJKLMNOP\nkey sk-ant-api03-abcdefghijklmnopqrstuvwxyz password=hunter2 keep-this-text\n-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAA\n-----END OPENSSH PRIVATE KEY-----\ntail'
+jq -nc --arg sid "$SID" --arg p "$SEC" '{session_id:$sid,prompt:$p}' \
+  | env LABEL_SYNC_REQUEST_LEDGER="$T/f2/sec.jsonl" LS_LEDGER_STATE="$T/f2st" bash "$HK/request_history_append.sh"
+for needle in ghp_ABCDEFGHIJ glpat-abcdefghij xoxb-1234567890 AKIAABCDEFGHIJKLMNOP sk-ant-api03-abc hunter2 b3BlbnNzaC1rZXktdjEAAAA; do
+  check "F7 secret '$needle' NOT stored in the ledger" bash -c "! grep -qF -- '$needle' '$T/f2/sec.jsonl'"
+done
+check "F7 control needle: non-secret text IS stored (the grep instrument can see the row)" grep -qF 'keep-this-text' "$T/f2/sec.jsonl"
+eq "F7 redaction count recorded" "$(jq -r .redactions "$T/f2/sec.jsonl" 2>/dev/null)" 7
+eq "F7 redacted row is labelled verbatim-redacted" "$(jq -r .prompt_kind "$T/f2/sec.jsonl" 2>/dev/null)" verbatim-redacted
+check "F7 dedupe state stores a hash, never the prompt text" bash -c "! grep -rq 'hunter2' '$T/f2st'"
+# F11 dedupe is per session (two sessions, same text, inside the window => two rows)
+for s2 in 88888888-aaaa-0001 88888888-aaaa-0002; do
+  jq -nc --arg sid "$s2" '{session_id:$sid,prompt:"same text two sessions"}' | env LABEL_SYNC_REQUEST_LEDGER="$T/f2/two.jsonl" LS_LEDGER_STATE="$T/f2st" bash "$HK/request_history_append.sh"
+done
+eq "F11 the same prompt from two DIFFERENT sessions inside the window => two rows" "$(wc -l <"$T/f2/two.jsonl" | tr -d ' ')" 2
+# F11 markdown twin is bounded
+MD2="$T/f2/md"; mkdir -p "$MD2"; { printf '# h\n<!-- label-sync:request-history:insert -->\n'; head -c 3000 "$T/f2/p131072.txt"; } >"$MD2/history.md"
+shmd="$(sha_of "$MD2/history.md")"
+jq -nc --arg sid "$SID" '{session_id:$sid,prompt:"md bound probe"}' | env LABEL_SYNC_REQUEST_LEDGER="$MD2/history.jsonl" LS_LEDGER_STATE="$T/f2st" LABEL_SYNC_LEDGER_MD_MAX=1000 bash "$HK/request_history_append.sh"
+eq "F11 md twin larger than LABEL_SYNC_LEDGER_MD_MAX is NOT rewritten" "$(sha_of "$MD2/history.md")" "$shmd"
+check "F11 ...while the jsonl row is still written" grep -q 'md bound probe' "$MD2/history.jsonl"
+printf '# h\n<!-- label-sync:request-history:insert -->\n' >"$MD2/history.md"
+jq -nc --arg sid "$SID" --rawfile p "$T/f2/p131072.txt" '{session_id:$sid,prompt:$p}' | env LABEL_SYNC_REQUEST_LEDGER="$MD2/history.jsonl" LS_LEDGER_STATE="$T/f2st" bash "$HK/request_history_append.sh"
+sz="$(wc -c <"$MD2/history.md" | tr -d ' ')"
+[ "$sz" -lt 10000 ]; ok "F11 md twin stores at most a bounded excerpt of a 128 KiB prompt (twin is $sz bytes)" $?
+check "F11 md twin points at the full text in the jsonl" grep -qi 'truncated' "$MD2/history.md"
 
 # =========================================================================
 echo "----------------------------------------------------------------------"

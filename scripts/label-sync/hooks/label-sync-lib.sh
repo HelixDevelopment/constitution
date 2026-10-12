@@ -16,6 +16,7 @@
 #           LABEL_SYNC_NO_BUILD=1 never spawn the background binary build
 #           LABEL_SYNC_CLAUDE_PID override the discovered claude process pid
 #           LABEL_SYNC_HOOK_DEBUG=1 append hook diagnostics to $LABEL_SYNC_DIR/hooks/debug.log
+#           LABEL_SYNC_DEBUG=1    let hook stderr through (ledger failures are reported there)
 #           LABEL_SYNC_CTL_TIMEOUT optional per-labelctl-call timeout seconds (default: none)
 #           LABEL_SYNC_HOOK_LOCK_TIMEOUT writer-lock wait per call (default 500ms)
 # Outputs : none by itself (functions set shell variables / return codes).
@@ -128,7 +129,10 @@ ls_drop_pending_dir() {
 
 # ls_read_payload : read stdin ONCE, parse the common fields with ONE jq call.
 # Sets: LS_PAYLOAD LS_SID LS_CWD LS_EVENT LS_TOOL LS_TUID LS_DESC LS_SUBTYPE
-#       LS_PROMPT LS_SOURCE LS_AGENT_ID LS_TOMODEL LS_TOOLMODEL
+#       LS_PROMPT LS_PROMPT_BIG LS_SOURCE LS_AGENT_ID LS_ATYPE LS_TOMODEL LS_TOOLMODEL
+# A prompt longer than 65536 characters is NOT copied into LS_PROMPT (each bash
+# copy of an 8 MiB string costs ~0.5 s): LS_PROMPT_BIG=1 tells the prompt hook to
+# stream it from LS_PAYLOAD straight into the ledger's temp file with jq.
 # Returns 1 when stdin is not a JSON object, or when ANY id field is present but
 # not a safe id (hook then exits 0 silently, doing nothing).
 #
@@ -142,7 +146,10 @@ ls_drop_pending_dir() {
 LS_ID_RE='^[A-Za-z0-9_-]{1,128}$'
 ls_valid_id() { [[ "$1" =~ $LS_ID_RE ]]; }
 ls_read_payload() {
-  IFS= read -r -d '' LS_PAYLOAD || true       # builtin: no `cat` spawn
+  # `$(cat)`, NOT `read -d ''`: Claude Code feeds stdin through a PIPE, where
+  # bash's read builtin consumes ONE BYTE PER SYSCALL (measured: 4.1 s for an
+  # 8 MiB prompt payload vs 0.17 s with cat; review finding 2). One small spawn.
+  LS_PAYLOAD="$(cat 2>/dev/null)" || true
   [ -n "$LS_PAYLOAD" ] || return 1
   local parsed LS_BADID=""
   parsed="$(printf '%s' "$LS_PAYLOAD" | jq -r '
@@ -160,7 +167,8 @@ ls_read_payload() {
          LS_DESC=\(.tool_input.description // "" | s)
          LS_SUBTYPE=\(.tool_input.subagent_type // "" | s)
          LS_TOOLMODEL=\(.tool_input.model // "" | s)
-         LS_PROMPT=\(.prompt // .user_prompt // "" | s)
+         LS_PROMPT=\(.prompt // .user_prompt // "" | s | if length <= 65536 then . else "" end)
+         LS_PROMPT_BIG=\(.prompt // .user_prompt // "" | s | if length > 65536 then "1" else "" end)
          LS_SOURCE=\(.source // .reason // "" | s)
          LS_AGENT_ID=\($aid // "")
          LS_ATYPE=\(.agent_type // "" | s)
@@ -297,8 +305,11 @@ ls_emit_context() {
 # swallowed), print its stdout once if non-empty, ALWAYS exit 0. A hook must
 # never block, never delay (each call is bounded by the settings.json timeout) and never add noise.
 ls_hook_run() {
-  local out
-  out="$("$1" 2>>"${LABEL_SYNC_HOOK_STDERR:-/dev/null}")" || true
+  local out err="${LABEL_SYNC_HOOK_STDERR:-/dev/null}"
+  # LABEL_SYNC_DEBUG=1: diagnostics (e.g. a ledger row that could not be
+  # stored) reach the hook's stderr, which Claude Code shows in its transcript.
+  [ "${LABEL_SYNC_DEBUG:-}" = 1 ] && [ -z "${LABEL_SYNC_HOOK_STDERR:-}" ] && err=/dev/stderr
+  out="$("$1" 2>>"$err")" || true
   [ -n "$out" ] && printf '%s\n' "$out"
   exit 0
 }
