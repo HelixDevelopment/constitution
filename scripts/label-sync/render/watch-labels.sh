@@ -12,8 +12,9 @@
 #           --timeout-s N     exit after N seconds regardless (default: none)
 #           --kind K          only entities of kind K
 # Inputs  : snapshot.json + seq in $LABEL_SYNC_DIR (CONTRACT §1, §3).
-# Outputs : frames on stdout; the clear-screen escape is emitted ONLY when
-#           stdout is a tty. Works with the daemon down (polling needs none).
+# Outputs : frames on stdout; every line passes lib.sh ls_sanitize (C0/DEL/C1/
+#           bidi/invalid UTF-8, capped) so no snapshot value can drive the
+#           terminal; the clear-screen escape is emitted ONLY when stdout is a tty. Works with the daemon down (polling needs none).
 # Exit    : 0 normal end | 2 jq missing (cannot determine — never a pass).
 # Side-effects: none (read-only).
 # Deps    : bash>=4, jq.
@@ -37,16 +38,26 @@ while [ $# -gt 0 ]; do
   esac
 done
 dir="$(ls_dir)"
+# c: drop every C0/DEL/C1 code point INSIDE a field so a hostile value can never
+# split or forge a table row; every emitted line then passes lib.sh ls_sanitize
+# (bidi + invalid UTF-8 + cap) — the one shared sanitiser.
 JQ='
-  def pad(n): (. + ("                                                  ")) | .[0:n];
-  "label-sync  seq=\(.seq)  active=\(.active.alias // "?")/\(.active.model // "?")/\(.active.effort // "?")  entities=\(.entities | length)",
+  def c: tostring | explode | map(select(. >= 32 and (. < 127 or . > 159))) | implode;
+  def pad(n): (c + ("                                                  ")) | .[0:n];
+  "label-sync  seq=\(.seq | c)  active=\(.active.alias // "?" | c)/\(.active.model // "?" | c)/\(.active.effort // "?" | c)  entities=\(.entities | length)",
   ( .entities | map(select($kind == "" or .kind == $kind)) | group_by(.alias // "") | .[]
-    | "== alias: \(if (.[0].alias // "") == "" then "?" else .[0].alias end)  (\(length))",
-      ( .[] | "   " + (.id | pad(30)) + " " + (.kind | pad(8)) + " " + (.state | pad(8)) + " " + .label
+    | "== alias: \(if (.[0].alias // "") == "" then "?" else (.[0].alias | c) end)  (\(length))",
+      ( .[] | "   " + (.id | pad(30)) + " " + (.kind | pad(8)) + " " + (.state | pad(8)) + " " + (.label | c)
               + (if .stale then " [stale]" else "" end) ) )'
 draw() {
-  if [ -r "$dir/snapshot.json" ] && jq -r --arg kind "$kind" "$JQ" "$dir/snapshot.json" 2>/dev/null; then :
-  else echo "label-sync: no readable snapshot in $dir"; fi
+  local out line
+  if [ -r "$dir/snapshot.json" ] && out="$(jq -r --arg kind "$kind" "$JQ" "$dir/snapshot.json" 2>/dev/null)"; then
+    while IFS= read -r line || [ -n "$line" ]; do      # last line may lack a newline
+      ls_sanitize_into line "$line" 1024; printf '%s\n' "$line"
+    done <<<"$out"
+  else
+    ls_sanitize_into line "label-sync: no readable snapshot in $dir" 1024; printf '%s\n' "$line"
+  fi
 }
 last="" frames=0 t0=$SECONDS first=1
 while :; do

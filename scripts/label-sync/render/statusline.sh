@@ -24,7 +24,9 @@
 #           the derived fallback; LABEL_SYNC_STATUSLINE_CACHE_TTL (default 5 s,
 #           0 = off) caches ONLY the derived fallback; LABEL_SYNC_CACHE_DIR;
 #           LABEL_SYNC_LABELER (canonical labeler override).
-# Outputs : one line on stdout.
+# Outputs : one line on stdout, passed through lib.sh ls_sanitize (no terminal
+#           control / C1 / bidi / invalid UTF-8 byte can reach the host UI, under
+#           any locale; capped at 512 bytes).
 # Exit    : 0 ALWAYS (a status line must never break the host UI). stderr silent.
 # Cost    : primary path = one `jq` fork over the snapshot, no other fork;
 #           measured avg latency is reported by tests/test_render.sh (METRIC
@@ -69,7 +71,8 @@ if command -v jq >/dev/null 2>&1; then
 fi
 
 if [ "$status" = "ok" ] && [ -n "$text" ]; then
-  printf '%s\n' "$(ls_sanitize "$text")"
+  ls_sanitize_into text "$text"          # strict: C0/DEL/C1/bidi/invalid UTF-8, capped
+  printf '%s\n' "$text"
   exit 0
 fi
 
@@ -86,6 +89,7 @@ if [ "${LABEL_SYNC_STATUSLINE_DERIVE:-1}" != "0" ]; then
   fi
   if [ -z "$derived" ] && [ -r "$labeler" ] && command -v timeout >/dev/null 2>&1; then
     derived="$( { [ -n "$cwd" ] && cd "$cwd" 2>/dev/null; CLAUDE_CODE_SESSION_ID="$sid" timeout 1 bash "$labeler" 2>/dev/null | head -n 1; } )"
+    ls_sanitize_into derived "$derived"   # before the shape check: locale-independent
     if [[ "$derived" =~ ^\(T([0-9]+|\?)/.+\)$ ]]; then
       if [ "$ttl" != "0" ]; then mkdir -p "$cdir" 2>/dev/null && printf '%s\n' "$derived" >"$cfile" 2>/dev/null; fi
     else
@@ -94,7 +98,8 @@ if [ "${LABEL_SYNC_STATUSLINE_DERIVE:-1}" != "0" ]; then
   fi
 fi
 if [ -n "$derived" ]; then
-  printf '%s [derived:%s]\n' "$(ls_sanitize "$derived")" "$why"
+  ls_sanitize_into derived "$derived"
+  printf '%s [derived:%s]\n' "$derived" "$why"
 else
   printf '%s [%s]\n' "$UNKNOWN" "$why"
 fi

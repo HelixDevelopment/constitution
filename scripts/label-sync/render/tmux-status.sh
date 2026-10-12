@@ -12,7 +12,8 @@
 #           integrations register `--pid $$`); `shell` entities are preferred.
 # Outputs : one line: the label (+ [stale]/[done] marker), or `?` when unknown
 #           (never invented). `#` characters are replaced by `_` so the text can
-#           never be re-interpreted as a tmux format/style sequence.
+#           never be re-interpreted as a tmux format/style sequence; every byte
+#           first passes lib.sh ls_sanitize (C0/DEL/C1/bidi/invalid UTF-8, capped).
 # Exit    : 0 always (a status segment must not break the status line).
 # Side-effects: none. Deps: bash, jq.
 # Cross-refs: §11.4.182, docs/label-sync/RENDERERS.md. Classification: universal (§11.4.17).
@@ -44,5 +45,5 @@ if [ -r "$snap" ] && command -v jq >/dev/null 2>&1; then
   fi
 fi
 [ -n "$out" ] || out="?"
-out="$(ls_sanitize "$out")"; printf '%s\n' "${out//#/_}"
+ls_sanitize_into out "$out"; printf '%s\n' "${out//#/_}"
 exit 0
