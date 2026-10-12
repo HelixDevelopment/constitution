@@ -79,6 +79,7 @@ CHANGED_MCP=()
 CHANGED_HOOKS=()
 CHANGED_SCRIPTS=()
 CHANGED_ACTIONS=()   # actions/registry.yaml + plugins/** — re-wire slash commands
+CHANGED_LABELSYNC=() # scripts/label-sync/** + the labeler — re-wire the label-sync hooks (§11.4.228(D))
 ERRORS=()
 WARNINGS=()
 
@@ -164,6 +165,11 @@ detect_changes() {
                 # => the per-agent slash commands + plugin wiring must be refreshed.
                 CHANGED_ACTIONS+=("$f")
                 ;;
+            scripts/label-sync/*|scripts/multitrack/track_branch_label.sh)
+                # label-sync hooks/installer/labeler changed => the hook wiring is re-asserted
+                # (step 4c; DRY-RUN by default, LABEL_SYNC_AUTOWIRE=apply writes).
+                CHANGED_LABELSYNC+=("$f")
+                ;;
             scripts/*.sh)
                 local script_name
                 script_name="$(basename "$f")"
@@ -188,9 +194,10 @@ detect_changes() {
     [ "$(arr_len CHANGED_HOOKS)"   -eq 0 ] || CHANGED_HOOKS=($(printf "%s\n" "${CHANGED_HOOKS[@]}"    | sort -u))
     [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] || CHANGED_SCRIPTS=($(printf "%s\n" "${CHANGED_SCRIPTS[@]}" | sort -u))
     [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] || CHANGED_ACTIONS=($(printf "%s\n" "${CHANGED_ACTIONS[@]}" | sort -u))
+    [ "$(arr_len CHANGED_LABELSYNC)" -eq 0 ] || CHANGED_LABELSYNC=($(printf "%s\n" "${CHANGED_LABELSYNC[@]}" | sort -u))
     IFS="$IFS_SAVE"
 
-    info "Detected: ${#CHANGED_SKILLS[@]} skill(s), ${#CHANGED_MCP[@]} MCP config(s), ${#CHANGED_HOOKS[@]} hook(s), ${#CHANGED_SCRIPTS[@]} script(s), ${#CHANGED_ACTIONS[@]} action/plugin file(s) changed."
+    info "Detected: ${#CHANGED_SKILLS[@]} skill(s), ${#CHANGED_MCP[@]} MCP config(s), ${#CHANGED_HOOKS[@]} hook(s), ${#CHANGED_SCRIPTS[@]} script(s), ${#CHANGED_ACTIONS[@]} action/plugin file(s), $(arr_len CHANGED_LABELSYNC) label-sync file(s) changed."
 }
 
 # ============================================================================
@@ -403,6 +410,58 @@ install_action_plugins() {
 }
 
 # ============================================================================
+# STEP 4c — label-sync auto-wiring (hooks + statusLine into the consumer)
+# ============================================================================
+# §11.4.228(D) + §11.4.164 + §11.4.182: when label-sync scripts, the installer or
+# the canonical labeler change, the Claude Code hook entries + statusLine of the
+# consuming project's .claude/settings.json are re-asserted by the idempotent
+# installer scripts/label-sync/install_label_sync.sh.
+#
+# DEFAULT IS NON-DESTRUCTIVE: without LABEL_SYNC_AUTOWIRE=apply the installer
+# runs in --dry-run --brief mode and this step only RECORDS what WOULD be wired
+# (nothing is written to the consumer). Modes (env LABEL_SYNC_AUTOWIRE):
+#   dry-run (default) | apply (write; backup first) | off (skip silently)
+install_label_sync() {
+    header "STEP 4c: label-sync auto-wiring (§11.4.228(D))"
+
+    if [ "$(arr_len CHANGED_LABELSYNC)" -eq 0 ]; then
+        info "No label-sync changes — nothing to wire."
+        return 0
+    fi
+
+    local installer="${CONST_DIR}/scripts/label-sync/install_label_sync.sh"
+    if [ ! -f "$installer" ]; then
+        warn "installer missing: $installer — label-sync hooks NOT (re-)wired."
+        WARNINGS+=("install_label_sync.sh missing — label-sync auto-wiring inactive")
+        return 0
+    fi
+
+    local mode="${LABEL_SYNC_AUTOWIRE:-dry-run}" out rc=0
+    local -a args
+    case "$mode" in
+        off)     info "LABEL_SYNC_AUTOWIRE=off — label-sync auto-wiring skipped."; return 0 ;;
+        apply)   args=(--apply) ;;
+        dry-run) args=(--dry-run --brief) ;;
+        *)       warn "unknown LABEL_SYNC_AUTOWIRE='$mode' — treating as dry-run (non-destructive)."
+                 mode="dry-run"; args=(--dry-run --brief) ;;
+    esac
+
+    info "Running: install_label_sync.sh --project-root $PROJECT_ROOT ${args[*]}  (mode: $mode)"
+    out="$(bash "$installer" --project-root "$PROJECT_ROOT" "${args[@]}" 2>&1)" || rc=$?
+    while IFS= read -r line; do [ -n "$line" ] && info "  $line"; done <<<"$out"
+    if [ "$rc" -ne 0 ]; then
+        warn "label-sync installer exited $rc — see lines above (hooks NOT changed unless reported as wired)."
+        WARNINGS+=("install_label_sync.sh exited $rc")
+        return 0
+    fi
+    if [ "$mode" = "dry-run" ]; then
+        info "label-sync auto-wiring is in DRY-RUN mode (default, non-destructive): nothing was written."
+        info "  To wire the hooks + statusLine into $PROJECT_ROOT/.claude/settings.json re-run with LABEL_SYNC_AUTOWIRE=apply."
+    fi
+    return 0
+}
+
+# ============================================================================
 # STEP 5 — Validate scripts (chmod +x, syntax check)
 # ============================================================================
 validate_scripts() {
@@ -553,7 +612,8 @@ main() {
        [ "$(arr_len CHANGED_MCP)" -eq 0 ] && \
        [ "$(arr_len CHANGED_HOOKS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] && \
-       [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ]; then
+       [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] && \
+       [ "$(arr_len CHANGED_LABELSYNC)" -eq 0 ]; then
         info "No relevant changes detected. Nothing to propagate."
         return 0
     fi
@@ -562,6 +622,7 @@ main() {
     install_mcp_configs
     install_hooks
     install_action_plugins
+    install_label_sync
     validate_scripts
     report_summary
 }
