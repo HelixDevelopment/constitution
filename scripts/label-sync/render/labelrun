@@ -6,8 +6,18 @@
 #           prints a one-line label banner to stderr (ONLY when stderr is a tty),
 #           supervises the command WITHOUT exec (so it can clean up), propagates
 #           its exit code EXACTLY, and marks the entity done on exit — including
-#           when labelrun itself receives SIGTERM/SIGINT/SIGHUP (forwarded to the
-#           child; the child's resulting status, e.g. 143, is the exit code).
+#           when labelrun itself receives SIGTERM/SIGINT/SIGHUP/SIGQUIT.
+# SIGNALS : a child started with `&` by a non-interactive bash inherits SIGINT
+#           and SIGQUIT IGNORED, so Ctrl-C could never stop it (review finding 4).
+#           labelrun therefore starts the child through
+#           `env --default-signal=INT,QUIT` (fallback: perl resetting $SIG{INT,QUIT};
+#           if neither exists the child runs with the inherited dispositions and
+#           LABEL_SYNC_DEBUG=1 says so). TERM and HUP are always forwarded to the
+#           child pid. INT/QUIT are forwarded UNLESS the child is in the terminal's
+#           foreground process group — then the terminal already delivered the
+#           same Ctrl-C to it, and a second copy would be a double interrupt. A
+#           `kill -INT <labelrun>` from anywhere else is forwarded (tested: the
+#           child ends within 1.5 s and labelrun exits 130).
 # Usage   : labelrun [--kind command|flow] [--name NAME] -- cmd [args...]
 # Inputs  : env LABEL_SYNC_SHELL_ID (parent entity, exported by the shell
 #           integrations; else LABEL_SYNC_PARENT_ID), CLAUDE_CODE_SESSION_ID,
@@ -18,7 +28,10 @@
 #           `labelrun:name=<name>` (sanitised); command arguments are NEVER
 #           recorded or printed (they may carry secrets, §11.4.10).
 # Exit    : the child's exit status verbatim (127 command not found, 126 not
-#           executable, 128+N killed by signal N). 2 for labelrun usage errors.
+#           executable, 128+N killed by signal N: 130 INT, 143 TERM). 2 for
+#           labelrun usage errors. The command must be an executable program
+#           (it is exec'd by env); a bash builtin with no program of the same
+#           name (e.g. `labelrun -- cd`) is run directly by this bash instead.
 #           FAIL-SOFT: if the state dir / labelctl is unusable the command still
 #           runs and its exit code is still propagated (a label is cosmetic;
 #           labelrun must never be the reason a build fails).
@@ -35,7 +48,7 @@ set -u
 RDIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 # shellcheck source=lib.sh
 . "$RDIR/lib.sh" || exit 2
-usage() { sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,/^# Classification/p' "$0" | sed 's/^# \{0,1\}//'; }
 kind=command name=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -51,7 +64,8 @@ done
 case "$kind" in command|flow) ;; *) echo "labelrun: --kind must be command|flow" >&2; exit 2 ;; esac
 
 LCTL="$(ls_labelctl)"
-id="run-${HOSTNAME//[^A-Za-z0-9_.-]/_}-$$-${EPOCHSECONDS:-0}"
+__h="${HOSTNAME:-host}"; __h="${__h//[^A-Za-z0-9.-]/-}"        # id grammar has no `_`
+id="run-${__h:0:60}-$$-${EPOCHSECONDS:-0}"
 src="labelrun"; [ -n "$name" ] && src="labelrun:name=${name//[^A-Za-z0-9._+-]/_}"
 parent="${LABEL_SYNC_SHELL_ID:-${LABEL_SYNC_PARENT_ID:-}}"
 args=(register --id "$id" --kind "$kind" --pid "$$" --cwd "$PWD" --source "$src")
@@ -66,14 +80,42 @@ if [ -t 2 ] && [ "$registered" = 1 ]; then
 fi
 
 child=0
-fwd() { [ "$child" -gt 1 ] && kill -s "$1" "$child" 2>/dev/null; return 0; }
+# Single child pid only, validated > 1 — never a process group (§11.4.263).
+fwd() { case "$child" in ''|*[!0-9]*) return 0 ;; esac; [ "$child" -gt 1 ] && kill -s "$1" "$child" 2>/dev/null; return 0; }
+# INT/QUIT: forward unless the child sits in the terminal's foreground process
+# group (the tty already sent it the same signal). /proc/<pid>/stat after the
+# last ')': state ppid pgrp session tty_nr tpgid ...
+fwd_tty() {
+  local st rest f
+  case "$child" in ''|*[!0-9]*) return 0 ;; esac
+  if { IFS= read -r st <"/proc/$child/stat"; } 2>/dev/null; then
+    rest="${st##*) }"; read -r -a f <<<"$rest"
+    if [ "${f[5]:-0}" -gt 0 ] 2>/dev/null && [ "${f[2]:-x}" = "${f[5]}" ]; then return 0; fi
+  fi
+  fwd "$1"
+}
 cleanup() { [ "$registered" = 1 ] && "$LCTL" unregister --id "$id" >/dev/null 2>&1; return 0; }
 trap 'fwd TERM' TERM
-trap 'fwd INT' INT
+trap 'fwd_tty INT' INT
+trap 'fwd_tty QUIT' QUIT
 trap 'fwd HUP' HUP
 trap cleanup EXIT
 
-"$@" <&0 &
+# Restore default INT/QUIT in the child (a `&` child of a non-interactive bash
+# inherits them ignored). Probe once; never assume (§11.4.6).
+runner=()
+if env --default-signal=INT,QUIT true >/dev/null 2>&1; then
+  runner=(env --default-signal=INT,QUIT)
+elif command -v perl >/dev/null 2>&1; then
+  runner=(perl -e '$SIG{INT}="DEFAULT"; $SIG{QUIT}="DEFAULT"; exec { $ARGV[0] } @ARGV or exit(($!{ENOENT}) ? 127 : 126);')
+else
+  [ "${LABEL_SYNC_DEBUG:-}" = 1 ] && echo "labelrun: no env --default-signal and no perl: child keeps inherited SIGINT disposition" >&2
+fi
+if [ "$(type -t -- "$1" 2>/dev/null)" = builtin ] && [ -z "$(type -P -- "$1" 2>/dev/null)" ]; then
+  runner=()                                     # a pure builtin cannot be exec'd
+fi
+
+"${runner[@]}" "$@" <&0 &
 child=$!
 wait "$child"; rc=$?
 # a trapped signal makes `wait` return early while the child lives: keep supervising
