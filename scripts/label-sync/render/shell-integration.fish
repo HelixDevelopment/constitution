@@ -2,8 +2,8 @@
 #
 # Purpose : fish integration for label-sync — the fish counterpart of
 #           shell-integration.bash (same cost model and secret policy: command
-#           text is piped to shell-hook.sh on STDIN only; only argv0 and a
-#           salted digest are recorded). SOURCE it (instructions only — nothing
+#           TEXT never leaves this shell; only argv0 is handed to shell-hook.sh,
+#           and only if `type -q` resolves it). SOURCE it (instructions only — nothing
 #           here edits any config):
 #               source /path/to/scripts/label-sync/render/shell-integration.fish
 #           fish_prompt  : cheap `seq` compare; on change title.sh --entity <this
@@ -14,7 +14,7 @@
 #           fish_exit    : unregisters command + shell, background.
 # Usage   : see above. Env: LABEL_SYNC_DIR, LABEL_SYNC_LABELCTL,
 #           LABEL_SYNC_TITLE_SINK, LABEL_SYNC_CMD_MIN_INTERVAL, LABEL_SYNC_HEARTBEAT.
-# Exports : LABEL_SYNC_SHELL_ID, LABEL_SYNC_SALT.
+# Exports : LABEL_SYNC_SHELL_ID only (nothing secret).
 # Exit    : sourcing returns 0; handlers never fail the prompt.
 # Side-effects: defines event handlers; idempotent.
 # Deps    : fish>=3.1, jq (via title.sh), labelctl.sh.
@@ -37,8 +37,7 @@ set -q LABEL_SYNC_HEARTBEAT; and set -g __ls_hb $LABEL_SYNC_HEARTBEAT; or set -g
 set -q LABEL_SYNC_SHELL_ID; and set -g __ls_parent $LABEL_SYNC_SHELL_ID; or set -g __ls_parent ""
 set -g __ls_setsid ""
 command -q setsid; and set -g __ls_setsid setsid
-set -gx LABEL_SYNC_SHELL_ID shell-(string replace -ra '[^A-Za-z0-9_.-]' _ (hostname))-$fish_pid-(date +%s)
-set -gx LABEL_SYNC_SALT (random)(random)(random)-(date +%s%N)
+set -gx LABEL_SYNC_SHELL_ID shell-(string replace -ra '[^A-Za-z0-9.-]' - (hostname))-$fish_pid-(date +%s)
 set -g __ls_seen ""
 set -g __ls_first 1
 set -g __ls_cmd_id ""
@@ -82,9 +81,18 @@ function __ls_preexec --on-event fish_preexec
     set -g __ls_cmd_at $now
     set -g __ls_n (math $__ls_n + 1)
     set -g __ls_cmd_id $LABEL_SYNC_SHELL_ID-c$__ls_n
-    # command text on STDIN only — never an argument
-    printf '%s' "$argv[1]" | command $__ls_setsid $__ls_hook cmd-start --id $__ls_cmd_id --parent $LABEL_SYNC_SHELL_ID --pid $fish_pid --cwd $PWD >/dev/null 2>&1 &
-    disown 2>/dev/null
+    # the command TEXT never leaves this shell: only a resolvable argv0 is passed
+    set -l a0 '?'
+    for w in (string split -n ' ' -- $argv[1])
+        if string match -qr '^[A-Za-z_][A-Za-z0-9_]*=' -- $w
+            string match -qr '["\'`$\\\\]' -- $w; and break
+            continue
+        end
+        string match -qr '["\'`$\\\\(){}<>|;&]' -- $w; and break
+        type -q -- $w; and set a0 $w
+        break
+    end
+    __ls_bg $__ls_hook cmd-start --id $__ls_cmd_id --parent $LABEL_SYNC_SHELL_ID --pid $fish_pid --cwd $PWD --argv0 $a0
 end
 
 function __ls_exit --on-event fish_exit
