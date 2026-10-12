@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# scripts/label-sync/render/labelrun
+#
+# Purpose : Run a command (or a multi-step flow) as a labelled label-sync entity.
+#           Registers a `command`/`flow` entity under the current shell/session,
+#           prints a one-line label banner to stderr (ONLY when stderr is a tty),
+#           supervises the command WITHOUT exec (so it can clean up), propagates
+#           its exit code EXACTLY, and marks the entity done on exit — including
+#           when labelrun itself receives SIGTERM/SIGINT/SIGHUP (forwarded to the
+#           child; the child's resulting status, e.g. 143, is the exit code).
+# Usage   : labelrun [--kind command|flow] [--name NAME] -- cmd [args...]
+# Inputs  : env LABEL_SYNC_SHELL_ID (parent entity, exported by the shell
+#           integrations; else LABEL_SYNC_PARENT_ID), CLAUDE_CODE_SESSION_ID,
+#           LABEL_SYNC_DIR, LABEL_SYNC_LABELCTL. Child stdin/stdout/stderr are
+#           passed through untouched.
+# Outputs : the child's own output; plus `labelrun: <label> <name>` on stderr when
+#           stderr is a tty. NAME is recorded in the entity `source` as
+#           `labelrun:name=<name>` (sanitised); command arguments are NEVER
+#           recorded or printed (they may carry secrets, §11.4.10).
+# Exit    : the child's exit status verbatim (127 command not found, 126 not
+#           executable, 128+N killed by signal N). 2 for labelrun usage errors.
+#           FAIL-SOFT: if the state dir / labelctl is unusable the command still
+#           runs and its exit code is still propagated (a label is cosmetic;
+#           labelrun must never be the reason a build fails).
+# Side-effects: register + unregister via labelctl; the entity pid is labelrun's
+#           own pid (alive for the whole run => never stale, CONTRACT §6). A
+#           SIGKILL'd labelrun cannot clean up: its entity goes stale on TTL.
+#           Signals are forwarded to the single child pid we started (never a
+#           process group, §11.4.263).
+# Deps    : bash>=4, labelctl.sh.
+# Cross-refs: §11.4.182, §11.4.232 (long-op registry, same discipline),
+#           §11.4.263, docs/label-sync/RENDERERS.md.
+# Classification: universal (§11.4.17).
+set -u
+RDIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+# shellcheck source=lib.sh
+. "$RDIR/lib.sh" || exit 2
+usage() { sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'; }
+kind=command name=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --kind) kind="${2:-}"; shift 2 ;;
+    --name) name="${2:-}"; shift 2 ;;
+    --) shift; break ;;
+    -h|--help) usage; exit 0 ;;
+    -*) echo "labelrun: unknown option '$1'" >&2; exit 2 ;;
+    *) break ;;
+  esac
+done
+[ $# -gt 0 ] || { usage >&2; exit 2; }
+case "$kind" in command|flow) ;; *) echo "labelrun: --kind must be command|flow" >&2; exit 2 ;; esac
+
+LCTL="$(ls_labelctl)"
+id="run-${HOSTNAME//[^A-Za-z0-9_.-]/_}-$$-${EPOCHSECONDS:-0}"
+src="labelrun"; [ -n "$name" ] && src="labelrun:name=${name//[^A-Za-z0-9._+-]/_}"
+parent="${LABEL_SYNC_SHELL_ID:-${LABEL_SYNC_PARENT_ID:-}}"
+args=(register --id "$id" --kind "$kind" --pid "$$" --cwd "$PWD" --source "$src")
+[ -n "$parent" ] && args+=(--parent "$parent")
+[ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && args+=(--session "$CLAUDE_CODE_SESSION_ID")
+registered=0 label=""
+if [ -x "$LCTL" ] && label="$("$LCTL" "${args[@]}" 2>/dev/null)"; then registered=1; fi
+
+if [ -t 2 ] && [ "$registered" = 1 ]; then
+  disp="${name:-${1##*/}}"
+  printf 'labelrun: %s %s\n' "$(ls_sanitize "$label")" "$(ls_sanitize "$disp")" >&2
+fi
+
+child=0
+fwd() { [ "$child" -gt 1 ] && kill -s "$1" "$child" 2>/dev/null; return 0; }
+cleanup() { [ "$registered" = 1 ] && "$LCTL" unregister --id "$id" >/dev/null 2>&1; return 0; }
+trap 'fwd TERM' TERM
+trap 'fwd INT' INT
+trap 'fwd HUP' HUP
+trap cleanup EXIT
+
+"$@" <&0 &
+child=$!
+wait "$child"; rc=$?
+# a trapped signal makes `wait` return early while the child lives: keep supervising
+while kill -0 "$child" 2>/dev/null; do wait "$child"; rc=$?; done
+exit "$rc"
