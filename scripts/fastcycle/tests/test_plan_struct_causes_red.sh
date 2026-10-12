@@ -328,11 +328,34 @@ problems = []
 if not issues_path:
     problems.append("no docs/Issues.md given: the allowlist's tracking ids cannot be resolved")
 else:
+    # R4-06: an item is its `## ATM-<n> ` HEADING (a level-2 heading, never a body mention or a
+    # deeper heading), and it is OPEN only when the first `**Status:**` line of its own section
+    # carries one of the tracker's open statuses (docs/Issues.md vocabulary, §11.4.15). Any other
+    # status -- closed, unknown or absent -- is not open (fail closed).
+    OPEN_STATUSES = ("Queued", "In progress", "In testing", "Ready for testing", "Operator-blocked", "Reopened")
+    issue_heads = None
     try:
-        issue_heads = set(re.findall(r"(?m)^## (ATM-[0-9]+)\b", open(issues_path, encoding="utf-8").read()))
+        tracker_text = open(issues_path, encoding="utf-8").read()
     except (OSError, UnicodeDecodeError) as exc:
-        issue_heads = None
         problems.append("cannot read %s: %s" % (issues_path, exc))
+    else:
+        issue_heads = {}
+        current = None
+        for line in tracker_text.split("\n"):
+            h = re.match(r"^## (ATM-[0-9]+)(?:[ \t]|$)", line)
+            if h:
+                current = h.group(1)
+                issue_heads.setdefault(current, None)
+                continue
+            if line.startswith("## "):
+                current = None
+                continue
+            s = re.match(r"^\*\*Status:\*\*\s*(.*?)\s*$", line)
+            if s and current is not None and issue_heads[current] is None:
+                # The status WORD precedes any qualifier: the live tracker writes e.g.
+                # "Queued — BLOCKED on ..." or "Fixed (→ Fixed.md)". Comparing the whole line
+                # would call such an open item closed (a false refusal, §11.4.201(1)).
+                issue_heads[current] = re.split(r"\s+(?:—|--?\s|\()", s.group(1), maxsplit=1)[0]
     if issue_heads is not None:
         if not issue_heads:
             problems.append("%s has no '## ATM-<n>' heading at all -- the tracker read is blind" % issues_path)
@@ -340,7 +363,11 @@ else:
             if not re.fullmatch(r"ATM-[0-9]+", track):
                 problems.append("allowlist entry %s: tracking %r is not an ATM-<n> id" % (rid, track))
             elif track not in issue_heads:
-                problems.append("allowlist entry %s: tracking id %s is not an open item in %s" % (rid, track, issues_path))
+                problems.append("allowlist entry %s: tracking id %s is not an open item in %s (no '## %s ' heading)"
+                                % (rid, track, issues_path, track))
+            elif issue_heads.get(track) not in OPEN_STATUSES:
+                problems.append("allowlist entry %s: tracking id %s is not an open item in %s (status %r)"
+                                % (rid, track, issues_path, issue_heads.get(track)))
 research = {}
 for l in open(research_path, encoding="utf-8"):
     c = l.split("|")
@@ -681,10 +708,40 @@ PY
     # conductor registration") restored in a mutated copy of the checker. Each must fail.
     if [ -f "$ISSUES_LIVE" ] && grep -q '^## ATM-1129 ' "$ISSUES_LIVE"; then
       echo "ok (7b) R3-03 control needle: $ISSUES_LIVE carries the '## ATM-1129 ' heading"
-      grep -v '^## ATM-1129 ' "$ISSUES_LIVE" > "$TMP/div/issues_no1129.md"
+      # R4-06: the heading is removed but ATM-1129 is still MENTIONED in prose and under a level-3
+      # heading, so a substring or any-level lookup would still "find" it.
+      { grep -v '^## ATM-1129 ' "$ISSUES_LIVE"
+        printf '\nA body line that mentions ATM-1129 in prose.\n### ATM-1129 — a level-3 heading is not an item\n\n**Status:** Queued\n'
+      } > "$TMP/div/issues_no1129.md"
+      # R4-06: the item exists but is CLOSED (its own Status line says Completed).
+      python3 - "$ISSUES_LIVE" "$TMP/div/issues_closed1129.md" <<'PY2'
+import re, sys
+t = open(sys.argv[1], encoding="utf-8").read()
+i = t.index("\n## ATM-1129 ")
+j = t.index("\n## ", i + 1)
+sec = re.sub(r"(?m)^\*\*Status:\*\*.*$", "**Status:** Completed", t[i:j], count=1)
+assert sec != t[i:j], "no Status line in the ATM-1129 section"
+open(sys.argv[2], "w", encoding="utf-8").write(t[:i] + sec + t[j:])
+PY2
+      # R4-06 golden-false: an OPEN status carrying a qualifier (the live tracker's own form,
+      # "Queued — BLOCKED on ...") is still open -- the check must PASS, never false-refuse.
+      python3 - "$ISSUES_LIVE" "$TMP/div/issues_qualified1129.md" <<'PY2'
+import re, sys
+t = open(sys.argv[1], encoding="utf-8").read()
+i = t.index("\n## ATM-1129 ")
+j = t.index("\n## ", i + 1)
+sec = re.sub(r"(?m)^\*\*Status:\*\*.*$", "**Status:** Queued — BLOCKED on an operator decision", t[i:j], count=1)
+assert sec != t[i:j], "no Status line in the ATM-1129 section"
+open(sys.argv[2], "w", encoding="utf-8").write(t[:i] + sec + t[j:])
+PY2
+      if divergence_check "$TMP/div/plan_same.md" "$TMP/div/research_same.md" "$TMP/div/issues_qualified1129.md" > "$TMP/div/out.txt" 2>&1; then
+        echo "ok (7b) R4-06 a qualified open status ('Queued — BLOCKED on ...') is still open (no false refusal)"
+      else
+        echo "NOT ok (7b) R4-06 a qualified open status was refused: $(tr '\n' ' ' < "$TMP/div/out.txt")"; failx
+      fi
       printf '# Issues\n\nno item headings here\n' > "$TMP/div/issues_blind.md"
       for _case in "issues_no1129.md:is not an open item" "no_such_issues.md:cannot read" \
-                   "issues_blind.md:has no '## ATM-<n>' heading"; do
+                   "issues_blind.md:has no '## ATM-<n>' heading" "issues_closed1129.md:(status 'Completed')"; do
         _i=${_case%%:*}; _want=${_case#*:}
         if divergence_check "$TMP/div/plan_same.md" "$TMP/div/research_same.md" "$TMP/div/$_i" > "$TMP/div/out.txt" 2>&1; then
           echo "NOT ok (7b) R3-03 divergence check PASSED with tracker $_i -- it cannot see '$_want'"; failx
@@ -703,6 +760,68 @@ PY
         echo "ok (7b) R3-03 a prose tracking value fails the divergence check"
       else
         echo "NOT ok (7b) R3-03 prose mutant failed for another reason: $(tr '\n' ' ' < "$TMP/div/out.txt")"; failx
+      fi
+      # R4-06 (V2 branch): the checker called WITHOUT a tracker argument must fail, never pass --
+      # the wrapper always supplies one, so this branch is exercised by calling the checker directly.
+      if python3 "$TMP/divergence.py" "$TMP/div/plan_same.md" "$TMP/div/research_same.md" > "$TMP/div/out.txt" 2>&1; then
+        echo "NOT ok (7b) R4-06 the divergence check PASSED with no docs/Issues.md argument"; failx
+      elif grep -qF "no docs/Issues.md given" "$TMP/div/out.txt"; then
+        echo "ok (7b) R4-06 the divergence check fails when no docs/Issues.md is given"
+      else
+        echo "NOT ok (7b) R4-06 no-tracker call failed for another reason: $(tr '\n' ' ' < "$TMP/div/out.txt")"; failx
+      fi
+      # R4-06 paired mutations of the checker (the reviewer's V1/V2/V3, plus V4 for the status rule).
+      # A mutant is CAUGHT when it still passes the clean case but passes >= 1 of the bad cases.
+      _vmut() { # _vmut <name> <old> <new> [<old2> <new2>]  (a pair = one compound mutant)
+        python3 - "$TMP/divergence.py" "$TMP/div/mut_$1.py" "$2" "$3" "${4:-}" "${5:-}" <<'PY2'
+import sys
+src, dst = sys.argv[1:3]
+pairs = [(sys.argv[3], sys.argv[4])] + ([(sys.argv[5], sys.argv[6])] if sys.argv[5] else [])
+t = open(src, encoding="utf-8").read()
+for old, new in pairs:
+    if t.count(old) != 1:
+        print("target occurs %d times: %r" % (t.count(old), old)); sys.exit(2)
+    t = t.replace(old, new)
+open(dst, "w", encoding="utf-8").write(t)
+PY2
+        _vrc=$?
+        if [ "$_vrc" -ne 0 ]; then echo "NOT ok (7b) R4-06 mutation $1 could not be applied"; failx; return; fi
+        if ! python3 "$TMP/div/mut_$1.py" "$TMP/div/plan_same.md" "$TMP/div/research_same.md" "$ISSUES_LIVE" >/dev/null 2>&1; then
+          echo "NOT ok (7b) R4-06 mutation $1 broke the clean case (not a discriminating mutant)"; failx; return
+        fi
+        _leaked=""
+        for _i in issues_no1129.md issues_closed1129.md; do
+          python3 "$TMP/div/mut_$1.py" "$TMP/div/plan_same.md" "$TMP/div/research_same.md" "$TMP/div/$_i" >/dev/null 2>&1 && _leaked="$_leaked $_i"
+        done
+        python3 "$TMP/div/mut_$1.py" "$TMP/div/plan_same.md" "$TMP/div/research_same.md" >/dev/null 2>&1 && _leaked="$_leaked <no-tracker-arg>"
+        if [ -n "$_leaked" ]; then echo "ok (7b) R4-06 mutation $1 caught (it passes:$_leaked)"
+        else echo "NOT ok (7b) R4-06 mutation $1 SURVIVED: every bad tracker case still fails"; failx; fi
+      }
+      # V1 (verbatim intent: membership as a substring of the whole Issues.md). Under the R4-06 status
+      # rule a substring "hit" has no Status and still fails closed, so V1 is paired with V4 to show
+      # the substring lookup itself is caught; V1h loosens the heading match instead (a level-3 or
+      # indented `## ATM-<n>` counted as the item).
+      _vmut V1_substring_lookup_plus_V4 'elif track not in issue_heads:' 'elif track not in tracker_text:' \
+        'elif issue_heads.get(track) not in OPEN_STATUSES:' 'elif False:'
+      _vmut V1h_heading_substring 'h = re.match(r"^## (ATM-[0-9]+)(?:[ \t]|$)", line)' 'h = re.search(r"## (ATM-[0-9]+)(?:[ \t]|$)", line)'
+      _vmut V2_no_issues_arg_passes '    problems.append("no docs/Issues.md given: the allowlist'"'"'s tracking ids cannot be resolved")' '    pass'
+      _vmut V3_heading_any_level 'h = re.match(r"^## (ATM-[0-9]+)(?:[ \t]|$)", line)' 'h = re.search(r"(ATM-[0-9]+)", line)'
+      _vmut V4_status_ignored 'elif issue_heads.get(track) not in OPEN_STATUSES:' 'elif False:'
+      # V5 (a FALSE-REFUSAL mutant, the other direction): compare the whole status line, qualifier
+      # included. It still refuses every bad case, so _vmut cannot see it; the golden-false tracker
+      # (a qualified open status) must catch it by being refused.
+      _v5_old='                issue_heads[current] = re.split(r"\s+(?:—|--?\s|\()", s.group(1), maxsplit=1)[0]'
+      _v5_new='                issue_heads[current] = s.group(1)'
+      if [ "$(grep -cF -- "$_v5_old" "$TMP/divergence.py")" -ne 1 ]; then
+        echo "NOT ok (7b) R4-06 mutation V5_whole_status_line could not be applied"; failx
+      else
+        python3 -c "import sys; t=open(sys.argv[1],encoding='utf-8').read(); open(sys.argv[2],'w',encoding='utf-8').write(t.replace(sys.argv[3],sys.argv[4]))" \
+          "$TMP/divergence.py" "$TMP/div/mut_V5.py" "$_v5_old" "$_v5_new"
+        if python3 "$TMP/div/mut_V5.py" "$TMP/div/plan_same.md" "$TMP/div/research_same.md" "$TMP/div/issues_qualified1129.md" >/dev/null 2>&1; then
+          echo "NOT ok (7b) R4-06 mutation V5_whole_status_line SURVIVED: a qualified open status still passes"; failx
+        else
+          echo "ok (7b) R4-06 mutation V5_whole_status_line caught (the qualified open status is falsely refused)"
+        fi
       fi
     else
       echo "NOT ok (7b) R3-03 control needle: $ISSUES_LIVE absent or has no '## ATM-1129 ' heading"; failx

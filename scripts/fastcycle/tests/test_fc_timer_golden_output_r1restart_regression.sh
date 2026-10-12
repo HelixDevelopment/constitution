@@ -27,12 +27,15 @@
 #   D8  round-3 m-g: a stderr line containing '...' (varying text) between a gate prompt and
 #       its displaced verdict -> still paired with the GATE prompt, no false MISMATCH (rc 0)
 #   D8b the same shape with a real OK->FAIL flip -> FAIL, and the diff names the gate
+#   D8c round-4 F6: an INDENTED `warning: ... ...` stderr line (the rest of the m-g class) never
+#       takes over the pending gate prompt (rc 0)
 #   M-shape   mutant golden whose pending prompt is replaced by ANY '...' line -> D8 FAILs
+#   M-grammar mutant golden with the round-3 any-indented-token prompt rule -> D8c FAILs
 #   M-pair    mutant golden without the pairing step -> D1 PASSES again (pairing load-bearing)
 #   M-counter mutant golden without the counter comparison -> D2 PASSES again
 # Usage: bash test_fc_timer_golden_output_r1restart_regression.sh   (exit 0 = all ok)
 # ok()/bad() always return 0 and mutation anchors are literal source text.
-# shellcheck disable=SC2015,SC2016,SC1003
+# shellcheck disable=SC2015,SC2016  # SC2015: ok()/bad() are print-only reporters that always return 0, so `cond && ok || bad` never mis-fires the || branch; SC2016: every flagged single-quoted text is a mutate() anchor/replacement, i.e. literal source text that must not expand here
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/golden_triplet_fixture.sh
@@ -194,6 +197,28 @@ $P2
 curl: (6) could not resolve host mirror-a... retrying
 FAIL
 $F58" "1 1 1"
+# D8c (round-4 F6): the m-g class, not just its curl instance -- an INDENTED stderr line of the
+# `<token>: ... ...` shape (`    warning: mirror-a slow... retrying`) matched the round-3 rule
+# `^[[:space:]]+[^[:space:]]+:[[:space:]]` and still stole the prompt. Its text varies per member.
+triplet D8c 11 "$G1
+$P2
+    warning: mirror-a slow... retrying
+OK
+$F58" "$G1
+$P2
+    warning: mirror-a slow... retrying
+OK
+$F58" "$G1
+$P2
+    warning: mirror-b timed out... retrying
+OK
+$F58" "1 1 1"
+rc="$(judge D8c)"
+if [ "$rc" = 0 ] && grep -q "verdict set is IDENTICAL" "$TMP/out_D8c"; then
+  ok "(D8c) an indented 'warning: ...' stderr line between prompt and verdict never takes over the GATE prompt (rc=0)"
+else
+  bad "(D8c) the indented 'warning: ...' stderr line took over the prompt (rc=$rc): $(grep -E '^(FAIL|[<>])' "$TMP/out_D8c" | head -4 | tr '\n' ' ')"
+fi
 rc="$(judge D8)"
 [ "$rc" = 0 ] && grep -q "verdict set is IDENTICAL" "$TMP/out_D8" \
   && ok "(D8) varying '...' stderr text between prompt and verdict -> verdict still paired with the GATE prompt, no false MISMATCH (rc=0)" \
@@ -209,8 +234,19 @@ if mutate shape '      else if (index($0, "...") > 0 && $0 ~ pre) prompt = subst
     || bad "(M-shape) mutant still passes D8 (rc=$rc)"
 fi
 
+# M-grammar (round-4 F6): the round-3 any-indented-token rule restored -> D8c's indented
+# 'warning: ...' stderr line steals the prompt again and D8c FAILs.
+if mutate grammar 'pre = "^  [A-Z][A-Za-z0-9._/+-]*([0-9]|-)[A-Za-z0-9._/+-]*: "' 'pre = "^[[:space:]]+[^[:space:]]+:[[:space:]]"'; then
+  rc="$(judge D8c "$TMP/golden_grammar.sh")"
+  if [ "$rc" = 1 ]; then
+    ok "(M-grammar) with the round-3 any-token rule back, D8c's indented 'warning: ...' line steals the verdict and D8c FAILs -- the gate-id grammar is load-bearing"
+  else
+    bad "(M-grammar) mutant still passes D8c (rc=$rc)"
+  fi
+fi
+
 echo "=== M-pair / M-counter: each new channel is load-bearing ==="
-if mutate pair '    | _pair_displaced_verdicts \' '    | cat \'; then
+if mutate pair $'    | _pair_displaced_verdicts \\' $'    | cat \\'; then
   rc="$(judge D1 "$TMP/golden_pair.sh")"
   # Without pairing the D1 flip is invisible to the verdict comparison again (its PASS line
   # returns), and the per-shape control needle is what still fails the run.

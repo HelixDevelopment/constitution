@@ -440,6 +440,96 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 </head>
 <body>
 <h1 id="git-and-data-safety">Git And Data Safety</h1>
+<h3 id="21-multi-upstream-push-is-the-norm">2.1 Multi-upstream push is
+the norm</h3>
+<p>Every project hosted on multiple Git providers (GitHub primary,
+GitLab / GitFlic / GitVerse / Bitbucket / Gitea mirrors) MUST push every
+commit to ALL configured upstream remotes. A commit that lives on only
+one remote is a future operational risk: when that one provider has an
+outage, the project is unreachable.</p>
+<p>The constitution submodule itself ships an
+<code>install_upstreams.sh</code> helper (and an <code>Upstreams/</code>
+directory with one declaration script per remote). Running it from the
+submodule root configures all the remotes locally. Consuming projects
+SHOULD do the same for their own multi- remote topology.</p>
+<hr />
+<h2 id="3-submodule-changes-propagate-through-submodule-commits-first">3.
+Submodule changes propagate through submodule commits first</h2>
+<p>When a change lands in any submodule of the project:</p>
+<ol type="1">
+<li><strong>Commit inside the submodule first</strong> (the submodule&#39;s
+own <code>git add</code> + <code>git commit</code>), since the parent
+project&#39;s commit wrapper does not commit submodule source — it only
+captures the updated submodule pointer.</li>
+<li><strong>Push the submodule commit</strong> to <strong>all</strong>
+remotes of that submodule.</li>
+<li><strong>Then</strong> run the parent project&#39;s commit wrapper to
+capture the updated submodule pointer in main and push main.</li>
+</ol>
+<p>Skipping step 1 produces parent commits / tags that point at old
+submodule HEADs without the actual source.</p>
+<hr />
+<h2 id="4-every-tag-on-the-main-repo-must-be-mirrored-on-every-owned-submodule">4.
+Every tag on the main repo MUST be mirrored on every owned
+submodule</h2>
+<p>When a version tag is created on the main repo at a specific commit,
+the same tag MUST be created on <strong>every owned submodule</strong>
+at that submodule&#39;s currently-pointed-to HEAD, and pushed to
+<strong>every remote</strong> of every owned repo. Third-party
+submodules (libraries not under the project&#39;s control) are excluded. The
+consuming project&#39;s Constitution declares its owned-submodule set
+explicitly.</p>
+<hr />
+<h2 id="5-changelog-discipline-and-multi-format-export">5. Changelog
+discipline and multi-format export</h2>
+<p>Every tagged release MUST ship:</p>
+<ol type="1">
+<li>A new <code>docs/changelogs/&lt;tag&gt;.md</code> entry describing
+user-visible changes, developer-visible changes, and known caveats.</li>
+<li>Exports of that entry to
+<code>docs/changelogs/&lt;tag&gt;.{html,json,txt}</code> so external
+tooling (release portals, ticketing systems, package indices) can
+consume without needing a Markdown parser.</li>
+<li>An update to a cumulative <code>docs/changelogs/CHANGELOG.md</code>
+(reverse chronological).</li>
+</ol>
+<p>The project SHOULD provide a script
+(<code>scripts/testing/export_changelog.sh &lt;tag&gt;</code> or
+equivalent) that wraps <code>pandoc</code> + <code>jq</code> +
+plain-text Markdown strip.</p>
+<hr />
+<h2 id="6-documentation-up-to-the-nano-details">6. Documentation up to
+the nano-details</h2>
+<p>Every new feature, fix, or infrastructure change MUST update:</p>
+<ol type="1">
+<li>The project&#39;s CLAUDE.md / AGENTS.md Applied Fixes table (one row,
+one commit, one release tag).</li>
+<li><code>docs/guides/</code> for any user-visible or
+developer-reachable behaviour change.</li>
+<li>Architecture diagrams, flowcharts, and any reference docs that touch
+the changed subsystem.</li>
+<li>The per-version changelog (§5).</li>
+</ol>
+<p>Documentation drift after a fix is itself a Constitution violation:
+undocumented behaviour change is the same defect class as un-tested
+behaviour change.</p>
+<hr />
+<h2 id="7-making-false-success-results-literally-impossible">7. Making
+false-success results literally impossible</h2>
+<p>All validation output MUST satisfy the following invariants:</p>
+<ol type="1">
+<li>Every gate reports concrete PASS / FAIL / SKIP with explicit reason
+text. A gate that just says &quot;ok&quot; is non-compliant.</li>
+<li>Every SKIP reason MUST be mechanically distinguishable from a PASS.
+Summary counters track them separately.</li>
+<li>FAILs are counted towards exit status. A script that hides FAILs in
+logs and returns 0 is a bug.</li>
+<li>Meta-tests (§1.1) catch any gate that always PASSes regardless of
+condition.</li>
+<li>Runtime results MUST be cross-referenced against host-side evidence
+(capture rig, screen recording, log analyzer, or equivalent) when the
+system&#39;s own introspection cannot directly verify the behaviour.</li>
+</ol>
 <h3 id="91-mandatory-safety-protocol-for-destructive-operations">§9.1
 Mandatory safety protocol for destructive operations</h3>
 <p>Every destructive operation MUST execute, in strict order:</p>

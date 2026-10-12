@@ -507,6 +507,27 @@ transcript (real on-disk path convention) carries the SAME
 <code>cache_creation_input_tokens=8000</code>)</td>
 </tr>
 <tr>
+<td><code>foreground_attribution/parent_session.jsonl</code> +
+<code>foreground_attribution/parent_session/subagents/agent-fixturefg01.{jsonl,meta.json}</code></td>
+<td>a FOREGROUND dispatch (round 8, F1): the parent&#39;s
+<code>toolUseResult</code> has the real foreground keys
+(<code>agentId</code>, <code>agentType</code>, <code>content</code>,
+<code>prompt</code>, <code>resolvedModel</code>, <code>status</code>,
+<code>totalTokens</code>, <code>usage</code>) and NO
+<code>description</code>; the item comes from the subagent&#39;s sidecar
+<code>agent-&lt;id&gt;.meta.json</code> (<code>description</code>
+carries <code>item=ATM-9999</code>);
+<code>prompt</code>/<code>content</code> carry decoy tags
+(<code>ATM-1111</code>, <code>ATM-2222</code>) that must never be read;
+the subagent records carry their OWN <code>sessionId</code>
+(<code>fixture-fg-subagent-own-session</code>, different from the
+parent&#39;s)</td>
+<td>derived from the structure of this host&#39;s live subagent transcripts
+(their sidecars carry <code>agentType</code>, <code>description</code>,
+<code>toolUseId</code>, <code>requestShape</code>, <code>model</code>);
+every id and text is synthetic</td>
+</tr>
+<tr>
 <td><code>credential_leak/session.jsonl</code></td>
 <td>a planted secret-shaped string in message content never reaches the
 telemetry DB (§11.4.10)</td>

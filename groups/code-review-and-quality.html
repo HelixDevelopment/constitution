@@ -664,6 +664,13 @@ expected on the target — never metadata-only / configuration-only /
 absence-of-error / grep-without-runtime. No false results, no bluff of
 any kind, at any round. A reported GO unbacked by captured physical
 evidence is itself a §11.4 PASS-bluff at the review-loop layer.</p>
+<p><strong>EXTENSION (2026-10-05):</strong> this clause&#39;s re-run
+obligation (&quot;MUST KEEP being re-run after each remediation round, until
+it returns a clean GO&quot;) is bounded PER APPROACH by §11.4.276&#39;s declared
+round budget; at that ceiling the item is escalated per §11.4.276(E)(3)
+to a recorded operator decision, never closed, never continued
+round-by-round indefinitely under the same approach, and never silently
+relaxed to &quot;good enough.&quot;</p>
 <p>§11.4.134 REFINES / STRENGTHENS §11.4.125 (which requires the review
 to iterate &quot;until no blocking findings remain&quot;): it makes the loop
 EXPLICIT (re-run after every remediation round, not once), raises the
@@ -1120,10 +1127,21 @@ hatch — no <code>--partial-scenario-review</code>,
 <code>--skip-captured-evidence-crosscheck</code>,
 <code>--single-factor-review-suffices</code>,
 <code>--dismiss-branch-without-proof</code> flag.</p>
-<h3 id="114209--code-review-must-run-on-the-opus-model-at-xhigh-effort-always--no-fable-no-escalation-tier-no-fallback-model-user-mandate-2026-09-26-supersedes-2026-09-15-and-2026-07-15">§11.4.209
-— Code-review MUST run on the Opus model at xhigh effort, ALWAYS — no
-Fable, no escalation tier, no fallback model (User mandate, 2026-09-26,
-supersedes 2026-09-15 and 2026-07-15)</h3>
+<h3 id="114209--code-review-must-run-on-the-opus-model-at-xhigh-effort-as-primary-substrate-with-a-genuine-unavailability-sonnet-fallback--no-fable-no-escalation-tier-user-mandate-2026-09-26-supersedes-2026-09-15-and-2026-07-15-amended-2026-10-04-to-add-the-sonnet-fallback-clause">§11.4.209
+— Code-review MUST run on the Opus model at xhigh effort as PRIMARY
+substrate, with a genuine-unavailability Sonnet fallback — no Fable, no
+escalation tier (User mandate, 2026-09-26, supersedes 2026-09-15 and
+2026-07-15; amended 2026-10-04 to add the Sonnet-fallback clause)</h3>
+<p><strong>Verbatim operator mandate (2026-10-04,
+<code>CRITICAL</code>), AMENDING clause (A) below — adds a
+genuine-unavailability fallback, does not change the primary
+substrate:</strong> &quot;If we do not have access to Opus model for some
+reason but only to Sonnet, we MUST USE what we have! Reviews MUST BE
+done. Ideally with Opus model, however Sonet MUST BE used if Opus for
+any reason cannot be used! Add this / extend into main constiotution
+Submodule and apply the rule asap so nothing is blocked with review
+which is not performed yet! We MUST BE maximally efficient! Work MUST BE
+performed with all means we have at particular moment!&quot;</p>
 <p><strong>Verbatim operator mandate (2026-09-26,
 <code>CRITICAL</code>), superseding both mandates below:</strong> &quot;Main
 model to use is Sonet, reviews and other heavy stuff have to be done by
@@ -1147,63 +1165,98 @@ the §11.4.125 code-review-agent gate before pre-build + main build, the
 §11.4.194 exhaustive all-scenario/all-angle review +
 verify-against-captured-runtime-evidence, iterated to a zero-finding GO
 per §11.4.134 — MUST be dispatched on the <strong>Opus model at
-<code>xhigh</code> effort</strong>, ALWAYS, whatever the size or
-complexity of the reviewed change. <strong>(A) One substrate — no
-escalation tier, no fallback model.</strong> Opus at <code>xhigh</code>
-is the ONLY permitted review substrate. Fable is NOT permitted in any
-role (default, escalation, or fallback); no other model, no lower tier,
-and no lower effort substitutes for it. When Opus at <code>xhigh</code>
-is genuinely unavailable (not configured / rate-limited / unreachable,
-established as a captured FACT per §11.4.6 — never a guessed
-unavailability), the review is BLOCKED and deferred: the unavailability
-fact is recorded, the owed review is tracked (§11.4.197; §11.4.21 once
-the self-resolution audit is exhausted), and the reviewed change does
-NOT pass the review gate on a substitute model. <strong>(B) Independence
-preserved (§11.4.70/§11.4.20).</strong> The Opus-xhigh model runs as the
-structurally-separated reviewer (never the author self-reviewing);
-§11.4.209 sets the MODEL + EFFORT of that review, it does not weaken the
-independence, the iterate-until-GO loop (§11.4.134), or the rock-solid
-captured-evidence requirement (§11.4.5/§11.4.69/§11.4.107). <strong>(C)
-Honest boundary (§11.4.6).</strong> A review claimed &quot;done&quot; that
-actually ran on any model other than Opus, or at an effort below
-<code>xhigh</code>, is a §11.4 bluff at the review-substrate layer — the
-review&#39;s captured evidence MUST record which model + effort actually
-performed it. Where the dispatch path cannot set or report the effort
-(the §11.4.231(F.2) harness gap), the evidence records that gap honestly
-and the review is never claimed to have run at <code>xhigh</code> on an
-unverified basis. <strong>(D) Values already burned in a public
-repository (§11.4.10).</strong> Any plaintext credential value that has
-appeared in documentation, a spec, or commit history — including as a
-worked example — MUST be treated as compromised from the moment of
-commit; a document illustrating this anchor or any credential-adjacent
-mandate MUST NOT embed a real-looking username/password pair, even as an
-example, without the accompanying statement that the pair is
-compromised-by-disclosure and MUST NOT be relied on as a real secret.
-STRENGTHENS §11.4.125/§11.4.142/§11.4.194/§11.4.134 — it does NOT
-replace any of them; it pins the review&#39;s execution substrate.</p>
+<code>xhigh</code> effort</strong> as PRIMARY substrate, whatever the
+size or complexity of the reviewed change. <strong>(A) PRIMARY substrate
+Opus-xhigh + genuine-unavailability SONNET FALLBACK (amended 2026-10-04)
+— no escalation tier, no Fable, no other fallback model.</strong> Opus
+at <code>xhigh</code> is the PRIMARY and preferred review substrate.
+Fable is NOT permitted in any role (default, escalation, or fallback),
+ever; no model other than Opus or the sanctioned Sonnet fallback below,
+and no lower tier for Opus itself, substitutes for it. When Opus at
+<code>xhigh</code> is genuinely unavailable (not configured /
+rate-limited / unreachable, established as a captured FACT per §11.4.6 —
+never a guessed unavailability), the review MUST be dispatched on
+<strong>Sonnet</strong> (at the highest effort the dispatch path can
+set) rather than blocked — the sole sanctioned fallback, per the
+verbatim 2026-10-04 operator mandate above: reviews MUST be done with
+whatever capable means are actually available, Opus ideally, Sonnet when
+Opus genuinely cannot be used. The Opus-unavailability FACT and the
+Sonnet-fallback substitution MUST both be recorded honestly in the
+review&#39;s captured evidence (§11.4.5/§11.4.69) — a Sonnet-fallback review
+is NEVER silently presented as if it ran on Opus. A review is NEVER left
+undone / blocked / deferred solely because Opus is unavailable while
+Sonnet is reachable — maximal efficiency (§11.4.183) forbids leaving
+genuinely performable review work undone. ONLY when BOTH Opus and Sonnet
+are genuinely unavailable (each established as its own captured FACT per
+§11.4.6, never guessed) does the review become BLOCKED and deferred
+under the original (A) terms: the unavailability fact is recorded, the
+owed review is tracked (§11.4.197; §11.4.21 once the self-resolution
+audit is exhausted), and the reviewed change does NOT pass the review
+gate unreviewed. <strong>(B) Independence preserved
+(§11.4.70/§11.4.20).</strong> The reviewing model (Opus or the
+sanctioned Sonnet fallback) runs as the structurally-separated reviewer
+(never the author self-reviewing); §11.4.209 sets the MODEL + EFFORT of
+that review, it does not weaken the independence, the iterate-until-GO
+loop (§11.4.134), or the rock-solid captured-evidence requirement
+(§11.4.5/§11.4.69/§11.4.107). <strong>(C) Honest boundary
+(§11.4.6).</strong> A review claimed &quot;done&quot; that actually ran on Fable,
+Haiku, or any model other than Opus or the sanctioned Sonnet fallback,
+or at an effort below <code>xhigh</code>, or on Sonnet with no recorded
+Opus-unavailability fact, is a §11.4 bluff at the review-substrate layer
+— the review&#39;s captured evidence MUST record which model + effort
+actually performed it. Where the dispatch path cannot set or report the
+effort (the §11.4.231(F.2) harness gap), the evidence records that gap
+honestly and the review is never claimed to have run at
+<code>xhigh</code> on an unverified basis. <strong>(D) Values already
+burned in a public repository (§11.4.10).</strong> Any plaintext
+credential value that has appeared in documentation, a spec, or commit
+history — including as a worked example — MUST be treated as compromised
+from the moment of commit; a document illustrating this anchor or any
+credential-adjacent mandate MUST NOT embed a real-looking
+username/password pair, even as an example, without the accompanying
+statement that the pair is compromised-by-disclosure and MUST NOT be
+relied on as a real secret. STRENGTHENS
+§11.4.125/§11.4.142/§11.4.194/§11.4.134 — it does NOT replace any of
+them; it pins the review&#39;s execution substrate, now a
+PRIMARY-plus-sanctioned-fallback pin rather than a single-model pin.</p>
 <p>Classification: universal (§11.4.17). Composes §11.4.125 / §11.4.134
 / §11.4.142 / §11.4.194 / §11.4.6 / §11.4.10 / §11.4.20 / §11.4.21 /
-§11.4.70 / §11.4.196 (alias/model selection) / §11.4.197 / §11.4.231
-(nano-precision model-tier selection — §11.4.209 remains the hard pin
-for review/merge-conflict scope that §11.4.231(E) explicitly does not
-reach). Propagation gate <code>CM-COVENANT-114-209-PROPAGATION</code>
-(literal <code>11.4.209</code> across the consumer fleet) + recommended
-gate <code>CM-CODE-REVIEW-OPUS-XHIGH</code> (renamed by the 2026-09-26
+§11.4.70 / §11.4.183 (maximal multi-agent utilization — the reason a
+genuine Opus gap defers to Sonnet rather than blocking, never reduces to
+idle waiting) / §11.4.196 (alias/model selection) / §11.4.197 /
+§11.4.231 (nano-precision model-tier selection — §11.4.209 remains the
+hard pin for review/merge-conflict scope that §11.4.231(E) explicitly
+does not reach; the amended clause (A) Sonnet fallback draws on the SAME
+<code>sonnet</code> rung §11.4.231(A) already names, never a new tier).
+Propagation gate <code>CM-COVENANT-114-209-PROPAGATION</code> (literal
+<code>11.4.209</code> across the consumer fleet) + recommended gate
+<code>CM-CODE-REVIEW-OPUS-XHIGH</code> (renamed by the 2026-09-26
 amendment; the retired predecessor token is cited in
-<code>scripts/gates/gate_ledger_removals.tsv</code>) (the mandatory
-code-review&#39;s captured evidence records model=Opus + effort=xhigh; a
-review recorded on any other model or at a lower effort FAILs; a review
-recorded BLOCKED with a captured Opus-unavailability fact is honest and
+<code>scripts/gates/gate_ledger_removals.tsv</code>; amended 2026-10-04)
+(the mandatory code-review&#39;s captured evidence records model=Opus +
+effort=xhigh (or, on a dispatch path that cannot set effort, that
+§11.4.231(F.2) harness gap honestly recorded instead of a claimed
+xhigh), OR model=Sonnet carrying a captured Opus-unavailability FACT
+under the SAME effort-or-honest-gap rule; a review recorded on
+Fable/Haiku/any other model, recorded as xhigh when the dispatch path
+could not actually set it, or recorded on Sonnet with NO captured
+Opus-unavailability fact, FAILs; a review recorded BLOCKED with a
+captured fact that BOTH Opus AND Sonnet were unavailable is honest and
 MUST NOT fire the gate — the §11.4.201(1) false-positive guard) + paired
-§1.1 meta-test mutation (record a code-review run on a non-Opus model or
-a lower effort → the gate FAILs; strip the literal → the propagation
-gate FAILs; gate-code = separate work item).</p>
+§1.1 meta-test mutation (record a code-review run on a
+non-Opus/non-Sonnet model, or claiming xhigh when the dispatch path
+could not actually set it, or on Sonnet with no recorded
+Opus-unavailability fact → the gate FAILs; strip the literal → the
+propagation gate FAILs; gate-code = separate work item).</p>
 <p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.209.</p>
-<p>Non-compliance is a release blocker. No escape hatch — no
+<p>Non-compliance is a release blocker. No escape hatch beyond the
+sanctioned (A) Sonnet fallback (which itself requires a captured
+Opus-unavailability FACT, never a guess) — no
 <code>--review-any-model</code>, <code>--review-lower-effort-OK</code>,
 <code>--skip-opus</code>, <code>--non-xhigh-review</code>,
-<code>--escalate-to-other-model</code>,
-<code>--substitute-model-on-unavailability</code> flag.</p>
+<code>--escalate-to-fable-or-haiku</code>,
+<code>--sonnet-fallback-without-recorded-fact</code>,
+<code>--leave-review-blocked-while-sonnet-reachable</code> flag.</p>
 <h3 id="114240--producer--verifier-scope-separation-the-actor-that-produces-a-changeartifactverdict-cannot-be-the-one-that-gates-it--least-privilege-over-cleverness-research-derived-2026-08-15">§11.4.240
 — Producer ≠ Verifier scope separation: the actor that produces a
 change/artifact/verdict cannot be the one that gates it — least
@@ -1337,8 +1390,10 @@ edit the verdict or the oracle to make itself green.&quot;</p>
 at the verdict layer — a producer-typed status label is not a verdict.
 §11.4.125&#39;s code-review-agent gate before pre-build + main build IS the
 (A) VERIFIER role at the review layer, and §11.4.142&#39;s universal
-every-change-review mandate + §11.4.209&#39;s Opus-xhigh review-substrate
-pin (no fallback model) provide the independence + substrate
+every-change-review mandate + §11.4.209&#39;s
+Opus-xhigh-primary-plus-genuine-unavailability-Sonnet-fallback
+review-substrate pin (amended 2026-10-04; Fable and Haiku remain
+forbidden in every role) provide the independence + substrate
 requirements. §11.4.135&#39;s standing regression-guard suite is the GATE
 layer at the release seam. §11.4.146(D3) status custody is the
 STATUS-WRITE-SEAM enforcement — the store REFUSES a producer-asserted
@@ -1446,10 +1501,12 @@ This clause does NOT weaken the constitution&#39;s OTHER, distinct, narrower
 model-substrate pins — §11.4.256&#39;s requirement that a translation review
 run on a DIFFERENT model/provider than the translator, and §11.4.209&#39;s
 requirement that every mandatory independent code-review run on the Opus
-model at <code>xhigh</code> effort (no fallback model); both remain in
-force unmodified for their own narrower domains (translation review;
-code review). FR-032&#39;s permitted-not-required framing governs only the
-GENERAL producer≠verifier case this anchor addresses, never those two
+model at <code>xhigh</code> effort as PRIMARY substrate, with a
+genuine-unavailability Sonnet fallback (amended 2026-10-04; Fable and
+Haiku remain forbidden in every role); both remain in force unmodified
+for their own narrower domains (translation review; code review).
+FR-032&#39;s permitted-not-required framing governs only the GENERAL
+producer≠verifier case this anchor addresses, never those two
 domain-specific, stricter pins. <strong>(3) Tier-C trigger 1 — the
 producer holds write access to the evidence/verdict store.</strong> Per
 spec.md:122 (FR-033): at a seam where the producer holds write access to
@@ -1633,5 +1690,280 @@ Non-compliance is a release blocker. No escape hatch — no
 <code>--duplicate-code-per-environment</code>,
 <code>--near-identical-forks-are-fine</code> flag.</p>
 <hr />
+<h3 id="114276--review-round-budget-every-independently-reviewed-work-item-converges-within-a-declared-budget-of-at-most-7-rounds-57-consumer-declared-by-front-loading-ground-truth-class-exhaustive-enumeration-real-path-tests-and-a-declared-threat-boundary-with-a-binding-methodology-change-at-round-3-user-mandate-2026-10-05">§11.4.276
+— Review-round budget: every independently-reviewed work item converges
+within a declared budget of at most 7 rounds (5–7, consumer-declared),
+by front-loading ground truth, class-exhaustive enumeration, real-path
+tests and a declared threat boundary, with a binding methodology change
+at round 3 (User mandate, 2026-10-05)</h3>
+<p><strong>Forensic anchor — verbatim operator mandate (2026-10-05,
+<code>CRITICAL</code>):</strong> &quot;Make sure we never ever get to such
+extremely high never ending review rounds count! Determine exact causes
+of issues we are facing with deep planning and exhaustive analisys so
+all work ALWAYS gets done with 5 to 7 reviews max! This MUST BE
+mandatory part of the constitution!!! Reasonable reviews rounds count
+with fully deterministically validated and verified working results
+produced!&quot;</p>
+<p><strong>Forensic FACTS (genericised; full citations in the consuming
+project&#39;s own continuation record).</strong> One reference consuming
+project ran four independently-reviewed work items to 7, 10+, 30 and 39+
+rounds in one week. Reading every round&#39;s recorded findings showed the
+count was driven by five recurring, avoidable mechanisms, not by an
+unusually hard problem: <strong>(1) wrong-model ground truth</strong> —
+a build-configuration fix and its OWN verifying gate were both built on
+a simplified mental model of an external build system&#39;s inheritance
+mechanism (values assumed to flow through a plain include chain, when
+the real tool clears the variable before a node&#39;s own include and merges
+ancestor values in afterwards); the gate even ran the real tool, but on
+a hand-simplified fixture, so it reported GREEN on a fix that could
+never work; it was caught only when a reviewer read the tool&#39;s own
+source and rebuilt the fixture on the tool&#39;s REAL composition path,
+after which the fix was rebuilt on the real path and landed in a single
+remediation round; <strong>(2) instance-at-a-time closure of a known
+class</strong> — a security gate was hardened against command-shadowing
+one command name per round (each of rounds 36, 37 and 38 found further
+unhardened names) after round 35 had explicitly considered and declined
+a mechanical whole-file enumeration because no decision-path classifier
+existed; in a second item a &quot;close the whole class&quot; instruction was met
+by fixing a syntactic proxy token rather than the class, and the same
+defect family returned in four consecutive rounds; <strong>(3)
+fixer-authored tests that never drive the real code</strong> — at rounds
+25, 26, 27, 37 and again 38 a reviewer showed the newest regression test
+re-implemented, text-extracted, or never drove a verdict through the
+logic it claimed to guard, so the reviewer&#39;s own mutations of the real
+code survived the whole suite; <strong>(4) non-binding escalation
+signals</strong> — the heuristic-tower anchor (§11.4.250) was invoked
+about thirty times across these items (once, at round 5, with the
+explicit prediction &quot;point fixes alone are likely to produce a Round 6
+of the same kind&quot;) and the stall anchor (§11.4.267) had no declared
+retry bound anywhere in the project, so neither ever stopped the loop; a
+reviewer-recommended structural fix (re-executing the gate at its call
+seam in a scrubbed environment) was deferred in two successive rounds
+while in-file point hardening continued; <strong>(5) scope
+drift</strong> — a review loop absorbed an out-of-scope tangent (a
+separate, unrelated hardening effort surfaced mid-review) and the round
+counter kept accruing against the original item for the whole of that
+tangent, inflating its own count substantially before the tangent was
+explicitly separated out. The same record also contains genuinely new
+findings that legitimately needed another round (a shell-parser
+asymmetry that made a core test operator shadowable; a sentinel variable
+an attacker could pre-set) — iteration as such is not the defect. The
+defect is rounds spent re-discovering what one front-loaded
+investigation would have found, or accruing against an item the item
+never actually owned.</p>
+<p><strong>What this is NOT (the §11.4.227 boundary, stated
+first).</strong> §11.4.134 governs the review loop&#39;s GO bar (zero
+findings, zero warnings) and its obligation to keep re-running until
+that bar is met. §11.4.267 governs the shared attempt record,
+converge-on-evidence, and an undeclared stall bound <code>N</code>.
+§11.4.250 governs the heuristic-tower SIGNAL that a primitive is
+defective. None of the three bounds the review loop&#39;s LENGTH or binds a
+concrete action to a round NUMBER. §11.4.276 adds exactly that — clause
+(A) the ceiling, clause (E) the round-3 checkpoint and the ceiling
+escalation. Clauses (B)–(D) add no new substantive obligation beyond
+fixing WHEN existing duties must be discharged: (B) binds §11.4.6 /
+§11.4.99 / §11.4.102 phase 1 / §11.4.199 / §11.4.226 to a recorded
+artifact at a fixed point before the first fix; (C) binds §11.4.250 /
+§11.4.201(7)(b) to the round that first meets a nameable class; (D)
+binds §11.4.224(A) / §11.4.194(6)(d) / §11.4.115(F) / §11.4.235(D) to
+every remediation round&#39;s own regression set.</p>
+<p><strong>The mandate (ALL hold):</strong></p>
+<p><strong>(A) DECLARED ROUND BUDGET, HARD CEILING 7.</strong> Every
+work item that passes through the §11.4.125 / §11.4.134 / §11.4.142 /
+§11.4.194 review loop carries a round budget <code>R_max</code>,
+declared by the consuming project as DATA (§11.4.35) in the closed range
+5 ≤ <code>R_max</code> ≤ 7; an absent declaration resolves to 5 (the
+conservative value — the escalation in (E) fires earliest; §11.4.101).
+The ceiling is a constitutional literal because the operator supplied it
+verbatim (§11.4.246&#39;s operator-decided fleet minimum is the same
+pattern); the 5–7 range is the operator-mandated ceiling recorded with
+its own verbatim mandate above, not an invented <code>N</code>
+attributed to an external source (§11.4.267(E)) — the consumer&#39;s
+declared <code>R_max</code> within that ceiling IS its §11.4.267
+<code>N</code> for the review loop, and remains consumer DATA. A round =
+one independent review verdict on the item, whether on uncommitted or
+already-pushed work, counted from the first review and recorded with the
+item&#39;s review record; a review that never received its brief, or crashed
+without a verdict, is recorded but not counted. Splitting, renaming, or
+re-filing the item does NOT reset the count unless (E)(3) applies. A
+tracked item created from a finding raised during a budgeted item&#39;s
+review inherits that item&#39;s consumed round count — the exception is a
+finding outside a scope/threat boundary declared before round 1 under
+(E)(2), which starts a fresh budget; item identity for recurrences
+follows §11.4.214 (link, never mint).</p>
+<p><strong>(B) GROUND TRUTH BEFORE THE FIRST FIX.</strong> Before the
+first fix attempt — not after a reviewer finds the model wrong — for any
+change or finding whose correctness depends on the behaviour of a system
+the author does not own (build tool, compiler, interpreter or shell
+semantics, kernel, runtime, third-party library, protocol), the author
+MUST record a ground-truth probe: (1) the authoritative source of the
+behaviour (the tool&#39;s own source code or normative specification, cited
+by file and line — not a summary, not memory); (2) a minimal fixture
+executed on the REAL tool through its REAL composition path (the actual
+inheritance, sourcing, linking or dispatch mechanism the product uses —
+a hand-simplified approximation of that path does not count); (3) the
+recorded behavioural model the fix relies on. The fix&#39;s own verifying
+gate or test MUST exercise the same real path the probe established; a
+gate verified on a simplified model is wrong-layer evidence (§11.4.226)
+and cannot support a GO. Composes §11.4.6 / §11.4.99 / §11.4.102 phase 1
+/ §11.4.199 — it binds them to a recorded artifact at a fixed point in
+time.</p>
+<p><strong>(C) CLASS-EXHAUSTIVE ENUMERATION ON FIRST INSTANCE.</strong>
+When a finding is an instance of a class (bypass via name resolution, an
+unguarded external command, a masked character, a mutation-surviving
+test, a missed parse case), the round that fixes it MUST (1) name the
+class; (2) enumerate every member across the item&#39;s whole scope with a
+mechanical instrument whose null result is control-needle-proven
+(§11.4.201(7)(b)), and record that inventory; (3) close every member, or
+scope a member out explicitly with a reason and a tracked item
+(§11.4.197). Fixing only the reported instance when the class is
+nameable is a §11.4.276(C) violation. When the enumeration needs a tool
+that does not yet exist (for example a classifier separating
+decision-path calls from display-only calls), building that tool IS the
+remediation work — &quot;no classifier yet&quot; is not a reason to fall back to
+instance-by-instance fixes. A claim that a class is &quot;closed&quot; MUST cite
+the inventory artifact; a fix that closes a syntactic proxy instead of
+the class is an unclosed finding (§11.4.250).</p>
+<p><strong>(D) REAL-PATH TESTS AND REVIEWER MUTATIONS ADOPTED
+VERBATIM.</strong> Every regression test added in a remediation round
+MUST drive the real shipped artifact through its real invocation path
+(§11.4.224(A)) — a test that re-implements the guarded logic inline, or
+runs extracted source text outside the artifact&#39;s own process, guards
+nothing and is a <code>source-defect</code> finding under §11.4.235(D).
+Every mutation a reviewer reported as surviving is added to the item&#39;s
+mutation set verbatim and must FAIL the suite before the next review is
+requested (composes §11.4.194(6)(d) / §11.4.115(F)). The fixer runs the
+item&#39;s full regression set and the reviewer&#39;s previous attacks against
+the fix before requesting review; the dispatch seam REFUSES to start a
+review when that record is absent (never counted as a round because it
+is never dispatched). A review that WAS actually dispatched and returned
+a verdict always counts as a round, regardless of whether its triggering
+record was later found deficient — the record requirement gates
+DISPATCH, it is never grounds to retroactively erase a verdict that
+already issued.</p>
+<p><strong>(E) BINDING METHODOLOGY CHANGE AT ROUND 3, AND THE CEILING
+ESCALATION.</strong> (1) At round 3, and at every later round, the
+round&#39;s fixer MUST first record a convergence assessment classifying
+every finding so far as new-class / same-class-as-earlier /
+regression-introduced-by-a-fix / wrong-layer-evidence. If two or more
+findings share a defect class named under (C) (not merely a shared
+§11.4.235(D) finding layer) with at least one non-MINOR finding in that
+shared class, any finding reappeared after being reported fixed, or any
+finding was wrong-layer evidence, the next round MUST be a structural
+round: a fresh fixer agent instance that did not author rounds 1–2 (the
+reviewer remains structurally separate throughout per §11.4.240),
+re-deriving (B) from first principles, re-running the (C) enumeration
+over the whole scope, and replacing the approach rather than adding a
+further layer (§11.4.250). A structural fix recommended by a reviewer
+may not be deferred past this point without a recorded operator decision
+(§11.4.66). (2) Every review declares, before round 1, its scope and
+acceptance boundary (and, for adversarial/security reviews, the threat
+model — which actor capabilities are in scope, and the seam at which the
+defence lives) so that a zero-finding GO under §11.4.134 is reachable;
+findings outside the declared boundary are tracked items, not
+loop-extending findings. The boundary is fixed at round 1 and changes
+only by recorded operator decision — narrowing it mid-loop to reach GO
+is a §11.4.6 fabrication. (3) If round <code>R_max</code> returns
+anything but GO, the item MUST NOT run round <code>R_max</code>+1 under
+the same approach. It stops and goes to a recorded operator decision
+(§11.4.66) carrying: the finding classification, the evidence of which
+of (B)–(D) was skipped or failed, and the options (re-scope into smaller
+slices per §11.4.148; replace the approach with the structural design as
+a new item; or accept residual LOW findings only through a §11.4.271
+waiver). Only a recorded operator decision opens a new budget. The
+escalated item is parked per §11.4.101 / §11.4.267(F) — it parks only
+that work unit; the autonomous loop (§11.4.126) continues all other
+work, and the pending decision is surfaced in every §11.4.97 progress
+report until resolved. Every breach is also recorded as a process escape
+and audited for which of (B)–(D) would have prevented it (the
+§11.4.238(C) pattern applied to the review loop).</p>
+<p><strong>(F) NOTHING HERE LOWERS THE BAR.</strong> The budget bounds
+the NUMBER of rounds; it never lowers what a round must establish.
+§11.4.134&#39;s zero-finding, zero-warning GO bar is unchanged; its re-run
+obligation is bounded PER APPROACH by this anchor&#39;s <code>R_max</code>,
+after which (E)(3) governs rather than a further same-approach round.
+§11.4.209&#39;s review substrate, §11.4.235(D)&#39;s finding-layer
+classification and §11.4.262&#39;s machine-created evidence are likewise
+unchanged. Reaching round <code>R_max</code> without GO never produces a
+GO, a &quot;good enough&quot;, or a silent close: the item stays open until a
+recorded operator decision under (E)(3).</p>
+<p><strong>Honest boundary (§11.4.6).</strong> This anchor does not
+promise that every item converges within <code>R_max</code> rounds. Some
+problems are hard, and a determined adversarial reviewer can keep
+finding real defects in an in-process defence whose threat boundary is
+wider than its design. What the anchor removes is the class of round
+inflation the forensic record shows to be avoidable: rounds spent
+discovering a wrong external-system model, one member of an
+already-known class, a test that never drove the real code, a stall
+signal nobody was required to act on, or an unrelated tangent silently
+accruing against the wrong item. When a problem is genuinely hard,
+(E)(3) turns an open-ended loop into a bounded, evidence-backed operator
+decision. The cap counts rounds, not effort; it does not license a
+shallower review to stay under it. The operator&#39;s own wording (&quot;ALWAYS
+gets done with 5 to 7 reviews max&quot;) is read here as a ceiling with a
+mandatory escalation at that ceiling, not as a guarantee every item
+physically closes within it — this reading is recorded explicitly and
+was surfaced to the operator at landing per §11.4.66.</p>
+<p><strong>Classification: universal (§11.4.17)</strong> — no hardware,
+vendor or project literal; the consuming project supplies
+<code>R_max</code> (5–7), its review-record location, and its probe and
+inventory artifact paths as DATA per §11.4.35.</p>
+<p><strong>Composes</strong> §11.4.6 (no guessing — the ground-truth
+probe is its recorded form) / §11.4.66 (operator decision at the ceiling
+and for boundary changes) / §11.4.101 (conservative default
+<code>R_max</code> = 5) / §11.4.102 (systematic-debugging phase 1 bound
+to round 1) / §11.4.125 / §11.4.134 (the loop this budget bounds; its GO
+bar is unchanged) / §11.4.142 / §11.4.148 (re-scope by slicing) /
+§11.4.194(6)(d) (reviewer-authored mutations) / §11.4.197 /
+§11.4.201(7)(b) (control-needled enumeration) / §11.4.209 (review
+substrate, unchanged) / §11.4.214 (recurrence linking for spun-out
+findings) / §11.4.224(A) (real invocation path) / §11.4.226 (wrong-layer
+evidence) / §11.4.235(D) (finding layer) / §11.4.238(C) (escape audit
+pattern) / §11.4.240 (fresh actor / structural reviewer separation) /
+§11.4.250 (heuristic tower, made binding at round 3) / §11.4.267 (this
+anchor supplies its <code>N</code> for the review loop) / §11.4.271
+(waiver for residual LOW findings) / §1.1.</p>
+<p>Propagation gate <code>CM-COVENANT-114-276-PROPAGATION</code>
+(literal <code>11.4.276</code> as a block-start, exactly once per
+governance file, lockstep content-hash equality across the mirror set
+per §11.4.227(B)) + recommended mechanism gates:</p>
+<ul>
+<li><code>CM-REVIEW-ROUND-BUDGET</code> — every reviewed item has a
+declared <code>R_max</code> in 5–7 (or the default 5) and a round count
+from its review record; a round <code>R_max</code>+1 dispatched with no
+recorded operator decision FAILs; an item closed without GO FAILs.</li>
+<li><code>CM-REVIEW-ROUND3-CONVERGENCE-ASSESSMENT</code> — every round ≥
+3 carries a convergence classification; a non-structural round following
+an assessment that triggered (E)(1) FAILs; an adversarial review with no
+pre-round-1 threat boundary FAILs.</li>
+<li><code>CM-FIX-GROUND-TRUTH-AND-CLASS-INVENTORY</code> — a fix
+touching a declared external-system surface with no ground-truth probe
+record, or a class finding fixed with no inventory artifact, FAILs.</li>
+</ul>
+<p>Paired §1.1 mutations: dispatch a round 8 with no operator-decision
+record → <code>CM-REVIEW-ROUND-BUDGET</code> MUST FAIL; delete the
+round-3 classification, or follow a same-class trigger with a point-fix
+round → the round-3 gate MUST FAIL; strip the probe record from a
+build-tool fix, or mark a class closed with no inventory → the third
+gate MUST FAIL; strip the literal → propagation FAILs. Golden-FALSE per
+§11.4.201(1): an item reaching GO at round 4 with a round-3 assessment
+showing only new-class findings, a recorded probe, and an inventory for
+its one class finding MUST NOT fire any gate. The propagation gate
+<code>CM-COVENANT-114-276-PROPAGATION</code> is implemented in the same
+change
+(<code>constitution/scripts/gates/cm_covenant_114_276_propagation.sh</code>
++ its paired mutation test); the three recommended mechanism gates are
+registered as tracked deferrals (OWED-GATE-111..113) in
+<code>constitution/scripts/gates/gate_ledger_deferrals.tsv</code> —
+their gate-code is a separate work item, NOT claimed shipped (§11.4.6 /
+§11.4.227).</p>
+<p><strong>Canonical authority:</strong> constitution submodule <a href="Constitution.md"><code>Constitution.md</code></a> §11.4.276.</p>
+<p>Non-compliance is a release blocker regardless of context. No escape
+hatch — no <code>--unbounded-review-rounds</code>,
+<code>--fix-instance-not-class</code>,
+<code>--defer-ground-truth-probe</code>,
+<code>--narrow-threat-model-to-reach-go</code>,
+<code>--reset-round-count-on-refile</code>,
+<code>--defer-structural-fix-past-round-3</code> flag.</p>
 </body>
 </html>

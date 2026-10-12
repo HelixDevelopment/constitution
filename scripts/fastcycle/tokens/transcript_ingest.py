@@ -129,7 +129,8 @@ transcript can REPLAY a parent's message id (its record then carries an
 `agentId`, the parent's own record does not). Measured on this host's 1,500
 newest sessions: 4 of 392 subagent files share a msg id with their parent,
 so the case is real but rare. The turn belongs to the parent. Two rules make
-that independent of how the input path is spelled and of run order:
+the PARENT-vs-SUBAGENT ownership independent of how the input path is
+spelled and of run order:
   1. Canonical read order (`find_jsonl_files()`): every path is resolved
      with os.path.realpath, and parent transcripts are read before any
      `.../subagents/*.jsonl` file, whatever the spelling (`sess.jsonl`,
@@ -145,6 +146,35 @@ that independent of how the input path is spelled and of run order:
      columns of an existing row are never rewritten, except that a NULL
      item_id / session_id of a row is filled in from a later record of the
      SAME owner once its dispatch is known (summary `attribution_filled`).
+SCOPE OF THAT CLAIM (T048 restart round 3, R3V1-M7): it covers a parent and
+its subagents. It does NOT cover two SUBAGENT transcripts that both carry a
+msg id the parent lacks: whichever subagent record is read first (earlier
+run, or earlier resolved path within one run) keeps the row, so the per-item
+CREDIT of such a turn depends on run order. Token COUNTS never do (the merge
+is a per-field maximum either way). Measured: 0 occurrences in this host's
+2,448 sessions with subagents (all 288 msg ids shared by two subagent files
+also appear in their parent, where rule 2 decides). No tie-break is
+implemented.
+
+ATTRIBUTION SOURCES AND RESUMED COPIES (T048 restart round 8, F1/F7/F8).
+The item of a dispatched agent comes from two places: the dispatch record's
+`toolUseResult.description` (absent for a FOREGROUND dispatch, whose real keys
+are agentId, agentType, content, prompt, resolvedModel, status, totalTokens,
+usage) and the agent's sidecar `subagents/agent-<id>.meta.json` `description`
+(present beside every subagent transcript, and the only source when the
+parent transcript is missing). Only the item tag is extracted from either;
+`prompt`, `content`, `toolUseId`, `requestShape` and every other key are never
+read. Two different items for one agent leave it unattributed (stderr). An
+agent that ends with no item is COUNTED, never silent: the summary carries
+dispatch_without_description, item_from_sidecar, bad_sidecars and
+agents_without_item. A resumed session's transcript repeats earlier lines
+under a new sessionId (with the usage of an assistant record zeroed): a
+dispatch record with the same uuid is counted once (replayed_dispatches), and
+a line whose message id and record uuid were already read from another file is
+a replay (replayed_lines) that cannot raise the SMALLER-counter warning;
+DIFFERENT records, and the same uuid twice in one file, still raise both
+warnings.
+Directory mode follows symlinked subdirectories, cycle-safe.
 
 CONCURRENT RUNS (T048 restart round 2, V1-I1). The row pass runs inside one
 `BEGIN IMMEDIATE` transaction, so the read-merge-write of every row happens
@@ -155,6 +185,28 @@ both read "no row", and the second INSERT failed with IntegrityError, which
 aborted that run and lost every row it had read. If the lock cannot be taken
 in time the run exits 1 with a message and writes nothing (an honest, whole
 failure; rerun it), never a traceback after a partial write.
+FC_TELEMETRY_DB_LOCK_TIMEOUT_S must be a finite, non-negative number of
+seconds; any other value (text, a negative number, nan, inf, 1e309) is
+REFUSED with exit 2 before anything is read or written (T048 restart round
+3, R3V1-M3: such values used to behave as a zero wait, and `inf` -- the
+natural spelling of "wait forever" -- did the opposite of what it says).
+
+PER-RECORD ISOLATION (T048 restart round 3, R3V1-M2 -- the STRUCTURAL fix of
+the class "one bad record aborts the whole run and loses every row", which
+recurred in rounds 1, 2 and 3 member by member). Every record is processed
+on its own: building the row needs no database, and the database write runs
+inside its own SAVEPOINT. A record that fails -- a counter or the summed
+total outside SQLite's signed 64-bit range, a line nested too deep for the
+JSON decoder, a number literal too long to convert, or any other exception
+while building or writing that one row -- is rolled back alone, reported on
+stderr (file, line and reason, never the record's text), and counted in the
+summary (`rejected_records=N rejected_reasons=<reason>:<n>,...`). The run
+goes on and exits 0. Only a failure of the DATABASE itself (an
+sqlite3.OperationalError, a corrupt file, an internal error) ends the run:
+the whole transaction is rolled back, so nothing from this run is written,
+and the run exits 1 with a message. A NEGATIVE counter is not a count: it is
+treated as absent (the turn is UNMEASURED and the field is counted in
+malformed_fields), never stored as measured (R3V1-M6).
 
 =============================================================================
 "copy-on-ingest" (tasks.md T038 / plan.md T-A06 work item (3)) — design
@@ -205,9 +257,13 @@ parent file still attributes its subagents correctly when they are laid
 out on disk per the real, documented convention (this task's README).
 
 Exit codes: 0 on a successful run (including "found nothing to ingest"
-under an existing, empty directory); 1 on a genuine usage/path error (the
-given path does not exist at all, or an unreadable/nonexistent `--db`
-directory). This module is NOT bound by contracts/common-conventions.md's
+under an existing, empty directory, and a run that rejected some records --
+see PER-RECORD ISOLATION); 1 on a genuine usage/path/database error (the
+given path does not exist at all, an unreadable/nonexistent `--db`
+directory, the write lock not taken in time, or the database failing during
+the run); 2 when FC_TELEMETRY_DB_LOCK_TIMEOUT_S is not a finite,
+non-negative number (refused before anything is read or written). This
+module is NOT bound by contracts/common-conventions.md's
 C-001 5-code table — `$FC/tokens/transcript_ingest.py` is explicitly listed
 in that contract file's own "Plan tools that no contract in this directory
 covers" note (T-A06 has no contract yet); this module instead matches the
@@ -228,13 +284,56 @@ convention.
 DEFERRALS LEDGER (T048 restart round 2, V1-M4 -- a deferral is honest only
 when it is written down and tracked; the conductor registers OWED items)
 =============================================================================
+Round-3 (T048 restart round 3) CLOSED: R3V1-M2 (per-record isolation, see
+PER-RECORD ISOLATION above), R3V1-M3 (timeout values refused), R3V1-M6
+(negative counters), R3V1-M7 (ownership claim narrowed, see OWNERSHIP OF A
+ROW). Guard: test_token_attribution_red.sh PART J, a failure-path matrix
+whose meta-check enumerates every except / non-zero return / raise of this
+file with `ast` and requires a row that really reaches it.
+Round-9 (T048 restart, V1 re-review follow-ups) CLOSED: S1 -- a subagent
+transcript is classified by ONE rule in canonical_order() and in the dispatch
+pass (the path as given OR as resolved; _SUBAGENT_REACHED_BY carries the first
+to the second), and an agent that wrote records but that the dispatch pass does
+not know is counted (unmapped_agents) and named once on stderr; S4 -- a row
+stored with no usage (a resumed session's zeroed copy, read first) takes the
+place of the different file that carries the usage (upsert_row), two files that
+both carry usage keep the first in canonical order; N1 -- the dispatch pass
+reads silently, so a bad line / unreadable file is warned about once. Guard:
+test_token_attribution_red.sh PART K, K13-K17.
+Round-11 (T048 restart, STRUCTURAL round on the V1 re-review, §11.4.276(E))
+CLOSED, each as a CLASS: RV11-1 -- an FC_DISPATCH_EXTRA_ITEM_PREFIXES token is
+DATA (kept only when its ASCII upper-case form is [A-Z0-9]+, else ignored with a
+warning), identical to dispatch_stamp.sh; guard: test_dispatch_stamp.sh section
+L (generated corpus through both tools) and PART K K19. RV11-2 -- release_
+prefix.sh runs with an allowlisted environment (_clean_subprocess_env); guard:
+K21. RV11-4 -- the directory walk records every name a directory is reached by,
+so the attribution does not depend on the order readdir lists entries; guard:
+K20-K20d (both orders forced). RV11-6 -- the sidecar cap is a real limit (a file
+longer than 1 MiB is counted in bad_sidecars, never parsed from its first
+1 MiB); guard: K18b. Reviewer mutants V11 / V12 pinned by K14f / K13f.
+CORRECTED (round 11, RV11-10): the round-10 note that K18 "pins the cap at
+exactly 1 MiB from both sides" was wider than the test: its 1 MiB + 1 byte case
+was a body cut inside a string, so it proved only that a TRUNCATED document is
+refused; a valid object followed by whitespace past the cap was accepted (K18b
+now refuses it).
 Round-1 deferrals, now CLOSED in round 2:
   - "file order" (fork-replay credit depended on ingest order and on how
     the path was spelled): CLOSED -- canonical_order() + the ownership rule
     in upsert_row(); guard: test_token_attribution_red.sh PART I2.
   - the other two round-1 deferrals live in dispatch_stamp.sh (jq-less
     first-"description" fail-open; silent WIT fallback): both CLOSED there.
-OWED (open, tracked by the conductor):
+OWED ITEMS (open; T048 restart round 3, R3V1-M5). HONEST STATE: these are
+written down here and in dispatch_stamp.sh, but as of round 3 the tracker DB
+(docs/workable_items.db, read-only to the fixer) holds NO row for OWED-TI-1,
+OWED-TI-2 or OWED-DS-1 -- registering them is the conductor's step, and
+until it happens they are tracked only by this text. Also open: tracker item
+ATM-1133 ("fail-closed on missing jq", Queued) DISAGREES with the code:
+dispatch_stamp.sh does not require jq -- it ships a strict jq-less reader
+that is also the gate for the jq path, and refuses (fails closed) only when
+awk is missing. ATM-1133 must be re-scoped or closed by the conductor with
+that evidence; this module does not change the tracker.
+  - OWED-DS-1 (lives in dispatch_stamp.sh): the tokens/ suites are not wired
+    into any runner or gate.
   - OWED-TI-1: a dispatch conflict discovered in a LATER run does not clear
     an item_id an earlier run already stored for that agent's turns (the
     later run's NULL never overwrites a stored value; only a stored NULL is
@@ -242,11 +341,15 @@ OWED (open, tracked by the conductor):
   - OWED-TI-2: FC_DISPATCH_ITEM_ID_RE is compiled by two regex engines (this
     module and bash ERE in dispatch_stamp.sh); see the DIALECT NOTE. The
     default and FC_DISPATCH_EXTRA_ITEM_PREFIXES paths are locale-pinned and
-    guarded (PART I4); a caller-supplied full pattern is not.
+    guarded (PART I4); since round 11 an extra prefix is validated data, not
+    a pattern (test_dispatch_stamp.sh section L). A caller-supplied full
+    pattern is still not guarded: one that compiles in both engines but is
+    malformed (e.g. unbalanced groups) can still make the two tools disagree.
 """
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -287,9 +390,29 @@ else:
 
 # Seconds a run waits for another ingest holding the write lock on the same
 # DB (V1-I1). A whole-directory ingest of a large transcript tree can take
-# minutes, so the default is generous; a value that cannot be parsed falls
-# back to the default with a warning rather than crashing.
+# minutes, so the default is generous. The variable must hold a finite,
+# non-negative number; anything else is REFUSED (ConfigError, exit 2) --
+# T048 restart round 3, R3V1-M3: text, negative values, nan, inf and 1e309
+# used to be accepted or replaced silently, and nan/inf/1e309 then behaved
+# as a zero wait.
 DEFAULT_LOCK_TIMEOUT_S = 600.0
+
+# SQLite stores INTEGER as a signed 64-bit value; a larger counter or total
+# cannot be bound (R3V1-M2).
+INT64_MAX = 2 ** 63 - 1
+
+
+class ConfigError(Exception):
+    """A configuration value this tool refuses to run with (exit 2)."""
+
+
+class RecordRejected(Exception):
+    """One record cannot be stored; it is rejected alone (PER-RECORD
+    ISOLATION). `reason` is a short fixed token for the summary."""
+
+    def __init__(self, reason):
+        super().__init__(reason)
+        self.reason = reason
 
 
 def _lock_timeout_s():
@@ -298,13 +421,13 @@ def _lock_timeout_s():
         return DEFAULT_LOCK_TIMEOUT_S
     try:
         value = float(raw)
-        if value < 0:
-            raise ValueError("negative")
-        return value
     except ValueError:
-        print("transcript_ingest: WARNING: FC_TELEMETRY_DB_LOCK_TIMEOUT_S=%r is not a "
-              "non-negative number; using %s" % (raw, DEFAULT_LOCK_TIMEOUT_S), file=sys.stderr)
-        return DEFAULT_LOCK_TIMEOUT_S
+        value = None
+    if value is None or not math.isfinite(value) or value < 0:
+        raise ConfigError(
+            "FC_TELEMETRY_DB_LOCK_TIMEOUT_S=%r is not a finite, non-negative number of "
+            "seconds (unset it for the default %s, or give e.g. 30)" % (raw, DEFAULT_LOCK_TIMEOUT_S))
+    return value
 
 
 SCHEMA = """
@@ -425,6 +548,24 @@ def _fc_derive_key_prefix(seed):
     return letters.ljust(3, "X")
 
 
+# THE ENVIRONMENT (T048 restart round 11, RV11-2): release_prefix.sh is run
+# with an environment built from an ALLOWLIST -- the same variables
+# dispatch_stamp.sh keeps when it re-executes itself in a clean environment
+# (PATH, HOME, HELIX_RELEASE_PREFIX, HELIX_PROJECT_ROOT; the two FC_* item
+# variables are read by this module itself, never by the script) plus
+# LC_ALL=C. Before, the caller's whole environment was passed on: a BASH_ENV
+# file that bash runs first, an exported shell function, SHELLOPTS or
+# POSIXLY_CORRECT could change what the script printed and so the derived
+# prefix. Guard: test_token_attribution_red.sh K21.
+_CLEAN_ENV_KEEP = ("PATH", "HOME", "HELIX_RELEASE_PREFIX", "HELIX_PROJECT_ROOT")
+
+
+def _clean_subprocess_env():
+    env = {k: os.environ[k] for k in _CLEAN_ENV_KEEP if k in os.environ}
+    env["LC_ALL"] = "C"
+    return env
+
+
 def _fc_default_item_prefix():
     """Resolve the SAME base release prefix `scripts/release_prefix.sh` /
     `dispatch_stamp.sh`'s own `_fc_default_item_prefix()` already use
@@ -475,7 +616,7 @@ def _fc_default_item_prefix():
             proc = subprocess.run(
                 ["bash", rp_script],
                 capture_output=True, text=True, timeout=10, check=False,
-                env=dict(os.environ, LC_ALL="C"),
+                env=_clean_subprocess_env(),
             )
             base = proc.stdout.strip()
             if proc.returncode != 0:
@@ -511,6 +652,10 @@ def _fc_default_item_prefix():
             file=sys.stderr,
         )
     return _fc_derive_key_prefix(base)
+
+
+# A configured extra prefix, after ASCII upper-casing (round 11, RV11-1).
+_PREFIX_TOKEN_RE = re.compile(r"[A-Z0-9]+", re.ASCII)
 
 
 def _ascii_upper(text):
@@ -559,14 +704,34 @@ def _build_item_tag_re():
     else:
         prefixes = [_fc_default_item_prefix()]
         extra = os.environ.get("FC_DISPATCH_EXTRA_ITEM_PREFIXES", "")
+        ignored = []
         if extra:
             # Split on exactly the separators dispatch_stamp.sh uses (',' and
             # '|' turned into spaces, then bash word splitting on space, tab
             # and newline) and upper-case ASCII letters only, as `tr` does
             # under LC_ALL=C (V1-M2): str.upper() would turn 'ß' into 'SS'.
+            #
+            # Round 11, RV11-1: a token is DATA, never a regex fragment. The
+            # upper-cased token must be ASCII letters and digits only
+            # (^[A-Z0-9]+$); any other token is IGNORED with a warning --
+            # dispatch_stamp.sh applies the same rule and prints the same kind
+            # of notice in GUARD mode. Before, the token was pasted into the
+            # pattern and Python and bash ERE read `)`, `{`, `\D` or `ATM-1`
+            # differently. Guard: test_dispatch_stamp.sh section L.
             for tok in re.split(r"[,| \t\n]+", extra):
                 if tok:
-                    prefixes.append(_ascii_upper(tok))
+                    candidate = _ascii_upper(tok)
+                    if _PREFIX_TOKEN_RE.fullmatch(candidate):
+                        prefixes.append(candidate)
+                    else:
+                        ignored.append(tok)
+        if ignored:
+            print(
+                "transcript_ingest: WARNING: FC_DISPATCH_EXTRA_ITEM_PREFIXES token(s) %s "
+                "ignored: a prefix is ASCII letters and digits only"
+                % " ".join("%r" % t for t in ignored),
+                file=sys.stderr,
+            )
         value_re = "(?:%s)-[0-9]+" % "|".join(prefixes)
     try:
         return re.compile(ITEM_TAG_TEMPLATE % value_re, re.ASCII)
@@ -621,6 +786,17 @@ def _is_subagent_transcript(path):
     return os.path.basename(os.path.dirname(path)) == "subagents"
 
 
+# Resolved path -> the absolute path it was REACHED by, for every transcript
+# canonical_order() classified as a subagent transcript only because the path
+# as given sits in a `subagents/` directory while its resolved path does not
+# (the directory, or the file, is a symlink). build_dispatch_map() receives
+# resolved paths, so without this record it would classify such a file by its
+# resolved path alone and never read its sidecar (T048 restart round 9, S1:
+# the order said "subagent", the dispatch pass said "not a subagent", and the
+# agent's turns stayed item-less with agents_without_item=0).
+_SUBAGENT_REACHED_BY = {}
+
+
 def canonical_order(paths):
     """Resolve every path with os.path.realpath, drop duplicates, and order
     them parent transcripts first, then subagent transcripts, each group by
@@ -630,10 +806,16 @@ def canonical_order(paths):
     is_sub = {}
     for p in paths:
         real = os.path.realpath(p)
+        given = os.path.abspath(p)
         # A symlinked transcript counts as a subagent transcript when either
         # the path as given or its target sits in a `subagents/` directory.
-        is_sub[real] = (is_sub.get(real, False) or _is_subagent_transcript(real)
-                        or _is_subagent_transcript(os.path.abspath(p)))
+        sub_given = _is_subagent_transcript(given)
+        is_sub[real] = is_sub.get(real, False) or _is_subagent_transcript(real) or sub_given
+        if sub_given and not _is_subagent_transcript(real):
+            # The smallest such path, so the choice never depends on the
+            # order the paths were listed in (round 11, RV11-4).
+            if real not in _SUBAGENT_REACHED_BY or given < _SUBAGENT_REACHED_BY[real]:
+                _SUBAGENT_REACHED_BY[real] = given
     return sorted(is_sub, key=lambda p: (is_sub[p], p))
 
 
@@ -648,11 +830,50 @@ def find_jsonl_files(path):
     subagents without requiring the caller to pass the parent directory
     explicitly."""
     if os.path.isdir(path):
+        # Symlinked subdirectories are FOLLOWED, as a symlinked transcript
+        # file already is in single-file mode (T048 restart round 8, F8: the
+        # default os.walk skipped them silently, so a transcript tree
+        # assembled from links ingested less than the same files passed one
+        # by one). A directory already visited under its resolved path is
+        # not entered again, so a link cycle ends and the walk stays linear.
+        #
+        # Round 11, RV11-4: WHICH path entered a directory used to depend on
+        # the order readdir listed the entries. A transcript directory
+        # reachable both as `store/` and as `parent/subagents/` (a link) was
+        # read under whichever came first, and only the second spelling sits
+        # in a `subagents/` directory, so the same content gave item NULL /
+        # unmapped_agents=1 in one order and the sidecar's item in the other.
+        # Now every name a directory is reached by is RECORDED, even when the
+        # directory is not entered again: its files are listed under every
+        # such name (one path per distinct name, the smallest), and
+        # canonical_order() resolves the duplicates to one file classified by
+        # all of its spellings (and picks the smallest reached-by path). A
+        # child of a directory not entered again is reached under the same
+        # names as the same child of the copy that was entered, so nothing is
+        # lost, whichever copy readdir listed first.
+        # Re-entering every link target instead (skipping only true cycles)
+        # would make the walk exponential on a chain of directories each
+        # holding two links to the next (2**depth paths). Guard:
+        # test_token_attribution_red.sh K20 (both listing orders forced, links
+        # to an ancestor, a sibling and outside the tree, the link chain).
+        visited = set()
+        reached_as = {}
+        files_in = {}
+        for root, dirs, names in os.walk(path, followlinks=True):
+            real_root = os.path.realpath(root)
+            names_here = reached_as.setdefault(real_root, {})
+            base = os.path.basename(root)
+            if base not in names_here or root < names_here[base]:
+                names_here[base] = root
+            if real_root in visited:
+                dirs[:] = []
+                continue
+            visited.add(real_root)
+            files_in[real_root] = sorted(n for n in names if n.endswith(".jsonl"))
         out = []
-        for root, _dirs, names in os.walk(path):
-            for name in names:
-                if name.endswith(".jsonl"):
-                    out.append(os.path.join(root, name))
+        for real_root, names in files_in.items():
+            for root in reached_as[real_root].values():
+                out.extend(os.path.join(root, name) for name in names)
         return canonical_order(out)
     if os.path.isfile(path):
         out = [path]
@@ -678,7 +899,7 @@ READ_STATS = {"unreadable_files": 0, "unparseable_lines": 0, "invalid_utf8_lines
               "malformed_fields": 0}
 
 
-def iter_records(filepath):
+def iter_records(filepath, on_reject=None, warn=True):
     """Yield (lineno, record_dict) for every parseable, non-blank JSONL
     line in filepath. A malformed line is logged to stderr and skipped —
     never crashes the whole ingest over one bad line (real transcripts can
@@ -690,11 +911,24 @@ def iter_records(filepath):
     which aborted the run before the final commit and lost every valid row.
     A line that is not valid UTF-8 is decoded with replacement characters
     and reported on stderr; it is then parsed like any other line (a line
-    cut mid-character also fails JSON parsing and is skipped)."""
+    cut mid-character also fails JSON parsing and is skipped).
+
+    A line that is valid JSON syntax but cannot be DECODED -- nested too deep
+    for the decoder (RecursionError) or holding a number literal longer than
+    Python converts (ValueError) -- used to propagate out of this generator
+    and abort the whole run (R3V1-M2). It is now a rejected record: it is
+    skipped and reported through `on_reject(lineno, reason)` (the row pass
+    counts it; the dispatch pass passes None and only skips it).
+
+    `warn=False` suppresses the stderr warnings (the counters still move): the
+    dispatch pass reads every file once and the row pass reads it again, so
+    without it each unreadable file / bad line was reported twice (round 9,
+    N1). Only the row pass warns."""
     try:
         fh = open(filepath, "rb")
     except OSError as exc:
-        print("transcript_ingest: WARNING: cannot open %s: %s" % (filepath, exc), file=sys.stderr)
+        if warn:
+            print("transcript_ingest: WARNING: cannot open %s: %s" % (filepath, exc), file=sys.stderr)
         READ_STATS["unreadable_files"] += 1
         return
     with fh:
@@ -702,11 +936,12 @@ def iter_records(filepath):
             try:
                 raw = raw_bytes.decode("utf-8")
             except UnicodeDecodeError as exc:
-                print(
-                    "transcript_ingest: WARNING: %s:%d: invalid UTF-8 (%s); decoded "
-                    "with replacement characters" % (filepath, lineno, exc),
-                    file=sys.stderr,
-                )
+                if warn:
+                    print(
+                        "transcript_ingest: WARNING: %s:%d: invalid UTF-8 (%s); decoded "
+                        "with replacement characters" % (filepath, lineno, exc),
+                        file=sys.stderr,
+                    )
                 READ_STATS["invalid_utf8_lines"] += 1
                 raw = raw_bytes.decode("utf-8", errors="replace")
             line = raw.strip()
@@ -715,15 +950,91 @@ def iter_records(filepath):
             try:
                 rec = json.loads(line)
             except json.JSONDecodeError as exc:
-                print(
-                    "transcript_ingest: WARNING: %s:%d: skipping unparseable line: %s"
-                    % (filepath, lineno, exc), file=sys.stderr,
-                )
+                if warn:
+                    print(
+                        "transcript_ingest: WARNING: %s:%d: skipping unparseable line: %s"
+                        % (filepath, lineno, exc), file=sys.stderr,
+                    )
                 READ_STATS["unparseable_lines"] += 1
+                continue
+            except RecursionError:
+                if on_reject is not None:
+                    on_reject(lineno, "nesting_too_deep")
+                continue
+            except ValueError:
+                if on_reject is not None:
+                    on_reject(lineno, "number_too_long")
                 continue
             if not isinstance(rec, dict):
                 continue
             yield lineno, rec
+
+
+# Per-pass counters of the dispatch pass (build_dispatch_map resets them).
+# Printed in the ingest summary so an agent whose item could not be named says
+# so there instead of silently landing in the NULL bucket (T048 restart
+# round 8, F1: class "absent evidence read as valid" again).
+#   dispatch_without_description  dispatch records (toolUseResult with an
+#       agentId) that carried no string `description` -- the shape of a
+#       FOREGROUND dispatch, whose real keys are agentId, agentType, content,
+#       prompt, resolvedModel, status, totalTokens, usage.
+#   item_from_sidecar  agents whose item came ONLY from the sidecar
+#       agent-<id>.meta.json (the dispatch named none).
+#   bad_sidecars  sidecars present but unreadable / not a JSON object.
+#   agents_without_item  agents known to the dispatch pass (a dispatch record
+#       or a subagent transcript file) whose turns stay item-less.
+#   replayed_dispatches  dispatch records seen again in another file with the
+#       same record uuid (a resumed-session copy), counted once.
+DISPATCH_STATS = {"dispatch_without_description": 0, "item_from_sidecar": 0, "bad_sidecars": 0,
+                  "agents_without_item": 0, "replayed_dispatches": 0}
+
+# Agents that wrote a record (it carries an `agentId`) but are unknown to the
+# dispatch pass: no dispatch record, and no transcript file the pass
+# recognised as that agent's. Their turns cannot be attributed to an item and,
+# before round 9, nothing said so (agents_without_item only counts agents the
+# pass knows). cmd_ingest() clears the set before the row pass and prints its
+# size as unmapped_agents.
+_UNMAPPED_AGENTS = set()
+
+_SUBAGENT_FILE_RE = re.compile(r"^agent-(.+)\.jsonl$")
+_SIDECAR_MAX_BYTES = 1 << 20
+
+
+def _read_sidecar_description(path):
+    """Return the `description` string of a subagent's sidecar
+    `agent-<id>.meta.json`, or None. Absent file: None, not counted (older
+    Claude Code writes none). A present file that cannot be read, decoded or
+    parsed, or is not a JSON object: None, counted in bad_sidecars. Only the
+    `description` key is ever read (CREDENTIAL SAFETY: the sidecar's other
+    keys -- toolUseId, requestShape, model, agentType -- are never read out,
+    and the description itself is reduced to the item tag by the caller)."""
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, "rb") as fh:
+            # Round 11, RV11-6: one byte more than the cap is read, so a file
+            # LONGER than the cap is recognised as too large (bad_sidecars).
+            # Before, the read stopped at the cap: a valid object followed by
+            # trailing whitespace past 1 MiB was accepted.
+            data = fh.read(_SIDECAR_MAX_BYTES + 1)
+        doc = None if len(data) > _SIDECAR_MAX_BYTES else json.loads(data.decode("utf-8"))
+    except (OSError, ValueError, RecursionError):
+        DISPATCH_STATS["bad_sidecars"] += 1
+        print("transcript_ingest: WARNING: cannot read the sidecar %s; it is not used" % path,
+              file=sys.stderr)
+        return None
+    if doc is None:
+        DISPATCH_STATS["bad_sidecars"] += 1
+        print("transcript_ingest: WARNING: the sidecar %s is larger than %d bytes; it is not used"
+              % (path, _SIDECAR_MAX_BYTES), file=sys.stderr)
+        return None
+    if not isinstance(doc, dict):
+        DISPATCH_STATS["bad_sidecars"] += 1
+        print("transcript_ingest: WARNING: the sidecar %s is not a JSON object; it is not used" % path,
+              file=sys.stderr)
+        return None
+    desc = doc.get("description")
+    return desc if isinstance(desc, str) else None
 
 
 def build_dispatch_map(files):
@@ -743,36 +1054,90 @@ def build_dispatch_map(files):
     token —
     the raw description string itself is NEVER stored.
 
+    SIDECAR (T048 restart round 8, F1). A FOREGROUND dispatch's toolUseResult
+    has no `description` key, and a parent transcript can be missing
+    altogether, yet every subagent has a sidecar `subagents/agent-<id>.meta.json`
+    beside its transcript with the dispatch `description`. That description
+    is read (item tag only, same regex, same credential rules) as a second
+    source for the SAME agent: it fills an item the dispatch did not name,
+    and a DIFFERENT item from the dispatch is a conflict like any other
+    (the agent is left unattributed and both are reported on stderr). The
+    sidecar is looked up beside the RESOLVED transcript path.
+
     An agent id can be dispatched more than once (a resumed agent). If all
     its tagged dispatches name the SAME item, that item is kept. If they
     name DIFFERENT items, its turns cannot be split between them from this
     data, so the item is set to None and both ids are reported on stderr
     (T048 restart review R4-I4: neither first-seen nor last-seen is a
     correct answer, and keeping either one silently misattributes tokens).
-    The same rule applies to a conflicting session id."""
+    The same rule applies to a conflicting session id.
+
+    RESUMED-SESSION COPIES (round 8, F7). A resumed session's transcript
+    repeats the earlier dispatch records unchanged (same record `uuid`) under
+    a new sessionId. A record already seen for the same agent with the same
+    uuid is the SAME dispatch, not a second one: it is counted
+    (replayed_dispatches) and ignored, so only the first copy in canonical
+    read order names the session. Two DIFFERENT records still conflict. A
+    record without a uuid cannot be recognised as a copy and is treated as a
+    distinct dispatch."""
+    for key in DISPATCH_STATS:
+        DISPATCH_STATS[key] = 0
     dispatch_map = {}
     seen_items = {}
     seen_sessions = {}
+    seen_dispatch_records = set()
+    dispatch_items = {}
     for filepath in files:
-        for _lineno, rec in iter_records(filepath):
+        for _lineno, rec in iter_records(filepath, warn=False):
             tur = rec.get("toolUseResult")
             if not isinstance(tur, dict):
                 continue
             agent_id = tur.get("agentId")
             if not agent_id or not isinstance(agent_id, str):
                 continue
+            rec_uuid = rec.get("uuid")
+            if isinstance(rec_uuid, str) and rec_uuid:
+                if (agent_id, rec_uuid) in seen_dispatch_records:
+                    DISPATCH_STATS["replayed_dispatches"] += 1
+                    continue
+                seen_dispatch_records.add((agent_id, rec_uuid))
             item_id = None
             desc = tur.get("description")
             if isinstance(desc, str):
                 m = ITEM_TAG_RE.search(desc)
                 if m and m.group(1) != "?":
                     item_id = m.group(1)
+            else:
+                DISPATCH_STATS["dispatch_without_description"] += 1
             session_id = rec.get("sessionId")
             dispatch_map.setdefault(agent_id, {"item_id": None, "session_id": None})
             if item_id:
                 seen_items.setdefault(agent_id, []).append(item_id)
+                dispatch_items.setdefault(agent_id, []).append(item_id)
             if isinstance(session_id, str) and session_id:
                 seen_sessions.setdefault(agent_id, []).append(session_id)
+    for filepath in files:
+        # The path the file was reached by (see _SUBAGENT_REACHED_BY): the same
+        # classification canonical_order() made, so a file it ordered as a
+        # subagent transcript is never skipped here.
+        named = _SUBAGENT_REACHED_BY.get(filepath, filepath)
+        m_file = _SUBAGENT_FILE_RE.match(os.path.basename(named))
+        if not (m_file and _is_subagent_transcript(named)):
+            continue
+        agent_id = m_file.group(1)
+        dispatch_map.setdefault(agent_id, {"item_id": None, "session_id": None})
+        # Beside the resolved transcript first, then beside the path it was
+        # reached by (the sidecar of a linked file sits next to the link).
+        desc = None
+        for sidecar_dir in dict.fromkeys((os.path.dirname(filepath), os.path.dirname(named))):
+            sidecar = os.path.join(sidecar_dir, "agent-%s.meta.json" % agent_id)
+            if os.path.isfile(sidecar):
+                desc = _read_sidecar_description(sidecar)
+                break
+        if isinstance(desc, str):
+            m = ITEM_TAG_RE.search(desc)
+            if m and m.group(1) != "?":
+                seen_items.setdefault(agent_id, []).append(m.group(1))
     for agent_id, entry in dispatch_map.items():
         for key, seen in (("item_id", seen_items), ("session_id", seen_sessions)):
             values = sorted(set(seen.get(agent_id, [])))
@@ -786,6 +1151,10 @@ def build_dispatch_map(files):
                     % (agent_id, len(values), key, ", ".join(values), key),
                     file=sys.stderr,
                 )
+        if entry["item_id"] is None:
+            DISPATCH_STATS["agents_without_item"] += 1
+        elif agent_id not in dispatch_items:
+            DISPATCH_STATS["item_from_sidecar"] += 1
     return dispatch_map
 
 
@@ -794,9 +1163,20 @@ def _int_or_none(value):
     float, a list) is treated as ABSENT, so the turn is UNMEASURED with the
     field named in missing_instrument, never coerced (T048 restart round 2,
     class "abort loses the whole run": a list here used to reach the SQL
-    binding; `True` used to count as 1)."""
+    binding; `True` used to count as 1).
+
+    A NEGATIVE integer is not a count either: it is treated as absent and
+    counted in malformed_fields (R3V1-M6; it used to be stored as measured
+    with a negative total). An integer above SQLite's signed 64-bit range
+    rejects the whole record (RecordRejected, R3V1-M2) -- it used to raise
+    OverflowError at the SQL binding and abort the run."""
     if isinstance(value, bool) or not isinstance(value, int):
         return None
+    if value < 0:
+        READ_STATS["malformed_fields"] += 1
+        return None
+    if value > INT64_MAX:
+        raise RecordRejected("counter_out_of_range")
     return value
 
 
@@ -824,6 +1204,9 @@ def classify_usage(it, ot, crt, cct, ref, filepath, usage_block_present=True):
     values = dict(zip(CORE_FIELDS, (it, ot, cct, crt)))
     absent = [name for name in CORE_FIELDS if values[name] is None]
     if not absent:
+        if it + ot + crt + cct > INT64_MAX:
+            # The total cannot be stored (R3V1-M2); reject this record alone.
+            raise RecordRejected("total_out_of_range")
         return MEASURED, None, it + ot + crt + cct
     if not usage_block_present:
         what = 'no "usage" block present'
@@ -878,12 +1261,22 @@ def build_row(filepath, lineno, rec, dispatch_map):
 
     if isinstance(top_agent_id, str) and top_agent_id:
         agent_id = top_agent_id
-        attribution = dispatch_map.get(agent_id, {"item_id": None, "session_id": None})
+        attribution = dispatch_map.get(agent_id)
+        if attribution is None:
+            attribution = {"item_id": None, "session_id": None}
+            if agent_id not in _UNMAPPED_AGENTS:
+                _UNMAPPED_AGENTS.add(agent_id)
+                print("transcript_ingest: WARNING: agent %s wrote records but no dispatch "
+                      "record or subagent transcript names it; its turns are unattributed "
+                      "(item_id=NULL)" % agent_id, file=sys.stderr)
         item_id = attribution["item_id"]
-        # A subagent record does not carry its own sessionId in the real
-        # captured schema (this task's README); prefer it if a future
-        # transcript shape ever does carry one, else fall back to the
-        # parent's sessionId resolved via the dispatch map.
+        # A subagent record DOES carry its own sessionId in the real
+        # captured schema (T048 restart round 8, F-comment: this used to say
+        # it does not). That value is the session the record was written
+        # under -- for a resumed-session copy it is the NEW session, not the
+        # dispatching one -- so it always wins; the dispatching record's
+        # sessionId, resolved via the dispatch map, is only the fallback for
+        # a record that carries none.
         session_id = _text(rec.get("sessionId")) or attribution["session_id"]
     else:
         agent_id = None
@@ -964,7 +1357,36 @@ WHERE row_hash = :row_hash;
 _STORED_COLS = _IDENTITY_COLS + ("msg_id", "usage_status") + CORE_FIELDS
 
 
-def upsert_row(conn, row):
+# (msg_id, record uuid) -> the file that line of the message was FIRST read
+# from in THIS run. A resumed session's transcript repeats the earlier records
+# under the same uuids and a new sessionId, and its copy of an assistant
+# record carries ZEROED usage (measured on this host's real resumed pair, T048
+# restart round 8, F7: the copy's lines have the original's uuids and all four
+# counters 0), so the counters of a copy are SMALLER than the stored row's --
+# which is not a streaming anomaly. A record whose (msg id, uuid) was already
+# read from ANOTHER file in this run is such a replay. The same uuid twice in
+# one file is not a copy and keeps warning. The memory is per run: across runs
+# only the merged row is stored, so a copy read in a LATER run than the
+# original is not recognised and still warns (an honest over-report, never an
+# under-report).
+_LINES_SEEN = {}
+
+
+def note_line(row):
+    """True when `row` is a replay: its (msg id, record uuid) was already
+    read from a different file in this run."""
+    if not (row["msg_id"] and row["record_uuid"]):
+        return False
+    first = _LINES_SEEN.setdefault((row["msg_id"], row["record_uuid"]), row["source_file"])
+    return first != row["source_file"]
+
+
+def _usage_total(values):
+    """Sum of the four counters of a row, a missing one counted as 0."""
+    return sum(values[n] or 0 for n in CORE_FIELDS)
+
+
+def upsert_row(conn, row, is_replay=False):
     """Insert `row`, or merge it into the row already stored under the same
     row_hash (per-field maximum, see merge_usage()). Must run inside the
     caller's write transaction (cmd_ingest's BEGIN IMMEDIATE), so the read
@@ -980,7 +1402,10 @@ def upsert_row(conn, row):
     case: the stored row came from a record WITH an agentId (a subagent's)
     and `row` comes from a record WITHOUT one (the parent's own turn). A
     NULL item_id / session_id is filled from a later record of the SAME
-    owner. A counter that DECREASES relative to the stored row is reported
+    owner. One narrower exception (round 9, S4): a row stored with no usage
+    at all (a resumed session's zeroed copy, read first) takes the place
+    (source file, line, record uuid, session, time) of a different file that
+    carries the usage; the owner (agent_id, item_id) is untouched. A counter that DECREASES relative to the stored row is reported
     on stderr; the maximum is still kept."""
     existing = conn.execute(
         "SELECT %s FROM transcript_usage_events WHERE row_hash = ?" % ", ".join(_STORED_COLS),
@@ -991,6 +1416,8 @@ def upsert_row(conn, row):
         return "new", None, row["usage_status"]
     stored = dict(zip(_STORED_COLS, existing))
     merged, decreased = merge_usage(stored, row)
+    if is_replay:
+        decreased = []  # a replayed (resumed-session) line is not a streaming anomaly
     if decreased:
         print(
             "transcript_ingest: WARNING: msg_id %s at %s:%d has SMALLER %s than the "
@@ -1011,6 +1438,20 @@ def upsert_row(conn, row):
             if identity[col] is None and row[col] is not None:
                 identity[col] = row[col]
                 reattribution = "filled"
+        # Round 9, S4. A resumed session's copy of a message repeats the
+        # record with ZEROED usage; when that copy happens to be read first
+        # (file order is lexical, not "original first") the stored row would
+        # keep the COPY's session and source although every counter comes from
+        # the original. A row stored with no usage at all, completed by a
+        # different file that carries usage, takes that file's place
+        # (source_file, lineno, record_uuid, session_id, ts); agent_id and
+        # item_id are never moved by this rule. Two files that both carry
+        # usage keep the first read in canonical order.
+        if (row["source_file"] != stored["source_file"]
+                and _usage_total(stored) == 0 and _usage_total(row) > 0):
+            for col in ("source_file", "lineno", "record_uuid", "session_id", "ts"):
+                if row[col] is not None:
+                    identity[col] = row[col]
     grew = any(merged[n] != stored[n] for n in CORE_FIELDS)
     if not grew and reattribution is None:
         return "unchanged", None, stored["usage_status"]
@@ -1028,7 +1469,62 @@ def upsert_row(conn, row):
     return ("updated" if grew else "unchanged"), reattribution, status
 
 
+def _is_record_level_db_error(exc):
+    """A database error that belongs to ONE record (a constraint or a value
+    the database refuses) rather than to the database itself. Every other
+    sqlite3.DatabaseError (OperationalError, a corrupt file, an internal
+    error) means the database is unusable and ends the run."""
+    return isinstance(exc, (sqlite3.IntegrityError, sqlite3.DataError))
+
+
+def _process_record(conn, filepath, lineno, rec, dispatch_map, counts, final_status, reject):
+    """PER-RECORD ISOLATION (R3V1-M2): build and store one record. The row
+    is built without the database; the write runs inside its own SAVEPOINT.
+    A failure of THIS record -- RecordRejected, a record-level database
+    error, or any other exception -- rolls back only this record, restores
+    the read counters it touched, and is reported through `reject`. A
+    failure of the database itself is re-raised (the caller rolls back the
+    whole run). KeyboardInterrupt / SystemExit are never swallowed."""
+    stats_before = dict(READ_STATS)
+    try:
+        row = build_row(filepath, lineno, rec, dispatch_map)
+        if row is None:
+            return
+        replay = note_line(row)
+        conn.execute("SAVEPOINT ti_record")
+        try:
+            outcome, reattribution, status = upsert_row(conn, row, replay)
+        except BaseException:
+            conn.execute("ROLLBACK TO ti_record")
+            conn.execute("RELEASE ti_record")
+            raise
+        conn.execute("RELEASE ti_record")
+    except RecordRejected as exc:
+        reason = exc.reason
+    except sqlite3.DatabaseError as exc:
+        if not _is_record_level_db_error(exc):
+            raise
+        reason = "error:%s" % type(exc).__name__
+    except Exception as exc:  # one record's failure never aborts the run
+        reason = "error:%s" % type(exc).__name__
+    else:
+        counts["turns"] += 1
+        counts[outcome] += 1
+        if replay:
+            counts["replayed"] += 1
+        if reattribution:
+            counts[reattribution] += 1
+        final_status[row["row_hash"]] = status
+        return
+    READ_STATS.clear()
+    READ_STATS.update(stats_before)
+    reject(filepath, lineno, reason)
+
+
 def cmd_ingest(args):
+    # Refuse a bad lock timeout before anything is read or written (exit 2
+    # via main(), R3V1-M3).
+    _lock_timeout_s()
     if not os.path.exists(args.path):
         print("transcript_ingest: path does not exist: %s" % args.path, file=sys.stderr)
         return 1
@@ -1047,8 +1543,19 @@ def cmd_ingest(args):
 
     for key in READ_STATS:
         READ_STATS[key] = 0
-    counts = dict.fromkeys(("turns", "new", "updated", "unchanged", "to_parent", "filled"), 0)
+    counts = dict.fromkeys(("turns", "new", "updated", "unchanged", "to_parent", "filled", "replayed"), 0)
+    _LINES_SEEN.clear()
+    _UNMAPPED_AGENTS.clear()
     final_status = {}
+    rejected = {}
+
+    def reject(filepath, lineno, reason):
+        # The record's text is never printed (credential safety): only its
+        # place and the fixed reason token.
+        rejected[reason] = rejected.get(reason, 0) + 1
+        print("transcript_ingest: WARNING: %s:%d: record rejected (%s); the rest of the "
+              "run continues" % (filepath, lineno, reason), file=sys.stderr)
+
     # V1-I1: the whole row pass is one write transaction taken BEFORE the
     # first read, so a concurrent ingest on the same DB waits here instead
     # of reading a row this run is about to insert.
@@ -1061,21 +1568,26 @@ def cmd_ingest(args):
               file=sys.stderr)
         return 1
     try:
-        for filepath in files:
-            for lineno, rec in iter_records(filepath):
-                row = build_row(filepath, lineno, rec, dispatch_map)
-                if row is None:
-                    continue
-                counts["turns"] += 1
-                outcome, reattribution, status = upsert_row(conn, row)
-                counts[outcome] += 1
-                if reattribution:
-                    counts[reattribution] += 1
-                final_status[row["row_hash"]] = status
-        conn.execute("COMMIT")
-    except BaseException:
-        conn.execute("ROLLBACK")
-        raise
+        try:
+            for filepath in files:
+                for lineno, rec in iter_records(
+                        filepath, on_reject=lambda ln, why, fp=filepath: reject(fp, ln, why)):
+                    _process_record(conn, filepath, lineno, rec, dispatch_map, counts,
+                                    final_status, reject)
+            conn.execute("COMMIT")
+        except BaseException:
+            # A rollback here undoes EVERY row of this run, so nothing from it
+            # is written (V1-I1, R3V1-M2). The transaction may already be gone
+            # when SQLite itself rolled it back.
+            if conn.in_transaction:
+                conn.execute("ROLLBACK")
+            raise
+    except sqlite3.DatabaseError as exc:
+        print("transcript_ingest: the database --db %s failed during the run (%s: %s) -- "
+              "the run was rolled back and nothing from this run was written; committed "
+              "rows from earlier runs are unchanged" % (args.db, type(exc).__name__, exc),
+              file=sys.stderr)
+        return 1
     # measured / unmeasured count the DISTINCT rows this run read, by their
     # state after the run (V1-M1): a row inserted unmeasured and completed by
     # a later line counts once, as measured, exactly as the DB holds it.
@@ -1085,12 +1597,19 @@ def cmd_ingest(args):
         "measured=%d unmeasured=%d duplicate_merged_grew=%d "
         "duplicate_unchanged=%d reattributed_to_parent=%d attribution_filled=%d "
         "unreadable_files=%d unparseable_lines=%d invalid_utf8_lines=%d "
-        "malformed_fields=%d db=%s"
+        "malformed_fields=%d rejected_records=%d rejected_reasons=%s "
+        "replayed_lines=%d replayed_dispatches=%d dispatch_without_description=%d "
+        "item_from_sidecar=%d bad_sidecars=%d agents_without_item=%d unmapped_agents=%d db=%s"
         % (len(files), counts["turns"], len(final_status), counts["new"], n_measured,
            len(final_status) - n_measured, counts["updated"], counts["unchanged"],
            counts["to_parent"], counts["filled"], READ_STATS["unreadable_files"],
            READ_STATS["unparseable_lines"], READ_STATS["invalid_utf8_lines"],
-           READ_STATS["malformed_fields"], args.db)
+           READ_STATS["malformed_fields"], sum(rejected.values()),
+           ",".join("%s:%d" % kv for kv in sorted(rejected.items())) or "none",
+           counts["replayed"], DISPATCH_STATS["replayed_dispatches"],
+           DISPATCH_STATS["dispatch_without_description"], DISPATCH_STATS["item_from_sidecar"],
+           DISPATCH_STATS["bad_sidecars"], DISPATCH_STATS["agents_without_item"],
+           len(_UNMAPPED_AGENTS), args.db)
     )
     return 0
 
@@ -1158,7 +1677,11 @@ def main(argv):
     p_report.set_defaults(func=cmd_report)
 
     args = ap.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except ConfigError as exc:
+        print("transcript_ingest: refusing to run: %s" % exc, file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

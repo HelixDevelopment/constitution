@@ -341,6 +341,31 @@ else
         else
             bad "harness exit status $HRC (non-zero: a fixture class mismatched or the tool errored)"
         fi
+        # T048 V4 round 5 (F6): input json.load cannot turn into a value -- an integer
+        # literal past Python's 4300-digit conversion limit (ValueError), nesting deeper
+        # than the recursion limit (RecursionError), bytes that are not UTF-8
+        # (UnicodeDecodeError) -- must REFUSE with the one-line stdout evidence and a
+        # non-zero exit, never a traceback.
+        MALDIR=$(mktemp -d)
+        python3 - "$MALDIR" <<'PYMAL'
+import sys
+d = sys.argv[1]
+open(d + "/hugeint", "w").write('{"kind":"build_event","verdict":' + "9" * 5000 + '}')
+open(d + "/deepnest", "w").write('{"kind":"join","build":' + "[" * 100000 + "]" * 100000 + '}')
+open(d + "/badutf8", "wb").write(b'{"kind":"build_event","build_id":"\xff\xfe\x80","verdict":"ALLOW"}')
+PYMAL
+        for m in hugeint deepnest badutf8; do
+            MOUT=$(python3 "$TOOL" "$MALDIR/$m" 2>"$MALDIR/$m.err")
+            MRC=$?
+            MLINES=$(printf '%s\n' "$MOUT" | grep -c .)
+            if [ "$MRC" -ne 0 ] && [ "$MLINES" = 1 ] && printf '%s' "$MOUT" | grep -q '^REFUSE build_id=' \
+               && ! grep -q 'Traceback' "$MALDIR/$m.err"; then
+                ok "malformed-$m: refused (exit $MRC) with one evidence line ($MOUT), no traceback"
+            else
+                bad "malformed-$m: exit=$MRC stdout-lines=$MLINES stdout='$MOUT' stderr-tail='$(tail -c 160 "$MALDIR/$m.err")' -- an input json cannot decode escaped as a traceback"
+            fi
+        done
+        rm -rf "$MALDIR"
         # Closed class list: an extra golden-bad-* directory nobody checks above is
         # a coverage claim with no assertion behind it.
         for d in "$FIXDIR"/golden-bad-*; do

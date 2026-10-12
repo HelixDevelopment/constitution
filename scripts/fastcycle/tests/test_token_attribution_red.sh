@@ -1611,7 +1611,7 @@ fi
 echo
 echo "-- PART F-NEEDLE-AGGREGATE (M-a): the 'PART F HOLDS' aggregate's BLIND-awareness is genuinely load-bearing --"
 # single-quoted text is a literal regex/marker matched verbatim against this file's own source, never meant to expand
-# shellcheck disable=SC2016
+# shellcheck disable=SC2016 # single-quoted regex and marker text is intentionally literal and matched verbatim against this file source, never expanded
 _PARTF_COND_ANCHOR_START='^        if \[ "\$RC_F1" -eq 0 \] && \[ -z "\${UNCONFIGURED_ITEM-UNSET}" \]'
 _PARTF_COND_ANCHOR_END='^.*; }; }; then$'
 _PARTF_SELF="${BASH_SOURCE[0]:-$0}"
@@ -1648,7 +1648,7 @@ if [ "${_PARTF_COND_OCCURRENCES:-0}" -ne 1 ]; then
 else
     _PARTF_FIXED_COND="$(sed -n "/${_PARTF_COND_ANCHOR_START}/,/${_PARTF_COND_ANCHOR_END}/p" "$_PARTF_SELF")"
     # single-quoted text is a literal regex/marker matched verbatim against this file's own source, never meant to expand
-    # shellcheck disable=SC2016
+    # shellcheck disable=SC2016 # single-quoted regex and marker text is intentionally literal and matched verbatim against this file source, never expanded
     _PARTF_BLIND_MARKER=' && [ "${DERIVED_DEFAULT_PREFIX_BLIND:-0}" -eq 0 ]'
     _PARTF_MUTATED_COND="$(python3 -c '
 import sys
@@ -1712,10 +1712,10 @@ sys.stdout.write(cond.replace(marker, "", 1))
                 CONFIGURED_ITEM="$conf"
                 unset ATM_STILL_WORKS 2>/dev/null || true
                 # intentional: the eval harness sets these only inside a subshell to evaluate the condition under a synthetic state; the real outer values are assigned separately above
-                # shellcheck disable=SC2030
+                # shellcheck disable=SC2030 # assignment inside this subshell deliberately scopes the synthetic state to the eval harness so the outer variable is untouched
                 DERIVED_DEFAULT_PREFIX="$derived"
                 # intentional: the eval harness sets these only inside a subshell to evaluate the condition under a synthetic state; the real outer values are assigned separately above
-                # shellcheck disable=SC2030
+                # shellcheck disable=SC2030 # assignment inside this subshell deliberately scopes the synthetic state to the eval harness so the outer variable is untouched
                 DERIVED_DEFAULT_PREFIX_BLIND="$blind"
                 eval "$cond"$'\n  echo TOOK_TRUE\nelse\n  echo TOOK_FALSE\nfi'
             )
@@ -1950,18 +1950,51 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
             | tr '[:upper:]' '[:lower:]' \
             | sed -E 's/_+/_/g; s/^_//; s/_$//')"
     fi
+    # Round 10, F11: the I1 precondition is a fact about the checkout's
+    # LAYOUT (the old, un-anchored mechanism resolves the constitution's own
+    # git root, and that directory's name derives a DIFFERENT ticket key than
+    # the project's). Three outcomes, never conflated:
+    #   real        -- both facts hold: the assertion below is a regression guard;
+    #   absent      -- an unsupported topology for this proof (a standalone clone;
+    #                  or a constitution directory whose name derives the SAME key
+    #                  as the project, so the old mechanism would not have been
+    #                  wrong here): an honest, reasoned SKIP of the guard claim;
+    #   unverifiable -- git could not answer at all: a FAIL (a blind instrument).
+    # Before round 10 the absent case (any directory name other than
+    # 'constitution') was reported as a FAIL, and a standalone clone that had
+    # already SKIPped the precondition FAILed again at the verdict below.
     I1_PRECONDITION_REAL=0
+    I1_PRECONDITION_STATE=""
+    OLD_BUGGY_KEY=""
+    if [ -n "$OLD_BUGGY_PREFIX" ]; then
+        OLD_BUGGY_KEY="$(printf '%s' "$OLD_BUGGY_PREFIX" | tr -cd 'A-Za-z' | cut -c1-3 | tr '[:lower:]' '[:upper:]')"
+        if [ -z "$OLD_BUGGY_KEY" ]; then OLD_BUGGY_KEY="WIT"; fi
+        while [ "${#OLD_BUGGY_KEY}" -lt 3 ]; do OLD_BUGGY_KEY="${OLD_BUGGY_KEY}X"; done
+    fi
     if [ -z "$REPO_ROOT" ]; then
-        skip "PART F7 I1 precondition: a standalone constitution clone has no superproject, so the embedded-layout cwd defect cannot occur here"
+        I1_PRECONDITION_STATE=absent
+        skip "PART F7 I1 precondition (unsupported topology): a standalone constitution clone has no superproject, so the embedded-layout cwd defect cannot occur here"
+    elif [ -z "$OLD_BUGGY_ROOT" ] || [ -z "$CONST_TOPLEVEL" ]; then
+        I1_PRECONDITION_STATE=unverifiable
+        bad "cannot establish the I1 precondition fact at this cwd: git returned no toplevel (old_root='$OLD_BUGGY_ROOT' const_toplevel='$CONST_TOPLEVEL') — the instrument is blind, investigate before trusting the real assertion below"
     else
-        needle_check "PROOF the I1 precondition is still real at this exact cwd: the OLD, pre-S8, un-anchored 'git rev-parse --show-toplevel' genuinely returns the WRONG (constitution-submodule-own) root from inside \$HERE, not the real atmosphere project root" 1 "$([ "$OLD_BUGGY_ROOT" = "$CONST_TOPLEVEL" ] && echo 1 || echo 0)"
-        needle_check "PROOF continued: that wrong root's own snake_case name ('${OLD_BUGGY_PREFIX:-<empty>}') is genuinely 'constitution', a real, non-coincidental divergence from the real project's 'atmosphere' prefix (never a false alarm)" 1 "$([ "$OLD_BUGGY_PREFIX" = "constitution" ] && echo 1 || echo 0)"
-        I1_PRECONDITION_REAL=0
-        if [ "$OLD_BUGGY_ROOT" = "$CONST_TOPLEVEL" ] && [ "$OLD_BUGGY_PREFIX" = "constitution" ]; then
+        needle_check "PROOF the I1 precondition is still real at this exact cwd: the OLD, pre-S8, un-anchored 'git rev-parse --show-toplevel' genuinely returns the WRONG (constitution-submodule-own) root from inside \$HERE, not the real atmosphere project root" 1 "$([ "$OLD_BUGGY_ROOT" = "$CONST_TOPLEVEL" ] && [ "$OLD_BUGGY_ROOT" != "$REPO_ROOT" ] && echo 1 || echo 0)"
+        # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+        # shellcheck disable=SC2031 # reads the real outer variable assigned at file scope, the subshell copy in the eval harness is intentionally separate
+        if [ "$OLD_BUGGY_ROOT" = "$CONST_TOPLEVEL" ] && [ "$OLD_BUGGY_ROOT" != "$REPO_ROOT" ] && [ "$OLD_BUGGY_KEY" != "$DERIVED_DEFAULT_PREFIX" ]; then
             I1_PRECONDITION_REAL=1
-            ok "control fact established: a release_prefix.sh built on the OLD, un-anchored primary mechanism would derive 'constitution' (hence the WRONG item-tag prefix 'CON') from exactly the cwd (\$HERE) the real assertion below uses — proving that assertion is a genuine, non-vacuous regression guard for the I1 defect class, not a test of an already-impossible precondition"
+            I1_PRECONDITION_STATE=real
+            # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+            # shellcheck disable=SC2031 # reads the real outer variable assigned at file scope, the subshell copy in the eval harness is intentionally separate
+            ok "control fact established: a release_prefix.sh built on the OLD, un-anchored primary mechanism would derive '$OLD_BUGGY_PREFIX' (hence the WRONG item-tag prefix '$OLD_BUGGY_KEY', not '$DERIVED_DEFAULT_PREFIX') from exactly the cwd (\$HERE) the real assertion below uses — proving that assertion is a genuine, non-vacuous regression guard for the I1 defect class, not a test of an already-impossible precondition"
+        elif [ "$OLD_BUGGY_ROOT" = "$CONST_TOPLEVEL" ] && [ "$OLD_BUGGY_ROOT" != "$REPO_ROOT" ]; then
+            I1_PRECONDITION_STATE=absent
+            # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+            # shellcheck disable=SC2031 # reads the real outer variable assigned at file scope, the subshell copy in the eval harness is intentionally separate
+            skip "PART F7 I1 precondition (unsupported topology): the constitution checkout's own directory name '$OLD_BUGGY_PREFIX' derives the key '$OLD_BUGGY_KEY', the SAME as the project's '$DERIVED_DEFAULT_PREFIX', so the old un-anchored mechanism would not have produced a wrong prefix in this layout; the end-to-end attribution below still runs, but it cannot be claimed as a guard for I1 here"
         else
-            bad "cannot establish the I1 precondition fact at this cwd (old_root='$OLD_BUGGY_ROOT' old_prefix='$OLD_BUGGY_PREFIX') — investigate before trusting the real assertion below as a genuine regression guard"
+            I1_PRECONDITION_STATE=unverifiable
+            bad "cannot establish the I1 precondition fact at this cwd (old_root='$OLD_BUGGY_ROOT' const_toplevel='$CONST_TOPLEVEL' repo_root='$REPO_ROOT') — investigate before trusting the real assertion below as a genuine regression guard"
         fi
     fi
 
@@ -1975,10 +2008,10 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
     # subprocess chain is under test here.
     if [ -f "$PARENT_FIX" ]; then
         # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
-        # shellcheck disable=SC2031
+        # shellcheck disable=SC2031 # reads the real outer variable assigned at file scope, the subshell copy in the eval harness is intentionally separate
         if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
             # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
-            # shellcheck disable=SC2031
+            # shellcheck disable=SC2031 # reads the real outer variable assigned at file scope, the subshell copy in the eval harness is intentionally separate
             skip_prefix_mismatch "PART F7's real-ingest assertion assumes this checkout's own, genuinely UNCONFIGURED default item-tag prefix (read from its own .env via release_prefix.sh, the SAME mechanism F7's env -u's already force) is 'ATM' so that the PART D fixture's real item=ATM-9999 tag attributes end-to-end; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead — this test assumes an ATM-prefixed checkout, so F7's real end-to-end verification is honestly skipped here (not pass, not fail). The I1 precondition-reality proof above (OLD_BUGGY_ROOT / OLD_BUGGY_PREFIX / I1_PRECONDITION_REAL) tests the git-submodule-boundary defect class itself — a structural fact about this checkout's directory layout, never about any project's configured item-tag prefix — and is unaffected by this skip."
         else
         DB_F7="$WORK/telemetry_f7.db"
@@ -1987,8 +2020,14 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
         if [ "$RC_F7" -eq 0 ] && [ -f "$DB_F7" ]; then
             DIR_DEP_ITEM="$(sqlite3 -noheader "$DB_F7" "SELECT item_id FROM transcript_usage_events WHERE msg_id='msg_fixture_t020_attr_sub_a1';")"
             needle_check "ingest run with process cwd=\$HERE (inside constitution/) STILL correctly attributes item=ATM-9999 — the real atmosphere project prefix" 1 "$([ "$DIR_DEP_ITEM" = "ATM-9999" ] && echo 1 || echo 0)"
-            needle_check "...and is NOT the OLD-buggy-mechanism's would-be WRONG prefix ('CON-9999')" 0 "$([ "$DIR_DEP_ITEM" = "CON-9999" ] && echo 1 || echo 0)"
-            if [ "$I1_PRECONDITION_REAL" = "1" ] && [ "$DIR_DEP_ITEM" = "ATM-9999" ]; then
+            # Only meaningful when the old mechanism's key DIFFERS from the real one
+            # (state real); in the absent topology they are the same key by definition.
+            if [ "$I1_PRECONDITION_STATE" != "absent" ]; then
+                needle_check "...and is NOT the OLD-buggy-mechanism's would-be WRONG prefix ('${OLD_BUGGY_KEY:-CON}-9999')" 0 "$([ "$DIR_DEP_ITEM" = "${OLD_BUGGY_KEY:-CON}-9999" ] && echo 1 || echo 0)"
+            fi
+            if [ "$I1_PRECONDITION_STATE" = "absent" ] && [ "$DIR_DEP_ITEM" = "ATM-9999" ]; then
+                skip "PART F7 regression-guard verdict (unsupported topology): the attribution is correct (asserted above), but the I1 precondition does not exist in this layout (see the precondition SKIP above), so this run does not claim F7 guards the directory-dependence defect"
+            elif [ "$I1_PRECONDITION_REAL" = "1" ] && [ "$DIR_DEP_ITEM" = "ATM-9999" ]; then
                 ok "PART F7 HOLDS (the reviewer's 'most important' case): running transcript_ingest.py with its process cwd set INSIDE constitution/ (\$HERE) still correctly derives the real project's 'ATM' prefix and attributes item=ATM-9999, end-to-end through the real ingest CLI — the directory-dependence defect class I1 flagged (now closed by S8's release_prefix.sh fix) is proven closed for THIS tool, not merely assumed from S8 landing elsewhere"
             else
                 bad "PART F7 UNMET: i1_precondition_real=$I1_PRECONDITION_REAL (want 1) dir_dep_item='$DIR_DEP_ITEM' (want ATM-9999) — the directory-dependence defect is NOT proven closed end-to-end for this tool; investigate release_prefix.sh's cwd-anchoring (or its invocation here) before trusting any other property in this file that depends on the derived default prefix"
@@ -2068,10 +2107,10 @@ except re.error:
     # stderr WARNING naming the invalid value) are prefix-independent and
     # stay unaffected by this skip.
     # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
-    # shellcheck disable=SC2031
+    # shellcheck disable=SC2031 # reads the real outer variable assigned at file scope, the subshell copy in the eval harness is intentionally separate
     if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
         # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
-        # shellcheck disable=SC2031
+        # shellcheck disable=SC2031 # reads the real outer variable assigned at file scope, the subshell copy in the eval harness is intentionally separate
         skip_prefix_mismatch "G1's fallback-match needle_check (probing item=ATM-4242 against the derived-default fallback regex) assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM'; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead -- this specific needle_check is honestly skipped here (not pass, not fail), purely for an environmental reason; the fail-safe's no-crash + stderr-warning properties are unaffected by this skip and are still verified for real immediately below"
     else
         needle_check "despite the invalid regex, _build_item_tag_re() does NOT crash and still matches a genuine ATM-<digits> tag via the derived-default fallback" 1 "$G1_MATCH"
@@ -2543,7 +2582,10 @@ cases = [
     ("(T1/main - a) item=QZT-١٢ t", ""),
     ("(T1/main - a)\u000bitem=QZT-11 t", "QZT-11"),
     ("(T1/main - a)\u000citem=QZT-14 t", "QZT-14"),
-    ("(T1/main - a) item=QßT-5 t", "QßT-5"),
+    # Round 11 (RV11-1): the extra prefix 'qßt' is not ASCII letters and
+    # digits, so BOTH tools now ignore it (data, never a pattern); until
+    # round 10 it was accepted as written. Both tools must still agree.
+    ("(T1/main - a) item=QßT-5 t", ""),
     ("(T1/main - a) item=QZT-13", "QZT-13"),
 ]
 json.dump(cases, open(sys.argv[1], "w"))
@@ -2853,6 +2895,1549 @@ else
 fi
 fi
 
+# =============================================================================
+# PART J -- T048 restart round 3 (§11.4.276 round 3, STRUCTURAL; R3V1-I1,
+#          R3V1-M2/M3/M4/M6, mutants X1-X3, X5, X7, X9): the GENERATED
+#          FAILURE-PATH MATRIX of transcript_ingest.py. One row per failure
+#          branch (lock expiry, every timeout parse case, mid-run database
+#          failure and rollback, per-record rejection of every kind, every
+#          read error) plus the boundary matrix (every left/right boundary
+#          character incl. CR and NUL through the ingest AND dispatch_stamp.sh
+#          with and without jq). Its META-CHECK enumerates every except /
+#          non-zero return / raise of transcript_ingest.py with `ast` and
+#          requires a row that is proven (by a line-traced second run of the
+#          same CLI call) to reach it. The driver runs the REAL CLI; it never
+#          re-implements the tool's logic.
+# =============================================================================
+echo "=== PART J: failure-path matrix of transcript_ingest.py (generated, branch-complete) ==="
+if [ ! -f "$TRANSCRIPT_INGEST" ] || [ ! -f "$DISPATCH_STAMP" ]; then
+    bad "PART J UNMET: transcript_ingest.py or dispatch_stamp.sh absent"
+else
+J_NOJQ="$WORK/part_j_nojq"
+mkdir -p "$J_NOJQ"
+ln -sf "$(command -v awk)" "$J_NOJQ/awk"
+ln -sf "$(command -v cat)" "$J_NOJQ/cat"
+if PATH="$J_NOJQ" command -v jq >/dev/null 2>&1; then
+    bad "PART J control: jq is still resolvable on the jq-less PATH"
+    J_NOJQ=""
+fi
+cat > "$WORK/part_j.py" <<'PYEOF'
+"""PART J driver -- T048 restart round 3 (R3V1-I1, R3V1-M2/M3/M4/M6), the
+GENERATED FAILURE-PATH MATRIX for transcript_ingest.py.
+
+Every row drives the REAL `transcript_ingest.py` CLI as a subprocess (and,
+for the boundary rows, the REAL dispatch_stamp.sh with and without jq) on
+fixtures built here, and asserts the observable result: exit status, the
+summary line, stderr, and the rows read back from the SQLite file.
+
+META-CHECK: the failure branches of transcript_ingest.py are ENUMERATED from
+its source with the `ast` module (every `except` handler, every `return`
+of a non-zero integer, every `raise` of a named exception, function by
+function). Every enumerated branch must be NAMED by at least one row, and
+the row must really REACH it: each row is run a second time under a
+line-tracer (sys.settrace around runpy.run_path of the same file with the
+same argv) and the first line of every branch the row names must have run.
+A branch nobody names, or a row that names a branch it does not reach,
+FAILs. Control needles prove the enumerator sees a known branch and reports
+a branch planted into a scratch copy as unnamed.
+
+Output: one line per verdict, "OK\t<text>", "BAD\t<text>" or "SKIP\t<text>".
+
+Usage: python3 part_j.py <transcript_ingest.py> <dispatch_stamp.sh> <workdir> <nojq-bin-or-empty>
+"""
+import ast
+import json
+import os
+import shutil
+import sqlite3
+import subprocess
+import sys
+import time
+
+TI, DS, WORK, NOJQ = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+os.makedirs(WORK, exist_ok=True)
+INT64_MAX = 2 ** 63 - 1
+QZT = "QZT-[0-9]+"
+
+
+def out(kind, text):
+    print("%s\t%s" % (kind, text.replace("\n", " | ")), flush=True)
+
+
+# --------------------------------------------------------------------------
+# The line tracer. It is written to a file and run as its own interpreter,
+# so the traced run is a separate process exactly like the normal one.
+# --------------------------------------------------------------------------
+COV = os.path.join(WORK, "cov_run.py")
+with open(COV, "w") as fh:
+    fh.write(r'''
+import os, runpy, sys, json
+target, hits_out = sys.argv[1], sys.argv[2]
+sys.argv = [target] + sys.argv[3:]
+names = {target, os.path.abspath(target), os.path.realpath(target)}
+hits = set()
+def local(frame, event, arg):
+    if event == "line":
+        hits.add(frame.f_lineno)
+    return local
+def glob(frame, event, arg):
+    if frame.f_code.co_filename in names:
+        return local
+    return None
+rc = 0
+sys.settrace(glob)
+try:
+    runpy.run_path(target, run_name="__main__")
+except SystemExit as exc:
+    rc = exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
+finally:
+    sys.settrace(None)
+    with open(hits_out, "w") as fh:
+        json.dump(sorted(hits), fh)
+sys.exit(rc)
+''')
+
+
+def base_env(**extra):
+    env = dict(os.environ)
+    for k in ("FC_DISPATCH_EXTRA_ITEM_PREFIXES", "FC_DISPATCH_ITEM_ID_RE", "HELIX_RELEASE_PREFIX",
+              "FC_TELEMETRY_DB", "FC_TELEMETRY_DB_LOCK_TIMEOUT_S"):
+        env.pop(k, None)
+    env["FC_DISPATCH_ITEM_ID_RE"] = QZT
+    for k, v in extra.items():
+        if v is None:
+            env.pop(k, None)
+        else:
+            env[k] = v
+    return env
+
+
+def run_ti(argv, env, traced_hits=None, timeout=120):
+    if traced_hits:
+        cmd = [sys.executable, COV, TI, traced_hits] + argv
+    else:
+        cmd = [sys.executable, TI] + argv
+    t0 = time.monotonic()
+    p = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+    return p.returncode, p.stdout, p.stderr, time.monotonic() - t0
+
+
+def summary(stdout, key):
+    for line in stdout.splitlines():
+        if line.startswith("transcript_ingest: files="):
+            for tok in line.split():
+                if tok.startswith(key + "="):
+                    return tok[len(key) + 1:]
+    return None
+
+
+def q(db, sql):
+    if not os.path.exists(db):
+        return None
+    c = sqlite3.connect(db)
+    try:
+        return c.execute(sql).fetchall()
+    except sqlite3.Error:
+        return None
+    finally:
+        c.close()
+
+
+def asst(msg_id, usage, agent=None, sess="j-sess"):
+    rec = {"type": "assistant", "uuid": "u-" + msg_id, "timestamp": "2026-10-08T00:00:00Z",
+           "message": {"id": msg_id, "model": "fixture-model"}}
+    if usage is not None:
+        rec["message"]["usage"] = usage
+    if agent:
+        rec["agentId"] = agent
+    else:
+        rec["sessionId"] = sess
+    return json.dumps(rec)
+
+
+def u(i, o, cr, cc):
+    return {"input_tokens": i, "output_tokens": o, "cache_read_input_tokens": cr,
+            "cache_creation_input_tokens": cc}
+
+
+def write(path, lines, raw=False):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    mode = "wb" if raw else "w"
+    with open(path, mode) as fh:
+        if raw:
+            fh.write(b"\n".join(lines) + b"\n")
+        else:
+            fh.write("\n".join(lines) + "\n")
+
+
+def seed_db(db, rows=(), trigger_sql=None):
+    """Create the table the tool owns (its own SCHEMA, read from the tool's
+    module text is NOT done -- the tool creates it on first run) by running
+    the REAL CLI once on a seed transcript, then optionally add a trigger."""
+    if rows:
+        seed = os.path.join(os.path.dirname(db), os.path.basename(db) + ".seed.jsonl")
+        write(seed, list(rows))
+        rc, so, se, _ = run_ti(["ingest", seed, "--db", db], base_env())
+        if rc != 0:
+            raise RuntimeError("seed ingest failed rc=%s %s" % (rc, se[-300:]))
+    else:
+        c = sqlite3.connect(db)
+        c.close()
+        empty = os.path.join(os.path.dirname(db), os.path.basename(db) + ".empty.jsonl")
+        write(empty, [json.dumps({"type": "user"})])
+        rc, so, se, _ = run_ti(["ingest", empty, "--db", db], base_env())
+        if rc != 0:
+            raise RuntimeError("table creation ingest failed rc=%s %s" % (rc, se[-300:]))
+    if trigger_sql:
+        c = sqlite3.connect(db, isolation_level=None)
+        c.execute(trigger_sql)
+        c.close()
+
+
+class Holder:
+    """A separate process that holds the database WRITE lock (BEGIN
+    IMMEDIATE) for `secs` seconds -- the situation of a second ingest
+    running on the same DB."""
+
+    def __init__(self, db, secs):
+        self.p = subprocess.Popen(
+            [sys.executable, "-c",
+             "import sqlite3,sys,time\n"
+             "c=sqlite3.connect(sys.argv[1],isolation_level=None)\n"
+             "c.execute('BEGIN IMMEDIATE')\n"
+             "print('locked',flush=True)\n"
+             "time.sleep(float(sys.argv[2]))\n"
+             "c.execute('ROLLBACK')\n", db, str(secs)],
+            stdout=subprocess.PIPE, text=True)
+        line = self.p.stdout.readline()
+        if line.strip() != "locked":
+            raise RuntimeError("lock holder did not take the lock")
+
+    def done(self):
+        self.p.wait(timeout=60)
+
+
+# --------------------------------------------------------------------------
+# Rows. Each row is (id, branches, fn). fn(tag, traced_hits) builds its own
+# fresh fixture under WORK/<id>/<tag>, runs the tool, and returns
+# (ok, detail). The same fn is called once normally and once traced.
+# --------------------------------------------------------------------------
+ROWS = []
+
+
+def row(rid, branches):
+    def deco(fn):
+        ROWS.append((rid, tuple(branches), fn))
+        return fn
+    return deco
+
+
+def fresh(rid, tag):
+    d = os.path.join(WORK, rid, tag)
+    if os.path.exists(d):
+        shutil.rmtree(d)
+    os.makedirs(d)
+    return d
+
+
+ONE_OK = [asst("msg_j_ok", u(1, 2, 3, 4))]
+
+
+def timeout_row(rid, value, sub="ingest"):
+    names = ["_lock_timeout_s:raise:ConfigError", "main:except:ConfigError", "main:return:2"]
+    if value in ("abc", "0x10"):
+        names.append("_lock_timeout_s:except:ValueError")
+
+    @row(rid, names)
+    def fn(tag, hits):
+        d = fresh(rid, tag)
+        fx = os.path.join(d, "t.jsonl")
+        write(fx, ONE_OK)
+        db = os.path.join(d, "t.db")
+        argv = ["ingest", fx, "--db", db] if sub == "ingest" else ["report", "--db", db]
+        rc, so, se, _ = run_ti(argv, base_env(FC_TELEMETRY_DB_LOCK_TIMEOUT_S=value), hits)
+        good = (rc == 2 and "FC_TELEMETRY_DB_LOCK_TIMEOUT_S" in se and repr(value) in se
+                and "Traceback" not in se and not os.path.exists(db))
+        return good, "value=%r %s: rc=%s (want 2) db_created=%s stderr=%r" % (
+            value, sub, rc, os.path.exists(db), se[-240:])
+
+
+for _k, _v in enumerate(["abc", "-1", "nan", "inf", "-inf", "1e309", "0x10", "-0.5"]):
+    timeout_row("J-T%02d timeout %r refused" % (_k, _v), _v)
+timeout_row("J-T20 report refuses timeout 'abc'", "abc", sub="report")
+
+
+@row("J-T30 timeout '0' and ' 2.5 ' are accepted", [])
+def _t30(tag, hits):
+    res = []
+    for v in ("0", " 2.5 "):
+        d = fresh("J-T30", tag + v.strip())
+        fx = os.path.join(d, "t.jsonl")
+        write(fx, ONE_OK)
+        db = os.path.join(d, "t.db")
+        rc, so, se, _ = run_ti(["ingest", fx, "--db", db], base_env(FC_TELEMETRY_DB_LOCK_TIMEOUT_S=v), hits)
+        res.append((v, rc, summary(so, "rows"), "WARNING" in se))
+    return all(r[1] == 0 and r[2] == "1" and not r[3] for r in res), "results=%r" % res
+
+
+@row("J-L1 lock held longer than the timeout: rc 1, honest message, nothing written",
+     ["cmd_ingest:except:sqlite3.OperationalError", "cmd_ingest:return:1#3"])
+def _l1(tag, hits):
+    d = fresh("J-L1", tag)
+    db = os.path.join(d, "t.db")
+    seed_db(db)
+    fx = os.path.join(d, "t.jsonl")
+    write(fx, ONE_OK)
+    h = Holder(db, 3.0)
+    rc, so, se, el = run_ti(["ingest", fx, "--db", db], base_env(FC_TELEMETRY_DB_LOCK_TIMEOUT_S="0.5"), hits)
+    h.done()
+    rows = q(db, "SELECT COUNT(*) FROM transcript_usage_events")
+    good = rc == 1 and el < 2.5 and "could not take the write lock" in se and rows == [(0,)] and "Traceback" not in se
+    return good, "rc=%s (want 1) elapsed=%.2fs (want <2.5, the env timeout is 0.5s) rows=%r stderr=%r" % (rc, el, rows, se[-200:])
+
+
+@row("J-L2 lock released within the timeout: the run waits and succeeds", [])
+def _l2(tag, hits):
+    d = fresh("J-L2", tag)
+    db = os.path.join(d, "t.db")
+    seed_db(db)
+    fx = os.path.join(d, "t.jsonl")
+    write(fx, ONE_OK)
+    h = Holder(db, 1.0)
+    rc, so, se, el = run_ti(["ingest", fx, "--db", db], base_env(FC_TELEMETRY_DB_LOCK_TIMEOUT_S="20"), hits)
+    h.done()
+    rows = q(db, "SELECT COUNT(*) FROM transcript_usage_events")
+    good = rc == 0 and el >= 0.7 and rows == [(1,)]
+    return good, "rc=%s (want 0) elapsed=%.2fs (want >=0.7: it waited) rows=%r stderr=%r" % (rc, el, rows, se[-200:])
+
+
+@row("J-R1 the database fails mid-run: rc 1, the WHOLE run is rolled back, committed rows kept",
+     ["cmd_ingest:except:BaseException", "cmd_ingest:except:sqlite3.DatabaseError", "cmd_ingest:return:1#4",
+      "_process_record:except:sqlite3.DatabaseError", "_process_record:except:BaseException"])
+def _r1(tag, hits):
+    d = fresh("J-R1", tag)
+    db = os.path.join(d, "t.db")
+    # A committed row from an earlier run, then a trigger that makes every
+    # UPDATE fail with an OperationalError (an unusable database).
+    seed_db(db, rows=[asst("msg_j_r1_old", u(1, 1, 1, 1))],
+            trigger_sql="CREATE TRIGGER j_r1 AFTER UPDATE ON transcript_usage_events BEGIN SELECT no_such_function(); END")
+    fx = os.path.join(d, "t.jsonl")
+    # two new rows (INSERT works), then msg_j_r1_a again with a larger count:
+    # its merge is an UPDATE, which fails.
+    write(fx, [asst("msg_j_r1_a", u(1, 1, 1, 1)), asst("msg_j_r1_b", u(1, 1, 1, 1)),
+               asst("msg_j_r1_a", u(1, 9, 1, 1))])
+    rc, so, se, _ = run_ti(["ingest", fx, "--db", db], base_env(), hits)
+    ids = q(db, "SELECT msg_id FROM transcript_usage_events ORDER BY msg_id")
+    good = rc == 1 and ids == [("msg_j_r1_old",)] and "Traceback" not in se and "nothing from this run was written" in se
+    return good, "rc=%s (want 1) rows=%r (want only the committed msg_j_r1_old) stderr=%r" % (rc, ids, se[-300:])
+
+
+@row("J-P1 bad records are rejected one by one; the run goes on, exits 0 and counts them",
+     ["_int_or_none:raise:RecordRejected", "classify_usage:raise:RecordRejected",
+      "iter_records:except:RecursionError", "iter_records:except:ValueError",
+      "_process_record:except:RecordRejected", "_process_record:except:BaseException"])
+def _p1(tag, hits):
+    d = fresh("J-P1", tag)
+    db = os.path.join(d, "t.db")
+    fx = os.path.join(d, "t.jsonl")
+    lines = [
+        asst("msg_j_p1_ok1", u(1, 2, 3, 4)).encode(),
+        asst("msg_j_p1_big", u(1, 2 ** 63, 3, 4)).encode(),                       # counter >= 2^63
+        asst("msg_j_p1_negbig", u(-1, 2 ** 63, 3, 4)).encode(),                   # rejected: its negative field is NOT counted
+        asst("msg_j_p1_sum", u(2 ** 62, 2 ** 62, 1, 1)).encode(),                 # total >= 2^63
+        b'{"type":"assistant","x":' + b"[" * 100000 + b"]" * 100000 + b"}",         # nesting
+        b'{"type":"assistant","message":{"id":"msg_j_p1_digits","usage":{"input_tokens":' + b"7" * 5000 + b"}}}",
+        asst("msg_j_p1_neg", u(1, -5, 3, 4)).encode(),                            # negative counter
+        asst("msg_j_p1_ok1", u(1, 2 ** 63, 3, 4)).encode(),                       # rejected UPDATE of an existing row
+        asst("msg_j_p1_ok2", u(1, 1, 1, 1)).encode(),
+        asst("msg_j_p1_m1", u(2 ** 62, 1, 1, 1)).encode(),                        # fine alone
+        asst("msg_j_p1_m1", u(1, 2 ** 62, 1, 1)).encode(),                        # merged total >= 2^63: rejected, row kept as it was
+    ]
+    write(fx, lines, raw=True)
+    rc, so, se, _ = run_ti(["ingest", fx, "--db", db], base_env(), hits)
+    got = q(db, "SELECT msg_id, usage_status, IFNULL(output_tokens,'N'), IFNULL(total_tokens,'N') "
+                "FROM transcript_usage_events ORDER BY msg_id")
+    want = [("msg_j_p1_m1", "measured", 1, 2 ** 62 + 3), ("msg_j_p1_neg", "UNMEASURED", "N", "N"),
+            ("msg_j_p1_ok1", "measured", 2, 10), ("msg_j_p1_ok2", "measured", 1, 4)]
+    rej = summary(so, "rejected_records")
+    reasons = summary(so, "rejected_reasons")
+    want_reasons = "counter_out_of_range:3,nesting_too_deep:1,number_too_long:1,total_out_of_range:2"
+    mf = summary(so, "malformed_fields")
+    good = (rc == 0 and got == want and rej == "7" and reasons == want_reasons and mf == "1"
+            and "Traceback" not in se and se.count("record rejected") == 7 and "t.jsonl:2" in se)
+    return good, "rc=%s rows=%r (want %r) rejected_records=%s (want 7) rejected_reasons=%s (want %s) malformed_fields=%s (want 1) stderr=%r" % (
+        rc, got, want, rej, reasons, want_reasons, mf, se[-300:])
+
+
+@row("J-P2 an unexpected per-record database error (a constraint) rejects that record only",
+     ["_process_record:except:sqlite3.DatabaseError", "_process_record:except:BaseException"])
+def _p2(tag, hits):
+    d = fresh("J-P2", tag)
+    db = os.path.join(d, "t.db")
+    seed_db(db, trigger_sql="CREATE TRIGGER j_p2 BEFORE INSERT ON transcript_usage_events "
+                            "WHEN new.msg_id = 'msg_j_p2_poison' BEGIN SELECT RAISE(ABORT, 'poison'); END")
+    fx = os.path.join(d, "t.jsonl")
+    write(fx, [asst("msg_j_p2_a", u(1, 1, 1, 1)), asst("msg_j_p2_poison", u(1, 1, 1, 1)),
+               asst("msg_j_p2_b", u(1, 1, 1, 1))])
+    rc, so, se, _ = run_ti(["ingest", fx, "--db", db], base_env(), hits)
+    ids = q(db, "SELECT msg_id FROM transcript_usage_events WHERE msg_id LIKE 'msg_j_p2%' ORDER BY msg_id")
+    reasons = summary(so, "rejected_reasons")
+    good = rc == 0 and ids == [("msg_j_p2_a",), ("msg_j_p2_b",)] and reasons == "error:IntegrityError:1"
+    return good, "rc=%s rows=%r rejected_reasons=%s stderr=%r" % (rc, ids, reasons, se[-300:])
+
+
+@row("J-P3 a record whose ids cannot be encoded (a lone surrogate) is rejected, not fatal",
+     ["_process_record:except:Exception"])
+def _p3(tag, hits):
+    d = fresh("J-P3", tag)
+    db = os.path.join(d, "t.db")
+    fx = os.path.join(d, "t.jsonl")
+    write(fx, [asst("msg_j_p3_a", u(1, 1, 1, 1)), asst("msg_j_p3_\ud800", u(1, 1, 1, 1)),
+               asst("msg_j_p3_b", u(1, 1, 1, 1))])
+    rc, so, se, _ = run_ti(["ingest", fx, "--db", db], base_env(), hits)
+    ids = q(db, "SELECT msg_id FROM transcript_usage_events ORDER BY msg_id")
+    reasons = summary(so, "rejected_reasons")
+    good = rc == 0 and ids == [("msg_j_p3_a",), ("msg_j_p3_b",)] and reasons == "error:UnicodeEncodeError:1" and "Traceback" not in se
+    return good, "rc=%s rows=%r rejected_reasons=%s stderr=%r" % (rc, ids, reasons, se[-300:])
+
+
+@row("J-P4 the exact signed 64-bit boundary: a counter and a total of 2^63-1 are stored, 2^63 is rejected", [])
+def _p4(tag, hits):
+    # Fixer-authored adversarial mutants (round 3 resume): `> INT64_MAX`
+    # -> `>= INT64_MAX` in _int_or_none (A3) or in classify_usage's total
+    # check (A4) survived every row above, which only used values far past
+    # the limit. Both ends of the boundary are pinned here.
+    d = fresh("J-P4", tag)
+    db = os.path.join(d, "t.db")
+    fx = os.path.join(d, "t.jsonl")
+    write(fx, [asst("msg_j_p4_max", u(INT64_MAX, 0, 0, 0)),
+               asst("msg_j_p4_over", u(INT64_MAX, 1, 0, 0))])
+    rc, so, se, _ = run_ti(["ingest", fx, "--db", db], base_env(), hits)
+    got = q(db, "SELECT msg_id, usage_status, input_tokens, total_tokens FROM transcript_usage_events ORDER BY msg_id")
+    reasons = summary(so, "rejected_reasons")
+    good = rc == 0 and got == [("msg_j_p4_max", "measured", INT64_MAX, INT64_MAX)] and reasons == "total_out_of_range:1"
+    return good, "rc=%s rows=%r (want only msg_j_p4_max measured, input=total=2^63-1) rejected_reasons=%s (want total_out_of_range:1)" % (
+        rc, got, reasons)
+
+
+@row("J-E1 the path does not exist: rc 1", ["cmd_ingest:return:1"])
+def _e1(tag, hits):
+    d = fresh("J-E1", tag)
+    rc, so, se, _ = run_ti(["ingest", os.path.join(d, "missing.jsonl"), "--db", os.path.join(d, "t.db")], base_env(), hits)
+    return rc == 1 and "does not exist" in se, "rc=%s stderr=%r" % (rc, se[-200:])
+
+
+@row("J-E2 the --db directory does not exist: ingest and report exit 1",
+     ["cmd_ingest:except:sqlite3.Error", "cmd_ingest:return:1#2", "cmd_report:except:sqlite3.Error", "cmd_report:return:1"])
+def _e2(tag, hits):
+    d = fresh("J-E2", tag)
+    fx = os.path.join(d, "t.jsonl")
+    write(fx, ONE_OK)
+    bad_db = os.path.join(d, "no", "such", "dir", "t.db")
+    rc1, _, se1, _ = run_ti(["ingest", fx, "--db", bad_db], base_env(), hits)
+    hits2 = hits + ".2" if hits else None
+    rc2, _, se2, _ = run_ti(["report", "--db", bad_db], base_env(), hits2)
+    if hits:
+        a, b = json.load(open(hits)), json.load(open(hits2))
+        json.dump(sorted(set(a) | set(b)), open(hits, "w"))
+    return rc1 == 1 and rc2 == 1 and "cannot open --db" in se1 + se2, "rc_ingest=%s rc_report=%s" % (rc1, rc2)
+
+
+@row("J-E3 unreadable file, invalid UTF-8 line and unparseable line are counted, the run goes on",
+     ["iter_records:except:OSError", "iter_records:except:UnicodeDecodeError",
+      "iter_records:except:json.JSONDecodeError"])
+def _e3(tag, hits):
+    d = fresh("J-E3", tag)
+    os.symlink(os.path.join(d, "nowhere.jsonl"), os.path.join(d, "a_dangling.jsonl"))
+    write(os.path.join(d, "b.jsonl"), [asst("msg_j_e3", u(1, 1, 1, 1)).encode(), b'{"bad\xff": 1}', b"{not json"], raw=True)
+    db = os.path.join(WORK, "J-E3-%s.db" % tag)
+    if os.path.exists(db):
+        os.remove(db)
+    rc, so, se, _ = run_ti(["ingest", d, "--db", db], base_env(), hits)
+    s = (summary(so, "unreadable_files"), summary(so, "invalid_utf8_lines"), summary(so, "unparseable_lines"), summary(so, "rows"))
+    return rc == 0 and s == ("1", "1", "1", "1"), "rc=%s (unreadable, invalid_utf8, unparseable, rows)=%r want ('1','1','1','1')" % (rc, s)
+
+
+@row("J-S1 an unreadable sidecar agent-<id>.meta.json is counted in bad_sidecars, the run goes on",
+     ["_read_sidecar_description:except:(OSError, ValueError, RecursionError)"])
+def _s1(tag, hits):
+    d = fresh("J-S1", tag)
+    write(os.path.join(d, "p", "subagents", "agent-js1.jsonl"), [asst("msg_j_s1", u(1, 1, 1, 1), agent="js1")])
+    with open(os.path.join(d, "p", "subagents", "agent-js1.meta.json"), "w") as fh:
+        fh.write("{not json")
+    db = os.path.join(WORK, "J-S1-%s.db" % tag)
+    if os.path.exists(db):
+        os.remove(db)
+    rc, so, se, _ = run_ti(["ingest", d, "--db", db], base_env(), hits)
+    s = (summary(so, "bad_sidecars"), summary(so, "agents_without_item"), summary(so, "rows"))
+    return rc == 0 and s == ("1", "1", "1"), "rc=%s (bad_sidecars, agents_without_item, rows)=%r want ('1','1','1')" % (rc, s)
+
+
+@row("J-E4 release_prefix.sh cannot be run (no bash on PATH): WIT fallback with a warning",
+     ["_fc_default_item_prefix:except:(OSError, ValueError, subprocess.SubprocessError)"])
+def _e4(tag, hits):
+    d = fresh("J-E4", tag)
+    fx = os.path.join(d, "t.jsonl")
+    write(fx, ONE_OK)
+    env = base_env(FC_DISPATCH_ITEM_ID_RE=None, PATH=os.path.join(d, "empty_path"))
+    rc, so, se, _ = run_ti(["ingest", fx, "--db", os.path.join(d, "t.db")], env, hits)
+    return rc == 0 and "could not run" in se and "WIT" in se, "rc=%s stderr=%r" % (rc, se[-240:])
+
+
+@row("J-E5 an invalid FC_DISPATCH_ITEM_ID_RE is reported and the run goes on",
+     ["_build_item_tag_re:except:re.error"])
+def _e5(tag, hits):
+    d = fresh("J-E5", tag)
+    fx = os.path.join(d, "t.jsonl")
+    write(fx, ONE_OK)
+    rc, so, se, _ = run_ti(["ingest", fx, "--db", os.path.join(d, "t.db")], base_env(FC_DISPATCH_ITEM_ID_RE="("), hits)
+    return rc == 0 and "not a valid regex" in se and summary(so, "rows") == "1", "rc=%s stderr=%r" % (rc, se[-240:])
+
+
+# --------------------------------------------------------------------------
+# Boundary rows: the same description through the ingest (dispatch record +
+# subagent turn), dispatch_stamp.sh with jq, and dispatch_stamp.sh without
+# jq. The rule: when the stamp ALLOWS a dispatch and extracts an id, the
+# ingest must attribute that same id (a dispatch that passes the guard must
+# not lose its tokens), and both readers of the stamp must agree.
+# --------------------------------------------------------------------------
+B = []  # (name, description-json-text, expected item or "" , stamp_blocks)
+for name, ch in [("space", " "), ("tab", "\t"), ("LF", "\n"), ("VT", "\u000b"), ("FF", "\u000c"), ("CR", "\r")]:
+    B.append(("left " + name + " separates", "(T1/main - a)%sitem=QZT-5 t" % ch, "QZT-5", False))
+for name, ch in [("NUL", "\u0000"), ("SOH", "\u0001"), ("U+001C", "\u001c"), ("U+001F", "\u001f"), ("DEL", "\u007f"),
+                 ("U+0085", "\u0085"), ("NBSP", " "), ("U+2003", " "), ("U+3000", "　"),
+                 ("U+FEFF", "﻿"), ("letter", "x"), ("paren", "("), ("lone low surrogate", "\udc00")]:
+    B.append(("left " + name + " does not separate", "(T1/main - a)%sitem=QZT-5 t" % ch, "", False))
+for name, ch, want in [("end", "", "QZT-6"), ("comma", ",", "QZT-6"), ("paren", ")", "QZT-6"), ("CR", "\r", "QZT-6"),
+                       ("NUL", "\u0000", "QZT-6"), ("e-acute", "é", "QZT-6"), ("letter", "x", ""),
+                       ("underscore", "_", ""), ("digit continues", "7", "QZT-67")]:
+    B.append(("right " + name, "(T1/main - a) item=QZT-6%s" % ch, want, False))
+B.append(("NUL at the very start", "\u0000item=QZT-7 t", "", False))
+B.append(("lone HIGH surrogate before the tag: the stamp refuses the payload", "(T1/main - a) \ud800 item=QZT-8 t", None, True))
+
+
+def stamp(payload_bytes, nojq, mode):
+    env = dict(os.environ)
+    for k in ("FC_DISPATCH_EXTRA_ITEM_PREFIXES", "HELIX_RELEASE_PREFIX"):
+        env.pop(k, None)
+    env["FC_DISPATCH_ITEM_ID_RE"] = QZT
+    if nojq:
+        env["PATH"] = NOJQ
+    argv = ["/bin/bash" if os.path.exists("/bin/bash") else shutil.which("bash"), DS] + (["--extract-item-id"] if mode == "x" else [])
+    p = subprocess.run(argv, input=payload_bytes, env=env, capture_output=True, timeout=60)
+    return p.returncode, p.stdout.decode("utf-8", "replace"), p.stderr.decode("utf-8", "replace")
+
+
+@row("J-B boundary matrix: ingest attribution == stamp extraction (jq and jq-less); every left/right boundary character", [])
+def _b(tag, hits):
+    d = fresh("J-B", tag)
+    disp, problems = [], []
+    for k, (name, desc, _want, _blk) in enumerate(B):
+        disp.append(json.dumps({"type": "user", "sessionId": "j-b",
+                                "toolUseResult": {"agentId": "agb%02d" % k, "description": desc}}))
+        write(os.path.join(d, "p", "subagents", "agent-agb%02d.jsonl" % k), [asst("msg_j_b_%02d" % k, u(1, 1, 1, 1), agent="agb%02d" % k)])
+    with open(os.path.join(d, "p.jsonl"), "w", encoding="utf-8", errors="surrogatepass") as fh:
+        fh.write("\n".join(disp) + "\n")
+    db = os.path.join(d, "t.db")
+    rc, so, se, _ = run_ti(["ingest", os.path.join(d, "p.jsonl"), "--db", db], base_env(), hits)
+    if rc != 0:
+        return False, "ingest rc=%s stderr=%r" % (rc, se[-300:])
+    for k, (name, desc, want, blocks) in enumerate(B):
+        got_i = q(db, "SELECT IFNULL(item_id,'') FROM transcript_usage_events WHERE msg_id='msg_j_b_%02d'" % k)
+        got_i = got_i[0][0] if got_i else "<no row>"
+        payload = json.dumps({"tool_name": "Agent", "tool_input": {"description": desc}}).encode("utf-8", "surrogatepass")
+        for nojq in ([False, True] if NOJQ else [False]):
+            grc, _o, _e = stamp(payload, nojq, "g")
+            xrc, xo, xe = stamp(payload, nojq, "x")
+            label = "%s/%s" % (name, "awk" if nojq else "jq")
+            if blocks:
+                if grc != 2 or xo != "" or xrc != 0:
+                    problems.append("%s: want stamp BLOCK + empty extract, got guard=%s extract=%r" % (label, grc, xo))
+                continue
+            if xrc != 0 or xe != "":
+                problems.append("%s: extract rc=%s stderr=%r (want 0, empty)" % (label, xrc, xe[:120]))
+            if xo != want:
+                problems.append("%s: stamp extracted %r, want %r" % (label, xo, want))
+            if grc != (0 if want else 2):
+                problems.append("%s: guard exit %s, want %s" % (label, grc, 0 if want else 2))
+        if not blocks and got_i != want:
+            problems.append("%s: ingest attributed %r, want %r" % (name, got_i, want))
+    return not problems, "%d cases; problems: %s" % (len(B), "; ".join(problems) or "none")
+
+
+# --------------------------------------------------------------------------
+# Branch enumeration (the meta-check's instrument).
+# --------------------------------------------------------------------------
+def enumerate_branches(path):
+    tree = ast.parse(open(path, encoding="utf-8").read())
+    found = {}
+
+    def add(func, kind, detail, line):
+        base = "%s:%s:%s" % (func, kind, detail)
+        bid, n = base, 1
+        while bid in found:
+            n += 1
+            bid = "%s#%d" % (base, n)
+        found[bid] = line
+
+    for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]:
+        for node in ast.walk(fn):
+            if isinstance(node, ast.ExceptHandler):
+                detail = ast.unparse(node.type) if node.type is not None else "bare"
+                add(fn.name, "except", detail, node.body[0].lineno)
+            elif isinstance(node, ast.Return) and isinstance(node.value, ast.Constant) \
+                    and isinstance(node.value.value, int) and not isinstance(node.value.value, bool) \
+                    and node.value.value != 0:
+                add(fn.name, "return", str(node.value.value), node.lineno)
+            elif isinstance(node, ast.Raise) and node.exc is not None:
+                target = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
+                add(fn.name, "raise", ast.unparse(target), node.lineno)
+    return found
+
+
+def main():
+    branches = enumerate_branches(TI)
+    # control needles on the enumerator itself
+    if "cmd_ingest:return:1" in branches:
+        out("OK", "J-META control: the AST enumerator sees a known branch (cmd_ingest:return:1); %d branches enumerated" % len(branches))
+    else:
+        out("BAD", "J-META control BLIND: the enumerator does not see cmd_ingest:return:1 -- %r" % sorted(branches))
+    planted = os.path.join(WORK, "planted_ti.py")
+    src = open(TI, encoding="utf-8").read()
+    src += "\n\ndef _planted_probe():\n    try:\n        return 0\n    except ZeroDivisionError:\n        return 7\n"
+    open(planted, "w", encoding="utf-8").write(src)
+    pb = enumerate_branches(planted)
+    named = {b for _rid, bs, _fn in ROWS for b in bs}
+    if "_planted_probe:except:ZeroDivisionError" in pb and "_planted_probe:except:ZeroDivisionError" not in named:
+        out("OK", "J-META control: a branch planted into a scratch copy is enumerated and reported as unnamed")
+    else:
+        out("BAD", "J-META control: the planted branch was not enumerated or is wrongly named")
+
+    reached = {}
+    for rid, bs, fn in ROWS:
+        try:
+            ok, detail = fn("run", None)
+        except Exception as exc:  # a harness failure is a FAIL, never a pass
+            ok, detail = False, "harness error %s: %s" % (type(exc).__name__, exc)
+        out("OK" if ok else "BAD", "%s -- %s" % (rid, detail))
+        if bs:
+            hits_file = os.path.join(WORK, "hits_%d.json" % len(reached))
+            try:
+                fn("traced", hits_file)
+                hits = set(json.load(open(hits_file)))
+            except Exception as exc:
+                out("BAD", "%s: traced run failed: %s: %s" % (rid, type(exc).__name__, exc))
+                hits = set()
+            for b in bs:
+                if b not in branches:
+                    out("BAD", "%s names branch %r, which the source does not have (stale row)" % (rid, b))
+                    continue
+                reached.setdefault(b, []).append((rid, branches[b] in hits))
+    for b, line in sorted(branches.items()):
+        if b not in reached:
+            out("BAD", "J-META: branch %s (line %d) has NO row in the failure-path matrix" % (b, line))
+        elif not any(hit for _rid, hit in reached[b]):
+            out("BAD", "J-META: branch %s (line %d) is named by %s, but no traced run reached it" % (b, line, [r for r, _h in reached[b]]))
+        else:
+            out("OK", "J-META: branch %s (line %d) is named and reached by %s" % (b, line, [r for r, h in reached[b] if h]))
+
+
+main()
+PYEOF
+python3 "$WORK/part_j.py" "$TRANSCRIPT_INGEST" "$DISPATCH_STAMP" "$WORK/part_j" "$J_NOJQ" > "$WORK/part_j.out" 2>&1
+J_RC=$?
+J_N=0
+while IFS=$'\t' read -r j_kind j_text; do
+    J_N=$((J_N + 1))
+    case "$j_kind" in
+        OK) ok "J: $j_text" ;;
+        BAD) bad "J: $j_text" ;;
+        SKIP) skip "J: $j_text" ;;
+        *) bad "J: unexpected driver output: $j_kind $j_text" ;;
+    esac
+done < "$WORK/part_j.out"
+needle_check "PART J driver ran to the end (rc=$J_RC) and produced >= 40 verdicts (got $J_N)" 1 "$([ "$J_RC" -eq 0 ] && [ "$J_N" -ge 40 ] && echo 1 || echo 0)"
+fi
+
+# =============================================================================
+# PART K -- T048 restart round 8 (independent review of V1 tokens: F1, F7, F8
+#          and the reviewer mutants RV6, RV7, RV10). Every row drives the REAL
+#          `transcript_ingest.py ingest` CLI on checked-in or generated
+#          fixtures and reads the result back with sqlite3 / the summary line.
+#   F1  attribution for FOREGROUND dispatches (no toolUseResult.description) and
+#       for a missing parent transcript, from the subagent's own sidecar
+#       agent-<id>.meta.json; the unattributed remainder is COUNTED.
+#   F7  resumed-session copies: replayed dispatch records / replayed lines are
+#       not conflicts; genuine conflicts still warn.
+#   F8  directory mode follows symlinked subdirectories (cycle-safe).
+#   RV6/RV7/RV10 the reviewer's surviving mutants (symlinked-subagent
+#       classification, own-sessionId precedence, never-rewrite-non-NULL).
+#   Round 11 (T048 restart, V1 re-review): K20 (RV11-4, the directory walk
+#       does not depend on the listing order: both orders forced by a shim,
+#       links to an ancestor / a sibling / outside the tree, a link chain that
+#       a re-entering walk would take 2**16 steps over), K18b (RV11-6, the
+#       sidecar cap is a real limit), K21 (RV11-2, the caller's environment
+#       does not change the derived prefix), K13f / K14f (the reviewer's
+#       surviving mutants V12 and V11).
+# =============================================================================
+echo "=== PART K: sidecar attribution, resumed-session replays, symlinked directories ==="
+if [ ! -f "$TRANSCRIPT_INGEST" ]; then
+    bad "PART K UNMET: transcript_ingest.py absent"
+else
+cat > "$WORK/part_k.py" <<'PYEOF'
+"""PART K driver. Output: one line per verdict, "OK\t<text>" or "BAD\t<text>".
+Usage: python3 part_k.py <transcript_ingest.py> <fixtures dir> <workdir>"""
+import json
+import os
+import shutil
+import sqlite3
+import subprocess
+import sys
+
+TI, FIX, WORK = sys.argv[1:4]
+os.makedirs(WORK, exist_ok=True)
+FG = os.path.join(FIX, "foreground_attribution")
+SA = os.path.join(FIX, "subagent_attribution")
+
+
+def out(kind, text):
+    print("%s\t%s" % (kind, text.replace("\n", " | ")), flush=True)
+
+
+def env():
+    e = dict(os.environ)
+    for k in ("FC_DISPATCH_EXTRA_ITEM_PREFIXES", "HELIX_RELEASE_PREFIX", "FC_TELEMETRY_DB",
+              "FC_TELEMETRY_DB_LOCK_TIMEOUT_S"):
+        e.pop(k, None)
+    e["FC_DISPATCH_ITEM_ID_RE"] = "ATM-[0-9]+"
+    return e
+
+
+def ingest(path, db, timeout=120):
+    p = subprocess.run([sys.executable, TI, "ingest", path, "--db", db], env=env(),
+                       capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+    return p.returncode, p.stdout, p.stderr
+
+
+def summ(so, key):
+    for line in so.splitlines():
+        if line.startswith("transcript_ingest: files="):
+            for tok in line.split():
+                if tok.startswith(key + "="):
+                    return tok[len(key) + 1:]
+    return None
+
+
+def q(db, sql):
+    c = sqlite3.connect(db)
+    try:
+        return c.execute(sql).fetchall()
+    finally:
+        c.close()
+
+
+def dump(db):
+    c = sqlite3.connect(db)
+    try:
+        return "\n".join(c.iterdump())
+    finally:
+        c.close()
+
+
+def fresh(name):
+    d = os.path.join(WORK, name)
+    if os.path.exists(d):
+        shutil.rmtree(d)
+    os.makedirs(d)
+    return d
+
+
+def sub_row(db, msg):
+    r = q(db, "SELECT item_id, session_id, agent_id FROM transcript_usage_events WHERE msg_id='%s'" % msg)
+    return r[0] if r else None
+
+
+def check(rid, ok, detail):
+    out("OK" if ok else "BAD", "%s -- %s" % (rid, detail))
+
+
+def jl(path, recs):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as fh:
+        for r in recs:
+            fh.write(json.dumps(r) + "\n")
+
+
+def asst(msg, uuid, out_tok, agent=None, sess=None, inp=1):
+    r = {"type": "assistant", "uuid": uuid, "timestamp": "2026-10-09T00:00:00Z",
+         "message": {"id": msg, "model": "fixture-model",
+                     "usage": {"input_tokens": inp, "output_tokens": out_tok,
+                               "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}}}
+    if agent:
+        r["agentId"] = agent
+    if sess:
+        r["sessionId"] = sess
+    return r
+
+
+def dispatch(agent, uuid, sess, desc=None):
+    t = {"agentId": agent, "status": "async_launched"}
+    if desc is not None:
+        t["description"] = desc
+    return {"type": "user", "uuid": uuid, "sessionId": sess, "timestamp": "2026-10-09T00:00:00Z",
+            "message": {"role": "user", "content": "x"}, "toolUseResult": t}
+
+
+# --- control needle: the fixture really has the foreground shape ------------
+fg_parent = open(os.path.join(FG, "parent_session.jsonl")).read()
+tur = [json.loads(l).get("toolUseResult") for l in fg_parent.splitlines() if '"toolUseResult"' in l]
+tur = [t for t in tur if isinstance(t, dict)]
+check("K0 control: the foreground fixture's toolUseResult has an agentId and NO description key",
+      len(tur) == 1 and "agentId" in tur[0] and "description" not in tur[0], "keys=%r" % (sorted(tur[0]) if tur else None))
+sc = open(os.path.join(FG, "parent_session", "subagents", "agent-fixturefg01.meta.json")).read()
+check("K0b control: the sidecar names the item the parent record lacks",
+      json.loads(sc).get("description", "").find("item=ATM-9999") >= 0, "sidecar present")
+
+# --- K1: foreground dispatch + sidecar (F1), own sessionId wins (RV7) --------
+d = fresh("k1")
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(os.path.join(FG, "parent_session.jsonl"), db)
+r = sub_row(db, "msg_fixture_fg_sub_a1") if rc == 0 and os.path.exists(db) else None
+pr = q(db, "SELECT item_id FROM transcript_usage_events WHERE msg_id='msg_fixture_fg_a1'") if r else None
+check("K1 foreground dispatch (no description key): the subagent's turns attribute to the sidecar's item",
+      rc == 0 and r is not None and r[0] == "ATM-9999" and r[2] == "fixturefg01",
+      "rc=%s subagent_row=%r (want item ATM-9999) stderr=%r" % (rc, r, se[-200:]))
+check("K1b RV7: the subagent record's OWN sessionId wins over the dispatching record's",
+      r is not None and r[1] == "fixture-fg-subagent-own-session",
+      "session_id=%r (want fixture-fg-subagent-own-session, not fixture-fg-parent-session)" % (r[1] if r else None))
+check("K1c the parent's own turn is still not item-attributed", pr == [(None,)], "parent item=%r" % (pr,))
+check("K1d summary counters: dispatch_without_description=1 item_from_sidecar=1 agents_without_item=0",
+      (summ(so, "dispatch_without_description"), summ(so, "item_from_sidecar"), summ(so, "agents_without_item"))
+      == ("1", "1", "0"),
+      "got %r" % ((summ(so, "dispatch_without_description"), summ(so, "item_from_sidecar"), summ(so, "agents_without_item")),))
+dm = dump(db) if os.path.exists(db) else ""
+check("K1e credential safety: neither the prompt nor the content decoy of toolUseResult, nor any sidecar field other than the item, reaches the DB",
+      os.path.exists(db) and "decoy" not in dm and "ATM-1111" not in dm and "ATM-2222" not in dm
+      and "requestShape" not in dm and "toolu_fixture_fg_dispatch" not in dm and "general-purpose" not in dm,
+      "dump=%d bytes" % len(dm))
+
+# --- K2: missing parent transcript (F1) ---------------------------------------
+for mode in ("file", "dir"):
+    d = fresh("k2_" + mode)
+    shutil.copytree(os.path.join(FG, "parent_session", "subagents"), os.path.join(d, "x", "subagents"))
+    db = os.path.join(d, "t.db")
+    target = os.path.join(d, "x", "subagents", "agent-fixturefg01.jsonl") if mode == "file" else os.path.join(d, "x")
+    rc, so, se = ingest(target, db)
+    r = sub_row(db, "msg_fixture_fg_sub_a1") if rc == 0 and os.path.exists(db) else None
+    check("K2 parent transcript missing (%s mode): the sidecar still attributes the item" % mode,
+          rc == 0 and r is not None and r[0] == "ATM-9999" and r[1] == "fixture-fg-subagent-own-session",
+          "rc=%s row=%r summary item_from_sidecar=%s dispatch_without_description=%s" % (
+              rc, r, summ(so, "item_from_sidecar"), summ(so, "dispatch_without_description")))
+
+# --- K3: nothing names the item anywhere: counted, not silent (F1) -------------
+d = fresh("k3")
+shutil.copytree(FG, os.path.join(d, "fg"))
+os.remove(os.path.join(d, "fg", "parent_session", "subagents", "agent-fixturefg01.meta.json"))
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(os.path.join(d, "fg", "parent_session.jsonl"), db)
+r = sub_row(db, "msg_fixture_fg_sub_a1") if rc == 0 else None
+check("K3 no description and no sidecar: the turns stay unattributed AND the summary says so",
+      r is not None and r[0] is None and summ(so, "dispatch_without_description") == "1"
+      and summ(so, "item_from_sidecar") == "0" and summ(so, "agents_without_item") == "1",
+      "row=%r counters=%r" % (r, [summ(so, k) for k in ("dispatch_without_description", "item_from_sidecar", "agents_without_item")]))
+
+# --- K4: dispatch description vs sidecar --------------------------------------
+for label, meta_item, want_item, want_warn in (("agree", "ATM-9999", "ATM-9999", False), ("conflict", "ATM-8888", None, True)):
+    d = fresh("k4_" + label)
+    shutil.copytree(SA, os.path.join(d, "sa"))
+    mp = os.path.join(d, "sa", "parent_session", "subagents", "agent-fixturet020attr01.meta.json")
+    json.dump({"agentType": "x", "description": "item=%s tail" % meta_item}, open(mp, "w"))
+    db = os.path.join(d, "t.db")
+    rc, so, se = ingest(os.path.join(d, "sa", "parent_session.jsonl"), db)
+    r = sub_row(db, "msg_fixture_t020_attr_sub_a1") if rc == 0 else None
+    warned = "different item_id values" in se
+    check("K4 dispatch description and sidecar %s" % label,
+          r is not None and r[0] == want_item and warned == want_warn,
+          "row item=%r (want %r) warned=%s (want %s) stderr=%r" % (r and r[0], want_item, warned, want_warn, se[-200:]))
+
+# --- K5: sidecar credential safety --------------------------------------------
+d = fresh("k5")
+shutil.copytree(FG, os.path.join(d, "fg"))
+mp = os.path.join(d, "fg", "parent_session", "subagents", "agent-fixturefg01.meta.json")
+json.dump({"agentType": "SECRETAGENTTYPE", "description": "item=ATM-9999 sk-ant-PLANTEDSECRET0123456789 tail",
+           "toolUseId": "toolu_PLANTEDSECRET", "requestShape": "PLANTEDSECRET", "model": "m"}, open(mp, "w"))
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(os.path.join(d, "fg", "parent_session.jsonl"), db)
+dm = dump(db) if os.path.exists(db) else ""
+check("K5 a secret planted in the sidecar never reaches the DB, stdout or stderr; the item is still attributed",
+      rc == 0 and "PLANTEDSECRET" not in dm + so + se and "SECRETAGENTTYPE" not in dm + so + se
+      and (sub_row(db, "msg_fixture_fg_sub_a1") or (None,))[0] == "ATM-9999",
+      "rc=%s" % rc)
+
+# --- K6: malformed sidecars are counted, the run goes on ------------------------
+for label, body in (("not JSON", "{not json"), ("a JSON array", "[1,2]"), ("invalid UTF-8", None)):
+    d = fresh("k6_" + label.replace(" ", "_"))
+    shutil.copytree(FG, os.path.join(d, "fg"))
+    mp = os.path.join(d, "fg", "parent_session", "subagents", "agent-fixturefg01.meta.json")
+    if body is None:
+        open(mp, "wb").write(b'{"description": "item=ATM-9999 \xff\xfe"}')
+    else:
+        open(mp, "w").write(body)
+    db = os.path.join(d, "t.db")
+    rc, so, se = ingest(os.path.join(d, "fg", "parent_session.jsonl"), db)
+    r = sub_row(db, "msg_fixture_fg_sub_a1") if rc == 0 else None
+    check("K6 sidecar that is %s: counted in bad_sidecars, the run goes on, the turns are unattributed" % label,
+          rc == 0 and r is not None and summ(so, "bad_sidecars") == "1" and summ(so, "agents_without_item") == "1"
+          and r[0] is None,
+          "rc=%s row=%r bad_sidecars=%s agents_without_item=%s" % (rc, r, summ(so, "bad_sidecars"), summ(so, "agents_without_item")))
+
+# --- K7: resumed-session copies (F7) ------------------------------------------
+def replay_dir(name, same_uuid, same_session_msg_second=True):
+    d = fresh(name)
+    # A reads first (path order): the original. B is a resumed-session copy.
+    jl(os.path.join(d, "a_orig.jsonl"), [dispatch("agentreplay1", "disp-u1", "sess-A", "item=ATM-77 x"),
+                                         asst("m_replay", "line-u1", 10, sess="sess-A"),
+                                         asst("m_replay", "line-u2", 50, sess="sess-A")])
+    jl(os.path.join(d, "b_copy.jsonl"), [dispatch("agentreplay1", "disp-u1" if same_uuid else "disp-u9", "sess-B", "item=ATM-77 x"),
+                                         asst("m_replay", "line-u1" if same_uuid else "line-u9", 10 if same_uuid else 5, sess="sess-B")])
+    return d
+
+
+d = replay_dir("k7_copy", True)
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+check("K7 a resumed-session COPY (same record uuids, other sessionId) raises no session conflict and no SMALLER warning",
+      rc == 0 and "different session_id" not in se and "SMALLER" not in se,
+      "rc=%s stderr=%r" % (rc, se[-300:]))
+check("K7b the replays are counted, not silent (replayed_dispatches=1 replayed_lines=1)",
+      summ(so, "replayed_dispatches") == "1" and summ(so, "replayed_lines") == "1",
+      "replayed_dispatches=%s replayed_lines=%s" % (summ(so, "replayed_dispatches"), summ(so, "replayed_lines")))
+d = replay_dir("k7_real", False)
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+check("K7c control: two DIFFERENT dispatch records of one agent under different sessions still warn",
+      rc == 0 and "different session_id" in se, "stderr=%r" % se[-300:])
+check("K7d control: a different line of the same message with SMALLER counters still warns",
+      "SMALLER" in se and summ(so, "replayed_lines") == "0", "SMALLER in stderr=%s replayed_lines=%s" % ("SMALLER" in se, summ(so, "replayed_lines")))
+d = fresh("k7_same_file")
+jl(os.path.join(d, "a.jsonl"), [asst("m_sf", "line-u1", 50, sess="s"), asst("m_sf", "line-u2", 10, sess="s")])
+rc, so, se = ingest(d, os.path.join(d, "t.db"))
+check("K7e control: counters that shrink along ONE file still warn", rc == 0 and "SMALLER" in se, "stderr=%r" % se[-200:])
+d = fresh("k7_zeroed_copy")
+jl(os.path.join(d, "a.jsonl"), [asst("m_zc", "line-u1", 900, sess="s1", inp=2), asst("m_zc", "line-u2", 900, sess="s1", inp=2)])
+jl(os.path.join(d, "b.jsonl"), [asst("m_zc", "line-u1", 0, sess="s2", inp=0), asst("m_zc", "line-u2", 0, sess="s2", inp=0)])
+rc, so, se = ingest(d, os.path.join(d, "t.db"))
+rows = q(os.path.join(d, "t.db"), "SELECT output_tokens, input_tokens, session_id FROM transcript_usage_events WHERE msg_id='m_zc'") if rc == 0 else None
+check("K7f the shape measured on a real resumed session: the copy repeats the uuids with ZEROED usage -- no SMALLER warning, the larger counters are kept",
+      rc == 0 and "SMALLER" not in se and rows == [(900, 2, "s1")] and summ(so, "replayed_lines") == "2",
+      "rc=%s rows=%r replayed_lines=%s stderr=%r" % (rc, rows, summ(so, "replayed_lines"), se[-200:]))
+d = fresh("k7_same_uuid_twice_in_one_file")
+jl(os.path.join(d, "a.jsonl"), [asst("m_su", "line-u1", 50, sess="s"), asst("m_su", "line-u1", 10, sess="s")])
+rc, so, se = ingest(d, os.path.join(d, "t.db"))
+check("K7g control: the same uuid twice in ONE file with smaller counters is not a resumed copy and still warns",
+      rc == 0 and "SMALLER" in se and summ(so, "replayed_lines") == "0", "stderr=%r replayed_lines=%s" % (se[-200:], summ(so, "replayed_lines")))
+
+# --- K8: RV10 -- a non-NULL item_id / session_id is never rewritten -------------
+d = fresh("k8")
+shutil.copytree(FG, os.path.join(d, "run1"))
+db = os.path.join(d, "t.db")
+rc1, so1, se1 = ingest(os.path.join(d, "run1", "parent_session.jsonl"), db)
+shutil.copytree(os.path.join(FG, "parent_session", "subagents"), os.path.join(d, "run2", "subagents"))
+sp = os.path.join(d, "run2", "subagents")
+json.dump({"agentType": "x", "description": "item=ATM-8888 other"}, open(os.path.join(sp, "agent-fixturefg01.meta.json"), "w"))
+lines = [json.loads(l) for l in open(os.path.join(sp, "agent-fixturefg01.jsonl"))]
+for rec in lines:
+    rec["sessionId"] = "some-other-session"
+jl(os.path.join(sp, "agent-fixturefg01.jsonl"), lines)
+rc2, so2, se2 = ingest(os.path.join(d, "run2"), db)
+r = sub_row(db, "msg_fixture_fg_sub_a1")
+check("K8 RV10: a second run with another item and another sessionId for the SAME owner leaves a non-NULL item_id / session_id alone",
+      rc1 == 0 and rc2 == 0 and r == ("ATM-9999", "fixture-fg-subagent-own-session", "fixturefg01")
+      and summ(so2, "attribution_filled") == "0",
+      "row=%r attribution_filled=%s" % (r, summ(so2, "attribution_filled")))
+# ... and the NULL -> filled direction still works
+d = fresh("k8b")
+shutil.copytree(FG, os.path.join(d, "run1"))
+os.remove(os.path.join(d, "run1", "parent_session", "subagents", "agent-fixturefg01.meta.json"))
+db = os.path.join(d, "t.db")
+ingest(os.path.join(d, "run1", "parent_session.jsonl"), db)
+before = sub_row(db, "msg_fixture_fg_sub_a1")
+rc, so, se = ingest(FG + "/parent_session.jsonl", db)
+after = sub_row(db, "msg_fixture_fg_sub_a1")
+check("K8b control: a NULL item_id IS filled by a later run that knows the item",
+      before is not None and before[0] is None and after is not None and after[0] == "ATM-9999"
+      and summ(so, "attribution_filled") == "1",
+      "before=%r after=%r attribution_filled=%s" % (before, after, summ(so, "attribution_filled")))
+
+# --- K9: RV6 -- a symlinked subagent transcript is classified as a subagent -----
+d = fresh("k9")
+base = os.path.join(d, "base")
+os.makedirs(os.path.join(base, "zparent", "subagents"))
+jl(os.path.join(base, "zparent.jsonl"), [asst("m_sym", "pl-1", 10, sess="sess-Z")])
+jl(os.path.join(base, "aa_real_sub.jsonl"), [asst("m_sym", "sl-1", 10, agent="agentsym1", sess="sess-Z")])
+os.symlink(os.path.join(base, "aa_real_sub.jsonl"), os.path.join(base, "zparent", "subagents", "agent-agentsym1.jsonl"))
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(base, db)
+check("K9 RV6: a subagent transcript reached through a symlink is read AFTER its parent (no reattributed_to_parent, owner is the parent)",
+      rc == 0 and summ(so, "reattributed_to_parent") == "0" and (sub_row(db, "m_sym") or (0, 0, 0))[2] is None,
+      "rc=%s reattributed_to_parent=%s row=%r" % (rc, summ(so, "reattributed_to_parent"), sub_row(db, "m_sym")))
+
+# --- K10: F8 -- directory mode follows symlinked subdirectories ------------------
+d = fresh("k10")
+jl(os.path.join(d, "elsewhere", "t.jsonl"), [asst("m_link", "lk-1", 10, sess="sess-L")])
+base = os.path.join(d, "base")
+os.makedirs(base)
+os.symlink(os.path.join(d, "elsewhere"), os.path.join(base, "linked"))
+os.symlink(base, os.path.join(base, "loop"))
+os.symlink(base, os.path.join(base, "loop2"))  # two cycles: without a visited-directory guard the walk is exponential
+db = os.path.join(d, "t.db")
+try:
+    rc, so, se = ingest(base, db, timeout=30)
+except subprocess.TimeoutExpired:
+    rc, so, se = "TIMEOUT", "", ""
+check("K10 F8: a transcript under a symlinked subdirectory is ingested, and a symlink cycle terminates",
+      rc == 0 and os.path.exists(db) and q(db, "SELECT COUNT(*) FROM transcript_usage_events WHERE msg_id='m_link'") == [(1,)]
+      and summ(so, "files") == "1",
+      "rc=%s files=%s stderr=%r" % (rc, summ(so, "files"), se[-200:]))
+
+# --- K11: a sidecar is honoured only beside a transcript in a `subagents/` directory ---
+d = fresh("k11")
+jl(os.path.join(d, "agent-loosefile.jsonl"), [asst("m_loose", "lo-1", 10, agent="loosefile", sess="sess-O")])
+json.dump({"description": "item=ATM-5 stray"}, open(os.path.join(d, "agent-loosefile.meta.json"), "w"))
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+check("K11 an agent-<id>.jsonl outside a subagents/ directory is not a subagent transcript: its sidecar is not used and it is not counted as an agent",
+      rc == 0 and (sub_row(db, "m_loose") or (1,))[0] is None and summ(so, "item_from_sidecar") == "0"
+      and summ(so, "agents_without_item") == "0",
+      "rc=%s row=%r item_from_sidecar=%s agents_without_item=%s" % (rc, sub_row(db, "m_loose"), summ(so, "item_from_sidecar"), summ(so, "agents_without_item")))
+
+# --- K12: the honest item=? in a sidecar is "unknown", never an item id ---------------
+d = fresh("k12")
+shutil.copytree(FG, os.path.join(d, "fg"))
+json.dump({"description": "(T1) item=? not known yet"}, open(os.path.join(d, "fg", "parent_session", "subagents", "agent-fixturefg01.meta.json"), "w"))
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(os.path.join(d, "fg", "parent_session.jsonl"), db)
+r = sub_row(db, "msg_fixture_fg_sub_a1") if rc == 0 else None
+check("K12 a sidecar description carrying item=? leaves the turns unattributed (NULL, not the string '?') and counts the agent",
+      r is not None and r[0] is None and summ(so, "agents_without_item") == "1" and summ(so, "item_from_sidecar") == "0",
+      "row=%r agents_without_item=%s item_from_sidecar=%s" % (r, summ(so, "agents_without_item"), summ(so, "item_from_sidecar")))
+
+# =============================================================================
+# T048 restart round 9 (V1 re-review follow-ups: S1, S4, T1-T3, N1).
+# =============================================================================
+# --- K13: S1 -- one classification of "is this a subagent transcript" -----------
+# canonical_order() ordered a file as a subagent transcript when the path AS
+# GIVEN sits in `subagents/`; build_dispatch_map() looked only at the RESOLVED
+# path, so a subagents/ directory that is a symlink to a directory with another
+# name (or a link to a differently named file) never had its sidecar read, and
+# the turns stayed item-less with agents_without_item=0.
+d = fresh("k13")
+store = os.path.join(d, "store", "agentstore")     # NOT named `subagents`
+jl(os.path.join(store, "agent-lnk1.jsonl"), [asst("m_s1a", "s1a-1", 10, agent="lnk1", sess="sess-S1")])
+json.dump({"agentType": "x", "description": "(T1) item=ATM-4321 sidecar via a linked directory"},
+          open(os.path.join(store, "agent-lnk1.meta.json"), "w"))
+base = d + "/base"
+os.makedirs(base + "/parent")
+jl(base + "/parent.jsonl", [asst("m_s1a_p", "p-1", 5, sess="sess-S1")])  # a parent with NO dispatch record
+os.symlink(store, base + "/parent/subagents")
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(base + "/parent.jsonl", db)
+r = sub_row(db, "m_s1a") if rc == 0 else None
+check("K13 S1: a subagents/ directory that is a symlink to a directory with another name still yields its sidecar item (single-file mode)",
+      r == ("ATM-4321", "sess-S1", "lnk1") and summ(so, "item_from_sidecar") == "1"
+      and summ(so, "agents_without_item") == "0" and summ(so, "unmapped_agents") == "0",
+      "rc=%s row=%r item_from_sidecar=%s agents_without_item=%s unmapped_agents=%s stderr=%r"
+      % (rc, r, summ(so, "item_from_sidecar"), summ(so, "agents_without_item"), summ(so, "unmapped_agents"), se[-200:]))
+db = os.path.join(d, "t2.db")
+rc, so, se = ingest(base, db)
+r = sub_row(db, "m_s1a") if rc == 0 else None
+check("K13b S1: the same tree ingested in DIRECTORY mode gives the same attribution",
+      r == ("ATM-4321", "sess-S1", "lnk1") and summ(so, "unmapped_agents") == "0",
+      "rc=%s row=%r unmapped_agents=%s" % (rc, r, summ(so, "unmapped_agents")))
+# a linked FILE with a different name: the agent id is the one in the name it was reached by
+d = fresh("k13c")
+jl(os.path.join(d, "elsewhere", "blob-0001.jsonl"), [asst("m_s1c", "s1c-1", 10, agent="lnk2", sess="sess-S1")])
+os.makedirs(d + "/base/parent/subagents")
+jl(d + "/base/parent.jsonl", [asst("m_s1c_p", "p-1", 5, sess="sess-S1")])
+os.symlink(d + "/elsewhere/blob-0001.jsonl", d + "/base/parent/subagents/agent-lnk2.jsonl")
+json.dump({"description": "(T1) item=ATM-5432 sidecar beside the link"}, open(d + "/base/parent/subagents/agent-lnk2.meta.json", "w"))
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d + "/base", db)
+r = sub_row(db, "m_s1c") if rc == 0 else None
+check("K13c S1: a transcript reached through a link with a different file name takes the agent id and the sidecar of the name it was reached by",
+      r == ("ATM-5432", "sess-S1", "lnk2") and summ(so, "unmapped_agents") == "0",
+      "rc=%s row=%r unmapped_agents=%s stderr=%r" % (rc, r, summ(so, "unmapped_agents"), se[-200:]))
+# a subagent transcript with no sidecar and no dispatch is COUNTED, not silent
+d = fresh("k13d")
+os.makedirs(d + "/base/parent")
+jl(d + "/base/parent.jsonl", [asst("m_s1d_p", "p-1", 5, sess="sess-S1")])
+os.makedirs(d + "/store")
+jl(d + "/store/agent-lnk3.jsonl", [asst("m_s1d", "s1d-1", 10, agent="lnk3", sess="sess-S1")])
+os.symlink(d + "/store", d + "/base/parent/subagents")
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d + "/base", db)
+r = sub_row(db, "m_s1d") if rc == 0 else None
+check("K13d S1: a linked subagent transcript with no sidecar and no dispatch is unattributed AND counted (agents_without_item=1)",
+      r is not None and r[0] is None and summ(so, "agents_without_item") == "1" and summ(so, "unmapped_agents") == "0",
+      "row=%r agents_without_item=%s unmapped_agents=%s" % (r, summ(so, "agents_without_item"), summ(so, "unmapped_agents")))
+# an agent that wrote records but is known to NO dispatch pass is counted and warned about
+d = fresh("k13e")
+jl(os.path.join(d, "agent-ghost.jsonl"), [asst("m_s1e", "s1e-1", 10, agent="ghost", sess="sess-G"),
+                                          asst("m_s1e2", "s1e-2", 11, agent="ghost", sess="sess-G"),
+                                          asst("m_s1e3", "s1e-3", 12, agent="ghost", sess="sess-G")])
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+check("K13e S1 backstop: three records of ONE agent that no dispatch record or subagent transcript names are counted as one agent (unmapped_agents=1) and it is named once on stderr",
+      rc == 0 and summ(so, "unmapped_agents") == "1" and se.count("agent ghost wrote records") == 1,
+      "rc=%s unmapped_agents=%s stderr=%r" % (rc, summ(so, "unmapped_agents"), se[-250:]))
+
+# --- K14: S4 -- a zeroed resumed-session copy read FIRST does not keep the identity ----
+d = fresh("k14")
+c4 = asst("m_s4", "line-copy", 0, sess="s2", inp=0)
+c4["timestamp"] = "2026-10-09T09:00:00Z"
+o4 = asst("m_s4", "line-orig", 900, sess="s1", inp=2)
+o4["timestamp"] = "2026-10-08T08:00:00Z"
+jl(os.path.join(d, "a_copy.jsonl"), [c4])
+jl(os.path.join(d, "b_orig.jsonl"), [{"type": "user", "uuid": "pad", "message": {"role": "user", "content": "x"}}, o4])
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+rows = q(db, "SELECT session_id, source_file, output_tokens, input_tokens, lineno, record_uuid, ts FROM transcript_usage_events WHERE msg_id='m_s4'") if rc == 0 else None
+rows = [(a, os.path.basename(b), c, e, f, g, h) for a, b, c, e, f, g, h in rows] if rows else rows
+check("K14 S4: the copy (zeroed usage) sorts first, the original second -- the stored row names the ORIGINAL's session, file, line, record and time",
+      rows == [("s1", "b_orig.jsonl", 900, 2, 2, "line-orig", "2026-10-08T08:00:00Z")],
+      "rows=%r (want [('s1','b_orig.jsonl',900,2,2,'line-orig','2026-10-08T08:00:00Z')])" % (rows,))
+# usage that sits only in a cache counter is usage too
+d = fresh("k14e")
+cz = asst("m_s4e", "line-u1", 0, sess="s2", inp=0)
+oc = asst("m_s4e", "line-u1", 0, sess="s1", inp=0)
+oc["message"]["usage"]["cache_read_input_tokens"] = 500
+jl(os.path.join(d, "a_copy.jsonl"), [cz])
+jl(os.path.join(d, "b_orig.jsonl"), [oc])
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+rows = q(db, "SELECT session_id, cache_read_input_tokens FROM transcript_usage_events WHERE msg_id='m_s4e'") if rc == 0 else None
+check("K14e S4: usage that is only in cache_read_input_tokens counts as usage -- the original still takes the row's place",
+      rows == [("s1", 500)], "rows=%r (want [('s1', 500)])" % (rows,))
+d = fresh("k14b")
+jl(os.path.join(d, "a_orig.jsonl"), [asst("m_s4b", "line-u1", 900, sess="s1", inp=2)])
+jl(os.path.join(d, "b_copy.jsonl"), [asst("m_s4b", "line-u1", 0, sess="s2", inp=0)])
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+rows = q(db, "SELECT session_id, source_file, output_tokens FROM transcript_usage_events WHERE msg_id='m_s4b'") if rc == 0 else None
+rows = [(a, os.path.basename(b), c) for a, b, c in rows] if rows else rows
+check("K14b control: the original first, the copy second -- unchanged (the original's identity stays)",
+      rows == [("s1", "a_orig.jsonl", 900)], "rows=%r" % (rows,))
+d = fresh("k14c")
+jl(os.path.join(d, "a_one.jsonl"), [asst("m_s4c", "line-u1", 50, sess="sA")])
+jl(os.path.join(d, "b_two.jsonl"), [asst("m_s4c", "line-u1", 60, sess="sB")])
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+rows = q(db, "SELECT session_id, source_file, output_tokens FROM transcript_usage_events WHERE msg_id='m_s4c'") if rc == 0 else None
+rows = [(a, os.path.basename(b), c) for a, b, c in rows] if rows else rows
+check("K14c documented behaviour: two files that BOTH carry usage keep the first read in canonical (lexical) order, the larger counters win",
+      rows == [("sA", "a_one.jsonl", 60)], "rows=%r (want [('sA','a_one.jsonl',60)])" % (rows,))
+
+# --- K15: T3 -- a sidecar of any realistic size is read whole ------------------------
+for label, doc in (("late", {"agentType": "x", "requestShape": "y" * 700, "description": "(T1) item=ATM-6001 late key"}),
+                   ("early", {"description": "(T1) item=ATM-6002 early key", "requestShape": "y" * 700, "agentType": "x"})):
+    d = fresh("k15_" + label)
+    jl(d + "/parent/subagents/agent-big1.jsonl", [asst("m_big", "b-1", 10, agent="big1", sess="s-big")])
+    mp = d + "/parent/subagents/agent-big1.meta.json"
+    json.dump(doc, open(mp, "w"))
+    raw = open(mp).read()
+    db = os.path.join(d, "t.db")
+    rc, so, se = ingest(d, db)
+    r = sub_row(db, "m_big") if rc == 0 else None
+    want_item = "ATM-6001" if label == "late" else "ATM-6002"
+    check("K15 T3: a %d-byte sidecar (%s description key) is read whole: item %s, bad_sidecars=0" % (len(raw), label, want_item),
+          len(raw) > 600 and r is not None and r[0] == want_item and summ(so, "bad_sidecars") == "0",
+          "size=%d row=%r bad_sidecars=%s" % (len(raw), r, summ(so, "bad_sidecars")))
+
+# --- K16: N1 -- a warning about one bad line / file prints once, not once per pass ---
+d = fresh("k16")
+with open(d + "/t.jsonl", "wb") as fh:
+    fh.write((json.dumps(asst("m_n1", "n1-1", 10, sess="s")) + "\n").encode())
+    fh.write(b"{ this is not json\n")
+    fh.write(b'{"type":"assistant","note":"\xff\xfe bad bytes"}\n')
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+check("K16 N1: one unparseable line and one invalid-UTF-8 line are each warned about exactly once (the dispatch pass reads silently)",
+      rc == 0 and se.count("skipping unparseable line") == 1 and se.count("invalid UTF-8") == 1
+      and summ(so, "unparseable_lines") == "1" and summ(so, "invalid_utf8_lines") == "1",
+      "rc=%s unparseable_warnings=%d utf8_warnings=%d summary=(%s,%s)"
+      % (rc, se.count("skipping unparseable line"), se.count("invalid UTF-8"), summ(so, "unparseable_lines"), summ(so, "invalid_utf8_lines")))
+if hasattr(os, "geteuid") and os.geteuid() != 0:
+    d = fresh("k16b")
+    jl(d + "/ok.jsonl", [asst("m_n1b", "n1b-1", 10, sess="s")])
+    jl(d + "/locked.jsonl", [asst("m_n1c", "n1c-1", 10, sess="s")])
+    os.chmod(d + "/locked.jsonl", 0)
+    try:
+        rc, so, se = ingest(d, os.path.join(d, "t.db"))
+    finally:
+        os.chmod(d + "/locked.jsonl", 0o644)
+    check("K16b N1: an unreadable file is warned about exactly once and counted (unreadable_files=1)",
+          rc == 0 and se.count("cannot open") == 1 and summ(so, "unreadable_files") == "1",
+          "rc=%s cannot_open_warnings=%d unreadable_files=%s" % (rc, se.count("cannot open"), summ(so, "unreadable_files")))
+
+# --- K17: T1/T2 (ingest half) -- item=?? is "unknown", a short release prefix pads with X ---
+def ingest_env(path, db, **extra):
+    e = env()
+    e.pop("FC_DISPATCH_ITEM_ID_RE", None)
+    e.update(extra)
+    p = subprocess.run([sys.executable, TI, "ingest", path, "--db", db], env=e,
+                       capture_output=True, text=True, timeout=120, stdin=subprocess.DEVNULL)
+    return p.returncode, p.stdout, p.stderr
+
+
+d = fresh("k17")
+jl(d + "/parent.jsonl", [dispatch("agentqq1", "d-1", "s-p", "(T1) item=?? both marks"),
+                         dispatch("agentqq2", "d-2", "s-p", "(T1) item=? one mark"),
+                         asst("m_q1", "q1-1", 10, agent="agentqq1", sess="s-p"),
+                         asst("m_q2", "q2-1", 10, agent="agentqq2", sess="s-p")])
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d + "/parent.jsonl", db)
+check("K17 T1: item=?? and item=? are the honest unknown: no item id is stored ('??' is never an id), both agents are counted",
+      rc == 0 and sub_row(db, "m_q1") == (None, "s-p", "agentqq1") and sub_row(db, "m_q2") == (None, "s-p", "agentqq2")
+      and summ(so, "agents_without_item") == "2",
+      "rows=%r,%r agents_without_item=%s" % (sub_row(db, "m_q1"), sub_row(db, "m_q2"), summ(so, "agents_without_item")))
+for base_val, want_prefix in (("ab", "ABX"), ("a", "AXX"), ("a1b", "ABX")):
+    d = fresh("k17_" + want_prefix + base_val)
+    jl(d + "/parent.jsonl", [dispatch("agentpp1", "d-1", "s-p", "(T1) item=%s-5 padded prefix" % want_prefix),
+                             dispatch("agentpp2", "d-2", "s-p", "(T1) item=%sZ-6 padded with Z" % want_prefix[:-1]),
+                             asst("m_p1", "p1-1", 10, agent="agentpp1", sess="s-p"),
+                             asst("m_p2", "p2-1", 10, agent="agentpp2", sess="s-p")])
+    db = os.path.join(d, "t.db")
+    rc, so, se = ingest_env(d + "/parent.jsonl", db, HELIX_RELEASE_PREFIX=base_val)
+    check("K17b T2: HELIX_RELEASE_PREFIX=%r derives the ticket key %s (letters padded with X, as dispatch_stamp.sh does); a key padded with Z is not it"
+          % (base_val, want_prefix),
+          rc == 0 and sub_row(db, "m_p1") == (want_prefix + "-5", "s-p", "agentpp1")
+          and sub_row(db, "m_p2") == (None, "s-p", "agentpp2"),
+          "rc=%s rows=%r,%r stderr=%r" % (rc, sub_row(db, "m_p1"), sub_row(db, "m_p2"), se[-150:]))
+
+# --- K14d: S4 only moves the identity ACROSS files; streaming growth inside ONE file keeps the first line ---
+d = fresh("k14d")
+jl(os.path.join(d, "a.jsonl"), [asst("m_s4d", "line-u1", 0, sess="s1", inp=0), asst("m_s4d", "line-u2", 40, sess="s1", inp=2)])
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+rows = q(db, "SELECT lineno, record_uuid, output_tokens FROM transcript_usage_events WHERE msg_id='m_s4d'") if rc == 0 else None
+check("K14d S4 control: a zero-usage first line completed by a later line of the SAME file keeps the first line's place (lineno 1, line-u1)",
+      rows == [(1, "line-u1", 40)], "rows=%r (want [(1,'line-u1',40)])" % (rows,))
+
+# --- K18: round 10, MD -- the sidecar read cap is exactly 1 MiB -----------------
+# _SIDECAR_MAX_BYTES (1 << 20) bounds how much of a sidecar is read. A valid
+# sidecar of 700 bytes and one of exactly 1 MiB must attribute; one byte more
+# than 1 MiB is cut by the cap, cannot be parsed and is counted in
+# bad_sidecars. The reviewer's mutant (cap 600) loses the 700-byte and the
+# 1 MiB items; a raised cap would attribute the oversized one.
+def sized_sidecar(path, size):
+    head = '{"agentType": "x", "description": "(T1) item=ATM-9999 sized sidecar", "pad": "'
+    tail = '"}'
+    body = head + "a" * (size - len(head) - len(tail)) + tail
+    assert len(body.encode("utf-8")) == size
+    open(path, "w").write(body)
+
+for label, size, want_item, want_bad in (("700 bytes", 700, "ATM-9999", "0"),
+                                         ("exactly 1 MiB", 1 << 20, "ATM-9999", "0"),
+                                         ("1 MiB + 1 byte", (1 << 20) + 1, None, "1")):
+    d = fresh("k18_" + str(size))
+    shutil.copytree(FG, os.path.join(d, "fg"))
+    mp = os.path.join(d, "fg", "parent_session", "subagents", "agent-fixturefg01.meta.json")
+    sized_sidecar(mp, size)
+    db = os.path.join(d, "t.db")
+    rc, so, se = ingest(os.path.join(d, "fg", "parent_session.jsonl"), db)
+    r = sub_row(db, "msg_fixture_fg_sub_a1") if rc == 0 else None
+    check("K18 MD: a sidecar of %s (%d bytes on disk) -> item %r, bad_sidecars=%s" % (label, os.path.getsize(mp), want_item, want_bad),
+          rc == 0 and r is not None and r[0] == want_item and summ(so, "bad_sidecars") == want_bad,
+          "rc=%s row=%r bad_sidecars=%s item_from_sidecar=%s" % (rc, r, summ(so, "bad_sidecars"), summ(so, "item_from_sidecar")))
+
+
+# --- K19: round 10, F9 (ingest half) -- extra prefixes are never expanded --------
+# dispatch_stamp.sh used to glob-expand FC_DISPATCH_EXTRA_ITEM_PREFIXES; the
+# ingest tool never did. Run from a directory holding a file named QRS: the
+# token Q* never becomes the file name. Round 11 (RV11-1): a token is DATA --
+# Q* and * are not ASCII letters and digits, so both are IGNORED (with a
+# warning) and only the derived default prefix stays. Same verdicts as
+# test_dispatch_stamp.sh sections K and L.
+def ingest_cwd(path, db, cwd, **extra):
+    e = env()
+    e.pop("FC_DISPATCH_ITEM_ID_RE", None)
+    e.update(extra)
+    p = subprocess.run([sys.executable, TI, "ingest", path, "--db", db], env=e, cwd=cwd,
+                       capture_output=True, text=True, timeout=120, stdin=subprocess.DEVNULL)
+    return p.returncode, p.stdout, p.stderr
+
+for tok, ids, want in (("Q*", ("QRS-1", "Q-1", "ATM-12"), (None, None, "ATM-12")),
+                       ("*", ("QRS-1", "ABC-1", "ATM-12"), (None, None, "ATM-12"))):
+    d = fresh("k19_" + ("star" if tok == "*" else "qstar"))
+    for name in ("QRS", "ABC"):
+        open(os.path.join(d, name), "w").close()
+    recs = []
+    for n, iid in enumerate(ids):
+        recs.append(dispatch("agentg%d" % n, "d-%d" % n, "s-p", "(T1) item=%s globbed?" % iid))
+        recs.append(asst("m_g%d" % n, "g%d-1" % n, 10, agent="agentg%d" % n, sess="s-p"))
+    jl(os.path.join(d, "t", "parent.jsonl"), recs)
+    db = os.path.join(d, "t.db")
+    rc, so, se = ingest_cwd(os.path.join(d, "t", "parent.jsonl"), db, d,
+                            HELIX_RELEASE_PREFIX="atm_fixture_prefix", FC_DISPATCH_EXTRA_ITEM_PREFIXES=tok)
+    got = tuple((sub_row(db, "m_g%d" % n) or (None,))[0] for n in range(len(ids))) if rc == 0 else None
+    check("K19 F9: FC_DISPATCH_EXTRA_ITEM_PREFIXES=%r from a cwd holding QRS/ABC: items %r -> %r" % (tok, ids, want),
+          got == want and ("%r ignored" % tok) in se, "rc=%s got=%r stderr=%r" % (rc, got, se[-200:]))
+# =============================================================================
+# T048 restart round 11 (V1 re-review: RV11-4, RV11-6, RV11-2 ingest half, and
+# the reviewer's surviving mutants V11 and V12).
+# =============================================================================
+import time as _time
+
+ORDER_SHIM = os.path.join(WORK, "order_shim.py")
+with open(ORDER_SHIM, "w") as fh:
+    fh.write(r'''
+import os, runpy, sys
+mode = sys.argv[1]
+target = sys.argv[2]
+_real_scandir = os.scandir
+class _Listing:
+    def __init__(self, it):
+        self._entries = sorted(it, key=lambda e: e.name, reverse=(mode == "reverse"))
+        it.close()
+        self._i = 0
+    def __iter__(self):
+        return self
+    def __next__(self):
+        if self._i >= len(self._entries):
+            raise StopIteration
+        self._i += 1
+        return self._entries[self._i - 1]
+    def __enter__(self):
+        return self
+    def __exit__(self, *exc):
+        return False
+    def close(self):
+        pass
+def _scandir(p="."):
+    return _Listing(_real_scandir(p))
+os.scandir = _scandir
+_real_listdir = os.listdir
+os.listdir = lambda p=".": sorted(_real_listdir(p), reverse=(mode == "reverse"))
+sys.argv = [target] + sys.argv[3:]
+runpy.run_path(target, run_name="__main__")
+''')
+
+
+def ingest_order(mode, path, db, timeout=120):
+    p = subprocess.run([sys.executable, ORDER_SHIM, mode, TI, "ingest", path, "--db", db], env=env(),
+                       capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+    return p.returncode, p.stdout, p.stderr
+
+
+# control needle: the shim really changes the order os.walk lists entries in.
+d = fresh("k20_needle")
+for nm in ("a1", "b2", "c3"):
+    os.makedirs(os.path.join(d, nm))
+probe = os.path.join(WORK, "order_probe.py")
+with open(probe, "w") as fh:
+    fh.write("import os, sys\nprint(','.join(next(os.walk(sys.argv[1]))[1]))\n")
+seen_order = {}
+for mode in ("forward", "reverse"):
+    pp = subprocess.run([sys.executable, ORDER_SHIM, mode, probe, d], capture_output=True, text=True, timeout=60)
+    seen_order[mode] = pp.stdout.strip()
+check("K20 control needle: the listing-order shim really reverses what os.walk lists",
+      seen_order == {"forward": "a1,b2,c3", "reverse": "c3,b2,a1"}, "seen=%r" % (seen_order,))
+
+# --- K20: RV11-4 -- the attribution does not depend on the listing order ----------
+# The same transcript directory is reachable as a plain directory AND as a
+# `subagents/` link. Its name decides which one a sorted walk meets first, and
+# the forced listing order decides it for an unsorted walk: every combination
+# must give the sidecar's item and unmapped_agents=0.
+def k20_tree(name, store_name):
+    d = fresh(name)
+    base = d + "/base"
+    store = os.path.join(base, store_name)
+    jl(os.path.join(store, "agent-ord1.jsonl"), [asst("m_ord", "ord-1", 10, agent="ord1", sess="sess-O")])
+    json.dump({"description": "(T1) item=ATM-77 order independent"}, open(os.path.join(store, "agent-ord1.meta.json"), "w"))
+    os.makedirs(base + "/parent")
+    jl(base + "/parent.jsonl", [asst("m_ord_p", "p-1", 5, sess="sess-O")])
+    os.symlink("../" + store_name, base + "/parent/subagents")
+    return d, base
+
+for store_name in ("aaa_store", "zzz_store"):
+    for mode in ("forward", "reverse"):
+        d, base = k20_tree("k20_%s_%s" % (store_name, mode), store_name)
+        db = os.path.join(d, "t.db")
+        rc, so, se = ingest_order(mode, base, db)
+        r = sub_row(db, "m_ord") if rc == 0 else None
+        check("K20 RV11-4: store dir %r, listing %s: the linked subagents/ directory still yields the sidecar item ATM-77"
+              % (store_name, mode),
+              r == ("ATM-77", "sess-O", "ord1") and summ(so, "unmapped_agents") == "0" and summ(so, "agents_without_item") == "0",
+              "rc=%s row=%r unmapped_agents=%s agents_without_item=%s stderr=%r"
+              % (rc, r, summ(so, "unmapped_agents"), summ(so, "agents_without_item"), se[-200:]))
+
+# links to an ancestor (a cycle), to a sibling and outside the tree, both orders
+for mode in ("forward", "reverse"):
+    d = fresh("k20b_" + mode)
+    base = d + "/base"
+    outside = d + "/outside"
+    jl(os.path.join(outside, "agent-out1.jsonl"), [asst("m_out", "out-1", 10, agent="out1", sess="sess-L")])
+    json.dump({"description": "(T1) item=ATM-78 outside the tree"}, open(os.path.join(outside, "agent-out1.meta.json"), "w"))
+    jl(os.path.join(base, "sib", "agent-sib1.jsonl"), [asst("m_sib", "sib-1", 10, agent="sib1", sess="sess-L")])
+    json.dump({"description": "(T1) item=ATM-79 sibling"}, open(os.path.join(base, "sib", "agent-sib1.meta.json"), "w"))
+    os.makedirs(base + "/p1")
+    jl(base + "/p1.jsonl", [asst("m_p1", "p1-1", 5, sess="sess-L")])
+    os.symlink("../sib", base + "/p1/subagents")                # a sibling
+    os.makedirs(base + "/p2")
+    jl(base + "/p2.jsonl", [asst("m_p2", "p2-1", 5, sess="sess-L")])
+    os.symlink(outside, base + "/p2/subagents")                 # outside the tree
+    os.symlink("..", base + "/sib/loop")                        # an ancestor: a cycle
+    db = os.path.join(d, "t.db")
+    t0 = _time.time()
+    rc, so, se = ingest_order(mode, base, db)
+    took = _time.time() - t0
+    rows = (sub_row(db, "m_sib"), sub_row(db, "m_out")) if rc == 0 else None
+    check("K20b RV11-4: listing %s -- a sibling link and an outside-the-tree link both attribute, the ancestor link (cycle) ends, %.1f s"
+          % (mode, took),
+          rows == (("ATM-79", "sess-L", "sib1"), ("ATM-78", "sess-L", "out1")) and summ(so, "unmapped_agents") == "0"
+          and took < 60,
+          "rc=%s rows=%r unmapped_agents=%s stderr=%r" % (rc, rows, summ(so, "unmapped_agents"), se[-200:]))
+
+# A chain of directories each holding two links to the next: a walk that
+# re-enters every link target visits 2**depth directories. The walk must stay
+# linear (one entry per real directory) and still attribute.
+d = fresh("k20c")
+base = d + "/base"
+depth = 16
+for i in range(depth):
+    os.makedirs("%s/c%02d" % (base, i))
+for i in range(depth - 1):
+    os.symlink("../c%02d" % (i + 1), "%s/c%02d/l1" % (base, i))
+    os.symlink("../c%02d" % (i + 1), "%s/c%02d/l2" % (base, i))
+jl("%s/c%02d/agent-deep1.jsonl" % (base, depth - 1), [asst("m_deep", "deep-1", 10, agent="deep1", sess="sess-D")])
+os.makedirs(base + "/pd")
+jl(base + "/pd.jsonl", [asst("m_pd", "pd-1", 5, sess="sess-D")])
+os.symlink("../c%02d" % (depth - 1), base + "/pd/subagents")
+json.dump({"description": "(T1) item=ATM-80 end of the chain"}, open("%s/c%02d/agent-deep1.meta.json" % (base, depth - 1), "w"))
+db = os.path.join(d, "t.db")
+t0 = _time.time()
+rc, so, se = ingest(base, db, timeout=120)
+took = _time.time() - t0
+r = sub_row(db, "m_deep") if rc == 0 else None
+check("K20c RV11-4: a chain of %d directories with two links each (2**%d paths) is walked in %.1f s (< 20 s) and attributes"
+      % (depth, depth, took), r == ("ATM-80", "sess-D", "deep1") and took < 20,
+      "rc=%s row=%r took=%.1fs" % (rc, r, took))
+
+# --- K13f: V12 -- the sidecar beside the RESOLVED file is read first ----------------
+# A linked transcript with a sidecar on BOTH sides: the documented order is the
+# sidecar beside the resolved file, then the one beside the link.
+d = fresh("k13f")
+jl(os.path.join(d, "elsewhere", "agent-both1.jsonl"), [asst("m_both", "both-1", 10, agent="both1", sess="sess-B")])
+json.dump({"description": "(T1) item=ATM-6101 beside the resolved file"}, open(d + "/elsewhere/agent-both1.meta.json", "w"))
+os.makedirs(d + "/base/parent/subagents")
+jl(d + "/base/parent.jsonl", [asst("m_both_p", "p-1", 5, sess="sess-B")])
+os.symlink(d + "/elsewhere/agent-both1.jsonl", d + "/base/parent/subagents/agent-both1.jsonl")
+json.dump({"description": "(T1) item=ATM-6102 beside the link"}, open(d + "/base/parent/subagents/agent-both1.meta.json", "w"))
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d + "/base/parent.jsonl", db)
+r = sub_row(db, "m_both") if rc == 0 else None
+check("K13f V12: sidecars beside the resolved file AND beside the link -- the one beside the resolved file wins (ATM-6101)",
+      r == ("ATM-6101", "sess-B", "both1"), "rc=%s row=%r stderr=%r" % (rc, r, se[-200:]))
+
+# --- K14f: V11 -- a row with NO usage completed by an ALL-ZERO copy keeps its place ---
+d = fresh("k14f")
+nu = asst("m_s4f", "line-nousage", 0, sess="s1", inp=0)
+del nu["message"]["usage"]
+nu["timestamp"] = "2026-10-08T08:00:00Z"
+zc = asst("m_s4f", "line-zero", 0, sess="s2", inp=0)
+zc["timestamp"] = "2026-10-09T09:00:00Z"
+jl(os.path.join(d, "a_nousage.jsonl"), [nu])
+jl(os.path.join(d, "b_zero.jsonl"), [zc])
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(d, db)
+rows = q(db, "SELECT session_id, source_file, record_uuid, ts, output_tokens, usage_status FROM transcript_usage_events WHERE msg_id='m_s4f'") if rc == 0 else None
+rows = [(a, os.path.basename(b), c, e, f, g) for a, b, c, e, f, g in rows] if rows else rows
+check("K14f V11: a row stored with no usage block, completed by an ALL-ZERO copy from another file, keeps its own identity (zero usage is no usage)",
+      rows == [("s1", "a_nousage.jsonl", "line-nousage", "2026-10-08T08:00:00Z", 0, "measured")],
+      "rows=%r (want [('s1','a_nousage.jsonl','line-nousage','2026-10-08T08:00:00Z',0,'measured')])" % (rows,))
+
+# --- K18b: RV11-6 -- the cap is a real limit, not a truncated read ---------------
+# A VALID object of exactly 1 MiB followed by one byte of whitespace is 1 MiB + 1
+# byte on disk: it is larger than the cap and is counted, never parsed from its
+# first 1 MiB.
+d = fresh("k18b")
+shutil.copytree(FG, os.path.join(d, "fg"))
+mp = os.path.join(d, "fg", "parent_session", "subagents", "agent-fixturefg01.meta.json")
+sized_sidecar(mp, 1 << 20)
+with open(mp, "a") as fh:
+    fh.write(" ")
+db = os.path.join(d, "t.db")
+rc, so, se = ingest(os.path.join(d, "fg", "parent_session.jsonl"), db)
+r = sub_row(db, "msg_fixture_fg_sub_a1") if rc == 0 else None
+check("K18b RV11-6: a valid 1 MiB object + 1 byte of trailing whitespace (%d bytes) is too large: item None, bad_sidecars=1"
+      % os.path.getsize(mp),
+      rc == 0 and r is not None and r[0] is None and summ(so, "bad_sidecars") == "1"
+      and "larger than" in se,
+      "rc=%s row=%r bad_sidecars=%s stderr=%r" % (rc, r, summ(so, "bad_sidecars"), se[-200:]))
+
+# --- K21: RV11-2 (ingest half) -- the caller's environment does not change the prefix ---
+# release_prefix.sh is run by bash; bash runs BASH_ENV first and imports
+# exported functions and SHELLOPTS. None of them may change the derived prefix.
+d = fresh("k21")
+benv = os.path.join(d, "bash_env.sh")
+with open(benv, "w") as fh:
+    fh.write("echo SPK\nbasename() { echo spkproject; }\n")
+jl(d + "/t/parent.jsonl", [dispatch("agentev1", "d-1", "s-p", "(T1) item=ATM-12 env"),
+                           dispatch("agentev2", "d-2", "s-p", "(T1) item=SPK-13 env"),
+                           asst("m_ev1", "ev1-1", 10, agent="agentev1", sess="s-p"),
+                           asst("m_ev2", "ev2-1", 10, agent="agentev2", sess="s-p")])
+for label, extra in (("clean", {}),
+                     ("BASH_ENV printing a word", {"BASH_ENV": benv}),
+                     ("an exported function", {"BASH_FUNC_basename%%": "() { echo spkproject; }"}),
+                     ("SHELLOPTS=xtrace", {"SHELLOPTS": "xtrace"}),
+                     ("POSIXLY_CORRECT", {"POSIXLY_CORRECT": "1"}),
+                     ("ENV", {"ENV": benv})):
+    db = os.path.join(d, "t_%d.db" % len(label))
+    if os.path.exists(db):
+        os.remove(db)
+    rc, so, se = ingest_env(d + "/t/parent.jsonl", db, HELIX_RELEASE_PREFIX="atm_fixture_prefix", **extra)
+    got = (sub_row(db, "m_ev1"), sub_row(db, "m_ev2")) if rc == 0 else None
+    check("K21 RV11-2: the caller's environment (%s) does not change the derived prefix: ATM-12 attributed, SPK-13 not" % label,
+          got == (("ATM-12", "s-p", "agentev1"), (None, "s-p", "agentev2")),
+          "rc=%s got=%r stderr=%r" % (rc, got, se[-200:]))
+
+# One real transcript reached under TWO subagent names (two links): the agent
+# id and the sidecar come from the name it was reached by, and of two such
+# names the SMALLEST path is taken, whatever order the directory listed them
+# in (before round 11 the last one listed won).
+for mode in ("forward", "reverse"):
+    d = fresh("k20d_" + mode)
+    base = d + "/base"
+    jl(os.path.join(d, "store", "blob.jsonl"), [asst("m_two", "two-1", 10, agent="two1", sess="sess-T")])
+    os.makedirs(base + "/p1/subagents")
+    os.makedirs(base + "/p2/subagents")
+    jl(base + "/p1.jsonl", [asst("m_two_p1", "tp1-1", 5, sess="sess-T")])
+    jl(base + "/p2.jsonl", [asst("m_two_p2", "tp2-1", 5, sess="sess-T")])
+    os.symlink(d + "/store/blob.jsonl", base + "/p1/subagents/agent-two1.jsonl")
+    os.symlink(d + "/store/blob.jsonl", base + "/p2/subagents/agent-two2.jsonl")
+    json.dump({"description": "(T1) item=ATM-91 first name"}, open(base + "/p1/subagents/agent-two1.meta.json", "w"))
+    json.dump({"description": "(T1) item=ATM-92 second name"}, open(base + "/p2/subagents/agent-two2.meta.json", "w"))
+    db = os.path.join(d, "t.db")
+    rc, so, se = ingest_order(mode, base, db)
+    r = sub_row(db, "m_two") if rc == 0 else None
+    check("K20d RV11-4: listing %s -- one transcript reached as agent-two1 and agent-two2: the smaller path (p1, agent two1) names it, item ATM-91"
+          % mode, r == ("ATM-91", "sess-T", "two1") and summ(so, "unmapped_agents") == "0",
+          "rc=%s row=%r unmapped_agents=%s stderr=%r" % (rc, r, summ(so, "unmapped_agents"), se[-200:]))
+PYEOF
+python3 "$WORK/part_k.py" "$TRANSCRIPT_INGEST" "$FIX" "$WORK/part_k" > "$WORK/part_k.out" 2>&1
+K_RC=$?
+K_N=0
+while IFS=$'\t' read -r k_kind k_text; do
+    K_N=$((K_N + 1))
+    case "$k_kind" in
+        OK) ok "K: $k_text" ;;
+        BAD) bad "K: $k_text" ;;
+        *) bad "K: unexpected driver output: $k_kind $k_text" ;;
+    esac
+done < "$WORK/part_k.out"
+needle_check "PART K driver ran to the end (rc=$K_RC) and produced >= 45 verdicts (got $K_N)" 1 "$([ "$K_RC" -eq 0 ] && [ "$K_N" -ge 45 ] && echo 1 || echo 0)"
+fi
+
 # ---- final control-needle on the shared grep mechanism itself -------------
 # (§11.4.201(7)(b)): every conclusion above rests on grep seeing real bytes in
 # real files; prove it can, one more time, on a KNOWN-present literal.
@@ -2870,6 +4455,6 @@ echo "----"
 # (and whether it went BLIND this run) is echoed here, in the SUMMARY
 # line a human actually re-reads, not only an early banner line.
 # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
-# shellcheck disable=SC2031
+# shellcheck disable=SC2031 # reads the real outer variable assigned at file scope, the subshell copy in the eval harness is intentionally separate
 echo "SUMMARY pass=$PASS fail=$FAIL derived_default_prefix=$DERIVED_DEFAULT_PREFIX derived_default_prefix_blind=$DERIVED_DEFAULT_PREFIX_BLIND"
 [ "$FAIL" -eq 0 ]

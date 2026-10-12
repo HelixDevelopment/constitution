@@ -1,4 +1,31 @@
 #!/usr/bin/env bash
+{ set +o xtrace +o verbose; } 2>/dev/null
+# THE ENVIRONMENT (T048 restart round 11, RV11-2 / RV11-5; full text in the
+# header section "THE ENVIRONMENT" below). Before anything is read, the tool
+# re-executes itself ONCE with an EMPTY environment plus a fixed allowlist, so
+# nothing else the caller exports (POSIXLY_CORRECT, AWKPATH, GAWK_*, SHELLOPTS,
+# BASHOPTS, exported shell functions, JQ_*, LC_*, GIT_*, ...) reaches this
+# script, awk, jq or release_prefix.sh. The allowlist is everything the tool
+# reads. A failed re-execution refuses (GUARD) / prints nothing (EXTRACTION).
+unset -f unset builtin exec shopt command 2>/dev/null
+if [[ "${1-}" != "--fc-clean-env" ]]; then
+  shopt -s execfail
+  _fc_keep=()
+  for _fc_v in PATH HOME FC_DISPATCH_ITEM_ID_RE FC_DISPATCH_EXTRA_ITEM_PREFIXES HELIX_RELEASE_PREFIX HELIX_PROJECT_ROOT; do
+    [[ -n "${!_fc_v+set}" ]] && _fc_keep+=("$_fc_v=${!_fc_v}")
+  done
+  # Checked first so a failure is reported by this tool, not by bash's own
+  # "No such file" line (EXTRACTION mode must stay silent).
+  [[ -x "$BASH" && -r "$0" ]] && exec -c "$BASH" "$0" --fc-clean-env "${#_fc_keep[@]}" "${_fc_keep[@]}" "$@"
+  # Only reached when the re-execution failed.
+  if [[ "${1-}" == "--extract-item-id" ]]; then exit 0; fi
+  echo "guardrails: BLOCKED — T036 dispatch-stamp: the hook could not re-execute itself in a clean environment ($BASH $0), so the payload is not read" >&2
+  exit 2 # FAIL CLOSED: no clean re-execution (test_dispatch_stamp.sh section P)
+fi
+shift
+_fc_n="$1"; shift
+while [[ "$_fc_n" -gt 0 ]]; do export "$1"; shift; _fc_n=$((_fc_n - 1)); done
+unset _fc_n
 # constitution/scripts/fastcycle/tokens/dispatch_stamp.sh
 #
 # T036 (SpecKit-004 "fast-dev-cycles", User Story 1) — item-id dispatch-
@@ -51,6 +78,26 @@
 #     (falling back to `.tool_input.subagent`, exactly as
 #     guard-track-branch-label.sh does). EVERY OTHER tool_name passes
 #     through untouched (exit 0) — this hook never breaks non-agent tools.
+#
+#   WHAT THE GUARD CANNOT CLASSIFY (T048 restart round 9, S2). The guard
+#     decides on `.tool_name`, so its contract for input that does not name a
+#     tool is explicit, and the code, this comment and the tests agree on it:
+#       - ALLOWED (exit 0): an empty or whitespace-only stdin, and ONE
+#         well-formed JSON object that has no `tool_name` key. The hook matcher
+#         in .claude/settings.json (Agent|Task|TaskCreate) guarantees a
+#         `tool_name` on every real dispatch, so such input is not a dispatch;
+#         the sibling guard-track-branch-label.sh allows it the same way.
+#       - REFUSED (exit 2, fail closed): a non-empty payload that is not
+#         exactly one valid JSON object, and a `tool_name` that is PRESENT but
+#         not a string (null, a number, a boolean, an object or an array): the
+#         hook cannot tell what tool that is, and a payload that hides the
+#         tool name must not slip through as "some other tool".
+#     Nothing a real Claude Code Agent / Task / TaskCreate payload carries is
+#     refused by this rule: `tool_name` is always a string there, and every
+#     other key (tool_input.description / prompt / subagent_type / model,
+#     session_id, transcript_path, cwd, permission_mode, hook_event_name,
+#     tool_use_id, tool_response, ...) is read only when it is the exact
+#     `tool_name` or `tool_input` path.
 #
 #   HONEST '?' HANDLING (a genuinely ambiguous point this file resolves
 #     with explicit reasoning, per the RED test's own instruction not to
@@ -187,22 +234,126 @@
 #   printf '%s' "$json" | bash dispatch_stamp.sh                  # GUARD mode
 #   printf '%s' "$json" | bash dispatch_stamp.sh --extract-item-id # EXTRACTION mode
 #
-# DEFERRALS LEDGER (T048 restart round 2, V1-M4):
+# THE ENVIRONMENT (T048 restart round 11, RV11-2 / RV11-5). The verdict must
+# not depend on what else the caller exports. Measured on the round-10 tree:
+# jq 1.8.1 auto-loads ~/.jq, so a ~/.jq redefining `objects` made the guard
+# ALLOW an untagged dispatch and a ~/.jq with a syntax error refused every
+# dispatch; POSIXLY_CORRECT put gawk in POSIX mode, the awk probe failed and
+# every dispatch was refused with a wrong message. The fix is one rule, not a
+# list of variables: the first lines of this file re-execute it with
+# `exec -c` (an EMPTY environment) and export back only the allowlist PATH,
+# HOME, FC_DISPATCH_ITEM_ID_RE, FC_DISPATCH_EXTRA_ITEM_PREFIXES,
+# HELIX_RELEASE_PREFIX and HELIX_PROJECT_ROOT -- every variable this tool or
+# release_prefix.sh reads. LC_ALL=C is set below. jq additionally runs with
+# HOME=/dev/null/fc-no-home, a path that cannot exist, so no ~/.jq can be
+# loaded. Guard: test_dispatch_stamp.sh section N (a hostile environment
+# matrix: bad ~/.jq, POSIXLY_CORRECT, AWKPATH, AWKLIBPATH, GAWK_READ_TIMEOUT,
+# BASH_ENV, ENV, IFS, SHELLOPTS, BASHOPTS, exported functions, LC_ALL / LANG
+# variants, JQ_COLORS; every verdict equals the clean run, with and without
+# jq) and test_token_attribution_red.sh K21 (the ingest half).
+# HONEST BOUNDARY: code that runs BEFORE the first line of this file is out
+# of its reach -- a BASH_ENV file (bash runs it first for every non-
+# interactive script) that writes output or exits, or an exported function
+# named after one of the bash builtins the five re-exec lines use (unset,
+# exec, shopt). The re-exec removes everything such code SET (functions,
+# shell options, variables); it cannot undo what such code DID. Closing that
+# needs the hook command itself to start bash without them (`bash -p ...` in
+# .claude/settings.json, privileged mode: no BASH_ENV/ENV, no imported
+# functions, SHELLOPTS/BASHOPTS ignored) -- the conductor's step, see
+# docs/qa/t048_restart_round5_20261009/V1_followups.md (round 11).
+#
+# DEFERRALS LEDGER (T048 restart rounds 2, 3, 9, 10 and 11):
+#   CLOSED in round 11 (STRUCTURAL round, §11.4.276(E); each finding was a
+#   single instance of a class, so each fix closes the class):
+#   RV11-1 (class: a configured string used as a regex fragment) -- an extra
+#   prefix is DATA: kept only when its ASCII upper-case form is [A-Z0-9]+,
+#   else ignored with a GUARD notice; transcript_ingest.py applies the same
+#   rule. Guard: test_dispatch_stamp.sh section L (a generated corpus through
+#   both tools, 680 token x description pairs, identical extraction).
+#   RV11-2 / RV11-5 (class: the caller's environment changes the verdict) --
+#   the clean re-execution (THE ENVIRONMENT, above); guard: section N.
+#   RV11-3 (class: reader time not linear on adversarial input) -- the path
+#   is matched per depth (pm[] / seg_ok()), never rebuilt per value, and the
+#   payload is read as one record; guard: sections M and Q.
+#   Reviewer mutant V1 (CR is not whitespace) -- section O pins absolute
+#   verdicts for CR / LF / TAB between tokens in both paths.
+#   CORRECTED (round 11, RV11-10): two round-10 statements below were wider
+#   than what had been measured. (1) F9 said "a configured pattern that is not
+#   a valid regex falls back"; that held for an INVALID pattern only -- a
+#   token that compiled but was malformed (`)`, `{`, `\D`, `ATM-1`) silently
+#   changed or split the verdict (RV11-1, closed above). The fallback now
+#   applies to FC_DISPATCH_ITEM_ID_RE alone (section L2). (2) F3/F4 gave
+#   "about 0.3 s/MB with jq, 0.85 s/MB without" as if it bounded the reader;
+#   it was measured on ONE shape (a long string of \u00e9 escapes). Arrays
+#   nested 8000 deep around 8000 strings (48 KB) took 30.8 s without jq and
+#   5.6 s with it on the round-10 tree (quadratic). MEASURED on the round-11
+#   tree (reference host, 64 cores, gawk 5.1.0, jq 1.8.1, load average about
+#   4-5; faster of two runs; small size / 4x size, ms, jq then no jq):
+#   deep arrays 12 KB/48 KB 35/54, 36/85; deep objects 26 KB/106 KB 40/72,
+#   52/146; one 12 KB key over 12000 values 35/49, 34/75; escapes 0.6 MB/2.4
+#   MB 157/548, 433/1690; many small values 0.26 MB/1.0 MB 130/434, 293/1115;
+#   a description full of near-tags 0.56 MB/2.2 MB 146/501, 313/1206. These
+#   are measurements of these shapes, not a proof for every shape; section M
+#   re-measures them on every run (4x the input < 8x the time + 300 ms, and
+#   10 s per run). The hook-timeout exposure stated below is unchanged.
+#   CLOSED in round 10 (V1 re-review of the landed tree): F8 -- the reader's
+#   depth limit now charges jq 1.8.1's weights (see open_weight()), so the
+#   jq and the jq-less paths refuse the same documents (objects nested
+#   5000-9998 deep used to be allowed only without jq). F9 -- the extra
+#   prefixes are no longer glob-expanded, and a configured pattern that is
+#   not a valid regex falls back to the derived prefix (as the ingest tool
+#   does) instead of refusing every dispatch [narrowed in round 11, see
+#   CORRECTED above]. F3/F4 -- MEASURED on one shape only [see CORRECTED
+#   above]: on the reference host (64 cores, gawk 5.1.0, jq 1.8.1, under
+#   normal load) a 4.2 MB description of \u00e9 escapes is decided in 1.4 s
+#   with jq and 3.6 s without, 16.8 MB in 5.0 s / 14.1 s. A payload
+#   large enough to exceed the hook's timeout is the remaining exposure: the
+#   reviewer reports that Claude Code proceeds when a hook times out (fail
+#   open); .claude/settings.json sets no timeout for this hook, so Claude
+#   Code's default applies (not measured here). test_dispatch_stamp.sh
+#   section K pins a 30 s bound at 4.2 MB and a linearity ratio.
+#   CLOSED in round 9 (V1 re-review follow-ups): S2 -- the guard contract for
+#   input that names no tool is now explicit and tested (see WHAT THE GUARD
+#   CANNOT CLASSIFY: empty input and an object without tool_name are allowed;
+#   a tool_name that is present but not a string is refused). S3 -- the jq-less
+#   reader was quadratic in the number of \uXXXX escapes (`out = out utf8(cp)`);
+#   it is linear now (3 MB of escapes: 15.5 s -> 2.4 s without jq on the
+#   reference host). P2 -- the jq-less reader is verified on GAWK ONLY (GNU Awk
+#   5.1.0); an awk without RT, a NUL record separator or a one-byte %c is
+#   refused with a clear message instead of mis-reading a payload. mawk and
+#   busybox awk remain UNVERIFIED (refused, not supported).
+#   CLOSED in round 3: R3V1-M1 -- the round-2 text below said the jq-less
+#   reader takes the value "as jq does (the last one if a key repeats)"; that
+#   held only for a string repeated over a string, and a later null / number
+#   / object for the same key left the earlier tagged string in place (the
+#   guard allowed what jq refused). A repeated key is now refused by the
+#   shared reader for BOTH paths, as are two documents (jq used to read the
+#   first one) -- see THE JSON READER. R3V1-M4 -- \u0000 and raw NUL bytes
+#   (see the same block and the payload read).
 #   CLOSED in round 2: (a) the jq-less fallback took the FIRST "description"
 #   key anywhere in the payload and failed OPEN on a nested one -- replaced by
-#   an exact-path JSON reader that fails closed (see json_field); (b) the
+#   an exact-path JSON reader that fails closed (see json_read); (b) the
 #   release_prefix.sh fallback to "WIT" was silent -- GUARD mode now prints a
 #   notice (see _fc_resolve_default_prefix). (c) "file order" belongs to
 #   transcript_ingest.py and is closed there.
+#   OWED ITEMS (open; T048 restart round 3, R3V1-M5). Honest state: written
+#   here and in transcript_ingest.py, but the tracker DB holds NO row for
+#   them as of round 3 -- registering them is the conductor's step:
 #   OWED-DS-1: the test suites next to this file (test_dispatch_stamp*.sh,
-#   including the r6 mutation proof) are not invoked by any runner or gate;
-#   tests/run_all.sh globs tests/ only. Wiring them is the conductor's step.
+#   including the r6 mutation proof and the r7 matrix) are not invoked by
+#   any runner or gate; tests/run_all.sh globs tests/ only. Wiring them is
+#   the conductor's step.
+#   OWED-TI-1, OWED-TI-2: ingest-side, see transcript_ingest.py's ledger
+#   (OWED-TI-2 is narrowed in round 11: only the full FC_DISPATCH_ITEM_ID_RE
+#   override is still read by two regex engines; extra prefixes are data).
+#   ATM-1133 MISMATCH: tracker item ATM-1133 ("fail-closed on missing jq",
+#   Queued) disagrees with this file. jq is NOT required: the strict awk
+#   reader is the gate for both paths, and only a missing awk fails closed
+#   (AWK_MISSING). The conductor must re-scope or close ATM-1133.
 #
 # Classification: universal.
 
 set -uo pipefail
-
-PAYLOAD="$(cat || true)"
 
 # LOCALE (V1-M2, T048 restart round 2): every regex, character class and
 # `tr` below runs under LC_ALL=C, so the accepted tag set is the same for
@@ -210,36 +361,97 @@ PAYLOAD="$(cat || true)"
 # same ASCII classes out and compiles with re.ASCII). Before this, bash's
 # [[:space:]] / [[:alnum:]] followed the caller's locale: `item=ATM-12é`
 # extracted ATM-12 under C but nothing under C.UTF-8, and U+2003 before the
-# tag counted as a separator under C.UTF-8 only.
+# tag counted as a separator under C.UTF-8 only. (Set before the payload is
+# read, so the read below also runs byte-wise.)
 export LC_ALL=C
+# jq 1.7+ auto-imports the file ~/.jq into every program (round 11, RV11-2:
+# a ~/.jq redefining `objects` turned an untagged dispatch into an allowed
+# one). jq runs with HOME set to this path, which cannot exist (/dev/null is
+# not a directory), so there is no ~/.jq to load.
+_FC_JQ_HOME=/dev/null/fc-no-home
+
+# Reading the payload (T048 restart round 3, R3V1-M4): bash silently drops a
+# NUL byte from a command substitution (and prints a warning on stderr,
+# which breaks EXTRACTION mode's "no other output" contract). A raw NUL can
+# then make an invalid payload look valid. Each raw NUL is therefore turned
+# into the control byte 0x01 while reading, which the JSON reader below
+# refuses (inside a string it is an unescaped control character, outside one
+# it is not JSON), so a payload carrying a raw NUL is refused, never quietly
+# altered. Without awk the payload cannot be read safely: AWK_MISSING makes
+# the guard refuse (fail closed) and the extraction return nothing.
+AWK_MISSING=0
+AWK_PROBLEM=""
+if command -v awk >/dev/null 2>&1; then
+  # T048 restart round 9, P2: this reader relies on gawk's record terminator
+  # variable RT (to keep a trailing NUL), on a NUL record separator and on a
+  # single-byte %c (code 233 must be the one byte octal 351) under LC_ALL=C. The no-jq path has been verified on gawk only
+  # (GNU Awk 5.1.0 on the reference host); mawk and busybox awk are NOT
+  # verified. Probe the three capabilities and refuse (fail closed, with a
+  # clear message) on an awk that lacks any, instead of mis-reading a payload.
+  _AWK_PROBE='BEGIN { RS = "\0" } { n++ } END { exit !(n == 2 && RT == "\0" && sprintf("%c", 233) == "\351") }'
+  if ! printf 'a\0b\0' | awk "$_AWK_PROBE" >/dev/null 2>&1; then
+    AWK_MISSING=1
+    AWK_PROBLEM="the awk on PATH is not gawk-compatible (it lacks RT, a NUL record separator or a single-byte %c); only gawk is verified for the jq-less reader"
+  fi
+fi
+if [ "$AWK_MISSING" -eq 0 ] && command -v awk >/dev/null 2>&1; then
+  PAYLOAD="$(awk 'BEGIN { RS = "\0"; ORS = "" } { if (NR > 1) printf "\001"; printf "%s", $0 } END { if (RT != "") printf "\001" }' || true)"
+else
+  AWK_MISSING=1
+  AWK_PROBLEM="${AWK_PROBLEM:-awk is not installed}"
+  { PAYLOAD="$(cat || true)"; } 2>/dev/null
+fi
 
 # --------------------------------------------------------------------------
-# json_field <path> -- print the STRING value at <path> (".tool_name",
-# ".tool_input.description", ".tool_input.subagent") of the payload.
-# Exit 0 with the value (empty if the path is absent or not a string), or
-# exit 3 if the payload is not empty and cannot be parsed as one JSON
-# object. jq is used when present.
+# THE JSON READER (T048 restart round 3, R3V1-M1/M4 and the parity matrix).
 #
-# Without jq, a small JSON reader in awk walks the document and takes the
-# value at the exact path, as jq does (the last one if a key repeats). T048
-# restart round 2, V1-M4(a): the previous awk fallback took the FIRST
-# '"description"' key anywhere in the payload, so a nested
-# {"metadata":{"description":"item=ATM-1"}} placed before the real untagged
-# description was ALLOWED by the guard and extracted as ATM-1 (fail open);
-# jq refused it. A payload this reader cannot parse is reported as exit 3,
-# which the guard turns into a refusal (fail closed) and the extraction
-# mode into an empty result.
+# json_read <path> -- one strict pass of a small JSON reader written in
+# awk over the whole payload. It exits 3 (refuse) unless the payload is
+# exactly one JSON object, or empty. With a path it prints the STRING value
+# at exactly that path (empty if the path is absent or not a string). A path
+# is a concatenation of segments, an object key encoded <length>:<key> (so
+# the path of tool_input -> description is "10:tool_input11:description"
+# and can never collide with a top-level key that merely CONTAINS a dot). With "-" it prints "E" for an empty
+# payload and "O" for an object, and is used as the GATE below.
+#
+# The SAME reader is the gate for BOTH readers: jq, when installed, only
+# extracts values from a payload this reader has already accepted. So the
+# allow/block decision does not depend on whether jq is installed. Evidence
+# (not proof): the parity matrix in test_dispatch_stamp_r7_matrix.sh compares
+# the two paths on the reviewer's 46 adversarial payloads, the round-8
+# additions and 500 seeded fuzz payloads, and the failure-path rows pin
+# absolute verdicts that a shared-gate regression cannot hide. It refuses,
+# and so does the guard (fail closed):
+#   - anything but one JSON object: a second document, trailing text, a BOM,
+#     `01`, `+1`, `nan`, a trailing comma, a raw control character inside a
+#     string, an unknown escape, a bad \u escape;
+#   - a DUPLICATE key in any object (R3V1-M1). jq keeps the last value and
+#     the earlier reader kept the last STRING, so `"description":"item=X",
+#     "description":null` was allowed by one reader and refused by the other;
+#     a repeated key is now refused by both, whatever the values;
+#   - nesting deeper than jq 1.8.1 accepts (round 10, F8): jq's parser stack
+#     holds at most 10000 entries, an array costing one and a container that
+#     is the value of an object member costing two (its pending key). So a
+#     payload (itself an object) holds at most 9998 arrays, or 4999 objects,
+#     nested inside it. The reader charges the same weights (open_weight()),
+#     so jq and the awk path refuse the same documents. Before round 10 the
+#     reader counted every container as one and allowed 9999: objects nested
+#     5000-9998 deep were allowed without jq and refused with it, so the
+#     verdict depended on jq being installed. Measured on jq 1.8.1 only; an
+#     older jq with a smaller limit makes the jq path refuse MORE, never less
+#     (a jq parse failure is a refusal), so it can only be stricter;
+#   - a high surrogate \uD800-\uDBFF not followed by a low one (jq refuses).
+# It decodes, as jq does: a lone LOW surrogate to U+FFFD. And it decodes
+# \u0000 to U+FFFD (R3V1-M4): bash cannot hold a NUL, and a dropped NUL used
+# to move the tag to the start of the string, so `\u0000item=ATM-1` was
+# accepted here while transcript_ingest.py (which sees the NUL) attributed
+# nothing. With U+FFFD neither tool sees a tag there.
+#
+# T048 restart round 2, V1-M4(a): before that round the jq-less fallback took
+# the FIRST '"description"' key anywhere in the payload (fail open).
 # --------------------------------------------------------------------------
-json_field() {
-  local path="$1" out rc
-  if command -v jq >/dev/null 2>&1; then
-    out="$(printf '%s' "$PAYLOAD" | jq -r "(if type == \"object\" then . else error(\"not an object\") end) | ($path | if type == \"string\" then . else empty end)" 2>/dev/null)"
-    rc=$?
-    [ "$rc" -eq 0 ] || return 3
-    printf '%s' "$out"
-    return 0
-  fi
-  printf '%s' "$PAYLOAD" | awk -v want="${path#.}" '
+json_read() {
+  printf '%s' "$PAYLOAD" | awk -v want="$1" -v typeq="${2:-}" '
     function hexval(h,   i, c, v) {
       if (length(h) != 4) return -1
       v = 0
@@ -258,7 +470,7 @@ json_field() {
     }
     # parse_string: s[pos] is the opening quote. Sets STR and moves pos past
     # the closing quote; returns 0 on an invalid or unterminated string.
-    function parse_string(   c, out, cp, lo) {
+    function parse_string(   c, out, cp, lo, ch) {
       pos++
       out = ""
       while (pos <= n) {
@@ -277,11 +489,20 @@ json_field() {
             cp = hexval(substr(s, pos + 2, 4))
             if (cp < 0) return 0
             pos += 4
-            if (cp >= 55296 && cp < 56320 && substr(s, pos + 2, 2) == "\\u") {
+            if (cp >= 55296 && cp < 56320) {
+              if (substr(s, pos + 2, 2) != "\\u") return 0
               lo = hexval(substr(s, pos + 4, 4))
-              if (lo >= 56320 && lo < 57344) { cp = 65536 + (cp - 55296) * 1024 + (lo - 56320); pos += 6 }
-            }
-            if (cp > 0) out = out utf8(cp)
+              if (lo < 56320 || lo >= 57344) return 0
+              cp = 65536 + (cp - 55296) * 1024 + (lo - 56320); pos += 6
+            } else if (cp >= 56320 && cp < 57344) cp = 65533
+            if (cp == 0) cp = 65533
+            # Round 9, S3: the decoded character goes through a variable. In
+            # gawk, `out = out utf8(cp)` (a function call inside the append)
+            # copies the whole string every time, which made a string with
+            # many \uXXXX escapes quadratic (3 MB took 13 s with jq, 40 s
+            # without); `ch = utf8(cp); out = out ch` is a linear append.
+            ch = utf8(cp)
+            out = out ch
           } else return 0
           pos += 2
           continue
@@ -292,18 +513,62 @@ json_field() {
       return 0
     }
     function skip_ws() { while (pos <= n && index(" \t\r\n", substr(s, pos, 1)) > 0) pos++ }
-    function cur_path(   j, p) {
-      p = ""
-      for (j = 1; j <= d; j++) p = p (j > 1 ? "." : "") (typ[j] == "o" ? key[j] : "[]")
-      return p
+    # THE PATH (round 11, RV11-3). The wanted path is a list of segments: an
+    # object key, encoded <length>:<key>, or an array, "[]" -- unambiguous
+    # (T048 restart round 8, F2: the earlier "key.key" join made a top-level
+    # key literally named "tool_input.description" collide with the nested
+    # tool_input -> description path). parse_want() splits it ONCE into
+    # wtyp[1..WD] / wkey[1..WD]. Before round 11 the path of every value was
+    # REBUILT as a string from all open containers (cur_path()), so a payload
+    # holding many values deep inside many containers cost depth x values:
+    # arrays nested 8000 deep around 8000 strings (48 KB) took 24.8 s without
+    # jq and 4.6 s with it (as the reviewer measured). Now the match is kept
+    # per depth as containers open and close: pm[j] says the containers 1..j-1
+    # sit on the wanted path, set once when container j opens, so deciding
+    # whether a value is the wanted one is a constant number of comparisons.
+    function parse_want(   w, i, len) {
+      WD = 0
+      if (want == "-" || want == "") return
+      w = want
+      while (w != "") {
+        if (substr(w, 1, 2) == "[]") { WD++; wtyp[WD] = "a"; wkey[WD] = ""; w = substr(w, 3); continue }
+        i = index(w, ":")
+        if (i < 2 || substr(w, 1, i - 1) !~ /^[0-9]+$/) { WD = 0; return }
+        len = substr(w, 1, i - 1) + 0
+        WD++; wtyp[WD] = "o"; wkey[WD] = substr(w, i + 1, len); w = substr(w, i + 1 + len)
+      }
     }
+    # seg_ok(j): the open container j, under its current key, is segment j of
+    # the wanted path.
+    function seg_ok(j) { return (typ[j] == "o") ? (wtyp[j] == "o" && key[j] == wkey[j]) : (wtyp[j] == "a") }
+    # at_want: the value being read sits exactly at the wanted path.
+    function at_want() { return (WD > 0 && d == WD && pm[d] && seg_ok(d)) }
     # value_done: a value was completed at the current depth.
     function value_done() { need = (d == 0) ? "done" : "sep" }
+    # note_type: remember the JSON type of the value at the wanted path (used
+    # by the typeq mode below; the type names are those of jq).
+    function note_type(t) { if (typeq != "" && at_want()) vtype = t }
+    # open_weight: the depth jq charges for a container opened at the current
+    # position (round 10, F8). jq 1.8.1 refuses a document whose parser stack
+    # would exceed 10000 entries; an array costs one entry, and a container that
+    # is the VALUE of an object member costs one more (jq keeps the pending key
+    # on the stack). Measured on jq 1.8.1: 10000 nested arrays are accepted and
+    # 10001 refused; 5000 nested objects are accepted and 5001 refused; 9999
+    # arrays around {"a":1} are accepted, 9998 arrays around {"a":{}} refused.
+    # Charging the same weight here makes this gate refuse exactly what jq
+    # refuses, so the verdict no longer depends on whether jq is installed.
+    function open_weight() { return (d == 0) ? 1 : wd[d] + (typ[d] == "o" ? 2 : 1) }
+    # One record: the payload holds no NUL (raw NULs were turned into 0x01
+    # when it was read), so RS = "\0" reads it whole, without the per-line
+    # appends a newline-rich payload used to cost.
+    BEGIN { RS = "\0" }
     { buf = buf $0 }
     END {
-      s = buf; n = length(s); pos = 1; d = 0; need = "value"; val = ""
+      MAXW = 10000
+      parse_want()
+      s = buf; n = length(s); pos = 1; d = 0; need = "value"; val = ""; nobj = 0
       skip_ws()
-      if (pos > n) exit 0
+      if (pos > n) { if (want == "-") printf "E"; exit 0 }
       if (substr(s, pos, 1) != "{") exit 3
       while (1) {
         skip_ws()
@@ -314,6 +579,8 @@ json_field() {
           if (c == "}" && need == "key_or_end") { pos++; d--; value_done(); continue }
           if (c != "\"") exit 3
           if (!parse_string()) exit 3
+          if ((oid[d], STR) in seen) exit 3
+          seen[oid[d], STR] = 1
           key[d] = STR; need = "colon"; continue
         }
         if (need == "colon") { if (c != ":") exit 3; pos++; need = "value"; continue }
@@ -324,31 +591,100 @@ json_field() {
         }
         # need is "value" or "value_or_end"
         if (c == "]" && need == "value_or_end") { pos++; d--; value_done(); continue }
-        if (c == "{") { pos++; d++; typ[d] = "o"; key[d] = ""; need = "key_or_end"; continue }
-        if (c == "[") { pos++; d++; typ[d] = "a"; need = "value_or_end"; continue }
+        if (c == "{") {
+          nw = open_weight()
+          if (nw > MAXW) exit 3
+          note_type("object")
+          npm = (d == 0) ? (WD >= 1) : (pm[d] && d < WD && seg_ok(d))
+          pos++; d++; wd[d] = nw; typ[d] = "o"; key[d] = ""; oid[d] = ++nobj; pm[d] = npm; need = "key_or_end"; continue
+        }
+        if (c == "[") {
+          nw = open_weight()
+          if (nw > MAXW) exit 3
+          note_type("array")
+          npm = (d == 0) ? (WD >= 1) : (pm[d] && d < WD && seg_ok(d))
+          pos++; d++; wd[d] = nw; typ[d] = "a"; pm[d] = npm; need = "value_or_end"; continue
+        }
         if (c == "\"") {
           if (!parse_string()) exit 3
-          if (cur_path() == want) val = STR
+          if (at_want()) val = STR
+          note_type("string")
           value_done(); continue
         }
         tok = ""
         while (pos <= n && index("-+.0123456789eEtrufalsn", substr(s, pos, 1)) > 0) { tok = tok substr(s, pos, 1); pos++ }
         if (tok != "true" && tok != "false" && tok != "null" && tok !~ /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?$/) exit 3
+        note_type(tok == "null" ? "null" : (tok == "true" || tok == "false") ? "boolean" : "number")
         value_done()
       }
       if (need != "done") exit 3
-      printf "%s", val
+      if (typeq != "") printf "%s", vtype
+      else if (want == "-") printf "O"
+      else printf "%s", val
     }
   '
 }
 
-# The item token lives on `description`; fall back to a `subagent` label if
-# present — identical fallback order to guard-track-branch-label.sh. A
-# payload that cannot be parsed (json_field exit 3) yields no description.
+# json_field <key> [<key>...] -- the STRING value at that key path of the
+# payload (e.g. `json_field tool_input description`), empty if the path is
+# absent or not a string. Only called after the gate accepted the payload.
+# jq is used when present; the key path is walked through objects only
+# (`objects`), so a non-object on the way gives an empty value, exactly as
+# the awk reader does. A jq failure (it would mean jq refuses a payload the
+# gate accepted) returns 3: the caller then refuses, fail closed.
+json_field() {
+  local out rc k jqpath="." awkpath=""
+  for k in "$@"; do
+    jqpath="$jqpath | objects | .${k}"
+    awkpath="${awkpath}${#k}:${k}"
+  done
+  if command -v jq >/dev/null 2>&1; then
+    out="$(printf '%s' "$PAYLOAD" | HOME="$_FC_JQ_HOME" jq -n -r "[inputs] | if length != 1 then error(\"not one document\") else .[0] end | ${jqpath} | if type == \"string\" then gsub(\"\\u0000\"; \"\\ufffd\") else empty end" 2>/dev/null)"
+    rc=$?
+    [ "$rc" -eq 0 ] || return 3
+    printf '%s' "$out"
+    return 0
+  fi
+  json_read "$awkpath"
+}
+
+# json_type <key> -- the JSON type name (string, number, boolean, null,
+# object, array; jq's names) of the TOP-LEVEL value at <key>, empty if the
+# key is absent or the document is not an object. Only called after the gate
+# accepted the payload (T048 restart round 9, S2: a `tool_name` that is
+# present but not a string must be refused, which json_field cannot tell
+# apart from an absent one). jq and the awk reader agree (r7 matrix).
+json_type() {
+  local out rc
+  if command -v jq >/dev/null 2>&1; then
+    out="$(printf '%s' "$PAYLOAD" | HOME="$_FC_JQ_HOME" jq -n -r --arg k "$1" '[inputs] | if length != 1 then error("not one document") else .[0] end | objects | if has($k) then (.[$k] | type) else empty end' 2>/dev/null)"
+    rc=$?
+    [ "$rc" -eq 0 ] || return 3
+    printf '%s' "$out"
+    return 0
+  fi
+  json_read "${#1}:$1" type
+}
+
+# The GATE, then the fields. The item token lives on `description`; fall back
+# to a `subagent` label if present -- identical fallback order to
+# guard-track-branch-label.sh. A payload the gate refuses (exit 3), or a host
+# without awk, gives PARSE_OK=0: no fields are read.
 PARSE_OK=1
-DESCRIPTION="$(json_field .tool_input.description)" || PARSE_OK=0
-if [[ "$PARSE_OK" -eq 1 && -z "$DESCRIPTION" ]]; then
-  DESCRIPTION="$(json_field .tool_input.subagent)" || PARSE_OK=0
+EMPTY_DOC=0
+DESCRIPTION=""
+TOOL_NAME=""
+if [[ "$AWK_MISSING" -eq 1 ]]; then
+  PARSE_OK=0
+else
+  GATE="$(json_read -)" || PARSE_OK=0
+  [ "$PARSE_OK" -eq 1 ] && [ "$GATE" = "E" ] && EMPTY_DOC=1
+fi
+if [[ "$PARSE_OK" -eq 1 && "$EMPTY_DOC" -eq 0 ]]; then
+  DESCRIPTION="$(json_field tool_input description)" || PARSE_OK=0
+  if [[ "$PARSE_OK" -eq 1 && -z "$DESCRIPTION" ]]; then
+    DESCRIPTION="$(json_field tool_input subagent)" || PARSE_OK=0
+  fi
 fi
 
 # F13 fix (T048 round-2 review, §11.4.28/§11.4.177): the accepted ticket-id
@@ -426,6 +762,7 @@ _fc_resolve_default_prefix() {
 }
 
 FC_PREFIX_NOTICE=""
+FC_PREFIX_IGNORED=""
 if [ -n "${FC_DISPATCH_ITEM_ID_RE:-}" ]; then
   ITEM_VALUE_RE="$FC_DISPATCH_ITEM_ID_RE"
   ITEM_FORM_LABEL="item=<an id matching FC_DISPATCH_ITEM_ID_RE='$FC_DISPATCH_ITEM_ID_RE'>"
@@ -434,10 +771,35 @@ else
   _fc_resolve_default_prefix
   ITEM_ALL_PREFIXES="$FC_DEFAULT_PREFIX"
   if [ -n "${FC_DISPATCH_EXTRA_ITEM_PREFIXES:-}" ]; then
+    # Round 10, F9: the list is split on words (as transcript_ingest.py's
+    # re.split does) but NEVER glob-expanded. Before, an unquoted $(...) let
+    # a token such as `Q*` expand to the names of files in the caller's
+    # working directory, so the accepted prefixes depended on the cwd while
+    # the ingest tool used the token as written. Globbing is switched off for
+    # the loop and restored to the caller's setting afterwards.
+    #
+    # Round 11, RV11-1: a token is DATA, never a regex fragment. Upper-cased
+    # (ASCII a-z only), it must consist of ASCII letters and digits only
+    # (^[A-Z0-9]+$); any other token is IGNORED, with a GUARD-mode notice
+    # (EXTRACTION stays silent). transcript_ingest.py applies the same rule.
+    # Before, a token was pasted into the pattern: `)` unbalanced the groups
+    # (item=ATM-1 extracted as "ATM" and an honest item=? was refused), `{`
+    # and `\D` meant different things to bash and Python, `ATM-1` matched
+    # "ATM-1-2" here and "ATM-1" there. Guard: test_dispatch_stamp.sh section L
+    # (a generated token corpus through both tools, identical extraction).
+    case $- in *f*) _fc_noglob_was=1 ;; *) _fc_noglob_was=0 ;; esac
+    set -f
     for _fc_p in $(printf '%s' "$FC_DISPATCH_EXTRA_ITEM_PREFIXES" | tr ',|' '  '); do
       _fc_p_upper="$(printf '%s' "$_fc_p" | tr '[:lower:]' '[:upper:]')"
-      [ -n "$_fc_p_upper" ] && ITEM_ALL_PREFIXES="${ITEM_ALL_PREFIXES}|${_fc_p_upper}"
+      case "$_fc_p_upper" in
+        ''|*[!A-Z0-9]*) FC_PREFIX_IGNORED="${FC_PREFIX_IGNORED:+$FC_PREFIX_IGNORED }'$_fc_p'" ;;
+        *) ITEM_ALL_PREFIXES="${ITEM_ALL_PREFIXES}|${_fc_p_upper}" ;;
+      esac
     done
+    [ "$_fc_noglob_was" -eq 1 ] || set +f
+    if [ -n "$FC_PREFIX_IGNORED" ]; then
+      FC_PREFIX_IGNORED="dispatch_stamp: NOTICE: FC_DISPATCH_EXTRA_ITEM_PREFIXES token(s) $FC_PREFIX_IGNORED ignored: a prefix is ASCII letters and digits only"
+    fi
   fi
   ITEM_VALUE_RE="(${ITEM_ALL_PREFIXES})-[0-9]+"
   # V1-M3: the refusal names the RESOLVED prefix(es), never a project literal.
@@ -456,7 +818,28 @@ fi
 # accept the same set of tags in any caller locale; the shared guard is
 # test_token_attribution_red.sh PART I4. The capture group used below stays
 # BASH_REMATCH[2].
-ITEM_RE="(^|[[:space:]])item=(${ITEM_VALUE_RE}|\\?)([^[:alnum:]_]|\$)"
+_fc_build_item_re() {
+  ITEM_RE="(^|[[:space:]])item=(${ITEM_VALUE_RE}|\\?)([^[:alnum:]_]|\$)"
+}
+_fc_build_item_re
+
+# Round 10 (F9 follow-up): a configured pattern that is not a valid regex
+# (e.g. FC_DISPATCH_EXTRA_ITEM_PREFIXES='*' gives `(ATM|*)`) made every
+# `=~` below fail with status 2, so the guard refused every dispatch while
+# transcript_ingest.py, on the same value, warns and falls back to the
+# derived default prefix. This tool now does the same: it keeps only the
+# derived default prefix for this run and says so in GUARD mode (EXTRACTION
+# mode stays silent: its contract is "stdout is the id, no other output").
+FC_RE_NOTICE=""
+[[ "" =~ $ITEM_RE ]]
+if [ "$?" -eq 2 ]; then
+  [ -n "${FC_DEFAULT_PREFIX:-}" ] || _fc_resolve_default_prefix
+  FC_RE_NOTICE="dispatch_stamp: NOTICE: the configured item pattern (FC_DISPATCH_ITEM_ID_RE='${FC_DISPATCH_ITEM_ID_RE:-}' FC_DISPATCH_EXTRA_ITEM_PREFIXES='${FC_DISPATCH_EXTRA_ITEM_PREFIXES:-}') is not a valid regex -- only the derived default prefix '$FC_DEFAULT_PREFIX' is accepted for this run"
+  ITEM_VALUE_RE="${FC_DEFAULT_PREFIX}-[0-9]+"
+  ITEM_FORM_LABEL="item=<${FC_DEFAULT_PREFIX}-nnnn> (accepted prefixes: ${FC_DEFAULT_PREFIX})"
+  ITEM_EXAMPLE="item=${FC_DEFAULT_PREFIX}-1041"
+  _fc_build_item_re
+fi
 
 extract_item() {
   # Prints the captured item value (ATM-nnnn or literal '?') if ITEM_RE
@@ -479,17 +862,35 @@ fi
 # MODE 1 (default): PreToolUse guard.
 # ==========================================================================
 [ -n "$FC_PREFIX_NOTICE" ] && echo "$FC_PREFIX_NOTICE" >&2
+[ -n "$FC_RE_NOTICE" ] && echo "$FC_RE_NOTICE" >&2
+[ -n "$FC_PREFIX_IGNORED" ] && echo "$FC_PREFIX_IGNORED" >&2
 
-if [[ "$PARSE_OK" -eq 1 ]]; then
-  TOOL_NAME="$(json_field .tool_name)" || PARSE_OK=0
+REFUSE_REASON=""
+if [[ "$PARSE_OK" -eq 1 && "$EMPTY_DOC" -eq 0 ]]; then
+  TOOL_NAME="$(json_field tool_name)" || PARSE_OK=0
+  TOOL_NAME_TYPE="$(json_type tool_name)" || PARSE_OK=0
+  # S2: a tool_name that is present but not a string is refused (see WHAT THE
+  # GUARD CANNOT CLASSIFY in the header). An absent one stays allowed.
+  if [[ "$PARSE_OK" -eq 1 && -n "$TOOL_NAME_TYPE" && "$TOOL_NAME_TYPE" != "string" ]]; then
+    PARSE_OK=0
+    REFUSE_REASON="the payload's tool_name is present but is not a string (it is a JSON $TOOL_NAME_TYPE), so the hook cannot tell which tool this is"
+  fi
 fi
 if [[ "$PARSE_OK" -eq 0 ]]; then
-  # Fail closed: without a parsed tool_name this hook cannot tell an agent
-  # dispatch from any other tool, so it refuses rather than guessing.
+  # Fail closed: input that is not exactly one JSON object, or whose
+  # tool_name is present but not a string, cannot be classified, so the hook
+  # refuses rather than guessing. (Empty input and an object with no
+  # tool_name are allowed above: they are not a dispatch.)
   {
-    echo "guardrails: BLOCKED — T036 dispatch-stamp: the hook payload could not be parsed as a JSON object"
-    echo "  parser: $(command -v jq >/dev/null 2>&1 && echo jq || echo 'built-in awk reader (jq not installed)')"
-    echo "  payload starts: $(printf '%s' "$PAYLOAD" | head -c 120)"
+    if [[ "$AWK_MISSING" -eq 1 ]]; then
+      echo "guardrails: BLOCKED — T036 dispatch-stamp: $AWK_PROBLEM, so the hook payload cannot be read safely"
+    elif [[ -n "$REFUSE_REASON" ]]; then
+      echo "guardrails: BLOCKED — T036 dispatch-stamp: $REFUSE_REASON"
+    else
+      echo "guardrails: BLOCKED — T036 dispatch-stamp: the hook payload is not exactly one valid JSON object (a duplicate key, a second document, a raw control character, a bad escape or nesting deeper than jq accepts are refused)"
+    fi
+    echo "  extractor: $(command -v jq >/dev/null 2>&1 && echo jq || echo 'built-in awk reader (jq not installed)')"
+    echo "  payload starts: ${PAYLOAD:0:120}"
   } >&2
   exit 2
 fi

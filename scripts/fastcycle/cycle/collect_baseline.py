@@ -305,12 +305,16 @@ def open_db_readonly(path):
         return None
 
 
+# T048 V4 round 5 (F8): every window query compares the CALENDAR DAY of on_date (its first 10
+# characters), exactly like select_sample.py -- a bare `on_date BETWEEN '<from>' AND '<to>'` compares a
+# timestamped value ('2026-08-01T10:00:00+05:00') as a string, which is GREATER than '2026-08-01', so an
+# event on the window's last day fell out of the window.
 def db_closures_in_window(conn, frm, to):
     cur = conn.execute(
         "SELECT DISTINCT ih.atm_id, i.type "
         "FROM item_history ih JOIN items i ON i.atm_id = ih.atm_id "
         "WHERE ih.event_type IN ('Fixed','Implemented','Completed') "
-        "AND ih.on_date BETWEEN ? AND ?",
+        "AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?",
         (frm, to),
     )
     return cur.fetchall()
@@ -320,7 +324,7 @@ def db_reopened_in_window(conn, frm, to):
     cur = conn.execute(
         "SELECT DISTINCT ih.atm_id, i.type "
         "FROM item_history ih JOIN items i ON i.atm_id = ih.atm_id "
-        "WHERE ih.event_type = 'Reopened' AND ih.on_date BETWEEN ? AND ?",
+        "WHERE ih.event_type = 'Reopened' AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?",
         (frm, to),
     )
     return cur.fetchall()
@@ -334,7 +338,7 @@ def db_reopened_after_closure_in_window(conn, frm, to):
         "SELECT ih.atm_id, i.type, ih.event_type FROM item_history ih "
         "JOIN items i ON i.atm_id = ih.atm_id "
         "WHERE ih.event_type IN ('Fixed','Implemented','Completed','Reopened') "
-        "AND ih.on_date BETWEEN ? AND ? ORDER BY ih.atm_id, ih.on_date, ih.id",
+        "AND substr(ih.on_date, 1, 10) BETWEEN ? AND ? ORDER BY ih.atm_id, ih.on_date, ih.id",
         (frm, to),
     )
     closed_seen, out = set(), set()
@@ -388,6 +392,21 @@ def reopen_baseline(db_path, as_of, window_days):
     return out
 
 
+def load_fresh_execution(path):
+    """T048 V4 round 5 (F7): the --fresh-execution-json document is parsed and validated at START-UP
+    (a JSON object), so a malformed file is refused (exit 2) before the hours-long replay loop -- it
+    used to be parsed only at the end, where its traceback lost the whole baseline. Returns
+    (doc, error)."""
+    try:
+        with open(path, "rb") as fh:
+            doc = json.loads(fh.read().decode("utf-8"))
+    except (OSError, ValueError, RecursionError) as e:   # ValueError covers JSONDecodeError + UnicodeDecodeError
+        return None, "%s: %s" % (type(e).__name__, str(e)[:200])
+    if not isinstance(doc, dict):
+        return None, "the document is a JSON %s, not an object" % type(doc).__name__
+    return doc, None
+
+
 def token_baseline(sample_items, fresh_execution_json):
     # T048 restart round 2 (V4-11): the reason used to say, for EVERY item of ANY
     # sample, "zero attributable transcript records found by direct corpus search
@@ -405,9 +424,8 @@ def token_baseline(sample_items, fresh_execution_json):
                        "item=<ID> dispatch stamp, T036/T037); a measured figure comes only from "
                        "--fresh-execution-json"),
         })
-    if fresh_execution_json and os.path.isfile(fresh_execution_json):
-        with open(fresh_execution_json) as fh:
-            fresh = json.load(fh)
+    if isinstance(fresh_execution_json, dict):
+        fresh = fresh_execution_json        # parsed + validated at start-up (load_fresh_execution)
     else:
         fresh = {
             "status": "NOT_YET_RECORDED",
@@ -522,6 +540,13 @@ def main(argv):
         print("collect_baseline: --fresh-execution-json file not found: %s" % a.fresh_execution_json,
               file=sys.stderr)
         return 2
+    fresh_doc = None
+    if a.fresh_execution_json:
+        fresh_doc, ferr = load_fresh_execution(a.fresh_execution_json)
+        if ferr:
+            print("collect_baseline: --fresh-execution-json %s is not a valid JSON object (%s) -- refused before "
+                  "any work" % (a.fresh_execution_json, ferr), file=sys.stderr)
+            return 2
 
     repo_root = os.path.abspath(a.repo_root)
     db_path = a.db_path or os.path.join(repo_root, "docs", "workable_items.db")
@@ -662,7 +687,7 @@ def main(argv):
                                    "n_runs": len(vals)}
 
     reopen = reopen_baseline(db_path, a.as_of, a.window_days)
-    tokens = token_baseline(items, a.fresh_execution_json)
+    tokens = token_baseline(items, fresh_doc)
 
     # R6-F21: the denominator is the sample's duration-eligible items (never the
     # caller's --replay-item-ids list). V4-3: what the note may claim, and whether

@@ -56,83 +56,116 @@ Usage:   review_record.py record --batch B --round N --verdict-file V
              [--dispatch-ledger LEDGER.jsonl]
              [--seam ordinary|release-tag|qa-deploy|manual-qa-handoff]
              [--round-budget 5..7] [--producer-uid UID]
+             [--evidence-owner-uid UID]
 
-Verdict authority (T048 restart rounds 1-3, R7 B1/B2 + V3 F1-F4 + V3
-        round-3 R3-F1/R3-F2 -- defect class "the gate trusts record-supplied
-        fields"; round 3 REPLACED the decision structure, constitution
-        11.4.276(E)). `gate` runs in two phases:
+Verdict authority (T048 restart rounds 1-4, R7 B1/B2 + V3 F1-F4 + V3
+        R3-F1/R3-F2 + V3 R4-F1/R4-F2 -- defect class "the gate trusts
+        record-supplied fields"; rounds 3 and 4 REPLACED the decision
+        structure, constitution 11.4.276(E)). `gate` runs in two phases:
         (1) ADMISSION -- RECORD AS POINTER. Before ANY selection, EVERY
             *.json record under --records must be admitted, and every
             archived reviewer verdict (*.verdict-evidence) must be the
             evidence of an admitted record; any failure -> exit 4, naming
-            EVERY failing record/archive. A live record is admitted only
-            when its body_hash matches AND each field that selects or
-            decides -- batch_id, change_ids, round, review_base,
-            review_head, verdict, finding layers, reviewer dispatch, model,
-            effort -- equals the value re-derived from the reviewer's own
-            verdict file, archived content-addressed by `record` as
-            <sha256>.verdict-evidence, read ONCE, parsed from the bytes it
-            hashes, duplicate JSON keys refused (the reviewer's REVIEW
-            BINDING {batch_id, change_ids, round, review_base, review_head}
-            says what it reviewed; a verdict lacking it is inadmissible). A
-            backfill row is admitted only with an intact body and NONE of
-            the live-only fields (a relabelled live record is refused, and
-            dropping those fields orphans the live record's archive). A
-            record whose real path lies outside --records is refused.
+            EVERY failing record/archive. A directory under --records that
+            cannot be listed is a failure too (it could hide a record). A
+            live record is admitted only when its body_hash matches AND each
+            field that selects or decides -- batch_id, change_ids, round,
+            review_base, review_head, verdict, finding layers, reviewer
+            dispatch, model, effort -- equals the value re-derived from the
+            reviewer's own verdict file, archived content-addressed by
+            `record` as <sha256>.verdict-evidence, read ONCE, parsed from
+            the bytes it hashes, duplicate JSON keys refused (the reviewer's
+            REVIEW BINDING {batch_id, change_ids, round, review_base,
+            review_head} says what it reviewed; a verdict lacking it is
+            inadmissible). A backfill row is admitted only with an intact
+            body and NONE of the live-only fields (a relabelled live record
+            is refused, and dropping those fields orphans the live record's
+            archive). A record whose real path lies outside --records is
+            refused.
         (2) DECISION, from evidence-derived fields ONLY. A same-(batch,
             round) conflict between different bodies is refused (exit 4);
-            byte-identical copies merge into one verdict (all their paths
-            kept -- nothing depends on filename order). Coverage is a
-            function of EVERY batch that ever listed a change (per the
-            reviewers' change sets): the latest round of each must qualify,
-            so an open reviewer NO-GO in ANY batch blocks the change and a
-            change dropped after an unresolved round keeps blocking. A live
-            unit qualifies only as a zero-finding GO at the designated
-            tier/effort whose reviewer dispatch is in the dispatch ledger
-            (--dispatch-ledger, JSONL rows {key, event, description}) with a
-            "dispatched" row, a LATEST row "complete", no event outside
-            dispatched/in-flight/complete, exactly one 11.4.182 label per
-            row naming the designated model/effort, backing no other
-            verdict, different from the record's producer identity; with an
-            archived precheck (schema precheck/v1, all_pass true, same
-            batch) for every copy; and, for a multi-slice batch, a GO for
-            every slice (11.4.235(D)). Backfill rows are history only and
-            never coverage. Each UNCOVERED line names its reasons; each
-            COVERED line names the WEAKEST independence tier ACHIEVED
-            (11.4.240(F)) and the seam.
-        Independence tier (R3-F1): "capability" needs THREE principals --
-        the declared producer uid (--producer-uid), the uid running `gate`,
-        and the evidence owner. It is reported only when the producer uid is
-        a known non-root uid different from the runner, and NEITHER of them
-        owns, can write, or can replace any evidence file (record copies,
-        verdict and precheck archives, ledger): the file, every directory on
-        its symlink-by-symlink resolution chain, and every directory holding
-        a chain entry (mode bits, supplementary groups, unknown-group
-        conservatism, POSIX ACLs, sticky bits). --producer-uid is a CLAIM: an
-        unknown or foreign uid can never raise the tier above what real file
-        ownership supports. High-blast seams (release-tag, qa-deploy,
-        manual-qa-handoff) require "capability" (11.4.240(F)(4)).
-        Honest boundary (11.4.6 / 11.4.240(F)), measured after round 3:
-        - On a SINGLE-UID host the uid running `gate` owns every evidence
-          file, so the tier is ALWAYS "instance" whatever --producer-uid
-          says, and every high-blast seam refuses. "capability" is reachable
-          only with an operator-provided uid boundary (11.4.66 / 12) -- a
-          release runner and evidence owner distinct from the producer.
+            byte-identical copies merge into one verdict whose EVERY copy
+            must carry its own precheck (nothing depends on filename
+            order). Coverage is a function of EVERY batch that ever listed a
+            change (per the reviewers' change sets). Per batch, the LIVE
+            chain is decided from LIVE units only: the latest live round
+            listing the change must qualify, so an open reviewer NO-GO in
+            ANY batch blocks the change and a change dropped after an
+            unresolved round keeps blocking. Backfill rows can only ADD
+            blockers (R4-F2): one listing the change that is not a
+            zero-finding GO blocks unless a later live round of its batch
+            lists the change; a backfill row is never the selected round and
+            never covers. A live unit qualifies only as a zero-finding GO at
+            the designated tier/effort whose reviewer dispatch is in the
+            dispatch ledger (--dispatch-ledger, JSONL rows {key, event,
+            description}; a row with a duplicate JSON key makes the whole
+            ledger unreadable) with a "dispatched" row, a LATEST row
+            "complete", no event outside dispatched/in-flight/complete,
+            exactly one 11.4.182 label per row naming the designated
+            model/effort, backing no other verdict, different from the
+            record's producer identity; with an archived precheck (schema
+            precheck/v1, all_pass true, same batch) for every copy; with no
+            reviewer slice verdict other than GO; and, for a multi-slice
+            batch, a GO for every slice (11.4.235(D)). Each UNCOVERED line
+            names its reasons; each COVERED line names the independence
+            tier ACHIEVED (11.4.240(F)) and the seam.
+        Independence tier (R4-F1, POSITIVE ALLOWLIST): "capability" is
+        reported only when ALL of these hold, else "instance" with the
+        reason: the uid running `gate` is not root; --producer-uid declares
+        a non-root passwd account other than the runner; the host's
+        subordinate-id ranges are knowable (/etc/subuid, /etc/subgid, and no
+        non-file nsswitch `subid:` source); --evidence-owner-uid declares a
+        passwd account that is neither the producer nor the runner and lies
+        in NO subordinate-id range (any ordinary user controls its own range
+        via newuidmap / `podman unshare`); and EVERY inode of the store --
+        --records itself, every entry beneath it (live records, backfill
+        rows, archives, sub-directories), and the ledger -- resolves
+        (symlink by symlink) to a file owned by that uid (a directory may
+        also be root's) with no group/other write bit and no POSIX ACL,
+        through directories owned by that uid or root, where a directory
+        others can write is sticky and holds an entry owned by that uid or
+        root. High-blast seams (release-tag, qa-deploy, manual-qa-handoff)
+        require "capability" (11.4.240(F)(4)).
+        Honest boundary (11.4.6 / 11.4.240(F)), measured after round 4:
+        - Without an operator-provided uid boundary (a real evidence-owner
+          account the producer cannot act as, 11.4.66 / 12) the tier is
+          ALWAYS "instance" and every high-blast seam refuses. The
+          declaration is a CLI argument: whoever can run `gate` with chosen
+          arguments chooses the owner, so the boundary is only as strong as
+          the operator's control of who invokes the high-blast seam and of
+          which accounts the producer can act as (sudo, setuid helpers, or
+          a range granted through a source other than /etc/subuid and
+          /etc/subgid are NOT detected).
         - Ordinary seams remain forgeable on a single-uid host: every input
           is producer-writable, so a producer can author a verdict file
           under an invented reviewer identity, append matching
           dispatched/complete ledger rows (the ledger path is
           caller-supplied), and record it (P2: a multi-artifact forgery).
-        - Editing a recorded verdict, re-pointing it, relabelling it as
-          backfill, or deleting the record while its archive remains is
-          DETECTED (exit 4). Deleting a record AND its archive leaves no
-          trace -- undetectable without a 11.4.268 tamper-evident chain.
-        - The slice SET and the producer identity are producer-declared by
-          nature (from the batch / --producer-id); the producer != reviewer
-          checks bind only an honest caller; dispatch reuse is detected only
-          within one --records tree; review_base/review_head are compared
+        - Editing a recorded verdict or any field that selects or decides,
+          re-pointing it, relabelling it as backfill, deleting the record
+          while its archive remains, or hiding it in an unlistable
+          directory is DETECTED (exit 4). Deleting a record AND its archive
+          leaves no trace -- undetectable without a 11.4.268 tamper-evident
+          chain. Equally, --records is CALLER-CHOSEN at every seam:
+          pointing it at a subtree that omits a NO-GO record has the same
+          power as deleting that record.
+        - Producer-declared by nature, editable and re-hashable without
+          detection (each changes nothing an honest reviewer stated): the
+          slice SET (slice_lines, from the batch -- a reviewer slice
+          verdict that is not GO still refuses, whatever it says); the
+          producer identity; the precheck pointer and precheck_used (the
+          precheck is the producer's own machine pack, so re-pointing it at
+          another all_pass archive of the same batch, or clearing
+          precheck_used, can only substitute one producer statement for
+          another or refuse). The producer != reviewer checks bind only an
+          honest caller; dispatch reuse is detected only within one
+          --records tree; review_base/review_head are compared
           record-vs-evidence-vs-batch but not resolved against the
           repository.
+        - Change ids are compared VERBATIM. The slicer emits canonical
+          "sha256:<64 lowercase hex>" ids; a spelling variant of one change
+          (case, prefix) is a different identity, so callers MUST pass
+          canonical ids (not validated here).
         - A ledger "complete" row proves only that the registry RECORDED a
           completion, not that the review ran to completion: the real agent
           registry marks agents complete at launch (ATM-858 D1).
@@ -287,10 +320,10 @@ same directory + os.replace). Python stdlib only.
 """
 import argparse
 import datetime
+import errno
 import hashlib
 import json
 import os
-import grp
 import pwd
 import re
 import stat
@@ -365,6 +398,7 @@ def _canon(obj):
 
 
 def _body_hash_of(doc):
+    # guard: G-H-BODY-EXCLUDES
     body = {k: v for k, v in doc.items() if k not in _EXCLUDED}
     return hashlib.sha256(_canon(body).encode("utf-8")).hexdigest()
 
@@ -387,9 +421,11 @@ def _write_record(body, out_path):
         doc["body_hash"] = _body_hash_of(doc)
         doc["run_meta"] = {"written_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
         data = (_canon(doc) + "\n").encode("utf-8")
+    # guard: G-W-ENCODE
     except (UnicodeEncodeError, ValueError) as exc:
         print("review_record: body not encodable: %s" % exc, file=sys.stderr)
         return 2
+    # not-a-guard: dirname(abspath(..)) is never empty; the fallback cannot change a result
     out_dir = os.path.dirname(os.path.abspath(out_path)) or "."
     try:
         fd, tmp = tempfile.mkstemp(dir=out_dir, prefix=".review_record.")
@@ -397,10 +433,13 @@ def _write_record(body, out_path):
             with os.fdopen(fd, "wb") as fh:
                 fh.write(data)
             os.replace(tmp, out_path)
+        # not-a-guard: cleanup of the temp file, then the error is re-raised unchanged
         except BaseException:
+            # not-a-guard: cleanup of the temp file on the error path only
             if os.path.exists(tmp):
                 os.unlink(tmp)
             raise
+    # guard: G-W-WRITE
     except OSError as exc:
         print("review_record: cannot write --out: %s" % exc, file=sys.stderr)
         return 2
@@ -418,6 +457,7 @@ def _strict_object(pairs):
     resolved silently -- it is malformed input (V3 round 3 m2)."""
     obj = {}
     for key, value in pairs:
+        # guard: G-J-DUPKEY
         if key in obj:
             raise _DuplicateKeyError("duplicate JSON key %r" % (key,))
         obj[key] = value
@@ -438,16 +478,19 @@ def _load_json(path, label):
     try:
         with open(path, encoding="utf-8") as fh:
             return json.load(fh, object_pairs_hook=_strict_object), None
+    # guard: G-J-LOAD
     except (OSError, ValueError) as exc:
         return None, "%s: cannot read/parse %s: %s" % (label, path, exc)
 
 
 def _parse_optional_json(text, name):
     """None (flag omitted) -> None. Bad JSON -> _BAD (caller must exit 2). Else the parsed value."""
+    # guard: G-PJ-ABSENT
     if text is None:
         return None
     try:
         return json.loads(text)
+    # guard: G-PJ-BAD
     except json.JSONDecodeError as exc:
         print("review_record: bad JSON for %s: %s" % (name, exc), file=sys.stderr)
         return _BAD
@@ -460,13 +503,18 @@ def already_fixed_markers(precheck_doc):
     of a usable markers list means "no false-positive matches possible", not
     an error: a review batch may legitimately have no already-fixed lines.
     """
+    # guard: G-MK-DOC
     if not isinstance(precheck_doc, dict):
         return []
     for check in precheck_doc.get("checks") or []:
+        # guard: G-MK-CHECK
         if isinstance(check, dict) and check.get("check") == "already-fixed-markers":
             evidence = check.get("evidence")
+            # guard: G-MK-EVIDENCE
             markers = evidence.get("markers") if isinstance(evidence, dict) else None
+            # guard: G-MK-LIST
             if isinstance(markers, list):
+                # guard: G-MK-ENTRIES
                 return [m for m in markers if isinstance(m, dict)]
     return []
 
@@ -477,12 +525,16 @@ def _normalize_line(value):
     location). Returns None for anything not genuinely a line number (None, bool -- a
     bool is an int subclass in Python and must NOT silently normalise to 0/1 --, a
     non-numeric string, float, etc.). Never raises."""
+    # guard: G-NL-NONE-BOOL
     if value is None or isinstance(value, bool):
         return None
+    # guard: G-NL-INT
     if isinstance(value, int):
         return value
+    # guard: G-NL-STR
     if isinstance(value, str):
         stripped = value.strip()
+        # guard: G-NL-DIGITS
         if stripped.lstrip("-").isdigit():
             return int(stripped)
     return None
@@ -499,14 +551,17 @@ def classify_finding(finding, markers):
     # down to false-positive against a location-less marker in the pre-fix reviewer
     # reproduction), and line numbers are compared as normalised ints so "87" and 87
     # match.
+    # guard: G-CF-LOCATED
     if isinstance(file_, str) and file_ and line_ is not None:
         for marker in markers:
             marker_file = marker.get("file")
             marker_line = _normalize_line(marker.get("line"))
+            # guard: G-CF-MARKER-MATCH
             if (isinstance(marker_file, str) and marker_file and marker_line is not None
                     and marker_file == file_ and marker_line == line_):
                 return "false-positive"
     rule = finding.get("rule")
+    # guard: G-CF-RULE
     if isinstance(rule, str) and rule.strip():
         return "mechanical"
     return "judgment"
@@ -531,11 +586,14 @@ def _validated_finding_layer(finding, label):
     usage error (exit 2, never silently coerced/dropped/defaulted;
     constitution 11.4.6 -- this tool RECORDS the reviewer's classification
     verbatim, it never invents one)."""
+    # guard: G-FL-ABSENT
     if not isinstance(finding, dict) or "finding_layer" not in finding:
         return None, None
     value = finding.get("finding_layer")
+    # guard: G-FL-NULL
     if value is None:
         return None, None
+    # guard: G-FL-CLOSED-SET
     if isinstance(value, str) and value in FINDING_LAYERS:
         return value, None
     return None, (
@@ -549,16 +607,20 @@ def _derive_item_id(batch):
     a leading "logic_group:" prefix if present. Absent/non-string -> honest "UNKNOWN" (11.4.6:
     never invent an item id the batch does not actually carry)."""
     related = batch.get("related_by")
+    # not-a-guard: item_id is informational: no exit code or gate decision reads it
     if not isinstance(related, str) or not related:
         return "UNKNOWN"
     prefix = "logic_group:"
+    # not-a-guard: item_id is informational: no exit code or gate decision reads it
     return related[len(prefix):] if related.startswith(prefix) else related
 
 
 def _extract_slice_lines(batch):
     slices = batch.get("slices")
+    # guard: G-SL-LIST
     if not isinstance(slices, list):
         return []
+    # guard: G-SL-ENTRIES
     return [{"slice_id": s["slice_id"], "lines": s["lines"]}
             for s in slices if isinstance(s, dict) and "slice_id" in s and "lines" in s]
 
@@ -577,6 +639,7 @@ def _archive_evidence(src_path, records_root, suffix):
     sha = _sha256_file(src_path)
     name = "%s%s" % (sha, suffix)
     path = os.path.join(records_root, name)
+    # guard: G-AR-NEW
     if not os.path.isfile(path):
         with open(src_path, "rb") as fh:
             data = fh.read()
@@ -585,60 +648,96 @@ def _archive_evidence(src_path, records_root, suffix):
             with os.fdopen(fd, "wb") as fh:
                 fh.write(data)
             os.replace(tmp, path)
+        # not-a-guard: cleanup of the temp file, then the error is re-raised unchanged
         except BaseException:
+            # not-a-guard: cleanup of the temp file on the error path only
             if os.path.exists(tmp):
                 os.unlink(tmp)
             raise
     return name, sha
 
 
-def _uid_gids(uid):
-    """Group ids `uid` belongs to, or None when the account is unknown
-    (callers then treat any group-write bit as producer-writable)."""
+# ---------------------------------------------------------------------------
+# Independence tier (constitution 11.4.240(F)) -- POSITIVE ALLOWLIST (V3 round
+# 4, R4-F1; defect class "the tier is rated on principals the producer
+# controls", members R2-F3, R3-F1, R4-F1). Rounds 2-3 granted "capability"
+# whenever the producer and the runner could not write the evidence -- so ANY
+# other owner counted, including a uid the producer controls through its own
+# subordinate-id range (`podman unshare chown`). The rule is now inverted:
+# "capability" is granted only when EVERY inode that can affect the decision
+# is owned by ONE operator-declared evidence-owner uid (--evidence-owner-uid)
+# that is a real passwd account, is neither the producer nor the runner, lies
+# in no subordinate-id range on this host, and nothing but that uid (and root)
+# can write or replace any of those inodes. No declaration -> "instance".
+# ---------------------------------------------------------------------------
+_SUBID_FILES = ("/etc/subuid", "/etc/subgid")
+_NSSWITCH = "/etc/nsswitch.conf"
+_FOREIGN_WRITE = stat.S_IWGRP | stat.S_IWOTH
+
+
+def _subid_ranges(files=_SUBID_FILES, nsswitch=_NSSWITCH):
+    """Every subordinate uid/gid range granted on this host, as
+    ([(start, count), ...], None), or (None, reason) when the set cannot be
+    known (an unreadable or malformed file, or an nsswitch `subid:` source
+    other than the files read here). A subordinate id is controlled by the
+    ordinary user it was granted to (newuidmap / `podman unshare`), so it is
+    never an independent evidence owner. A file that does not exist grants no
+    range (newuidmap reads nothing else)."""
     try:
-        pw = pwd.getpwuid(uid)
-    except (KeyError, OverflowError):
-        return None
-    # guard: G-T-SUPP-GROUPS
-    gids = {pw.pw_gid}
-    try:
-        for g in grp.getgrall():
-            if pw.pw_name in g.gr_mem:
-                gids.add(g.gr_gid)
-    except OSError:
-        return None
-    return gids
+        with open(nsswitch, encoding="utf-8") as fh:
+            ns_lines = fh.read().splitlines()
+    # guard: G-SUB-NSS-ABSENT
+    except FileNotFoundError:
+        ns_lines = []
+    # guard: G-SUB-NSS-READABLE
+    except (OSError, ValueError) as exc:
+        return None, "cannot read %s: %s" % (nsswitch, exc)
+    for raw in ns_lines:
+        fields = raw.split("#", 1)[0].split()
+        # guard: G-SUB-NSS-FILES-ONLY
+        if fields and fields[0] == "subid:" and any(src != "files" for src in fields[1:]):
+            return None, "%s resolves subordinate ids through %s, which this check cannot read" % (
+                nsswitch, " ".join(fields[1:]))
+    ranges = []
+    for path in files:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+        # guard: G-SUB-FILE-ABSENT
+        except FileNotFoundError:
+            continue
+        # guard: G-SUB-FILE-READABLE
+        except (OSError, ValueError) as exc:
+            return None, "cannot read %s: %s" % (path, exc)
+        for raw in text.splitlines():
+            line = raw.strip()
+            # guard: G-SUB-SKIP-BLANK
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split(":")
+            # guard: G-SUB-LINE-WELLFORMED
+            if len(parts) != 3 or not parts[1].isdigit() or not parts[2].isdigit():
+                return None, "malformed subordinate-id line in %s: %r" % (path, raw)
+            ranges.append((int(parts[1]), int(parts[2])))
+    return ranges, None
 
 
 def _has_acl(path):
-    """True when the inode carries a POSIX ACL (which can grant write access
-    the mode bits do not show); unreadable/unsupported -> False."""
+    """True when the inode carries a POSIX access ACL (which can grant write
+    access the mode bits do not show). Conservative: an inode whose xattrs
+    cannot be listed for any reason other than "this filesystem has no
+    xattrs" counts as carrying one."""
+    # guard: G-ACL-PLATFORM
     if not hasattr(os, "listxattr"):
-        return False
+        return True
     try:
-        return "system.posix_acl_access" in os.listxattr(path, follow_symlinks=False)
-    except OSError:
-        return False
-
-
-def _writable_by(st, path, uid, gids):
-    """Conservative over-approximation of "can `uid` write this inode":
-    the owner, group (or unknown group membership) and other write bits are
-    OR-ed, and any POSIX ACL counts as writable."""
-    # guard: G-T-ROOT
-    if uid == 0:
-        return True
-    mode = st.st_mode
-    # guard: G-T-OWNER-BIT
-    if st.st_uid == uid and mode & stat.S_IWUSR:
-        return True
-    # guard: G-T-GROUP-BIT
-    if mode & stat.S_IWGRP and (gids is None or st.st_gid in gids):
-        return True
-    # guard: G-T-OTHER-BIT
-    if mode & stat.S_IWOTH:
-        return True
-    return _has_acl(path)
+        names = os.listxattr(path, follow_symlinks=False)
+    # guard: G-ACL-UNLISTABLE
+    except OSError as exc:
+        # guard: G-ACL-ERRNO
+        return exc.errno not in (errno.ENOTSUP, errno.EOPNOTSUPP)
+    # guard: G-ACL-NAME
+    return "system.posix_acl_access" in names
 
 
 def _resolution_chain(path):
@@ -647,132 +746,201 @@ def _resolution_chain(path):
     round-3 m3: realpath alone hides the directory that HOLDS a symlink).
     Returns (leaf_path, leaf_lstat, dirs, edges): `dirs` maps every directory
     traversed (real paths, root included) to its stat; `edges` lists
-    (directory, child_lstat) for every entry looked up -- symlinks
-    included, so the directory holding each link is checked against the
-    link's own owner. Raises OSError (callers degrade to "instance") on a
-    missing component, a loop, or a path ending in a directory."""
+    (directory, child_lstat) for every entry looked up -- symlinks included,
+    so the directory holding each link is checked for that entry too. The
+    leaf is a regular file or a directory. Raises OSError (callers degrade to
+    "instance") on a missing component, a loop, or any other leaf type."""
+    # guard: G-T-SPLIT
     pending = [c for c in os.path.abspath(path).split("/") if c]
     cur = "/"
     dirs = {"/": os.stat("/")}
     edges = []
+    leaf_st = dirs["/"]
     hops = 0
+    # guard: G-T-WALK-CHAIN
     while pending:
         comp = pending.pop(0)
+        # guard: G-T-DOT
         if comp == ".":
             continue
+        # guard: G-T-DOTDOT
         if comp == "..":
+            # not-a-guard: dirname of an absolute path is never empty; the fallback cannot fire
             cur = os.path.dirname(cur) or "/"
             dirs.setdefault(cur, os.stat(cur))
+            leaf_st = dirs[cur]
             continue
         child = os.path.join(cur, comp)
         st = os.lstat(child)
         # guard: G-T-LINK-EDGE
         edges.append((cur, st))
+        # guard: G-T-SYMLINK
         if stat.S_ISLNK(st.st_mode):
             hops += 1
+            # guard: G-T-LINK-LOOP
             if hops > 40:
                 raise OSError("too many levels of symbolic links: %s" % path)
             target = os.readlink(child)
+            # guard: G-T-ABS-TARGET
             if target.startswith("/"):
                 cur = "/"
+            # guard: G-T-LINK-SPLIT
             pending = [c for c in target.split("/") if c] + pending
             continue
-        if not pending:
-            if not stat.S_ISREG(st.st_mode):
-                raise OSError("evidence path is not a regular file: %s" % path)
-            return child, st, dirs, edges
-        if not stat.S_ISDIR(st.st_mode):
+        # guard: G-T-CHAIN-DIR
+        if not stat.S_ISDIR(st.st_mode) and pending:
             raise OSError("not a directory: %s" % child)
-        cur = child
-        dirs[cur] = st
-    raise OSError("evidence path resolves to a directory: %s" % path)
+        # guard: G-T-DIR-DESCEND
+        if stat.S_ISDIR(st.st_mode):
+            cur = child
+            dirs[cur] = st
+        leaf_st = st
+        # guard: G-T-LEAF-RETURN
+        if not pending:
+            # guard: G-T-LEAF-TYPE
+            if not (stat.S_ISREG(st.st_mode) or stat.S_ISDIR(st.st_mode)):
+                raise OSError("not a regular file or directory: %s" % path)
+            return child, st, dirs, edges
+    return cur, leaf_st, dirs, edges
 
 
-def _principal_can_replace(chain, uid, gids):
-    """True when `uid` could have written or replaced the resolved evidence:
-    it owns or can write the file; it owns ANY directory on the resolution
-    chain (an owner can always chmod it); or it can write a directory that
-    holds a chain entry (file, directory or symlink) -- a sticky directory
-    protecting only entries `uid` does not own."""
+def _owner_only_error(chain, owner_uid):
+    """None when ONLY `owner_uid` (or root) can write or replace the resolved
+    path, else the reason. The leaf (a file, or a directory inside the store)
+    must be owned by the declared evidence owner -- a directory may also be
+    root's -- with no group/other write bit and no ACL; every directory on
+    the chain must be owned by the owner or root and carry no ACL; and a
+    directory on the chain that others can write must be sticky AND hold an
+    entry owned by the owner or root (a sticky directory protects only
+    entries its writers do not own)."""
     leaf, leaf_st, dirs, edges = chain
-    # guard: G-T-LEAF-OWNER
-    if leaf_st.st_uid == uid:
-        return True
-    # guard: G-T-LEAF-WRITABLE
-    if _writable_by(leaf_st, leaf, uid, gids):
-        return True
-    for _dpath, dst in dirs.items():
-        # guard: G-T-DIR-OWNER
-        if dst.st_uid == uid:
-            return True
+    # guard: G-T-DIR-LEAF-ROOT
+    owners = (owner_uid, 0) if stat.S_ISDIR(leaf_st.st_mode) else (owner_uid,)
+    # guard: G-T-LEAF-OWNED
+    if leaf_st.st_uid not in owners:
+        return "%s is owned by uid %d, not the declared evidence owner %d" % (leaf, leaf_st.st_uid, owner_uid)
+    # guard: G-T-LEAF-NO-FOREIGN-WRITE
+    if leaf_st.st_mode & _FOREIGN_WRITE:
+        return "%s is group- or other-writable" % leaf
+    # guard: G-T-LEAF-NO-ACL
+    if _has_acl(leaf):
+        return "%s carries a POSIX ACL" % leaf
+    for dpath, dst in sorted(dirs.items()):
+        # guard: G-T-DIR-OWNED
+        if dst.st_uid not in (owner_uid, 0):
+            return "directory %s is owned by uid %d, neither the evidence owner nor root" % (dpath, dst.st_uid)
+        # guard: G-T-DIR-NO-ACL
+        if _has_acl(dpath):
+            return "directory %s carries a POSIX ACL" % dpath
     for dpath, child_st in edges:
         dst = dirs[dpath]
-        # guard: G-T-DIR-WRITABLE
-        if _writable_by(dst, dpath, uid, gids) and not (dst.st_mode & stat.S_ISVTX and child_st.st_uid != uid):
-            return True
-    return False
+        # guard: G-T-DIR-FOREIGN-WRITE
+        if dst.st_mode & _FOREIGN_WRITE and not (dst.st_mode & stat.S_ISVTX and child_st.st_uid in (owner_uid, 0)):
+            return "directory %s is writable by others and does not protect its entry" % dpath
+    return None
 
 
-def _independence_tier(paths, producer_uid, runner_uid=None):
-    """Constitution 11.4.240(F): the independence tier ACHIEVED for a set of
-    evidence paths -- computed, never claimed (V3 round 3, R3-F1).
+def _owner_declaration_error(owner_uid, producer_uid, runner_uid, ranges, getpw):
+    """None when `owner_uid` is an acceptable operator-declared evidence
+    owner, else the reason: it must be declared, a real passwd account,
+    neither the producer nor the runner, and in no subordinate-id range."""
+    # guard: G-T-OWNER-DECLARED
+    if owner_uid is None or isinstance(owner_uid, bool) or not isinstance(owner_uid, int) or owner_uid < 0:
+        return "no evidence-owner uid declared (--evidence-owner-uid): capability needs an operator-declared owner"
+    try:
+        getpw(owner_uid)
+    # guard: G-T-OWNER-IN-PASSWD
+    except (KeyError, OverflowError):
+        return "evidence-owner uid %d is not a passwd account" % owner_uid
+    # guard: G-T-OWNER-NOT-PRINCIPAL
+    if owner_uid == runner_uid or owner_uid == producer_uid:
+        return "evidence-owner uid %d is the producer or the runner" % owner_uid
+    for start, count in ranges:
+        # guard: G-T-OWNER-NOT-SUBORDINATE
+        if start <= owner_uid < start + count:
+            return ("evidence-owner uid %d lies in the subordinate-id range %d+%d, which an ordinary user "
+                    "controls (podman unshare / newuidmap)" % (owner_uid, start, count))
+    return None
 
-    "capability" needs THREE distinct principals: the declared producer
-    (`producer_uid`), the uid running this check (`runner_uid`, default the
-    effective uid), and whoever owns the evidence. It is returned ONLY when
-    the producer uid is a known (passwd-resolvable) non-root uid different
-    from the runner, and NEITHER of them owns, can write, or can replace any
-    evidence path -- the file, every directory on its symlink-by-symlink
-    resolution chain, and every directory holding a chain entry
-    (_principal_can_replace). A declared uid is a CLAIM by the caller: an
-    unknown or foreign uid can never raise the tier above what the files'
-    real ownership supports, because the runner must be unable to write the
-    evidence too. On a single-uid host the runner owns every file it wrote,
-    so the answer there is ALWAYS "instance", whatever --producer-uid says.
-    A root runner can write everything, so it is "instance" too. "model" is
-    part of the closed vocabulary but never computed here: no authenticated
-    source for the producer's model exists."""
-    if runner_uid is None:
-        runner_uid = os.geteuid()
+
+def _path_tier(paths, producer_uid, owner_uid, runner_uid=None, ranges=None, getpw=None):
+    """The independence tier ACHIEVED for `paths`, as (tier, reason) --
+    computed, never claimed (11.4.240(F)). "capability" only when: the runner
+    is not root; the producer uid is declared, non-root, not the runner and a
+    passwd account; the subordinate-id ranges are knowable; the declared
+    evidence owner is acceptable (_owner_declaration_error); and EVERY path
+    resolves to an inode only that owner (or root) can write or replace
+    (_owner_only_error). "model" is in the closed vocabulary but never
+    computed here (no authenticated source for the producer's model).
+    `ranges` / `getpw` exist for unit tests; the CLI always passes None (the
+    host's own /etc/subuid, /etc/subgid and passwd database)."""
+    # guard: G-T-RUNNER-DEFAULT
+    runner = os.geteuid() if runner_uid is None else runner_uid
+    # guard: G-T-LOOKUP-DEFAULT
+    lookup = pwd.getpwuid if getpw is None else getpw
+    # guard: G-T-RUNNER-NOT-ROOT
+    if runner == 0:
+        return "instance", "the uid running gate is root, which can write every file"
     # guard: G-T-PRODUCER-DECLARED
     if (producer_uid is None or isinstance(producer_uid, bool)
             or not isinstance(producer_uid, int) or producer_uid <= 0):
-        return "instance"
+        return "instance", "no non-root producer uid declared (--producer-uid)"
     # guard: G-T-PRODUCER-IS-RUNNER
-    if producer_uid == runner_uid:
-        return "instance"
-    producer_gids = _uid_gids(producer_uid)
-    # guard: G-T-PRODUCER-KNOWN
-    if producer_gids is None:
-        return "instance"
-    # guard: G-T-RUNNER-PRINCIPAL
-    principals = ((producer_uid, producer_gids), (runner_uid, _uid_gids(runner_uid)))
+    if producer_uid == runner:
+        return "instance", "the producer uid is the uid running gate"
     try:
-        for path in paths:
-            # guard: G-T-PATH-PRESENT
-            if path is None:
-                return "instance"
+        lookup(producer_uid)
+    # guard: G-T-PRODUCER-KNOWN
+    except (KeyError, OverflowError):
+        return "instance", "producer uid %d is not a passwd account" % producer_uid
+    # guard: G-T-RANGES-DEFAULT
+    if ranges is None:
+        ranges, reason = _subid_ranges()
+        # guard: G-T-SUBID-KNOWN
+        if ranges is None:
+            return "instance", reason
+    reason = _owner_declaration_error(owner_uid, producer_uid, runner, ranges, lookup)
+    # guard: G-T-OWNER-ACCEPTABLE
+    if reason:
+        return "instance", reason
+    for path in paths:
+        # guard: G-T-PATH-PRESENT
+        if not path:
+            return "instance", "an evidence path is missing"
+        try:
             chain = _resolution_chain(path)
-            for uid, gids in principals:
-                # guard: G-T-PRINCIPAL-CAN-REPLACE
-                if _principal_can_replace(chain, uid, gids):
-                    return "instance"
-    except OSError:
-        return "instance"
-    return "capability"
+        # guard: G-T-CHAIN-RESOLVES
+        except OSError as exc:
+            return "instance", "%s does not resolve: %s" % (path, exc)
+        reason = _owner_only_error(chain, owner_uid)
+        # guard: G-T-PATH-OWNER-ONLY
+        if reason:
+            return "instance", reason
+    return "capability", None
 
 
-def _aggregate_tier(tiers):
-    """The tier a COVERED line reports: the WEAKEST achieved across every
-    covering batch (11.4.240(F): what was achieved, never the best case)."""
-    # guard: G-AG-WEAKEST
-    tier = "capability" if all(t == "capability" for t in tiers) else "instance"
-    return tier
+def _store_tier(records_dir, ledger_path, producer_uid, owner_uid, runner_uid=None, ranges=None, getpw=None):
+    """The tier of the WHOLE evidence store (R4-F2: the tier must cover every
+    file that can change the decision, not only the covering unit's): the
+    --records directory, EVERY entry beneath it -- live records, backfill
+    rows, archives, sub-directories, anything else -- and the dispatch
+    ledger. A directory that cannot be listed degrades to "instance"."""
+    paths = [records_dir, ledger_path]
+    walk_errors = []
+    for dirpath, dirnames, filenames in os.walk(records_dir, onerror=walk_errors.append):
+        # guard: G-T-STORE-ALL-ENTRIES
+        paths.extend(os.path.join(dirpath, n) for n in sorted(dirnames) + sorted(filenames))
+    # guard: G-T-STORE-LISTED
+    if walk_errors:
+        return "instance", "cannot list %s: %s" % (getattr(walk_errors[0], "filename", records_dir), walk_errors[0])
+    return _path_tier(paths, producer_uid, owner_uid, runner_uid, ranges, getpw)
 
 
 def _round_budget_error(budget):
+    # guard: G-RB-ABSENT
     if budget is None:
         return None
+    # guard: G-RB-RANGE
     if not (ROUND_BUDGET_MIN <= budget <= ROUND_BUDGET_MAX):
         return ("--round-budget must be within %d..%d (constitution 11.4.276(A) operator "
                 "ceiling), got %d" % (ROUND_BUDGET_MIN, ROUND_BUDGET_MAX, budget))
@@ -785,7 +953,7 @@ def _validated_reviewer(verdict_doc):
     {"dispatch_id": str, "model": str, "effort": str}. Absent -> (None,
     None): the record is still written (classification use), but `gate`
     will never treat it as coverage (no authenticated reviewer)."""
-    # not-a-guard: absence is reported to the caller; gate refuses coverage (G-Q-REVIEWER)
+    # guard: G-RV-ABSENT
     if "reviewer" not in verdict_doc or verdict_doc.get("reviewer") is None:
         return None, None
     rv = verdict_doc.get("reviewer")
@@ -809,6 +977,7 @@ def _validated_binding(doc):
     non-empty strings; round an integer >= 1 (never a bool); review_base and
     review_head commit-shaped. A verdict that does not say what it covers
     can never be attached to anything (it is not coverage evidence)."""
+    # guard: G-BD-MISSING-SET
     missing = [k for k in BINDING_FIELDS if k not in doc]
     # guard: G-BD-PRESENT
     if missing:
@@ -846,31 +1015,40 @@ def _validated_slice_verdicts(verdict_doc, slice_ids, verdict, raw_findings):
     slice may not hold a finding whose finding_layer is source-defect or
     ABSENT (11.4.235(D): an undecidable finding defaults to source-defect,
     and a slice with an open source-defect finding is not build-eligible)."""
+    # guard: G-SV-ABSENT
     if "slice_verdicts" not in verdict_doc or verdict_doc.get("slice_verdicts") is None:
         return None, None
     svs = verdict_doc.get("slice_verdicts")
+    # guard: G-SV-LIST
     if not isinstance(svs, list):
         return None, "--verdict-file 'slice_verdicts' must be a JSON list"
     seen = {}
     for sv in svs:
+        # guard: G-SV-ENTRY-OBJECT
         if not isinstance(sv, dict):
             return None, "--verdict-file slice verdict entry must be an object, got %r" % (sv,)
         sid = sv.get("slice_id")
         sverd = sv.get("verdict")
+        # guard: G-SV-KNOWN-SLICE
         if not isinstance(sid, str) or sid not in slice_ids:
             return None, "--verdict-file slice verdict names unknown slice %r (batch slices: %s)" % (
                 sid, ", ".join(sorted(slice_ids)) or "<none>")
+        # guard: G-SV-ONCE
         if sid in seen:
             return None, "--verdict-file slice %r has more than one slice verdict" % (sid,)
+        # guard: G-SV-CLOSED-SET
         if sverd not in ("GO", "NO-GO"):
             return None, "--verdict-file slice %r verdict must be GO or NO-GO, got %r" % (sid, sverd)
         seen[sid] = sverd
+    # guard: G-SV-OVERALL-GO
     if verdict == "GO" and any(v == "NO-GO" for v in seen.values()):
         return None, "--verdict-file overall verdict GO contradicts a NO-GO slice verdict"
     for f in raw_findings:
         sid = f.get("slice_id")
+        # guard: G-SV-GO-SLICE-FINDING
         if sid is not None and seen.get(sid) == "GO":
             layer = f.get("finding_layer")
+            # guard: G-SV-GO-SLICE-LAYER
             if layer is None or layer == "source-defect":
                 return None, ("--verdict-file slice %r is GO but holds finding %r with finding_layer %r "
                               "(an absent layer defaults to source-defect, constitution 11.4.235(D))"
@@ -881,13 +1059,16 @@ def _validated_slice_verdicts(verdict_doc, slice_ids, verdict, raw_findings):
 
 def cmd_record(a):
     # M1: round integrity is a usage error (2), checked before anything else.
+    # guard: G-R-ROUND-MIN
     if a.round < 1:
         print("review_record: --round must be >= 1, got %d" % a.round, file=sys.stderr)
         return 2
     err = _round_budget_error(a.round_budget)
+    # guard: G-R-BUDGET-RANGE
     if err:
         print("review_record: %s" % err, file=sys.stderr)
         return 2
+    # guard: G-R-BUDGET-DEFAULT
     budget = a.round_budget if a.round_budget is not None else ROUND_BUDGET_DEFAULT
     # R7 I3 / constitution 11.4.276(A)+(E)(3): a round beyond the declared
     # budget is a STOP-and-escalate condition, never another recorded round.
@@ -902,6 +1083,7 @@ def cmd_record(a):
     # dispatch path records when it cannot report effort at all -- it is ACCEPTED here
     # (never refused), stored verbatim, and flagged via effort_capability_gap below so
     # `gate` correctly treats it as non-satisfying. Only effort has this exception.
+    # guard: G-R-EFFORT-GAP
     effort_capability_gap = (a.effort == "?")
     # guard: G-R-DESIGNATED-TIER
     if a.tier != DESIGNATED_TIER or (not effort_capability_gap and a.effort != DESIGNATED_EFFORT):
@@ -912,21 +1094,26 @@ def cmd_record(a):
         return 1
 
     batch, err = _load_json(a.batch, "--batch")
+    # guard: G-R-BATCH-LOAD
     if err:
         print("review_record: %s" % err, file=sys.stderr)
         return 2
+    # guard: G-R-BATCH-OBJECT
     if not isinstance(batch, dict):
         print("review_record: --batch must be a JSON object", file=sys.stderr)
         return 2
 
     verdict_doc, err = _load_json(a.verdict_file, "--verdict-file")
+    # guard: G-R-VERDICT-LOAD
     if err:
         print("review_record: %s" % err, file=sys.stderr)
         return 2
+    # guard: G-R-VERDICT-OBJECT
     if not isinstance(verdict_doc, dict):
         print("review_record: --verdict-file must be a JSON object", file=sys.stderr)
         return 2
     raw_findings = verdict_doc.get("findings")
+    # guard: G-R-FINDINGS-LIST
     if not isinstance(raw_findings, list):
         print("review_record: --verdict-file 'findings' must be a JSON list", file=sys.stderr)
         return 2
@@ -935,6 +1122,7 @@ def cmd_record(a):
     # conclusion, REQUIRED in --verdict-file, read verbatim -- never derived from the
     # findings and never rewritten (R7 B2-M3: a zero-finding NO-GO stays NO-GO).
     verdict = verdict_doc.get("verdict")
+    # guard: G-R-VERDICT-CLOSED
     if verdict not in ("GO", "NO-GO"):
         print("review_record: --verdict-file must carry a 'verdict' field of 'GO' or 'NO-GO' "
               "(the reviewer's own conclusion; never derived from findings), got %r"
@@ -945,14 +1133,17 @@ def cmd_record(a):
     # genuine integer (bool is an int subclass -- `true` must never read as round 1)
     # and must equal --round; any violation is a usage error, never a silent pick.
     verdict_round = verdict_doc.get("round")
+    # guard: G-R-VROUND-PRESENT
     if verdict_round is None:
         print("review_record: --verdict-file must carry the reviewer's own 'round' "
               "(a verdict that does not say which round it closes is not evidence)", file=sys.stderr)
         return 2
+    # guard: G-R-VROUND-INT
     if not isinstance(verdict_round, int) or isinstance(verdict_round, bool):
         print("review_record: --verdict-file 'round' must be an integer, got %r"
               % (verdict_round,), file=sys.stderr)
         return 2
+    # guard: G-R-VROUND-MATCH
     if verdict_round != a.round:
         print("review_record: --round %s does not match --verdict-file's own 'round' %s -- "
               "refusing rather than silently pick one (constitution 11.4.6)"
@@ -960,11 +1151,14 @@ def cmd_record(a):
         return 2
 
     reviewer, err = _validated_reviewer(verdict_doc)
+    # guard: G-R-REVIEWER-VALID
     if err:
         print("review_record: %s" % err, file=sys.stderr)
         return 2
+    # guard: G-R-PRODUCER-DEFAULT
     producer_id = (a.producer_id or "").strip() or "UNKNOWN"
     binding = None
+    # guard: G-R-REVIEWER-CHECKS
     if reviewer is not None:
         # The reviewer's own statement of what answered must agree with the tier/effort
         # this invocation is recording -- a mismatch is refused, never reconciled.
@@ -987,13 +1181,16 @@ def cmd_record(a):
     # verdict that carries one is held to it too (V3 round 3: `gate` admits a
     # record only when its copies equal the archived binding, so a reviewer-less
     # verdict with NO binding is written but is inadmissible to `gate`).
+    # guard: G-R-BINDING-REQUIRED
     if reviewer is not None or any(k in verdict_doc for k in ("batch_id", "change_ids",
                                                               "review_base", "review_head")):
         binding, err = _validated_binding(verdict_doc)
+        # guard: G-R-BINDING-VALID
         if err:
             print("review_record: --verdict-file %s" % err, file=sys.stderr)
             return 2
         b_changes = batch.get("changes")
+        # guard: G-R-BATCH-CHANGES-OK
         b_ok_changes = (isinstance(b_changes, list) and all(isinstance(c, str) for c in b_changes)
                         and len(set(b_changes)) == len(b_changes))
         # guard: G-R-BINDING-BATCH
@@ -1013,6 +1210,7 @@ def cmd_record(a):
 
     findings_out = []
     for finding in raw_findings:
+        # guard: G-R-FINDING-SHAPE
         if not isinstance(finding, dict) or "id" not in finding:
             print("review_record: malformed finding entry (missing 'id'): %r" % (finding,), file=sys.stderr)
             return 2
@@ -1020,6 +1218,7 @@ def cmd_record(a):
         # independently computed from disjoint input keys and neither influences the other.
         finding_layer, err = _validated_finding_layer(
             finding, "--verdict-file finding %r" % (finding.get("id"),))
+        # guard: G-R-FINDING-LAYER
         if err:
             print("review_record: %s" % err, file=sys.stderr)
             return 2
@@ -1028,41 +1227,53 @@ def cmd_record(a):
             "severity": finding.get("severity", "UNKNOWN"),
             "class": None,  # filled once the precheck markers are known (below)
         }
+        # guard: G-R-LAYER-EMIT
         if finding_layer is not None:
             out_finding["finding_layer"] = finding_layer
+        # guard: G-R-SLICE-EMIT
         if finding.get("slice_id") is not None:
             out_finding["slice_id"] = finding.get("slice_id")
         findings_out.append((out_finding, finding))
 
+    # guard: G-R-SLICE-IDS
     slice_ids = {s["slice_id"] for s in _extract_slice_lines(batch) if isinstance(s.get("slice_id"), str)}
     for out_finding, _raw in findings_out:
         sid = out_finding.get("slice_id")
+        # guard: G-R-FINDING-SLICE-KNOWN
         if sid is not None and sid not in slice_ids:
             print("review_record: --verdict-file finding %r names unknown slice %r"
                   % (out_finding["id"], sid), file=sys.stderr)
             return 2
     slice_verdicts, err = _validated_slice_verdicts(verdict_doc, slice_ids, verdict, raw_findings)
+    # guard: G-R-SLICE-VERDICTS
     if err:
         print("review_record: %s" % err, file=sys.stderr)
         return 2
 
     tokens = _parse_optional_json(a.tokens, "--tokens")
+    # guard: G-R-TOKENS-BAD
     if tokens is _BAD:
         return 2
+    # guard: G-R-TOKENS-DEFAULT
     if tokens is None:
         tokens = "UNMEASURED"  # data-model.md #11.1 Measured<T> convention: no recording instrument ran (T-A06 absent)
 
     reviewer_mutations = _parse_optional_json(a.reviewer_mutations, "--reviewer-mutations")
+    # guard: G-R-RM-BAD
     if reviewer_mutations is _BAD:
         return 2
+    # guard: G-R-RM-DEFAULT
     if reviewer_mutations is None:
         reviewer_mutations = "UNKNOWN"
 
+    # guard: G-R-PRECHECK-PATH
     precheck_path = a.precheck or os.path.join(os.path.dirname(os.path.abspath(a.batch)), "precheck.json")
     precheck_doc = None
     precheck_used = False
+    # guard: G-R-PRECHECK-EXISTS
     if os.path.exists(precheck_path):
         precheck_doc, err = _load_json(precheck_path, "--precheck")
+        # guard: G-R-PRECHECK-LOAD
         if err:
             print("review_record: %s" % err, file=sys.stderr)
             return 2
@@ -1078,22 +1289,27 @@ def cmd_record(a):
     # precheck document; R7 B1: the same now holds for the reviewer's verdict file
     # itself, so `gate` re-derives verdict/findings/reviewer from the reviewer's own
     # archived bytes, never from this record's fields.
+    # not-a-guard: dirname(abspath(..)) is never empty; the fallback cannot change a result
     records_root = os.path.dirname(os.path.abspath(a.out)) or "."
     precheck_evidence = precheck_evidence_sha256 = None
     try:
+        # guard: G-R-PRECHECK-ARCHIVE
         if precheck_used:
             precheck_evidence, precheck_evidence_sha256 = _archive_evidence(
                 precheck_path, records_root, ".precheck-evidence")
         verdict_evidence, verdict_evidence_sha256 = _archive_evidence(
             a.verdict_file, records_root, ".verdict-evidence")
+    # guard: G-R-ARCHIVE-WRITE
     except OSError as exc:
         print("review_record: could not archive evidence alongside --out: %s" % exc, file=sys.stderr)
         return 2
 
     batch_id = batch.get("batch_id", "UNKNOWN")
     # B1: first_round_go is a DERIVED correctness flag, never the recorded verdict itself.
+    # guard: G-R-FIRST-ROUND-GO
     first_round_go = (a.round == 1 and verdict == "GO" and len(findings_list) == 0)
 
+    # guard: G-R-BODY
     body = {
         "review_id": "REV-%s-%s" % (batch_id, a.round),
         "batch_id": batch_id,
@@ -1129,10 +1345,11 @@ def cmd_record(a):
         "review_base": binding["review_base"] if binding else "UNKNOWN",
         "review_head": binding["review_head"] if binding else "UNKNOWN",
         # 11.4.240(F): informational only -- the writer stands in for BOTH producer
-        # and runner here, so this is always "instance"; `gate` recomputes the tier
-        # from real file ownership and never reads this field.
-        "independence_tier": _independence_tier([a.verdict_file], os.geteuid()),
+        # and runner here, so this is always "instance"; `gate` computes the tier
+        # of the whole evidence store and never reads this field.
+        "independence_tier": "instance",
     }
+    # guard: G-R-SLICE-VERDICTS-EMIT
     if slice_verdicts is not None:
         body["slice_verdicts"] = slice_verdicts
     return _write_record(body, a.out)
@@ -1148,30 +1365,22 @@ def cmd_backfill(a):
     without citing where it came from (constitution 11.4.6: never fabricate a historical
     sequence).
 
-    T085 Round 5 (R4-I1): `source_evidence` is now ALSO independently
-    hash-checked HERE, at authoring time -- but `backfill` itself
-    REMAINS a non-refusing producer (constitution 11.4.240 producer !=
-    verifier: a prior round's own explicit, tested design decision --
-    "backfill itself is legal, the GATE consultation is what must
-    refuse it" -- preserved unchanged by this fix). When `source_evidence`
-    resolves (against `--records-root`, default: `--out`'s own
-    containing directory) to a REAL, readable, non-empty, in-tree,
-    non-self-citing file, its CURRENT content sha256 is captured and
-    stored as `source_evidence_sha256` -- a content-hash PIN that
-    `review_record gate`'s own independent verifier
-    (_evidence_hash_verified()) re-derives and re-compares every time it
-    later re-checks this record, so a later COVERED verdict cannot be
-    satisfied by silently swapping the cited file's content out from
-    under it. When the citation does NOT resolve this way (missing,
-    out-of-tree, self-citing, unreadable, or a free-text placeholder),
-    `source_evidence_sha256` is honestly recorded as "UNKNOWN" and the
-    record is STILL WRITTEN (never refused here) -- `gate`'s own
-    _evidence_hash_verified() then correctly, deterministically, never
-    qualifies such a record as coverage (an "UNKNOWN" hash never matches
-    the required 64-lowercase-hex-char shape), which is exactly how the
-    T085 Round 2 I-R2-8 / Round 3 R3-I4 forgery-refusal behaviour is
-    achieved, entirely at the VERIFIER layer, never by making the
-    producer self-police its own acceptance."""
+    T085 Round 5 (R4-I1): `source_evidence` is hash-pinned HERE, at
+    authoring time, best-effort and never refusing: when it resolves
+    (against `--records-root`, default `--out`'s own directory) to a real,
+    readable, non-empty, in-tree, non-self-citing file, that file's sha256
+    is stored as `source_evidence_sha256`; otherwise "UNKNOWN" is stored and
+    the row is still written.
+
+    What `gate` does with it (V3 round 4 m2 -- corrected; an earlier
+    revision of this docstring claimed `gate` re-verified the pin through
+    _evidence_hash_verified(), which `gate` never called): NOTHING. A
+    backfill row's citation is not re-verified at gate time, because a
+    backfill row has no power that a verification would bound: it is never
+    selected and never covers, and it can only ADD a blocker (R4-F2) --
+    honest or forged, citing real evidence or "UNKNOWN", a blocking row
+    blocks and a GO row is neutral. The pin is a record of provenance for a
+    human auditor, not an input to any decision."""
     spec, err = _load_json(a.input, "--input")
     if err:
         print("review_record: %s" % err, file=sys.stderr)
@@ -1304,9 +1513,9 @@ def cmd_backfill(a):
         "source": "backfill",
         "source_evidence": source_evidence,
         # T085 Round 5 (R4-I1): content-hash pin, captured at authoring
-        # time (see this function's own docstring); independently
-        # re-verified by _evidence_hash_verified() every time
-        # `review_record gate` later re-checks this record.
+        # time (see this function's own docstring) -- provenance for a human
+        # auditor; `gate` never reads it (a backfill row can only add a
+        # blocker, V3 round 4 m2).
         "source_evidence_sha256": source_evidence_sha256,
     }
     return _write_record(body, a.out)
@@ -1333,14 +1542,20 @@ def _gate_collect_records(records_dir):
     that does not parse (duplicate JSON keys included), is not an object,
     misses a required field, carries a non-integer round, or whose REAL
     path lies outside --records (V3 round 3 m3: a record symlinked in from
-    elsewhere is not part of this tree). The caller refuses the whole run
+    elsewhere is not part of this tree), and for every directory that cannot
+    be listed (V3 round 4 m1: `chmod 000` on a subtree must not hide a NO-GO
+    record -- os.walk's default skips such a directory silently). Symlinked
+    directories are not descended (os.walk default); a record reachable only
+    through one is outside the tree. The caller refuses the whole run
     (exit 4) when any failure exists, naming every one -- a corrupt record
     means no honest coverage verdict is possible, never a silent skip
     (module docstring, C-001)."""
     records, failures = [], []
     root_real = os.path.realpath(records_dir)
-    for dirpath, _dirnames, filenames in sorted(os.walk(records_dir)):
+    walk_errors = []
+    for dirpath, _dirnames, filenames in sorted(os.walk(records_dir, onerror=walk_errors.append)):
         for fn in sorted(filenames):
+            # guard: G-C-JSON-ONLY
             if not fn.endswith(".json"):
                 continue
             path = os.path.join(dirpath, fn)
@@ -1358,6 +1573,7 @@ def _gate_collect_records(records_dir):
             if not isinstance(doc, dict):
                 failures.append((path, "not a JSON object"))
                 continue
+            # guard: G-C-MISSING-SET
             missing = [k for k in _GATE_REQUIRED_FIELDS if k not in doc]
             # guard: G-C-REQUIRED
             if missing:
@@ -1369,6 +1585,11 @@ def _gate_collect_records(records_dir):
                 failures.append((path, "non-integer round %r" % (rnd,)))
                 continue
             records.append((doc, path))
+    # guard: G-C-LISTED
+    if walk_errors:
+        failures.extend((getattr(exc, "filename", None) or records_dir,
+                         "directory cannot be listed (%s): a record hidden in it cannot be ruled out" % exc)
+                        for exc in walk_errors)
     return records, failures
 
 
@@ -1413,6 +1634,7 @@ def _admit_live(rec, path, records_root):
     if err:
         return None, "verdict evidence %s" % err
     reviewer = actual_reviewer
+    # guard: G-A-REVIEWERLESS
     if reviewer is None:
         # A reviewer-less verdict: the record must say so (UNKNOWN), and its
         # tier/effort copies are the CLI's own -- admitted, never coverage.
@@ -1430,7 +1652,9 @@ def _admit_live(rec, path, records_root):
     # guard: G-A-ROUND-EQUAL
     if binding["round"] != rec["round"]:
         return None, "verdict evidence round %r disagrees with the record" % (binding["round"],)
+    # guard: G-A-REC-LAYERS
     rec_layers = {str(f.get("id")): f.get("finding_layer") for f in rec.get("findings") or [] if isinstance(f, dict)}
+    # guard: G-A-EV-LAYERS
     ev_layers = {str(f.get("id")): f.get("finding_layer") for f in findings if isinstance(f, dict)}
     # guard: G-A-FIELDS-EQUAL
     if (rec.get("verdict") != verdict or rec_layers != ev_layers
@@ -1453,6 +1677,7 @@ def _admit_backfill(rec, path):
     # guard: G-B-BODY-HASH
     if rec.get("body_hash") != _body_hash_of(rec):
         return None, "record body_hash does not match its body (edited after writing)"
+    # guard: G-B-CARRIED-SET
     carried = [k for k in _LIVE_ONLY_FIELDS if k in rec]
     # guard: G-B-NO-LIVE-FIELDS
     if carried:
@@ -1461,6 +1686,7 @@ def _admit_backfill(rec, path):
     # guard: G-B-CHANGES-SHAPE
     if cids != "UNKNOWN" and (not isinstance(cids, list) or any(not isinstance(c, str) for c in cids)):
         return None, "backfill change_ids must be a list of strings or \"UNKNOWN\", got %r" % (cids,)
+    # guard: G-B-CHANGES-DEFAULT
     return {"source": "backfill", "batch_id": rec["batch_id"], "round": rec["round"],
             "change_ids": cids if isinstance(cids, list) else [], "verdict": rec.get("verdict"),
             "findings": rec.get("findings"), "reviewer": None, "slice_verdicts": None,
@@ -1470,7 +1696,7 @@ def _admit_backfill(rec, path):
 def _admit_record(rec, path, records_root):
     """Closed source set {live, backfill}; anything else is inadmissible."""
     source = rec.get("source")
-    # not-a-guard: routing to the live admission (its own guards are G-A-*)
+    # guard: G-A-ROUTE-LIVE
     if source == "live":
         return _admit_live(rec, path, records_root)
     # guard: G-A-SOURCE
@@ -1491,12 +1717,17 @@ def _orphaned_evidence(records_dir, units):
     for unit in units:
         referenced.update(unit["ev_reals"])
     orphans = []
-    for dirpath, _dirnames, filenames in sorted(os.walk(records_dir)):
+    walk_errors = []
+    for dirpath, _dirnames, filenames in sorted(os.walk(records_dir, onerror=walk_errors.append)):
         for fn in sorted(filenames):
             path = os.path.join(dirpath, fn)
             # guard: G-O-ORPHAN
             if fn.endswith(_VERDICT_EVIDENCE_SUFFIX) and os.path.realpath(path) not in referenced:
                 orphans.append(path)
+    # guard: G-O-LISTED
+    if walk_errors:
+        orphans.extend("%s (directory cannot be listed: %s)" % (getattr(exc, "filename", None) or records_dir, exc)
+                       for exc in walk_errors)
     return orphans
 
 
@@ -1519,10 +1750,13 @@ def _gate_same_round_conflicts(records):
     """R7 I1 / V3 round 3 m1: returns (merged, conflicts) over ADMITTED units.
     Units sharing an evidence-derived (batch_id, round) with DIFFERENT record
     bodies are a conflict (exit 4, C-003). Byte-identical bodies are one
-    verdict: they merge into one unit carrying EVERY copy's record and
-    evidence paths, so nothing depends on which copy sorts first (each copy
-    was already admitted on its own, and the tier is computed over all of
-    them)."""
+    verdict: they merge into one unit carrying EVERY copy's record path, so
+    nothing depends on which copy sorts first: each copy was already admitted
+    on its own, and _gate_batch_qualifies verifies EVERY copy's precheck (a
+    copy missing its precheck archive refuses the merged unit). The merged
+    unit's ev_reals is not merged: it is consumed only BEFORE this merge (by
+    _orphaned_evidence, per admitted copy), and the tier covers the whole
+    store (_store_tier)."""
     groups = {}
     for rec, path in records:
         groups.setdefault((_batch_key(rec["batch_id"]), rec["round"]), []).append((rec, path))
@@ -1536,8 +1770,8 @@ def _gate_same_round_conflicts(records):
         # guard: G-S-MERGE
         deduped.append(members[0])
         merged = dict(deduped[-1][0])
+        # guard: G-S-MERGE-PATHS
         merged["paths"] = sorted({p for r, _p in members for p in r["paths"]})
-        merged["ev_reals"] = sorted({e for r, _p in members for e in r["ev_reals"]})
         deduped[-1] = (merged, deduped[-1][1])
     return deduped, conflicts
 
@@ -1562,14 +1796,18 @@ def _load_ledger(path):
         for line in data.decode("utf-8").splitlines():
             try:
                 row = json.loads(line, object_pairs_hook=_strict_object)
+            # guard: G-L-DUPKEY-RAISE
             except _DuplicateKeyError:
                 raise
+            # guard: G-L-SKIP-UNPARSEABLE
             except ValueError:
                 continue
+            # guard: G-L-ROW-SHAPE
             if isinstance(row, dict) and isinstance(row.get("key"), str):
                 # guard: G-L-EVENT-NONE
                 event = row.get("event") if isinstance(row.get("event"), str) else None
                 rows.setdefault(row["key"], []).append((event, str(row.get("description", ""))))
+    # guard: G-L-UNREADABLE
     except (OSError, ValueError) as exc:
         return None, "dispatch ledger unreadable: %s" % exc
     return rows, None
@@ -1592,6 +1830,7 @@ def _ledger_authenticates(rows, dispatch_id, model, effort):
     if not rows:
         return "reviewer dispatch %r has no dispatch-ledger row" % dispatch_id
     events = [ev for ev, _desc in rows]
+    # guard: G-L-BAD-SET
     bad = [ev for ev in events if ev not in LEDGER_PASS_EVENTS]
     # guard: G-L-EVENTS-CLOSED
     if bad:
@@ -1624,7 +1863,9 @@ def _dispatch_reuse(records):
     used = {}
     for rec, _path in records:
         reviewer = rec.get("reviewer")
+        # guard: G-D-LIVE-REVIEWED
         if rec.get("source") == "live" and reviewer is not None:
+            # guard: G-D-REUSE-KEY
             used.setdefault(reviewer["dispatch_id"], set()).add((_batch_key(rec["batch_id"]), rec["round"]))
     return used
 
@@ -1637,11 +1878,13 @@ def _verified_evidence_doc(rec, name_key, sha_key, record_path, records_root):
     base_dir = os.path.dirname(os.path.abspath(record_path))
     data, real = _evidence_bytes_verified(rec.get(name_key), rec.get(sha_key), record_path,
                                           records_root, base_dir)
-    # not-a-guard: propagates _evidence_bytes_verified's refusals (G-E-*)
+    # guard: G-A-EVIDENCE-DATA
     if data is None:
         return None, None, "%s missing or not hash-verifiable" % name_key
     try:
+        # guard: G-A-EVIDENCE-STRICT
         doc = json.loads(data.decode("utf-8"), object_pairs_hook=_strict_object)
+    # guard: G-A-EVIDENCE-PARSE
     except ValueError as exc:
         return None, None, "%s does not parse as JSON: %s" % (name_key, exc)
     # guard: G-A-EVIDENCE-OBJECT
@@ -1666,9 +1909,9 @@ def _gate_batch_qualifies(rec, record_path, records_root, ctx):
       - EVERY copy's archived precheck must be hash-verified, schema
         precheck/v1, all_pass true, for the same batch;
       - a multi-slice batch needs a GO verdict for every slice (11.4.235(D));
-      - the ACHIEVED independence tier is computed over every evidence path
-        against BOTH the declared producer uid and the uid running gate; a
-        high-blast seam requires "capability"."""
+      - a reviewer slice verdict that is not GO is never coverage;
+      - the ACHIEVED independence tier is the WHOLE store's (_store_tier,
+        computed once per run); a high-blast seam requires "capability"."""
     # Only admitted LIVE units reach here: _admit_record() accepts exactly two
     # sources and _gate_change_verdict() routes every backfill unit away first.
     # guard: G-Q-ROUND-BUDGET
@@ -1711,9 +1954,8 @@ def _gate_batch_qualifies(rec, record_path, records_root, ctx):
     # guard: G-Q-PRECHECK-USED
     if record.get("precheck_used") is not True:
         return False, "no precheck was consulted"
-    pre_reals = []
     for copy_path in rec["paths"]:
-        pre, pre_real, reason = _verified_evidence_doc(record, "precheck_evidence", "precheck_evidence_sha256",
+        pre, _pre_real, reason = _verified_evidence_doc(record, "precheck_evidence", "precheck_evidence_sha256",
                                                        copy_path, records_root)
         # guard: G-Q-PRECHECK-VERIFIED
         if pre is None:
@@ -1727,77 +1969,102 @@ def _gate_batch_qualifies(rec, record_path, records_root, ctx):
         # guard: G-Q-PRECHECK-BATCH
         if _batch_key(pre.get("batch_id")) != _batch_key(rec.get("batch_id")):
             return False, "archived precheck belongs to batch %r" % (pre.get("batch_id"),)
-        pre_reals.append(pre_real)
 
     # The slice SET is producer-declared by nature (it comes from the batch the
     # producer authored, and the reviewer's binding does not name slices) --
     # an admitted boundary; only the per-slice VERDICTS are evidence-derived.
     slices = record.get("slice_lines")
+    # guard: G-Q-MULTI-SLICE
     if isinstance(slices, list) and len(slices) > 1:
+        # guard: G-Q-WANTED-SET
         wanted = {s.get("slice_id") for s in slices if isinstance(s, dict)}
         svs = rec["slice_verdicts"]
         got = {}
+        # guard: G-Q-SVS-LIST
         if isinstance(svs, list):
+            # guard: G-Q-GOT-SET
             got = {sv.get("slice_id"): sv.get("verdict") for sv in svs if isinstance(sv, dict)}
         # guard: G-Q-SLICES
-        if set(got) != wanted or any(v != "GO" for v in got.values()):
-            return False, "multi-slice batch lacks a GO slice verdict for every slice (11.4.235(D))"
+        if set(got) != wanted:
+            return False, "multi-slice batch lacks a slice verdict for every slice (11.4.235(D))"
+    # V3 round 4 (m3, slice_lines is producer-declared): whatever the record's
+    # slice SET says, a reviewer slice verdict that is not GO is never coverage.
+    svs = rec["slice_verdicts"]
+    # guard: G-Q-EVIDENCE-SLICES-GO
+    if isinstance(svs, list) and any(not isinstance(sv, dict) or sv.get("verdict") != "GO" for sv in svs):
+        return False, "a reviewer slice verdict is not GO (11.4.235(D))"
 
-    tier = _independence_tier(rec["paths"] + rec["ev_reals"] + pre_reals + [ctx["ledger_path"]],
-                              ctx["producer_uid"])
+    tier = ctx["tier"]
     # guard: G-Q-SEAM-TIER
     if ctx["seam"] in HIGH_BLAST_SEAMS and tier != "capability":
-        return False, "seam %s requires capability independence, achieved %s (11.4.240(F))" % (ctx["seam"], tier)
+        return False, "seam %s requires capability independence, achieved %s (%s) (11.4.240(F))" % (
+            ctx["seam"], tier, ctx["tier_reason"])
     return True, tier
 
 
 def _lists(rec, change):
     cids = rec.get("change_ids")
+    # guard: G-V-LISTS
     return isinstance(cids, list) and change in cids
 
 
 def _gate_change_verdict(change, by_batch, records_root, ctx):
     """V3 F2: coverage is a function of EVERY batch that ever listed `change`
     (per the reviewers' evidence-derived change sets), never of the first
-    batch that happens to qualify. For each such batch, take the latest
-    round that lists the change:
-      - if it is the batch's latest round, it must qualify: it covers, or its
-        refusal BLOCKS (an open reviewer NO-GO in ANY batch blocks the
+    batch that happens to qualify. Per batch, the LIVE chain is decided from
+    LIVE units only (V3 round 4, R4-F2 -- the fourth member of the class
+    "the gate trusts supplied fields to pick the record that counts": a
+    producer-authored backfill row at a higher round used to become the
+    selected unit and hide an open live NO-GO). Take the latest LIVE round
+    that lists the change:
+      - if it is the batch's latest LIVE round, it must qualify: it covers,
+        or its refusal BLOCKS (an open reviewer NO-GO in ANY batch blocks the
         change, 11.4.134 / 11.4.235(D); conservative-safe, 11.4.201(4));
-      - if a later round of the batch dropped the change, the round that last
-        listed it must still qualify, else it BLOCKS (an unresolved verdict on
-        the change is never silently abandoned); a qualifying one is neutral
-        (no coverage from this batch, no block -- 11.4.201(1) guard);
-      - a backfill row is history: a zero-finding GO is neutral, anything
-        else BLOCKS.
+      - if a later live round dropped the change, the round that last listed
+        it must still qualify, else it BLOCKS; a qualifying one is neutral.
+    Backfill rows (history, producer-authored, no reviewer evidence) can only
+    ADD blockers: one listing the change that is not a zero-finding GO
+    BLOCKS unless a LATER live round of the same batch lists the change
+    (that live round then decides); a zero-finding GO backfill row is
+    neutral. A backfill row is never selected and never covers.
     Returns (covering [(batch_id, round, tier)], blockers [reason, ...],
     notes [why a neutral batch gives no coverage, ...])."""
     covering, blockers, notes = [], [], []
     for bkey in sorted(by_batch):
         members = by_batch[bkey]
-        listing = [rp for rp in members if _lists(rp[0], change)]
+        # guard: G-V-LIVE-SET
+        live = [rp for rp in members if rp[0]["source"] == "live"]
+        # guard: G-V-LISTING-SET
+        listing = [rp for rp in live if _lists(rp[0], change)]
+        for hist, _hpath in members:
+            # guard: G-V-BACKFILL-LISTS
+            if hist["source"] != "backfill" or not _lists(hist, change):
+                continue
+            # guard: G-V-BACKFILL-SUPERSEDED
+            if any(rp[0]["round"] > hist["round"] for rp in listing):
+                notes.append("%s: backfilled round %s is superseded by a later live round" % (hist["batch_id"], hist["round"]))
+                continue
+            # guard: G-V-BACKFILL-BLOCKS
+            if not (hist["verdict"] == "GO" and not hist["findings"]):
+                blockers.append("%s: backfilled round %s is not a zero-finding GO (history, unresolved)"
+                                % (hist["batch_id"], hist["round"]))
+            else:
+                notes.append("%s: backfill rows record history only and are never gate coverage" % (hist["batch_id"],))
+        # guard: G-V-NO-LISTING
         if not listing:
             continue
         # guard: G-V-LAST-LISTING
         rec, path = listing[-1]
         bid = rec["batch_id"]
-        # guard: G-V-LATEST-COVERS
-        is_latest = rec is members[-1][0]
-        # guard: G-V-BACKFILL-HISTORY
-        if rec.get("source") == "backfill":
-            # guard: G-V-BACKFILL-BLOCKS
-            if not (rec.get("verdict") == "GO" and not rec.get("findings")):
-                blockers.append("%s: backfilled round %s is not a zero-finding GO (history, unresolved)"
-                                % (bid, rec["round"]))
-            else:
-                notes.append("%s: backfill rows record history only and are never gate coverage" % (bid,))
-            continue
+        # guard: G-V-LATEST-LIVE
+        is_latest = rec is live[-1][0]
         ok, detail = _gate_batch_qualifies(rec, path, records_root, ctx)
         # guard: G-V-LATEST-COVERS
         if ok and is_latest:
             covering.append((bid, rec["round"], detail))
         # guard: G-V-REFUSAL-BLOCKS
         elif not ok:
+            # not-a-guard: chooses only the WORDING of a blocker that is appended either way
             blockers.append("%s: %s" % (bid, detail) if is_latest else
                             "%s: round %s, the last round listing this change, does not qualify (%s) "
                             "and a later round dropped it" % (bid, rec["round"], detail))
@@ -1807,6 +2074,7 @@ def _gate_change_verdict(change, by_batch, records_root, ctx):
 
 
 def cmd_gate(a):
+    # guard: G-G-TARGETS
     targets = [c.strip() for c in a.change.split(",") if c.strip()]
     # guard: G-G-CHANGE-NAMED
     if not targets:
@@ -1829,7 +2097,7 @@ def cmd_gate(a):
     units = []
     for rec, path in collected:
         unit, reason = _admit_record(rec, path, a.records)
-        # not-a-guard: collects each admission refusal for G-G-ADMISSION
+        # guard: G-G-UNIT-REFUSED
         if unit is None:
             failures.append((path, reason))
         else:
@@ -1844,7 +2112,8 @@ def cmd_gate(a):
     if orphans:
         for path in orphans:
             print("review_record: gate refused -- orphaned reviewer evidence %s: no admitted record points "
-                  "at it (a record was removed, relabelled or re-pointed)" % path, file=sys.stderr)
+                  "at it (a record was removed, relabelled or re-pointed), or a directory could not be "
+                  "listed" % path, file=sys.stderr)
         return 4
     units, conflicts = _gate_same_round_conflicts(units)
     # guard: G-G-CONFLICTS
@@ -1854,16 +2123,20 @@ def cmd_gate(a):
                   % (bid, rnd, ", ".join(paths)), file=sys.stderr)
         return 4
 
-    # Phase 2 -- decision, from evidence-derived unit fields only.
+    # Phase 2 -- decision, from evidence-derived unit fields only. The tier is
+    # the WHOLE store's (every file under --records plus the ledger), computed
+    # once: a file anywhere in the store can change the decision (R4-F2).
     ledger, ledger_reason = _load_ledger(a.dispatch_ledger)
+    tier, tier_reason = _store_tier(a.records, a.dispatch_ledger, a.producer_uid, a.evidence_owner_uid)
+    # guard: G-G-BUDGET-DEFAULT
     ctx = {
         "seam": a.seam,
         "round_budget": a.round_budget if a.round_budget is not None else ROUND_BUDGET_DEFAULT,
         "ledger": ledger,
         "ledger_reason": ledger_reason,
-        "ledger_path": a.dispatch_ledger,
         "dispatch_use": _dispatch_reuse(units),
-        "producer_uid": a.producer_uid,
+        "tier": tier,
+        "tier_reason": tier_reason or "every evidence inode is writable only by the declared owner",
     }
     by_batch = _gate_rounds_per_batch(units)
 
@@ -1875,11 +2148,11 @@ def cmd_gate(a):
             uncovered.append(change)
             print("UNCOVERED %s reason=%s" % (change, "; ".join(blockers or notes) or "no record lists this change"))
         else:
-            tier = _aggregate_tier([c[2] for c in covering])
             print("COVERED %s batch=%s round=%s independence=%s seam=%s"
                   % (change, ",".join(str(c[0]) for c in covering),
                      ",".join(str(c[1]) for c in covering), tier, a.seam))
 
+    # guard: G-G-EXIT
     return 1 if uncovered else 0
 
 
@@ -1890,10 +2163,11 @@ def _evidence_bytes_verified(evidence, evidence_sha256, record_own_path, records
     caller parses what was verified (V3 m2: no verify-then-reopen window).
 
     T085 Round 5 (R4-I1, BLOCKING+IMPORTANT): the ONE shared evidence-
-    citation verifier for BOTH a backfill record's `source_evidence` and
-    a live record's `precheck_evidence` (section 11.4.227 reuse-not-
-    reinvention -- previously this logic existed only for backfill rows,
-    and lived inline in _backfill_source_evidence_traceable()).
+    citation verifier (section 11.4.227 reuse-not-reinvention). `gate`
+    calls it for a live record's archived reviewer verdict and precheck;
+    it was written for backfill `source_evidence` too, but `gate` does not
+    re-verify backfill citations (V3 round 4 m2: a backfill row can only
+    add a blocker, so a verification would bound nothing).
 
     T085 Round 4 independent review reproduced THREE concrete forgeries
     the T085 Round 2/3 version of this check (the prior
@@ -1967,11 +2241,13 @@ def _evidence_bytes_verified(evidence, evidence_sha256, record_own_path, records
     root_real = os.path.realpath(records_root)
     # guard: G-E-BASE-DIR
     base_real = os.path.realpath(base_dir) if base_dir else root_real
+    # guard: G-E-RESOLVE
     resolved = evidence if os.path.isabs(evidence) else os.path.join(base_real, evidence)
     resolved_real = os.path.realpath(resolved)
 
     try:
         common = os.path.commonpath([root_real, resolved_real])
+    # guard: G-E-COMMONPATH
     except ValueError:
         # Different drives/roots (e.g. on a platform where this can
         # happen) -- structurally cannot be contained.
@@ -1980,9 +2256,11 @@ def _evidence_bytes_verified(evidence, evidence_sha256, record_own_path, records
     if common != root_real:
         return None, None
 
+    # guard: G-E-SELF-CHECK-ON
     if record_own_path is not None:
         try:
             own_real = os.path.realpath(record_own_path)
+        # guard: G-E-OWN-REALPATH
         except OSError:
             own_real = None
         # guard: G-E-SELF-CITATION
@@ -1990,8 +2268,10 @@ def _evidence_bytes_verified(evidence, evidence_sha256, record_own_path, records
             return None, None  # self-citation refused
 
     try:
-        # guard: G-E-NONBLOCK (a FIFO planted as evidence must not hang gate)
+        # a FIFO planted as evidence must not hang gate
+        # guard: G-E-NONBLOCK
         fd = os.open(resolved_real, os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0))
+    # guard: G-E-OPEN
     except OSError:
         return None, None
     try:
@@ -2001,9 +2281,11 @@ def _evidence_bytes_verified(evidence, evidence_sha256, record_own_path, records
         with os.fdopen(fd, "rb") as fh:
             fd = None
             data = fh.read()
+    # guard: G-E-READ
     except OSError:
         return None, None
     finally:
+        # not-a-guard: closes the descriptor on the error path only (cleanup)
         if fd is not None:
             os.close(fd)
     # guard: G-E-HASH-MATCH
@@ -2013,7 +2295,10 @@ def _evidence_bytes_verified(evidence, evidence_sha256, record_own_path, records
 
 
 def _evidence_hash_verified(evidence, evidence_sha256, record_own_path, records_root, base_dir=None):
-    """Boolean form of _evidence_bytes_verified() (kept for existing callers)."""
+    """Boolean form of _evidence_bytes_verified(). V3 round 4 m2 (honest,
+    constitution 11.4.124): no production code path calls this; `gate` uses
+    _evidence_bytes_verified() directly. Retained, not removed, pending the
+    11.4.124 investigate-before-remove step, which is a separate commit."""
     return _evidence_bytes_verified(evidence, evidence_sha256, record_own_path,
                                     records_root, base_dir)[0] is not None
 
@@ -2067,9 +2352,12 @@ def main(argv):
                    help="constitution 11.4.276 review-round budget, 5..7 (default 5)")
     g.add_argument("--producer-uid", type=int,
                    help="uid of the change's producer, declared by the seam's caller (a CLAIM); "
-                        "'capability' needs neither it NOR the uid running gate to own/write/"
-                        "replace the evidence (11.4.240(F)) -- never on a single-uid host; "
-                        "absent or unknown -> never 'capability'")
+                        "absent, root, unknown or equal to the runner -> never 'capability'")
+    g.add_argument("--evidence-owner-uid", type=int,
+                   help="operator-declared evidence-owner uid (11.4.240(F)): 'capability' only when "
+                        "EVERY file under --records and the ledger is writable/replaceable by this "
+                        "uid (and root) alone; it must be a passwd account, neither the producer nor "
+                        "the runner, and in no /etc/subuid or /etc/subgid range. Absent -> 'instance'")
 
     try:
         a = p.parse_args(argv)

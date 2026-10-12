@@ -375,6 +375,41 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 </head>
 <body>
 <h1 id="testing-and-tdd">Testing And Tdd</h1>
+<h3 id="11-false-positive-immunity-is-an-invariant">1.1 False-positive
+immunity is an invariant</h3>
+<p>A test that always returns PASS because its regex never matches, its
+input path is wrong, its assertion target does not exist, or its
+comparison is tautological is <strong>worse than no test</strong>. Every
+new gate MUST be paired with a mutation entry in the project&#39;s meta-test
+harness that:</p>
+<ol type="1">
+<li>Temporarily breaks the assertion (sed out a line, rename a symbol,
+etc.).</li>
+<li>Re-runs the gate.</li>
+<li>Asserts the gate now reports FAIL.</li>
+<li>Restores the original.</li>
+</ol>
+<p>If the mutation round does not turn PASS → FAIL, the gate is a sham
+and must be rewritten.</p>
+<p>This is the <strong>single most important rule in this
+Constitution.</strong> Every subsequent §11.4.x clause is downstream of
+it.</p>
+<hr />
+<h2 id="2-commit-and-push-mechanics--single-entrypoint-locked">2. Commit
+and push mechanics — single entrypoint, locked</h2>
+<p>All commit and push work uses the project&#39;s official multi-remote
+commit wrapper (e.g. <code>scripts/commit_all.sh</code>) as the single
+entrypoint. Direct <code>git commit</code> / <code>git push</code> /
+<code>git add</code> on the main repo is prohibited in normal workflow.
+Exception: tag creation + tag-ref push is done via explicit
+<code>git tag -a</code> and
+<code>git push &lt;remote&gt; &lt;tag&gt;</code>.</p>
+<p>The commit and push wrappers MUST hold an advisory <code>flock</code>
+so two invocations cannot race against each other. Lock files self-clean
+on process exit via <code>trap</code>.</p>
+<p>When a contributor sees the &quot;another commit/push wrapper is already
+running&quot; error, they MUST NOT <code>rm -f</code> the lock unless they
+have just killed the owning process.</p>
 <h3 id="11414--test-playback-cleanup-mandate">§11.4.14 — Test playback
 cleanup mandate</h3>
 <p>A test that completes (PASS, FAIL, or SKIP) MUST leave the target in

@@ -17,7 +17,6 @@ REQUIRED_SUBMODULES=(
     "repo-qa"
     "repo-proof"
     "donespec"
-    "kedge"
     "agentic-validation"
     "skill-doctor"
     "verfix"
@@ -102,11 +101,6 @@ run_check "repo-proof" \
 # donespec (xryv/DoneSpec) - completion contract validation
 run_check "donespec" \
     "ls -la donespec/ && [ -f donespec/README.md ]" \
-    "${SUBMODULES_DIR}"
-
-# kedge (SturdyRobot/kedge) - deterministic AI harness
-run_check "kedge" \
-    "ls -la kedge/ && [ -f kedge/Cargo.toml ]" \
     "${SUBMODULES_DIR}"
 
 # agentic-validation (Tyler-R-Kendrick/agentic_validation) - formal SMT/Lean checking

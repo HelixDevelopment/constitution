@@ -94,6 +94,9 @@ repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 FIXDIR="$FC/tests/fixtures/cycle_report"
+# ASOF_BUILDER_UNDER_TEST: a drifted copy of the scenario/matrix builder (the
+# round-4 builder-drift paired mutations, V4-2) -- placement must catch it.
+ASOF_BUILDER="${ASOF_BUILDER_UNDER_TEST:-$FIXDIR/build_asof_scenario.py}"
 DB="$ROOT/docs/workable_items.db"
 
 fail=0
@@ -226,6 +229,451 @@ fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+
+# The independent reference oracle for R5-C15 (the generated matrix) and
+# R5-C19 (the live snapshot), round 4: stdlib only, written from this heredoc,
+# imports nothing from the tools and is not shared with any other test file.
+CR_ORACLE_DIR="$TMP/cr_oracle"
+mkdir -p "$CR_ORACLE_DIR"
+cat >"$CR_ORACLE_DIR/cr_oracle.py" <<'ORACLE_EOF'
+"""Independent reference oracle for cycle_report.py (T048 restart round 4).
+Stdlib only; imports nothing from the tools and is NOT shared with
+tests/test_select_sample_r5_regression.sh (that file carries its own). A plain
+re-statement of the DEC-03 selection, the CT-006 reopen block, and the as-of
+cutoff for git commits and review rounds -- PARAMETRISED so the test can
+evaluate every rule with one input field swapped for its sibling: a field
+whose swap changes no outcome has no disagreement cell (round 4, V4-1)."""
+import ast
+import datetime
+import os
+import re
+import sqlite3
+
+UTC = datetime.timezone.utc
+CLOSE = ("Fixed", "Implemented", "Completed")
+DEFAULT_NEEDLE = ("ATM-953", "Fixed", "2026-07-28")
+TYPES = ("Bug", "Feature", "Task")
+DUP_KEY = ("event_type", "by", "on_date", "reason", "evidence_path", "created_at")
+
+BASE = {
+    "cut_field": "on_date", "closure_field": "on_date", "reopen_field": "on_date",
+    "day_fn": "local", "closure_events": CLOSE,
+    "recency": ("created_at", "seq", "atm_id"), "needle": "day_seq_desc",
+    "bulk_key": "dirname_raw", "bulk_closure": "last", "retro_closure": "last", "bulk_ge": True,
+    "precedence": "bulk_first", "retro_lo_incl": True, "retro_hi_incl": False,
+    "type_strata": True, "from_shift": 0,
+    "dup_key": DUP_KEY,
+    # instant comparison against the cutoff, per instant field:
+    # aware = offset-aware instants; naive = wall clock read as UTC; string = ISO text
+    "author_date": "aware", "committer_date": "aware", "started_at": "aware", "ended_at": "aware",
+}
+
+
+def inst(s):
+    s = (s or "").strip().replace("Z", "+00:00")
+    if len(s) == 10:
+        s += "T00:00:00"
+    if "T" not in s:
+        s = s.replace(" ", "T", 1)
+    dt = datetime.datetime.fromisoformat(s)
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+def before_cutoff(value, mode, cutoff_iso):
+    if mode == "string":
+        return value < cutoff_iso
+    if mode == "naive":
+        return inst(value).replace(tzinfo=UTC) < inst(cutoff_iso)
+    return inst(value) < inst(cutoff_iso)
+
+
+def day(row, field, P):
+    v = row.get(field) or ""
+    if P["day_fn"] == "raw":
+        return v
+    if P["day_fn"] == "utc" and v:
+        return inst(v).astimezone(UTC).date().isoformat()
+    return v[:10]
+
+
+def evaluate(corpus, as_of, window_days, n, threshold, P=None):
+    """corpus = {"rows": {atm_id: [row]}, "types": {atm_id: type}, "commits":
+    {atm_id: [..]}, "rounds": {atm_id: [..]}, "cutoff": iso}."""
+    P = dict(BASE, **(P or {}))
+    rows_by_item, type_of = corpus["rows"], corpus["types"]
+    frm = (datetime.date.fromisoformat(as_of) - datetime.timedelta(days=window_days - P["from_shift"])).isoformat()
+    cut = {i: sorted((r for r in rows if day(r, P["cut_field"], P) <= as_of), key=lambda r: r["seq"])
+           for i, rows in rows_by_item.items() if i in type_of}
+
+    def in_win(r, field, events):
+        return r["event_type"] in events and frm <= day(r, field, P) <= as_of
+
+    def closed_rows(rs):
+        return any(in_win(r, P["closure_field"], P["closure_events"]) for r in rs)
+
+    def reopened_rows(rs):
+        return any(in_win(r, P["reopen_field"], ("Reopened",)) for r in rs)
+
+    closed = {i for i, rs in cut.items() if closed_rows(rs)}
+    reopened = {i for i, rs in cut.items() if reopened_rows(rs)}
+    cands = sorted(closed | reopened)
+
+    def closure(rs, which):
+        cl = [r for r in rs if r["event_type"] in P["closure_events"]]
+        return (cl[-1] if which == "last" else cl[0]) if cl else None
+
+    def retro(rs):
+        op = next((r for r in rs if r["event_type"] == "Opened"), None)
+        cl = closure(rs, P["retro_closure"])
+        if not op or not cl:
+            return False
+        try:
+            gap = (inst(cl["created_at"]) - inst(op["created_at"])).total_seconds()
+        except ValueError:
+            return False
+        return (gap >= 0 if P["retro_lo_incl"] else gap > 0) and (gap <= 60 if P["retro_hi_incl"] else gap < 60)
+
+    groups = {}
+    for i in cands:
+        cl = closure(cut[i], P["bulk_closure"])
+        if cl and cl.get("evidence_path"):
+            ev = cl["evidence_path"]
+            key = {"dirname_raw": (os.path.dirname(ev), cl["on_date"]),
+                   "dirname_day": (os.path.dirname(ev), cl["on_date"][:10]),
+                   "fullpath_raw": (ev, cl["on_date"])}[P["bulk_key"]]
+            groups.setdefault(key, []).append(i)
+    bulk = {i for g in groups.values() if (len(g) >= threshold if P["bulk_ge"] else len(g) > threshold) for i in g}
+
+    def excl(i):
+        b, r = i in bulk, retro(cut[i])
+        if P["precedence"] == "bulk_first":
+            return "bulk" if b else ("retro" if r else None)
+        return "retro" if r else ("bulk" if b else None)
+
+    exclusion = {i: excl(i) for i in cands}
+
+    def recency(i):
+        cl = closure(cut[i], "last")
+        key = []
+        for f in P["recency"]:
+            if f == "created_at":
+                key.append(inst(cl["created_at"]) if cl else datetime.datetime.min.replace(tzinfo=UTC))
+            elif f == "seq":
+                key.append(cl["seq"] if cl else -1)
+            else:
+                key.append(i)
+        return tuple(key)
+
+    reason, strata = {}, {}
+    pools = [(t, [t]) for t in TYPES] if P["type_strata"] else [("*", list(TYPES))]
+    picked_by, listed_by = {}, {}
+    for label, ts in pools:
+        ids = sorted((i for i in cands if i in closed and type_of[i] in ts), key=recency)
+        picked, listed = [], []
+        for i in reversed(ids):
+            if len(picked) >= n:
+                break
+            (picked if exclusion[i] is None else listed).append(i)
+        picked_by[label], listed_by[label] = picked, listed
+    for t in TYPES:
+        picked = picked_by[t] if P["type_strata"] else [i for i in picked_by["*"] if type_of[i] == t]
+        listed = listed_by[t] if P["type_strata"] else [i for i in listed_by["*"] if type_of[i] == t]
+        avail = [i for i in cands if i in closed and type_of[i] == t]
+        strata[t] = {"n": len(picked), "n_available": len(avail),
+                     "n_usable_available": sum(1 for i in avail if exclusion[i] is None),
+                     "n_selected": len(picked), "n_listed_excluded": len(listed),
+                     "below_required": len(picked) < n}
+        for i in listed:
+            reason[i] = "listed-excluded-" + t.lower()
+        for i in picked:
+            reason[i] = "sampled-" + t.lower()
+    for i in reopened:
+        reason[i] = "reopened-in-window"
+
+    # CT-006 reopen block over the window POPULATION (every candidate), deduped
+    def dedup(rs):
+        seen, kept, removed = set(), [], 0
+        for r in rs:
+            k = tuple(r.get(f) for f in P["dup_key"])
+            if k in seen:
+                removed += 1
+            else:
+                seen.add(k)
+                kept.append(r)
+        return kept, removed
+
+    by_type, tot = {}, {"reopened": 0, "closed": 0, "dedup": 0, "excluded": [], "mismatched": []}
+    for t in TYPES:
+        matched, excluded, mism, dd = [], [], [], 0
+        for i in (x for x in cands if type_of[x] == t):
+            rs, removed = dedup(cut[i])
+            dd += removed
+            if closed_rows(rs):
+                (excluded if retro(rs) else matched).append(i)
+        for i in (x for x in cands if type_of[x] == t):
+            rs = dedup(cut[i])[0]
+            if reopened_rows(rs) and i not in matched and i not in excluded \
+                    and not any(r["event_type"] in CLOSE for r in rs):
+                mism.append(i)
+        rop = sum(1 for i in matched if reopened_rows(dedup(cut[i])[0]))
+        by_type[t] = (rop, len(matched), dd, sorted(excluded), sorted(mism))
+        tot["reopened"] += rop
+        tot["closed"] += len(matched)
+        tot["dedup"] += dd
+        tot["excluded"] += excluded
+        tot["mismatched"] += mism
+    rate = "RATE_NOT_COMPUTABLE" if tot["mismatched"] or not tot["closed"] else round(tot["reopened"] / tot["closed"], 6)
+    reopen = {"overall": (tot["reopened"], tot["closed"], tot["dedup"], sorted(tot["excluded"]),
+                          sorted(tot["mismatched"]), rate, len(cands)), "by_type": by_type}
+
+    # git commits and review rounds, cut at the first instant after the as-of day
+    cutoff = corpus.get("cutoff")
+    spans = {}
+    for i in cands:
+        cm = [c for c in corpus.get("commits", {}).get(i, [])
+              if before_cutoff(c["author_date"], P["author_date"], cutoff)
+              and before_cutoff(c["committer_date"], P["committer_date"], cutoff)]
+        rd = [r for r in corpus.get("rounds", {}).get(i, [])
+              if before_cutoff(r["started_at"], P["started_at"], cutoff)
+              and before_cutoff(r["ended_at"], P["ended_at"], cutoff)]
+        spans[i] = ((min(inst(c["author_date"]) for c in cm), max(inst(c["committer_date"]) for c in cm))
+                    if cm else None,
+                    (min(inst(r["started_at"]) for r in rd), max(inst(r["ended_at"]) for r in rd),
+                     sum(r["tokens"] for r in rd), any(inst(r["ended_at"]) < inst(r["started_at"]) for r in rd))
+                    if rd else None)
+
+    d_id, d_ev, d_date = DEFAULT_NEEDLE
+    if d_date <= as_of:
+        needle = ("default", d_id, d_ev, d_date)
+    else:
+        pool = [(r["on_date"][:10], r["seq"], r["created_at"], i, r) for i, rows in rows_by_item.items()
+                for r in rows if r["event_type"] in CLOSE and r["on_date"][:10] <= as_of]
+        if not pool:
+            needle = ("default-postdates-as-of", d_id, d_ev, d_date)
+        else:
+            if P["needle"] == "day_seq_desc":
+                best = max(pool, key=lambda x: (x[0], x[1]))
+            elif P["needle"] == "day_seq_asc":
+                top = max(x[0] for x in pool)
+                best = min((x for x in pool if x[0] == top), key=lambda x: x[1])
+            else:
+                best = max(pool, key=lambda x: (x[0], inst(x[2])))
+            needle = ("derived-at-as-of", best[3], best[4]["event_type"], best[4]["on_date"])
+    return {"items": {i: (reason[i], exclusion[i]) for i in sorted(reason)}, "strata": strata,
+            "excluded": sorted(i for i in cands if exclusion[i]), "reopen": reopen, "needle": needle,
+            "spans": {i: spans[i] for i in sorted(reason)}}
+
+
+def tool_outcome(doc, with_spans=True):
+    def kind(rec):
+        if not rec["excluded"]:
+            return None
+        r = rec.get("exclusion_reason") or ""
+        return "bulk" if r.startswith("bulk-import-cluster") else "retro" if r.startswith("retroactive") else "other:" + r
+
+    def stage(rec, name):
+        return next((s for s in rec["stages"] if s["stage"] == name), {})
+
+    def span(st):
+        if st.get("elapsed") in (None, "UNMEASURED"):
+            return None
+        return inst(st["start"]["value"]), inst(st["end"]["value"])
+
+    recs = {r["item_id"]: r for r in doc.get("records", [])}
+    rb = doc.get("reopen") or {}
+
+    def blk(b):
+        return (b.get("reopened"), b.get("closed"), b.get("dedup_rows_removed"),
+                sorted(e["item_id"] for e in b.get("excluded_retroactive", [])), sorted(b.get("mismatched_items", [])))
+    n = (doc.get("run_meta") or {}).get("needle") or {}
+    out = {"items": {i: (r["selection_reason"], kind(r)) for i, r in recs.items()},
+           "strata": {t: {k: (doc.get("strata") or {}).get(t, {}).get(k)
+                          for k in ("n", "n_available", "n_usable_available", "n_selected", "n_listed_excluded",
+                                    "below_required")} for t in TYPES},
+           "excluded": sorted(e["item_id"] for e in doc.get("excluded", [])),
+           "reopen": {"overall": blk(rb) + (rb.get("rate"), rb.get("population")),
+                      "by_type": {t: blk((rb.get("by_type") or {}).get(t, {})) for t in TYPES}},
+           "needle": (n.get("source"), n.get("present_id"), n.get("present_event"), n.get("present_on_date"))}
+    if with_spans:
+        sp = {}
+        for i, r in recs.items():
+            rv = stage(r, "review_rounds")
+            rs = span(rv)
+            sp[i] = (span(stage(r, "commit_push")),
+                     None if rs is None else rs + (rv.get("tokens"), "REVIEW_SPAN_INVERTED" in r["data_quality_flags"]))
+        out["spans"] = sp
+    return out
+
+
+def diff(tool, oracle, label):
+    p = []
+    for k in ("items", "spans"):
+        if k not in tool:
+            continue
+        ti, oi = tool[k], oracle[k]
+        for i in sorted(set(ti) | set(oi)):
+            if ti.get(i) != oi.get(i):
+                p.append("%s %s %s tool=%s oracle=%s" % (label, k, i, ti.get(i), oi.get(i)))
+    for k in ("strata", "excluded", "reopen", "needle"):
+        if tool[k] != oracle[k]:
+            p.append("%s %s tool=%s oracle=%s" % (label, k, tool[k], oracle[k]))
+    return p
+
+
+def matrix_corpus(man):
+    c = {"rows": {}, "types": {}, "commits": {}, "rounds": {}, "cutoff": man["cutoff"]}
+    for cell in man["cells"]:
+        for it in cell["items"]:
+            c["rows"][it["atm_id"]] = [dict(r) for r in it["rows"]]
+            c["types"][it["atm_id"]] = it["type"]
+            c["commits"][it["atm_id"]] = it["commits"]
+            c["rounds"][it["atm_id"]] = it["rounds"]
+    return c
+
+
+def db_corpus(path):
+    conn = sqlite3.connect("file:%s?mode=ro" % path, uri=True)
+    c = {"rows": {}, "types": dict(conn.execute("SELECT atm_id, type FROM items").fetchall()),
+         "commits": {}, "rounds": {}, "cutoff": None}
+    for rid, aid, ev, by, od, rsn, evp, ca in conn.execute(
+            "SELECT id, atm_id, event_type, by, on_date, reason, evidence_path, created_at "
+            "FROM item_history ORDER BY id"):
+        c["rows"].setdefault(aid, []).append({"seq": rid, "event_type": ev, "by": by, "on_date": od,
+                                              "reason": rsn, "evidence_path": evp, "created_at": ca})
+    conn.close()
+    return c
+
+
+def db_columns(paths):
+    cols = set()
+    for path in paths:
+        conn = sqlite3.connect("file:%s?mode=ro" % path, uri=True)
+        for table in ("item_history", "items"):
+            cols |= {r[1] for r in conn.execute("PRAGMA table_info(%s)" % table)}
+        conn.close()
+    return cols
+
+
+def fields_read(path, universe):
+    tree = ast.parse(open(path, encoding="utf-8").read())
+    found = {}
+    for node in ast.walk(tree):
+        keys = []
+        if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant) \
+                and isinstance(node.slice.value, str):
+            keys.append(node.slice.value)
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get" \
+                and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+            keys.append(node.args[0].value)
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                and re.search(r"\b(SELECT|WHERE|ORDER BY)\b", node.value):
+            keys += re.findall(r"[a-z_]+", node.value)
+        for k in keys:
+            if k in universe:
+                found.setdefault(k, set()).add(node.lineno)
+    return found
+
+
+FIELD_ALTS = {
+    "on_date": [("closure window keyed on created_at", {"closure_field": "created_at"}),
+                ("reopened window keyed on created_at", {"reopen_field": "created_at"}),
+                ("as-of cutoff keyed on created_at", {"cut_field": "created_at"}),
+                ("day = UTC date of the on_date instant", {"day_fn": "utc"}),
+                ("day = raw on_date string", {"day_fn": "raw"}),
+                ("bulk key day-only on_date", {"bulk_key": "dirname_day"})],
+    "created_at": [("closure window keyed on created_at", {"closure_field": "created_at"}),
+                   ("reopened window keyed on created_at", {"reopen_field": "created_at"}),
+                   ("recency without created_at", {"recency": ("seq", "atm_id")}),
+                   ("needle ordered by created_at", {"needle": "created_desc"}),
+                   ("retroactive gap <= 60 s", {"retro_hi_incl": True}),
+                   ("retroactive gap > 0 s", {"retro_lo_incl": False}),
+                   ("dedup key without created_at", {"dup_key": tuple(k for k in DUP_KEY if k != "created_at")})],
+    "id": [("recency tie broken by atm_id", {"recency": ("created_at", "atm_id")}),
+           ("needle ordered by created_at", {"needle": "created_desc"}),
+           ("needle tie on lowest id", {"needle": "day_seq_asc"})],
+    "event_type": [("Implemented not a closure", {"closure_events": ("Fixed", "Completed")}),
+                   ("Updated/Obsolete counted as closures", {"closure_events": CLOSE + ("Updated", "Obsolete")})],
+    "evidence_path": [("bulk key on the full evidence path", {"bulk_key": "fullpath_raw"}),
+                      ("bulk on the FIRST closure", {"bulk_closure": "first"})],
+    "type": [("one stratum for every type", {"type_strata": False})],
+    "atm_id": [("recency by atm_id text", {"recency": ("atm_id",)})],
+    "by": [("dedup key without by", {"dup_key": tuple(k for k in DUP_KEY if k != "by")})],
+    "reason": [("dedup key without reason", {"dup_key": tuple(k for k in DUP_KEY if k != "reason")})],
+    "author_date": [("author instant offset ignored", {"author_date": "naive"}),
+                    ("author instant compared as text", {"author_date": "string"})],
+    "committer_date": [("committer instant offset ignored", {"committer_date": "naive"}),
+                       ("committer instant compared as text", {"committer_date": "string"})],
+    "started_at": [("review start offset ignored", {"started_at": "naive"}),
+                   ("review start compared as text", {"started_at": "string"})],
+    "ended_at": [("review end offset ignored", {"ended_at": "naive"}),
+                 ("review end compared as text", {"ended_at": "string"})],
+}
+RULE_ALTS = [("retroactive before bulk (precedence)", {"precedence": "retro_first"}),
+             ("retroactive on the FIRST closure", {"retro_closure": "first"}),
+             ("bulk cluster size > threshold", {"bulk_ge": False}),
+             ("window.from one day later", {"from_shift": 1}),
+             ("window.from one day earlier", {"from_shift": -1})]
+
+
+def discrimination(corpus, as_of, days, threshold, ns, alts):
+    base = [evaluate(corpus, as_of, days, n, threshold) for n in ns]
+    return [(name, [evaluate(corpus, as_of, days, n, threshold, P) for n in ns] != base) for name, P in alts]
+
+
+# ---- placement self-check (V4-2) ---------------------------------------------
+def placement(man):
+    """Recompute every window/commit/review cell's varied value from its
+    DECLARED dims; returns (problems, counts)."""
+    as_of, cutoff = man["as_of"], inst(man["cutoff"])
+    frm = (datetime.date.fromisoformat(as_of) - datetime.timedelta(days=man["window_days"])).isoformat()
+    shapes = {"date": "%s", "datetime": "%s 12:00:00", "iso_t": "%sT12:00:00", "iso_offset": "%sT23:30:00-05:00"}
+    p, cnt = [], {"window_in": 0, "window_out": 0, "commit_visible": 0, "commit_cells": 0,
+                  "review_visible": 0, "review_cells": 0}
+
+    def tz_ok(value, tz):
+        off = inst(value).utcoffset()
+        want = datetime.timedelta(0) if tz == "Z" else \
+            (1 if tz[0] == "+" else -1) * datetime.timedelta(hours=int(tz[1:3]), minutes=int(tz[4:6]))
+        return off == want
+
+    for c in man["cells"]:
+        d = c["dims"]
+        if c["kind"] == "window":
+            base = frm if d["bound"] == "from" else as_of
+            dd = (datetime.date.fromisoformat(base) + datetime.timedelta(days=d["offset_days"])).isoformat()
+            created = (datetime.date.fromisoformat(dd) + datetime.timedelta(days=d["created_shift_days"])).isoformat()
+            want = (d["closure_event"] if d["event"] == "closure" else "Reopened",
+                    shapes[d["on_date_format"]] % dd, created + " 10:00:00")
+            r = c["items"][0]["rows"][-1]
+            if (r["event_type"], r["on_date"], r["created_at"]) != want:
+                p.append("placement %s row %s dims say %s" % (c["cell_id"], (r["event_type"], r["on_date"],
+                                                                             r["created_at"]), want))
+            inside = (d["bound"] == "from" and d["offset_days"] >= 0) or (d["bound"] == "to" and d["offset_days"] <= 0)
+            cnt["window_in" if inside else "window_out"] += 1
+        elif c["kind"] == "commit":
+            cm = c["items"][0]["commits"][-1]
+            v = cm["author_date" if d["who"] == "author" else "committer_date"]
+            o = cm["committer_date" if d["who"] == "author" else "author_date"]
+            if inst(v) != cutoff + datetime.timedelta(seconds=d["offset_seconds"]) or not tz_ok(v, d["tz"]) \
+                    or inst(o) != cutoff - datetime.timedelta(seconds=7200):
+                p.append("placement %s commit %s/%s dims say cutoff%+ds in %s" % (c["cell_id"], v, o,
+                                                                                  d["offset_seconds"], d["tz"]))
+            cnt["commit_cells"] += 1
+            cnt["commit_visible"] += d["offset_seconds"] < 0
+        elif c["kind"] == "review":
+            rd = c["items"][0]["rounds"][-1]
+            if d["who"] == "straddle":
+                ok = inst(rd["started_at"]) == cutoff - datetime.timedelta(seconds=3600) and \
+                    inst(rd["ended_at"]) == cutoff + datetime.timedelta(seconds=3600) and tz_ok(rd["started_at"], d["tz"])
+            else:
+                v = rd["ended_at" if d["who"] == "end" else "started_at"]
+                ok = inst(v) == cutoff + datetime.timedelta(seconds=d["offset_seconds"]) and tz_ok(v, d["tz"])
+            if not ok:
+                p.append("placement %s round %s dims say %s" % (c["cell_id"], rd, d))
+            cnt["review_cells"] += 1
+            cnt["review_visible"] += d["who"] != "straddle" and d["offset_seconds"] < 0
+    return p, cnt
+ORACLE_EOF
 
 echo
 echo "=== T041 contract check 1/4: missing record -> UNMEASURED, never a number (FR-001, CT-002, CT-004) ==="
@@ -617,7 +1065,7 @@ if [ -f "$CYCLE_REPORT" ] && command -v sqlite3 >/dev/null 2>&1 && [ -f "$DB" ];
   # as-of 2026-09-30, a date AFTER those rows -- so the bodies must differ.
   SCEN="$TMP/scen"
   for m in full cut; do
-    [ -d "$SCEN/$m" ] || python3 "$FIXDIR/build_asof_scenario.py" "$SCEN/$m" "$m" >/dev/null 2>&1
+    [ -d "$SCEN/$m" ] || python3 "$ASOF_BUILDER" "$SCEN/$m" "$m" >/dev/null 2>&1
     python3 "$CYCLE_REPORT" --config x --as-of 2026-09-30 --window-days 120 --min-per-type 2 \
       --bulk-threshold 3 --needle-present-id ATM-953 --needle-fixed-on-date 2026-07-01 \
       --db-path "$SCEN/$m/db.sqlite" --repo-root "$SCEN/$m/repo" --out "$TMP/content_$m.json" >/dev/null 2>&1
@@ -704,7 +1152,7 @@ R5S="$TMP/r5"
 R5_NEEDLE=(--needle-present-id ATM-953 --needle-fixed-event Fixed --needle-fixed-on-date 2026-07-01)
 R5_COMMON=(--as-of 2026-08-23 --window-days 60 --min-per-type 2 --bulk-threshold 3)
 for m in full cut; do
-  python3 "$FIXDIR/build_asof_scenario.py" "$R5S/$m" "$m" >"$TMP/r5_build_$m.err" 2>&1 \
+  python3 "$ASOF_BUILDER" "$R5S/$m" "$m" >"$TMP/r5_build_$m.err" 2>&1 \
     || { echo "NOT ok R5 fixture build ($m) failed: $(cat "$TMP/r5_build_$m.err")"; failx; }
 done
 r5_run() {  # $1 = output tag, $2 = scenario (full|cut), rest = extra args
@@ -1252,30 +1700,42 @@ else
 fi
 
 echo
-echo "=== R5-C15 (V3-1/V3-2/V3-8 class, round 3): GENERATED boundary matrix -- every cell vs an independent oracle ==="
-# build_asof_scenario.py matrix-full|matrix-cut: cells generated from
-# declarative tables (window events x bounds x {-1, 0, +1} day x on_date shape;
-# commit author/committer at cutoff-1s/cutoff/cutoff+1s x {Z, +05:00}; review
-# rounds ending/starting at those instants + one straddling the cutoff; first-
-# vs-latest closure and classifier-population variants; the derived needle).
-# manifest.json carries RAW facts only. The oracle below is this test's own
-# small re-statement of the rules (no tool import); a meta-check fails if any
-# manifest cell got no assertion or a cell the test expects is missing.
+echo "=== R5-C15 (V3-1 -> V4-1 class, rounds 3-4): GENERATED boundary matrix -- every cell vs an independent oracle ==="
+# Round 4 (V4-1/V4-2/V4-3/V4-5): the matrix's DIMENSIONS are derived from the
+# fields cycle_report.py and its delegate select_sample.py READ (AST inventory
+# of both sources: subscripts, .get(), identifiers inside SQL literals,
+# intersected with the tracker DB columns and the commit/review keys). Every
+# such field is either EXEMPT with a stated reason or has alternatives (the
+# rule with that field swapped for its sibling: on_date -> created_at, an
+# offset-aware instant -> its wall clock or its text, the dedup key without
+# by/reason/created_at, ...) that must each CHANGE an outcome of the
+# independent oracle ($CR_ORACLE_DIR/cr_oracle.py, stdlib only, written above,
+# not shared with any other file) on the matrix -- else the matrix has no
+# disagreement cell for it and this check fails. Placement is self-verified
+# from the declared dims and the totals are ASSERTED (V4-2). The tool must
+# equal the oracle -- membership, exclusion, strata, excluded[], the CT-006
+# reopen block, the derived needle, commit_push and review_rounds spans -- at
+# two sample sizes, on the full and the as-of-cut matrix.
 CMX="$TMP/cmx"
 cmx_ok=1
 for m in matrix-full matrix-cut; do
-  python3 "$FIXDIR/build_asof_scenario.py" "$CMX/$m" "$m" >"$TMP/cmx_build_$m.err" 2>&1 \
+  python3 "$ASOF_BUILDER" "$CMX/$m" "$m" >"$TMP/cmx_build_$m.err" 2>&1 \
     || { echo "NOT ok R5-C15 matrix build ($m) failed: $(tail -2 "$TMP/cmx_build_$m.err")"; failx; cmx_ok=0; }
 done
 if [ "$cmx_ok" = 1 ]; then
-  for m in matrix-full matrix-cut; do
-    python3 "$CYCLE_REPORT" --config x --as-of 2026-05-20 --window-days 30 --min-per-type 1000 --bulk-threshold 3 \
-      --db-path "$CMX/$m/db.sqlite" --repo-root "$CMX/$m/repo" --review-records-dir "$CMX/$m/repo/review_records" \
-      --out "$TMP/cmx_$m.json" >"$TMP/cmx_$m.err" 2>&1 \
-      || { echo "NOT ok R5-C15 cycle_report on $m rc=$? -- $(tail -2 "$TMP/cmx_$m.err")"; failx; }
+  for n in 1000 2; do
+    for m in matrix-full matrix-cut; do
+      python3 "$CYCLE_REPORT" --config x --as-of 2026-05-20 --window-days 30 --min-per-type "$n" --bulk-threshold 3 \
+        --db-path "$CMX/$m/db.sqlite" --repo-root "$CMX/$m/repo" --review-records-dir "$CMX/$m/repo/review_records" \
+        --out "$TMP/cmx_${m}_$n.json" >"$TMP/cmx_${m}_$n.err" 2>&1 \
+        || { echo "NOT ok R5-C15 cycle_report on $m N=$n rc=$? -- $(tail -2 "$TMP/cmx_${m}_$n.err")"; failx; }
+    done
   done
-  c15="$(python3 - "$CMX/matrix-full/manifest.json" "$TMP/cmx_matrix-full.json" "$TMP/cmx_matrix-cut.json" <<'PYEOF'
-import datetime, json, os, sys
+  c15="$(python3 - "$CR_ORACLE_DIR" "$CMX" "$TMP" "$CYCLE_REPORT" "$TMP/r5_live_full.db" <<'PYEOF'
+import copy, glob, json, os, sys
+sys.path.insert(0, sys.argv[1])
+import cr_oracle as O
+CMX, T, CR, LIVE = sys.argv[2:6]
 
 def load(p):
     try:
@@ -1284,181 +1744,236 @@ def load(p):
         print("missing output %s: %s" % (p, e))
         raise SystemExit
 
-man, full, cut = (load(p) for p in sys.argv[1:4])
-AS_OF = man["as_of"]
-FROM = (datetime.date.fromisoformat(AS_OF) - datetime.timedelta(days=man["window_days"])).isoformat()
-THRESH = man["bulk_threshold"]
-CLOSE = ("Fixed", "Implemented", "Completed")
+man = load(os.path.join(CMX, "matrix-full", "manifest.json"))
+AS_OF, DAYS, TH = man["as_of"], man["window_days"], man["bulk_threshold"]
+corpus = O.matrix_corpus(man)
+problems, docs = [], {}
 
-# ---- independent reference oracle ------------------------------------------
-def day(s):
-    return (s or "")[:10]
+# -- 1. tool vs oracle -----------------------------------------------------------
+for n in (1000, 2):
+    want = O.evaluate(corpus, AS_OF, DAYS, n, TH)
+    for m in ("matrix-full", "matrix-cut"):
+        docs[(m, n)] = load(os.path.join(T, "cmx_%s_%d.json" % (m, n)))
+        problems += O.diff(O.tool_outcome(docs[(m, n)]), want, "%s N=%d" % (m, n))
+    if docs[("matrix-full", n)].get("body_hash") != docs[("matrix-cut", n)].get("body_hash"):
+        problems.append("N=%d matrix full vs cut body_hash differ (rows/commits/rounds after the cutoff leak)" % n)
 
-def inst(s):  # an ISO instant with offset ("Z" accepted), or tracker "YYYY-MM-DD HH:MM:SS" (UTC)
-    s = s.replace("Z", "+00:00")
-    if "T" not in s:
-        s = s.replace(" ", "T") + "+00:00"
-    return datetime.datetime.fromisoformat(s)
-
-CUTOFF = inst(man["cutoff"])
-items, order = {}, []
-for c in man["cells"]:
-    for it in c["items"]:
-        items[it["atm_id"]] = it
-        order += [(it["atm_id"], r) for r in it["rows"]]
-cut_rows = {i: [r for r in it["rows"] if day(r["on_date"]) <= AS_OF] for i, it in items.items()}
-
-def in_win(r, closure):
-    hit = r["event_type"] in CLOSE if closure else r["event_type"] == "Reopened"
-    return hit and FROM <= day(r["on_date"]) <= AS_OF
-
-def closed(i):
-    return any(in_win(r, True) for r in cut_rows[i])
-
-def reopened(i):
-    return any(in_win(r, False) for r in cut_rows[i])
-
-def last_closure(i):
-    cl = [r for r in cut_rows[i] if r["event_type"] in CLOSE]
-    return cl[-1] if cl else None
-
-def retro(i):
-    op = next((r for r in cut_rows[i] if r["event_type"] == "Opened"), None)
-    cl = last_closure(i)
-    return bool(op and cl) and 0 <= (inst(cl["created_at"]) - inst(op["created_at"])).total_seconds() < 60
-
-cands = sorted(i for i in items if closed(i) or reopened(i))
-groups = {}
-for i in cands:
-    cl = last_closure(i)
-    if cl and cl["evidence_path"]:
-        groups.setdefault((os.path.dirname(cl["evidence_path"]), cl["on_date"]), []).append(i)
-bulk = {i for g in groups.values() if len(g) >= THRESH for i in g}
-
-def expect(i):
-    if i not in cands:
-        return None
-    excl = "bulk" if i in bulk else ("retro" if retro(i) else None)
-    reason = "reopened-in-window" if reopened(i) else \
-        ("listed-excluded-" if excl else "sampled-") + items[i]["type"].lower()
-    return (reason, excl)
-
-def expect_commit(it):
-    vis = [c for c in it["commits"] if inst(c["author_date"]) < CUTOFF and inst(c["committer_date"]) < CUTOFF]
-    if not vis:
-        return None
-    return (min(inst(c["author_date"]) for c in vis), max(inst(c["committer_date"]) for c in vis))
-
-def expect_review(it):
-    vis = [r for r in it["rounds"] if inst(r["started_at"]) < CUTOFF and inst(r["ended_at"]) < CUTOFF]
-    if not vis:
-        return None
-    return (min(inst(r["started_at"]) for r in vis), max(inst(r["ended_at"]) for r in vis),
-            sum(r["tokens"] for r in vis), any(inst(r["ended_at"]) < inst(r["started_at"]) for r in vis))
-
-needle_rows = [(day(r["on_date"]), k, i, r) for k, (i, r) in enumerate(order)
-               if r["event_type"] in CLOSE and day(r["on_date"]) <= AS_OF]
-_, _, n_id, n_row = max(needle_rows)
-want_needle = ("derived-at-as-of", n_id, n_row["event_type"], n_row["on_date"])
-
-# ---- the tool's view --------------------------------------------------------
-def excl_kind(rec):
-    if not rec["excluded"]:
-        return None
-    r = rec.get("exclusion_reason") or ""
-    return "bulk" if r.startswith("bulk-import-cluster") else "retro" if r.startswith("retroactive") else "other:" + r
-
-def stage(rec, name):
-    return next(s for s in rec["stages"] if s["stage"] == name)
-
-def got_span(st):
-    if st.get("elapsed") == "UNMEASURED":
-        return None
-    return (inst(st["start"]["value"]), inst(st["end"]["value"]))
-
-def assert_cells(cells, doc):
-    recs = {r["item_id"]: r for r in doc.get("records", [])}
+# -- 2. per-cell bookkeeping ---------------------------------------------------------
+def assert_cells(cells, doc, n):
+    got, want = O.tool_outcome(doc), O.evaluate(corpus, AS_OF, DAYS, n, TH)
     asserted, p = set(), []
     for c in cells:
         cid = c["cell_id"]
-        if cid == "rule/needle_derived":
-            n = doc.get("run_meta", {}).get("needle", {})
-            got = (n.get("source"), n.get("present_id"), n.get("present_event"), n.get("present_on_date"))
-            if got != want_needle:
-                p.append("%s: tool=%s oracle=%s" % (cid, got, want_needle))
+        if cid in ("rule/needle_derived", "rule/needle_seq_vs_created"):
+            if got["needle"] != want["needle"]:
+                p.append("%s needle tool=%s oracle=%s" % (cid, got["needle"], want["needle"]))
+            if cid == "rule/needle_seq_vs_created" and want["needle"][1] != c["items"][0]["atm_id"]:
+                p.append("%s: the cell's late row is not the needle -- cell inert" % cid)
             asserted.add(cid)
-            continue
-        if c["kind"] not in ("window", "commit", "review", "rule") or not c["items"]:
+        if not c["items"]:
             continue
         for it in c["items"]:
             i = it["atm_id"]
-            r = recs.get(i)
-            got = (r["selection_reason"], excl_kind(r)) if r else None
-            if got != expect(i):
-                p.append("%s %s membership tool=%s oracle=%s" % (cid, i, got, expect(i)))
-                continue
-            if c["kind"] == "commit":
-                g, w = got_span(stage(r, "commit_push")), expect_commit(it)
-                if g != w:
-                    p.append("%s %s commit_push tool=%s oracle=%s" % (cid, i, g, w))
-            if c["kind"] == "review":
-                st, w = stage(r, "review_rounds"), expect_review(it)
-                g = None if st.get("elapsed") == "UNMEASURED" else \
-                    got_span(st) + (st.get("tokens"), "REVIEW_SPAN_INVERTED" in r["data_quality_flags"])
-                if g != w:
-                    p.append("%s %s review_rounds tool=%s oracle=%s" % (cid, i, g, w))
+            for k in ("items", "spans"):
+                if got[k].get(i) != want[k].get(i):
+                    p.append("%s %s %s tool=%s oracle=%s" % (cid, i, k, got[k].get(i), want[k].get(i)))
         asserted.add(cid)
     return asserted, p
 
+def want_ids():
+    w = {"window/%s/%s/%+d/%s/created%+d" % (e, b, o, f, s) for e in ("closure", "reopened")
+         for b in ("from", "to") for o in (-1, 0, 1) for f in ("date", "datetime", "iso_t", "iso_offset")
+         for s in (-1, 0, 1)}
+    w |= {"commit/%s/%+ds/%s" % (k, o, z) for k in ("author", "committer") for o in (-1, 0, 1)
+          for z in ("Z", "+05:00", "-04:00", "+05:30")}
+    w |= {"review/%s/%+ds/%s" % (k, o, z) for k in ("end", "start") for o in (-1, 0, 1)
+          for z in ("Z", "+05:00", "-04:00")} | {"review/straddle/%s" % z for z in ("Z", "+05:00", "-04:00")}
+    w |= {"rule/" + r for r in ("retro_terminal_not_first", "retro_terminal_is_retro", "bulk_latest_shared",
+                                "bulk_first_shared", "pop_retro_reopen_only", "pop_bulk_reopen_only",
+                                "needle_derived", "precedence_bulk_and_retro", "bulk_key_raw_on_date",
+                                "order_created_vs_seq", "needle_seq_vs_created", "event_noise",
+                                "retro_gap_boundaries", "reopen_block_created_axis", "dedup_key_by_reason")}
+    return w
+
 def meta(cells, asserted):
     ids = [c["cell_id"] for c in cells]
-    want = {"window/%s/%s/%+d/%s" % (e, b, o, f) for e in ("closure", "reopened") for b in ("from", "to")
-            for o in (-1, 0, 1) for f in ("date", "datetime")}
-    want |= {"commit/%s/%+ds/%s" % (w, o, z) for w in ("author", "committer") for o in (-1, 0, 1)
-             for z in ("Z", "+05:00")}
-    want |= {"review/%s/%+ds" % (w, o) for w in ("end", "start") for o in (-1, 0, 1)} | {"review/straddle"}
-    want |= {"rule/" + r for r in ("retro_terminal_not_first", "retro_terminal_is_retro", "bulk_latest_shared",
-                                   "bulk_first_shared", "pop_retro_reopen_only", "pop_bulk_reopen_only",
-                                   "needle_derived")}
     p = []
     if len(ids) != len(set(ids)):
         p.append("duplicate cell ids")
-    if set(ids) != want:
-        p.append("manifest != expected matrix: missing %s extra %s" % (sorted(want - set(ids)), sorted(set(ids) - want)))
+    if set(ids) != want_ids():
+        p.append("manifest != expected matrix: missing %s extra %s"
+                 % (sorted(want_ids() - set(ids))[:5], sorted(set(ids) - want_ids())[:5]))
     if set(ids) - asserted:
-        p.append("cells with NO assertion: %s" % sorted(set(ids) - asserted))
+        p.append("cells with NO assertion: %s" % sorted(set(ids) - asserted)[:5])
     return p
 
-problems = []
-for label, doc in (("full", full), ("cut", cut)):
-    a, p = assert_cells(man["cells"], doc)
-    problems += ["%s: %s" % (label, x) for x in p + meta(man["cells"], a)]
-if sorted(e["item_id"] for e in full.get("excluded", [])) != sorted(i for i in cands if expect(i)[1]):
-    problems.append("excluded[]=%s" % [e["item_id"] for e in full.get("excluded", [])])
-if full.get("body_hash") != cut.get("body_hash"):
-    problems.append("matrix full vs cut body_hash differ (rows/commits/rounds after the cutoff leak)")
-# control needles: the meta-check sees a phantom cell; the comparison sees a corrupted span.
-phantom = man["cells"] + [{"cell_id": "phantom/x", "kind": "phantom", "dims": {}, "items": []}]
-if not any("NO assertion" in x for x in meta(phantom, assert_cells(phantom, full)[0])):
-    problems.append("control: meta-check did not report a cell with no assertion")
-bad = json.loads(json.dumps(full))
+for (m, n), doc in sorted(docs.items()):
+    a, p = assert_cells(man["cells"], doc, n)
+    problems += ["%s N=%d: %s" % (m, n, x) for x in p + meta(man["cells"], a)]
+
+# -- 3. placement self-check (V4-2), totals ASSERTED --------------------------------
+place, cnt = O.placement(man)
+problems += place
+want_cnt = {"window_in": 96, "window_out": 48, "commit_visible": 8, "commit_cells": 24,
+            "review_visible": 6, "review_cells": 21}
+if cnt != want_cnt:
+    problems.append("cell totals by dims %s, the matrix declares %s" % (cnt, want_cnt))
+CUT = O.inst(man["cutoff"])
+n_vis = 0
+for c in man["cells"]:
+    if c["kind"] != "commit":
+        continue
+    cm = c["items"][0]["commits"][-1]
+    vis = O.inst(cm["author_date"]) < CUT and O.inst(cm["committer_date"]) < CUT
+    n_vis += vis
+    if vis != (c["dims"]["offset_seconds"] < 0):
+        problems.append("%s: the cell commit's visibility disagrees with its dims" % c["cell_id"])
+if n_vis != 8:
+    problems.append("%d of 24 commit cells see their cell commit, the matrix declares 8" % n_vis)
+
+# -- 4. field inventory over cycle_report.py AND its delegate select_sample.py -------
+EXEMPT = {"status": "items.status: a current-state column, named in live_fields and kept out of body_hash (R5-C12)",
+          "subject": "commit subject: subject-only, token-boundary match pinned by R5-C5 and R5-C9",
+          "tokens": "summed per item, asserted per review cell above (spans)",
+          "item_id": "review-record filter pinned by R5-C14",
+          "schema": "review-record schema filter pinned by R5-C14; the report's own schema tag",
+          "last_modified": "items metadata copied into the record, read by no selection/cutoff rule",
+          "current_location": "items-row choice (ORDER BY) when an atm_id has several items rows -- OWED: "
+                              "no matrix item has two items rows (0 live today; tracked in the round-4 report)",
+          "representation": "items-row choice (ORDER BY), same OWED note as current_location"}
+universe = O.db_columns([p for p in (os.path.join(CMX, "matrix-full", "db.sqlite"), LIVE) if os.path.isfile(p)])
+universe |= {k for c in man["cells"] for it in c["items"] for x in it["commits"] + it["rounds"] for k in x}
+rr = sorted(glob.glob(os.path.join(CMX, "matrix-full", "repo", "review_records", "*", "*.json")))
+universe |= set(load(rr[0])) if rr else set()
+read = {}
+for src in (CR, os.path.join(os.path.dirname(CR), "select_sample.py")):
+    for f, lines in O.fields_read(src, universe).items():
+        read.setdefault(f, set()).update(lines)
+
+def inventory_problems(rd, crp):
+    p = [("field %r is read (lines %s) but has NO disagreement axis and no exemption" % (f, sorted(rd[f])[:4]))
+         for f in sorted(rd) if f not in EXEMPT and f not in O.FIELD_ALTS]
+    names = [(f, a) for f in sorted(rd) if f in O.FIELD_ALTS for a in O.FIELD_ALTS[f]]
+    names += [("rule", a) for a in O.RULE_ALTS]
+    for (f, a), (nm, ok) in zip(names, O.discrimination(crp, AS_OF, DAYS, TH, (1000, 2), [a for _, a in names])):
+        if not ok:
+            p.append("%s alternative %r changes NO outcome on the matrix -- no disagreement cell" % (f, nm))
+    return p
+
+problems += inventory_problems(read, corpus)
+for must in ("on_date", "created_at", "id", "event_type", "author_date", "committer_date", "started_at", "ended_at"):
+    if must not in read:
+        problems.append("control: the inventory did not find %r -- the instrument is blind" % must)
+
+# -- 5. controls ---------------------------------------------------------------------
+if not any("zzz_phantom" in x for x in inventory_problems({"zzz_phantom": {1}}, corpus)):
+    problems.append("control: a field with no axis was not reported")
+utc_only = copy.deepcopy(corpus)       # the round-3 review cells: every instant in UTC
+for i, rds in utc_only["rounds"].items():
+    utc_only["rounds"][i] = [dict(r, started_at=O.inst(r["started_at"]).astimezone(O.UTC).isoformat(),
+                                  ended_at=O.inst(r["ended_at"]).astimezone(O.UTC).isoformat()) for r in rds]
+if not any("review end compared as text" in x for x in inventory_problems({"ended_at": {1}}, utc_only)):
+    problems.append("control: a matrix with UTC-only review instants was not reported")
+drift = copy.deepcopy(man)
+for c in drift["cells"]:
+    if c["kind"] == "commit":
+        cm = c["items"][0]["commits"][-1]
+        k = "author_date" if c["dims"]["who"] == "author" else "committer_date"
+        cm[k] = (O.inst(cm[k]) - O.datetime.timedelta(seconds=10)).isoformat()   # builder drift (reviewer B2)
+if not O.placement(drift)[0]:
+    problems.append("control: placement self-check accepted a 10 s commit-offset drift")
+bad = json.loads(json.dumps(docs[("matrix-full", 1000)]))
 for r in bad.get("records", []):
     for s in r["stages"]:
         if s["stage"] in ("commit_push", "review_rounds") and isinstance(s.get("end"), dict):
             s["end"]["value"] = "2000-01-01T00:00:00+00:00"
-if not assert_cells(man["cells"], bad)[1]:
+if not assert_cells(man["cells"], bad, 1000)[1]:
     problems.append("control: per-cell comparison accepted corrupted commit/review spans")
-n_vis = sum(1 for c in man["cells"] if c["kind"] == "commit" for it in c["items"]
-            if len([x for x in it["commits"] if inst(x["author_date"]) < CUTOFF and inst(x["committer_date"]) < CUTOFF]) == 2)
-print("PASS %d cells (%d of 12 commit cells see their cell commit)" % (len(man["cells"]), n_vis) if not problems
-      else " | ".join(problems))
+phantom = man["cells"] + [{"cell_id": "phantom/x", "kind": "phantom", "dims": {}, "items": []}]
+if not any("NO assertion" in x for x in meta(phantom, assert_cells(phantom, docs[("matrix-full", 1000)], 1000)[0])):
+    problems.append("control: meta-check did not report a cell with no assertion")
+n_alts = sum(len(O.FIELD_ALTS[f]) for f in read if f in O.FIELD_ALTS) + len(O.RULE_ALTS)
+print("PASS %d cells (%d of 24 commit cells see their cell commit, %d of 21 review cells their round); "
+      "%d fields read (%d exempt), %d alternatives all discriminate"
+      % (len(man["cells"]), n_vis, cnt["review_visible"], len(read), len(set(read) & set(EXEMPT)), n_alts)
+      if not problems else " | ".join(problems[:12]) + (" | ... %d more" % (len(problems) - 12) if len(problems) > 12 else ""))
 PYEOF
 )"
   case "$c15" in
-    PASS*) echo "ok R5-C15 boundary matrix ${c15#PASS }: membership, exclusion, commit_push and review_rounds"
-           echo "   spans, the derived needle and excluded[] all match the oracle in full and cut; full==cut; controls fire" ;;
+    PASS*) echo "ok R5-C15 boundary matrix ${c15#PASS }: tool == oracle at N=1000 and N=2, full and cut;"
+           echo "   placement and every control fire" ;;
     *) echo "NOT ok R5-C15 $c15"; failx ;;
   esac
+fi
+
+echo
+echo "=== R5-C19 (V4-1/V4-3, round 4): REAL-DATA oracle pass -- live snapshot, 16 fixed as-of/window pairs ==="
+# The same independent oracle over the read-only .backup snapshot taken in
+# R5-C8 (the live DB is never opened for write), against a one-commit scratch
+# repository (git spans are not compared here -- the matrix covers them).
+# Membership, exclusion, strata, excluded[], the reopen block and the needle
+# must equal the oracle on every pair. Control: the reopened-on-created_at and
+# retro-before-bulk alternatives each change at least one live pair.
+if [ -f "$TMP/r5_live_full.db" ]; then
+  C19R="$TMP/c19_repo"
+  mkdir -p "$C19R" && git -C "$C19R" init -q && \
+    GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z \
+    git -C "$C19R" -c user.name=f -c user.email=f@example.invalid -c commit.gpgsign=false commit -q --allow-empty -m root
+  c19=""
+  for d in 2026-06-10 2026-07-10 2026-07-28 2026-08-10 2026-08-23 2026-09-20 2026-09-28 2026-10-08; do
+    for w in 60 90; do
+      python3 "$CYCLE_REPORT" --config x --as-of "$d" --window-days "$w" --db-path "$TMP/r5_live_full.db" \
+        --repo-root "$C19R" --out "$TMP/c19_$d.$w.json" >"$TMP/c19_$d.$w.err" 2>&1 \
+        || c19="$c19 [$d/$w rc=$?: $(tail -1 "$TMP/c19_$d.$w.err")]"
+    done
+  done
+  c19v="$(python3 - "$CR_ORACLE_DIR" "$TMP" "$TMP/r5_live_full.db" <<'PYEOF'
+import json, os, sys
+sys.path.insert(0, sys.argv[1])
+import cr_oracle as O
+T, DB = sys.argv[2], sys.argv[3]
+corpus = O.db_corpus(DB)
+PAIRS = [(d, w) for d in ("2026-06-10", "2026-07-10", "2026-07-28", "2026-08-10", "2026-08-23", "2026-09-20",
+                          "2026-09-28", "2026-10-08") for w in (60, 90)]
+alts = [("reopened window keyed on created_at", {"reopen_field": "created_at"}),
+        ("retroactive before bulk (precedence)", {"precedence": "retro_first"})]
+p, disc = [], dict.fromkeys((a for a, _ in alts), 0)
+for d, w in PAIRS:
+    try:
+        doc = json.load(open(os.path.join(T, "c19_%s.%d.json" % (d, w))))
+    except Exception as e:
+        p.append("%s/%d no report (%s)" % (d, w, e)); continue
+    p += O.diff(O.tool_outcome(doc, with_spans=False), O.evaluate(corpus, d, w, 5, 10), "%s/%d" % (d, w))
+    for name, ok in O.discrimination(corpus, d, w, 10, (5,), alts):
+        disc[name] += ok
+p += ["control: %r changes no live pair -- this pass is inert for it" % k for k, v in disc.items() if not v]
+print("PASS %d pairs; discriminating pairs: %s" % (len(PAIRS), ", ".join("%s %d" % kv for kv in disc.items()))
+      if not p else " | ".join(p[:8]))
+PYEOF
+)"
+  case "$c19|$c19v" in
+    "|PASS"*) echo "ok R5-C19 live snapshot: cycle_report == oracle on ${c19v#PASS }" ;;
+    *) echo "NOT ok R5-C19 runs:${c19:- ok} verdict: $c19v"; failx ;;
+  esac
+else
+  echo "NOT ok R5-C19 the R5-C8 live snapshot is unavailable"; failx
+fi
+
+echo
+echo "=== R5-C20 (round 4): window_days 0 / negative and min_per_type 0 are usage errors (exit 2, nothing written) ==="
+c20=""
+for bad_args in "--window-days 0" "--window-days -1" "--window-days 30 --min-per-type 0"; do
+  rm -f "$TMP/c20.json"
+  # shellcheck disable=SC2086  # word-splitting of the flag pair is intended
+  python3 "$CYCLE_REPORT" "${R5_NEEDLE[@]}" --db-path "$R5S/full/db.sqlite" --repo-root "$R5S/full/repo" \
+    --config x --as-of 2026-08-23 $bad_args --out "$TMP/c20.json" >"$TMP/c20.err" 2>&1
+  rc=$?
+  if [ "$rc" != 2 ] || [ -f "$TMP/c20.json" ]; then c20="$c20 [$bad_args: rc=$rc]"; fi
+done
+if [ -z "$c20" ]; then
+  echo "ok R5-C20 --window-days 0/-1 and --min-per-type 0 exit 2 and write nothing (as select_sample does)"
+else
+  echo "NOT ok R5-C20$c20"; failx
 fi
 
 echo
@@ -1483,15 +1998,34 @@ else
 fi
 
 echo
-echo "=== R5-C17 (V3-4): a missing or broken sibling (fc_common / select_sample / reopen_rate) is BLIND exit 4, never 1 ==="
+echo "=== R5-C17 (V3-4 + V4-4): a missing, broken or API-less sibling (fc_common / select_sample / reopen_rate) is BLIND exit 4, never 1 ==="
+# V4-4 (round 4): a sibling that LOADS but lacks a function this tool uses (the
+# refactor-drift case: renamed or removed) used to exit 1 with AttributeError,
+# colliding with C-001's hand-verify/determinism code. "partial" renames ONE
+# function the tool uses; "apiless" is a valid module with none of the API.
 CR_SRC="$(cd "$(dirname "$CYCLE_REPORT")/.." && pwd)"
 c17=""
 for target in lib/fc_common.py cycle/select_sample.py closure/reopen_rate.py; do
-  for breakage in missing syntax; do
+  for breakage in missing syntax apiless partial; do
     BT="$TMP/c17_$(basename "$target" .py)_$breakage"
     mkdir -p "$BT" && cp -r "$CR_SRC/lib" "$CR_SRC/cycle" "$CR_SRC/closure" "$BT/"
     rm -rf "${BT:?}/lib/__pycache__" "${BT:?}/cycle/__pycache__" "${BT:?}/closure/__pycache__"
-    if [ "$breakage" = missing ]; then rm -f "${BT:?}/$target"; else printf 'def broken(:\n' > "$BT/$target"; fi
+    case "$breakage" in
+      missing) rm -f "${BT:?}/$target" ;;
+      syntax) printf 'def broken(:\n' > "$BT/$target" ;;
+      apiless) printf 'API_REMOVED = True\n' > "$BT/$target" ;;
+      partial) python3 - "$BT/$target" <<'PYEOF' || c17="$c17 [$target partial: rename anchor missing]"
+import os, sys
+p = sys.argv[1]
+fn = {"fc_common.py": "body_hash_of", "select_sample.py": "select_population",
+      "reopen_rate.py": "derive_report"}[os.path.basename(p)]
+t = open(p).read()
+if t.count("def %s(" % fn) != 1:
+    raise SystemExit(1)
+open(p, "w").write(t.replace("def %s(" % fn, "def %s_renamed(" % fn))
+PYEOF
+      ;;
+    esac
     for dc in "" --determinism-check; do
       rm -f "$TMP/c17.json"
       python3 "$BT/cycle/cycle_report.py" "${R5_NEEDLE[@]}" --db-path "$R5S/full/db.sqlite" --repo-root "$R5S/full/repo" \
@@ -1503,11 +2037,35 @@ for target in lib/fc_common.py cycle/select_sample.py closure/reopen_rate.py; do
     done
   done
 done
-if [ -z "$c17" ]; then
-  echo "ok R5-C17 each of 3 siblings missing or with a SyntaxError: exit 4 + BLIND message + no --out, plain and"
-  echo "   --determinism-check (12 runs)"
+# Every sibling attribute cycle_report.py uses must be in its _REQUIRED_API
+# table (resolved inside the BLIND guard at load time) -- an AST inventory of
+# `<sibling>.<attr>` uses, so a new use cannot bypass the guard unnoticed.
+c17b="$(python3 - "$CYCLE_REPORT" <<'PYEOF'
+import ast, sys
+tree = ast.parse(open(sys.argv[1]).read())
+req = None
+for node in tree.body:
+    if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "_REQUIRED_API" for t in node.targets):
+        req = ast.literal_eval(node.value)
+if req is None:
+    print("no _REQUIRED_API table"); raise SystemExit
+name_of = {"fc_common": "lib/fc_common.py", "select_sample": "cycle/select_sample.py",
+           "reopen_rate": "closure/reopen_rate.py"}
+used = {}
+for n in ast.walk(tree):
+    if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name) and n.value.id in name_of:
+        used.setdefault(name_of[n.value.id], set()).add(n.attr)
+miss = {k: sorted(v - set(req.get(k, ()))) for k, v in used.items() if v - set(req.get(k, ()))}
+if not used.get("cycle/select_sample.py"):
+    print("control: no select_sample.<attr> use found -- the inventory is blind"); raise SystemExit
+print("PASS %d uses" % sum(len(v) for v in used.values()) if not miss else "used but not required: %s" % miss)
+PYEOF
+)"
+if [ -z "$c17" ] && [ "${c17b%% *}" = PASS ]; then
+  echo "ok R5-C17 each of 3 siblings missing / SyntaxError / no API / one function renamed: exit 4 + BLIND"
+  echo "   message + no --out, plain and --determinism-check (24 runs); _REQUIRED_API covers ${c17b#PASS }"
 else
-  echo "NOT ok R5-C17$c17"
+  echo "NOT ok R5-C17$c17 required-API: $c17b"
   failx
 fi
 
@@ -1697,6 +2255,88 @@ def window_for"
   r5_mutant R3_review_end_strict "$CR" 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):' 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt > cutoff_end):'
   r5_mutant R3_window_json_mismatch_allowed "$CR" 'if args.as_of != as_of:' 'if False:'
   r5_mutant R3_loader_blind_import_error_only "$CR" 'except Exception as exc:  # noqa: BLE001 -- FileNotFoundError, SyntaxError, a failing import inside it' 'except ImportError as exc:  # mutant'
+  # Round 4 reviewer mutations (docs/qa/t048_restart_round4_20261008/V2_sampling.md,
+  # verbatim from the reviewer's runmuts.sh / bm/ trees): the missing-DIMENSION
+  # class (V4-1/V4-3/V4-5) killed by R5-C15's derived-dimension matrix and R5-C19's
+  # real-data pass; V4-4 by R5-C17.
+  r5_mutant R4_review_string_compare "$CR" 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):' 'if cutoff_end is not None and (s >= cutoff_end.isoformat() or e >= cutoff_end.isoformat()):'
+  r5_mutant R4_commit_offset_ignored "$CR" 'return parse_iso(author_iso) >= cutoff_end or parse_iso(committer_iso) >= cutoff_end' 'return parse_iso(author_iso).replace(tzinfo=datetime.timezone.utc) >= cutoff_end or parse_iso(committer_iso).replace(tzinfo=datetime.timezone.utc) >= cutoff_end'
+  r5_mutant R4_window_on_created_at "$SS" 'frm <= (r.get("on_date") or "")[:10] <= to' 'frm <= (r.get("created_at") or "")[:10] <= to'
+  r5_mutant R4_retro_gap_le60 "$SS" 'return 0 <= gap < 60' 'return 0 <= gap <= 60'
+  r5_mutant R4_retro_gap_gt0 "$SS" 'return 0 <= gap < 60' 'return 0 < gap < 60'
+  r5_mutant R4_needle_tiebreak_asc "$SS" 'id DESC LIMIT 1' 'id ASC LIMIT 1'
+  r5_mutant R4_retro_before_bulk "$SS" '        if atm_id in bulk_flagged:' '        if detect_retroactive_registration(history_by_id.get(atm_id, [])):
+            reason = RETROACTIVE_REASON
+        elif atm_id in bulk_flagged:'
+  r5_mutant R4_bulk_key_day "$SS" 'ekey = (os.path.dirname(closure["evidence_path"]), closure.get("on_date"))' 'ekey = (os.path.dirname(closure["evidence_path"]), (closure.get("on_date") or "")[:10])'
+  r5_mutant R4_reopen_window_on_created_at "$SS" 'window["from"] <= (r.get("on_date") or "")[:10] <= window["to"]' 'window["from"] <= (r.get("created_at") or "")[:10] <= window["to"]'
+  r5_mutant R4_wj_guard_after_cut "$CR" '        if args.as_of != as_of:' '        if args.as_of < as_of:'
+  r5_mutant R4_sql_drop_implemented "$SS" "\"WHERE ih.event_type IN ('Fixed','Implemented','Completed') \"" "\"WHERE ih.event_type IN ('Fixed','Completed') \""
+  r5_mutant R4_sql_reopen_on_created_at "$SS" "\"WHERE ih.event_type = 'Reopened' AND substr(ih.on_date, 1, 10) BETWEEN ? AND ?\"," "\"WHERE ih.event_type = 'Reopened' AND substr(ih.created_at, 1, 10) BETWEEN ? AND ?\","
+  # B3 (reviewer, verbatim): reopen_rate.py's reopened_in_window on created_at --
+  # reaches this tool through the CT-006 reopen block (R5-C15 rule cell
+  # reopen_block_created_axis, R5-C19).
+  r5_mutant R4_B3_reopen_rate_on_created_at closure/reopen_rate.py 'r.get("event_type") == "Reopened" and frm <= _day(r.get("on_date")) <= to' 'r.get("event_type") == "Reopened" and frm <= _day(r.get("created_at")) <= to'
+  # Own (round 4): the rest of the class -- the review leg's offset, the dedup
+  # key's by/reason/created_at, the required-API guard, the usage guards.
+  r5_mutant R4_review_offset_ignored "$CR" 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):' 'if cutoff_end is not None and (s_dt.replace(tzinfo=datetime.timezone.utc) >= cutoff_end or e_dt.replace(tzinfo=datetime.timezone.utc) >= cutoff_end):'
+  r5_mutant R4_dedup_key_without_by closure/reopen_rate.py '        row.get("event_type"), row.get("by"), row.get("on_date"),' '        row.get("event_type"), row.get("on_date"),'
+  r5_mutant R4_dedup_key_without_reason closure/reopen_rate.py '        row.get("reason"), row.get("evidence_path"), row.get("created_at"),' '        row.get("evidence_path"), row.get("created_at"),'
+  r5_mutant R4_dedup_key_without_created_at closure/reopen_rate.py '        row.get("reason"), row.get("evidence_path"), row.get("created_at"),' '        row.get("reason"), row.get("evidence_path"),'
+  r5_mutant R4_reopen_day_utc "$SS" 'window["from"] <= (r.get("on_date") or "")[:10] <= window["to"]' 'window["from"] <= (parse_iso(r["on_date"]).astimezone(datetime.timezone.utc).date().isoformat() if "T" in (r.get("on_date") or "") else (r.get("on_date") or "")[:10]) <= window["to"]'
+  r5_mutant R4_recency_no_row_id "$SS" 'return (created_at, hist_id, atm_id)' 'return (created_at, atm_id)'
+  r5_mutant R4_required_api_not_checked "$CR" '    return _require_api(module, what)' '    return module'
+  r5_mutant R4_window_days_zero_allowed "$CR" 'if args.window_days <= 0:' 'if args.window_days < 0:'
+  r5_mutant R4_min_per_type_zero_allowed "$CR" 'if args.min_per_type <= 0:' 'if args.min_per_type < 0:'
+
+  # Builder-drift paired mutations (V4-2: reviewer B2 verbatim + own): a drifted
+  # COPY of the matrix builder, alone and with the bound mutant whose cell it
+  # moves -- placement / the derived-dimension check must fail.
+  r5_builder_mutant() {  # name, builder old, builder new [, tool file rel, tool old, tool new]
+    local name="$1" root="$TMP/bmut_$1" bld tool="$CYCLE_REPORT" tree
+    mkdir -p "$root"
+    bld="$root/build_asof_scenario.py"
+    cp "$ASOF_BUILDER" "$bld"
+    if ! python3 - "$bld" "$2" "$3" <<'PYEOF'
+import sys
+path, old, new = sys.argv[1:4]
+text = open(path, encoding="utf-8").read()
+if text.count(old) != 1:
+    raise SystemExit("builder anchor found %d times: %r" % (text.count(old), old))
+open(path, "w", encoding="utf-8").write(text.replace(old, new))
+PYEOF
+    then
+      echo "NOT ok builder mutation $name could not be applied (anchor drifted)"; failx; return
+    fi
+    if [ $# -ge 6 ]; then
+      tree="$(mk_mutant_tree "$root/tree")"
+      if ! python3 - "$tree/$4" "$5" "$6" <<'PYEOF'
+import sys
+path, old, new = sys.argv[1:4]
+text = open(path, encoding="utf-8").read()
+if text.count(old) != 1:
+    raise SystemExit("anchor found %d times: %r" % (text.count(old), old))
+open(path, "w", encoding="utf-8").write(text.replace(old, new))
+PYEOF
+      then
+        echo "NOT ok builder mutation $name: tool anchor drifted"; failx; return
+      fi
+      tool="$tree/cycle/cycle_report.py"
+    fi
+    if ASOF_BUILDER_UNDER_TEST="$bld" CYCLE_REPORT_UNDER_TEST="$tool" FC_R5_MUTANT=1 bash "$0" >"$TMP/bmut_$name.out" 2>&1; then
+      echo "NOT ok builder mutation $name SURVIVED (suite still exits 0)"; failx
+    else
+      echo "ok builder mutation $name killed ($(grep -c '^NOT ok' "$TMP/bmut_$name.out") failing check(s))"
+    fi
+    rm -rf "$root"
+  }
+  r5_builder_mutant B2_commit_drift_alone '                varied, other = _instant(off, tz), _instant(-7200, "Z")' '                varied, other = _instant(off - 10, tz), _instant(-7200, "Z")'
+  r5_builder_mutant B2_commit_drift_plus_cutoff_committer_strict '                varied, other = _instant(off, tz), _instant(-7200, "Z")' '                varied, other = _instant(off - 10, tz), _instant(-7200, "Z")' \
+    "$CR" 'return parse_iso(author_iso) >= cutoff_end or parse_iso(committer_iso) >= cutoff_end' 'return parse_iso(author_iso) >= cutoff_end or parse_iso(committer_iso) > cutoff_end'
+  r5_builder_mutant B1_from_drift_plus_closed_from_exclusive '    from_day = _iso_day(M_AS_OF, -M_WINDOW_DAYS)' '    from_day = _iso_day(M_AS_OF, -M_WINDOW_DAYS - 5)' \
+    "$SS" 'return any(r["event_type"] in CLOSURE_EVENTS and frm <= (r.get("on_date") or "")[:10] <= to' 'return any(r["event_type"] in CLOSURE_EVENTS and frm < (r.get("on_date") or "")[:10] <= to'
+  r5_builder_mutant B_review_utc_only_plus_string_compare '                cell_round = (_instant(-3600, "Z"), _instant(off, tz), 10)' '                cell_round = (_instant(-3600, "Z"), _instant(off, "Z"), 10)' \
+    "$CR" 'if cutoff_end is not None and (s_dt >= cutoff_end or e_dt >= cutoff_end):' 'if cutoff_end is not None and (s >= cutoff_end.isoformat() or e >= cutoff_end.isoformat()):'
 fi
 
 exit $fail

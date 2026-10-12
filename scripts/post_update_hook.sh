@@ -84,6 +84,23 @@ WARNINGS=()
 
 # Safe expansion of a possibly-empty array under `set -u` (bash < 4.4).
 arr_len() { eval "printf '%s' \"\${#$1[@]}\""; }
+# sort_unique_inplace NAME — replace array NAME by its sorted, de-duplicated, non-empty elements.
+# bash-3.2 portable on purpose (V5 F7): `mapfile` / `readarray` need bash >= 4.0 and nothing else in this
+# hook does (macOS ships bash 3.2 as /bin/bash), and the older `NAME=($(...))` form word-split AND
+# glob-expanded every element. A `while read` over a here-document does neither. NAME must be one
+# of this hook's own array names (it is eval'd); callers guard the empty case (see arr_len).
+sort_unique_inplace() {
+    local _su_name="$1" _su_line
+    local _su_sorted
+    _su_sorted="$(eval "printf '%s\\n' \"\${${_su_name}[@]}\"" | sort -u)"
+    eval "$_su_name=()"
+    while IFS= read -r _su_line; do
+        [ -n "$_su_line" ] || continue
+        eval "$_su_name+=(\"\$_su_line\")"
+    done <<EOF_SU
+$_su_sorted
+EOF_SU
+}
 
 # --- Colour helpers -------------------------------------------------------
 RED='\033[0;31m'
@@ -183,11 +200,11 @@ detect_changes() {
     # unbound-variable error under `set -u` on bash < 4.4.
     local IFS_SAVE="$IFS"
     IFS=$'\n'
-    [ "$(arr_len CHANGED_SKILLS)"  -eq 0 ] || CHANGED_SKILLS=($(printf "%s\n" "${CHANGED_SKILLS[@]}"  | sort -u))
-    [ "$(arr_len CHANGED_MCP)"     -eq 0 ] || CHANGED_MCP=($(printf "%s\n" "${CHANGED_MCP[@]}"        | sort -u))
-    [ "$(arr_len CHANGED_HOOKS)"   -eq 0 ] || CHANGED_HOOKS=($(printf "%s\n" "${CHANGED_HOOKS[@]}"    | sort -u))
-    [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] || CHANGED_SCRIPTS=($(printf "%s\n" "${CHANGED_SCRIPTS[@]}" | sort -u))
-    [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] || CHANGED_ACTIONS=($(printf "%s\n" "${CHANGED_ACTIONS[@]}" | sort -u))
+    [ "$(arr_len CHANGED_SKILLS)"  -eq 0 ] || sort_unique_inplace CHANGED_SKILLS
+    [ "$(arr_len CHANGED_MCP)"     -eq 0 ] || sort_unique_inplace CHANGED_MCP
+    [ "$(arr_len CHANGED_HOOKS)"   -eq 0 ] || sort_unique_inplace CHANGED_HOOKS
+    [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] || sort_unique_inplace CHANGED_SCRIPTS
+    [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] || sort_unique_inplace CHANGED_ACTIONS
     IFS="$IFS_SAVE"
 
     info "Detected: ${#CHANGED_SKILLS[@]} skill(s), ${#CHANGED_MCP[@]} MCP config(s), ${#CHANGED_HOOKS[@]} hook(s), ${#CHANGED_SCRIPTS[@]} script(s), ${#CHANGED_ACTIONS[@]} action/plugin file(s) changed."
@@ -207,7 +224,7 @@ install_skills() {
     local project_skills_dir="${PROJECT_ROOT}/skills"
     mkdir -p "$project_skills_dir"
 
-    for skill_name in "${CHANGED_SKILLS[@]}"; do
+    for skill_name in ${CHANGED_SKILLS[@]+"${CHANGED_SKILLS[@]}"}; do
         local src="${CONST_DIR}/skills/${skill_name}"
         local dst="${project_skills_dir}/${skill_name}"
 
@@ -271,7 +288,7 @@ install_mcp_configs() {
         echo '{"mcpServers":{}}' > "$mcp_dst"
     fi
 
-    for mcp_name in "${CHANGED_MCP[@]}"; do
+    for mcp_name in ${CHANGED_MCP[@]+"${CHANGED_MCP[@]}"}; do
         local src_file="${mcp_src_dir}/${mcp_name}"
 
         if [ ! -f "$src_file" ]; then
@@ -333,7 +350,7 @@ install_hooks() {
         return 1
     fi
 
-    for hook_name in "${CHANGED_HOOKS[@]}"; do
+    for hook_name in ${CHANGED_HOOKS[@]+"${CHANGED_HOOKS[@]}"}; do
         local src_file="${hooks_src}/${hook_name}"
         local dst_file="${hooks_dst}/${hook_name}"
 
@@ -412,19 +429,19 @@ validate_scripts() {
     local all_scripts=()
 
     # Scripts from CHANGED_SCRIPTS
-    for s in "${CHANGED_SCRIPTS[@]}"; do
+    for s in ${CHANGED_SCRIPTS[@]+"${CHANGED_SCRIPTS[@]}"}; do
         local full="${CONST_DIR}/scripts/${s}"
         [ -f "$full" ] && all_scripts+=("$full")
     done
 
     # Hook scripts
-    for h in "${CHANGED_HOOKS[@]}"; do
+    for h in ${CHANGED_HOOKS[@]+"${CHANGED_HOOKS[@]}"}; do
         local full="${CONST_DIR}/scripts/hooks/${h}"
         [ -f "$full" ] && all_scripts+=("$full")
     done
 
     # Skill scripts (validate .sh files inside skill dirs)
-    for sk in "${CHANGED_SKILLS[@]}"; do
+    for sk in ${CHANGED_SKILLS[@]+"${CHANGED_SKILLS[@]}"}; do
         local skill_dir="${CONST_DIR}/skills/${sk}"
         if [ -d "$skill_dir" ]; then
             while IFS= read -r -d '' sh_file; do
@@ -444,12 +461,12 @@ validate_scripts() {
     # Deduplicate
     local IFS_SAVE="$IFS"
     IFS=$'\n'
-    local unique_scripts
-    unique_scripts=($(printf "%s\n" "${all_scripts[@]}" | sort -u))
+    local unique_scripts=(${all_scripts[@]+"${all_scripts[@]}"})   # all_scripts is non-empty here (guarded above)
+    sort_unique_inplace unique_scripts
     IFS="$IFS_SAVE"
 
     local validated=0
-    for script in "${unique_scripts[@]}"; do
+    for script in ${unique_scripts[@]+"${unique_scripts[@]}"}; do
         # chmod +x
         chmod +x "$script" 2>/dev/null || true
 
@@ -473,7 +490,7 @@ validate_scripts() {
     # Optional: shellcheck if available
     if command -v shellcheck &>/dev/null; then
         info "Running shellcheck on scripts..."
-        for script in "${unique_scripts[@]}"; do
+        for script in ${unique_scripts[@]+"${unique_scripts[@]}"}; do
             shellcheck -x -s bash "$script" 2>/dev/null || {
                 warn "shellcheck warnings/errors in $script (non-blocking)"
             }
@@ -484,6 +501,104 @@ validate_scripts() {
 }
 
 # ============================================================================
+# STEP 0 — Constitution index freshness (R4-01, every run)
+# ============================================================================
+# constitution_index.yaml records the sha256 of the Constitution.md it was
+# generated from; anchor_citations.py refuses a stale index (BLIND, exit 4). An
+# amendment that lands without regenerating the index therefore blinds every
+# consumer of the index. This step runs on EVERY invocation -- Constitution.md is
+# not one of the propagated categories above, so gating it on detect_changes
+# would let a stale index through silently. Read-only by default (a consuming
+# project must not silently dirty its constitution submodule); the operator opts
+# into regeneration with CONST_INDEX_REGENERATE=1.
+#
+# V5 N2: a fresh CHECKSUM is not enough. regenerate_if_stale.sh --check compares only
+# the checksum, so a pulled tree whose groups/*.md was hand-edited (checksum untouched)
+# would pass as "fresh". Once the checksum reads fresh, the
+# generator's own drift check runs too -- the SAME `constitution_generate.py check` the
+# commit seam (F5) and CM-CONSTITUTION-INDEX-FRESH run (~0.03 s) -- with the same
+# blocking semantics as a stale index.
+INDEX_STALE=0
+check_constitution_index_drift() { # 0 = no drift; 1 = drift or BLIND (recorded in ERRORS + INDEX_STALE)
+    local gen="${CONST_DIR}/scripts/anchors/constitution_generate.py" dout drc=0
+    if [ ! -f "$gen" ]; then  # drift-check generator guard
+        error "constitution index: drift check BLIND -- the generator $gen is missing"
+        ERRORS+=("constitution index drift check BLIND (generator constitution_generate.py missing)")
+        INDEX_STALE=1
+        return 1
+    fi
+    # `|| drc=$?`, never `; drc=$?`: under `set -e` a failing assignment would abort the hook.
+    dout="$(python3 "$gen" check --source "$CONST_DIR/Constitution.md" --groups-dir "$CONST_DIR/groups" \
+        --index-out "$CONST_DIR/constitution_index.yaml" 2>&1)" || drc=$?
+    if [ "$drc" -ne 0 ]; then
+        error "constitution index: DRIFT -- the index/groups do not match a fresh generation of Constitution.md (generator check rc=$drc) although the checksum matches: a generated file was hand-edited"
+        printf '%s\n' "$dout" | head -n 10 | sed 's/^/    /'
+        error "  regenerate in the constitution checkout and commit the result: python3 $gen generate --source $CONST_DIR/Constitution.md --groups-dir $CONST_DIR/groups --index-out $CONST_DIR/constitution_index.yaml"
+        ERRORS+=("constitution index/groups DRIFT from a fresh generation of Constitution.md (generator check rc=$drc)")
+        INDEX_STALE=1
+        return 1
+    fi
+    return 0
+}
+check_constitution_index() {
+    header "STEP 0: Constitution index freshness"
+    local regen="${CONST_DIR}/scripts/anchors/regenerate_if_stale.sh"
+    if [ ! -f "$regen" ]; then
+        error "constitution index: cannot be checked -- $regen is missing"
+        ERRORS+=("constitution index freshness could not be checked ($regen missing)")
+        INDEX_STALE=1
+        return 0
+    fi
+    local out rc=0
+    # `|| rc=$?`, never `; rc=$?`: under `set -e` a failing assignment would abort the hook.
+    out="$(bash "$regen" --root "$CONST_DIR" --check 2>&1)" || rc=$?
+    if [ "$rc" -eq 0 ]; then
+        check_constitution_index_drift || return 0
+        info "constitution index: fresh -- $out"
+        return 0
+    fi
+    if [ "$rc" -eq 1 ] && [ "${CONST_INDEX_REGENERATE:-0}" = "1" ]; then
+        if out="$(bash "$regen" --root "$CONST_DIR" 2>&1)"; then
+            info "constitution index: regenerated (CONST_INDEX_REGENERATE=1)"
+            printf '%s\n' "$out" | sed 's/^/    /'
+            warn "the constitution submodule now has uncommitted index/groups changes -- commit them there"
+            WARNINGS+=("constitution index regenerated in $CONST_DIR (uncommitted)")
+            return 0
+        fi
+        error "constitution index: regeneration FAILED"
+        printf '%s\n' "$out" | sed 's/^/    /'
+        ERRORS+=("constitution index regeneration failed")
+        INDEX_STALE=1
+        return 0
+    fi
+    # Report the REAL cause per exit code of regenerate_if_stale.sh --check (fail-closed in every case):
+    #   1 stale | 4 BLIND (generator/source unreadable) | 75 lock not acquired | anything else unexpected.
+    case "$rc" in
+        1)
+            error "constitution index: STALE (rc=$rc) -- $out"
+            error "  anchor_citations.py will refuse this index (E_INDEX_SHA_MISMATCH). Regenerate it in the"
+            error "  constitution checkout and commit the result: bash $regen --root $CONST_DIR"
+            error "  (or re-run this hook with CONST_INDEX_REGENERATE=1)"
+            ERRORS+=("constitution index STALE against Constitution.md")
+            ;;
+        4)
+            error "constitution index: BLIND (rc=4) -- the freshness check could not run (generator or Constitution.md missing/unreadable): $out"
+            ERRORS+=("constitution index freshness BLIND (rc=4: generator/source unreadable)")
+            ;;
+        75)
+            error "constitution index: freshness check could not take the regeneration lock (rc=75) -- $out"
+            ERRORS+=("constitution index freshness check blocked by lock (rc=75)")
+            ;;
+        *)
+            error "constitution index: freshness check failed with unexpected rc=$rc -- $out"
+            ERRORS+=("constitution index freshness check failed (unexpected rc=$rc)")
+            ;;
+    esac
+    INDEX_STALE=1
+    return 0
+}
+
+# ============================================================================
 # STEP 6 — Report summary
 # ============================================================================
 report_summary() {
@@ -491,19 +606,19 @@ report_summary() {
 
     echo ""
     echo -e "  ${CYAN}Skills installed:${NC}   ${#CHANGED_SKILLS[@]}"
-    for s in "${CHANGED_SKILLS[@]}"; do
+    for s in ${CHANGED_SKILLS[@]+"${CHANGED_SKILLS[@]}"}; do
         echo "    - $s"
     done
 
     echo ""
     echo -e "  ${CYAN}MCP configs merged:${NC} ${#CHANGED_MCP[@]}"
-    for m in "${CHANGED_MCP[@]}"; do
+    for m in ${CHANGED_MCP[@]+"${CHANGED_MCP[@]}"}; do
         echo "    - $m"
     done
 
     echo ""
     echo -e "  ${CYAN}Hooks installed:${NC}    ${#CHANGED_HOOKS[@]}"
-    for h in "${CHANGED_HOOKS[@]}"; do
+    for h in ${CHANGED_HOOKS[@]+"${CHANGED_HOOKS[@]}"}; do
         echo "    - $h"
     done
 
@@ -513,7 +628,7 @@ report_summary() {
     if [ ${#WARNINGS[@]} -gt 0 ]; then
         echo ""
         echo -e "  ${YELLOW}Warnings (${#WARNINGS[@]}):${NC}"
-        for w in "${WARNINGS[@]}"; do
+        for w in ${WARNINGS[@]+"${WARNINGS[@]}"}; do
             echo "    - $w"
         done
     fi
@@ -521,7 +636,7 @@ report_summary() {
     if [ ${#ERRORS[@]} -gt 0 ]; then
         echo ""
         echo -e "  ${RED}Errors (${#ERRORS[@]}):${NC}"
-        for e in "${ERRORS[@]}"; do
+        for e in ${ERRORS[@]+"${ERRORS[@]}"}; do
             echo "    - $e"
         done
         echo ""
@@ -547,6 +662,7 @@ main() {
     info "Project root:      $PROJECT_ROOT"
     info "Script dir:        $SCRIPT_DIR"
 
+    check_constitution_index
     detect_changes
 
     if [ "$(arr_len CHANGED_SKILLS)" -eq 0 ] && \
@@ -555,6 +671,10 @@ main() {
        [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ]; then
         info "No relevant changes detected. Nothing to propagate."
+        if [ "$INDEX_STALE" -ne 0 ]; then
+            error "Post-update hook: the constitution index is stale (see STEP 0)."
+            return 1
+        fi
         return 0
     fi
 

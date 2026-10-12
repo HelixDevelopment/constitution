@@ -28,8 +28,9 @@ ROOT="$(cd "$HERE/../../../.." && pwd)"
 TMP="$(mktemp -d)"
 cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT
-trap 'cleanup; exit 130' INT
-trap 'cleanup; exit 143' TERM
+# round-5 F-F class: die BY the signal after cleaning up (never an `exit 128+N` look-alike).
+trap 'cleanup; trap - INT; kill -s INT "$BASHPID"; exit 130' INT
+trap 'cleanup; trap - TERM; kill -s TERM "$BASHPID"; exit 143' TERM
 
 FAIL=0; N=0; SKIPPED=0
 chk() { N=$((N + 1)); if [ "$2" = "1" ]; then echo "PASS[$N]: $1"; else echo "FAIL[$N]: $1"; FAIL=$((FAIL + 1)); fi; }
@@ -476,6 +477,469 @@ RC=$(run_subprocess "$TMP/case_exitflush_off.sh")
 chk "I2: FC_TIMING=0 -> the exit flush writes nothing (no TSV created) and the status is untouched (rc=$RC)" \
   "$([ ! -e "$TMP/exitflush_off.tsv" ] && [ "$RC" -eq 4 ] && echo 1 || echo 0)"
 
+# --- T048 round-4 F1 (the signal-death CLASS): bash runs its EXIT trap on a fatal signal with
+# `$?` = the last COMPLETED command's status, so a frame open when the process is killed was
+# recorded `WARN|result=aborted;rc=0` (a clean exit). EVERY signal the flush covers must record
+# FAIL rc=128+N and the process must end with status 128+N. The `true` before the kill makes
+# the stale `$?` exactly 0 -- the value the defect reported. PROF is in the class although
+# bash never ran the EXIT trap for it (measured): there the row was missing altogether.
+# V6 review round 4, F6: the class is PINNED here, independently of the library under test (a
+# selftest that iterates the library's own list loses a signal's assertions when that signal is
+# dropped from the library -- reviewer mutant R18, PIPE removed, passed with 0 failures). The
+# library's list must EQUAL the pinned one, every per-signal case below iterates the PINNED list,
+# and the total assertion count is pinned at the end (FC_SELFTEST_EXPECTED_N). ---
+_PINNED_FLUSH_SIGS="HUP INT TERM USR1 USR2 ALRM PIPE XCPU XFSZ VTALRM PROF"
+_LIB_FLUSH_SIGS="$(bash -c 'export FC_TIMER_TSV=/dev/null; . "$1"; printf %s "$_FC_TIMER_FLUSH_SIGNALS"' _ "$FC_TIMER" 2>/dev/null)"
+_pinned_n=0; for _w in $_PINNED_FLUSH_SIGS; do _pinned_n=$((_pinned_n + 1)); done
+chk "F1-class: the library's flush signal class equals the pinned 11-signal class (library '$_LIB_FLUSH_SIGS'; pinned '$_PINNED_FLUSH_SIGS', $_pinned_n signals)" \
+  "$([ "$_pinned_n" = 11 ] && [ "$_LIB_FLUSH_SIGS" = "$_PINNED_FLUSH_SIGS" ] && echo 1 || echo 0)"
+_FLUSH_SIGS="$_PINNED_FLUSH_SIGS"
+for _sig in $_FLUSH_SIGS; do
+  _num="$(kill -l "$_sig")"
+  cat > "$TMP/case_sig_$_sig.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/sig_$_sig.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush --signals
+fc_timer_start "sig-$_sig"
+true
+kill -s $_sig \$BASHPID
+echo "NOT-REACHED"
+EOF
+  RC=$(run_subprocess "$TMP/case_sig_$_sig.sh")
+  SIGROW="$(tail -n +2 "$TMP/sig_$_sig.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+  chk "F1-$_sig: a process killed by SIG$_sig mid-frame records FAIL rc=$((128 + _num)) and exits $((128 + _num)) (row='$SIGROW' rc=$RC)" \
+    "$([ "$SIGROW" = "sig-$_sig:FAIL:result=aborted;rc=$((128 + _num)) " ] && [ "$RC" -eq $((128 + _num)) ] && ! grep -q NOT-REACHED "$TMP/sub.out" && echo 1 || echo 0)"
+done
+# the death must still be BY THE SIGNAL (WIFSIGNALED), not an `exit 128+N` look-alike: a parent
+# shell aborts its own loop on a child's SIGINT death (wait-and-cooperative-exit) but NOT on an
+# `exit 130`. python3 reports a signal death as a NEGATIVE returncode.
+if command -v python3 >/dev/null 2>&1; then
+  for _sig in INT TERM; do
+    _num="$(kill -l "$_sig")"
+    _prc="$(python3 -c 'import subprocess,sys; print(subprocess.run(["bash", sys.argv[1]], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode)' "$TMP/case_sig_$_sig.sh" 2>/dev/null)"
+    chk "F1-$_sig-signaled: the process dies BY SIG$_sig (python returncode $_prc, want -$_num)" \
+      "$([ "$_prc" = "-$_num" ] && echo 1 || echo 0)"
+  done
+else
+  skip "F1-signaled: python3 absent -- WIFSIGNALED not checkable"
+fi
+# QUIT is deliberately NOT in the class: bash ignores SIGQUIT in every mode, so the flush must
+# leave that untouched -- the script survives and the frame closes normally (no false death).
+cat > "$TMP/case_sig_quit.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/sig_quit.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush --signals
+fc_timer_start "sig-QUIT"
+kill -s QUIT \$BASHPID
+fc_timer_end
+echo "SURVIVED"
+EOF
+RC=$(run_subprocess "$TMP/case_sig_quit.sh")
+QROW="$(tail -n +2 "$TMP/sig_quit.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s ", $3, $7}')"
+chk "F1-QUIT: SIGQUIT (ignored by bash) is not turned into a death by the flush ($QROW rc=$RC)" \
+  "$(grep -q SURVIVED "$TMP/sub.out" && [ "$RC" -eq 0 ] && [ "$QROW" = "sig-QUIT:PASS " ] && echo 1 || echo 0)"
+# FC_TIMING=0: the flush installs NO signal trap (signal behaviour unchanged when timing is off).
+cat > "$TMP/case_sig_off.sh" <<EOF
+set -u
+export FC_TIMING=0
+export FC_TIMER_TSV="$TMP/sig_off.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush --signals
+echo "traps=[\$(trap -p TERM)]"
+EOF
+RC=$(run_subprocess "$TMP/case_sig_off.sh")
+chk "F1-off: FC_TIMING=0 installs no signal trap ($(cat "$TMP/sub.out"))" \
+  "$(grep -qx 'traps=\[\]' "$TMP/sub.out" && [ ! -e "$TMP/sig_off.tsv" ] && echo 1 || echo 0)"
+# compose (a): a PRIOR TERM trap that RETURNS keeps its semantics -- the handler runs, the
+# script continues, and the frame is closed later by the real exit (a frame still open at a
+# clean exit stays WARN rc=0, with the V6 F6 note: armed, rc=0 cannot rule out a death by a
+# signal outside the class). Our flush must never turn a handled TERM into a death.
+cat > "$TMP/case_sig_prior_return.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/sig_prior_return.tsv"
+source "$FC_TIMER"
+trap 'echo handled >> "$TMP/sig_prior_return.mark"' TERM
+fc_timer_install_exit_flush --signals
+fc_timer_start "prior-return"
+kill -s TERM \$BASHPID
+echo "CONTINUED"
+exit 0
+EOF
+RC=$(run_subprocess "$TMP/case_sig_prior_return.sh")
+PRROW="$(tail -n +2 "$TMP/sig_prior_return.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+chk "F1-compose-return: a prior TERM handler that returns still runs, the script continues, rc=0 ($PRROW rc=$RC)" \
+  "$([ "$(cat "$TMP/sig_prior_return.mark" 2>/dev/null)" = handled ] && grep -q CONTINUED "$TMP/sub.out" && [ "$RC" -eq 0 ] && [ "$PRROW" = "prior-return:WARN:result=aborted;rc=0;signals=untracked-nonclass " ] && echo 1 || echo 0)"
+# compose (b): a PRIOR TERM trap that EXITS 0 -- the process exit status is the prior trap's
+# choice (0, never changed), but the frame open at the signal is still a FAIL rc=143.
+cat > "$TMP/case_sig_prior_exit0.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/sig_prior_exit0.tsv"
+source "$FC_TIMER"
+trap 'echo bye >> "$TMP/sig_prior_exit0.mark"; exit 0' TERM
+fc_timer_install_exit_flush --signals
+fc_timer_start "prior-exit0"
+kill -s TERM \$BASHPID
+echo "NOT-REACHED"
+EOF
+RC=$(run_subprocess "$TMP/case_sig_prior_exit0.sh")
+PEROW="$(tail -n +2 "$TMP/sig_prior_exit0.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+chk "F1-compose-exit0: a prior TERM handler exiting 0 keeps rc=0 but the open frame is FAIL rc=143 ($PEROW rc=$RC)" \
+  "$([ "$(cat "$TMP/sig_prior_exit0.mark" 2>/dev/null)" = bye ] && [ "$RC" -eq 0 ] && [ "$PEROW" = "prior-exit0:FAIL:result=aborted;rc=143 " ] && ! grep -q NOT-REACHED "$TMP/sub.out" && echo 1 || echo 0)"
+# compose (c): an IGNORED signal (trap '' TERM, or nohup's SIG_IGN) stays ignored -- the flush
+# must never re-arm a signal the caller chose to ignore.
+cat > "$TMP/case_sig_ignored.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/sig_ignored.tsv"
+source "$FC_TIMER"
+trap '' TERM
+fc_timer_install_exit_flush --signals
+fc_timer_start "ignored"
+kill -s TERM \$BASHPID
+fc_timer_end
+echo "SURVIVED"
+exit 0
+EOF
+RC=$(run_subprocess "$TMP/case_sig_ignored.sh")
+IGROW="$(tail -n +2 "$TMP/sig_ignored.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s ", $3, $7}')"
+chk "F1-compose-ignored: an ignored TERM stays ignored (SURVIVED, rc=0, frame closed normally: $IGROW rc=$RC)" \
+  "$(grep -q SURVIVED "$TMP/sub.out" && [ "$RC" -eq 0 ] && [ "$IGROW" = "ignored:PASS " ] && echo 1 || echo 0)"
+
+# --- T048 round-5 F-A (the signal-DEFERRAL class): bash defers a TRAPPED signal until the
+# running FOREGROUND child exits, so a flush that trapped every signal made its caller
+# unkillable by a single-PID kill for as long as a child ran. Every case below has a REAL
+# foreground child (`sleep 3`) and a separate killer process; elapsed time and the WIFSIGNALED
+# status come from python3 (a signal death is a NEGATIVE returncode; the child's stdio goes to
+# /dev/null so no pipe is held open past the script's death -- timing measures the script). ---
+timed_run() {  # <scriptfile> -> prints "<python returncode> <elapsed ms>"; stdout/stderr -> $TMP/sub.out/.err
+  python3 -c '
+import subprocess, sys, time
+t = time.monotonic()
+import signal
+def dfl():  # a caller running this selftest under nohup / in a background job must not hide a class signal
+    for n in ("SIGHUP", "SIGINT", "SIGQUIT", "SIGTERM"):
+        signal.signal(getattr(signal, n), signal.SIG_DFL)
+r = subprocess.run(["bash", sys.argv[1]], preexec_fn=dfl, stdin=subprocess.DEVNULL, stdout=open(sys.argv[2], "wb"), stderr=open(sys.argv[3], "wb"))
+print(r.returncode, int((time.monotonic() - t) * 1000))' "$1" "$TMP/sub.out" "$TMP/sub.err"
+}
+# fa_case <file> <signal> <tsv> <instrument: none|flush|signals> <child: plain|run>
+fa_case() {
+  {
+    echo 'set -u'
+    if [ "$4" != none ]; then
+      echo "export FC_TIMER_TSV=\"$3\""
+      echo "source \"$FC_TIMER\""
+      if [ "$4" = signals ]; then echo 'fc_timer_install_exit_flush --signals'; else echo 'fc_timer_install_exit_flush'; fi
+      echo 'fc_timer_start "fa-frame"'
+    fi
+    echo "( sleep 0.4; kill -s $2 \$\$ ) </dev/null >/dev/null 2>&1 &"
+    if [ "$5" = run ]; then echo 'fc_timer_run sleep 3 </dev/null >/dev/null 2>&1'; else echo 'sleep 3 </dev/null >/dev/null 2>&1'; fi
+    [ "$4" != none ] && echo 'fc_timer_end'
+    echo 'echo SURVIVED'
+  } > "$1"
+}
+if command -v python3 >/dev/null 2>&1; then
+  for _sig in $_FLUSH_SIGS; do
+    _num="$(kill -l "$_sig")"
+    # (1) DEFAULT install (no --signals): the process's signal behaviour must be identical to the
+    #     SAME script without the library (parity, including INT, which bash itself defers and
+    #     then survives when the child exits normally) -- no trap may be armed.
+    fa_case "$TMP/fa_ctl_$_sig.sh" "$_sig" "$TMP/fa_ctl_$_sig.tsv" none plain
+    read -r _crc _cms <<<"$(timed_run "$TMP/fa_ctl_$_sig.sh")"
+    _csurv="$(grep -c SURVIVED "$TMP/sub.out")"
+    fa_case "$TMP/fa_def_$_sig.sh" "$_sig" "$TMP/fa_def_$_sig.tsv" flush plain
+    read -r _drc _dms <<<"$(timed_run "$TMP/fa_def_$_sig.sh")"
+    _dsurv="$(grep -c SURVIVED "$TMP/sub.out")"
+    _cfast=0; [ "$_cms" -lt 1500 ] && _cfast=1
+    _dfast=0; [ "$_dms" -lt 1500 ] && _dfast=1
+    chk "F-A-default-$_sig: without --signals a SIG$_sig with a foreground child behaves exactly like the uninstrumented script (control rc=$_crc ${_cms}ms survived=$_csurv; flush rc=$_drc ${_dms}ms survived=$_dsurv)" \
+      "$([ "$_crc" = "$_drc" ] && [ "$_cfast" = "$_dfast" ] && [ "$_csurv" = "$_dsurv" ] && echo 1 || echo 0)"
+    if [ "$_sig" != INT ]; then
+      # an untracked signal death: the honest row (rc=0 is the stale `$?`, and says so)
+      _drow="$(tail -n +2 "$TMP/fa_def_$_sig.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+      if [ "$_sig" = PROF ]; then
+        # measured: bash runs no EXIT trap at all for SIGPROF -- the row is honestly absent
+        chk "F-A-default-PROF: an untrapped SIGPROF death writes no row (bash runs no EXIT trap for it): '$_drow'" "$([ -z "$_drow" ] && echo 1 || echo 0)"
+      else
+        chk "F-A-default-$_sig: the open frame is recorded WARN rc=0 with the signals=untracked note, never a bare clean exit ('$_drow')" \
+          "$([ "$_drow" = "fa-frame:WARN:result=aborted;rc=0;signals=untracked " ] && echo 1 || echo 0)"
+      fi
+      chk "F-A-default-$_sig: the death is immediate (${_dms}ms < 1500ms with a 3s foreground child) and BY the signal (rc=$_drc)" \
+        "$([ "$_dfast" = 1 ] && [ "$_drc" = "-$_num" ] && echo 1 || echo 0)"
+    fi
+    # (2) --signals + fc_timer_run: the trapped signal takes effect AT ONCE, the frame is FAIL
+    #     rc=128+N and the process still dies by the signal.
+    fa_case "$TMP/fa_run_$_sig.sh" "$_sig" "$TMP/fa_run_$_sig.tsv" signals run
+    read -r _rrc _rms <<<"$(timed_run "$TMP/fa_run_$_sig.sh")"
+    _rrow="$(tail -n +2 "$TMP/fa_run_$_sig.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+    chk "F-A-run-$_sig: --signals + fc_timer_run: SIG$_sig with a 3s foreground child takes effect at once (${_rms}ms < 1500ms), FAIL rc=$((128 + _num)), death by the signal (rc=$_rrc) ($_rrow)" \
+      "$([ "$_rms" -lt 1500 ] && [ "$_rrc" = "-$_num" ] && [ "$_rrow" = "fa-frame:FAIL:result=aborted;rc=$((128 + _num)) " ] && echo 1 || echo 0)"
+  done
+  # (3) characterization of the documented contract: --signals WITHOUT fc_timer_run still defers
+  #     the signal until the plain foreground child exits (the obligation the docs state).
+  fa_case "$TMP/fa_plain.sh" TERM "$TMP/fa_plain.tsv" signals plain
+  read -r _prc _pms <<<"$(timed_run "$TMP/fa_plain.sh")"
+  _prow="$(tail -n +2 "$TMP/fa_plain.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+  chk "F-A-contract: --signals with a PLAIN foreground child defers the TERM until the child exits (${_pms}ms >= 2000ms) and then records FAIL rc=143 ($_prow rc=$_prc)" \
+    "$([ "$_pms" -ge 2000 ] && [ "$_prc" = -15 ] && [ "$_prow" = "fa-frame:FAIL:result=aborted;rc=143 " ] && echo 1 || echo 0)"
+else
+  skip "F-A: python3 absent -- elapsed time / WIFSIGNALED not measurable"
+fi
+# (4) the default install arms NO signal trap at all; --signals arms the whole class; a bad flag
+#     is refused and installs nothing.
+cat > "$TMP/fa_traps.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/fa_traps.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush
+echo "default=[\$(trap -p TERM)\$(trap -p HUP)\$(trap -p USR1)]"
+fc_timer_install_exit_flush --signals
+# a pure-bash case, not \`trap -p | grep -q\` (CM-SIGPIPE-PIPEFAIL-CLASS) and not a here-string:
+# measured, \`grep ... <<< "\$(trap -p SIG)"\` sees the RESET traps (prints nothing) in this shell.
+echo "armed=\$(for s in \$_FC_TIMER_FLUSH_SIGNALS; do case "\$(trap -p "\$s")" in *_fc_timer_signal_flush*) printf x ;; esac; done)"
+EOF
+RC=$(run_subprocess "$TMP/fa_traps.sh")
+read -r -a _flush_sig_arr <<< "$_FLUSH_SIGS"   # the signal list is a space-separated word list; count its words
+_nsig="${#_flush_sig_arr[@]}"
+chk "F-A-traps: a default install arms no signal trap; a later --signals arms all $_nsig class signals ($(tr '\n' ' ' < "$TMP/sub.out"))" \
+  "$(grep -qx 'default=\[\]' "$TMP/sub.out" && grep -qx "armed=$(printf 'x%.0s' $(seq 1 "$_nsig"))" "$TMP/sub.out" && echo 1 || echo 0)"
+cat > "$TMP/fa_badflag.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/fa_badflag.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush --sigals
+echo "rc=\$? exit=[\$(trap -p EXIT)]"
+EOF
+RC=$(run_subprocess "$TMP/fa_badflag.sh")
+chk "F-A-badflag: an unknown install flag is refused (rc=2) and installs nothing ($(cat "$TMP/sub.out"))" \
+  "$(grep -qx 'rc=2 exit=\[\]' "$TMP/sub.out" && echo 1 || echo 0)"
+# (5) fc_timer_run keeps the child's foreground semantics when armed (every call here runs in the
+#     CURRENT shell -- redirections and here-strings, never a pipeline, whose subshell would not
+#     ignore INT/QUIT for a background job and so could not see the restore being tested): exit status, stdin, SIGINT/
+#     SIGQUIT NOT ignored (a background job would ignore them), a caller-ignored INT stays ignored,
+#     a shell function still runs in place (its state change survives), and a composed prior
+#     trap that RETURNS does not make fc_timer_run report the signal instead of the child's status.
+cat > "$TMP/fa_sem.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/fa_sem.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush --signals
+fc_timer_run sh -c 'exit 7'; echo "status=\$?"
+fc_timer_run head -c 11 <<<"piped-input"; echo
+fc_timer_run grep '^SigIgn' /proc/self/status > "$TMP/fa_ign_def.txt"; sed 's/^/default-/' "$TMP/fa_ign_def.txt"
+fc_timer_run sh -c 'kill -s TERM \$\$'; echo "childsig=\$?"
+setglobal() { GLOBAL_SET=yes; }
+GLOBAL_SET=no; fc_timer_run setglobal; echo "function=\$GLOBAL_SET"
+cd /; fc_timer_run cd "$TMP"; echo "builtin_cd=\$? pwd=\$PWD"
+fc_timer_run read -r READ_VAL <<<"read-value"; echo "builtin_read=\$? val=\${READ_VAL:-unset}"
+rm -f "$TMP/fa_closed.mark"; fc_timer_run sh -c 'echo closed-stdin-ran > "$TMP/fa_closed.mark"' 0<&-; echo "closedstdin=\$?"
+trap '' INT
+fc_timer_run grep '^SigIgn' /proc/self/status > "$TMP/fa_ign_ign.txt"; sed 's/^/ignored-/' "$TMP/fa_ign_ign.txt"
+EOF
+RC=$(run_subprocess "$TMP/fa_sem.sh")
+_ign_def="$(sed -n 's/^default-SigIgn:[[:space:]]*//p' "$TMP/sub.out")"
+_ign_ign="$(sed -n 's/^ignored-SigIgn:[[:space:]]*//p' "$TMP/sub.out")"
+_bit() { [ -n "$1" ] && [ $(( 0x$1 & $2 )) -ne 0 ] && echo 1 || echo 0; }
+chk "F-A-run-status: fc_timer_run returns the child's own exit status (want status=7)" "$(grep -qx 'status=7' "$TMP/sub.out" && echo 1 || echo 0)"
+chk "F-A-run-stdin: fc_timer_run passes the caller's stdin to the child (a background job would read /dev/null)" "$(grep -qx 'piped-input' "$TMP/sub.out" && echo 1 || echo 0)"
+chk "F-A-run-intquit: the child does NOT ignore SIGINT/SIGQUIT (SigIgn=$_ign_def; a bare background job ignores both)" \
+  "$([ "$(_bit "$_ign_def" 2)" = 0 ] && [ "$(_bit "$_ign_def" 4)" = 0 ] && echo 1 || echo 0)"
+chk "F-A-run-ignored: a caller-ignored INT stays ignored in the child (SigIgn=$_ign_ign), exactly as in the foreground" \
+  "$([ "$(_bit "$_ign_ign" 2)" = 1 ] && echo 1 || echo 0)"
+chk "F-A-run-childsig: a child that dies of SIGTERM is reported 143 (got $(sed -n 's/^childsig=//p' "$TMP/sub.out"))" "$(grep -qx 'childsig=143' "$TMP/sub.out" && echo 1 || echo 0)"
+chk "F-A-run-function: a shell function still runs in place (its global assignment survives)" "$(grep -qx 'function=yes' "$TMP/sub.out" && echo 1 || echo 0)"
+# V6 review round 3 (reviewer mutant AM7): a BUILTIN must run in place too -- `cd` and `read` run
+# in a background subshell would change nothing in the caller.
+chk "F-A-run-builtin-cd: fc_timer_run cd changes the CALLER's directory (got '$(sed -n 's/^builtin_cd=//p' "$TMP/sub.out")', want '0 pwd=$TMP')" "$(grep -qxF "builtin_cd=0 pwd=$TMP" "$TMP/sub.out" && echo 1 || echo 0)"
+chk "F-A-run-builtin-read: fc_timer_run read assigns the CALLER's variable (got '$(sed -n 's/^builtin_read=//p' "$TMP/sub.out")')" "$(grep -qx 'builtin_read=0 val=read-value' "$TMP/sub.out" && echo 1 || echo 0)"
+# V6 review round 3 (reviewer mutant AM8): with fd 0 CLOSED the command must still run (a `<&0`
+# redirection on a closed fd fails, and the child would never start).
+chk "F-A-run-closed-stdin: with stdin closed the command still runs and returns 0 (got '$(sed -n 's/^closedstdin=//p' "$TMP/sub.out")', marker='$(cat "$TMP/fa_closed.mark" 2>/dev/null)')" "$(grep -qx 'closedstdin=0' "$TMP/sub.out" && [ "$(cat "$TMP/fa_closed.mark" 2>/dev/null)" = closed-stdin-ran ] && echo 1 || echo 0)"
+if command -v python3 >/dev/null 2>&1; then
+  cat > "$TMP/fa_compose.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/fa_compose.tsv"
+source "$FC_TIMER"
+trap 'echo handled >> "$TMP/fa_compose.mark"' TERM
+fc_timer_install_exit_flush --signals
+( sleep 0.3; kill -s TERM \$\$ ) </dev/null >/dev/null 2>&1 &
+fc_timer_run sh -c 'sleep 1; exit 7' </dev/null; echo "status=\$?"
+EOF
+  read -r _xrc _xms <<<"$(timed_run "$TMP/fa_compose.sh")"
+  chk "F-A-run-compose: a prior TERM handler that returns runs once, and fc_timer_run still returns the child's status 7 (rc=$_xrc $(tr '\n' ' ' < "$TMP/sub.out"))" \
+    "$([ "$(cat "$TMP/fa_compose.mark" 2>/dev/null)" = handled ] && grep -qx 'status=7' "$TMP/sub.out" && [ "$_xrc" = 0 ] && echo 1 || echo 0)"
+fi
+# (6) unarmed fc_timer_run is a plain in-place call (a background start would lose the function's
+#     state and is not needed when no signal is trapped).
+cat > "$TMP/fa_unarmed.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/fa_unarmed.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush
+fc_timer_run sh -c 'exit 5'; echo "status=\$?"
+fc_timer_run head -c 2 <<<"in"; echo
+EOF
+RC=$(run_subprocess "$TMP/fa_unarmed.sh")
+chk "F-A-run-unarmed: without --signals fc_timer_run is a plain call (status=5, stdin passed)" \
+  "$(grep -qx 'status=5' "$TMP/sub.out" && grep -qx 'in' "$TMP/sub.out" && echo 1 || echo 0)"
+
+# --- T048 round-5 V6 F1: ANY trap whose handler RETURNS interrupts `wait` -- not only a class
+# trap composed at install time, but also a trap on a NON-class signal (WINCH) and a class
+# signal whose trap the caller set AFTER the install (USR2 here, which replaces the flush
+# handler). fc_timer_run must keep waiting while its child is alive and return the child's OWN
+# status, never 128+N with the child still running. The child writes a marker as its last act,
+# so the marker existing when fc_timer_run returns proves the child had finished. ---
+for _f1 in WINCH USR2; do
+  cat > "$TMP/f1_$_f1.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/f1_$_f1.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush --signals
+trap 'echo handled >> "$TMP/f1_$_f1.mark"' $_f1
+( sleep 0.3; kill -s $_f1 \$\$ ) </dev/null >/dev/null 2>&1 &
+fc_timer_run sh -c 'sleep 1.2; echo done > "$TMP/f1_$_f1.child"; exit 4' </dev/null
+echo "status=\$? child=\$(cat "$TMP/f1_$_f1.child" 2>/dev/null)"
+EOF
+  RC=$(run_subprocess "$TMP/f1_$_f1.sh")
+  chk "F1-late-trap-$_f1: a returning $_f1 trap interrupts wait, yet fc_timer_run returns the child's own status 4 only after the child finished ($(tr '\n' ' ' < "$TMP/sub.out") handler=$(cat "$TMP/f1_$_f1.mark" 2>/dev/null))" \
+    "$(grep -qx 'status=4 child=done' "$TMP/sub.out" && [ "$(cat "$TMP/f1_$_f1.mark" 2>/dev/null)" = handled ] && echo 1 || echo 0)"
+done
+
+# --- V6 review round 4 (reviewer mutant R13: the spin bound 10000 -> 2 survived, because every
+# F1-late case interrupts the wait only ONCE). Here the wait is interrupted FIVE times by a
+# returning WINCH trap while the child runs: fc_timer_run must re-wait every time and still
+# return the child's own status 4 only after the child finished. ---
+cat > "$TMP/f1_repeat.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/f1_repeat.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush --signals
+trap 'echo handled >> "$TMP/f1_repeat.mark"' WINCH
+( for _i in 1 2 3 4 5; do sleep 0.25; kill -s WINCH \$\$; done ) </dev/null >/dev/null 2>&1 &
+fc_timer_run sh -c 'sleep 2; echo done > "$TMP/f1_repeat.child"; exit 4' </dev/null
+echo "status=\$? child=\$(cat "$TMP/f1_repeat.child" 2>/dev/null)"
+EOF
+RC=$(run_subprocess "$TMP/f1_repeat.sh")
+_rep_n="$(grep -c handled "$TMP/f1_repeat.mark" 2>/dev/null)"
+chk "F1-repeat-WINCH: five returning WINCH traps interrupt the wait five times, yet fc_timer_run returns the child's own status 4 only after the child finished ($(tr '\n' ' ' < "$TMP/sub.out") handlers=$_rep_n)" \
+  "$(grep -qx 'status=4 child=done' "$TMP/sub.out" && [ "$_rep_n" = 5 ] && echo 1 || echo 0)"
+
+# --- V6 F3 (reviewer mutant R12): an ARMED signal death must still run the caller's OWN EXIT
+# cleanup (the flush re-raises the signal; it must never drop the EXIT trap on the way). ---
+cat > "$TMP/f3_exit.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/f3_exit.tsv"
+source "$FC_TIMER"
+trap 'echo CALLER-EXIT-CLEANUP-RAN >> "$TMP/f3_exit.mark"' EXIT
+fc_timer_install_exit_flush --signals
+fc_timer_start "f3-frame"
+kill -s TERM \$BASHPID
+echo NOT-REACHED
+EOF
+RC=$(run_subprocess "$TMP/f3_exit.sh")
+F3ROW="$(tail -n +2 "$TMP/f3_exit.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+chk "F3-exit-cleanup: an armed SIGTERM death records FAIL rc=143 AND still runs the caller's EXIT cleanup (mark='$(cat "$TMP/f3_exit.mark" 2>/dev/null)' row='$F3ROW' rc=$RC)" \
+  "$([ "$(cat "$TMP/f3_exit.mark" 2>/dev/null)" = CALLER-EXIT-CLEANUP-RAN ] && [ "$F3ROW" = "f3-frame:FAIL:result=aborted;rc=143 " ] && [ "$RC" -eq 143 ] && ! grep -q NOT-REACHED "$TMP/sub.out" && echo 1 || echo 0)"
+
+# --- V6 F4 (reviewer mutant R11): a SUBSHELL that sources the library and arms it must kill
+# ITSELF on a signal, never its parent (the re-raise targets $BASHPID, not $$). ---
+cat > "$TMP/f4_sub.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/f4_sub.tsv"
+( source "$FC_TIMER"; fc_timer_install_exit_flush --signals; fc_timer_start "f4-sub"; kill -s TERM \$BASHPID; echo NOT-REACHED )
+echo "subrc=\$?"
+echo OUTER-SURVIVED
+exit 0
+EOF
+RC=$(run_subprocess "$TMP/f4_sub.sh")
+F4ROW="$(tail -n +2 "$TMP/f4_sub.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+chk "F4-subshell: an armed subshell killed by SIGTERM dies itself (subrc=143) while its parent survives (rc=0) ($(tr '\n' ' ' < "$TMP/sub.out") row='$F4ROW' rc=$RC)" \
+  "$(grep -qx 'subrc=143' "$TMP/sub.out" && grep -qx OUTER-SURVIVED "$TMP/sub.out" && ! grep -q NOT-REACHED "$TMP/sub.out" && [ "$RC" -eq 0 ] && [ "$F4ROW" = "f4-sub:FAIL:result=aborted;rc=143 " ] && echo 1 || echo 0)"
+
+# --- V6 F6: armed, but killed by a signal OUTSIDE the class (ABRT, deliberately untrapped): the
+# EXIT trap sees rc=0 and the row must say why rc=0 cannot be trusted -- never a bare clean exit. ---
+cat > "$TMP/f6_abrt.sh" <<EOF
+set -u
+ulimit -c 0
+export FC_TIMER_TSV="$TMP/f6_abrt.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush --signals
+fc_timer_start "f6-frame"
+true
+kill -s ABRT \$BASHPID
+echo NOT-REACHED
+EOF
+RC=$(run_subprocess "$TMP/f6_abrt.sh")
+F6ROW="$(tail -n +2 "$TMP/f6_abrt.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+chk "F6-armed-nonclass: armed + an untrapped ABRT death records WARN rc=0 WITH the signals=untracked-nonclass note ('$F6ROW' rc=$RC)" \
+  "$([ "$F6ROW" = "f6-frame:WARN:result=aborted;rc=0;signals=untracked-nonclass " ] && [ "$RC" -eq 134 ] && echo 1 || echo 0)"
+
+
+# --- T048 round-5 F-D: _FC_TIMER_SIGNAL_RC is the library's own marker. An exported value
+# inherited from the environment must NOT turn a clean exit into a recorded signal death. ---
+cat > "$TMP/fd_env.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/fd_env.tsv"
+source "$FC_TIMER"
+fc_timer_install_exit_flush --signals
+fc_timer_start "fd-frame"
+echo "child-sees=[\$(bash -c 'printf %s "\${_FC_TIMER_SIGNAL_RC-unset}"')]"
+exit 0
+EOF
+RC="$(_FC_TIMER_SIGNAL_RC=143 bash "$TMP/fd_env.sh" >"$TMP/sub.out" 2>"$TMP/sub.err"; echo $?)"
+FDROW="$(tail -n +2 "$TMP/fd_env.tsv" 2>/dev/null | awk -F'\t' '{printf "%s:%s:%s ", $3, $7, $11}')"
+chk "F-D: an inherited _FC_TIMER_SIGNAL_RC=143 does not make a clean exit 0 record a signal death ($FDROW rc=$RC)" \
+  "$([ "$FDROW" = "fd-frame:WARN:result=aborted;rc=0;signals=untracked-nonclass " ] && [ "$RC" -eq 0 ] && echo 1 || echo 0)"
+chk "F-D: the marker is not re-exported to this process's children ($(cat "$TMP/sub.out"))" \
+  "$(grep -qx 'child-sees=\[unset\]' "$TMP/sub.out" && echo 1 || echo 0)"
+
+# --- T048 round-5 F-E: a frame is popped only AFTER its row is appended. A failing append or a
+# failing `date` leaves the frame on the stack (return 2), so it is never silently lost. ---
+cat > "$TMP/fe.sh" <<EOF
+set -u
+export FC_TIMER_TSV="$TMP/fe.tsv"
+export FC_TIMER_RUN_ID=fe FC_TIMER_CANDIDATE_FINGERPRINT=fe
+source "$FC_TIMER"
+fc_timer_start "fe-append"
+chmod 444 "$TMP/fe.tsv"
+fc_timer_end; echo "append-fail rc=\$? depth=\$(fc_timer_stack_depth)"
+chmod 644 "$TMP/fe.tsv"
+fc_timer_end; echo "append-retry rc=\$? depth=\$(fc_timer_stack_depth)"
+fc_timer_start "fe-date"
+date() { return 1; }
+fc_timer_end; echo "date-fail rc=\$? depth=\$(fc_timer_stack_depth)"
+unset -f date
+fc_timer_end; echo "date-retry rc=\$? depth=\$(fc_timer_stack_depth)"
+EOF
+if [ "$(id -u)" = 0 ]; then
+  skip "F-E: running as root -- chmod 444 cannot make the TSV unwritable, the append-failure case is not drivable"
+else
+RC=$(run_subprocess "$TMP/fe.sh")
+FEIDS="$(tail -n +2 "$TMP/fe.tsv" 2>/dev/null | awk -F'\t' '{printf "%s ", $3}')"
+chk "F-E: a failed append returns 2 with the frame KEPT (depth 1), a retry writes it ($(tr '\n' ' ' < "$TMP/sub.out"))" \
+  "$(grep -qx 'append-fail rc=2 depth=1' "$TMP/sub.out" && grep -qx 'append-retry rc=0 depth=0' "$TMP/sub.out" && echo 1 || echo 0)"
+chk "F-E: a failed end-time read returns 2 with the frame KEPT (depth 1), a retry writes it" \
+  "$(grep -qx 'date-fail rc=2 depth=1' "$TMP/sub.out" && grep -qx 'date-retry rc=0 depth=0' "$TMP/sub.out" && echo 1 || echo 0)"
+chk "F-E: exactly the two frames were written, once each ($FEIDS)" "$([ "$FEIDS" = "fe-append fe-date " ] && echo 1 || echo 0)"
+fi
+
+# --- T048 round-5 F-B: the prior-trap text is re-quoted EXACTLY. A body containing a single
+# quote must run as written (the `'\''` escape trap -p prints is undone), for EXIT and signals. ---
+printf '%s\n' 'set -u' \
+  "export FC_TIMER_TSV=\"$TMP/fb.tsv\"" \
+  "source \"$FC_TIMER\"" \
+  "trap 'echo \"it'\\''s handled\" >> \"$TMP/fb_sig.mark\"' TERM" \
+  "trap 'echo \"it'\\''s the exit\" >> \"$TMP/fb_exit.mark\"' EXIT" \
+  'fc_timer_install_exit_flush --signals' \
+  "kill -s TERM \$BASHPID" \
+  'exit 0' > "$TMP/fb.sh"
+RC=$(run_subprocess "$TMP/fb.sh")
+chk "F-B: a prior TERM trap body with a single quote runs verbatim ('$(cat "$TMP/fb_sig.mark" 2>/dev/null)')" \
+  "$([ "$(cat "$TMP/fb_sig.mark" 2>/dev/null)" = "it's handled" ] && echo 1 || echo 0)"
+chk "F-B: a prior EXIT trap body with a single quote runs verbatim ('$(cat "$TMP/fb_exit.mark" 2>/dev/null)')" \
+  "$([ "$(cat "$TMP/fb_exit.mark" 2>/dev/null)" = "it's the exit" ] && [ "$RC" -eq 0 ] && echo 1 || echo 0)"
+
 # --- reviewer mutation M2: a backward wall-clock step clamps the duration to 0, the row is
 # still written, and the raw start/end stamps are recorded unmodified. A real `date` shell
 # function shadows the binary (the library calls `date +%s%N` by name). ---
@@ -509,6 +973,12 @@ if command -v shellcheck >/dev/null 2>&1; then
 else
   skip "shellcheck lint of fc_timer.sh (shellcheck not found on PATH)"
 fi
+
+# V6 review round 4, F6: the assertion count is pinned (skip() counts too, so a host without python3
+# / shellcheck / a non-root user still reaches the same N). A selftest that silently loses
+# assertions -- a loop over a list the library under test shrank -- fails here.
+FC_SELFTEST_EXPECTED_N=165
+chk "assertion count: $N assertions ran before this one (want $FC_SELFTEST_EXPECTED_N)" "$([ "$N" = "$FC_SELFTEST_EXPECTED_N" ] && echo 1 || echo 0)"
 
 echo "SUMMARY: $((N - FAIL - SKIPPED)) pass / $FAIL fail / $SKIPPED skip of $N assertions"
 [ "$FAIL" = 0 ]

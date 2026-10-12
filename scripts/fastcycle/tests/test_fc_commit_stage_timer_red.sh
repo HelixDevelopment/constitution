@@ -35,7 +35,7 @@
 #           qa-results/ are never touched.
 # ok()/bad() are print-only reporters that always return 0, so `cond && ok .. || bad ..` never
 # mis-fires the || branch.
-# shellcheck disable=SC2015
+# shellcheck disable=SC2015  # ok()/bad() are print-only reporters that always return 0, so `cond && ok || bad` never mis-fires the || branch
 set -u
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
@@ -276,10 +276,15 @@ printf '#!/bin/bash\nkill -TERM "$PPID"\nsleep 2\nexit 0\n' > "$P/scripts/push_a
 rc="$(run_ca "$P" "$RID" -m "child dies")"; T="$(tsv_of "$P" "$RID")"
 if wait_for_id "$T" push:call_push_all 60; then
   lrow="$(awk -F'\t' 'NR>1 && $3=="push:call_push_all" {print $7"|"$11}' "$T")"
-  case "$lrow" in *"|result=aborted;rc="*) ok "L: rc=$rc; the killed child's open push:call_push_all frame was flushed ($lrow)" ;;
-    *) bad "L: push:call_push_all row is not an aborted flush: '$lrow'" ;; esac
-  [ "$(count_id "$T" push:github)" = 0 ] && ok "L: the child died before recording remote tips (no push:<remote> rows) -- the row above IS the flush" \
-    || bad "L: push:<remote> rows present -- the child did not die mid-frame, so L tested nothing"
+  # round-4 F1: pinned EXACTLY. A SIGTERM death is FAIL rc=143 -- never the stale-`$?`
+  # `WARN|result=aborted;rc=0` (a clean exit) the earlier `*rc=*` pattern accepted.
+  case "$lrow" in "FAIL|result=aborted;rc=143") ok "L: rc=$rc; the SIGTERM-killed child's open push:call_push_all frame was flushed FAIL rc=143 ($lrow)" ;;
+    *) bad "L: push:call_push_all row '$lrow' (want exactly FAIL|result=aborted;rc=143 -- a signal death is never a clean exit)" ;; esac
+  if [ "$(count_id "$T" push:github)" = 0 ]; then
+    ok "L: the child died before recording remote tips (no push:<remote> rows) -- the row above IS the flush"
+  else
+    bad "L: push:<remote> rows present -- the child did not die mid-frame, so L tested nothing"
+  fi
 else
   bad "L: the detached child died mid-frame and NO push:call_push_all row was written within 60s (exit flush missing)"
 fi

@@ -34,9 +34,6 @@
 [submodule "submodules/donespec"]
 	path = submodules/donespec
 	url = git@github.com:xryv/DoneSpec.git
-[submodule "submodules/kedge"]
-	path = submodules/kedge
-	url = git@github.com:SturdyRobot/kedge.git
 [submodule "submodules/agentic-validation"]
 	path = submodules/agentic-validation
 	url = git@github.com:Tyler-R-Kendrick/agentic_validation.git

@@ -15,12 +15,13 @@
 #       reviewer verdict that no admitted record points at (a removed or
 #       relabelled record) -> exit 4 naming it. Selection and the decision
 #       use only evidence-derived fields.                        (R3-F2)
-#   (2) CAPABILITY needs THREE distinct principals: neither the declared
-#       producer uid NOR the uid running `gate` may own, write or replace
-#       (symlink-aware, incl. the directory holding any link) any evidence
-#       path; an unknown producer uid is "instance". On a single-uid host the
-#       runner owns the evidence, so the answer is always "instance",
-#       whatever --producer-uid says.                           (R3-F1, m3)
+#   (2) CAPABILITY needs THREE distinct principals (R3-F1, m3). REPLACED in
+#       round 4 (R4-F1) by the positive allowlist: every evidence inode must
+#       be owned by an operator-DECLARED evidence-owner uid (passwd account,
+#       neither producer nor runner, in no subordinate-id range) and be
+#       writable/replaceable by nothing else but root. The tier cases below
+#       were re-expressed for it; the replacement's own cases are in
+#       test_review_record_gate_authority_r4_regression.sh.
 #   (3) Isolating cases for the round-3 reviewer mutations R3-M3..M12.
 #   (4) Minors: duplicate JSON keys refused (m2); byte-identical duplicate
 #       records decided independently of filename (m1); records symlinked
@@ -87,13 +88,15 @@ if mode == "rehash":
 json.dump(d, open(p, "w"))
 PY
 }
-# tier PRODUCER RUNNER PATH...: the real module's _independence_tier.
+# tier PRODUCER RUNNER OWNER PATH...: the real module's _path_tier (V3 round 4:
+# the positive-allowlist tier -- OWNER is the operator-declared evidence owner;
+# the host's REAL passwd and /etc/subuid, /etc/subgid are consulted).
 tier() {
   python3 - "$RR_TOOL" "$@" <<'PY'
 import importlib.util, sys
 spec = importlib.util.spec_from_file_location("rr", sys.argv[1])
 rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
-print(rr._independence_tier(sys.argv[4:], int(sys.argv[2]), runner_uid=int(sys.argv[3])))
+print(rr._path_tier(sys.argv[5:], int(sys.argv[2]), int(sys.argv[4]), runner_uid=int(sys.argv[3]))[0])
 PY
 }
 
@@ -281,60 +284,38 @@ else
     ok "R3-T1: on a single-uid host a declared producer uid (nobody / unknown 4000000 / own) never yields capability -- every high-blast seam refuses; ordinary seam reports instance"
   else bad "R3-T1: A rc=$RC_A $OUT_A | B rc=$RC_B $OUT_B | C rc=$RC_C $OUT_C | ord rc=$G_RC $G_OUT"; fi
 
-  # in-process, real ownership: /etc/hostname is root-owned in root-owned dirs.
+  # in-process, real ownership (re-expressed in V3 round 4 for the positive
+  # allowlist: OWNER is the declared evidence owner). /etc/hostname is
+  # root-owned in root-owned dirs; $T is owned by this uid ($ME) below an
+  # all-root, sticky chain -- so $ME is a real THIRD principal relative to a
+  # producer "nobody" and a runner "daemon".
   T="$S/tier"; mkdir -p "$T/d755" "$T/w777"; chmod 755 "$T" "$T/d755"
   echo x > "$T/d755/f"; chmod 644 "$T/d755/f"
   echo x > "$T/d755/g"; chmod 664 "$T/d755/g"
-  ln -s /etc/hostname "$T/d755/link"
-  ln -s /etc/hostname "$T/w777/link"; chmod 777 "$T/w777"
-  R1=$(tier "$NOBODY" "$DAEMON" /etc/hostname)
-  R2=$(tier 4000000 "$DAEMON" /etc/hostname)
-  R3=$(tier "$NOBODY" "$ME" /etc/hostname "$T/d755/f")
-  R4=$(tier "$ME" "$NOBODY" "$T/d755/f")
-  R5=$(tier "$NOBODY" "$NOBODY" /etc/hostname)
-  R6=$(tier "$NOBODY" 0 /etc/hostname)
-  R7=$(tier "$NOBODY" "$DAEMON" "$T/d755/f")
-  R8=$(tier "$NOBODY" 4000000 "$T/d755/g")
-  R9=$(tier "$NOBODY" "$DAEMON" "$T/w777/link")
-  R10=$(tier "$NOBODY" "$DAEMON" "$T/d755/link")
+  ln -s "$T/d755/f" "$T/d755/link"
+  ln -s "$T/d755/f" "$T/w777/link"; chmod 777 "$T/w777"
+  R1=$(tier "$NOBODY" "$DAEMON" 0 /etc/hostname)
+  R2=$(tier 4000000 "$DAEMON" 0 /etc/hostname)
+  R3=$(tier "$NOBODY" "$ME" 0 /etc/hostname "$T/d755/f")
+  R4=$(tier "$ME" "$NOBODY" "$ME" "$T/d755/f")
+  R5=$(tier "$NOBODY" "$NOBODY" 0 /etc/hostname)
+  R6=$(tier "$NOBODY" 0 "$ME" /etc/hostname)
+  R7=$(tier "$NOBODY" "$DAEMON" "$ME" "$T/d755/f")
+  R8=$(tier "$NOBODY" 4000000 "$ME" "$T/d755/g")
+  R9=$(tier "$NOBODY" "$DAEMON" "$ME" "$T/w777/link")
+  R10=$(tier "$NOBODY" "$DAEMON" "$ME" "$T/d755/link")
   chmod 700 "$T/w777"
-  expect R3-T2 "$R1" capability "positive control -- producer nobody, runner daemon, root-owned evidence -> capability (three real principals)"
+  expect R3-T2 "$R1" capability "positive control -- producer nobody, runner daemon, declared owner root, root-owned evidence -> capability"
   expect R3-T3 "$R2" "instance" "an unknown producer uid (4000000) never raises the tier -> instance"
-  expect R3-T4 "$R3" "instance" "evidence owned by the uid running gate -> instance (the runner could be the producer)"
-  expect R3-T5 "$R4" "instance" "evidence owned by the declared producer -> instance"
+  expect R3-T4 "$R3" "instance" "evidence owned by the uid running gate, not the declared owner -> instance"
+  expect R3-T5 "$R4" "instance" "the declared owner is the declared producer -> instance"
   expect R3-T6 "$R5" "instance" "producer uid == runner uid -> instance"
   expect R3-T7 "$R6" "instance" "a root runner can write everything -> instance"
-  expect R3-T8 "$R7" "capability" "evidence owned by a THIRD uid ($ME), unwritable by producer and runner -> capability"
-  expect R3-T9 "$R8" "instance" "runner of unknown group membership + group-writable evidence -> instance (conservative)"
+  expect R3-T8 "$R7" "capability" "evidence owned by the declared THIRD uid ($ME), producer nobody, runner daemon -> capability"
+  expect R3-T9 "$R8" "instance" "group-writable evidence -> instance, whoever the group's members are (conservative)"
   expect R3-T10 "$R9" "instance" "a symlink held in a world-writable non-sticky directory can be replaced -> instance"
-  expect R3-T11 "$R10" "capability" "(control) the same symlink in a 755 third-party directory -> capability"
-
-  # supplementary group membership counts (R3-M4)
-  SUPG=$(python3 -c 'import os; g=[x for x in os.getgroups() if x != os.getgid()]; print(g[0] if g else "")')
-  if [ -n "$SUPG" ]; then
-    echo x > "$T/sg"; chgrp "$SUPG" "$T/sg"; chmod 064 "$T/sg"
-    SG=$(python3 - "$RR_TOOL" "$T/sg" "$ME" <<'PY'
-import importlib.util, os, sys
-spec = importlib.util.spec_from_file_location("rr", sys.argv[1])
-rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
-uid = int(sys.argv[3])
-print(rr._writable_by(os.stat(sys.argv[2]), sys.argv[2], uid, rr._uid_gids(uid)))
-PY
-)
-    chmod 644 "$T/sg"
-    expect R3-T12 "$SG" "True" "write access through a SUPPLEMENTARY group (gid $SUPG) is detected"
-  else echo "NOTE: this uid has no supplementary group -- R3-T12 SKIPPED"; fi
+  expect R3-T11 "$R10" "capability" "(control) the same symlink in the owner's 755 directory -> capability"
 fi
-
-# --- R3-M8: the reported tier is the weakest achieved ----------------------
-AG=$(python3 - "$RR_TOOL" <<'PY'
-import importlib.util, sys
-spec = importlib.util.spec_from_file_location("rr", sys.argv[1])
-rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
-print(rr._aggregate_tier(["capability", "instance"]), rr._aggregate_tier(["capability", "capability"]))
-PY
-)
-expect R3-M8 "$AG" "instance capability" "the COVERED line reports the WEAKEST tier achieved across covering batches"
 
 # =============================================================================
 # Isolating cases for the remaining guards (guard table, 11.4.276(D)): each
@@ -493,58 +474,11 @@ RR_NO_REVIEWER=1 RR_V_CHANGES='["c-other"]' rr_genuine "$REC/r5.json" B-BD5 c-bd
 if [ "$RR_RC" -eq 1 ] && [ ! -f "$REC/r5.json" ] && grep -q "bound to" "$RR_WORK/r5/record.err"; then ok "R3-BD5: a reviewer-less verdict carrying a binding for other changes is refused (1)"
 else bad "R3-BD5: rc=$RR_RC err=$(cat "$RR_WORK/r5/record.err")"; fi
 
-# --- unit probes (11.4.27(A): synthetic stat on real paths) ----------------
-# The independence-tier helpers need ownership layouts a single-uid host
-# cannot create (a file owned by X in a directory X neither owns nor can
-# write). These unit cases call the REAL functions with stat records built
-# from a real file's stat, ownership/mode fields replaced -- unit level only.
-UNIT=$(python3 - "$RR_TOOL" "$S" <<'PY'
-import importlib.util, os, stat, sys
-spec = importlib.util.spec_from_file_location("rr", sys.argv[1])
-rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
-real = os.path.join(sys.argv[2], "unit_probe")
-open(real, "w").write("x")
-base = os.stat(real)
-def st(uid, gid, mode):
-    f = list(base); f[0] = mode; f[4] = uid; f[5] = gid
-    return os.stat_result(f)
-REG, DIR = stat.S_IFREG, stat.S_IFDIR
-X, Y = 4242, 4343   # principal X, unrelated owner Y
-out = []
-out.append(rr._writable_by(st(Y, Y, REG | 0o444), real, 0, {0}))            # U-ROOT
-out.append(rr._writable_by(st(X, X, REG | 0o600), real, X, {X}))            # U-OWNER-BIT
-out.append(rr._writable_by(st(Y, Y, REG | 0o602), real, X, {X}))            # U-OTHER-BIT
-out.append(rr._writable_by(st(Y, 77, REG | 0o464), real, X, {X, 77}))       # U-GROUP-BIT
-out.append(rr._writable_by(st(Y, 77, REG | 0o464), real, X, {X}))           # control: not in group
-def chain(leaf, d):
-    return (real, leaf, {"/": d}, [("/", leaf)])
-out.append(rr._principal_can_replace(chain(st(X, X, REG | 0o444), st(Y, Y, DIR | 0o755)), X, {X}))  # U-LEAF-OWNER
-out.append(rr._principal_can_replace(chain(st(Y, Y, REG | 0o666), st(Y, Y, DIR | 0o755)), X, {X}))  # U-LEAF-WRITABLE
-out.append(rr._principal_can_replace(chain(st(Y, Y, REG | 0o444), st(X, X, DIR | 0o555)), X, {X}))  # U-DIR-OWNER
-out.append(rr._principal_can_replace(chain(st(Y, Y, REG | 0o444), st(Y, Y, DIR | 0o777)), X, {X}))  # U-DIR-WRITABLE
-out.append(rr._principal_can_replace(chain(st(Y, Y, REG | 0o444), st(Y, Y, DIR | 0o1777)), X, {X})) # control: sticky, foreign entry
-out.append(rr._principal_can_replace(chain(st(Y, Y, REG | 0o444), st(Y, Y, DIR | 0o755)), X, {X}))  # control: nothing
-try:
-    out.append(rr._independence_tier([None, "/etc/hostname"], 65534, runner_uid=2))  # U-NONE-PATH
-except Exception as exc:
-    out.append("raised:%s" % type(exc).__name__)
-print(" ".join(str(o) for o in out))
-PY
-)
-# shellcheck disable=SC2086 # word-splitting the probe results is intended
-set -- $UNIT
-expect R3-U-ROOT "${1:-}" True "a root principal can write any inode"
-expect R3-U-OWNER-BIT "${2:-}" True "the owner write bit grants write"
-expect R3-U-OTHER-BIT "${3:-}" True "the other write bit grants write"
-expect R3-U-GROUP-BIT "${4:-}" True "the group write bit grants write to a group member"
-expect R3-U-GROUP-CTL "${5:-}" False "control: the group write bit does not grant write to a non-member"
-expect R3-U-LEAF-OWNER "${6:-}" True "owning the evidence file (even read-only, in a foreign dir) can replace it"
-expect R3-U-LEAF-WRITABLE "${7:-}" True "a writable evidence file can be replaced"
-expect R3-U-DIR-OWNER "${8:-}" True "owning a directory on the chain can replace the evidence"
-expect R3-U-DIR-WRITABLE "${9:-}" True "a writable non-sticky directory on the chain can replace the evidence"
-expect R3-U-STICKY-CTL "${10:-}" False "control: a sticky directory protects an entry the principal does not own"
-expect R3-U-CLEAN-CTL "${11:-}" False "control: no ownership/write path -> cannot replace"
-expect R3-U-NONE-PATH "${12:-}" instance "a missing evidence path yields instance, never a crash or capability"
+# --- unit probes ----------------------------------------------------------
+# V3 round 4: _writable_by / _principal_can_replace / _aggregate_tier were
+# REPLACED by the positive allowlist (_owner_only_error / _path_tier /
+# _store_tier); their unit probes moved, re-expressed, to
+# test_review_record_gate_authority_r4_regression.sh (R4-OO / R4-PT / R4-DECL).
 
 echo ""
 echo "== Summary: ok $PASS / NOT ok $FAIL =="

@@ -91,6 +91,16 @@ precedent in THIS tree, never invented from nothing per S11.4.6)
     a row BACKDATED after the fact (written later with an on_date <= as-of)
     is still visible, because the tracker keeps no immutable ingestion log
     to reconstruct "what the DB held on day X" by write time.
+    THE DAY RULE (V4-6, round 4): every window / cutoff / needle rule reads an
+    on_date's calendar day as its FIRST 10 CHARACTERS -- never created_at
+    (the row's db-write time: 11 live Reopened rows were written days or weeks
+    after their on_date, and keying on created_at drops them), and never a
+    UTC conversion: an on_date carrying a time and an offset
+    ("2026-05-20T23:30:00-05:00") counts on its LOCAL date (05-20) although
+    its UTC date is 05-21, while git/review instants are cut in UTC. The live
+    tracker stores only 10-char dates (all 1306 rows, 2026-10-08), so this is
+    an assumption stated, not a live divergence; the generated matrix pins
+    every shape (date, "YYYY-MM-DD HH:MM:SS", "T", "T"+offset).
 (3) Reopened-in-window inclusion is UNCONDITIONAL (DEC-03: "plus every item
     reopened in the window") -- a reopened item is added to `items`
     regardless of whether its type-stratum already filled its N slots and
@@ -193,18 +203,20 @@ if _LIB_DIR not in sys.path:
 # BLIND (C-001 exit 4: no honest output is possible), never the uncaught
 # exception's exit 1 -- which C-001 reserves for a determinism mismatch. Run as
 # a script, this exits 4; loaded by cycle_report.py, the exception is re-raised
-# so cycle_report.py reports its own BLIND exit.
+# so cycle_report.py reports its own BLIND exit. V4-4 (round 4): the API this
+# tool uses is resolved INSIDE the guard, so a sibling that loads but lacks a
+# function (renamed/removed -- the refactor-drift case) is BLIND too, not an
+# AttributeError exit 1 at first use.
 try:
     import fc_common  # noqa: E402  (path-inserted import, matches cycle_report.py's own convention)
-except Exception as _exc:  # noqa: BLE001 -- any load failure (ImportError, SyntaxError, ...) is BLIND
+    canon = fc_common.canon  # V4-4
+    body_hash_of = fc_common.body_hash_of  # V4-4
+except Exception as _exc:  # noqa: BLE001 -- any load failure (ImportError, SyntaxError, AttributeError ...) is BLIND
     if __name__ == "__main__":
         print("select_sample: BLIND: could not load lib/fc_common.py (%s: %s) -- no honest selection "
               "is possible (C-001 exit 4)" % (type(_exc).__name__, _exc), file=sys.stderr)
         sys.exit(4)
     raise
-
-canon = fc_common.canon
-body_hash_of = fc_common.body_hash_of
 
 SCHEMA = "baseline-sample/v1"
 ITEM_TYPES = ("Bug", "Feature", "Task")

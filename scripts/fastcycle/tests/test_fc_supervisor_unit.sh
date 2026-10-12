@@ -23,6 +23,18 @@
 # that has to be stopped is a REAL child process and the signal is a REAL pidfd
 # signal (§11.4.27: fakes only in unit tests).
 #
+# Round-4 groups ([S*] / [G1], mutations R4-S* and RA* in test_fastcycle_r6_mutations.sh): the
+# defence-in-depth guards. open_verified (S1 pid reuse, S1b unreadable /proc stat, S2 pid<=1, S3 self,
+# S1-tree reuse seen through stop_tree, G1 the expected parent for a grandchild); process_ledger's
+# rmtree guard (S5 non-replay dir, S5b relative path, S5c positive control, S5d replay.* ancestor,
+# S5e 'replayer' prefix, S5f/S5g trailing slash). The signal primitive in the S* cases is a SPY (records,
+# never signals), so no case can deliver a signal to pid 1 or to this process (§11.4.263); G1 signals
+# only two real sleep children of this test.
+#
+# Round-8 groups (T048 V4 round 8): [P1]/[P2] main's ownership walk prunes the caller's pre-existing subtrees
+# (V4R8-6); [R1]/[R1b..f] report_prepare/report_verified -- "was the report written" decided from durable state
+# (V4R8-2), driven with the real fc_common.py next to the module under test.
+#
 # Env: FC_SUP_UNDER_TEST  path of fc_supervisor.py (default: the real file; the
 #                         paired-mutation runner points this at a mutant).
 # Exit: 0 every case held; 1 otherwise.
@@ -131,6 +143,280 @@ if dt < 0.2 + m.KILL_WAIT_S + 2:
     ok("[Z3] a zombie nobody reaps cannot hold the stop forever (returned after %.2fs)" % dt)
 else:
     bad("[Z3] a lingering zombie held the stop for %.2fs" % dt)
+
+# ---- round-4 F5: the defence-in-depth guards of open_verified() and process_ledger() ----
+# open_verified's three refusals (pid <= 1, this process, a pid whose CURRENT /proc parent is not
+# the tree node it was found under = pid reuse) each get their own case. The signal primitive is
+# a SPY (records, never signals): no case can ever deliver a signal to pid 1 or to this process,
+# whatever mutant is under test.
+class SigSpy:
+    def __init__(self, real):
+        self.calls, self._real = [], real
+    def pidfd_send_signal(self, fd, sig, *a):
+        self.calls.append(sig)
+    def __getattr__(self, k):
+        return getattr(self._real, k)
+
+real_signal = m.signal
+spy = SigSpy(real_signal)
+m.signal = spy
+try:
+    # S1: pid reuse -- a REAL live child, but /proc now names another parent than the tree node.
+    child = subprocess.Popen(["sleep", "60"])
+    m._stat_fields = lambda pid: ("S", 4242 if pid == child.pid else 1)
+    fd = m.open_verified(child.pid, os.getpid())
+    if fd is None and not spy.calls:
+        ok("[S1] open_verified refuses a pid whose /proc parent (4242) is not the tree node it was found under "
+           "(pid reuse): no pidfd, no signal")
+    else:
+        bad("[S1] open_verified accepted a pid whose current parent is not the tree node (fd=%r, signals=%r) -- "
+            "a recycled pid could be signalled" % (fd, spy.calls))
+        if fd is not None:
+            os.close(fd)
+    child.kill(); child.wait()
+    # S1-tree: the same reuse seen by stop_tree -- the live child must survive the whole stop.
+    spy.calls.clear()
+    child = subprocess.Popen(["sleep", "60"])
+    me = os.getpid()
+    # keyed on the ORDER of events, not on a call count: walk() stats a child first (found under me); the
+    # stat that directly follows os.pidfd_open(pid) is open_verified's, and there the parent has changed.
+    # An equivalent refactor (extra/removed stat calls) therefore cannot false-FAIL this case.
+    opened = set()
+    real_pidfd_open = os.pidfd_open
+    def spy_pidfd_open(pid, *a):
+        r = real_pidfd_open(pid, *a)
+        opened.add(pid)
+        return r
+    def sf_reuse(pid):
+        if pid in opened:
+            opened.discard(pid)
+            return ("S", 4242)
+        return ("S", me)
+    os.pidfd_open = spy_pidfd_open
+    m._children = lambda pid: [child.pid] if pid == me else []
+    m._stat_fields = sf_reuse
+    try:
+        m.stop_tree(0.1, "unit")
+    finally:
+        os.pidfd_open = real_pidfd_open
+    alive = child.poll() is None
+    if alive and not spy.calls:
+        ok("[S1-tree] stop_tree never signals a tree member whose parent changed between the walk and the "
+           "pidfd open (the reused pid survived, 0 signals)")
+    else:
+        bad("[S1-tree] stop_tree signalled a pid whose parent changed under it (alive=%r, signals=%r)"
+            % (alive, spy.calls))
+    child.kill(); child.wait()
+    # S1b: /proc cannot name a parent at all (_stat_fields -> None: the pid vanished or is unreadable)
+    # for a REAL live child -- an unverifiable parent is a refusal, never a pass (fail closed).
+    spy.calls.clear()
+    child = subprocess.Popen(["sleep", "60"])
+    m._stat_fields = lambda pid: None
+    fd = m.open_verified(child.pid, os.getpid())
+    if fd is None and not spy.calls:
+        ok("[S1b] open_verified refuses a live pid whose /proc stat is unreadable (parent unverifiable): "
+           "no pidfd, no signal")
+    else:
+        bad("[S1b] open_verified accepted a pid it could not verify (fd=%r, signals=%r)" % (fd, spy.calls))
+        if fd is not None:
+            os.close(fd)
+    child.kill(); child.wait()
+    # S2: pid 1 is never opened or signalled, even when /proc "agrees" it is a child of the node.
+    spy.calls.clear()
+    m._stat_fields = lambda pid: ("S", 0)
+    fd = m.open_verified(1, 0)
+    if fd is None and not spy.calls:
+        ok("[S2] open_verified refuses pid 1 outright (no pidfd, no signal-0 probe)")
+    else:
+        bad("[S2] open_verified opened/probed pid 1 (fd=%r, signals=%r)" % (fd, spy.calls))
+        if fd is not None:
+            os.close(fd)
+    # S3: this process itself is never a stop target.
+    spy.calls.clear()
+    m._stat_fields = lambda pid: ("S", os.getppid())
+    fd = m.open_verified(os.getpid(), os.getppid())
+    if fd is None and not spy.calls:
+        ok("[S3] open_verified refuses this process itself")
+    else:
+        bad("[S3] open_verified accepted this process itself (fd=%r, signals=%r)" % (fd, spy.calls))
+        if fd is not None:
+            os.close(fd)
+    # G1: stop_tree passes the NODE a member was found under as the expected parent. A grandchild is
+    # found under its (scripted) parent, not under this process: it must still be signalled -- directly,
+    # with the real signal primitive (spy off), and only because both pids are REAL children of ours.
+finally:
+    m.signal = real_signal
+
+gc_pre = lambda: signal.signal(signal.SIGTERM, signal.SIG_DFL)
+mid = subprocess.Popen(["sleep", "60"], preexec_fn=gc_pre)
+gch = subprocess.Popen(["sleep", "60"], preexec_fn=gc_pre)
+me = os.getpid()
+ch, sf, st = scripted([{me: [mid.pid], mid.pid: [gch.pid]}, {me: []}], {})
+m._children, m._stat_fields = ch, sf
+m.reap = lambda: None
+n = m.stop_tree(1.0, "unit")
+rcs = []
+for pr in (mid, gch):
+    try:
+        rcs.append(pr.wait(timeout=5))
+    except subprocess.TimeoutExpired:
+        rcs.append(None)
+        pr.kill(); pr.wait()
+if rcs == [-signal.SIGTERM, -signal.SIGTERM]:
+    ok("[G1] stop_tree signalled a grandchild directly (SIGTERM) -- the expected parent handed to open_verified "
+       "is the node it was found under, not this process (%d processes)" % n)
+else:
+    bad("[G1] stop_tree did not SIGTERM both the child and the grandchild (exits=%r, counted %d)" % (rcs, n))
+
+# process_ledger: a 'wt' entry is removed ONLY when it is an ABSOLUTE path whose basename starts
+# with 'replay.' (the only shape W writes: mktemp -d .../replay.XXXXXX). Anything else must be
+# left untouched and reported -- this is a destructive path (rmtree, §9).
+import tempfile, shutil
+L = tempfile.mkdtemp(prefix="fcsup_ledger.")
+try:
+    repo = os.path.join(L, "repo"); os.mkdir(repo)
+    # a real (empty) repository, so the module's `git -C repo worktree ...` calls can never walk up
+    # into whatever repository encloses the temp directory
+    subprocess.run(["git", "init", "-q", repo], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    precious = os.path.join(L, "precious"); os.mkdir(precious)
+    open(os.path.join(precious, "keep.txt"), "w").write("keep\n")
+    replay_abs = os.path.join(L, "replay.abc123"); os.mkdir(replay_abs)
+    rel_dir = os.path.join(L, "cwd"); os.mkdir(rel_dir)
+    os.mkdir(os.path.join(rel_dir, "replay.rel"))
+    td = os.path.join(L, "tmp"); os.mkdir(td)
+    def entry(name, path):
+        with open(os.path.join(td, name), "wb") as fh:
+            fh.write(os.fsencode(repo) + b"\0" + os.fsencode(path))
+    entry("ledger.wt.1", precious)          # absolute, NOT replay.*  -> must survive
+    entry("ledger.wt.2", "replay.rel")      # replay.* but RELATIVE    -> must survive
+    # exhaustion of the guard (round-4 reviewer F2): each of these must survive and be reported
+    os.mkdir(os.path.join(L, "replay.q")); os.mkdir(os.path.join(L, "replay.q", "precious2"))
+    open(os.path.join(L, "replay.q", "precious2", "keep.txt"), "w").write("keep\n")
+    os.mkdir(os.path.join(L, "replayer")); open(os.path.join(L, "replayer", "keep.txt"), "w").write("keep\n")
+    os.mkdir(os.path.join(L, "x")); open(os.path.join(L, "x", "keep.txt"), "w").write("keep\n")
+    os.mkdir(os.path.join(L, "replay.trail")); open(os.path.join(L, "replay.trail", "keep.txt"), "w").write("keep\n")
+    entry("ledger.wt.4", os.path.join(L, "replay.q", "precious2"))   # replay.* is an ANCESTOR, not the basename
+    entry("ledger.wt.5", os.path.join(L, "replayer"))                # prefix is 'replay.', not 'replay'
+    entry("ledger.wt.6", os.path.join(L, "x") + "/")                 # trailing slash, non-replay
+    entry("ledger.wt.7", os.path.join(L, "replay.trail") + "/")      # trailing slash: basename is '' -> not matched
+    entry("ledger.wt.3", replay_abs)        # absolute replay.*        -> removed (positive control)
+    old_cwd = os.getcwd(); os.chdir(rel_dir)
+    msgs = []
+    real_say = m.say
+    m.say = lambda s: msgs.append(s)
+    try:
+        m.process_ledger(td, "unit")
+    finally:
+        m.say = real_say
+        os.chdir(old_cwd)
+    if os.path.isfile(os.path.join(precious, "keep.txt")) and any("not a replay worktree" in s for s in msgs):
+        ok("[S5] a ledger 'wt' entry naming a non-'replay.' directory is left untouched and reported")
+    else:
+        bad("[S5] process_ledger DELETED (or silently skipped) a non-replay directory named by the ledger "
+            "(precious exists=%r, messages=%r)" % (os.path.isdir(precious), msgs))
+    for tag, rel, why in (("S5d", "replay.q/precious2/keep.txt", "a path whose ANCESTOR is replay.* (basename is not)"),
+                          ("S5e", "replayer/keep.txt", "a basename that starts with 'replay' but not 'replay.'"),
+                          ("S5f", "x/keep.txt", "a trailing-slash path with a non-replay basename"),
+                          ("S5g", "replay.trail/keep.txt", "a trailing-slash path (basename is empty) -- conservative: not removed")):
+        if os.path.isfile(os.path.join(L, rel)):
+            ok("[%s] a ledger 'wt' entry naming %s is left untouched" % (tag, why))
+        else:
+            bad("[%s] process_ledger DELETED %s" % (tag, why))
+    if os.path.isdir(os.path.join(rel_dir, "replay.rel")):
+        ok("[S5b] a RELATIVE 'replay.*' ledger path is never resolved against the cwd and removed")
+    else:
+        bad("[S5b] process_ledger removed a RELATIVE replay.* path resolved against the cwd")
+    if not os.path.lexists(replay_abs) and not any(n.startswith("ledger.") for n in os.listdir(td)):
+        ok("[S5c] control: an absolute replay.* worktree IS removed and every ledger entry is consumed")
+    else:
+        bad("[S5c] control: the absolute replay.* entry was not removed (exists=%r) or ledger entries remain %r"
+            % (os.path.lexists(replay_abs), os.listdir(td)))
+finally:
+    shutil.rmtree(L, ignore_errors=True)
+
+# --- T048 V4 round 8, V4R8-6: main's ownership walk PRUNES the caller's pre-existing subtrees. Round 7 evaluated the
+# session test (sid == keeper pid) below a caller's own child: after the keeper's session ended, a reused keeper pid as
+# the session id of a process in the caller's subtree made that caller process "owned" (signalled by main). Scripted
+# /proc view (the reuse cannot be timed on a real kernel): main -> P (the caller's child, recorded at entry) -> G (sid ==
+# the keeper pid) -> G2; main -> K (the keeper) -> W (in K's session). Required: K and W owned; G and G2 NOT returned
+# and G's subtree never even read. [P2] control: below a non-owned node that is NOT a caller's child (an adopted
+# orphan), an owned process is still found -- the prune is exactly the caller's subtrees.
+me = os.getpid()
+KP, KS, P, G, G2, W, X, Y = 900001, 555, 900002, 900003, 900004, 900005, 900006, 900007
+tree = {me: [P, KP, X], P: [G], G: [G2], KP: [W], X: [Y]}
+ident = {P: (P, 100), G: (KP, 300), G2: (KP, 301), KP: (KP, KS), W: (KP, 600), X: (X, 700), Y: (KP, 701)}
+read = []
+saved = (m._children, m._stat_fields, m._ident)
+m._children = lambda pid: (read.append(pid), list(tree.get(pid, [])))[1]
+m._stat_fields = lambda pid: ("S", next((q for q, ks in tree.items() if pid in ks), 0)) if pid in ident else None
+m._ident = lambda pid: ident.get(pid)
+try:
+    owner = m._main_owner(KP, KS, {(P, 100)})
+    got, _z = m.walk_owned(me, owner)
+finally:
+    m._children, m._stat_fields, m._ident = saved
+gotp = {p for p, _ in got}
+if gotp == {KP, W, Y} and G not in read and G2 not in read:
+    ok("[P1] the caller's pre-existing child's subtree is pruned: a reused keeper pid as a session id below it is never "
+       "owned (G/G2 not returned, G never read); keeper + worker owned")
+else:
+    bad("[P1] ownership walk returned %r, read %r -- a process below the caller's own child (sid == a reused keeper "
+        "pid) was owned or its subtree was walked" % (sorted(gotp), read))
+if Y in gotp:
+    ok("[P2] control: an owned process below a non-owned node that is not a caller's child is still found")
+else:
+    bad("[P2] control: the walk no longer traverses non-owned nodes (Y=%d missing from %r)" % (Y, sorted(gotp)))
+
+# --- T048 V4 round 8, V4R8-2: "was the report written?" is decided from durable state (report_prepare ->
+# report_verified). Driven with the REAL fc_common.py next to the module under test (its body_hash_of is the one
+# implementation). [R1] no file yet -> not written; [R1b] the file that was there BEFORE the writer started (same
+# content, same body_hash -- a stale report of an identical earlier run) -> NOT written; [R1c] a new file at the path
+# with the recorded body_hash -> written, the recorded code; [R1d] a new file with another body_hash -> not written;
+# [R1e] a torn / malformed marker -> not written; [R1f] the exit code recorded is the one given (here 4).
+import json, tempfile  # noqa: E402
+FCC = os.path.join(os.path.dirname(os.path.abspath(os.environ["SUP"])), "..", "lib", "fc_common.py")
+spec2 = importlib.util.spec_from_file_location("fcc", FCC)
+fcc = importlib.util.module_from_spec(spec2)
+spec2.loader.exec_module(fcc)
+R = tempfile.mkdtemp(prefix="fc_sup_unit_r1.")
+try:
+    td = os.path.join(R, "fc_baseline_replay.unit"); os.mkdir(td)
+    out = os.path.join(R, "out.json")
+    body = {"result": "ok", "n": 1}
+
+    def write_report(path, b):
+        doc = dict(b); doc["schema"] = "unit-test/v1"
+        doc["body_hash"] = fcc.body_hash_of(doc); doc["run_meta"] = {}
+        tmp = path + ".tmp"
+        open(tmp, "w").write(json.dumps(doc))
+        os.replace(tmp, path)
+
+    m.report_prepare(td, FCC, out, "unit-test/v1", json.dumps(body), 0)
+    r1 = m.report_verified(td)
+    write_report(out, body)
+    r1c = m.report_verified(td)
+    # stale: a report identical to the one about to be written is already there BEFORE prepare
+    m.report_prepare(td, FCC, out, "unit-test/v1", json.dumps(body), 0)
+    r1b = m.report_verified(td)
+    write_report(out, dict(body, n=2))
+    r1d = m.report_verified(td)
+    m.report_prepare(td, FCC, out, "unit-test/v1", json.dumps(body), 4)
+    write_report(out, body)
+    r1f = m.report_verified(td)
+    open(os.path.join(td, m.REPORT_MARKER), "w").write('{"v": 1, "out": ')
+    r1e = m.report_verified(td)
+    for tag, got_, want_, why in (("R1", r1, None, "no file at the path yet"),
+                                  ("R1c", r1c, 0, "a new file carrying the recorded body_hash"),
+                                  ("R1b", r1b, None, "the identical report that was there BEFORE the writer started"),
+                                  ("R1d", r1d, None, "a new file with a different body_hash"),
+                                  ("R1f", r1f, 4, "the code recorded with the report (4) is the one returned"),
+                                  ("R1e", r1e, None, "a torn marker")):
+        if got_ == want_:
+            ok("[%s] report_verified: %s -> %r" % (tag, why, got_))
+        else:
+            bad("[%s] report_verified: %s -> %r (want %r)" % (tag, why, got_, want_))
+finally:
+    shutil.rmtree(R, ignore_errors=True)
 
 print("----")
 print("SUMMARY pass=%d fail=%d" % (N["ok"], N["bad"]))

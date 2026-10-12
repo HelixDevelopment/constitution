@@ -377,6 +377,36 @@ if [ -n "$METATEST_TSV" ] && [ -f "$METATEST_TSV" ]; then
   fi
 fi
 
+# V3 round 4 m6 (carried from R2-m6/R3-m6; constitution 11.4.115(F) / 11.4.226
+# candidate binding): the metatest_sha256 binding above proves only WHICH
+# meta-test ran, not WHICH CANDIDATE it measured -- a run of the current
+# meta-test against an older tree (older gates, older code) still counted.
+# The writer already stamps every per-mutant row with the candidate it ran on
+# (fc_timer.sh's `candidate_fingerprint` column = `git rev-parse HEAD` of the
+# repo root). The selected TSV must now carry that column, and EVERY row must
+# name the CURRENT candidate (this checkout's HEAD); a missing column, an
+# UNKNOWN fingerprint, mixed fingerprints or any other commit is not evidence
+# for this candidate. Honest limit: HEAD does not cover uncommitted edits.
+if [ -n "$METATEST_TSV" ] && [ -f "$METATEST_TSV" ]; then
+  _mt_head="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null)"
+  _mt_cands="$(awk -F'\t' 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "candidate_fingerprint") c = i; next }
+                          $0 != "" { print (c ? $c : "<no candidate_fingerprint column>") }' "$METATEST_TSV" | sort -u)"
+  if [ -z "$_mt_head" ]; then
+    echo "NOT ok cannot resolve this checkout's HEAD ($ROOT) -- candidate binding unverifiable"
+    failx
+    METATEST_TSV=""
+  elif [ "$_mt_cands" != "$_mt_head" ]; then
+    echo "NOT ok selected run $_mt_run_dir is not bound to the current candidate:"
+    echo "     per-mutant candidate_fingerprint value(s): $(printf '%s' "${_mt_cands:-<no rows>}" | tr '\n' ' ')"
+    echo "     current candidate (HEAD): $_mt_head"
+    echo "     (a run measured on another candidate is not per-mutant evidence for this one)"
+    failx
+    METATEST_TSV=""
+  else
+    echo "ok selected run $_mt_run_dir is bound to the current candidate (every row's candidate_fingerprint == HEAD)"
+  fi
+fi
+
 if [ -n "$METATEST_TSV" ] && [ -f "$METATEST_TSV" ]; then
   echo "ok per-mutant TSV found: $METATEST_TSV (T032/T033 acceptance criterion; plan T-A03)"
   TAB="$(printf '\t')"

@@ -27,7 +27,7 @@
 #       record-vs-evidence consistency for layers/model/effort (m3: N6, N12).
 #
 # Every case drives the REAL `review_record.py record` / `gate` CLI. The tier
-# cases call the real module's own _independence_tier() in-process on REAL
+# cases call the real module's own tier function (round 4: _path_tier) in-process on REAL
 # files with real modes and real owners -- no os.geteuid substitution, no
 # re-implemented logic (constitution 11.4.276(D)). The forged-record cases
 # edit the real artifacts `record` wrote (re-hashing them exactly as an
@@ -367,7 +367,9 @@ import importlib.util, sys
 tool, t, nobody, me, daemon = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
 spec = importlib.util.spec_from_file_location("rr", tool)
 rr = importlib.util.module_from_spec(spec); spec.loader.exec_module(rr)
-tier = rr._independence_tier
+# V3 round 4: the positive-allowlist tier -- this uid ($ME) is the declared
+# evidence owner, a real third principal relative to producer nobody / runner daemon.
+tier = lambda paths, producer, runner_uid=None: rr._path_tier(paths, producer, me, runner_uid=runner_uid)[0]
 print(" ".join([
     tier([t + "/ro/f"], nobody, runner_uid=daemon),    # third-party owned, unwritable, parents safe
     tier([t + "/ro/w"], nobody, runner_uid=daemon),    # mode 666: writable by the producer (N2)
@@ -382,7 +384,7 @@ PY
 )
   chmod 700 "$T/open"
   if [ "$TIER" = "capability instance instance instance instance instance instance instance" ]; then
-    ok "T: tier -- capability only when neither the producer nor the runner can own/write/replace the evidence ($TIER)"
+    ok "T: tier -- capability only for evidence owned by the declared owner ($ME) and replaceable by nothing else; producer-owned/undeclared/root producer, runner == owner, writable file or non-sticky 777 parent -> instance ($TIER)"
   else bad "T: got '$TIER' want 'capability instance instance instance instance instance instance instance'"; fi
   # control needle for the /proc case: the node really is producer-owned and
   # carries no write bit, as does its directory (so only ownership decides).
@@ -392,8 +394,8 @@ PY
   # ACL: a POSIX ACL granting the producer write access must defeat capability.
   echo x > "$T/ro/acl"; chmod 644 "$T/ro/acl"
   if command -v setfacl >/dev/null 2>&1 && setfacl -m "u:$NOBODY:rw" "$T/ro/acl" 2>/dev/null; then
-    ACLT=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._independence_tier([sys.argv[2]], int(sys.argv[3]), runner_uid=int(sys.argv[4])))' "$RR_TOOL" "$T/ro/acl" "$NOBODY" "$DAEMON")
-    ACLC=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._independence_tier([sys.argv[2]], int(sys.argv[3]), runner_uid=int(sys.argv[4])))' "$RR_TOOL" "$T/ro/f" "$NOBODY" "$DAEMON")
+    ACLT=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._path_tier([sys.argv[2]], int(sys.argv[3]), int(sys.argv[5]), runner_uid=int(sys.argv[4]))[0])' "$RR_TOOL" "$T/ro/acl" "$NOBODY" "$DAEMON" "$ME")
+    ACLC=$(python3 -c 'import importlib.util,sys; sp=importlib.util.spec_from_file_location("rr",sys.argv[1]); rr=importlib.util.module_from_spec(sp); sp.loader.exec_module(rr); print(rr._path_tier([sys.argv[2]], int(sys.argv[3]), int(sys.argv[5]), runner_uid=int(sys.argv[4]))[0])' "$RR_TOOL" "$T/ro/f" "$NOBODY" "$DAEMON" "$ME")
     if [ "$ACLT" = "instance" ] && [ "$ACLC" = "capability" ]; then ok "T-ACL: an ACL granting the producer write access defeats capability (control without ACL: capability)"
     else bad "T-ACL: acl=$ACLT control=$ACLC"; fi
   else echo "NOTE: setfacl absent or refused by this filesystem -- T-ACL SKIPPED"; fi
@@ -411,7 +413,7 @@ PY
   if [ "$RC_A" -eq 1 ] && printf '%s\n' "$OUT_A" | grep -q "achieved instance" \
      && [ "$RC_B" -eq 1 ] && printf '%s\n' "$OUT_B" | grep -q "achieved instance" \
      && uncovered c-t && has "achieved instance"; then
-    ok "T-CLI: single-uid host -- release-tag refuses with no --producer-uid, with a foreign --producer-uid (the runner owns the evidence), and with its own uid"
+    ok "T-CLI: single-uid host -- release-tag refuses with no --producer-uid, with a foreign --producer-uid, and with its own uid (no evidence owner is declared, round-4 allowlist)"
   else bad "T-CLI: A rc=$RC_A $OUT_A | B rc=$RC_B $OUT_B | C rc=$G_RC $G_OUT"; fi
 fi
 

@@ -534,7 +534,17 @@ _pair_displaced_verdicts() {
   # the prompt and its displaced verdict) stole the verdict: the gate's identity was lost and
   # run-to-run variation in that stderr TEXT became a false verdict MISMATCH. A displaced verdict
   # with no gate-shaped prompt open stays an ORPHAN-VERDICT (fail-closed, never dropped).
-  VRE="$VERDICT_RE" awk 'BEGIN { vre = ENVIRON["VRE"]; pre = "^[[:space:]]+[^[:space:]]+:[[:space:]]" }
+  # T048 restart round-4 F6 (the m-g CLASS, not its curl instance): the round-3 rule
+  # `^[[:space:]]+[^[:space:]]+:[[:space:]]` still accepted ANY indented `<token>: ` line, so an
+  # indented stderr line such as `    warning: mirror-a slow... retrying` still stole the prompt.
+  # The prompt is now anchored to the GATE-ID grammar of the real log: exactly two spaces, an id
+  # starting with an UPPERCASE letter, made of [A-Za-z0-9._/+-], containing at least one digit or
+  # hyphen, then `: `. MEASURED (§11.4.201(7)(b)), not assumed: against the old rule this grammar
+  # matches 1823/1823 `...` prompts in each of the three real 20261002T195009Z members and
+  # 1821/1821 in the 20260930T152954Z log -- zero real prompts lost -- while `    warning: x...`,
+  # `  warning: x...` and `  WARNING: x...` are excluded. Honest residual: a stderr line that is
+  # itself exactly gate-id-shaped (`  W1: x... y`) is indistinguishable from a prompt by text alone.
+  VRE="$VERDICT_RE" awk 'BEGIN { vre = ENVIRON["VRE"]; pre = "^  [A-Z][A-Za-z0-9._/+-]*([0-9]|-)[A-Za-z0-9._/+-]*: " }
 
     /^[[:space:]]*(OK|FAIL)([^A-Za-z0-9]|$)/ {
       v = $0; sub(/^[[:space:]]+/, "", v)

@@ -522,7 +522,7 @@ wait)</td>
 <h2 id="service-ports">Service Ports</h2>
 <p>These are the rows of the <code>hc__status_endpoints</code> table in
 <code>helix_code_services.sh</code> — that table is the single source,
-this table mirrors it. Verified against the consuming project's
+this table mirrors it. Verified against the consuming project&#39;s
 <code>scripts/systemd/*.service</code> units and a live
 <code>ss -ltnp</code> on 2026-09-03.</p>
 <table>
@@ -571,9 +571,9 @@ this table mirrors it. Verified against the consuming project's
 <ul>
 <li><strong>HelixAgent is <code>:7061</code>, not
 <code>:8100</code>.</strong> <code>:8100</code> is the
-<strong>LLMsVerifier's</strong> port; a prior revision of this table and
+<strong>LLMsVerifier&#39;s</strong> port; a prior revision of this table and
 of <code>hc_status</code> attributed it to HelixAgent, so
-<code>hc_status</code> reported "HelixAgent: DOWN" while HelixAgent was
+<code>hc_status</code> reported &quot;HelixAgent: DOWN&quot; while HelixAgent was
 serving normally. HelixAgent also exposes a liveness probe on
 <code>:8111</code>, but that endpoint answers 200 while the service is
 still starting, so the status probe deliberately targets

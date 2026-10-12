@@ -104,6 +104,13 @@
 #       Print (stdout) the total number of rows actually appended to $FC_TIMER_TSV so far in
 #       the current process (across fc_timer_reset boundaries this counts from the last
 #       reset). Useful for tests and for a caller wanting to confirm at least one row landed.
+#   fc_timer_close_all [--rc N] [--note STR] / fc_timer_install_exit_flush [--signals] /
+#   fc_timer_run <command> [args...]
+#       The exit/signal flush and its interruptible-child runner -- documented in full at their
+#       definitions near the end of this file. Short form: install the flush once; pass
+#       --signals ONLY if every long foreground child is run through fc_timer_run (a trapped
+#       signal is otherwise deferred by bash until that child exits -- see the T048 round-5 F-A
+#       note there).
 #
 # FC_TIMING no-op contract (T028 acceptance criterion, T-A01/T-A02 "Rollback": "timers are
 #   wrapped in a function that is a no-op when FC_TIMING=0"): when the literal string "0" is
@@ -218,6 +225,13 @@ _FC_TIMER_CANDIDATE_FINGERPRINT=""
 _FC_TIMER_INITED=0
 _FC_TIMER_ROWS_WRITTEN=0
 _FC_TIMER_EXIT_FLUSH_INSTALLED=0
+_FC_TIMER_SIGNALS_ARMED=0
+# T048 round-5 F-D: the signal marker is OWNED by this library and starts EMPTY in every process.
+# It was previously first assigned inside a signal handler only, so a value inherited from the
+# environment (an exported _FC_TIMER_SIGNAL_RC=143 in a parent) made a CLEAN `exit 0` record its
+# open frame `FAIL rc=143` (measured). `unset` first also drops any export attribute, so the
+# marker is never re-exported to this process's children either.
+unset _FC_TIMER_SIGNAL_RC
 # T048 restart round-1 R1-I1 (2026-10-08): the run id's timestamp half is minted HERE, in the
 # shell that sources this file, never lazily inside a resolver. Every documented caller reads
 # the run id through a `$(fc_timer_run_id)` command substitution -- a SUBSHELL whose
@@ -458,18 +472,17 @@ fc_timer_end() {
   local chk0="${_FC_TIMER_STACK_CHK0[$idx]}"
   local fail0="${_FC_TIMER_STACK_FAIL0[$idx]}"
   local warn0="${_FC_TIMER_STACK_WARN0[$idx]}"
-  unset "_FC_TIMER_STACK_ID[$idx]" "_FC_TIMER_STACK_START_NS[$idx]" \
-        "_FC_TIMER_STACK_CHK0[$idx]" "_FC_TIMER_STACK_FAIL0[$idx]" "_FC_TIMER_STACK_WARN0[$idx]"
+  # T048 round-5 F-E: the frame is NOT popped here. It is popped only once its row is durably
+  # appended (or deliberately suppressed by --min-ms) -- see _fc_timer_pop below -- so a `date`
+  # failure, an unwritable TSV, or an exit flush that runs mid-call never loses a validly-started
+  # frame: the frame stays on the stack, fc_timer_end returns 2, and the caller (or the exit
+  # flush) can still record it.
 
   if [ -n "$expect_id" ] && [ "$expect_id" != "$id" ]; then
     echo "fc_timer_end: warning -- expected to end '$expect_id' but the innermost open timer is '$id'; ending '$id' (the actual innermost frame is always what gets recorded)" >&2
   fi
 
-  # NOTE (honest residual limit, S11.4.6): the frame is already popped by this point. A
-  # `date +%s%N` failure exactly here (an environment-level command failure, not a caller
-  # usage mistake -- see "Honest limits" above) is the one case where a validly-started,
-  # validly-ended frame's row can still be lost. Every caller-controllable failure mode
-  # (bad flag, bad numeric value) is validated above the pop and never reaches this point.
+  # A `date +%s%N` failure here returns 2 with the frame STILL on the stack (round-5 F-E).
   local end_ns
   end_ns="$(_fc_timer_now_ns)" || return $?
 
@@ -483,6 +496,7 @@ fc_timer_end() {
   [ "$duration_ms" -ge 0 ] || duration_ms=0
 
   if [ -n "$min_ms" ] && [ "$duration_ms" -lt "$min_ms" ]; then
+    _fc_timer_pop "$idx"
     return 0
   fi
 
@@ -528,10 +542,23 @@ fc_timer_end() {
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$_FC_TIMER_RUN_ID" "$_FC_TIMER_CANDIDATE_FINGERPRINT" "$safe_id" \
     "$start_ns" "$end_ns" "$duration_ms" "$verdict" "$chk1" "$fail1" "$warn1" "$safe_extra" \
-    >> "$FC_TIMER_TSV" 2>/dev/null || { echo "fc_timer_end: failed to append row to FC_TIMER_TSV=$FC_TIMER_TSV" >&2; return 2; }
+    >> "$FC_TIMER_TSV" 2>/dev/null || { echo "fc_timer_end: failed to append row to FC_TIMER_TSV=$FC_TIMER_TSV (frame '$id' kept on the stack)" >&2; return 2; }
 
+  # Honest residual (round-5 F-E, S11.4.6): the append and the pop are two commands, and bash
+  # runs a pending trap between commands. A trapped signal (fc_timer_install_exit_flush
+  # --signals) arriving in exactly that window makes the signal flush record this frame a
+  # SECOND time (an `aborted` row after the real one, same id). That duplicate is visible in
+  # the TSV; the alternative order (pop first) silently LOST the frame instead.
+  _fc_timer_pop "$idx"
   _FC_TIMER_ROWS_WRITTEN=$((_FC_TIMER_ROWS_WRITTEN + 1))
   return 0
+}
+
+# _fc_timer_pop <idx> -- drop stack frame <idx> (always the innermost) from every parallel array.
+_fc_timer_pop() {
+  local idx="$1"
+  unset "_FC_TIMER_STACK_ID[$idx]" "_FC_TIMER_STACK_START_NS[$idx]" \
+        "_FC_TIMER_STACK_CHK0[$idx]" "_FC_TIMER_STACK_FAIL0[$idx]" "_FC_TIMER_STACK_WARN0[$idx]"
 }
 
 fc_timer_gate_end() {
@@ -557,54 +584,248 @@ fc_timer_gate_end() {
   fi
 }
 
-# fc_timer_close_all [--rc N] -- T048 restart round-1 R1-I2 (the open-frame-at-exit CLASS):
-#   pop EVERY still-open frame, innermost first, writing one row each with
-#   extra "result=aborted;rc=N" and a FAIL verdict when N != 0 (WARN when N == 0: a frame still
+# fc_timer_close_all [--rc N] [--note STR] -- T048 restart round-1 R1-I2 (the open-frame-at-exit
+#   CLASS): pop EVERY still-open frame, innermost first, writing one row each with extra
+#   "result=aborted;rc=N<STR>" and a FAIL verdict when N != 0 (WARN when N == 0: a frame still
 #   open at a clean exit is a wiring bug, never a silent PASS). A no-op (zero rows, zero output)
 #   on an empty stack or when FC_TIMING=0. Never writes to stdout. Returns 0.
 fc_timer_close_all() {
-  local rc=0
-  if [ "${1:-}" = "--rc" ]; then
-    rc="${2:-0}"
-    _fc_timer_is_uint "$rc" || rc=255
-  fi
+  local rc=0 note=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --rc) rc="${2:-0}"; shift 2 2>/dev/null || shift ;;
+      --note) note="${2:-}"; shift 2 2>/dev/null || shift ;;
+      *) shift ;;
+    esac
+  done
+  _fc_timer_is_uint "$rc" || rc=255
   _fc_timer_enabled || return 0
   local guard=0
   while [ "${#_FC_TIMER_STACK_ID[@]}" -gt 0 ] && [ "$guard" -lt 1000 ]; do
     guard=$((guard + 1))
     if [ "$rc" -ne 0 ]; then
-      fc_timer_end --extra "result=aborted;rc=$rc" --fails 1 2>/dev/null || break
+      fc_timer_end --extra "result=aborted;rc=$rc$note" --fails 1 2>/dev/null || break
     else
-      fc_timer_end --extra "result=aborted;rc=$rc" --warns 1 2>/dev/null || break
+      fc_timer_end --extra "result=aborted;rc=$rc$note" --warns 1 2>/dev/null || break
     fi
   done
   return 0
 }
 
-# fc_timer_install_exit_flush -- R1-I2: install ONE EXIT trap that runs fc_timer_close_all with
-#   the process's real exit status, so every `exit N` / `set -e` abort / refusal path records
-#   its open frames instead of silently losing them (one class-level flush in place of a
-#   per-site end call at every exit). Composes with -- never replaces -- an EXIT trap already
-#   installed: the prior trap runs afterwards and sees the ORIGINAL `$?`; the exit status of
-#   the process is never changed. Idempotent. Call it AFTER any later `trap ... EXIT` the caller
-#   installs (a later plain `trap` would otherwise replace it).
-fc_timer_install_exit_flush() {
-  if [ "$_FC_TIMER_EXIT_FLUSH_INSTALLED" = 1 ]; then
-    return 0
+# fc_timer_install_exit_flush [--signals] -- R1-I2: install ONE EXIT trap that runs
+#   fc_timer_close_all with the process's real exit status, so every `exit N` / `set -e` abort /
+#   refusal path records its open frames instead of silently losing them (one class-level flush
+#   in place of a per-site end call at every exit). Composes with -- never replaces -- an EXIT
+#   trap already installed: the prior trap runs afterwards and sees the ORIGINAL `$?`; the exit
+#   status of the process is never changed. Idempotent. Call it AFTER any later `trap ... EXIT`
+#   the caller installs (a later plain `trap` would otherwise replace it). An unknown argument
+#   is refused (return 2, nothing installed).
+#
+#   SIGNALS ARE OPT-IN (T048 round-5 F-A; the measured model is
+#   docs/qa/t048_restart_round5_20261009/V6_signal_model.md in the consuming project):
+#     bash DEFERS a trapped signal until the running FOREGROUND child exits (measured, bash
+#     5.2.37, all 11 signals below: a single-PID kill of a script whose trap was installed took
+#     the child's full remaining run time to take effect; the same script without a trap died
+#     in < 0.1 s). A library that silently trapped every catchable signal therefore made every
+#     caller with a long foreground child (a git commit, a push, a build) unkillable by a
+#     single-PID TERM/HUP/USR1/... for as long as that child ran. So:
+#     * default (no flag) -> ONLY the EXIT trap. The process's signal behaviour is byte-for-byte
+#       what it was without this library (measured parity, every signal in the class). The cost,
+#       stated honestly: bash runs the EXIT trap on a fatal signal with `$?` = the last COMPLETED
+#       command's status (measured: 0 for every class signal), so a signal death with an open
+#       frame is recorded `WARN|result=aborted;rc=0;signals=untracked` -- the `signals=untracked`
+#       note marks exactly the rows whose rc=0 cannot distinguish a signal death from a clean
+#       exit with a frame left open (rc != 0 rows are already FAIL and carry no note). One class
+#       member writes NO row at all in this mode: bash runs no EXIT trap for a death by SIGPROF
+#       (measured), so a frame open at a PROF death is simply absent from the TSV (pinned by the
+#       selftest, F-A-default-PROF). --signals closes that gap (the PROF handler writes the row).
+#     * --signals -> additionally trap every signal in _FC_TIMER_FLUSH_SIGNALS (round-4 F1):
+#         no prior trap      -> the handler closes every open frame with FAIL rc=128+N, restores
+#                               the default disposition and RE-RAISES the signal, so the process
+#                               still dies BY THE SIGNAL (WIFSIGNALED; a parent's SIGINT
+#                               wait-and-cooperative-exit keeps working; `exit 130` would not);
+#         prior trap ''      -> left alone: an IGNORED signal (the caller's choice, or nohup's /
+#                               `&`'s SIG_IGN) is never re-armed;
+#         prior trap <body>  -> composed: the body runs with _FC_TIMER_SIGNAL_RC=128+N set; if it
+#                               exits, the EXIT flush records the frames FAIL rc=128+N (the
+#                               process status stays the body's choice); if it RETURNS, the
+#                               script continues exactly as before and the marker is cleared.
+#       A caller passing --signals takes on ONE obligation: run every potentially long FOREGROUND
+#       child through fc_timer_run (below), CALLED DIRECTLY IN THE ARMED SHELL, which keeps the
+#       trapped signal deliverable at once. A child run plainly still defers the signal until it
+#       exits (pinned by the selftest). So does fc_timer_run used inside a command substitution
+#       `$(fc_timer_run ...)` or as a stage of a pipeline (V6 F2, measured: with a 3 s child and a
+#       TERM sent at 0.4 s, both forms ended at ~3.06 s vs ~0.47 s called directly): the armed shell is then waiting on the substitution / pipeline, which
+#       is itself a foreground child, and bash defers the trapped signal until that ends. Capture
+#       output through a redirection to a file instead (`fc_timer_run cmd >"$out"`).
+#     * with --signals, an armed exit with rc=0 (a clean `exit 0` with a frame left open, OR a
+#       death by a signal outside the class, e.g. an external ABRT) records
+#       `WARN|result=aborted;rc=0;signals=untracked-nonclass` -- never a bare clean exit (V6 F6).
+#     * a FAIL rc=128+N row from a signal that arrived during fc_timer_run means that run's child
+#       MAY STILL BE RUNNING (V6 N4): the flush never signals it (see fc_timer_run). The row does
+#       not carry the child's pid -- the row shape is pinned exactly by its consumers.
+#   Deliberately NOT trapped even with --signals (measured, documented gaps -- never silent):
+#     * QUIT: bash IGNORES SIGQUIT in every mode (measured: the script survives it), so it is
+#       not a death; trapping it would turn an ignored signal into a fatal one.
+#     * ABRT SEGV BUS FPE ILL SYS TRAP (the synchronous-fault class): a shell trap on a real
+#       fault makes bash's C handler return to the faulting instruction (a fault loop). An
+#       EXTERNALLY sent one of these still records `WARN rc=0` -- the honest residual.
+#     * KILL / STOP: untrappable by definition (no flush can run; the frame is simply absent).
+#   The signal traps are installed only when timing is enabled at install time (FC_TIMING=0
+#   must change nothing about the process's signal behaviour). A later plain `trap ... SIG` by
+#   the caller replaces the corresponding handler, exactly as for EXIT.
+_FC_TIMER_FLUSH_SIGNALS="HUP INT TERM USR1 USR2 ALRM PIPE XCPU XFSZ VTALRM PROF"
+
+# _fc_timer_signal_flush <SIGNAME> <signum> -- the no-prior-trap handler (see above).
+_fc_timer_signal_flush() {
+  local name="$1" num="$2"
+  _FC_TIMER_SIGNAL_RC=$((128 + num))
+  set +e
+  fc_timer_close_all --rc "$_FC_TIMER_SIGNAL_RC"
+  trap - "$name"
+  # §11.4.263: named-signal form `kill -s NAME PID` (never `kill -NAME`, the shape a negated
+  # process-group target takes); $BASHPID is this shell itself, always an integer > 1.
+  kill -s "$name" "$BASHPID"
+  # Not reached when the signal is fatal by default; if a disposition we cannot see kept the
+  # process alive, exit with the signal status rather than resume a half-interrupted script.
+  exit "$_FC_TIMER_SIGNAL_RC"
+}
+
+# _fc_timer_exit_flush <exit status> -- the body of the EXIT trap (see above).
+#   rc=0 with no signal marker cannot tell a clean exit with a frame left open from a death by a
+#   signal nothing trapped, so such a row ALWAYS carries a note (V6 F6):
+#     ;signals=untracked          -- installed without --signals (no signal is tracked);
+#     ;signals=untracked-nonclass -- --signals armed, but a signal OUTSIDE the class (ABRT, SEGV,
+#                                    ...) is never trapped, so it also lands here with rc=0.
+_fc_timer_exit_flush() {
+  local rc="${1:-0}" note=""
+  if [ -n "${_FC_TIMER_SIGNAL_RC:-}" ]; then
+    rc="$_FC_TIMER_SIGNAL_RC"
+  elif [ "$rc" = 0 ]; then
+    if [ "$_FC_TIMER_SIGNALS_ARMED" = 1 ]; then
+      note=";signals=untracked-nonclass"
+    else
+      note=";signals=untracked"
+    fi
   fi
-  local old
-  old="$(trap -p EXIT)"
-  old="${old#trap -- \'}"
-  old="${old%\' EXIT}"
-  # shellcheck disable=SC1003
-  old="${old//\'\\\'\'/\'}"
-  # `set +e` inside the trap: under the caller's `set -e`, the `(exit N)` that re-arms `$?`
-  # for the prior trap would itself abort the trap before the prior trap ever ran (measured).
-  # The shell is already exiting, so dropping errexit here changes nothing else.
-  # shellcheck disable=SC2064,SC2154
-  trap "_fc_timer_exit_rc=\$?; set +e; fc_timer_close_all --rc \"\$_fc_timer_exit_rc\"; (exit \"\$_fc_timer_exit_rc\"); ${old}" EXIT
-  _FC_TIMER_EXIT_FLUSH_INSTALLED=1
+  fc_timer_close_all --rc "$rc" --note "$note"
+}
+
+fc_timer_install_exit_flush() {
+  local want_signals=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --signals) want_signals=1; shift ;;
+      *) echo "fc_timer_install_exit_flush: unknown argument: $1 (only --signals is accepted)" >&2; return 2 ;;
+    esac
+  done
+  if [ "$_FC_TIMER_EXIT_FLUSH_INSTALLED" != 1 ]; then
+    local old
+    old="$(trap -p EXIT)"
+    old="${old#trap -- \'}"
+    old="${old%\' EXIT}"
+    old="${old//\'\\\'\'/\'}"
+    # `set +e` inside the trap: under the caller's `set -e`, the `(exit N)` that re-arms `$?`
+    # for the prior trap would itself abort the trap before the prior trap ever ran (measured).
+    # The shell is already exiting, so dropping errexit here changes nothing else.
+    # shellcheck disable=SC2064,SC2154  # SC2064: only ${old} (the caller's prior EXIT trap body) is expanded at install time, on purpose, to chain it; every other $ is \-escaped to expand at trap-fire time. SC2154: _fc_timer_exit_rc is assigned inside the trap string itself (_fc_timer_exit_rc=$?) when the trap fires, never in this scope
+    trap "_fc_timer_exit_rc=\$?; set +e; _fc_timer_exit_flush \"\$_fc_timer_exit_rc\"; (exit \"\$_fc_timer_exit_rc\"); ${old}" EXIT
+    _FC_TIMER_EXIT_FLUSH_INSTALLED=1
+  fi
+  if [ "$want_signals" = 1 ] && [ "$_FC_TIMER_SIGNALS_ARMED" != 1 ] && _fc_timer_enabled; then
+    local sig num prior body
+    for sig in $_FC_TIMER_FLUSH_SIGNALS; do
+      num="$(kill -l "$sig" 2>/dev/null)" || continue
+      _fc_timer_is_uint "$num" || continue
+      prior="$(trap -p "$sig")"
+      if [ -z "$prior" ]; then
+        # shellcheck disable=SC2064  # $sig and $num are bound by the enclosing for-loop and expanded at install time on purpose: each handler must carry its own signal name and number
+        trap "_fc_timer_signal_flush $sig $num" "$sig"
+        continue
+      fi
+      body="${prior#trap -- \'}"
+      body="${body%\' SIG"$sig"}"
+      body="${body%\' "$sig"}"
+      body="${body//\'\\\'\'/\'}"
+      if [ -z "$body" ]; then
+        continue   # ignored (trap '' SIG): never re-arm it
+      fi
+      # shellcheck disable=SC2064  # $num (loop-bound signal number, for 128+num) and ${body} (this signal's prior trap body) are expanded at install time on purpose to chain it; the other $ are \-escaped to expand at signal time
+      trap "_FC_TIMER_SIGNAL_RC=$((128 + num)); ${body}
+_FC_TIMER_SIGNAL_RC=" "$sig"
+    done
+    _FC_TIMER_SIGNALS_ARMED=1
+  fi
   return 0
+}
+
+# fc_timer_run <command> [args...] -- run <command> as a FOREGROUND-equivalent child that a
+#   trapped signal can still interrupt (T048 round-5 F-A). Returns the command's exit status,
+#   exactly as running it directly would (128+N when the child itself dies of signal N).
+#   * signals NOT armed (no --signals install), FC_TIMING=0, or <command> is a shell function /
+#     builtin / keyword: the command is simply run in place ("$@") -- zero behaviour change, and
+#     a function keeps its ability to change the caller's state.
+#   * signals armed and <command> is an external program: it is started in the background with
+#     the dispositions it would have had in the foreground -- stdin is passed through explicitly
+#     (bash would otherwise give a background job /dev/null), it is started from a subshell so
+#     SIGINT/SIGQUIT are NOT ignored (bash ignores them in a bare `cmd &`), a caller's own ignore
+#     (`trap '' INT`, nohup, `&`) is inherited just as a foreground child would inherit it -- and
+#     then `wait`ed for. `wait` is interrupted by a trapped
+#     signal at once (measured), so the flush runs and the process dies by the signal while the
+#     child is still running. The child is NOT signalled by the flush: a single-PID kill of an
+#     uninstrumented script also leaves its child running (measured), and a process-group kill
+#     (terminal Ctrl-C, systemd, `timeout`) still reaches the child directly; so an aborted FAIL
+#     row recorded during fc_timer_run may leave that child running (V6 N4). ANY trap whose handler
+#     RETURNS interrupts `wait` too -- a composed prior trap, a trap on a signal outside the class
+#     (WINCH), or a class trap the caller set after the install (V6 F1); fc_timer_run then keeps
+#     waiting while the child is alive, so the status it returns is the child's own. Honest
+#     residual: after 10000 such interruptions in one call it stops waiting and returns the last
+#     `wait` status (128+N) with the child possibly still running -- a bound against a spin, never
+#     reached by any realistic signal rate.
+#   * call it DIRECTLY in the armed shell: inside `$(...)` or a pipeline it cannot help (see the
+#     --signals obligation above).
+fc_timer_run() {
+  if [ $# -eq 0 ]; then
+    echo "fc_timer_run: missing <command>" >&2
+    return 2
+  fi
+  if [ "$_FC_TIMER_SIGNALS_ARMED" != 1 ] || ! _fc_timer_enabled || [ "$(type -t -- "$1")" != file ]; then
+    "$@"
+    return $?
+  fi
+  local _fcr_pid _fcr_rc _fcr_guard=0
+  # A `( ... ) &` SUBSHELL, never a bare `cmd &`: bash ignores SIGINT/SIGQUIT only in a bare
+  # simple background command (measured, bash 5.2.37: `cmd &` -> SigIgn 0x6; `( exec cmd ) &`
+  # -> 0x0), and the subshell resets the caller's signal HANDLERS to default while keeping an
+  # IGNORE -- exactly what exec'ing the command in the foreground does. Pinned by the selftest
+  # (F-A-run-intquit / F-A-run-ignored), so a bash that behaves otherwise fails loudly.
+  if { true <&0; } 2>/dev/null; then
+    ( exec "$@" ) <&0 &
+  else
+    ( exec "$@" ) <&- &
+  fi
+  _fcr_pid=$!
+  # V6 F1: `wait` returns early whenever ANY trap whose handler RETURNS runs -- a composed class
+  # handler, a trap on a signal outside the class (WINCH), or a class trap the caller set AFTER
+  # the install -- with the child possibly still running. So: keep waiting while the child is
+  # alive, then wait once more, which returns the child's OWN status (bash remembers a finished
+  # child's status for a repeated wait -- also when it exited between an interrupted wait and the
+  # probe). A class signal with no prior trap never returns here: its handler re-raises and the
+  # process dies by the signal (FAIL rc=128+N row).
+  while :; do
+    _fcr_rc=0
+    wait "$_fcr_pid" || _fcr_rc=$?
+    _fcr_guard=$((_fcr_guard + 1))
+    if kill -0 "$_fcr_pid" 2>/dev/null && [ "$_fcr_guard" -lt 10000 ]; then
+      continue
+    fi
+    break
+  done
+  if ! kill -0 "$_fcr_pid" 2>/dev/null; then
+    _fcr_rc=0
+    wait "$_fcr_pid" 2>/dev/null || _fcr_rc=$?
+  fi
+  return "$_fcr_rc"
 }
 
 return 0

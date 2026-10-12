@@ -41,6 +41,20 @@
 # Extra rows: the nohup variant (HUP must be detected as ignored and reported
 # SKIP-with-reason, never as a pass; the tool must keep running and still stop
 # cleanly on TERM), a selfcheck variant, and the double-KILL honest-boundary row.
+# T048 V4 round 5 extra rows: sigchld (a caller with SIGCHLD ignored -- inherited
+# through exec -- runs a whole replay to completion instead of spinning until the
+# timeout), wtaddkill (the worker SIGKILLed DURING `git worktree add`: the
+# worktree git leaves `locked: initializing` is really removed), nochildren (a
+# supervisor that cannot read /proc/<pid>/task/<tid>/children refuses to run,
+# exit 4, nothing started), runsig (a stop signal to ONE run supervisor process
+# records that run UNMEASURED "stopped" and the replay goes on to exit 0).
+# T048 V4 round 6 extra rows: termign (the caller ignores TERM -- kept ignored,
+# nohup semantics -- and INT/QUIT/HUP is sent to the main pid: main must forward
+# the signal it received, not a TERM the keeper ignores; round 5 took ~36 s and
+# ended in a keeper-deadline SIGKILL), runkill (ONE run supervisor SIGKILLed while
+# its gate's double-forked daemon runs: the worker finds no outcome marker and
+# aborts the whole replay -- exit 4, no report -- so the keeper stops the daemon
+# before the worktree is removed and before any further run).
 #
 # Defect classes (§11.4.276(C) inventory, see the fixer report):
 #   D  host safety: processes / worktrees / temp dirs / locks the tool started
@@ -172,7 +186,7 @@ GRACE = 2.0
 SIGS = os.environ.get("SM_SIGNALS", "TERM INT HUP QUIT KILL").split()
 TARGETS = os.environ.get("SM_TARGETS", "main supervisor worker main-group worker-group").split()
 SHAPES = os.environ.get("SM_SHAPES", "quick never ignterm ownsess nested daemon").split()
-EXTRA = os.environ.get("SM_EXTRA", "nohup selfcheck doublekill").split()
+EXTRA = os.environ.get("SM_EXTRA", "nohup selfcheck doublekill sigchld wtaddkill nochildren runsig termign runkill").split()
 HONOUR = {"quick", "never", "nested", "daemon"}     # every process honours TERM
 N = {"ok": 0, "bad": 0, "skip": 0}
 
@@ -349,7 +363,8 @@ def setup(name, shape):
     return case, repo, gate, tok
 
 
-def launch(case, repo, gate, tok, shape, nohup=False, subcmd="replay"):
+def launch(case, repo, gate, tok, shape, nohup=False, subcmd="replay", cold=None, chld_ign=False, script=None,
+           term_ign=False):
     wtr = os.path.join(case, "wt dir'q")   # a space and a quote in every worktree path
     env = dict(os.environ)
     env.update(TMPDIR=os.path.join(case, "tmp"), FC_REPLAY_LOCK_DIR=os.path.join(case, "locks"),
@@ -358,7 +373,8 @@ def launch(case, repo, gate, tok, shape, nohup=False, subcmd="replay"):
     if subcmd == "replay":
         head = subprocess.run(["git", "-C", repo, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
         args = ["replay", "--commit", head, "--repo-root", repo, "--worktree-root", wtr, "--min-free-kb", "0",
-                "--min-free-kb-objects", "0", "--gate-cmd", gate, "--cold-runs", "400" if shape == "quick" else "3",
+                "--min-free-kb-objects", "0", "--gate-cmd", gate,
+                "--cold-runs", str(cold) if cold is not None else ("400" if shape == "quick" else "3"),
                 "--warm-runs", "0", "--timeout-s", "600", "--out", os.path.join(case, "out.json")]
     else:
         args = ["selfcheck", "--out", os.path.join(case, "out.json")]
@@ -367,8 +383,12 @@ def launch(case, repo, gate, tok, shape, nohup=False, subcmd="replay"):
         for s in (signal.SIGHUP, signal.SIGINT, signal.SIGQUIT, signal.SIGTERM, signal.SIGPIPE):
             signal.signal(s, signal.SIG_DFL)
         signal.pthread_sigmask(signal.SIG_SETMASK, [])
+        if chld_ign:
+            signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+        if term_ign:
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
         os.setsid()
-    argv = (["nohup"] if nohup else []) + ["bash", SCRIPT] + args
+    argv = (["nohup"] if nohup else []) + ["bash", script or SCRIPT] + args
     err = open(os.path.join(case, "main.err"), "w")
     p = subprocess.Popen(argv, env=env, preexec_fn=pre, stdin=subprocess.DEVNULL, stdout=err, stderr=err)
     return p, wtr
@@ -496,11 +516,11 @@ def wait_main(p, secs):
     return None
 
 
-def run_case(sig, target, shape, nohup=False):
-    name = "%s-%s-%s%s" % (sig, target, shape, "-nohup" if nohup else "")
+def run_case(sig, target, shape, nohup=False, term_ign=False):
+    name = "%s-%s-%s%s%s" % (sig, target, shape, "-nohup" if nohup else "", "-termign" if term_ign else "")
     signo = getattr(signal, "SIG" + sig)
     case, repo, gate, tok = setup(name, shape)
-    p, wtr = launch(case, repo, gate, tok, shape, nohup=nohup)
+    p, wtr = launch(case, repo, gate, tok, shape, nohup=nohup, term_ign=term_ign)
     started = wait_file_lines(os.path.join(case, "calls"), 2 if shape == "quick" else 1, 90) and \
         wait_file_lines(os.path.join(case, "started"), 1, 30)
     if not started:
@@ -547,6 +567,11 @@ def run_case(sig, target, shape, nohup=False):
             "made it ignorable; nothing sent" % (name, sig, t[3]))
         p.kill(); p.wait(); force_clean(case, tok, repo)
         return
+    if term_ign and not (ign >> (signal.SIGTERM - 1)) & 1:
+        bad("%s: control needle: TERM is not ignored on %s (SigIgn=%x) although the launcher ignored it -- the row "
+            "proves nothing" % (name, t[3], ign))
+        p.kill(); p.wait(); force_clean(case, tok, repo)
+        return
     if nohup and signo == signal.SIGHUP:
         bad("%s: under nohup SIGHUP is NOT ignored on %s -- the instrument cannot tell an ignored disposition" % (name, t[3]))
     n_at_sig = count(os.path.join(case, "calls"))
@@ -563,7 +588,8 @@ def run_case(sig, target, shape, nohup=False):
             except OSError:
                 pass
     main_dies = signo == signal.SIGKILL and target in ("main", "main-group")
-    lat_max = GRACE * 0.75 if shape in HONOUR else GRACE + 4.0
+    # a caller ignoring TERM hands that ignore to the gate (nohup semantics): it can only be KILLed after the grace
+    lat_max = GRACE * 0.75 if (shape in HONOUR and not term_ign) else GRACE + 4.0
     if main_dies:
         rc = wait_main(p, 5)
         end = time.monotonic() + GRACE + 15
@@ -618,6 +644,70 @@ def selfcheck_case(sig, target):
         ok("%s: selfcheck stopped, rc=%s, nothing left" % (name, rc))
 
 
+def termign_case(sig):
+    """T048 V4 round 6, F1 (IMPORTANT): the caller IGNORES TERM (inherited through exec, kept ignored on purpose --
+    nohup semantics) and a stop signal main does catch (INT/QUIT/HUP) is sent to the main pid. Round 5 forwarded a
+    fixed SIGTERM to the keeper, which keeps TERM ignored: the stop was dropped, the gates kept running until main's
+    keeper deadline (grace + 5 + 30 s) and main then SIGKILLed the keeper. Control needle (in run_case, before
+    anything is sent): the main pid's SigIgn really has TERM set and the sent signal clear."""
+    run_case(sig, "main", "never", term_ign=True)
+
+
+def runkill_case():
+    """T048 V4 round 6, F2 (reviewer injection I3): ONE run supervisor (`fc-run`) SIGKILLed while its gate's
+    double-forked daemon runs. The run supervisor can then no longer stop that daemon (it is re-parented to the
+    keeper), and it records no outcome. The worker must not go on as if the run were merely unmeasured -- it used to
+    record HARNESS_ERROR, remove the worktree under the still-running daemon and write a report: the daemon outlived
+    its run (and would have outlived it into a next replay / item). Required: the worker finds no outcome and aborts
+    the WHOLE replay (exit 4, said so), so the keeper stops the daemon BEFORE the worktree is removed; no further run
+    starts, no report is written, the log directory is marked INTERRUPTED, nothing is left."""
+    name = "runkill-KILL-fcrun-daemon"
+    case, repo, gate, tok = setup(name, None)
+    open(gate, "w").write(
+        "#!/bin/bash\n"
+        'echo x >>"$FCSM_CASE/calls"\n'
+        "( setsid bash -c 'echo $$ >\"$FCSM_CASE/daemon\"; while :; do [ -e \"$PWD/f.txt\" ] || "
+        "echo cwd_gone >>\"$FCSM_CASE/cwdgone\"; sleep 0.05; done' \"fcsm-$FCSM_TOK-rkdaemon\" & )\n"
+        'echo $$ >"$FCSM_CASE/started"\n'
+        'exec -a "fcsm-$FCSM_TOK-rkgate" sleep 600\n')
+    os.chmod(gate, 0o755)
+    p, wtr = launch(case, repo, gate, tok, "never", cold=2)
+    if not (wait_file_lines(os.path.join(case, "started"), 1, 60) and wait_file_lines(os.path.join(case, "daemon"), 1, 30)):
+        bad("%s: setup: the gate / its daemon never started -- %s" % (name, open(os.path.join(case, "main.err")).read()[-300:]))
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    dpid = int(open(os.path.join(case, "daemon")).read().split()[0])
+    w = worker_of(p.pid)
+    runs = [c for c in children(w) if comm(c) == "fc-run"] if w else []
+    # control needle: the daemon is the run supervisor's adopted orphan (its parent IS that fc-run) -- the process
+    # the run supervisor alone was responsible for stopping
+    end, adopted = time.monotonic() + 10, False
+    while time.monotonic() < end and len(runs) == 1 and not adopted:
+        s = stat(dpid)
+        adopted = s is not None and s[1] == runs[0]
+        time.sleep(0.02)
+    if len(runs) != 1 or not adopted:
+        bad("%s: control needle: fc-run=%s daemon %d parent=%s -- the daemon is not the run supervisor's orphan"
+            % (name, runs, dpid, stat(dpid)))
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    n0 = count(os.path.join(case, "calls"))
+    t0 = time.monotonic()
+    send(("pid", runs[0], runs[0], "fc-run"), signal.SIGKILL, case, tok)
+    rc = wait_main(p, GRACE + 30)
+    if rc is None:
+        bad("%s: the tool did not finish after its run supervisor was killed" % name)
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    err = open(os.path.join(case, "main.err")).read()
+    has_report = os.path.exists(os.path.join(case, "out.json"))
+    probs = postcheck(case, repo, wtr, tok, n0, name, rc, 4, time.monotonic() - t0, GRACE + 8)
+    if not probs and not has_report and "without recording an outcome" in err:
+        ok("%s: fc-run SIGKILLed (needle: the daemon was its adopted orphan): the replay aborted (exit 4, said so), the "
+           "daemon was stopped before the worktree was removed, no further run, no report, nothing left" % name)
+    else:
+        bad("%s: rc=%s report-written=%s abort-message=%s problems=%s" % (name, rc, has_report,
+                                                                          "without recording an outcome" in err,
+                                                                          "; ".join(probs) or "none"))
+
+
 def doublekill_case():
     """Honest boundary: M and K SIGKILLed together. Nothing can process the ledger
     (worktree + temp dir stay); the PDEATHSIG chain must still stop the worker, the
@@ -650,6 +740,178 @@ def doublekill_case():
         bad("%s: processes left %s / runs %d->%d->%d" % (name, [(p, l[:140]) for p, l in left[:6]], n0, c1, c2))
 
 
+def report_of(case):
+    try:
+        import json
+        return json.load(open(os.path.join(case, "out.json")))
+    except (OSError, ValueError):
+        return None
+
+
+def sigchld_case():
+    """A caller with SIGCHLD IGNORED (crosses exec; the kernel then auto-reaps every child, so waitpid never
+    returns it). b61583e: every supervisor role spun on a readable pidfd -- each run until its timeout,
+    the main supervisor forever. Control needle: a probe started the same way really has SIGCHLD ignored."""
+    name = "sigchld-caller-quick"
+    case, repo, gate, tok = setup(name, "quick")
+
+    def pre_n():
+        signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+    probe = subprocess.run(["sed", "-n", "s/^SigIgn:[[:space:]]*//p", "/proc/self/status"], preexec_fn=pre_n,
+                           capture_output=True, text=True).stdout.strip()
+    try:
+        needle = (int(probe, 16) >> (signal.SIGCHLD - 1)) & 1
+    except ValueError:
+        needle = 0
+    t0 = time.monotonic()
+    p, wtr = launch(case, repo, gate, tok, "quick", cold=3, chld_ign=True)
+    rc = wait_main(p, 60)
+    dt = time.monotonic() - t0
+    if rc is None:
+        bad("%s: a replay of 3 x 0.2 s runs did not finish in 60 s under a SIGCHLD-ignoring caller (spin)" % name)
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    rep = report_of(case) or {}
+    probs = postcheck(case, repo, wtr, tok, None, name, rc, 0, None, 0, interrupted_expected=False)
+    if not needle:
+        bad("%s: control needle: the launcher did not leave SIGCHLD ignored (probe SigIgn %r)" % (name, probe))
+    elif not probs and rep.get("verdict_set", {}).get("cold") == ["PASS"] and len(rep.get("runs", [])) == 3:
+        ok("%s: caller with SIGCHLD ignored (needle %s): 3 runs PASS, rc 0 in %.1fs, nothing left" % (name, probe, dt))
+    else:
+        bad("%s: rc=%s verdict_set=%r runs=%d problems=%s" % (name, rc, rep.get("verdict_set"), len(rep.get("runs", [])),
+                                                              "; ".join(probs)))
+
+
+def wtaddkill_case():
+    """The worker SIGKILLed while `git worktree add` runs (a slow smudge filter holds git inside the add):
+    git dies by the PDEATHSIG chain and leaves the worktree `locked: initializing`, which `remove --force`
+    refuses and `prune` skips. The supervisor must unlock + remove -f -f and only then report removal."""
+    name = "wtaddkill-worker-KILL"
+    case, repo, gate, tok = setup(name, "quick")
+    open(os.path.join(repo, ".gitattributes"), "w").write("f.txt filter=slow\n")
+    g("-C", repo, "add", ".gitattributes")
+    g("-C", repo, "commit", "-q", "-m", "slow smudge")
+    g("-C", repo, "config", "filter.slow.smudge", "bash -c 'exec -a fcsm-%s-smudge sleep 600'; cat" % tok)
+    p, wtr = launch(case, repo, gate, tok, "quick", cold=1)
+    adm = os.path.join(repo, ".git", "worktrees")
+    end, locked = time.monotonic() + 60, False
+    while time.monotonic() < end and not locked:
+        if os.path.isdir(adm):
+            locked = any(os.path.exists(os.path.join(adm, n, "locked")) for n in os.listdir(adm)) and \
+                any("smudge" in l for _, l in case_procs(case, tok))
+        time.sleep(0.05)
+    w = worker_of(p.pid)
+    k = keeper_of(p.pid)
+    if not locked or w is None or k is None:
+        bad("%s: setup: the add never reached its locked state (locked=%s worker=%s keeper=%s) -- %s"
+            % (name, locked, w, k, open(os.path.join(case, "main.err")).read()[-300:]))
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    # Deterministic form of the race the reviewer hit: the keeper is held (SIGSTOP) while the worker is
+    # SIGKILLed, so the run supervisor and git die by the PDEATHSIG chain (SIGKILL -- git cannot clean up)
+    # BEFORE the keeper acts. Unheld, the keeper sometimes TERMs git first and git removes its own junk,
+    # which would let a broken ledger removal pass by luck.
+    send(("pid", k, k, "keeper"), signal.SIGSTOP, case, tok)
+    # T048 V4 round 7: a run supervisor whose worker dies now STOPS its own tree (parent-death SIGUSR2) -- it TERMs
+    # git, and git removes its own `locked initializing` junk (measured: this needle failed in the round-7 suite).
+    # The SIGKILL-of-git form is kept deterministic by holding the run supervisor too and SIGKILLing it after the
+    # worker: git then dies by its own PDEATHSIG=SIGKILL, unable to clean up.
+    runs = [c for c in children(w) if comm(c) == "fc-run"]
+    for r in runs:
+        send(("pid", r, r, "fc-run"), signal.SIGSTOP, case, tok)
+    t0 = time.monotonic()
+    send(("pid", w, w, "worker"), signal.SIGKILL, case, tok)
+    for r in runs:
+        send(("pid", r, r, "fc-run"), signal.SIGKILL, case, tok)
+    def adders():   # the `git worktree add` itself, and its run supervisor (git's own checkout child may live on)
+        return [pid for pid, line in case_procs(case, tok) if " worktree add " in line or comm(pid) == "fc-run"]
+    end = time.monotonic() + 10
+    while time.monotonic() < end and adders():
+        time.sleep(0.05)
+    porc = subprocess.run(["git", "-C", repo, "worktree", "list", "--porcelain"], capture_output=True, text=True).stdout
+    needle = "locked initializing" in porc and not adders()
+    send(("pid", k, k, "keeper"), signal.SIGCONT, case, tok)
+    if not needle:
+        bad("%s: control needle: after the worker's SIGKILL the worktree is not `locked initializing` with the add "
+            "dead (porcelain: %s) -- the case proves nothing" % (name, porc.replace("\n", " | ")[-200:]))
+        wait_main(p, GRACE + 15); force_clean(case, tok, repo); return
+    rc = wait_main(p, GRACE + 15)
+    if rc is None:
+        bad("%s: the tool did not exit after its worker was killed" % name)
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    probs = postcheck(case, repo, wtr, tok, None, name, rc, 128 + signal.SIGKILL, time.monotonic() - t0, GRACE + 4)
+    err = open(os.path.join(case, "main.err")).read()
+    if probs:
+        bad("%s: %s (stderr: %s)" % (name, "; ".join(probs), err.strip()[-300:]))
+    else:
+        ok("%s: worker SIGKILLed inside `git worktree add` (needle: `locked initializing`, the add dead): the locked "
+           "worktree is gone from disk AND from `git worktree list`, rc=%d, nothing left" % (name, rc))
+
+
+def nochildren_case():
+    """A copy of the tool whose supervisor cannot read /proc/<pid>/task/<tid>/children (path renamed): it
+    must refuse to start (exit 4 BLIND), never run gates it could not find again to stop."""
+    name = "nochildren-blind"
+    case, repo, gate, tok = setup(name, "quick")
+    src_cycle = os.path.dirname(os.path.abspath(SCRIPT))
+    rep_root = os.path.join(case, "replica")
+    shutil.copytree(src_cycle, os.path.join(rep_root, "cycle"))
+    shutil.copytree(os.path.join(os.path.dirname(src_cycle), "lib"), os.path.join(rep_root, "lib"))
+    supp = os.path.join(rep_root, "cycle", "fc_supervisor.py")
+    src = open(supp).read()
+    mut = src.replace('"/proc/%d/task/%s/children"', '"/proc/%d/task/%s/children_absent_sm"')
+    open(supp, "w").write(mut)
+    p, wtr = launch(case, repo, gate, tok, "quick", cold=2,
+                    script=os.path.join(rep_root, "cycle", os.path.basename(SCRIPT)))
+    rc = wait_main(p, 60)
+    err = open(os.path.join(case, "main.err")).read()
+    if rc is None:
+        p.kill(); p.wait()
+    probs = postcheck(case, repo, wtr, tok, None, name, rc, 4, None, 0, interrupted_expected=False)
+    if mut == src:
+        bad("%s: setup: the children path could not be renamed in the replica" % name)
+    elif not probs and "BLIND" in err and "children" in err and count(os.path.join(case, "calls")) == 0:
+        ok("%s: without the children file the tool refused to start (exit 4, BLIND named), no gate ran, nothing left" % name)
+    else:
+        bad("%s: rc=%s gate-calls=%d problems=%s stderr=%s" % (name, rc, count(os.path.join(case, "calls")),
+                                                               "; ".join(probs), err.strip()[-200:]))
+
+
+def runsig_case():
+    """SIGTERM to ONE run supervisor (`fc-run`, the parent of one gate run) -- not to the tool: that run
+    is recorded UNMEASURED 'stopped' (b61583e: its marker `stopped` was unknown -> HARNESS_ERROR 'could not
+    be started', the loop stopped and the tool exited 4), and the replay goes on."""
+    name = "runsig-TERM-fcrun-never"
+    case, repo, gate, tok = setup(name, "never")
+    p, wtr = launch(case, repo, gate, tok, "never", cold=2)
+    stopped = 0
+    for want_calls in (1, 2):
+        if not wait_file_lines(os.path.join(case, "calls"), want_calls, 60):
+            break
+        time.sleep(0.3)
+        w = worker_of(p.pid)
+        runs = [c for c in children(w)] if w else []
+        runs = [c for c in runs if comm(c) == "fc-run"]
+        if len(runs) != 1:
+            break
+        if send(("pid", runs[0], runs[0], "fc-run"), signal.SIGTERM, case, tok):
+            stopped += 1
+    rc = wait_main(p, GRACE + 30)
+    if rc is None:
+        bad("%s: the tool did not finish after both runs were stopped" % name)
+        p.kill(); p.wait(); force_clean(case, tok, repo); return
+    rep = report_of(case) or {}
+    runs = rep.get("runs", [])
+    probs = postcheck(case, repo, wtr, tok, None, name, rc, 0, None, 0, interrupted_expected=False)
+    good = len(runs) == 2 and all(r.get("verdict") == "UNMEASURED" and "stopped" in r.get("verdict_reason", "")
+                                  for r in runs)
+    if stopped == 2 and good and not probs:
+        ok("%s: a TERM to each of the two run supervisors recorded both runs UNMEASURED 'stopped', the replay "
+           "finished rc 0, nothing left" % name)
+    else:
+        bad("%s: stopped=%d rc=%s runs=%r problems=%s" % (name, stopped, rc,
+                                                          [(r.get("verdict"), r.get("verdict_reason", "")[:60]) for r in runs],
+                                                          "; ".join(probs)))
+
+
 for shape in SHAPES:
     for sig in SIGS:
         for target in TARGETS:
@@ -664,6 +926,19 @@ if "selfcheck" in EXTRA:
             selfcheck_case(sig, target)
 if "doublekill" in EXTRA:
     doublekill_case()
+if "sigchld" in EXTRA:
+    sigchld_case()
+if "wtaddkill" in EXTRA:
+    wtaddkill_case()
+if "nochildren" in EXTRA:
+    nochildren_case()
+if "runsig" in EXTRA:
+    runsig_case()
+if "termign" in EXTRA:
+    for sig in ("INT", "QUIT", "HUP"):
+        termign_case(sig)
+if "runkill" in EXTRA:
+    runkill_case()
 print("SMCOUNT %d %d %d" % (N["ok"], N["bad"], N["skip"]))
 PYSM
   cat "$SM_OUT"
