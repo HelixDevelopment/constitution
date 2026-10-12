@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-10-08T12:02:19.947837+00:00'
+generated_at: '2026-10-12T14:15:16.950220+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 70ae9f819a8ff765c40080b30ee2881f295b5afd
-  source_sha256: 95117cf3d96e4bb144d4e4cfed4031392abd91e22d55c95e6eb5aed940238a4e
+  commit: 1c89813a86c313ddf3064bdc4e9bb192d171b211
+  source_sha256: 84295d5ef9029baf1460b4b43e34f933bb64e816c52228f8e467882eec3c0306
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -5818,7 +5818,8 @@ anchors:
 - id: 11.4.235
   title: — Build-and-deploy the moment source fixes are proven-correct (test-side
     hardening is a parallel stage, never a build gate) + post-deploy version increment
-    (operator mandate, 2026-07-27)
+    + per-group flash-every-eligible-target live verification with a decimal-carry
+    version increment (operator mandate, 2026-07-27; clause (E) added 2026-10-09)
   group: project-lifecycle-and-release
   location: constitution/groups/project-lifecycle-and-release.md
   classification: universal
@@ -5826,34 +5827,60 @@ anchors:
   binds_principle: []
   cross_references:
   - '1.1'
+  - '11.4'
+  - 11.4.1
   - 11.4.101
   - 11.4.103
   - 11.4.108
   - 11.4.110
+  - 11.4.111
   - 11.4.115
+  - 11.4.118
+  - 11.4.119
   - 11.4.125
   - 11.4.126
   - 11.4.129
+  - 11.4.133
   - 11.4.134
+  - 11.4.135
   - 11.4.142
+  - 11.4.144
   - 11.4.151
   - 11.4.17
+  - 11.4.176
   - 11.4.185
   - 11.4.194
   - 11.4.197
   - 11.4.200
   - 11.4.201
   - 11.4.209
+  - 11.4.214
+  - 11.4.224
   - 11.4.227
   - 11.4.230
   - 11.4.235
+  - 11.4.236
   - 11.4.240
   - 11.4.249
+  - 11.4.251
+  - 11.4.262
+  - 11.4.267
   - 11.4.268
+  - 11.4.275
+  - 11.4.28
+  - 11.4.3
+  - 11.4.35
   - 11.4.4
   - 11.4.40
   - 11.4.6
+  - 11.4.66
+  - 11.4.69
+  - 11.4.89
   - 11.4.96
+  - 11.4.97
+  - '12.11'
+  - '12.12'
+  - '12.6'
 - id: 11.4.236
   title: '— QA-deploy-readiness gate: no manual-QA hand-off until the mandated validation
     produced a candidate-fingerprinted PASS verdict; a blocker MUST bind to a seam,
