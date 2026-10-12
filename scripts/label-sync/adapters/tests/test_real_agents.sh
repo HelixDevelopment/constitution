@@ -103,8 +103,10 @@ if command -v opencode >/dev/null; then
   bash "$AD/install_adapters.sh" --home "$H" --agents opencode --apply >/dev/null
   ok "opencode: REAL opencode resolves the installed plugin entry (debug config)" bash -c "cd '$H/proj' && HOME='$H' XDG_CONFIG_HOME='$H/.config' XDG_DATA_HOME='$H/.local/share' XDG_STATE_HOME='$H/.local/state' XDG_CACHE_HOME='$H/.cache' timeout 60 opencode debug config | jq -e '.plugin[0]|endswith(\"label-sync.mjs\")'"
   OPORT="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"
-  (cd "$H/proj" && runenv OPENCODE_DISABLE_AUTOUPDATE=true nohup opencode serve --port "$OPORT" >"$H/serve.log" 2>&1 </dev/null & echo $! >"$H/serve.pid")
-  PIDS+=("$(cat "$H/serve.pid" 2>/dev/null)")
+  # `exec` so $! IS the opencode process (a bare `cd && cmd &` backgrounds a subshell and
+  # killing that leaves opencode orphaned — observed: two leaked servers)
+  ( cd "$H/proj" && exec env HOME="$H" XDG_CONFIG_HOME="$H/.config" XDG_DATA_HOME="$H/.local/share" XDG_STATE_HOME="$H/.local/state" XDG_CACHE_HOME="$H/.cache" OPENCODE_DISABLE_AUTOUPDATE=true opencode serve --port "$OPORT" >"$H/serve.log" 2>&1 </dev/null ) &
+  PIDS+=("$!")
   up=0; for _ in $(seq 1 60); do curl -s -m 2 "http://127.0.0.1:$OPORT/session" >/dev/null 2>&1 && { up=1; break; }; sleep 0.5; done
   if [ "$up" = 1 ]; then
     sid="$(curl -s -m 20 -X POST "http://127.0.0.1:$OPORT/session" -H 'content-type: application/json' -d '{"title":"labeltest"}' | jq -r .id)"
