@@ -13,9 +13,11 @@
 #                                 labeler uses)
 #           — so that LAUNCHING or RESUMING a session under an alias publishes
 #           `alias_switch` (label-sync-alias-switch.sh) BEFORE the session
-#           starts. Every follower label then re-renders on the next snapshot,
-#           and the SessionStart hook (label-sync-session-start.sh) republishes
-#           the subtree of a session resumed under a different alias.
+#           starts. Alias-less FOLLOWER entities re-render on the next
+#           snapshot; SESSIONS are not affected: the SessionStart hook
+#           (label-sync-session-start.sh) pins every session to the alias its
+#           own process runs under (CONTRACT §4.2), so a session resumed under
+#           another alias simply re-pins and its subtree follows it.
 #           The wrapper is transparent: arguments, environment, working
 #           directory and the launcher's exit status are preserved; it prints
 #           nothing; any failure of the label tooling is swallowed — a launch is
@@ -37,8 +39,11 @@
 # Deps    : bash (or zsh with bash-compatible function syntax), sed.
 # Honest limitation (§11.4.6): the active alias is operator-GLOBAL by design
 #           (CONTRACT §4.1) — launching a second terminal under another alias
-#           flips the active alias for every follower; sessions bound to their own
-#           alias by the SessionStart hook keep their own label.
+#           flips it for every alias-less FOLLOWER entity. Sessions (and their
+#           alias-less subagents) keep their OWN label: the hooks pin each
+#           session to its derived alias — tested in
+#           scripts/hooks/test_label_sync_hooks.sh section 13 (two sessions, two
+#           aliases, five alias_switch events: statusline + additionalContext).
 # Cross-refs: §11.4.182, CONTRACT §4, docs/label-sync/HOOKS.md (install text).
 # Classification: universal (§11.4.17).
 

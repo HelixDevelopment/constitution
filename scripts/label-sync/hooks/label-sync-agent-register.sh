@@ -21,7 +21,8 @@
 # Side-effects: label-sync register event; $LABEL_SYNC_DIR/hooks/pending/<sid>/.
 # Deps    : bash, jq, labelctl.
 # Cross-refs: §11.4.182, §11.4.147 (agent registry), guard-track-branch-label.sh,
-#           CONTRACT §4.2 (children follow the session's follow flag).
+#           CONTRACT §4.2 (pinned when labelled with an alias, else inherits
+#           its session's binding).
 # Classification: universal (§11.4.17).
 set -u
 _d="${BASH_SOURCE[0]:-$0}"; _d="${_d%/*}"
@@ -36,14 +37,16 @@ main() {
   case "$cb" in .claude-?*) live="${cb#.claude-}" ;; esac
   if [ -n "$LS_L_ALIAS" ] && [ -n "$live" ] && [ "$LS_L_ALIAS" != "$live" ]; then return 0; fi
   ls_have_bin || return 0
-  local sid_ent pj follow parent
+  local sid_ent follow parent
   sid_ent="$(ls_session_entity)"
-  pj="$(ls_ctl get --id "$sid_ent" --json)" || pj=""
-  if [ -z "$pj" ]; then
-    ls_ensure_session "agent-register" || return 0
-    pj="$(ls_ctl get --id "$sid_ent" --json)" || return 0
-  fi
-  follow=false; [[ "$pj" == *'"follow_active":true'* ]] && follow=true
+  # level-triggered: make sure the session (the subtree root) exists
+  ls_ctl get --id "$sid_ent" --json >/dev/null || ls_ensure_session "agent-register" || return 0
+  # Binding (CONTRACT §4.2, review finding 1): a label carrying an alias (the
+  # guard has just checked it equals the live alias of THIS process) PINS the
+  # subagent to its own declared triple; a label without an alias ("?") leaves
+  # the subagent following, i.e. it INHERITS its session's binding. Nothing is
+  # ever bound to the operator-global active alias by a hook.
+  follow=false; [ -n "$LS_L_ALIAS" ] || follow=true
   parent="$sid_ent"
   ls_hookdir
   if [ -n "$LS_AGENT_ID" ] && [ -f "$LS_HOOKSTATE/agentmap/$LS_AGENT_ID" ]; then

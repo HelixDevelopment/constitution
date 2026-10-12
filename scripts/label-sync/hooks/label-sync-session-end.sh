@@ -34,7 +34,7 @@ main() {
   # stdin-derived path: only the regular files of OUR fixed layout are removed,
   # one by one, then the (now empty) per-session dir is rmdir'ed.
   ls_drop_pending_dir "$LS_SID"
-  rm -f -- "$LS_HOOKSTATE/sessions/$LS_SID.alias" "$LS_HOOKSTATE/ledger-last/$LS_SID"
+  rm -f -- "$LS_HOOKSTATE/ledger-last/$LS_SID"
   return 0
 }
 ls_hook_run main

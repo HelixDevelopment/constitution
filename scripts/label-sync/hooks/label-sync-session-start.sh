@@ -4,11 +4,12 @@
 # Purpose : Claude Code SessionStart hook. Registers (or re-asserts) the SESSION
 #           entity in the label-sync state: session_id, owning claude pid
 #           (liveness), cwd, track/branch/alias/model/effort derived by the
-#           canonical labeler. When the session was RESUMED under a DIFFERENT
-#           alias than its previous registration, publishes the alias change:
-#           the session is registered non-following (state layer republishes the
-#           whole subtree, CONTRACT §4.3) and the new alias is published as the
-#           ACTIVE alias (alias_switch) unless LABEL_SYNC_NO_SWITCH_ON_RESUME=1.
+#           canonical labeler. A session whose alias is derived from this
+#           process (CLAUDE_CONFIG_DIR) is PINNED to it (CONTRACT §4.2): two
+#           terminals on two aliases each keep their own label whatever the
+#           operator-global active alias does. RESUMED under a different alias
+#           => re-registered with the new alias; the core re-renders the whole
+#           subtree (CONTRACT §4.3). The hook never writes active.json.
 #           Emits the live label as additionalContext so the model sees it.
 # Usage   : configured in settings.json hooks.SessionStart; reads the hook JSON on
 #           stdin ({session_id, cwd, source: startup|resume|clear|compact|fork}).
@@ -33,6 +34,6 @@ main() {
   ls_ensure_session "session-start" || return 0
   local lbl; lbl="$(ls_ctl label "$(ls_session_entity)")" || return 0
   [ -n "$lbl" ] || return 0
-  ls_emit_context SessionStart "[label-sync] work-stream label of this session: $lbl (updates live when the operator switches alias)"
+  ls_emit_context SessionStart "[label-sync] work-stream label of this session: $lbl (pinned to the alias this session runs under)"
 }
 ls_hook_run main

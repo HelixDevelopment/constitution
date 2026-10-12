@@ -219,55 +219,46 @@ bash "$HK/label-sync-alias-switch.sh" >/dev/null 2>&1; eq "alias-switch with no 
 bash "$HK/label-sync-alias-switch.sh" claude3 --bogus >/dev/null 2>&1; eq "alias-switch rejects unknown flag (exit 2)" "$?" 2
 
 # =========================================================================
-echo "== 6. RESUMED under a DIFFERENT alias republishes the subtree =="
+echo "== 6. RESUMED under a DIFFERENT alias: the session re-pins to its own new alias =="
 rm -rf "$LABEL_SYNC_DIR"
 SID="22222222-aaaa-bbbb-cccc-000000000002"
 CFG1="$(mk_cfg claude1 claude-opus-4-8)"; CFG2="$(mk_cfg claude2 claude-sonnet-5)"
 export CLAUDE_CONFIG_DIR="$CFG1"; SE="session:$SID"
 "$CTL" switch-alias --alias claude1 --model opus --effort high >/dev/null
+"$CTL" register --id follower6 --kind agent --track 1 --branch main --pid $$ >/dev/null
 run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"startup"}')"
-run_hook label-sync-agent-register.sh "$(j PreToolUse '{"tool_name":"Agent","tool_use_id":"toolu_R1","tool_input":{"description":"(T1/main - claude1 - opus - ?) child"}}')"
-eq "before resume: session follows claude1" "$(field "$SE" label)" "(T1/main - claude1 - opus - high)"
-eq "before resume: subagent shows claude1" "$(field subagent:toolu_R1 alias)" claude1
+run_hook label-sync-agent-register.sh "$(j PreToolUse '{"tool_name":"Agent","tool_use_id":"toolu_R1","tool_input":{"description":"(T1/main - claude1 - opus - ?) labelled child"}}')"
+run_hook label-sync-agent-register.sh "$(j PreToolUse '{"tool_name":"Agent","tool_use_id":"toolu_R0","tool_input":{"description":"(T1/main - ? - ? - ?) alias-less child"}}')"
+eq "before resume: session pinned to its derived alias claude1" "$(field "$SE" label)" "(T1/main - claude1 - opus - ?)"
+eq "before resume: session binding is its own (pinned, not following the global active alias)" "$(field "$SE" binding)" own
+eq "before resume: labelled subagent shows its own declared triple" "$(field subagent:toolu_R1 label)" "(T1/main - claude1 - opus - ?)"
+eq "before resume: alias-less subagent inherits via its session" "$(field subagent:toolu_R0 label)" "(T1/main - claude1 - opus - ?)"
 export CLAUDE_CONFIG_DIR="$CFG2"
 run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"resume"}')"
 eq "resume exit 0" "$RC" 0
-eq "after resume under claude2: session label shows claude2" "$(field "$SE" alias)" claude2
-eq "after resume: subagent subtree republished to claude2" "$(field subagent:toolu_R1 alias)" claude2
-eq "after resume: active alias published as claude2 (alias_switch)" "$(jq -r .alias "$LABEL_SYNC_DIR/active.json")" claude2
+eq "after resume under claude2: session label shows claude2" "$(field "$SE" label)" "(T1/main - claude2 - sonnet - ?)"
+eq "after resume: the inheriting child follows its session to claude2 (no republish write)" "$(field subagent:toolu_R0 alias)" claude2
+eq "after resume: the labelled child keeps the alias it declared (it ran under claude1)" "$(field subagent:toolu_R1 alias)" claude1
+eq "after resume: the hook did NOT touch the operator-global active alias" "$(jq -r .alias "$LABEL_SYNC_DIR/active.json")" claude1
 "$CTL" switch-alias --alias claude3 --model haiku --effort low >/dev/null
-eq "after resume + later operator switch: session FOLLOWS (label updates)" "$(field "$SE" alias)" claude3
-eq "after resume + later operator switch: subagent FOLLOWS" "$(field subagent:toolu_R1 alias)" claude3
-# variant: publish only the subtree (no global switch)
-rm -rf "$LABEL_SYNC_DIR"; export CLAUDE_CONFIG_DIR="$CFG1"
-"$CTL" switch-alias --alias claude1 --model opus --effort high >/dev/null
-run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"startup"}')"
-run_hook label-sync-agent-register.sh "$(j PreToolUse '{"tool_name":"Agent","tool_use_id":"toolu_R2","tool_input":{"description":"(T1/main - claude1 - opus - ?) child"}}')"
-export CLAUDE_CONFIG_DIR="$CFG2"
-run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"resume"}')" LABEL_SYNC_NO_SWITCH_ON_RESUME=1
-eq "no-switch variant: active alias untouched" "$(jq -r .alias "$LABEL_SYNC_DIR/active.json")" claude1
-eq "no-switch variant: session pinned to its own alias claude2" "$(field "$SE" alias)" claude2
-eq "no-switch variant: subtree republished to claude2" "$(field subagent:toolu_R2 alias)" claude2
-"$CTL" switch-alias --alias claude4 >/dev/null
-eq "no-switch variant: pinned subtree does NOT follow a later switch" "$(field subagent:toolu_R2 alias)" claude2
-# same-alias resume: no republish churn
+eq "later operator switch: the pinned session keeps its own alias claude2" "$(field "$SE" alias)" claude2
+eq "later operator switch: the inheriting child keeps its session's alias" "$(field subagent:toolu_R0 alias)" claude2
+eq "later operator switch: an alias-less ROOT follower does follow (claude3)" "$("$CTL" label follower6)" "(T1/main - claude3 - haiku - low)"
+# same-alias resume: no churn
 rm -rf "$LABEL_SYNC_DIR"; export CLAUDE_CONFIG_DIR="$CFG1"
 "$CTL" switch-alias --alias claude1 >/dev/null
 run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"startup"}')"
-s1="$(cat "$LABEL_SYNC_DIR/seq")"
 run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"resume"}')"
 eq "resume under the SAME alias does not switch the active alias" "$(jq -r .alias "$LABEL_SYNC_DIR/active.json")" claude1
 check "same-alias resume leaves exactly one session entity" bash -c "[ \"\$('$CTL' list --json | jq '[.entities[]|select(.kind==\"session\")]|length')\" = 1 ]"
 
-
-echo "== 6b. active alias without a model is filled from the live session (never overwritten) =="
+echo "== 6b. hooks never write the operator-global active context (no read-compare-write race) =="
 rm -rf "$LABEL_SYNC_DIR"; export CLAUDE_CONFIG_DIR="$CFG1"
 "$CTL" switch-alias --alias claude1 >/dev/null
 run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"startup"}')"
-eq "empty active model filled from the live session transcript" "$(jq -r .model "$LABEL_SYNC_DIR/active.json")" opus
-"$CTL" switch-alias --alias claude1 --model haiku --effort low >/dev/null
-run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"clear"}')"
-eq "an explicit operator model is NEVER overwritten" "$(jq -r .model "$LABEL_SYNC_DIR/active.json")" haiku
+run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"6b probe"}')"
+eq "an empty active model is left empty by the hooks (only an explicit switch sets it)" "$(jq -r .model "$LABEL_SYNC_DIR/active.json")" ""
+check "no hook script calls switch-alias (only the CLI signal / toolkit wrapper may)" bash -c "! grep -l 'ls_ctl switch-alias' '$HK'/label-sync-*.sh"
 
 echo "== 6c. markdown twin of the ledger (opt-in via marker) =="
 MDD="$T/mdproj/docs/requests"; mkdir -p "$MDD"
@@ -519,6 +510,73 @@ printf '{"session_id":"../../../f3_rha_escape","prompt":"x"}' | LABEL_SYNC_REQUE
 eq "F3 ledger helper: traversal sid => row still written (zero-loss), sid UNKNOWN" "$(jq -r .session_id "$T/f3l/h.jsonl" 2>/dev/null)" UNKNOWN
 check "F3 ledger helper: traversal sid never names a dedupe-state file outside its dir" test ! -e "$T/f3_rha_escape"
 check "F3 session-end source has no rm -rf" bash -c "! grep -q 'rm -rf' '$HK/label-sync-session-end.sh'"
+
+# =========================================================================
+echo "== 13. F1: two terminals on two aliases — each keeps ITS OWN alias through N alias_switch events =="
+rm -rf "$LABEL_SYNC_DIR"
+SA_ID="55555555-aaaa-bbbb-cccc-00000000000a"; SB_ID="55555555-aaaa-bbbb-cccc-00000000000b"
+for pair in "claude1:$SA_ID:claude-opus-4-8" "claude2:$SB_ID:claude-sonnet-5"; do
+  IFS=: read -r _al _sid _mo <<<"$pair"; mkdir -p "$HOME/.claude-$_al/projects/$slug"
+  printf '{"type":"assistant","message":{"model":"%s"}}\n' "$_mo" >"$HOME/.claude-$_al/projects/$slug/$_sid.jsonl"
+done
+jA() { jq -nc --arg sid "$SA_ID" --arg cwd "$PROJ" --arg ev "$1" --argjson x "${2:-{\}}" '{session_id:$sid,cwd:$cwd,hook_event_name:$ev}+$x'; }
+jB() { jq -nc --arg sid "$SB_ID" --arg cwd "$PROJ" --arg ev "$1" --argjson x "${2:-{\}}" '{session_id:$sid,cwd:$cwd,hook_event_name:$ev}+$x'; }
+# the launcher publishes alias_switch BEFORE each session starts (exactly what cma_label_hook.sh does)
+WRAPPER="$WRAPPER" bash -c 'cma_run(){ :; }; source "$WRAPPER"; CLAUDE_CONFIG_DIR="$HOME/.claude-claude1" cma_run' >/dev/null 2>&1
+run_hook label-sync-session-start.sh "$(jA SessionStart '{"source":"startup"}')" CLAUDE_CONFIG_DIR="$HOME/.claude-claude1"
+run_hook label-sync-agent-register.sh "$(jA PreToolUse '{"tool_name":"Agent","tool_use_id":"toolu_FA","tool_input":{"description":"(T1/main - ? - ? - ?) child of A"}}')" CLAUDE_CONFIG_DIR="$HOME/.claude-claude1"
+WRAPPER="$WRAPPER" bash -c 'cma_run(){ :; }; source "$WRAPPER"; CLAUDE_CONFIG_DIR="$HOME/.claude-claude2" cma_run' >/dev/null 2>&1
+run_hook label-sync-session-start.sh "$(jB SessionStart '{"source":"startup"}')" CLAUDE_CONFIG_DIR="$HOME/.claude-claude2"
+eq "F1 the second launch DID flip the operator-global active alias (control)" "$(jq -r .alias "$LABEL_SYNC_DIR/active.json")" claude2
+RENDER="$LS/render/statusline.sh"
+f1_check() { # tag
+  local want a b ctx
+  for pair in "A:$SA_ID:claude1" "B:$SB_ID:claude2"; do
+    IFS=: read -r _t _sid want <<<"$pair"
+    eq "F1[$1] session $_t entity alias" "$(field "session:$_sid" alias)" "$want"
+    if [ "$_t" = A ]; then run_hook label-sync-prompt.sh "$(jA UserPromptSubmit "{\"prompt\":\"f1 $1 A\"}")" CLAUDE_CONFIG_DIR="$HOME/.claude-claude1"
+    else run_hook label-sync-prompt.sh "$(jB UserPromptSubmit "{\"prompt\":\"f1 $1 B\"}")" CLAUDE_CONFIG_DIR="$HOME/.claude-claude2"; fi
+    ctx="$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null)"
+    case "$ctx" in *" - $want - "*) r=0 ;; *) r=1 ;; esac
+    ok "F1[$1] session $_t additionalContext carries ITS OWN alias $want (got: ${ctx:0:90})" $r
+    if [ -f "$RENDER" ]; then
+      a="$(jq -nc --arg s "$_sid" --arg c "$PROJ" '{session_id:$s,cwd:$c,workspace:{current_dir:$c}}' | bash "$RENDER" 2>/dev/null | head -n1)"
+      case "$a" in *" - $want - "*) r=0 ;; *) r=1 ;; esac
+      ok "F1[$1] session $_t statusline shows ITS OWN alias $want (got: ${a:0:90})" $r
+    fi
+  done
+  eq "F1[$1] alias-less child of A inherits A's alias" "$(field subagent:toolu_FA alias)" claude1
+}
+f1_check init
+n=0
+for sw in "claude3 --model haiku" "claude1" "claude2 --model sonnet --effort high" "deepseek --model deepseek-v4-pro" "claude4"; do
+  n=$((n+1)); bash "$HK/label-sync-alias-switch.sh" $sw >/dev/null 2>&1
+  f1_check "switch$n:${sw%% *}"
+done
+"$CTL" register --id f1root --kind agent --pid $$ >/dev/null
+eq "F1 control: an alias-less root DOES follow the last switch" "$(field f1root alias)" claude4
+
+echo "== 13b. F9: hooks bound the writer-lock wait (--lock-timeout 500ms) and leave no orphan labelctl =="
+command -v flock >/dev/null 2>&1 && have_flock=1 || have_flock=""
+if [ -n "$have_flock" ]; then
+  mkdir -p "$LABEL_SYNC_DIR"; : >>"$LABEL_SYNC_DIR/lock"
+  ( flock "$LABEL_SYNC_DIR/lock" sleep 7 ) & HOLD=$!
+  sleep 0.3
+  run_hook label-sync-prompt.sh "$(jA UserPromptSubmit '{"prompt":"f9 lock held"}')" CLAUDE_CONFIG_DIR="$HOME/.claude-claude1"
+  eq "F9 prompt hook with the writer lock held: exit 0" "$RC" 0
+  [ "$MS" -lt 1200 ]; ok "F9 prompt hook with the lock held returns within 1.2 s — ONE bounded wait (got ${MS} ms; core default 2 s per call)" $?
+  run_hook label-sync-stop.sh "$(jA Stop '{}')" CLAUDE_CONFIG_DIR="$HOME/.claude-claude1"
+  [ "$MS" -lt 1200 ]; ok "F9 Stop hook with the lock held returns within 1.2 s — no retry on a busy lock (got ${MS} ms)" $?
+  ( printf '%s' "$(jA UserPromptSubmit '{"prompt":"f9 killed"}')" | CLAUDE_CONFIG_DIR="$HOME/.claude-claude1" exec bash "$HK/label-sync-prompt.sh" >/dev/null 2>&1 ) & HK_PID=$!
+  sleep 0.15; kill -TERM "$HK_PID" 2>/dev/null; wait "$HK_PID" 2>/dev/null
+  sleep 1.2
+  left="$(pgrep -f "$LABEL_SYNC_BIN/labelctl" 2>/dev/null | wc -l | tr -d ' ')"
+  eq "F9 a hook killed mid-call leaves no labelctl child running 1.2 s later" "$left" 0
+  wait "$HOLD" 2>/dev/null
+  check "F9 hooks pass --lock-timeout to every labelctl call (lib)" grep -q -- '--lock-timeout' "$HK/label-sync-lib.sh"
+else
+  echo "⚠️  SKIP  F9 lock-held tests: flock(1) absent (honest skip, §11.4.3)"
+fi
 
 # =========================================================================
 echo "----------------------------------------------------------------------"

@@ -42,13 +42,20 @@ main() {
   ls_have_bin || return 0
   export CLAUDE_CODE_SESSION_ID="$LS_SID"
   local id; id="$(ls_session_entity)"
+  # Re-assert the PINNED binding on every prompt (review finding 1): the
+  # derived alias is this process's truth, so it is written together with
+  # --follow-active false in the SAME single update — no read, no compare, no
+  # extra call. A session whose alias cannot be derived is left as it is.
   local -a u=(update --id "$id" --state running --cwd "$LS_CWD")
   [ -n "$track" ] && u+=(--track "$track")
   [ -n "$branch" ] && u+=(--branch "$branch")
-  [ -n "$alias" ] && u+=(--alias "$alias")
+  [ -n "$alias" ] && u+=(--alias "$alias" --follow-active false)
   [ -n "$model" ] && u+=(--model "$model")
   [ -n "$effort" ] && u+=(--effort "$effort")
-  if ! ls_ctl "${u[@]}" >/dev/null; then
+  local rc=0
+  ls_ctl "${u[@]}" >/dev/null || rc=$?
+  [ "$rc" -eq 2 ] && return 0          # lock busy / state unusable: no further waits
+  if [ "$rc" -ne 0 ]; then
     ls_ensure_session "prompt" || return 0
   fi
   local eff; eff="$(ls_ctl label "$id")" || return 0

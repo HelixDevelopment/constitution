@@ -17,9 +17,10 @@
 #           LABEL_SYNC_CLAUDE_PID override the discovered claude process pid
 #           LABEL_SYNC_HOOK_DEBUG=1 append hook diagnostics to $LABEL_SYNC_DIR/hooks/debug.log
 #           LABEL_SYNC_CTL_TIMEOUT optional per-labelctl-call timeout seconds (default: none)
+#           LABEL_SYNC_HOOK_LOCK_TIMEOUT writer-lock wait per call (default 500ms)
 # Outputs : none by itself (functions set shell variables / return codes).
 # Exit    : n/a (library). Hooks that source it ALWAYS exit 0 (fail-soft).
-# Side-effects: creates $LABEL_SYNC_DIR/hooks/{pending,agentmap,sessions,ledger-last}
+# Side-effects: creates $LABEL_SYNC_DIR/hooks/{pending,agentmap,ledger-last}
 #           (mode 0700) for hook-private correlation state; may spawn ONE
 #           detached `labelctl.sh --build` when the binary is missing/stale
 #           (rate-limited to once per 60 s). Never writes under $HOME/.claude*.
@@ -86,23 +87,29 @@ ls_kick_build() {
 }
 
 # ls_ctl <args...> : run labelctl; stdout passthrough, stderr dropped.
+# Every call carries a SHORT writer-lock bound (review finding 9): the core's
+# default wait is 2 s per call, so a stuck/slow writer could stall a prompt by
+# seconds; with --lock-timeout 500ms a busy lock makes labelctl exit 2 at once
+# and the hook still exits 0 (the next event re-asserts — level-triggered).
+# The child is waited for synchronously and is bounded by that timeout, so a
+# hook killed mid-call cannot leave a labelctl behind for more than ~0.5 s.
 # NO `timeout` wrapper by default: on hosts whose coreutils `timeout` polls at
-# 100 ms granularity (measured on this host: +100 ms per call, the whole latency
-# budget) it is the dominant cost. The hook is bounded instead by the `timeout`
-# field the installer writes into settings.json (5 s, enforced by Claude Code).
-# Set LABEL_SYNC_CTL_TIMEOUT=<seconds> to opt into a per-call bound anyway.
+# 100 ms granularity it is the dominant cost. Set LABEL_SYNC_CTL_TIMEOUT=<s>
+# to opt into a per-call bound anyway; LABEL_SYNC_HOOK_LOCK_TIMEOUT overrides
+# the 500ms lock bound (Go duration or seconds).
 ls_ctl() {
+  local lt="${LABEL_SYNC_HOOK_LOCK_TIMEOUT:-500ms}"
   if [ -n "${LABEL_SYNC_CTL_TIMEOUT:-}" ] && command -v timeout >/dev/null 2>&1; then
-    timeout "$LABEL_SYNC_CTL_TIMEOUT" "$LS_CTL_BIN" "$@" 2>/dev/null
+    timeout "$LABEL_SYNC_CTL_TIMEOUT" "$LS_CTL_BIN" --lock-timeout "$lt" "$@" 2>/dev/null
   else
-    "$LS_CTL_BIN" "$@" 2>/dev/null
+    "$LS_CTL_BIN" --lock-timeout "$lt" "$@" 2>/dev/null
   fi
 }
 
 # ls_hookdir : create hook-private state dirs (0700).
 ls_hookdir() {
-  [ -d "$LS_HOOKSTATE/ledger-last" ] && [ -d "$LS_HOOKSTATE/sessions" ] && [ -d "$LS_HOOKSTATE/agentmap" ] && [ -d "$LS_HOOKSTATE/pending" ] && return 0
-  ( umask 077; mkdir -p "$LS_HOOKSTATE/pending" "$LS_HOOKSTATE/agentmap" "$LS_HOOKSTATE/sessions" "$LS_HOOKSTATE/ledger-last" ) 2>/dev/null
+  [ -d "$LS_HOOKSTATE/ledger-last" ] && [ -d "$LS_HOOKSTATE/agentmap" ] && [ -d "$LS_HOOKSTATE/pending" ] && return 0
+  ( umask 077; mkdir -p "$LS_HOOKSTATE/pending" "$LS_HOOKSTATE/agentmap" "$LS_HOOKSTATE/ledger-last" ) 2>/dev/null
 }
 
 # ls_drop_pending_dir <sid> : remove the regular files of hooks/pending/<sid>/
@@ -234,20 +241,8 @@ ls_model_short() {
   esac
 }
 
-# ls_active_field <alias|model|effort> : one field of active.json ('' when
-# none). Pure bash (no jq spawn — each spawn costs 15-25 ms on a loaded host).
-ls_active_field() {
-  local j re
-  IFS= read -r -d '' j <"$LS_STATE/active.json" 2>/dev/null || true
-  re="\"$1\"[[:space:]]*:[[:space:]]*\"([^\"]*)\""
-  [[ "$j" =~ $re ]] && printf '%s' "${BASH_REMATCH[1]}"
-  return 0
-}
-# ls_active_alias : the operator's ACTIVE alias from active.json ('' when none).
-ls_active_alias() { ls_active_field alias; }
-
 # ls_session_id : entity id of the current session.
-ls_session_entity() { printf 'session:%s' "${LS_SID:-unknown}"; }
+ls_session_entity() { printf 'session:%s' "$LS_SID"; }
 
 # ls_flock <file> <cmd...> : run cmd under an exclusive flock when available.
 ls_flock() {
@@ -258,66 +253,33 @@ ls_flock() {
 # ls_ensure_session [source] : (re)assert the session entity. Idempotent and
 # level-triggered: safe to call from ANY hook, including when SessionStart was
 # missed (binary was building, state dir was unusable at that moment).
-# Implements the CONTRACT §4.3 alias-change handling:
-#   * previous alias for this session_id is remembered in hooks/sessions/<sid>.alias
-#   * if it differs from the freshly derived alias (a RESUME under another
-#     alias) the session is registered NON-following first — that makes the
-#     state layer republish the whole subtree (same session_id + descendants)
-#     to the new alias — then, unless LABEL_SYNC_NO_SWITCH_ON_RESUME=1, the
-#     new alias is published as the ACTIVE alias (alias_switch) and the session
-#     and its descendants are restored to FOLLOW it, so later operator
-#     switches relabel them.
+#
+# Binding (CONTRACT §4.2, review finding 1): a session whose alias the labeler
+# DERIVES from this process (CLAUDE_CONFIG_DIR) is registered PINNED to it
+# (--follow-active false) — per-process truth. Two terminals on two aliases
+# therefore each keep their own label through any number of operator
+# `alias_switch` events; their alias-less children inherit it through the
+# session. Only a session whose alias cannot be derived follows the ACTIVE
+# context. A resume under another alias simply re-registers the session with
+# the new alias: the core re-renders its whole subtree, no republish step.
+# The hooks NEVER read or write active.json (no check-then-act race): only the
+# CLI signal (label-sync-alias-switch.sh) and the toolkit wrapper publish it.
 ls_ensure_session() {
-  local src="${1:-hook}" id lab alias model effort track branch active follow prevf prev=""
+  local src="${1:-hook}" id lab alias="" model="" effort="" track="" branch=""
   id="$(ls_session_entity)"
   lab="$(ls_derive)" || lab=""
-  alias=""; model=""; effort=""; track=""; branch=""
   if [ -n "$lab" ] && ls_parse_label "$lab"; then
     alias="$LS_L_ALIAS"; model="$LS_L_MODEL"; effort="$LS_L_EFFORT"; track="$LS_L_TRACK"; branch="$LS_L_BRANCH"
   fi
-  ls_hookdir
-  prevf="$LS_HOOKSTATE/sessions/$LS_SID.alias"
-  [ -f "$prevf" ] && prev="$(cat "$prevf" 2>/dev/null)"
-  active="$(ls_active_alias)"
-  follow=false; [ -n "$alias" ] && [ "$alias" = "$active" ] && follow=true
-  local changed=""
-  [ -n "$prev" ] && [ -n "$alias" ] && [ "$prev" != "$alias" ] && changed=1
-
   local -a a=(register --id "$id" --kind session --session "$LS_SID" --cwd "$LS_CWD" --source "hook:label-sync-$src"
-              --state running --follow-active "$([ -n "$changed" ] && echo false || echo $follow)")
+              --state running)
+  if [ -n "$alias" ]; then a+=(--alias "$alias" --follow-active false); else a+=(--follow-active true); fi
   [ -n "$track" ] && a+=(--track "$track")
   [ -n "$branch" ] && a+=(--branch "$branch")
-  [ -n "$alias" ] && a+=(--alias "$alias")
   [ -n "$model" ] && a+=(--model "$model")
   [ -n "$effort" ] && a+=(--effort "$effort")
   local pid; pid="$(ls_claude_pid)"; [ "$pid" -gt 0 ] 2>/dev/null && a+=(--pid "$pid")
-  ls_ctl "${a[@]}" >/dev/null || { ls_dbg "register session failed"; return 1; }
-  [ -n "$alias" ] && printf '%s' "$alias" >"$prevf" 2>/dev/null
-
-  # An ACTIVE alias with an empty model (an alias_switch that carried none) is
-  # filled from THIS live session when it runs under that very alias — real data
-  # (the model actually answering), never invented; an existing model is never
-  # overwritten (the operator's explicit switch wins).
-  if [ -z "$changed" ] && [ -n "$alias" ] && [ "$alias" = "$active" ] && [ -n "$model" ] \
-     && [ -z "$(ls_active_field model)" ]; then
-    local aeff; aeff="$(ls_active_field effort)"
-    ls_ctl switch-alias --alias "$alias" --model "$model" ${aeff:+--effort "$aeff"} >/dev/null || true
-  fi
-
-  if [ -n "$changed" ]; then
-    ls_dbg "alias change $prev -> $alias on session $LS_SID (source=$src)"
-    if [ "${LABEL_SYNC_NO_SWITCH_ON_RESUME:-}" != 1 ]; then
-      ls_ctl switch-alias --alias "$alias" ${model:+--model "$model"} ${effort:+--effort "$effort"} >/dev/null || true
-      active="$alias"
-    fi
-    if [ "$alias" = "$active" ]; then
-      # restore FOLLOW on the session and every descendant (they now equal active)
-      local ids x
-      ids="$(ls_ctl list --json | jq -r --arg sid "$LS_SID" --arg me "$id" '
-        [ .entities[] | select(.id==$me or .session_id==$sid) | .id ] | unique | .[]' 2>/dev/null)"
-      for x in $ids; do ls_ctl update --id "$x" --follow-active true >/dev/null || true; done
-    fi
-  fi
+  ls_ctl "${a[@]}" >/dev/null || { ls_dbg "register session failed (source=$src)"; return 1; }
   return 0
 }
 

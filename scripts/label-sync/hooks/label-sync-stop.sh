@@ -24,7 +24,12 @@ main() {
   ls_have_bin || return 0
   local id d f eid
   id="$(ls_session_entity)"; d="$LS_HOOKSTATE/pending/$LS_SID"
-  if ! ls_ctl update --id "$id" --state idle >/dev/null; then
+  local rc=0
+  ls_ctl update --id "$id" --state idle >/dev/null || rc=$?
+  # rc 2 = writer lock busy (bounded wait elapsed) or state unusable: every
+  # further write would just wait again — stop here, the next event re-asserts.
+  [ "$rc" -eq 2 ] && return 0
+  if [ "$rc" -ne 0 ]; then
     ls_ensure_session "stop" && ls_ctl update --id "$id" --state idle >/dev/null
   fi
   if [ -d "$d" ]; then
