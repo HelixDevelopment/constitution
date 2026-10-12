@@ -331,16 +331,42 @@ install_hooks() {
         return 0
     fi
 
-    local hooks_src="${CONST_DIR}/scripts/hooks"
-    local hooks_dst="${PROJECT_ROOT}/.git/hooks"
-
-    if [ ! -d "$hooks_dst" ]; then
-        warn "No .git/hooks directory found at $hooks_dst — hooks cannot be installed."
-        WARNINGS+=("No .git/hooks — run from a git repository root")
-        return 1
+    # NOTE (§11.4.201 + review finding 6): this step NEVER returns non-zero —
+    # the script runs under `set -e`, and a failing step here used to abort the
+    # WHOLE hook before step 4c (label-sync) and step 5 ever ran. Worktrees and
+    # submodule checkouts have NO <root>/.git/hooks directory (.git is a FILE),
+    # so the hooks dir is asked from git itself (`--git-path hooks`, which also
+    # honours core.hooksPath), never assumed.
+    local hooks_src="${CONST_DIR}/scripts/hooks" hooks_dst=""
+    hooks_dst="$(cd "$PROJECT_ROOT" 2>/dev/null && git rev-parse --path-format=absolute --git-path hooks 2>/dev/null)" || hooks_dst=""
+    if [ -z "$hooks_dst" ]; then   # git < 2.31 has no --path-format: absolutise by hand
+        hooks_dst="$(cd "$PROJECT_ROOT" 2>/dev/null && git rev-parse --git-path hooks 2>/dev/null)" || hooks_dst=""
+        case "$hooks_dst" in ''|/*) ;; *) hooks_dst="$PROJECT_ROOT/$hooks_dst" ;; esac
+    fi
+    if [ -z "$hooks_dst" ]; then
+        warn "$PROJECT_ROOT is not a git work tree — git hooks cannot be installed (skipped)."
+        WARNINGS+=("git hooks not installed: $PROJECT_ROOT is not a git work tree")
+        return 0
+    fi
+    if ! mkdir -p "$hooks_dst" 2>/dev/null; then
+        warn "cannot create the git hooks dir $hooks_dst — hooks not installed."
+        WARNINGS+=("git hooks dir $hooks_dst not writable")
+        return 0
     fi
 
+    local hook_name
     for hook_name in "${CHANGED_HOOKS[@]}"; do
+        # ONLY real git hook names are installed: scripts/hooks/ also holds
+        # Claude Code guards (guard-*.sh) and test suites (test_*.sh) that must
+        # never be copied into .git/hooks.
+        case "$hook_name" in
+            applypatch-msg|pre-applypatch|post-applypatch|pre-commit|pre-merge-commit|\
+            prepare-commit-msg|commit-msg|post-commit|pre-rebase|post-checkout|post-merge|\
+            pre-push|pre-receive|update|proc-receive|post-receive|post-update|\
+            reference-transaction|push-to-checkout|pre-auto-gc|post-rewrite|\
+            sendemail-validate|fsmonitor-watchman|post-index-change) ;;
+            *) info "Not a git hook name — not installed: ${hook_name}"; continue ;;
+        esac
         local src_file="${hooks_src}/${hook_name}"
         local dst_file="${hooks_dst}/${hook_name}"
 
@@ -350,10 +376,14 @@ install_hooks() {
         fi
 
         info "Installing hook: ${hook_name}"
-        cp "$src_file" "$dst_file"
-        chmod +x "$dst_file"
-        info "  -> Installed: $dst_file"
+        if cp "$src_file" "$dst_file" && chmod +x "$dst_file"; then
+            info "  -> Installed: $dst_file"
+        else
+            warn "could not install $dst_file"
+            WARNINGS+=("git hook ${hook_name} not installed")
+        fi
     done
+    return 0
 }
 
 # ============================================================================
