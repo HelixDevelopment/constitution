@@ -47,6 +47,14 @@
 # DOC128 / USR2ANY adopted verbatim; V4R8-6a/b (ownership prune). V4R7-N3a/b/c re-expressed against the durable report
 # state; V4R7-N3d retired (the worker's stop deferral was removed -- see its comment).
 #
+# T048 V4 round 9 (V4R9-* group; §11.4.276(E) STRUCTURAL round -- the V4R8-2 class: every state an exit decision
+# reads must outlive every process that still has to decide): the round-2 reviewer's 14 mutants RVM-A..N adopted
+# (verbatim where the anchor still exists; C/D/H re-expressed against decide_code / the 5-field identity), the fixer's
+# own V4R9-M1..M11 (state directory lifetime, one derivation, bounded say, gc). Their oracles: the unit file ([R9*]),
+# the v4r5 R8N3*/R7N3C rows, the extended stream matrix and tests/test_fc_supervisor_v4r9_shutdown_windows.sh.
+# Re-expressed this round (anchors named code round 9 replaced; same defect class, same ids): R6-M20, R3-M1, V4R6-F8,
+# V4R7-N3b (now BOTH layers), V4R7-N3c, V4R8-1b.
+#
 # Instrument control (§11.4.273): before any mutant, the SAME harness runs a
 # representative case against an UNMUTATED replica and requires it to PASS --
 # otherwise a "caught" mutant could just be a broken replica.
@@ -77,6 +85,7 @@ T_R2 = "test_baseline_replay_r2_findings.sh"
 T_SUP = "test_fc_supervisor_unit.sh"
 T_V5 = "test_fc_supervisor_v4r5_findings.sh"
 T_V8 = "test_fc_supervisor_v4r8_stream_matrix.sh"
+T_V9 = "test_fc_supervisor_v4r9_shutdown_windows.sh"
 
 
 def SM(sig, target, shape):
@@ -138,8 +147,8 @@ MUTS = [
     ("R6-M19", BR, [("DEFAULT_MIN_FREE_KB=70254592", "DEFAULT_MIN_FREE_KB=10485760")],
      T_R6, {"R6_ONLY": "F10"}, "NOT ok [R6-F10]"),
     # R6-M20 re-expressed (round 3): the worktree is removed BEFORE the gate tree is stopped
-    ("R6-M20", SUP, [("    n = stop_tree(grace, label)\n    if n:\n        say(\"supervisor (%s): stopped %d process(es) (%s)\" % (label, n, reason))\n    process_ledger(tmpdir, reason)\n",
-                      "    process_ledger(tmpdir, reason)\n    n = stop_tree(grace, label)\n    if n:\n        say(\"supervisor (%s): stopped %d process(es) (%s)\" % (label, n, reason))\n")],
+    ("R6-M20", SUP, [("    n = stop_tree(grace, label)\n    if n:\n        say(\"supervisor (%s): stopped %d process(es) (%s)\" % (label, n, reason))\n    process_ledger(tmpdir, reason, statedir)\n",
+                      "    process_ledger(tmpdir, reason, statedir)\n    n = stop_tree(grace, label)\n    if n:\n        say(\"supervisor (%s): stopped %d process(es) (%s)\" % (label, n, reason))\n")],
      T_R2, SM("TERM", "main", "ignterm"), "NOT ok [SM] TERM-main-ignterm"),
     # R6-M21 re-expressed (round 3): the main pid never forwards the stop to the supervisor
     ("R6-M21", SUP, [("    if Stop.target_fd is not None:\n        # forward the signal M RECEIVED", "    if False:\n        # forward the signal M RECEIVED")],
@@ -283,7 +292,7 @@ MUTS = [
      T_CB, {"CB_ONLY": "C-V413"}, "NOT ok [C-V413]"),
     # ---- round-3 fixer mutations ----
     # V4R3-1 core: the keeper ignores the death of the main pid (SIGKILL of main -> run loop goes on)
-    ("R3-M1", SUP, [("                if not data:\n                    reason, code", "                if False:\n                    reason, code")],
+    ("R3-M1", SUP, [("                if not data:\n                    reason, cause", "                if False:\n                    reason, cause")],
      T_R2, SM("KILL", "main", "quick"), "NOT ok [SM] KILL-main-quick"),
     # the worker's long-running child back in the FOREGROUND (round-4 B1 class): a stop signal to the
     # worker is deferred until the gate ends by itself
@@ -464,8 +473,8 @@ MUTS = [
     ("V4R6-F2", BR, [('  [ -s "$mk" ] && return "$rc"\n', '  return "$rc"\n')],
      T_R2, dict(SM("KILL", "main", "never"), SM_SHAPES="", SM_EXTRA="runkill"), "NOT ok [SM] runkill-KILL-fcrun-daemon"),
     # F8: a stop that reached main after the work finished overrides the keeper's 0 with 128+N again
-    ("V4R6-F8", SUP, [("    if kst is not None and os.WIFEXITED(kst):\n        return os.WEXITSTATUS(kst)\n",
-                       "    if kst is not None and os.WIFEXITED(kst) and not sig:\n        return os.WEXITSTATUS(kst)\n")],
+    ("V4R6-F8", SUP, [("    if kst is not None and os.WIFEXITED(kst):\n        return (\"code\", os.WEXITSTATUS(kst))\n",
+                       "    if kst is not None and os.WIFEXITED(kst) and not sig:\n        return (\"code\", os.WEXITSTATUS(kst))\n")],
      T_V5, {"V5_ONLY": "F8LATE"}, "NOT ok [F8LATE]"),
     # F4: reviewer mutant X5 adopted -- an unreadable `git worktree list` treated as "not listed" (removal verified)
     ("V4R6-X5", BR, [('[ "$listed" != 1 ]; then', '[ "$listed" = 0 ]; then')],
@@ -503,9 +512,12 @@ MUTS = [
     # race in the mutant's favour, so the deterministic oracle is [R7WGRP], the group structure + a group TERM)
     ("V4R7-N1f", SUP, [("        wpid = spawn(a.cmd, env, entry_mask, own_group=True)\n", "        wpid = spawn(a.cmd, env, entry_mask)\n")],
      T_V5, {"V5_ONLY": "R7WGRP"}, "NOT ok [R7WGRP]"),
-    # N2: the final flush unguarded again (a broken stderr turns the keeper's 137 into another code)
-    ("V4R7-N2", SUP, [("    _flush()\n    os._exit(code)\n", "    sys.stdout.flush()\n    sys.stderr.flush()\n    os._exit(code)\n")],
-     T_V5, {"V5_ONLY": "R7N2"}, "NOT ok [R7N2]"),
+    # N2: the final flush unguarded again (a broken stderr turns the keeper's 137 into another code).
+    # RETIRED in round 9 (EQUIVALENT by construction, measured: the round-9 full run reported it SURVIVED with [R7N2]
+    # green): say() no longer writes into sys.stderr's buffer (V4R9-1 (b): it writes straight to fd 2 through
+    # _write_bounded), and nothing in main or the keeper writes through sys.stdout / sys.stderr, so the final flush has
+    # nothing to flush and cannot raise. The defect class "a write to the caller's stream raises into an exit path" is
+    # guarded by V4R8-1b (re-expressed: say through sys.stderr again -> [R8RUN] dead-both) and V4R9-RVM-M.
     # N5 (CLASS 2): the documented-code funnel removed (BOTH layers -- main_exit_code and _exit_main each clamp; one
     # alone is a deliberate second layer, so a single-layer mutant is equivalent by design)
     ("V4R7-N5", SUP, [("    if code not in DOCUMENTED:\n", "    if False:\n"),
@@ -518,9 +530,12 @@ MUTS = [
     # the worker's own exit after a stop no longer decides anything (V4R8-2 rows R8N3TERMGRP/KILLW/KILLK guard it).
     ("V4R7-N3a", BR, [('  # rc 0: the run-log ledger entry is KEPT', '  rm -f "$_FC_LOG_LEDGER"\n  # rc 0: the run-log ledger entry is KEPT')],
      T_V5, {"V5_ONLY": "R7N3"}, "NOT ok [R7N3]"),
-    ("V4R7-N3b", SUP, [('        if DONE.get("code") is not None:\n', '        if False and DONE.get("code") is not None:\n')],
+    # round 9 (V4R9-1): RE-EXPRESSED against the ONE derivation -- BOTH layers (keeper and main) ignore the report state
+    # (a single layer is compensated by the other by design; the keeper-only layer is RVM-C below, observed by [R9SAME])
+    ("V4R7-N3b", SUP, [("        code = decide_code(report_verified(statedir), cause)\n", "        code = decide_code(None, cause)\n"),
+                       ("    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n", "    code = main_exit_code(kst, Stop.sig, None)\n")],
      T_V5, {"V5_ONLY": "R7N3B"}, "NOT ok [R7N3B]"),
-    ("V4R7-N3c", SUP, [("    read_report(tmpdir)\n", "    pass\n")],
+    ("V4R7-N3c", SUP, [("    read_report(statedir)\n", "    pass\n")],
      T_V5, {"V5_ONLY": "R7N3B"}, "NOT ok [R7N3B]"),
     ("V4R7-N3e", SUP, [('            if os.path.isdir(d) and DONE.get("code") is None:\n', '            if os.path.isdir(d):\n')],
      T_V5, {"V5_ONLY": "R7N3C"}, "NOT ok [R7N3C]"),
@@ -548,10 +563,10 @@ MUTS = [
     ("V4R8-1a", SUP, [("        if stream is None:\n            continue\n        try:\n            stream.flush()\n        except Exception:  # noqa: BLE001\n            pass\n",
                        "        try:\n            stream.flush()\n        except (OSError, ValueError):\n            pass\n")],
      T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "closed-out", "R8_SCENARIOS": "ok"}, "NOT ok [R8MATRIX] ok x closed-out"),
-    ("V4R8-1b", SUP, [("    if stream is None:\n        return\n", ""),
-                      ("    except Exception:  # noqa: BLE001 -- the state of the caller's stream never changes an outcome\n",
-                       "    except (OSError, ValueError):\n")],
-     T_V8, {"R8_ONLY": "R8RUN"}, "NOT ok [R8RUN] exit3-leftover x closed-both"),
+    # round 9: RE-EXPRESSED (say no longer goes through the stream object -- V4R9-1 (b)): say writes through
+    # sys.stderr again, so a dead stream RAISES out of say (round 7's class) -- the run role's code becomes 125
+    ("V4R8-1b", SUP, [("    _write_bounded(2, data)\n", "    sys.stderr.write(data.decode())\n    sys.stderr.flush()\n")],
+     T_V8, {"R8_ONLY": "R8RUN"}, "NOT ok [R8RUN] exit3-leftover x dead-both"),
     ("V4R8-1c", SUP, [("    _repair_std_fds()           # before anything is opened (V4R8-1)\n", "")],
      T_V8, {"R8_ONLY": "R8FDS"}, "NOT ok [R8FDS]"),
     # a standard fd open in the WRONG direction (bash leaves its script on fd 2 when the caller closed stderr) no
@@ -584,6 +599,71 @@ MUTS = [
     ("V4R8-6b", SUP, [("            return None          # the caller's own child: never owned, and its subtree is pruned (V4R8-6)\n",
                        "            return False\n")],
      T_SUP, {}, "NOT ok [P1]"),
+    # ---- T048 V4 round 9 (round-2 review of the round-8 pack: NO-GO 1 IMPORTANT V4R9-1 + 5 MINOR + 1 NIT) ----
+    # The round-2 reviewer's 14 mutants (v4_round2_review_20261012.md section 2), adopted: VERBATIM where their anchor
+    # still exists (A B E F G I J K L M N), RE-EXPRESSED with the same defect class where round 9 replaced the code
+    # they named (C D: the one derivation decide_code; H: the 5-field identity). Each must now DIE.
+    ("V4R9-RVM-A", SUP, [("    now = _identity(out)\n", "    return code\n    now = _identity(out)\n")],
+     T_SUP, {}, "NOT ok [R1]"),
+    ("V4R9-RVM-B", SUP, [('doc.get("body_hash") != want', 'doc.get("body_hash", want) != want')],
+     T_SUP, {}, "NOT ok [R9B]"),
+    ("V4R9-RVM-C", SUP, [("        code = decide_code(report_verified(statedir), cause)\n", "        code = decide_code(None, cause)\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "worker", "R9_TAGS": "W2-after-writer", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] worker W2-after-writer x kill-self"),
+    ("V4R9-RVM-D", SUP, [("    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n", "    code = main_exit_code(kst, Stop.sig, None)\n")],
+     T_V5, {"V5_ONLY": "R8N3KILLK"}, "NOT ok [R8N3KILLK]"),
+    ("V4R9-RVM-E", SUP, [("            if (mode != os.O_WRONLY) if fd == 0 else (mode != os.O_RDONLY):", "            if fd != 2 or mode != os.O_RDONLY:")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "wrongdir-in wrongdir-out", "R8_SCENARIOS": "stop-TERM-main"},
+     "NOT ok [R8MATRIX] stop-TERM-main x wrongdir-"),
+    ("V4R9-RVM-F", SUP, [("        _install_stop(entry_mask)\n        env = dict(os.environ)\n", "        _install_stop(entry_mask)\n        signal.signal(signal.SIGPIPE, signal.SIG_DFL)\n        env = dict(os.environ)\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "dead-err dead-both-ign", "R8_SCENARIOS": "kill-worker term-worker stop-TERM-main"},
+     "NOT ok [R8MATRIX]"),
+    ("V4R9-RVM-G", BR, [('  if [ "$_FC_IS_WORKER" = 1 ]; then\n    python3 -I -S "$_FC_SUPERVISOR" report-prepare', '  python3 "$FC/lib/fc_common.py" emit --schema "$schema" --body-json "$body_json" --run-meta-json "$run_meta" --out "$out_path"\n  if [ "$_FC_IS_WORKER" = 1 ]; then\n    python3 -I -S "$_FC_SUPERVISOR" report-prepare')],
+     T_V5, {"V5_ONLY": "R8N3TERMGRP R8N3KILLW R8N3KILLK"}, "NOT ok [R8N3"),
+    ("V4R9-RVM-H", SUP, [("    return [s.st_dev, s.st_ino, s.st_ctime_ns, s.st_mtime_ns, s.st_size]", "    return [s.st_dev, s.st_ino]")],
+     T_SUP, {}, "NOT ok [R9ID-ctime]"),
+    ("V4R9-RVM-I", SUP, [("        if (pid, start) in pre:", "        if any(p == pid for p, _ in pre):")],
+     T_SUP, {}, "NOT ok [R9OWN-I]"),
+    ("V4R9-RVM-J", SUP, [("        return (pid == kpid and start == kstart) or sid == kpid", "        return pid == kpid or sid == kpid")],
+     T_SUP, {}, "NOT ok [R9OWN-J]"),
+    ("V4R9-RVM-K", SUP, [("    ok = sf is not None and sf[1] == parent", "    ok = sf is not None")],
+     T_SUP, {}, "NOT ok [S1]"),
+    ("V4R9-RVM-L", SUP, [('if os.path.isdir(d) and DONE.get("code") is None:', 'if os.path.isdir(d):')],
+     T_V5, {"V5_ONLY": "R7N3C"}, "NOT ok [R7N3C]"),
+    ("V4R9-RVM-M", SUP, [("    except Exception:  # noqa: BLE001 -- the state of the caller's stream never changes an outcome", "    except ValueError:")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "dead-err", "R8_SCENARIOS": "kill-worker term-worker stop-TERM-main"},
+     "NOT ok [R8MATRIX]"),
+    ("V4R9-RVM-N", BR, [("trap '' PIPE\n", "[ \"${FC_BR_SUPERVISED:-}\" = 1 ] || trap '' PIPE\n")],
+     T_V8, {"R8_ONLY": "R8SIGPIPE"}, "NOT ok [R8SIGPIPE]"),
+    # round-9 fixer's own mutants (V4R9-M*): the state directory's lifetime, the one derivation, the bounded say, gc
+    ("V4R9-M1", SUP, [("    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n", "    code = main_exit_code(kst, Stop.sig, report_verified(tmpdir))\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.try", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    ("V4R9-M2", SUP, [("    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n    remove_statedir(statedir)\n",
+                       "    remove_statedir(statedir)\n    code = main_exit_code(kst, Stop.sig, report_verified(statedir))\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.try", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    ("V4R9-M3", SUP, [('        if cause[0] == "main_gone":\n            remove_statedir(statedir)\n', "        remove_statedir(statedir)\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.finally", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    ("V4R9-M4", SUP, [("    if verified is not None:\n        return verified\n    kind, n = cause\n",
+                       "    kind, n = cause\n    if verified is not None and kind != \"killed\":\n        return verified\n")],
+     T_SUP, {}, "NOT ok [R9DEC] decide_code(0, ('killed'"),
+    ("V4R9-M5", SUP, [("    _write_bounded(2, data)\n", "    try:\n        os.write(2, data)\n    except OSError:\n        pass\n")],
+     T_V9, {"R9_ONLY": "R9STALL"}, "NOT ok [R9STALL]"),
+    ("V4R9-M6", SUP, [("    gc_statedirs(a.tmp_parent)   # state directories of DEAD mains", "    pass   # state directories of DEAD mains")],
+     T_V9, {"R9_ONLY": "R9GC2"}, "NOT ok [R9GC2]"),
+    ("V4R9-M7", SUP, [("                continue                       # its owner is alive: not ours to remove\n", "                pass\n")],
+     T_SUP, {}, "NOT ok [R9GC] live owner kept"),
+    ("V4R9-M8", SUP, [("    return [s.st_dev, s.st_ino, s.st_ctime_ns, s.st_mtime_ns, s.st_size]", "    return [s.st_dev, s.st_ino, s.st_ctime_ns, s.st_size]")],
+     T_SUP, {}, "NOT ok [R9ID-mtime]"),
+    ("V4R9-M9", SUP, [("    if sig:\n        return (\"stopped\", sig)\n    if kst is None:\n", "    if kst is None and sig:\n        return (\"stopped\", sig)\n    if kst is None:\n")],
+     T_SUP, {}, "NOT ok [R9DEC] main_cause(9, 15)"),
+    ("V4R9-M10", SUP, [("        if b == boot and pid > 1:\n", "        if pid > 1:\n")],
+     T_SUP, {}, "NOT ok [R9GC] other boot removed"),
+    ("V4R9-M11", SUP, [("    try:\n        os.rmdir(path)\n    except OSError:\n        pass\n    return not os.path.lexists(path)\n",
+                        "    shutil.rmtree(path, ignore_errors=True)\n    return not os.path.lexists(path)\n")],
+     T_SUP, {}, "NOT ok [R9GC] unknown file kept"),
 ]
 
 CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
@@ -614,7 +694,14 @@ CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
                                      "SM_SHAPES": "daemon", "SM_EXTRA": "wtaddkill"}, "ok [SM] KILL-worker-group-daemon"),
             # round 8: the stream-matrix rows the V4R8-1 mutants run (one file, every row they name)
             ("control-v8", T_V8, {"R8_ONLY": "R8MATRIX R8RUN R8FDS", "R8_STREAMS": "closed-out dead-err closed-err",
-                                  "R8_SCENARIOS": "ok usage stop-INT-main"}, "ok [R8FDS]")]
+                                  "R8_SCENARIOS": "ok usage stop-INT-main"}, "ok [R8FDS]"),
+            # round 9: every row a V4R9-* mutant runs, on the UNMUTATED replica
+            ("control-v8-r9", T_V8, {"R8_ONLY": "R8MATRIX R8RUN R8SIGPIPE",
+                                     "R8_STREAMS": "wrongdir-in wrongdir-out dead-err dead-both dead-both-ign",
+                                     "R8_SCENARIOS": "stop-TERM-main kill-worker term-worker"}, "ok [R8SIGPIPE]"),
+            ("control-v9", T_V9, {"R9_ONLY": "R9WIN R9GC2 R9STALL", "R9_ROLES": "keeper worker",
+                                  "R9_TAGS": "_keeper.try _keeper.finally W2-after-writer", "R9_ACTIONS": "kill-self"},
+                                  "ok [R9STALL]")]
 
 
 def replica():

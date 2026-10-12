@@ -34,6 +34,7 @@
 # Round-8 groups (T048 V4 round 8): [P1]/[P2] main's ownership walk prunes the caller's pre-existing subtrees
 # (V4R8-6); [R1]/[R1b..f] report_prepare/report_verified -- "was the report written" decided from durable state
 # (V4R8-2), driven with the real fc_common.py next to the module under test.
+# Round-9 groups (T048 V4 round 9): [R9B] [R9ID-*] [R9OWN-I/J] [R9DEC] [R9GC] -- see the block comment above them.
 #
 # Env: FC_SUP_UNDER_TEST  path of fc_supervisor.py (default: the real file; the
 #                         paired-mutation runner points this at a mutant).
@@ -417,6 +418,150 @@ try:
             bad("[%s] report_verified: %s -> %r (want %r)" % (tag, why, got_, want_))
 finally:
     shutil.rmtree(R, ignore_errors=True)
+
+# --- T048 V4 round 9 (V4R9-3/4/5 + the V4R9-1 structural derivation). Every case below is the oracle of one reviewer
+# mutant that SURVIVED round 2 (RVM-B / RVM-H / RVM-I / RVM-J) or of one round-3 mutant (V4R9-M*):
+# [R9B]          a NEW file at --out without any body_hash key is NOT the report (RVM-B: "key absent" member).
+# [R9ID-ctime/-mtime/-size]  identity = dev+ino+ctime+mtime+size: a new report that got the OLD inode number (deleted
+#                between prepare and the writer, inode reused) differs from `pre` in ctime / mtime / size only --
+#                each field alone must make it "written" (RVM-H and one row per field).
+# [R9OWN-I]      a caller's pre-existing child is recognised by (pid, START TIME): a reused pid with another start time
+#                is not the caller's child (RVM-I).
+# [R9OWN-J]      the keeper is recognised by (pid, START TIME): a reused keeper pid is not the keeper (RVM-J).
+# [R9DEC]        decide_code / main_cause: the ONE exit-code derivation, row by row.
+# [R9GC]         gc_statedirs removes ONLY the state directories of provably dead owners (another boot, or no live
+#                process with that pid + start time), only the files this module writes, never a symlink.
+import json as _json  # noqa: E402
+R9 = tempfile.mkdtemp(prefix="fc_sup_unit_r9.")
+try:
+    td = os.path.join(R9, "fc_baseline_replay.state.unit"); os.mkdir(td)
+    out = os.path.join(R9, "out.json")
+    body = {"result": "ok", "n": 9}
+    m.report_prepare(td, FCC, out, "unit-test/v1", _json.dumps(body), 0)
+    want_hash = _json.loads(open(os.path.join(td, m.REPORT_MARKER)).read())["body_hash"]
+    nohash = dict(body); nohash["schema"] = "unit-test/v1"; nohash["run_meta"] = {}
+    open(out + ".tmp", "w").write(_json.dumps(nohash)); os.replace(out + ".tmp", out)
+    got = m.report_verified(td)
+    if got is None:
+        ok("[R9B] a new file at --out with NO body_hash key is not the report -> None")
+    else:
+        bad("[R9B] a new file without a body_hash key was read as the report (code %r)" % (got,))
+    # identity rows: the report (correct body_hash) is ON DISK. `pre` is what _identity (the function UNDER TEST, in
+    # whatever shape it has) returns for an inode-reuse TWIN of that file: same dev + ino, ONE of ctime / mtime / size
+    # different (the old report, deleted before the writer's temp file reused its inode). Computed by calling the
+    # module's own _identity with an lstat that returns the twin (os replaced in the module's namespace only).
+    write_report(out, body)
+    import types as _types
+    real = os.lstat(out)
+    now = m._identity(out)
+
+    class _Shim:
+        def __init__(self, st):
+            self._st = st
+
+        def lstat(self, _p):
+            return self._st
+
+        def __getattr__(self, name):
+            return getattr(os, name)
+    for fname in ("ctime", "mtime", "size"):
+        twin = _types.SimpleNamespace(st_dev=real.st_dev, st_ino=real.st_ino, st_ctime_ns=real.st_ctime_ns,
+                                      st_mtime_ns=real.st_mtime_ns, st_size=real.st_size)
+        attr = {"ctime": "st_ctime_ns", "mtime": "st_mtime_ns", "size": "st_size"}[fname]
+        setattr(twin, attr, getattr(twin, attr) + 1)
+        saved_os = m.os
+        m.os = _Shim(twin)
+        try:
+            pre = m._identity(out)
+        finally:
+            m.os = saved_os
+        open(os.path.join(td, m.REPORT_MARKER), "w").write(_json.dumps(
+            {"v": 1, "out": os.path.abspath(out), "pre": pre, "body_hash": want_hash, "code": 0}))
+        got = m.report_verified(td)
+        if got == 0:
+            ok("[R9ID-%s] a written report whose (dev, ino) equal the old file's but whose %s differs is WRITTEN" % (fname, fname))
+        else:
+            bad("[R9ID-%s] a written report differing from the old file only in %s read as NOT written (%r) -- the %s "
+                "half of the identity is not used" % (fname, fname, got, fname))
+    # control needle: the identical identity is still "not written" (the rows above are not vacuous)
+    open(os.path.join(td, m.REPORT_MARKER), "w").write(_json.dumps(
+        {"v": 1, "out": os.path.abspath(out), "pre": list(now), "body_hash": want_hash, "code": 0}))
+    if m.report_verified(td) is None:
+        ok("[R9ID-needle] control: pre == the current identity -> not written")
+    else:
+        bad("[R9ID-needle] control: an unchanged identity read as written")
+finally:
+    shutil.rmtree(R9, ignore_errors=True)
+
+# ownership: start-time halves
+KP, KS, P = 910001, 777, 910002
+saved = m._ident
+try:
+    m._ident = lambda pid: {P: (KP, 101), KP: (4242, KS + 5)}.get(pid)
+    owner = m._main_owner(KP, KS, {(P, 100)})
+    oi, oj = owner(P), owner(KP)
+finally:
+    m._ident = saved
+if oi is True:
+    ok("[R9OWN-I] pid %d with another start time than the caller's recorded child is NOT the caller's child (it is in "
+       "the keeper's session: owned)" % P)
+else:
+    bad("[R9OWN-I] a reused pid of a caller's child (other start time) was treated as the caller's child (%r)" % (oi,))
+if oj is False:
+    ok("[R9OWN-J] the keeper's pid with another start time (reused, other session) is NOT owned")
+else:
+    bad("[R9OWN-J] a reused keeper pid with another start time was owned (%r)" % (oj,))
+
+# the ONE derivation
+DROWS = [((None, ("code", 3)), 3), ((0, ("code", 3)), 0), ((None, ("stopped", 15)), 143), ((0, ("stopped", 15)), 0),
+         ((None, ("killed", 9)), 137), ((0, ("killed", 9)), 0), ((None, ("main_gone", 0)), 137),
+         ((0, ("main_gone", 0)), 0), ((None, ("lost", 0)), 4), ((0, ("lost", 0)), 0), ((None, ("internal", 0)), 4),
+         ((4, ("internal", 0)), 4), ((2, ("stopped", 2)), 2)]
+for (v, c), w in DROWS:
+    g_ = m.decide_code(v, c)
+    (ok if g_ == w else bad)("[R9DEC] decide_code(%r, %r) = %r (want %r)" % (v, c, g_, w))
+CROWS = [((0 << 8, 0), ("code", 0)), ((3 << 8, 15), ("code", 3)), ((9, 0), ("killed", 9)), ((9, 15), ("stopped", 15)),
+         ((None, 2), ("stopped", 2)), ((None, 0), ("lost", 0))]
+for (kst, sig), w in CROWS:
+    g_ = m.main_cause(kst, sig)
+    (ok if g_ == w else bad)("[R9DEC] main_cause(%r, %r) = %r (want %r)" % (kst, sig, g_, w))
+for (kst, sig, v), w in (((9, 0, 0), 0), ((9, 15, 0), 0), ((None, 15, 0), 0), ((9, 15, None), 143), ((0, 0, 3), 3)):
+    g_ = m.main_exit_code(kst, sig, v)
+    (ok if g_ == w else bad)("[R9DEC] main_exit_code(kst=%r, stop=%r, verified=%r) = %r (want %r)" % (kst, sig, v, g_, w))
+
+# gc_statedirs
+G9 = tempfile.mkdtemp(prefix="fc_sup_unit_gc.")
+try:
+    boot = m._boot_id()
+    me_start = m._ident(os.getpid())[1]
+    dead = subprocess.Popen(["true"]); dead.wait()
+    dpid = dead.pid
+    def mk(name, files=(m.REPORT_MARKER,)):
+        d = os.path.join(G9, name); os.mkdir(d)
+        for f in files:
+            open(os.path.join(d, f), "w").write("x")
+        return d
+    live = mk("%s%s.%d.%d.aaaa" % (m.STATE_PREFIX, boot, os.getpid(), me_start))
+    deadd = mk("%s%s.%d.%d.bbbb" % (m.STATE_PREFIX, boot, dpid, 12345), (m.REPORT_MARKER, ".report.x1"))
+    other_boot = mk("%s%s.%d.%d.cccc" % (m.STATE_PREFIX, "ffffffffffff" if boot != "ffffffffffff" else "eeeeeeeeeeee",
+                                         os.getpid(), me_start))
+    extra = mk("%s%s.%d.%d.dddd" % (m.STATE_PREFIX, boot, dpid, 12345), (m.REPORT_MARKER, "keepme"))
+    plain = mk("fc_baseline_replay.unrelated", ("data",))
+    tgt = os.path.join(G9, "target"); os.mkdir(tgt); open(os.path.join(tgt, m.REPORT_MARKER), "w").write("x")
+    link = os.path.join(G9, "%s%s.%d.%d.eeee" % (m.STATE_PREFIX, boot, dpid, 12345)); os.symlink(tgt, link)
+    n = m.gc_statedirs(G9)
+    rows = [("live owner kept", os.path.isdir(live) and os.path.exists(os.path.join(live, m.REPORT_MARKER))),
+            ("dead owner removed", not os.path.lexists(deadd)),
+            ("other boot removed", not os.path.lexists(other_boot)),
+            ("unknown file kept (no recursive delete)", os.path.exists(os.path.join(extra, "keepme"))),
+            ("non-state dir untouched", os.path.exists(os.path.join(plain, "data"))),
+            ("symlink untouched, its target's content intact",
+             os.path.islink(link) and os.path.exists(os.path.join(tgt, m.REPORT_MARKER))),
+            ("count = 2", n == 2)]
+    for why, cond in rows:
+        (ok if cond else bad)("[R9GC] %s" % why)
+finally:
+    shutil.rmtree(G9, ignore_errors=True)
 
 print("----")
 print("SUMMARY pass=%d fail=%d" % (N["ok"], N["bad"]))
