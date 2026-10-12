@@ -16,6 +16,11 @@
 # unreachable from the caller ([R8RUNLOG] proves it statically) and is tested by invoking the run role directly
 # ([R8RUN]: open / dead pipe / closed x exit / stop / timeout).
 #
+# ROUND 9 (T048 V4, V4R9-2 / V4R9-6): the class statement above omitted members; added as stream states: stalled
+# (a reader ALIVE but not reading, the pipe pre-filled: every write blocks), full (/dev/full), dead-out + closed-err
+# (mixed), stdin closed / stdin open in the wrong direction, stdout / stderr open in the wrong direction BY THE CALLER
+# (`1<file`, `2<file`); and as scenarios: replay-sample, selfcheck, freeze, stop-after-report (TERM to main the moment
+# the report appears). The needle now checks main's fd 0 as well. Declared scope: STALL_SKIP (see there).
 # THE ONE EXIT TABLE ([R8MATRIX], fc_supervisor.py main_exit_code + baseline_replay.sh EXIT CODES):
 #   ok 0 report | det 0 report | herr 4 report | usage 2 - | stop N to main 128+N - | KILL main: the caller's process
 #   dies of SIGKILL (-9), the keeper still cleans up - | KILL keeper 137 - | KILL worker 137 - | KILL run supervisor 4 - |
@@ -285,20 +290,41 @@ def roles(main_pid, gate_name, secs=60):
 
 
 # ---- stream states of the CALLER (the process that starts baseline_replay.sh) ----
-#   (name, stdout, stderr, caller SIGPIPE ignored?)  each of stdout/stderr: open | dead | closed
-STREAMS = [("open", "open", "open", False), ("dead-out", "dead", "open", False), ("dead-err", "open", "dead", False),
-           ("dead-both", "dead", "dead", False), ("dead-both-ign", "dead", "dead", True),
-           ("closed-out", "closed", "open", False), ("closed-err", "open", "closed", False),
-           ("closed-both", "closed", "closed", False)]
+#   (name, stdout, stderr, caller SIGPIPE ignored?, stdin)
+#   stdout/stderr: open (read) | dead (reader gone: EPIPE) | closed | stalled (round 9, V4R9-6: a pipe whose reader is
+#   ALIVE but never reads, filled to capacity before the tool starts -- every write BLOCKS) | full (/dev/full: ENOSPC)
+#   | wrongdir (round 9, V4R9-2: the CALLER passes the fd open in the wrong direction, `1<file` / `2<file`)
+#   stdin: null (/dev/null) | closed (`0<&-`) | wrongdir (`0>file`)
+STREAMS = [("open", "open", "open", False, "null"), ("dead-out", "dead", "open", False, "null"),
+           ("dead-err", "open", "dead", False, "null"),
+           ("dead-both", "dead", "dead", False, "null"), ("dead-both-ign", "dead", "dead", True, "null"),
+           ("closed-out", "closed", "open", False, "null"), ("closed-err", "open", "closed", False, "null"),
+           ("closed-both", "closed", "closed", False, "null"),
+           # T048 V4 round 9 (V4R9-6: the members of the stream-state class the round-8 statement omitted)
+           ("stalled-out", "stalled", "open", False, "null"), ("stalled-err", "open", "stalled", False, "null"),
+           ("full-out", "full", "open", False, "null"), ("full-err", "open", "full", False, "null"),
+           ("dead-out-closed-err", "dead", "closed", False, "null"),
+           ("closed-in", "open", "open", False, "closed"), ("wrongdir-in", "open", "open", False, "wrongdir"),
+           ("wrongdir-out", "wrongdir", "open", False, "null"), ("wrongdir-err", "open", "wrongdir", False, "null")]
 SEL_S = os.environ.get("R8_STREAMS", "").split()
 STREAMS = [s for s in STREAMS if not SEL_S or s[0] in SEL_S]
+# DECLARED SCOPE (§11.4.6, V4R9-6): a STALLED stream blocks whoever writes to it, as it would for any program -- with no
+# stop, a replay that has something to write to it (a harness error's BLIND line, a usage error, the
+# --determinism-check verdict on stdout, the worker's message about a killed/stopped run supervisor) waits for the
+# caller's reader forever; that is the caller's choice, not an exit code. Those cells are NOT run; every cell in which
+# a stop reaches the tool, and every cell whose replay writes nothing, IS run: the code must be the table's and no
+# supervisor role may block (fc_supervisor.say is bounded).
+STALL_SKIP = {"stalled-out": {"det", "herr", "kill-run", "term-run"},
+              "stalled-err": {"herr", "usage", "kill-run", "term-run"}}
 
 
 class Launch:
     """Start argv with the given caller stream state; drain the open pipes (an 'open' stream is READ)."""
 
-    def __init__(self, argv, env, out_state, err_state, pipe_ign):
+    def __init__(self, argv, env, out_state, err_state, pipe_ign, in_state="null"):
         close = []
+        if in_state == "closed":
+            close.append("0<&-")
         if out_state == "closed":
             close.append("1>&-")
         if err_state == "closed":
@@ -306,10 +332,36 @@ class Launch:
         if close:
             argv = ["bash", "-c", "exec %s; exec \"$@\"" % " ".join(close), "x"] + argv
         self.err_txt = []
-        self.p = subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL,
-                                  stdout=subprocess.PIPE if out_state != "closed" else None,
-                                  stderr=subprocess.PIPE if err_state != "closed" else None,
+        self.keep = []                      # stalled pipes: the READ end stays open here and is never read
+        WD = os.path.join(WORK, "wrongdir.txt")
+        if not os.path.exists(WD):
+            open(WD, "w").write("not a stream\n")
+
+        def mk(state, is_in=False):
+            if state in ("open", "dead"):
+                return subprocess.PIPE
+            if state == "full":
+                return open("/dev/full", "w")
+            if state == "wrongdir":
+                return open(WD, "w" if is_in else "r")
+            if state == "stalled":
+                r, w = os.pipe()
+                fill = os.open("/proc/self/fd/%d" % w, os.O_WRONLY | os.O_NONBLOCK)   # a SECOND description: the
+                try:                                                                  # tool's stays blocking
+                    while True:
+                        os.write(fill, b"x" * 4096)
+                except BlockingIOError:
+                    pass
+                os.close(fill)
+                self.keep += [r, w]
+                return w
+            return None                     # closed (done by the bash -c prefix) / null on stdin
+        stdin = subprocess.DEVNULL if in_state != "wrongdir" else mk("wrongdir", True)
+        self.p = subprocess.Popen(argv, env=env, stdin=stdin, stdout=mk(out_state), stderr=mk(err_state),
                                   restore_signals=not pipe_ign)
+        for i, fd in enumerate(list(self.keep)):
+            if i % 2 == 1:
+                os.close(fd)                # our copy of a stalled pipe's write end; the reader stays alive
         self.threads = []
         for stream, st in ((self.p.stdout, out_state), (self.p.stderr, err_state)):
             if stream is None:
@@ -339,6 +391,12 @@ class Launch:
             return None
         for t in self.threads:
             t.join(5)
+        for i, fd in enumerate(self.keep):
+            if i % 2 == 0:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
         return self.p.returncode
 
 
@@ -357,12 +415,23 @@ SCEN = [("ok", "true", [], None, 0, True),
         ("kill-run", "hold", [], ("run", signal.SIGKILL), 4, False),
         ("term-keeper", "hold", [], ("keeper", signal.SIGTERM), 143, False),
         ("term-worker", "hold", [], ("worker", signal.SIGTERM), 143, False),
-        ("term-run", "hold", [], ("run", signal.SIGTERM), 0, True)]
+        ("term-run", "hold", [], ("run", signal.SIGTERM), 0, True),
+        # T048 V4 round 9 (V4R9-6): the other subcommands, and a stop that lands right AFTER the report was written
+        ("replay-sample", "SAMPLE", [], None, 0, True),
+        ("selfcheck", "SELFCHECK", [], None, 0, True),
+        ("freeze", "FREEZE", [], None, 0, True),
+        ("stop-after-report", "true", [], ("main", signal.SIGTERM, "after-report"), 0, True)]
 SEL_C = os.environ.get("R8_SCENARIOS", "").split()
 SCEN = [s for s in SCEN if not SEL_C or s[0] in SEL_C]
 
 ROOT = os.path.join(WORK, "m"); os.makedirs(ROOT)
 REPO = os.path.join(ROOT, "repo"); HEAD = mk_repo(REPO)
+# round 9: an item commit for replay-sample / freeze (HEAD moves to it; every replay replays HEAD)
+open(os.path.join(REPO, "f.txt"), "a").write("item\n")
+g("-C", REPO, "commit", "-q", "-am", "ATM-9 r9 matrix item")
+HEAD = g("-C", REPO, "rev-parse", "HEAD").stdout.strip()
+SAMPLE = os.path.join(ROOT, "sample.json")
+open(SAMPLE, "w").write('{"items": [{"item_id": "ATM-9"}]}')
 TMP = os.path.join(ROOT, "tmp"); os.makedirs(TMP)
 LOCKS = os.path.join(ROOT, "locks"); os.makedirs(LOCKS)
 ENV = dict(os.environ, TMPDIR=TMP, FC_REPLAY_LOCK_DIR=LOCKS, FC_BR_STOP_GRACE_S="1")
@@ -387,21 +456,41 @@ def settle(secs=30):
 
 
 if want("R8MATRIX"):
-    for sname, so, se, ign in STREAMS:
+    skipped = []
+    for sname, so, se, ign, si in STREAMS:
         for cname, gate, extra, action, want_rc, want_rep in SCEN:
             tag = "[R8MATRIX] %s x %s" % (cname, sname)
+            if cname in STALL_SKIP.get(sname, ()):
+                skipped.append("%s x %s" % (cname, sname))
+                continue
             out = os.path.join(ROOT, "out.json")
             if os.path.exists(out):
                 os.unlink(out)
+            common = ["--repo-root", REPO, "--worktree-root", os.path.join(ROOT, "wt"), "--min-free-kb", "0",
+                      "--min-free-kb-objects", "0", "--gate-cmd", "true", "--cold-runs", "1", "--warm-runs", "0",
+                      "--out", out]
             if gate is None:
                 argv = ["bash", SCRIPT, "replay", "--bogus-r8"]
+            elif gate == "SAMPLE":
+                argv = ["bash", SCRIPT, "replay-sample", "--sample", SAMPLE] + common
+            elif gate == "SELFCHECK":
+                argv = ["bash", SCRIPT, "selfcheck", "--out", out]
+            elif gate == "FREEZE":
+                argv = ["bash", SCRIPT, "freeze", "--item", "ATM-9", "--repo-root", REPO, "--out", out]
             else:
                 argv = ["bash", SCRIPT, "replay", "--commit", HEAD, "--repo-root", REPO, "--worktree-root",
                         os.path.join(ROOT, "wt"), "--min-free-kb", "0", "--min-free-kb-objects", "0", "--gate-cmd",
                         HOLD if gate == "hold" else gate, "--cold-runs", "1", "--warm-runs", "0", "--out", out] + extra
-            L = Launch(argv, ENV, so, se, ign)
+            L = Launch(argv, ENV, so, se, ign, si)
             needle = ""
-            if action:
+            if action and len(action) == 3:
+                # stop right AFTER the report appeared (V4R9-6): whether it lands before or after the worker / keeper
+                # / main exit, the report exists, so the code is the report's (fc_supervisor.decide_code)
+                end = time.monotonic() + 60
+                while time.monotonic() < end and not os.path.exists(out) and L.p.poll() is None:
+                    time.sleep(0.002)
+                sig_pid(L.p.pid, action[1])
+            elif action:
                 who, signo = action
                 r = roles(L.p.pid, GATE_NAME)
                 if r is None:
@@ -412,16 +501,18 @@ if want("R8MATRIX"):
                     continue
                 gate_pid, run, wk, kp = r
                 # control needle for the stream state: main's own fd 1/2 as the tool sees them
-                links = (fdlink(L.p.pid, 1) or "", fdlink(L.p.pid, 2) or "")
-                exp = tuple("/dev/null" if s == "closed" else "pipe:" for s in (so, se))
+                links = (fdlink(L.p.pid, 0) or "", fdlink(L.p.pid, 1) or "", fdlink(L.p.pid, 2) or "")
+                EXP = {"closed": "/dev/null", "wrongdir": "/dev/null", "full": "/dev/full", "null": "/dev/null"}
+                exp = tuple(EXP.get(s, "pipe:") for s in (si, so, se))
                 if not all(l.startswith(e) for l, e in zip(links, exp)):
-                    needle = " NEEDLE main fds %r != %r" % (links, exp)
+                    needle = " NEEDLE main fds 0/1/2 %r != %r" % (links, exp)
                 target = {"main": L.p.pid, "keeper": kp, "worker": wk, "run": run}[who]
                 if signo != signal.SIGKILL:
                     caught(target, signo, 5) if who != "worker" else time.sleep(0.2)
                 sig_pid(target, signo)
             rc = L.wait(180)
             settled, why = settle(40 if action and action[0] == "main" and action[1] == signal.SIGKILL else 30)
+
             kill_marked()
             rep = os.path.exists(out)
             err = "".join(L.err_txt)
@@ -433,6 +524,10 @@ if want("R8MATRIX"):
             else:
                 bad("%s: rc=%s (want %s) report=%s (want %s) quiescent=%s %s traceback=%s %s" %
                     (tag, rc, want_rc, rep, want_rep, settled, why, tb, err.strip()[-160:]))
+
+    if skipped:
+        ok("[R8MATRIX-SCOPE] %d cell(s) NOT run, declared scope (a stalled stream with no stop blocks its writer, as for "
+           "any program): %s" % (len(skipped), ", ".join(skipped)))
 
 # ---- [R8RUN] the run role invoked directly with each stream state: its own messages (a leftover stopped, a stop)
 # go to stderr; the code is the command's / the stop's / the timeout's whatever the stream state.

@@ -349,6 +349,7 @@ DEFAULT_MIN_FREE_KB_OBJECTS=18874368
 # signal only until the CURRENT foreground command ends; `wait` is interrupted).
 # ---------------------------------------------------------------------------
 _FC_TMPDIR=""
+_FC_STATEDIR=""
 _FC_SUPERVISOR="$SCRIPT_DIR/fc_supervisor.py"
 _FC_ENTRY_SIGIGN=0
 _fc_mktemp() { mktemp "$_FC_TMPDIR/f.XXXXXX"; }
@@ -428,9 +429,14 @@ _fc_worker_init() {
   _FC_TMPDIR="${FC_BR_TMPDIR:-}"
   case "$_FC_TMPDIR" in */fc_baseline_replay.*) ;; *) blind "the supervisor's temp directory is missing" ;; esac
   [ -d "$_FC_TMPDIR" ] || blind "the supervisor's temp directory $_FC_TMPDIR does not exist"
+  # T048 V4 round 9 (V4R9-1): the report-pending marker lives in the supervisor's STATE directory, never in the temp
+  # directory (the keeper deletes that before it exits; main may still have to decide its exit code after that)
+  _FC_STATEDIR="${FC_BR_STATEDIR:-}"
+  case "$_FC_STATEDIR" in */fc_baseline_replay.state.*) ;; *) blind "the supervisor's state directory is missing" ;; esac
+  [ -d "$_FC_STATEDIR" ] || blind "the supervisor's state directory $_FC_STATEDIR does not exist"
   _FC_ENTRY_SIGIGN="${FC_BR_ENTRY_SIGIGN:-0}"
   _FC_OUT_OVERRIDE="${FC_BR_OUT_OVERRIDE:-}"
-  unset FC_BR_SUPERVISED FC_BR_TMPDIR FC_BR_SUPERVISOR_PID FC_BR_ENTRY_SIGIGN FC_BR_OUT_OVERRIDE
+  unset FC_BR_SUPERVISED FC_BR_TMPDIR FC_BR_SUPERVISOR_PID FC_BR_ENTRY_SIGIGN FC_BR_OUT_OVERRIDE FC_BR_STATEDIR
   _FC_IS_WORKER=1
   trap 'exit 129' HUP
   trap 'exit 130' INT
@@ -724,7 +730,8 @@ git_subject_freeze() {
 # before the writer exited gave 143, and the replay exited 128+N ("no report") with the report on disk and its run-log
 # directory marked INTERRUPTED with a false text (30/30 with the reviewer's injection; the same for a SIGKILL of the
 # worker between the report and round 7's `done` marker). Now, BEFORE the writer starts, `fc_supervisor.py
-# report-prepare` records atomically in the private temp directory the report's absolute path, the identity of the
+# report-prepare` records atomically in the supervisor's STATE directory (round 9, V4R9-1: never the temp directory,
+# which the keeper deletes while main may still have to decide) the report's absolute path, the identity of the
 # file there now, the body_hash the report will carry and the exit code the replay has once it exists (emit_doc's 4th
 # argument). Afterwards worker, keeper and main all ask the same question of the disk (fc_supervisor.py
 # report_verified): is the file at that path a NEW file carrying that body_hash? The keeper and main read that state
@@ -738,7 +745,7 @@ emit_doc() {
   local run_meta
   run_meta="$(python3 -c 'import json,platform; print(json.dumps({"host": platform.node()}))')"
   if [ "$_FC_IS_WORKER" = 1 ]; then
-    python3 -I -S "$_FC_SUPERVISOR" report-prepare --tmpdir "$_FC_TMPDIR" --fc-common "$FC/lib/fc_common.py" \
+    python3 -I -S "$_FC_SUPERVISOR" report-prepare --statedir "$_FC_STATEDIR" --fc-common "$FC/lib/fc_common.py" \
       --out "$out_path" --schema "$schema" --body-json "$body_json" --code "$code_if_written" \
       || { echo "baseline_replay: BLIND: cannot record the report about to be written to $out_path -- it is not written (its existence could not be verified afterwards)" >&2; return 4; }
   fi
@@ -746,7 +753,7 @@ emit_doc() {
     --run-meta-json "$run_meta" --out "$out_path"
   emit_rc=$?
   if [ "$_FC_IS_WORKER" = 1 ]; then
-    python3 -I -S "$_FC_SUPERVISOR" report-check --tmpdir "$_FC_TMPDIR" >/dev/null 2>&1 && return 0
+    python3 -I -S "$_FC_SUPERVISOR" report-check --statedir "$_FC_STATEDIR" >/dev/null 2>&1 && return 0
     [ "$emit_rc" = 0 ] && emit_rc=4   # the writer said 0 but the report is not on disk: never a silent success
   fi
   return "$emit_rc"

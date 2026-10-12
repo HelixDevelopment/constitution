@@ -151,7 +151,16 @@ written is decided from DURABLE state (round 8, V4R8-2: the report-pending marke
 plus the report on disk, see report_verified), never from an exit status. Once
 the report exists every supervisor process keeps the replay's code, whatever
 stopped or killed what afterwards; before it exists a stop leaves the log
-directories to be marked INTERRUPTED.
+directories to be marked INTERRUPTED. Round 9 (V4R9-1, STRUCTURAL): the marker
+lives in a STATE directory next to the temp directory (the keeper deletes the
+temp directory before it exits; round 8's marker died with it, and a keeper
+killed in that window turned a finished replay into 137). Only the final decider
+removes the state directory (main after its decision; the keeper only when main
+is provably gone; a later main only when the owner in the directory's NAME is
+provably dead), and every role derives its code with ONE pure function,
+decide_code(report_verified(state dir), termination cause) -- see "STATE
+DIRECTORY" below and tests/test_fc_supervisor_v4r9_shutdown_windows.sh, which
+kills / stops / wedges each role at EVERY statement of its shutdown sequence.
 
 Caller streams (round 8, V4R8-1 -- CLASS 2, 2nd structural attempt): the state of
 the caller's stdout/stderr (open, a pipe nobody reads, closed) never changes an
@@ -161,6 +170,12 @@ exception class (a closed stream is None in Python); the worker ignores SIGPIPE
 (baseline_replay.sh: a write to a dead reader is an EPIPE error, never death by
 SIGPIPE) and writes the report before it prints anything; a run supervisor's
 streams are always the run's log file (baseline_replay.sh _fc_run_child).
+Round 9 (V4R9-1 (b), V4R9-6): a stream whose reader is ALIVE but NOT READING
+blocks a writer forever; every supervisor message goes through say(), which
+writes straight to fd 2 with select() and gives up after SAY_BUDGET_S, so no
+supervisor role can block on the caller's stream (a /dev/full stream: ENOSPC,
+dropped). The worker (bash) and a gate can still block on it like any program
+when there is no stop -- the caller's choice (declared scope in the matrix).
 
 HONEST BOUNDARY (§11.4.6): main cannot attribute a process that left the
 keeper's session (setsid) AND lost every owned ancestor before main's walk saw
@@ -318,17 +333,51 @@ def _set_name(name):
 
 
 def say(msg):
-    """One line to stderr, never raising (T048 V4 round 8, V4R8-1 CLASS 2): a stderr that is a broken pipe raises
-    BrokenPipeError, and a stderr that was CLOSED when Python started is None (AttributeError) -- neither may change
-    what the caller sees as the exit code."""
-    stream = sys.stderr
-    if stream is None:
+    """One line to stderr, never raising AND never blocking past SAY_BUDGET_S (T048 V4 round 8 V4R8-1; round 9 V4R9-1/6
+    CLASS 2): a stderr that is a broken pipe, CLOSED (None in Python / EBADF), a write-error sink (/dev/full: ENOSPC)
+    or -- round 9 -- a pipe whose reader is ALIVE but not reading (a blocking write would wait forever) may never change
+    the exit code nor stall a supervisor role (the keeper's teardown, main's exit). Written straight to fd 2 by
+    _write_bounded, not through sys.stderr's buffer (a buffered write would be flushed -- and block -- later)."""
+    if sys.stderr is None:
         return
     try:
-        stream.write("baseline_replay: %s\n" % msg)
-        stream.flush()
-    except Exception:  # noqa: BLE001 -- the state of the caller's stream never changes an outcome
-        pass
+        data = ("baseline_replay: %s\n" % msg).encode("utf-8", "replace")
+    except Exception:  # noqa: BLE001 -- an unprintable message is dropped, never an outcome
+        return
+    _write_bounded(2, data)
+
+
+SAY_BUDGET_S = 2.0         # the longest one say() may wait for a caller's stream (V4R9-1 (b), V4R9-6)
+SAY_CHUNK = 512            # <= POSIX PIPE_BUF minimum: a write this small to a pipe that select() reports writable
+                           # never blocks (Linux: a pipe is writable while one of its buffer slots is free)
+
+
+def _write_bounded(fd, data, budget=None):
+    """Write data to fd: select() for writability, then os.write of at most SAY_CHUNK bytes, until written or the
+    budget is spent; never raises, never blocks past the budget (whatever is left is dropped). BOUNDARY (§11.4.6):
+    select() is what bounds the wait -- a stream select() reports writable but whose write still blocks (a blocking
+    stream SOCKET with less room than the chunk) can block one write; pipes, ttys, regular files and /dev/* cannot."""
+    end = time.monotonic() + (SAY_BUDGET_S if budget is None else budget)
+    while data:
+        left = end - time.monotonic()
+        if left <= 0:
+            return
+        try:
+            _, wr, _ = select.select([], [fd], [], left)
+        except InterruptedError:
+            continue
+        except Exception:  # noqa: BLE001 -- a closed / invalid fd: nothing can be written
+            return
+        if not wr:
+            return
+        try:
+            n = os.write(fd, data[:SAY_CHUNK])
+        except InterruptedError:
+            continue
+        except Exception:  # noqa: BLE001 -- the state of the caller's stream never changes an outcome
+            # (EPIPE, ENOSPC, EIO, EAGAIN: the rest is dropped)
+            return
+        data = data[n:]
 
 
 def _flush():
@@ -879,17 +928,23 @@ REPORT_MAX_BYTES = 256 * 1024 * 1024
 
 
 def _identity(path):
-    """(st_dev, st_ino, st_ctime_ns, st_size) of whatever is AT path (lstat: a symlink is itself), or None."""
+    """(st_dev, st_ino, st_ctime_ns, st_mtime_ns, st_size) of whatever is AT path (lstat: a symlink is itself), or None.
+    dev+ino alone are not an identity (T048 V4 round 9, V4R9-3 / RVM-H): when the old report is deleted between
+    report-prepare and the writer, the writer's temp file may get the SAME inode number, and a report that WAS written
+    would read as "still the old file". ctime, mtime and size tell the two apart; each is guarded by its own unit row
+    ([R9ID-ctime] [R9ID-mtime] [R9ID-size])."""
     try:
         s = os.lstat(path)
     except OSError:
         return None
-    return [s.st_dev, s.st_ino, s.st_ctime_ns, s.st_size]
+    return [s.st_dev, s.st_ino, s.st_ctime_ns, s.st_mtime_ns, s.st_size]
 
 
-def report_prepare(tmpdir, fc_common, out, schema, body_json, code):
-    """Write REPORT_MARKER (temp + fsync + rename + directory fsync: it either exists complete or not at all). Returns
-    0, or 4 when the expected report cannot be described (then the caller must NOT write the report)."""
+def report_prepare(statedir, fc_common, out, schema, body_json, code):
+    """Write REPORT_MARKER into the STATE directory (temp + fsync + rename + directory fsync: it either exists complete
+    or not at all). Returns 0, or 4 when the expected report cannot be described (then the caller must NOT write the
+    report). The state directory -- never the keeper's temp directory -- holds it (T048 V4 round 9, V4R9-1)."""
+    tmpdir = statedir
     import importlib.util
     import json
     if not (0 <= code <= 255):
@@ -925,11 +980,15 @@ def report_prepare(tmpdir, fc_common, out, schema, body_json, code):
     return 0
 
 
-def report_verified(tmpdir):
-    """The exit code recorded by report_prepare when the report it describes now EXISTS (see above), else None."""
+def report_verified(statedir):
+    """The exit code recorded by report_prepare when the report it describes now EXISTS (see above), else None.
+    A pure read of durable state: the marker in the STATE directory (which no process removes before main has decided
+    its exit code -- see STATE DIRECTORY) and the report file at the recorded path (path + identity + body_hash)."""
     import json
+    if not statedir:
+        return None
     try:
-        with open(os.path.join(tmpdir, REPORT_MARKER)) as fh:
+        with open(os.path.join(statedir, REPORT_MARKER)) as fh:
             rec = json.loads(fh.read())
         out, pre, want, code = rec["out"], rec["pre"], rec["body_hash"], rec["code"]
     except (OSError, ValueError, KeyError, TypeError):
@@ -950,21 +1009,164 @@ def report_verified(tmpdir):
         return None
     if not isinstance(doc, dict) or doc.get("body_hash") != want:
         return None
+    # BOUNDARY (§11.4.6, V4R9-7): a NEW file at the recorded path that carries the recorded body_hash reads as
+    # "written" whoever wrote it. Replays are deterministic, so an identical report written by another writer between
+    # report-prepare and this check (a user's copy, an unlocked writer of the same schema + body) would count; the
+    # per-repository and per-filesystem locks make a second replay impossible, so this tool itself cannot do it.
     return code
 
 
-def read_report(tmpdir):
+def read_report(statedir):
     """DONE["code"] = the replay's exit code when its report exists (report_verified). A stop -- or a SIGKILL of the
     worker or the keeper -- that lands after the report was written does not turn a finished replay into "stopped --
     no report" (the round-6 F8 rule, at every supervisor process), and the run-log directories that report references
     are not marked INTERRUPTED."""
-    code = report_verified(tmpdir)
+    code = report_verified(statedir)
     if code is not None:
         DONE["code"] = code
 
 
-def process_ledger(tmpdir, reason):
-    read_report(tmpdir)
+# --------------------------------------------------------------------------
+# STATE DIRECTORY + THE ONE EXIT-CODE DERIVATION (T048 V4 round 9, V4R9-1 -- STRUCTURAL, §11.4.276(E))
+# --------------------------------------------------------------------------
+# Round 8 kept the report-pending marker in the keeper's private TEMP directory, and the keeper deletes that directory
+# (teardown) before it exits: a keeper killed in the remaining window (by a stop's SIGKILL, by main's deadline, by
+# anyone) left main asking a question whose answer had been deleted -- 137 with the report on disk (round-2 review,
+# demo: exit=137 report_on_disk=yes). The class: every piece of state an exit decision reads must outlive every
+# process that may still have to make that decision. Enumerated (CONVERGENCE.md, round 3):
+#   state read by an exit decision ......... the report-pending marker (path + pre-identity + body_hash + code) and the
+#                                            report file itself; the keeper's wait status (kernel, main reaps it); the
+#                                            stop signal main received (main's memory).
+#   who decides ............................ the keeper (its own exit code), main (the caller's exit code).
+#   who may delete the marker .............. ONLY the final decider: main, after it computed its code; the keeper only
+#                                            when main is provably gone (the EOF of the pipe whose sole write end main
+#                                            holds) -- then the keeper is the final decider; a later main of the SAME
+#                                            tmp-parent only for a directory whose owner (boot id + pid + start time,
+#                                            in its NAME, written atomically by mkdtemp) is provably dead (gc).
+# The marker therefore lives in a STATE directory next to (never inside) the temp directory. The report's own
+# durable identity (absolute path, dev/ino/ctime/mtime/size before the writer ran, and the body_hash it carries) is
+# what "written" means -- no process memory, no exit status, no directory any other process deletes.
+STATE_PREFIX = "fc_baseline_replay.state."
+STATE = {"dir": None, "main_owns": False}   # main: its state directory, and whether main alone may remove it now
+
+
+def _boot_id():
+    try:
+        with open("/proc/sys/kernel/random/boot_id") as fh:
+            return fh.read().strip().replace("-", "")[:12] or "noboot"
+    except OSError:
+        return "noboot"
+
+
+def state_name_owner(name):
+    """(boot id, pid, start time) encoded in a state directory's NAME, or None when the name is not one."""
+    if not name.startswith(STATE_PREFIX):
+        return None
+    parts = name[len(STATE_PREFIX):].split(".")
+    if len(parts) < 4:
+        return None
+    try:
+        return parts[0], int(parts[1]), int(parts[2])
+    except ValueError:
+        return None
+
+
+def make_statedir(parent):
+    """main: create its state directory; its NAME carries the owner (boot id, main's pid, main's start time)."""
+    ident = _ident(os.getpid())
+    if ident is None:
+        raise OSError("cannot read this process's own start time from /proc (the state directory's owner)")
+    start = ident[1]
+    return tempfile.mkdtemp(prefix="%s%s.%d.%d." % (STATE_PREFIX, _boot_id(), os.getpid(), start), dir=parent)
+
+
+def remove_statedir(path):
+    """Remove a state directory: only the files this module writes into it (the marker and report_prepare's temp
+    files), then rmdir. Anything else in it is left (and the directory with it) -- never a recursive delete. Never
+    raises. Returns True when the directory is gone."""
+    if not path or not os.path.basename(path).startswith(STATE_PREFIX):
+        return False
+    try:
+        st = os.lstat(path)
+        if not _st.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():
+            return False
+        names = os.listdir(path)
+    except OSError:
+        return not os.path.lexists(path)
+    for n in names:
+        if n == REPORT_MARKER or n.startswith(".report."):
+            try:
+                os.unlink(os.path.join(path, n))
+            except OSError:
+                pass
+    try:
+        os.rmdir(path)
+    except OSError:
+        pass
+    return not os.path.lexists(path)
+
+
+def gc_statedirs(parent):
+    """main, at start: remove the state directories under parent whose owner is provably DEAD -- another boot, or no
+    live process with that pid AND that start time. Left behind only when a main was SIGKILLed after its keeper exited
+    (the one window in which no live process is the final decider); a live replay's directory is never touched.
+    Returns the number removed. Never raises."""
+    n = 0
+    boot = _boot_id()
+    try:
+        names = os.listdir(parent)
+    except OSError:
+        return 0
+    for name in names:
+        own = state_name_owner(name)
+        if own is None:
+            continue
+        b, pid, start = own
+        if b == boot and pid > 1:
+            ident = _ident(pid)
+            if ident is not None and ident[1] == start:
+                continue                       # its owner is alive: not ours to remove
+        if remove_statedir(os.path.join(parent, name)):
+            n += 1
+    return n
+
+
+# Termination causes (kind, n): ("code", c) a process exited with code c (the worker for the keeper, the keeper for
+# main); ("stopped", S) the role was stopped by signal S before the work finished; ("killed", N) the keeper died of
+# signal N with no stop (main); ("main_gone", 0) the keeper saw main disappear; ("lost", 0) a status could not be
+# collected; ("internal", 0) a supervisor step failed.
+def decide_code(verified, cause):
+    """THE exit-code derivation (T048 V4 round 9, V4R9-1 STRUCTURAL): a PURE function of (report_verified, termination
+    cause), evaluated identically by the keeper (for its own exit code) and by main (for the caller's). The report
+    EXISTING (verified on disk) decides first: the work finished, nothing that stopped or killed anything afterwards
+    changes its code (round 6 F8, round 7 N3, round 8 V4R8-2, round 9 V4R9-1). Otherwise the cause decides."""
+    if verified is not None:
+        return verified
+    kind, n = cause
+    if kind == "code":
+        return n
+    if kind in ("stopped", "killed"):
+        return 128 + n
+    if kind == "main_gone":
+        return 137
+    return 4                                   # lost / internal: BLIND
+
+
+def main_cause(kst, sig):
+    """main's termination cause from the keeper's wait status (None = lost) and the stop main received (0 = none)."""
+    if kst is not None and os.WIFEXITED(kst):
+        return ("code", os.WEXITSTATUS(kst))
+    if sig:
+        return ("stopped", sig)
+    if kst is None:
+        return ("lost", 0)
+    if os.WIFSIGNALED(kst):
+        return ("killed", os.WTERMSIG(kst))
+    return ("code", decode(kst))
+
+
+def process_ledger(tmpdir, reason, statedir=None):
+    read_report(statedir)
     try:
         names = sorted(os.listdir(tmpdir))
     except OSError:
@@ -1010,11 +1212,13 @@ def process_ledger(tmpdir, reason):
             pass
 
 
-def teardown(tmpdir, grace, reason, label):
+def teardown(tmpdir, grace, reason, label, statedir=None):
+    """Stop the tree, process the ledger, remove the TEMP directory. It never touches the STATE directory: whether the
+    report was written must still be readable by every role that decides an exit code after this (V4R9-1)."""
     n = stop_tree(grace, label)
     if n:
         say("supervisor (%s): stopped %d process(es) (%s)" % (label, n, reason))
-    process_ledger(tmpdir, reason)
+    process_ledger(tmpdir, reason, statedir)
     if os.path.basename(tmpdir).startswith("fc_baseline_replay."):
         shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -1169,18 +1373,26 @@ def cmd_main(a):
         say("BLIND: cannot create a private temp directory under %s: %s" % (a.tmp_parent, e))
         sys.exit(4)
     _MAIN_TMP[0] = tmpdir   # until the keeper exists, an exception in main removes it (main(); V4R8-1: no leak)
+    gc_statedirs(a.tmp_parent)   # state directories of DEAD mains (SIGKILLed after their keeper exited, V4R9-1)
+    try:
+        statedir = make_statedir(a.tmp_parent)
+    except OSError as e:
+        say("BLIND: cannot create the replay's state directory under %s: %s" % (a.tmp_parent, e))
+        sys.exit(4)
+    STATE["dir"], STATE["main_owns"] = statedir, True
     r, w = os.pipe()        # M holds the only write end: EOF in K means M is gone
     hb_r, hb_w = os.pipe()  # K -> M progress beats (N4)
     _flush()
     try:
         kpid = os.fork()
     except OSError as e:
-        shutil.rmtree(tmpdir, ignore_errors=True)
         say("BLIND: supervisor cannot fork its keeper: %s" % e)
-        sys.exit(4)
+        sys.exit(4)          # main(): _drop_main_tmp removes the temp AND the state directory
     if kpid == 0:
-        _keeper(a, entry_mask, tmpdir, r, w, hb_r, hb_w)  # never returns
+        STATE["main_owns"] = False
+        _keeper(a, entry_mask, tmpdir, r, w, hb_r, hb_w, statedir)  # never returns
     _MAIN_TMP[0] = None     # from here the keeper / main's own teardown own the temp directory
+    STATE["main_owns"] = False   # while the keeper lives, main gone => the keeper removes the state directory
     os.close(r)
     os.close(hb_w)
     os.set_blocking(hb_r, False)
@@ -1235,6 +1447,7 @@ def cmd_main(a):
             break
     if hb_r is not None:
         os.close(hb_r)
+    STATE["main_owns"] = True    # the keeper is gone (reaped, or its status lost): main is the final decider
     if k_lost:
         reason = "the keeper's exit status was lost (reaped outside this process)"
         say("supervisor: %s -- the outcome of the replay is unknown (BLIND)" % reason)
@@ -1247,7 +1460,7 @@ def cmd_main(a):
             reason = "the keeper exited %d" % decode(kst)
     # normally a no-op (K already did it); the real work when K died abnormally. main stops only what it OWNS.
     OWNER = _main_owner(kpid, kstart, pre)
-    teardown(tmpdir, a.grace, reason, "main")
+    teardown(tmpdir, a.grace, reason, "main", statedir)
     stray = []
     for c in _children(os.getpid()):
         ident = _ident(c)
@@ -1258,7 +1471,11 @@ def cmd_main(a):
     if stray:
         say("supervisor: %d process(es) adopted by main could not be attributed to this replay and were NOT stopped "
             "(pid %s) -- reported, not hidden" % (len(stray), " ".join(str(c) for c in stray)))
-    _exit_main(main_exit_code(kst, Stop.sig, DONE.get("code")))
+    # THE derivation (V4R9-1): decided from the durable state BEFORE the state directory is removed; main removes it
+    # only now, as the final decider (a SIGKILL of main between the two leaves it for the next main's gc_statedirs).
+    code = main_exit_code(kst, Stop.sig, report_verified(statedir))
+    remove_statedir(statedir)
+    _exit_main(code)
 
 
 def main_exit_code(kst, sig, done=None):
@@ -1269,8 +1486,10 @@ def main_exit_code(kst, sig, done=None):
                                                    finished; the code recorded for the report when the report exists
                                                    (keeper side, N3 / V4R8-2) -- [F8LATE] [R7N3] [R7N3B] [R7N3C]
                                                    [R8N3*] [R7TABLE exited-*]
-      the report exists (verified on disk), the
-        keeper did NOT exit by itself ............ the report's code: the work finished (F8 rule) -- [R8N3KILLK]
+      the report exists (verified on disk) ...... the report's code, whatever the keeper's fate (exited, killed by a
+                                                   signal, killed by main at its deadline, status lost) and whatever
+                                                   stop main received: decide_code, the ONE derivation shared with the
+                                                   keeper (round 9, V4R9-1) -- [R8N3KILLK] [R9WIN] [R9DEADLINE]
       keeper killed by signal N / main had to
         kill it at its deadline, stop S received . 128+S -- [RMB] [R7TABLE keeper-deadline-after-TERM]
       keeper killed by signal N, no stop ......... 128+N -- [R7N2] [R7TABLE keeper-killed-no-stop]
@@ -1289,10 +1508,7 @@ def main_exit_code(kst, sig, done=None):
         or ignored) / closed ..................... the SAME code and the same report presence (V4R8-1) --
                                                    tests/test_fc_supervisor_v4r8_stream_matrix.sh [R8MATRIX]
     """
-    if done is not None and (kst is None or not os.WIFEXITED(kst)):
-        code = done
-    else:
-        code = _keeper_outcome(kst, sig)
+    code = decide_code(done, main_cause(kst, sig))
     if code not in DOCUMENTED:
         say("supervisor: the keeper reported %d, which is not a documented exit code -- the replay's outcome is "
             "unknown (BLIND, 4)" % code)
@@ -1300,24 +1516,10 @@ def main_exit_code(kst, sig, done=None):
     return code
 
 
-def _keeper_outcome(kst, sig):
-    """main's exit code from the keeper's wait status (T048 V4 round 6, F8). When the keeper EXITED by itself its code
-    is the outcome: the worker's exit code, or 128+N when the stop reached the keeper while the worker was still
-    running (no report written). A stop signal that reaches main AFTER the work finished (the keeper exited with the
-    worker's code, the report is already written) therefore does not turn a finished replay into "stopped -- no
-    report". Only when the keeper did NOT exit by itself -- main had to SIGKILL it at its deadline, it was killed by a
-    signal, or its status was lost -- does a stop main received decide: 128+N; without one: 4 (lost) or 128+signal
-    (killed)."""
-    if kst is not None and os.WIFEXITED(kst):
-        return os.WEXITSTATUS(kst)
-    if sig:
-        return 128 + sig
-    return 4 if kst is None else decode(kst)
-
-
-def _keeper(a, entry_mask, tmpdir, r, w, hb_r, hb_w):
+def _keeper(a, entry_mask, tmpdir, r, w, hb_r, hb_w, statedir=None):
     global HB_FD
     code = 4      # an internal error of the keeper is BLIND (round 7, N5: was 70, outside the documented codes)
+    cause = ("internal", 0)
     try:
         os.close(w)
         os.close(hb_r)
@@ -1331,14 +1533,14 @@ def _keeper(a, entry_mask, tmpdir, r, w, hb_r, hb_w):
         _install_stop(entry_mask)
         env = dict(os.environ)
         env.update(FC_BR_SUPERVISED="1", FC_BR_TMPDIR=tmpdir, FC_BR_SUPERVISOR_PID=str(os.getpid()),
-                   FC_BR_ENTRY_SIGIGN=a.entry_sigign)
+                   FC_BR_ENTRY_SIGIGN=a.entry_sigign, FC_BR_STATEDIR=statedir or "")
         wpid = spawn(a.cmd, env, entry_mask, own_group=True)
         wfd = os.pidfd_open(wpid)
         signal.pthread_sigmask(signal.SIG_SETMASK, [])
-        reason, code = None, 0
+        reason, cause = None, ("internal", 0)
         while True:
             if Stop.sig:
-                reason, code = "stopped by signal %d" % Stop.sig, 128 + Stop.sig
+                reason, cause = "stopped by signal %d" % Stop.sig, ("stopped", Stop.sig)
                 break
             try:
                 ready, _, _ = select.select([wfd, r], [], [], 0.2)
@@ -1346,12 +1548,12 @@ def _keeper(a, entry_mask, tmpdir, r, w, hb_r, hb_w):
                 continue
             reap()
             if wpid not in REAPED and wfd in ready and reap_target(wpid) == "lost":
-                reason, code = "the worker's exit status was lost (reaped outside the keeper)", 4
+                reason, cause = "the worker's exit status was lost (reaped outside the keeper)", ("lost", 0)
                 say("supervisor (keeper): %s -- the outcome of the replay is unknown (BLIND)" % reason)
                 break
             if wpid in REAPED:
-                code = decode(REAPED[wpid])
-                reason = "the worker exited %d" % code
+                cause = ("code", decode(REAPED[wpid]))
+                reason = "the worker exited %d" % cause[1]
                 break
             if r in ready:
                 try:
@@ -1359,16 +1561,20 @@ def _keeper(a, entry_mask, tmpdir, r, w, hb_r, hb_w):
                 except OSError:
                     data = b""
                 if not data:
-                    reason, code = "the supervisor's main process is gone", 137
+                    reason, cause = "the supervisor's main process is gone", ("main_gone", 0)
                     break
-        teardown(tmpdir, a.grace, reason, "keeper")
-        if DONE.get("code") is not None:
-            # the report exists (read_report, verified on disk): the replay's code stands, whatever happened after it
-            # was written -- a stop, a SIGKILL of the worker, the writer killed after its rename (N3, V4R8-2)
-            code = DONE["code"]
+        teardown(tmpdir, a.grace, reason, "keeper", statedir)
+        # THE derivation (V4R9-1): the same pure function main evaluates, on the same durable state. The state directory
+        # is NOT removed here -- main still has to decide -- unless main is provably gone (then nobody else will).
+        code = decide_code(report_verified(statedir), cause)
+        if cause[0] == "main_gone":
+            remove_statedir(statedir)
     except BaseException as e:  # noqa: BLE001 -- never fall back into M's code path
         say("supervisor (keeper) internal error: %r" % (e,))
-        code = 4
+        try:
+            code = decide_code(report_verified(statedir), ("internal", 0))   # the same derivation as every path
+        except BaseException:  # noqa: BLE001
+            code = 4
     finally:
         try:
             _flush()             # never raises (V4R8-1) -- and even if it did, the keeper must not reach main's code
@@ -1517,7 +1723,7 @@ def cmd_report(argv):
     code on stdout when the report exists, 1 when it does not."""
     import argparse
     p = argparse.ArgumentParser(prog="fc_supervisor.py " + argv[0])
-    p.add_argument("--tmpdir", required=True)
+    p.add_argument("--statedir", "--tmpdir", dest="tmpdir", required=True)
     if argv[0] == "report-prepare":
         p.add_argument("--fc-common", required=True)
         p.add_argument("--out", required=True)
@@ -1526,7 +1732,7 @@ def cmd_report(argv):
         p.add_argument("--code", type=int, required=True)
     a = p.parse_args(argv[1:])
     if not os.path.basename(a.tmpdir).startswith("fc_baseline_replay.") or not os.path.isdir(a.tmpdir):
-        say("BLIND: %s: %r is not the supervisor's temp directory" % (argv[0], a.tmpdir))
+        say("BLIND: %s: %r is not the supervisor's state directory" % (argv[0], a.tmpdir))
         os._exit(4 if argv[0] == "report-prepare" else 1)
     if argv[0] == "report-prepare":
         try:
@@ -1578,10 +1784,14 @@ def main():
 
 
 def _drop_main_tmp():
-    """main failed after creating its temp directory but before a keeper owned it: remove it (never raises)."""
+    """main failed after creating its temp directory but before a keeper owned it: remove it; and the state directory
+    when main is its final decider (no keeper, or the keeper is gone) -- never while a keeper still needs it (the
+    keeper removes it itself when it sees main disappear). Never raises."""
     tmp = _MAIN_TMP[0]
     if tmp and os.path.basename(tmp).startswith("fc_baseline_replay."):
         shutil.rmtree(tmp, ignore_errors=True)
+    if STATE["main_owns"]:
+        remove_statedir(STATE["dir"])
 
 
 if __name__ == "__main__":

@@ -1196,11 +1196,12 @@ if want("F8LATE"):
         "spec = importlib.util.spec_from_file_location('fcsup', %r)\n"
         "m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)\n"
         "orig = m.teardown\n"
-        "def hooked(tmpdir, grace, reason, label):\n"
+        # round 9: teardown gained a 5th argument (the state directory, V4R9-1) -- the hook passes every argument on
+        "def hooked(tmpdir, grace, reason, label, *rest):\n"
         "    if label == 'main':\n"
         "        signal.raise_signal(signal.SIGINT)\n"
         "        open(%r, 'w').write('%%s|sig=%%d' %% (reason, m.Stop.sig))\n"
-        "    return orig(tmpdir, grace, reason, label)\n"
+        "    return orig(tmpdir, grace, reason, label, *rest)\n"
         "m.teardown = hooked\n"
         "sys.argv = ['fc_supervisor.py'] + sys.argv[1:]\n"
         "m.main()\n" % (SUP, flag))
