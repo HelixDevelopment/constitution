@@ -156,8 +156,9 @@ lives in a STATE directory next to the temp directory (the keeper deletes the
 temp directory before it exits; round 8's marker died with it, and a keeper
 killed in that window turned a finished replay into 137). Only the final decider
 removes the state directory (main after its decision; the keeper only when main
-is provably gone; a later main only when the owner in the directory's NAME is
-provably dead), and every role derives its code with ONE pure function,
+is provably gone; a later main's gc only when the owner in the directory's NAME is
+provably dead AND the directory's LEASE -- an flock main takes before it forks and
+the keeper inherits -- is free, round 10 V4R10-1), and every role derives its code with ONE pure function,
 decide_code(report_verified(state dir), termination cause) -- see "STATE
 DIRECTORY" below and tests/test_fc_supervisor_v4r9_shutdown_windows.sh, which
 kills / stops / wedges each role at EVERY statement of its shutdown sequence.
@@ -188,7 +189,10 @@ its parent-death SIGUSR2 and stops what its gate started before it exits (round
 7), but anything left directly under K or W is re-parented to init, and the
 worktree / temp directory stay behind. Only kernel containment (a cgroup, e.g. `systemd-run --user
 --scope`, available on the reference host but not on every host this generic
-tool runs on) would close that; it is not required by this module. Processes
+tool runs on) would close that; it is not required by this module. The state
+directory's LEASE (round 10, V4R10-1) is a flock: on a tmp-parent whose filesystem
+refuses flock main refuses to start (BLIND 4) rather than run unleased, and gc
+keeps every directory whose lease it cannot PROVE free (a leak, never a deletion). Processes
 started on the tool's behalf by OTHER daemons (D-Bus activation, an adb server
 that already runs) are not descendants and are not stopped; a daemon the gate
 itself starts IS a descendant and IS stopped -- the tool leaves the host
@@ -1042,12 +1046,29 @@ def read_report(statedir):
 #                                            when main is provably gone (the EOF of the pipe whose sole write end main
 #                                            holds) -- then the keeper is the final decider; a later main of the SAME
 #                                            tmp-parent only for a directory whose owner (boot id + pid + start time,
-#                                            in its NAME, written atomically by mkdtemp) is provably dead (gc).
+#                                            in its NAME, written atomically by mkdtemp) is provably dead AND whose
+#                                            LEASE is free (gc; round 10 -- the name alone named main, not the keeper).
 # The marker therefore lives in a STATE directory next to (never inside) the temp directory. The report's own
 # durable identity (absolute path, dev/ino/ctime/mtime/size before the writer ran, and the body_hash it carries) is
 # what "written" means -- no process memory, no exit status, no directory any other process deletes.
+#
+# T048 V4 round 10 (V4R10-1, §11.4.276(E) STRUCTURAL -- the THIRD member of this class: round 9 encoded the owner in
+# the NAME as main ALONE, so a gc run by any other main under the same tmp-parent -- a `selfcheck` (it takes no lock at
+# all) or a replay of a repository on another filesystem -- removed the directory the moment MAIN was dead, while the
+# KEEPER was alive, tearing down, and about to read the marker as the final decider; it then marked a finished run's
+# log directory INTERRUPTED). The class, restated for every resource that outlives one process: ONE ownership model,
+# obeyed by every deleter and every reader -- a LEASE. main takes it before it forks: an exclusive flock on the file
+# LEASE_NAME inside the state directory, on an open file description that the keeper INHERITS through fork (no exec,
+# O_CLOEXEC: no worker, gate or hook ever holds it). The kernel releases the lock only when BOTH main and the keeper
+# are gone. Every deleter obeys it: main and the keeper remove the directory only as the final decider while they hold
+# the lease; gc_statedirs removes a directory only when it can ACQUIRE the lease itself (LOCK_NB: no live holder) AND
+# the owner in the name is provably dead. Every reader is covered by it: main and the keeper hold it, the worker (its
+# report-check) runs only while the keeper lives (PDEATHSIG=SIGKILL). The resource x actor x operation table is in
+# docs/qa/v4_round4_20261012/CONVERGENCE.md.
 STATE_PREFIX = "fc_baseline_replay.state."
-STATE = {"dir": None, "main_owns": False}   # main: its state directory, and whether main alone may remove it now
+LEASE_NAME = "lease"
+STATE = {"dir": None, "main_owns": False, "lease": None}   # main: its state directory, whether main alone may remove
+                                                           # it now, and the lease fd (inherited by the keeper)
 
 
 def _boot_id():
@@ -1072,17 +1093,69 @@ def state_name_owner(name):
 
 
 def make_statedir(parent):
-    """main: create its state directory; its NAME carries the owner (boot id, main's pid, main's start time)."""
+    """main: create its state directory and take its LEASE (round 10, V4R10-1) before any process that may decide
+    exists: an exclusive flock on LEASE_NAME, created O_EXCL inside the new directory, kept open in STATE["lease"] --
+    the keeper inherits that open file description through fork, so the lease is held while main OR the keeper lives.
+    The NAME still carries main as the owner (boot id, pid, start time): gc requires BOTH proofs. Raises OSError (and
+    leaves nothing behind) when the lease cannot be taken -- flock is what the replay locks already require."""
+    import fcntl
     ident = _ident(os.getpid())
     if ident is None:
         raise OSError("cannot read this process's own start time from /proc (the state directory's owner)")
     start = ident[1]
-    return tempfile.mkdtemp(prefix="%s%s.%d.%d." % (STATE_PREFIX, _boot_id(), os.getpid(), start), dir=parent)
+    path = tempfile.mkdtemp(prefix="%s%s.%d.%d." % (STATE_PREFIX, _boot_id(), os.getpid(), start), dir=parent)
+    try:
+        lease = os.open(os.path.join(path, LEASE_NAME), os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                        0o600)
+    except OSError:
+        try:
+            os.rmdir(path)
+        except OSError:
+            pass
+        raise
+    try:
+        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        os.close(lease)
+        remove_statedir(path)
+        raise
+    STATE["lease"] = lease
+    return path
+
+
+def _lease_free(path):
+    """gc: (True, fd) when NO live process holds the lease of the state directory at path -- fd is the lease, now held
+    by the caller (close it after the removal), or None when the directory was never leased (main died between mkdtemp
+    and taking the lease: no keeper can exist, it is forked only after the lease). (False, None) when a live process
+    holds it (main or its keeper -- a final decider may still read the marker) or when it cannot be PROVEN free: the
+    path or the lease is a symlink / not a regular file / unreadable, or flock fails in any other way. Never raises."""
+    import fcntl
+    try:
+        dfd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except OSError:
+        return False, None
+    try:
+        try:
+            lfd = os.open(LEASE_NAME, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=dfd)
+        except FileNotFoundError:
+            return True, None
+        except OSError:
+            return False, None
+        try:
+            if not _st.S_ISREG(os.fstat(lfd).st_mode):
+                raise OSError("the lease is not a regular file")
+            fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:              # BlockingIOError: a live holder; anything else: not provably free
+            os.close(lfd)
+            return False, None
+        return True, lfd
+    finally:
+        os.close(dfd)
 
 
 def remove_statedir(path):
-    """Remove a state directory: only the files this module writes into it (the marker and report_prepare's temp
-    files), then rmdir. Anything else in it is left (and the directory with it) -- never a recursive delete. Never
+    """Remove a state directory: only the files this module writes into it (the lease, the marker and report_prepare's
+    temp files), then rmdir. Anything else in it is left (and the directory with it) -- never a recursive delete. Never
     raises. Returns True when the directory is gone."""
     if not path or not os.path.basename(path).startswith(STATE_PREFIX):
         return False
@@ -1094,7 +1167,7 @@ def remove_statedir(path):
     except OSError:
         return not os.path.lexists(path)
     for n in names:
-        if n == REPORT_MARKER or n.startswith(".report."):
+        if n in (REPORT_MARKER, LEASE_NAME) or n.startswith(".report."):
             try:
                 os.unlink(os.path.join(path, n))
             except OSError:
@@ -1107,10 +1180,13 @@ def remove_statedir(path):
 
 
 def gc_statedirs(parent):
-    """main, at start: remove the state directories under parent whose owner is provably DEAD -- another boot, or no
-    live process with that pid AND that start time. Left behind only when a main was SIGKILLed after its keeper exited
-    (the one window in which no live process is the final decider); a live replay's directory is never touched.
-    Returns the number removed. Never raises."""
+    """main, at start: remove the state directories under parent that NO process may still read -- BOTH proofs (round
+    10, V4R10-1): the owner in the NAME is provably dead (another boot, or no live process with that pid AND that start
+    time) AND the LEASE is free (gc itself acquires it, non-blocking: neither main nor its keeper is alive; _lease_free).
+    Round 9 checked the name alone: main's death made a directory collectable while its keeper -- the final decider --
+    still had to read it. Left behind only when both main and its keeper are gone without removing it (main SIGKILLed
+    after its keeper exited; both SIGKILLed); the next gc under the same tmp-parent removes it. Returns the number
+    removed. Never raises."""
     n = 0
     boot = _boot_id()
     try:
@@ -1126,8 +1202,16 @@ def gc_statedirs(parent):
             ident = _ident(pid)
             if ident is not None and ident[1] == start:
                 continue                       # its owner is alive: not ours to remove
-        if remove_statedir(os.path.join(parent, name)):
-            n += 1
+        path = os.path.join(parent, name)
+        free, lfd = _lease_free(path)
+        if not free:
+            continue                           # its keeper (or main) still holds the lease: a decider may still read it
+        try:
+            if remove_statedir(path):
+                n += 1
+        finally:
+            if lfd is not None:
+                os.close(lfd)
     return n
 
 
@@ -1139,7 +1223,10 @@ def decide_code(verified, cause):
     """THE exit-code derivation (T048 V4 round 9, V4R9-1 STRUCTURAL): a PURE function of (report_verified, termination
     cause), evaluated identically by the keeper (for its own exit code) and by main (for the caller's). The report
     EXISTING (verified on disk) decides first: the work finished, nothing that stopped or killed anything afterwards
-    changes its code (round 6 F8, round 7 N3, round 8 V4R8-2, round 9 V4R9-1). Otherwise the cause decides."""
+    changes its code (round 6 F8, round 7 N3, round 8 V4R8-2, round 9 V4R9-1). Otherwise the cause decides.
+    "Identically" holds for this function only: main then applies its DOCUMENTED funnel (main_exit_code -- a worker's
+    undocumented 70 is the keeper's 70 and main's 4, by design); "keeper == main" ([R9SAME]) is claimed, and checked,
+    for documented codes only (V4R10-8)."""
     if verified is not None:
         return verified
     kind, n = cause
@@ -1516,6 +1603,17 @@ def main_exit_code(kst, sig, done=None):
     return code
 
 
+def _main_gone_now(r):
+    """keeper: True when main is provably gone NOW -- the pipe whose only write end main holds reads EOF (main never
+    writes to it, so it is readable only at EOF). Never raises, never blocks (round 10, V4R10-1: a main SIGKILLed after
+    the keeper left its wait loop leaves the keeper as the final decider; it removes the state directory itself)."""
+    try:
+        ready, _, _ = select.select([r], [], [], 0)
+        return bool(ready) and os.read(r, 1) == b""
+    except (OSError, ValueError):
+        return False
+
+
 def _keeper(a, entry_mask, tmpdir, r, w, hb_r, hb_w, statedir=None):
     global HB_FD
     code = 4      # an internal error of the keeper is BLIND (round 7, N5: was 70, outside the documented codes)
@@ -1569,6 +1667,8 @@ def _keeper(a, entry_mask, tmpdir, r, w, hb_r, hb_w, statedir=None):
         code = decide_code(report_verified(statedir), cause)
         if cause[0] == "main_gone":
             remove_statedir(statedir)
+        if cause[0] != "main_gone" and _main_gone_now(r):
+            remove_statedir(statedir)   # main died AFTER this keeper left its wait loop: no decider is left either
     except BaseException as e:  # noqa: BLE001 -- never fall back into M's code path
         say("supervisor (keeper) internal error: %r" % (e,))
         try:

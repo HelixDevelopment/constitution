@@ -55,6 +55,12 @@
 # Re-expressed this round (anchors named code round 9 replaced; same defect class, same ids): R6-M20, R3-M1, V4R6-F8,
 # V4R7-N3b (now BOTH layers), V4R7-N3c, V4R8-1b.
 #
+# T048 V4 round 10 (V4R10-* group; §11.4.276(E) STRUCTURAL round -- third member of the V4R8-2 class: a resource whose
+# lifetime spans several processes needs ONE ownership model every deleter and reader obeys -> the state directory's
+# LEASE): the round-3 reviewer's 14 mutants RV3-01..14 adopted VERBATIM; V4R7-N2 re-instated (its round-9 retirement
+# rested on a false equivalence proof, V4R10-2); the fixer's own V4R10-M1..M11. Oracles: the unit file ([R10*]), the
+# windows file ([R10LEASE] [R10DROP]), the stream matrix (fd-direction needle in every role, V4R10-6), r2 [SM].
+#
 # Instrument control (§11.4.273): before any mutant, the SAME harness runs a
 # representative case against an UNMUTATED replica and requires it to PASS --
 # otherwise a "caught" mutant could just be a broken replica.
@@ -512,12 +518,16 @@ MUTS = [
     # race in the mutant's favour, so the deterministic oracle is [R7WGRP], the group structure + a group TERM)
     ("V4R7-N1f", SUP, [("        wpid = spawn(a.cmd, env, entry_mask, own_group=True)\n", "        wpid = spawn(a.cmd, env, entry_mask)\n")],
      T_V5, {"V5_ONLY": "R7WGRP"}, "NOT ok [R7WGRP]"),
-    # N2: the final flush unguarded again (a broken stderr turns the keeper's 137 into another code).
-    # RETIRED in round 9 (EQUIVALENT by construction, measured: the round-9 full run reported it SURVIVED with [R7N2]
-    # green): say() no longer writes into sys.stderr's buffer (V4R9-1 (b): it writes straight to fd 2 through
-    # _write_bounded), and nothing in main or the keeper writes through sys.stdout / sys.stderr, so the final flush has
-    # nothing to flush and cannot raise. The defect class "a write to the caller's stream raises into an exit path" is
-    # guarded by V4R8-1b (re-expressed: say through sys.stderr again -> [R8RUN] dead-both) and V4R9-RVM-M.
+    # N2: the final flush unguarded again. Round 9 RETIRED this row as "equivalent by construction" -- WRONG (round-3
+    # review V4R10-2, a §11.4.6 overclaim): the argument "the buffers are always empty, the flush cannot raise" ignored
+    # the case _flush's own docstring names -- a stream CLOSED when the interpreter started is None, and None.flush()
+    # raises AttributeError (rc 1 + a traceback from _exit_main). It only "survived" because its oracle was [R7N2]
+    # (stderr a broken pipe), which cannot observe it. RE-INSTATED (round 10), the same edit, routed to the oracle that
+    # sees it: [R8MATRIX] ok x closed-out / closed-err / closed-both. The production code needs no change: _flush skips
+    # a None stream and catches every exception class; the defect exists only in the mutant.
+    ("V4R7-N2", SUP, [("    _flush()\n    os._exit(code)\n", "    sys.stdout.flush()\n    sys.stderr.flush()\n    os._exit(code)\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "closed-out closed-err closed-both", "R8_SCENARIOS": "ok"},
+     "NOT ok [R8MATRIX] ok x closed-"),
     # N5 (CLASS 2): the documented-code funnel removed (BOTH layers -- main_exit_code and _exit_main each clamp; one
     # alone is a deliberate second layer, so a single-layer mutant is equivalent by design)
     ("V4R7-N5", SUP, [("    if code not in DOCUMENTED:\n", "    if False:\n"),
@@ -664,6 +674,77 @@ MUTS = [
     ("V4R9-M11", SUP, [("    try:\n        os.rmdir(path)\n    except OSError:\n        pass\n    return not os.path.lexists(path)\n",
                         "    shutil.rmtree(path, ignore_errors=True)\n    return not os.path.lexists(path)\n")],
      T_SUP, {}, "NOT ok [R9GC] unknown file kept"),
+    # ---- T048 V4 round 10 (round-3 review of the round-9 pack: NO-GO V4R10-1 + V4R10-2 IMPORTANT, 5 MINOR, 1 NIT) ----
+    # The round-3 reviewer's 14 mutants RV3-01..RV3-14 (v4_round3_review_20261012.md section 2.2), adopted VERBATIM
+    # (the reviewer's own anchors and replacements, each matched exactly once against this round's code). The 6 that
+    # SURVIVED round 9 (RV3-02 03 09 10 11 13) are routed to the round-10 rows written for them; the 8 the reviewer saw
+    # caught keep the oracle the reviewer used, narrowed to one row (the runner's 600 s bound). RV3-13b is the SAME edit
+    # as RV3-13 (re-run by the reviewer against the full v4r5 file, where it also survived): one row covers both.
+    ("V4R10-RV3-01", SUP, [("statedir = make_statedir(a.tmp_parent)", "statedir = make_statedir(tmpdir)")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.try", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    ("V4R10-RV3-02", SUP, [("            if ident is not None and ident[1] == start:\n", "            if ident is not None:\n")],
+     T_SUP, {}, "NOT ok [R10GC-start]"),
+    ("V4R10-RV3-03", SUP, [('return fh.read().strip().replace("-", "")[:12] or "noboot"', 'return "noboot"')],
+     T_SUP, {}, "NOT ok [R10GC-boot]"),
+    ("V4R10-RV3-04", SUP, [("        code = decide_code(report_verified(statedir), cause)\n", "        code = decide_code(None, cause)\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "worker", "R9_TAGS": "W2-after-writer", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] worker W2-after-writer x kill-self"),
+    ("V4R10-RV3-05", SUP, [('    teardown(tmpdir, a.grace, reason, "main", statedir)\n', '    remove_statedir(statedir)\n    teardown(tmpdir, a.grace, reason, "main", statedir)\n')],
+     T_V5, {"V5_ONLY": "R8N3KILLK"}, "NOT ok [R8N3KILLK]"),
+    ("V4R10-RV3-06", SUP, [("    if now is None or now == pre:\n", "    if now is None:\n")],
+     T_SUP, {}, "NOT ok [R1b]"),
+    ("V4R10-RV3-07", SUP, [("SAY_BUDGET_S = 2.0 ", "SAY_BUDGET_S = 1e9 ")],
+     T_V9, {"R9_ONLY": "R9STALL"}, "NOT ok [R9STALL]"),
+    ("V4R10-RV3-08", SUP, [("    os.close(r)\n    os.close(hb_w)\n", "    os.close(r)\n    os.close(hb_w)\n    signal.signal(signal.SIGPIPE, signal.SIG_DFL)\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "dead-err", "R8_SCENARIOS": "kill-keeper"},
+     "NOT ok [R8MATRIX] kill-keeper x dead-err"),
+    # RV3-09 survived round 9 (V4R10-6): the fd-direction needle is now taken in EVERY role of EVERY supervised cell
+    ("V4R10-RV3-09", SUP, [("def main():\n    _repair_std_fds()", 'def main():\n    if "replay-sample" not in " ".join(sys.argv): _repair_std_fds()')],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_SCENARIOS": "replay-sample", "R8_STREAMS": "closed-out closed-err closed-both closed-in wrongdir-in wrongdir-out wrongdir-err"},
+     "NOT ok [R8MATRIX] replay-sample x"),
+    # RV3-10 survived round 9 (V4R10-5): [R10ATOMIC] -- the marker must be the very inode written under its temp name
+    ("V4R10-RV3-10", SUP, [("        os.replace(tmp, os.path.join(tmpdir, REPORT_MARKER))\n", "        shutil.copyfile(tmp, os.path.join(tmpdir, REPORT_MARKER)); os.unlink(tmp)\n")],
+     T_SUP, {}, "NOT ok [R10ATOMIC]"),
+    ("V4R10-RV3-11", SUP, [('    if not isinstance(doc, dict) or doc.get("body_hash") != want:\n', '    if not isinstance(doc, dict) or doc.get("body_hash") not in (want, ""):\n')],
+     T_SUP, {}, "NOT ok [R10HASH]"),
+    ("V4R10-RV3-12", SUP, [("    _flush()\n    os._exit(code)\n", "    sys.stdout.flush()\n    sys.stderr.flush()\n    os._exit(code)\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "closed-out closed-err closed-both dead-out-closed-err", "R8_SCENARIOS": "ok"},
+     "NOT ok [R8MATRIX] ok x closed-"),
+    # RV3-13 (= RV3-13b) survived round 9 (V4R10-4): [R10DROP] -- main raises after reaping its keeper
+    ("V4R10-RV3-13", SUP, [('    STATE["main_owns"] = True    # the keeper is gone', '    STATE["main_owns"] = False    # the keeper is gone')],
+     T_V9, {"R9_ONLY": "R10DROP"}, "NOT ok [R10DROP]"),
+    ("V4R10-RV3-14", SUP, [('        if cause[0] == "main_gone":\n            remove_statedir(statedir)\n', "        if False:\n            remove_statedir(statedir)\n")],
+     T_R2, SM("KILL", "main", "quick"), "NOT ok [SM] KILL-main-quick"),
+    # round-10 fixer's own mutants (V4R10-M*): the LEASE (V4R10-1), the keeper's late main-gone removal, the exit funnel
+    ("V4R10-M1", SUP, [("        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)\n    except OSError:\n        os.close(lease)\n        remove_statedir(path)\n",
+                        "        pass\n    except OSError:\n        os.close(lease)\n        remove_statedir(path)\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    ("V4R10-M2", SUP, [("        free, lfd = _lease_free(path)\n", "        free, lfd = True, None\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    ("V4R10-M3", SUP, [("        except FileNotFoundError:\n            return True, None\n        except OSError:\n            return False, None\n",
+                        "        except FileNotFoundError:\n            return True, None\n        except OSError:\n            return True, None\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-odd]"),
+    ("V4R10-M4", SUP, [("        except FileNotFoundError:\n            return True, None\n", "        except FileNotFoundError:\n            return False, None\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-none]"),
+    ("V4R10-M5", SUP, [('        if cause[0] != "main_gone" and _main_gone_now(r):\n', "        if False:\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    ("V4R10-M6", SUP, [('        return bool(ready) and os.read(r, 1) == b""\n', "        return not ready\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.finally", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    ("V4R10-M7", SUP, [('        if n in (REPORT_MARKER, LEASE_NAME) or n.startswith(".report."):', '        if n == REPORT_MARKER or n.startswith(".report."):')],
+     T_SUP, {}, "NOT ok [R10LEASE-free]"),
+    ("V4R10-M8", SUP, [("        if b == boot and pid > 1:\n", "        if False:\n")],
+     T_SUP, {}, "NOT ok [R9GC] live owner kept"),
+    ("V4R10-M9", SUP, [("    for fd in (0, 1, 2):\n        try:\n            mode = fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE\n",
+                        "    for fd in (1, 2):\n        try:\n            mode = fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE\n")],
+     T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "closed-in", "R8_SCENARIOS": "selfcheck"},
+     "NOT ok [R8MATRIX] selfcheck x closed-in"),
+    ("V4R10-M10", SUP, [('    if STATE["main_owns"]:\n        remove_statedir(STATE["dir"])\n', '    if False:\n        remove_statedir(STATE["dir"])\n')],
+     T_V9, {"R9_ONLY": "R10DROP"}, "NOT ok [R10DROP]"),
+    ("V4R10-M11", SUP, [("        except OSError:              # BlockingIOError: a live holder; anything else: not provably free\n            os.close(lfd)\n            return False, None\n",
+                         "        except OSError:              # BlockingIOError: a live holder; anything else: not provably free\n            os.close(lfd)\n            return True, None\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-held]"),
 ]
 
 CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
@@ -701,7 +782,14 @@ CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
                                      "R8_SCENARIOS": "stop-TERM-main kill-worker term-worker"}, "ok [R8SIGPIPE]"),
             ("control-v9", T_V9, {"R9_ONLY": "R9WIN R9GC2 R9STALL", "R9_ROLES": "keeper worker",
                                   "R9_TAGS": "_keeper.try _keeper.finally W2-after-writer", "R9_ACTIONS": "kill-self"},
-                                  "ok [R9STALL]")]
+                                  "ok [R9STALL]"),
+            # round 10: every row a V4R10-* mutant runs, on the UNMUTATED replica
+            ("control-v9-r10", T_V9, {"R9_ONLY": "R10LEASE R10DROP"}, "ok [R10LEASE]"),
+            ("control-v8-r10", T_V8, {"R8_ONLY": "R8MATRIX",
+                                      "R8_STREAMS": "closed-out closed-err closed-both closed-in wrongdir-in wrongdir-out "
+                                                    "wrongdir-err dead-out-closed-err dead-err",
+                                      "R8_SCENARIOS": "ok replay-sample selfcheck kill-keeper"},
+             "ok [R8MATRIX] selfcheck x closed-in")]
 
 
 def replica():

@@ -35,6 +35,7 @@
 # (V4R8-6); [R1]/[R1b..f] report_prepare/report_verified -- "was the report written" decided from durable state
 # (V4R8-2), driven with the real fc_common.py next to the module under test.
 # Round-9 groups (T048 V4 round 9): [R9B] [R9ID-*] [R9OWN-I/J] [R9DEC] [R9GC] -- see the block comment above them.
+# Round-10 groups (T048 V4 round 10): [R10GC-*] [R10LEASE*] [R10HASH] [R10ATOMIC] -- see the block comment above them.
 #
 # Env: FC_SUP_UNDER_TEST  path of fc_supervisor.py (default: the real file; the
 #                         paired-mutation runner points this at a mutant).
@@ -562,6 +563,163 @@ try:
         (ok if cond else bad)("[R9GC] %s" % why)
 finally:
     shutil.rmtree(G9, ignore_errors=True)
+
+# --- T048 V4 round 10 (round-3 review, NO-GO: V4R10-1 IMPORTANT + V4R10-3/5 MINOR). Each row is the oracle of a
+# reviewer mutant that SURVIVED round 3 or of a round-10 fixer mutant (test_fastcycle_r6_mutations.sh V4R10-*):
+# [R10GC-start]   same boot, a LIVE pid, another start time -> the owner is dead (pid reused): removed (RV3-02).
+# [R10GC-boot]    a directory named with the boot id READ BY THIS TEST from /proc (not through the module) and this
+#                 test's own pid + start time is KEPT -- the gc compares against the REAL boot id (RV3-03).
+# [R10GC-bootname] make_statedir names the directory with the real boot id (RV3-03, the naming half).
+# [R10LEASE]      V4R10-1, the reviewer's demo as a row: "main" makes its state directory (taking the lease), forks a
+#                 "keeper", is SIGKILLed; a gc in ANOTHER process must keep the directory while the keeper lives, and
+#                 remove it once the keeper is gone too (the lease is released by the kernel).
+# [R10LEASE-made] the lease is held (an independent open + flock LOCK_NB fails) and close-on-exec (never inherited
+#                 by an exec'd worker, gate or hook).
+# [R10LEASE-held / -free / -odd / -none] dead owner + a lease a live process holds -> kept; + a free lease -> removed
+#                 with its lease; + a lease that is a SYMLINK -> kept (not provably free); + no lease at all (main
+#                 died before taking it: no keeper can exist) -> removed.
+# [R10HASH]       a new file at --out whose body_hash is the EMPTY string is not the report (RV3-11).
+# [R10ATOMIC]     the marker at its final name is the very inode report_prepare wrote, fsynced, under a temp name: a
+#                 rename, never an in-place write/copy a concurrent reader could see half-written (RV3-10).
+import fcntl as _fcntl  # noqa: E402
+G10 = tempfile.mkdtemp(prefix="fc_sup_unit_r10.")
+try:
+    proc_boot = open("/proc/sys/kernel/random/boot_id").read().strip().replace("-", "")[:12]
+    me_start = m._ident(os.getpid())[1]
+    dead = subprocess.Popen(["true"]); dead.wait()
+    dpid = dead.pid
+
+    def mk10(name, files=(m.REPORT_MARKER,)):
+        d = os.path.join(G10, name); os.mkdir(d)
+        for f in files:
+            open(os.path.join(d, f), "w").write("x")
+        return d
+    restart = mk10("%s%s.%d.%d.r10a" % (m.STATE_PREFIX, proc_boot, os.getpid(), me_start + 1))
+    realboot = mk10("%s%s.%d.%d.r10b" % (m.STATE_PREFIX, proc_boot, os.getpid(), me_start))
+    held = mk10("%s%s.%d.%d.r10c" % (m.STATE_PREFIX, proc_boot, dpid, 12345), (m.REPORT_MARKER, "lease"))
+    hfd = os.open(os.path.join(held, "lease"), os.O_RDONLY)
+    _fcntl.flock(hfd, _fcntl.LOCK_EX)              # a live holder (this test)
+    free = mk10("%s%s.%d.%d.r10d" % (m.STATE_PREFIX, proc_boot, dpid, 12345), (m.REPORT_MARKER, "lease"))
+    odd = mk10("%s%s.%d.%d.r10e" % (m.STATE_PREFIX, proc_boot, dpid, 12345))
+    os.symlink(os.path.join(free, "lease"), os.path.join(odd, "lease"))
+    none_ = mk10("%s%s.%d.%d.r10f" % (m.STATE_PREFIX, proc_boot, dpid, 12345))
+    m.gc_statedirs(G10)
+    os.close(hfd)
+    rows = [("R10GC-start", "same boot + a live pid with ANOTHER start time (pid reused) -> removed",
+             not os.path.lexists(restart)),
+            ("R10GC-boot", "named with the boot id read from /proc by the test + a live owner -> kept",
+             os.path.isdir(realboot)),
+            ("R10LEASE-held", "dead owner, lease held by a live process -> kept", os.path.isdir(held)),
+            ("R10LEASE-free", "dead owner, a free lease -> removed (lease included)", not os.path.lexists(free)),
+            ("R10LEASE-odd", "dead owner, the lease is a symlink (not provably free) -> kept", os.path.isdir(odd)),
+            ("R10LEASE-none", "dead owner, never leased (no keeper can exist) -> removed", not os.path.lexists(none_))]
+    for tag, why, cond in rows:
+        (ok if cond else bad)("[%s] gc_statedirs: %s" % (tag, why))
+
+    # make_statedir: the real boot id in the name, the lease held + close-on-exec
+    sd = m.make_statedir(G10)
+    lfd = m.STATE.get("lease")
+    (ok if ("." + proc_boot + ".") in os.path.basename(sd) else bad)(
+        "[R10GC-bootname] make_statedir names the directory with the real boot id %s (%s)" % (proc_boot, os.path.basename(sd)))
+    try:
+        probe = os.open(os.path.join(sd, getattr(m, "LEASE_NAME", "lease")), os.O_RDONLY)
+    except OSError:
+        probe = None
+    held_ok = False
+    if probe is not None:
+        try:
+            _fcntl.flock(probe, _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+        except BlockingIOError:
+            held_ok = True
+        os.close(probe)
+    cloexec = isinstance(lfd, int) and bool(_fcntl.fcntl(lfd, _fcntl.F_GETFD) & _fcntl.FD_CLOEXEC)
+    (ok if held_ok and cloexec else bad)("[R10LEASE-made] make_statedir holds the lease (independent flock LOCK_NB "
+                                          "refused: %s) on a close-on-exec fd (%s)" % (held_ok, cloexec))
+    if isinstance(lfd, int):
+        os.close(lfd)
+    m.STATE["lease"] = None
+    m.remove_statedir(sd)
+
+    # [R10LEASE] the reviewer's demo: main SIGKILLed, keeper alive, gc in ANOTHER process
+    D10 = os.path.join(G10, "demo"); os.mkdir(D10)
+    rp, wp = os.pipe()
+    mpid = os.fork()
+    if mpid == 0:
+        try:
+            sd2 = m.make_statedir(D10)
+            open(os.path.join(sd2, m.REPORT_MARKER), "w").write("{}")
+            kp = os.fork()
+            if kp == 0:
+                os.close(wp)
+                time.sleep(4)
+                os._exit(0)
+            os.write(wp, ("%d %s\n" % (kp, sd2)).encode())
+            os.kill(os.getpid(), signal.SIGKILL)
+        finally:
+            os._exit(9)
+    os.close(wp)
+    msg = b""
+    while not msg.endswith(b"\n"):
+        c = os.read(rp, 4096)
+        if not c:
+            break
+        msg += c
+    os.close(rp)
+    os.waitpid(mpid, 0)
+    kpid, sd2 = msg.decode().split()
+    kpid = int(kpid)
+    alive = os.path.exists("/proc/%d" % kpid)
+    n1 = m.gc_statedirs(D10)
+    kept = os.path.isdir(sd2) and os.path.exists(os.path.join(sd2, m.REPORT_MARKER))
+    end = time.monotonic() + 30
+    while os.path.exists("/proc/%d" % kpid) and time.monotonic() < end:
+        time.sleep(0.05)
+    n2 = m.gc_statedirs(D10)
+    gone = not os.path.lexists(sd2)
+    if alive and kept and n1 == 0 and gone and n2 == 1:
+        ok("[R10LEASE] main SIGKILLed, its keeper alive: another process's gc KEEPS the state directory (removed 0); "
+           "once the keeper is gone too the next gc removes it (removed 1)")
+    else:
+        bad("[R10LEASE] keeper alive=%s kept-while-keeper-alive=%s (gc removed %d) removed-after=%s (gc removed %d)"
+            % (alive, kept, n1, gone, n2))
+
+    # [R10HASH] an EMPTY body_hash in the report is not the recorded one
+    td10 = os.path.join(G10, "fc_baseline_replay.state.unit10"); os.mkdir(td10)
+    out10 = os.path.join(G10, "out10.json")
+    body10 = {"result": "ok", "n": 10}
+    m.report_prepare(td10, FCC, out10, "unit-test/v1", _json.dumps(body10), 0)
+    emp = dict(body10); emp["schema"] = "unit-test/v1"; emp["run_meta"] = {}; emp["body_hash"] = ""
+    open(out10 + ".tmp", "w").write(_json.dumps(emp)); os.replace(out10 + ".tmp", out10)
+    g10 = m.report_verified(td10)
+    (ok if g10 is None else bad)("[R10HASH] a new file at --out whose body_hash is EMPTY is not the report -> %r" % (g10,))
+
+    # [R10ATOMIC] the marker is renamed into place: its inode is the temp file's (fd written + fsynced under .report.*)
+    seen = []
+    real_mkstemp = m.tempfile.mkstemp
+
+    class _TF:
+        def __getattr__(self, name):
+            return getattr(tempfile, name)
+
+        def mkstemp(self, *a, **k):
+            fd, path = real_mkstemp(*a, **k)
+            seen.append(os.fstat(fd).st_ino)
+            return fd, path
+    saved = m.tempfile
+    m.tempfile = _TF()
+    try:
+        m.report_prepare(td10, FCC, out10, "unit-test/v1", _json.dumps(body10), 0)
+    finally:
+        m.tempfile = saved
+    mk_ino = os.stat(os.path.join(td10, m.REPORT_MARKER)).st_ino
+    leftovers = [n for n in os.listdir(td10) if n.startswith(".report.")]
+    if len(seen) == 1 and mk_ino == seen[0] and not leftovers:
+        ok("[R10ATOMIC] the marker is the inode written + fsynced under its temp name (atomic rename, no temp left)")
+    else:
+        bad("[R10ATOMIC] marker inode %r, temp inode(s) %r, temp files left %r -- not one atomic rename"
+            % (mk_ino, seen, leftovers))
+finally:
+    shutil.rmtree(G10, ignore_errors=True)
 
 print("----")
 print("SUMMARY pass=%d fail=%d" % (N["ok"], N["bad"]))

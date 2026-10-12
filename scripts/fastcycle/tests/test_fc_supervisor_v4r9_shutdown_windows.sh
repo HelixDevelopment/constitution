@@ -25,14 +25,22 @@
 #   [R9SAME] in every [R9WIN] row (main is the caller's pid): when the keeper exited by itself, its own exit code equals
 #           main's -- both are decide_code(report_verified(state dir), cause), evaluated on the same durable state.
 #   [R9CENSUS] every role's tag list is non-empty and every tag the AST pass inserted is either reached by some row or
-#           listed as unreached with its function (a branch the scenario does not take: lost status, exceptions).
+#           listed as unreached WITH THE BRANCH THAT GUARDS IT (the if-condition / except clause / loop, taken from the
+#           AST -- round 10, V4R10-7: no blanket label).
+#   Round 10 (T048 V4, round-3 review): [R10LEASE] V4R10-1 -- main SIGKILLed while its keeper is still tearing down, a
+#           concurrent selfcheck + a replay of another repository (other lock dir) run gc_statedirs under the same
+#           TMPDIR: the state directory must survive (the keeper's LEASE), the keeper must read the report (no
+#           INTERRUPTED, code 0) and remove the directory itself. [R10DROP] V4R10-4 -- main raises after reaping its
+#           keeper: rc 4 and its state directory removed. [R10INJ] V4R10-7 -- the keeper tags the ok-replay does not
+#           reach driven through the main-gone path (gate held, main SIGKILLed), the main tags through the
+#           keeper-killed path (gate held, keeper SIGKILLed: main processes the ledger itself).
 #
 # The pause hook (replica only, never in the real module): when RP_TAG matches and /proc/self/comm is RP_ROLE, it
 # creates RP_FILE exclusively (once per run), writes its pid and waits for RP_FILE.go (bounded, 120 s).
 # Constant patched in the replica: KEEPER_SLACK_S 30 -> 2 (main's deadline after a stop = grace 1 + KILL_WAIT_S 5 + 2).
 #
 # Env: FC_SUP_UNDER_TEST / FC_BR_UNDER_TEST (the mutation runner points them at a mutant; the replica is built from
-#      them); R9_ONLY -- case groups (R9WIN R9STALL R9GC2 R9CENSUS); R9_ROLES -- keeper main worker (default all);
+#      them); R9_ONLY -- case groups (R9WIN R9STALL R9GC2 R9CENSUS R10LEASE R10DROP R10INJ); R9_ROLES -- keeper main worker (default all);
 #      R9_ACTIONS -- restrict actions by name; R9_TAGS -- restrict tags (substring match).
 # Exit: 0 every selected row held; 1 otherwise. Runtime: ~10-15 minutes (run it in the background, §11.4.89).
 # Signals only through pidfds to validated pids > 1 that this test started (§11.4.263); no pkill / pgrep -f.
@@ -174,6 +182,8 @@ def _rp(tag):
     except Exception:
         return
     _o.write(fd, b"%d\\n" % _o.getpid()); _o.close(fd)
+    if _o.environ.get("RP_RAISE") == "1":
+        raise RuntimeError("R10 injected exception at " + tag)
     end = _t.monotonic() + 120
     while _t.monotonic() < end and not _o.path.exists(f + ".go"):
         _t.sleep(0.02)
@@ -187,28 +197,48 @@ def _rk(kst, sig, done):
             fh.write("%r %r %r\\n" % (kst, sig, done))
 '''
 TAGS = {"keeper": [], "main": []}
+TAGCTX = {}                      # tag -> the branch that guards it (round 10, V4R10-7: the census names it per tag)
 
 
 def pause_stmt(tag):
     return ast.parse("_rp(%r)" % tag).body[0]
 
 
-def instr(stmts, prefix, role_list, start=0):
+def _short(node):
+    t = ast.unparse(node).replace("\n", " ")
+    return t if len(t) <= 70 else t[:67] + "..."
+
+
+def _ctx_of(st, field, ctx):
+    if isinstance(st, ast.If):
+        c = ("if %s" if field == "body" else "else of if %s") % _short(st.test)
+    elif isinstance(st, ast.For):
+        c = ("for %s in %s" if field == "body" else "for-else of %s in %s") % (_short(st.target), _short(st.iter))
+    elif isinstance(st, ast.Try):
+        c = {"body": "", "orelse": "try-else", "finalbody": "finally"}[field]
+    else:
+        c = ""
+    return (ctx + " > " + c) if c else ctx
+
+
+def instr(stmts, prefix, role_list, start=0, ctx=""):
     out = []
     for i, st in enumerate(stmts):
         if i >= start and not (i == 0 and isinstance(st, ast.Expr) and isinstance(getattr(st, "value", None), ast.Constant)
                                and isinstance(st.value.value, str)):
             tag = "%s.%d" % (prefix, i)
             out.append(pause_stmt(tag))
+            TAGCTX[tag] = ctx or "(top level)"
             for rl in role_list:
                 TAGS[rl].append(tag)
         if i >= start:
             for field in ("body", "orelse", "finalbody"):
                 sub = getattr(st, field, None)
                 if sub and not isinstance(st, ast.While):
-                    setattr(st, field, instr(sub, "%s.%d.%s" % (prefix, i, field), role_list))
+                    setattr(st, field, instr(sub, "%s.%d.%s" % (prefix, i, field), role_list, ctx=_ctx_of(st, field, ctx)))
             for j, h in enumerate(getattr(st, "handlers", []) or []):
-                h.body = instr(h.body, "%s.%d.h%d" % (prefix, i, j), role_list)
+                hc = ctx + " > except %s" % (_short(h.type) if h.type is not None else "(bare)")
+                h.body = instr(h.body, "%s.%d.h%d" % (prefix, i, j), role_list, ctx=hc)
         out.append(st)
     return out
 
@@ -219,7 +249,7 @@ SHARED = {"teardown": ["keeper", "main"], "process_ledger": ["keeper", "main"], 
           "read_report": ["keeper", "main"], "_exit_main": ["main"]}
 for fname, rl in SHARED.items():
     if fname in funcs:
-        funcs[fname].body = instr(funcs[fname].body, fname, rl)
+        funcs[fname].body = instr(funcs[fname].body, fname, rl, ctx=fname)
 
 
 def SHUT():
@@ -236,14 +266,15 @@ def after_last_while(fn, prefix, role):
     tr = next((s for s in body if isinstance(s, ast.Try)), None)
     if role == "keeper" and tr is not None:
         idx = max(i for i, s in enumerate(tr.body) if isinstance(s, ast.While))
-        tr.body = instr(tr.body, prefix + ".try", [role], start=idx + 1)
+        tr.body = instr(tr.body, prefix + ".try", [role], start=idx + 1, ctx=fn.name)
         tr.body.insert(idx + 1, SHUT())
         for j, h in enumerate(tr.handlers):
-            h.body = instr(h.body, "%s.h%d" % (prefix, j), [role])
-        tr.finalbody = instr(tr.finalbody, prefix + ".finally", [role])
+            h.body = instr(h.body, "%s.h%d" % (prefix, j), [role],
+                           ctx=fn.name + " > except %s" % (_short(h.type) if h.type is not None else "(bare)"))
+        tr.finalbody = instr(tr.finalbody, prefix + ".finally", [role], ctx=fn.name + " > finally")
     else:
         idx = max(i for i, s in enumerate(body) if isinstance(s, ast.While))
-        fn.body = instr(body, prefix, [role], start=idx + 1)
+        fn.body = instr(body, prefix, [role], start=idx + 1, ctx=fn.name)
         fn.body.insert(idx + 1, SHUT())
 
 
@@ -324,10 +355,10 @@ BASEENV.pop("FC_OUT", None)
 REACHED = {"keeper": set(), "main": set()}
 
 
-def argv(gate="true"):
-    return ["bash", RBR, "replay", "--commit", HEAD, "--repo-root", REPO, "--worktree-root", os.path.join(ROOT, "wt"),
-            "--min-free-kb", "0", "--min-free-kb-objects", "0", "--gate-cmd", gate, "--cold-runs", "1",
-            "--warm-runs", "0", "--out", OUT]
+def argv(gate="true", wt=None, repo=None, head=None, out=None):
+    return ["bash", RBR, "replay", "--commit", head or HEAD, "--repo-root", repo or REPO, "--worktree-root",
+            wt or os.path.join(ROOT, "wt"), "--min-free-kb", "0", "--min-free-kb-objects", "0", "--gate-cmd", gate,
+            "--cold-runs", "1", "--warm-runs", "0", "--out", out or OUT]
 
 
 def report_ok():
@@ -356,11 +387,12 @@ def settle(secs=30, allow_state=False):
         time.sleep(0.1)
 
 
-def start(env, stderr=subprocess.DEVNULL, gate="true"):
+def start(env, stderr=subprocess.DEVNULL, gate="true", wt=None):
     for f in (OUT,):
         if os.path.exists(f):
             os.unlink(f)
-    return subprocess.Popen(argv(gate), env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=stderr)
+    return subprocess.Popen(argv(gate, wt=wt), env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                            stderr=stderr)
 
 
 def wait_file(f, p, secs=60):
@@ -554,7 +586,176 @@ if want("R9STALL"):
     else:
         bad("[R9STALL] stalled stderr: rc=%s (want 143) after %.1f s settled=%s %s" % (rc, dt, settled, why))
 
-if want("R9CENSUS") and want("R9WIN") and not TAGSEL and not ACTS:
+# ---------------------------------------------------------------------------------------------------------------
+# T048 V4 round 10 (round-3 review, V4R10-1 / -4 / -7)
+# ---------------------------------------------------------------------------------------------------------------
+def gate_up(secs=60):
+    end = time.monotonic() + secs
+    while time.monotonic() < end:
+        for c in descendants():
+            try:
+                if open("/proc/%d/cmdline" % c, "rb").read().split(b"\0")[:2] == [b"sleep", b"600"]:
+                    return c
+            except OSError:
+                pass
+        time.sleep(0.05)
+    return None
+
+
+def comm(pid):
+    try:
+        return open("/proc/%d/comm" % pid).read().strip()
+    except OSError:
+        return ""
+
+
+def state_dirs():
+    return [n for n in os.listdir(TMP) if n.startswith("fc_baseline_replay.state.")]
+
+
+def inject(role, tag, inj, k):
+    """V4R10-7: drive a shutdown path the ok-replay never takes. The gate is held; then `main-gone` SIGKILLs main (the
+    keeper reads EOF -> cause main_gone -> its shutdown, where `tag` pauses it), or `keeper-killed` SIGKILLs the
+    keeper in its wait loop (the ledger still lists the worktree and the log directory -> main's teardown processes
+    them, where `tag` pauses main). The paused role is then let go; returns (reached, rc, report, settled, why)."""
+    rp = os.path.join(ROOT, "rp.%d" % k)
+    env = dict(BASEENV, RP_FILE=rp, RP_TAG=tag, RP_ROLE={"keeper": "fc-keeper", "main": "fc-supervisor"}[role])
+    p = start(env, gate=HOLD)
+    if gate_up() is None:
+        rc = finish(p, 60)
+        kill_tree()
+        settle()
+        return False, rc, report_ok(), False, "setup: the held gate never appeared"
+    if inj == "main-gone":
+        sig_pid(p.pid, signal.SIGKILL)
+    else:
+        kp = next((c for c in children(p.pid) if comm(c) == "fc-keeper"), None)
+        if kp is None:
+            finish(p, 60)
+            kill_tree()
+            return False, None, False, False, "setup: no keeper under main"
+        sig_pid(kp, signal.SIGKILL)
+    reached = False
+    end = time.monotonic() + 60
+    while time.monotonic() < end:
+        try:
+            if open(rp).read().strip():
+                reached = True
+                break
+        except OSError:
+            pass
+        if p.poll() is not None and (inj != "main-gone" or not descendants()):
+            break
+        time.sleep(0.02)
+    if reached:
+        REACHED[role].add(tag)
+        open(rp + ".go", "w").close()
+    rc = finish(p, 90)
+    ok_, why = settle()
+    return reached, rc, report_ok(), ok_, why
+
+
+if want("R10LEASE"):
+    # V4R10-1 (the third member of the V4R8-2 class): main SIGKILLed while its keeper -- now the final decider -- is
+    # still tearing down (paused before stop_tree / process_ledger), and two OTHER mains run gc_statedirs under the same
+    # TMPDIR concurrently: a `selfcheck` (no lock at all) and a replay of ANOTHER repository with another lock
+    # directory (what a repository on another filesystem is to the locks: not serialised). The keeper must still read
+    # the marker: no INTERRUPTED in the finished run's log directory, its own code 0, the state directory present
+    # until the keeper (main provably gone) removes it itself.
+    tag = next((t for t in TAGS["keeper"] if t.startswith("teardown.")), None)
+    REPO2 = os.path.join(ROOT, "repo2"); os.makedirs(REPO2, exist_ok=True)
+    g("init", "-q", REPO2); open(os.path.join(REPO2, "g.txt"), "w").write("y\n")
+    g("-C", REPO2, "add", "g.txt"); g("-C", REPO2, "commit", "-q", "-m", "base2")
+    HEAD2 = g("-C", REPO2, "rev-parse", "HEAD").stdout.strip()
+    LOCKS2 = os.path.join(ROOT, "locks2"); os.makedirs(LOCKS2, exist_ok=True)
+    WT10 = os.path.join(ROOT, "wt_r10")
+    k += 1
+    rp = os.path.join(ROOT, "rp.%d" % k)
+    p = start(dict(BASEENV, RP_FILE=rp, RP_TAG=tag or "none", RP_ROLE="fc-keeper"), wt=WT10)
+    kpid = wait_file(rp, p)
+    if kpid is None:
+        finish(p, 60)
+        bad("[R10LEASE] setup: the keeper never paused at %s" % tag)
+    else:
+        REACHED["keeper"].add(tag)
+        sd = state_dirs()
+        sig_pid(p.pid, signal.SIGKILL)
+        rc = finish(p, 30)
+        scout = os.path.join(ROOT, "sc_r10.json")
+        try:
+            sc = subprocess.run(["bash", RBR, "selfcheck", "--out", scout], env=dict(BASEENV), stdin=subprocess.DEVNULL,
+                                capture_output=True, timeout=50).returncode
+        except subprocess.TimeoutExpired:
+            sc = "TIMEOUT"
+        try:
+            r2 = subprocess.run(argv(wt=os.path.join(ROOT, "wt2"), repo=REPO2, head=HEAD2, out=os.path.join(ROOT, "o2.json")),
+                                env=dict(BASEENV, FC_REPLAY_LOCK_DIR=LOCKS2), stdin=subprocess.DEVNULL,
+                                capture_output=True, timeout=50).returncode
+        except subprocess.TimeoutExpired:
+            r2 = "TIMEOUT"
+        kept = len(sd) == 1 and os.path.isdir(os.path.join(TMP, sd[0])) and os.path.exists(
+            os.path.join(TMP, sd[0], "report.pending"))
+        open(rp + ".go", "w").close()
+        kst = None
+        end = time.monotonic() + 60
+        while time.monotonic() < end and kst is None:
+            try:
+                pid_, st_ = os.waitpid(kpid, os.WNOHANG)
+                if pid_ == kpid:
+                    kst = st_
+            except ChildProcessError:
+                break
+            time.sleep(0.05)
+        intr = [os.path.join(d, f) for d, _, fs in os.walk(WT10) for f in fs if f == "INTERRUPTED"]
+        gone = not [n for n in sd if os.path.lexists(os.path.join(TMP, n))]
+        settled, why = settle()
+        kcode = os.WEXITSTATUS(kst) if kst is not None and os.WIFEXITED(kst) else kst
+        if rc == -9 and sc == 0 and r2 == 0 and kept and kcode == 0 and not intr and gone and settled and report_ok():
+            ok("[R10LEASE] main SIGKILLed with its keeper paused at %s; a concurrent selfcheck and a replay of another "
+               "repository (other lock dir) ran gc_statedirs: the state directory was KEPT, the keeper read the report "
+               "(code 0, no INTERRUPTED), then removed it itself; quiescent" % tag)
+        else:
+            bad("[R10LEASE] rc=%s selfcheck=%s replay2=%s state dir kept through the concurrent gc=%s (%r) keeper code=%s "
+                "INTERRUPTED=%r removed by the keeper=%s settled=%s report=%s %s"
+                % (rc, sc, r2, kept, sd, kcode, intr, gone, settled, report_ok(), why))
+
+if want("R10DROP"):
+    # V4R10-4: main throws AFTER it reaped its keeper (main is the final decider: main_owns) -> its exit funnel
+    # (_drop_main_tmp) removes the state directory; rc 4 (an exception in main), nothing left behind
+    tag = next((t for t in TAGS["main"] if t.startswith("teardown.")), None)
+    k += 1
+    rp = os.path.join(ROOT, "rp.%d" % k)
+    p = start(dict(BASEENV, RP_FILE=rp, RP_TAG=tag or "none", RP_ROLE="fc-supervisor", RP_RAISE="1"))
+    rc = finish(p, 90)
+    settled, why = settle()
+    hit = os.path.exists(rp)
+    if hit:
+        REACHED["main"].add(tag)
+    if hit and rc == 4 and settled:
+        ok("[R10DROP] main raised at %s after reaping its keeper: rc 4, its state directory removed, quiescent" % tag)
+    else:
+        bad("[R10DROP] main raised at %s (reached=%s): rc=%s (want 4) settled=%s %s" % (tag, hit, rc, settled, why))
+
+if want("R10INJ"):
+    # V4R10-7: every keeper tag the ok-replay did not reach, driven through the main-gone path; every main tag it did
+    # not reach, driven through the keeper-killed path (the ledger still holds the worktree + the log directory)
+    for rl, inj, want_rc in (("keeper", "main-gone", -9), ("main", "keeper-killed", 137)):
+        if rl not in ROLES:
+            continue
+        for tag in [t for t in TAGS[rl] if t not in REACHED[rl] and sel_tag(t)]:
+            k += 1
+            reached, rc, rep, settled, why = inject(rl, tag, inj, k)
+            t = "[R10INJ] %s %s x %s" % (rl, tag, inj)
+            if not reached:
+                if why.startswith("setup"):
+                    bad("%s: %s" % (t, why))
+                continue
+            if rc == want_rc and not rep and settled:
+                ok("%s: rc %s, no report, quiescent" % (t, rc))
+            else:
+                bad("%s: rc=%s (want %s) report=%s (want absent) settled=%s %s" % (t, rc, want_rc, rep, settled, why))
+
+if want("R9CENSUS") and want("R9WIN") and want("R10INJ") and not TAGSEL and not ACTS:
     for rl in ("keeper", "main"):
         if rl not in ROLES:
             continue
@@ -563,9 +764,12 @@ if want("R9CENSUS") and want("R9WIN") and not TAGSEL and not ACTS:
         if hit == 0:
             bad("[R9CENSUS] %s: NO await point was reached -- the hook or the role name is wrong (instrument blind)" % rl)
         else:
-            ok("[R9CENSUS] %s: %d of %d await points reached and checked; unreached (branches the ok-replay does not "
-               "take: lost status, internal error, exceptions, removal failures): %s" % (rl, hit, len(TAGS[rl]),
-                                                                                         " ".join(miss) or "none"))
+            # round 10 (V4R10-7): no blanket label -- each unreached tag is printed with the branch that guards it (taken
+            # from the AST: the if-condition / except clause / loop it sits in), after the ok-replay rows, the
+            # main-gone and keeper-killed injections ([R10INJ]), [R10LEASE] and [R10DROP] were driven
+            ok("[R9CENSUS] %s: %d of %d await points reached and checked; %d unreached, each with its guard: %s"
+               % (rl, hit, len(TAGS[rl]), len(miss), "; ".join("%s [%s]" % (t, TAGCTX.get(t, "?")) for t in miss)
+                  or "none"))
 
 print("----")
 print("SUMMARY pass=%d fail=%d" % (N["ok"], N["bad"]))
