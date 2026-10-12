@@ -486,6 +486,41 @@ shq="$(sha256sum "$PR/.claude/settings.json" | cut -d' ' -f1)"
 eq "post-update apply is idempotent" "$(sha256sum "$PR/.claude/settings.json" | cut -d' ' -f1)" "$shq"
 
 # =========================================================================
+echo "== 12. F3: ids from stdin are validated — no path traversal, no rm -rf of a stdin path =="
+rm -rf "$LABEL_SYNC_DIR"; export CLAUDE_CONFIG_DIR="$CFG1"
+mkdir -p "$T/victim/keep"; echo precious >"$T/victim/keep/file"
+EVIL='../../../victim/keep'
+for scr in session-start prompt stop session-end; do
+  run_hook "label-sync-$scr.sh" "$(jq -nc --arg s "$EVIL" --arg cwd "$PROJ" '{session_id:$s,cwd:$cwd,prompt:"p"}')"
+  eq "F3 $scr: traversal session_id => exit 0" "$RC" 0
+done
+check "F3 session-end with a traversal session_id leaves the victim dir intact" test -f "$T/victim/keep/file"
+check "F3 no session entity registered for a traversal id" bash -c "! '$CTL' list --json 2>/dev/null | jq -e '.entities[]|select(.session_id|test(\"victim\"))' >/dev/null"
+# agent_id traversal on SubagentStart (would write agentmap/<agent_id> outside the state dir)
+SID_OK="44444444-aaaa-bbbb-cccc-000000000004"
+run_hook label-sync-agent-register.sh "$(jq -nc --arg s "$SID_OK" --arg cwd "$PROJ" '{session_id:$s,cwd:$cwd,tool_name:"Agent",tool_use_id:"toolu_F3",tool_input:{description:"(T1/main - claude1 - opus - ?) f3",subagent_type:"general-purpose"}}')"
+run_hook label-sync-subagent-start.sh "$(jq -nc --arg s "$SID_OK" --arg cwd "$PROJ" '{session_id:$s,cwd:$cwd,agent_id:"../../../../f3_escape",agent_type:"general-purpose"}')"
+eq "F3 subagent-start traversal agent_id => exit 0" "$RC" 0
+check "F3 traversal agent_id wrote nothing outside the state dir" test ! -e "$T/f3_escape"
+check "F3 traversal agent_id wrote nothing outside the state dir (2)" test ! -e "$LABEL_SYNC_DIR/f3_escape"
+run_hook label-sync-subagent-stop.sh "$(jq -nc --arg s "$SID_OK" --arg cwd "$PROJ" '{session_id:$s,cwd:$cwd,agent_id:"../../../victim/keep/file"}')"
+check "F3 subagent-stop traversal agent_id leaves the victim file" test -f "$T/victim/keep/file"
+for bad in 'a b' $'a\nb' 'a/b' '..' "$(printf 'x%.0s' $(seq 1 129))" ''; do
+  run_hook label-sync-session-start.sh "$(jq -nc --arg s "$bad" --arg cwd "$PROJ" '{session_id:$s,cwd:$cwd}')" CLAUDE_CODE_SESSION_ID=
+  eq "F3 invalid session_id '${bad:0:12}' => exit 0" "$RC" 0
+done
+run_hook label-sync-session-start.sh "$(jq -nc --arg cwd "$PROJ" '{session_id:"a\u0000b",cwd:$cwd}')"
+check "F3 NUL-bearing session_id registers nothing (not silently collapsed to 'ab')" bash -c "! '$CTL' get --id 'session:ab' >/dev/null 2>&1"
+check "F3 newline-bearing session_id registers nothing" bash -c "[ \"\$('$CTL' list --json 2>/dev/null | jq --arg ok 'session:$SID_OK' '[.entities[]|select(.kind==\"session\" and .id!=\$ok)]|length')\" = 0 ]"
+run_hook label-sync-session-start.sh "$(jq -nc --arg cwd "$PROJ" '{cwd:$cwd}')" CLAUDE_CODE_SESSION_ID='../../x'
+check "F3 an invalid CLAUDE_CODE_SESSION_ID fallback is rejected too" bash -c "[ \"\$('$CTL' list --json 2>/dev/null | jq --arg ok 'session:$SID_OK' '[.entities[]|select(.kind==\"session\" and .id!=\$ok)]|length')\" = 0 ]"
+check "F3 control needle: the legitimate session IS seen by the same list instrument" bash -c "'$CTL' list --json 2>/dev/null | jq -e --arg ok 'session:$SID_OK' '[.entities[]|select(.id==\$ok)]|length==1' >/dev/null"
+printf '{"session_id":"../../../f3_rha_escape","prompt":"x"}' | LABEL_SYNC_REQUEST_LEDGER="$T/f3l/h.jsonl" LS_LEDGER_STATE="$T/f3st" bash "$HK/request_history_append.sh"
+eq "F3 ledger helper: traversal sid => row still written (zero-loss), sid UNKNOWN" "$(jq -r .session_id "$T/f3l/h.jsonl" 2>/dev/null)" UNKNOWN
+check "F3 ledger helper: traversal sid never names a dedupe-state file outside its dir" test ! -e "$T/f3_rha_escape"
+check "F3 session-end source has no rm -rf" bash -c "! grep -q 'rm -rf' '$HK/label-sync-session-end.sh'"
+
+# =========================================================================
 echo "----------------------------------------------------------------------"
 echo "label-sync hooks suite: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

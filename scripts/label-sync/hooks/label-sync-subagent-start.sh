@@ -28,7 +28,7 @@ main() {
   ls_init || return 0
   ls_read_payload || return 0
   [ -n "$LS_AGENT_ID" ] || return 0
-  local atype; atype="$(printf '%s' "$LS_PAYLOAD" | jq -r '.agent_type // empty' 2>/dev/null)"
+  local atype="$LS_ATYPE"
   local d="$LS_HOOKSTATE/pending/$LS_SID" f pick="" first=""
   [ -d "$d" ] || return 0
   for f in $(ls -1 "$d" 2>/dev/null | sort); do

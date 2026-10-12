@@ -46,6 +46,8 @@ set -u
 # deduped / no ledger configured) or 1 (write failed).
 rha_append() {
   local sid="$1" prompt="$2" track="$3" alias="$4" model="$5" effort="$6" cwd="$7"
+  # sid names a dedupe-state FILE: only a safe id is used (review finding 3).
+  [[ "$sid" =~ ^[A-Za-z0-9_-]{1,128}$ ]] || sid=""
   command -v jq >/dev/null 2>&1 || return 0
   [ -n "$prompt" ] || return 0
   local ledger="${LABEL_SYNC_REQUEST_LEDGER:-}"

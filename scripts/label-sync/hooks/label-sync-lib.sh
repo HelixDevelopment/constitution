@@ -105,32 +105,67 @@ ls_hookdir() {
   ( umask 077; mkdir -p "$LS_HOOKSTATE/pending" "$LS_HOOKSTATE/agentmap" "$LS_HOOKSTATE/sessions" "$LS_HOOKSTATE/ledger-last" ) 2>/dev/null
 }
 
+# ls_drop_pending_dir <sid> : remove the regular files of hooks/pending/<sid>/
+# one by one, then rmdir it. Never recursive, never follows a symlink out (a
+# symlinked entry is unlinked, its target untouched); refuses an invalid sid.
+ls_drop_pending_dir() {
+  ls_valid_id "${1:-}" || return 0
+  local d="$LS_HOOKSTATE/pending/$1" f
+  [ -d "$d" ] && [ ! -L "$d" ] || return 0
+  for f in "$d"/*; do
+    { [ -f "$f" ] || [ -L "$f" ]; } && rm -f -- "$f"
+  done
+  rmdir -- "$d" 2>/dev/null
+  return 0
+}
+
 # ls_read_payload : read stdin ONCE, parse the common fields with ONE jq call.
 # Sets: LS_PAYLOAD LS_SID LS_CWD LS_EVENT LS_TOOL LS_TUID LS_DESC LS_SUBTYPE
 #       LS_PROMPT LS_SOURCE LS_AGENT_ID LS_TOMODEL LS_TOOLMODEL
-# Returns 1 when stdin is not a JSON object (hook then exits 0 silently).
+# Returns 1 when stdin is not a JSON object, or when ANY id field is present but
+# not a safe id (hook then exits 0 silently, doing nothing).
+#
+# Id safety (review finding 3): session_id / agent_id / tool_use_id end up in
+# file names under $LS_HOOKSTATE and in entity ids, so a value such as
+# `../../../x`, a space, a newline or a NUL would escape the state dir (a
+# `rm` of a stdin-derived path deleted a directory outside it). An id is used
+# ONLY if it matches ^[A-Za-z0-9_-]{1,128}$, checked INSIDE jq on the raw JSON
+# string with \A..\z anchors (Oniguruma's ^/$ are LINE anchors; and bash would
+# silently drop a NUL, turning "a\u0000b" into the valid-looking "ab").
+LS_ID_RE='^[A-Za-z0-9_-]{1,128}$'
+ls_valid_id() { [[ "$1" =~ $LS_ID_RE ]]; }
 ls_read_payload() {
   IFS= read -r -d '' LS_PAYLOAD || true       # builtin: no `cat` spawn
   [ -n "$LS_PAYLOAD" ] || return 1
-  local parsed
+  local parsed LS_BADID=""
   parsed="$(printf '%s' "$LS_PAYLOAD" | jq -r '
+    def okid: type=="string" and test("\\A[A-Za-z0-9_-]{1,128}\\z");
+    def idf($k): (.[$k] // "") as $v | if $v == "" then "" elif ($v|okid) then $v else null end;
+    def s: if type=="string" then . else "" end;
     select(type=="object") |
-    @sh "LS_SID=\(.session_id // "")
-         LS_CWD=\(.cwd // "")
-         LS_EVENT=\(.hook_event_name // "")
-         LS_TOOL=\(.tool_name // "")
-         LS_TUID=\(.tool_use_id // "")
-         LS_DESC=\(.tool_input.description // "")
-         LS_SUBTYPE=\(.tool_input.subagent_type // "")
-         LS_TOOLMODEL=\(.tool_input.model // "")
-         LS_PROMPT=\(.prompt // .user_prompt // "")
-         LS_SOURCE=\(.source // .reason // "")
-         LS_AGENT_ID=\(.agent_id // "")
-         LS_TOMODEL=\(.to_model // .model // "")"
+    (idf("session_id")) as $sid | (idf("agent_id")) as $aid | (idf("tool_use_id")) as $tuid |
+    @sh "LS_SID=\($sid // "")
+         LS_BADID=\(if ($sid == null or $aid == null or $tuid == null) then "1" else "" end)
+         LS_CWD=\(.cwd // "" | s)
+         LS_EVENT=\(.hook_event_name // "" | s)
+         LS_TOOL=\(.tool_name // "" | s)
+         LS_TUID=\($tuid // "")
+         LS_DESC=\(.tool_input.description // "" | s)
+         LS_SUBTYPE=\(.tool_input.subagent_type // "" | s)
+         LS_TOOLMODEL=\(.tool_input.model // "" | s)
+         LS_PROMPT=\(.prompt // .user_prompt // "" | s)
+         LS_SOURCE=\(.source // .reason // "" | s)
+         LS_AGENT_ID=\($aid // "")
+         LS_ATYPE=\(.agent_type // "" | s)
+         LS_TOMODEL=\(.to_model // .model // "" | s)"
   ' 2>/dev/null)" || return 1
   [ -n "$parsed" ] || return 1
   eval "$parsed"
+  [ -z "$LS_BADID" ] || { ls_dbg "rejected payload: unsafe id"; return 1; }
+  # No usable session id => nothing to correlate: no-op (a shared
+  # "session:unknown" entity would merge unrelated sessions into one).
   [ -n "$LS_SID" ] || LS_SID="${CLAUDE_CODE_SESSION_ID:-}"
+  ls_valid_id "$LS_SID" || return 1
   [ -n "$LS_CWD" ] || LS_CWD="$PWD"
   return 0
 }

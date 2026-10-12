@@ -29,8 +29,12 @@ main() {
   ids="$(ls_ctl list --json | jq -r --arg sid "$LS_SID" --arg me "$id" \
         '.entities[]|select((.id==$me or .session_id==$sid) and .state!="done")|.id' 2>/dev/null)"
   for x in $ids; do ls_ctl unregister --id "$x" >/dev/null; done
-  rm -rf "${LS_HOOKSTATE:?}/pending/${LS_SID:?}"
-  rm -f "${LS_HOOKSTATE:?}/sessions/${LS_SID:?}.alias" "${LS_HOOKSTATE:?}/ledger-last/${LS_SID:?}"
+  # Hook-private state of this session. LS_SID is a validated id (lib:
+  # ls_read_payload), and even so nothing here is a recursive removal of a
+  # stdin-derived path: only the regular files of OUR fixed layout are removed,
+  # one by one, then the (now empty) per-session dir is rmdir'ed.
+  ls_drop_pending_dir "$LS_SID"
+  rm -f -- "$LS_HOOKSTATE/sessions/$LS_SID.alias" "$LS_HOOKSTATE/ledger-last/$LS_SID"
   return 0
 }
 ls_hook_run main
