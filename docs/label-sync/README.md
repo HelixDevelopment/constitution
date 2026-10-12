@@ -22,6 +22,7 @@ scripts/label-sync/
   internal/bus             seq-poll subscribe + unix-socket fan-out
   internal/label           §11.4.182 compose / validate / derive-via-labeler
   prove_mutations.sh       paired-mutation proof (5 mutants against a scratch copy)
+scripts/label-sync/render/   renderers (statusline, title, shell integration, labelrun, …) — see RENDERERS.md
 scripts/gates/cm_label_sync_core.sh (+ _mutation_test.sh)   gate
 ```
 
@@ -51,6 +52,7 @@ niced and one at a time on a loaded host (§12.6/§12.7).
 
 ## Not in the CORE stream
 
-Hook wiring (SessionStart/statusLine/PreToolUse), terminal-title updaters,
-registry bridges (§11.4.147/§11.4.208) and `install` auto-wiring (§11.4.164/228)
-consume this contract and are built by other streams.
+Hook wiring (SessionStart/PreToolUse), registry bridges (§11.4.147/§11.4.208) and
+`install` auto-wiring (§11.4.164/228) consume this contract and are built by other
+streams. The statusLine / terminal-title / shell / tmux / `labelrun` / live-watch
+RENDERERS are documented in [`RENDERERS.md`](RENDERERS.md).
