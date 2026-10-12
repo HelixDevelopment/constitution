@@ -46,13 +46,14 @@ func ValidKind(k string) bool { return kinds[k] }
 func ValidState(s string) bool { return states[s] }
 
 // Entity is one labelled thing (session, agent, shell, ...).
-// Label, State(rendered), Stale are COMPUTED at render time.
+// Label, State(rendered), Stale, Binding are COMPUTED at render time.
 type Entity struct {
 	ID           string    `json:"id"`
 	Kind         string    `json:"kind"`
 	ParentID     string    `json:"parent_id,omitempty"`
 	SessionID    string    `json:"session_id,omitempty"`
 	PID          int       `json:"pid,omitempty"`
+	PIDStart     string    `json:"pid_start,omitempty"` // "<boot_id>:<starttime>" of PID at registration (pid-reuse guard)
 	Host         string    `json:"host,omitempty"`
 	Cwd          string    `json:"cwd,omitempty"`
 	Track        string    `json:"track,omitempty"`
@@ -67,6 +68,9 @@ type Entity struct {
 	Label        string    `json:"label,omitempty"`
 	State        string    `json:"state"`
 	Stale        bool      `json:"stale,omitempty"`
+	// Binding is COMPUTED: where alias/model/effort came from — "own",
+	// "inherited:<ancestor id>", "active" or "unknown" (CONTRACT §4).
+	Binding string `json:"binding,omitempty"`
 }
 
 // Active is the operator's ACTIVE alias/model/effort context.

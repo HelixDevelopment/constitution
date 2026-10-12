@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Fields are the five label components. Empty means unknown.
@@ -37,9 +38,69 @@ var labelRE = regexp.MustCompile(labelPattern)
 
 var trackDigits = regexp.MustCompile(`^[0-9]+$`)
 
+// MaxFieldRunes caps every rendered label field (review finding 2).
+const MaxFieldRunes = 128
+
+// idRE is the closed id grammar for entity ids, parent ids and session ids.
+var idRE = regexp.MustCompile(`^[A-Za-z0-9._:@/-]{1,160}$`)
+
+// ValidID reports whether s is an acceptable entity/parent/session id.
+func ValidID(s string) bool { return idRE.MatchString(s) }
+
+// dangerous reports runes that can drive a terminal or reorder displayed
+// text: C0 controls (incl. ESC, NUL, BEL), DEL, C1 controls (U+0080-U+009F),
+// bidi embeddings/overrides/isolates/marks, and invalid UTF-8 (RuneError).
+func dangerous(r rune) bool {
+	switch {
+	case r < 0x20, r == 0x7f, r >= 0x80 && r <= 0x9f: // MUT:sanitize
+		return true
+	case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069, r == 0x200e, r == 0x200f, r == 0x061c:
+		return true
+	case r == utf8.RuneError:
+		return true
+	}
+	return false
+}
+
+// Clean removes every dangerous rune (see dangerous) and caps the result at
+// max runes. It is safe to print to any terminal under any locale (an
+// invalid byte such as a raw 0x9d is dropped, never passed through).
+func Clean(s string, max int) string {
+	var b strings.Builder
+	n := 0
+	for i := 0; i < len(s); {
+		r, w := utf8.DecodeRuneInString(s[i:])
+		i += w
+		if dangerous(r) {
+			continue
+		}
+		if max > 0 && n >= max {
+			break
+		}
+		b.WriteRune(r)
+		n++
+	}
+	return b.String()
+}
+
+// CleanText is Clean for multi-line human output: it keeps '\n' and '\t'
+// and strips everything else dangerous, without a length cap.
+func CleanText(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); {
+		r, w := utf8.DecodeRuneInString(s[i:])
+		i += w
+		if r == '\n' || r == '\t' || !dangerous(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func clean(s string) string {
-	s = strings.TrimSpace(s)
-	r := strings.NewReplacer(")", "_", "\n", "_", "\r", "_", " - ", "_")
+	s = strings.NewReplacer("\n", "_", "\r", "_", "\t", "_").Replace(s)
+	s = strings.TrimSpace(Clean(s, MaxFieldRunes))
+	r := strings.NewReplacer(")", "_", " - ", "_")
 	s = r.Replace(s)
 	if s == "" {
 		return "?"
