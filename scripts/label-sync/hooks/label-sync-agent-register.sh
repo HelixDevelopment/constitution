@@ -18,7 +18,8 @@
 #           subagent_type, model}}; env CLAUDE_CONFIG_DIR, LABEL_SYNC_*.
 # Outputs : none (stdout stays empty).
 # Exit    : ALWAYS 0 — it must never block a dispatch.
-# Side-effects: label-sync register event; $LABEL_SYNC_DIR/hooks/pending/<sid>/.
+# Side-effects: label-sync register event; $LABEL_SYNC_DIR/hooks/pending/<sid>/<tool_use_id>
+#           (lines: entity id, subagent_type).
 # Deps    : bash, jq, labelctl.
 # Cross-refs: §11.4.182, §11.4.147 (agent registry), guard-track-branch-label.sh,
 #           CONTRACT §4.2 (pinned when labelled with an alias, else inherits
@@ -49,11 +50,19 @@ main() {
   follow=false; [ -n "$LS_L_ALIAS" ] || follow=true
   parent="$sid_ent"
   ls_hookdir
+  # dispatched from INSIDE a paired subagent => that subagent is the parent
   if [ -n "$LS_AGENT_ID" ] && [ -f "$LS_HOOKSTATE/agentmap/$LS_AGENT_ID" ]; then
-    parent="$(cat "$LS_HOOKSTATE/agentmap/$LS_AGENT_ID")"
+    local pm; { IFS= read -r pm; } <"$LS_HOOKSTATE/agentmap/$LS_AGENT_ID" 2>/dev/null
+    [ -n "$pm" ] && parent="$pm"
   fi
+  # tool_use_id keys BOTH the entity and the pending file, so the same event
+  # delivered twice (hooks wired in user AND project scope) is one registration
+  # (review finding 5). Absent id => a DETERMINISTIC id from the payload (never
+  # time-based: a double delivery must collapse, not duplicate).
   local tuid="$LS_TUID"
-  [ -n "$tuid" ] || tuid="$(printf '%s%s' "$LS_DESC" "$(date +%s%N)" | sha1sum | cut -c1-16)"
+  if [ -z "$tuid" ]; then
+    tuid="$(printf '%s\n%s\n%s' "$LS_SID" "$LS_DESC" "$LS_SUBTYPE" | sha1sum 2>/dev/null)"; tuid="h${tuid:0:20}"
+  fi
   local eid="subagent:$tuid" model="$LS_L_MODEL"
   if [ -z "$model" ] && [ -n "$LS_TOOLMODEL" ]; then model="$(ls_model_short "$LS_TOOLMODEL")"; fi
   local -a a=(register --id "$eid" --kind subagent --parent "$parent" --session "$LS_SID" --cwd "$LS_CWD"
@@ -64,8 +73,8 @@ main() {
   [ -n "$model" ] && a+=(--model "$model")
   [ -n "$LS_L_EFFORT" ] && a+=(--effort "$LS_L_EFFORT")
   ls_ctl "${a[@]}" >/dev/null || return 0
-  mkdir -p "$LS_HOOKSTATE/pending/$LS_SID" 2>/dev/null
-  printf '%s\n%s\n' "$eid" "$LS_SUBTYPE" >"$LS_HOOKSTATE/pending/$LS_SID/$(date +%s%N)-$tuid" 2>/dev/null
+  ( umask 077; mkdir -p "$LS_HOOKSTATE/pending/$LS_SID" ) 2>/dev/null
+  printf '%s\n%s\n' "$eid" "$LS_SUBTYPE" >"$LS_HOOKSTATE/pending/$LS_SID/$tuid" 2>/dev/null
   return 0
 }
 ls_hook_run main

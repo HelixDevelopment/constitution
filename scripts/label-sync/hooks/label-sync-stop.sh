@@ -37,7 +37,7 @@ main() {
       [ -f "$f" ] || continue
       eid="$(sed -n 1p "$f")"
       [ -n "$eid" ] && ls_ctl unregister --id "$eid" >/dev/null
-      rm -f "${f:?}"
+      rm -f -- "$f"
     done
   fi
   return 0

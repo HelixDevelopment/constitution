@@ -25,10 +25,10 @@ main() {
   [ -n "$LS_AGENT_ID" ] || return 0
   local m="$LS_HOOKSTATE/agentmap/$LS_AGENT_ID" eid
   [ -f "$m" ] || return 0
-  eid="$(cat "$m" 2>/dev/null)"
+  { IFS= read -r eid; } <"$m" 2>/dev/null
   ls_have_bin || return 0
   [ -n "$eid" ] && ls_ctl unregister --id "$eid" >/dev/null
-  rm -f "${m:?}"
+  rm -f -- "$m"
   return 0
 }
 ls_hook_run main

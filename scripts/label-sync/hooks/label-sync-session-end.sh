@@ -34,6 +34,12 @@ main() {
   # stdin-derived path: only the regular files of OUR fixed layout are removed,
   # one by one, then the (now empty) per-session dir is rmdir'ed.
   ls_drop_pending_dir "$LS_SID"
+  local m s2
+  for m in "$LS_HOOKSTATE/agentmap"/*; do
+    [ -f "$m" ] || continue
+    s2=""; { IFS= read -r _; IFS= read -r s2; } <"$m" 2>/dev/null
+    [ "$s2" = "$LS_SID" ] && rm -f -- "$m"
+  done
   rm -f -- "$LS_HOOKSTATE/ledger-last/$LS_SID"
   return 0
 }

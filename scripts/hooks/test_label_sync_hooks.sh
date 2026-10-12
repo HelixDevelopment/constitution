@@ -579,6 +579,58 @@ else
 fi
 
 # =========================================================================
+echo "== 14. F4/F5: subagent pairing never guesses; every hook is idempotent under double firing =="
+rm -rf "$LABEL_SYNC_DIR"; export CLAUDE_CONFIG_DIR="$CFG1"
+SID="66666666-aaaa-bbbb-cccc-000000000006"; SE="session:$SID"; mk_cfg claude1 claude-opus-4-8 >/dev/null
+PD="$LABEL_SYNC_DIR/hooks/pending/$SID"; AM="$LABEL_SYNC_DIR/hooks/agentmap"
+disp() { # tuid type [agent_id-of-caller]
+  local x; x="$(jq -nc --arg t "$1" --arg ty "$2" --arg a "${3:-}" '{tool_name:"Agent",tool_use_id:$t,tool_input:{description:"(T1/main - claude1 - opus - ?) d",subagent_type:$ty}}+(if $a=="" then {} else {agent_id:$a} end)')"
+  run_hook label-sync-agent-register.sh "$(j PreToolUse "$x")"
+}
+start() { run_hook label-sync-subagent-start.sh "$(j SubagentStart "$(jq -nc --arg a "$1" --arg ty "$2" '{agent_id:$a,agent_type:$ty}')")"; }
+stopa() { run_hook label-sync-subagent-stop.sh "$(j SubagentStop "$(jq -nc --arg a "$1" '{agent_id:$a}')")"; }
+run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"startup"}')"
+# F5: PreToolUse fired twice (user + project scope) => one pending file keyed by tool_use_id, one entity
+disp toolu_D1 general-purpose; disp toolu_D1 general-purpose
+eq "F5 double PreToolUse => exactly one pending registration" "$(ls -1 "$PD" 2>/dev/null | wc -l | tr -d ' ')" 1
+check "F5 the pending registration is keyed by tool_use_id" test -f "$PD/toolu_D1"
+eq "F5 double PreToolUse => exactly one subagent entity" "$("$CTL" list --json | jq '[.entities[]|select(.kind=="subagent")]|length')" 1
+start agent-D1 general-purpose
+eq "F5 SubagentStart pairs the single candidate" "$(head -n1 "$AM/agent-D1" 2>/dev/null)" subagent:toolu_D1
+disp toolu_D2 general-purpose
+start agent-D1 general-purpose
+eq "F5 a DOUBLE SubagentStart never re-pairs the agent to another pending registration" "$(head -n1 "$AM/agent-D1" 2>/dev/null)" subagent:toolu_D1
+check "F5 ...and the other pending registration is still waiting" test -f "$PD/toolu_D2"
+stopa agent-D1; stopa agent-D1
+eq "F5 double SubagentStop: exit 0 and the entity is done" "$RC/$(field subagent:toolu_D1 state)" "0/done"
+eq "F5 double SubagentStop never touches the other registration" "$(field subagent:toolu_D2 state)" running
+# F4: >= 2 pending registrations of the same type => ambiguous, NOT paired
+disp toolu_P2 general-purpose
+start agent-X general-purpose
+check "F4 two same-type pending registrations => the SubagentStart is NOT paired (no guess)" test ! -e "$AM/agent-X"
+check "F4 ambiguous: both registrations stay pending" bash -c "[ -f '$PD/toolu_D2' ] && [ -f '$PD/toolu_P2' ]"
+stopa agent-X
+eq "F4 ambiguous: SubagentStop of the unpaired agent marks NEITHER done (D2)" "$(field subagent:toolu_D2 state)" running
+eq "F4 ambiguous: SubagentStop of the unpaired agent marks NEITHER done (P2)" "$(field subagent:toolu_P2 state)" running
+# different types disambiguate
+disp toolu_E1 Explore
+start agent-E Explore
+eq "F4 a unique type match IS paired" "$(head -n1 "$AM/agent-E" 2>/dev/null)" subagent:toolu_E1
+# nested dispatch from inside a paired subagent => parent is that subagent
+disp toolu_N1 general-purpose agent-E
+eq "nested dispatch (agent_id of a paired subagent) gets that subagent as parent" "$(field subagent:toolu_N1 parent_id)" subagent:toolu_E1
+run_hook label-sync-stop.sh "$(j Stop '{}')"; run_hook label-sync-stop.sh "$(j Stop '{}')"
+eq "F4 Stop (fired twice) cleans the ambiguous registrations: D2 done" "$(field subagent:toolu_D2 state)" done
+eq "F4 Stop cleans the ambiguous registrations: P2 done" "$(field subagent:toolu_P2 state)" done
+disp toolu_Z1 general-purpose
+check "control needle: before SessionEnd an agentmap entry of this session IS visible" bash -c "grep -rqx '$SID' '$AM' 2>/dev/null"
+run_hook label-sync-session-end.sh "$(j SessionEnd '{"reason":"other"}')"; run_hook label-sync-session-end.sh "$(j SessionEnd '{"reason":"other"}')"
+eq "F5 double SessionEnd exit 0" "$RC" 0
+check "SessionEnd removes the session's pending dir" test ! -e "$PD"
+check "SessionEnd removes the session's agentmap entries" bash -c "! grep -rqx '$SID' '$AM' 2>/dev/null"
+eq "SessionEnd marks the never-started registration done" "$(field subagent:toolu_Z1 state)" done
+
+# =========================================================================
 echo "----------------------------------------------------------------------"
 echo "label-sync hooks suite: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1
