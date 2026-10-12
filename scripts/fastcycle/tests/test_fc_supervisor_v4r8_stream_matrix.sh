@@ -27,6 +27,8 @@
 #   TERM keeper 143 - | TERM worker 143 - | TERM run supervisor 0 report (that run is UNMEASURED, the replay goes on).
 # Every cell additionally requires: no Traceback (open stderr), nothing left running, the temp dir gone, every replay
 # worktree removed.
+# Round 10 (V4R10-6): EVERY supervised cell records, from inside a replica, the fds 0/1/2 of main, keeper and worker at
+#   their start and requires the expected direction for every role (FDPROBE, see RREP); usage/freeze: no record.
 # The stop/kill cells also check main's own fd 1/2 (control needle for the stream state: a pipe, or /dev/null after
 #   repair). Its first full run found one more member of the class: with the caller's stderr CLOSED, bash opens the
 #   script itself on fd 2 and leaves it there (read-only, inheritable) -- main, keeper and worker ran with "stderr" =
@@ -87,6 +89,61 @@ import atexit, ctypes, os, shutil, signal, subprocess, sys, threading, time
 SUP, SCRIPT, WORK, MARK = os.environ["SUP"], os.environ["SCRIPT"], os.environ["WORK"], os.environ["MARK"]
 ONLY = os.environ.get("R8_ONLY", "").split()
 N = {"ok": 0, "bad": 0}
+
+# ---- T048 V4 round 10 (V4R10-6): the fd-direction needle in EVERY role of EVERY supervised scenario. Round 9 checked
+# main's fds 0/1/2 only in the stop/kill cells (the one moment the test could read them from outside); a regression of
+# _repair_std_fds limited to one subcommand or one role (reviewer mutant RV3-09: replay-sample skips it) was invisible
+# in the ok / det / herr / replay-sample / selfcheck / stop-after-report cells. A REPLICA of cycle/ + lib/ (built from
+# the files under test) records, at the start of the main role, of the keeper and of the worker, the targets of fds
+# 0/1/2 -- read BEFORE the record file is opened (a closed fd would otherwise BE the record file) -- into $R8_FDLOG.
+# Every cell then requires: main, keeper and worker each recorded at least once (control needle: the probe ran), and
+# every record shows the caller's stream state as the tool must see it (EXP below). `usage` and `freeze` start no
+# supervisor (usage is refused by bash, freeze runs unsupervised by design): there the log must stay EMPTY.
+RREP = os.path.join(WORK, "rep")
+_src_fc = os.path.dirname(os.path.dirname(os.path.abspath(SCRIPT)))
+shutil.copytree(os.path.join(_src_fc, "lib"), os.path.join(RREP, "lib"))
+shutil.copytree(os.path.dirname(os.path.abspath(SCRIPT)), os.path.join(RREP, "cycle"))
+shutil.copy(SUP, os.path.join(RREP, "cycle", "fc_supervisor.py"))
+shutil.copy(SCRIPT, os.path.join(RREP, "cycle", "baseline_replay.sh"))
+RSCRIPT = os.path.join(RREP, "cycle", "baseline_replay.sh")
+_PYPROBE = (
+    "def _r8fd(role):\n"
+    "    import os as _o\n"
+    "    f = _o.environ.get('R8_FDLOG')\n"
+    "    if not f:\n"
+    "        return\n"
+    "    links = []\n"
+    "    for fd in (0, 1, 2):\n"
+    "        try:\n"
+    "            links.append(_o.readlink('/proc/self/fd/%d' % fd))\n"
+    "        except OSError:\n"
+    "            links.append('')\n"
+    "    try:\n"
+    "        with open(f, 'a') as fh:\n"
+    "            fh.write('%s\\t%s\\n' % (role, '\\t'.join(links)))\n"
+    "    except OSError:\n"
+    "        pass\n\n\n")
+PROBE_OK = []
+
+
+def _inject(path, pairs):
+    t = open(path).read()
+    for a, b in pairs:
+        if t.count(a) != 1:
+            PROBE_OK.append("anchor matched %d times in %s: %r" % (t.count(a), os.path.basename(path), a[:60]))
+            continue
+        t = t.replace(a, b, 1)
+    open(path, "w").write(t)
+
+
+_inject(os.path.join(RREP, "cycle", "fc_supervisor.py"), [
+    ("def cmd_main(a):\n    global OWNER\n", _PYPROBE + "def cmd_main(a):\n    global OWNER\n    _r8fd('main')\n"),
+    ("    global HB_FD\n", "    global HB_FD\n    _r8fd('keeper')\n")])
+_inject(RSCRIPT, [("  _FC_IS_WORKER=1\n  trap 'exit 129' HUP\n",
+                   "  _FC_IS_WORKER=1\n  if [ -n \"${R8_FDLOG:-}\" ]; then _r8a=$(readlink /proc/$$/fd/0); "
+                   "_r8b=$(readlink /proc/$$/fd/1); _r8c=$(readlink /proc/$$/fd/2); "
+                   "printf 'worker\\t%s\\t%s\\t%s\\n' \"$_r8a\" \"$_r8b\" \"$_r8c\" >>\"$R8_FDLOG\"; fi\n"
+                   "  trap 'exit 129' HUP\n")])
 ctypes.CDLL(None, use_errno=True).prctl(ctypes.c_int(36), ctypes.c_ulong(1), ctypes.c_ulong(0),
                                         ctypes.c_ulong(0), ctypes.c_ulong(0))
 
@@ -481,7 +538,11 @@ if want("R8MATRIX"):
                 argv = ["bash", SCRIPT, "replay", "--commit", HEAD, "--repo-root", REPO, "--worktree-root",
                         os.path.join(ROOT, "wt"), "--min-free-kb", "0", "--min-free-kb-objects", "0", "--gate-cmd",
                         HOLD if gate == "hold" else gate, "--cold-runs", "1", "--warm-runs", "0", "--out", out] + extra
-            L = Launch(argv, ENV, so, se, ign, si)
+            argv = [RSCRIPT if a == SCRIPT else a for a in argv]
+            fdlog = os.path.join(ROOT, "fdlog")
+            if os.path.exists(fdlog):
+                os.unlink(fdlog)
+            L = Launch(argv, dict(ENV, R8_FDLOG=fdlog), so, se, ign, si)
             needle = ""
             if action and len(action) == 3:
                 # stop right AFTER the report appeared (V4R9-6): whether it lands before or after the worker / keeper
@@ -514,13 +575,35 @@ if want("R8MATRIX"):
             settled, why = settle(40 if action and action[0] == "main" and action[1] == signal.SIGKILL else 30)
 
             kill_marked()
+            # V4R10-6: the fd-direction needle of every role of this cell (see RREP above)
+            recs = []
+            try:
+                recs = [l.split("\t") for l in open(fdlog).read().splitlines() if l]
+            except OSError:
+                pass
+            EXPF = {"closed": "/dev/null", "wrongdir": "/dev/null", "full": "/dev/full", "null": "/dev/null"}
+            expf = tuple(EXPF.get(s_, "pipe:") for s_ in (si, so, se))
+            if PROBE_OK:
+                needle += " PROBE not injected: %s" % PROBE_OK
+            elif cname in ("usage", "freeze"):
+                if recs:
+                    needle += " FDPROBE %s starts no supervisor, yet the probe recorded %r" % (cname, recs)
+            else:
+                rolesseen = {r_[0] for r_ in recs}
+                wrong = [r_ for r_ in recs if len(r_) != 4 or not all(x.startswith(e) for x, e in zip(r_[1:], expf))]
+                if not {"main", "keeper", "worker"} <= rolesseen:
+                    needle += " FDPROBE control needle: roles recorded %r (want main, keeper, worker)" % sorted(rolesseen)
+                elif wrong:
+                    needle += " FDPROBE fds 0/1/2 %r != %r" % (wrong, expf)
             rep = os.path.exists(out)
             err = "".join(L.err_txt)
             tb = "Traceback" in err
             if needle:
                 bad("%s:%s" % (tag, needle))
             elif rc == want_rc and rep == want_rep and settled and not tb:
-                ok("%s: rc %s, report %s, quiescent" % (tag, rc, "written" if rep else "absent"))
+                ok("%s: rc %s, report %s, quiescent, fd needle %s" % (tag, rc, "written" if rep else "absent",
+                                                                     "none (unsupervised)" if cname in ("usage", "freeze")
+                                                                     else "main/keeper/worker %s" % (expf,)))
             else:
                 bad("%s: rc=%s (want %s) report=%s (want %s) quiescent=%s %s traceback=%s %s" %
                     (tag, rc, want_rc, rep, want_rep, settled, why, tb, err.strip()[-160:]))

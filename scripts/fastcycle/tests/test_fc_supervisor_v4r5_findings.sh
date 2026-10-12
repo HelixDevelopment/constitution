@@ -1062,7 +1062,10 @@ if want("CENSUS"):
                        capture_output=True, text=True, timeout=20)
     if nd.get("UMASK") != "0277":
         bad("[CENSUS] umask: control needle failed (umask %s)" % nd.get("UMASK"))
-    elif p.returncode == 4 and "umask" in p.stderr and not os.listdir(tmpu):
+    # round 10: the needle is the refusal's OWN text -- "umask" alone also matched the tmp-parent path (.../umask),
+    # so a mutant without the pre-flight, refused later for another reason (the state directory's lease cannot be
+    # created under an owner-masking umask), read as this refusal (found by the round-10 full mutation run: R5-F1f)
+    elif p.returncode == 4 and "masks the owner's permissions" in p.stderr and not os.listdir(tmpu):
         ok("[CENSUS] an umask masking the owner's bits (needle: 0277) is refused up front (exit 4 BLIND, nothing created)")
     else:
         bad("[CENSUS] umask 0277: rc=%s created=%s (%s)" % (p.returncode, os.listdir(tmpu), p.stderr.strip()[-160:]))
@@ -1233,7 +1236,7 @@ if want("UMASKS"):
         created = os.listdir(tmpu)
         if got != um:
             bad("[UMASKS] control needle: umask %s was not in effect (probe saw %s)" % (um, got))
-        elif refuse and p.returncode == 4 and "umask" in p.stderr and not created:
+        elif refuse and p.returncode == 4 and "masks the owner's permissions" in p.stderr and not created:  # V4R6-X2 r10
             ok("[UMASKS] umask %s (masks an owner bit; needle %s) is refused up front: exit 4 BLIND, nothing created"
                % (um, got))
         elif not refuse and p.returncode == 0 and not created:
