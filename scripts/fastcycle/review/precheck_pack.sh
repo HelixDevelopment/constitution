@@ -15,6 +15,7 @@
 #                     [--shellcheck-exceptions <tsv>]
 #                     [--shellcheck-timeout <s>] [--shellcheck-exception-timeout <s>]
 #                     [--shellcheck-memory-cap-mib <MiB>] [--shellcheck-max-lines <n>]
+#                     [--shellcheck-rule whole-file|baseline-delta]
 #
 # The shellcheck check is WHOLE-FILE STRICT with a SEVERITY FLOOR ("touch a
 # file, own its shellcheck findings"): every shell script the batch touches (by
@@ -59,6 +60,17 @@
 # rule appears that the pin lacks; lower counts pass (monotone ratchet).
 # Residual: a finding swapped for another of the SAME rule is invisible. An
 # unlisted file over --shellcheck-timeout (default 60 s) FAILs.
+# --shellcheck-rule baseline-delta (ATM-1217, operator decision 2026-10-13;
+# OPT-IN, default whole-file): with --baseline-repo/--baseline-ref, a blocking
+# finding of a file tracked at the base FAILs only when it is NEW versus the
+# base blob (keyed by rule + normalised message + normalised source-line text,
+# compared as multisets -- never by line number); pre-existing ones are listed
+# (baseline_findings). Byte-identical files are not linted; a side that cannot be
+# linted whole falls back to enclosing-function WINDOWS around the changed hunks
+# (state "window", with a caveat) or FAILs closed (state "unresolved"); a NEW
+# unjustified directive fails, a pre-existing one is listed. Its default per-lint
+# timeout is 120 s (whole-file: 60 s). Legacy-exception rows keep the ratchet.
+# Without a base it is the whole-file verdict, said so in evidence["delta"].
 # Other residuals (stated, not closed -- lib block comment R1-R8): touched-file
 # legacy findings are the toucher's to fix; packs are not signed (a
 # self-consistent forgery is possible); rename following stops at git's -M
@@ -121,6 +133,7 @@ SC_TIMEOUT=""
 SC_EX_TIMEOUT=""
 SC_MEM_CAP=""
 SC_MAX_LINES=""
+SC_RULE=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -171,6 +184,9 @@ while [ $# -gt 0 ]; do
         --shellcheck-max-lines)
             [ $# -ge 2 ] || { echo "precheck_pack.sh: --shellcheck-max-lines requires a value" >&2; exit 2; }
             SC_MAX_LINES="$2"; shift 2 ;;
+        --shellcheck-rule)
+            [ $# -ge 2 ] || { echo "precheck_pack.sh: --shellcheck-rule requires a value" >&2; exit 2; }
+            SC_RULE="$2"; shift 2 ;;
         *)
             echo "precheck_pack.sh: unknown option: $1" >&2
             exit 2 ;;
@@ -239,6 +255,7 @@ if [ -n "$SC_TIMEOUT" ]; then set -- "$@" --shellcheck-timeout "$SC_TIMEOUT"; fi
 if [ -n "$SC_EX_TIMEOUT" ]; then set -- "$@" --shellcheck-exception-timeout "$SC_EX_TIMEOUT"; fi
 if [ -n "$SC_MEM_CAP" ]; then set -- "$@" --shellcheck-memory-cap-mib "$SC_MEM_CAP"; fi
 if [ -n "$SC_MAX_LINES" ]; then set -- "$@" --shellcheck-max-lines "$SC_MAX_LINES"; fi
+if [ -n "$SC_RULE" ]; then set -- "$@" --shellcheck-rule "$SC_RULE"; fi
 if [ -n "$BASELINE_REPOS" ]; then
     OLDIFS=$IFS
     IFS='
