@@ -209,7 +209,7 @@ if want SH; then
   HEAD_SHA="$(git -C "$REPO" rev-parse HEAD)"
   # ---- needle ----
   WTN="$S/wt_needle"
-  bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$REPO" --worktree-root "$WTN" --min-free-kb 0 \
+  bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$REPO" --worktree-root "$WTN" --min-free-kb 0 --min-free-kb-objects 0 \
     --gate-cmd true --cold-runs 1 --warm-runs 0 --out "$S/needle.json" >/dev/null 2>"$S/needle.err"; rc=$?
   [ "$rc" = 0 ] && [ -s "$S/needle.json" ] \
     && ok "[R12SH-needle] control: a replay under trusted directories runs and writes its report (exit 0)" \
@@ -233,7 +233,7 @@ exit 0
 GATE
     mkdir -p "$S/state"
     R12_STATE="$S/state" R12_RL="$WTR/replay-logs" R12_VICTIM="$VICTIM" \
-      bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$REPO" --worktree-root "$WTR" --min-free-kb 0 \
+      bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$REPO" --worktree-root "$WTR" --min-free-kb 0 --min-free-kb-objects 0 \
       --gate-cmd "bash $S/gate.sh" --cold-runs 2 --warm-runs 0 --out "$S/plant.json" >/dev/null 2>"$S/plant.err"; rc=$?
     through="$(ls -A "$VICTIM" 2>/dev/null | tr '\n' ' ')"
     made="$(ls -A "$WTR/replay-logs" 2>/dev/null | tr '\n' ' ')"
@@ -248,7 +248,7 @@ GATE
   # ---- a --worktree-root another uid owns ----
   WTF="$S/wtf"; mkdir "$WTF"; chmod 777 "$WTF"
   if foreign "$WTF"; then
-    bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$REPO" --worktree-root "$WTF" --min-free-kb 0 \
+    bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$REPO" --worktree-root "$WTF" --min-free-kb 0 --min-free-kb-objects 0 \
       --gate-cmd true --cold-runs 1 --warm-runs 0 --out "$S/wtf.json" >/dev/null 2>"$S/wtf.err"; rc=$?
     [ "$rc" = 4 ] && [ -z "$(ls -A "$WTF")" ] \
       && ok "[R12SH-wtroot-foreign] a --worktree-root another uid owns (0777) -> BLIND 4, nothing created in it" \
@@ -258,7 +258,7 @@ GATE
   fi
   # ---- a --worktree-root of ours that is sticky + world-writable: trusted as a PARENT, but not this user's ALONE ----
   WTS="$S/wts"; mkdir "$WTS"; chmod 1777 "$WTS"
-  bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$REPO" --worktree-root "$WTS" --min-free-kb 0 \
+  bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$REPO" --worktree-root "$WTS" --min-free-kb 0 --min-free-kb-objects 0 \
     --gate-cmd true --cold-runs 1 --warm-runs 0 --out "$S/wts.json" >/dev/null 2>"$S/wts.err"; rc=$?
   [ "$rc" = 4 ] && [ -z "$(ls -A "$WTS")" ] && grep -q "trusted-parent rule" "$S/wts.err" \
     && ok "[R12SH-wtroot-sticky] a --worktree-root of ours that is 1777 (others may create names in it) -> BLIND 4: a namespace must be this user's ALONE" \
@@ -267,7 +267,7 @@ GATE
   TF="$S/tmpf"; mkdir "$TF"; chmod 777 "$TF"
   if foreign "$TF"; then
     TMPDIR="$TF" bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$REPO" --worktree-root "$S/wt_tf" \
-      --min-free-kb 0 --gate-cmd true --cold-runs 1 --warm-runs 0 --out "$S/tf.json" >/dev/null 2>"$S/tf.err"; rc=$?
+      --min-free-kb 0 --min-free-kb-objects 0 --gate-cmd true --cold-runs 1 --warm-runs 0 --out "$S/tf.json" >/dev/null 2>"$S/tf.err"; rc=$?
     [ "$rc" = 4 ] && [ -z "$(ls -A "$TF")" ] \
       && ok "[R12SH-tmpdir-foreign] a TMPDIR another uid owns (0777) -> BLIND 4, no temp / state directory made in it" \
       || bad "[R12SH-tmpdir-foreign] rc=$rc made=[$(ls -A "$TF" | tr '\n' ' ')] $(head -c 200 "$S/tf.err")"

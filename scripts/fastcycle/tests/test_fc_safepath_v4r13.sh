@@ -127,6 +127,9 @@ def indep_private(g):
         not [p for p in pwd.getpwall() if p.pw_gid == g and p.pw_uid != euid]
 # ---- [R13TRUST-*] the rule, clause by clause (synthetic stat: _trusted_ok is a pure function of it) ----
 real_gp = m._group_private
+real_af = getattr(m, "_acl_free", None)            # round 14 (V4R14-1): these rows are about a directory with NO ACL
+if real_af is not None:
+    m._acl_free = lambda ref: True
 try:
     m._group_private = lambda gid: False             # a group with another member
     for tid, mode, uid, want in (("root777", 0o40777, 0, False), ("root1777", 0o41777, 0, True),
@@ -150,6 +153,8 @@ try:
                                      % (tid, mode & 0o7777, got, want))
 finally:
     m._group_private = real_gp
+    if real_af is not None:
+        m._acl_free = real_af
 # ---- [R13GROUP-*] the real group database ----
 m._GROUP_PRIVATE.clear()
 want = indep_private(egid)
@@ -315,7 +320,7 @@ if want SH; then
     ( umask 002; mkdir -p "$U/work"; mk_repo "$U/work/repo" )
     HEAD_SHA="$(git -C "$U/work/repo" rev-parse HEAD)"
     m1="$(stat -c %a "$U/work")"
-    ( umask 002; bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$U/work/repo" --min-free-kb 0 \
+    ( umask 002; bash "$SCRIPT" replay --commit "$HEAD_SHA" --repo-root "$U/work/repo" --min-free-kb 0 --min-free-kb-objects 0 \
         --gate-cmd true --cold-runs 1 --warm-runs 0 --out "$U/out/u.json" >/dev/null 2>"$S/u.err" ); rc=$?
     [ "$m1" = 775 ] && [ "$rc" = 0 ] && [ -s "$U/out/u.json" ] \
       && ok "[R13UMASK-default] the DEFAULT flow (no --worktree-root) on a repository made under umask 002 (dirs $m1, group: this user's own) -> exit 0, report written (round 6: BLIND 4)" \
@@ -328,7 +333,7 @@ if want SH; then
     mkdir -p "$U2/work"; mk_repo "$U2/work/repo"
     chgrp "$SHARED_GID" "$U2/work" && chmod 775 "$U2/work"
     HEAD2="$(git -C "$U2/work/repo" rev-parse HEAD)"
-    bash "$SCRIPT" replay --commit "$HEAD2" --repo-root "$U2/work/repo" --min-free-kb 0 \
+    bash "$SCRIPT" replay --commit "$HEAD2" --repo-root "$U2/work/repo" --min-free-kb 0 --min-free-kb-objects 0 \
       --gate-cmd true --cold-runs 1 --warm-runs 0 --out "$S/us.json" >/dev/null 2>"$S/us.err"; rc=$?
     [ "$rc" = 4 ] && [ ! -e "$U2/work/repo/.fc_worktrees" ] && grep -q "writable by group $SHARED_GID" "$S/us.err" \
       && grep -q "chmod g-w" "$S/us.err" \
@@ -337,7 +342,7 @@ if want SH; then
       || bad "[R13UMASK-shared] rc=$rc made=$([ -e "$U2/work/repo/.fc_worktrees" ] && echo yes || echo no) $(head -c 400 "$S/us.err")"
     # replay-sample's site (V4R13-1(b)): its BLIND line names the --worktree-root it could not create
     printf '{"items": []}\n' >"$S/sample.json"
-    bash "$SCRIPT" replay-sample --sample "$S/sample.json" --repo-root "$U2/work/repo" --min-free-kb 0 \
+    bash "$SCRIPT" replay-sample --sample "$S/sample.json" --repo-root "$U2/work/repo" --min-free-kb 0 --min-free-kb-objects 0 \
       --gate-cmd true --cold-runs 1 --warm-runs 0 --out "$S/uss.json" >/dev/null 2>"$S/uss.err"; rc=$?
     [ "$rc" = 4 ] && grep -q -- "replay-sample: cannot create --worktree-root $U2/work/repo/.fc_worktrees," "$S/uss.err" \
       && ok "[R13MSG-sample] replay-sample's BLIND line names the --worktree-root it could not create (V4R13-1(b))" \
@@ -349,7 +354,7 @@ if want SH; then
   # --exclusive-parent mkdtemp right after it: either alone refuses, which is why RV6-14 is an EQUIVALENT mutant) ----
   RL="$S/wtlogs"; mkdir -m 700 "$RL"; mkdir "$RL/replay-logs"; chmod 1777 "$RL/replay-logs"
   REPO3="$S/repo3"; mk_repo "$REPO3"; HEAD3="$(git -C "$REPO3" rev-parse HEAD)"
-  bash "$SCRIPT" replay --commit "$HEAD3" --repo-root "$REPO3" --worktree-root "$RL" --min-free-kb 0 \
+  bash "$SCRIPT" replay --commit "$HEAD3" --repo-root "$REPO3" --worktree-root "$RL" --min-free-kb 0 --min-free-kb-objects 0 \
     --gate-cmd true --cold-runs 1 --warm-runs 0 --out "$S/rl.json" >/dev/null 2>"$S/rl.err"; rc=$?
   [ "$rc" = 4 ] && [ -z "$(ls -A "$RL/replay-logs")" ] && grep -q "trusted-parent rule" "$S/rl.err" \
     && ok "[R13SH-logs1777] a replay-logs directory of ours that is 1777 (others may create names in it) -> BLIND 4, nothing made in it" \

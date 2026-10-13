@@ -22,6 +22,10 @@ Python (AST):
   os.X         OS_PURE (no path), PY_OPS (path: classified below), PY_EXEMPT (function, op) with reason; else VIOLATION;
                a PY_OPS function REFERENCED but not called (functools.partial(os.unlink, p)) -> VIOLATION
   os.path.X    OS_PATH_PURE (strings); OS_PATH_READ -> needs a `# safepath:probe` tag; else VIOLATION
+  round 14     a DUNDER attribute anywhere (.__call__, __getattribute__, __builtins__, __globals__) -> VIOLATION; an
+               attribute of a permitted module (signal, sys, json, argparse, fcntl, ...) outside MODULE_ATTRS ->
+               VIOLATION; a module OBJECT used as a value (passed, stored, called) -> VIOLATION; an attribute OF a
+               path operation (os.unlink.X) -> VIOLATION; a procfs tag never covers an xattr WRITE
   ROUTED       a PY_OPS call whose dir_fd / src_dir_fd / dst_dir_fd (or listdir / scandir argument) is a PROVED directory
                fd: a value from the helpers (FD_DIRECT, FD_TUPLE), an os.open itself ROUTED, a parameter EVERY call site
                of which passes a proved fd (checked over the call graph; None only where FD_NONE_OK says why; a
@@ -39,7 +43,12 @@ Shell (a lexer, _ShLex):
   PROVED       a variable EVERY assignment of which is: $(_fc_safe mkdtemp ...), $(_fc_safe mkdir --exclusive ...) (a
                plain `_fc_safe mkdir` result is NOT a namespace), $(_fc_mktemp), $(mktemp [-d] "$_FC_TMPDIR/NAME") with
                NAME free of '/' and '..', ${FC_BR_TMPDIR} (proved --exclusive at worker start), or a proved variable +
-               '/...' -- the greatest fixed point; read / for targets are never proved
+               '/...' -- the greatest fixed point; read / for targets are never proved; round 14: `printf -v V` or
+               `unset V` of a PROVED V, and any nameref declaration (local / declare / typeset -n), -> VIOLATION
+  NOT CHECKED  (stated, round 14) a proved variable CLEARED to "" (a modelled form: `_FC_WT_PATH=""` after a
+               removal) expands empty at a later use ("$v/x" -> "/x"); the census is flow-insensitive and does not
+               prove the `[ -n "$v" ]` guard at each use -- a residual tracked in docs/qa/v4_round8_20261013/
+               CONVERGENCE.md
   python3      "$_FC_SUPERVISOR" -> ROUTED (censused as Python); `python3 - <<'X'` -> its program must be READ-ONLY
                (_heredoc_py_bad); SH_PROGRAMS / SH_EXEMPT rows; anything else (python3 -c ...) -> VIOLATION
   git          GIT_RO sub-commands, `config --get*`, `worktree list`, `worktree prune` (TAGGED); add/remove/unlock and
@@ -81,7 +90,10 @@ PY_IMPORTS = {("_signal", "_early_sig"), ("os", None), ("signal", None), ("ctype
 # listdir / scandir -- a proved fd as the argument), ROOT, TAGGED, or a VIOLATION
 PY_OPS = {"open", "unlink", "remove", "rmdir", "mkdir", "makedirs", "rename", "replace", "link", "symlink", "chmod",
           "chown", "lchown", "truncate", "listdir", "scandir", "mkfifo", "mknod", "stat", "lstat", "access",
-          "readlink", "utime"}
+          "readlink", "utime", "listxattr", "getxattr", "setxattr", "removexattr"}
+# round 14 (V4R14-1): the xattr family takes a path too; listxattr / getxattr are read-only queries (the procfs tag is
+# accepted for them), setxattr / removexattr CHANGE the object -- never accepted by a tag
+PY_XATTR_WRITE = {"os.setxattr", "os.removexattr"}
 # os attributes that take no path (reviewed one by one; fd-, pid- or value-based); O_* and W* macros too
 OS_PURE = {"_exit", "close", "dup2", "environ", "fdopen", "fork", "fsdecode", "fsencode", "fstat", "fsync",
            "ftruncate", "getcwd", "getegid", "geteuid", "getgroups", "getpid", "getppid", "pidfd_open", "pipe", "read",
@@ -101,6 +113,26 @@ FS_MODULE_NAMES = {"pathlib", "io", "codecs", "glob", "shutil", "tempfile", "sql
                    "zipfile", "tarfile", "gzip", "bz2", "lzma", "dbm", "shelve", "runpy", "pty", "socket"}
 PY_DYNAMIC = {"getattr", "setattr", "__import__", "eval", "exec", "compile", "globals", "vars"}
 PY_TAGS = {"procfs", "devnull", "probe"}
+# round 14 (V4R14-2): EVERY attribute of a permitted module that is NOT one of the os / subprocess / ctypes /
+# importlib families above is MODELLED here (the names fc_supervisor.py uses, each reviewed: none takes a path); any
+# other attribute of these modules -- argparse.FileType, sys.modules, fcntl.ioctl, ... -- is a VIOLATION (fail-closed).
+MODULE_ATTRS = {
+    "signal": {"NSIG", "SIGCHLD", "SIGCONT", "SIGHUP", "SIGINT", "SIGKILL", "SIGQUIT", "SIGSTOP", "SIGTERM", "SIGUSR2",
+               "SIG_BLOCK", "SIG_DFL", "SIG_IGN", "SIG_SETMASK", "getsignal", "pidfd_send_signal", "pthread_sigmask",
+               "signal"},                                  # signal numbers and dispositions; pidfd_* acts on a pid fd
+    "_early_sig": {"SIGINT", "SIG_IGN", "getsignal", "signal"},
+    "select": {"select"},                                  # waits on fds
+    "sys": {"argv", "exit", "stderr", "stdout"},           # the process's own arguments / streams (already open)
+    "time": {"monotonic", "sleep", "time_ns"},
+    "fcntl": {"F_GETFL", "LOCK_EX", "LOCK_NB", "fcntl", "flock"},   # on fds this module opened through the helpers
+    "json": {"dumps", "loads"},                            # strings only (dump / load would take a file object)
+    "argparse": {"ArgumentParser"},                        # FileType would OPEN a path: not modelled
+    "grp": {"getgrgid"}, "pwd": {"getpwall", "getpwuid"},  # the group / user database (read-only queries)
+    "_st": {"S_IMODE", "S_ISDIR", "S_ISLNK", "S_ISREG", "S_ISVTX"},  # mode-bit arithmetic
+}
+# round 14 (V4R14-2): module OBJECTS -- a bare use of one of these names (passed, stored, called, a default value)
+# hands the module to code the census cannot follow (type(os).__getattribute__(os, "unlink"), (lambda o: ...)(os))
+PY_MODULE_OBJECTS = {"os", "subprocess", "ctypes", "importlib", "_libc"} | set(MODULE_ATTRS)
 # the closed, justified EXEMPTIONS (function, operation) -> why: each is a path operation by design
 PY_EXEMPT = {
     ("spawn", "os.chdir"): "the gate's working directory, in the forked child before exec: callers pass a worktree "
@@ -335,7 +367,18 @@ def py_census(path):
                 row(node, func, node.func.id + "()", "VIOLATION",
                     "a dynamic lookup / evaluation the census cannot follow (fail-closed)")
             continue
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in PY_MODULE_OBJECTS:
+            par0 = parent.get(id(node))
+            if not (isinstance(par0, ast.Attribute) and par0.value is node):
+                row(node, func, node.id, "VIOLATION", "the module object %s is used as a VALUE (passed, stored, "
+                    "called): the census cannot follow what is done with it (fail-closed, round 14)" % node.id)
+            continue
         if not isinstance(node, ast.Attribute):
+            continue
+        if node.attr.startswith("__") and node.attr.endswith("__"):
+            row(node, func, "." + node.attr, "VIOLATION", "a dunder attribute (%s) reaches a callable / namespace past "
+                "the census's model (.__call__, __getattribute__, __builtins__, __globals__, __dict__: fail-closed, "
+                "round 14)" % node.attr)
             continue
         d = _dotted(node)
         par = parent.get(id(node))
@@ -358,6 +401,15 @@ def py_census(path):
                 rows.append(_py_tagged(path, par, func, d, lines))
                 continue
             row(node, func, d, "VIOLATION", "os.path.%s: not in the census's model (fail-closed)" % rest)
+            continue
+        if head in MODULE_ATTRS:
+            if d.count(".") == 0 or d.split(".")[1] not in MODULE_ATTRS[head]:
+                row(node, func, d, "VIOLATION", "%s: an attribute of %s outside MODULE_ATTRS (fail-closed, round 14)"
+                    % (d, head))
+            continue
+        if head == "os" and d.count(".") >= 2 and d.split(".")[1] in PY_OPS:
+            row(node, func, d, "VIOLATION", "%s: an attribute OF a path operation -- the census cannot see what it is "
+                "applied to (fail-closed, round 14)" % d)
             continue
         if head == "os" and d.count(".") == 1:
             attr = d[3:]
@@ -429,7 +481,9 @@ def _py_tagged(path, call, func, name, lines):
             why = "unknown safepath tag %r (closed set: %s)" % (tag, ", ".join(sorted(PY_TAGS)))
         elif tag == "procfs":
             s0 = ast.unparse(arg0) if arg0 is not None else ""
-            if re.match(r"""^['"]/proc/[^'"]*['"]( % .*)?$""", s0) and ".." not in s0:
+            if name in PY_XATTR_WRITE:
+                why = "tagged procfs but %s CHANGES the object (round 14: the tag covers queries only)" % name
+            elif re.match(r"""^['"]/proc/[^'"]*['"]( % .*)?$""", s0) and ".." not in s0:
                 verdict, why = "TAGGED", "procfs: kernel-owned (%s)" % s0[:40]
             else:
                 why = "tagged procfs but the path is not a literal /proc/... (%s)" % s0[:40]
@@ -774,6 +828,25 @@ def sh_census(path):
                     return
             classify(cm, rest, depth + 1)
             return
+        # round 14 (V4R14-2): assignments the provenance pass does not see -- each a VIOLATION at its own line
+        if w0 in ("local", "declare", "typeset") and [a for a in args if re.match(r"^-[A-Za-z]*n[A-Za-z]*$", a)]:
+            add(cm, w0 + " -n", "VIOLATION", "a NAMEREF: an assignment through it changes another variable the "
+                                            "provenance pass cannot follow (fail-closed, round 14)")
+            return
+        if w0 == "printf":
+            tg = [args[i + 1] for i, a in enumerate(args[:-1]) if a == "-v"] + \
+                 [a[2:] for a in args if a.startswith("-v") and len(a) > 2]
+            hit = [t for t in tg if t.split("[")[0] in proved]
+            if hit:
+                add(cm, "printf -v", "VIOLATION", "printf -v assigns the PROVED variable %s outside the provenance "
+                                                  "model (fail-closed, round 14)" % hit[0])
+                return
+        if w0 == "unset" and not [a for a in args if a in ("-f", "-F")]:
+            hit = [a for a in args if not a.startswith("-") and a.split("[")[0] in proved]
+            if hit:
+                add(cm, "unset", "VIOLATION", "unset of the PROVED variable %s: it would expand EMPTY ($v/x -> /x; "
+                                              "fail-closed, round 14)" % hit[0])
+                return
         if w0 in SH_NOOP:
             if w0 == "trap" or (w0 == "command" and args[:1] != ["-v"]):
                 pass
@@ -1372,13 +1445,31 @@ SELF_PY = ['import os as _o2;;_o2.unlink(p)', 'from os import unlink as _u;;_u(p
            'import tempfile;;tempfile.mkdtemp()', 'open(p, "w")', 'os.path.exists(p)', 'eval("os.unlink(p)")', 'f = os.unlink',
            'x.exec_module(m)', 'subprocess.Popen(["rm", p])', 'os.unlink(p, dir_fd=fd)', '_libc.unlink(p)',
            'os.path.getmtime(p)', '__import__("os").unlink(p)', 'os.popen("rm " + p)', 'os.truncate(p, 0)',
-           '!os.listdir(fd)', '!os.unlink("x", dir_fd=fd)']   # '!': the function has NO call site (vacuity, A14)
+           '!os.listdir(fd)', '!os.unlink("x", dir_fd=fd)',   # '!': the function has NO call site (vacuity, A14)
+           # round 14 (V4R14-2): the round-7 reviewer's 4 escapes, and the class they belong to (dunder access to a
+           # modelled callable / to builtins, attributes of permitted-but-unmodelled modules, module objects as values)
+           'os.unlink.__call__(p)', 'type(os).__getattribute__(os, "unlink")(p)', 'select.__builtins__["open"](p, "w")',
+           'argparse.FileType("w")(p)', 'signal.signal.__globals__["os"].unlink(p)', 'time.__loader__',
+           'sys.modules["os"].unlink(p)', 'fcntl.ioctl(fd, 0)', 'json.dump({}, m)', 'x = os', 'os.unlink.func(p)',
+           'os.setxattr("/proc/self/fd/%d" % fd, "user.x", b"1")  # safepath:procfs']
 # needles that must be refused for a SPECIFIC reason (the rule that is meant to catch them, not a later fallback)
 SELF_REASON = {'\\rm -rf "$u/j"': "indirect", '"rm" -rf "$u/k"': "indirect", '${RMCMD:-rm} -rf "$u/m"': "indirect",
                'eval "rm -rf $u/l"': "eval runs text", 'install -d "$u/a"': "not in the census's tables",
                'os.unlink(p, dir_fd=None)': "not a PROVED directory fd", '!os.listdir(fd)': "outside the trusted",
-               'rm -rf "$_FC_TMPDIR/../../victim"': "not proved", 'f = os.unlink': "REFERENCED, not called"}
-SELF_PY_OK = ['os.unlink("x", dir_fd=open_owned_dir(p))', 'os.path.join(p, "x")', 'os.close(fd)',
+               'rm -rf "$_FC_TMPDIR/../../victim"': "not proved", 'f = os.unlink': "REFERENCED, not called",
+               # round 14: each new needle refused by the rule written for it
+               'os.unlink.__call__(p)': "dunder", 'type(os).__getattribute__(os, "unlink")(p)': "dunder",
+               'select.__builtins__["open"](p, "w")': "dunder", 'argparse.FileType("w")(p)': "outside MODULE_ATTRS",
+               'signal.signal.__globals__["os"].unlink(p)': "dunder", 'time.__loader__': "dunder",
+               'sys.modules["os"].unlink(p)': "outside MODULE_ATTRS", 'fcntl.ioctl(fd, 0)': "outside MODULE_ATTRS",
+               'json.dump({}, m)': "outside MODULE_ATTRS", 'x = os': "used as a VALUE",
+               'os.unlink.func(p)': "an attribute OF a path operation",
+               'printf -v _wr %s /etc; rm -rf "$_wr/x"': "printf -v", 'printf -v_wr %s /etc': "printf -v",
+               'local -n _rvref=_wr; _rvref=/etc; rm -rf "$_wr"': "NAMEREF", 'declare -n _rv2=_wr': "NAMEREF",
+               'unset _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"': "unset of the PROVED", 'unset -v _wr': "unset of the PROVED"}
+SELF_PY_OK = ['os.listxattr("/proc/self/fd/%d" % fd)  # safepath:procfs', 'os.environ.get("HOME", "")',  # round 14
+              'sys.stderr.write("x")', 'json.dumps({})',
+              'os.unlink("x", dir_fd=open_owned_dir(p))', 'os.path.join(p, "x")', 'os.close(fd)',
               'n = os.fstat(fd).st_size']
 SELF_SH = ['install -d "$u/a"', 'dd if=/dev/zero of="$u/b" count=1', 'rsync -a "$u/c" "$u/d"', 'chmod 777 "$u/e"',
            'truncate -s0 "$u/f"', 'sed -i s/a/b/ "$u/g"', 'echo x >| "$u/h"', 'exec 3<> "$u/i"', '\\rm -rf "$u/j"',
@@ -1392,8 +1483,13 @@ SELF_SH = ['install -d "$u/a"', 'dd if=/dev/zero of="$u/b" count=1', 'rsync -a "
            'echo x &>"$u/y"', "trap 'rm -rf /tmp/x' EXIT", "\"$BASH\" -c 'rm -rf /tmp/x'",
            '_fc_run_child /dev/null 1 "$u" "$u" -- rm -rf "$u"', 'x="$_FC_TMPDIR"; rm -rf "$x.sibling"',
            'git -C "$u" checkout -f', 'source "$u/x"', 'bash "$u/x"', 'cc -o "$u/bin" x.c',
-           'sed -n p "$u/file"']
-SELF_SH_OK = ['rm -f "$_FC_TMPDIR/x"', 'printf x >"$_FC_TMPDIR/y"', '_fc_safe rmtree "$u"', 'echo "rm -rf $u"',
+           'sed -n p "$u/file"',
+           # round 14 (V4R14-2): the round-7 reviewer's 3 shell escapes (assignments the provenance pass did not see)
+           'printf -v _wr %s /etc; rm -rf "$_wr/x"', 'local -n _rvref=_wr; _rvref=/etc; rm -rf "$_wr"',
+           'unset _FC_TMPDIR; rm -rf "$_FC_TMPDIR/x"', 'declare -n _rv2=_wr', 'printf -v_wr %s /etc',
+           'unset -v _wr']
+SELF_SH_OK = ['printf -v _intr %s x', 'unset FC_OUT', 'unset -f _needle', 'local -r _ro=1',   # round 14 controls
+              'rm -f "$_FC_TMPDIR/x"', 'printf x >"$_FC_TMPDIR/y"', '_fc_safe rmtree "$u"', 'echo "rm -rf $u"',
               'm="$(_fc_mktemp)"; rm -f "$m.t"', 'git -C "$u" rev-parse HEAD', 'printf x >&2', ': >/dev/null']
 
 
