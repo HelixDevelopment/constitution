@@ -1219,10 +1219,14 @@ configured upstreams. Use a shell helper that iterates
 (<code>git remote set-url --add --push origin &lt;url&gt;</code> per
 remote).</p>
 <hr />
-<h3 id="114230--parallelized-pipeline-methodology-buildvalidate-overlap--affected-stages-only-re-run--parallel-multi-device-testingrecording--fan-out-subagents-always-research-derived-2026-07-26">§11.4.230
+<h3 id="114230--parallelized-pipeline-methodology-buildvalidate-overlap--affected-stages-only-re-run--parallel-multi-device-testingrecording--fan-out-subagents-always--incremental-delivery-granularity-with-a-declared-qa-build-cadence--a-quick-visible-first-deliverable-with-a-hardening-status-and-ledger-tracked-to-production-readiness-research-derived-2026-07-26-clause-d-added-2026-10-04-clause-e-added-2026-10-12">§11.4.230
 — Parallelized-pipeline methodology: build↔︎validate overlap +
 affected-stages-only re-run + parallel multi-device testing/recording +
-fan-out-subagents-always (research-derived, 2026-07-26)</h3>
+fan-out-subagents-always + incremental delivery granularity with a
+declared QA-build cadence + a quick visible first deliverable with a
+hardening status and ledger tracked to production readiness
+(research-derived, 2026-07-26; clause (D) added 2026-10-04; clause (E)
+added 2026-10-12)</h3>
 <p>Forensic motivation (genericised): the sequential pipeline shape —
 build FULLY completes → THEN validation begins → on ANY discovery,
 restart the WHOLE cycle from scratch → all devices tested one-at-a-time
@@ -1236,11 +1240,15 @@ N; §11.4.89 already backgrounds long tests; §11.4.103 already mandates
 ≥3 auto-backfilled parallel streams; §11.4.119 already partitions shared
 hardware by single-owner; §11.4.128/§11.4.144 already mandate always-on
 recording + availability-following. §11.4.230 BINDS those into one
-operating discipline and adds the three invariants they did not each
+operating discipline and adds the five invariants they did not each
 state on their own: (A) the build↔︎validate CONCURRENCY seam +
 affected-stages-only re-run-on-discovery, (B) all-devices-concurrent +
 worker-pool recording/processing, (C) fan-out-subagents as the standing
-default. It is the parallelization capstone the way §11.4.103 is the
+default, (D) incremental delivery granularity + a declared QA-build
+cadence (added 2026-10-04), (E) a quick visible first deliverable
+ordered first on the critical path + a machine-computed per-deliverable
+hardening status and ledger tracked to production readiness (added
+2026-10-12). It is the parallelization capstone the way §11.4.103 is the
 continuous-parallel-stream capstone — a strengthening bind, never a
 weakening.</p>
 <p><strong>(A) PIPELINE-OVERLAP PARALLELIZATION.</strong>
@@ -1335,6 +1343,1078 @@ may not both drive one exclusive device); (6) critical-state sequencing
 maximum USEFUL parallel throughput, never agent count; fan-out that
 exceeds a host-safety ceiling or contends a single resource is a
 violation, not compliance.</p>
+<p><strong>(D) INCREMENTAL DELIVERY GRANULARITY + DECLARED QA-BUILD
+CADENCE — a long-running spec/feature ships every already-proven-correct
+increment as it clears its own bar, never withholding delivery until the
+WHOLE spec/feature is done (operator mandate, 2026-10-04,
+<code>CRITICAL</code>; research-derived; added 2026-10-04).</strong>
+Verbatim operator mandate (2026-10-04): &quot;All work we do, especially
+SpecKit specs, gets incorporated right away. Fully deterministic
+validation/verification tests of all supported test types relying on
+machine-produced evidence get incorporated too, aiming to cover
+everything critical. All intensive testing (gates, checks, fixing,
+polishing) keeps running in BACKGROUND continuously until fully done. IN
+PARALLEL we keep building specs one by one, phase by phase, story by
+story, task by task. We get fast delivery results and AS SOON AS
+POSSIBLE builds that can be handed to QA teams for manual testing RIGHT
+AWAY, while in parallel all testing/fixing/polishing/improvement
+continues exactly as it would anyway. We do NOT wait for all of that to
+finish first — that can take days [...]. QA reports discovered issues;
+background agents keep working until everything is absolutely flawless.
+As background work progresses and fixes/improvements land in the main
+codebase, we keep producing REGULAR builds periodically delivered to QA
+teams for ongoing full manual testing. It is critical that background
+agents keep ALL workable items, documentation, and other materials in
+sync so nothing ever goes out of date.&quot; Forensic anchor (genericised,
+FACT): in one consuming project a multi-phase spec had RED tests drafted
+for every phase and many source slices independently reviewed to a
+source-correctness GO, yet nothing reached QA for days, because delivery
+was implicitly held at the WHOLE-SPEC boundary while ONE slice&#39;s
+iterate-to-GO review loop ran past forty rounds — the finished, proven
+work of every other slice sat undelivered. The GAP this clause closes,
+stated precisely so it is not restated elsewhere (§11.4.227): clause (A)
+overlaps validation with the build of ONE candidate; §11.4.235(A) makes
+a batch build-eligible on source-correctness alone; §11.4.235(D) makes
+that eligibility PER SLICE inside a batched review — but none of them
+obliges an ELIGIBLE increment to actually be DELIVERED before the rest
+of its spec completes, none sets a delivery CADENCE, none says how an
+incomplete spec stays safe to ship, and none binds the hand-off to
+tracker truth. Build-eligibility that is never exercised is the same
+withheld delivery under a different name. ALL of the following hold:</p>
+<p><strong>(D.1) THE DELIVERY UNIT IS THE INCREMENT, NOT THE
+SPEC.</strong> A spec / feature / epic decomposed into phases / stories
+/ tasks (vertical, independently testable slices per the §11.4.148
+SLICING extension — Small + Testable) MUST integrate each increment into
+its INTEGRATION BRANCH — the trunk for <code>main</code>-targeted work,
+or the <code>feat/</code> / <code>product/</code> / <code>flavor/</code>
+branch (§11.4.195) the increment actually lives on for branch-scoped
+work — and make it part of the next QA deliverable (D.3) cut from that
+branch, the moment THAT increment holds its OWN source-correctness GO
+per §11.4.235(A)/(D). When an increment exists on MULTIPLE coexisting
+integration branches — for example both a <code>product/*</code> AND a
+<code>flavor/*</code> branch per §11.4.195(A) — EACH branch is
+independently obligated under (D.3)&#39;s own per-branch cadence: the
+increment&#39;s delivery obligation is evaluated separately per branch it
+lives on, never as a single ambiguous &quot;the branch&quot;. A QA build MAY be
+cut from a <code>feat/</code> / <code>product/</code> /
+<code>flavor/</code> branch. For a <code>feat/</code> branch that QA
+build IS the live-manual-testing vehicle §11.4.195(B) requires BEFORE
+the branch may merge to trunk, so the feature-branch QA build is the
+PRECURSOR to trunk-landing, never a consequence of it; a
+<code>product/</code> / <code>flavor/</code> line, which never merges to
+trunk the standard way (§11.4.195(C)), receives its cadence builds from
+its own branch. Clause (D) relaxes neither §11.4.195(B) (no
+<code>feat/</code> merge to trunk before live manual QA) nor
+§11.4.195(C), and a later merge of the branch to trunk still follows
+§11.4.195 / §11.4.188. Withholding an already-build-eligible increment
+solely because OTHER increments of the same spec are unfinished, or
+because its own or another increment&#39;s <code>test-instrumentation</code>
+/ <code>process-doc</code> loops (§11.4.235(D)) are still open, is a
+§11.4.230(D) violation. An increment WITHOUT its own source-correctness
+GO is not deliverable — incremental delivery is never a licence to ship
+unreviewed or unproven work.</p>
+<p><strong>(D.2) INCOMPLETE-SPEC, SAFE DELIVERABLE.</strong> Shipping an
+increment while its spec is incomplete MUST leave the deliverable
+correct on every path a user or QA tester can reach: EITHER the
+increment is a complete, independently valuable vertical slice, OR the
+unfinished surface is LATENT — unreachable by construction, behind a
+release toggle (P. Hodgson, &quot;Feature Toggles&quot;, martinfowler.com, 2017:
+&quot;Release Toggles allow incomplete and un-tested codepaths to be shipped
+to production as latent code which may never be turned on&quot;), or behind
+branch-by-abstraction (trunkbaseddevelopment.com: a technique &quot;to effect
+a &#39;longer to complete&#39; change in the trunk&quot;). A toggle is a PERMITTED
+mechanism, never a mandated one (consistent with §11.4.265&#39;s own
+statement that it mandates none), and it is inventory with a carrying
+cost (Hodgson: &quot;Savvy teams view their Feature Toggles as inventory
+which comes with a carrying cost&quot;): every release toggle carries a
+tracked §11.4.197 removal item and a consumer-declared expiry
+(§11.4.35), and a toggle past its expiry is a §11.4.261 finding. A
+toggle that needs to outlive its expiry — for example because its latent
+path&#39;s (D.4) hardening loop legitimately runs many rounds — is extended
+ONLY through a §11.4.271 waiver (rostered non-producer authoriser, a new
+unelapsed expiry, a named tracked item), never by a silent expiry edit,
+by enabling the still-unproven path, or by deleting finished work. A
+latent path is NOT an advertised capability (§11.4.266) until it is
+enabled and proven.</p>
+<p><strong>(D.3) A DECLARED QA-BUILD CADENCE, NOT A ONE-SHOT.</strong>
+Every project declares as DATA (§11.4.35) its QA-build trigger:
+<code>per-increment</code> (each build-eligible increment landing on its
+integration branch, D.1), <code>periodic</code> (a fixed interval — the
+release-train pattern; SAFe&#39;s &quot;Develop on Cadence. Release on Demand&quot;
+separates the development rhythm from the release decision), or
+<code>whichever-first</code>; a project that declares nothing gets
+<code>per-increment</code>, the safe default (§11.4.101). A
+<code>periodic</code> or <code>whichever-first</code> interval MUST be
+recorded as DATA together with its written justification (§11.4.35) and
+stated in every QA hand-off record (D.5), so an interval long enough to
+defeat this clause is visible rather than silent; this clause sets no
+numeric maximum — any such cap is an operator decision (§11.4.66).
+Whenever an integration branch (D.1) holds build-eligible content not
+yet in a QA build cut from that branch and the declared trigger has
+fired, a QA deliverable MUST be cut from that branch and handed to QA
+for ongoing manual testing (§11.4.185). Builds COALESCE: a QA build
+already in flight covers every increment that had landed on its branch
+before that build started, and increments landing WHILE it is in flight
+roll into the NEXT build rather than each demanding a fresh one — the
+obligation is that eligible content never waits past the next build, not
+one build per increment. A build that FAILS, or is REFUSED at §11.4.236,
+covers NOTHING — its increments roll into the next build. &quot;Completed&quot; in
+this clause and in its two amended gate contracts (D&#39;s recommended
+gates, below) means HANDED TO QA: a build provides coverage only once it
+has genuinely been handed to QA for manual testing, never merely once
+the build process itself exits successfully. Each such deliverable is a
+§11.4.235(B) cycle boundary with its own monotonic version increment
+(§11.4.151), passing §11.4.236 readiness on its own candidate
+fingerprint, and built once then promoted (§11.4.264). The §11.4.236
+&quot;mandated validation&quot; for a cadence build is AT MINIMUM the
+source-correctness GO plus the pre/post-build gates of §11.4.235(A),
+PLUS every operator-declared blocker bound to the QA-deploy seam per
+§11.4.236 and any §11.4.239 critical-invariant scenarios the increment
+touches — NOT the open background-hardening backlog, which by
+§11.4.235(A) never gates a build. &quot;Deliverable&quot; is project-defined DATA
+(§11.4.35): a binary, a container, a device image — or, for a
+dev-tooling / governance feature, the feature&#39;s own demonstrable,
+testable state at a fingerprinted commit; no artifact form is implied by
+this clause.</p>
+<p><strong>(D.4) CONTINUOUS BACKGROUND HARDENING THAT NEVER BLOCKS THE
+NEXT INCREMENT.</strong> Test-instrumentation hardening, gate / check /
+mutation authoring, polishing, and the fixes for QA-reported findings on
+ALREADY-delivered increments run as standing background streams
+(§11.4.103 / §11.4.192 / clause (C)), each a tracked item (§11.4.197)
+driven to its own zero-finding GO (§11.4.134 — not relaxed), landing on
+its integration branch (D.1) as it reaches GO and riding the NEXT
+cadence build cut from that branch. They never gate a LATER increment&#39;s
+build-eligibility, with two exceptions that follow from existing anchors
+rather than relax them: an open <code>source-defect</code> finding
+(§11.4.235(D)) in code the later increment touches or depends on is a
+<code>source-defect</code> of that later increment too; and a huge
+blocker still triggers §11.4.129 STOP → fix-all → full restart.</p>
+<p><strong>(D.5) NEVER-STALE TRACKING IS A PRECONDITION OF EVERY
+HAND-OFF, NOT AN AFTERTHOUGHT.</strong> With many increments and many
+background streams in flight at once, the existing sync machinery —
+§11.4.106(F) write-seam doc/DB sync, §11.4.229 live tracker, §11.4.202 /
+§11.4.208 / §11.4.210 intake and request history, §11.4.148 item
+integrity, §11.4.197 completion — applies at EVERY increment landing and
+EVERY cadence build (cited, not restated). Each QA hand-off records the
+deliverable&#39;s fingerprint and the exact set of tracked items it
+contains; a hand-off whose tracker or documents disagree with the
+deliverable (an item marked done whose fix is not in that build, or a
+fix in the build that no item records) is a §11.4 PASS-bluff at the
+delivery layer.</p>
+<p><strong>(D.6) QA FINDINGS ON EARLY INCREMENTS ARE STILL COVERAGE
+ESCAPES.</strong> Earlier, more frequent QA builds surface defects
+earlier; they do NOT make manual QA the discovery mechanism. Every
+defect manual QA finds on an increment build triggers the §11.4.238(C)
+coverage-escape audit and a new automated check, exactly as for a
+release candidate.</p>
+<p><strong>(D) honest boundary, research grounding, and gates.</strong>
+Honest boundary (§11.4.6): clause (D) changes WHEN and HOW OFTEN
+proven-correct work reaches QA; it does NOT change what gates a release
+candidate. It does not weaken §11.4.129 (huge-blocker full restart),
+§11.4.40 (full-suite retest before a release TAG — a cadence QA build is
+not a tag), §11.4.185 (manual-QA-final terminal gate for a release),
+§11.4.236 (readiness verdict per candidate), §11.4.264 / §11.4.265
+(build once and promote; progressive delivery), §11.4.134 (every finding
+of every layer still driven to GO), or §11.4.235(D)&#39;s conservative-safe
+default (an unclassifiable finding is a <code>source-defect</code> and
+does block). It does not prove any increment correct — that stays
+§11.4.108 / §11.4.235. Research grounding, stated honestly: DORA&#39;s
+&quot;Working in small batches&quot; capability (dora.dev) — &quot;break them down into
+work units that can be completed independently and in short timeframes&quot;,
+with dark launching / feature toggles named as the way to deploy
+incomplete features hidden from users; Hodgson&#39;s toggle taxonomy and
+toggle-as-inventory discipline (quoted in D.2); branch-by-abstraction
+(quoted in D.2); SAFe&#39;s &quot;Develop on Cadence. Release on Demand&quot; (D.3);
+and GitHub Next&#39;s 2026 &quot;Continuous AI&quot; / Agentic Workflows technical
+preview, which its principal researcher calls &quot;the agentic evolution of
+continuous integration&quot; — scheduled or event-triggered agent loops for
+recurring work such as CI-failure investigation and documentation-drift
+fixing, cited here only as industry direction for (D.4)/(D.5), not as an
+adopted mechanism. No single published methodology was found that
+combines per-increment QA delivery with continuously running agent
+hardening streams; that composition is this clause&#39;s own synthesis, not
+a claim of prior art. Classification: universal (§11.4.17) — consumers
+supply the cadence trigger, interval, toggle mechanism and expiry
+policy, and the deliverable form as DATA per §11.4.35. Composes
+§11.4.101 / §11.4.103 / §11.4.106(F) / §11.4.129 / §11.4.134 / §11.4.148
+/ §11.4.151 / §11.4.185 / §11.4.188 / §11.4.192 / §11.4.195 / §11.4.197
+/ §11.4.202 / §11.4.208 / §11.4.210 / §11.4.229 / §11.4.235(A)(B)(D) /
+§11.4.236 / §11.4.238 / §11.4.239 / §11.4.261 / §11.4.264 / §11.4.265 /
+§11.4.266 / §11.4.271. Recommended gates
+<code>CM-INCREMENT-DELIVERED-NOT-SPEC-WITHHELD</code> (FAIL: an
+increment holding its source-correctness GO is absent from every
+completed-and-handed-to-QA or in-flight QA build from its integration
+branch (D.1) after the declared trigger fired while no build from that
+branch is in flight — coalescing per (D.3) so an increment waiting on an
+in-flight build&#39;s successor is never a FAIL, and a build that FAILED or
+was REFUSED at §11.4.236 counts as NEITHER completed NOR in-flight so it
+provides no coverage and the increment rolls to the next build; FAIL,
+the §11.4.201(1) dual guard: an increment WITHOUT that GO appears in a
+QA build) + <code>CM-QA-BUILD-CADENCE-DECLARED</code> (FAIL: an
+integration branch (D.1) holds build-eligible content that no
+completed-and-handed-to-QA or in-flight QA build from that branch
+covers, the declared trigger has fired, and no QA build from that branch
+is in flight; coalescing per (D.3) — a build in flight covers every
+increment that landed before it started and later increments roll into
+the NEXT build, so an in-flight build is never a FAIL and the gate never
+demands one build per increment; a build that FAILED or was REFUSED at
+§11.4.236 covers NOTHING and does not satisfy this gate; FAIL also: a
+<code>periodic</code> / <code>whichever-first</code> interval with no
+recorded justification; an absent declaration resolves to
+<code>per-increment</code>, never to &quot;no cadence&quot;) +
+<code>CM-RELEASE-TOGGLE-TRACKED-EXPIRY</code> (FAIL: a release toggle
+with no tracked removal item or no expiry, or past its expiry) +
+<code>CM-QA-HANDOFF-TRACKER-IN-SYNC</code> (FAIL: a hand-off record
+whose item set disagrees with the deliverable&#39;s contents) + paired §1.1
+mutations (withhold an eligible increment until spec completion; ship an
+increment lacking its GO; delete the cadence declaration and assert a
+&quot;no cadence&quot; reading; add a toggle with no expiry; mark an item done
+whose fix is absent from the build → each gate MUST FAIL; golden-FALSE:
+an increment shipped on the first trigger after its GO, behind a tracked
+unexpired toggle, with a matching hand-off record → none fires).
+Gate-code = separate work item, NOT claimed shipped (§11.4.6 /
+§11.4.227); the four gates are registered as tracked deferrals in
+<code>constitution/scripts/gates/gate_ledger_deferrals.tsv</code>. No
+escape hatch — no <code>--withhold-until-spec-complete</code>,
+<code>--hardening-gates-next-increment</code>,
+<code>--no-qa-cadence</code>, <code>--untracked-release-toggle</code>,
+<code>--stale-tracker-at-handoff</code>,
+<code>--manual-qa-as-discovery</code> flag.</p>
+<p><strong>(E) QUICK VISIBLE FIRST DELIVERABLE, THEN HARDENING TRACKED
+TO PRODUCTION READINESS — A FAST DELIVERABLE IS ALWAYS LABELLED AS FAST,
+NEVER PASSED OFF AS FINISHED, AND NEVER BOUGHT WITH WEAKER EVIDENCE
+(operator mandate, 2026-10-12, <code>CRITICAL</code>; added
+2026-10-12).</strong> Verbatim EXCERPT of the operator mandate
+(2026-10-12, <code>CRITICAL</code>): the closing part of operator
+request R-2026-10-12-195857, quoted exactly as typed, every spelling
+error preserved uncorrected [sic]. The earlier part of the same message
+sets unrelated bug-fix priorities; the whole message is recorded under
+that id in the consuming project&#39;s §11.4.208 operator-request ledger (in
+the reference project, <code>docs/requests/history.md</code>). The
+excerpt: &quot;Follow our main development rule: do it all first, build and
+deploy images, keep testing in background!!! It is ABSOLUTELY critical
+do create, generate, fix and polish it all and deliver flashing imases
+fastest possible and then keep testing, fixing and polishing in parallel
+everything further! We MUST ALWAYS HAVE QUICK VISIBLE RESUTLS!!! This
+MUST BE part of the constitution (root constiotution Submopdule) and
+properly added! After quick delivery then in parallel we MUST properly
+track progress on testing, fixing and polishing until we get to full
+production readiness!!! Maximall paralelization and use of agents /
+subagents is mandatory so we can deliver fastest and best results! Do
+additional in depth analisys and planning in order for this method to
+work flawlessly for this cutting-edge enterprise project! All checks,
+validation, verification and testing MUST BE done ALWAYS fully
+deterministically, with no false or faulty results and with no bluff or
+AI slop of any kind!&quot; Typos as typed, reproduced uncorrected [sic]:
+<code>imases</code>, <code>RESUTLS</code>, <code>constiotution</code>,
+<code>Submopdule</code>, <code>Maximall</code>,
+<code>paralelization</code>, <code>analisys</code>. Normalised reading
+(an aid only, never a substitute for the verbatim text): deliver
+flashable images as fast as possible, keep testing, fixing and polishing
+in parallel; quick visible results always; record this in the root
+constitution submodule; after the quick delivery, track the progress of
+testing, fixing and polishing in parallel until full production
+readiness; maximal parallelisation and use of agents and subagents;
+in-depth analysis and planning; every check, validation, verification
+and test fully deterministic, with no false or faulty result and no
+bluff. (The project nouns in the quote are the operator&#39;s own example;
+the rule below is generic and consumers supply those nouns as DATA per
+§11.4.35.) The GAP this clause closes, stated precisely so it is not
+restated elsewhere (§11.4.227): clause (D) makes every source-proven
+increment deliverable on a declared cadence and keeps the tracker true
+at hand-off (D.5); clause (C) and §11.4.183 make fan-out the default;
+§11.4.235(A)/(E) build, flash and live-verify a GO&#39;d group; §11.4.236
+refuses a hand-off without a candidate-fingerprinted verdict — but none
+of them (i) orders a new scope&#39;s critical path so that its FIRST
+deliverable is not queued behind deliverable-independent work, (ii)
+records HOW HARDENED a delivered build is, (iii) joins the hardening
+debt still open against a delivered fingerprint into one ledger, (iv)
+tracks that debt&#39;s trajectory to production readiness with a direction
+rule, a stall rule and a starvation rule, or (v) defines what &quot;quick&quot;
+means as a measurement (measured 2026-10-12 with a control-needled
+census of the canonical file: zero hits for
+<code>delivered-unhardened</code> and <code>hardening ledger</code> (the
+single bare <code>unhardened</code> hit is an unrelated §11.4.276
+forensic carrier); positive control <code>incremental delivery</code>
+hits inside clause (D); negative control, a fabricated token, zero). A
+fast deliverable whose record cannot be told apart from a finished one
+is a §11.4 PASS-bluff at the delivery-status layer; a fast deliverable
+that skipped any seam is a §11.4 PASS-bluff at the evidence layer. ALL
+of the following hold:</p>
+<p><strong>(E.1) FIRST-DELIVERABLE CRITICAL PATH, SCHEDULED
+FIRST.</strong> When a scope starts (a spec, a declared group of tracked
+items, or any consumer-declared delivery scope — DATA per §11.4.35), the
+work that makes its FIRST increment build-eligible and deliverable is
+the CRITICAL PATH and is scheduled FIRST: the increment&#39;s source fix;
+its source-correctness review to GO (§11.4.235(A)/(D), on the §11.4.209
+substrate, bounded by §11.4.276); the pre/post-build gates and every
+operator-declared QA-deploy blocker §11.4.236 requires for that
+candidate; the build; the flash; and the §11.4.235(E) live sanity and
+per-item verdicts. Deliverable-independent work — every entry class of
+the (E.3)(b) ledger that the seams of (E.2) do not require for a QA
+build — MUST NOT be placed ahead of that path. It STARTS IN PARALLEL
+from the first moment of the scope (clause (C), §11.4.103, §11.4.183,
+§11.4.192) as background streams that never sit on the critical path.
+&quot;Quick&quot; therefore re-orders WHEN hardening COMPLETES relative to the
+first deliverable; it never decides WHETHER hardening runs and never
+makes hardening wait to START. The first deliverable MUST contain at
+least one increment holding its own source-correctness GO (D.1) and MUST
+exercise a user-visible behaviour of that increment on the target (the
+&quot;visible&quot; in the mandate) — an empty, trivial or no-behaviour-change
+build delivered only to stop a clock is a §11.4.6 fabrication. A
+consumer&#39;s own stricter precondition on building (for example a
+mandatory specification-and-review workflow that must reach GO before
+any build) still applies in full and is part of the critical path, never
+shortened by this clause.</p>
+<p><strong>(E.2) EVIDENCE IS NEVER TRADED FOR SPEED — QUICK IS NEVER
+UNVERIFIED.</strong> A quick deliverable passes EXACTLY the same seams,
+with the same strength of evidence, as any other QA build; all of these
+bind unchanged and are cited, not restated: the source-correctness GO
+(§11.4.235(A)/(D), §11.4.209, §11.4.134, §11.4.276); §11.4.108
+artifact-layer and runtime-on-clean-target-layer evidence for the
+delivered fingerprint; §11.4.236 readiness; the §11.4.235(E) per-device
+live sanity and per-item verdicts; §11.4.5 / §11.4.262 machine-created
+evidence; §11.4.50 exactly as that anchor states it — &quot;Every test that
+PASSes MUST have been executed N times (default N=3, N=10 for
+cycle-validation suites) against the same firmware MD5 + same device +
+same topology and produced IDENTICAL PASS in every iteration.&quot; — and
+§11.4.201(6)-(12) / §11.4.273 control-needled nulls. Nothing in this
+clause lowers, skips, defers, samples or narrates any of these. A
+deliverable that reached QA by weakening one of them is not a quick
+deliverable — it is a §11.4 PASS-bluff, and §11.4.236 refuses it. What a
+quick deliverable MAY still lack is EXACTLY the set of entries the
+(E.3)(b) ledger can hold — the ledger&#39;s entry classes are the one and
+only list of permitted gaps, so the two lists are identical by
+construction — except that a seam above is never a gap: a contained item
+with neither a live verdict nor an honest per-item SKIP-with-reason
+blocks the hand-off itself, and an (L1) entry is <code>open</code> in a
+delivered ledger only when a later live FAIL reopens it. Every permitted
+gap is LABELLED in the deliverable&#39;s status and ledger per (E.3), never
+silently absent.</p>
+<p><strong>(E.3) EVERY DELIVERABLE CARRIES A MACHINE-COMPUTED HARDENING
+STATUS, ITS OPEN HARDENING LEDGER, AND THE EVENT RECORDS BOTH ARE
+COMPUTED FROM.</strong> Every QA hand-off record (clause (D.5)) MUST
+carry, for the delivered fingerprint, (a) the HARDENING STATUS, computed
+from (b) the OPEN HARDENING LEDGER and (c) the EVENT RECORDS defined
+below. (b) THE LEDGER is a READ-ONLY JOIN over the stores that already
+own each fact, NEVER a new parallel or hand-maintained store (§11.4.227,
+§11.4.233(F) reuse). Its entry classes form a CLOSED list: (L1) each
+contained item with no passing §11.4.235(E.3) live verdict on this
+fingerprint; (L2) per contained item, the tests still owed — the
+§11.4.4(b) four layers, the §11.4.27 / §11.4.169 test types and the
+paired §1.1 mutations (future-regression instrumentation, additional
+test types, mutation hardening); (L3) each open §11.4.235(D)
+<code>test-instrumentation</code> / <code>process-doc</code> finding
+against contained code; (L4) each open §11.4.261 finding touching
+contained code; (L5) each tracked polish item recorded against a
+contained item; (L6) the §11.4.40 full-suite retest, until it has passed
+on this fingerprint; (L7) each §11.4.260 production-readiness invariant
+that is not green for a contained component; (L8) each §11.4.271 waiver
+covering contained code. Every entry carries its own tracked §11.4.197
+item id (§11.4.54) — an entry with no tracked id is itself a §11.4.261
+finding — and exactly one DISPOSITION from the CLOSED set
+{<code>open</code> | <code>closed</code> | <code>skipped</code> |
+<code>not-applicable</code> | <code>waived</code>}: <code>closed</code>
+— the entry&#39;s own closing evidence exists for this fingerprint;
+<code>skipped</code> — an honest per-item SKIP-with-reason whose code is
+one of the two TOPOLOGY-ABSENT codes of the consumer&#39;s §11.4.69 closed
+reason set, <code>hardware_not_present</code> or
+<code>topology_unsupported</code>, never invented (§11.4.3);
+<code>not-applicable</code> — the consumer has no tier for that entry,
+recorded with the §11.4.69 code <code>feature_disabled_by_config</code>
+(for (L1) this is exactly the §11.4.235(E.4) N/A consumer with no
+device-targeted flash/deploy entry point and no bound deploy ledger);
+<code>waived</code> — covered by a waiver that is valid under §11.4.271
+at computation time (an elapsed or invalid waiver makes the entry
+<code>open</code>); <code>open</code> — every other case, and every case
+whose input cannot be resolved. PERMITTED DISPOSITIONS PER CLASS — a
+closed table; a disposition outside its class&#39;s row is INVALID: (L1)
+<code>open</code> | <code>closed</code> | <code>skipped</code> |
+<code>not-applicable</code> — a live verdict is an (E.2) seam and is
+never waived; (L2) <code>open</code> | <code>closed</code> |
+<code>skipped</code> | <code>not-applicable</code> |
+<code>waived</code>; (L3), (L4) and (L5) <code>open</code> |
+<code>closed</code> | <code>waived</code> — a finding or a polish item
+never disappears as absent topology; (L6) <code>open</code> |
+<code>closed</code> | <code>not-applicable</code> — the §11.4.40 retest
+is never skipped and never waived; (L7) <code>open</code> |
+<code>closed</code> | <code>not-applicable</code> — an unmet §11.4.260
+invariant blocks release and is never skipped or waived, and
+<code>not-applicable</code> means only that the invariant has no subject
+in that component; (L8) <code>open</code> | <code>closed</code> |
+<code>waived</code> — <code>closed</code> once the waived debt is paid
+and the waiver retired. <code>skipped</code>,
+<code>not-applicable</code> and <code>waived</code> entries count as
+resolved for the status but are NEVER hidden: they are listed with their
+reason and tracked id, counted per class in every announcement, and
+enumerated as honest gaps in the release notes (§11.4.135, §11.4.118).
+(c) THE EVENT RECORDS. Every fact the status reads is an EVENT RECORD in
+the existing append-only event stream (§11.4.116 — reused, never a
+second store), carrying: the fingerprint; a SEQUENCE NUMBER assigned by
+the stream&#39;s single writer at append time and strictly increasing within
+the stream; the wall-clock write time, recorded for audit and NEVER used
+for ordering, because clocks skew (§11.4.6); the WRITER ROLE, stamped by
+the seam that performs the write and never supplied by the writer itself
+(§11.4.240(B), capability not instruction); the record KIND from the
+closed set {<code>disposition</code> (an entry id, a disposition, a
+reason code and an evidence reference; a class label, if the record
+carries one, is informational only), <code>qa-confirmation</code> (the
+§11.4.185 act), <code>release-seam-pass</code>}; and its payload. Every
+write to an owning store — creating a row, changing an entry&#39;s
+disposition, deleting a row — is recorded in that store&#39;s WRITE-SEAM LOG
+(§11.4.106(F)), and the seam mirrors at the same write, as a
+<code>disposition</code> record, every write that creates an entry&#39;s row
+or changes its disposition: a creation is mirrored as an
+<code>open</code> BIRTH record with reason code <code>open-debt</code>,
+so every entry is named by a record from birth and a later deletion of
+its row never removes it from the entry set (V5). The log entry of each
+mirrored write names the stream position of its mirror record (F7.4). A
+record carries exactly ONE fingerprint and is never inherited by another
+fingerprint: a write to a FINGERPRINT-KEYED store is mirrored once, for
+that fingerprint; a write to a SCOPE-KEYED store is mirrored once per
+already-delivered fingerprint whose hand-off record (D.5) names a
+contained item or code path that the written row matches, at the moment
+of the write, so a later re-close reaches every older fingerprint it
+matches; a fingerprint delivered AFTER that write acquires no record
+from it — instead, at that fingerprint&#39;s hand-off, the delivering seam
+writes an <code>open</code> BIRTH record for that fingerprint for every
+row the join matches at that moment (logged as a <code>birth</code>
+write, (F7.3)), so its matching rows are named from delivery and stay
+<code>open</code> until the verifier seam re-checks their closing
+evidence against that fingerprint and writes a record for it. WRITER
+ROLES form the closed set {<code>verifier-seam</code> |
+<code>qa-confirmer</code> | <code>release-seam</code> |
+<code>producer</code>}, and the ALLOWED WRITERS are: a
+<code>disposition</code> record setting <code>open</code> — any role,
+because a downward write is always safe (§11.4.201(4)); a
+<code>disposition</code> record setting any other disposition — the
+<code>verifier-seam</code> only, never the producer of the contained
+work (§11.4.240, §11.4.249); a <code>qa-confirmation</code> record — the
+<code>qa-confirmer</code> only; a <code>release-seam-pass</code> record
+— the <code>release-seam</code> only. FIELD TABLE — the status reads
+exactly the fields below and nothing else. The table is the
+field-by-field projection of the status function&#39;s ONE typed input
+record: every value the function reads is a named field of that record
+or of a record nested in it, every field below is read, and each carries
+five columns — SOURCE, the one place its value comes from; VALID, what
+makes it usable; ABSENT, what happens when it is missing, unreadable or
+outside its set; ORDER, whether it orders anything; IDENTITY, how one
+instance is told from another. An implementation conforms only when its
+own input record projects to this table byte for byte. No unlisted fact
+— the order in which stores are declared or read, the order in which
+records are stored, a wall-clock time other than (F10), or a label on a
+record other than the comparison of (F6.10) — ever decides a status, so
+a tie this table does not resolve is never broken: it is X. (F1)
+<code>fingerprint</code> — SOURCE: the hand-off record (D.5): the
+delivered fingerprint; VALID: non-empty; ABSENT: X; ORDER: none;
+IDENTITY: exact equality; a record or row is in scope only when its own
+fingerprint equals it. (F2) <code>contained_items</code> — SOURCE: the
+hand-off record (D.5): the contained tracked §11.4.197 item ids; VALID:
+a set, possibly empty; ABSENT: X; ORDER: none — a set; IDENTITY: the
+item id. (F3) <code>contained_paths</code> — SOURCE: the hand-off record
+(D.5): the contained code paths; VALID: a set, possibly empty, of
+repository-relative code paths, each of which normalises (V3a); ABSENT:
+X; a contained path that does not normalise (V3a) is X; ORDER: none — a
+set; IDENTITY: the normalised path (V3a): two paths are one path exactly
+when their normalised forms are equal. (F4) <code>store_decls</code> —
+SOURCE: the consumer&#39;s owning-store declaration (§11.4.35), one
+declaration per store; VALID: at least one declaration; store names
+unique; ABSENT: X; no declaration at all, or two declarations of one
+store, is X; ORDER: none — declaration order carries no meaning;
+IDENTITY: the store name (F4.1). (F4.1)
+<code>store_decls[].decl_store</code> — SOURCE: the declaration; VALID:
+non-empty; ABSENT: X; ORDER: none; IDENTITY: the store&#39;s name, unique
+among the declarations. (F4.2) <code>store_decls[].required</code> —
+SOURCE: the declaration; VALID: true or false; ABSENT: X; ORDER: none;
+IDENTITY: belongs to its declaration. (F4.3)
+<code>store_decls[].keying</code> — SOURCE: the declaration; VALID:
+exactly one of <code>fingerprint-keyed</code>, <code>scope-keyed</code>,
+<code>not-fingerprint-bound</code>; ABSENT: X, and a value outside that
+set is X; ORDER: none; IDENTITY: belongs to its declaration. (F5)
+<code>store_reads</code> — SOURCE: the read of each declared store
+performed at computation time — a runtime fact, never the declaration;
+VALID: exactly one read per declared store; ABSENT: a declared store
+with no read, or a read of an undeclared store, is X; ORDER: none — read
+order carries no meaning; IDENTITY: the store name (F5.1). (F5.1)
+<code>store_reads[].read_store</code> — SOURCE: the read; VALID: names a
+declared store; ABSENT: X; ORDER: none; IDENTITY: matches (F4.1). (F5.2)
+<code>store_reads[].readable</code> — SOURCE: the read itself, shown
+with a §11.4.273 control needle that the store answered; VALID: true
+only when the needle was found; ABSENT: false, or no needle result, is
+X; ORDER: none; IDENTITY: belongs to its read. (F5.3)
+<code>store_reads[].rows</code> — SOURCE: the rows the read returned;
+VALID: each row carries (F5.3.1)–(F5.3.3); ABSENT: a readable store may
+return none and then contributes no entry, unless it is required (X);
+ORDER: none — row order carries no meaning; IDENTITY: the row key
+(F5.3.1). (F5.3.1) <code>store_reads[].rows[].key</code> — SOURCE: the
+row; VALID: matched in at most one row across every declared store (V4);
+ABSENT: X; ORDER: none; IDENTITY: the entry id: the tracked §11.4.197
+item id for (L1), (L2), (L5), (L6) and (L7), the finding id for (L3) and
+(L4), the waiver id for (L8). (F5.3.2)
+<code>store_reads[].rows[].cls</code> — SOURCE: the row; VALID: exactly
+one of (L1)–(L8); ABSENT: X, and a value outside that set is X; ORDER:
+none; IDENTITY: the entry&#39;s class; never taken from a record. (F5.3.3)
+<code>store_reads[].rows[].scope</code> — SOURCE: the row; VALID: a
+fingerprint in a fingerprint-keyed store; in any other store, a tracked
+item id or a repository-relative code path; ABSENT: X; in a scope-keyed
+or not-fingerprint-bound store, a scope that is not an item id in (F2)
+and does not normalise (V3a) is UNRESOLVABLE: X, never silently left out
+of the join; ORDER: none; IDENTITY: decides whether the row is matched
+for the fingerprint (V3). (F6) <code>records</code> — SOURCE: the
+existing §11.4.116 append-only event stream, read at computation time;
+VALID: readable; ABSENT: X; ORDER: none of its own — only (F6.2) orders,
+never storage order; IDENTITY: the stream position (F6.1). (F6.1)
+<code>records[].rid</code> — SOURCE: the stream, assigned on append;
+VALID: unique in the stream; ABSENT: missing, or shared by two records:
+a SEQUENCE DEFECT (V2); ORDER: none — a position never orders; IDENTITY:
+the record&#39;s identity, named by write-log mirrors (F7.4) and repairs
+(F9.1). (F6.2) <code>records[].seq</code> — SOURCE: the stream&#39;s single
+writer, assigned on append; VALID: an integer, unique in the stream;
+ABSENT: missing or shared: a SEQUENCE DEFECT (V2); ORDER: the ONLY
+ordering key; IDENTITY: none. (F6.3) <code>records[].kind</code> —
+SOURCE: the record; VALID: <code>disposition</code>,
+<code>qa-confirmation</code> or <code>release-seam-pass</code>; ABSENT:
+any other value: the record is never valid and decides nothing; ORDER:
+none; IDENTITY: none. (F6.4) <code>records[].role</code> — SOURCE: the
+stamp of the seam that performed the write, never the writer; VALID:
+<code>verifier-seam</code>, <code>qa-confirmer</code>,
+<code>release-seam</code> or <code>producer</code>; ABSENT: any other
+value: the record is not valid; ORDER: none; IDENTITY: none. (F6.5)
+<code>records[].fp</code> — SOURCE: the record; VALID: exactly one
+fingerprint; ABSENT: missing, empty or unreadable: a SEQUENCE DEFECT for
+every fingerprint (V2); ORDER: none; IDENTITY: the record is in scope
+only when equal to (F1), and is never inherited by another fingerprint.
+(F6.6) <code>records[].entry</code> — SOURCE: the record
+(<code>disposition</code> only); VALID: matches exactly one matched row
+(V4); ABSENT: the record is not valid; ORDER: none; IDENTITY: names the
+entry by its row key (F5.3.1). (F6.7) <code>records[].disp</code> —
+SOURCE: the record (<code>disposition</code> only); VALID: in the closed
+disposition set and in its class&#39;s permitted row; ABSENT: the record is
+not valid; ORDER: none; IDENTITY: none. (F6.8)
+<code>records[].code</code> — SOURCE: the record
+(<code>disposition</code> only); VALID: in its disposition&#39;s permitted
+reason-code row; ABSENT: the record is not valid; ORDER: none; IDENTITY:
+none. (F6.9) <code>records[].ref</code> — SOURCE: the record
+(<code>disposition</code> only); VALID: present when the code requires
+it; for <code>waived</code> it names the waiver (F8.1); ABSENT: the
+record is not valid when its code requires it; ORDER: none; IDENTITY:
+none. (F6.10) <code>records[].label</code> — SOURCE: the record; VALID:
+informational; only compared with the entry&#39;s class (V6); ABSENT:
+nothing — a record need not carry one; ORDER: none; IDENTITY: never a
+source of class; a label that differs from the class makes the record
+not valid. (F7) <code>write_log</code> — SOURCE: each owning store&#39;s
+write-seam log (§11.4.106(F)), which records every mirroring obligation
+the seam creates; VALID: readable; ABSENT: X; ORDER: none; IDENTITY:
+(F7.1) and (F7.2). (F7.1) <code>write_log[].w_fp</code> — SOURCE: the
+log entry; VALID: a non-empty fingerprint; ABSENT: missing, empty or
+unreadable: X; ORDER: none; IDENTITY: an entry is in scope only when
+equal to (F1); an entry with no readable fingerprint is X. (F7.2)
+<code>write_log[].w_key</code> — SOURCE: the log entry; VALID: an entry
+id; ABSENT: X for an in-scope entry (F7.1); ORDER: none; IDENTITY: the
+entry the write concerns. (F7.3) <code>write_log[].op</code> — SOURCE:
+the log entry; VALID: <code>birth</code> (the entry&#39;s row matched at
+hand-off or created after it) or <code>disposition</code> (a change of
+its disposition); ABSENT: X for an in-scope entry (F7.1); ORDER: none;
+IDENTITY: none. (F7.4) <code>write_log[].mirror</code> — SOURCE: the log
+entry, written by the seam that appended the mirror record; VALID: the
+stream position (F6.1) of an in-scope <code>disposition</code> record
+naming (F7.2), with disposition <code>open</code> for a birth; ABSENT:
+missing or not matching, for an in-scope entry (F7.1): X; ORDER: none;
+IDENTITY: points at (F6.1). (F8) <code>waivers</code> — SOURCE: the
+§11.4.271 waiver register, read at computation time; VALID: readable;
+ABSENT: X; ORDER: none; IDENTITY: (F8.1). (F8.1)
+<code>waivers[].wid</code> — SOURCE: the waiver register; VALID: unique
+in the register; ABSENT: X; ORDER: none; IDENTITY: named by a
+<code>waived</code> record&#39;s evidence reference (F6.9). (F8.2)
+<code>waivers[].authorised</code> — SOURCE: §11.4.271 evaluation of the
+waiver (rostered non-producer authoriser, tracked item); VALID: true or
+false; ABSENT: not authorised; ORDER: none; IDENTITY: belongs to its
+waiver. (F8.3) <code>waivers[].expiry</code> — SOURCE: the waiver;
+VALID: a time; ABSENT: the waiver is not valid (§11.4.271 requires an
+expiry); ORDER: compared only with (F10); never orders records;
+IDENTITY: belongs to its waiver. (F9) <code>repairs</code> — SOURCE: the
+§11.4.268 stream-integrity repair records; VALID: readable; an empty
+list means no repair; ABSENT: X; ORDER: none; IDENTITY: none. (F9.1)
+<code>repairs[].rids</code> — SOURCE: the repair record; VALID: stream
+positions (F6.1); ABSENT: the repair quarantines nothing; ORDER: none;
+IDENTITY: names records by (F6.1). (F9.2)
+<code>repairs[].decision</code> — SOURCE: the repair record: a reference
+to its recorded §11.4.66 operator decision; VALID: present; ABSENT: the
+repair quarantines nothing; ORDER: none; IDENTITY: none. (F10)
+<code>now</code> — SOURCE: the computing seam&#39;s clock at computation
+time; VALID: a time; ABSENT: X; ORDER: compared only with (F8.3); never
+orders records; IDENTITY: none. DERIVED VALUES — rules over the fields
+above, never inputs of their own. (V1) RECORD SCOPE — the IN-SCOPE
+records are the records not quarantined by a repair (V2) whose
+fingerprint (F6.5) equals (F1); a record carrying any other fingerprint
+is an input to nothing except the sequence check (V2). (V2) SEQUENCE
+CHECK AND REPAIR — a SEQUENCE DEFECT is a record that is not quarantined
+and has no sequence number or no stream position, shares its sequence
+number or its stream position with another record that is not
+quarantined, or has a missing, empty or unreadable fingerprint; it is X
+for every fingerprint carried by a record involved in it (for a missing,
+empty or unreadable fingerprint, for every fingerprint) and for no other
+fingerprint, so a malformed record of one fingerprint never holds
+another. RECOVERY: a §11.4.268 stream-integrity repair record carrying a
+reference to its recorded §11.4.66 operator decision QUARANTINES the
+records it names (F9.1); a quarantined record is an input to nothing,
+and a repair with no decision reference quarantines nothing. Because a
+quarantine removes a record from every rule, it can raise a status; that
+is why it needs the recorded decision, and every quarantine is listed in
+every announcement. (V3) JOIN — a row is MATCHED for the fingerprint
+when its store is fingerprint-keyed and its scope (F5.3.3) equals (F1),
+or its store is scope-keyed or not-fingerprint-bound and its scope
+either equals an item id in (F2) or, normalised (V3a), equals, is an
+ancestor of, or is a descendant of a normalised path in (F3), so a
+finding recorded against a directory joins every contained path below it
+and a finding recorded against a file joins the contained directory that
+holds it. (V3a) PATH NORMALISATION — one textual rule for every code
+path, in (F3) and in a row&#39;s scope alike, and never a file-system
+lookup, so a symbolic link is never resolved: split the path on
+<code>/</code>; drop every empty segment and every <code>.</code>
+segment; a <code>..</code> segment removes the segment before it; the
+normalised path is the remaining segments joined by <code>/</code>, and
+a path with no segment left (<code>.</code> or <code>./</code>) is the
+repository root, an ancestor of every path. A path that is empty, starts
+with <code>/</code>, or has a <code>..</code> segment with no segment
+before it does not normalise and is UNRESOLVABLE. Comparison is exact
+and case-sensitive, segment by segment: <code>src/a</code> is an
+ancestor of <code>src/a/b</code> but not of <code>src/ab</code> and not
+of <code>SRC/a/b</code>, and <code>\</code> is an ordinary character. A
+row in a scope-keyed or not-fingerprint-bound store whose scope is not
+an item id in (F2) and does not normalise is X, never silently left out
+of the join; a contained path that does not normalise is X. (V4) ENTRY
+IDENTITY — an entry is identified by its row key and has exactly ONE
+matched row, which carries its class: for an entry defined by the
+ABSENCE of a fact ((L1), (L2), (L6), (L7)) and for a polish item ((L5))
+that row is its tracked §11.4.197 item row (§11.4.54) in the consumer&#39;s
+tracked-item store, created when the join first matches the entry and
+never removed; for (L3) and (L4) it is the finding&#39;s row in its findings
+store; for (L8) it is the waiver&#39;s row in its waiver store. A key
+matched in more than one row — in one store or in several, with equal or
+different classes — is X, so row keys MUST be unique across every
+declared owning store (the tracked §11.4.197 item id is such a key).
+(V5) ENTRY SET — the closed union of every matched row&#39;s key and every
+entry id named by any in-scope <code>disposition</code> record, valid or
+not; removing a row from an owning store is never a resolution — only a
+valid record is — and because every entry is named by its birth record,
+a deleted row never removes its entry. (V6) CLASS — read from the
+entry&#39;s one matched row (V4), never from a label on a record; an entry
+named by a record but with no matched row has no class, so no record for
+it is valid and it is <code>open</code>. (V7) LATEST RECORD of an entry
+— its in-scope <code>disposition</code> record with the highest sequence
+number. (V8) WAIVER VALIDITY — a waiver (F8) is valid when it is
+authorised under §11.4.271 (F8.2) and the computation time (F10) is
+before its expiry (F8.3). (V9) VALID-UNTIL — the earliest expiry (F8.3)
+among the waivers named by the latest valid <code>waived</code> records
+the status counts as resolving an entry; none when it counts none.
+PERMITTED REASON CODES PER DISPOSITION — a closed table; a code outside
+its disposition&#39;s row is INVALID, and free text never sits in the code,
+only in the evidence reference: <code>open</code> —
+<code>open-debt</code> (also for a reopen); <code>closed</code> —
+<code>closing-evidence</code>, with an evidence reference naming the
+entry&#39;s own closing evidence for this fingerprint; <code>skipped</code>
+— <code>hardware_not_present</code> | <code>topology_unsupported</code>;
+<code>not-applicable</code> — <code>feature_disabled_by_config</code>;
+<code>waived</code> — <code>waiver</code>, with an evidence reference
+naming the §11.4.271 waiver. A <code>disposition</code> record is VALID
+only when it is in scope (V1), its entry id matches exactly one matched
+row (V4) and so has a class (V6), any class label it carries equals that
+class, its writer role is allowed for its disposition, its disposition
+is permitted for that class, its reason code is permitted for its
+disposition, it carries the evidence reference its code requires, and,
+for <code>waived</code>, the waiver its evidence reference names is
+valid (V8). A <code>qa-confirmation</code> record is VALID exactly when
+it is in scope, its writer role is <code>qa-confirmer</code>, and its
+sequence number is greater than L (below). A
+<code>release-seam-pass</code> record is VALID exactly when it is in
+scope, its writer role is <code>release-seam</code>, and its sequence
+number is greater than that of the latest in-scope
+<code>qa-confirmation</code> record. A record of any other kind is never
+valid. A record that is not valid is never silently dropped: it is
+shown, it is a §11.4.261 finding, and a <code>disposition</code> record
+that is not valid makes its entry <code>open</code> when it is the
+entry&#39;s latest record (V7; below); an earlier invalid record decides
+nothing. (a) THE STATUS takes exactly one value from the CLOSED set
+{<code>delivered-unhardened</code> |
+<code>delivered-hardened-awaiting-qa</code> |
+<code>production-ready</code>}. It is a PURE FUNCTION of the FIELD
+TABLE&#39;s fields and of nothing else: never typed or chosen by hand
+(§11.4.6, §11.4.262), and never dependent on the order in which records
+are stored, nor on wall-clock time except through §11.4.271 waiver
+expiry, which can only lower it. It carries its VALID-UNTIL (V9) and a
+<code>pending</code> field naming what still holds it below
+<code>production-ready</code>, drawn from the closed set
+{<code>ledger</code>, <code>manual-qa</code>, <code>release-seam</code>,
+<code>not-fingerprint-bound</code>, <code>unresolvable-input</code>}.
+Its inputs are derived from the records as follows. X = at least one
+input cannot be resolved: a field whose ABSENT column says X is missing,
+unreadable or outside its set — in particular a missing delivered
+fingerprint, contained-item set or contained-path set, a contained path
+that does not normalise (V3a), no store declaration or two declarations
+of one store, a declared store with no read or with an unreadable read
+(F5.2) whether it is required or not, a read of an undeclared store, or
+an unreadable event stream, write-seam log, waiver register or repair
+list; an owning store that the consumer declares REQUIRED holds no
+matched row for this fingerprint (a store that is not required, such as
+a waiver store that may legitimately be empty, contributes zero entries
+when it is readable and empty, and its readability is shown with a
+control needle per §11.4.273); a SEQUENCE DEFECT involving this
+fingerprint (V2); a key matched in more than one row (V4); a row in a
+scope-keyed or not-fingerprint-bound store whose scope is not an item id
+in (F2) and does not normalise (V3a); a write-log entry for this
+fingerprint whose mirror (F7.4) is not an in-scope
+<code>disposition</code> record naming that entry (with disposition
+<code>open</code> for a birth); or a matched row with no
+<code>birth</code> write-log entry for this fingerprint. The DISPOSITION
+of an entry is the disposition of its LATEST <code>disposition</code>
+record (V7) when that record is valid, and <code>open</code> when it is
+not valid or when the entry has no record. L = the highest sequence
+number of any in-scope <code>disposition</code> record (V1), valid or
+not, or 0 when there is none. O = the number of entries in the ENTRY SET
+(V5) whose disposition is <code>open</code>. Q = the LATEST in-scope
+<code>qa-confirmation</code> record (V1) is valid, so its sequence
+number is greater than L. Hence ANY ledger record written after a
+confirmation — a reopen, and equally the later re-close of that reopen —
+VOIDS the confirmation, and a new §11.4.185 confirmation is required
+after the ledger&#39;s final record. S = Q holds and a valid
+<code>release-seam-pass</code> record exists, so its sequence number is
+greater than that of the latest <code>qa-confirmation</code> record.
+Hence voiding the confirmation voids every seam record that relied on
+it. The release seam MUST refuse to write the record unless O = 0, Q
+holds and B does not. B = at least one owning store is labelled
+not-fingerprint-bound (a consumer declaration, below). TRANSITION TABLE,
+evaluated top to bottom, first matching row wins, so it is total and
+deterministic over every combination of X, O, Q, S, B: row 1 — X →
+<code>delivered-unhardened</code>, pending
+<code>unresolvable-input</code> (§11.4.201(4) conservative-safe default,
+never upward); row 2 — O &gt; 0 → <code>delivered-unhardened</code>,
+pending <code>ledger</code>; row 3 — O = 0 and not Q →
+<code>delivered-hardened-awaiting-qa</code>, pending
+<code>manual-qa</code>; row 4 — O = 0, Q, and (not S or B) →
+<code>delivered-hardened-awaiting-qa</code>, with pending containing
+<code>release-seam</code> exactly when S does not hold and
+<code>not-fingerprint-bound</code> exactly when B holds; row 5 — O = 0,
+Q, S and not B → <code>production-ready</code>, pending empty. Hence
+<code>delivered-hardened-awaiting-qa</code> means exactly that every
+automated and hardening entry is resolved by a valid record and only
+human or release acts remain, and <code>production-ready</code> is
+reachable only after a §11.4.185 confirmation that postdates the
+ledger&#39;s final record and a release-seam record that postdates that
+confirmation, both for the same fingerprint. A later record that reopens
+an entry, or changes any disposition at all, recomputes the status
+downward by the same table, and the status stays below
+<code>production-ready</code> until a new confirmation and a new seam
+record follow; no status is ever sticky. FRESHNESS: every owning store
+is one of (i) FINGERPRINT-KEYED — its facts are keyed by the candidate
+fingerprint (verdict stores, live-verdict records); (ii) SCOPE-KEYED —
+its facts are keyed by tracked item id or code path and carry a
+per-record write time (the workable-items database, the §11.4.261
+findings ledger), joined through the contained-item set and contained
+code paths that the hand-off record (D.5) names; or (iii)
+NOT-FINGERPRINT-BOUND — it can supply neither, and it MUST carry that
+label explicitly in the consumer&#39;s store declaration (§11.4.35). A
+status is FRESH only while its ledger snapshot includes — by sequence
+number, never by wall-clock time — the latest event record for every
+matching record of every owning store (for a fingerprint-keyed store,
+every record for this fingerprint; for a scope-keyed store, every record
+for the contained items and code paths). It is recomputed at every
+announcement, at every write to an owning store (§11.4.106(F) write-seam
+discipline, §11.4.229), and at its VALID-UNTIL (V9), because a waiver
+that expires is not an event record: a status is FRESH only while the
+time is before its VALID-UNTIL, so an expired waiver lowers it on time
+instead of leaving the older value announced. A status announced from an
+older snapshot, a different fingerprint, or at or after its VALID-UNTIL
+is STALE and is itself a §11.4.261 finding. A not-fingerprint-bound
+store can never be proven fresh for a fingerprint, so it holds the
+status below <code>production-ready</code> (row 4) until the store is
+bound; its entries are still joined and shown. ANNOUNCEMENT: the status,
+its <code>pending</code> field and the per-class, per-disposition ledger
+counts MUST be shown wherever the deliverable is announced — the
+hand-off record, the release or deploy notes, the §11.4.97 progress
+report, and the §11.4.259 README badge row — and every announced status
+carries the fingerprint, the ledger-snapshot time it was computed from,
+its VALID-UNTIL, and every quarantine (V2) it relied on. While the
+newest deliverable of any open scope is
+<code>delivered-unhardened</code>, or its status is stale or unknown,
+the §11.4.259 production-readiness gauge MUST NOT read GREEN. &quot;Quick&quot; is
+never presented as &quot;production ready&quot; (§11.4.6, §11.4.259).</p>
+<p><strong>(E.4) TRACKED CONVERGENCE TO PRODUCTION READINESS —
+DIRECTION, STALL, STARVATION AND THE LOOP.</strong> For every open scope
+each cadence build appends a convergence record to the existing
+append-only event stream and snapshot (§11.4.116 — reused, not
+reinvented) carrying the fingerprint, the computed status and
+<code>pending</code> field, the ledger counts per class and disposition
+from (E.3)(b), and the delta against the previous deliverable of the
+same scope; the trajectory is reported in every §11.4.97 progress
+report. DIRECTION RULE — a scope&#39;s <code>open</code> count MUST NOT grow
+between consecutive deliverables except by entries that NEW increments
+brought in; growth with no new increment means hardening is going
+backwards and is surfaced as a §11.4.261 finding. STALL RULE — the
+<code>open</code> count failing to decrease across N consecutive
+deliverables that brought in no new increment is a STALL under
+§11.4.267(D), escalated, re-tiered under §11.4.231, or routed to a
+recorded §11.4.66 decision, never left as a silent background stream; N
+is consumer DATA (§11.4.35, §11.4.267(E)) and never a constitutional
+literal (§11.4.267(E) admits only an operator-mandated ceiling recorded
+in its own anchor), this N is distinct from every other N the
+constitution leaves to consumers (for example the §11.4.235(E.2)
+consecutive-DEFERRED bound), and a scope bound by this clause with no
+declared N is a CONFIG ERROR reported as such, never a silently
+unbounded stall window. STARVATION RULE — a scope with O &gt; 0 MUST
+have at least one live hardening stream dispatched against it
+(§11.4.232(A) registry row, §11.4.147 agent registry) whenever host
+headroom exists under clause (C)&#39;s bounds; O &gt; 0 with zero live
+hardening streams while headroom exists is STARVATION and a §11.4.94 /
+§11.4.97 zero-idle violation, never an acceptable &quot;the deliverable is
+out, hardening can wait&quot; state. Background hardening keeps running under
+clauses (C)/(D.4), §11.4.126, §11.4.183 and §11.4.192 until the scope
+reaches <code>production-ready</code>. LOOP DONE-CONDITION: the
+§11.4.126 done-condition is NOT satisfied while any delivered scope of
+the current release has O &gt; 0 (unless every open entry is itself
+blocked on a recorded external dependency under §11.4.101 / §11.4.21). A
+scope at <code>delivered-hardened-awaiting-qa</code> — O = 0, so only
+the §11.4.185 human confirmation or the release-seam record remains — IS
+a recorded external block for that scope&#39;s done-condition, because those
+acts are the operator&#39;s and the release seam&#39;s by design (§11.4.185,
+§11.4.40); for a non-release scope (§11.4.126(B)), which has no release
+seam, reaching that status with <code>pending</code> naming only
+<code>manual-qa</code> or <code>release-seam</code> satisfies the
+scope&#39;s done-condition. An external block NEVER idles the loop: the loop
+keeps progressing every other actionable item, the pending human act is
+surfaced in every §11.4.97 report until it is recorded, and the status
+recomputes the moment it is (§11.4.94, §11.4.97, §11.4.101).</p>
+<p><strong>(E.5) PARALLELISM IS MAXIMAL AND BOUNDED.</strong> The
+critical path of (E.1) and the hardening streams of (E.4) run
+concurrently by default under clause (C) and §11.4.183, inside clause
+(C)&#39;s own honest boundary, which is cited here, unchanged and not
+restated. The one rule this clause adds: where the critical path and a
+hardening stream contend for one exclusive resource (§11.4.119 /
+§11.4.176), the critical path holds it until the first deliverable is
+handed off, and contention is never resolved by skipping a seam of
+(E.2).</p>
+<p><strong>(E.6) WHAT &quot;QUICK&quot; MEANS — MEASURED, NEVER GATING.</strong>
+&quot;Quick&quot; is a MEASUREMENT, never a target that weakens evidence. Each
+scope records (a) its wall-clock TIME-TO-FIRST-DELIVERABLE, from scope
+start to the first hand-off that passes §11.4.236 and carries its (E.3)
+status, and (b) per increment, its GO-TO-HAND-OFF latency, from its
+source-correctness GO to the first hand-off that contains it, both as
+§11.4.24-style statistics. They are TREND metrics only. Under
+§11.4.201(8) they are validated against the definition of done for
+DIRECTION — a shorter time that still passes (E.2) is better, and a time
+achieved by failing (E.2) does not count at all — but they are NEVER
+used to gate, rank, or reward, because a gating speed metric invites
+exactly the gaming (E.1) forbids. They are reported next to the
+<code>open</code> count and the convergence trajectory of (E.4), never
+instead of them.</p>
+<p><strong>(E.7) FAILURE MODES THIS CLAUSE NAMES, EACH WITH ITS
+DETECTOR.</strong> (1) STALE STATUS — a status announced from an
+outdated ledger snapshot or a different fingerprint, or at or after its
+VALID-UNTIL, or a not-fingerprint-bound store left unlabelled (detector:
+<code>CM-DELIVERY-STATUS-FRESH</code>); (2) STATUS INFLATION — a status
+hand-set, outside the closed set, different from the transition-table
+value, computed over an entry set that omits an entry named by a
+<code>disposition</code> record or while a declared owning store is
+unreadable, computed from a value that is not a FIELD TABLE field, by an
+implementation whose input record does not project to the FIELD TABLE
+byte for byte, or by breaking a tie the table leaves to X (for example
+an entry id with rows in two stores resolved by store declaration
+order), <code>production-ready</code> computed with no release-seam
+record for the fingerprint, a confirmation or seam record counted
+although a later ledger record voids it, or a GREEN gauge over an
+unhardened deliverable (detector:
+<code>CM-DELIVERY-HARDENING-STATUS-COMPUTED</code>); (3) UNTRACKED OR
+HIDDEN DEBT — a ledger kept as a hand-maintained store, an entry with no
+tracked id or no disposition, a disposition outside its class&#39;s
+permitted row, a disposition validated against a class label on the
+record instead of the entry&#39;s owning-store class, a reason code outside
+its disposition&#39;s permitted row, a non-<code>open</code> disposition
+written by any role other than the verifier seam, a <code>skipped</code>
+entry whose reason is not one of the two topology-absent codes, a
+resolved-but-disclosed entry missing from an announcement, or a
+contained item with no live verdict that is absent from the ledger
+(detector: <code>CM-HARDENING-LEDGER-TRACKED</code>); (4) HARDENING
+STARVED OR NEVER CONVERGING — a direction-rule growth, an un-escalated
+stall, an undeclared N, a starved scope, or a loop reported done while a
+scope of the current release has O &gt; 0 without a recorded external
+block (detector: <code>CM-HARDENING-CONVERGENCE-MONOTONE</code>); (5)
+DELIVERED WITHOUT EVIDENCE OR WITHOUT LABELS — a quick hand-off missing
+any (E.2) seam, a first deliverable with no source-GO&#39;d increment or no
+user-visible behaviour, or a hand-off with no status and ledger attached
+(detector: <code>CM-QUICK-DELIVERY-EVIDENCE-UNWEAKENED</code>). Each
+detector is itself a guard under §11.4.201: it ships golden-TRUE and
+golden-FALSE-with-carrier fixtures, takes the conservative-safe default
+on an unresolvable signal, and prints its resolved evidence on every
+refusal.</p>
+<p><strong>(E.8) HONEST BOUNDARY (§11.4.6).</strong> Clause (E)
+re-orders WHEN deliverable-independent hardening COMPLETES relative to a
+scope&#39;s first deliverable, and makes that deliverable&#39;s remaining debt
+visible, tracked and converging. It weakens none of the following:
+§11.4.5 / §11.4.262 / §11.4.50 deterministic machine evidence; §11.4.108
+four-layer evidence; §11.4.209 / §11.4.134 / §11.4.276 review; §11.4.236
+readiness; §11.4.235(E) live verification and its device eligibility and
+lease rules; §11.4.185 manual QA; §11.4.40 full-suite retest before a
+TAG (a quick deliverable is a QA build, not a tag); §11.4.129
+huge-blocker full restart; §11.4.239 critical-invariant failure-path
+scenarios; or a consuming project&#39;s own stricter delivery precondition.
+A <code>skipped</code>, <code>not-applicable</code> or
+<code>waived</code> disposition is an honest, disclosed gap, never a
+PASS (§11.4.3, §11.4.271). It does not prove any deliverable correct —
+that stays §11.4.108 / §11.4.235 — and the four-to-five-times wall-clock
+target of clause (A) stays a measured target, never an assumed one. A
+status of <code>delivered-unhardened</code> is an honest statement of
+debt, never permission to stop paying it.</p>
+<p><strong>(E) gates.</strong> Classification: universal (§11.4.17) —
+consumers supply the scope definition, the N stall bound, the
+owning-store declarations (each store&#39;s keying class from (E.3),
+including any explicit not-fingerprint-bound label), the polish-item
+marker, and the badge and report locations as DATA per §11.4.35.
+Composes §11.4.3 / §11.4.4(b) / §11.4.5 / §11.4.6 / §11.4.24 / §11.4.27
+/ §11.4.40 / §11.4.50 / §11.4.54 / §11.4.66 / §11.4.69 / §11.4.94 /
+§11.4.97 / §11.4.101 / §11.4.103 / §11.4.106(F) / §11.4.108 / §11.4.116
+/ §11.4.118 / §11.4.119 / §11.4.126 / §11.4.129 / §11.4.134 / §11.4.135
+/ §11.4.147 / §11.4.169 / §11.4.176 / §11.4.183 / §11.4.185 / §11.4.192
+/ §11.4.197 / §11.4.201 / §11.4.209 / §11.4.227 / §11.4.229 / §11.4.231
+/ §11.4.232 / §11.4.233 / §11.4.235(A)(D)(E) / §11.4.236 / §11.4.239 /
+§11.4.259 / §11.4.260 / §11.4.261 / §11.4.262 / §11.4.267 / §11.4.271 /
+§11.4.273 / §11.4.276 / §1.1. Recommended gates, each with its FAIL
+conditions and its §11.4.201(1) golden-FALSE:
+<code>CM-DELIVERY-HARDENING-STATUS-COMPUTED</code> (FAIL: a QA hand-off
+record with no status or no <code>pending</code> field; a status or
+<code>pending</code> value outside its closed set; a status differing
+from the transition-table value recomputed from the (E.3)(b) join;
+<code>production-ready</code> with no release-seam record for the
+fingerprint, with O &gt; 0, without the §11.4.185 confirmation, or with
+a not-fingerprint-bound input; a release-seam record written while O
+&gt; 0 or before the §11.4.185 confirmation; a confirmation counted
+whose sequence number is not greater than that of every ledger record
+for the fingerprint, or a seam record counted whose sequence number is
+not greater than that of the latest confirmation (the
+reopen-then-re-close replay); a <code>pending</code> value naming an act
+whose valid record already exists; a status that changes when records
+are re-stored in another order or read at another wall-clock time; an
+entry set that omits an entry named by any <code>disposition</code>
+record for the fingerprint (for example after its store row was
+deleted); a status computed while any declared owning store, required or
+not, is unreadable; a record counted for a fingerprint it does not
+itself carry; an entry id that matches more than one row, or rows of
+different classes, resolved to one class (by store declaration order, by
+the record, or otherwise) instead of X; a status that changes when the
+owning stores are declared in another order; a status that reads a value
+that is not a FIELD TABLE field, or an implementation whose input record
+does not project to the FIELD TABLE byte for byte; a matched row with no
+birth record for the fingerprint, or a write-log entry whose mirror is
+missing, resolved as anything but X; a sequence defect of another
+fingerprint holding this one; a quarantine without a recorded §11.4.66
+decision; an unresolvable input resolved upward; the §11.4.259 gauge
+GREEN while the newest deliverable of an open scope is
+<code>delivered-unhardened</code>, stale or unknown; golden-FALSE: a
+<code>delivered-hardened-awaiting-qa</code> hand-off with O = 0,
+all-resolved entries including disclosed <code>skipped</code> and
+<code>not-applicable</code> ones, no §11.4.185 confirmation, pending
+<code>manual-qa</code> and an AMBER gauge fires nothing) +
+<code>CM-DELIVERY-STATUS-FRESH</code> (FAIL: an announced status whose
+ledger-snapshot time precedes the latest write to any matching record of
+any owning store; an announced status at or after its VALID-UNTIL, or
+one counting a <code>waived</code> entry with no VALID-UNTIL; a
+fingerprint differing from the deliverable announced; an announcement
+carrying no fingerprint or no snapshot time; an owning store with no
+declared keying class; a scope-keyed write not mirrored to every
+already-delivered fingerprint whose hand-off record names a matching
+contained item or code path; golden-FALSE: a status recomputed after the
+last matching write, with one explicitly labelled not-fingerprint-bound
+store holding it at <code>delivered-hardened-awaiting-qa</code>, fires
+nothing) + <code>CM-HARDENING-LEDGER-TRACKED</code> (FAIL: a ledger
+entry with no tracked §11.4.197 item id or no disposition; an
+absence-defined ((L1), (L2), (L6), (L7)) or polish ((L5)) entry with no
+tracked-item row, or a tracked-item row removed while its entry is in
+the entry set; an invalid <code>disposition</code> record that is not
+its entry&#39;s latest record treated as opening the entry; a disposition
+outside its closed set or outside its class&#39;s permitted-disposition row
+(for example an (L7) entry <code>skipped</code>); a disposition
+validated against a class label carried by the record instead of the
+entry&#39;s owning-store class; a reason code outside its disposition&#39;s
+permitted row, or a <code>closed</code> or <code>waived</code> record
+with no evidence reference; a non-<code>open</code> disposition record
+whose writer role is not <code>verifier-seam</code>; a
+<code>skipped</code> entry whose reason is not
+<code>hardware_not_present</code> or <code>topology_unsupported</code>;
+a <code>waived</code> entry whose waiver is elapsed or invalid under
+§11.4.271; a <code>skipped</code>, <code>not-applicable</code> or
+<code>waived</code> entry absent from an announcement&#39;s counts; a ledger
+implemented as a hand-maintained store instead of a join over the owning
+stores; a contained item with no passing live verdict that is absent
+from the ledger; golden-FALSE: a join-computed ledger whose every entry
+carries a tracked id, a valid disposition and appears in the
+announcement fires nothing) +
+<code>CM-HARDENING-CONVERGENCE-MONOTONE</code> (FAIL: a scope&#39;s
+<code>open</code> count grows between consecutive deliverables beyond
+the entries new increments brought in; N consecutive no-new-increment
+deliverables without a decrease and with no §11.4.267(D) escalation
+record; a bound scope with no declared N; O &gt; 0 with zero live
+hardening streams while host headroom exists; the §11.4.126 loop
+reported done while a delivered scope of the current release has O &gt;
+0 with no recorded external block; golden-FALSE: a scope whose
+<code>open</code> count shrinks each no-new-increment deliverable with
+one live hardening stream, and a scope at
+<code>delivered-hardened-awaiting-qa</code> pending only
+<code>manual-qa</code> treated as externally blocked while the loop
+continues other work, fire nothing) +
+<code>CM-QUICK-DELIVERY-EVIDENCE-UNWEAKENED</code> (FAIL: a hand-off
+lacking the §11.4.236 candidate-fingerprinted verdict; a source GO not
+recorded on the §11.4.209 substrate or its sanctioned recorded fallback;
+a §11.4.235(E) per-item verdict replaced by narrative; a first
+deliverable with no increment holding its own source GO or exercising no
+user-visible behaviour; a hand-off with no status or ledger attached;
+golden-FALSE: a first deliverable carrying every required verdict and an
+honestly non-empty ledger fires nothing) +
+<code>CM-CANONICAL-MIRROR-BODY-LOCKSTEP</code> (scope: every anchor
+whose mirrors carry the FULL block rather than a compact or pointer
+form, as §11.4.230 does; FAIL: the canonical
+<code>Constitution.md</code> block body, its heading marker normalised,
+differs from any full-block mirror body; named golden-BAD fixtures: (i)
+a canonical-only edit followed by regeneration and (ii) the same edit
+applied consistently to every full-block mirror with
+<code>Constitution.md</code> untouched — both pass every existing gate
+today; golden-FALSE: a compact or pointer mirror, which §11.4.227(B)
+treats as a legitimate cross-layer variance, fires nothing) + paired
+§1.1 mutations (hand-set a status to <code>production-ready</code>;
+compute <code>production-ready</code> without a release-seam record;
+replay an old ledger snapshot after an owning-store write; drop one
+entry from the ledger join, or drop a <code>skipped</code> entry from an
+announcement; inject <code>open</code> growth with no new increment, or
+remove every live hardening stream from a scope with O &gt; 0; strip the
+§11.4.236 verdict from a quick hand-off; replay a reopen and a re-close
+after the release-seam record with no new confirmation and seam record;
+mark an (L7) entry <code>skipped</code>, or let a
+<code>producer</code>-role record close an entry; delete the store row
+of an entry whose latest record is <code>open</code>, or make a declared
+non-required store unreadable; label a <code>waived</code> record with a
+class that permits <code>waived</code> while the entry&#39;s owning-store
+class does not; give one entry id rows of different classes in two
+stores and resolve it by either declaration order; drop the tracked-item
+row of an (L1) entry that holds a valid <code>skipped</code> record;
+delete the row of an (L6) entry whose birth record is missing from the
+stream; make the status read a value that is not a field of its input
+record; let a malformed record of another fingerprint hold this one;
+count a waiver after its expiry; edit the §11.4.230 body in
+<code>Constitution.md</code> only and regenerate; edit it in every
+full-block mirror with <code>Constitution.md</code> untouched — each
+MUST make its gate FAIL). Gate code is a separate work item, NOT claimed
+shipped (§11.4.6 / §11.4.227); the six gates are registered as tracked
+deferrals <code>OWED-GATE-115</code>..<code>OWED-GATE-120</code> in
+<code>constitution/scripts/gates/gate_ledger_deferrals.tsv</code>. No
+escape hatch — no <code>--quick-skips-review</code>,
+<code>--quick-skips-readiness-verdict</code>,
+<code>--hand-set-delivery-status</code>,
+<code>--unlabelled-quick-build</code>, <code>--stale-status-OK</code>,
+<code>--quick-is-production-ready</code>,
+<code>--untracked-hardening-debt</code>, <code>--hidden-skip-OK</code>,
+<code>--hardening-can-wait</code>, <code>--speed-metric-gates</code>,
+<code>--stop-hardening-after-delivery</code>,
+<code>--qa-wait-idles-loop</code> flag.</p>
+<p><em>(Process note for future extenders: §11.4.230&#39;s next free clause
+letter is (F); never reuse (A)–(E).)</em></p>
 <p>Classification: universal (§11.4.17) — a platform-neutral
 parallelization discipline reusable by ANY project that builds an
 artifact, validates it across multiple targets, and records device
@@ -1519,19 +2599,22 @@ non-merge-conflict-resolution work. It does NOT relax, override, or
 compete with the two existing hard model-substrate pins: §11.4.209
 (every mandatory independent code-review — §11.4.125/§11.4.142/§11.4.194
 iterated to GO per §11.4.134 — runs on <strong>Opus at
-<code>xhigh</code> effort</strong>, ALWAYS — no Fable, no fallback
-model; genuine Opus-unavailability BLOCKS the review, NEVER a lower
-tier, another model, or a lower effort) and §11.4.211 (every
-main→feature/product/flavor merge-CONFLICT resolution runs on the SAME
-Opus-xhigh substrate, blocked — never substituted — on unavailability).
-Those two anchors are STRICTER, SCOPE-SPECIFIC pins that this anchor&#39;s
-general ladder does not reach — review and merge-conflict-resolution are
-NOT eligible for sonnet/opus-by-complexity dispatch; they run on their
-pinned substrate ALWAYS, regardless of how &quot;simple&quot; the reviewed change
-or the conflict appears. A review or merge-conflict resolution
-dispatched on anything other than the §11.4.209/§11.4.211 Opus-xhigh pin
-is a violation of THOSE anchors, not a valid application of §11.4.231&#39;s
-general ladder.</p>
+<code>xhigh</code> effort</strong> as PRIMARY substrate, with a
+genuine-unavailability SONNET fallback, amended 2026-10-04 — no Fable,
+no Haiku, no other fallback model; BLOCKED only when BOTH Opus and
+Sonnet are genuinely unavailable, NEVER a lower tier or any other model)
+and §11.4.211 (every main→feature/product/flavor merge-CONFLICT
+resolution runs on the SAME Opus-xhigh-primary-plus-Sonnet-fallback
+substrate, blocked only when both Opus and Sonnet are genuinely
+unavailable). Those two anchors are STRICTER, SCOPE-SPECIFIC pins that
+this anchor&#39;s general ladder does not reach — review and
+merge-conflict-resolution are NOT eligible for sonnet/opus-by-complexity
+dispatch; they run on their pinned substrate ALWAYS, regardless of how
+&quot;simple&quot; the reviewed change or the conflict appears. A review or
+merge-conflict resolution dispatched on anything other than the
+§11.4.209/§11.4.211 Opus-xhigh-primary-plus-sanctioned-Sonnet-fallback
+substrate (amended 2026-10-04) is a violation of THOSE anchors, not a
+valid application of §11.4.231&#39;s general ladder.</p>
 <p><strong>(F) EFFORT-TIER SELECTION — the SAME nano-precision
 discipline applied to the reasoning-EFFORT axis (operator IMPORTANT
 mandate, 2026-07-26; verbatim: &quot;Besides dynamic determining proper
@@ -1577,17 +2660,21 @@ it is a harness capability reported honestly, never faked (§11.4.182).
 (F.3) HARD-PIN FLOOR PRESERVED — clause (E)&#39;s hard pins are ALSO effort
 pins: every §11.4.209 mandatory independent code-review AND every
 §11.4.211 merge-conflict resolution runs at <code>xhigh</code> effort on
-Opus (no fallback model), and this general effort ladder NEVER tiers
-those two scopes below <code>xhigh</code> regardless of how &quot;simple&quot; the
-reviewed change or the conflict appears — a review / merge-conflict
-resolution run below <code>xhigh</code> is a §11.4.209 / §11.4.211
-violation, not a valid application of this ladder. (F.4) HONEST BOUNDARY
-(§11.4.6) — &quot;lightest capable effort&quot; is a CONJUNCTION, not a discount:
-an effort setting that yields a shallow / guessed / under-verified
-result is UNDER-POWERED, a FALSE ECONOMY, and a §11.4 violation of
-PASS-bluff severity, exactly as an under-powered MODEL tier is per
-clause (D); capability determinations are evidence-based, never guessed
-(§11.4.6).</p>
+Opus as PRIMARY substrate (or, on a captured genuine Opus-unavailability
+FACT, on the §11.4.209/§11.4.211 sanctioned Sonnet fallback, amended
+2026-10-04 — Fable and Haiku remain forbidden in every role), and this
+general effort ladder NEVER tiers those two scopes below
+<code>xhigh</code> where the dispatch path can set it, regardless of how
+&quot;simple&quot; the reviewed change or the conflict appears — a review /
+merge-conflict resolution run below <code>xhigh</code> on a path that
+COULD set it, or run on a model other than Opus or the sanctioned Sonnet
+fallback, is a §11.4.209 / §11.4.211 violation, not a valid application
+of this ladder. (F.4) HONEST BOUNDARY (§11.4.6) — &quot;lightest capable
+effort&quot; is a CONJUNCTION, not a discount: an effort setting that yields
+a shallow / guessed / under-verified result is UNDER-POWERED, a FALSE
+ECONOMY, and a §11.4 violation of PASS-bluff severity, exactly as an
+under-powered MODEL tier is per clause (D); capability determinations
+are evidence-based, never guessed (§11.4.6).</p>
 <p>Classification: universal (§11.4.17) — a platform-neutral
 model-capacity-matching discipline reusable by any project dispatching
 work across a tiered model roster; the consuming project supplies its
