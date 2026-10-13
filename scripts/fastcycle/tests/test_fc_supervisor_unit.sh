@@ -36,6 +36,8 @@
 # (V4R8-2), driven with the real fc_common.py next to the module under test.
 # Round-9 groups (T048 V4 round 9): [R9B] [R9ID-*] [R9OWN-I/J] [R9DEC] [R9GC] -- see the block comment above them.
 # Round-10 groups (T048 V4 round 10): [R10GC-*] [R10LEASE*] [R10HASH] [R10ATOMIC] -- see the block comment above them.
+# Round-11 groups (T048 V4 round 11): [R11*] -- a planted FIFO / symlink / socket / directory / device / foreign-uid
+# file never blocks or misleads any open of the module (V4R11-1, class-wide); see the block comment above them.
 #
 # Env: FC_SUP_UNDER_TEST  path of fc_supervisor.py (default: the real file; the
 #                         paired-mutation runner points this at a mutant).
@@ -582,6 +584,54 @@ finally:
 # [R10ATOMIC]     the marker at its final name is the very inode report_prepare wrote, fsynced, under a temp name: a
 #                 rename, never an in-place write/copy a concurrent reader could see half-written (RV3-10).
 import fcntl as _fcntl  # noqa: E402
+
+
+def in_child(fn, secs=15):
+    """run fn() in a forked child bounded by secs (round 11, V4R11-1: a case that BLOCKS must fail as a row, never hang
+    the suite). Returns repr(result), "exit <code>" (SystemExit), "raise <Type>: <msg>", or "TIMEOUT" (the child --
+    a validated pid > 1 this test forked -- is then SIGKILLed through its pidfd, §11.4.263)."""
+    sys.stdout.flush(); sys.stderr.flush()
+    rr, ww = os.pipe()
+    pid = os.fork()
+    if pid == 0:
+        os.close(rr)
+        try:
+            out = repr(fn())
+        except SystemExit as e:
+            out = "exit %r" % (e.code,)
+        except BaseException as e:  # noqa: BLE001
+            out = "raise %s: %s" % (type(e).__name__, e)
+        try:
+            os.write(ww, out.encode("utf-8", "replace")[:4000])
+        finally:
+            os._exit(0)
+    os.close(ww)
+    assert pid > 1 and pid != os.getpid()
+    pfd = os.pidfd_open(pid)
+    end = time.monotonic() + secs
+    st = None
+    while time.monotonic() < end:
+        got, st_ = os.waitpid(pid, os.WNOHANG)
+        if got == pid:
+            st = st_
+            break
+        time.sleep(0.01)
+    if st is None:
+        signal.pidfd_send_signal(pfd, signal.SIGKILL)
+        os.waitpid(pid, 0)
+        os.close(pfd); os.close(rr)
+        return "TIMEOUT"
+    os.close(pfd)
+    data = b""
+    while True:
+        c = os.read(rr, 4096)
+        if not c:
+            break
+        data += c
+    os.close(rr)
+    return data.decode("utf-8", "replace")
+
+
 G10 = tempfile.mkdtemp(prefix="fc_sup_unit_r10.")
 try:
     proc_boot = open("/proc/sys/kernel/random/boot_id").read().strip().replace("-", "")[:12]
@@ -603,13 +653,14 @@ try:
     odd = mk10("%s%s.%d.%d.r10e" % (m.STATE_PREFIX, proc_boot, dpid, 12345))
     os.symlink(os.path.join(free, "lease"), os.path.join(odd, "lease"))
     none_ = mk10("%s%s.%d.%d.r10f" % (m.STATE_PREFIX, proc_boot, dpid, 12345))
-    m.gc_statedirs(G10)
+    gcres = in_child(lambda: m.gc_statedirs(G10), 20)   # bounded: a blocking lease probe (RV4-04) fails as a row
     os.close(hfd)
     rows = [("R10GC-start", "same boot + a live pid with ANOTHER start time (pid reused) -> removed",
              not os.path.lexists(restart)),
             ("R10GC-boot", "named with the boot id read from /proc by the test + a live owner -> kept",
              os.path.isdir(realboot)),
-            ("R10LEASE-held", "dead owner, lease held by a live process -> kept", os.path.isdir(held)),
+            ("R10LEASE-held", "dead owner, lease held by a live process -> kept, and gc RETURNED (%s)" % gcres,
+             os.path.isdir(held) and gcres != "TIMEOUT"),
             ("R10LEASE-free", "dead owner, a free lease -> removed (lease included)", not os.path.lexists(free)),
             ("R10LEASE-odd", "dead owner, the lease is a symlink (not provably free) -> kept", os.path.isdir(odd)),
             ("R10LEASE-none", "dead owner, never leased (no keeper can exist) -> removed", not os.path.lexists(none_))]
@@ -720,6 +771,431 @@ try:
             % (mk_ino, seen, leftovers))
 finally:
     shutil.rmtree(G10, ignore_errors=True)
+
+# --- T048 V4 round 11 (round-4 review, NO-GO: V4R11-1 IMPORTANT + V4R11-2 MINOR). V4R11-1: gc opened a lease named
+# `lease` O_RDONLY without O_NONBLOCK before its type check -- a FIFO there (plantable under a world-writable tmp-parent)
+# hung gc forever with the replay locks held. Fixed CLASS-wide (one helper pair, open_owned_dir / open_owned_file, used
+# by every file open of the module). Every case that could block runs in a bounded child (in_child): a hang is a row.
+# [R11FIFO]          the reviewer's repro: a dead-owner state directory whose `lease` is a FIFO -> gc returns, kept.
+# [R11FIFO-foreign]  the same in a directory owned by ANOTHER uid (the /tmp planting attack, real subordinate uid).
+# [R11LEASE-uid / -dir / -sock / -mode]  a lease owned by another uid / a directory / a socket / mode 0666 -> kept.
+# [R11DIR-mode / -uid]  a state directory writable by others (0777) / owned by another uid -> kept (never opened into).
+# [R11DEV]           a device node as the lease (bind mount of /dev/null in a user+mount namespace) -> gc returns,
+#                    kept, and the device is NEVER OPENED (spy on os.open inside the namespace).
+# [R11NOOPEN-*]      the helpers refuse a FIFO / directory / socket / symlink WITHOUT calling os.open on it (spy).
+# [R11RACE-fifo / -symlink / -swap / -dirswap]  the look (fstatat) is made to lie -- what it saw is replaced before the
+#                    open: a FIFO (O_NONBLOCK + the post-open type check), a symlink (O_NOFOLLOW), another inode (the
+#                    (dev, ino) comparison), another directory -> refused, never blocked.
+# [R11TRUNC]         O_TRUNC is applied only after the checks: a refused file keeps its content.
+# [R11UID-file / -dir]  the helpers refuse a file / directory owned by another uid.
+# [R11MODE]          make_statedir: directory exactly 0700, lease exactly 0600 (RV4-09). [R11MODE-read]: a marker in a
+#                    state directory others can write is not trusted (report_verified -> None).
+# [R11MKFAIL]        make_statedir's flock-failure path leaves NO directory behind (RV4-15, failure injected).
+# [R11GC-nofdleak]   gc closes every lease it acquired, also for a directory it could not remove (RV4-13).
+# [R11GC-held]       gc holds the lease THROUGH the removal (an independent probe during remove_statedir is refused,
+#                    RV4-12).
+# [R11OUT-fifo / -symlink]  a FIFO / a symlink put at --out after report-prepare is not the report, and never blocks.
+# [R11LOCK-fifo / -symlink / -uid]  a planted lock file -> BLIND 4 (refused, said), never a hang, never through a link.
+# [R11INTR-symlink]  process_ledger never writes INTERRUPTED through a planted symlink (control: a plain directory is
+#                    marked). [R11LEDGER-fifo] [R11MARK-fifo] [R11TIMING-fifo]: no supervisor write/read blocks on one.
+# [R11PREP-dir]      report_prepare refuses a state directory others can write (no marker written).
+import socket as _socket  # noqa: E402
+import stat as _st_mod  # noqa: E402
+G11 = tempfile.mkdtemp(prefix="fc_sup_unit_r11.")
+NS = ["unshare", "--map-users=auto", "--map-groups=auto", "--map-root-user"]
+
+
+def subuid_own(*paths):
+    """chown paths to a uid that is NOT this user's (a subordinate uid, through a user namespace): the real thing,
+    no simulation. True when every path ended up owned by another uid."""
+    try:
+        p = subprocess.run(NS + ["chown", "1000:1000"] + list(paths), capture_output=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    def foreign(x):
+        try:
+            return os.lstat(x).st_uid != os.geteuid()
+        except PermissionError:      # inside a directory already given away: not this user's to look into
+            return True
+    return p.returncode == 0 and all(foreign(x) for x in paths)
+
+
+class _GeteuidShift:
+    """fallback when no subordinate uid is available: os.geteuid() reports another uid (the module reads os.geteuid
+    through the os module object) -- said in the row text, never silently."""
+    def __enter__(self):
+        self.real = os.geteuid
+        os.geteuid = lambda: self.real() + 7
+        return self
+
+    def __exit__(self, *a):
+        os.geteuid = self.real
+
+
+try:
+    proc_boot = open("/proc/sys/kernel/random/boot_id").read().strip().replace("-", "")[:12]
+    dead = subprocess.Popen(["true"]); dead.wait()
+    dpid = dead.pid
+    seq = [0]
+
+    def sdir(tag, lease="file", mode=0o700):
+        """a dead-owner state directory, alone in its own fresh parent (so gc over that parent sees only it)"""
+        seq[0] += 1
+        par = os.path.join(G11, "par%d" % seq[0]); os.mkdir(par)
+        d = os.path.join(par, "%s%s.%d.%d.%s" % (m.STATE_PREFIX, proc_boot, dpid, 12345, tag))
+        os.mkdir(d); os.chmod(d, mode)
+        open(os.path.join(d, m.REPORT_MARKER), "w").write("{}")
+        lp = os.path.join(d, "lease")
+        if lease == "file":
+            fd = os.open(lp, os.O_RDWR | os.O_CREAT, 0o600); os.close(fd)
+        elif lease == "fifo":
+            os.mkfifo(lp, 0o600)
+        elif lease == "dir":
+            os.mkdir(lp)
+        elif lease == "sock":
+            here = os.getcwd(); os.chdir(d)        # bind a short relative name (AF_UNIX path limit)
+            try:
+                sk = _socket.socket(_socket.AF_UNIX); sk.bind("lease"); sk.close()
+            finally:
+                os.chdir(here)
+        return d
+
+    def gc_alone(d):
+        """gc over d's parent, which holds ONLY d (bounded child)"""
+        par = os.path.dirname(d)
+        return d, in_child(lambda: m.gc_statedirs(par), 15)
+
+    # control needle (the rows below are not vacuous): a dead owner + a FREE regular lease of ours IS removed
+    cd, cres = gc_alone(sdir("ctl"))
+    (ok if cres == "1" and not os.path.lexists(cd) else bad)(
+        "[R11FIFO-needle] control: dead owner + a free regular lease of this user's -> removed (%s)" % cres)
+    fd_, fres = gc_alone(sdir("fifo", "fifo"))
+    (ok if fres == "0" and os.path.isdir(fd_) else bad)(
+        "[R11FIFO] dead owner, `lease` is a FIFO -> gc RETURNS (%s) and keeps the directory (the reviewer's repro: "
+        "round 10 blocked here forever)" % fres)
+    # the attack itself: a directory owned by ANOTHER uid with a FIFO lease, under the tmp-parent
+    fo = sdir("ffor", "fifo")
+    foreign = subuid_own(os.path.join(fo, "lease"), os.path.join(fo, m.REPORT_MARKER), fo)
+    fo2, fores = gc_alone(fo)
+    if foreign:
+        (ok if fores == "0" and os.path.isdir(fo2) else bad)(
+            "[R11FIFO-foreign] a state directory owned by another uid (real subordinate uid) with a FIFO lease -> gc "
+            "returns (%s), kept, nothing opened inside it" % fores)
+    else:
+        print("SKIP [R11FIFO-foreign] no subordinate uid available (unshare --map-users=auto failed) -- not counted")
+
+    # lease kinds: another uid / a directory / a socket / mode 0666
+    lu = sdir("luid")
+    os.chmod(os.path.join(lu, "lease"), 0o644)      # readable: without the owner check it COULD be opened + locked
+    luid_real = subuid_own(os.path.join(lu, "lease"))
+    if luid_real:
+        lu2, lures = gc_alone(lu)
+        (ok if lures == "0" and os.path.isdir(lu2) else bad)(
+            "[R11LEASE-uid] the lease is owned by another uid (real subordinate uid, mode 0644: this user could open "
+            "and lock it) -> not provably this replay's -> kept (%s)" % lures)
+    else:
+        lu2, _ = gc_alone(lu)
+        with _GeteuidShift():
+            lures = in_child(lambda: m._lease_free(lu2)[0], 10)
+        (ok if lures == "False" else bad)("[R11LEASE-uid] SIMULATED (no subordinate uid: os.geteuid shifted) -> "
+                                          "_lease_free %s" % lures)
+    for kind in ("dir", "sock"):
+        kd, kres = gc_alone(sdir("l" + kind, kind))
+        (ok if kres == "0" and os.path.isdir(kd) else bad)(
+            "[R11LEASE-%s] the lease is a %s -> gc returns (%s), kept" % (kind, {"dir": "directory", "sock": "socket"}[kind], kres))
+    lm = sdir("lmode"); os.chmod(os.path.join(lm, "lease"), 0o666)
+    lm2, lmres = gc_alone(lm)
+    (ok if lmres == "0" and os.path.isdir(lm2) else bad)(
+        "[R11LEASE-mode] the lease is writable by others (0666) -> kept (%s)" % lmres)
+    dm2, dmres = gc_alone(sdir("dmode", mode=0o777))
+    (ok if dmres == "0" and os.path.isdir(dm2) else bad)(
+        "[R11DIR-mode] the state directory is writable by others (0777), lease free -> kept (%s)" % dmres)
+
+    # helper-level: the directory owner / file owner checks alone
+    hu = os.path.join(G11, "hu"); os.mkdir(hu, 0o700)
+    hf = os.path.join(hu, "f"); open(hf, "w").write("x")
+    hdir = os.path.join(G11, "hdir"); os.mkdir(hdir, 0o755)
+    real_u = subuid_own(hf, hdir)
+
+    def try_open_file():
+        dfd = os.open(hu, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            return m.open_owned_file("f", os.O_RDONLY, dir_fd=dfd)
+        finally:
+            os.close(dfd)
+    if real_u:
+        r1 = in_child(try_open_file, 10)
+        r2 = in_child(lambda: m.open_owned_dir(hdir), 10)
+        how = "real subordinate uid"
+    else:
+        with _GeteuidShift():
+            r1 = in_child(try_open_file, 10)
+            r2 = in_child(lambda: m.open_owned_dir(hdir), 10)
+        how = "SIMULATED: os.geteuid shifted"
+    (ok if r1.startswith("raise UnsafeFile") else bad)("[R11UID-file] open_owned_file refuses a file owned by another "
+                                                       "uid (%s) -> %s" % (how, r1[:90]))
+    (ok if r2.startswith("raise UnsafeFile") else bad)("[R11UID-dir] open_owned_dir refuses a directory owned by another "
+                                                       "uid (%s) -> %s" % (how, r2[:90]))
+    if real_u:
+        du = sdir("duid")
+        subuid_own(du)
+        du2, dures = gc_alone(du)
+        (ok if dures == "0" and os.path.isdir(du2) else bad)(
+            "[R11DIR-uid] a state directory owned by another uid -> kept (%s)" % dures)
+
+    # [R11DEV] a device node as the lease, in a user + mount namespace (an unprivileged process cannot mknod one)
+    dvd = sdir("dev")
+    dpar = os.path.dirname(dvd)
+    runner = os.path.join(G11, "devrun.py")
+    open(runner, "w").write(
+        "import importlib.util, os, sys\n"
+        "spec = importlib.util.spec_from_file_location('fcsup', sys.argv[1]); m = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(m)\n"
+        "seen = []\n_real = os.open\n"
+        "def spy(p, *a, **k):\n    seen.append(os.fsdecode(p))\n    return _real(p, *a, **k)\n"
+        "os.open = spy\n"
+        "n = m.gc_statedirs(sys.argv[2])\n"
+        "os.open = _real\n"
+        "print('removed=%d kept=%s opened_lease=%s' % (n, os.path.isdir(sys.argv[3]), 'lease' in seen))\n")
+    try:
+        pr = subprocess.run(["unshare", "-rm", "sh", "-c",
+                             'mount --bind /dev/null "$1/lease" && stat -c %F "$1/lease" && exec python3 -I "$2" "$3" "$4" "$1"',
+                             "sh", dvd, runner, os.environ["SUP"], dpar], capture_output=True, text=True, timeout=30)
+        dout = (pr.stdout or "").strip().replace("\n", " | ")
+        drc = pr.returncode
+    except subprocess.TimeoutExpired:
+        dout, drc = "TIMEOUT", "TIMEOUT"
+    except OSError as e:
+        dout, drc = "unshare unavailable: %s" % e, None
+    if drc is None or (drc != 0 and "character special" not in dout and dout != "TIMEOUT"):
+        print("SKIP [R11DEV] no user+mount namespace (%s) -- not counted" % dout[:120])
+    else:
+        (ok if drc == 0 and "character special" in dout and "removed=0 kept=True opened_lease=False" in dout else bad)(
+            "[R11DEV] the lease is a character device (bind-mounted /dev/null) -> gc returns, keeps it, and NEVER "
+            "opens the device: %s (rc %s)" % (dout, drc))
+
+    # helper-level spies: a non-regular name is refused WITHOUT os.open being called on it
+    sp = os.path.join(G11, "spy"); os.mkdir(sp, 0o700)
+    os.mkfifo(os.path.join(sp, "fifo")); os.mkdir(os.path.join(sp, "dir"))
+    sk = _socket.socket(_socket.AF_UNIX); sk.bind(os.path.join(sp, "sock")); sk.close()
+    open(os.path.join(sp, "reg"), "w").write("x"); os.symlink(os.path.join(sp, "reg"), os.path.join(sp, "link"))
+
+    def spied(fn):
+        def run():
+            real = os.open
+
+            def boom(p, *a, **k):
+                raise AssertionError("os.open called on %s" % os.fsdecode(p))
+            os.open = boom
+            try:
+                return fn()
+            finally:
+                os.open = real
+        return run
+    for nm in ("fifo", "dir", "sock", "link"):
+        r = in_child(spied(lambda nm=nm: m.open_owned_file(os.path.join(sp, nm), os.O_RDONLY)), 10)
+        (ok if r.startswith("raise UnsafeFile") else bad)(
+            "[R11NOOPEN-%s] open_owned_file refuses a %s without opening it -> %s" % (nm, nm, r[:100]))
+    r = in_child(spied(lambda: m.open_owned_dir(os.path.join(sp, "fifo"))), 10)
+    (ok if r.startswith("raise UnsafeFile") else bad)("[R11NOOPEN-dirfifo] open_owned_dir refuses a FIFO without "
+                                                      "opening it -> %s" % r[:100])
+
+    # races: the look lies (what it saw is replaced before the open)
+    import types as _types2
+
+    def lying_stat(fake):
+        def run_with(fn):
+            def run():
+                real = os.stat
+
+                def fakestat(p, *a, **k):
+                    return fake
+                os.stat = fakestat
+                try:
+                    return fn()
+                finally:
+                    os.stat = real
+            return run
+        return run_with
+
+    def fake_of(path, mode=None):
+        st = os.stat(path)
+        return _types2.SimpleNamespace(st_mode=mode if mode is not None else st.st_mode, st_uid=st.st_uid,
+                                       st_dev=st.st_dev, st_ino=st.st_ino)
+    rc_ = os.path.join(G11, "race"); os.mkdir(rc_, 0o700)
+    rf = os.path.join(rc_, "fifo"); os.mkfifo(rf, 0o600)
+    r = in_child(lying_stat(fake_of(rf, _st_mod.S_IFREG | 0o600))(lambda: m.open_owned_file(rf, os.O_RDONLY)), 10)
+    (ok if r.startswith("raise UnsafeFile") else bad)(
+        "[R11RACE-fifo] the look saw a regular file, a FIFO is there at the open -> refused, never blocked: %s" % r[:100])
+    tgt = os.path.join(rc_, "target"); open(tgt, "w").write("t")
+    lk = os.path.join(rc_, "link"); os.symlink(tgt, lk)
+    r = in_child(lying_stat(fake_of(tgt))(lambda: m.open_owned_file(lk, os.O_RDONLY)), 10)
+    (ok if r.startswith("raise OSError") and "Errno 40" in r else bad)(
+        "[R11RACE-symlink] the look saw the target, a symlink is there at the open -> refused (ELOOP): %s" % r[:100])
+    a_ = os.path.join(rc_, "a"); open(a_, "w").write("AAAA")
+    b_ = os.path.join(rc_, "b"); open(b_, "w").write("B")
+    r = in_child(lying_stat(fake_of(b_))(lambda: m.open_owned_file(a_, os.O_RDONLY)), 10)
+    (ok if r.startswith("raise UnsafeFile") else bad)(
+        "[R11RACE-swap] the look saw another inode than the one opened -> refused: %s" % r[:100])
+    r = in_child(lying_stat(fake_of(b_))(lambda: m.open_owned_file(a_, os.O_WRONLY | os.O_TRUNC)), 10)
+    (ok if r.startswith("raise UnsafeFile") and open(a_).read() == "AAAA" else bad)(
+        "[R11TRUNC] a refused O_TRUNC open leaves the file's content intact (%r): %s" % (open(a_).read(), r[:80]))
+    d1 = os.path.join(rc_, "d1"); os.mkdir(d1, 0o700)
+    d2 = os.path.join(rc_, "d2"); os.mkdir(d2, 0o700)
+    r = in_child(lying_stat(fake_of(d2))(lambda: m.open_owned_dir(d1)), 10)
+    (ok if r.startswith("raise UnsafeFile") else bad)(
+        "[R11RACE-dirswap] open_owned_dir: the look saw another directory than the one opened -> refused: %s" % r[:100])
+
+    # [R11MODE] make_statedir: exact modes (RV4-09)
+    mp = os.path.join(G11, "mkpar"); os.mkdir(mp)
+    sd = m.make_statedir(mp)
+    dmode = _st_mod.S_IMODE(os.stat(sd).st_mode)
+    lmode = _st_mod.S_IMODE(os.stat(os.path.join(sd, m.LEASE_NAME)).st_mode)
+    (ok if dmode == 0o700 and lmode == 0o600 else bad)(
+        "[R11MODE] make_statedir: state directory %o (want 700), lease %o (want 600)" % (dmode, lmode))
+    os.close(m.STATE["lease"]); m.STATE["lease"] = None
+    m.remove_statedir(sd)
+    # [R11MODE-read] a valid marker + report in a state directory OTHERS can write is not trusted
+    td = os.path.join(G11, "fc_baseline_replay.state.mread"); os.mkdir(td, 0o700)
+    out = os.path.join(G11, "mread.json")
+    body = {"result": "ok", "n": 11}
+    m.report_prepare(td, FCC, out, "unit-test/v1", _json.dumps(body), 0)
+    write_report(out, body)
+    good = m.report_verified(td)
+    os.chmod(td, 0o777)
+    loose = m.report_verified(td)
+    os.chmod(td, 0o700)
+    (ok if good == 0 and loose is None else bad)(
+        "[R11MODE-read] marker trusted in a 0700 state directory (%r), NOT in a 0777 one (%r)" % (good, loose))
+    # [R11PREP-dir] report_prepare refuses a state directory others can write
+    tp = os.path.join(G11, "fc_baseline_replay.state.prep"); os.mkdir(tp); os.chmod(tp, 0o777)
+    r = in_child(lambda: m.report_prepare(tp, FCC, os.path.join(G11, "prep.json"), "unit-test/v1", _json.dumps(body), 0), 15)
+    (ok if r.startswith("raise") and not os.path.exists(os.path.join(tp, m.REPORT_MARKER)) else bad)(
+        "[R11PREP-dir] report_prepare into a 0777 state directory -> refused, no marker: %s" % r[:90])
+    # [R11OUT-fifo / -symlink]
+    m.report_prepare(td, FCC, out, "unit-test/v1", _json.dumps(body), 0)
+    real_rep = os.path.join(G11, "real_report.json"); write_report(real_rep, body)
+    os.mkfifo(out + ".fifo"); os.replace(out + ".fifo", out)
+    r = in_child(lambda: m.report_verified(td), 10)
+    (ok if r == "None" else bad)("[R11OUT-fifo] a FIFO at --out after report-prepare -> not the report, never blocks: %s" % r)
+    os.unlink(out); os.symlink(real_rep, out)
+    r = in_child(lambda: m.report_verified(td), 10)
+    (ok if r == "None" else bad)("[R11OUT-symlink] a symlink at --out (to a report carrying the recorded body_hash) "
+                                 "-> not the report: %s" % r)
+
+    # [R11MKFAIL] make_statedir: the flock-failure path leaves nothing (RV4-15)
+    fp = os.path.join(G11, "mkfail"); os.mkdir(fp)
+    import fcntl as _fc3
+
+    def failing():
+        def nolock(*a, **k):
+            raise OSError(37, "No locks available (injected)")
+        _fc3.flock = nolock
+        try:
+            m.make_statedir(fp)
+        except OSError as e:
+            return "OSError %s" % e
+        return "no error"
+    r = in_child(failing, 10)
+    left = os.listdir(fp)
+    (ok if "OSError" in r and not left else bad)(
+        "[R11MKFAIL] make_statedir with flock failing -> OSError and nothing left in the parent: %s left=%r" % (r, left))
+
+    # [R11GC-nofdleak] / [R11GC-held]
+    gp = os.path.join(G11, "gcfd"); os.mkdir(gp)
+
+    def mkfree(tag, extra=None):
+        d = os.path.join(gp, "%s%s.%d.%d.%s" % (m.STATE_PREFIX, proc_boot, dpid, 12345, tag)); os.mkdir(d, 0o700)
+        fd = os.open(os.path.join(d, "lease"), os.O_RDWR | os.O_CREAT, 0o600); os.close(fd)
+        if extra:
+            open(os.path.join(d, extra), "w").write("x")
+        return d
+    mkfree("fda"); stuck = mkfree("fdb", "keepme")
+
+    def fds_around_gc():
+        before = sorted(os.listdir("/proc/self/fd"))
+        n = m.gc_statedirs(gp)
+        after = sorted(os.listdir("/proc/self/fd"))
+        return (n, before == after, len(after) - len(before))
+    r = in_child(fds_around_gc, 15)
+    (ok if r == "(1, True, 0)" and os.path.isdir(stuck) else bad)(
+        "[R11GC-nofdleak] gc removed 1, kept the one it could not remove, and left no fd open: %s" % r)
+    hp = os.path.join(G11, "gcheld"); os.mkdir(hp)
+    hd = os.path.join(hp, "%s%s.%d.%d.held" % (m.STATE_PREFIX, proc_boot, dpid, 12345)); os.mkdir(hd, 0o700)
+    fd = os.open(os.path.join(hd, "lease"), os.O_RDWR | os.O_CREAT, 0o600); os.close(fd)
+
+    def held_through():
+        orig = m.remove_statedir
+        probes = []
+
+        def probing(path):
+            try:
+                pf = os.open(os.path.join(path, "lease"), os.O_RDONLY)
+                try:
+                    _fcntl.flock(pf, _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+                    probes.append("FREE")
+                except BlockingIOError:
+                    probes.append("held")
+                finally:
+                    os.close(pf)
+            except OSError as e:
+                probes.append("noopen %s" % e)
+            return orig(path)
+        m.remove_statedir = probing
+        try:
+            return (m.gc_statedirs(hp), probes)
+        finally:
+            m.remove_statedir = orig
+    r = in_child(held_through, 15)
+    (ok if r == "(1, ['held'])" else bad)(
+        "[R11GC-held] gc holds the lease THROUGH remove_statedir (an independent LOCK_NB probe there is refused): %s" % r)
+
+    # [R11LOCK-*] _lock_one on a planted lock file -> BLIND 4, never a hang, never through a link
+    lkd = os.path.join(G11, "locks"); os.mkdir(lkd, 0o755)
+    os.mkfifo(os.path.join(lkd, "fifo.lock"))
+    ltarget = os.path.join(G11, "victim.lock"); open(ltarget, "w").write("")
+    os.symlink(ltarget, os.path.join(lkd, "link.lock"))
+    ulock = os.path.join(lkd, "uid.lock"); open(ulock, "w").write(""); os.chmod(ulock, 0o666)
+    ulock_real = subuid_own(ulock)
+    for nm in ("fifo", "link") + (("uid",) if ulock_real else ()):
+        r = in_child(lambda nm=nm: m._lock_one(os.path.join(lkd, nm + ".lock"), "unit"), 10)
+        (ok if r == "exit 4" else bad)("[R11LOCK-%s] a planted %s lock file -> BLIND 4 (refused, said), never a hang: %s"
+                                       % (nm, {"fifo": "FIFO", "link": "symlink", "uid": "another uid's 0666"}[nm], r))
+    if not ulock_real:
+        print("SKIP [R11LOCK-uid] no subordinate uid available -- not counted")
+    rctl = in_child(lambda: m._lock_one(os.path.join(lkd, "fresh.lock"), "unit") > 2, 10)
+    (ok if rctl == "True" else bad)("[R11LOCK-needle] control: a fresh lock file is created and locked -> %s" % rctl)
+
+    # [R11INTR-symlink] / [R11LEDGER-fifo] / [R11MARK-fifo] / [R11TIMING-fifo]
+    lt = os.path.join(G11, "fc_baseline_replay.ledgertmp"); os.mkdir(lt, 0o700)
+    logd = os.path.join(G11, "logs_sym"); os.mkdir(logd, 0o700)
+    victim = os.path.join(G11, "victim.txt"); open(victim, "w").write("VICTIM")
+    os.symlink(victim, os.path.join(logd, "INTERRUPTED"))
+    logc = os.path.join(G11, "logs_ctl"); os.mkdir(logc, 0o700)
+    for nm, d in (("ledger.logs.a", logd), ("ledger.logs.b", logc)):
+        open(os.path.join(lt, nm), "wb").write(os.fsencode(d) + b"\0")
+    m.DONE["code"] = None
+    r = in_child(lambda: m.process_ledger(lt, "unit test"), 15)
+    marked = os.path.isfile(os.path.join(logc, "INTERRUPTED")) and not os.path.islink(os.path.join(logc, "INTERRUPTED"))
+    (ok if r == "None" and open(victim).read() == "VICTIM" and marked else bad)(
+        "[R11INTR-symlink] INTERRUPTED is never written through a planted symlink (victim %r), a plain run-log "
+        "directory IS marked (%s): %s" % (open(victim).read(), marked, r))
+    lt2 = os.path.join(G11, "fc_baseline_replay.ledgertmp2"); os.mkdir(lt2, 0o700)
+    os.mkfifo(os.path.join(lt2, "ledger.wt.fifo"))
+    r = in_child(lambda: m.process_ledger(lt2, "unit test"), 10)
+    (ok if r == "None" else bad)("[R11LEDGER-fifo] a FIFO among the ledger entries -> process_ledger returns: %s" % r)
+    mf = os.path.join(G11, "mark.fifo"); os.mkfifo(mf)
+    r = in_child(lambda: m._mark(mf, "x"), 10)
+    (ok if r == "None" else bad)("[R11MARK-fifo] _mark on a FIFO -> returns, never blocks: %s" % r)
+    tf = os.path.join(G11, "timing.fifo"); os.mkfifo(tf)
+    r = in_child(lambda: m._write_timing(tf, 1, 0, 0.0), 10)
+    (ok if r == "None" else bad)("[R11TIMING-fifo] _write_timing on a FIFO -> returns, never blocks: %s" % r)
+    mreg = os.path.join(G11, "mark.reg")
+    m._mark(mreg, "cd_failed")
+    (ok if open(mreg).read() == "cd_failed" else bad)("[R11MARK-needle] control: _mark writes a plain marker file")
+finally:
+    subprocess.run(NS + ["rm", "-rf", G11], capture_output=True)
+    shutil.rmtree(G11, ignore_errors=True)
 
 print("----")
 print("SUMMARY pass=%d fail=%d" % (N["ok"], N["bad"]))

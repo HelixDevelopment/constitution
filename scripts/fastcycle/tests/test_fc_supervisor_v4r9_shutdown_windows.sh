@@ -27,6 +27,8 @@
 #   [R9CENSUS] every role's tag list is non-empty and every tag the AST pass inserted is either reached by some row or
 #           listed as unreached WITH THE BRANCH THAT GUARDS IT (the if-condition / except clause / loop, taken from the
 #           AST -- round 10, V4R10-7: no blanket label).
+#   Round 11 (T048 V4, round-4 review): [R10LEASE-decide] V4R11-2 / RV4-08b -- the [R10LEASE] row at a second pause
+#           point, after the keeper's teardown and right before its decision: the lease is held through that window.
 #   Round 10 (T048 V4, round-3 review): [R10LEASE] V4R10-1 -- main SIGKILLed while its keeper is still tearing down, a
 #           concurrent selfcheck + a replay of another repository (other lock dir) run gc_statedirs under the same
 #           TMPDIR: the state directory must survive (the keeper's LEASE), the keeper must read the report (no
@@ -198,6 +200,8 @@ def _rk(kst, sig, done):
 '''
 TAGS = {"keeper": [], "main": []}
 TAGCTX = {}                      # tag -> the branch that guards it (round 10, V4R10-7: the census names it per tag)
+TAGSRC = {}                      # tag -> the first line of the statement it pauses before (round 11: a row can pick
+                                 # its pause point by the code it precedes, never by a hand-typed index)
 
 
 def pause_stmt(tag):
@@ -229,6 +233,7 @@ def instr(stmts, prefix, role_list, start=0, ctx=""):
             tag = "%s.%d" % (prefix, i)
             out.append(pause_stmt(tag))
             TAGCTX[tag] = ctx or "(top level)"
+            TAGSRC[tag] = ast.unparse(st).split("\n")[0]
             for rl in role_list:
                 TAGS[rl].append(tag)
         if i >= start:
@@ -662,33 +667,43 @@ if want("R10LEASE"):
     # directory (what a repository on another filesystem is to the locks: not serialised). The keeper must still read
     # the marker: no INTERRUPTED in the finished run's log directory, its own code 0, the state directory present
     # until the keeper (main provably gone) removes it itself.
-    tag = next((t for t in TAGS["keeper"] if t.startswith("teardown.")), None)
+    # Round 11 (V4R11-2, RV4-08b survived round 10): the SAME row at a second pause point -- after the teardown, right
+    # before the keeper's decision (decide_code(report_verified(...))) -- [R10LEASE-decide]: the lease must still be
+    # held in the window between the teardown and the decision (picked by the statement it precedes, TAGSRC).
     REPO2 = os.path.join(ROOT, "repo2"); os.makedirs(REPO2, exist_ok=True)
     g("init", "-q", REPO2); open(os.path.join(REPO2, "g.txt"), "w").write("y\n")
     g("-C", REPO2, "add", "g.txt"); g("-C", REPO2, "commit", "-q", "-m", "base2")
     HEAD2 = g("-C", REPO2, "rev-parse", "HEAD").stdout.strip()
     LOCKS2 = os.path.join(ROOT, "locks2"); os.makedirs(LOCKS2, exist_ok=True)
-    WT10 = os.path.join(ROOT, "wt_r10")
-    k += 1
-    rp = os.path.join(ROOT, "rp.%d" % k)
-    p = start(dict(BASEENV, RP_FILE=rp, RP_TAG=tag or "none", RP_ROLE="fc-keeper"), wt=WT10)
-    kpid = wait_file(rp, p)
-    if kpid is None:
-        finish(p, 60)
-        bad("[R10LEASE] setup: the keeper never paused at %s" % tag)
-    else:
+    LEASE_POINTS = [("R10LEASE", next((t for t in TAGS["keeper"] if t.startswith("teardown.")), None)),
+                    ("R10LEASE-decide", next((t for t in TAGS["keeper"] if t.startswith("_keeper.try.") and
+                                              TAGSRC.get(t, "").startswith("code = decide_code(report_verified(")), None))]
+    for li, (lname, tag) in enumerate(LEASE_POINTS):
+        if tag is None:
+            bad("[%s] setup: no keeper await point found (the code it precedes changed -- re-enumerate)" % lname)
+            continue
+        WT10 = os.path.join(ROOT, "wt_r10_%d" % li)
+        k += 1
+        rp = os.path.join(ROOT, "rp.%d" % k)
+        p = start(dict(BASEENV, RP_FILE=rp, RP_TAG=tag, RP_ROLE="fc-keeper"), wt=WT10)
+        kpid = wait_file(rp, p)
+        if kpid is None:
+            finish(p, 60)
+            bad("[%s] setup: the keeper never paused at %s" % (lname, tag))
+            continue
         REACHED["keeper"].add(tag)
         sd = state_dirs()
         sig_pid(p.pid, signal.SIGKILL)
         rc = finish(p, 30)
-        scout = os.path.join(ROOT, "sc_r10.json")
+        scout = os.path.join(ROOT, "sc_r10_%d.json" % li)
         try:
             sc = subprocess.run(["bash", RBR, "selfcheck", "--out", scout], env=dict(BASEENV), stdin=subprocess.DEVNULL,
                                 capture_output=True, timeout=50).returncode
         except subprocess.TimeoutExpired:
             sc = "TIMEOUT"
         try:
-            r2 = subprocess.run(argv(wt=os.path.join(ROOT, "wt2"), repo=REPO2, head=HEAD2, out=os.path.join(ROOT, "o2.json")),
+            r2 = subprocess.run(argv(wt=os.path.join(ROOT, "wt2_%d" % li), repo=REPO2, head=HEAD2,
+                                     out=os.path.join(ROOT, "o2_%d.json" % li)),
                                 env=dict(BASEENV, FC_REPLAY_LOCK_DIR=LOCKS2), stdin=subprocess.DEVNULL,
                                 capture_output=True, timeout=50).returncode
         except subprocess.TimeoutExpired:
@@ -711,13 +726,13 @@ if want("R10LEASE"):
         settled, why = settle()
         kcode = os.WEXITSTATUS(kst) if kst is not None and os.WIFEXITED(kst) else kst
         if rc == -9 and sc == 0 and r2 == 0 and kept and kcode == 0 and not intr and gone and settled and report_ok():
-            ok("[R10LEASE] main SIGKILLed with its keeper paused at %s; a concurrent selfcheck and a replay of another "
-               "repository (other lock dir) ran gc_statedirs: the state directory was KEPT, the keeper read the report "
-               "(code 0, no INTERRUPTED), then removed it itself; quiescent" % tag)
+            ok("[%s] main SIGKILLed with its keeper paused at %s (before: %s); a concurrent selfcheck and a replay of "
+               "another repository (other lock dir) ran gc_statedirs: the state directory was KEPT, the keeper read the "
+               "report (code 0, no INTERRUPTED), then removed it itself; quiescent" % (lname, tag, TAGSRC.get(tag, "?")[:60]))
         else:
-            bad("[R10LEASE] rc=%s selfcheck=%s replay2=%s state dir kept through the concurrent gc=%s (%r) keeper code=%s "
-                "INTERRUPTED=%r removed by the keeper=%s settled=%s report=%s %s"
-                % (rc, sc, r2, kept, sd, kcode, intr, gone, settled, report_ok(), why))
+            bad("[%s] at %s: rc=%s selfcheck=%s replay2=%s state dir kept through the concurrent gc=%s (%r) keeper "
+                "code=%s INTERRUPTED=%r removed by the keeper=%s settled=%s report=%s %s"
+                % (lname, tag, rc, sc, r2, kept, sd, kcode, intr, gone, settled, report_ok(), why))
 
 if want("R10DROP"):
     # V4R10-4: main throws AFTER it reaped its keeper (main is the final decider: main_owns) -> its exit funnel
@@ -767,7 +782,10 @@ if want("R9CENSUS") and want("R9WIN") and want("R10INJ") and not TAGSEL and not 
             # round 10 (V4R10-7): no blanket label -- each unreached tag is printed with the branch that guards it (taken
             # from the AST: the if-condition / except clause / loop it sits in), after the ok-replay rows, the
             # main-gone and keeper-killed injections ([R10INJ]), [R10LEASE] and [R10DROP] were driven
-            ok("[R9CENSUS] %s: %d of %d await points reached and checked; %d unreached, each with its guard: %s"
+            ok("[R9CENSUS] %s: %d of %d await points reached and checked; %d unreached, each with its guard (the "
+               "census counts PAUSE-HOOK HITS only: a tag a row executes without pausing there is listed as unreached -- "
+               "e.g. _keeper.try.*.body.0, the keeper's late main-gone removal, which [R10LEASE] executes, round 11 "
+               "V4R11-4): %s"
                % (rl, hit, len(TAGS[rl]), len(miss), "; ".join("%s [%s]" % (t, TAGCTX.get(t, "?")) for t in miss)
                   or "none"))
 

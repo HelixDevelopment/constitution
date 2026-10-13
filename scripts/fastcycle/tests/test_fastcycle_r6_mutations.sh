@@ -61,6 +61,13 @@
 # rested on a false equivalence proof, V4R10-2); the fixer's own V4R10-M1..M11. Oracles: the unit file ([R10*]), the
 # windows file ([R10LEASE] [R10DROP]), the stream matrix (fd-direction needle in every role, V4R10-6), r2 [SM].
 #
+# T048 V4 round 11 (V4R11-* group; round-4 review: V4R11-1 IMPORTANT -- a FIFO named `lease` hung gc; fixed CLASS-
+# wide, one open helper pair for every file open of the module): the round-4 reviewer's 16 mutants RV4-01..16 adopted
+# VERBATIM (17 mutants counting RV4-08a/08b: 16 rows + RV4-10 as an EQUIVS row -- its equivalence is itself checked); the fixer's own V4R11-M0..M19 (one
+# per rule of the helpers, one per converted call site). Oracles: the unit file ([R10*] [R11*]) and the windows file
+# ([R10LEASE] [R10LEASE-decide], [R9WIN] keeper _keeper.finally). The runner now reports a test that times out instead
+# of crashing (round 11).
+#
 # Instrument control (§11.4.273): before any mutant, the SAME harness runs a
 # representative case against an UNMUTATED replica and requires it to PASS --
 # otherwise a "caught" mutant could just be a broken replica.
@@ -745,6 +752,118 @@ MUTS = [
     ("V4R10-M11", SUP, [("        except OSError:              # BlockingIOError: a live holder; anything else: not provably free\n            os.close(lfd)\n            return False, None\n",
                          "        except OSError:              # BlockingIOError: a live holder; anything else: not provably free\n            os.close(lfd)\n            return True, None\n")],
      T_SUP, {}, "NOT ok [R10LEASE-held]"),
+    # ---- T048 V4 round 11 (round-4 review of the round-10 pack: NO-GO V4R11-1 IMPORTANT, V4R11-2/3 MINOR, V4R11-4 NIT) ----
+    # The round-4 reviewer's 16 mutants RV4-01..RV4-16 (v4_round4_review_20261012.md section 4), adopted VERBATIM (the
+    # reviewer's own anchors and replacements from its runner, each matched exactly once against this round's code). The
+    # 3 survivors (RV4-08b, RV4-09, RV4-15) are routed to the round-11 rows written for them; RV4-12 and RV4-13 (judged
+    # equivalent / near-equivalent in round 4) are now CAUGHT by rows that test the property the code claims
+    # ([R11GC-held]: the lease is held THROUGH the removal; [R11GC-nofdleak]: gc closes every lease it acquired); RV4-10
+    # stays EQUIVALENT (EQUIVS below, its proof re-run as a row: PEP 446 makes os.open non-inheritable with or without
+    # O_CLOEXEC). RV4-04 used to hang the whole unit file; the gc call is now bounded (in_child) so it fails as a row.
+    ("V4R11-RV4-01", SUP, [("        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)\n    except OSError:\n        os.close(lease)\n        remove_statedir(path)\n",
+                            "        pass\n    except OSError:\n        os.close(lease)\n        remove_statedir(path)\n"),
+                           ("    _MAIN_TMP[0] = None     # from here",
+                            "    STATE['lease2'] = os.open(os.path.join(statedir, LEASE_NAME), os.O_RDWR | os.O_CLOEXEC); __import__('fcntl').flock(STATE['lease2'], 2 | 4)\n    _MAIN_TMP[0] = None     # from here")],
+     T_SUP, {}, "NOT ok [R10LEASE-made]"),
+    ("V4R11-RV4-02", SUP, [("        os.close(w)\n        os.close(hb_r)\n", "        os.close(w)\n        os.close(hb_r)\n        os.close(STATE['lease'])\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    ("V4R11-RV4-03", SUP, [("        if not free:\n            continue ", "        if False:\n            continue ")],
+     T_SUP, {}, "NOT ok [R10LEASE-held]"),
+    ("V4R11-RV4-04", SUP, [("            fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n", "            fcntl.flock(lfd, fcntl.LOCK_EX)\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-held]"),
+    ("V4R11-RV4-05", SUP, [("            if ident is not None and ident[1] == start:\n                continue ", "            if False:\n                continue ")],
+     T_SUP, {}, "NOT ok [R9GC] live owner kept"),
+    ("V4R11-RV4-06", SUP, [("        lease = os.open(os.path.join(path, LEASE_NAME),", "        lease = os.open(os.path.join(path, LEASE_NAME + '.m'),"),
+                           ("        if n in (REPORT_MARKER, LEASE_NAME) or", "        if n in (REPORT_MARKER, LEASE_NAME, LEASE_NAME + '.m') or")],
+     T_SUP, {}, "NOT ok [R10LEASE-made]"),
+    ("V4R11-RV4-07", SUP, [("        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)\n    except OSError:\n        os.close(lease)\n",
+                            "        os.write(lease, str(os.getpid()).encode())\n    except OSError:\n        os.close(lease)\n"),
+                           ("            fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n",
+                            "            _p = int(os.read(lfd, 32) or b'0')\n            if _p > 1 and _ident(_p) is not None:\n                raise BlockingIOError()\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    ("V4R11-RV4-08a", SUP, [("        os.close(w)\n        os.close(hb_r)\n", "        os.close(w)\n        os.close(hb_r)\n        __import__('fcntl').flock(STATE['lease'], 8)\n")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
+    # RV4-08b SURVIVED round 10 (V4R11-2): [R10LEASE-decide] pauses the keeper between its teardown and its decision
+    ("V4R11-RV4-08b", SUP, [("        code = decide_code(report_verified(statedir), cause)\n        if cause[0] == \"main_gone\":",
+                             "        __import__('fcntl').flock(STATE['lease'], 8)\n        code = decide_code(report_verified(statedir), cause)\n        if cause[0] == \"main_gone\":")],
+     T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE-decide]"),
+    # RV4-09 SURVIVED round 10 (V4R11-2): [R11MODE] the exact modes; the loosened directory is also no longer trusted
+    ("V4R11-RV4-09", SUP, [("    STATE[\"lease\"] = lease\n    return path\n", "    STATE[\"lease\"] = lease\n    os.chmod(path, 0o777); os.fchmod(lease, 0o666)\n    return path\n")],
+     T_SUP, {}, "NOT ok [R11MODE]"),
+    ("V4R11-RV4-11", SUP, [("        if cause[0] != \"main_gone\" and _main_gone_now(r):\n", "        if cause[0] != \"main_gone\":\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.finally", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    # RV4-12 (round 4: "equivalent") is CAUGHT: the property the code states -- gc holds the lease THROUGH the removal
+    ("V4R11-RV4-12", SUP, [("        try:\n            if remove_statedir(path):\n                n += 1\n        finally:\n            if lfd is not None:\n                os.close(lfd)\n",
+                            "        if lfd is not None:\n            os.close(lfd)\n        if remove_statedir(path):\n            n += 1\n")],
+     T_SUP, {}, "NOT ok [R11GC-held]"),
+    # RV4-13 (round 4: "near-equivalent", an fd leak) is CAUGHT: [R11GC-nofdleak]
+    ("V4R11-RV4-13", SUP, [("            if lfd is not None:\n                os.close(lfd)\n", "            if lfd is not None:\n                pass\n")],
+     T_SUP, {}, "NOT ok [R11GC-nofdleak]"),
+    ("V4R11-RV4-14", SUP, [("        except FileNotFoundError:\n            return True, None\n", "        except FileNotFoundError:\n            return False, None\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-none]"),
+    # RV4-15 SURVIVED round 10 (V4R11-2): [R11MKFAIL] injects the flock failure
+    ("V4R11-RV4-15", SUP, [("        os.close(lease)\n        remove_statedir(path)\n        raise\n", "        os.close(lease)\n        raise\n")],
+     T_SUP, {}, "NOT ok [R11MKFAIL]"),
+    ("V4R11-RV4-16", SUP, [("        return bool(ready) and os.read(r, 1) == b\"\"\n", "        return (not ready) or os.read(r, 1) == b\"\"\n")],
+     T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.finally", "R9_ACTIONS": "kill-self"},
+     "NOT ok [R9WIN] keeper"),
+    # round-11 fixer's own mutants (V4R11-M*): one per rule of the open helpers + one per converted call site
+    ("V4R11-M0", SUP, [("            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)\n",
+                        "            lfd = os.open(LEASE_NAME, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=dfd)\n")],
+     T_SUP, {}, "NOT ok [R11FIFO]"),   # V4R11-1 re-introduced verbatim (round 10's open): the reviewer's FIFO hang
+    ("V4R11-M1", SUP, [("_SAFE_OPEN = os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC", "_SAFE_OPEN = os.O_NOFOLLOW | os.O_NOCTTY | os.O_CLOEXEC")],
+     T_SUP, {}, "NOT ok [R11RACE-fifo]"),
+    ("V4R11-M2", SUP, [("    if pre is not None and not _owned_ok(pre, _st.S_ISREG, forbid):\n", "    if False:\n")],
+     T_SUP, {}, "NOT ok [R11NOOPEN-fifo]"),
+    ("V4R11-M3", SUP, [("        if not _owned_ok(st, _st.S_ISREG, forbid):\n", "        if False:\n")],
+     T_SUP, {}, "NOT ok [R11RACE-fifo]"),
+    ("V4R11-M4", SUP, [("_SAFE_OPEN = os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC", "_SAFE_OPEN = os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC")],
+     T_SUP, {}, "NOT ok [R11RACE-symlink]"),
+    ("V4R11-M5", SUP, [("        if pre is not None and (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino):\n", "        if False:\n")],
+     T_SUP, {}, "NOT ok [R11RACE-swap]"),
+    ("V4R11-M6", SUP, [("    return bool(is_type(st.st_mode)) and st.st_uid == os.geteuid() and not (st.st_mode & forbid)",
+                        "    return bool(is_type(st.st_mode)) and not (st.st_mode & forbid)")],
+     T_SUP, {}, "NOT ok [R11LEASE-uid]"),
+    ("V4R11-M7", SUP, [("    return bool(is_type(st.st_mode)) and st.st_uid == os.geteuid() and not (st.st_mode & forbid)",
+                        "    return bool(is_type(st.st_mode)) and st.st_uid == os.geteuid()")],
+     T_SUP, {}, "NOT ok [R11LEASE-mode]"),
+    ("V4R11-M8", SUP, [("    if not _owned_ok(pre, _st.S_ISDIR, forbid):\n", "    if False:\n")],
+     T_SUP, {}, "NOT ok [R11NOOPEN-dirfifo]"),
+    ("V4R11-M9", SUP, [("        if (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino) or not _owned_ok(st, _st.S_ISDIR, forbid):\n", "        if False:\n")],
+     T_SUP, {}, "NOT ok [R11RACE-dirswap]"),
+    ("V4R11-M10", SUP, [("        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o644)\n", "        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o644)\n")],
+     T_SUP, {}, "NOT ok [R11LOCK-link]"),
+    ("V4R11-M11", SUP, [("        data = _read_owned(out, REPORT_MAX_BYTES + 1, forbid=0)\n", "        data = open(out, \"rb\").read(REPORT_MAX_BYTES + 1)\n")],
+     T_SUP, {}, "NOT ok [R11OUT-fifo]"),
+    ("V4R11-M12", SUP, [("                    ddfd = open_owned_dir(d)\n                    try:\n                        ifd = open_owned_file(\"INTERRUPTED\", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, dir_fd=ddfd,\n                                              mode=0o644, forbid=0)\n                    finally:\n                        os.close(ddfd)\n",
+                         "                    ifd = os.open(os.path.join(d, \"INTERRUPTED\"), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)\n")],
+     T_SUP, {}, "NOT ok [R11INTR-symlink]"),
+    ("V4R11-M13", SUP, [("            fields = _read_owned(path, 1024 * 1024).split(b\"\\0\")", "            fields = open(path, \"rb\").read().split(b\"\\0\")")],
+     T_SUP, {}, "NOT ok [R11LEDGER-fifo]"),
+    ("V4R11-M14", SUP, [("        fd = open_owned_file(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)", "        fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)")],
+     T_SUP, {}, "NOT ok [R11MARK-fifo]"),
+    ("V4R11-M15", SUP, [("        fd = open_owned_file(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)", "        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)")],
+     T_SUP, {}, "NOT ok [R11TIMING-fifo]"),
+    ("V4R11-M16", SUP, [("    os.close(open_owned_dir(tmpdir))   # this user's alone", "    pass   # this user's alone")],
+     T_SUP, {}, "NOT ok [R11PREP-dir]"),
+    ("V4R11-M17", SUP, [("        sdfd = open_owned_dir(statedir)", "        sdfd = os.open(statedir, os.O_RDONLY | os.O_DIRECTORY)")],
+     T_SUP, {}, "NOT ok [R11MODE-read]"),
+    ("V4R11-M18", SUP, [("    flags &= ~os.O_TRUNC\n", "    flags &= ~0\n")],
+     T_SUP, {}, "NOT ok [R11TRUNC]"),
+    ("V4R11-M19", SUP, [("        dfd = open_owned_dir(path)\n    except OSError:\n        return False, None\n",
+                         "        dfd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)\n    except OSError:\n        return False, None\n")],
+     T_SUP, {}, "NOT ok [R11DIR-mode]"),
+]
+
+# EQUIVALENT mutants: applied like every mutant, but the named case must still PASS -- the equivalence claim is itself a
+# falsifiable row (if the code ever changes so the mutant becomes observable, this row turns NOT ok and forces a new
+# analysis). (id, target, pairs, test, env, the ok-line that must still be printed, the proof)
+EQUIVS = [
+    ("V4R11-RV4-10", SUP, [("os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,", "os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,")],
+     T_SUP, {}, "ok [R10LEASE-made]",
+     "PEP 446: os.open() creates every fd non-inheritable (FD_CLOEXEC set) whether or not O_CLOEXEC is passed; "
+     "[R10LEASE-made] reads FD_CLOEXEC from the kernel and still sees it set -- no observable difference exists"),
 ]
 
 CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
@@ -807,8 +926,12 @@ def run_test(root, test, extra_env):
     env["FC_CB_UNDER_TEST"] = os.path.join(root, CB)
     env["FC_BDQ_TOOL_UNDER_TEST"] = os.path.join(root, BDQ)
     env["FC_SUP_UNDER_TEST"] = os.path.join(root, SUP)
-    p = subprocess.run(["bash", os.path.join(TESTS, test)], env=env, capture_output=True, text=True,
-                       timeout=600)
+    try:
+        p = subprocess.run(["bash", os.path.join(TESTS, test)], env=env, capture_output=True, text=True,
+                           timeout=600)
+    except subprocess.TimeoutExpired as e:      # round 11: a hung case is reported, never a crash of this runner
+        out = e.stdout.decode("utf-8", "replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+        return "TIMEOUT", out
     return p.returncode, p.stdout
 
 
@@ -860,6 +983,31 @@ for mid, target, pairs, test, envx, want in MUTS:
             report(True, "%s CAUGHT by %s: %s" % (mid, test, hit[0][:160]))
         else:
             report(False, "%s SURVIVED %s (rc=%d, no line starting %r)" % (mid, test, rc, want))
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+for eid, target, pairs, test, envx, want, proof in EQUIVS:
+    if ONLY and eid not in ONLY:
+        continue
+    root = replica()
+    try:
+        path = os.path.join(root, target)
+        src = open(path).read()
+        bad_anchor = None
+        for old, new in pairs:
+            n = src.count(old)
+            if n != 1:
+                bad_anchor = "anchor matched %d times: %r" % (n, old[:80])
+                break
+            src = src.replace(old, new, 1)
+        if bad_anchor:
+            report(False, "%s: equivalent mutant could not be applied (%s) -- the anchor drifted" % (eid, bad_anchor))
+            continue
+        open(path, "w").write(src)
+        rc, out = run_test(root, test, envx)
+        hit = [l for l in out.splitlines() if l.startswith(want)]
+        report(rc == 0 and bool(hit), "%s EQUIVALENT (still passes %s, %s): %s" % (eid, test, want, proof)
+               if rc == 0 and hit else "%s: the claimed-equivalent mutant is now OBSERVABLE (rc=%s) -- re-analyse" % (eid, rc))
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
