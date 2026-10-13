@@ -26,6 +26,14 @@ when every directory on it, from `/` down, and every symbolic link followed on t
      `setfacl -m u:bob:rwx DIR` shows as `drwxrwx---+` and lets bob rename and create in DIR. Any `system.*`
      extended attribute (`system.posix_acl_access`, `system.posix_acl_default`, NFSv4 / rich / CIFS ACLs) removes
      the exemption, and so does an extended-attribute list that cannot be read (the check fails closed).
+     **Boundary (stated, not closed):** the ACL is consulted only to withhold this group exemption. A directory
+     whose mode shows NO group/other write bit is trusted on its mode bits alone. That is sound for POSIX ACLs and
+     rich ACLs (the kernel keeps the group bits equal to the mask of every named grant, shown by [R14ACL-masknow])
+     and for a Linux NFS server (it stores NFSv4 ACLs as POSIX ACLs). A remote NFSv4 / SMB server that does NOT keep
+     its mode attribute in step with its ACL can grant another user write on a directory whose mode reads `0700`;
+     this rule cannot see that. Refusing every directory that carries `system.nfs4_acl` would refuse every NFSv4
+     home directory (the client lists that name on every object), so it is not done; keep the replay's directories
+     on a local file system, or on a server whose mode bits reflect its ACLs.
 
 A directory the replay uses as a **namespace** (`--worktree-root`, its `replay-logs`, the run-log directories, the
 temp and state directories) must in addition be **yours alone**: owned by you and not writable by others (the
