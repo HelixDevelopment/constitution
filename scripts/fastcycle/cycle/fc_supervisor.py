@@ -769,7 +769,8 @@ def _mark(marker, text):
     try:
         if os.path.exists(marker) and os.path.getsize(marker) > 0:
             return
-        with open(marker, "w") as fh:
+        fd = open_owned_file(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)   # never blocks / follows
+        with os.fdopen(fd, "w") as fh:
             fh.write(text)
     except OSError:
         pass
@@ -927,6 +928,94 @@ def process_pending(fields, reason):
 # recorded one. os.replace() is atomic, so the path holds either the old file or the complete new report -- nothing in
 # between. The worker's own view and the writer's exit status no longer decide anything; the round-7 `done` marker is
 # gone (one source of truth).
+# --------------------------------------------------------------------------
+# OPENING A NAME ANOTHER PROCESS MAY HAVE PLANTED (T048 V4 round 11, V4R11-1 -- ONE helper pair for the whole class)
+# --------------------------------------------------------------------------
+# The tmp-parent defaults to ${TMPDIR:-/tmp} and the per-filesystem lock directory falls back to /tmp: world-writable.
+# Any local process can plant there -- or inside a directory it owns there -- a FIFO, a symlink, a socket, a directory
+# or (with privilege) a device node under a name this tool opens. Round 10's gc opened a state directory's lease
+# O_RDONLY WITHOUT O_NONBLOCK and BEFORE it checked the type: a FIFO named `lease` blocked gc forever, at start-up,
+# with the repository and per-filesystem locks already held (V4R11-1). The class: an open() of a name in a directory
+# this process does not exclusively control. Every file open of this module goes through the two helpers below (the
+# census of every open() of this module and of baseline_replay.sh, with the reason for each exemption -- /proc,
+# /dev/null, mkdtemp/mkstemp creations -- is in docs/qa/v4_round5_20261012/CONVERGENCE.md). The rules:
+#   1. never block: O_NONBLOCK on every open (a FIFO opened for reading returns at once; for writing it fails ENXIO
+#      without a reader) -- and, by (2), a FIFO is never even opened unless it was swapped in after the look;
+#   2. look before opening: fstatat(AT_SYMLINK_NOFOLLOW); a name that is not a regular file (a directory, for
+#      open_owned_dir) is refused WITHOUT being opened -- a device's open may have side effects;
+#   3. never follow: O_NOFOLLOW (a symlink swapped in after the look fails with ELOOP);
+#   4. verify what was opened: fstat the fd -- the SAME (dev, ino) as the look, the expected type, owned by this
+#      process's effective uid, and none of the `forbid` permission bits set -- else close it and refuse;
+#   5. O_TRUNC only after (4) (ftruncate): a refused file is never truncated.
+# A refusal raises UnsafeFile, an OSError: every caller already treats an OSError as "cannot / not provably safe".
+# BOUNDARY (§11.4.6): a device node can only be planted by a privileged process; one swapped in between the look and
+# the open IS opened (O_NONBLOCK, O_NOCTTY) before (4) refuses it -- an unprivileged planter cannot create one.
+class UnsafeFile(OSError):
+    """a name this module refuses to open (wrong type, a symlink, not owned by this user, permission bits in `forbid`
+    set, or swapped between the look and the open)"""
+
+
+_SAFE_OPEN = os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC
+DIR_FORBID = 0o022          # a directory this tool trusts: nobody else may create or rename entries in it (RV4-09)
+FILE_FORBID = 0o002         # a file this tool trusts: nobody else may write it
+
+
+def _owned_ok(st, is_type, forbid):
+    return bool(is_type(st.st_mode)) and st.st_uid == os.geteuid() and not (st.st_mode & forbid)
+
+
+def open_owned_dir(path, dir_fd=None, forbid=DIR_FORBID):
+    """open a DIRECTORY owned by this process's euid, writable by it alone (rules 1-4 above). Raises OSError."""
+    pre = os.stat(path, dir_fd=dir_fd, follow_symlinks=False)
+    if not _owned_ok(pre, _st.S_ISDIR, forbid):
+        raise UnsafeFile("%s: not a directory owned by uid %d and writable by it alone" % (path, os.geteuid()))
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | _SAFE_OPEN, dir_fd=dir_fd)
+    try:
+        st = os.fstat(fd)
+        if (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino) or not _owned_ok(st, _st.S_ISDIR, forbid):
+            raise UnsafeFile("%s: replaced between the look and the open" % path)
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def open_owned_file(name, flags, dir_fd=None, mode=0o600, forbid=FILE_FORBID):
+    """open a REGULAR file owned by this process's euid (rules 1-5 above): flags = the access mode plus O_CREAT /
+    O_EXCL / O_TRUNC / O_APPEND as needed. FileNotFoundError when it does not exist and O_CREAT is not given; any other
+    refusal is an OSError (UnsafeFile). Never blocks, never follows a symlink, never opens a non-regular file it saw."""
+    trunc = flags & os.O_TRUNC
+    flags &= ~os.O_TRUNC
+    try:
+        pre = os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        if not flags & os.O_CREAT:
+            raise
+        pre = None
+    if pre is not None and not _owned_ok(pre, _st.S_ISREG, forbid):
+        raise UnsafeFile("%s: not a regular file owned by uid %d (mode %o)" % (name, os.geteuid(), pre.st_mode))
+    fd = os.open(name, flags | _SAFE_OPEN, mode, dir_fd=dir_fd)
+    try:
+        st = os.fstat(fd)
+        if not _owned_ok(st, _st.S_ISREG, forbid):
+            raise UnsafeFile("%s: what was opened is not a regular file owned by uid %d" % (name, os.geteuid()))
+        if pre is not None and (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino):
+            raise UnsafeFile("%s: replaced between the look and the open" % name)
+        if trunc:
+            os.ftruncate(fd, 0)
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def _read_owned(name, limit, dir_fd=None, forbid=FILE_FORBID):
+    """the first `limit` bytes of a regular file opened through open_owned_file (never blocks)."""
+    fd = open_owned_file(name, os.O_RDONLY, dir_fd=dir_fd, forbid=forbid)
+    with os.fdopen(fd, "rb") as fh:
+        return fh.read(limit)
+
+
 REPORT_MARKER = "report.pending"
 REPORT_MAX_BYTES = 256 * 1024 * 1024
 
@@ -949,6 +1038,7 @@ def report_prepare(statedir, fc_common, out, schema, body_json, code):
     or not at all). Returns 0, or 4 when the expected report cannot be described (then the caller must NOT write the
     report). The state directory -- never the keeper's temp directory -- holds it (T048 V4 round 9, V4R9-1)."""
     tmpdir = statedir
+    os.close(open_owned_dir(tmpdir))   # this user's alone, before anything is written into it (V4R11-1 class)
     import importlib.util
     import json
     if not (0 <= code <= 255):
@@ -976,7 +1066,7 @@ def report_prepare(statedir, fc_common, out, schema, body_json, code):
         except OSError:
             pass
         raise
-    dfd = os.open(tmpdir, os.O_RDONLY)
+    dfd = open_owned_dir(tmpdir)        # never a directory another user controls (V4R11-1 class)
     try:
         os.fsync(dfd)
     finally:
@@ -992,8 +1082,11 @@ def report_verified(statedir):
     if not statedir:
         return None
     try:
-        with open(os.path.join(statedir, REPORT_MARKER)) as fh:
-            rec = json.loads(fh.read())
+        sdfd = open_owned_dir(statedir)          # a marker in a directory others can write proves nothing (RV4-09)
+        try:
+            rec = json.loads(_read_owned(REPORT_MARKER, 1024 * 1024, dir_fd=sdfd))
+        finally:
+            os.close(sdfd)
         out, pre, want, code = rec["out"], rec["pre"], rec["body_hash"], rec["code"]
     except (OSError, ValueError, KeyError, TypeError):
         return None
@@ -1004,8 +1097,8 @@ def report_verified(statedir):
     if now is None or now == pre:
         return None              # nothing there, or still the file that was there before the writer started
     try:
-        with open(out, "rb") as fh:
-            data = fh.read(REPORT_MAX_BYTES + 1)
+        # never blocks, never follows: a FIFO or a symlink put at --out after report-prepare is not the report
+        data = _read_owned(out, REPORT_MAX_BYTES + 1, forbid=0)
         if len(data) > REPORT_MAX_BYTES:
             return None
         doc = json.loads(data.decode("utf-8"))
@@ -1062,9 +1155,14 @@ def read_report(statedir):
 # O_CLOEXEC: no worker, gate or hook ever holds it). The kernel releases the lock only when BOTH main and the keeper
 # are gone. Every deleter obeys it: main and the keeper remove the directory only as the final decider while they hold
 # the lease; gc_statedirs removes a directory only when it can ACQUIRE the lease itself (LOCK_NB: no live holder) AND
-# the owner in the name is provably dead. Every reader is covered by it: main and the keeper hold it, the worker (its
-# report-check) runs only while the keeper lives (PDEATHSIG=SIGKILL). The resource x actor x operation table is in
-# docs/qa/v4_round4_20261012/CONVERGENCE.md.
+# the owner in the name is provably dead. Every DECIDING reader is covered by it: main and the keeper hold it; the
+# worker runs only while the keeper lives (PDEATHSIG=SIGKILL reaches the worker itself). The worker's report-prepare /
+# report-check helpers are the worker's CHILDREN, which PDEATHSIG does NOT reach (round 11, V4R11-4 -- round 10 said
+# "W reads only while K lives"): an orphaned helper may still read the directory after K is gone, but its result has
+# no consumer (the worker that would read its exit status is dead), so it decides nothing. The flock is held while M
+# or K lives because a flock belongs to the open file DESCRIPTION, which fork shares (probed per filesystem, round 11:
+# docs/qa/v4_round5_20261012/evidence/flock_semantics.txt). The resource x actor x operation table is in
+# docs/qa/v4_round4_20261012/CONVERGENCE.md; the round-11 open() census in docs/qa/v4_round5_20261012/CONVERGENCE.md.
 STATE_PREFIX = "fc_baseline_replay.state."
 LEASE_NAME = "lease"
 STATE = {"dir": None, "main_owns": False, "lease": None}   # main: its state directory, whether main alone may remove
@@ -1097,7 +1195,12 @@ def make_statedir(parent):
     exists: an exclusive flock on LEASE_NAME, created O_EXCL inside the new directory, kept open in STATE["lease"] --
     the keeper inherits that open file description through fork, so the lease is held while main OR the keeper lives.
     The NAME still carries main as the owner (boot id, pid, start time): gc requires BOTH proofs. Raises OSError (and
-    leaves nothing behind) when the lease cannot be taken -- flock is what the replay locks already require."""
+    leaves nothing behind) when the lease cannot be taken. HOST REQUIREMENT (round 11, V4R11-3 -- round 10 claimed
+    "none new", which was false): flock on the TMPDIR filesystem. `selfcheck` takes no replay lock at all, and a replay
+    whose TMPDIR is on another filesystem than its repository and lock directory never needed flock there before; both
+    now refuse with BLIND 4 where TMPDIR's filesystem refuses flock. Probed (docs/qa/v4_round5_20261012/evidence/flock_semantics.txt): tmpfs, btrfs
+    on dm-crypt and overlayfs grant it with per-open-file-description, fork-inherited semantics; NFS/CIFS (where flock
+    is emulated with byte-range locks) NOT probed -- an unverified boundary."""
     import fcntl
     ident = _ident(os.getpid())
     if ident is None:
@@ -1128,22 +1231,25 @@ def _lease_free(path):
     by the caller (close it after the removal), or None when the directory was never leased (main died between mkdtemp
     and taking the lease: no keeper can exist, it is forked only after the lease). (False, None) when a live process
     holds it (main or its keeper -- a final decider may still read the marker) or when it cannot be PROVEN free: the
-    path or the lease is a symlink / not a regular file / unreadable, or flock fails in any other way. Never raises."""
+    path or the lease is a symlink / not a regular file / unreadable, or flock fails in any other way. Never raises,
+    NEVER BLOCKS (round 11, V4R11-1: round 10 opened the lease O_RDONLY before its type check, and a FIFO named `lease`
+    in a directory any local process can plant under a world-writable tmp-parent hung gc forever, with the replay
+    locks held): the directory must be this user's alone (owner + DIR_FORBID, looked at before it is opened) and the
+    lease a regular file of this user's, looked at before it is opened and opened O_NONBLOCK|O_NOFOLLOW
+    (open_owned_dir / open_owned_file)."""
     import fcntl
     try:
-        dfd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        dfd = open_owned_dir(path)
     except OSError:
         return False, None
     try:
         try:
-            lfd = os.open(LEASE_NAME, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=dfd)
+            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)
         except FileNotFoundError:
             return True, None
         except OSError:
             return False, None
         try:
-            if not _st.S_ISREG(os.fstat(lfd).st_mode):
-                raise OSError("the lease is not a regular file")
             fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:              # BlockingIOError: a live holder; anything else: not provably free
             os.close(lfd)
@@ -1264,8 +1370,7 @@ def process_ledger(tmpdir, reason, statedir=None):
         _beat()
         path = os.path.join(tmpdir, name)
         try:
-            with open(path, "rb") as fh:
-                fields = fh.read().split(b"\0")
+            fields = _read_owned(path, 1024 * 1024).split(b"\0")     # never blocks / follows (V4R11-1 class)
         except OSError:
             continue
         kind = name.split(".")[1] if name.count(".") >= 2 else ""
@@ -1288,7 +1393,14 @@ def process_ledger(tmpdir, reason, statedir=None):
             # the report exists (verified, read_report) and references this directory: nothing to mark
             if os.path.isdir(d) and DONE.get("code") is None:
                 try:
-                    with open(os.path.join(d, "INTERRUPTED"), "w") as fh:
+                    # never through a planted symlink / FIFO, never into a directory another user can write
+                    ddfd = open_owned_dir(d)
+                    try:
+                        ifd = open_owned_file("INTERRUPTED", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, dir_fd=ddfd,
+                                              mode=0o644, forbid=0)
+                    finally:
+                        os.close(ddfd)
+                    with os.fdopen(ifd, "w") as fh:
                         fh.write("No report references this run-log directory: the replay that wrote it did "
                                  "not finish (%s). The logs are partial evidence of an interrupted run.\n" % reason)
                 except OSError:
@@ -1360,7 +1472,9 @@ def _take_locks(a):
 def _lock_one(path, scope):
     import fcntl
     try:
-        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o644)
+        # the lock directory falls back to /tmp (world-writable): never block on a planted FIFO, never follow a planted
+        # symlink, never lock a file another user owns (round 11, V4R11-1 class) -- refused, BLIND 4, said so
+        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o644)
     except OSError as e:
         say("BLIND: cannot open the replay lock file %s: %s" % (path, e))
         sys.exit(4)
@@ -1692,7 +1806,8 @@ def _write_timing(path, exit_ns, n_left, stop_ms):
     if not path:
         return
     try:
-        with open(path, "w") as fh:
+        fd = open_owned_file(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)     # never blocks / follows
+        with os.fdopen(fd, "w") as fh:
             fh.write("exit_ns=%d\nleftover_processes=%d\nleftover_stop_ms=%d\n"
                      % (exit_ns, n_left, int(round(stop_ms))))
     except OSError:
