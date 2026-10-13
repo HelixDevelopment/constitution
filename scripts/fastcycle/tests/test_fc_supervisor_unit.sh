@@ -452,7 +452,8 @@ try:
     # identity rows: the report (correct body_hash) is ON DISK. `pre` is what _identity (the function UNDER TEST, in
     # whatever shape it has) returns for an inode-reuse TWIN of that file: same dev + ino, ONE of ctime / mtime / size
     # different (the old report, deleted before the writer's temp file reused its inode). Computed by calling the
-    # module's own _identity with an lstat that returns the twin (os replaced in the module's namespace only).
+    # module's own _identity with an lstat / stat that returns the twin (os replaced in the module's namespace only;
+    # round 12: the name is looked at with os.stat(name, dir_fd=<proved parent>, follow_symlinks=False)).
     write_report(out, body)
     import types as _types
     real = os.lstat(out)
@@ -463,6 +464,9 @@ try:
             self._st = st
 
         def lstat(self, _p):
+            return self._st
+
+        def stat(self, _p, *a, **k):        # round 12: _identity looks at the name through its proved parent
             return self._st
 
         def __getattr__(self, name):
@@ -746,22 +750,17 @@ try:
 
     # [R10ATOMIC] the marker is renamed into place: its inode is the temp file's (fd written + fsynced under .report.*)
     seen = []
-    real_mkstemp = m.tempfile.mkstemp
+    real_mkstemp = m._mkstemp_at        # round 12: the temp file is made relative to the held state-dir fd
 
-    class _TF:
-        def __getattr__(self, name):
-            return getattr(tempfile, name)
-
-        def mkstemp(self, *a, **k):
-            fd, path = real_mkstemp(*a, **k)
-            seen.append(os.fstat(fd).st_ino)
-            return fd, path
-    saved = m.tempfile
-    m.tempfile = _TF()
+    def _spy_mkstemp(*a, **k):
+        fd, name = real_mkstemp(*a, **k)
+        seen.append(os.fstat(fd).st_ino)
+        return fd, name
+    m._mkstemp_at = _spy_mkstemp
     try:
         m.report_prepare(td10, FCC, out10, "unit-test/v1", _json.dumps(body10), 0)
     finally:
-        m.tempfile = saved
+        m._mkstemp_at = real_mkstemp
     mk_ino = os.stat(os.path.join(td10, m.REPORT_MARKER)).st_ino
     leftovers = [n for n in os.listdir(td10) if n.startswith(".report.")]
     if len(seen) == 1 and mk_ino == seen[0] and not leftovers:
@@ -874,13 +873,31 @@ try:
         "[R11FIFO] dead owner, `lease` is a FIFO -> gc RETURNS (%s) and keeps the directory (the reviewer's repro: "
         "round 10 blocked here forever)" % fres)
     # the attack itself: a directory owned by ANOTHER uid with a FIFO lease, under the tmp-parent
-    fo = sdir("ffor", "fifo")
+    fo = sdir("ffor", "fifo", mode=0o755)   # round 12 (V4R12-2): openable by this user -- the OWNER rule must refuse
     foreign = subuid_own(os.path.join(fo, "lease"), os.path.join(fo, m.REPORT_MARKER), fo)
-    fo2, fores = gc_alone(fo)
+
+    def gc_spied(d):
+        """gc over d's parent with os.open spied: (removed, the basenames os.open was called on)"""
+        def run():
+            seen = []
+            real = os.open
+
+            def spy(p, *a, **k):
+                seen.append(os.path.basename(os.fsdecode(p)))
+                return real(p, *a, **k)
+            os.open = spy
+            try:
+                return (m.gc_statedirs(os.path.dirname(d)), seen)
+            finally:
+                os.open = real
+        return in_child(run, 15)
+    fores = gc_spied(fo)
     if foreign:
-        (ok if fores == "0" and os.path.isdir(fo2) else bad)(
-            "[R11FIFO-foreign] a state directory owned by another uid (real subordinate uid) with a FIFO lease -> gc "
-            "returns (%s), kept, nothing opened inside it" % fores)
+        nm = os.path.basename(fo)
+        (ok if fores.startswith("(0, ") and nm not in fores and "'lease'" not in fores and os.path.isdir(fo) else bad)(
+            "[R11FIFO-foreign] a state directory owned by another uid (real subordinate uid, mode 0755: this user COULD "
+            "open it) with a FIFO lease -> gc returns, keeps it, and opens NEITHER the directory nor the lease: %s"
+            % fores[:160])
     else:
         print("SKIP [R11FIFO-foreign] no subordinate uid available (unshare --map-users=auto failed) -- not counted")
 
@@ -937,11 +954,12 @@ try:
     (ok if r2.startswith("raise UnsafeFile") else bad)("[R11UID-dir] open_owned_dir refuses a directory owned by another "
                                                        "uid (%s) -> %s" % (how, r2[:90]))
     if real_u:
-        du = sdir("duid")
+        du = sdir("duid", mode=0o777)     # round 12 (V4R12-2): openable (and writable) by this user: the OWNER rule refuses
         subuid_own(du)
-        du2, dures = gc_alone(du)
-        (ok if dures == "0" and os.path.isdir(du2) else bad)(
-            "[R11DIR-uid] a state directory owned by another uid -> kept (%s)" % dures)
+        dures = gc_spied(du)
+        (ok if dures.startswith("(0, ") and os.path.basename(du) not in dures and os.path.isdir(du) else bad)(
+            "[R11DIR-uid] a state directory owned by another uid (mode 0777: this user could open it) -> kept, never "
+            "opened: %s" % dures[:160])
 
     # [R11DEV] a device node as the lease, in a user + mount namespace (an unprivileged process cannot mknod one)
     dvd = sdir("dev")
@@ -953,10 +971,14 @@ try:
         "spec.loader.exec_module(m)\n"
         "seen = []\n_real = os.open\n"
         "def spy(p, *a, **k):\n    seen.append(os.fsdecode(p))\n    return _real(p, *a, **k)\n"
+        "pfd = _real(sys.argv[2], os.O_RDONLY | os.O_DIRECTORY)\n"
+        "held = []\n"
         "os.open = spy\n"
-        "n = m.gc_statedirs(sys.argv[2])\n"
+        "n = m._gc_at(pfd, os.listdir(pfd), m._boot_id(), held)\n"
         "os.open = _real\n"
-        "print('removed=%d kept=%s opened_lease=%s' % (n, os.path.isdir(sys.argv[3]), 'lease' in seen))\n")
+        "m._close_all(held)\n"
+        "print('removed=%d kept=%s opened_lease=%s reached_dir=%s' % (n, os.path.isdir(sys.argv[3]), 'lease' in seen, "
+        "os.path.basename(sys.argv[3]) in seen))\n")
     try:
         pr = subprocess.run(["unshare", "-rm", "sh", "-c",
                              'mount --bind /dev/null "$1/lease" && stat -c %F "$1/lease" && exec python3 -I "$2" "$3" "$4" "$1"',
@@ -970,9 +992,11 @@ try:
     if drc is None or (drc != 0 and "character special" not in dout and dout != "TIMEOUT"):
         print("SKIP [R11DEV] no user+mount namespace (%s) -- not counted" % dout[:120])
     else:
-        (ok if drc == 0 and "character special" in dout and "removed=0 kept=True opened_lease=False" in dout else bad)(
-            "[R11DEV] the lease is a character device (bind-mounted /dev/null) -> gc returns, keeps it, and NEVER "
-            "opens the device: %s (rc %s)" % (dout, drc))
+        (ok if drc == 0 and "character special" in dout and "removed=0 kept=True opened_lease=False reached_dir=True"
+         in dout else bad)(
+            "[R11DEV] the lease is a character device (bind-mounted /dev/null) -> gc's per-directory step (_gc_at; the "
+            "userns shows '/' as the overflow uid, so a full walk would refuse earlier) REACHES the state directory, "
+            "keeps it, and NEVER opens the device: %s (rc %s)" % (dout, drc))
 
     # helper-level spies: a non-regular name is refused WITHOUT os.open being called on it
     sp = os.path.join(G11, "spy"); os.mkdir(sp, 0o700)
@@ -985,7 +1009,11 @@ try:
             real = os.open
 
             def boom(p, *a, **k):
-                raise AssertionError("os.open called on %s" % os.fsdecode(p))
+                # round 12: the parent chain is walked with O_PATH opens of its components (they open nothing);
+                # what must never be opened is the planted NAME itself
+                if os.path.basename(os.fsdecode(p)) in ("fifo", "dir", "sock", "link"):
+                    raise AssertionError("os.open called on %s" % os.fsdecode(p))
+                return real(p, *a, **k)
             os.open = boom
             try:
                 return fn()
@@ -1125,10 +1153,11 @@ try:
     fd = os.open(os.path.join(hd, "lease"), os.O_RDWR | os.O_CREAT, 0o600); os.close(fd)
 
     def held_through():
-        orig = m.remove_statedir
+        orig = m._remove_state_at          # round 12: gc removes THROUGH fds (rule 4), not by path
         probes = []
 
-        def probing(path):
+        def probing(pfd, name, dfd=None):
+            path = os.path.join(hp, name)
             try:
                 pf = os.open(os.path.join(path, "lease"), os.O_RDONLY)
                 try:
@@ -1140,12 +1169,12 @@ try:
                     os.close(pf)
             except OSError as e:
                 probes.append("noopen %s" % e)
-            return orig(path)
-        m.remove_statedir = probing
+            return orig(pfd, name, dfd)
+        m._remove_state_at = probing
         try:
             return (m.gc_statedirs(hp), probes)
         finally:
-            m.remove_statedir = orig
+            m._remove_state_at = orig
     r = in_child(held_through, 15)
     (ok if r == "(1, ['held'])" else bad)(
         "[R11GC-held] gc holds the lease THROUGH remove_statedir (an independent LOCK_NB probe there is refused): %s" % r)
@@ -1196,6 +1225,425 @@ try:
 finally:
     subprocess.run(NS + ["rm", "-rf", G11], capture_output=True)
     shutil.rmtree(G11, ignore_errors=True)
+
+# --- T048 V4 round 12 (round-5 review, NO-GO: V4R12-1 MINOR source-defect -- a second member of the V4R11-1 class at the
+# PARENT level; V4R12-2 MINOR test-instrumentation; the NIT). §11.4.276(E) STRUCTURAL: ONE trusted-parent rule
+# (_trusted_ok / _walk), used by the module and -- through `fc_supervisor.py safepath` -- by baseline_replay.sh; every
+# removal through the proved fds. Rows (each names the layer it isolates; paired mutants in test_fastcycle_r6_mutations.sh):
+# [R12WALK-*]      the rule itself, as a table written from the RULE (not from the code): ours 0755 / ours 1777 (sticky)
+#                  / root's sticky TMPDIR / a symlink of ours -> trusted; ours 0777 / another uid's 0755 / another uid's
+#                  1777 / another uid's symlink / a foreign component in the MIDDLE of the chain -> refused; '..' walks.
+# [R12PARENT-*]    gc under a tmp-parent another uid owns (0777, 1777) or that is ours but writable without the sticky
+#                  bit -> nothing collected, nothing opened below it; needle: the same directory under a trusted parent
+#                  IS collected.
+# [R12FD-gc]       gc proves the parent ONCE (one walk from '/') and acts on every state directory through fds held from
+#                  that walk: no path-based open / unlink / rmdir / listdir below it (rule 2 + 4; RV5-05).
+# [R12RM-swap]     _remove_state_at never rmdirs a directory that was swapped in after it was proved (identity check).
+# [R12RM-race]     _rmtree_at never descends into a directory swapped in between its look and its open (victim intact);
+#                  [R12RM-link] a symlink inside a tree is removed, its target untouched.
+# [R12MASK-*]      the EXACT mask bits: a 0770 state directory (group-write is in DIR_FORBID, RV5-06a), a 0602 lease
+#                  (other-write is FILE_FORBID, RV5-06b) and a 0620 lease (group-write is NOT FILE_FORBID: accepted).
+# [R12INTR-dirmode / -parent]  process_ledger's INTERRUPTED: a run-log directory of ours mode 0777 (RV5-04) / a 0700 one
+#                  whose PARENT another uid owns -> nothing written.
+# [R12PREP-onefd]  report_prepare proves the state directory ONCE and makes the temp file, the rename and the fsync
+#                  THROUGH that fd (RV5-13); [R12PREP-outparent] a --out whose directory another uid controls -> refused.
+# [R12MARKER-mode / -uid]  the marker FILE's own checks (RV5-10): 0666, or another uid's 0644, in a 0700 state dir -> None.
+# [R12TIMING-race] _write_timing: the look is made to lie (a FIFO is there) -> never blocks (RV5-07).
+# [R12UID-real]    every check uses the EFFECTIVE uid (RV5-08, the NIT): with the REAL uid reported as another value
+#                  (SIMULATED: os.getuid patched -- this process is not setuid, which is the premise of RV5-08 being
+#                  equivalent in round 5) helpers, remove_statedir and gc still act on this user's own directory.
+# [R12LOCK-parent] a lock file under a lock directory another uid owns -> BLIND 4 (the PREMISE of RV5-15's equivalence:
+#                  the lock file's identity cannot be swapped, so its mode bits carry no meaning; see EQUIVS).
+# [R12CREATE-*]    ensure_dir (`mkdir -p` under the rule): creates each missing component relative to its proved parent
+#                  with 0755 / 0700 even under umask 0, refuses an existing non-exclusive leaf; mkdtemp_path
+#                  --exclusive-parent refuses a sticky shared parent.
+# [R12PEND-uid]    process_pending never removes an empty directory another uid owns.
+G12 = tempfile.mkdtemp(prefix="fc_sup_unit_r12.")
+try:
+    import fcntl as _fc12
+    me_uid = os.geteuid()
+
+    def walk_verdict(p):
+        try:
+            fd, real = m._walk(p)
+            os.close(fd)
+            return "trusted"
+        except OSError as e:
+            return "refused: %s" % e
+
+    def mkd(*parts, mode=0o755):
+        d = os.path.join(G12, *parts)
+        os.mkdir(d)
+        os.chmod(d, mode)
+        return d
+    # ---- the rule table (expected values come from the RULE text, rule 1) ----
+    w_own = mkd("own755")
+    w_own777 = mkd("own777", mode=0o777)
+    w_sticky = mkd("own1777", mode=0o1777)
+    w_f755 = mkd("f755")
+    w_f1777 = mkd("f1777", mode=0o1777)
+    w_fmid = mkd("fmid"); w_fmid_in = mkd("fmid", "inner")
+    w_tgt = mkd("tgt")
+    os.symlink(w_tgt, os.path.join(G12, "mylink"))
+    flink_dir = mkd("flinkdir")
+    os.symlink(w_tgt, os.path.join(flink_dir, "theirlink"))
+    os.chmod(w_fmid_in, 0o755)
+    real12 = subuid_own(w_f755, w_f1777, w_fmid)
+    try:                                # the symlink ITSELF (chown -h: never its target)
+        hl = subprocess.run(NS + ["chown", "-h", "1000:1000", os.path.join(flink_dir, "theirlink")],
+                            capture_output=True, timeout=30).returncode == 0 and \
+            os.lstat(os.path.join(flink_dir, "theirlink")).st_uid != me_uid
+    except (OSError, subprocess.TimeoutExpired):
+        hl = False
+    table = [("own755", "ours 0755", w_own, True), ("own1777", "ours 1777 (sticky)", w_sticky, True),
+             ("rootsticky", "root's sticky TMPDIR chain", os.path.dirname(G12), True),
+             ("mylink", "a symlink of ours to a dir of ours", os.path.join(G12, "mylink"), True),
+             ("dotdot", "'..' in the path", os.path.join(w_own, "..", "tgt"), True),
+             ("own777", "ours 0777 (no sticky)", w_own777, False)]
+    if real12:
+        table += [("f755", "another uid's 0755", w_f755, False),
+                  ("f1777", "another uid's 1777 (sticky, not root's)", w_f1777, False),
+                  ("fmid", "a dir of ours BELOW another uid's 0755", w_fmid_in, False)]
+    else:
+        print("SKIP [R12WALK-f755/-f1777/-fmid] no subordinate uid available -- not counted")
+    if hl:
+        table.append(("flink", "another uid's symlink to a dir of ours", os.path.join(flink_dir, "theirlink"), False))
+    else:
+        print("SKIP [R12WALK-flink] no subordinate uid available -- not counted")
+    for tid, label, p, want in table:
+        v = walk_verdict(p)
+        good = (v == "trusted") == want
+        (ok if good else bad)("[R12WALK-%s] _walk: %s -> %s (want %s)" % (
+            tid, label, v[:110], "trusted" if want else "refused"))
+
+    # ---- gc under an untrusted tmp-parent (and the needle under a trusted one) ----
+    def dead_sdir(par, tag, lease_mode=0o600, mode=0o700):
+        d = os.path.join(par, "%s%s.%d.%d.%s" % (m.STATE_PREFIX, proc_boot, dpid, 12345, tag))
+        os.mkdir(d); os.chmod(d, mode)
+        fd = os.open(os.path.join(d, "lease"), os.O_RDWR | os.O_CREAT, 0o600); os.close(fd)
+        os.chmod(os.path.join(d, "lease"), lease_mode)
+        return d
+
+    def gc_spy(par):
+        def run():
+            seen, real = [], os.open
+
+            def spy(p, *a, **k):
+                seen.append(os.path.basename(os.fsdecode(p)))
+                return real(p, *a, **k)
+            os.open = spy
+            try:
+                return (m.gc_statedirs(par), seen)
+            finally:
+                os.open = real
+        return in_child(run, 15)
+    np_ = mkd("needlepar")
+    nd = dead_sdir(np_, "needle")
+    r = gc_spy(np_)
+    (ok if r.startswith("(1, ") and not os.path.lexists(nd) else bad)(
+        "[R12PARENT-needle] control: a dead-owner state directory under a trusted parent IS collected: %s" % r[:100])
+    for label, pmode, foreign in (("own777", 0o777, False), ("foreign777", 0o777, True), ("foreign1777", 0o1777, True)):
+        par = mkd("gcpar_" + label, mode=0o755)
+        sd_ = dead_sdir(par, label)
+        os.chmod(par, pmode)
+        if foreign and not subuid_own(par):
+            print("SKIP [R12PARENT-%s] no subordinate uid available -- not counted" % label)
+            continue
+        r = gc_spy(par)
+        (ok if r.startswith("(0, ") and os.path.basename(sd_) not in r and os.path.isdir(sd_) else bad)(
+            "[R12PARENT-%s] gc under a tmp-parent %s -> nothing collected, the state directory never opened: %s"
+            % (label, {"own777": "of ours writable by others WITHOUT the sticky bit",
+                       "foreign777": "another uid owns (0777)",
+                       "foreign1777": "another uid owns (1777: its owner may still remove our entries)"}[label], r[:120]))
+
+    # ---- [R12FD-gc] one walk from '/', every action below it through fds ----
+    fp = mkd("fdgc")
+    dead_sdir(fp, "a"); dead_sdir(fp, "b")
+
+    def fd_only():
+        calls, real = [], {}
+        names = ("open", "unlink", "rmdir", "listdir", "stat", "lstat", "scandir", "replace", "rename", "mkdir")
+        for fn in names:
+            real[fn] = getattr(os, fn)
+
+            def mk(fn=fn):
+                def spy(p, *a, **k):
+                    calls.append((fn, os.fsdecode(p) if isinstance(p, (str, bytes)) else "<fd>", "dir_fd" in k and
+                                  k["dir_fd"] is not None))
+                    return real[fn](p, *a, **k)
+                return spy
+            setattr(os, fn, mk())
+        try:
+            n = m.gc_statedirs(fp)
+        finally:
+            for fn in names:
+                setattr(os, fn, real[fn])
+        roots = sum(1 for c in calls if c[0] == "open" and c[1] == "/")
+        bypath = [c for c in calls if c[1] not in ("/", "<fd>", ".") and not c[2]]
+        return (n, roots, bypath[:4])
+    r = in_child(fd_only, 15)
+    (ok if r == "(2, 1, [])" else bad)(
+        "[R12FD-gc] gc walks the tmp-parent ONCE from '/' and acts on both state directories only through fds held "
+        "from that walk -- (removed, walks from '/', path-based calls) = %s" % r)
+
+    # ---- [R12RM-swap] the directory proved is the directory removed ----
+    sp_ = mkd("swappar")
+    sw = dead_sdir(sp_, "swap")
+
+    def swapped():
+        pfd, _real = m._walk(sp_)
+        dfd = m.open_owned_dir(os.path.basename(sw), pfd)
+        os.rename(sw, sw + ".moved")                 # the proved directory leaves; another (ours, empty) takes the name
+        os.mkdir(sw, 0o700)
+        try:
+            return (m._remove_state_at(pfd, os.path.basename(sw), dfd), os.path.isdir(sw))
+        finally:
+            os.close(dfd); os.close(pfd)
+    r = in_child(swapped, 10)
+    (ok if r == "(False, True)" else bad)(
+        "[R12RM-swap] a directory swapped in under the proved name is NOT removed (the rmdir checks dev+ino): %s" % r)
+
+    # ---- [R12RM-race] / [R12RM-link] _rmtree_at ----
+    rt = mkd("rmpar"); tree = mkd("rmpar", "tree"); mkd("rmpar", "tree", "sub")
+    open(os.path.join(tree, "sub", "f"), "w").write("x")
+    vict = mkd("victimdir"); open(os.path.join(vict, "precious"), "w").write("P")
+    os.symlink(vict, os.path.join(tree, "lnk"))
+
+    def raced():
+        real_stat = os.stat
+        state = {"done": False}
+
+        def lying(p, *a, **k):
+            st = real_stat(p, *a, **k)
+            if os.fsdecode(p) == "sub" and not state["done"] and k.get("dir_fd") is not None:
+                state["done"] = True             # look at sub, then swap the victim in under its name before the open
+                os.rename(os.path.join(tree, "sub"), os.path.join(rt, "sub.away"))
+                os.rename(vict, os.path.join(tree, "sub"))
+            return st
+        os.stat = lying
+        try:
+            pfd, _r = m._walk(rt)
+            try:
+                return m._rmtree_at(pfd, "tree")
+            finally:
+                os.close(pfd)
+        finally:
+            os.stat = real_stat
+    r = in_child(raced, 10)
+    swapped_victim = os.path.join(tree, "sub", "precious")
+    (ok if os.path.isfile(swapped_victim) and open(swapped_victim).read() == "P" else bad)(
+        "[R12RM-race] _rmtree_at never descends into a directory swapped in between its look and its open: victim "
+        "content %s (rmtree -> %s)" % ("intact" if os.path.isfile(swapped_victim) else "DELETED", r))
+    lt12 = mkd("lnkpar"); lt_tree = mkd("lnkpar", "t"); v2 = mkd("victim2"); open(os.path.join(v2, "keep"), "w").write("K")
+    os.symlink(v2, os.path.join(lt_tree, "lnk"))
+    gone = m.remove_tree(lt_tree)
+    (ok if gone and os.path.isfile(os.path.join(v2, "keep")) else bad)(
+        "[R12RM-link] remove_tree removes a tree holding a symlink to elsewhere, never what it points to: gone=%s "
+        "target intact=%s" % (gone, os.path.isfile(os.path.join(v2, "keep"))))
+
+    # ---- [R12MASK-*] the exact mask bits ----
+    for tag, dmode, lmode, want_removed, what in (
+            ("dir770", 0o770, 0o600, False, "a state directory 0770 (group-writable: DIR_FORBID has 0o020) -> kept"),
+            ("file602", 0o700, 0o602, False, "a lease 0602 (other-writable: FILE_FORBID is 0o002) -> kept"),
+            ("file620", 0o700, 0o620, True, "a lease 0620 (group-writable is NOT in FILE_FORBID) -> collected")):
+        par = mkd("mask_" + tag)
+        d = dead_sdir(par, tag, lease_mode=lmode, mode=dmode)
+        r = in_child(lambda par=par: m.gc_statedirs(par), 15)
+        (ok if r == ("1" if want_removed else "0") and os.path.lexists(d) != want_removed else bad)(
+            "[R12MASK-%s] %s: gc %s" % (tag, what, r))
+    td770 = os.path.join(G12, "fc_baseline_replay.state.m770"); os.mkdir(td770, 0o700)
+    out770 = os.path.join(G12, "m770.json")
+    b12 = {"result": "ok", "n": 12}
+    m.report_prepare(td770, FCC, out770, "unit-test/v1", _json.dumps(b12), 0)
+    write_report(out770, b12)
+    g700 = m.report_verified(td770)
+    os.chmod(td770, 0o770)
+    g770 = m.report_verified(td770)
+    os.chmod(td770, 0o700)
+    (ok if g700 == 0 and g770 is None else bad)(
+        "[R12MASK-dir770-read] a marker in a 0700 state directory is trusted (%r), in a 0770 one NOT (%r)" % (g700, g770))
+
+    # ---- [R12MARKER-*] the marker FILE's own checks ----
+    mk_ = os.path.join(td770, m.REPORT_MARKER)
+    os.chmod(mk_, 0o666)
+    r666 = m.report_verified(td770)
+    os.chmod(mk_, 0o600)
+    (ok if r666 is None and m.report_verified(td770) == 0 else bad)(
+        "[R12MARKER-mode] a marker writable by others (0666) in a 0700 state directory is not trusted (%r); the same "
+        "marker 0600 is (needle)" % (r666,))
+    os.chmod(mk_, 0o644)
+    if subuid_own(mk_):
+        ru = m.report_verified(td770)
+        (ok if ru is None else bad)("[R12MARKER-uid] a marker owned by another uid (0644: readable) in a 0700 state "
+                                    "directory is not trusted -> %r" % (ru,))
+    else:
+        print("SKIP [R12MARKER-uid] no subordinate uid available -- not counted")
+
+    # ---- [R12PREP-onefd] / [R12PREP-outparent] ----
+    tdp = os.path.join(G12, "fc_baseline_replay.state.onefd"); os.mkdir(tdp, 0o700)
+    outp = os.path.join(G12, "onefd.json")
+
+    def onefd():
+        calls, real = [], {}
+        names = ("open", "replace", "rename", "unlink", "fsync", "mkdir")
+        for fn in names:
+            real[fn] = getattr(os, fn)
+
+            def mk(fn=fn):
+                def spy(p, *a, **k):
+                    calls.append((fn, os.fsdecode(p) if isinstance(p, (str, bytes)) else "<fd>",
+                                  sorted(x for x in k if x.endswith("dir_fd") and k[x] is not None)))
+                    return real[fn](p, *a, **k)
+                return spy
+            setattr(os, fn, mk())
+        try:
+            rc = m.report_prepare(tdp, FCC, outp, "unit-test/v1", _json.dumps(b12), 0)
+        finally:
+            for fn in names:
+                setattr(os, fn, real[fn])
+        bypath = [c for c in calls if c[1] not in ("/", "<fd>", ".") and not c[2]]
+        rep_ = [c for c in calls if c[0] == "replace"]
+        return (rc, bypath[:3], rep_, any(c[0] == "fsync" for c in calls))
+    r = in_child(onefd, 15)
+    (ok if r.startswith("(0, [], [('replace', '.report.") and "['dst_dir_fd', 'src_dir_fd'])], True)" in r else bad)(
+        "[R12PREP-onefd] report_prepare: no path-based call after the state directory is proved; the rename is "
+        "relative to the held fd on both sides; the directory is fsynced: %s" % r[:200])
+    fo12 = mkd("outforeign", mode=0o777)
+    if subuid_own(fo12):
+        tdo = os.path.join(G12, "fc_baseline_replay.state.outp"); os.mkdir(tdo, 0o700)
+        r = in_child(lambda: m.report_prepare(tdo, FCC, os.path.join(fo12, "r.json"), "unit-test/v1",
+                                              _json.dumps(b12), 0), 15)
+        (ok if r.startswith("raise UnsafeFile") and not os.path.exists(os.path.join(tdo, m.REPORT_MARKER)) else bad)(
+            "[R12PREP-outparent] report_prepare for a --out whose directory another uid owns (0777) -> refused, no "
+            "marker: %s" % r[:120])
+    else:
+        print("SKIP [R12PREP-outparent] no subordinate uid available -- not counted")
+
+    # ---- [R12INTR-dirmode / -parent] ----
+    def intr_row(logdir):
+        lt_ = tempfile.mkdtemp(prefix="fc_baseline_replay.l12.", dir=G12)
+        open(os.path.join(lt_, "ledger.logs.a"), "wb").write(os.fsencode(logdir) + b"\0")
+        m.DONE["code"] = None
+        r_ = in_child(lambda: m.process_ledger(lt_, "unit test r12"), 15)
+        return r_, os.path.lexists(os.path.join(logdir, "INTERRUPTED"))
+    ld777 = mkd("logs777", mode=0o777)
+    r, written = intr_row(ld777)
+    (ok if r == "None" and not written else bad)(
+        "[R12INTR-dirmode] a run-log directory of ours writable by others (0777) -> INTERRUPTED NOT written there "
+        "(%s, written=%s)" % (r, written))
+    lpar = mkd("logpar", mode=0o755); lin = mkd("logpar", "run", mode=0o700)
+    os.chmod(lpar, 0o777)
+    if subuid_own(lpar):
+        r, written = intr_row(lin)
+        (ok if r == "None" and not written else bad)(
+            "[R12INTR-parent] a 0700 run-log directory of ours whose PARENT another uid owns (0777: it can rename our "
+            "directory and plant a symlink) -> nothing written (%s, written=%s)" % (r, written))
+    else:
+        print("SKIP [R12INTR-parent] no subordinate uid available -- not counted")
+    lok = mkd("logok", mode=0o700)
+    r, written = intr_row(lok)
+    (ok if r == "None" and written else bad)("[R12INTR-needle] control: a 0700 run-log directory of ours under a "
+                                             "trusted parent IS marked (%s)" % written)
+
+    # ---- [R12TIMING-race] ----
+    tf12 = os.path.join(G12, "timing.fifo"); os.mkfifo(tf12, 0o600)
+    reg = os.path.join(G12, "a.reg"); open(reg, "w").write("")
+
+    def timing_lie():
+        fake = os.stat(reg)
+        rs, rl = os.stat, os.lstat
+
+        def lie(p, *a, **k):
+            if os.path.basename(os.fsdecode(p)) == "timing.fifo":
+                return fake
+            return rs(p, *a, **k)
+
+        def llie(p, *a, **k):
+            if os.path.basename(os.fsdecode(p)) == "timing.fifo":
+                return fake
+            return rl(p, *a, **k)
+        os.stat, os.lstat = lie, llie
+        try:
+            return m._write_timing(tf12, 1, 0, 0.0)
+        finally:
+            os.stat, os.lstat = rs, rl
+    r = in_child(timing_lie, 8)
+    (ok if r == "None" else bad)("[R12TIMING-race] _write_timing: the look says a regular file, a FIFO is there -> "
+                                 "returns, never blocks: %s" % r)
+
+    # ---- [R12UID-real] the effective uid everywhere (SIMULATED real uid) ----
+    up = mkd("uidpar")
+    ud = dead_sdir(up, "uid")
+    own_d = mkd("uiddir", mode=0o700)
+
+    def real_uid_differs():
+        realget = os.getuid
+        os.getuid = lambda: realget() + 7
+        try:
+            a = m.open_owned_dir(own_d) > 2
+            b = m.gc_statedirs(up)
+            return (a, b, os.path.lexists(ud))
+        finally:
+            os.getuid = realget
+    r = in_child(real_uid_differs, 15)
+    (ok if r == "(True, 1, False)" else bad)(
+        "[R12UID-real] SIMULATED: os.getuid() reports another uid (euid unchanged; this process is not setuid -- the "
+        "premise round 5 called RV5-08 equivalent under) -> the helpers and gc still act on this user's own "
+        "directories (opened, collected, gone): %s" % r)
+
+    # ---- [R12LOCK-parent] (the premise of RV5-15's equivalence) ----
+    lkp = mkd("lockforeign", mode=0o777)
+    if subuid_own(lkp):
+        r = in_child(lambda: m._lock_one(os.path.join(lkp, "x.lock"), "unit"), 10)
+        (ok if r == "exit 4" else bad)("[R12LOCK-parent] a lock file under a lock directory another uid owns (0777) "
+                                       "-> BLIND 4 (refused, said): %s" % r)
+    else:
+        print("SKIP [R12LOCK-parent] no subordinate uid available -- not counted")
+
+    # ---- [R12CREATE-*] ensure_dir / mkdtemp_path ----
+    cbase = mkd("create")
+
+    def made_under_umask0():
+        os.umask(0)
+        real = m.ensure_dir(os.path.join(cbase, "a", "b", "c"), exclusive=True)
+        mods = [oct(_st_mod.S_IMODE(os.stat(os.path.join(cbase, *p)).st_mode)) for p in (("a",), ("a", "b"),
+                                                                                         ("a", "b", "c"))]
+        return (real == os.path.join(cbase, "a", "b", "c"), mods)
+    r = in_child(made_under_umask0, 10)
+    (ok if r == "(True, ['0o755', '0o755', '0o700'])" else bad)(
+        "[R12CREATE-umask0] ensure_dir under umask 0: each missing component made relative to its proved parent, "
+        "0755 / 0755 / 0700 (never group/other-writable), real path returned: %s" % r)
+    ex1777 = mkd("create", "ex1777", mode=0o1777)     # a TRUSTED parent (sticky), but others may create names in it
+    r = in_child(lambda: m.ensure_dir(ex1777, exclusive=True), 10)
+    r2 = in_child(lambda: m.ensure_dir(ex1777) == ex1777, 10)
+    (ok if r.startswith("raise UnsafeFile") and r2 == "True" else bad)(
+        "[R12CREATE-excl] ensure_dir on an existing sticky 1777 directory of ours: accepted as a parent (%s), REFUSED "
+        "with --exclusive -- a namespace must be ours alone: %s" % (r2, r[:100]))
+    stk = mkd("create", "sticky", mode=0o1777)
+    r1 = in_child(lambda: m.mkdtemp_path(stk, "x."), 10)
+    r2 = in_child(lambda: m.mkdtemp_path(stk, "x.", exclusive_parent=True), 10)
+    (ok if r1.startswith("'" + stk) and r2.startswith("raise UnsafeFile") else bad)(
+        "[R12CREATE-mkdtemp] mkdtemp_path under a sticky shared parent: allowed as a random EXCL name (%s), refused "
+        "with --exclusive-parent (%s)" % (r1[:60], r2[:80]))
+
+    # ---- [R12PEND-uid] ----
+    pp = mkd("pendpar")
+    pe = mkd("pendpar", "replay.newone", mode=0o755)
+    if subuid_own(pe):
+        r = in_child(lambda: m.process_pending([os.fsencode(pp), b"replay."], "unit r12"), 10)
+        (ok if r == "None" and os.path.isdir(pe) else bad)(
+            "[R12PEND-uid] process_pending never removes an empty directory another uid owns: kept=%s (%s)"
+            % (os.path.isdir(pe), r))
+    else:
+        print("SKIP [R12PEND-uid] no subordinate uid available -- not counted")
+    pe2 = mkd("pendpar", "replay.mine", mode=0o700)
+    r = in_child(lambda: m.process_pending([os.fsencode(pp), b"replay."], "unit r12"), 10)
+    (ok if r == "None" and not os.path.lexists(pe2) else bad)(
+        "[R12PEND-needle] control: an empty directory of ours in the window IS removed (%s)" % os.path.lexists(pe2))
+finally:
+    subprocess.run(NS + ["rm", "-rf", G12], capture_output=True)
+    subprocess.run(["chmod", "-R", "u+rwx", G12], capture_output=True)
+    shutil.rmtree(G12, ignore_errors=True)
 
 print("----")
 print("SUMMARY pass=%d fail=%d" % (N["ok"], N["bad"]))

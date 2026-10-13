@@ -99,6 +99,7 @@ T_SUP = "test_fc_supervisor_unit.sh"
 T_V5 = "test_fc_supervisor_v4r5_findings.sh"
 T_V8 = "test_fc_supervisor_v4r8_stream_matrix.sh"
 T_V9 = "test_fc_supervisor_v4r9_shutdown_windows.sh"
+T_R12 = "test_fc_safepath_v4r12.sh"
 
 
 def SM(sig, target, shape):
@@ -143,8 +144,8 @@ MUTS = [
                      '    body.update(commit=sha, tree=tree, commit_author_date=adate,'
                      ' commit_subject=subject.encode().decode("unicode_escape"))')],
      T_R6, {"R6_ONLY": "F5"}, "NOT ok [R6-F5]"),
-    ("R6-M13", BR, [('run_log_dir="$(mktemp -d "$worktree_root/replay-logs/${commit:0:12}.XXXXXX")"',
-                     'run_log_dir="$worktree_root/replay-logs"')],
+    ("R6-M13", BR, [('run_log_dir="$(_fc_safe mkdtemp --exclusive-parent "$worktree_root/replay-logs" "${commit:0:12}.")"',
+                     'run_log_dir="$worktree_root/replay-logs"')],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_R6, {"R6_ONLY": "F6"}, "NOT ok [R6-F6]"),
     ("R6-M14", BR, [("det = not flaky and not differs", "det = not differs")],
      T_R6, {"R6_ONLY": "F7a"}, "NOT ok [R6-F7a]"),
@@ -236,7 +237,7 @@ MUTS = [
      T_R2, {"R2_ONLY": "PERRUN"}, "NOT ok [PERRUN]"),
     # V4-9: the private temp directory is never removed
     # R2-M7 re-expressed (round 3): the private temp directory is never removed
-    ("R2-M7", SUP, [("    if os.path.basename(tmpdir).startswith(\"fc_baseline_replay.\"):\n        shutil.rmtree(tmpdir, ignore_errors=True)\n", "    if False:\n        pass\n")],
+    ("R2-M7", SUP, [("    if os.path.basename(tmpdir).startswith(\"fc_baseline_replay.\"):\n        remove_tree(tmpdir)", "    if False:\n        pass")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_R2, SM("TERM", "worker", "never"), "NOT ok [SM] TERM-worker-never"),
     # V4-9: selfcheck without signal handlers
     # R2-M8 re-expressed (round 3): selfcheck runs unsupervised
@@ -554,7 +555,7 @@ MUTS = [
      T_V5, {"V5_ONLY": "R7N3B"}, "NOT ok [R7N3B]"),
     ("V4R7-N3c", SUP, [("    read_report(statedir)\n", "    pass\n")],
      T_V5, {"V5_ONLY": "R7N3B"}, "NOT ok [R7N3B]"),
-    ("V4R7-N3e", SUP, [('            if os.path.isdir(d) and DONE.get("code") is None:\n', '            if os.path.isdir(d):\n')],
+    ("V4R7-N3e", SUP, [('            if DONE.get("code") is None:\n                try:\n                    # never through', '            if True:\n                try:\n                    # never through')],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_V5, {"V5_ONLY": "R7N3C"}, "NOT ok [R7N3C]"),
     # N4: progress beats ignored by main / no beat while a bounded git call runs / the overall cap removed
     ("V4R7-N4a", SUP, [("                last_beat = time.monotonic()\n", "                pass\n")],
@@ -645,7 +646,7 @@ MUTS = [
      T_SUP, {}, "NOT ok [R9OWN-J]"),
     ("V4R9-RVM-K", SUP, [("    ok = sf is not None and sf[1] == parent", "    ok = sf is not None")],
      T_SUP, {}, "NOT ok [S1]"),
-    ("V4R9-RVM-L", SUP, [('if os.path.isdir(d) and DONE.get("code") is None:', 'if os.path.isdir(d):')],
+    ("V4R9-RVM-L", SUP, [('            if DONE.get("code") is None:\n                try:\n                    # never through', '            if os.path.lexists(d):\n                try:\n                    # never through')],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_V5, {"V5_ONLY": "R7N3C"}, "NOT ok [R7N3C]"),
     ("V4R9-RVM-M", SUP, [("    except Exception:  # noqa: BLE001 -- the state of the caller's stream never changes an outcome", "    except ValueError:")],
      T_V8, {"R8_ONLY": "R8MATRIX", "R8_STREAMS": "dead-err", "R8_SCENARIOS": "kill-worker term-worker stop-TERM-main"},
@@ -678,8 +679,8 @@ MUTS = [
      T_SUP, {}, "NOT ok [R9DEC] main_cause(9, 15)"),
     ("V4R9-M10", SUP, [("        if b == boot and pid > 1:\n", "        if pid > 1:\n")],
      T_SUP, {}, "NOT ok [R9GC] other boot removed"),
-    ("V4R9-M11", SUP, [("    try:\n        os.rmdir(path)\n    except OSError:\n        pass\n    return not os.path.lexists(path)\n",
-                        "    shutil.rmtree(path, ignore_errors=True)\n    return not os.path.lexists(path)\n")],
+    ("V4R9-M11", SUP, [("            if n in (REPORT_MARKER, LEASE_NAME) or n.startswith(\".report.\"):\n                try:\n                    os.unlink(n, dir_fd=dfd)",
+                        "            if True:\n                try:\n                    os.unlink(n, dir_fd=dfd)")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_SUP, {}, "NOT ok [R9GC] unknown file kept"),
     # ---- T048 V4 round 10 (round-3 review of the round-9 pack: NO-GO V4R10-1 + V4R10-2 IMPORTANT, 5 MINOR, 1 NIT) ----
     # The round-3 reviewer's 14 mutants RV3-01..RV3-14 (v4_round3_review_20261012.md section 2.2), adopted VERBATIM
@@ -711,7 +712,9 @@ MUTS = [
      T_V8, {"R8_ONLY": "R8MATRIX", "R8_SCENARIOS": "replay-sample", "R8_STREAMS": "closed-out closed-err closed-both closed-in wrongdir-in wrongdir-out wrongdir-err"},
      "NOT ok [R8MATRIX] replay-sample x"),
     # RV3-10 survived round 9 (V4R10-5): [R10ATOMIC] -- the marker must be the very inode written under its temp name
-    ("V4R10-RV3-10", SUP, [("        os.replace(tmp, os.path.join(tmpdir, REPORT_MARKER))\n", "        shutil.copyfile(tmp, os.path.join(tmpdir, REPORT_MARKER)); os.unlink(tmp)\n")],
+    ("V4R10-RV3-10", SUP, [("        os.replace(tmp, REPORT_MARKER, src_dir_fd=dfd, dst_dir_fd=dfd)\n",
+                            "        _c = os.open(REPORT_MARKER, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600, dir_fd=dfd); "
+                            "os.write(_c, json.dumps(rec, sort_keys=True).encode()); os.close(_c); os.unlink(tmp, dir_fd=dfd)\n")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_SUP, {}, "NOT ok [R10ATOMIC]"),
     ("V4R10-RV3-11", SUP, [('    if not isinstance(doc, dict) or doc.get("body_hash") != want:\n', '    if not isinstance(doc, dict) or doc.get("body_hash") not in (want, ""):\n')],
      T_SUP, {}, "NOT ok [R10HASH]"),
@@ -727,7 +730,7 @@ MUTS = [
     ("V4R10-M1", SUP, [("        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)\n    except OSError:\n        os.close(lease)\n        remove_statedir(path)\n",
                         "        pass\n    except OSError:\n        os.close(lease)\n        remove_statedir(path)\n")],
      T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
-    ("V4R10-M2", SUP, [("        free, lfd = _lease_free(path)\n", "        free, lfd = True, None\n")],
+    ("V4R10-M2", SUP, [("        free, lfd = _lease_free(name, pfd, held)\n", "        free, lfd = True, None; held.append(open_owned_dir(name, pfd))\n")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_V9, {"R9_ONLY": "R10LEASE"}, "NOT ok [R10LEASE]"),
     ("V4R10-M3", SUP, [("        except FileNotFoundError:\n            return True, None\n        except OSError:\n            return False, None\n",
                         "        except FileNotFoundError:\n            return True, None\n        except OSError:\n            return True, None\n")],
@@ -773,7 +776,7 @@ MUTS = [
      T_SUP, {}, "NOT ok [R10LEASE-held]"),
     ("V4R11-RV4-05", SUP, [("            if ident is not None and ident[1] == start:\n                continue ", "            if False:\n                continue ")],
      T_SUP, {}, "NOT ok [R9GC] live owner kept"),
-    ("V4R11-RV4-06", SUP, [("        lease = os.open(os.path.join(path, LEASE_NAME),", "        lease = os.open(os.path.join(path, LEASE_NAME + '.m'),"),
+    ("V4R11-RV4-06", SUP, [("        lease = os.open(LEASE_NAME,", "        lease = os.open(LEASE_NAME + '.m',"),  # round 12: re-expressed against the trusted-parent code (same defect, same id)
                            ("        if n in (REPORT_MARKER, LEASE_NAME) or", "        if n in (REPORT_MARKER, LEASE_NAME, LEASE_NAME + '.m') or")],
      T_SUP, {}, "NOT ok [R10LEASE-made]"),
     ("V4R11-RV4-07", SUP, [("        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)\n    except OSError:\n        os.close(lease)\n",
@@ -794,8 +797,8 @@ MUTS = [
      T_V9, {"R9_ONLY": "R9WIN", "R9_ROLES": "keeper", "R9_TAGS": "_keeper.finally", "R9_ACTIONS": "kill-self"},
      "NOT ok [R9WIN] keeper"),
     # RV4-12 (round 4: "equivalent") is CAUGHT: the property the code states -- gc holds the lease THROUGH the removal
-    ("V4R11-RV4-12", SUP, [("        try:\n            if remove_statedir(path):\n                n += 1\n        finally:\n            if lfd is not None:\n                os.close(lfd)\n",
-                            "        if lfd is not None:\n            os.close(lfd)\n        if remove_statedir(path):\n            n += 1\n")],
+    ("V4R11-RV4-12", SUP, [("        try:\n            if _remove_state_at(pfd, name, held[-1] if held else None):   # the fd _lease_free proved\n                n += 1\n        finally:\n            if lfd is not None:\n                os.close(lfd)\n",
+                            "        if lfd is not None:\n            os.close(lfd)\n        if _remove_state_at(pfd, name, held[-1] if held else None):\n            n += 1\n")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_SUP, {}, "NOT ok [R11GC-held]"),
     # RV4-13 (round 4: "near-equivalent", an fd leak) is CAUGHT: [R11GC-nofdleak]
     ("V4R11-RV4-13", SUP, [("            if lfd is not None:\n                os.close(lfd)\n", "            if lfd is not None:\n                pass\n")],
@@ -839,21 +842,126 @@ MUTS = [
     ("V4R11-M12", SUP, [("                    ddfd = open_owned_dir(d)\n                    try:\n                        ifd = open_owned_file(\"INTERRUPTED\", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, dir_fd=ddfd,\n                                              mode=0o644, forbid=0)\n                    finally:\n                        os.close(ddfd)\n",
                          "                    ifd = os.open(os.path.join(d, \"INTERRUPTED\"), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)\n")],
      T_SUP, {}, "NOT ok [R11INTR-symlink]"),
-    ("V4R11-M13", SUP, [("            fields = _read_owned(path, 1024 * 1024).split(b\"\\0\")", "            fields = open(path, \"rb\").read().split(b\"\\0\")")],
+    ("V4R11-M13", SUP, [("            fields = _read_owned(name, 1024 * 1024, dir_fd=tfd).split(b\"\\0\")", "            fields = os.read(os.open(name, os.O_RDONLY, dir_fd=tfd), 1 << 20).split(b\"\\0\")")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_SUP, {}, "NOT ok [R11LEDGER-fifo]"),
     ("V4R11-M14", SUP, [("        fd = open_owned_file(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)", "        fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)")],
      T_SUP, {}, "NOT ok [R11MARK-fifo]"),
     ("V4R11-M15", SUP, [("        fd = open_owned_file(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)", "        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)")],
      T_SUP, {}, "NOT ok [R11TIMING-fifo]"),
-    ("V4R11-M16", SUP, [("    os.close(open_owned_dir(tmpdir))   # this user's alone", "    pass   # this user's alone")],
-     T_SUP, {}, "NOT ok [R11PREP-dir]"),
+    ("V4R11-M16", SUP, [("    os.close(_trusted_parent(out_abs)[0])     # the report's directory", "    pass     # the report's directory")],
+     T_SUP, {}, "NOT ok [R12PREP-outparent]"),  # round 12: the state-dir proof is now the ONE held fd (dropping it = RV5-13); M16 drops the --out parent proof
     ("V4R11-M17", SUP, [("        sdfd = open_owned_dir(statedir)", "        sdfd = os.open(statedir, os.O_RDONLY | os.O_DIRECTORY)")],
      T_SUP, {}, "NOT ok [R11MODE-read]"),
     ("V4R11-M18", SUP, [("    flags &= ~os.O_TRUNC\n", "    flags &= ~0\n")],
      T_SUP, {}, "NOT ok [R11TRUNC]"),
-    ("V4R11-M19", SUP, [("        dfd = open_owned_dir(path)\n    except OSError:\n        return False, None\n",
-                         "        dfd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)\n    except OSError:\n        return False, None\n")],
+    ("V4R11-M19", SUP, [("        dfd = open_owned_dir(path, dir_fd)\n    except OSError:\n        return False, None\n",
+                         "        dfd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=dir_fd)\n    except OSError:\n        return False, None\n")],  # round 12: re-expressed against the trusted-parent code (same defect, same id)
      T_SUP, {}, "NOT ok [R11DIR-mode]"),
+    # ---- T048 V4 round 12 (round-5 review of the round-11 pack: NO-GO V4R12-1 MINOR source-defect, V4R12-2 MINOR
+    # test-instrumentation, V4R12-3 process-doc, NIT; §11.4.276(E) STRUCTURAL: one trusted-parent rule, both languages) ----
+    # The round-5 reviewer's 15 mutants RV5-01..RV5-15 (v4_round5_review_20261012.md section 5), adopted VERBATIM (the
+    # reviewer's own anchors and replacements, unchanged -- every anchor still matches exactly once in round 12). The 9
+    # round-5 survivors are routed to the round-12 rows written for them; RV5-05 and RV5-08 (round 5: equivalent under
+    # the sticky/owned-parent model / not setuid) are CAUGHT by rows that test the property itself ([R12FD-gc]: one walk,
+    # every action through its fds; [R12UID-real]: the effective uid everywhere); RV5-15 is an EQUIVS row whose premise
+    # ([R12LOCK-parent]) is itself asserted on the mutant.
+    ("V4R12-RV5-01", SUP, [("    if pre is not None and not _owned_ok(pre, _st.S_ISREG, forbid):\n", "    if pre is not None and (_st.S_ISFIFO(pre.st_mode) or pre.st_uid != os.geteuid() or pre.st_mode & forbid):\n")],
+     T_SUP, {}, "NOT ok [R11NOOPEN-"),
+    ("V4R12-RV5-02", SUP, [("            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)\n", "            lfd = os.open(LEASE_NAME, os.O_RDONLY | _SAFE_OPEN, dir_fd=dfd)\n"),
+                           ("            fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n        except OSError:              # BlockingIOError",
+                            "            fcntl.flock(lfd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n            if not _owned_ok(os.fstat(lfd), _st.S_ISREG, FILE_FORBID):\n                raise UnsafeFile('late')\n        except OSError:              # BlockingIOError")],
+     T_SUP, {}, "NOT ok [R11DEV]"),
+    ("V4R12-RV5-03", SUP, [("    fd = os.open(name, flags | _SAFE_OPEN, mode, dir_fd=dir_fd)\n", "    fd = os.open(name, (flags | _SAFE_OPEN) & ~os.O_NOFOLLOW, mode, dir_fd=dir_fd)\n")],
+     T_SUP, {}, "NOT ok [R11RACE-symlink]"),
+    ("V4R12-RV5-04", SUP, [("                    ddfd = open_owned_dir(d)\n", "                    ddfd = os.open(d, os.O_RDONLY | os.O_DIRECTORY | _SAFE_OPEN)\n")],
+     T_SUP, {}, "NOT ok [R12INTR-dirmode]"),
+    ("V4R12-RV5-05", SUP, [("            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)\n", "            lfd = open_owned_file(os.path.join(path, LEASE_NAME), os.O_RDONLY)\n")],
+     T_SUP, {}, "NOT ok [R12FD-gc]"),
+    ("V4R12-RV5-06a", SUP, [("DIR_FORBID = 0o022 ", "DIR_FORBID = 0o002 ")], T_SUP, {}, "NOT ok [R12MASK-dir770]"),
+    ("V4R12-RV5-06b", SUP, [("FILE_FORBID = 0o002 ", "FILE_FORBID = 0o020 ")], T_SUP, {}, "NOT ok [R12MASK-file602]"),
+    ("V4R12-RV5-07", SUP, [("        fd = open_owned_file(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)     # never blocks / follows\n",
+                            "        if os.path.lexists(path) and not _st.S_ISREG(os.lstat(path).st_mode):\n            return\n        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)\n")],
+     T_SUP, {}, "NOT ok [R12TIMING-race]"),
+    ("V4R12-RV5-08", SUP, [("st.st_uid == os.geteuid() and not", "st.st_uid == os.getuid() and not")], T_SUP, {}, "NOT ok [R12UID-real]"),
+    ("V4R12-RV5-09", SUP, [("            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)\n", "            lfd = os.open(LEASE_NAME, os.O_RDONLY | _SAFE_OPEN, dir_fd=dfd)\n")],
+     T_SUP, {}, "NOT ok [R11LEASE-mode]"),
+    ("V4R12-RV5-10", SUP, [("            rec = json.loads(_read_owned(REPORT_MARKER, 1024 * 1024, dir_fd=sdfd))\n",
+                            "            _f = os.open(REPORT_MARKER, os.O_RDONLY | os.O_NONBLOCK, dir_fd=sdfd)\n            rec = json.loads(os.read(_f, 1024 * 1024)); os.close(_f)\n")],
+     T_SUP, {}, "NOT ok [R12MARKER-mode]"),
+    ("V4R12-RV5-11", SUP, [("        except FileNotFoundError:\n            return True, None\n        except OSError:\n            return False, None\n",
+                            "        except FileNotFoundError:\n            return True, None\n        except OSError:\n            return True, None\n")],
+     T_SUP, {}, "NOT ok [R10LEASE-odd]"),
+    ("V4R12-RV5-12", SUP, [("        if (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino) or not _owned_ok(st, _st.S_ISDIR, forbid):\n",
+                            "        if not _owned_ok(st, _st.S_ISDIR, forbid):\n")],
+     T_SUP, {}, "NOT ok [R11RACE-dirswap]"),
+    ("V4R12-RV5-13", SUP, [("    dfd = open_owned_dir(tmpdir)        # never a directory another user controls (V4R11-1 class)\n",
+                            "    dfd = os.open(tmpdir, os.O_RDONLY)\n")],
+     T_SUP, {}, "NOT ok [R11PREP-dir]"),
+    ("V4R12-RV5-14", SUP, [("            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd)\n", "            lfd = open_owned_file(LEASE_NAME, os.O_RDONLY, dir_fd=dfd, forbid=0)\n")],
+     T_SUP, {}, "NOT ok [R11LEASE-mode]"),
+    # the round-12 fixer's own mutants (V4R12-M*): one per rule of the trusted-parent helpers + one per converted site
+    ("V4R12-M1", SUP, [("    if st.st_uid not in (0, os.geteuid()):\n        return False\n", "    if False:\n        return False\n")],
+     T_SUP, {}, "NOT ok [R12WALK-f755]"),                       # rule 1: any owner trusted
+    ("V4R12-M2", SUP, [("    return not (_st.S_ISDIR(st.st_mode) and st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX)",
+                        "    return True")],
+     T_SUP, {}, "NOT ok [R12WALK-own777]"),                     # rule 1: a dir writable by others without sticky trusted
+    ("V4R12-M3", SUP, [("st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX)", "st.st_mode & 0o022)")],
+     T_R12, {"R12_ONLY": "PARITY"}, "NOT ok [R12PARITY-rootsticky]"),  # rule 1: the sticky exemption lost (/tmp refused;
+                                                                # the unit file stops at its first report_prepare)
+    ("V4R12-M4", SUP, [("                if not _trusted_ok(st):\n                    raise UnsafeFile(\"%s: a symlink owned by uid %d -- not followed\"",
+                        "                if False:\n                    raise UnsafeFile(\"%s: a symlink owned by uid %d -- not followed\"")],
+     T_SUP, {}, "NOT ok [R12WALK-flink]"),                      # rule 2: another uid's symlink followed
+    ("V4R12-M5", SUP, [("    fd, real = _walk(head or \".\")\n", "    fd, real = os.open(head or \".\", os.O_PATH | os.O_CLOEXEC), os.path.realpath(head or \".\")\n")],
+     T_SUP, {}, "NOT ok [R12INTR-parent]"),                     # rule 2: path mode resolved by the kernel in one go
+    ("V4R12-M6", SUP, [("            if (now.st_dev, now.st_ino) == (ds.st_dev, ds.st_ino):\n                os.rmdir(name, dir_fd=pfd)\n        except OSError:\n            pass\n",
+                        "            if True:\n                os.rmdir(name, dir_fd=pfd)\n        except OSError:\n            pass\n")],
+     T_SUP, {}, "NOT ok [R12RM-swap]"),                         # rule 4: rmdir without the identity check
+    ("V4R12-M7", SUP, [("                        if (cst.st_dev, cst.st_ino) == (st.st_dev, st.st_ino):\n                            clear(cfd)\n",
+                        "                        if True:\n                            clear(cfd)\n")],
+     T_SUP, {}, "NOT ok [R12RM-race]"),                         # rule 4: rmtree descends into a swapped-in directory
+    ("V4R12-M8", SUP, [("        pfd, _real = _walk(parent)\n    except OSError:\n        return 0\n",
+                        "        pfd, _real = os.open(parent, os.O_PATH | os.O_CLOEXEC), parent\n    except OSError:\n        return 0\n")],
+     T_SUP, {}, "NOT ok [R12PARENT-foreign777]"),              # gc collects under a parent another uid controls
+    ("V4R12-M9", SUP, [("        if exclusive and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID):\n", "        if False:\n")],
+     T_SUP, {}, "NOT ok [R12CREATE-excl]"),                     # a namespace directory that is not ours alone accepted
+    ("V4R12-M10", SUP, [("                    os.mkdir(comp, mode if not todo else 0o755, dir_fd=cur)", "                    os.mkdir(comp, mode if not todo else 0o777, dir_fd=cur)")],
+     T_SUP, {}, "NOT ok [R12CREATE-umask0]"),                   # rule 3: intermediate directories made writable by all
+    ("V4R12-M11", SUP, [("        if exclusive_parent and not _owned_ok(os.fstat(pfd), _st.S_ISDIR, DIR_FORBID):\n", "        if False:\n")],
+     T_SUP, {}, "NOT ok [R12CREATE-mkdtemp]"),                  # --exclusive-parent ignored
+    ("V4R12-M12", SUP, [("        os.replace(tmp, REPORT_MARKER, src_dir_fd=dfd, dst_dir_fd=dfd)\n",
+                         "        _d = os.readlink(\"/proc/self/fd/%d\" % dfd)\n        os.replace(os.path.join(_d, tmp), os.path.join(_d, REPORT_MARKER))\n")],
+     T_SUP, {}, "NOT ok [R12PREP-onefd]"),                      # rule 2: the proved state dir re-resolved by path
+    ("V4R12-M13", SUP, [("            ds = os.fstat(dfd)\n            names = os.listdir(dfd)\n",
+                         "            ds = os.fstat(dfd)\n            if ds.st_uid != os.getuid():\n                return False\n            names = os.listdir(dfd)\n")],
+     T_SUP, {}, "NOT ok [R12UID-real]"),                        # the NIT re-introduced: remove_statedir on the REAL uid
+    ("V4R12-M14", SUP, [("            cfd = open_owned_dir(n, pfd)\n", "            cfd = os.open(n, os.O_RDONLY | os.O_DIRECTORY | _SAFE_OPEN, dir_fd=pfd)\n")],
+     T_SUP, {}, "NOT ok [R12PEND-uid]"),                        # process_pending removes another uid's directory
+    ("V4R12-M15", BR, [("  _fc_safe mkdir --exclusive \"$worktree_root/replay-logs\" >/dev/null ||", "  mkdir -p \"$worktree_root/replay-logs\" 2>/dev/null ||"),
+                       ("  run_log_dir=\"$(_fc_safe mkdtemp --exclusive-parent \"$worktree_root/replay-logs\" \"${commit:0:12}.\")\"",
+                        "  run_log_dir=\"$(mktemp -d \"$worktree_root/replay-logs/${commit:0:12}.XXXXXX\")\"")],
+     T_R12, {"R12_ONLY": "SH"}, "NOT ok [R12SH-plant]"),        # the round-5 run-log code: the reviewer's repro returns
+    ("V4R12-M16", BR, [("  _fc_safe check --exclusive \"$_FC_TMPDIR\" >/dev/null || blind", "  : || blind")],
+     T_R12, {"R12_ONLY": "SH"}, "NOT ok [R12SH-workerinit]"),   # the worker no longer proves its temp directory
+    ("V4R12-M17", BR, [("  worktree_root=\"$(_fc_safe mkdir --exclusive \"$worktree_root\")\" || blind \"replay: cannot",
+                        "  worktree_root=\"$(_fc_safe mkdir \"$worktree_root\")\" || blind \"replay: cannot"),
+                       ("  worktree_root=\"$(_fc_safe mkdir --exclusive \"$worktree_root\")\" || { echo",
+                        "  worktree_root=\"$(_fc_safe mkdir \"$worktree_root\")\" || { echo"),
+                       ("  wt_path=\"$(_fc_safe mkdtemp --exclusive-parent \"$worktree_root\" replay.)\"",
+                        "  wt_path=\"$(_fc_safe mkdtemp \"$worktree_root\" replay.)\""),
+                       ("  _fc_safe mkdir --exclusive \"$worktree_root/replay-logs\" >/dev/null ||",
+                        "  _fc_safe mkdir \"$worktree_root/replay-logs\" >/dev/null ||"),
+                       ("  run_log_dir=\"$(_fc_safe mkdtemp --exclusive-parent \"$worktree_root/replay-logs\"",
+                        "  run_log_dir=\"$(_fc_safe mkdtemp \"$worktree_root/replay-logs\"")],
+     T_R12, {"R12_ONLY": "SH"}, "NOT ok [R12SH-wtroot-sticky]"),  # --worktree-root used as a namespace while shared
+    ("V4R12-M18", BR, [("  # rc 0: the run-log ledger entry is KEPT", "  rm -f \"$out_path.tmp\" 2>/dev/null\n  # rc 0: the run-log ledger entry is KEPT")],
+     T_R12, {"R12_ONLY": "LINT"}, "NOT ok [R12LINT]"),           # closure guard: an unrouted shell path op added
+    ("V4R12-M19", SUP, [("        if _size_in(marker) > 0:                # asked through the proved parent (round 12)\n",
+                         "        if os.path.exists(marker) and os.path.getsize(marker) > 0:\n")],
+     T_R12, {"R12_ONLY": "LINT"}, "NOT ok [R12LINT]"),           # closure guard: the round-11 path probe re-introduced
+    ("V4R12-M20", SUP, [("            dfd = open_owned_dir(d)\n", "            dfd = os.open(d, os.O_RDONLY | os.O_DIRECTORY)\n")],
+     T_R12, {"R12_ONLY": "CLI"}, "NOT ok [R12CLI-write-dirmode]"),  # the shell's INTERRUPTED write without the dir proof
+    ("V4R12-M21", BR, [("_fc_safe() { python3 -I -S \"$_FC_SUPERVISOR\" safepath \"$@\"; }", "_fc_safe() { python3 -I -S \"$_FC_SUPERVISOR\" safepath \"$@\" || true; }")],
+     T_R12, {"R12_ONLY": "PARITY"}, "NOT ok [R12PARITY-own777]"),  # the shell half ignores a refusal (parity broken)
 ]
 
 # EQUIVALENT mutants: applied like every mutant, but the named case must still PASS -- the equivalence claim is itself a
@@ -864,6 +972,16 @@ EQUIVS = [
      T_SUP, {}, "ok [R10LEASE-made]",
      "PEP 446: os.open() creates every fd non-inheritable (FD_CLOEXEC set) whether or not O_CLOEXEC is passed; "
      "[R10LEASE-made] reads FD_CLOEXEC from the kernel and still sees it set -- no observable difference exists"),
+    # round 12: RV5-15 (_lock_one with forbid=0: a world-writable lock file of OURS is accepted). The model: a lock file is
+    # only ever flock()ed, never read or trusted for content; its IDENTITY cannot be swapped because the lock directory
+    # must pass the trusted-parent rule (root's / ours, sticky if shared) -- so its mode bits carry no meaning. The
+    # PREMISE is asserted on the mutant: [R12LOCK-parent] (a lock directory another uid owns -> BLIND 4) must still pass,
+    # and so must the whole unit file. If the premise ever stops holding, this row turns NOT ok.
+    ("V4R12-RV5-15", SUP, [("        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o644)\n",
+                            "        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o644, forbid=0)\n")],
+     T_SUP, {}, "ok [R12LOCK-parent]",
+     "a lock file is only flock()ed (its content and mode are never read); its identity is pinned by the lock directory, "
+     "which must pass the trusted-parent rule ([R12LOCK-parent], asserted on this mutant)"),
 ]
 
 CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
@@ -908,7 +1026,9 @@ CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
                                       "R8_STREAMS": "closed-out closed-err closed-both closed-in wrongdir-in wrongdir-out "
                                                     "wrongdir-err dead-out-closed-err dead-err",
                                       "R8_SCENARIOS": "ok replay-sample selfcheck kill-keeper"},
-             "ok [R8MATRIX] selfcheck x closed-in")]
+             "ok [R8MATRIX] selfcheck x closed-in"),
+            # round 12: the whole new file (rc == 0 requires every row a V4R12-M* shell mutant runs)
+            ("control-r12", T_R12, {}, "ok [R12SH-plant]")]
 
 
 def replica():

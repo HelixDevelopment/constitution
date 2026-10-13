@@ -281,11 +281,9 @@ if _EARLY and not Stop.sig:
 
 import ctypes            # noqa: E402 -- after the early SIGINT handler on purpose (N6)
 import select            # noqa: E402
-import shutil            # noqa: E402
 import stat as _st       # noqa: E402
 import subprocess        # noqa: E402
 import sys               # noqa: E402
-import tempfile          # noqa: E402
 import time              # noqa: E402
 
 PR_SET_PDEATHSIG = 1
@@ -420,7 +418,7 @@ def _repair_std_fds():
         except OSError:
             pass
         try:
-            nfd = os.open(os.devnull, os.O_RDWR)
+            nfd = os.open(os.devnull, os.O_RDWR)    # safepath:devnull
         except OSError:
             continue
         try:
@@ -562,7 +560,7 @@ def _stat_fields(pid):
     """(state, ppid) from /proc/<pid>/stat, fields read after the LAST ') ' so a
     comm holding spaces or parentheses cannot shift them; None if unreadable."""
     try:
-        with open("/proc/%d/stat" % pid) as fh:
+        with open("/proc/%d/stat" % pid) as fh:    # safepath:procfs
             st = fh.read()
         f = st[st.rindex(") ") + 2:].split()
         return f[0], int(f[1])
@@ -573,12 +571,12 @@ def _stat_fields(pid):
 def _children(pid):
     out = []
     try:
-        tids = os.listdir("/proc/%d/task" % pid)
+        tids = os.listdir("/proc/%d/task" % pid)    # safepath:procfs
     except OSError:
         return out
     for tid in tids:
         try:
-            with open("/proc/%d/task/%s/children" % (pid, tid)) as fh:
+            with open("/proc/%d/task/%s/children" % (pid, tid)) as fh:    # safepath:procfs
                 out.extend(int(x) for x in fh.read().split())
         except (OSError, ValueError):
             continue
@@ -615,7 +613,7 @@ def walk(root):
 def _ident(pid):
     """(session id, start time) from /proc/<pid>/stat, or None (the fields after the LAST ') ', as _stat_fields)."""
     try:
-        with open("/proc/%d/stat" % pid) as fh:
+        with open("/proc/%d/stat" % pid) as fh:    # safepath:procfs
             st = fh.read()
         f = st[st.rindex(") ") + 2:].split()
         return int(f[3]), int(f[19])
@@ -767,7 +765,7 @@ def _mark(marker, text):
     if not marker:
         return
     try:
-        if os.path.exists(marker) and os.path.getsize(marker) > 0:
+        if _size_in(marker) > 0:                # asked through the proved parent (round 12)
             return
         fd = open_owned_file(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, forbid=0)   # never blocks / follows
         with os.fdopen(fd, "w") as fh:
@@ -818,34 +816,6 @@ def _git(repo, args):
             os.close(pfd)
 
 
-def _rmtree_beat(path):
-    """shutil.rmtree(path, ignore_errors=True), iteratively and without following symlinks, beating every 500
-    removed entries (N4: removing a large checkout is progress main can see)."""
-    stack, n = [(path, False)], 0
-    while stack:
-        cur, emptied = stack.pop()
-        try:
-            st = os.lstat(cur)
-        except OSError:
-            continue
-        try:
-            if _st.S_ISDIR(st.st_mode):
-                if not emptied:
-                    stack.append((cur, True))
-                    with os.scandir(cur) as it:
-                        for e in it:
-                            stack.append((e.path, False))
-                    continue
-                os.rmdir(cur)
-            else:
-                os.unlink(cur)
-        except OSError:
-            continue
-        n += 1
-        if n % 500 == 0:
-            _beat()
-
-
 def worktree_listed(repo, wt):
     """True / False: whether `git worktree list --porcelain` of repo still names wt; None when the list
     cannot be read (then nothing about the worktree can be verified)."""
@@ -868,10 +838,10 @@ def remove_worktree(repo, wt):
     when the directory is gone AND `git worktree list` no longer names it."""
     for args in (["worktree", "unlock", wt], ["worktree", "remove", "-f", "-f", wt], ["worktree", "prune"]):
         _git(repo, args)
-    if os.path.lexists(wt):
-        _rmtree_beat(wt)
+    if _lexists(wt):
+        remove_tree(wt, beat=True)          # through the proved parent's fd, never by path (round 12, rule 4)
         _git(repo, ["worktree", "prune"])
-    on_disk = os.path.lexists(wt)
+    on_disk = _lexists(wt)
     listed = worktree_listed(repo, wt)
     if not on_disk and listed is False:
         return True, ""
@@ -889,26 +859,49 @@ def process_pending(fields, reason):
     """A `pend` entry is written BEFORE `mktemp -d` creates a directory the replay has not registered
     yet (T048 V4 round 5, F9): parent, name prefix, then the names that already existed. Any NEW,
     EMPTY directory under parent whose name starts with prefix was created in that window and is
-    removed (rmdir only -- never a directory with content)."""
+    removed (rmdir only -- never a directory with content). Round 12 (rule 4): parent is walked and
+    proved once; each candidate is opened (this user's alone, open_owned_dir) and removed THROUGH those
+    fds, and only while its name is still the directory that was found empty."""
     if len(fields) < 2 or not fields[0] or not fields[1]:
         return
     parent, prefix = os.fsdecode(fields[0]), os.fsdecode(fields[1])
     before = {os.fsdecode(f) for f in fields[2:] if f}
-    if not os.path.isabs(parent) or not os.path.isdir(parent):
+    if not os.path.isabs(parent):
         return
     try:
-        names = os.listdir(parent)
+        pfd, _real = _walk(parent)
+    except OSError:
+        return
+    try:
+        _pending_at(pfd, parent, prefix, before, reason)
+    finally:
+        os.close(pfd)
+
+
+def _pending_at(pfd, parent, prefix, before, reason):
+    try:
+        rfd = _reopen_dir(pfd)
+        try:
+            names = os.listdir(rfd)
+        finally:
+            os.close(rfd)
     except OSError:
         return
     for n in names:
         if not n.startswith(prefix) or n in before:
             continue
-        path = os.path.join(parent, n)
         try:
-            if os.path.isdir(path) and not os.path.islink(path) and not os.listdir(path):
-                os.rmdir(path)
+            cfd = open_owned_dir(n, pfd)
+            try:
+                cst = os.fstat(cfd)
+                empty = not os.listdir(cfd)
+            finally:
+                os.close(cfd)
+            now = os.stat(n, dir_fd=pfd, follow_symlinks=False)
+            if empty and (now.st_dev, now.st_ino) == (cst.st_dev, cst.st_ino):
+                os.rmdir(n, dir_fd=pfd)
                 say("supervisor: removed the empty directory %s created by an interrupted replay before it was "
-                    "registered (%s)" % (path, reason))
+                    "registered (%s)" % (os.path.join(parent, n), reason))
         except OSError:
             pass
 
@@ -965,7 +958,11 @@ def _owned_ok(st, is_type, forbid):
 
 
 def open_owned_dir(path, dir_fd=None, forbid=DIR_FORBID):
-    """open a DIRECTORY owned by this process's euid, writable by it alone (rules 1-4 above). Raises OSError."""
+    """open a DIRECTORY owned by this process's euid, writable by it alone (rules 1-4 above). Raises OSError. A PATH
+    (dir_fd None) is never resolved by the kernel in one go: its parent is walked and proved by the trusted-parent rule
+    (round 12, V4R12-1) and the final name is opened relative to that proved fd."""
+    if dir_fd is None:
+        return _at_parent(path, lambda pfd, name: open_owned_dir(name, pfd, forbid))
     pre = os.stat(path, dir_fd=dir_fd, follow_symlinks=False)
     if not _owned_ok(pre, _st.S_ISDIR, forbid):
         raise UnsafeFile("%s: not a directory owned by uid %d and writable by it alone" % (path, os.geteuid()))
@@ -983,7 +980,11 @@ def open_owned_dir(path, dir_fd=None, forbid=DIR_FORBID):
 def open_owned_file(name, flags, dir_fd=None, mode=0o600, forbid=FILE_FORBID):
     """open a REGULAR file owned by this process's euid (rules 1-5 above): flags = the access mode plus O_CREAT /
     O_EXCL / O_TRUNC / O_APPEND as needed. FileNotFoundError when it does not exist and O_CREAT is not given; any other
-    refusal is an OSError (UnsafeFile). Never blocks, never follows a symlink, never opens a non-regular file it saw."""
+    refusal is an OSError (UnsafeFile). Never blocks, never follows a symlink, never opens a non-regular file it saw.
+    A PATH (dir_fd None): its parent is walked and proved first (the trusted-parent rule, round 12), as in
+    open_owned_dir."""
+    if dir_fd is None:
+        return _at_parent(name, lambda pfd, leaf: open_owned_file(leaf, flags, pfd, mode, forbid))
     trunc = flags & os.O_TRUNC
     flags &= ~os.O_TRUNC
     try:
@@ -1016,6 +1017,312 @@ def _read_owned(name, limit, dir_fd=None, forbid=FILE_FORBID):
         return fh.read(limit)
 
 
+# --------------------------------------------------------------------------
+# THE TRUSTED-PARENT RULE (T048 V4 round 12, V4R12-1 -- §11.4.276(E) STRUCTURAL: ONE rule, ONE implementation, used by
+# this module AND by baseline_replay.sh, which calls `fc_supervisor.py safepath ...` (cmd_safepath) for every
+# directory it creates, writes into or removes outside the private temp directory)
+# --------------------------------------------------------------------------
+# Round 11 made every OPEN of a planted NAME safe; the round-5 review showed the same class one level up (V4R12-1): a
+# PARENT that another user owns -- or may write without the sticky bit -- lets that user rename the tool's OWN entries
+# (a run-log directory swapped for a symlink: the shell's `>"$L/INTERRUPTED"` created a file wherever it pointed), and
+# a proof made through one fd was then acted on by PATH (gc removed by path what it had proved through a closed fd).
+# The class: any path operation whose meaning depends on a directory this tool does not control. The mechanism:
+#   1. TRUSTED (_trusted_ok): every object on a path -- every directory from '/' down and every symlink followed -- is
+#      owned by root or by this process's EFFECTIVE uid, and no such directory is writable by group or other unless it
+#      carries the sticky bit (then nobody else may rename or remove an entry that is not theirs: /tmp).
+#   2. WALKED, NEVER RE-RESOLVED (_walk): a path is resolved from '/' one component at a time (O_PATH|O_NOFOLLOW per
+#      component, fstat on the fd that was opened); a symlink is followed only when it is root's or ours AND sits in a
+#      directory already proved. The walk returns an fd of the final directory; every later operation in it is an
+#      *at(dir_fd=...) call relative to that fd (open_owned_* in path mode walk the parent and open the leaf this way).
+#   3. CREATED BY US (_walk(create=True), _mkdtemp_at, _mkstemp_at): a missing directory is mkdir'ed relative to its
+#      proved parent -- never `mkdir -p` through an unproved one -- and re-verified through the fd opened on it.
+#   4. REMOVED THROUGH THE HELD FD (_rmtree_at, _remove_state_at): unlinkat / rmdir relative to the proved fds; the
+#      final rmdir happens only while the name still IS the (dev, ino) that was proved.
+# A directory a replay uses as a NAMESPACE (its temp and state directories, --worktree-root, replay-logs, a run-log
+# directory) must in addition be this user's ALONE (open_owned_dir: owner == euid, none of DIR_FORBID): a fixed name
+# in it can then be planted by nobody. The census of every path operation of this module and of baseline_replay.sh is
+# produced by tests/check_safepath_census.py, which FAILS the suite when an operation is added that does not go
+# through these helpers (docs/qa/v4_round6_20261012/CONVERGENCE.md). BOUNDARY (§11.4.6): root may do anything; a path
+# through another user's directory is refused, never "made safe".
+_PATH_FLAGS = os.O_PATH | os.O_NOFOLLOW | os.O_CLOEXEC
+_WALK_MAX_LINKS = 40
+_NAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+
+def _trusted_ok(st):
+    """THE trusted-parent rule (rule 1): owned by root or by this process's effective uid; a directory writable by
+    group or other only with the sticky bit set."""
+    if st.st_uid not in (0, os.geteuid()):
+        return False
+    return not (_st.S_ISDIR(st.st_mode) and st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX)
+
+
+def _walk(path, create=False, mode=0o700):
+    """rule 2: (an O_PATH fd of the final directory, its real path). create=True (rule 3): a missing component is made
+    with mkdir relative to its proved parent (the last one with `mode`, the others 0o755) and verified like every
+    component. Raises UnsafeFile (an object on the way is not trusted, or is not a directory), FileNotFoundError
+    (create=False), or another OSError."""
+    if not isinstance(path, str) or not path or "\0" in path:
+        raise UnsafeFile("%r: not a path" % (path,))
+    if not path.startswith("/"):
+        path = os.getcwd() + "/" + path          # the cwd's components are walked and proved like any others
+    todo = [c for c in path.split("/") if c not in ("", ".")][::-1]
+    stack = [(os.open("/", _PATH_FLAGS | os.O_DIRECTORY), "")]
+    links = 0
+    try:
+        if not _trusted_ok(os.fstat(stack[0][0])):
+            raise UnsafeFile("/: not trusted")
+        while todo:
+            comp = todo.pop()
+            if comp == "..":
+                if len(stack) > 1:
+                    os.close(stack.pop()[0])
+                continue
+            cur = stack[-1][0]
+            try:
+                fd = os.open(comp, _PATH_FLAGS, dir_fd=cur)
+            except FileNotFoundError:
+                if not create:
+                    raise
+                try:
+                    os.mkdir(comp, mode if not todo else 0o755, dir_fd=cur)
+                except FileExistsError:
+                    pass                     # made a moment ago by someone else: verified below like any component
+                fd = os.open(comp, _PATH_FLAGS, dir_fd=cur)
+            try:
+                st = os.fstat(fd)
+            except OSError:
+                os.close(fd)
+                raise
+            if not _st.S_ISDIR(st.st_mode) or not _trusted_ok(st):
+                os.close(fd)                 # only a proved directory is kept (pushed below)
+            where = "/".join(n for _, n in stack) + "/" + comp
+            if _st.S_ISLNK(st.st_mode):
+                if not _trusted_ok(st):
+                    raise UnsafeFile("%s: a symlink owned by uid %d -- not followed" % (where, st.st_uid))
+                links += 1
+                if links > _WALK_MAX_LINKS:
+                    raise UnsafeFile("%s: more than %d symlinks" % (where, _WALK_MAX_LINKS))
+                target = os.readlink(comp, dir_fd=cur)
+                if target.startswith("/"):
+                    while len(stack) > 1:
+                        os.close(stack.pop()[0])
+                todo.extend([c for c in target.split("/") if c not in ("", ".")][::-1])
+                continue
+            if not _st.S_ISDIR(st.st_mode):
+                raise UnsafeFile("%s: not a directory" % where)
+            if not _trusted_ok(st):
+                raise UnsafeFile("%s: owned by uid %d, mode %o -- another user may rename what is in it (the "
+                                 "trusted-parent rule)" % (where, st.st_uid, _st.S_IMODE(st.st_mode)))
+            stack.append((fd, comp))
+        real = "/" + "/".join(n for _, n in stack[1:])
+        return stack.pop()[0], real
+    finally:
+        for f, _ in stack:
+            os.close(f)
+
+
+def open_trusted_dir(path):
+    """(O_PATH fd, real path) of the directory at path, walked and proved (rule 2)."""
+    return _walk(path)
+
+
+def _trusted_parent(path):
+    """(O_PATH fd of path's PARENT, walked and proved; the final NAME, not resolved; the parent's real path)."""
+    if not isinstance(path, str) or not path:
+        raise UnsafeFile("%r: not a path" % (path,))
+    head, name = os.path.split(path.rstrip("/") or "/")
+    if name in ("", ".", ".."):
+        raise UnsafeFile("%r: no final name to act on" % path)
+    fd, real = _walk(head or ".")
+    return fd, name, real
+
+
+def _at_parent(path, fn):
+    """fn(proved parent fd, final name) -- the parent's fd is closed afterwards."""
+    pfd, name, _real = _trusted_parent(path)
+    try:
+        return fn(pfd, name)
+    finally:
+        os.close(pfd)
+
+
+def _reopen_dir(fd):
+    """a READABLE fd of the directory an O_PATH fd refers to (for listdir / fsync): '.' relative to it, no path."""
+    return os.open(".", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=fd)
+
+
+def _close_all(fds):
+    while fds:
+        try:
+            os.close(fds.pop())
+        except OSError:
+            pass
+
+
+def _rand_name(prefix):
+    return prefix + "".join(_NAME_CHARS[b % len(_NAME_CHARS)] for b in os.urandom(10))
+
+
+def _mkdtemp_at(pfd, prefix, mode=0o700):
+    """rule 3: a fresh, unpredictable directory made by mkdir relative to the proved fd pfd -> (its name, an O_RDONLY fd
+    of it verified with open_owned_dir: ours, 0700)."""
+    for _ in range(100):
+        name = _rand_name(prefix)
+        try:
+            os.mkdir(name, mode, dir_fd=pfd)
+        except FileExistsError:
+            continue
+        return name, open_owned_dir(name, pfd)
+    raise UnsafeFile("%s*: no unused name in 100 tries" % prefix)
+
+
+def _mkstemp_at(dfd, prefix):
+    """rule 3: a fresh, unpredictable regular file, O_EXCL relative to the proved fd dfd -> (fd, its name)."""
+    for _ in range(100):
+        name = _rand_name(prefix)
+        try:
+            return os.open(name, os.O_CREAT | os.O_EXCL | os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600,
+                           dir_fd=dfd), name
+        except FileExistsError:
+            continue
+    raise UnsafeFile("%s*: no unused name in 100 tries" % prefix)
+
+
+def mkdtemp_path(parent, prefix, exclusive_parent=False):
+    """a fresh private (0700) directory under parent, which is walked and proved (and, with exclusive_parent, must be
+    this user's ALONE) -> its real path. Raises OSError (UnsafeFile when the parent is not trusted)."""
+    pfd, real = _walk(parent)
+    try:
+        if exclusive_parent and not _owned_ok(os.fstat(pfd), _st.S_ISDIR, DIR_FORBID):
+            raise UnsafeFile("%s: not a directory of uid %d's alone" % (real, os.geteuid()))
+        name, dfd = _mkdtemp_at(pfd, prefix)
+        os.close(dfd)
+        return os.path.join(real, name)
+    finally:
+        os.close(pfd)
+
+
+def ensure_dir(path, exclusive=False):
+    """`mkdir -p` under the trusted-parent rule (rules 2 + 3): every existing component proved, every missing one made
+    relative to its proved parent; with exclusive the final directory must be this user's ALONE (DIR_FORBID) -- a
+    directory created here is 0700 then. Returns the real path. Raises OSError."""
+    fd, real = _walk(path, create=True, mode=0o700 if exclusive else 0o755)
+    try:
+        if exclusive and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID):
+            raise UnsafeFile("%s: not a directory of uid %d's alone (owner, or writable by group/other)"
+                             % (real, os.geteuid()))
+    finally:
+        os.close(fd)
+    return real
+
+
+def _rmtree_at(pfd, name, beat=False):
+    """rule 4: remove name (relative to the proved fd pfd) and everything below it -- never through a symlink, never
+    by a path: every directory is opened O_NOFOLLOW relative to the fd it was listed from and every entry is unlinked
+    or rmdir'ed relative to that fd; a directory is descended into only while it is the (dev, ino) that was looked at,
+    and the top is removed only while name still IS what was opened. beat: _beat() every 500 entries (N4: removing a
+    large checkout is progress main can see). Never raises; True when name is gone."""
+    count = [0]
+
+    def tick():
+        count[0] += 1
+        if beat and count[0] % 500 == 0:
+            _beat()
+
+    def clear(dfd):
+        try:
+            names = os.listdir(dfd)
+        except OSError:
+            return
+        for e in names:
+            try:
+                st = os.stat(e, dir_fd=dfd, follow_symlinks=False)
+                if _st.S_ISDIR(st.st_mode):
+                    cfd = os.open(e, os.O_RDONLY | os.O_DIRECTORY | _SAFE_OPEN, dir_fd=dfd)
+                    try:
+                        cst = os.fstat(cfd)
+                        if (cst.st_dev, cst.st_ino) == (st.st_dev, st.st_ino):
+                            clear(cfd)
+                    finally:
+                        os.close(cfd)
+                    os.rmdir(e, dir_fd=dfd)
+                else:
+                    os.unlink(e, dir_fd=dfd)
+            except OSError:
+                continue
+            tick()
+    try:
+        st = os.stat(name, dir_fd=pfd, follow_symlinks=False)
+        if not _st.S_ISDIR(st.st_mode):
+            os.unlink(name, dir_fd=pfd)
+        else:
+            dfd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | _SAFE_OPEN, dir_fd=pfd)
+            try:
+                ds = os.fstat(dfd)
+                if (ds.st_dev, ds.st_ino) == (st.st_dev, st.st_ino):
+                    clear(dfd)
+            finally:
+                os.close(dfd)
+            now = os.stat(name, dir_fd=pfd, follow_symlinks=False)
+            if (now.st_dev, now.st_ino) == (ds.st_dev, ds.st_ino):
+                os.rmdir(name, dir_fd=pfd)
+    except FileNotFoundError:
+        return True
+    except OSError:
+        pass
+    try:
+        os.stat(name, dir_fd=pfd, follow_symlinks=False)
+    except FileNotFoundError:
+        return True
+    except OSError:
+        pass
+    return False
+
+
+def remove_tree(path, beat=False):
+    """_rmtree_at under path's walked and proved parent. Never raises; True when path is gone (or never existed)."""
+    try:
+        pfd, name, _real = _trusted_parent(path)
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+    try:
+        return _rmtree_at(pfd, name, beat)
+    finally:
+        os.close(pfd)
+
+
+def _lexists(path):
+    """whether path names anything (a symlink is itself), asked through its proved parent; True when that cannot be
+    decided (an unprovable parent is never reported "gone")."""
+    try:
+        _at_parent(path, lambda pfd, n: os.stat(n, dir_fd=pfd, follow_symlinks=False))
+        return True
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+
+
+def _size_in(path):
+    """st_size of what is at path (not followed) through its proved parent, 0 when nothing is there or it cannot be
+    proved."""
+    try:
+        return _at_parent(path, lambda pfd, n: os.stat(n, dir_fd=pfd, follow_symlinks=False)).st_size
+    except OSError:
+        return 0
+
+
+def _unlink_in(path):
+    """unlink path relative to its proved parent; a missing path is fine. Never raises."""
+    try:
+        _at_parent(path, lambda pfd, n: os.unlink(n, dir_fd=pfd))
+    except OSError:
+        pass
+
+
 REPORT_MARKER = "report.pending"
 REPORT_MAX_BYTES = 256 * 1024 * 1024
 
@@ -1027,7 +1334,7 @@ def _identity(path):
     would read as "still the old file". ctime, mtime and size tell the two apart; each is guarded by its own unit row
     ([R9ID-ctime] [R9ID-mtime] [R9ID-size])."""
     try:
-        s = os.lstat(path)
+        s = _at_parent(path, lambda pfd, n: os.stat(n, dir_fd=pfd, follow_symlinks=False))   # proved parent (round 12)
     except OSError:
         return None
     return [s.st_dev, s.st_ino, s.st_ctime_ns, s.st_mtime_ns, s.st_size]
@@ -1036,9 +1343,19 @@ def _identity(path):
 def report_prepare(statedir, fc_common, out, schema, body_json, code):
     """Write REPORT_MARKER into the STATE directory (temp + fsync + rename + directory fsync: it either exists complete
     or not at all). Returns 0, or 4 when the expected report cannot be described (then the caller must NOT write the
-    report). The state directory -- never the keeper's temp directory -- holds it (T048 V4 round 9, V4R9-1)."""
+    report). The state directory -- never the keeper's temp directory -- holds it (T048 V4 round 9, V4R9-1). Round 12
+    (V4R12-1, rule 4): the state directory is proved ONCE (walked, this user's alone) and the temp file, the rename and
+    the directory fsync all go THROUGH that one held fd -- nothing is re-resolved by path; the report's own directory
+    must pass the trusted-parent rule too (otherwise another user could rename the report under the reader)."""
     tmpdir = statedir
-    os.close(open_owned_dir(tmpdir))   # this user's alone, before anything is written into it (V4R11-1 class)
+    dfd = open_owned_dir(tmpdir)        # never a directory another user controls (V4R11-1 class)
+    try:
+        return _report_prepare_at(dfd, fc_common, out, schema, body_json, code)
+    finally:
+        os.close(dfd)
+
+
+def _report_prepare_at(dfd, fc_common, out, schema, body_json, code):
     import importlib.util
     import json
     if not (0 <= code <= 255):
@@ -1052,25 +1369,22 @@ def report_prepare(statedir, fc_common, out, schema, body_json, code):
     doc = dict(body)
     doc["schema"] = schema           # exactly what fc_common.py emit hashes (cmd_emit, --code 0: no BLIND key)
     out_abs = os.path.abspath(out)
+    os.close(_trusted_parent(out_abs)[0])     # the report's directory: the trusted-parent rule (round 12)
     rec = {"v": 1, "out": out_abs, "pre": _identity(out_abs), "body_hash": mod.body_hash_of(doc), "code": code}
-    fd, tmp = tempfile.mkstemp(dir=tmpdir, prefix=".report.")
+    fd, tmp = _mkstemp_at(dfd, ".report.")
     try:
         with os.fdopen(fd, "w") as fh:
             fh.write(json.dumps(rec, sort_keys=True))
             fh.flush()
             os.fsync(fh.fileno())
-        os.replace(tmp, os.path.join(tmpdir, REPORT_MARKER))
+        os.replace(tmp, REPORT_MARKER, src_dir_fd=dfd, dst_dir_fd=dfd)
     except BaseException:
         try:
-            os.unlink(tmp)
+            os.unlink(tmp, dir_fd=dfd)
         except OSError:
             pass
         raise
-    dfd = open_owned_dir(tmpdir)        # never a directory another user controls (V4R11-1 class)
-    try:
-        os.fsync(dfd)
-    finally:
-        os.close(dfd)
+    os.fsync(dfd)
     return 0
 
 
@@ -1171,7 +1485,7 @@ STATE = {"dir": None, "main_owns": False, "lease": None}   # main: its state dir
 
 def _boot_id():
     try:
-        with open("/proc/sys/kernel/random/boot_id") as fh:
+        with open("/proc/sys/kernel/random/boot_id") as fh:    # safepath:procfs
             return fh.read().strip().replace("-", "")[:12] or "noboot"
     except OSError:
         return "noboot"
@@ -1206,16 +1520,20 @@ def make_statedir(parent):
     if ident is None:
         raise OSError("cannot read this process's own start time from /proc (the state directory's owner)")
     start = ident[1]
-    path = tempfile.mkdtemp(prefix="%s%s.%d.%d." % (STATE_PREFIX, _boot_id(), os.getpid(), start), dir=parent)
+    pfd, real = _walk(parent)                  # the tmp-parent, walked and proved (round 12, trusted-parent rule)
     try:
-        lease = os.open(os.path.join(path, LEASE_NAME), os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
-                        0o600)
+        name, sfd = _mkdtemp_at(pfd, "%s%s.%d.%d." % (STATE_PREFIX, _boot_id(), os.getpid(), start))
+    finally:
+        os.close(pfd)
+    path = os.path.join(real, name)
+    try:
+        lease = os.open(LEASE_NAME, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                        0o600, dir_fd=sfd)     # relative to the directory just made and proved (rule 3)
     except OSError:
-        try:
-            os.rmdir(path)
-        except OSError:
-            pass
+        os.close(sfd)
+        remove_statedir(path)
         raise
+    os.close(sfd)
     try:
         fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
@@ -1226,7 +1544,7 @@ def make_statedir(parent):
     return path
 
 
-def _lease_free(path):
+def _lease_free(path, dir_fd=None, keep=None):
     """gc: (True, fd) when NO live process holds the lease of the state directory at path -- fd is the lease, now held
     by the caller (close it after the removal), or None when the directory was never leased (main died between mkdtemp
     and taking the lease: no keeper can exist, it is forked only after the lease). (False, None) when a live process
@@ -1236,10 +1554,12 @@ def _lease_free(path):
     in a directory any local process can plant under a world-writable tmp-parent hung gc forever, with the replay
     locks held): the directory must be this user's alone (owner + DIR_FORBID, looked at before it is opened) and the
     lease a regular file of this user's, looked at before it is opened and opened O_NONBLOCK|O_NOFOLLOW
-    (open_owned_dir / open_owned_file)."""
+    (open_owned_dir / open_owned_file). Round 12 (rule 4): path is a NAME relative to the proved parent fd dir_fd
+    (or a path, walked); with `keep` (a list) the state directory's fd is appended to it instead of closed, so gc
+    removes the directory THROUGH the fd it proved -- never by path."""
     import fcntl
     try:
-        dfd = open_owned_dir(path)
+        dfd = open_owned_dir(path, dir_fd)
     except OSError:
         return False, None
     try:
@@ -1256,33 +1576,73 @@ def _lease_free(path):
             return False, None
         return True, lfd
     finally:
-        os.close(dfd)
+        if keep is None:
+            os.close(dfd)
+        else:
+            keep.append(dfd)       # the caller closes it (gc: after the removal THROUGH it)
 
 
 def remove_statedir(path):
     """Remove a state directory: only the files this module writes into it (the lease, the marker and report_prepare's
     temp files), then rmdir. Anything else in it is left (and the directory with it) -- never a recursive delete. Never
-    raises. Returns True when the directory is gone."""
+    raises. Returns True when the directory is gone. Round 12: the parent is walked and proved, the directory opened
+    as this user's alone (the effective uid, as every helper -- V4R12 NIT), and everything is done THROUGH those fds
+    (_remove_state_at)."""
     if not path or not os.path.basename(path).startswith(STATE_PREFIX):
         return False
     try:
-        st = os.lstat(path)
-        if not _st.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():
-            return False
-        names = os.listdir(path)
+        pfd, name, _real = _trusted_parent(path)
+    except FileNotFoundError:
+        return True
     except OSError:
-        return not os.path.lexists(path)
-    for n in names:
-        if n in (REPORT_MARKER, LEASE_NAME) or n.startswith(".report."):
-            try:
-                os.unlink(os.path.join(path, n))
-            except OSError:
-                pass
+        return False
     try:
-        os.rmdir(path)
-    except OSError:
-        pass
-    return not os.path.lexists(path)
+        return _remove_state_at(pfd, name)
+    finally:
+        os.close(pfd)
+
+
+def _remove_state_at(pfd, name, dfd=None):
+    """rule 4: remove the state directory `name` relative to the proved parent fd pfd; dfd = that directory as already
+    proved (opened here with open_owned_dir when None). Only this module's files (lease, marker, report_prepare's
+    temps) are unlinked, relative to dfd; the directory is rmdir'ed relative to pfd only while name still IS the
+    directory that was proved (same dev, ino). Never raises; True when it is gone."""
+    own = dfd is None
+    if own:
+        try:
+            dfd = open_owned_dir(name, pfd)
+        except FileNotFoundError:
+            return True
+        except OSError:
+            return False
+    try:
+        try:
+            ds = os.fstat(dfd)
+            names = os.listdir(dfd)
+        except OSError:
+            return False
+        for n in names:
+            if n in (REPORT_MARKER, LEASE_NAME) or n.startswith(".report."):
+                try:
+                    os.unlink(n, dir_fd=dfd)
+                except OSError:
+                    pass
+        try:
+            now = os.stat(name, dir_fd=pfd, follow_symlinks=False)
+            if (now.st_dev, now.st_ino) == (ds.st_dev, ds.st_ino):
+                os.rmdir(name, dir_fd=pfd)
+        except OSError:
+            pass
+        try:
+            os.stat(name, dir_fd=pfd, follow_symlinks=False)
+        except FileNotFoundError:
+            return True
+        except OSError:
+            pass
+        return False
+    finally:
+        if own:
+            os.close(dfd)
 
 
 def gc_statedirs(parent):
@@ -1292,14 +1652,32 @@ def gc_statedirs(parent):
     Round 9 checked the name alone: main's death made a directory collectable while its keeper -- the final decider --
     still had to read it. Left behind only when both main and its keeper are gone without removing it (main SIGKILLed
     after its keeper exited; both SIGKILLed); the next gc under the same tmp-parent removes it. Returns the number
-    removed. Never raises."""
-    n = 0
-    boot = _boot_id()
+    removed. Never raises. Round 12 (V4R12-1): the tmp-parent is walked and proved ONCE (the trusted-parent rule -- a
+    parent another user controls is not collected from at all); every state directory is proved and removed THROUGH
+    fds held from that walk (_gc_at), never by a path."""
     try:
-        names = os.listdir(parent)
+        pfd, _real = _walk(parent)
     except OSError:
         return 0
+    held = []
+    try:
+        rfd = _reopen_dir(pfd)
+        try:
+            names = os.listdir(rfd)
+        finally:
+            os.close(rfd)
+        return _gc_at(pfd, names, _boot_id(), held)
+    except OSError:
+        return 0
+    finally:
+        _close_all(held)
+        os.close(pfd)
+
+
+def _gc_at(pfd, names, boot, held):
+    n = 0
     for name in names:
+        _close_all(held)                       # the previous directory's fd (proved by _lease_free, rule 4)
         own = state_name_owner(name)
         if own is None:
             continue
@@ -1308,12 +1686,11 @@ def gc_statedirs(parent):
             ident = _ident(pid)
             if ident is not None and ident[1] == start:
                 continue                       # its owner is alive: not ours to remove
-        path = os.path.join(parent, name)
-        free, lfd = _lease_free(path)
+        free, lfd = _lease_free(name, pfd, held)
         if not free:
             continue                           # its keeper (or main) still holds the lease: a decider may still read it
         try:
-            if remove_statedir(path):
+            if _remove_state_at(pfd, name, held[-1] if held else None):   # the fd _lease_free proved
                 n += 1
         finally:
             if lfd is not None:
@@ -1361,16 +1738,26 @@ def main_cause(kst, sig):
 def process_ledger(tmpdir, reason, statedir=None):
     read_report(statedir)
     try:
-        names = sorted(os.listdir(tmpdir))
+        tfd = open_owned_dir(tmpdir)      # proved ONCE (round 12): every entry is read and removed THROUGH this fd
+    except OSError:
+        return
+    try:
+        _ledger_at(tfd, reason)
+    finally:
+        os.close(tfd)
+
+
+def _ledger_at(tfd, reason):
+    try:
+        names = sorted(os.listdir(tfd))
     except OSError:
         return
     for name in names:
         if not name.startswith("ledger."):
             continue
         _beat()
-        path = os.path.join(tmpdir, name)
         try:
-            fields = _read_owned(path, 1024 * 1024).split(b"\0")     # never blocks / follows (V4R11-1 class)
+            fields = _read_owned(name, 1024 * 1024, dir_fd=tfd).split(b"\0")     # never blocks / follows (V4R11-1 class)
         except OSError:
             continue
         kind = name.split(".")[1] if name.count(".") >= 2 else ""
@@ -1391,9 +1778,10 @@ def process_ledger(tmpdir, reason, statedir=None):
         elif kind == "logs" and fields and fields[0]:
             d = os.fsdecode(fields[0])
             # the report exists (verified, read_report) and references this directory: nothing to mark
-            if os.path.isdir(d) and DONE.get("code") is None:
+            if DONE.get("code") is None:
                 try:
-                    # never through a planted symlink / FIFO, never into a directory another user can write
+                    # never through a planted symlink / FIFO, never into a directory another user can write, never
+                    # through a parent another user controls (open_owned_dir walks it: round 12) -- absent: nothing
                     ddfd = open_owned_dir(d)
                     try:
                         ifd = open_owned_file("INTERRUPTED", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, dir_fd=ddfd,
@@ -1406,7 +1794,7 @@ def process_ledger(tmpdir, reason, statedir=None):
                 except OSError:
                     pass
         try:
-            os.unlink(path)
+            os.unlink(name, dir_fd=tfd)
         except OSError:
             pass
 
@@ -1419,7 +1807,7 @@ def teardown(tmpdir, grace, reason, label, statedir=None):
         say("supervisor (%s): stopped %d process(es) (%s)" % (label, n, reason))
     process_ledger(tmpdir, reason, statedir)
     if os.path.basename(tmpdir).startswith("fc_baseline_replay."):
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        remove_tree(tmpdir)                # through the proved parent's fd (round 12, rule 4)
 
 
 # --------------------------------------------------------------------------
@@ -1451,13 +1839,13 @@ def _take_locks(a):
     for path in a.lock:
         fds.append(_lock_one(path, "against this repository"))
     if a.lock_fs:
-        if not os.path.isdir(a.lock_dir or ""):
+        if not os.path.isdir(a.lock_dir or ""):    # safepath:probe (a precondition message; the lock is opened by _lock_one)
             say("BLIND: lock directory %r is not a directory (FC_REPLAY_LOCK_DIR / XDG_RUNTIME_DIR)" % a.lock_dir)
             sys.exit(4)
         devs = []
         for p in a.lock_fs:
             try:
-                d = os.stat(p).st_dev
+                d = os.stat(p).st_dev    # safepath:probe (only the filesystem id is read)
             except OSError as e:
                 say("BLIND: cannot stat %s for the per-filesystem lock: %s" % (p, e))
                 sys.exit(4)
@@ -1569,7 +1957,7 @@ def cmd_main(a):
     old = signal.pthread_sigmask(signal.SIG_BLOCK, STOP_SIGS)
     _take_locks(a)          # fds stay open (and locked) until this process exits
     try:
-        tmpdir = tempfile.mkdtemp(prefix="fc_baseline_replay.", dir=a.tmp_parent)
+        tmpdir = mkdtemp_path(a.tmp_parent, "fc_baseline_replay.")   # refused under an untrusted parent (round 12)
     except OSError as e:
         say("BLIND: cannot create a private temp directory under %s: %s" % (a.tmp_parent, e))
         sys.exit(4)
@@ -1840,11 +2228,7 @@ def cmd_run(a):
     # matrix's nohup rows). A stop the caller cannot deliver is still reached by
     # the keeper's TERM-then-KILL.
     _install_stop(entry_mask)
-    try:
-        if os.path.exists(a.marker):
-            os.unlink(a.marker)
-    except OSError:
-        pass
+    _unlink_in(a.marker)          # relative to its proved parent (round 12); never raises
     if not children_probe():
         say(BLIND_CHILDREN)
         _mark(a.marker, "probe_failed")
@@ -1946,7 +2330,7 @@ def cmd_report(argv):
         p.add_argument("--body-json", required=True)
         p.add_argument("--code", type=int, required=True)
     a = p.parse_args(argv[1:])
-    if not os.path.basename(a.tmpdir).startswith("fc_baseline_replay.") or not os.path.isdir(a.tmpdir):
+    if not os.path.basename(a.tmpdir).startswith("fc_baseline_replay.") or not os.path.isdir(a.tmpdir):  # safepath:probe (a usage message only; report_* prove it)
         say("BLIND: %s: %r is not the supervisor's state directory" % (argv[0], a.tmpdir))
         os._exit(4 if argv[0] == "report-prepare" else 1)
     if argv[0] == "report-prepare":
@@ -1967,8 +2351,73 @@ def cmd_report(argv):
     os._exit(0)
 
 
+def cmd_safepath(argv):
+    """`fc_supervisor.py safepath OP ...` -- THE trusted-parent rule for baseline_replay.sh (T048 V4 round 12, V4R12-1):
+    the shell runs the SAME code this module uses (no second implementation that could disagree). Returns the exit
+    code: 0 done (a path on stdout where noted), 4 refused (BLIND; the reason on stderr), 2 usage.
+      check   [--exclusive] PATH                  PATH is a directory whose whole chain is trusted (and, with
+                                                  --exclusive, this user's alone)
+      mkdir   [--exclusive] PATH                  `mkdir -p` under the rule (rules 2 + 3); prints the real path
+      mkdtemp [--exclusive-parent] PARENT PREFIX  a fresh 0700 directory made by us; prints its real path
+      write   --text TEXT DIR NAME                TEXT -> DIR/NAME: DIR this user's alone, NAME never followed,
+                                                  never blocked on, never another user's file (open_owned_*)
+      rmtree  PATH                                remove PATH through fds (rule 4); 0 when it is gone"""
+    def usage():
+        sys.stderr.write("usage: fc_supervisor.py safepath check|mkdir [--exclusive] PATH | mkdtemp "
+                         "[--exclusive-parent] PARENT PREFIX | write --text TEXT DIR NAME | rmtree PATH\n")
+        return 2
+    if not argv:
+        return usage()
+    op, args = argv[0], list(argv[1:])
+    flag = None
+    if args and args[0] in ("--exclusive", "--exclusive-parent"):
+        flag = args.pop(0)
+    try:
+        if op in ("check", "mkdir") and len(args) == 1 and flag in (None, "--exclusive"):
+            if op == "mkdir":
+                real = ensure_dir(args[0], exclusive=bool(flag))
+            else:
+                fd, real = _walk(args[0])
+                try:
+                    if flag and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID):
+                        raise UnsafeFile("%s: not a directory of uid %d's alone" % (real, os.geteuid()))
+                finally:
+                    os.close(fd)
+            sys.stdout.write(real + "\n")
+            return 0
+        if op == "mkdtemp" and len(args) == 2 and flag in (None, "--exclusive-parent") and args[1] \
+                and "/" not in args[1]:
+            sys.stdout.write(mkdtemp_path(args[0], args[1], exclusive_parent=bool(flag)) + "\n")
+            return 0
+        if op == "write" and flag is None and len(args) == 4 and args[0] == "--text" and args[3] \
+                and "/" not in args[3]:
+            text, d, name = args[1], args[2], args[3]
+            dfd = open_owned_dir(d)
+            try:
+                fd = open_owned_file(name, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, dir_fd=dfd, mode=0o644, forbid=0)
+            finally:
+                os.close(dfd)
+            with os.fdopen(fd, "w") as fh:
+                fh.write(text)
+            return 0
+        if op == "rmtree" and flag is None and len(args) == 1:
+            if remove_tree(args[0]):
+                return 0
+            sys.stderr.write("fc_supervisor safepath: %s: not removed (its parent is not trusted, or the removal "
+                             "failed)\n" % args[0])
+            return 4
+    except OSError as e:
+        sys.stderr.write("fc_supervisor safepath %s: refused: %s\n" % (op, e))
+        return 4
+    return usage()
+
+
 def main():
     _repair_std_fds()           # before anything is opened (V4R8-1)
+    if sys.argv[1:2] == ["safepath"]:
+        rc = cmd_safepath(sys.argv[2:])
+        _flush()
+        os._exit(rc)
     if sys.argv[1:2] in (["report-prepare"], ["report-check"]):
         try:
             cmd_report(sys.argv[1:])
@@ -2004,7 +2453,7 @@ def _drop_main_tmp():
     keeper removes it itself when it sees main disappear). Never raises."""
     tmp = _MAIN_TMP[0]
     if tmp and os.path.basename(tmp).startswith("fc_baseline_replay."):
-        shutil.rmtree(tmp, ignore_errors=True)
+        remove_tree(tmp)
     if STATE["main_owns"]:
         remove_statedir(STATE["dir"])
 

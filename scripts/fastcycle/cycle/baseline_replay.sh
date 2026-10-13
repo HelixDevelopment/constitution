@@ -353,11 +353,21 @@ _FC_STATEDIR=""
 _FC_SUPERVISOR="$SCRIPT_DIR/fc_supervisor.py"
 _FC_ENTRY_SIGIGN=0
 _fc_mktemp() { mktemp "$_FC_TMPDIR/f.XXXXXX"; }
+# _fc_safe OP ARGS... -- THE trusted-parent rule (T048 V4 round 12, V4R12-1, §11.4.276(E) STRUCTURAL): every
+# directory this script creates, writes a fixed name into, or removes OUTSIDE the private temp directory goes through
+# the SAME implementation the supervisor uses (fc_supervisor.py safepath: check / mkdir / mkdtemp / write / rmtree).
+# A path whose chain another user controls -- a directory owned by another uid, or writable by others without the
+# sticky bit -- is refused (exit 4, the reason on stderr), never "made safe": `mkdir -p` and a plain `>"$file"` would
+# accept such a parent and let that user rename the tool's own entries (round 5's demonstrated swap of a run-log
+# directory for a symlink). Inside a directory proved by it (and inside $_FC_TMPDIR, proved at worker start) plain
+# file operations are safe by construction: nobody else can create or rename an entry there. The census of every path
+# operation of this file is tests/check_safepath_census.py (it fails the suite on an unrouted one).
+_fc_safe() { python3 -I -S "$_FC_SUPERVISOR" safepath "$@"; }
 # freeze only (it starts no child that could outlive it): a private temp dir
 # removed by the EXIT trap
 # shellcheck disable=SC2329 # invoked from the EXIT trap string installed in the dispatch
 _fc_rm_tmpdir() {
-  case "$_FC_TMPDIR" in */fc_baseline_replay.*) rm -rf -- "$_FC_TMPDIR" ;; esac
+  case "$_FC_TMPDIR" in */fc_baseline_replay.*) _fc_safe rmtree "$_FC_TMPDIR" >/dev/null 2>&1 ;; esac
   return 0
 }
 
@@ -429,6 +439,9 @@ _fc_worker_init() {
   _FC_TMPDIR="${FC_BR_TMPDIR:-}"
   case "$_FC_TMPDIR" in */fc_baseline_replay.*) ;; *) blind "the supervisor's temp directory is missing" ;; esac
   [ -d "$_FC_TMPDIR" ] || blind "the supervisor's temp directory $_FC_TMPDIR does not exist"
+  # round 12 (V4R12-1): every plain file operation below targets this directory -- it must be this user's alone,
+  # under a trusted chain (the supervisor made it so; proved again here, by the same code)
+  _fc_safe check --exclusive "$_FC_TMPDIR" >/dev/null || blind "the supervisor's temp directory $_FC_TMPDIR is not this user's alone under a trusted chain (the trusted-parent rule)"
   # T048 V4 round 9 (V4R9-1): the report-pending marker lives in the supervisor's STATE directory, never in the temp
   # directory (the keeper deletes that before it exits; main may still have to decide its exit code after that)
   _FC_STATEDIR="${FC_BR_STATEDIR:-}"
@@ -461,6 +474,7 @@ _fc_run_child() {
   [ "${1:-}" = -- ] && shift
   local targs=()
   [ -n "$_FC_RUN_TIMING" ] && targs=(--timing "$_FC_RUN_TIMING")
+  # safepath:param ($log: a $(_fc_mktemp) file, a file in a helper-made run-log directory, or /dev/null)
   python3 -I -S "$_FC_SUPERVISOR" run --timeout "$tmo" --kill-after 5 --grace "$_FC_GRACE" --marker "$mk" ${targs[@]+"${targs[@]}"} \
     --cwd "$cwd" --entry-sigign "$_FC_ENTRY_SIGIGN" -- "$@" >"$log" 2>&1 </dev/null &
   wait "$!"
@@ -482,6 +496,7 @@ _fc_run_child() {
 _fc_ledger_add() {
   local kind="$1"
   shift
+  # safepath:param ($kind is a NAME component inside the private temp directory: the literal wt / pend / logs)
   _FC_LEDGER_FILE="$(mktemp "$_FC_TMPDIR/ledger.$kind.XXXXXX")" || return 1
   printf '%s\0' "$@" >"$_FC_LEDGER_FILE" || return 1
 }
@@ -639,7 +654,7 @@ run_selfcheck() {
   _sc_one own_exit_124_fail FAIL 30 "$BASH" -c 'exit 124'
   _sc_one exec_failure_harness_error HARNESS_ERROR 30 fc-selfcheck-no-such-command-6b1f
   _sc_one timeout_unmeasured UNMEASURED 1 sleep 5
-  rm -rf "$d"
+  _fc_safe rmtree "$d" >/dev/null 2>&1
   unset -f _sc_one
   [ "$all_ok" = 1 ]
 }
@@ -741,7 +756,9 @@ git_subject_freeze() {
 # (freeze) the writer's status is the answer, as before.
 emit_doc() {
   local schema="$1" body_json="$2" out_path="$3" code_if_written="${4:-0}" emit_rc
-  mkdir -p "$(dirname "$out_path")" 2>/dev/null
+  # round 12 (V4R12-1): the report's directory, created and proved under the trusted-parent rule (never `mkdir -p`
+  # through a directory another user controls -- the report could be renamed under its reader there)
+  _fc_safe mkdir "$(dirname "$out_path")" >/dev/null || { echo "baseline_replay: BLIND: the directory of --out $out_path cannot be created, or another user controls a directory on its path (the trusted-parent rule) -- the report is not written" >&2; return 4; }
   local run_meta
   run_meta="$(python3 -c 'import json,platform; print(json.dumps({"host": platform.node()}))')"
   if [ "$_FC_IS_WORKER" = 1 ]; then
@@ -947,7 +964,8 @@ _fc_submodule_reference_update() {
   fi
 
   local list_file
-  list_file="$(mktemp "${_FC_TMPDIR:-${TMPDIR:-/tmp}}/sm.XXXXXX")" || return 1
+  [ -n "$_FC_TMPDIR" ] || return 1   # round 12: only ever inside the proved private temp directory (no TMPDIR fallback)
+  list_file="$(mktemp "$_FC_TMPDIR/sm.XXXXXX")" || return 1
   git -C "$tgt" config -f .gitmodules --get-regexp '^submodule\..*\.path$' >"$list_file" 2>/dev/null
 
   local key path name ref_path rc=0
@@ -1026,7 +1044,7 @@ _fc_wt_cleanup() {
   if [ -n "$_FC_WT_PATH" ]; then
     git -C "$_FC_WT_REPO" worktree unlock "$_FC_WT_PATH" >/dev/null 2>&1
     git -C "$_FC_WT_REPO" worktree remove -f -f "$_FC_WT_PATH" >/dev/null 2>&1
-    rm -rf "$_FC_WT_PATH" 2>/dev/null
+    _fc_safe rmtree "$_FC_WT_PATH" >/dev/null 2>&1   # through fds, never by path (round 12, rule 4)
     git -C "$_FC_WT_REPO" worktree prune >/dev/null 2>&1
     _fc_wt_listed "$_FC_WT_REPO" "$_FC_WT_PATH"
     listed=$?
@@ -1055,7 +1073,11 @@ do_one_replay() {
       # a log directory no report will reference (a BLIND return after the runs
       # began) is marked as such, never left unexplained (V4R3-14)
       if [ -d "$_FC_LOG_DIR" ]; then
-        printf 'No report references this run-log directory: the replay stopped with a harness error (BLIND, exit %s) before writing one. The logs are partial evidence.\n' "$rc" >"$_FC_LOG_DIR/INTERRUPTED" 2>/dev/null
+        # round 12 (V4R12-1): never a plain redirect -- the directory must be this user's alone under a trusted chain
+        # and the name is never followed / blocked on (the supervisor's own INTERRUPTED write, same code)
+        local _intr
+        printf -v _intr 'No report references this run-log directory: the replay stopped with a harness error (BLIND, exit %s) before writing one. The logs are partial evidence.\n' "$rc"
+        _fc_safe write --text "$_intr" "$_FC_LOG_DIR" INTERRUPTED >/dev/null 2>&1
       fi
       rm -f "$_FC_LOG_LEDGER"
     fi
@@ -1072,7 +1094,9 @@ _do_one_replay_body() {
 
   [ ${#gate_cmd[@]} -ge 1 ] || { echo "baseline_replay: replay: --gate-cmd must be non-empty" >&2; return 4; }
 
-  mkdir -p "$worktree_root" 2>/dev/null || { echo "baseline_replay: cannot create --worktree-root $worktree_root" >&2; return 4; }
+  # round 12 (V4R12-1): --worktree-root is a NAMESPACE (worktrees, replay-logs, fixed names): this user's alone, under a
+  # trusted chain -- created component by component by the trusted-parent helper, never `mkdir -p`
+  worktree_root="$(_fc_safe mkdir --exclusive "$worktree_root")" || { echo "baseline_replay: BLIND: cannot create --worktree-root $worktree_root, or it is not a directory of this user's alone under a trusted chain (the trusted-parent rule)" >&2; return 4; }
   local free_kb
   free_kb="$(df -Pk "$worktree_root" 2>/dev/null | awk 'NR==2{print $4}')"
   isnum "$free_kb" || { echo "baseline_replay: cannot read free disk space for $worktree_root (df failed)" >&2; return 4; }
@@ -1098,7 +1122,7 @@ _do_one_replay_body() {
   # the pend entry covers the window from `mktemp -d` to the wt entry (round 5, F9)
   _fc_ledger_pend "$worktree_root" "replay." || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
   wt_pend="$_FC_LEDGER_FILE"
-  wt_path="$(mktemp -d "$worktree_root/replay.XXXXXX")" || { echo "baseline_replay: mktemp -d under $worktree_root failed" >&2; return 4; }
+  wt_path="$(_fc_safe mkdtemp --exclusive-parent "$worktree_root" replay.)" || { echo "baseline_replay: mktemp -d under $worktree_root failed (or it is not this user's alone: the trusted-parent rule)" >&2; return 4; }
   rmdir "$wt_path" 2>/dev/null  # git worktree add requires the target NOT already exist
 
   # Registered in the ledger BEFORE `git worktree add`, so a stop at any moment
@@ -1460,11 +1484,11 @@ _do_one_replay_body() {
   # construction, never reused), a sibling of $wt_path so the worktree removal
   # never touches it. The directory is recorded as the
   # report's log_dir.
-  mkdir -p "$worktree_root/replay-logs" 2>/dev/null || { echo "baseline_replay: cannot create run-log directory $worktree_root/replay-logs" >&2; return 4; }
+  _fc_safe mkdir --exclusive "$worktree_root/replay-logs" >/dev/null || { echo "baseline_replay: cannot create run-log directory $worktree_root/replay-logs, or it is not this user's alone (the trusted-parent rule)" >&2; return 4; }
   local run_log_dir log_pend
   _fc_ledger_pend "$worktree_root/replay-logs" "${commit:0:12}." || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
   log_pend="$_FC_LEDGER_FILE"
-  run_log_dir="$(mktemp -d "$worktree_root/replay-logs/${commit:0:12}.XXXXXX")" || { echo "baseline_replay: cannot create a unique run-log directory under $worktree_root/replay-logs" >&2; return 4; }
+  run_log_dir="$(_fc_safe mkdtemp --exclusive-parent "$worktree_root/replay-logs" "${commit:0:12}.")" || { echo "baseline_replay: cannot create a unique run-log directory under $worktree_root/replay-logs" >&2; return 4; }
   # ledger: a stop before the report is written marks this directory INTERRUPTED
   # (V4R3-14) instead of leaving unowned partial evidence behind
   _FC_LOG_DIR="$run_log_dir"
@@ -1563,7 +1587,7 @@ PY
 run_replay_isolated() {
   local body_file="$1"
   shift
-  do_one_replay "$@" >"$body_file"
+  do_one_replay "$@" >"$body_file"   # safepath:param
 }
 
 # parse_gate_cmd STR -> sets GATE_ARGV. Word-splits on whitespace WITHOUT
@@ -1652,8 +1676,8 @@ cmd_replay() {
   # Fixed the SAME way repo_root already is, two lines up: resolve to an
   # absolute, canonical path up front so every later consumer (mktemp,
   # df, git -C, the gate's cd) agrees on the SAME directory.
-  mkdir -p "$worktree_root" 2>/dev/null || die "replay: cannot create --worktree-root $worktree_root"
-  worktree_root="$(cd "$worktree_root" 2>/dev/null && pwd)" || die "replay: cannot resolve --worktree-root $worktree_root to an absolute path"
+  # round 12 (V4R12-1): created and resolved by the trusted-parent helper -- one absolute, real path, this user's alone
+  worktree_root="$(_fc_safe mkdir --exclusive "$worktree_root")" || blind "replay: cannot create --worktree-root $worktree_root, or it is not a directory of this user's alone under a trusted chain (the trusted-parent rule)"
 
   _fc_supervise "$repo_root" "$worktree_root"   # the caller's process becomes the supervisor here
   run_selfcheck || return 3
@@ -1773,8 +1797,7 @@ cmd_replay_sample() {
   [ -n "$worktree_root" ] || worktree_root="$repo_root/.fc_worktrees"
   # T043 round-4 finding B3: resolve --worktree-root to one absolute path up
   # front (see cmd_replay).
-  mkdir -p "$worktree_root" 2>/dev/null || die "replay-sample: cannot create --worktree-root $worktree_root"
-  worktree_root="$(cd "$worktree_root" 2>/dev/null && pwd)" || die "replay-sample: cannot resolve --worktree-root $worktree_root to an absolute path"
+  worktree_root="$(_fc_safe mkdir --exclusive "$worktree_root")" || blind "replay-sample: cannot create --worktree-root $worktree_root, or it is not a directory of this user's alone under a trusted chain (the trusted-parent rule)"
   local db_path="$repo_root/docs/workable_items.db"
 
   _fc_supervise "$repo_root" "$worktree_root"   # the caller's process becomes the supervisor here
@@ -1891,7 +1914,7 @@ case "$SUBCMD" in
   freeze)
     # T048 restart round 2 (V4-9): one private temp directory, removed by the EXIT
     # trap (freeze starts no child that could outlive it)
-    _FC_TMPDIR="$(mktemp -d "${TMPDIR:-/tmp}/fc_baseline_replay.XXXXXX")" || { echo "baseline_replay: BLIND: cannot create a private temp directory under ${TMPDIR:-/tmp}" >&2; exit 4; }
+    _FC_TMPDIR="$(_fc_safe mkdtemp "${TMPDIR:-/tmp}" fc_baseline_replay.)" || { echo "baseline_replay: BLIND: cannot create a private temp directory under ${TMPDIR:-/tmp} (or another user controls it: the trusted-parent rule)" >&2; exit 4; }
     trap _fc_rm_tmpdir EXIT ;;
 esac
 
