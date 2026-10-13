@@ -822,11 +822,11 @@ def worktree_listed(repo, wt):
     p = _git(repo, ["worktree", "list", "--porcelain"])
     if p is None or p.returncode != 0:
         return None
-    want = {os.path.normpath(wt), os.path.realpath(wt)}
+    want = {os.path.normpath(wt), os.path.realpath(wt)}    # safepath:probe (names compared to git's list; opens nothing)
     for line in p.stdout.split(b"\n"):
         if line.startswith(b"worktree "):
             path = os.fsdecode(line[len(b"worktree "):])
-            if os.path.normpath(path) in want or os.path.realpath(path) in want:
+            if os.path.normpath(path) in want or os.path.realpath(path) in want:    # safepath:probe (as above)
                 return True
     return False
 
@@ -954,6 +954,9 @@ FILE_FORBID = 0o002         # a file this tool trusts: nobody else may write it
 
 
 def _owned_ok(st, is_type, forbid):
+    # a directory's group write bit for a group holding only this user grants nothing to another user (V4R13-1)
+    if forbid & 0o020 and _private_group_write(st):
+        forbid &= ~0o020
     return bool(is_type(st.st_mode)) and st.st_uid == os.geteuid() and not (st.st_mode & forbid)
 
 
@@ -1029,7 +1032,10 @@ def _read_owned(name, limit, dir_fd=None, forbid=FILE_FORBID):
 # The class: any path operation whose meaning depends on a directory this tool does not control. The mechanism:
 #   1. TRUSTED (_trusted_ok): every object on a path -- every directory from '/' down and every symlink followed -- is
 #      owned by root or by this process's EFFECTIVE uid, and no such directory is writable by group or other unless it
-#      carries the sticky bit (then nobody else may rename or remove an entry that is not theirs: /tmp).
+#      carries the sticky bit (then nobody else may rename or remove an entry that is not theirs: /tmp). A GROUP write
+#      bit is not counted when the group holds nobody but this user (_group_private, resolved from the group database:
+#      round 13, V4R13-1 -- a repository cloned under umask 002 on a user-private-group host has 0775 directories); a
+#      group with any other member (or one that is not this user's) is refused, with the reason and the remedy.
 #   2. WALKED, NEVER RE-RESOLVED (_walk): a path is resolved from '/' one component at a time (O_PATH|O_NOFOLLOW per
 #      component, fstat on the fd that was opened); a symlink is followed only when it is root's or ours AND sits in a
 #      directory already proved. The walk returns an fd of the final directory; every later operation in it is an
@@ -1037,24 +1043,84 @@ def _read_owned(name, limit, dir_fd=None, forbid=FILE_FORBID):
 #   3. CREATED BY US (_walk(create=True), _mkdtemp_at, _mkstemp_at): a missing directory is mkdir'ed relative to its
 #      proved parent -- never `mkdir -p` through an unproved one -- and re-verified through the fd opened on it.
 #   4. REMOVED THROUGH THE HELD FD (_rmtree_at, _remove_state_at): unlinkat / rmdir relative to the proved fds; the
-#      final rmdir happens only while the name still IS the (dev, ino) that was proved.
+#      final rmdir happens only while the name still IS the (dev, ino) that was proved; _rmtree_at refuses any name that
+#      is not ONE plain entry ('..', '.', 'a/b'), so no removal reaches outside the proved directory. ONE EXCEPTION, by
+#      path: a replay worktree is first removed by `git worktree remove -f -f <path>` (git must also drop its own
+#      administrative entry, which only git can); the path is a directory this tool made by `safepath mkdtemp` inside
+#      the proved --worktree-root, so no other user can rename anything on it -- the fd removal (_fc_safe rmtree) is the
+#      fallback when git does not finish.
 # A directory a replay uses as a NAMESPACE (its temp and state directories, --worktree-root, replay-logs, a run-log
-# directory) must in addition be this user's ALONE (open_owned_dir: owner == euid, none of DIR_FORBID): a fixed name
-# in it can then be planted by nobody. The census of every path operation of this module and of baseline_replay.sh is
-# produced by tests/check_safepath_census.py, which FAILS the suite when an operation is added that does not go
-# through these helpers (docs/qa/v4_round6_20261012/CONVERGENCE.md). BOUNDARY (§11.4.6): root may do anything; a path
-# through another user's directory is refused, never "made safe".
+# directory) must in addition be this user's ALONE (open_owned_dir: owner == euid, none of DIR_FORBID -- a group write
+# bit of a group holding only this user excepted, rule 1): a fixed name in it can then be planted by nobody. The
+# census of the path operations of this module and of baseline_replay.sh is tests/check_safepath_census.py; its scope
+# is a CLOSED, stated list (docs/qa/v4_round7_20261012/CONVERGENCE.md) and it FAILS CLOSED: an operation of a form it
+# does not recognise (an unknown os / os.path attribute, an alias or `from` import of a filesystem module, a getattr
+# on one, an unknown shell command word, a quoted or indirect command word, eval) is a violation until classified.
+# BOUNDARY (§11.4.6): root may do anything; a path through another user's directory is refused, never "made safe";
+# a FUSE mount (allow_other) reports the owner and mode its DAEMON chooses -- a daemon run by another user can show
+# its directories as ours / root's, and this rule cannot tell (mounting one with allow_other needs root's
+# user_allow_other in /etc/fuse.conf); the group database is the authority for _group_private (its own boundary).
 _PATH_FLAGS = os.O_PATH | os.O_NOFOLLOW | os.O_CLOEXEC
 _WALK_MAX_LINKS = 40
 _NAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 
+_GROUP_PRIVATE = {}
+
+
+def _group_private(gid):
+    """V4R13-1 (round 13): whether group gid can contain NO user but this process's effective uid -- RESOLVED from the
+    group database, never guessed: gid is this process's effective gid or one of its supplementary groups, the group's
+    member list (getgrgid().gr_mem) names nobody but this user, and no other account has gid as its PRIMARY group
+    (getpwall()). Anything that cannot be resolved (gid unknown, the database unreadable) -> False (not private: the
+    conservative answer). Cached per process. BOUNDARY (§11.4.6): the group database is the authority -- membership
+    granted outside it (a group password used with newgrp, a setgid program of that group, an NSS source getpwall
+    does not enumerate) is not seen; each of those needs root to set up, and root is trusted by this rule anyway. A
+    member added WHILE a replay runs is seen by the next proof, not by one already made."""
+    if gid in _GROUP_PRIVATE:
+        return _GROUP_PRIVATE[gid]
+    ans = False
+    try:
+        import grp
+        import pwd
+        if gid == os.getegid() or gid in os.getgroups():
+            me = pwd.getpwuid(os.geteuid()).pw_name
+            ans = not [u for u in grp.getgrgid(gid).gr_mem if u != me] \
+                and not [p for p in pwd.getpwall() if p.pw_gid == gid and p.pw_uid != os.geteuid()]
+    except (KeyError, OSError, ImportError):
+        ans = False
+    _GROUP_PRIVATE[gid] = ans
+    return ans
+
+
+def _private_group_write(st):
+    """a directory whose GROUP write bit is set for a group that holds nobody but this user (_group_private): that bit
+    grants nothing to another user, so it is read as if it were clear (V4R13-1: the umask-002 / user-private-group
+    default must not be refused)."""
+    return bool(_st.S_ISDIR(st.st_mode) and st.st_mode & 0o020 and _group_private(st.st_gid))
+
+
 def _trusted_ok(st):
     """THE trusted-parent rule (rule 1): owned by root or by this process's effective uid; a directory writable by
-    group or other only with the sticky bit set."""
+    group or other only with the sticky bit set -- a group write bit of a group that holds only this user
+    (_private_group_write) grants nothing to anyone else and is not counted."""
     if st.st_uid not in (0, os.geteuid()):
         return False
+    if _private_group_write(st):
+        return not (st.st_mode & 0o002 and not _st.S_ISVTX & st.st_mode)
     return not (_st.S_ISDIR(st.st_mode) and st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX)
+
+
+def _untrusted_why(st):
+    """the reason _trusted_ok(st) is False, worded from what is KNOWN (V4R13-1), with the remedy"""
+    if st.st_uid not in (0, os.geteuid()):
+        return "owned by uid %d (neither root nor this user, uid %d): that user may rename what is in it" \
+            % (st.st_uid, os.geteuid())
+    m = _st.S_IMODE(st.st_mode)
+    if m & 0o002:
+        return "mode %o: writable by every user without the sticky bit (remedy: chmod o-w, or chmod +t)" % m
+    return ("mode %o: writable by group %d, which has a member other than this user or is not one of this user's "
+            "groups (remedy: chmod g-w, or use a directory outside it)" % (m, st.st_gid))
 
 
 def _walk(path, create=False, mode=0o700):
@@ -1112,8 +1178,13 @@ def _walk(path, create=False, mode=0o700):
             if not _st.S_ISDIR(st.st_mode):
                 raise UnsafeFile("%s: not a directory" % where)
             if not _trusted_ok(st):
-                raise UnsafeFile("%s: owned by uid %d, mode %o -- another user may rename what is in it (the "
-                                 "trusted-parent rule)" % (where, st.st_uid, _st.S_IMODE(st.st_mode)))
+                if todo and todo[-1] == "..":
+                    # NIT-5 (round 13): `D/..` names D's PARENT -- the directory already on top of the stack, proved.
+                    # The kernel's resolution of what follows never depends on D's entries (D itself sits in that
+                    # proved parent, so nobody untrusted can rename D away); D is passed over, not trusted, not kept.
+                    todo.pop()
+                    continue
+                raise UnsafeFile("%s: %s (the trusted-parent rule)" % (where, _untrusted_why(st)))
             stack.append((fd, comp))
         real = "/" + "/".join(n for _, n in stack[1:])
         return stack.pop()[0], real
@@ -1222,7 +1293,12 @@ def _rmtree_at(pfd, name, beat=False):
     by a path: every directory is opened O_NOFOLLOW relative to the fd it was listed from and every entry is unlinked
     or rmdir'ed relative to that fd; a directory is descended into only while it is the (dev, ino) that was looked at,
     and the top is removed only while name still IS what was opened. beat: _beat() every 500 entries (N4: removing a
-    large checkout is progress main can see). Never raises; True when name is gone."""
+    large checkout is progress main can see). Never raises; True when name is gone.
+    name must be ONE plain entry of pfd (round 13, V4R13-2 / RV6-11): '', '.', '..' or anything with a '/' is refused
+    here, whatever the caller proved -- so no removal can ever reach outside the proved directory pfd, even if a caller
+    (or a mutation of _trusted_parent) hands it such a name."""
+    if not isinstance(name, str) or name in ("", ".", "..") or "/" in name or "\0" in name:
+        return False
     count = [0]
 
     def tick():
@@ -1280,18 +1356,27 @@ def _rmtree_at(pfd, name, beat=False):
     return False
 
 
-def remove_tree(path, beat=False):
-    """_rmtree_at under path's walked and proved parent. Never raises; True when path is gone (or never existed)."""
+def remove_tree_why(path, beat=False):
+    """_rmtree_at under path's walked and proved parent. Never raises; None when path is gone (or never existed), else
+    the REASON it was not removed (NIT-3, round 13: the refusal's own words, never swallowed)."""
     try:
         pfd, name, _real = _trusted_parent(path)
     except FileNotFoundError:
-        return True
-    except OSError:
-        return False
+        return None
+    except OSError as e:
+        return "refused: %s" % e
     try:
-        return _rmtree_at(pfd, name, beat)
+        if _rmtree_at(pfd, name, beat):
+            return None
+        return "not removed: %r is still there under its proved parent (the removal failed part-way, or what is " \
+               "there now is not what was looked at)" % name
     finally:
         os.close(pfd)
+
+
+def remove_tree(path, beat=False):
+    """_rmtree_at under path's walked and proved parent. Never raises; True when path is gone (or never existed)."""
+    return remove_tree_why(path, beat) is None
 
 
 def _lexists(path):
@@ -1857,23 +1942,60 @@ def _take_locks(a):
     return fds
 
 
+_OLD_LOCKS = []
+
+
 def _lock_one(path, scope):
     import fcntl
     try:
         # the lock directory falls back to /tmp (world-writable): never block on a planted FIFO, never follow a planted
         # symlink, never lock a file another user owns (round 11, V4R11-1 class) -- refused, BLIND 4, said so
-        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o644)
+        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o600)
     except OSError as e:
         say("BLIND: cannot open the replay lock file %s: %s" % (path, e))
+        sys.exit(4)
+
+    def busy():
+        say("BLIND: another baseline_replay replay is running %s (lock %s is held) -- refusing: two replays "
+            "would each pass the free-space check and together exhaust the disk" % (scope, path))
         sys.exit(4)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        say("BLIND: another baseline_replay replay is running %s (lock %s is held) -- refusing: two replays "
-            "would each pass the free-space check and together exhaust the disk" % (scope, path))
-        sys.exit(4)
+        busy()
     except OSError as e:
         say("BLIND: cannot lock %s: %s" % (path, e))
+        sys.exit(4)
+    # NIT-1 (round 13, availability): flock needs only a READ fd, so a lock file another user can open lets that user
+    # hold the lock forever (the /tmp fallback lock directory). A lock file is made 0600; one left readable by others
+    # (an older version made them 0644) is REPLACED while its lock is held: a fresh 0600 file, made O_EXCL under an
+    # unpredictable name in the same (trusted) directory, locked, then renamed over the name -- so an fd somebody else
+    # opened on the old file names an unlinked inode from then on, and the next replay opens the new one.
+    try:
+        if os.fstat(fd).st_mode & 0o077:
+            pfd, name, _real = _trusted_parent(path)
+            try:
+                nfd, tmp = _mkstemp_at(pfd, "." + name + ".")
+                try:
+                    fcntl.flock(nfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    os.replace(tmp, name, src_dir_fd=pfd, dst_dir_fd=pfd)
+                except BaseException:
+                    os.close(nfd)
+                    try:
+                        os.unlink(tmp, dir_fd=pfd)
+                    except OSError:
+                        pass
+                    raise
+            finally:
+                os.close(pfd)
+            # the OLD inode stays locked for this process's lifetime too: a replay that opened it before the rename
+            # must still find it held (else two replays would run at once)
+            _OLD_LOCKS.append(fd)
+            fd = nfd
+    except BlockingIOError:
+        busy()
+    except OSError as e:
+        say("BLIND: cannot replace the lock file %s (readable by others) with a private one: %s" % (path, e))
         sys.exit(4)
     return fd
 
@@ -2361,7 +2483,12 @@ def cmd_safepath(argv):
       mkdtemp [--exclusive-parent] PARENT PREFIX  a fresh 0700 directory made by us; prints its real path
       write   --text TEXT DIR NAME                TEXT -> DIR/NAME: DIR this user's alone, NAME never followed,
                                                   never blocked on, never another user's file (open_owned_*)
-      rmtree  PATH                                remove PATH through fds (rule 4); 0 when it is gone"""
+      rmtree  PATH                                remove PATH through fds (rule 4); 0 when it is gone
+    Refused (4): a directory on the chain owned by another uid, writable by every user without the sticky bit, or
+    writable by a group with another member (a group holding only this user is fine: V4R13-1); a namespace (the
+    --exclusive forms) that is not this user's alone (a sticky shared directory included); a path argument with a
+    newline (NIT-4); a removal with no final name ('X/..', '.'). The reason is printed (NIT-3). Operator guide:
+    scripts/fastcycle/docs/baseline_replay_trusted_parent.md"""
     def usage():
         sys.stderr.write("usage: fc_supervisor.py safepath check|mkdir [--exclusive] PATH | mkdtemp "
                          "[--exclusive-parent] PARENT PREFIX | write --text TEXT DIR NAME | rmtree PATH\n")
@@ -2372,6 +2499,13 @@ def cmd_safepath(argv):
     flag = None
     if args and args[0] in ("--exclusive", "--exclusive-parent"):
         flag = args.pop(0)
+    # NIT-4 (round 13): the shell reads a printed real path back through $( ), which strips trailing newlines -- a path
+    # holding a newline would come back as a DIFFERENT string. Refused here (BLIND 4), never printed.
+    paths = args[2:] if op == "write" else args
+    if [p for p in paths if "\n" in p]:
+        sys.stderr.write("fc_supervisor safepath %s: refused: a path argument contains a newline (the shell cannot "
+                         "read such a path back unchanged)\n" % op)
+        return 4
     try:
         if op in ("check", "mkdir") and len(args) == 1 and flag in (None, "--exclusive"):
             if op == "mkdir":
@@ -2401,10 +2535,10 @@ def cmd_safepath(argv):
                 fh.write(text)
             return 0
         if op == "rmtree" and flag is None and len(args) == 1:
-            if remove_tree(args[0]):
+            why = remove_tree_why(args[0])
+            if why is None:
                 return 0
-            sys.stderr.write("fc_supervisor safepath: %s: not removed (its parent is not trusted, or the removal "
-                             "failed)\n" % args[0])
+            sys.stderr.write("fc_supervisor safepath rmtree: %s: %s\n" % (args[0], why))
             return 4
     except OSError as e:
         sys.stderr.write("fc_supervisor safepath %s: refused: %s\n" % (op, e))
