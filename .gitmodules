@@ -64,3 +64,6 @@
 [submodule "submodules/design-toolkit"]
 	path = submodules/design-toolkit
 	url = git@github.com:vasic-digital/design-toolkit.git
+[submodule "submodules/llmctl"]
+	path = submodules/llmctl
+	url = git@github.com:vasic-digital/llmctl.git

@@ -6,8 +6,9 @@
 # consumers can mechanically reconstruct the graph without git-walking.
 #
 # The constitution submodule itself acts as a HUB (§11.4.28(C) carve-out):
-# it hosts 7 own-org depth-1 dependencies — 6 reusable engines under
-# `submodules/` plus the OpenDesign design-toolkit at `design-toolkit/`.
+# it hosts own-org depth-1 dependencies — the reusable engines under
+# `submodules/` (llmctl added 2026-10-13, §11.4.277) plus the OpenDesign
+# design-toolkit.
 # NO nested own-org submodule chains exist in any of the 7 engines
 # (each engine has `helix-deps.yaml { deps: [] }` per §11.4.28(C) depth-1
 # invariant).
@@ -61,6 +62,12 @@ deps:
     ssh_url: git@github.com:HelixDevelopment/helix_perf_cache.git
     ref: 6adcfb2             # pinned sha (HelixDevelopment org, not vasic-digital)
     why: "shared performance cache (build/test/measurement result memoization with fingerprint invalidation) — reduces the §11.4.24 build-resource stats window churn + supports §11.4.230 pipeline-overlap parallelization by caching invariant results across stages"
+    layout: grouped
+
+  - name: llmctl
+    ssh_url: git@github.com:vasic-digital/llmctl.git
+    ref: v3.2.1              # pinned tag (commit db07bd5628ee1bd5c56ff30fe35c4d631acb59fa); exists on the remote
+    why: "§11.4.277 llmctl model validation gate + host-safe model units — the vendored model manager through which every model is acquired, started, validated (`llmctl validate` / `require-validated`) and stopped; §11.4.278 vision step consumes its validated `vision` profile. NOTE: llmctl vendors this constitution as its own `constitution` submodule (mutual reference) — operator decision pending, see §11.4.277(B)."
     layout: grouped
 
   # ─── OpenDesign design-toolkit (flat layout, top-level) ──────────────
