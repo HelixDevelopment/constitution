@@ -104,7 +104,9 @@ nothing fabricated):
       provenance base/head distinct, existing in provenance.repo, base an
       ancestor of head (a root commit for the empty tree; head^1 == base for a
       snapshot -- F5), head_sha_source == "batch-binding-verified", shellcheck
-      PASS in whole-file mode with binding state "bound"; and (F1) the batch
+      PASS in whole-file mode -- or in the opt-in baseline-delta mode with
+      tool.rule baseline-delta and its base resolved (ATM-1217) -- with binding
+      state "bound"; and (F1) the batch
       file recorded in provenance still exists with the recorded sha256,
       carries the pack's batch_id, a valid body_hash and a binding equal to the
       pack's base/head/kind, every bound change_id recomputes in the repo, and
@@ -265,15 +267,18 @@ def cmd_prepare(a):
     return 0
 
 
-def _params_mismatch(doc, sc_timeout, sc_ex_timeout):
+def _params_mismatch(doc, sc_timeout, sc_ex_timeout, sc_rule=None):
     """M5: a cached pack is reusable only when it was built with the requested
     shellcheck budgets (the cache key is the commit range; the budgets are not)."""
     import precheck_pack_run as gate  # same directory; the gate's own defaults (never a copy)
     sc = [c for c in (doc.get("checks") or []) if isinstance(c, dict) and c.get("check") == "shellcheck"]
     tool = ((sc[0].get("evidence") or {}).get("tool") or {}) if len(sc) == 1 else {}
     out = []
+    rule = sc_rule or gate.DEFAULT_SC_RULE
+    if tool.get("rule", gate.DEFAULT_SC_RULE) != rule:  # ATM-1217: the rule changes the verdict
+        out.append("cached pack was built with --shellcheck-rule %r, %r requested" % (tool.get("rule"), rule))
     for label, want, key, default in (
-            ("--shellcheck-timeout", sc_timeout, "timeout_s", gate.DEFAULT_SC_TIMEOUT),
+            ("--shellcheck-timeout", sc_timeout, "timeout_s", gate._default_sc_timeout(rule)),
             ("--shellcheck-exception-timeout", sc_ex_timeout, "exception_timeout_s", gate.DEFAULT_EXCEPTION_TIMEOUT),
             ("memory cap (MiB)", None, "memory_cap_mib", gate.DEFAULT_MEM_CAP_MIB),
             ("size cap (lines)", None, "max_lines", gate.DEFAULT_MAX_LINES)):
@@ -323,7 +328,7 @@ def cmd_emit(a):
                    "shellcheck binding")
         stale = [x for x in pack_readiness(doc, a.expect_base, a.expect_head, deep=False)
                  if not x.startswith(outcome)]
-        stale.extend(_params_mismatch(doc, a.expect_sc_timeout, a.expect_sc_exception_timeout))
+        stale.extend(_params_mismatch(doc, a.expect_sc_timeout, a.expect_sc_exception_timeout, a.expect_sc_rule))
         if stale:
             print("precheck_pack_build: cached pack at %s is stale/unbound: %s" % (path, "; ".join(stale)),
                   file=sys.stderr)
@@ -753,6 +758,92 @@ def _copack_reasons(entries):
     return r
 
 
+DELTA_ACTIVATION_REL = "precheck_shellcheck_delta.activation"  # next to precheck_pack.sh (review/)
+
+
+def _gate_repo_commit_at(repo, base):
+    """r5 G3: -> (gate_top, commit, None) or (None, None, reason): the commit of the repository that holds THIS
+    gate (the verifier's own review/ directory) as it was at the pack's BASE commit. Same repository as the pack:
+    the base itself. The gate repository is a submodule of the pack's repository: the gitlink recorded at the
+    base. Anything else cannot be resolved (refused)."""
+    review_dir = os.path.dirname(_HERE)
+    top = _git_out(review_dir, ["rev-parse", "--show-toplevel"], 30)
+    if top.returncode != 0:
+        return None, None, "the verifier's review directory %s is not inside a git repository" % review_dir
+    gate_top = os.path.realpath(top.stdout.decode("utf-8", "surrogateescape").strip())
+    rrepo = os.path.realpath(repo)
+    if gate_top == rrepo:
+        return gate_top, base, None
+    rel = os.path.relpath(gate_top, rrepo)
+    if rel == os.curdir or rel.startswith(os.pardir + os.sep) or rel == os.pardir or os.path.isabs(rel):
+        return None, None, ("the gate repository %s is neither the pack's repository %s nor inside it"
+                            % (gate_top, rrepo))
+    lt = _git_out(rrepo, ["ls-tree", "-z", base, "--", rel], 30)
+    rec = lt.stdout.split(b"\0")[0] if lt.returncode == 0 else b""
+    meta, _, _path = rec.partition(b"\t")
+    parts = meta.split()
+    if len(parts) != 3 or parts[0] != b"160000" or parts[1] != b"commit":
+        return None, None, "the pack base %s records no gitlink for the gate repository at %s" % (base, rel)
+    return gate_top, parts[2].decode("ascii"), None
+
+
+def delta_activation(repo, base):
+    """r4 F8 + r5 G3 (11.4.240): the operator's explicit activation of the baseline-delta rule for dispatch is
+    read from the COMMITTED record review/precheck_shellcheck_delta.activation of the gate repository AT THE
+    PACK'S BASE COMMIT (git ls-tree + cat-file) -- never from the working tree, so neither an untracked file nor
+    a record the batch under review adds can activate it. It must be a regular blob (mode 100644/100755; a
+    symlink is refused) with `decision-ref: <reference>` (>= 8 characters) and `activated-on: YYYY-MM-DD`.
+    -> {"path", "decision_ref", "activated_on"} or {"path", "error"}. Absent = not activated."""
+    import re as _re
+    path = "<unresolved>:%s" % DELTA_ACTIVATION_REL
+    out = {"path": path}
+    if not (isinstance(repo, str) and isinstance(base, str) and base):
+        out["error"] = "no pack repository / base commit to read the activation record at"
+        return out
+    gate_top, commit, why = _gate_repo_commit_at(repo, base)
+    if why:
+        out["error"] = "activation record cannot be located at the pack base: " + why
+        return out
+    rel = os.path.relpath(os.path.join(os.path.dirname(_HERE), DELTA_ACTIVATION_REL), gate_top)
+    path = "%s:%s (gate repository %s)" % (commit, rel, gate_top)
+    out["path"] = path
+    lt = _git_out(gate_top, ["ls-tree", "-z", commit, "--", rel], 30)
+    if lt.returncode != 0:
+        out["error"] = "activation record %s cannot be listed: %s" % (path, lt.stderr.decode("utf-8", "replace")[:200])
+        return out
+    rec = lt.stdout.split(b"\0")[0]
+    if not rec:
+        out["error"] = ("no operator activation record committed at %s (DESIGN 4.8: activation is one operator "
+                        "decision, committed and reviewed before the batch; until then only whole-file packs are "
+                        "dispatch-ready)" % path)
+        return out
+    meta = rec.partition(b"\t")[0].split()
+    if len(meta) != 3 or meta[1] != b"blob" or meta[0] not in (b"100644", b"100755"):
+        out["error"] = "activation record %s is not a regular committed file (mode %s)" % (
+            path, meta[0].decode("ascii", "replace") if meta else "?")
+        return out
+    cf = _git_out(gate_top, ["cat-file", "blob", meta[2].decode("ascii")], 30)
+    try:
+        if cf.returncode != 0:
+            raise ValueError(cf.stderr.decode("utf-8", "replace")[:200])
+        text = cf.stdout.decode("utf-8")
+    except (ValueError, UnicodeDecodeError) as exc:
+        out["error"] = "activation record %s unreadable: %s" % (path, exc)
+        return out
+    kv = {}
+    for ln in text.splitlines():
+        if ln.strip() and not ln.lstrip().startswith("#") and ":" in ln:
+            k, v = ln.split(":", 1)
+            kv[k.strip()] = v.strip()
+    ref, day = kv.get("decision-ref", ""), kv.get("activated-on", "")
+    if len(ref) < 8 or not _re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", day):
+        out["error"] = ("activation record %s needs 'decision-ref: <reference, >= 8 chars>' and "
+                        "'activated-on: YYYY-MM-DD' (got %r / %r)" % (path, ref, day))
+        return out
+    out.update(decision_ref=ref, activated_on=day)
+    return out
+
+
 def pack_readiness(doc, expect_base=None, expect_head=None, deep=True, allowed_roots=None):
     """-> list of reasons the pack is NOT dispatch-ready ([] = ready). `deep`
     adds the F1 batch/working-tree checks (the builder's cache check passes
@@ -844,8 +935,26 @@ def pack_readiness(doc, expect_base=None, expect_head=None, deep=True, allowed_r
         b = ev.get("binding") or {}
         if sc[0].get("verdict") != "PASS":
             r.append("shellcheck verdict is not PASS")
-        if ev.get("mode") != "whole-file":
-            r.append("shellcheck did not run in whole-file mode (mode=%r)" % ev.get("mode"))
+        mode, rule = ev.get("mode"), (ev.get("tool") or {}).get("rule", "whole-file")
+        if mode == "baseline-delta":
+            # ATM-1217: the opt-in delta rule is dispatch-ready only as what it claims to be -- requested
+            # (tool.rule), with its base resolved and its own rule id recorded
+            dl = ev.get("delta") or {}
+            if rule != "baseline-delta" or dl.get("base_resolved") is not True or not dl.get("rule_id"):
+                r.append("shellcheck mode baseline-delta is inconsistent (tool.rule=%r, delta.base_resolved=%r, "
+                         "delta.rule_id=%r)" % (rule, dl.get("base_resolved"), dl.get("rule_id")))
+            import precheck_pack_run as _g  # same directory; the gate's own rule id (never a copy)
+            if dl.get("rule_id") and dl.get("rule_id") != _g.DELTA_RULE_ID:
+                r.append("shellcheck delta.rule_id %r is not this gate's %r" % (dl.get("rule_id"), _g.DELTA_RULE_ID))
+            if deep:
+                # r4 F8 + r5 G3 (11.4.240): a producer cannot opt its own batch into the laxer rule for DISPATCH;
+                # the delta rule is dispatch-ready only when the operator's activation record is COMMITTED at the
+                # pack's base commit (read with git, never from the working tree)
+                act = delta_activation(repo if repo_ok else None, base)
+                if act.get("error"):
+                    r.append("shellcheck mode baseline-delta is not activated for dispatch: %s" % act["error"])
+        elif mode != "whole-file" or rule != "whole-file":
+            r.append("shellcheck did not run in whole-file or baseline-delta mode (mode=%r, rule=%r)" % (mode, rule))
         if b.get("state") != "bound":
             r.append("shellcheck binding is %r, not 'bound'" % b.get("state"))
         r.extend(_params_readiness(p, ev.get("tool") or {}))
@@ -912,6 +1021,7 @@ def main(argv):
     pe.add_argument("--expect-head")
     pe.add_argument("--expect-sc-timeout")
     pe.add_argument("--expect-sc-exception-timeout")
+    pe.add_argument("--expect-sc-rule")
     pe.set_defaults(func=cmd_emit)
 
     pb = sub.add_parser("bind")
