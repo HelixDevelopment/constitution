@@ -104,7 +104,9 @@ nothing fabricated):
       provenance base/head distinct, existing in provenance.repo, base an
       ancestor of head (a root commit for the empty tree; head^1 == base for a
       snapshot -- F5), head_sha_source == "batch-binding-verified", shellcheck
-      PASS in whole-file mode with binding state "bound"; and (F1) the batch
+      PASS in whole-file mode -- or in the opt-in baseline-delta mode with
+      tool.rule baseline-delta and its base resolved (ATM-1217) -- with binding
+      state "bound"; and (F1) the batch
       file recorded in provenance still exists with the recorded sha256,
       carries the pack's batch_id, a valid body_hash and a binding equal to the
       pack's base/head/kind, every bound change_id recomputes in the repo, and
@@ -265,15 +267,18 @@ def cmd_prepare(a):
     return 0
 
 
-def _params_mismatch(doc, sc_timeout, sc_ex_timeout):
+def _params_mismatch(doc, sc_timeout, sc_ex_timeout, sc_rule=None):
     """M5: a cached pack is reusable only when it was built with the requested
     shellcheck budgets (the cache key is the commit range; the budgets are not)."""
     import precheck_pack_run as gate  # same directory; the gate's own defaults (never a copy)
     sc = [c for c in (doc.get("checks") or []) if isinstance(c, dict) and c.get("check") == "shellcheck"]
     tool = ((sc[0].get("evidence") or {}).get("tool") or {}) if len(sc) == 1 else {}
     out = []
+    rule = sc_rule or gate.DEFAULT_SC_RULE
+    if tool.get("rule", gate.DEFAULT_SC_RULE) != rule:  # ATM-1217: the rule changes the verdict
+        out.append("cached pack was built with --shellcheck-rule %r, %r requested" % (tool.get("rule"), rule))
     for label, want, key, default in (
-            ("--shellcheck-timeout", sc_timeout, "timeout_s", gate.DEFAULT_SC_TIMEOUT),
+            ("--shellcheck-timeout", sc_timeout, "timeout_s", gate._default_sc_timeout(rule)),
             ("--shellcheck-exception-timeout", sc_ex_timeout, "exception_timeout_s", gate.DEFAULT_EXCEPTION_TIMEOUT),
             ("memory cap (MiB)", None, "memory_cap_mib", gate.DEFAULT_MEM_CAP_MIB),
             ("size cap (lines)", None, "max_lines", gate.DEFAULT_MAX_LINES)):
@@ -323,7 +328,7 @@ def cmd_emit(a):
                    "shellcheck binding")
         stale = [x for x in pack_readiness(doc, a.expect_base, a.expect_head, deep=False)
                  if not x.startswith(outcome)]
-        stale.extend(_params_mismatch(doc, a.expect_sc_timeout, a.expect_sc_exception_timeout))
+        stale.extend(_params_mismatch(doc, a.expect_sc_timeout, a.expect_sc_exception_timeout, a.expect_sc_rule))
         if stale:
             print("precheck_pack_build: cached pack at %s is stale/unbound: %s" % (path, "; ".join(stale)),
                   file=sys.stderr)
@@ -844,8 +849,16 @@ def pack_readiness(doc, expect_base=None, expect_head=None, deep=True, allowed_r
         b = ev.get("binding") or {}
         if sc[0].get("verdict") != "PASS":
             r.append("shellcheck verdict is not PASS")
-        if ev.get("mode") != "whole-file":
-            r.append("shellcheck did not run in whole-file mode (mode=%r)" % ev.get("mode"))
+        mode, rule = ev.get("mode"), (ev.get("tool") or {}).get("rule", "whole-file")
+        if mode == "baseline-delta":
+            # ATM-1217: the opt-in delta rule is dispatch-ready only as what it claims to be -- requested
+            # (tool.rule), with its base resolved and its own rule id recorded
+            dl = ev.get("delta") or {}
+            if rule != "baseline-delta" or dl.get("base_resolved") is not True or not dl.get("rule_id"):
+                r.append("shellcheck mode baseline-delta is inconsistent (tool.rule=%r, delta.base_resolved=%r, "
+                         "delta.rule_id=%r)" % (rule, dl.get("base_resolved"), dl.get("rule_id")))
+        elif mode != "whole-file" or rule != "whole-file":
+            r.append("shellcheck did not run in whole-file or baseline-delta mode (mode=%r, rule=%r)" % (mode, rule))
         if b.get("state") != "bound":
             r.append("shellcheck binding is %r, not 'bound'" % b.get("state"))
         r.extend(_params_readiness(p, ev.get("tool") or {}))
@@ -912,6 +925,7 @@ def main(argv):
     pe.add_argument("--expect-head")
     pe.add_argument("--expect-sc-timeout")
     pe.add_argument("--expect-sc-exception-timeout")
+    pe.add_argument("--expect-sc-rule")
     pe.set_defaults(func=cmd_emit)
 
     pb = sub.add_parser("bind")
