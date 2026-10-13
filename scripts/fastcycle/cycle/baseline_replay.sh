@@ -289,6 +289,16 @@ Usage:
   baseline_replay.sh replay-sample --sample PATH --gate-cmd "CMD..."
       [--cold-runs N] [--warm-runs N] [--repo-root DIR] [--worktree-root DIR]
       [--min-free-kb K] [--min-free-kb-objects K] [--timeout-s N] --out PATH
+
+Directories (the trusted-parent rule, fc_supervisor.py safepath; a refusal is BLIND, exit 4, reason on stderr):
+  Every directory on the path of --repo-root's worktree root, --worktree-root, --out's directory, TMPDIR and the
+  lock directory must be owned by root or by you and not writable by another user: a directory every user may
+  write needs the sticky bit; a GROUP-writable one is accepted only when its group holds nobody but you (a
+  user-private group: the umask-002 default of RHEL/Fedora-style hosts). Remedy for a refusal: chmod g-w (or
+  o-w) the directory it names, or use a directory outside it.
+  --worktree-root (default <repo-root>/.fc_worktrees, made 0700) is a NAMESPACE: it must be YOURS ALONE -- a
+  sticky shared directory (1777) is refused there, although such a directory is fine as a parent.
+  A path argument containing a newline is refused (the shell could not read it back unchanged).
 EOF
   exit 2
 }
@@ -361,7 +371,13 @@ _fc_mktemp() { mktemp "$_FC_TMPDIR/f.XXXXXX"; }
 # accept such a parent and let that user rename the tool's own entries (round 5's demonstrated swap of a run-log
 # directory for a symlink). Inside a directory proved by it (and inside $_FC_TMPDIR, proved at worker start) plain
 # file operations are safe by construction: nobody else can create or rename an entry there. The census of every path
-# operation of this file is tests/check_safepath_census.py (it fails the suite on an unrouted one).
+# operation of this file is tests/check_safepath_census.py (it fails the suite on an unrouted one, and FAILS CLOSED
+# on any command word / git sub-command / python3 form it does not model: round 13). A GROUP-writable directory is
+# accepted when its group holds nobody but this user (V4R13-1, the umask-002 default); the refusals and their remedies
+# are in usage() and scripts/fastcycle/docs/baseline_replay_trusted_parent.md. NOT through the helper, by design (rule
+# 4's stated exception): `git worktree unlock / remove -f -f / prune` of a replay worktree BY PATH -- a directory this
+# script made with `_fc_safe mkdtemp` in the proved --worktree-root; `git -C` is NOT a read-only command in general
+# (submodule update, worktree add / remove write) -- the census lists every git sub-command it allows.
 _fc_safe() { python3 -I -S "$_FC_SUPERVISOR" safepath "$@"; }
 # freeze only (it starts no child that could outlive it): a private temp dir
 # removed by the EXIT trap
@@ -985,10 +1001,12 @@ _fc_submodule_reference_update() {
     # protocol.*.allow policy. The env vars that can re-open a protocol are
     # removed for this one call (never touching the caller's own environment).
     if [ -n "$ref_path" ]; then
+      # safepath:param ($tgt: the replay worktree, made by `safepath mkdtemp`; git writes inside it)
       env -u GIT_ALLOW_PROTOCOL -u GIT_PROTOCOL_FROM_USER -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT \
         git -c protocol.ext.allow=never -c protocol.file.allow=never \
         -C "$tgt" submodule update --init --quiet --reference "$ref_path" -- "$path"
     else
+      # safepath:param ($tgt: as above)
       env -u GIT_ALLOW_PROTOCOL -u GIT_PROTOCOL_FROM_USER -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT \
         git -c protocol.ext.allow=never -c protocol.file.allow=never \
         -C "$tgt" submodule update --init --quiet -- "$path"
@@ -1096,7 +1114,11 @@ _do_one_replay_body() {
 
   # round 12 (V4R12-1): --worktree-root is a NAMESPACE (worktrees, replay-logs, fixed names): this user's alone, under a
   # trusted chain -- created component by component by the trusted-parent helper, never `mkdir -p`
-  worktree_root="$(_fc_safe mkdir --exclusive "$worktree_root")" || { echo "baseline_replay: BLIND: cannot create --worktree-root $worktree_root, or it is not a directory of this user's alone under a trusted chain (the trusted-parent rule)" >&2; return 4; }
+  # V4R13-1(b) (round 13): the helper's answer goes to a separate variable -- a failed assignment would empty
+  # $worktree_root BEFORE the message below is built (round 6 printed "cannot create --worktree-root ,")
+  local _wr
+  _wr="$(_fc_safe mkdir --exclusive "$worktree_root")" || { echo "baseline_replay: BLIND: cannot create --worktree-root $worktree_root, or it is not a directory of this user's alone under a trusted chain (the trusted-parent rule; the reason is above)" >&2; return 4; }
+  worktree_root="$_wr"
   local free_kb
   free_kb="$(df -Pk "$worktree_root" 2>/dev/null | awk 'NR==2{print $4}')"
   isnum "$free_kb" || { echo "baseline_replay: cannot read free disk space for $worktree_root (df failed)" >&2; return 4; }
@@ -1488,7 +1510,7 @@ _do_one_replay_body() {
   local run_log_dir log_pend
   _fc_ledger_pend "$worktree_root/replay-logs" "${commit:0:12}." || { echo "baseline_replay: BLIND: cannot write the cleanup ledger" >&2; return 4; }
   log_pend="$_FC_LEDGER_FILE"
-  run_log_dir="$(_fc_safe mkdtemp --exclusive-parent "$worktree_root/replay-logs" "${commit:0:12}.")" || { echo "baseline_replay: cannot create a unique run-log directory under $worktree_root/replay-logs" >&2; return 4; }
+  run_log_dir="$(_fc_safe mkdtemp --exclusive-parent "$worktree_root/replay-logs" "${commit:0:12}.")" || { echo "baseline_replay: cannot create a unique run-log directory under $worktree_root/replay-logs, or it is not this user's alone (the trusted-parent rule; the reason is above)" >&2; return 4; }
   # ledger: a stop before the report is written marks this directory INTERRUPTED
   # (V4R3-14) instead of leaving unowned partial evidence behind
   _FC_LOG_DIR="$run_log_dir"
@@ -1677,7 +1699,9 @@ cmd_replay() {
   # absolute, canonical path up front so every later consumer (mktemp,
   # df, git -C, the gate's cd) agrees on the SAME directory.
   # round 12 (V4R12-1): created and resolved by the trusted-parent helper -- one absolute, real path, this user's alone
-  worktree_root="$(_fc_safe mkdir --exclusive "$worktree_root")" || blind "replay: cannot create --worktree-root $worktree_root, or it is not a directory of this user's alone under a trusted chain (the trusted-parent rule)"
+  local _wr                     # V4R13-1(b): never assigned over $worktree_root before the message is built
+  _wr="$(_fc_safe mkdir --exclusive "$worktree_root")" || blind "replay: cannot create --worktree-root $worktree_root, or it is not a directory of this user's alone under a trusted chain (the trusted-parent rule; the reason is above)"
+  worktree_root="$_wr"
 
   _fc_supervise "$repo_root" "$worktree_root"   # the caller's process becomes the supervisor here
   run_selfcheck || return 3
@@ -1797,7 +1821,9 @@ cmd_replay_sample() {
   [ -n "$worktree_root" ] || worktree_root="$repo_root/.fc_worktrees"
   # T043 round-4 finding B3: resolve --worktree-root to one absolute path up
   # front (see cmd_replay).
-  worktree_root="$(_fc_safe mkdir --exclusive "$worktree_root")" || blind "replay-sample: cannot create --worktree-root $worktree_root, or it is not a directory of this user's alone under a trusted chain (the trusted-parent rule)"
+  local _wr                     # V4R13-1(b): never assigned over $worktree_root before the message is built
+  _wr="$(_fc_safe mkdir --exclusive "$worktree_root")" || blind "replay-sample: cannot create --worktree-root $worktree_root, or it is not a directory of this user's alone under a trusted chain (the trusted-parent rule; the reason is above)"
+  worktree_root="$_wr"
   local db_path="$repo_root/docs/workable_items.db"
 
   _fc_supervise "$repo_root" "$worktree_root"   # the caller's process becomes the supervisor here

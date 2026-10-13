@@ -68,6 +68,13 @@
 # ([R10LEASE] [R10LEASE-decide], [R9WIN] keeper _keeper.finally). The runner now reports a test that times out instead
 # of crashing (round 11).
 #
+# T048 V4 round 13 (V4R13-* group; round-6 review: NO-GO, 4 MINOR + 5 NIT; the LAST budget round, §11.4.276): the
+# round-6 reviewer's 16 mutants RV6-01..16 adopted VERBATIM (their anchors, unchanged by this round's code, each matched
+# exactly once; RV6-14 is an EQUIVS row whose premise [R13SH-logs1777] is asserted on the mutant), the fixer's own
+# V4R13-M1..M20 (the group-private clause, the rmtree name guard, NIT-1 lock migration, NIT-4/NIT-3/NIT-5, the three
+# message sites, and the census's own fail-closed rules -- tests/check_safepath_census.py is copied into the replica
+# and mutated there). Oracles: tests/test_fc_safepath_v4r13.sh ([R13*]), the unit file, the v4r12 file.
+#
 # Instrument control (§11.4.273): before any mutant, the SAME harness runs a
 # representative case against an UNMUTATED replica and requires it to PASS --
 # otherwise a "caught" mutant could just be a broken replica.
@@ -100,6 +107,8 @@ T_V5 = "test_fc_supervisor_v4r5_findings.sh"
 T_V8 = "test_fc_supervisor_v4r8_stream_matrix.sh"
 T_V9 = "test_fc_supervisor_v4r9_shutdown_windows.sh"
 T_R12 = "test_fc_safepath_v4r12.sh"
+T_R13 = "test_fc_safepath_v4r13.sh"
+CEN = "tests/check_safepath_census.py"     # round 13: the census itself is mutated in the replica (FC_CENSUS_UNDER_TEST)
 
 
 def SM(sig, target, shape):
@@ -835,7 +844,7 @@ MUTS = [
      T_SUP, {}, "NOT ok [R11NOOPEN-dirfifo]"),
     ("V4R11-M9", SUP, [("        if (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino) or not _owned_ok(st, _st.S_ISDIR, forbid):\n", "        if False:\n")],
      T_SUP, {}, "NOT ok [R11RACE-dirswap]"),
-    ("V4R11-M10", SUP, [("        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o644)\n", "        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o644)\n")],
+    ("V4R11-M10", SUP, [("        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o600)\n", "        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)\n")],
      T_SUP, {}, "NOT ok [R11LOCK-link]"),
     ("V4R11-M11", SUP, [("        data = _read_owned(out, REPORT_MAX_BYTES + 1, forbid=0)\n", "        data = open(out, \"rb\").read(REPORT_MAX_BYTES + 1)\n")],
      T_SUP, {}, "NOT ok [R11OUT-fifo]"),
@@ -904,7 +913,7 @@ MUTS = [
      T_SUP, {}, "NOT ok [R12WALK-f755]"),                       # rule 1: any owner trusted
     ("V4R12-M2", SUP, [("    return not (_st.S_ISDIR(st.st_mode) and st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX)",
                         "    return True")],
-     T_SUP, {}, "NOT ok [R12WALK-own777]"),                     # rule 1: a dir writable by others without sticky trusted
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13TRUST-own777]"),  # rule 1 (shared group); re-anchored r7: the private-group branch precedes it
     ("V4R12-M3", SUP, [("st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX)", "st.st_mode & 0o022)")],
      T_R12, {"R12_ONLY": "PARITY"}, "NOT ok [R12PARITY-rootsticky]"),  # rule 1: the sticky exemption lost (/tmp refused;
                                                                 # the unit file stops at its first report_prepare)
@@ -942,10 +951,10 @@ MUTS = [
      T_R12, {"R12_ONLY": "SH"}, "NOT ok [R12SH-plant]"),        # the round-5 run-log code: the reviewer's repro returns
     ("V4R12-M16", BR, [("  _fc_safe check --exclusive \"$_FC_TMPDIR\" >/dev/null || blind", "  : || blind")],
      T_R12, {"R12_ONLY": "SH"}, "NOT ok [R12SH-workerinit]"),   # the worker no longer proves its temp directory
-    ("V4R12-M17", BR, [("  worktree_root=\"$(_fc_safe mkdir --exclusive \"$worktree_root\")\" || blind \"replay: cannot",
-                        "  worktree_root=\"$(_fc_safe mkdir \"$worktree_root\")\" || blind \"replay: cannot"),
-                       ("  worktree_root=\"$(_fc_safe mkdir --exclusive \"$worktree_root\")\" || { echo",
-                        "  worktree_root=\"$(_fc_safe mkdir \"$worktree_root\")\" || { echo"),
+    ("V4R12-M17", BR, [("  _wr=\"$(_fc_safe mkdir --exclusive \"$worktree_root\")\" || blind \"replay: cannot",
+                        "  _wr=\"$(_fc_safe mkdir \"$worktree_root\")\" || blind \"replay: cannot"),
+                       ("  _wr=\"$(_fc_safe mkdir --exclusive \"$worktree_root\")\" || { echo",
+                        "  _wr=\"$(_fc_safe mkdir \"$worktree_root\")\" || { echo"),
                        ("  wt_path=\"$(_fc_safe mkdtemp --exclusive-parent \"$worktree_root\" replay.)\"",
                         "  wt_path=\"$(_fc_safe mkdtemp \"$worktree_root\" replay.)\""),
                        ("  _fc_safe mkdir --exclusive \"$worktree_root/replay-logs\" >/dev/null ||",
@@ -962,6 +971,90 @@ MUTS = [
      T_R12, {"R12_ONLY": "CLI"}, "NOT ok [R12CLI-write-dirmode]"),  # the shell's INTERRUPTED write without the dir proof
     ("V4R12-M21", BR, [("_fc_safe() { python3 -I -S \"$_FC_SUPERVISOR\" safepath \"$@\"; }", "_fc_safe() { python3 -I -S \"$_FC_SUPERVISOR\" safepath \"$@\" || true; }")],
      T_R12, {"R12_ONLY": "PARITY"}, "NOT ok [R12PARITY-own777]"),  # the shell half ignores a refusal (parity broken)
+
+    # ---- T048 V4 round 13 (round-6 review of the round-12 pack: NO-GO, V4R13-1..4 MINOR + NITs; the LAST round) ----
+    # the round-6 reviewer's 16 mutants RV6-01..16 (v4_round6_review_20261012.md section 5), VERBATIM: same anchors,
+    # same replacements as the reviewer's runner. The 7 round-6 survivors (02 05 06 07 08 11 15) are each routed to the
+    # round-13 row written for them; RV6-14 is the EQUIVS row below.
+    ("V4R13-RV6-01", SUP, [("and not st.st_mode & _st.S_ISVTX)", "and not st.st_mode & _st.S_ISGID)")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13TRUST-root1777]"),
+    ("V4R13-RV6-02", SUP, [("st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX", "st.st_mode & 0o002 and not st.st_mode & _st.S_ISVTX")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13TRUST-own775-shared]"),
+    ("V4R13-RV6-03", SUP, [("                if len(stack) > 1:\n                    os.close(stack.pop()[0])\n", "                pass\n")],
+     T_SUP, {}, "NOT ok [R12WALK-dotdot]"),
+    ("V4R13-RV6-04", SUP, [("                if target.startswith(\"/\"):\n                    while len(stack) > 1:", "                if False:\n                    while len(stack) > 1:")],
+     T_SUP, {}, "NOT ok [R12WALK-mylink]"),
+    ("V4R13-RV6-05", SUP, [("            now = os.stat(name, dir_fd=pfd, follow_symlinks=False)\n            if (now.st_dev, now.st_ino) == (ds.st_dev, ds.st_ino):\n                os.rmdir(name, dir_fd=pfd)\n    except FileNotFoundError:",
+                            "            now = os.stat(name, dir_fd=pfd, follow_symlinks=False)\n            if True:\n                os.rmdir(name, dir_fd=pfd)\n    except FileNotFoundError:")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13RM-final-identity]"),
+    ("V4R13-RV6-06", SUP, [("                if (ds.st_dev, ds.st_ino) == (st.st_dev, st.st_ino):\n                    clear(dfd)", "                if True:\n                    clear(dfd)")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13RM-top-swap]"),
+    ("V4R13-RV6-07", SUP, [("                    if flag and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID):", "                    if False and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID):")],
+     T_R13, {"R13_ONLY": "CLI"}, "NOT ok [R13EXCL-check]"),
+    ("V4R13-RV6-08", BR, [('_fc_safe check --exclusive "$_FC_TMPDIR" >/dev/null', '_fc_safe check "$_FC_TMPDIR" >/dev/null')],
+     T_R13, {"R13_ONLY": "SH"}, "NOT ok [R13EXCL-workerinit]"),
+    ("V4R13-RV6-09", SUP, [("def _mkdtemp_at(pfd, prefix, mode=0o700):", "def _mkdtemp_at(pfd, prefix, mode=0o755):")],
+     T_SUP, {}, "NOT ok [R11MODE]"),
+    ("V4R13-RV6-10", SUP, [("            dfd = open_owned_dir(d)\n", "            dfd = open_owned_dir(d, forbid=0)\n")],
+     T_R12, {"R12_ONLY": "CLI"}, "NOT ok [R12CLI-write-dirmode]"),
+    ("V4R13-RV6-11", SUP, [('    if name in ("", ".", ".."):', '    if name in ("", "."):')],
+     T_R13, {"R13_ONLY": "CLI"}, "NOT ok [R13RM-dotdot-cli]"),   # the second layer (_rmtree_at's own guard) still saves the data; the row requires the FIRST layer's reason
+    ("V4R13-RV6-12", SUP, [("mode=0o700 if exclusive else 0o755)", "mode=0o755)")],
+     T_SUP, {}, "NOT ok [R12CREATE-umask0]"),
+    ("V4R13-RV6-13", SUP, [("    if st.st_uid not in (0, os.geteuid()):\n        return False\n    if _private", "    if st.st_uid not in (0, os.getuid()):\n        return False\n    if _private")],
+     T_SUP, {}, "NOT ok [R12UID-real]"),         # RV6-13 verbatim (its one-line anchor now also occurs in _untrusted_why: extended by context, same replacement)
+    ("V4R13-RV6-15", SUP, [("    return not (_st.S_ISDIR(st.st_mode) and st.st_mode & 0o022", "    return st.st_uid == 0 or not (_st.S_ISDIR(st.st_mode) and st.st_mode & 0o022")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13TRUST-root777]"),
+    ("V4R13-RV6-16", SUP, [("                st = os.stat(e, dir_fd=dfd, follow_symlinks=False)\n                if _st.S_ISDIR(st.st_mode):\n                    cfd",
+                            "                st = os.stat(e, dir_fd=dfd, follow_symlinks=True)\n                if _st.S_ISDIR(st.st_mode):\n                    cfd")],
+     T_SUP, {}, "NOT ok [R12RM-link]"),
+    # ---- the round-13 fixer's own mutants (V4R13-M*) ----
+    ("V4R13-M1", SUP, [("    if gid in _GROUP_PRIVATE:\n        return _GROUP_PRIVATE[gid]\n", "    return True\n")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13GROUP-shared]"),       # every group read as private
+    ("V4R13-M2", SUP, [("            ans = not [u for u in grp.getgrgid(gid).gr_mem if u != me] \\\n                and not",
+                        "            ans = True \\\n                and not")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13GROUP-shared]"),       # the member list ignored
+    ("V4R13-M3", SUP, [("                and not [p for p in pwd.getpwall() if p.pw_gid == gid and p.pw_uid != os.geteuid()]",
+                        "                and True")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13GROUP-primary]"),      # another account's PRIMARY group ignored
+    ("V4R13-M4", SUP, [("        if gid == os.getegid() or gid in os.getgroups():\n", "        if True:\n")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13GROUP-notours]"),      # a group that is not this user's (setgid programs)
+    ("V4R13-M5", SUP, [('    if not isinstance(name, str) or name in ("", ".", "..") or "/" in name or "\\0" in name:\n        return False\n',
+                        "")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13RM-name-guard]"),      # _rmtree_at's own guard: a '..' reaches the parent
+    ("V4R13-M6", SUP, [("                if todo and todo[-1] == \"..\":\n                    # NIT-5", "                if False:\n                    # NIT-5")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13WALK-dotdot-untrusted]"),
+    ("V4R13-M7", SUP, [("                if todo and todo[-1] == \"..\":\n                    # NIT-5", "                if todo:\n                    # NIT-5")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13WALK-untrusted-mid]"),  # an untrusted directory passed over without a `..`
+    ("V4R13-M8", SUP, [("        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o600)\n", "        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o644)\n")],
+     T_R13, {"R13_ONLY": "LOCK"}, "NOT ok [R13LOCK-0600]"),        # NIT-1: the lock created readable by others
+    ("V4R13-M9", SUP, [("        if os.fstat(fd).st_mode & 0o077:\n", "        if False:\n")],
+     T_R13, {"R13_ONLY": "LOCK"}, "NOT ok [R13LOCK-migrate]"),     # an old 0644 lock file kept as it is
+    ("V4R13-M10", SUP, [("            _OLD_LOCKS.append(fd)\n", "            os.close(fd)\n")],
+     T_R13, {"R13_ONLY": "LOCK"}, "NOT ok [R13LOCK-old-held]"),    # the migration releases the old inode's lock
+    ("V4R13-M11", SUP, [('    if [p for p in paths if "\\n" in p]:\n', "    if False:\n")],
+     T_R13, {"R13_ONLY": "CLI"}, "NOT ok [R13CLI-newline]"),       # NIT-4
+    ("V4R13-M12", SUP, [('        return "refused: %s" % e\n', '        return "refused"\n')],
+     T_R13, {"R13_ONLY": "CLI"}, "NOT ok [R13RM-dotdot-cli]"),     # NIT-3: the reason swallowed again
+    ("V4R13-M13", BR, [('  _wr="$(_fc_safe mkdir --exclusive "$worktree_root")" || blind "replay: cannot create --worktree-root $worktree_root',
+                        '  worktree_root="$(_fc_safe mkdir --exclusive "$worktree_root")" || blind "replay: cannot create --worktree-root $worktree_root')],
+     T_R13, {"R13_ONLY": "SH"}, "NOT ok [R13UMASK-shared]"),       # V4R13-1(b): the message prints an emptied variable
+    ("V4R13-M14", SUP, [("    if forbid & 0o020 and _private_group_write(st):\n        forbid &= ~0o020\n", "    if forbid & 0o020 and _private_group_write(st):\n        forbid &= ~0o022\n")],
+     T_R13, {"R13_ONLY": "PY"}, "NOT ok [R13OWNED-own777]"),       # the group exemption also drops OTHER-write
+    ("V4R13-M15", SUP, [("    if _private_group_write(st):\n        return not (st.st_mode & 0o002 and not _st.S_ISVTX & st.st_mode)\n", "")],
+     T_R13, {"R13_ONLY": "SH"}, "NOT ok [R13UMASK-default]"),      # the round-6 code: the default umask-002 flow refused
+    ("V4R13-M16", CEN, [('        add(cm, w0, "VIOLATION", "a command word not in the census\'s tables (fail-closed: SH_NOOP / SH_READ / "\n                                 "SH_WRITE / git / python3 / this file\'s functions)")',
+                         '        return')],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),    # the census no longer fails closed on an unknown command
+    ("V4R13-M17", CEN, [("for p in _params(fn) if f in calls_of}", "for p in _params(fn)}")],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),    # a parameter with no call site read as proved (A14)
+    ("V4R13-M18", CEN, [('        if re.search(r"(^|/)\\.\\.(/|$)", rest) or "~" in rest', '        if "~" in rest')],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),    # '..' inside a proved operand accepted
+    ("V4R13-M19", CEN, [('    roots = ("$(_fc_safe mkdtemp ", "$(_fc_safe mkdir --exclusive ", "$(_fc_mktemp)")',
+                         '    roots = ("$(_fc_safe mkdtemp ", "$(_fc_safe mkdir ", "$(_fc_mktemp)")')],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),    # a plain `_fc_safe mkdir` result read as a namespace
+    ("V4R13-M20", CEN, [("        if not _PLAIN_CMD.match(w0) and w0 not in", "        if False and w0 not in")],
+     T_R13, {"R13_ONLY": "CENSUS"}, "NOT ok [R13CENSUS-self]"),    # a quoted / escaped / indirect command word accepted
 ]
 
 # EQUIVALENT mutants: applied like every mutant, but the named case must still PASS -- the equivalence claim is itself a
@@ -972,16 +1065,27 @@ EQUIVS = [
      T_SUP, {}, "ok [R10LEASE-made]",
      "PEP 446: os.open() creates every fd non-inheritable (FD_CLOEXEC set) whether or not O_CLOEXEC is passed; "
      "[R10LEASE-made] reads FD_CLOEXEC from the kernel and still sees it set -- no observable difference exists"),
-    # round 12: RV5-15 (_lock_one with forbid=0: a world-writable lock file of OURS is accepted). The model: a lock file is
-    # only ever flock()ed, never read or trusted for content; its IDENTITY cannot be swapped because the lock directory
-    # must pass the trusted-parent rule (root's / ours, sticky if shared) -- so its mode bits carry no meaning. The
-    # PREMISE is asserted on the mutant: [R12LOCK-parent] (a lock directory another uid owns -> BLIND 4) must still pass,
-    # and so must the whole unit file. If the premise ever stops holding, this row turns NOT ok.
-    ("V4R12-RV5-15", SUP, [("        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o644)\n",
-                            "        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o644, forbid=0)\n")],
-     T_SUP, {}, "ok [R12LOCK-parent]",
-     "a lock file is only flock()ed (its content and mode are never read); its identity is pinned by the lock directory, "
-     "which must pass the trusted-parent rule ([R12LOCK-parent], asserted on this mutant)"),
+    # round 12: RV5-15 (_lock_one with forbid=0: a lock file of OURS writable by others is accepted). Round 13 (NIT-1)
+    # corrected the proof: the mode bits DO carry meaning -- for AVAILABILITY (flock needs only a read fd: a lock file
+    # others can open lets them hold the lock forever) -- and round 13 closes that by REPLACING any lock file with a
+    # group/other bit (0o077) while its lock is held. Under forbid=0 an other-writable lock file of ours is therefore
+    # migrated instead of refused: both end with a private 0600 lock file or no lock -- still equivalent. The PREMISE
+    # is asserted on the mutant: [R13LOCK-migrate] (and the whole LOCK group) must still pass; anchor re-expressed
+    # (mode=0o600 since round 13).
+    ("V4R12-RV5-15", SUP, [("        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o600)\n",
+                            "        fd = open_owned_file(path, os.O_RDWR | os.O_CREAT, mode=0o600, forbid=0)\n")],
+     T_R13, {"R13_ONLY": "LOCK"}, "ok [R13LOCK-migrate]",
+     "a lock file's content is never read; its identity is pinned by the trusted lock directory; any group/other bit "
+     "(writable included, under this mutant) makes _lock_one replace it with a 0600 file while holding the old lock "
+     "([R13LOCK-migrate] / [R13LOCK-old-held], asserted on this mutant)"),
+    # round 13: RV6-14 (the shell's replay-logs made with a NON-exclusive mkdir). The very next line makes the run-log
+    # directory with `mkdtemp --exclusive-parent` on the same directory, which refuses the same input (a replay-logs that
+    # is not this user's alone); the PREMISE row [R13SH-logs1777] (replay-logs ours 1777 -> BLIND 4, nothing made) must
+    # still pass on the mutant.
+    ("V4R13-RV6-14", BR, [('_fc_safe mkdir --exclusive "$worktree_root/replay-logs"', '_fc_safe mkdir "$worktree_root/replay-logs"')],
+     T_R13, {"R13_ONLY": "SH"}, "ok [R13SH-logs1777]",
+     "the next line's `safepath mkdtemp --exclusive-parent` on the same directory refuses whatever the --exclusive "
+     "mkdir refused ([R13SH-logs1777], asserted on this mutant)"),
 ]
 
 CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
@@ -1028,13 +1132,17 @@ CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
                                       "R8_SCENARIOS": "ok replay-sample selfcheck kill-keeper"},
              "ok [R8MATRIX] selfcheck x closed-in"),
             # round 12: the whole new file (rc == 0 requires every row a V4R12-M* shell mutant runs)
-            ("control-r12", T_R12, {}, "ok [R12SH-plant]")]
+            ("control-r12", T_R12, {}, "ok [R12SH-plant]"),
+            # round 13: the whole new file (rc == 0 requires every row a V4R13-* mutant runs)
+            ("control-r13", T_R13, {}, "ok [R13UMASK-default]")]
 
 
 def replica():
     root = tempfile.mkdtemp(prefix="r6mut.")
     shutil.copytree(os.path.join(FC, "cycle"), os.path.join(root, "cycle"))
     shutil.copytree(os.path.join(FC, "lib"), os.path.join(root, "lib"))
+    os.mkdir(os.path.join(root, "tests"))                      # round 13: the census is mutated in the replica too
+    shutil.copy(os.path.join(TESTS, "check_safepath_census.py"), os.path.join(root, CEN))
     return root
 
 
@@ -1046,6 +1154,7 @@ def run_test(root, test, extra_env):
     env["FC_CB_UNDER_TEST"] = os.path.join(root, CB)
     env["FC_BDQ_TOOL_UNDER_TEST"] = os.path.join(root, BDQ)
     env["FC_SUP_UNDER_TEST"] = os.path.join(root, SUP)
+    env["FC_CENSUS_UNDER_TEST"] = os.path.join(root, CEN)
     try:
         p = subprocess.run(["bash", os.path.join(TESTS, test)], env=env, capture_output=True, text=True,
                            timeout=600)

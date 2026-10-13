@@ -36,6 +36,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FC="$(cd "$HERE/.." && pwd)"
 SCRIPT="${FC_BR_UNDER_TEST:-$FC/cycle/baseline_replay.sh}"
 SUP="${FC_SUP_UNDER_TEST:-$FC/cycle/fc_supervisor.py}"
+CENSUS="${FC_CENSUS_UNDER_TEST:-$HERE/check_safepath_census.py}"   # round 13: the census itself can be a mutant
 [ -f "$SCRIPT" ] || { echo "NOT ok script under test not found: $SCRIPT"; exit 1; }
 [ -f "$SUP" ] || { echo "NOT ok supervisor under test not found: $SUP"; exit 1; }
 
@@ -71,7 +72,7 @@ as_foreign() { # run a command as the subordinate uid (host uid 100999) -- the g
 
 # =============================================================================
 if want LINT; then
-  if out="$(FC_SUP_UNDER_TEST="$SUP" FC_BR_UNDER_TEST="$SCRIPT" python3 "$HERE/check_safepath_census.py" 2>&1)"; then
+  if out="$(FC_SUP_UNDER_TEST="$SUP" FC_BR_UNDER_TEST="$SCRIPT" python3 "$CENSUS" 2>&1)"; then
     ok "[R12LINT] every path operation of the files under test is routed / proved-private / a checked exemption: $(tail -1 <<<"$out" | cut -c1-160)"
   else
     bad "[R12LINT] $(grep -m3 '^VIOLATION' <<<"$out" | tr '\n' ' ' | cut -c1-400) ($(tail -1 <<<"$out" | cut -c1-120))"
@@ -85,7 +86,7 @@ anchor = "def _gc_at(pfd, names, boot, held):\n    n = 0\n"
 assert s.count(anchor) == 1
 open(sys.argv[2], "w").write(s.replace(anchor, anchor + "    os.listdir('/tmp')\n"))
 PY
-  if FC_SUP_UNDER_TEST="$L/sup_raw.py" FC_BR_UNDER_TEST="$SCRIPT" python3 "$HERE/check_safepath_census.py" >"$L/o1" 2>&1; then
+  if FC_SUP_UNDER_TEST="$L/sup_raw.py" FC_BR_UNDER_TEST="$SCRIPT" python3 "$CENSUS" >"$L/o1" 2>&1; then
     bad "[R12LINT-ctl-py] a raw os.listdir('/tmp') added to the module was NOT flagged"
   else
     grep -q "^VIOLATION .* _gc_at os.listdir" "$L/o1" \
@@ -94,7 +95,7 @@ PY
   fi
   # needle 2: a plain redirect into a path under an unproved variable (the round-5 INTERRUPTED shape)
   awk '{print} /^do_one_replay\(\) \{/ && !d {print "  printf x >\"$out_path/INTERRUPTED\" 2>/dev/null"; d=1}' "$SCRIPT" >"$L/br_raw.sh"
-  if FC_SUP_UNDER_TEST="$SUP" FC_BR_UNDER_TEST="$L/br_raw.sh" python3 "$HERE/check_safepath_census.py" >"$L/o2" 2>&1; then
+  if FC_SUP_UNDER_TEST="$SUP" FC_BR_UNDER_TEST="$L/br_raw.sh" python3 "$CENSUS" >"$L/o2" 2>&1; then
     bad "[R12LINT-ctl-sh] a plain redirect into \$out_path/INTERRUPTED was NOT flagged"
   else
     grep -q "^VIOLATION .* do_one_replay redirect>" "$L/o2" \
@@ -103,14 +104,14 @@ PY
   fi
   # needle 3: an unknown exemption tag; needle 4: a param tag on a variable that is not listed
   sed 's/# safepath:devnull/# safepath:trustme/' "$SUP" >"$L/sup_tag.py"
-  if FC_SUP_UNDER_TEST="$L/sup_tag.py" FC_BR_UNDER_TEST="$SCRIPT" python3 "$HERE/check_safepath_census.py" >"$L/o3" 2>&1; then
+  if FC_SUP_UNDER_TEST="$L/sup_tag.py" FC_BR_UNDER_TEST="$SCRIPT" python3 "$CENSUS" >"$L/o3" 2>&1; then
     bad "[R12LINT-ctl-tag] an unknown safepath tag was accepted"
   else
     grep -q "unknown safepath tag 'trustme'" "$L/o3" && ok "[R12LINT-ctl-tag] an exemption tag outside the closed set FAILS the lint" \
       || bad "[R12LINT-ctl-tag] failed for another reason: $(grep -m1 VIOLATION "$L/o3")"
   fi
   awk '{print} /^run_replay_isolated\(\) \{/ && !d {print "  # safepath:param"; print "  printf x >\"$commit\""; d=1}' "$SCRIPT" >"$L/br_param.sh"
-  if FC_SUP_UNDER_TEST="$SUP" FC_BR_UNDER_TEST="$L/br_param.sh" python3 "$HERE/check_safepath_census.py" >"$L/o4" 2>&1; then
+  if FC_SUP_UNDER_TEST="$SUP" FC_BR_UNDER_TEST="$L/br_param.sh" python3 "$CENSUS" >"$L/o4" 2>&1; then
     bad "[R12LINT-ctl-param] a param tag on an unlisted variable was accepted"
   else
     grep -q "tagged param but" "$L/o4" && ok "[R12LINT-ctl-param] a param tag on a variable PARAMS does not list FAILS the lint" \

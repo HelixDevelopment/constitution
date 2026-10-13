@@ -1442,12 +1442,43 @@ try:
         "target intact=%s" % (gone, os.path.isfile(os.path.join(v2, "keep"))))
 
     # ---- [R12MASK-*] the exact mask bits ----
+    # round 13 (V4R13-1): a group write bit counts only for a group with ANOTHER member -- the 0770 rows use such a
+    # group (found here independently of the module: grp / pwd, never m._group_private), dir770-private the user's own
+    import grp as _grp, pwd as _pwd
+    _me = _pwd.getpwuid(os.geteuid()).pw_name
+
+    def shared_gid():
+        for g in os.getgroups():
+            try:
+                gr = _grp.getgrgid(g)
+            except KeyError:
+                continue
+            others = [u for u in gr.gr_mem if u != _me] + \
+                [q.pw_name for q in _pwd.getpwall() if q.pw_gid == g and q.pw_uid != os.geteuid()]
+            if others:
+                return g
+        return None
+    SG = shared_gid()
+    if SG is None:
+        print("SKIP [R12MASK-dir770 / -dir770-read] this user is in no group with another member -- not counted")
     for tag, dmode, lmode, want_removed, what in (
-            ("dir770", 0o770, 0o600, False, "a state directory 0770 (group-writable: DIR_FORBID has 0o020) -> kept"),
+            ("dir770", 0o770, 0o600, False, "a state directory 0770 whose group has another member (group-writable: "
+                                            "DIR_FORBID has 0o020) -> kept"),
+            ("dir770private", 0o770, 0o600, True, "a state directory 0770 whose group holds only this user (V4R13-1: "
+                                                  "that bit grants nobody anything) -> collected"),
             ("file602", 0o700, 0o602, False, "a lease 0602 (other-writable: FILE_FORBID is 0o002) -> kept"),
             ("file620", 0o700, 0o620, True, "a lease 0620 (group-writable is NOT in FILE_FORBID) -> collected")):
+        if tag == "dir770" and SG is None:
+            continue
         par = mkd("mask_" + tag)
         d = dead_sdir(par, tag, lease_mode=lmode, mode=dmode)
+        if tag == "dir770":
+            os.chown(d, -1, SG)
+            os.chmod(d, dmode)
+        if tag == "dir770private" and ([1 for q in _pwd.getpwall() if q.pw_gid == os.getegid() and q.pw_uid != os.geteuid()]
+                                        or [u for u in _grp.getgrgid(os.getegid()).gr_mem if u != _me]):
+            print("SKIP [R12MASK-dir770private] this user's primary group has another member -- not counted")
+            continue
         r = in_child(lambda par=par: m.gc_statedirs(par), 15)
         (ok if r == ("1" if want_removed else "0") and os.path.lexists(d) != want_removed else bad)(
             "[R12MASK-%s] %s: gc %s" % (tag, what, r))
@@ -1457,11 +1488,15 @@ try:
     m.report_prepare(td770, FCC, out770, "unit-test/v1", _json.dumps(b12), 0)
     write_report(out770, b12)
     g700 = m.report_verified(td770)
-    os.chmod(td770, 0o770)
-    g770 = m.report_verified(td770)
-    os.chmod(td770, 0o700)
-    (ok if g700 == 0 and g770 is None else bad)(
-        "[R12MASK-dir770-read] a marker in a 0700 state directory is trusted (%r), in a 0770 one NOT (%r)" % (g700, g770))
+    if SG is not None:
+        os.chown(td770, -1, SG)
+        os.chmod(td770, 0o770)
+        g770 = m.report_verified(td770)
+        os.chown(td770, -1, os.getegid())
+        os.chmod(td770, 0o700)
+        (ok if g700 == 0 and g770 is None else bad)(
+            "[R12MASK-dir770-read] a marker in a 0700 state directory is trusted (%r), in a 0770 one whose group has "
+            "another member NOT (%r)" % (g700, g770))
 
     # ---- [R12MARKER-*] the marker FILE's own checks ----
     mk_ = os.path.join(td770, m.REPORT_MARKER)
