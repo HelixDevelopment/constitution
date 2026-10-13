@@ -251,7 +251,12 @@ def instr(stmts, prefix, role_list, start=0, ctx=""):
 tree = ast.parse(open(RSUP).read())
 funcs = {f.name: f for f in tree.body if isinstance(f, ast.FunctionDef)}
 SHARED = {"teardown": ["keeper", "main"], "process_ledger": ["keeper", "main"], "remove_statedir": ["keeper", "main"],
-          "read_report": ["keeper", "main"], "_exit_main": ["main"]}
+          "read_report": ["keeper", "main"], "_exit_main": ["main"],
+          # round 12: the bodies of process_ledger / remove_statedir moved into the fd-relative helpers they now call
+          # (one proved fd, rule 4) -- the same statements, so the same await points (without these the census dropped
+          # from 76 / 93 to 38 / 55 tags: a blind spot). remove_tree / _rmtree_at replace shutil.rmtree, which was never
+          # instrumented either (one opaque call then, one opaque call now).
+          "_ledger_at": ["keeper", "main"], "_remove_state_at": ["keeper", "main"]}
 for fname, rl in SHARED.items():
     if fname in funcs:
         funcs[fname].body = instr(funcs[fname].body, fname, rl, ctx=fname)

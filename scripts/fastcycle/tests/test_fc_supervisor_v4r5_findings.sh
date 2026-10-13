@@ -583,8 +583,11 @@ if want("F2WORKER"):
     base = os.path.join(WORK, "f2w"); os.makedirs(base)
     repo, wt, needle = locked_worktree(base, "replay.lkw")
     led = os.path.join(base, "ledger.wt.x"); open(led, "w").write("x")
-    fn = subprocess.run(["sed", "-n", "/^_fc_wt_listed() {/,/^}/p;/^_fc_wt_cleanup() {/,/^}/p", SCRIPT], capture_output=True, text=True).stdout
-    harness = fn + '\n_FC_WT_REPO="$1"; _FC_WT_PATH="$2"; _FC_WT_LEDGER="$3"\n_fc_wt_cleanup; echo "rc=$?"\n'
+    # round 12: _fc_wt_cleanup removes the directory through the trusted-parent helper (_fc_safe rmtree), which runs
+    # the supervisor next to the script -- both come along, exactly as the script defines them
+    fn = subprocess.run(["sed", "-n", "/^_fc_safe() {/p;/^_fc_wt_listed() {/,/^}/p;/^_fc_wt_cleanup() {/,/^}/p", SCRIPT], capture_output=True, text=True).stdout
+    harness = ("_FC_SUPERVISOR='%s'\n" % os.path.join(os.path.dirname(SCRIPT), "fc_supervisor.py")) + fn + \
+        '\n_FC_WT_REPO="$1"; _FC_WT_PATH="$2"; _FC_WT_LEDGER="$3"\n_fc_wt_cleanup; echo "rc=$?"\n'
     p = subprocess.run(["bash", "-c", harness, "x", repo, wt, led], capture_output=True, text=True)
     listed = [e for e in wt_entries(repo) if os.path.basename(e) == "replay.lkw"]
     if not needle or not fn.strip():
@@ -724,14 +727,17 @@ if want("F9LEDGER"):
 
 
 def kill_worker_shim(case, trigger):
-    """A `mktemp` on PATH: creates the directory for real, then SIGKILLs the replay WORKER (the bash
-    whose parent is fc-keeper) -- a stop landing exactly between `mktemp -d` and the ledger entry."""
+    """A `python3` on PATH (round 12: the directory is made by `python3 ... safepath mkdtemp`, the trusted-parent
+    helper, no longer by `mktemp -d`): every other call execs the real python3; a `safepath mkdtemp` call whose
+    arguments match the trigger creates the directory for real, then SIGKILLs the replay WORKER (the bash whose parent
+    is fc-keeper) -- a stop landing exactly between the directory's creation and the ledger entry."""
     shim = os.path.join(case, "shim"); os.makedirs(shim)
-    real = shutil.which("mktemp")
-    open(os.path.join(shim, "mktemp"), "w").write(r'''#!/bin/bash
+    real = shutil.which("python3")
+    open(os.path.join(shim, "python3"), "w").write(r'''#!/bin/bash
+case "$*" in *" safepath mkdtemp "*) ;; *) exec %s "$@" ;; esac
 out="$(%s "$@")" || exit $?
 case "$*" in
-  *"-d "*%s*)
+  *%s*)
     echo "$out" >"%s/created"
     p=$PPID
     for _ in 1 2 3 4; do
@@ -745,12 +751,12 @@ case "$*" in
     done ;;
 esac
 echo "$out"
-''' % (real, trigger, case, case))
-    os.chmod(os.path.join(shim, "mktemp"), 0o755)
+''' % (real, real, trigger, case, case))
+    os.chmod(os.path.join(shim, "python3"), 0o755)
     return shim
 
 
-for tag, trig, sub in (("F9WT", '"/replay."', None), ("F9LOGS", '"/replay-logs/"', "replay-logs")):
+for tag, trig, sub in (("F9WT", '" replay."', None), ("F9LOGS", '"/replay-logs "', "replay-logs")):
     if not want(tag):
         continue
     case = os.path.join(WORK, tag.lower()); os.makedirs(case)
@@ -2061,8 +2067,8 @@ if want("R7N6"):
     src = open(SCRIPT).read()
     n_s = len(re.findall(r'python3 -I -S "\$_FC_SUPERVISOR"', src))
     n_all = len(re.findall(r'python3[^\n]*"\$_FC_SUPERVISOR"', src))
-    if n_all == 4 and n_s == 4:
-        ok("[R7N6] (c) all four supervisor invocations (main exec, run, report-prepare, report-check) start Python with "
+    if n_all == 5 and n_s == 5:      # round 12: + the trusted-parent helper (_fc_safe -> safepath)
+        ok("[R7N6] (c) all five supervisor invocations (main exec, run, report-prepare, report-check, safepath) start Python with "
            "-S (no site import: a stop during start-up can no longer surface as 'Fatal Python error ... exit 1')")
     else:
         bad("[R7N6] (c) %d of %d supervisor invocations use `python3 -I -S`" % (n_s, n_all))
