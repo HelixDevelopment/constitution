@@ -87,10 +87,16 @@ deps:
     layout: flat
 
 transitive_handling:
-  # §11.4.28(C) depth-1 carve-out: constitution IS the hub, its engines
-  # never nest own-org deps. `recursive: true` still declared so consumer
-  # tooling walks the manifest chain; each engine's own helix-deps.yaml
-  # declares `deps: []` (leaf), so the walk terminates naturally.
+  # §11.4.28(C) depth-1 carve-out: constitution IS the hub. Most engines
+  # nest no own-org deps and declare `deps: []` (leaf), but llmctl is NOT a
+  # leaf: its own helix-deps.yaml lists `constitution` (THIS constitution)
+  # and `containers`. `recursive: true` stays the default so tooling walks
+  # the manifest chain, with ONE explicit exception: any dep entry carrying
+  # `recursive_init: false` (llmctl) MUST be neither initialised with
+  # `git submodule update --recursive` nor walked into by manifest-walking
+  # tooling; tooling that ignores the marker would loop through the mutual
+  # reference. CM-LLMCTL-SUBMODULE-NONRECURSIVE checks the marker and that
+  # the loop is finite.
   recursive: true
 
   # §11.4.6 no-guessing: conflicts (two dep entries diverging on ref)

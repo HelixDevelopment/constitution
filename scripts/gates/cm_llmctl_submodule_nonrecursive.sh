@@ -9,11 +9,18 @@
 # llmctl's own constitution pin names a commit that contains no
 # submodules/llmctl. This gate fails when:
 #   (1) helix-deps.yaml has no llmctl entry carrying `recursive_init: false`;
-#   (2) llmctl's own `constitution` gitlink resolves to a commit whose tree
-#       contains `submodules/llmctl` (a recursive init would re-enter here).
+#   (2) re-entry: starting from the llmctl commit RECORDED in this repo's HEAD
+#       for submodules/llmctl (falling back LOUDLY to the checked-out HEAD only
+#       when the recorded commit is not resolvable), the own-org submodules it
+#       pins (`constitution` and `submodules/containers`) are inspected; a pin
+#       whose tree contains an entry named `llmctl` at ANY path, or a
+#       `.gitmodules` whose url names this constitution or llmctl, re-enters
+#       this constitution and FAILs (the offending path is reported).
 # If submodules/llmctl is not checked out, check (2) is SKIPPED with a printed
 # reason (nothing can re-enter an uninitialised path); check (1) always runs.
-# A pin that cannot be resolved to a commit is BLIND (exit 2), never a PASS.
+# A pin that cannot be resolved to a commit is BLIND (exit 2), never a PASS;
+# extra object stores may be supplied with git's own GIT_ALTERNATE_OBJECT_DIRECTORIES,
+# or by initialising the one level (`git -C submodules/llmctl submodule update --init submodules/containers`).
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_llmctl_submodule_nonrecursive.sh [--root <constitution-root>]
@@ -56,28 +63,44 @@ else
 fi
 # (2) cycle finiteness
 sub="$root/submodules/llmctl"
+blind=0
 if ! git -C "$sub" rev-parse --git-dir >/dev/null 2>&1 || [ "$(git -C "$sub" rev-parse --show-toplevel 2>/dev/null)" != "$sub" ]; then
   echo "$GATE: SKIP (2) — submodules/llmctl is not checked out; nothing can re-enter this constitution through it"
 else
-  line="$(git -C "$sub" ls-tree HEAD constitution 2>/dev/null)"
-  mode="${line%% *}"; pin="$(printf '%s' "$line" | awk '{print $3}')"
-  if [ "$mode" != "160000" ] || [ -z "$pin" ]; then
-    echo "$GATE: SKIP (2) — llmctl at HEAD has no 'constitution' submodule gitlink; no cycle exists"
+  # object stores tried for any commit: this repo, llmctl, a one-level nested containers checkout (+ GIT_ALTERNATE_OBJECT_DIRECTORIES)
+  stores=("$root" "$sub")
+  [ -e "$sub/submodules/containers/.git" ] && stores+=("$sub/submodules/containers")
+  find_store() { local c; for c in "${stores[@]}"; do [ "$(git -C "$c" cat-file -t "$1" 2>/dev/null)" = "commit" ] && { echo "$c"; return 0; }; done; return 1; }
+  rec="$(git -C "$root" ls-tree HEAD submodules/llmctl 2>/dev/null | awk '$1=="160000"{print $3}')"
+  L=""
+  if [ -n "$rec" ]; then
+    if st="$(find_store "$rec")"; then L="$rec"; lstore="$st"; echo "$GATE: using the llmctl commit recorded in this repo: ${rec:0:7}"
+    else echo "$GATE: NOTE — recorded llmctl commit ${rec:0:7} is not resolvable; FALLING BACK to the checked-out HEAD (less authoritative)" >&2; fi
   else
-    gd=""
-    for cand in "$root" "$sub"; do
-      if [ "$(git -C "$cand" cat-file -t "$pin" 2>/dev/null)" = "commit" ]; then gd="$cand"; break; fi
-    done
-    if [ -z "$gd" ]; then
-      echo "$GATE: BLIND — llmctl's constitution pin $pin is not resolvable to a commit in this repo or in llmctl (fetch it; an unresolved pin is never a PASS)" >&2
-      exit 2
-    fi
-    if [ -n "$(git -C "$gd" ls-tree "$pin" submodules/llmctl 2>/dev/null)" ]; then
-      echo "$GATE: FAIL — llmctl's constitution pin $pin contains submodules/llmctl: a recursive init would re-enter this constitution (refuse the pin bump)"; fail=1
-    else
-      echo "$GATE: llmctl's constitution pin ${pin:0:7} contains no submodules/llmctl (cycle finite)"
-    fi
+    echo "$GATE: NOTE — this repo's HEAD records no gitlink for submodules/llmctl; FALLING BACK to the checked-out HEAD" >&2
   fi
+  if [ -z "$L" ]; then L="$(git -C "$sub" rev-parse HEAD)"; lstore="$sub"; fi
+  # inspect <label> <commit>: flags re-entry of this constitution/llmctl anywhere in that commit's tree; sets fail/blind
+  inspect() {
+    local label="$1" c="$2" st hit gm
+    if ! st="$(find_store "$c")"; then
+      echo "$GATE: BLIND — $label pin $c is not resolvable to a commit (fetch it, or init that one submodule level); an unresolved pin is never a PASS" >&2; blind=1; return
+    fi
+    hit="$(git -C "$st" ls-tree -r -t --name-only "$c" 2>/dev/null | awk -F/ '$NF=="llmctl"')"
+    if [ -n "$hit" ]; then echo "$GATE: FAIL — $label pin ${c:0:7} contains entry named llmctl at: $(echo $hit | tr '\n' ' ')— a recursive init would re-enter this constitution (refuse the pin bump)"; fail=1; return; fi
+    gm="$(git -C "$st" show "$c:.gitmodules" 2>/dev/null | awk -F'= *' '/^[[:space:]]*url[[:space:]]*=/{print $2}' | grep -Ei '(^|[/:])(helixconstitution|constitution|llmctl)(\.git)?$' || true)"
+    if [ -n "$gm" ]; then echo "$GATE: FAIL — $label pin ${c:0:7} .gitmodules names this constitution/llmctl as a dependency: $(echo $gm | tr '\n' ' ')"; fail=1; return; fi
+    echo "$GATE: $label pin ${c:0:7} does not re-enter this constitution (cycle finite)"
+  }
+  seen=0
+  for name in constitution submodules/containers; do
+    line="$(git -C "$lstore" ls-tree "$L" "$name" 2>/dev/null)"
+    mode="${line%% *}"; pin="$(printf '%s' "$line" | awk '{print $3}')"
+    if [ "$mode" != "160000" ] || [ -z "$pin" ]; then echo "$GATE: llmctl@${L:0:7} has no gitlink '$name' (nothing to inspect)"; continue; fi
+    seen=1; inspect "llmctl->$name" "$pin"
+  done
+  [ "$seen" = 1 ] || echo "$GATE: llmctl pins no own-org submodule; no cycle exists"
 fi
 if [ "$fail" -ne 0 ]; then echo "❌ $GATE: FAIL"; exit 1; fi
+if [ "$blind" -ne 0 ]; then echo "⚠ $GATE: BLIND (exit 2) — could not determine"; exit 2; fi
 echo "✅ $GATE: PASS"
