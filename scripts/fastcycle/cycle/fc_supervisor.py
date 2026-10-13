@@ -953,9 +953,11 @@ DIR_FORBID = 0o022          # a directory this tool trusts: nobody else may crea
 FILE_FORBID = 0o002         # a file this tool trusts: nobody else may write it
 
 
-def _owned_ok(st, is_type, forbid):
-    # a directory's group write bit for a group holding only this user grants nothing to another user (V4R13-1)
-    if forbid & 0o020 and _private_group_write(st):
+def _owned_ok(st, is_type, forbid, ref=None):
+    # a directory's group write bit for a group holding only this user grants nothing to another user (V4R13-1) --
+    # unless the directory carries an extended ACL (its group bits are then the ACL MASK: V4R14-1); ref names the
+    # object for that check (_acl_free), None -> no exemption
+    if forbid & 0o020 and _private_group_write(st, ref):
         forbid &= ~0o020
     return bool(is_type(st.st_mode)) and st.st_uid == os.geteuid() and not (st.st_mode & forbid)
 
@@ -967,12 +969,12 @@ def open_owned_dir(path, dir_fd=None, forbid=DIR_FORBID):
     if dir_fd is None:
         return _at_parent(path, lambda pfd, name: open_owned_dir(name, pfd, forbid))
     pre = os.stat(path, dir_fd=dir_fd, follow_symlinks=False)
-    if not _owned_ok(pre, _st.S_ISDIR, forbid):
+    if not _owned_ok(pre, _st.S_ISDIR, forbid, (dir_fd, path)):
         raise UnsafeFile("%s: not a directory owned by uid %d and writable by it alone" % (path, os.geteuid()))
     fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | _SAFE_OPEN, dir_fd=dir_fd)
     try:
         st = os.fstat(fd)
-        if (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino) or not _owned_ok(st, _st.S_ISDIR, forbid):
+        if (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino) or not _owned_ok(st, _st.S_ISDIR, forbid, fd):
             raise UnsafeFile("%s: replaced between the look and the open" % path)
     except BaseException:
         os.close(fd)
@@ -1035,7 +1037,10 @@ def _read_owned(name, limit, dir_fd=None, forbid=FILE_FORBID):
 #      carries the sticky bit (then nobody else may rename or remove an entry that is not theirs: /tmp). A GROUP write
 #      bit is not counted when the group holds nobody but this user (_group_private, resolved from the group database:
 #      round 13, V4R13-1 -- a repository cloned under umask 002 on a user-private-group host has 0775 directories); a
-#      group with any other member (or one that is not this user's) is refused, with the reason and the remedy.
+#      group with any other member (or one that is not this user's) is refused, with the reason and the remedy. That
+#      exemption is NEVER given to a directory carrying an extended ACL (_acl_free: any system.* xattr, read through
+#      the proved fd; unreadable -> no exemption): with an ACL the group bits are the MASK of named grants, and
+#      `setfacl -m u:<other>:rwx` let another user rename and plant in a directory round 13 certified (V4R14-1).
 #   2. WALKED, NEVER RE-RESOLVED (_walk): a path is resolved from '/' one component at a time (O_PATH|O_NOFOLLOW per
 #      component, fstat on the fd that was opened); a symlink is followed only when it is root's or ours AND sits in a
 #      directory already proved. The walk returns an fd of the final directory; every later operation in it is an
@@ -1075,8 +1080,11 @@ def _group_private(gid):
     (getpwall()). Anything that cannot be resolved (gid unknown, the database unreadable) -> False (not private: the
     conservative answer). Cached per process. BOUNDARY (§11.4.6): the group database is the authority -- membership
     granted outside it (a group password used with newgrp, a setgid program of that group, an NSS source getpwall
-    does not enumerate) is not seen; each of those needs root to set up, and root is trusted by this rule anyway. A
-    member added WHILE a replay runs is seen by the next proof, not by one already made."""
+    does not enumerate) is not seen; each of those needs root to set up, and root is trusted by this rule anyway.
+    CACHED FOR THE PROCESS LIFETIME (V4R14-3, corrected): a member added to the group while a process runs is NOT seen
+    by that process -- each `safepath` call is a new process (fresh answer), but the long-lived supervisor (main /
+    keeper / worker) keeps the answer it read first. Adding a member needs root (the group database), which this rule
+    trusts anyway."""
     if gid in _GROUP_PRIVATE:
         return _GROUP_PRIVATE[gid]
     ans = False
@@ -1093,32 +1101,59 @@ def _group_private(gid):
     return ans
 
 
-def _private_group_write(st):
-    """a directory whose GROUP write bit is set for a group that holds nobody but this user (_group_private): that bit
-    grants nothing to another user, so it is read as if it were clear (V4R13-1: the umask-002 / user-private-group
-    default must not be refused)."""
-    return bool(_st.S_ISDIR(st.st_mode) and st.st_mode & 0o020 and _group_private(st.st_gid))
+def _acl_free(ref):
+    """V4R14-1 (round 14): whether the object `ref` names carries NO extended access-control xattr -- read through the
+    kernel, never assumed. With a POSIX ACL the mode's GROUP bits are the ACL MASK: `setfacl -m u:<other>:rwx D`
+    (or one inherited from a default ACL) shows as g+w and lets that other user rename / plant in D although D's group
+    holds only this user. The class (every grant the mode bits do not show) and its closure: ANY name in the `system.`
+    xattr namespace counts (system.posix_acl_access, system.posix_acl_default, system.nfs4_acl, system.richacl, the
+    CIFS ACL names): such a directory gets no group-private exemption. ref: an int fd (read via /proc/self/fd/N --
+    an O_PATH fd cannot be passed to flistxattr) or (dir_fd, name) (the name itself, not followed). None, an
+    unsupported file system (ENOTSUP), or any error reading it -> False (FAIL CLOSED: not exempt -- the round-6
+    refusal, with its remedy)."""
+    if ref is None:
+        return False
+    try:
+        if isinstance(ref, tuple):
+            names = os.listxattr("/proc/self/fd/%d/%s" % ref, follow_symlinks=False)  # safepath:procfs
+        else:
+            names = os.listxattr("/proc/self/fd/%d" % ref)  # safepath:procfs
+    except (OSError, TypeError, ValueError):
+        return False
+    return not [n for n in names if n.startswith("system.")]
 
 
-def _trusted_ok(st):
+def _private_group_write(st, ref=None):
+    """a directory whose GROUP write bit is set for a group that holds nobody but this user (_group_private) AND that
+    carries no extended ACL (_acl_free on ref, V4R14-1 -- with an ACL the group bits are the mask of named grants):
+    that bit grants nothing to another user, so it is read as if it were clear (V4R13-1: the umask-002 /
+    user-private-group default must not be refused)."""
+    return bool(_st.S_ISDIR(st.st_mode) and st.st_mode & 0o020 and _group_private(st.st_gid) and _acl_free(ref))
+
+
+def _trusted_ok(st, ref=None):
     """THE trusted-parent rule (rule 1): owned by root or by this process's effective uid; a directory writable by
-    group or other only with the sticky bit set -- a group write bit of a group that holds only this user
-    (_private_group_write) grants nothing to anyone else and is not counted."""
+    group or other only with the sticky bit set -- a group write bit of a group that holds only this user, on a
+    directory with no extended ACL (_private_group_write; ref names it for _acl_free), grants nothing to anyone else
+    and is not counted."""
     if st.st_uid not in (0, os.geteuid()):
         return False
-    if _private_group_write(st):
+    if _private_group_write(st, ref):
         return not (st.st_mode & 0o002 and not _st.S_ISVTX & st.st_mode)
     return not (_st.S_ISDIR(st.st_mode) and st.st_mode & 0o022 and not st.st_mode & _st.S_ISVTX)
 
 
-def _untrusted_why(st):
-    """the reason _trusted_ok(st) is False, worded from what is KNOWN (V4R13-1), with the remedy"""
+def _untrusted_why(st, ref=None):
+    """the reason _trusted_ok(st, ref) is False, worded from what is KNOWN (V4R13-1, V4R14-1), with the remedy"""
     if st.st_uid not in (0, os.geteuid()):
         return "owned by uid %d (neither root nor this user, uid %d): that user may rename what is in it" \
             % (st.st_uid, os.geteuid())
     m = _st.S_IMODE(st.st_mode)
     if m & 0o002:
         return "mode %o: writable by every user without the sticky bit (remedy: chmod o-w, or chmod +t)" % m
+    if _st.S_ISDIR(st.st_mode) and _group_private(st.st_gid) and not _acl_free(ref):
+        return ("mode %o with an extended ACL (a system.* xattr), or one that could not be read: its group bits are "
+                "the ACL MASK, so a named entry may let another user write it (remedy: setfacl -b, or chmod g-w)" % m)
     return ("mode %o: writable by group %d, which has a member other than this user or is not one of this user's "
             "groups (remedy: chmod g-w, or use a directory outside it)" % (m, st.st_gid))
 
@@ -1136,7 +1171,7 @@ def _walk(path, create=False, mode=0o700):
     stack = [(os.open("/", _PATH_FLAGS | os.O_DIRECTORY), "")]
     links = 0
     try:
-        if not _trusted_ok(os.fstat(stack[0][0])):
+        if not _trusted_ok(os.fstat(stack[0][0]), stack[0][0]):
             raise UnsafeFile("/: not trusted")
         while todo:
             comp = todo.pop()
@@ -1160,7 +1195,9 @@ def _walk(path, create=False, mode=0o700):
             except OSError:
                 os.close(fd)
                 raise
-            if not _st.S_ISDIR(st.st_mode) or not _trusted_ok(st):
+            trusted = _trusted_ok(st, fd)    # ONE answer (the ACL is read through fd once) for both uses below
+            why = None if trusted or not _st.S_ISDIR(st.st_mode) else _untrusted_why(st, fd)  # before fd is closed
+            if not _st.S_ISDIR(st.st_mode) or not trusted:
                 os.close(fd)                 # only a proved directory is kept (pushed below)
             where = "/".join(n for _, n in stack) + "/" + comp
             if _st.S_ISLNK(st.st_mode):
@@ -1177,14 +1214,14 @@ def _walk(path, create=False, mode=0o700):
                 continue
             if not _st.S_ISDIR(st.st_mode):
                 raise UnsafeFile("%s: not a directory" % where)
-            if not _trusted_ok(st):
+            if not trusted:
                 if todo and todo[-1] == "..":
                     # NIT-5 (round 13): `D/..` names D's PARENT -- the directory already on top of the stack, proved.
                     # The kernel's resolution of what follows never depends on D's entries (D itself sits in that
                     # proved parent, so nobody untrusted can rename D away); D is passed over, not trusted, not kept.
                     todo.pop()
                     continue
-                raise UnsafeFile("%s: %s (the trusted-parent rule)" % (where, _untrusted_why(st)))
+                raise UnsafeFile("%s: %s (the trusted-parent rule)" % (where, why))
             stack.append((fd, comp))
         real = "/" + "/".join(n for _, n in stack[1:])
         return stack.pop()[0], real
@@ -1265,7 +1302,7 @@ def mkdtemp_path(parent, prefix, exclusive_parent=False):
     this user's ALONE) -> its real path. Raises OSError (UnsafeFile when the parent is not trusted)."""
     pfd, real = _walk(parent)
     try:
-        if exclusive_parent and not _owned_ok(os.fstat(pfd), _st.S_ISDIR, DIR_FORBID):
+        if exclusive_parent and not _owned_ok(os.fstat(pfd), _st.S_ISDIR, DIR_FORBID, pfd):
             raise UnsafeFile("%s: not a directory of uid %d's alone" % (real, os.geteuid()))
         name, dfd = _mkdtemp_at(pfd, prefix)
         os.close(dfd)
@@ -1280,7 +1317,7 @@ def ensure_dir(path, exclusive=False):
     directory created here is 0700 then. Returns the real path. Raises OSError."""
     fd, real = _walk(path, create=True, mode=0o700 if exclusive else 0o755)
     try:
-        if exclusive and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID):
+        if exclusive and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):
             raise UnsafeFile("%s: not a directory of uid %d's alone (owner, or writable by group/other)"
                              % (real, os.geteuid()))
     finally:
@@ -1927,6 +1964,7 @@ def _take_locks(a):
         if not os.path.isdir(a.lock_dir or ""):    # safepath:probe (a precondition message; the lock is opened by _lock_one)
             say("BLIND: lock directory %r is not a directory (FC_REPLAY_LOCK_DIR / XDG_RUNTIME_DIR)" % a.lock_dir)
             sys.exit(4)
+        lock_dir = _private_lock_dir(a.lock_dir)
         devs = []
         for p in a.lock_fs:
             try:
@@ -1937,9 +1975,37 @@ def _take_locks(a):
             if d not in devs:
                 devs.append(d)
         for d in devs:
-            fds.append(_lock_one(os.path.join(a.lock_dir, "fc_baseline_replay.fs-%d.lock" % d),
+            fds.append(_lock_one(os.path.join(lock_dir, "fc_baseline_replay.fs-%d.lock" % d),
                                  "on the same filesystem"))
     return fds
+
+
+def _private_lock_dir(lock_dir):
+    """V4R14-3 (round 14): the per-filesystem lock name is PREDICTABLE (fc_baseline_replay.fs-<dev>.lock), so in a
+    lock directory others may create names in -- the /tmp fallback (1777) -- any user could pre-plant it: open_owned_file
+    then refuses a file another uid owns and EVERY replay ends BLIND 4 (a denial of service; a per-user subdirectory in
+    /tmp is just as predictable). Such a directory is therefore replaced by one that is this user's ALONE:
+    $HOME/.cache/fc_baseline_replay/locks, made and proved by ensure_dir(exclusive=True). A lock directory that is this
+    user's alone ($XDG_RUNTIME_DIR, an FC_REPLAY_LOCK_DIR of ours) is used as it is. BOUNDARY (§11.4.6): with no usable
+    $HOME (unset, relative, or failing the trusted-parent rule) the shared directory stays in use -- and with it the
+    pre-plant DoS (the replay refuses, BLIND 4, it never runs unlocked); since the lock files are 0600 (round 13), two
+    DIFFERENT users never serialise on one lock (each keeps their own)."""
+    try:
+        fd, real = _walk(lock_dir)
+    except OSError:
+        return lock_dir                          # not walkable: _lock_one's open refuses it and says why (BLIND 4)
+    try:
+        if _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):
+            return real
+    finally:
+        os.close(fd)
+    home = os.environ.get("HOME", "")
+    if not home.startswith("/"):
+        return lock_dir
+    try:
+        return ensure_dir(home.rstrip("/") + "/.cache/fc_baseline_replay/locks", exclusive=True)
+    except OSError:
+        return lock_dir
 
 
 _OLD_LOCKS = []
@@ -1989,7 +2055,12 @@ def _lock_one(path, scope):
             finally:
                 os.close(pfd)
             # the OLD inode stays locked for this process's lifetime too: a replay that opened it before the rename
-            # must still find it held (else two replays would run at once)
+            # must still find it held (else two replays would run at once).
+            # BOUNDARY (V4R14-3, stated -- not closed by 0600): another user who ALREADY holds LOCK_EX on an old
+            # readable file when this version first runs keeps it busy (the replacement happens only after OUR flock
+            # succeeds: busy -> BLIND 4, never two replays); a lock name PRE-PLANTED by another user in a shared lock
+            # directory is avoided by _private_lock_dir ($HOME/.cache), and remains a refusal (BLIND 4) without a
+            # usable $HOME.
             _OLD_LOCKS.append(fd)
             fd = nfd
     except BlockingIOError:
@@ -2513,7 +2584,7 @@ def cmd_safepath(argv):
             else:
                 fd, real = _walk(args[0])
                 try:
-                    if flag and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID):
+                    if flag and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):
                         raise UnsafeFile("%s: not a directory of uid %d's alone" % (real, os.geteuid()))
                 finally:
                     os.close(fd)

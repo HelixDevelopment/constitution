@@ -168,8 +168,8 @@ wait_for_lines() { # <file> <n> <tenths>
 R() {
   local repo="$1" wtr="$2" out="$3"; shift 3
   bash "$SCRIPT" replay --commit "$(git -C "$repo" rev-parse HEAD)" \
-    --repo-root "$repo" --worktree-root "$wtr" --min-free-kb 0 --out "$out" "$@"
-}
+    --repo-root "$repo" --worktree-root "$wtr" --min-free-kb 0 --min-free-kb-objects 0 --out "$out" "$@"
+}   # round 14: --min-free-kb-objects 0 too -- these rows test other things; a later explicit value still wins
 
 [ -f "$SCRIPT" ] || { echo "NOT ok script under test not found: $SCRIPT"; exit 1; }
 
@@ -1152,7 +1152,7 @@ if want V4-4; then
     reap_marker
     wait "$HOLDER_PID" 2>/dev/null; HOLDER_PID=""
     bash "$SCRIPT" replay --commit "$(git -C "$REPO" rev-parse HEAD)" --repo-root "$REPO" \
-      --worktree-root "$WORK/v44_wt" --min-free-kb 0 --gate-cmd true --cold-runs 1 --warm-runs 0 \
+      --worktree-root "$WORK/v44_wt" --min-free-kb 0 --min-free-kb-objects 0 --gate-cmd true --cold-runs 1 --warm-runs 0 \
       --out "$WORK/v44b.json" >/dev/null 2>&1; rc=$?
     if [ "$rc" = 0 ]; then
       ok "[V4-4] control: once the lock is released the replay runs (exit 0)"
