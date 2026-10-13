@@ -252,3 +252,4 @@ Paired §1.1 mutations: dispatch a round 8 with no operator-decision record → 
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.276.
 
 Non-compliance is a release blocker regardless of context. No escape hatch — no `--unbounded-review-rounds`, `--fix-instance-not-class`, `--defer-ground-truth-probe`, `--narrow-threat-model-to-reach-go`, `--reset-round-count-on-refile`, `--defer-structural-fix-past-round-3` flag.
+

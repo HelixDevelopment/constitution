@@ -1,13 +1,13 @@
 schema_version: 1
-generated_at: '2026-10-12T21:37:42.367038+00:00'
+generated_at: '2026-10-13T13:34:55.591486+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: f5224a8c0abe5a0bc8bd38d7d509b4dcbb9f55fd
-  source_sha256: 12926b4527a5226a18077a80367d11b2244545aaf8257b5211525e8283c7212e
+  commit: 4091798af478783bee6759c867242157a11dc735
+  source_sha256: c5c47b00f686c05b6ba5988a99d15b9edd0bb131af8347b203787cf3db955b23
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
-  anchor_count: 33
+  anchor_count: 34
 - name: code-review-and-quality
   path: constitution/groups/code-review-and-quality.md
   anchor_count: 12
@@ -34,7 +34,7 @@ groups:
   anchor_count: 46
 - name: testing-and-tdd
   path: constitution/groups/testing-and-tdd.md
-  anchor_count: 40
+  anchor_count: 41
 - name: translation-and-localization
   path: constitution/groups/translation-and-localization.md
   anchor_count: 3
@@ -7166,6 +7166,156 @@ anchors:
   - 11.4.66
   - 11.4.97
   - 11.4.99
+- id: 11.4.277
+  title: '— llmctl model validation gate: every model run through llmctl (Vision included)
+    by a project or any of its components / services / submodules (recursively) passes
+    deterministic known-answer validation BEFORE decision-bearing use; decision-bearing
+    use runs with `LLMCTL_VALIDATE_STRICT=1` and gates on `llmctl require-validated
+    <profile>`; models are acquired and run ONLY through the constitution-vendored
+    llmctl (`submodules/llmctl`); a wrong answer means the model or runtime is defective
+    and is investigated, never retried-until-green; llmctl units are host-safe by
+    construction (User mandate, 2026-10-12)'
+  group: anti-bluff-and-evidence
+  location: constitution/groups/anti-bluff-and-evidence.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-277-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - '11.4'
+  - 11.4.10
+  - 11.4.101
+  - 11.4.102
+  - 11.4.107
+  - 11.4.108
+  - 11.4.115
+  - 11.4.117
+  - 11.4.118
+  - 11.4.119
+  - 11.4.123
+  - 11.4.133
+  - 11.4.159
+  - 11.4.160
+  - 11.4.161
+  - 11.4.163
+  - 11.4.17
+  - 11.4.193
+  - 11.4.197
+  - 11.4.201
+  - 11.4.208
+  - 11.4.210
+  - 11.4.227
+  - 11.4.251
+  - 11.4.252
+  - 11.4.254
+  - 11.4.255
+  - 11.4.256
+  - 11.4.26
+  - 11.4.262
+  - 11.4.263
+  - 11.4.268
+  - 11.4.269
+  - 11.4.270
+  - 11.4.271
+  - 11.4.277
+  - 11.4.278
+  - 11.4.28
+  - 11.4.3
+  - 11.4.31
+  - 11.4.35
+  - 11.4.4
+  - 11.4.40
+  - 11.4.5
+  - 11.4.6
+  - 11.4.69
+  - 11.4.74
+  - 11.4.76
+  - 11.4.77
+  - 11.4.83
+  - '12.12'
+  - '12.3'
+  - '12.6'
+- id: 11.4.278
+  title: '— Mandatory HelixQA UI QA with Vision eyes: every project with a UI on ANY
+    platform or OS passes HelixQA full suites over all screens, flows, use cases and
+    edge cases, driven and read by a Vision model validated under §11.4.277 that recognises
+    the real content of every screen / page / component / widget, against deterministic
+    expected-content oracles, with no skip flags and a per-frame evidence path for
+    every verdict (User mandate, 2026-10-12)'
+  group: testing-and-tdd
+  location: constitution/groups/testing-and-tdd.md
+  classification: universal
+  propagation_gate: CM-COVENANT-114-278-PROPAGATION
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - '11.4'
+  - 11.4.10
+  - 11.4.107
+  - 11.4.108
+  - 11.4.112
+  - 11.4.117
+  - 11.4.118
+  - 11.4.123
+  - 11.4.135
+  - 11.4.138
+  - 11.4.139
+  - 11.4.143
+  - 11.4.145
+  - 11.4.146
+  - 11.4.15
+  - 11.4.153
+  - 11.4.155
+  - 11.4.158
+  - 11.4.159
+  - 11.4.160
+  - 11.4.163
+  - 11.4.169
+  - 11.4.17
+  - 11.4.185
+  - 11.4.193
+  - 11.4.197
+  - 11.4.201
+  - 11.4.208
+  - 11.4.210
+  - 11.4.218
+  - 11.4.219
+  - 11.4.227
+  - 11.4.236
+  - 11.4.238
+  - 11.4.25
+  - 11.4.251
+  - 11.4.252
+  - 11.4.254
+  - 11.4.255
+  - 11.4.256
+  - 11.4.257
+  - 11.4.258
+  - 11.4.259
+  - 11.4.262
+  - 11.4.268
+  - 11.4.27
+  - 11.4.271
+  - 11.4.277
+  - 11.4.278
+  - 11.4.28
+  - 11.4.3
+  - 11.4.35
+  - 11.4.48
+  - 11.4.49
+  - 11.4.5
+  - 11.4.50
+  - 11.4.52
+  - 11.4.6
+  - 11.4.60
+  - 11.4.65
+  - 11.4.68
+  - 11.4.69
+  - 11.4.74
+  - 11.4.77
+  - 11.4.81
+  - 11.4.83
+  - 11.4.85
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety

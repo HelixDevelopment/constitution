@@ -1,5 +1,13 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-10-13 — llmctl model validation gate (§11.4.277) + HelixQA UI QA with Vision eyes (§11.4.278)
+
+- **§11.4.277 — llmctl model validation gate (User mandate, 2026-10-12).** Every model run through llmctl by a project or any component/service/submodule (recursively) passes deterministic known-answer validation before decision-bearing use; decision-bearing use runs with `LLMCTL_VALIDATE_STRICT=1` and gates on `llmctl require-validated <profile>` (UNDETERMINED is never a pass; `LLMCTL_VALIDATE_ON_START=0` is diagnostics-only). Aligned to llmctl `v3.2.1` AS SHIPPED: exit codes 0/1/2 (+75 pressure refusal, 98 port in use), FAIL stops the profile, record binds catalog model SHA256 list / file size+mtime / engine version line / launch fingerprint / suite hashes (host class is NOT bound — a consumer obligation), host-safety reference values (`Restart=on-failure` + backoff, StartLimit 3/900 s, `RestartPreventExitStatus=SIGKILL SIGTERM 98`, MemoryHigh 1.25x / MemoryMax 1.5x footprint with floors, always below 90 % of RAM, `MemorySwapMax=0`, refuse at PSI some avg10 > 10 / full avg10 > 2 / MemAvailable < footprint + 4 GiB) stated as host-dependent. Honest evidence boundary: one host, one run, Vision only.
+- **§11.4.278 — Mandatory HelixQA UI QA with Vision eyes (User mandate, 2026-10-12).** Every project with a UI on any platform passes HelixQA full suites over a closed screen-and-flow catalogue, read by a Vision model validated under §11.4.277, against deterministic expected-content oracles, with no skip flags and per-frame evidence for every verdict.
+- **Submodule:** `submodules/llmctl` pinned to tag `v3.2.1` (`db07bd5628ee1bd5c56ff30fe35c4d631acb59fa`), SSH url `git@github.com:vasic-digital/llmctl.git`, recorded in `helix-deps.yaml` (§11.4.31). Mutual reference with llmctl's own `constitution` submodule is an open operator decision (§11.4.277(B)).
+- **Gates:** `CM-COVENANT-114-277-PROPAGATION` and `CM-COVENANT-114-278-PROPAGATION` (+ paired §1.1 mutation tests) implemented; 22 mechanism gates registered as `OWED-GATE-121` to `OWED-GATE-142` (gate code is a separate work item, NOT claimed shipped).
+- **Base:** upstream `main` at `4091798` (fast-forward; the orphan `design-toolkit` gitlink is gone and the `.gitmodules` path is fixed).
+
 ## helixconstitution-v69 — 2026-10-05 — Process-safety + release-engineering + anti-slop-enforcement + review-round-budget round (14 anchors + 19 targeted extensions)
 
 **HEAD:** `f9d1cde348a8374510d1d6f545173f5c3b2b3691`

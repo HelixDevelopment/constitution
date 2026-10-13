@@ -1,7 +1,7 @@
 # Owed gate implementations — §11.4.227(A) deferral registry
 
-**Revision:** 8
-**Last modified:** 2026-10-12T21:37:09Z
+**Revision:** 9
+**Last modified:** 2026-10-13T00:00:00Z
 **Description:** The tracked work items every row of `scripts/gates/gate_ledger_deferrals.tsv` points at.
 **Authority:** §11.4.227(A) (named-gate ledger + monotone-decrease ratchet), §11.4.197 (started work reaches a terminal state), §11.4.6 (no-guessing).
 
@@ -772,3 +772,97 @@ missing.
   - **Must assert:** for every anchor whose mirrors carry the FULL block (not a compact or pointer form), the canonical `Constitution.md` block body, heading marker normalised, is byte-identical to every full-block mirror body; compact/pointer mirrors are legitimate cross-layer variance (§11.4.227(B)) and never fire. Named golden-BAD fixtures (round 3): (i) a canonical-only edit followed by regeneration (round-1 mutation 7; round-2 D2, D3, D8) and (ii) the same edit applied consistently to every full-block mirror while `Constitution.md` is untouched (round-2 D6); both pass every existing gate today and MUST FAIL this one.
   - **Blocked on:** the shared `covenant_propagation_engine.sh` compares carriers with each other only; widening it touches every anchor's propagation gate and needs its own review (§11.4.230(E), gate-code declared a separate work item). Found by the round-1 independent review (mutation 7: a canonical-only edit followed by regeneration passed every gate).
   - **Paired §1.1 mutation:** owed together with the gate — edit the §11.4.230 body in `Constitution.md` only, regenerate, and the gate MUST FAIL; edit it in every full-block mirror only, and the gate MUST FAIL; per §11.4.227(A) the row leaves the TSV only when the gate is implemented.
+
+### §11.4.277 (registered 2026-10-13 — landed with the anchor; gate code is a separate work item)
+
+- **OWED-GATE-121** — `CM-LLMCTL-VALIDATED-BEFORE-DECISION-USE`
+  - **Must assert:** every decision-bearing use of a model is preceded by `llmctl require-validated <profile>` exit 0 and ran with `LLMCTL_VALIDATE_STRICT=1`; use with a missing/stale/refused record or with `LLMCTL_VALIDATE_ON_START=0` FAILs (fail-closed)
+  - **Blocked on:** no use-site inventory / require-validated call-record harness exists in-repo (§11.4.277, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-122** — `CM-VISION-KNOWN-ANSWER-FIXTURES`
+  - **Must assert:** fixture corpus + expectation manifest exist, the manifest commit predates the first validation run, every fixture hash matches, the declared classes are covered and negative controls are present; a manifest edited after a failing run FAILs
+  - **Blocked on:** no manifest-vs-run-history harness exists in-repo (§11.4.277, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-123** — `CM-MODEL-ANSWER-COMPARATOR-SELF-VALIDATED`
+  - **Must assert:** the judge accepts known-good and REJECTS known-bad canned answers; a judge that is itself a model FAILs
+  - **Blocked on:** no judge self-test consumer exists in-repo (llmctl ships its own, which this gate would re-run) (§11.4.277, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-124** — `CM-MODEL-DETERMINISM-PINNED`
+  - **Must assert:** a validation run uses temperature 0, a fixed seed, top-k 1 and a pinned engine build and the declared repeats are identical; a differing repeat FAILs
+  - **Blocked on:** no run-record consumer exists in-repo (§11.4.277, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-125** — `CM-MODEL-WRONG-ANSWER-NOT-RETRIED`
+  - **Must assert:** a failed validation followed by a passing one without a recorded §11.4.102 root cause and a changed key FAILs; threshold/fixture/seed changes between the runs FAIL
+  - **Blocked on:** no validation-history harness exists in-repo (§11.4.277, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-126** — `CM-LLMCTL-ONLY-ACQUISITION`
+  - **Must assert:** static + runtime scan: no `llama-server`/`llama-cli`/model download is invoked outside the vendored llmctl and no hand-written model unit files exist
+  - **Blocked on:** no scan harness exists in-repo (§11.4.277, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-127** — `CM-LLMCTL-UNIT-HOST-SAFE`
+  - **Must assert:** every llmctl-managed unit has bounded `Restart=on-failure`, StartLimit* in [Unit], `RestartPreventExitStatus` covering SIGKILL/SIGTERM/98, `MemorySwapMax=0` and MemoryHigh < MemoryMax strictly below host RAM; `Restart=always` or MemoryMax >= MemTotal FAILs
+  - **Blocked on:** no unit-file scanner harness exists in-repo (§11.4.277, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-128** — `CM-LLMCTL-PREFLIGHT-PRESSURE-ABORT`
+  - **Must assert:** a start or validation refuses (exit 75, recorded, no partial start) when PSI / MemAvailable exceed the thresholds; a start under injected pressure that proceeds FAILs
+  - **Blocked on:** no pressure-injection harness exists in-repo (§11.4.277, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-129** — `CM-MODEL-VALIDATION-KEY-COMPLETE`
+  - **Must assert:** the consumer's record binds model identity, mmproj, engine build, launch fingerprint, suite hash AND the host-class fingerprint per host, and a change of any voids it; the elements llmctl v3.2.1 does not bind are checked consumer-side
+  - **Blocked on:** no consumer record-schema harness exists in-repo (§11.4.277, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-130** — `CM-MODEL-VALIDATION-EVIDENCE`
+  - **Must assert:** the §11.4.277(F) artifact set is present and independently re-verifiable; where a hash chain (§11.4.268) is claimed it verifies
+  - **Blocked on:** no evidence-set verifier exists in-repo (§11.4.277, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+
+### §11.4.278 (registered 2026-10-13 — landed with the anchor; gate code is a separate work item)
+
+- **OWED-GATE-131** — `CM-HELIXQA-UI-SUITE-PER-PLATFORM`
+  - **Must assert:** every UI surface/platform the project ships has a HelixQA full-suite run record; a shipped platform with none FAILs
+  - **Blocked on:** no per-platform run-record harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-132** — `CM-UI-CATALOGUE-COVERAGE-100`
+  - **Must assert:** catalogue entries with a read-verified PASS divided by non-waived entries is 100 %; PASS count != entries minus recorded non-PASS FAILs
+  - **Blocked on:** no coverage-ledger harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-133** — `CM-UI-CATALOGUE-MATCHES-BUILD-INVENTORY`
+  - **Must assert:** the catalogue equals the build's real route/activity/view/window inventory; an undeclared screen or phantom entry FAILs (control-needled per §11.4.201(7)(b))
+  - **Blocked on:** no build-inventory extractor exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-134** — `CM-HELIXQA-VISION-VALIDATED`
+  - **Must assert:** the vision step runs only with a fresh `llmctl require-validated` PASS under STRICT; running without one FAILs
+  - **Blocked on:** no HelixQA run-record harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-135** — `CM-UI-EXPECTED-CONTENT-SPEC-BEFORE-RUN`
+  - **Must assert:** every catalogue entry has an expected-content spec whose commit predates the run; a spec edited after a failing run FAILs
+  - **Blocked on:** no spec-vs-run-history harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-136** — `CM-UI-VERDICT-PER-FRAME-EVIDENCE`
+  - **Must assert:** every verdict cites raw frame + SHA256 + OCR + Vision record + spec + validation-record id + analyzer version; a missing/dangling evidence path FAILs
+  - **Blocked on:** no verdict-evidence verifier exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-137** — `CM-UI-SCREEN-IDENTITY-NOT-PLAUSIBILITY`
+  - **Must assert:** identity/content assertions are decided by a deterministic oracle where one exists; a `model-decided` assertion without a corroborating second angle FAILs
+  - **Blocked on:** no assertion-provenance harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-138** — `CM-UI-NO-SKIP-FLAGS`
+  - **Must assert:** static + runtime scan for the forbidden flags/env/config/skip markers; any skip outside the closed outcome set FAILs
+  - **Blocked on:** no UI-suite skip scanner exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-139** — `CM-UI-EDGE-CASE-MATRIX-COVERED`
+  - **Must assert:** each catalogue entry's declared edge-case dimensions each have a verdict
+  - **Blocked on:** no edge-case matrix harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-140** — `CM-UI-ESCAPE-TRIGGERS-REVALIDATION`
+  - **Must assert:** an operator-escape on a UI defect triggers the §11.4.138 audit and a §11.4.277(H) re-validation review record
+  - **Blocked on:** no escape-record harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-141** — `CM-UI-QA-DOCS-DIAGRAMS-SYNC`
+  - **Must assert:** every catalogued screen/flow has its manual/guide/FAQ entry and diagram; a change adding a screen without them FAILs
+  - **Blocked on:** no doc-vs-catalogue harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
+- **OWED-GATE-142** — `CM-UI-QA-READINESS-GATE`
+  - **Must assert:** manual-QA hand-off is blocked until the coverage gates above are GREEN (§11.4.236)
+  - **Blocked on:** no hand-off gate input harness exists in-repo (§11.4.278, gate-code declared a separate work item)
+  - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.

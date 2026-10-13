@@ -60,9 +60,12 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # Classification line stating universal also reads 174. unstated
         # 108 -> 110 = +2 for the bare-form anchors §1.1 and §2.1 (newly
         # recognised by anchor_lib; their source states no Classification).
-        # 174 + 110 + 2 mixed = 286 = total anchors.
-        assert len(universal) == 174, (
-            f"expected exactly 174 anchors whose source TEXT genuinely states "
+        # Re-measured 2026-10-13: universal 174 -> 176 = +2 for §11.4.277 and
+        # §11.4.278 (each states "Classification: universal (§11.4.17)"; the
+        # count is the generator's measurement over the real corpus).
+        # 176 + 110 + 2 mixed = 288 = total anchors.
+        assert len(universal) == 176, (
+            f"expected exactly 176 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )
