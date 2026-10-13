@@ -163,6 +163,22 @@ CREATE TABLE IF NOT EXISTS item_history (
     -- Captured-evidence per §11.4.5 — path to artefact under qa-results/ etc.
     evidence_path    TEXT,
 
+    -- T-A05 (SpecKit-004): the event's OWN provable occurrence time (UTC
+    -- ISO-8601, seconds), DISTINCT from created_at (row-INSERT wall-clock
+    -- time, §11.4.226 evidence-class-at-closure). NULL unless a requester
+    -- supplied it or a provable artefact backfilled it. NEVER guessed
+    -- (§11.4.6) and NEVER copied from created_at (§11.4.226). Additive +
+    -- nullable: existing rows are unaffected (migrateItemHistoryOccurredAt
+    -- ADDs it on a pre-existing DB, mirroring migrateColumns' pattern).
+    occurred_at      TEXT,
+
+    -- Provenance of occurred_at: "commit:<sha>", "evidence:<path>",
+    -- "registry:<field>", or the literal "UNKNOWN" when occurred_at is
+    -- NULL. Set automatically by recordHistoryWithTime — never left NULL
+    -- itself, so an UNKNOWN time is always machine-distinguishable from an
+    -- unset column.
+    occurred_at_source TEXT,
+
     created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -374,9 +390,11 @@ CREATE TABLE IF NOT EXISTS meta (
 -- the seed values on every re-open. OR IGNORE seeds these keys ONLY when absent
 -- (first materialisation), preserving subsequent sync updates. migrateColumns
 -- advances 'schema_version' to '6' on an older DB (v6 = destination/logic_group
--- + logic_groups, ASSIGNMENT_MECHANISM_DESIGN.md); a fresh DB is seeded '6' here.
+-- + logic_groups, ASSIGNMENT_MECHANISM_DESIGN.md); migrateItemHistoryOccurredAt
+-- (T-A05) further advances it to '7' (v7 = item_history.occurred_at +
+-- occurred_at_source); a fresh DB is seeded '7' here directly.
 INSERT OR IGNORE INTO meta(key, value) VALUES
-    ('schema_version', '6'),
+    ('schema_version', '7'),
     ('last_sync_direction', 'none'),
     ('last_sync_timestamp', ''),
     ('integrity_hash', '');

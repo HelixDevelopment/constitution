@@ -1,0 +1,1 @@
+{"kind":"join","build":{"build_id":"a1b2c3d4e5f-20260928T000000Z","status":"SUCCESS","verdict":"ALLOW","fingerprint":"atmosphere-0.0.0-test-T022-join"},"deploy":{"target_serial":"998fd36615e99484","fingerprint":"atmosphere-0.0.0-test-T022-join","time":"2026-09-28T00:05:00Z"}}

@@ -1,0 +1,5 @@
+{
+  "_purpose": "T140 Round 1 review finding I4 regression fixture -- an external_deps entry of an UNRECOGNIZED/unverifiable kind (here 'http-resource', not the only re-hashable kind 'git-tree') MUST NOT be silently skipped past. Before the I4 fix, handoff.py's cmd_resume_check `continue`d straight past any dep whose kind was not 'git-tree', so this handoff wrongly reported safe_to_resume_without_reverification=true with no trace anywhere in the output that an unverifiable dependency existed (a section 11.4.201(6) false-null). After the fix, this dep is recorded as its own unverifiable-external-dependency unsafe_reasons entry and its affects_verified id (EV-RR07-A) is added to facts_needing_reverification -- fail CLOSED (section 11.4.101), never open.",
+  "target_class": "unverifiable-external-dependency",
+  "kind": "golden-bad"
+}

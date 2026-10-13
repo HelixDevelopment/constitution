@@ -1,0 +1,5 @@
+{
+  "_purpose": "Safe-to-Resume failure class 4/5: UNRECORDED EXTERNAL EFFECT -- the killed agent performed a real side-effect (here, a push) BEFORE it was killed, but that effect never made it into the handoff's own effects_performed list (data-model.md section 9.2; contracts/agent-registry-and-handoff.md HO-003/HO-004's 'never blindly replays effects_performed' rule presupposes the list is complete -- this fixture is the case where it is NOT). ground_truth_effects.json stands in for an independently-observable source of truth (a real remote-tracking ref / reflog / marker file an implementation would consult) that the oracle cross-checks against handoff.json's effects_performed, per the producer!=oracle rule (section 11.4.245/section 11.4.240): the oracle's ground truth is never derived from the same record it is auditing. A resumer trusting effects_performed alone here would not know push-rr04-0001 already happened and could re-push or otherwise double-perform the effect.",
+  "target_class": "unrecorded-external-effect",
+  "kind": "golden-bad"
+}

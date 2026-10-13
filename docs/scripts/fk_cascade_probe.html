@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>fk_cascade_probe — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="fk_cascade_probe--guide">fk_cascade_probe — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T13:02:00Z</p>
+<p>Source:
+<code>constitution/scripts/codegraph/fk_cascade_probe.py</code> (288
+lines). Citations below are
+<code>fk_cascade_probe.py:&lt;line&gt;</code>. Tests:
+<code>scripts/codegraph/tests/test_fk_cascade_probe.py</code> (42
+tests). Paired mutation harness:
+<code>scripts/codegraph/tests/test_fk_cascade_probe_mutations.sh</code>
+(golden + 2 controls + 45 mutants).</p>
+<h2 id="overview">Overview</h2>
+<p>A read-only decision tool for ONE installed CodeGraph build: can its
+bulk-index windows fall into the FK-cascade full-scan trap? The trap
+(header lines 8-21): <code>nodes.id</code> is a primary key and the
+store path writes <code>INSERT OR REPLACE INTO nodes</code>, so a
+duplicate node id is a DELETE + INSERT; <code>edges.source</code>,
+<code>edges.target</code> and <code>unresolved_refs.from_node_id</code>
+are <code>FOREIGN KEY ... REFERENCES nodes(id) ON DELETE CASCADE</code>
+and the store runs with <code>PRAGMA foreign_keys = ON</code>; during a
+fresh bulk index the indexer DROPs secondary indexes, and if the only
+index serving a child FK column is among them, every duplicate-id
+REPLACE becomes a FULL SCAN of the child table. The header quotes
+&quot;2,223x slower at 1/6 scale&quot; and a real 584,601-file run that stalled at
+52% (lines 20-21); those two figures are quoted from the header and were
+not re-measured for this guide (the measured comparison in <strong>Last
+verified</strong> below is a separate, single-run observation).</p>
+<p>Two independent layers; exit 0 requires BOTH to agree with &quot;safe&quot;
+(header lines 23-30):</p>
+<ul>
+<li><strong>STATIC</strong> (lines 127-138): parse the target&#39;s own
+<code>db/schema.sql</code> and <code>db/index.js</code>, derive every FK
+child column of <code>nodes(id)</code>, and for each bulk window check
+that at least one index with that column LEFTMOST survives the window (a
+never-dropped UNIQUE index counts).</li>
+<li><strong>MEASURED</strong> (lines 197-236): build a scaled scratch DB
+from the target&#39;s own schema, recreate exactly the indexes that survive
+each window, and time <code>INSERT OR REPLACE</code> of an EXISTING node
+id with <code>foreign_keys=ON</code>.</li>
+</ul>
+<p>It never opens, reads, or writes a live <code>.codegraph/</code>
+index and never runs the CodeGraph binary: its inputs are two text files
+of the target and its only writes are one scratch SQLite DB (line 198)
+plus the optional evidence file.</p>
+<p>It is also a hard gate. <code>codegraph_safe.sh</code> (the
+sanctioned single-writer entry) runs
+<code>fk_cascade_probe.py --work-dir &lt;runs&gt;/probe --json-out &lt;runs&gt;/probe_verdict.json</code>
+when the patch tool reports &quot;patch not needed&quot;, and REFUSES to index
+with stock CodeGraph unless the probe exits 0
+(<code>codegraph_safe.sh:469-471</code>; documented in
+<code>codegraph_safe.md</code>). Exit 1 (HAZARD) and exit 2
+(CANNOT_EVALUATE) therefore both block a bulk index.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>python3</code>, standard library only (imports lines
+58-67).</li>
+<li>Default target resolution needs <code>npm</code> on
+<code>PATH</code> (<code>npm root -g</code>, line 83) and a global
+<code>@colbymchenry/codegraph</code> install; pass <code>--dist</code>
+to skip both.</li>
+<li>Scratch space for the measured layer: the header states ~0.5 GB at
+the default scale (line 51). Observed on this host (tmpfs work dir):
+default-scale run 16-18 s wall clock, max resident set ~96 MB, work dir
+left empty afterwards.</li>
+<li>A DB library capable of <code>PRAGMA foreign_keys</code> (Python&#39;s
+bundled <code>sqlite3</code>).</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/fk_cascade_probe.py [--dist <span class="op">&lt;</span>codegraph lib/dist dir<span class="op">&gt;</span>] [--threshold-s 0.05]</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="ex">[--scale-nodes</span> N] [--scale-refs N] [--scale-edges N] <span class="pp">[--</span><span class="ss">static</span><span class="pp">-</span><span class="ss">only</span><span class="pp">]</span> [--json-out FILE] [--work-dir DIR]</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--dist DIR</code></td>
+<td>The target&#39;s <code>lib/dist</code> directory (it must contain
+<code>db/schema.sql</code> and <code>db/index.js</code>). Default: the
+first sorted platform package under
+<code>$(npm root -g)/@colbymchenry/codegraph/node_modules/@colbymchenry/</code>
+that has <code>lib/dist/db/index.js</code>. Given, <code>npm</code> is
+never consulted.</td>
+<td>lines 81-93, 241, 252</td>
+</tr>
+<tr>
+<td><code>--threshold-s S</code></td>
+<td>A measured window is a hazard when its median REPLACE time is
+strictly greater than <code>S</code> seconds. Default
+<code>0.05</code>.</td>
+<td>lines 229-230, 242</td>
+</tr>
+<tr>
+<td><code>--scale-nodes / --scale-refs / --scale-edges N</code></td>
+<td>Rows in the scaled scratch DB. Defaults 1,000,000 / 4,000,000 /
+1,200,000.</td>
+<td>lines 243-245</td>
+</tr>
+<tr>
+<td><code>--static-only</code></td>
+<td>Skip the measured layer entirely (no scratch DB or temp dir is
+created; the document has no <code>measured</code>/<code>scale</code>
+keys).</td>
+<td>lines 246, 261</td>
+</tr>
+<tr>
+<td><code>--json-out FILE</code></td>
+<td>Also write the stdout document to <code>FILE</code> (identical
+bytes), including when the verdict is CANNOT_EVALUATE.</td>
+<td>lines 247, 279-283</td>
+</tr>
+<tr>
+<td><code>--work-dir DIR</code></td>
+<td>Put the scratch DB <code>fk_probe.db</code> in <code>DIR</code>
+(must already exist). <code>DIR</code> is never deleted; the DB inside
+is removed at the end of a successful measured run. Default: a fresh
+<code>cg_fk_probe_*</code> dir under <code>$TMPDIR</code>, removed
+afterwards.</td>
+<td>lines 248, 198, 235, 262-267</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>argparse help.</td>
+<td>line 240</td>
+</tr>
+</tbody>
+</table>
+<h3 id="exit-codes">Exit codes</h3>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Verdict</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>SAFE</code></td>
+<td>static AND measured agree there is no hazard (lines 271-272)</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>HAZARD</code></td>
+<td>a window leaves an FK child column unserved and/or a measured
+REPLACE exceeds the threshold</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>CANNOT_EVALUATE</code></td>
+<td>missing/unparseable target, unexpected schema shape, disk/DB error,
+or ANY unexpected exception — FAIL-CLOSED, never reported as safe (lines
+273-278; §11.4.201(4))</td>
+</tr>
+</tbody>
+</table>
+<p>argparse usage errors (unknown flag, non-numeric value) also exit 2
+but print NO JSON document on stdout.</p>
+<h3 id="output">Output</h3>
+<p>One JSON document on stdout (<code>json.dumps(doc, indent=2)</code>,
+lines 279-283). Keys: <code>probe</code>
+(<code>&quot;codegraph-fk-cascade&quot;</code>), <code>verdict</code>,
+<code>dist</code>, <code>fk_children_of_nodes</code> (table/column pairs
+found), <code>bulk_lists</code> (the three <code>BULK_*_NAMES</code>
+lists plus any other <code>BULK_..._NAMES</code> list found, echoed as
+evidence), <code>static</code> (per window <code>parse</code> /
+<code>ref</code> / <code>edge</code>: <code>served</code>,
+<code>unserved</code>, <code>hazard</code>), and unless
+<code>--static-only</code>: <code>measured</code> (per window
+<code>parse</code> / <code>ref</code>:
+<code>indexes_present_for_fk</code>, <code>replace_existing_s</code> [3
+timings], <code>median_s</code>, <code>hazard</code>) and
+<code>scale</code>. On exit 2 the document carries an <code>error</code>
+string instead of results. stderr is silent on every evaluated run.</p>
+<h3 id="examples-each-was-run-output-observed-on-2026-09-26">Examples
+(each was run; output observed on 2026-09-26)</h3>
+<p><strong>1. Default target, static only — the stock CodeGraph 1.6.0
+platform package on this host:</strong></p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/fk_cascade_probe.py <span class="at">--static-only</span> <span class="kw">;</span> <span class="bu">echo</span> rc=<span class="va">$?</span></span></code></pre></div>
+<p>Observed: <code>rc=1</code>, <code>verdict: HAZARD</code>,
+<code>dist</code> resolved to
+<code>.../@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-linux-x64/lib/dist</code>.
+Both the <code>parse</code> and <code>ref</code> windows list
+<code>edges.target</code> and <code>unresolved_refs.from_node_id</code>
+as unserved (candidates <code>idx_edges_target_kind</code>,
+<code>idx_unresolved_from_node</code>,
+<code>idx_unresolved_from_name</code> are all dropped in those windows);
+<code>edges.source</code> stays served by the never-dropped UNIQUE
+<code>idx_edges_identity</code>. The <code>edge</code> window alone
+lists only <code>edges.target</code>.</p>
+<p><strong>2. The same check against the patched private runner
+(<code>fkidx1</code>) — static only:</strong></p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/fk_cascade_probe.py <span class="dt">\</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--dist</span> <span class="st">&quot;</span><span class="va">$HOME</span><span class="st">/.cache/helix/codegraph_runner/1.6.0-fkidx1/lib/dist&quot;</span> <span class="at">--static-only</span> <span class="kw">;</span> <span class="bu">echo</span> rc=<span class="va">$?</span></span></code></pre></div>
+<p>Observed: <code>rc=0</code>, <code>verdict: SAFE</code>; all three
+windows report no unserved column (<code>edges.source</code> via
+<code>idx_edges_identity</code>, <code>edges.target</code> via
+<code>idx_edges_target_kind</code>,
+<code>unresolved_refs.from_node_id</code> via
+<code>idx_unresolved_from_node</code>). The patched runner&#39;s
+<code>BULK_PARSE_INDEX_NAMES</code> has 14 entries against the stock
+15.</p>
+<p><strong>3. Full default-scale run, stock vs patched (the measured
+layer), scratch DB in a work dir:</strong></p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> /path/to/scratch</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/fk_cascade_probe.py <span class="at">--work-dir</span> /path/to/scratch <span class="at">--json-out</span> /path/to/verdict.json <span class="kw">;</span> <span class="bu">echo</span> rc=<span class="va">$?</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/fk_cascade_probe.py <span class="at">--dist</span> <span class="st">&quot;</span><span class="va">$HOME</span><span class="st">/.cache/helix/codegraph_runner/1.6.0-fkidx1/lib/dist&quot;</span> <span class="dt">\</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">--work-dir</span> /path/to/scratch <span class="at">--json-out</span> /path/to/verdict_patched.json <span class="kw">;</span> <span class="bu">echo</span> rc=<span class="va">$?</span></span></code></pre></div>
+<p>Observed (single run each): stock <code>rc=1</code>,
+<code>HAZARD</code>, median REPLACE <code>0.603311 s</code> (parse) /
+<code>0.650082 s</code> (ref), both above the 0.05 s threshold,
+<code>indexes_present_for_fk</code> only
+<code>[&quot;idx_edges_identity&quot;]</code>, 17.5 s wall clock; patched
+<code>rc=0</code>, <code>SAFE</code>, median <code>0.000224 s</code>
+(parse) / <code>0.000127 s</code> (ref),
+<code>indexes_present_for_fk</code> = <code>idx_edges_identity</code>,
+<code>idx_edges_target_kind</code>,
+<code>idx_unresolved_from_node</code>, 16.4 s wall clock. The scratch
+directory was empty afterwards in both runs (<code>ls -A</code> count
+0). This gives a stock-to-patched median ratio of about 2,700x (parse)
+and 5,100x (ref) on one run — an observation, not a benchmark.</p>
+<p><strong>4. Small scale, evidence file written —
+<code>--json-out</code> is byte-identical to stdout:</strong></p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/fk_cascade_probe.py <span class="at">--scale-nodes</span> 20000 <span class="at">--scale-refs</span> 80000 <span class="at">--scale-edges</span> 24000 <span class="dt">\</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--json-out</span> evidence.json <span class="at">--work-dir</span> wd <span class="op">&gt;</span> stdout.json <span class="kw">;</span> <span class="bu">echo</span> rc=<span class="va">$?</span> <span class="kw">;</span> <span class="fu">cmp</span> stdout.json evidence.json <span class="kw">&amp;&amp;</span> <span class="bu">echo</span> identical</span></code></pre></div>
+<p>Observed against the stock dist: <code>rc=1</code> (the static layer
+already fails), <code>identical</code>, measured medians
+<code>0.0105 s</code> (parse) and <code>0.0103 s</code> (ref) — BELOW
+the 0.05 s threshold, so both measured <code>hazard</code> flags were
+<code>false</code>; only the static layer made the verdict HAZARD. Small
+scales under-report the measured hazard; use the default scale (example
+3) for a measured verdict you intend to rely on.</p>
+<p><strong>5. An unreadable target — fail-closed:</strong></p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/fk_cascade_probe.py <span class="at">--dist</span> /nonexistent/dist <span class="at">--static-only</span> <span class="kw">;</span> <span class="bu">echo</span> rc=<span class="va">$?</span></span></code></pre></div>
+<p>Observed: <code>rc=2</code>; stdout is
+<code>{&quot;probe&quot;: &quot;codegraph-fk-cascade&quot;, &quot;verdict&quot;: &quot;CANNOT_EVALUATE&quot;, &quot;dist&quot;: &quot;/nonexistent/dist&quot;, &quot;error&quot;: &quot;cannot read target files: [Errno 2] No such file or directory: &#39;/nonexistent/dist/db/schema.sql&#39;&quot;}</code>
+(pretty printed).</p>
+<p><strong>6. Running the tests and the mutation harness:</strong></p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/tests/test_fk_cascade_probe.py            <span class="co"># 42 tests, ~3 s</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span>    scripts/codegraph/tests/test_fk_cascade_probe_mutations.sh  <span class="co"># ~2.5 min; exit 0 only if every mutant is killed</span></span></code></pre></div>
+<p>Observed: <code>Ran 42 tests ... OK</code>; the harness printed
+<code>GOLDEN PASS</code>, <code>CONTROL unmodified-copy PASS</code>,
+<code>CONTROL dead-variant KILLED</code>, then
+<code>MUTANT M01..M45 KILLED</code>,
+<code>REAL-TOOL sha256 unchanged</code>,
+<code>TALLY mutants killed=45 of 45</code>,
+<code>ALL MUTANTS KILLED</code>. Set <code>TOOL=&lt;path&gt;</code> to
+point the test suite at a different copy of the probe (the harness does
+this for each mutant).</p>
+<h2 id="edge-cases-and-guarantees">Edge cases and guarantees</h2>
+<p>Fail-closed inputs (each has a test; all exit 2 with
+<code>verdict: CANNOT_EVALUATE</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th><code>error</code> text starts/contains</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema.sql</code> or <code>index.js</code> unreadable</td>
+<td><code>cannot read target files</code></td>
+<td>lines 98-102</td>
+</tr>
+<tr>
+<td>A <code>BULK_PARSE/REF/EDGE_INDEX_NAMES</code> list absent or
+empty</td>
+<td><code>list &lt;NAME&gt; not found/empty (upstream shape changed)</code></td>
+<td>lines 104-106</td>
+</tr>
+<tr>
+<td>No <code>FOREIGN KEY ... REFERENCES nodes(id)</code> in
+<code>schema.sql</code></td>
+<td><code>no FOREIGN KEY ... REFERENCES nodes(id) found</code></td>
+<td>lines 111-112</td>
+</tr>
+<tr>
+<td><code>npm</code> not on <code>PATH</code> / exits non-zero (no
+<code>--dist</code>)</td>
+<td><code>npm root -g failed</code> (npm&#39;s own stderr passes
+through)</td>
+<td>lines 82-85</td>
+</tr>
+<tr>
+<td>No <code>@colbymchenry/codegraph</code> install under the npm
+root</td>
+<td><code>no @colbymchenry/codegraph install under</code></td>
+<td>lines 86-88</td>
+</tr>
+<tr>
+<td>No platform package carries <code>lib/dist/db/index.js</code></td>
+<td><code>no platform package with lib/dist/db/index.js</code></td>
+<td>line 93</td>
+</tr>
+<tr>
+<td>Measured layer: a NOT NULL column without default, not primary key,
+unknown to the probe</td>
+<td><code>&lt;table&gt;.&lt;col&gt; is NOT NULL without default and unknown to the probe (schema changed)</code></td>
+<td>lines 152-165</td>
+</tr>
+<tr>
+<td>Measured layer: <code>nodes</code> / <code>unresolved_refs</code> /
+<code>edges</code> missing after the schema loads</td>
+<td><code>table &lt;name&gt; missing after schema load</code></td>
+<td>lines 159-162</td>
+</tr>
+<tr>
+<td>ANY other exception (bad schema SQL, unusable
+<code>--work-dir</code>, disk error)</td>
+<td><code>&lt;ExceptionName&gt;: &lt;message&gt;</code>, e.g.
+<code>OperationalError: ...</code></td>
+<td>lines 276-278</td>
+</tr>
+</tbody>
+</table>
+<p>The shape guard exempts columns that have a default, columns that are
+primary keys, and the columns the probe fills.
+<code>--static-only</code> never builds a DB, so a schema the measured
+layer rejects can still get a static verdict.</p>
+<p>Static-layer rules (all tested; lines 69-74, 108-116, 127-138):</p>
+<ul>
+<li>An index serves an FK column only when it is on the FK-child table
+AND the column is its LEFTMOST column; a trailing order suffix
+(<code>from_node_id DESC</code>) is stripped; <code>FOREIGN KEY</code> /
+<code>CREATE INDEX</code> matching is case-insensitive and
+whitespace-tolerant (<code>CREATE TABLE IF NOT EXISTS</code> must be
+uppercase).</li>
+<li>Windows (lines 119-123): <code>parse</code> = parse list + edge
+list, <code>ref</code> = ref list + edge list, <code>edge</code> = edge
+list. The parse and ref windows both enter the edge window, so an
+edge-list drop of the only index for a column is a hazard in all three.
+The verdict uses <code>parse</code> and <code>ref</code> only (line
+260); <code>edge</code> is informational.</li>
+<li>A <code>BULK_..._NAMES</code> list other than the three named
+windows is echoed under <code>bulk_lists</code> but never used as a
+window.</li>
+<li>The regexes run over the raw file text. <strong>Observed:</strong> a
+commented-out line
+(<code>-- CREATE INDEX IF NOT EXISTS idx_unresolved_from_node ON unresolved_refs(from_node_id);</code>)
+was still counted as a serving index, and a commented
+<code>FOREIGN KEY</code> clause is still counted as an FK (which is why
+the fail-closed &quot;no FK found&quot; test edits the referenced table rather
+than commenting the clause out). CodeGraph&#39;s real schema does not
+comment out such lines today; a schema that did would be misjudged (a
+possible false SAFE for a commented-out index).</li>
+</ul>
+<p>Measured-layer behaviour:</p>
+<ul>
+<li>The scaled DB is built from the target&#39;s own <code>schema.sql</code>
+(line 145); every trigger is dropped first (lines 146-147, the bulk
+window has no FTS sync triggers) and every non-UNIQUE index is dropped
+(lines 148-150; UNIQUE indexes stay, as in the real window). Only
+<code>parse</code> and <code>ref</code> are measured (line 209).</li>
+<li>Per window, the first surviving index of each served FK column is
+recreated from the schema&#39;s own DDL (lines 212-220); three existing node
+ids (10, <code>scale-nodes // 2</code>, <code>scale-nodes - 100</code>)
+are REPLACEd with <code>foreign_keys=ON</code> and committed, timed with
+<code>perf_counter</code> (lines 208, 222-227); <code>median_s</code> is
+the middle of the three (line 228).</li>
+<li><strong>Keep <code>--scale-nodes</code> above 100.</strong> The
+third pick is <code>scale-nodes - 100</code>; below 100 that is a node
+id the scratch DB never generated (source-derived; the run itself still
+completes — observed with <code>--scale-nodes 50</code>), so that
+REPLACE is a plain insert with nothing to cascade and the measured layer
+says little.</li>
+<li><strong>Observed:</strong> if the measured layer fails while
+<code>--work-dir</code> is used (exit 2, e.g. the shape guard), the
+partial <code>fk_probe.db</code> is left behind in that directory; only
+the no-<code>--work-dir</code> temp dir is always removed (line 267 runs
+in a <code>finally</code>). Remove a leftover <code>fk_probe.db</code>
+by hand; the next run replaces a stale one (lines 142-143).</li>
+<li>Timing is machine-dependent; the tests therefore assert only RATIOS
+for the measured layer (a hazard window at least 10x a same-run indexed
+window, and at least 10x a safe target&#39;s window; observed 61-325x at
+that scale) and use <code>--threshold-s -1</code> / <code>1000</code> to
+force each measured verdict deterministically.</li>
+</ul>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<p><code>main()</code> (lines 239-284) builds one result document and
+maps it to an exit code: <code>find_default_dist</code> unless
+<code>--dist</code> (252) -&gt; <code>load_target</code> reads
+<code>schema.sql</code>/<code>index.js</code> and derives FK children,
+index definitions and the three windows (254) -&gt;
+<code>static_layer</code> (257) -&gt; unless <code>--static-only</code>,
+<code>measured_layer</code> in a scratch dir (261-270) -&gt; verdict
+<code>HAZARD</code> when the static parse/ref windows or any measured
+window is a hazard (260, 268, 271-272). The two layers control each
+other: a static &quot;unserved&quot; column predicts which index is absent from
+the measured window, and a measured slowdown independently corroborates
+or contradicts it (header line 273-274 cross-reference to
+§11.4.273).</p>
+<h2 id="related-scripts">Related scripts</h2>
+<ul>
+<li><code>codegraph_safe.sh</code> — the sanctioned single-writer entry;
+calls this probe when no runner patch is needed and refuses to index
+unless it exits 0 (<code>codegraph_safe.md</code>).</li>
+<li><code>fk_index_patch.py</code> and
+<code>runner_patches/fkidx1.py</code> — build the private patched runner
+this probe is the oracle for (<code>fk_index_patch.py</code>
+header).</li>
+<li><code>index_watch.py</code> — the progress-proven watcher for the
+bulk run this probe protects (<code>index_watch.md</code>).</li>
+<li><code>owed_report.py</code> — lists which governed tools still lack
+tests or a guide (<code>owed_report.md</code>).</li>
+<li>constitution §11.4.78 / §11.4.80 (CodeGraph), §11.4.115 (RED on the
+broken artifact), §11.4.201(4) (fail closed), §11.4.273 (control
+needles), §1.1 (paired mutation), §11.4.18 (this guide).</li>
+</ul>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26, against the tool at sha256
+<code>8e830baec137823d5aba7e9fe356a79c309f7abcc7c3044de063b1be033b0e02</code>
+(unchanged from <code>git HEAD</code> of the constitution submodule):
+<code>test_fk_cascade_probe.py</code> 42/42 GREEN across repeated runs;
+mutation harness golden PASS, unmodified-copy control PASS, dead-variant
+control KILLED, 45/45 mutants KILLED across three consecutive runs, real
+tool byte-identical afterwards; timing-based mutants
+(<code>insert or replace</code>, <code>foreign_keys=ON</code>, index
+recreation) killed 5/5 each at host load average ~44. Examples 1-5 above
+were run on CodeGraph 1.6.0 (stock platform package and the private
+<code>1.6.0-fkidx1</code> runner). Not covered: the measured layer at
+the default scale is exercised by examples 3 only (not by the test
+suite, which uses scales up to 10,000 nodes / 150,000 refs), and
+dropping the <code>UNIQUE</code>-index keep in the scratch DB (lines
+148-150) is not observable from the probe&#39;s output, so no mutant targets
+it.</p>
+</body>
+</html>

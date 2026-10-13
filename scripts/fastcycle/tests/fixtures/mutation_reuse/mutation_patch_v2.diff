@@ -1,0 +1,10 @@
+--- a/gate_script.sh
++++ b/gate_script.sh
+@@ -1,7 +1,7 @@
+ #!/bin/sh
+ # toy gate: checks a widget file has no TODO markers
+-if grep -q TODO "$1"; then
++if grep -qE 'TODO|XXX' "$1"; then
+     echo "FAIL: TODO marker found"
+     exit 1
+ fi

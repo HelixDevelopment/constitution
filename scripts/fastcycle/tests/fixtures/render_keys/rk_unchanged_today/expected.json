@@ -1,0 +1,7 @@
+{
+  "scenario": "control needle: an unchanged source re-renders today (plan.md T-C12; task line #1)",
+  "source": "source.md",
+  "today_behaviour": "scripts/testing/sync_all_markdown_exports.sh's freshness check is mtime-only (`[ \"$md\" -nt \"$html\" ]`, no content hash anywhere in the classify loop -- proven by this test's own Section B grep of the real script text). Touching source.md's mtime with UNCHANGED content (sha256 identical before/after) makes it read as `-nt` its already-rendered .html/.pdf/.docx siblings, so a real, non-check-only invocation genuinely re-renders all three, bumping their mtimes again -- wasted work.",
+  "future_behaviour_once_T-C12_lands": "render_keys.py's content-addressed key for this twin is unaffected by a bare mtime touch (the key preimage never includes mtime), so the freshness gate should report FRESH and the exporter should skip the render entirely -- see rk_touched_identical/ for the DIRECT positive contrast using the same touch-only mechanism.",
+  "note": "This scenario proves the BEFORE state T-C12's Expected-saving hypothesis targets (plan.md T-C12: 'a commit that does not change governance text renders zero PDFs'). It is a real, measured invocation of the CURRENT exporter, never a claim about the future tool."
+}

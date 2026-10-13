@@ -1,0 +1,2 @@
+#!/bin/sh
+echo "nproc: shim noise" >&2; exit 1

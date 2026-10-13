@@ -55,11 +55,29 @@ import (
 func seedClosedWithEvidenceAndStatus(t *testing.T, id, status, evidence string) string {
 	t.Helper()
 	dbPath := newTestDB(t)
+	// BOB-240 §11.4.33 Type↔Status guard reconciliation: this fixture
+	// independently exercises ALL FOUR terminal event types BY CONSTRUCTION
+	// (the whole point of this file, see the header comment) — a hard-coded
+	// Type="Bug" for every case would now be refused by `close` for three of
+	// the four (implemented/completed), the exact BOB-077/100/179/226-class
+	// mismatch this session's forensic anchor documents. Seeding the Type
+	// that §11.4.33 actually maps to each status keyword keeps the closure
+	// itself legitimate, so this test continues to isolate ONLY the
+	// evidence-resolvability dimension it was written to prove.
+	typ := "Bug"
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "implemented":
+		typ = "Feature"
+	case "completed":
+		typ = "Task"
+	case "obsolete":
+		typ = "Bug" // Obsolete is valid for ANY Type; Bug keeps this fixture minimal.
+	}
 	if code := addCmd([]string{
 		"--db", dbPath, "--id", id,
 		"--title", "terminal-event-type closure evidence probe item " + id,
 		"--description", "a sufficiently long description that clears the §11.4.91 floor",
-		"Bug", "High",
+		typ, "High",
 	}); code != exitOK {
 		t.Fatalf("add %s exited %d, want %d", id, code, exitOK)
 	}

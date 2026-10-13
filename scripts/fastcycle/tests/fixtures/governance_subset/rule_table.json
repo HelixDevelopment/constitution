@@ -1,0 +1,52 @@
+{
+  "schema": "governance-subset-fixture-rules/v1",
+  "_purpose": "T104 RED-test-only fixture rule table for governance_subset.py (T112, plan T-E01). Every anchor id below was verified present in the LIVE constitution/constitution_index.yaml at fixture-authoring time (2026-09-29) -- see test_governance_subset_red.sh's own live-index control needle, which re-checks this at every run so a future anchor removal is caught rather than silently trusted. This is NOT the production rule table T112 will ship (that is consumer DATA under config/fastcycle/ per contracts/common-conventions.md 'Placement'); it exists only to make this RED test's fixtures self-contained and independently re-derivable.",
+  "always_core": [
+    "7.1",
+    "9.1",
+    "11.4.6",
+    "11.4.113",
+    "11.4.209",
+    "11.4.224",
+    "11.4.226",
+    "12.1"
+  ],
+  "always_core_bullet_map": {
+    "anti-bluff-covenant": "7.1",
+    "no-guessing": "11.4.6",
+    "evidence-class-at-closure": "11.4.226",
+    "data-safety": "9.1",
+    "no-force-push": "11.4.113",
+    "host-session-safety": "12.1",
+    "review-mandate-and-tier-pin": "11.4.209",
+    "test-first": "11.4.224"
+  },
+  "_always_core_note": "Maps 1:1 onto contract governance-subset-selector.md GS-002's 'at minimum' list (anti-bluff covenant; no-guessing; evidence-class-at-closure; data safety/no-force-push; host-session safety; the review mandate and its tier pin; test-first) -- 7 conceptual bullets, 8 concrete anchor ids (data-safety and no-force-push map to two distinct real anchors, 9.1 and 11.4.113).",
+  "rules": [
+    {
+      "rule_id": "bug-ui-touched",
+      "match": {
+        "item_type": "Bug",
+        "touched_path_classes_any": ["ui"]
+      },
+      "add_anchors": ["11.4.107", "11.4.170"],
+      "_note": "11.4.107 = Anti-bluff AV/test-validation techniques mandate; 11.4.170 = Device-independent host-side rendered-UI visual-proof mandate. A user-visible-UI Bug binds both."
+    },
+    {
+      "rule_id": "device-orchestration-touched",
+      "match": {
+        "touched_path_classes_any": ["device_orchestration"]
+      },
+      "add_anchors": ["11.4.58", "11.4.119"],
+      "_note": "11.4.58 = Parallel-development methodology; 11.4.119 = Single-resource-owner partitioning for parallel hardware testing mandate."
+    },
+    {
+      "rule_id": "critical-invariant-defect",
+      "match": {
+        "defect_class": "critical_invariant"
+      },
+      "add_anchors": ["11.4.239", "11.4.85"],
+      "_note": "11.4.239 = Critical-invariant work-class Definition of Done mandate; 11.4.85 = Stress + Chaos Test Mandate."
+    }
+  ]
+}

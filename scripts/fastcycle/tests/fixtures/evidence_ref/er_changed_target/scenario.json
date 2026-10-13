@@ -1,0 +1,7 @@
+{
+  "consume_target": "DEVICE-SERIAL-BBB",
+  "consume_target_ref_recorded": "DEVICE-SERIAL-AAA",
+  "failure_class": "changed_target",
+  "kind": "golden-bad",
+  "note": "all files unchanged; ref.json records target_fingerprint=DEVICE-SERIAL-AAA (a non-hermetic fact); consume is invoked with --target DEVICE-SERIAL-BBB, a DIFFERENT live-observed serial -- this is T108's own named golden-bad scenario ('a reference whose on-target fingerprint differs is refused'). A SIBLING bonus check (expected_consume_absent_target.json, ER-005) re-uses this SAME fixture with --target omitted entirely at consume: 'absent target \u21d2 REVERIFY_REQUIRED (no reuse on an unobserved target)' -- distinct changed_components token target_fingerprint_unobserved, DEFINED here (UNCONFIRMED by the contract's own vocabulary, house precedent per common-conventions.md)."
+}

@@ -1,0 +1,2 @@
+MISS
+REASON: one byte of the gate's observed input changed between put and get -- the mutation's key changes and its verdict must be re-run, not reused. This is the FR-006/plan T-C07 primary case ('changing one gate input re-runs that gate's mutations').

@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr7100000000000000000000000000000000000000000000000000000000",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "malformed-handoff-field",
+      "detail": "handoff record field `effects_performed` must be a JSON list when present (got str: 'abc') -- every per-entry check below assumes it can iterate this field as a list, and Python would otherwise either crash iterating a non-iterable value (e.g. an int) or silently iterate a JSON string character-by-character (a genuinely malformed field masquerading as an honestly empty one); treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}

@@ -1,0 +1,15 @@
+{
+  "handoff_id": "sha256:rr13000000000000000000000000000000000000000000000000000000013",
+  "agent_key": "rr13agentkey0013",
+  "item_id": "ATM-9113",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "IMPLEMENT",
+  "verified": [],
+  "pending": ["replay the llm-generated migration with a random seed"],
+  "partial_artefacts": [],
+  "external_deps": [],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

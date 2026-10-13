@@ -1,0 +1,72 @@
+{
+  "all_pass": true,
+  "batch_id": "RB-T018-GB",
+  "checks": [
+    {
+      "check": "parse",
+      "evidence": {
+        "tool": "bash -n / sh -n"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "shellcheck",
+      "evidence": {},
+      "verdict": "PASS"
+    },
+    {
+      "check": "affected-gates",
+      "evidence": {
+        "gates": []
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "touched-gate-mutations",
+      "evidence": {
+        "gates": []
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "secret-scan",
+      "evidence": {},
+      "verdict": "PASS"
+    },
+    {
+      "check": "doc-sync",
+      "evidence": {},
+      "verdict": "PASS"
+    },
+    {
+      "check": "closure-evidence-class",
+      "evidence": {
+        "items": []
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "sibling-search",
+      "evidence": {
+        "ref": "qa-results/fastcycle/us1/red/T018/sibling_search_golden_bad.json"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "blast-radius",
+      "evidence": {
+        "scope": "one module, two callers"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "already-fixed-markers",
+      "evidence": {
+        "markers": []
+      },
+      "verdict": "PASS"
+    }
+  ],
+  "independence_tier": "instance",
+  "run_from": "qa-results/fastcycle/us1/red/T018/clean-checkout-golden-bad"
+}

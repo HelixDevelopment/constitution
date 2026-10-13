@@ -1,0 +1,7 @@
+{
+  "handoff_id": "sha256:rr06000000000000000000000000000000000000000000000000000000006",
+  "safe_to_resume_without_reverification": true,
+  "unsafe_reasons": [],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": ["commit-rr06-0001"]
+}

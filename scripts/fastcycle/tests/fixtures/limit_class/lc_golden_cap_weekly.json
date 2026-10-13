@@ -1,0 +1,24 @@
+{
+  "schema": "limit-class-fixture/v1",
+  "fixture_kind": "golden",
+  "provenance": "observed",
+  "task_id": "FC-LC-SAMPLE-001",
+  "source": {
+    "file": "docs/requests/agent_registry.jsonl",
+    "lines": "2524-2529",
+    "sample_key": "5e485887643cba3c",
+    "ts": "2026-09-26T13:24:22Z",
+    "event": "crashed",
+    "note": "six byte-identical rows recorded in one incident (keys 5e485887643cba3c, 331601e77ca605e2, 79937923d36997cd, 2c8067f0137addbf, d402f1261d03848d, 9b4360b72c1f0267); this fixture uses the first, lc_bad_cap_via_429_no_retry_after.json uses a different key from the same real incident"
+  },
+  "raw_signal": "API weekly-limit 429 on alias claude1 (resets 2026-09-29 20:00 Asia/Aqtau); agent killed mid-work; partial artifacts preserved in qa-results/agent_custody_20260926/partial_after_quota/; respawn by description per 11.4.147(e).",
+  "http_status": 429,
+  "error_code": "rate_limit_error",
+  "retry_after_seconds": null,
+  "reset_named": true,
+  "resets_at": "2026-09-29T20:00:00+05:00",
+  "resets_at_tz": "Asia/Aqtau",
+  "alias": "claude1",
+  "expected_class": "cap",
+  "_defect": "This is the T127 task text's own named golden scenario ('the 2026-09-26 weekly-cap rows'), a REAL row copied byte-for-byte from docs/requests/agent_registry.jsonl:2524-2529 -- this project's own recorded instance of research.md DEC-14's RC-01 rationale event ('one weekly cap killed five concurrent agents at once'; this incident recorded SIX). No retry-after header is present in the note (a weekly/subscription cap is not a short-window per-request throttle); the note names an explicit multi-day-out reset instant ('resets 2026-09-29 20:00 Asia/Aqtau', ~3 days after the 2026-09-26T13:24:22Z kill) -- DEC-14's own disambiguator for cap over rate-limited ('no retry-after, or a named weekly/subscription reset', an OR of two conditions, BOTH of which this fixture happens to satisfy). Per contracts/agent-registry-and-handoff.md AR-005 + T-B06's own task text, class=cap means the resume must NEVER retry on alias claude1; it must rebind to an operational alias (section 11.4.196 native-first order) and mark claude1 cooled until 2026-09-29T20:00 Asia/Aqtau -- never a short backoff-then-resume-same-alias, which is what a (wrong) rate-limited classification would authorise, and exactly the misclassification lc_bad_cap_via_429_no_retry_after.json exists to catch."
+}

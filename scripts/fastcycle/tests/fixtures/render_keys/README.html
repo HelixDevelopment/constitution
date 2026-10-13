@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>fixtures/render_keys/ — T062 self-validation fixtures</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="fixturesrender_keys--t062-self-validation-fixtures">fixtures/render_keys/
+— T062 self-validation fixtures</h1>
+<p>Fixture convention for
+<code>constitution/scripts/fastcycle/docs/render_keys.py</code> (plan.md
+T-C12 &quot;Content-addressed, parallel, batched twin regeneration&quot;; SC-002,
+FR-022 in <code>specs/004-fast-dev-cycles/spec.md</code>). No
+<code>contracts/</code> file names this tool explicitly (confirmed
+absent by this file&#39;s own author, per the same &quot;no dedicated contract
+exists&quot; pattern T057/T060/T061 already document for their own tools —
+<code>specs/004-fast-dev-cycles/ contracts/</code> has no
+<code>render-keys*.md</code> or <code>twin-rendering*.md</code> entry).
+Task T062 (<code>tasks.md</code>) writes ONLY this RED test + these
+fixtures; the tool itself is a later, separate task (Producer !=
+Verifier, §11.4.240 — this file&#39;s author never implements
+<code>render_keys.py</code>).</p>
+<p>Plan.md T-C12&#39;s own Work + Protecting-tests lines, verbatim:</p>
+<blockquote>
+<p><code>docs/render_keys.py</code> stores per twin
+<code>key = hash(source bytes ‖ stylesheet ‖ exporter version ‖ pandoc/weasyprint versions ‖ format)</code>;
+<code>sync_all_markdown_exports.sh</code> skips a twin whose key
+matches, renders changed twins in parallel within the §12.6 cap, and
+renders once per commit for all touched sources; the freshness gate
+checks the key (a skipped render is still proven current), in addition
+to mtime.</p>
+<p>Protecting tests: RED: an unchanged source re-renders today; golden:
+a changed source re-renders all four formats; golden-bad: a twin whose
+source changed but whose key was not updated is caught by the freshness
+gate; paired mutation: key on mtime only → a touched-but-identical file
+fixture shows the difference; a stale twin fixture FAILs the gate.</p>
+</blockquote>
+<p>tasks.md T062&#39;s own line folds the paired-mutation clause&#39;s fixture
+requirement into this task&#39;s own scope: &quot;(an unchanged source re-renders
+today; a changed source re-renders all four formats; golden-bad: a twin
+whose source changed but whose key was not updated is caught by the
+freshness gate; touched-but-identical file fixture shows mtime vs
+content difference)&quot;. The full paired-mutation FLIP itself (T063&#39;s job,
+run once T-C12&#39;s real tool lands) reuses these same 4 fixtures.</p>
+<h2 id="the-tool-under-test-not-yet-implemented--t-c12-a-later-task">The
+tool under test (not yet implemented — T-C12, a later task)</h2>
+<p><code>constitution/scripts/fastcycle/docs/render_keys.py</code>, per
+plan.md&#39;s path table (line 196:
+<code>render_keys.py  # content-addressed twin rendering (T-C12)</code>).
+<code>constitution/scripts/fastcycle/docs/</code> currently holds
+nothing but <code>.gitkeep</code> — confirmed by this RED test&#39;s own
+Section A control needle, never assumed.</p>
+<p><strong>Assumed CLI contract (UNCONFIRMED by any contract file —
+DEFINED here for this RED test&#39;s own GREEN-branch, binding-if-adopted on
+T-C12&#39;s implementer, following the house precedent in
+<code>fixtures/verdict_cache/ README.md</code>,
+<code>fixtures/dispatch_stamp/</code>, and
+<code>test_batch_bisect_red.sh</code>&#39;s own &quot;no named contract file
+existed&quot; precedent):</strong></p>
+<pre><code>render_keys.py compute --source &lt;path.md&gt; --format {html|pdf|docx} \
+    --stylesheet &lt;path&gt; --exporter-version &lt;str&gt; \
+    --pandoc-version &lt;str&gt; --weasyprint-version &lt;str&gt;</code></pre>
+<p>Computes the per-twin key from the CURRENT source bytes + the named
+components, per T-C12&#39;s Work-line formula, and prints the 64-hex-char
+SHA-256 key on stdout. Exit 0 on success.</p>
+<pre><code>render_keys.py check --source &lt;path.md&gt; --format {html|pdf|docx} \
+    --key-file &lt;path/to/key.json&gt; \
+    --stylesheet &lt;path&gt; --exporter-version &lt;str&gt; \
+    --pandoc-version &lt;str&gt; --weasyprint-version &lt;str&gt;</code></pre>
+<p>Reads the RECORDED key from <code>--key-file</code> (a JSON sidecar
+shaped like <code>key_v1.json</code>/<code>key_matching.json</code>
+below — at minimum a top-level <code>&quot;key&quot;</code> field), recomputes the
+CURRENT key from the same 5 flags read live, and compares. On a match,
+prints <code>FRESH</code> and exits 0 (the exporter may safely skip the
+render — &quot;a skipped render is still proven current&quot;, per T-C12&#39;s own
+Work line). On a mismatch, prints <code>STALE</code> (naming the
+differing component where determinable) and exits non-zero — this IS
+&quot;the freshness gate&quot; T-C12&#39;s Work line and
+<code>rk_stale_key_caught/</code>&#39;s golden-bad scenario both name.</p>
+<pre><code>render_keys.py store --source &lt;path.md&gt; --format {html|pdf|docx} \
+    --key-file &lt;path/to/key.json&gt; \
+    --stylesheet &lt;path&gt; --exporter-version &lt;str&gt; \
+    --pandoc-version &lt;str&gt; --weasyprint-version &lt;str&gt;</code></pre>
+<p>Computes the key from the CURRENT inputs (same formula as
+<code>compute</code>) and writes/overwrites <code>--key-file</code> with
+the recorded key. Exit 0 on success.</p>
+<p>T-C12&#39;s implementer MAY choose a different flag/subcommand shape — if
+so, per the same precedent, that choice belongs in
+<code>render_keys.py</code>&#39;s own docstring, and this RED test&#39;s
+fixtures should then be read as &quot;the semantic scenario&quot;, with the
+concrete CLI invocation lines adapted (never as an unreviewable, silent
+contract override).</p>
+<h2 id="the-key-formula-this-fixture-set-actually-uses">The key formula
+this fixture set actually uses</h2>
+<p>A standalone reference implementation,
+<code>tests/lib/render_keys_ref.py</code> (never
+<code>render_keys.py</code> itself — see its own module docstring for
+the full disclaimer, mirroring
+<code>tests/lib/dec07_key_ref.py</code>&#39;s), computes:</p>
+<pre><code>key = SHA-256(
+  source bytes ||
+  stylesheet (path/identifier string) ||
+  exporter version (a SHA-256 of scripts/testing/sync_all_markdown_exports.sh&#39;s
+    OWN bytes at fixture-authoring time — the exporter publishes no
+    semver today, so this content hash is the defensible, content-addressed
+    proxy this fixture set adopts, mirroring DEC-07&#39;s own &quot;gate-script
+    bytes are a key component&quot; precedent) ||
+  pandoc version string (`pandoc --version`&#39;s first line) ||
+  weasyprint version string (`weasyprint --version`) ||
+  format (&quot;html&quot; | &quot;pdf&quot; | &quot;docx&quot;)
+)</code></pre>
+<p>Field separator: U+001F (unit separator), matching
+<code>dec07_key_ref.py</code>&#39;s own convention — reused for consistency,
+not independently re-derived. Every key embedded in
+<code>key_v1.json</code>/<code>key_matching.json</code> below was
+computed by a REAL run of <code>render_keys_ref.py</code> against this
+fixture set&#39;s own REAL source files and this HOST&#39;s REAL, captured
+<code>pandoc --version</code> / <code>weasyprint --version</code> output
+at fixture-authoring time (2026-09-29) — a control-needle self-check
+(determinism: two computations of the same inputs agree; non-vacuous: a
+different <code>format</code> argument, and a one-byte source change,
+each yield a different key) was run and confirmed before either JSON
+file was written (§11.4.201(7)(a)/§11.4.273).</p>
+<h2 id="the-4-scenarios">The 4 scenarios</h2>
+<table>
+<thead>
+<tr>
+<th>Directory</th>
+<th>Task-line clause</th>
+<th>Kind</th>
+<th>What the test does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rk_unchanged_today/</code></td>
+<td>&quot;an unchanged source re-renders today&quot;</td>
+<td>control needle</td>
+<td><code>touch</code>es a real toy <code>source.md</code> (content
+byte-identical, sha256-verified before/after) and shows a REAL,
+non-<code>--check-only</code> invocation of the CURRENT
+<code>scripts/testing/sync_all_markdown_exports.sh</code> re-renders its
+already-rendered <code>.html</code>/<code>.pdf</code>/<code>.docx</code>
+siblings anyway (their mtimes bump again) — because today&#39;s freshness
+check is mtime-only (<code>[ &quot;$md&quot; -nt &quot;$html&quot; ]</code>), proven by
+grepping the real exporter&#39;s own source text.</td>
+</tr>
+<tr>
+<td><code>rk_changed_all_four/</code></td>
+<td>&quot;a changed source re-renders all four formats&quot;</td>
+<td>golden</td>
+<td>Genuinely edits a toy <code>source.md</code>&#39;s content (marker V1 →
+V2), and shows a REAL invocation of the CURRENT exporter regenerates ALL
+THREE sibling formats
+(<code>.html</code>/<code>.pdf</code>/<code>.docx</code>) — mtime-bumped
+AND content-updated (new marker present, old marker gone) — alongside
+the <code>.md</code> itself: the full §11.4.65 four-format set.</td>
+</tr>
+<tr>
+<td><code>rk_stale_key_caught/</code></td>
+<td>&quot;golden-bad: a twin whose source changed but whose key was not
+updated is caught by the freshness gate&quot;</td>
+<td>golden-bad</td>
+<td>Genuinely edits <code>source.md</code> (V1 → V2) WITHOUT updating
+<code>key_v1.json</code> (which still records V1&#39;s key), then genuinely
+invokes the (today, absent) <code>render_keys.py check</code> against
+this stale pairing — real invocation, rc=127 today, self-flips GREEN
+(expected: <code>STALE</code> + non-zero exit) once T-C12 lands.</td>
+</tr>
+<tr>
+<td><code>rk_touched_identical/</code></td>
+<td>&quot;touched-but-identical file fixture shows mtime vs content
+difference&quot;</td>
+<td>self-validation + golden</td>
+<td><code>touch</code>es <code>source.md</code> (NEVER edits its bytes —
+sha256-verified identical before/after, a real measured mechanism
+proof), then genuinely invokes the (today, absent)
+<code>render_keys.py check</code> against <code>key_matching.json</code>
+(which DOES match the current, unedited content) — real invocation,
+rc=127 today, self-flips GREEN (expected: <code>FRESH</code> + exit 0)
+once T-C12 lands. Direct positive contrast to
+<code>rk_unchanged_today/</code>&#39;s proof of today&#39;s wasteful mtime-only
+behaviour on the exact same class of input.</td>
+</tr>
+</tbody>
+</table>
+<p>Every scenario&#39;s <code>source.md</code> is restored to its ORIGINAL
+checked-in bytes, and every siblings/generated file
+(<code>.html</code>/<code>.pdf</code>/<code>.docx</code>) this test
+itself renders is removed, on every exit path
+(<code>trap ... EXIT</code>) — so the tracked fixture tree always
+returns to <code>source.md</code> (+
+<code>key_*.json</code>/<code>expected.json</code> where present) only,
+matching the established convention across every other
+<code>fixtures/*/</code> directory in this tree (no generated binary
+siblings committed). Re-running the test is therefore safe and
+idempotent.</p>
+</body>
+</html>

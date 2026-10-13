@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Fixtures: transcript_ingest (T020, plan T-A06)</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="fixtures-transcript_ingest-t020-plan-t-a06">Fixtures:
+transcript_ingest (T020, plan T-A06)</h1>
+<p>RED-set fixtures for
+<code>constitution/scripts/fastcycle/tests/test_token_attribution_red.sh</code>
+(T020). Guards T036 (<code>$FC/tokens/dispatch_stamp.sh</code>) and T038
+(<code>$FC/tokens/transcript_ingest.py</code>) — neither exists yet;
+this test and its fixtures are written and observed to fail against that
+absence (§11.4.224, common-conventions.md C-005). Producer≠Verifier
+(§11.4.240): this directory and the test script are the RED artefact
+only; <code>dispatch_stamp.sh</code> and
+<code>transcript_ingest.py</code> are separate, later, implementation
+tasks owned by other agents.</p>
+<h2 id="real-schema-provenance-1146--nothing-here-is-invented">Real-schema
+provenance (§11.4.6 — nothing here is invented)</h2>
+<p>Every field shape below was read from this project&#39;s OWN live Claude
+Code transcripts on 2026-09-28 (session
+<code>8824e088-62a6-4d4f-9f6c-2320055ad033</code> and sibling sessions
+under
+<code>~/.claude-claude5/projects/-mnt-track1-atmosphere-t1/</code>),
+never assumed:</p>
+<ul>
+<li>Top-level (non-sidechain) transcript records:
+<code>parentUuid</code>, <code>isSidechain</code>, <code>type</code>
+(<code>user</code>|<code>assistant</code>|...), <code>uuid</code>,
+<code>timestamp</code>, <code>sessionId</code>, <code>message</code>. An
+<code>assistant</code> record&#39;s <code>message</code> carries
+<code>model</code>, <code>id</code>, <code>type</code>,
+<code>role</code>, <code>stop_reason</code>, <code>content</code>, and
+(when the API call actually returned) a <code>usage</code> object with
+<code>input_tokens</code>, <code>output_tokens</code>,
+<code>cache_creation_input_tokens</code>,
+<code>cache_read_input_tokens</code> (plus provider-internal fields such
+as <code>output_tokens_details</code>, <code>server_tool_use</code>,
+<code>cache_creation</code>, <code>service_tier</code>,
+<code>iterations</code>, <code>speed</code> — irrelevant to token
+attribution and omitted from these minimal fixtures).</li>
+<li>A rate-limited/rejected turn&#39;s <code>message.usage</code> is present
+with EVERY count explicitly <code>0</code> (captured verbatim: session
+<code>0099c079-62e3-4846-a2a6-eacb7d42a85c</code>, line 49,
+<code>error: &quot;rate_limit&quot;</code>, <code>isApiErrorMessage: true</code>,
+<code>apiErrorStatus: 429</code>, all four usage counts <code>0</code>)
+— this is the REAL shape
+<code>missing_usage_block/usage_present_zero.jsonl</code> is modelled
+on: a genuinely-zero, fully-instrumented turn, never to be confused with
+a turn that carries no <code>usage</code> key at all.</li>
+<li>Async agent dispatch: the PARENT transcript&#39;s dispatching
+<code>assistant</code> turn contains a <code>tool_use</code> content
+block (<code>type: &quot;tool_use&quot;</code>, <code>name: &quot;Agent&quot;</code>,
+<code>input: {description, prompt}</code>); the immediately-following
+<code>user</code> turn (the tool result) carries
+<code>toolUseResult: {isAsync: true, status: &quot;async_launched&quot;, agentId, description, resolvedModel, outputFile, ...}</code>
+(captured verbatim from a genuine live async dispatch, agentId
+<code>a3769936d2ace3124</code>, session
+<code>8824e088-62a6-4d4f-9f6c-2320055ad033</code>, 2026-09-28 — the SAME
+real payload shape
+<code>scripts/hooks/ test_agent_registry_dispatch_writer_red.sh</code>&#39;s
+own A8 case is built from, cited there as agentId
+<code>ac39c9d3e8933edd3</code>, 2026-09-27).</li>
+<li><strong>Real captured dispatch <code>description</code> today
+carries NO <code>item=&lt;ATM-nnnn&gt;</code> token anywhere</strong> —
+verbatim captured example (session
+<code>8824e088-62a6-4d4f-9f6c-2320055ad033</code>,
+<code>toolUseResult.description</code>):
+<code>&quot;(T1/main - claude5 - sonnet - high) T018 RED test review_record&quot;</code>.
+This is the direct evidence behind property (a) in the test.</li>
+<li>Subagent transcript on-disk convention:
+<code>&lt;CLAUDE_CONFIG_DIR&gt;/projects/ &lt;project-slug&gt;/&lt;parent_session_id&gt;.jsonl</code>
+(the parent/CLI transcript) alongside
+<code>&lt;parent_session_id&gt;/subagents/agent-&lt;agentId&gt;.jsonl</code>
+(the subagent&#39;s OWN transcript) — directly observed via
+<code>&lt;repo&gt;/../.../tasks/&lt;agentId&gt;.output</code> symlinks
+resolving to exactly that path. A subagent transcript record carries
+<code>agentId</code> directly (not only derivable from the file name)
+plus <code>isSidechain: true</code> and (for its first <code>user</code>
+record) <code>promptId</code>. This is the real join key
+<code>transcript_ingest.py</code> (T038)&#39;s &quot;session→agent→item&quot; keying
+(plan.md T-A06) needs: <code>sessionId</code> (session) →
+<code>agentId</code> (agent, matching both the subagent record&#39;s own
+field AND the parent&#39;s <code>toolUseResult.agentId</code> AND the
+<code>agent-&lt;agentId&gt;.jsonl</code> filename) → the
+<code>item=&lt;ATM-nnnn&gt;</code> token embedded in the parent&#39;s
+stamped <code>description</code> (item, once T036/T037 land).</li>
+</ul>
+<h2 id="fixture-map">Fixture map</h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Property under test</th>
+<th>Shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cache_hits/session.jsonl</code></td>
+<td>cache-hit tokens are counted, not dropped</td>
+<td>one <code>user</code> turn + two <code>assistant</code> turns: turn
+1 is cache-cold (<code>cache_creation_input_tokens=1200</code>,
+<code>cache_read_input_tokens=0</code>), turn 2 is a genuine cache HIT
+reading the same 1200 tokens back
+(<code>cache_read_input_tokens=1200</code>)</td>
+</tr>
+<tr>
+<td><code>missing_usage_block/usage_absent.jsonl</code></td>
+<td>a turn with NO <code>usage</code> key MUST be reported
+missing/<code>UNMEASURED</code> (common-conventions.md term), never
+coerced to 0</td>
+<td><code>assistant</code> <code>message</code> object has no
+<code>&quot;usage&quot;</code> key at all</td>
+</tr>
+<tr>
+<td><code>missing_usage_block/usage_present_zero.jsonl</code></td>
+<td>negative control (§11.4.201(6) false-null guard, C-004 control
+needle) — a genuinely-zero, fully-instrumented turn MUST NOT be reported
+missing</td>
+<td><code>assistant</code> <code>message.usage</code> present, all four
+counts explicitly <code>0</code> (modelled on the real rate-limited-turn
+shape above)</td>
+</tr>
+<tr>
+<td><code>subagent_attribution/parent_session.jsonl</code> +
+<code>subagent_attribution/parent_session/subagents/agent-fixturet020attr01.jsonl</code></td>
+<td>a subagent&#39;s token usage attributes to its parent dispatch&#39;s
+item</td>
+<td>parent dispatches with <code>description</code> containing
+<code>item=ATM-9999</code> (the future T036-stamped tag) and
+<code>toolUseResult.agentId = &quot;fixturet020attr01&quot;</code>; the subagent
+transcript (real on-disk path convention) carries the SAME
+<code>agentId</code> and its own real usage
+(<code>cache_read_input_tokens=500</code>,
+<code>cache_creation_input_tokens=8000</code>)</td>
+</tr>
+<tr>
+<td><code>credential_leak/session.jsonl</code></td>
+<td>a planted secret-shaped string in message content never reaches the
+telemetry DB (§11.4.10)</td>
+<td><code>user</code>+<code>assistant</code> turns whose text embeds the
+literal marker
+<code>FASTCYCLE-T020-PLANTED-MARKER-7f3a9c2e1b8d4f6091ab34cd</code>,
+clearly labelled synthetic; a genuine <code>usage</code> block
+accompanies the assistant turn so the fixture also exercises normal
+ingest</td>
+</tr>
+</tbody>
+</table>
+<h2 id="credential-scanner-safety-verified-not-assumed">Credential-scanner
+safety (verified, not assumed)</h2>
+<p>Every fixture file above was scanned with this repository&#39;s OWN
+<code>helix_cred_scan_file</code>
+(<code>constitution/scripts/hooks/credential_scan_lib.sh</code>) before
+being checked in, with a positive control run first (a synthetic
+<code>AKIA</code>-shaped AWS key, confirmed CAUGHT) proving the scanner
+instrument was alive for that run — all six fixture files scanned clean.
+The planted marker in <code>credential_leak/session.jsonl</code>
+deliberately avoids every keyword the scanner&#39;s
+<code>HELIX_CRED_VALUE_PATTERN</code> matches
+(<code>password|passwd|secret| api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret</code>
+adjacent to <code>:</code>/<code>=</code>) and every literal prefix it
+matches (<code>AKIA</code>, <code>ghp_</code>, <code>gho_</code>,
+<code>github_pat_</code>, <code>xox[baprs]-</code>, <code>sk-</code>,
+<code>AIza</code>, <code>-----BEGIN ... PRIVATE KEY-----</code>) — it is
+a synthetic marker STRING representing &quot;sensitive message-body content
+that must never reach a metrics-only DB&quot;, not a credential-SHAPED
+assignment the scanner is designed to catch (that is a different,
+already-covered feature).</p>
+</body>
+</html>

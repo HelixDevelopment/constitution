@@ -1,0 +1,9 @@
+{
+  "changed_components": [
+    "evidence"
+  ],
+  "evidence_hash_ok": false,
+  "outcome": "STALE_EVIDENCE",
+  "ref_id": "FC-ER-EVIDENCE-TAMPERED-001",
+  "schema": "evref-consume/v1"
+}

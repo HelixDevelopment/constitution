@@ -174,9 +174,41 @@ else
     fi
 fi
 
+# T6 — golden-BAD against the CHECKED-IN baseline (added 2026-10-12, §11.4.230(E) round 2):
+# T1-T5 regenerate the baseline inside the scratch tree, so they cannot see headroom in the
+# checked-in gate_ledger_baseline.txt (the round-1 review found baseline 402 vs real 394: deleting a
+# deferral row passed). T6 restores the REAL corpus, deferrals and checked-in baseline + prev-names,
+# deletes one real registered deferral row, and requires the ratchet to FAIL. Control: the unmodified
+# real inputs must PASS first, so the FAIL is caused by the deletion and not by a stale snapshot.
+cp -p "${real_root}/Constitution.md" "${scratch}/Constitution.md"
+for f in gate_ledger_deferrals.tsv gate_ledger_baseline.txt gate_ledger_prev_names.txt gate_ledger_removals.tsv; do
+    [ -f "${real_root}/scripts/gates/$f" ] && cp -p "${real_root}/scripts/gates/$f" "${scratch}/scripts/gates/$f"
+done
+if ! "$gate" --root "$scratch" --quiet >/tmp/.cm_gate_ledger_t6c.log 2>&1; then
+    fail "T6 control: the REAL checked-in inputs did not PASS — T6 cannot attribute a FAIL to the deletion"
+    cat /tmp/.cm_gate_ledger_t6c.log >&2
+else
+    t6_victim="$(awk -F'\t' '$2 ~ /^OWED-GATE-[0-9]+$/ {v=$1} END{print v}' "${scratch}/scripts/gates/gate_ledger_deferrals.tsv")"
+    if [ -z "$t6_victim" ] || ! grep -qF -- "$t6_victim" "${scratch}/Constitution.md"; then
+        fail "T6 setup: no registered deferral row whose gate is named in the corpus was found"
+    else
+        awk -F'\t' -v v="$t6_victim" '$1!=v' "${scratch}/scripts/gates/gate_ledger_deferrals.tsv" > "${scratch}/.t6.tsv"
+        mv "${scratch}/.t6.tsv" "${scratch}/scripts/gates/gate_ledger_deferrals.tsv"
+        if "$gate" --root "$scratch" --quiet >/tmp/.cm_gate_ledger_t6.log 2>&1; then
+            fail "T6 mutation: deleting the real deferral row for ${t6_victim} did NOT make the ratchet FAIL against the checked-in baseline (baseline has headroom)"
+            cat /tmp/.cm_gate_ledger_t6.log >&2
+        elif grep -q "ratchet violated" /tmp/.cm_gate_ledger_t6.log; then
+            note "T6 mutation (deleted real deferral row ${t6_victim}, checked-in baseline) correctly FAILED"
+        else
+            fail "T6 mutation FAILED for the wrong reason (expected a ratchet-violated message):"
+            cat /tmp/.cm_gate_ledger_t6.log >&2
+        fi
+    fi
+fi
+
 echo "----------------------------------------------------------------------"
 if [ "$fails" -eq 0 ]; then
-    echo "✅ CM-GATE-LEDGER-RATCHET mutation test: PASS — all 5 sub-cases (golden-TRUE, unimplemented+undeferred-mutation-FAIL, deferral-restores-PASS, vanished-name-mutation-FAIL, removal-citation-restores-PASS) behaved as required"
+    echo "✅ CM-GATE-LEDGER-RATCHET mutation test: PASS — all 6 sub-cases (golden-TRUE, unimplemented+undeferred-mutation-FAIL, deferral-restores-PASS, vanished-name-mutation-FAIL, removal-citation-restores-PASS, checked-in-baseline deleted-deferral-FAIL) behaved as required"
     exit 0
 else
     echo "❌ CM-GATE-LEDGER-RATCHET mutation test: FAIL — ${fails} sub-case(s) did not behave as required"

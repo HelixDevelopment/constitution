@@ -1,0 +1,4 @@
+{
+  "worker1": {"batch_verdict": "FAIL", "culprits": ["chg-C"]},
+  "worker2": {"batch_verdict": "PASS", "culprits": []}
+}

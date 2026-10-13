@@ -1,0 +1,44 @@
+{
+  "agent_key": "e81cbef803cc3ff3",
+  "alias": "claude3",
+  "body_hash": "d4b5e8cca628368602a7776105d1e418e7f2c5cce8352127604c92e329f25bb3",
+  "effects_performed": [],
+  "effort": "high",
+  "external_deps": [
+    {
+      "fingerprint": "NOT-EXERCISED-BY-T125-VALIDATE-SEE-T126",
+      "kind": "git-ref",
+      "locator": "refs/heads/main"
+    }
+  ],
+  "handoff_id": "sha256:4191c723905003e90ccca3ffe20814291f9706d03053b890edf1314eeb4e185b",
+  "item_id": "NONE",
+  "model": "sonnet",
+  "partial_artefacts": [
+    {
+      "content_address": "sha256:0fe3ccd998ceb9cd069476923fd76d58d776f63fa2c7ba0e044f20e5870ba128",
+      "path": "notes.md"
+    },
+    {
+      "content_address": "sha256:c5acafe4f17481978fd81fe793e41ffb344823e4dbfa0033b40cc69a453909e9",
+      "path": "plan.json"
+    }
+  ],
+  "pending": [
+    {
+      "precondition": "phase boundary reached",
+      "step": "write handoff record"
+    },
+    {
+      "precondition": "handoff written",
+      "step": "verify partial artefacts against disk"
+    }
+  ],
+  "phase": "implementation",
+  "schema": "handoff/v1",
+  "time_source": "event_occurred",
+  "verified": [
+    "FC-HO-VERIFIED-001"
+  ],
+  "written_at": "2026-09-30T10:05:00Z"
+}

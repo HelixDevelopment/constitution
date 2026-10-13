@@ -1,0 +1,2 @@
+DISTINCT
+REASON: mutant_b.sh's grep pattern is genuinely different from mutant_a.sh's (a different mutant, matching a different defect class) -- normalisation must NOT collapse these two, negative control on the TCE dedup rule (proves it does not over-merge everything).

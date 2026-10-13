@@ -1,0 +1,11 @@
+{
+  "class_statement": "a closure whose evidence_path was accepted at record time despite never resolving to a real file",
+  "search_method": "grep -rln 'evidence_path' constitution/scripts/workable-items/cmd/workable-items/*.go",
+  "control_needle": "crud.go:requireEvidencePath",
+  "control_needle_found": true,
+  "instances_found": [
+    {"location": "constitution/scripts/workable-items/cmd/workable-items/crud.go:288", "disposition": "fixed-here"},
+    {"location": "constitution/scripts/workable-items/cmd/workable-items/close_evidence_recordtime_test.go:1", "disposition": "tracked-as ATM-953"},
+    {"location": "constitution/scripts/workable-items/cmd/workable-items/obsolete.go:1", "disposition": "proven-not-an-instance", "proof": "obsolete-details never records a closure evidence_path -- a distinct, already-resolvable field"}
+  ]
+}

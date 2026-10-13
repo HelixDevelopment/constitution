@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>scope_render.py — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="scope_renderpy--guide">scope_render.py — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T13:36:00Z</p>
+<p>Source: <code>constitution/scripts/codegraph/scope_render.py</code>
+(446 lines). Tests:
+<code>constitution/scripts/codegraph/tests/run_scope_tests.sh</code>
+(cases T01-T17, mutants M0-M15; the <code>§1.1-anchor:</code> markers in
+the source are the mutation targets) and
+<code>tests/t_scope_fixture.py</code> (the fixture builder). Citations
+below are <code>scope_render.py:&lt;line&gt;</code> unless another file
+is named.</p>
+<h2 id="overview">Overview</h2>
+<p>Renders a project&#39;s CodeGraph index scope from ONE declarative file,
+<code>scope.yaml</code> (schema and template:
+<code>scope.example.yaml</code>), plus the project&#39;s
+<code>.gitmodules</code> (header, lines 3-28). It produces,
+deterministically:</p>
+<ol type="1">
+<li><code>&lt;root&gt;/codegraph.json</code>, the only config file
+CodeGraph &gt;= 1.6 reads (header line 9). Its <code>exclude</code> list
+is the root of every THIRD-PARTY submodule, then the baseline
+must-exclude classes, then project and pathological excludes (lines
+309-317); an optional <code>include</code> list (from
+<code>include_patterns</code>, lines 337-339); and an inert
+<code>_generated</code> provenance key with the sha256 of the scope file
+and of every <code>.gitmodules</code> read (lines 323-336).</li>
+<li>A root <code>.gitignore</code> negation block delimited by
+<code># BEGIN helix-codegraph-scope</code> /
+<code># END helix-codegraph-scope</code>, containing
+<code>!&lt;pattern&gt;</code> for each <code>reinclude_negations</code>
+entry (lines 341-343). Only a root <code>.gitignore</code> negation can
+re-include owned source under a built-in-skipped parent; the config&#39;s
+<code>include</code> cannot (header lines 23-27).</li>
+</ol>
+<p>Own-organisation submodule paths never appear in
+<code>exclude</code>; a guard in the renderer refuses if one would
+(lines 319-322). <code>render</code> is a pure function of the scope
+file bytes and the <code>.gitmodules</code> bytes (docstring, line
+302).</p>
+<p>The judgement side (does the engine actually enumerate what this
+scope promises?) is <code>codegraph_scope_guard.py</code>; this tool
+only renders and checks freshness.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>python3</code> with PyYAML (imported lazily, lines 74-77;
+missing PyYAML is a fail-closed exit 3) and <code>git</code> (used to
+parse <code>.gitmodules</code>, line 145).</li>
+<li>A scope file with the required keys <code>schema_version</code>
+(must be 1), <code>own_orgs</code> (non-empty <code>hosts</code> and
+<code>orgs</code>) and <code>baseline_excludes</code> (non-empty
+<code>build_outputs</code>, <code>caches</code>, <code>secrets</code>,
+<code>qa_corpora</code>) (lines 58-59, 88-105).</li>
+<li><code>&lt;root&gt;/.gitmodules</code> is optional; without it there
+are simply no submodule roots (line 180).</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scope_render.py</span> <span class="at">--scope</span> <span class="op">&lt;</span>scope.yaml<span class="op">&gt;</span> --root <span class="op">&lt;</span>project root<span class="op">&gt;</span> [--write <span class="kw">|</span> <span class="ex">--check]</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>                <span class="ex">[--out-config</span> FILE] [--out-gitignore-block FILE]</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--scope FILE</code></td>
+<td>Scope file. Required</td>
+<td>line 404</td>
+</tr>
+<tr>
+<td><code>--root DIR</code></td>
+<td>Project root. Required; must be a directory (else exit 3)</td>
+<td>lines 405, 415-418</td>
+</tr>
+<tr>
+<td><code>--write</code></td>
+<td>Write <code>&lt;root&gt;/&lt;config filename&gt;</code> and splice
+the block into <code>&lt;root&gt;/.gitignore</code></td>
+<td>lines 407, 430-434</td>
+</tr>
+<tr>
+<td><code>--check</code></td>
+<td>Do not write; report drift between the disk and a fresh render; exit
+1 on drift</td>
+<td>lines 408, 435-438</td>
+</tr>
+<tr>
+<td><code>--write</code> and <code>--check</code></td>
+<td>Mutually exclusive (argparse error, exit 3)</td>
+<td>line 406</td>
+</tr>
+<tr>
+<td><code>--out-config FILE</code></td>
+<td>Also write the rendered config to FILE (atomic)</td>
+<td>lines 409, 426-427</td>
+</tr>
+<tr>
+<td><code>--out-gitignore-block FILE</code></td>
+<td>Also write the rendered block to FILE (atomic)</td>
+<td>lines 410, 428-429</td>
+</tr>
+<tr>
+<td>(no mode flag and no <code>--out-*</code>)</td>
+<td>Print the rendered config JSON on stdout</td>
+<td>lines 439-440</td>
+</tr>
+</tbody>
+</table>
+<p>The config file name is <code>runner.config_filename</code> from the
+scope, default <code>codegraph.json</code> (line 348).</p>
+<h3 id="examples">Examples</h3>
+<p>Run against a generated throwaway fixture repository
+(<code>tests/t_scope_fixture.py</code>: real git submodules, one own-org
+submodule with a nested third-party submodule, one top-level third-party
+submodule) in a scratch directory. The repository&#39;s real tree and index
+were never used.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Command</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>scope_render.py --help</code></td>
+<td>VERIFIED (ran; saw argparse usage, exit 0)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>scope_render.py</code> (no arguments)</td>
+<td>VERIFIED (ran; saw
+<code>error: the following arguments are required: --scope, --root</code>,
+exit 3)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>scope_render.py --scope &lt;fx&gt;/codegraph.scope.yaml --root &lt;fx&gt;</code></td>
+<td>VERIFIED (ran; stdout was the JSON config with
+<code>_generated</code>, <code>exclude</code> =
+<code>/own_sub/vendored_tp/</code>, <code>/tp_top/</code>,
+<code>/out/</code>, <code>**/__pycache__/</code>, <code>.env</code>,
+<code>*.env</code>, <code>*secret*</code>, <code>!*secret*/</code>,
+<code>**/secrets/</code>, <code>**/qa-results/</code>,
+<code>/rubbish/</code>, and <code>include</code> =
+<code>/app/vend/gen/</code>; stderr one <code>SCOPE_RENDER {...}</code>
+line; the fixture&#39;s <code>git status</code> was unchanged)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Same with <code>--check</code> before anything was written</td>
+<td>VERIFIED (ran; saw
+<code>&quot;drift&quot;: [&quot;config_missing&quot;, &quot;block_missing&quot;]</code>, exit 1)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Same with
+<code>--out-config &lt;f&gt; --out-gitignore-block &lt;g&gt;</code></td>
+<td>VERIFIED (ran; <code>&lt;g&gt;</code> held the three-line block
+<code># BEGIN ... !/build/ ... # END ...</code>; nothing was written to
+the root)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Same with <code>--write</code></td>
+<td>VERIFIED (ran; exit 0; <code>git status</code> then showed
+<code>codegraph.json</code> untracked and <code>.gitignore</code>
+modified; the block was the last content of
+<code>.gitignore</code>)</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>--check</code> after <code>--write</code></td>
+<td>VERIFIED (ran; saw <code>&quot;drift&quot;: []</code>, exit 0)</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>--write</code> a second time</td>
+<td>VERIFIED (ran; <code>md5sum</code> of <code>codegraph.json</code>
+and <code>.gitignore</code> identical before and after)</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Append a line after the block, then <code>--check</code></td>
+<td>VERIFIED (ran; saw <code>&quot;drift&quot;: [&quot;block_not_last&quot;]</code>, exit
+1)</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>--write --check</code> together</td>
+<td>VERIFIED (ran; argparse
+<code>not allowed with argument --write</code>, exit 3)</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Missing scope file / root not a directory / unparsable YAML</td>
+<td>VERIFIED (ran; <code>FAIL-CLOSED: cannot read scope file ...</code>,
+<code>root is not a directory: ...</code>,
+<code>FAIL-CLOSED: unparsable scope file ...</code>; exit 3 for all
+three)</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Scope with an extra top-level key <code>bogus_key</code></td>
+<td>VERIFIED (ran;
+<code>FAIL-CLOSED: unknown top-level scope key(s) ... bogus_key</code>)</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Scope with the <code>caches</code> baseline class removed</td>
+<td>VERIFIED (ran;
+<code>FAIL-CLOSED: baseline class caches missing or empty (§11.4.78: a class may not be removed)</code>)</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Scope whose <code>secrets</code> list has <code>**/secrets/</code>
+before <code>!*secret*/</code></td>
+<td>VERIFIED (ran;
+<code>FAIL-CLOSED: exclusion &#39;**/secrets/&#39; (index 4) is voided by the later negation &#39;!*secret*/&#39; (index 5) ... write &#39;**/secrets/&#39; AFTER &#39;!*secret*/&#39;</code>)</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Scope with <code>reinclude_negations: [&quot;!/build/&quot;]</code></td>
+<td>VERIFIED (ran;
+<code>FAIL-CLOSED: reinclude_negations entries are written WITHOUT the leading &#39;!&#39;: !/build/</code>)</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Unclassifiable gitlink (relative or missing URL, no override)</td>
+<td>NOT RUN (covered by the source at lines 190-193, 202-203; exercised
+by the test suite, not by hand)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="inputs">Inputs</h2>
+<ul>
+<li>The scope file, parsed with <code>yaml.safe_load</code> and
+validated by <code>load_scope</code> (lines 73-119):
+<ul>
+<li>required keys, and every top-level key must be in
+<code>KNOWN_KEYS</code> (lines 59-62, 91-94): an unknown key is refused
+&quot;because a silently ignored key would silently drop a rule&quot;;</li>
+<li><code>own_orgs.hosts</code> and <code>own_orgs.orgs</code>
+non-empty; the four required baseline classes non-empty (a class may be
+added but not removed, lines 58, 103-105);</li>
+<li><code>project_excludes</code>, <code>pathological_excludes</code>,
+<code>reinclude_negations</code>, <code>include_patterns</code>: lists
+of non-empty strings; negations and includes must be written without a
+leading <code>!</code> (lines 106-115);</li>
+<li><code>submodule_class_overrides</code> values must be
+<code>own</code> or <code>third_party</code> (lines 116-118). The
+guard-only keys <code>forbidden_classes</code>,
+<code>enumeration_controls</code>, <code>accepted_count</code>,
+<code>tolerance_pct</code> and <code>runner</code> are accepted here and
+ignored by the renderer (they are in <code>KNOWN_KEYS</code>, lines
+60-62).</li>
+</ul></li>
+<li><code>&lt;root&gt;/.gitmodules</code> and, recursively, the
+<code>.gitmodules</code> of every checked-out OWN-org submodule (lines
+177-199). Third-party subtrees are excluded whole and not descended into
+(line 198-199).</li>
+</ul>
+<h2 id="outputs">Outputs</h2>
+<ul>
+<li>stdout: the rendered config only when neither <code>--write</code>,
+<code>--check</code>, nor an <code>--out-*</code> option is given (lines
+439-440).</li>
+<li>stderr: one line <code>SCOPE_RENDER &lt;json&gt;</code> (sorted
+keys) with the counts <code>own_org_roots</code>,
+<code>third_party_roots</code>, <code>exclude_patterns</code>,
+<code>include_patterns</code>, <code>negations</code>,
+<code>order_lint_unprobed</code>, <code>gitmodules_files</code>,
+<code>config_filename</code>, plus <code>drift</code> with
+<code>--check</code> (lines 344-348, 437, 441). Failures print
+<code>scope_render: FAIL-CLOSED: &lt;reason&gt;</code> (line 422).</li>
+<li>Files: with <code>--write</code>,
+<code>&lt;root&gt;/&lt;config filename&gt;</code> and
+<code>&lt;root&gt;/.gitignore</code>; with <code>--out-*</code>, the
+named files. All written atomically through
+<code>&lt;path&gt;.scope_render.tmp</code> then <code>os.replace</code>
+(lines 395-399).</li>
+</ul>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Rendered / written / <code>--check</code> found no drift /
+<code>--help</code></td>
+<td>lines 414, 442</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>--check</code> found drift</td>
+<td>line 438</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Fail-closed: unparsable or invalid scope, missing baseline class,
+order-lint violation, unclassifiable gitlink, unreadable
+<code>.gitmodules</code>, root not a directory, usage error (including
+argparse errors)</td>
+<td>lines 413-414, 417-418, 421-423</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ownership-rule">Ownership rule</h2>
+<p>A submodule is OWN when its URL host is in
+<code>own_orgs.hosts</code> and its org is in <code>own_orgs.orgs</code>
+(both compared lower-cased), otherwise THIRD-PARTY (lines 172-173,
+190-194). A path in <code>submodule_class_overrides</code> wins over the
+URL (lines 174, 188). <code>url_host_org</code> understands
+<code>git@host:org/repo</code>,
+<code>ssh://[user@]host[:port]/org/repo</code> and
+<code>http(s)/git://[user@]host[:port]/org/repo</code>; a URL that is
+empty, starts with <code>./</code>, <code>../</code>, <code>/</code> or
+<code>file:</code>, or whose host has no dot, has no owner and must be
+classified by an override or the renderer refuses (lines 130-139,
+202-203). Nested submodules of an own-org submodule are classified by
+their own URL (line 197).</p>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><strong>Exclusion order is linted (fail closed).</strong> The
+engine&#39;s matcher lets the LAST matching pattern decide, so a later
+<code>!X</code> can silently re-include something an earlier exclusion
+covered. <code>check_exclusion_order</code> synthesises a probe path for
+each earlier exclusion and refuses (exit 3) when a later negation (other
+than the one with the same pattern body) matches it and no still-later
+exclusion re-asserts it (lines 261-289; example 14). Exclusions whose
+pattern cannot be probed are counted in <code>order_lint_unprobed</code>
+and not checked (lines 279-282, 346). The lint sees only the
+<code>exclude</code> list of one render; it does not look at the
+negations in the <code>.gitignore</code> block.</li>
+<li><strong>The block is always moved to the end of
+<code>.gitignore</code>.</strong> <code>splice_gitignore</code> removes
+every existing block and appends the new one after the remaining content
+(lines 355-358). <code>--check</code> reports one of
+<code>block_missing</code>, <code>block_duplicated</code>,
+<code>block_differs</code>, <code>block_not_last</code> (lines 361-373;
+example 9). A missing <code>.gitignore</code> reads as empty (lines
+386-388).</li>
+<li><strong><code>--write</code> overwrites
+<code>&lt;root&gt;/&lt;config filename&gt;</code>
+unconditionally</strong> (line 431); it does not merge with a
+hand-edited config. Every rendered config carries
+<code>_generated.do_not_edit</code>.</li>
+<li><strong><code>--check</code> still honours
+<code>--out-*</code>.</strong> Output files are written before the mode
+is evaluated (lines 426-429).</li>
+<li><strong>Provenance is content-addressed.</strong>
+<code>_generated.scope_sha256</code> and <code>gitmodules_sha256</code>
+change when the scope file or any <code>.gitmodules</code> read changes,
+so any input edit makes the on-disk config differ from a fresh render
+(lines 306-308, 329-330).</li>
+<li><strong>Deterministic output.</strong> JSON is written with sorted
+keys and the exclude list is de-duplicated preserving first occurrence
+(lines 292-298, 340).</li>
+<li><strong>A leftover <code>&lt;path&gt;.scope_render.tmp</code> can
+remain</strong> only if the process dies between the write and the
+replace (lines 396-399). UNCONFIRMED: not provoked.</li>
+</ul>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<ol type="1">
+<li><code>load_scope</code> validates the scope (lines 73-119).</li>
+<li><code>derive_submodules</code> walks <code>.gitmodules</code>
+recursively and classifies each gitlink (lines 169-205);
+<code>.gitmodules</code> is parsed with
+<code>git config -f &lt;file&gt; --null --get-regexp</code> (lines
+142-166); a return code other than 0/1 is an unparsable file (line
+149).</li>
+<li>Build <code>exclude</code> = third-party roots
+(<code>/&lt;path&gt;/</code>), baseline classes (required ones first in
+a fixed order, then any added classes in written order), project
+excludes, pathological excludes; de-duplicate; run the order lint (lines
+309-318).</li>
+<li>Build the config dict and the negation block (lines 323-343).</li>
+<li>Depending on the mode, write, compare with the disk, or print (lines
+424-441).</li>
+</ol>
+<h2 id="related">Related</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="codegraph_scope_guard.md">codegraph_scope_guard</a></td>
+<td>Imports this module (<code>gitignore_to_regex</code>,
+<code>check_on_disk</code>, <code>render</code>,
+<code>splice_gitignore</code>, <code>atomic_write</code>,
+<code>load_scope</code>) and judges the resulting scope against the
+engine&#39;s real enumeration</td>
+</tr>
+<tr>
+<td><a href="scope_enumerate.md">scope_enumerate</a></td>
+<td>The bridge into the runner&#39;s own file discovery</td>
+</tr>
+<tr>
+<td><code>scope.example.yaml</code></td>
+<td>Schema and template for the scope file</td>
+</tr>
+<tr>
+<td><code>scope_baseline.txt</code></td>
+<td>Must-exclude classes data file for the
+<code>codegraph_safe.sh</code> scope-proof stage (its header, lines
+1-3); not read by this renderer</td>
+</tr>
+<tr>
+<td><a href="owed_report.md">owed_report</a></td>
+<td>Reports whether this tool has tests and a guide</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26 (source lines read on that date; examples run on a scratch
+fixture, no real index or repository tree touched). Full scope test
+suite run in a scratch <code>TMPDIR</code>: T01-T17 PASS, M0-M15 PASS
+(18 results), determinism verdict PASS (one iteration).</p>
+<p>Findings: none. The in-source header block (lines 2-47) matches the
+code, including its exit-code list (0/1/3) and side effects.</p>
+</body>
+</html>

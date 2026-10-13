@@ -1,0 +1,4 @@
+{
+  "live_agents": -5,
+  "aliases": [{"alias": "claude1", "kind": "native", "operational": true, "near_cap": false}]
+}

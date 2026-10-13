@@ -1,0 +1,6 @@
+--- a/widget_a_helper.sh
++++ b/widget_a_helper.sh
+@@ -1,3 +1,3 @@
+ #!/bin/sh
+-echo "widget a helper old"
++echo "widget a helper new"

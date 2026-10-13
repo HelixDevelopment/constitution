@@ -1,0 +1,33 @@
+T-D06 contract for a window containing zero closed and zero reopened items
+of any type:
+
+  exit code: 0 (an honest empty result is NOT a failure -- distinct from
+  any usage-error or DB-unreadable exit path this tool may define)
+
+  body (task-line's exact phrasing, T091): a message equivalent to
+    "no data in window [from, to]"
+  which -- by cross-tool convention with cycle_report.py's own CT-008
+  ("NO_DATA_IN_WINDOW") -- is expressed structurally as:
+    { "state": "NO_DATA_IN_WINDOW", "window": { "from": "2020-01-01", "to": "2020-01-02" } }
+
+MUST NOT appear in the output: a "by_type" block populated with
+zero-valued rate: 0.0 entries presented as real measurements (a rate of
+0.0 for an empty window is not the same fact as "no data exists to measure
+a rate from" -- CT-004/data-model.md V-CR-2's "no invention" rule, reused
+here by the same cross-tool convention: a computed zero standing in for an
+absent measurement is indistinguishable from a genuine zero-reopen result
+unless the state is named explicitly); an "overall" block with a numeric
+rate; a non-zero exit code.
+
+This fixture's dates (2020-01-01..2020-01-02) are reused verbatim, byte-
+for-byte, from the sibling test suite's
+tests/fixtures/cycle_report/empty_window/window.json fixture -- the SAME
+rationale (predates every commit and every tracked row) and the SAME
+literal bounds, so both fastcycle tools' empty-window behaviour is tested
+against one, single, already-verified-empty window rather than two
+independently-invented ones (§11.4.227: reuse the settled pattern).
+
+Paired-mutation target this fixture protects against (T093): reporting a
+computed 0.0 rate (or an object with "reopened": 0, "closed": 0, "rate":
+0.0) instead of the honest NO_DATA_IN_WINDOW state for every type and
+overall.

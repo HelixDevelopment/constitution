@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>T090 fixtures — `churn_rank.py` RED-test corpus (plan.md
+T-D05)</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="t090-fixtures--churn_rankpy-red-test-corpus-planmd-t-d05">T090
+fixtures — <code>churn_rank.py</code> RED-test corpus (plan.md
+T-D05)</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-29T00:00:00Z</p>
+<p>Contract: <code>specs/004-fast-dev-cycles/plan.md</code> §T-D05
+(&quot;Extra closure scrutiny for old, high-churn components&quot;) +
+<code>specs/004-fast-dev-cycles/contracts/ common-conventions.md</code>
+(C-001..C-007, which <code>churn_rank.py</code> inherits like every
+Spec-004 tool). <code>common-conventions.md</code>&#39;s own tool-map table
+lists <code>$FC/closure/churn_rank.py</code> under &quot;Plan tools that no
+contract in this directory covers (open gap — no contract is invented
+here ...)&quot;: <strong>its interface, output and RED fixtures are fixed by
+the plan task text until a contract is written</strong> — this file is
+that fixing, for THIS RED test&#39;s own GREEN-branch, following the house
+precedent set by <code>fixtures/io_trace/README.md</code> and
+<code>fixtures/verdict_cache/README.md</code>.</p>
+<p>tasks.md T090 line, verbatim: &quot;RED test
+<code>constitution/scripts/fastcycle/tests/test_churn_rank_red.sh</code>
+(ranking deterministic on a frozen history; control needle: ATM-277&#39;s
+files — 32 commits — rank in the top decile) (plan T-D05; SC-004)&quot;.
+plan.md T-D05&#39;s own &quot;Protecting tests&quot; line: &quot;determinism of the ranking
+on a frozen history; control: a known high-churn path (ATM-277&#39;s files,
+32 commits) ranks in the top decile.&quot;</p>
+<h2 id="the-tool-under-test-not-yet-implemented--t-d05t099-a-later-task">The
+tool under test (not yet implemented — T-D05/T099, a later task)</h2>
+<p><code>constitution/scripts/fastcycle/closure/churn_rank.py</code>,
+per plan.md&#39;s Project Structure (line 200:
+<code>churn_rank.py  # component age/churn ranking for the risk order (T-D05)</code>).
+Today <code>constitution/scripts/fastcycle/closure/</code> contains only
+<code>.gitkeep</code> (verified 2026-09-29:
+<code>find closure -maxdepth 1 -name &#39;*.py&#39; | wc -l</code> → 0). T-D05&#39;s
+own &quot;Work&quot; line: &quot;compute per-component age and churn from git; the top
+decile feeds the §11.4.132/§11.4.189 risk ordering: closures there
+additionally require the backstop run (T-C10) on the closing
+artifact.&quot;</p>
+<p><strong>Assumed CLI contract (UNCONFIRMED by any contracts/ file —
+DEFINED here for this RED test&#39;s own GREEN-branch, binding-if-adopted on
+T099&#39;s implementer):</strong></p>
+<pre><code>churn_rank.py --as-of &lt;YYYY-MM-DD&gt; --components-file &lt;path&gt; \
+              --repo-roots &lt;path&gt; --out &lt;path&gt; [--determinism-check]</code></pre>
+<ul>
+<li><code>--as-of &lt;YYYY-MM-DD&gt;</code> — <strong>required</strong>
+(C-003: &quot;No tool reads the current time into the body; time-windowed
+tools take <code>--as-of &lt;YYYY-MM-DD&gt;</code> and require it&quot;).
+Gates git history to commits with commit-date on or before
+<code>--as-of</code> in every named repo (so the ranking is a pure
+function of its explicit inputs, never of wall-clock &quot;now&quot; read
+internally).</li>
+<li><code>--components-file &lt;path&gt;</code> — canonical JSON:
+<div class="sourceCode" id="cb2"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;components&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">{</span><span class="dt">&quot;id&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;component-id&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>   <span class="dt">&quot;paths&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="fu">{</span><span class="dt">&quot;repo&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;repo-alias&gt;&quot;</span><span class="fu">,</span> <span class="dt">&quot;path&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;repo-relative-path&gt;&quot;</span><span class="fu">}</span><span class="ot">,</span> <span class="er">...</span><span class="ot">]</span><span class="fu">}</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ot">]</span><span class="fu">}</span></span></code></pre></div>
+A component MAY bundle paths that live in <strong>different git
+repositories</strong> (main monorepo, and any of its submodules — e.g.
+<code>presenter</code>, <code>constitution</code>) under distinct
+<code>repo</code> aliases, because a real-world &quot;component&quot; this project
+tracks (e.g. ATM-277&#39;s stale-frame handling) can legitimately span a
+submodule file and a parent-repo file.</li>
+<li><code>--repo-roots &lt;path&gt;</code> — canonical JSON mapping each
+<code>repo</code> alias used above to an absolute git root:
+<code>{&quot;&lt;alias&gt;&quot;: &quot;&lt;absolute path&gt;&quot;, ...}</code>.</li>
+<li><code>--out &lt;path&gt;</code> — canonical JSON result (C-002:
+sorted keys, <code>schema</code> field, <code>run_meta</code> excluded
+from <code>body_hash</code>).</li>
+<li><code>--determinism-check</code> — per C-003&#39;s stated harness
+convention (&quot;the harness <code>--determinism-check</code> flag present
+on every tool: runs twice internally, exits 1 with a diff on
+mismatch&quot;).</li>
+</ul>
+<p><strong>Per-path measurement:</strong> for each
+<code>{repo, path}</code> entry, <code>commits</code> = the count of
+<code>git -C &lt;repo_root&gt; log --follow --oneline --until=&#39;&lt;as-of&gt; 23:59:59&#39; -- &lt;path&gt;</code>
+(rename-tracking via <code>--follow</code> is load-bearing — see
+Scenario 2 below); <code>first_commit_date</code> = the oldest commit
+date in that same query. A path that resolves to <strong>zero</strong>
+commits at or before <code>--as-of</code> (the path does not exist in
+the repo&#39;s history up to that date) is <strong>not</strong> silently
+reported as <code>commits: 0</code> — it is flagged
+<code>&quot;missing_instrument&quot;: &quot;path_not_found_in_repo:&lt;alias&gt;:&lt;path&gt;&quot;</code>
+and its numeric fields are the literal <code>&quot;UNMEASURED&quot;</code> token
+(C-001/C-004: &quot;no tool maps &#39;could not measure&#39; to 0&quot;).</p>
+<p><strong>Per-component aggregation:</strong>
+<code>churn_commits</code> = sum of its resolvable paths&#39;
+<code>commits</code> (a component with <strong>all</strong> paths
+missing is itself UNMEASURED, exit 1 — a finding, per C-001, never
+silently ranked with <code>churn_commits: 0</code>);
+<code>age_days</code> = <code>as_of</code> minus the OLDEST
+<code>first_commit_date</code> across its resolvable paths.</p>
+<p><strong>Ranking:</strong> components are sorted descending by
+<code>churn_commits</code> (primary), then by <code>age_days</code>
+descending (secondary tie-break — an older component among equal-churn
+ones is scrutinised first, consistent with T-D05&#39;s &quot;old, high-churn
+components&quot; framing). <code>rank</code> is the 1-indexed position in
+that sorted list. <code>in_top_decile</code> =
+<code>rank &lt;= ceil(N / 10)</code> where <code>N</code> is the total
+component count. This exact combination rule is <strong>this RED test&#39;s
+own invented default</strong> (T-D05&#39;s Work line does not pin one) — the
+implementer may refine it; the assertions below are built to hold under
+any reasonable choice that weights <code>churn_commits</code> heavily,
+per the note on Scenario 3.</p>
+<h2 id="the-4-scenarios">The 4 scenarios</h2>
+<table>
+<thead>
+<tr>
+<th>Fixture</th>
+<th>Scenario</th>
+<th>Protecting-tests line it satisfies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>build_frozen_repo.sh</code> (built at test-run time into a
+tmpdir, <strong>not</strong> committed as a <code>.git</code> tree)</td>
+<td><strong>Golden-good / determinism</strong></td>
+<td>&quot;ranking deterministic on a frozen history&quot;</td>
+</tr>
+<tr>
+<td>A synthetic throwaway repo built inline by the RED test</td>
+<td><strong>Rename-tracking negative control</strong></td>
+<td>§11.4.273 &quot;the path is part of the instrument&quot; — a naive
+<code>git log -- path</code> (no <code>--follow</code>) undercounts a
+renamed file</td>
+</tr>
+<tr>
+<td><code>golden_bad_missing_path.json</code></td>
+<td><strong>Golden-bad</strong></td>
+<td>a component naming a path absent from the named repo&#39;s history must
+be flagged, never silently <code>churn_commits: 0</code></td>
+</tr>
+<tr>
+<td>the live, real-repository ATM-277 needle (built by the RED test
+itself, not a static file — see below)</td>
+<td><strong>Control needle (the task&#39;s literal ask)</strong></td>
+<td>&quot;control needle: ATM-277&#39;s files — 32 commits — rank in the top
+decile&quot;</td>
+</tr>
+</tbody>
+</table>
+<h3 id="build_frozen_reposh--golden-good--determinism"><code>build_frozen_repo.sh</code>
+— golden-good / determinism</h3>
+<p>Deterministically constructs a small git repository from scratch:
+fixed author/committer name+email, fixed
+<code>GIT_AUTHOR_DATE</code>/<code>GIT_COMMITTER_DATE</code> per commit
+(<code>2020-01-0N 12:00:00 +0000</code>, incrementing one day per commit
+— never &quot;now&quot;), fixed content, fixed commit messages. Two independent
+invocations of this script (into two separate tmpdirs) MUST produce
+<strong>commit-SHA-identical</strong> repositories — this is verified
+live by the RED test (never merely assumed) before any claim about
+<code>churn_rank.py</code>&#39;s determinism is trusted, because a &quot;frozen
+history&quot; claim resting on a non-reproducible builder would prove nothing
+(§11.4.273). The repo has 5 files with exactly 1, 2, 3, 5 and 8 commits
+respectively (<code>file_a.txt</code> through <code>file_e.txt</code>);
+the RED test confirms these exact counts via
+<code>git log --follow --oneline</code> on each independently-rebuilt
+copy, as a mechanism self-check, before ever invoking the (today,
+absent) tool against it.</p>
+<h3 id="synthetic-rename-tracking-repo--negative-control">Synthetic
+rename-tracking repo — negative control</h3>
+<p>A second small throwaway repo (built inline in the RED test, not a
+separate committed script — it exists only to prove one git-mechanics
+fact, not to be a reusable fixture): <code>old_name.txt</code> is
+created and committed twice, then <code>git mv</code>d to
+<code>new_name.txt</code> and committed twice more (4 commits total
+against one logical file). <code>git log --follow -- new_name.txt</code>
+MUST report all 4; <code>git log -- new_name.txt</code> (no
+<code>--follow</code>) MUST report only 2 — proving the exact
+false-negative failure mode a <code>churn_rank.py</code> implementation
+built WITHOUT rename-tracking would introduce (an old,
+frequently-renamed, genuinely high-churn component silently
+under-counted out of the top decile). This is a <strong>negative
+control</strong> in the §11.4.201(1) sense: it looks like it might
+legitimately be &quot;2 commits&quot; (what a naive <code>git log -- path</code>
+reports) but the correct answer is &quot;4&quot; — the component&#39;s true churn is
+not what its current path&#39;s naive history search returns.</p>
+<h3 id="golden_bad_missing_pathjson--golden-bad"><code>golden_bad_missing_path.json</code>
+— golden-bad</h3>
+<p>Names a component whose sole path is
+<code>constitution/scripts/fastcycle/tests/fixtures/churn_rank/THIS_PATH_DOES_NOT_EXIST_5f9c2a1b.txt</code>
+— a filename confirmed absent from the <code>constitution</code>
+submodule&#39;s history (control-needled:
+<code>git log --oneline -- &lt;path&gt;</code> returns zero rows). Once
+<code>churn_rank.py</code> exists, invoking it against this fixture MUST
+exit 1 (a finding, per C-001 — never 0, never a silent
+<code>churn_commits: 0</code>) and the component&#39;s
+<code>missing_instrument</code> field must literally name the path.</p>
+<h3 id="the-real-atm-277-top-decile-needle">The real ATM-277 top-decile
+needle</h3>
+<p>Built by the RED test itself at run time, <strong>never</strong> a
+static frozen fixture, because it is inherently a claim about the
+project&#39;s own LIVE git history (both the <code>presenter</code>
+submodule and the parent monorepo), which keeps growing. The RED
+test:</p>
+<ol type="1">
+<li>Independently re-measures, live, via
+<code>git -C &lt;presenter_root&gt; log --follow --oneline -- Presenter/src/main/java/com/atmosphere/presenter/ VideoPlaybackDetector.kt</code>
+and
+<code>git -C &lt;repo_root&gt; log --follow --oneline -- device/rockchip/rk3588/tests/test_display2_stale_frame_handoff.sh</code>,
+the SAME two files independently identified (§11.4.6, not guessed) as
+&quot;ATM-277&#39;s files&quot; from <code>docs/Fixed.md</code> lines 5062/5188/5205
+(the <code>VideoPlaybackDetector</code>/&quot;ATM-277 stale-frame class&quot; and
+<code>test_display2_stale_frame_handoff.sh</code> references) and
+confirmed via <code>docs/Issues.md:231</code>&#39;s <code>## ATM-277</code>
+heading + its <code>Reopened-Details</code> evidence pointer.</li>
+<li><strong>Captured FACT (measured 2026-09-29, git HEAD at that
+time):</strong> <code>VideoPlaybackDetector.kt</code> =
+<strong>26</strong> commits (presenter submodule,
+<code>git log --follow --oneline</code>, oldest 2026-03-02); +
+<code>test_display2_stale_frame_handoff.sh</code> = <strong>6</strong>
+commits (parent monorepo, oldest 2026-06-04) = <strong>32</strong>
+commits combined — this EXACTLY matches the task line&#39;s stated &quot;32
+commits&quot; with no discrepancy to investigate or document (§11.4.6). The 6
+parent-repo commits are the ones visible via
+<code>git log --follow --oneline -- device/rockchip/ rk3588/tests/test_display2_stale_frame_handoff.sh</code>
+from the monorepo root; one of them (<code>6a3dd85015a</code>) is itself
+titled &quot;merge(ATM-690): ... + ATM-277 honest §11.4.7 demotion +
+discovery sweep&quot;, corroborating that this file is genuinely part of
+ATM-277&#39;s own fix/regression history, not an unrelated coincidence.</li>
+<li>Builds a 10-component <code>--components-file</code>: the ATM-277
+combined component (2 paths, spanning <code>repo: &quot;main&quot;</code> and
+<code>repo: &quot;presenter&quot;</code>) plus 9 <strong>other, real,
+independently-verified low-churn</strong> components, each a single file
+inside the <code>constitution</code> submodule with exactly 1–3 commits
+(<code>test_render_keys_red.sh</code>,
+<code>test_io_trace_red.sh</code>, <code>test_backstop_red.sh</code>,
+<code>test_precheck_slicer_red.sh</code>,
+<code>test_check_deps.sh</code>, <code>test_gate_order_red.sh</code>,
+<code>test_gate_shard_red.sh</code>, <code>test_gate_audit_red.sh</code>
+— each 1 commit; <code>test_baseline_replay_red.sh</code> — 3 commits).
+Max among the 9 context components is 3; the ATM-277 component&#39;s
+combined churn (32, live-recomputed, ≥ documented) exceeds it by more
+than 10×, so under any reasonable churn-weighted ranking formula it
+lands at rank 1 of 10 — the top decile (<code>ceil(10/10) = 1</code>
+slot) — without the assertion being fragile to which exact combination
+rule the eventual T099 implementer chooses.</li>
+<li>Once <code>churn_rank.py</code> exists: invokes it, asserts exit 0,
+asserts the <code>atm277_stale_frame</code> component&#39;s
+<code>rank == 1</code>, <code>in_top_decile == true</code>, and
+<code>churn_commits</code> equals the SAME live-recomputed sum from step
+1 — never a hardcoded &quot;32&quot; as the pass/fail gate itself (a hardcoded
+number would silently go stale and produce a false FAIL the next time
+this file receives a legitimate new commit — ATM-277 is
+<code>Reopened</code>, still under active work). The &quot;32&quot; is captured
+evidence in this README and in this test&#39;s own echoed output, not the
+load-bearing numeric comparison.</li>
+</ol>
+<h2 id="what-this-red-test-does-not-cover">What this RED test does NOT
+cover</h2>
+<ul>
+<li>The <code>--determinism-check</code> flag&#39;s own internal
+double-run-and-diff behaviour is exercised only via the frozen-repo
+scenario; the golden-bad and real-ATM-277 scenarios invoke the tool once
+each (their own protecting-tests lines do not ask for determinism
+specifically).</li>
+<li>The exact combination formula for <code>age_days</code> feeding into
+the ranking beyond the simple tie-break stated above — T-D05&#39;s Work line
+leaves this open, and this RED test&#39;s assertions are deliberately built
+to hold regardless of the implementer&#39;s exact choice (see Scenario 3,
+step 3).</li>
+<li>The <code>§11.4.132/§11.4.189</code> wiring of the top-decile output
+into the actual risk-ordered validation queue, and the T-C10
+backstop-run requirement on closures of top-decile components — those
+are T099&#39;s own downstream wiring and a separate, later concern
+(T101/T102 territory), not this tool&#39;s own output-correctness
+contract.</li>
+<li>The paired §1.1 mutation of the real implementation — that is a
+mutation of code that does not yet exist (T093/T179 territory), not
+something a RED test against an absent tool can exercise.</li>
+</ul>
+</body>
+</html>

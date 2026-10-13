@@ -1,0 +1,29 @@
+{
+  "schema": "governance-subset-fixture-item/v1",
+  "fixture_kind": "golden-good",
+  "item_id": "FC-GS-SAMPLE-001",
+  "classification_inputs": {
+    "item_type": "Bug",
+    "logic_group": "presenter-ui",
+    "touched_path_classes": ["ui"],
+    "defect_class": "user_visible",
+    "phase": "implementation"
+  },
+  "_hand_computation": "always_core (rule_table.json, 8 ids: 7.1, 9.1, 11.4.6, 11.4.113, 11.4.209, 11.4.224, 11.4.226, 12.1) UNION rule 'bug-ui-touched' -- item_type=Bug AND touched_path_classes contains 'ui' -> matches -- which adds {11.4.107, 11.4.170}. No other rule matches: 'device-orchestration-touched' requires touched_path_classes to contain 'device_orchestration' (absent here); 'critical-invariant-defect' requires defect_class='critical_invariant' (this item's defect_class is 'user_visible'). selected_anchors = sorted(core UNION {11.4.107, 11.4.170}), 10 ids total, GS-004 fallback = null (at least one rule matched).",
+  "expected_selection": {
+    "matched_rule_ids": ["bug-ui-touched"],
+    "fallback": null,
+    "selected_anchors": [
+      "11.4.107",
+      "11.4.113",
+      "11.4.170",
+      "11.4.209",
+      "11.4.224",
+      "11.4.226",
+      "11.4.6",
+      "12.1",
+      "7.1",
+      "9.1"
+    ]
+  }
+}

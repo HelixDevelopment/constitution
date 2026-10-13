@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Mechanical-work tools (§11.4.274)</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="mechanical-work-tools-114274">Mechanical-work tools
+(§11.4.274)</h1>
+<p><strong>Revision:</strong> 2 · <strong>Created:</strong> 2026-09-08 ·
+<strong>Status:</strong> in use</p>
+<p><strong>Rev 2 (2026-09-08)</strong> — added
+<code>census_query.sh</code>, the general control-needled census. The
+library already carried needle discipline in two <em>specific</em> tools
+(<code>residue_scan.sh</code>, <code>anchor_census.sh</code>), but
+neither is a general census and <strong>neither takes a negative
+needle</strong>, so the too-broad half of §11.4.273 — a pattern matching
+things it should not — had no mechanical guard anywhere. See that tool&#39;s
+section below, and the task-oriented guide at
+<code>constitution/docs/scripts/mechanical_tools.md</code>
+(§11.4.18).</p>
+<p>Six tools that execute the deterministic, decision-free loops an
+agent would otherwise perform one tool call at a time. They are
+inherited <strong>by reference</strong> (§11.4.177 / §11.4.28): invoke
+them from wherever the constitution submodule is checked out; never copy
+them into a project, and never hardcode a project path into them. Every
+tool takes its target from an argument.</p>
+<h2 id="why-these-six-exist">Why these six exist</h2>
+<p>Each was extracted from a sequence observed being executed <strong>by
+hand, more than twice, in a single session</strong> (§11.4.274(a)):</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>The loop it replaces</th>
+<th>Times done by hand</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mutation_harness.sh</code></td>
+<td>copy tree → mutate → run suite → read summary → restore →
+verify</td>
+<td>~35</td>
+</tr>
+<tr>
+<td><code>census_query.sh</code></td>
+<td>count/grep → hand-check a positive needle → hand-check a negative →
+decide</td>
+<td>every census; 15 instrument errors when skipped</td>
+</tr>
+<tr>
+<td><code>suite_fanout.sh</code></td>
+<td>run N suites → tabulate → compare to last round</td>
+<td>repeatedly, per review</td>
+</tr>
+<tr>
+<td><code>residue_scan.sh</code></td>
+<td>grep for mutation markers, minus the self-reference noise</td>
+<td>every pre-commit</td>
+</tr>
+<tr>
+<td><code>anchor_census.sh</code></td>
+<td>count anchors per carrier, compare the sets</td>
+<td>3 (2 of them with errors)</td>
+</tr>
+<tr>
+<td><code>await_condition.sh</code></td>
+<td>poll until a process/log condition holds, bounded</td>
+<td>3 ad-hoc rewrites</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-boundary-114274d">The boundary (§11.4.274(d))</h2>
+<p>These tools <strong>gather and execute</strong>. They do not decide.
+None of them determines a root cause, renders a review verdict, judges
+whether a fix is correct, or reads whether evidence supports a claim.
+<code>mutation_harness.sh</code> reports that a suite failed under a
+named edit — whether that means the gate is genuine is a judgment for
+the reader. A script that rendered that verdict would be a bluff gate
+(§11.4.201), which is the failure mode this constitution exists to
+prevent.</p>
+<h2 id="exit-code-vocabulary--shared-by-every-tool-114201">Exit-code
+vocabulary — shared by every tool (§11.4.201)</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>the operation <strong>ran</strong> and the outcome matched
+expectation</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>the operation <strong>ran</strong> and <strong>found
+something</strong> (residue, drift, a violated expectation)</td>
+</tr>
+<tr>
+<td><code>2</code></td>
+<td>the operation <strong>could not run</strong> — bad args, missing
+target, missing dependency, unparseable output, an instrument that
+cannot see</td>
+</tr>
+<tr>
+<td><code>3</code></td>
+<td>a bounded wait <strong>expired</strong> with the condition still
+false (<code>await_condition.sh</code> only)</td>
+</tr>
+</tbody>
+</table>
+<p><code>0</code>, <code>1</code> and <code>2</code> are deliberately
+three different facts. &quot;Found nothing&quot;, &quot;found something&quot; and &quot;could not
+look&quot; are not interchangeable, and a tool that collapses them turns a
+broken instrument into a clean bill of health.</p>
+<h2 id="control-needles--how-these-tools-avoid-lying-114273">Control
+needles — how these tools avoid lying (§11.4.273)</h2>
+<p>Every tool that <strong>measures</strong> can prove it is able to
+measure:</p>
+<ul>
+<li><code>residue_scan.sh --control-needle STR</code> — a string that
+must be findable in the scanned tree. Not found ⇒ exit 2, because an
+empty result from a scan that cannot see anything is not a clean result.
+The scan also refuses to report <code>residue=0</code> when
+<em>every</em> file was excluded (<code>examined=0</code>).</li>
+<li><code>anchor_census.sh --control-needle ID</code> — an anchor that
+must open a block in every carrier. Zero anchors in any carrier is exit
+2, never &quot;all sets identical&quot;.</li>
+<li><code>mutation_harness.sh</code> — a mutation whose
+<code>--from</code> text is absent exits 2 rather than reporting the
+suite result, because a result from an unapplied mutation describes
+nothing.</li>
+<li><code>census_query.sh --positive N --negative N</code> —
+<strong>both mandatory</strong>, both repeatable. A missing positive
+needle, or a <em>found</em> negative needle, exits 2 and the count is
+never printed. This is the only tool here carrying the negative half;
+the other two prove they can see, not that they are not
+over-matching.</li>
+</ul>
+<p>Two real instrument defects were found this way while building the
+library, both recorded in <code>lib/mech_common.sh</code>: GNU sed 4.9
+did not interpret <code>\x1b</code>, and under a UTF-8 locale the
+<code>[@-~]</code> bracket range did not match what it appears to.
+Either one silently disabled ANSI stripping, so every downstream parse
+ran against coloured text.</p>
+<hr />
+<h2 id="mutation_harnesssh"><code>mutation_harness.sh</code></h2>
+<p>Apply one named mutation to a scratch copy of a tree, run one suite,
+report the counts, restore, and prove the original tree is
+byte-identical.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mutation_harness.sh</span> <span class="at">--tree</span> <span class="op">&lt;</span>dir<span class="op">&gt;</span> --suite <span class="op">&lt;</span>rel<span class="op">&gt;</span> [--name NAME] <span class="dt">\</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>                    [--file <span class="op">&lt;</span>rel<span class="op">&gt;</span> --from <span class="op">&lt;</span>literal<span class="op">&gt;</span> --to <span class="op">&lt;</span>literal<span class="op">&gt;</span>] <span class="dt">\</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>                    [--expect pass<span class="kw">|</span><span class="ex">fail]</span> [--env-knob NAME] <span class="dt">\</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>                    [--unset VAR]... [--timeout SECS] [--scratch DIR] <span class="pp">[--</span><span class="ss">keep</span><span class="pp">]</span></span></code></pre></div>
+<p>Omit <code>--file/--from/--to</code> for a <strong>baseline</strong>
+run. Output is one verdict line:</p>
+<pre><code>MUTATION &lt;name&gt;: EXPECTED-FAIL got &lt;n&gt; failed / &lt;m&gt; passed [OK|VIOLATION]</code></pre>
+<h3 id="two-traps-it-is-built-around">Two traps it is built around</h3>
+<p><strong>The summary field order flips.</strong> Harnesses print
+<code>58 passed, 0 failed</code> on success and
+<code>23 failed, 35 passed</code> on failure — the fields swap.
+Positional parsing reads a failing run as 23 passes. Each count is
+located by its own label.</p>
+<p><strong>The wrong env knob returns a meaningless green.</strong>
+Suites differ in which variable redirects them at another tree. Setting
+a name the suite does not read is not an error: the suite falls back to
+its own location and grades the <em>real</em> tree. So by default the
+harness runs the suite <strong>from the scratch copy</strong> (no env
+var involved), and <code>--env-knob NAME</code> first asserts
+<code>NAME</code> literally appears in the suite source, exiting 2 if it
+does not.</p>
+<h3 id="--env-knob-writes-into-the-original-tree--know-this-before-using-it"><code>--env-knob</code>
+writes into the ORIGINAL tree — know this before using it</h3>
+<p>The knob&#39;s premise is that the suite stays where it lives and is
+<em>pointed</em> elsewhere, so the suite process runs inside
+<code>--tree</code>. A suite that writes an artifact beside itself — a
+regenerated proof file, a fixture, a cache — therefore writes into the
+<strong>original</strong> tree, not the copy. Measured 2026-09-08: an
+env-knob run rewrote a tracked proof file in a repository under
+independent review. The harness warns before the run, detects it after,
+refuses to report a result, and <strong>names the changed paths</strong>
+so they can be restored:</p>
+<pre><code>SOURCE-TREE MODIFIED: /path/to/tree (before=&lt;md5&gt; after=&lt;md5&gt;)
+CHANGED PATHS (restore these):
+  ./tests/proof/98-....txt</code></pre>
+<p>Prefer the default scratch-copy mode. Reach for
+<code>--env-knob</code> only when the suite genuinely cannot be run from
+a copy, and expect to restore afterwards.</p>
+<h3 id="failure-paths-it-refuses-to-paper-over">Failure paths it refuses
+to paper over</h3>
+<p><code>--from</code> absent · suite output unparseable · suite timed
+out · source tree changed during the run · restore not byte-identical.
+All exit 2. None is reported as a suite result.</p>
+<hr />
+<h2 id="census_querysh"><code>census_query.sh</code></h2>
+<p>Run a counting query that proves, in the same command and through the
+same path, that it can tell PRESENT from ABSENT (§11.4.273).</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">census_query.sh</span> <span class="at">--tree</span> DIR <span class="at">--pattern</span> ERE <span class="dt">\</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                <span class="at">--positive</span> NEEDLE [--positive NEEDLE]... <span class="dt">\</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                <span class="at">--negative</span> NEEDLE [--negative NEEDLE]... <span class="dt">\</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>                [--include GLOB]... [--label NAME] [--expect-count N] <span class="pp">[--</span><span class="ss">list</span><span class="pp">-</span><span class="ss">files</span><span class="pp">]</span></span></code></pre></div>
+<pre><code>CENSUS harness_in_docs: matches=0 files=0 positive=1/1 negative=0/1 [OK]</code></pre>
+<p>The two control counts are published on the verdict line, so a reader
+can see the discipline ran rather than take it on trust. That zero is
+trustworthy <em>because</em> <code>positive=1/1</code> says a
+known-present value was found through this exact query path; without it,
+an honest zero and a broken grep are the same output.</p>
+<p><strong>Needles are ERE, not literal — deliberately.</strong> They
+run through the same matcher as the query, because a control taking a
+different code path would not prove the query&#39;s path can see. Escape
+metacharacters yourself.</p>
+<h3 id="three-refusals-and-why-each-is-its-own-message">Three refusals,
+and why each is its own message</h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Exit</th>
+<th>Message</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>positive needle absent from the tree</td>
+<td>2</td>
+<td><code>POSITIVE CONTROL FAILED … the instrument cannot see</code></td>
+</tr>
+<tr>
+<td>positive needle present but outside <code>--include</code></td>
+<td>2</td>
+<td><code>POSITIVE CONTROL OUT OF SCOPE … the CONTROL is misplaced</code></td>
+</tr>
+<tr>
+<td>negative needle found</td>
+<td>2</td>
+<td><code>NEGATIVE CONTROL FAILED … matches things it must not</code></td>
+</tr>
+</tbody>
+</table>
+<p>The middle row exists because the two look identical from a bare exit
+code and have opposite fixes — move the control, or fix the query.
+Measured during the Phase 0 research that produced this tool: an
+out-of-scope control reported a working instrument as broken.</p>
+<p>Controls are repeatable and <strong>every</strong> member must hold
+(§11.4.273(f)): searching a two-literal denylist with one literal passes
+both controls while the answer is wrong, and did — reporting a live
+credential eliminated while it was still present in four copy-pasteable
+lines per file.</p>
+<p><code>--expect-count N</code> mismatch exits <code>1</code> (a
+finding) and still prints the measured count, which is a different fact
+from the instrument failing to measure (<code>2</code>).</p>
+<hr />
+<h2 id="suite_fanoutsh"><code>suite_fanout.sh</code></h2>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">suite_fanout.sh</span> <span class="at">--tree</span> <span class="op">&lt;</span>dir<span class="op">&gt;</span> [--baseline FILE] [--out FILE] <span class="dt">\</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                [--timeout SECS] [--unset VAR]... SUITE_REL...</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ex">suite_fanout.sh</span> <span class="at">--tree</span> <span class="op">&lt;</span>dir<span class="op">&gt;</span> --suites-from LIST_FILE ...</span></code></pre></div>
+<p>Runs each suite, tabulates <code>rc / passed / failed</code>, writes
+a TSV usable as the next baseline, and with <code>--baseline</code>
+prints only what moved: <code>CHANGED</code>, <code>MISSING</code> (in
+baseline, not run) and <code>NEW</code> (run, absent from baseline). A
+suite that timed out or produced no parseable summary makes the whole
+run exit 2 — it is never tabulated as a pass.</p>
+<hr />
+<h2 id="residue_scansh"><code>residue_scan.sh</code></h2>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">residue_scan.sh</span> <span class="at">--tree</span> <span class="op">&lt;</span>dir<span class="op">&gt;</span> [--marker STR]... [--markers-from FILE] <span class="dt">\</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>                [--allow GLOB]... [--allow-from FILE] <span class="pp">[--</span><span class="ss">strict</span><span class="pp">-</span><span class="ss">allow</span><span class="pp">]</span> <span class="dt">\</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>                [--control-needle STR] <span class="pp">[--</span><span class="ss">no</span><span class="pp">-</span><span class="ss">default</span><span class="pp">-</span><span class="ss">markers</span><span class="pp">]</span></span></code></pre></div>
+<p>Scans for §11.4.84 mutation residue. Default markers:
+<code>MUTATED for paired</code>, <code>// always pass</code>,
+<code># always pass</code>, <code>MUTATION-MARKER</code>,
+<code>_mutated_</code>, <code>XXX-MUTATION</code>.</p>
+<p><strong>Self-reference is handled as data, not as a hardcoded
+exception.</strong> A file may legitimately contain a marker because it
+<em>defines</em> the marker (a rule, a manual, this scanner) or
+<em>plants</em> one on purpose (a mutation test). Which files those are
+is a project fact, so they go in an allowlist — <code>--allow</code>,
+<code>--allow-from</code>, or a <code>.mech-residue-allow</code> file in
+the scanned tree. Only this tool&#39;s own directory is auto-excluded, and
+the count is published as <code>self_excluded=N</code>.</p>
+<p><strong>The allowlist is audited in turn.</strong> Patterns matching
+nothing are reported as <code>STALE-ALLOW</code>, and
+<code>--strict-allow</code> makes them a finding — so an allowlist
+cannot quietly grow until it disables the scan.</p>
+<hr />
+<h2 id="anchor_censussh"><code>anchor_census.sh</code></h2>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">anchor_census.sh</span> [--opener-re ERE] [--id-re ERE] [--control-needle ID] <span class="dt">\</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>                 <span class="pp">[--</span><span class="ss">quiet</span><span class="pp">]</span> CARRIER...</span></code></pre></div>
+<p>Counts anchors that <strong>open a block</strong>, not anchors that
+are merely mentioned — a carrier cites far more than it declares. Both
+live opener shapes are matched by default:</p>
+<pre><code>^### §11.4.N …      canonical constitution heading
+^**§11.4.N …        consumer-carrier bolded opener</code></pre>
+<p>Verifies no id opens two blocks in one carrier (§11.4.227(B)) and
+that every carrier holds the same set (§11.4.157), printing
+<code>only-in &lt;file&gt;: &lt;id&gt;</code> for each difference. Zero
+anchors anywhere is exit 2.</p>
+<p>The id is taken from the <strong>opener match</strong>, not from the
+whole line, because a heading routinely cites other anchors after its
+own. (Measured 2026-09-08 before that was fixed: the canonical
+constitution reported 900 &quot;anchors&quot; and a wall of phantom duplicates,
+from 271 real openers.)</p>
+<h3 id="choosing---opener-re-per-carrier-class--read-this-before-believing-a-result">Choosing
+<code>--opener-re</code> per carrier class — read this before believing
+a result</h3>
+<p>The two default shapes are matched together, which is right when
+comparing a set of consumer carriers but <strong>over-broad on the
+canonical constitution</strong>, where a bolded paragraph opener
+(<code>**§11.4.30 carve-out.**</code>,
+<code>**§11.4.93 amendment.**</code>) is a cross-reference and not a
+declaration. Narrow it:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># canonical constitution — declarations are &#39;### §&#39; only</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">anchor_census.sh</span> <span class="at">--opener-re</span> <span class="st">&#39;^### §11\.4\.[0-9]+&#39;</span> <span class="at">--control-needle</span> 11.4.274 Constitution.md</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># a sub-anchor such as §11.4.10.A needs a widened id regex, or it collapses onto</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># its parent and is reported as a duplicate</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="ex">anchor_census.sh</span> <span class="at">--opener-re</span> <span class="st">&#39;^### §11\.4\.[0-9]+(\.[A-Z])?&#39;</span> <span class="at">--id-re</span> <span class="st">&#39;11\.4\.[0-9]+(\.[A-Z])?&#39;</span> Constitution.md</span></code></pre></div>
+<p>Measured 2026-09-08 with those flags:
+<code>Constitution.md → 242 anchors, no duplicates, exit 0</code>. Both
+behaviours are covered by tests rather than only described here.</p>
+<hr />
+<h2 id="await_conditionsh"><code>await_condition.sh</code></h2>
+<div class="sourceCode" id="cb11"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">await_condition.sh</span> <span class="at">--until</span> <span class="st">&#39;SHELL CMD&#39;</span> [--timeout SECS] [--interval SECS] [--label NAME]</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="ex">await_condition.sh</span> <span class="at">--pid-gone</span> PID ...</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="ex">await_condition.sh</span> <span class="at">--log-contains</span> FILE <span class="at">--pattern</span> ERE ...</span></code></pre></div>
+<p>Exactly one outcome line, and a timeout that <strong>cannot</strong>
+read as success:</p>
+<pre><code>AWAIT &lt;label&gt;: SATISFIED after &lt;n&gt;s (polls=&lt;k&gt;)
+AWAIT &lt;label&gt;: TIMEOUT after &lt;n&gt;s (polls=&lt;k&gt;) — condition never held</code></pre>
+<p><code>--pid-gone</code> uses <code>kill -0</code>, which tests
+existence without signalling; this tool never signals a process
+(§11.4.174). The condition is re-evaluated once after the ceiling, so a
+condition that became true during the final sleep is not misreported as
+a timeout.</p>
+<hr />
+<h2 id="tests">Tests</h2>
+<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">constitution/scripts/mechanical/tests/run_all.sh</span></span></code></pre></div>
+<p>212 assertions across seven suites, hermetic (each builds its own
+fixture tree and its own suites), with no dependency on any consuming
+project&#39;s harness. Every tool&#39;s failure paths, exit-code semantics and
+control needles are covered. Measured 2026-09-08:
+<code>ALL SUITES: 212 passed, 0 failed</code> (181 before
+<code>census_query.sh</code> landed), identical across consecutive runs
+(§11.4.50).</p>
+<p><strong>A consuming project verifies these tools from its own
+side.</strong> These suites are deliberately project-agnostic, so an
+acceptance test reproducing a <em>measured outcome of a specific
+repository</em> belongs to that repository — reaching out to the
+constitution, never the reverse. Reference example:
+<code>claude_toolkit/scripts/tests/test_mechanical_tools_acceptance.sh</code>,
+which asserts each tool&#39;s refusal paths, degrades honestly to a named
+SKIP when no constitution checkout is reachable, and — opt-in via
+<code>CMA_MECH_ACCEPTANCE=1</code> — reproduces that repo&#39;s own measured
+baseline and a named mutation against it.</p>
+<h2 id="re-scan-cadence-114274c">Re-scan cadence (§11.4.274(c))</h2>
+<p>Extraction is a standing obligation, not a cleanup. New mechanical
+loops accrete as features land. Periodically re-read recent transcripts
+and scripts for recurring command sequences and &quot;run these in order&quot;
+recipes, and extract what you find. This directory is where the results
+go.</p>
+</body>
+</html>

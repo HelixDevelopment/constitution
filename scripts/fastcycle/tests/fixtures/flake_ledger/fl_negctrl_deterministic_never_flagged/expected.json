@@ -1,0 +1,6 @@
+{
+  "classification": "STABLE",
+  "minority_count": 0,
+  "cache_eligible": true,
+  "note": "genuinely deterministic gate (same unchanged input, same verdict, 10 runs) -- NEGATIVE CONTROL proving the detector does not false-positive a healthy gate. Must remain cache-eligible."
+}

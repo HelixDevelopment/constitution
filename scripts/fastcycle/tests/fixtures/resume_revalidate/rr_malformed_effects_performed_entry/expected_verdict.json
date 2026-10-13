@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr17000000000000000000000000000000000000000000000000000000017",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "malformed-effects-performed-entry",
+      "detail": "effects_performed entry has an `id` field that is a JSON object (got {'a': 1}), which is unhashable and cannot be used as a match key against ground_truth_effects.json -- this tool cannot confirm this effect was genuinely cross-checked; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": [{"a": 1}]
+}

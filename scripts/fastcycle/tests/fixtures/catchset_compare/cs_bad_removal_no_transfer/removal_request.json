@@ -1,0 +1,7 @@
+{
+  "removed_gate_id": "g_extra",
+  "removed_gate_script": "../_shared/gates/gate_extra.sh",
+  "removed_gate_paired_mutation_defect_id": "D_extra",
+  "removed_gate_paired_mutation_patch": "../_shared/patches/defect_d_extra_widget.sh",
+  "surviving_config": "surviving_config.json"
+}

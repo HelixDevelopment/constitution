@@ -1,0 +1,4 @@
+{
+  "kind": "negative-control",
+  "note": "notes.md's CURRENT bytes genuinely differ from an earlier snapshot (notes_as_first_written.md) -- a real rewrite occurred -- but handoff.json's recorded content_address was correspondingly UPDATED to match the NEW bytes at the SAME phase-boundary write; validate must PASS, distinguishing a legitimate re-record from genuine tampering (the golden-bad fixture)"
+}

@@ -1,0 +1,6 @@
+{
+  "classification": "STABLE",
+  "minority_count": 1,
+  "cache_eligible": true,
+  "note": "BOUNDARY control needle: exactly ONE dissenting run among 10 (minority=1, below the DEC-15 '>= 2 of last 10' threshold). Proves the detector does not over-trigger on a single transient blip -- a real distinction from fl_good_flagged_within_10's minority=5 and from a hypothetical minority=2 case (also FLAKY, not separately fixtured since the reference self-check in the RED test's Section B already proves the 1-vs-2 boundary directly against dec15_flake_ref.py)."
+}

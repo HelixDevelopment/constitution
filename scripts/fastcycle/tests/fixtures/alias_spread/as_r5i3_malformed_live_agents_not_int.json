@@ -1,0 +1,7 @@
+{
+  "note": "T140 Round 5 review finding R5-I3, case B: live_agents is a JSON string, not an integer -- used to crash cmd_place uncaught (TypeError: unsupported operand type(s) for /: 'str' and 'int') at derive_placement's cap_per_alias computation.",
+  "live_agents": "x",
+  "aliases": [
+    {"alias": "claude1", "kind": "native", "operational": true, "near_cap": false}
+  ]
+}

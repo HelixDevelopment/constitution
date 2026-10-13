@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>fk_index_patch — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="fk_index_patch--guide">fk_index_patch — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T12:58:00Z</p>
+<p>Source: <code>constitution/scripts/codegraph/fk_index_patch.py</code>
+(259 lines), plus the patch registry
+<code>runner_patches/__init__.py</code> (35 lines) and the shared
+contract <code>runner_patches/common.py</code> (59 lines). Citations
+below are <code>fk_index_patch.py:&lt;line&gt;</code> unless another
+file is named.</p>
+<p>Per-patch guides (one per registered patch): <a href="fkidx1.md">fkidx1</a>, <a href="lockfix1.md">lockfix1</a>, <a href="datafrag1.md">datafrag1</a>, <a href="resolve1.md">resolve1</a>,
+<a href="resolve2.md">resolve2</a>, <a href="mcpro1.md">mcpro1</a>.</p>
+<h2 id="overview">Overview</h2>
+<p><code>fk_index_patch.py</code> builds a <strong>private,
+version-keyed, PATCHED copy</strong> of the CodeGraph platform package
+(<code>@colbymchenry/codegraph-linux-x64</code>, the bundle that holds
+<code>bin/codegraph</code>, <code>node</code> and
+<code>lib/dist/*.js</code>). The shared global install is never
+modified: the tool copies it (<code>cp -a --reflink=auto</code>, line
+225), rewrites a handful of JavaScript files in the copy, and writes a
+<code>RUNNER_RECEIPT.json</code> that records exactly what was changed
+(lines 3-24, 62-63, 225-242). The private copy is disposable and
+regenerable: delete the directory and re-run (lines 10-12).</p>
+<p>It exists because stock CodeGraph 1.6.0 has performance and safety
+defects that matter on a 580K-file tree (FK-cascade full scans during
+bulk indexing, a lock-stealing 2-minute age override, parse-pool
+timeouts on data-fragment headers, an O(#refs x #files) resolve query, a
+heap OOM in the Swift-&gt;ObjC bridge, and an MCP server that writes to
+the index). Each defect is fixed by one small <strong>runner
+patch</strong> module; this tool selects patches, applies them
+fail-closed, and packages the result.</p>
+<p>The patch set is <strong>selected</strong> by <code>--patches</code>
+(or the registry default), and every selected patch is
+<strong>applied</strong> against a shared in-memory view of the package
+so a later patch sees the edits of earlier ones
+(<code>runner_patches/__init__.py:5-8</code>). Nothing is written to
+disk until every selected patch has planned successfully (lines 126-146,
+201, 225-228).</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>python3</code>, standard library only (imports lines
+71-78).</li>
+<li>GNU <code>cp</code> with <code>-a</code> and
+<code>--reflink=auto</code> (line 225).</li>
+<li><code>npm</code> on <code>PATH</code>, <strong>only</strong> when
+<code>--src</code> is not given: the default source is resolved with
+<code>npm root -g</code> (timeout 60 s, lines 104-107).</li>
+<li>Linux <code>/proc</code> for the &quot;runner in use&quot; guard (lines
+149-163). Where <code>/proc</code> is absent the guard silently finds no
+users (line 153: the loop iterates over nothing), so the protection is
+off, not an error.</li>
+<li>The source package must be <strong>pristine</strong> (unpatched).
+Every patch except fkidx1 refuses an already-patched tree with a message
+saying so (see the per-patch guides); fkidx1 reports NOT_NEEDED instead
+(verified, below).</li>
+<li>It writes under
+<code>~/.cache/helix/codegraph_runner/&lt;key&gt;</code> by default
+(lines 207-209). <strong>When experimenting, always pass an explicit
+<code>--dst</code> under a scratch directory</strong>: the default
+directory is the sanctioned runner cache that live writers and MCP
+servers execute from. The <code>--force</code> path refuses to replace a
+directory whose path appears in any live process command line (lines
+217-220), but do not rely on that as the only safeguard.</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">fk_index_patch.py</span> [--src <span class="op">&lt;</span>platform package dir<span class="op">&gt;</span>] [--dst <span class="op">&lt;</span>runner dir<span class="op">&gt;</span>]</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>                  <span class="ex">[--patches</span> id,id,...] <span class="pp">[--</span><span class="ss">force</span><span class="pp">]</span> <span class="pp">[--</span><span class="ss">print</span><span class="pp">-</span><span class="ss">bin</span><span class="pp">]</span> <span class="pp">[--</span><span class="ss">list</span><span class="pp">-</span><span class="ss">patches</span><span class="pp">]</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--src DIR</code></td>
+<td>the installed platform package</td>
+<td>Platform package to patch (read-only). Default: first child of
+<code>&lt;npm root -g&gt;/@colbymchenry/codegraph/node_modules/@colbymchenry/</code>
+(sorted) that contains <code>lib/dist/db/index.js</code></td>
+<td>lines 182, 104-116, 199</td>
+</tr>
+<tr>
+<td><code>--dst DIR</code></td>
+<td><code>${HELIX_CODEGRAPH_RUNNER_DIR:-$HOME/.cache/helix/codegraph_runner}/&lt;runner key&gt;</code></td>
+<td>Where to build the runner. An empty
+<code>HELIX_CODEGRAPH_RUNNER_DIR</code> counts as unset
+(<code>or</code>, line 207)</td>
+<td>lines 183, 207-209</td>
+</tr>
+<tr>
+<td><code>--patches a,b,c</code></td>
+<td>every registered patch except opt-in ones (see below)</td>
+<td>Comma list; whitespace trimmed, empty items dropped; if nothing is
+left: <code>--patches given but empty</code>, exit 2</td>
+<td>lines 184, 194-198</td>
+</tr>
+<tr>
+<td><code>--force</code></td>
+<td>off</td>
+<td>Rebuild even when a valid receipt exists (skips the reuse
+check)</td>
+<td>lines 185, 212</td>
+</tr>
+<tr>
+<td><code>--print-bin</code></td>
+<td>off</td>
+<td>On success print only the path of <code>bin/codegraph</code> instead
+of the JSON report</td>
+<td>lines 186, 215, 245</td>
+</tr>
+<tr>
+<td><code>--list-patches</code></td>
+<td>off</td>
+<td>Print <code>&lt;id&gt;\t&lt;summary&gt;</code> for the
+<strong>default</strong> patch set and exit 0; needs no
+<code>--src</code></td>
+<td>lines 187, 190-193</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td></td>
+<td>argparse help</td>
+<td>line 181</td>
+</tr>
+</tbody>
+</table>
+<p>Runner key =
+<code>&lt;codegraph version&gt;-&lt;applied patch ids joined by &#39;-&#39;&gt;</code>
+(line 206); ids of patches that reported NOT_NEEDED are left out.
+Example on stock 1.6.0 with the default set:
+<code>1.6.0-fkidx1-lockfix1-datafrag1-resolve1-resolve2</code>.</p>
+<h3 id="examples">Examples</h3>
+<ol type="1">
+<li><p><strong>List the default patch set</strong> —
+<code>VERIFIED (ran: fk_index_patch.py --list-patches; saw: five tab-separated rows fkidx1, lockfix1, datafrag1, resolve1, resolve2, exit 0)</code>.
+<code>mcpro1</code> is <strong>not</strong> listed even though
+<code>--help</code> names it, because <code>--list-patches</code> uses
+the default set and <code>mcpro1</code> is opt-in
+(<code>runner_patches/__init__.py:18,24-25</code>).</p></li>
+<li><p><strong>Build a runner in a scratch directory</strong> (never the
+real cache) —
+<code>VERIFIED (ran: fk_index_patch.py --src &lt;tiny fake package&gt; --dst &lt;scratch&gt;/run --patches fkidx1; saw: JSON with &quot;status&quot;: &quot;CREATED&quot;, runner_key &quot;9.9.9-fkidx1&quot;, receipt_schema 2, exit 0)</code>.
+The fake package is the fixture builder <code>make_pkg</code> from
+<code>tests/test_patch_machinery.py</code>; a real package copy is ~282
+MB, so the scratch build used the tiny fixture. Command shape for a real
+package (<code>NOT RUN</code> here: it would copy 282 MB; the test
+suites in the Last verified section exercise that path for
+resolve1/resolve2/mcpro1):</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/fk_index_patch.py <span class="dt">\</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--src</span> <span class="st">&quot;</span><span class="va">$(</span><span class="ex">npm</span> root <span class="at">-g</span><span class="va">)</span><span class="st">/@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-linux-x64&quot;</span> <span class="dt">\</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--dst</span> /scratch/runner_test <span class="at">--patches</span> resolve1</span></code></pre></div></li>
+<li><p><strong>Get only the launcher path</strong> —
+<code>VERIFIED (ran: same command with --print-bin on an existing valid runner; saw: the single line &lt;dst&gt;/bin/codegraph, exit 0)</code>.
+This is how the callers use it: <code>codegraph_safe.sh</code> runs it
+with <code>--print-bin</code> (<code>codegraph_safe.sh:455-456</code>)
+and <code>codegraph_mcp.sh</code> with
+<code>--patches mcpro1 --print-bin</code>
+(<code>codegraph_mcp.sh:58</code>).</p></li>
+<li><p><strong>Second run is a no-op</strong> —
+<code>VERIFIED (ran: same build command twice; saw: &quot;status&quot;: &quot;REUSED&quot; on the second run, exit 0)</code>.</p></li>
+<li><p><strong>Dry-run planning against the real package without copying
+anything</strong> — the CLI has no dry-run flag, but
+<code>plan_all</code> is importable and read-only.
+<code>VERIFIED (ran: python3 with sys.path at scripts/codegraph, import fk_index_patch; fk_index_patch.plan_all(&lt;stock 1.6.0 dir&gt;, None); saw: applied = [&#39;fkidx1&#39;,&#39;lockfix1&#39;,&#39;datafrag1&#39;,&#39;resolve1&#39;,&#39;resolve2&#39;], edited files = db/index.js, extraction/index.js, resolution/frameworks/swift-objc.js, resolution/frameworks/vue.js, resolution/index.js, utils.js; and each of the six patches, planned alone, reports APPLIED against stock 1.6.0)</code>.
+Importing the module only sets <code>sys.dont_write_bytecode</code> and
+edits <code>sys.path</code> (lines 80-82); it builds nothing.</p></li>
+<li><p><strong>Refusals leave nothing behind</strong> —
+<code>VERIFIED (ran: --patches fkidx1,mcpro1 / --patches nope / --patches &quot;&quot;; saw: exit 2 each with a one-line JSON {&quot;status&quot;: &quot;REFUSED&quot;, &quot;reason&quot;: ...} on stderr and no &lt;dst&gt; directory created)</code>.</p></li>
+<li><p><strong>NOT_NEEDED</strong> —
+<code>VERIFIED (ran: --patches fkidx1 against a fake package whose queries.js no longer contains &quot;INSERT OR REPLACE INTO nodes&quot;; saw: JSON {&quot;status&quot;: &quot;NOT_NEEDED&quot;, &quot;reason&quot;: &quot;fkidx1: queries.js no longer uses INSERT OR REPLACE INTO nodes&quot;, ...} on stdout, exit 3, no &lt;dst&gt; created)</code>.</p></li>
+</ol>
+<h2 id="outputs">Outputs</h2>
+<p><strong>stdout</strong> on success (exit 0): with
+<code>--print-bin</code>, one line (the launcher path); otherwise a JSON
+object
+<code>{&quot;status&quot;: &quot;CREATED&quot;|&quot;REUSED&quot;, &quot;runner&quot;: &lt;bin path&gt;, ...receipt fields}</code>
+(lines 215, 245). On exit 3, a JSON
+<code>{&quot;status&quot;: &quot;NOT_NEEDED&quot;, &quot;reason&quot;: ..., &quot;patches&quot;: {...}}</code>
+is printed <strong>even with <code>--print-bin</code></strong> (lines
+202-205): callers must test the exit status before treating stdout as a
+path. <strong>stderr</strong> on exit 2: one JSON line
+<code>{&quot;status&quot;: &quot;REFUSED&quot;, &quot;reason&quot;: ...}</code> (lines 250-255).</p>
+<p><strong>Files</strong>: <code>&lt;dst&gt;/</code> (patched copy of
+the package) and <code>&lt;dst&gt;/RUNNER_RECEIPT.json</code> (lines
+229-239):</p>
+<table>
+<thead>
+<tr>
+<th>Receipt field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>receipt_schema</code></td>
+<td><code>2</code> (<code>RECEIPT_SCHEMA</code>, line 88)</td>
+</tr>
+<tr>
+<td><code>runner_key</code></td>
+<td><code>&lt;version&gt;-&lt;applied ids&gt;</code> (line 206)</td>
+</tr>
+<tr>
+<td><code>patch_set</code></td>
+<td>list of applied patch ids in registry order</td>
+</tr>
+<tr>
+<td><code>codegraph_version</code></td>
+<td>version from the source <code>package.json</code> (lines
+119-123)</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>absolute <code>--src</code> path</td>
+</tr>
+<tr>
+<td><code>source_dbjs_sha256</code>,
+<code>patched_dbjs_sha256</code></td>
+<td>sha256 of <code>lib/dist/db/index.js</code> before / after
+(<code>DBJS_REL</code>, line 89)</td>
+</tr>
+<tr>
+<td><code>patches</code></td>
+<td>per patch id: <code>status</code> (<code>APPLIED</code> or
+<code>NOT_NEEDED</code>), <code>summary</code>, and for APPLIED
+<code>anchors</code>,
+<code>files{rel: {source_sha256, patched_sha256}}</code>,
+<code>detail</code>; for NOT_NEEDED <code>reason</code> (lines 134,
+143-144)</td>
+</tr>
+<tr>
+<td><code>created_utc</code></td>
+<td>UTC timestamp <code>%Y-%m-%dT%H:%M:%SZ</code></td>
+</tr>
+<tr>
+<td>legacy fields</td>
+<td>only when fkidx1 is applied: <code>patch_id: &quot;fkidx1&quot;</code> plus
+fkidx1&#39;s <code>kept_indexes</code>, <code>lists_before</code>,
+<code>lists_after</code> (lines 235-236) — kept for consumers of the
+pre-registry single-patch tool</td>
+</tr>
+</tbody>
+</table>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Exit</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Runner ready: CREATED now, REUSED, or <code>--list-patches</code>
+printed</td>
+<td>lines 190-193, 215, 245-246</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Fail-closed: an anchor did not occur exactly once,
+unknown/empty/exclusive-conflicting <code>--patches</code>, a planned
+edit that would be a no-op, unreadable source, a runner directory in use
+by a live process, a launcher that is not executable, an
+<code>OSError</code>, a failed <code>cp</code>, or a corrupt receipt
+(<code>JSONDecodeError</code>)</td>
+<td>lines 138-140, 198, 217-220, 243-244, 250-255;
+<code>common.py:52-59</code>;
+<code>runner_patches/__init__.py:26-34</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Every selected patch reported NOT_NEEDED (the hazard is provably
+absent upstream)</td>
+<td>lines 202-205</td>
+</tr>
+</tbody>
+</table>
+<p>Argparse errors use argparse&#39;s own exit 2 (usage) as well.</p>
+<h2 id="how-the-patch-set-is-selected-and-applied">How the patch set is
+selected and applied</h2>
+<h3 id="selection-runner_patches__init__py">Selection
+(<code>runner_patches/__init__.py</code>)</h3>
+<ul>
+<li><code>REGISTRY = [&quot;fkidx1&quot;, &quot;lockfix1&quot;, &quot;datafrag1&quot;, &quot;resolve1&quot;, &quot;resolve2&quot;, &quot;mcpro1&quot;]</code>
+(line 17). Order matters: patches are planned and applied in registry
+order on a shared view, whatever order <code>--patches</code> lists them
+in (line 30). Verified: <code>--patches resolve2,fkidx1</code> loads
+<code>fkidx1, resolve2</code>.</li>
+<li><strong>Default</strong> (no <code>--patches</code>,
+<code>load(None)</code>): every registry id that is <strong>not</strong>
+opt-in (lines 24-25) — today the five writer patches. The default runner
+key on stock 1.6.0 is therefore
+<code>1.6.0-fkidx1-lockfix1-datafrag1-resolve1-resolve2</code>
+(<code>VERIFIED</code>, from <code>plan_all</code>, see Example 5).</li>
+<li><strong><code>OPT_IN = {&quot;mcpro1&quot;}</code></strong> (line 18):
+selectable with <code>--patches mcpro1</code> but never part of the
+default set, so the read-only MCP runner cannot end up in a writer
+runner by omission (lines 9-13).</li>
+<li><strong><code>EXCLUSIVE = {&quot;mcpro1&quot;}</code></strong> (line 19): a
+patch that defines a different <em>kind</em> of runner and may not be
+combined with any other patch; <code>--patches mcpro1,fkidx1</code> is
+refused with
+<code>patch &#39;mcpro1&#39; is exclusive ... cannot be combined with: fkidx1</code>
+(lines 31-34; <code>VERIFIED</code>, Example 6). Consequently the runner
+key <code>&lt;ver&gt;-mcpro1</code> identifies the read-only runner
+exactly.</li>
+<li>Unknown ids: <code>unknown patch id(s): ... (known: ...)</code>
+(lines 26-29).</li>
+</ul>
+<p>Note the difference between this tool&#39;s default and
+<strong><code>codegraph_safe.sh</code>&#39;s</strong> default: the wrapper
+passes <code>--patches fkidx1,resolve1</code> unless overridden
+(<code>codegraph_safe.sh:244</code>; it omits <code>--patches</code>
+only for <code>all</code>, lines 455-456), so the runner key it uses is
+<code>&lt;version&gt;-fkidx1-resolve1</code>, not the five-patch
+key.</p>
+<h3 id="application-plan_all-lines-126-146-commonpy">Application
+(<code>plan_all</code>, lines 126-146; <code>common.py</code>)</h3>
+<ol type="1">
+<li>A <code>FileView</code> over <code>--src</code> is created
+(<code>common.py:27-42</code>): <code>read(rel)</code> returns a pending
+edit if one exists, otherwise the file text.</li>
+<li>For each selected module, in registry order,
+<code>mod.plan(view)</code> returns a <code>PatchPlan</code>
+(<code>common.py:45-59</code>) or raises <code>NotNeeded</code> /
+<code>Refuse</code>.</li>
+<li>Every text replacement goes through
+<code>PatchPlan.replace_once</code>, which counts the anchor text and
+raises <code>Refuse</code> unless it occurs <strong>exactly
+once</strong> (<code>common.py:52-59</code>). <code>VERIFIED</code> for
+the five anchor-based patches: for every anchor of lockfix1, datafrag1,
+resolve1, resolve2 and mcpro1, removing it (0 occurrences) or
+duplicating it (2 occurrences) in a copy of the real 1.6.0 files
+produced
+<code>Refuse: &lt;id&gt;: anchor &#39;&lt;label&gt;&#39; occurs 0x|2x in &lt;file&gt; (expected exactly 1) — upstream shape changed, re-derive the patch</code>.</li>
+<li><code>NotNeeded</code> records <code>status: NOT_NEEDED</code> with
+the reason, skips the patch and leaves its id out of the key (lines
+131-135).</li>
+<li>If a plan&#39;s new text equals the old text the tool refuses
+(<code>planned edit of &lt;rel&gt; is a no-op — refusing</code>, lines
+137-140): a patch that silently changes nothing would be a bluff.</li>
+<li>Source and patched sha256 of every edited file go into the receipt,
+and the new text is layered into the view for later patches (lines
+141-142).</li>
+<li>Only after all plans succeed is anything copied (lines
+221-228).</li>
+</ol>
+<h3 id="the-six-patches-and-how-they-relate">The six patches and how
+they relate</h3>
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Kind</th>
+<th>Files edited (real 1.6.0)</th>
+<th>Purpose</th>
+<th>Default?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fkidx1</code></td>
+<td>writer / bulk index</td>
+<td><code>lib/dist/db/index.js</code></td>
+<td>Keep the FK child-key indexes through the bulk-index windows so
+<code>INSERT OR REPLACE INTO nodes</code> under
+<code>foreign_keys=ON</code> never degrades into cascade full scans</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>lockfix1</code></td>
+<td>writer / safety</td>
+<td><code>lib/dist/utils.js</code></td>
+<td>A <code>codegraph.lock</code> is stale only when its PID is not a
+live codegraph process; removes the 2-minute age override</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>datafrag1</code></td>
+<td>writer / bulk index</td>
+<td><code>lib/dist/extraction/index.js</code></td>
+<td>Store raw number-fragment C headers and NUL-containing files as skip
+rows instead of timing out the parse pool</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>resolve1</code></td>
+<td>writer / resolve</td>
+<td><code>lib/dist/resolution/index.js</code>,
+<code>.../frameworks/vue.js</code></td>
+<td>Memoize the resolution context&#39;s file-path list per cache
+generation</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>resolve2</code></td>
+<td>writer / resolve</td>
+<td><code>lib/dist/resolution/frameworks/swift-objc.js</code></td>
+<td>Stream (never materialize) the <code>method</code> node set in the
+Swift-&gt;ObjC bridge</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>mcpro1</code></td>
+<td><strong>read-only MCP runner</strong></td>
+<td><code>db/index.js</code>, <code>utils.js</code>,
+<code>mcp/engine.js</code>, <code>mcp/index.js</code>,
+<code>bin/codegraph.js</code></td>
+<td>Make the runner incapable of mutating a project; for
+<code>serve --mcp</code> only</td>
+<td><strong>no</strong> (opt-in, exclusive)</td>
+</tr>
+</tbody>
+</table>
+<p>Relations, all verified from <code>plan_all</code> on stock
+1.6.0:</p>
+<ul>
+<li>The five default patches edit <strong>disjoint files</strong> (six
+files in total), so today their relative order does not change any
+result; the shared view and the registry order exist so a future patch
+can build on an earlier one.</li>
+<li><code>fkidx1</code> and <code>mcpro1</code> both edit
+<code>db/index.js</code>, and <code>lockfix1</code> and
+<code>mcpro1</code> both edit <code>utils.js</code>; that overlap is a
+fact of the code. The reason stated in the source for exclusivity is
+that <code>mcpro1</code> defines a different runner kind
+(<code>runner_patches/__init__.py:10-13</code>).</li>
+<li><code>resolve2</code> only <em>reads</em>
+<code>resolution/index.js</code> (it asserts the context exposes
+<code>iterateNodesByKind</code>, <code>resolve2.py:36,55-57</code>);
+<code>resolve1</code> is the patch that edits that file.</li>
+<li><code>fkidx1</code> has an external oracle,
+<code>fk_cascade_probe.py</code> (header line 66 and
+<code>fkidx1.py:6-7</code>), a separate tool that
+<code>codegraph_safe.sh</code> runs to prove stock safe when this tool
+exits 3 (NOT_NEEDED) (<code>codegraph_safe.sh:469-473</code>).</li>
+</ul>
+<h2 id="reuse-rebuild-and-replacement-lines-206-246">Reuse, rebuild and
+replacement (lines 206-246)</h2>
+<ol type="1">
+<li>Key and destination are computed (206-210).</li>
+<li>If <code>&lt;dst&gt;/RUNNER_RECEIPT.json</code> exists and
+<code>--force</code> is not given, the receipt is read and
+<code>receipt_valid</code> decides reuse (212-216):
+<ul>
+<li>schema-2 receipt: reuse iff <code>runner_key</code> and
+<code>patch_set</code> equal this invocation&#39;s, and <strong>every edited
+file</strong> in <code>&lt;dst&gt;</code> hashes to the freshly planned
+patched text (166-177);</li>
+<li>legacy receipt (no <code>patches</code> key): reuse iff the applied
+set is exactly <code>[&quot;fkidx1&quot;]</code>, <code>patch_id</code> is fkidx1,
+and both <code>db/index.js</code> hashes match (168-171).</li>
+</ul></li>
+<li>Otherwise, if <code>&lt;dst&gt;</code> exists and any live process
+command line contains <code>&lt;dst&gt;/</code>, the tool refuses
+(149-163, 217-220). PIDs 1 and the tool&#39;s own PID are skipped.</li>
+<li><code>&lt;dst&gt;.partial</code> is removed if present, the parent
+directory created, the package copied, the edited files rewritten, the
+receipt written, the old <code>&lt;dst&gt;</code> deleted, and
+<code>&lt;dst&gt;.partial</code> renamed into place (221-242).</li>
+<li>Last, the launcher <code>&lt;dst&gt;/bin/codegraph</code> must be
+executable, else <code>Refuse</code> (243-244). This check runs
+<strong>after</strong> the rename, so on that refusal the directory has
+already been swapped in.</li>
+</ol>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><strong>Already-patched source.</strong>
+<code>VERIFIED (planned each patch against the output of its own edit)</code>:
+lockfix1, datafrag1, resolve1, resolve2 and mcpro1 raise
+<code>Refuse: &lt;id&gt;: source is ALREADY patched — --src must be the pristine package</code>;
+fkidx1 raises
+<code>NotNeeded: every FK child column is already served by a never-dropped index</code>
+(so a second pass reports NOT_NEEDED, not an error).</li>
+<li><strong>Upstream upgrade.</strong> After a CodeGraph upgrade that
+rewrites the anchored code, the affected patch exits 2 naming the patch
+id and anchor, and <strong>no runner is produced</strong> (lines 26-32).
+fkidx1 is regex-based rather than anchor-based; its shape failures read
+e.g.
+<code>BULK_EDGE_INDEX_NAMES not found/ empty — upstream shape changed</code>
+(<code>VERIFIED</code>, list renamed in a copy).</li>
+<li><strong>NOT_NEEDED is per patch.</strong> A patch that proves its
+hazard absent is skipped and dropped from the key: fkidx1 does so when
+<code>queries.js</code> no longer uses
+<code>INSERT OR REPLACE INTO nodes</code>, when
+<code>foreign_keys=ON</code> is gone, or when <code>schema.sql</code>
+has no <code>REFERENCES nodes(id)</code> (<code>VERIFIED</code>, each
+variant built in a copy of the real 1.6.0 files); lockfix1 does so when
+<code>STALE_TIMEOUT_MS</code> is gone from <code>utils.js</code>
+(<code>lockfix1.py:61-65</code>); datafrag1 when the upstream already
+records <code>data_fragment_skipped</code> and
+<code>binary_content_skipped</code> (<code>datafrag1.py:110-111</code>).
+resolve1, resolve2 and mcpro1 have no NOT_NEEDED path in their source.
+Exit 3 only when <strong>all</strong> selected patches are NOT_NEEDED
+(lines 202-205); <code>codegraph_safe.sh</code> reacts to exit 3 by
+requiring <code>fk_cascade_probe.py</code> to prove stock safe
+(<code>codegraph_safe.sh:469-473</code>).</li>
+<li><strong>Concurrent use.</strong> Nothing serialises two invocations
+building the same <code>&lt;dst&gt;</code>: both would use the same
+<code>&lt;dst&gt;.partial</code> path (line 221). UNCONFIRMED: behaviour
+of two simultaneous builds was not run; callers such as
+<code>codegraph_safe.sh</code> are expected to serialise.</li>
+<li><strong>Disk.</strong> A build copies the whole package, ~282 MB for
+stock 1.6.0 (<code>du -sh</code> of the installed package).
+<code>--reflink=auto</code> avoids the byte copy only where the
+filesystem supports reflinks; otherwise it is a full copy.</li>
+<li><strong>Corrupt receipt.</strong>
+<code>VERIFIED (ran: build over a &lt;dst&gt; whose RUNNER_RECEIPT.json contains &quot;{corrupt&quot;; saw: exit 2 and {&quot;status&quot;: &quot;REFUSED&quot;, &quot;reason&quot;: &quot;JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)&quot;})</code>;
+<code>--force</code> rebuilds it (lines 212-213).</li>
+<li><strong>Bad flag.</strong> An unrecognised option is rejected by
+argparse with exit 2 (<code>VERIFIED</code>, <code>--bogus</code>).</li>
+</ul>
+<h2 id="known-discrepancies-and-gaps-observed-2026-09-26">Known
+discrepancies and gaps (observed 2026-09-26)</h2>
+<p>These are facts about the tree on the verification date, recorded so
+nobody relies on the tool doing more than it does.</p>
+<ol type="1">
+<li><p><strong><code>tests/test_patch_machinery.py</code> is RED against
+this tool.</strong> Its own header says it reproduces four review
+findings (P1-P4) against a tiny fake package.
+<code>VERIFIED (ran: PYTHONDONTWRITEBYTECODE=1 python3 tests/test_patch_machinery.py; saw: SUMMARY fails=9 P1b P1c P2c P2d P2e P2f P3 P4a P4b; PASS only P1a P2a P2b P4c)</code>.
+What each failing case expects that the tool does not do today:</p>
+<ul>
+<li><strong>P1b/P1c</strong> — a commented-out duplicate of, or a
+duplicated declaration of,
+<code>static BULK_PARSE_INDEX_NAMES = [...]</code> should refuse with
+exit 2 and build nothing; today the tool exits 0 and builds a runner
+(fkidx1&#39;s list parser does not assert list-anchor uniqueness).</li>
+<li><strong>P2c/P2e</strong> — the reuse check should verify the whole
+runner tree; today it verifies only the edited files, so a truncated
+non-edited file or a planted extra file still yields <code>REUSED</code>
+(lines 172-176).</li>
+<li><strong>P2d/P2f</strong> — after the launcher is deleted, reuse
+should not print a path to a missing file; today
+<code>--print-bin</code> prints the path of a non-existent launcher
+(lines 212-216 never test existence).</li>
+<li><strong>P3</strong> — expects the default patch set to be exactly
+<code>fkidx1,resolve1,resolve2</code>; the registry default is five
+patches (<code>fkidx1,lockfix1,datafrag1,resolve1,resolve2</code>).</li>
+<li><strong>P4a</strong> — a stale <code>&lt;dst&gt;.partial</code>
+should be removed on the REUSED path; it is only removed on the rebuild
+path (lines 221-223).</li>
+<li><strong>P4b</strong> — a corrupt receipt exits 2 as expected, but
+the error message (a <code>JSONDecodeError</code>) does not mention
+<code>--force</code>. The recovery itself works (P4c PASS:
+<code>--force</code> skips the receipt read, line 212).</li>
+</ul>
+<p>UNKNOWN: whether the test is ahead of the tool (RED written first,
+fix pending) or the tool regressed; the constitution history in this
+checkout is a single squashed commit for these files, so it cannot be
+determined here. Reported to the conductor.</p></li>
+<li><p><strong>In-source header is stale in four places.</strong> (a) It
+lists three patches (fkidx1, lockfix1, datafrag1, lines 12-23) but the
+registry has six; (b) it says <code>--patches</code> defaults to &quot;all&quot;
+(line 38) whereas mcpro1 is opt-in and excluded by default; (c) its
+example key <code>1.6.0-fkidx1-lockfix1-datafrag1</code> (line 43) is
+not the default key today
+(<code>1.6.0-fkidx1-lockfix1-datafrag1-resolve1-resolve2</code>); (d) it
+cites <code>tests/run_runner_patch_tests.sh</code> &quot;(lockfix1/datafrag1
+RED/GREEN + mutations)&quot; (line 67): <strong>that file does not
+exist</strong> (<code>git ls-files</code> finds no such path; control:
+the same query finds <code>tests/run_scope_tests.sh</code>). This guide
+follows the code, not the header.</p></li>
+<li><p><strong>lockfix1 and datafrag1 have no behavioural test in the
+tree.</strong> No file under <code>scripts/codegraph/tests/</code>
+contains their runtime markers
+(<code>__helixLockOwnerIsCodegraph</code>,
+<code>__helixDataFragClassify</code>,
+<code>data_fragment_skipped</code>, <code>binary_content_skipped</code>,
+<code>STALE_TIMEOUT_MS</code>; control: the same query finds
+<code>helixAllFilesMemo</code>). <code>owed_report.py</code> marks them
+&quot;tested&quot; because three test files merely <em>name</em> the ids
+(patch-set selection arguments, a registry-string mutant), and
+<code>codegraph_safe.sh:63-68</code> says outright that they have zero
+tests, which is why the wrapper does not use them by default. The two
+per-patch guides say what was and was not verified.</p></li>
+<li><p><strong>Dangling link.</strong> The guides for
+<code>codegraph_guard</code>, <code>codegraph_safe</code> and
+<code>disk_tripwire</code> link to
+<code>codegraph_runner_patches.md</code>; no such file exists in
+<code>docs/scripts/</code>.</p></li>
+</ol>
+<h2 id="internal-behaviour-function-map">Internal behaviour (function
+map)</h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Lines</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sha256</code>, <code>sha256_text</code></td>
+<td>92-101</td>
+<td>File / text digests for receipts and reuse</td>
+</tr>
+<tr>
+<td><code>default_src</code></td>
+<td>104-116</td>
+<td>Locate the installed platform package via
+<code>npm root -g</code></td>
+</tr>
+<tr>
+<td><code>package_version</code></td>
+<td>119-123</td>
+<td>Read <code>package.json</code> <code>version</code></td>
+</tr>
+<tr>
+<td><code>plan_all</code></td>
+<td>126-146</td>
+<td>Plan every selected patch on one <code>FileView</code>; NOT_NEEDED
+bookkeeping; no-op refusal</td>
+</tr>
+<tr>
+<td><code>runner_in_use</code></td>
+<td>149-163</td>
+<td>PIDs whose real <code>/proc/&lt;pid&gt;/cmdline</code> contains
+<code>&lt;dst&gt;/</code> (never a bare <code>pgrep</code>, per the
+docstring)</td>
+</tr>
+<tr>
+<td><code>receipt_valid</code></td>
+<td>166-177</td>
+<td>Reuse decision (schema-2 and legacy)</td>
+</tr>
+<tr>
+<td><code>main</code></td>
+<td>180-255</td>
+<td>CLI, key/dst, reuse, copy, write, swap, exit-code mapping</td>
+</tr>
+</tbody>
+</table>
+<p>Legacy re-exports:
+<code>FK_RE, IDX_RE, LIST_RE, TABLE_RE, compute_patch, derive_keep_set, parse_lists, patch_text</code>
+are re-exported from <code>fkidx1</code> (lines 84-85) and
+<code>default_src</code> is called by tests as
+<code>m.default_src()</code>
+(<code>tests/test_mcp_readonly.sh:62</code>).</p>
+<h2 id="tests-and-mutation-evidence">Tests and mutation evidence</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tests/test_patch_machinery.py</code></td>
+<td>The tool&#39;s own machinery (anchor uniqueness, reuse validation,
+default set, <code>.partial</code>/receipt handling); 9 of 13 checks
+FAIL today (above)</td>
+</tr>
+<tr>
+<td><code>tests/test_resolve1.sh</code>,
+<code>test_resolve2.sh</code></td>
+<td>Build a single-patch runner through this tool
+(<code>--patches resolve1</code> / <code>resolve2</code>) and check
+behaviour</td>
+</tr>
+<tr>
+<td><code>tests/test_mcp_readonly.sh</code></td>
+<td>Builds <code>--patches mcpro1</code>; R1 receipt &gt;= 3 anchors, R8
+shape mismatch =&gt; exit 2 and no runner directory, R13
+registry/opt-in/exclusive</td>
+</tr>
+<tr>
+<td><code>tests/*_mutations.sh</code></td>
+<td>Paired mutation harnesses for the above</td>
+</tr>
+<tr>
+<td><code>tests/fixtures/stub_patch_tool.sh</code></td>
+<td>Stand-in used by <code>codegraph_safe.sh</code> tests
+(<code>test_unit_safe.sh</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Also naming this tool but not run for this guide (they may build into
+the real runner cache): <code>test_codegraph_mcp.sh</code>,
+<code>test_codegraph_mcp_preflight.sh</code> and their mutation
+harnesses.</p>
+<h2 id="related-scripts">Related scripts</h2>
+<table>
+<thead>
+<tr>
+<th>Script / guide</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="fkidx1.md">fkidx1</a>, <a href="lockfix1.md">lockfix1</a>,
+<a href="datafrag1.md">datafrag1</a>, <a href="resolve1.md">resolve1</a>, <a href="resolve2.md">resolve2</a>, <a href="mcpro1.md">mcpro1</a></td>
+<td>The six registered patches</td>
+</tr>
+<tr>
+<td><a href="codegraph_safe.md">codegraph_safe</a></td>
+<td>Sanctioned bulk-index entry; derives its runner from this tool
+(<code>--patches fkidx1,resolve1</code> by default)</td>
+</tr>
+<tr>
+<td><code>codegraph_mcp.sh</code></td>
+<td>Builds/verifies the <code>mcpro1</code> runner through this tool
+(<code>codegraph_mcp.sh:58</code>)</td>
+</tr>
+<tr>
+<td><code>fk_cascade_probe.py</code></td>
+<td>Oracle for fkidx1; proves stock safe when this tool exits 3</td>
+</tr>
+<tr>
+<td><a href="owed_report.md">owed_report</a></td>
+<td>Reports whether this tool has tests and a guide</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26 (all runs in scratch directories under the session
+scratchpad; the real runner cache
+<code>~/.cache/helix/codegraph_runner</code> was not touched — its
+directory listing was identical before and after):</p>
+<ul>
+<li><code>--list-patches</code>, <code>--help</code>, and the CLI
+scenarios of Examples 2-4, 6, 7 on a tiny fake package: outputs as
+described above.</li>
+<li><code>plan_all</code> against the installed stock 1.6.0 package:
+each of the six patches applies alone; the default set applies as five
+and would produce key
+<code>1.6.0-fkidx1-lockfix1-datafrag1-resolve1-resolve2</code>; fkidx1
+keeps <code>idx_edges_target_kind</code> and
+<code>idx_unresolved_from_node</code> on this version.</li>
+<li>Every patched JavaScript file produced by each patch (and by the
+default set together) passes <code>node --check</code> with the
+package&#39;s bundled node (control: <code>node --check</code> on a
+deliberately broken file exits 1).</li>
+<li><code>tests/test_resolve2.sh</code> 3/3 PASS,
+<code>test_resolve1.sh</code> 7/7 PASS,
+<code>test_mcp_readonly.sh</code> 13/13 PASS; mutation harnesses:
+resolve2 golden + 5/5 mutants killed, resolve1 golden + 5/5 killed,
+mcp_readonly 10/10 killed.</li>
+<li><code>tests/test_patch_machinery.py</code>: 9 FAIL / 4 PASS (see
+Known discrepancies).</li>
+</ul>
+</body>
+</html>

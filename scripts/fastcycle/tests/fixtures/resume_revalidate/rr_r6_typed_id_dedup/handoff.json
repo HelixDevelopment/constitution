@@ -1,0 +1,21 @@
+{
+  "handoff_id": "sha256:r6t10000000000000000000000000000000000000000000000000000000001",
+  "agent_key": "r6tidagentkey001",
+  "item_id": "ATM-9603",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "IMPLEMENT",
+  "verified": [],
+  "pending": [],
+  "partial_artefacts": [],
+  "external_deps": [
+    {
+      "kind": "unknown-kind-r6t",
+      "locator": "dep_unrecognized",
+      "affects_verified": [1, true]
+    }
+  ],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

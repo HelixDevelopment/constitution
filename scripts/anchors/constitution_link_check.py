@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""constitution_link_check.py — verify every §-citation in a corpus of files
+resolves against constitution_index.yaml. See
+specs/003-reorganize-constitution-yaml/contracts/link-checker-cli.md.
+"""
+import argparse, glob, os, re, sys
+import yaml
+
+# Restricted to the §11.4.M family per contracts/link-checker-cli.md's own
+# stated scope (L-001/L-006: "a citation §11.4.M" / "a §11.4\.\d+ regex over
+# prose text") — the plan's own literal `r'§(\d+(?:\.\d+)+)'` was BROADER
+# than its contract and, run for real, wrongly flagged 3057 citations to a
+# DIFFERENT numbering family (§1.1 — the mutation-testing convention with
+# zero heading-form definition anywhere, per this same corpus's own earlier
+# regression-fix finding; §2.1/§9.2/§12.6/§7.1 — other top-level sections
+# outside this feature's §11.4.x-Anchor scope) as UNRESOLVED, none of which
+# the contract ever asked this checker to verify. An optional trailing
+# dotted-letter suffix is captured too, so a real sub-anchor id like
+# `§11.4.10.A` resolves DIRECTLY against the index rather than only via the
+# L-004 parent-stripping fallback (§11.4.10.A is itself a genuine, distinct
+# heading in this corpus, not a mere sub-clause of §11.4.10). A trailing
+# IMPORTANT fix (T024 independent review, 2026-09-26): a trailing
+# PARENTHESIZED suffix (e.g. `§11.4.4(b)`) is now CAPTURED (not left outside
+# the character class as before) — the prior design silently truncated
+# EVERY parenthesized-suffix citation to its bare parent id before
+# resolution ever ran, which is CORRECT for a genuine clause-reference
+# (`§11.4.4(b)` -> parent `11.4.4`, L-004) but WRONG for a real, distinct,
+# separately-headed sub-anchor whose id happens to end in a parenthesized
+# form (`§11.4.184(I)` IS its own real anchor in this corpus, confirmed via
+# a direct extract_anchors() scan — DIFFERENT from `§11.4.184`). Silently
+# resolving `§11.4.184(I)` against the wrong parent anchor is exactly the
+# "silent mis-resolve, never fails loud" defect this project's own
+# data-model.md explicitly forbids for this id pair. `_resolve()` below now
+# tries the FULL captured id (parens included) against known_ids FIRST —
+# catching a genuine distinct sub-anchor directly — and only STRIPS the
+# parenthesized suffix as a fallback, matching L-004's clause-reference
+# case, exactly mirroring how the dotted-letter-suffix form (`§11.4.10.A`)
+# already correctly tries the full id first.
+CITATION_RE = re.compile(r'§(11\.4(?:\.\d+)+(?:\.[A-Za-z])?(?:\([A-Za-z0-9]+\))?)')
+FABRICATED_NEEDLE = "99999"  # L-003's negative control: guaranteed absent from any real index
+
+
+def _resolve(anchor_id: str, known_ids: set) -> bool:
+    if anchor_id in known_ids:
+        return True
+    # A parenthesized suffix might name a genuinely distinct sub-anchor
+    # (already tried above and failed) OR a clause-reference (L-004) that
+    # should resolve to its bare parent — try stripping the parenthesized
+    # suffix next, before falling back to dotted-component stripping.
+    if "(" in anchor_id:
+        bare = anchor_id.split("(")[0]
+        if bare in known_ids:
+            return True
+        anchor_id = bare
+    # L-004: a sub-clause citation (e.g. "11.4.115.G") resolves to its parent anchor.
+    parts = anchor_id.split(".")
+    while len(parts) > 3:
+        parts = parts[:-1]
+        if ".".join(parts) in known_ids:
+            return True
+    return False
+
+
+def _selftest(known_ids: set) -> bool:
+    real_id = sorted(known_ids)[0]
+    if not _resolve(real_id, known_ids):
+        sys.stderr.write(f"FATAL: positive control {real_id} did not resolve — instrument blind\n")
+        return False
+    print(f"positive control resolved: {real_id}")
+    if _resolve(FABRICATED_NEEDLE, known_ids):
+        sys.stderr.write(f"FATAL: negative control {FABRICATED_NEEDLE} wrongly resolved — over-broad matcher\n")
+        return False
+    print(f"negative control correctly unresolved: {FABRICATED_NEEDLE}")
+    return True
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--index", required=True)
+    p.add_argument("--corpus", nargs="+", required=True)
+    p.add_argument("--selftest", action="store_true")
+    args = p.parse_args()
+
+    with open(args.index) as f:
+        idx = yaml.safe_load(f)
+    known_ids = {a["id"] for a in idx["anchors"]}
+
+    if args.selftest and not _selftest(known_ids):
+        sys.exit(2)
+
+    unresolved = []
+    for target in args.corpus:
+        paths = glob.glob(os.path.join(target, "**", "*.md"), recursive=True) \
+            if os.path.isdir(target) else [target]
+        for path in paths:
+            with open(path, errors="replace") as f:
+                text = f.read()
+            for m in CITATION_RE.finditer(text):
+                if not _resolve(m.group(1), known_ids):
+                    # Final whole-branch review finding I-3, 2026-09-26,
+                    # IMPORTANT: the checker's own contract (L-001/L-005)
+                    # requires "naming every UNRESOLVED citation by
+                    # file:line" — the prior (path, id) tuple carried no
+                    # line number at all, and the print loop below was
+                    # capped at 50, silently hiding 83% (240/288) of the
+                    # real corpus's own findings. Line number computed via
+                    # a newline count up to the match start (1-indexed,
+                    # matching editor/grep convention).
+                    line_no = text.count("\n", 0, m.start()) + 1
+                    unresolved.append((path, line_no, m.group(1)))
+
+    if unresolved:
+        for path, line_no, cid in unresolved:
+            print(f"UNRESOLVED: §{cid} in {path}:{line_no}")
+        print(f"{len(unresolved)} unresolved citation(s)")
+        sys.exit(1)
+    print("all citations resolved")
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

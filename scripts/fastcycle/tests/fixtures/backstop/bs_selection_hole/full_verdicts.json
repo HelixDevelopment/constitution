@@ -1,0 +1,11 @@
+{
+  "schema": "verdicts/v1",
+  "change_id": "CH-BS-HOLE-001",
+  "results": [
+    {"gate_id": "GATE-A", "verdict": "PASS", "source": "RUN", "evidence": "ev-a.txt", "duration_ms": 120},
+    {"gate_id": "GATE-B", "verdict": "PASS", "source": "RUN", "evidence": "ev-b.txt", "duration_ms": 95},
+    {"gate_id": "GATE-C", "verdict": "PASS", "source": "RUN", "evidence": "ev-c.txt", "duration_ms": 60},
+    {"gate_id": "GATE-HOLE", "verdict": "FAIL", "source": "RUN", "evidence": "ev-hole.txt", "duration_ms": 340}
+  ],
+  "summary": {"total": 4, "pass": 3, "fail": 1}
+}

@@ -1,0 +1,20 @@
+{
+  "batch_id": "RB-T061-C2",
+  "changes": [
+    "sha256:9bbd2c4b6a1d27ee6d327fe4569f585ee23fd4f594d343814db023fa6f1ae2d5",
+    "sha256:3eb7ea515b9c7b7b8d1da4f038c45f08f8717fe6b46b9951f5318551cae9313b"
+  ],
+  "related_by": "logic_group:fastcycle-precheck-slicer-fixture-case2",
+  "slices": [
+    {
+      "context_pack": {
+        "blast_radius": "two toy gate scripts; no real callers (T061 fixture)",
+        "intent": "T061 case-2 fixture batch: broken_syntax_gate.sh carries a genuine, planted parse error (unclosed `if`); unquoted_var_gate.sh carries a genuine, planted shellcheck SC2086 issue. Both are real defects, independently confirmed by this RED test's Section B via a live `sh -n`/`bash -n` run and a live `shellcheck` run before any claim is made about the (absent) precheck_pack.sh.",
+        "sibling_search_ref": "qa-results/fastcycle/us2/red/T061/sibling_search_case2.json"
+      },
+      "lines": 11,
+      "slice_id": "S1"
+    }
+  ],
+  "total_changed_lines": 11
+}

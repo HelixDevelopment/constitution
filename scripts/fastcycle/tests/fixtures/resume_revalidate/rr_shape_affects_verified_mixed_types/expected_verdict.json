@@ -1,0 +1,15 @@
+{
+  "handoff_id": "sha256:rr7000000000000000000000000000000000000000000000000000000000",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "unverifiable-external-dependency",
+      "detail": "external dep x has unrecognized dependency kind: weird -- this tool cannot re-hash it, so it cannot be confirmed unchanged; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": [
+    1,
+    "a"
+  ],
+  "effects_not_to_repeat": []
+}

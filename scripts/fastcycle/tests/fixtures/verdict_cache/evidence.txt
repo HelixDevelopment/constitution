@@ -1,0 +1,1 @@
+T051 fixture evidence artefact -- the captured run output a cache PUT records.

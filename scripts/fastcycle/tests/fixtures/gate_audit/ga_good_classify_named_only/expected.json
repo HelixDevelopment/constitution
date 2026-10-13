@@ -1,0 +1,5 @@
+{
+  "gate_id": "TOY-GATE-DEFERRED",
+  "expected_classification": "named-only",
+  "expected_deferral_item": "ATM-9001"
+}

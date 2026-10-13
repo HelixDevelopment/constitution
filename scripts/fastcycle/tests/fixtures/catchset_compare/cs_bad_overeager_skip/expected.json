@@ -1,0 +1,20 @@
+{
+  "schema": "catchset/v1",
+  "fixture": "cs_bad_overeager_skip",
+  "kind": "golden-bad",
+  "contract_clause": "CS-004; contracts/catch-set-comparison-harness.md RED fixtures row 3",
+  "defect_id": "D1",
+  "defect_patch": "../_shared/patches/defect_d1_widget.sh",
+  "baseline_all_pass": true,
+  "old_missed": [],
+  "assertion_changes": [],
+  "counts": {"caught_old": 1, "caught_new": 0, "lost": 1, "gained": 0},
+  "old_verdict": "CAUGHT",
+  "new_verdict": "MISSED",
+  "old_catchers": ["g_marker"],
+  "new_catchers": [],
+  "expected_exit_code": 1,
+  "named_defects": ["D1"],
+  "skipped": [{"defect_id": "D1", "gate_id": "g_marker", "skip_reason_ref": "skip_map.json"}],
+  "note": "NEW's manifest still LISTS g_marker (unlike cs_bad_dropped_gate, where it is entirely absent), but the affected-set logic (skip_map.json) wrongly SKIPS running it for D1. Distinct code path from a dropped gate; both must be caught. Exit 1 naming D1 AND the skip reason recorded by the emitter (skip_map.json)."
+}

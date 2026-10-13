@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr03000000000000000000000000000000000000000000000000000000003",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "nondeterministic-replay",
+      "detail": "pending step 'llm-generate the release-notes summary paragraph' depends on a nondeterministic source and must not be blindly replayed"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}

@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>lumen_verify.sh — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="lumen_verifysh--guide">lumen_verify.sh — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T13:37:00Z</p>
+<p>Source: <code>constitution/scripts/lumen/lumen_verify.sh</code> (109
+lines: a bash wrapper, lines 1-50, and an embedded Python program, lines
+50-108). Tests:
+<code>constitution/scripts/lumen/tests/test_lumen_verify.sh</code>
+(cases t1-t14, hermetic: a stub <code>lumen</code> binary, no network,
+no real index). Citations below are
+<code>lumen_verify.sh:&lt;line&gt;</code> unless another file is
+named.</p>
+<h2 id="overview">Overview</h2>
+<p>Golden-query verification of a real Lumen semantic-search index
+(header, lines 2-8). It runs every golden natural-language query through
+the real <code>lumen search</code> CLI and checks that each expected
+(&quot;gold&quot;) file appears among the top-k DISTINCT files. Queries whose gold
+file has an extension Lumen cannot index (type <code>unsupported</code>)
+must NOT be found: they document the capability gap instead of hiding it
+(lines 6-8, 74-75).</p>
+<p>The verdict combines a recall threshold with a monotone baseline of
+KNOWN misses (lines 17-23, 86-91, 108):</p>
+<ul>
+<li>recall = PASS / (PASS + FAIL) over the in-scope, indexable
+(non-<code>unsupported</code>) queries (line 86-87);</li>
+<li>the run passes only if recall &gt;= <code>--min-recall</code> AND
+every FAIL is listed in the baseline (a FAIL not listed is a
+NEW_MISS);</li>
+<li>a known miss that now passes is REMOVED from the baseline file (the
+tool only ever shrinks it); adding a miss is a deliberate human
+edit;</li>
+<li>an empty or erroring search is &quot;could not look&quot;, never &quot;absent&quot;
+(lines 25-27, 68-71).</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><code>bash</code>, <code>python3</code>.</li>
+<li>A Lumen binary: <code>--lumen &lt;bin&gt;</code>, otherwise the
+newest (<code>sort -V | tail -1</code>) of
+<code>$HOME/.claude*/plugins/cache/claude-plugins-official/lumen/*/bin/lumen-linux-amd64</code>
+(line 34). It must be executable, else exit 2 (line 46).</li>
+<li>A golden JSON file and an existing project directory (line 46).</li>
+<li>A working embedder and index for the project. The tool does not
+create or provision them: <code>lumen search</code> uses the caller&#39;s
+environment (<code>XDG_DATA_HOME</code>, <code>OLLAMA_HOST</code>,
+<code>LUMEN_*</code>) unchanged (lines 15-16).</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lumen_verify.sh</span> <span class="at">--golden</span> <span class="op">&lt;</span>file.json<span class="op">&gt;</span> --project <span class="op">&lt;</span>root<span class="op">&gt;</span> [--k 5] [--n 20]</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>                <span class="ex">[--lumen</span> <span class="op">&lt;</span>bin<span class="op">&gt;</span>] [--out <span class="op">&lt;</span>dir<span class="op">&gt;</span>] [--scope-key in_tierA]</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>                <span class="ex">[--min-recall</span> 0.85] [--baseline <span class="op">&lt;</span>known_misses.json<span class="op">&gt;</span>] <span class="pp">[--</span><span class="ss">no</span><span class="pp">-</span><span class="ss">update</span><span class="pp">-</span><span class="ss">baseline</span><span class="pp">]</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Default</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--golden FILE</code></td>
+<td>required</td>
+<td>Golden queries (format below)</td>
+<td>lines 12-14, 37</td>
+</tr>
+<tr>
+<td><code>--project DIR</code></td>
+<td>required</td>
+<td>Project root passed to <code>lumen search -p</code> and used as the
+working directory of each search</td>
+<td>lines 37, 61-62</td>
+</tr>
+<tr>
+<td><code>--k N</code></td>
+<td>5</td>
+<td>A query passes if a gold file is at rank &lt;= N among distinct
+files</td>
+<td>lines 33, 38, 77</td>
+</tr>
+<tr>
+<td><code>--n N</code></td>
+<td>20</td>
+<td>Number of results requested from <code>lumen search -n</code></td>
+<td>lines 33, 38, 61</td>
+</tr>
+<tr>
+<td><code>--lumen BIN</code></td>
+<td>newest plugin-cache copy</td>
+<td>Lumen binary</td>
+<td>lines 34, 38</td>
+</tr>
+<tr>
+<td><code>--out DIR</code></td>
+<td><code>mktemp -d</code></td>
+<td>Directory for <code>results.tsv</code> and <code>summary.txt</code>;
+created if missing</td>
+<td>lines 39, 47-48</td>
+</tr>
+<tr>
+<td><code>--scope-key KEY</code></td>
+<td><code>in_tierA</code></td>
+<td>A golden entry with <code>KEY: false</code> is out of scope and
+SKIPPED (unless its type is <code>unsupported</code>)</td>
+<td>lines 39, 59-60</td>
+</tr>
+<tr>
+<td><code>--min-recall X</code></td>
+<td>0.85</td>
+<td>Recall threshold</td>
+<td>lines 33, 40, 108</td>
+</tr>
+<tr>
+<td><code>--baseline FILE</code></td>
+<td>none</td>
+<td>Known-misses file,
+<code>{&quot;known_misses&quot;: {id: {reason, observed_rank}}}</code>; must
+exist</td>
+<td>lines 40, 49, 54</td>
+</tr>
+<tr>
+<td><code>--no-update-baseline</code></td>
+<td>(updates)</td>
+<td>Report TIGHTEN but do not rewrite the baseline</td>
+<td>lines 41, 99-100</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td></td>
+<td>Print lines 2-32 of the script and exit 0</td>
+<td>line 42</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td></td>
+<td><code>unknown arg: &lt;arg&gt;</code>, exit 2</td>
+<td>line 43</td>
+</tr>
+</tbody>
+</table>
+<p>Golden file: a JSON list of
+<code>{id, type, q, gold, [&lt;scope-key&gt;]}</code> where
+<code>type</code> is <code>conceptual</code>, <code>structural</code> or
+<code>unsupported</code>, <code>gold</code> is a list of relative paths
+and a trailing <code>/</code> means &quot;any file under that directory&quot;
+(header lines 12-14, line 72). Queries are run in sorted <code>id</code>
+order (line 57).</p>
+<h3 id="examples">Examples</h3>
+<p>Run with a STUB <code>lumen</code> (the one from the test: it emits
+<code>&lt;result:file filename=&quot;...&quot;&gt;</code> lines keyed on a query
+word) against an empty scratch project directory, never against a real
+Lumen index. The golden file held four queries: <code>a</code>
+(conceptual, gold at rank 2), <code>b</code> (conceptual, gold at rank
+6), <code>u</code> (unsupported, gold absent), <code>s</code>
+(conceptual, <code>in_tierA: false</code>).</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Command</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>lumen_verify.sh --help</code></td>
+<td>VERIFIED (ran; saw 31 lines, the last being <code>set -u</code>,
+exit 0)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>lumen_verify.sh</code> (no arguments)</td>
+<td>VERIFIED (ran; saw
+<code>usage: need --golden FILE --project DIR and an executable lumen (got &#39;&lt;default binary path&gt;&#39;)</code>,
+exit 2)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>lumen_verify.sh --bogus</code></td>
+<td>VERIFIED (ran; saw <code>unknown arg: --bogus</code>, exit 2)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Golden above, no baseline, <code>--k 5</code></td>
+<td>VERIFIED (ran; summary
+<code>k=5 PASS=2 FAIL=1 SKIP=1 ERROR=0 recall=0.500 min_recall=0.85 known_misses=0 new_misses=1 tighten=0</code>,
+line <code>NEW_MISS b FAIL 6 target.py</code>, exit 1;
+<code>results.tsv</code> rows <code>a PASS 2</code>,
+<code>b FAIL 6</code>, <code>s SKIP - ... out-of-scope</code>,
+<code>u PASS -</code>)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Same with a baseline listing <code>b</code>,
+<code>--min-recall 0.5</code></td>
+<td>VERIFIED (ran;
+<code>KNOWN_MISS b FAIL 6 target.py rank 6 at k=5</code>,
+<code>new_misses=0</code>, exit 0: a FAIL is tolerated when known and
+recall meets the threshold)</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>--baseline /nonexistent</code></td>
+<td>VERIFIED (ran; <code>baseline not found: /nonexistent</code>, exit
+2)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Same golden with <code>--k 6</code> and the baseline from example
+5</td>
+<td>VERIFIED (ran;
+<code>PASS=3 FAIL=0 ... recall=1.000 ... tighten=1</code>, line
+<code>TIGHTEN b known miss now passes -&gt; removed from baseline</code>;
+the baseline file was rewritten)</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Without <code>--out</code></td>
+<td>VERIFIED (ran; exit 1 with the same verdicts; an output directory
+<code>tmp.XXXXXXXXXX</code> was created under <code>$TMPDIR</code> and
+left there, see Edge cases; removed by hand)</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>TMPDIR=&lt;scratch&gt; bash tests/test_lumen_verify.sh</code></td>
+<td>VERIFIED (ran; <code>PASS t1_top_k_hit</code> ...
+<code>PASS t14_default_threshold_0_85</code>, all 14 PASS, exit 0; the
+test makes its own <code>mktemp -d</code> and removes it; nothing left
+in the scratch <code>TMPDIR</code>)</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Against a real Lumen index with a real embedder</td>
+<td>NOT RUN (the brief forbids pointing lumen at the live index; a real
+run also re-indexes the project, see Side effects)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="outputs">Outputs</h2>
+<ul>
+<li><code>&lt;out&gt;/results.tsv</code>: one row per golden query, tab
+separated: <code>id</code>, verdict, rank (or <code>-</code>), gold list
+joined by <code>,</code>, and the top-k files joined by spaces (or
+<code>out-of-scope</code> /
+<code>rc=... results=... &lt;stderr&gt;</code> for SKIP / ERROR rows).
+Sorted by id, no timestamps (lines 24-25, 60, 70, 79-82).</li>
+<li><code>&lt;out&gt;/summary.txt</code>: one line,
+<code>k=&lt;k&gt; PASS=&lt;n&gt; FAIL=&lt;n&gt; SKIP=&lt;n&gt; ERROR=&lt;n&gt; recall=&lt;r|n/a&gt; min_recall=&lt;x&gt; known_misses=&lt;n&gt; new_misses=&lt;n&gt; tighten=&lt;n&gt;</code>,
+also printed on stdout (lines 83-93).</li>
+<li>stdout after the summary: one line per FAIL or ERROR row,
+<code>NEW_MISS</code>, <code>KNOWN_MISS</code> or <code>ERROR</code>
+followed by <code>id, verdict, rank, gold</code> and the baseline
+reason; then one <code>TIGHTEN</code> line per known miss that now
+passes (lines 94-99).</li>
+<li>The baseline file is rewritten (sorted keys, indent 1) when a known
+miss now passes and <code>--no-update-baseline</code> is absent (lines
+100-105).</li>
+</ul>
+<p>Verdicts: <code>PASS</code>; <code>FAIL</code> (gold not in the top
+k, or, for <code>unsupported</code>, gold found); <code>SKIP</code> (out
+of scope); <code>ERROR</code> (search exited non-zero or returned no
+files) (lines 59-79).</p>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>No ERROR, and (recall is <code>n/a</code> or recall &gt;=
+<code>--min-recall</code>) and no NEW_MISS</td>
+<td>line 108</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Recall below the threshold, or at least one NEW_MISS</td>
+<td>line 108</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Usage error (missing golden/project/binary, unknown argument,
+baseline not found), OR any query ended in ERROR</td>
+<td>lines 43, 46, 49, 106-107</td>
+</tr>
+</tbody>
+</table>
+<p>The header (lines 25-26) says &quot;Exit 0 = all PASS, 1 = at least one
+FAIL&quot;; the code is the table above: a known, baselined FAIL does not
+make the run fail (example 5, and test t10). See Findings.</p>
+<h2 id="edge-cases">Edge cases</h2>
+<ul>
+<li><strong>Empty result is an error.</strong> A search that exits 0 but
+returns no <code>&lt;result:file ...&gt;</code> lines is an ERROR row
+and the run exits 2, not a FAIL (lines 63-71; test t3). A search that
+exits non-zero is the same (test t4).</li>
+<li><strong>Distinct files only.</strong> Files are de-duplicated in
+result order before ranking, so several chunks of one file count once
+(lines 64-67).</li>
+<li><strong>Directory gold.</strong> A gold entry ending in
+<code>/</code> matches any file under it (line 72).</li>
+<li><strong><code>unsupported</code> queries</strong> invert the
+verdict: PASS when the gold is absent, FAIL when it is found, and they
+are excluded from the recall computation, and can never be baselined as
+known misses (lines 74-75, 86, 89; tests t5, t6).</li>
+<li><strong>Out-of-scope entries</strong> with
+<code>&lt;scope-key&gt;: false</code> are SKIPPED and not searched; an
+<code>unsupported</code> entry is never skipped (line 59).</li>
+<li><strong><code>--k</code> larger than <code>--n</code></strong>
+cannot rank beyond <code>--n</code> results (<code>-n</code>, line 61);
+NOT RUN.</li>
+<li><strong><code>ERROR</code> rows are counted separately</strong> and
+any ERROR forces exit 2 even if recall is fine (lines 106-107).</li>
+<li><strong>Recall is <code>n/a</code></strong> when there is no
+in-scope indexable query; the threshold is then skipped (line 87,
+108).</li>
+<li><strong>Each search has a 600 s timeout</strong>
+(<code>timeout=600</code>, line 62); a timeout raises an uncaught Python
+exception (exit 1 from Python, no results file written). UNCONFIRMED:
+not run.</li>
+<li><strong>Default <code>--out</code> is not cleaned up.</strong>
+Without <code>--out</code>, <code>mktemp -d</code> creates a directory
+under <code>$TMPDIR</code> that stays behind (line 47; example 8).</li>
+<li><strong>Golden entries with a missing key</strong> (<code>id</code>,
+<code>type</code>, <code>q</code>, <code>gold</code>) raise an uncaught
+Python <code>KeyError</code> (lines 57-58, 88). UNCONFIRMED: not
+run.</li>
+<li><strong>Baseline rewrite is not atomic</strong> and happens after
+the summary is written; the file is rewritten by <code>json.dump</code>
+with sorted keys, which may reorder a hand-formatted baseline (lines
+104-105).</li>
+</ul>
+<h2 id="side-effects">Side effects</h2>
+<p><code>lumen search</code> runs EnsureFresh: it incrementally
+re-indexes changed files of <code>&lt;project&gt;</code> into the index
+selected by <code>XDG_DATA_HOME</code> (header lines 28-30). To keep a
+shared index untouched, point <code>XDG_DATA_HOME</code> at a copy. The
+script itself writes only the output directory and, on TIGHTEN, the
+baseline file.</p>
+<h2 id="internal-behaviour">Internal behaviour</h2>
+<ol type="1">
+<li>Parse arguments and validate inputs; <code>exec</code> an embedded
+Python program (lines 33-50).</li>
+<li>Load the baseline&#39;s <code>known_misses</code> (line 54); iterate
+golden queries sorted by id (line 57).</li>
+<li>For each in-scope query run
+<code>lumen search -n &lt;n&gt; --summary --min-score -1 -p &lt;project&gt; &lt;q&gt;</code>
+with the project as working directory, extract
+<code>&lt;result:file filename=&quot;...&quot;&gt;</code> names (lines 55,
+61-67).</li>
+<li>Decide PASS/FAIL/ERROR (lines 68-79); write <code>results.tsv</code>
+and <code>summary.txt</code> (lines 80-85, 92).</li>
+<li>Compute recall, NEW_MISS and TIGHTEN sets, print the report,
+optionally rewrite the baseline, then choose the exit code (lines
+86-108).</li>
+</ol>
+<h2 id="findings">Findings</h2>
+<ol type="1">
+<li><strong>Header exit-code statement is inaccurate</strong> (lines
+25-26 vs 108): a FAIL that is a known miss does not produce exit 1.</li>
+<li><strong><code>--help</code> prints one code line</strong>:
+<code>sed -n &#39;2,32p&#39;</code> (line 42) prints the header (lines 2-31)
+plus line 32, <code>set -u</code>.</li>
+<li><strong>Header side-effects note is correct but easy to
+miss:</strong> a verification run mutates the index selected by
+<code>XDG_DATA_HOME</code>.</li>
+</ol>
+<h2 id="related">Related</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Relation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="gen_lumenignore.md">gen_lumenignore</a></td>
+<td>Generates the <code>.lumenignore</code> that scopes what this
+verification can find</td>
+</tr>
+<tr>
+<td><code>tests/test_lumen_verify.sh</code></td>
+<td>The hermetic tests (stub binary)</td>
+</tr>
+<tr>
+<td><a href="owed_report.md">owed_report</a></td>
+<td>Reports whether this tool has tests and a guide</td>
+</tr>
+</tbody>
+</table>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26 (source lines read on that date; examples 1-9 run with a
+stub <code>lumen</code> and the test in a scratch <code>TMPDIR</code>;
+no real index touched).</p>
+</body>
+</html>

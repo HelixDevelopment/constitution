@@ -1,0 +1,23 @@
+{
+  "task_id": "FC-AS-SAMPLE-003",
+  "verb": "place",
+  "live_agents": 6,
+  "aliases": [
+    {"alias": "claude1", "kind": "native", "operational": true, "near_cap": true},
+    {"alias": "deepseek", "kind": "provider", "operational": true, "near_cap": false},
+    {"alias": "claude2", "kind": "native", "operational": true, "near_cap": false}
+  ],
+  "expected_placement": {
+    "refused": false,
+    "refusal_reason": null,
+    "eligible_alias_count": 2,
+    "cap_per_alias": 4,
+    "native_first_order": ["claude2", "deepseek"],
+    "assignment_alias_counts": {
+      "claude2": 3,
+      "deepseek": 3
+    },
+    "max_assigned_count": 3,
+    "excluded_near_cap_aliases": ["claude1"]
+  }
+}

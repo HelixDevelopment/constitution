@@ -1,0 +1,6 @@
+{
+  "consume_target": null,
+  "failure_class": "evidence_tampered",
+  "kind": "golden-bad",
+  "note": "declared input + verifier unchanged; evidence.txt's CURRENT bytes differ from ref.json's recorded evidence.content_address (evidence_as_recorded.txt's bytes, at create time) -- STALE_EVIDENCE per ER-002's 'Evidence file missing or altered' clause."
+}

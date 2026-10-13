@@ -1,0 +1,6 @@
+NO_DRIFT
+Fast lane and full lane select the SAME 3 gates for change
+CH-BS-EQUAL-001 and agree on every verdict, including GATE-B's genuine
+FAIL -- caught by BOTH lanes (not merely "no gate failed anywhere",
+which would make this negative control vacuous). The real backstop.sh
+compare subcommand MUST report NO_DRIFT and MUST exit 0.

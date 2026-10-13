@@ -1,0 +1,65 @@
+# T086 negative-control fixture: "an item with complete evidence classifies
+# without E9" (tasks.md T086 line). data-model.md §6.1: "E9 unclassifiable |
+# Evidence insufficient for E1..E8 ... | settling_evidence naming the missing
+# evidence". The false-positive guard this fixture proves (constitution
+# 11.4.201(1)): a classifier that defaults to E9 whenever an item's real history
+# is non-trivial (multiple stages, a compound evidence string, a device-pending
+# marker) -- rather than reserving E9 for GENUINELY insufficient evidence -- is
+# just as defective as one that never fires E9 at all.
+#
+# Window: --as-of 2026-07-23 --window-days 0 => [2026-07-23, 2026-07-23]
+# inclusive. Real, live-verified fact (2026-09-29, docs/workable_items.db):
+# exactly ONE item_history row has event_type='Reopened' AND on_date='2026-07-23'
+# -- ATM-799 (rowid=684). A real, natural single-item window (2026-07-10 was
+# deliberately NOT used for this fixture: it contains TWO distinct reopened
+# items, ATM-277 and ATM-627, which would need their own fully-researched
+# classifications to satisfy EC-001's one-entry-per-item requirement for that
+# window -- out of scope for this fixture's specific, narrow assertion).
+#
+# Provenance for "complete evidence" + the E4 guard-not-run classification
+# (real, citable, never guessed -- constitution 11.4.6):
+#   - item_history rowids (docs/workable_items.db, live-queried 2026-09-29):
+#       id=613 Fixed    2026-07-18 evidence_path=
+#         "docs/research/audio_dialog_hang_20260717/ROOT_CAUSE.md §7 +
+#          audio_hw.c jack_auto/jack_override split (fw_sink_digital-gated)
+#          @HEAD 1164c43c + CM-ATM799-JACK-ES8388-WRITE-GATE gate +
+#          test_atm799_jack_es8388_switch_red.sh (PENDING-DEVICE)"
+#       id=684 Reopened 2026-07-23 by=AI reason=captured-evidence-contradicts
+#         evidence_path=constitution/docs/research/quality/remediation/PROJECT_GAP_AUDIT.md
+#   - Both referenced files are REAL and exist on disk (verified 2026-09-29):
+#       docs/research/audio_dialog_hang_20260717/ROOT_CAUSE.md
+#       device/rockchip/rk3588/tests/test_atm799_jack_es8388_switch_red.sh
+#       constitution/docs/research/quality/remediation/PROJECT_GAP_AUDIT.md
+#   - PROJECT_GAP_AUDIT.md line 43 (G6 "Cross-layer verification gaps") names
+#     ATM-799 BY ID as its own live-instance citation, VERBATIM: "live instance:
+#     ATM-799 closed Fixed 07-18 with evidence literally '(PENDING-DEVICE)'" --
+#     this is exactly E4's definition (data-model.md §6.1): "A guard existed but
+#     was not executed against the deployed artifact (11.4.226)" -- the guard
+#     (CM-ATM799-JACK-ES8388-WRITE-GATE / test_atm799_jack_es8388_switch_red.sh)
+#     genuinely existed at closure time, but its own Fixed evidence string
+#     ADMITS, in its own words, that it had not yet run against a real device
+#     ("PENDING-DEVICE") when the item was closed.
+#   - This is COMPLETE evidence in the EC-002 sense (a real, existing,
+#     hash-matchable EvidencePath that positively identifies a mechanism) even
+#     though the UNDERLYING guard run itself was incomplete/pending -- the two
+#     are not the same thing, and conflating them is exactly the over-eager-E9
+#     failure mode this negative control guards against.
+#
+# UNCONFIRMED field-shape choices: see ec_good_atm953_e1/input.yaml's header
+# (identical schema/field-naming justification).
+schema: escape-classify-input/v1
+as_of: "2026-07-23"
+window_days: 0
+entries:
+  - item_id: ATM-799
+    reopen_events: [684]
+    primary: E4
+    contributing: []
+    detection_channel: captured-evidence-contradicts
+    evidence:
+      - path: constitution/docs/research/quality/remediation/PROJECT_GAP_AUDIT.md
+        content_address: "sha256:4c392157ba7574edb358a778015e82ecbd4247802b3fd3d7028b269c6e3b1f05"
+      - path: docs/research/audio_dialog_hang_20260717/ROOT_CAUSE.md
+        content_address: "sha256:d55909f751df01066fcc195d434f6a1d2ac1047976354a283c1c239f2969834a"
+      - path: device/rockchip/rk3588/tests/test_atm799_jack_es8388_switch_red.sh
+        content_address: "sha256:b222c845b304b1a1f283c10ab7835547cc78f9e4e06a818a1f445e54dcbd9296"

@@ -1,0 +1,1 @@
+evidence-ref-EVIDENCE: device-state verdict PASS on DEVICE-SERIAL-AAA

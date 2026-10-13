@@ -1,0 +1,5 @@
+{
+  "_comment": "golden-bad: this fixture MUST be refused. No --out document field values are asserted (a refusal's finding is the point, not a data shape) -- the checker asserts exit_code==1 AND that stderr/the refusal message names ATM-953 and 'evidence' (case-insensitively), matching contracts/common-conventions.md C-001 row 1 ('a finding: refusal ... yes (the finding is the output)').",
+  "expected_exit_code": 1,
+  "expected_message_must_mention": ["ATM-953", "evidence"]
+}

@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr18000000000000000000000000000000000000000000000000000000018",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "malformed-verified-entry",
+      "detail": "verified fact EV-RR18-A has an `established_at` field that is not a string (got 5) -- this tool cannot compare a non-string value against written_at to rule out a causally-impossible record, and a malformed timestamp may represent genuine but corrupted information rather than an absent one; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}

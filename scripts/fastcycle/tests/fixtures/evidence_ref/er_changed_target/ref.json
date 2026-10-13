@@ -1,0 +1,28 @@
+{
+  "body_hash": "4aaf3339dfaf7f1b0397769e9d1f2cc24a524d8761eba292bbfdb28680620dfb",
+  "established_at": "2026-09-01T00:00:00Z",
+  "established_by": "test-fixture-author:T108",
+  "evidence": {
+    "content_address": "sha256:afab7c8986e7e9d46b83d85644341092c70cf34cd55c0aadc4c21ef5549df54d",
+    "path": "evidence.txt"
+  },
+  "fact": "the T108 fixture verifier confirmed device state on DEVICE-SERIAL-AAA",
+  "inputs": {
+    "pairs": [
+      {
+        "content_address": "sha256:ceca1d32af1ef858ed4be7e6dbc96fdb3e67b677b802108c00ff71f4f5dc2e67",
+        "path": "input_a.txt"
+      }
+    ],
+    "paths": [
+      "input_a.txt"
+    ],
+    "root": "sha256:4afdb2c9a7c5f0f6dcafd81e3f03fdd4d660dff8dd185d546bf97d7625b79962"
+  },
+  "ref_id": "FC-ER-CHANGED-TARGET-001",
+  "schema": "evref/v1",
+  "target_fingerprint": "DEVICE-SERIAL-AAA",
+  "verdict": "PASS",
+  "verifier_id": "verifier.sh",
+  "verifier_version": "sha256:14a844671d1acdaa4d0a232e6b48beea44ede205c04c5d1510a7168acfbcceac"
+}

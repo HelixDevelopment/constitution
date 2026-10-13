@@ -1,0 +1,2 @@
+DUPLICATE
+REASON: mutant_b.sh differs from mutant_a.sh only in comment placement, blank-line insertion, and indentation whitespace -- after DEC-23's comment/whitespace normalisation the two scripts are byte-identical and MUST be reported as trivially-equivalent/duplicate, run once not twice.

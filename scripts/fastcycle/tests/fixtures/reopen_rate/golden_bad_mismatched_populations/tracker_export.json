@@ -1,0 +1,87 @@
+{
+  "_fixture": "golden_bad_mismatched_populations",
+  "_purpose": "T091 (SpecKit-004 'fast-dev-cycles', User Story 3) golden-bad case for closure/reopen_rate.py (plan.md T-D06, tasks.md T100, contract cycle-time-report-cli.md CT-006). Reproduces, as a small synthetic isomorph, the EXACT population-mismatch class research/R1_baseline_cycle_time.md's Table D caveat names for the real tracker DB (whole-history reopen count 18 Bug items vs whole-history closed-count 31 Bug items with a closure event ever -- 'so \"18 of 31 bugs\" (58%) is an UPPER-BOUND-style ratio with mismatched populations (reopened items may have been closed before item_history began 2026-06-03 or by rows not in history); do not quote as a rate.' -- R1 Table D caveat, cited verbatim by contract CT-006 as '(R1 Table D caveat)'). The task text's own phrasing ('mismatched populations such as \"18 of 31\" are rejected') is this exact caveat.",
+  "_synthetic": true,
+  "_note": "None of these atm_id values exist in the real docs/workable_items.db (verified 2026-09-29 by control needle #1 in test_reopen_rate_red.sh). The mismatch mechanic reproduced here: MB-004 has a Reopened event inside the window but ZERO closure events (Fixed/Implemented/Completed) anywhere in its ENTIRE history -- exactly R1's 'closed before item_history began, or by rows not in history' case. A naive tool that counts EVERY Reopened-in-window event as a numerator hit, without first checking the reopened item is ITSELF a member of the closed-in-window denominator population, produces reopened=1 (MB-004) / closed=3 (MB-001..MB-003) = 0.333... -- the exact '18 of 31'-shaped defect: a ratio of two counts drawn from two DIFFERENT underlying item sets, presented as if it were one rate.",
+  "as_of": "2026-07-31",
+  "window_days": 30,
+  "window": { "from": "2026-07-01", "to": "2026-07-31" },
+  "items": [
+    { "atm_id": "MB-001", "type": "Bug" },
+    { "atm_id": "MB-002", "type": "Bug" },
+    { "atm_id": "MB-003", "type": "Bug" },
+    { "atm_id": "MB-004", "type": "Bug" },
+    { "atm_id": "MT-001", "type": "Task" },
+    { "atm_id": "MF-001", "type": "Feature" }
+  ],
+  "item_history": [
+    { "atm_id": "MB-001", "event_type": "Opened", "by": "User", "on_date": "2026-06-05", "created_at": "2026-06-05T09:00:00Z" },
+    { "atm_id": "MB-001", "event_type": "Fixed",  "by": "AI",   "on_date": "2026-07-06", "created_at": "2026-07-06T13:00:00Z", "evidence_path": "qa-results/golden_bad/mb001_fixed.log" },
+
+    { "atm_id": "MB-002", "event_type": "Opened", "by": "User", "on_date": "2026-06-08", "created_at": "2026-06-08T09:00:00Z" },
+    { "atm_id": "MB-002", "event_type": "Fixed",  "by": "AI",   "on_date": "2026-07-10", "created_at": "2026-07-10T14:00:00Z", "evidence_path": "qa-results/golden_bad/mb002_fixed.log" },
+
+    { "atm_id": "MB-003", "event_type": "Opened", "by": "User", "on_date": "2026-06-01", "created_at": "2026-06-01T09:00:00Z" },
+    { "atm_id": "MB-003", "event_type": "Fixed",  "by": "AI",   "on_date": "2026-07-18", "created_at": "2026-07-18T15:00:00Z", "evidence_path": "qa-results/golden_bad/mb003_fixed.log" },
+
+    { "atm_id": "MB-004", "event_type": "Opened",   "by": "User", "on_date": "2026-05-01", "created_at": "2026-05-01T09:00:00Z", "_note": "THE MISMATCH ITEM: this is the ONLY item_history row of type Opened for MB-004 -- there is deliberately NO Fixed/Implemented/Completed row for MB-004 anywhere in this fixture (models R1's 'closed before item_history began, or by rows not in history'). MB-004 is therefore NOT a member of Bug's closed_in_window population." },
+    { "atm_id": "MB-004", "event_type": "Reopened", "by": "User", "on_date": "2026-07-15", "created_at": "2026-07-15T10:00:00Z", "reason": "manual-testing-detected", "evidence_path": "qa-results/golden_bad/mb004_reopen.log" },
+
+    { "atm_id": "MT-001", "event_type": "Opened",    "by": "User", "on_date": "2026-06-10", "created_at": "2026-06-10T09:00:00Z" },
+    { "atm_id": "MT-001", "event_type": "Completed", "by": "AI",   "on_date": "2026-07-09", "created_at": "2026-07-09T13:00:00Z", "evidence_path": "qa-results/golden_bad/mt001_completed.log", "_note": "Task type is CLEAN in this fixture -- included to prove refusal is scoped to the Bug type actually affected by the mismatch, not a global failure." },
+
+    { "atm_id": "MF-001", "event_type": "Opened",      "by": "User", "on_date": "2026-06-12", "created_at": "2026-06-12T09:00:00Z" },
+    { "atm_id": "MF-001", "event_type": "Implemented", "by": "AI",   "on_date": "2026-07-11", "created_at": "2026-07-11T13:00:00Z", "evidence_path": "qa-results/golden_bad/mf001_implemented.log", "_note": "Feature type is also CLEAN in this fixture, for the same reason as MT-001." }
+  ],
+  "_hand_computation": {
+    "Bug": {
+      "closed_in_window_members": ["MB-001", "MB-002", "MB-003"],
+      "closed_in_window_reasoning": "Each of MB-001, MB-002, MB-003 has exactly one closure event (Fixed) with on_date inside [2026-07-01, 2026-07-31]. MB-004 has NO closure event of any kind anywhere in its history -- it is NOT a member of this population, regardless of its Reopened event's on_date.",
+      "naive_buggy_reopened_count": 1,
+      "naive_buggy_reopened_reasoning": "A tool that queries 'distinct items with a Reopened event whose on_date is in the window' WITHOUT intersecting that result against closed_in_window would count MB-004 (Reopened on_date=2026-07-15, inside the window) -- but MB-004 is not a closed-in-window Bug, so this count is drawn from a DIFFERENT population than the closed=3 denominator.",
+      "naive_buggy_rate_if_computed": 0.3333333333333333,
+      "naive_buggy_rate_reasoning": "1 (naive reopened, includes MB-004) / 3 (closed, excludes MB-004) = 0.333... -- structurally identical to R1's '18 of 31' (18 = whole-history reopened Bug items ever; 31 = whole-history closed Bug items ever; the two counts are NOT drawn from the same underlying set of item_history rows). This value MUST NEVER appear in reopen_rate.py's real output for this fixture.",
+      "correct_reopened_matched_to_population": 0,
+      "correct_reopened_reasoning": "The CORRECT reopened-in-window count, restricted to members of closed_in_window (per T-D06's own text: 'both counted from the same population (items closed within the window)'), is 0 -- none of MB-001, MB-002, MB-003 has a Reopened event at all.",
+      "closed": 3,
+      "expected_rate_field_value": "RATE_NOT_COMPUTABLE",
+      "expected_reason_substring": "mismatch",
+      "mismatched_items": ["MB-004"],
+      "mismatched_items_reasoning": "MB-004 has a Reopened event inside the window but zero closure events anywhere in its history -- this is precisely the ambiguity the R1 Table D caveat names. reopen_rate.py MUST detect this and refuse to emit ANY numeric rate for Bug in this window, citing the mismatch and naming MB-004, rather than silently either (a) including MB-004 in the numerator against a denominator that excludes it (the naive-buggy 0.333... above), or (b) silently dropping MB-004 and reporting the correct-looking-but-unflagged 0/3=0.0 as if nothing were wrong (which would hide a real data-quality gap from the SC-004 metric consumer -- CT-006 requires the REFUSAL to be visible, not a silently-adjusted clean number)."
+    },
+    "Task": {
+      "closed_in_window_members": ["MT-001"],
+      "reopened_in_window_members": [],
+      "closed": 1,
+      "reopened": 0,
+      "rate": 0.0,
+      "rate_reasoning": "Clean, matched population -- no mismatch mechanic present for Task in this fixture."
+    },
+    "Feature": {
+      "closed_in_window_members": ["MF-001"],
+      "reopened_in_window_members": [],
+      "closed": 1,
+      "reopened": 0,
+      "rate": 0.0,
+      "rate_reasoning": "Clean, matched population -- no mismatch mechanic present for Feature in this fixture."
+    },
+    "overall": {
+      "expected_rate_field_value": "RATE_NOT_COMPUTABLE",
+      "overall_reasoning": "Because the Bug type's own population is mismatched/ambiguous, the OVERALL aggregate rate (which would otherwise sum closed/reopened across all three types) MUST ALSO refuse rather than silently aggregate a type it cannot safely count -- an overall rate that quietly excluded the ambiguous type, or quietly included the naive-buggy Bug numerator, would itself be exactly the kind of silent population-mismatch CT-006 forbids at the top level, one layer up from the per-type case."
+    }
+  },
+  "expected_report": {
+    "schema": "reopen-rate/v1",
+    "as_of": "2026-07-31",
+    "window": { "from": "2026-07-01", "to": "2026-07-31" },
+    "state": "OK",
+    "by_type": {
+      "Bug":     { "reopened": 0, "closed": 3, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": "RATE_NOT_COMPUTABLE", "mismatched_items": ["MB-004"] },
+      "Task":    { "reopened": 0, "closed": 1, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": 0.0 },
+      "Feature": { "reopened": 0, "closed": 1, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": 0.0 }
+    },
+    "overall": { "reopened": 0, "closed": 5, "window": { "from": "2026-07-01", "to": "2026-07-31" }, "dedup_rows_removed": 0, "rate": "RATE_NOT_COMPUTABLE", "mismatched_items": ["MB-004"] },
+    "excluded_retroactive": []
+  },
+  "expected_exit_code": 0
+}

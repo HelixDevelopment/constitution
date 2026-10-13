@@ -1,0 +1,3 @@
+#!/bin/sh
+# ps shim: prints nothing, exit 0 (empty output must not read as zero threads)
+exit 0

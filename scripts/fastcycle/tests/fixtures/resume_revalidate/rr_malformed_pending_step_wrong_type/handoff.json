@@ -1,0 +1,15 @@
+{
+  "handoff_id": "sha256:rr15000000000000000000000000000000000000000000000000000000015",
+  "agent_key": "rr15agentkey0015",
+  "item_id": "ATM-9115",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "IMPLEMENT",
+  "verified": [],
+  "pending": [{"step": 5}],
+  "partial_artefacts": [],
+  "external_deps": [],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

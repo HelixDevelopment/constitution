@@ -1,0 +1,6 @@
+{
+  "classification": "FLAKY",
+  "minority_count": 5,
+  "cache_eligible": false,
+  "note": "genuine alternating PASS/FAIL across 10 runs on ONE unchanged key -- minority count 5 >= 2, must be flagged FLAKY by (at the latest) the 10th run, quarantined, and excluded from verdict caching per DEC-15."
+}

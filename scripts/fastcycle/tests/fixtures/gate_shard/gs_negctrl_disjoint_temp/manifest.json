@@ -1,0 +1,8 @@
+{
+  "gates": [
+    { "name": "gate_writer_p", "script": "gate_writer_p.sh", "args": ["$P_TMP"], "writes": ["$P_TMP"] },
+    { "name": "gate_writer_q", "script": "gate_writer_q.sh", "args": ["$Q_TMP"], "writes": ["$Q_TMP"] }
+  ],
+  "n_shards": 2,
+  "note": "$P_TMP and $Q_TMP are resolved by the test harness to two DIFFERENT fresh per-run temp paths -- disjoint write sets. This is the §11.4.201(1) false-positive guard for gs_bad_shared_temp_split/: a sharder that co-schedules EVERY pair (over-eager, e.g. one that ignores write sets and always returns a single shard) would incorrectly PASS the golden-bad case while FAILING this negative control by defeating its own purpose -- the sharding parallelism T-C05 exists to deliver."
+}

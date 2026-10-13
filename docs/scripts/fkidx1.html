@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>fkidx1 (runner patch) — guide</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="fkidx1-runner-patch--guide">fkidx1 (runner patch) — guide</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-26T13:40:00Z</p>
+<p>Source:
+<code>constitution/scripts/codegraph/runner_patches/fkidx1.py</code>
+(107 lines). It is a <strong>module driven by
+<code>fk_index_patch.py</code></strong>, not a command: nothing in it is
+run directly. Citations are <code>fkidx1.py:&lt;line&gt;</code> unless
+another file is named. Machinery guide: <a href="fk_index_patch.md">fk_index_patch</a>.</p>
+<h2 id="overview">Overview</h2>
+<p>Stock CodeGraph 1.6.0 speeds up bulk indexing by <strong>dropping
+secondary indexes</strong> before a bulk window (three lists in
+<code>lib/dist/db/index.js</code>: <code>BULK_PARSE_INDEX_NAMES</code>,
+<code>BULK_REF_INDEX_NAMES</code>, <code>BULK_EDGE_INDEX_NAMES</code>)
+and recreating them afterwards. It also runs
+<code>INSERT OR REPLACE INTO nodes</code> with
+<code>foreign_keys=ON</code>. A REPLACE of an existing node id deletes
+the old row, which fires <code>ON DELETE CASCADE</code> on every child
+table with a foreign key to <code>nodes(id)</code>; if the child&#39;s key
+column has no index, each cascade is a <strong>full table scan</strong>
+(module docstring, lines 1-8).</p>
+<p><code>fkidx1</code> edits <code>lib/dist/db/index.js</code> in the
+private runner copy so that the FK child-key indexes are <strong>removed
+from the drop lists</strong> (they stay in place through the bulk
+windows). It never edits the shared install (that is the machinery&#39;s
+job, see the parent guide).</p>
+<p>The keep-set is not hard-coded: it is <strong>derived from the
+target&#39;s own <code>schema.sql</code></strong> (lines 26-37, 51-71), so
+it adapts to upstream schema changes and reports NOT_NEEDED when the
+hazard is not there.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Files read from the package (lines 16-18):
+<code>lib/dist/db/index.js</code>, <code>lib/dist/db/schema.sql</code>,
+<code>lib/dist/db/queries.js</code>.</li>
+<li>Python 3 standard library only (<code>re</code>), plus
+<code>runner_patches/common.py</code> (<code>NotNeeded</code>,
+<code>Refuse</code>, <code>PatchPlan</code>).</li>
+<li>Loaded by <code>runner_patches.load()</code>; registered first
+(<code>runner_patches/__init__.py:17</code>), default set member (not
+opt-in).</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<p>Only through <code>fk_index_patch.py</code>:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/codegraph/fk_index_patch.py <span class="at">--patches</span> fkidx1 <span class="at">--dst</span> <span class="op">&lt;</span>scratch dir<span class="op">&gt;</span> [--src <span class="op">&lt;</span>package dir<span class="op">&gt;</span>]</span></code></pre></div>
+<p><code>NOT RUN</code> in this form (it copies the ~282 MB package; see
+the parent guide for the tiny-fixture build that was run). What
+<strong>was</strong> run (read-only planning, no copy, no write):</p>
+<ul>
+<li><code>VERIFIED (ran: python3 with sys.path at scripts/codegraph; FileView over a scratch dir holding stock 1.6.0 db/index.js + schema.sql + queries.js; fkidx1.plan(view); saw: kept_indexes = [idx_edges_target_kind, idx_unresolved_from_node]; list sizes BULK_PARSE 15 -&gt; 14, BULK_REF 5 -&gt; 4, BULK_EDGE 4 -&gt; 3)</code>.
+So on stock 1.6.0 the patch keeps exactly two indexes and touches all
+three lists (a kept index can appear in more than one list).</li>
+<li>The planned <code>db/index.js</code> passes
+<code>node --check</code> with the package&#39;s bundled node (part of the
+parent guide&#39;s verification, with a broken-file control that exits
+1).</li>
+</ul>
+<h2 id="behaviour-source-traced">Behaviour (source-traced)</h2>
+<p><code>plan(view)</code> (lines 97-107):</p>
+<ol type="1">
+<li><code>compute_patch</code> (lines 51-71):
+<ul>
+<li>NOT_NEEDED if <code>queries.js</code> no longer contains
+<code>INSERT OR REPLACE INTO nodes</code> (line 52-53);</li>
+<li>NOT_NEEDED if <code>db/index.js</code> no longer contains
+<code>foreign_keys = ON</code> (regex
+<code>foreign_keys\s*=\s*ON</code>, lines 54-55);</li>
+<li><code>derive_keep_set</code> (lines 26-37): walks
+<code>CREATE TABLE IF NOT EXISTS ... );</code> blocks in
+<code>schema.sql</code>, collects
+<code>FOREIGN KEY (col) REFERENCES nodes(id)</code> columns, and every
+<code>CREATE [UNIQUE] INDEX IF NOT EXISTS</code> with its leading
+column; NOT_NEEDED if there is no FK to <code>nodes(id)</code> at all
+(line 31-32);</li>
+<li><code>parse_lists</code> (lines 40-48): parses the three
+<code>static BULK_*_NAMES = [...]</code> lists; <strong>Refuse</strong>
+if any of the three is missing or empty (&quot;upstream shape changed&quot;);</li>
+<li>for every FK child column, if some index led by that column is
+<strong>never dropped</strong> in any list, nothing to do (lines 60-62);
+else it must have an index candidate in <code>schema.sql</code> (else
+<strong>Refuse</strong>, line 64-65) and the candidate with the fewest
+columns (ties by name) is added to the keep set (lines 66-67);</li>
+<li>NOT_NEEDED if the keep set ends up empty (lines 69-70).</li>
+</ul></li>
+<li><code>patch_text</code> (lines 74-95): for each kept index, removes
+its quoted name from every list that holds it; <strong>Refuse</strong>
+if the name is in no list (line 79-80), does not appear exactly once in
+a list (lines 86-88), or if a list would become empty (lines
+92-94).</li>
+<li>The plan records the edited file, one anchor per touched list, and
+<code>detail = {kept_indexes, lists_before, lists_after}</code> (lines
+100-106); <code>fk_index_patch.py</code> copies those into the legacy
+top-level receipt fields.</li>
+</ol>
+<p>Outputs: an edited text for <code>lib/dist/db/index.js</code> only.
+Side effects: none in this module (pure function of the three files&#39;
+text).</p>
+<h2 id="edge-cases">Edge cases</h2>
+<p>All
+<code>VERIFIED (ran: planning against copies of the stock 1.6.0 files in a scratch directory)</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stock 1.6.0</td>
+<td>APPLIED, keep = <code>idx_edges_target_kind</code>,
+<code>idx_unresolved_from_node</code></td>
+</tr>
+<tr>
+<td>Plan again on the already-patched text</td>
+<td>NOT_NEEDED:
+<code>every FK child column is already served by a never-dropped index</code>
+(not an error, unlike the other patches)</td>
+</tr>
+<tr>
+<td><code>INSERT OR REPLACE INTO nodes</code> replaced by
+<code>INSERT INTO nodes</code> in <code>queries.js</code></td>
+<td>NOT_NEEDED:
+<code>queries.js no longer uses INSERT OR REPLACE INTO nodes</code></td>
+</tr>
+<tr>
+<td><code>foreign_keys = ON</code> changed to <code>OFF</code> in
+<code>db/index.js</code></td>
+<td>NOT_NEEDED:
+<code>db/index.js no longer enables foreign_keys</code></td>
+</tr>
+<tr>
+<td><code>REFERENCES nodes</code> renamed in
+<code>schema.sql</code></td>
+<td>NOT_NEEDED:
+<code>schema.sql has no FOREIGN KEY ... REFERENCES nodes(id)</code></td>
+</tr>
+<tr>
+<td><code>BULK_EDGE_INDEX_NAMES</code> renamed in
+<code>db/index.js</code></td>
+<td><strong>Refuse</strong>:
+<code>db/index.js: BULK_EDGE_INDEX_NAMES not found/empty — upstream shape changed</code></td>
+</tr>
+</tbody>
+</table>
+<p>Known limitation (from <code>tests/test_patch_machinery.py</code>,
+run 2026-09-26): the list parser does not assert that each
+<code>static BULK_*_NAMES</code> declaration is unique, so a
+commented-out duplicate or a duplicated declaration is not refused
+(cases P1b/P1c FAIL today; this is the tool&#39;s own RED test). See the
+parent guide, &quot;Known discrepancies&quot;.</p>
+<h2 id="internal-behaviour--oracle">Internal behaviour / oracle</h2>
+<p>The external oracle for this patch is
+<code>fk_cascade_probe.py</code> (module header lines 6-7): it
+demonstrates the cascade full-scan hazard on a stock database and that
+the patched runner removes it. It is a separate tool with its own guide
+(<a href="fk_cascade_probe.md">fk_cascade_probe</a>);
+<code>codegraph_safe.sh</code> runs it to prove stock safe when the
+machinery exits 3 (NOT_NEEDED for every patch), per the parent
+guide.</p>
+<h2 id="tests">Tests</h2>
+<p><code>fkidx1</code> has no dedicated test file. It is exercised by
+<code>tests/test_patch_machinery.py</code> (fkidx1 build cases, P1-P4)
+and referenced by <code>tests/test_bulk_classify_mutate.py</code>,
+<code>tests/test_mcp_readonly_mutate.py</code>,
+<code>tests/test_unit_safe.sh</code> (those name the id in
+registry/selection arguments). <code>owed_report.py</code> counts it as
+tested for that reason. FINDING: there is no behavioural test of the
+<em>derivation</em> logic (keep-set for other schemas) in the tree; the
+checks in the Edge cases table above were run ad hoc for this guide.</p>
+<h2 id="related-scripts">Related scripts</h2>
+<p><a href="fk_index_patch.md">fk_index_patch</a> (the machinery), <a href="fk_cascade_probe.md">fk_cascade_probe</a> (oracle), <a href="codegraph_safe.md">codegraph_safe</a> (consumer; default patch set
+<code>fkidx1,resolve1</code>), siblings <a href="lockfix1.md">lockfix1</a>, <a href="datafrag1.md">datafrag1</a>,
+<a href="resolve1.md">resolve1</a>, <a href="resolve2.md">resolve2</a>,
+<a href="mcpro1.md">mcpro1</a>.</p>
+<h2 id="last-verified">Last verified</h2>
+<p>2026-09-26, against stock CodeGraph 1.6.0 files copied to a scratch
+directory; no writes to the real runner cache or to any
+<code>.codegraph</code> index.</p>
+</body>
+</html>

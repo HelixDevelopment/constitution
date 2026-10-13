@@ -1,0 +1,70 @@
+CT-5 negative-control contract for the negative_control_retroactive fixture
+(window 2026-07-01..2026-07-31, as_of=2026-07-31, window_days=30):
+
+  reopen_rate.py MUST exclude the retroactive-registration item (NB-001)
+  from BOTH the numerator and denominator of its type (Bug), LIST it by id
+  and reason, and still PASS (exit 0) with the correctly-adjusted rate:
+
+    Bug:     { "reopened": 0, "closed": 2, "rate": 0.0,
+               "excluded_retroactive": [
+                 { "item_id": "NB-001",
+                   "reason": "retroactive-registration (Opened->closure db_write gap < 60s)" }
+               ] }
+    Task:    { "reopened": 0, "closed": 1, "rate": 0.0 }
+    Feature: { "reopened": 0, "closed": 1, "rate": 0.0 }
+    overall: { "reopened": 0, "closed": 4, "rate": 0.0,
+               "excluded_retroactive": [ { "item_id": "NB-001", ... } ] }
+
+  Exit code: 0.
+
+WHY THIS IS A NEGATIVE CONTROL, NOT A GOLDEN-BAD REFUSAL CASE: this fixture
+is superficially similar in shape to golden_bad_mismatched_populations/
+(both are "a window with 3 normal Bug items plus one item that needs
+special handling"), but the two MUST produce OPPOSITE verdicts on their
+own respective 'special' item:
+
+  - golden_bad_mismatched_populations/MB-004 has NO closure event anywhere
+    in its history -- reopen_rate.py cannot safely determine whether it
+    was ever really "closed" in any sense this tool's data can see, so it
+    MUST REFUSE (RATE_NOT_COMPUTABLE) and name the ambiguity.
+
+  - THIS fixture's NB-001 DOES have a genuine closure event (Fixed,
+    on_date=2026-07-05) -- it is simply a KNOWN, WELL-UNDERSTOOD data
+    condition (an Opened->closure created_at gap of 30 seconds, reusing
+    the EXACT [0,60)-second rule cycle_report.py's flag_retroactive_
+    registration and select_sample.py's detect_retroactive_registration
+    already implement and that this fixture's own item_history rows are
+    deliberately modelled to trigger). There is nothing ambiguous about
+    NB-001 -- it is a retroactive registration, a routine and expected
+    occurrence (research/R1_baseline_cycle_time.md line 52: "Open->close
+    'spans' of 0-10 s ... are retroactive registrations, not work
+    durations"), and the correct response is to exclude-and-recompute,
+    never to refuse the whole type's rate over it.
+
+  A reopen_rate.py that conflated these two cases -- either refusing
+  Bug's rate here too (treating a well-understood retroactive
+  registration as if it were an unresolvable population mismatch), or
+  silently including NB-001 in golden_bad_mismatched_populations' MB-004
+  case (treating an unresolvable ambiguity as if it were a routine,
+  safely-excludable retroactive registration) -- would fail this
+  self-validation triple's whole point: the SAME general shape of input
+  ("one item out of four needs special handling") must be correctly
+  discriminated into two DIFFERENT required outcomes.
+
+MUST NOT appear anywhere in the output for the Bug type or the overall
+block: the naive-buggy value 0.3333333333333333 (or any rounding of it) in
+place of the correct 0.0; "RATE_NOT_COMPUTABLE" anywhere (this fixture's
+retroactive exclusion is a routine, safely-resolvable adjustment, not a
+refusal case); NB-001 silently dropped with NO excluded_retroactive entry
+naming it (the exclusion must be VISIBLE and AUDITABLE, exactly as
+select_sample.py already lists its own bulk/retroactive exclusions on the
+item rather than silently dropping the item from its output entirely).
+
+Paired-mutation targets this fixture protects against (T093): counting
+retroactive registrations as reopens (task line's own T093 wording) --
+i.e. including NB-001's Reopened event in the numerator without excluding
+NB-001 first, which would emit Bug rate=0.333... instead of the correct
+0.0; silently excluding NB-001 with no excluded_retroactive entry (hides
+the adjustment from an operator reading the report); refusing (RATE_NOT_
+COMPUTABLE) instead of correctly recomputing (conflates this negative
+control with the sibling golden-bad fixture's required verdict).

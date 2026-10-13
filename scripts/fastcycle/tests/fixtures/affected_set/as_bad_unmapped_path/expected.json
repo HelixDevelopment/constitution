@@ -1,0 +1,11 @@
+{
+  "description": "change adds a file no gate's observed_inputs mentions -- determinable=false, full suite, exact fallback_reason",
+  "map_file": "map.json",
+  "changed_paths": ["src/totally_unmapped_path.sh"],
+  "layer": "all",
+  "expected_exit_code": 4,
+  "expected_determinable": false,
+  "expected_members": ["gate_alpha", "gate_beta", "gate_gamma", "gate_docsync", "gate_integrity"],
+  "expected_skipped_reason_codes": {},
+  "expected_fallback_reason_prefix": "affected-set undeterminable: src/totally_unmapped_path.sh"
+}

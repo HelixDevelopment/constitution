@@ -1,0 +1,19 @@
+{
+  "_fixture": "empty_window",
+  "_purpose": "T091 (SpecKit-004 'fast-dev-cycles', User Story 3) empty-window edge case for closure/reopen_rate.py (plan.md T-D06, tasks.md T100, contract CT-006/CT-008 by cross-tool convention with cycle_report.py). A window with ZERO items closed and ZERO items reopened. reopen_rate.py MUST emit the honest empty-window state -- NEVER a zero-valued rate presented as a real measurement, NEVER exit non-zero (an empty window is not a failure).",
+  "_synthetic": true,
+  "_rationale": "2020-01-01..2020-01-02 predates every commit in this repository's history and every row in the real tracker DB (identical rationale and identical dates to the sibling fixture tests/fixtures/cycle_report/empty_window/window.json, reused verbatim for cross-tool consistency per §11.4.227 -- a 1-day window in 2020 is guaranteed to contain zero closure/reopen events without depending on any mutable 'today' state).",
+  "as_of": "2020-01-02",
+  "window_days": 1,
+  "window": { "from": "2020-01-01", "to": "2020-01-02" },
+  "items": [],
+  "item_history": [],
+  "_hand_computation": {
+    "reasoning": "No items and no item_history rows are supplied at all -- there is nothing for any query over this window to find, for any type, in either the numerator or the denominator."
+  },
+  "expected_body_ct008_style": {
+    "state": "NO_DATA_IN_WINDOW",
+    "window": { "from": "2020-01-01", "to": "2020-01-02" }
+  },
+  "expected_exit_code": 0
+}

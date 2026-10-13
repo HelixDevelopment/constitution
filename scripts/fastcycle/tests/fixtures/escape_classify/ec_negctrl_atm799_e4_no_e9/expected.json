@@ -1,0 +1,14 @@
+{
+  "_comment": "negative control: the required assertion per the T086 task line is ONLY that primary != E9 (complete evidence must never default to unclassifiable). primary=='E4' is this fixture's own grounded, evidenced claim (see input.yaml header) and is asserted too, but the checker treats the not-E9 assertion as the load-bearing one per constitution 11.4.201(1): if a future correct implementation reasonably resolves E4 vs a contributing-mechanism nuance differently but still never emits E9 here, that is the false-positive guard doing its job, not a fixture failure -- the test script reports BOTH results distinctly so this distinction is never silently blurred.",
+  "expected_exit_code": 0,
+  "item_id": "ATM-799",
+  "primary_must_not_be": "E9",
+  "primary_expected": "E4",
+  "detection_channel": "captured-evidence-contradicts",
+  "reopen_events": [684],
+  "evidence_paths_at_least": [
+    "constitution/docs/research/quality/remediation/PROJECT_GAP_AUDIT.md",
+    "docs/research/audio_dialog_hang_20260717/ROOT_CAUSE.md",
+    "device/rockchip/rk3588/tests/test_atm799_jack_es8388_switch_red.sh"
+  ]
+}

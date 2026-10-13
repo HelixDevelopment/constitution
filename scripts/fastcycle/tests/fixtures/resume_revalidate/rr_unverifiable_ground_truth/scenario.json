@@ -1,0 +1,5 @@
+{
+  "_purpose": "T140 Round 1 review finding I4 regression fixture -- effects_performed is non-empty (the record itself claims a real effect, 'commit-rr08-0001', genuinely happened) but this fixture deliberately ships NO ground_truth_effects.json sibling. Before the I4 fix, an ABSENT sibling file was treated as an unconditional honest skip of the unrecorded-external-effect check regardless of whether the record claimed any effects at all, so this handoff wrongly reported safe_to_resume_without_reverification=true with no trace that the claimed effect could not be independently confirmed complete (a section 11.4.201(6) false-null). After the fix, a missing sibling while effects_performed is non-empty is its own unverifiable-ground-truth unsafe_reasons entry -- fail CLOSED (section 11.4.101), never open. (A record with an EMPTY effects_performed and no sibling, e.g. every one of the other five original rr_* fixtures except rr_negctrl_all_unchanged/rr_unrecorded_external_effect, correctly remains an honest skip -- this fixture is deliberately the other branch.)",
+  "target_class": "unverifiable-ground-truth",
+  "kind": "golden-bad"
+}

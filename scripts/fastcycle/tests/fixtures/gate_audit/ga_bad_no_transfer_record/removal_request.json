@@ -1,0 +1,4 @@
+{
+  "removed_gate": "TOY-GATE-REMOVED",
+  "removed_script": "gates/gate_removed.sh"
+}

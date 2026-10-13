@@ -1,0 +1,7 @@
+{
+  "schema": "core_ondemand_manifest.v1",
+  "on_demand_files": [],
+  "note": "T113 (SpecKit-004, plan T-E02): every relocated anchor body was appended, verbatim, to the TWO ALREADY-DECLARED relocation docs (constitution/CLAUDE_ANCHORS_FULL.md for the constitution-submodule layer, docs/PROJECT_GOVERNANCE_ANCHORS.md for the project layer) rather than into brand-new files -- both are already members of test_core_ondemand_red.sh's own DECLARED_FILES list, so they are NOT re-listed here (doing so would double-count their content in the AFTER multiset). on_demand_files is therefore correctly empty: T113 created zero new documents; it extended the two that were already declared, exactly per its own task instruction.",
+  "moved_content_scope": "Every '11.4.x'-shaped anchor span with NO registered gate in constitution/scripts/gates/covenant_propagation_anchors.tsv, plus every non-11.4-numbered ('free zone') span, was moved verbatim (opener line + body together) out of every one of the 8 restructured carrier files. Every one of the 82 CURRENTLY-REGISTERED anchors (in either PASS or FAIL lockstep state) was left 100% byte-for-byte untouched in every carrier that holds it -- this restructuring changes ZERO registered-anchor content anywhere, so it can neither improve nor worsen the pre-existing §11.4.157/§11.4.227(B) lockstep state of those 82 anchors (23 PASS / 59 FAIL at the time this manifest was written, unchanged by this commit, re-verified live before and after).",
+  "generated_by": "SpecKit-004 T113, (T1/main - claude2 - sonnet - high), 2026-09-30"
+}

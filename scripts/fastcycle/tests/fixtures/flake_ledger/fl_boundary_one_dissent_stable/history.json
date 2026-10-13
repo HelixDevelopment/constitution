@@ -1,0 +1,5 @@
+{
+  "gate_id": "GATE-FL-BOUNDARY-DEMO",
+  "key": "sha256:demo-key-unchanged-0003",
+  "verdicts": ["PASS", "PASS", "PASS", "PASS", "PASS", "PASS", "PASS", "PASS", "PASS", "FAIL"]
+}

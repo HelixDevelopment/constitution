@@ -1,0 +1,2 @@
+gate_survivor: FAIL — BANNED_PATTERN_X present in targets/has_pattern_x.txt (absorbed from gate_removed)
+exit_code=1

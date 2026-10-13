@@ -1,0 +1,36 @@
+# T086 golden-bad fixture: "a row with no evidence path fails" (tasks.md T086
+# line). Contract closure-refusal.md EC-002: "Each entry has ... >=1
+# EvidencePath that exists and hash-matches." data-model.md §6.2 EscapeClassification:
+# "evidence: [EvidencePath >=1]" -- a required, non-empty list for any entry NOT
+# classified E9 (E9's OWN evidence requirement is `settling_evidence` naming the
+# missing evidence, a different field -- not exercised by this fixture).
+#
+# Reuses the SAME real window and item as ec_good_atm953_e1/ (--as-of 2026-07-28
+# --window-days 0, the item_history row atm_id=ATM-953 event_type=Reopened
+# rowid=869 -- see that fixture's header for full provenance) so this fixture
+# isolates EXACTLY ONE variable: the `evidence` list is empty. Every other field
+# is identical to the real, correctly-grounded ec_good_atm953_e1 classification
+# (primary=E1, detection_channel=manual-testing-detected) -- proving the refusal
+# fires on the missing-evidence precondition specifically, not on some other
+# defect in the entry (constitution 11.4.201: a guard must assert the REAL
+# condition, never a proxy).
+#
+# Exit-code expectation (contract closure-refusal.md "Exit codes" table):
+# "escape_classify.py: ... 1 missing/extra/invalid entries ...". An entry with a
+# non-E9 primary and zero EvidencePath entries is an INVALID entry under EC-002,
+# so exit 1 is expected, naming ATM-953 and the missing EvidencePath -- never
+# exit 0 (that would be the exact PASS-bluff the closure-refusal contract exists
+# to prevent), and never a silently-empty --out document (contract common-
+# conventions.md C-001: "1 | A finding: refusal ... | yes (the finding is the
+# output)" -- the refusal itself must be reported, not merely a non-zero exit
+# with no explanation).
+schema: escape-classify-input/v1
+as_of: "2026-07-28"
+window_days: 0
+entries:
+  - item_id: ATM-953
+    reopen_events: [869]
+    primary: E1
+    contributing: []
+    detection_channel: manual-testing-detected
+    evidence: []

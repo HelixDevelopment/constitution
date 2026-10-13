@@ -1,0 +1,8 @@
+DRIFT
+GATE-HOLE
+Full lane FAILed GATE-HOLE; the fast lane's affected-set selection
+excluded it entirely (a planted selection hole -- GATE-HOLE is absent
+from fast_verdicts.json's results array even though it exists and would
+have run under the full lane). The real backstop.sh compare subcommand
+MUST report this as a drift naming GATE-HOLE and MUST exit 1 (block --
+DEC-17: "a drift ... is a release blocker").

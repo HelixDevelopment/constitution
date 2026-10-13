@@ -1,0 +1,44 @@
+{
+  "schema": "anchor_citations_fixture/v1",
+  "purpose": "T021 RED-test provenance record for constitution/scripts/fastcycle/context/anchor_citations.py (T039). This file documents WHICH real repository facts the test's control needle / negative control / T027-mutation discriminator rest on, and HOW they were verified (§11.4.6 no-guessing). The test itself does NOT trust these fields blindly: it RE-DERIVES the same facts live, at run time, straight from `git log` and the diary file, and only uses this fixture as a human-auditable provenance trail (so a reviewer can check the claims without re-running git commands).",
+  "item_id": "ATM-277",
+  "verified_at_utc": "2026-09-28",
+  "verification_method": "git log --all --grep='ATM-277\\b' -i --format='%H %s' | grep <anchor>  (subject line); git cat-file -e <hash> to confirm the commit object resolves; grep against docs/issues/ATM-277/Reopens.md for the diary artefact class; both cross-checked against the LIVE anchor id list extracted from constitution/constitution_index.yaml (`grep -E '^- id:' | sed ...`), never assumed.",
+  "present": [
+    {
+      "anchor_id": "11.4.108",
+      "source": "commit",
+      "evidence_commit": "708245e4684cf54177abe43986fea7a8c3680a76",
+      "evidence_commit_subject": "fix(ATM-277 §11.4.108 ARTIFACT): bump presenter pointer 6a1c2da -> c73d44b so the G1 stale-frame fix ACTUALLY SHIPS from a clean checkout",
+      "evidence_commit_date": "2026-07-17T16:06:23+05:00",
+      "note": "This is the literal control needle the task specifies (\"an item whose commit message cites §11.4.108\"). It is ALSO independently cited in docs/issues/ATM-277/Reopens.md row id=352 (a captured runtime-signature probe quoting the §11.4.108 layer-1-vs-layer-3 gap verbatim) -- i.e. 11.4.108 is present via BOTH the commit and diary source classes for this item. Because of that overlap this pairing alone would NOT discriminate a T027 mutation that skips commit-message scanning (the diary source would still surface it). See commit_exclusive_probe below for the anchor that DOES discriminate that mutation."
+    },
+    {
+      "anchor_id": "11.4.1",
+      "source": "commit",
+      "evidence_commit": "d308642834cad69a2e4d34eec31265b062da177b",
+      "evidence_commit_subject": "fix(ATM-277): reconcile 2 FALSE-FAILing 2nd-display harnesses to assert the REAL runtime signature (§11.4.1/§11.4.115/§11.4.120)",
+      "evidence_commit_date": "2026-07-14T15:31:48+05:00",
+      "note": "Verified ABSENT from docs/issues/ATM-277/Reopens.md -- the only currently-existing non-commit artefact class for this item -- so 11.4.1 is currently discoverable for ATM-277 through the commit source ONLY. This is the commit_exclusive_probe target."
+    }
+  ],
+  "fabricated": [
+    {
+      "anchor_id": "11.4.143",
+      "anchor_title": "Real-user-journey mandate for video-streaming-app full-automation tests",
+      "note": "A genuine anchor id present in constitution/constitution_index.yaml's `anchors:` list (283 entries at verification time), but with ZERO hits across the FULL ATM-277 git-log corpus (899 lines, subject+body, every commit matched by `git log --all --grep='ATM-277\\b' -i`) and ZERO hits in docs/issues/ATM-277/Reopens.md. This is the task's literal negative control (\"an anchor cited in no artefact of the item does not appear\")."
+    }
+  ],
+  "false_positive_guard": {
+    "purpose": "proves a naive numeric-token extraction (without filtering against the LIVE anchor index) would over-match; anchor_citations.py must filter candidate tokens against constitution_index.yaml's real anchor id set, never treat every N.N(.N) shaped substring as a citation.",
+    "decoy_token": "1.2.1",
+    "note": "literally present as a substring inside real ATM-277 commit subjects (e.g. release strings '1.2.1-dev-0.0.2'), but '1.2.1' is NOT a member of constitution_index.yaml's anchor id set and MUST NOT be reported as a citation."
+  },
+  "commit_exclusive_probe": {
+    "purpose": "T027 mutation ('anchor_citations ignores commit-message sources') discriminator",
+    "anchor_id": "11.4.1",
+    "present_only_via": "commit d308642834cad69a2e4d34eec31265b062da177b (subject line)",
+    "absent_from": "docs/issues/ATM-277/Reopens.md",
+    "expected_break_under_mutation": "if the implementation skips commit-message scanning entirely, 11.4.1 disappears from ATM-277's reported citation set (the 11.4.108 pairing alone would NOT catch this mutation, since 11.4.108 is independently ALSO reachable via the diary source)."
+  }
+}

@@ -1,0 +1,8 @@
+#!/bin/sh
+# ps shim: succeeds (5 thread lines) only if invoked with -L and exactly ONE word after -U (real-uid selector; -u = effective uid is REJECTED) equal
+# to $FC_PS_WANT_UID (compared as a single argv word, so word-splitting shows as a mismatch).
+want=$(printf "%s" "$FC_PS_WANT_UID" | tr _ " ")
+have=0; prev=""; ok=0
+for a in "$@"; do [ "$a" = "-L" ] && have=1; [ "$prev" = "-U" ] && [ "$a" = "$want" ] && ok=1; prev=$a; done
+[ "$have" = 1 ] && [ "$ok" = 1 ] || { echo "ps: shim rejected args" >&2; exit 1; }
+i=0; while [ $i -lt 5 ]; do echo t; i=$((i+1)); done

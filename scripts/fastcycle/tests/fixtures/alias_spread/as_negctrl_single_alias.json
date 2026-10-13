@@ -1,0 +1,23 @@
+{
+  "task_id": "FC-AS-SAMPLE-002",
+  "verb": "place",
+  "live_agents": 8,
+  "aliases": [
+    {"alias": "deepseek", "kind": "provider", "operational": false, "near_cap": false},
+    {"alias": "claude1", "kind": "native", "operational": true, "near_cap": false},
+    {"alias": "claude2", "kind": "native", "operational": false, "near_cap": false},
+    {"alias": "xiaomi", "kind": "provider", "operational": false, "near_cap": false}
+  ],
+  "expected_placement": {
+    "refused": false,
+    "refusal_reason": null,
+    "eligible_alias_count": 1,
+    "cap_per_alias": 9,
+    "native_first_order": ["claude1"],
+    "assignment_alias_counts": {
+      "claude1": 8
+    },
+    "max_assigned_count": 8,
+    "excluded_near_cap_aliases": []
+  }
+}

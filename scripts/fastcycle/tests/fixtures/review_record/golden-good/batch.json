@@ -1,0 +1,19 @@
+{
+  "batch_id": "RB-T018-GG",
+  "changes": [
+    "sha256:ae4aeb584830312788d495cc6f628e5c5a281df84573a4363b7905f4242de852"
+  ],
+  "related_by": "logic_group:fastcycle-review-record-fixture",
+  "slices": [
+    {
+      "context_pack": {
+        "blast_radius": "single helper function; no callers outside this file (fixture)",
+        "intent": "Quote an expanded shell variable used inside a glob-forming expression so word-splitting/globbing cannot alter its value.",
+        "sibling_search_ref": "qa-results/fastcycle/us1/red/T018/sibling_search_golden_good.json"
+      },
+      "lines": 9,
+      "slice_id": "S1"
+    }
+  ],
+  "total_changed_lines": 9
+}

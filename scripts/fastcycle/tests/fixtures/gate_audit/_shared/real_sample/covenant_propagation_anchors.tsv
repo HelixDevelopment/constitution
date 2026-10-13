@@ -1,0 +1,157 @@
+# covenant_propagation_anchors.tsv — DATA PACK (§11.4.251 role-as-data-pack)
+#
+# The (gate-name -> anchor-number) binding for the CM-COVENANT-114-<N>-PROPAGATION
+# gate family. ONE row per gate. The engine
+# (lib/covenant_propagation_engine.sh) is the single code copy; each
+# scripts/gates/cm_covenant_114_<N>_propagation.sh wrapper carries ONLY its own
+# gate NAME (required so the §11.4.227(A) gate ledger's structural
+# `grep --include='*.sh'` instrument can see a real executable gate site) and
+# looks its anchor up HERE. No role-specific value is duplicated in code.
+#
+# Format (tab-separated):  <gate-name>\t<anchor-number>
+# Lines beginning with '#' and blank lines are ignored.
+#
+# Cross-references: §11.4.251 (no byte-identical forks; role-as-data-pack),
+# §11.4.227(A)/(B), §11.4.28/§11.4.177 (engine inherited by reference),
+# §11.4.35 (consumer-owned DATA).
+CM-COVENANT-114-27-PROPAGATION	11.4.27
+CM-COVENANT-114-234-PROPAGATION	11.4.234
+CM-COVENANT-114-236-PROPAGATION	11.4.236
+CM-COVENANT-114-237-PROPAGATION	11.4.237
+CM-COVENANT-114-238-PROPAGATION	11.4.238
+CM-COVENANT-114-239-PROPAGATION	11.4.239
+CM-COVENANT-114-240-PROPAGATION	11.4.240
+CM-COVENANT-114-241-PROPAGATION	11.4.241
+CM-COVENANT-114-242-PROPAGATION	11.4.242
+CM-COVENANT-114-243-PROPAGATION	11.4.243
+CM-COVENANT-114-244-PROPAGATION	11.4.244
+CM-COVENANT-114-245-PROPAGATION	11.4.245
+CM-COVENANT-114-246-PROPAGATION	11.4.246
+CM-COVENANT-114-247-PROPAGATION	11.4.247
+CM-COVENANT-114-248-PROPAGATION	11.4.248
+CM-COVENANT-114-249-PROPAGATION	11.4.249
+CM-COVENANT-114-250-PROPAGATION	11.4.250
+CM-COVENANT-114-251-PROPAGATION	11.4.251
+CM-COVENANT-114-252-PROPAGATION	11.4.252
+CM-COVENANT-114-253-PROPAGATION	11.4.253
+CM-COVENANT-114-254-PROPAGATION	11.4.254
+CM-COVENANT-114-255-PROPAGATION	11.4.255
+CM-COVENANT-114-256-PROPAGATION	11.4.256
+CM-COVENANT-114-257-PROPAGATION	11.4.257
+CM-COVENANT-114-258-PROPAGATION	11.4.258
+CM-COVENANT-114-259-PROPAGATION	11.4.259
+CM-COVENANT-114-260-PROPAGATION	11.4.260
+CM-COVENANT-114-261-PROPAGATION	11.4.261
+CM-COVENANT-114-262-PROPAGATION	11.4.262
+CM-COVENANT-114-263-PROPAGATION	11.4.263
+CM-COVENANT-114-264-PROPAGATION	11.4.264
+CM-COVENANT-114-265-PROPAGATION	11.4.265
+CM-COVENANT-114-266-PROPAGATION	11.4.266
+CM-COVENANT-114-267-PROPAGATION	11.4.267
+#
+# --- Batch 1 (feature 002-anti-slop-enforcement, T029/T030) ------------------
+# Anchors CONFIRMED individually by T029 BEFORE their rows landed: each was run
+# through this very engine against a scratch one-row data pack over the full
+# 150-carrier fleet, and each returned rc=0 with 0 MISSING/DUPLICATED and
+# 0 DIVERGENT. Evidence: qa-results/002-anti-slop/batch1-anchor-confirmations/
+# (confirmations.tsv + per-anchor anchor_<N>.log).
+#
+# HONEST GAP (§11.4.6 / §11.4.135): six further wrappers exist without rows —
+# 162, 167, 176, 187, 201, 232 — and are DELIBERATELY NOT registered here.
+# T029 measured each as a REAL §11.4.227(B) defect in the live corpus
+# (201: F7-class DUPLICATION, 2 block-starts in all four constitution/ carriers;
+# 162/167/176/187/232: §11.4.157 lockstep DIVERGENCE). Proven real, not an
+# engine false-positive, by a control comparison against passing anchor 233
+# whose constitution/ and parent blocks hash identically. Registering them
+# would turn the wired pre-build suite RED; the divergences are governance
+# CONTENT defects requiring their own remediation.
+CM-COVENANT-114-191-PROPAGATION	11.4.191
+CM-COVENANT-114-196-PROPAGATION	11.4.196
+CM-COVENANT-114-199-PROPAGATION	11.4.199
+CM-COVENANT-114-200-PROPAGATION	11.4.200
+CM-COVENANT-114-202-PROPAGATION	11.4.202
+CM-COVENANT-114-207-PROPAGATION	11.4.207
+CM-COVENANT-114-213-PROPAGATION	11.4.213
+CM-COVENANT-114-230-PROPAGATION	11.4.230
+CM-COVENANT-114-231-PROPAGATION	11.4.231
+CM-COVENANT-114-233-PROPAGATION	11.4.233
+CM-COVENANT-114-235-PROPAGATION	11.4.235
+#
+# --- Batch 2 (SpecKit T405) --------------------------------------------------
+# Anchors CONFIRMED individually BEFORE their rows landed, by the same T029
+# procedure: each was run through this very engine against a scratch one-row
+# data pack over the full 150-carrier fleet and returned rc=0 with
+# 0 MISSING/DUPLICATED and 0 DIVERGENT (4 single-block-PRESENT in the four
+# constitution/ carriers, 146 POINTER-INHERITANCE-SKIP). Control needle: the
+# already-registered anchor 267 run through the identical path returned
+# 8 PRESENT / 142 SKIP, proving the instrument was not blind (§11.4.201(7)(b)).
+CM-COVENANT-114-268-PROPAGATION	11.4.268
+CM-COVENANT-114-269-PROPAGATION	11.4.269
+CM-COVENANT-114-270-PROPAGATION	11.4.270
+CM-COVENANT-114-271-PROPAGATION	11.4.271
+#
+# --- Batch 3 (SpecKit T405, ratchet-advancing) --------------------------------
+# 21 anchors that were UNIMPLEMENTED in the §11.4.227(A) ledger and are now
+# genuinely implemented. Each was CONFIRMED BEFORE its row landed by the T029
+# procedure: run through this engine against a scratch one-row data pack over
+# the full 150-carrier fleet, each returning rc=0 with 0 MISSING/DUPLICATED and
+# 0 DIVERGENT.
+#
+# HONEST GAP (§11.4.6 / §11.4.227): seven further candidates were confirmed and
+# DELIBERATELY NOT registered because each is a REAL §11.4.157 lockstep
+# DIVERGENCE in the live corpus, not an engine false positive —
+#   208 (4 divergent) · 209 (4) · 215 (4) · 225 (4) · 227 (1) · 193 (2) · 194 (8).
+# Registering them would turn the wired pre-build suite RED; they are governance
+# CONTENT defects requiring their own remediation, exactly like the Batch-1
+# 162/167/176/187/201/232 gap above. They remain UNIMPLEMENTED in the ledger.
+CM-COVENANT-114-190-PROPAGATION	11.4.190
+CM-COVENANT-114-192-PROPAGATION	11.4.192
+CM-COVENANT-114-195-PROPAGATION	11.4.195
+CM-COVENANT-114-197-PROPAGATION	11.4.197
+CM-COVENANT-114-198-PROPAGATION	11.4.198
+CM-COVENANT-114-210-PROPAGATION	11.4.210
+CM-COVENANT-114-211-PROPAGATION	11.4.211
+CM-COVENANT-114-212-PROPAGATION	11.4.212
+CM-COVENANT-114-214-PROPAGATION	11.4.214
+CM-COVENANT-114-216-PROPAGATION	11.4.216
+CM-COVENANT-114-217-PROPAGATION	11.4.217
+CM-COVENANT-114-218-PROPAGATION	11.4.218
+CM-COVENANT-114-219-PROPAGATION	11.4.219
+CM-COVENANT-114-220-PROPAGATION	11.4.220
+CM-COVENANT-114-221-PROPAGATION	11.4.221
+CM-COVENANT-114-222-PROPAGATION	11.4.222
+CM-COVENANT-114-223-PROPAGATION	11.4.223
+CM-COVENANT-114-224-PROPAGATION	11.4.224
+CM-COVENANT-114-226-PROPAGATION	11.4.226
+CM-COVENANT-114-228-PROPAGATION	11.4.228
+CM-COVENANT-114-229-PROPAGATION	11.4.229
+#
+# OWED-211 / OWED-214 remediation, 2026-08-26: these anchors were previously
+# UNREGISTERED because each carried a real §11.4.227(B) / §11.4.157 defect that a
+# registered gate would have exposed as RED. The governance CONTENT was repaired
+# (duplication reconciled by union; mirror divergence made byte-identical to the
+# canonical-adjacent constitution-mirror text) and each was MEASURED clean via the
+# shared engine on a scratch one-row pack BEFORE the row below was added.
+# §11.4.167 and §11.4.194 are deliberately NOT here — see the remediation report.
+CM-COVENANT-114-162-PROPAGATION	11.4.162
+CM-COVENANT-114-176-PROPAGATION	11.4.176
+CM-COVENANT-114-187-PROPAGATION	11.4.187
+CM-COVENANT-114-193-PROPAGATION	11.4.193
+CM-COVENANT-114-201-PROPAGATION	11.4.201
+CM-COVENANT-114-208-PROPAGATION	11.4.208
+CM-COVENANT-114-209-PROPAGATION	11.4.209
+CM-COVENANT-114-215-PROPAGATION	11.4.215
+CM-COVENANT-114-225-PROPAGATION	11.4.225
+CM-COVENANT-114-227-PROPAGATION	11.4.227
+CM-COVENANT-114-232-PROPAGATION	11.4.232
+#
+# --- BOB-237 remediation, 2026-09-27 (§11.4.227(A) ratchet) -------------------
+# §11.4.275 landed 2026-09-24 naming its own propagation gate, which had no
+# executable site. CONFIRMED BEFORE this row landed, by the T029 procedure:
+# run through this very engine against a scratch one-row data pack over the
+# constitution/ fleet root it returned rc=0 with 4 single-block-PRESENT
+# (AGENTS/CLAUDE/GEMINI/QWEN), 0 MISSING/DUPLICATED, 0 DIVERGENT. Control
+# needle: the already-registered anchor 271 through the identical path
+# returned 4 PRESENT / 13 SKIP / rc=0, proving the instrument was not blind
+# (§11.4.201(7)(b)).
+CM-COVENANT-114-275-PROPAGATION	11.4.275

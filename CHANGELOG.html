@@ -376,6 +376,576 @@ kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
 <body>
 <h1 id="changelog--helixdevelopmenthelixconstitution">Changelog —
 HelixDevelopment/HelixConstitution</h1>
+<h2 id="helixconstitution-v69--2026-10-05--process-safety--release-engineering--anti-slop-enforcement--review-round-budget-round-14-anchors--19-targeted-extensions">helixconstitution-v69
+— 2026-10-05 — Process-safety + release-engineering +
+anti-slop-enforcement + review-round-budget round (14 anchors + 19
+targeted extensions)</h2>
+<p><strong>HEAD:</strong>
+<code>f9d1cde348a8374510d1d6f545173f5c3b2b3691</code> <strong>Round
+scope:</strong> process-group signal-safety (BOB-126, 1 anchor) +
+release-engineering/delivery-integrity AI-curriculum harvest round 2 (4
+anchors + 5 targeted extensions) + SpecKit 002-anti-slop-enforcement
+T402/T403/T404 (4 anchors + 3 targeted extensions) + dynamic skill
+activation + measurement-instrument verification + mechanical-work
+extraction (3 anchors) + semantic (Lumen) code-index mandate (1 anchor +
+3 targeted extensions) + model-substrate corrections to the Opus/Sonnet
+review pin (3 targeted extensions across two dates) +
+incremental-delivery-granularity extension to the parallelized-pipeline
+anchor (3 targeted extensions across three rounds) + review-round-budget
+mandate (1 anchor + 2 reconciling extensions).</p>
+<p>This round spans 381 commits on the constitution submodule between
+<code>helixconstitution-v68</code>
+(<code>1389ebe5a78f25d0b369a7860e6f8ccfbc4c7942</code>, tagged
+2026-08-18) and this HEAD (2026-10-05). It is less monolithic than v68 —
+9 separate landing dates rather than one batch — reflecting the
+project&#39;s shift (per §11.4.230(D), itself extended this round) toward
+per-increment delivery rather than withholding anchors until a single
+large round is ready.</p>
+<h3 id="new-universal-anchors-14">New universal anchors (14)</h3>
+<ul>
+<li><strong>§11.4.263 — Process-group signal-safety mandate (BOB-126
+forensic anchor, 2026-08-19).</strong> NEVER signal
+<code>pgid ≤ 1</code>, NEVER trust a mock-derived pid/pgid — validate as
+<code>int &gt; 1</code> before every <code>killpg</code> /
+<code>kill(-pid, sig)</code> / <code>pkill</code> / <code>killall</code>
+call. Forensic anchor: seven forced-logout incidents on the operator&#39;s
+workstation traced to <code>AsyncMock().pid</code> unset →
+<code>MagicMock.__int__ == 1</code> default →
+<code>os.killpg(1, SIGKILL)</code> == <code>kill(-1, SIGKILL)</code> ==
+SIGKILL every UID-1000 process (systemd user manager, gnome-shell, tmux,
+ssh, Claude Code itself) — with the syscall SUCCEEDING, so
+exception-suppression caught nothing. Four-layer defense: pre-build grep
+gate, post-build CodeGraph query, runtime kernel audit rule, paired §1.1
+mutation; tests MUST set <code>mock.pid</code> explicitly, never rely on
+mock-library defaults.</li>
+<li><strong>§11.4.264 — Build once, promote ONE immutable
+content-addressed artifact through every environment; never rebuild per
+stage (research-derived, 2026-08-20).</strong> Exactly one artifact per
+release candidate, promoted by content-address (a digest, never a
+mutable tag) — rebuilding per environment silently breaks the chain of
+evidence because every gate that ran against the rebuilt artifact
+measured a DIFFERENT binary than the one that ships. Environment config
+is injected at deploy, never baked at build; rollback points at the
+previous known-good digest, never a rebuild-from-source scramble under
+incident pressure.</li>
+<li><strong>§11.4.265 — Progressive delivery: traffic-shifted rollout
+gated by automated analysis on SLO AND business metrics
+(research-derived, 2026-08-20).</strong> Canary or blue-green rollout
+with an AUTOMATED promote/abort decision over multiple consecutive
+analysis windows — a manual-approval click is explicitly rejected as &quot;a
+rubber stamp with no receipt.&quot; The load-bearing clause: the analysis
+MUST include business KPIs, not only infrastructure metrics — &quot;HTTP
+error rate is fine&quot; can hide a quietly-dropped checkout-completion rate,
+and an infra-only canary re-creates the &quot;green pipeline that proves
+nothing&quot; at the deploy layer.</li>
+<li><strong>§11.4.266 — Claim-vs-reality ledger: every ADVERTISED
+capability is a row, typed from the closed bluff-type vocabulary, and a
+capability with no passing challenge is a release blocker
+(research-derived, 2026-08-20).</strong> Closed seven-member bluff-type
+vocabulary — green-but-broken / coverage-theater / rubber-stamp-verified
+/ stubbed-core / doc-vs-code-drift / config-present-but-unwired /
+byte-identical-fork — each type routed to the anchor that already owns
+its counter-gate. Keyed on what the project ADVERTISES (README, docs,
+API/CLI surface), not what it knows it has — a claim with no feature row
+is invisible to a feature-keyed coverage ledger by construction.</li>
+<li><strong>§11.4.267 — Shared attempt record + converge-on-evidence /
+escalate-on-stall: a failed approach is never silently retried
+(research-derived, 2026-08-20).</strong> A durable, shared record of
+attempts and outcomes is consulted BEFORE the next attempt; loops
+converge on a single source of ground-truth evidence (a build&#39;s exit
+code beats a fluent paragraph); a detected stall (the same criterion red
+after N tries, or oscillating diffs) routes to escalation — human or
+stronger model — rather than burning cycles. <code>N</code> is
+consumer-declared DATA, never a constitutional literal (extended this
+round by §11.4.276(E), see below).</li>
+<li><strong>§11.4.268 — Tamper-evident evidence chain + periodic anchor
+record (spec-derived, speckit 002-anti-slop-enforcement,
+2026-08-26).</strong> Deletion, reordering, and tail-truncation of an
+accepted evidence record are DETECTED, not merely discouraged. A forward
+hash-chain alone detects deletion/reorder only when it leaves the chain
+internally inconsistent — it does NOT detect an actor who deletes an
+entry and recomputes the chain forward (measured 0.43s for 100k
+entries); a separate periodic ANCHOR record (head digest + entry count,
+strength recorded honestly as <code>mechanism</code> or
+<code>policy</code>) closes that gap. Verification that cannot complete
+REFUSES, never defaults to a clean pass.</li>
+<li><strong>§11.4.269 — Critic/consensus advisory-only ban AT THE
+EVIDENCE-ACCEPTANCE SEAM (spec-derived, speckit
+002-anti-slop-enforcement, 2026-08-26).</strong> An ungoverned
+confidence score, LLM-judge, or consensus aggregation may inform but
+MUST NEVER substitute for a recorded receipt or adjudicate
+producer-verifier disagreement — recorded with role
+<code>advisory</code>, never entered into an evidence chain, and the
+accept/refuse outcome of a claim must be IDENTICAL whether the critic
+ran or not. Explicitly scoped NARROWER than &quot;no second model may ever
+review a producer&#39;s work&quot; — it does not weaken, override, or substitute
+for the constitution&#39;s own mandatory independent-review-verdict family
+(§11.4.125/§11.4.134/§11.4.142/§11.4.165/§11.4.209/§11.4.237/§11.4.256),
+all of which remain fully in force.</li>
+<li><strong>§11.4.270 — Dependency-existence-verdict register
+(spec-derived, speckit 002-anti-slop-enforcement, 2026-08-26).</strong>
+Every proposed dependency carries a closed-set existence verdict
+{VERIFIED, AMBIGUOUS, UNVERIFIED} with citable evidence (or an explicit
+statement none was found) before adoption. Forensic motivation:
+&quot;existing is not the same as working&quot; — several VERIFIED-marked entries
+in a prior register were at initial-release versions, one declared a
+repository that 404s, and one&#39;s &quot;tamper-evident&quot; claim was, on
+inspection, only &quot;append-only&quot; (which detects nothing if the appender is
+the party being checked). Adoption is additionally gated behind mapping
+to a recorded uncovered capability gap and behind the wiring-sweep
+result.</li>
+<li><strong>§11.4.271 — Waiver mechanism (spec-derived, speckit
+002-anti-slop-enforcement, 2026-08-26).</strong> The strict
+FORMALIZATION of allow-with-tracked-debt, unifying §11.4.234(D)&#39;s
+recorded deferral, §11.4.236(4)&#39;s explicit-operator-override, and
+§11.4.248(A)&#39;s deadline-bound quarantine into one schema: a waiver MUST
+resolve to a rostered, NON-PRODUCER authoriser, carry a mandatory
+UNELAPSED expiry, and name a mandatory tracked item for the blocker that
+remains open — distinct from the §11.4.21 refusal and §11.4.90 closure
+vocabularies, never a substitute for either.</li>
+<li><strong>§11.4.272 — Dynamic, on-demand skill/extension activation:
+the active capability surface is the MINIMUM needed now (User mandate,
+2026-09-07).</strong> Everything beyond a minimal declared
+<code>core</code> set stays inactive-by-default, discoverable, and one
+command away. Forensic case study: a 955-skill host pool renders ~29,153
+B (~7,288 tok) of names every turn in name-only mode, and ~101,279 B
+(~25,319 tok/turn) in description-eager mode — a 3.5× render-mode cliff.
+Fails safe never silent on a bad activation; concurrency-safe by
+reference counting; &quot;prune-to-core&quot; default is structurally reversible
+(moved/linked, never deleted) and explicitly NOT a §11.4.122 silent
+removal.</li>
+<li><strong>§11.4.273 — Measuring-instrument verification: a census that
+INFORMS a decision must be control-needled before its result is believed
+(research-derived, 2026-09-08).</strong> Forensic anchor: 15 distinct
+ad-hoc-measurement instrument failures in one working session — a regex
+missing a heading form manufactured 24 phantom anchors,
+<code>comm</code> on unsorted input reported false-absent,
+<code>$?</code> read after a pipeline reported the wrong stage&#39;s exit
+status, a denylist search that needled only 1 of 2 required members left
+a live credential undetected across four files, and more. Mandates
+positive control (a known-present value must be found) AND negative
+control (a known-absent value must NOT be found) before any
+decision-bearing empty/positive result is trusted.</li>
+<li><strong>§11.4.274 — Mechanical work belongs in a script, not in an
+agent&#39;s context (User mandate, 2026-09-08).</strong> Deterministic,
+repeatable, zero-judgment work (mutation apply/run/restore/verify loops,
+suite fan-outs, scratch-tree setup/teardown, census queries, artifact
+fingerprinting) MUST be extracted into a tested, documented tool rather
+than performed turn-by-turn by an LLM at roughly four orders of
+magnitude the cost of a script. Judgment — root-cause determination,
+review verdicts, &quot;is this fix correct&quot; — MUST NEVER be scripted; a
+script that renders a verdict is itself a bluff gate.</li>
+<li><strong>§11.4.275 — Semantic (Lumen) index + indexing-efficiency
+gate + universal agent/subagent accessibility (research-derived,
+2026-09-24).</strong> Every code index (structural CodeGraph + semantic
+Lumen) MUST be reachable by every agent AND every dispatched subagent,
+proven COMPLETE (pending work == 0, known-symbol hit, negative control,
+freshness within TTL) before it is called ready, and must earn its place
+via a deterministic benchmark (fixed queries + golden answers, N≥3
+identical canonical hashes, wrong answers listed by ID and never
+averaged away). Forensic facts: a configured semantic server reported 0
+files/no model/never indexed; the structural index cut tokens 69.2% over
+8 both-correct fixture queries yet answered 5 of 15 fixture queries
+wrong. Extended twice more within this round (2026-09-25): a
+host-adaptive V8 heap-budget fix closing a real OOM crash on this
+project&#39;s own 584K-file bulk-index run, and wiring CodeGraph as a
+genuine project-tracked MCP tool (which in turn surfaced and fixed a
+two-writer database-lock collision between the MCP serve daemon&#39;s file
+watcher and an in-flight bulk <code>sync</code>).</li>
+<li><strong>§11.4.276 — Review-round budget: every
+independently-reviewed work item converges within a declared budget of
+at most 7 rounds (User mandate, 2026-10-05,
+<code>CRITICAL</code>).</strong> Consumer-declared ceiling in the closed
+range 5–7 (absent declaration resolves to 5), converged by front-loading
+ground truth, class-exhaustive enumeration on first instance,
+real-invocation-path regression tests, and a declared, fixed threat
+boundary, with a binding STRUCTURAL round forced at round 3+ on specific
+trigger conditions. Root-cause investigation (five recurring, avoidable
+mechanisms) traced this project&#39;s own 30–39+-round review sagas to:
+wrong-model ground truth shared by a fix and its own gate;
+instance-at-a-time closure of a nameable class; fixer-authored tests
+that never drive the real code; non-binding escalation signals
+(§11.4.250 cited ~30 times, never binding); and scope drift. At the
+budget ceiling without GO, the item STOPS and escalates to a recorded
+operator decision — never a silent 8th round.</li>
+</ul>
+<h3 id="targeted-extensions-19">Targeted extensions (19)</h3>
+<ul>
+<li><strong>§11.4.148 EXTENSION — SLICING (2026-08-20).</strong> An item
+too big to test is an item whose &quot;done&quot; cannot be proven; mandates
+vertical slices only (never horizontal layers) sliced small enough that
+acceptance criteria are provable end-to-end from the item&#39;s own
+evidence. AI-curriculum module 27 (INVEST checklist,
+citation-disciplined to its two defined letters — Small and
+Testable).</li>
+<li><strong>§11.4.169 EXTENSION — SUITE SHAPE (2026-08-20).</strong> The
+test-suite shape is a consequence, not a goal (no pyramid/trophy ratio
+is mandated); the generating rule IS mandated — push each test as far
+down as it still catches the bug, and a high-level-only failure with no
+lower-level counterpart opens a tracked follow-up. Names the
+ice-cream-cone and mock-heavy-unit-theater anti-patterns at the two
+ends.</li>
+<li><strong>§11.4.233(G) EXTENSION — DEPENDENCY-POINTER PREFLIGHT
+(2026-08-20).</strong> Extends the anti-mess control plane&#39;s
+drifted-submodule-pointer class to three distinct mess classes — STALE,
+ABSENT/UNINITIALISED, and UNFETCHABLE (a pointer resolving on no
+configured remote) — all three fail closed at a hard preflight gate,
+never caught only after a fresh clone.</li>
+<li><strong>§11.4.242 EXTENSION — DELTA DEBUGGING (2026-08-20).</strong>
+Generalises bisection beyond commit ranges: <code>git bisect</code> is
+delta debugging over commits, not the reverse — a non-monotone or
+non-commit-discriminated failure is narrowed along
+config/data/dependency/flag axes to a minimal failing case, which
+becomes the RED test&#39;s input.</li>
+<li><strong>§11.4.260(B)(2) EXTENSION — OBSERVABILITY mechanism
+(2026-08-20).</strong> Clause (B)(2) named observability as a property;
+this extension supplies the mechanism — three distinct signals
+(structured logs, metrics, traces) plus crash/ANR analytics, a
+correlation id that MUST survive async boundaries, the metric→trace→log
+pivot order, and crash-free users/sessions as a release gate where a new
+crash signature at a release boundary blocks regardless of volume.</li>
+<li><strong>§11.4.115 clause (H) EXTENSION — evidence-record full field
+set + stream-digest-before-truncation + recorder reconciliation
+(2026-08-26).</strong> Mandates a precise command-execution field schema
+(start timestamp, cwd, argv as a genuine list, exit status, duration), a
+content digest computed over a captured stream BEFORE any storage
+truncation, and automatic reconciliation of every evidence-citing claim
+against a matching recorder entry.</li>
+<li><strong>§11.4.238 EXTENSION — Discovery-channel record schema +
+escape-ratchet no-data-point rule (2026-08-26).</strong> Supplies
+§11.4.238(C)&#39;s coverage-escape-audit concept a decidable field schema (a
+closed discovery-channel set + a named
+<code>should_have_been_caught_by</code> seam or a justified
+<code>none</code>, verifier-seam-written never producer-authored) and a
+monotone-decreasing escape ratchet where a cycle whose manual-QA pass
+did not run contributes NO data point and must not lower the
+baseline.</li>
+<li><strong>§11.4.240 clause (F) EXTENSION — Independence-tier
+vocabulary + Tier-C capability-separation triggers
+(2026-08-26).</strong> Closed <code>{instance, model, capability}</code>
+tier vocabulary for HOW MUCH producer≠verifier separation was actually
+achieved; same-model independent-INSTANCE verdicts are accepted (never
+demanded to be a different model) except at two named Tier-C triggers
+(producer holds evidence-store write access; the
+<code>release-tag</code>/<code>qa-deploy</code>/<code>manual-qa-handoff</code>
+seams), where capability-tier is required but a single-uid host honestly
+reports <code>instance</code>, never a falsely-claimed
+<code>capability</code>.</li>
+<li><strong>§11.4.78/§11.4.79/§11.4.80 EXTENSION — scope, launcher,
+runner patches and verification consumed BY REFERENCE
+(2026-09-24).</strong> Closes measured gaps in the CodeGraph indexing
+mechanism: a self-contradictory filter clause, a config-file mismatch
+causing silent zero-config fallback, no derivation of scope from the
+submodule graph, and an anti-bluff gate that treated any database above
+a size threshold as a real index (so a stalled, partial index would have
+PASSED).</li>
+<li><strong>§11.4.78 EXTENSION — host-adaptive V8 heap budget
+(2026-09-25).</strong> Fixes a real OOM crash (rc=134, ~85 minutes of
+bulk-index progress discarded) by computing the Node.js heap budget from
+measured <code>MemAvailable</code> rather than inheriting V8&#39;s ~4 GiB
+stock default; independently verified live via
+<code>/proc/&lt;pid&gt;/environ</code>.</li>
+<li><strong>§11.4.78 EXTENSION — heap ceiling corrected to the real
+§12.6 bound + CodeGraph wired as a genuine MCP tool (2026-09-25, round
+2).</strong> Corrects an earlier round&#39;s invented 64 GiB heap ceiling to
+the real <code>MemTotal * 60/100</code> §12.6 bound; registers CodeGraph
+in <code>.mcp.json</code> via a new incident-hardened,
+<code>--no-watch</code>-forced wrapper after discovering
+<code>serve --mcp</code>&#39;s file watcher can WRITE the database, causing
+a real two-writer database-lock collision with an in-flight bulk
+<code>sync</code> during testing (recovered via <code>REINDEX</code>, no
+data loss).</li>
+<li><strong>§11.4.209 + §11.4.211 EXTENSION — model-substrate correction
+(operator mandate <code>CRITICAL</code>, 2026-09-26, landed
+2026-09-28).</strong> Re-pins the code-review and
+merge-conflict-resolution model substrate to Opus at <code>xhigh</code>
+effort ALWAYS, removing the 2026-09-15 Fable-escalation-for-big/complex
+clause; verbatim operator mandate: &quot;Main model to use is Sonet, reviews
+and other heavy stuff have to be done by Opus instead of Fable!!! Fix
+this permanently on all levels!&quot;</li>
+<li><strong>§11.4.231 EXTENSION — ladder changed to
+<code>sonnet &lt; opus</code> + clause (D.1) haiku prohibition (same
+2026-09-26/28 round).</strong> Sonnet becomes the default working tier
+(Fable removed as a dispatch tier entirely); new clause (D.1) prohibits
+<code>haiku</code> where it cannot receive its governing context,
+grounded in a measured FACT — a <code>haiku</code> subagent dispatch
+failed with &quot;Prompt too long (~421k tokens vs 200k limit).&quot;</li>
+<li><strong>§11.4.235 EXTENSION — clause (D) FINDING-LAYER CLASSIFIER
+(2026-10-03).</strong> Mandates every review verdict record a
+<code>finding_layer</code> from the closed set {source-defect,
+test-instrumentation, process-doc}, decided by the reviewer (never
+lowered unilaterally by the producer); research-derived from this
+project&#39;s own four-agent audit of a SpecKit-004 remediation saga.</li>
+<li><strong>§11.4.230 EXTENSION — clause (D) INCREMENTAL DELIVERY
+GRANULARITY + DECLARED QA-BUILD CADENCE (operator mandate
+<code>CRITICAL</code>, 2026-10-04), then corrected twice more the same
+day.</strong> Original landing mandates shipping each
+already-proven-correct increment as it clears its own bar rather than
+withholding delivery until a whole spec completes. Round-2 fix-forward
+(same day, on an independent Opus-xhigh NO-GO: 0 Blocking/2 Important/6
+Minor) re-keys the delivery unit from &quot;trunk&quot; to the increment&#39;s own
+integration branch and makes builds coalesce. Round-3 precision fix adds
+coalescing for failed/refused-build handling and a per-branch
+multi-coexistence clause.</li>
+<li><strong>§11.4.209 + §11.4.211 EXTENSION — genuine-unavailability
+Sonnet review fallback (operator mandate <code>CRITICAL</code>,
+2026-10-04).</strong> Relaxes the Opus-xhigh-only, no-fallback,
+BLOCKED-on-unavailability pin to a
+PRIMARY-Opus-xhigh-plus-genuine-unavailability-SONNET-fallback pin
+(Fable/Haiku remain permanently forbidden); verbatim operator mandate:
+&quot;If we do not have access to Opus model for some reason but only to
+Sonnet, we MUST USE what we have! Reviews MUST BE done. ... apply the
+rule asap so nothing is blocked with review which is not performed
+yet!&quot;</li>
+<li><strong>§11.4.267(E) + §11.4.134 EXTENSION — reconciling
+one-sentence extensions landed with §11.4.276 (2026-10-05).</strong>
+§11.4.267(E) records that an operator-mandated ceiling carried with its
+own verbatim mandate in its own anchor is the one permitted
+<code>N</code>-bound literal that clause allows; §11.4.134&#39;s
+unconditional re-run-until-GO obligation is now bounded per-approach by
+§11.4.276, escalating at the ceiling per §11.4.276(E)(3) rather than
+continuing indefinitely.</li>
+</ul>
+<h3 id="provenance">Provenance</h3>
+<ul>
+<li><strong>Operator CRITICAL mandate driving §11.4.276
+(2026-10-05)</strong>, verbatim: &quot;Make sure we never ever get to such
+extremely high never ending review rounds count! Determine exact causes
+of issues we are facing with deep planning and exhaustive analisys so
+all work ALWAYS gets done with 5 to 7 reviews max! This MUST BE
+mandatory part of the constitution!!!&quot;</li>
+<li><strong>Operator CRITICAL mandate driving §11.4.230(D)&#39;s original
+landing (2026-10-04)</strong>, verbatim (abridged): &quot;All work we do,
+especially SpecKit specs, gets incorporated right away. Fully
+deterministic validation/verification tests ... get incorporated too ...
+IN PARALLEL we keep building specs one by one, phase by phase, story by
+story, task by task. We get fast delivery results and AS SOON AS
+POSSIBLE builds that can be handed to QA teams for manual testing RIGHT
+AWAY ... We do NOT wait for all of that to finish first.&quot;</li>
+<li><strong>Operator CRITICAL mandate driving the §11.4.209/§11.4.211
+Sonnet-fallback amendment (2026-10-04)</strong>, verbatim: &quot;If we do not
+have access to Opus model for some reason but only to Sonnet, we MUST
+USE what we have! Reviews MUST BE done. Ideally with Opus model, however
+Sonet MUST BE used if Opus for any reason cannot be used! ... We MUST BE
+maximally efficient!&quot;</li>
+<li><strong>Operator CRITICAL mandate driving the 2026-09-26
+model-substrate correction (§11.4.209/§11.4.211/§11.4.231)</strong>,
+verbatim: &quot;Main model to use is Sonet, reviews and other heavy stuff
+have to be done by Opus instead of Fable!!! Fix this permanently on all
+levels!&quot;</li>
+<li><strong>Operator mandate driving §11.4.272 (2026-09-07)</strong>,
+verbatim (abridged): &quot;We MUST use activelly only Skills we need at
+particular moment! ... fully dynamic so token use is ALWAYS at the
+minimum and any of Skills and the extensions activated / deactivated as
+they are needed / used!&quot;</li>
+<li><strong>Operator mandate driving the 2026-09-25 round-2
+CodeGraph-MCP-wiring extension</strong>, per its own landing commit
+message: &quot;operator mandate: no artificial caps, indexed space exposed
+and used by all agents.&quot;</li>
+<li><strong>Research corpora</strong>: the AI-curriculum module corpus
+(<code>docs/research/ai_curriculum_2026_08/source_corpus/</code>,
+modules 27/30/31/32/33/34/35 — the same corpus v68&#39;s monolithic round
+already harvested, mined further in this round&#39;s 2026-08-20 batch for
+material not used in v68) and the SpecKit
+<code>002-anti-slop-enforcement</code> spec (T402/T403/T404 tasks,
+driving §11.4.268–271 + their 3 extensions).</li>
+<li><strong>Independent review</strong>: §11.4.276 itself was landed
+after an independent Opus-xhigh review returned NO-GO (2 Blocking/7
+Important/6 Minor, all concrete and evidence-cited); every finding was
+applied directly in one remediation pass per the reviewer&#39;s own
+&quot;GO-ready without another structural round&quot; assessment — itself cited in
+the anchor&#39;s own header as an instance of the discipline §11.4.276
+establishes. §11.4.230(D)&#39;s original landing was likewise followed
+same-day by a round-2 fix-forward on an independent Opus-xhigh NO-GO (0
+Blocking/2 Important/6 Minor).</li>
+</ul>
+<h3 id="honest-boundaries-per-1146">Honest boundaries per §11.4.6</h3>
+<ul>
+<li><strong>§11.4.115 clause (H) (and the base §11.4.115 anchor itself)
+is NOT mirrored into CLAUDE.md / AGENTS.md / QWEN.md / GEMINI.md as of
+this HEAD</strong> — independently re-verified this round:
+<code>grep -c</code> for the §11.4.115 block-start pattern returns 0 in
+all 4 mirror files and 1 in Constitution.md. This was disclosed as a
+deliberate, recorded exception at the 2026-08-26 landing (&quot;syncing
+§11.4.115 would additionally overwrite pre-existing divergent mirror
+wording and insert the block currently MISSING from GEMINI.md ... that
+mirror gap ... is RECORDED as owed, not left implicit&quot;) and remains true
+today — it is an owed §11.4.157 lockstep item, not newly discovered, but
+not yet closed either. By contrast, §11.4.238&#39;s and §11.4.240(F)&#39;s
+extension text WERE independently confirmed present and byte-identical
+across all 4 mirrors this round.</li>
+<li><strong>Gate code for every recommended <code>CM-*</code> mechanism
+gate named in this round&#39;s 14 new anchors and 19 extensions is a
+separate work item, NOT claimed shipped</strong> (§11.4.6/§11.4.227) —
+each anchor&#39;s own text states this explicitly.
+<code>CM-CODE-REVIEW-OPUS-XHIGH</code> and
+<code>CM-MERGE-CONFLICT-OPUS-XHIGH</code> (the §11.4.209/§11.4.211
+model-substrate-correction gate names) were independently confirmed
+UNIMPLEMENTED this round — no implementation file found under
+<code>scripts/gates/</code>, and <code>gate_ledger_removals.tsv</code>
+rows for their two predecessor-token renames
+(<code>CM-CODE-REVIEW-FABLE-XHIGH</code> →
+<code>...-OPUS-XHIGH-DEFAULT-FABLE-ESCALATION</code> →
+<code>CM-CODE-REVIEW-OPUS-XHIGH</code>;
+<code>CM-MERGE-CONFLICT-FABLE-XHIGH</code> →
+<code>CM-MERGE-CONFLICT-OPUS-XHIGH</code>) explicitly record each
+successor as &quot;a live, currently-UNIMPLEMENTED entry counted by the
+ratchet.&quot;</li>
+<li><strong>§11.4.209 substrate honesty is self-referential this
+round</strong>: the independent Opus-xhigh reviews cited above for
+§11.4.276 and §11.4.230(D) round-2 are, per their own commit messages,
+genuine Opus-xhigh reviews (not the Opus-best-effort-fork-substrate
+disclosed as a gap at v68) — this is recorded as a forward improvement,
+not re-asserted as fully resolved for every review in this round&#39;s full
+381-commit span, which this agent did not individually audit.</li>
+<li><strong>Generated
+<code>.html</code>/<code>.pdf</code>/<code>.docx</code> twins WERE
+regenerated this round</strong> (commit <code>f9d1cde</code>,
+&quot;regenerate html/pdf/docx twins — §11.4.276 + §11.4.272-274 mirror-gap
+fix&quot;) — unlike v68, which left them honestly stale; this round&#39;s
+regeneration is real and commit-attested, not re-verified byte-for-byte
+by this changelog entry&#39;s author beyond confirming the commit exists and
+touched the expected files.</li>
+<li><strong>This changelog entry&#39;s commit-hash citations below were
+found via
+<code>git log -S&lt;exact-string&gt; -- Constitution.md</code></strong>
+(pickaxe search on the literal anchor-heading text), not via author
+self-report; where a commit&#39;s message does not itself mention the anchor
+number (several of the dated landings above are bundled inside
+<code>cascade:</code>-prefixed multi-file commits whose subject line
+describes an unrelated primary change, e.g. <code>b3a73cf</code> &quot;bump
+submodule pointer to 6d4c2fde67b&quot; actually carries the full §11.4.275
+anchor text and the §11.4.78/79/80 extension), this is noted inline
+rather than silently assumed from the commit message alone.</li>
+</ul>
+<h3 id="commit-provenance-this-round-on-the-constitution-submodule">Commit
+provenance (this round on the constitution submodule)</h3>
+<ul>
+<li><strong>§11.4.263 (2026-08-19)</strong>: <code>502586c</code> —
+&quot;anchor(§11.4.263): NEW — process-group signal-safety mandate (BOB-126
+forensic anchor)&quot;.</li>
+<li><strong>§11.4.264 / §11.4.265 / §11.4.266 / §11.4.267 + the 5
+AI-curriculum-round-2 extensions
+(§11.4.148/§11.4.169/§11.4.233(G)/§11.4.242/§11.4.260(B)(2))
+(2026-08-20)</strong>: <code>8d017dd</code> — &quot;cascade: AI-Curriculum
+enforcement: wire propagation suite, close 55-&gt;0 carrier debt, fix
+ledger ratchet + T5 fixture, purge fabricated F-n taxonomy&quot;.</li>
+<li><strong>§11.4.268 / §11.4.269 / §11.4.270 / §11.4.271 + the 3
+SpecKit-002 extensions (§11.4.115(H)/§11.4.238-ext/§11.4.240(F))
+(2026-08-26)</strong>: <code>baa702a</code> — &quot;cascade: feat(002):
+anti-slop-enforcement COMPLETE — 161/162, ratchet 418-&gt;397, 4 anchors
++ 21 gates&quot;.</li>
+<li><strong>§11.4.272 (2026-09-07)</strong>: <code>b1b4de9</code> —
+&quot;feat(skills): §11.4.272 — dynamic on-demand skill activation, prune by
+default&quot;.</li>
+<li><strong>§11.4.273 (2026-09-08)</strong>: <code>0bfe885</code> —
+&quot;feat(constitution): §11.4.273 — control-needle a census before
+believing it&quot;.</li>
+<li><strong>§11.4.274 (2026-09-08)</strong>: <code>2db64ee</code> —
+&quot;feat(constitution): §11.4.274 — mechanical work belongs in a script,
+not an agent&#39;s context&quot;.</li>
+<li><strong>§11.4.275 + the §11.4.78/79/80 scope/launcher/runner-patch
+extension (2026-09-25 01:20, work dated 2026-09-24)</strong>:
+<code>b3a73cf</code> — &quot;cascade: chore(constitution): bump submodule
+pointer to 6d4c2fde67b (codegraph watcher/scope fixes + upstream
+churn)&quot;.</li>
+<li><strong>§11.4.78 host-adaptive heap-budget extension (2026-09-25
+13:01)</strong>: <code>c7f38f4</code> — &quot;docs(§11.4.78/§11.4.275):
+extend existing anchors with today&#39;s forensic evidence — no new anchor
+minted&quot;.</li>
+<li><strong>§11.4.78 heap-ceiling correction + CodeGraph-MCP-wiring
+extension (2026-09-25 14:01)</strong>: <code>8d98f1e</code> —
+&quot;fix(codegraph): correct heap ceiling to real §12.6 bound + wire
+CodeGraph as a genuine MCP tool (operator mandate: no artificial caps,
+indexed space exposed and used by all agents)&quot;.</li>
+<li><strong>§11.4.209 + §11.4.211 model-substrate correction + §11.4.231
+ladder/D.1 extension (work dated 2026-09-26, landed
+2026-09-28)</strong>: <code>7ce30dc</code> — &quot;cascade:
+chore(constitution): bump submodule pointer for SpecKit-004 Foundational
+batch&quot;.</li>
+<li><strong>§11.4.235 clause (D) FINDING-LAYER CLASSIFIER extension
+(2026-10-03)</strong>: <code>e44f22f</code> — &quot;feat(governance):
+§11.4.235 extended with clause (D) FINDING-LAYER CLASSIFIER&quot;.</li>
+<li><strong>§11.4.230 clause (D) original landing (2026-10-04
+01:40)</strong>: <code>5fd59fa</code> — &quot;feat(governance): §11.4.230
+extended with clause (D) INCREMENTAL DELIVERY GRANULARITY + DECLARED
+QA-BUILD CADENCE&quot;.</li>
+<li><strong>§11.4.230(D) round-2 fix-forward (2026-10-04
+01:56)</strong>: <code>567581b</code> — &quot;fix(governance): §11.4.230(D)
+round-2 fix-forward on Opus-xhigh review NO-GO (2 Important, 6
+Minor)&quot;.</li>
+<li><strong>§11.4.230(D) round-3 precision fix (2026-10-04
+02:19)</strong>: <code>00697b5</code> — &quot;fix(governance): §11.4.230(D)
+round-3 precision fix -- coalescing failed/refused-build handling +
+per-branch multi-coexistence clause + ledger row 107/108 parity&quot;.</li>
+<li><strong>§11.4.209 + §11.4.211 Sonnet-fallback extension (2026-10-04
+16:57)</strong>: <code>52da419</code> — &quot;feat(§11.4.209/§11.4.211): add
+genuine-unavailability Sonnet review fallback; fix carrier-strip #28/#29
+false-positive test fixtures&quot;.</li>
+<li><strong>§11.4.276 + §11.4.267(E)/§11.4.134 reconciling extensions
+(2026-10-05 12:49)</strong>: <code>b0cff47</code> — &quot;feat(governance):
+add §11.4.276 review-round budget (5-7 max, root-cause-driven)&quot;.</li>
+<li><strong>Mirror-gap fix for §11.4.272-274 across all 4 mirrors
+(2026-10-05 15:29)</strong>: <code>1901233</code> — &quot;fix(governance):
+close §11.4.157 lockstep gap — §11.4.272-274 missing from all 4
+mirrors&quot;.</li>
+<li><strong>Generated-twin regeneration (2026-10-05 16:10, = this
+round&#39;s HEAD)</strong>: <code>f9d1cde</code> — &quot;docs(constitution):
+regenerate html/pdf/docx twins — §11.4.276 + §11.4.272-274 mirror-gap
+fix&quot;.</li>
+</ul>
+<h3 id="verification">Verification</h3>
+<p>All checks below were independently re-run against the live
+repository by the author of this changelog entry (not copied from a
+prior commit message):</p>
+<ul>
+<li><strong>Anchor presence + exactly-once block-start
+integrity</strong>: all 14 new anchors (§11.4.263 through §11.4.276)
+confirmed present as exactly-one block-start in Constitution.md AND in
+each of the 4 mirrors (CLAUDE.md / AGENTS.md / QWEN.md / GEMINI.md) = 14
+× 5 = 70/70 block instances, via
+<code>grep -cE &quot;^(### |\*\*)§11\.4\.&lt;N&gt; &quot;</code> per file.</li>
+<li><strong>Lockstep byte-identity per §11.4.157</strong>: the anchor
+block-start line for all 14 new anchors is md5-identical across the 4
+mirror files (CLAUDE.md = AGENTS.md = QWEN.md = GEMINI.md) — confirmed
+individually per anchor, not assumed from a single spot-check;
+§11.4.276&#39;s full paragraph additionally confirmed identical across all 4
+at md5 <code>7bea11811139cc5ed53de218f08af729</code>.</li>
+<li><strong>Propagation-gate literal registration</strong>: all 14 new
+anchors (<code>11.4.263</code> through <code>11.4.276</code>) present as
+registered <code>CM-COVENANT-114-&lt;N&gt;-PROPAGATION</code> rows in
+the data pack
+<code>scripts/gates/covenant_propagation_anchors.tsv</code>.</li>
+<li><strong>Fast-forward push completion (§2.1 + §11.4.113)</strong>:
+<code>git ls-remote --heads &lt;remote&gt; main</code> returns
+<code>f9d1cde348a8374510d1d6f545173f5c3b2b3691</code> — identical to
+local HEAD — on all 8 configured remotes (gitflic, github, gitlab,
+gitverse, origin, upstream, vasicdigitalgithub, vasicdigitalgitlab); 8/8
+in sync at the time this entry was written.</li>
+<li><strong>Gate-ledger ratchet baseline</strong>:
+<code>scripts/gates/gate_ledger_baseline.txt</code> currently reads
+<code>402</code> (the monotone-decreasing unimplemented/deferred-gate
+count per §11.4.227(A), down from 418 and 403 at intermediate points
+this round per commit messages — not independently re-derived from first
+principles by this entry, cited as the file&#39;s current committed
+value).</li>
+<li><strong>Not verified by this entry</strong> (left for the operator /
+a future audit, per the honest-boundaries section above): byte-for-byte
+correctness of the regenerated
+<code>.html</code>/<code>.pdf</code>/<code>.docx</code> twins; full
+§11.4.209-substrate audit of every one of the 381 commits in this round;
+whether a <code>helixconstitution-v69</code> tag has actually been
+created yet (none existed at the time this entry was written —
+<code>git tag -l helixconstitution-v69</code> returned empty).</li>
+</ul>
+<h3 id="anchor-propagation-gates-landed-this-round">Anchor propagation
+gates landed this round</h3>
+<p><code>CM-COVENANT-114-263-PROPAGATION</code> through
+<code>CM-COVENANT-114-276-PROPAGATION</code> (14 gates) = 14 new
+anchor-block-start propagation gate literals present in this round&#39;s
+Constitution.md + 4-mirror Status summary text and registered in
+<code>scripts/gates/covenant_propagation_anchors.tsv</code>.</p>
+<hr />
 <h2 id="helixconstitution-v68--2026-08-18--monolithic-amendment-round-22-anchors--5-targeted-extensions--114140141-collision-resolution">helixconstitution-v68
 — 2026-08-18 — MONOLITHIC amendment round (22 anchors + 5 targeted
 extensions + §11.4.140/141 collision resolution)</h2>
@@ -601,7 +1171,7 @@ numbers; §11.4.237 (context-and-spirit translation review) now cites
 §11.4.255/§11.4.256 rather than the ambiguous §11.4.140/§11.4.141. No
 new collision introduced.</li>
 </ul>
-<h3 id="provenance">Provenance</h3>
+<h3 id="provenance-1">Provenance</h3>
 <ul>
 <li><strong>AI curriculum extraction</strong>: 9 modules (27-35), 7,096
 lines, sourced from local instructor mirror
@@ -642,7 +1212,7 @@ no-collision + gate-deferral-honesty) verified GREEN.</li>
 precedent</strong>: substantive-on-structural verified GREEN on round 2,
 per the §11.4.134 iterate-to-GO discipline.</li>
 </ul>
-<h3 id="honest-boundaries-per-1146">Honest boundaries per §11.4.6</h3>
+<h3 id="honest-boundaries-per-1146-1">Honest boundaries per §11.4.6</h3>
 <ul>
 <li><strong>§11.4.241-254 shipped in condensed form</strong> in commit
 <code>697c750</code> (the monolithic anchor commit), grouped into 16
@@ -677,7 +1247,7 @@ governance-twin exporter is still not a documented runnable in-repo
 script (§11.4.106(E)); twins remain honestly STALE pending the exporter
 commit. No silent divergence claimed otherwise.</li>
 </ul>
-<h3 id="commit-provenance-this-round-on-the-constitution-submodule">Commit
+<h3 id="commit-provenance-this-round-on-the-constitution-submodule-1">Commit
 provenance (this round on the constitution submodule)</h3>
 <ul>
 <li><strong>Phase 0 (§11.4.140/141 collision resolution,
@@ -723,7 +1293,7 @@ multi-push wrappers).</li>
 <li><strong>Consumer pointer bump (§11.4.26 step 7)</strong>: boba HEAD
 <code>f8aa956</code> on all 3 boba remotes verified 0/0 in-sync.</li>
 </ul>
-<h3 id="anchor-propagation-gates-landed-this-round">Anchor propagation
+<h3 id="anchor-propagation-gates-landed-this-round-1">Anchor propagation
 gates landed this round</h3>
 <p><code>CM-COVENANT-114-239-PROPAGATION</code> through
 <code>CM-COVENANT-114-254-PROPAGATION</code> (16 gates) +

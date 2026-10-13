@@ -1,0 +1,13 @@
+{
+  "_house_note": "GREEN-branch expectation for the (today absent) review_record.py gate subcommand, T-C11 (contract review-batch-and-precheck.md RB-004/RB-006, Exit codes 'gate 0 covered, 1 uncovered (lists changes)'). Not invented: the two records this asserts against are REAL, on-disk output of the ALREADY-LANDED review_record.py backfill subcommand (T018/T034), run for real by this RED test's Section D, on the two --input specs in this same directory -- proven empirically (before this file was written) that backfill accepts model_tier='sonnet'/effort='xhigh' and model_tier='opus'/effort='high' with rc=0, unlike cmd_record() which refuses both at write time (T018's own rb_bad_wrong_tier/rb_bad_low_effort fixtures already cover that write-time refusal path; this fixture exercises the DIFFERENT, defense-in-depth question: given a record that somehow reached disk with a non-pinned tier/effort, does `gate` still correctly refuse to count it as coverage).",
+  "wrong_tier_case": {
+    "invocation": "review_record.py gate --change sha256:01c1a0b095e5a74560f689ad24169c4dc2e22113a5b1a1b1d0bfd2c4e815a472 --records <dir containing only the real backfilled model_tier=sonnet record>",
+    "expected_exit_code": 1,
+    "expected_stdout_contains": "sha256:01c1a0b095e5a74560f689ad24169c4dc2e22113a5b1a1b1d0bfd2c4e815a472"
+  },
+  "low_effort_case": {
+    "invocation": "review_record.py gate --change sha256:01c1a0b095e5a74560f689ad24169c4dc2e22113a5b1a1b1d0bfd2c4e815a472 --records <dir containing only the real backfilled effort=high record>",
+    "expected_exit_code": 1,
+    "expected_stdout_contains": "sha256:01c1a0b095e5a74560f689ad24169c4dc2e22113a5b1a1b1d0bfd2c4e815a472"
+  }
+}

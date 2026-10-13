@@ -1,0 +1,2 @@
+HIT
+REASON: recorded_mtime differs but the underlying content-sha256 does not -- content, not mtime, decides (mirrors T051's VC-002 principle). Negative control.

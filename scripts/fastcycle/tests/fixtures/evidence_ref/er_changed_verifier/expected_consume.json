@@ -1,0 +1,9 @@
+{
+  "changed_components": [
+    "verifier_version"
+  ],
+  "evidence_hash_ok": true,
+  "outcome": "REVERIFY_REQUIRED",
+  "ref_id": "FC-ER-CHANGED-VERIFIER-001",
+  "schema": "evref-consume/v1"
+}

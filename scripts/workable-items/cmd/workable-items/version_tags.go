@@ -44,6 +44,7 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -66,9 +67,29 @@ func migrateVersionTagsColumn(db *sql.DB) error {
 		}
 	}
 	// Bump schema_version to 3 (only forward; never downgrade).
+	//
+	// T048 round-3 review finding R3-I4 (2026-09-30): this used to compare
+	// schema_version as TEXT (`ver < "3"`) -- the exact SAME lexicographic-
+	// string-comparison bug occurred_at.go's migrateItemHistoryOccurredAt()
+	// and db.go's own schema_version bump were independently found+fixed
+	// for (T048 round-2 review finding F15): '10' < '3' is lexicographically
+	// TRUE, so a DB already at schema_version '10' would silently REGRESS
+	// back down to '3' the next time this migration ran. Reproduced live
+	// before fixing (adversarial test, seeding schema_version='10'): calling
+	// migrateVersionTagsColumn regressed it to '3'; a subsequent openDB()
+	// call (which re-runs db.go's own v6 bump) then advanced it to '7' --
+	// the exact 10->3->7 round-trip a reviewer mutation demonstrated,
+	// reachable in production via the real `workable-items version-tags`
+	// subcommand against any DB already migrated past v3. strconv.Atoi
+	// forces a genuine numeric comparison, matching this column's real
+	// monotonic-integer semantics, consistent with the db.go/occurred_at.go
+	// sibling fixes -- an unparseable (non-numeric, non-empty) value is
+	// treated the same as "needs bumping" (never silently skipped) rather
+	// than crashing this migration on a corrupted meta row.
 	var ver string
 	_ = db.QueryRow(`SELECT value FROM meta WHERE key='schema_version'`).Scan(&ver)
-	if ver == "" || ver < "3" {
+	verNum, convErr := strconv.Atoi(ver)
+	if ver == "" || convErr != nil || verNum < 3 {
 		if _, err := db.Exec(`INSERT INTO meta(key,value,last_modified) VALUES('schema_version','3',datetime('now'))
 			ON CONFLICT(key) DO UPDATE SET value='3', last_modified=datetime('now')`); err != nil {
 			return fmt.Errorf("bump schema_version: %w", err)

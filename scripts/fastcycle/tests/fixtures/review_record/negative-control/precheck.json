@@ -1,0 +1,79 @@
+{
+  "all_pass": true,
+  "batch_id": "RB-T018-NC",
+  "checks": [
+    {
+      "check": "parse",
+      "evidence": {
+        "tool": "bash -n / sh -n"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "shellcheck",
+      "evidence": {},
+      "verdict": "PASS"
+    },
+    {
+      "check": "affected-gates",
+      "evidence": {
+        "gates": []
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "touched-gate-mutations",
+      "evidence": {
+        "gates": []
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "secret-scan",
+      "evidence": {},
+      "verdict": "PASS"
+    },
+    {
+      "check": "doc-sync",
+      "evidence": {},
+      "verdict": "PASS"
+    },
+    {
+      "check": "closure-evidence-class",
+      "evidence": {
+        "items": []
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "sibling-search",
+      "evidence": {
+        "ref": "qa-results/fastcycle/us1/red/T018/sibling_search_negative_control.json"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "blast-radius",
+      "evidence": {
+        "scope": "single function"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "check": "already-fixed-markers",
+      "evidence": {
+        "markers": [
+          {
+            "file": "review_record_fixture_validate.sh",
+            "fixed_in_round": 2,
+            "line": 87,
+            "note": "Round 2 of this batch added the missing --round input-validation guard at this exact line, BEFORE the reviewer's round-1 finding below was recorded (DEC-33 state-temporal misalignment: the reviewer's comment was already stale by the time it was filed)."
+          }
+        ]
+      },
+      "verdict": "PASS"
+    }
+  ],
+  "independence_tier": "instance",
+  "run_from": "qa-results/fastcycle/us1/red/T018/clean-checkout-negative-control"
+}

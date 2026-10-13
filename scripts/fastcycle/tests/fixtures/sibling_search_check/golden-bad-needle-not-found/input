@@ -1,0 +1,7 @@
+{
+  "class_statement": "a closure whose evidence_path was accepted at record time despite never resolving to a real file",
+  "search_method": "grep -rln 'evidence_path' constitution/scripts/workable-items/cmd/workable-items/*.go",
+  "control_needle": "crud.go:requireEvidencePath",
+  "control_needle_found": false,
+  "instances_found": []
+}

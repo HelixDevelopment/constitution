@@ -1,0 +1,26 @@
+{
+  "schema": "consumer-enumerate-needles/v1",
+  "_purpose": "C-004 control-needle set for consumers/enumerate.sh (T166/T-G03). Every id below is LIVE-VERIFIED (gh api / local filesystem), not invented (§11.4.6). Re-verify with: gh api repos/<org>/<repo>/contents/constitution",
+  "known_consumer": {
+    "project_id": "HelixDevelopment/ota",
+    "evidence": "gh api repos/HelixDevelopment/ota/contents/constitution -> 200, type=submodule, sha=7295a1899d348583f5ba1816556c9c22226352c4 (measured 2026-09-30)"
+  },
+  "known_non_consumer": {
+    "project_id": "vasic-digital/design_system",
+    "evidence": "gh api repos/vasic-digital/design_system/contents/constitution -> 404 Not Found (measured 2026-09-30); local checkout /mnt/track4/design_system carries no CLAUDE.md inheritance pointer either (R6_consumers_and_host.md)"
+  },
+  "known_single_source": {
+    "project_id": "HelixDevelopment/thready",
+    "evidence": "gh api repos/HelixDevelopment/thready/contents/constitution -> 200, type=submodule, sha=bed5857fa4ebe9d670bf5715ab934e031711d647 (measured 2026-09-30); absent from `gh search code constitution --filename .gitmodules --owner HelixDevelopment` (returns only vpn, code); absent from every local track (1-4) (measured 2026-09-30)"
+  },
+  "known_text_only_consumer": {
+    "project_id": "vasic-digital/helix_design",
+    "evidence": "no constitution submodule dir at /mnt/track1/helix_design (local checkout); CLAUDE.md line 3 carries the literal heading '## INHERITED FROM constitution/CLAUDE.md' with no accompanying submodule -- text-only inheritance per data-model.md §13.1 consumer_kind=text-only-inheritance"
+  },
+  "known_failed_source": {
+    "description": "GitHub code search is not a valid enumeration source (CA-002/DEC-24); recorded here as the T-G03 failed needle, re-measured live in Section B rather than trusted from this snapshot",
+    "command": "gh search code \"constitution\" --filename .gitmodules --owner HelixDevelopment",
+    "observed_2026-09-30": ["HelixDevelopment/vpn", "HelixDevelopment/code"],
+    "missed_known_consumer": "HelixDevelopment/ota"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "gates": {
+    "gate_alpha": {
+      "content_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hermetic": true,
+      "layer": "all",
+      "observed_inputs": [
+        "src/alpha.sh"
+      ]
+    },
+    "gate_beta": {
+      "content_hash": "6f1362c9fd66856c8ef864a0bec2a52837967e0ab2b4efa6b3bd1dac7a32295a",
+      "hermetic": true,
+      "layer": "all",
+      "observed_inputs": [
+        "src/beta.sh"
+      ]
+    },
+    "gate_docsync": {
+      "content_hash": "b1899aa9bd7e7dd685f99c97b053bcf410683ca805c7641dfa3626f7162fd525",
+      "hermetic": true,
+      "layer": "docs",
+      "observed_inputs": [
+        "docs/README.md"
+      ]
+    },
+    "gate_gamma": {
+      "content_hash": "9b0574303e706a46d31b4f5ee2a41fcc0ec2c34a45783f30d7fc0ccbc6d8ae23",
+      "hermetic": true,
+      "layer": "all",
+      "observed_inputs": [
+        "src/shared_lib.sh"
+      ]
+    },
+    "gate_integrity": {
+      "content_hash": "d4ae057d095dd9aef87cb22c998f13ba3070ea9398fff0e19bcb4b9ac7d0768b",
+      "hermetic": true,
+      "layer": "docs",
+      "observed_inputs": [
+        "docs/CHANGELOG.md"
+      ]
+    }
+  }
+}

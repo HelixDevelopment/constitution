@@ -1,0 +1,7 @@
+[
+  {
+    "kind": "push",
+    "id": "push-rr04-0001",
+    "detail": "git push origin feature/rr04 -- observed independently via the remote-tracking-ref marker this fixture stands in for (the killed agent's real side-effect, per the oracle-independence rule of section 11.4.245: this ground-truth source is never derived from the handoff record itself)"
+  }
+]

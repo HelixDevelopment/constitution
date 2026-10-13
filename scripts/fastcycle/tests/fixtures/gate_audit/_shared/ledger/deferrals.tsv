@@ -1,0 +1,4 @@
+# toy gate_ledger_deferrals.tsv (mirrors the real file's schema exactly:
+# <gate>\t<tracked-item-id>[\t<note>], comment/blank lines inert).
+#
+TOY-GATE-DEFERRED	ATM-9001	toy named-only deferred fixture, no script exists yet, gate-code owed

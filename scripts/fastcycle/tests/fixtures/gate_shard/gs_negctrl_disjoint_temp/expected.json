@@ -1,0 +1,4 @@
+{
+  "assertion": "with n_shards=2, gate_writer_p and gate_writer_q MUST be assignable to DIFFERENT shards (their disjoint write sets impose no co-scheduling constraint) -- verified by this test's shard_ref.py reference, which places them in shard 0 and shard 1 respectively. A sharder implementation that instead forces them into the same shard regardless of write-set (the over-eager anti-pattern) FAILS this negative control even though it would trivially 'pass' the golden-bad case -- this is the discriminating fixture per §11.4.201(1).",
+  "reference_verified": "confirmed by hand 2026-09-28 via lib/shard_ref.py against an equivalent manifest at n_shards=2 -- p and q landed in shard 0 and shard 1 respectively (qa-results evidence, this fork's own red_run_evidence.log)"
+}

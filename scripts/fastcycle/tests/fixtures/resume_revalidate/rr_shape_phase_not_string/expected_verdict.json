@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr6700000000000000000000000000000000000000000000000000000000",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "malformed-handoff-field",
+      "detail": "handoff record field `phase` must be a JSON string when present (got list: ['DONE']) -- this tool cannot safely reason about the record's timing/phase without a well-typed value here; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}

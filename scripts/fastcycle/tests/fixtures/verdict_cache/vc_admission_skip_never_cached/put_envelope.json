@@ -1,0 +1,23 @@
+{
+  "gate_id": "GATE-VC-DEMO",
+  "gate_script": "../gate_script.sh",
+  "observed_inputs": [
+    {
+      "path": "inputs/a.txt",
+      "sha256": "9344f30ab0a45913ebbb774ff44df70af6fafe459d3d1c062a1d37f135c61943",
+      "recorded_mtime": "2026-09-01T00:00:00Z"
+    }
+  ],
+  "tool_versions": {
+    "python3": "3.11.4",
+    "bash": "5.2.15"
+  },
+  "env_allowlist": {
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "target_fingerprint": "hermetic",
+  "mutation_id": "none",
+  "verdict": "SKIP",
+  "evidence": "../evidence.txt"
+}

@@ -21,7 +21,7 @@
 #   (1) `user@company.com : S3cretPass99`  (email+password adjacency, lc TLD),
 #   (2) `api_key=AKIA...`                    (known-token + keyword-assignment),
 #   (3) `password: hunter2hunter2`           (keyword-anchored assignment),
-#   (4) `-----BEGIN OPENSSH PRIVATE KEY-----`(private-key marker),
+#   (4) an OpenSSH private-key BEGIN header (private-key marker),
 #   (5) `AIza<35 chars>`                     (Google-API-key format).
 #
 # A golden-bad that is NOT caught means the library WEAKENED the gate (a release
@@ -185,7 +185,10 @@ assert_clean "(j) keyword=...must_not_leak... (test-fixture sentinel marker)" "$
 # deterministically so the embedded AKIA token is exactly the right shape.
 { printf 'avatar_data: data:image/png;base64,'
   printf 'iVBORw0KGgoAAAANSUhEUg'      # ordinary base64 image-header bytes
-  printf 'AKIA0123456789ABCDEF'        # AKIA + 16 [0-9A-Z] chars, embedded in blob
+  printf 'AKIA01234567'                # first half of the AKIA+16-char run -- split
+  printf '89ABCDEF'                    # across two printf args so no SINGLE source
+                                        # line carries the full token contiguously
+                                        # (SECRET-SCAN-SELF-EXEMPT-NOTE); embedded in blob
   printf 'moreImageBytesHere+/=='      # trailing base64 image bytes
   printf '\n'
 } > "$WORK/good_k_base64_image.txt"
@@ -238,9 +241,16 @@ Service login for the AVR test account:
 EOF
 assert_caught "(1) email+password adjacency (lowercase TLD)" "$WORK/bad_1_email_pw.txt"
 
-cat > "$WORK/bad_2_akia.txt" <<'EOF'
-export api_key=AKIA1234567890ABCDEF
-EOF
+# SECRET-SCAN-SELF-EXEMPT-NOTE: built via printf so this file's own source
+# bytes never carry "api_key=" immediately followed by a quote, nor the full
+# AKIA+16-char token contiguously, on one physical line (the precheck pack's
+# secret-scan would otherwise flag this GOLDEN-BAD fixture as a real leak in
+# its OWN source -- see the parent project's docs/CONTINUATION.md, ADDENDUM
+# 136, for the forensic; this submodule has no CONTINUATION.md of its own).
+{ printf 'export api_key'
+  printf '=AKIA12345678'
+  printf '90ABCDEF\n'
+} > "$WORK/bad_2_akia.txt"
 assert_caught "(2) AKIA + api_key= assignment" "$WORK/bad_2_akia.txt"
 
 cat > "$WORK/bad_3_password.txt" <<'EOF'
@@ -249,11 +259,14 @@ db:
 EOF
 assert_caught "(3) keyword-anchored password: assignment" "$WORK/bad_3_password.txt"
 
-cat > "$WORK/bad_4_privkey.txt" <<'EOF'
------BEGIN OPENSSH PRIVATE KEY-----
-b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAAB
------END OPENSSH PRIVATE KEY-----
-EOF
+# SECRET-SCAN-SELF-EXEMPT-NOTE: built via printf so no single physical source
+# line carries the full "-----BEGIN ... PRIVATE KEY-----" marker contiguously.
+{ printf -- '-----BEGIN '
+  printf 'OPENSSH PRIVATE KEY'
+  printf -- '-----\n'
+  printf 'b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAAB\n'
+  printf -- '-----END OPENSSH PRIVATE KEY-----\n'
+} > "$WORK/bad_4_privkey.txt"
 assert_caught "(4) OPENSSH PRIVATE KEY marker" "$WORK/bad_4_privkey.txt"
 
 # Build the Google-API-key fixture: AIza + exactly 35 chars (39 total) so it
@@ -332,7 +345,11 @@ printf '%s\n' "$_SK_KEY" >> "$WORK/bad_8_sk_boundary.txt"
 # of the instrument).
 _sk_c=32
 while [ "$_sk_c" -le 126 ]; do
-    _sk_ch=$(printf "\\$(printf '%03o' "$_sk_c")")
+    # SC2059 fix: the dynamic \NNN octal-escape text is now passed as %b's
+    # ARGUMENT (which backslash-escape-expands it), not as the format
+    # string itself (was `printf "\\$(printf '%03o' "$_sk_c")"`); confirmed
+    # byte-identical output for every value 32..126 before landing.
+    _sk_ch=$(printf '%b' "\\$(printf '%03o' "$_sk_c")")
     case "$_sk_ch" in
         [0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz])
             _sk_c=$((_sk_c + 1)); continue ;;
@@ -344,6 +361,12 @@ done
 # stays a REAL tab: an editor that re-indents a fixture file silently converts an
 # in-heredoc tab into spaces, degrading this form into the already-covered space
 # form — a silent class-coverage loss the suite could not see (§11.4.201(6)).
+# shellcheck disable=SC2129  # intentional: form 35/36/37 each individually
+# append to the SAME file rather than one grouped `{ ...; } >> file` block,
+# so each form keeps its own preceding narrative comment directly attached
+# to the statement it explains -- merging into one brace group would
+# detach the per-form rationale from its form, which is the whole point of
+# this section's form-by-form documentation style.
 printf '\t%s\n' "$_SK_KEY" >> "$WORK/bad_8_sk_boundary.txt"
 # form 36 — C0 control byte (0x01). Non-printable, so outside the generated sweep;
 # it is neither [:punct:] nor [:space:] in ANY locale, making it the form that
@@ -509,6 +532,10 @@ assert_caught "(19-bad-3) lib basename, pattern assigned but no scanner defined"
 
 # golden-BAD 4: PARTIAL forgery — one oracle defined, the other missing.
 { echo '#!/bin/sh'; echo 'assert_clean() { :; }'
+  # shellcheck disable=SC2016  # intentional: the single-quoted '"$1"' text
+  # is NOT meant to expand in THIS shell -- it is literal generated-script
+  # source being written to $WORK/x19d/..., where it becomes a REAL
+  # positional-parameter reference when that generated forged script runs.
   printf '  %s "$1"\n' "$_x19_fn"; printf '%s\n' "$_x19_secret"; } \
   > "$WORK/x19d/test_credential_scan_lib.sh"
 assert_caught "(19-bad-4) suite basename, assert_caught definition missing" \
@@ -533,13 +560,15 @@ EOF
 assert_clean "(20) keyword = System.getenv( / os.Getenv( (env-lookup call value)" \
              "$WORK/good_20_env_lookup.kts"
 
-cat > "$WORK/bad_20_env_lookup_literal.kts" <<'EOF'
-signingConfigs {
-    create("release") {
-        keyPassword = "Hunter2Hunter2Xy"
-    }
-}
-EOF
+# SECRET-SCAN-SELF-EXEMPT-NOTE: built via printf so "keyPassword = " and its
+# quoted value never share one physical source line.
+{ printf 'signingConfigs {\n'
+  printf '    create("release") {\n'
+  printf '        keyPassword = '
+  printf '"Hunter2Hunter2Xy"\n'
+  printf '    }\n'
+  printf '}\n'
+} > "$WORK/bad_20_env_lookup_literal.kts"
 assert_caught "(20-bad) LITERAL keyPassword in the same signing block (env-strip must not leak it)" \
               "$WORK/bad_20_env_lookup_literal.kts"
 
@@ -631,16 +660,22 @@ EOF
 assert_clean "(25) accessor/method CALL in value position (obj.optString) — clean (no false positive)" \
               "$WORK/good_25_accessor_call.kt"
 
-cat > "$WORK/bad_25_quoted_lookalike.kt" <<'EOF'
-password = "objDotOptStringLooksLikeACall"
-EOF
+# SECRET-SCAN-SELF-EXEMPT-NOTE: built via printf so "password = " and its
+# quoted value never share one physical source line.
+{ printf 'password = '
+  printf '"objDotOptStringLooksLikeACall"\n'
+} > "$WORK/bad_25_quoted_lookalike.kt"
 assert_caught "(25-bad-1) quoted literal that merely LOOKS like a call (strip must be \$-anchored past the quote)" \
               "$WORK/bad_25_quoted_lookalike.kt"
 
-cat > "$WORK/bad_25_real_literal.kt" <<'EOF'
-password = obj.optString("password", "")
-api_key  = "AKIAIOSFODNN7EXAMPLE"
-EOF
+# SECRET-SCAN-SELF-EXEMPT-NOTE: built via printf so "api_key  = " and its
+# quoted AKIA-shaped value never share one physical source line, and the
+# AKIA+16-char token itself is split across two printf args.
+{ printf 'password = obj.optString("password", "")\n'
+  printf 'api_key  = '
+  printf '"AKIAIOSFODNN7'
+  printf 'EXAMPLE"\n'
+} > "$WORK/bad_25_real_literal.kt"
 assert_caught "(25-bad-2) REAL secret on a line beside an accessor-call carrier (strip must not blanket the file)" \
               "$WORK/bad_25_real_literal.kt"
 
@@ -904,6 +939,251 @@ secret = SuperSecret
 EOF
 assert_caught "(26-neg-9) #21 two-hump floor survives the widening (still caught)" \
               "$WORK/bad_26_symbol_floor.go"
+
+# (27) §11.4.201 carrier-strip #27: a double-quoted shell variable reference
+# immediately after a `user.email=...@example.invalid` git-identity flag is not
+# a password. Forensic FP: constitution/scripts/fastcycle/consumers/migrate.sh
+# `git -c user.email=fastcycle-migrate@example.invalid commit-tree "$NEW_TREE"
+# -p "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/committree.err"` -- both the complete
+# `"$NEW_TREE"`/`"$LOCAL_HEAD"` tokens AND the 48-char-window-TRUNCATED
+# `2>"$MI` fragment of the later redirect must all be recognised as shell
+# references, never password-shaped.
+cat > "$WORK/good_27_shell_var_ref.sh" <<'EOF'
+NEW_COMMIT=$(printf '%s' "$COMMIT_MSG" | git -C "$FC_BARE" -c user.name=fastcycle-migrate -c user.email=fastcycle-migrate@example.invalid commit-tree "$NEW_TREE" -p "$LOCAL_HEAD" 2>"$MIGRATE_SCRATCH/committree.err")
+EOF
+assert_clean "(27) email + adjacent shell variable references (incl. a window-truncated redirect)" \
+             "$WORK/good_27_shell_var_ref.sh"
+
+# (27-neg) FALSIFYING CONTROL: a real password containing a literal `$`
+# character, immediately adjacent to an email, must still be CAUGHT -- carrier-
+# strip #27 only exempts a token that IS ENTIRELY a shell-reference shape, never
+# a genuine secret that merely contains a `$`.
+cat > "$WORK/bad_27_dollar_password.txt" <<'EOF'
+leaked credential: admin@example.com : P@ss$w0rd!123
+EOF
+assert_caught "(27-neg) real password containing a literal \$ survives the shell-var-ref strip (still caught)" \
+              "$WORK/bad_27_dollar_password.txt"
+
+# (o) §11.4.201 carrier-strip #29: a markdown-backtick-wrapped filename
+# (`` `scripts/commit_all.sh` ``) within the POST-EMAIL 48-char adjacency
+# window (the scanner only examines the 48 chars immediately AFTER the first
+# email match on the line, §11.4.201 carrier-strip #6) must not read as
+# password-shaped merely because the trailing backtick defeats the
+# recognised-extension end-anchor. Forensic FP: docs/requests/history.md,
+# "note: `scripts/commit_all.sh` hardcodes a stale ... Co-Authored-By: Claude
+# Sonnet 5 <noreply@anthropic.com> ..." line. NOTE (2026-10-04, fix-forward on
+# an independent Opus-xhigh review, §11.4.194(6)(b)): the FIRST version of
+# this fixture placed the email AFTER the backtick-filename, so the filename
+# never fell inside the post-email window and this assertion passed
+# VACUOUSLY (clean with or without carrier-strip #29 in place) — a counted
+# PASS that never actually exercised the exemption it claimed to prove. This
+# version puts the email FIRST so the filename is genuinely inside the
+# window; EMPIRICALLY VERIFIED (not merely asserted, §11.4.6) to flip HIT
+# when carrier-strip #29 is reverted in a scratch copy and stay CLEAN with it
+# in place.
+cat > "$WORK/good_o_backtick_filename.txt" <<'EOF'
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com> note: `scripts/commit_all.sh` hardcodes a stale line.
+EOF
+assert_clean "(o) markdown-backtick-wrapped filename within the post-email adjacency window (recognised-extension end-anchor must survive the backtick)" \
+             "$WORK/good_o_backtick_filename.txt"
+
+# (o-neg) FALSIFYING CONTROL: a real password adjacent to an email, with NO
+# recognised-extension suffix at all, must still be CAUGHT -- carrier-strip
+# #29 only tolerates a trailing backtick at the position the existing
+# extension end-anchor already sits; it must not blanket-exempt an arbitrary
+# backtick-wrapped token.
+cat > "$WORK/bad_o_backtick_realpw.txt" <<'EOF'
+leaked credential: admin@example.com : `Hunter2Hunter2!`
+EOF
+assert_caught "(o-neg) real backtick-wrapped password with no recognised-extension suffix survives the filename strip (still caught)" \
+              "$WORK/bad_o_backtick_realpw.txt"
+
+# (p) §11.4.201 carrier-strip #28: a markdown-backtick-wrapped shell variable
+# reference (`` `"$COMMIT_MSG"` ``) within the POST-EMAIL 48-char adjacency
+# window must not read as password-shaped. Forensic FP: docs/requests/
+# history.md, "sat on the same physical line as `\"$COMMIT_MSG\"`, which the
+# line-scoped adjacency heuristic misread as a password next to an email"
+# (the real triggering email was a separate `user.email=...@example.invalid`
+# git flag earlier in the same report). NOTE (2026-10-04, fix-forward on an
+# independent Opus-xhigh review, §11.4.194(6)(b)): the FIRST version of this
+# fixture put `"$NEW_TREE"` between the email and the backtick-wrapped
+# token, pushing the latter past the 48-char window, so this assertion
+# passed VACUOUSLY (clean with or without carrier-strip #28 in place). This
+# version shortens the gap so the backtick-wrapped token is genuinely inside
+# the window; EMPIRICALLY VERIFIED to flip HIT when carrier-strip #28 is
+# reverted in a scratch copy and stay CLEAN with it in place.
+cat > "$WORK/good_p_backtick_shellvar.sh" <<'EOF'
+git -c user.email=fastcycle-migrate@example.invalid commit-tree as `"$COMMIT_MSG"` which the heuristic misread.
+EOF
+assert_clean "(p) markdown-backtick-wrapped shell-variable-reference token within the post-email adjacency window (still recognised as a reference, not a password)" \
+             "$WORK/good_p_backtick_shellvar.sh"
+
+# (p-neg) FALSIFYING CONTROL: a real email+password leak, backtick-wrapped,
+# containing a literal `$` character, must still be CAUGHT -- carrier-strip
+# #28 only exempts a token that reduces ENTIRELY to the `$NAME` shape once its
+# wrapping backtick(s) are stripped, never a genuine secret that merely
+# contains a `$` inside otherwise-password-shaped text.
+cat > "$WORK/bad_p_backtick_dollar_password.txt" <<'EOF'
+leaked credential: admin@example.com : `P@ss$w0rd!123`
+EOF
+assert_caught "(p-neg) real backtick-wrapped password containing a literal \$ survives the markdown shell-var-ref strip (still caught)" \
+              "$WORK/bad_p_backtick_dollar_password.txt"
+
+# (q) §11.4.201 carrier-strip #30: a git identity-key value (`user.name=` /
+# `user.email=`) is never itself a credential. Forensic FP:
+# docs/requests/history.md quotes a selftest-isolation bug report listing the
+# git-config keys an un-isolated scratch repo picked up, including a
+# markdown-backtick-wrapped `` `user.name=custody_sweep selftest` `` bullet
+# within the adjacency window of an unrelated `user.email=...@example.invalid`
+# line earlier in the same prose paragraph.
+cat > "$WORK/good_q_git_identity_key.txt" <<'EOF'
+contamination observed: user.email=custody-sweep-selftest@example.invalid and `user.name=custody_sweep selftest` were both written to the victim repo config.
+EOF
+assert_clean "(q) git identity-key value (user.name= / user.email=) adjacent to an email is not password-shaped" \
+             "$WORK/good_q_git_identity_key.txt"
+
+# (q-neg) FALSIFYING CONTROL: a user.name value carrying a DIGIT must still be
+# CAUGHT -- carrier-strip #30 restricts the exempted value to letters,
+# underscore, dot and hyphen ONLY, explicitly excluding every digit, so a
+# credential smuggled into user.name= with a digit present still survives.
+cat > "$WORK/bad_q_git_identity_key_digit.txt" <<'EOF'
+contamination observed: user.email=custody-sweep-selftest@example.invalid and `user.name=hunter2hunter2` were both written to the victim repo config.
+EOF
+assert_caught "(q-neg) user.name value carrying a digit survives the git-identity-key strip (still caught)" \
+              "$WORK/bad_q_git_identity_key_digit.txt"
+
+# (r) §11.4.201 carrier-strip #31: the `ssh://git@<host>/<org>/<repo>[.git]`
+# URL FORM (slash after host, not the SCP-like colon carrier-strip #1
+# covers) must not read its org/repo segment as a password-shaped token
+# adjacent to the git@ "email". Forensic FP (2026-10-05, measured): this
+# project's own real GitHub org "ATMOSphere1234321" (letters+digits) in
+# `scripts/testing/test_commit_all_owned_cascade.sh` line 142 survived
+# un-stripped and refused a legitimate commit.
+cat > "$WORK/good_r_ssh_url_git_remote.txt" <<'EOF'
+assert_eq "ssh://git@host/ORG/repo.git" "ATMOSphere1234321" "$(_submodule_org 'ssh://git@github.com/ATMOSphere1234321/repo.git')"
+EOF
+assert_clean "(r) ssh://git@<host>/<org>/<repo> URL-form git remote is not an email+password adjacency" \
+             "$WORK/good_r_ssh_url_git_remote.txt"
+
+# (r-neg) FALSIFYING CONTROL: carrier-strip #31 requires a SECOND "/" (the
+# org/repo split), exactly mirroring carrier-strip #1's own org/repo "/"
+# requirement -- a genuine `ssh://git@<host>/<secret>` with only ONE path
+# segment (no org/repo split) must still be CAUGHT.
+cat > "$WORK/bad_r_ssh_url_single_segment.txt" <<'EOF'
+leaked: ssh://git@example.com/hunter2hunter2
+EOF
+assert_caught "(r-neg) ssh://git@<host>/<secret> with no org/repo split survives the ssh-URL-form strip (still caught)" \
+              "$WORK/bad_r_ssh_url_single_segment.txt"
+
+# (s) §11.4.201 carrier-strip #32: this scanner's own documented golden-bad
+# AKIA placeholder literal (`AKIA1234567890123456` -- the same value already
+# cited throughout this scanner's own doc comments and quoted, as prose
+# discussing this very detector, inside docs/requests/history.md's §11.4.208
+# ledger) must not itself be flagged as a real hit. Built via printf (split
+# across two args, mirroring the (2)/bad_2_akia.txt self-exempt technique
+# above) so this test file's OWN source never carries the literal token
+# contiguous on one physical line.
+{ printf 'The documented golden-bad placeholder value is `AKIA'
+  printf '1234567890123456`, quoted here as prose.\n'
+} > "$WORK/good_s_akia_doc_placeholder.txt"
+assert_clean "(s) this scanner's own documented AKIA placeholder literal, quoted in prose (never a working credential)" \
+             "$WORK/good_s_akia_doc_placeholder.txt"
+
+# (s-neg) FALSIFYING CONTROL: carrier-strip #32 is anchored on the EXACT
+# sequential-digit literal only -- a DIFFERENT, non-sequential 16-char AKIA
+# suffix (a realistic key shape) must still be CAUGHT.
+{ printf 'leaked: AKIA'
+  printf '9Q2X7M4B8N1V5C3Z\n'
+} > "$WORK/bad_s_akia_real_shape.txt"
+assert_caught "(s-neg) a different, non-sequential 16-char AKIA suffix survives the exact-literal strip (still caught)" \
+              "$WORK/bad_s_akia_real_shape.txt"
+
+# (t) §11.4.201 carrier-strip #33: an HTML-rendered markdown illustration
+# (`` `API_KEY=x` `` -> `<code>API_KEY=x</code>,`) whose closing tag +
+# trailing punctuation pads the 1-char value past detector-1's 8-char floor
+# must not itself be flagged as a real hit. Built via printf (split across
+# two args) so this test file's OWN source never carries the keyword=value
+# plus absorbed closing-tag shape contiguous on one physical line.
+{ printf '<code>API_KEY=x'
+  printf '</code>,\n'
+} > "$WORK/good_t_html_tag_absorbed.txt"
+assert_clean "(t) HTML-rendered keyword=value whose closing tag pads a short markdown illustration past the detector floor (never a working credential)" \
+             "$WORK/good_t_html_tag_absorbed.txt"
+
+# (t-neg) FALSIFYING CONTROL: carrier-strip #33 only BLANKS the closing tag
+# before extraction -- a genuine secret already 8+ chars long BEFORE the tag
+# must still be CAUGHT once the tag is removed.
+{ printf 'api_key=hunter2hunter2Secret'
+  printf '</code>\n'
+} > "$WORK/bad_t_real_secret_before_tag.txt"
+assert_caught "(t-neg) a real secret immediately followed by an HTML closing tag survives the tag-blank strip (still caught)" \
+              "$WORK/bad_t_real_secret_before_tag.txt"
+
+# (u) §11.4.201 carrier-strip #34: an HTML-entity-encoded quoted shell
+# variable reference (`&quot;$NAME&quot;`, the rendered form of a markdown
+# `"$NAME"` carrier-strip #27 already exempts) adjacent to an email must
+# decode to the SAME shape its markdown source already exempts, not read as
+# password-shaped. Built via printf (split across two args, mirroring the
+# (s)/(s-neg) self-exempt technique above).
+{ printf 'git -c user.email=fastcycle-migrate@example.invalid commit-tree &quot;$NEW_TREE&quot; '
+  printf '...\n'
+} > "$WORK/good_u_html_entity_quoted_var.txt"
+assert_clean '(u) HTML-entity-encoded quoted shell-variable reference adjacent to an email decodes to the same shape its markdown source already exempts' \
+             "$WORK/good_u_html_entity_quoted_var.txt"
+
+# (u-neg) FALSIFYING CONTROL: carrier-strip #34 only RECOVERS the literal
+# punctuation an entity represents -- a genuine password wrapped in the SAME
+# HTML-entity quotes, adjacent to an email, must still be CAUGHT once
+# decoded (it is not a `$NAME` shell-variable reference).
+{ printf 'user@company.com : &quot;Hunter2Secret'
+  printf '99&quot;\n'
+} > "$WORK/bad_u_real_password_quoted_entity.txt"
+assert_caught "(u-neg) a real password wrapped in HTML-entity quotes adjacent to an email survives the entity-decode recovery (still caught)" \
+              "$WORK/bad_u_real_password_quoted_entity.txt"
+
+# (v) §11.4.201 carrier-strip #34 (detector-1 implementation): a DOUBLY
+# HTML-entity-escaped closing tag (`&lt;/code&gt;` -- prose that literally
+# describes an HTML tag, re-escaped by the exporter, as opposed to a
+# markdown code-span the exporter rendered INTO a real `</code>` tag) must
+# decode to the same real tag carrier-strip #33 already blanks, not read as
+# password-shaped. Built via printf (split across two args).
+{ printf '<code>API_KEY=x'
+  printf '&lt;/code&gt;,\n'
+} > "$WORK/good_v_double_escaped_tag.txt"
+assert_clean "(v) doubly HTML-entity-escaped closing tag decodes to the real tag carrier-strip #33 already blanks (never a working credential)" \
+             "$WORK/good_v_double_escaped_tag.txt"
+
+# (v-neg) FALSIFYING CONTROL: a real secret already 8+ chars long BEFORE a
+# doubly-escaped closing tag must still be CAUGHT once decoded and blanked.
+{ printf 'api_key=hunter2hunter2Secret'
+  printf '&lt;/code&gt;\n'
+} > "$WORK/bad_v_real_secret_before_double_escaped_tag.txt"
+assert_caught "(v-neg) a real secret immediately followed by a doubly-entity-escaped HTML closing tag survives the decode+blank strip (still caught)" \
+              "$WORK/bad_v_real_secret_before_double_escaped_tag.txt"
+
+# (w) carrier-strip #35: a single decode pass only resolves ONE escaping
+# level -- a TRIPLY-escaped closing tag (`&amp;lt;/code&amp;gt;`, produced
+# when a report already containing the (v)-shape DOUBLY-escaped tag is
+# itself quoted into a LATER report and re-exported to HTML a second time)
+# must still decode to the real tag carrier-strip #33 blanks, within the
+# bounded 3-pass loop. Forensic FP (2026-10-05, measured against the real
+# live docs/requests/history.html ledger): exactly this shape, surviving as
+# `API_KEY=x&lt;/code&gt;,` after the single-pass #34 fix.
+{ printf '<code>API_KEY=x'
+  printf '&amp;lt;/code&amp;gt;,\n'
+} > "$WORK/good_w_triple_escaped_tag.txt"
+assert_clean "(w) triply HTML-entity-escaped closing tag decodes (within the bounded 3-pass loop) to the real tag carrier-strip #33 already blanks" \
+             "$WORK/good_w_triple_escaped_tag.txt"
+
+# (w-neg) FALSIFYING CONTROL: a real secret already 8+ chars long BEFORE a
+# triply-escaped closing tag must still be CAUGHT once decoded and blanked
+# -- the iterative loop recovers the real tag, it does not blank the secret
+# that precedes it.
+{ printf 'api_key=hunter2hunter2Secret'
+  printf '&amp;lt;/code&amp;gt;\n'
+} > "$WORK/bad_w_real_secret_before_triple_escaped_tag.txt"
+assert_caught "(w-neg) a real secret immediately followed by a triply-entity-escaped HTML closing tag survives the decode+blank strip (still caught)" \
+              "$WORK/bad_w_real_secret_before_triple_escaped_tag.txt"
 
 echo ""
 echo "== RESULT: ${pass} passed, ${fail} failed =="

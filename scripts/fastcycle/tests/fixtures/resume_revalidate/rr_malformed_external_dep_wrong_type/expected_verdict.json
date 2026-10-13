@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr19000000000000000000000000000000000000000000000000000000019",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "malformed-external-dependency",
+      "detail": "external dep has kind=git-tree but its `locator` field is not a string (got 5) -- DEC-34 requires every dependency be re-hashed, and this tool cannot resolve a filesystem path from a non-string locator to compute its live content_address; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}

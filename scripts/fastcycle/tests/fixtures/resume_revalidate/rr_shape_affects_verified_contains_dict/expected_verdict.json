@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr6900000000000000000000000000000000000000000000000000000000",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "malformed-handoff-field",
+      "detail": "external_deps entry `affects_verified` contains an entry that is not a hashable JSON scalar (str/int/float/bool) -- got dict: {'a': 1} -- this tool cannot add it to the facts_needing_reverification set/sort it alongside other entries; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}

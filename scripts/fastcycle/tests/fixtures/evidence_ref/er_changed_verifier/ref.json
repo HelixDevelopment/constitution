@@ -1,0 +1,28 @@
+{
+  "body_hash": "5bcea68d0aa5b823e8f51113ded4c2fcc4eaf0edf60ac82e02b45149a208a8c4",
+  "established_at": "2026-09-01T00:00:00Z",
+  "established_by": "test-fixture-author:T108",
+  "evidence": {
+    "content_address": "sha256:aa98e65eb8c27a47810e3ad9732493a6be04989885df1d0eada5af2efd87e71a",
+    "path": "evidence.txt"
+  },
+  "fact": "the T108 fixture verifier confirmed input_a.txt satisfies its check",
+  "inputs": {
+    "pairs": [
+      {
+        "content_address": "sha256:ceca1d32af1ef858ed4be7e6dbc96fdb3e67b677b802108c00ff71f4f5dc2e67",
+        "path": "input_a.txt"
+      }
+    ],
+    "paths": [
+      "input_a.txt"
+    ],
+    "root": "sha256:4afdb2c9a7c5f0f6dcafd81e3f03fdd4d660dff8dd185d546bf97d7625b79962"
+  },
+  "ref_id": "FC-ER-CHANGED-VERIFIER-001",
+  "schema": "evref/v1",
+  "target_fingerprint": "hermetic",
+  "verdict": "PASS",
+  "verifier_id": "verifier.sh",
+  "verifier_version": "sha256:14a844671d1acdaa4d0a232e6b48beea44ede205c04c5d1510a7168acfbcceac"
+}

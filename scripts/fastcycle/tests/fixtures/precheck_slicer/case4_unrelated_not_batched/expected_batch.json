@@ -1,0 +1,16 @@
+{
+  "_house_note": "GREEN-branch expectation for the (today absent) review/slicer.py, T-C11 (contract review-batch-and-precheck.md RB-001: 'unrelated changes are never batched'; 'union(slices.changes) = batch.changes'). Not a byte-for-byte comparison target -- exact batch_id/slice numbering is T-C11's implementer's own decision -- this RED test asserts only the two load-bearing RB-001 facts below, once slicer.py is real.",
+  "related_group": {
+    "logic_group": "widget_a",
+    "must_be_in_one_batch": [
+      "sha256:538a07cce2baf7f98efb013bbccdee401fe65d294adcb22d3057020afa2605f2",
+      "sha256:ec03963a62b8a47f048015878c2313d7899df85f0ad5b09b500867ee349fb9a2"
+    ]
+  },
+  "unrelated_change": {
+    "logic_group": "widget_c",
+    "change_id": "sha256:78ea8f557204f1251690e45c3179335cb6408cc6f6cf57322ee355ecd68702c9",
+    "must_not_share_a_batch_with_the_related_group": true
+  },
+  "conservation_invariant": "every one of the 3 change_ids above must appear in exactly one slice across all produced batches -- RB-001 'batching never drops a change'"
+}

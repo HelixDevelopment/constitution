@@ -1,0 +1,19 @@
+{
+  "batch_id": "RB-T034-LOWEFFORT",
+  "changes": [
+    "sha256:d8d7c5cac7c6b4c9a6a19b66fe63c3fdd6ec5d8ad19e4a3d5f9a6a19b66fe63c"
+  ],
+  "related_by": "logic_group:fastcycle-review-record-fixture",
+  "slices": [
+    {
+      "context_pack": {
+        "blast_radius": "single helper function; no callers outside this file (fixture)",
+        "intent": "I2 fixture: this batch's CONTENT is never read by record -- the tier/effort refusal happens before --batch is opened -- present only so the invocation matches the real CLI shape.",
+        "sibling_search_ref": "qa-results/fastcycle/us1/green/T034_fixpass/sibling_search_rb_bad_low_effort.json"
+      },
+      "lines": 3,
+      "slice_id": "S1"
+    }
+  ],
+  "total_changed_lines": 3
+}

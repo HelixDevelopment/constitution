@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr02000000000000000000000000000000000000000000000000000000002",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "stale-external-dependency",
+      "detail": "external dep dep_a content_address changed: recorded=sha256:8c6c02d3802ced99be205cdad54e4a5fbf400d8e9ac34e12bd4fae3e345dce66 live=sha256:4b913debae470726f95f35447351543c798772d1844f3c1db930489739c87602"
+    }
+  ],
+  "facts_needing_reverification": ["EV-RR02-A"],
+  "effects_not_to_repeat": []
+}

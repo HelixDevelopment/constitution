@@ -1,0 +1,8 @@
+{
+  "gates": [
+    { "name": "gate_pass_a", "script": "gate_pass_a.sh", "args": [], "writes": [] },
+    { "name": "gate_pass_b", "script": "gate_pass_b.sh", "args": [], "writes": [] },
+    { "name": "gate_fail_c", "script": "gate_fail_c.sh", "args": [], "writes": [] }
+  ],
+  "n_shards": 3
+}

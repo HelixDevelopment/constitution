@@ -1,0 +1,7 @@
+{
+  "scenario": "golden: a changed source re-renders all four formats (plan.md T-C12; task line #2)",
+  "source": "source.md",
+  "today_behaviour": "A real content edit (marker RK-CHANGED-V1 -> RK-CHANGED-V2, verified via sha256 AND a direct grep-in-rendered-output check) followed by a real, non-check-only invocation of scripts/testing/sync_all_markdown_exports.sh causes all three sibling formats (.html, .pdf, .docx) to regenerate -- their mtimes bump past the baseline render AND the new marker appears in the rendered .html while the old marker is absent. Together with source.md (the source of truth), that is the full §11.4.65 four-format set (.md + .html + .pdf + .docx).",
+  "future_behaviour_once_T-C12_lands": "render_keys.py's content-addressed key for this twin changes (the source-bytes component of the preimage differs between V1 and V2), so the freshness gate must report STALE for every one of the three format twins and the exporter must still regenerate all three -- this scenario is the GOLDEN baseline that behaviour must be preserved against once T-C12 lands (never weakened, per FR-022).",
+  "note": "This is a positive (golden), not golden-bad, scenario: it proves the CORRECT, must-be-preserved multi-format regeneration behaviour, distinct from rk_unchanged_today/'s proof of the CURRENT wasteful edge case."
+}

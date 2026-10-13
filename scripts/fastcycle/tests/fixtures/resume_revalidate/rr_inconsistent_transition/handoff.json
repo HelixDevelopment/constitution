@@ -1,0 +1,31 @@
+{
+  "handoff_id": "sha256:rr05000000000000000000000000000000000000000000000000000000005",
+  "agent_key": "rr05agentkey0005",
+  "item_id": "ATM-9005",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "DEPLOY",
+  "verified": [
+    {
+      "ref_id": "EV-RR05-A",
+      "fact": "the implementation plan was reviewed and approved",
+      "verifier_id": "plan-review",
+      "verifier_version": "sha256:3333000000000000000000000000000000000000000000000000000000b1",
+      "inputs": "sha256:4444000000000000000000000000000000000000000000000000000000b2",
+      "phase": "PLAN",
+      "target_fingerprint": "hermetic",
+      "verdict": "PASS",
+      "evidence": "qa-results/fastcycle/rr05/plan.log",
+      "established_by": "rr05agentkey0005",
+      "established_at": "2026-09-30T08:00:00Z"
+    }
+  ],
+  "pending": [
+    {"step": "monitor the deployed rollout", "precondition": "deployed"}
+  ],
+  "partial_artefacts": [],
+  "external_deps": [],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

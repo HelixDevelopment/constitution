@@ -1,0 +1,38 @@
+{
+  "handoff_id": "sha256:rr07000000000000000000000000000000000000000000000000000000007",
+  "agent_key": "rr07agentkey0007",
+  "item_id": "ATM-9107",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "IMPLEMENT",
+  "verified": [
+    {
+      "ref_id": "EV-RR07-A",
+      "fact": "the remote artefact's declared schema matches the spec",
+      "verifier_id": "schema-check",
+      "verifier_version": "sha256:cccc0000000000000000000000000000000000000000000000000000000c",
+      "inputs": "sha256:dddd0000000000000000000000000000000000000000000000000000000d",
+      "phase": "IMPLEMENT",
+      "target_fingerprint": "hermetic",
+      "verdict": "PASS",
+      "evidence": "qa-results/fastcycle/rr07/schema.log",
+      "established_by": "rr07agentkey0007",
+      "established_at": "2026-09-30T09:00:00Z"
+    }
+  ],
+  "pending": [
+    {"step": "publish the release notes referencing the remote artefact", "precondition": "EV-RR07-A verified"}
+  ],
+  "partial_artefacts": [],
+  "external_deps": [
+    {
+      "kind": "http-resource",
+      "locator": "https://example.com/releases/artefact-v1.tar.gz",
+      "content_address": "sha256:eeee0000000000000000000000000000000000000000000000000000000e",
+      "affects_verified": ["EV-RR07-A"]
+    }
+  ],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

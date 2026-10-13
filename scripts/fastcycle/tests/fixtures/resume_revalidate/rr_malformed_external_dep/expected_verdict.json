@@ -1,0 +1,16 @@
+{
+  "handoff_id": "sha256:rr11000000000000000000000000000000000000000000000000000000011",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "malformed-external-dependency",
+      "detail": "external_deps entry is not a JSON object (got 'not-a-dict-entry') -- DEC-34 requires every dependency be re-hashed, and a non-dict entry cannot be re-hashed or identified; treat as unsafe until independently, manually re-verified"
+    },
+    {
+      "class": "malformed-external-dependency",
+      "detail": "external dep dep-x has a missing or malformed `kind` field (got None) -- DEC-34 requires every dependency be re-hashed, and this tool cannot re-hash a dependency whose kind it cannot read; treat as unsafe until independently, manually re-verified"
+    }
+  ],
+  "facts_needing_reverification": ["EV-RR11-A"],
+  "effects_not_to_repeat": ["commit-rr11-0001"]
+}

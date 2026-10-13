@@ -1,0 +1,12 @@
+{
+  "description": "metamorphic relation: run A selects {gate_alpha} for changed_paths=[src/alpha.sh]; run B adds an unrelated changed path (src/beta.sh) on top -- B's member set must be a SUPERSET of (or equal to) A's, never smaller",
+  "map_file": "map.json",
+  "layer": "all",
+  "run_a_changed_paths": ["src/alpha.sh"],
+  "run_b_changed_paths": ["src/alpha.sh", "src/beta.sh"],
+  "expected_exit_code": 0,
+  "expected_determinable": true,
+  "expected_run_a_members": ["gate_alpha"],
+  "expected_run_b_members": ["gate_alpha", "gate_beta"],
+  "metamorphic_relation": "members(run_b) superset_or_equal members(run_a)"
+}

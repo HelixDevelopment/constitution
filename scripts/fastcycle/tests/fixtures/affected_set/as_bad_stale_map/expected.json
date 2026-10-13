@@ -1,0 +1,11 @@
+{
+  "description": "gate_alpha's map entry content_hash does not match the real gate_alpha.sh on disk (the gate script was edited after tracing) -- AS-003 makes the map invalid, hence determinable=false",
+  "map_file": "map_stale.json",
+  "changed_paths": ["src/alpha.sh"],
+  "layer": "all",
+  "expected_exit_code": 4,
+  "expected_determinable": false,
+  "expected_members": ["gate_alpha", "gate_beta", "gate_gamma", "gate_docsync", "gate_integrity"],
+  "expected_skipped_reason_codes": {},
+  "expected_fallback_reason_prefix": "affected-set undeterminable:"
+}

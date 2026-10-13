@@ -1,0 +1,19 @@
+{
+  "batch_id": "RB-T061-C1",
+  "changes": [
+    "sha256:0000000000000000000000000000000000000000000000000000000000c1"
+  ],
+  "related_by": "logic_group:fastcycle-precheck-slicer-fixture-case1",
+  "slices": [
+    {
+      "context_pack": {
+        "blast_radius": "single fixture change; no real callers (T061 fixture)",
+        "intent": "T061 case-1 fixture batch: exists only to prove a review CAN be recorded today with no --precheck flag and no sibling precheck.json on disk.",
+        "sibling_search_ref": "qa-results/fastcycle/us2/red/T061/sibling_search_case1.json"
+      },
+      "lines": 3,
+      "slice_id": "S1"
+    }
+  ],
+  "total_changed_lines": 3
+}

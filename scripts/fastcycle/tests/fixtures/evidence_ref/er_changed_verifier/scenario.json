@@ -1,0 +1,6 @@
+{
+  "consume_target": null,
+  "failure_class": "changed_verifier",
+  "kind": "golden-bad",
+  "note": "declared input unchanged; verifier.sh's CURRENT bytes differ from ref.json's recorded verifier_version (verifier_as_recorded.sh's bytes, at create time)."
+}

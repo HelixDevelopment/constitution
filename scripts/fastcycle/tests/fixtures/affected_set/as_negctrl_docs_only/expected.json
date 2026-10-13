@@ -1,0 +1,16 @@
+{
+  "description": "change touches only docs/README.md and docs/CHANGELOG.md -- change_class=docs-only is DERIVED (every changed path maps only to doc gates), executable gates appear in skipped with LAYER_NOT_APPLICABLE",
+  "map_file": "map.json",
+  "changed_paths": ["docs/README.md", "docs/CHANGELOG.md"],
+  "layer": "all",
+  "expected_exit_code": 0,
+  "expected_determinable": true,
+  "expected_change_class": "docs-only",
+  "expected_members": ["gate_docsync", "gate_integrity"],
+  "expected_skipped_reason_codes": {
+    "gate_alpha": "LAYER_NOT_APPLICABLE",
+    "gate_beta": "LAYER_NOT_APPLICABLE",
+    "gate_gamma": "LAYER_NOT_APPLICABLE"
+  },
+  "expected_fallback_reason": null
+}

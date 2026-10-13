@@ -1,0 +1,5 @@
+{
+  "consume_target": null,
+  "kind": "golden-good",
+  "note": "hermetic fact (ref.target_fingerprint == 'hermetic'); --target omitted at consume, matching ER-005's hermetic carve-out."
+}

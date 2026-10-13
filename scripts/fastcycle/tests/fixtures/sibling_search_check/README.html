@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>T088 fixtures — `sibling_search_check.sh` RED-test corpus
+(plan.md T-D03)</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">
+
+:root {
+
+--od-bg: #f5f8ff; 
+--od-surface: #ffffff; 
+--od-surface-warm: #eaf1ff; 
+--od-surface-muted: #f4f6fb; 
+
+--od-fg: #101828; 
+--od-fg-2: #344054; 
+--od-muted: #667085; 
+
+--od-border: #d7e0ef; 
+--od-border-soft: #edf2f8; 
+
+--od-accent: #2563eb; 
+--od-accent-on: #ffffff; 
+--od-accent-hover: #205fd6; 
+--od-accent-tint: #eaf1ff; 
+
+--od-success: #16a34a; 
+--od-warn: #f59e0b; 
+--od-danger: #ef4444; 
+
+
+--od-font-body: "Source Sans 3", "Source Sans Pro", "Source Sans", Inter,
+-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+"Helvetica Neue", Arial, "Noto Sans", "DejaVu Sans", sans-serif,
+"Apple Color Emoji", "Segoe UI Emoji";
+--od-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace,
+SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+--od-leading-body: 1.65;
+--od-leading-tight: 1.2;
+
+--od-radius-xs: 4px;
+--od-radius-sm: 6px;
+--od-radius: 8px;
+--od-radius-lg: 12px;
+--od-radius-pill: 9999px;
+
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(16, 24, 40, 0.10);
+--od-focus-ring: 0 0 0 4px rgba(37, 99, 235, 0.22);
+
+--doc-fg: var(--od-fg);
+--doc-fg-muted: var(--od-muted);
+--doc-bg: var(--od-bg);
+--doc-surface: var(--od-surface);
+--doc-accent: var(--od-accent);
+--doc-accent-soft: var(--od-accent-tint);
+--doc-border: var(--od-border);
+--doc-border-soft: var(--od-border-soft);
+--doc-code-bg: #eef2fb;
+--doc-code-fg: #1d2433;
+--doc-quote-bar: var(--od-accent);
+--doc-quote-bg: #f4f7fe;
+--doc-table-stripe:#f7f9fe;
+}
+
+html {
+font-size: 16px;
+}
+body {
+font-family: var(--od-font-body);
+color: var(--doc-fg);
+background: var(--doc-bg);
+line-height: var(--od-leading-body);
+font-size: 1rem;
+max-width: 58rem;
+margin: 2.5rem auto;
+padding: 2.25rem 2.5rem 4rem;
+background-clip: padding-box;
+border-radius: var(--od-radius-lg);
+-webkit-text-size-adjust: 100%;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+}
+
+@media screen and (min-width: 62rem) {
+body {
+background: var(--doc-surface);
+box-shadow: var(--od-elev-raised);
+}
+html { background: var(--doc-bg); }
+}
+
+h1, h2, h3, h4, h5, h6 {
+font-family: var(--od-font-body);
+font-weight: 600;
+line-height: var(--od-leading-tight);
+letter-spacing: -0.011em;
+margin: 1.8em 0 0.6em;
+color: var(--od-fg);
+}
+h1 {
+font-size: 2.1rem;
+font-weight: 700;
+letter-spacing: -0.022em;
+border-bottom: 2px solid var(--doc-border);
+padding-bottom: 0.32em;
+margin-top: 0;
+}
+h2 {
+font-size: 1.55rem;
+border-bottom: 1px solid var(--doc-border-soft);
+padding-bottom: 0.25em;
+}
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1.0rem; color: var(--od-fg-2); }
+h6 { font-size: 0.92rem; color: var(--doc-fg-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+h3.status-group-heading {
+margin-top: 1.6em;
+padding: 0.4em 0.7em;
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+border-left: 4px solid var(--doc-accent);
+border-radius: var(--od-radius-sm);
+font-size: 1.15rem;
+}
+
+p { margin: 0.75em 0; }
+a {
+color: var(--doc-accent);
+text-decoration: none;
+border-bottom: 1px solid transparent;
+transition: border-color 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+a:hover { color: var(--od-accent-hover); border-bottom-color: currentColor; }
+a:focus-visible {
+outline: none;
+border-radius: var(--od-radius-xs);
+box-shadow: var(--od-focus-ring);
+}
+strong { font-weight: 600; color: var(--od-fg); }
+em { font-style: italic; }
+hr {
+border: 0;
+border-top: 1px solid var(--doc-border);
+margin: 2.25em 0;
+}
+blockquote {
+margin: 1.1em 0;
+padding: 0.6em 1.2em;
+color: var(--od-fg-2);
+border-left: 4px solid var(--doc-quote-bar);
+background: var(--doc-quote-bg);
+border-radius: 0 var(--od-radius-sm) var(--od-radius-sm) 0;
+}
+ul, ol { padding-left: 1.6em; margin: 0.75em 0; }
+li { margin: 0.3em 0; }
+li::marker { color: var(--doc-fg-muted); }
+
+code, pre, kbd, samp {
+font-family: var(--od-font-mono);
+font-size: 0.88em;
+}
+code {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 0.15em 0.42em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border-soft);
+}
+pre {
+background: var(--doc-code-bg);
+color: var(--doc-code-fg);
+padding: 1em 1.2em;
+border-radius: var(--od-radius);
+overflow-x: auto;
+line-height: 1.5;
+border: 1px solid var(--doc-border);
+}
+pre code {
+background: transparent;
+padding: 0;
+border: 0;
+border-radius: 0;
+}
+kbd {
+background: var(--od-surface);
+color: var(--od-fg-2);
+padding: 0.1em 0.45em;
+border-radius: var(--od-radius-xs);
+border: 1px solid var(--doc-border);
+box-shadow: 0 1px 0 var(--doc-border);
+}
+
+table {
+border-collapse: separate;
+border-spacing: 0;
+width: 100%;
+margin: 1.3em 0;
+font-size: 0.93rem;
+display: block;
+overflow-x: auto;
+border: 1px solid var(--doc-border);
+border-radius: var(--od-radius-sm);
+}
+thead th {
+background: var(--doc-accent-soft);
+color: var(--od-fg);
+font-weight: 600;
+text-align: left;
+}
+th, td {
+border-bottom: 1px solid var(--doc-border-soft);
+border-right: 1px solid var(--doc-border-soft);
+padding: 0.55em 0.8em;
+vertical-align: top;
+
+overflow-wrap: break-word;
+word-break: normal;
+white-space: normal;
+hyphens: auto;
+}
+tr > th:last-child, tr > td:last-child { border-right: 0; }
+tbody tr:last-child > td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: var(--doc-table-stripe); }
+
+
+td.cell-type-bug { background: #fdecec; } 
+td.cell-type-feature { background: #e7f6ec; } 
+td.cell-type-task { background: #eef2fb; } 
+
+td.cell-status-queued { background: #eef1f6; } 
+td.cell-status-in-progress { background: #e7eefc; } 
+td.cell-status-ready-for-testing { background: #e3eefe; } 
+td.cell-status-in-testing { background: #d8e6fd; } 
+td.cell-status-reopened { background: #fdeccd; } 
+td.cell-status-operator-blocked { background: #fdd9d9; } 
+td.cell-status-fixed { background: #d8f3e2; } 
+td.cell-status-obsolete { background: #e3e6ec; color: var(--doc-fg-muted); } 
+
+tr.row-status-fixed { background: #f1faf4; }
+tr.row-status-fixed td { border-color: #cfead8; }
+tr.row-status-operator-blocked { background: #fdf4f4; }
+tr.row-status-operator-blocked td { border-color: #f4cccc; }
+
+tr.row-status-obsolete {
+background: #e3e6ec;
+color: var(--doc-fg-muted);
+}
+tr.row-status-obsolete td {
+text-decoration: line-through;
+border-color: #d1d5dd;
+}
+
+tr.row-status-obsolete td.cell-status-obsolete {
+text-decoration: line-through;
+}
+
+.tag-done, .tag-completed, .tag-in-progress, .tag-future, .tag-planned {
+display: inline-block;
+padding: 0.12em 0.66em;
+border-radius: var(--od-radius-pill);
+font-size: 0.82em;
+font-weight: 600;
+line-height: 1.5;
+letter-spacing: 0.01em;
+white-space: nowrap;
+border: 1px solid transparent;
+vertical-align: baseline;
+}
+
+.tag-done, .tag-completed {
+background: #e7f6ec;
+color: #14773a;
+border-color: #bfe6cd;
+}
+
+.tag-in-progress {
+background: #e7eefc;
+color: #1c4fce;
+border-color: #c4d6fb;
+}
+
+.tag-future, .tag-planned {
+background: #fdf3d3;
+color: #8a6400;
+border-color: #f0dca0;
+}
+
+img {
+max-width: 100%;
+height: auto;
+border-radius: var(--od-radius-sm);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+:root {
+--od-bg: #0f1420;
+--od-surface: #161c2b;
+--od-surface-warm: #1c2740;
+--od-surface-muted: #141a28;
+--od-fg: #e6ebf4;
+--od-fg-2: #c2cad8;
+--od-muted: #8b94a7;
+--od-border: #2a3346;
+--od-border-soft: #1f2839;
+--od-accent: #5b8def; 
+--od-accent-on: #0f1420;
+--od-accent-hover: #79a3f4;
+--od-accent-tint: #19233a;
+--od-success: #4caf72;
+--od-warn: #e0a13a;
+--od-danger: #e0655f;
+--od-elev-ring: 0 0 0 1px var(--od-border);
+--od-elev-raised: 0 18px 48px rgba(0, 0, 0, 0.5);
+--od-focus-ring: 0 0 0 4px rgba(91, 141, 239, 0.32);
+--doc-code-bg: #11192a;
+--doc-code-fg: #d7def0;
+--doc-quote-bg: #161f33;
+--doc-table-stripe:#141b29;
+}
+
+td.cell-type-bug { background: #2a1110; }
+td.cell-type-feature { background: #0f2a18; }
+td.cell-type-task { background: #141f38; }
+
+td.cell-status-queued { background: #1c2330; }
+td.cell-status-in-progress { background: #14233f; }
+td.cell-status-ready-for-testing { background: #14223c; }
+td.cell-status-in-testing { background: #182a4a; }
+td.cell-status-reopened { background: #2c2008; }
+td.cell-status-operator-blocked { background: #2f0f0d; }
+td.cell-status-fixed { background: #0f2a18; }
+td.cell-status-obsolete { background: #20242e; color: var(--od-muted); }
+
+tr.row-status-fixed { background: #0d1f15; }
+tr.row-status-fixed td { border-color: #1c402a; }
+tr.row-status-operator-blocked { background: #220d0c; }
+tr.row-status-operator-blocked td { border-color: #45201e; }
+tr.row-status-obsolete { background: #20242e; color: var(--od-muted); }
+tr.row-status-obsolete td { border-color: #2c313c; }
+
+.tag-done, .tag-completed { background: #0f2a18; color: #6fd497; border-color: #1c4a2c; }
+.tag-in-progress { background: #14233f; color: #88aef7; border-color: #28406a; }
+.tag-future, .tag-planned { background: #2c2208; color: #e3bd55; border-color: #54430f; }
+
+h3.status-group-heading { background: var(--od-accent-tint); color: var(--od-fg); }
+kbd { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4); }
+}
+</style>
+</head>
+<body>
+<h1 id="t088-fixtures--sibling_search_checksh-red-test-corpus-planmd-t-d03">T088
+fixtures — <code>sibling_search_check.sh</code> RED-test corpus (plan.md
+T-D03)</h1>
+<p><strong>Revision:</strong> 1 <strong>Last modified:</strong>
+2026-09-29T11:02:58+05:00</p>
+<p>Contract:
+<code>specs/004-fast-dev-cycles/contracts/closure-refusal.md</code>
+CR-004 (sibling search) + <code>data-model.md</code> §6.4
+<code>SiblingSearchArtefact</code> + <code>common-conventions.md</code>
+C-001 (exit codes) / C-004 (evidence and needles) / C-005
+(self-validation triple). tasks.md T088, verbatim: &quot;RED tests
+<code>constitution/scripts/fastcycle/tests/test_sibling_search_check_red.sh</code>
+and
+<code>constitution/scripts/workable-items/cmd/workable-items/fastcycle_sibling_search_test.go</code>
+(Bug closure without the artefact accepted today; golden-bad: refused;
+golden-bad: an artefact whose search shows no control needle is
+rejected; negative control: a Task closes without it) (plan T-D03;
+FR-011, SC-004)&quot;. plan.md T-D03 &quot;Protecting tests&quot; line, verbatim: &quot;RED:
+closure without the artefact accepted today; golden-bad: refused;
+golden-bad: an artefact whose search shows no needle is rejected (a null
+without a needle is not evidence); negative control: a Task closes
+without it; paired mutation: skip the needle check → the second
+golden-bad FAILs.&quot;</p>
+<h2 id="the-tool-under-test-not-yet-implemented--t096-a-later-task">The
+tool under test (not yet implemented — T096, a later task)</h2>
+<p><code>constitution/scripts/fastcycle/closure/sibling_search_check.sh</code>,
+per plan.md&#39;s path table (line 199:
+<code>sibling_search_check.sh  # FR-011 artefact validator (T-D03)</code>).
+Per T096&#39;s own &quot;Work&quot; line (&quot;Implement
+<code>constitution/scripts/fastcycle/closure/sibling_search_check.sh</code>
+(validates class statement, search method with its control needle, every
+instance with disposition fixed-here / tracked-as ATM-nnn /
+proven-not-an-instance) until the shell half of T088 is GREEN&quot;), the
+real implementation reads one <code>SiblingSearchArtefact</code> JSON
+file (data-model.md §6.4) and validates it.</p>
+<p><strong>Inherits <code>common-conventions.md</code> in full</strong>,
+in particular:</p>
+<ul>
+<li><strong>C-001</strong> exit codes: <code>0</code> the artefact is
+VALID (an ACCEPTED <code>SiblingSearchArtefact</code>); <code>1</code> a
+FINDING — the artefact is present but INVALID, naming the offending
+field/record on stdout; <code>2</code> usage error (missing/unreadable
+positional argument); <code>3</code> self-test failure; <code>4</code>
+BLIND (the artefact file could not be read at all — distinct from &quot;read
+fine but invalid&quot;, per C-001&#39;s own BLIND row).</li>
+<li><strong>C-004</strong> control needles: <code>instances_found</code>
+being empty is NEVER, by itself, evidence that no sibling instance
+exists — it is evidence ONLY when <code>control_needle_found</code> is
+independently <code>true</code>, proving the SAME search method that
+produced the empty list can genuinely find a known-present thing
+(§11.4.201(7)(b) / §11.4.273(f): &quot;a null without a needle is not
+evidence&quot;, plan.md T-D03&#39;s own wording, verbatim above).</li>
+<li><strong>C-005</strong> self-validation triple, using the shared
+<code>constitution/scripts/fastcycle/tests/lib/triple_harness.sh</code>
+runner (already implemented; this RED test invokes it directly, so it
+self-flips from &quot;bad --tool&quot; (exit 2, tool absent) to real per-fixture
+verdicts the moment T096 lands — no edit to this RED test needed).</li>
+</ul>
+<p><strong>Assumed CLI contract (UNCONFIRMED by the plan/contract text
+itself — no prior artefact names an exact argv shape; DEFINED here for
+this RED test&#39;s own GREEN-branch, binding-if-adopted on T096&#39;s
+implementer, following the house precedent in
+<code>fixtures/io_trace/README.md</code> and
+<code>fixtures/verdict_cache/README.md</code>):</strong></p>
+<pre><code>sibling_search_check.sh &lt;artefact.json&gt;</code></pre>
+<p>Reads the single positional <code>&lt;artefact.json&gt;</code> path
+and validates it against the <code>SiblingSearchArtefact</code> schema
+below. On a finding (exit 1), prints at least one line naming the
+offending field/record — <code>triple_harness.sh</code>&#39;s own C-005
+&quot;whole token&quot; name-matching rule governs which literal words each
+<code>golden-bad*/expected</code> file below requires on stdout.</p>
+<h2 id="siblingsearchartefact-json-schema-data-modelmd-64-this-red-tests"><code>SiblingSearchArtefact</code>
+JSON schema (data-model.md §6.4, this RED test&#39;s</h2>
+<p>own concretisation of the abstract field list into JSON)</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;class_statement&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;one-line statement of the defect class being searched for&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;search_method&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;the command/query used to search for sibling instances&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;control_needle&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;a known-present instance the search_method MUST find&gt;&quot;</span><span class="fu">,</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;control_needle_found&quot;</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;instances_found&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span><span class="dt">&quot;location&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;path:line&gt;&quot;</span><span class="fu">,</span> <span class="dt">&quot;disposition&quot;</span><span class="fu">:</span> <span class="st">&quot;fixed-here&quot;</span><span class="fu">}</span><span class="ot">,</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span><span class="dt">&quot;location&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;path:line&gt;&quot;</span><span class="fu">,</span> <span class="dt">&quot;disposition&quot;</span><span class="fu">:</span> <span class="st">&quot;tracked-as ATM-953&quot;</span><span class="fu">}</span><span class="ot">,</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span><span class="dt">&quot;location&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;path:line&gt;&quot;</span><span class="fu">,</span> <span class="dt">&quot;disposition&quot;</span><span class="fu">:</span> <span class="st">&quot;proven-not-an-instance&quot;</span><span class="fu">,</span> <span class="dt">&quot;proof&quot;</span><span class="fu">:</span> <span class="st">&quot;&lt;why&gt;&quot;</span><span class="fu">}</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p><code>disposition</code> is drawn from the DEC-20 closed set
+(data-model.md §6.4): <code>fixed-here</code> /
+<code>tracked-as &lt;ItemId&gt;</code> (an <code>[A-Z]{2,}-[0-9]+</code>
+ticket id, matching this project&#39;s own <code>canonicalIDRe</code>,
+<code>constitution/scripts/workable-items/cmd/workable-items/crud.go:25</code>)
+/ <code>proven-not-an-instance</code>. <code>ContentAddress</code>
+(data-model.md §6.4&#39;s final field) is treated here as tool-computed
+provenance metadata, out of this RED test&#39;s scope — no fixture below
+sets it, and none of the golden-bad classes exercises its absence.</p>
+<h2 id="the-5-scenarios">The 5 scenarios</h2>
+<table>
+<thead>
+<tr>
+<th>Directory</th>
+<th>Scenario</th>
+<th>Protecting-tests line it satisfies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>golden-good/</code></td>
+<td><strong>Golden-good</strong></td>
+<td>a well-formed artefact: needle found, every instance has a valid
+disposition</td>
+</tr>
+<tr>
+<td><code>golden-bad/</code></td>
+<td><strong>Golden-bad (required by C-005)</strong></td>
+<td>&quot;golden-bad: refused&quot; — <code>search_method</code> is missing
+entirely</td>
+</tr>
+<tr>
+<td><code>golden-bad-needle-not-found/</code></td>
+<td><strong>Golden-bad (2nd class, T-D03&#39;s own 2nd bullet)</strong></td>
+<td>&quot;golden-bad: an artefact whose search shows no control needle is
+rejected&quot;</td>
+</tr>
+<tr>
+<td><code>golden-bad-invalid-disposition/</code></td>
+<td><strong>Golden-bad (3rd class)</strong></td>
+<td>T096&#39;s own scope line (&quot;every instance with disposition fixed-here /
+tracked-as ATM-nnn / proven-not-an-instance&quot;) — a disposition outside
+that closed set</td>
+</tr>
+<tr>
+<td><code>negative-control/</code></td>
+<td><strong>Negative control (§11.4.201(1) false-positive
+guard)</strong></td>
+<td>zero <code>instances_found</code>, BUT
+<code>control_needle_found: true</code> — a genuinely-empty result the
+needle proves trustworthy, per plan.md T-D03&#39;s own &quot;a null WITHOUT a
+needle is not evidence&quot; (implying a null WITH one IS)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="golden-goodinput--golden-good"><code>golden-good/input</code> —
+golden-good</h3>
+<p><code>control_needle_found: true</code> and every one of 3
+<code>instances_found</code> entries carries a disposition from the
+closed set (one of each: <code>fixed-here</code>,
+<code>tracked-as ATM-953</code>, <code>proven-not-an-instance</code>).
+<code>sibling_search_check.sh golden-good/input</code> must exit 0.</p>
+<h3 id="golden-badinput--golden-bad-required"><code>golden-bad/input</code>
+— golden-bad (required)</h3>
+<p>Identical to <code>golden-good/input</code> except the
+<code>search_method</code> key is entirely absent.
+<code>sibling_search_check.sh golden-bad/input</code> must exit 1 and
+its stdout must contain the whole token <code>search_method</code> (this
+fixture&#39;s <code>expected</code> file).</p>
+<h3 id="golden-bad-needle-not-foundinput--golden-bad-2nd-class"><code>golden-bad-needle-not-found/input</code>
+— golden-bad (2nd class)</h3>
+<p>Identical to <code>golden-good/input</code> except
+<code>control_needle_found: false</code> (the search ran, but the
+mechanism&#39;s own proof-of-life needle was NOT found — the mechanism is
+not trustworthy, so its result, including any
+<code>instances_found</code> entries, cannot be trusted either).
+<code>expected</code> requires the whole token
+<code>control_needle</code>.</p>
+<h3 id="golden-bad-invalid-dispositioninput--golden-bad-3rd-class"><code>golden-bad-invalid-disposition/input</code>
+— golden-bad (3rd class)</h3>
+<p>Identical to <code>golden-good/input</code> except one
+<code>instances_found</code> entry&#39;s <code>disposition</code> is the
+literal string <code>&quot;under-investigation&quot;</code> — a value outside the
+DEC-20 closed set
+<code>{fixed-here, tracked-as &lt;ItemId&gt;, proven-not-an-instance}</code>.
+<code>expected</code> requires the whole token
+<code>disposition</code>.</p>
+<h3 id="negative-controlinput--negative-control"><code>negative-control/input</code>
+— negative control</h3>
+<p><code>control_needle_found: true</code>,
+<code>instances_found: []</code> (a genuinely empty list). This is the
+§11.4.201(1) false-positive guard for
+<code>golden-bad-needle-not-found/</code>: a checker that rejects EVERY
+empty-or-small <code>instances_found</code> list, rather than
+specifically the ones whose needle FAILED, would wrongly reject this
+fixture too. <code>sibling_search_check.sh negative-control/input</code>
+must exit 0 — zero sibling instances is a legitimate, evidence-backed
+finding when the search mechanism&#39;s own control needle proves it looked
+and could see.</p>
+</body>
+</html>

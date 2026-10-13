@@ -1,0 +1,6 @@
+{
+  "must_cosschedule": ["gate_shared_writer_x", "gate_shared_writer_y"],
+  "may_be_anywhere": ["gate_pass_a"],
+  "assertion": "gate_shared_writer_x and gate_shared_writer_y MUST land in the SAME shard, for EVERY n_shards value from 1 to len(gates) -- verified by this test's shard_ref.py reference (write-set-intersection union-find) against manifest.json's declared writes, AND (once T068/T-C05's gate_runner.sh lands) by actually running the sharded configuration N>=3 times and asserting the shared-temp-path's final content is exactly {'x','y'} with no interleaving/loss.",
+  "reference_verified": "confirmed by hand 2026-09-28 via lib/shard_ref.py against an equivalent manifest at n_shards=1 and n_shards=3 -- both correctly co-scheduled the shared-writer pair into one shard (qa-results evidence, this fork's own red_run_evidence.log)"
+}

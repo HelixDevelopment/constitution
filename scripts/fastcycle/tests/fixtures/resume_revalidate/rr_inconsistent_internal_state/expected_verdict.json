@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr01000000000000000000000000000000000000000000000000000000001",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "inconsistent-internal-state",
+      "detail": "verified fact EV-RR01-A established_at 2026-09-30T12:00:00Z is AFTER the handoff's own written_at 2026-09-30T11:00:00Z (causally impossible -- the record cannot be trusted)"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}

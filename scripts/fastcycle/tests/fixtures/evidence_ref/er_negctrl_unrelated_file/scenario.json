@@ -1,0 +1,5 @@
+{
+  "consume_target": null,
+  "kind": "negative-control",
+  "note": "unrelated.txt's CURRENT bytes differ from unrelated_as_recorded.txt's bytes -- but unrelated.txt is NEVER declared in ref.json's inputs.paths, so it is outside the Merkle root and MUST NOT affect the outcome (the section-11.4.201(1) false-positive guard applied to ER-002)."
+}

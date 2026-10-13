@@ -53,11 +53,11 @@
 #       happens to be called `suppress` does NOT (matching the bare name
 #       would refuse healthy code -- a §11.4.201(1) FAIL-bluff).
 #
-#       ONLY THE BROAD FORM IS FLAGGED. `suppress(Exception)` /
+#       THE BROAD FORM IS ALWAYS FLAGGED. `suppress(Exception)` /
 #       `suppress(BaseException)` swallow everything and are the violation.
 #       `suppress(FileNotFoundError)` is a DECLARED, BOUNDED tolerance --
 #       the developer named exactly the one failure they accept and every
-#       other exception still propagates -- and is deliberately NOT flagged.
+#       other exception still propagates -- and stays QUIET on its own.
 #       `suppress()` with NO arguments is likewise NOT flagged: it suppresses
 #       NOTHING (`issubclass(exc, ())` is always False), verified empirically
 #       rather than assumed (§11.4.6). An argument list that cannot be
@@ -65,18 +65,36 @@
 #       its own distinct message per §11.4.201(4)'s conservative-safe-on-
 #       unresolvable rule, naming the unresolved signal rather than guessing.
 #
+#       BOB-199 (§11.4.66 operator decision, 2026-08-26): a NARROW suppress
+#       IS additionally flagged when its `with`-block BODY contains an
+#       IRREVERSIBLE-capability call (delete/truncate/kill) -- the shape
+#       that actually causes harm, per the operator's own verbatim decision:
+#       "The scanner flags a narrow contextlib.suppress ONLY when combined
+#       with an irreversible capability (delete / truncate / kill) -- the
+#       shape that actually causes harm. Idiomatic narrow tolerances stay
+#       quiet, so the gate keeps its credibility and no false-positive storm
+#       trains readers to ignore it." A narrow suppress around anything ELSE
+#       (a plain read, a lookup, a non-destructive computation) stays quiet
+#       exactly as before -- this is a COMBINATION check, not a blanket
+#       narrow-suppress flag. See `IRREVERSIBLE_ATTRS` / `classify_suppress`'
+#       call site below for the closed attribute-name set and the per-site
+#       `# guardrails:allow <reason>` waiver path (§11.4.224(E)).
+#
 #       HONEST RESIDUAL GAPS (§11.4.6) -- named, never silent:
-#         * ASYMMETRY. A NARROW `try/except X: pass` IS flagged by (A1)
-#           while the semantically-equivalent `with suppress(X)` is NOT, so
-#           a SIM105 rewrite of a narrow handler moves that site out of
-#           scope. Flagging narrow suppression instead would fire on the
-#           idiomatic, correct form, and a false-positive storm is the worse
-#           defect (§11.4.201(1)) -- so the asymmetry is recorded as a known
-#           gap rather than closed by over-reach. Whether to close it is a
-#           consumer/operator decision (§11.4.66), not a default this gate
-#           picks; a consuming project measures its OWN corpus before
-#           deciding, since the trade depends entirely on how many narrow
-#           sites that corpus holds.
+#         * ASYMMETRY, NOW PARTIALLY CLOSED. A NARROW `try/except X: pass`
+#           IS flagged by (A1) while the semantically-equivalent
+#           `with suppress(X)` was NOT flagged AT ALL until BOB-199, so a
+#           SIM105 rewrite of a narrow handler moved that site out of scope
+#           regardless of what the handler body did. BOB-199 closes the
+#           SUBSET of that gap where the body performs an irreversible
+#           operation; a narrow suppress around a non-destructive body is
+#           STILL an asymmetric, undetected case relative to the equivalent
+#           `try/except`, by the same false-positive-storm reasoning as
+#           before -- flagging EVERY narrow suppress would fire on the
+#           idiomatic, correct form, and that remains the worse defect
+#           (§11.4.201(1)). Whether to close the REMAINING (non-irreversible)
+#           subset further is still a consumer/operator decision (§11.4.66),
+#           not a default this gate picks.
 #         * INDIRECTION. Resolution is syntactic and FLOW-INSENSITIVE, so it
 #           errs in BOTH directions on value-flow shapes -- measured, not
 #           assumed, and BOTH modes agree on every case below (no divergence):
@@ -381,6 +399,20 @@
 #       the unambiguous violation shape; a secondary CREDENTIAL SOURCE is
 #       not).
 #
+#       SHELL COUNTERPART (BOB-213) — bash/sh do not write `x || "default"`
+#       as a value-fallback expression (that parses as two SEPARATE commands
+#       joined by `||`, not an assignment expression); the shell-native shape
+#       of the SAME anti-pattern is PARAMETER-EXPANSION DEFAULTING:
+#       `token=${token:-"hunter2"}` / `PASSWORD="${PASSWORD:=changeme}"`. A
+#       second, shell-only grep (scoped to *.sh/*.bash files only, so it never
+#       fires on an unrelated `${...}` template-literal shape in JS/TS) flags
+#       a credential-shaped identifier defaulted via `:-`/`:=` to a value that
+#       does NOT itself begin with `$` — i.e. a LITERAL, never a fallback to
+#       another variable (`${TOKEN:-$FALLBACK}`) or a command substitution
+#       (`${TOKEN:-$(vault get token)}`), both of which are the SAME
+#       legitimate secondary-source pattern already exempted above and are
+#       deliberately NOT flagged.
+#
 # ── Why Python is analysed STRUCTURALLY, not textually (§11.4.201(7)(a)) ────
 # Shape (A) is a property of the PARSE TREE, not of the source text, and a
 # text scanner gets it wrong in BOTH directions -- each direction a §11.4
@@ -410,30 +442,48 @@
 # a degraded instrument that announces its degradation, never a silent floor
 # reported as a census (§11.4.6 / §11.4.201(6)).
 #
-# ── MODE-INDEPENDENT CARRIERS (§11.4.6 — measured, DISCLOSED, not closed) ───
+# ── MODE-INDEPENDENT CARRIERS (§11.4.6 — measured, PARTIALLY closed) ────────
 # That immunity is SCOPED to the Python `Try` / `With` shapes the AST
 # analyser owns, and an earlier revision stated it without the scope. It does
 # NOT extend to the other two detectors: shape (B) and the C-family half of
 # shape (A) are language-agnostic greps with NO structural counterpart in ANY
-# mode, so their carrier false-positives fire in the PRIMARY mode too, not
-# only in the degraded fallback. Each measured ast_rc=1 AND text_rc=1:
+# mode, so their carrier false-positives used to fire in the PRIMARY mode too,
+# not only in the degraded fallback (BOB-216). Each measured ast_rc=1 AND
+# text_rc=1 pre-fix:
 #   * Shape (B), CREDENTIAL — a comment or a docstring QUOTING the
 #     anti-pattern (`# NEVER write: api_key = cfg_key or "hunter2"`, or a
 #     style-guide docstring containing `password = supplied or "changeme"`)
-#     is reported as a live credential default.
+#     was reported as a live credential default.
 #   * Shape (A), C-FAMILY `catch` — a `//` comment or a string constant
-#     holding `try { x(); } catch (e) { }` is reported as an empty catch
+#     holding `try { x(); } catch (e) { }` was reported as an empty catch
 #     block, once per carrier line.
-# DISCLOSED, not built for. Closing them needs a per-language comment-and-
-# string model across every configured extension, and that model fails in the
-# UNDER direction this gate elsewhere refuses to take: a mis-modelled string
-# region deletes REAL code from the scan. The asymmetry already recorded for
-# BREADTH BY NAME governs here too -- over-reporting a carrier is visible and
-# recoverable; silently passing a real fail-open path is not. Whether to build
-# it is an operator / consumer decision (§11.4.66) and a tracked work item
-# (§11.4.197), never a default this gate picks. Stating these two is NOT a
-# claim the list is complete: it is a MEASURED SAMPLE of two detectors
-# (§11.4.118), exactly as the degraded-mode lists above are.
+#
+# CLOSED for the SAME-LINE case (BOB-216 fix, `strip_generic_carrier`, applied
+# BEFORE both the catch-shape search grep and the credential-default grep):
+# per-extension comment marker resolved from a CLOSED map (`//` for the
+# C-family/JS/TS/Java/C#/PHP/Go/Rust set, `#` for Python/Ruby/shell), a
+# character-by-character same-line quote-state walk (backslash-escape aware,
+# single AND double quotes) truncates the line at an UNQUOTED comment marker
+# and MASKS same-line string-literal content to whitespace before either
+# generic grep ever sees the line, so a `//`-commented or a same-line-quoted
+# spelling of the pattern no longer reaches the search. Extensions with no
+# entry in the marker map get an EMPTY marker (no comment-stripping applied,
+# same-line string-masking still applies) rather than a silent guess
+# (§11.4.6) — an honest, conservative default that never disables the
+# existing behaviour for an unenumerated extension.
+#
+# STILL OPEN, disclosed not built for (§11.4.6/§11.4.118): a CROSS-LINE
+# carrier — the anti-pattern spelled out inside a multi-line docstring or a
+# triple-quoted string whose opening delimiter is on an EARLIER line — is NOT
+# caught by this same-line-only walk, for the identical reason the Python
+# suppress text-scanner declines a cross-line fence counter above: a
+# mis-modelled multi-line string region deletes REAL code from the scan in
+# the UNDER direction this gate refuses to take (over-reporting a carrier is
+# visible and recoverable; silently passing a real fail-open path is not).
+# Closing the cross-line case is an operator / consumer decision (§11.4.66)
+# and a tracked work item (§11.4.197), never a default this gate picks.
+# Stating this open gap is NOT a claim it is the only one remaining: it is a
+# MEASURED SAMPLE (§11.4.118), exactly as the degraded-mode lists above are.
 #
 # This gate does NOT attempt to detect the remaining three anchor shapes
 # (validate-then-proceed-anyway, untrusted-input-defaulted-to-a-target,
@@ -446,22 +496,54 @@
 # SOMETHING, and deciding whether that something constitutes genuine
 # fallback handling is a judgement, not a decidable structural fact.
 #
+# HONEST SCOPE FOR SHELL'S OWN SWALLOWED-EXCEPTION IDIOM (BOB-213, §11.4.6):
+# shell has no fixed try/catch BLOCK syntax for shape (A) to key on — its
+# nearest equivalents (`command 2>/dev/null || true`, `set +e; risky; set
+# -e`) are exactly the multi-token / cross-statement correlation shapes the
+# paragraph above already declines to build a heuristic for, for the identical
+# stated reason (an unreliable, bluff-prone judgement rather than a decidable
+# structural fact). This gate does NOT attempt a shell-specific counterpart
+# for shape (A); the shell credential-default counterpart of shape (B) is
+# covered above. Disclosed, not silently assumed covered.
+#
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_dangerous_combination_fail_closed.sh [--root <dir>] [--quiet]
-#     --root <dir>   scan root (default: $DANGEROUS_COMBO_ROOT or "..")
-#     --quiet        suppress per-file PASS lines (FAIL lines always shown)
-#     -h|--help      print this header
+#                                            [--max-depth <N>]
+#     --root <dir>       scan root (default: $DANGEROUS_COMBO_ROOT or "..")
+#     --quiet            suppress per-file PASS lines (FAIL lines always shown)
+#     --max-depth <N>    limit `find` traversal to N levels below --root
+#                          (N=1 scans ONLY files directly in --root, never
+#                          descending into any subdirectory at all -- the
+#                          non-recursive complement to an already-recursively-
+#                          scanned set of subdirectories, per BOB-214; default
+#                          0 / unset = unlimited depth, the original recursive
+#                          behaviour, unchanged)
+#     -h|--help          print this header
 #
 # ── Environment overrides (§11.4.28/§11.4.35 — project-agnostic) ────────────
 #   DANGEROUS_COMBO_ROOT      default scan root (else --root, else "..")
 #   DANGEROUS_COMBO_EXT       space-separated source extensions to scan
 #                              (default: "py go rs c cc cpp h hpp java cs js
-#                               ts jsx tsx php rb")
+#                               ts jsx tsx php rb sh bash" -- sh/bash added
+#                               BOB-213, previously 198 tracked .sh files
+#                               project-wide were invisible to this gate)
 #   DANGEROUS_COMBO_EXCLUDE   space-separated dir-name globs to prune
 #                              (default: ".git node_modules vendor .venv
 #                               __pycache__ scripts/gates out build dist")
 #   DANGEROUS_COMBO_PYTHON    Python 3 interpreter used for AST analysis of
 #                              .py files (default: python3, then python).
+#   DANGEROUS_COMBO_MAX_DEPTH default for --max-depth (0/unset = unlimited).
+#   DANGEROUS_COMBO_UNANALYSED_EXT
+#                              space-separated extensions with NO idiom-
+#                              matching analyser registered (default: "go rs
+#                              rb c" -- BOB-191: neither shape A's `catch (`
+#                              token nor shape B's `x = y || "literal"`
+#                              default is syntactically possible in valid Go/
+#                              Rust/Ruby/C, so files of these extensions are
+#                              scanned but reported UNANALYSED, never folded
+#                              into a clean PASS. C++ (cc/cpp/h/hpp) is NOT
+#                              in this default -- its `catch (...) {` IS real
+#                              syntax and shape A genuinely catches it.
 #
 # ── Outputs ──────────────────────────────────────────────────────────────────
 #   Per-hit evidence line (file:line + matched anti-pattern class) + a final
@@ -486,7 +568,10 @@
 #   cm_dangerous_combination_fail_closed_mutation_test.sh).
 #
 # ── Exit codes ───────────────────────────────────────────────────────────────
-#   0 — PASS (no candidate source files, or no anti-pattern hit found).
+#   0 — PASS (no candidate source files, or no anti-pattern hit found among
+#       the ANALYSED files -- an UNANALYSED-extension NOTE, see above, may
+#       still print on this same exit code; it is an honest UNKNOWN caveat,
+#       never a hit, so it does not change PASS to FAIL).
 #   1 — FAIL (a swallowed-exception, silent-default-return, or credential-
 #       default-to-literal hit).
 #   2 — environment / argument error.
@@ -516,15 +601,17 @@ ANCHOR="11.4.252"
 # the size of what was probed and NOT told that nothing else exists
 # (§11.4.118). The full enumeration, per class, is in the --help header.
 TEXT_MODE_CAVEAT="a DEGRADED APPROXIMATION, not a census — for the suppress shape it UNDER-reports in seven measured ways and has FOUR measured OVER-reporting classes (a whole line inside a string, a licensing import harvested from a string, or a real line whose own string ARGUMENT quotes the pattern — each matched as if it were code); the except shape carries its own string-carrier OVER class AND two measured UNDER shapes of its own (a one-line except-with-pass written on a SINGLE line, and a handler whose pass is preceded by a docstring — both ast=1/text=0). Both counts are MEASURED SAMPLES, not proven-complete censuses; see --help for the per-class enumeration — §11.4.6/§11.4.118/§11.4.201(6)"
-HEADER_LINES=494
+HEADER_LINES=579
 
 root="${DANGEROUS_COMBO_ROOT:-..}"
 quiet=0
+maxdepth="${DANGEROUS_COMBO_MAX_DEPTH:-0}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --root) root="$2"; shift 2 ;;
         --quiet) quiet=1; shift ;;
+        --max-depth) maxdepth="$2"; shift 2 ;;
         -h|--help) sed -n "1,${HEADER_LINES}p" "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "${GATE}: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -533,7 +620,19 @@ done
 [ -d "$root" ] || { echo "${GATE}: scan root not found: $root" >&2; exit 2; }
 root="$(cd "$root" && pwd)"
 
-exts="${DANGEROUS_COMBO_EXT:-py go rs c cc cpp h hpp java cs js ts jsx tsx php rb}"
+# --max-depth is validated as a non-negative integer (§11.4.201 — assert the
+# real condition, never silently coerce a garbage value into "unlimited" or
+# into a `find` argument-error that reads as an unrelated environment bug).
+# 0 means unlimited (the original, unchanged recursive behaviour).
+case "$maxdepth" in
+    ''|*[!0-9]*) echo "${GATE}: --max-depth must be a non-negative integer, got '${maxdepth}'" >&2; exit 2 ;;
+esac
+maxdepth_expr=()
+if [ "$maxdepth" -gt 0 ]; then
+    maxdepth_expr=(-maxdepth "$maxdepth")
+fi
+
+exts="${DANGEROUS_COMBO_EXT:-py go rs c cc cpp h hpp java cs js ts jsx tsx php rb sh bash}"
 excludes="${DANGEROUS_COMBO_EXCLUDE:-.git node_modules vendor .venv __pycache__ scripts/gates out build dist}"
 
 find_name_expr=()
@@ -554,13 +653,49 @@ if [ "${#prune_expr[@]}" -gt 0 ]; then
     unset 'prune_expr[${#prune_expr[@]}-1]'
 fi
 
-mapfile -d '' -t files < <(
-    if [ "${#prune_expr[@]}" -gt 0 ]; then
-        find "$root" -type d \( "${prune_expr[@]}" \) -prune -o -type f \( "${find_name_expr[@]}" \) -print0
-    else
-        find "$root" -type f \( "${find_name_expr[@]}" \) -print0
-    fi
-)
+# BOB-200 (§11.4.201(6)): `find` was fed straight into `mapfile` through a
+# process substitution -- `mapfile -d '' -t files < <(find ...)`. A process
+# substitution's exit status is NOT the exit status of the command inside
+# it: `$?` after `mapfile` reflects whether the READ succeeded, never
+# whether `find` itself died. If `find` hits a permission error / resource
+# exhaustion / interruption partway through the walk, it still writes
+# whatever it found before the error and then exits non-zero -- but that
+# non-zero status was UNOBSERVABLE here, so a corpus `find` could not fully
+# enumerate silently became an EMPTY `files` array, which the very next
+# check reads as "no source files under scan" -- an honest topology SKIP
+# for a condition that was not a genuinely empty scan root at all. A blind
+# instrument and a clean artifact return the identical quiet zero
+# (§11.4.201(6)'s own false-null), and this gate's own stated discipline is
+# to fail CLOSED on exactly that shape (§11.4.252), not open.
+#
+# The fix: `find`'s output is captured to a SCRATCH FILE first, as an
+# ordinary foreground command whose `$?` IS `find`'s own exit status --
+# never through a process substitution, which is the mechanism that hid it
+# -- and that status is checked BEFORE `files` is even read, so a failed
+# enumeration is a FINDING (non-zero exit) naming the unresolved
+# precondition, never silently reinterpreted as an empty corpus. A
+# genuinely empty scan root (find succeeds, rc=0, zero matches) is
+# UNCHANGED: it still reaches the SKIP below exactly as before -- the
+# §11.4.201(1) false-positive guard this fix must not become.
+find_scratch="$(mktemp "${TMPDIR:-/tmp}/dcfc_find.XXXXXX" 2>/dev/null)" || {
+    echo "${GATE}: FAIL — could not create a scratch file for scan enumeration (root=$root); refusing rather than scanning through an unverifiable pipe (§11.4.252)" >&2
+    exit 1
+}
+trap 'rm -f "$find_scratch"' EXIT
+
+if [ "${#prune_expr[@]}" -gt 0 ]; then
+    find "$root" "${maxdepth_expr[@]}" -type d \( "${prune_expr[@]}" \) -prune -o -type f \( "${find_name_expr[@]}" \) -print0 > "$find_scratch"
+else
+    find "$root" "${maxdepth_expr[@]}" -type f \( "${find_name_expr[@]}" \) -print0 > "$find_scratch"
+fi
+find_rc=$?
+
+if [ "$find_rc" -ne 0 ]; then
+    echo "${GATE}: FAIL — scan enumeration failed: find exited ${find_rc} (root=$root); the source corpus could not be fully enumerated, so this is refused as an unresolved precondition rather than silently reported as an empty/clean scan (§11.4.201(6)/§11.4.252)" >&2
+    exit 1
+fi
+
+mapfile -d '' -t files < "$find_scratch"
 
 if [ "${#files[@]}" -eq 0 ]; then
     echo "⏭ ${GATE}: SKIP — topology_unsupported: no source files under scan (root=$root, ext=[$exts])"
@@ -1004,11 +1139,10 @@ import ast, sys
 # a string literal is not a Try node, so trailing comments, tuple clauses,
 # comments inside the body, and documentation carriers are all handled by
 # construction rather than by an accumulating stack of regex epicycles.
-
-TRY_TYPES = tuple(
-    t for t in (getattr(ast, "Try", None), getattr(ast, "TryStar", None))
-    if t is not None
-)
+# Try/TryStar are visited by _HandlerVisitor below via the ast.NodeVisitor
+# name-based dispatch (visit_Try / visit_TryStar), not by an isinstance
+# tuple, because the visitor also needs the ENCLOSING FUNCTION per handler
+# (BOB-189) -- information plain ast.walk() does not carry.
 
 # Shape (C) lives on a DIFFERENT node type. `contextlib.suppress` is a With
 # (or AsyncWith) node, never a Try node, so a Try-only visitor is
@@ -1066,6 +1200,124 @@ def classify(handler):
     return None
 
 
+# BOB-189 (§11.4.201(1)): shape (A2) "silent default return" cannot by
+# itself distinguish `return False` meaning PROCEED-AS-IF-FINE (a genuine
+# fail-open) from `return False` meaning REFUSE (a fail-CLOSED guard whose
+# caller gates on the falsy return and stops). A textbook SSRF guard --
+# every `except ...: return False` path in it REJECTS the URL the caller
+# passed in, because its sole call site reads `if not guard(url): <log>;
+# continue` -- was flagged identically to a genuine fail-open. Acting on
+# that finding by removing the `except: return False` paths from the guard
+# would delete a security control to satisfy a gate: the exact class this
+# file already names, in its own header, as worse than the false positive
+# it originates from.
+#
+# CALL-SITE-AWARE DISCRIMINATION closes the whole SHAPE, not one instance
+# (§11.4.6 -- chosen over a per-site waiver list because the false positive
+# recurs for ANY similarly-written guard, not only this one): a "default"
+# hit is suppressed ONLY when its ENCLOSING function has AT LEAST ONE call
+# site in this file AND EVERY call site is REFUSE-SHAPED -- `if not
+# F(...):` whose body contains a `continue` / `break` / `return` / `raise`
+# ANYWHERE at its top level, not only as the first statement: the real SSRF
+# guard call site above logs a warning BEFORE `continue`, so a
+# first-statement-only test would itself miss the founding case. A function
+# with ZERO call sites in this file, or with EVEN ONE call site that is NOT
+# refuse-shaped (the value is used directly, defaulted via `F(...) or
+# <default>`, or gated by a bare `if F():` / `if not F(): pass`), is
+# conservative-safe per §11.4.201(4): NOT suppressed, because the caller
+# behaviour that would justify treating the default as safe cannot be
+# established from the evidence.
+#
+# SCOPE, matching the established trade THIS file already makes for the
+# IDENTICAL problem shape (see IRREVERSIBLE_ATTRS below): resolution is BY
+# NAME, over
+# bare `name(...)` calls (`ast.Name` func) ONLY -- never `self.method()` /
+# `module.func()` -- at FILE scope, not by resolved function identity.
+# HONEST RESIDUAL GAP (§11.4.6), stated not silently assumed away: two
+# DIFFERENT functions sharing one local name (e.g. nested inside two
+# different outer functions, or a module-level function shadowed by a
+# same-named nested one) are not distinguished, so a gated call site of one
+# could in principle license suppression of an ungated sibling of the same
+# name. This is the SAME presence-shaped trade already made in this file
+# for the credential detector (shape B) and for IRREVERSIBLE_ATTRS below,
+# and it is directionally bounded the same way: on a genuine name collision
+# it can only cost a suppression that should not have fired, never
+# manufacture a suppression for a single real function whose every call
+# site was actually ungated (the "every call site" requirement is computed
+# per FILE, over every call textually named `F`, so a real function with
+# even one genuinely ungated call anywhere in the file -- under whatever
+# name shares it -- is never suppressed).
+ESCAPE_STMT_TYPES = (ast.Continue, ast.Break, ast.Return, ast.Raise)
+
+
+def refuse_shaped_call_ids(tree):
+    """id() of every Call node that is the `not F(...)` test of an `if`
+    whose body contains a continue/break/return/raise ANYWHERE at its top
+    level -- the refuse-on-falsy caller shape a fail-CLOSED guard call
+    site takes.
+    """
+    ids = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        test = node.test
+        if not (isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not)):
+            continue
+        call = test.operand
+        if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)):
+            continue
+        if any(isinstance(s, ESCAPE_STMT_TYPES) for s in node.body):
+            ids.add(id(call))
+    return ids
+
+
+def gated_only_call_names(tree):
+    """Bare function NAMES whose every `name(...)` call site in this file
+    is refuse-shaped, requiring at least one call site (§11.4.201(4) --
+    zero call sites proves nothing about the caller and is never treated
+    as gated).
+    """
+    refuse_ids = refuse_shaped_call_ids(tree)
+    per_name = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            per_name.setdefault(node.func.id, []).append(id(node) in refuse_ids)
+    return {name for name, flags in per_name.items() if flags and all(flags)}
+
+
+class _HandlerVisitor(ast.NodeVisitor):
+    """Collects (kind, lineno, enclosing_function_name_or_None) for every
+    classify()-positive exception handler, tracking the enclosing function
+    with a name STACK so a Try nested inside a function is correctly
+    attributed -- plain ast.walk() carries no parent/enclosure information
+    on its own.
+    """
+
+    def __init__(self):
+        self.func_stack = []
+        self.hits = []
+
+    def _enclosing(self):
+        return self.func_stack[-1] if self.func_stack else None
+
+    def visit_FunctionDef(self, node):
+        self.func_stack.append(node.name)
+        self.generic_visit(node)
+        self.func_stack.pop()
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Try(self, node):
+        for handler in node.handlers:
+            kind = classify(handler)
+            if kind:
+                self.hits.append((kind, handler.lineno, self._enclosing()))
+        self.generic_visit(node)
+
+    if getattr(ast, "TryStar", None) is not None:
+        visit_TryStar = visit_Try
+
+
 def suppress_bindings(tree):
     """Resolve which NAMES in this module actually refer to contextlib.suppress.
 
@@ -1121,28 +1373,179 @@ def classify_suppress(call):
     return "unresolved" if unresolved else None
 
 
+# BOB-199 (§11.4.66 operator decision, 2026-08-26): a NARROW suppress is a
+# declared, bounded tolerance and stays QUIET on its own -- that is the
+# whole point of classify_suppress() above. But a narrow suppress whose
+# `with`-block BODY contains an IRREVERSIBLE-capability call (delete /
+# truncate / kill) is the shape that actually causes harm: the declared
+# exception silently absorbs a failure of an operation that cannot be
+# undone. Flagging every narrow suppress would be the exact false-positive
+# storm §11.4.201(1) forbids (idiomatic tolerances like
+# `suppress(FileNotFoundError)` around a plain file read MUST stay quiet);
+# flagging the narrow+irreversible COMBINATION targets the actual danger
+# shape without widening scope to the idiomatic case.
+#
+# The set is a CLOSED, project-agnostic list matching the §11.4.252 header
+# vocabulary of this file (shell-exec, file delete/truncate, process
+# kill): os.remove / os.unlink / shutil.rmtree / <anything>.truncate( /
+# os.kill / os.killpg / <anything>.kill( (covers subprocess.Popen(...).
+# kill() and equivalents, per the header phrase "subprocess.*kill*").
+#
+# IDENTIFICATION IS BY ATTRIBUTE NAME, NOT BY RESOLVED RECEIVER -- the SAME
+# presence-shaped simplification the credential detector in shape (C)
+# already uses (§11.4.201(7)(a) notwithstanding, this is a DELIBERATE,
+# DOCUMENTED trade, not a silent gap per §11.4.6): resolving `os.kill(...)`
+# needs only that `os` be a bare Name, which `is_suppress_call` already
+# demonstrates is reliable for a stdlib module, but `proc.kill()` -- the
+# shape the BOB-199 item itself names (`os.killpg`/`proc.kill`/`proc.wait`
+# in a cleanup path) -- has an arbitrary receiver (a Popen instance) with no
+# resolvable module binding at all. Matching the attribute NAME alone is the
+# only way to catch that shape without a type-inference engine this gate
+# does not have and does not claim. HONEST RESIDUAL GAP (§11.4.6), stated
+# not silently assumed away: an attribute-name match can over-match a
+# same-named method on an unrelated object (`list.remove(x)`,
+# `set.remove(x)` are NOT file deletions). This is the SAME conservative
+# "over-report is recoverable, silently passing a real fail-open path is
+# not" trade already made, in this file, for the breadth-by-name design of
+# shape (B); it is not re-argued here.
+IRREVERSIBLE_ATTRS = frozenset((
+    "remove", "unlink", "rmtree", "truncate", "kill", "killpg",
+))
+
+# REFINEMENT (measured, not assumed -- §11.4.6): `suppress(FileNotFoundError):
+# os.remove(path)` -- delete-a-file-if-it-exists -- is not a hypothetical
+# idiomatic case; it is the LITERAL canonical example in the Python standard
+# library documentation for contextlib.suppress itself, and this same
+# project own pre-existing fixture corpus for this gate independently reaches
+# for that exact idiom three separate times as realistic, obviously-safe
+# filler code in fixtures testing something else entirely (carrier
+# detection, alias binding, whole-identifier matching). Flagging it would be
+# precisely the false-positive storm the BOB-199 operator decision itself
+# warns against ("Idiomatic narrow tolerances stay quiet, so the gate keeps
+# its credibility") -- proven, not merely argued, by three real regressions
+# this refinement closes. The suppressed exception in that idiom names the
+# EXACT "there was nothing to remove" condition, so re-raising it would make
+# the with-block pointless; there is no equivalent single-exception "safe
+# because it is already gone" idiom for `truncate`/`kill`/`killpg`, which
+# stay flagged unconditionally regardless of the suppressed exception class.
+DELETE_IF_ABSENT_ATTRS = frozenset(("remove", "unlink", "rmtree"))
+ABSENCE_EXC = frozenset(("FileNotFoundError", "FileExistsError"))
+
+
+def suppressed_exc_names(call):
+    """The set of exception NAMES this narrow suppress() call declares,
+    resolved the SAME way classify_suppress() above resolves each argument
+    (a bare Name -> its id, a dotted Attribute -> its final attr) so the two
+    stay in lock-step rather than re-deriving a second, potentially
+    divergent notion of "which exceptions are named here".
+    """
+    names = set()
+    for arg in call.args:
+        if isinstance(arg, ast.Name):
+            names.add(arg.id)
+        elif isinstance(arg, ast.Attribute):
+            names.add(arg.attr)
+    return names
+
+
+def call_is_irreversible(call, exc_names):
+    func = call.func
+    if not (isinstance(func, ast.Attribute) and func.attr in IRREVERSIBLE_ATTRS):
+        return False
+    if func.attr in DELETE_IF_ABSENT_ATTRS and exc_names and exc_names <= ABSENCE_EXC:
+        return False
+    return True
+
+
+def body_has_irreversible_call(stmts, exc_names):
+    """True iff ANY statement in this with-block body contains a call whose
+    attribute name is in IRREVERSIBLE_ATTRS (and is not the documented
+    delete-if-absent idiom above) -- walked structurally (every descendant
+    node of every statement), never by re-scanning source text, so a call
+    nested inside an `if`/`try`/comprehension/lambda inside the block is
+    still found (§11.4.201(7)(a): match structure, not substring).
+    """
+    for stmt in stmts:
+        for node in ast.walk(stmt):
+            if isinstance(node, ast.Call) and call_is_irreversible(node, exc_names):
+                return True
+    return False
+
+
+# BOB-199 exemption path: a per-line `# guardrails:allow <reason>` trailing
+# comment on the `with suppress(...)` line itself -- the SAME fenced
+# escape-sentinel convention this project already uses elsewhere
+# (constitution/scripts/hooks/guard-*.sh, scripts/pre_build/
+# check_cm_no_production_mutation_residue.sh) -- generalised here rather
+# than a parallel, gate-local mechanism invented from scratch (extend
+# rather than reimplement, per §11.4.28/§11.4.74). It DELIBERATELY diverges
+# from the sibling gate rule of never honouring a marker on a code line:
+# there the natural home of the marker is a DOCUMENTATION mention (a
+# code-line trailing comment IS the residue shape it hunts), while here the
+# flagged construct IS the code line itself -- the `with suppress(...):`
+# statement -- so a trailing comment on THAT exact line is the only place a
+# per-site waiver can attach without inventing a second annotation syntax.
+# A REASON is mandatory (§11.4.224(E)): a bare sentinel with fewer than 3
+# reason characters is a MALFORMED waiver and does NOT suppress the
+# finding -- it is reported as its own distinct hit so the operator sees
+# WHY the waiver did not take, never silently ignored (§11.4.201(5): a
+# waiver can never be silent).
+WAIVER_MARKER = "guardrails:allow"
+
+
+def waiver_reason(source_lines, lineno):
+    """None (no waiver marker on this line) | "" (malformed: no/short
+    reason) | <reason text> (a valid, honoured waiver).
+    """
+    if lineno < 1 or lineno > len(source_lines):
+        return None
+    line = source_lines[lineno - 1]
+    hash_at = line.find("#")
+    if hash_at == -1:
+        return None
+    comment = line[hash_at:]
+    marker_at = comment.find(WAIVER_MARKER)
+    if marker_at == -1:
+        return None
+    after = comment[marker_at + len(WAIVER_MARKER):]
+    after = after.lstrip(":=- \t").rstrip()
+    return after if len(after) >= 3 else ""
+
+
 data = sys.stdin.buffer.read().split(b"\0")
 paths = [p for p in data if p]
 for idx, raw in enumerate(paths):
     path = raw.decode("utf-8", "surrogateescape")
     try:
         with open(path, "rb") as fh:
-            tree = ast.parse(fh.read(), filename=path)
+            content = fh.read()
+        tree = ast.parse(content, filename=path)
     except (SyntaxError, ValueError, OSError, UnicodeDecodeError) as exc:
         # Never a silent skip: hand the file back for the text fallback and
         # report why the structural read failed (§11.4.201(6)).
         reason = type(exc).__name__
         sys.stdout.write("UNPARSED\t%d\t%s\n" % (idx, reason))
         continue
+    source_lines = content.decode("utf-8", "surrogateescape").splitlines()
     module_aliases, direct_names = suppress_bindings(tree)
+
+    # BOB-189: "default" hits are collected with their enclosing-function
+    # attribution, then filtered against gated_only_call_names() BEFORE
+    # being reported. Every OTHER kind ("swallow" / suppress-shapes) is
+    # unaffected -- the call-site discrimination is scoped to exactly the
+    # shape it was measured to false-positive on (§11.4.6, no broader claim
+    # than what was proven).
+    gated_names = gated_only_call_names(tree)
+    handler_visitor = _HandlerVisitor()
+    handler_visitor.visit(tree)
+    for kind, lineno, enclosing in handler_visitor.hits:
+        if kind == "default" and enclosing is not None and enclosing in gated_names:
+            sys.stdout.write(
+                "WAIVED_CALLSITE\t%d\t%d\t%s\n" % (idx, lineno, enclosing))
+        else:
+            sys.stdout.write("HIT\t%s\t%d\t%d\n" % (kind, idx, lineno))
+
     for node in ast.walk(tree):
-        if isinstance(node, TRY_TYPES):
-            for handler in getattr(node, "handlers", []):
-                kind = classify(handler)
-                if kind:
-                    sys.stdout.write(
-                        "HIT\t%s\t%d\t%d\n" % (kind, idx, handler.lineno))
-            continue
         if isinstance(node, WITH_TYPES) and (module_aliases or direct_names):
             for item in node.items:
                 call = item.context_expr
@@ -1158,6 +1561,29 @@ for idx, raw in enumerate(paths):
                     sys.stdout.write(
                         "HIT\tsuppress_unresolved\t%d\t%d\n"
                         % (idx, call.lineno))
+                elif kind is None and call.args and body_has_irreversible_call(node.body, suppressed_exc_names(call)):
+                    # kind is None here for TWO distinct reasons -- a
+                    # genuinely EMPTY suppress() (suppresses nothing, never
+                    # a violation, per classify_suppress own docstring) and
+                    # a NARROW-but-non-empty exception list. `call.args`
+                    # (the narrow case has at least one resolved exception
+                    # name) is what tells them apart; an empty suppress()
+                    # is never flagged even around an irreversible call,
+                    # because it suppresses NOTHING -- the exception still
+                    # propagates normally, so there is no fail-open shape
+                    # here at all.
+                    reason = waiver_reason(source_lines, call.lineno)
+                    if reason is None:
+                        sys.stdout.write(
+                            "HIT\tsuppress_narrow_irreversible\t%d\t%d\n"
+                            % (idx, call.lineno))
+                    elif reason == "":
+                        sys.stdout.write(
+                            "HIT\tsuppress_narrow_irreversible_malformed_waiver\t%d\t%d\n"
+                            % (idx, call.lineno))
+                    else:
+                        sys.stdout.write(
+                            "WAIVED\t%d\t%d\t%s\n" % (idx, call.lineno, reason))
 ' 2>/dev/null)"
         ast_rc=$?
         if [ "$ast_rc" -ne 0 ]; then
@@ -1176,10 +1602,22 @@ for idx, raw in enumerate(paths):
                             echo "❌ ${GATE}: FAIL — swallowed exception (contextlib.suppress over a broad exception class - swallows everything with no re-raise/log) at ${f}:${c} (§${ANCHOR})"
                         elif [ "$a" = "suppress_unresolved" ]; then
                             echo "❌ ${GATE}: FAIL — swallowed exception (contextlib.suppress whose exception list could not be resolved statically - conservative-safe refusal per §11.4.201(4)) at ${f}:${c} (§${ANCHOR})"
+                        elif [ "$a" = "suppress_narrow_irreversible" ]; then
+                            echo "❌ ${GATE}: FAIL — swallowed exception (contextlib.suppress with a NARROW, declared exception class whose with-block body contains an IRREVERSIBLE-capability call - delete/truncate/kill under conditional exception suppression; BOB-199/§11.4.66) at ${f}:${c} (§${ANCHOR})"
+                        elif [ "$a" = "suppress_narrow_irreversible_malformed_waiver" ]; then
+                            echo "❌ ${GATE}: FAIL — swallowed exception (contextlib.suppress with a NARROW, declared exception class whose with-block body contains an IRREVERSIBLE-capability call; a 'guardrails:allow' marker is present but carries NO REASON, so the waiver is MALFORMED and does not apply - §11.4.224(E) requires a mandatory reason) at ${f}:${c} (§${ANCHOR})"
                         else
                             echo "❌ ${GATE}: FAIL — swallowed exception (handler body is only 'pass' with no re-raise/log) at ${f}:${c} (§${ANCHOR})"
                         fi
                         hits=$(( hits + 1 ))
+                        ;;
+                    WAIVED)
+                        f="${py_files[$a]}"
+                        echo "⚠ ${GATE}: NOTE — WAIVED (guardrails:allow, never silent per §11.4.201(5)) — narrow suppress over an irreversible-capability call at ${f}:${b}: ${c}"
+                        ;;
+                    WAIVED_CALLSITE)
+                        f="${py_files[$a]}"
+                        echo "⚠ ${GATE}: NOTE — CALL-SITE-GATED, never silent per §11.4.201(5) — every call site of \`${c}()\` in this file reads \`if not ${c}(...): <continue|break|return|raise>\`, so its \`except: return <trivial>\` REFUSES the caller rather than proceeding as if fine (fail-CLOSED, not fail-open; BOB-189/§11.4.201(1)) at ${f}:${b}"
                         ;;
                     UNPARSED)
                         f="${py_files[$a]}"
@@ -1218,13 +1656,131 @@ if [ "${#py_text_fallback_files[@]}" -gt 0 ]; then
     done
 fi
 
+# ── BOB-216 carrier-stripping pre-pass for the two MODE-INDEPENDENT generic
+# greps (shape A C-family catch + shape B credential-default). Same-line
+# ONLY (§11.4.6 -- the cross-line docstring/triple-quoted carrier is a
+# disclosed, open gap, see the header): a character-by-character walk of ONE
+# line, backslash-escape aware, tracking single/double-quote string state,
+# that (1) truncates the line at an UNQUOTED occurrence of this file's
+# comment marker and (2) MASKS same-line string-literal CONTENT to spaces
+# (quote delimiters themselves are preserved) so a same-line comment or a
+# same-line string constant spelling out the anti-pattern never reaches
+# either search grep. Preserves the file's LINE COUNT exactly (one sanitized
+# line per raw line) so line numbers read from the sanitized stream map 1:1
+# to the original file, which is what lets the ORIGINAL (unsanitized) line
+# be re-read for the evidence message and for shape A's own body-emptiness
+# window scan below -- both of those still need the REAL content.
+sanitize_generic_carriers() { # $1=file $2=comment-marker("//"|"#"|"")
+    local f="$1" marker="$2"
+    awk -v marker="$marker" '
+        function strip(s,    i, n, c, out, q, esc, mlen, sq) {
+            # The apostrophe is built via sprintf, never written literally,
+            # because this awk program lives inside a single-quoted shell
+            # string (§11.4.201(7)(c) -- the same convention this file
+            # already uses in scan_py_text_suppress above).
+            sq = sprintf("%c", 39)
+            n = length(s)
+            out = ""
+            q = ""
+            esc = 0
+            mlen = length(marker)
+            for (i = 1; i <= n; i++) {
+                c = substr(s, i, 1)
+                if (q != "") {
+                    if (esc) { esc = 0; out = out " "; continue }
+                    if (c == "\\") { esc = 1; out = out " "; continue }
+                    if (c == q) { q = ""; out = out c; continue }
+                    out = out " "
+                    continue
+                }
+                if (c == "\"" || c == sq) { q = c; out = out c; continue }
+                if (mlen > 0 && substr(s, i, mlen) == marker) break
+                out = out c
+            }
+            return out
+        }
+        { print strip($0) }
+    ' "$f" 2>/dev/null || true
+}
+
+# ── UNANALYSED-extension registry (BOB-191, §11.4.6/§11.4.201(6)/§11.4.250) ──
+# `.go`/`.rs`/`.rb`/`.c` are ENUMERATED (scanned by shape A + shape B, same as
+# every other extension) but neither matcher's idiom is even SYNTACTICALLY
+# possible in valid code of those four languages: shape A keys on the literal
+# token `catch (` (no such keyword exists in Go/Rust/Ruby/C -- their native
+# fail-open idioms are an empty `if err != nil {}`, `let _ = risky()` /
+# `Err(_) => {}`, a bare `rescue ... end`, and an ignored return code,
+# respectively) and shape B keys on `x = y || "literal"` / `x = y or
+# "literal"` nil-coalescing, which is likewise not how any of the four
+# default a value. A control needle through this EXACT gate (genuine,
+# compiler/interpreter-valid fail-open source in each of the four) measured
+# rc=0 -- PASS -- confirming neither matcher can fire on them BY
+# CONSTRUCTION, not merely "did not happen to fire on this sample". This is
+# the false-null §11.4.201(6) names: a blind matcher and a genuinely clean
+# file return the identical quiet zero, and only one of those is honest.
+#
+# C++ (`.cc`/`.cpp`/`.h`/`.hpp`) is DELIBERATELY NOT in this set: unlike the
+# four above, C++ DOES have `catch (...) {` as real, idiomatic syntax, and
+# the SAME control-needle methodology (a genuine empty C++ catch block)
+# measured rc=1 -- FAIL, correctly caught by the existing shape-A matcher.
+# `.h` is extension-ambiguous (a C-only header reads as unanalysed content by
+# construction, same as `.c`; a C++ header with real try/catch is genuinely
+# caught) -- that per-file ambiguity is disclosed here, not silently resolved
+# either way, and is NOT a reason to add `.h`/`.cc`/`.cpp`/`.hpp` to this
+# registry, since doing so would falsely claim "unanalysed" for a file this
+# gate's existing matcher can and does see.
+#
+# Consumer-overridable (§11.4.28/§11.4.35), matching the existing
+# DANGEROUS_COMBO_EXT / DANGEROUS_COMBO_EXCLUDE override pattern: a project
+# that later ships a real per-language analyser for one of these four
+# extensions removes it from this list rather than waiting on an upstream
+# constitution change.
+unanalysed_exts="${DANGEROUS_COMBO_UNANALYSED_EXT:-go rs rb c}"
+unanalysed_hits=0
+unanalysed_detail=()
+is_unanalysed_ext() { # $1=filename -> rc 0 iff its extension has no idiom-
+    local fn="$1" e         # matching analyser registered (see block above)
+    for e in $unanalysed_exts; do
+        case "$fn" in
+            *".${e}") return 0 ;;
+        esac
+    done
+    return 1
+}
+
 for f in "${files[@]}"; do
+    if is_unanalysed_ext "$f"; then
+        unanalysed_hits=$(( unanalysed_hits + 1 ))
+        if [ "${#unanalysed_detail[@]}" -lt 10 ]; then
+            unanalysed_detail+=("$f")
+        fi
+    fi
+
+    # Comment marker resolved from a CLOSED, per-extension map -- never
+    # guessed for an unenumerated extension (§11.4.6): an unrecognised
+    # extension gets an EMPTY marker (no comment-stripping applied, the
+    # same-line string-masking above still applies), the conservative
+    # default that never silently disables the pre-existing behaviour for a
+    # consumer-supplied DANGEROUS_COMBO_EXT extension this map does not name.
+    case "$f" in
+        *.py|*.rb|*.sh|*.bash) _carrier_marker='#' ;;
+        *.c|*.cc|*.cpp|*.h|*.hpp|*.java|*.cs|*.js|*.ts|*.jsx|*.tsx|*.php|*.go|*.rs) _carrier_marker='//' ;;
+        *) _carrier_marker='' ;;
+    esac
+    _sanitized="$(sanitize_generic_carriers "$f" "$_carrier_marker")"
+
     # ── (A) C-family/JS/TS/Java/C#/PHP: catch (...) { <empty-or-comment-only> }
     # Comment-stripped-then-collapsed single-line window search (bounded to
     # avoid multi-KB false spans): scan a joined 1-3-line window starting at
     # each `catch (...) {` for an immediate `}` with nothing but whitespace/
-    # a single-line comment between.
-    catch_hits="$(grep -nE 'catch[[:space:]]*\([^)]*\)[[:space:]]*\{' "$f" 2>/dev/null || true)"
+    # a single-line comment between. The FINDING search below runs over the
+    # sanitized stream (BOB-216) so a `catch (...) {` shape that is itself
+    # only a same-line comment or a same-line string constant is never found
+    # in the first place; the WINDOW/BODY scan still reads the ORIGINAL file,
+    # unchanged, since the body-emptiness check already does its own
+    # comment-stripping and needs the real content for real (non-carrier)
+    # multi-statement bodies.
+    catch_hits="$(printf '%s\n' "$_sanitized" | grep -nE 'catch[[:space:]]*\([^)]*\)[[:space:]]*\{' 2>/dev/null || true)"
     if [ -n "$catch_hits" ]; then
         while IFS= read -r hit; do
             [ -n "$hit" ] || continue
@@ -1246,22 +1802,67 @@ for f in "${files[@]}"; do
     fi
 
     # ── (B) Credential silently defaulted to a literal string ──────────────
-    cred_hits="$(grep -nEi '(credential|secret|token|api[_-]?key|password|passwd)[A-Za-z0-9_]*[[:space:]]*=[[:space:]]*[A-Za-z_][A-Za-z0-9_.]*[[:space:]]*(\|\||or)[[:space:]]*["'"'"'][^"'"'"']*["'"'"']' "$f" 2>/dev/null || true)"
+    # The FINDING search below runs over the sanitized stream (BOB-216) for
+    # the same reason as shape A; the printed EVIDENCE line re-reads the
+    # ORIGINAL file content at that line number so the captured evidence
+    # shows the real source, not masked whitespace (§11.4.5).
+    cred_hits="$(printf '%s\n' "$_sanitized" | grep -nEi '(credential|secret|token|api[_-]?key|password|passwd)[A-Za-z0-9_]*[[:space:]]*=[[:space:]]*[A-Za-z_][A-Za-z0-9_.]*[[:space:]]*(\|\||or)[[:space:]]*["'"'"'][^"'"'"']*["'"'"']' 2>/dev/null || true)"
     if [ -n "$cred_hits" ]; then
         while IFS= read -r hit; do
             [ -n "$hit" ] || continue
             lineno="${hit%%:*}"
-            text="${hit#*:}"
+            text="$(sed -n "${lineno}p" "$f" 2>/dev/null || true)"
             hits=$(( hits + 1 ))
             echo "❌ ${GATE}: FAIL — credential silently defaulted to a literal value at ${f}:${lineno}: ${text# } (§${ANCHOR})"
         done <<< "$cred_hits"
     fi
+
+    # ── Shell-native credential defaulting via parameter expansion (BOB-213)
+    # `${VAR:-"literal"}` / `${VAR:="literal"}`, scoped to *.sh/*.bash ONLY
+    # so it never fires on the unrelated `${...}` template-literal shape in
+    # JS/TS (see the header for the full rationale). The default value is
+    # required to NOT start with `$`, so a fallback to another variable
+    # (`${TOKEN:-$FALLBACK}`) or a command substitution
+    # (`${TOKEN:-$(vault get token)}`) — the shell-native form of the SAME
+    # legitimate secondary-source pattern already exempted for shape (B) — is
+    # deliberately NOT flagged.
+    case "$f" in
+        *.sh|*.bash)
+            shell_cred_hits="$(printf '%s\n' "$_sanitized" | grep -nEi '(credential|secret|token|api[_-]?key|password|passwd)[A-Za-z0-9_]*[[:space:]]*=[[:space:]]*"?\$\{[A-Za-z_][A-Za-z0-9_]*:[=-]"?[^$}]+"?\}"?' 2>/dev/null || true)"
+            if [ -n "$shell_cred_hits" ]; then
+                while IFS= read -r hit; do
+                    [ -n "$hit" ] || continue
+                    lineno="${hit%%:*}"
+                    text="$(sed -n "${lineno}p" "$f" 2>/dev/null || true)"
+                    hits=$(( hits + 1 ))
+                    echo "❌ ${GATE}: FAIL — credential silently defaulted to a literal value via shell parameter expansion at ${f}:${lineno}: ${text# } (§${ANCHOR})"
+                done <<< "$shell_cred_hits"
+            fi
+            ;;
+    esac
 done
 
 echo "======================================================================"
 if [ "$hits" -gt 0 ]; then
     echo "❌ ${GATE}: FAIL — ${hits} fail-open anti-pattern hit(s) found (§${ANCHOR})"
     exit 1
+fi
+
+if [ "$unanalysed_hits" -gt 0 ]; then
+    # BOB-191: zero HITS across an UNANALYSED-extension file is NOT the same
+    # claim as zero hits across a file this gate's matchers can actually see
+    # -- the former is an honest UNKNOWN, the latter is a real clean PASS,
+    # and printing the plain "PASS — no ... anti-patterns found" wording for
+    # the UNANALYSED case is the exact matcher-hole-prints-green defect this
+    # fix closes (§11.4.6/§11.4.201(6)). Exit 0, same as the topology_
+    # unsupported SKIP above in this same script (a scan that ran and found
+    # nothing IS a form of PASS at the invariant-39 call site's own
+    # advisory/non-blocking framing) -- but the TEXT never claims coverage
+    # this gate does not have.
+    _ud_sample="${unanalysed_detail[*]}"
+    echo "⚠ ${GATE}: NOTE — ${unanalysed_hits} file(s) of an UNANALYSED extension (${unanalysed_exts}) were enumerated but have NO idiom-matching fail-open analyser (Go/Rust/Ruby/C use non-catch, non-||-default error handling this gate's shape-A/shape-B matchers cannot see by construction; a control needle through this exact path confirms it, not merely a stated gap) -- sample: ${_ud_sample}. This is reported as UNKNOWN, never as a clean scan, for this extension's fail-open posture (§11.4.6/§11.4.201(6)/§11.4.250). Set DANGEROUS_COMBO_UNANALYSED_EXT to narrow this list once a real per-language analyser exists for one of them."
+    echo "✅ ${GATE}: PASS (PARTIAL COVERAGE) — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found among the ANALYSED files; ${unanalysed_hits} UNANALYSED file(s) reported above, NOT included in this clean claim (§${ANCHOR})"
+    exit 0
 fi
 
 echo "✅ ${GATE}: PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§${ANCHOR})"

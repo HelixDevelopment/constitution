@@ -1,0 +1,5 @@
+{
+  "_purpose": "Safe-to-Resume failure class 2/5: STALE EXTERNAL DEPENDENCY -- an external resource the handoff cites (here, an external tree at locator 'dep_a', kind git-tree per data-model.md section 9.2) has changed content since it was recorded (a commit landed on the branch between crash and resume, HO-003/ho_stale_external_dep in contracts/agent-registry-and-handoff.md). tree_snapshot/dep_a/ is the content AT HANDOFF TIME (its merkle-over-sorted-(path,content_address)-pairs hash is baked into handoff.json's external_deps[0].content_address); tree_current/dep_a/ is the content AT RESUME TIME, deliberately different. A resumer that trusts EV-RR02-A (verified against the stale dep_a) without re-hashing risks acting on a fact that no longer holds.",
+  "target_class": "stale-external-dependency",
+  "kind": "golden-bad"
+}

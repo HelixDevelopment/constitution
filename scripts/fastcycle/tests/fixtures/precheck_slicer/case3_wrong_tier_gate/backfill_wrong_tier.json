@@ -1,0 +1,11 @@
+{
+  "review_id": "REV-RB-T061-C3-WT-1",
+  "batch_id": "RB-T061-C3-WT",
+  "round": 1,
+  "verdict": "GO",
+  "model_tier": "sonnet",
+  "effort": "xhigh",
+  "change_ids": ["sha256:01c1a0b095e5a74560f689ad24169c4dc2e22113a5b1a1b1d0bfd2c4e815a472"],
+  "findings": [],
+  "source_evidence": "T061 fixture: a hand-authored --input spec for the REAL, existing review_record.py backfill subcommand (backfill does not validate model_tier, confirmed by reading cmd_backfill() -- unlike cmd_record(), which refuses at write time). Used to place a real, on-disk ReviewVerdictRecord whose model_tier is 'sonnet' (not the designated Opus xhigh tier, contracts/common-conventions.md Terms) so this RED test can prove the absent review_record.py gate subcommand refuses to treat it as covering its change (contract review-batch-and-precheck.md RB-004/RB-006; T061 case 3: golden-bad, a review record with a non-pinned tier or effort is refused)."
+}

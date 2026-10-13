@@ -1,0 +1,30 @@
+{
+  "agent_key": "e81cbef803cc3ff3",
+  "alias": "claude3",
+  "body_hash": "f42155907e9753b116bcfdec35696ea4a8312c31a78f8af8d4fbaf5aeb8c0e6e",
+  "effects_performed": [],
+  "effort": "high",
+  "external_deps": [],
+  "handoff_id": "sha256:599c9593be344d2262937f1c7d7737729d53b6e843095beedc4dd0efa22fef1c",
+  "item_id": "NONE",
+  "model": "sonnet",
+  "partial_artefacts": [
+    {
+      "content_address": "sha256:0fe3ccd998ceb9cd069476923fd76d58d776f63fa2c7ba0e044f20e5870ba128",
+      "path": "notes.md"
+    }
+  ],
+  "pending": [
+    {
+      "precondition": "handoff written",
+      "step": "verify partial artefacts against disk"
+    }
+  ],
+  "phase": "implementation",
+  "schema": "handoff/v1",
+  "time_source": "event_occurred",
+  "verified": [
+    "FC-HO-VERIFIED-001"
+  ],
+  "written_at": "2026-09-30T10:10:00Z"
+}

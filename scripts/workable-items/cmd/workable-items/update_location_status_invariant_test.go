@@ -249,10 +249,22 @@ func TestUpdateCmd_AllowsNonTerminalStatusOnIssuesLocatedItem(t *testing.T) {
 // never on the status alone; blocking this would break legitimate closed-item edits.
 func TestUpdateCmd_AllowsTerminalStatusOnFixedLocatedItem(t *testing.T) {
 	dbPath := newTestDB(t)
-	seedFixedItem(t, dbPath, "WIT-903") // add + close → Fixed, terminal.
+	seedFixedItem(t, dbPath, "WIT-903") // add + close → Fixed, terminal (Type=Bug, per reopen_relocate_test.go's seedFixedItem).
 
+	// BOB-240 §11.4.33 Type↔Status guard reconciliation: this test's ORIGINAL
+	// target value — "Implemented (→ Fixed.md)" — is Feature's closure word,
+	// not Bug's, so it is now itself a Type↔Status mismatch BOB-240's guard
+	// correctly refuses (WIT-903 is seeded Type=Bug by seedFixedItem). The
+	// negative-control INTENT this test exists to prove — a genuinely
+	// terminal-status-changing update at Fixed must still be ACCEPTED, never
+	// blocked as a false positive (§11.4.201(1)) — is preserved by targeting
+	// "Obsolete (→ Fixed.md)" instead: it is BOTH terminal (still exercises
+	// the BOB-175 guard this test predates) AND valid for ANY Type per
+	// BOB-240 criterion 5, so it is a legitimate transition under BOTH
+	// guards simultaneously and a real status change (Fixed -> Obsolete)
+	// still lands, unlike re-asserting the SAME value.
 	if code := updateCmd([]string{"--db", dbPath, "--id", "WIT-903", "--location", "Fixed",
-		"--status", "Implemented (→ Fixed.md)"}); code != exitOK {
+		"--status", "Obsolete (→ Fixed.md)"}); code != exitOK {
 		t.Fatalf("update refused a terminal status on a Fixed-located item (exit %d) — §11.4.201(1) false-positive refusal", code)
 	}
 	db, _ := openDB(dbPath)
@@ -261,8 +273,8 @@ func TestUpdateCmd_AllowsTerminalStatusOnFixedLocatedItem(t *testing.T) {
 	if it == nil {
 		t.Fatal("WIT-903 vanished from Fixed")
 	}
-	if strings.TrimSpace(it.Status) != "Implemented (→ Fixed.md)" {
-		t.Fatalf("status = %q, want Implemented (→ Fixed.md) — the legitimate update did not land", it.Status)
+	if strings.TrimSpace(it.Status) != "Obsolete (→ Fixed.md)" {
+		t.Fatalf("status = %q, want Obsolete (→ Fixed.md) — the legitimate update did not land", it.Status)
 	}
 	if code := validateCmd([]string{"--db", dbPath}); code != exitOK {
 		t.Fatalf("validate FAILed (%d) after a legitimate terminal update at Fixed", code)
@@ -419,5 +431,215 @@ func TestValidate_DoesNotFireOnLegitimateClosedItem(t *testing.T) {
 	}
 	if f := issuesLocationTerminalStatus(items); len(f) != 1 {
 		t.Fatalf("control needle: gate returned %d findings on a seeded violation, want 1 — the clean result above proves nothing", len(f))
+	}
+}
+
+// --- BOB-175: the MIRROR direction — a NON-terminal --status on a Fixed-located
+// item. BOB-166 (above) closed Issues⇒terminal; this closes Fixed⇒non-terminal,
+// the direction BOB-166 deliberately left open (tracked, not left as a comment —
+// see the design-decision comment on the guard itself in mutate.go). ---
+
+// fixedForbiddenState reports whether id, located in Fixed, carries a NON-terminal
+// status — the BOB-175 mirror of forbiddenState (which checks the Issues direction
+// above). This is exactly the state fixedLocationNonTerminalStatus (validate check
+// (f), sync.go) refuses.
+func fixedForbiddenState(t *testing.T, dbPath, id string) (bool, string) {
+	t.Helper()
+	db, err := openDB(dbPath)
+	if err != nil {
+		t.Fatalf("openDB: %v", err)
+	}
+	defer db.Close()
+	it, err := loadItem(db, id, "Fixed")
+	if err != nil {
+		t.Fatalf("loadItem: %v", err)
+	}
+	if it == nil {
+		return false, "(not in Fixed)"
+	}
+	return !terminalStatuses()[strings.TrimSpace(it.Status)], it.Status
+}
+
+// TestUpdateCmd_RefusesNonTerminalStatusOnFixedLocatedItem is the BOB-175 PREVENTIVE
+// guard and its exact runtime reproduction. Verified empirically by the independent
+// reviewer of BOB-166 (quoted verbatim in the item):
+//
+//	update --location Fixed --status 'In progress'   -> exit 0
+//	validate                                          -> FAILS, naming the row (check (f))
+//
+// The decisive assertion is on the DB ROW, not on the exit code alone: a refusal
+// that still wrote the row would be a bluff. Covers the same normalization
+// dimension as TestUpdateCmd_RefusesTerminalStatusOnIssuesLocatedItem (canonical
+// values plus non-canonical routes through normalizeStatus), so a guard that reads
+// the raw flag instead of the normalized value cannot pass either table.
+func TestUpdateCmd_RefusesNonTerminalStatusOnFixedLocatedItem(t *testing.T) {
+	assertGuardAbsent := os.Getenv("RED_MODE") == "1"
+
+	for _, tc := range []struct{ input, normalizesTo string }{
+		{"Queued", "Queued"},
+		{"In progress", "In progress"},
+		{"Ready for testing", "Ready for testing"},
+		{"In testing", "In testing"},
+		{"Reopened", "Reopened"},
+		{"queued", "Queued"},
+		{"still making progress on this", "In progress"},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			if got := normalizeStatus(tc.input); got != tc.normalizesTo {
+				t.Fatalf("precondition broken: normalizeStatus(%q) = %q, want %q — this case no longer exercises the guard",
+					tc.input, got, tc.normalizesTo)
+			}
+
+			dbPath := newTestDB(t)
+			seedFixedItem(t, dbPath, "WIT-910")
+
+			code := updateCmd([]string{"--db", dbPath, "--id", "WIT-910", "--location", "Fixed", "--status", tc.input})
+
+			bad, got := fixedForbiddenState(t, dbPath, "WIT-910")
+			if assertGuardAbsent {
+				// RED_MODE=1: assert the guard-absent baseline reproduces exactly
+				// the independent reviewer's empirical finding — update accepted the
+				// non-terminal status on a Fixed row AND the row validate then
+				// refuses actually exists.
+				if code != exitOK {
+					t.Fatalf("RED_MODE=1: update refused (exit %d) — guard present, guard-absent baseline no longer reproducible", code)
+				}
+				if !bad {
+					t.Fatalf("RED_MODE=1: row not in the forbidden state (status=%q) — defect no longer reproducible", got)
+				}
+				if vc := validateCmd([]string{"--db", dbPath}); vc == exitOK {
+					t.Fatalf("RED_MODE=1: validate returned OK on the row update just minted — the reproduction is incomplete (check (f) should refuse it)")
+				}
+				return
+			}
+
+			if code == exitOK {
+				t.Errorf("update returned OK for --status %q (normalizes to the non-terminal %q) on a Fixed-located item — mints a row validate immediately refuses",
+					tc.input, tc.normalizesTo)
+			}
+			if bad {
+				t.Fatalf("row left in the forbidden state: status=%q at current_location=Fixed (input was %q)", got, tc.input)
+			}
+		})
+	}
+}
+
+// TestUpdateCmd_FixedRefusalNamesAllThreePaths is BOB-175 acceptance criterion (a)
+// made runtime-visible, not just a source comment: the refusal must name the
+// genuine-demotion path (`reopen`, default — relocates to Issues), the non-demotion
+// relocation path (`move --to Issues`), AND the sanctioned transient override
+// (`reopen --location Fixed`) — so an operator reading the error, not only a future
+// reader of mutate.go, learns the coexistence decision.
+func TestUpdateCmd_FixedRefusalNamesAllThreePaths(t *testing.T) {
+	if os.Getenv("RED_MODE") == "1" {
+		t.Skip("RED_MODE=1: no refusal is emitted in the guard-absent baseline") // SKIP-OK: RED polarity
+	}
+	dbPath := newTestDB(t)
+	seedFixedItem(t, dbPath, "WIT-911")
+
+	rc, stderr := captureStderrRun(t, func() int {
+		return updateCmd([]string{"--db", dbPath, "--id", "WIT-911", "--location", "Fixed", "--status", "In progress"})
+	})
+	if rc == exitOK {
+		t.Fatalf("update returned OK — no refusal was emitted to inspect")
+	}
+
+	for _, want := range []string{
+		"WIT-911", "Fixed", "§11.4.34",
+		"reopen --id", "move --id", "--location Fixed",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("refusal message does not mention %q — not actionable (§11.4.201(5)).\ngot: %s", want, stderr)
+		}
+	}
+}
+
+// --- §11.4.201(1) NEGATIVE CONTROLS for the BOB-175 direction. ---
+
+// injectNonTerminalStatusAtFixed writes the forbidden state by RAW SQL, deliberately
+// bypassing the CLI — the mirror of injectTerminalStatusAtIssues for the Fixed
+// direction, used to set up the "already-forbidden row" fixtures below without
+// depending on the guard under test.
+func injectNonTerminalStatusAtFixed(t *testing.T, dbPath, id, nonTerminal string) {
+	t.Helper()
+	db, err := openDB(dbPath)
+	if err != nil {
+		t.Fatalf("openDB: %v", err)
+	}
+	defer db.Close()
+	var body string
+	if err := db.QueryRow(`SELECT COALESCE(body_md,'') FROM items WHERE atm_id=? AND current_location='Fixed'`, id).Scan(&body); err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	res, err := db.Exec(`UPDATE items SET status=?, body_md=? WHERE atm_id=? AND current_location='Fixed'`,
+		nonTerminal, canonicalizeBodyStatusLine(body, nonTerminal), id)
+	if err != nil {
+		t.Fatalf("inject: %v", err)
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		t.Fatalf("inject affected %d rows, want 1", n)
+	}
+	items, _ := loadItems(db)
+	if d := statusColumnBodyDesyncs(items); len(d) != 0 {
+		t.Fatalf("fixture not isolated: column↔body guard fired (%v)", d)
+	}
+}
+
+// TestUpdateCmd_AllowsNonStatusFieldEditOnFixedLocatedForbiddenRow mirrors
+// TestUpdateCmd_AllowsNonStatusFieldEditOnAlreadyForbiddenRow for the Fixed
+// direction: a row already in the forbidden state (planted before the guard
+// existed, by raw SQL, or by reopen's sanctioned override) must still accept a
+// non-status field edit — a guard that blocked this would block the very
+// remediation work it exists to prompt.
+func TestUpdateCmd_AllowsNonStatusFieldEditOnFixedLocatedForbiddenRow(t *testing.T) {
+	dbPath := newTestDB(t)
+	seedFixedItem(t, dbPath, "WIT-912")
+	injectNonTerminalStatusAtFixed(t, dbPath, "WIT-912", "In progress")
+
+	if code := updateCmd([]string{"--db", dbPath, "--id", "WIT-912", "--location", "Fixed", "--severity", "Critical"}); code != exitOK {
+		t.Fatalf("update refused a non-status field edit on an already-forbidden Fixed row (exit %d) — the guard blocks its own remediation path", code)
+	}
+	db, _ := openDB(dbPath)
+	it, _ := loadItem(db, "WIT-912", "Fixed")
+	db.Close()
+	if it == nil || strings.TrimSpace(it.Severity) != "Critical" {
+		t.Fatalf("severity edit did not land (item=%v)", it)
+	}
+}
+
+// TestUpdateCmd_FixedGuardDoesNotAffectReopenSanctionedOverride is BOB-175's SHARP
+// negative control, exactly as the item names it: the sanctioned reopen path MUST
+// still work. reopenCmd performs its own tx.Exec write and never calls updateCmd
+// (verified by inspection — see point 1 of the design-decision comment on the guard
+// in mutate.go), so this is expected to pass BY CONSTRUCTION; it is asserted here
+// directly rather than merely trusted, because "the code paths don't share a
+// function" is a claim, not itself captured evidence (§11.4.6). A guard that broke
+// this would be worse than the gap it closes — it would break a workflow operators
+// are told to use.
+func TestUpdateCmd_FixedGuardDoesNotAffectReopenSanctionedOverride(t *testing.T) {
+	dbPath := newTestDB(t)
+	seedFixedItem(t, dbPath, "WIT-913")
+
+	if code := reopenCmd([]string{"--db", dbPath, "--id", "WIT-913",
+		"--location", "Fixed",
+		"--why", "test-failed", "--who", "AI",
+		"--when", "2026-09-25", "--incident", "qa-results/wit-913.log"}); code != exitOK {
+		t.Fatalf("reopenCmd (--location Fixed sanctioned override) exit %d after the BOB-175 update guard landed — regression in a workflow operators are told to use", code)
+	}
+	db, _ := openDB(dbPath)
+	defer db.Close()
+	fx, _ := loadItem(db, "WIT-913", "Fixed")
+	if fx == nil {
+		t.Fatal("--location Fixed override NOT honored after BOB-175 — WIT-913 left Fixed")
+	}
+	if fx.Status != "Reopened" {
+		t.Errorf("override item status = %q, want Reopened", fx.Status)
+	}
+	// Exactly as TestReopenCmd_LocationFixedOverrideKeepsInFixed documents: this
+	// state IS flagged by validate (the sanctioned override is deliberately
+	// transient) — proving the guard did not silently start suppressing that
+	// detective finding either.
+	if vc := validateCmd([]string{"--db", dbPath}); vc == exitOK {
+		t.Fatal("validate returned OK on the sanctioned override's transient state — expected it to flag WIT-913 (check (f)), same as before BOB-175")
 	}
 }

@@ -1,0 +1,1000 @@
+#!/usr/bin/env python3
+"""audit.py - consumer audit (T-G04/T171; contract
+consumer-audit-and-migration.md CA-010..CA-012; guarded by
+tests/test_consumer_audit_red.sh, T167; FR-024, SC-010).
+
+Subcommands:
+  audit   --config <fastcycle.yaml> --consumers <consumers.json>
+          --workdir <dir> --out <audit_dir/>
+  summary --consumers <consumers.json> --audits <audit_dir/>
+          --migrations <dir> --out <summary.json>
+          --reviews <archived-review-records-dir/>    # RECOMMENDED default
+              (T177 Round 9 I2): omitting --reviews degrades `review_ref`
+              to presence-only verification and FORCES coverage_trusted
+              false (and review_ref_verification="presence-only") in the
+              written summary.json -- a caller trusting coverage_trusted
+              on an invocation that never supplied --reviews would
+              otherwise be fooled into thinking an unverified review_ref
+              means real CA-024 coverage. T177 Round 10 (R10-M1): the
+              force above, and "presence-only"/"verified", apply only
+              when >=1 MIGRATED record exists to (dis)trust; a project set
+              with ZERO migrated records writes the closed THIRD value
+              review_ref_verification="not-applicable" instead (there is
+              nothing for --reviews to have verified either way), and
+              "verified" additionally requires --reviews to name a
+              genuinely existing directory (os.path.isdir), never a bare
+              argument string.
+
+CA-010: exactly one ConsumerAuditReport per project in --consumers,
+including projects this host cannot reach at all (UNMEASURED fields with
+missing_instrument, never a silent 0/None); the written set is verified
+by INDEPENDENTLY re-deriving it from disk (every report file's OWN
+`project_id` field, re-globbed after the write loop) and comparing
+against the project ids read from --consumers -- never by comparing the
+write loop's own running counter against a count derived from the SAME
+in-memory list it iterated (T177 Round 1 I8: that comparison is
+tautological by construction -- a mutation that truncates the iterated
+list moves both sides in lockstep and can never be caught by a bare
+count check). Any enumerated id with no matching report on disk => exit
+1, naming the missing id(s).
+
+CA-011: measurements reuse the same tools this feature already uses
+elsewhere -- constitution_pointer + behind_head_by via
+`git -C <constitution_root> rev-list --count <gitlink>..HEAD` (the SAME
+mechanism T167's own live control needle proves sound), preamble_bytes via
+either the local CLAUDE.md's real byte size or (no local checkout) the
+GitHub Contents API's own reported `size` field for that file --
+Measured<int> in both cases. cleanliness is genuinely measured for every
+local checkout via `git status --porcelain` (T177 Round 1 I7 -- the prior
+docstring claimed this call without the code ever making it).
+gate_suite_runtime, registry_defect_present, mechanism_presence and
+pull_validate_time_seconds have no cross-repo instrument yet and are
+recorded UNMEASURED with missing_instrument, never coerced to a fake
+value (C-001 false-null guard). migration_effort is ALWAYS labelled
+"ESTIMATE:<hours>", NEVER "Measured:" (T177 Round 1 I7 -- it is derived
+from behind_head_by via a fixed hours-per-commit heuristic, not an
+actual measured duration, regardless of whether behind_head_by itself
+was measured).
+
+Per data-model.md #13.2, `count(reports) = count(projects)` -- for a
+project with MULTIPLE local checkouts (T177 Round 1 I9: a consumer can
+be checked out more than once, e.g. via separate git worktrees on
+separate tracks, and those checkouts can genuinely diverge), the ONE
+report's top-level fields (constitution_pointer, behind_head_by,
+measurements) describe `local_checkouts[0]` as before, and a NEW
+`local_checkouts_detail` array carries a per-checkout breakdown (path,
+constitution_pointer, behind_head_by, cleanliness) for EVERY known
+checkout, not only the first -- never silently auditing one checkout and
+treating it as authoritative for all.
+
+CA-012: read-only. A local checkout is inspected with `git ls-tree` /
+`git status --porcelain` only (never `checkout`, `pull`, `fetch --prune`,
+or any write); a remote-only project is read via the GitHub Contents API
+(no clone at all). --workdir exists for a future clone-based path
+(consumers this host has no local checkout of but wants file-level
+inspection for) and is currently unused when the GitHub API alone
+suffices, which it does for every measurement CA-011 currently defines.
+"""
+import argparse
+import glob
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+
+try:
+    import yaml
+except ImportError:
+    print("audit.py: PyYAML is required (python3 -m pip install pyyaml)", file=sys.stderr)
+    sys.exit(2)
+
+
+def load_config(path):
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            cfg = yaml.safe_load(fh)
+    except OSError as exc:
+        print("audit.py: cannot read --config %s: %s" % (path, exc), file=sys.stderr)
+        sys.exit(2)
+    return cfg or {}
+
+
+def repo_root_of_config(config_path):
+    # fastcycle.yaml's own header: "Paths below are relative to this
+    # project's root (the directory containing this file's grandparent
+    # `config/`)" -- config/fastcycle/fastcycle.yaml -> up 2 = repo root.
+    config_dir = os.path.dirname(os.path.abspath(config_path))
+    return os.path.dirname(os.path.dirname(config_dir))
+
+
+def sh(args, cwd=None, timeout=20):
+    try:
+        proc = subprocess.run(args, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
+        return None
+    return proc.stdout
+
+
+def measure_behind(const_root, gitlink):
+    if not gitlink:
+        return None
+    # cat-file -e prints nothing and exits 0 iff the object exists (T177
+    # Round 3 minor: a leftover duplicate `exists = sh(...)` call whose
+    # result was never read is removed).
+    proc = subprocess.run(["git", "-C", const_root, "cat-file", "-e", gitlink], capture_output=True, timeout=20)
+    if proc.returncode != 0:
+        return None
+    out = sh(["git", "-C", const_root, "rev-list", "--count", "%s..HEAD" % gitlink])
+    if out is None:
+        return None
+    out = out.strip()
+    if not out.isdigit():
+        return None
+    return int(out)
+
+
+def gh_contents(project_id, path):
+    try:
+        proc = subprocess.run(
+            ["gh", "api", "repos/%s/contents/%s" % (project_id, path)],
+            capture_output=True, text=True, timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
+        return None
+    try:
+        return json.loads(proc.stdout)
+    except ValueError:
+        return None
+
+
+def risk_and_effort(behind):
+    if behind is None:
+        return "MEDIUM", "behind_head_by UNMEASURED -- risk cannot be lower-bounded, defaults to MEDIUM pending measurement", None
+    if behind <= 50:
+        risk, reason = "LOW", "behind_head_by=%d (<=50)" % behind
+    elif behind <= 200:
+        risk, reason = "MEDIUM", "behind_head_by=%d (51-200)" % behind
+    else:
+        risk, reason = "HIGH", "behind_head_by=%d (>200)" % behind
+    effort_hours = max(1, round(behind / 50.0, 1))
+    return risk, reason, effort_hours
+
+
+def measure_cleanliness(checkout):
+    """Returns ("clean"|"dirty", measured: bool) -- T177 Round 1 I7: a
+    genuine `git status --porcelain` measurement (the docstring's
+    existing, pre-this-fix claim that CA-012 already did this was false
+    until now; the call did not exist anywhere in this module)."""
+    out = sh(["git", "-C", checkout, "status", "--porcelain=v1"])
+    if out is None:
+        return None, False
+    return ("clean" if out.strip() == "" else "dirty"), True
+
+
+def _is_real_checkout(path):
+    return bool(path) and (os.path.isdir(os.path.join(path, ".git")) or os.path.isfile(os.path.join(path, ".git")))
+
+
+def audit_checkout_detail(checkout, const_root):
+    """Per-checkout breakdown for local_checkouts_detail (T177 Round 1
+    I9): one entry per KNOWN local checkout, never only checkouts[0] --
+    a consumer with multiple local checkouts (e.g. separate git
+    worktrees on separate tracks) can genuinely diverge, and auditing
+    only the first silently hides that."""
+    detail = {"path": checkout, "constitution_pointer": None, "behind_head_by": "UNMEASURED", "cleanliness": "UNMEASURED"}
+    if not _is_real_checkout(checkout):
+        detail["cleanliness"] = "UNMEASURED"
+        return detail
+    out = sh(["git", "-C", checkout, "ls-tree", "HEAD", "constitution"])
+    gitlink = None
+    if out:
+        parts = out.split()
+        if len(parts) >= 3:
+            gitlink = parts[2]
+    detail["constitution_pointer"] = gitlink
+    if gitlink:
+        behind = measure_behind(const_root, gitlink)
+        detail["behind_head_by"] = behind if behind is not None else "UNMEASURED"
+    clean, measured = measure_cleanliness(checkout)
+    detail["cleanliness"] = clean if measured else "UNMEASURED"
+    return detail
+
+
+def audit_one(project, const_root):
+    project_id = project["project_id"]
+    consumer_kind = project.get("consumer_kind", "submodule")
+    local_checkouts = project.get("local_checkouts") or []
+
+    gitlink = None
+    preamble_bytes = None
+    preamble_measured = False
+    behind = None
+    cleanliness = "UNMEASURED"
+    gaps = []
+    measurements = {}
+    local_checkouts_detail = [audit_checkout_detail(c, const_root) for c in local_checkouts]
+
+    if consumer_kind == "text-only-inheritance":
+        gaps.append({
+            "area": "constitution-pointer",
+            "finding": "text-only inheritance: no constitution submodule gitlink to measure",
+            "evidence": "consumer_kind=text-only-inheritance (enumerate.sh)",
+        })
+        measurements["gate_suite_runtime"] = {"value": None, "missing_instrument": "no gate suite in a text-only consumer"}
+        measurements["registry_defect_present"] = {"value": None, "missing_instrument": "no owned tracker DB to inspect cross-repo"}
+        measurements["mechanism_presence"] = {"value": None, "missing_instrument": "no cross-repo mechanism-wiring instrument yet"}
+        measurements["pull_validate_time_seconds"] = {"value": None, "missing_instrument": "requires a live scratch clone + pull + validate run, not performed by a read-only audit pass (CA-012)"}
+        local_ok = local_checkouts and os.path.isdir(local_checkouts[0])
+        if local_ok:
+            claude_md = os.path.join(local_checkouts[0], "CLAUDE.md")
+            if os.path.isfile(claude_md):
+                preamble_bytes = os.path.getsize(claude_md)
+                preamble_measured = True
+            clean, measured = measure_cleanliness(local_checkouts[0])
+            cleanliness = clean if measured else "UNMEASURED"
+        risk, risk_reason, effort = risk_and_effort(None)
+        measurements["preamble_bytes"] = {"value": preamble_bytes, "measured": preamble_measured}
+        measurements["cleanliness"] = {"value": cleanliness if cleanliness != "UNMEASURED" else None, "measured": cleanliness != "UNMEASURED"}
+        return {
+            "project_id": project_id,
+            "constitution_pointer": None,
+            "behind_head_by": "UNMEASURED",
+            "gaps": gaps,
+            "migration_effort": "ESTIMATE:0.5",
+            "risk": risk,
+            "risk_reason": risk_reason,
+            "measurements": measurements,
+            "local_checkouts_detail": local_checkouts_detail,
+        }
+
+    local_ok = _is_real_checkout(local_checkouts[0]) if local_checkouts else False
+    if local_ok:
+        checkout = local_checkouts[0]
+        out = sh(["git", "-C", checkout, "ls-tree", "HEAD", "constitution"])
+        if out:
+            parts = out.split()
+            if len(parts) >= 3:
+                gitlink = parts[2]
+        claude_md = os.path.join(checkout, "CLAUDE.md")
+        if os.path.isfile(claude_md):
+            preamble_bytes = os.path.getsize(claude_md)
+            preamble_measured = True
+        clean, measured = measure_cleanliness(checkout)
+        cleanliness = clean if measured else "UNMEASURED"
+    else:
+        doc = gh_contents(project_id, "constitution")
+        if doc and doc.get("type") == "submodule":
+            gitlink = doc.get("sha")
+        claude_doc = gh_contents(project_id, "CLAUDE.md")
+        if claude_doc and "size" in claude_doc:
+            preamble_bytes = claude_doc["size"]
+            preamble_measured = True
+
+    if gitlink:
+        behind = measure_behind(const_root, gitlink)
+        if behind is None:
+            gaps.append({
+                "area": "constitution-pointer",
+                "finding": "gitlink %s is not resolvable in this host's constitution clone (fetch needed)" % gitlink,
+                "evidence": "git -C %s cat-file -e %s" % (const_root, gitlink),
+            })
+    else:
+        gaps.append({
+            "area": "constitution-pointer",
+            "finding": "could not resolve a constitution gitlink for this project (unreachable)",
+            "evidence": "local checkout absent and gh api contents/constitution did not return a submodule entry",
+        })
+
+    measurements["gate_suite_runtime"] = {"value": None, "missing_instrument": "no cross-repo gate-suite-log instrument yet"}
+    measurements["registry_defect_present"] = {"value": None, "missing_instrument": "no cross-repo tracker-DB instrument yet"}
+    measurements["mechanism_presence"] = {"value": None, "missing_instrument": "no cross-repo mechanism-wiring instrument yet"}
+    measurements["pull_validate_time_seconds"] = {"value": None, "missing_instrument": "requires a live scratch clone + pull + validate run, not performed by a read-only audit pass (CA-012)"}
+    measurements["preamble_bytes"] = {"value": preamble_bytes, "measured": preamble_measured}
+    measurements["cleanliness"] = {"value": cleanliness if cleanliness != "UNMEASURED" else None, "measured": cleanliness != "UNMEASURED"}
+
+    risk, risk_reason, effort = risk_and_effort(behind)
+    # T177 Round 1 I7: migration_effort is ALWAYS an ESTIMATE, never
+    # "Measured:" -- it is derived from behind_head_by via a fixed
+    # hours-per-commit heuristic (risk_and_effort's own `behind / 50.0`),
+    # which is an estimate regardless of whether behind_head_by itself
+    # was genuinely measured. The prior code labelled it "Measured:"
+    # whenever behind_head_by was known, directly contradicting this
+    # module's own docstring ("migration_effort is an ESTIMATE ...
+    # labelled explicitly, never presented as Measured").
+    return {
+        "project_id": project_id,
+        "constitution_pointer": gitlink,
+        "behind_head_by": behind if behind is not None else "UNMEASURED",
+        "gaps": gaps,
+        "migration_effort": "ESTIMATE:%s" % (effort if effort is not None else "1"),
+        "risk": risk,
+        "risk_reason": risk_reason,
+        "measurements": measurements,
+        "local_checkouts_detail": local_checkouts_detail,
+    }
+
+
+def cmd_audit(args):
+    cfg = load_config(args.config)  # noqa: F841 (loaded for CA-011 future tool paths; validated present)
+    const_root = os.path.join(repo_root_of_config(args.config), "constitution")
+    with open(args.consumers, "r", encoding="utf-8") as fh:
+        consumers_doc = json.load(fh)
+    projects = consumers_doc.get("projects", [])
+    expected_ids = {p["project_id"] for p in projects}
+
+    os.makedirs(args.out, exist_ok=True)
+    written = 0
+    written_paths = []
+    for project in projects:
+        report = audit_one(project, const_root)
+        safe_name = project["project_id"].replace("/", "__")
+        out_path = os.path.join(args.out, "%s.json" % safe_name)
+        with open(out_path, "w", encoding="utf-8") as fh:
+            json.dump(report, fh, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        written += 1
+        written_paths.append(out_path)
+
+    # CA-010 (T177 Round 1 I8 fix): re-derive the written set
+    # INDEPENDENTLY from disk -- read each report's OWN `project_id`
+    # field back -- rather than trusting the write loop's own running
+    # counter compared against a count derived from the SAME in-memory
+    # `projects` list it just iterated. A count-vs-count check like the
+    # prior `written != len(projects)` is tautological by construction:
+    # a mutation that truncates the iterated list (e.g.
+    # `for project in projects[:-1]:`) moves BOTH sides of that
+    # comparison in lockstep and can never be caught, confirmed live by
+    # reproducing the reviewer's exact mutation before writing this fix.
+    # `expected_ids` is captured ONCE, above, from the untouched
+    # --consumers document, so it is immune to any such in-loop
+    # truncation.
+    #
+    # T177 Round 2 R2-I6 fix: re-derive from `written_paths` (the paths
+    # THIS RUN actually wrote), never a blind `glob.glob(--out/*.json)`
+    # of the whole directory -- a REUSED --out directory can hold stale
+    # files left over from a PREVIOUS run, and globbing silently papers
+    # over a truncated-iteration mutation with a leftover file the
+    # CURRENT run never touched (reproduced live: the reviewer's own
+    # `projects[:-1]` mutant still globbed a stale prior-run file for the
+    # dropped project and reported "wrote 1 ... verified 2/2"). Re-reading
+    # each WRITTEN path's own content still independently verifies the
+    # file's CONTENT matches what was intended, per the original I8
+    # reasoning; it is the SET of paths considered, not the read-back
+    # itself, that changes.
+    on_disk_ids = set()
+    for out_path in written_paths:
+        try:
+            with open(out_path, "r", encoding="utf-8") as fh:
+                rec = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        rec_id = rec.get("project_id")
+        if rec_id:
+            on_disk_ids.add(rec_id)
+
+    missing_ids = expected_ids - on_disk_ids
+    if missing_ids:
+        print(
+            "audit.py: CA-010 report coverage mismatch: %d/%d enumerated project(s) have no ConsumerAuditReport on disk: %s"
+            % (len(expected_ids) - len(missing_ids), len(expected_ids), ", ".join(sorted(missing_ids))),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print(
+        "audit.py: wrote %d ConsumerAuditReport(s) to %s (verified %d/%d enumerated project_id(s) present on disk)"
+        % (written, args.out, len(expected_ids & on_disk_ids), len(expected_ids))
+    )
+    sys.exit(0)
+
+
+# data-model.md #13.3 closed vocabulary (CA-019). A NOT-MIGRATED record is
+# counted toward SC-010 coverage ONLY when its reason is EXACTLY one of
+# these DEC-25 forms -- T177 Round 3 finding 1.
+MIGRATION_STEPS = (
+    "preflight", "backup", "fetch", "gitlink-bump", "post-update-hook",
+    "consumer-gates", "wiring", "review", "commit", "push", "verify",
+)
+MIGRATION_REASONS = (
+    "dirty-local", "unreachable", "divergent-branches", "no-write-access",
+    "outside-migration-scope", "operator-blocked", "backup-failed",
+    "consumer-gates-red", "out-of-scope-diff", "no-commit-wrapper",
+    "review-no-go", "remote-rejected", "non-fast-forward",
+    "verification-not-clean",
+)
+_REASON_RE = re.compile(r"^NOT-MIGRATED \(([a-z-]+): ([a-z-]+)\)$")
+
+
+_SHA_ADDR_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+def _verification_problem(v, base_dir, commit):
+    """None when `v` is a genuine CA-026 double-verify pair whose cited
+    evidence still exists on disk BYTE-FOR-BYTE and is BOUND to the record
+    it is attached to; otherwise the invalid class name. T177 Round 5
+    (round-4 I1 M1 + I3): the record's `content_address` is RE-DERIVED from
+    the cited report file's actual bytes -- a shape-valid
+    `sha256:<64 hex>` string that addresses anything else (the reviewer's
+    mutation hashed the PATH STRING) is refused, and so is a record whose
+    own `overall`/`body_hash` claim disagrees with what the cited report
+    file itself says.
+
+    T177 Round 6 (round-6 IMPORTANT I4): two further gaps closed, both
+    against this round's own stated threat model ("summary reads records
+    without trusting their author"): (1) the cited report's OWN
+    `repos[path=="."].head` (every genuine repo_verify.py report carries
+    this -- the root repo's own HEAD at verify time) MUST equal the
+    record's own `commit` -- without this, a record for project X could
+    cite project Y's genuine, byte-real, correctly-hashed CLEAN reports
+    while claiming an unrelated `commit`, and summary had no way to tell
+    (reproduced live: a record citing a FOREIGN project's real reports with
+    a fabricated `commit` was counted trusted); (2) the two cited entries
+    MUST NOT cite the SAME report path -- citing one real verify run's
+    output twice as "two independent runs" proves only ONE real run,
+    defeating CA-026's "verify TWICE" at exactly the seam meant to enforce
+    it (reproduced live: a record citing one report file twice, same path,
+    same content_address, was counted trusted).
+
+    Deliberately NOT required: distinct `content_address` between the two
+    entries. Measured live against the real double-verify tool
+    (repo_verify.py): its JSON output carries NO timestamp/run-id field, so
+    two back-to-back invocations against an UNCHANGED tree are
+    byte-IDENTICAL -- every genuine MIGRATED record this tool itself
+    produces for a static, clean state therefore has IDENTICAL
+    content_address for its two entries by construction. Requiring
+    distinct content_address would refuse every real, honest double-verify
+    record this tool ever produces -- a false-positive refusal
+    (§11.4.201(1)) of exactly the class this review round exists to
+    eliminate, not merely a stricter reading of the same finding. Distinct
+    `path` alone still catches the reviewer's own E5 repro (same path cited
+    twice) without this regression."""
+    if not (isinstance(v, list) and len(v) == 2 and all(isinstance(e, dict) for e in v)):
+        return "record-missing-verification-evidence"
+    if not all(e.get("overall") == "CLEAN" for e in v):
+        return "record-missing-verification-evidence"
+    if not (v[0].get("body_hash") and v[0].get("body_hash") == v[1].get("body_hash")):
+        return "record-missing-verification-evidence"
+    if v[0].get("path") == v[1].get("path"):
+        return "record-verification-evidence-not-independent"
+    for e in v:
+        addr = e.get("content_address")
+        path = e.get("path")
+        if not (isinstance(addr, str) and _SHA_ADDR_RE.match(addr)) or not (isinstance(path, str) and path):
+            return "record-missing-verification-evidence"
+        real = path if os.path.isabs(path) else os.path.join(base_dir, path)
+        try:
+            with open(real, "rb") as fh:
+                raw = fh.read()
+        except OSError:
+            return "record-verification-evidence-unverifiable"
+        if "sha256:" + hashlib.sha256(raw).hexdigest() != addr:
+            return "record-verification-evidence-mismatch"
+        try:
+            report = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return "record-verification-evidence-mismatch"
+        if not isinstance(report, dict) or report.get("overall") != e.get("overall") or report.get("body_hash") != e.get("body_hash"):
+            return "record-verification-evidence-mismatch"
+        repos = report.get("repos")
+        root_head = None
+        if isinstance(repos, list):
+            for r in repos:
+                if isinstance(r, dict) and r.get("path") == ".":
+                    root_head = r.get("head")
+                    break
+        if root_head != commit:
+            return "record-verification-evidence-not-bound"
+    return None
+
+
+def _contained(path, root):
+    """True iff the REAL (symlink-resolved) `path` lies inside -- or equals
+    -- `root`'s own REAL location. T177 Round 9 (round-8 MINOR M5, point
+    3): both sides are realpath'd so a path cannot escape the boundary via
+    `..` segments NOR via a symlink planted inside the boundary that points
+    outside it."""
+    root_real = os.path.realpath(root)
+    path_real = os.path.realpath(path)
+    return path_real == root_real or path_real.startswith(root_real + os.sep)
+
+
+def _load_review_doc(review_ref, base_dir, reviews_dir):
+    """T177 Round 6 I5 (RULING a): resolve `review_ref` to an actual review
+    record EXACTLY the way migrate.sh's own check_review()/REVIEW_REF_ID
+    derivation does -- by the record's OWN `review_id` field first (the
+    common real-world shape, since review_record.py always sets one), else
+    by treating `review_ref` itself as a readable file path (absolute, or
+    relative to the declared --reviews archive -- see the T177 Round 10
+    note below). Returns the loaded dict, or None if it could not be
+    resolved/parsed at all. `reviews_dir` is never required to exist (an
+    absent-but-configured --reviews path is just "no match by id").
+
+    T177 Round 9 (round-8 MINOR M5, point 3): the by-PATH fallback below is
+    a LAST resort reached only when no id-lookup matched. `review_ref` is a
+    field of the UNTRUSTED migration record itself -- this module's whole
+    threat model is "summary reads records without trusting their author"
+    -- so without a containment check, an attacker-controlled record could
+    point `review_ref` at ANY absolute path this process can read, or
+    escape the archive via `../..`, and have `summary` open and trust
+    whatever JSON happens to live there. The resolved, REALPATH'd target is
+    therefore required to lie inside `reviews_dir` -- the ONE directory
+    this fallback is actually documented to read from. A path that
+    escapes it is refused -- never silently ignored -- by returning None,
+    exactly like any other unresolvable review_ref.
+
+    T177 Round 10 fix (R10-M3 MINOR, `base_dir` parameter kept for call-site
+    compatibility and future use but no longer consulted below): this
+    function is reached ONLY when `reviews_dir` is truthy -- its sole
+    caller, `_review_ref_problem()`, returns None immediately otherwise,
+    before `_load_review_doc` is ever invoked (`if not reviews_dir: return
+    None`, before the `_load_review_doc(...)` call). The prior code's
+    `boundary = reviews_dir if reviews_dir else base_dir` could therefore
+    never take its `else base_dir` branch -- dead code describing a caller
+    shape that cannot occur, removed here rather than left to describe
+    behaviour nothing exercises.
+    #
+    A separate, genuine bug this round also fixes: a RELATIVE `review_ref`
+    was previously joined against `base_dir` (the migration record's OWN
+    directory) for path RESOLUTION, while being containment-CHECKED
+    against `reviews_dir` (the declared archive) -- two DIFFERENT
+    directories, so a relative ref resolved successfully only when the
+    record happened to already live inside the archive (reproduced live:
+    a relative "ok.json" ref resolved to None even though
+    "<archive>/ok.json" genuinely existed). Resolution now joins a
+    relative `review_ref` against `reviews_dir`, the SAME directory the
+    containment check already uses -- the two are consistent by
+    construction. Low real-world impact (migrate.sh itself canonicalises
+    every `--review-ref` to an absolute path before it is ever persisted,
+    T177 Round 9), but this read-time fallback's OWN documented behaviour
+    is corrected regardless of which caller produced the record."""
+    if reviews_dir:
+        try:
+            candidates = glob.glob(os.path.join(reviews_dir, "*.json"))
+        except OSError:
+            candidates = []
+        for cf in sorted(candidates):
+            try:
+                with open(cf, "r", encoding="utf-8") as fh:
+                    doc = json.load(fh)
+            except (OSError, ValueError):
+                continue
+            if isinstance(doc, dict) and doc.get("review_id") == review_ref:
+                return doc
+    path = review_ref if os.path.isabs(review_ref) else os.path.join(reviews_dir, review_ref)
+    if not _contained(path, reviews_dir):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return doc if isinstance(doc, dict) else None
+
+
+def _review_ref_problem(review_ref, project_id, base_dir, reviews_dir):
+    """None when `review_ref` is either (a) genuinely UNVERIFIABLE because
+    no --reviews directory was supplied to this invocation -- the HONEST,
+    explicit, test-visible degrade to presence-only (T177 Round 5 I3's
+    original shape-only check, kept as the documented fallback for every
+    caller that has not wired a reviews archive yet; `summary`'s CLI
+    contract is unchanged for every existing caller that omits --reviews),
+    or (b) resolves to a real GO / zero-finding / opus / xhigh review
+    record, REQUIRED to be project-id-bound (T177 Round 9, round-8 MINOR
+    M5, point 2 -- see below). Otherwise the invalid class name.
+
+    T177 Round 6 (round-6 IMPORTANT I5, RULING a): the commit's own
+    rejected-alternative rationale ("summary reads records without trusting
+    their author, so an unverifiable field cannot waive a verification")
+    applied with EQUAL force to `review_ref` itself before this fix -- it
+    was accepted on presence alone (reproduced live: `review_ref: "x"` was
+    counted trusted). This ports migrate.sh's own check_review() predicate
+    (verdict==GO, findings==[], tier==opus, effort==xhigh) to read-time,
+    when a --reviews archive is supplied.
+
+    HONEST BOUNDARY: full binding to (project_id, target_commit,
+    consumer_base_commit) -- the three fields migrate.sh's own
+    check_review() binds against at WRITE time -- is NOT achievable here.
+    The persisted ConsumerMigrationRecord schema (data-model.md #13.3)
+    carries only the consumer's OWN final `commit`, never the constitution
+    `target_commit` nor the pre-migration `consumer_base_commit` migrate.sh
+    captured at review time -- neither field survives into the migration
+    record for `summary` to re-check. This is therefore a PARTIAL
+    enforcement of RULING (a): verdict/findings/tier/effort are genuinely
+    checked, plus `project_id`, now REQUIRED rather than checked only
+    "where stated" (T177 Round 9, round-8 MINOR M5, point 2): migrate.sh's
+    own check_review() binds `project_id` unconditionally
+    (`doc.get("project_id") != project` -- no "if present" guard at all),
+    so a review document with no `project_id` is not something the WRITE
+    path would ever have genuinely accepted in the first place; checking
+    it only conditionally at READ time was an unnecessary weakening this
+    round closes -- a review doc with no `project_id` field now reads
+    exactly like one whose `project_id` names a different project.
+    target_commit/consumer_base_commit binding is an honestly-tracked
+    follow-up requiring a data-model change (persisting those two fields
+    into the migration record), never silently claimed achieved here."""
+    if not reviews_dir:
+        return None
+    doc = _load_review_doc(review_ref, base_dir, reviews_dir)
+    if doc is None:
+        return "record-review-ref-unverifiable"
+    tier = doc.get("model_tier", doc.get("tier"))
+    findings = doc.get("findings")
+    if doc.get("verdict") != "GO":
+        return "record-review-no-go"
+    if doc.get("project_id") != project_id:
+        return "record-review-no-go"
+    if not (isinstance(findings, list) and len(findings) == 0):
+        return "record-review-no-go"
+    if tier != "opus":
+        return "record-review-no-go"
+    if doc.get("effort") != "xhigh":
+        return "record-review-no-go"
+    return None
+
+
+def classify_migration_record(rec, base_dir=".", reviews_dir=None):
+    """Returns (valid: bool, key: str). A VALID record is one this summary
+    may count toward coverage; key is "MIGRATED" or the exact closed-set
+    not_migrated_reason. An INVALID record is never counted; key names why:
+
+      record-missing-verification-evidence -- MIGRATED with no genuine
+          double-CLEAN, equal-body_hash verification pair carrying a
+          sha256 content address + path per report (#13.3 "verification
+          ... required iff MIGRATED");
+      record-verification-evidence-unverifiable -- the cited report file
+          does not exist / cannot be read (relative paths resolve against
+          the record file's own directory);
+      record-verification-evidence-mismatch -- the cited report's REAL
+          bytes do not hash to the recorded content_address, or the report
+          itself says something other than the record claims (T177 Round
+          5, round-4 I1 M1 / I3);
+      record-verification-evidence-not-independent -- the two cited
+          verification entries name the SAME report path, proving only ONE
+          real verify run rather than CA-026's required two (T177 Round 6
+          I4);
+      record-verification-evidence-not-bound -- a cited report's own
+          `repos[path=="."].head` does not equal the record's own `commit`
+          -- the evidence is real and byte-matching, but for a DIFFERENT
+          state than this record claims (T177 Round 6 I4);
+      record-missing-review-ref -- MIGRATED with no `review_ref` (#13.3
+          "required iff MIGRATED"; T177 Round 5 I3 -- enforced, data model
+          not amended);
+      record-review-ref-unverifiable -- a --reviews archive was supplied
+          but `review_ref` does not resolve to any readable review record
+          there, by id or by path (T177 Round 6 I5);
+      record-review-no-go -- `review_ref` resolves to a review record (via
+          --reviews) that is not a genuine GO / zero-finding / opus / xhigh
+          verdict, or whose own `project_id` names a different project
+          (T177 Round 6 I5, RULING a);
+      record-missing-backup-marker -- MIGRATED with no `backup_marker`
+          {path, content_address sha256:<64 hex>} (#13.3, §9.2). Only the
+          marker's SHAPE is checked: the backup directory itself is a
+          disposable §9.2 mirror and may legitimately be pruned later, so
+          its absence on disk is not evidence of a false claim;
+      nonconforming-reason -- NOT-MIGRATED whose reason is not EXACTLY a
+          closed-set DEC-25 form (e.g. the reviewer's repro records that
+          carried only {"project_id": ...} and were previously counted as
+          not-migrated with reason "UNKNOWN");
+      local-git-error-vocabulary-gap -- a well-formed DEC-25 record whose
+          reason is migrate.sh's own `local-git-error` (a local git failure
+          no closed-set reason describes; T177 Round 3 N2). Still never
+          counted, but reported in its OWN bucket so an operator can tell
+          a tool-side git failure from a malformed record (round-4 MINOR);
+      dry-run-only -- a dry run (CA-028: "planned diff and preflight
+          verdict only") is not a migration outcome at all; migrate.sh
+          writes outcome DRY-RUN, and the legacy "NOT-MIGRATED (preflight:
+          dry-run)" form older runs wrote is classified the same way;
+      missing-or-unknown-outcome -- anything else.
+
+    `reviews_dir` (T177 Round 6 I5): when None (every existing caller's
+    default), `review_ref` is checked for PRESENCE only -- the honest,
+    explicit, documented fallback. When supplied, `review_ref` is
+    genuinely resolved and verified per `_review_ref_problem`'s docstring.
+    """
+    outcome = rec.get("outcome")
+    if outcome == "MIGRATED":
+        problem = _verification_problem(rec.get("verification"), base_dir, rec.get("commit"))
+        if problem:
+            return False, problem
+        rref = rec.get("review_ref")
+        if not (isinstance(rref, str) and rref.strip()):
+            return False, "record-missing-review-ref"
+        rproblem = _review_ref_problem(rref, rec.get("project_id"), base_dir, reviews_dir)
+        if rproblem:
+            return False, rproblem
+        bm = rec.get("backup_marker")
+        if not (isinstance(bm, dict) and isinstance(bm.get("path"), str) and bm.get("path")
+                and isinstance(bm.get("content_address"), str) and _SHA_ADDR_RE.match(bm["content_address"])):
+            return False, "record-missing-backup-marker"
+        return True, "MIGRATED"
+    if outcome == "DRY-RUN":
+        return False, "dry-run-only"
+    if outcome == "NOT-MIGRATED":
+        reason = rec.get("not_migrated_reason")
+        if reason == "NOT-MIGRATED (preflight: dry-run)":
+            return False, "dry-run-only"
+        if reason == "NOT-MIGRATED (dirty-local)":
+            return True, reason
+        m = _REASON_RE.match(reason or "")
+        if m and m.group(1) in MIGRATION_STEPS and m.group(2) in MIGRATION_REASONS and m.group(2) != "dirty-local":
+            return True, reason
+        if m and m.group(1) in MIGRATION_STEPS and m.group(2) == "local-git-error":
+            return False, "local-git-error-vocabulary-gap"
+        return False, "nonconforming-reason"
+    return False, "missing-or-unknown-outcome"
+
+
+def cmd_summary(args):
+    with open(args.consumers, "r", encoding="utf-8") as fh:
+        consumers_doc = json.load(fh)
+    projects = consumers_doc.get("projects", [])
+    known_ids = {p["project_id"] for p in projects}
+    audit_files = glob.glob(os.path.join(args.audits, "*.json"))
+    migration_files = glob.glob(os.path.join(args.migrations, "*.json")) if args.migrations and os.path.isdir(args.migrations) else []
+
+    # T177 Round 3 finding 1(c): a consumers file written by a DEGRADED
+    # enumeration (enumerate.sh exit 5 -- some orgs/repos could not be
+    # probed) holds a project set that is real but INCOMPLETE. Its
+    # `projects` list is therefore NOT a trustworthy SC-010 denominator:
+    # 19/19 over a set that silently lost projects is a false 1.0. The
+    # previous code never read `source_reachability` at all. A degraded
+    # file now makes the summary refuse (coverage_trusted=false, exit 1),
+    # naming every degraded probe; a file with NO source_reachability
+    # block at all (hand-written, or pre-B1) is recorded as "unrecorded"
+    # and likewise never trusted as complete -- the absence of a
+    # reachability record is not evidence of reachability (§11.4.201(6)).
+    #
+    # T177 Round 5 (round-4 I2): "complete" now requires BOTH degraded-probe
+    # lists to be genuinely PRESENT as lists. Round 3 only required the
+    # parent key: `"source_reachability": {}` (present but empty) read as
+    # complete via `reach.get(...) or []`, and a hand-written MIGRATED
+    # record then yielded coverage_trusted=true on a project set nobody
+    # proved complete. A block missing either list, or holding a non-list,
+    # is "incomplete" -- never trusted, exactly like an absent block.
+    reach = consumers_doc.get("source_reachability")
+    degraded = []
+    if not isinstance(reach, dict):
+        enumeration_reachability = "unrecorded"
+    elif not (isinstance(reach.get("github_degraded"), list) and isinstance(reach.get("gitlab_degraded"), list)):
+        enumeration_reachability = "incomplete"
+    else:
+        degraded = list(reach["github_degraded"]) + list(reach["gitlab_degraded"])
+        enumeration_reachability = "degraded" if degraded else "complete"
+
+    # T177 Round 1 B4: counted by DISTINCT enumerated project_id, never by
+    # file count; out-of-set ids are reported, never counted.
+    #
+    # T177 Round 3 finding 1 (supersedes Round 2's mtime-wins rule): only
+    # VALID records (classify_migration_record) count. Duplicate files for
+    # one project are resolved by CONTENT, never by file metadata: if every
+    # valid record for a project agrees on (outcome, reason, commit) it
+    # counts once; if two valid records DISAGREE the project is reported in
+    # `conflicting_records` and is NOT covered -- mtime and filename order
+    # are both properties of the copy, not of the migration (a `cp`, a
+    # checkout, or a `touch` reorders them), so neither can decide which
+    # claim is true. Invalid records never count and never override a
+    # valid one; they are listed in `invalid_records_by_class`.
+    #
+    # OPERATIONAL CONSTRAINT (T177 Round 5, round-4 I6): --migrations must
+    # hold exactly ONE record per project. Content-based dedup cannot tell
+    # an honest RETRY history (an earlier valid `dirty-local` record left
+    # beside a later valid MIGRATED record for the same project) from two
+    # contradictory claims, so such a history is reported as conflicting
+    # and the project as uncovered. That fails SAFE (never silently
+    # trusted); the remedy is for re-runs to overwrite the project's
+    # previous record (migrate.sh --out <same path>), never accumulate.
+    valid_by_id = {}
+    invalid_by_id = {}
+    unknown_ids_seen = set()
+    unreadable = []
+    for mf in sorted(migration_files):
+        try:
+            with open(mf, "r", encoding="utf-8") as fh:
+                rec = json.load(fh)
+        except (OSError, ValueError):
+            unreadable.append(os.path.basename(mf))
+            continue
+        if not isinstance(rec, dict):
+            unreadable.append(os.path.basename(mf))
+            continue
+        pid = rec.get("project_id")
+        if not pid:
+            continue
+        if pid not in known_ids:
+            unknown_ids_seen.add(pid)
+            continue
+        valid, key = classify_migration_record(rec, os.path.dirname(os.path.abspath(mf)), getattr(args, "reviews", None))
+        if valid:
+            valid_by_id.setdefault(pid, set()).add((key, rec.get("commit") or ""))
+        else:
+            invalid_by_id.setdefault(pid, []).append(key)
+
+    migrated = 0
+    not_migrated_by_reason = {}
+    conflicting = {}
+    for pid, sigs in valid_by_id.items():
+        if len(sigs) > 1:
+            conflicting[pid] = sorted("%s@%s" % (k, c or "-") for k, c in sigs)
+            continue
+        key = next(iter(sigs))[0]
+        if key == "MIGRATED":
+            migrated += 1
+        else:
+            not_migrated_by_reason[key] = not_migrated_by_reason.get(key, 0) + 1
+    covered = migrated + sum(not_migrated_by_reason.values())
+
+    invalid_records_by_class = {}
+    for pid, keys in invalid_by_id.items():
+        for k in keys:
+            invalid_records_by_class[k] = invalid_records_by_class.get(k, 0) + 1
+
+    # `audited` likewise counts DISTINCT enumerated ids with a real
+    # report on disk, never raw file count (the same B4 defect class).
+    audited_ids = set()
+    for af in audit_files:
+        try:
+            with open(af, "r", encoding="utf-8") as fh:
+                arec = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        apid = arec.get("project_id") if isinstance(arec, dict) else None
+        if apid in known_ids:
+            audited_ids.add(apid)
+
+    coverage = covered / len(projects) if projects else 0.0
+    uncovered = sorted(known_ids - {pid for pid in valid_by_id if pid not in conflicting})
+
+    # T177 Round 9 (round-8 IMPORTANT I2): `review_ref_verification`
+    # discloses -- IN THE ARTIFACT a release seam actually reads
+    # (summary.json), never only in a test -- whether THIS invocation
+    # genuinely verified every MIGRATED record's `review_ref` (a --reviews
+    # archive was supplied, so classify_migration_record's own
+    # _review_ref_problem() resolved + checked it against CA-024's
+    # verdict/findings/tier/effort predicate) or merely checked review_ref
+    # for PRESENCE -- the honest, documented, but previously INVISIBLE
+    # fallback for every caller that omits --reviews (reproduced live: a
+    # record with `review_ref: "x"` and NO --reviews read
+    # coverage_trusted=true, exit 0, with nothing in the output to say
+    # verification had been skipped). Keyed off the CLI argument itself,
+    # never off whatever a bug deeper in classify_migration_record might do
+    # with it (that class of defect is F13's own guard-viability mutant's
+    # job to catch) -- this field discloses what the CALLER asked for,
+    # matching this tool's documented CLI contract.
+    #
+    # `coverage_trusted` is now FORCED false whenever --reviews was
+    # omitted AND a MIGRATED record genuinely exists to distrust
+    # (REGARDLESS of enumeration completeness or conflicting records
+    # otherwise): a caller reading `coverage_trusted` can no longer be
+    # fooled into thinking an unverified `review_ref` means real coverage.
+    # This is a DELIBERATE behavior change from T177 Round 6/7 (which kept
+    # the degrade an "unchanged default" -- see F13c's rewritten assertion
+    # in the regression suite) -- the operative CA-024 coverage gate must
+    # never report itself trusted while the one check CA-024 exists to
+    # enforce (a genuine zero-finding GO review at the designated tier) was
+    # never actually run.
+    #
+    # T177 Round 10 fix (R10-M1 MINOR, all three points): the force above
+    # was UNCONDITIONAL on --reviews being omitted, even on a project set
+    # with ZERO migrated=0 records -- there, there is genuinely nothing a
+    # --reviews archive could ever have verified, so forcing untrusted
+    # anyway is a vacuous, §11.4.201(1)-shaped FALSE-POSITIVE refusal of a
+    # genuinely complete, fully-honest coverage (reproduced live: 1 project,
+    # 1 valid NOT-MIGRATED record, 0 MIGRATED, no --reviews -> coverage 1.0,
+    # still forced untrusted). Three fixes, all from the review's own
+    # recommendation:
+    #   (1) the force below now applies ONLY when `migrated > 0` -- every
+    #       OTHER force-false condition (degraded/incomplete enumeration,
+    #       conflicting records) is unchanged and still applies regardless
+    #       of `migrated`;
+    #   (2) `review_ref_verification` reads the closed THIRD value
+    #       "not-applicable" whenever `migrated == 0` (checked BEFORE
+    #       either of the other two values, so it can never be confused
+    #       with a genuinely-attempted-but-undone verification), so the
+    #       field never implies verification activity that had nothing to
+    #       verify, regardless of whether --reviews happened to be supplied
+    #       or not;
+    #   (3) `review_ref_verification` reads "verified" only when
+    #       `reviews_dir_arg` is BOTH supplied AND a genuinely existing
+    #       directory (`os.path.isdir`) -- a typo'd or since-removed
+    #       --reviews path previously still read "verified" purely because
+    #       an argument string was present (the underlying per-record check
+    #       already failed closed whenever a MIGRATED record existed to
+    #       check -- `_load_review_doc`'s own glob/containment logic
+    #       against a nonexistent directory finds nothing and resolves to
+    #       `record-review-ref-unverifiable` -- this is a LABEL-honesty
+    #       fix only, not a new enforcement path).
+    reviews_dir_arg = getattr(args, "reviews", None)
+    reviews_dir_usable = bool(reviews_dir_arg) and os.path.isdir(reviews_dir_arg)
+    if migrated == 0:
+        review_ref_verification = "not-applicable"
+    elif reviews_dir_usable:
+        review_ref_verification = "verified"
+    else:
+        review_ref_verification = "presence-only"
+    coverage_trusted = (
+        enumeration_reachability == "complete"
+        and not conflicting
+        and (migrated == 0 or review_ref_verification == "verified")
+    )
+
+    doc = {
+        "schema": "summary/v1",
+        "projects": len(projects),
+        "audited": len(audited_ids),
+        "migrated": migrated,
+        "not_migrated_by_reason": not_migrated_by_reason,
+        "coverage": coverage,
+        "coverage_trusted": coverage_trusted,
+        "review_ref_verification": review_ref_verification,
+        "enumeration_reachability": enumeration_reachability,
+        "uncovered_ids": uncovered,
+    }
+    if degraded:
+        doc["enumeration_degraded"] = degraded
+    if conflicting:
+        doc["conflicting_records"] = conflicting
+    if invalid_records_by_class:
+        doc["invalid_records_by_class"] = invalid_records_by_class
+    if unreadable:
+        doc["unreadable_record_files"] = sorted(unreadable)
+    if unknown_ids_seen:
+        doc["unknown_ids_ignored"] = sorted(unknown_ids_seen)
+    with open(args.out, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    if not coverage_trusted:
+        why = []
+        if enumeration_reachability == "degraded":
+            why.append("the consumers file comes from a DEGRADED enumeration (%d probe(s) failed) -- its project set is incomplete" % len(degraded))
+        elif enumeration_reachability == "unrecorded":
+            why.append("the consumers file carries no source_reachability block -- completeness of its project set is unknown")
+        elif enumeration_reachability == "incomplete":
+            why.append("the consumers file's source_reachability block lacks a github_degraded and/or gitlab_degraded LIST -- completeness of its project set is unproven")
+        if conflicting:
+            why.append("%d project(s) have conflicting valid records: %s" % (len(conflicting), ", ".join(sorted(conflicting))))
+        if review_ref_verification == "presence-only":
+            why.append("no --reviews archive was supplied to this invocation -- every MIGRATED record's review_ref was checked for PRESENCE only, never genuinely verified against CA-024's verdict/findings/tier/effort predicate (T177 Round 9 I2)")
+        print("audit.py summary: coverage NOT trusted: %s" % "; ".join(why), file=sys.stderr)
+        sys.exit(1)
+    sys.exit(0 if coverage == 1.0 else 1)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    a = sub.add_parser("audit")
+    a.add_argument("--config", required=True)
+    a.add_argument("--consumers", required=True)
+    a.add_argument("--workdir", required=True)
+    a.add_argument("--out", required=True)
+    a.set_defaults(func=cmd_audit)
+
+    s = sub.add_parser("summary")
+    s.add_argument("--consumers", required=True)
+    s.add_argument("--audits", required=True)
+    s.add_argument("--migrations", required=True)
+    s.add_argument("--out", required=True)
+    # T177 Round 6 I5 (RULING a): OPTIONAL at the CLI level -- a directory
+    # of archived review records (review_record.py --out outputs) to
+    # resolve `review_ref` against. Still accepted as None for backward
+    # compatibility with every pre-existing caller, but T177 Round 9
+    # (round-8 IMPORTANT I2) makes omitting it VISIBLE and UNTRUSTED in the
+    # written artifact: `review_ref_verification` reads "presence-only" and
+    # `coverage_trusted` is forced false -- see cmd_summary() and
+    # _review_ref_problem()'s docstring for the honest partial-binding
+    # boundary. The RECOMMENDED default invocation always supplies
+    # --reviews (contract consumer-audit-and-migration.md's canonical
+    # Invocations line, docs/scripts/consumer_audit.md).
+    s.add_argument("--reviews", default=None)
+    s.set_defaults(func=cmd_summary)
+
+    args = ap.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,18 @@
+{
+  "schema": "tier-route-fixture/v1",
+  "fixture_kind": "negative-control",
+  "task_id": "FC-TR-SAMPLE-003",
+  "task_class": "architectural-judgment-writeup",
+  "is_review_class": false,
+  "has_deterministic_verifier": false,
+  "ladder": ["haiku", "sonnet", "opus"],
+  "default_tier": "sonnet",
+  "expected_route": {
+    "refused": false,
+    "refusal_reason": null,
+    "route_sequence": ["sonnet"],
+    "escalations": 0,
+    "final_tier": "sonnet"
+  },
+  "_defect": "This is the T109 task text's own NEGATIVE-CONTROL scenario ('a class without a deterministic verifier is never routed down'). task_class is a real, ordinary (non-review) unit of work with no machine-checkable oracle for its output (an open-ended architectural write-up -- correctness is a matter of judgment, section 11.4.245's own HUMAN oracle strategy, not SPECIFIED/DERIVED/METAMORPHIC/GOLDEN-MASTER/INVARIANT/STATISTICAL). Unlike tr_bad_review_routed_cheap.json this task_class is NOT hard-excluded (it is not a review) -- so the correct behaviour is the constitution's own §11.4.231(A) default working tier ('sonnet' is the DEFAULT working tier'), reached WITHOUT any escalation attempt and WITHOUT refusal or error. This is the discriminator against tr_bad_review_routed_cheap.json: both fixtures lack a deterministic verifier, but only the review-class one is refused outright -- a class merely LACKING a verifier is never routed BELOW the safe default (never to 'haiku', regardless of any apparent token-budget fit), but it still receives a real, successful route (refused=false), proving the safety net PASSES the class rather than erroring or refusing it. task_class carries no min_fitting_tier/attempts fields deliberately: those fields govern the deterministic-verifier escalation path only; a no-verifier class routes straight to default_tier without ever consulting them."
+}

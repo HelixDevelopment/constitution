@@ -1,0 +1,5 @@
+{
+  "gate_id": "GATE-FL-FLAKY-DEMO",
+  "key": "sha256:demo-key-unchanged-0001",
+  "verdicts": ["PASS", "FAIL", "PASS", "FAIL", "PASS", "FAIL", "PASS", "FAIL", "PASS", "FAIL"]
+}

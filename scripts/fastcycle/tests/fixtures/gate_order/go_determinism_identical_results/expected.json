@@ -1,0 +1,10 @@
+{
+  "results_verdicts_by_gate_id": {
+    "gate_a_reliable": "PASS",
+    "gate_b_moderate": "PASS",
+    "gate_c_planted_fail": "FAIL",
+    "gate_d_new": "PASS"
+  },
+  "results_identical_ordered_vs_unordered": true,
+  "execution_order_expected_to_differ": true
+}

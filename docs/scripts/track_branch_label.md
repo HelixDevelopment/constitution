@@ -1,7 +1,7 @@
 # track_branch_label.sh — §11.4.182 track+branch+alias+model+effort work-stream label
 
-**Revision:** 1
-**Last modified:** 2026-07-26T12:18:28Z
+**Revision:** 2
+**Last modified:** 2026-09-26T14:40:00Z
 **Authority:** constitution submodule §11.4.182 (Track+branch work-stream identity label + the 2026-07-26 `<model>`/`<effort>` EXTENSION) · §11.4.231 clause (F) (effort-tier) · §11.4.178 (track-qualified identity) · §11.4.177 (inherited-by-reference) · §11.4.6 (no-guessing / honest boundary)
 **Classification:** universal (§11.4.17)
 
@@ -85,7 +85,7 @@ a subagent's effort is NOT settable via that path and its `<effort>` field
 degrades honestly to `?`. The **Workflow tool's `agent()`** DOES take an `effort`
 argument, so effort IS settable there. The label reports whichever path is live,
 never invents one — the same aspirational-vs-harness posture the §11.4.209 /
-§11.4.211 Fable-`xhigh` review/merge pins occupy.
+§11.4.211 Opus-`xhigh` review/merge pins occupy.
 
 ## Prerequisites
 

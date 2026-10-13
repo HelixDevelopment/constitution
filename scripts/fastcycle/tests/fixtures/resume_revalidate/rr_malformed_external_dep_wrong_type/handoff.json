@@ -1,0 +1,17 @@
+{
+  "handoff_id": "sha256:rr19000000000000000000000000000000000000000000000000000000019",
+  "agent_key": "rr19agentkey0019",
+  "item_id": "ATM-9119",
+  "alias": "claude2",
+  "model": "sonnet",
+  "effort": "high",
+  "phase": "IMPLEMENT",
+  "verified": [],
+  "pending": [],
+  "partial_artefacts": [],
+  "external_deps": [
+    {"kind": "git-tree", "locator": 5, "content_address": "sha256:ffff0000000000000000000000000000000000000000000000000000000f"}
+  ],
+  "effects_performed": [],
+  "written_at": "2026-09-30T10:00:00Z"
+}

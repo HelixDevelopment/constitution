@@ -288,11 +288,18 @@ func TestAdd_FlagsAfterPositionals(t *testing.T) {
 // real-binary e2e exercise and the documented usage both use.
 func TestClose_PositionalLast(t *testing.T) {
 	dbPath := newTestDB(t)
+	// BOB-240 §11.4.33 Type↔Status guard reconciliation: this test's ORIGINAL
+	// Type ("Task") did not match "--status implemented" (Feature's closure
+	// word), which is now itself the exact Type↔Status mismatch BOB-240's
+	// guard refuses. The test's actual intent — proving close accepts the
+	// atm-id as a TRAILING positional — is unaffected by which Type/status
+	// pair is used, so the seed Type is reconciled to "Feature" (the Type
+	// "implemented" genuinely belongs to) rather than weakening the new guard.
 	addCmd([]string{
 		"--db", dbPath, "--id", "WIT-888",
 		"--title", "trailing positional close item",
 		"--description", "a sufficiently long description that clears the §11.4.91 floor for trailing close",
-		"Task", "Low",
+		"Feature", "Low",
 	})
 	if code := closeCmd([]string{
 		"--db", dbPath, "--status", "implemented",

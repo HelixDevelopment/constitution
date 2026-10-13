@@ -1,0 +1,18 @@
+{
+  "change_id": "sha256:fixture_gate_order_mediantest_0000000000000000000000000000",
+  "base": "0000000000000000000000000000000000000a",
+  "changed_paths": [
+    "gates/gate_a_reliable.sh",
+    "gates/gate_d_new.sh",
+    "gates/gate_c_planted_fail.sh"
+  ],
+  "mapping_version": "sha256:fixture_map_v1_00000000000000000000000000000000000000",
+  "determinable": true,
+  "members": [
+    "gate_a_reliable",
+    "gate_d_new",
+    "gate_c_planted_fail"
+  ],
+  "skipped": [],
+  "change_class": "executable"
+}

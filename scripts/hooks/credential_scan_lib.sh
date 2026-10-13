@@ -246,6 +246,35 @@ HELIX_CRED_PLACEHOLDER_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-]?
 # (+ / =) and base64url (- _) alphabets. Proven by golden-good (k).
 HELIX_CRED_BASE64_IMAGE_CARRIER='data:image/[^;]*;base64,[A-Za-z0-9+/=_-]+'
 
+# §11.4.201 carrier-strip #33 (HTML-RENDERED keyword=value, closing tag
+# absorbed into the extracted value). Forensic FP (2026-10-05, measured):
+# docs/requests/history.html -- the §11.4.65 HTML twin of docs/requests/
+# history.md -- renders a markdown-backtick-wrapped illustration
+# `` `API_KEY=x` `` as `<code>API_KEY=x</code>,`. The keyword-value branch of
+# HELIX_CRED_VALUE_PATTERN requires 8+ non-space/non-quote characters after
+# the `=`; the bare markdown illustration (`x`, 1 char) never matches on its
+# own, but `<`/`>` are not excluded from the value char class, so the HTML
+# closing tag + trailing punctuation that immediately follows in the
+# RENDERED export (`</code>,`, 8 chars) pads the SAME illustration past the
+# 8-char floor: `API_KEY=x</code>,` reads as a real secret -- a §11.4.201(1)
+# FALSE-POSITIVE REFUSAL, itself a FAIL-bluff, that exists ONLY in the
+# rendered HTML twin and not in its own markdown source.
+#
+# SAFETY -- the whole HTML closing-tag region is BLANKED before detector-1
+# runs (the SAME mechanism #8b already uses for base64 data-URIs, mirrors
+# detector-2's own carrier-strip #22 "one optional HTML end tag" tolerance
+# for the SAME markdown-to-HTML rendering class). Blanking a closing tag can
+# only ever SHORTEN an extracted value, never lengthen one, so a genuine
+# secret long enough to be real on its own (8+ chars BEFORE the tag) still
+# matches and is STILL CAUGHT once the tag is removed
+# (`api_key=hunter2hunter2</code>` blanks to `api_key=hunter2hunter2 `, still
+# 14 chars, still flagged) -- only an illustration value SHORT ENOUGH that the
+# tag itself was the only thing padding it past the floor is exempted.
+# Proven by golden-good scenario (t) + the (real secret immediately followed
+# by an HTML closing tag) golden-bad falsifying control (t-neg) in
+# test_credential_scan_lib.sh (§11.4.107(10)).
+HELIX_CRED_HTML_CLOSE_TAG_CARRIER='</[A-Za-z][A-Za-z0-9]*>'
+
 # --- Detector 2: email-adjacency plaintext-credential heuristic --------------
 # The keyword-anchored detector-1 only sees a recognised secret KEYWORD followed
 # by a value; it CANNOT see a password committed as a bare token adjacent to an
@@ -412,9 +441,110 @@ HELIX_CRED_ACCESSOR_CALL_CARRIER='^(password|passwd|secret|api[_-]?key|access[_-
 # makes them FAIL.
 HELIX_CRED_SYMBOL_REFERENCE_CARRIER='^[A-Za-z_.-]*([Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Tt][Oo][Kk][Ee][Nn]|[Kk][Ee][Yy])s?[[:space:]]*[:=][[:space:]]*&?[A-Z][a-z]*[A-Z][A-Za-z]*(Secret|Password|Passwd|Token|Key)s?(\{\})?[,;)}]?$'
 
+# §11.4.201 carrier-strip #32 (AKIA SELF-TEST GOLDEN-BAD PLACEHOLDER LITERAL).
+# Forensic FP (2026-10-04/05, measured): docs/requests/history.md — a §11.4.208
+# append-only operator-request-history ledger — captures, verbatim, a prior
+# subagent's forensic hand-back report DISCUSSING this very scanner's own AKIA
+# detector branch and quoting, as prose analysis, the EXACT literal value this
+# file's own documentation comments (above, lines 18/178/228/242/282/357-358/826)
+# already cite as THEIR chosen golden-bad placeholder example:
+# `AKIA1234567890123456`. The AKIA branch of HELIX_CRED_VALUE_PATTERN carries no
+# keyword gate (unlike the password/secret/api_key branches), so detector-1
+# extracts the bare token with no surrounding line context to strip against, and
+# no EXISTING carrier in this pipeline is shaped to recognise one SPECIFIC named
+# literal value (every other carrier here strips a SHAPE/CLASS). The value
+# therefore survived every carrier above as a false hit: a §11.4.201(1)
+# FALSE-POSITIVE REFUSAL, itself a FAIL-bluff — refusing the very ledger entry
+# that documents this scanner's own test fixtures.
+#
+# SAFETY — NAME-anchored on the EXACT literal, start-to-end, never a shape or
+# prefix match (the narrowest carrier in this file, by design): the sixteen
+# characters after `AKIA` are PURELY SEQUENTIAL ascending digits
+# (1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6) — a form no genuine AWS-issued access-key ID
+# ever takes (real AWS key-id suffixes are base32-like pseudo-random over
+# [0-9A-Z], never a monotonic digit run, and this project's OWN other AKIA
+# golden-bad fixtures — `AKIA1234567890ABCDEF`, `AKIAIOSFODNN7...`,
+# `AKIAQ7X2M4B8N1V5C3Z9` in test_credential_scan_lib.sh — are all letter-mixed
+# and therefore untouched by this anchor). The regex is a bare `^…$` literal
+# string match with no alternation and no wildcard: a DIFFERENT 16-character
+# AKIA-shaped suffix — including one built from the SAME ten digits in a
+# different order, or carrying even a single letter, or a single digit removed
+# or added — does NOT match and is STILL CAUGHT (golden-bad falsifying
+# control). This cannot create a blind spot for a real key: it exempts exactly
+# one named constant, never a pattern class. Proven by golden-good scenario (s)
+# + the (real, non-sequential 16-char AKIA suffix) golden-bad falsifying
+# control (s-neg) in test_credential_scan_lib.sh (§11.4.107(10)).
+HELIX_CRED_AKIA_PLACEHOLDER_CARRIER='^AKIA1234567890123456$'
+
 HELIX_CRED_ADJACENCY_AWK='
 {
   line = $0
+  # §11.4.201 carrier-strip #34 (HTML-ENTITY-ENCODED quote/punctuation
+  # RECOVERY). The §11.4.65 HTML export of a markdown doc entity-encodes
+  # literal punctuation (`"` -> `&quot;`, `'"'"'` -> `&#39;` / `&apos;`,
+  # `<` -> `&lt;`, `>` -> `&gt;`, `&` -> `&amp;`), so a shell fragment that
+  # reads as a quoted variable reference in its OWN markdown source
+  # (`"$NEW_TREE"`, exempted by carrier-strip #27s `"` end-anchor) renders as
+  # `&quot;$NEW_TREE&quot;` in the HTML twin. The adjacency-window tokenizer
+  # below splits on `;` (among other delimiters), so the CLOSING `&quot;`
+  # fragments separate into their own tokens while the OPENING `&quot;`
+  # immediately before `$NEW_TREE` has no delimiter between it and the
+  # variable name in that split segment, so it glues on as `$NEW_TREE&quot`
+  # -- a shape carrier-strip #27s end-anchor does not recognise (it expects a
+  # literal `"`, not a five-character HTML entity), so the SAME shell-variable
+  # reference that is correctly exempted in markdown reads as password-shaped
+  # in HTML: a §11.4.201(1) FALSE-POSITIVE REFUSAL, itself a FAIL-bluff, that
+  # exists ONLY in the rendered export. FORENSIC (2026-10-05, measured):
+  # docs/requests/history.html quoting `git -c user.email=fastcycle-migrate@
+  # example.invalid commit-tree &quot;$NEW_TREE&quot; ...` (itself a prior
+  # subagent hand-back discussing carrier-strip #27s own forensic origin).
+  #
+  # SAFETY -- this is RECOVERY, not a strip: each entity is decoded back to
+  # the LITERAL character it represents (the real condition this whole
+  # pipeline already asserts for raw markdown), so every carrier above and
+  # below runs on the SAME text it would see in the un-rendered source --
+  # nothing is blanked or made more permissive, the pipeline is simply shown
+  # the real quote mark its own markdown source always had. A real password
+  # that happens to be spelled with the literal five-character substring
+  # `&quot;` (vanishingly unlikely, and already handled identically in the
+  # markdown source since the entity decodes to the SAME shape a markdown
+  # leak already has) is unaffected -- no detection narrows. `&amp;` decodes
+  # LAST (via the `\&`-escaped gsub replacement, so a literal ampersand is
+  # inserted rather than gsubs own matched-text substitution) so a
+  # doubly-escaped `&amp;quot;` (a literal ampersand followed by literal text
+  # `quot;` in the source) does not spuriously decode into a quote. Proven by
+  # golden-good scenario (u) + the (real password near an email, carrying a
+  # literal `&quot;` substring) golden-bad in test_credential_scan_lib.sh
+  # (§11.4.107(10)).
+  # §11.4.201 carrier-strip #35 (ITERATIVE entity-decode, bounded 3 passes).
+  # A single decode pass only resolves ONE level of HTML-entity escaping, in
+  # pipeline order -- a DOUBLY-escaped tag (`&amp;lt;/code&amp;gt;`, produced
+  # when a report already containing `&lt;/code&gt;` is itself quoted into a
+  # LATER report and re-exported to HTML) decodes the outer `&amp;` -> `&`
+  # LAST in the chain, so the newly-revealed `&lt;`/`&gt;` is never re-run
+  # through the EARLIER `&lt;`/`&gt;` rules in that same pass -- carrier strip 33 own
+  # closing-tag blank then cannot see it either, since it is still entity
+  # form. Forensic FP (2026-10-05, measured, discovered chasing #33/#34 own
+  # fix as it recursed through docs/requests/history.md live append-only
+  # §11.4.210 ledger): a status report quoting carrier strip #33 forensic text
+  # (which itself quotes `<code>API_KEY=x</code>,`) got logged, exported,
+  # QUOTED AGAIN by a later report, and exported again -- two full escape
+  # levels deep, surviving as `API_KEY=x&lt;/code&gt;,`. Looping the SAME
+  # three decode rounds (bounded at 3, not unbounded, so a pathological input
+  # cannot spin this loop forever) resolves up to 3 nesting levels; deeper
+  # nesting is an honest residual (§11.4.6) a future round extends the bound
+  # for, never silently assumed closed. Proven by golden-good scenario (w) +
+  # the (real secret behind a TRIPLE-escaped tag, still 1 level past the
+  # bound) golden-bad falsifying control (w-neg) in
+  # test_credential_scan_lib.sh (§11.4.107(10)).
+  for (_hc_pass = 0; _hc_pass < 3; _hc_pass++) {
+    gsub(/&quot;/, "\"", line)
+    gsub(/&#39;/, sprintf("%c", 39), line)
+    gsub(/&apos;/, sprintf("%c", 39), line)
+    gsub(/&lt;/, "<", line)
+    gsub(/&gt;/, ">", line)
+    gsub(/&amp;/, "\\&", line)
+  }
   # §11.4.201 carrier-strip #1: a git SSH remote URL (form git@<host>:<org>/<repo>[.git])
   # is NOT an email+password adjacency — its "email" is the conventional git@<host>
   # SSH user and its "password-shaped" token is an org/repo name that may contain
@@ -434,6 +564,18 @@ HELIX_CRED_ADJACENCY_AWK='
   # REAL condition; the org/repo "/" is still REQUIRED, so a genuine
   # git@<host>:<secret> with no slash is still scanned.
   gsub("git@[A-Za-z0-9.-]+(</[A-Za-z][A-Za-z0-9]*>)?:[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", " ", line)
+  # §11.4.201 carrier-strip #31: the `ssh://git@<host>/<org>/<repo>[.git]` URL
+  # FORM (slash after host, not the SCP-like colon the strip above covers) is
+  # the SAME git-remote-is-not-a-credential case, just a different URL shape.
+  # Forensic FP (2026-10-05, measured via the email-adjacency awk programs own
+  # debug instrumentation): `scripts/testing/test_commit_all_owned_cascade.sh` line
+  # 142, the quoted _submodule_org call on ssh://git@github.com/ATMOSphere1234321/repo.git
+  # — this projects real GitHub org "ATMOSphere1234321" (letters+digits)
+  # survived un-stripped and read as a password-shaped token adjacent to the
+  # git@ "email", REFUSING a legitimate commit. The org/repo "/" is still
+  # REQUIRED (mirrors the strip above), so a genuine `ssh://git@<host>/<secret>`
+  # with no second slash is still scanned.
+  gsub("ssh://git@[A-Za-z0-9.-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", " ", line)
   # §11.4.201 carrier-strip #2: a systemd user-instance unit name (form
   # user@<uid>.service / <name>@<N>.service) is email-SHAPED (local@digits.service,
   # ".service" reads as a TLD) but is NOT an email — it appears verbatim in every
@@ -510,7 +652,186 @@ HELIX_CRED_ADJACENCY_AWK='
       gsub(/^["<>=&;]+/, "", tnm); gsub(/["<>=&;]+$/, "", tnm)
       if (tnm ~ /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z][A-Za-z]+$/) continue
       if (t ~ /^[-+0-9(). _]+$/) continue
-      if (t ~ /\.(md|html|pdf|docx|sh|txt|json|ya?ml|xml|png|jpe?g|gif|svg|log|go|py|kt|java|cpp|ts|js|tsv|csv|db|c|h)$/) continue
+      # §11.4.201 carrier-strip #29 (MARKDOWN-BACKTICK-WRAPPED filename). The
+      # file-extension-suffix skip immediately below is a bare `$`-anchored
+      # check with no tolerance for a trailing markdown closing backtick, so a
+      # doc that names a script inside backticks — `` `scripts/commit_all.sh` ``
+      # — has its "/"-delimited tail token arrive here as `commit_all.sh\``
+      # (the closing backtick still attached; the OPENING backtick was already
+      # consumed by the PRECEDING "/"-delimited token). The trailing backtick
+      # defeats the `$` end-anchor, so the recognised-extension skip never
+      # fires and the filename reads as password-shaped. FORENSIC
+      # (2026-10-04, MEASURED): `docs/requests/history.md`, a prose line
+      # reading "note: `scripts/commit_all.sh` hardcodes a stale ... co-author
+      # line", within the 48-char adjacency window of an UNRELATED
+      # `noreply@anthropic.com` co-author-trailer address earlier on the same
+      # physical line — tripped exactly this way, refusing the commit.
+      # SAFETY — the recognised-extension SET and the `$`-anchoring are
+      # otherwise UNCHANGED; only ONE optional trailing backtick is now
+      # tolerated at the position the end-anchor already sits. A real secret
+      # that happens to end in one of these literal extensions is ALREADY
+      # exempted by this (pre-existing, previously unlabeled) check regardless
+      # of this widening — this strip does not enlarge the recognised-extension
+      # set, it only lets that pre-existing recognition survive one layer of
+      # markdown code-span wrapping, mirroring the "one optional HTML end tag
+      # at exactly that position" tolerance carrier-strip #22 already applies
+      # to a different markup-split shape.
+      #
+      # KNOWN GAP (2026-10-04, fix-forward on an independent Opus-xhigh
+      # review, §11.4.6/§11.4.201 — stated honestly, not silently left
+      # implicit): the token split above already removes "/" as a delimiter
+      # (see the `split(rest, toks, ...)` call above this loop), so a real
+      # path like `scripts/commit_all.sh` and a literal secret that merely
+      # ENDS in one of these extensions (e.g. a password `Hunt3r!.sh`) arrive
+      # at this check as the IDENTICAL shape — there is no path-separator
+      # signal left to distinguish them. This gap is PRE-EXISTING (the bare,
+      # non-backtick-wrapped form `Hunt3r!.sh` was ALREADY exempted by this
+      # same extension check before this carrier-strip existed); the only
+      # new effect of this widening is that the BACKTICK-WRAPPED form of that
+      # same pre-existing gap now ALSO escapes (empirically verified in-session:
+      # `` `Hunt3r!.sh` `` adjacent to an email was HIT before this
+      # carrier-strip, is CLEAN after it). Tightening this check to require a
+      # genuine path signal would need changing the delimiter set itself
+      # (out of scope for this carrier-strip, and risks new regressions of
+      # its own) — recorded here as an honest, bounded, pre-existing
+      # limitation rather than fixed under this change. Proven by golden-good scenario (o)
+      # + the (real password near an email, no recognised-extension suffix)
+      # golden-bad in test_credential_scan_lib.sh (§11.4.107(10)).
+      if (t ~ /\.(md|html|pdf|docx|sh|txt|json|ya?ml|xml|png|jpe?g|gif|svg|log|go|py|kt|java|cpp|ts|js|tsv|csv|db|c|h)`?$/) continue
+      # §11.4.201 carrier-strip #27 (SHELL-VARIABLE-REFERENCE token). A git
+      # `-c user.email=<name>@example.invalid` identity flag (the RFC 2606
+      # reserved documentation TLD the git-fixture helpers use for
+      # throwaway test/tool commits, never a real credential) is frequently
+      # followed, within the adjacency window, by a double-quoted shell
+      # variable reference such as `"$NEW_TREE"` or `"$LOCAL_HEAD"` — the
+      # token is ALL-CAPS-with-underscores (hasLetter) wrapped in `"` with a
+      # literal `$` sigil, and `$` is itself one of the hasSpec characters, so
+      # the heuristic misreads an ordinary shell interpolation as a
+      # password-shaped token immediately after an "email". FORENSIC
+      # (2026-10-02, MEASURED): `constitution/scripts/fastcycle/consumers/
+      # migrate.sh`, its `git -c user.email=fastcycle-migrate@example.invalid
+      # commit-tree "$NEW_TREE" -p "$LOCAL_HEAD"` line tripped exactly this
+      # way. A shell variable reference is never a credential value — skip a
+      # token that is ENTIRELY an (optionally fd-redirect-prefixed, optionally
+      # double-quoted) `$NAME` form (bare `$`, `${...}`, and quoted variants
+      # all reduce to this shape once markup/quote stripping above has run).
+      # The leading `[0-9]*>>?` tolerates a shell fd-redirect operator
+      # (`2>"$LOG"`, `>>"$OUT"`) immediately preceding the variable — common
+      # throughout this codebase and, UNMEASURED but genuinely possible given
+      # the fixed-width 48-char adjacency window above, the token MAY be
+      # TRUNCATED mid-identifier (`2>"$MI` for a real `2>"$MIGRATE_SCRATCH/..`
+      # redirect) — FORENSIC (2026-10-02, MEASURED): the SAME migrate.sh line
+      # continues ` 2>"$MIGRATE_SCRATCH/committree.err")`, and the window cut
+      # it to the token `2>"$MI`, which the FIRST version of this fix (no
+      # redirect-prefix tolerance) still missed. A real password never takes
+      # this `[redirect]["]$IDENT` shape (a digit-prefixed `$` sigil is not a
+      # credential character sequence any known leak format uses), so this
+      # is NOT a weakening of the heuristic for genuine secrets — a real
+      # password containing a literal `$` character survives this check
+      # unless its WHOLE token (partial-or-truncated included) is this exact
+      # shell-reference shape, which a genuine secret value never is. Proven
+      # by golden-good scenario (f) + golden-bad (real email+password
+      # containing a `$`) in test_credential_scan_lib.sh (§11.4.107(10)).
+      if (t ~ /^([0-9]*>>?)?"?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?$/) continue
+      # §11.4.201 carrier-strip #28 (MARKDOWN-BACKTICK-WRAPPED shell-variable-
+      # reference token — a MARKUP variant of carrier-strip #27 directly
+      # above, the same relationship carrier-strip #22 bears to #1 and #23
+      # bears to the bare email-self-reference check). The carrier-strip #27
+      # shell-reference shape is `^...$`-anchored against the RAW token, with
+      # no tolerance for a markdown code-span backtick, so a doc that wraps
+      # the SAME shell interpolation in backticks — `` `"$COMMIT_MSG"` `` — defeats the
+      # anchor on whichever side the 48-char adjacency window truncation (or
+      # the "/" / ":" / "," token delimiters) leaves attached. FORENSIC
+      # (2026-10-04, MEASURED): `docs/requests/history.md`, a prose line
+      # reading `sat on the same physical line as \`"$COMMIT_MSG"\`, which the
+      # line-scoped adjacency heuristic misread` — tripped exactly this way
+      # (the window truncated the token to `` `"$COMMIT_MSG `` before the
+      # closing quote/backtick were ever reached), refusing the commit.
+      # SAFETY — the ONLY widening is one optional leading AND one optional
+      # trailing literal backtick at the positions the existing `"` / `$NAME`
+      # anchors already sit; the INNER shape (an optional fd-redirect prefix,
+      # an optional `"`, a `$` sigil, an identifier made ONLY of
+      # letters/digits/underscore, an optional `}` / `"`) is BYTE-IDENTICAL to
+      # the carrier-strip #27 pattern — not re-derived, not loosened. By the
+      # same symmetry argument the carrier-strip #27 plural widening already
+      # relies on (documented at carrier-strip #27 / alternative #27 above):
+      # this strip fires on a backtick-wrapped token exactly when the
+      # un-widened #27 pattern already
+      # fired on that same token with its wrapping backtick(s) removed — it
+      # adds no new VALUE class the inner pattern did not already accept, it
+      # only lets that acceptance survive one layer of markdown code-span
+      # wrapping. A real password wearing the same markup
+      # (`` `Hunter2Hunter2!` ``) does not reduce to the `$NAME` shape (it
+      # carries no `$` sigil at all) and is still refused.
+      #
+      # KNOWN GAP (2026-10-04, fix-forward on an independent Opus-xhigh
+      # review, §11.4.6/§11.4.201 — stated honestly, not silently left
+      # implicit): a password that itself happens to be shaped EXACTLY like a
+      # bare `$IDENTIFIER` reference (e.g. `$ecretPass1` — a `$` sigil
+      # followed only by letters/digits/underscore, no other password-shaped
+      # character) is indistinguishable from a real shell-variable reference
+      # by this check, same as its un-widened #27 counterpart. This gap is
+      # PRE-EXISTING (the bare, non-backtick-wrapped form `$ecretPass1` was
+      # ALREADY exempted by carrier-strip #27 before this widening existed);
+      # the only new effect of this strip is that the BACKTICK-WRAPPED form of that
+      # same pre-existing gap now ALSO escapes (empirically verified
+      # in-session: `` `$ecretPass1` `` adjacent to an email was HIT before
+      # this carrier-strip, is CLEAN after it). The realistic exploit surface
+      # is narrow — the ENTIRE token, once unwrapped, must reduce to exactly
+      # `$name` with no other character — recorded here as an honest, bounded,
+      # pre-existing limitation rather than fixed under this change. Proven by
+      # golden-good scenario (p) + the (real email+password containing a `$`,
+      # markdown-backtick-wrapped) golden-bad in test_credential_scan_lib.sh
+      # (§11.4.107(10)).
+      if (t ~ /^`?([0-9]*>>?)?"?\$\{?[A-Za-z_][A-Za-z0-9_]*\}?"?`?$/) continue
+      # §11.4.201 carrier-strip #30 (GIT IDENTITY-KEY value: user.name /
+      # user.email). A git identity CONFIG KEY — `user.name=<value>` or
+      # `user.email=<value>` — is never itself a credential: these fields hold
+      # a commit author display NAME / ADDRESS, used only for attribution,
+      # never for authentication. FORENSIC (2026-10-04, MEASURED):
+      # `docs/requests/history.md` quotes a selftest-isolation bug report
+      # listing the git-config keys an un-isolated scratch repo picked up from
+      # its parent environment, including a markdown-backtick-wrapped
+      # `` `user.name=custody_sweep selftest` `` bullet, within the 48-char
+      # adjacency window of an UNRELATED `user.email=...@example.invalid`
+      # line earlier in the same prose paragraph. The "/" + space token
+      # delimiters split this into `` `user.name=custody_sweep `` and
+      # `selftest\``; the FIRST of those carries the underscore from the key
+      # itself (one of the hasSpec characters), so the heuristic misread an ordinary
+      # git-config KEY NAME as a password-shaped token adjacent to an email.
+      #
+      # SAFETY — DELIBERATELY NARROW, by CONSTRUCTION, never by heuristic (the
+      # §11.4.201(7)(a) carrier-vs-thing distinction applied to git-config
+      # keys): the match requires the LITERAL, closed-set key string
+      # `user.name` or `user.email` — never a prefix match, never a wildcard
+      # over `*.name`/`*.email`, never a substring test — so this strip is
+      # STRUCTURALLY INCAPABLE of matching any OTHER git-config key, in
+      # particular NONE of the RCE-vector keys a sibling instrument
+      # (the repo_verify.py CA-026 finding) specifically watches for
+      # (`core.sshCommand`, `credential.helper`, `remote.<name>.uploadpack`,
+      # `url.*.insteadOf`) — those require entirely different literal keywords
+      # this regex never contains, so this strip cannot create a blind spot
+      # for that class even in principle, and it does NOT widen, touch, or
+      # otherwise interact with the repo_verify.py own, separate RCE-vector
+      # check in any way.
+      # The VALUE itself is additionally restricted to letters, underscore,
+      # dot and hyphen — explicitly EXCLUDING every digit and every one of
+      # `! # $ % ^ & * ( ) + =` and `@` — so a value that is anything other
+      # than a bare name/slug still SURVIVES this strip and is still flagged.
+      # HONEST RESIDUAL (§11.4.6, stated not silently assumed closed): a
+      # credential deliberately smuggled into `user.name=`/`user.email=`
+      # would need to be assembled from ONLY letters/underscore/dot/hyphen
+      # with NO digit at all to evade this check — a narrower residual than
+      # the one already accepted at carrier-strips #18/#21/#25 for the SAME
+      # class of risk (an identifier- or symbol-shaped "value" that is
+      # technically still a valid string for a secret to take). `user.name=
+      # AKIA1234567890123456` and `user.name=hunter2hunter2` (digit present)
+      # are NOT exempted by this strip and are still caught. Proven by
+      # golden-good scenario (q) + the (real user.name value carrying a
+      # digit) golden-bad in test_credential_scan_lib.sh (§11.4.107(10)).
+      tgid = t
+      gsub(/^`+/, "", tgid); gsub(/`+$/, "", tgid)
+      if (tgid ~ /^user\.(name|email)=[A-Za-z_.-]*$/) continue
       # §11.4.201 carrier-strip #5: a Markdown-emphasized plain WORD (**BROWSERS**,
       # *note*, `code`) is prose emphasis in a doc, NOT a password. The ** / * / `
       # emphasis runs make the "hasSpec" test below read an ordinary word as
@@ -584,9 +905,40 @@ helix_cred_detector1_real_hit_stream() {
   # secret would pass CLEAN at the pre-commit seam where the old raw `grep -Eiq`
   # caught it (§11.4.201(2) false negative — Fable review B2, proven). #8a stays
   # tight (it strips only whole placeholder-shaped tokens, `$`-anchored), so `-a`
-  # cannot weaken real-secret detection. #8b (data-URI blank) runs first.
+  # cannot weaken real-secret detection. #34 (HTML-entity decode), #8b
+  # (data-URI blank) and #33 (HTML closing-tag blank) run first, IN THAT
+  # ORDER: entity-decode MUST precede the closing-tag blank, because a tag
+  # that only EXISTS as the entity-escaped form `&lt;/code&gt;` (prose that
+  # LITERALLY describes an HTML tag, as opposed to a markdown code-span the
+  # exporter rendered INTO a real tag — the #33 forensic case) is not a
+  # `</[A-Za-z]+>` shape until it is decoded; #33's blank alone cannot see it.
+  # FORENSIC (2026-10-05, measured, SAME DAY as #33/#34's own forensic FPs):
+  # a later status report quoting #33's own forensic text (which itself
+  # quotes the literal illustration `<code>API_KEY=x</code>,`) was captured
+  # into docs/requests/history.md by the §11.4.210 auto-capture hook, then
+  # the markdown-to-HTML export correctly entity-escaped those ALREADY-
+  # LITERAL angle brackets for safe HTML display (`&lt;code&gt;API_KEY=x
+  # &lt;/code&gt;,`) -- detector-1's extraction pipeline had no entity-decode
+  # stage of its own (only detector-2's awk program did, via carrier-strip
+  # #34), so the escaped tag was never recognised as a tag and the
+  # illustration again padded past the 8-char floor: the SAME #33 defect
+  # class, reached through a DIFFERENT rendering path. SAFETY identical to
+  # #34's own (decode-is-recovery, not a strip -- see #34's doc comment on
+  # HELIX_CRED_ADJACENCY_AWK above for the full argument, not duplicated
+  # here per §11.4.227 no-drift); sharing ONE conceptual carrier (#34) across
+  # BOTH detectors via two mechanical implementations (an awk gsub chain for
+  # the line-oriented detector-2, a sed substitution chain here for the
+  # stream-oriented detector-1) is itself the no-drift discipline applied to
+  # a cross-cutting carrier. Proven by golden-good scenario (v) + the (real
+  # secret immediately followed by a doubly-entity-escaped HTML closing tag)
+  # golden-bad falsifying control (v-neg) in test_credential_scan_lib.sh
+  # (§11.4.107(10)).
+  # carrier-strip #35: the SAME bounded-3-pass iterative entity-decode as
+  # detector-2's awk program above (shared conceptual carrier, two mechanical
+  # implementations per §11.4.227 no-drift -- see that comment for the full
+  # double-escaping forensic argument, not duplicated here).
   _helix_cred_d1_matches="$(
-    sed -E "s#${HELIX_CRED_BASE64_IMAGE_CARRIER}# #g" 2>/dev/null \
+    sed -E "s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&quot;/\"/g; s/&#39;/'/g; s/&apos;/'/g; s/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s#${HELIX_CRED_BASE64_IMAGE_CARRIER}# #g; s#${HELIX_CRED_HTML_CLOSE_TAG_CARRIER}# #g" 2>/dev/null \
       | grep -Eioa "$HELIX_CRED_VALUE_PATTERN" 2>/dev/null
   )"
   # No detector-1 match at all (after #8b) → not a real hit.
@@ -607,7 +959,8 @@ helix_cred_detector1_real_hit_stream() {
       | grep -Eiv "$HELIX_CRED_ENV_LOOKUP_CARRIER" 2>/dev/null \
       | grep -Eiv "$HELIX_CRED_ACCESSOR_CALL_CARRIER" 2>/dev/null \
       | grep -Ev  "$HELIX_CRED_SYMBOL_REFERENCE_CARRIER" 2>/dev/null \
-      | grep -Eiv "$HELIX_CRED_FALLBACK_PLACEHOLDER_CARRIER" 2>/dev/null || true
+      | grep -Eiv "$HELIX_CRED_FALLBACK_PLACEHOLDER_CARRIER" 2>/dev/null \
+      | grep -Ev  "$HELIX_CRED_AKIA_PLACEHOLDER_CARRIER" 2>/dev/null || true
   )"
   case "$_helix_cred_d1_survivors" in
     *[![:space:]]*) return 0 ;;   # a real (non-placeholder) secret survived

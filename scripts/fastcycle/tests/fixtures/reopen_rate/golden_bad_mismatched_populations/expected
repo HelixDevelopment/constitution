@@ -1,0 +1,66 @@
+T-D06 / CT-006 contract for the golden_bad_mismatched_populations fixture
+(window 2026-07-01..2026-07-31, as_of=2026-07-31, window_days=30):
+
+  reopen_rate.py MUST refuse to emit a numeric rate for Bug and for the
+  overall aggregate, emitting "RATE_NOT_COMPUTABLE" plus a reason naming
+  the mismatch and the offending item id(s):
+
+    Bug:     { "reopened": 0, "closed": 3, "rate": "RATE_NOT_COMPUTABLE",
+               "mismatched_items": ["MB-004"] }
+    Task:    { "reopened": 0, "closed": 1, "rate": 0.0 }
+    Feature: { "reopened": 0, "closed": 1, "rate": 0.0 }
+    overall: { "reopened": 0, "closed": 5, "rate": "RATE_NOT_COMPUTABLE",
+               "mismatched_items": ["MB-004"] }
+
+  Exit code: 0 (this is a structurally-valid, honestly-refused report, NOT
+  a usage error, NOT a crash -- exactly cycle_report.py's own inline
+  compute_reopen_block precedent of returning RATE_NOT_COMPUTABLE inside a
+  0-exit report when it cannot safely compute a number).
+
+WHY THIS IS THE REAL "18 of 31" CLASS (R1 Table D caveat, quoted verbatim
+by contract CT-006):
+
+  research/R1_baseline_cycle_time.md line 64: "Whole-history reopen counts
+  (item_history, 34 rows = 28 distinct after removing 6 exact-duplicate
+  rows): Bug 18 items/28 raw event rows ... Denominator caveat: distinct
+  non-bulk items with a closure event ever = Bug 31, Task 26, Feature 2,
+  so 'so "18 of 31 bugs" (58%) is an UPPER-BOUND-style ratio with
+  mismatched populations (reopened items may have been closed before
+  item_history began 2026-06-03 or by rows not in history); do not quote
+  as a rate."
+
+  This fixture reproduces the SAME structural defect at a small,
+  hand-verifiable scale: MB-004 has a Reopened event inside the window but
+  ZERO Fixed/Implemented/Completed rows anywhere in its history (it was
+  either closed before item_history's own retention began, or closed by a
+  mechanism that never wrote a structured closure row -- R1's exact two
+  named causes). A tool that computes "reopened" and "closed" via two
+  INDEPENDENT queries (one scanning Reopened rows, one scanning closure
+  rows) without checking that every counted "reopened" item is ALSO a
+  member of the "closed" set will produce reopened=1 (MB-004) over
+  closed=3 (MB-001,MB-002,MB-003) = 0.333... -- a ratio of two counts drawn
+  from two DIFFERENT underlying item populations, exactly R1's "18 of 31"
+  shape scaled down.
+
+MUST NOT appear anywhere in the output for the Bug type or the overall
+block: the numeric value 0.3333333333333333 (or any rounding of it) in the
+"rate" field; a "rate" field silently computed as 0/3=0.0 (that would hide
+the real MB-004 data-quality gap rather than surfacing it); MB-004 absent
+from any reported mismatch list (silently dropping the offending item
+defeats the purpose of the refusal -- an operator reading the report must
+be able to find exactly which item caused it).
+
+Task and Feature MUST both compute clean, real numeric rates (0.0 each) --
+proving the refusal is scoped to the Bug type genuinely affected by the
+mismatch, not a blanket "give up on the whole report" response; a
+reopen_rate.py that refuses EVERY type's rate whenever ANY type has a
+mismatch is over-broad and itself a finding (the §11.4.201(1) false-positive
+guard applied to this fixture: Task/Feature's real, computable rates are
+the negative-control half of THIS SAME fixture).
+
+Paired-mutation targets this fixture protects against (T093): silently
+including MB-004 in the numerator against the mismatched denominator
+(would emit rate=0.333... for Bug); silently excluding MB-004 without
+flagging it (would emit rate=0.0 for Bug with no mismatched_items entry,
+hiding the data-quality gap); refusing Task/Feature's rates too when only
+Bug is mismatched (over-broad refusal).

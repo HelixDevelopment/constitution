@@ -1,0 +1,18 @@
+{
+  "schema": "catchset/v1",
+  "fixture": "cs_negctrl_gained_catch",
+  "kind": "negative-control",
+  "contract_clause": "CS-004 (superset permits gained catches); tasks.md T050 literal clause 'negative control: a run catching more PASSes' -- this fixture is NOT one of the 8 contract-table rows verbatim; it is a task-line-driven addition, derived from and consistent with CS-004's own definition ('superset=true iff no row has old=CAUGHT and new=MISSED'), never contradicting it. See PAIRED_MUTATION_NOTE.md sibling discussion.",
+  "defect_id": "D_extra",
+  "defect_patch": "../_shared/patches/defect_d_extra_widget.sh",
+  "baseline_all_pass": true,
+  "old_missed": [],
+  "assertion_changes": [],
+  "counts": {"caught_old": 0, "caught_new": 1, "lost": 0, "gained": 1},
+  "old_verdict": "MISSED",
+  "new_verdict": "CAUGHT",
+  "old_catchers": [],
+  "new_catchers": ["g_extra"],
+  "expected_exit_code": 0,
+  "note": "OLD's manifest [g_marker, g_noop] does not include g_extra at all, so D_extra (drops EXTRA_MARKER) is MISSED by OLD -- not old=CAUGHT, so no superset violation is possible for this row regardless of NEW's outcome. NEW's manifest [g_marker, g_noop, g_extra] DOES catch D_extra via g_extra. A run where NEW catches strictly MORE than OLD -- old=MISSED, new=CAUGHT -- MUST PASS (exit 0, counts.gained=1): the §11.4.201(1) false-positive guard for CS-004's own directionality (old=CAUGHT & new=MISSED is the ONLY violating shape; old=MISSED & new=CAUGHT is never one)."
+}

@@ -1,0 +1,12 @@
+{
+  "handoff_id": "sha256:rr04000000000000000000000000000000000000000000000000000000004",
+  "safe_to_resume_without_reverification": false,
+  "unsafe_reasons": [
+    {
+      "class": "unrecorded-external-effect",
+      "detail": "effect push:push-rr04-0001 genuinely occurred but is absent from effects_performed -- resume must not risk repeating it"
+    }
+  ],
+  "facts_needing_reverification": [],
+  "effects_not_to_repeat": []
+}

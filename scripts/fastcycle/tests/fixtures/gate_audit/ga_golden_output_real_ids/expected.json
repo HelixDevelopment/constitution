@@ -1,0 +1,10 @@
+{
+  "expected_classifications": {
+    "CM-COVENANT-114-162-PROPAGATION": "executing",
+    "CM-COVENANT-114-167-PROPAGATION": "executing",
+    "CM-COVENANT-114-176-PROPAGATION": "executing",
+    "CM-COVENANT-114-187-PROPAGATION": "executing",
+    "CM-COVENANT-114-190-PROPAGATION": "executing"
+  },
+  "real_family_count_note": "task text cited 120; real disk count of cm_covenant_114_*_propagation.sh (excluding mutation_test) is 83; the covenant_propagation_anchors.tsv data pack has 157 rows; the ledger baseline total (all gate families, not just propagation) is 402"
+}

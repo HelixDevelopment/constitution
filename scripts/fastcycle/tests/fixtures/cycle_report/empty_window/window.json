@@ -1,0 +1,13 @@
+{
+  "_fixture": "empty_window",
+  "_purpose": "Scenario 2/4 of T023 (spec Edge Case \"empty state\", contract CT-008, data-model.md V-CR-3). A window with ZERO eligible closure events. cycle_report.py MUST emit the honest empty-window state -- NEVER a zero-valued statistic, NEVER an average of nothing, NEVER exit non-zero (an empty window is not a failure).",
+  "_synthetic": true,
+  "window": { "from": "2020-01-01", "to": "2020-01-02" },
+  "_rationale": "2020-01-01..2020-01-02 predates every commit in this repository's history (this repository's git history and the tracker DB's earliest rows are both from a much later date -- a 1-day window in 2020 is guaranteed to contain zero closure events without depending on any mutable 'today' state).",
+  "item_history_in_window": [],
+  "expected_body_ct008": {
+    "state": "NO_DATA_IN_WINDOW",
+    "window": { "from": "2020-01-01", "to": "2020-01-02" }
+  },
+  "expected_exit_code": 0
+}

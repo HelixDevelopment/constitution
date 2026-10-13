@@ -1,0 +1,18 @@
+{
+  "schema": "catchset/v1",
+  "fixture": "cs_good_equal",
+  "kind": "golden-good",
+  "contract_clause": "CS-004; contracts/catch-set-comparison-harness.md RED fixtures row 1",
+  "defect_id": "D1",
+  "defect_patch": "../_shared/patches/defect_d1_widget.sh",
+  "baseline_all_pass": true,
+  "old_missed": [],
+  "assertion_changes": [],
+  "counts": {"caught_old": 1, "caught_new": 1, "lost": 0, "gained": 0},
+  "old_verdict": "CAUGHT",
+  "new_verdict": "CAUGHT",
+  "old_catchers": ["g_marker"],
+  "new_catchers": ["g_marker"],
+  "expected_exit_code": 0,
+  "note": "NEW is OLD with gate ORDER swapped only (g_noop,g_marker vs g_marker,g_noop); same gate id SET, same defect caught by the same gate id -- superset holds trivially, lost=0."
+}

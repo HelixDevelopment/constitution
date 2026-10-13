@@ -1,0 +1,34 @@
+{
+  "schema": "tier-route-fixture/v1",
+  "fixture_kind": "golden",
+  "task_id": "FC-TR-SAMPLE-004",
+  "task_class": "generated-diff-applies-cleanly",
+  "is_review_class": false,
+  "has_deterministic_verifier": true,
+  "ladder": ["haiku", "sonnet", "opus"],
+  "min_fitting_tier": "haiku",
+  "attempts": [
+    {
+      "tier": "haiku",
+      "verifier_result": "fail",
+      "failure_detail": "generated patch does not apply cleanly to the clean checkout"
+    },
+    {
+      "tier": "sonnet",
+      "verifier_result": "fail",
+      "failure_detail": "generated patch still does not apply cleanly"
+    },
+    {
+      "tier": "opus",
+      "verifier_result": "pass"
+    }
+  ],
+  "expected_route": {
+    "refused": false,
+    "refusal_reason": null,
+    "route_sequence": ["haiku", "sonnet", "opus"],
+    "escalations": 2,
+    "final_tier": "opus"
+  },
+  "_defect": "A SECOND golden (defence-in-depth beyond T109's minimum named scenario, section 11.4.194 all-angle review): proves escalation walks the ladder ONE RUNG AT A TIME on EVERY verifier failure -- never a 'give up on the first failure and jump straight to the top tier' shortcut, even though that shortcut would still land on a technically-correct final_tier for THIS fixture alone (opus). The independent oracle's own derivation refuses (raises) if any attempt's tier is not exactly the current ladder position, so a mutated derivation that skips 'sonnet' after the first failure is caught by this fixture, not merely by tr_golden_escalation.json's single-failure case."
+}

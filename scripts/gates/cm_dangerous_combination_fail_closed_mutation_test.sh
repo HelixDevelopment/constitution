@@ -430,6 +430,24 @@ expect_output_contains() { # $1=desc  $2=needle  $3..=command
         rc=1
     fi
 }
+expect_output_not_contains() { # $1=desc  $2=needle  $3..=command
+    # The negative twin of expect_output_contains, same capture-first
+    # discipline (§11.4.201(12) — the pipeline exit status is part of the
+    # instrument, so the command is run to completion BEFORE grep ever sees
+    # its output). Used to prove a DECEPTIVE marker is genuinely ABSENT, not
+    # merely that a truthful one is present — the two are not symmetric: a
+    # gate could print both the honest caveat AND the bare unqualified claim
+    # in the same run, and only this half catches that.
+    local desc="$1" needle="$2"; shift 2
+    local out
+    out="$("$@" 2>&1)" || true
+    if printf '%s' "$out" | grep -qF -- "$needle"; then
+        echo "❌ META FAIL: ${desc} — unwanted marker present in gate output: ${needle}"
+        rc=1
+    else
+        echo "✅ META OK:   ${desc} — unwanted marker correctly absent from gate output"
+    fi
+}
 
 # Fixture-directory constructor. `mkdir -p` is SILENT when the directory
 # already exists, so two sections reusing one variable name land two fixtures
@@ -2488,6 +2506,725 @@ expect_fail "L63 a DOTTED broad exception ('suppress(builtins.Exception)') is th
     bash "$GATE_SCRIPT" --root "$MUT40" --quiet
 expect_fail "L63 (degraded text-fallback mode — where the breadth scan reads the qualified tail)" \
     gate_textmode --root "$MUT40" --quiet
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BOB-213 / BOB-214 / BOB-216 fixtures (three related defects in this same
+# gate, fixed together — see constitution/scripts/gates/
+# cm_dangerous_combination_fail_closed.sh header "SHELL COUNTERPART (BOB-213)"
+# + "MODE-INDEPENDENT CARRIERS" sections for the design rationale).
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── 73. NEGATIVE CONTROL (L64 / CLEAN33): BOB-216 — a COMMENT quoting the ──
+# credential-default anti-pattern is NOT a live credential default.
+# Pre-fix, BOTH modes reported this as a LIVE violation (measured: a `#`
+# comment describing "never write `api_key = loaded_value or \"literal\"`"
+# as an example-of-what-not-to-do was matched by the raw shape-(B) grep,
+# which has no AST counterpart in any mode to fall back on) — the same
+# false-positive class L5 already pins for the swallowed-exception shape,
+# now closed for the credential-default shape via same-line comment/string
+# masking (sanitize_generic_carriers) before the shape-(B) grep runs.
+CLEAN33="$TMP/clean33"
+mkfixture "$CLEAN33"
+cat > "$CLEAN33/doc_comment.py" <<'PY'
+# Anti-pattern example, DO NOT DO THIS:
+#   api_key = loaded_value or "sk-hardcoded-fallback-secret"
+def load_config():
+    return {}
+PY
+expect_pass "L64 NEGATIVE CONTROL — a COMMENT quoting the credential-default anti-pattern is not a live default (BOB-216)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN33" --quiet
+expect_pass "L64 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN33" --quiet
+
+# ── 74. NEGATIVE CONTROL (L65 / CLEAN34): BOB-216 — a COMMENT quoting the ──
+# empty-catch anti-pattern is NOT a live swallowed exception. Pre-fix this
+# fired in BOTH modes (measured ast_rc=1 AND text_rc=1) because the
+# empty-catch grep is a language-agnostic raw-text match with NO structural
+# counterpart to consult in any mode.
+CLEAN34="$TMP/clean34"
+mkfixture "$CLEAN34"
+cat > "$CLEAN34/doc_comment.js" <<'JS'
+// Anti-pattern example, DO NOT DO THIS:
+//   try { risky(); } catch (e) { }
+function safe() {
+    return true;
+}
+JS
+expect_pass "L65 NEGATIVE CONTROL — a COMMENT quoting the empty-catch anti-pattern is not a live swallow (BOB-216)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN34" --quiet
+expect_pass "L65 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN34" --quiet
+
+# ── 75. NEGATIVE CONTROL (L66 / CLEAN35): BOB-216 — a STRING LITERAL ──
+# holding the empty-catch anti-pattern TEXT is not live code. Pre-fix this
+# also fired in both modes for the same reason as L65.
+CLEAN35="$TMP/clean35"
+mkfixture "$CLEAN35"
+cat > "$CLEAN35/string_literal.js" <<'JS'
+const antiPatternExample = "try { risky(); } catch (e) { }";
+function log() {
+    console.log(antiPatternExample);
+}
+JS
+expect_pass "L66 NEGATIVE CONTROL — a STRING LITERAL holding the empty-catch anti-pattern text is not live code (BOB-216)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN35" --quiet
+expect_pass "L66 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN35" --quiet
+
+# ── 76. MUTATED (L67 / MUT41): BOB-213 — shell parameter-expansion ──────────
+# credential default to a LITERAL is a real violation, caught by the new
+# shell-specific detector (`${VAR:-"literal"}` / `${VAR:="literal"}`, scoped
+# to *.sh/*.bash, RHS must NOT start with `$`). Pre-fix (sh/bash absent from
+# DANGEROUS_COMBO_EXT and no shell-native detector existed at all) this file
+# was 100% invisible to the gate.
+MUT41="$TMP/mut41"
+mkfixture "$MUT41"
+cat > "$MUT41/config.sh" <<'SH'
+#!/usr/bin/env bash
+password=${password:-"changeme"}
+echo "$password"
+SH
+expect_fail "L67 shell credential silently defaulted to a literal via parameter expansion (BOB-213)" \
+    bash "$GATE_SCRIPT" --root "$MUT41" --quiet
+expect_fail "L67 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT41" --quiet
+
+# ── 77. NEGATIVE CONTROL (L68 / CLEAN36): BOB-213 — a shell credential ─────
+# fallback to ANOTHER VARIABLE (`${token:-$FALLBACK_TOKEN}`) is a LEGITIMATE
+# secondary-source fallback, not a literal default; the RHS-must-not-start-
+# with-`$` exclusion in the shell detector must let it through.
+CLEAN36="$TMP/clean36"
+mkfixture "$CLEAN36"
+cat > "$CLEAN36/config.sh" <<'SH'
+#!/usr/bin/env bash
+token=${token:-$FALLBACK_TOKEN}
+echo "$token"
+SH
+expect_pass "L68 NEGATIVE CONTROL — shell credential fallback to ANOTHER VARIABLE is legitimate (BOB-213)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN36" --quiet
+expect_pass "L68 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN36" --quiet
+
+# ── 78. NEGATIVE CONTROL (L69 / CLEAN37): BOB-213 — a shell credential ─────
+# fallback to a COMMAND SUBSTITUTION (`${api_key:-$(vault_get_secret)}`) is
+# likewise a legitimate secondary source, not a hardcoded literal.
+CLEAN37="$TMP/clean37"
+mkfixture "$CLEAN37"
+cat > "$CLEAN37/config.sh" <<'SH'
+#!/usr/bin/env bash
+api_key=${api_key:-$(vault_get_secret)}
+echo "$api_key"
+SH
+expect_pass "L69 NEGATIVE CONTROL — shell credential fallback to COMMAND SUBSTITUTION is legitimate (BOB-213)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN37" --quiet
+expect_pass "L69 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN37" --quiet
+
+# ── 79. MUTATED (L70 / MUT42): BOB-213 — the PRE-EXISTING `||`/`or`-style ──
+# credential-default shape, now visible for the first time in a `.sh` file
+# because `sh`/`bash` were added to the default DANGEROUS_COMBO_EXT list.
+# Measured pre-fix: `scripts/` (a declared DANGER_ROOT) has 71 tracked .sh
+# files the gate never scanned at all — this fixture is the minimal
+# reproduction of that class, independent of the NEW shell-native detector
+# added in L67 (this shape is the gate's ORIGINAL `||`/`or` regex).
+MUT42="$TMP/mut42"
+mkfixture "$MUT42"
+cat > "$MUT42/loader.sh" <<'SH'
+#!/usr/bin/env bash
+api_key=loaded_value || "sk-hardcoded-fallback-secret"
+SH
+expect_fail "L70 pre-existing credential-default-to-literal shape, now DISCOVERABLE in a .sh file (BOB-213 extension-list fix)" \
+    bash "$GATE_SCRIPT" --root "$MUT42" --quiet
+expect_fail "L70 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT42" --quiet
+
+# ── 80. NEGATIVE CONTROL (L71 / CLEAN38): BOB-214 — the gate's default ─────
+# exclude list (.git/node_modules/vendor/.venv/__pycache__/scripts/gates/
+# out/build) is UNCHANGED by the BOB-214 fix and still keeps a violation
+# planted inside `.git/` from ever being scanned or flagged, confirming
+# adding `--max-depth`/the repo-root DANGER_ROOTS entry does NOT now scan
+# something wildly out-of-scope.
+CLEAN38="$TMP/clean38"
+mkfixture "$CLEAN38"
+mkdir -p "$CLEAN38/.git/hooks"
+cat > "$CLEAN38/.git/hooks/fake.py" <<'PY'
+try:
+    risky()
+except Exception:
+    pass
+PY
+expect_pass "L71 NEGATIVE CONTROL — a violation inside .git/ stays excluded by the default exclude list (BOB-214)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN38" --quiet
+expect_pass "L71 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN38" --quiet
+
+# ── 81. NEGATIVE CONTROL (L72 / CLEAN39): BOB-214 — a NESTED-only violation ──
+# is correctly invisible at `--max-depth 1` (intended narrowing, not a bug —
+# this proves the flag genuinely limits traversal depth rather than silently
+# being a no-op).
+CLEAN39="$TMP/clean39"
+mkfixture "$CLEAN39"
+mkdir -p "$CLEAN39/nested"
+cat > "$CLEAN39/nested/violation.py" <<'PY'
+try:
+    risky()
+except Exception:
+    pass
+PY
+expect_pass "L72 NEGATIVE CONTROL — a nested-only violation is invisible at --max-depth 1 (BOB-214, intended narrowing)" \
+    bash "$GATE_SCRIPT" --root "$CLEAN39" --max-depth 1 --quiet
+expect_pass "L72 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN39" --max-depth 1 --quiet
+
+# ── 82. MUTATED (L73 / MUT43): BOB-214 — a ROOT-LEVEL violation is STILL ────
+# caught at `--max-depth 1` (the depth limit narrows scope, it does not
+# blind the gate to the level it is pointed at — this is the exact
+# webui-bridge.py-at-repo-root scenario BOB-214 fixes).
+MUT43="$TMP/mut43"
+mkfixture "$MUT43"
+cat > "$MUT43/webui_probe.py" <<'PY'
+def _is_root_liveness_probe(self):
+    try:
+        parsed = urllib.parse.urlparse(self.path)
+    except Exception:
+        return False
+    return True
+PY
+expect_fail "L73 a ROOT-LEVEL violation is still caught at --max-depth 1 (BOB-214)" \
+    bash "$GATE_SCRIPT" --root "$MUT43" --max-depth 1 --quiet
+expect_fail "L73 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT43" --max-depth 1 --quiet
+
+# ── 83. ARGUMENT VALIDATION (L74): BOB-214 — an invalid --max-depth value ──
+# is REFUSED with an environment/argument exit (rc=2), never silently
+# accepted as 0/unlimited nor crashing find(1) with a confusing error. This
+# is asserted directly (not via expect_fail/expect_pass) because BOTH of
+# those helpers treat rc=2 as a WRONG-ROUTE failure by design (§11.4.201: an
+# argument error is not a detection) — exactly the outcome under test here,
+# so the real rc is read and graded on its own terms instead.
+_l74_out="$(bash "$GATE_SCRIPT" --root "$TMP" --max-depth notanumber --quiet 2>&1)"; _l74_rc=$?
+if [ "$_l74_rc" -eq 2 ]; then
+    echo "✅ META OK:   L74 --max-depth with a non-numeric value exits 2 (argument error) (BOB-214)"
+else
+    echo "❌ META FAIL: L74 --max-depth notanumber exited ${_l74_rc}, expected 2 (argument error)"
+    rc=1
+fi
+
+# ── 84. MUTATED (L75 / MUT44): BOB-199 — a NARROW suppress() combined with ──
+# an IRREVERSIBLE-capability call (os.remove) under an UNRELATED exception
+# class is a real fail-open shape: `PermissionError` names a DIFFERENT
+# failure than "the file to be removed does not exist", so the delete still
+# runs unconditionally and any OTHER exception the narrow suppress lets
+# through is silently swallowed around a destructive call. Per the §11.4.66
+# operator decision (2026-08-26): "The scanner flags a narrow
+# contextlib.suppress ONLY when combined with an irreversible capability
+# (delete / truncate / kill) -- the shape that actually causes harm." This is
+# exactly that shape and MUST be caught.
+MUT44="$TMP/mut44"
+mkfixture "$MUT44"
+cat > "$MUT44/l75.py" <<'PY'
+import contextlib
+import os
+
+def do_thing(path):
+    with contextlib.suppress(PermissionError):
+        os.remove(path)
+PY
+expect_fail "L75 narrow suppress(PermissionError) around os.remove — BOB-199 irreversible-capability shape" \
+    bash "$GATE_SCRIPT" --root "$MUT44" --quiet
+# HONEST SCOPE BOUNDARY (§11.4.6): BOB-199's narrow+irreversible detection
+# lives ENTIRELY in the Python AST-structural analyser -- the task's own
+# scope statement names exactly "classify_suppress and its surrounding
+# AST-mode machinery". The degraded text-fallback scanner
+# (scan_py_text_suppress) still implements ONLY the pre-existing BROAD-form
+# detection; teaching it to also resolve exception-name bindings and walk a
+# with-block body for an irreversible call is a distinct, materially larger
+# change and is explicitly OUT OF SCOPE here. This is a DISCLOSED gap
+# consistent with the pre-existing TEXT_MODE_CAVEAT (already on record as an
+# approximation that under-reports in several measured ways), never a
+# silent one -- and it is PROVEN below, not merely asserted: this exact
+# fixture (a NARROW suppress, so the broad-form scanner never fires, over a
+# call the text scanner has no irreversible-capability concept for at all)
+# genuinely produces no hit in degraded mode.
+expect_pass "L75 (degraded text-fallback mode — KNOWN, DISCLOSED gap: narrow+irreversible detection is AST-mode only, per BOB-199 scope)" \
+    gate_textmode --root "$MUT44" --quiet
+
+# ── 85. NEGATIVE CONTROL (L76 / CLEAN40): BOB-199 — the CANONICAL Python ────
+# stdlib delete-if-absent idiom (`with suppress(FileNotFoundError):
+# os.remove(path)`) is the LITERAL example given by contextlib.suppress's own
+# official documentation, and appears three times already in THIS fixture
+# file (L1/L13/L20/L24-class `purge()` helpers used as realistic safe filler
+# for unrelated fixtures) as unremarkable, obviously-safe code. Flagging it
+# would be precisely the false-positive storm the §11.4.66 operator decision
+# itself warns against: "Idiomatic narrow tolerances stay quiet, so the gate
+# keeps its credibility." The suppressed exception here names the EXACT "the
+# thing is already gone" condition os.remove would otherwise raise, so
+# re-raising it would make the with-block pointless -- this MUST stay quiet.
+CLEAN40="$TMP/clean40"
+mkfixture "$CLEAN40"
+cat > "$CLEAN40/l76.py" <<'PY'
+import contextlib
+import os
+
+def purge(path):
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(path)
+PY
+expect_pass "L76 NEGATIVE CONTROL — the canonical stdlib delete-if-absent idiom (suppress(FileNotFoundError): os.remove) stays quiet" \
+    bash "$GATE_SCRIPT" --root "$CLEAN40" --quiet
+expect_pass "L76 (degraded text-fallback mode)" \
+    gate_textmode --root "$CLEAN40" --quiet
+
+# ── 86. MUTATED (L77 / MUT45): BOB-199 — `os.kill` combined with a NARROW ───
+# suppress(FileNotFoundError) MUST still be flagged, even though the SAME
+# exception class is quiet over os.remove/unlink/rmtree at L76. There is no
+# "the process is already gone" idiom that makes swallowing an unrelated
+# signal-delivery failure around a kill() call safe the way FileNotFoundError
+# is safe around a delete -- kill/killpg/truncate stay ALWAYS-flagged
+# regardless of which exception the narrow suppress names, per the
+# call_is_irreversible() DELETE_IF_ABSENT_ATTRS exclusion being scoped to
+# exactly {remove, unlink, rmtree}, never {kill, killpg, truncate}.
+MUT45="$TMP/mut45"
+mkfixture "$MUT45"
+cat > "$MUT45/l77.py" <<'PY'
+import contextlib
+import os
+
+def stop(pid):
+    with contextlib.suppress(FileNotFoundError):
+        os.kill(pid, 9)
+PY
+expect_fail "L77 narrow suppress(FileNotFoundError) around os.kill — kill is ALWAYS flagged, no delete-if-absent idiom applies" \
+    bash "$GATE_SCRIPT" --root "$MUT45" --quiet
+# Same HONEST SCOPE BOUNDARY as L75 above: narrow+irreversible detection is
+# AST-mode only (BOB-199 scope), a DISCLOSED gap in the degraded scanner.
+expect_pass "L77 (degraded text-fallback mode — KNOWN, DISCLOSED gap, same as L75)" \
+    gate_textmode --root "$MUT45" --quiet
+
+# ── 87. NEGATIVE CONTROL (L78 / CLEAN41): BOB-199 — a VALID `# guardrails: ──
+# allow <reason>` waiver on a narrow-suppress+irreversible-capability site
+# MUST silence the FAIL and produce a WAIVED note instead (never silent per
+# §11.4.201(5)) using the project's established per-line waiver convention
+# (the same `check_cm_no_production_mutation_residue.sh` marker shape).
+CLEAN41="$TMP/clean41"
+mkfixture "$CLEAN41"
+cat > "$CLEAN41/l78.py" <<'PY'
+import contextlib
+import os
+
+def do_thing(path):
+    with contextlib.suppress(PermissionError):  # guardrails:allow reviewed and accepted by ops 2026-09
+        os.remove(path)
+PY
+expect_pass "L78 NEGATIVE CONTROL — a VALID guardrails:allow waiver silences the narrow+irreversible FAIL" \
+    bash "$GATE_SCRIPT" --root "$CLEAN41" --quiet
+# NOT asserted in degraded mode here: the waiver mechanism itself lives in
+# the AST-structural path (it resolves source_lines + call.lineno from the
+# parsed tree), so a degraded-mode PASS on this fixture would be true for
+# the WRONG reason -- text mode is already blind to the underlying narrow+
+# irreversible shape (per L75/L77's disclosed gap) and never reaches a
+# waiver decision at all. Asserting it here would misleadingly imply
+# degraded-mode waiver support that does not exist (§11.4.6).
+expect_output_contains "L78 the WAIVED note names the waiver reason, never silent (§11.4.201(5))" \
+    "reviewed and accepted by ops 2026-09" \
+    bash "$GATE_SCRIPT" --root "$CLEAN41"
+
+# ── 88. MUTATED (L79 / MUT46): BOB-199 — a MALFORMED waiver (the marker is ──
+# present but carries NO REASON) MUST NOT silence the FAIL -- §11.4.224(E)
+# requires a mandatory, non-empty reason on every waiver; a bare marker with
+# nothing after it is indistinguishable from an operator forgetting to
+# finish the comment, and honouring it would reopen the exact silent-bypass
+# channel the waiver convention exists to close.
+MUT46="$TMP/mut46"
+mkfixture "$MUT46"
+cat > "$MUT46/l79.py" <<'PY'
+import contextlib
+import os
+
+def do_thing(path):
+    with contextlib.suppress(PermissionError):  # guardrails:allow
+        os.remove(path)
+PY
+expect_fail "L79 a MALFORMED guardrails:allow waiver (marker present, no reason) does NOT silence the FAIL" \
+    bash "$GATE_SCRIPT" --root "$MUT46" --quiet
+# NOT asserted expect_fail in degraded mode: same disclosed AST-mode-only
+# boundary as L75/L77/L78 -- the malformed-waiver check lives entirely in
+# the Python AST path, so text mode is blind to this fixture's shape too
+# and would trivially PASS (clean) here, not because the malformed waiver
+# was honoured but because the underlying narrow+irreversible violation is
+# never detected in the first place. Asserted honestly below instead.
+expect_pass "L79 (degraded text-fallback mode — KNOWN, DISCLOSED gap, same as L75/L77)" \
+    gate_textmode --root "$MUT46" --quiet
+
+# ── 89. MUTATED (L80): BOB-200 — a `find(1)` ENUMERATION FAILURE (a subtree ──
+# `chmod 000` under --root, so find(1) cannot descend into it and exits
+# non-zero) MUST be refused as an unresolved precondition (rc=1, a FINDING),
+# NEVER silently read as "find succeeded, zero files" (the honest
+# topology_unsupported SKIP path, rc=0). Before the fix, `find ... | mapfile`
+# fed find's output through a process substitution that discarded find's own
+# exit status -- mapfile always saw *some* stream (even an empty one) and
+# reported success, so a permission-denied/resource-exhausted/interrupted
+# scan silently downgraded from "the corpus could not be fully enumerated"
+# to "the corpus is empty and clean" -- a textbook §11.4.201(6) false-null /
+# §11.4.252 fail-open. This fixture RED-reproduces exactly that on the
+# CURRENT (pre-fix) gate shape, and is retained here as the permanent
+# regression guard for the fix.
+MUT47="$TMP/mut47"
+mkfixture "$MUT47"
+mkdir -p "$MUT47/blocked"
+cat > "$MUT47/blocked/violation.py" <<'PY'
+import contextlib
+with contextlib.suppress(Exception):
+    pass
+PY
+chmod 000 "$MUT47/blocked"
+# Restore permissions in a trap-local so a failed assertion still leaves the
+# fixture tree removable by the suite's top-level `cleanup` on EXIT --
+# `rm -rf` only needs write+execute on the PARENT (mkfixture's own dir) to
+# unlink a directory entry, but a defensive restore is cheap and honest.
+restore_l80_perms() { chmod 755 "$MUT47/blocked" 2>/dev/null || true; }
+trap restore_l80_perms RETURN 2>/dev/null || true
+_l80_out="$(bash "$GATE_SCRIPT" --root "$MUT47" --quiet 2>&1)"; _l80_rc=$?
+restore_l80_perms
+if [ "$_l80_rc" -eq 1 ]; then
+    echo "✅ META OK:   L80 a find(1) enumeration failure (permission-denied subtree) is refused as an unresolved precondition (rc=1), never a silent empty-scan SKIP (BOB-200/§11.4.201(6))"
+else
+    echo "❌ META FAIL: L80 find-enumeration-failure exited ${_l80_rc}, expected rc=1 (a FINDING) -- a permission-denied subtree must not silently read as an empty/clean scan"
+    rc=1
+fi
+if printf '%s' "$_l80_out" | grep -qF -- "scan enumeration failed"; then
+    echo "✅ META OK:   L80 the refusal names the unresolved precondition (\"scan enumeration failed\"), never silent"
+else
+    echo "❌ META FAIL: L80 expected the find-failure output to contain: scan enumeration failed"
+    rc=1
+fi
+
+# ── 90. NEGATIVE CONTROL (L81): BOB-200 — after the find-failure fix, a ─────
+# NORMAL violation directly under --root (no permission-denied subtree
+# anywhere in the tree) is STILL caught exactly as before -- the scratch-file
+# capture of find(1)'s own exit status does not itself introduce a new
+# blind spot on the ordinary success path. CLEAN4 (section 7) already pins
+# the sibling golden-FALSE (a genuinely empty, fully-readable root honestly
+# SKIPs at rc=0) -- this fixture is the MUTATED-polarity regression check
+# for the same code path, proving the fix did not trade a false-null for a
+# false-refusal on healthy input.
+MUT48="$TMP/mut48"
+mkfixture "$MUT48"
+cat > "$MUT48/l81.py" <<'PY'
+import contextlib
+with contextlib.suppress(Exception):
+    pass
+PY
+expect_fail "L81 a normal violation is still caught after the BOB-200 find-failure fix (no permission-denied subtree present)" \
+    bash "$GATE_SCRIPT" --root "$MUT48" --quiet
+expect_fail "L81 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT48" --quiet
+
+# ── 91. NEGATIVE CONTROL (L82): BOB-189 -- a fail-CLOSED guard whose every ──
+# `except ...: return <trivial>` handler REFUSES the caller must NOT be
+# flagged as a fail-open silent-default-return. This is a synthetic
+# reproduction of the real `_is_safe_fetch_url` SSRF guard in
+# `download-proxy/src/api/routes.py`: TWO separate except handlers, each
+# returning `False`, and the SOLE call site reads `if not guard(host):
+# <log a warning>; continue` -- the escape statement (`continue`) is the
+# SECOND statement in the if-body, not the first, which is deliberate: the
+# real guard call site logs BEFORE it continues, so a naive
+# first-statement-only check would itself miss the founding case and this
+# fixture would wrongly stay flagged. Before BOB-189 this file was a live
+# FAIL (measured) -- acting on that finding would have meant deleting the
+# `except: return False` paths from a real SSRF guard, i.e. removing a
+# security control to satisfy a gate.
+CLEAN42="$TMP/clean42"
+mkfixture "$CLEAN42"
+cat > "$CLEAN42/l82.py" <<'PY'
+def is_safe_target(host):
+    try:
+        parsed = parse_host(host)
+    except (ValueError, TypeError):
+        return False
+    if not parsed:
+        return False
+    try:
+        resolved = resolve(parsed)
+    except OSError:
+        return False
+    return resolved.is_public
+
+
+def fetch_first_safe(candidates):
+    for candidate in candidates:
+        if not is_safe_target(candidate):
+            logger.warning("refusing unsafe target; skipping")
+            continue
+        return do_fetch(candidate)
+    return None
+PY
+expect_pass "L82 fail-CLOSED guard call-site-gated by \`if not F(): <log>; continue\` is NOT flagged (BOB-189/§11.4.201(1))" \
+    bash "$GATE_SCRIPT" --root "$CLEAN42" --quiet
+# HONEST SCOPE BOUNDARY (§11.4.6), the same class as L75/L77/L78/L79: the
+# call-site-aware discrimination lives entirely in the Python AST path, so
+# the degraded text-fallback scanner -- which has no notion of "enclosing
+# function" or "call site" at all -- stays blind to it and still reports
+# the pre-BOB-189 FAIL on this exact fixture. Asserted honestly, not
+# silently accepted as a regression.
+expect_fail "L82 (degraded text-fallback mode -- KNOWN, DISCLOSED gap: call-site-aware discrimination is AST-mode only, per BOB-189 scope)" \
+    gate_textmode --root "$CLEAN42" --quiet
+
+# ── 92. MUTATED (L83): BOB-189 -- the SAME `except: return <trivial>` shape ──
+# as L82, but the caller does NOT gate on the return value: it is read into
+# a local and used directly. This is the golden-TRUE fixture proving the
+# call-site discrimination does not over-suppress a GENUINE fail-open that
+# merely happens to share the silent-default-return shape with a guard.
+MUT49="$TMP/mut49"
+mkfixture "$MUT49"
+cat > "$MUT49/l83.py" <<'PY'
+def is_valid_amount(raw):
+    try:
+        return float(raw)
+    except Exception:
+        return False
+
+
+def process(raw):
+    amount = is_valid_amount(raw)
+    charge(amount)
+PY
+expect_fail "L83 genuine fail-open (proceed-shaped, caller does not gate on the return value) is STILL caught" \
+    bash "$GATE_SCRIPT" --root "$MUT49" --quiet
+expect_fail "L83 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT49" --quiet
+
+# ── 93. MUTATED (L84): BOB-189 -- an AMBIGUOUS call site: `if not F(): pass` ──
+# tests the falsy return but its body does not escape (no continue / break /
+# return / raise) -- the falsy result is effectively ignored and execution
+# proceeds regardless. This is NOT the refuse-shaped pattern and MUST stay
+# flagged: a bare `pass` body is exactly the "gated by a bare `if F():` /
+# `if not F(): pass`" case the fix's own header names as conservative-safe
+# per §11.4.201(4).
+MUT50="$TMP/mut50"
+mkfixture "$MUT50"
+cat > "$MUT50/l84.py" <<'PY'
+def check_ok(x):
+    try:
+        return validate(x)
+    except Exception:
+        return False
+
+
+def handle(x):
+    if not check_ok(x):
+        pass
+    do_work(x)
+PY
+expect_fail "L84 call site tests the falsy return but its if-body does not escape (bare pass) -- still caught" \
+    bash "$GATE_SCRIPT" --root "$MUT50" --quiet
+expect_fail "L84 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT50" --quiet
+
+# ── 94. MUTATED (L85): BOB-189 -- MIXED call sites for the SAME function: ──
+# one refuse-shaped (`if not is_allowed(x): return`) and one that reads the
+# value directly with no gating at all. The suppression rule requires EVERY
+# call site of the enclosing function to be refuse-shaped; a single ungated
+# call site anywhere in the file MUST keep the hit flagged, proving the
+# discrimination is not satisfied by "at least one gated caller".
+MUT51="$TMP/mut51"
+mkfixture "$MUT51"
+cat > "$MUT51/l85.py" <<'PY'
+def is_allowed(x):
+    try:
+        return acl_check(x)
+    except Exception:
+        return False
+
+
+def path_a(x):
+    if not is_allowed(x):
+        return
+    proceed(x)
+
+
+def path_b(x):
+    result = is_allowed(x)
+    proceed_regardless(x, result)
+PY
+expect_fail "L85 one refuse-shaped caller plus one ungated caller of the SAME function -- still caught (not every call site is refuse-shaped)" \
+    bash "$GATE_SCRIPT" --root "$MUT51" --quiet
+expect_fail "L85 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT51" --quiet
+
+# ── 95. MUTATED (L86): BOB-189 -- ZERO call sites in this file. A function ──
+# with the silent-default-return shape that is never called anywhere in the
+# scanned file proves nothing about caller behaviour, so it MUST stay
+# conservative-safe per §11.4.201(4): NOT suppressed. (A real cross-module
+# caller cannot be seen by a per-file AST pass; this is the honest, stated
+# boundary of the fix, not a silent gap.)
+MUT52="$TMP/mut52"
+mkfixture "$MUT52"
+cat > "$MUT52/l86.py" <<'PY'
+def unused_guard(x):
+    try:
+        return validate(x)
+    except Exception:
+        return False
+PY
+expect_fail "L86 silent-default-return with ZERO call sites in this file -- conservative-safe, still caught (§11.4.201(4))" \
+    bash "$GATE_SCRIPT" --root "$MUT52" --quiet
+expect_fail "L86 (degraded text-fallback mode)" \
+    gate_textmode --root "$MUT52" --quiet
+
+# ── 96. BOB-191: the UNANALYSED-extension registry ──────────────────────────
+# The gate's shape A (`catch (...) {`) and shape B (`x = y || "literal"`)
+# matchers run over EVERY enumerated extension, but neither idiom is
+# syntactically possible in valid Go/Rust/Ruby/C -- a genuine fail-open
+# construct in each of the four measured rc=0 (PASS) against the PRE-FIX
+# gate, indistinguishable from a genuinely clean file (§11.4.201(6)'s own
+# false-null). L87-L90 pin that each of the four now prints the honest
+# UNANALYSED NOTE and NEVER the bare unqualified clean-PASS sentence; L91
+# proves the fix did NOT accidentally widen the UNANALYSED set to swallow an
+# extension (C++) whose idiom this gate genuinely catches; L92 proves the
+# NOTE is absent on a plain analysed-only root (the negative control for the
+# whole registry); L93 proves a REAL hit still FAILs the build even when an
+# UNANALYSED file sits alongside it in the same root (the new branch must
+# never mask a genuine finding).
+MUT53="$TMP/mut53_go"
+mkfixture "$MUT53"
+cat > "$MUT53/needle.go" <<'GO'
+package main
+
+func doThing() error {
+	err := riskyOp()
+	if err != nil {
+	}
+	_ = anotherRiskyOp()
+	return nil
+}
+
+func riskyOp() error { return nil }
+func anotherRiskyOp() error { return nil }
+GO
+expect_pass "L87 Go: empty err-check + discarded error -- ADVISORY, still exits 0 (never blocks the build)" \
+    bash "$GATE_SCRIPT" --root "$MUT53" --quiet
+expect_output_contains "L87 Go: honest UNANALYSED NOTE names the extension" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT53" --quiet
+expect_output_not_contains "L87 Go: bare unqualified clean-PASS sentence is NEVER printed for an unanalysed root" \
+    "PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§11.4.252)" \
+    bash "$GATE_SCRIPT" --root "$MUT53" --quiet
+
+MUT54="$TMP/mut54_rust"
+mkfixture "$MUT54"
+cat > "$MUT54/needle.rs" <<'RS'
+fn do_thing() {
+    let _ = risky_op();
+    match risky_op() {
+        Err(_) => {}
+        Ok(_) => {}
+    }
+}
+
+fn risky_op() -> Result<(), ()> { Ok(()) }
+RS
+expect_pass "L88 Rust: discarded Result + empty Err arm -- ADVISORY, still exits 0" \
+    bash "$GATE_SCRIPT" --root "$MUT54" --quiet
+expect_output_contains "L88 Rust: honest UNANALYSED NOTE names the extension" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT54" --quiet
+expect_output_not_contains "L88 Rust: bare unqualified clean-PASS sentence is NEVER printed" \
+    "PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§11.4.252)" \
+    bash "$GATE_SCRIPT" --root "$MUT54" --quiet
+
+MUT55="$TMP/mut55_ruby"
+mkfixture "$MUT55"
+cat > "$MUT55/needle.rb" <<'RB'
+def do_thing
+  begin
+    risky_op
+  rescue StandardError
+    # swallowed
+  end
+end
+RB
+expect_pass "L89 Ruby: rescue-swallowed StandardError -- ADVISORY, still exits 0" \
+    bash "$GATE_SCRIPT" --root "$MUT55" --quiet
+expect_output_contains "L89 Ruby: honest UNANALYSED NOTE names the extension" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT55" --quiet
+expect_output_not_contains "L89 Ruby: bare unqualified clean-PASS sentence is NEVER printed" \
+    "PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§11.4.252)" \
+    bash "$GATE_SCRIPT" --root "$MUT55" --quiet
+
+MUT56="$TMP/mut56_c"
+mkfixture "$MUT56"
+cat > "$MUT56/needle.c" <<'C'
+int do_thing(void) {
+    int ret = risky_op();
+    if (ret != 0) {
+    }
+    return 0;
+}
+C
+expect_pass "L90 C: ignored return code + empty if-block -- ADVISORY, still exits 0" \
+    bash "$GATE_SCRIPT" --root "$MUT56" --quiet
+expect_output_contains "L90 C: honest UNANALYSED NOTE names the extension" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT56" --quiet
+expect_output_not_contains "L90 C: bare unqualified clean-PASS sentence is NEVER printed" \
+    "PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§11.4.252)" \
+    bash "$GATE_SCRIPT" --root "$MUT56" --quiet
+
+# L91 NEGATIVE CONTROL — C++ genuinely HAS `catch (...) {` as real syntax and
+# the existing shape-A matcher catches it (measured live, BOB-191 round-2
+# needle: rc=1 both pre- and post-fix). The registry MUST NOT have been
+# widened to swallow cc/cpp/h/hpp -- proving that would be exactly the
+# §11.4.201(1) false-positive-refusal-turned-false-negative-pass this fixture
+# guards against (a working analyser silently downgraded to UNANALYSED).
+MUT57="$TMP/mut57_cpp_negctrl"
+mkfixture "$MUT57"
+cat > "$MUT57/needle.cpp" <<'CPP'
+void do_thing() {
+    try {
+        risky_op();
+    } catch (const std::exception& e) {
+    }
+}
+CPP
+expect_fail "L91 NEGATIVE CONTROL — C++ empty catch block is STILL caught (rc=1); the UNANALYSED registry must not swallow a working extension" \
+    bash "$GATE_SCRIPT" --root "$MUT57" --quiet
+expect_output_not_contains "L91 NEGATIVE CONTROL — C++ is never reported UNANALYSED" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT57" --quiet
+
+# L92 NEGATIVE CONTROL — a plain, fully-analysed clean root (Python only)
+# prints the UNANALYSED NOTE for NEITHER a real finding nor a coverage gap:
+# reuses the file's own existing "legitimate handling" clean fixture shape so
+# this control needle is drawn from code already proven clean by this suite.
+MUT58="$TMP/mut58_clean_negctrl"
+mkfixture "$MUT58"
+cat > "$MUT58/clean.py" <<'PY'
+def do_thing():
+    try:
+        risky()
+    except Exception as e:
+        log.warning("failed: %s", e)
+        raise
+PY
+expect_output_not_contains "L92 NEGATIVE CONTROL — a fully-analysed clean root never prints the UNANALYSED NOTE" \
+    "UNANALYSED extension" bash "$GATE_SCRIPT" --root "$MUT58" --quiet
+expect_output_contains "L92 NEGATIVE CONTROL — the plain unqualified clean-PASS sentence IS printed when nothing is unanalysed" \
+    "PASS — no swallowed-exception, silent-default-return or credential-default-to-literal anti-patterns found (§11.4.252)" \
+    bash "$GATE_SCRIPT" --root "$MUT58" --quiet
+
+# L93 the UNANALYSED branch MUST NEVER mask a genuine finding: a REAL Python
+# hit alongside an unanalysed Go file in the SAME root still FAILs (rc=1),
+# proving the new code path is reached only via the post-hits-check branch
+# and cannot short-circuit a real violation.
+MUT59="$TMP/mut59_mixed_real_hit"
+mkfixture "$MUT59"
+cat > "$MUT59/bad.py" <<'PY'
+def do_thing():
+    try:
+        risky()
+    except Exception:
+        pass
+PY
+cp "$MUT53/needle.go" "$MUT59/needle.go"
+expect_fail "L93 a REAL hit beside an unanalysed Go file in the same root still FAILs (rc=1) -- the UNANALYSED branch never masks a genuine finding" \
+    bash "$GATE_SCRIPT" --root "$MUT59" --quiet
 
 echo "======================================================================"
 if [ "$rc" -eq 0 ]; then

@@ -1,0 +1,15 @@
+Negative control (§11.4.201(1) false-positive guard): given the 11-stage
+input in tracker_export.json (every stage carries a real start/end Instant
+with a labelled time_source, a real elapsed value, and a real evidence_path,
+tokens present on the implementation stage), cycle_report.py's output for
+ATM-90002 MUST contain:
+
+  - zero occurrences of the token "UNMEASURED"
+  - zero occurrences of "missing_instrument"
+  - no "BELOW_REQUIRED_SAMPLE" or other data-quality flag against this item
+
+A cycle_report.py implementation that emits ANY of the above against this
+fully-populated fixture is itself defective -- it is over-flagging genuinely
+present data, which is exactly as dangerous as under-flagging a genuine gap
+(missing_record fixture). Both fixtures MUST be run by the same test
+harness and MUST produce opposite verdicts on the UNMEASURED question.
