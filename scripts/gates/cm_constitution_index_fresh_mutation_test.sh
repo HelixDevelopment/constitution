@@ -55,7 +55,7 @@ i = t.index("\n", m.end()) + 1
 open(p, "w", encoding="utf-8").write(t[:i] + "An amendment that did not regenerate the index.\n" + t[i:])
 PY
   out=$(bash "$g" --root "$r" 2>&1); rc=$?
-  if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q 'regenerate'; then ok "G2 golden-false: an amendment without regeneration FAILs and says how to regenerate"
+  if [ "$rc" -eq 1 ] && grep -q 'regenerate' <<<"$out"; then ok "G2 golden-false: an amendment without regeneration FAILs and says how to regenerate"
   else bad "G2 amendment: rc=$rc out=[$out]"; fi
   r="$TMP/g3"; rm -rf "$r"; mkroot "$r"
   f=""; for _m in "$r"/groups/*.md; do f="$_m"; break; done; printf '\nhand edit\n' >> "$f"
@@ -63,8 +63,8 @@ PY
   # V5 N3: the drift FAIL must print a command that actually repairs drift. regenerate_if_stale.sh answers
   # "fresh ... nothing to do" when only a group was hand-edited (the checksum still matches), so the
   # message must name the generator's own `generate` invocation for THIS root.
-  if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -qF "constitution_generate.py generate --source $r/Constitution.md --groups-dir $r/groups --index-out $r/constitution_index.yaml" \
-     && ! printf '%s' "$out" | grep -q 'regenerate_if_stale.sh'; then
+  if [ "$rc" -eq 1 ] && grep -qF "constitution_generate.py generate --source $r/Constitution.md --groups-dir $r/groups --index-out $r/constitution_index.yaml" <<<"$out" \
+     && ! grep -q 'regenerate_if_stale.sh' <<<"$out"; then
     ok "G3 golden-false: a hand-edited group .md (checksum fresh) FAILs and prints the generator's generate command"
   else bad "G3 group drift: rc=$rc out=[$out]"; fi
   r="$TMP/g4"; rm -rf "$r"; mkroot "$r"; rm -f "$r/Constitution.md"

@@ -360,7 +360,7 @@ MEASURED = "measured"
 # is reused here verbatim (never a second, divergent one, §11.4.227):
 #   1. `FC_DISPATCH_ITEM_ID_RE` (env, highest priority) -- if set, this
 #      value REPLACES the whole `item=` value alternation verbatim (e.g.
-#      "ATM-[0-9]+|SPK-[0-9]+"), the consuming project's own explicit,
+#      "ABC-[0-9]+|XYZ-[0-9]+"), the consuming project's own explicit,
 #      unvalidated choice (§11.4.6: an operator-supplied value is
 #      trusted, never second-guessed).
 #

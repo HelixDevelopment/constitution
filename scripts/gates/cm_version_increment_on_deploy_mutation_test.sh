@@ -110,10 +110,10 @@ PD="version_scheme = positional-digit"
 # code and callers parse `VERDICT:` / `CARRY:`, so a SKIP can never pass as PASS).
 expect_v() { local want="$1" wv="$2" wc="$3" desc="$4"; shift 4; local got=0 out
     out="$("$@" 2>/dev/null)" || got=$?
-    if [ "$got" -eq "$want" ] && printf '%s\n' "$out" | grep -qx "VERDICT: ${wv}" && printf '%s\n' "$out" | grep -qx "CARRY: ${wc}"; then
+    if [ "$got" -eq "$want" ] && grep -qx "VERDICT: ${wv}" <<<"$out" && grep -qx "CARRY: ${wc}" <<<"$out"; then
         note "✅ META OK:   ${desc} — exit ${got}, VERDICT ${wv}, CARRY ${wc}"
     else
-        note "❌ META FAIL: ${desc} — exit ${got} (required ${want}); verdict lines: $(printf '%s\n' "$out" | grep -E '^(VERDICT|CARRY): ' | tr '\n' ' ')(required VERDICT ${wv} / CARRY ${wc})"; rc=1
+        note "❌ META FAIL: ${desc} — exit ${got} (required ${want}); verdict lines: $(grep -E '^(VERDICT|CARRY): ' <<<"$out" | tr '\n' ' ')(required VERDICT ${wv} / CARRY ${wc})"; rc=1
     fi; }
 
 # expect_info <desc> <cmd...> — an informational mode (--help /
@@ -121,7 +121,7 @@ expect_v() { local want="$1" wv="$2" wc="$3" desc="$4"; shift 4; local got=0 out
 # can read it as a gate verdict.
 expect_info() { local desc="$1"; shift; local got=0 out
     out="$("$@" 2>/dev/null)" || got=$?
-    if [ "$got" -eq 0 ] && ! printf '%s\n' "$out" | grep -q '^VERDICT: ' && [ -n "$out" ]; then
+    if [ "$got" -eq 0 ] && ! grep -q '^VERDICT: ' <<<"$out" && [ -n "$out" ]; then
         note "✅ META OK:   ${desc} — exit 0, no VERDICT line"
     else
         note "❌ META FAIL: ${desc} — exit ${got}; VERDICT line present or empty output"; rc=1
@@ -338,7 +338,7 @@ expect_v 3 UNDECLARED NOT_EVALUATED "UNDECLARED-NO-DECISION-REF (version_scheme 
     bash "$GATE" --config "$(EXTRA_CONF="version_scheme = semver" mkfix noref "1.2.10${TAB}fpA")"
 # CLI modes (M-2): informational modes only when alone, never a VERDICT line.
 helpout="$(bash "$GATE" --help 2>/dev/null)" || true
-if printf '%s\n' "$helpout" | grep -q 'CM-VERSION-INCREMENT-ON-DEPLOY gate' && ! printf '%s\n' "$helpout" | grep -qE 'set -euo pipefail|^GATE=|verdict\(\)'; then
+if grep -q 'CM-VERSION-INCREMENT-ON-DEPLOY gate' <<<"$helpout" && ! grep -qE 'set -euo pipefail|^GATE=|verdict\(\)' <<<"$helpout"; then
     note "✅ META OK:   HELP-HEADER-ONLY (--help prints the header comment block and no code)"
 else
     note "❌ META FAIL: HELP-HEADER-ONLY (--help output missing the header or leaking code lines)"; rc=1
