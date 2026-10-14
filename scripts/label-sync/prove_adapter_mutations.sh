@@ -96,6 +96,8 @@ mutant "C7 trailing --home hangs"           install install_adapters.sh 'needv()
 mutant "C8 hook path unquoted"              install _edit_config.py '    return " ".join(shlex.quote(a) for a in argv)' '    return " ".join(argv)'
 mutant "C9 JSON original not restored"      install _edit_config.py '                    new = orig  # the user'"'"'s exact original bytes' '                    pass'
 mutant "C10 created config kept"            install _edit_config.py '                delete = True  # created by the installer: rollback = absent again' '                delete = False'
+mutant "C11 spawn-window signal lost"       run     generic/label-agent-run.sh '[ -n "$stop" ] && fwd "$stop"   # MUT:spawnrecheck' ':   # MUT:spawnrecheck'
+mutant "C12 spawn seam without test mode"   run     generic/label-agent-run.sh 'if [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] && [ -n "${LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN:-}" ]; then' 'if [ -n "${LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN:-}" ]; then'
 restore
 echo "---"; echo "prove_adapter_mutations: $killed/$total mutants killed"
 [ "$undet" = 0 ] || { echo "prove_adapter_mutations: UNDETERMINED mutant(s) — not a pass"; exit 2; }

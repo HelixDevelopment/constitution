@@ -57,6 +57,9 @@ done
 [ -n "$agent" ] && [ $# -gt 0 ] || { usage >&2; exit 2; }
 [ -n "$alias" ] && export LABEL_SYNC_AGENT_ALIAS="$alias"
 
+# Inputs (test only): LABEL_SYNC_TEST_MODE=1 + LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=<SIG>
+# make the wrapper signal itself right before it starts the agent (proves the
+# spawn-window re-check); both ignored otherwise.
 # Signals are trapped BEFORE the entity is registered (review-2 finding F): a
 # TERM that arrives while registering used to kill the wrapper with the default
 # action, leaving a `running` ghost entity. Now it is remembered (stop) and the
@@ -112,8 +115,19 @@ fi
 # bash inherits them IGNORED, so Ctrl-C did not stop the agent (review-2
 # finding B; measured: SigIgn 0x6 before, 0x0 with the subshell reset). Its
 # stdin is the wrapper's (`<&0`: an async command otherwise reads /dev/null).
+# Test-only seam (honoured ONLY with LABEL_SYNC_TEST_MODE=1): signal ourselves
+# in the window after the "signalled while registering" check and before the
+# child pid is known (adapters/tests/test_adapters.sh, re-review finding 7).
+if [ "${LABEL_SYNC_TEST_MODE:-}" = 1 ] && [ -n "${LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN:-}" ]; then
+  kill -s "$LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN" "$$" 2>/dev/null || :
+fi
 ( trap - INT QUIT; exec "$@" ) <&0 &   # MUT:sigreset
 child=$!
+# A signal that arrived after the check above but before child=$! was only
+# remembered (on_sig saw no child): deliver it now — to this ONE child pid
+# (re-review finding 7). The child was forked after the signal, so a tty
+# INT/QUIT did not reach it either: plain fwd, not fwd_tty.
+[ -n "$stop" ] && fwd "$stop"   # MUT:spawnrecheck
 wait "$child"; rc=$?
 while kill -0 "$child" 2>/dev/null; do wait "$child"; rc=$?; done
 exit "$rc"

@@ -260,6 +260,17 @@ for _ in $(seq 1 50); do [ -e "$ROOT/shim.done" ] && break; sleep 0.1; done   # 
 sleep 0.3
 ok "run: fixture — the slowed registration really completed" test -e "$ROOT/shim.done"
 eq "run: TERM during registration => no running ghost entity" "0" "$(ctl list --json | jq -r '[.entities[]|select(.state!="done")]|length')"
+# re-review 7: a TERM landing AFTER the "signalled while registering" check but
+# BEFORE the child pid is known must still reach the agent (test-only seam:
+# the wrapper signals itself right before the spawn).
+newstate
+t0=$SECONDS
+LABEL_SYNC_TEST_MODE=1 LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=TERM bash "$R" --agent codex -- sleep 8; rc=$?
+el=$((SECONDS - t0))
+ok "run: a TERM in the spawn window still stops the agent (took ${el}s, rc $rc; the agent sleeps 8)" test "$el" -lt 5
+eq "run: ...the wrapper exits 143 for that TERM" "143" "$rc"
+LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN=TERM bash "$R" --agent codex -- true; rc=$?
+eq "run: the spawn seam is inert without LABEL_SYNC_TEST_MODE=1" "0" "$rc"
 # review-2 N8: the agent reads the wrapper's stdin
 out="$(printf 'IN-CANARY-42' | bash "$R" --agent codex -- cat 2>/dev/null)"
 eq "run: the agent receives the wrapper's stdin" "IN-CANARY-42" "$out"
