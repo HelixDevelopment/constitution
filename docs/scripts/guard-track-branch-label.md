@@ -1,7 +1,7 @@
 # guard-track-branch-label.sh — §11.4.182 track+branch+alias label guard hook
 
-**Revision:** 2
-**Last modified:** 2026-07-26T12:18:28Z
+**Revision:** 3
+**Last modified:** 2026-10-15T00:00:00Z
 **Authority:** constitution submodule §11.4.182 (Track+branch work-stream identity label — extended 2026-07-26 with the `<model>` + `<effort>` fields) · §11.4.231 clause (F) (effort-tier) · §11.4.177 (inherited-by-reference) · §11.4.6 (no-guessing / honest boundary)
 **Classification:** universal (§11.4.17)
 
@@ -126,6 +126,33 @@ bash constitution/scripts/multitrack/track_branch_label.sh   # e.g. (T1/main - c
 6. Decide: FORMAT fails ⇒ BLOCK (format); FORMAT ok AND both aliases concrete
    AND they differ ⇒ BLOCK (alias); otherwise ⇒ exit 0.
 7. On BLOCK, print the CORRECT label + how to fix; exit 2.
+
+## Agent-type check (§11.4.182 / §11.4.231(F), added Rev 3)
+
+The agents list shows only `<subagent_type>  <live progress>`, so the label is
+also baked into GENERATED agent types `T<N>-<branch>-<model>-<effort>` (see
+`gen_agent_label_defs.md`). After the label is accepted, `_type_check` looks at
+`<project>/.claude/agents/T<N>-*.md` (`CLAUDE_PROJECT_DIR`, else the git
+toplevel; `AGENT_TYPE_LABEL_AGENTS_DIR` overrides) for the label's track and
+counts only files carrying the generator marker (a hand-made `T<N>-*.md` never
+counts). For `Agent`/`Task` dispatches:
+
+| `subagent_type` | generated types exist for the label's track | result |
+|---|---|---|
+| empty or `general-purpose` | yes | **WARN** (exit 0 + `additionalContext` JSON naming up to 10 types); **BLOCK** (exit 2) with `AGENT_TYPE_LABEL_ENFORCE=1` |
+| `T<M>-...-<model>-<effort>` with `M` != label track | n/a | same WARN / BLOCK |
+| any other type (`Explore`, `Plan`, `plugin:agent`, a matching label type) | n/a | untouched |
+| any | no | untouched |
+
+`AGENT_TYPE_LABEL_BYPASS=<non-empty reason>` lets a dispatch through and audits
+the reason on stderr; an EMPTY reason does not bypass. This hook had no bypass
+before Rev 3 - this one applies to the agent-type check only; the format and
+alias blocks above have none. A `T?` (unknown-track) label skips the check.
+Honest boundary: agent types are loaded by the agent platform - a type
+generated mid-session became dispatchable after a short delay in one headless
+test (UNVERIFIED for interactive sessions), so WARN-only is the default.
+Tests: `scripts/hooks/test_guard_agent_type_label.sh` (25 cases); gate
+`CM-AGENT-TYPE-LABEL` (`scripts/gates/cm_agent_type_label.sh`).
 
 ## Tests / gates
 

@@ -16,6 +16,10 @@
 #   4. Installs newly added/modified hooks from constitution/scripts/hooks/
 #   5. chmod +x and syntax-validate all new/modified scripts
 #   6. Reports a summary of what was installed
+#   7. (Every pull) regenerates the §11.4.182/§11.4.231(F) agent-type label
+#      definitions T<N>-<branch>-<model>-<effort> into <project>/.claude/agents
+#      via scripts/multitrack/install_agent_label_defs.sh (idempotent, never
+#      touches hand-made agents, non-fatal)
 #
 # Usage:
 #   bash constitution/scripts/post_update_hook.sh
@@ -183,11 +187,11 @@ detect_changes() {
     # unbound-variable error under `set -u` on bash < 4.4.
     local IFS_SAVE="$IFS"
     IFS=$'\n'
-    [ "$(arr_len CHANGED_SKILLS)"  -eq 0 ] || CHANGED_SKILLS=($(printf "%s\n" "${CHANGED_SKILLS[@]}"  | sort -u))
-    [ "$(arr_len CHANGED_MCP)"     -eq 0 ] || CHANGED_MCP=($(printf "%s\n" "${CHANGED_MCP[@]}"        | sort -u))
-    [ "$(arr_len CHANGED_HOOKS)"   -eq 0 ] || CHANGED_HOOKS=($(printf "%s\n" "${CHANGED_HOOKS[@]}"    | sort -u))
-    [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] || CHANGED_SCRIPTS=($(printf "%s\n" "${CHANGED_SCRIPTS[@]}" | sort -u))
-    [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] || CHANGED_ACTIONS=($(printf "%s\n" "${CHANGED_ACTIONS[@]}" | sort -u))
+    [ "$(arr_len CHANGED_SKILLS)"  -eq 0 ] || mapfile -t CHANGED_SKILLS < <(printf "%s\n" "${CHANGED_SKILLS[@]}" | sort -u)
+    [ "$(arr_len CHANGED_MCP)"     -eq 0 ] || mapfile -t CHANGED_MCP < <(printf "%s\n" "${CHANGED_MCP[@]}" | sort -u)
+    [ "$(arr_len CHANGED_HOOKS)"   -eq 0 ] || mapfile -t CHANGED_HOOKS < <(printf "%s\n" "${CHANGED_HOOKS[@]}" | sort -u)
+    [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] || mapfile -t CHANGED_SCRIPTS < <(printf "%s\n" "${CHANGED_SCRIPTS[@]}" | sort -u)
+    [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] || mapfile -t CHANGED_ACTIONS < <(printf "%s\n" "${CHANGED_ACTIONS[@]}" | sort -u)
     IFS="$IFS_SAVE"
 
     info "Detected: ${#CHANGED_SKILLS[@]} skill(s), ${#CHANGED_MCP[@]} MCP config(s), ${#CHANGED_HOOKS[@]} hook(s), ${#CHANGED_SCRIPTS[@]} script(s), ${#CHANGED_ACTIONS[@]} action/plugin file(s) changed."
@@ -404,6 +408,39 @@ install_action_plugins() {
 }
 
 # ============================================================================
+# STEP 4c — (Re)generate the §11.4.182 / §11.4.231(F) agent-type label definitions
+# ============================================================================
+# Every pull regenerates the consumer's T<N>-<branch>-<model>-<effort> agent
+# types into <project>/.claude/agents (idempotent; hand-made agents are never
+# touched; a collision is a WARNING, never fatal). Runs on EVERY pull, not only
+# when a tracked category changed, so a consumer that never had the types gets
+# them on its next pull. Definitions are loaded by the agent platform, so new
+# types may only become dispatchable after a short delay or a session restart.
+install_agent_label_defs() {
+    header "STEP 4c: Agent-type label definitions (T<N>-<branch>-<model>-<effort>)"
+
+    local installer="${CONST_DIR}/scripts/multitrack/install_agent_label_defs.sh"
+    if [ ! -f "$installer" ]; then
+        warn "install_agent_label_defs.sh missing: $installer — agent-type label definitions NOT generated."
+        WARNINGS+=("install_agent_label_defs.sh missing — agent-type label definitions not generated")
+        return 0
+    fi
+
+    local rc=0
+    bash "$installer" --project-root "$PROJECT_ROOT" || rc=$?
+    case "$rc" in
+        0) info "  -> Agent-type label definitions current." ;;
+        3) warn "  -> a hand-made agent file collides with a label definition name; left untouched."
+           WARNINGS+=("agent-type label definitions: a hand-made file collides with a generated name (hand-made kept)") ;;
+        4) warn "  -> a generated label definition was hand-edited; left untouched."
+           WARNINGS+=("agent-type label definitions: a generated file was hand-edited (kept; delete it to regenerate)") ;;
+        *) warn "  -> install_agent_label_defs.sh exited $rc — label definitions may be stale."
+           WARNINGS+=("agent-type label definitions: installer exited $rc") ;;
+    esac
+    return 0
+}
+
+# ============================================================================
 # STEP 5 — Validate scripts (chmod +x, syntax check)
 # ============================================================================
 validate_scripts() {
@@ -446,7 +483,7 @@ validate_scripts() {
     local IFS_SAVE="$IFS"
     IFS=$'\n'
     local unique_scripts
-    unique_scripts=($(printf "%s\n" "${all_scripts[@]}" | sort -u))
+    mapfile -t unique_scripts < <(printf "%s\n" "${all_scripts[@]}" | sort -u)
     IFS="$IFS_SAVE"
 
     local validated=0
@@ -549,6 +586,9 @@ main() {
     info "Script dir:        $SCRIPT_DIR"
 
     detect_changes
+
+    # §11.4.182 / §11.4.231(F): always (idempotent), independent of what changed.
+    install_agent_label_defs
 
     if [ "$(arr_len CHANGED_SKILLS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_MCP)" -eq 0 ] && \

@@ -1,0 +1,9 @@
+# agent_label_colors.tsv - DATA for gen_agent_label_defs.sh (track number -> agent colour).
+# Schema: <track-number-or-*>\t<colour>; colour in {red,blue,green,yellow,purple,orange,pink,cyan}.
+# "*" is the default for every track without its own row. Consumers may override with --colors-file.
+1	blue
+2	green
+3	orange
+4	purple
+5	cyan
+*	yellow
