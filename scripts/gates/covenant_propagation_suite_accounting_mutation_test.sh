@@ -35,9 +35,13 @@
 # A clean real-engine run of the compact self-test is NOT repeated here: the suite's own SELFTEST entry
 # is that run (about 18 s); this test only needs the failing direction, which exits within seconds.
 #
-# Honest boundary (§11.4.6): a double mutant that silences BOTH the ACCOUNTING entry's `case` line and
-# one of the SA1-SA6 seams is not caught by this test alone; the consumer's own suite mutation test still
-# guards the gate loop's line, and every edit to these lines goes through review (§11.4.142).
+# Honest boundary (§11.4.6): this test holds each accounting seam ONE edit at a time. It does not catch a
+# change that removes the ACCOUNTING entry itself (reviewer mutant RX1: its guard inverted, so the entry
+# simply vanishes and nothing is counted), nor a double mutant that silences the ACCOUNTING `case` line and
+# one of the SA1-SA6 seams together. Those shapes are visible in the printed lines and are caught one layer
+# up: the consumer reads the suite output through suite_verdict_set_check.sh (profile covenant-gates), which
+# requires the named entries and cross-checks printed entry rcs against the tally; its paired test
+# (suite_verdict_set_check_mutation_test.sh) applies RX1, and RX1 + SA1 + engine mutant ME1, verbatim.
 #
 # Usage: covenant_propagation_suite_accounting_mutation_test.sh
 # Exit: 0 every direction and every mutant demonstrated · 1 not demonstrated · 2 environment error.
@@ -70,6 +74,9 @@ cp "$ENGINE" "$HERE/lib/pointer_carrier.sh" "$HERE/lib/covenant_propagation_muta
 cp "$PACK" "$WRAP" "$MWRAP" "$SB/"
 printf 'CM-COVENANT-114-999-PROPAGATION\t11.4.999\n' > "$STUBPACK"
 printf '#!/usr/bin/env bash\necho "✅ CM-COVENANT-114-999-PROPAGATION: sandbox stub gate"\nexit 0\n' > "$SB/cm_covenant_114_999_propagation.sh"
+# the suite's VERDICT-SET-CHECK entry runs when INNER is unset (D5 and SA7): a passing stub keeps those runs
+# about the ACCOUNTING entry alone (round-4: the entry was added after this test).
+printf '#!/usr/bin/env bash\necho "=== VERDICT-SET CHECK PAIR VALID: sandbox stub ==="\nexit 0\n' > "$SB/suite_verdict_set_check_mutation_test.sh"
 
 fails=0
 ok()  { echo "  [ok]   $*"; }

@@ -50,7 +50,7 @@
 #         that lets a one-line compact index entry `- §N … [full → <path>]`
 #         stand in for the full block, and ends a block at a `## ` heading).
 #         Each case names the engine mutant it kills (ME1..ME6, reviewer-
-#         authored in round 2 of the remedy batch atm-prebuild-remedy-const;
+#         authored in round 2 of the 2026-10-14 pre-build remedy batch;
 #         applied verbatim by covenant_propagation_engine_compact_mutation_test.sh):
 #      9  COMPACT-OK             valid target, one block            -> PASS
 #     10  COMPACT-MISSING-TARGET  target file absent                 -> FAIL

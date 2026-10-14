@@ -1187,7 +1187,7 @@ assert_caught "(w-neg) a real secret immediately followed by a triply-entity-esc
 
 # ---------------------------------------------------------------------------
 # SUB-SUITES (wired here on purpose, round-2 review F3 of the remedy batch
-# atm-prebuild-remedy-const). The consumer's CM-CRED-SCAN-LIB-SELF-VALIDATED
+# of 2026-10-14). The consumer's CM-CRED-SCAN-LIB-SELF-VALIDATED
 # gate runs THIS suite (invariant 5, exit 0 required) and its meta-test runs
 # it too; nothing else runs the two guards below. A guard no automation runs
 # is the §11.4.205 "on disk, enforced nowhere" pattern. Measured before this
@@ -1243,6 +1243,10 @@ fi
 # line, missing sub-suite) and that six wiring mutants (RM4 among them) are each
 # seen. Counted with ok/bad, NOT through _sub_run, so a broken _sub_run cannot hide
 # its own meta-test. Its sandbox runs set CREDSCAN_SUBSUITE_META_INNER (no recursion).
+# Its PASS needs exit 0 AND a closing "PAIR VALID" verdict line (round-4 review N7). The
+# consumer reads this suite's output through constitution/scripts/gates/suite_verdict_set_check.sh
+# (profile credscan-suite), which independently requires the (x), (y) and (z) PASS lines with
+# their verdict text and cross-checks the printed PASS/FAIL lines against the RESULT tally.
 _sub_meta="$HERE/test_credential_scan_lib_subsuite_mutation_test.sh"
 if [ -n "${CREDSCAN_SUBSUITE_META_INNER:-}" ]; then
     echo "INFO: (z) sub-suite wiring meta-test not re-entered inside its own sandbox"
@@ -1250,7 +1254,12 @@ elif [ -f "$_sub_meta" ]; then
     _z_rc=0
     _z_out="$(bash "$_sub_meta" 2>&1)" || _z_rc=$?
     if [ "$_z_rc" -eq 0 ]; then
-        ok "(z) sub-suite wiring meta-test: $(printf '%s\n' "$_z_out" | grep -E '^=== ' | tail -1)"
+        # round-4 review N7: rc 0 alone is not the verdict; the meta-test's own closing line must say PAIR VALID
+        _z_v="$(printf '%s\n' "$_z_out" | grep -E '^=== ' | tail -1)"
+        case "$_z_v" in
+            *"PAIR VALID"*) ok "(z) sub-suite wiring meta-test: $_z_v" ;;
+            *) bad "(z) sub-suite wiring meta-test exited 0 without a PAIR VALID verdict: ${_z_v:-<no verdict line>}" ;;
+        esac
     else
         bad "(z) sub-suite wiring meta-test (rc=$_z_rc) -- last lines: $(printf '%s\n' "$_z_out" | tail -n 4 | tr '\n' ' ')"
     fi

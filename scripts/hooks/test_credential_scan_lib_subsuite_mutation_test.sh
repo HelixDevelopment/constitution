@@ -34,6 +34,15 @@
 #   SM5 missing-(x) branch tally `+ 1` -> `+ 0`                    flips D5
 #   SM6 the (x) call replaced by `true`                            flips D1
 #
+# Honest boundary (§11.4.6, round-4 review N7): this test holds each channel of `_sub_run` and the (x)/(y)
+# calls; it does NOT hold the outer suite's (z) accounting, which runs only outside this sandbox. A double
+# edit that neutralises (z)'s verdict check AND one `_sub_run` seam (reviewer mutant RX3: `(z)` forced to
+# PASS plus SM4) is caught by two other layers, not by this file: (z) itself requires the "PAIR VALID"
+# verdict line, and the consumer reads the suite output through suite_verdict_set_check.sh (profile
+# credscan-suite), whose paired test suite_verdict_set_check_mutation_test.sh applies RX3 verbatim.
+# The (y) sub-suite runs here with CORE_LITERAL_CD_INNER=1 (its fixture-consumer section CD and its M1-M11
+# cases are skipped in this sandbox; the outer suite's own (y) run executes them).
+#
 # Usage: test_credential_scan_lib_subsuite_mutation_test.sh
 # Exit: 0 every direction and every mutant demonstrated · 1 not demonstrated · 2 environment error.
 # Wired: test_credential_scan_lib.sh runs it as sub-case (z), counted with ok/bad (not through _sub_run).
@@ -115,7 +124,7 @@ set_y() { # real | pass
     else printf '#!/usr/bin/env bash\necho "PASS: stub core check"\nexit 0\n' > "$G/cm_core_scripts_project_literal_free_mutation_test.sh"; fi
 }
 run() { # sets R_RC R_FAILED R_X (PASS|FAIL|-) R_Y R_OUT
-    R_OUT="$(cd "$SB" && env CREDSCAN_SUBSUITE_META_INNER=1 bash "$H/test_credential_scan_lib.sh" 2>&1)"; R_RC=$?
+    R_OUT="$(cd "$SB" && env CREDSCAN_SUBSUITE_META_INNER=1 CORE_LITERAL_CD_INNER=1 bash "$H/test_credential_scan_lib.sh" 2>&1)"; R_RC=$?
     R_FAILED="$(printf '%s\n' "$R_OUT" | sed -n 's/^== RESULT: [0-9]* passed, \([0-9]*\) failed ==$/\1/p' | tail -1)"
     R_FAILED="${R_FAILED:--}"
     if grep -q '^FAIL: (x)' <<<"$R_OUT"; then R_X=FAIL; elif grep -q '^PASS: (x)' <<<"$R_OUT"; then R_X=PASS; else R_X=-; fi
