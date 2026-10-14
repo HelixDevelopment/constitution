@@ -10,7 +10,8 @@
 # evidence) without hand-listing 29 script names anywhere. In `gates` mode it
 # also runs the shared engine's own self-test
 # (covenant_propagation_engine_compact_mutation_test.sh) as one extra entry,
-# CM-COVENANT-PROPAGATION-ENGINE-SELFTEST.
+# CM-COVENANT-PROPAGATION-ENGINE-SELFTEST, and the paired mutation test of this
+# suite's own failure accounting as another, CM-COVENANT-PROPAGATION-SUITE-ACCOUNTING.
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   covenant_propagation_suite.sh gates [--root <consumer-root>]
@@ -119,6 +120,31 @@ if [ "$MODE" = "gates" ] && [ -f "${HERE}/lib/covenant_propagation_engine.sh" ];
     # paired mutation that rewrites the loop's single accounting line still finds it once)
     if [ "$rc" -ne 0 ]; then bad=$((bad+1)); fi
     printf '%-36s %-5s %s\n' "CM-COVENANT-PROPAGATION-ENGINE-SELFTEST" "$rc" "$verdict"
+fi
+# SUITE ACCOUNTING SELF-TEST (gates mode, round-3 review N1 of the remedy batch). The
+# SELFTEST entry above is only worth something if a failing self-test reaches this
+# suite's exit code and summary. covenant_propagation_suite_accounting_mutation_test.sh
+# copies THIS suite into a sandbox, drives a failing self-test through it (the real
+# compact test against a mutated engine, plus stub self-tests), and requires the
+# failure to reach the exit code, the "non-zero" tally and the printed entry; it then
+# applies seven accounting mutants to the copy and requires each one to be seen. It is
+# counted with its own `case` line, not the SELFTEST `if` line or the gate loop's line,
+# so one edit cannot silence both the self-test and this check. The sandbox runs set
+# COVENANT_PROPAGATION_SUITE_INNER, which skips this entry there (no recursion).
+# Same presence rule as the SELFTEST entry: missing is a FAIL, never a skip.
+if [ "$MODE" = "gates" ] && [ -f "${HERE}/lib/covenant_propagation_engine.sh" ] \
+   && [ -z "${COVENANT_PROPAGATION_SUITE_INNER:-}" ]; then
+    _at="${HERE}/covenant_propagation_suite_accounting_mutation_test.sh"
+    if [ -f "$_at" ]; then
+        out="$(env -u COVENANT_PROPAGATION_CARRIERS bash "$_at" 2>&1)"; rc=$?
+        verdict="$(printf '%s\n' "$out" | grep -E '^=== ' | tail -1)"
+        [ -n "$verdict" ] || verdict="$(printf '%s\n' "$out" | tail -1)"
+    else
+        rc=2; verdict="suite accounting self-test missing: $_at"
+    fi
+    total=$((total+1))
+    case "$rc" in 0) ;; *) bad=$((bad+1)) ;; esac
+    printf '%-36s %-5s %s\n' "CM-COVENANT-PROPAGATION-SUITE-ACCOUNTING" "$rc" "$verdict"
 fi
 while IFS=$'\t' read -r gate anchor; do
     [ -n "$gate" ] || continue
