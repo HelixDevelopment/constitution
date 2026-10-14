@@ -46,6 +46,27 @@
 #                        -> gate MUST PASS (proves the `([^0-9]|$)` boundary:
 #                        a prefix-sharing sibling anchor is never counted as
 #                        a duplicate of this one).
+#   9-18. COMPACT-INDEX + H2-BOUNDARY (added with the 2026-10-14 engine change
+#         that lets a one-line compact index entry `- §N … [full → <path>]`
+#         stand in for the full block, and ends a block at a `## ` heading).
+#         Each case names the engine mutant it kills (ME1..ME6, reviewer-
+#         authored in round 2 of the remedy batch atm-prebuild-remedy-const;
+#         applied verbatim by covenant_propagation_engine_compact_mutation_test.sh):
+#      9  COMPACT-OK             valid target, one block            -> PASS
+#     10  COMPACT-MISSING-TARGET  target file absent                 -> FAIL
+#     11  COMPACT-DUP-TARGET      target holds the block TWICE, the
+#                                 second copy under a `## Relocated`
+#                                 heading (the real 11.4.162 shape)  -> FAIL (ME1)
+#     12  COMPACT-TAMPERED        target block body differs          -> FAIL
+#     13  COMPACT-DOTDOT          pointer `../x` escapes the root    -> FAIL (ME2)
+#     14  COMPACT-TRAILER-BAD     mirror-only trailer after compact  -> FAIL (ME3)
+#     15  COMPACT-TRAILER-OK      same trailer in every carrier      -> PASS (ME3)
+#     16  H2-BOUNDARY             consumer-only `## ` section after
+#                                 the block in one carrier           -> PASS (ME4)
+#     17  COMPACT-NOT-BULLET      `[full → …]` on a bold block-start,
+#                                 not a `- §` compact line           -> FAIL (ME5)
+#     18  COMPACT-AT-CARRIER      pointer names another carrier file
+#                                 (would make lockstep a tautology)  -> FAIL (ME6)
 # The pair only proves the gate genuine if it BOTH fails on every planted
 # violation AND passes on every clean/honestly-exempt fixture — the §1.1
 # discriminator.
@@ -70,8 +91,9 @@
 #   --root, no hardcoded paths).
 #
 # ── Exit codes (returned to the wrapper) ─────────────────────────────────────
-#   0 — the gate FAILs on all five planted violations AND PASSes on all three
-#       honest/clean fixtures (the §1.1 proof holds).
+#   0 — the gate FAILs on every planted violation (fixtures 1-5, 10-14, 17,
+#       18) AND PASSes on every honest/clean fixture (6-9, 15, 16) — the §1.1
+#       proof holds.
 #   1 — the gate did not FAIL on a planted violation, or did not PASS on a
 #       clean/honestly-exempt fixture.
 #   2 — environment error (gate script or data pack missing / unbound name).
@@ -98,10 +120,9 @@ covenant_propagation_mutation_main() {
 
     local TMP
     TMP="$(mktemp -d "${TMPDIR:-/tmp}/cm_${slug}_mut.XXXXXX")" || return 2
-    # shellcheck disable=SC2064
+    # shellcheck disable=SC2064  # TMP is expanded now on purpose: the RETURN trap must remove this call's own dir
     trap "rm -rf '$TMP'" RETURN
 
-    local note expect_fail expect_pass
     note() { echo "$@"; }
     expect_fail() { # $1=desc  $2..=command
         local desc="$1"; shift
@@ -218,6 +239,131 @@ FENCE_EOF
     done
     expect_pass "ANCHOR-BOUNDARY (prefix-sharing decoy anchor §${ANCHOR}0 is not a duplicate)" \
         bash "$GATE_SH" --root "$DECOY_FLEET" --quiet
+
+    # --- FIXTURES 9-18: COMPACT-INDEX equivalence + H2 block boundary ---------
+    # A compact carrier is CLAUDE.md holding ONE line `- §N … [full → <path>]`;
+    # the other carriers hold the full block. The pointed-to file is NOT a
+    # carrier (its basename is not one of the four carrier names).
+    local COMPACT_LINE TRAILER FULLDOC_HEAD OTHER_BLOCK
+    COMPACT_LINE="- §${ANCHOR} — compact index entry for the fixture block [full → docs/full_anchors.md] · refs: §1.1 §${ANCHOR}"
+    TRAILER="Mirror-resident trailer paragraph that follows the block."
+    FULLDOC_HEAD="# Full anchor blocks (fixture index document)"
+    OTHER_BLOCK="**§11.4.9999 — an unrelated later block in the full document.**"
+    _cpme_full_doc() { # $1=file  $2=body line (default BODY_LINE)  $3=copies (1|2)
+        local body="${2:-$BODY_LINE}" copies="${3:-1}"
+        mkdir -p "$(dirname "$1")"
+        {
+            printf '%s
+
+%s
+%s
+
+---
+
+%s
+Unrelated body.
+' "$FULLDOC_HEAD" "$BLOCK_LINE" "$body" "$OTHER_BLOCK"
+            if [ "$copies" = 2 ]; then
+                printf '
+---
+
+
+## Relocated by a compaction tool
+
+%s
+%s
+' "$BLOCK_LINE" "$body"
+            fi
+        } > "$1"
+    }
+    _cpme_compact_fleet() { # $1=dir  — 3 full carriers + compact CLAUDE.md
+        mkdir -p "$1"
+        for c in AGENTS.md QWEN.md GEMINI.md; do
+            printf '%s
+%s
+' "$BLOCK_LINE" "$BODY_LINE" > "$1/$c"
+        done
+        printf '%s
+' "$COMPACT_LINE" > "$1/CLAUDE.md"
+    }
+
+    local F9="$TMP/cmp_ok"
+    _cpme_compact_fleet "$F9"; _cpme_full_doc "$F9/docs/full_anchors.md"
+    expect_pass "COMPACT-OK (compact entry -> single valid full block, compared via the target)" \
+        bash "$GATE_SH" --root "$F9" --quiet
+
+    local F10="$TMP/cmp_missing"
+    _cpme_compact_fleet "$F10"
+    expect_fail "COMPACT-MISSING-TARGET (pointed-to file absent -> compact hash kept -> DIVERGENT)" \
+        bash "$GATE_SH" --root "$F10" --quiet
+
+    local F11="$TMP/cmp_dup_target"
+    _cpme_compact_fleet "$F11"; _cpme_full_doc "$F11/docs/full_anchors.md" "$BODY_LINE" 2
+    expect_fail "COMPACT-DUP-TARGET (target carries the block twice, real 11.4.162 relocation shape; kills ME1)" \
+        bash "$GATE_SH" --root "$F11" --quiet
+
+    local F12="$TMP/cmp_tampered"
+    _cpme_compact_fleet "$F12"; _cpme_full_doc "$F12/docs/full_anchors.md" "A TAMPERED body line in the pointed-to full block."
+    expect_fail "COMPACT-TAMPERED (target block body differs from the full carriers)" \
+        bash "$GATE_SH" --root "$F12" --quiet
+
+    local F13="$TMP/cmp_dotdot/fleet"
+    _cpme_compact_fleet "$F13"
+    printf '%s
+' "- §${ANCHOR} — compact index entry for the fixture block [full → ../full_outside.md] · refs: §1.1" > "$F13/CLAUDE.md"
+    _cpme_full_doc "$TMP/cmp_dotdot/full_outside.md"
+    expect_fail "COMPACT-DOTDOT (pointer escapes the root via '..' even though the outside target is valid; kills ME2)" \
+        bash "$GATE_SH" --root "$F13" --quiet
+
+    local F14="$TMP/cmp_trailer_bad"
+    _cpme_compact_fleet "$F14"; _cpme_full_doc "$F14/docs/full_anchors.md"
+    printf '%s
+%s
+' "$COMPACT_LINE" "$TRAILER" > "$F14/CLAUDE.md"
+    expect_fail "COMPACT-TRAILER-BAD (a trailer only the compact carrier has is compared and diverges; kills ME3)" \
+        bash "$GATE_SH" --root "$F14" --quiet
+
+    local F15="$TMP/cmp_trailer_ok"
+    mkdir -p "$F15"
+    for c in AGENTS.md QWEN.md GEMINI.md; do
+        printf '%s
+%s
+%s
+' "$BLOCK_LINE" "$BODY_LINE" "$TRAILER" > "$F15/$c"
+    done
+    printf '%s
+%s
+' "$COMPACT_LINE" "$TRAILER" > "$F15/CLAUDE.md"
+    _cpme_full_doc "$F15/docs/full_anchors.md"
+    expect_pass "COMPACT-TRAILER-OK (target block + the shared trailer equals every full carrier; kills ME3)" \
+        bash "$GATE_SH" --root "$F15" --quiet
+
+    local F16="$TMP/h2_boundary"
+    _cpme_seed_fleet "$F16"
+    printf '%s
+%s
+
+## A consumer-only project section
+
+Project-specific text the other carriers do not carry.
+' \
+        "$BLOCK_LINE" "$BODY_LINE" > "$F16/AGENTS.md"
+    expect_pass "H2-BOUNDARY (a consumer-only '## ' section after the block is not part of the block; kills ME4)" \
+        bash "$GATE_SH" --root "$F16" --quiet
+
+    local F17="$TMP/cmp_not_bullet"
+    _cpme_compact_fleet "$F17"; _cpme_full_doc "$F17/docs/full_anchors.md"
+    printf '**§%s — a bold block-start that merely mentions [full → docs/full_anchors.md]**
+' "$ANCHOR" > "$F17/CLAUDE.md"
+    expect_fail "COMPACT-NOT-BULLET (only a '- §N' compact line may delegate; a bold block-start may not; kills ME5)" \
+        bash "$GATE_SH" --root "$F17" --quiet
+
+    local F18="$TMP/cmp_at_carrier"
+    _cpme_compact_fleet "$F18"
+    printf '%s
+' "- §${ANCHOR} — compact index entry pointing at a sibling carrier [full → AGENTS.md] · refs: §1.1" > "$F18/CLAUDE.md"
+    expect_fail "COMPACT-AT-CARRIER (a pointer to another carrier would compare a block with itself; kills ME6)" \
+        bash "$GATE_SH" --root "$F18" --quiet
 
     echo "======================================================================"
     if [ "$rc" -eq 0 ]; then
