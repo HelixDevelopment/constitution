@@ -1202,18 +1202,26 @@ assert_caught "(w-neg) a real secret immediately followed by a triply-entity-esc
 # Each sub-suite is run against the SAME library this suite tests; its own
 # exit code is read directly (never through a pipe). A missing sub-suite is a
 # FAIL, never a skip.
+# TWO CHANNELS (round-3 review N2): a sub-suite PASSes only when its exit code is
+# 0 AND its output carries no `FAIL` line AND at least one `PASS` line. Reviewer
+# mutant RM4 neutralised the exit-code capture (`|| rc=$?` -> `|| true`); with
+# the exit code as the only channel, MX1b (the carrier widened to a digit class)
+# then scored 95/0. Each channel, and the wiring itself, is held by the paired
+# mutation test (z) below.
 # ---------------------------------------------------------------------------
 _sub_run() { # $1 label  $2.. command
-    local label="$1" rc=0 out
+    local label="$1" rc=0 out npass nfail
     shift
     out="$("$@" 2>&1)" || rc=$?
-    if [ "$rc" -eq 0 ]; then
-        echo "PASS: $label (rc=0, $(printf '%s\n' "$out" | grep -c '^PASS:') sub-checks passed)"
+    npass="$(printf '%s\n' "$out" | grep -c '^PASS')"
+    nfail="$(printf '%s\n' "$out" | grep -c '^FAIL')"
+    if [ "$rc" -eq 0 ] && [ "$nfail" -eq 0 ] && [ "$npass" -ge 1 ]; then
+        echo "PASS: $label (rc=0, $npass sub-checks passed, 0 failed)"
         pass=$((pass + 1))
     else
-        echo "FAIL: $label (rc=$rc) -- last lines:"
+        echo "FAIL: $label (rc=$rc, $npass PASS / $nfail FAIL line(s)) -- last lines:"
         printf '%s\n' "$out" | tail -n 6 | sed 's/^/    /'
-        fail=$((fail + 1))
+        : $((fail += 1))
     fi
 }
 _sub_akia="$HERE/test_credential_scan_lib_akia_literal_free.sh"
@@ -1227,6 +1235,27 @@ if [ -f "$_sub_core" ]; then
     _sub_run "(y) core-scripts project-literal-free sub-suite" bash "$_sub_core" --root "$(cd "$HERE/../.." && pwd)"
 else
     echo "FAIL: (y) core-scripts project-literal-free sub-suite missing: $_sub_core"; fail=$((fail + 1))
+fi
+
+# (z) the paired mutation test of the sub-suite wiring above: it rebuilds this
+# suite's header + sub-suite section in a sandbox, proves each channel catches its
+# own failure shape (MX1b through the real (x), rc-only, FAIL-line-only, no PASS
+# line, missing sub-suite) and that six wiring mutants (RM4 among them) are each
+# seen. Counted with ok/bad, NOT through _sub_run, so a broken _sub_run cannot hide
+# its own meta-test. Its sandbox runs set CREDSCAN_SUBSUITE_META_INNER (no recursion).
+_sub_meta="$HERE/test_credential_scan_lib_subsuite_mutation_test.sh"
+if [ -n "${CREDSCAN_SUBSUITE_META_INNER:-}" ]; then
+    echo "INFO: (z) sub-suite wiring meta-test not re-entered inside its own sandbox"
+elif [ -f "$_sub_meta" ]; then
+    _z_rc=0
+    _z_out="$(bash "$_sub_meta" 2>&1)" || _z_rc=$?
+    if [ "$_z_rc" -eq 0 ]; then
+        ok "(z) sub-suite wiring meta-test: $(printf '%s\n' "$_z_out" | grep -E '^=== ' | tail -1)"
+    else
+        bad "(z) sub-suite wiring meta-test (rc=$_z_rc) -- last lines: $(printf '%s\n' "$_z_out" | tail -n 4 | tr '\n' ' ')"
+    fi
+else
+    bad "(z) sub-suite wiring meta-test missing: $_sub_meta"
 fi
 
 echo ""
