@@ -19,6 +19,15 @@ type PidTable interface {
 	Start(pid int) string
 }
 
+// pidNS is the writer's own PID-namespace identity ("" when the table cannot
+// tell): an optional capability of a PidTable (re-review finding 2).
+func pidNS(p PidTable) string {
+	if n, ok := p.(interface{ NS() string }); ok {
+		return n.NS()
+	}
+	return ""
+}
+
 // logIndex locates the fold inside events.jsonl so readers parse only the
 // events appended after it (review finding 5). It is persisted in fold.json
 // only; it is not part of the logical state and is excluded from Verify's
@@ -83,6 +92,7 @@ func applyPatch(e *model.Entity, p map[string]string) error {
 			e.SessionID = v
 		case "pid":
 			e.PID, _ = strconv.Atoi(v) // "" clears to 0
+			e.PIDNS = ""               // namespace unknown for the new pid (re-review 2) MUT:pidnsclear
 		case "pid_start":
 			e.PIDStart = v
 		case "host":
@@ -313,7 +323,7 @@ func isStale(e *model.Entity, o RenderOpts) bool {
 // sanitiseOut makes every free-text field of a rendered entity safe to print
 // (defence in depth: writers already sanitise, but old logs may not be).
 func sanitiseOut(e *model.Entity) {
-	for _, f := range []*string{&e.Host, &e.Track, &e.Branch, &e.Alias, &e.Model, &e.Effort, &e.Source, &e.PIDStart} {
+	for _, f := range []*string{&e.Host, &e.Track, &e.Branch, &e.Alias, &e.Model, &e.Effort, &e.Source, &e.PIDStart, &e.PIDNS} {
 		*f = label.Clean(*f, label.MaxFieldRunes)
 	}
 	e.Cwd = label.Clean(e.Cwd, maxCwdRunes)

@@ -54,6 +54,7 @@ type Entity struct {
 	SessionID    string    `json:"session_id,omitempty"`
 	PID          int       `json:"pid,omitempty"`
 	PIDStart     string    `json:"pid_start,omitempty"` // "<boot_id>:<starttime>" of PID at registration (pid-reuse guard)
+	PIDNS        string    `json:"pid_ns,omitempty"`    // PID namespace of the registering process ("pid:[N]"); a writer in another namespace cannot judge PID
 	Host         string    `json:"host,omitempty"`
 	Cwd          string    `json:"cwd,omitempty"`
 	Track        string    `json:"track,omitempty"`

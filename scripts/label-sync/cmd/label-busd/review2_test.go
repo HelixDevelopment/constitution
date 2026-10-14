@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -99,5 +100,49 @@ func TestHelloLineIsSizeLimited(t *testing.T) {
 	}
 	if el := time.Since(t0); el > time.Second {
 		t.Fatalf("oversized hello held the connection for %v (want a prompt close at the size limit)", el)
+	}
+}
+
+// Re-review finding 10: a stale bus.addr from an earlier crash is removed up
+// front. Observable when the socket then cannot be bound: nothing rewrites the
+// file, so only the up-front removal keeps clients off a dead path.
+func TestStaleAddrRemovedAtStart(t *testing.T) {
+	dir := longDir(t)
+	sock, fallback, err := bus.SocketPathFor(dir)
+	if err != nil || !fallback {
+		t.Fatalf("fixture: want a fallback socket path, got %q %v %v", sock, fallback, err)
+	}
+	t.Cleanup(func() { _ = os.Remove(sock); _ = os.Remove(filepath.Dir(sock)) })
+	if err := os.Symlink(filepath.Join(t.TempDir(), "elsewhere"), sock); err != nil {
+		t.Fatal(err)
+	}
+	addr := filepath.Join(dir, bus.AddrFile)
+	if err := os.WriteFile(addr, []byte("/nonexistent/stale.sock\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d := start(t, dir)
+	waitFor(t, "listen refusal logged", func() bool { return strings.Contains(d.log.String(), "reconcile loop only") })
+	if exists(addr) {
+		t.Fatal("a stale bus.addr survived the daemon start (clients would dial a dead path)")
+	}
+}
+
+// Re-review finding 10: when recording bus.addr fails AFTER the file was
+// written (WriteAtomic's directory fsync), the address must be removed and
+// the socket closed — never an address for a socket nobody serves.
+func TestFailedAddrWriteLeavesNoAddr(t *testing.T) {
+	old := writeAddr
+	writeAddr = func(p string, b []byte) error {
+		if err := os.WriteFile(p, b, 0o600); err != nil {
+			return err
+		}
+		return errors.New("fsync dir: input/output error")
+	}
+	t.Cleanup(func() { writeAddr = old })
+	dir := longDir(t)
+	d := start(t, dir)
+	waitFor(t, "record failure logged", func() bool { return strings.Contains(d.log.String(), "cannot record") })
+	if exists(filepath.Join(dir, bus.AddrFile)) {
+		t.Fatalf("bus.addr left behind after a failed record (log: %s)", d.log.String())
 	}
 }

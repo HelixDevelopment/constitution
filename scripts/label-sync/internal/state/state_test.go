@@ -18,7 +18,7 @@ import (
 type fakePids map[int]bool
 
 func (f fakePids) Alive(pid int, _ string) bool { return f[pid] }
-func (f fakePids) Start(int) string            { return "" }
+func (f fakePids) Start(int) string             { return "" }
 
 type clock struct {
 	mu sync.Mutex

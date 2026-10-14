@@ -304,7 +304,7 @@ func apply(st *state.Store, ev model.Event, out, errw io.Writer) int {
 
 type fieldFlags struct {
 	id, kind, parent, session, host, cwd, track, branch, alias, model, effort, source, stateF, follow, pid, cfgDir, clear *string
-	derive                                                                                                         *bool
+	derive                                                                                                                *bool
 }
 
 func newFieldFlags(fs *flag.FlagSet) *fieldFlags {
@@ -460,7 +460,7 @@ func cmdWrite(st *state.Store, cmd string, args []string, out, errw io.Writer) i
 			// two aliases each keep their own. No read of the active alias is
 			// needed, so there is no TOCTOU window.
 			e.FollowActive = false // MUT:derivepin
-	} else if e.Alias != "" {
+		} else if e.Alias != "" {
 			// An EXPLICIT --alias pins too (review-2 finding 4): only alias-less
 			// roots follow the active context (CONTRACT §4.2).
 			e.FollowActive = false // MUT:explicitpin

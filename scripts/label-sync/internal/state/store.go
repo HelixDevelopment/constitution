@@ -415,7 +415,9 @@ func lastLineStart(f *os.File, size int64) (int64, error) {
 // is checked with ReadAt (O(1)); a torn final fragment that is not a complete
 // event is truncated away (it was never acknowledged), a complete one just
 // gets its missing newline.
-func (s *Store) appendEvent(r *Raw, ev model.Event) error { return s.appendEvents(r, []model.Event{ev}) }
+func (s *Store) appendEvent(r *Raw, ev model.Event) error {
+	return s.appendEvents(r, []model.Event{ev})
+}
 
 // appendEvents appends several events with ONE write and ONE fsync (the stale
 // sweeper reaps up to SweepBatch entities per transaction: one fsync each
@@ -503,7 +505,7 @@ func (s *Store) prepare(ev *model.Event) error {
 				return fmt.Errorf("register: invalid %s %q", k, v)
 			}
 		}
-		for _, f := range []*string{&e.Track, &e.Branch, &e.Alias, &e.Model, &e.Effort, &e.Source, &e.PIDStart} {
+		for _, f := range []*string{&e.Track, &e.Branch, &e.Alias, &e.Model, &e.Effort, &e.Source, &e.PIDStart, &e.PIDNS} {
 			cleanPtr(f, label.MaxFieldRunes)
 		}
 		if e.PID < 0 || e.PID > MaxPID { // MUT:pidrange
@@ -511,8 +513,13 @@ func (s *Store) prepare(ev *model.Event) error {
 		}
 		cleanPtr(&e.Host, maxHostRunes)
 		cleanPtr(&e.Cwd, maxCwdRunes)
-		if e.PID > 0 && e.PIDStart == "" && (e.Host == "" || e.Host == s.opts.LocalHost) {
-			e.PIDStart = s.opts.Pids.Start(e.PID)
+		if e.PID > 0 && (e.Host == "" || e.Host == s.opts.LocalHost) {
+			if e.PIDStart == "" {
+				e.PIDStart = s.opts.Pids.Start(e.PID)
+			}
+			if e.PIDNS == "" {
+				e.PIDNS = pidNS(s.opts.Pids) // MUT:pidnsrecord
+			}
 		}
 		ev.Entity = &e
 	case model.EvUpdate, model.EvHeartbeat, model.EvUnregister, model.EvReap:
@@ -544,8 +551,11 @@ func (s *Store) prepare(ev *model.Event) error {
 				p[k] = v
 			}
 			if v, ok := p["pid"]; ok {
+				n, _ := strconv.Atoi(v)
+				// No "pid_ns" patch key (an older reader of the shared state dir
+				// would reject an unknown key): the fold clears PIDNS on a pid
+				// change, so the entity is kept, never swept on a guess.
 				if _, given := p["pid_start"]; !given {
-					n, _ := strconv.Atoi(v)
 					p["pid_start"] = ""
 					if n > 0 {
 						p["pid_start"] = s.opts.Pids.Start(n)
@@ -637,6 +647,12 @@ func (s *Store) sweepable(e *model.Entity, now time.Time) bool {
 		return false
 	}
 	if !(now.Sub(e.UpdatedAt) > s.opts.SweepAfter) { // MUT:sweepage
+		return false
+	}
+	// re-review finding 2: a pid is only meaningful inside the PID namespace
+	// that registered it. When this writer knows its namespace, an entity from
+	// another namespace — or with none recorded — is NOT provably dead here.
+	if ns := pidNS(s.opts.Pids); ns != "" && e.PIDNS != ns { // MUT:sweepns
 		return false
 	}
 	return !s.opts.Pids.Alive(e.PID, e.PIDStart) // MUT:sweepalive

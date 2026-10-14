@@ -37,6 +37,10 @@ import (
 // test can widen the window in which a client may observe bus.addr.
 var beforeListen = func() {}
 
+// writeAddr records bus.addr (a test seam: WriteAtomic can fail AFTER its
+// rename — e.g. the directory fsync — leaving the file in place).
+var writeAddr = state.WriteAtomic
+
 // exitAlreadyRunning: another instance holds the single-instance lock.
 const exitAlreadyRunning = 3
 
@@ -79,7 +83,7 @@ func run(ctx context.Context, args []string, errw io.Writer) int {
 	// for a socket that was not bound (finding 14). A stale bus.addr from an
 	// earlier crash is removed up front.
 	addrf := filepath.Join(st.Dir(), bus.AddrFile)
-	_ = os.Remove(addrf)
+	_ = os.Remove(addrf) // MUT:addrstale
 	srvDone := make(chan error, 1)
 	sock, fallback, perr := bus.SocketPathFor(st.Dir())
 	var ln net.Listener
@@ -91,10 +95,10 @@ func run(ctx context.Context, args []string, errw io.Writer) int {
 		}
 	}
 	if perr == nil && fallback {
-		if werr := state.WriteAtomic(addrf, []byte(sock+"\n")); werr != nil {
+		if werr := writeAddr(addrf, []byte(sock+"\n")); werr != nil {
 			_ = ln.Close()
 			_ = os.Remove(sock)
-			_ = os.Remove(addrf)
+			_ = os.Remove(addrf) // MUT:addrwritefail
 			perr = fmt.Errorf("cannot record %s: %w", addrf, werr)
 		}
 	}

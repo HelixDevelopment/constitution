@@ -134,6 +134,16 @@ func (p ProcPids) starttime(pid int) (string, error) {
 	return f[19], nil // field 22
 }
 
+// NS returns this process's PID-namespace identity — the target of
+// <root>/self/ns/pid, e.g. "pid:[4026531836]" — or "" when it cannot be read.
+func (p ProcPids) NS() string {
+	l, err := os.Readlink(filepath.Join(p.root(), "self", "ns", "pid"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(l)
+}
+
 // Start returns "<boot_id>:<starttime>" for pid, or "" when unknowable.
 func (p ProcPids) Start(pid int) string {
 	if pid <= 0 {
