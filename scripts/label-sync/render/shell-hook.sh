@@ -7,6 +7,7 @@
 #           ONE place that decides what may be recorded about a command.
 # Usage   : shell-hook.sh shell-start --id ID --pid PID --cwd DIR [--parent P]
 #           shell-hook.sh shell-beat  --id ID
+#           shell-hook.sh shell-refresh --id ID --cwd DIR   (re-derive track/branch/cwd)
 #           shell-hook.sh shell-end   --id ID
 #           shell-hook.sh cmd-start   --id ID --parent SHELL_ID --pid PID --cwd DIR [--argv0 NAME]
 #           shell-hook.sh cmd-end     --id ID
@@ -96,6 +97,23 @@ case "$op" in
     "$LCTL" register --id "$id" --kind shell --pid "${pid:-0}" --cwd "${cwd:-$PWD}" "${par[@]}" "${sess[@]}" \
       --derive "${fol[@]}" --source "shell-integration" >/dev/null 2>&1 || dbg "shell-start failed" ;;
   shell-beat) "$LCTL" heartbeat --id "$id" >/dev/null 2>&1 || dbg "shell-beat failed" ;;
+  shell-refresh)
+    # review-2 finding 8: after a `cd` / `git checkout` the shell entity's
+    # PLACE (track, branch, cwd) is re-derived with the canonical labeler. The
+    # binding (alias/model/effort) is NOT touched: it was decided at
+    # shell-start. A field the labeler reports as `?` is CLEARED, never kept
+    # from the previous directory (§11.4.6).
+    lb="${LABEL_SYNC_LABELER:-$RDIR/../../multitrack/track_branch_label.sh}"
+    d="${cwd:-$PWD}"
+    lab="$(cd "$d" 2>/dev/null && bash "$lb" 2>/dev/null)" || lab=""
+    lab="${lab%%$'\n'*}"
+    case "$lab" in "(T"*" - "*")") ;; *) dbg "shell-refresh: no label from $lb"; exit 0 ;; esac
+    in="${lab#\(T}"; tr="${in%%/*}"; rest="${in#*/}"; br="${rest%% - *}"
+    up=(update --id "$id" --cwd "$d"); clr=()
+    if [[ $tr =~ ^[0-9]+$ ]]; then up+=(--track "$tr"); else clr+=(track); fi
+    if [ -n "$br" ] && [ "$br" != "?" ]; then up+=(--branch "$br"); else clr+=(branch); fi
+    [ "${#clr[@]}" -gt 0 ] && up+=(--clear "$(IFS=,; echo "${clr[*]}")")
+    "$LCTL" "${up[@]}" >/dev/null 2>&1 || dbg "shell-refresh failed" ;;
   shell-end)  unreg "$id" ;;
   cmd-end)    unreg "$id" ;;
   cmd-start)

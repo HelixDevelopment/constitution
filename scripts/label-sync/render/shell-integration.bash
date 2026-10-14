@@ -16,6 +16,12 @@
 #             string compare — no fork — and nothing else while seq is unchanged;
 #           * when seq changed: ONE `jq` (a fork, ~10 ms) and a title rewrite
 #             only if the label text actually changed;
+#           * every prompt: ONE string compare of $PWD and ONE builtin `read` of
+#             the repository's HEAD file (found once per directory change by a
+#             pure-bash walk up to the nearest .git) — a `cd` or a `git checkout`
+#             then triggers ONE background `shell-refresh` that re-derives the
+#             shell entity's track/branch/cwd (review-2 finding 8); nothing
+#             forks while neither changed;
 #           * registration / heartbeat / unregister run in a detached background
 #             process (`( … & )`, setsid when present) so the prompt NEVER waits
 #             on labelctl, a lock, or a dead state dir.
@@ -56,6 +62,40 @@ export LABEL_SYNC_SHELL_ID="shell-${__LS_HOST:0:60}-$$-${EPOCHSECONDS:-0}"
 __LS_SEG=""
 __ls_label="" __ls_seen_seq="" __ls_first=1 __ls_in_prompt=0 __ls_started="" __ls_cmd_id="" __ls_n=0 __ls_a0="?"
 __ls_hb_at=$SECONDS __ls_cmd_at=-9999
+__ls_ref_pwd="" __ls_head_file="" __ls_head=""
+
+# __ls_find_head : set __ls_head_file to the HEAD file of the repository that
+# contains $PWD ('' outside a repository). Pure bash (no fork); a `.git` FILE
+# (worktree / submodule) is followed through its "gitdir:" line.
+__ls_find_head() {
+  local d="$PWD" g="" l=""
+  __ls_head_file=""
+  while [ -n "$d" ]; do
+    if [ -d "$d/.git" ]; then g="$d/.git"; break; fi
+    if [ -f "$d/.git" ]; then
+      { IFS= read -r l <"$d/.git"; } 2>/dev/null || l=""
+      l="${l#gitdir: }"
+      case "$l" in "") ;; /*) g="$l" ;; *) g="$d/$l" ;; esac
+      break
+    fi
+    [ "$d" = / ] && break
+    d="${d%/*}"; [ -n "$d" ] || d=/
+  done
+  [ -n "$g" ] && [ -r "$g/HEAD" ] && __ls_head_file="$g/HEAD"
+  return 0
+}
+
+# __ls_place_changed : 0 when $PWD or the repository's HEAD changed since the
+# last derivation (and records the new reference), 1 otherwise. Cheap.
+__ls_place_changed() {
+  local h="" ch=1
+  if [ "$PWD" != "$__ls_ref_pwd" ]; then
+    __ls_ref_pwd="$PWD"; __ls_find_head; ch=0                 # MUT:refreshcwd
+  fi
+  if [ -n "$__ls_head_file" ]; then { IFS= read -r h <"$__ls_head_file"; } 2>/dev/null || h=""; fi
+  if [ "$h" != "$__ls_head" ]; then __ls_head="$h"; ch=0; fi  # MUT:refreshhead
+  return "$ch"
+}
 
 # detached, silent, never a job-control line, survives a terminal hangup
 __ls_bg() { ( $__LS_SETSID "$@" >/dev/null 2>&1 </dev/null & ); }
@@ -80,6 +120,9 @@ __ls_precmd() {
       ls_sanitize_into __LS_SEG "$new" 256        # PS1 segment: same strict sanitiser
       ls_emit_title "$new" "${LABEL_SYNC_TITLE_SINK:-}"
     fi
+  fi
+  if __ls_place_changed; then
+    __ls_bg "$__LS_HOOK" shell-refresh --id "$LABEL_SYNC_SHELL_ID" --cwd "$PWD"
   fi
   if [ "$((SECONDS - __ls_hb_at))" -ge "$__LS_HB" ] 2>/dev/null; then
     __ls_hb_at=$SECONDS
@@ -183,5 +226,6 @@ unset __ls_ts __ls_tp __ls_tf
 if [ -n "${LABEL_SYNC_PS1:-}" ]; then
   PS1='${__LS_SEG:+$__LS_SEG }'"$PS1"
 fi
+__ls_place_changed || :          # reference = what shell-start derives below
 __ls_bg "$__LS_HOOK" shell-start --id "$LABEL_SYNC_SHELL_ID" --pid "$$" --cwd "$PWD" --parent "$__LS_PARENT"
 return 0 2>/dev/null || true

@@ -192,8 +192,17 @@ source "$RENDER/shell-integration.bash"
 echo "SHELL_ID=\$LABEL_SYNC_SHELL_ID"
 mycmd() { :; }
 __ls_precmd
-# wait until our registration lands
-for i in \$(seq 100); do "\$LABEL_SYNC_LABELCTL" get --id "\$LABEL_SYNC_SHELL_ID" >/dev/null 2>&1 && break; sleep 0.05; done
+# wait until our registration is PUBLISHED: the seq file (written LAST, after
+# snapshot.json) has moved past the seq the first prompt saw AND the snapshot
+# carries our label. Waiting on \`labelctl get\` alone raced (review-2 C2): get
+# reads the log-complete state, which is visible BEFORE seq is rewritten, so the
+# next prompt could still read the old seq and skip the title refresh.
+for i in \$(seq 200); do
+  { read -r __s <"\$LABEL_SYNC_DIR/seq"; } 2>/dev/null || __s=""
+  [ -n "\$__s" ] && [ "\$__s" != "\$__ls_seen_seq" ] && [ -n "\$(ls_entity_label "\$LABEL_SYNC_SHELL_ID")" ] && break
+  [ -s "\$LABEL_SYNC_TITLE_SINK" ] && break     # the first prompt already rendered it
+  sleep 0.05
+done
 __ls_precmd
 echo "SZ1=\$(wc -c <"\$LABEL_SYNC_TITLE_SINK")"
 __ls_precmd; __ls_precmd
@@ -548,6 +557,55 @@ has "G21c set -eu shell, label lookup finds nothing: hooks never end the shell" 
 SALT="$(bash -c 'export LABEL_SYNC_DIR=/proc/nonexistent/x LABEL_SYNC_LABELCTL=/nonexistent; source "'"$RENDER"'/shell-integration.bash"; bash -c "echo \${LABEL_SYNC_SALT-unset}"; trap - EXIT' 2>/dev/null)"
 eq "G30 no LABEL_SYNC_SALT in any child's environment" "unset" "$SALT"
 hasnt "G30b no salt/digest code left in the integrations" "LABEL_SYNC_SALT" "$(cat "$RENDER"/shell-integration.* "$RENDER/shell-hook.sh")"
+
+# ───────────────────────── H. second review (findings 8, 11) ─────────────────────────
+# H1 (finding 11 / reviewer mutant B4): the statusline prefers the SESSION entity
+# of its session_id over an EARLIER-sorting agent of the same session.
+"$LCTL" register --id h_agent --kind agent --session S11 --track 9 --branch hb --alias claude3 --model haiku --effort low --follow-active false >/dev/null
+"$LCTL" register --id h_sess --kind session --session S11 --track 9 --branch hb --alias claude4 --model opus --effort max --follow-active false >/dev/null
+eq "H1 statusline shows the session entity, not an earlier agent of that session" "(T9/hb - claude4 - opus - max)" "$(LABEL_SYNC_STATUSLINE_DERIVE=0 sl "$(SJ S11)")"
+eq "H1b control: the agent really sorts first in the snapshot" "h_agent" "$(jq -r '[.entities[]|select(.session_id=="S11")][0].id' "$LABEL_SYNC_DIR/snapshot.json")"
+# H2-H4 (finding 8): a shell's track/branch/cwd follow a `git checkout` and a `cd`.
+REALLAB="$(cd "$REAL_LS/../multitrack" && pwd)/track_branch_label.sh"   # the real labeler (RENDER may be a scratch copy)
+HR1="$TMPD/h_repo1"; HR2="$TMPD/h_repo2"
+for r in "$HR1:hb1" "$HR2:hb2"; do
+  git init -q -b "${r##*:}" "${r%%:*}" && git -C "${r%%:*}" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
+done
+HSCEN="$TMPD/hscen.sh"
+cat >"$HSCEN" <<HEOF
+#!/usr/bin/env bash
+export LABEL_SYNC_DIR LABEL_SYNC_LABELCTL LABEL_SYNC_TITLE_SINK LABEL_SYNC_CMD_MIN_INTERVAL
+export LABEL_SYNC_LABELER="$REALLAB"
+cd "$HR1"
+source "$RENDER/shell-integration.bash"
+echo "SHELL_ID=\$LABEL_SYNC_SHELL_ID"
+br() { "\$LABEL_SYNC_LABELCTL" get --id "\$LABEL_SYNC_SHELL_ID" --json 2>/dev/null | jq -r ".\$1 // empty"; }
+waitf() { for i in \$(seq 200); do [ "\$(br "\$1")" = "\$2" ] && return 0; sleep 0.05; done; return 1; }
+__ls_precmd
+waitf branch hb1; echo "B0=\$(br branch)"
+git checkout -q -b hb1-next
+__ls_precmd
+waitf branch hb1-next; echo "B1=\$(br branch)"
+cd "$HR2"
+__ls_precmd
+waitf branch hb2; echo "B2=\$(br branch)"; echo "C2=\$(br cwd)"
+mkdir -p "$HR2/sub"; cd "$HR2/sub"
+__ls_precmd
+waitf cwd "$HR2/sub"; echo "C3=\$(br cwd)"
+cd /
+__ls_precmd
+waitf cwd /; sleep 0.3; echo "B3=\$(br branch)"
+trap - EXIT
+HEOF
+HOUT="$(LABEL_SYNC_TITLE_SINK="$TMPD/h_title" bash "$HSCEN" 2>/dev/null)"
+eq "H2 fixture: the shell starts on hb1" "hb1" "$(printf '%s\n' "$HOUT" | sed -n 's/^B0=//p')"
+eq "H3 git checkout in the shell's repo => the shell entity's branch follows" "hb1-next" "$(printf '%s\n' "$HOUT" | sed -n 's/^B1=//p')"
+eq "H4 cd into another repo => branch follows" "hb2" "$(printf '%s\n' "$HOUT" | sed -n 's/^B2=//p')"
+eq "H4b cd into another repo => cwd follows" "$HR2" "$(printf '%s\n' "$HOUT" | sed -n 's/^C2=//p')"
+eq "H4d cd within the same repo (HEAD unchanged) => cwd follows" "$HR2/sub" "$(printf '%s\n' "$HOUT" | sed -n 's/^C3=//p')"
+eq "H4c cd outside any repo => branch CLEARED, never kept from the previous repo" "" "$(printf '%s\n' "$HOUT" | sed -n 's/^B3=//p')"
+NOFORK="$(bash -c 'export LABEL_SYNC_DIR=/proc/nonexistent/x LABEL_SYNC_LABELCTL=/nonexistent; cd "$2"; source "$1/shell-integration.bash"; __ls_place_changed && echo CHANGED || echo SAME; cd /; __ls_place_changed && echo CHANGED || echo SAME; trap - EXIT' _ "$RENDER" "$HR1" 2>/dev/null | tr '\n' ' ')"
+eq "H5 unchanged cwd + HEAD => no refresh (cheap path); a cd => refresh" "SAME CHANGED " "$NOFORK"
 
 echo "RESULT pass=$PASS fail=$FAIL"
 [ "$FAIL" -eq 0 ]

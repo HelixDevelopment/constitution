@@ -6,13 +6,14 @@
 #           tests/test_render.sh against the copy and REQUIRES it to FAIL; a
 #           control run of the unmutated copy REQUIRES it to pass. A surviving
 #           mutant means the tests do not guard that behaviour.
-#           23 mutants: the original 8 (statusline_ignores_snapshot ..
+#           27 mutants: the original 8 (statusline_ignores_snapshot ..
 #           labelrun_no_unregister) plus every mutant the 2026-10-12 review saw
 #           SURVIVE (no sanitise in statusline / tmux, SIGINT not reset, argv0
 #           unrestricted, digest/salt, previous DEBUG trap dropped, PROMPT_COMMAND
 #           clobbered) and one per new mechanism (watch sanitise, locale-dependent
 #           sanitiser, double Ctrl-C, backstop redaction, $_ clobber, errexit,
-#           plain terminal pinned). The review's "unsalted digest" mutant no longer
+#           plain terminal pinned), and the second review's (statusline session
+#           preference — reviewer B4 — and the cwd/HEAD refresh of finding 8). The review's "unsalted digest" mutant no longer
 #           applies: the digest was removed (finding 7) — digest_recorded and
 #           salt_exported guard its return instead.
 # Usage   : bash scripts/label-sync/render/prove_mutations.sh [--only <mutant>]
@@ -31,7 +32,7 @@ set -uo pipefail
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 TEST="$SELF/tests/test_render.sh"
 command -v jq >/dev/null 2>&1 && command -v go >/dev/null 2>&1 || { echo "prove_mutations: jq/go missing" >&2; exit 2; }
-ONLY=""; [ "${1:-}" = "--only" ] && ONLY="${2:-}"
+ONLY=""; [ "${1:-}" = "--only" ] && ONLY=",${2:-},"   # one name or a comma list
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/render_mut.XXXXXX")" || exit 2
 trap 'rm -rf "$TMP"' EXIT
 
@@ -60,6 +61,11 @@ MUTANTS=(
   'prev_debug_trap_dropped|shell-integration.bash|s|if \[ -n "\$p" \]; then __ls_ts=|if false; then __ls_ts=|'
   'prompt_command_clobbered|shell-integration.bash|s|^  PROMPT_COMMAND="\${PROMPT_COMMAND%;};\$__ls_pc"$|  PROMPT_COMMAND="$__ls_pc"|'
   'plain_terminal_pins|shell-hook.sh|s|^    fol=(--follow-active true)$|    fol=()|'
+  # --- second review (findings 8, 11) ---
+  'statusline_no_session_preference|statusline.sh|s|(map(select(.kind == "session")) + .) \| first|first|'
+  'refresh_ignores_cwd|shell-integration.bash|/MUT:refreshcwd/s|__ls_find_head; ch=0|__ls_find_head|'
+  'refresh_ignores_head|shell-integration.bash|/MUT:refreshhead/s|__ls_head="\$h"; ch=0;|__ls_head="$h";|'
+  'refresh_keeps_stale_branch|shell-hook.sh|s|else clr+=(branch); fi|else :; fi|'
 )
 
 run_tests() { RENDER_DIR="$1" nice -n 10 timeout 300 bash "$TEST" >"$2" 2>&1; }
@@ -71,7 +77,7 @@ else echo "CONTROL   FAILED — unmutated tests do not pass"; grep -E '^FAIL' "$
 
 for m in "${MUTANTS[@]}"; do
   name="${m%%|*}"; rest="${m#*|}"; file="${rest%%|*}"; expr="${rest#*|}"
-  [ -z "$ONLY" ] || [ "$ONLY" = "$name" ] || continue
+  [ -z "$ONLY" ] || case "$ONLY" in *",$name,"*) ;; *) continue ;; esac
   total=$((total+1))
   d="$TMP/$name"; mkdir -p "$d" && cp -R "$SELF/." "$d/" || exit 2
   cp "$d/$file" "$d/$file.orig"
