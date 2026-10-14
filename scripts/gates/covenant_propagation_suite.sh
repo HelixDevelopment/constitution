@@ -99,6 +99,13 @@ if [ "$MODE" = "gates" ] && [ -z "${COVENANT_PROPAGATION_CARRIERS:-}" ]; then
 fi
 
 total=0; bad=0
+# Inner mode (round-5 review N17, the inner-flag row of the verdict-set rule table): the accounting sandbox
+# sets COVENANT_PROPAGATION_SUITE_INNER, which skips the ACCOUNTING and VERDICT-SET entries. Say so in the
+# output, so a consumer run that INHERITED the flag is refused by suite_verdict_set_check.sh (rule R-INNER)
+# instead of reading a shortened entry set. Printed before the entry table, never inside it.
+if [ -n "${COVENANT_PROPAGATION_SUITE_INNER:-}" ]; then
+    echo "INNER-MODE: COVENANT_PROPAGATION_SUITE_INNER set — the ACCOUNTING and VERDICT-SET self-test entries are skipped"
+fi
 printf '%-36s %-5s %s\n' "GATE" "EXIT" "VERDICT"
 printf '%-36s %-5s %s\n' "------------------------------------" "-----" "----------------------------------"
 # ENGINE SELF-TEST (gates mode). The engine's compact-index PASS path and H2 boundary

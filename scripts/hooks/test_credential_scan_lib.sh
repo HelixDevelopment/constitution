@@ -1213,6 +1213,9 @@ _sub_run() { # $1 label  $2.. command
     local label="$1" rc=0 out npass nfail
     shift
     out="$("$@" 2>&1)" || rc=$?
+    # inner-mode lines of the sub-suite are relayed verbatim (round-5 review N17): a sub-suite run in a
+    # shortened inner mode must be visible to the consumer's verdict-set check (rule R-INNER)
+    printf '%s\n' "$out" | grep -E '^INNER-MODE: ' || true
     npass="$(printf '%s\n' "$out" | grep -c '^PASS')"
     nfail="$(printf '%s\n' "$out" | grep -c '^FAIL')"
     if [ "$rc" -eq 0 ] && [ "$nfail" -eq 0 ] && [ "$npass" -ge 1 ]; then
@@ -1249,7 +1252,7 @@ fi
 # their verdict text and cross-checks the printed PASS/FAIL lines against the RESULT tally.
 _sub_meta="$HERE/test_credential_scan_lib_subsuite_mutation_test.sh"
 if [ -n "${CREDSCAN_SUBSUITE_META_INNER:-}" ]; then
-    echo "INFO: (z) sub-suite wiring meta-test not re-entered inside its own sandbox"
+    echo "INNER-MODE: CREDSCAN_SUBSUITE_META_INNER set — (z) sub-suite wiring meta-test not re-entered inside its own sandbox"
 elif [ -f "$_sub_meta" ]; then
     _z_rc=0
     _z_out="$(bash "$_sub_meta" 2>&1)" || _z_rc=$?

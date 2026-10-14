@@ -72,6 +72,11 @@ while [ $# -gt 0 ]; do
     *) echo "usage: $0 [--root DIR] [--consumer-source FILE:VAR]... [--consumer-tokens FILE]..." >&2; exit 2 ;;
   esac
 done
+# Inner mode (round-5 review N17): CORE_LITERAL_CD_INNER is set only by this file's own CD section for its
+# fixture-copy runs and skips M1-M11 and CD there. A consumer run that INHERITED it would run 12 fewer checks
+# and still exit 0, so it is announced; the credential-scan suite relays the line and the consumer's
+# verdict-set check (suite_verdict_set_check.sh, rule R-INNER) refuses it.
+[ -z "${CORE_LITERAL_CD_INNER:-}" ] || echo "INNER-MODE: CORE_LITERAL_CD_INNER set — M1-M11 and the CD consumer-data section are skipped"
 for _s in ${CORE_LITERAL_CONSUMER_SOURCES:-}; do SOURCES+=("$_s"); done
 _cdir="$(cd "$ROOT/.." 2>/dev/null && pwd)"
 if [ -n "$_cdir" ] && [ -f "$_cdir/config/core_literal_consumer_sources.tsv" ]; then
