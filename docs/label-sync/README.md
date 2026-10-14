@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/README.md` |
-| Revision | 3 (2026-10-14) |
+| Revision | 4 (2026-10-14) |
 | Anchors | §11.4.182, §11.4.116, §11.4.233, §11.4.18 |
 
 Real-time label + alias synchronisation for every stream, agent, subagent,
@@ -21,7 +21,7 @@ scripts/label-sync/
   internal/state           bounded flock + compacted event log + offset index + atomic snapshot (crash safe)
   internal/bus             seq-poll subscribe + one-hub unix-socket fan-out (short-path fallback via bus.addr)
   internal/label           §11.4.182 compose / validate / sanitise / derive-via-labeler
-  prove_mutations.sh       paired-mutation proof (48 mutants against a scratch copy; a kill needs a `--- FAIL:` line, a non-compiling mutant is UNDETERMINED and fails the proof)
+  prove_mutations.sh       paired-mutation proof (53 mutants against a scratch copy; a kill needs a `--- FAIL:` line, a non-compiling mutant is UNDETERMINED and fails the proof)
 scripts/label-sync/render/   renderers (statusline, title, shell integration, labelrun, …) — see RENDERERS.md
 scripts/gates/cm_label_sync_core.sh (+ _mutation_test.sh)   gate
 ```

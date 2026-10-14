@@ -3,12 +3,12 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/HOOKS.md` |
-| Revision | 3 (2026-10-14) — second-review fixes, see [§12](#12-second-review-fixes-revision-3); revision 2 (2026-10-12) — independent-review fixes (findings 1–11), see [§11](#11-review-findings-addressed-revision-2) |
+| Revision | 4 (2026-10-14) — re-review: errexit inside every post-update step, MCP launcher walks up to the project root, `<synthetic>` never a model, tree-keyed binary staleness; revision 3 (2026-10-14) — second-review fixes, see [§12](#12-second-review-fixes-revision-3); revision 2 (2026-10-12) — independent-review fixes (findings 1–11), see [§11](#11-review-findings-addressed-revision-2) |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed); live delivery inside a real Claude Code session is UNCONFIRMED (see §2) |
 | Implements | §11.4.182 (label), §11.4.208 / §11.4.210 (request ledger auto-capture), §11.4.228(D) / §11.4.164 (auto-wiring on pull), §11.4.233 (level-triggered), §11.4.18 (script docs) |
 | Builds on | [`CONTRACT.md`](CONTRACT.md) (data contract), [`README.md`](README.md) (core quick start) |
 | Code | `scripts/label-sync/hooks/`, `scripts/label-sync/toolkit/`, `scripts/label-sync/install_label_sync.sh` |
-| Tests | `scripts/hooks/test_label_sync_hooks.sh` (478 assertions), `scripts/label-sync/prove_hook_mutations.sh` + table `scripts/label-sync/hook_mutants.py` (49 mutants; a kill needs a `❌ FAIL` assertion line, else UNDETERMINED, exit 2), gate `scripts/gates/cm_label_sync_hooks.sh` |
+| Tests | `scripts/hooks/test_label_sync_hooks.sh` (504 assertions), `scripts/label-sync/prove_hook_mutations.sh` + table `scripts/label-sync/hook_mutants.py` (57 mutants; a kill needs a `❌ FAIL` assertion line, else UNDETERMINED, exit 2), gate `scripts/gates/cm_label_sync_hooks.sh` |
 
 ## Contents
 
@@ -108,7 +108,7 @@ active context. **No hook reads or writes `active.json`.**
 | `label-sync-subagent-stop.sh` | `SubagentStop` | `session_id`, `agent_id` | `unregister` (state `done`) the paired entity; an unpaired/ambiguous agent changes nothing. |
 | `label-sync-stop.sh` | `Stop` | `session_id` | session `idle`; unregisters every pending (never paired) registration — this is where AMBIGUOUS registrations end. A busy writer lock (exit 2) ends the hook at once. |
 | `label-sync-session-end.sh` | `SessionEnd` | `session_id`, `reason` | every entity of the session `done`; drops the session's pending files and agentmap entries. |
-| `label-sync-model-switch.sh` | `PostModelSwitch` (opt-in) | `session_id`, `to_model`, `transcript_path` | session `--model` updated at once AND recorded in `hooks/modelswitch/<sid>` as `<model> <transcript byte size> <transcript path>`: every later prompt / re-asserting hook keeps the switched model until an assistant entry APPENDED AFTER that offset shows the model actually answering (then the record is dropped). The transcript's last assistant entry predates the switch, so without the record the next prompt undid it (review-2 finding 3). An unknown transcript keeps the record until the next `SessionStart` (with a model), switch or `SessionEnd`. |
+| `label-sync-model-switch.sh` | `PostModelSwitch` (opt-in) | `session_id`, `to_model`, `transcript_path` | session `--model` updated at once AND recorded in `hooks/modelswitch/<sid>` as `<model> <transcript byte size> <transcript path>`: every later prompt / re-asserting hook keeps the switched model until an assistant entry APPENDED AFTER that offset shows the model actually answering (then the record is dropped); a `"model":"<synthetic>"` entry (written by the client for API errors, `isApiErrorMessage`) is never that proof, and the labeler skips it too (re-review finding 4). The transcript's last assistant entry predates the switch, so without the record the next prompt undid it (review-2 finding 3). An unknown transcript keeps the record until the next `SessionStart` (with a model), switch or `SessionEnd`. |
 | `label-sync-alias-switch.sh` | not an event hook (CLI) | args | see §4. |
 | `request_history_append.sh` | called by the prompt hook, or run directly | stdin JSON or function args | see §5. |
 
@@ -288,15 +288,36 @@ git hook names are installed — `guard-*.sh` and `test_*.sh` from `scripts/hook
 copied into `.git/hooks`. (Steps 4b and earlier are owned by other streams; see §11 for the
 one that can still abort the script.)
 
-**Revision 3 (review-2 C, D, E, L).** Every step of `post_update_hook.sh` now runs through
-`run_step`: a step that fails is recorded as a WARNING and the NEXT step still runs (the
-"step 4c always runs" statement above was false while any earlier step could abort under
-`set -e` — e.g. an unparseable consumer `.mcp.json` made `jq` exit 5 and steps 4-5 never ran;
-such a `.mcp.json` is now left untouched with a warning). No step returns non-zero on a reachable input today, so the isolation is proven through the inert, test-only seam `POST_UPDATE_HOOK_FAULT_STEP=<step function>` (the real step runs, then its status is forced to 97); suite §20 asserts the warning and that every later step still ran, and mutant `run_step_propagates_failure` is killed by it. Step 3 rewrites an MCP config path
-that exists only under the constitution (e.g. `scripts/label-sync/mcp/label-mcp.sh`) to
-`<constitution-dir-relative-to-project>/<path>` (absolute when the constitution lives outside
-the project); that Claude Code starts a project-scope stdio server with the project root as
-its working directory is **UNCONFIRMED** (not documented in this repository). **Step 4d**
+**Revision 4 (review-2 C, D, E, L; re-review 1, 3, 11).** Every step of
+`post_update_hook.sh` runs through `run_step`, which runs the step in a
+subshell under `set -e` — errexit is ACTIVE for every command inside the step.
+(Revision 3 called the step as `"$fn" || rc=$?`, which turns errexit OFF for
+everything inside it: a changed skill whose `ln` failed with `Permission denied`
+printed "Linked", "completed successfully" and exit 0 with no link — re-review
+finding 1.) The FIRST failing command ends the step; the step's WARNINGS and
+ERRORS come back to the hook through a private temp dir; a step that ends
+non-zero is recorded as an ERROR — the hook exits 1 and the summary says
+"completed with errors" — and the next step still runs. `exit` and an unset
+variable (`set -u`) inside a step end only that step; a SIGNAL can still end
+the whole hook (nothing in-process can contain it). The stricter run exposed
+one step that ended early: step 5 used to stop after the FIRST broken script
+(`bash -n … | while` returns non-zero under `pipefail`); it now reports every
+broken script. An unparseable consumer `.mcp.json` is left untouched with a
+warning. Test-only fault seams, honoured ONLY with
+`POST_UPDATE_HOOK_TEST_MODE=1`: `POST_UPDATE_HOOK_FAULT_STEP=<step>` (the real
+step runs, then its status is forced to 97) and `POST_UPDATE_HOOK_FAULT_EXIT=<step>`
+(the step's subshell runs `exit 7`). Suite §20 and §22 assert all of this,
+including a real mid-step failure (a consumer `skills/` directory of mode 555).
+
+Step 3 rewrites an MCP config path that exists only under the constitution
+(e.g. `scripts/label-sync/mcp/label-mcp.sh`) to
+`<constitution-dir-relative-to-project>/<path>` (absolute when the
+constitution lives outside the project). Because Claude Code spawns the
+command relative to the directory it was started in (measured by the
+re-review with Claude Code 2.1.300; `${CLAUDE_PROJECT_DIR}` is not expanded in
+`.mcp.json`), a relative entry is wrapped in `sh -c` that walks up from `$PWD`
+to the directory holding the vendored constitution, `cd`s there and `exec`s the
+server — see MCP.md. **Step 4d**
 runs `scripts/label-sync/adapters/install_adapters.sh` when adapter files changed:
 
 | `LABEL_SYNC_ADAPTERS` | Behaviour |

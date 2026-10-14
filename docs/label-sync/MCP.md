@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/MCP.md` |
-| Revision | 2 (2026-10-14) — second-review fixes: explicit alias pins, 4 MiB line cap, no guessed `type`, consumer-resolvable path |
+| Revision | 3 (2026-10-14) — re-review: the consumer entry is launched through `sh` and finds the project root from ANY start directory; the prover reports a non-compiling mutant as UNDETERMINED (exit 2). Revision 2 — explicit alias pins, 4 MiB line cap, no guessed `type`, consumer-resolvable path |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed) |
 | Implements | §11.4.182 (label), §11.4.116 (bus), §11.4.228(D) (MCP registration seam), §11.4.18 |
 | Code | `scripts/label-sync/mcp/label-mcp/` (Go, stdlib only) + launcher `scripts/label-sync/mcp/label-mcp.sh` |
@@ -31,10 +31,29 @@ rewrites it for the consumer to `<constitution-dir-relative-to-project>/scripts/
 constitution lives outside the project). The entry carries `command`, `args`,
 `env` — the shape this repository documents for Claude Code `.mcp.json`
 (`submodules/polyscreen-mcp/README.md`); the earlier `"type": "command"` was a
-guess and is removed. That Claude Code launches a project-scope stdio server
-with the project root as its working directory, and that it honours
-`autoApprove`/`disabled`/`description`, are **UNCONFIRMED** (not documented
-here).
+guess and is removed.
+
+**Measured by the third (re-)review with Claude Code 2.1.300 and an isolated
+`CLAUDE_CONFIG_DIR`:** the client spawns the `command` relative to the
+directory IT was started in — started in `<project>/sub/deeper`, a
+project-relative command failed with `ENOENT` (posix_spawn) — and
+`${CLAUDE_PROJECT_DIR}` is NOT expanded inside `.mcp.json`. So a relative path
+alone works only when Claude Code starts at the project root. Step 3 therefore
+writes the consumer entry as
+
+    "command": "sh",
+    "args": ["-c", "<walk up from $PWD to the directory holding <prefix>; cd there; exec \"$0\" \"$@\">",
+             "<prefix>/scripts/label-sync/mcp/label-mcp.sh", <original args...>]
+
+which starts the server from any directory inside the project and fails
+loudly (`label-sync MCP launcher: <prefix> not found above <dir>`, exit 127)
+outside it; an absolute constitution path (outside the project) is written
+as is. Proven by `scripts/hooks/test_label_sync_hooks.sh` §20 (R3): the merged
+entry is executed from `<project>/sub/deeper`, from the root and from `/`.
+That Claude Code itself then starts this `sh` entry from a sub-directory was
+NOT re-measured with the client after the change (the suite replays the spawn,
+not the client). Whether it honours `autoApprove`/`disabled`/`description` is
+**UNCONFIRMED** (not documented here).
 `autoApprove` is limited to the read-only tools (`label_get`, `label_list`,
 `label_active`); the mutating tools prompt the operator.
 `post_update_hook.sh` / the §11.4.228(D)(3) MCP-registration seam merges this file

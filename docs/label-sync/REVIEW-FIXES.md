@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/REVIEW-FIXES.md` |
-| Revision | 1 (2026-10-14) |
+| Revision | 2 (2026-10-14) — third (re-)review round added |
 | Branch | `feature/label-sync` (base `c4b7408`, after the merge `3d002e6` of upstream `2e70099`) |
 | Anchors | §11.4.134, §11.4.115, §1.1, §11.4.201, §11.4.6 |
 
@@ -93,3 +93,46 @@ re-derivable by running the named test against the pre-fix revision.
   pre-existing upstream. The parent repository's own `helix-deps.yaml`
   `conflict_resolution` entry that still names `16e4e76` was not touched (out
   of scope for this submodule).
+
+## Review 3 — independent re-review of `edb6615..6dfc57a` (NO-GO, 3 MEDIUM)
+
+| # | Sev | Finding | Fix | RED on the unfixed tree | Mutant |
+|---|---|---|---|---|---|
+| 1 | MED | `run_step` ran a step as `"$fn" \|\| rc=$?`, turning errexit OFF inside it: a mid-step `ln` failure printed "completed successfully", exit 0, no link | `4bf3cfc`: each step runs in a `set -e` subshell, WARNINGS/ERRORS come back through a temp dir, a failed step is an ERROR (exit 1), later steps still run; `exit`/`set -u` contained; step 5 no longer stops at the first broken script | suite §22: "R1 ln failing in the MIDDLE of install_skills makes the hook exit 1 (got '0' want '1')" and 6 more; §20 "SYNTAX ERROR in …broken.sh" missing after the second broken script | `step_errexit_disabled`, `step_failure_not_error`, `run_step_propagates_failure`, `validate_stops_at_first_error` |
+| 2 | MED | the sweeper deleted an entity alive in ANOTHER PID namespace | `e41d76d`: `pid_ns` recorded at register; sweep only when the writer's namespace equals it; a pid patch clears it | `rereview_test.go`: "register does not record the registering process's PID namespace", "an entity with no recorded namespace was swept", "ProcPids does not report its PID namespace" | `sweep_ignores_pid_namespace`, `pid_namespace_not_recorded`, `pid_patch_keeps_namespace` |
+| 3 | MED | a vendor-relative MCP command works only when Claude Code starts at the project root (measured by the reviewer, Claude Code 2.1.300) | `4bf3cfc`: the entry is `sh -c '<walk up to the vendored prefix; cd; exec>'`; MCP.md states what was measured | §20 R3: "the merged MCP entry launches through sh (got 'constitution/scripts/…' want 'sh')", the spawn from `sub/deeper` failed | `mcp_not_wrapped` |
+| 4 | LOW | `"model":"<synthetic>"` entries undid a model switch / became the label's model | `4bf3cfc`: skipped in the lib and the labeler (jq and no-jq paths) | §19 R4: "(got '<synthetic>' want 'sonnet')", "(got '<synthetic>' want 'haiku')" | `lib_accepts_synthetic`, `labeler_accepts_synthetic` |
+| 5 | LOW | binaries stale on ANY commit; no-Go host exited 2 with identical sources | `4bf3cfc`: `bincache.sh ls_bin_stale`, keyed on the module's git tree (`.source-tree`) | §21: "13 control … fresh (got '2' want '0')", "R5 identical source with newer mtimes …", "R5 a prebuilt LABEL_SYNC_BIN without a stamp …" | `bincache_commit_ignored`, `bincache_dirty_ignored` |
+| 6 | LOW | an older detached shell refresh could overwrite a newer one; a refresh before shell-start was lost | `d7a76bb`: `--seq` ordering under a per-shell flock, one retry | render H6 "want [hb2] got [hb1-next]", H7 same | `refresh_ignores_order`, `refresh_never_retries`, `integration_omits_seq` |
+| 7 | LOW | a signal between the stop check and `child=$!` was lost | `256979b`: re-check `$stop` after the spawn, forward to that one child pid | "a TERM in the spawn window still stops the agent (took 8s, rc 0)" | C11, C12 |
+| 8 | NIT | MCP prover counted a non-compiling mutant as INOPERATIVE, exit 1 | `06e2b02`: UNDETERMINED, exit 2; `--selftest` | old prover, scratch copy: "INOPERATIVE X1 does not compile", rc=1 | `--selftest` (rc=2) |
+| 9 | NIT | gofmt | `e41d76d` | `gofmt -l` listed 6 files | — |
+| 10 | NIT | no test killed the two `bus.addr` removals in busd | `e41d76d`: `writeAddr` seam; `TestStaleAddrRemovedAtStart`, `TestFailedAddrWriteLeavesNoAddr` | the two mutants had no killing test | `stale_addr_not_removed`, `failed_addr_write_left` |
+| 11 | NIT | `POST_UPDATE_HOOK_FAULT_STEP` honoured in production | `4bf3cfc`: fault seams need `POST_UPDATE_HOOK_TEST_MODE=1` | §22 R11 "no forced failure appears" failed | `fault_seam_without_test_mode` |
+| 12 | — | the round-2 report said `test_wiring_audit_us4` still fails | correction, no code change | — | — |
+
+**Correction (finding 12).** The round-2 report said the anchors test
+`test_wiring_audit_us4.py` fails with "positive control 11.4.230 classified as a
+gap", unchanged from before the fixes. That was measured from a scratch
+directory holding only a symlinked `Constitution.md`, where the checker finds
+no code evidence. Run in place (cwd `…/vasic/submodules`, so
+`constitution/Constitution.md` resolves to the real checkout) it PASSES
+(re-measured 2026-10-14, rc 0). The earlier statement is withdrawn.
+
+**Upstream.** Remote `main` is `5082389` (one commit on top of `2e70099`, already
+in the local object store). It changes `Constitution.md`, the four carriers and
+`scripts/codegraph/**` + `docs/scripts/codegraph_safe.md`; none of those files
+is changed on this branch (`c4b7408..HEAD`), so the next merge has no file
+overlap with this work.
+
+**Known limits after this round.** A signal can still end the post-update
+hook (no in-process containment). zsh/fish integrations still do not refresh
+the place. An entity registered by an older writer (no `pid_ns`), or whose pid
+was changed by `update`, is never swept by a namespace-aware writer (kept,
+`[stale]`), by design. That Claude Code itself starts the `sh` MCP entry from a
+sub-directory was not re-measured with the client after the change; the suite
+replays the spawn. The labeler's no-jq fallback matches only entries whose
+`message` object starts with `"model"`, which real transcripts (measured on
+this host) do not — `model` follows `id` there. A pre-existing limit, not
+changed here; with `jq` installed the structural parse is used.
+

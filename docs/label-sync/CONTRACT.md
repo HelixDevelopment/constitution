@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/CONTRACT.md` |
-| Revision | 3 (2026-10-14) — review-2 fixes: stale sweeper (§6), explicit alias pins (§4.2), bus.addr only after bind + busd exit 3 + hello limit (§1, §3), pid range + patch ids (§2.1, §7), per-checkout binary cache (§7), same-user trust boundary (§8). Revision 2 (2026-10-12) — FIX-A: derived binding, sanitising, compaction, pid start-time, bounded lock, socket fallback |
+| Revision | 4 (2026-10-14) — re-review: PID-namespace-aware sweeper (§6), tree-keyed binary staleness (§7). Revision 3 (2026-10-14) — review-2 fixes: stale sweeper (§6), explicit alias pins (§4.2), bus.addr only after bind + busd exit 3 + hello limit (§1, §3), pid range + patch ids (§2.1, §7), per-checkout binary cache (§7), same-user trust boundary (§8). Revision 2 (2026-10-12) — FIX-A: derived binding, sanitising, compaction, pid start-time, bounded lock, socket fallback |
 | Status | CORE implemented and tested on branch `feature/label-sync` (local, unpushed) |
 | Implements | §11.4.182 (label), §11.4.116 (event stream + atomic status snapshot), §11.4.233 (level-triggered reconcile) |
 | Code | `scripts/label-sync/` (Go, stdlib only) + `scripts/label-sync/labelctl.sh` |
@@ -273,7 +273,16 @@ child is ever left pinned by a past session binding.
   rule as staleness (pid + start identity), and has not been updated for
   `LABEL_SYNC_STALE_SWEEP` (Go duration or seconds; default **15m**; `off`
   disables). Pid-less and remote entities are never swept (their liveness
-  cannot be proven): they stay `[stale]`. A live process is never swept; a
+  cannot be proven): they stay `[stale]`. **PID namespaces (re-review finding
+  2):** a pid means something only inside the PID namespace that registered
+  it. `register` records the registering process's namespace (`pid_ns`, the
+  `/proc/self/ns/pid` link, e.g. `pid:[4026531836]`); a writer that knows its
+  own namespace sweeps an entity ONLY when the recorded namespace EQUALS its
+  own — an entity registered inside a container (or recorded without a
+  namespace by an older writer) is kept by a writer outside it. A pid change
+  through `update` clears the recorded namespace (no new patch key: older
+  readers of the shared state dir reject unknown keys), so that entity is
+  kept too, never swept on a guess. A live process is never swept; a
   RECYCLED pid with a recorded start identity is not "alive". At most
   `LABEL_SYNC_SWEEP_BATCH` (default 256) entities go per transaction, appended
   with ONE fsync, so the lock hold stays bounded; later writes continue the
@@ -298,9 +307,15 @@ alias model effort source`). Every printed byte is sanitised (§2.1).
 `parent_id` / `session_id` is validated against the id grammar by the store
 itself (prepare) AND by the fold (replayed logs). `labelctl.sh` keeps its
 binaries in a PER-CHECKOUT cache (`<cache>/constitution-label-sync/bin-<hash
-of the module path>`, `bincache.sh`) and treats them as stale when the git
-HEAD differs from the `.source-commit` recorded at build — one shared cache
-used to let checkout A run checkout B's binary (review-2 finding 13).
+of the module path>`, `bincache.sh`) — one shared cache used to let checkout A
+run checkout B's binary (review-2 finding 13). Staleness is ONE rule
+(`bincache.sh ls_bin_stale`, re-review finding 5): the stamp `.source-tree`
+holds the git TREE id of `scripts/label-sync` at build; the same tree with no
+uncommitted change in the module is fresh whatever the mtimes (a commit
+elsewhere, or a checkout that rewrote mtimes, no longer forces a rebuild — and
+a host without Go keeps using identical binaries instead of exiting 2); a
+different tree is stale; with no stamp (e.g. a prebuilt `LABEL_SYNC_BIN`) or
+outside git, a `*.go`/`go.mod` newer than the binary makes it stale.
 `LABEL_SYNC_BIN` still overrides.
 
 **Writer lock.** Writers wait at most the lock timeout (a blocking flock in a

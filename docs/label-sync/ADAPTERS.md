@@ -3,11 +3,11 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/ADAPTERS.md` |
-| Revision | 2 (2026-10-14) — second-review fixes: exact rollback + idempotency from existing configs, 0600 backups without duplicates, quoted/encoded paths, metacharacter refusal, option-value check, wrapper signal handling (§4, §5) |
+| Revision | 3 (2026-10-14) — re-review: a signal in the spawn window reaches the agent (§5); revision 2 (2026-10-14) — second-review fixes: exact rollback + idempotency from existing configs, 0600 backups without duplicates, quoted/encoded paths, metacharacter refusal, option-value check, wrapper signal handling (§4, §5) |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed); capability level per agent below — read it before relying on an agent |
 | Implements | §11.4.182 (label), §11.4.228 (cross-agent extension lifecycle: detect, wire, self-validate, idempotent, dry-run), §11.4.164, §11.4.233 (level-triggered), §11.4.18 |
 | Code | `scripts/label-sync/adapters/` (lib, per-agent adapters, `install_adapters.sh`, `_edit_config.py`) |
-| Tests | `adapters/tests/test_adapters.sh` (hermetic, 186 assertions), `adapters/tests/test_real_agents.sh` (real agents, 17 checks), `scripts/label-sync/prove_adapter_mutations.sh` (28 mutants), gate `scripts/gates/cm_label_sync_adapters.sh` |
+| Tests | `adapters/tests/test_adapters.sh` (hermetic, 189 assertions), `adapters/tests/test_real_agents.sh` (real agents, 17 checks), `scripts/label-sync/prove_adapter_mutations.sh` (30 mutants), gate `scripts/gates/cm_label_sync_adapters.sh` |
 | Builds on | [`CONTRACT.md`](CONTRACT.md), [`HOOKS.md`](HOOKS.md) (Claude Code), [`RENDERERS.md`](RENDERERS.md) |
 
 ## Contents
@@ -224,6 +224,10 @@ and F):
   arrives while registering is remembered, the wrapper exits 128+N through its
   cleanup (the entity ends `done`) and the agent is never started — it used to
   die with the default action and leave a `running` ghost entity.
+* a signal that lands AFTER the "signalled while registering" check but
+  before the child pid is known is re-checked right after the spawn and
+  forwarded to that ONE child pid (re-review finding 7; test-only seam
+  `LABEL_SYNC_TEST_MODE=1` + `LABEL_AGENT_RUN_TEST_SIGNAL_BEFORE_SPAWN`).
 
 A parent that itself ignores `SIGINT` (e.g. a job started in the background of
 a non-interactive shell) passes that on to the wrapper — no shell can reset a
