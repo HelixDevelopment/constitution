@@ -411,7 +411,7 @@ covenant_propagation_main() {
             # absent-block, duplicated-block or divergent target keeps the compact hash => DIVERGENT (fail closed).
             # The target may NOT be a carrier itself (basename CLAUDE.md / AGENTS.md / QWEN.md / GEMINI.md): pointing
             # at a sibling carrier would compare that carrier's block with itself (a lockstep tautology).
-            # HONEST BOUNDARY (§11.4.6), round-2 review F11 of the remedy batch atm-prebuild-remedy-const:
+            # HONEST BOUNDARY (§11.4.6), round-2 review F11 of the 2026-10-14 pre-build remedy batch:
             #  (a) the compact line's OWN text (title, summary, refs) is replaced, not compared -- a compact summary
             #      that drifts from its full block is not detected by this gate;
             #  (b) trailing `---` / blank lines are stripped from the TARGET block only (the full index document
