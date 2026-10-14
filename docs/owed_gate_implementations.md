@@ -808,7 +808,7 @@ missing.
   - **Blocked on:** no pressure-injection harness exists in-repo (§11.4.277, gate-code declared a separate work item)
   - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
 - **OWED-GATE-129** — `CM-MODEL-VALIDATION-KEY-COMPLETE`
-  - **Must assert:** the consumer's record binds model identity, mmproj, engine build, launch fingerprint, suite hash AND the host-class fingerprint per host, and a change of any voids it; the elements llmctl v3.2.1 does not bind are checked consumer-side
+  - **Must assert:** the consumer's record binds model identity, mmproj, engine build, launch fingerprint, suite hash AND the host-class fingerprint per host, and a change of any voids it; the elements llmctl v3.2.2 does not bind are checked consumer-side
   - **Blocked on:** no consumer record-schema harness exists in-repo (§11.4.277, gate-code declared a separate work item)
   - **Paired §1.1 mutation:** owed together with the harness — per §11.4.115(F) observation-before-trust the gate is not trusted until a paired mutation has been OBSERVED to make it FAIL, and per §11.4.227(A) the row leaves the TSV and the baseline ratchets down once it is implemented.
 - **OWED-GATE-130** — `CM-MODEL-VALIDATION-EVIDENCE`

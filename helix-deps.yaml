@@ -16,7 +16,7 @@
 # depth-1 hub entry that consumers MUST NOT initialise recursively
 # (`git submodule update --init submodules/llmctl`, WITHOUT --recursive);
 # the entry below carries the marker `recursive_init: false`. The mutual
-# reference is finite only because llmctl's `constitution` pin (3e8e855)
+# reference is finite only because llmctl's `constitution` pin (4091798 at v3.2.2; 3e8e855 at v3.2.1)
 # contains no submodules/llmctl; bumping that pin to a commit that does
 # contain it MUST be refused. CM-LLMCTL-SUBMODULE-NONRECURSIVE
 # (scripts/gates/cm_llmctl_submodule_nonrecursive.sh) enforces both.
