@@ -41,6 +41,7 @@ build() { # $1 root
   stub "$s/hooks/label-sync-lib.sh"
   for h in $EVENT_HOOKS label-sync-alias-switch request_history_append; do stub "$s/hooks/$h.sh"; done
   stub "$s/install_label_sync.sh"; stub "$s/toolkit/cma_label_hook.sh"; stub "$s/prove_hook_mutations.sh"
+  printf '# Purpose : stub\nimport sys\n' >"$s/hook_mutants.py"
   stub "$1/scripts/hooks/test_label_sync_hooks.sh"
   echo 'SessionStart UserPromptSubmit PreToolUse SubagentStart SubagentStop SessionEnd statusLine install_label_sync.sh --apply --dry-run --uninstall rollback cma_label_hook.sh LABEL_SYNC_AUTOWIRE 11.4.208 11.4.228 11.4.182 UNCONFIRMED CONFIRMED' >"$1/docs/label-sync/HOOKS.md"
   printf '#!/usr/bin/env bash\ninstall_label_sync() { :; }\nmode="${LABEL_SYNC_AUTOWIRE:-dry-run}"\n' >"$1/scripts/post_update_hook.sh"
@@ -63,5 +64,7 @@ r="$TMP/m8"; build "$r"; stub "$r/$H/label-sync-session-end.sh" 'exit 1'; expect
 r="$TMP/m9"; build "$r"; stub "$r/$H/label-sync-subagent-stop.sh" 'echo noise'; expect fail "hook prints noise on garbage" "$r"
 r="$TMP/m10"; build "$r"; rm "$r/scripts/label-sync/toolkit/cma_label_hook.sh"; expect fail "toolkit wrapper missing" "$r"
 r="$TMP/m11"; build "$r"; echo 'if then fi (' >>"$r/$H/label-sync-lib.sh"; expect fail "hook syntax error" "$r"
+r="$TMP/m12"; build "$r"; rm "$r/scripts/label-sync/hook_mutants.py"; expect fail "mutant table missing" "$r"
+r="$TMP/m13"; build "$r"; echo 'def (' >>"$r/scripts/label-sync/hook_mutants.py"; expect fail "mutant table does not compile" "$r"
 [ "$rc" -eq 0 ] && echo "✅ META: all expectations held" || echo "❌ META: violations above"
 exit "$rc"

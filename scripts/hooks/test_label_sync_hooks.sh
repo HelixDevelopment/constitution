@@ -40,6 +40,7 @@ for _a in "$@"; do case "$_a" in --keep) KEEP=1 ;; --fail-fast) FAILFAST=1 ;; es
 command -v jq >/dev/null 2>&1 || { echo "ENV: jq required" >&2; exit 2; }
 T="$(mktemp -d "${TMPDIR:-/tmp}/ls_hooks_test.XXXXXX")"
 [ -n "$KEEP" ] || trap 'rm -rf "$T"' EXIT
+cd "$T" || exit 2     # nothing a hook resolves relative to $PWD may land in the repository
 
 export HOME="$T/home"; mkdir -p "$HOME"
 export LABEL_SYNC_DIR="$T/state"
@@ -164,6 +165,10 @@ run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"zzz"}')" CLAUDE_
 check "F7 an existing docs/requests dir does NOT auto-create a ledger (opt-in only)" test ! -e "$T/withreq/docs/requests/history.jsonl"
 run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"zzz rel"}')" CLAUDE_PROJECT_DIR="$T/withreq" LABEL_SYNC_REQUEST_LEDGER=docs/requests/opted.jsonl
 check "F7 a RELATIVE LABEL_SYNC_REQUEST_LEDGER resolves against CLAUDE_PROJECT_DIR" test -s "$T/withreq/docs/requests/opted.jsonl"
+printf '{"session_id":"s-direct","prompt":"direct no opt-in"}' | env -u LABEL_SYNC_REQUEST_LEDGER CLAUDE_PROJECT_DIR="$T/withreq" LS_LEDGER_STATE="$T/f7st" bash "$HK/request_history_append.sh"
+check "F7 the helper run DIRECTLY with no opt-in creates no ledger either (docs/requests exists)" test ! -e "$T/withreq/docs/requests/history.jsonl"
+printf '{"session_id":"abc","prompt":"direct no opt-in"}' | env -u LABEL_SYNC_REQUEST_LEDGER CLAUDE_PROJECT_DIR="$T/withreq" LS_LEDGER_STATE="$T/f7st" bash "$HK/request_history_append.sh"
+check "F7 the directly-executed helper does not auto-create a ledger from docs/requests either" test ! -e "$T/withreq/docs/requests/history.jsonl"
 export LABEL_SYNC_REQUEST_LEDGER="$LEDGER"
 
 # =========================================================================

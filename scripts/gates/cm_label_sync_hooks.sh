@@ -88,6 +88,7 @@ done
 need "install_label_sync.sh executable + parse-clean + header" bash -c "[ -x '$ls_dir/install_label_sync.sh' ] && bash -n '$ls_dir/install_label_sync.sh' && grep -q '^# Purpose' '$ls_dir/install_label_sync.sh' && grep -q '^# Usage' '$ls_dir/install_label_sync.sh' && grep -q '^# Exit' '$ls_dir/install_label_sync.sh'"
 need "toolkit/cma_label_hook.sh present + parse-clean + header" bash -c "[ -f '$ls_dir/toolkit/cma_label_hook.sh' ] && bash -n '$ls_dir/toolkit/cma_label_hook.sh' && grep -q '^# Purpose' '$ls_dir/toolkit/cma_label_hook.sh' && grep -q '^# Usage' '$ls_dir/toolkit/cma_label_hook.sh' && grep -q '^# Exit' '$ls_dir/toolkit/cma_label_hook.sh'"
 need "prove_hook_mutations.sh present" test -f "$ls_dir/prove_hook_mutations.sh"
+need "hook_mutants.py (the §1.1 mutant table) present + parse-clean + header" bash -c "[ -f '$ls_dir/hook_mutants.py' ] && grep -q '^# Purpose' '$ls_dir/hook_mutants.py' && { ! command -v python3 >/dev/null 2>&1 || python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read())' '$ls_dir/hook_mutants.py' 2>/dev/null; }"
 need "scripts/hooks/test_label_sync_hooks.sh present" test -f "$root/scripts/hooks/test_label_sync_hooks.sh"
 need "docs/label-sync/HOOKS.md present" test -f "$doc"
 for tok in SessionStart UserPromptSubmit PreToolUse SubagentStart SubagentStop SessionEnd statusLine \
