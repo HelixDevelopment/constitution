@@ -16,9 +16,14 @@
 # Mutants : M1 alias filter ignored | M2 switch does not call the bus |
 #           M3 malformed JSON silently accepted | M4 unknown method answered OK |
 #           M5 notification answered | M6 session_id lookup ignored |
-#           M7 EOF drops in-flight responses | M8 negative pid accepted |
+#           M7 EOF drops in-flight responses | M8 pid range unchecked |
 #           M9 ping result omitted | M10 invalid kind filter accepted |
-#           M11 pipelined dependent requests not kept in arrival order.
+#           M11 pipelined dependent requests not kept in arrival order |
+#           M12 explicit alias does not pin (review-2 core finding 4) |
+#           M13 follow_active default flipped (adapters review N1) |
+#           M14 request line not size-capped (adapters review J).
+#           A mutant counts as KILLED only when it compiles (go vet) AND the
+#           suite reports at least one `--- FAIL:`; else INOPERATIVE (void).
 # Side-effects: temp dir only (removed unless --keep). Run niced, alone (§12.7).
 # Cross-refs: §1.1, §11.4.115, §11.4.18, docs/label-sync/MCP.md.
 # Classification: universal (§11.4.17).
@@ -27,7 +32,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 MOD="$(cd "$HERE/.." && pwd)"
 command -v go >/dev/null || { echo "prove_mcp_mutations: go missing" >&2; exit 2; }
 keep=0; [ "${1:-}" = "--keep" ] && keep=1
-S="$(mktemp -d)"; [ "$keep" = 1 ] || trap 'rm -rf "$S"' EXIT
+S="$(mktemp -d "${TMPDIR:-/tmp}/ls_mcp_mut.XXXXXX")"; [ "$keep" = 1 ] || trap 'rm -rf "$S"' EXIT
 cp -a "$MOD" "$S/mod" && rm -rf "$S/mod/.git"
 SRC="$S/mod/mcp/label-mcp/server.go"
 ORIG="$S/server.go.orig"; cp "$SRC" "$ORIG"
@@ -46,7 +51,9 @@ PY
   then echo "INOPERATIVE $name (pattern not found: the proof is void)"; rc=1; return; fi
   if cmp -s "$ORIG" "$SRC"; then echo "INOPERATIVE $name (source unchanged)"; rc=1; return; fi
   if (cd "$S/mod" && go vet ./mcp/label-mcp >/dev/null 2>&1) ; then :; else echo "INOPERATIVE $name (mutant does not compile)"; rc=1; return; fi
-  if runtests; then echo "SURVIVED   $name"; rc=1; else echo "KILLED     $name"; killed=$((killed+1)); fi
+  if runtests; then echo "SURVIVED   $name"; rc=1
+  elif grep -qE '^[[:space:]]*--- FAIL:' "$S/out.txt"; then echo "KILLED     $name"; killed=$((killed+1))
+  else echo "INOPERATIVE $name (suite failed without any '--- FAIL:' — proves nothing)"; rc=1; fi
 }
 cp "$ORIG" "$SRC"
 if runtests; then echo "CONTROL    unmutated server passes"; else echo "CONTROL FAILED — unmutated tests are red"; tail -20 "$S/out.txt"; exit 1; fi
@@ -71,12 +78,15 @@ mutant "M5 notification answered" 'if isNotification {
 mutant "M6 session_id lookup ignored" 'if e.SessionID != sid {' 'if false {'
 mutant "M7 EOF does not wait for in-flight responses" '	close(slots)
 	<-wdone' '	close(slots)'
-mutant "M8 negative pid accepted" 'if f < 0 {' 'if false {'
+mutant "M8 pid range unchecked" 'if f < 0 || f > state.MaxPID { // MUT:mcppidrange' 'if false { // MUT:mcppidrange'
 mutant "M9 ping result omitted" 'case "ping":
 		return map[string]any{}, nil' 'case "ping":
 		return nil, nil'
 mutant "M10 invalid kind filter accepted" 'if kind != "" && !model.ValidKind(kind) {' 'if kind != "" && false {'
 mutant "M11 pipelined requests not ordered" 's.sched(isMutating(raw))' 's.sched(false)'
+mutant "M12 explicit alias does not pin" 'e.FollowActive = false // MUT:explicitpin' 'e.FollowActive = true // MUT:explicitpin'
+mutant "M13 follow_active default flipped" 'e := model.Entity{ID: id, Kind: kind, FollowActive: true}' 'e := model.Entity{ID: id, Kind: kind, FollowActive: false}'
+mutant "M14 request line not size-capped" 'if len(line)+len(frag) > max+1 { // +1: the newline itself // MUT:linecap' 'if false { // MUT:linecap'
 cp "$ORIG" "$SRC"
 echo "---"; echo "prove_mcp_mutations: $killed/$total mutants killed"
 [ "$rc" = 0 ] && [ "$killed" = "$total" ]

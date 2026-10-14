@@ -617,8 +617,8 @@ func (s *server) toolRegister(a map[string]any) (any, error) {
 		if !ok || f != float64(int(f)) {
 			return nil, errors.New(`argument "pid" must be an integer`)
 		}
-		if f < 0 {
-			return nil, errors.New(`argument "pid" must be >= 0`)
+		if f < 0 || f > state.MaxPID { // MUT:mcppidrange
+			return nil, fmt.Errorf(`argument "pid" must be 0..%d`, state.MaxPID)
 		}
 		e.PID = int(f)
 	}

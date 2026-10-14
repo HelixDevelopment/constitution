@@ -7,6 +7,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/HelixDevelopment/HelixConstitution/scripts/label-sync/internal/state"
 )
 
 func TestRegisterExplicitAliasPinsAliaslessFollows(t *testing.T) {
@@ -56,5 +58,21 @@ func TestOversizedLineRejectedAndServingContinues(t *testing.T) {
 	}
 	if !sawErr || !sawPing {
 		t.Fatalf("oversized line handling: %v", r)
+	}
+}
+
+// M8 (re-proof): a pid outside 0..state.MaxPID is refused by the MCP ARGUMENT
+// check itself, not only by the store behind it — the message names the
+// argument, so the test tells the two layers apart.
+func TestPidOutOfRangeRefusedAtArgumentLayer(t *testing.T) {
+	s, _ := newTestServer(t)
+	for _, pid := range []any{float64(-4), float64(state.MaxPID + 1)} {
+		isErr, _, txt := one(t, s, "label_register", map[string]any{"id": "p", "kind": "session", "pid": pid})
+		if !isErr || !strings.Contains(txt, `argument "pid"`) {
+			t.Fatalf("pid %v: want an argument-level error naming \"pid\", got isErr=%v %q", pid, isErr, txt)
+		}
+	}
+	if isErr, _, txt := one(t, s, "label_register", map[string]any{"id": "q", "kind": "session", "pid": float64(state.MaxPID)}); isErr {
+		t.Fatalf("pid MaxPID must be accepted: %s", txt)
 	}
 }
