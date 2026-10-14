@@ -13,8 +13,10 @@
 #           labelctl.sh --bin-dir                 print the bin dir, no build
 # Inputs  : env LABEL_SYNC_DIR   state dir (default
 #                                $HOME/.local/state/constitution-label-sync)
-#           env LABEL_SYNC_BIN   binary cache dir (default
-#                                ${XDG_CACHE_HOME:-$HOME/.cache}/constitution-label-sync/bin)
+#           env LABEL_SYNC_BIN   binary cache dir (default: PER CHECKOUT,
+#                                ${XDG_CACHE_HOME:-$HOME/.cache}/constitution-label-sync/bin-<hash of this
+#                                module's path>, see bincache.sh; the binaries are also stale when
+#                                the git HEAD differs from the `.source-commit` recorded at build)
 #           env LABEL_SYNC_LABELER canonical labeler (default: sibling
 #                                ../multitrack/track_branch_label.sh)
 # Outputs : whatever the exec'd Go binary prints (see docs/label-sync/).
@@ -31,11 +33,18 @@
 set -uo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-BIN_DIR="${LABEL_SYNC_BIN:-${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/constitution-label-sync/bin}"
+. "$SELF/bincache.sh" || { echo "labelctl.sh: bincache.sh missing" >&2; exit 2; }
+ls_bincache_into BIN_DIR "$SELF"
+
+# the commit the sources come from ('' outside git): binaries built from another
+# commit are stale even when no file is newer (review-2 finding 13)
+src_commit() { git -C "$SELF" rev-parse -q --verify HEAD 2>/dev/null || :; }
 
 stale() { # $1 = binary
   [ -x "$1" ] || return 0
-  [ -n "$(find "$SELF" \( -name '*.go' -o -name go.mod \) -newer "$1" -print -quit 2>/dev/null)" ]
+  [ -n "$(find "$SELF" \( -name '*.go' -o -name go.mod \) -newer "$1" -print -quit 2>/dev/null)" ] && return 0
+  local rec=""; { IFS= read -r rec <"$BIN_DIR/.source-commit"; } 2>/dev/null || rec=""
+  [ "$rec" != "$(src_commit)" ]   # MUT:commitstale
 }
 
 build() {
@@ -50,7 +59,8 @@ build() {
     if command -v flock >/dev/null 2>&1; then flock 9; else echo "labelctl.sh: flock absent; unserialised build" >&2; fi
     # re-check after acquiring the lock (another process may have built)
     if ! stale "$BIN_DIR/labelctl" && ! stale "$BIN_DIR/label-busd"; then exit 0; fi
-    cd "$SELF" && GOPROXY=off GOFLAGS=-buildvcs=false nice -n 10 go build -o "$BIN_DIR/" ./cmd/labelctl ./cmd/label-busd
+    cd "$SELF" && GOPROXY=off GOFLAGS=-buildvcs=false nice -n 10 go build -o "$BIN_DIR/" ./cmd/labelctl ./cmd/label-busd \
+      && src_commit >"$BIN_DIR/.source-commit"
   ) 9>"$lock" || { echo "labelctl.sh: build failed" >&2; return 2; }
 }
 

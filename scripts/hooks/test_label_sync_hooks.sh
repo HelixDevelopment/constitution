@@ -85,12 +85,15 @@ CFG2="$(mk_cfg claude2 claude-sonnet-5)"
 export CLAUDE_CONFIG_DIR="$CFG1"
 
 OUT=""; RC=0; MS=0
-run_hook() { # script json [env assignments...]
+CPUMS=0
+run_hook() { # script json [env assignments...]  -> OUT RC MS (wall) CPUMS (user+sys)
   local s="$1" j="$2"; shift 2
-  local t0 t1
+  local t0 t1 u sy TIMEFORMAT='%3U %3S'
   t0=$(date +%s%N)
-  OUT="$(printf '%s' "$j" | env "$@" bash "$HK/$s" 2>"$T/hook.err")"; RC=$?
+  { time { OUT="$(printf '%s' "$j" | env "$@" bash "$HK/$s" 2>"$T/hook.err")"; RC=$?; } ; } 2>"$T/hook.time"
   t1=$(date +%s%N); MS=$(( (t1 - t0) / 1000000 ))
+  read -r u sy <"$T/hook.time" 2>/dev/null || { u=0; sy=0; }
+  CPUMS=$(awk -v a="${u:-0}" -v b="${sy:-0}" 'BEGIN{printf "%d", (a+b)*1000}')
 }
 j() { # event extra-json-object
   jq -nc --arg sid "$SID" --arg cwd "$PROJ" --arg ev "$1" --argjson x "${2:-{\}}" \
@@ -303,22 +306,39 @@ done
 # for every assertion above, which proves the hooks have no daemon/socket dependence.
 
 # =========================================================================
-echo "== 8. latency bound (median of 5 per hook; bound ${LS_LATENCY_MS:-150} ms) =="
+echo "== 8. latency bound (median of 5 per hook; bound ${LS_LATENCY_MS:-150} ms; load-aware) =="
+# Review-2 finding L: the wall-clock bound is enforced AS IS on an uncontended
+# host. Only when CPU contention is MEASURED during the run (the test's own
+# cgroup was throttled — nr_throttled grew — or system CPU pressure some avg10
+# >= 10) is the bound applied to the hooks' CPU time (user+sys of the hook and
+# every child) instead, and the line says so. Never relaxed silently.
 rm -rf "$LABEL_SYNC_DIR"; mkdir -p "$T/ledger2"; export LABEL_SYNC_REQUEST_LEDGER="$T/ledger2/h.jsonl"
 SID="33333333-aaaa-bbbb-cccc-000000000003"; CFG1="$(mk_cfg claude1 claude-opus-4-8)"; export CLAUDE_CONFIG_DIR="$CFG1"
-lat() { # script json
-  local s="$1" js="$2" i; local -a v=()
-  for i in 1 2 3 4 5; do run_hook "$s" "$(printf '%s' "$js" | sed "s/@@N@@/$i/g")"; v+=("$MS"); done
-  printf '%s\n' "${v[@]}" | sort -n | sed -n 3p
+throttled() { local cg; cg="$(sed -n 's/^0:://p' /proc/self/cgroup 2>/dev/null)"
+  sed -n 's/^nr_throttled //p' "/sys/fs/cgroup${cg}/cpu.stat" 2>/dev/null || echo 0; }
+cpupsi() { sed -n 's/^some avg10=\([0-9]*\).*/\1/p' /proc/pressure/cpu 2>/dev/null || echo 0; }
+lat() { # script json -> "<wall median> <cpu median>"
+  local s="$1" js="$2" i; local -a v=() c=()
+  for i in 1 2 3 4 5; do run_hook "$s" "$(printf '%s' "$js" | sed "s/@@N@@/$i/g")"; v+=("$MS"); c+=("$CPUMS"); done
+  printf '%s %s\n' "$(printf '%s\n' "${v[@]}" | sort -n | sed -n 3p)" "$(printf '%s\n' "${c[@]}" | sort -n | sed -n 3p)"
 }
 declare -A LAT
+th0="$(throttled)"
 LAT[session-start]="$(lat label-sync-session-start.sh "$(j SessionStart '{"source":"startup"}')")"
 LAT[prompt]="$(lat label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"latency probe @@N@@"}')")"
 LAT[agent-register]="$(lat label-sync-agent-register.sh "$(j PreToolUse '{"tool_name":"Agent","tool_use_id":"toolu_lat@@N@@","tool_input":{"description":"(T1/main - claude1 - opus - ?) lat"}}')")"
 LAT[subagent-stop]="$(lat label-sync-subagent-stop.sh "$(j SubagentStop '{"agent_id":"nope@@N@@"}')")"
 LAT[stop]="$(lat label-sync-stop.sh "$(j Stop '{}')")"
+th1="$(throttled)"; psi="$(cpupsi)"
+CONTENDED=""; { [ "${th1:-0}" -gt "${th0:-0}" ] 2>/dev/null || [ "${psi:-0}" -ge 10 ] 2>/dev/null; } && CONTENDED=1
+LB="${LS_LATENCY_MS:-150}"
 for k in "${!LAT[@]}"; do
-  [ "${LAT[$k]}" -lt "${LS_LATENCY_MS:-150}" ]; ok "latency $k median ${LAT[$k]} ms < ${LS_LATENCY_MS:-150} ms" $?
+  read -r w c <<<"${LAT[$k]}"
+  if [ "$w" -lt "$LB" ]; then ok "latency $k median ${w} ms < ${LB} ms (wall)" 0
+  elif [ -n "$CONTENDED" ]; then
+    [ "$c" -lt "$LB" ]; ok "latency $k: CPU contention measured (cgroup throttled ${th0}->${th1}, cpu psi avg10 ${psi}): wall ${w} ms, CPU-time median ${c} ms < ${LB} ms" $?
+  else ok "latency $k median ${w} ms < ${LB} ms (wall; no contention measured, cpu ${c} ms)" 1
+  fi
 done
 
 # =========================================================================
@@ -849,6 +869,118 @@ check "F7 warns: the ledger is inside a git work tree and NOT ignored (git add .
 printf 'docs/requests/history.jsonl\n' >"$I7/.gitignore"
 bash "$INSTALLER" --project-root "$I7" "${R8[@]}" --request-ledger docs/requests/history.jsonl --apply >"$T/i7b.out" 2>&1
 check "F7 no tracking warning once the ledger path is git-ignored" bash -c "! grep -qi 'not git-ignored' '$T/i7b.out'"
+
+# =========================================================================
+echo "== 19. review-2: branch names with ')' / '\"' / unicode / 200 chars; honest pinned wording; model switch survives the next prompt =="
+rm -rf "$LABEL_SYNC_DIR"; unset LABEL_SYNC_REQUEST_LEDGER
+SID="77777777-aaaa-bbbb-cccc-000000000077"
+CFG2="$(mk_cfg claude2 claude-sonnet-5)"
+LONGB="feat/$(printf 'x%.0s' $(seq 1 200))"
+for br in 'fix(ui)' 'q"uote' 'größe-ünï' "$LONGB"; do
+  tag="${br:0:12}"
+  git -C "$PROJ" checkout -q -B "$br" 2>/dev/null; ok "F1[$tag] fixture branch checked out" $?
+  run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"startup"}')" CLAUDE_CONFIG_DIR="$CFG2"
+  check "F1/F10[$tag] SessionStart output is valid JSON" bash -c "printf '%s' \"\$1\" | jq -e .hookSpecificOutput.additionalContext >/dev/null" _ "$OUT"
+  ctx="$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null)"
+  eq "F1[$tag] the derived alias is kept (not lost to a mis-split)" "$(field "session:$SID" alias)" claude2
+  eq "F1[$tag] the session is pinned (follow_active false)" "$(ent "session:$SID" | jq -r .follow_active)" false
+  case "$ctx" in *"pinned to the alias"*" "*|*"pinned to the alias"*) r=0 ;; *) r=1 ;; esac
+  ok "F1[$tag] SessionStart says pinned only because it IS pinned (got: ${ctx:0:100})" $r
+  bash "$HK/label-sync-alias-switch.sh" claude9 --model haiku >/dev/null 2>&1
+  case "$(field "session:$SID" label)" in *" - claude2 - "*) r=0 ;; *) r=1 ;; esac
+  ok "F1[$tag] after an alias switch the session still shows its own alias claude2" $r
+  ( cd "$PROJ" && CLAUDE_CONFIG_DIR="$CFG2" "$CTL" register --id "drv-$RANDOM" --kind agent --derive >"$T/drv.out" 2>&1 ); rc=$?
+  eq "F1[$tag] labelctl register --derive succeeds (was exit 2 on ')')" "$rc" 0
+  case "$(cat "$T/drv.out")" in *" - claude2 - "*) r=0 ;; *) r=1 ;; esac
+  ok "F1[$tag] --derive pins the derived alias (got: $(head -c 90 "$T/drv.out"))" $r
+done
+eq "F10 the '\"' in a branch survives the JSON escape (decoded additionalContext)" \
+   "$(git -C "$PROJ" checkout -q -B 'q"uote' && run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"q"}')" CLAUDE_CONFIG_DIR="$CFG2"; printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null | grep -o 'q"uote' | head -1)" 'q"uote'
+git -C "$PROJ" checkout -q main
+# a session whose alias CANNOT be derived follows — and SessionStart must say so
+rm -rf "$LABEL_SYNC_DIR"
+mkdir -p "$T/plaincfg"
+run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"startup"}')" CLAUDE_CONFIG_DIR="$T/plaincfg"
+ctx="$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null)"
+case "$ctx" in *pinned*) r=1 ;; *follows*) r=0 ;; *) r=1 ;; esac
+ok "F1 an alias-less session is NOT reported pinned (got: ${ctx:0:120})" $r
+eq "F1 control: that session really follows (follow_active true)" "$(ent "session:$SID" | jq -r .follow_active)" true
+# F3: PostModelSwitch must survive the next prompt (transcript still shows the old model)
+rm -rf "$LABEL_SYNC_DIR"
+SID="88888888-aaaa-bbbb-cccc-000000000088"
+CFG1="$(mk_cfg claude1 claude-opus-4-8)"; export CLAUDE_CONFIG_DIR="$CFG1"
+TR="$CFG1/projects/$slug/$SID.jsonl"
+run_hook label-sync-session-start.sh "$(j SessionStart '{"source":"startup"}')"
+eq "F3 fixture: session starts on opus" "$(field "session:$SID" model)" opus
+run_hook label-sync-model-switch.sh "$(j PostModelSwitch '{"to_model":"claude-sonnet-5","from_model":"claude-opus-4-8"}')"
+eq "F3 PostModelSwitch sets sonnet" "$(field "session:$SID" model)" sonnet
+run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"after switch"}')"
+eq "F3 the next prompt does NOT undo the switch from the pre-switch transcript" "$(field "session:$SID" model)" sonnet
+ctx="$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null)"
+case "$ctx" in *" - sonnet - "*) r=0 ;; *) r=1 ;; esac
+ok "F3 additionalContext carries the switched model (got: ${ctx:0:100})" $r
+run_hook label-sync-agent-register.sh "$(j PreToolUse '{"tool_name":"Agent","tool_use_id":"toolu_F3","tool_input":{"description":"(T1/main - claude1 - sonnet - ?) f3"}}')"
+eq "F3 a re-asserting hook (agent register) keeps the switched model too" "$(field "session:$SID" model)" sonnet
+printf '{"type":"assistant","message":{"model":"claude-haiku-4-5"}}\n' >>"$TR"
+run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"newer entry"}')"
+eq "F3 a NEWER assistant entry proves the live model (haiku) and wins" "$(field "session:$SID" model)" haiku
+check "F3 the superseded switch record is removed" test ! -e "$LABEL_SYNC_DIR/hooks/modelswitch/$SID"
+run_hook label-sync-model-switch.sh "$(j PostModelSwitch '{"to_model":"claude-opus-4-8"}')"
+run_hook label-sync-session-end.sh "$(j SessionEnd '{"reason":"exit"}')"
+check "F3 SessionEnd removes the switch record" test ! -e "$LABEL_SYNC_DIR/hooks/modelswitch/$SID"
+
+# =========================================================================
+echo "== 20. review-2 C/D/E/L: post_update_hook isolates steps, resolves MCP paths, runs the adapters step, syntax-checks label-sync scripts =="
+C20="$T/c20"; FC20="$C20/constitution"
+mkdir -p "$FC20/scripts/label-sync/hooks" "$FC20/scripts/label-sync/render" "$FC20/scripts/label-sync/mcp" "$FC20/scripts/label-sync/adapters" "$FC20/mcp"
+cp "$POSTHOOK" "$FC20/scripts/post_update_hook.sh"
+cp -r "$LS/hooks/." "$FC20/scripts/label-sync/hooks/"; cp "$INSTALLER" "$FC20/scripts/label-sync/install_label_sync.sh"
+cp "$FIXREND" "$FC20/scripts/label-sync/render/statusline.sh"; echo '# c' >"$FC20/Constitution.md"
+cp "$LS/mcp/label-mcp.sh" "$FC20/scripts/label-sync/mcp/"; cp "$CROOT/mcp/label-sync-mcp.json" "$FC20/mcp/"
+cp -r "$LS/adapters/." "$FC20/scripts/label-sync/adapters/"
+( cd "$FC20" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
+  && printf '\n' >>mcp/label-sync-mcp.json && echo '# touched' >>scripts/label-sync/adapters/lib/adapter_lib.sh \
+  && printf '#!/usr/bin/env bash\nif then (\n' >scripts/label-sync/broken.sh \
+  && git add -A && git -c user.email=t@t -c user.name=t commit -q -m change )
+git -C "$C20" init -q -b main 2>/dev/null
+printf '{ // a comment jq cannot parse\n  "mcpServers": {}\n}\n' >"$C20/.mcp.json"; shm="$(sha256sum "$C20/.mcp.json" | cut -d' ' -f1)"
+mkdir -p "$T/home20"
+( cd "$C20" && HOME="$T/home20" CONST_DIR="$FC20" PROJECT_ROOT="$C20" bash "$FC20/scripts/post_update_hook.sh" ) >"$T/ph20.out" 2>&1; rc=$?
+eq "C an unparseable consumer .mcp.json: the hook still completes (exit 1 only for the planted syntax error)" "$rc" 1
+for st in 'STEP 3' 'STEP 4:' 'STEP 4b' 'STEP 4c' 'STEP 4d' 'STEP 5' 'SUMMARY'; do
+  check "C every step ran despite the bad .mcp.json: $st" grep -q "$st" "$T/ph20.out"
+done
+check "C the unparseable .mcp.json is reported as a warning" grep -q 'not a JSON object jq can parse' "$T/ph20.out"
+eq "C the unparseable .mcp.json is left byte-identical" "$(sha256sum "$C20/.mcp.json" | cut -d' ' -f1)" "$shm"
+check "L a label-sync script with a syntax error is caught by step 5" grep -q 'SYNTAX ERROR in .*broken.sh' "$T/ph20.out"
+check "E step 4d ran install_adapters.sh in DRY-RUN by default" grep -q 'install_adapters.sh --dry-run' "$T/ph20.out"
+eq "E the default adapters step wrote NOTHING into the user's home" "$(find "$T/home20" -mindepth 1 | wc -l)" 0
+printf '{}\n' >"$C20/.mcp.json"
+( cd "$C20" && HOME="$T/home20" CONST_DIR="$FC20" PROJECT_ROOT="$C20" LABEL_SYNC_ADAPTERS=off bash "$FC20/scripts/post_update_hook.sh" ) >"$T/ph20b.out" 2>&1
+mc="$(jq -r '.mcpServers["label-sync"].command // empty' "$C20/.mcp.json" 2>/dev/null)"
+eq "D the merged MCP command is resolvable from the consumer root (vendor-relative)" "$mc" "constitution/scripts/label-sync/mcp/label-mcp.sh"
+check "D ...and that file exists from the project root" test -f "$C20/$mc"
+eq "D no guessed \"type\" key in the merged entry" "$(jq -r '.mcpServers["label-sync"] | has("type")' "$C20/.mcp.json")" false
+check "E LABEL_SYNC_ADAPTERS=off skips the adapters step" grep -q 'LABEL_SYNC_ADAPTERS=off' "$T/ph20b.out"
+
+# =========================================================================
+echo "== 21. review-2 finding 13: the default binary cache is keyed per checkout (path) and per commit =="
+MA="$T/modA"; MB="$T/modB"; mkdir -p "$MA" "$MB"
+( cd "$LS" && tar -cf - --exclude='*_test.go' . ) | tar -xf - -C "$MA"; cp -a "$MA/." "$MB/"
+for m in "$MA" "$MB"; do git -C "$m" init -q -b main && git -C "$m" add -A && git -C "$m" -c user.email=t@t -c user.name=t commit -q -m m; done
+bdA="$(env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" bash "$MA/labelctl.sh" --bin-dir)"
+bdB="$(env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" bash "$MB/labelctl.sh" --bin-dir)"
+[ -n "$bdA" ] && [ "$bdA" != "$bdB" ]; ok "13 two checkouts get two different default caches ($bdA vs $bdB)" $?
+bdH="$(env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" bash -c '. "$1/hooks/label-sync-lib.sh"; ls_init; printf %s "$LS_BINDIR"' _ "$MA")"
+eq "13 the hooks resolve the SAME cache dir as labelctl.sh (fork-free key)" "$bdH" "$bdA"
+mkdir -p "$bdA"; cp "$LABEL_SYNC_BIN/labelctl" "$LABEL_SYNC_BIN/label-busd" "$bdA/"
+git -C "$MA" rev-parse HEAD >"$bdA/.source-commit"
+NOGO="$T/nogo"; mkdir -p "$NOGO"; for t in bash git find dirname env cat; do ln -sf "$(type -P "$t")" "$NOGO/$t"; done
+env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" PATH="$NOGO" bash "$MA/labelctl.sh" --build >/dev/null 2>&1
+eq "13 control: binaries built from THIS commit are fresh (no go needed)" "$?" 0
+git -C "$MA" -c user.email=t@t -c user.name=t commit -q --allow-empty -m newer
+env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" PATH="$NOGO" bash "$MA/labelctl.sh" --build >/dev/null 2>&1
+eq "13 binaries built from ANOTHER commit are stale (rebuild needed: no go => exit 2)" "$?" 2
 
 # =========================================================================
 echo "----------------------------------------------------------------------"

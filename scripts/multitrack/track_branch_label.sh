@@ -265,4 +265,20 @@ for _cand in "${CLAUDE_EFFORT:-}" "${CLAUDE_CODE_EFFORT:-}" "${AGENT_EFFORT:-}" 
   break                            # the first PRESENT signal is authoritative
 done
 
+# --- field hygiene ------------------------------------------------------------
+# A field must never end the label early or split it: git allows ')' in a
+# branch name (`fix(ui)`), and a ')' or ' - ' inside a field made every parser
+# (the guard hook's LABEL_RE, label-sync's Go grammar and hook parser) reject
+# or mis-split the label — the alias was lost and a pinned session silently
+# followed another alias (label-sync review-2 finding 1). Same substitution as
+# the label-sync renderer (label.Compose): ')' -> '_', ' - ' -> '_', and the
+# line-breaking controls -> '_'. Builtins only (no spawn on the hook path).
+for _v in _br _al _mo; do
+  _x="${!_v}"
+  _x="${_x//)/_}"; _x="${_x// - /_}"
+  _x="${_x//$'\n'/_}"; _x="${_x//$'\r'/_}"; _x="${_x//$'\t'/_}"
+  [[ -n "$_x" ]] || _x='?'
+  printf -v "$_v" '%s' "$_x"
+done
+
 printf '(T%s/%s - %s - %s - %s)\n' "$_n" "$_br" "$_al" "$_mo" "$_ef"

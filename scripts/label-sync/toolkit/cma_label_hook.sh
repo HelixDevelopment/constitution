@@ -58,7 +58,8 @@ _cma_label_publish() {
   [ -n "${1:-}" ] || return 0
   local sw="$_CMA_LABEL_SYNC_DIR/hooks/label-sync-alias-switch.sh"
   [ -f "$sw" ] || return 0
-  local bin="${LABEL_SYNC_BIN:-${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/constitution-label-sync/bin}/labelctl"
+  local bin   # per-checkout cache: asked from labelctl.sh (review-2 finding 13)
+  bin="$(bash "$_CMA_LABEL_SYNC_DIR/labelctl.sh" --bin-dir 2>/dev/null)/labelctl"
   if [ ! -x "$bin" ]; then
     # first use on this host: never make a launch wait for `go build`
     if [ "${LABEL_SYNC_NO_BUILD:-}" != 1 ] && command -v go >/dev/null 2>&1; then

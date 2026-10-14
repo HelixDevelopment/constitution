@@ -16,7 +16,10 @@
 #           Code 2.1.296 binary's built-in hook descriptions (not by observing a
 #           live delivery, and not in the public plugin-dev documentation) —
 #           hence opt-in. Without this hook the model is still refreshed on every
-#           prompt (label-sync-prompt.sh).
+#           prompt (label-sync-prompt.sh). The switch is RECORDED
+#           (hooks/modelswitch/<sid>) so the next prompt's transcript lookup —
+#           whose last assistant entry predates the switch — cannot undo it; a
+#           newer assistant entry supersedes the record (label-sync-lib.sh).
 # Side-effects: label-sync update event.
 # Deps    : bash, jq, labelctl.
 # Cross-refs: §11.4.182, §11.4.231, docs/label-sync/HOOKS.md.
@@ -29,8 +32,12 @@ main() {
   ls_init || return 0
   ls_read_payload || return 0
   [ -n "$LS_TOMODEL" ] || return 0
+  local mo; mo="$(ls_model_short "$LS_TOMODEL")"
+  # recorded FIRST and independently of the binary: the next prompt must not
+  # undo the switch from the pre-switch transcript (review-2 finding 3)
+  ls_record_model_switch "$mo"
   ls_have_bin || return 0
-  ls_ctl update --id "$(ls_session_entity)" --model "$(ls_model_short "$LS_TOMODEL")" >/dev/null || true
+  ls_ctl update --id "$(ls_session_entity)" --model "$mo" >/dev/null || true
   return 0
 }
 ls_hook_run main

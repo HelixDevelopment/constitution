@@ -21,7 +21,7 @@
 #           LABEL_SYNC_HOOK_LOCK_TIMEOUT writer-lock wait per call (default 500ms)
 # Outputs : none by itself (functions set shell variables / return codes).
 # Exit    : n/a (library). Hooks that source it ALWAYS exit 0 (fail-soft).
-# Side-effects: creates $LABEL_SYNC_DIR/hooks/{pending,agentmap,ledger-last}
+# Side-effects: creates $LABEL_SYNC_DIR/hooks/{pending,agentmap,ledger-last,modelswitch}
 #           (mode 0700) for hook-private correlation state; may spawn ONE
 #           detached `labelctl.sh --build` when the binary is missing/stale
 #           (rate-limited to once per 60 s). Never writes under $HOME/.claude*.
@@ -52,7 +52,13 @@ ls_init() {
   command -v jq >/dev/null 2>&1 || return 1
   LS_STATE="${LABEL_SYNC_DIR:-${HOME:-/tmp}/.local/state/constitution-label-sync}"
   LS_HOOKSTATE="$LS_STATE/hooks"
-  LS_BINDIR="${LABEL_SYNC_BIN:-${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/constitution-label-sync/bin}"
+  # per-checkout binary cache, same key as labelctl.sh (bincache.sh, fork-free)
+  if [ -z "${LABEL_SYNC_BIN:-}" ]; then
+    declare -F ls_bincache_into >/dev/null 2>&1 || . "$LS_DIR/bincache.sh" 2>/dev/null || return 1
+    ls_bincache_into LS_BINDIR "$LS_DIR"
+  else
+    LS_BINDIR="$LABEL_SYNC_BIN"
+  fi
   LS_CTL_BIN="$LS_BINDIR/labelctl"
   : "${LABEL_SYNC_LABELER:=$LS_CONST_DIR/scripts/multitrack/track_branch_label.sh}"
   export LABEL_SYNC_LABELER LABEL_SYNC_DIR="$LS_STATE"
@@ -74,7 +80,9 @@ ls_have_bin() {
     case "$last" in ''|*[!0-9]*) last=0 ;; esac
     if [ $((now - last)) -ge 60 ]; then
       printf '%s\n' "$now" >"$stamp" 2>/dev/null
-      if [ -n "$(find "$LS_DIR" \( -name '*.go' -o -name go.mod \) -newer "$LS_CTL_BIN" -print -quit 2>/dev/null)" ]; then
+      local rec=""; { IFS= read -r rec <"$LS_BINDIR/.source-commit"; } 2>/dev/null || rec=""
+      if [ -n "$(find "$LS_DIR" \( -name '*.go' -o -name go.mod \) -newer "$LS_CTL_BIN" -print -quit 2>/dev/null)" ] \
+         || [ "$rec" != "$(git -C "$LS_DIR" rev-parse -q --verify HEAD 2>/dev/null)" ]; then
         ls_kick_build
       fi
     fi
@@ -119,8 +127,10 @@ ls_ctl() {
 
 # ls_hookdir : create hook-private state dirs (0700).
 ls_hookdir() {
-  [ -d "$LS_HOOKSTATE/ledger-last" ] && [ -d "$LS_HOOKSTATE/agentmap" ] && [ -d "$LS_HOOKSTATE/pending" ] && return 0
-  ( umask 077; mkdir -p "$LS_HOOKSTATE/pending" "$LS_HOOKSTATE/agentmap" "$LS_HOOKSTATE/ledger-last" ) 2>/dev/null
+  [ -d "$LS_HOOKSTATE/ledger-last" ] && [ -d "$LS_HOOKSTATE/agentmap" ] && [ -d "$LS_HOOKSTATE/pending" ] \
+    && [ -d "$LS_HOOKSTATE/modelswitch" ] && return 0
+  ( umask 077; mkdir -p "$LS_HOOKSTATE/pending" "$LS_HOOKSTATE/agentmap" "$LS_HOOKSTATE/ledger-last" \
+      "$LS_HOOKSTATE/modelswitch" ) 2>/dev/null
 }
 
 # ls_drop_pending_dir <sid> : remove the regular files of hooks/pending/<sid>/
@@ -140,6 +150,7 @@ ls_drop_pending_dir() {
 # ls_read_payload : read stdin ONCE, parse the common fields with ONE jq call.
 # Sets: LS_PAYLOAD LS_SID LS_CWD LS_EVENT LS_TOOL LS_TUID LS_DESC LS_SUBTYPE
 #       LS_PROMPT LS_PROMPT_BIG LS_SOURCE LS_AGENT_ID LS_ATYPE LS_TOMODEL LS_TOOLMODEL
+#       LS_TRANSCRIPT (the payload's transcript_path, '' when absent)
 # A prompt longer than 65536 characters is NOT copied into LS_PROMPT (each bash
 # copy of an 8 MiB string costs ~0.5 s): LS_PROMPT_BIG=1 tells the prompt hook to
 # stream it from LS_PAYLOAD straight into the ledger's temp file with jq.
@@ -182,7 +193,8 @@ ls_read_payload() {
          LS_SOURCE=\(.source // .reason // "" | s)
          LS_AGENT_ID=\($aid // "")
          LS_ATYPE=\(.agent_type // "" | s)
-         LS_TOMODEL=\(.to_model // .model // "" | s)"
+         LS_TOMODEL=\(.to_model // .model // "" | s)
+         LS_TRANSCRIPT=\(.transcript_path // "" | s)"
   ' 2>/dev/null)" || return 1
   [ -n "$parsed" ] || return 1
   eval "$parsed"
@@ -292,7 +304,11 @@ ls_ensure_session() {
   # SessionStart carries the live model itself (2.1.296 binary: {source,
   # agent_type, model, session_title}); the session-start hook hands it over in
   # LS_PAYLOAD_MODEL and it wins over the labeler's transcript lookup.
+  # An explicitly recorded model switch wins over the transcript until a newer
+  # assistant entry proves otherwise (review-2 finding 3).
+  ls_switched_model && model="$LS_SWITCH_MODEL"
   [ -n "${LS_PAYLOAD_MODEL:-}" ] && model="$(ls_model_short "$LS_PAYLOAD_MODEL")"
+  LS_SESSION_PINNED=""; [ -n "$alias" ] && LS_SESSION_PINNED=1
   local -a a=(register --id "$id" --kind session --session "$LS_SID" --cwd "$LS_CWD" --source "hook:label-sync-$src"
               --state running)
   if [ -n "$alias" ]; then a+=(--alias "$alias" --follow-active false); else a+=(--follow-active true); fi
@@ -306,6 +322,63 @@ ls_ensure_session() {
   LS_LABEL="$(ls_ctl "${a[@]}")" || { LS_LABEL=""; ls_dbg "register session failed (source=$src)"; return 1; }
   return 0
 }
+
+# --- model switch record (review-2 finding 3) --------------------------------
+# PostModelSwitch sets the model; the NEXT UserPromptSubmit used to re-read the
+# model from the transcript's LAST assistant entry — written BEFORE the switch —
+# and silently undo it. The switch hook therefore records
+#   hooks/modelswitch/<sid> = "<short-model>\t<transcript byte size at switch>\t<transcript path>"
+# and the recorded model wins until an assistant entry APPENDED AFTER that
+# offset shows the model actually answering (then the record is dropped and
+# the transcript is the truth again). An unknown transcript (offset -1) keeps
+# the record until the next SessionStart, model switch or SessionEnd: nothing
+# newer can be proven, so nothing is guessed (§11.4.6).
+
+# ls_transcript_path : the session transcript — the payload's transcript_path
+# when it is a readable regular file, else the labeler's own derivation.
+ls_transcript_path() {
+  if [ -n "${LS_TRANSCRIPT:-}" ] && [ -f "$LS_TRANSCRIPT" ] && [ -r "$LS_TRANSCRIPT" ]; then
+    printf '%s' "$LS_TRANSCRIPT"; return 0
+  fi
+  [ -n "${CLAUDE_CONFIG_DIR:-}" ] || return 1
+  local d slug
+  d="$(cd "$LS_CWD" 2>/dev/null && { pwd -P 2>/dev/null || pwd; })" || return 1
+  slug="${d//[!A-Za-z0-9]/-}"
+  [ -r "$CLAUDE_CONFIG_DIR/projects/$slug/$LS_SID.jsonl" ] || return 1
+  printf '%s' "$CLAUDE_CONFIG_DIR/projects/$slug/$LS_SID.jsonl"
+}
+
+# ls_record_model_switch <short-model> : write the record (0600, atomic).
+ls_record_model_switch() {
+  ls_valid_id "$LS_SID" || return 1
+  ls_hookdir || return 1
+  local tr off=-1 f="$LS_HOOKSTATE/modelswitch/$LS_SID"
+  tr="$(ls_transcript_path)" || tr=""
+  [ -n "$tr" ] && off="$(stat -c %s -- "$tr" 2>/dev/null || echo -1)"
+  ( umask 077; printf '%s\t%s\t%s\n' "$1" "$off" "$tr" >"$f.tmp" && mv -f -- "$f.tmp" "$f" ) 2>/dev/null
+}
+
+# ls_switched_model : 0 + LS_SWITCH_MODEL when a switch record still holds.
+# Cheap when there is no record (one builtin test).
+ls_switched_model() {
+  LS_SWITCH_MODEL=""
+  local f="$LS_HOOKSTATE/modelswitch/$LS_SID" mo off tr newer
+  [ -f "$f" ] || return 1
+  IFS=$'\t' read -r mo off tr <"$f" 2>/dev/null || return 1
+  [ -n "$mo" ] || return 1
+  case "$off" in ''|-1|*[!0-9]*) LS_SWITCH_MODEL="$mo"; return 0 ;; esac
+  if [ -n "$tr" ] && [ -r "$tr" ]; then
+    newer="$(tail -c +"$((off + 1))" -- "$tr" 2>/dev/null \
+      | jq -r 'select(.type=="assistant") | .message.model // empty' 2>/dev/null | tail -n1)"
+    if [ -n "$newer" ]; then          # a newer assistant entry proves the live model
+      rm -f -- "$f"; return 1           # MUT:msnewer
+    fi
+  fi
+  LS_SWITCH_MODEL="$mo"
+  return 0
+}
+
+ls_drop_model_switch() { ls_valid_id "${1:-}" && rm -f -- "$LS_HOOKSTATE/modelswitch/$1"; return 0; }
 
 # ls_emit_context <hookEventName> <text> : the documented hook JSON that injects
 # additionalContext for the model (stdout, exit 0). Built in pure bash (JSON

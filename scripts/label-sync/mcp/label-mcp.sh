@@ -10,8 +10,8 @@
 #           label-mcp.sh --build    build only, print the binary path
 #           label-mcp.sh --bin      print the binary path, no build
 # Inputs  : env LABEL_SYNC_DIR  state dir (default $HOME/.local/state/constitution-label-sync)
-#           env LABEL_SYNC_BIN  binary cache dir (default
-#                               ${XDG_CACHE_HOME:-$HOME/.cache}/constitution-label-sync/bin)
+#           env LABEL_SYNC_BIN  binary cache dir (default: per checkout, see
+#                               ../bincache.sh)
 # Outputs : the server's JSON-RPC on stdout ONLY. Every diagnostic of this
 #           launcher goes to stderr (stdout is the protocol channel).
 # Exit    : server exit code (0 clean EOF) | 2 cannot determine (no go toolchain
@@ -25,12 +25,16 @@ set -uo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 MOD="$(cd "$SELF/.." && pwd)"   # scripts/label-sync (the Go module root)
-BIN_DIR="${LABEL_SYNC_BIN:-${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/constitution-label-sync/bin}"
+. "$MOD/bincache.sh" || { echo "label-mcp.sh: bincache.sh missing" >&2; exit 2; }
+ls_bincache_into BIN_DIR "$MOD"   # per-checkout cache (review-2 finding 13)
 BIN="$BIN_DIR/label-mcp"
 
+src_commit() { git -C "$MOD" rev-parse -q --verify HEAD 2>/dev/null || :; }
 stale() {
   [ -x "$BIN" ] || return 0
-  [ -n "$(find "$MOD" \( -name '*.go' -o -name go.mod \) -newer "$BIN" -print -quit 2>/dev/null)" ]
+  [ -n "$(find "$MOD" \( -name '*.go' -o -name go.mod \) -newer "$BIN" -print -quit 2>/dev/null)" ] && return 0
+  local rec=""; { IFS= read -r rec <"$BIN_DIR/.source-commit-mcp"; } 2>/dev/null || rec=""
+  [ "$rec" != "$(src_commit)" ]   # built from another commit => stale
 }
 
 build() {
@@ -40,7 +44,8 @@ build() {
   (
     command -v flock >/dev/null 2>&1 && flock 9
     stale || exit 0
-    cd "$MOD" && GOPROXY=off GOFLAGS=-buildvcs=false nice -n 10 go build -o "$BIN" ./mcp/label-mcp 1>&2
+    cd "$MOD" && GOPROXY=off GOFLAGS=-buildvcs=false nice -n 10 go build -o "$BIN" ./mcp/label-mcp 1>&2 \
+      && src_commit >"$BIN_DIR/.source-commit-mcp"
   ) 9>"$BIN_DIR/.build-mcp.lock" || { echo "label-mcp.sh: build failed" >&2; return 2; }
 }
 

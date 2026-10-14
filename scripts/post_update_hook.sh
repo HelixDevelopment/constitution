@@ -14,8 +14,13 @@
 #   2. Installs newly added/modified skills from constitution/skills/
 #   3. Merges newly added/modified MCP configs from constitution/mcp/
 #   4. Installs newly added/modified hooks from constitution/scripts/hooks/
-#   5. chmod +x and syntax-validate all new/modified scripts
+#   4b/4c/4d. Re-wires action directives, the label-sync Claude Code hooks
+#      (LABEL_SYNC_AUTOWIRE, dry-run default) and the label-sync CLI-agent
+#      adapters (LABEL_SYNC_ADAPTERS, dry-run default)
+#   5. chmod +x and syntax-validate all new/modified scripts (label-sync's too)
 #   6. Reports a summary of what was installed
+#   Every step 2-5 is ISOLATED (run_step): a failing step is recorded as a
+#   WARNING and the next step still runs — no step can abort the hook.
 #
 # Usage:
 #   bash constitution/scripts/post_update_hook.sh
@@ -273,11 +278,38 @@ install_mcp_configs() {
     local mcp_dst="${PROJECT_ROOT}/.mcp.json"
     local mcp_src_dir="${CONST_DIR}/mcp"
 
+    if ! command -v jq &>/dev/null; then
+        warn "jq not available — MCP configs NOT merged. Merge ${mcp_src_dir}/*.json into $mcp_dst by hand."
+        WARNINGS+=("MCP configs not merged: jq missing")
+        return 0
+    fi
     if [ ! -f "$mcp_dst" ]; then
         # Create a minimal .mcp.json if none exists
         info "Creating new .mcp.json at project root (none existed)."
-        echo '{"mcpServers":{}}' > "$mcp_dst"
+        echo '{"mcpServers":{}}' > "$mcp_dst" || { warn "cannot create $mcp_dst"; WARNINGS+=("cannot create $mcp_dst"); return 0; }
     fi
+    # A consumer .mcp.json jq cannot parse (comments, trailing commas, ...) is
+    # NEVER touched and NEVER aborts the hook (review-2 finding C: under
+    # `set -e` the failing jq used to end the run before steps 4-5).
+    if ! jq -e 'type == "object"' "$mcp_dst" >/dev/null 2>&1; then
+        warn "$mcp_dst is not a JSON object jq can parse (comments?) — left untouched; MCP configs NOT merged."
+        WARNINGS+=("MCP configs not merged: $mcp_dst is not parseable JSON")
+        return 0
+    fi
+
+    # Paths in a constitution MCP config are relative to the CONSTITUTION root
+    # (e.g. scripts/label-sync/mcp/label-mcp.sh). In a consumer they must be
+    # resolvable from the PROJECT root (review-2 finding D): such a path is
+    # rewritten to <constitution-dir-relative-to-project>/<path> (absolute when
+    # the constitution lives outside the project). Only strings that name an
+    # existing file under the constitution and NOT under the project root are
+    # rewritten. HONEST BOUNDARY: that Claude Code starts a project-scope stdio
+    # server with the project root as its working directory is UNCONFIRMED
+    # (not documented in this repository); the vendor-relative path relies on it.
+    local croot proot cprefix
+    croot="$(cd "$CONST_DIR" 2>/dev/null && pwd -P)" || croot="$CONST_DIR"
+    proot="$(cd "$PROJECT_ROOT" 2>/dev/null && pwd -P)" || proot="$PROJECT_ROOT"
+    case "$croot/" in "$proot"/*) cprefix="${croot#"$proot"/}" ;; *) cprefix="$croot" ;; esac
 
     for mcp_name in "${CHANGED_MCP[@]}"; do
         local src_file="${mcp_src_dir}/${mcp_name}"
@@ -288,37 +320,37 @@ install_mcp_configs() {
         fi
 
         info "Merging MCP config: ${mcp_name}"
-
-        # Read the source — it should be a JSON fragment with a single
-        # MCP server definition (the full server object under the key).
-        local server_key="${mcp_name%.json}"
-
-        # Use jq to merge the new server into the existing config.
-        if command -v jq &>/dev/null; then
-            local tmpfile
-            tmpfile="$(mktemp)"
-            # The source file must have the shape: { "mcpServers": { "<name>": {...} } }
-            # or be a flat fragment. We handle both.
-            if jq -e '.mcpServers' "$src_file" &>/dev/null; then
-                # Source already has mcpServers wrapper
-                jq -s ".[0].mcpServers = (.[0].mcpServers + .[1].mcpServers) | .[0]" \
-                    "$mcp_dst" "$src_file" > "$tmpfile"
+        local server_key="${mcp_name%.json}" frag tmpfile
+        frag="$(mktemp "${mcp_dst}.frag.XXXXXX")" || { WARNINGS+=("MCP ${mcp_name}: no temp file"); continue; }
+        tmpfile="$(mktemp "${mcp_dst}.new.XXXXXX")" || { rm -f "$frag"; WARNINGS+=("MCP ${mcp_name}: no temp file"); continue; }
+        # The source has the shape { "mcpServers": { "<name>": {...} } } or is a
+        # flat server object (wrapped under its file name).
+        if ! jq -e --arg k "$server_key" 'if has("mcpServers") then . else {mcpServers: {($k): .}} end' "$src_file" >"$frag" 2>/dev/null; then
+            warn "  -> $src_file is not valid JSON — skipped."; WARNINGS+=("MCP ${mcp_name}: source not valid JSON")
+            rm -f "$frag" "$tmpfile"; continue
+        fi
+        local key idx str
+        while IFS=$'\t' read -r key idx str; do
+            [ -n "$str" ] || continue
+            case "$str" in /*|*://*) continue ;; */*) ;; *) continue ;; esac
+            [ -e "$croot/$str" ] && [ ! -e "$proot/$str" ] || continue
+            if [ "$idx" = 0 ]; then
+                jq --arg k "$key" --arg v "$cprefix/$str" '.mcpServers[$k].command = $v' "$frag" >"$frag.x" && mv -f "$frag.x" "$frag"
             else
-                # Source is a flat server object — wrap it first
-                local wrapped
-                wrapped="$(mktemp)"
-                jq "{mcpServers: { \"${server_key}\": . }}" "$src_file" > "$wrapped"
-                jq -s ".[0].mcpServers = (.[0].mcpServers + .[1].mcpServers) | .[0]" \
-                    "$mcp_dst" "$wrapped" > "$tmpfile"
-                rm -f "$wrapped"
+                jq --arg k "$key" --argjson i "$((idx - 1))" --arg v "$cprefix/$str" '.mcpServers[$k].args[$i] = $v' "$frag" >"$frag.x" && mv -f "$frag.x" "$frag"
             fi
-            mv "$tmpfile" "$mcp_dst"
+            info "  -> path resolved for the consumer: $str -> $cprefix/$str"
+        done < <(jq -r '.mcpServers | to_entries[] | .key as $k | ([.value.command] + (.value.args // [])) | to_entries[] | [$k, (.key|tostring), (.value // "" | tostring)] | @tsv' "$frag" 2>/dev/null)
+        if jq -s '.[0].mcpServers = ((.[0].mcpServers // {}) + .[1].mcpServers) | .[0]' "$mcp_dst" "$frag" >"$tmpfile" 2>/dev/null \
+           && jq -e 'type == "object"' "$tmpfile" >/dev/null 2>&1 && mv -f "$tmpfile" "$mcp_dst"; then
             info "  -> Merged into: $mcp_dst"
         else
-            warn "  -> jq not available — cannot merge ${mcp_name}. Manually merge contents of $src_file into $mcp_dst"
-            WARNINGS+=("MCP config ${mcp_name} not merged: jq missing")
+            warn "  -> merge of ${mcp_name} failed — $mcp_dst left unchanged."
+            WARNINGS+=("MCP ${mcp_name}: merge failed")
         fi
+        rm -f "$frag" "$frag.x" "$tmpfile"
     done
+    return 0
 }
 
 # ============================================================================
@@ -498,6 +530,61 @@ install_label_sync() {
 }
 
 # ============================================================================
+# STEP 4d — label-sync CLI-agent adapters (kimi/opencode/crush/aider/codex/...)
+# ============================================================================
+# review-2 finding E: install_adapters.sh claimed post_update_hook ran it; it
+# did not. It now runs here, OPT-IN like step 4c: dry-run by default (records
+# what WOULD be wired into the user's agent configs, writes nothing). Modes
+# (env LABEL_SYNC_ADAPTERS): dry-run (default) | apply | off. Agents are
+# auto-detected by install_adapters.sh; their configs live in the USER's home
+# (not the project), which is why writing is never the default.
+install_label_sync_adapters() {
+    header "STEP 4d: label-sync CLI-agent adapters (§11.4.228(D))"
+    local changed=0 f
+    for f in ${CHANGED_LABELSYNC[@]+"${CHANGED_LABELSYNC[@]}"}; do
+        case "$f" in scripts/label-sync/adapters/*) changed=1 ;; esac
+    done
+    if [ "$changed" -eq 0 ]; then
+        info "No adapter changes — nothing to wire."
+        return 0
+    fi
+    local inst="${CONST_DIR}/scripts/label-sync/adapters/install_adapters.sh"
+    if [ ! -f "$inst" ]; then
+        warn "adapter installer missing: $inst"; WARNINGS+=("install_adapters.sh missing"); return 0
+    fi
+    local mode="${LABEL_SYNC_ADAPTERS:-dry-run}" out rc=0
+    local -a args
+    case "$mode" in
+        off)     info "LABEL_SYNC_ADAPTERS=off — adapter wiring skipped."; return 0 ;;
+        apply)   args=(--apply) ;;
+        dry-run) args=(--dry-run) ;;
+        *)       warn "unknown LABEL_SYNC_ADAPTERS='$mode' — treating as dry-run."; mode=dry-run; args=(--dry-run) ;;
+    esac
+    info "Running: install_adapters.sh ${args[*]}  (mode: $mode)"
+    out="$(bash "$inst" "${args[@]}" 2>&1)" || rc=$?
+    while IFS= read -r line; do [ -n "$line" ] && info "  $line"; done <<<"$out"
+    if [ "$rc" -ne 0 ]; then
+        warn "install_adapters.sh exited $rc — see lines above."; WARNINGS+=("install_adapters.sh exited $rc")
+    fi
+    [ "$mode" = dry-run ] && info "  Adapters are in DRY-RUN mode (default): nothing written. Re-run with LABEL_SYNC_ADAPTERS=apply to wire them."
+    return 0
+}
+
+# run_step <function> : run one step ISOLATED. A step that returns non-zero (or
+# hits an unexpected error) is recorded as a WARNING and the next step still
+# runs (review-2 finding C: the documented "step 4c always runs" was false
+# once any earlier step failed under `set -e`).
+run_step() {
+    local fn="$1" rc=0
+    "$fn" || rc=$?
+    if [ "$rc" -ne 0 ]; then
+        warn "step $fn ended with exit $rc — recorded; continuing with the next step"
+        WARNINGS+=("step $fn exited $rc")
+    fi
+    return 0
+}
+
+# ============================================================================
 # STEP 5 — Validate scripts (chmod +x, syntax check)
 # ============================================================================
 validate_scripts() {
@@ -526,6 +613,13 @@ validate_scripts() {
                 all_scripts+=("$sh_file")
             done < <(find "$skill_dir" -name '*.sh' -type f -print0 2>/dev/null)
         fi
+    done
+
+    # label-sync shell scripts (review-2 finding L: they were classified as
+    # CHANGED_LABELSYNC and so skipped this syntax check). Only *.sh: the zsh /
+    # fish integrations are not bash and are not checked with `bash -n`.
+    for f in ${CHANGED_LABELSYNC[@]+"${CHANGED_LABELSYNC[@]}"}; do
+        case "$f" in *.sh) [ -f "${CONST_DIR}/$f" ] && all_scripts+=("${CONST_DIR}/$f") ;; esac
     done
 
     # This script itself
@@ -654,12 +748,13 @@ main() {
         return 0
     fi
 
-    install_skills
-    install_mcp_configs
-    install_hooks
-    install_action_plugins
-    install_label_sync
-    validate_scripts
+    run_step install_skills
+    run_step install_mcp_configs
+    run_step install_hooks
+    run_step install_action_plugins
+    run_step install_label_sync
+    run_step install_label_sync_adapters
+    run_step validate_scripts
     report_summary
 }
 

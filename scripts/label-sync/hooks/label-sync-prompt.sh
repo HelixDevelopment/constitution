@@ -38,6 +38,9 @@ main() {
   if [ -n "$lab" ] && ls_parse_label "$lab"; then
     alias="$LS_L_ALIAS"; model="$LS_L_MODEL"; effort="$LS_L_EFFORT"; track="$LS_L_TRACK"; branch="$LS_L_BRANCH"
   fi
+  # an explicitly recorded model switch wins over the (pre-switch) transcript
+  # until a newer assistant entry proves otherwise (review-2 finding 3)
+  ls_switched_model && model="$LS_SWITCH_MODEL"
   # (2) ledger first: it needs no daemon/binary (zero-loss intake, §11.4.210)
   if [ -n "${LABEL_SYNC_REQUEST_LEDGER:-}" ]; then
     export LS_LEDGER_STATE="${LS_HOOKSTATE:-}"

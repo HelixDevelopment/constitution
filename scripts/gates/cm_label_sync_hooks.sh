@@ -24,8 +24,8 @@
 #   (2) BEHAVIOURAL, no daemon/binaries needed (§11.4.201 — assert the REAL
 #       condition): every event hook given GARBAGE stdin exits 0 and prints
 #       NOTHING (fail-soft, never blocks, never noisy)
-#   (3) RUNTIME (skipped with --structural-only, or when jq/git is absent — an
-#       honest SKIP, never a false PASS): the full hermetic suite
+#   (3) RUNTIME (skipped only with --structural-only; jq/git/go absent or a
+#       suite exit 2 => CANNOT DETERMINE, exit 2 — never a PASS): the full hermetic suite
 #       scripts/hooks/test_label_sync_hooks.sh exits 0 (needs jq + go to build the
 #       binaries, or LS_TEST_BIN)
 # ── Usage ────────────────────────────────────────────────────────────────────
@@ -43,7 +43,8 @@
 #   (paired mutation: cm_label_sync_hooks_mutation_test.sh +
 #   scripts/label-sync/prove_hook_mutations.sh), §11.4.201.
 # ── Exit codes ───────────────────────────────────────────────────────────────
-#   0 all checks PASS (runtime may SKIP) | 1 a check FAILed | 2 environment error.
+#   0 all checks PASS (runtime SKIPs only with --structural-only) | 1 a check
+#   FAILed | 2 cannot determine (runtime tools absent, suite exit 2, bad usage).
 # Classification: universal (§11.4.17).
 set -uo pipefail
 
@@ -111,22 +112,37 @@ for h in $EVENT_HOOKS; do
   if [ "$r" -eq 0 ]; then say "✅ PASS     $h: garbage stdin => exit 0, silent"; else warn "❌ FAIL     $h: garbage stdin => rc=$rc out='${out:0:40}' (must be exit 0 + silent)"; fail=1; fi
 done
 
-# (3) runtime: the hermetic suite
+# (3) runtime: the hermetic suite. Review-2 finding 2: missing jq/git/go
+# used to print an honest-looking SKIP and still PASS (exit 0), and a suite
+# exit 2 (environment) was reported as FAIL (1). Both are now CANNOT
+# DETERMINE (exit 2), exactly like CM-LABEL-SYNC-CORE / -RENDER.
 suite="$root/scripts/hooks/test_label_sync_hooks.sh"
-if [ -n "$structural" ] || ! command -v jq >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1 \
-   || { [ -z "${LS_TEST_BIN:-}" ] && ! command -v go >/dev/null 2>&1; }; then
-  warn "⚠️  SKIP     runtime suite (--structural-only, or jq/git/go absent — honest skip, §11.4.3)"
+undet=""
+if [ -n "$structural" ]; then
+  warn "⚠️  SKIP     runtime suite (--structural-only requested)"
 else
-  TMPD="$(mktemp -d "${TMPDIR:-/tmp}/cm_ls_hooks.XXXXXX")"
-  trap 'rm -rf "${TMPD:?}"' EXIT
-  if nice -n 10 bash "$suite" >"$TMPD/suite.log" 2>&1; then
-    say "✅ PASS     hermetic suite: $(grep -E 'label-sync hooks suite:' "$TMPD/suite.log" | tail -1)"
+  missing=""
+  for t in jq git; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done
+  [ -n "${LS_TEST_BIN:-}" ] || command -v go >/dev/null 2>&1 || missing="$missing go(or LS_TEST_BIN)"
+  if [ -n "$missing" ]; then
+    warn "❓ UNDET    runtime suite cannot run (missing:$missing) — CANNOT DETERMINE, never a pass"; undet=1
   else
-    warn "❌ FAIL     hermetic suite — failing lines:"; grep -E '❌|ENV:' "$TMPD/suite.log" | head -15; fail=1
+    TMPD="$(mktemp -d "${TMPDIR:-/tmp}/cm_ls_hooks.XXXXXX")"
+    trap 'rm -rf "${TMPD:?}"' EXIT
+    nice -n 10 bash "$suite" >"$TMPD/suite.log" 2>&1; src=$?
+    if [ "$src" -eq 0 ]; then
+      say "✅ PASS     hermetic suite: $(grep -E 'label-sync hooks suite:' "$TMPD/suite.log" | tail -1)"
+    elif [ "$src" -eq 2 ]; then
+      warn "❓ UNDET    hermetic suite exit 2 (environment): $(tail -n 2 "$TMPD/suite.log" | tr '\n' ' ')"; undet=1
+    else
+      warn "❌ FAIL     hermetic suite — failing lines:"; grep -E '❌|ENV:' "$TMPD/suite.log" | head -15; fail=1
+    fi
   fi
 fi
 
 echo "----------------------------------------------------------------------"
 if [ "$fail" -ne 0 ]; then echo "❌ ${GATE}: FAIL"; exit 1; fi
+if [ -n "$undet" ]; then echo "❓ ${GATE}: CANNOT DETERMINE — structural checks passed, runtime did not run"; exit 2; fi
+if [ -n "$structural" ]; then echo "✅ ${GATE}: PASS (STRUCTURAL ONLY — runtime behaviour NOT verified)"; exit 0; fi
 echo "✅ ${GATE}: PASS — label-sync hooks + wiring present, documented and working"
 exit 0

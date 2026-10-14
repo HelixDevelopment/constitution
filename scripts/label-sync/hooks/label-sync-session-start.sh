@@ -33,9 +33,15 @@ main() {
   ls_read_payload || return 0
   ls_have_bin || return 0
   LS_PAYLOAD_MODEL="$LS_TOMODEL"            # SessionStart's own `model` (string only)
+  # a SessionStart carrying its own model is fresher than any earlier switch record
+  [ -n "$LS_TOMODEL" ] && ls_drop_model_switch "$LS_SID"
   ls_ensure_session "session-start" || return 0
   local lbl="${LS_LABEL%%$'\n'*}"             # the label register printed
   [ -n "$lbl" ] || return 0
-  ls_emit_context SessionStart "[label-sync] work-stream label of this session: $lbl (pinned to the alias this session runs under)"
+  # Say what really happened (review-2 finding 1): pinned ONLY when an alias was
+  # derived from this process; otherwise the session follows the active alias.
+  local how="follows the operator's active alias: no alias could be derived for this process"
+  [ -n "${LS_SESSION_PINNED:-}" ] && how="pinned to the alias this session runs under"
+  ls_emit_context SessionStart "[label-sync] work-stream label of this session: $lbl ($how)"
 }
 ls_hook_run main

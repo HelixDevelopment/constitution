@@ -41,6 +41,7 @@ main() {
     [ "$s2" = "$LS_SID" ] && rm -f -- "$m"
   done
   rm -f -- "$LS_HOOKSTATE/ledger-last/$LS_SID"
+  ls_drop_model_switch "$LS_SID"
   return 0
 }
 ls_hook_run main

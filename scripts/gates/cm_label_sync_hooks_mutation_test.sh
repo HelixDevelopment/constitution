@@ -14,6 +14,10 @@
 #   (8) a hook that exits 1 on garbage stdin (fail-soft broken)
 #   (9) a hook that prints noise on garbage stdin
 #   (10) toolkit wrapper missing         (11) a hook with a syntax error
+#   (12) mutant table missing            (13) mutant table does not compile
+#   (14) jq/git/go absent, no --structural-only => exit 2 CANNOT DETERMINE
+#        (review-2 finding 2: was an honest-looking SKIP and a PASS rc 0)
+#   (15) the hermetic suite exits 2 (environment) => gate exit 2, not FAIL 1
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   cm_label_sync_hooks_mutation_test.sh
 # ── Side-effects ─────────────────────────────────────────────────────────────
@@ -66,5 +70,22 @@ r="$TMP/m10"; build "$r"; rm "$r/scripts/label-sync/toolkit/cma_label_hook.sh"; 
 r="$TMP/m11"; build "$r"; echo 'if then fi (' >>"$r/$H/label-sync-lib.sh"; expect fail "hook syntax error" "$r"
 r="$TMP/m12"; build "$r"; rm "$r/scripts/label-sync/hook_mutants.py"; expect fail "mutant table missing" "$r"
 r="$TMP/m13"; build "$r"; echo 'def (' >>"$r/scripts/label-sync/hook_mutants.py"; expect fail "mutant table does not compile" "$r"
+# (14) runtime tools absent: a PATH holding only what the structural part needs
+TB="$TMP/toolbox"; mkdir -p "$TB"
+for t in bash grep sed cat dirname mktemp rm tr head nice env; do p="$(type -P "$t")" && ln -s "$p" "$TB/$t"; done
+r="$TMP/m14"; build "$r"
+PATH="$TB" "$TB/bash" "$GATE" --root "$r" --quiet >/dev/null 2>&1; grc=$?
+if [ "$grc" -eq 2 ]; then echo "✅ META OK:   jq/git/go absent — gate exit 2 (cannot determine), not a pass"
+else echo "❌ META FAIL: jq/git/go absent — gate exit $grc, wanted 2"; rc=1; fi
+# (15) the suite itself reports exit 2 (environment) => cannot determine, not FAIL
+r="$TMP/m15"; build "$r"; stub "$r/scripts/hooks/test_label_sync_hooks.sh" 'echo "ENV: no go"; exit 2'
+LS_TEST_BIN="$TMP/none" bash "$GATE" --root "$r" --quiet >/dev/null 2>&1; grc=$?
+if [ "$grc" -eq 2 ]; then echo "✅ META OK:   suite exit 2 — gate exit 2 (cannot determine)"
+else echo "❌ META FAIL: suite exit 2 — gate exit $grc, wanted 2"; rc=1; fi
+# (16) control: a suite that passes => gate passes (runtime path is live)
+r="$TMP/m16"; build "$r"; stub "$r/scripts/hooks/test_label_sync_hooks.sh" 'echo "label-sync hooks suite: 1 passed, 0 failed"; exit 0'
+LS_TEST_BIN="$TMP/none" bash "$GATE" --root "$r" --quiet >/dev/null 2>&1; grc=$?
+if [ "$grc" -eq 0 ]; then echo "✅ META OK:   passing suite — gate exit 0 (control)"
+else echo "❌ META FAIL: passing suite — gate exit $grc, wanted 0"; rc=1; fi
 [ "$rc" -eq 0 ] && echo "✅ META: all expectations held" || echo "❌ META: violations above"
 exit "$rc"
