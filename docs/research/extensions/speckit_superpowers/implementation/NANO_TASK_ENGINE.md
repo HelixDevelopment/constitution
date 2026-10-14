@@ -9,6 +9,21 @@ Complete Technical Specification — Direct Implementation Guide
 **Maintainer:** HelixDevelopment
 **Scope:** Universal (§11.4.17) — consumed by reference from the constitution submodule; every project-supplied config is DATA per §11.4.35.
 
+> **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** This nano-task
+> engine is a FUTURE, ASPIRATIONAL design — orthogonal to the "SuperBridge MCP"
+> (L5) execution tier that other documents in this corpus assumed, which was
+> independently re-derived TWICE (GitHub `total_count: 0`; npm exact-name
+> lookup `HTTP 404`) not to exist as software. Per Phase B2's own survey of
+> this document (`qa-results/hxc159/bridge_docs_delta/`), the nano-task engine
+> described here targets a DIFFERENT operational mode (weak local LLMs
+> needing tiny mechanically-checkable steps) than this project's own real
+> Bridge architecture, which has been corrected to 6 layers with the
+> execution tier filled by Spec Kit + Superpowers + Claude Code's own
+> skill/subagent machinery — never a nano-task-engine MCP server. See
+> `../README.md#architecture-amendment-2026-09-22` for the full finding and
+> proof. Nothing below is claimed shipped; it is retained design intent per
+> §11.4.35/§11.4.124.
+
 ---
 
 ## 1. Concept

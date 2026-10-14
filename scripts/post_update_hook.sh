@@ -238,9 +238,10 @@ install_skills() {
             (bash "$register" "$PROJECT_ROOT") || warn "  -> Registration script exited non-zero (continuing)"
         fi
 
-        # If skill has a README or skill.md, note it
+        # If skill has a README or SKILL.md, note it (SKILL.md first;
+        # legacy lowercase skill.md still noted for backward compatibility)
         local skill_doc
-        for skill_doc in "skill.md" "README.md" "SKILL.md"; do
+        for skill_doc in "SKILL.md" "README.md" "skill.md"; do
             if [ -f "${src}/${skill_doc}" ]; then
                 info "  -> Skill documentation: skills/${skill_name}/${skill_doc}"
                 break

@@ -1584,15 +1584,10 @@ generated docs must never be hand-edited.</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Honest boundary (§11.4.6).</strong>
-<code>constitution/skills/</code> also contains four
-<strong>legacy</strong> directories — <code>media-validator</code>,
-<code>scheduled-work-queue</code>, <code>session-sync</code> (lowercase
-<code>skill.md</code>) and <code>multitrack</code> (only a
-<code>register.sh</code>). They lack a <code>SKILL.md</code>, so they
-are <strong>not discoverable as Agent Skills</strong> and the installer
-deliberately <strong>skips</strong> them, reporting the count. They are
-not part of this system.</p>
+<p><strong>Honest boundary (§11.4.6).</strong> All eight directories under
+<code>constitution/skills/</code> carry exact-case <code>SKILL.md</code>
+(normalised 2026-09-13, HXC-159 T-P1.01/T-P1.02) and are discoverable as
+Agent Skills.</p>
 <hr />
 <h2 id="11-gates-and-tests">11. Gates and tests</h2>
 <table>

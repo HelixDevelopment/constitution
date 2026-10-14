@@ -144,10 +144,10 @@ set is untouched — never a silent no-op.
   `HELIX_SKILL_SESSION` to separate them.
 - Liveness is proven by reading `/proc/<pid>/environ`. Where `/proc` is absent
   (macOS) liveness is reported as *cannot determine*, never guessed.
-- A skill directory must contain `SKILL.md` (uppercase). Four constitution
-  skills currently use lowercase `skill.md` or have none, so the platform cannot
-  discover them: `media-validator`, `scheduled-work-queue`, `session-sync`,
-  `multitrack`. Reported, not silently renamed (§11.4.124).
+- A skill directory must contain `SKILL.md` (uppercase). All constitution
+  skills now carry exact-case `SKILL.md` (normalised 2026-09-13, HXC-159
+  T-P1.01/T-P1.02 — `media-validator`, `scheduled-work-queue`, `session-sync`
+  renamed; `multitrack` manifest authored).
 - Demotion makes a directory relocation-safe for **symlinks** by re-pointing
   relative links at their current absolute target (same file, new link text).
   A directory whose content depends on its own path some *other* way (a

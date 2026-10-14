@@ -1,7 +1,20 @@
 # Appendix: Manifests, Schemas, Templates & Full Source Code
 
-**Revision:** 1
-**Last modified:** 2026-07-24T00:00:00Z
+**Revision:** 3
+**Last modified:** 2026-09-23T06:50:49Z
+
+> **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** Appendix section
+> F ("SuperBridge MCP Server — `src/index.ts`") is a FULL TYPESCRIPT SOURCE
+> LISTING for a server that was **never built and does not exist as
+> software** — independently re-derived twice (GitHub `total_count: 0`; npm
+> exact-name lookup `HTTP 404`). Nothing in section F is checked into any git
+> tree; it is a DESIGN artifact, not evidence the server exists (confirmed by
+> the same GitHub/npm sweep). This project's REAL Bridge architecture is 6
+> layers with no MCP execution tier; the execution role is filled by Spec Kit
+> + Superpowers + Claude Code's own skill/subagent machinery — see
+> `../README.md#architecture-amendment-2026-09-22` for the finding and the
+> worked proof. Section F is retained as historical design intent
+> (§11.4.35/§11.4.124), never a description of shipped software.
 
 ## Table of Contents
 
@@ -412,6 +425,14 @@ feature:
 ---
 
 ## D. MCP Server Configuration
+
+> **HISTORICAL — never built (see the top-of-document 2026-09-22 Phase B3
+> amendment banner).** The `superbridge` entry below configures a server
+> that does not exist as software (independently re-derived twice: GitHub
+> `total_count: 0`; npm exact-name lookup `HTTP 404`) — a design-intent
+> example, not an operational `mcp.json`. Do not paste it into a live MCP
+> config; `cwd`/`dist/index.js` point at nothing. `codegraph` below it IS
+> real (§11.4.78) and is unaffected by this note.
 
 File: `mcp.json`
 

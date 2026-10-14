@@ -1,7 +1,19 @@
 # SpecKit Extension, Superpowers Skill & MCP Server Development Specification
 
-**Revision:** 1
-**Last modified:** 2026-07-24T00:00:00Z
+**Revision:** 3
+**Last modified:** 2026-09-23T06:50:49Z
+
+> **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** Part C of this
+> document ("MCP Server (`superbridge-mcp`)") specifies a server that was
+> never built and does not exist as software — independently re-derived twice
+> (GitHub `total_count: 0`; npm exact-name lookup `HTTP 404`). This document
+> describes the project's OWN proposed FUTURE `helix-nano-bridge` extension
+> (Part A) and its (unbuilt) MCP server companion (Part C) — NOT the real,
+> live Bridge architecture, which is 6 layers with no MCP execution tier; the
+> execution role is filled by Spec Kit + Superpowers + Claude Code's own
+> skill/subagent machinery. See `../README.md#architecture-amendment-2026-09-22`
+> for the finding and the worked proof. Content is retained as historical
+> design intent (§11.4.35/§11.4.124), not a description of shipped software.
 
 ---
 
@@ -182,7 +194,11 @@ dependencies:
 
 #### `speckit.helix-nano-bridge.decompose.md`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.01.4): same class of bug as the graph.md
+     block below — a 3-backtick outer fence containing a nested ```json
+     fence is closed early by that inner fence's own bare closer. Widened
+     to 4 backticks per the same fix. -->
+````markdown
 # Decompose — tasks.md → Nano-Tasks
 
 ## Purpose
@@ -273,11 +289,14 @@ surface, and decomposes it into a dependency-ordered list of atomic nano-tasks.
 | 2 | Dependency cycle detected |
 | 3 | Plan/spec missing required sections |
 | 4 | Evidence directory unwritable |
-```
+````
 
 #### `speckit.helix-nano-bridge.execute.md`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.01.4): same fence-nesting class as above —
+     the outer fence contains a nested bare ``` ASCII-art block; widened to
+     4 backticks. -->
+````markdown
 # Execute — TDD-Driven Nano-Task Execution
 
 ## Purpose
@@ -324,11 +343,20 @@ Every nano-task execution produces:
 | 2 | Pre-execution gate FAIL |
 | 3 | Evidence directory unwritable |
 | 4 | Timeout on task execution |
-```
+````
 
 #### `speckit.helix-nano-bridge.graph.md`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.01.4): this block illustrates the literal
+     Markdown SOURCE of a generated file, which itself contains ```mermaid
+     and ```json fences. CommonMark fences of equal length do not nest — a
+     3-backtick outer fence is closed by the FIRST bare 3-backtick line
+     encountered (the mermaid block's own closing fence, below), which
+     silently truncated this example and let its JSON tail leak as loose
+     top-level text/an unpaired fence in every exported HTML/PDF. The outer
+     fence is widened to 4 backticks so it can only be closed by a 4-backtick
+     line, letting the inner 3-backtick fences nest as literal content. -->
+````markdown
 # Graph — Nano-Task Dependency Visualization
 
 ## Purpose
@@ -381,11 +409,14 @@ graph TD
   }
 }
 ```
-```
+````
 
 #### `speckit.helix-nano-bridge.status.md`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.01.4): same fence-nesting class — the outer
+     fence contains a nested bare ``` box-drawing block AND two nested
+     ```json fences; widened to 4 backticks. -->
+````markdown
 # Status — Execution Dashboard
 
 ## Purpose
@@ -461,11 +492,16 @@ paths to captured artifacts. The `verdict.json` contains:
   "witness": "codegraph_explore"
 }
 ```
-```
+````
 
 #### `speckit.helix-nano-bridge.retry.md`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.01.4): this block's content has no nested
+     fence, but its outer fence was previously closed early by cascading
+     imbalance from the earlier blocks in this section; widened to 4
+     backticks for consistency with the rest of §A.2 and to remove the
+     now-redundant duplicate closing fence that followed it (see below). -->
+````markdown
 # Retry — Failed Nano-Task Retry Engine
 
 ## Purpose
@@ -501,8 +537,7 @@ the root, then propagates forward.
 | 0 | All retried tasks now GREEN |
 | 1 | Some tasks still FAIL after max attempts |
 | 2 | Dependency chain unresolvable |
-```
-```
+````
 
 ### A.3 Bash Script Implementations
 
@@ -1343,7 +1378,21 @@ specify helix-nano-bridge status --format table
 
 ### B.1 Skill: `nano-task-execution`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.04.1): recurrence of the same fence-nesting
+     class flagged by the sibling stream as unfixed in A.5/B.1+ — the outer
+     fence contains nested bare ``` box-drawing + ```yaml + a markdown table,
+     each of which prematurely closed the 3-backtick outer wrapper under
+     CommonMark's no-nesting rule (a bare closing fence needs no info string
+     and only backtick-count >= the opener's, so it closes whatever fence is
+     currently open regardless of nesting intent). Verified via real A/B
+     pandoc rendering: before the fix, "### B.2 Skill: `nano-task-decompose`"
+     rendered as LITERAL TEXT inside an unlabeled code block (the heading
+     disappeared) and a stray "```yaml" marker leaked as visible body text
+     inside another code block; after widening to 4 backticks both defects
+     are gone and the heading + config + table render normally outside the
+     illustrative markdown wrapper. Widened to 4 backticks (closing pair at
+     line ~1455, see below). -->
+````markdown
 # nano-task-execution
 
 ## Description
@@ -1417,11 +1466,18 @@ evidence_dir: "{{ FEATURE_DIR }}/qa-results/nano-tasks"
 | NTX003 | Evidence dir unwritable | Check permissions |
 | NTX004 | Dependency not satisfied | Execute dependency first |
 | NTX005 | Timeout | Increase timeout or optimize |
-```
+````
 
 ### B.2 Skill: `nano-task-decompose`
 
-```markdown
+<!-- §11.4.168 fix (HXC-159 T-P8.04.1): same nesting class as B.1 above — the
+     outer fence contains a nested bare ``` "Decomposition Algorithm" box plus
+     the "Quality Gates" table + "Output Schema" line, each of which
+     prematurely closed the 3-backtick outer wrapper. Verified via real A/B
+     pandoc rendering: before the fix the Quality Gates table rendered as a
+     literal, unformatted code block instead of a real table. Widened to 4
+     backticks (closing pair below, before "### B.3 Skill Installation"). -->
+````markdown
 # nano-task-decompose
 
 ## Description
@@ -1484,7 +1540,7 @@ nano-tasks suitable for TDD-driven execution.
 ### Output Schema
 
 See `nano-tasks.json` schema in EXTENSION_DEVELOPMENT.md §A.2.
-```
+````
 
 ### B.3 Skill Installation
 
@@ -2234,6 +2290,15 @@ main().catch(console.error);
 
 ### C.2 MCP Server Configuration
 
+> **HISTORICAL — never built (see the top-of-document 2026-09-22 Phase B3
+> amendment banner).** Every `.mcp.json` / `mcp.yaml` fragment in C.2 and C.3
+> below names a `superbridge-mcp` server that does not exist as software
+> (independently re-derived twice: GitHub `total_count: 0`; npm exact-name
+> lookup `HTTP 404`). These are design-intent configuration EXAMPLES for the
+> unbuilt Part C server, not operational instructions — do not paste them
+> into a live `mcpServers` config; they will point at a nonexistent
+> `dist/index.js`.
+
 ```json
 {
   "mcpServers": {
@@ -2766,6 +2831,10 @@ HELIX_RED_MODE_DEFAULT=1
 HELIX_CONSISTENCY_ITERATIONS=3
 
 # === MCP Server ===
+# HISTORICAL — superbridge-mcp was never built (2026-09-22 Phase B3
+# amendment banner at the top of this document); these three variables
+# configure a server that does not exist as software. Retained as
+# design-intent only.
 SUPERBRIDGE_MCP_ENABLED=true
 SUPERBRIDGE_MCP_PORT=9595
 SUPERBRIDGE_MCP_HOST=127.0.0.1
@@ -2792,6 +2861,12 @@ HELIX_RETRY_BASE_DELAY_MS=1000
 ```
 
 ### E.3 Distribution Script (`pack.sh`)
+
+> **HISTORICAL — never built (see the top-of-document 2026-09-22 Phase B3
+> amendment banner).** This packaging + install script targets the whole
+> unbuilt `helix-nano-bridge` extension, including its `mcp/superbridge-mcp/`
+> directory and the `claude_desktop_config.json` fragment it would write —
+> none of that exists. Design-intent only, never a runnable release process.
 
 ```bash
 #!/usr/bin/env bash

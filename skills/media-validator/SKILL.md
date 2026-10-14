@@ -1,3 +1,18 @@
+---
+name: media-validator
+description: Validates media files (MP4, PNG, TXT) by running OCR, metadata checks, and pattern matching against expected content, returning PASS/FAIL with captured evidence. Use when a task needs to verify a recording, screenshot, or text-evidence file actually contains an expected pattern before a PASS is claimed — the §11.4.107/§11.4.163 anti-bluff media-validation oracle.
+version: 1.0.0
+# --- HXC-159 F-13 superset fields (HelixCode builtin_skills REPL loader) ---
+# Optional fields consumed ONLY by helix_code's internal regex-triggered REPL
+# completion-prompt loader (markdown_skills.go). Other Agent-Skills-format
+# consumers ignore unknown YAML keys. Carried forward verbatim from the
+# pre-superset builtin_skills copy — never invented (§11.4.6).
+triggers:
+  - "(?i)^validate (?:the )?(?:recording|video|screenshot|capture|media|image|evidence)\\b.*?(?P<path>\\S+\\.(?:mp4|png|jpg|jpeg|txt|wav|cast))\\s*$"
+  - "(?i)^(?:check|verify) (?:the )?(?:recording|video|screenshot|capture)\\b.*?(?P<path>\\S+\\.(?:mp4|png|jpg|jpeg|txt|wav|cast))\\s*$"
+requires_isolation: false
+---
+
 # Media Validator Skill
 
 ## Purpose

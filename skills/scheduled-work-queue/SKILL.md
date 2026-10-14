@@ -1,3 +1,18 @@
+---
+name: scheduled-work-queue
+description: Teaches an agent to record background/deferred work via the scheduled-work MCP server and — before ever reporting it done — to verify uncertain, blocked, or overdue items against real captured evidence. Use when dispatching background work, when a REMINDER fires and unconfirmed work must be re-checked, or before an autonomous loop declares its queue empty.
+version: 1.0.0
+# --- HXC-159 F-13 superset fields (HelixCode builtin_skills REPL loader) ---
+# Optional fields consumed ONLY by helix_code's internal regex-triggered REPL
+# completion-prompt loader (markdown_skills.go). Other Agent-Skills-format
+# consumers ignore unknown YAML keys. Carried forward verbatim from the
+# pre-superset builtin_skills copy — never invented (§11.4.6).
+triggers:
+  - "(?i)^remind me to (?P<task>.+)$"
+  - "(?i)^(?:schedule|queue|defer) (?:this |that )?(?:work |task )?(?:to |for )?(?P<task>.+)$"
+requires_isolation: false
+---
+
 # Scheduled-Work Queue Skill
 
 ## Purpose
