@@ -34,6 +34,11 @@ RHA = "scripts/label-sync/hooks/request_history_append.sh"
 INST = "scripts/label-sync/install_label_sync.sh"
 WRAP = "scripts/label-sync/toolkit/cma_label_hook.sh"
 POST = "scripts/post_update_hook.sh"
+SSTART = "scripts/label-sync/hooks/label-sync-session-start.sh"
+MSW = "scripts/label-sync/hooks/label-sync-model-switch.sh"
+LABELER = "scripts/multitrack/track_branch_label.sh"
+BINC = "scripts/label-sync/bincache.sh"
+LCTLSH = "scripts/label-sync/labelctl.sh"
 
 M = {
  # ---- the original ten (re-targeted at the current code) ----------------
@@ -76,9 +81,15 @@ M = {
     "dedupe is per session: the same text from two sessions is two rows"),
  "session_end_keeps_pending": (SEND, '  ls_drop_pending_dir "$LS_SID"', '  : # MUTANT',
     "SessionEnd drops the session's pending registrations"),
+ # A step returning 1 is now isolated by run_step (review-2 C), so a
+ # `return 1` mutant is equivalent; what still aborts the hook is an `exit`,
+ # which no layer can isolate — and run_step itself (run_step_propagates_failure).
  "posthook_4c_aborts_hook": (POST, '        WARNINGS+=("install_label_sync.sh exited $rc")\n        return 0',
-    '        WARNINGS+=("install_label_sync.sh exited $rc")\n        return 1',
-    "step 4c never aborts post_update_hook.sh (set -e)"),
+    '        WARNINGS+=("install_label_sync.sh exited $rc")\n        exit 1',
+    "step 4c never aborts post_update_hook.sh"),
+ "run_step_propagates_failure": (POST, '        WARNINGS+=("step $fn exited $rc")\n    fi\n    return 0',
+    '        WARNINGS+=("step $fn exited $rc")\n    fi\n    return "$rc"',
+    "review-2 C: a failing step is recorded and the next steps still run (set -e)"),
  "uninstall_removes_foreign_statusline": (INST,
     '(if (.statusLine != null) and ((.statusLine == $sl) or ((.statusLine.command // "")|contains("label-sync"))) then del(.statusLine) else . end)',
     '(if .statusLine != null then del(.statusLine) else . end)',
@@ -111,7 +122,7 @@ M = {
  "posthook_hooks_unfiltered": (POST, '            *) info "Not a git hook name — not installed: ${hook_name}"; continue ;;', '            *) ;;',
     "F6: only git hook names are copied into .git/hooks"),
  "posthook_nongit_aborts": (POST, '        WARNINGS+=("git hooks not installed: $PROJECT_ROOT is not a git work tree")\n        return 0',
-    '        WARNINGS+=("git hooks not installed: $PROJECT_ROOT is not a git work tree")\n        return 1',
+    '        WARNINGS+=("git hooks not installed: $PROJECT_ROOT is not a git work tree")\n        exit 1',
     "F6: a non-git / worktree consumer never aborts the hook"),
  "installer_drops_timeout": (INST, '          | .timeout = ($o.timeout // $s.hook.timeout)', '          | .timeout = $s.hook.timeout',
     "F8: an operator-set timeout survives a refresh"),
@@ -128,6 +139,31 @@ M = {
     "F8: the read-modify-write is serialised"),
  "installer_model_switch_unchecked": (INST, '  [ "$with_model" = 1 ] && req_hooks="$req_hooks label-sync-model-switch"', '  :',
     "F8: --with-model-switch requires the script to exist"),
+ # ---- second review (findings 1, 3, 10, 13, C, D, E, L) ----------------
+ "emit_context_no_quote_escape": (LIB, r't="${t//\\/\\\\}"; t="${t//\"/\\\"}"; ', r't="${t//\\/\\\\}"; ',
+    "10 (reviewer B2): a double quote in a branch must be JSON-escaped"),
+ "labeler_keeps_paren": (LABELER, '_x="${_x//)/_}"; _x="${_x// - /_}"', '_x="${_x// - /_}"',
+    "1: a ')' in a branch must not end the label"),
+ "session_start_always_says_pinned": (SSTART, "  local how=\"follows the operator's active alias: no alias could be derived for this process\"", '  local how="pinned to the alias this session runs under"',
+    "1: never misreport 'pinned'"),
+ "model_switch_not_recorded": (MSW, '  ls_record_model_switch "$mo"', '  :',
+    "3: the switch is recorded"),
+ "prompt_ignores_model_switch": (PROMPT, '  ls_switched_model && model="$LS_SWITCH_MODEL"', '  :',
+    "3: the recorded switch wins over the pre-switch transcript"),
+ "model_switch_never_superseded": (LIB, '      rm -f -- "$f"; return 1           # MUT:msnewer', '      :',
+    "3: a NEWER assistant entry supersedes the record"),
+ "mcp_dst_parse_check_off": (POST, "    if ! jq -e 'type == \"object\"' \"$mcp_dst\" >/dev/null 2>&1; then", '    if false; then',
+    "C: an unparseable consumer .mcp.json is left untouched with a warning"),
+ "mcp_path_not_resolved": (POST, '            [ -e "$croot/$str" ] && [ ! -e "$proot/$str" ] || continue', '            continue',
+    "D: constitution-relative MCP paths resolved for the consumer"),
+ "adapters_step_missing": (POST, '    run_step install_label_sync_adapters', '    :',
+    "E: step 4d runs install_adapters.sh"),
+ "labelsync_scripts_not_syntax_checked": (POST, '        case "$f" in *.sh) [ -f "${CONST_DIR}/$f" ]', '        case "$f" in *.never) [ -f "${CONST_DIR}/$f" ]',
+    "L: label-sync *.sh files get the step-5 syntax check"),
+ "bincache_key_shared": (BINC, '    __h=$(( (__h * 33 + __c) & 0xffffffff ))   # MUT:cachekey', '    :   # MUT:cachekey',
+    "13: the default cache is keyed per checkout"),
+ "bincache_commit_ignored": (LCTLSH, '  [ "$rec" != "$(src_commit)" ]   # MUT:commitstale', '  false   # MUT:commitstale',
+    "13: binaries from another commit are stale"),
 }
 
 

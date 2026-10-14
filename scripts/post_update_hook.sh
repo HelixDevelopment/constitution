@@ -31,6 +31,9 @@
 #   CONST_DIR  — path to the constitution submodule root
 #                (default: the directory this script lives in, ../..)
 #   PROJECT_ROOT — consuming project root (default: pwd)
+#   POST_UPDATE_HOOK_FAULT_STEP — TEST ONLY: name of one step function whose
+#                status run_step forces to 97 after it ran (proves the step
+#                isolation end to end); unset in normal use.
 #
 # Outputs:
 #   stdout — summary of installed/registered items
@@ -577,6 +580,10 @@ install_label_sync_adapters() {
 run_step() {
     local fn="$1" rc=0
     "$fn" || rc=$?
+    # Test-only fault seam (inert unless set): the REAL step has run; its status
+    # is then forced to 97 so the isolation below can be proven end to end
+    # (scripts/hooks/test_label_sync_hooks.sh §20). Never set it in production.
+    if [ -n "${POST_UPDATE_HOOK_FAULT_STEP:-}" ] && [ "$POST_UPDATE_HOOK_FAULT_STEP" = "$fn" ]; then rc=97; fi
     if [ "$rc" -ne 0 ]; then
         warn "step $fn ended with exit $rc — recorded; continuing with the next step"
         WARNINGS+=("step $fn exited $rc")

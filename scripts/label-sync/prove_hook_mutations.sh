@@ -15,12 +15,13 @@
 #           posthook_4c_aborts_hook, uninstall_removes_foreign_statusline,
 #           subagent_pairing_newest_first, nested_parent_ignored) and one per
 #           mechanism added by review findings 1-11.
-# Usage   : bash scripts/label-sync/prove_hook_mutations.sh [--only <mutant>] [--list] [--jobs N]
+# Usage   : bash scripts/label-sync/prove_hook_mutations.sh [--only <mutant>[,<mutant>…]] [--list] [--jobs N]
 #           --jobs N  run N mutated suites in parallel (default 2; each one is a
 #                     light bash suite; every run gets its OWN copy of the Go
 #                     binaries so no run can see another run's labelctl).
 # Inputs  : none (reads the tree this script lives in).
-# Outputs : one line per mutant: KILLED / SURVIVED / NOT-APPLIED, then a summary.
+# Outputs : one line per mutant: KILLED / SURVIVED / NOT-APPLIED / UNDETERMINED (the
+#           suite failed without an assertion line — never counted as a kill), then a summary.
 # Exit    : 0 every mutant killed and the control green | 1 a mutant survived or
 #           the control failed | 2 environment (jq/go/python3 missing, copy
 #           failed, a mutation did not apply) — never a pass.
@@ -50,9 +51,12 @@ for t in jq python3 go git; do command -v "$t" >/dev/null 2>&1 || { echo "prove_
 if [ -n "$LIST" ]; then python3 "$MUT" --list; exit 0; fi
 mapfile -t NAMES < <(python3 "$MUT" --list)
 [ "${#NAMES[@]}" -gt 0 ] || { echo "prove_hook_mutations: empty mutant table" >&2; exit 2; }
-if [ -n "$ONLY" ]; then
-  printf '%s\n' "${NAMES[@]}" | grep -qx -- "$ONLY" || { echo "unknown mutant $ONLY" >&2; exit 2; }
-  NAMES=("$ONLY")
+if [ -n "$ONLY" ]; then          # one name or a comma-separated list
+  IFS=, read -r -a SEL <<<"$ONLY"
+  for n in "${SEL[@]}"; do
+    printf '%s\n' "${NAMES[@]}" | grep -qx -- "$n" || { echo "unknown mutant $n" >&2; exit 2; }
+  done
+  NAMES=("${SEL[@]}")
 fi
 # every literal must still occur exactly once in the REAL tree (a stale table
 # would otherwise "pass" by reporting NOT-APPLIED as an environment error late)
@@ -67,6 +71,7 @@ copy_root() { # dest
   cp "$CROOT/scripts/multitrack/track_branch_label.sh" "$1/scripts/multitrack/" || return 1
   cp "$CROOT/scripts/hooks/test_label_sync_hooks.sh" "$1/scripts/hooks/" || return 1
   cp "$CROOT/scripts/post_update_hook.sh" "$1/scripts/" || return 1
+  mkdir -p "$1/mcp" && cp "$CROOT/mcp/label-sync-mcp.json" "$1/mcp/" || return 1   # suite §20 D merges it
   mkdir -p "$1/bin" && cp "$TMP/bin/"* "$1/bin/" || return 1        # private binaries per run
   return 0
 }
@@ -95,6 +100,12 @@ one() { # name -> writes $TMP/res_<name>
     echo "SURVIVED  $name — suite still PASSES with the mutant in $out (bluff gap)" >"$TMP/res_$name"
   else
     local first; first="$(grep -m1 '❌ FAIL' "$TMP/$name.log" | cut -c1-110)"
+    # a kill must come from a failing ASSERTION; a suite that died without one
+    # (syntax error, crash) proves nothing about the tests — UNDETERMINED (§11.4.201)
+    if [ -z "$first" ]; then
+      echo "UNDETERMINED $name — suite failed with no '❌ FAIL' assertion line (tail: $(tail -1 "$TMP/$name.log" | cut -c1-80))" >"$TMP/res_$name"
+      rm -rf "${d:?}"; return
+    fi
     # a kill attributed to a load-sensitive TIMING assertion may be load, not the mutant:
     # re-run alone (see below) before it counts.
     # (F9's "returns within" bounds are NOT in this class: a lock-timeout bound

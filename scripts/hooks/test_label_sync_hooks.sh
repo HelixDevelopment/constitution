@@ -962,6 +962,15 @@ eq "D the merged MCP command is resolvable from the consumer root (vendor-relati
 check "D ...and that file exists from the project root" test -f "$C20/$mc"
 eq "D no guessed \"type\" key in the merged entry" "$(jq -r '.mcpServers["label-sync"] | has("type")' "$C20/.mcp.json")" false
 check "E LABEL_SYNC_ADAPTERS=off skips the adapters step" grep -q 'LABEL_SYNC_ADAPTERS=off' "$T/ph20b.out"
+# run_step isolation (review-2 C): no step returns non-zero on a reachable input
+# today, so the documented fault seam POST_UPDATE_HOOK_FAULT_STEP runs the REAL
+# step and then forces its status; the hook must record it and run every later step.
+( cd "$C20" && HOME="$T/home20" CONST_DIR="$FC20" PROJECT_ROOT="$C20" LABEL_SYNC_ADAPTERS=off \
+    POST_UPDATE_HOOK_FAULT_STEP=install_label_sync bash "$FC20/scripts/post_update_hook.sh" ) >"$T/ph20c.out" 2>&1
+check "C a failing step is recorded with its exit code" grep -q 'step install_label_sync ended with exit 97' "$T/ph20c.out"
+for st in 'STEP 4d' 'STEP 5' 'SUMMARY'; do
+  check "C the steps after a failing step still ran: $st" grep -q "$st" "$T/ph20c.out"
+done
 
 # =========================================================================
 echo "== 21. review-2 finding 13: the default binary cache is keyed per checkout (path) and per commit =="
