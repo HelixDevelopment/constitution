@@ -10,8 +10,12 @@
 # evidence) without hand-listing 29 script names anywhere. In `gates` mode it
 # also runs the shared engine's own self-test
 # (covenant_propagation_engine_compact_mutation_test.sh) as one extra entry,
-# CM-COVENANT-PROPAGATION-ENGINE-SELFTEST, and the paired mutation test of this
-# suite's own failure accounting as another, CM-COVENANT-PROPAGATION-SUITE-ACCOUNTING.
+# CM-COVENANT-PROPAGATION-ENGINE-SELFTEST, the paired mutation test of this
+# suite's own failure accounting as another, CM-COVENANT-PROPAGATION-SUITE-ACCOUNTING,
+# and the paired test of the consumer-side verdict-set checker
+# (suite_verdict_set_check.sh) as a third, CM-COVENANT-PROPAGATION-VERDICT-SET-CHECK.
+# Consumers should read this suite's output through that checker (profile
+# covenant-gates), not through the exit code and summary tally alone.
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #   covenant_propagation_suite.sh gates [--root <consumer-root>]
@@ -145,6 +149,27 @@ if [ "$MODE" = "gates" ] && [ -f "${HERE}/lib/covenant_propagation_engine.sh" ] 
     total=$((total+1))
     case "$rc" in 0) ;; *) bad=$((bad+1)) ;; esac
     printf '%-36s %-5s %s\n' "CM-COVENANT-PROPAGATION-SUITE-ACCOUNTING" "$rc" "$verdict"
+fi
+# VERDICT-SET CHECK SELF-TEST (gates mode, round-4 review N6/N7 of the remedy batch). Consumers read this
+# suite's output through suite_verdict_set_check.sh (profile covenant-gates): it requires the named entries
+# above and cross-checks the printed entry rcs against the summary tally, so a silenced entry (reviewer
+# mutant RX1) or an uncounted failing entry cannot read as PASS. Its paired test applies RX1 and RX3
+# verbatim to real suite copies; running it here puts it on the seam the consumer's pre-build already runs.
+# Same presence rule: missing is a FAIL. Skipped inside the accounting sandbox (COVENANT_PROPAGATION_SUITE_INNER),
+# written with a different guard expression from the ACCOUNTING entry's so one edit cannot skip both.
+if [ "$MODE" = "gates" ] && [ -f "${HERE}/lib/covenant_propagation_engine.sh" ] \
+   && [ "${COVENANT_PROPAGATION_SUITE_INNER:-}" = "" ]; then
+    _vt="${HERE}/suite_verdict_set_check_mutation_test.sh"
+    if [ -f "$_vt" ]; then
+        out="$(env -u COVENANT_PROPAGATION_CARRIERS bash "$_vt" 2>&1)"; rc=$?
+        verdict="$(printf '%s\n' "$out" | grep -E '^=== ' | tail -1)"
+        [ -n "$verdict" ] || verdict="$(printf '%s\n' "$out" | tail -1)"
+    else
+        rc=2; verdict="verdict-set check self-test missing: $_vt"
+    fi
+    total=$((total+1))
+    test "$rc" = 0 || bad=$((bad+1))
+    printf '%-36s %-5s %s\n' "CM-COVENANT-PROPAGATION-VERDICT-SET-CHECK" "$rc" "$verdict"
 fi
 while IFS=$'\t' read -r gate anchor; do
     [ -n "$gate" ] || continue

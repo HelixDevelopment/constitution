@@ -6,7 +6,7 @@
 # The engine change of 2026-10-14 added a PASS path (a one-line compact index entry `- §N … [full → <path>]`
 # stands in for the full block) and a new block boundary (`## `). A new PASS path in a gate is a relaxation, so
 # it needs a test that FAILS when the relaxation is widened. The round-2 independent review of the remedy batch
-# atm-prebuild-remedy-const wrote five engine mutants (ME1-ME5) that ALL survived the committed fixtures; the
+# of 2026-10-14 (pre-build remedies) wrote five engine mutants (ME1-ME5) that ALL survived the committed fixtures; the
 # fix added fixtures 9-18 to lib/covenant_propagation_mutation_engine.sh plus a sixth guard (ME6). This test
 # applies each mutant VERBATIM (exact old -> new text) to an OUT-OF-REPO copy of the engine and requires the
 # NAMED fixture(s) to flip from "META OK" to "META FAIL".
