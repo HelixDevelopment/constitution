@@ -95,8 +95,8 @@
 # real carrier shape. The trade is still the right one — GNU `\b` MISSES the very
 # same case (measured), and the false positive this removed was a proven
 # §11.4.201(1) FAIL-bluff that refused real commits — but the residual
-# ANSI/control-prefix gap is STATED here and TRACKED as ATM-989 in the
-# workable-items SSoT (§11.4.93 / §11.4.197 — the follow-up carries the RED-first
+# ANSI/control-prefix gap is STATED here and TRACKED as a workable item in the
+# reference consumer's workable-items SSoT (§11.4.93 / §11.4.197 — the follow-up carries the RED-first
 # fixture + the both-directions §11.4.201 acceptance criteria), never silently
 # claimed absent.
 # PORTABILITY (§11.4.201(7)(c) — the path is part of the instrument): the boundary
@@ -446,8 +446,8 @@ HELIX_CRED_SYMBOL_REFERENCE_CARRIER='^[A-Za-z_.-]*([Ss][Ee][Cc][Rr][Ee][Tt]|[Pp]
 # append-only operator-request-history ledger — captures, verbatim, a prior
 # subagent's forensic hand-back report DISCUSSING this very scanner's own AKIA
 # detector branch and quoting, as prose analysis, the EXACT literal value this
-# file's own documentation comments (above, lines 18/178/228/242/282/357-358/826)
-# already cite as THEIR chosen golden-bad placeholder example:
+# file's own documentation once cited, contiguously, as its chosen golden-bad
+# placeholder example (those comments now write it split, or as `AKIA…`):
 # `AKIA` + `1234567890123456` (written split). The AKIA branch of HELIX_CRED_VALUE_PATTERN carries no
 # keyword gate (unlike the password/secret/api_key branches), so detector-1
 # extracts the bare token with no surrounding line context to strip against, and
@@ -829,9 +829,11 @@ HELIX_CRED_ADJACENCY_AWK='
       # with NO digit at all to evade this check — a narrower residual than
       # the one already accepted at carrier-strips #18/#21/#25 for the SAME
       # class of risk (an identifier- or symbol-shaped "value" that is
-      # technically still a valid string for a secret to take). `user.name=
-      # AKIA` + `1234567890123456` and `user.name=hunter2hunter2` (digit present)
-      # are NOT exempted by this strip and are still caught. Proven by
+      # technically still a valid string for a secret to take). A digit-bearing
+      # value such as `user.name=hunter2hunter2`, or a real AKIA key ID, is NOT
+      # exempted by THIS strip and is still caught. (The one named placeholder
+      # `AKIA` + `1234567890123456` is clean for a different reason: carrier-strip
+      # #32 exempts that single constant everywhere.) Proven by
       # golden-good scenario (q) + the (real user.name value carrying a
       # digit) golden-bad in test_credential_scan_lib.sh (§11.4.107(10)).
       tgid = t
