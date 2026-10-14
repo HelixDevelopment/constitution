@@ -84,6 +84,11 @@
 # replacements): V4R11-M8, V4R11-M9, V4R12-RV5-12, V4R12-M9, V4R12-M11, V4R13-RV6-07, V4R13-M14, V4R13-M15.
 # Oracle: tests/test_fc_safepath_v4r14.sh ([R14*]) + the v4r13 file.
 #
+# ATM-1220 r9 / fixer round 15 (V4R15-* group; round-8 review NO-GO, 3 MINOR + 2 NIT): V4R15-1 (the lock home read
+# from the password database, never $HOME; $XDG_RUNTIME_DIR no longer a default), V4R15-2 (the census closes the
+# CLASS: quote removal + non-literal NAMEs refused + every assignment form + the ${V:?} emptiness rule), V4R15-3 (the
+# reviewer's RV8-01..07 adopted). V4R14-M8/M14/M15/M16 re-expressed. Oracle: tests/test_fc_safepath_v4r15.sh ([R15*]).
+#
 # Instrument control (§11.4.273): before any mutant, the SAME harness runs a
 # representative case against an UNMUTATED replica and requires it to PASS --
 # otherwise a "caught" mutant could just be a broken replica.
@@ -118,6 +123,7 @@ T_V9 = "test_fc_supervisor_v4r9_shutdown_windows.sh"
 T_R12 = "test_fc_safepath_v4r12.sh"
 T_R13 = "test_fc_safepath_v4r13.sh"
 T_R14 = "test_fc_safepath_v4r14.sh"
+T_R15 = "test_fc_safepath_v4r15.sh"
 CEN = "tests/check_safepath_census.py"     # round 13: the census itself is mutated in the replica (FC_CENSUS_UNDER_TEST)
 
 
@@ -1106,9 +1112,6 @@ MUTS = [
      T_R14, {"R14_ONLY": "ACL"}, "NOT ok [R14ACL-cleared]"),         # the pre-open look without its ref: a FALSE refusal
     ("V4R14-M7", SUP, [("            trusted = _trusted_ok(st, fd)", "            trusted = _trusted_ok(st)")],
      T_R14, {"R14_ONLY": "ACL"}, "NOT ok [R14ACL-cleared]"),         # the walk without its ref: a private 0770 parent refused
-    ("V4R14-M8", SUP, [("    home = os.environ.get(\"HOME\", \"\")\n    if not home.startswith(\"/\"):\n        return lock_dir\n",
-                        "    return lock_dir\n")],
-     T_R14, {"R14_ONLY": "LOCK"}, "NOT ok [R14LOCK-preplant]"),      # the pre-planted /tmp lock: BLIND 4 forever again
     ("V4R14-M9", SUP, [("        if _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):\n            return real\n", "        if True:\n            return real\n")],
      T_R14, {"R14_ONLY": "LOCK"}, "NOT ok [R14LOCK-preplant]"),      # a shared lock directory used as if it were ours
     ("V4R14-M10", SUP, [("    if _st.S_ISDIR(st.st_mode) and _group_private(st.st_gid) and not _acl_free(ref):\n", "    if False:\n")],
@@ -1119,16 +1122,75 @@ MUTS = [
      T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-escape]"),    # argparse.FileType (RV7 form 14)
     ("V4R14-M13", CEN, [("            if not (isinstance(par0, ast.Attribute) and par0.value is node):", "            if False:")],
      T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-self]"),      # a module object passed as a value
-    ("V4R14-M14", CEN, [("            hit = [t for t in tg if t.split(\"[\")[0] in proved]", "            hit = []")],
-     T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-escape]"),    # printf -v
-    ("V4R14-M15", CEN, [("        if w0 in (\"local\", \"declare\", \"typeset\") and [a for a in args if re.match(", "        if False and [a for a in args if re.match(")],
-     T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-escape]"),    # namerefs
-    ("V4R14-M16", CEN, [("            hit = [a for a in args if not a.startswith(\"-\") and a.split(\"[\")[0] in proved]", "            hit = []")],
-     T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-escape]"),    # unset of a proved variable
     ("V4R14-M17", CEN, [("            if name in PY_XATTR_WRITE:", "            if False:")],
      T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-self]"),      # a procfs tag accepted on an xattr WRITE
     ("V4R14-M18", CEN, [("        if head == \"os\" and d.count(\".\") >= 2 and d.split(\".\")[1] in PY_OPS:", "        if False:")],
      T_R14, {"R14_ONLY": "CENSUS"}, "NOT ok [R14CENSUS-self]"),      # an attribute OF a path operation (os.unlink.func)
+
+    # ---- ATM-1220 r9 (fixer round 15; round-8 review NO-GO: V4R15-1 source-defect, V4R15-2 class recurrence, V4R15-3
+    # 5 surviving reviewer mutants). V4R14-M8/M14/M15/M16 RE-EXPRESSED (their anchors named code round 15 replaced;
+    # same defect class, same ids). The round-8 reviewer's RV8-01..07 adopted (verbatim where the anchor still exists),
+    # each routed to the row written for it; the fixer's own V4R15-M1..M19. Oracle: tests/test_fc_safepath_v4r15.sh. ----
+    ('V4R14-M8', SUP, [('    home = _passwd_home()\n    if not home:\n        return lock_dir\n', '    return lock_dir\n')],
+     T_R14, {'R14_ONLY': 'LOCK'}, 'NOT ok [R14LOCK-preplant]'),  # the pre-planted /tmp lock: BLIND 4 forever again (re-expressed: _passwd_home)
+    ('V4R14-M14', CEN, [('        return ([(vals["v"], "set")] if "v" in vals else []), letters\n', '        return [], letters\n')],
+     T_R14, {'R14_ONLY': 'CENSUS'}, 'NOT ok [R14CENSUS-escape]'),  # printf -v (re-expressed: _name_words)
+    ('V4R14-M15', CEN, [('            if w0 in ("local", "declare", "typeset") and "n" in letters and \\\n', '            if False and \\\n')],
+     T_R14, {'R14_ONLY': 'CENSUS'}, 'NOT ok [R14CENSUS-escape]'),  # namerefs (re-expressed)
+    ('V4R14-M16', CEN, [('        return ([] if letters & {"f"} else [(_dq_chars(a), "set") for a in ops]), letters\n', '        return [], letters\n')],
+     T_R14, {'R14_ONLY': 'CENSUS'}, 'NOT ok [R14CENSUS-escape]'),  # unset of a proved variable (re-expressed: _name_words)
+    ('V4R15-RV8-01', SUP, [('    return not [n for n in names if n.startswith("system.")]', '    return not [n for n in names if n.startswith("system.posix_acl")]')],
+     T_R14, {'R14_ONLY': 'CLASS'}, 'NOT ok [R14ACL-names-nfs4_acl]'),  # NFSv4 / rich / CIFS ACL names dropped (verbatim)
+    ('V4R15-RV8-02', SUP, [('        return ensure_dir(path, exclusive=True)', '        return ensure_dir(path, exclusive=False)')],
+     T_R15, {'R15_ONLY': 'LOCK'}, 'NOT ok [R15LOCK-cache-shared]'),  # a pre-made SHARED cache lock dir accepted (re-expressed: the anchor moved)
+    ('V4R15-RV8-03', SUP, [('        if _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):\n            return real\n', '        if _owned_ok(os.fstat(fd), _st.S_ISDIR, 0o002, fd):\n            return real\n')],
+     T_R15, {'R15_ONLY': 'LOCK'}, 'NOT ok [R15LOCK-lockdir-sharedgroup]'),  # a group-shared lock dir taken as ours alone (verbatim)
+    ('V4R15-RV8-04', SUP, [('exclusive_parent and not _owned_ok(os.fstat(pfd), _st.S_ISDIR, DIR_FORBID, pfd):', 'exclusive_parent and not _owned_ok(os.fstat(pfd), _st.S_ISDIR, DIR_FORBID, None):')],
+     T_R15, {'R15_ONLY': 'EXCL'}, 'NOT ok [R15EXCL-mkdtemp-0775]'),  # mkdtemp_path's exclusive check without its ref: umask-002 false refusal (verbatim)
+    ('V4R15-RV8-05', SUP, [('        if exclusive and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, fd):', '        if exclusive and not _owned_ok(os.fstat(fd), _st.S_ISDIR, DIR_FORBID, None):')],
+     T_R15, {'R15_ONLY': 'EXCL'}, 'NOT ok [R15EXCL-mkdir-0775]'),  # ensure_dir's exclusive check without its ref: umask-002 false refusal (verbatim)
+    ('V4R15-RV8-06', CEN, [('                if j + 1 < len(ch):\n                    vals[c] = ch[j + 1:]\n', '                if j + 1 < len(ch):\n                    pass\n')],
+     T_R14, {'R14_ONLY': 'CENSUS'}, 'NOT ok [R14CENSUS-self]'),  # printf -v attached form (-v_wr) dropped (re-expressed: _options)
+    ('V4R15-RV8-07', CEN, [('[a for a in args if (_lit(a) or "").startswith("-") and "n" in (_lit(a) or "")]', '[a for a in args if _lit(a) == "-n"]')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-sh]'),  # the nameref rule only for a bare -n (declare -gn / local -rn) (re-expressed)
+    ('V4R15-M1', SUP, [('        home = pwd.getpwuid(os.geteuid()).pw_dir\n', '        home = os.environ.get("HOME", "")\n')],
+     T_R15, {'R15_ONLY': 'LOCK'}, 'NOT ok [R15LOCK-home-env]'),  # V4R15-1: the home read from the ENVIRONMENT again
+    ('V4R15-M2', SUP, [('    except OSError as e:\n        say("BLIND: the per-user lock directory', '    except OSError as e:\n        return lock_dir\n        say("BLIND: the per-user lock directory')],
+     T_R15, {'R15_ONLY': 'LOCK'}, 'NOT ok [R15LOCK-cache-shared]'),  # an unusable per-user lock dir falls back to the shared one (a second location)
+    ('V4R15-M3', BR, [('lockdir="${FC_REPLAY_LOCK_DIR:-/tmp}"', 'lockdir="${FC_REPLAY_LOCK_DIR:-${XDG_RUNTIME_DIR:-/tmp}}"')],
+     T_R15, {'R15_ONLY': 'SH'}, 'NOT ok [R15LOCK-noxdg]'),  # the class member: $XDG_RUNTIME_DIR as a default lock dir again
+    ('V4R15-M4', CEN, [('            continue\n        if q is None and c in "\'\\"":\n            q = c\n            i += 1\n            continue\n', '            continue\n')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-sh]'),  # no quote removal for NAMEs (quoted names unseen)
+    ('V4R15-M5', CEN, [('                if [1 for _c, d in ch if d]:\n                    add(cm, w0 + " $NAME"', '                if False:\n                    add(cm, w0 + " $NAME"')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-sh]'),  # a non-literal NAME accepted
+    ('V4R15-M6', CEN, [('        if guard and not m.group(2) and not (copy_ok and rest == ""):', '        if False:')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # the ${V:?} guard on the leading expansion dropped
+    ('V4R15-M7', CEN, [('            if v not in known or (guard and not e.group(2)):', '            if v not in known:')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # the ${V:?} guard on an inner expansion dropped
+    ('V4R15-M8', CEN, [('            elif m.group(2) in proved:\n                add(no, "${V:=}"', '            elif False:\n                add(no, "${V:=}"')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # ${V:=} of a proved variable accepted
+    ('V4R15-M9', CEN, [('            if m.group(1):\n                add(no, "${!R:=}"', '            if False:\n                add(no, "${!R:=}"')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # ${!R:=} accepted
+    ('V4R15-M10', CEN, [('            if [sp for sp in spans if pat.search(sp)]:', '            if False:')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-sh]'),  # arithmetic assignment to a proved variable accepted
+    ('V4R15-M11', CEN, [('    for m in re.finditer(r"[A-Za-z_][A-Za-z0-9_]*\\[", t):\n        spans.append(_balanced(t, m.end(), "[", "]"))\n', '')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # subscripts not scanned as arithmetic
+    ('V4R15-M12', CEN, [('            elif not quoted:\n                out.append((no, raw))', '            elif False:\n                out.append((no, raw))')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-heredoc]'),  # an unquoted here-document body not scanned
+    ('V4R15-M13', CEN, [('            if m.group(1) in proved:\n                add(no, "{V}>"', '            if False:\n                add(no, "{V}>"')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # a {V}> fd redirection to a proved variable accepted
+    ('V4R15-M14', CEN, [('                if attrs:\n', '                if False:\n')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # declare -i / -l / -u ... on a proved variable accepted
+    ('V4R15-M15', CEN, [('            if "$" in letters:\n', '            if False:\n')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # an option word holding an expansion accepted
+    ('V4R15-M16', CEN, [('DECLARE_FAMILY = ("local", "declare", "typeset", "export", "readonly")', 'DECLARE_FAMILY = ("local", "declare", "export", "readonly")')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # typeset outside the provenance model again
+    ('V4R15-M17', CEN, [('                note(cm["func"], nm, w.split("=", 1)[1] if _ASSIGN_RE.match(w) else "<quoted assignment>")', '                if _ASSIGN_RE.match(w):\n                    note(cm["func"], nm, w.split("=", 1)[1])')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-self]'),  # a quoted NAME=VALUE assignment unseen by provenance
+    ('V4R15-M18', CEN, [('            rest += [v for v in vs if (func, v) not in PARAMS and proved_in(func, v) and\n                     not re.search(r"\\$\\{%s:\\?" % re.escape(v), u)]\n', '')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-param-guard]'),  # the ${V:?} rule skipped for a param-tagged operand
+    ('V4R15-M19', CEN, [('PY_DYNAMIC = {"getattr", "setattr", "__import__", "eval", "exec", "compile", "globals", "vars",\n              "breakpoint"}', 'PY_DYNAMIC = {"getattr", "setattr", "__import__", "eval", "exec", "compile", "globals", "vars"}')],
+     T_R15, {'R15_ONLY': 'CENSUS'}, 'NOT ok [R15CENSUS-rv8-py]'),  # breakpoint() accepted
 ]
 
 # EQUIVALENT mutants: applied like every mutant, but the named case must still PASS -- the equivalence claim is itself a
@@ -1210,7 +1272,9 @@ CONTROLS = [("control-r6-F4", T_R6, {"R6_ONLY": "F4"}, "ok [R6-F4]"),
             # round 13: the whole new file (rc == 0 requires every row a V4R13-* mutant runs)
             ("control-r13", T_R13, {}, "ok [R13UMASK-default]"),
             # round 14: the whole new file (rc == 0 requires every row a V4R14-* mutant runs)
-            ("control-r14", T_R14, {}, "ok [R14ACL-check]")]
+            ("control-r14", T_R14, {}, "ok [R14ACL-check]"),
+            # round 15: the whole new file (rc == 0 requires every row a V4R15-* mutant runs)
+            ("control-r15", T_R15, {}, "ok [R15LOCK-home-env]")]
 
 
 def replica():

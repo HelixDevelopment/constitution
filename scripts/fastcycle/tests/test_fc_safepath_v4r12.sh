@@ -139,7 +139,14 @@ if want PARITY; then
   foreign "$P/f755" "$P/f1777" "$P/fmid" "$P/fl/theirlink" || HAVE_F=0
   # rootsticky is /tmp itself (root, 1777), NOT ${TMPDIR}: a TMPDIR that is not a root-owned sticky directory
   # silently turned this row into a non-sticky one and V4R12-M3 (the sticky exemption lost) survived (round 14b).
-  rows="own755:$P/own755:trusted own1777:$P/own1777:trusted rootsticky:/tmp:trusted mylink:$P/mylink:trusted"
+  # Round 15 (NIT-A of the round-8 review): the fixture's property is ASSERTED, never assumed -- on a host whose /tmp
+  # is not root-owned 1777 the row is SKIPPED with the reason (not counted), never run against a non-sticky fixture.
+  rows="own755:$P/own755:trusted own1777:$P/own1777:trusted mylink:$P/mylink:trusted"
+  if [ "$(stat -c '%u %a' /tmp 2>/dev/null)" = "0 1777" ]; then
+    rows="$rows rootsticky:/tmp:trusted"
+  else
+    echo "SKIP [R12PARITY-rootsticky] /tmp is not root-owned 1777 on this host (stat: $(stat -c '%u %a' /tmp 2>&1)) -- not counted"
+  fi
   rows="$rows own777:$P/own777:refused missing:$P/nope/x:refused"
   if [ "$HAVE_F" = 1 ]; then
     rows="$rows f755:$P/f755:refused f1777:$P/f1777:refused fmid:$P/fmid/inner:refused flink:$P/fl/theirlink:refused"
