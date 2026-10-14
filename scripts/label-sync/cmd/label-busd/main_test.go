@@ -68,8 +68,8 @@ func TestSingleInstanceAndCleanShutdown(t *testing.T) {
 	var e2 bytes.Buffer
 	ctx2, c2 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer c2()
-	if rc := run(ctx2, []string{"--dir", dir}, &e2); rc != 1 {
-		t.Fatalf("second instance rc=%d (%s), want 1", rc, e2.String())
+	if rc := run(ctx2, []string{"--dir", dir}, &e2); rc != exitAlreadyRunning {
+		t.Fatalf("second instance rc=%d (%s), want %d", rc, e2.String(), exitAlreadyRunning)
 	}
 	d.cancel()
 	select {

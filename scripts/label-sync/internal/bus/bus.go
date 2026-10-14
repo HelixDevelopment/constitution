@@ -39,6 +39,9 @@ const FromNow = ^uint64(0)
 // so longer state dirs get a short private fallback (SocketPathFor).
 const MaxSockPath = 100
 
+// MaxHelloBytes bounds the subscription hello line a client may send.
+const MaxHelloBytes = 4096
+
 // AddrFile is the file in the state dir that records the socket path the
 // daemon actually listens on (present only when it is NOT <dir>/bus.sock).
 const AddrFile = "bus.addr"
@@ -387,7 +390,10 @@ func ServeListener(ctx context.Context, st *state.Store, ln net.Listener, sockPa
 func serveConn(ctx context.Context, h *Hub, conn net.Conn) {
 	defer conn.Close()
 	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	line, err := bufio.NewReader(conn).ReadBytes('\n')
+	// The hello is one tiny JSON line: read at most MaxHelloBytes of it, so a
+	// client streaming bytes without a newline is cut off at the limit at once
+	// (review-2 finding 14), not held (and buffered) until the deadline.
+	line, err := bufio.NewReader(io.LimitReader(conn, MaxHelloBytes)).ReadBytes('\n') // MUT:hellolimit
 	if err != nil {
 		return
 	}

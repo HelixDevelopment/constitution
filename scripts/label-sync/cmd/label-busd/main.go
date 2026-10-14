@@ -10,8 +10,10 @@
 // Socket path: <dir>/bus.sock, or — when that exceeds the unix path limit —
 // a short private fallback recorded in <dir>/bus.addr (CONTRACT §3).
 //
-// Exit codes: 0 clean shutdown; 1 another instance is running; 2 cannot
-// determine/start (state dir unusable, usage).
+// Exit codes: 0 clean shutdown; 2 cannot determine/start (state dir
+// unusable, usage); 3 another instance already holds busd.lock (not an
+// error of THIS instance: the daemon it would be is already up). Exit 1 is
+// never used (it means "finding" in the labelctl convention).
 package main
 
 import (
@@ -19,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -29,6 +32,13 @@ import (
 	"github.com/HelixDevelopment/HelixConstitution/scripts/label-sync/internal/bus"
 	"github.com/HelixDevelopment/HelixConstitution/scripts/label-sync/internal/state"
 )
+
+// beforeListen is a test seam: called right before the socket is bound, so a
+// test can widen the window in which a client may observe bus.addr.
+var beforeListen = func() {}
+
+// exitAlreadyRunning: another instance holds the single-instance lock.
+const exitAlreadyRunning = 3
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -54,7 +64,7 @@ func run(ctx context.Context, args []string, errw io.Writer) int {
 	lock, err := state.TryLockFile(filepath.Join(st.Dir(), "busd.lock"))
 	if err != nil {
 		fmt.Fprintf(errw, "label-busd: another instance holds %s/busd.lock\n", st.Dir())
-		return 1
+		return exitAlreadyRunning
 	}
 	defer lock.Close()
 	pidf := filepath.Join(st.Dir(), "busd.pid")
@@ -64,21 +74,32 @@ func run(ctx context.Context, args []string, errw io.Writer) int {
 	}
 	defer os.Remove(pidf)
 
+	// Order (review-2 finding 6): bind the socket FIRST, record bus.addr only
+	// once a client can actually dial it, and never leave an address behind
+	// for a socket that was not bound (finding 14). A stale bus.addr from an
+	// earlier crash is removed up front.
 	addrf := filepath.Join(st.Dir(), bus.AddrFile)
+	_ = os.Remove(addrf)
 	srvDone := make(chan error, 1)
 	sock, fallback, perr := bus.SocketPathFor(st.Dir())
+	var ln net.Listener
 	if perr == nil {
-		if fallback {
-			perr = state.WriteAtomic(addrf, []byte(sock+"\n"))
-		} else {
+		beforeListen()
+		ln, perr = bus.Listen(sock)
+		if perr != nil {
+			perr = fmt.Errorf("socket %s: %w", sock, perr)
+		}
+	}
+	if perr == nil && fallback {
+		if werr := state.WriteAtomic(addrf, []byte(sock+"\n")); werr != nil {
+			_ = ln.Close()
+			_ = os.Remove(sock)
 			_ = os.Remove(addrf)
+			perr = fmt.Errorf("cannot record %s: %w", addrf, werr)
 		}
 	}
 	if perr != nil {
 		fmt.Fprintf(errw, "label-busd: no socket (%v); reconcile loop only\n", perr)
-		srvDone = nil
-	} else if ln, err := bus.Listen(sock); err != nil {
-		fmt.Fprintf(errw, "label-busd: socket %s: %v; reconcile loop only\n", sock, err)
 		srvDone = nil
 	} else {
 		go func() { srvDone <- bus.ServeListener(ctx, st, ln, sock, *poll) }()
