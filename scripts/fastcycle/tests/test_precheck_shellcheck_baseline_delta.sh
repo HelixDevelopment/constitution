@@ -2,7 +2,7 @@
 # shellcheck disable=SC2016 # printf and heredoc fixtures are literal shell text whose dollar signs must not expand
 # fastcycle-timeout-s: 900
 # =============================================================================
-# test_precheck_shellcheck_baseline_delta.sh (ATM-1217 r3 + r4 + r5 + r6 + r7)
+# test_precheck_shellcheck_baseline_delta.sh (ATM-1217 r3 + r4 + r5 + r6 + r7 + r8)
 # Real-path regression for the OPT-IN baseline-delta rule of the precheck-pack
 # lint row (--shellcheck-rule baseline-delta; operator decision 2026-10-13),
 # layered on the round-5/6 gate (severity floor, systemd-run memory cap, size cap,
@@ -20,7 +20,12 @@
 # result with column / endColumn removed from every finding: a finding without a sane
 # extent must never be credited as pre-existing), `# STUB_DUP_IF <token>` (r7: the REAL
 # result with every finding listed twice, only when <token> also occurs elsewhere in the
-# input: the per-key count of identical findings).
+# input: the per-key count of identical findings), `# STUB_EXTENT <mode>` (r8: the REAL
+# result with every finding's extent rewritten to a NON-SANE value shellcheck 0.11.0 does
+# not emit -- mode endline-before-line: endLine = line - 1; endcol-before-col: endColumn =
+# column - 1; column-zero: column = 0; identity: rewritten through the same python path
+# but unchanged, the control -- to reach the extent sanity sub-checks of _finding_extent
+# through the real gate; these cases are SIMULATED tool output, labelled as such).
 #
 # r5: the stub also appends the LINE COUNT of every lint input to $TMP/lintlog (the
 # G-class census: since r5 every lint input must be a WHOLE head or base blob).
@@ -81,6 +86,25 @@ d = json.load(open(sys.argv[1]))
 d["comments"] = [c for c in d.get("comments", []) for _ in (0, 1)]
 json.dump(d, sys.stdout)' "\$t.o"
     rm -f "\$t" "\$t.o"; exit "\$rc"
+fi
+xmode=\$(sed -n 's/^# STUB_EXTENT //p' "\$t" | head -n 1)
+if [ -n "\$xmode" ]; then  # r8: every finding's extent rewritten to a non-sane value (SIMULATED output)
+    "$REAL_SC" "\$@" <"\$t" >"\$t.o"; rc=\$?
+    python3 -c 'import json, sys
+d = json.load(open(sys.argv[1]))
+m = sys.argv[2]
+for c in d.get("comments", []):
+    if m == "endline-before-line":
+        c["endLine"] = c["line"] - 1
+    elif m == "endcol-before-col":
+        c["endLine"] = c["line"]
+        c["endColumn"] = c["column"] - 1
+    elif m == "column-zero":
+        c["column"] = 0
+    elif m != "identity":
+        sys.exit("unknown STUB_EXTENT mode " + m)
+json.dump(d, sys.stdout)' "\$t.o" "\$xmode"
+    rc2=\$?; rm -f "\$t" "\$t.o"; [ "\$rc2" -eq 0 ] || exit 98; exit "\$rc"
 fi
 if grep -q '^# STUB_NOEXTENT' "\$t"; then  # r7: shellcheck output whose findings carry no column / endColumn
     "$REAL_SC" "\$@" <"\$t" >"\$t.o"; rc=\$?
@@ -871,6 +895,37 @@ expect "N9 an identical finding on ANOTHER base line does not pay for a new one 
 new_case n10j; wb s.sh "#!/bin/sh\n${H} STUB_DUP_IF dup_trigger\necho \"\$undefined_pre\"\n"; base
 wh s.sh "#!/bin/sh\n${H} STUB_DUP_IF dup_trigger\necho \"\$undefined_pre\"\necho dup_trigger\n"; head; gate
 expect "N10 one more identical finding than the base -> FAIL, one SC2154 new and one pre-existing at line 3" '(c["verdict"], [(f["rule"], f["line"]) for f in e.get("findings", [])], [(f["rule"], f["line"]) for f in e.get("baseline_findings", [])])' "('FAIL', [('SC2154', 3)], [('SC2154', 3)])"
+# --- r8 (review r7 K1): the multi-line extent's MIDDLE line, and the extent sanity sub-checks -----------------
+# N11 (reviewer P1, kills V03) a 3-line SC2045 (`for f in $(ls \ / -l \ / /tmp)`) whose FIRST and LAST lines are
+#     unchanged and consecutive but whose MIDDLE line was edited -> the finding is partly on a changed line: NEW, FAIL
+new_case n11j; wb s.sh '#!/bin/sh\nfor f in $(ls \\\n  -l \\\n  /tmp); do\n  echo "$f"\ndone\n'; base
+wh s.sh '#!/bin/sh\nfor f in $(ls \\\n  -a \\\n  /tmp); do\n  echo "$f"\ndone\n'; head; gate
+expect "N11 (P1) 3-line SC2045 whose MIDDLE line changed -> FAIL, SC2045 at 2:10 new, nothing pre-existing" '(c["verdict"], [(f["rule"], f["line"], f["column"], f["endLine"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2045', 2, 10, 4)], [])"
+# N11n (reviewer P1n) negative control: the same 3-line finding, all three lines unchanged, a line appended -> PASS
+new_case n11n; wb s.sh '#!/bin/sh\nfor f in $(ls \\\n  -l \\\n  /tmp); do\n  echo "$f"\ndone\n'; base
+wh s.sh '#!/bin/sh\nfor f in $(ls \\\n  -l \\\n  /tmp); do\n  echo "$f"\ndone\necho end\n'; head; gate
+expect "N11n negative control: 3-line SC2045 on unchanged lines -> PASS, pre-existing at 2:10" '(c["verdict"], [(f["rule"], f["line"], f["column"], f["endLine"]) for f in e.get("baseline_findings", [])])' "('PASS', [('SC2045', 2, 10, 4)])"
+# N12a-c (SIMULATED output, stub `# STUB_EXTENT <mode>` in BOTH base and head, kills V04 V05 V06): every finding of
+#     both lints carries the SAME non-sane extent, so a key that admitted it would be equal on both sides and credit
+#     the unchanged SC2154; _finding_extent rejects it -> never credited: FAIL, the SC2154 at line 3 is new.
+#     the real tool (0.11.0) does not emit these extents (the r7 review's census); the sub-checks are defensive and these
+#     cases pin them through the real gate.
+for xm in endline-before-line:a endcol-before-col:b column-zero:c; do
+    new_case "n12${xm#*:}"; wb s.sh "#!/bin/sh\n${H} STUB_EXTENT ${xm%:*}\necho \"\$undefined_pre\"\n"; base
+    wh s.sh "#!/bin/sh\n${H} STUB_EXTENT ${xm%:*}\necho \"\$undefined_pre\"\necho more\n"; head; gate
+    expect "N12${xm#*:} (SIMULATED: stub extent ${xm%:*} on both sides) a non-sane extent is never credited -> FAIL, the SC2154 at line 3 is new, state full" '(c["verdict"], e["delta"]["states"], [(f["rule"], f["line"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', ['full'], [('SC2154', 3)], [])"
+done
+# N12n control for N12a-c: the same stub path (`identity`: the output goes through the same rewrite and is unchanged)
+#     -> PASS, the SC2154 pre-existing: the FAILs above come from the extent values, not from the stub path itself
+new_case n12n; wb s.sh "#!/bin/sh\n${H} STUB_EXTENT identity\necho \"\$undefined_pre\"\n"; base
+wh s.sh "#!/bin/sh\n${H} STUB_EXTENT identity\necho \"\$undefined_pre\"\necho more\n"; head; gate
+expect "N12n control (stub extent identity) -> PASS, the SC2154 at line 3 pre-existing" '(c["verdict"], e["delta"]["states"], e.get("findings", []), [(f["rule"], f["line"]) for f in e.get("baseline_findings", [])])' "('PASS', ['full'], [], [('SC2154', 3)])"
+# N13 (r8 census, STATED LIMIT pinned so it cannot drift silently; R12 class) an ADDED line `exec \` directly above
+#     the unchanged `echo $a` makes it the continuation of a new command (`exec echo $a`); the added line has no finding
+#     of its own and the unquoted $a token is byte-identical -> PASS, the SC2086 at 4:6 pre-existing (the whole-file
+#     rule fails it). The change is on another line the finding does not cite: the delta rule judges the unchanged token
+new_case n13j; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\nexec \\\necho $a\n'; head; gate
+expect "N13 (stated limit, R12) an added continuation line changes the unchanged line's meaning -> PASS, SC2086 at 4:6 pre-existing" '(c["verdict"], e.get("findings", []), [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('PASS', [], [('SC2086', 4, 6)])"
 # S1 (review J4 seam) a file absent at base -> new-file, new_file_reason exactly `untracked-at-base`
 new_case s1u; wb old.sh '#!/bin/sh\necho ok\n'; base; wh added.sh '#!/bin/sh\necho "$undefined_s1"\n'; head; gate
 expect "S1 file absent at base -> FAIL new-file, reason untracked-at-base" '(c["verdict"], [(f["state"], f.get("new_file_reason")) for f in e["delta"]["files"]])' "('FAIL', [('new-file', 'untracked-at-base')])"
