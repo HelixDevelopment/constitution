@@ -19,8 +19,10 @@
 #      adapters (LABEL_SYNC_ADAPTERS, dry-run default)
 #   5. chmod +x and syntax-validate all new/modified scripts (label-sync's too)
 #   6. Reports a summary of what was installed
-#   Every step 2-5 is ISOLATED (run_step): a failing step is recorded as a
-#   WARNING and the next step still runs — no step can abort the hook.
+#   Every step 2-5 is ISOLATED (run_step): it runs under `set -e` in a
+#   subshell, a failing step is recorded as an ERROR (exit 1) and the next step
+#   still runs; `exit`/unset variables end only that step (a signal can still
+#   end the hook).
 #
 # Usage:
 #   bash constitution/scripts/post_update_hook.sh
@@ -31,9 +33,9 @@
 #   CONST_DIR  — path to the constitution submodule root
 #                (default: the directory this script lives in, ../..)
 #   PROJECT_ROOT — consuming project root (default: pwd)
-#   POST_UPDATE_HOOK_FAULT_STEP — TEST ONLY: name of one step function whose
-#                status run_step forces to 97 after it ran (proves the step
-#                isolation end to end); unset in normal use.
+#   POST_UPDATE_HOOK_TEST_MODE=1 + POST_UPDATE_HOOK_FAULT_STEP / _FAULT_EXIT —
+#                TEST ONLY fault seams (see run_step); without TEST_MODE=1 they
+#                are ignored.
 #
 # Outputs:
 #   stdout — summary of installed/registered items
@@ -301,14 +303,17 @@ install_mcp_configs() {
     fi
 
     # Paths in a constitution MCP config are relative to the CONSTITUTION root
-    # (e.g. scripts/label-sync/mcp/label-mcp.sh). In a consumer they must be
-    # resolvable from the PROJECT root (review-2 finding D): such a path is
+    # (e.g. scripts/label-sync/mcp/label-mcp.sh). In a consumer they are
     # rewritten to <constitution-dir-relative-to-project>/<path> (absolute when
     # the constitution lives outside the project). Only strings that name an
     # existing file under the constitution and NOT under the project root are
-    # rewritten. HONEST BOUNDARY: that Claude Code starts a project-scope stdio
-    # server with the project root as its working directory is UNCONFIRMED
-    # (not documented in this repository); the vendor-relative path relies on it.
+    # rewritten. A RELATIVE result is not enough (re-review finding 3, measured
+    # with Claude Code 2.1.300: the client spawns the command relative to the
+    # directory IT was started in — from <project>/sub/deeper a relative command
+    # fails with ENOENT — and does not expand ${CLAUDE_PROJECT_DIR} in .mcp.json).
+    # So such an entry is wrapped:  sh -c '<walk up from $PWD to the directory
+    # holding <prefix>; cd there; exec "$0" "$@">' <command> <args...>
+    # and fails loudly ("... not found above $PWD", exit 127) outside the project.
     local croot proot cprefix
     croot="$(cd "$CONST_DIR" 2>/dev/null && pwd -P)" || croot="$CONST_DIR"
     proot="$(cd "$PROJECT_ROOT" 2>/dev/null && pwd -P)" || proot="$PROJECT_ROOT"
@@ -332,7 +337,7 @@ install_mcp_configs() {
             warn "  -> $src_file is not valid JSON — skipped."; WARNINGS+=("MCP ${mcp_name}: source not valid JSON")
             rm -f "$frag" "$tmpfile"; continue
         fi
-        local key idx str
+        local key idx str rewrote=""
         while IFS=$'\t' read -r key idx str; do
             [ -n "$str" ] || continue
             case "$str" in /*|*://*) continue ;; */*) ;; *) continue ;; esac
@@ -343,7 +348,19 @@ install_mcp_configs() {
                 jq --arg k "$key" --argjson i "$((idx - 1))" --arg v "$cprefix/$str" '.mcpServers[$k].args[$i] = $v' "$frag" >"$frag.x" && mv -f "$frag.x" "$frag"
             fi
             info "  -> path resolved for the consumer: $str -> $cprefix/$str"
+            case " $rewrote " in *" $key "*) ;; *) rewrote="$rewrote $key" ;; esac
         done < <(jq -r '.mcpServers | to_entries[] | .key as $k | ([.value.command] + (.value.args // [])) | to_entries[] | [$k, (.key|tostring), (.value // "" | tostring)] | @tsv' "$frag" 2>/dev/null)
+        if [ "${cprefix#/}" = "$cprefix" ] && [ -n "$rewrote" ]; then
+            local qp walk
+            qp="'${cprefix//\'/\'\\\'\'}'"     # single-quoted for sh
+            walk="d=\$PWD; while [ ! -d \"\$d\"/$qp ]; do [ \"\$d\" = / ] && { echo \"label-sync MCP launcher: \"$qp\" not found above \$PWD\" >&2; exit 127; }; d=\$(dirname \"\$d\"); done; cd \"\$d\" && exec \"\$0\" \"\$@\""
+            for key in $rewrote; do   # MUT:mcpwrap
+                jq --arg k "$key" --arg w "$walk" \
+                   '.mcpServers[$k] |= (.args = (["-c", $w, .command] + (.args // [])) | .command = "sh")' \
+                   "$frag" >"$frag.x" && mv -f "$frag.x" "$frag"
+            done
+            info "  -> launched through sh: the project root is found by walking up to '$cprefix' (any start directory)"
+        fi
         if jq -s '.[0].mcpServers = ((.[0].mcpServers // {}) + .[1].mcpServers) | .[0]' "$mcp_dst" "$frag" >"$tmpfile" 2>/dev/null \
            && jq -e 'type == "object"' "$tmpfile" >/dev/null 2>&1 && mv -f "$tmpfile" "$mcp_dst"; then
             info "  -> Merged into: $mcp_dst"
@@ -573,22 +590,51 @@ install_label_sync_adapters() {
     return 0
 }
 
-# run_step <function> : run one step ISOLATED. A step that returns non-zero (or
-# hits an unexpected error) is recorded as a WARNING and the next step still
-# runs (review-2 finding C: the documented "step 4c always runs" was false
-# once any earlier step failed under `set -e`).
+# run_step <function> : run one step ISOLATED, with errexit ACTIVE inside it
+# (re-review finding 1: calling the step as `"$fn" || rc=$?` disabled errexit
+# for every command in the step, so a command failing mid-step passed silently
+# and the summary said "completed successfully" — a false green).
+#   * the step runs in a subshell under `set -e`: the FIRST failing command ends
+#     the step; `exit` and an unset variable (`set -u`) end only the step;
+#   * WARNINGS/ERRORS the step recorded come back through a private temp dir;
+#   * a step ending non-zero is recorded as an ERROR (the hook then exits 1 and
+#     the summary says "completed with errors"), and the NEXT step still runs.
+#   What can still end the whole hook: a signal (e.g. SIGKILL/SIGTERM) — nothing
+#   in-process can contain that.
+# Test-only fault seams, honoured ONLY when POST_UPDATE_HOOK_TEST_MODE=1 (inert
+# otherwise; scripts/hooks/test_label_sync_hooks.sh §20/§22):
+#   POST_UPDATE_HOOK_FAULT_STEP=<fn>  the real step runs, then its status is forced to 97
+#   POST_UPDATE_HOOK_FAULT_EXIT=<fn>  the step's subshell runs `exit 7` before the step
 run_step() {
-    local fn="$1" rc=0
-    "$fn" || rc=$?
-    # Test-only fault seam (inert unless set): the REAL step has run; its status
-    # is then forced to 97 so the isolation below can be proven end to end
-    # (scripts/hooks/test_label_sync_hooks.sh §20). Never set it in production.
-    if [ -n "${POST_UPDATE_HOOK_FAULT_STEP:-}" ] && [ "$POST_UPDATE_HOOK_FAULT_STEP" = "$fn" ]; then rc=97; fi
+    local fn="$1" rc=0 st x
+    st="$(mktemp -d "${TMPDIR:-/tmp}/post_update_step.XXXXXX")" \
+        || { error "step $fn: cannot create a temp dir — step NOT run"; ERRORS+=("step $fn not run (no temp dir)"); return 0; }
+    set +e
+    (
+        set -e
+        WARNINGS=(); ERRORS=()
+        # shellcheck disable=SC2064
+        trap "_ls_step_save '$st'" EXIT
+        if [ "${POST_UPDATE_HOOK_TEST_MODE:-}" = 1 ] && [ "${POST_UPDATE_HOOK_FAULT_EXIT:-}" = "$fn" ]; then exit 7; fi
+        "$fn"
+    )
+    rc=$?   # MUT:stepsubshell
+    set -e
+    while IFS= read -r -d '' x; do WARNINGS+=("$x"); done <"$st/w" 2>/dev/null || :
+    while IFS= read -r -d '' x; do ERRORS+=("$x"); done <"$st/e" 2>/dev/null || :
+    rm -rf -- "$st"
+    if [ "${POST_UPDATE_HOOK_TEST_MODE:-}" = 1 ] && [ "${POST_UPDATE_HOOK_FAULT_STEP:-}" = "$fn" ]; then rc=97; fi
     if [ "$rc" -ne 0 ]; then
-        warn "step $fn ended with exit $rc — recorded; continuing with the next step"
-        WARNINGS+=("step $fn exited $rc")
+        error "step $fn FAILED (exit $rc) — its first failing command ended it; recorded as an ERROR, the next step still runs"
+        ERRORS+=("step $fn failed (exit $rc)")   # MUT:steperror
     fi
     return 0
+}
+# _ls_step_save <dir> : EXIT trap of a step subshell — hands the step's
+# WARNINGS/ERRORS (NUL-separated) back to run_step.
+_ls_step_save() {
+    { [ ${#WARNINGS[@]} -eq 0 ] || printf '%s\0' "${WARNINGS[@]}"; } >"$1/w" 2>/dev/null || :
+    { [ ${#ERRORS[@]} -eq 0 ] || printf '%s\0' "${ERRORS[@]}"; } >"$1/e" 2>/dev/null || :
 }
 
 # ============================================================================
@@ -658,7 +704,10 @@ validate_scripts() {
             ERRORS+=("$err_msg")
 
             # Attempt to get the exact error
-            bash -n "$script" 2>&1 | while IFS= read -r line; do
+            # diagnostics only: `bash -n` exits non-zero here by definition, which
+            # under pipefail + errexit used to END this step after the FIRST
+            # broken script (re-review 1) — the error is already recorded above.
+            { bash -n "$script" 2>&1 || :; } | while IFS= read -r line; do   # MUT:validatecontinue
                 error "  $line"
             done
         fi

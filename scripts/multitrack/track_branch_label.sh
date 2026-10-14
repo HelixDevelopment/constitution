@@ -175,9 +175,11 @@ _native_model() {
   [[ -r "$transcript" ]] || { printf '%s' '?'; return; }
 
   raw=""
+  # "<synthetic>" assistant entries are written by the client itself (API
+  # errors, isApiErrorMessage) — never a model, skipped (re-review finding 4).
   if command -v jq >/dev/null 2>&1; then
     raw="$(tail -n 500 "$transcript" 2>/dev/null \
-      | jq -r 'select(.type=="assistant") | .message.model // empty' 2>/dev/null \
+      | jq -r 'select(.type=="assistant") | .message.model // empty | select(. != "<synthetic>")' 2>/dev/null \
       | tail -n1)"
   fi
   if [[ -z "$raw" ]]; then
@@ -191,7 +193,7 @@ _native_model() {
     # substring match, not a structural parse — installing `jq` closes this
     # gap entirely (preferred path above).
     raw="$(tail -n 500 "$transcript" 2>/dev/null \
-      | grep '"type":"assistant"' \
+      | grep '"type":"assistant"' | grep -v '"model":"<synthetic>"' \
       | sed -n 's/.*"message":{"model":"\([^"]*\)".*/\1/p' \
       | tail -n1)"
   fi

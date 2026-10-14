@@ -29,13 +29,7 @@ MOD="$(cd "$SELF/.." && pwd)"   # scripts/label-sync (the Go module root)
 ls_bincache_into BIN_DIR "$MOD"   # per-checkout cache (review-2 finding 13)
 BIN="$BIN_DIR/label-mcp"
 
-src_commit() { git -C "$MOD" rev-parse -q --verify HEAD 2>/dev/null || :; }
-stale() {
-  [ -x "$BIN" ] || return 0
-  [ -n "$(find "$MOD" \( -name '*.go' -o -name go.mod \) -newer "$BIN" -print -quit 2>/dev/null)" ] && return 0
-  local rec=""; { IFS= read -r rec <"$BIN_DIR/.source-commit-mcp"; } 2>/dev/null || rec=""
-  [ "$rec" != "$(src_commit)" ]   # built from another commit => stale
-}
+stale() { ls_bin_stale "$BIN" "$BIN_DIR/.source-tree-mcp" "$MOD"; }   # rule: ../bincache.sh
 
 build() {
   stale || return 0
@@ -45,7 +39,7 @@ build() {
     command -v flock >/dev/null 2>&1 && flock 9
     stale || exit 0
     cd "$MOD" && GOPROXY=off GOFLAGS=-buildvcs=false nice -n 10 go build -o "$BIN" ./mcp/label-mcp 1>&2 \
-      && src_commit >"$BIN_DIR/.source-commit-mcp"
+      && ls_src_tree "$MOD" >"$BIN_DIR/.source-tree-mcp"
   ) 9>"$BIN_DIR/.build-mcp.lock" || { echo "label-mcp.sh: build failed" >&2; return 2; }
 }
 

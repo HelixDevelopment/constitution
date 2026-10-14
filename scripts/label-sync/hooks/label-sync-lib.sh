@@ -53,8 +53,8 @@ ls_init() {
   LS_STATE="${LABEL_SYNC_DIR:-${HOME:-/tmp}/.local/state/constitution-label-sync}"
   LS_HOOKSTATE="$LS_STATE/hooks"
   # per-checkout binary cache, same key as labelctl.sh (bincache.sh, fork-free)
+  declare -F ls_bin_stale >/dev/null 2>&1 || . "$LS_DIR/bincache.sh" 2>/dev/null || return 1
   if [ -z "${LABEL_SYNC_BIN:-}" ]; then
-    declare -F ls_bincache_into >/dev/null 2>&1 || . "$LS_DIR/bincache.sh" 2>/dev/null || return 1
     ls_bincache_into LS_BINDIR "$LS_DIR"
   else
     LS_BINDIR="$LABEL_SYNC_BIN"
@@ -80,11 +80,7 @@ ls_have_bin() {
     case "$last" in ''|*[!0-9]*) last=0 ;; esac
     if [ $((now - last)) -ge 60 ]; then
       printf '%s\n' "$now" >"$stamp" 2>/dev/null
-      local rec=""; { IFS= read -r rec <"$LS_BINDIR/.source-commit"; } 2>/dev/null || rec=""
-      if [ -n "$(find "$LS_DIR" \( -name '*.go' -o -name go.mod \) -newer "$LS_CTL_BIN" -print -quit 2>/dev/null)" ] \
-         || [ "$rec" != "$(git -C "$LS_DIR" rev-parse -q --verify HEAD 2>/dev/null)" ]; then
-        ls_kick_build
-      fi
+      if ls_bin_stale "$LS_CTL_BIN" "$LS_BINDIR/.source-tree" "$LS_DIR"; then ls_kick_build; fi
     fi
     return 0
   fi
@@ -369,7 +365,9 @@ ls_switched_model() {
   case "$off" in ''|-1|*[!0-9]*) LS_SWITCH_MODEL="$mo"; return 0 ;; esac
   if [ -n "$tr" ] && [ -r "$tr" ]; then
     newer="$(tail -c +"$((off + 1))" -- "$tr" 2>/dev/null \
-      | jq -r 'select(.type=="assistant") | .message.model // empty' 2>/dev/null | tail -n1)"
+      | jq -r 'select(.type=="assistant") | .message.model // empty | select(. != "<synthetic>")' 2>/dev/null | tail -n1)"   # MUT:synthlib
+    # "<synthetic>" marks client-made entries (API errors: isApiErrorMessage) —
+    # never proof of a live model (re-review finding 4)
     if [ -n "$newer" ]; then          # a newer assistant entry proves the live model
       rm -f -- "$f"; return 1           # MUT:msnewer
     fi

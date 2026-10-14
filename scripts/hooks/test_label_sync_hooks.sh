@@ -921,10 +921,17 @@ case "$ctx" in *" - sonnet - "*) r=0 ;; *) r=1 ;; esac
 ok "F3 additionalContext carries the switched model (got: ${ctx:0:100})" $r
 run_hook label-sync-agent-register.sh "$(j PreToolUse '{"tool_name":"Agent","tool_use_id":"toolu_F3","tool_input":{"description":"(T1/main - claude1 - sonnet - ?) f3"}}')"
 eq "F3 a re-asserting hook (agent register) keeps the switched model too" "$(field "session:$SID" model)" sonnet
+SYN='{"parentUuid":"p1","isSidechain":false,"type":"assistant","uuid":"u1","message":{"id":"m1","container":null,"model":"<synthetic>","role":"assistant","stop_reason":"stop_sequence","type":"message","content":[{"type":"text","text":"API Error"}]},"isApiErrorMessage":true}'
+printf '%s\n' "$SYN" >>"$TR"   # a real-shaped synthetic (API-error) assistant entry
+run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"synthetic entry"}')"
+eq "R4 a '<synthetic>' assistant entry does NOT undo the recorded switch" "$(field "session:$SID" model)" sonnet
 printf '{"type":"assistant","message":{"model":"claude-haiku-4-5"}}\n' >>"$TR"
 run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"newer entry"}')"
 eq "F3 a NEWER assistant entry proves the live model (haiku) and wins" "$(field "session:$SID" model)" haiku
 check "F3 the superseded switch record is removed" test ! -e "$LABEL_SYNC_DIR/hooks/modelswitch/$SID"
+printf '%s\n' "$SYN" >>"$TR"
+run_hook label-sync-prompt.sh "$(j UserPromptSubmit '{"prompt":"synthetic after real"}')"
+eq "R4 the labeler skips a trailing '<synthetic>' entry (model stays haiku)" "$(field "session:$SID" model)" haiku
 run_hook label-sync-model-switch.sh "$(j PostModelSwitch '{"to_model":"claude-opus-4-8"}')"
 run_hook label-sync-session-end.sh "$(j SessionEnd '{"reason":"exit"}')"
 check "F3 SessionEnd removes the switch record" test ! -e "$LABEL_SYNC_DIR/hooks/modelswitch/$SID"
@@ -941,6 +948,7 @@ cp -r "$LS/adapters/." "$FC20/scripts/label-sync/adapters/"
 ( cd "$FC20" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
   && printf '\n' >>mcp/label-sync-mcp.json && echo '# touched' >>scripts/label-sync/adapters/lib/adapter_lib.sh \
   && printf '#!/usr/bin/env bash\nif then (\n' >scripts/label-sync/broken.sh \
+  && printf '#!/usr/bin/env bash\nfi\n' >scripts/label-sync/broken2.sh \
   && git add -A && git -c user.email=t@t -c user.name=t commit -q -m change )
 git -C "$C20" init -q -b main 2>/dev/null
 printf '{ // a comment jq cannot parse\n  "mcpServers": {}\n}\n' >"$C20/.mcp.json"; shm="$(sha256sum "$C20/.mcp.json" | cut -d' ' -f1)"
@@ -953,21 +961,40 @@ done
 check "C the unparseable .mcp.json is reported as a warning" grep -q 'not a JSON object jq can parse' "$T/ph20.out"
 eq "C the unparseable .mcp.json is left byte-identical" "$(sha256sum "$C20/.mcp.json" | cut -d' ' -f1)" "$shm"
 check "L a label-sync script with a syntax error is caught by step 5" grep -q 'SYNTAX ERROR in .*broken.sh' "$T/ph20.out"
+check "R1 step 5 keeps going after a syntax error: the SECOND broken script is reported too" grep -q 'SYNTAX ERROR in .*broken2.sh' "$T/ph20.out"
+check "R1 a recorded syntax error does not end validate_scripts as FAILED" bash -c '! grep -q "step validate_scripts FAILED" "$1"' _ "$T/ph20.out"
 check "E step 4d ran install_adapters.sh in DRY-RUN by default" grep -q 'install_adapters.sh --dry-run' "$T/ph20.out"
 eq "E the default adapters step wrote NOTHING into the user's home" "$(find "$T/home20" -mindepth 1 | wc -l)" 0
 printf '{}\n' >"$C20/.mcp.json"
 ( cd "$C20" && HOME="$T/home20" CONST_DIR="$FC20" PROJECT_ROOT="$C20" LABEL_SYNC_ADAPTERS=off bash "$FC20/scripts/post_update_hook.sh" ) >"$T/ph20b.out" 2>&1
 mc="$(jq -r '.mcpServers["label-sync"].command // empty' "$C20/.mcp.json" 2>/dev/null)"
-eq "D the merged MCP command is resolvable from the consumer root (vendor-relative)" "$mc" "constitution/scripts/label-sync/mcp/label-mcp.sh"
-check "D ...and that file exists from the project root" test -f "$C20/$mc"
+mapfile -t ma < <(jq -r '.mcpServers["label-sync"].args[]?' "$C20/.mcp.json" 2>/dev/null)
+eq "R3 the merged MCP entry launches through sh (resolves the project root itself)" "$mc" sh
+eq "R3 ...and names the vendored server path as \$0" "${ma[2]:-}" "constitution/scripts/label-sync/mcp/label-mcp.sh"
+check "D ...and that file exists from the project root" test -f "$C20/${ma[2]:-x}"
+# Claude Code spawns the command relative to ITS start directory (measured by the
+# re-review with Claude Code 2.1.300: started in proj/sub/deeper a relative command
+# fails with ENOENT; ${CLAUDE_PROJECT_DIR} is not expanded in .mcp.json). Simulate
+# that spawn with a probe in place of the server.
+cp "$FC20/scripts/label-sync/mcp/label-mcp.sh" "$T/label-mcp.sh.keep"
+printf '#!/bin/sh\necho "probe-ran $PWD${*:+ $*}"\n' >"$FC20/scripts/label-sync/mcp/label-mcp.sh"; chmod +x "$FC20/scripts/label-sync/mcp/label-mcp.sh"
+mkdir -p "$C20/sub/deeper"
+po="$(cd "$C20/sub/deeper" && "$mc" "${ma[@]}" 2>&1 </dev/null)"
+eq "R3 started from a nested sub-directory the server is found and runs at the project root" "$po" "probe-ran $C20"
+po="$(cd "$C20" && "$mc" "${ma[@]}" 2>&1 </dev/null)"
+eq "R3 started from the project root it runs the same server" "$po" "probe-ran $C20"
+po="$(cd / && "$mc" "${ma[@]}" 2>&1 </dev/null)"; rc=$?
+case "$po" in *"not found above"*) r=0 ;; *) r=1 ;; esac
+ok "R3 started outside the project it fails loudly instead of running something else (got: ${po:0:80})" $r
+cp "$T/label-mcp.sh.keep" "$FC20/scripts/label-sync/mcp/label-mcp.sh"
 eq "D no guessed \"type\" key in the merged entry" "$(jq -r '.mcpServers["label-sync"] | has("type")' "$C20/.mcp.json")" false
 check "E LABEL_SYNC_ADAPTERS=off skips the adapters step" grep -q 'LABEL_SYNC_ADAPTERS=off' "$T/ph20b.out"
 # run_step isolation (review-2 C): no step returns non-zero on a reachable input
 # today, so the documented fault seam POST_UPDATE_HOOK_FAULT_STEP runs the REAL
 # step and then forces its status; the hook must record it and run every later step.
 ( cd "$C20" && HOME="$T/home20" CONST_DIR="$FC20" PROJECT_ROOT="$C20" LABEL_SYNC_ADAPTERS=off \
-    POST_UPDATE_HOOK_FAULT_STEP=install_label_sync bash "$FC20/scripts/post_update_hook.sh" ) >"$T/ph20c.out" 2>&1
-check "C a failing step is recorded with its exit code" grep -q 'step install_label_sync ended with exit 97' "$T/ph20c.out"
+    POST_UPDATE_HOOK_TEST_MODE=1 POST_UPDATE_HOOK_FAULT_STEP=install_label_sync bash "$FC20/scripts/post_update_hook.sh" ) >"$T/ph20c.out" 2>&1
+check "C a failing step is recorded with its exit code" grep -q 'step install_label_sync FAILED (exit 97)' "$T/ph20c.out"
 for st in 'STEP 4d' 'STEP 5' 'SUMMARY'; do
   check "C the steps after a failing step still ran: $st" grep -q "$st" "$T/ph20c.out"
 done
@@ -983,13 +1010,48 @@ bdB="$(env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" bash "$MB/labelctl.sh" --bi
 bdH="$(env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" bash -c '. "$1/hooks/label-sync-lib.sh"; ls_init; printf %s "$LS_BINDIR"' _ "$MA")"
 eq "13 the hooks resolve the SAME cache dir as labelctl.sh (fork-free key)" "$bdH" "$bdA"
 mkdir -p "$bdA"; cp "$LABEL_SYNC_BIN/labelctl" "$LABEL_SYNC_BIN/label-busd" "$bdA/"
-git -C "$MA" rev-parse HEAD >"$bdA/.source-commit"
+git -C "$MA" rev-parse 'HEAD:./' >"$bdA/.source-tree"
 NOGO="$T/nogo"; mkdir -p "$NOGO"; for t in bash git find dirname env cat; do ln -sf "$(type -P "$t")" "$NOGO/$t"; done
-env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" PATH="$NOGO" bash "$MA/labelctl.sh" --build >/dev/null 2>&1
-eq "13 control: binaries built from THIS commit are fresh (no go needed)" "$?" 0
-git -C "$MA" -c user.email=t@t -c user.name=t commit -q --allow-empty -m newer
-env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" PATH="$NOGO" bash "$MA/labelctl.sh" --build >/dev/null 2>&1
-eq "13 binaries built from ANOTHER commit are stale (rebuild needed: no go => exit 2)" "$?" 2
+nogo_build() { env -u LABEL_SYNC_BIN XDG_CACHE_HOME="$T/xdg" PATH="$NOGO" bash "$MA/labelctl.sh" --build >/dev/null 2>&1; }
+nogo_build; eq "13 control: binaries stamped with THIS source tree are fresh (no go needed)" "$?" 0
+find "$MA" -name '*.go' -exec touch {} +   # a checkout rewrites mtimes; the source is identical
+nogo_build; eq "R5 identical source with newer mtimes is still fresh (no go => used, not exit 2)" "$?" 0
+git -C "$MA" -c user.email=t@t -c user.name=t commit -q --allow-empty -m unrelated
+nogo_build; eq "R5 a commit that does not touch the module keeps the binaries fresh" "$?" 0
+echo '// edit' >>"$MA/internal/model/model.go"
+nogo_build; eq "R5 an UNCOMMITTED source edit makes them stale (no go => exit 2)" "$?" 2
+git -C "$MA" add -A && git -C "$MA" -c user.email=t@t -c user.name=t commit -q -m src
+nogo_build; eq "R5 a commit that changes the module source makes them stale (no go => exit 2)" "$?" 2
+PRE="$T/prebuilt"; mkdir -p "$PRE"; cp "$LABEL_SYNC_BIN/labelctl" "$LABEL_SYNC_BIN/label-busd" "$PRE/"
+find "$MB" -name '*.go' -exec touch -d '2000-01-01' {} +; touch "$PRE/labelctl" "$PRE/label-busd"
+env LABEL_SYNC_BIN="$PRE" XDG_CACHE_HOME="$T/xdg" PATH="$NOGO" bash "$MB/labelctl.sh" --build >/dev/null 2>&1
+eq "R5 a prebuilt LABEL_SYNC_BIN without a stamp and newer than every source is used (no go)" "$?" 0
+
+# =========================================================================
+echo "== 22. re-review 1: errexit applies INSIDE every post-update step; a mid-step failure is an ERROR, exit/set -u are contained =="
+C22="$T/c22"; FC22="$C22/constitution"; mkdir -p "$FC22/scripts" "$T/home22"
+cp "$POSTHOOK" "$FC22/scripts/post_update_hook.sh"; echo '# c' >"$FC22/Constitution.md"
+( cd "$FC22" && git init -q -b main && git add -A && git -c user.email=t@t -c user.name=t commit -q -m base \
+  && mkdir -p skills/foo && echo '# foo' >skills/foo/SKILL.md && git add -A && git -c user.email=t@t -c user.name=t commit -q -m skill )
+git -C "$C22" init -q -b main; mkdir -p "$C22/skills"; chmod 555 "$C22/skills"
+ph22() { ( cd "$C22" && HOME="$T/home22" CONST_DIR="$FC22" PROJECT_ROOT="$C22" LABEL_SYNC_ADAPTERS=off "$@" bash "$FC22/scripts/post_update_hook.sh" ); }
+ph22 env >"$T/ph22.out" 2>&1; rc=$?
+chmod 755 "$C22/skills"
+eq "R1 ln failing in the MIDDLE of install_skills makes the hook exit 1" "$rc" 1
+check "R1 the failure is reported as a step ERROR" grep -q 'step install_skills FAILED' "$T/ph22.out"
+check "R1 never 'completed successfully' after a failed step" bash -c '! grep -q "completed successfully" "$1"' _ "$T/ph22.out"
+check "R1 the step stopped at the failing command (no 'Linked' line)" bash -c '! grep -q -- "-> Linked:" "$1"' _ "$T/ph22.out"
+check "R1 the link was not created" test ! -e "$C22/skills/foo"
+for st in 'STEP 3' 'STEP 5' 'SUMMARY'; do check "R1 the steps after the failed one still ran: $st" grep -q "$st" "$T/ph22.out"; done
+ph22 env POST_UPDATE_HOOK_TEST_MODE=1 POST_UPDATE_HOOK_FAULT_EXIT=install_skills >"$T/ph22b.out" 2>&1; rc=$?
+eq "R1 an 'exit' inside a step ends only that step (hook exit 1, not aborted)" "$rc" 1
+check "R1 ...recorded with the step's exit code" grep -q 'step install_skills FAILED (exit 7)' "$T/ph22b.out"
+check "R1 ...and the next steps still ran: SUMMARY" grep -q 'SUMMARY' "$T/ph22b.out"
+rm -f "$C22/skills/foo"
+ph22 env POST_UPDATE_HOOK_FAULT_STEP=install_skills POST_UPDATE_HOOK_FAULT_EXIT=install_skills >"$T/ph22c.out" 2>&1; rc=$?
+eq "R11 the fault seams are inert without POST_UPDATE_HOOK_TEST_MODE=1 (clean run exit 0)" "$rc" 0
+check "R11 ...no forced failure appears" bash -c '! grep -qE "FAILED|exit 97|exit 7" "$1"' _ "$T/ph22c.out"
+check "R11 ...and the real step did its work (link created)" test -L "$C22/skills/foo"
 
 # =========================================================================
 echo "----------------------------------------------------------------------"

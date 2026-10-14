@@ -3,8 +3,8 @@
 #
 # Purpose : Bash entry point for the constitution label-sync system
 #           (§11.4.182 labels + real-time sync). Builds the Go binaries
-#           `labelctl` and `label-busd` when missing OR STALE (any *.go /
-#           go.mod newer than the binary), then execs them. Every consuming
+#           `labelctl` and `label-busd` when missing OR STALE (bincache.sh
+#           ls_bin_stale: a different source tree, or uncommitted/newer sources), then execs them. Every consuming
 #           project therefore behaves identically after a constitution pull,
 #           with no manual build step.
 # Usage   : labelctl.sh <labelctl args...>        e.g. labelctl.sh list --text
@@ -15,8 +15,8 @@
 #                                $HOME/.local/state/constitution-label-sync)
 #           env LABEL_SYNC_BIN   binary cache dir (default: PER CHECKOUT,
 #                                ${XDG_CACHE_HOME:-$HOME/.cache}/constitution-label-sync/bin-<hash of this
-#                                module's path>, see bincache.sh; the binaries are also stale when
-#                                the git HEAD differs from the `.source-commit` recorded at build)
+#                                module's path>, see bincache.sh; staleness: bincache.sh ls_bin_stale —
+#                                keyed on the git TREE of this module recorded in `.source-tree`)
 #           env LABEL_SYNC_LABELER canonical labeler (default: sibling
 #                                ../multitrack/track_branch_label.sh)
 # Outputs : whatever the exec'd Go binary prints (see docs/label-sync/).
@@ -36,16 +36,7 @@ SELF="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$SELF/bincache.sh" || { echo "labelctl.sh: bincache.sh missing" >&2; exit 2; }
 ls_bincache_into BIN_DIR "$SELF"
 
-# the commit the sources come from ('' outside git): binaries built from another
-# commit are stale even when no file is newer (review-2 finding 13)
-src_commit() { git -C "$SELF" rev-parse -q --verify HEAD 2>/dev/null || :; }
-
-stale() { # $1 = binary
-  [ -x "$1" ] || return 0
-  [ -n "$(find "$SELF" \( -name '*.go' -o -name go.mod \) -newer "$1" -print -quit 2>/dev/null)" ] && return 0
-  local rec=""; { IFS= read -r rec <"$BIN_DIR/.source-commit"; } 2>/dev/null || rec=""
-  [ "$rec" != "$(src_commit)" ]   # MUT:commitstale
-}
+stale() { ls_bin_stale "$1" "$BIN_DIR/.source-tree" "$SELF"; }   # rule: bincache.sh
 
 build() {
   if ! stale "$BIN_DIR/labelctl" && ! stale "$BIN_DIR/label-busd"; then return 0; fi
@@ -60,7 +51,7 @@ build() {
     # re-check after acquiring the lock (another process may have built)
     if ! stale "$BIN_DIR/labelctl" && ! stale "$BIN_DIR/label-busd"; then exit 0; fi
     cd "$SELF" && GOPROXY=off GOFLAGS=-buildvcs=false nice -n 10 go build -o "$BIN_DIR/" ./cmd/labelctl ./cmd/label-busd \
-      && src_commit >"$BIN_DIR/.source-commit"
+      && ls_src_tree "$SELF" >"$BIN_DIR/.source-tree"
   ) 9>"$lock" || { echo "labelctl.sh: build failed" >&2; return 2; }
 }
 
