@@ -38,17 +38,24 @@
 #             that file is untouched
 #           2 cannot determine (python3/PyYAML missing, adapters dir broken, usage).
 #           2 is never a pass.
-# Side-effects: --apply only: backup `<cfg>.label-sync.bak.<UTC>` + atomic write.
-#           Idempotent: a second --apply is byte-identical and writes no backup.
+# Side-effects: --apply only: backup `<cfg>.label-sync.bak.<UTC>` (0600, only when
+#           the content changes and no identical backup exists) + atomic write.
+#           Idempotent: a second --apply is byte-identical and writes no backup;
+#           --apply --remove restores the original bytes (a config it created
+#           is deleted again).
 # Deps    : bash, python3>=3.11 (+PyYAML for aider).
-# Hook seam: post_update_hook.sh (§11.4.164/§11.4.228(D)) calls
-#           `install_adapters.sh --apply` (the HOOKS stream owns that wiring).
+# Hook seam: post_update_hook.sh (§11.4.164/§11.4.228(D)) step 4d runs it when
+#           adapter files changed — DRY-RUN by default; LABEL_SYNC_ADAPTERS=apply
+#           makes it write (=off skips). (The earlier claim that it always ran
+#           `--apply` was false — review-2 finding E.)
 # Cross-refs: §11.4.228, §11.4.164, §11.4.18, §11.4.10, docs/label-sync/ADAPTERS.md.
 # Classification: universal (§11.4.17).
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 mode=dry-run remove=0 home_arg="" agents=auto list=0 quiet=0
+needv() { [ "$1" -ge 2 ] || { echo "install_adapters: $2 requires a value" >&2; exit 2; }; }  # review-2 finding I: no endless loop
 while [ $# -gt 0 ]; do
+  case "$1" in --home|--agents) needv $# "$1" ;; esac
   case "$1" in
     --dry-run) mode=dry-run; shift ;;
     --apply) mode=apply; shift ;;

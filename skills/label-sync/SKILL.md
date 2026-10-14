@@ -1,7 +1,7 @@
 ---
 name: label-sync
 description: 'Use whenever you dispatch an Agent/Task/subagent, start or name a work stream, or refer to a track/session/agent to the operator — you MUST prefix it with the LIVE §11.4.182 label `(T<N>/<branch> - <alias> - <model> - <effort>)` taken from the label bus (`labelctl label` or the `label_get` MCP tool), never typed from memory. Also use when the operator switches the Claude alias/model/effort, asks "which alias/model is this session on", sees a stale/wrong/`?` label, or asks how labels stay in sync across Claude Code, Codex, Gemini CLI, Qwen Code, OpenCode, Crush, Kimi and Aider.'
-version: 1.0.0
+version: 1.1.0
 ---
 
 # label-sync — always-live work-stream labels (§11.4.182)
@@ -19,11 +19,14 @@ typed an hour ago may now be wrong. **Read it again each time.**
 ## The one rule
 
 Before you **dispatch an Agent/Task** or **mention a track/stream/agent to the
-operator**, fetch the current label and put it first:
+operator**, fetch the current label and put it first. `<C>` below is wherever
+the constitution submodule lives in THIS project (often `constitution/` or
+`submodules/constitution/`; find it with `find_constitution.sh` or
+`git submodule status`) — never assume one fixed path:
 
 ```bash
-bash constitution/scripts/label-sync/labelctl.sh label "$LABEL_SYNC_ENTITY_ID"   # an entity you know
-bash constitution/scripts/multitrack/track_branch_label.sh                       # this checkout + live session (canonical labeler)
+bash <C>/scripts/label-sync/labelctl.sh label "$LABEL_SYNC_ENTITY_ID"   # an entity you know
+bash <C>/scripts/multitrack/track_branch_label.sh                       # this checkout + live session (canonical labeler)
 ```
 
 or, when the `label-sync` MCP server is attached, call **`label_get`** (by `id`
@@ -62,7 +65,7 @@ Details and schemas: `docs/label-sync/CONTRACT.md`. MCP tools: `docs/label-sync/
 When the operator says "switch to claude2 / use opus xhigh":
 
 ```bash
-bash constitution/scripts/label-sync/labelctl.sh switch-alias --alias claude2 --model opus --effort xhigh
+bash <C>/scripts/label-sync/labelctl.sh switch-alias --alias claude2 --model opus --effort xhigh
 ```
 
 or MCP `label_switch_alias {alias, model?, effort?}`. State only what you were
@@ -77,21 +80,32 @@ dispatch. Full semantics: `references/alias-switching.md`.
 Claude Code sessions are registered by the SessionStart hook. Other CLI agents
 register through their adapter (`docs/label-sync/ADAPTERS.md`). If neither
 exists, the guaranteed path is the supervising wrapper — the operator runs
-`scripts/label-sync/adapters/generic/label-agent-run.sh --agent NAME -- <cmd>`.
+`<C>/scripts/label-sync/adapters/generic/label-agent-run.sh --agent NAME -- <cmd>`.
+
 Via MCP an agent can `label_register` / `label_heartbeat` / `label_done` its own
-entity; heartbeat at least every 60 s while working (staleness TTL is 120 s) and
-`label_done` when finished. Never register entities on behalf of others.
+entity. A turn-based agent cannot run a timer, so do NOT promise a periodic
+heartbeat: update EVENT-DRIVEN — `label_register` when you start, a
+`label_heartbeat` (with `state`) whenever you start or finish a unit of work
+(a turn, a tool batch), and `label_done` when you finish. Between your events
+the entity may show `[stale]` after the TTL (120 s by default) — that is an
+honest "no recent signal", not a failure; your next event revives it, and an
+entity registered with your real `pid` stays live while that process lives
+(the staleness rule checks the pid). Register with an explicit `alias` to pin
+your own identity (only alias-less entities follow the operator's active
+alias). Never register entities on behalf of others.
 
 ## Troubleshooting (short)
 
 * **`?` in a field** — nothing could be derived (non-git cwd, unknown model).
   Report it; do not fill it.
-* **`[stale]` / state `unknown`** — the owner stopped heartbeating and its pid is
-  gone. A heartbeat revives it; staleness never deletes.
+* **`[stale]` / state `unknown`** — no heartbeat within the TTL and no live pid
+  proves the owner. A heartbeat revives it. Staleness itself never deletes;
+  only an entity whose LOCAL pid is provably gone is swept after
+  `LABEL_SYNC_STALE_SWEEP` (15 min by default) — see CONTRACT.
 * **Old alias after a switch** — that entity has `follow_active=false`
   (per-process truth, e.g. resumed under another alias). Check
   `labelctl.sh get --id ID --json | jq .follow_active`.
-* **No bus / exit 2** — `labelctl.sh verify`; exit 2 means *cannot determine*,
+* **No bus / exit 2** — `<C>/scripts/label-sync/labelctl.sh verify`; exit 2 means *cannot determine*,
   which is never a pass. Details: `references/troubleshooting.md`.
 
 ## Honest scope

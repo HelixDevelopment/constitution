@@ -90,7 +90,8 @@ bash "$EV" --agent x --event bogus >/dev/null 2>&1; eq "lib: bad --event exits 2
 newstate
 bash "$EV" --agent kimi --event register --session 'a/b;$(touch '"$ROOT"'/pwn) `x`' --cwd "$LS" >/dev/null
 ok "lib: hostile session id never executes" test ! -e "$ROOT/pwn"
-case "$(ctl list --json | jq -r '.entities[0].id')" in *[!A-Za-z0-9._-]*) ok "lib: hostile id sanitized" false ;; *) ok "lib: hostile id sanitized" true ;; esac
+eq "lib: the hostile-session register still produced ONE (sanitized) entity" "1" "$(count)"
+case "$(ctl list --json | jq -r '.entities[0].id')" in *[!A-Za-z0-9._-]*|null) ok "lib: hostile id sanitized" false ;; *) ok "lib: hostile id sanitized" true ;; esac
 # bus unusable => still exit 0
 LABEL_SYNC_DIR=/proc/nonexistent/x bash "$EV" --agent kimi --event register --session q >/dev/null 2>&1; eq "lib: unusable state dir is fail-soft (exit 0)" "0" "$?"
 # long id bounded and distinct
@@ -234,6 +235,58 @@ kill -TERM "$wp"; wait "$wp"; rc=$?
 eq "run: TERM forwarded; wrapper exit 143" "143" "$rc"
 eq "run: entity done after TERM" "done" "$(ctl list --json | jq -r '.entities[0].state')"
 ok "run: no orphan sleep left" bash -c "! pgrep -f 'sleep 30' -P $wp"
+# review-2 F: TERM forwarded is PROVEN by the child (it records the signal and
+# exits 7), not inferred from 143 (which bash dying would also produce)
+newstate
+TRAPC="$ROOT/trapchild.sh"
+printf '#!/usr/bin/env bash\ntrap '"'"'echo CHILD_GOT_TERM >"%s"; exit 7'"'"' TERM\nsleep 30 & wait\n' "$ROOT/term.marker" >"$TRAPC"
+bash "$R" --agent codex -- bash "$TRAPC" &
+wp=$!
+for _ in $(seq 1 50); do [ "$(count)" = 1 ] && break; sleep 0.1; done
+sleep 0.3; kill -TERM "$wp"; wait "$wp"; rc=$?
+eq "run: TERM really forwarded (the child trapped it and exited 7)" "7" "$rc"
+ok "run: the child recorded the forwarded TERM" grep -q CHILD_GOT_TERM "$ROOT/term.marker"
+# review-2 F: a TERM that arrives WHILE registering leaves no running ghost and
+# never starts the agent (deterministic: a labelctl shim slows `register`)
+newstate
+SHIM="$ROOT/slowctl.sh"
+printf '#!/usr/bin/env bash\nr=0; [ "$1" = register ] && { sleep 1.5; r=1; }\n"%s/labelctl" "$@"; rc=$?\n[ "$r" = 1 ] && touch "%s/shim.done"\nexit $rc\n' "$LABEL_SYNC_BIN" "$ROOT" >"$SHIM"; chmod +x "$SHIM"
+rm -f "$ROOT/started.marker" "$ROOT/shim.done"
+LABEL_SYNC_LABELCTL="$SHIM" bash "$R" --agent codex -- bash -c "touch '$ROOT/started.marker'; sleep 5" &
+wp=$!; sleep 0.5; kill -TERM "$wp"; wait "$wp"; rc=$?
+eq "run: TERM during registration => wrapper exit 143" "143" "$rc"
+ok "run: TERM during registration => the agent was never started" test ! -e "$ROOT/started.marker"
+for _ in $(seq 1 50); do [ -e "$ROOT/shim.done" ] && break; sleep 0.1; done   # the slowed register really completed
+sleep 0.3
+ok "run: fixture — the slowed registration really completed" test -e "$ROOT/shim.done"
+eq "run: TERM during registration => no running ghost entity" "0" "$(ctl list --json | jq -r '[.entities[]|select(.state!="done")]|length')"
+# review-2 N8: the agent reads the wrapper's stdin
+out="$(printf 'IN-CANARY-42' | bash "$R" --agent codex -- cat 2>/dev/null)"
+eq "run: the agent receives the wrapper's stdin" "IN-CANARY-42" "$out"
+# review-2 I: an option missing its value is a usage error, never a hang
+timeout 10 bash "$R" --agent >/dev/null 2>&1; eq "run: trailing --agent without a value exits 2 (no hang)" "2" "$?"
+timeout 10 bash "$AD/lib/label-adapter-event.sh" --agent kimi --event >/dev/null 2>&1; eq "lib: trailing --event without a value exits 2 (no hang)" "2" "$?"
+# review-2 B: a terminal Ctrl-C reaches the agent exactly ONCE (pty)
+if command -v script >/dev/null 2>&1; then
+  # emulate an interactive terminal: the pty session starts with DEFAULT
+  # SIGINT/SIGQUIT even when this suite itself was launched in the background
+  # (an inherited SIG_IGN cannot be reset by any shell: "ignored upon entry")
+  TERMRUN=(); env --default-signal=INT,QUIT true 2>/dev/null && TERMRUN=(env --default-signal=INT,QUIT)
+  CNT="$ROOT/intcount.sh"
+  printf '#!/usr/bin/env bash\nn=0; trap '"'"'n=$((n+1))'"'"' INT\nfor _ in $(seq 25); do sleep 0.1 || :; done\necho "INTS=$n"\n' >"$CNT"
+  TTYO="$( { sleep 1; printf '\003'; sleep 3; } | "${TERMRUN[@]}" script -qec "bash '$R' --agent codex -- bash '$CNT'" /dev/null 2>&1 | tr -d '\r')"
+  case "$TTYO" in *"INTS=1"*) ok "run: tty Ctrl-C delivered to the agent exactly once (INT not ignored, not duplicated)" true ;;
+    *) ok "run: tty Ctrl-C delivered exactly once (got: $(printf '%s' "$TTYO" | grep -o 'INTS=[0-9]*'))" false ;; esac
+  PIDF="$ROOT/b2.pid"; rm -f "$PIDF"; CNT2="$ROOT/intcount2.sh"
+  printf '#!/usr/bin/env bash\necho "$PPID" >"%s"\nn=0; trap '"'"'n=$((n+1))'"'"' INT\nfor _ in $(seq 25); do sleep 0.1 || :; done\necho "INTS=$n"\n' "$PIDF" >"$CNT2"
+  ( for _ in $(seq 50); do [ -s "$PIDF" ] && break; sleep 0.1; done; lp="$(cat "$PIDF" 2>/dev/null)"
+    case "$lp" in ''|*[!0-9]*) ;; *) [ "$lp" -gt 1 ] && grep -qa label-agent-run "/proc/$lp/cmdline" && kill -INT "$lp" ;; esac ) &
+  KP=$!
+  TTYO2="$( { sleep 4; } | "${TERMRUN[@]}" script -qec "bash '$R' --agent codex -- bash '$CNT2'" /dev/null 2>&1 | tr -d '\r')"
+  wait "$KP" 2>/dev/null
+  case "$TTYO2" in *"INTS=0"*) ok "run: an external SIGINT is not duplicated onto a tty-foreground agent" true ;;
+    *) ok "run: no duplicate SIGINT (got: $(printf '%s' "$TTYO2" | grep -o 'INTS=[0-9]*'))" false ;; esac
+else echo "SKIP run: tty Ctrl-C (script(1) not installed)"; fi
 # fail-soft: bus unusable, command still runs and its code returns
 LABEL_SYNC_DIR=/proc/nonexistent/x bash "$R" --agent codex -- bash -c 'exit 7' 2>/dev/null; eq "run: unusable bus still runs the command" "7" "$?"
 # arguments never recorded
@@ -359,6 +412,48 @@ ok "install: symlinked config stays a symlink" test -L "$H6/.codex/config.toml"
 ok "install: symlink target edited" grep -q 'notify' "$ROOT/dotfiles/codex.toml"
 # --list works and writes nothing
 bash "$INST" --home "$H5" --list >/dev/null; eq "install: --list exits 0" "0" "$?"
+# review-2 A: idempotency and EXACT rollback when STARTING FROM EXISTING files
+H7="$ROOT/h7"; mkdir -p "$H7/.kimi-code" "$H7/.config/opencode" "$H7/.config/crush" "$H7/.codex" "$H7/.gemini" "$H7/.qwen"
+printf 'default_model = "mine"\napi_key = "sk-KIMI-CANARY"\n\n[models.mine]\nprovider = "p"' >"$H7/.kimi-code/config.toml"   # no trailing newline
+printf '{"theme":"x",\n "plugin": ["other@1"]}' >"$H7/.config/opencode/opencode.json"
+printf '{"options": {"debug": true}}\n' >"$H7/.config/crush/crush.json"
+printf 'model: gpt-5\n# a comment\n' >"$H7/.aider.conf.yml"
+printf '[tui]\ntheme = "dark"\n' >"$H7/.codex/config.toml"
+printf '{\n    "ui": {"theme": "x"}\n}\n' >"$H7/.gemini/settings.json"
+printf '{}' >"$H7/.qwen/settings.json"
+chmod 0644 "$H7/.kimi-code/config.toml"
+o7="$(tree_sum "$H7")"
+declare -A ORIG7; for f in .kimi-code/config.toml .config/opencode/opencode.json .config/crush/crush.json .aider.conf.yml .codex/config.toml .gemini/settings.json .qwen/settings.json; do ORIG7[$f]="$(sha256sum <"$H7/$f")"; done
+( umask 000; bash "$INST" --home "$H7" --agents $ALLAG --apply >/dev/null ); eq "install(A): apply over existing configs exit 0" "0" "$?"
+a1="$(tree_sum "$H7")"
+( umask 000; bash "$INST" --home "$H7" --agents $ALLAG --apply >/dev/null )
+eq "install(A): a second --apply over EXISTING configs is byte-identical" "$a1" "$(tree_sum "$H7")"
+eq "install(A): exactly one backup per pre-existing file (no pile-up of api_key copies)" "7" "$(find "$H7" -name '*.label-sync.bak.*' | wc -l)"
+eq "install(A): backups are 0600 even under umask 000 and a 0644 original" "600" "$(stat -c %a "$(ls "$H7"/.kimi-code/config.toml.label-sync.bak.* | head -1)")"
+eq "install(A): the config keeps its own mode" "644" "$(stat -c %a "$H7/.kimi-code/config.toml")"
+bash "$INST" --home "$H7" --agents $ALLAG --apply --remove >/dev/null; eq "install(A): --remove exit 0" "0" "$?"
+for f in "${!ORIG7[@]}"; do eq "install(A): --remove restores the ORIGINAL bytes of $f" "${ORIG7[$f]}" "$(sha256sum <"$H7/$f")"; done
+bash "$INST" --home "$H7" --agents $ALLAG --apply >/dev/null; bash "$INST" --home "$H7" --agents $ALLAG --apply --remove >/dev/null
+eq "install(A): apply/remove cycles keep the backups bounded" "14" "$(find "$H7" -name '*.label-sync.bak.*' | wc -l)"
+H8="$ROOT/h8"; mkdir -p "$H8/.kimi-code" "$H8/.gemini"
+bash "$INST" --home "$H8" --agents kimi,gemini --apply >/dev/null; bash "$INST" --home "$H8" --agents kimi,gemini --apply --remove >/dev/null
+ok "install(A): a config the installer CREATED is gone again after --remove (kimi)" test ! -e "$H8/.kimi-code/config.toml"
+ok "install(A): a config the installer CREATED is gone again after --remove (gemini)" test ! -e "$H8/.gemini/settings.json"
+# review-2 H: adapters dir with a space works (quoted); with '$' it is refused
+SP="$ROOT/dir with space"; mkdir -p "$SP"; cp -a "$AD" "$SP/adapters"
+H9="$ROOT/h9"; mkdir -p "$H9"
+bash "$SP/adapters/install_adapters.sh" --home "$H9" --agents kimi,crush,gemini,aider,opencode --apply >/dev/null; eq "install(H): adapters dir with a space: exit 0" "0" "$?"
+ok "install(H): the kimi hook command is a valid shell command for that path" python3 -c "
+import tomllib,shlex,os;d=tomllib.load(open('$H9/.kimi-code/config.toml','rb'));a=shlex.split(d['hooks'][0]['command']);assert a[0]=='bash' and os.path.isfile(a[1]),a"
+ok "install(H): the crush hook command is a valid shell command for that path" python3 -c "
+import json,shlex,os;d=json.load(open('$H9/.config/crush/crush.json'));a=shlex.split(d['hooks']['PreToolUse'][0]['command']);assert os.path.isfile(a[1]),a"
+ok "install(H): the opencode plugin URL resolves (percent-encoded)" python3 -c "
+import json,urllib.parse,os;u=json.load(open('$H9/.config/opencode/opencode.json'))['plugin'][0];assert u.startswith('file://') and ' ' not in u and os.path.isfile(urllib.parse.unquote(u[7:])),u"
+DL="$ROOT/dol\$lar"; mkdir -p "$DL"; cp -a "$AD" "$DL/adapters"; H10="$ROOT/h10"; mkdir -p "$H10"
+bash "$DL/adapters/install_adapters.sh" --home "$H10" --agents kimi --apply >/dev/null 2>&1; eq "install(H): adapters dir with '\$' is refused (exit 2)" "2" "$?"
+ok "install(H): ...and nothing was written" test ! -e "$H10/.kimi-code/config.toml"
+timeout 10 bash "$INST" --home >/dev/null 2>&1; eq "install(I): trailing --home without a value exits 2 (no hang)" "2" "$?"
+timeout 10 bash "$INST" --agents >/dev/null 2>&1; eq "install(I): trailing --agents without a value exits 2 (no hang)" "2" "$?"
 # permissions: new files 0600
 ok "install: new config created 0600" test "$(stat -c %a "$H/.codex/config.toml")" = 600
 eq "install: poisoned real HOME still untouched at the end" "$pb" "$(tree_sum "$POISON")"

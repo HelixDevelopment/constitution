@@ -25,7 +25,9 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$HERE/adapter_lib.sh"
 agent="" event="" sess="" cwd="" mdl="" eff="" st="" parent="" kind=session
+needv() { [ "$1" -ge 2 ] || { echo "label-adapter-event: $2 requires a value" >&2; exit 2; }; }  # review-2 finding I: no endless loop
 while [ $# -gt 0 ]; do
+  case "$1" in --agent|--event|--session|--cwd|--model|--effort|--state|--parent|--kind|--pid) needv $# "$1" ;; esac
   case "$1" in
     --agent) agent="${2:-}"; shift 2 ;;
     --event) event="${2:-}"; shift 2 ;;

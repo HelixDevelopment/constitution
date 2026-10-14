@@ -56,7 +56,8 @@ al_dbg() { # debug line (never stdout/stderr)
 # al_init : resolve labelctl. Returns 1 => the caller must exit 0 silently.
 al_init() {
   [ "${LABEL_SYNC_DISABLE:-}" = 1 ] && return 1
-  AL_BINDIR="${LABEL_SYNC_BIN:-${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/constitution-label-sync/bin}"
+  if [ -n "${LABEL_SYNC_BIN:-}" ]; then AL_BINDIR="$LABEL_SYNC_BIN"
+  else . "$AL_LS_DIR/bincache.sh" 2>/dev/null || return 1; ls_bincache_into AL_BINDIR "$AL_LS_DIR"; fi  # per-checkout cache
   AL_CTL_SH="${LABEL_SYNC_LABELCTL:-$AL_LS_DIR/labelctl.sh}"
   : "${LABEL_SYNC_LABELER:=$AL_LS_DIR/../multitrack/track_branch_label.sh}"
   export LABEL_SYNC_LABELER
