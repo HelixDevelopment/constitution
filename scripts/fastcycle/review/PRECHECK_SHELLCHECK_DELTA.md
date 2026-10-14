@@ -2,13 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Revision | 6 |
+| Revision | 7 |
 | Created | 2026-10-13 |
 | Last modified | 2026-10-14 |
-| Status | proposed (ATM-1217 r7 patch); rule id `shellcheck-baseline-delta/5`; OPT-IN; NOT activated for dispatch (see "Activation") |
+| Status | proposed (ATM-1217 r9 patch); rule id `shellcheck-baseline-delta/6`; OPT-IN; NOT activated for dispatch (see "Activation") |
 | Tool | `review/precheck_pack.sh` -> `review/lib/precheck_pack_run.py` (check `shellcheck`); builder `review/precheck_pack_build.sh` |
 | Tests | `tests/test_precheck_shellcheck_baseline_delta.sh`, `tests/test_precheck_shellcheck_delta_mutants.sh`; the round-5/6 suite `tests/test_precheck_shellcheck_red.sh` is unchanged |
-| Design | `docs/qa/atm_pack_shellcheck_delta_20261013/r7/DESIGN.md` (main repository; r3-r6 in `../r3/` .. `../r6/`) |
+| Design | `docs/qa/atm_pack_shellcheck_delta_20261013/r9/DESIGN.md` (main repository; r3-r8 in `../r3/` .. `../r8/`) |
 
 ## What it is
 
@@ -100,11 +100,14 @@ why:
 | `dialect-changed` | had another dialect (shebang dialect or `shell=` directive) than the head, so its findings in the head's dialect were never gated |
 | `untracked-at-base`, `symlink`, `gitlink` | was not a regular file at base |
 
-### Which head finding is pre-existing (r6, r7)
+### Which head finding is pre-existing (r6, r7, r9)
 
 The gate computes a line diff of the two whole blobs (base -> head; byte
-lines, a one-to-one, order-preserving match of equal lines). A head finding
-is **pre-existing** only when
+lines, a one-to-one, order-preserving match of equal lines). r9: a line counts
+as **unchanged** only together with its whole **command unit** -- the physical
+lines one command spans (see "Command units" below): the unit must map line for
+line, consecutively, onto exactly the base unit of its base line; otherwise no
+line of that unit is unchanged. A head finding is **pre-existing** only when
 
 1. **every** line of the finding (from `line` to `endLine`) is an
    **unchanged** line of that diff, and those lines map to **consecutive**
@@ -146,6 +149,45 @@ Everything else is new, in particular:
 
 Lines inserted or deleted elsewhere do not matter: an unchanged line keeps
 its anchor wherever it moves to in line numbers.
+
+### Command units (r9)
+
+One command can span several physical lines. r8 judged each physical line
+alone, so a finding on an unchanged line was pre-existing although an ADDED
+or EDITED line of the SAME command changed what that line does (r8 review
+L1): `eval \`, `rm -rf \` or `sudo sh -c \` added above an unchanged
+`echo $a` (old, inert debt turned into an injection sink, with no finding of
+its own on the added line); the first line of an existing multi-line command
+edited (`echo \` -> `eval \`, the argument lines unchanged); `true &&` ->
+`true && eval \`. All of these now fail: the finding's unit changed.
+
+A unit is a run of consecutive lines where the newline after each line but the
+last does not end the command:
+
+* backslash-newline outside single quotes (in code, in `"..."`, in backquotes,
+  in an unquoted here-document body);
+* a newline inside an open `'...'`, `"..."`, `$'...'`, backquotes, `${...}`,
+  `$((...))` / `((...))`, `$(...)`, `<(...)`, `>(...)`;
+* a newline after a trailing `|`, `||`, `&&` or `|&` (a pipeline or list
+  continued on the next line);
+* a here-document: the line that opens it, its body and its terminator line.
+
+A comment never continues (`# text \` ends at its newline), and `#` is a
+comment only at the start of a word (`a#b \` continues). A newline at the top
+level or directly inside a compound command or subshell body (`if` / `while`
+/ `for` / `case` / `{ }` / `( )` / a function) is NOT a join: those are
+separate commands (see "Limits").
+
+The scan is lexical and leans strict: where it may join lines a shell keeps
+apart, more findings are new, never fewer. Known over-joins (stated, all in
+the stricter direction): `$'...'` is read both the bash way and the POSIX-sh
+way (`$` then a `'...'` string) and the lines either reading joins are joined;
+a CR before a line end is read as a blank, so a `\` or `|` / `&&` before it
+joins (a shell does not; such a file fails as head-unparsed anyway, SC1017);
+every line of a multi-line
+`$( )` is one unit with the command around it. The scan was compared, boundary
+by boundary, with GNU bash's own parser (see the r9 evidence, `unit_census`):
+0 places where it separates lines bash joins.
 
 ## Directives
 
@@ -247,22 +289,19 @@ another timeout; it never reuses it.
   fail them.
 * Activation is instance-tier only (see "Activation"): the anchor is only as
   trustworthy as the dispatcher's source for it.
-* A finding is pre-existing only on an unchanged line (see above). Old debt on
-  an unchanged line stays accepted even when a change elsewhere is what makes
-  it dangerous now (for example a `cd` whose following line was edited, or a
-  variable on the line whose assignment elsewhere changed); the whole-file
-  rule would fail it. Only a dependency the finding's own message cites (`on
-  line N`) is followed (r7); any other dependency on another line is not.
+* A finding is pre-existing only on an unchanged line of an unchanged command
+  unit (see above). Old debt on such a line stays accepted even when a change
+  in ANOTHER command is what makes it dangerous now: a `cd` whose following
+  command was edited, a variable whose assignment elsewhere changed, an edited
+  `if` / `while` condition above an unchanged body line, a compound block whose
+  output is newly piped (`{ ...; } | sh`). The whole-file rule would fail it.
+  Only a dependency the finding's own message cites (`on line N`) is followed
+  (r7); any other dependency on another command is not.
 * The `fix` suggestion shellcheck attaches to a finding is not part of its
-  identity. The r8 census (the r7 reviewer's widened generator) found one pair
-  where it differs: only `fix.replacements[].precedence` (7 -> 8), on an
-  unchanged line that an ADDED line ending in `\` made the continuation of a
-  new command. That is the limit above (a change on another line, not cited by
-  the finding): the unchanged token's finding stays pre-existing. An added
-  continuation line can change what an unchanged line means (`exec \`,
-  `x=1 \` above an unchanged command) without a finding of its own; the
-  whole-file rule would fail the debt on the unchanged line, this rule does
-  not (pinned by N13).
+  identity. The r8 census found one pair where only
+  `fix.replacements[].precedence` differed; it was the command-unit class
+  (an added line ending in `\` above an unchanged line), which r9 closes in
+  code: that finding is now new (test N13, flipped by r9).
 * A parse error is detected through shellcheck's own SC1xxx `error` findings.
   A parse problem shellcheck does not report as such is not seen, and neither
   is a parse error a directive suppresses (`disable=SC1072,SC1073,...`): this

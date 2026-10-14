@@ -2,7 +2,7 @@
 # shellcheck disable=SC2016 # printf and heredoc fixtures are literal shell text whose dollar signs must not expand
 # fastcycle-timeout-s: 900
 # =============================================================================
-# test_precheck_shellcheck_baseline_delta.sh (ATM-1217 r3 + r4 + r5 + r6 + r7 + r8)
+# test_precheck_shellcheck_baseline_delta.sh (ATM-1217 r3 + r4 + r5 + r6 + r7 + r8 + r9)
 # Real-path regression for the OPT-IN baseline-delta rule of the precheck-pack
 # lint row (--shellcheck-rule baseline-delta; operator decision 2026-10-13),
 # layered on the round-5/6 gate (severity floor, systemd-run memory cap, size cap,
@@ -920,12 +920,80 @@ done
 new_case n12n; wb s.sh "#!/bin/sh\n${H} STUB_EXTENT identity\necho \"\$undefined_pre\"\n"; base
 wh s.sh "#!/bin/sh\n${H} STUB_EXTENT identity\necho \"\$undefined_pre\"\necho more\n"; head; gate
 expect "N12n control (stub extent identity) -> PASS, the SC2154 at line 3 pre-existing" '(c["verdict"], e["delta"]["states"], e.get("findings", []), [(f["rule"], f["line"]) for f in e.get("baseline_findings", [])])' "('PASS', ['full'], [], [('SC2154', 3)])"
-# N13 (r8 census, STATED LIMIT pinned so it cannot drift silently; R12 class) an ADDED line `exec \` directly above
-#     the unchanged `echo $a` makes it the continuation of a new command (`exec echo $a`); the added line has no finding
-#     of its own and the unquoted $a token is byte-identical -> PASS, the SC2086 at 4:6 pre-existing (the whole-file
-#     rule fails it). The change is on another line the finding does not cite: the delta rule judges the unchanged token
+# --- r9 (review r8 L1, L2): the COMMAND UNIT is the unit of "unchanged" -------------------------------------
+# L1 class: a finding on a physically unchanged line was credited although an added or edited line of the SAME
+# command (backslash-newline, an open quote, a | / && / || line end, a here-document, a $( ) span) changed what the
+# line does. r9: a line is unchanged only together with its whole command unit (_command_units), which must map line
+# for line, consecutively, onto exactly the base unit of its base line. Every case drives the REAL gate + shellcheck.
+# N13 (r8 stated limit, FLIPPED by r9) an ADDED `exec \` directly above the unchanged `echo $a` -> FAIL, SC2086 4:6 new
 new_case n13j; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\nexec \\\necho $a\n'; head; gate
-expect "N13 (stated limit, R12) an added continuation line changes the unchanged line's meaning -> PASS, SC2086 at 4:6 pre-existing" '(c["verdict"], e.get("findings", []), [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('PASS', [], [('SC2086', 4, 6)])"
+expect "N13 (r9: flipped) an added continuation line above the unchanged line -> FAIL, SC2086 at 4:6 new, nothing pre-existing" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 6)], [])"
+# L1a-c (reviewer Q1-Q3) an ADDED `eval \` / `rm -rf \` / `sudo sh -c \` above the unchanged `echo $a` (an injection
+#       sink over old debt; the added line has no finding of its own) -> FAIL, SC2086 at 4:6 new
+for lp in 'eval \\:a' 'rm -rf \\:b' 'sudo sh -c \\:c'; do
+    new_case "l1${lp##*:}"; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base; wh s.sh "#!/bin/sh\na=\$1\n${lp%:*}\necho \$a\n"; head; gate
+    expect "L1${lp##*:} (Q1-Q3) added '${lp%:*}' line above the unchanged echo \$a -> FAIL, SC2086 at 4:6 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 6)], [])"
+done
+# L1d (reviewer Q4) EDIT of the first line of an existing 2-line command (`echo \` -> `eval \`), `  $a` unchanged -> FAIL
+new_case l1d; wb s.sh '#!/bin/sh\na=$1\necho \\\n  $a\n'; base; wh s.sh '#!/bin/sh\na=$1\neval \\\n  $a\n'; head; gate
+expect "L1d (Q4) first line of a 2-line command edited -> FAIL, SC2086 at 4:3 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 3)], [])"
+# L1e (reviewer Q6) the same edit on a 3-line command, the debt two lines below -> FAIL, SC2086 at 5:3 new
+new_case l1e; wb s.sh '#!/bin/sh\na=$1\necho \\\n  -n \\\n  $a\n'; base; wh s.sh '#!/bin/sh\na=$1\neval \\\n  -n \\\n  $a\n'; head; gate
+expect "L1e (Q6) first line of a 3-line command edited -> FAIL, SC2086 at 5:3 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 5, 3)], [])"
+# L1f (reviewer Q12) `true &&` -> `true && eval \` above the unchanged `  echo $a` -> FAIL, SC2086 at 4:8 new
+new_case l1f; wb s.sh '#!/bin/sh\na=$1\ntrue &&\n  echo $a\n'; base; wh s.sh '#!/bin/sh\na=$1\ntrue && eval \\\n  echo $a\n'; head; gate
+expect "L1f (Q12) true && -> true && eval \\\\ -> FAIL, SC2086 at 4:8 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 8)], [])"
+# L1g a DELETED continuation line (the middle `-n \` of a 3-line command): the remaining lines are unchanged but
+#     their command is not -> FAIL, SC2086 at 4:3 new
+new_case l1g; wb s.sh '#!/bin/sh\na=$1\necho \\\n  -n \\\n  $a\n'; base; wh s.sh '#!/bin/sh\na=$1\necho \\\n  $a\n'; head; gate
+expect "L1g deleted continuation line -> FAIL, SC2086 at 4:3 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 3)], [])"
+# L1h a multi-line DOUBLE-QUOTED word: its first line edited (`echo "a` -> `eval "a`), the line carrying
+#     `$(echo $a)` unchanged -> FAIL, SC2086 at 4:8 new (an open quote joins the lines)
+new_case l1h; wb s.sh '#!/bin/sh\na=$1\necho "a\n$(echo $a) b"\n'; base; wh s.sh '#!/bin/sh\na=$1\neval "a\n$(echo $a) b"\n'; head; gate
+expect "L1h multi-line quoted word, first line edited -> FAIL, SC2086 at 4:8 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 8)], [])"
+# L1i a HERE-DOCUMENT: `cat <<EOF` -> `sh <<EOF` (the body becomes code), the body line unchanged -> FAIL, 4:8 new
+new_case l1i; wb s.sh '#!/bin/sh\na=$1\ncat <<EOF\n$(echo $a)\nEOF\n'; base; wh s.sh '#!/bin/sh\na=$1\nsh <<EOF\n$(echo $a)\nEOF\n'; head; gate
+expect "L1i here-document command edited, body unchanged -> FAIL, SC2086 at 4:8 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 8)], [])"
+# L1j a PIPELINE continued over a line end: the producer `printf x |` edited, `  xargs echo $a` unchanged -> FAIL
+new_case l1j; wb s.sh '#!/bin/sh\na=$1\nprintf x |\n  xargs echo $a\n'; base; wh s.sh '#!/bin/sh\na=$1\nprintf y |\n  xargs echo $a\n'; head; gate
+expect "L1j pipeline producer edited over a | line end -> FAIL, SC2086 at 4:14 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 14)], [])"
+# L1k a multi-line $( ): the line that opens it edited (`x=$(` -> `y=$(`), the inner `  echo $a` unchanged -> FAIL
+new_case l1k; wb s.sh '#!/bin/sh\na=$1\nx=$(\n  echo $a\n)\necho "$x"\n'; base; wh s.sh '#!/bin/sh\na=$1\ny=$(\n  echo $a\n)\necho "$y"\n'; head; gate
+expect "L1k multi-line \$( ), its opening line edited -> FAIL, SC2086 at 4:8 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 8)], [])"
+# L1l a MID-WORD `#` is not a comment: `echo a#b \` -> `eval a#b \` still continues into `  $a` -> FAIL, 4:3 new
+new_case l1l; wb s.sh '#!/bin/sh\na=$1\necho a#b \\\n  $a\n'; base; wh s.sh '#!/bin/sh\na=$1\neval a#b \\\n  $a\n'; head; gate
+expect "L1l mid-word # then a continuation, first line edited -> FAIL, SC2086 at 4:3 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 4, 3)], [])"
+# L1m the FIRST line of a base command removed (`eval \` / `echo $a` -> `echo $a`): the line is unchanged but its base
+#     unit was two lines -> FAIL, SC2086 at 3:6 new (stricter, stated: a different command)
+new_case l1m; wb s.sh '#!/bin/sh\na=$1\neval \\\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\necho $a\n'; head; gate
+expect "L1m first line of a base command removed -> FAIL, SC2086 at 3:6 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 3, 6)], [])"
+# L1n1-n5 negative controls (11.4.201(1)): an added plain line (Q7), an added COMMENT ending in `\` (Q9: a comment
+#     never continues), an unchanged 2-line command with a line inserted above, an edited if-condition (a compound
+#     body: separate commands, the stated R12 limit) -> PASS, the debt pre-existing; Q8 (an added `eval echo $a` on its
+#     own line) -> FAIL with exactly the added line's finding new and the old one pre-existing
+new_case l1n1; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\necho x\necho $a\n'; head; gate
+expect "L1n1 (Q7) added plain line -> PASS, SC2086 at 4:6 pre-existing" '(c["verdict"], e.get("findings", []), [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('PASS', [], [('SC2086', 4, 6)])"
+new_case l1n2; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base; wh s.sh "#!/bin/sh\na=\$1\n${H} comment \\\\\necho \$a\n"; head; gate
+expect "L1n2 (Q9) added comment ending in a backslash -> PASS, SC2086 at 4:6 pre-existing" '(c["verdict"], e.get("findings", []), [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('PASS', [], [('SC2086', 4, 6)])"
+new_case l1n3; wb s.sh '#!/bin/sh\na=$1\necho \\\n  $a\n'; base; wh s.sh '#!/bin/sh\na=$1\necho x\necho \\\n  $a\n'; head; gate
+expect "L1n3 unchanged 2-line command, line inserted above -> PASS, SC2086 at 5:3 pre-existing" '(c["verdict"], e.get("findings", []), [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('PASS', [], [('SC2086', 5, 3)])"
+new_case l1n4; wb s.sh '#!/bin/sh\na=$1\nif true; then\n  echo $a\nfi\n'; base; wh s.sh '#!/bin/sh\na=$1\nif false; then\n  echo $a\nfi\n'; head; gate
+expect "L1n4 (R12, stated) edited if-condition, body line unchanged -> PASS, SC2086 at 4:8 pre-existing" '(c["verdict"], e.get("findings", []), [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('PASS', [], [('SC2086', 4, 8)])"
+new_case l1n5; wb s.sh '#!/bin/sh\na=$1\necho $a\n'; base; wh s.sh '#!/bin/sh\na=$1\neval echo $a\necho $a\n'; head; gate
+expect "L1n5 (Q8) added eval echo \$a on its own line -> FAIL, SC2086 3:11 new, 4:6 pre-existing" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], [(f["rule"], f["line"], f["column"]) for f in e.get("baseline_findings", [])])' "('FAIL', [('SC2086', 3, 11)], [('SC2086', 4, 6)])"
+# L2a (reviewer Z2, kills R02) a 13-line case: line 10 `a|x)` edited to `a|y)`; SC2222 on the UNCHANGED line 12 cites
+#      line 10 (two digits) -> the cited line changed: both findings new, FAIL. L2an control: nothing edited -> PASS
+Z2B='#!/bin/sh\n: 2\n: 3\n: 4\n: 5\n: 6\n: 7\n: 8\ncase "$1" in\n  a|x) echo 1;;\n  b) echo 2;;\n  a) echo 3;;\nesac\n'
+new_case l2a; wb s.sh "$Z2B"; base; wh s.sh "$(printf '%s' "$Z2B" | sed 's/a|x)/a|y)/')"; head; gate
+expect "L2a (Z2) a finding on unchanged line 12 citing EDITED line 10 -> FAIL, SC2221 at 10 and SC2222 at 12 new" '(c["verdict"], sorted((f["rule"], f["line"]) for f in e.get("findings", [])), e.get("baseline_findings", []))' "('FAIL', [('SC2221', 10), ('SC2222', 12)], [])"
+new_case l2an; wb s.sh "$Z2B"; base; wh s.sh "${Z2B}echo end\n"; head; gate
+expect "L2an (Z2n) control: nothing edited, a line appended -> PASS, SC2221 10 and SC2222 12 pre-existing" '(c["verdict"], sorted((f["rule"], f["line"]) for f in e.get("baseline_findings", [])))' "('PASS', [('SC2221', 10), ('SC2222', 12)])"
+# L2b (reviewer Z4, kills R04) the only change on the debt line is a carriage return INSIDE a quoted string -> the line
+#      changed: FAIL, SC2086 at 3:6 new. L2bn (Z4b) a CR at the line end -> shellcheck cannot parse it: head-unparsed
+new_case l2b; wb s.sh '#!/bin/sh\na=$1\necho $a "x"\n'; base; wh s.sh '#!/bin/sh\na=$1\necho $a "x\r"\n'; head; gate
+expect "L2b (Z4) CR inside a quoted string on the debt line -> FAIL, SC2086 at 3:6 new" '(c["verdict"], [(f["rule"], f["line"], f["column"]) for f in e.get("findings", [])], e.get("baseline_findings", []))' "('FAIL', [('SC2086', 3, 6)], [])"
+new_case l2bn; wb s.sh '#!/bin/sh\na=$1\necho $a "x"\n'; base; wh s.sh '#!/bin/sh\na=$1\necho $a "x"\r\n'; head; gate
+expect "L2bn (Z4b) CR at the line end -> FAIL, head-unparsed (SC1017)" '(c["verdict"], [f.get("new_file_reason", "")[:14] for f in e["delta"]["files"]])' "('FAIL', ['head-unparsed:'])"
 # S1 (review J4 seam) a file absent at base -> new-file, new_file_reason exactly `untracked-at-base`
 new_case s1u; wb old.sh '#!/bin/sh\necho ok\n'; base; wh added.sh '#!/bin/sh\necho "$undefined_s1"\n'; head; gate
 expect "S1 file absent at base -> FAIL new-file, reason untracked-at-base" '(c["verdict"], [(f["state"], f.get("new_file_reason")) for f in e["delta"]["files"]])' "('FAIL', [('new-file', 'untracked-at-base')])"
