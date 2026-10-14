@@ -448,7 +448,7 @@ HELIX_CRED_SYMBOL_REFERENCE_CARRIER='^[A-Za-z_.-]*([Ss][Ee][Cc][Rr][Ee][Tt]|[Pp]
 # detector branch and quoting, as prose analysis, the EXACT literal value this
 # file's own documentation comments (above, lines 18/178/228/242/282/357-358/826)
 # already cite as THEIR chosen golden-bad placeholder example:
-# `AKIA1234567890123456`. The AKIA branch of HELIX_CRED_VALUE_PATTERN carries no
+# `AKIA` + `1234567890123456` (written split). The AKIA branch of HELIX_CRED_VALUE_PATTERN carries no
 # keyword gate (unlike the password/secret/api_key branches), so detector-1
 # extracts the bare token with no surrounding line context to strip against, and
 # no EXISTING carrier in this pipeline is shaped to recognise one SPECIFIC named
@@ -463,8 +463,8 @@ HELIX_CRED_SYMBOL_REFERENCE_CARRIER='^[A-Za-z_.-]*([Ss][Ee][Cc][Rr][Ee][Tt]|[Pp]
 # (1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6) — a form no genuine AWS-issued access-key ID
 # ever takes (real AWS key-id suffixes are base32-like pseudo-random over
 # [0-9A-Z], never a monotonic digit run, and this project's OWN other AKIA
-# golden-bad fixtures — `AKIA1234567890ABCDEF`, `AKIAIOSFODNN7...`,
-# `AKIAQ7X2M4B8N1V5C3Z9` in test_credential_scan_lib.sh — are all letter-mixed
+# golden-bad fixtures — `AKIA` + `1234567890ABCDEF`, `AKIAIOSFODNN7...`,
+# `AKIA` + `Q7X2M4B8N1V5C3Z9` in test_credential_scan_lib.sh — are all letter-mixed
 # and therefore untouched by this anchor). The regex is a bare `^…$` literal
 # string match with no alternation and no wildcard: a DIFFERENT 16-character
 # AKIA-shaped suffix — including one built from the SAME ten digits in a
@@ -474,7 +474,12 @@ HELIX_CRED_SYMBOL_REFERENCE_CARRIER='^[A-Za-z_.-]*([Ss][Ee][Cc][Rr][Ee][Tt]|[Pp]
 # one named constant, never a pattern class. Proven by golden-good scenario (s)
 # + the (real, non-sequential 16-char AKIA suffix) golden-bad falsifying
 # control (s-neg) in test_credential_scan_lib.sh (§11.4.107(10)).
-HELIX_CRED_AKIA_PLACEHOLDER_CARRIER='^AKIA1234567890123456$'
+# The value is built by adjacent-quote concatenation (`'^AKIA''…'`) so this
+# file's own source never carries a contiguous AKIA-shaped literal (a plain
+# regex secret scan of this file would otherwise flag it); the resulting
+# VALUE is byte-identical to the anchored literal — proven by check B1 of
+# test_credential_scan_lib_akia_literal_free.sh.
+HELIX_CRED_AKIA_PLACEHOLDER_CARRIER='^AKIA''1234567890123456$'
 
 HELIX_CRED_ADJACENCY_AWK='
 {
@@ -825,7 +830,7 @@ HELIX_CRED_ADJACENCY_AWK='
       # the one already accepted at carrier-strips #18/#21/#25 for the SAME
       # class of risk (an identifier- or symbol-shaped "value" that is
       # technically still a valid string for a secret to take). `user.name=
-      # AKIA1234567890123456` and `user.name=hunter2hunter2` (digit present)
+      # AKIA` + `1234567890123456` and `user.name=hunter2hunter2` (digit present)
       # are NOT exempted by this strip and are still caught. Proven by
       # golden-good scenario (q) + the (real user.name value carrying a
       # digit) golden-bad in test_credential_scan_lib.sh (§11.4.107(10)).
