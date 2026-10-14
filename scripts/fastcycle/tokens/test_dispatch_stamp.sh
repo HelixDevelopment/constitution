@@ -410,13 +410,13 @@ check() {
 UNTAGGED='{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=ATM-12 no zeta tag"}}'
 ERR_Z="$(printf '%s' "$UNTAGGED" | HELIX_RELEASE_PREFIX=zeta bash "$TOOL" 2>&1 >/dev/null)"; RC_Z=$?
 check "V1-M3: zeta consumer blocks item=ATM-12 (exit 2)" "$([ "$RC_Z" = 2 ] && echo 0 || echo 1)" "rc=$RC_Z"
-check "V1-M3: refusal names the resolved form item=<ZET-nnnn>" "$(printf '%s' "$ERR_Z" | grep -Fq 'item=<ZET-nnnn>'; echo $?)" "stderr: $ERR_Z"
-check "V1-M3: refusal example uses the resolved prefix (item=ZET-1041)" "$(printf '%s' "$ERR_Z" | grep -Fq 'item=ZET-1041'; echo $?)" "stderr: $ERR_Z"
-check "V1-M3: refusal text carries no ATM-nnnn / ATM-1041 literal" "$(printf '%s' "$ERR_Z" | grep -Eq 'ATM-(nnnn|1041)' && echo 1 || echo 0)" "stderr: $ERR_Z"
+check "V1-M3: refusal names the resolved form item=<ZET-nnnn>" "$(grep -Fq 'item=<ZET-nnnn>' <<<"$ERR_Z"; echo $?)" "stderr: $ERR_Z"
+check "V1-M3: refusal example uses the resolved prefix (item=ZET-1041)" "$(grep -Fq 'item=ZET-1041' <<<"$ERR_Z"; echo $?)" "stderr: $ERR_Z"
+check "V1-M3: refusal text carries no ATM-nnnn / ATM-1041 literal" "$(grep -Eq 'ATM-(nnnn|1041)' <<<"$ERR_Z" && echo 1 || echo 0)" "stderr: $ERR_Z"
 ERR_X="$(printf '%s' "$UNTAGGED" | HELIX_RELEASE_PREFIX=zeta FC_DISPATCH_EXTRA_ITEM_PREFIXES=spk bash "$TOOL" 2>&1 >/dev/null)"
-check "V1-M3: refusal lists every accepted prefix (ZET, SPK)" "$(printf '%s' "$ERR_X" | grep -Fq 'accepted prefixes: ZET, SPK'; echo $?)" "stderr: $ERR_X"
+check "V1-M3: refusal lists every accepted prefix (ZET, SPK)" "$(grep -Fq 'accepted prefixes: ZET, SPK' <<<"$ERR_X"; echo $?)" "stderr: $ERR_X"
 ERR_O="$(printf '%s' "$UNTAGGED" | FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+' bash "$TOOL" 2>&1 >/dev/null)"
-check "V1-M3: with a full override the refusal quotes the configured pattern" "$(printf '%s' "$ERR_O" | grep -Fq "FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+'"; echo $?)" "stderr: $ERR_O"
+check "V1-M3: with a full override the refusal quotes the configured pattern" "$(grep -Fq "FC_DISPATCH_ITEM_ID_RE='XYZ-[0-9]+'" <<<"$ERR_O"; echo $?)" "stderr: $ERR_O"
 
 # V1-M4(a): a nested "description" placed BEFORE the real (untagged) one.
 NESTED_FIRST='{"tool_name":"Agent","tool_input":{"metadata":{"description":"item=ATM-1"},"description":"(T1/main - x) untagged real description"}}'

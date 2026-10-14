@@ -569,8 +569,8 @@ HELIX_CRED_ADJACENCY_AWK='
   # the SAME git-remote-is-not-a-credential case, just a different URL shape.
   # Forensic FP (2026-10-05, measured via the email-adjacency awk programs own
   # debug instrumentation): `scripts/testing/test_commit_all_owned_cascade.sh` line
-  # 142, the quoted _submodule_org call on ssh://git@github.com/ATMOSphere1234321/repo.git
-  # — this projects real GitHub org "ATMOSphere1234321" (letters+digits)
+  # 142, the quoted _submodule_org call on ssh://git@github.com/<org>/repo.git
+  # — a real GitHub org name (letters+digits)
   # survived un-stripped and read as a password-shaped token adjacent to the
   # git@ "email", REFUSING a legitimate commit. The org/repo "/" is still
   # REQUIRED (mirrors the strip above), so a genuine `ssh://git@<host>/<secret>`

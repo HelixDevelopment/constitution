@@ -54,7 +54,7 @@ case "$listout" in *demand-one*) ok "inactive skill still DISCOVERABLE via list"
 # 5 FAIL-SAFE: unknown skill -> non-zero + explicit message, never silent
 out="$("$CLI" activate nope-not-real "$P" 2>&1)"; rc=$?
 chk "$rc" "1" "unknown skill exits non-zero"
-echo "$out" | grep -q "SKILL-ACTIVATION-FAILED" && ok "unknown skill reports explicitly" || no "unknown skill failed silently"
+grep -q "SKILL-ACTIVATION-FAILED" <<<"$out" && ok "unknown skill reports explicitly" || no "unknown skill failed silently"
 
 # 6 MUTATION (§1.1): break the target so the link dangles. Activation MUST fail.
 #    If this passes, the fail-safe check is decoration.
@@ -100,8 +100,8 @@ if [ -x "$SHIM" ]; then
   mkdir -p "$T/fakehome"
   out="$(cd "$T" && env -u HELIX_SKILL_ENGINE -u HELIX_CONSTITUTION_DIR HOME="$T/fakehome" bash "$SHIM" list . 2>&1)"; rc=$?
   chk "$rc" "3" "MODE C: exits 3 (engine absent), not 0"
-  echo "$out" | grep -q "SKILL-ACTIVATION-UNAVAILABLE" && ok "MODE C: degrades LOUDLY with a named reason" || no "MODE C: degraded silently"
-  echo "$out" | grep -q "EXISTING skills are untouched" && ok "MODE C: states existing skills still work" || no "MODE C: did not state fallback state"
+  grep -q "SKILL-ACTIVATION-UNAVAILABLE" <<<"$out" && ok "MODE C: degrades LOUDLY with a named reason" || no "MODE C: degraded silently"
+  grep -q "EXISTING skills are untouched" <<<"$out" && ok "MODE C: states existing skills still work" || no "MODE C: did not state fallback state"
   # MUTATION (§1.1): mode C must never be mistaken for success
   if [ "$rc" = "0" ]; then no "MUTATION mode-C: silent success (false-null)"; else ok "MUTATION mode-C: no false-null success"; fi
 else

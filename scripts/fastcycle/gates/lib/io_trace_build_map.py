@@ -67,7 +67,7 @@ comparison).
 
 Host-safety (§12 / §11.4.225): `--sections-dir`'s real, current on-disk
 population (device/rockchip/rk3588/tests/) is 1000+ scripts, the large
-majority of which are ON-DEVICE tests (require a physical RK3588 board
+majority of which are ON-DEVICE tests (require a physical target board
 attached over ADB) -- tracing one with no device connected can print a
 usage error, block waiting on a device, or otherwise misbehave in ways
 this tool cannot predict per-script. Every trace attempt is therefore run
