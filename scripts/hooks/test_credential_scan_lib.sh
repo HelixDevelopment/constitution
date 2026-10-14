@@ -1076,7 +1076,7 @@ assert_caught "(r-neg) ssh://git@<host>/<secret> with no org/repo split survives
               "$WORK/bad_r_ssh_url_single_segment.txt"
 
 # (s) §11.4.201 carrier-strip #32: this scanner's own documented golden-bad
-# AKIA placeholder literal (`AKIA1234567890123456` -- the same value already
+# AKIA placeholder literal (`AKIA` + `1234567890123456`, written split -- the same value already
 # cited throughout this scanner's own doc comments and quoted, as prose
 # discussing this very detector, inside docs/requests/history.md's §11.4.208
 # ledger) must not itself be flagged as a real hit. Built via printf (split
@@ -1184,6 +1184,50 @@ assert_clean "(w) triply HTML-entity-escaped closing tag decodes (within the bou
 } > "$WORK/bad_w_real_secret_before_triple_escaped_tag.txt"
 assert_caught "(w-neg) a real secret immediately followed by a triply-entity-escaped HTML closing tag survives the decode+blank strip (still caught)" \
               "$WORK/bad_w_real_secret_before_triple_escaped_tag.txt"
+
+# ---------------------------------------------------------------------------
+# SUB-SUITES (wired here on purpose, round-2 review F3 of the remedy batch
+# atm-prebuild-remedy-const). The consumer's CM-CRED-SCAN-LIB-SELF-VALIDATED
+# gate runs THIS suite (invariant 5, exit 0 required) and its meta-test runs
+# it too; nothing else runs the two guards below. A guard no automation runs
+# is the §11.4.205 "on disk, enforced nowhere" pattern. Measured before this
+# wiring: a placeholder carrier widened from the one named constant to a
+# digit-only CLASS (which silently exempts real digit-only AKIA keys) passed
+# every case above and was caught ONLY by the AKIA sub-suite.
+#   (x) test_credential_scan_lib_akia_literal_free.sh -- carrier value exact,
+#       outcome table unchanged, no contiguous AKIA literal in the library.
+#   (y) ../gates/cm_core_scripts_project_literal_free_mutation_test.sh --
+#       the library (and the other genericised constitution scripts) carry no
+#       consumer project literal (CSLV invariant 4's class, widened).
+# Each sub-suite is run against the SAME library this suite tests; its own
+# exit code is read directly (never through a pipe). A missing sub-suite is a
+# FAIL, never a skip.
+# ---------------------------------------------------------------------------
+_sub_run() { # $1 label  $2.. command
+    local label="$1" rc=0 out
+    shift
+    out="$("$@" 2>&1)" || rc=$?
+    if [ "$rc" -eq 0 ]; then
+        echo "PASS: $label (rc=0, $(printf '%s\n' "$out" | grep -c '^PASS:') sub-checks passed)"
+        pass=$((pass + 1))
+    else
+        echo "FAIL: $label (rc=$rc) -- last lines:"
+        printf '%s\n' "$out" | tail -n 6 | sed 's/^/    /'
+        fail=$((fail + 1))
+    fi
+}
+_sub_akia="$HERE/test_credential_scan_lib_akia_literal_free.sh"
+_sub_core="$HERE/../gates/cm_core_scripts_project_literal_free_mutation_test.sh"
+if [ -f "$_sub_akia" ]; then
+    _sub_run "(x) AKIA-literal-free sub-suite" env CREDSCAN_LIB_UNDER_TEST="$LIB" bash "$_sub_akia"
+else
+    echo "FAIL: (x) AKIA-literal-free sub-suite missing: $_sub_akia"; fail=$((fail + 1))
+fi
+if [ -f "$_sub_core" ]; then
+    _sub_run "(y) core-scripts project-literal-free sub-suite" bash "$_sub_core" --root "$(cd "$HERE/../.." && pwd)"
+else
+    echo "FAIL: (y) core-scripts project-literal-free sub-suite missing: $_sub_core"; fail=$((fail + 1))
+fi
 
 echo ""
 echo "== RESULT: ${pass} passed, ${fail} failed =="

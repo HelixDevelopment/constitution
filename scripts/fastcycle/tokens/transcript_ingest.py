@@ -35,7 +35,7 @@ there, this module extracts ONLY the narrow, regex-matched
 — the SAME configurable `item=(<prefix1>|<prefix2>|...)-[0-9]+|\\?`
 convention `tokens/dispatch_stamp.sh` (T036) already established on this
 SAME field (default prefix derived per-checkout via `release_prefix.sh`,
-e.g. "ATM" for this checkout — never hardcoded, see the ITEM_TAG_RE
+e.g. "MYP" for a checkout whose release prefix is "myproject" — never hardcoded, see the ITEM_TAG_RE
 DECOUPLING FIX comment below) — and NEVER persists the raw `description`
 string itself.
 
@@ -349,10 +349,10 @@ MEASURED = "measured"
 # `message["content"]`).
 #
 # DECOUPLING FIX (§11.4.28/§11.4.177, independent review finding on this
-# file, 2026-10-03): this REGEX used to hardcode the literal prefix
-# "ATM-" verbatim, meaning any OTHER project consuming this
-# project-agnostic constitution submodule whose item-id prefix is not
-# "ATM" would get ZERO item/token attribution from this tool, silently
+# file, 2026-10-03): this REGEX used to hardcode the reference consumer's
+# own literal ticket prefix verbatim, meaning any OTHER project consuming this
+# project-agnostic constitution submodule whose item-id prefix differs
+# would get ZERO item/token attribution from this tool, silently
 # (a project-literal leak inside a supposedly project-agnostic engine).
 # dispatch_stamp.sh (T036) already solved this EXACT problem for its own
 # identical hardcode via a configurable, non-guessed prefix resolution
@@ -387,13 +387,13 @@ MEASURED = "measured"
 #   2. Else, the DEFAULT prefix is DERIVED (never hardcoded) via
 #      `_fc_default_item_prefix()` below -- the SAME release-prefix-based
 #      derivation `dispatch_stamp.sh`'s own `_fc_default_item_prefix()`
-#      uses, so for THIS checkout (release prefix "atmosphere") the
-#      derived default is "ATM" -- SEMANTICALLY identical to the old
+#      uses, so for a checkout whose release prefix is "myproject" the
+#      derived default is "MYP" -- SEMANTICALLY identical to the old
 #      hardcoded behaviour for every existing caller that does not
 #      configure an extra prefix (same set of ids matched/extracted), but
 #      NOT byte-identical: the built regex wraps the derived prefix in a
-#      non-capturing alternation group, `(?:ATM)-[0-9]+`, whereas the old
-#      hardcode was the bare literal `ATM-[0-9]+` (T048 S9 independent
+#      non-capturing alternation group, `(?:MYP)-[0-9]+`, whereas the old
+#      hardcode was the bare literal `<prefix>-[0-9]+` (T048 S9 independent
 #      review finding M2, 2026-10-03 -- the prior wording here overstated
 #      this). A DIFFERENT consuming project derives ITS OWN correct
 #      prefix automatically, with no source edit to this file.
@@ -401,7 +401,7 @@ MEASURED = "measured"
 #      space-separated) -- extra accepted prefixes ADDED to the derived
 #      default from (2) -- never a source edit, and never silently
 #      widening the DEFAULT (which stays exactly the derived prefix, e.g.
-#      "ATM", for an unconfigured checkout).
+#      "MYP", for an unconfigured checkout).
 #
 # HERMETICITY NOTE (mirrors dispatch_stamp.sh's own identical note): this
 # reads `constitution/scripts/release_prefix.sh` once per process (via a
@@ -457,8 +457,8 @@ def _fc_default_item_prefix():
     of `proc.returncode` (the script's own stdout contract is honoured
     even on a non-zero exit, exactly like the healthy returncode==0
     path), so a script that exits non-zero while STILL printing a
-    usable value to stdout (e.g. exits 3 after printing "atmosphere")
-    derives its prefix from THAT stdout ("ATM" here), never "WIT" --
+    usable value to stdout (e.g. exits 3 after printing "myproject")
+    derives its prefix from THAT stdout ("MYP" here), never "WIT" --
     the prior wording was wrong in that case. Fixed: the message now
     checks whether `base` actually has any ASCII letters to derive a
     prefix from (the SAME real condition `_fc_derive_key_prefix()`'s own
@@ -585,10 +585,10 @@ def _build_item_tag_re():
 
 
 # The item tag is a whole token. Left: start of string or one ASCII
-# whitespace character (space, tab, newline, CR, FF, VT) -- `xitem=ATM-1`
+# whitespace character (space, tab, newline, CR, FF, VT) -- `xitem=MYP-1`
 # is not a tag. Right: end of string or anything but an ASCII letter, digit
-# or underscore -- `item=ATM-12x`, `item=ATM-12_x` and `item=?foo` are not
-# tags, while `item=ATM-12,` and `item=ATM-12)` are. T048 restart review R3
+# or underscore -- `item=MYP-12x`, `item=MYP-12_x` and `item=?foo` are not
+# tags, while `item=MYP-12,` and `item=MYP-12)` are. T048 restart review R3
 # boundary note.
 #
 # SAME TAG SET AS dispatch_stamp.sh, IN ANY CALLER LOCALE (V1-M2, T048
@@ -732,7 +732,7 @@ def build_dispatch_map(files):
     tool_use block; a SIBLING top-level key to `message`, never read from
     inside it). Returns {agent_id: {"item_id": <the configured item-id
     prefix>-<digits>, or None>, "session_id": <the dispatching record's own
-    sessionId, or None>}} — the prefix is "ATM" for THIS checkout's
+    sessionId, or None>}} — the prefix is "MYP" for a "myproject" checkout's
     unconfigured default (derived from `release_prefix.sh`, never
     hardcoded; see ITEM_TAG_RE above), and may differ for a different
     consuming project or under FC_DISPATCH_EXTRA_ITEM_PREFIXES /

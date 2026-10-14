@@ -173,7 +173,7 @@ expect_v 1 FAIL FAIL "BAD-CARRY (no-carry successor 1.0.0-dev-0.0.10 — a non-l
     bash "$GATE" --config "$(EXTRA_CONF="$PD" mkfix badcarry "1.0.0-dev-0.0.9${TAB}fpA" "1.0.0-dev-0.0.10${TAB}fpB")"
 
 expect_v 1 FAIL FAIL "BAD-CARRY-MID (middle position 0.12.0 exceeds 9, tag prefix present)" \
-    bash "$GATE" --config "$(EXTRA_CONF="$PD" mkfix badcarrymid "atmosphere-1.2.1-dev-0.12.0${TAB}fpA")"
+    bash "$GATE" --config "$(EXTRA_CONF="$PD" mkfix badcarrymid "myproject-1.2.1-dev-0.12.0${TAB}fpA")"
 
 expect_v 0 PASS PASS "GOOD-CARRY (1.0.0-dev-0.0.9 -> 1.0.0-dev-0.1.0, decimal carry applied)" \
     bash "$GATE" --config "$(EXTRA_CONF="$PD" mkfix goodcarry "1.0.0-dev-0.0.9${TAB}fpA" "1.0.0-dev-0.1.0${TAB}fpB")"
