@@ -62,7 +62,7 @@ export LABEL_SYNC_SHELL_ID="shell-${__LS_HOST:0:60}-$$-${EPOCHSECONDS:-0}"
 __LS_SEG=""
 __ls_label="" __ls_seen_seq="" __ls_first=1 __ls_in_prompt=0 __ls_started="" __ls_cmd_id="" __ls_n=0 __ls_a0="?"
 __ls_hb_at=$SECONDS __ls_cmd_at=-9999
-__ls_ref_pwd="" __ls_head_file="" __ls_head=""
+__ls_ref_pwd="" __ls_head_file="" __ls_head="" __ls_rseq=0
 
 # __ls_find_head : set __ls_head_file to the HEAD file of the repository that
 # contains $PWD ('' outside a repository). Pure bash (no fork); a `.git` FILE
@@ -122,7 +122,8 @@ __ls_precmd() {
     fi
   fi
   if __ls_place_changed; then
-    __ls_bg "$__LS_HOOK" shell-refresh --id "$LABEL_SYNC_SHELL_ID" --cwd "$PWD"
+    __ls_rseq=$((__ls_rseq + 1))   # re-review 6: orders the detached refreshes
+    __ls_bg "$__LS_HOOK" shell-refresh --id "$LABEL_SYNC_SHELL_ID" --cwd "$PWD" --seq "$__ls_rseq"
   fi
   if [ "$((SECONDS - __ls_hb_at))" -ge "$__LS_HB" ] 2>/dev/null; then
     __ls_hb_at=$SECONDS

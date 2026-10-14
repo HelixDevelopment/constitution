@@ -7,7 +7,9 @@
 #           ONE place that decides what may be recorded about a command.
 # Usage   : shell-hook.sh shell-start --id ID --pid PID --cwd DIR [--parent P]
 #           shell-hook.sh shell-beat  --id ID
-#           shell-hook.sh shell-refresh --id ID --cwd DIR   (re-derive track/branch/cwd)
+#           shell-hook.sh shell-refresh --id ID --cwd DIR [--seq N]   (re-derive track/branch/cwd;
+#                         N = the shell's increasing refresh counter: an older refresh never
+#                         overwrites a newer one; retried once when the shell is not registered yet)
 #           shell-hook.sh shell-end   --id ID
 #           shell-hook.sh cmd-start   --id ID --parent SHELL_ID --pid PID --cwd DIR [--argv0 NAME]
 #           shell-hook.sh cmd-end     --id ID
@@ -52,10 +54,10 @@ RDIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 LCTL="$(ls_labelctl)"
 export LABEL_SYNC_LOCK_TIMEOUT="${LABEL_SYNC_LOCK_TIMEOUT:-500ms}"   # a hook never waits long on the lock
 op="${1:-}"; shift || true
-id="" pid="" cwd="" parent="" argv0="?"
+id="" pid="" cwd="" parent="" argv0="?" seq=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --id) id="${2:-}"; shift 2 ;; --pid) pid="${2:-}"; shift 2 ;;
+    --id) id="${2:-}"; shift 2 ;; --pid) pid="${2:-}"; shift 2 ;; --seq) seq="${2:-}"; shift 2 ;;
     --cwd) cwd="${2:-}"; shift 2 ;; --parent) parent="${2:-}"; shift 2 ;;
     --argv0) argv0="${2:-?}"; shift 2 ;;
     *) shift ;;
@@ -103,6 +105,19 @@ case "$op" in
     # binding (alias/model/effort) is NOT touched: it was decided at
     # shell-start. A field the labeler reports as `?` is CLEARED, never kept
     # from the previous directory (§11.4.6).
+    # re-review finding 6: refreshes run detached and may finish out of order.
+    case "$seq" in ''|*[!0-9]*) seq="" ;; esac
+    case "$id" in */*|.*) dbg "shell-refresh: bad id"; exit 0 ;; esac
+    last="" seqf=""
+    rdir="$(ls_dir)/shellrefresh"
+    if mkdir -p -m 700 "$rdir" 2>/dev/null; then
+      seqf="$rdir/$id"
+      if command -v flock >/dev/null 2>&1 && { exec 9>>"$seqf.lock"; } 2>/dev/null; then
+        flock -w 5 9 2>/dev/null || dbg "shell-refresh: lock busy, continuing unlocked"
+      fi
+      { IFS= read -r last <"$seqf"; } 2>/dev/null || last=""
+      case "$last" in *[!0-9]*) last="" ;; esac
+    fi
     lb="${LABEL_SYNC_LABELER:-$RDIR/../../multitrack/track_branch_label.sh}"
     d="${cwd:-$PWD}"
     lab="$(cd "$d" 2>/dev/null && bash "$lb" 2>/dev/null)" || lab=""
@@ -113,8 +128,18 @@ case "$op" in
     if [[ $tr =~ ^[0-9]+$ ]]; then up+=(--track "$tr"); else clr+=(track); fi
     if [ -n "$br" ] && [ "$br" != "?" ]; then up+=(--branch "$br"); else clr+=(branch); fi
     [ "${#clr[@]}" -gt 0 ] && up+=(--clear "$(IFS=,; echo "${clr[*]}")")
-    "$LCTL" "${up[@]}" >/dev/null 2>&1 || dbg "shell-refresh failed" ;;
-  shell-end)  unreg "$id" ;;
+    # The ordering decision and the update happen under ONE per-shell lock, so a
+    # newer refresh cannot interleave between an older one's check and write.
+    if [ -n "$last" ] && [ -n "$seq" ] && [ "$seq" -le "$last" ]; then   # MUT:refreshorder
+      dbg "shell-refresh: seq $seq <= applied $last — older refresh dropped"; exit 0
+    fi
+    if ! "$LCTL" "${up[@]}" >/dev/null 2>&1; then
+      sleep 1   # the shell-start register may still be in flight: retry ONCE
+      "$LCTL" "${up[@]}" >/dev/null 2>&1 || { dbg "shell-refresh failed"; exit 0; }   # MUT:refreshretry
+    fi
+    [ -n "$seq" ] && [ -n "$seqf" ] && printf '%s\n' "$seq" >"$seqf" 2>/dev/null ;;
+  shell-end)  unreg "$id"
+              case "$id" in */*|.*) ;; *) rm -f -- "$(ls_dir)/shellrefresh/$id" "$(ls_dir)/shellrefresh/$id.lock" 2>/dev/null ;; esac ;;
   cmd-end)    unreg "$id" ;;
   cmd-start)
     a0="$(ls_argv0_clean "$argv0")"

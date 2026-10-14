@@ -39,6 +39,9 @@ trap 'rm -rf "$TMP"' EXIT
 
 # name|file|sed-expression (must change the file)
 MUTANTS=(
+  'refresh_ignores_order|shell-hook.sh|/MUT:refreshorder/s|if \[ -n "\$last" \] \&\& \[ -n "\$seq" \] \&\& \[ "\$seq" -le "\$last" \]; then|if false; then|'
+  'refresh_never_retries|shell-hook.sh|/MUT:refreshretry/s|"\$LCTL" "\${up\[@\]}" >/dev/null 2>\&1 \|\| {|{|'
+  'integration_omits_seq|shell-integration.bash|s| --seq "\$__ls_rseq"||'
   'statusline_ignores_snapshot|statusline.sh|s|if \[ "\$status" = "ok" \] \&\& \[ -n "\$text" \]; then|if false; then|'
   'title_not_refreshed_on_seq|shell-integration.bash|s|\[ "\$s" != "\$__ls_seen_seq" \]|false|'
   'labelrun_swallows_exit|labelrun|s|^exit "\$rc"$|exit 0|'

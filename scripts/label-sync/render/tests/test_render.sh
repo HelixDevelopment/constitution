@@ -595,6 +595,7 @@ waitf cwd "$HR2/sub"; echo "C3=\$(br cwd)"
 cd /
 __ls_precmd
 waitf cwd /; sleep 0.3; echo "B3=\$(br branch)"
+echo "RS=\$(cat "\$LABEL_SYNC_DIR/shellrefresh/\$LABEL_SYNC_SHELL_ID" 2>/dev/null)"
 trap - EXIT
 HEOF
 HOUT="$(LABEL_SYNC_TITLE_SINK="$TMPD/h_title" bash "$HSCEN" 2>/dev/null)"
@@ -604,8 +605,29 @@ eq "H4 cd into another repo => branch follows" "hb2" "$(printf '%s\n' "$HOUT" | 
 eq "H4b cd into another repo => cwd follows" "$HR2" "$(printf '%s\n' "$HOUT" | sed -n 's/^C2=//p')"
 eq "H4d cd within the same repo (HEAD unchanged) => cwd follows" "$HR2/sub" "$(printf '%s\n' "$HOUT" | sed -n 's/^C3=//p')"
 eq "H4c cd outside any repo => branch CLEARED, never kept from the previous repo" "" "$(printf '%s\n' "$HOUT" | sed -n 's/^B3=//p')"
+eq "H6b the bash integration numbers its refreshes (4 place changes => last applied seq 4)" "4" "$(printf '%s\n' "$HOUT" | sed -n 's/^RS=//p')"
 NOFORK="$(bash -c 'export LABEL_SYNC_DIR=/proc/nonexistent/x LABEL_SYNC_LABELCTL=/nonexistent; cd "$2"; source "$1/shell-integration.bash"; __ls_place_changed && echo CHANGED || echo SAME; cd /; __ls_place_changed && echo CHANGED || echo SAME; trap - EXIT' _ "$RENDER" "$HR1" 2>/dev/null | tr '\n' ' ')"
 eq "H5 unchanged cwd + HEAD => no refresh (cheap path); a cd => refresh" "SAME CHANGED " "$NOFORK"
+
+# H6/H7 (re-review finding 6): refreshes run in the background, so they can
+# finish out of order. A refresh carries the shell's monotonically increasing
+# --seq; an OLDER one finishing after a newer one must never overwrite it.
+HK="$RENDER/shell-hook.sh"
+hk() { LABEL_SYNC_LABELER="$REALLAB" bash "$HK" "$@" 2>/dev/null; }
+hget() { "$LCTL" get --id "$1" --json 2>/dev/null | jq -r ".$2 // empty"; }
+(cd "$HR1" && hk shell-start --id h6sh --pid 0 --cwd "$HR1")
+hk shell-refresh --id h6sh --cwd "$HR2" --seq 5
+eq "H6 fixture: the newer refresh (seq 5) moved the shell to hb2" "hb2" "$(hget h6sh branch)"
+hk shell-refresh --id h6sh --cwd "$HR1" --seq 3
+eq "H6 an OLDER refresh (seq 3) arriving later does not overwrite the newer place" "hb2" "$(hget h6sh branch)"
+hk shell-refresh --id h6sh --cwd "$HR1" --seq 6
+eq "H6 control: a newer refresh (seq 6) still applies" "hb1-next" "$(hget h6sh branch)"
+# H7: a refresh that runs before shell-start registered the entity retries once.
+( hk shell-refresh --id h7sh --cwd "$HR2" --seq 1 ) & h7=$!
+sleep 0.15
+(cd "$HR1" && hk shell-start --id h7sh --pid 0 --cwd "$HR1")
+wait "$h7"
+eq "H7 a refresh that ran before shell-start registered the shell is applied (retried once)" "hb2" "$(hget h7sh branch)"
 
 echo "RESULT pass=$PASS fail=$FAIL"
 [ "$FAIL" -eq 0 ]
