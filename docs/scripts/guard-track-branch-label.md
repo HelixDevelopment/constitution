@@ -1,7 +1,7 @@
 # guard-track-branch-label.sh — §11.4.182 track+branch+alias label guard hook
 
-**Revision:** 2
-**Last modified:** 2026-07-26T12:18:28Z
+**Revision:** 6
+**Last modified:** 2026-10-15T03:50:00Z
 **Authority:** constitution submodule §11.4.182 (Track+branch work-stream identity label — extended 2026-07-26 with the `<model>` + `<effort>` fields) · §11.4.231 clause (F) (effort-tier) · §11.4.177 (inherited-by-reference) · §11.4.6 (no-guessing / honest boundary)
 **Classification:** universal (§11.4.17)
 
@@ -49,7 +49,9 @@ PreToolUse hooks. It is NEVER copied per project.
    session is `claude3`) is BLOCKED (exit 2) with the CORRECT label printed.
    The `<model>` and `<effort>` fields are NEVER cross-checked here (a model /
    effort can legitimately switch mid-turn, §11.4.6) — an honest `?` model or
-   `?` effort, or an ABSENT model/effort field, is NEVER a block-cause.
+   `?` effort, or an ABSENT model/effort field, is NEVER a block-cause here
+   (the agent-type check below flags a `?` only for a dispatch that uses a
+   generated label type, whose model and effort are known).
 
 The live alias is derived by **calling the reference labeler**
 `scripts/multitrack/track_branch_label.sh` — the single source of truth for the
@@ -109,7 +111,8 @@ bash constitution/scripts/multitrack/track_branch_label.sh   # e.g. (T1/main - c
 - **Empty / missing alias** (`(T1/main)`, `(T1/main - )`) → BLOCKED on FORMAT.
 - **Extended forms** — the 4-field `(T1/main - claude3 - opus)` and 5-field
   `(T1/main - claude3 - opus - high)` labels are accepted; a `?` model / `?`
-  effort, or an absent model/effort field, is never a block-cause.
+  effort, or an absent model/effort field, is never a block-cause (except a `?`
+  for a dispatch that uses a generated label type, see the agent-type check).
 - **Branch names with `-`** (e.g. `feature/mistiq-vader`) — a git ref cannot
   contain a space, so the ` - ` alias separator is unambiguous.
 - **Labeler unreachable** — a defensive inline derivation mirrors the labeler so
@@ -127,10 +130,45 @@ bash constitution/scripts/multitrack/track_branch_label.sh   # e.g. (T1/main - c
    AND they differ ⇒ BLOCK (alias); otherwise ⇒ exit 0.
 7. On BLOCK, print the CORRECT label + how to fix; exit 2.
 
+## Agent-type check (§11.4.182 (8) / §11.4.231 (F.5), added Rev 3, Rev 4)
+
+The agents list shows only `<subagent_type>  <live progress>`, so the label is
+also baked into GENERATED agent types `T<N>-<branch>-<alias>-<model>-<effort>`
+(see `gen_agent_label_defs.md`). Naming rules come from the shared
+`scripts/multitrack/agent_label_lib.sh` (if it is missing the check is skipped
+with a stderr note). After the label is accepted, `_type_check` looks at
+`<project>/.claude/agents/T<N>-*.md` (`CLAUDE_PROJECT_DIR`, else the git
+toplevel; `AGENT_TYPE_LABEL_AGENTS_DIR` overrides) and counts only files
+carrying the generator marker (a hand-made `T<N>-*.md` never counts). For
+`Agent`/`Task` dispatches:
+
+| `subagent_type` | condition | result |
+|---|---|---|
+| empty or catch-all (`AGENT_TYPE_LABEL_CATCHALL`, default `general-purpose claude`) | generated types exist for the label's track + branch + alias | **WARN** (exit 0 + `additionalContext` JSON naming up to 10 types); **BLOCK** (exit 2) with `AGENT_TYPE_LABEL_ENFORCE=1` |
+| same | generated types exist for the track, but only for another branch/alias (another session's, or stale) | WARN only, never BLOCK ("types exist only for other aliases or stale identities; re-run the installer in this session, restart") |
+| `T<M>-...-<model>-<effort>` | not an EXACT match of the label's identity (other track, branch or alias — a name that merely extends the label's prefix, e.g. alias `cmatl-zz` under alias `cmatl`, does not match), or model/effort different from the label (a `?` effort or model in the label counts as different: the type states the value) | WARN / BLOCK |
+| a matching label type | the dispatch passes its own `model` or `effort` that differs from the type, or `CLAUDE_CODE_EFFORT_LEVEL` is set to a different effort | WARN / BLOCK — on the current platform these override the definition, so the type name would lie |
+| `Explore`, `Plan`, `plugin:agent`, other specialists | any | untouched |
+
+A label with no model/effort fields (3-field legacy form) only gets the
+track/branch/alias comparison. `AGENT_TYPE_LABEL_BYPASS=<non-empty reason>`
+lets a dispatch through and audits the reason on stderr; an EMPTY reason does
+not bypass. The bypass applies to the agent-type check only; the format and
+alias blocks above have none. A `T?` label skips the check. The WARN payload is
+JSON-escaped (quotes, backslashes and control characters), so a hostile
+`subagent_type` cannot break it. A model set by an installed mod's `agent.spawn`
+hook also overrides the per-invocation one; the guard cannot see it. The format
+block's note that a `?` effort is never a block-cause excludes dispatches that
+use a label type (their effort is known). Honest boundary:
+agent types are loaded by the agent platform with no guaranteed load time (see
+`install_agent_label_defs.md`, "Load boundary"), so WARN is the default.
+Tests: `scripts/hooks/test_guard_agent_type_label.sh` (57 cases); gate
+`CM-AGENT-TYPE-LABEL` (`scripts/gates/cm_agent_type_label.sh`).
+
 ## Tests / gates
 
 - **Hermetic test:** `scripts/hooks/test_guard_track_branch_label.sh`
-  (30 cases; controls `CLAUDE_CONFIG_DIR` per case for determinism —
+  (38 cases; controls `CLAUDE_CONFIG_DIR` per case for determinism —
   §11.4.50/§11.4.98).
 - **Pre-build gate:** `scripts/gates/cm_track_branch_label.sh`
   (`CM-TRACK-BRANCH-LABEL` — presence/exec/parseable + doc + behavioral

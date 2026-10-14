@@ -16,6 +16,13 @@
 #   4. Installs newly added/modified hooks from constitution/scripts/hooks/
 #   5. chmod +x and syntax-validate all new/modified scripts
 #   6. Reports a summary of what was installed
+#   7. (Every pull) regenerates the §11.4.182/§11.4.231(F) agent-type label
+#      definitions T<N>-<branch>-<alias>-<model>-<effort> for the current
+#      checkout into <project>/.claude/agents via
+#      scripts/multitrack/install_agent_label_defs.sh (idempotent, never
+#      touches hand-made agents, non-fatal) and runs the CM-AGENT-TYPE-LABEL
+#      gate as a health check. The agent-label tools need bash >= 4; this hook
+#      itself stays bash-3.2-safe.
 #
 # Usage:
 #   bash constitution/scripts/post_update_hook.sh
@@ -84,6 +91,20 @@ WARNINGS=()
 
 # Safe expansion of a possibly-empty array under `set -u` (bash < 4.4).
 arr_len() { eval "printf '%s' \"\${#$1[@]}\""; }
+
+# sort_unique_into <array-name> <items...> — replace the named array with the
+# sorted, de-duplicated items. bash-3.2-safe (no mapfile/readarray, which bash
+# < 4 lacks: under `set -e` a missing builtin would abort the whole §11.4.164
+# seam) and glob-safe (each line is read verbatim; nothing is word-split or
+# pathname-expanded, so a name such as 'b*eta' stays literal).
+sort_unique_into() {
+    local __name="$1" __line
+    shift
+    eval "$__name=()"
+    while IFS= read -r __line; do
+        eval "$__name+=(\"\$__line\")"
+    done < <(printf '%s\n' "$@" | sort -u)
+}
 
 # --- Colour helpers -------------------------------------------------------
 RED='\033[0;31m'
@@ -181,14 +202,11 @@ detect_changes() {
     # Deduplicate arrays (same file may appear multiple times across commits).
     # Guarded against the empty case: `"${ARR[@]}"` on an empty array is an
     # unbound-variable error under `set -u` on bash < 4.4.
-    local IFS_SAVE="$IFS"
-    IFS=$'\n'
-    [ "$(arr_len CHANGED_SKILLS)"  -eq 0 ] || CHANGED_SKILLS=($(printf "%s\n" "${CHANGED_SKILLS[@]}"  | sort -u))
-    [ "$(arr_len CHANGED_MCP)"     -eq 0 ] || CHANGED_MCP=($(printf "%s\n" "${CHANGED_MCP[@]}"        | sort -u))
-    [ "$(arr_len CHANGED_HOOKS)"   -eq 0 ] || CHANGED_HOOKS=($(printf "%s\n" "${CHANGED_HOOKS[@]}"    | sort -u))
-    [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] || CHANGED_SCRIPTS=($(printf "%s\n" "${CHANGED_SCRIPTS[@]}" | sort -u))
-    [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] || CHANGED_ACTIONS=($(printf "%s\n" "${CHANGED_ACTIONS[@]}" | sort -u))
-    IFS="$IFS_SAVE"
+    [ "$(arr_len CHANGED_SKILLS)"  -eq 0 ] || sort_unique_into CHANGED_SKILLS  "${CHANGED_SKILLS[@]}"
+    [ "$(arr_len CHANGED_MCP)"     -eq 0 ] || sort_unique_into CHANGED_MCP     "${CHANGED_MCP[@]}"
+    [ "$(arr_len CHANGED_HOOKS)"   -eq 0 ] || sort_unique_into CHANGED_HOOKS   "${CHANGED_HOOKS[@]}"
+    [ "$(arr_len CHANGED_SCRIPTS)" -eq 0 ] || sort_unique_into CHANGED_SCRIPTS "${CHANGED_SCRIPTS[@]}"
+    [ "$(arr_len CHANGED_ACTIONS)" -eq 0 ] || sort_unique_into CHANGED_ACTIONS "${CHANGED_ACTIONS[@]}"
 
     info "Detected: ${#CHANGED_SKILLS[@]} skill(s), ${#CHANGED_MCP[@]} MCP config(s), ${#CHANGED_HOOKS[@]} hook(s), ${#CHANGED_SCRIPTS[@]} script(s), ${#CHANGED_ACTIONS[@]} action/plugin file(s) changed."
 }
@@ -404,6 +422,61 @@ install_action_plugins() {
 }
 
 # ============================================================================
+# STEP 4c — (Re)generate the §11.4.182 / §11.4.231(F) agent-type label definitions
+# ============================================================================
+# Every pull regenerates the CURRENT checkout's T<N>-<branch>-<alias>-<model>-
+# <effort> agent types into <project>/.claude/agents from the live labeler
+# identity (idempotent; only round-1 files and this alias's superseded
+# generated files are pruned — never another alias's, since several aliases can
+# share one checkout; hand-made agents are never touched).
+# Every outcome is NON-fatal: a collision, an unknown identity (e.g. the pull ran
+# outside a Claude Toolkit session) or bash < 4 is a WARNING. Runs on EVERY
+# pull, not only when a tracked category changed. Then the CM-AGENT-TYPE-LABEL
+# gate runs as a health check of the toolchain (warning on failure).
+# Load boundary: a running Claude Code session may keep serving stale agent
+# definitions until it is restarted (measured; see docs/scripts/
+# install_agent_label_defs.md) — restart after an install that changed files.
+install_agent_label_defs() {
+    header "STEP 4c: Agent-type label definitions (T<N>-<branch>-<alias>-<model>-<effort>)"
+
+    local installer="${CONST_DIR}/scripts/multitrack/install_agent_label_defs.sh"
+    if [ ! -f "$installer" ]; then
+        warn "install_agent_label_defs.sh missing: $installer — agent-type label definitions NOT generated."
+        WARNINGS+=("install_agent_label_defs.sh missing — agent-type label definitions not generated")
+        return 0
+    fi
+
+    local rc=0
+    bash "$installer" --project-root "$PROJECT_ROOT" || rc=$?
+    case "$rc" in
+        0) info "  -> Agent-type label definitions current." ;;
+        3) warn "  -> a hand-made agent file collides with a label definition name; left untouched."
+           WARNINGS+=("agent-type label definitions: a hand-made file collides with a generated name (hand-made kept)") ;;
+        4) warn "  -> a generated label definition was hand-edited; left untouched."
+           WARNINGS+=("agent-type label definitions: a generated file was hand-edited (kept; delete it to regenerate)") ;;
+        6) warn "  -> identity (track/branch/alias) unresolvable here; nothing written or pruned. Re-run inside the session bound to this checkout."
+           WARNINGS+=("agent-type label definitions: identity unresolvable (nothing written or pruned)") ;;
+        7) warn "  -> bash < 4: the agent-label tools need bash >= 4; skipped."
+           WARNINGS+=("agent-type label definitions: skipped on bash < 4") ;;
+        8) warn "  -> flock (util-linux) not found; nothing written or pruned (the shared .git/info/exclude is only rewritten under flock)."
+           WARNINGS+=("agent-type label definitions: flock missing (nothing written)") ;;
+        *) warn "  -> install_agent_label_defs.sh exited $rc — label definitions may be stale."
+           WARNINGS+=("agent-type label definitions: installer exited $rc") ;;
+    esac
+
+    local gate="${CONST_DIR}/scripts/gates/cm_agent_type_label.sh"
+    if [ -f "$gate" ]; then
+        if bash "$gate" --quiet >/dev/null 2>&1; then
+            info "  -> CM-AGENT-TYPE-LABEL: PASS"
+        else
+            warn "  -> CM-AGENT-TYPE-LABEL: FAIL — run: bash $gate"
+            WARNINGS+=("CM-AGENT-TYPE-LABEL gate failed (agent-type label toolchain)")
+        fi
+    fi
+    return 0
+}
+
+# ============================================================================
 # STEP 5 — Validate scripts (chmod +x, syntax check)
 # ============================================================================
 validate_scripts() {
@@ -443,11 +516,10 @@ validate_scripts() {
     fi
 
     # Deduplicate
-    local IFS_SAVE="$IFS"
-    IFS=$'\n'
-    local unique_scripts
-    unique_scripts=($(printf "%s\n" "${all_scripts[@]}" | sort -u))
-    IFS="$IFS_SAVE"
+    local unique_scripts=()
+    if [ "$(arr_len all_scripts)" -gt 0 ]; then
+        sort_unique_into unique_scripts "${all_scripts[@]}"
+    fi
 
     local validated=0
     for script in "${unique_scripts[@]}"; do
@@ -549,6 +621,9 @@ main() {
     info "Script dir:        $SCRIPT_DIR"
 
     detect_changes
+
+    # §11.4.182 / §11.4.231(F): always (idempotent), independent of what changed.
+    install_agent_label_defs
 
     if [ "$(arr_len CHANGED_SKILLS)" -eq 0 ] && \
        [ "$(arr_len CHANGED_MCP)" -eq 0 ] && \

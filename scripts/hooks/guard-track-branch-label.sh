@@ -28,7 +28,9 @@
 #   already-in-flight dispatcher using the pre-model-field or pre-effort-field
 #   labeler is never blocked during migration (§11.4.6 — an honest `?` model or
 #   `?` effort, or NO model/effort field at all, is a valid label, never a
-#   block-cause; mirrors §11.4.182's existing honest-`?` rule for track/alias).
+#   block-cause; mirrors §11.4.182's existing honest-`?` rule for track/alias —
+#   EXCEPT that a dispatch using a generated label agent type must state that
+#   type's model/effort, see the AGENT-TYPE CHECK below).
 #   Missing / malformed label -> exit 2 with the expected form + how to fix.
 #   EVERY OTHER tool passes through untouched (exit 0) — this hook never breaks
 #   non-agent tools.
@@ -51,6 +53,15 @@
 #   asserts a condition it cannot resolve authoritatively at dispatch time;
 #   the labeler's own model derivation already documents its honest
 #   limitations — see track_branch_label.sh header, CASE A).
+#
+# AGENT-TYPE CHECK (§11.4.182 (8) / §11.4.231 (F.5), 2026-10-15): see _type_check
+#   below — WARN by default (exit 0 + additionalContext), BLOCK with
+#   AGENT_TYPE_LABEL_ENFORCE=1: a catch-all dispatch while GENERATED
+#   T<N>-<branch>-<alias>-<model>-<effort> types exist for the label's identity, a
+#   label type that disagrees with the label, or a per-dispatch model/effort /
+#   CLAUDE_CODE_EFFORT_LEVEL override that would make the type name lie.
+#   Specialist and plugin types are never touched; AGENT_TYPE_LABEL_BYPASS=<reason>
+#   is an audited bypass.
 #
 # DECOUPLING (§11.4.177): this hook lives in the constitution submodule and is
 # inherited BY REFERENCE (never copied). It is project-agnostic: it validates
@@ -141,7 +152,8 @@ fi
 # in force. Track MAY be '?' (honest when not on a /mnt/trackN path — §11.4.6);
 # alias MAY be '?' (honest when CLAUDE_CONFIG_DIR is unset / non-matching); model
 # and effort MAY be '?' or simply ABSENT (3-field / 4-field legacy forms) — all
-# accepted, none is ever a block-cause. The regex admits AT LEAST the 3-, 4-, and
+# accepted, none is ever a block-cause here (the AGENT-TYPE CHECK below flags a '?'
+# model/effort only for a dispatch using a generated label type). The regex admits AT LEAST the 3-, 4-, and
 # 5-field forms via the 0/1/2 optional " - <field>" segments after the alias
 # ({0,2}); because each field atom is [^)]+ (which itself matches ' - '), a label
 # carrying MORE than 5 fields ALSO matches — permissive by design, an extra field
@@ -254,6 +266,133 @@ _live_effort="$(_label_effort_field "$_expected")"
 _dispatch_effort="$(_label_effort_field "$LABEL")"
 
 # --------------------------------------------------------------------------
+# AGENT-TYPE CHECK (§11.4.182 (8) / §11.4.231 (F.5), added 2026-10-15). The agents
+# list shows only "<subagent_type>  <live progress>", so the work-stream label is
+# also baked into GENERATED agent types named T<N>-<branch>-<alias>-<model>-<effort>
+# (scripts/multitrack/gen_agent_label_defs.sh). The naming rules come from the
+# shared library scripts/multitrack/agent_label_lib.sh (never a second copy).
+#   (a) catch-all dispatch — subagent_type empty or in AGENT_TYPE_LABEL_CATCHALL
+#       (default "general-purpose claude") — while generated types exist for the
+#       label's exact identity (track, branch, alias): WARN, or BLOCK under
+#       AGENT_TYPE_LABEL_ENFORCE=1. If generated types exist for the track but
+#       only for ANOTHER identity (stale alias / branch), WARN only ("re-run the
+#       installer") — a dispatch is never blocked on types it cannot use.
+#   (b) a label-shaped subagent_type (T<N>-...-<model>-<effort>) must agree with
+#       the dispatch label: same track, same branch + alias prefix, and — when the
+#       label carries them — the same model and effort ('?' is not honest for a
+#       label type: the type states the value).
+#   (c) the type name must not lie: a per-invocation `model` / `effort` on the
+#       dispatch, or CLAUDE_CODE_EFFORT_LEVEL in the environment, overrides the
+#       definition's frontmatter on the current platform; a value that differs
+#       from the type's model / effort is flagged.
+# (b)/(c) WARN by default and BLOCK under AGENT_TYPE_LABEL_ENFORCE=1.
+# Specialist / plugin types (Explore, Plan, plugin:agent, ...) are NEVER touched.
+# AGENT_TYPE_LABEL_BYPASS="<reason>" (non-empty) lets a dispatch through and AUDITS
+# the reason on stderr. The WARN payload is JSON-escaped (hostile input safe).
+# Honest boundary (§11.4.6): the agent platform loads definitions; a running
+# session may not see newly generated types until restart (WARN is the default).
+# --------------------------------------------------------------------------
+_type_check() {
+  case "$TOOL_NAME" in Agent|Task) ;; *) return 0 ;; esac
+  local lib="${_hook_dir}/../multitrack/agent_label_lib.sh"
+  if [[ ! -r "$lib" ]]; then
+    echo "guardrails: NOTE — agent_label_lib.sh not found ($lib); agent-type check skipped" >&2
+    return 0
+  fi
+  # shellcheck source=../multitrack/agent_label_lib.sh disable=SC1091 # library path resolved at runtime from the hook directory
+  . "$lib"
+  [[ "$LABEL" =~ ^\(T([0-9]+)/ ]] || return 0
+  local ltrack lpfx lfields lbranch lalias lmodel leffort
+  ltrack="$(al_norm_track "${BASH_REMATCH[1]}")"
+  lpfx="${LABEL%%)*}"; lpfx="${lpfx#(}"
+  lfields=()
+  local _r="$lpfx"
+  while [[ "$_r" == *' - '* ]]; do lfields+=("${_r%%' - '*}"); _r="${_r#*' - '}"; done
+  lfields+=("$_r")
+  lbranch="${lfields[0]#*/}"; lalias="${lfields[1]:-?}"; lmodel="${lfields[2]:-}"; leffort="${lfields[3]:-}"
+  local idpfx
+  idpfx="T${ltrack}-$(al_sanitise "$lbranch")-"
+  local alias_known=0
+  [[ "$lalias" != '?' && -n "$lalias" ]] && { idpfx="${idpfx}$(al_sanitise "$lalias")-"; alias_known=1; }
+  # EXACT identity match (AL2-4): segments may contain '-', so a prefix test would let
+  # T1-main-cmatl-zz-opus-xhigh pass for alias 'cmatl'. With a known alias the rest after the
+  # prefix must be exactly <model>-<effort>; with an honest '?' alias, <alias>-<model>-<effort>.
+  _id_match() {
+    local r
+    [[ "$1" == "$idpfx"* ]] || return 1
+    r="${1#"$idpfx"}"
+    if [[ "$alias_known" -eq 1 ]]; then
+      [[ "$r" =~ ^(sonnet|opus)-(low|medium|high|xhigh|max)$ ]]
+    else
+      [[ "$r" =~ ^[a-z0-9]+(-[a-z0-9]+)*-(sonnet|opus)-(low|medium|high|xhigh|max)$ ]]
+    fi
+  }
+
+  local stype dmodel deffort pdir adir f b names="" nmatch=0 ntrack=0 reason="" blockable=1
+  stype="$(json_field .tool_input.subagent_type)"
+  dmodel="$(json_field .tool_input.model)"
+  deffort="$(json_field .tool_input.effort)"
+  pdir="${CLAUDE_PROJECT_DIR:-}"
+  [[ -n "$pdir" ]] || pdir="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  adir="${AGENT_TYPE_LABEL_AGENTS_DIR:-$pdir/.claude/agents}"
+  # GENERATED types only (the marker proves generated-ness; hand-made never counts)
+  if [[ -d "$adir" ]]; then
+    for f in "$adir"/T"${ltrack}"-*.md; do
+      [[ -f "$f" ]] || continue
+      grep -Eq '^<!-- generated-by: gen_agent_label_defs\.sh v[12] ' "$f" 2>/dev/null || continue
+      b="${f##*/}"; b="${b%.md}"
+      ntrack=$((ntrack+1))
+      if _id_match "$b"; then nmatch=$((nmatch+1)); [[ "$nmatch" -le 10 ]] && names="$names $b"; fi
+    done
+  fi
+
+  local catchall=" ${AGENT_TYPE_LABEL_CATCHALL:-general-purpose claude} " tm te ttrack
+  if [[ -z "$stype" || "$catchall" == *" $stype "* ]]; then
+    if [[ "$nmatch" -gt 0 ]]; then
+      reason="subagent_type is '${stype:-<empty>}' (catch-all) but generated label agent types exist for this label's identity"
+    elif [[ "$ntrack" -gt 0 ]]; then
+      reason="generated label agent types exist for T${ltrack}, but only for other aliases or stale identities, none for this label's branch/alias (re-run install_agent_label_defs.sh in this session and restart it)"
+      blockable=0
+    else
+      return 0
+    fi
+  elif [[ "$stype" =~ ^T([0-9]+)-.+-(sonnet|opus)-(low|medium|high|xhigh|max)$ ]]; then
+    ttrack="$(al_norm_track "${BASH_REMATCH[1]}")"; tm="${BASH_REMATCH[2]}"; te="${BASH_REMATCH[3]}"
+    if [[ "$ttrack" != "$ltrack" ]]; then
+      reason="subagent_type '${stype}' belongs to track T${ttrack} but the dispatch label says T${ltrack}"
+    elif ! _id_match "$stype"; then
+      reason="subagent_type '${stype}' does not match the label's branch/alias exactly (expected ${idpfx}<model>-<effort>)"
+    elif [[ -n "$lmodel" && "$lmodel" != "$tm" ]]; then
+      reason="subagent_type '${stype}' runs ${tm} but the dispatch label says model '${lmodel}'"
+    elif [[ -n "$leffort" && "$leffort" != "$te" ]]; then
+      reason="subagent_type '${stype}' runs at ${te} effort but the dispatch label says effort '${leffort}'"
+    elif [[ -n "$dmodel" && "$dmodel" != "$tm" ]]; then
+      reason="the dispatch passes model '${dmodel}', which overrides label type '${stype}' (${tm}); the type name would lie"
+    elif [[ -n "$deffort" && "$deffort" != "$te" ]]; then
+      reason="the dispatch passes effort '${deffort}', which overrides label type '${stype}' (${te}); the type name would lie"
+    elif [[ -n "${CLAUDE_CODE_EFFORT_LEVEL:-}" && "${CLAUDE_CODE_EFFORT_LEVEL}" != "$te" ]]; then
+      reason="CLAUDE_CODE_EFFORT_LEVEL=${CLAUDE_CODE_EFFORT_LEVEL} overrides label type '${stype}' (${te}); the type name would lie"
+    else
+      return 0
+    fi
+  else
+    return 0
+  fi
+  if [[ -n "${AGENT_TYPE_LABEL_BYPASS:-}" ]]; then
+    echo "guardrails: AUDIT — §11.4.182 agent-type check bypassed: ${AGENT_TYPE_LABEL_BYPASS} (${reason})" >&2
+    return 0
+  fi
+  local msg="§11.4.182/§11.4.231(F) agent type: ${reason}. Dispatch with subagent_type = one of:${names:- <none generated for this identity>} (T<N>-<branch>-<alias>-<model>-<effort>), with no per-dispatch model/effort override, so the agents list shows the true track/branch/alias/model/effort. Specialist/plugin types are exempt. A running session may need a restart to load new types. Bypass: AGENT_TYPE_LABEL_BYPASS=<reason>."
+  if [[ "${AGENT_TYPE_LABEL_ENFORCE:-0}" == "1" && "$blockable" -eq 1 ]]; then
+    echo "guardrails: BLOCKED — ${msg}" >&2
+    return 2
+  fi
+  echo "guardrails: WARN — ${msg}" >&2
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}\n' "$(al_json_escape "$msg")"
+  return 0
+}
+
+# --------------------------------------------------------------------------
 # Decision.
 #   1. FORMAT must match LABEL_RE (existing check).
 #   2. ALIAS-CORRECTNESS (§11.4.182, new): the label's alias MUST match the LIVE
@@ -277,7 +416,8 @@ if [[ -n "$LABEL" && "$LABEL" =~ $LABEL_RE ]]; then
     # is a bluff when the live signal disproves it.
     _block_reason="effort"
   else
-    exit 0
+    _type_check
+    exit $?
   fi
 else
   _block_reason="format"
@@ -309,7 +449,7 @@ fi
   fi
   echo "  Correct prefix for THIS checkout+session: '${_expected} '"
   echo "  Form: (T<track-number>/<git-branch> - <alias>[ - <model>[ - <effort>]]) <space> then the task text."
-  echo "    (<model> and <effort> are OPTIONAL — the 3-field and 4-field legacy forms without them are still accepted; a '?' effort is never a block-cause.)"
+  echo "    (<model> and <effort> are OPTIONAL — the 3-field and 4-field legacy forms without them are still accepted; a '?' effort is never a block-cause except when the dispatch uses a generated label type T<N>-...-<model>-<effort>, whose effort is known.)"
   echo "  Example: '${_expected} ATM-312 MPV drm_prime investigation'"
   echo "  Derive the exact label with: scripts/multitrack/track_branch_label.sh"
 } >&2
