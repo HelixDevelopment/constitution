@@ -22,6 +22,7 @@
 #       [--slice-limit <lines>] [--min-free-kb <kb>]
 #       [--shellcheck-exceptions <repo-relative tsv>]
 #       [--shellcheck-timeout <s>] [--shellcheck-exception-timeout <s>]
+#       [--shellcheck-rule whole-file|baseline-delta]
 #
 #   --repo-root     ABSOLUTE toplevel of the repository the batch lives in.
 #                    Default: the constitution submodule (backward compatible).
@@ -54,6 +55,12 @@
 #                    precheck_pack.sh (defaults 60 s / 900 s; recorded in the
 #                    pack). The cache key is the commit range; a cached pack
 #                    built with OTHER budgets (or caps) is rebuilt, not reused.
+#   --shellcheck-rule  passed through to precheck_pack.sh (default: the gate's
+#                    default, whole-file). baseline-delta (ATM-1217, operator
+#                    decision 2026-10-13, opt-in) fails only NEW blocking
+#                    findings versus the bound BASE (this wrapper always passes
+#                    --baseline-repo/--baseline-ref). A cached pack built under
+#                    another rule is rebuilt, not reused.
 #   --commit        A single commit sha (diffed against its own first
 #                    parent -- or, for a root commit, against the empty
 #                    tree), OR a two-dot range "<base>..<head>" (diffed as
@@ -136,6 +143,7 @@ REPO_ROOT=""
 SC_EXCEPTIONS=""
 SC_TIMEOUT=""
 SC_EX_TIMEOUT=""
+SC_RULE=""
 
 need() { [ "$1" -ge 2 ] || { echo "precheck_pack_build: $2 requires a value" >&2; exit 2; }; }
 while [ $# -gt 0 ]; do
@@ -150,6 +158,7 @@ while [ $# -gt 0 ]; do
         --shellcheck-exceptions) need $# "$1"; SC_EXCEPTIONS="$2"; shift 2 ;;
         --shellcheck-timeout) need $# "$1"; SC_TIMEOUT="$2"; shift 2 ;;
         --shellcheck-exception-timeout) need $# "$1"; SC_EX_TIMEOUT="$2"; shift 2 ;;
+        --shellcheck-rule) need $# "$1"; SC_RULE="$2"; shift 2 ;;
         *)
             echo "precheck_pack_build: unknown option: $1" >&2
             exit 2 ;;
@@ -160,6 +169,10 @@ if [ -n "$COMMIT" ] && [ -n "$SNAPSHOT_PATHS" ]; then
     echo "precheck_pack_build: --commit and --snapshot-paths are mutually exclusive" >&2; exit 2
 fi
 [ -n "$COMMIT" ] || [ -n "$SNAPSHOT_PATHS" ] || { echo "precheck_pack_build: --commit or --snapshot-paths is required" >&2; exit 2; }
+case "$SC_RULE" in
+    ''|whole-file|baseline-delta) ;;
+    *) echo "precheck_pack_build: --shellcheck-rule must be whole-file or baseline-delta (got: $SC_RULE)" >&2; exit 2 ;;
+esac
 case "$SC_EXCEPTIONS" in
     ''|config/shellcheck_legacy_exceptions.tsv) ;;
     *) echo "precheck_pack_build: --shellcheck-exceptions may only name the canonical config/shellcheck_legacy_exceptions.tsv (a bound run refuses any other file)" >&2; exit 2 ;;
@@ -253,6 +266,7 @@ if [ -f "$OUT_DIR/precheck.json" ]; then
     python3 "$BUILD_LIB" emit --out-dir "$OUT_DIR" --validate-only \
         --expect-base "$BASE_SHA" --expect-head "$HEAD_SHA" \
         --expect-sc-timeout "$SC_TIMEOUT" --expect-sc-exception-timeout "$SC_EX_TIMEOUT" \
+        --expect-sc-rule "$SC_RULE" \
         >/dev/null 2>"$OUT_DIR/.cache_check.err" || VALIDATE_RC=$?
     if [ "$VALIDATE_RC" -eq 0 ] || [ "$VALIDATE_RC" -eq 1 ]; then
         rm -f "$OUT_DIR/.cache_check.err"
@@ -379,6 +393,7 @@ set -- --config "$SCRATCH" --batch "$OUT_DIR/batch.json" --clean-checkout "$WT_P
 if [ -n "$SC_EXCEPTIONS" ]; then set -- "$@" --shellcheck-exceptions "$SC_EXCEPTIONS"; fi
 if [ -n "$SC_TIMEOUT" ]; then set -- "$@" --shellcheck-timeout "$SC_TIMEOUT"; fi
 if [ -n "$SC_EX_TIMEOUT" ]; then set -- "$@" --shellcheck-exception-timeout "$SC_EX_TIMEOUT"; fi
+if [ -n "$SC_RULE" ]; then set -- "$@" --shellcheck-rule "$SC_RULE"; fi
 PRECHECK_RC=0
 sh "$PRECHECK" "$@" || PRECHECK_RC=$?
 if [ "$PRECHECK_RC" -ne 0 ] && [ "$PRECHECK_RC" -ne 1 ]; then
