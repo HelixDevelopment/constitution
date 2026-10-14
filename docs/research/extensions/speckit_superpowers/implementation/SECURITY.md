@@ -1,7 +1,21 @@
 # Security Architecture & Threat Model
 
-**Revision:** 1
-**Last modified:** 2026-07-24T00:00:00Z
+**Revision:** 2
+**Last modified:** 2026-09-22T00:00:00Z
+
+> **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** This threat
+> model covers the FUTURE, ASPIRATIONAL nano-task engine + its (never-built)
+> "SuperBridge MCP" server (§3.5/§5) — independently re-derived twice (GitHub
+> `total_count: 0`; npm exact-name lookup `HTTP 404`) not to exist as
+> software. This project's REAL Bridge architecture is 6 layers with no MCP
+> execution tier; see `../README.md#architecture-amendment-2026-09-22`.
+> §4.3 has ALSO been genericised in this same pass — it previously carried an
+> un-genericized cross-project ("ATMOSphere project mandate") reference that
+> did not belong in this project-agnostic design corpus per §11.4.28/§11.4.51.
+> Content is retained as historical design intent (§11.4.35/§11.4.124), not
+> shipped software; the credentials/rootless-container/no-silent-removal
+> mandates cited here ARE real and already govern this project's actual code
+> independently of this document.
 
 ## Table of Contents
 
@@ -364,7 +378,7 @@ The audit log is:
 
 > "Credentials or any secret and sensitive data MUST NOT leak!"
 
-Every credential path and pattern is documented in `docs/accesses/accounts.md` (the single source of truth). The pre-commit hook, the credential leak scan, and the task-granulator prompt scanner form a defense-in-depth barrier.
+Every credential path and pattern is documented in the consuming project's declared canonical credential registry (the single source of truth — its concrete path is project-specific DATA per §11.4.35, never hardcoded in this project-agnostic design corpus). The pre-commit hook, the credential leak scan, and the task-granulator prompt scanner form a defense-in-depth barrier.
 
 ### 4.2 Rootless Containers (§11.4.161)
 
@@ -372,9 +386,22 @@ Every credential path and pattern is documented in `docs/accesses/accounts.md` (
 
 All nano-task sandboxes, build containers, and service containers run rootless. No `sudo`, no Docker daemon, no root-equivalent capabilities. Container-to-root privilege escalation is structurally prevented, not merely gated.
 
-### 4.3 Credential Single-Source-of-Truth (ATMOSphere project mandate)
+### 4.3 Credential Single-Source-of-Truth (§11.4.10, project-agnostic)
 
-The `docs/accesses/accounts.md` file is the canonical credential registry. Any new credential MUST be added there. Any credential change MUST update it. Credentials MUST NOT leak through any other file.
+> **Genericised 2026-09-22 (HXC-159 Phase B3).** This section previously read
+> "(ATMOSphere project mandate)" and hardcoded the path `docs/accesses/accounts.md`
+> — a different project's own convention that does not belong in this
+> project-agnostic design corpus, per §11.4.28/§11.4.51 decoupling (a
+> reusable submodule-adjacent design document must never hardcode another
+> project's name or paths). Corrected below to a project-neutral statement of
+> the same §11.4.10 credential single-source-of-truth mandate; the
+> consuming project supplies its own concrete registry path as DATA per
+> §11.4.35.
+
+The consuming project's declared canonical credential registry file is the
+single source of truth for credentials. Any new credential MUST be added
+there. Any credential change MUST update it. Credentials MUST NOT leak
+through any other file.
 
 ### 4.4 No-Silent-Removal (§11.4.122)
 

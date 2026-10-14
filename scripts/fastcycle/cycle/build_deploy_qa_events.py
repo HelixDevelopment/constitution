@@ -44,9 +44,17 @@ Exit codes (kind=join):
        FINGERPRINT=<fingerprint>
        VERDICT=<verdict>
        DEPLOY_TARGET=<target_serial>
-  1  invalid verdict OR a fingerprint mismatch -> stdout EXACTLY one line
-     naming build_id and the specific offending reason
-     (verdict_INVALID=<v> or fingerprint_MISMATCH=<build-fp>/<deploy-fp>).
+  1  invalid verdict, a missing/empty/blank fingerprint on either side, a
+     fingerprint mismatch, a missing/empty/blank deploy target_serial, or a deploy
+     time that is not an ISO 8601 UTC instant -> stdout EXACTLY one line naming
+     build_id and the specific offending reason, checked in this order:
+     verdict_INVALID=<v> | fingerprint_MISSING=<build|deploy|build,deploy>
+     | fingerprint_MISMATCH=<build-fp>/<deploy-fp> | target_serial_MISSING
+     | deploy_time_INVALID=<value read>.
+     (T048 restart round 1, R6-F1: a join whose two fingerprints are both
+     absent or both "" used to pass as an identity match. T048 restart round 2,
+     V4-6: a whitespace-only value is absent too -- " " == " " is no identity --
+     and the contract's `time` field is validated instead of ignored.)
 
 This tool is the pure, fixture-testable validate+join core. T040's own
 emitter wiring into docs/build/resources/builds.tsv, scripts/flash.sh's
@@ -62,20 +70,61 @@ treat as a tool ERROR, never a detection, per its own "anything other than
 0 or 1" rule). §11.4.6: "could not resolve build_id" is reported honestly
 as the literal string "UNKNOWN", never fabricated.
 """
+import datetime
 import json
+import re
 import sys
 
 VALID_VERDICTS = {"ALLOW", "FAIL", "REFUSE"}
 
 
+def _present(value):
+    """A value is present only as a string holding something other than
+    whitespace: None, "", "   ", a number or a list are all 'absent'. T048 restart
+    round 2 (V4-6): the round-1 test `value != ""` let a whitespace-only
+    fingerprint pair (" " / " ") pass as an identity match. Every presence test in
+    this file goes through this one function (the class fix, not an instance)."""
+    return isinstance(value, str) and value.strip() != ""
+
+
+def _show(value):
+    """A record value as echoed on stdout: printable strings verbatim, None as "",
+    anything else (a newline-carrying or non-string value) as JSON -- so every
+    output stays the contract's EXACT one line per field (T048 restart round 2:
+    a value carrying a newline would otherwise forge an extra output line)."""
+    if value is None:
+        return ""
+    if isinstance(value, str) and value.isprintable():
+        return value
+    return json.dumps(value)
+
+
 def _build_id_of(rec):
     """Resolve a build_id from a record dict, honestly reporting UNKNOWN
-    (never fabricating one) when the field is absent, not a string, or
-    empty (§11.4.6 no-guessing)."""
+    (never fabricating one) when the field is absent, not a string, empty or
+    whitespace-only (§11.4.6 no-guessing)."""
     bid = rec.get("build_id") if isinstance(rec, dict) else None
-    if isinstance(bid, str) and bid != "":
-        return bid
+    if _present(bid):
+        return _show(bid)
     return "UNKNOWN"
+
+
+# ISO 8601 UTC instant: YYYY-MM-DDTHH:MM:SS[.fraction](Z|+00:00), and a real
+# calendar date/time (datetime parses it).
+_UTC_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|\+00:00)")
+
+
+def _utc_instant_ok(value):
+    """The contract's deploy `time` field: an ISO 8601 instant in UTC. Anything
+    else -- absent, not a string, a garbage string, an impossible date, or a
+    non-UTC offset -- is refused (T048 restart round 2, V4-6)."""
+    if not isinstance(value, str) or not _UTC_RE.fullmatch(value):
+        return False
+    try:
+        datetime.datetime.strptime(value[:19], "%Y-%m-%dT%H:%M:%S")
+    except ValueError:
+        return False
+    return True
 
 
 def handle_build_event(rec):
@@ -85,8 +134,7 @@ def handle_build_event(rec):
         print("KIND=build_event")
         print(f"VERDICT={verdict}")
         return 0
-    shown = verdict if verdict is not None else ""
-    print(f"REFUSE build_id={build_id} verdict_INVALID={shown}")
+    print(f"REFUSE build_id={build_id} verdict_INVALID={_show(verdict)}")
     return 1
 
 
@@ -105,20 +153,44 @@ def handle_join(rec):
     target_serial = deploy.get("target_serial")
 
     if not (isinstance(verdict, str) and verdict in VALID_VERDICTS):
-        shown = verdict if verdict is not None else ""
-        print(f"REFUSE build_id={build_id} verdict_INVALID={shown}")
+        print(f"REFUSE build_id={build_id} verdict_INVALID={_show(verdict)}")
+        return 1
+
+    # T048 restart round 1 (R6-F1): the identity check below is the whole point of
+    # the join (S11.4.200), so it must be able to FAIL on missing data. Comparing
+    # `build_fp != deploy_fp` alone passed when BOTH sides were absent (None ==
+    # None) or BOTH were "" -- an identity check with no identity to check. A
+    # fingerprint is only an identity when it is a non-empty string; anything else
+    # is refused and the missing side(s) are named (S11.4.201(5)).
+    missing = [side for side, fp in (("build", build_fp), ("deploy", deploy_fp))
+               if not _present(fp)]
+    if missing:
+        print(f"REFUSE build_id={build_id} fingerprint_MISSING={','.join(missing)}")
         return 1
 
     if build_fp != deploy_fp:
-        bfp = build_fp if build_fp is not None else ""
-        dfp = deploy_fp if deploy_fp is not None else ""
-        print(f"REFUSE build_id={build_id} fingerprint_MISMATCH={bfp}/{dfp}")
+        print(f"REFUSE build_id={build_id} fingerprint_MISMATCH={_show(build_fp)}/{_show(deploy_fp)}")
+        return 1
+
+    # A deploy record that names no target is not evidence of a deploy anywhere
+    # (it printed DEPLOY_TARGET=None before this check existed). `status` is
+    # deliberately NOT validated: it is the resource-sampler lifecycle field the
+    # golden-bad fixture proves must never drive the verdict, and its real
+    # producers emit values outside the docstring's list (critical_blocker_gate.sh
+    # writes status="QA_GATE"), so a closed-set check on it would refuse real data.
+    if not _present(target_serial):
+        print(f"REFUSE build_id={build_id} target_serial_MISSING")
+        return 1
+
+    deploy_time = deploy.get("time")
+    if not _utc_instant_ok(deploy_time):
+        print(f"REFUSE build_id={build_id} deploy_time_INVALID={_show(deploy_time)}")
         return 1
 
     print("KIND=join")
-    print(f"FINGERPRINT={build_fp}")
+    print(f"FINGERPRINT={_show(build_fp)}")
     print(f"VERDICT={verdict}")
-    print(f"DEPLOY_TARGET={target_serial}")
+    print(f"DEPLOY_TARGET={_show(target_serial)}")
     return 0
 
 

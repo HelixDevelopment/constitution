@@ -62,6 +62,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/golden_triplet_fixture.sh
+# the sourced fixture lib exists (see the source= hint above); the precheck runs shellcheck without -x so it cannot follow it
+# shellcheck disable=SC1091
 . "$HERE/lib/golden_triplet_fixture.sh"
 REAL_GOLDEN="$GT_GOLDEN"
 
@@ -74,6 +76,8 @@ trap 'rm -rf "$TMP"' EXIT
 gt_init "$TMP/work"
 
 for f in "$GT_HARNESS" "$REAL_GOLDEN"; do
+  # ok() is a bare echo (always rc 0), so `A && ok || bad` behaves as if/else: bad runs only when the condition fails
+  # shellcheck disable=SC2015
   [ -f "$f" ] && ok "control needle: $f resolves" || bad "control needle: $f missing"
 done
 
@@ -183,6 +187,8 @@ s=open(sys.argv[1]).read(); s=s.replace(os.environ["ANCHOR"],os.environ["REPL"],
 mrun() { GT_GOLDEN="$TMP/golden_$1.sh" gt_golden "$2" FC_TIMER_GOLDEN_EVIDENCE_DIR="$3"; }
 
 echo "=== (M-Q1) drop the round-8 sequential-and-changed refusal ==="
+# single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+# shellcheck disable=SC2016
 if mutate Q1 '  if [ "$concurrency_mode" = sequential ] && { [ "$hs" != "$he" ] || [ "$ss" != "$se" ]; }; then' '  if false; then'; then
   mrun Q1 "$TMP/mq1.out" "$TMP/q1"
   if has "$TMP/mq1.out" "ran concurrently" && ! has "$TMP/mq1.out" "newest triplet refused"; then
@@ -193,6 +199,8 @@ if mutate Q1 '  if [ "$concurrency_mode" = sequential ] && { [ "$hs" != "$he" ] 
 fi
 
 echo "=== (M-Q4) revert the strict boundary test to inclusive (the false-positive form measured + fixed this same round) ==="
+# single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+# shellcheck disable=SC2016
 if mutate Q4 '  [ "$1" -lt "$4" ] && [ "$3" -lt "$2" ]' '  [ "$1" -le "$4" ] && [ "$3" -le "$2" ]'; then
   mrun Q4 "$TMP/mq4.out" "$TMP/q5"
   if has "$TMP/mq4.out" "contradicts its own recorded timing"; then

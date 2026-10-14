@@ -141,9 +141,21 @@
 #          FINGERPRINT=<fingerprint>
 #          VERDICT=<verdict>
 #          DEPLOY_TARGET=<target_serial>
-#     1  invalid verdict OR a fingerprint mismatch -> stdout EXACTLY one line
-#        naming build_id and the specific offending reason
-#        (verdict_INVALID=<v> or fingerprint_MISMATCH=<build-fp>/<deploy-fp>).
+#     1  invalid verdict, a missing/empty/blank fingerprint on either side, a
+#        fingerprint mismatch, a missing/empty/blank deploy target_serial, or a
+#        deploy time that is not an ISO 8601 UTC instant -> stdout EXACTLY one
+#        line naming build_id and the specific offending reason, checked in
+#        this order: verdict_INVALID=<v> |
+#        fingerprint_MISSING=<build|deploy|build,deploy> |
+#        fingerprint_MISMATCH=<build-fp>/<deploy-fp> | target_serial_MISSING |
+#        deploy_time_INVALID=<value read>
+#        (T048 restart round 1, R6-F1: both-absent / both-empty fingerprints
+#        used to pass as an identity match; fixtures golden-bad-fp-* and
+#        golden-bad-target-missing pin the refusal. T048 restart round 2, V4-6:
+#        a whitespace-only value is "absent" too -- " " == " " is not an
+#        identity -- and the contract's `time` field is validated; fixtures
+#        golden-bad-*-whitespace*, golden-bad-time-* and
+#        golden-bad-buildid-blank pin it.)
 #   This tool is the pure, fixture-testable validate+join core. T040's own
 #   emitter wiring into docs/build/resources/builds.tsv, scripts/flash.sh's
 #   post-verify step, and scripts/lib/critical_blocker_gate.sh (plan.md T040,
@@ -159,7 +171,9 @@
 # Exit: 0 all as expected; 1 any FAIL recorded (today: RED, expected FAIL>0).
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-TOOL="$HERE/../cycle/build_deploy_qa_events.py"
+# FC_BDQ_TOOL_UNDER_TEST: the paired-mutation runner (test_fastcycle_r6_mutations.sh)
+# points this at a MUTATED copy of the tool; every normal run uses the real file.
+TOOL="${FC_BDQ_TOOL_UNDER_TEST:-$HERE/../cycle/build_deploy_qa_events.py}"
 HARNESS="$HERE/lib/triple_harness.sh"
 FIXDIR="$HERE/fixtures/build_deploy_qa"
 
@@ -265,24 +279,58 @@ else
         bad "RED: golden (a build + flash fixture yields verdict and deploy rows joined by artifact fingerprint) -- $TOOL is absent, cannot run the check (harness rc=$HRC)"
         bad "RED: negative-control (status=KILLED with a genuinely-valid distinct verdict must NOT be refused) -- $TOOL is absent, cannot run the check (harness rc=$HRC)"
     else
-        # Once T040 lands, $TOOL exists and the harness's per-fixture JSON
-        # lines (one of {"class":"golden-bad"|"golden-good"|"negative-control",
-        # ...,"ok":true|false}) tell us exactly which class failed.
-        if printf '%s\n' "$HOUT" | grep -q '"class":"golden-bad".*"ok":true'; then
-            ok "golden-bad: a KILLED sampler status is refused as a build verdict"
+        # Once T040 lands, $TOOL exists and the harness prints ONE JSON line per
+        # fixture class. T048 restart round 1 (R6-F2): the earlier check was
+        # `grep '"class":"golden-bad".*"ok":true'`, which (a) also matched any
+        # golden-bad-* line and (b) never looked at the harness exit status, so a
+        # failing extra class could hide behind a passing one. Now every class is
+        # checked by its EXACT name, the class list is closed (a fixture directory
+        # deleted or renamed is a FAIL, never a silent loss of coverage), and the
+        # harness exit status must be 0.
+        class_ok() {
+            printf '%s\n' "$HOUT" | grep -q "\"class\":\"$1\",\"expected\":\"[01]\",\"fixture\":\"$1\",\"ok\":true}"
+        }
+        check_class() { # <class> <description>
+            if [ ! -d "$FIXDIR/$1" ]; then
+                bad "$1: fixture directory $FIXDIR/$1 is missing -- this coverage was silently dropped"
+            elif class_ok "$1"; then
+                ok "$1: $2"
+            else
+                bad "$1: NOT handled correctly -- $2 (see harness output above)"
+            fi
+        }
+        check_class golden-bad "a KILLED sampler status is refused as a build verdict"
+        check_class golden-good "a build + flash fixture yields verdict and deploy rows joined by artifact fingerprint"
+        check_class negative-control "status=KILLED with a genuinely-valid distinct verdict is correctly NOT refused"
+        # R6-F1/F2: the join's identity check must be able to FAIL.
+        check_class golden-bad-fp-mismatch "a build/deploy fingerprint MISMATCH is refused and both values are named"
+        check_class golden-bad-fp-missing-both "a join with NO fingerprint on either side is refused (None == None is not an identity match)"
+        check_class golden-bad-fp-empty-both "a join with EMPTY fingerprints on both sides is refused (\"\" == \"\" is not an identity match)"
+        check_class golden-bad-fp-missing-deploy "a join whose deploy side has no fingerprint is refused"
+        check_class golden-bad-target-missing "a join with no deploy target_serial is refused (DEPLOY_TARGET=None is not a deploy record)"
+        check_class golden-bad-join-verdict-invalid "a join whose build verdict is the sampler status KILLED is refused"
+        # T048 restart round 2 (V4-6): blank values are absent; time is validated.
+        check_class golden-bad-fp-whitespace-both "a join whose fingerprints are whitespace-only on both sides is refused (\" \" == \" \" is not an identity match)"
+        check_class golden-bad-target-whitespace "a join whose deploy target_serial is whitespace-only is refused"
+        check_class golden-bad-time-invalid "a join whose deploy time is not a date is refused and the value read is named"
+        check_class golden-bad-time-missing "a join with no deploy time is refused"
+        check_class golden-bad-time-not-utc "a join whose deploy time carries a non-UTC offset is refused (the contract field is UTC)"
+        check_class golden-bad-buildid-blank "a whitespace-only build_id is reported as UNKNOWN, never echoed as if it were an id"
+        if [ "$HRC" -eq 0 ]; then
+            ok "harness exit status 0 (every fixture class as expected)"
         else
-            bad "golden-bad: a KILLED sampler status is NOT refused as a build verdict (see harness output above)"
+            bad "harness exit status $HRC (non-zero: a fixture class mismatched or the tool errored)"
         fi
-        if printf '%s\n' "$HOUT" | grep -q '"class":"golden-good".*"ok":true'; then
-            ok "golden: a build + flash fixture yields verdict and deploy rows joined by artifact fingerprint"
-        else
-            bad "golden: the build + flash fixture did NOT join correctly by artifact fingerprint (see harness output above)"
-        fi
-        if printf '%s\n' "$HOUT" | grep -q '"class":"negative-control".*"ok":true'; then
-            ok "negative-control: status=KILLED with a genuinely-valid distinct verdict is correctly NOT refused"
-        else
-            bad "negative-control: a row with a genuinely-valid verdict was wrongly refused merely because status=KILLED (false positive)"
-        fi
+        # Closed class list: an extra golden-bad-* directory nobody checks above is
+        # a coverage claim with no assertion behind it.
+        for d in "$FIXDIR"/golden-bad-*; do
+            [ -d "$d" ] || continue
+            case ${d##*/} in
+                golden-bad-fp-mismatch|golden-bad-fp-missing-both|golden-bad-fp-empty-both|golden-bad-fp-missing-deploy|golden-bad-target-missing|golden-bad-join-verdict-invalid) ;;
+                golden-bad-fp-whitespace-both|golden-bad-target-whitespace|golden-bad-time-invalid|golden-bad-time-missing|golden-bad-time-not-utc|golden-bad-buildid-blank) ;;
+                *) bad "unlisted fixture class ${d##*/} -- add it to the closed check list in this test" ;;
+            esac
+        done
     fi
 fi
 

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "description": "Per-phase Bridge layer dependencies, declared as DATA (HXC-159 T-B1.02.1) — never hardcoded gate logic. Each phase names the Bridge layer id(s) (from probe_bridge_layers.sh's L1..L7 vocabulary) it REQUIRES to already be WIRED before it may proceed. A phase whose OBJECT is to fix a non-WIRED layer (e.g. B2 installs L3/L4) does NOT declare that layer as a dependency here — only layers it genuinely needs already-working to do its own job.",
+  "phases": {
+    "B2": {
+      "title": "Author the L3/L4 installer",
+      "layers": ["L1", "L2"],
+      "note": "B2 authors install_speckit_superpowers_bridge.sh, which drives the `specify` CLI (L2) from the developer workstation (L1) to install L3/L4 — it needs L1+L2 already WIRED to run at all. It does NOT depend on L3/L4 themselves being WIRED first (that is what B2 produces)."
+    },
+    "B3": {
+      "title": "Delete L5 upstream; record the 6-layer architecture",
+      "layers": ["L1"],
+      "note": "B3 is a documentation correction to the design corpus, authored from the developer workstation (L1)."
+    }
+  }
+}

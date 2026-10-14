@@ -2,6 +2,19 @@
 name: Action Prefix System
 description: 'Use when a prompt begins with an UPPERCASE action token (BACKGROUND / REMINDER / ISSUE / BUG / TASK / a sub-system name) in any of the six §11.4.140 forms — `NAME :: rest`, `PREFIX::NAME :: rest`, `/NAME rest`, `/PREFIX::NAME rest`, `NAME ---> rest`, or the single-colon `NAME: rest` — or when the operator asks how the action-directive / slash-command system works, how to add a new directive, why a bare `/name` did not resolve, why an unregistered `TODO:` line correctly did nothing, or what a grammar-shaped token that is NOT registered should do. Also use before inventing ANY expansion for an unknown UPPERCASE token.'
 version: 1.0.0
+# --- HXC-159 F-13 superset fields (HelixCode builtin_skills REPL loader) ---
+# Optional fields consumed ONLY by helix_code's internal regex-triggered REPL
+# completion-prompt loader (markdown_skills.go). Claude Code's own native
+# skill discovery, and any other Agent-Skills-format consumer, ignores
+# unknown YAML keys and is unaffected. See constitution/skills/README.md
+# (or the equivalent HXC-159 F-13 investigation doc) for the schema
+# rationale. Carried forward verbatim from the pre-superset builtin_skills
+# copy — never invented (§11.4.6).
+triggers:
+  - "(?i)^what does the (?P<action>[A-Za-z][A-Za-z0-9_]*) (?:action )?prefix (?:do|mean)\\b.*$"
+  - "(?i)^(?:what|how).*\\baction[- ]prefix(?:es)?\\b.*$"
+  - "(?i)^how do i (?:add|register) (?:a )?new (?:action|directive)\\b.*$"
+requires_isolation: false
 ---
 
 # Action Prefix System (§11.4.140)

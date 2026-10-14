@@ -11,106 +11,175 @@ anchor list and NEVER a hardcoded anchor count (contracts/common-conventions.md 
 Invocation:
     python3 anchor_citations.py --item-id <ID> --repo <PATH> --anchor-index <PATH> --out <PATH>
         [--sources commit,diary,review,closure] [--as-of YYYY-MM-DD]
-        [--review-records <DIR>] [--determinism-check]
+        [--review-records <DIR>] [--constitution <PATH>] [--determinism-check]
+
+--item-id must be non-empty and contain no whitespace (an empty id would match every commit);
+anything else is a usage error, exit 2, nothing written. It is normalised ONCE to upper case and
+every source matches it case-insensitively (R2-02(c)): `atm-277` and `ATM-277` read the same commits,
+diary directory, Fixed.md sections, DB rows and review records. The output `item_id` is the
+normalised form.
 
 --repo is the CONSUMING project's working tree (the repo whose commit/diary/review/closure
 artefacts are scanned for <ID>) -- ALWAYS supplied explicitly by the caller, NEVER guessed: this
 constitution submodule's own git history is a DIFFERENT repository from the consuming project's
-tracked-item history (§11.4.6/§11.4.28).
+tracked-item history (§11.4.6/§11.4.28). A --repo that names a SUBDIRECTORY of a work tree is
+normalised to the work-tree top (`git rev-parse --show-toplevel`; the given path is recorded in
+`run_meta.repo_arg`), because every artefact path below is relative to that top (R2-02(a)).
+
+--constitution is the Constitution.md the index was generated from. When omitted it is the index's
+own `generated_from.source`, resolved against the work-tree top. See "Index cross-check" below.
 
 --review-records is a consumer-supplied directory of T034 (review_record.py) `record`/`backfill`
-JSON documents (schema "review-record/v1", ONE document per file, NEVER a `.jsonl` stream --
-review_record.py's real output is a single canonical JSON document per invocation written to an
-arbitrary `--out` path, see the `review` source class note below). Optional; omitted -> the review
-source is honestly reported UNAVAILABLE (see below), never a silent zero citations from a directory
-that structurally could never hold anything (this fixes a defect: the tool used to scan its own
-`<fastcycle-dir>/review/**/*.jsonl`, a directory that never legitimately contains any `.jsonl` file
-at all, and that also breaks `--repo` scoping by reading FROM the constitution submodule instead of
-the consuming project).
+JSON documents (schema "review-record/v1", ONE document per file). Optional; when omitted the
+review source is recorded as `not_supplied` in `source_status` (never a silent zero).
+
+Which tokens count as citations (the false-positive guard, C-004):
+  * Every maximal dotted-digit run is a candidate. A run whose leading segment is wider than 2
+    digits, whose later segments are wider than 3, or that has fewer than 2 or more than 4
+    segments is REJECTED OUTRIGHT, never truncated ("111.4.108" and "11.4.1080" never yield
+    "11.4.108"). An optional `.X` single-letter suffix is kept ("11.4.10.A").
+  * The candidate must be a member of the live anchor-id set from --anchor-index. This drops
+    release strings such as "1.2.1". A candidate written WITH a section sign that is not in the
+    index is not a citation either, but it is never dropped silently: every such occurrence is
+    counted in `unindexed_section_signed` (R2-01).
+  * A TWO-segment candidate ("7.1", "9.2", "11.4", "12.6") must ALSO be written with a section
+    sign immediately before it ("§7.1", "§ 7.1"). Membership alone is not enough for these ids:
+    measured on this project's own history, a bare "7.1" is an audio channel layout ("5.1/7.1")
+    and a bare "9.1" is a document section number in every occurrence found (R8 F1). Ids with
+    three or more segments do not collide this way and need no section sign.
+  * A two-segment id followed by the word "row" or "rows" ("Forlinx source inventory §2.1 rows
+    K/L", "§2.1 row M") is another document's table row, never a constitution section (the
+    constitution has no rows), so it is not a citation (R3-06). Measured on this project's whole
+    commit history, this rule rejects exactly two occurrences, both such false citations. Each
+    rejection is counted in `document_row_refs_rejected`.
+  * Known gap (R3-06): a section sign alone does not name a document. Any OTHER reference to a
+    two-segment section of another document ("the spec's §2.1 says ...") that happens to be an
+    index id is still counted as a citation of the constitution's section. No context rule was
+    found that rejects these without also rejecting real citations ("Constitution §2.1 ...",
+    "(§2.1, §11.4.113 no-force)"), so none is applied.
+  * Known gap: an anchor id with a bracketed suffix ("11.4.184(I)") is reported as its parent
+    "11.4.184"; the "(X)" form is the project's ordinary clause-reference syntax for a different
+    anchor's sub-clause, so capturing it would drop real citations.
 
 Source classes (default: all four; narrow with --sources):
-  commit  : `git -C <repo> log --grep='<item_id>' --fixed-strings -i` (scoped to HEAD's own
-            ancestry, NEVER `--all` -- `--all` additionally scans every local branch of every
-            other track/worktree PLUS `refs/stash`, ephemeral session-local state that is not part
-            of the repo's shared canonical history and would make citations non-reproducible
-            across clones/sessions), attributed to <item_id> ONLY when <item_id> itself is present
-            in that commit's SUBJECT line or a genuine git trailer (e.g. `ATM-277: ...`) -- NEVER
-            on the strength of a bare body mention alongside unrelated ids, which over-attributes a
-            large multi-item digest/summary commit's ENTIRE anchor set to every id it happens to
-            list in passing (measured real defect, fixed: a "SpecKit Constitution v2.1.0" commit
-            whose body tallies "ATM-277 x11, ATM-343 x3, ..." previously credited every anchor in
-            that huge body to ATM-277 alone). Once a commit is confirmed OWNED this way, its FULL
-            message (subject+body) is scanned for anchor tokens, same as before the fix -- the
-            subject/trailer gate decides WHETHER a commit's anchors attribute to this item, not
-            which lines of an attributed commit are scanned.
-  diary   : `<repo>/docs/issues/<item_id>/Reopens.md`, if present.
-  review  : T034 (review_record.py) JSON documents under a consumer-supplied `--review-records`
-            directory (never this tool's own directory -- see the Invocation note above), matched
-            by `item_id` field equality, scanned across the `substrate_evidence` / `reviewer_mutations`
-            / `source_evidence` free-text fields (the ONLY fields in review_record.py's real
-            "review-record/v1" schema that can legitimately carry prose; `findings` entries carry
-            only `{id, severity, class}` -- a closed vocabulary with NO anchor-bearing text field).
-            Because that structural gap in the schema is permanent (not merely "this directory is
-            currently empty"), whenever "review" is a requested source class the tool ALWAYS emits
-            an honest diagnostic explaining it, distinct from (and in addition to) reporting zero
-            citations when genuinely none are found -- an UNAVAILABLE/no-anchor-bearing-field state
-            is never silently indistinguishable from "scanned it, found nothing."
-  closure : the item's OWN heading section in `<repo>/docs/Fixed.md` (never a bare grep for the
-            item id anywhere in the file -- another item's write-up MAY mention this item id in
-            passing, e.g. "Composes with ATM-277", and that mention's anchors are NOT this item's
-            own closure evidence) PLUS any row for this item in `<repo>/docs/workable_items.db`
-            whose `current_location` is not `Issues` (i.e. actually closed).
+  commit  : `git -C <repo> log --grep=<item_id> --fixed-strings -i` over HEAD's ancestry (never
+            `--all`: other tracks' branches and refs/stash are session-local state). A commit is
+            attributed to <item_id> only when <item_id> appears in its SUBJECT or a genuine git
+            TRAILER; a body-only mention never attributes the commit.
+            Multi-item commits (R8 F2): the OWNERS of a commit are the ids of <item_id>'s own
+            family (same prefix, e.g. every `ATM-<n>`) found in the subject and trailers. When
+            <item_id> is the only owner, the full message is scanned. When the subject/trailers
+            name more than one id of the family, only message LINES that name <item_id> and no
+            other id of the family are scanned -- a line naming several items (including the
+            subject "close ATM-2 ..., reopen ATM-1 (ATM-2 root cause per 11.4.13)") cannot say
+            which item an anchor belongs to, so it is credited to none of them. This is a
+            deliberate under-attribution: a citation on an unlabelled line of a multi-item commit
+            is dropped rather than credited to every item. Two refinements (R2-06): a
+            conventional-commit SCOPE that names only <item_id> of the family
+            (`docs(ATM-277/§11.4.149 - ...): ... ATM-734 ...`) credits the anchors inside that scope
+            (`commit_stats.scope_rescued`); and every live anchor the line rule does not credit is
+            counted in `commit_stats.multi_owner_anchors_dropped`, so the loss is sized.
+            Single-owner commits are scanned line by line: a line that names only OTHER ids of the
+            family is about them and is not credited (R2-07; counted in
+            `commit_stats.single_owner_foreign_line_anchors_dropped`).
+            When <item_id> has no `PREFIX-<n>` shape, no family can be derived and the commit counts
+            as single-owner (recorded in `commit_stats.family`).
+  diary   : `<repo>/docs/issues/<dir>/Reopens.md`, <dir> equal to <item_id> ignoring case, if
+            present; decoded strictly as UTF-8. A path that exists but cannot be read (a dangling
+            symlink, a directory) is a source ERROR, never "no diary".
+  review  : review-record/v1 documents under --review-records whose `schema` is exactly
+            "review-record/v1" and whose `item_id` equals <item_id> ignoring case. Files are
+            enumerated exactly as cycle_report.py does (os.walk, dotfiles included, symlinked
+            directories not followed, name ending ".json"); a directory that cannot be listed, a
+            symlinked directory and a case-variant ".JSON" file are source ERRORS (R2-02(b)/(d)),
+            because that walk would otherwise skip them silently. Scanned fields: the free-text
+            `substrate_evidence` / `source_evidence` and `reviewer_mutations` (a free-form JSON
+            value: every string inside it, at any depth, is scanned). `findings` entries carry
+            only `{id, severity, class}` and optionally `finding_layer` (a closed vocabulary) --
+            no anchor-bearing prose -- so anchors written only inside a finding's original text
+            are structurally unavailable to this source. A JSON file of another schema is skipped
+            and counted in `review_stats.foreign_schema`; a file that is not valid JSON is a
+            source ERROR (it could be this item's record).
+  closure : EVERY section of `<repo>/docs/Fixed.md` owned by <item_id> (a `##`/`###` heading
+            carrying `[<item_id>]` anywhere, or the bare id as its first token), each running to
+            the next heading of the same or a higher level, `#` included (R8 F11: an item fixed,
+            reopened and fixed again has two owning sections). Never a bare grep for the id: a
+            cross-reference in another item's section is not this item's evidence. PLUS any row
+            for this item in `<repo>/docs/workable_items.db` whose `current_location` is a known
+            CLOSED location (`Fixed`). Any other value -- `Issues`, NULL, or an unknown location
+            -- is not closure evidence (R8 F12).
 
---as-of bounds the `commit` source only (commits carry a real committer/author date to bound
-against; the diary/review/closure sources have no comparable per-artefact timestamp to bound by
-today) -- the tool records this asymmetry explicitly in `run_meta.as_of_unbounded_sources` rather
-than silently producing inconsistent-but-undocumented behaviour across sources.
+--as-of bounds the `commit` source only (commits carry a date; the other sources do not). The
+asymmetry is recorded in `run_meta.as_of_unbounded_sources`.
 
-Every candidate `[0-9]{1,2}(\\.[0-9]{1,3}){1,3}(\\.[A-Za-z])?`-shaped token is kept ONLY if it is a
-member of the live anchor-id set read from --anchor-index -- this is what correctly filters out a
-release-version string such as "1.2.1" (present verbatim in real commit subjects, never a member
-of the anchor id set) while keeping genuine anchors like "11.4.108" (contracts/common-conventions.md
-C-004 false-positive guard). The tokenizer is digit-boundary-aware (N nit, this task): a run of
-digits is REJECTED OUTRIGHT (never silently truncated into a shorter valid-looking id) if it is
-adjacent to more digits outside the candidate span, or if any dotted segment exceeds its width limit
--- e.g. "111.4.108" and "11.4.1080" must never yield the wrong "11.4.108". Known, documented,
-tracked gap: a small number of live anchor ids append a bracketed disambiguation suffix instead of a
-dotted one (e.g. "11.4.184(I)"), which is LEXICALLY IDENTICAL to this project's common in-text
-clause-reference syntax for a DIFFERENT anchor's sub-clause (e.g. "11.4.28(B)" means "clause B of
-anchor 11.4.28", not a standalone anchor "11.4.28(B)") -- extending the tokenizer to always capture
-a trailing "(X)" was measured to silently drop 20+ real, currently-correct citations across this
-project's own corpus (every genuine clause-reference of that shape), so it is NOT implemented; text
-citing "11.4.184(I)" is reported as citing its parent anchor "11.4.184" (itself independently
-registered and correct), never as citing "11.4.184(I)" by its own distinct id.
+Index cross-check (R2-01, R3-04): an index generated before an anchor landed, or a generator that
+does not recognise a heading form (`### 1.1 Title` has no section sign), silently drops every
+citation of that anchor. Two checks run, and BOTH must pass for `index_check.status` "ok":
+  (a) every numbered heading of --constitution must be an index id;
+  (b) the index's `generated_from.source_sha256` must equal the sha256 of --constitution's bytes.
+Check (a) cannot see an anchor opened only in bold or bullet form (`**§11.4.170 — ...**`, 27 of 286
+index ids when this was written); their count is reported in `index_check.index_ids_not_heading_form`.
+Check (b) covers them: adding or editing any anchor changes the checksum. A heading missing from the
+index, a checksum that differs or is absent, an unreadable Constitution.md, or an extractor that sees
+no index id at all (control needle) makes the run BLIND (exit 4), recorded in `index_check` and
+`source_errors`.
 
-Output: canonical JSON via fc_common.py's shared emit path (C-002), schema "anchor_citations/v1":
+Error sites (R3-02): every error that makes a run BLIND is phrased by `_site(code, message)` with a
+stable unique code and appears as "[E_CODE] message" in `source_errors` (or on stderr when nothing is
+written). The RED test enumerates every `_site(...)` call in this file and requires a behaviour
+fixture that OBSERVES each code, so a new error site without a fixture fails the test.
+
+Open question (R3-05, an operator decision, not implemented): a commit co-owned by an item and its
+parent/sibling, scoped `fix(ATM-544/ATM-514/...)` with a body that is entirely about the one joint
+fix, credits neither item (measured: ATM-514 0 citations, 73 anchors dropped). The loss is sized in
+`commit_stats.multi_owner_anchors_dropped`; whether to credit lines whose id set equals the scope's
+joint id set, or to flag `attribution: partial`, is not decided here.
+
+Output: canonical JSON via fc_common.py's shared emit path (C-002), schema "anchor_citations/v3":
     {"item_id": "<ID>",
-     "citations": [{"anchor_id": "<id>", "source": "commit"|"diary"|"review"|"closure",
-                    "evidence": "<commit sha | file path>#..."}, ...],  # sorted, deduped
-     "anchor_opener_count": <int -- the LIVE count of `- id:` entries under `anchors:` in
-                             --anchor-index, re-derived at run time, never a literal>}
+     "citations": [{"anchor_id", "source", "evidence"}, ...],      # sorted, deduped
+     "anchor_opener_count": <live count of `- id:` entries in --anchor-index>,
+     "source_status": {<requested source>: "ok"|"not_supplied"|"error"},
+     "source_errors": ["<source>: <what failed>", ...],              # empty unless a source failed
+     "commit_stats": {"family": <prefix or null>, "candidates", "owned_single", "owned_multi",
+                      "body_only_skipped", "multi_owner_anchors_dropped", "scope_rescued",
+                      "single_owner_foreign_line_anchors_dropped",
+                      "single_owner_mixed_line_anchors_credited"},
+     "review_stats": {"records_for_item", "foreign_schema"},
+     "index_check": {"constitution", "status": "ok"|"stale"|"error", "headings",
+                     "headings_missing_from_index", "index_ids_not_heading_form",
+                     "index_source_sha256", "constitution_sha256"},
+     "unindexed_section_signed": {"occurrences", "distinct", "in_constitution_headings"},
+     "document_row_refs_rejected": {"occurrences", "distinct"}}
+  `ok` means the source was read completely (a source whose artefact simply does not exist --
+  no diary file, no Fixed.md, no DB -- is `ok` with zero citations: there is nothing to read).
+  `not_supplied` is used only for the review source when --review-records was not given.
 
-Exit codes (C-001): 0 success (citations may legitimately be empty -- this is a data-collection
-tool, not a gate, so "found nothing" is success, not a finding); 2 usage/config error; 3 self-test
-failed (the tokenizer+live-anchor-filter pipeline's own internal control needle did not behave as
-expected -- C-004 -- no result file written); 4 BLIND (--repo is not a readable git working tree;
---anchor-index is unreadable, non-UTF-8, or has zero parseable `- id:` entries; a scanned artefact
---repo/--anchor-index/--review-records is present but not decodable as text; or any other internal
-error -- no honest verdict possible, §11.4.201(6): an unreadable input is never silently read as
-"0 citations", and never surfaced as a raw unhandled traceback under the reserved-for-nondeterminism
-exit 1 (I2 fix, this task) -- `main()`'s whole body is guarded so every internal failure this tool
-cannot classify more precisely resolves to 4, never a crash.
+Exit codes (C-001):
+  0  success, every requested source read completely (citations may be empty).
+  2  usage error (bad flag, bad --sources, bad --as-of, empty/whitespace --item-id).
+  3  self-test failed (the tokenizer + live-index filter did not behave on its own control
+     needles; no result file written).
+  4  BLIND. Either (a) --repo is not a git working tree or --anchor-index is unreadable /
+     non-UTF-8 / has zero `- id:` entries -- nothing is written; or (b) the index cross-check
+     failed (see above), or one or more requested
+     sources FAILED part-way (git log error, DB open/query error, an artefact that exists but
+     cannot be read or decoded, a review record that is not valid JSON, a --review-records path
+     that is not a directory) -- the result IS written, carries `"BLIND": true`, names the failed
+     sources in `source_status` / `source_errors`, and keeps whatever citations were read
+     completely before the failure. A consumer must never read a BLIND result as "zero
+     citations" (R8 F3). Any unexpected internal exception also resolves to 4, never a traceback.
+  1  --determinism-check found two different results for the same inputs.
 
-Determinism (C-003): --determinism-check runs the whole item-scan pipeline twice in-process against
-the identical inputs and compares the canonical body (excluding run_meta); on any mismatch nothing
-is written and the tool exits 1 (nondeterminism is itself a finding, not a self-test failure) with a
-unified diff on stderr; on a match the (first) result is written normally and the tool exits 0.
+Determinism (C-003): --determinism-check runs the whole collection twice in-process and compares
+the canonical body; on mismatch nothing is written, exit 1, unified diff on stderr.
 
 Side-effects: writes --out via fc_common.py's atomic emit path. Python stdlib only.
 """
 import argparse
+import datetime
 import difflib
-import glob
+import hashlib
 import json
 import os
 import re
@@ -124,34 +193,62 @@ _FC_DIR = os.path.dirname(_HERE)  # constitution/scripts/fastcycle
 sys.path.insert(0, os.path.join(_FC_DIR, "lib"))
 import fc_common  # noqa: E402  (sibling module; shared C-001..C-004 conventions)
 
-SCHEMA = "anchor_citations/v1"
+SCHEMA = "anchor_citations/v3"
 SOURCE_CLASSES = ("commit", "diary", "review", "closure")
 GIT_TIMEOUT_S = 60  # generous bound; a grep-narrowed `git log` on this repo measures well under 1s
 
-# Candidate-token shape (contracts/common-conventions.md C-004 false-positive guard): a
-# numeric-looking run that MUST still be filtered against the live anchor-id set before being
-# trusted as a real citation. Digit-boundary-safe (N nit, this task): the MAXIMAL contiguous
-# dotted-digit run is captured in one piece (no per-segment length cap at the regex level, so no
-# backtracking can silently truncate a too-long run into a shorter valid-looking prefix); the run
-# is then validated in Python (_extract_tokens) against the real per-segment width limits and
-# REJECTED OUTRIGHT -- never shortened -- if it does not fit.
+# Maximal contiguous dotted-digit run (digit-boundary-safe: never a truncated sub-run). Validated
+# against per-segment width limits in _extract_tokens and REJECTED, never shortened, on failure.
 _NUMERIC_RUN_RE = re.compile(r"(?<![0-9])[0-9]+(?:\.[0-9]+)*(?![0-9])")
-# An optional single-letter dotted suffix immediately following a validated numeric run (e.g. the
-# ".A" of "11.4.10.A"), never followed by another letter/digit (so "11.4.10.ABC" is not mistaken
-# for the suffix form).
+# Optional single-letter dotted suffix immediately after a validated run ("11.4.10.A").
 _TRAILING_LETTER_SUFFIX_RE = re.compile(r"^\.([A-Za-z])(?![A-Za-z0-9])")
-# `- id: 'X'` / `- id: X` at zero indentation under the top-level `anchors:` key -- mirrors the
-# RED test's own `sed -E "s/^- id: *'?([^']+)'?\$/\1/"` extraction byte-for-byte.
+# A section sign, optionally followed by ONE space, ending exactly where a candidate starts.
+_SECTION_SIGN_RE = re.compile(r"§ ?$")
+# R3-06: a two-segment id followed by "row"/"rows" is another document's table row ("Forlinx
+# source inventory §2.1 rows K/L"), never a constitution section: the constitution has no rows.
+_TABLE_ROW_AFTER_RE = re.compile(r"^[ \t]+rows?\b", re.I)
+# `- id: 'X'` / `- id: X` at zero indentation under the top-level `anchors:` key.
 _ID_LINE_RE = re.compile(r"^- id: *'?([^']+)'?$")
 _AS_OF_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+# Item-id family: `PREFIX-<digits>`; the prefix decides which other ids count as co-owners.
+_ITEM_FAMILY_RE = re.compile(r"^([A-Za-z][A-Za-z0-9]*)-[0-9]+$")
 
 
-def _extract_tokens(text):
-    """See the module docstring's digit-boundary + `11.4.184(I)`-gap notes (N nit / M2). Every
-    real constitution anchor id is 2-4 dotted segments, leading segment 1-2 digits, every later
-    segment 1-3 digits -- a maximal numeric run violating either limit is REJECTED OUTRIGHT, never
-    truncated into a shorter valid-looking id (measured real bug fixed here: "111.4.108" and
-    "11.4.1080" must never yield the wrong "11.4.108")."""
+def _site(code, message):
+    """The ONE way this tool phrases an error that makes a run BLIND (R3-02). Every such error is
+    produced here with a stable, unique code (`E_<WORD>`), rendered as "[E_CODE] message". The RED
+    test enumerates every `_site("E_...", ...)` call in this file with an AST walk and requires each
+    code to be OBSERVED in a behaviour fixture, so an error site added without a fixture fails the
+    test by construction. Never call this with a computed code."""
+    return "[%s] %s" % (code, message)
+
+
+class _Tally:
+    """Per-run side counts that are not citations: section-signed ids absent from the index
+    (R2-01) and two-segment ids rejected as another document's table rows (R3-06)."""
+
+    def __init__(self):
+        self.unindexed = []
+        self.row_refs = []
+
+
+class SourceError(Exception):
+    """A requested source could not be read completely. Carries the citations read before the
+    failure, so the BLIND result keeps them (flagged) instead of discarding them."""
+
+    def __init__(self, message, partial=None):
+        Exception.__init__(self, message)
+        self.partial = partial or []
+
+
+def _has_section_sign(text, start):
+    return _SECTION_SIGN_RE.search(text[max(0, start - 2):start]) is not None
+
+
+def _extract_signed(text, tally=None):
+    """Candidate anchor tokens in `text`, in order, as (token, written_with_section_sign) pairs.
+    See the module docstring for the rules. A two-segment token rejected by the table-row rule
+    (R3-06) is appended to `tally.row_refs` when a tally is given."""
     if not text:
         return []
     out = []
@@ -159,7 +256,7 @@ def _extract_tokens(text):
         run = m.group(0)
         segments = run.split(".")
         if len(segments) < 2 or len(segments) > 4:
-            continue  # not a real anchor shape (bare number, or an implausibly long dotted run)
+            continue  # a bare number, or an implausibly long dotted run
         if len(segments[0]) > 2:
             continue  # leading segment too wide -- reject the WHOLE run, never truncate
         if any(len(s) > 3 for s in segments[1:]):
@@ -168,155 +265,278 @@ def _extract_tokens(text):
         suf = _TRAILING_LETTER_SUFFIX_RE.match(text[m.end():])
         if suf:
             token += suf.group(0)
-        out.append(token)
+        signed = _has_section_sign(text, m.start())
+        if token.count(".") == 1 and not signed:
+            continue  # R8 F1: a two-segment id counts only when written with a section sign
+        if token.count(".") == 1 and _TABLE_ROW_AFTER_RE.match(text[m.end() + len(token) - len(run):]):
+            if tally is not None:
+                tally.row_refs.append(token)
+            continue  # R3-06: "§2.1 rows K/L" is a table row of another document
+        out.append((token, signed))
     return out
 
 
-def _filter_live(tokens, live_ids):
-    return [t for t in tokens if t in live_ids]
+def _extract_tokens(text):
+    """Candidate anchor tokens in `text`, in order (see _extract_signed)."""
+    return [tok for tok, _ in _extract_signed(text)]
+
+
+def _anchors_in(text, live_ids, tally=None):
+    """Live anchor ids cited in `text`. A token written with a section sign ("§11.4.276") that is
+    NOT in the live index is appended to `tally.unindexed` when a tally is given (R2-01): an id the
+    index lacks is reported, never silently dropped."""
+    out = []
+    for tok, signed in _extract_signed(text, tally):
+        if tok in live_ids:
+            out.append(tok)
+        elif signed and tally is not None:
+            tally.unindexed.append(tok)
+    return out
 
 
 def load_live_anchor_ids(anchor_index_path):
-    """Returns (ids: frozenset, error: str|None). error set => BLIND (no honest anchor set).
-    I2 fix: a non-UTF-8 --anchor-index MUST resolve here as an ordinary BLIND diagnostic (this
-    function's documented contract), never an unhandled UnicodeDecodeError (a ValueError subclass,
-    NOT an OSError, so the pre-fix bare `except OSError` let it propagate as a raw traceback with
-    the wrong exit code -- see main()'s own top-level guard for the remaining, more general half
-    of this fix)."""
+    """Returns (ids: frozenset, error: str|None). error set => BLIND (no honest anchor set)."""
     try:
         with open(anchor_index_path, encoding="utf-8") as fh:
             lines = fh.read().split("\n")
     except (OSError, UnicodeDecodeError, ValueError) as exc:
-        return None, "cannot read --anchor-index %s: %s" % (anchor_index_path, exc)
+        return None, _site("E_INDEX_READ", "cannot read --anchor-index %s: %s" % (anchor_index_path, exc))
     ids = set()
     for line in lines:
         m = _ID_LINE_RE.match(line.rstrip("\r"))
         if m:
             ids.add(m.group(1))
     if not ids:
-        return None, "--anchor-index %s has zero parseable `- id:` entries (unparseable)" % anchor_index_path
+        return None, _site("E_INDEX_EMPTY", "--anchor-index %s has zero parseable `- id:` entries (unparseable)"
+                           % anchor_index_path)
     return frozenset(ids), None
 
 
-def _pick_self_check_present(live_ids):
-    """M2 fix: the self-check's "must survive" needle MUST be a live anchor id the tokenizer is
-    PROVEN able to reproduce byte-for-byte -- never merely `sorted(live_ids)[0]` (the prior
-    implementation), which "happens to work" only because the alphabetically-first id in THIS
-    project's current anchor set is tokenizer-producible; a live id shaped like the KNOWN,
-    documented tokenizer gap "11.4.184(I)" (see the module docstring / _extract_tokens) could sort
-    earlier in a future anchor set and silently defeat the needle's own premise. Returns the first
-    (sorted, for determinism) live id that round-trips through extract+filter, or None if literally
-    none does (an honest self-check failure, never a crash)."""
-    for candidate in sorted(live_ids):
-        if _filter_live(_extract_tokens(candidate), live_ids) == [candidate]:
-            return candidate
-    return None
+# Needle shapes, chosen by a plain regex that does NOT use the tokenizer under test (R8 F17: the
+# old needle was picked by the very round-trip it then re-tested, so that half could not fail).
+_THREE_SEG_SHAPE_RE = re.compile(r"^[0-9]{1,2}\.[0-9]{1,3}\.[0-9]{1,3}$")
+_TWO_SEG_SHAPE_RE = re.compile(r"^[0-9]{1,2}\.[0-9]{1,3}$")
 
 
 def _self_check(live_ids):
-    """C-004 class-matched control needle on the tokenizer+live-anchor-filter pipeline itself,
-    independent of any specific item's data: a known-present live anchor embedded in a synthetic
-    haystack MUST survive extraction+filtering, and a guaranteed-fabricated decoy MUST NOT. This is
-    the concrete instance of C-001 exit-3 ("a control needle ... did not behave as expected -- the
-    instrument is not trustworthy this run") for this tool: without it, an item legitimately
-    reporting zero citations for some anchor would be an unproven absence (§11.4.201(6)).
-    Returns None on success, else a diagnostic string.
-    """
-    present = _pick_self_check_present(live_ids)
-    if present is None:
-        return "self-check: no live anchor id is tokenizer-producible (cannot choose a control needle)"
-    # A tokenizer-producible-SHAPE decoy (2-4 segments, correct per-segment width) so this needle
-    # actually exercises the live-anchor-INDEX filter, not merely the tokenizer's own shape rules
-    # (a shape-violating decoy like "999.999.999" would be rejected by _extract_tokens itself,
-    # trivially "passing" this check for the wrong reason -- it would never reach the filter step).
-    fabricated = "99.999.999"
-    if fabricated in live_ids:
-        # Astronomically unlikely (no real anchor is ever minted with this literal), but never
-        # silently trust a decoy that turned out to collide with the real set (§11.4.6).
-        fabricated = "88.888.888"
-        if fabricated in live_ids:
-            return "self-check: could not choose a fabricated decoy absent from the live anchor set"
-    synthetic = "control needle line citing %s and the decoy %s together" % (present, fabricated)
-    found = set(_filter_live(_extract_tokens(synthetic), live_ids))
-    if present not in found:
-        return "self-check FAILED: known-present anchor %r not recovered from a synthetic haystack" % present
-    if fabricated in found:
-        return "self-check FAILED: fabricated decoy %r leaked past the live-anchor-index filter" % fabricated
+    """C-004 control needles on the tokenizer + live-index filter, independent of any item. Each
+    probe has a known right answer; a wrong answer means the instrument cannot be trusted this
+    run (exit 3). Returns None on success, else a diagnostic string."""
+    three = sorted(i for i in live_ids if _THREE_SEG_SHAPE_RE.match(i))
+    if not three:
+        return "self-check: the live anchor set has no plain three-segment id to use as a control needle"
+    present = three[0]
+    decoy = "99.999.999" if "99.999.999" not in live_ids else "88.888.888"
+    if decoy in live_ids:
+        return "self-check: could not choose a fabricated decoy absent from the live anchor set"
+    probes = [
+        ("present needle", "control needle citing %s here" % present, [present]),
+        ("fabricated decoy", "decoy %s here" % decoy, []),
+    ]
+    # Digit-boundary probes: each widens a live id so that a TRUNCATING tokenizer would recover
+    # exactly that live id, while the correct tokenizer rejects the whole run.
+    lead2 = [i for i in three if len(i.split(".")[0]) == 2]
+    if lead2:
+        probes.append(("widened leading segment", "decoy 1%s here" % lead2[0], []))
+    last3 = [i for i in three if len(i.split(".")[2]) == 3]
+    if last3:
+        probes.append(("widened last segment", "decoy %s0 here" % last3[0], []))
+    four = "%s.7" % present
+    if four not in live_ids:
+        probes.append(("embedded in a longer run", "decoy %s here" % four, []))
+    two = sorted(i for i in live_ids if _TWO_SEG_SHAPE_RE.match(i))
+    if two:
+        probes.append(("two-segment with section sign", "per §%s here" % two[0], [two[0]]))
+        probes.append(("two-segment with section sign and one space", "per § %s here" % two[0], [two[0]]))
+        probes.append(("two-segment without section sign", "layout %s here" % two[0], []))
+    for label, haystack, expected in probes:
+        got = _anchors_in(haystack, live_ids)
+        if got != expected:
+            return "self-check FAILED (%s): %r gave %r, expected %r" % (label, haystack, got, expected)
     return None
 
 
 def _run_git(repo, args, timeout_s=GIT_TIMEOUT_S):
     try:
-        return subprocess.run(["git", "-C", repo] + args, capture_output=True, text=True, timeout=timeout_s)
-    except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError, ValueError):
-        # UnicodeDecodeError/ValueError (I2 fix): `text=True` decodes stdout/stderr using the
-        # process locale encoding; a commit message containing bytes not valid in that encoding
-        # would otherwise surface as a raw unhandled traceback rather than the documented
-        # git-level-fault-for-this-source handling every OTHER _run_git failure already gets.
-        return None
+        return subprocess.run(["git", "-C", repo] + args, capture_output=True, text=True,
+                              encoding="utf-8", errors="strict", timeout=timeout_s)
+    except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError, ValueError) as exc:
+        return exc
 
 
 def validate_repo(repo):
     if not os.path.isdir(repo):
         return False
     result = _run_git(repo, ["rev-parse", "--is-inside-work-tree"], timeout_s=15)
-    return result is not None and result.returncode == 0 and result.stdout.strip() == "true"
+    return (isinstance(result, subprocess.CompletedProcess) and result.returncode == 0
+            and result.stdout.strip() == "true")
 
 
-# The REAL separator bytes git's `%x00`/`%x1e`/`%x03` format placeholders emit -- used to split the
-# tool's OWN Python-side view of git's stdout. NEVER embed these actual characters into the
-# `--format` ARGUMENT STRING itself: an argv element containing a raw NUL byte crashes exec()
-# (`ValueError: embedded null byte`, caught live while building this fix) -- the format string sent
-# TO git must use git's own literal 4/5-character escape-code TEXT ("%x00" etc.), which git then
-# expands into the real byte in its OUTPUT.
+def repo_toplevel(repo):
+    """The work-tree top of --repo (R2-02(a)): every artefact path (diary, Fixed.md, DB, the
+    index's generated_from.source) is relative to it, so a --repo that names a subdirectory is
+    normalised instead of silently resolving those paths under the subdirectory. None on failure."""
+    result = _run_git(repo, ["rev-parse", "--show-toplevel"], timeout_s=15)
+    if not isinstance(result, subprocess.CompletedProcess) or result.returncode != 0:
+        return None
+    top = result.stdout.strip()
+    return top if top and os.path.isdir(top) else None
+
+
+# A numbered Markdown heading in Constitution.md: `### §11.4.108 — ...`, `### 1.1 Title` (the bare
+# form the index generator does not recognise), `#### **§12.6 ...`. The id is the same shape the
+# tokenizer accepts.
+_CONSTITUTION_HEADING_RE = re.compile(
+    r"^#{1,6}[ \t]+(?:\*\*)?(?:§ ?)?([0-9]{1,2}(?:\.[0-9]{1,3}){1,3}(?:\.[A-Z])?)(?![0-9A-Za-z.])")
+_GENERATED_FROM_RE = re.compile(r"^generated_from:\s*$")
+_GENERATED_KEY_RE = re.compile(r"^\s+(source|source_sha256):\s*'?([^'\n]+?)'?\s*$")
+
+
+def index_generated_from(anchor_index_path):
+    """The index's `generated_from` block as {"source": path|None, "source_sha256": hex|None}."""
+    found = {"source": None, "source_sha256": None}
+    text, err = _read_text_strict(anchor_index_path)
+    if err:
+        return found
+    inside = False
+    for line in text.split("\n"):
+        if _GENERATED_FROM_RE.match(line):
+            inside = True
+            continue
+        if inside:
+            if not line.startswith((" ", "\t")):
+                break
+            m = _GENERATED_KEY_RE.match(line)
+            if m and found[m.group(1)] is None:
+                found[m.group(1)] = m.group(2)
+    return found
+
+
+def constitution_headings(path):
+    """Returns (set of anchor ids opened by a numbered heading, sha256 of the file's bytes, None)
+    or (None, None, error)."""
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+        text = raw.decode("utf-8")
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        return None, None, "%s: %s" % (path, exc)
+    ids = set()
+    for line in text.split("\n"):
+        m = _CONSTITUTION_HEADING_RE.match(line)
+        if m:
+            ids.add(m.group(1))
+    return ids, hashlib.sha256(raw).hexdigest(), None
+
+
+def check_index(live_ids, constitution_path, index_sha256):
+    """R2-01 + R3-04: cross-check the live anchor index against the real Constitution.md. Two
+    independent checks, both required for status "ok":
+      (a) every numbered HEADING of Constitution.md is an index id (an index generated before an
+          anchor landed, or a generator that does not recognise a heading form, silently drops
+          every citation of that anchor);
+      (b) the index's `generated_from.source_sha256` equals the sha256 of the Constitution.md read
+          here. (a) cannot see anchors opened only in bold or bullet form (`**§11.4.170 — ...**`):
+          those ids are counted in `index_ids_not_heading_form`, and (b) is what catches a new or
+          changed anchor of that form -- any edit changes the checksum.
+    Returns (index_check dict, heading ids or None, [errors])."""
+    res = {"constitution": constitution_path, "status": "error", "headings": 0,
+           "headings_missing_from_index": [], "index_ids_not_heading_form": 0,
+           "index_source_sha256": index_sha256, "constitution_sha256": None}
+    if not constitution_path:
+        return res, None, [_site("E_INDEX_NO_CONSTITUTION",
+                                 "anchor-index: no --constitution given and the index records no "
+                                 "generated_from.source, so it cannot be checked against Constitution.md")]
+    heads, sha, err = constitution_headings(constitution_path)
+    if err:
+        return res, None, [_site("E_INDEX_CONSTITUTION_READ", "anchor-index: cannot read Constitution.md %s" % err)]
+    res["headings"] = len(heads)
+    res["constitution_sha256"] = sha
+    # Control needle: the extractor must see headings, and at least one of them must be an index
+    # id; otherwise the extractor (not the index) is blind and its "nothing missing" means nothing.
+    if not heads or not (heads & set(live_ids)):
+        return res, heads, [_site("E_INDEX_BLIND_EXTRACTOR",
+                                  "anchor-index: the heading extractor found %d anchor heading(s) in %s, "
+                                  "none of them in the index -- the cross-check cannot see"
+                                  % (len(heads), constitution_path))]
+    res["index_ids_not_heading_form"] = len(set(live_ids) - heads)
+    errors = []
+    missing = sorted(heads - set(live_ids))
+    res["headings_missing_from_index"] = missing
+    if missing:
+        errors.append(_site("E_INDEX_STALE_HEADINGS",
+                            "anchor-index: stale -- %d Constitution.md anchor heading(s) are not in the "
+                            "index, so their citations would be dropped: %s" % (len(missing), ", ".join(missing))))
+    if not index_sha256:
+        errors.append(_site("E_INDEX_NO_SHA",
+                            "anchor-index: the index records no generated_from.source_sha256, so its "
+                            "freshness against %s cannot be proven" % constitution_path))
+    elif index_sha256 != sha:
+        errors.append(_site("E_INDEX_SHA_MISMATCH",
+                            "anchor-index: stale -- generated_from.source_sha256 %s differs from the sha256 "
+                            "%s of %s; regenerate the index" % (index_sha256, sha, constitution_path)))
+    if errors:
+        res["status"] = "stale" if (missing or index_sha256) else "error"
+        return res, heads, errors
+    res["status"] = "ok"
+    return res, heads, []
+
+
+def _read_text_strict(path):
+    """Returns (text, None), or (None, error) for an artefact that exists but cannot be read or
+    is not valid UTF-8 (never a lossy `errors="replace"` decode, R8 F10)."""
+    try:
+        with open(path, encoding="utf-8", errors="strict") as fh:
+            return fh.read(), None
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        return None, "%s: %s" % (path, exc)
+
+
+# Separator BYTES git's `%x00`/`%x1e`/`%x03` placeholders emit. The format ARGUMENT sent to git
+# uses git's own escape TEXT ("%x00"); a raw NUL inside an argv element crashes exec().
 _COMMIT_TRAILER_SEP = "\x1e"
 _COMMIT_FIELD_SEP = "\x00"
 _COMMIT_REC_SEP = "\x03"
 _COMMIT_FORMAT = "%H%x00%s%x00%(trailers:unfold=true,separator=%x1e)%x00%B%x03"
 
 
-def scan_commits(repo, item_id, live_ids, as_of=None):
-    """§11.4.6/§11.4.28: --repo is the consuming project's OWN history, never this submodule's.
+def _item_family_re(item_id):
+    m = _ITEM_FAMILY_RE.match(item_id)
+    if not m:
+        return None, None
+    prefix = m.group(1)
+    return prefix, re.compile(r"\b%s-[0-9]+\b" % re.escape(prefix), re.I)
 
-    Scoped to HEAD's own ancestry, NEVER `--all` (I1 fix, secondary point): `--all` additionally
-    walks every local branch (other tracks/worktrees) and `refs/stash` -- ephemeral, session-local
-    state that is not part of the repo's shared canonical history and would make citations
-    non-reproducible across clones/sessions.
 
-    `--grep` uses `--fixed-strings` on the bare <item_id> (N nit fix): a `re.escape()`-produced
-    pattern passed to git's DEFAULT (BRE) `--grep` dialect is not guaranteed to mean the same thing
-    under BRE's escaping rules as it does under Python's -- `--fixed-strings` removes the ambiguity
-    entirely (no regex metacharacters to escape either way) at the cost of a slightly broader
-    candidate net (e.g. it would also match "ATM-2770" as a substring of a search for "ATM-277");
-    the REAL, precise word-boundary check that git's `\\b` extension previously supplied is then
-    re-applied in Python via `item_re` below (Python's own regex dialect, no cross-dialect risk),
-    so the net correctness is equal or better, never worse.
+# A conventional-commit subject's scope: `docs(ATM-277/§11.4.149 - ...): ...` -> the parenthesised part.
+_CONV_SCOPE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*\(([^()]*)\)!?:")
 
-    I1 fix (over-attribution): a commit's message is scanned for anchor tokens ONLY once <item_id>
-    itself is confirmed present in that commit's SUBJECT line or a genuine git trailer (e.g.
-    `ATM-277: ...`) -- never on the strength of a bare --grep candidate-match alone, which also
-    matches a large multi-item digest/summary commit that merely LISTS this item id among many
-    unrelated ones deep in its body (measured real case, ATM-277: a "SpecKit Constitution v2.1.0"
-    commit whose body tallies "ATM-277 x11, ATM-343 x3, ..." credited EVERY anchor in that huge
-    body to ATM-277 alone under the prior implementation -- 28 of ATM-277's 76 distinct
-    commit-source anchors traced ONLY to such over-attributed commits before this fix). Once the
-    subject/trailer gate confirms real ownership, the commit's FULL message (subject+body) is
-    scanned for anchor tokens, same as before the fix -- the gate decides WHETHER a commit's
-    anchors attribute to this item, not which lines of an ALREADY-attributed commit are scanned.
-    """
+
+def scan_commits(repo, item_id, live_ids, stats, as_of=None, tally=None):
+    """See the module docstring's `commit` entry. Returns a list of citation tuples; raises
+    SourceError (with the citations of every COMPLETE record already read) if git fails.
+    `item_id` is the already-normalised (upper-case) key."""
     item_re = re.compile(r"\b%s\b" % re.escape(item_id), re.I)
-    args = ["log", "--grep=%s" % item_id, "--fixed-strings", "-i", "--format=%s" % _COMMIT_FORMAT]
+    item_key = item_id.upper()
+    prefix, family_re = _item_family_re(item_id)
+    stats["family"] = prefix
+    args = ["log", "--grep=%s" % item_id, "--fixed-strings", "-i"]
     if as_of:
-        args = ["log", "--grep=%s" % item_id, "--fixed-strings", "-i",
-                 "--until=%sT23:59:59" % as_of, "--format=%s" % _COMMIT_FORMAT]
+        args.append("--until=%sT23:59:59" % as_of)
+    args.append("--format=%s" % _COMMIT_FORMAT)
     result = _run_git(repo, args)
-    if result is None or result.returncode != 0:
-        # A narrowed --grep against a valid repo failing is a genuine git-level fault; report as
-        # empty for this source rather than BLIND (only --repo/--anchor-index unreadability is
-        # BLIND per the contract) but surface it to the caller for diagnostics.
-        return [], (result.stderr.strip() if result is not None else "git log timed out or could not run")
+    failed = None
+    if not isinstance(result, subprocess.CompletedProcess):
+        failed, stdout = _site("E_GIT_RUN", "git log could not run: %s" % result), ""
+    else:
+        stdout = result.stdout
+        if result.returncode != 0:
+            failed = _site("E_GIT_EXIT", "git log exited %d: %s" % (result.returncode, result.stderr.strip()[:500]))
+    records = stdout.split(_COMMIT_REC_SEP)
+    if failed:
+        records = records[:-1]  # the text after the last separator is an incomplete record
     citations = []
-    for rec in result.stdout.split(_COMMIT_REC_SEP):
+    for rec in records:
         rec = rec.strip("\n")
         if not rec or _COMMIT_FIELD_SEP not in rec:
             continue
@@ -327,252 +547,324 @@ def scan_commits(repo, item_id, live_ids, as_of=None):
         sha = sha.strip()
         if not sha:
             continue
-        trailer_lines = [t for t in trailers_raw.split(_COMMIT_TRAILER_SEP) if t]
-        owned = bool(item_re.search(subject)) or any(item_re.search(t) for t in trailer_lines)
-        if not owned:
-            continue  # I1 fix: a candidate --grep match with <item_id> ONLY in the body (never
-            # the subject or a trailer) is a body-mention-alongside-other-ids risk, not attributed.
-        for anchor_id in _filter_live(_extract_tokens(body), live_ids):
-            citations.append((anchor_id, "commit", sha))
-    return citations, None
+        stats["candidates"] += 1
+        heads = [subject] + [t for t in trailers_raw.split(_COMMIT_TRAILER_SEP) if t]
+        owners = {i.upper() for h in heads for i in (family_re.findall(h) if family_re else [])}
+        if not family_re and any(item_re.search(h) for h in heads):
+            owners = {item_key}
+        if item_key not in owners:
+            owners = set()
+        if not owners:
+            stats["body_only_skipped"] += 1
+            continue  # a body-only mention never attributes the commit
+        lines = body.split("\n")
+        if len(owners) > 1:
+            stats["owned_multi"] += 1
+            total = credited = 0
+            subject_line_credited = False
+            for idx, line in enumerate(lines):
+                line_ids = {i.upper() for i in family_re.findall(line)}
+                if line_ids == {item_key}:
+                    got = _anchors_in(line, live_ids, tally)
+                    citations.extend((anchor_id, "commit", sha) for anchor_id in got)
+                    credited += len(got)
+                    total += len(got)
+                    subject_line_credited = subject_line_credited or idx == 0
+                else:
+                    total += len(_anchors_in(line, live_ids))
+            # R2-06 scope rescue: a conventional-commit scope that names ONLY this item
+            # (`docs(ATM-277/§11.4.149): ... ATM-734 ...`) says which item its own anchors belong to.
+            scope_m = _CONV_SCOPE_RE.match(subject)
+            scope_ok = scope_m is not None and {i.upper() for i in family_re.findall(scope_m.group(1))} == {item_key}
+            if scope_ok and not subject_line_credited:
+                got = _anchors_in(scope_m.group(1), live_ids, tally)
+                citations.extend((anchor_id, "commit", sha) for anchor_id in got)
+                stats["scope_rescued"] += len(got)
+                credited += len(got)
+            # R2-06: the line rule's loss is SIZED, never silent.
+            stats["multi_owner_anchors_dropped"] += total - credited
+            continue
+        stats["owned_single"] += 1
+        for line in lines:
+            line_ids = {i.upper() for i in family_re.findall(line)} if family_re else set()
+            if line_ids and item_key not in line_ids:
+                # R2-07: a line that names only OTHER items of the family is about them, not this item.
+                stats["single_owner_foreign_line_anchors_dropped"] += len(_anchors_in(line, live_ids))
+                continue
+            got = _anchors_in(line, live_ids, tally)
+            if len(line_ids) > 1:
+                # R3-07: a line naming this item AND other ids, inside a commit only this item owns,
+                # is credited (the commit's subject/trailers say whose it is) -- unlike the same line
+                # in a multi-owner commit. The asymmetry is sized, never silent.
+                stats["single_owner_mixed_line_anchors_credited"] += len(got)
+            for anchor_id in got:
+                citations.append((anchor_id, "commit", sha))
+    if failed:
+        raise SourceError(failed, citations)
+    return citations
 
 
-def scan_diary(repo, item_id, live_ids):
-    path = os.path.join(repo, "docs", "issues", item_id, "Reopens.md")
-    if not os.path.isfile(path):
+def scan_diary(repo, item_id, live_ids, tally=None):
+    """`<repo>/docs/issues/<dir>/Reopens.md` where <dir> equals the item key ignoring case (R2-02(c):
+    the item id is normalised once, so `atm-277` and `ATM-277` read the same diary). Two directories
+    differing only in case are ambiguous -> SourceError, never a silent pick."""
+    issues = os.path.join(repo, "docs", "issues")
+    if not os.path.lexists(issues):
         return []
     try:
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            text = fh.read()
-    except OSError:
+        names = sorted(os.listdir(issues))
+    except OSError as exc:
+        raise SourceError(_site("E_DIARY_LIST", "cannot list %s: %s" % (issues, exc)))
+    matches = [n for n in names if n.upper() == item_id]
+    if not matches:
         return []
-    evidence = "docs/issues/%s/Reopens.md" % item_id
-    return [(a, "diary", evidence) for a in _filter_live(_extract_tokens(text), live_ids)]
+    if len(matches) > 1:
+        raise SourceError(_site("E_DIARY_AMBIGUOUS",
+                                "ambiguous diary directories differing only in case: %s" % ", ".join(matches)))
+    diary_path = os.path.join(issues, matches[0], "Reopens.md")
+    if not os.path.lexists(diary_path):
+        return []
+    text, err = _read_text_strict(diary_path)  # diary
+    if err:
+        raise SourceError(_site("E_DIARY_READ", "cannot read diary %s" % err))
+    evidence = "docs/issues/%s/Reopens.md" % matches[0]
+    return [(a, "diary", evidence) for a in _anchors_in(text, live_ids, tally)]
 
 
-# B2 fix: review_record.py's real "review-record/v1" schema (constitution/scripts/fastcycle/
-# review/review_record.py) carries NO anchor-bearing prose field in its `findings` array (each
-# entry is only {id, severity, class} -- a closed vocabulary); the free-text fields it DOES emit
-# that could legitimately carry an anchor citation are exactly these three.
+_REVIEW_SCHEMA = "review-record/v1"
 _REVIEW_TEXT_FIELDS = ("substrate_evidence", "reviewer_mutations", "source_evidence")
-_REVIEW_SCHEMA_GAP_NOTE = (
-    "review source: review_record.py's 'review-record/v1' schema's `findings` array carries only "
-    "{id, severity, class} -- a closed vocabulary with NO anchor-bearing prose field -- so only "
-    "the substrate_evidence/reviewer_mutations/source_evidence free-text fields were scanned; a "
-    "review whose ONLY anchor mentions live inside a `findings` entry's discarded free text is "
-    "structurally UNAVAILABLE to this source, never silently reported as zero-and-indistinguishable"
-    "-from-scanned-and-found-nothing"
-)
 
 
-def _review_record_text(doc):
-    """Concatenate the free-text fields of one review-record/v1 document that could legitimately
-    carry an anchor citation (see _REVIEW_TEXT_FIELDS). Non-string / absent values contribute
-    nothing (never invented text, §11.4.6); a list value (e.g. `reviewer_mutations`) is flattened
-    to its string elements only -- a non-string list entry (a dict, say) is skipped rather than
-    guessed at."""
-    parts = []
-    for field in _REVIEW_TEXT_FIELDS:
-        val = doc.get(field)
-        if isinstance(val, str):
-            parts.append(val)
-        elif isinstance(val, list):
-            parts.extend(v for v in val if isinstance(v, str))
-    return "\n".join(parts)
+def _strings_in(value):
+    """Every string inside a JSON value, at any depth, in a deterministic order."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [s for v in value for s in _strings_in(v)]
+    if isinstance(value, dict):
+        return [s for k in sorted(value) for s in _strings_in(value[k])]
+    return []
 
 
-def scan_review(item_id, live_ids, review_records_dir):
-    """B2 fix: T034 (review_record.py) output is a single canonical JSON DOCUMENT per invocation
-    (schema "review-record/v1"), written to an ARBITRARY --out path the caller chooses -- never a
-    `.jsonl` stream under a fixed directory, and never this constitution submodule's own tree (the
-    prior implementation scanned `<this-tool's-own-fastcycle-dir>/review/**/*.jsonl`, a directory
-    that structurally can never legitimately contain a `.jsonl` file, and which also broke --repo
-    scoping by reading FROM the constitution submodule instead of the consuming project).
+def _review_record_paths(review_records_dir, bad):
+    """The record files under --review-records, enumerated EXACTLY as cycle_report.py does
+    (os.walk, sorted, dotfiles included, symlinked directories not followed, name ending ".json"),
+    so the two tools always see the same set (R2-02(d)). Everything that walk would silently miss
+    is appended to `bad` instead (R2-02(b)): a directory that cannot be listed, a symlinked
+    directory, and a case-variant ".JSON" name."""
+    paths = []
+    walk_errors = []
+    for dirpath, dirnames, filenames in os.walk(review_records_dir, onerror=walk_errors.append):
+        dirnames.sort()
+        for d in dirnames:
+            if os.path.islink(os.path.join(dirpath, d)):
+                bad.append(_site("E_REVIEW_SYMLINK_DIR",
+                                 "%s: symlinked directory, not followed (as in cycle_report.py) -- its "
+                                 "records would be unread" % os.path.join(dirpath, d)))
+        for fn in sorted(filenames):
+            path = os.path.join(dirpath, fn)
+            if fn.endswith(".json"):
+                paths.append(path)
+            elif fn.lower().endswith(".json"):
+                bad.append(_site("E_REVIEW_CASE_EXT",
+                                 "%s: case-variant .json extension -- neither this tool nor cycle_report.py "
+                                 "reads it as a record; rename it" % path))
+    for exc in walk_errors:
+        bad.append(_site("E_REVIEW_WALK", "cannot list %s: %s" % (getattr(exc, "filename", "?"), exc)))
+    return paths
 
-    `review_records_dir` is therefore a CONSUMER-SUPPLIED directory of real review_record.py JSON
-    documents (one per file); `None` means the caller did not supply one. Returns
-    (citations: list[tuple], diagnostic: str) -- the diagnostic is ALWAYS populated (the permanent
-    schema-gap note per _REVIEW_SCHEMA_GAP_NOTE, honestly distinguishing "this source structurally
-    cannot see everything" from a plain "found nothing"), with an additional UNAVAILABLE note
-    prepended when no directory was supplied or it does not exist -- never a silent empty return
-    indistinguishable from "scanned it, found nothing" (§11.4.201(6))."""
+
+def scan_review(item_id, live_ids, review_records_dir, stats, tally=None):
+    """Returns citations, or None when no --review-records was supplied (status not_supplied).
+    Raises SourceError when the directory is missing, cannot be walked completely, or a file in it
+    is not a valid JSON object."""
     if not review_records_dir:
-        return [], "review source: UNAVAILABLE (no --review-records directory supplied); " + _REVIEW_SCHEMA_GAP_NOTE
+        return None
     if not os.path.isdir(review_records_dir):
-        return [], ("review source: UNAVAILABLE (--review-records %r is not a directory); " % review_records_dir
-                     + _REVIEW_SCHEMA_GAP_NOTE)
+        raise SourceError(_site("E_REVIEW_NOT_DIR", "--review-records %r is not a directory" % review_records_dir))
     citations = []
-    for path in sorted(glob.glob(os.path.join(review_records_dir, "**", "*.json"), recursive=True)):
+    bad = []
+    for path in _review_record_paths(review_records_dir, bad):
+        text, err = _read_text_strict(path)
+        if err:
+            bad.append(_site("E_REVIEW_READ", "cannot read review record %s" % err))
+            continue
         try:
-            with open(path, encoding="utf-8", errors="replace") as fh:
-                doc = json.load(fh)
-        except (OSError, ValueError):
-            continue  # unreadable/unparseable record -- never crash on a stray file
-        if not isinstance(doc, dict) or doc.get("item_id") != item_id:
+            doc = json.loads(text)
+        except ValueError as exc:
+            bad.append(_site("E_REVIEW_JSON", "%s: not valid JSON (%s)" % (path, exc)))
             continue
-        text = _review_record_text(doc)
-        if not text:
+        if not isinstance(doc, dict):
+            bad.append(_site("E_REVIEW_NOT_OBJECT", "%s: not a JSON object" % path))
             continue
+        if doc.get("schema") != _REVIEW_SCHEMA:
+            stats["foreign_schema"] += 1
+            continue
+        rec_item = doc.get("item_id")
+        if not isinstance(rec_item, str) or rec_item.upper() != item_id:
+            continue
+        stats["records_for_item"] += 1
+        text = "\n".join(s for f in _REVIEW_TEXT_FIELDS for s in _strings_in(doc.get(f)))
         evidence = os.path.relpath(path, start=review_records_dir)
-        for anchor_id in _filter_live(_extract_tokens(text), live_ids):
+        for anchor_id in _anchors_in(text, live_ids, tally):
             citations.append((anchor_id, "review", evidence))
-    return citations, _REVIEW_SCHEMA_GAP_NOTE
+    if bad:
+        raise SourceError("; ".join(bad), citations)  # every entry of `bad` is already a _site()
+    return citations
 
 
-_FIXED_MD_HEADING_LEVEL_RE = re.compile(r"^(#{2,3})\s")
+_HEADING_RE = re.compile(r"^(#{1,6})\s")
 
 
-def _fixed_md_heading_level(line):
-    """Returns 2 or 3 for a `## `/`### ` heading line, else None."""
-    m = _FIXED_MD_HEADING_LEVEL_RE.match(line)
+def _heading_level(line):
+    m = _HEADING_RE.match(line)
     return len(m.group(1)) if m else None
 
 
-def _fixed_md_owns(line, item_id, bracket_re, bare_re):
-    """Returns the heading LEVEL (2 or 3) if this `## `/`### ` line is <item_id>'s OWN heading,
-    else None. Ownership is real-data-derived (measured against every heading in docs/Fixed.md,
-    B1 finding evidence): a `[<item_id>]` bracket appearing ANYWHERE on a heading line is ALWAYS
-    that item's own id in this corpus (verified: zero headings ever carry two distinct bracketed
-    ids), covering the `## [ATM-340] ...`, `## §FL [ATM-498] ...`, and `## GO. [ATM-401] ...`
-    prefixed forms alike -- the B1 gap: the prior pattern required the id immediately after the
-    heading marker, which a bracket or a `§X`/`GO.`-class prefix always defeats. The legacy BARE
-    form (`## ATM-292 -- title`, no brackets at all) is accepted ONLY when <item_id> is the FIRST
-    token right after the marker: a bare id appearing later in the title text is a cross-reference
-    to a DIFFERENT item (measured real cases: "## ATM-697 -- ... (sibling of ATM-695)" MUST NOT be
-    read as ATM-695's own heading), never this item's own evidence."""
-    level = _fixed_md_heading_level(line)
-    if level is None:
+def _fixed_md_owns(line, bracket_re, bare_re):
+    """Heading level (2 or 3) if this line is <item_id>'s OWN `##`/`###` heading, else None: a
+    `[<item_id>]` bracket anywhere on the heading, or the bare id as the first token."""
+    level = _heading_level(line)
+    if level not in (2, 3):
         return None
     if bracket_re.search(line) or bare_re.match(line):
         return level
     return None
 
 
-def scan_closure_fixed_md(repo, item_id, live_ids):
-    """The item's OWN heading section only -- never a bare grep for the item id anywhere in
-    docs/Fixed.md, which would wrongly harvest anchors from an UNRELATED item's write-up that
-    merely mentions this item id in a cross-reference (e.g. "Composes with ATM-277"). A section
-    runs from its owning heading line up to (excluding) the next heading at the SAME level or
-    HIGHER (never a heading at a deeper level, which is a subsection of the same item, e.g.
-    `### Root cause` / `### Fix` / `### Captured evidence` under a `## [ID]` owning heading --
-    B1 finding: stopping at ANY `###` line cut 41 real item sections short). This is a strict
-    generalisation of the reviewer's "stop only at the next `^## `" fix: for the overwhelming
-    common case (an item owned by a level-2 `## [ID]` heading) it is byte-identical to that
-    fix (boundary = next `^##\\s`); it additionally handles the rare real case of an item owned
-    by a level-3 heading (e.g. `### [ATM-008]` nested under an unrelated grouping heading) without
-    over-absorbing a SIBLING level-3 item's content into this item's closure evidence -- a
-    same-level-3 heading still ends the section in that case, exactly as a `##` heading would for
-    a level-2-owned item."""
+def scan_closure_fixed_md(repo, item_id, live_ids, tally=None):
+    """Every section of docs/Fixed.md owned by <item_id>; see the module docstring."""
     path = os.path.join(repo, "docs", "Fixed.md")
-    if not os.path.isfile(path):
+    if not os.path.lexists(path):
         return []
-    try:
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            lines = fh.read().split("\n")
-    except OSError:
-        return []
-    bracket_re = re.compile(r"\[%s\]" % re.escape(item_id))
-    bare_re = re.compile(r"^#{2,3}\s+%s\b" % re.escape(item_id))
-    section = []
-    in_section = False
+    text, err = _read_text_strict(path)
+    if err:
+        raise SourceError(_site("E_FIXED_READ", "cannot read %s" % err))
+    bracket_re = re.compile(r"\[%s\]" % re.escape(item_id), re.I)
+    bare_re = re.compile(r"^#{2,3}\s+%s\b" % re.escape(item_id), re.I)
+    sections = []
+    section = None
     own_level = None
-    for line in lines:
-        if in_section:
-            cur_level = _fixed_md_heading_level(line)
-            if cur_level is not None and cur_level <= own_level:
-                break
-            section.append(line)
-            continue
-        lvl = _fixed_md_owns(line, item_id, bracket_re, bare_re)
-        if lvl is not None:
-            in_section = True
-            own_level = lvl
-            section = [line]
-    if not section:
-        return []
+    for line in text.split("\n"):
+        if section is not None:
+            level = _heading_level(line)
+            if level is not None and level <= own_level:
+                sections.append(section)
+                section = None
+            else:
+                section.append(line)
+                continue
+        level = _fixed_md_owns(line, bracket_re, bare_re)
+        if level is not None:
+            section, own_level = [line], level
+    if section is not None:
+        sections.append(section)
     evidence = "docs/Fixed.md#%s" % item_id
-    text = "\n".join(section)
-    return [(a, "closure", evidence) for a in _filter_live(_extract_tokens(text), live_ids)]
+    text = "\n".join("\n".join(s) for s in sections)
+    return [(a, "closure", evidence) for a in _anchors_in(text, live_ids, tally)]  # closure/Fixed.md
 
 
-def scan_closure_db(repo, item_id, live_ids):
-    """Any row for this item in docs/workable_items.db that is actually CLOSED (current_location
-    != 'Issues') -- an item still open (current_location == 'Issues') has no closure evidence yet,
-    regardless of what its live investigation text happens to mention.
+# The tracker's closed location(s), lower-cased. Measured on this project's DB: the only values in
+# use are "Fixed" (closed) and "Issues" (open). Anything else -- NULL, or a location this tool does
+# not know -- is NOT treated as closed (R8 F12): an unknown state is never read as closure evidence.
+_CLOSED_LOCATIONS = ("fixed",)
 
-    I3 fix: returns (citations: list[tuple], diagnostic: str|None). A `sqlite3.Error` on connect
-    OR on query execution (e.g. a schema change dropping/renaming a column this query selects) now
-    surfaces a diagnostic the same way the commit source's own git-level faults already do, rather
-    than silently returning [] -- a real DB-read FAILURE must be distinguishable from "this item
-    genuinely has zero closure citations in the DB", never conflated (§11.4.201(6))."""
+
+def scan_closure_db(repo, item_id, live_ids, tally=None):
+    """Rows for this item in docs/workable_items.db at a closed location. Raises SourceError on any
+    sqlite error (open or query) -- a read failure is never conflated with zero citations."""
     db_path = os.path.join(repo, "docs", "workable_items.db")
-    if not os.path.isfile(db_path):
-        return [], None
+    if not os.path.lexists(db_path):
+        return []
     try:
         uri = "file:%s?mode=ro" % urllib.parse.quote(os.path.abspath(db_path))
         conn = sqlite3.connect(uri, uri=True, timeout=5)
     except sqlite3.Error as exc:
-        return [], "closure/db source: cannot open %s: %s" % (db_path, exc)
+        raise SourceError(_site("E_DB_OPEN", "closure DB: cannot open %s: %s" % (db_path, exc)))
     try:
         try:
-            cur = conn.cursor()
-            cur.execute(
+            rows = conn.execute(
                 "SELECT current_location, description, closure_criteria, body_md, forensic_anchor "
-                "FROM items WHERE atm_id = ?",
-                (item_id,),
-            )
-            rows = cur.fetchall()
+                "FROM items WHERE upper(atm_id) = ?", (item_id,)).fetchall()
         except sqlite3.Error as exc:
-            return [], "closure/db source: query failed against %s: %s" % (db_path, exc)
+            raise SourceError(_site("E_DB_QUERY", "closure DB: query failed against %s: %s" % (db_path, exc)))
     finally:
         conn.close()
     evidence = "docs/workable_items.db#%s" % item_id
     citations = []
     for current_location, description, closure_criteria, body_md, forensic_anchor in rows:
-        if (current_location or "").strip().lower() == "issues":
-            continue  # still open: not closure evidence
-        text = "\n".join(v for v in (description, closure_criteria, body_md, forensic_anchor) if v)
-        for anchor_id in _filter_live(_extract_tokens(text), live_ids):
+        loc = (current_location or "").strip().lower()
+        if loc not in _CLOSED_LOCATIONS:
+            continue
+        text = "\n".join(v for v in (description, closure_criteria, body_md, forensic_anchor)
+                         if isinstance(v, str))
+        for anchor_id in _anchors_in(text, live_ids, tally):
             citations.append((anchor_id, "closure", evidence))
-    return citations, None
+    return citations
 
 
-def collect(item_id, repo, live_ids, sources, as_of=None, review_records_dir=None):
-    """Returns (citations: list[tuple], diagnostics: list[str])."""
+def collect(item_id, repo, live_ids, sources, as_of=None, review_records_dir=None,
+            constitution_path=None, index_sha256=None):
+    """Returns (body: dict, errors: list[str]). The body is the full canonical result. `errors`
+    holds every source failure plus any anchor-index problem (R2-01); non-empty => BLIND."""
+    item_key = item_id.upper()  # R2-02(c): the ONE normalisation every source uses
     citations = []
-    diagnostics = []
+    status = {}
+    errors = []
+    tally = _Tally()
+    commit_stats = {"family": None, "candidates": 0, "owned_single": 0, "owned_multi": 0,
+                    "body_only_skipped": 0, "multi_owner_anchors_dropped": 0, "scope_rescued": 0,
+                    "single_owner_foreign_line_anchors_dropped": 0,
+                    "single_owner_mixed_line_anchors_credited": 0}
+    review_stats = {"records_for_item": 0, "foreign_schema": 0}
+
+    def run(name, fn):
+        try:
+            got = fn()
+        except SourceError as exc:
+            citations.extend(exc.partial)
+            status[name] = "error"
+            errors.append("%s: %s" % (name, exc))
+            return
+        if got is None:
+            status[name] = "not_supplied"
+            return
+        citations.extend(got)
+        status[name] = "ok"
+
     if "commit" in sources:
-        commit_citations, err = scan_commits(repo, item_id, live_ids, as_of=as_of)
-        citations.extend(commit_citations)
-        if err:
-            diagnostics.append("commit source: %s" % err)
+        run("commit", lambda: scan_commits(repo, item_key, live_ids, commit_stats, as_of=as_of, tally=tally))
     if "diary" in sources:
-        citations.extend(scan_diary(repo, item_id, live_ids))
+        run("diary", lambda: scan_diary(repo, item_key, live_ids, tally))
     if "review" in sources:
-        review_citations, review_note = scan_review(item_id, live_ids, review_records_dir)
-        citations.extend(review_citations)
-        if review_note:
-            diagnostics.append(review_note)
+        run("review", lambda: scan_review(item_key, live_ids, review_records_dir, review_stats, tally))
     if "closure" in sources:
-        citations.extend(scan_closure_fixed_md(repo, item_id, live_ids))
-        db_citations, db_err = scan_closure_db(repo, item_id, live_ids)
-        citations.extend(db_citations)
-        if db_err:
-            diagnostics.append(db_err)
-    # Dedupe exact (anchor_id, source, evidence) triples (e.g. the same token repeated within one
-    # commit body), then sort deterministically (C-003) by anchor_id, then source, then evidence.
+        run("closure", lambda: scan_closure_fixed_md(repo, item_key, live_ids, tally)
+            + scan_closure_db(repo, item_key, live_ids, tally))
+    index_check, heads, index_errs = check_index(live_ids, constitution_path, index_sha256)
+    errors.extend(index_errs)
     unique = sorted(set(citations), key=lambda t: (t[0], t[1], t[2]))
-    return unique, diagnostics
-
-
-def _body_for(item_id, unique_citations, live_ids):
-    return {
-        "item_id": item_id,
-        "citations": [
-            {"anchor_id": a, "source": s, "evidence": e} for (a, s, e) in unique_citations
-        ],
+    distinct_drops = sorted(set(tally.unindexed))
+    body = {
+        "item_id": item_key,
+        "citations": [{"anchor_id": a, "source": s, "evidence": e} for (a, s, e) in unique],
         "anchor_opener_count": len(live_ids),
+        "source_status": status,
+        "source_errors": errors,
+        "commit_stats": commit_stats,
+        "review_stats": review_stats,
+        "index_check": index_check,
+        "unindexed_section_signed": {
+            "occurrences": len(tally.unindexed),
+            "distinct": distinct_drops,
+            "in_constitution_headings": sorted(set(distinct_drops) & heads) if heads else [],
+        },
+        "document_row_refs_rejected": {
+            "occurrences": len(tally.row_refs),
+            "distinct": sorted(set(tally.row_refs)),
+        },
     }
+    return body, errors
 
 
 def _canon_body_bytes(body):
@@ -596,10 +888,13 @@ def _parse_sources(raw):
     return names, bad
 
 
-# M1: the commit source is the only one bounded by --as-of (commits carry a real committer/author
-# date to bound against; diary/review/closure have no comparable per-artefact timestamp today) --
-# recorded explicitly in run_meta rather than left an undocumented inconsistency.
 _AS_OF_UNBOUNDED_SOURCES = ("diary", "review", "closure")
+
+
+def _valid_item_id(item_id):
+    if not item_id or item_id != item_id.strip() or any(ch.isspace() for ch in item_id):
+        return False
+    return True
 
 
 def _main_impl(argv):
@@ -611,11 +906,17 @@ def _main_impl(argv):
     p.add_argument("--sources", default=",".join(SOURCE_CLASSES))
     p.add_argument("--as-of")
     p.add_argument("--review-records")
+    p.add_argument("--constitution")
     p.add_argument("--determinism-check", action="store_true")
     try:
         a = p.parse_args(argv)
     except SystemExit as se:
         return 2 if se.code else 0
+
+    if not _valid_item_id(a.item_id):
+        print("anchor_citations: --item-id must be non-empty with no whitespace, got %r" % a.item_id,
+              file=sys.stderr)
+        return 2
 
     sources, bad_sources = _parse_sources(a.sources)
     if bad_sources or not sources:
@@ -629,7 +930,6 @@ def _main_impl(argv):
             print("anchor_citations: --as-of must be YYYY-MM-DD, got %r" % a.as_of, file=sys.stderr)
             return 2
         try:
-            import datetime
             datetime.date.fromisoformat(a.as_of)
         except ValueError:
             print("anchor_citations: --as-of is not a real calendar date: %r" % a.as_of, file=sys.stderr)
@@ -637,7 +937,14 @@ def _main_impl(argv):
         as_of = a.as_of
 
     if not validate_repo(a.repo):
-        print("anchor_citations: BLIND -- --repo %r is not a readable git working tree" % a.repo, file=sys.stderr)
+        print("anchor_citations: BLIND -- %s" % _site("E_REPO_NOT_GIT", "--repo %r is not a readable git "
+                                                      "working tree" % a.repo), file=sys.stderr)
+        return 4
+
+    repo_top = repo_toplevel(a.repo)
+    if repo_top is None:
+        print("anchor_citations: BLIND -- %s" % _site("E_REPO_TOPLEVEL", "cannot resolve the work-tree top "
+                                                      "of --repo %r" % a.repo), file=sys.stderr)
         return 4
 
     live_ids, err = load_live_anchor_ids(a.anchor_index)
@@ -650,17 +957,29 @@ def _main_impl(argv):
         print("anchor_citations: %s" % self_check_err, file=sys.stderr)
         return 3
 
-    run_meta = {"tool": "anchor_citations.py", "repo": os.path.abspath(a.repo), "sources": sources}
-    if as_of:
+    generated_from = index_generated_from(a.anchor_index)
+    if a.constitution:
+        constitution_path = os.path.abspath(a.constitution)
+    else:
+        src = generated_from["source"]
+        constitution_path = os.path.join(repo_top, src) if src else None
+
+    run_meta = {"tool": "anchor_citations.py", "repo": repo_top, "sources": sources}
+    if os.path.realpath(a.repo) != os.path.realpath(repo_top):
+        run_meta["repo_arg"] = os.path.abspath(a.repo)  # R2-02(a): normalised to the work-tree top
+    if as_of is not None:
         run_meta["as_of"] = as_of
         run_meta["as_of_unbounded_sources"] = [s for s in sources if s in _AS_OF_UNBOUNDED_SOURCES]
 
+    def one_run():
+        return collect(a.item_id, repo_top, live_ids, sources, as_of=as_of,
+                       review_records_dir=a.review_records, constitution_path=constitution_path,
+                       index_sha256=generated_from["source_sha256"])
+
+    body, source_errors = one_run()
     if a.determinism_check:
-        run1, diag1 = collect(a.item_id, a.repo, live_ids, sources, as_of=as_of, review_records_dir=a.review_records)
-        run2, diag2 = collect(a.item_id, a.repo, live_ids, sources, as_of=as_of, review_records_dir=a.review_records)
-        body1 = _body_for(a.item_id, run1, live_ids)
-        body2 = _body_for(a.item_id, run2, live_ids)
-        canon1 = _canon_body_bytes(body1)
+        body2, _ = one_run()
+        canon1 = _canon_body_bytes(body)
         canon2 = _canon_body_bytes(body2)
         if canon1 != canon2:
             print("anchor_citations: nondeterministic across two in-process runs for --item-id %s"
@@ -673,30 +992,22 @@ def _main_impl(argv):
             for line in diff[:40]:
                 print(line, file=sys.stderr)
             return 1
-        citations, diagnostics = run1, diag1
-    else:
-        citations, diagnostics = collect(a.item_id, a.repo, live_ids, sources, as_of=as_of,
-                                          review_records_dir=a.review_records)
 
-    for d in diagnostics:
-        print("anchor_citations: note: %s" % d, file=sys.stderr)
-
-    body = _body_for(a.item_id, citations, live_ids)
-    rc = _emit(body, run_meta, a.out, code=0)
+    for e in source_errors:
+        print("anchor_citations: BLIND -- %s" % e, file=sys.stderr)
+    rc = _emit(body, run_meta, a.out, code=4 if source_errors else 0)
     return rc
 
 
 def main(argv):
-    """I2 fix: `_main_impl`'s WHOLE body is guarded here so any internal failure this tool does
-    not classify more specifically (a decode error on an artefact _main_impl's own per-call guards
-    do not yet cover, or any other unforeseen internal fault) resolves to the documented BLIND exit
-    code 4 with a diagnostic on stderr -- never a raw unhandled traceback surfacing under the
-    reserved-for-nondeterminism exit 1 (the contract's own C-001 exit-1 meaning "the SAME inputs
-    produced two DIFFERENT results", never "the tool crashed")."""
+    """Every exception _main_impl does not classify itself resolves to BLIND exit 4 with a
+    diagnostic -- never a traceback under exit 1 (which C-001 reserves for nondeterminism).
+    KeyboardInterrupt / SystemExit are not swallowed."""
     try:
         return _main_impl(argv)
-    except (OSError, UnicodeDecodeError, ValueError, RuntimeError) as exc:
-        print("anchor_citations: BLIND -- internal error: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
+    except Exception as exc:  # noqa: BLE001  (deliberate catch-all, see docstring)
+        print("anchor_citations: BLIND -- %s" % _site("E_INTERNAL", "internal error: %s: %s"
+                                                      % (type(exc).__name__, exc)), file=sys.stderr)
         return 4
 
 

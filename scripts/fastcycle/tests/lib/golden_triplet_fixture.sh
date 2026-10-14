@@ -38,6 +38,7 @@
 #     fixtures).
 #
 # Provides: gt_init, gt_member_text, gt_capture, gt_promote, gt_golden
+# Env read by the stand-in: GT_FIX, GT_FIX_SLEEP, GT_FIX_COLLIDE, GT_FIX_TOUCH(_MEMBER).
 
 GT_TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GT_HARNESS="${GT_HARNESS:-$GT_TESTS_DIR/capture_fc_timer_triplet.sh}"
@@ -51,6 +52,10 @@ gt_init() {
 #!/bin/bash
 m="${FC_TIMER_RUN_ID##*_}"
 [ -n "${GT_FIX_SLEEP:-}" ] && sleep "$GT_FIX_SLEEP"
+# T048 restart round-1 (R1-I6): drive REAL tree drift during a capture -- the named member
+# (default FC1) appends a line to $GT_FIX_TOUCH (a file inside a scratch git work tree the
+# harness fingerprints via CAPTURE_TRIPLET_TREE_ROOT).
+if [ -n "${GT_FIX_TOUCH:-}" ] && [ "$m" = "${GT_FIX_TOUCH_MEMBER:-FC1}" ]; then echo "drift by $m" >> "$GT_FIX_TOUCH"; fi
 cat "$GT_FIX/$m.txt"
 gt_exit=1
 [ -f "$GT_FIX/$m.exit" ] && gt_exit="$(cat "$GT_FIX/$m.exit")"

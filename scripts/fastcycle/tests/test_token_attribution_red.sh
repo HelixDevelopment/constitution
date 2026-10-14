@@ -119,8 +119,17 @@ set -u
 # known, pre-existing, whole-file boundary this cross-check's own
 # correctness is conditioned on.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd -P)"
-REPO_ROOT="$(cd "$HERE/../../../.." && pwd -P)"
-FC="$REPO_ROOT/constitution/scripts/fastcycle"
+# T048 restart round-1 (R4-M4 / M-d, class "project layout literals in
+# constitution tests"): the paths below are no longer "four levels up". The
+# constitution scripts are found relative to this file; the consuming
+# project (whose writer, settings.json and legacy prototype PART A/B/C use)
+# is the git SUPERPROJECT of this constitution checkout. A standalone
+# constitution clone has no superproject: REPO_ROOT is then empty and the
+# consumer-dependent checks report an honest SKIP instead of a false
+# "missing" FAIL.
+FC="$(cd "$HERE/.." && pwd -P)"
+CONST_TOPLEVEL="$(git -C "$HERE" rev-parse --show-toplevel 2>/dev/null || true)"
+REPO_ROOT="$(git -C "$HERE" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
 FIX="$HERE/fixtures/transcript_ingest"
 DISPATCH_STAMP="$FC/tokens/dispatch_stamp.sh"
 TRANSCRIPT_INGEST="$FC/tokens/transcript_ingest.py"
@@ -420,7 +429,7 @@ if [ -n "${HELIX_PROJECT_ROOT:-}" ] && [ -d "${HELIX_PROJECT_ROOT}" ] && [ -r "$
     _CROSSCHECK_ROOT="${HELIX_PROJECT_ROOT}"
 fi
 _ENV_DIRECT_LINE="$(grep -E '^[[:space:]]*HELIX_RELEASE_PREFIX[[:space:]]*=' "$_CROSSCHECK_ROOT/.env" 2>/dev/null | grep -vE '^[[:space:]]*#' | tail -n1 || true)"
-if [ -n "$_ENV_DIRECT_LINE" ]; then
+if [ -n "$_ENV_DIRECT_LINE" ] && [ -n "$_CROSSCHECK_ROOT" ]; then
     _ENV_DIRECT_VAL="${_ENV_DIRECT_LINE#*=}"
     _ENV_DIRECT_VAL="$(printf '%s' "$_ENV_DIRECT_VAL" | tr -d '[:space:]"'"'"'')"
     _ENV_DIRECT_LETTERS="$(printf '%s' "$_ENV_DIRECT_VAL" | tr -cd 'A-Za-z' | cut -c1-3 | tr '[:lower:]' '[:upper:]')"
@@ -438,7 +447,8 @@ if [ -n "$_ENV_DIRECT_LINE" ]; then
         fi
     fi
 else
-    ok "control-needle cross-check: inapplicable -- $_CROSSCHECK_ROOT/.env carries no HELIX_RELEASE_PREFIX= assignment at all, so release_prefix.sh would be resolving via its own tier-3 snake_case fallback, a code path this independent bare-grep cross-check cannot reproduce without re-implementing release_prefix.sh's own internals; honestly treated as inapplicable, never assumed to agree"
+    # Not an assertion: nothing was compared (counted neither PASS nor FAIL).
+    note "control-needle cross-check: inapplicable -- $_CROSSCHECK_ROOT/.env carries no HELIX_RELEASE_PREFIX= assignment at all, so release_prefix.sh would be resolving via its own tier-3 snake_case fallback, a code path this independent bare-grep cross-check cannot reproduce without re-implementing release_prefix.sh's own internals; honestly treated as inapplicable, never assumed to agree"
 fi
 
 echo "-- control-needle: this checkout's own unconfigured default item-tag prefix derives to '$DERIVED_DEFAULT_PREFIX' (blind=$DERIVED_DEFAULT_PREFIX_BLIND) via the real, unmodified release_prefix.sh, resolved via the SAME self-location-relative path transcript_ingest.py uses ('$_RP_SCRIPT_FOR_NEEDLE') -- never assumed, cross-checked against \$REPO_ROOT/.env directly above --"
@@ -472,15 +482,18 @@ echo "=== pre-flight: report which of the two guarded tools currently exist ==="
 # probes (PART A/B/E genuinely exercise dispatch_stamp.sh/transcript_ingest.py
 # once present), so this pre-flight is purely informational going forward:
 # it reports presence/absence, it never fails on either state alone.
+# T048 restart round-1 (class "checks that cannot fail"): both branches of
+# each pre-flight used to call ok(), so they counted a PASS whatever the
+# state. They are informational only, hence note().
 if [ -f "$DISPATCH_STAMP" ]; then
-    ok "pre-flight: $DISPATCH_STAMP now exists (T036 landed) — exercised for real by property (a) below"
+    note "pre-flight: $DISPATCH_STAMP exists (T036 landed) — exercised for real by property (a) below"
 else
-    ok "pre-flight: $DISPATCH_STAMP absent (T036 not yet landed) — property (a) below exercises only the current writer"
+    note "pre-flight: $DISPATCH_STAMP absent — every property that needs it reports FAIL below"
 fi
 if [ -f "$TRANSCRIPT_INGEST" ]; then
-    ok "pre-flight: $TRANSCRIPT_INGEST now exists (T038 landed) — exercised for real by properties (b)/(e) below"
+    note "pre-flight: $TRANSCRIPT_INGEST exists (T038 landed) — exercised for real by properties (b)/(e) below"
 else
-    ok "pre-flight: $TRANSCRIPT_INGEST absent (T038 not yet landed) — properties (b)-(e) stay RED below"
+    note "pre-flight: $TRANSCRIPT_INGEST absent — properties (b)-(e) report FAIL below"
 fi
 
 # =============================================================================
@@ -511,6 +524,25 @@ needle_check "has_item_tag: absent-tag haystack contains no item= token at all" 
 # test_agent_registry_dispatch_writer_red.sh already uses against this exact
 # writer).
 REG="$WORK/agent_registry.jsonl"
+if [ -z "$REPO_ROOT" ]; then
+    skip "PART A: this constitution checkout has no superproject, so the consumer's agent_registry_writer.sh and .claude/settings.json do not exist here; property (a) is a property of the consuming project and is not checked in a standalone clone"
+else
+# V1-M5 (T048 restart round 2): agent_registry_writer.sh falls back to a
+# HARDCODED repository path when "<its repo root>/docs/requests" is absent,
+# and then runs THAT repository's dispatch_stamp.sh, not the one under test
+# here -- PART A then stays green against a different copy. The writer's
+# own resolution rule is: repo root = two directories above the writer
+# (physical path), used only if it has docs/requests. Both halves are
+# checked before any writer verdict is trusted.
+WRITER_ROOT="$(cd "$(dirname "$WRITER")/../.." 2>/dev/null && pwd -P)"
+WRITER_STAMP="$WRITER_ROOT/constitution/scripts/fastcycle/tokens/dispatch_stamp.sh"
+if [ ! -d "$WRITER_ROOT/docs/requests" ]; then
+    bad "PART A precondition: $WRITER_ROOT/docs/requests does not exist, so the writer would fall back to its hardcoded repository and run that repository's dispatch_stamp.sh -- PART A would test a different copy; create docs/requests in the consumer under test"
+elif [ "$(realpath "$WRITER_STAMP" 2>/dev/null)" != "$(realpath "$DISPATCH_STAMP" 2>/dev/null)" ]; then
+    bad "PART A precondition: the writer will run $WRITER_STAMP, not the dispatch_stamp.sh under test ($DISPATCH_STAMP)"
+else
+    ok "PART A precondition: the writer resolves this consumer's root ($WRITER_ROOT, has docs/requests) and so runs the dispatch_stamp.sh under test"
+fi
 REAL_DESC='(T1/main - claude5 - sonnet - high) T018 RED test review_record'
 if [ ! -f "$WRITER" ]; then
     bad "PRECONDITION: $WRITER (scripts/hooks/agent_registry_writer.sh) is missing — cannot investigate property (a) at all"
@@ -616,7 +648,13 @@ if [ -f "$WRITER" ]; then
     # + write path is what proves the mechanism is truly connected, not
     # merely present-but-inert.
     REG2="$WORK/agent_registry_tagged.jsonl"
-    TAGGED_DESC="(T1/main - claude5 - sonnet - high) item=ATM-9042 T020 fixture control-needle dispatch"
+    # T048 restart round-1 (class "project literals in constitution tests"):
+    # the tag is built from this checkout's own derived prefix (the needle
+    # above, cross-checked against .env), so the round-trip is verified on
+    # every consumer instead of being skipped on non-ATM ones. A BLIND needle
+    # is already a hard FAIL above.
+    WANT_TAGGED="PRESENT:${DERIVED_DEFAULT_PREFIX}-9042"
+    TAGGED_DESC="(T1/main - claude5 - sonnet - high) item=${DERIVED_DEFAULT_PREFIX}-9042 T020 fixture control-needle dispatch"
     PAYLOAD2="$(python3 - "$TAGGED_DESC" "$REPO_ROOT" <<'PYEOF'
 import json, sys
 desc = sys.argv[1]
@@ -652,13 +690,9 @@ PYEOF
     # to any real defect in agent_registry_writer.sh/dispatch_stamp.sh --
     # the SAME class of false signal PART D/F3/F7 already guard against,
     # via the SAME DERIVED_DEFAULT_PREFIX control needle built above.
-    if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
-        skip_prefix_mismatch "PART A's tagged-round-trip needle_check (expects ITEM_FIELD_TAGGED == 'PRESENT:ATM-9042') assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM' so that the hardcoded item=ATM-9042 fixture description round-trips through the REAL \$WRITER's dispatch_stamp.sh-derived prefix regex; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead -- this specific needle_check is honestly skipped here (not pass, not fail), purely for an environmental reason unrelated to any real defect in agent_registry_writer.sh/dispatch_stamp.sh"
-    else
-        needle_check "the REAL writer's 'item' JSON field genuinely round-trips a real item=ATM-nnnn tag (proves the untagged case's field state above is a real extraction result, not an always-inert field)" 1 "$([ "$ITEM_FIELD_TAGGED" = "PRESENT:ATM-9042" ] && echo 1 || echo 0)"
-    fi
+    needle_check "the REAL writer's 'item' JSON field genuinely round-trips a real item=${DERIVED_DEFAULT_PREFIX}-9042 tag (proves the untagged case's field state above is a real extraction result, not an always-inert field)" 1 "$([ "$ITEM_FIELD_TAGGED" = "$WANT_TAGGED" ] && echo 1 || echo 0)"
 
-    if [ "$ITEM_FIELD_UNTAGGED" = "PRESENT:" ] && [ "$ITEM_FIELD_TAGGED" = "PRESENT:ATM-9042" ]; then
+    if [ "$ITEM_FIELD_UNTAGGED" = "PRESENT:" ] && [ "$ITEM_FIELD_TAGGED" = "$WANT_TAGGED" ]; then
         ITEM_FIELD_TAKING_EFFECT=1
     fi
 fi
@@ -707,17 +741,63 @@ WIRED_INTO_WRITER=0
 if [ -f "$WRITER" ] && grep -Fq "dispatch_stamp" "$WRITER" 2>/dev/null; then
     WIRED_INTO_WRITER=1
 fi
+# R4-I3 (T048 restart round-1): the settings.json half used to be a
+# substring grep for "dispatch_stamp", OR-ed with the writer grep, so a hook
+# entry pointing at a missing file (or at the wrong matcher) still counted
+# as wired. It is now checked by behaviour: settings.json is parsed as
+# JSON; on the PreToolUse entry whose matcher covers Agent, Task AND
+# TaskCreate, the hook command whose script argument resolves (after
+# expanding $CLAUDE_PROJECT_DIR) to the REAL dispatch_stamp.sh is found; and
+# that exact command string is executed with CLAUDE_PROJECT_DIR set, once
+# with an untagged dispatch (must exit 2) and once with an item=? dispatch
+# (must exit 0). Only that one command is run: other hooks on the matcher
+# (the registry writer) have side effects and are not touched.
 SETTINGS_JSON="$REPO_ROOT/.claude/settings.json"
 WIRED_INTO_SETTINGS=0
-if [ -f "$SETTINGS_JSON" ] && grep -Fq "dispatch_stamp" "$SETTINGS_JSON" 2>/dev/null; then
-    WIRED_INTO_SETTINGS=1
+SETTINGS_CMD="$(python3 - "$SETTINGS_JSON" "$REPO_ROOT" "$DISPATCH_STAMP" <<'PYEOF'
+import json, os, shlex, sys
+path, root, target = sys.argv[1], sys.argv[2], os.path.realpath(sys.argv[3])
+try:
+    hooks = json.load(open(path)).get("hooks", {}).get("PreToolUse", [])
+except (OSError, ValueError):
+    sys.exit(0)
+for entry in hooks:
+    matcher = set(str(entry.get("matcher", "")).split("|"))
+    if not {"Agent", "Task", "TaskCreate"} <= matcher:
+        continue
+    for h in entry.get("hooks", []):
+        cmd = h.get("command", "")
+        try:
+            words = shlex.split(cmd)
+        except ValueError:
+            continue
+        for w in words:
+            w = w.replace("${CLAUDE_PROJECT_DIR}", root).replace("$CLAUDE_PROJECT_DIR", root)
+            if os.path.isfile(w) and os.path.realpath(w) == target:
+                print(cmd)
+                sys.exit(0)
+PYEOF
+)"
+if [ -n "$SETTINGS_CMD" ]; then
+    SETTINGS_BAD_RC="$(printf '%s' '{"tool_name":"Agent","tool_input":{"description":"(T1/main - claude5 - sonnet - high) no item tag"}}' \
+        | CLAUDE_PROJECT_DIR="$REPO_ROOT" bash -c "$SETTINGS_CMD" >/dev/null 2>&1; echo $?)"
+    SETTINGS_GOOD_RC="$(printf '%s' '{"tool_name":"Agent","tool_input":{"description":"(T1/main - claude5 - sonnet - high) item=? honest"}}' \
+        | CLAUDE_PROJECT_DIR="$REPO_ROOT" bash -c "$SETTINGS_CMD" >/dev/null 2>&1; echo $?)"
+    if [ "$SETTINGS_BAD_RC" = 2 ] && [ "$SETTINGS_GOOD_RC" = 0 ]; then
+        WIRED_INTO_SETTINGS=1
+        ok "property (a) refusal half: the settings.json PreToolUse hook on Agent|Task|TaskCreate runs the real dispatch_stamp.sh and, executed as registered, blocks an untagged dispatch (exit 2) and allows item=? (exit 0)"
+    else
+        bad "property (a) refusal half: the registered hook command ('$SETTINGS_CMD') exited $SETTINGS_BAD_RC on an untagged dispatch (want 2) and $SETTINGS_GOOD_RC on item=? (want 0)"
+    fi
+else
+    bad "property (a) refusal half: no PreToolUse hook on a matcher covering Agent, Task and TaskCreate in $SETTINGS_JSON runs the real $DISPATCH_STAMP -- untagged dispatches are not refused"
 fi
 
 # F8 remediation (2026-09-29): verdict now driven by $ITEM_FIELD_TAKING_EFFECT
 # (the REAL writer row's "item" JSON field -- what T037 actually writes),
 # never $FOUND (the description field -- what T037 was NEVER designed to
 # touch; see the item_field_state() block above for the full derivation).
-if [ -f "$DISPATCH_STAMP" ] && { [ "$WIRED_INTO_WRITER" -eq 1 ] || [ "$WIRED_INTO_SETTINGS" -eq 1 ]; }; then
+if [ -f "$DISPATCH_STAMP" ] && [ "$WIRED_INTO_WRITER" -eq 1 ] && [ "$WIRED_INTO_SETTINGS" -eq 1 ]; then
     # I1 remediation (T048/US1 S10, round-2 independent Opus-xhigh review,
     # 2026-10-03): $ITEM_FIELD_TAKING_EFFECT (computed above) is driven by
     # a hardcoded comparison against the literal "PRESENT:ATM-9042" -- on
@@ -731,16 +811,15 @@ if [ -f "$DISPATCH_STAMP" ] && { [ "$WIRED_INTO_WRITER" -eq 1 ] || [ "$WIRED_INT
     # wiring reference found in $WRITER and/or .claude/settings.json)
     # honestly reported rather than silently misreported as "NOT taking
     # effect" for an unrelated reason.
-    if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
-        skip_prefix_mismatch "property (a)'s HOLDS/UNMET verdict (as currently computed) assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM', because \$ITEM_FIELD_TAKING_EFFECT above is driven by a hardcoded comparison against the literal 'PRESENT:ATM-9042'; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead -- the structural wiring facts remain real and are unaffected by this skip (dispatch_stamp.sh exists=yes, writer_wired=$WIRED_INTO_WRITER, settings_wired=$WIRED_INTO_SETTINGS); only the ATM-hardcoded round-trip verdict is honestly skipped here (not pass, not fail), purely for an environmental reason unrelated to any real defect in T037's wiring"
-    elif [ "$ITEM_FIELD_TAKING_EFFECT" = "1" ]; then
-        ok "FR-013/FR-001/SC-005 property (a) HOLDS: dispatch_stamp.sh exists AND a wiring reference was found (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), AND the REAL $WRITER invocation genuinely writes its own dedicated 'item' JSON field for every dispatch -- untagged=$ITEM_FIELD_UNTAGGED, tagged=$ITEM_FIELD_TAGGED (T037's own 'item id column' design, confirmed via two real writer invocations, round-trips correctly: honest-empty for an untagged description, the real ATM-nnnn id for a tagged one) -- T037 has landed and is taking real effect"
+    if [ "$ITEM_FIELD_TAKING_EFFECT" = "1" ]; then
+        ok "FR-013/FR-001/SC-005 property (a) HOLDS: dispatch_stamp.sh exists AND a wiring reference was found (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), AND the REAL $WRITER invocation genuinely writes its own dedicated 'item' JSON field for every dispatch -- untagged=$ITEM_FIELD_UNTAGGED, tagged=$ITEM_FIELD_TAGGED (T037's own 'item id column' design, confirmed via two real writer invocations, round-trips correctly: honest-empty for an untagged description, the real derived-prefix id for a tagged one) -- T037 has landed and is taking real effect"
     else
-        bad "FR-013/FR-001/SC-005 property (a) UNMET (wiring reference present but NOT taking effect): a reference to dispatch_stamp.sh was found in the real pipeline (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), BUT the REAL $WRITER invocation(s) did NOT produce the expected 'item' field round-trip (untagged=$ITEM_FIELD_UNTAGGED want PRESENT:, tagged=$ITEM_FIELD_TAGGED want PRESENT:ATM-9042) — a source-level wiring reference existing is not the same as it genuinely taking effect on a real dispatch; investigate before declaring T037 done"
+        bad "FR-013/FR-001/SC-005 property (a) UNMET (wiring reference present but NOT taking effect): a reference to dispatch_stamp.sh was found in the real pipeline (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS), BUT the REAL $WRITER invocation(s) did NOT produce the expected 'item' field round-trip (untagged=$ITEM_FIELD_UNTAGGED want PRESENT:, tagged=$ITEM_FIELD_TAGGED want $WANT_TAGGED) — a source-level wiring reference existing is not the same as it genuinely taking effect on a real dispatch; investigate before declaring T037 done"
     fi
 else
     bad "FR-013/FR-001/SC-005 property (a) UNMET: dispatch_stamp.sh $([ -f "$DISPATCH_STAMP" ] && echo 'exists as a standalone, deliberately-unwired T036 artifact' || echo 'is absent (T036 not yet landed)') — T037 (wiring $DISPATCH_STAMP into \$WRITER's item-id column AND .claude/settings.json's PreToolUse hook list, tasks.md:121, still \`[ ]\` unchecked) has NOT landed (writer_wired=$WIRED_INTO_WRITER settings_wired=$WIRED_INTO_SETTINGS) — a dispatch is accepted and recorded with no item attribution whatsoever on the REAL pipeline (item field state=$ITEM_FIELD_UNTAGGED)"
 fi
+fi  # end of PART A (consumer superproject present)
 
 # =============================================================================
 # PART B — ingest: cache hits are counted, not dropped (plan T-A06 (2)(b))
@@ -756,7 +835,9 @@ else
     needle_check "cache_hits fixture does not fabricate an absent value (999999)"            0 "$(grep -Fq '999999' "$CACHE_FIX" && echo 1 || echo 0)"
     EXPECTED_CACHE_READ_SUM=1200
     EXPECTED_CACHE_CREATION_SUM=1200
-    ok "fixture computed (Python, deterministic): sum(cache_read_input_tokens)=$EXPECTED_CACHE_READ_SUM sum(cache_creation_input_tokens)=$EXPECTED_CACHE_CREATION_SUM across the fixture's 2 assistant turns (1 cold-cache write + 1 warm-cache read)"
+    # R4-M2: these are hand-derived literals, nothing was computed here, so
+    # this line is a note, not a PASS.
+    note "fixture expectation (hand-derived literals) (Python, deterministic): sum(cache_read_input_tokens)=$EXPECTED_CACHE_READ_SUM sum(cache_creation_input_tokens)=$EXPECTED_CACHE_CREATION_SUM across the fixture's 2 assistant turns (1 cold-cache write + 1 warm-cache read)"
 
     if [ -f "$TRANSCRIPT_INGEST" ]; then
         DB="$WORK/telemetry_b.db"
@@ -1367,7 +1448,9 @@ echo "=== PART F: item= tag prefix is configurable (not hardcoded 'ATM-') ==="
 # mechanism name" transcript_ingest.py and dispatch_stamp.sh agree on is not
 # a fabrication -- both files MUST literally mention the SAME env var names.
 DISPATCH_STAMP_MENTIONS_EXTRA="$(grep -c 'FC_DISPATCH_EXTRA_ITEM_PREFIXES' "$DISPATCH_STAMP" 2>/dev/null || echo 0)"
-INGEST_MENTIONS_EXTRA="$(grep -c 'FC_DISPATCH_EXTRA_ITEM_PREFIXES' "$TRANSCRIPT_INGEST" 2>/dev/null || echo 0)"
+# R4-M1 (T048 restart round-1): a never-asserted INGEST_MENTIONS_EXTRA grep
+# was deleted here; the ingest side of the extra-prefix mechanism is proven
+# by behaviour in F2 below and in PART H (lowercase extra prefix).
 needle_check "dispatch_stamp.sh (T036) genuinely defines the FC_DISPATCH_EXTRA_ITEM_PREFIXES mechanism (control needle: the real file, not an invented name)" 1 "$([ "${DISPATCH_STAMP_MENTIONS_EXTRA:-0}" -gt 0 ] && echo 1 || echo 0)"
 needle_check "a FABRICATED, distinct env-var name is NOT present in dispatch_stamp.sh" 0 "$(grep -c 'FC_DISPATCH_SOME_NAME_THAT_DOES_NOT_EXIST' "$DISPATCH_STAMP" 2>/dev/null | grep -qv '^0$' && echo 1 || echo 0)"
 
@@ -1527,6 +1610,8 @@ fi
 # evaluate TRUE (the real, intended skip-bypass still works).
 echo
 echo "-- PART F-NEEDLE-AGGREGATE (M-a): the 'PART F HOLDS' aggregate's BLIND-awareness is genuinely load-bearing --"
+# single-quoted text is a literal regex/marker matched verbatim against this file's own source, never meant to expand
+# shellcheck disable=SC2016
 _PARTF_COND_ANCHOR_START='^        if \[ "\$RC_F1" -eq 0 \] && \[ -z "\${UNCONFIGURED_ITEM-UNSET}" \]'
 _PARTF_COND_ANCHOR_END='^.*; }; }; then$'
 _PARTF_SELF="${BASH_SOURCE[0]:-$0}"
@@ -1562,6 +1647,8 @@ if [ "${_PARTF_COND_OCCURRENCES:-0}" -ne 1 ]; then
     bad "PART F-NEEDLE-AGGREGATE setup failed: the 'PART F HOLDS' condition's anchor text was found ${_PARTF_COND_OCCURRENCES:-0} time(s) in this file (want exactly 1) -- cannot safely extract it for mutation-discrimination; the condition text this file's own PART F block uses may have drifted, investigate before trusting this guard"
 else
     _PARTF_FIXED_COND="$(sed -n "/${_PARTF_COND_ANCHOR_START}/,/${_PARTF_COND_ANCHOR_END}/p" "$_PARTF_SELF")"
+    # single-quoted text is a literal regex/marker matched verbatim against this file's own source, never meant to expand
+    # shellcheck disable=SC2016
     _PARTF_BLIND_MARKER=' && [ "${DERIVED_DEFAULT_PREFIX_BLIND:-0}" -eq 0 ]'
     _PARTF_MUTATED_COND="$(python3 -c '
 import sys
@@ -1624,7 +1711,11 @@ sys.stdout.write(cond.replace(marker, "", 1))
                 UNCONFIGURED_ITEM="$unconf"
                 CONFIGURED_ITEM="$conf"
                 unset ATM_STILL_WORKS 2>/dev/null || true
+                # intentional: the eval harness sets these only inside a subshell to evaluate the condition under a synthetic state; the real outer values are assigned separately above
+                # shellcheck disable=SC2030
                 DERIVED_DEFAULT_PREFIX="$derived"
+                # intentional: the eval harness sets these only inside a subshell to evaluate the condition under a synthetic state; the real outer values are assigned separately above
+                # shellcheck disable=SC2030
                 DERIVED_DEFAULT_PREFIX_BLIND="$blind"
                 eval "$cond"$'\n  echo TOOK_TRUE\nelse\n  echo TOOK_FALSE\nfi'
             )
@@ -1859,14 +1950,19 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
             | tr '[:upper:]' '[:lower:]' \
             | sed -E 's/_+/_/g; s/^_//; s/_$//')"
     fi
-    needle_check "PROOF the I1 precondition is still real at this exact cwd: the OLD, pre-S8, un-anchored 'git rev-parse --show-toplevel' genuinely returns the WRONG (constitution-submodule-own) root from inside \$HERE, not the real atmosphere project root" 1 "$([ "$OLD_BUGGY_ROOT" = "$REPO_ROOT/constitution" ] && echo 1 || echo 0)"
-    needle_check "PROOF continued: that wrong root's own snake_case name ('${OLD_BUGGY_PREFIX:-<empty>}') is genuinely 'constitution', a real, non-coincidental divergence from the real project's 'atmosphere' prefix (never a false alarm)" 1 "$([ "$OLD_BUGGY_PREFIX" = "constitution" ] && echo 1 || echo 0)"
     I1_PRECONDITION_REAL=0
-    if [ "$OLD_BUGGY_ROOT" = "$REPO_ROOT/constitution" ] && [ "$OLD_BUGGY_PREFIX" = "constitution" ]; then
-        I1_PRECONDITION_REAL=1
-        ok "control fact established: a release_prefix.sh built on the OLD, un-anchored primary mechanism would derive 'constitution' (hence the WRONG item-tag prefix 'CON') from exactly the cwd (\$HERE) the real assertion below uses — proving that assertion is a genuine, non-vacuous regression guard for the I1 defect class, not a test of an already-impossible precondition"
+    if [ -z "$REPO_ROOT" ]; then
+        skip "PART F7 I1 precondition: a standalone constitution clone has no superproject, so the embedded-layout cwd defect cannot occur here"
     else
-        bad "cannot establish the I1 precondition fact at this cwd (old_root='$OLD_BUGGY_ROOT' old_prefix='$OLD_BUGGY_PREFIX') — investigate before trusting the real assertion below as a genuine regression guard"
+        needle_check "PROOF the I1 precondition is still real at this exact cwd: the OLD, pre-S8, un-anchored 'git rev-parse --show-toplevel' genuinely returns the WRONG (constitution-submodule-own) root from inside \$HERE, not the real atmosphere project root" 1 "$([ "$OLD_BUGGY_ROOT" = "$CONST_TOPLEVEL" ] && echo 1 || echo 0)"
+        needle_check "PROOF continued: that wrong root's own snake_case name ('${OLD_BUGGY_PREFIX:-<empty>}') is genuinely 'constitution', a real, non-coincidental divergence from the real project's 'atmosphere' prefix (never a false alarm)" 1 "$([ "$OLD_BUGGY_PREFIX" = "constitution" ] && echo 1 || echo 0)"
+        I1_PRECONDITION_REAL=0
+        if [ "$OLD_BUGGY_ROOT" = "$CONST_TOPLEVEL" ] && [ "$OLD_BUGGY_PREFIX" = "constitution" ]; then
+            I1_PRECONDITION_REAL=1
+            ok "control fact established: a release_prefix.sh built on the OLD, un-anchored primary mechanism would derive 'constitution' (hence the WRONG item-tag prefix 'CON') from exactly the cwd (\$HERE) the real assertion below uses — proving that assertion is a genuine, non-vacuous regression guard for the I1 defect class, not a test of an already-impossible precondition"
+        else
+            bad "cannot establish the I1 precondition fact at this cwd (old_root='$OLD_BUGGY_ROOT' old_prefix='$OLD_BUGGY_PREFIX') — investigate before trusting the real assertion below as a genuine regression guard"
+        fi
     fi
 
     # F7-real: the REAL, UNMODIFIED transcript_ingest.py, invoked with its
@@ -1878,7 +1974,11 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
     # affect fixture resolution — only the internal prefix-derivation
     # subprocess chain is under test here.
     if [ -f "$PARENT_FIX" ]; then
+        # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+        # shellcheck disable=SC2031
         if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
+            # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+            # shellcheck disable=SC2031
             skip_prefix_mismatch "PART F7's real-ingest assertion assumes this checkout's own, genuinely UNCONFIGURED default item-tag prefix (read from its own .env via release_prefix.sh, the SAME mechanism F7's env -u's already force) is 'ATM' so that the PART D fixture's real item=ATM-9999 tag attributes end-to-end; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead — this test assumes an ATM-prefixed checkout, so F7's real end-to-end verification is honestly skipped here (not pass, not fail). The I1 precondition-reality proof above (OLD_BUGGY_ROOT / OLD_BUGGY_PREFIX / I1_PRECONDITION_REAL) tests the git-submodule-boundary defect class itself — a structural fact about this checkout's directory layout, never about any project's configured item-tag prefix — and is unaffected by this skip."
         else
         DB_F7="$WORK/telemetry_f7.db"
@@ -1934,11 +2034,18 @@ if [ -f "$TRANSCRIPT_INGEST" ]; then
     # -- never an assumed-broken fixture; HARNESS-ONLY proof the value is a
     # genuine defect trigger, never trusted downstream by itself (exactly
     # like has_item_tag()'s documented role).
-    BAD_RE='ATM-[0-9'
-    G1_RAISES="$(python3 -c "
-import re
+    # T048 restart round-1: the value must be invalid INSIDE the real
+    # tool's own template (ITEM_TAG_TEMPLATE, read from the module, never
+    # re-typed here). 'ATM-[0-9' stopped being invalid once the template
+    # gained its right boundary '(?![A-Za-z0-9_])', whose ']' closes the
+    # stray '['; an unbalanced '(' is invalid in any surrounding text.
+    BAD_RE='ATM-('
+    G1_RAISES="$(cd "$WORK" && python3 -c "
+import re, sys
+sys.path.insert(0, '$(dirname "$TRANSCRIPT_INGEST")')
+import transcript_ingest as ti
 try:
-    re.compile(r'(?:^|\s)item=(%s|\?)' % '$BAD_RE')
+    re.compile(ti.ITEM_TAG_TEMPLATE % '$BAD_RE')
     print(0)
 except re.error:
     print(1)
@@ -1960,7 +2067,11 @@ except re.error:
     # purely environmental reason. The two needle_checks that follow (the
     # stderr WARNING naming the invalid value) are prefix-independent and
     # stay unaffected by this skip.
+    # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+    # shellcheck disable=SC2031
     if [ "$DERIVED_DEFAULT_PREFIX" != "ATM" ]; then
+        # reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+        # shellcheck disable=SC2031
         skip_prefix_mismatch "G1's fallback-match needle_check (probing item=ATM-4242 against the derived-default fallback regex) assumes this checkout's own UNCONFIGURED default item-tag prefix is 'ATM'; got derived prefix '$DERIVED_DEFAULT_PREFIX' instead -- this specific needle_check is honestly skipped here (not pass, not fail), purely for an environmental reason; the fail-safe's no-crash + stderr-warning properties are unaffected by this skip and are still verified for real immediately below"
     else
         needle_check "despite the invalid regex, _build_item_tag_re() does NOT crash and still matches a genuine ATM-<digits> tag via the derived-default fallback" 1 "$G1_MATCH"
@@ -1987,7 +2098,7 @@ src_path, dst_path = sys.argv[1], sys.argv[2]
 src = open(src_path, encoding="utf-8").read()
 OLD = (
     '    try:\n'
-    '        return re.compile(r"(?:^|\\s)item=(%s|\\?)" % value_re)\n'
+    '        return re.compile(ITEM_TAG_TEMPLATE % value_re, re.ASCII)\n'
     '    except re.error as exc:\n'
     '        print(\n'
     '            "transcript_ingest: WARNING: the configured item-tag pattern "\n'
@@ -1999,9 +2110,9 @@ OLD = (
     '            file=sys.stderr,\n'
     '        )\n'
     '        fallback_prefix = _fc_default_item_prefix()\n'
-    '        return re.compile(r"(?:^|\\s)item=((?:%s)-[0-9]+|\\?)" % fallback_prefix)\n'
+    '        return re.compile(ITEM_TAG_TEMPLATE % ("(?:%s)-[0-9]+" % fallback_prefix), re.ASCII)\n'
 )
-NEW = '    return re.compile(r"(?:^|\\s)item=(%s|\\?)" % value_re)\n'
+NEW = '    return re.compile(ITEM_TAG_TEMPLATE % value_re, re.ASCII)\n'
 if src.count(OLD) != 1:
     sys.stderr.write("MUTATION_SETUP_FAILED matches=%d\n" % src.count(OLD))
     sys.exit(2)
@@ -2135,6 +2246,613 @@ else
     bad "PART G1-G2 UNMET: transcript_ingest.py absent -- the two fail-safe code paths (invalid FC_DISPATCH_ITEM_ID_RE, missing release_prefix.sh) are unverified"
 fi
 
+# =============================================================================
+# PART H — T048 restart round-1 remediation (R3-F1/F2/F5, R4-I4): ingest
+#          behaviours driven through the REAL `transcript_ingest.py ingest`
+#          CLI on fixtures generated here, checked with sqlite3.
+# =============================================================================
+# Ground truth (re-derived 2026-10-08 from the 300 newest real transcripts on
+# this host, scratch scan, not trusted from the review): 12,028 msg ids
+# appear on more than one line; 1,357 of them carry DIFFERENT usage between
+# lines; the only field that differs is output_tokens; it never decreases
+# along the file, and the last line always carries the maximum. Control
+# needle: the same scan saw the 12,028 duplicates, so it can see them. The
+# fixtures below reproduce that shape (one msg id, several lines, growing
+# output_tokens).
+#
+# Every fixture uses the neutral item prefix QZT, configured through the
+# tool's own FC_DISPATCH_ITEM_ID_RE / FC_DISPATCH_EXTRA_ITEM_PREFIXES env vars,
+# so no case here depends on this checkout's own project prefix (§11.4.28).
+echo "=== PART H: streamed turns, re-ingest, tolerant decode, partial usage, dispatch conflicts, tag boundaries ==="
+
+if [ ! -f "$TRANSCRIPT_INGEST" ]; then
+    bad "PART H UNMET: transcript_ingest.py absent"
+else
+H_DIR="$WORK/part_h"
+mkdir -p "$H_DIR"
+python3 - "$H_DIR" <<'PYEOF'
+import json, os, sys
+d = sys.argv[1]
+
+def asst(msg_id, usage, agent=None, sess="h-sess", uuid=None):
+    rec = {"type": "assistant", "uuid": uuid or ("u-" + msg_id),
+           "timestamp": "2026-10-08T00:00:00Z",
+           "message": {"id": msg_id, "model": "fixture-model",
+                       "content": [{"type": "text", "text": "fixture"}]}}
+    if usage is not None:
+        rec["message"]["usage"] = usage
+    if agent:
+        rec["agentId"] = agent
+    else:
+        rec["sessionId"] = sess
+    return json.dumps(rec)
+
+def dispatch(agent, desc, sess="h-sess"):
+    return json.dumps({"type": "user", "sessionId": sess,
+                       "toolUseResult": {"agentId": agent, "description": desc}})
+
+def u(i, o, cr, cc):
+    return {"input_tokens": i, "output_tokens": o,
+            "cache_read_input_tokens": cr, "cache_creation_input_tokens": cc}
+
+def write(path, lines):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+
+# H1 streamed turn, in file order (the real shape): output 5 -> 40 -> 120.
+write(d + "/h1/stream.jsonl", [asst("msg_h1", u(3, n, 1000, 20)) for n in (5, 40, 120)])
+# H1b non-monotone order (never seen on real data; a true id collision).
+write(d + "/h1b/outoforder.jsonl", [asst("msg_h1b", u(3, n, 1000, 20)) for n in (120, 5)])
+# H1c re-ingest of a growing live transcript: first two lines, then three.
+write(d + "/h1c/grow.jsonl", [asst("msg_h1c", u(3, n, 1000, 20)) for n in (5, 40)])
+# H2 tolerant decode: valid line, a line with one invalid byte inside a
+# string (usage intact), and a tail line cut in the middle of a 2-byte
+# UTF-8 character (an interrupted write).
+os.makedirs(d + "/h2", exist_ok=True)
+good = asst("msg_h2a", u(1, 2, 3, 4)).encode("utf-8")
+bad_inner = asst("msg_h2b", u(5, 6, 7, 8)).replace('"fixture"', '"fixtureXX"', 1).encode("utf-8")
+bad_inner = bad_inner.replace(b"fixtureXX", b"fixture\xff\xfe", 1)
+cut = asst("msg_h2c", u(9, 9, 9, 9)).replace('"fixture"', '"fixéture"', 1).encode("utf-8")
+cut = cut[: cut.index(b"\xc3") + 1]
+with open(d + "/h2/trunc.jsonl", "wb") as fh:
+    fh.write(good + b"\n" + bad_inner + b"\n" + cut)
+# H3 partial usage block (input/output only) and an empty usage block.
+write(d + "/h3/partial.jsonl", [asst("msg_h3", {"input_tokens": 11, "output_tokens": 22}),
+                                asst("msg_h3e", {})])
+# H4 one agent dispatched twice with the SAME item, one with CONFLICTING
+# items, one honest item=?, and three tag-boundary cases.
+parent = d + "/h4/parent.jsonl"
+write(parent, [
+    dispatch("agsame", "(T1/main - a) item=QZT-41 first"),
+    dispatch("agsame", "(T1/main - a) item=QZT-41 resumed"),
+    dispatch("agconf", "(T1/main - a) item=QZT-51 first"),
+    dispatch("agconf", "(T1/main - a) item=QZT-52 resumed"),
+    dispatch("agq", "(T1/main - a) item=? honest unknown"),
+    dispatch("agfused", "(T1/main - a) xitem=QZT-61 fused"),
+    dispatch("agtail", "(T1/main - a) item=QZT-62x trailing garbage"),
+    dispatch("agcomma", "(T1/main - a) item=QZT-63, comma"),
+    dispatch("aglower", "(T1/main - a) item=QZT-64 lowercase-extra"),
+])
+for ag in ("agsame", "agconf", "agq", "agfused", "agtail", "agcomma", "aglower"):
+    write(d + "/h4/parent/subagents/agent-%s.jsonl" % ag, [asst("msg_h4_" + ag, u(1, 1, 1, 1), agent=ag)])
+PYEOF
+
+# h_ingest <fixture> <db> [env assignments...] -- the REAL CLI, ambient FC_*
+# and HELIX_RELEASE_PREFIX stripped so only the case's own env applies.
+h_ingest() {
+    local fx="$1" db="$2"; shift 2
+    env -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u FC_DISPATCH_ITEM_ID_RE -u HELIX_RELEASE_PREFIX \
+        "$@" python3 "$TRANSCRIPT_INGEST" ingest "$fx" --db "$db"
+}
+h_q() { sqlite3 -noheader "$1" "$2"; }
+# h_sum <file> <key> -- the value of one whole `key=value` token of the
+# ingest summary line. V1-M6 (T048 restart round 2): these counts used to be
+# checked with `grep -q "key=2"`, which also passes on "key=20".
+h_sum() {
+    awk -v k="$2" '/^transcript_ingest: files=/ { for (i = 1; i <= NF; i++) if (index($i, k "=") == 1) print substr($i, length(k) + 2) }' "$1"
+}
+
+# ---- H1: streamed turn keeps the FINAL (maximum) usage, not the first line --
+DB_H1="$WORK/h1.db"
+h_ingest "$H_DIR/h1/stream.jsonl" "$DB_H1" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >"$WORK/h1.out" 2>"$WORK/h1.err"
+RC_H1=$?
+needle_check "H1 control: the streamed-turn fixture really carries 3 lines for one msg id" 1 "$([ "$(grep -c '"msg_h1"' "$H_DIR/h1/stream.jsonl")" = 3 ] && echo 1 || echo 0)"
+H1_ROWS="$(h_q "$DB_H1" "SELECT COUNT(*) FROM transcript_usage_events WHERE msg_id='msg_h1';")"
+H1_OUT="$(h_q "$DB_H1" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_h1';")"
+H1_TOT="$(h_q "$DB_H1" "SELECT total_tokens FROM transcript_usage_events WHERE msg_id='msg_h1';")"
+if [ "$RC_H1" -eq 0 ] && [ "$H1_ROWS" = 1 ] && [ "$H1_OUT" = 120 ] && [ "$H1_TOT" = 1143 ]; then
+    ok "H1 (R3-F1): a streamed turn (output 5 -> 40 -> 120 on one msg id) lands as ONE row with output_tokens=120 and total=1143, not the first line's 5"
+else
+    bad "H1 (R3-F1): rc=$RC_H1 rows=$H1_ROWS output=$H1_OUT total=$H1_TOT (want rc=0 rows=1 output=120 total=1143) -- the first-line-wins undercount is back"
+fi
+# Any WARNING naming msg_h1 counts (not a specific wording), so a reworded
+# warning cannot make this check pass vacuously.
+if grep "WARNING" "$WORK/h1.err" | grep -q "msg_h1"; then
+    bad "H1: a normal growing stream printed a duplicate-usage warning ($(head -c 300 "$WORK/h1.err")) -- streaming growth is the expected shape, not an anomaly"
+else
+    ok "H1: a normal growing stream merges silently (no duplicate-usage warning on stderr)"
+fi
+
+# ---- H1b: out-of-order duplicate keeps the per-field max AND warns -----------
+DB_H1B="$WORK/h1b.db"
+h_ingest "$H_DIR/h1b/outoforder.jsonl" "$DB_H1B" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >/dev/null 2>"$WORK/h1b.err"
+H1B_OUT="$(h_q "$DB_H1B" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_h1b';")"
+if [ "$H1B_OUT" = 120 ]; then
+    ok "H1b (R3-F1/R4-M6): out-of-order duplicate (120 then 5) keeps output_tokens=120 -- neither first-line-wins nor last-line-wins"
+else
+    bad "H1b (R3-F1/R4-M6): output_tokens=$H1B_OUT (want 120) -- a duplicate line overwrote or hid the larger cumulative count"
+fi
+if grep -q "msg_h1b" "$WORK/h1b.err" && grep -q "WARNING" "$WORK/h1b.err"; then
+    ok "H1b (R4-I4 M5): a usage value that DECREASES on a later line is reported on stderr by msg id"
+else
+    bad "H1b (R4-I4 M5): no WARNING naming msg_h1b on stderr for a decreasing duplicate (stderr: $(head -c 300 "$WORK/h1b.err"))"
+fi
+
+# ---- H1c: re-ingesting a transcript that grew since the last run ------------
+DB_H1C="$WORK/h1c.db"
+h_ingest "$H_DIR/h1c/grow.jsonl" "$DB_H1C" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >/dev/null 2>&1
+H1C_FIRST="$(h_q "$DB_H1C" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_h1c';")"
+python3 -c "
+import json,sys
+p=sys.argv[1]
+line=open(p).read().splitlines()[-1]
+r=json.loads(line); r['message']['usage']['output_tokens']=120
+open(p,'a').write(json.dumps(r)+'\n')" "$H_DIR/h1c/grow.jsonl"
+h_ingest "$H_DIR/h1c/grow.jsonl" "$DB_H1C" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >/dev/null 2>&1
+H1C_SECOND="$(h_q "$DB_H1C" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_h1c';")"
+H1C_ROWS="$(h_q "$DB_H1C" "SELECT COUNT(*) FROM transcript_usage_events WHERE msg_id='msg_h1c';")"
+if [ "$H1C_FIRST" = 40 ] && [ "$H1C_SECOND" = 120 ] && [ "$H1C_ROWS" = 1 ]; then
+    ok "H1c: re-ingest after the live transcript grew updates the existing row (40 -> 120, still one row)"
+else
+    bad "H1c: first run output=$H1C_FIRST (want 40), second run output=$H1C_SECOND (want 120), rows=$H1C_ROWS (want 1) -- a second ingest froze the stale count"
+fi
+
+# ---- H2: invalid UTF-8 never discards the whole run ---------------------------
+DB_H2="$WORK/h2.db"
+h_ingest "$H_DIR/h2/trunc.jsonl" "$DB_H2" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >"$WORK/h2.out" 2>"$WORK/h2.err"
+RC_H2=$?
+needle_check "H2 control: the fixture really is invalid UTF-8 (strict decode fails)" 1 "$(python3 -c "import sys; open(sys.argv[1],'rb').read().decode('utf-8')" "$H_DIR/h2/trunc.jsonl" 2>/dev/null && echo 0 || echo 1)"
+H2_A="$(h_q "$DB_H2" "SELECT total_tokens FROM transcript_usage_events WHERE msg_id='msg_h2a';" 2>/dev/null)"
+H2_B="$(h_q "$DB_H2" "SELECT total_tokens FROM transcript_usage_events WHERE msg_id='msg_h2b';" 2>/dev/null)"
+H2_C="$(h_q "$DB_H2" "SELECT COUNT(*) FROM transcript_usage_events WHERE msg_id='msg_h2c';" 2>/dev/null)"
+if [ "$RC_H2" -eq 0 ] && [ "$H2_A" = 10 ] && [ "$H2_B" = 26 ] && [ "$H2_C" = 0 ]; then
+    ok "H2 (R3-F2): invalid UTF-8 (a bad byte inside a string, and a tail line cut mid-character) gives rc=0, keeps both valid turns (totals 10 and 26) and skips only the cut line"
+else
+    bad "H2 (R3-F2): rc=$RC_H2 msg_h2a.total=$H2_A (want 10) msg_h2b.total=$H2_B (want 26) msg_h2c.rows=$H2_C (want 0); stderr: $(head -c 300 "$WORK/h2.err")"
+fi
+# Class "absent evidence read as valid": a run that skipped lines must say
+# so in its own summary line, not only in scattered warnings.
+if [ "$(h_sum "$WORK/h2.out" invalid_utf8_lines)" = 2 ] && [ "$(h_sum "$WORK/h2.out" unparseable_lines)" = 1 ] && [ "$(h_sum "$WORK/h2.out" unreadable_files)" = 0 ]; then
+    ok "H2: the summary line counts what was not read cleanly (invalid_utf8_lines=2 unparseable_lines=1 unreadable_files=0)"
+else
+    bad "H2: the summary line does not count skipped/repaired lines: $(cat "$WORK/h2.out")"
+fi
+H2U_DIR="$WORK/part_h/h2u"; mkdir -p "$H2U_DIR"
+cp "$H_DIR/h1/stream.jsonl" "$H2U_DIR/readable.jsonl"; cp "$H_DIR/h1/stream.jsonl" "$H2U_DIR/locked.jsonl"; chmod 000 "$H2U_DIR/locked.jsonl"
+if [ -r "$H2U_DIR/locked.jsonl" ]; then
+    skip "H2u: chmod 000 does not make the file unreadable for this user (running as root?), the unreadable-file count cannot be exercised"
+else
+    h_ingest "$H2U_DIR" "$WORK/h2u.db" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >"$WORK/h2u.out" 2>/dev/null
+    if [ "$(h_sum "$WORK/h2u.out" unreadable_files)" = 1 ]; then
+        ok "H2u: an unreadable transcript is counted in the summary (unreadable_files=1), not silently dropped"
+    else
+        bad "H2u: an unreadable transcript is not counted in the summary: $(cat "$WORK/h2u.out")"
+    fi
+fi
+chmod 600 "$H2U_DIR/locked.jsonl" 2>/dev/null
+if grep -q "invalid UTF-8" "$WORK/h2.err"; then
+    ok "H2: the invalid-UTF-8 line is reported on stderr, not repaired silently"
+else
+    bad "H2: no 'invalid UTF-8' warning on stderr (stderr: $(head -c 300 "$WORK/h2.err"))"
+fi
+
+# ---- H3: a partial or empty usage block is not labelled measured -------------
+DB_H3="$WORK/h3.db"
+h_ingest "$H_DIR/h3/partial.jsonl" "$DB_H3" FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' >/dev/null 2>&1
+H3_ROW="$(h_q "$DB_H3" "SELECT usage_status||'|'||IFNULL(input_tokens,'N')||'|'||IFNULL(output_tokens,'N')||'|'||IFNULL(total_tokens,'N') FROM transcript_usage_events WHERE msg_id='msg_h3';")"
+H3_MI="$(h_q "$DB_H3" "SELECT missing_instrument FROM transcript_usage_events WHERE msg_id='msg_h3';")"
+H3E_ROW="$(h_q "$DB_H3" "SELECT usage_status||'|'||IFNULL(total_tokens,'N') FROM transcript_usage_events WHERE msg_id='msg_h3e';")"
+if [ "$H3_ROW" = "UNMEASURED|11|22|N" ] && printf '%s' "$H3_MI" | grep -q cache_read_input_tokens && printf '%s' "$H3_MI" | grep -q cache_creation_input_tokens && printf '%s' "$H3_MI" | grep -Fq "$H_DIR/h3/partial.jsonl"; then
+    ok "H3 (R3-F5/R4-M9/M10): a partial usage block is UNMEASURED with total NULL, keeps the two counts it has (11, 22), and missing_instrument names both absent fields and the source file"
+else
+    bad "H3 (R3-F5): row=$H3_ROW (want UNMEASURED|11|22|N) missing_instrument='$H3_MI' (want both cache field names and the file path)"
+fi
+if [ "$H3E_ROW" = "UNMEASURED|N" ]; then
+    ok "H3: an empty usage block {} is UNMEASURED with total NULL"
+else
+    bad "H3: empty usage block row=$H3E_ROW (want UNMEASURED|N)"
+fi
+
+# ---- H4: dispatch map, item=?, token boundaries, lowercase extra prefix -------
+DB_H4="$WORK/h4.db"
+h_ingest "$H_DIR/h4/parent.jsonl" "$DB_H4" FC_DISPATCH_EXTRA_ITEM_PREFIXES=qzt >"$WORK/h4.out" 2>"$WORK/h4.err"
+RC_H4=$?
+h4_item() { h_q "$DB_H4" "SELECT IFNULL(item_id,'NULL') FROM transcript_usage_events WHERE msg_id='msg_h4_$1';"; }
+needle_check "H4 control: all 7 subagent rows landed (rc=$RC_H4)" 1 "$([ "$RC_H4" -eq 0 ] && [ "$(h_q "$DB_H4" "SELECT COUNT(*) FROM transcript_usage_events WHERE agent_id IS NOT NULL;")" = 7 ] && echo 1 || echo 0)"
+H4_SAME="$(h4_item agsame)"; H4_CONF="$(h4_item agconf)"; H4_Q="$(h4_item agq)"
+H4_FUSED="$(h4_item agfused)"; H4_TAIL="$(h4_item agtail)"; H4_COMMA="$(h4_item agcomma)"; H4_LOWER="$(h4_item aglower)"
+if [ "$H4_SAME" = "QZT-41" ]; then
+    ok "H4 (R4-I4 M1): an agent dispatched twice with the SAME item stays attributed to QZT-41"
+else
+    bad "H4: agent dispatched twice with the same item gave item_id=$H4_SAME (want QZT-41)"
+fi
+if [ "$H4_CONF" = "NULL" ] && grep -q "agconf" "$WORK/h4.err" && grep -q "QZT-51" "$WORK/h4.err" && grep -q "QZT-52" "$WORK/h4.err"; then
+    ok "H4 (R4-I4 M1): an agent dispatched under two DIFFERENT items is left unattributed (NULL) and both ids are reported on stderr -- neither first-wins nor last-wins"
+else
+    bad "H4 (R4-I4 M1): conflicting dispatches gave item_id=$H4_CONF (want NULL) or no stderr warning naming agconf/QZT-51/QZT-52 (stderr: $(head -c 300 "$WORK/h4.err"))"
+fi
+if [ "$H4_Q" = "NULL" ]; then
+    ok "H4 (R4-I4 M3): an honest item=? dispatch gives item_id NULL, never the string '?'"
+else
+    bad "H4 (R4-I4 M3): item=? dispatch gave item_id=$H4_Q (want NULL)"
+fi
+if [ "$H4_FUSED" = "NULL" ] && [ "$H4_TAIL" = "NULL" ] && [ "$H4_COMMA" = "QZT-63" ]; then
+    ok "H4 (R4-I4 M2b, R3 boundary note): 'xitem=QZT-61' and 'item=QZT-62x' are not attributed; 'item=QZT-63,' is"
+else
+    bad "H4 boundaries: xitem=QZT-61 -> $H4_FUSED (want NULL), item=QZT-62x -> $H4_TAIL (want NULL), item=QZT-63, -> $H4_COMMA (want QZT-63)"
+fi
+if [ "$H4_LOWER" = "QZT-64" ]; then
+    ok "H4 (R4-I4 M13): FC_DISPATCH_EXTRA_ITEM_PREFIXES=qzt (lowercase) is upper-cased and attributes item=QZT-64"
+else
+    bad "H4 (R4-I4 M13): lowercase extra prefix gave item_id=$H4_LOWER (want QZT-64)"
+fi
+# Parity with dispatch_stamp.sh on the SAME env and description (both real tools).
+H4_DS="$(printf '%s' '{"tool_name":"Agent","tool_input":{"description":"(T1/main - a) item=QZT-64 lowercase-extra"}}' \
+    | env -u FC_DISPATCH_ITEM_ID_RE FC_DISPATCH_EXTRA_ITEM_PREFIXES=qzt bash "$DISPATCH_STAMP" --extract-item-id)"
+if [ "$H4_DS" = "$H4_LOWER" ] && [ -n "$H4_DS" ]; then
+    ok "H4: dispatch_stamp.sh --extract-item-id agrees with the ingest on the lowercase extra prefix ($H4_DS)"
+else
+    bad "H4: dispatch_stamp.sh extracted '$H4_DS' but the ingest attributed '$H4_LOWER' for the same description and env"
+fi
+fi
+
+# =============================================================================
+# PART I — T048 restart round-2 remediation (V1-I1, V1-I2, V1-I3, V1-M1,
+#          V1-M2): concurrent ingest, path-spelling-independent attribution,
+#          merge/conflict/boundary branches, summary-vs-DB agreement, and the
+#          non-ASCII tag set. Every case drives the REAL `transcript_ingest.py
+#          ingest` CLI (and, for parity, the REAL dispatch_stamp.sh) on
+#          fixtures generated here; results are read back with sqlite3.
+# =============================================================================
+echo "=== PART I: concurrency, path spelling, merge branches, summary counts, non-ASCII tags ==="
+
+
+if [ ! -f "$TRANSCRIPT_INGEST" ]; then
+    bad "PART I UNMET: transcript_ingest.py absent"
+else
+I_DIR="$WORK/part_i"
+mkdir -p "$I_DIR"
+# I4 case table: (description, expected item). The descriptions put non-ASCII
+# characters on both sides of the tag; the expected values are the ASCII
+# token rule both tools document (left: start or an ASCII space/tab/newline/
+# CR/FF/VT; right: end or anything but an ASCII letter, digit or '_').
+python3 - "$I_DIR/i4_cases.json" <<'PYEOF'
+import json, sys
+cases = [
+    ("(T1/main - a) item=QZT-12é tail", "QZT-12"),
+    ("(T1/main - a) item=QZT-7 t", ""),
+    ("(T1/main - a)\u001citem=QZT-7 t", ""),
+    ("(T1/main - a)\u001fitem=QZT-7 t", ""),
+    ("(T1/main - a)\u0085item=QZT-7 t", ""),
+    ("(T1/main - a) item=QZT-7 t", ""),
+    ("(T1/main - a)　item=QZT-7 t", ""),
+    ("(T1/main - a)\titem=QZT-8 t", "QZT-8"),
+    ("(T1/main - a) item=QZT-9 tail", "QZT-9"),
+    ("(T1/main - a) item=QZT-10_x", ""),
+    ("(T1/main - a) item=QZT-١٢ t", ""),
+    ("(T1/main - a)\u000bitem=QZT-11 t", "QZT-11"),
+    ("(T1/main - a)\u000citem=QZT-14 t", "QZT-14"),
+    ("(T1/main - a) item=QßT-5 t", "QßT-5"),
+    ("(T1/main - a) item=QZT-13", "QZT-13"),
+]
+json.dump(cases, open(sys.argv[1], "w"))
+PYEOF
+python3 - "$I_DIR" <<'PYEOF'
+import json, os, sys
+d = sys.argv[1]
+
+def asst(msg_id, usage, agent=None, sess="i-sess", absent=False):
+    rec = {"type": "assistant", "uuid": "u-" + msg_id,
+           "timestamp": "2026-10-08T00:00:00Z",
+           "message": {"id": msg_id, "model": "fixture-model",
+                       "content": [{"type": "text", "text": "fixture"}]}}
+    if not absent:
+        rec["message"]["usage"] = usage
+    if agent:
+        rec["agentId"] = agent
+    else:
+        rec["sessionId"] = sess
+    return json.dumps(rec)
+
+def dispatch(agent, desc, sess="i-sess"):
+    return json.dumps({"type": "user", "sessionId": sess,
+                       "toolUseResult": {"agentId": agent, "description": desc}})
+
+def u(i, o, cr, cc):
+    return {"input_tokens": i, "output_tokens": o,
+            "cache_read_input_tokens": cr, "cache_creation_input_tokens": cc}
+
+def write(path, lines):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+
+# I1: a large file and a small one sharing msg_i1_000000; the small one
+# carries the larger output count.
+write(d + "/i1/big.jsonl", [asst("msg_i1_%06d" % k, u(1, 5, 1, 1)) for k in range(30000)])
+write(d + "/i1/small.jsonl", [asst("msg_i1_000000", u(1, 99, 1, 1))])
+
+# I2: the parent's own turns msg_i2_pa / msg_i2_pb and a dispatch of agfork
+# tagged QZT-77; the forked subagent transcript has its own turn msg_i2_sa and
+# REPLAYS msg_i2_pa (same counts) and msg_i2_pb (larger output, so the merge
+# UPDATE path runs on a replayed parent turn).
+write(d + "/i2/sess.jsonl", [
+    asst("msg_i2_pa", u(2, 3, 4, 5)),
+    asst("msg_i2_pb", u(2, 5, 4, 5)),
+    dispatch("agfork", "(T1/main - a) item=QZT-77 fork"),
+])
+write(d + "/i2/sess/subagents/agent-agfork.jsonl", [
+    asst("msg_i2_pa", u(2, 3, 4, 5), agent="agfork"),
+    asst("msg_i2_pb", u(2, 50, 4, 5), agent="agfork"),
+    asst("msg_i2_sa", u(1, 1, 1, 1), agent="agfork"),
+])
+
+# I3: merge branches.
+write(d + "/i3/fill.jsonl", [asst("msg_i3_fill", {"input_tokens": 1, "output_tokens": 2}),
+                             asst("msg_i3_fill", u(1, 5, 3, 4))])
+write(d + "/i3/status.jsonl", [asst("msg_i3_st", u(1, 5, 3, 4)),
+                               asst("msg_i3_st", {"input_tokens": 1, "output_tokens": 40})])
+write(d + "/i3/decr.jsonl", [
+    asst("msg_i3_di", u(10, 5, 10, 10)), asst("msg_i3_di", u(9, 5, 10, 10)),
+    asst("msg_i3_dr", u(10, 5, 10, 10)), asst("msg_i3_dr", u(10, 5, 9, 10)),
+    asst("msg_i3_dc", u(10, 5, 10, 10)), asst("msg_i3_dc", u(10, 5, 10, 9)),
+])
+write(d + "/i3/nousage.jsonl", [asst("msg_i3_nu", None, absent=True),
+                                asst("msg_i3_eu", {})])
+write(d + "/i3/summary.jsonl", [
+    asst("msg_i3_s1", {"input_tokens": 1, "output_tokens": 2}),
+    asst("msg_i3_s1", u(1, 2, 3, 4)),
+    asst("msg_i3_s2", {"input_tokens": 1}),
+    asst("msg_i3_s3", u(1, 1, 1, 1)),
+])
+write(d + "/i3/sessconf.jsonl", [
+    dispatch("agsess", "(T1/main - a) item=QZT-81 first", sess="sess-one"),
+    dispatch("agsess", "(T1/main - a) item=QZT-81 resumed", sess="sess-two"),
+])
+write(d + "/i3/sessconf/subagents/agent-agsess.jsonl", [asst("msg_i3_sess", u(1, 1, 1, 1), agent="agsess")])
+
+# I4: one dispatch plus one subagent turn per non-ASCII case.
+cases = json.load(open(d + "/i4_cases.json"))
+write(d + "/i4/parent.jsonl", [dispatch("agna%02d" % k, desc) for k, (desc, _w) in enumerate(cases)])
+for k in range(len(cases)):
+    write(d + "/i4/parent/subagents/agent-agna%02d.jsonl" % k, [asst("msg_i4_%02d" % k, u(1, 1, 1, 1), agent="agna%02d" % k)])
+PYEOF
+I_GEN_RC=$?
+needle_check "PART I fixtures were generated (rc=$I_GEN_RC)" 1 "$([ "$I_GEN_RC" -eq 0 ] && [ -f "$I_DIR/i4/parent.jsonl" ] && echo 1 || echo 0)"
+
+# i_ingest <fixture-or-dir> <db> [env assignments...] -- the REAL CLI with
+# ambient FC_* / HELIX_RELEASE_PREFIX stripped; the item prefix is the
+# neutral QZT, configured through the tool's own override variable.
+i_ingest() {
+    local fx="$1" db="$2"; shift 2
+    env -u FC_DISPATCH_EXTRA_ITEM_PREFIXES -u FC_DISPATCH_ITEM_ID_RE -u HELIX_RELEASE_PREFIX \
+        FC_DISPATCH_ITEM_ID_RE='QZT-[0-9]+' "$@" python3 "$TRANSCRIPT_INGEST" ingest "$fx" --db "$db"
+}
+i_q() { sqlite3 -noheader "$1" "$2"; }
+# i_dump <db> -- every column of every row, ordered, as one text block.
+i_dump() { sqlite3 -noheader -separator '|' "$1" "SELECT * FROM transcript_usage_events ORDER BY msg_id, row_hash;"; }
+# i_counts <db> -- the counter/attribution columns only (identity columns
+# such as source_file depend on which concurrent run created a row first).
+i_counts() { sqlite3 -noheader -separator '|' "$1" "SELECT row_hash, msg_id, usage_status, IFNULL(input_tokens,'N'), IFNULL(output_tokens,'N'), IFNULL(cache_read_input_tokens,'N'), IFNULL(cache_creation_input_tokens,'N'), IFNULL(total_tokens,'N'), IFNULL(agent_id,'N'), IFNULL(item_id,'N'), IFNULL(session_id,'N') FROM transcript_usage_events ORDER BY row_hash;" | md5sum | cut -d' ' -f1; }
+
+# ---- I1 (V1-I1): two ingests on one DB at the same time --------------------
+# Barrier: run B is launched only once run A has an open write transaction
+# (its rollback journal or WAL file exists) and is still running, so B's
+# read-merge-write lands inside A's transaction window -- the exact window in
+# which the SELECT-then-INSERT code raised IntegrityError and lost B's rows.
+# Repeated 20 times; every trial must give rc=0 for both runs and the same
+# final DB as the two runs done one after the other.
+I1_REF="$WORK/i1_ref.db"
+i_ingest "$I_DIR/i1/big.jsonl" "$I1_REF" >/dev/null 2>&1
+i_ingest "$I_DIR/i1/small.jsonl" "$I1_REF" >/dev/null 2>&1
+I1_REF_SUM="$(i_counts "$I1_REF")"
+I1_REF_OUT="$(i_q "$I1_REF" "SELECT output_tokens FROM transcript_usage_events WHERE msg_id='msg_i1_000000';")"
+I1_REF_ROWS="$(i_q "$I1_REF" "SELECT COUNT(*) FROM transcript_usage_events;")"
+needle_check "I1 control: the sequential reference holds 30000 rows and keeps B's larger count (rows=$I1_REF_ROWS out=$I1_REF_OUT)" 1 "$([ "$I1_REF_ROWS" = 30000 ] && [ "$I1_REF_OUT" = 99 ] && echo 1 || echo 0)"
+I1_TRIALS=20; I1_GOOD=0; I1_OVERLAP=0; I1_DETAIL=""
+for t in $(seq 1 "$I1_TRIALS"); do
+    db="$WORK/i1_t$t.db"; rm -f "$db" "$db-journal" "$db-wal" "$db-shm"
+    ( i_ingest "$I_DIR/i1/big.jsonl" "$db" >"$WORK/i1a_$t.out" 2>"$WORK/i1a_$t.err"; echo $? >"$WORK/i1a_$t.rc" ) &
+    apid=$!
+    n=0
+    while [ ! -e "$db-journal" ] && [ ! -e "$db-wal" ] && [ "$n" -lt 1000 ]; do sleep 0.005; n=$((n + 1)); done
+    overlap=0
+    if kill -0 "$apid" 2>/dev/null && { [ -e "$db-journal" ] || [ -e "$db-wal" ]; }; then overlap=1; fi
+    i_ingest "$I_DIR/i1/small.jsonl" "$db" >"$WORK/i1b_$t.out" 2>"$WORK/i1b_$t.err"
+    brc=$?
+    wait "$apid"
+    arc="$(cat "$WORK/i1a_$t.rc" 2>/dev/null)"
+    I1_OVERLAP=$((I1_OVERLAP + overlap))
+    if [ "$arc" = 0 ] && [ "$brc" = 0 ] && [ "$(i_counts "$db")" = "$I1_REF_SUM" ]; then
+        I1_GOOD=$((I1_GOOD + 1))
+    else
+        I1_DETAIL="$I1_DETAIL t$t:A=$arc,B=$brc,overlap=$overlap,err=$(tail -n1 "$WORK/i1b_$t.err" | head -c 120)"
+    fi
+    rm -f "$db"
+done
+needle_check "I1 control: B really started inside A's open write transaction in at least 15 of $I1_TRIALS trials (got $I1_OVERLAP)" 1 "$([ "$I1_OVERLAP" -ge 15 ] && echo 1 || echo 0)"
+if [ "$I1_GOOD" = "$I1_TRIALS" ]; then
+    ok "I1 (V1-I1): $I1_TRIALS/$I1_TRIALS concurrent ingest pairs on one DB gave rc=0 for both runs and the same final rows as running them one after the other (no IntegrityError, no lost run, B's larger count kept)"
+else
+    bad "I1 (V1-I1): only $I1_GOOD/$I1_TRIALS concurrent ingest pairs were clean:$I1_DETAIL"
+fi
+
+# ---- I2 (V1-I2): attribution does not depend on how the path is spelled ----
+DB_I2R="$WORK/i2_rel.db"; DB_I2A="$WORK/i2_abs.db"; DB_I2D="$WORK/i2_dir.db"
+( cd "$I_DIR/i2" && i_ingest sess.jsonl "$DB_I2R" >"$WORK/i2r.out" 2>"$WORK/i2r.err" )
+i_ingest "$I_DIR/i2/sess.jsonl" "$DB_I2A" >"$WORK/i2a.out" 2>"$WORK/i2a.err"
+( cd "$I_DIR" && i_ingest ./i2/ "$DB_I2D" >"$WORK/i2d.out" 2>"$WORK/i2d.err" )
+I2_ROWS="$(i_q "$DB_I2A" "SELECT COUNT(*) FROM transcript_usage_events;")"
+needle_check "I2 control: the absolute-path run stored the 3 distinct turns (rows=$I2_ROWS)" 1 "$([ "$I2_ROWS" = 3 ] && echo 1 || echo 0)"
+if [ -n "$(i_dump "$DB_I2A")" ] && [ "$(i_dump "$DB_I2R")" = "$(i_dump "$DB_I2A")" ] && [ "$(i_dump "$DB_I2D")" = "$(i_dump "$DB_I2A")" ]; then
+    ok "I2 (V1-I2): 'ingest sess.jsonl' (relative), 'ingest /abs/sess.jsonl' and 'ingest ./i2/' (directory) give byte-identical DB rows, source_file included"
+else
+    bad "I2 (V1-I2): the DB depends on how the path is spelled -- relative: $(i_dump "$DB_I2R" | tr '\n' ';' | head -c 400) || absolute: $(i_dump "$DB_I2A" | tr '\n' ';' | head -c 400)"
+fi
+i2_attr() { i_q "$1" "SELECT IFNULL(agent_id,'-')||'/'||IFNULL(item_id,'-')||'/'||IFNULL(session_id,'-')||'/'||output_tokens FROM transcript_usage_events WHERE msg_id='$2';"; }
+for db in "$DB_I2R" "$DB_I2A" "$DB_I2D"; do
+    PA="$(i2_attr "$db" msg_i2_pa)"; PB="$(i2_attr "$db" msg_i2_pb)"; SA="$(i2_attr "$db" msg_i2_sa)"
+    if [ "$PA" = "-/-/i-sess/3" ] && [ "$PB" = "-/-/i-sess/50" ] && [ "$SA" = "agfork/QZT-77/i-sess/1" ]; then
+        ok "I2 (V1-I2, N2): $(basename "$db"): the parent's own turns stay the parent's (pa=$PA, pb=$PB even though the replay grew pb), the subagent's own turn is the subagent's (sa=$SA)"
+    else
+        bad "I2 (V1-I2, N2): $(basename "$db"): pa=$PA (want -/-/i-sess/3) pb=$PB (want -/-/i-sess/50) sa=$SA (want agfork/QZT-77/i-sess/1) -- a replayed parent turn was credited to the subagent"
+    fi
+done
+# Canonical order: parent transcripts are read before subagent transcripts
+# in every spelling, so a single run never has to move a row back to its
+# parent (reattributed_to_parent=0) and sees the replay of pa as an
+# unchanged duplicate and the replay of pb as a grown one.
+for out in "$WORK/i2r.out" "$WORK/i2a.out" "$WORK/i2d.out"; do
+    S="new=$(h_sum "$out" new) grew=$(h_sum "$out" duplicate_merged_grew) unchanged=$(h_sum "$out" duplicate_unchanged) reattributed=$(h_sum "$out" reattributed_to_parent)"
+    if [ "$S" = "new=3 grew=1 unchanged=1 reattributed=0" ]; then
+        ok "I2 (V1-I2, N7): $(basename "$out"): parent read before its subagent ($S)"
+    else
+        bad "I2 (V1-I2, N7): $(basename "$out"): summary '$S' (want 'new=3 grew=1 unchanged=1 reattributed=0') -- the subagent transcript was read before its parent"
+    fi
+done
+# Across runs: the subagent transcript ingested ALONE first (its parent not
+# yet seen), then the parent. The parent's turns move back to the parent.
+DB_I2X="$WORK/i2_cross.db"
+i_ingest "$I_DIR/i2/sess/subagents/agent-agfork.jsonl" "$DB_I2X" >/dev/null 2>&1
+I2X_BEFORE="$(i2_attr "$DB_I2X" msg_i2_pa)"
+i_ingest "$I_DIR/i2/sess.jsonl" "$DB_I2X" >"$WORK/i2x.out" 2>"$WORK/i2x.err"
+I2X_PA="$(i2_attr "$DB_I2X" msg_i2_pa)"; I2X_PB="$(i2_attr "$DB_I2X" msg_i2_pb)"; I2X_SA="$(i2_attr "$DB_I2X" msg_i2_sa)"
+needle_check "I2 cross-run control: with only the subagent transcript ingested, the replayed parent turn is (necessarily) the subagent's ($I2X_BEFORE)" 1 "$([ "$I2X_BEFORE" = "agfork/-/-/3" ] && echo 1 || echo 0)"
+if [ "$I2X_PA" = "-/-/i-sess/3" ] && [ "$I2X_PB" = "-/-/i-sess/50" ] && [ "$I2X_SA" = "agfork/QZT-77/i-sess/1" ] && [ "$(h_sum "$WORK/i2x.out" reattributed_to_parent)" = 2 ] && [ "$(h_sum "$WORK/i2x.out" attribution_filled)" = 1 ]; then
+    ok "I2 (V1-I2): ingesting the parent after its subagent moves both replayed turns back to the parent (reattributed_to_parent=2) and fills the subagent turn's item/session from the dispatch now seen (attribution_filled=1)"
+else
+    bad "I2 (V1-I2): cross-run pa=$I2X_PA (want -/-/i-sess/3) pb=$I2X_PB (want -/-/i-sess/50) sa=$I2X_SA (want agfork/QZT-77/i-sess/1) summary: $(cat "$WORK/i2x.out")"
+fi
+
+# ---- I3 (V1-I3): merge branches ---------------------------------------------
+DB_I3="$WORK/i3.db"
+i_ingest "$I_DIR/i3/fill.jsonl" "$DB_I3" >/dev/null 2>&1
+I3_FILL="$(i_q "$DB_I3" "SELECT usage_status||'|'||IFNULL(cache_read_input_tokens,'N')||'|'||IFNULL(total_tokens,'N')||'|'||IFNULL(missing_instrument,'N') FROM transcript_usage_events WHERE msg_id='msg_i3_fill';")"
+if [ "$I3_FILL" = "measured|3|13|N" ]; then
+    ok "I3 (N3): a partial line then a full line of one msg id ends measured with the missing counters filled in (total 13)"
+else
+    bad "I3 (N3): partial-then-full gave '$I3_FILL' (want measured|3|13|N) -- a stored NULL counter was never filled by the later line"
+fi
+i_ingest "$I_DIR/i3/status.jsonl" "$DB_I3" >/dev/null 2>&1
+I3_ST="$(i_q "$DB_I3" "SELECT usage_status||'|'||IFNULL(output_tokens,'N')||'|'||IFNULL(total_tokens,'N')||'|'||IFNULL(missing_instrument,'N') FROM transcript_usage_events WHERE msg_id='msg_i3_st';")"
+if [ "$I3_ST" = "measured|40|48|N" ]; then
+    ok "I3 (N4): a full line then a partial line with a larger output count stays measured (output 40, total 48, no missing_instrument) -- the merged row's status comes from the merged counters, not from the incoming line"
+else
+    bad "I3 (N4): full-then-partial gave '$I3_ST' (want measured|40|48|N)"
+fi
+i_ingest "$I_DIR/i3/decr.jsonl" "$DB_I3" >/dev/null 2>"$WORK/i3d.err"
+I3_DEC_OK=1
+for pair in msg_i3_di:input_tokens msg_i3_dr:cache_read_input_tokens msg_i3_dc:cache_creation_input_tokens; do
+    m="${pair%%:*}"; f="${pair#*:}"
+    if ! grep "WARNING" "$WORK/i3d.err" | grep "msg_id $m " | grep -q "SMALLER $f"; then I3_DEC_OK=0; fi
+done
+if [ "$I3_DEC_OK" = 1 ]; then
+    ok "I3 (N23): a decrease of input_tokens, cache_read_input_tokens or cache_creation_input_tokens is each reported on stderr with its msg id and field name"
+else
+    bad "I3 (N23): not every decreasing counter was reported (stderr: $(head -c 400 "$WORK/i3d.err"))"
+fi
+i_ingest "$I_DIR/i3/nousage.jsonl" "$DB_I3" >/dev/null 2>&1
+I3_NU="$(i_q "$DB_I3" "SELECT usage_status||'|'||missing_instrument FROM transcript_usage_events WHERE msg_id='msg_i3_nu';")"
+I3_EU="$(i_q "$DB_I3" "SELECT usage_status||'|'||missing_instrument FROM transcript_usage_events WHERE msg_id='msg_i3_eu';")"
+if printf '%s' "$I3_NU" | grep -q '^UNMEASURED|.*: no "usage" block present)$' && printf '%s' "$I3_EU" | grep -q '^UNMEASURED|.*usage block lacks message.usage.input_tokens, message.usage.output_tokens, message.usage.cache_creation_input_tokens, message.usage.cache_read_input_tokens)$'; then
+    ok "I3 (N14): a turn with no usage block says 'no \"usage\" block present'; an empty usage block names all four absent fields"
+else
+    bad "I3 (N14): no-usage turn gave '$I3_NU'; empty-usage turn gave '$I3_EU'"
+fi
+i_ingest "$I_DIR/i3/sessconf.jsonl" "$DB_I3" >/dev/null 2>"$WORK/i3s.err"
+I3_SESS="$(i_q "$DB_I3" "SELECT IFNULL(item_id,'N')||'|'||IFNULL(session_id,'N') FROM transcript_usage_events WHERE msg_id='msg_i3_sess';")"
+if [ "$I3_SESS" = "QZT-81|N" ] && grep "agsess" "$WORK/i3s.err" | grep "session_id" | grep "sess-one" | grep -q "sess-two"; then
+    ok "I3 (N6): an agent dispatched from two different sessions keeps its (agreed) item, gets session_id NULL, and both sessions are named on stderr"
+else
+    bad "I3 (N6): session conflict gave '$I3_SESS' (want QZT-81|N) stderr: $(head -c 300 "$WORK/i3s.err")"
+fi
+
+# ---- I3 (V1-M1): the summary line agrees with the DB ------------------------
+DB_I3S="$WORK/i3s.db"
+i_ingest "$I_DIR/i3/summary.jsonl" "$DB_I3S" >"$WORK/i3sum.out" 2>/dev/null
+I3S_DBM="$(i_q "$DB_I3S" "SELECT COUNT(*) FROM transcript_usage_events WHERE usage_status='measured';")"
+I3S_DBU="$(i_q "$DB_I3S" "SELECT COUNT(*) FROM transcript_usage_events WHERE usage_status<>'measured';")"
+I3S_SUM="rows=$(h_sum "$WORK/i3sum.out" rows) measured=$(h_sum "$WORK/i3sum.out" measured) unmeasured=$(h_sum "$WORK/i3sum.out" unmeasured)"
+if [ "$I3S_DBM" = 2 ] && [ "$I3S_DBU" = 1 ] && [ "$I3S_SUM" = "rows=3 measured=2 unmeasured=1" ]; then
+    ok "I3 (V1-M1): the summary's measured/unmeasured counts are the rows' final states and match the DB (measured=2 unmeasured=1, one row merged from partial to measured)"
+else
+    bad "I3 (V1-M1): summary '$I3S_SUM' vs DB measured=$I3S_DBM unmeasured=$I3S_DBU (want rows=3 measured=2 unmeasured=1)"
+fi
+
+# ---- I4 (V1-M2): both tools accept the same tags, in any caller locale ------
+I4_LOCALES="C C.UTF-8"
+if ! locale -a 2>/dev/null | grep -qi '^c\.utf-\?8$'; then
+    I4_LOCALES="C"
+    skip "I4 (V1-M2): no C.UTF-8 locale on this host, only LC_ALL=C is exercised (the locale-independence half is not checked here)"
+fi
+I4_EXTRA="$(printf 'qzt,q\303\237t')"
+I4_FAIL=0; I4_DETAIL=""
+for loc in $I4_LOCALES; do
+    db="$WORK/i4_$loc.db"
+    env -u FC_DISPATCH_ITEM_ID_RE -u HELIX_RELEASE_PREFIX LC_ALL="$loc" FC_DISPATCH_EXTRA_ITEM_PREFIXES="$I4_EXTRA" \
+        python3 "$TRANSCRIPT_INGEST" ingest "$I_DIR/i4/parent.jsonl" --db "$db" >/dev/null 2>"$WORK/i4_$loc.err"
+done
+I4_N="$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$I_DIR/i4_cases.json")"
+for k in $(seq 0 $((I4_N - 1))); do
+    want="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[int(sys.argv[2])][1])' "$I_DIR/i4_cases.json" "$k")"
+    payload="$(python3 -c 'import json,sys; print(json.dumps({"tool_name":"Agent","tool_input":{"description":json.load(open(sys.argv[1]))[int(sys.argv[2])][0]}}))' "$I_DIR/i4_cases.json" "$k")"
+    kk="$(printf '%02d' "$k")"
+    for loc in $I4_LOCALES; do
+        got_i="$(i_q "$WORK/i4_$loc.db" "SELECT IFNULL(item_id,'') FROM transcript_usage_events WHERE msg_id='msg_i4_$kk';")"
+        got_d="$(printf '%s' "$payload" | env -u FC_DISPATCH_ITEM_ID_RE -u HELIX_RELEASE_PREFIX LC_ALL="$loc" FC_DISPATCH_EXTRA_ITEM_PREFIXES="$I4_EXTRA" bash "$DISPATCH_STAMP" --extract-item-id 2>/dev/null)"
+        if [ "$got_i" != "$want" ] || [ "$got_d" != "$want" ]; then
+            I4_FAIL=$((I4_FAIL + 1)); I4_DETAIL="$I4_DETAIL case$k/$loc:ingest='$got_i',stamp='$got_d',want='$want'"
+        fi
+    done
+done
+I4_ROWS_OK=1
+for loc in $I4_LOCALES; do [ "$(i_q "$WORK/i4_$loc.db" "SELECT COUNT(*) FROM transcript_usage_events;")" = 15 ] || I4_ROWS_OK=0; done
+needle_check "I4 control: the case table has 15 cases and the ingest stored one row per case in each locale ($I4_LOCALES)" 1 "$([ "$I4_N" = 15 ] && [ "$I4_ROWS_OK" = 1 ] && echo 1 || echo 0)"
+if [ "$I4_FAIL" = 0 ]; then
+    ok "I4 (V1-M2, N8, N9): on all $I4_N non-ASCII / boundary cases (NBSP, U+001C/U+001F/U+0085/U+2003/U+3000 before the tag, accented or NBSP after it, '_' after it, Arabic digits, VT/FF/TAB, a non-ASCII extra prefix) the ingest and dispatch_stamp.sh extract the same item, under LC_ALL=C and LC_ALL=C.UTF-8 alike"
+else
+    bad "I4 (V1-M2, N8, N9): $I4_FAIL disagreement(s):$I4_DETAIL"
+fi
+
+# ---- I5 (class "abort loses the whole run", third route): a record whose
+# identity fields are not strings, or whose counters are not integers. A
+# list in sessionId / uuid / timestamp / model / message.id used to reach
+# the SQL binding, raise, and roll back every row of the run; `true` used to
+# count as 1 token.
+python3 - "$I_DIR/i5.jsonl" <<'PYEOF'
+import json, sys
+u = {"input_tokens": 1, "output_tokens": 1, "cache_read_input_tokens": 1, "cache_creation_input_tokens": 1}
+rows = [
+    {"type": "assistant", "sessionId": "s", "uuid": "ok1", "timestamp": "t", "message": {"id": "msg_i5_ok", "model": "x", "usage": u}},
+    {"type": "assistant", "sessionId": {"n": 1}, "uuid": [1], "timestamp": {"x": 1}, "message": {"id": {"w": 1}, "model": ["m"], "usage": u}},
+    {"type": "assistant", "sessionId": "s", "uuid": "ok2", "timestamp": "t", "message": {"id": "msg_i5_types", "model": "x",
+     "usage": {"input_tokens": "7", "output_tokens": True, "cache_read_input_tokens": 1.9, "cache_creation_input_tokens": [1]}}},
+]
+open(sys.argv[1], "w").write("\n".join(json.dumps(r) for r in rows) + "\n")
+PYEOF
+DB_I5="$WORK/i5.db"
+i_ingest "$I_DIR/i5.jsonl" "$DB_I5" >"$WORK/i5.out" 2>"$WORK/i5.err"
+RC_I5=$?
+I5_ROWS="$(i_q "$DB_I5" "SELECT COUNT(*) FROM transcript_usage_events;" 2>/dev/null)"
+I5_TYPES="$(i_q "$DB_I5" "SELECT usage_status||'|'||IFNULL(input_tokens,'N')||'|'||IFNULL(output_tokens,'N')||'|'||IFNULL(total_tokens,'N') FROM transcript_usage_events WHERE msg_id='msg_i5_types';" 2>/dev/null)"
+if [ "$RC_I5" -eq 0 ] && [ "$I5_ROWS" = 3 ] && [ "$I5_TYPES" = "UNMEASURED|N|N|N" ] && [ "$(h_sum "$WORK/i5.out" malformed_fields)" = 5 ]; then
+    ok "I5: non-string identity fields and non-integer counters give rc=0, keep all 3 rows, mark the bad counters UNMEASURED (never 'true'=1) and count the 5 malformed fields in the summary"
+else
+    bad "I5: rc=$RC_I5 rows=$I5_ROWS (want 3) types-row='$I5_TYPES' (want UNMEASURED|N|N|N) malformed_fields=$(h_sum "$WORK/i5.out" malformed_fields) (want 5); stderr: $(tail -n1 "$WORK/i5.err" | head -c 200)"
+fi
+fi
+
 # ---- final control-needle on the shared grep mechanism itself -------------
 # (§11.4.201(7)(b)): every conclusion above rests on grep seeing real bytes in
 # real files; prove it can, one more time, on a KNOWN-present literal.
@@ -2151,5 +2869,7 @@ echo "----"
 # 2026-10-03): the DERIVED_DEFAULT_PREFIX control needle's resolved value
 # (and whether it went BLIND this run) is echoed here, in the SUMMARY
 # line a human actually re-reads, not only an early banner line.
+# reads the real outer value assigned at file scope (the subshell copy in the eval harness is deliberately separate)
+# shellcheck disable=SC2031
 echo "SUMMARY pass=$PASS fail=$FAIL derived_default_prefix=$DERIVED_DEFAULT_PREFIX derived_default_prefix_blind=$DERIVED_DEFAULT_PREFIX_BLIND"
 [ "$FAIL" -eq 0 ]

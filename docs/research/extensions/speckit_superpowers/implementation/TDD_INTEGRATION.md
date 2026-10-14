@@ -1,7 +1,21 @@
 # Test-Driven Development Integration & Anti-Bluff Verification
 
-**Revision:** 1
-**Last modified:** 2026-07-24T00:00:00Z
+**Revision:** 2
+**Last modified:** 2026-09-22T00:00:00Z
+
+> **ARCHITECTURE AMENDMENT — 2026-09-22 (HXC-159 Phase B3).** This document's
+> "Constitutional Binding" table describes how a FUTURE `implementation-gate.js`
+> tool (part of the never-built nano-task engine) would satisfy 14 constitution
+> anchors, and references the "SuperBridge MCP server" tool
+> `verify_anti_bluff` — a server independently re-derived twice (GitHub
+> `total_count: 0`; npm exact-name lookup `HTTP 404`) not to exist as
+> software. Every anchor this document cites is REAL and already-landed and
+> ALREADY governs this project's actual installer/validator scripts
+> (T-B2.02/T-B2.03) independently of this document. See
+> `../README.md#architecture-amendment-2026-09-22` for the corrected 6-layer
+> architecture and the proven substitution (Spec Kit + Superpowers + Claude
+> Code's own skill/subagent machinery, never an MCP server). Content below is
+> retained design intent (§11.4.35/§11.4.124), not shipped software.
 
 ## Table of Contents
 

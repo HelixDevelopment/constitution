@@ -1,0 +1,4 @@
+# covenant_propagation_exclusions.tsv - per-entry-justified carrier exclusions for the CM-COVENANT-114-NNN-PROPAGATION family (§11.4.224(E) fence).
+# Schema: <path-glob>\t<class>\t<justification>. Class from {vendored-third-party|generated-code|non-shipping-fixtures|filename-collision}.
+# NOTE: llmctl's OWN carriers (AGENTS.md/QWEN.md/GEMINI.md) are deliberately NOT excluded: the operator decided llmctl switches them to the standard `## INHERITED FROM constitution/...` pointer form in llmctl 3.2.2; until the submodules/llmctl pin is bumped to 3.2.2 the propagation gates keep reporting them MISSING when the submodule is checked out and the gate runs with --root at this repo.
+*/submodules/llmctl/.specify/extensions/superspec/examples/*	non-shipping-fixtures	SpecKit sample-project fixture shipped inside llmctl's vendored superspec extension (static-landing-page example CLAUDE.md); a demo project, not an authored governance carrier of llmctl or of this constitution.

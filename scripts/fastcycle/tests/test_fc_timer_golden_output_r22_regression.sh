@@ -110,7 +110,13 @@ C6B='  ✓ CM-SIX-B: baseline gate B'
 echo "=== building the six fixtures (real harness capture + promotion, one per case) ==="
 triplet CASE1 1 "$CBASE" "$CBASE
 $CEXTRA" "$CBASE" "0 0 0"
-triplet CASE2 2 "$CBASE" "$CBASE" "$CBASE" "0 1 0"
+# CASE2 isolates the EXIT channel: an explicit identical "Failed: 0" line in every member keeps
+# the summary-counter channel (T048 restart R2-B1) equal while FC0b alone exits 1.
+CF0='  Failed:       0'
+triplet CASE2 2 "$CBASE
+$CF0" "$CBASE
+$CF0" "$CBASE
+$CF0" "0 1 0"
 triplet CASE3 3 "$CBASE" "$CBASE" "$CBASE" "0 0 0"
 triplet CASE4 4 "$CBASE" "$CBASE" "$CBASE
 $CEXTRA" "0 0 0"
@@ -201,7 +207,9 @@ fi
 # of THIS script. shellcheck's SC2016 ("expressions don't expand in single
 # quotes") is an info-level false-positive for this intentional case.
 # shellcheck disable=SC2016
-ANCHOR_CLEAN="$(grep -F -- 'if cmp -s "$TMP/baseline_1.txt" "$TMP/fc0b.txt" && [ "$_ex0" = "$_exn" ]; then' "$REAL_GOLDEN")"
+# T048 restart R2-B1: the clean-noise-floor condition gained a third, line-independent half
+# (identical summary counters); MB/MD below keep that half so each still isolates ONE half.
+ANCHOR_CLEAN="$(grep -F -- 'if cmp -s "$TMP/baseline_1.txt" "$TMP/fc0b.txt" && [ "$_ex0" = "$_exn" ] && [ "$_COUNTERS_EQUAL_0B" = 1 ]; then' "$REAL_GOLDEN")"
 ANCHOR_SKIPCALL="$(grep -F -- 'skip "FR-002/T-A01: FC0a and FC0b (both WITHOUT timers' "$REAL_GOLDEN")"
 # shellcheck disable=SC2016
 ANCHOR_EXITCOND="$(grep -F -- 'if [ "$_ex0" = "$_ex1" ]; then' "$REAL_GOLDEN")"
@@ -211,9 +219,9 @@ if [ -z "$ANCHOR_CLEAN" ] || [ -z "$ANCHOR_SKIPCALL" ] || [ -z "$ANCHOR_EXITCOND
 else
   REPL_MA='  if true; then  # MUTANT MA (T048 R22-I1): always treat the FC0a/FC0b noise floor as clean, bypassing the real cmp+exit comparison'
   # shellcheck disable=SC2016
-  REPL_MB='  if cmp -s "$TMP/baseline_1.txt" "$TMP/fc0b.txt"; then  # MUTANT MB (T048 R22-I1): drop the exit-code half of the twin comparison'
+  REPL_MB='  if cmp -s "$TMP/baseline_1.txt" "$TMP/fc0b.txt" && [ "$_COUNTERS_EQUAL_0B" = 1 ]; then  # MUTANT MB (T048 R22-I1): drop the exit-code half of the twin comparison'
   # shellcheck disable=SC2016
-  REPL_MD='  if [ "$_ex0" = "$_exn" ]; then  # MUTANT MD (T048 R22-I1): drop the verdict-set half of the twin comparison'
+  REPL_MD='  if [ "$_ex0" = "$_exn" ] && [ "$_COUNTERS_EQUAL_0B" = 1 ]; then  # MUTANT MD (T048 R22-I1): drop the verdict-set half of the twin comparison'
   REPL_MC="$(printf '%s' "$ANCHOR_SKIPCALL" | sed 's/^\( *\)skip /\1chk /')"
   REPL_MC="${REPL_MC} \"1\"  # MUTANT MC (T048 R22-I1): turn the twin-disagreement SKIP into a PASS"
   REPL_ME="$(printf '%s' "$ANCHOR_EXITCOND" | sed 's/= /!= /')"

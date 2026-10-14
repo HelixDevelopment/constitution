@@ -1,8 +1,9 @@
 #!/bin/bash
 # Purpose : T036 (SpecKit-004 "fast-dev-cycles", User Story 1) RED baseline
-#           for `constitution/scripts/fastcycle/tokens/dispatch_stamp.sh` --
-#           proves the tool is absent today, and documents the contract its
-#           implementer must satisfy.
+#           for `constitution/scripts/fastcycle/tokens/dispatch_stamp.sh`.
+#           Originally proved the tool absent and printed the derived
+#           contract; since T036 landed it EXECUTES that contract against
+#           the real tool (see the T048 restart round-1 note below).
 #
 # THE GAP -- CORRECTED 2026-09-28 (§11.4.1/§11.4.6 remediation, found by an
 # independent Opus-xhigh review of the implementation this file guards): the
@@ -84,182 +85,90 @@
 #      T039 fix pass anchor_citations" -- MISSING an item= token today,
 #      confirming the gap is real and current, not hypothetical).
 #
-# §11.4.273 control needle: before trusting "no current dispatch enforces
-# item=<ATM-nnnn>" as a finding, this file independently confirms the
-# CLAIM (not merely asserts it) by reading guard-track-branch-label.sh's
-# own LABEL_RE and confirming it contains no `item=` token anywhere, AND
-# by confirming agent_registry_writer.sh's JSONL schema (grepped from its
-# real source, not assumed) has no `item` key today -- both checked below,
-# live, never assumed.
-#
 # Producer != Verifier (constitution 11.4.240): this file is authored at
 # the RED step (T036); dispatch_stamp.sh's implementation is a SEPARATE,
 # later task -- this file's author never implements it.
 #
-# Usage : bash test_dispatch_stamp_red.sh   Exit 0 = RED baseline holds
-#         (absence proven + control needles confirmed) and the derived
-#         contract stubs are printed for T036's implementer.
+# T048 RESTART ROUND-1 (R3-F4, review class "tests that never run the real
+# artifact"): this file used to prove the contract only by file existence
+# and greps, and printed five "NOT YET IMPLEMENTED" stubs long after T036
+# and T037 landed. The stubs are now executed: every contract point below
+# runs the real dispatch_stamp.sh (stdin JSON, GUARD and --extract-item-id
+# modes) and checks its exit code / stdout / stderr. The two greps of other
+# files (the sibling label guard and agent_registry_writer.sh) were removed:
+# the first checked a stale pre-T036 premise, and the writer's "item" column
+# is checked by running the real writer in test_token_attribution_red.sh
+# PART A.
+#
+# Usage : bash test_dispatch_stamp_red.sh   Exit 0 = every contract point
+#         holds on the real tool; exit 1 = at least one does not.
 set -u
 
-repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
-ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
-SIBLING_GUARD="$ROOT/constitution/scripts/hooks/guard-track-branch-label.sh"
-REGISTRY_WRITER="$ROOT/scripts/hooks/agent_registry_writer.sh"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+DISPATCH_STAMP="$HERE/../tokens/dispatch_stamp.sh"
+FIXDIR="$HERE/fixtures/dispatch_stamp"
+
+# Hermetic configuration (no dependence on the checkout this runs in): the
+# static fixtures use the ATM prefix, so the release prefix is pinned to a
+# fixture value that derives ATM, and the two FC_* overrides are unset.
+unset FC_DISPATCH_ITEM_ID_RE FC_DISPATCH_EXTRA_ITEM_PREFIXES HELIX_PROJECT_ROOT 2>/dev/null || true
+export HELIX_RELEASE_PREFIX=atm_fixture_prefix
 
 fail=0
-failx() { fail=1; }
+okm()  { echo "ok $1"; }
+notok() { echo "NOT ok $1"; fail=1; }
 
-# --- §11.4.273 control needle 1: the sibling label guard's regex genuinely ---
-#     has NO item= awareness today (independently re-derived, not assumed).
-if [ ! -f "$SIBLING_GUARD" ]; then
-  echo "NOT ok sibling guard-track-branch-label.sh missing at $SIBLING_GUARD --"
-  echo "     the control needle below cannot be trusted without it"
-  failx
-else
-  if grep -q 'item=' "$SIBLING_GUARD"; then
-    echo "NOT ok guard-track-branch-label.sh already references 'item=' --"
-    echo "     T036 may have partially landed inside the sibling hook; re-check"
-    echo "     whether this RED baseline still holds before trusting it"
-    failx
-  else
-    echo "ok control needle 1: the live §11.4.182 label guard's own LABEL_RE"
-    echo "   and full source contain ZERO 'item=' awareness today (confirmed"
-    echo "   2026-09-28 via direct grep of the real, current file) -- no"
-    echo "   dispatch this session is currently required to carry an item id"
+if [ ! -f "$DISPATCH_STAMP" ]; then
+  notok "tokens/dispatch_stamp.sh is absent -- T036 landed 2026-09-28; a regression removed it"
+  exit 1
+fi
+okm "tokens/dispatch_stamp.sh exists"
+
+# guard <payload> -> exit code of GUARD mode; stderr kept in $WORK_ERR
+WORK_ERR="$(mktemp)"; trap 'rm -f "$WORK_ERR"' EXIT
+guard()   { printf '%s' "$1" | bash "$DISPATCH_STAMP" >/dev/null 2>"$WORK_ERR"; echo $?; }
+extract() { printf '%s' "$1" | bash "$DISPATCH_STAMP" --extract-item-id 2>"$WORK_ERR"; echo "|$?"; }
+
+echo
+echo "=== contract 1/5 + 5/5: GUARD verdicts on the three static fixtures ==="
+for CASE in golden-good golden-bad negative-control; do
+  if [ ! -f "$FIXDIR/$CASE/input" ] || [ ! -f "$FIXDIR/$CASE/expected" ] || [ ! -f "$FIXDIR/$CASE/expected_extract" ]; then
+    notok "fixture $CASE is incomplete under $FIXDIR/$CASE"
+    continue
   fi
-fi
-
-# --- §11.4.273 control needle 2: agent_registry_writer.sh's real JSONL row ---
-#     schema's `item` field state (T037's wiring step).
-# UPDATED 2026-09-29 (T048 review round-1 finding F7 remediation): the
-# ORIGINAL check here asserted the JSONL schema has NO `item` field, with no
-# polarity switch -- the SAME PERMANENTLY-FALSE-FOREVER defect class already
-# fixed for the "dispatch_stamp.sh absence" check below (lines ~152-177,
-# fixed 2026-09-28). tasks.md T037 IS `[x]` (landed) today: direct
-# inspection of the real, current agent_registry_writer.sh confirms it now
-# extracts `ITEM_ID` via `dispatch_stamp.sh --extract-item-id` and writes it
-# into a DEDICATED `"item"` JSONL key on every row (both the primary write
-# path and the latest-status-per-key reconciliation logic read `r.get(
-# "item", "")`) -- exactly matching T036/T037's own derived contract stub
-# 3/5 below ("a second CLI mode ... T037 can call it as a one-line helper").
-# Flipped to the SAME regression-detecting positive-assertion shape already
-# used for the dispatch_stamp.sh absence check: absence of the "item" key
-# now indicates T037's wiring was reverted/removed, not the expected
-# pre-landing RED state.
-if [ ! -f "$REGISTRY_WRITER" ]; then
-  echo "NOT ok agent_registry_writer.sh missing at $REGISTRY_WRITER"
-  failx
-else
-  if grep -qE '"item"' "$REGISTRY_WRITER"; then
-    echo "ok control needle 2: agent_registry_writer.sh now writes a"
-    echo "   dedicated \"item\" JSONL key (T037 landed, confirmed"
-    echo "   2026-09-29 -- tasks.md T037 is \`[x]\`, item extracted via"
-    echo "   dispatch_stamp.sh --extract-item-id) -- the expected, permanent"
-    echo "   state going forward"
-  else
-    echo "NOT ok agent_registry_writer.sh has NO \"item\" JSONL key -- T037's"
-    echo "     wiring appears to have been removed or reverted; this is a"
-    echo "     REGRESSION, not the expected RED-baseline precondition"
-    echo "     (re-investigate before treating this as an ordinary RED state)"
-    failx
-  fi
-fi
-
-# --- Absence check: dispatch_stamp.sh ---
-# NOTE (2026-09-28, §11.4.1 remediation, found by round-1 Opus-xhigh review
-# of the implementation this file guards): a "NOT ok ... now exists --
-# DELETE this" assertion left un-flipped once its guarded tool lands
-# silently converts run_all.sh (tasks.md:34's designated test runner) into
-# reporting FAIL for an otherwise-correct, committed tool -- misleading
-# exactly like a §11.4.1 PASS-bluff, just inverted (a FAIL-bluff). The
-# SAME defect class was found + fixed in this same remediation round across
-# sibling RED tests test_cycle_report_red.sh (T023/T041) and
-# test_plan_struct_causes_red.sh (T025/T046) -- this file's own check is
-# fixed identically here, retaining real regression-detection value (a
-# future accidental deletion of dispatch_stamp.sh is still caught) while no
-# longer permanently misreporting a working, landed tool as failing.
-DISPATCH_STAMP="$FC/tokens/dispatch_stamp.sh"
-if [ -f "$DISPATCH_STAMP" ]; then
-  echo "ok tokens/dispatch_stamp.sh exists -- T036 has landed (expected,"
-  echo "   permanent state since 2026-09-28). The fixture-driven checks"
-  echo "   under tests/fixtures/dispatch_stamp/ are the real functional"
-  echo "   tests to run against it (README.md documents both GUARD-mode"
-  echo "   and EXTRACTION-mode invocation)."
-else
-  echo "NOT ok tokens/dispatch_stamp.sh is absent -- T036 landed on this"
-  echo "     checkout as of 2026-09-28; a regression removed the item-id"
-  echo "     dispatch-stamping mechanism"
-  failx
-fi
+  payload="$(cat "$FIXDIR/$CASE/input")"
+  want="$(cat "$FIXDIR/$CASE/expected")"
+  got="$(guard "$payload")"
+  if [ "$got" = "$want" ]; then okm "fixture $CASE: GUARD exit $got"; else notok "fixture $CASE: GUARD exit $got, want $want"; fi
+  want_x="$(cat "$FIXDIR/$CASE/expected_extract")"
+  got_x="$(extract "$payload")"
+  if [ "$got_x" = "${want_x}|0" ]; then okm "fixture $CASE: --extract-item-id '${want_x}', exit 0"; else notok "fixture $CASE: --extract-item-id gave '$got_x', want '${want_x}|0'"; fi
+done
+needle_payload="$(cat "$FIXDIR/golden-bad/input" 2>/dev/null)"
+guard "$needle_payload" >/dev/null
+if grep -q "item=" "$WORK_ERR"; then okm "a BLOCK explains the fix on stderr (names item=)"; else notok "a BLOCK gave no item= explanation on stderr"; fi
 
 echo
-echo "=== T036 contract stub 1/5: PreToolUse guard contract (derived from the ==="
-echo "===   sibling guard-track-branch-label.sh / guard-work-track-binding.sh ==="
-echo "===   hooks on the SAME Agent|Task|TaskCreate matcher, .claude/           ==="
-echo "===   settings.json, verified live 2026-09-28)                            ==="
-echo "NOT YET IMPLEMENTED: dispatch_stamp.sh MUST accept the tool invocation as"
-echo "  JSON on stdin (identical to its two siblings), read"
-echo "  .tool_input.description (falling back to .tool_input.subagent exactly"
-echo "  as guard-track-branch-label.sh does), and for tool_name in"
-echo "  {Agent, Task, TaskCreate} MUST require an 'item=<ATM-nnnn>' token"
-echo "  (regex candidate: 'item=(ATM-[0-9]+|\\?)', the honest '?' form ALWAYS"
-echo "  accepted per the §11.4.6/§11.4.182 no-fabricated-verdict precedent"
-echo "  the sibling hook already establishes for alias/model/effort) present"
-echo "  SOMEWHERE in that description -- exit 0 (allow) if present, exit 2"
-echo "  (BLOCK, stderr explains the fix + shows a corrected example) if"
-echo "  absent. EVERY OTHER tool_name MUST pass through untouched (exit 0)."
+echo "=== contract 1/5: only Agent / Task / TaskCreate are gated ==="
+for tool in Agent Task TaskCreate; do
+  got="$(guard "{\"tool_name\":\"$tool\",\"tool_input\":{\"description\":\"(T1/main - x) no tag\"}}")"
+  if [ "$got" = 2 ]; then okm "$tool without a tag is blocked (exit 2)"; else notok "$tool without a tag gave exit $got, want 2"; fi
+done
+got="$(guard '{"tool_name":"Bash","tool_input":{"command":"true"}}')"
+if [ "$got" = 0 ]; then okm "Bash (not an agent dispatch) passes untouched"; else notok "Bash gave exit $got, want 0"; fi
 
 echo
-echo "=== T036 contract stub 2/5: placement relative to the §11.4.182 label ==="
-echo "NOT YET IMPLEMENTED: per tasks.md's own wording ('alongside the §11.4.182"
-echo "  label'), the natural placement is immediately AFTER the label prefix"
-echo "  guard-track-branch-label.sh already validates, e.g.:"
-echo "    (T1/main - claude5 - sonnet - high) item=ATM-1041 T036 implement ..."
-echo "  T036's implementer decides the EXACT required position (immediately-"
-echo "  after-label vs anywhere-in-description) and states it explicitly in"
-echo "  the tool's own docstring -- this file does not prescribe one over the"
-echo "  other, since tasks.md's one line does not settle it (§11.4.6: an"
-echo "  underspecified placement is an honest ambiguity, not a guessed answer)."
+echo "=== contract 2/5: the tag may sit anywhere at a token boundary; honest item=? accepted ==="
+got="$(guard '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) some text then item=ATM-77 later"}}')"
+if [ "$got" = 0 ]; then okm "a tag later in the description is accepted"; else notok "a tag later in the description gave exit $got, want 0"; fi
+got="$(extract '{"tool_name":"Agent","tool_input":{"description":"(T1/main - x) item=? unknown"}}')"
+if [ "$got" = "?|0" ]; then okm "item=? is extracted as '?'"; else notok "item=? gave '$got', want '?|0'"; fi
 
 echo
-echo "=== T036 contract stub 3/5: extraction mode -- 'hands the id to the ==="
-echo "===   registry writer' (T037's prerequisite, this task's real deliverable) ==="
-echo "NOT YET IMPLEMENTED: since agent_registry_writer.sh has NO 'item' field"
-echo "  today (control needle 2, above) and T037 (a SEPARATE, later, SERIAL"
-echo "  task) is what actually wires the id INTO that writer's JSONL row,"
-echo "  T036's OWN scope must expose the extracted id in a form T037 can"
-echo "  consume without re-deriving the parsing logic -- e.g. a second CLI"
-echo "  mode such as 'dispatch_stamp.sh --extract-item-id' reading the SAME"
-echo "  stdin JSON shape and printing ONLY the extracted 'ATM-nnnn' (or '?')"
-echo "  to stdout with no other output, so T037 can call it as a one-line"
-echo "  helper inside agent_registry_writer.sh's existing python3 JSON-parsing"
-echo "  block. T036's implementer names the EXACT invocation T037 will use."
-
-echo
-echo "=== T036 contract stub 4/5: robustness guarantee (matches BOTH siblings) ==="
-echo "NOT YET IMPLEMENTED: like guard-track-branch-label.sh (exit 2 only on a"
-echo "  genuinely missing/malformed item id) and unlike"
-echo "  agent_registry_writer.sh (which NEVER blocks, always exits 0 per its"
-echo "  own CRITICAL ROBUSTNESS GUARANTEE comment) -- dispatch_stamp.sh in its"
-echo "  GUARD mode legitimately DOES block (exit 2) on a missing item= token,"
-echo "  since that is its whole purpose (matching its sibling label guard's"
-echo "  same blocking behavior for a missing label). Its EXTRACTION mode"
-echo "  (stub 3, above), if ever invoked from inside agent_registry_writer.sh's"
-echo "  ALWAYS-exit-0 contract, must itself never exit non-zero in a way that"
-echo "  could propagate into the writer's guarantee -- T037's wiring step is"
-echo "  responsible for isolating that, but T036's implementer should note"
-echo "  this interaction in the docstring so T037 does not have to rediscover"
-echo "  it."
-
-echo
-echo "=== T036 contract stub 5/5: anti-bluff self-validation (§11.4.107(10)) ==="
-echo "NOT YET IMPLEMENTED: like its two siblings, dispatch_stamp.sh needs a"
-echo "  golden-good fixture (a real Agent/Task tool_input JSON with a"
-echo "  well-formed item=ATM-nnnn token -> exit 0), a golden-bad fixture (the"
-echo "  identical shape but item= missing entirely -> exit 2 naming the fix),"
-echo "  and a negative control (a non-Agent/Task/TaskCreate tool_name, e.g."
-echo "  'Bash', with NO item= anywhere -> exit 0, proving the guard does not"
-echo "  over-fire on tools it was never meant to gate)."
+echo "=== contract 3/5 + 4/5: extraction mode prints only the id and always exits 0 ==="
+for bad in '' 'null' '{"tool_name":' '42'; do
+  got="$(extract "$bad")"
+  if [ "$got" = "|0" ] && [ ! -s "$WORK_ERR" ]; then okm "malformed stdin '$bad' -> empty stdout, empty stderr, exit 0"; else notok "malformed stdin '$bad' gave '$got' stderr='$(head -c 120 "$WORK_ERR")', want '|0' and empty stderr"; fi
+done
 
 exit $fail

@@ -188,7 +188,11 @@ repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
 FC="$ROOT/constitution/scripts/fastcycle"
 MT="$ROOT/scripts/testing/meta_test_false_positive_proof.sh"
-METATEST_ARCHIVE_DIR="$ROOT/qa-results/fastcycle/metatest"
+# METATEST_ARCHIVE_DIR_OVERRIDE: lets test_metatest_per_mutant_r4_regression.sh
+# (F) drive THIS WHOLE FILE against a fixture archive to prove the R7 M-c
+# candidate-binding check below both accepts a bound run and refuses an
+# unbound/stale one. Default is the real shared archive.
+METATEST_ARCHIVE_DIR="${METATEST_ARCHIVE_DIR_OVERRIDE:-$ROOT/qa-results/fastcycle/metatest}"
 
 fail=0
 failx() { fail=1; }
@@ -254,6 +258,8 @@ if [ ! -f "$target" ] || [ ! -f "$guard" ]; then
   failx
 else
   orig_md5=$(md5sum "$target" | awk '{print $1}')
+  # single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+  # shellcheck disable=SC2016
   sed -i 's/\[ "\$r" -gt 1 \] || return 0/[ "$r" -gt 0 ] || return 0/' "$target"
   mut_md5=$(md5sum "$target" | awk '{print $1}')
   if [ "$orig_md5" = "$mut_md5" ]; then
@@ -341,6 +347,36 @@ if [ -d "$METATEST_ARCHIVE_DIR" ]; then
   done < <(find "$METATEST_ARCHIVE_DIR" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -rz)
 fi
 
+# R7 M-c (T048 restart round 1, 2026-10-08; constitution 11.4.226 freshness /
+# 11.4.115(F) candidate binding): a RUN_COMPLETE run-dir proves only that SOME
+# meta-test run finished -- not that it measured the meta-test that exists
+# now. Previously any stale archived TSV with >=1 verdict row satisfied this
+# check forever. The selected run's RUN_COMPLETE must now carry
+# `metatest_sha256=<sha256 of $MT>` equal to the CURRENT meta-test's content
+# hash; an unbound or stale run is not evidence (kept OUTSIDE the selection
+# loop above so test_metatest_per_mutant_r4_regression.sh's extraction of
+# that loop is unchanged). The writer half -- emitting metatest_sha256= in
+# _fc_mut_write_completion_marker() -- lives in the parent repo's
+# scripts/testing/meta_test_false_positive_proof.sh and is owed there.
+if [ -n "$METATEST_TSV" ] && [ -f "$METATEST_TSV" ]; then
+  _mt_run_dir="$(dirname -- "$METATEST_TSV")"
+  _mt_bound="$(sed -n 's/^metatest_sha256=//p' "$_mt_run_dir/RUN_COMPLETE" 2>/dev/null | head -n1)"
+  _mt_now="$(sha256sum "$MT" 2>/dev/null | awk '{print $1}')"
+  if [ -z "$_mt_now" ]; then
+    echo "NOT ok cannot hash the current meta-test ($MT) -- candidate binding unverifiable"
+    failx
+    METATEST_TSV=""
+  elif [ "$_mt_bound" != "$_mt_now" ]; then
+    echo "NOT ok selected run $_mt_run_dir is not bound to the current meta-test:"
+    echo "     RUN_COMPLETE metatest_sha256='${_mt_bound:-<absent>}', current=$_mt_now"
+    echo "     (a stale or unbound archived run is not per-mutant evidence for this candidate)"
+    failx
+    METATEST_TSV=""
+  else
+    echo "ok selected run $_mt_run_dir is bound to the current meta-test (metatest_sha256 matches)"
+  fi
+fi
+
 if [ -n "$METATEST_TSV" ] && [ -f "$METATEST_TSV" ]; then
   echo "ok per-mutant TSV found: $METATEST_TSV (T032/T033 acceptance criterion; plan T-A03)"
   TAB="$(printf '\t')"
@@ -417,6 +453,8 @@ DRIVER_EXTRACT_TMP="$(mktemp -d)" || { echo "NOT ok mktemp failed (driver-path a
 if [ -n "$DRIVER_EXTRACT_TMP" ]; then
   d="$DRIVER_EXTRACT_TMP"
   : > "$d/payload.sh"
+  # two separate awk extractions appended in a fixed order; kept as individual appends so each function extraction stays independently readable
+  # shellcheck disable=SC2129
   awk '$0 ~ "^pass\\(\\) \\{", $0 ~ "^pass\\(\\) \\{"' "$MT" >> "$d/payload.sh"
   awk '$0 ~ "^fail\\(\\) \\{", $0 ~ "^fail\\(\\) \\{"' "$MT" >> "$d/payload.sh"
   awk '$0 ~ "^skip\\(\\) \\{", $0 ~ "^skip\\(\\) \\{"' "$MT" >> "$d/payload.sh"
@@ -452,12 +490,16 @@ GATEEOF
       cat "$d/payload.sh"
       echo "mutate_gate_direct M_T048N1_TEST1 \"$d/gate.sh\" 's/DETECT_ENABLED=1/DETECT_ENABLED=0/' 1"
       echo "mutate_gate_direct M_T048N1_TEST2 \"$d/gate.sh\" 's/DETECT_ENABLED=1/DETECT_ENABLED=0/' 1"
+      # single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+      # shellcheck disable=SC2016
       echo 'echo "__RETURN_TRAP__=[$(builtin trap -p RETURN)]"'
       echo '_fc_mut_start M_T048N1_INLINE'
       echo "echo ':' > \"$d/defs.sh\""
       echo ". \"$d/defs.sh\""
       echo 'fail "M_T048N1_INLINE surviving mutant (driver-path assertion)"'
       echo '_fc_mut_end'
+      # single-quoted text here is a literal source snippet (matched/patched verbatim or written out as-is), never meant to expand
+      # shellcheck disable=SC2016
       echo 'echo "__FINAL__ PASS=$PASS_COUNT FAIL=$FAIL_COUNT"'
     } > "$d/driver.sh"
 

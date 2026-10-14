@@ -13,9 +13,6 @@
 [submodule "submodules/helix_perf_cache"]
 	path = submodules/helix_perf_cache
 	url = git@github.com:HelixDevelopment/helix_perf_cache.git
-[submodule "design-toolkit"]
-	path = submodules/design-toolkit
-	url = git@github.com:vasic-digital/design-toolkit.git
 [submodule "submodules/docs_chain"]
 	path = submodules/docs_chain
 	url = git@github.com:vasic-digital/docs_chain.git
@@ -34,9 +31,6 @@
 [submodule "submodules/donespec"]
 	path = submodules/donespec
 	url = git@github.com:xryv/DoneSpec.git
-[submodule "submodules/kedge"]
-	path = submodules/kedge
-	url = git@github.com:SturdyRobot/kedge.git
 [submodule "submodules/agentic-validation"]
 	path = submodules/agentic-validation
 	url = git@github.com:Tyler-R-Kendrick/agentic_validation.git
@@ -67,3 +61,9 @@
 [submodule "submodules/watch-skill"]
 	path = submodules/watch-skill
 	url = git@github.com:oxbshw/watch-skill.git
+[submodule "submodules/design-toolkit"]
+	path = submodules/design-toolkit
+	url = git@github.com:vasic-digital/design-toolkit.git
+[submodule "submodules/llmctl"]
+	path = submodules/llmctl
+	url = git@github.com:vasic-digital/llmctl.git

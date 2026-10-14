@@ -49,21 +49,47 @@ import re
 # (`- §`) forms deliberately KEEP their existing 3-component-minimum
 # id-core, UNCHANGED — widening those too would create a phantom anchor
 # from Constitution.md:7305's `- §1.1 (paired mutation): ...`, a bullet
-# citing the general mutation-testing convention (276 body-text citations
-# throughout the document) that has ZERO heading-form definition anywhere;
-# neither canonical_ids nor opened_ids (both require the id to be seen
-# DEFINED somewhere first) can protect against that, since "1.1" is never
-# defined. `_ATTEMPTED_OPENER_RE` (the loose gate) and `_STRICT_OPENER_RE`
+# citing the general mutation-testing convention (~280 body-text citations
+# throughout the document). CORRECTION (2026-10-08): the earlier version of
+# this comment claimed "1.1" has ZERO heading-form definition anywhere —
+# that was FALSE. It IS defined, by a BARE numbered heading with no `§`
+# sign (`### 1.1 False-positive immunity is an invariant`, Constitution.md
+# :147; likewise `### 2.1 Multi-upstream push is the norm`, :185), a form
+# this parser did not recognise, so both anchors were silently missing from
+# constitution_index.yaml. They are now recognised by the fourth, bare-form
+# branch below (see _BARE_FORM_NOTE). The 3-component minimum on the
+# bold/bullet forms is still correct and still kept: those forms only ever
+# CITE `§1.1`, they never define it. `_ATTEMPTED_OPENER_RE` (the loose gate) and `_STRICT_OPENER_RE`
 # (the strict parser) must stay in agreement about what each form is
 # allowed to match, so both are restructured the SAME way: from one
 # id-core pattern shared across all three prefix forms into a per-form
 # alternation, each form's id-core matching exactly what that form's
 # `_STRICT_OPENER_RE` branch now requires.
+# _BARE_FORM_NOTE (2026-10-08, real-corpus silent drop of §1.1 and §2.1):
+# the bare numbered-heading form `### N.M Title` — exactly `###` at column
+# 0, a space, EXACTLY two dot-separated numeric components, a space, then a
+# title. Deliberately narrow, so lookalikes never open an anchor:
+#   - body text / list items ("7.1 audio ...", "- 1.1 item", "1. 1.1 step")
+#     are not `###` headings at column 0;
+#   - `####`/`##` numbered headings are other levels (only `### N.M` is the
+#     document's own sub-section numbering convention);
+#   - 3+-component or v-prefixed versions ("### 1.2.3 Release",
+#     "### v1.2 Release") never match: the id core is followed by a
+#     negative lookahead `(?![\d.])` in the loose gate.
+# The loose gate below treats `### N.M` + any non-digit/non-dot character
+# (or end of line) as an ATTEMPTED bare opener, so a malformed one
+# ("### 1.1", "### 1.1:Title", trailing-space-only) fails loud via
+# MalformedHeadingError instead of being silently skipped — the same
+# honesty contract the other three forms already have. No parent-section
+# check is applied on purpose: regrouped documents (constitution/groups/*.md,
+# governance_subset) carry the anchor without its original `## N.` parent,
+# and a parent check would silently drop it there.
 _ATTEMPTED_OPENER_RE = re.compile(
     r'^(?:'
     r'### §\d+\.\d+(?:\.\d+)?(?:\.[A-Z]|\([A-Z]+\))?|'
     r'\*\*§\d+\.\d+\.\d+(?:\.[A-Z]|\([A-Z]+\))?|'
-    r'- §\d+\.\d+\.\d+(?:\.[A-Z]|\([A-Z]+\))?'
+    r'- §\d+\.\d+\.\d+(?:\.[A-Z]|\([A-Z]+\))?|'
+    r'### \d+\.\d+(?![\d.])'
     r')'
 )
 _STRICT_OPENER_RE = re.compile(
@@ -87,14 +113,16 @@ _STRICT_OPENER_RE = re.compile(
     # the same line; canonical_ids is what decides whether the match is a
     # genuine opener or an inline self-citation.
     r'\*\*§(?P<id2>\d+\.\d+\.\d+(?:\.[A-Z]|\([A-Z]+\))?) (?P<title2>.+?)\*\*|'
-    r'- §(?P<id3>\d+\.\d+\.\d+(?:\.[A-Z]|\([A-Z]+\))?) (?P<title3>.+)$'
+    r'- §(?P<id3>\d+\.\d+\.\d+(?:\.[A-Z]|\([A-Z]+\))?) (?P<title3>.+)$|'
+    # Bare numbered-heading branch — see _BARE_FORM_NOTE above.
+    r'### (?P<id4>\d+\.\d+) (?P<title4>\S.*)$'
     r')'
 )
 
 
 class MalformedHeadingError(ValueError):
     """Raised when a line looks like an anchor opener (starts with one of the
-    three known prefixes followed by a dotted id) but fails strict parsing —
+    four known prefixes followed by a dotted id) but fails strict parsing —
     per contracts/generator-cli.md G-004, this MUST fail loud, never be
     silently skipped as ordinary prose."""
 
@@ -155,6 +183,10 @@ def extract_anchors(source_text: str, known_ids: "set[str] | None" = None) -> li
         m = _STRICT_OPENER_RE.match(line)
         if m and m.group("id1") is not None:
             canonical_ids.add(m.group("id1"))
+        elif m and m.group("id4") is not None:
+            # A bare `### N.M` heading is a canonical heading-form
+            # definition exactly like `### §N.M` (2026-10-08).
+            canonical_ids.add(m.group("id4"))
 
     # Second, DYNAMIC id-tracking set (fix round 1, Finding B — real-corpus
     # content-misattribution defect: §11.4.214, a genuine ###-form anchor at
@@ -194,21 +226,24 @@ def extract_anchors(source_text: str, known_ids: "set[str] | None" = None) -> li
                     f"line {lineno}: looks like an anchor opener but does not "
                     f"strictly parse: {line!r}"
                 )
-            anchor_id = m.group("id1") or m.group("id2") or m.group("id3")
-            if m.group("id1") is None and anchor_id in (canonical_ids | opened_ids):
+            anchor_id = m.group("id1") or m.group("id2") or m.group("id3") or m.group("id4")
+            is_heading_form = m.group("id1") is not None or m.group("id4") is not None
+            if not is_heading_form and anchor_id in (canonical_ids | opened_ids):
                 # A `**§`/`- §` self-citation to an id that is ALSO defined
                 # via `### §` elsewhere in the document (canonical_ids), OR
                 # that this SAME scan has already opened earlier via ANY
                 # form (opened_ids, fix round 1 Finding B), is ordinary body
                 # text, not a new anchor opener — do not close the
                 # currently-open anchor, do not open a new one. Every `### §`
-                # match (id1 is not None) is exempt from this check and
+                # or bare `### N.M` match (id1/id4 is not None) is exempt
+                # from this check and
                 # continues to open a new anchor unconditionally, including
                 # when it duplicates an already-seen id — that is a genuine
                 # error condition build_records (not this function) is
                 # responsible for catching.
                 continue
-            title = (m.group("title1") or m.group("title2") or m.group("title3")).strip()
+            title = (m.group("title1") or m.group("title2") or m.group("title3")
+                     or m.group("title4")).strip()
             if current is not None:
                 _close(lineno - 1)
             current = {"id": anchor_id, "title": title, "start_line": lineno}
@@ -244,18 +279,19 @@ ID_RANGE_GROUPS = [
                                   (123, 123), (139, 139), (146, 146), (158, 160),
                                   (163, 163), (193, 193),  # 193 added — T006/T007 283-corpus widening (see report)
                                   (201, 201), (226, 226), (262, 262),
-                                  (268, 271)]),
+                                  (268, 271), (277, 277)]),  # 277 added 2026-10-13 — §11.4.277 llmctl model validation gate
     ("code-review-and-quality", [(124, 125),  # 124 added, was (125,125) # WIDENED
                                   (134, 134), (142, 142), (145, 145), (165, 165),
                                   (194, 194), (209, 209), (240, 241),  # 240 added, was (241,241) # WIDENED
-                                  (251, 251)]),
+                                  (251, 251),
+                                  (276, 276)]),  # 276 added 2026-10-08 — §11.4.276 review-round budget (composes §11.4.134/.209); was unmapped, so `generate` exited 6
     ("testing-and-tdd", [(14, 14), (25, 25), (27, 27), (39, 39), (43, 43),
                           (48, 51), (67, 67), (81, 81), (85, 85), (98, 98),
                           (114, 114), (115, 115), (116, 118), (120, 120),
                           (135, 135), (136, 138), (143, 143), (169, 169),
                           (189, 189),  # 189 added — fix round 2, was wrongly reachable via multi-track's range (see report)
                           (199, 199), (224, 224), (238, 239),
-                          (242, 250)]),  # 250 added, was (242,249) # WIDENED
+                          (242, 250), (278, 278)]),  # 250 added, was (242,249) # WIDENED; 278 added 2026-10-13 — §11.4.278 HelixQA UI QA with Vision eyes
     ("workable-items-and-tracking", [(15, 16), (21, 21), (33, 34), (54, 55),
                                       (90, 93), (95, 95), (104, 104), (112, 112),
                                       (148, 149), (171, 171), (202, 202), (214, 214)]),
@@ -360,6 +396,12 @@ EXPLICIT_ID_GROUPS = {
     "12.2": "host-and-resource-safety",
     "12.3": "host-and-resource-safety",
     "11.4.184(I)": "governance-and-constitution-meta",
+    # --- added 2026-10-08 — bare `### N.M` heading form (see _BARE_FORM_NOTE) ---
+    # §1.1 False-positive immunity (paired-mutation rule, under "## 1. Test
+    # coverage is mandatory"); §2.1 Multi-upstream push (under "## 2. Commit
+    # and push mechanics").
+    "1.1": "testing-and-tdd",
+    "2.1": "git-and-data-safety",
 }
 
 

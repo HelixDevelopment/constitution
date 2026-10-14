@@ -217,6 +217,17 @@ _FC_TIMER_RUN_ID=""
 _FC_TIMER_CANDIDATE_FINGERPRINT=""
 _FC_TIMER_INITED=0
 _FC_TIMER_ROWS_WRITTEN=0
+_FC_TIMER_EXIT_FLUSH_INSTALLED=0
+# T048 restart round-1 R1-I1 (2026-10-08): the run id's timestamp half is minted HERE, in the
+# shell that sources this file, never lazily inside a resolver. Every documented caller reads
+# the run id through a `$(fc_timer_run_id)` command substitution -- a SUBSHELL whose
+# memoisation can never reach the parent -- so a lazily-minted "<now>_<pid>" was re-minted by
+# each such read and two reads straddling a second boundary disagreed (measured: 4 of 151 real
+# commit TSVs carried a row run_id that differed from their own filename stem). `$$` is the
+# PARENT's pid in every subshell, so "<source-time ts>_$$" is identical in the parent and in
+# every subshell of it, memoised or not -- the class (any caller, any number of $(...) reads)
+# is closed at the library, not per call site. fc_timer_reset re-mints it for a new run.
+_FC_TIMER_SOURCE_TS="$(date -u +%Y%m%dT%H%M%SZ)"
 
 # _fc_timer_enabled -- 0 (true) unless FC_TIMING is exactly "0".
 _fc_timer_enabled() {
@@ -281,7 +292,7 @@ _fc_timer_ensure_init() {
   if [ -n "${FC_TIMER_RUN_ID:-}" ]; then
     _FC_TIMER_RUN_ID="$FC_TIMER_RUN_ID"
   else
-    _FC_TIMER_RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)_$$"
+    _FC_TIMER_RUN_ID="${_FC_TIMER_SOURCE_TS}_$$"
   fi
   if [ -n "${FC_TIMER_CANDIDATE_FINGERPRINT:-}" ]; then
     _FC_TIMER_CANDIDATE_FINGERPRINT="$FC_TIMER_CANDIDATE_FINGERPRINT"
@@ -332,6 +343,7 @@ fc_timer_reset() {
   _FC_TIMER_CANDIDATE_FINGERPRINT=""
   _FC_TIMER_INITED=0
   _FC_TIMER_ROWS_WRITTEN=0
+  _FC_TIMER_SOURCE_TS="$(date -u +%Y%m%dT%H%M%SZ)"
   return 0
 }
 
@@ -523,15 +535,76 @@ fc_timer_end() {
 }
 
 fc_timer_gate_end() {
-  local has_min=0 a
-  for a in "$@"; do
-    case "$a" in --min-ms) has_min=1 ;; esac
+  # T048 restart round-1 R1-m4: scan FLAGS, never values -- every value-taking flag skips its
+  # value, so `--extra --min-ms` (a VALUE that reads like a flag) can no longer switch the
+  # default gate threshold off. fc_timer_end itself still validates everything.
+  local has_min=0 i=1 a
+  if [ $# -gt 0 ]; then
+    case "$1" in --*) : ;; *) i=2 ;; esac
+  fi
+  while [ "$i" -le $# ]; do
+    a="${!i}"
+    case "$a" in
+      --min-ms) has_min=1; i=$((i + 2)) ;;
+      --checks|--fails|--warns|--extra) i=$((i + 2)) ;;
+      *) i=$((i + 1)) ;;
+    esac
   done
   if [ "$has_min" = 1 ]; then
     fc_timer_end "$@"
   else
     fc_timer_end "$@" --min-ms "${FC_TIMER_GATE_THRESHOLD_MS:-$FC_TIMER_GATE_THRESHOLD_MS_DEFAULT}"
   fi
+}
+
+# fc_timer_close_all [--rc N] -- T048 restart round-1 R1-I2 (the open-frame-at-exit CLASS):
+#   pop EVERY still-open frame, innermost first, writing one row each with
+#   extra "result=aborted;rc=N" and a FAIL verdict when N != 0 (WARN when N == 0: a frame still
+#   open at a clean exit is a wiring bug, never a silent PASS). A no-op (zero rows, zero output)
+#   on an empty stack or when FC_TIMING=0. Never writes to stdout. Returns 0.
+fc_timer_close_all() {
+  local rc=0
+  if [ "${1:-}" = "--rc" ]; then
+    rc="${2:-0}"
+    _fc_timer_is_uint "$rc" || rc=255
+  fi
+  _fc_timer_enabled || return 0
+  local guard=0
+  while [ "${#_FC_TIMER_STACK_ID[@]}" -gt 0 ] && [ "$guard" -lt 1000 ]; do
+    guard=$((guard + 1))
+    if [ "$rc" -ne 0 ]; then
+      fc_timer_end --extra "result=aborted;rc=$rc" --fails 1 2>/dev/null || break
+    else
+      fc_timer_end --extra "result=aborted;rc=$rc" --warns 1 2>/dev/null || break
+    fi
+  done
+  return 0
+}
+
+# fc_timer_install_exit_flush -- R1-I2: install ONE EXIT trap that runs fc_timer_close_all with
+#   the process's real exit status, so every `exit N` / `set -e` abort / refusal path records
+#   its open frames instead of silently losing them (one class-level flush in place of a
+#   per-site end call at every exit). Composes with -- never replaces -- an EXIT trap already
+#   installed: the prior trap runs afterwards and sees the ORIGINAL `$?`; the exit status of
+#   the process is never changed. Idempotent. Call it AFTER any later `trap ... EXIT` the caller
+#   installs (a later plain `trap` would otherwise replace it).
+fc_timer_install_exit_flush() {
+  if [ "$_FC_TIMER_EXIT_FLUSH_INSTALLED" = 1 ]; then
+    return 0
+  fi
+  local old
+  old="$(trap -p EXIT)"
+  old="${old#trap -- \'}"
+  old="${old%\' EXIT}"
+  # shellcheck disable=SC1003
+  old="${old//\'\\\'\'/\'}"
+  # `set +e` inside the trap: under the caller's `set -e`, the `(exit N)` that re-arms `$?`
+  # for the prior trap would itself abort the trap before the prior trap ever ran (measured).
+  # The shell is already exiting, so dropping errexit here changes nothing else.
+  # shellcheck disable=SC2064,SC2154
+  trap "_fc_timer_exit_rc=\$?; set +e; fc_timer_close_all --rc \"\$_fc_timer_exit_rc\"; (exit \"\$_fc_timer_exit_rc\"); ${old}" EXIT
+  _FC_TIMER_EXIT_FLUSH_INSTALLED=1
+  return 0
 }
 
 return 0

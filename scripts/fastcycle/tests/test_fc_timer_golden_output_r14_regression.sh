@@ -162,8 +162,12 @@ if [ -n "$ANCHOR_I2" ] && mutate I2verdictre "$ANCHOR_I2" "$REPL_I2"; then
   MI2V3_RC=$?
   mrun I2verdictre "FC_TIMER_GOLDEN_EVIDENCE_DIR=$TMP/ev_ADV4" "$TMP/mi2v_adv4.out"
   MI2V4_RC=$?
-  if [ "$MI2V3_RC" = 0 ] && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01' "$TMP/mi2v_adv3.out" \
-     && [ "$MI2V4_RC" = 0 ] && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01' "$TMP/mi2v_adv4.out"; then
+  # T048 restart R2-B1: the golden test now also carries a per-verdict-SHAPE control needle,
+  # which the pre-round-15 regex fails on its own. "WRONGLY PASS" therefore means: the
+  # FR-002 comparison PASSes and that shape needle is the ONLY failing check (rc 1 from it).
+  _only_shape_fail() { ! grep -E '^FAIL\[' "$1" | grep -qv 'every real verdict shape'; }
+  if grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01' "$TMP/mi2v_adv3.out" && _only_shape_fail "$TMP/mi2v_adv3.out" \
+     && grep -qE '^PASS\[[0-9]+\]: FR-002/T-A01' "$TMP/mi2v_adv4.out" && _only_shape_fail "$TMP/mi2v_adv4.out"; then
     ok "(M-I2-verdictre) without the extended VERDICT_RE, BOTH (ADV3)'s OK/FAIL flip AND (ADV4)'s WARNING: line WRONGLY become invisible again (rc=0 PASS on both) -- the extension is genuinely load-bearing for both shapes"
   else
     bad "(M-I2-verdictre) BLIND: adv3_rc=$MI2V3_RC adv4_rc=$MI2V4_RC; $(grep -E 'FR-002/T-A01' "$TMP/mi2v_adv3.out" "$TMP/mi2v_adv4.out" | head -5)"
