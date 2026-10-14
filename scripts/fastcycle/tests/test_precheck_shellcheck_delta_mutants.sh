@@ -1,7 +1,7 @@
 #!/bin/sh
 # fastcycle-timeout-s: 7200
 # =============================================================================
-# test_precheck_shellcheck_delta_mutants.sh (ATM-1217 r3 + r4 + r5 + r6 + r7 + r8)
+# test_precheck_shellcheck_delta_mutants.sh (ATM-1217 r3 + r4 + r5 + r6 + r7 + r8 + r9)
 # Paired 1.1 mutation harness for test_precheck_shellcheck_baseline_delta.sh.
 # Each mutant is a one-place semantic break of the baseline-delta rule, its
 # dispatchers or its seams with the round-5/6 gate, applied to a SCRATCH COPY of
@@ -30,6 +30,10 @@
 # the cited-line member found by the r7 class enumeration).
 # V01-V10 (r8): the independent reviewer's 8 mutants of the r7 review (no V08, V09), VERBATIM (V03, V04, V05, V06
 # survived r7; killed by N11 and the SIMULATED-output cases N12a-c).
+# R01-R06 (r9): the independent reviewer's 6 mutants of the r8 review, RECONSTRUCTED from the review text (its
+# scratch was deleted); R02 and R04 survived r8 (killed by L2a / L2b), R03 is EQUIVALENT (argued in its entry).
+# U01-U08 (r9): successors on the r9 command-unit line map (L1): the unit check, each join kind, the comment test,
+# the base-unit shape.
 # Z07 RETIRED by r7 (the condition is keyed on the full finding key; successor W05).
 # r5 RETIRED: a mutant whose needle the r5 structural change deleted (the window fallback, its lexer, the
 # working-tree activation check) is kept verbatim and marked RETIRED; the harness PROVES its needle is absent
@@ -519,6 +523,44 @@ MUTANTS = [
  ('V10-same-repo-gate-commit-is-head', BRUN,
   '    if gate_top == rrepo:\n        return gate_top, base, None',
   '    if gate_top == rrepo:\n        return gate_top, "HEAD", None', None),
+ # r9: the independent reviewer's 6 mutants of the r8 review (R01-R06), RECONSTRUCTED from the review's text (the
+ # reviewer's scratch harness was deleted after the review; each needle / replacement below is the change the review
+ # names, one place each). R02 and R04 survived r8; killed by L2a and L2b. R03 is EQUIVALENT (review argument).
+ ('R01-r8rv-extent-last-line-not-checked', RUN,
+  '            for i in range(1, ext[2] - ext[0] + 1):', '            for i in range(1, ext[2] - ext[0]):', None),
+ ('R02-r8rv-cited-line-first-digit-only', RUN,
+  '_LINE_REF_RE = re.compile(r"(?i)\\bline\\s+\\d+")', '_LINE_REF_RE = re.compile(r"(?i)\\bline\\s+\\d")', None),
+ ('R03-r8rv-level-dropped-from-key', RUN,
+  '    return (base_line, col, eline - line, ecol, str(c.get("level"))) + _finding_ident(c)',
+  '    return (base_line, col, eline - line, ecol) + _finding_ident(c)',
+  'EQUIVALENT: review r8 section 4 -- in shellcheck 0.11.0 the level is a fixed function of the SC code, which stays '
+  'in the key, and both sides are linted by the same binary with the same flags, so no real finding pair differs in '
+  'level alone'),
+ ('R04-r8rv-line-map-ignores-carriage-returns', RUN,
+  '    lines = raw.split(b"\\n")', '    lines = raw.replace(b"\\r", b"").split(b"\\n")', None),
+ ('R05-r8rv-extent-check-skipped-for-multiline', RUN,
+  '        if bl is not None and ext is not None:', '        if bl is not None and ext is not None and ext[2] == ext[0]:', None),
+ ('R06-r8rv-base-budget-counted-twice', RUN,
+  '            budget[k] = budget.get(k, 0) + 1', '            budget[k] = budget.get(k, 0) + 2', None),
+ # r9 successors on the r9 code (L1: the command unit is the unit of "unchanged"), one per join kind + the map rule
+ ('U01-unit-check-dropped', RUN,
+  '        if intact[hs]:\n            keep[h] = b', '        if True:\n            keep[h] = b', None),
+ ('U02-pipe-andor-line-end-not-joined', RUN,
+  '                cont = tail.endswith("|") or tail.endswith("&&") or tail.endswith("|&")', '                cont = False', None),
+ ('U03-substitution-span-not-joined', RUN,
+  '                cont = cont or any(f[0] != "p" for f in stack)', '                cont = cont', None),
+ ('U04-open-quote-not-joined', RUN,
+  '                joins.add(line)  # a newline inside a quote / backtick / ${ } / arithmetic: one word', '                pass', None),
+ ('U05-heredoc-body-not-joined', RUN,
+  '                            joins.add(line)\n                            line += 1\n                            j = n if k < 0 else k + 1',
+  '                            line += 1\n                            j = n if k < 0 else k + 1', None),
+ ('U06-every-hash-is-a-comment', RUN,
+  '        if ch == "#" and prev in _UNIT_DELIM:', '        if ch == "#":', None),
+ ('U07-base-unit-shape-not-compared', RUN,
+  '            intact[hs] = b0 is not None and bu.get(b0, (b0, b0)) == (b0, b0 + he - hs) and all(',
+  '            intact[hs] = b0 is not None and all(', None),
+ ('U08-code-backslash-newline-not-joined', RUN,
+  '                joins.add(line)  # backslash-newline: the next line continues this command', '                pass', None),
 ]
 PYEOF
 

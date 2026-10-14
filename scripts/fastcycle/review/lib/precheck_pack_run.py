@@ -680,7 +680,12 @@ TOO_LARGE_MIN_LINES = 5000
 #     and a multi-line finding is pre-existing only when EVERY line of its extent is
 #     an unchanged line mapping to consecutive base lines (_finding_key). A finding on
 #     an added or changed line is always new, and so is a
-#     MOVED one (stricter, stated). The r3-r5 (rule, message, line text) multiset is
+#     MOVED one (stricter, stated). r9 (L1): "unchanged" is decided per COMMAND UNIT
+#     (_command_units: backslash-newline, an open quote / substitution / ${ } /
+#     arithmetic, a trailing | / && / ||, a here-document): a line stays in the map only
+#     when its whole unit maps line for line, consecutively, onto exactly its base unit,
+#     so an added `eval \` above, or an edited first line of, the command an unchanged
+#     line belongs to makes that line's findings new. The r3-r5 (rule, message, line text) multiset is
 #     gone: it let an old occurrence that was suppressed or fixed pay for an
 #     identical new one (r5 review H3). Pre-existing blocking findings are listed
 #     in evidence["baseline_findings"], never failing.
@@ -750,7 +755,7 @@ TOO_LARGE_MIN_LINES = 5000
 # ---------------------------------------------------------------------------
 SC_RULES = ("whole-file", "baseline-delta")
 DEFAULT_SC_RULE = "whole-file"
-DELTA_RULE_ID = "shellcheck-baseline-delta/5"  # r7: + column / extent identity (J1, J2: verdicts change)
+DELTA_RULE_ID = "shellcheck-baseline-delta/6"  # r9: + command-unit line map (L1: verdicts change, stricter only)
 DEFAULT_SC_TIMEOUT_DELTA = 120  # per lint; head + base make a delta run lint twice
 _LINE_REF_RE = re.compile(r"(?i)\bline\s+\d+")
 
@@ -789,16 +794,283 @@ def _raw_lines(raw):
     return lines
 
 
+_UNIT_DELIM = frozenset(" \t\n;&|()<>")
+
+
+def _unit_joins(text, ansi_c):
+    """r9 (L1): the set of line numbers n whose terminating newline does NOT end the command it belongs to.
+    A conservative lexical scan (stricter when unsure: a wrong join only makes more findings new):
+      * backslash-newline in code, in "..." and in `...` (also backslash-CR-LF: shells do not join it, over-joined);
+      * a newline inside '...', "...", $'...', `...`, ${...}, $((...)) / ((...));
+      * a newline after a trailing `|`, `||`, `&&`, `|&` (outside quotes and comments);
+      * a here-document: the line that opens it, its body and its terminator line are one unit.
+      * a newline inside $(...), <(...), >(...): the substitution is one word of the command that contains it.
+    A newline at the top level or directly inside a compound command / subshell body (if / while / for / case /
+    { } / ( ) / function) is NOT a join: those are separate commands, and a change on another one of them is the
+    stated R12 limit. `ansi_c`: $'...' honours backslash escapes (bash) or not (POSIX sh: `$` then a '...' string);
+    _command_units joins both readings."""
+    joins = set()
+    n = len(text)
+    i = 0
+    line = 1
+    stack = []   # frames: [kind, case_depth, paren_depth]; kinds S D Q B E A (joining) / P p (code)
+    prev = "\n"  # previous char consumed in code context (word-start test for '#', '((')
+    tail = ""    # last non-blank chars of this line in code context (trailing-operator test)
+    word = ""    # the bare word being read in code context (case / esac)
+    pending = []  # here-documents opened on this logical line: (delimiter, strip_tabs)
+
+    def code():
+        return not stack or stack[-1][0] in ("P", "p")
+
+    def endword():
+        if word and (not stack or stack[-1][0] in ("P", "p")):
+            fr = stack[-1] if stack else top
+            if word == "case":
+                fr[1] += 1
+            elif word == "esac" and fr[1] > 0:
+                fr[1] -= 1
+
+    top = ["T", 0, 0]
+    while i < n:
+        ch = text[i]
+        kind = stack[-1][0] if stack else "T"
+        if ch == "\n":
+            if code():
+                endword()
+                word = ""
+                cont = tail.endswith("|") or tail.endswith("&&") or tail.endswith("|&")
+                cont = cont or any(f[0] != "p" for f in stack)  # inside $( ) / <( ) / >( ): one word of the command
+                if pending:
+                    j = i + 1
+                    for delim, strip, quoted in pending:
+                        cont_body = False
+                        while j < n:
+                            k = text.find("\n", j)
+                            seg = text[j:] if k < 0 else text[j:k]
+                            joins.add(line)
+                            line += 1
+                            j = n if k < 0 else k + 1
+                            if not cont_body and (seg.lstrip("\t") if strip else seg) == delim:
+                                break
+                            # an UNQUOTED here-document honours backslash-newline: the next line is joined to this
+                            # one and is never the terminator (backslash-CR is over-joined, stricter)
+                            t = seg[:-1] if seg.endswith("\r") else seg
+                            cont_body = not quoted and (len(t) - len(t.rstrip("\\"))) % 2 == 1
+                    pending = []
+                    if cont:
+                        joins.add(line)
+                    i = j
+                    line += 1
+                    prev, tail = "\n", ""
+                    continue
+                if cont:
+                    joins.add(line)
+            else:
+                joins.add(line)  # a newline inside a quote / backtick / ${ } / arithmetic: one word
+            line += 1
+            i += 1
+            if code():
+                prev, tail = "\n", ""
+            continue
+        if kind == "S":
+            if ch == "'":
+                stack.pop()
+            i += 1
+            continue
+        if kind in ("D", "Q", "B", "E", "A"):
+            if ch == "\\":
+                if text.startswith("\n", i + 1) or text.startswith("\r\n", i + 1):
+                    joins.add(line)
+                    line += 1
+                    i += 3 if text[i + 1] == "\r" else 2
+                else:
+                    i += 2
+                continue
+            if kind == "D" and ch == '"' or kind == "Q" and ch == "'" or kind == "B" and ch == "`" \
+                    or kind == "E" and ch == "}":
+                stack.pop()
+                i += 1
+                continue
+            if kind == "A":
+                if ch == "(":
+                    stack[-1][2] += 1
+                elif ch == ")":
+                    if stack[-1][2] > 0:
+                        stack[-1][2] -= 1
+                    else:
+                        stack.pop()
+                        i += 2 if text.startswith(")", i + 1) else 1
+                        continue
+            if kind != "Q" and kind != "B" and ch == "$" and text.startswith("(", i + 1):
+                if text.startswith("((", i + 1):
+                    stack.append(["A", 0, 0]); i += 3
+                else:
+                    stack.append(["P", 0, 0]); i += 2
+                continue
+            if kind != "Q" and kind != "B" and ch == "$" and text.startswith("{", i + 1):
+                stack.append(["E", 0, 0]); i += 2
+                continue
+            if kind in ("D", "E") and ch == "`":
+                stack.append(["B", 0, 0]); i += 1
+                continue
+            if kind == "E" and ch in "'\"":
+                stack.append(["S" if ch == "'" else "D", 0, 0]); i += 1
+                continue
+            i += 1
+            continue
+        # code context: top level, $( ), <( ), >( ), ( )
+        if ch == "\\":
+            if text.startswith("\n", i + 1) or text.startswith("\r\n", i + 1):
+                joins.add(line)  # backslash-newline: the next line continues this command
+                line += 1
+                i += 3 if text[i + 1] == "\r" else 2
+                continue
+            word += "\\"
+            prev, tail = "x", "x"
+            i += 2
+            continue
+        if ch in " \t\r":
+            endword()
+            word = ""
+            prev = ch if ch != "\r" else prev
+            i += 1
+            continue
+        if ch == "#" and prev in _UNIT_DELIM:
+            k = text.find("\n", i)
+            i = n if k < 0 else k  # a comment: the newline is handled above
+            continue
+        tail = (tail + ch)[-2:]
+        if ch == "'":
+            stack.append(["S", 0, 0]); prev = "x"; i += 1; word += "'"
+            continue
+        if ch == '"':
+            stack.append(["D", 0, 0]); prev = "x"; i += 1; word += '"'
+            continue
+        if ch == "`":
+            stack.append(["B", 0, 0]); prev = "x"; i += 1; word += "`"
+            continue
+        if ch == "$":
+            nx = text[i + 1:i + 2]
+            if nx == "'":
+                stack.append(["Q" if ansi_c else "S", 0, 0]); i += 2; prev = "x"; word += "$'"
+                continue
+            if nx == "(":
+                if text.startswith("((", i + 1):
+                    stack.append(["A", 0, 0]); i += 3
+                else:
+                    stack.append(["P", 0, 0]); i += 2
+                endword(); word = ""; prev = "("
+                continue
+            if nx == "{":
+                stack.append(["E", 0, 0]); i += 2; prev = "x"; word += "${"
+                continue
+            prev = "x"; word += "$"; i += 1
+            continue
+        if ch in "<>" and text.startswith("(", i + 1):
+            endword(); word = ""
+            stack.append(["P", 0, 0]); i += 2; prev = "("
+            continue
+        if ch == "<" and text.startswith("<", i + 1):
+            endword(); word = ""
+            if text.startswith("<", i + 2):
+                i += 3; prev = "<"; tail = "<"
+                continue
+            j = i + 2
+            strip = text.startswith("-", j)
+            if strip:
+                j += 1
+            while j < n and text[j] in " \t":
+                j += 1
+            d = []
+            quoted = False
+            while j < n and text[j] not in _UNIT_DELIM:
+                c2 = text[j]
+                if c2 in "'\"":
+                    q = text.find(c2, j + 1)
+                    if q < 0:
+                        q = n
+                    d.append(text[j + 1:q]); j = q + 1; quoted = True
+                    continue
+                if c2 == "\\" and j + 1 < n:
+                    d.append(text[j + 1]); j += 2; quoted = True
+                    continue
+                d.append(c2); j += 1
+            if d:
+                pending.append(("".join(d), strip, quoted))
+            prev, tail = "x", "x"
+            i = j
+            continue
+        if ch == "(":
+            endword(); word = ""
+            if prev in _UNIT_DELIM and text.startswith("(", i + 1):
+                stack.append(["A", 0, 0]); i += 2
+            else:
+                stack.append(["p", 0, 0]); i += 1
+            prev = "("
+            continue
+        if ch == ")":
+            endword(); word = ""
+            fr = stack[-1] if stack else top
+            if fr[1] == 0 and stack:
+                stack.pop()
+            prev = ")"
+            i += 1
+            continue
+        if ch in _UNIT_DELIM:
+            endword(); word = ""
+            prev = ch
+            i += 1
+            continue
+        word += ch
+        prev = "x"
+        i += 1
+    return joins
+
+
+def _command_units(raw):
+    """r9 (L1): {line -> (first line, last line) of the command unit it belongs to}, over the byte lines as
+    shellcheck numbers them. Both readings of $'...' are joined (stricter)."""
+    text = raw.decode("latin-1")
+    nlines = text.count("\n") + (0 if text.endswith("\n") or not text else 1)
+    joins = _unit_joins(text, True) | _unit_joins(text, False)
+    out = {}
+    s = 1
+    for ln in range(1, nlines + 1):
+        if ln not in joins or ln == nlines:
+            for m in range(s, ln + 1):
+                out[m] = (s, ln)
+            s = ln + 1
+    return out
+
+
 def _line_map(bdata, cdata):
     """r6 H3: {head line -> base line} for the head lines a line diff of the two whole blobs keeps UNCHANGED
     (difflib, no junk heuristic: every equal line can anchor; one-to-one and order-preserving, so no base line is
-    ever the anchor of two head lines). Added or changed head lines are absent from the map."""
+    ever the anchor of two head lines). Added or changed head lines are absent from the map.
+    r9 (review r8 L1): a line is UNCHANGED only together with its whole command unit (_command_units: the lines one
+    command spans through backslash-newline, an open quote, a trailing | / && / ||, a here-document). A head line stays
+    in the map only when its head unit maps line for line, consecutively, onto exactly the base unit of its base line;
+    otherwise every line of that unit is dropped (added `eval \\` above an unchanged line, an edited first line of a
+    multi-line command, a deleted continuation line: the unchanged token belongs to a changed command)."""
     sm = difflib.SequenceMatcher(None, _raw_lines(bdata), _raw_lines(cdata), autojunk=False)
     out = {}
     for i, j, n in sm.get_matching_blocks():
         for k in range(n):
             out[j + k + 1] = i + k + 1
-    return out
+    try:
+        hu, bu = _command_units(cdata), _command_units(bdata)
+    except Exception:  # noqa: BLE001 -- fail closed: no unit can be proven intact, so no line is unchanged
+        return {}
+    keep, intact = {}, {}
+    for h, b in out.items():
+        hs, he = hu.get(h, (h, h))
+        if hs not in intact:
+            b0 = out.get(hs)
+            intact[hs] = b0 is not None and bu.get(b0, (b0, b0)) == (b0, b0 + he - hs) and all(
+                out.get(hs + d) == b0 + d for d in range(he - hs + 1))
+        if intact[hs]:
+            keep[h] = b
+    return keep
 
 
 def _finding_ident(c):
