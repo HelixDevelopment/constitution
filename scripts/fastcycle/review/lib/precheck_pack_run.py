@@ -10,6 +10,7 @@ never called directly by a contract-facing caller.
 Usage:   precheck_pack_run.py --batch <batch.json> --clean-checkout <dir>
              --out <precheck.json> [--config <cfg>] [--determinism-check]
              [--baseline-repo [PREFIX=]PATH]... [--baseline-ref REF]
+             [--shellcheck-rule whole-file|baseline-delta]   (ATM-1217, opt-in)
 Exit:    0 all_pass; 1 any check FAILs; 2 usage/malformed --batch;
          4 self-test failed (--determinism-check only: two consecutive
          runs on the same inputs produced different body_hash, or an
@@ -59,6 +60,9 @@ clearly-labelled "not yet wired" result, never an invented finding):
     comment above check_shellcheck. Honest gap: if the `shellcheck` binary is
     absent from PATH this check PASSes with evidence mode "skipped" naming the
     gap (11.4.3 honest skip) -- such a pack is never dispatch-ready.
+    With --shellcheck-rule baseline-delta (opt-in, ATM-1217) and a base, only
+    blocking findings NEW versus the base blob fail (block comment above
+    DEFAULT_SC_TIMEOUT_DELTA); everything else above is unchanged.
   - secret-scan: a real, self-contained regex scan (AWS access-key-id
     shape, PEM private-key headers, an inline api-key/secret/password/
     token assignment shape) over every file in scope.
@@ -134,6 +138,7 @@ this whole tool family).
 """
 import argparse
 import datetime
+import difflib
 import fcntl
 import hashlib
 import json
@@ -654,6 +659,231 @@ DEFAULT_MAX_LINES = 10000
 DEFAULT_MAX_BYTES = 2 * 1024 * 1024
 LARGE_LINES = 5000
 TOO_LARGE_MIN_LINES = 5000
+# ---------------------------------------------------------------------------
+# BASELINE-DELTA rule (ATM-1217; operator decision 2026-10-13: the precheck-pack
+# shellcheck row becomes a baseline-delta rule with a configurable timeout).
+# OPT-IN per run (--shellcheck-rule baseline-delta); the default stays the
+# stricter whole-file rule above (11.4.201(4): an unrequested rule never makes a
+# verdict laxer). Everything the whole-file rule does is kept -- severity floor,
+# memory-capped capped runner, size cap, budget, lock, binding, directive
+# policing + parity oracle, legacy-exception ratchet -- and ONLY the question
+# "which BLOCKING findings fail" changes, for a file that is NOT a legacy-exception
+# row and IS a regular file tracked at the bound/declared base:
+#   * the base blob (followed through the binding's renames) is linted with the
+#     HEAD's dialect, under the same caps; a head finding fails only when it is
+#     NEW. r6 (H3): a finding is PRE-EXISTING only when its line is an UNCHANGED
+#     line of the base->head line diff (_line_map: difflib over the byte lines, no
+#     junk heuristic, one-to-one) AND the base reported the same rule + message
+#     (`line <n>` rewritten to `line N`) on the base line it maps to, counted per
+#     base line. A finding on an added or changed line is always new, and so is a
+#     MOVED one (stricter, stated). The r3-r5 (rule, message, line text) multiset is
+#     gone: it let an old occurrence that was suppressed or fixed pay for an
+#     identical new one (r5 review H3). Pre-existing blocking findings are listed
+#     in evidence["baseline_findings"], never failing.
+#   * r6 (H1): a blob shellcheck could not PARSE (any SC1xxx at level error,
+#     _parse_fatal) was never analysed whole -- shellcheck stops checking after a
+#     parse failure. A head with one is judged as a new file (new_file_reason
+#     "head-unparsed: ..."; every blocking and parse-fatal finding fails); a base
+#     with one is no baseline ("base-unlintable: base-unparsed: ...").
+#   * byte-identical head and base: "unchanged", not linted (its directives are
+#     still policed: D1-D4 fail, r4 F5). r6 (H4): over the size cap it is not
+#     exempt -- BLIND, the whole-file verdict.
+#   * no regular base blob (new file, base symlink/gitlink, empty-tree base):
+#     "new-file" -- every finding is new (the whole-file verdict).
+#   * r4 F1 -- a base blob is a baseline ONLY when it was itself under this gate
+#     at base (_base_not_gated): it must be a shell candidate AT BASE by the gate's
+#     own detection (shell extension on the BASE path, or a shell shebang in the
+#     BASE bytes -- the same _SHELL_EXTS / _interp_of test the head selection uses),
+#     carry no NUL byte, have no legacy-exception row in the BASE ledger (a row's
+#     findings are pinned debt, never a pass), and have the head's effective
+#     dialect (shebang dialect + `shell=` directives; base findings computed under
+#     a dialect the base was never gated in are not "pre-existing"). Otherwise the
+#     file is "new-file" with evidence delta.files[].new_file_reason.
+#   * r5 (ATM-1217, 11.4.276(E) structural round): EVERY lint input is a WHOLE
+#     blob -- the head blob or the base blob, never a snippet. The r3/r4 window
+#     fallback (lint only the hunks' surroundings when a side could not be linted
+#     whole) was REMOVED: twice in a row a review found a snippet that meant
+#     something else than the file (r4 review G1: a directive at the top of a
+#     window took file scope; G2: the lexer that proved window boundaries read a
+#     mid-word `#` as a comment), so "the snippet means what the file means" is
+#     not provable by a model of shell syntax; DESIGN r5 section 2 records the
+#     alternatives measured. Consequences:
+#       - a HEAD that cannot be linted whole (timeout, memory-cap kill, tool
+#         failure, size cap) is BLIND -- exactly the whole-file rule's verdict;
+#       - a BASE that cannot be linted whole (same causes, or the host-wide large
+#         lock not obtained) is no baseline: the file is judged as a new file
+#         (new_file_reason "base-unlintable: ..."), i.e. every blocking head
+#         finding fails -- exactly the whole-file verdict, never laxer.
+#     The delta rule is therefore never laxer than the whole-file rule for a file
+#     that cannot be linted whole on both sides; it only differs where both whole
+#     blobs were linted (state "full").
+#   * directives: D1-D4 violations always fail (they are unpinnable in the
+#     ratchet too); a D5 (unjustified) directive that already existed at base ON
+#     THE SAME UNCHANGED LINE of the diff (r6: anchored, not a text multiset) is
+#     tolerated and listed in
+#     evidence["directive_violations_baseline"]; a NEW one fails. A parity breach
+#     always fails closed.
+#   * no base at all (no --baseline-repo): the whole-file verdict, with
+#     evidence["delta"]["base_resolved"] false and a caveat -- never a silent pass.
+# Residuals (stated): R9 a pre-existing directive suppresses its codes in new code
+# exactly as in old code (listed: blocking_rule_disabled /
+# directive_violations_baseline); R10 (r3/r4: window snippets) is GONE with the
+# window fallback in r5 -- no lint input is ever a part of a file; R11 renames are
+# followed only as far as the
+# binding records them (an unbound run sees a rename as a new file -- stricter);
+# R12 pre-existing debt is ACCEPTED BY DESIGN (r5, G5): _base_not_gated proves only
+# that the base blob is a shell candidate at base, carries no NUL byte, has no
+# legacy-exception row at base and has the head's dialect -- it does NOT prove the
+# base passed this gate (most bases predate it). Every blocking finding the base
+# already had is "pre-existing", including (a) findings in a base no review ever
+# linted (an unreviewed intermediate commit inside a later batch's base) and (b)
+# findings that only a NEWER shellcheck reports, since the base is linted with
+# the host's current shellcheck: an upgrade turns new checks on the base into
+# baseline, not into failures. The whole-file rule re-lints such files and owns
+# them all. R13 (r5) is CLOSED by r6 (H2): the dispatch activation is read at an
+# anchor the DISPATCHER supplies (verify --activation-commit), never at a commit
+# the pack names (precheck_pack_build_run.delta_activation).
+# ---------------------------------------------------------------------------
+SC_RULES = ("whole-file", "baseline-delta")
+DEFAULT_SC_RULE = "whole-file"
+DELTA_RULE_ID = "shellcheck-baseline-delta/4"  # r6: line-anchored identity + parse-fatal (verdicts change)
+DEFAULT_SC_TIMEOUT_DELTA = 120  # per lint; head + base make a delta run lint twice
+_LINE_REF_RE = re.compile(r"(?i)\bline\s+\d+")
+
+
+def _default_sc_timeout(rule):
+    return DEFAULT_SC_TIMEOUT_DELTA if rule == "baseline-delta" else DEFAULT_SC_TIMEOUT
+
+
+def _parse_fatal(comments):
+    """r6 H1: the findings that mean shellcheck did NOT analyse the blob whole -- every SC1xxx at level
+    `error` (SC1072/SC1073/SC1089/SC1046/... parse failures; SC1017 CRLF is included as well: a superset is
+    stricter, never laxer). After such a finding shellcheck reports no SC2xxx check for the file, so neither a
+    head nor a base carrying one can take part in a comparison."""
+    out = []
+    for c in comments or []:
+        try:
+            code = int(c.get("code") or 0)
+        except (TypeError, ValueError):
+            code = 0
+        if c.get("level") == "error" and 1000 <= code < 2000:
+            out.append(c)
+    return out
+
+
+def _fatal_summary(fatal):
+    return ", ".join("SC%s@%s" % (c.get("code"), c.get("line")) for c in fatal[:5]) + (
+        " (+%d more)" % (len(fatal) - 5) if len(fatal) > 5 else "")
+
+
+def _raw_lines(raw):
+    """Byte lines as shellcheck numbers them (split on b'\\n'): the line map compares BYTES, so two different
+    undecodable sequences can never compare equal."""
+    lines = raw.split(b"\n")
+    if lines and lines[-1] == b"":
+        lines.pop()
+    return lines
+
+
+def _line_map(bdata, cdata):
+    """r6 H3: {head line -> base line} for the head lines a line diff of the two whole blobs keeps UNCHANGED
+    (difflib, no junk heuristic: every equal line can anchor; one-to-one and order-preserving, so no base line is
+    ever the anchor of two head lines). Added or changed head lines are absent from the map."""
+    sm = difflib.SequenceMatcher(None, _raw_lines(bdata), _raw_lines(cdata), autojunk=False)
+    out = {}
+    for i, j, n in sm.get_matching_blocks():
+        for k in range(n):
+            out[j + k + 1] = i + k + 1
+    return out
+
+
+def _finding_ident(c):
+    """What a finding is, apart from where: rule + message with cited line numbers neutralised."""
+    msg = _LINE_REF_RE.sub("line N", " ".join(str(c.get("message") or "").split()))
+    return "SC%s" % c.get("code"), msg
+
+
+def _anchored_split(head_blocking, base_blocking, lmap):
+    """r6 H3 (replaces the r3-r5 (rule, message, line text) multiset): a head finding is PRE-EXISTING only when its
+    line is an UNCHANGED line of the diff AND the base reported the same rule + message on the base line that head
+    line maps to (counted per base line, so a second occurrence on that line is new). A finding on an added or
+    changed line is always new; so is a finding whose occurrence the base had on another line (a moved line, or an
+    old occurrence that was suppressed / fixed while an identical one was added -- stricter by design)."""
+    budget = {}
+    for c in base_blocking:
+        k = (c.get("line"),) + _finding_ident(c)
+        budget[k] = budget.get(k, 0) + 1
+    new, old = [], []
+    order = lambda c: (c.get("line") or 0, c.get("column") or 0, str(c.get("code")))  # noqa: E731
+    for c in sorted(head_blocking, key=order):
+        bl = lmap.get(c.get("line")) if isinstance(c.get("line"), int) else None
+        k = (bl,) + _finding_ident(c)
+        if bl is not None and budget.get(k, 0) > 0:
+            budget[k] -= 1
+            old.append(c)
+        else:
+            new.append(c)
+    return new, old
+
+
+_SHELL_DIRECTIVE_RE = re.compile(r"(?:^|[\s,])shell=([^\s,#]+)")
+
+
+def _effective_dialect(data):
+    """(shebang dialect, sorted `shell=` values of the canonical directives): what the gate linted the
+    bytes as. Two blobs with different values were never linted under the same dialect."""
+    shells = set()
+    for line in data.decode("latin-1").split("\n"):
+        for m in _canon_matches(line):
+            shells.update(_SHELL_DIRECTIVE_RE.findall(line[m.end():]))
+    return _shell_dialect(data), tuple(sorted(shells))
+
+
+def _base_not_gated(base_rel, blob, cdata, base_ex_rows):
+    """r4 F1: None when the base blob was itself under this gate at base and so may serve as the
+    baseline; else the reason it may not (the file is then judged as a NEW file). The shell test is
+    the gate's own head-selection test applied to the BASE path and BASE bytes."""
+    if not (base_rel.endswith(_SHELL_EXTS) or _bytes_are_shell(blob)):
+        return ("base-not-shell: %s had no shell extension and no shell shebang at base -- it was never "
+                "under the shellcheck gate" % base_rel)
+    if b"\0" in blob:
+        return "base-nul: the base blob carries a NUL byte -- the gate refuses such a script, it never passed"
+    if base_ex_rows is None:
+        return "base-ledger-unknown: the base legacy-exception ledger cannot be read -- gating at base unprovable"
+    if base_rel in base_ex_rows:
+        return ("base-exception-row: %s was a legacy-exception row at base -- its findings were pinned debt, "
+                "never a pass; dropping the row requires the whole-file verdict" % base_rel)
+    bd, hd = _effective_dialect(blob), _effective_dialect(cdata)
+    if bd != hd:
+        return ("dialect-changed: base %s/%s vs head %s/%s -- base findings in the head's dialect were never "
+                "gated" % (bd[0], ",".join(bd[1]) or "-", hd[0], ",".join(hd[1]) or "-"))
+    return None
+
+
+def _delta_base_state(baseline, base_rel, cdata, base_ex_rows=None):
+    """-> (state, base bytes|None, detail); state in unchanged|delta|new-file|error."""
+    if baseline is None:
+        return "new-file", None, "no base"
+    st, blob, detail = _base_blob(baseline, base_rel)
+    if st == "tracked":
+        why = _base_not_gated(base_rel, blob, cdata, base_ex_rows)
+        if why:
+            return "new-file", None, why
+        return ("unchanged" if blob == cdata else "delta"), blob, ""
+    if st == "error":
+        return "error", None, detail or "base blob unreadable"
+    return "new-file", None, st  # untracked-at-base | symlink | gitlink at base: no regular base to compare
+
+
+def _directive_baseline(bdata):
+    """Set of the base's PURE-D5 (unjustified-only) canonical directives as (base line, normalised text): r6
+    anchors a tolerated directive to the base line it sat on (see delta_police). A set, not a multiset: the line map
+    is one-to-one, so no two head directives can ever claim the same base line (r5's text multiset is gone)."""
+    out = set()
+    for d in _police_directives(_split_lines(bdata)):
+        if d["violations"] and all(v.startswith("D5") for v in d["violations"]):
+            out.add((d["line"], " ".join(d["text"].split())))
+    return out
 
 
 def _split_lines(raw):
@@ -1546,7 +1776,8 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
     opts = opts or {}
     batch = batch or {}
     scoped_files, scope_note = scope["files"], scope["note"]
-    sc_timeout = opts.get("timeout") or DEFAULT_SC_TIMEOUT
+    rule = opts.get("rule") or DEFAULT_SC_RULE
+    sc_timeout = opts.get("timeout") or _default_sc_timeout(rule)
     ex_timeout = opts.get("exception_timeout") or DEFAULT_EXCEPTION_TIMEOUT
     mem_cap = opts.get("mem_cap_mib") or DEFAULT_MEM_CAP_MIB
     max_lines = opts.get("max_lines") or DEFAULT_MAX_LINES
@@ -1562,7 +1793,7 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
     tool = {"version": version, "argv": _capped_argv(_shellcheck_argv("<dialect>"), "<empty dir>", mem_cap),
             "timeout_s": sc_timeout, "exception_timeout_s": ex_timeout, "memory_cap_mib": mem_cap,
             "max_lines": max_lines, "max_bytes": max_bytes, "large_lines": LARGE_LINES,
-            "lock": _lock_path(), "total_budget_s": DEFAULT_TOTAL_BUDGET,
+            "lock": _lock_path(), "total_budget_s": DEFAULT_TOTAL_BUDGET, "rule": rule,
             "severity_floor": {"blocking_levels": list(BLOCKING_LEVELS),
                                "blocking_info_rules": list(BLOCKING_INFO_RULES),
                                "excluded_rules": list(EXCLUDED_RULES)},
@@ -1570,6 +1801,10 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                           "<empty cwd> + LC_ALL/LANG=C.UTF-8; --norc; file on stdin"}
     if _test_mode():
         tool["test_mode"] = True  # a pack built so is never dispatch-ready (the verifier refuses it)
+    delta_on = rule == "baseline-delta" and baseline is not None
+    if rule == "baseline-delta":
+        tool["delta"] = {"rule_id": DELTA_RULE_ID, "lint_inputs": "whole-blob-only"}
+    delta_files, baseline_findings, dir_viol_base = [], [], []
     ctx["shellcheck_params"] = {"timeout_s": sc_timeout, "exception_timeout_s": ex_timeout,
                                 "memory_cap_mib": mem_cap, "max_lines": max_lines}
     errors, findings, advisory, directives, dir_viol, blocking_disabled = [], [], [], [], [], []
@@ -1602,6 +1837,21 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                            "in an explicit TSV-only batch" % ", ".join("%s %s" % (x["path"], x["kind"])
                                                                       for x in increase)})
     gitlink_paths = {g["path"] for g in bound["gitlinks"]} if bound else set()
+    _bex = []
+
+    def base_ex_rows():
+        """r4 F1: the BASE legacy-exception ledger ({} when absent at base; None when unreadable). A bound
+        run uses the rows the binding already read; an unbound one reads the base blob itself."""
+        if not _bex:
+            rows = exc["base_rows"]
+            if rows is None and baseline is not None:
+                bst_, bblob_, _bd = _base_blob(baseline, CANONICAL_EXCEPTIONS_REL)
+                if bst_ == "tracked":
+                    rows = _parse_exceptions(bblob_, "base exceptions")[0]
+                elif bst_ == "untracked-at-base":
+                    rows = {}
+            _bex.append(rows)
+        return _bex[0]
 
     def base_is_shell(rel):
         if baseline is None:
@@ -1637,6 +1887,95 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
     def remaining():
         return DEFAULT_TOTAL_BUDGET - (time.monotonic() - budget_t0)
 
+    # --- baseline-delta helpers (used only when delta_on; see the block above DEFAULT_SC_TIMEOUT_DELTA) ---
+    def make_lint(_flag):
+        def dlint(data):
+            left = remaining()
+            if left <= 0:
+                return None, "the per-batch shellcheck time budget (%ss) is exhausted" % DEFAULT_TOTAL_BUDGET, True
+            t = min(sc_timeout, left)
+            com, er, to, _el = _run_shellcheck(_flag, data, t, mem_cap)
+            if to and t < sc_timeout:
+                er = "%s (clipped by the per-batch %ss budget)" % (er, DEFAULT_TOTAL_BUDGET)
+            return com, er, to
+        return dlint
+
+    def delta_police(rel, dirs, bdata, lmap="identity"):
+        # r6 (H3 class, directive member): a pure-D5 directive is tolerated only when its head line is an UNCHANGED
+        # line of the diff (lmap) whose base line carried the same directive text -- an old unjustified directive
+        # that is justified/removed never frees a slot for a NEW identical one. lmap None (no line map was made:
+        # blind head) tolerates nothing; "identity" (the byte-identical `unchanged` state) maps every line to itself.
+        if lmap == "identity":
+            lmap = {n: n for n in range(1, len(_split_lines(bdata)) + 1)} if bdata is not None else None
+        tolerated = _directive_baseline(bdata) if (bdata is not None and lmap is not None) else set()
+        for d in dirs:
+            if not d["violations"]:
+                continue
+            rec = {"file": rel, "line": d["line"], "text": d["text"], "violations": d["violations"]}
+            k = (lmap.get(d["line"]) if lmap is not None else None, " ".join(d["text"].split()))
+            if k[0] is not None and k in tolerated:  # only pure-D5 base directives are in `tolerated`
+                dir_viol_base.append(rec)  # pre-existing unjustified directive on its unchanged line: listed only
+            else:
+                dir_viol.append(rec)
+
+    def delta_base_unlintable(rel, dfile, blocking, clines, why):
+        # r5: a base that cannot be linted WHOLE is no baseline -> the file is judged as a new file: every
+        # blocking head finding is new (the whole-file verdict). Never a window, never a partial base.
+        dfile["state"] = "new-file"
+        dfile["new_file_reason"] = "base-unlintable: " + why
+        for c in blocking:
+            findings.append(dict(_finding(rel, c, _line_text(clines, c.get("line"))), new_in="new-file"))
+
+    def delta_head_blind(dfile, why):
+        # r5: a head that cannot be linted WHOLE is BLIND (the caller records the error): the whole-file verdict
+        if dfile is not None:
+            dfile["state"] = "blind"
+            dfile["cause"] = why
+
+    def delta_full(rel, dfile, cdata, bdata, flag, comments, clines, lmap):
+        blocking = [c for c in comments if _blocking(c)]
+        for c in comments:
+            if not _blocking(c):
+                advisory.append(_finding(rel, c, _line_text(clines, c.get("line"))))
+        hfatal = _parse_fatal(comments)
+        if hfatal:
+            # r6 H1: shellcheck could not parse the head, so it analysed none of it (no SC2xxx check ran): there is
+            # nothing to compare -> judged as a NEW file, every blocking finding (and every parse-fatal one) fails
+            dfile["state"] = "new-file"
+            dfile["new_file_reason"] = "head-unparsed: " + _fatal_summary(hfatal)
+            for c in sorted({id(x): x for x in blocking + hfatal}.values(),
+                            key=lambda x: (x.get("line") or 0, x.get("column") or 0, str(x.get("code")))):
+                findings.append(dict(_finding(rel, c, _line_text(clines, c.get("line"))), new_in="new-file"))
+            return
+        dfile["state"] = "full"
+        if not blocking:
+            return  # nothing at the floor in head: nothing can be new (the base is not linted)
+        blines = _split_lines(bdata)
+        if len(blines) > max_lines or len(bdata) > max_bytes:
+            delta_base_unlintable(rel, dfile, blocking, clines,
+                                  "%d lines / %d bytes exceeds the size cap (%d lines / %d bytes)"
+                                  % (len(blines), len(bdata), max_lines, max_bytes))
+            return
+        blint = make_lint(flag)
+        if len(blines) >= LARGE_LINES:
+            with _LargeLintLock(max(min(2 * ex_timeout, remaining()), 1.0)) as blk:
+                bcom, berr, _bto = (None, blk.error, False) if blk.error else blint(bdata)
+        else:
+            bcom, berr, _bto = blint(bdata)
+        if berr:
+            delta_base_unlintable(rel, dfile, blocking, clines, berr)
+            return
+        bfatal = _parse_fatal(bcom)
+        if bfatal:
+            # r6 H1: a base shellcheck could not parse was never analysed whole -> it is no baseline
+            delta_base_unlintable(rel, dfile, blocking, clines, "base-unparsed: " + _fatal_summary(bfatal))
+            return
+        new, old = _anchored_split(blocking, [c for c in bcom if _blocking(c)], lmap)
+        for c in new:
+            findings.append(dict(_finding(rel, c, _line_text(clines, c.get("line"))), new_in="full"))
+        for c in old:
+            baseline_findings.append(_finding(rel, c, _line_text(clines, c.get("line"))))
+
     pool = scoped_files if scoped_files is not None else _find_shell_scripts(root)
     for path in sorted(pool):
         rel = _relpath(path, root)
@@ -1670,11 +2009,38 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
         for d in dirs:
             directives.append(dict(d, file=rel))
         row = ex_rows.get(rel)
+        dstate, bdata, dfile = None, None, None
+        if delta_on and row is None:
+            base_rel = renames.get(rel, rel)
+            dstate, bdata, ddetail = _delta_base_state(baseline, base_rel, cdata, base_ex_rows())
+            dfile = {"file": rel, "state": dstate}
+            if base_rel != rel:
+                dfile["renamed_from"] = base_rel
+            if dstate == "new-file" and ddetail:
+                dfile["new_file_reason"] = ddetail
+            delta_files.append(dfile)
+            over_cap = len(clines) > max_lines or len(cdata) > max_bytes
+            if dstate == "unchanged" and not over_cap:
+                # byte-identical to a base blob that WAS gated (r4 F1): nothing can be new; not linted. Its
+                # directives are still policed: D1-D4 fail even when pre-existing (r4 F5, the guide's rule).
+                # r6 H4: over the size cap it is NOT exempt -- it falls through to the cap's BLIND (the whole-file
+                # verdict), so "a batch that touches a file over the cap fails" holds for a byte-identical touch too.
+                delta_police(rel, dirs, bdata)
+                continue
+            if dstate == "unchanged":
+                dfile["state"] = "delta"  # over the cap: handled by the cap branch below (state becomes blind)
+            if dstate == "error":
+                errors.append({"file": rel, "message": "BLIND (fails closed): the base blob of this file cannot be "
+                               "read for the baseline-delta comparison: %s" % ddetail})
+                continue
         if len(clines) > max_lines or len(cdata) > max_bytes:
             msg = ("BLIND (fails closed): %d lines / %d bytes exceeds the size cap (%d lines / %d bytes) -- this "
                    "file cannot be linted within the host-safety caps; split it before it can be in a review batch"
                    % (len(clines), len(cdata), max_lines, max_bytes))
             errors.append({"file": rel, "message": msg})
+            delta_head_blind(dfile, msg)
+            if dfile is not None:
+                delta_police(rel, dirs, bdata, None)
             if row is not None:
                 exceptions_used.append({"file": rel, "verdict": "BLIND", "error": msg})
             continue
@@ -1721,17 +2087,28 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
                                           "file_scope": d["file_scope"], "text": d["text"]})
         files_linted += 1
         if row is None:
-            for d in dirs:
-                if d["violations"]:
-                    dir_viol.append({"file": rel, "line": d["line"], "text": d["text"],
-                                     "violations": d["violations"]})
+            lmap = _line_map(bdata, cdata) if (dstate == "delta" and bdata is not None and not err) else None
+            if dfile is not None:
+                delta_police(rel, dirs, bdata, lmap)
+            else:
+                for d in dirs:
+                    if d["violations"]:
+                        dir_viol.append({"file": rel, "line": d["line"], "text": d["text"],
+                                         "violations": d["violations"]})
             if err:
+                delta_head_blind(dfile, err)  # r5: a head that cannot be linted whole is BLIND (never a window)
                 hint = (" -- a file that cannot be linted within the budget needs a reviewed legacy-exception row"
                         if timed_out else "")
                 errors.append({"file": rel, "message": "BLIND (fails closed): " + err + hint})
                 continue
+            if dstate == "delta":
+                delta_full(rel, dfile, cdata, bdata, flag, comments, clines, lmap)
+                continue
             for c in comments:
-                (findings if _blocking(c) else advisory).append(_finding(rel, c, _line_text(clines, c.get("line"))))
+                f_ = _finding(rel, c, _line_text(clines, c.get("line")))
+                if dfile is not None and _blocking(c):
+                    f_["new_in"] = "new-file"
+                (findings if _blocking(c) else advisory).append(f_)
             continue
         # --- legacy exception: per-rule ratchet of BLOCKING findings against the pin ---
         entry = {"file": rel, "reason_class": row["reason_class"], "tracked_item": row["tracked_item"],
@@ -1834,7 +2211,7 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
     ctx["exceptions"] = exc["info"] if (exc["info"] or {}).get("bound") else None
 
     failing = bool(findings or errors or dir_viol or sym_refused or head_problem)
-    evidence = {"tool": tool, "mode": "whole-file",
+    evidence = {"tool": tool, "mode": "baseline-delta" if delta_on else "whole-file",
                 "counts": {"files_linted": files_linted, "findings": len(findings), "advisory": len(advisory),
                            "directives": len(directives), "directive_violations": len(dir_viol)},
                 "binding": {"state": ("bound" if bound is not None and bound["ok"] else
@@ -1860,6 +2237,18 @@ def check_shellcheck(root, scope, baseline=None, head_sha=None, batch=None, ctx=
         evidence["renames"] = renames
     if head_problem:
         evidence["head_problem"] = head_problem
+    if rule == "baseline-delta":
+        delta = {"rule_id": DELTA_RULE_ID, "base_resolved": delta_on,
+                 "states": sorted({f["state"] for f in delta_files}), "files": delta_files}
+        if not delta_on:
+            delta["caveat"] = ("no --baseline-repo/--baseline-ref base: the WHOLE-FILE verdict applied (every "
+                               "blocking finding fails) -- never a silent pass")
+        evidence["delta"] = delta
+        evidence["counts"]["baseline_findings"] = len(baseline_findings)
+        for key, val in (("baseline_findings", baseline_findings),
+                         ("directive_violations_baseline", dir_viol_base)):
+            if val:
+                evidence[key] = val
     evidence.update(_scope_fragment(scoped_files, scope_note))
     return {"check": "shellcheck", "verdict": "FAIL" if failing else "PASS", "evidence": evidence}
 
@@ -2193,6 +2582,10 @@ def cmd_run(a):
             print("precheck_pack: --%s must be in 1..%d (a cap can be lowered, never raised)"
                   % (name.replace("_", "-"), ceiling), file=sys.stderr)
             return 2
+    if a.shellcheck_rule is not None and a.shellcheck_rule not in SC_RULES:
+        print("precheck_pack: --shellcheck-rule must be one of %s (got %r)" % ("|".join(SC_RULES), a.shellcheck_rule),
+              file=sys.stderr)
+        return 2
     exceptions = a.shellcheck_exceptions
     bound_run = bool(a.baseline_repo) and isinstance(batch.get("binding"), dict)
     if bound_run and exceptions and os.path.normpath(exceptions) != CANONICAL_EXCEPTIONS_REL:
@@ -2202,7 +2595,7 @@ def cmd_run(a):
         return 2
     opts = {"timeout": a.shellcheck_timeout, "exception_timeout": a.shellcheck_exception_timeout,
             "exceptions": exceptions, "mem_cap_mib": a.shellcheck_memory_cap_mib,
-            "max_lines": a.shellcheck_max_lines}
+            "max_lines": a.shellcheck_max_lines, "rule": a.shellcheck_rule or DEFAULT_SC_RULE}
     baseline = _make_baseline(a.baseline_repo, a.baseline_ref)
     ctx = {}
     checks = run_checks(batch, root, baseline, a.head_sha, ctx, opts)
@@ -2301,6 +2694,7 @@ def main(argv):
     p.add_argument("--shellcheck-exception-timeout", type=float)
     p.add_argument("--shellcheck-memory-cap-mib", type=int)
     p.add_argument("--shellcheck-max-lines", type=int)
+    p.add_argument("--shellcheck-rule")
     try:
         a = p.parse_args(argv)
     except SystemExit as se:
