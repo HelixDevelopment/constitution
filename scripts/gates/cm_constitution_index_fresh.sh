@@ -4,11 +4,13 @@
 #
 # constitution_index.yaml records generated_from.source_sha256, and anchor_citations.py refuses an
 # index whose checksum differs from Constitution.md (E_INDEX_SHA_MISMATCH, exit 4, BLIND). 59 of the
-# last 60 commits that touched Constitution.md left the index stale. The commit path regenerates it
-# (scripts/anchors/index_commit_seam.sh, run by the commit wrapper's cascade) and the post-update
-# hook checks it on every pull; this gate is the pre-build backstop: it FAILs while the committed
-# index or any groups/*.md differs from a fresh `constitution_generate.py check` against
-# Constitution.md (a stale checksum is drift too, because the generated index records it).
+# last 60 commits that touched Constitution.md left the index stale. This gate is the pre-build stage:
+# it FAILs while the committed index or any groups/*.md differs from a fresh
+# `constitution_generate.py check` against Constitution.md (a stale checksum is drift too, because the
+# generated index records it).
+# HONEST BOUNDARY (§11.4.6): this is the ONLY landed stage of the regeneration seam. The commit-path
+# stage (an index_commit_seam.sh run by the commit wrapper) and a post-update freshness check are NOT
+# in this tree; they exist only in an unpublished held snapshot and are owed work, not claimed here.
 #
 # Usage: cm_constitution_index_fresh.sh [--root DIR] [--quiet]
 #   --root   constitution root (default: two levels above this script)
@@ -36,9 +38,9 @@ out=$(python3 "$GEN" check --source "$SOURCE" --groups-dir "$ROOT/groups" --inde
 if [ "$rc" -ne 0 ]; then
   echo "$GATE: FAIL -- constitution_index.yaml / groups/*.md do not match a fresh generation from $SOURCE (rc=$rc):"
   printf '%s\n' "$out" | head -n 20 | sed 's/^/  /'
-  # V5 N3: name the generator's own `generate` (the command the commit seam prints). regenerate_if_stale.sh is
-  # NOT a repair here: it compares only the checksum, so for a hand-edited groups/*.md it answers "fresh ...
-  # nothing to do" while this gate stays red. `generate` rewrites the index AND every group from the source.
+  # V5 N3: name the generator's own `generate`. A checksum-only refresh is NOT a repair here: for a
+  # hand-edited groups/*.md it answers "fresh ... nothing to do" while this gate stays red. `generate`
+  # rewrites the index AND every group from the source.
   echo "  regenerate in the constitution checkout and commit the result: python3 $GEN generate --source $SOURCE --groups-dir $ROOT/groups --index-out $ROOT/constitution_index.yaml"
   exit 1
 fi
