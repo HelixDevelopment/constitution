@@ -276,7 +276,8 @@ for rid in $RIDS; do
         && ok "rule $rid has a row" || bad "rule $rid has no row in the table — a new rule needs a fixture and a mutant"
 done
 # control needle: the extraction must see the known rule ids R-RC and S-ZN (one per end of the file) and many more
-if [ "$nids" -ge 10 ] && printf '%s\n' "$RIDS" | grep -qx R-RC && printf '%s\n' "$RIDS" | grep -qx S-ZN; then
+# (here-strings, not `printf | grep -q`: under `set -o pipefail` an early-exiting grep -q can SIGPIPE the producer and read as failure — CM-SIGPIPE-PIPEFAIL-CLASS)
+if [ "$nids" -ge 10 ] && grep -qx R-RC <<<"$RIDS" && grep -qx S-ZN <<<"$RIDS"; then
     ok "control needle: $nids rule ids read from the checker (R-RC and S-ZN among them)"
 else bad "control needle BLIND: $nids rule id(s) read from the checker"; fi
 
