@@ -34,6 +34,13 @@ const (
 	maxCwdRunes          = 4096
 	maxHostRunes         = 255
 	orphanTmpAge         = time.Minute
+	// DefaultSweepAfter: an entity whose LOCAL process is provably gone is
+	// removed once it has not been updated for this long (CONTRACT §1.3).
+	DefaultSweepAfter = 15 * time.Minute
+	// DefaultSweepBatch bounds the entities one transaction sweeps.
+	DefaultSweepBatch = 256
+	// MaxPID is the largest pid accepted (Linux PID_MAX_LIMIT, 2^22).
+	MaxPID = 1 << 22
 )
 
 // Options configure a Store. Zero values get production defaults.
@@ -48,6 +55,8 @@ type Options struct {
 	CompactEvents int           // compact when the log holds more events (default 5000)
 	CompactBytes  int64         // ... or more bytes (default 2 MiB)
 	KeepTail      int           // events kept in the log after compaction (default 256)
+	SweepAfter    time.Duration // stale-sweep age (default 15m; < 0 disables)
+	SweepBatch    int           // max entities swept per transaction (default 256)
 }
 
 // DefaultDir is ${LABEL_SYNC_DIR:-$HOME/.local/state/constitution-label-sync}.
@@ -106,6 +115,12 @@ func Open(o Options) (*Store, error) {
 	}
 	if o.KeepTail <= 0 {
 		o.KeepTail = DefaultKeepTail
+	}
+	if o.SweepAfter == 0 {
+		o.SweepAfter = DefaultSweepAfter
+	}
+	if o.SweepBatch <= 0 {
+		o.SweepBatch = DefaultSweepBatch
 	}
 	if o.KeepTail > o.CompactEvents {
 		o.KeepTail = o.CompactEvents
@@ -400,10 +415,25 @@ func lastLineStart(f *os.File, size int64) (int64, error) {
 // is checked with ReadAt (O(1)); a torn final fragment that is not a complete
 // event is truncated away (it was never acknowledged), a complete one just
 // gets its missing newline.
-func (s *Store) appendEvent(r *Raw, ev model.Event) error {
-	line, err := json.Marshal(ev)
-	if err != nil {
-		return err
+func (s *Store) appendEvent(r *Raw, ev model.Event) error { return s.appendEvents(r, []model.Event{ev}) }
+
+// appendEvents appends several events with ONE write and ONE fsync (the stale
+// sweeper reaps up to SweepBatch entities per transaction: one fsync each
+// would hold the writer lock for seconds).
+func (s *Store) appendEvents(r *Raw, evs []model.Event) error {
+	if len(evs) == 0 {
+		return nil
+	}
+	var line []byte
+	for i, ev := range evs {
+		b, err := json.Marshal(ev)
+		if err != nil {
+			return err
+		}
+		if i > 0 {
+			line = append(line, '\n')
+		}
+		line = append(line, b...)
 	}
 	f, err := os.OpenFile(s.p("events.jsonl"), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0o600)
 	if err != nil {
@@ -449,7 +479,7 @@ func (s *Store) appendEvent(r *Raw, ev model.Event) error {
 	}
 	r.Index.Ino = inode(fi)
 	r.Index.Off = size + int64(len(out))
-	r.Index.Events++
+	r.Index.Events += len(evs)
 	return nil
 }
 
@@ -476,6 +506,9 @@ func (s *Store) prepare(ev *model.Event) error {
 		for _, f := range []*string{&e.Track, &e.Branch, &e.Alias, &e.Model, &e.Effort, &e.Source, &e.PIDStart} {
 			cleanPtr(f, label.MaxFieldRunes)
 		}
+		if e.PID < 0 || e.PID > MaxPID { // MUT:pidrange
+			return fmt.Errorf("register: invalid pid %d (want 0..%d)", e.PID, MaxPID)
+		}
 		cleanPtr(&e.Host, maxHostRunes)
 		cleanPtr(&e.Cwd, maxCwdRunes)
 		if e.PID > 0 && e.PIDStart == "" && (e.Host == "" || e.Host == s.opts.LocalHost) {
@@ -495,6 +528,16 @@ func (s *Store) prepare(ev *model.Event) error {
 				case "host":
 					v = label.Clean(v, maxHostRunes)
 				case "parent_id", "session_id":
+					// never passed through unchecked (review-2 finding 9)
+					if v != "" && !label.ValidID(v) { // MUT:patchid
+						return fmt.Errorf("%s: invalid %s %q (want %s)", ev.Type, k, label.Clean(v, 160), idGrammar)
+					}
+				case "pid":
+					if v != "" {
+						if n, err := strconv.Atoi(v); err != nil || n < 0 || n > MaxPID {
+							return fmt.Errorf("%s: invalid pid %q (want 0..%d)", ev.Type, label.Clean(v, 32), MaxPID)
+						}
+					}
 				default:
 					v = label.Clean(v, label.MaxFieldRunes)
 				}
@@ -543,22 +586,60 @@ func (s *Store) applyOn(r *Raw, ev model.Event) (model.Event, error) {
 }
 
 // reapLocked opportunistically reaps `done` entities past retention so the
-// snapshot stays bounded even with label-busd down (review finding 5(v)).
+// snapshot stays bounded even with label-busd down (review finding 5(v)), and
+// SWEEPS kill -9 / power-cycle leftovers (review-2 finding 7): an entity that
+// is not done, runs on THIS host with a recorded pid whose process is provably
+// gone (same pid AND start identity no longer alive — the staleness rule's
+// proof), and has not been updated for SweepAfter is removed. Pid-less and
+// remote entities are never swept (their liveness cannot be proven). At most
+// SweepBatch entities go per transaction, appended with one fsync, so the
+// lock hold stays bounded; later writes continue the sweep.
 func (s *Store) reapLocked(r *Raw) ([]string, error) {
 	now := s.opts.Now()
 	var ids []string
+	var swept []string
 	for id, e := range r.Entities {
 		if e.State == model.StateDone && now.Sub(e.UpdatedAt) > s.opts.DoneRetention { // MUT:reap
 			ids = append(ids, id)
+			continue
+		}
+		if s.sweepable(e, now) {
+			swept = append(swept, id)
 		}
 	}
+	sort.Strings(swept)
+	if len(swept) > s.opts.SweepBatch { // MUT:sweepbatch
+		swept = swept[:s.opts.SweepBatch]
+	}
+	ids = append(ids, swept...)
 	sort.Strings(ids)
-	for i, id := range ids {
-		if _, err := s.applyOn(r, model.Event{Type: model.EvReap, ID: id}); err != nil {
-			return ids[:i], err
+	evs := make([]model.Event, 0, len(ids))
+	for _, id := range ids {
+		ev := model.Event{Type: model.EvReap, ID: id, Seq: r.Seq + 1, TS: now}
+		if err := r.Apply(ev); err != nil {
+			return nil, err
 		}
+		evs = append(evs, ev)
+	}
+	if err := s.appendEvents(r, evs); err != nil {
+		return nil, err
 	}
 	return ids, nil
+}
+
+// sweepable: see reapLocked. Never true for a live, pid-less, remote, done or
+// recently-updated entity, nor when the sweeper is disabled (SweepAfter < 0).
+func (s *Store) sweepable(e *model.Entity, now time.Time) bool {
+	if s.opts.SweepAfter < 0 || e.State == model.StateDone || e.PID <= 0 {
+		return false
+	}
+	if e.Host != "" && e.Host != s.opts.LocalHost {
+		return false
+	}
+	if !(now.Sub(e.UpdatedAt) > s.opts.SweepAfter) { // MUT:sweepage
+		return false
+	}
+	return !s.opts.Pids.Alive(e.PID, e.PIDStart) // MUT:sweepalive
 }
 
 func (s *Store) lock() (*lockFile, error) { return acquire(s.p("lock"), s.opts.LockTimeout) }
@@ -927,7 +1008,8 @@ func (s *Store) PeekSeq() uint64 {
 // OptionsFromEnv builds Options from LABEL_SYNC_DIR, LABEL_SYNC_TTL,
 // LABEL_SYNC_DONE_RETENTION, LABEL_SYNC_LOCK_TIMEOUT (Go durations like
 // "90s", or bare seconds), LABEL_SYNC_COMPACT_EVENTS and
-// LABEL_SYNC_COMPACT_BYTES (integers).
+// LABEL_SYNC_COMPACT_BYTES (integers), LABEL_SYNC_STALE_SWEEP (duration, or
+// "off") and LABEL_SYNC_SWEEP_BATCH (integer).
 func OptionsFromEnv() Options {
 	o := Options{Dir: os.Getenv("LABEL_SYNC_DIR")}
 	o.TTL = envDur("LABEL_SYNC_TTL")
@@ -938,6 +1020,14 @@ func OptionsFromEnv() Options {
 	}
 	if n, err := strconv.ParseInt(os.Getenv("LABEL_SYNC_COMPACT_BYTES"), 10, 64); err == nil {
 		o.CompactBytes = n
+	}
+	if v := strings.TrimSpace(os.Getenv("LABEL_SYNC_STALE_SWEEP")); v == "off" {
+		o.SweepAfter = -1
+	} else if d, ok := ParseDuration(v); ok && d > 0 {
+		o.SweepAfter = d
+	}
+	if n, err := strconv.Atoi(os.Getenv("LABEL_SYNC_SWEEP_BATCH")); err == nil {
+		o.SweepBatch = n
 	}
 	return o
 }

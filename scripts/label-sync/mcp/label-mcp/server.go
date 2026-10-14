@@ -217,8 +217,13 @@ func (s *server) Serve(r io.Reader, w io.Writer) error {
 	br := bufio.NewReaderSize(r, 1<<16)
 	var rerr error
 	for {
-		line, err := br.ReadBytes('\n')
-		if t := bytes.TrimSpace(line); len(t) > 0 {
+		line, tooLong, err := readLineCapped(br, MaxLineBytes)
+		if tooLong {
+			// answered in arrival order like any other line, never buffered whole
+			slot := make(chan []byte, 1)
+			slots <- slot
+			slot <- enc(errResp(nil, errInvalidRequest, fmt.Sprintf("request line too large (limit %d bytes)", MaxLineBytes)))
+		} else if t := bytes.TrimSpace(line); len(t) > 0 {
 			raw := append([]byte(nil), t...)
 			slot := make(chan []byte, 1)
 			slots <- slot
@@ -246,6 +251,27 @@ func (s *server) Serve(r io.Reader, w io.Writer) error {
 		return werr
 	}
 	return rerr
+}
+
+// readLineCapped reads one '\n'-terminated line of at most max bytes. A longer
+// line is DISCARDED up to its newline while reading (memory stays bounded) and
+// reported with tooLong=true (review-2 finding J: a 150 MB line used to cost
+// 566 MB RSS).
+func readLineCapped(br *bufio.Reader, max int) (line []byte, tooLong bool, err error) {
+	for {
+		frag, e := br.ReadSlice('\n')
+		if !tooLong {
+			if len(line)+len(frag) > max+1 { // +1: the newline itself // MUT:linecap
+				tooLong, line = true, nil
+			} else {
+				line = append(line, frag...)
+			}
+		}
+		if e == bufio.ErrBufferFull {
+			continue
+		}
+		return line, tooLong, e
+	}
 }
 
 func (s *server) handleLine(raw []byte, write func(any)) {
@@ -353,13 +379,13 @@ func toolDefs() []toolDef {
 			schema(nil, map[string]any{"kind": str("one of " + kinds), "alias": str("effective alias, e.g. claude2")})},
 		{"label_switch_alias", "Switch the operator's ACTIVE alias (and optionally model/effort). Every entity that follows the active alias is relabelled in the same write. Unspecified model/effort render as `?` — nothing is invented.",
 			schema([]string{"alias"}, map[string]any{"alias": str("claude1, claude2, prov-*, ..."), "model": str("opus|sonnet|haiku|fable|<provider model>"), "effort": str("low|medium|high|xhigh|max")})},
-		{"label_register", "Register (or replace) a labelled entity. follow_active defaults to true.",
+		{"label_register", "Register (or replace) a labelled entity. follow_active defaults to true WITHOUT an alias and to false WITH one (an explicit alias pins; only alias-less roots follow the active context).",
 			schema([]string{"id", "kind"}, map[string]any{
 				"id": str("unique caller-chosen id"), "kind": str(kinds), "parent_id": str("parent entity id"),
 				"session_id": str("Claude session id"), "pid": map[string]any{"type": "integer", "description": "OS pid (>0) on this host"},
 				"cwd": str("working directory"), "track": str("digits only"), "branch": str("git branch"),
 				"alias": str("alias"), "model": str("model"), "effort": str("effort"),
-				"follow_active": map[string]any{"type": "boolean", "description": "follow the operator's active alias (default true)"},
+				"follow_active": map[string]any{"type": "boolean", "description": "follow the operator's active alias (default: true without an alias, false with one)"},
 				"state":         str("running|idle|done|unknown"), "source": str("who reports this entity")})},
 		{"label_heartbeat", "Refresh an entity's liveness (updated_at); optionally set its state.",
 			schema([]string{"id"}, map[string]any{"id": str("entity id"), "state": str("running|idle|done|unknown")})},
@@ -558,6 +584,9 @@ func (s *server) toolSwitch(a map[string]any) (any, error) {
 	return map[string]any{"alias": ev.Active.Alias, "model": mo, "effort": ef, "seq": ev.Seq}, nil
 }
 
+// MaxLineBytes caps one JSON-RPC request line (review-2 finding J).
+const MaxLineBytes = 4 << 20
+
 func (s *server) toolRegister(a map[string]any) (any, error) {
 	id, err := argReqStr(a, "id")
 	if err != nil {
@@ -599,6 +628,10 @@ func (s *server) toolRegister(a map[string]any) (any, error) {
 			return nil, errors.New(`argument "follow_active" must be a boolean`)
 		}
 		e.FollowActive = b
+	} else if e.Alias != "" {
+		// an explicit alias pins: only alias-less roots follow (CONTRACT §4.2,
+		// review-2 finding 4)
+		e.FollowActive = false // MUT:explicitpin
 	}
 	e.Host, _ = os.Hostname()
 	if e.Cwd == "" {

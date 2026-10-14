@@ -61,7 +61,7 @@ func applyPatch(e *model.Entity, p map[string]string) error {
 		return fmt.Errorf("invalid kind %q", v)
 	}
 	if v, ok := p["pid"]; ok && v != "" {
-		if _, err := strconv.Atoi(v); err != nil {
+		if n, err := strconv.Atoi(v); err != nil || n < 0 {
 			return fmt.Errorf("invalid pid %q", v)
 		}
 	}

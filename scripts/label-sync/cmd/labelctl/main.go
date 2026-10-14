@@ -460,6 +460,14 @@ func cmdWrite(st *state.Store, cmd string, args []string, out, errw io.Writer) i
 			// two aliases each keep their own. No read of the active alias is
 			// needed, so there is no TOCTOU window.
 			e.FollowActive = false // MUT:derivepin
+	} else if e.Alias != "" {
+			// An EXPLICIT --alias pins too (review-2 finding 4): only alias-less
+			// roots follow the active context (CONTRACT §4.2).
+			e.FollowActive = false // MUT:explicitpin
+		}
+		if pidStr != "" && (e.PID < 0 || e.PID > state.MaxPID) {
+			fmt.Fprintf(errw, "labelctl: invalid --pid %q (want 0..%d)\n", pidStr, state.MaxPID)
+			return 1
 		}
 		ev = model.Event{Type: model.EvRegister, Entity: &e}
 	} else {
@@ -483,6 +491,15 @@ func cmdWrite(st *state.Store, cmd string, args []string, out, errw io.Writer) i
 					return 1
 				}
 				patch[key] = "" // MUT:clear
+			}
+		}
+		if a, ok := patch["alias"]; ok && a != "" && !set["follow-active"] {
+			patch["follow_active"] = "false" // explicit alias pins (CONTRACT §4.3) // MUT:updatepin
+		}
+		if v, ok := patch["pid"]; ok && v != "" {
+			if n, err := strconv.Atoi(v); err != nil || n < 0 || n > state.MaxPID {
+				fmt.Fprintf(errw, "labelctl: invalid --pid %q (want 0..%d)\n", v, state.MaxPID)
+				return 1
 			}
 		}
 		if len(patch) == 0 {
