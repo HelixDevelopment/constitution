@@ -254,8 +254,15 @@ another timeout; it never reuses it.
   rule would fail it. Only a dependency the finding's own message cites (`on
   line N`) is followed (r7); any other dependency on another line is not.
 * The `fix` suggestion shellcheck attaches to a finding is not part of its
-  identity. In the r7 class census (random pairs, real shellcheck) no pair had
-  the same finding with a different `fix`.
+  identity. The r8 census (the r7 reviewer's widened generator) found one pair
+  where it differs: only `fix.replacements[].precedence` (7 -> 8), on an
+  unchanged line that an ADDED line ending in `\` made the continuation of a
+  new command. That is the limit above (a change on another line, not cited by
+  the finding): the unchanged token's finding stays pre-existing. An added
+  continuation line can change what an unchanged line means (`exec \`,
+  `x=1 \` above an unchanged command) without a finding of its own; the
+  whole-file rule would fail the debt on the unchanged line, this rule does
+  not (pinned by N13).
 * A parse error is detected through shellcheck's own SC1xxx `error` findings.
   A parse problem shellcheck does not report as such is not seen, and neither
   is a parse error a directive suppresses (`disable=SC1072,SC1073,...`): this

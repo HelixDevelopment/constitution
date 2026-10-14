@@ -1,7 +1,7 @@
 #!/bin/sh
 # fastcycle-timeout-s: 7200
 # =============================================================================
-# test_precheck_shellcheck_delta_mutants.sh (ATM-1217 r3 + r4 + r5 + r6 + r7)
+# test_precheck_shellcheck_delta_mutants.sh (ATM-1217 r3 + r4 + r5 + r6 + r7 + r8)
 # Paired 1.1 mutation harness for test_precheck_shellcheck_baseline_delta.sh.
 # Each mutant is a one-place semantic break of the baseline-delta rule, its
 # dispatchers or its seams with the round-5/6 gate, applied to a SCRATCH COPY of
@@ -28,6 +28,8 @@
 # K01-K10 (r7): the independent reviewer's 10 mutants of the r6 review, VERBATIM (K03, K04, K09 survived r6).
 # W01-W06 (r7): successors on the r7 code (column / extent identity J1, multi-line extent J2, fail-closed extent,
 # the cited-line member found by the r7 class enumeration).
+# V01-V10 (r8): the independent reviewer's 8 mutants of the r7 review (no V08, V09), VERBATIM (V03, V04, V05, V06
+# survived r7; killed by N11 and the SIMULATED-output cases N12a-c).
 # Z07 RETIRED by r7 (the condition is keyed on the full finding key; successor W05).
 # r5 RETIRED: a mutant whose needle the r5 structural change deleted (the window fallback, its lexer, the
 # working-tree activation check) is kept verbatim and marked RETIRED; the harness PROVES its needle is absent
@@ -496,6 +498,27 @@ MUTANTS = [
  ('W05-credit-ignores-base-line', RUN,
   '        if k is not None and budget.get(k, 0) > 0:',
   '        if k is not None and any(kk[1:] == k[1:] and v > 0 for kk, v in budget.items()):', None),
+ # r8: the independent reviewer's 8 mutants of the r7 review (V01-V10, no V08/V09), VERBATIM (V03-V06 survived r7)
+ ('V01-cited-line-unmapped-falls-back-to-head-number', RUN,
+  '        out.append(lmap.get(n) if lmap is not None else n)',
+  '        out.append(lmap.get(n, n) if lmap is not None else n)', None),
+ ('V02-head-cited-lines-not-mapped', RUN,
+  '+ (_cited_lines(c, lmap),)', '+ (_cited_lines(c),)', None),
+ ('V03-extent-only-last-line-checked', RUN,
+  '            for i in range(1, ext[2] - ext[0] + 1):',
+  '            for i in ((ext[2] - ext[0],) if ext[2] > ext[0] else ()):', None),
+ ('V04-extent-endline-before-line-accepted', RUN,
+  'col < 1 or eline < line or ecol < 1', 'col < 1 or ecol < 1', None),
+ ('V05-extent-oneline-endcol-before-col-accepted', RUN,
+  'ecol < 1 or (eline == line and ecol < col):', 'ecol < 1:', None),
+ ('V06-extent-nonpositive-line-col-accepted', RUN,
+  '    if line < 1 or col < 1 or eline < line', '    if eline < line', None),
+ ('V07-gate-repo-outside-pack-repo-parent-path', BRUN,
+  '    if rel == os.curdir or rel.startswith(os.pardir + os.sep) or rel == os.pardir',
+  '    if rel == os.curdir or rel == os.pardir', None),
+ ('V10-same-repo-gate-commit-is-head', BRUN,
+  '    if gate_top == rrepo:\n        return gate_top, base, None',
+  '    if gate_top == rrepo:\n        return gate_top, "HEAD", None', None),
 ]
 PYEOF
 
