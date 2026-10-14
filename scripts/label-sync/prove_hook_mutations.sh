@@ -140,7 +140,7 @@ for name in "${NAMES[@]}"; do
 done
 echo "----"
 echo "mutants killed: $killed / $total"
-[ "$envfail" -eq 0 ] || { echo "label-sync hooks paired-mutation proof: ENVIRONMENT ERROR (a mutant could not be applied/run) — not a pass"; exit 2; }
+[ "$envfail" -eq 0 ] || { echo "label-sync hooks paired-mutation proof: ENVIRONMENT ERROR or UNDETERMINED (a mutant could not be applied/run, or failed with no assertion) — not a pass"; exit 2; }
 [ "$fail" -eq 0 ] && [ "$killed" -eq "$total" ] || exit 1
 echo "label-sync hooks paired-mutation proof: PASS"
 exit 0

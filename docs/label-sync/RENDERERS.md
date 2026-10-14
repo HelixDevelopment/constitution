@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/RENDERERS.md` |
-| Revision | 2 (2026-10-12) — FIX-B1: strict sanitiser, argv0-only secret policy, Ctrl-C reaches labelrun's child, `$_`/errexit-safe hooks, no salt, derived-binding adaptation |
+| Revision | 3 (2026-10-14) — second review: the bash shell entity's track/branch/cwd follow `cd` / `git checkout`; statusline session preference tested; C2 made deterministic. Revision 2 (2026-10-12) — FIX-B1: strict sanitiser, argv0-only secret policy, Ctrl-C reaches labelrun's child, `$_`/errexit-safe hooks, no salt, derived-binding adaptation |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed); zsh + fish integrations written but NOT executed (UNCONFIRMED, see §9) |
 | Implements | §11.4.182 (label shown everywhere, real-time, always in sync), §11.4.116, §11.4.18 |
 | Code | `scripts/label-sync/render/` |
@@ -37,7 +37,7 @@ absolute path of the constitution checkout (`…/constitution` or
 | `render/tmux-status.sh` | label for tmux `status-right` / `status-left` |
 | `render/labelrun` | wrapper registering a command/flow entity around any command |
 | `render/watch-labels.sh` | live operator table of all entities, grouped by alias |
-| `render/prove_mutations.sh` | §1.1 paired-mutation proof (23 mutants) |
+| `render/prove_mutations.sh` | §1.1 paired-mutation proof (27 mutants; a kill needs a `FAIL` assertion line, else UNDETERMINED, exit 2) |
 | `render/tests/test_render.sh` | the test suite (165 cases) |
 | `scripts/gates/cm_label_sync_render.sh` (+ `_mutation_test.sh`) | `CM-LABEL-SYNC-RENDER` gate |
 
@@ -165,6 +165,16 @@ single run prints them as `METRIC` lines.
   around `PROMPT_COMMAND` (measured), so the prompt's `$?` is unaffected;
 * nothing secret is exported (no salt, G30).
 
+**Place refresh (bash, revision 3, review-2 finding 8).** The shell entity used
+to keep the track/branch/cwd derived ONCE at shell start. Every prompt now
+compares `$PWD` and the repository's HEAD file (located once per directory by
+a pure-bash walk up to the nearest `.git`; a `.git` FILE is followed) — no
+fork; measured prompt cost (unchanged case) 190 µs -> 263 µs. On a change ONE
+background `shell-hook.sh shell-refresh` re-derives track/branch/cwd with the
+canonical labeler and CLEARS a field reported as `?` (never keeps the previous
+repo's branch). The binding (alias/model/effort) is not touched. The zsh/fish
+integrations do NOT have this yet (UNCONFIRMED anyway, below).
+
 ### zsh / fish — UNCONFIRMED
 
 `shell-integration.zsh` (precmd/preexec/zshexit via `add-zsh-hook`) and
@@ -269,7 +279,7 @@ Every line is sanitised (§3.1); a newline inside a stored value cannot forge a 
 
 ```bash
 bash scripts/label-sync/render/tests/test_render.sh          # 165 cases (needs jq, go, python3; script(1) optional)
-bash scripts/label-sync/render/prove_mutations.sh            # 23 mutants + control, all must be KILLED
+bash scripts/label-sync/render/prove_mutations.sh            # 27 mutants + control, all must be KILLED by an assertion
 bash scripts/gates/cm_label_sync_render.sh                   # CM-LABEL-SYNC-RENDER: 0 pass | 1 fail | 2 cannot determine
 bash scripts/gates/cm_label_sync_render_mutation_test.sh     # gate's own paired mutation test (10 mutants + exit-2 case)
 ```

@@ -10,7 +10,8 @@
 # Usage   : prove_adapter_mutations.sh [--keep] [--only NAME[,NAME...]]   (NAME = mutant id, e.g. N8)
 # Inputs  : none. Needs jq, python3 (>=3.11 + PyYAML), node (opencode section runs
 #           only inside the full suite), and a built labelctl (labelctl.sh --build).
-# Outputs : `KILLED`/`SURVIVED`/`INOPERATIVE` per mutant and a summary.
+# Outputs : `KILLED`/`SURVIVED`/`INOPERATIVE`/`UNDETERMINED` per mutant and a summary
+#           (UNDETERMINED = failed with no `FAIL` assertion line; exit 2, never a pass).
 # Exit    : 0 all killed + control green | 1 survivor / inoperative / red control |
 #           2 environment error.
 # Mutants :
@@ -42,7 +43,7 @@ run() { (cd "$S" && nice -n 10 bash "$A/tests/test_adapters.sh" ${1:+--only "$1"
 snap() { mkdir -p "$S/orig"; cp -a "$A/." "$S/orig/"; }
 restore() { rm -rf "$A" && cp -a "$S/orig" "$A"; }
 snap
-rc=0 killed=0 total=0
+rc=0 killed=0 total=0 undet=0
 mutant() { # name  section  file  old  new
   local name="$1" sect="$2" f="$3" old="$4" new="$5"
   [ -z "$only" ] || case "$only" in *",${name%% *},"*) ;; *) return 0 ;; esac
@@ -55,7 +56,11 @@ open(p,"w").write(s.replace(o,n,1))
 PY
   then echo "INOPERATIVE $name (pattern not found: void proof)"; rc=1; return; fi
   if cmp -s "$S/orig/$f" "$A/$f"; then echo "INOPERATIVE $name (unchanged)"; rc=1; return; fi
-  if run "$sect"; then echo "SURVIVED   $name"; rc=1; else echo "KILLED     $name"; killed=$((killed+1)); fi
+  if run "$sect"; then echo "SURVIVED   $name"; rc=1
+  elif ! grep -q '^FAIL ' "$S/out.txt"; then
+    # failed without a failing assertion (syntax error, crash): not a kill (§11.4.201)
+    echo "UNDETERMINED $name (no FAIL assertion line: $(tail -1 "$S/out.txt" | cut -c1-70))"; undet=1
+  else echo "KILLED     $name ($(grep -m1 '^FAIL ' "$S/out.txt" | cut -c1-70))"; killed=$((killed+1)); fi
 }
 if run ""; then echo "CONTROL    unmutated suite passes ($(tail -1 "$S/out.txt"))"; else echo "CONTROL FAILED"; tail -15 "$S/out.txt"; exit 1; fi
 
@@ -93,4 +98,5 @@ mutant "C9 JSON original not restored"      install _edit_config.py '           
 mutant "C10 created config kept"            install _edit_config.py '                delete = True  # created by the installer: rollback = absent again' '                delete = False'
 restore
 echo "---"; echo "prove_adapter_mutations: $killed/$total mutants killed"
+[ "$undet" = 0 ] || { echo "prove_adapter_mutations: UNDETERMINED mutant(s) — not a pass"; exit 2; }
 [ "$rc" = 0 ] && [ "$killed" = "$total" ]

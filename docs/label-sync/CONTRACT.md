@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/CONTRACT.md` |
-| Revision | 2 (2026-10-12) — FIX-A: derived binding, sanitising, compaction, pid start-time, bounded lock, socket fallback |
+| Revision | 3 (2026-10-14) — review-2 fixes: stale sweeper (§6), explicit alias pins (§4.2), bus.addr only after bind + busd exit 3 + hello limit (§1, §3), pid range + patch ids (§2.1, §7), per-checkout binary cache (§7), same-user trust boundary (§8). Revision 2 (2026-10-12) — FIX-A: derived binding, sanitising, compaction, pid start-time, bounded lock, socket fallback |
 | Status | CORE implemented and tested on branch `feature/label-sync` (local, unpushed) |
 | Implements | §11.4.182 (label), §11.4.116 (event stream + atomic status snapshot), §11.4.233 (level-triggered reconcile) |
 | Code | `scripts/label-sync/` (Go, stdlib only) + `scripts/label-sync/labelctl.sh` |
@@ -40,6 +40,13 @@ leaves `busd.pid`, `bus.sock` (and `bus.addr`) behind: they are stale, not
 live — the next daemon replaces the stale socket (it first probes it; a LIVE
 socket makes it refuse) and rewrites the pid file; the flock on `busd.lock` is
 the only single-instance truth. Never treat `busd.pid` as proof a daemon runs.
+**Ordering (review-2 finding 6):** the daemon binds the socket FIRST and writes
+`bus.addr` only after a successful bind, so a client that reads `bus.addr` can
+always dial; a stale `bus.addr` is removed at start and none is left when the
+bind fails (the daemon then runs the reconcile loop only and says so).
+`label-busd` exit codes: **0** clean shutdown, **2** cannot start (state dir
+unusable, usage), **3** another instance already holds `busd.lock` (the daemon
+is already up — not an error of this invocation). Exit 1 is not used.
 
 Crash safety: a torn final line of `events.jsonl` is tolerated by every reader
 and truncated away by the next writer (it was never acknowledged). A missing or
@@ -139,7 +146,9 @@ network. Cost: up to one poll interval of latency (measured propagation in Go
 tests: well under 1 s with 20 ms polls).
 
 **Optional accelerator: `bus.sock`** (unix, 0600), served by `label-busd`.
-Protocol: client sends `{"since":N}\n` (`N=18446744073709551615` = "from now");
+Protocol: client sends `{"since":N}\n` (`N=18446744073709551615` = "from now";
+the hello line is read through a 4096-byte limit — a longer line, or none
+within 2 s, closes the connection);
 server replies `{"hello":true,"seq":N}\n`, then streams Event JSON lines. The
 daemon polls `seq` every 50 ms from ONE shared subscription (a hub with a
 1024-event ring) and fans out to every client, so log reads do not scale with
@@ -203,7 +212,11 @@ over randomised sequences). A child can still pin itself (own alias +
 `track` and `branch`, when empty, are inherited along the same ancestor chain
 (real data from the parent, not a guess).
 
-**Defaults.** `labelctl register` sets `follow_active=true`. With `--derive`,
+**Defaults.** `labelctl register` sets `follow_active=true` for an ALIAS-LESS
+entity. An EXPLICIT `--alias` (labelctl `register`/`update`, MCP
+`label_register`) pins it (`follow_active=false`) unless `--follow-active` /
+`follow_active` is given explicitly (review-2 finding 4: the explicit triple
+used to be ignored and the entity followed ACTIVE). With `--derive`,
 an alias DERIVED from the process (the canonical labeler reads it from
 `CLAUDE_CONFIG_DIR`) PINS the entity (`follow_active=false`) unless
 `--follow-active` is given: per-process truth wins, so two terminals on
@@ -251,6 +264,22 @@ child is ever left pinned by a past session binding.
 * `done` entities are reaped (`reap` event) after `LABEL_SYNC_DONE_RETENTION`
   (default 300 s) by EVERY writer and by `label-busd`'s reconcile, so the
   snapshot is bounded by (done rate × retention) even with the daemon down.
+* **Stale sweeper (review-2 finding 7).** `kill -9` / power-cycle leftovers
+  used to stay forever (2000 of them: write cost 17-22 ms -> 65-83 ms, snapshot
+  695 KB, inside the 500 ms hook lock bound). Every writer and the reconcile
+  loop now REMOVE (a logged `reap` event, so compaction and replay stay
+  consistent) an entity that is not `done`, is local (`host` empty or this
+  host), has a recorded `pid > 0` whose process is provably gone by the same
+  rule as staleness (pid + start identity), and has not been updated for
+  `LABEL_SYNC_STALE_SWEEP` (Go duration or seconds; default **15m**; `off`
+  disables). Pid-less and remote entities are never swept (their liveness
+  cannot be proven): they stay `[stale]`. A live process is never swept; a
+  RECYCLED pid with a recorded start identity is not "alive". At most
+  `LABEL_SYNC_SWEEP_BATCH` (default 256) entities go per transaction, appended
+  with ONE fsync, so the lock hold stays bounded; later writes continue the
+  sweep. Measured (`TestStaleSweeperRestoresWriteCost`): 2000 leftovers —
+  write 76 ms, snapshot 900 KB; the sweeping write 31 ms; afterwards 13.9 ms
+  and 195 B (empty store 13.4 ms).
 * Reconcile is level-triggered and idempotent: when the rendered view differs
   from the published `snapshot.json` (an entity just went stale) it appends a
   `reconcile` event so `seq` moves and watchers refresh. Staleness bound for
@@ -264,6 +293,15 @@ verify label` — see `labelctl --help`. Global flags before the command:
 duration or seconds). `register` prints the entity's rendered label on stdout.
 `update --clear k1,k2` clears fields (`parent session pid host cwd track branch
 alias model effort source`). Every printed byte is sanitised (§2.1).
+`--pid` must be 0..4194304 (Linux PID_MAX_LIMIT); anything else is exit 1
+(also rejected by the store for register and update patches). A patch's
+`parent_id` / `session_id` is validated against the id grammar by the store
+itself (prepare) AND by the fold (replayed logs). `labelctl.sh` keeps its
+binaries in a PER-CHECKOUT cache (`<cache>/constitution-label-sync/bin-<hash
+of the module path>`, `bincache.sh`) and treats them as stale when the git
+HEAD differs from the `.source-commit` recorded at build — one shared cache
+used to let checkout A run checkout B's binary (review-2 finding 13).
+`LABEL_SYNC_BIN` still overrides.
 
 **Writer lock.** Writers wait at most the lock timeout (a blocking flock in a
 helper goroutine, so waiters are kernel-queued, not sleep-polled); on timeout
@@ -273,3 +311,17 @@ the lock. Hooks should pass a short bound (e.g. `--lock-timeout 500ms`). **Exit 
 verify problem); 2 cannot determine (state dir unusable or foreign-owned, lock
 timeout, labeler missing, no go toolchain, usage error). 2 is never a pass.** `labelctl.sh` builds the Go
 binaries on demand and execs them (`labelctl.sh busd` runs the daemon).
+
+## 8. Trust boundary: same-user spoofing (honest limit, §11.4.6)
+
+The state directory is `0700` and every file `0600`; the push socket is `0600`
+and PUSH-ONLY (a client can subscribe, it cannot write through it). That
+protects the bus from OTHER users. It does NOT protect it from processes of
+the SAME user: any of them can run `labelctl`, append events, register an
+entity with any id, alias or pid, switch the active alias, or rewrite the
+files directly. Labels are therefore a coordination signal between
+cooperating agents of one operator, never an authentication or authorisation
+mechanism, and must not be used to gate anything security-relevant. The pid +
+start identity proves only that the RECORDED process is alive, not that it is
+the process that wrote the entity.
+

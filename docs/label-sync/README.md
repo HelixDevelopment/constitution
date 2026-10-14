@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/README.md` |
-| Revision | 2 (2026-10-12) |
+| Revision | 3 (2026-10-14) |
 | Anchors | §11.4.182, §11.4.116, §11.4.233, §11.4.18 |
 
 Real-time label + alias synchronisation for every stream, agent, subagent,
@@ -21,7 +21,7 @@ scripts/label-sync/
   internal/state           bounded flock + compacted event log + offset index + atomic snapshot (crash safe)
   internal/bus             seq-poll subscribe + one-hub unix-socket fan-out (short-path fallback via bus.addr)
   internal/label           §11.4.182 compose / validate / sanitise / derive-via-labeler
-  prove_mutations.sh       paired-mutation proof (37 mutants against a scratch copy)
+  prove_mutations.sh       paired-mutation proof (48 mutants against a scratch copy; a kill needs a `--- FAIL:` line, a non-compiling mutant is UNDETERMINED and fails the proof)
 scripts/label-sync/render/   renderers (statusline, title, shell integration, labelrun, …) — see RENDERERS.md
 scripts/gates/cm_label_sync_core.sh (+ _mutation_test.sh)   gate
 ```
@@ -63,4 +63,6 @@ niced and one at a time on a loaded host (§12.6/§12.7).
 Hook wiring (SessionStart/PreToolUse), registry bridges (§11.4.147/§11.4.208) and
 `install` auto-wiring (§11.4.164/228) consume this contract and are built by other
 streams. The statusLine / terminal-title / shell / tmux / `labelrun` / live-watch
-RENDERERS are documented in [`RENDERERS.md`](RENDERERS.md).
+RENDERERS are documented in [`RENDERERS.md`](RENDERERS.md). The review-2 fix
+round (findings, fix commits, RED evidence, mutants) is in
+[`REVIEW-FIXES.md`](REVIEW-FIXES.md).

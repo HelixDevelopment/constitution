@@ -18,7 +18,8 @@
 #           salt_exported guard its return instead.
 # Usage   : bash scripts/label-sync/render/prove_mutations.sh [--only <mutant>]
 # Inputs  : none (reads the render dir next to this script).
-# Outputs : one line per mutant KILLED / SURVIVED / NOT-APPLIED, then a summary.
+# Outputs : one line per mutant KILLED / SURVIVED / NOT-APPLIED / UNDETERMINED (failed
+#           with no FAIL assertion line — never a kill, exit 2), then a summary.
 # Exit    : 0 every mutant killed and control green | 1 a mutant survived or the
 #           control failed | 2 environment (no jq/go, copy failure, a mutation
 #           that did not change its file) — never a pass.
@@ -70,7 +71,7 @@ MUTANTS=(
 
 run_tests() { RENDER_DIR="$1" nice -n 10 timeout 300 bash "$TEST" >"$2" 2>&1; }
 
-fail=0; killed=0; total=0
+fail=0; killed=0; total=0; undet=0
 CTL="$TMP/control"; mkdir -p "$CTL" && cp -R "$SELF/." "$CTL/" || exit 2
 if run_tests "$CTL" "$TMP/control.log"; then echo "CONTROL   unmutated copy: tests PASS"
 else echo "CONTROL   FAILED — unmutated tests do not pass"; grep -E '^FAIL' "$TMP/control.log" | head; exit 1; fi
@@ -86,9 +87,14 @@ for m in "${MUTANTS[@]}"; do
   rm -f "$d/$file.orig"
   if run_tests "$d" "$TMP/$name.log"; then
     echo "SURVIVED  $name — tests still pass with the mutation"; fail=1
+  elif ! grep -q '^FAIL' "$TMP/$name.log"; then
+    # the run died with no failing assertion (syntax error, timeout, crash):
+    # proves nothing about the tests — UNDETERMINED, never a kill (§11.4.201)
+    echo "UNDETERMINED $name — tests failed with no FAIL assertion line (tail: $(tail -1 "$TMP/$name.log" | cut -c1-80))"; undet=1
   else
     echo "KILLED    $name  ($(grep -c '^FAIL' "$TMP/$name.log") failing case(s): $(grep '^FAIL' "$TMP/$name.log" | head -2 | cut -c1-70 | tr '\n' ';'))"; killed=$((killed+1))
   fi
 done
 echo "SUMMARY   $killed/$total mutants killed"
+[ "$undet" -eq 0 ] || { echo "UNDETERMINED: at least one mutant was not killed by an assertion — not a pass"; exit 2; }
 [ "$fail" -eq 0 ] && [ "$killed" -eq "$total" ]

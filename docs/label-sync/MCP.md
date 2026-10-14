@@ -3,12 +3,12 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/MCP.md` |
-| Revision | 1 (2026-10-12) |
+| Revision | 2 (2026-10-14) — second-review fixes: explicit alias pins, 4 MiB line cap, no guessed `type`, consumer-resolvable path |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed) |
 | Implements | §11.4.182 (label), §11.4.116 (bus), §11.4.228(D) (MCP registration seam), §11.4.18 |
 | Code | `scripts/label-sync/mcp/label-mcp/` (Go, stdlib only) + launcher `scripts/label-sync/mcp/label-mcp.sh` |
 | Config | `mcp/label-sync-mcp.json` |
-| Tests | `scripts/label-sync/mcp/label-mcp/server_test.go` (`go test -race`), mutation proof `scripts/label-sync/mcp/prove_mcp_mutations.sh`, gate `scripts/gates/cm_label_sync_mcp.sh` |
+| Tests | `scripts/label-sync/mcp/label-mcp/server_test.go` (`go test -race`), mutation proof `scripts/label-sync/mcp/prove_mcp_mutations.sh` (14 mutants, each killed by a `--- FAIL:` line), gate `scripts/gates/cm_label_sync_mcp.sh` |
 
 ## What it is
 
@@ -25,6 +25,16 @@ bash scripts/label-sync/mcp/label-mcp.sh          # builds when missing/stale, t
 
 `mcp/label-sync-mcp.json` follows the repo's MCP-config convention
 (`mcp/scheduled-work-mcp.json`): `{"mcpServers":{"label-sync":{"command":"scripts/label-sync/mcp/label-mcp.sh", ...}}}`.
+The path is relative to the CONSTITUTION root; `post_update_hook.sh` step 3
+rewrites it for the consumer to `<constitution-dir-relative-to-project>/scripts/…`
+(e.g. `constitution/…` or `submodules/constitution/…`; absolute when the
+constitution lives outside the project). The entry carries `command`, `args`,
+`env` — the shape this repository documents for Claude Code `.mcp.json`
+(`submodules/polyscreen-mcp/README.md`); the earlier `"type": "command"` was a
+guess and is removed. That Claude Code launches a project-scope stdio server
+with the project root as its working directory, and that it honours
+`autoApprove`/`disabled`/`description`, are **UNCONFIRMED** (not documented
+here).
 `autoApprove` is limited to the read-only tools (`label_get`, `label_list`,
 `label_active`); the mutating tools prompt the operator.
 `post_update_hook.sh` / the §11.4.228(D)(3) MCP-registration seam merges this file
@@ -39,7 +49,7 @@ State dir: `LABEL_SYNC_DIR` (default `$HOME/.local/state/constitution-label-sync
 | `label_get` | `id` **or** `session_id` | the entity JSON incl. `label`; `session_id` returns the session entity (else first match); neither / unknown → `isError` |
 | `label_list` | `kind?`, `alias?` (EFFECTIVE alias) | `{seq, entities[]}`; invalid `kind` → `isError` |
 | `label_switch_alias` | `alias` (required), `model?`, `effort?` | `{alias,model,effort,seq}`; appends an `alias_switch` event, followers relabel in the same write; empty alias → `isError`, nothing logged |
-| `label_register` | `id`, `kind` (required); `parent_id session_id pid cwd track branch alias model effort follow_active state source` | the registered entity (label rendered); `follow_active` defaults to `true`; bad kind/pid/state → `isError` |
+| `label_register` | `id`, `kind` (required); `parent_id session_id pid cwd track branch alias model effort follow_active state source` | the registered entity (label rendered); `follow_active` defaults to `true` WITHOUT an `alias` and to `false` WITH one (an explicit alias pins; only alias-less roots follow the active context, CONTRACT §4.2); an explicit `follow_active` wins; bad kind/state, or a pid outside 0..4194304 (`MaxPID`) → `isError` |
 | `label_heartbeat` | `id`, `state?` | refreshed entity; unknown id → `isError` |
 | `label_done` | `id` | entity with `state=done`; unknown id → `isError` |
 | `label_active` | — | `{alias,model,effort,switched_at,seq}` (empty alias when none) |
@@ -62,7 +72,7 @@ working (2 is never a pass, §11.4.6).
 | batch (array) | answered as an array; invalid items answered individually |
 | ids | numbers and strings echoed verbatim |
 | ordering | pipelined requests keep **read-after-write** order: a mutating tool (`label_register/heartbeat/done/switch_alias`, any batch) starts only after every earlier request finished; reads start after the latest earlier mutation and run concurrently with each other. Responses are emitted in request order |
-| long lines | no 64 KB cap (300 KB request tested) |
+| long lines | up to 4 MiB per request line (300 KB tested); a longer line is DISCARDED while reading (memory stays bounded — a 150 MB line used to cost 566 MB RSS) and answered with ONE `-32600` "request line too large"; the next line is served |
 | stdin EOF | every in-flight call is answered, then exit 0 |
 | stdout | JSON-RPC only; diagnostics on stderr |
 
@@ -73,4 +83,7 @@ working (2 is never a pass, §11.4.6).
   Claude Code / other agent's MCP client (the host's agents were not driven
   through MCP; only a faithful hand-rolled client was).
 * `label_register` over MCP trusts the caller; there is no auth (local stdio only).
-* Registered entities need a heartbeat (TTL 120 s) or they render `[stale]`.
+* Registered entities need a heartbeat (TTL 120 s) or they render `[stale]`; a
+  turn-based agent cannot keep a timer, so update EVENT-DRIVEN (register at
+  start, heartbeat when a unit of work starts/ends, done at the end) and accept
+  `[stale]` between events (skills/label-sync/SKILL.md).

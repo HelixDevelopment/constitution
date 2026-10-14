@@ -3,11 +3,11 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/ADAPTERS.md` |
-| Revision | 1 (2026-10-12) |
+| Revision | 2 (2026-10-14) — second-review fixes: exact rollback + idempotency from existing configs, 0600 backups without duplicates, quoted/encoded paths, metacharacter refusal, option-value check, wrapper signal handling (§4, §5) |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed); capability level per agent below — read it before relying on an agent |
 | Implements | §11.4.182 (label), §11.4.228 (cross-agent extension lifecycle: detect, wire, self-validate, idempotent, dry-run), §11.4.164, §11.4.233 (level-triggered), §11.4.18 |
 | Code | `scripts/label-sync/adapters/` (lib, per-agent adapters, `install_adapters.sh`, `_edit_config.py`) |
-| Tests | `adapters/tests/test_adapters.sh` (hermetic, 150 assertions), `adapters/tests/test_real_agents.sh` (real agents, 17 checks), `scripts/label-sync/prove_adapter_mutations.sh` (15 mutants), gate `scripts/gates/cm_label_sync_adapters.sh` |
+| Tests | `adapters/tests/test_adapters.sh` (hermetic, 186 assertions), `adapters/tests/test_real_agents.sh` (real agents, 17 checks), `scripts/label-sync/prove_adapter_mutations.sh` (28 mutants), gate `scripts/gates/cm_label_sync_adapters.sh` |
 | Builds on | [`CONTRACT.md`](CONTRACT.md), [`HOOKS.md`](HOOKS.md) (Claude Code), [`RENDERERS.md`](RENDERERS.md) |
 
 ## Contents
@@ -153,13 +153,31 @@ Contract (§11.4.228(D)(4,5)): idempotent (second `--apply` is byte-identical an
 writes no backup); **refuses** an existing file that is not valid JSON/TOML/YAML
 (exit 1, file untouched, no backup); **never clobbers** a user's own setting
 (codex `notify`, aider `notifications-command` already set ⇒ `conflict`, exit 1);
-backs up to `<cfg>.label-sync.bak.<UTC>` before every change; writes atomically;
-follows a symlinked config to its target; new files are `0600`; `--home DIR`
-pins every path under DIR and ignores `$HOME/$XDG_*`, so tests cannot touch the
-real home. Exit: 0 ok · 1 refused · 2 cannot determine (never a pass).
-`post_update_hook.sh` should call `install_adapters.sh --apply` (the seam is the
-HOOKS stream's; this CLI is the stable interface). Managed regions in TOML/YAML
-are delimited by `# >>> label-sync adapters … >>>` / `# <<< label-sync adapters <<<`.
+backs up to `<cfg>.label-sync.bak.<UTC>` before every change — created `0600`
+from birth (`O_EXCL`, whatever the umask or the config's own mode: a kimi config
+may hold an `api_key`) and NEVER a second copy of identical bytes, so apply /
+remove cycles leave at most two backups per file; writes atomically; follows a
+symlinked config to its target; new files are `0600`; `--home DIR` pins every
+path under DIR and ignores `$HOME/$XDG_*`, so tests cannot touch the real home.
+Exit: 0 ok · 1 refused · 2 cannot determine (never a pass). A value option
+given last without its value (`--home`, `--agents`) is exit 2 (it used to loop
+forever).
+
+**Idempotent from EXISTING files, exact rollback (revision 2).** A second
+`--apply` is byte-identical also when the configs existed before (it used to
+add a blank line and a new backup on every run). `--apply --remove` restores
+the ORIGINAL BYTES: in TOML/YAML the managed block, delimited by
+`# >>> label-sync adapters … >>>` / `# <<< label-sync adapters <<<`, records the
+separator newlines it inserted (`# label-sync-sep: pre=N post=M`) and removal
+takes back exactly those; a JSON config is restored from the backup whose
+parsed content equals the un-wired result (ignoring the `$schema` the installer
+itself added for opencode); a config the installer CREATED is deleted again.
+Hook commands are shell-quoted (`shlex`) so a constitution path with spaces
+works, the opencode plugin URL is percent-encoded, and an adapters directory
+containing `$`, a backquote, `"`, `\` or a newline is refused (exit 2) — such a
+character would be interpreted when the hook command runs.
+`post_update_hook.sh` step 4d runs this installer when adapter files change,
+DRY-RUN by default (`LABEL_SYNC_ADAPTERS=apply` writes, `off` skips; HOOKS.md §7).
 
 What each `--apply` writes (abridged):
 
@@ -191,8 +209,26 @@ bash scripts/label-sync/adapters/generic/label-agent-run.sh --agent codex --mode
 ```
 
 It registers a `session` entity (alias = agent name unless `--alias`), supervises
-the child **without exec** (exact exit code, TERM/INT/HUP forwarded to the one
-child, never a process group — §11.4.263), and marks the entity `done` at exit.
+the child **without exec** (exact exit code, never a process group — §11.4.263),
+and marks the entity `done` at exit. Signals (revision 2, review-2 findings B
+and F):
+
+* the agent starts with DEFAULT `SIGINT`/`SIGQUIT` — `( trap - INT QUIT; exec
+  "$@" ) <&0 &`; a plain `&` child of a non-interactive bash inherits them
+  IGNORED, so a terminal Ctrl-C did not stop the agent (measured `SigIgn` 0x6
+  before, 0x0 after); its stdin is the wrapper's;
+* `TERM`/`HUP` are forwarded to the one child; `INT`/`QUIT` are forwarded ONLY
+  when the child is not in the terminal's foreground process group — otherwise
+  the tty already delivered them, and forwarding would make one Ctrl-C two;
+* the traps are installed BEFORE the entity is registered: a signal that
+  arrives while registering is remembered, the wrapper exits 128+N through its
+  cleanup (the entity ends `done`) and the agent is never started — it used to
+  die with the default action and leave a `running` ghost entity.
+
+A parent that itself ignores `SIGINT` (e.g. a job started in the background of
+a non-interactive shell) passes that on to the wrapper — no shell can reset a
+signal ignored on entry; the tests start their pty with
+`env --default-signal=INT,QUIT` to model an interactive terminal.
 Command arguments are never recorded. The child inherits `LABEL_SYNC_ENTITY_ID`
 so agent-side hooks update the *same* entity. For a plain command/flow without
 agent identity use `render/labelrun`. If the bus is unusable the command still

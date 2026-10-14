@@ -3,12 +3,12 @@
 | Field | Value |
 |---|---|
 | Document | `docs/label-sync/HOOKS.md` |
-| Revision | 2 (2026-10-12) — independent-review fixes (findings 1–11), see [§11](#11-review-findings-addressed-revision-2) |
+| Revision | 3 (2026-10-14) — second-review fixes, see [§12](#12-second-review-fixes-revision-3); revision 2 (2026-10-12) — independent-review fixes (findings 1–11), see [§11](#11-review-findings-addressed-revision-2) |
 | Status | implemented and tested on branch `feature/label-sync` (local, unpushed); live delivery inside a real Claude Code session is UNCONFIRMED (see §2) |
 | Implements | §11.4.182 (label), §11.4.208 / §11.4.210 (request ledger auto-capture), §11.4.228(D) / §11.4.164 (auto-wiring on pull), §11.4.233 (level-triggered), §11.4.18 (script docs) |
 | Builds on | [`CONTRACT.md`](CONTRACT.md) (data contract), [`README.md`](README.md) (core quick start) |
 | Code | `scripts/label-sync/hooks/`, `scripts/label-sync/toolkit/`, `scripts/label-sync/install_label_sync.sh` |
-| Tests | `scripts/hooks/test_label_sync_hooks.sh` (403 assertions), `scripts/label-sync/prove_hook_mutations.sh` + table `scripts/label-sync/hook_mutants.py` (36 mutants), gate `scripts/gates/cm_label_sync_hooks.sh` |
+| Tests | `scripts/hooks/test_label_sync_hooks.sh` (478 assertions), `scripts/label-sync/prove_hook_mutations.sh` + table `scripts/label-sync/hook_mutants.py` (49 mutants; a kill needs a `❌ FAIL` assertion line, else UNDETERMINED, exit 2), gate `scripts/gates/cm_label_sync_hooks.sh` |
 
 ## Contents
 
@@ -23,6 +23,7 @@
 9. [Environment variables](#9-environment-variables)
 10. [Performance, failure behaviour, limits](#10-performance-failure-behaviour-limits)
 11. [Review findings addressed (revision 2)](#11-review-findings-addressed-revision-2)
+12. [Second-review fixes (revision 3)](#12-second-review-fixes-revision-3)
 
 ## 1. What the hooks do
 
@@ -107,17 +108,26 @@ active context. **No hook reads or writes `active.json`.**
 | `label-sync-subagent-stop.sh` | `SubagentStop` | `session_id`, `agent_id` | `unregister` (state `done`) the paired entity; an unpaired/ambiguous agent changes nothing. |
 | `label-sync-stop.sh` | `Stop` | `session_id` | session `idle`; unregisters every pending (never paired) registration — this is where AMBIGUOUS registrations end. A busy writer lock (exit 2) ends the hook at once. |
 | `label-sync-session-end.sh` | `SessionEnd` | `session_id`, `reason` | every entity of the session `done`; drops the session's pending files and agentmap entries. |
-| `label-sync-model-switch.sh` | `PostModelSwitch` (opt-in) | `session_id`, `to_model` | session `--model` updated at once. |
+| `label-sync-model-switch.sh` | `PostModelSwitch` (opt-in) | `session_id`, `to_model`, `transcript_path` | session `--model` updated at once AND recorded in `hooks/modelswitch/<sid>` as `<model> <transcript byte size> <transcript path>`: every later prompt / re-asserting hook keeps the switched model until an assistant entry APPENDED AFTER that offset shows the model actually answering (then the record is dropped). The transcript's last assistant entry predates the switch, so without the record the next prompt undid it (review-2 finding 3). An unknown transcript keeps the record until the next `SessionStart` (with a model), switch or `SessionEnd`. |
 | `label-sync-alias-switch.sh` | not an event hook (CLI) | args | see §4. |
 | `request_history_append.sh` | called by the prompt hook, or run directly | stdin JSON or function args | see §5. |
 
 Hook-private correlation state lives in `$LABEL_SYNC_DIR/hooks/{pending,agentmap,ledger-last}/` (mode 0700).
 
-**Honest limit — parallel same-type dispatches.** Because SubagentStart cannot be tied
-to its dispatch (§2), two concurrently pending dispatches of the same `subagent_type`
-are never paired: their entities show `running` (with their correct labels) until
-`Stop` or `SessionEnd` marks them `done`. A wrong pairing would mark the WRONG
-dispatch done; an unpaired one is merely late.
+**Parallel same-type dispatches and `Stop` — what is KNOWN and what is NOT (review-2 finding 15).**
+
+| Question | Status | Basis |
+|---|---|---|
+| Does `SubagentStart` carry the dispatch's `tool_use_id`? | **KNOWN: no** | binary 2.1.296: its `toolUseID` is a fresh random UUID (§2) |
+| Can two concurrently pending dispatches of the SAME `subagent_type` be told apart at `SubagentStart`? | **KNOWN: not from the payload** | only `agent_type` correlates; ≥ 2 candidates ⇒ nothing is paired (never a guess) |
+| What an unpaired registration shows | **KNOWN (tested, §14)** | `running` with its correct label until `Stop`/`SessionEnd` marks it `done`; a wrong pairing would mark the WRONG dispatch done — an unpaired one is merely late |
+| Does `SubagentStop` fire for a subagent that is cancelled / errors / is killed? | **UNKNOWN** | not observed in a live session; if it does not, the entity stays `running` until `Stop` / `SessionEnd` / the stale sweeper (CONTRACT §6) |
+| Does `Stop` fire before BACKGROUND subagents finish? | **UNKNOWN** | not observed; `Stop` only unregisters PENDING (never-started) dispatches, so an adopted, still-running subagent is left alone either way |
+| Order of `SubagentStart` for N parallel dispatches vs their `PreToolUse` order | **UNKNOWN** | no ordering guarantee is documented; the hooks do not rely on one |
+| Are two hook invocations for the same event serialised? | **UNKNOWN** | the hooks assume NOT: pairing runs under `flock` and every write is idempotent (§14) |
+
+Nothing in this table was observed in a live Claude Code session (§2); every
+UNKNOWN row is a candidate for a recorded observation, not a guess.
 
 ## 4. The alias-switch signal and the claude toolkit
 
@@ -278,6 +288,26 @@ git hook names are installed — `guard-*.sh` and `test_*.sh` from `scripts/hook
 copied into `.git/hooks`. (Steps 4b and earlier are owned by other streams; see §11 for the
 one that can still abort the script.)
 
+**Revision 3 (review-2 C, D, E, L).** Every step of `post_update_hook.sh` now runs through
+`run_step`: a step that fails is recorded as a WARNING and the NEXT step still runs (the
+"step 4c always runs" statement above was false while any earlier step could abort under
+`set -e` — e.g. an unparseable consumer `.mcp.json` made `jq` exit 5 and steps 4-5 never ran;
+such a `.mcp.json` is now left untouched with a warning). No step returns non-zero on a reachable input today, so the isolation is proven through the inert, test-only seam `POST_UPDATE_HOOK_FAULT_STEP=<step function>` (the real step runs, then its status is forced to 97); suite §20 asserts the warning and that every later step still ran, and mutant `run_step_propagates_failure` is killed by it. Step 3 rewrites an MCP config path
+that exists only under the constitution (e.g. `scripts/label-sync/mcp/label-mcp.sh`) to
+`<constitution-dir-relative-to-project>/<path>` (absolute when the constitution lives outside
+the project); that Claude Code starts a project-scope stdio server with the project root as
+its working directory is **UNCONFIRMED** (not documented in this repository). **Step 4d**
+runs `scripts/label-sync/adapters/install_adapters.sh` when adapter files changed:
+
+| `LABEL_SYNC_ADAPTERS` | Behaviour |
+|---|---|
+| unset / `dry-run` (default) | records what would be wired into the USER's agent configs; writes nothing |
+| `apply` | wires the detected agents (backup, exact rollback, see ADAPTERS.md §4) |
+| `off` | skipped |
+
+Step 5 also syntax-checks every changed `scripts/label-sync/**/*.sh` (they were classified as
+label-sync changes and skipped).
+
 ## 8. Rollback
 
 * Installer: `install_label_sync.sh … --uninstall --apply` removes exactly our hook entries and our
@@ -302,6 +332,7 @@ one that can still abort the script.)
 | `LABEL_SYNC_HOOK_DEBUG=1`, `LABEL_SYNC_HOOK_STDERR=<file>` | diagnostics to `hooks/debug.log` / hook stderr to a file |
 | `LABEL_SYNC_INSTALL_LOCK_WAIT` | installer: seconds to wait for the settings-dir lock (10) |
 | `LABEL_SYNC_AUTOWIRE` | `dry-run` (default) / `apply` / `off` for `post_update_hook.sh` |
+| `LABEL_SYNC_ADAPTERS` | `dry-run` (default) / `apply` / `off` for `post_update_hook.sh` step 4d (CLI-agent adapters) |
 
 Removed in revision 2: `LABEL_SYNC_NO_SWITCH_ON_RESUME` (hooks no longer publish an alias
 switch on resume — the session simply re-pins).
@@ -311,7 +342,13 @@ switch on resume — the session simply re-pins).
 * **Latency** (median of 5, loaded host, load average ≈ 12, 2026-10-12, suite section 8):
   `UserPromptSubmit` 100 ms, `SessionStart` 75 ms, `PreToolUse` register 58 ms, `Stop` 42 ms,
   `SubagentStop` 34 ms; runs vary ±40 ms with load; the bound asserted by the suite is 150 ms
-  (`LS_LATENCY_MS`). One profiled `UserPromptSubmit` (timestamped xtrace, 88 ms): labeler 22 ms,
+  (`LS_LATENCY_MS`). Since revision 3 the bound is LOAD-AWARE: it is applied to the wall-clock
+  median on an uncontended host exactly as before; only when CPU contention is MEASURED during
+  the run (the suite's own cgroup was throttled — `nr_throttled` grew — or cpu PSI `some avg10`
+  ≥ 10) is it applied to the hooks' CPU time (user+sys of the hook and all children) instead,
+  and the PASS line says so (review-2 finding L: 3 latency failures under a CPU-limited
+  scope). Measured 2026-10-14 (uncontended): prompt 112 ms, SessionStart 94 ms, register
+  72 ms, Stop 56 ms, SubagentStop 36 ms. One profiled `UserPromptSubmit` (timestamped xtrace, 88 ms): labeler 22 ms,
   flock + perl row builder 20 ms, `labelctl update` 8 ms, payload `jq` 6 ms, `cat` 5 ms. Rules
   that keep it there: no external process a builtin can replace; one `jq` for the payload;
   `register`/`update` print the rendered label, so no separate `labelctl label`; the
@@ -353,3 +390,16 @@ test BEFORE the fix (suite sections named), then fixed:
 **Not fixed here (owned elsewhere):** `post_update_hook.sh` step 4b (`install_action_plugins`)
 still returns 1 when its installer is missing, which under `set -e` would abort the script
 before step 4c; that step belongs to another stream.
+
+## 12. Second-review fixes (revision 3)
+
+| # | Finding | Fix | Test |
+|---|---|---|---|
+| 1 | a branch named `fix(ui)` (legal) made every parser drop the alias: the session followed the ACTIVE alias, `--derive` exited 2, SessionStart still said "pinned" | the canonical labeler maps `)` and ` - ` (and line controls) in a field to `_`, exactly like `label.Compose`; SessionStart says "pinned" only when an alias was derived, else "follows the operator's active alias" | §19: `fix(ui)`, `q"uote`, unicode, 200-char branch; alias-less session wording |
+| 2 | gate exit PASS when jq/go/python3 absent; suite exit 2 reported as FAIL | `CM-LABEL-SYNC-HOOKS` exits 2 (CANNOT DETERMINE) for both | meta-test cases 14-16 |
+| 3 | `PostModelSwitch` undone by the next prompt | switch record + transcript offset (§3) | §19 F3 |
+| 10 | the `"` escape in `ls_emit_context` untested (mutant B2 survived) | test with branch `q"uote` | §19 F10 + mutant `emit_context_no_quote_escape` |
+| 13 | one binary cache for every checkout | per-checkout key + `.source-commit` (CONTRACT §7) | §21 |
+| 15 | parallel same-type pairing / Stop semantics UNCONFIRMED | known/unknown table (§3) | — (documentation) |
+| C/D/E/L | post-update aborts, unresolvable MCP path, adapters never wired, label-sync scripts not syntax-checked, latency asserts not load-aware | §7 revision 3, §10 | §20, §8 |
+
