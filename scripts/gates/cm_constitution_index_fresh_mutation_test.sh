@@ -60,9 +60,10 @@ PY
   r="$TMP/g3"; rm -rf "$r"; mkroot "$r"
   f=""; for _m in "$r"/groups/*.md; do f="$_m"; break; done; printf '\nhand edit\n' >> "$f"
   out=$(bash "$g" --root "$r" 2>&1); rc=$?
-  # V5 N3: the drift FAIL must print a command that actually repairs drift. regenerate_if_stale.sh answers
-  # "fresh ... nothing to do" when only a group was hand-edited (the checksum still matches), so the
-  # message must name the generator's own `generate` invocation for THIS root.
+  # V5 N3: the drift FAIL must print a command that actually repairs drift: the generator's own `generate`
+  # invocation for THIS root. It must not point at the regenerate_if_stale.sh helper, which this batch
+  # removed (it answered "fresh ... nothing to do" when only a group was hand-edited, because the checksum
+  # still matched); the negative grep below keeps that pointer from coming back.
   if [ "$rc" -eq 1 ] && grep -qF "constitution_generate.py generate --source $r/Constitution.md --groups-dir $r/groups --index-out $r/constitution_index.yaml" <<<"$out" \
      && ! grep -q 'regenerate_if_stale.sh' <<<"$out"; then
     ok "G3 golden-false: a hand-edited group .md (checksum fresh) FAILs and prints the generator's generate command"
