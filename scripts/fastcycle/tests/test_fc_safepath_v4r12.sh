@@ -137,7 +137,9 @@ if want PARITY; then
   ln -s "$P/tgt" "$P/fl/theirlink"
   HAVE_F=1
   foreign "$P/f755" "$P/f1777" "$P/fmid" "$P/fl/theirlink" || HAVE_F=0
-  rows="own755:$P/own755:trusted own1777:$P/own1777:trusted rootsticky:${TMPDIR:-/tmp}:trusted mylink:$P/mylink:trusted"
+  # rootsticky is /tmp itself (root, 1777), NOT ${TMPDIR}: a TMPDIR that is not a root-owned sticky directory
+  # silently turned this row into a non-sticky one and V4R12-M3 (the sticky exemption lost) survived (round 14b).
+  rows="own755:$P/own755:trusted own1777:$P/own1777:trusted rootsticky:/tmp:trusted mylink:$P/mylink:trusted"
   rows="$rows own777:$P/own777:refused missing:$P/nope/x:refused"
   if [ "$HAVE_F" = 1 ]; then
     rows="$rows f755:$P/f755:refused f1777:$P/f1777:refused fmid:$P/fmid/inner:refused flink:$P/fl/theirlink:refused"
